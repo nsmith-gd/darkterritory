@@ -1,5 +1,8 @@
 using System.Text.Json;
+using System.Diagnostics;
 using Ballast;
+using Ballast.Render;
+using DarkTerritory.Game;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
@@ -19,6 +22,7 @@ return args switch
     ["train", "climb", var cars, var grade, ..] => Print(TrainScenarios.Climb(train, int.Parse(cars), double.Parse(grade), Opt(args, "--from", 10), Opt(args, "--load", 1))),
     ["line", "info", var name, ..] => Print(LineInfo(LoadLine(name), Opt(args, "--every", 100))),
     ["line", "drive", var name, ..] => Print(Drive(train, LoadLine(name), (int)Opt(args, "--cars", 3), Opt(args, "--start", -1), Opt(args, "--from", 0), Opt(args, "--throttle", 1), (int)Opt(args, "--seconds", 120))),
+    ["screenshot", ..] => Print(Screenshot(train, content, args)),
     _ => Usage(),
 };
 
@@ -86,6 +90,37 @@ static object Drive(TrainTuning t, RailLine line, int cars, double start, double
     return new { line = line.Name, cars, massT = consist.MassTonnes, samples };
 }
 
+// Renders a greybox frame to PNG with no window. On machines without a GPU this uses Mesa lavapipe.
+static object Screenshot(TrainTuning t, string content, string[] args)
+{
+    string view = Str(args, "--view", "trackside");
+    string lineName = Str(args, "--line", "test-loop");
+    int cars = (int)Opt(args, "--cars", 6);
+    int width = (int)Opt(args, "--width", 640), height = (int)Opt(args, "--height", 360), scale = (int)Opt(args, "--scale", 2);
+    string output = Str(args, "--out", $"out/shots/{view}.png");
+
+    var line = RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
+    var consist = Consist.Uniform(t, cars, 1);
+    var train = new TrainOnLine(new TrainDynamics(consist), line, Opt(args, "--at", 1200));
+    var camera = Views.Get(view, train, (int)Opt(args, "--car", 2));
+
+    var clock = Stopwatch.StartNew();
+    using var gpu = new GpuContext("dt screenshot");
+    using var renderer = new GreyboxRenderer(gpu, width, height);
+    var mesh = new MeshBuilder();
+    new GreyboxScene().Build(mesh, train, camera.Position);
+    var lighting = Views.Lighting(train);
+    var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor);
+    PngWriter.Write(output, pixels, width, height, scale);
+    return new { path = Path.GetFullPath(output), view, device = gpu.DeviceName, triangles = mesh.Count / 3, width = width * scale, height = height * scale, ms = clock.ElapsedMilliseconds };
+}
+
+static string Str(string[] args, string name, string fallback)
+{
+    int i = Array.IndexOf(args, name);
+    return i >= 0 && i + 1 < args.Length ? args[i + 1] : fallback;
+}
+
 static double Opt(string[] args, string name, double fallback)
 {
     int i = Array.IndexOf(args, name);
@@ -107,6 +142,8 @@ static int Usage()
           train climb <cars> <grade%> [--from v] [--load l]
           line info <name> [--every m]             position/grade profile of content/lines/<name>.json
           line drive <name> [--cars n] [--start s] [--from v] [--throttle 0..1] [--seconds t]
+          screenshot [--view trackside|roof|cab|chase|ahead] [--line name] [--cars n] [--at s] [--car i]
+                     [--width w] [--height h] [--scale k] [--out file.png]
         """);
     return 2;
 }

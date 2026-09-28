@@ -9,11 +9,14 @@ dotnet build Ballast.slnx                          # warnings are errors
 dotnet test --solution Ballast.slnx                # all tests (Microsoft.Testing.Platform runner)
 dotnet test --project tests/DarkTerritory.Sim.Tests  # one project
 dotnet run --project src/DarkTerritory.Cli -- train table   # `dt`: headless inspection tool, JSON out
+dotnet run --project src/DarkTerritory.Cli -- screenshot --view roof   # PNG to out/shots/; then Read it to look
 ```
-Cloud sessions: `.claude/hooks/session-start.sh` installs the .NET 10 SDK from Ubuntu apt (the Microsoft download host is blocked by the proxy).
+**Look at your visual changes.** After touching rendering or scene code, render the relevant `dt screenshot` views and read the PNGs before calling it done. Views: trackside, roof, cab, chase, ahead.
+Cloud sessions: `.claude/hooks/session-start.sh` installs the .NET 10 SDK from Ubuntu apt (the Microsoft download host is blocked by the proxy) and Mesa lavapipe (software Vulkan) for rendering without a GPU.
 
 ## Layout
-- `src/Ballast.*` — engine modules. `src/DarkTerritory.Sim` — shared host/client simulation. `src/DarkTerritory.Cli` — `dt`.
+- `src/Ballast.*` — engine modules (`Ballast.Render`: Vulkan 1.3, GLSL shaders embedded as text and compiled at startup).
+- `src/DarkTerritory.Sim` — shared host/client simulation. `src/DarkTerritory.Game` — presentation (greybox scene, views). `src/DarkTerritory.Cli` — `dt`.
 - `content/` — all game data (JSON with comments, hot-reloaded). This is also the base mod.
 - `tests/` — xunit v3. `SpecTableTests` pin the sim to the systems spec.
 

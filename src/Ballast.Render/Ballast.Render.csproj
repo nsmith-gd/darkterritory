@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Ballast.Render</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Vortice.Vulkan" Version="3.2.3" />
+    <PackageReference Include="Vortice.ShaderCompiler" Version="1.9.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Ballast.Core/Ballast.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Shaders stay GLSL text in the repo and compile at startup: no binary blobs to regenerate. -->
+    <EmbeddedResource Include="Shaders/*.vert;Shaders/*.frag" LogicalName="Shaders/%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

@@ -4,6 +4,6 @@
     <AssemblyName>dt</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../DarkTerritory.Sim/DarkTerritory.Sim.csproj" />
+    <ProjectReference Include="../DarkTerritory.Game/DarkTerritory.Game.csproj" />
   </ItemGroup>
 </Project>

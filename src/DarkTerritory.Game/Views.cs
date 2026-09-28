@@ -1,0 +1,49 @@
+using System.Numerics;
+using Ballast;
+using Ballast.Render;
+using DarkTerritory.Sim.Train;
+
+namespace DarkTerritory.Game;
+
+/// <summary>
+/// Named camera setups for screenshots, so an agent or a designer can ask for "the roof of car 2"
+/// instead of coordinates. Each view also places the engine's headlamp.
+/// </summary>
+public static class Views
+{
+    public static readonly string[] Names = ["trackside", "roof", "cab", "chase", "ahead"];
+
+    public static Camera Get(string name, TrainOnLine train, int car = 2)
+    {
+        var engine = train.Frames[0];
+        var target = train.Frames[Math.Min(car, train.Frames.Count - 1)];
+        double roof = target.Shape.Body.Max.Y;
+        double engineHalf = engine.Shape.Body.Max.Z;
+        return name switch
+        {
+            "trackside" => Camera.LookAt(engine.ToWorld(new Double3(9, 1.7, -engineHalf - 25)), target.ToWorld(new Double3(0, 2.5, 0)), 60),
+            "roof" => Camera.LookAt(target.ToWorld(new Double3(0.2, roof + 1.65, 3)), target.ToWorld(new Double3(0, roof + 1.2, -40)), 75),
+            "cab" => Camera.LookAt(engine.ToWorld(new Double3(1.15, 3.0, engineHalf * 0.8)), engine.ToWorld(new Double3(1.3, 2.4, -60)), 75),
+            "chase" => ChaseCamera(train),
+            "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
+            _ => throw new ArgumentException($"unknown view '{name}' (known: {string.Join(", ", Names)})"),
+        };
+    }
+
+    static Camera ChaseCamera(TrainOnLine train)
+    {
+        var last = train.Frames[^1];
+        var mid = train.Frames[train.Frames.Count / 2];
+        return Camera.LookAt(last.ToWorld(new Double3(-12, 14, last.Shape.Body.Max.Z + 30)), mid.ToWorld(new Double3(0, 2, 0)), 60);
+    }
+
+    public static FrameLighting Lighting(TrainOnLine train)
+    {
+        var engine = train.Frames[0];
+        var light = FrameLighting.Night;
+        light.LampPosition = engine.ToWorld(new Double3(0, 2.8, -engine.Shape.Body.Max.Z - 0.3));
+        var fwd = engine.Back * -1;
+        light.LampDirection = Vector3.Normalize(new Vector3((float)fwd.X, (float)fwd.Y - 0.04f, (float)fwd.Z));
+        return light;
+    }
+}
