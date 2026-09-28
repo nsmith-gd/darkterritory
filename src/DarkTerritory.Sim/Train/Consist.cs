@@ -7,7 +7,8 @@ public sealed class Consist
 
     public Consist(TrainTuning tuning) => Tuning = tuning;
 
-    public TrainTuning Tuning { get; }
+    /// <summary>Swappable so edited tuning files apply to a running train.</summary>
+    public TrainTuning Tuning { get; set; }
     public int CarCount => _loads.Count;
     public IReadOnlyList<double> Loads => _loads;
 

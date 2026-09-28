@@ -1,0 +1,121 @@
+using Ballast;
+using Ballast.Render;
+using DarkTerritory.Sim;
+using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Train;
+
+namespace DarkTerritory.Game;
+
+/// <summary>
+/// Single-player feel prototype (roadmap M1): one train, one player, live-reloaded tuning.
+/// Exists to answer spec G.1 (does the 4:1 speed ratio feel right?) and G.2 (is a 94 s roof
+/// traverse fun?). Networking replaces the direct sim calls in M2; the sim itself doesn't change.
+/// </summary>
+public sealed class PrototypeSession
+{
+    readonly HotData<TrainTuning> _trainTuning;
+    readonly HotData<PlayerTuning> _playerTuning;
+    PlayerState _previousPlayer;
+    double _previousDistance;
+
+    public PrototypeSession(string contentRoot, string lineName = "test-loop", int cars = 6, double start = 600)
+    {
+        _trainTuning = new HotData<TrainTuning>(Path.Combine(contentRoot, TrainTuning.File));
+        _playerTuning = new HotData<PlayerTuning>(Path.Combine(contentRoot, PlayerTuning.File));
+        var line = RailLine.Load(Path.Combine(contentRoot, "lines", lineName + ".json"));
+        Train = new TrainOnLine(new TrainDynamics(Consist.Uniform(_trainTuning.Value, cars, 1)), line, start);
+        Controls = new TrainControls { Reverser = 1 };
+        Respawn(1);
+    }
+
+    public TrainOnLine Train { get; }
+    public PlayerState Player;
+    public TrainControls Controls;
+    public long Tick { get; private set; }
+    public string? LastReloadError { get; private set; }
+
+    public TrainTuning TrainTuning => _trainTuning.Value;
+    public PlayerTuning PlayerTuning => _playerTuning.Value;
+
+    public void Step(in PlayerIntent intent)
+    {
+        ReloadTuning();
+        _previousPlayer = Player;
+        _previousDistance = Train.Dynamics.Distance;
+        Train.Step(SimConstants.TickSeconds, Controls);
+        PlayerMotor.Step(ref Player, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds);
+        Tick++;
+    }
+
+    void ReloadTuning()
+    {
+        if (_trainTuning.Refresh(e => LastReloadError = e.Message))
+        {
+            Train.Dynamics.Consist.Tuning = _trainTuning.Value;
+            LastReloadError = null;
+        }
+        if (_playerTuning.Refresh(e => LastReloadError = e.Message))
+            LastReloadError = null;
+    }
+
+    /// <summary>Regulator in quarter notches, like a real throttle quadrant.</summary>
+    public void Notch(int delta) => Controls.Throttle = Math.Clamp(Math.Round(Controls.Throttle * 4 + delta) / 4, 0, 1);
+
+    /// <summary>The reverser only moves with the train stopped.</summary>
+    public void FlipReverser()
+    {
+        if (Train.Dynamics.Speed < 0.05)
+            Controls.Reverser = -Controls.Reverser;
+    }
+
+    public void Respawn(int car)
+    {
+        car = Math.Clamp(car, 0, Train.Frames.Count - 1);
+        Player = PlayerMotor.SpawnOnRoof(Train, car, 0, PlayerTuning);
+        _previousPlayer = Player;
+        _previousDistance = Train.Dynamics.Distance;
+    }
+
+    readonly List<CarPose> _renderPoses = new();
+    readonly List<CarFrame> _renderFrames = new();
+
+    /// <summary>Car frames between the previous and current tick, for smooth rendering at any frame rate.</summary>
+    public IReadOnlyList<CarFrame> InterpolatedFrames(double alpha)
+    {
+        double d = _previousDistance + (Train.Dynamics.Distance - _previousDistance) * alpha;
+        Train.PosesAt(d, _renderPoses, _renderFrames);
+        return _renderFrames;
+    }
+
+    /// <summary>First-person eye, interpolated in the player's own frame so riding a car at speed is smooth.</summary>
+    public Camera EyeCamera(IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch)
+    {
+        var cur = Player;
+        var prev = _previousPlayer;
+        var local = prev.Parent == cur.Parent ? Double3.Lerp(prev.Position, cur.Position, alpha) : cur.Position;
+        var eyeLocal = local + Double3.Up * (cur.Alive ? 1.65 : 0.3);
+        bool onCar = cur.Parent != PlayerState.World;
+        var eye = onCar ? frames[cur.Parent].ToWorld(eyeLocal) : eyeLocal;
+        double heading = onCar ? frames[cur.Parent].Heading : 0;
+        return new Camera
+        {
+            Position = eye,
+            Yaw = cur.Yaw + pendingYaw + heading,
+            Pitch = Math.Clamp(cur.Pitch + pendingPitch, -1.5, 1.5),
+            FovYDegrees = 75,
+            Near = 0.05f,
+            Far = 2000,
+        };
+    }
+
+    public string Status()
+    {
+        var d = Train.Dynamics;
+        string where = Player.Parent == PlayerState.World ? "ground" : Player.Parent == 0 ? "engine" : $"car {Player.Parent}";
+        string state = Player.Alive ? $"{Player.Surface} {where} hp {Player.Health}" : $"DEAD ({Player.Death}) — Backspace to respawn";
+        return $"{d.Speed,5:0.0} m/s {SpeedBands.Classify(TrainTuning, d.Speed),-7} | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} rev {(Controls.Reverser > 0 ? "F" : "R")} " +
+               $"| grade {Train.AverageGrade(),4:0.0}% | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state}" +
+               (LastReloadError is null ? "" : $" | TUNING ERROR: {LastReloadError}");
+    }
+}

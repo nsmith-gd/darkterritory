@@ -44,6 +44,15 @@ public sealed class TrainDynamics
 
     public double Speed => Math.Abs(Velocity);
 
+    /// <summary>Adopts authoritative state from the host; clients then re-simulate forward from it.</summary>
+    public void Restore(double distance, double velocity, double brakeEfficiency, double coalUsed)
+    {
+        Distance = distance;
+        Velocity = velocity;
+        BrakeEfficiency = brakeEfficiency;
+        CoalUsed = coalUsed;
+    }
+
     /// <summary>Tractive force in kN at full throttle for the current length.</summary>
     public double MaxTractiveForce => Lookup(Tuning.Performance, r => r.Cars, r => r.Accel) * Consist.LoadedMassTonnes(Tuning, Consist.CarCount);
     /// <summary>Brake force in kN at full application for the current length, before fade.</summary>

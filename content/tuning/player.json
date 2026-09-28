@@ -8,6 +8,21 @@
   "carryHeavy": 2.8,
   "jumpGap": 2.2,
   "health": 100,
+  // Jump strength is derived from jumpGap: at roofRun speed a flat jump carries exactly jumpGap.
+  "gravity": 9.81,
+  "radius": 0.3,
+  "height": 1.8,
+  "stepUp": 0.35,
+  // Spec B.3: jump-off above train.speedBands.jumpOffLethal kills; slower than that you roll and take a knock.
+  "landing": {
+    "rollAbove": 1.5,
+    "rollDamage": 10
+  },
+  "ladder": {
+    "grabRange": 0.7,
+    // You can only grab a ladder moving past you slower than this: "if you could catch it".
+    "grabMaxRelativeSpeed": 3.5
+  },
   "cold": {
     "onsetSeconds": 200,
     "deathSeconds": 320,
