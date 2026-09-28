@@ -71,12 +71,20 @@ public sealed class TrainOnLine
         return mass > 0 ? weighted / mass : 0;
     }
 
-    void UpdatePoses()
+    void UpdatePoses() => PosesAt(Dynamics.Distance, _poses, _frames);
+
+    /// <summary>
+    /// Car poses and frames as they would be with the engine front at <paramref name="distance"/>.
+    /// Renderers use this to draw the train between ticks without touching simulation state.
+    /// </summary>
+    public void PosesAt(double distance, List<CarPose> poses, List<CarFrame> frames)
     {
-        _poses.Clear();
+        poses.Clear();
+        frames.Clear();
         var g = Dynamics.Tuning.Geometry;
-        double front = Dynamics.Distance;
-        for (int i = 0; i <= Dynamics.Consist.CarCount; i++)
+        double front = distance;
+        int count = Dynamics.Consist.CarCount + 1;
+        for (int i = 0; i < count; i++)
         {
             double length = i == 0 ? g.EngineLength : g.CarLength;
             // Bogies sit a fifth of the way in from each end; the body is the chord between them.
@@ -84,11 +92,25 @@ public sealed class TrainOnLine
             var fb = Line.Sample(front - inset).Position;
             var rb = Line.Sample(front - length + inset).Position;
             var forward = (fb - rb).Length > 1e-9 ? (fb - rb).Normalized : Line.Sample(front).Tangent;
-            _poses.Add(new CarPose(i, Double3.Lerp(fb, rb, 0.5), forward, length, front));
+            var pose = new CarPose(i, Double3.Lerp(fb, rb, 0.5), forward, length, front);
+            poses.Add(pose);
+            frames.Add(CarFrame.From(pose, Dynamics.Velocity, Shape(g, i == 0, i < count - 1)));
             front -= length + g.CouplingGap;
         }
-        _frames.Clear();
-        foreach (var pose in _poses)
-            _frames.Add(CarFrame.From(pose, Dynamics.Velocity, CarShape.Build(g, pose.Index == 0, pose.Index < _poses.Count - 1)));
+    }
+
+    readonly Dictionary<(bool, bool), CarShape> _shapes = new();
+    GeometryTuning? _shapeGeometry;
+
+    CarShape Shape(GeometryTuning g, bool engine, bool hasCarBehind)
+    {
+        if (!ReferenceEquals(g, _shapeGeometry))
+        {
+            _shapes.Clear();
+            _shapeGeometry = g;
+        }
+        if (!_shapes.TryGetValue((engine, hasCarBehind), out var shape))
+            _shapes[(engine, hasCarBehind)] = shape = CarShape.Build(g, engine, hasCarBehind);
+        return shape;
     }
 }

@@ -24,7 +24,13 @@ public sealed unsafe class GpuContext : IDisposable
 
     readonly VkPhysicalDeviceMemoryProperties _memory;
 
-    public GpuContext(string appName = "Ballast")
+    /// <summary>Surface to present to, when created with a window; null when headless.</summary>
+    public VkSurfaceKHR Surface { get; }
+    public bool CanPresent => Surface.IsNotNull;
+
+    /// <param name="instanceExtensions">Extra instance extensions, e.g. what SDL needs for a window surface.</param>
+    /// <param name="createSurface">Creates the window surface once the instance exists; enables presentation.</param>
+    public GpuContext(string appName = "Ballast", IReadOnlyList<string>? instanceExtensions = null, Func<VkInstance, VkSurfaceKHR>? createSurface = null)
     {
         if (vkInitialize() != VkResult.Success)
             throw new GpuUnavailableException("Vulkan loader not found (install a GPU driver, or mesa-vulkan-drivers for software rendering)");
@@ -38,12 +44,20 @@ public sealed unsafe class GpuContext : IDisposable
                 pEngineName = pName,
                 apiVersion = VkVersion.Version_1_3,
             };
-            var info = new VkInstanceCreateInfo { pApplicationInfo = &app };
+            using var extensions = new Utf8Array(instanceExtensions ?? []);
+            var info = new VkInstanceCreateInfo
+            {
+                pApplicationInfo = &app,
+                enabledExtensionCount = (uint)extensions.Count,
+                ppEnabledExtensionNames = extensions.Pointers,
+            };
             VkInstance instance;
             Check(vkCreateInstance(&info, null, &instance), "vkCreateInstance");
             Instance = instance;
         }
         InstanceApi = GetApi(Instance);
+        if (createSurface is not null)
+            Surface = createSurface(Instance);
 
         (PhysicalDevice, QueueFamily) = PickDevice();
         VkPhysicalDeviceProperties props;
@@ -56,7 +70,15 @@ public sealed unsafe class GpuContext : IDisposable
         float priority = 1;
         var queueInfo = new VkDeviceQueueCreateInfo { queueFamilyIndex = QueueFamily, queueCount = 1, pQueuePriorities = &priority };
         var features13 = new VkPhysicalDeviceVulkan13Features { dynamicRendering = true, synchronization2 = true };
-        var deviceInfo = new VkDeviceCreateInfo { pNext = &features13, queueCreateInfoCount = 1, pQueueCreateInfos = &queueInfo };
+        using var deviceExtensions = new Utf8Array(CanPresent ? ["VK_KHR_swapchain"] : []);
+        var deviceInfo = new VkDeviceCreateInfo
+        {
+            pNext = &features13,
+            queueCreateInfoCount = 1,
+            pQueueCreateInfos = &queueInfo,
+            enabledExtensionCount = (uint)deviceExtensions.Count,
+            ppEnabledExtensionNames = deviceExtensions.Pointers,
+        };
         VkDevice device;
         Check(InstanceApi.vkCreateDevice(PhysicalDevice, &deviceInfo, null, &device), "vkCreateDevice");
         Device = device;
@@ -105,8 +127,18 @@ public sealed unsafe class GpuContext : IDisposable
             fixed (VkQueueFamilyProperties* p = props)
                 InstanceApi.vkGetPhysicalDeviceQueueFamilyProperties(device, &families, p);
             for (uint i = 0; i < families; i++)
-                if ((props[i].queueFlags & VkQueueFlags.Graphics) != 0)
-                    return (device, i);
+            {
+                if ((props[i].queueFlags & VkQueueFlags.Graphics) == 0)
+                    continue;
+                if (Surface.IsNotNull)
+                {
+                    VkBool32 present;
+                    InstanceApi.vkGetPhysicalDeviceSurfaceSupportKHR(device, i, Surface, &present);
+                    if (!present)
+                        continue;
+                }
+                return (device, i);
+            }
         }
         throw new GpuUnavailableException("no Vulkan 1.3 device with a graphics queue");
     }
@@ -154,6 +186,33 @@ public sealed unsafe class GpuContext : IDisposable
         Api.vkDeviceWaitIdle();
         Api.vkDestroyCommandPool(CommandPool, null);
         Api.vkDestroyDevice(null);
+        if (Surface.IsNotNull)
+            InstanceApi.vkDestroySurfaceKHR(Surface, null);
         InstanceApi.vkDestroyInstance(null);
+    }
+}
+
+/// <summary>Null-terminated UTF-8 strings pinned in unmanaged memory, for Vulkan name arrays.</summary>
+sealed unsafe class Utf8Array : IDisposable
+{
+    readonly nint[] _strings;
+    readonly byte** _pointers;
+
+    public Utf8Array(IReadOnlyList<string> values)
+    {
+        _strings = values.Select(v => (nint)System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(v)).ToArray();
+        _pointers = (byte**)System.Runtime.InteropServices.NativeMemory.Alloc((nuint)Math.Max(1, _strings.Length), (nuint)sizeof(byte*));
+        for (int i = 0; i < _strings.Length; i++)
+            _pointers[i] = (byte*)_strings[i];
+    }
+
+    public int Count => _strings.Length;
+    public byte** Pointers => _pointers;
+
+    public void Dispose()
+    {
+        foreach (var p in _strings)
+            System.Runtime.InteropServices.Marshal.FreeCoTaskMem(p);
+        System.Runtime.InteropServices.NativeMemory.Free(_pointers);
     }
 }

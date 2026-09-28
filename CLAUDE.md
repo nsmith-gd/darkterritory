@@ -11,6 +11,8 @@ dotnet test --project tests/DarkTerritory.Sim.Tests  # one project
 dotnet run --project src/DarkTerritory.Cli -- train table   # `dt`: headless inspection tool, JSON out
 dotnet run --project src/DarkTerritory.Cli -- screenshot --view roof   # PNG to out/shots/; then Read it to look
 ```
+XDG_RUNTIME_DIR=/tmp xvfb-run -a dotnet run --project src/DarkTerritory.App -- --throttle 1 --quit-after 10 --capture out/shots/app.png   # real window path, headless
+```
 **Look at your visual changes.** After touching rendering or scene code, render the relevant `dt screenshot` views and read the PNGs before calling it done. Views: trackside, roof, cab, chase, ahead.
 Cloud sessions: `.claude/hooks/session-start.sh` installs the .NET 10 SDK from Ubuntu apt (the Microsoft download host is blocked by the proxy) and Mesa lavapipe (software Vulkan) for rendering without a GPU.
 

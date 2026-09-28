@@ -37,9 +37,10 @@ public static class Views
         return Camera.LookAt(last.ToWorld(new Double3(-12, 14, last.Shape.Body.Max.Z + 30)), mid.ToWorld(new Double3(0, 2, 0)), 60);
     }
 
-    public static FrameLighting Lighting(TrainOnLine train)
+    public static FrameLighting Lighting(TrainOnLine train) => Lighting(train.Frames[0]);
+
+    public static FrameLighting Lighting(in CarFrame engine)
     {
-        var engine = train.Frames[0];
         var light = FrameLighting.Night;
         light.LampPosition = engine.ToWorld(new Double3(0, 2.8, -engine.Shape.Body.Max.Z - 0.3));
         var fwd = engine.Back * -1;

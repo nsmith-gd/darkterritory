@@ -13,3 +13,20 @@ Requires the .NET 10 SDK.
 dotnet test --solution Ballast.slnx
 dotnet run --project src/DarkTerritory.Cli -- train table
 ```
+
+## Feel prototype
+```bash
+dotnet run --project src/DarkTerritory.App
+```
+| Input | Action |
+|---|---|
+| Mouse · WASD · Shift · Space | Look · move · run · jump |
+| E | Grab / let go of a ladder |
+| R / F | Throttle notch up / down |
+| B (hold) | Brake |
+| X | Reverser (train stopped only) |
+| 1–9 · Backspace | Respawn on that car's roof · respawn |
+| Tab | Chase camera |
+| Esc | Release mouse, then quit |
+
+Speed, speed band, controls, grade and your state are shown in the window title. Edit `content/tuning/*.json` while it runs and the changes apply immediately.

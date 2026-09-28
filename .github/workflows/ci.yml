@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Software Vulkan (lavapipe) for headless render tests
         if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq mesa-vulkan-drivers libvulkan1
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq mesa-vulkan-drivers libvulkan1 xvfb
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
@@ -26,6 +26,9 @@ jobs:
           for v in trackside roof cab chase ahead; do
             dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --view $v --out out/shots/$v.png
           done
+      - name: Prototype window smoke test (Xvfb + lavapipe)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a -s "-screen 0 1280x720x24" dotnet run --project src/DarkTerritory.App -c Release --no-build -- --throttle 1 --quit-after 10 --capture out/shots/app.png
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Linux'
         with:

@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Ballast.Platform</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="ppy.SDL3-CS" Version="2026.722.0" />
+    <PackageReference Include="Vortice.Vulkan" Version="3.2.3" />
+  </ItemGroup>
+</Project>

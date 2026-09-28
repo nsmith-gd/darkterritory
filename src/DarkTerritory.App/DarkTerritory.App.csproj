@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>DarkTerritory</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Ballast.Platform/Ballast.Platform.csproj" />
+    <ProjectReference Include="../DarkTerritory.Game/DarkTerritory.Game.csproj" />
+  </ItemGroup>
+</Project>

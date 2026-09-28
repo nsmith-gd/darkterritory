@@ -15,7 +15,7 @@ fi
 # Software Vulkan so `dt screenshot` and render tests work without a GPU.
 if ! dpkg -s mesa-vulkan-drivers >/dev/null 2>&1; then
   apt-get update -qq
-  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq mesa-vulkan-drivers libvulkan1 >/dev/null
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq mesa-vulkan-drivers libvulkan1 xvfb >/dev/null
 fi
 
 echo 'export DOTNET_CLI_TELEMETRY_OPTOUT=1' >> "${CLAUDE_ENV_FILE:-/dev/null}"

@@ -16,16 +16,20 @@ public sealed class GreyboxScene
     public float DrawDistance { get; init; } = 400;
     public int Seed { get; init; } = 7;
 
-    public void Build(MeshBuilder mesh, TrainOnLine train, Double3 eye)
+    public void Build(MeshBuilder mesh, TrainOnLine train, Double3 eye) =>
+        Build(mesh, train.Line, train.Frames, train.Dynamics.Distance, eye);
+
+    /// <param name="frames">Car frames to draw, e.g. interpolated between ticks.</param>
+    /// <param name="hint">Any distance along the line near the eye, to start the nearest-point search.</param>
+    public void Build(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, double hint, Double3 eye)
     {
         mesh.Clear();
-        var line = train.Line;
-        double centre = NearestDistance(line, eye, train.Dynamics.Distance);
+        double centre = NearestDistance(line, eye, hint);
         double from = Math.Max(0, centre - DrawDistance), to = Math.Min(line.Length, centre + DrawDistance);
 
         Track(mesh, line, eye, from, to, centre);
         Lineside(mesh, line, eye, from, to);
-        foreach (var frame in train.Frames)
+        foreach (var frame in frames)
             Car(mesh, frame, eye);
     }
 

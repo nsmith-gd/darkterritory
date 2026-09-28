@@ -58,69 +58,19 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     public int Width { get; }
     public int Height { get; }
 
+    /// <summary>The rendered frame. After <see cref="Record"/> it is in TransferSrcOptimal layout.</summary>
+    public VkImage ColorImage => _color;
+
     /// <summary>Draws the mesh (camera-relative positions) and returns the frame as RGBA8, top row first.</summary>
     /// <param name="clearColor">Linear colour; gamma-encoded here so the sky matches fogged geometry.</param>
     public byte[] Render(MeshBuilder mesh, in Camera camera, in FrameLighting lighting, Vector3 clearColor)
     {
-        clearColor = new Vector3(MathF.Pow(clearColor.X, 1 / 2.2f), MathF.Pow(clearColor.Y, 1 / 2.2f), MathF.Pow(clearColor.Z, 1 / 2.2f));
-        UploadVertices(mesh.Vertices);
-        var constants = new FrameConstants
-        {
-            ViewProj = camera.ViewProjection((float)Width / Height),
-            Fog = new Vector4(lighting.FogColor, lighting.FogDensity),
-            Moon = new Vector4(lighting.MoonDirection, lighting.Ambient),
-            LampPos = new Vector4(lighting.LampPosition.RelativeTo(camera.Position), lighting.LampRange),
-            LampDir = new Vector4(lighting.LampDirection, MathF.Cos(lighting.LampConeDegrees * MathF.PI / 180)),
-        };
-        int vertexCount = mesh.Count;
-
+        Prepare(mesh);
+        var cam = camera;
+        var light = lighting;
         _gpu.Submit(cmd =>
         {
-            Transition(cmd, _color, VkImageAspectFlags.Color, VkImageLayout.Undefined, VkImageLayout.ColorAttachmentOptimal);
-            Transition(cmd, _depth, VkImageAspectFlags.Depth, VkImageLayout.Undefined, VkImageLayout.DepthAttachmentOptimal);
-
-            var colorAttachment = new VkRenderingAttachmentInfo
-            {
-                imageView = _colorView,
-                imageLayout = VkImageLayout.ColorAttachmentOptimal,
-                loadOp = VkAttachmentLoadOp.Clear,
-                storeOp = VkAttachmentStoreOp.Store,
-                clearValue = new VkClearValue { color = new VkClearColorValue(clearColor.X, clearColor.Y, clearColor.Z, 1) },
-            };
-            var depthAttachment = new VkRenderingAttachmentInfo
-            {
-                imageView = _depthView,
-                imageLayout = VkImageLayout.DepthAttachmentOptimal,
-                loadOp = VkAttachmentLoadOp.Clear,
-                storeOp = VkAttachmentStoreOp.DontCare,
-                clearValue = new VkClearValue { depthStencil = new VkClearDepthStencilValue(1, 0) },
-            };
-            var rendering = new VkRenderingInfo
-            {
-                renderArea = new VkRect2D(0, 0, (uint)Width, (uint)Height),
-                layerCount = 1,
-                colorAttachmentCount = 1,
-                pColorAttachments = &colorAttachment,
-                pDepthAttachment = &depthAttachment,
-            };
-            Api.vkCmdBeginRendering(cmd, &rendering);
-            var viewport = new VkViewport(0, 0, Width, Height, 0, 1);
-            Api.vkCmdSetViewport(cmd, 0, 1, &viewport);
-            var scissor = new VkRect2D(0, 0, (uint)Width, (uint)Height);
-            Api.vkCmdSetScissor(cmd, 0, 1, &scissor);
-            if (vertexCount > 0)
-            {
-                Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _pipeline);
-                var c = constants;
-                Api.vkCmdPushConstants(cmd, _layout, VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment, 0, (uint)sizeof(FrameConstants), &c);
-                var vb = _vertices;
-                ulong offset = 0;
-                Api.vkCmdBindVertexBuffers(cmd, 0, 1, &vb, &offset);
-                Api.vkCmdDraw(cmd, (uint)vertexCount, 1, 0, 0);
-            }
-            Api.vkCmdEndRendering(cmd);
-
-            Transition(cmd, _color, VkImageAspectFlags.Color, VkImageLayout.ColorAttachmentOptimal, VkImageLayout.TransferSrcOptimal);
+            Record(cmd, cam, light, clearColor);
             var region = new VkBufferImageCopy
             {
                 imageSubresource = new VkImageSubresourceLayers(VkImageAspectFlags.Color, 0, 0, 1),
@@ -135,6 +85,75 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         new ReadOnlySpan<byte>(mapped, pixels.Length).CopyTo(pixels);
         Api.vkUnmapMemory(_readbackMemory);
         return pixels;
+    }
+
+    int _vertexCount;
+
+    /// <summary>Uploads geometry for the next <see cref="Record"/>. Call outside command recording.</summary>
+    public void Prepare(MeshBuilder mesh)
+    {
+        UploadVertices(mesh.Vertices);
+        _vertexCount = mesh.Count;
+    }
+
+    /// <summary>Records the frame into <see cref="ColorImage"/>, leaving it ready to copy or blit.</summary>
+    public void Record(VkCommandBuffer cmd, in Camera camera, in FrameLighting lighting, Vector3 clearColor)
+    {
+        clearColor = new Vector3(MathF.Pow(clearColor.X, 1 / 2.2f), MathF.Pow(clearColor.Y, 1 / 2.2f), MathF.Pow(clearColor.Z, 1 / 2.2f));
+        var constants = new FrameConstants
+        {
+            ViewProj = camera.ViewProjection((float)Width / Height),
+            Fog = new Vector4(lighting.FogColor, lighting.FogDensity),
+            Moon = new Vector4(lighting.MoonDirection, lighting.Ambient),
+            LampPos = new Vector4(lighting.LampPosition.RelativeTo(camera.Position), lighting.LampRange),
+            LampDir = new Vector4(lighting.LampDirection, MathF.Cos(lighting.LampConeDegrees * MathF.PI / 180)),
+        };
+        int vertexCount = _vertexCount;
+        Transition(cmd, _color, VkImageAspectFlags.Color, VkImageLayout.Undefined, VkImageLayout.ColorAttachmentOptimal);
+        Transition(cmd, _depth, VkImageAspectFlags.Depth, VkImageLayout.Undefined, VkImageLayout.DepthAttachmentOptimal);
+
+        var colorAttachment = new VkRenderingAttachmentInfo
+        {
+            imageView = _colorView,
+            imageLayout = VkImageLayout.ColorAttachmentOptimal,
+            loadOp = VkAttachmentLoadOp.Clear,
+            storeOp = VkAttachmentStoreOp.Store,
+            clearValue = new VkClearValue { color = new VkClearColorValue(clearColor.X, clearColor.Y, clearColor.Z, 1) },
+        };
+        var depthAttachment = new VkRenderingAttachmentInfo
+        {
+            imageView = _depthView,
+            imageLayout = VkImageLayout.DepthAttachmentOptimal,
+            loadOp = VkAttachmentLoadOp.Clear,
+            storeOp = VkAttachmentStoreOp.DontCare,
+            clearValue = new VkClearValue { depthStencil = new VkClearDepthStencilValue(1, 0) },
+        };
+        var rendering = new VkRenderingInfo
+        {
+            renderArea = new VkRect2D(0, 0, (uint)Width, (uint)Height),
+            layerCount = 1,
+            colorAttachmentCount = 1,
+            pColorAttachments = &colorAttachment,
+            pDepthAttachment = &depthAttachment,
+        };
+        Api.vkCmdBeginRendering(cmd, &rendering);
+        var viewport = new VkViewport(0, 0, Width, Height, 0, 1);
+        Api.vkCmdSetViewport(cmd, 0, 1, &viewport);
+        var scissor = new VkRect2D(0, 0, (uint)Width, (uint)Height);
+        Api.vkCmdSetScissor(cmd, 0, 1, &scissor);
+        if (vertexCount > 0)
+        {
+            Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _pipeline);
+            var c = constants;
+            Api.vkCmdPushConstants(cmd, _layout, VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment, 0, (uint)sizeof(FrameConstants), &c);
+            var vb = _vertices;
+            ulong offset = 0;
+            Api.vkCmdBindVertexBuffers(cmd, 0, 1, &vb, &offset);
+            Api.vkCmdDraw(cmd, (uint)vertexCount, 1, 0, 0);
+        }
+        Api.vkCmdEndRendering(cmd);
+
+        Transition(cmd, _color, VkImageAspectFlags.Color, VkImageLayout.ColorAttachmentOptimal, VkImageLayout.TransferSrcOptimal);
     }
 
     void UploadVertices(ReadOnlySpan<Vertex> vertices)
@@ -159,7 +178,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         Api.vkUnmapMemory(_vertexMemory);
     }
 
-    void Transition(VkCommandBuffer cmd, VkImage image, VkImageAspectFlags aspect, VkImageLayout from, VkImageLayout to)
+    internal void Transition(VkCommandBuffer cmd, VkImage image, VkImageAspectFlags aspect, VkImageLayout from, VkImageLayout to)
     {
         var barrier = new VkImageMemoryBarrier2
         {

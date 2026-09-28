@@ -2,9 +2,11 @@
   <Folder Name="/src/">
     <Project Path="src/Ballast.Core/Ballast.Core.csproj" />
     <Project Path="src/Ballast.Net/Ballast.Net.csproj" />
+    <Project Path="src/Ballast.Platform/Ballast.Platform.csproj" />
     <Project Path="src/Ballast.Render/Ballast.Render.csproj" />
     <Project Path="src/DarkTerritory.Sim/DarkTerritory.Sim.csproj" />
     <Project Path="src/DarkTerritory.Game/DarkTerritory.Game.csproj" />
+    <Project Path="src/DarkTerritory.App/DarkTerritory.App.csproj" />
     <Project Path="src/DarkTerritory.Cli/DarkTerritory.Cli.csproj" />
   </Folder>
   <Folder Name="/tests/">
