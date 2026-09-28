@@ -52,7 +52,11 @@ public sealed unsafe class GpuContext : IDisposable
                 ppEnabledExtensionNames = extensions.Pointers,
             };
             VkInstance instance;
-            Check(vkCreateInstance(&info, null, &instance), "vkCreateInstance");
+            var created = vkCreateInstance(&info, null, &instance);
+            // A loader with no installed driver (e.g. a GPU-less Windows machine) reports this.
+            if (created is VkResult.ErrorIncompatibleDriver or VkResult.ErrorInitializationFailed)
+                throw new GpuUnavailableException($"no Vulkan driver installed ({created})");
+            Check(created, "vkCreateInstance");
             Instance = instance;
         }
         InstanceApi = GetApi(Instance);
