@@ -1,0 +1,59 @@
+// Train tuning. Source of truth: docs/design/systems-spec.md, Part B (first-pass numbers).
+// Every value here is first pass, built for feel-testing. Edit freely; the game hot-reloads it.
+// `dt train table` prints what these numbers actually produce in the sim.
+{
+  "maxSpeed": 22.0,
+  "playerRunSpeed": 5.5,
+  "gravity": 9.81,
+
+  "geometry": {
+    "carLength": 14.0,
+    "couplingGap": 1.5,
+    "engineLength": 20.0,
+    "roofWidth": 3.0,
+    "roofSafeCentreline": 1.4
+  },
+
+  "mass": {
+    "engineTonnes": 90.0,
+    "emptyCarTonnes": 12.0,
+    "loadedCarTonnes": 40.0
+  },
+
+  // Accel/brake per consist length, measured with every car loaded (spec B.5).
+  // The sim turns these into tractive/brake force at loaded mass, so lighter trains
+  // accelerate harder. Lengths between rows are interpolated linearly.
+  "performance": [
+    { "cars": 3,  "accel": 0.90, "brake": 1.60 },
+    { "cars": 6,  "accel": 0.62, "brake": 1.05 },
+    { "cars": 10, "accel": 0.42, "brake": 0.72 },
+    { "cars": 15, "accel": 0.27, "brake": 0.48 },
+    { "cars": 20, "accel": 0.18, "brake": 0.35 }
+  ],
+
+  "brakeFade": {
+    // Spec B.5: "brakes fade at 8% per 10s of continuous application, recovering at 4% per 10s released".
+    "fadePerSecond": 0.008,
+    "recoverPerSecond": 0.004,
+    "minEfficiency": 0.25,
+    // The spec states fade in the context of descending grades. If fade applied on the flat,
+    // the spec's own 20-car stop (63s / 690m) would be impossible, so default to descent only.
+    "onlyOnDescent": true
+  },
+
+  // Spec B.6: seconds per coal unit burned, by consist length.
+  "coalBurn": [
+    { "cars": 3,  "secondsPerUnit": 20.0 },
+    { "cars": 10, "secondsPerUnit": 12.0 },
+    { "cars": 20, "secondsPerUnit": 8.0 }
+  ],
+  "tenderCapacity": 400,
+
+  "speedBands": {
+    "yard": 2.5,
+    "jumpOffLethal": 4.0,
+    "slow": 6.0,
+    "workingMin": 10.0,
+    "cruise": 14.0
+  }
+}

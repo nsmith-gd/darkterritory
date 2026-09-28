@@ -1,0 +1,11 @@
+bin/
+obj/
+artifacts/
+out/
+*.user
+.vs/
+.idea/
+*.swp
+TestResults/
+# cooked assets are build output; sources live in content/ and tools/
+content/.cooked/
