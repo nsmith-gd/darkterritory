@@ -15,6 +15,8 @@ public sealed class GreyboxScene
 {
     public float DrawDistance { get; init; } = 400;
     public int Seed { get; init; } = 7;
+    /// <summary>How hot the firebox is, 0..1: the glow in the cab is how the Boiler reads the fire.</summary>
+    public float FireGlow { get; set; } = 0.7f;
 
     public void Build(MeshBuilder mesh, TrainOnLine train, Double3 eye) =>
         Build(mesh, train.Line, train.Frames, train.Dynamics.Distance, eye);
@@ -114,67 +116,58 @@ public sealed class GreyboxScene
         }
     }
 
-    static void Car(MeshBuilder mesh, CarFrame frame, Double3 eye)
+    void Car(MeshBuilder mesh, CarFrame frame, Double3 eye)
     {
         var right = ToF(frame.Right);
         var up = ToF(frame.Up);
         var back = ToF(frame.Back);
         var o = V(frame.Origin, eye);
         Vector3 L(double x, double y, double z) => o + right * (float)x + up * (float)y + back * (float)z;
+        void Draw(Box box, Vector3 color) => mesh.Box(L(box.Centre.X, box.Centre.Y, box.Centre.Z), right, up, back, ToF(box.HalfSize), color);
 
-        var body = frame.Shape.Body;
-        var half = ToF((body.Max - body.Min) * 0.5);
-        var centre = L(0, body.Max.Y / 2 + 0.25, 0);
+        var shape = frame.Shape;
         bool engine = frame.Index == 0;
+        // What you see is what you collide with: every solid is drawn, coloured by what it is.
+        foreach (var solid in shape.Solids)
+            Draw(solid.Box, PartColour(solid.Part, frame.Index));
+
+        double half = shape.HalfLength;
         if (engine)
         {
-            // Boiler forward, open cab at the back: the engine must read by silhouette alone (GDD §26).
-            double l = half.Z;
-            float w = half.X;
-            mesh.Box(L(0, 1.0, 0), right, up, back, new Vector3(w, 0.4f, (float)l), Palette.Charcoal);
-            mesh.Box(L(0, 2.5, -l * 0.3), right, up, back, new Vector3(0.95f, 1.1f, (float)l * 0.65f), Palette.SootBlack);
-            mesh.Box(L(0, 4.1, -l * 0.8), right, up, back, new Vector3(0.35f, 0.6f, 0.35f), Palette.SootBlack);
-            // Cab shell: roof, waist-high sides, back wall with a doorway, pillars at the corners.
-            double cabFront = l * 0.35, cabBack = l;
-            double cabMid = (cabFront + cabBack) / 2;
-            float cabHalf = (float)(cabBack - cabFront) / 2;
-            mesh.Box(L(0, 4.3, cabMid), right, up, back, new Vector3(w + 0.1f, 0.1f, cabHalf + 0.1f), Palette.IronGrey);
-            foreach (int side in new[] { -1, 1 })
-            {
-                mesh.Box(L(side * (w - 0.05), 2.0, cabMid), right, up, back, new Vector3(0.05f, 0.6f, cabHalf), Palette.IronGrey);
-                mesh.Box(L(side * (w - 0.05), 3.3, cabFront + 0.1), right, up, back, new Vector3(0.05f, 1.0f, 0.1f), Palette.IronGrey);
-                mesh.Box(L(side * (w - 0.05), 3.3, cabBack - 0.1), right, up, back, new Vector3(0.05f, 1.0f, 0.1f), Palette.IronGrey);
-                mesh.Box(L(side * (w * 0.62), 2.8, cabBack - 0.05), right, up, back, new Vector3(w * 0.38f, 1.4f, 0.05f), Palette.IronGrey);
-            }
-            // Firebox door glow on the boiler backhead.
             mesh.Emissive = 1;
-            mesh.Box(L(0, 2.1, cabFront + 0.03), right, up, back, new Vector3(0.3f, 0.2f, 0.02f), Palette.FurnaceOrange);
-            mesh.Box(L(0, 2.8, -l - 0.05), right, up, back, new Vector3(0.35f, 0.35f, 0.1f), Palette.LampAmber);
+            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
+                Draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.17), new Double3(0.3, 0.2, 0.02)), Palette.FurnaceOrange * (0.15f + 0.85f * FireGlow));
+            Draw(Box.FromCentre(new Double3(0, 2.8, -half - 0.05), new Double3(0.35, 0.35, 0.1)), Palette.LampAmber);
             mesh.Emissive = 0;
+            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
+                Draw(Box.FromCentre(i.Position + new Double3(0, 1.1, 0), new Double3(0.12, 0.12, 0.04)), Palette.TarnishedBrass);
         }
         else
         {
-            mesh.Box(centre, right, up, back, new Vector3(half.X, half.Y - 0.25f, half.Z), frame.Index % 3 == 0 ? Palette.RustRed : Palette.DeepBrown);
             // Roof walkway plank down the safe centreline.
-            mesh.Box(L(0, body.Max.Y + 0.02, 0), right, up, back, new Vector3(0.35f, 0.03f, half.Z - 0.2f), Palette.TarnishedBrass);
+            Draw(new Box(new Double3(-0.35, shape.RoofHeight, -half + 0.2), new Double3(0.35, shape.RoofHeight + 0.04, half - 0.2)), Palette.TarnishedBrass);
         }
-        foreach (var ladder in frame.Shape.Ladders)
+        foreach (var ladder in shape.Ladders)
         {
             // Rails run up the face the ladder is fixed to: thin across it, a hand-width wide along it.
-            bool side = Math.Abs(frame.Shape.LadderInward(ladder).X) > 0;
-            var halfLadder = side ? new Vector3(0.05f, (float)body.Max.Y / 2, 0.25f) : new Vector3(0.25f, (float)body.Max.Y / 2, 0.05f);
-            mesh.Box(L(ladder.X, body.Max.Y / 2, ladder.Z), right, up, back, halfLadder, Palette.IronGrey);
+            bool side = Math.Abs(ladder.Inward.X) > 0;
+            var h = new Double3(side ? 0.05 : 0.25, ladder.Top / 2, side ? 0.25 : 0.05);
+            Draw(Box.FromCentre(ladder.Foot + new Double3(0, ladder.Top / 2, 0), h), Palette.IronGrey);
         }
         // Wheel sets under both ends.
-        foreach (double z in new[] { -half.Z * 0.6, half.Z * 0.6 })
-            mesh.Box(L(0, 0.45, z), right, up, back, new Vector3(half.X * 0.8f, 0.4f, 1.2f), Palette.SootBlack);
-        if (frame.Shape.Coupler is { } c)
-        {
-            var mid = (c.Min + c.Max) * 0.5;
-            var h = ToF((c.Max - c.Min) * 0.5);
-            mesh.Box(L(mid.X, mid.Y, mid.Z), right, up, back, h, Palette.IronGrey);
-        }
+        foreach (double z in new[] { -half * 0.6, half * 0.6 })
+            Draw(Box.FromCentre(new Double3(0, 0.45, z), new Double3(shape.HalfWidth * 0.8, 0.4, 1.2)), Palette.SootBlack);
     }
+
+    static Vector3 PartColour(PartKind part, int car) => part switch
+    {
+        PartKind.Body => car % 3 == 0 ? Palette.RustRed : Palette.DeepBrown,
+        PartKind.Chassis => Palette.Charcoal,
+        PartKind.Boiler or PartKind.Stack => Palette.SootBlack,
+        PartKind.CabWall or PartKind.CabRoof or PartKind.Coupler => Palette.IronGrey,
+        PartKind.Tender => Palette.Charcoal,
+        _ => Palette.IronGrey,
+    };
 
     static Vector3 ToF(Double3 d) => new((float)d.X, (float)d.Y, (float)d.Z);
 }

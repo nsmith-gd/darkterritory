@@ -19,7 +19,17 @@
     "couplerHeight": 1.1,
     "couplerWidth": 0.8,
     // Ladders sit on both sides at the rear end of every car.
-    "ladderInset": 0.6
+    "ladderInset": 0.6,
+    // Engine + tender unit: boiler forward, walkable cab, coal tender behind (heights above rail).
+    "engine": {
+      "deckHeight": 1.4,
+      "boilerHalfWidth": 0.95,
+      "boilerTop": 3.6,
+      "cabLength": 4.0,
+      "tenderLength": 4.0,
+      "tenderTop": 3.4,
+      "doorWidth": 0.9
+    }
   },
 
   "mass": {
@@ -49,13 +59,13 @@
     "onlyOnDescent": true
   },
 
-  // Spec B.6: seconds per coal unit burned, by consist length.
-  "coalBurn": [
-    { "cars": 3,  "secondsPerUnit": 20.0 },
-    { "cars": 10, "secondsPerUnit": 12.0 },
-    { "cars": 20, "secondsPerUnit": 8.0 }
-  ],
-  "tenderCapacity": 400,
+
+  // Not in the spec. The accel/brake table above is net performance; this is what slows a train
+  // with the regulator shut: about 0.019 m/s² at max speed, so a dead boiler coasts for kilometres.
+  "resistance": {
+    "rolling": 0.004,
+    "air": 0.00003
+  },
 
   "speedBands": {
     "yard": 2.5,

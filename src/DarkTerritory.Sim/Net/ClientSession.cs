@@ -70,7 +70,8 @@ public sealed class ClientSession
 
     void Predict(in PlayerIntent intent)
     {
-        CabControls.Apply(ref Controls, intent, Predicted, Train.Dynamics.Speed);
+        CabControls.Apply(ref Controls, intent, Predicted, Train);
+        CrewActions.Apply(ref Predicted, intent, Train, SimConstants.TickSeconds);
         Train.Step(SimConstants.TickSeconds, Controls);
         PlayerMotor.Step(ref Predicted, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds);
     }
@@ -152,7 +153,7 @@ public sealed class ClientSession
             return;
         var truth = _players[mine].State;
 
-        Train.Restore(train.Distance, train.Velocity, train.BrakeEfficiency, train.CoalUsed);
+        Train.Restore(train.Distance, train.Velocity, train.BrakeEfficiency, train.Boiler);
         Controls = train.Controls;
 
         if (!_haveState)

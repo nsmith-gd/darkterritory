@@ -16,6 +16,7 @@ public sealed class PrototypeSession
 {
     readonly HotData<TrainTuning> _trainTuning;
     readonly HotData<PlayerTuning> _playerTuning;
+    readonly HotData<BoilerTuning> _boilerTuning;
     PlayerState _previousPlayer;
     double _previousDistance;
 
@@ -23,10 +24,11 @@ public sealed class PrototypeSession
     {
         _trainTuning = new HotData<TrainTuning>(Path.Combine(contentRoot, TrainTuning.File));
         _playerTuning = new HotData<PlayerTuning>(Path.Combine(contentRoot, PlayerTuning.File));
+        _boilerTuning = new HotData<BoilerTuning>(Path.Combine(contentRoot, BoilerTuning.File));
         var line = RailLine.Load(Path.Combine(contentRoot, "lines", lineName + ".json"));
-        Train = new TrainOnLine(new TrainDynamics(Consist.Uniform(_trainTuning.Value, cars, 1)), line, start);
+        Train = new TrainOnLine(new TrainDynamics(Consist.Uniform(_trainTuning.Value, cars, 1)), line, start, _boilerTuning.Value);
         Controls = new TrainControls { Reverser = 1 };
-        Respawn(1);
+        Respawn(0);
     }
 
     public TrainOnLine Train { get; }
@@ -43,6 +45,7 @@ public sealed class PrototypeSession
         ReloadTuning();
         _previousPlayer = Player;
         _previousDistance = Train.Dynamics.Distance;
+        CrewActions.Apply(ref Player, intent, Train, SimConstants.TickSeconds);
         Train.Step(SimConstants.TickSeconds, Controls);
         PlayerMotor.Step(ref Player, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds);
         Tick++;
@@ -57,6 +60,11 @@ public sealed class PrototypeSession
         }
         if (_playerTuning.Refresh(e => LastReloadError = e.Message))
             LastReloadError = null;
+        if (_boilerTuning.Refresh(e => LastReloadError = e.Message))
+        {
+            Train.BoilerTuning = _boilerTuning.Value;
+            LastReloadError = null;
+        }
     }
 
     /// <summary>Regulator in quarter notches, like a real throttle quadrant.</summary>
@@ -69,10 +77,11 @@ public sealed class PrototypeSession
             Controls.Reverser = -Controls.Reverser;
     }
 
+    /// <summary>Car 0 is the cab; any other number is that car's roof.</summary>
     public void Respawn(int car)
     {
         car = Math.Clamp(car, 0, Train.Frames.Count - 1);
-        Player = PlayerMotor.SpawnOnRoof(Train, car, 0, PlayerTuning);
+        Player = car == 0 ? PlayerMotor.SpawnInCab(Train, PlayerTuning) : PlayerMotor.SpawnOnRoof(Train, car, 0, PlayerTuning);
         _previousPlayer = Player;
         _previousDistance = Train.Dynamics.Distance;
     }
@@ -112,10 +121,14 @@ public sealed class PrototypeSession
     public string Status()
     {
         var d = Train.Dynamics;
-        string where = Player.Parent == PlayerState.World ? "ground" : Player.Parent == 0 ? "engine" : $"car {Player.Parent}";
+        string where = Player.Parent == PlayerState.World ? "ground" : PlayerMotor.InCab(Player, Train) ? "cab" : Player.Parent == 0 ? "engine" : $"car {Player.Parent}";
+        var b = Train.Boiler;
+        string boiler = b.Ruptured ? "BOILER RUPTURED" :
+            $"P {b.Pressure,3:0}{(b.SafetyValveLifting ? " VALVE" : "")} fire {b.Firebox:0.0} tender {b.Tender:0}" +
+            (Player.ActionProgress > 0 ? $" shovel {Player.ActionProgress:0.0}s" : "");
         string state = Player.Alive ? $"{Player.Surface} {where} hp {Player.Health}" : $"DEAD ({Player.Death}) — Backspace to respawn";
         return $"{d.Speed,5:0.0} m/s {SpeedBands.Classify(TrainTuning, d.Speed),-7} | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} rev {(Controls.Reverser > 0 ? "F" : "R")} " +
-               $"| grade {Train.AverageGrade(),4:0.0}% | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state}" +
+               $"| {boiler} | grade {Train.AverageGrade(),4:0.0}% | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state}" +
                (LastReloadError is null ? "" : $" | TUNING ERROR: {LastReloadError}");
     }
 }

@@ -22,13 +22,23 @@ public sealed class TrainOnLine
     readonly List<CarPose> _poses = new();
     readonly List<CarFrame> _frames = new();
 
-    public TrainOnLine(TrainDynamics dynamics, RailLine line, double startDistance)
+    /// <param name="boiler">Boiler tuning. Without it the engine has unlimited steam, which the pure
+    /// dynamics tests (spec B.5) rely on.</param>
+    public TrainOnLine(TrainDynamics dynamics, RailLine line, double startDistance, BoilerTuning? boiler = null)
     {
         Dynamics = dynamics;
         Line = line;
         dynamics.Distance = startDistance;
+        BoilerTuning = boiler;
+        if (boiler is not null)
+            Boiler = Boiler.Fresh(boiler);
         UpdatePoses();
     }
+
+    public BoilerTuning? BoilerTuning { get; set; }
+    public Boiler Boiler;
+    /// <summary>True for the one tick on which the boiler ruptured.</summary>
+    public bool RupturedThisTick { get; private set; }
 
     public TrainDynamics Dynamics { get; }
     public RailLine Line { get; }
@@ -42,15 +52,24 @@ public sealed class TrainOnLine
     public double RearDistance => Dynamics.Distance - Dynamics.Consist.LengthMetres;
 
     /// <summary>Adopts host state (see <see cref="TrainDynamics.Restore"/>) and rebuilds car poses.</summary>
-    public void Restore(double distance, double velocity, double brakeEfficiency, double coalUsed)
+    public void Restore(double distance, double velocity, double brakeEfficiency, in Boiler boiler)
     {
-        Dynamics.Restore(distance, velocity, brakeEfficiency, coalUsed);
+        Dynamics.Restore(distance, velocity, brakeEfficiency);
+        Boiler = boiler;
         UpdatePoses();
     }
 
     public void Step(double dt, in TrainControls controls)
     {
-        Dynamics.Step(dt, controls, new TrackConditions { GradePercent = AverageGrade(), Traction = Traction });
+        var effective = controls;
+        RupturedThisTick = false;
+        if (BoilerTuning is { } bt)
+        {
+            // Tractive effort comes from the pressure there is now; then the fire and the cylinders move it.
+            effective.Throttle *= Boiler.PowerFactor(bt);
+            RupturedThisTick = Boiler.Step(bt, dt, controls.Throttle, Dynamics.Consist.CarCount);
+        }
+        Dynamics.Step(dt, effective, new TrackConditions { GradePercent = AverageGrade(), Traction = Traction });
         // Buffer stops: the line ends are hard limits.
         double min = Dynamics.Consist.LengthMetres, max = Line.Length;
         if (Dynamics.Distance > max || Dynamics.Distance < min)

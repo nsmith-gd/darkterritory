@@ -15,10 +15,21 @@ using DarkTerritory.Sim.Train;
 var content = DataFile.FindContentRoot(Environment.CurrentDirectory);
 var train = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
 var player = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
+var boiler = DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File));
 
 return args switch
 {
     ["train", "table"] => Print(TrainTable(train, player)),
+    ["boiler", "table"] => Print(new[] { 3, 6, 10, 15, 20 }.Select(n => new
+    {
+        cars = n,
+        holdSecondsPerUnit = Math.Round(BoilerScenarios.HoldingSecondsPerUnit(boiler, n), 1),
+        tenderEnduranceMin = Math.Round(BoilerScenarios.TenderEnduranceMinutes(boiler, n)),
+        rebuildFromZeroS = Math.Round(BoilerScenarios.RebuildSeconds(train, boiler, player, n)),
+        tenMinutesFullThrottle = BoilerScenarios.Run(train, boiler, player, n, 600, 1),
+    })),
+    ["boiler", "run", var cars, ..] => Print(BoilerScenarios.Run(train, boiler, player, int.Parse(cars), Opt(args, "--seconds", 300), Opt(args, "--throttle", 1),
+        args.Contains("--no-fireman") ? null : Opt(args, "--fire-at", 88), Opt(args, "--pressure", 75), Opt(args, "--firebox", 4), Opt(args, "--speed", 0), args.Contains("--vent"))),
     ["train", "stop", var cars, ..] => Print(TrainScenarios.StopFrom(train, int.Parse(cars), Opt(args, "--from", train.MaxSpeed), Opt(args, "--load", 1), Opt(args, "--grade", 0))),
     ["train", "climb", var cars, var grade, ..] => Print(TrainScenarios.Climb(train, int.Parse(cars), double.Parse(grade), Opt(args, "--from", 10), Opt(args, "--load", 1))),
     ["line", "info", var name, ..] => Print(LineInfo(LoadLine(name), Opt(args, "--every", 100))),
@@ -31,7 +42,7 @@ return args switch
         Seconds = Opt(args, "--seconds", 120),
         Seed = (int)Opt(args, "--seed", 1),
         Link = new Ballast.Net.LinkConditions(Opt(args, "--latency", 0.09), Opt(args, "--jitter", 0.02), Opt(args, "--loss", 0.03)),
-    })),
+    }, args.Contains("--no-boiler") ? null : boiler)),
     _ => Usage(),
 };
 
@@ -49,8 +60,6 @@ static object TrainTable(TrainTuning t, PlayerTuning p) => t.Performance.Select(
         stopS = Math.Round(stop.Seconds, 1),
         stopM = Math.Round(stop.Metres),
         maxGradePct = Math.Round(dyn.MaxClimbableGradePercent(), 2),
-        coalSecondsPerUnit = Math.Round(dyn.CoalSecondsPerUnit, 1),
-        tenderEnduranceMin = Math.Round(t.TenderCapacity * dyn.CoalSecondsPerUnit / 60),
     };
 }).ToList();
 
@@ -149,6 +158,8 @@ static int Usage()
           train table                              spec table (B.4–B.6) as produced by current tuning
           train stop <cars> [--from v] [--load l] [--grade g]
           train climb <cars> <grade%> [--from v] [--load l]
+          boiler table                             spec B.6 burn, endurance, rebuild as produced by boiler tuning
+          boiler run <cars> [--seconds t] [--throttle 0..1] [--fire-at p | --no-fireman] [--pressure p] [--firebox u] [--vent]
           line info <name> [--every m]             position/grade profile of content/lines/<name>.json
           line drive <name> [--cars n] [--start s] [--from v] [--throttle 0..1] [--seconds t]
           screenshot [--view trackside|roof|cab|chase|ahead] [--line name] [--cars n] [--at s] [--car i]

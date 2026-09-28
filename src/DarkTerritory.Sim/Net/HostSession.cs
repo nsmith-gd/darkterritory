@@ -63,7 +63,10 @@ public sealed class HostSession
 
         Controls.Brake = 0;
         foreach (var c in _crew)
-            CabControls.Apply(ref Controls, c.ThisTick, c.State, Train.Dynamics.Speed);
+        {
+            CabControls.Apply(ref Controls, c.ThisTick, c.State, Train);
+            CrewActions.Apply(ref c.State, c.ThisTick, Train, SimConstants.TickSeconds);
+        }
         Train.Step(SimConstants.TickSeconds, Controls);
         foreach (var c in _crew)
             PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds);
@@ -120,9 +123,9 @@ public sealed class HostSession
     void Join(PeerId peer)
     {
         var c = new Crew(_nextId++, peer);
-        // First aboard takes the engine; everyone else spreads down the train.
-        int car = _crew.Count == 0 ? 0 : 1 + (_crew.Count - 1) % Math.Max(1, Train.Frames.Count - 1);
-        c.State = PlayerMotor.SpawnOnRoof(Train, car, 0, PlayerTuning);
+        // First aboard takes the cab; everyone else spreads down the train.
+        int car = 1 + (_crew.Count - 1) % Math.Max(1, Train.Frames.Count - 1);
+        c.State = _crew.Count == 0 ? PlayerMotor.SpawnInCab(Train, PlayerTuning) : PlayerMotor.SpawnOnRoof(Train, car, 0, PlayerTuning);
         _crew.Add(c);
         Messages.WriteWelcome(_writer, c.Id, Tick);
         _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);

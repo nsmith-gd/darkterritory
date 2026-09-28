@@ -36,12 +36,15 @@ public sealed class RoofWalkerBot(int seed) : IBot
         if (!self.Grounded)
             return default;
         var frame = train.Frames[self.Parent];
-        double halfLength = frame.Shape.Body.Max.Z;
+        double halfLength = frame.Shape.HalfLength;
         double z = self.Position.Z;
 
-        // Turn round at the ends of the train.
-        if (self.Parent == 0 && _direction < 0 || self.Parent == train.Frames.Count - 1 && _direction > 0 && z > halfLength - 1.5)
+        // Turn round at the ends of the cars. The engine belongs to whoever is working the cab, and its
+        // tender sits lower than a car roof, so there's no jumping back from it anyway.
+        if (self.Parent <= 1 && _direction < 0 && z < -halfLength + 1.5 || self.Parent == train.Frames.Count - 1 && _direction > 0 && z > halfLength - 1.5)
             _direction = -_direction;
+        if (self.Parent == 0)
+            _direction = 1;
 
         if (_pauseTicks > 0)
         {
@@ -67,7 +70,7 @@ public sealed class RoofWalkerBot(int seed) : IBot
 
         // Jump the gap at the car end we're heading for, if there's a car beyond it.
         bool nearEnd = _direction < 0 ? z < -halfLength + 0.45 : z > halfLength - 0.45;
-        bool carBeyond = _direction < 0 ? self.Parent > 0 : self.Parent < train.Frames.Count - 1;
+        bool carBeyond = _direction < 0 ? self.Parent > 1 : self.Parent < train.Frames.Count - 1;
         if (nearEnd && carBeyond && aligned)
             intent.Buttons |= PlayerButtons.Jump;
         return intent;
@@ -82,13 +85,32 @@ public sealed class RoofWalkerBot(int seed) : IBot
 }
 
 /// <summary>
-/// Stands on the engine and drives: opens the throttle, holds speed, brakes before the end of the line.
+/// Works the cab alone: opens the throttle, brakes before the end of the line, and keeps the fire fed
+/// (walks to the firebox and shovels when pressure drops). One bot doing both jobs is fine at short
+/// consists; at twenty cars it can't keep up, which is the point (spec B.6).
 /// </summary>
 public sealed class ConductorBot : IBot
 {
     public string Name => "conductor";
 
     public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick)
+    {
+        var intent = Drive(train, tick);
+        if (train.BoilerTuning is { } bt && train.Boiler.Pressure < bt.WorkingBandMax - 2 && train.Boiler.Tender >= 1 && PlayerMotor.InCab(self, train))
+        {
+            if (CrewActions.Nearest(self, train) == InteractableKind.Firebox)
+                intent.Buttons |= PlayerButtons.Use;
+            else
+            {
+                var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
+                intent.MoveZ = self.Position.Z > firebox.Z + 0.5 ? 1 : -1;
+                intent.LookYaw = (float)(-self.Yaw * 0.3);
+            }
+        }
+        return intent;
+    }
+
+    static PlayerIntent Drive(TrainOnLine train, uint tick)
     {
         var d = train.Dynamics;
         double remaining = train.Line.Length - d.Distance;

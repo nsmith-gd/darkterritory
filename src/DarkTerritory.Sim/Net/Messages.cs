@@ -23,7 +23,7 @@ public struct TrainSnapshot
     public double Distance;
     public double Velocity;
     public double BrakeEfficiency;
-    public double CoalUsed;
+    public Boiler Boiler;
     public TrainControls Controls;
 
     public static TrainSnapshot Capture(TrainOnLine train, in TrainControls controls) => new()
@@ -31,7 +31,7 @@ public struct TrainSnapshot
         Distance = train.Dynamics.Distance,
         Velocity = train.Dynamics.Velocity,
         BrakeEfficiency = train.Dynamics.BrakeEfficiency,
-        CoalUsed = train.Dynamics.CoalUsed,
+        Boiler = train.Boiler,
         Controls = controls,
     };
 }
@@ -97,7 +97,7 @@ public static class Messages
         w.F64(train.Distance);
         w.F64(train.Velocity);
         w.F64(train.BrakeEfficiency);
-        w.F64(train.CoalUsed);
+        WriteBoiler(w, train.Boiler);
         w.F32((float)train.Controls.Throttle);
         w.F32((float)train.Controls.Brake);
         w.I8((sbyte)train.Controls.Reverser);
@@ -115,6 +115,7 @@ public static class Messages
             w.U8((byte)Math.Clamp(s.Health, 0, 255));
             w.U8((byte)s.Death);
             w.F64(s.LineHint);
+            w.F64(s.ActionProgress);
         }
     }
 
@@ -127,7 +128,7 @@ public static class Messages
             Distance = r.F64(),
             Velocity = r.F64(),
             BrakeEfficiency = r.F64(),
-            CoalUsed = r.F64(),
+            Boiler = ReadBoiler(ref r),
             Controls = new TrainControls { Throttle = r.F32(), Brake = r.F32(), Reverser = r.I8() },
         };
         int n = r.U8();
@@ -145,10 +146,39 @@ public static class Messages
                 Health = r.U8(),
                 Death = (DeathCause)r.U8(),
                 LineHint = r.F64(),
+                ActionProgress = r.F64(),
             };
             players.Add(new PlayerSnapshot(id, s));
         }
     }
+
+    static void WriteBoiler(NetWriter w, in Boiler b)
+    {
+        w.F64(b.Pressure);
+        w.F64(b.Firebox);
+        w.F64(b.Tender);
+        w.F64(b.AtMaxSeconds);
+        w.F64(b.LowFireSeconds);
+        w.F64(b.ExternalHeat);
+        w.F64(b.Efficiency);
+        w.Bool(b.Ruptured);
+        w.Bool(b.SafetyValveLifting);
+        w.Bool(b.SafetyValveJammed);
+    }
+
+    static Boiler ReadBoiler(ref NetReader r) => new()
+    {
+        Pressure = r.F64(),
+        Firebox = r.F64(),
+        Tender = r.F64(),
+        AtMaxSeconds = r.F64(),
+        LowFireSeconds = r.F64(),
+        ExternalHeat = r.F64(),
+        Efficiency = r.F64(),
+        Ruptured = r.Bool(),
+        SafetyValveLifting = r.Bool(),
+        SafetyValveJammed = r.Bool(),
+    };
 
     public static void WriteWelcome(NetWriter w, byte playerId, uint tick)
     {

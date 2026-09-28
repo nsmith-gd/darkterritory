@@ -9,7 +9,8 @@ using DarkTerritory.Sim.Player;
 // Feel prototype (roadmap M1). Controls:
 //   mouse look · WASD move · Shift run · Space jump · E grab/let go of ladders
 //   R/F throttle notch up/down · B brake (hold) · X reverser (stopped only)
-//   1–9 respawn on that car's roof · Backspace respawn · Tab chase camera · Esc release mouse / quit
+//   E at the firebox: shovel (hold) · E at the valve: vent (hold)
+//   1–9 respawn on that car's roof · Backspace respawn in the cab · Tab chase camera · Esc release mouse / quit
 // Options: --line name --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png
 
 string Arg(string name, string fallback)
@@ -61,7 +62,7 @@ while (!window.CloseRequested)
     if (input.Pressed(Key.F)) session.Notch(-1);
     if (input.Pressed(Key.X)) session.FlipReverser();
     if (input.Pressed(Key.Tab)) chase = !chase;
-    if (input.Pressed(Key.Backspace)) session.Respawn(1);
+    if (input.Pressed(Key.Backspace)) session.Respawn(0);
     for (var k = Key.D1; k <= Key.D9; k++)
         if (input.Pressed(k)) session.Respawn(k - Key.D1 + 1);
     session.Controls.Brake = input.Down(Key.B) ? 1 : 0;
@@ -91,6 +92,7 @@ while (!window.CloseRequested)
     var frames = session.InterpolatedFrames(clock.Alpha);
     camera = chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
     lighting = Views.Lighting(frames[0]);
+    scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
     scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
     renderer.Prepare(mesh);
 

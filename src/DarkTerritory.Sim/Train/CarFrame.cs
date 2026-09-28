@@ -33,41 +33,131 @@ public readonly record struct CarFrame(int Index, Double3 Origin, Double3 Right,
 public readonly record struct Box(Double3 Min, Double3 Max)
 {
     public bool ContainsXZ(Double3 p) => p.X >= Min.X && p.X <= Max.X && p.Z >= Min.Z && p.Z <= Max.Z;
+    public bool Contains(Double3 p) => ContainsXZ(p) && p.Y >= Min.Y && p.Y <= Max.Y;
+    public Double3 Centre => (Min + Max) * 0.5;
+    public Double3 HalfSize => (Max - Min) * 0.5;
+
+    public static Box FromCentre(Double3 centre, Double3 half) => new(centre - half, centre + half);
 }
 
-public enum CarSurface { Roof, Coupler }
+/// <summary>What standing on top of a solid means: roof speeds and wind (spec B.2), or ordinary footing.</summary>
+public enum SurfaceKind : byte { Roof, Deck, Coupler }
 
-/// <summary>Greybox collision for one car in its own frame: the body, and the coupler plate behind it.</summary>
-public sealed record CarShape(Box Body, Box? Coupler, IReadOnlyList<Double3> Ladders)
+/// <summary>What a solid is, so presentation can draw and colour it. Collision ignores this.</summary>
+public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler }
+
+public readonly record struct Solid(Box Box, SurfaceKind Top, PartKind Part);
+
+/// <summary>A ladder fixed to a face: its foot, how high it goes, and which way is "onto" what it serves.</summary>
+public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward);
+
+public enum InteractableKind : byte { Firebox, Vent }
+
+/// <summary>A thing a player uses by standing near it and holding Use.</summary>
+public readonly record struct Interactable(InteractableKind Kind, Double3 Position, double Radius);
+
+/// <summary>
+/// Greybox collision for one car in its own frame: solids to stand on and bump into, ladders,
+/// interactables, and (on the engine) the cab volume that makes a player the crew in charge.
+/// </summary>
+public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnlyList<Ladder> Ladders, IReadOnlyList<Interactable> Interactables, Box? Cab)
 {
     /// <summary>End ladders sit to the right of the coupler so they don't collide with the plate.</summary>
     public const double EndLadderX = 0.55;
 
-    /// <summary>Horizontal direction from a ladder onto the roof: inward from a side, or back from an end face.</summary>
-    public Double3 LadderInward(Double3 ladder) =>
-        Math.Abs(ladder.X) > Body.Max.X ? new Double3(-Math.Sign(ladder.X), 0, 0) : new Double3(0, 0, -Math.Sign(ladder.Z));
+    public double HalfLength => Bounds.Max.Z;
+    public double HalfWidth => Bounds.Max.X;
+    /// <summary>Height of the highest walkable roof.</summary>
+    public double RoofHeight => Bounds.Max.Y;
 
-    public static CarShape Build(GeometryTuning g, bool isEngine, bool hasCarBehind)
+    /// <summary>The highest walkable surface over a point in the car's frame, and what kind it is.</summary>
+    public (double Top, SurfaceKind Kind)? TopAt(double x, double z)
     {
-        double length = isEngine ? g.EngineLength : g.CarLength;
-        double height = isEngine ? g.EngineHeight : g.CarHeight;
-        double w = g.RoofWidth / 2, l = length / 2;
-        var body = new Box(new Double3(-w, 0, -l), new Double3(w, height, l));
-        Box? coupler = hasCarBehind
-            ? new Box(new Double3(-g.CouplerWidth / 2, g.CouplerHeight - 0.1, l), new Double3(g.CouplerWidth / 2, g.CouplerHeight, l + g.CouplingGap))
-            : null;
+        (double, SurfaceKind)? best = null;
+        var p = new Double3(x, 0, z);
+        foreach (var solid in Solids)
+            if (solid.Box.ContainsXZ(p) && (best is null || solid.Box.Max.Y > best.Value.Item1))
+                best = (solid.Box.Max.Y, solid.Top);
+        return best;
+    }
+
+    public static CarShape Build(GeometryTuning g, bool isEngine, bool hasCarBehind) =>
+        isEngine ? Engine(g, hasCarBehind) : Car(g, hasCarBehind);
+
+    static Solid? CouplerPlate(GeometryTuning g, double halfLength, bool hasCarBehind) => hasCarBehind
+        ? new Solid(new Box(new Double3(-g.CouplerWidth / 2, g.CouplerHeight - 0.1, halfLength), new Double3(g.CouplerWidth / 2, g.CouplerHeight, halfLength + g.CouplingGap)),
+            SurfaceKind.Coupler, PartKind.Coupler)
+        : null;
+
+    static CarShape Car(GeometryTuning g, bool hasCarBehind)
+    {
+        double w = g.RoofWidth / 2, l = g.CarLength / 2, h = g.CarHeight;
+        var solids = new List<Solid> { new(new Box(new Double3(-w, 0, -l), new Double3(w, h, l)), SurfaceKind.Roof, PartKind.Body) };
+        if (CouplerPlate(g, l, hasCarBehind) is { } plate)
+            solids.Add(plate);
         // Side ladders at the rear corners (boarding from the ground), end ladders on each face
-        // beside the coupler (climbing out of the gap). The engine only has one at its back.
+        // beside the coupler (climbing out of the gap).
         double ladderZ = l - g.LadderInset;
-        var ladders = new List<Double3>();
-        if (!isEngine)
+        var ladders = new List<Ladder>
         {
-            ladders.Add(new Double3(w + 0.15, 0, ladderZ));
-            ladders.Add(new Double3(-w - 0.15, 0, ladderZ));
-            ladders.Add(new Double3(EndLadderX, 0, -l - 0.1));
-        }
+            new(new Double3(w + 0.15, 0, ladderZ), h, new Double3(-1, 0, 0)),
+            new(new Double3(-w - 0.15, 0, ladderZ), h, new Double3(1, 0, 0)),
+            new(new Double3(EndLadderX, 0, -l - 0.1), h, new Double3(0, 0, 1)),
+        };
         if (hasCarBehind)
-            ladders.Add(new Double3(EndLadderX, 0, l + 0.1));
-        return new CarShape(body, coupler, ladders);
+            ladders.Add(new Ladder(new Double3(EndLadderX, 0, l + 0.1), h, new Double3(0, 0, -1)));
+        return new CarShape(new Box(new Double3(-w, 0, -l), new Double3(w, h, l)), solids, ladders, [], null);
+    }
+
+    /// <summary>
+    /// Locomotive and tender as one 20 m unit (spec B.4): boiler forward, open cab, coal tender behind.
+    /// The cab is walkable: the firebox, vent and controls are in it, and GDD §12's Conductor and Boiler
+    /// roles are simply whoever is standing there.
+    /// </summary>
+    static CarShape Engine(GeometryTuning g, bool hasCarBehind)
+    {
+        var e = g.Engine;
+        double w = g.RoofWidth / 2, l = g.EngineLength / 2;
+        double cabFront = l - e.TenderLength - e.CabLength, cabBack = l - e.TenderLength;
+        double deck = e.DeckHeight;
+        var solids = new List<Solid>
+        {
+            new(new Box(new Double3(-w, 0, -l), new Double3(w, deck, l)), SurfaceKind.Deck, PartKind.Chassis),
+            new(new Box(new Double3(-e.BoilerHalfWidth, deck, -l + 0.5), new Double3(e.BoilerHalfWidth, e.BoilerTop, cabFront)), SurfaceKind.Roof, PartKind.Boiler),
+            new(new Box(new Double3(-0.35, e.BoilerTop, -l + 1.4), new Double3(0.35, e.BoilerTop + 1.0, -l + 2.1)), SurfaceKind.Roof, PartKind.Stack),
+            new(new Box(new Double3(-w - 0.1, g.EngineHeight - 0.2, cabFront), new Double3(w + 0.1, g.EngineHeight, cabBack)), SurfaceKind.Roof, PartKind.CabRoof),
+            new(new Box(new Double3(-w, deck, cabBack), new Double3(w, e.TenderTop, l)), SurfaceKind.Roof, PartKind.Tender),
+        };
+        // Cab sides are waist-high with a doorway at the back of each side, and corner pillars hold the roof.
+        double doorFront = cabBack - e.DoorWidth;
+        foreach (int side in new[] { -1, 1 })
+        {
+            double inner = side * (w - 0.1), outer = side * w;
+            var (x0, x1) = (Math.Min(inner, outer), Math.Max(inner, outer));
+            solids.Add(new(new Box(new Double3(x0, deck, cabFront), new Double3(x1, deck + 1.1, doorFront)), SurfaceKind.Deck, PartKind.CabWall));
+            solids.Add(new(new Box(new Double3(x0, deck, cabFront), new Double3(x1, g.EngineHeight - 0.2, cabFront + 0.15)), SurfaceKind.Deck, PartKind.CabWall));
+            solids.Add(new(new Box(new Double3(x0, deck, cabBack - 0.15), new Double3(x1, g.EngineHeight - 0.2, cabBack)), SurfaceKind.Deck, PartKind.CabWall));
+        }
+        if (CouplerPlate(g, l, hasCarBehind) is { } plate)
+            solids.Add(plate);
+
+        double doorZ = doorFront + e.DoorWidth / 2;
+        var ladders = new List<Ladder>
+        {
+            // Cab steps up from the ballast on both sides, at the doorways.
+            new(new Double3(w + 0.15, 0, doorZ), deck, new Double3(-1, 0, 0)),
+            new(new Double3(-w - 0.15, 0, doorZ), deck, new Double3(1, 0, 0)),
+        };
+        if (hasCarBehind)
+            ladders.Add(new Ladder(new Double3(EndLadderX, 0, l + 0.1), e.TenderTop, new Double3(0, 0, -1)));
+
+        var interactables = new List<Interactable>
+        {
+            new(InteractableKind.Firebox, new Double3(0, deck, cabFront + 0.2), 1.1),
+            new(InteractableKind.Vent, new Double3(-w + 0.4, deck, cabFront + 0.9), 0.7),
+        };
+        var cab = new Box(new Double3(-w + 0.1, deck - 0.1, cabFront), new Double3(w - 0.1, g.EngineHeight - 0.2, cabBack));
+        var bounds = new Box(new Double3(-w, 0, -l), new Double3(w, g.EngineHeight, l));
+        return new CarShape(bounds, solids, ladders, interactables, cab);
     }
 }
