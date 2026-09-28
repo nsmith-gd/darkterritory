@@ -17,7 +17,9 @@ public sealed record TrainTuning
     public const string File = "tuning/train.json";
 }
 
-public sealed record GeometryTuning(double CarLength, double CouplingGap, double EngineLength, double RoofWidth, double RoofSafeCentreline);
+public sealed record GeometryTuning(
+    double CarLength, double CouplingGap, double EngineLength, double RoofWidth, double RoofSafeCentreline,
+    double CarHeight, double EngineHeight, double CouplerHeight, double CouplerWidth, double LadderInset);
 public sealed record MassTuning(double EngineTonnes, double EmptyCarTonnes, double LoadedCarTonnes);
 public sealed record PerformanceRow(int Cars, double Accel, double Brake);
 public sealed record CoalBurnRow(int Cars, double SecondsPerUnit);

@@ -20,6 +20,7 @@ public readonly record struct CarPose(int Index, Double3 Centre, Double3 Forward
 public sealed class TrainOnLine
 {
     readonly List<CarPose> _poses = new();
+    readonly List<CarFrame> _frames = new();
 
     public TrainOnLine(TrainDynamics dynamics, RailLine line, double startDistance)
     {
@@ -32,6 +33,8 @@ public sealed class TrainOnLine
     public TrainDynamics Dynamics { get; }
     public RailLine Line { get; }
     public IReadOnlyList<CarPose> Cars => _poses;
+    /// <summary>Local frames and collision shapes of every car, valid for the current tick.</summary>
+    public IReadOnlyList<CarFrame> Frames => _frames;
     /// <summary>Traction multiplier for the whole train this tick (Grease sets it; 1 is dry rail).</summary>
     public double Traction { get; set; } = 1;
 
@@ -84,5 +87,8 @@ public sealed class TrainOnLine
             _poses.Add(new CarPose(i, Double3.Lerp(fb, rb, 0.5), forward, length, front));
             front -= length + g.CouplingGap;
         }
+        _frames.Clear();
+        foreach (var pose in _poses)
+            _frames.Add(CarFrame.From(pose, Dynamics.Velocity, CarShape.Build(g, pose.Index == 0, pose.Index < _poses.Count - 1)));
     }
 }
