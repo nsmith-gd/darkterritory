@@ -4,6 +4,7 @@ using Ballast;
 using Ballast.Render;
 using DarkTerritory.Game;
 using DarkTerritory.Sim;
+using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Train;
@@ -23,6 +24,14 @@ return args switch
     ["line", "info", var name, ..] => Print(LineInfo(LoadLine(name), Opt(args, "--every", 100))),
     ["line", "drive", var name, ..] => Print(Drive(train, LoadLine(name), (int)Opt(args, "--cars", 3), Opt(args, "--start", -1), Opt(args, "--from", 0), Opt(args, "--throttle", 1), (int)Opt(args, "--seconds", 120))),
     ["screenshot", ..] => Print(Screenshot(train, content, args)),
+    ["harness", ..] => Print(Harness.Run(LoadLine(Str(args, "--line", "test-loop")), train, player, new HarnessOptions
+    {
+        Bots = (int)Opt(args, "--bots", 8),
+        Cars = (int)Opt(args, "--cars", 10),
+        Seconds = Opt(args, "--seconds", 120),
+        Seed = (int)Opt(args, "--seed", 1),
+        Link = new Ballast.Net.LinkConditions(Opt(args, "--latency", 0.09), Opt(args, "--jitter", 0.02), Opt(args, "--loss", 0.03)),
+    })),
     _ => Usage(),
 };
 
@@ -144,6 +153,8 @@ static int Usage()
           line drive <name> [--cars n] [--start s] [--from v] [--throttle 0..1] [--seconds t]
           screenshot [--view trackside|roof|cab|chase|ahead] [--line name] [--cars n] [--at s] [--car i]
                      [--width w] [--height h] [--scale k] [--out file.png]
+          harness [--bots n] [--cars n] [--seconds t] [--seed s] [--latency s] [--jitter s] [--loss 0..1] [--line name]
+                     host + bot clients over a simulated network; reports prediction error, bandwidth, deaths
         """);
     return 2;
 }

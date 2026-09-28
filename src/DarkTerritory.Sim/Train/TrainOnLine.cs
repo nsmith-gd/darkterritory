@@ -41,6 +41,13 @@ public sealed class TrainOnLine
     public bool AtEndOfLine => Dynamics.Distance >= Line.Length || RearDistance <= 0;
     public double RearDistance => Dynamics.Distance - Dynamics.Consist.LengthMetres;
 
+    /// <summary>Adopts host state (see <see cref="TrainDynamics.Restore"/>) and rebuilds car poses.</summary>
+    public void Restore(double distance, double velocity, double brakeEfficiency, double coalUsed)
+    {
+        Dynamics.Restore(distance, velocity, brakeEfficiency, coalUsed);
+        UpdatePoses();
+    }
+
     public void Step(double dt, in TrainControls controls)
     {
         Dynamics.Step(dt, controls, new TrackConditions { GradePercent = AverageGrade(), Traction = Traction });

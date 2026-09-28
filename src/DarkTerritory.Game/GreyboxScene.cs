@@ -157,8 +157,13 @@ public sealed class GreyboxScene
             mesh.Box(centre, right, up, back, new Vector3(half.X, half.Y - 0.25f, half.Z), frame.Index % 3 == 0 ? Palette.RustRed : Palette.DeepBrown);
             // Roof walkway plank down the safe centreline.
             mesh.Box(L(0, body.Max.Y + 0.02, 0), right, up, back, new Vector3(0.35f, 0.03f, half.Z - 0.2f), Palette.TarnishedBrass);
-            foreach (var ladder in frame.Shape.Ladders)
-                mesh.Box(L(ladder.X, body.Max.Y / 2, ladder.Z), right, up, back, new Vector3(0.05f, (float)body.Max.Y / 2, 0.25f), Palette.IronGrey);
+        }
+        foreach (var ladder in frame.Shape.Ladders)
+        {
+            // Rails run up the face the ladder is fixed to: thin across it, a hand-width wide along it.
+            bool side = Math.Abs(frame.Shape.LadderInward(ladder).X) > 0;
+            var halfLadder = side ? new Vector3(0.05f, (float)body.Max.Y / 2, 0.25f) : new Vector3(0.25f, (float)body.Max.Y / 2, 0.05f);
+            mesh.Box(L(ladder.X, body.Max.Y / 2, ladder.Z), right, up, back, halfLadder, Palette.IronGrey);
         }
         // Wheel sets under both ends.
         foreach (double z in new[] { -half.Z * 0.6, half.Z * 0.6 })

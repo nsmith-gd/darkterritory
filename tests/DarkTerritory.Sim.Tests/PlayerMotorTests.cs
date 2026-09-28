@@ -169,3 +169,53 @@ public class PlayerMotorTests
         Assert.Equal(P.JumpGap, airtime * P.RoofRun, 6);
     }
 }
+
+public class MovingFrameRegressionTests
+{
+    static readonly TrainTuning T = Tuning.Train;
+    static readonly PlayerTuning P = Tuning.Player;
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(1)]
+    public void JumpingTheGapAtMaxSpeedWorksInBothDirections(int direction)
+    {
+        // Regression: the take-off tick used to count the car's own motion twice, so rearward
+        // jumps at speed fell short into the gap and forward jumps overshot.
+        var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), line, 1_000);
+        double half = T.Geometry.CarLength / 2;
+        var player = PlayerMotor.SpawnOnRoof(train, 3, -direction * 3, P);
+        player.Yaw = direction < 0 ? 0 : Math.PI;
+
+        for (int i = 0; i < SimConstants.TickRate * 5; i++)
+        {
+            train.Dynamics.Velocity = T.MaxSpeed;
+            train.Step(SimConstants.TickSeconds, default);
+            bool onStart = player.Parent == 3 && player.Grounded;
+            bool atEdge = direction < 0 ? player.Position.Z < -half + 0.4 : player.Position.Z > half - 0.4;
+            var intent = onStart
+                ? new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Run | (atEdge ? PlayerButtons.Jump : 0) }
+                : default;
+            PlayerMotor.Step(ref player, intent, train, P, T, SimConstants.TickSeconds);
+        }
+
+        Assert.True(player.Alive);
+        Assert.Equal(Surface.Roof, player.Surface);
+        Assert.Equal(3 + direction, player.Parent);
+    }
+
+    [Fact]
+    public void TakeOffTickMovesOnlyByTheJumpersOwnVelocityRelativeToTheCar()
+    {
+        var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), line, 1_000);
+        var player = PlayerMotor.SpawnOnRoof(train, 2, 0, P);
+        train.Dynamics.Velocity = T.MaxSpeed;
+        train.Step(SimConstants.TickSeconds, default);
+        PlayerMotor.Step(ref player, new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Run | PlayerButtons.Jump }, train, P, T, SimConstants.TickSeconds);
+
+        var local = train.Frames[2].ToLocal(PlayerMotor.WorldPosition(player, train));
+        Assert.Equal(-P.RoofRun * SimConstants.TickSeconds, local.Z, 6);
+    }
+}

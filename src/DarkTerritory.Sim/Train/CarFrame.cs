@@ -40,6 +40,13 @@ public enum CarSurface { Roof, Coupler }
 /// <summary>Greybox collision for one car in its own frame: the body, and the coupler plate behind it.</summary>
 public sealed record CarShape(Box Body, Box? Coupler, IReadOnlyList<Double3> Ladders)
 {
+    /// <summary>End ladders sit to the right of the coupler so they don't collide with the plate.</summary>
+    public const double EndLadderX = 0.55;
+
+    /// <summary>Horizontal direction from a ladder onto the roof: inward from a side, or back from an end face.</summary>
+    public Double3 LadderInward(Double3 ladder) =>
+        Math.Abs(ladder.X) > Body.Max.X ? new Double3(-Math.Sign(ladder.X), 0, 0) : new Double3(0, 0, -Math.Sign(ladder.Z));
+
     public static CarShape Build(GeometryTuning g, bool isEngine, bool hasCarBehind)
     {
         double length = isEngine ? g.EngineLength : g.CarLength;
@@ -49,8 +56,18 @@ public sealed record CarShape(Box Body, Box? Coupler, IReadOnlyList<Double3> Lad
         Box? coupler = hasCarBehind
             ? new Box(new Double3(-g.CouplerWidth / 2, g.CouplerHeight - 0.1, l), new Double3(g.CouplerWidth / 2, g.CouplerHeight, l + g.CouplingGap))
             : null;
+        // Side ladders at the rear corners (boarding from the ground), end ladders on each face
+        // beside the coupler (climbing out of the gap). The engine only has one at its back.
         double ladderZ = l - g.LadderInset;
-        var ladders = isEngine ? Array.Empty<Double3>() : new[] { new Double3(w + 0.15, 0, ladderZ), new Double3(-w - 0.15, 0, ladderZ) };
+        var ladders = new List<Double3>();
+        if (!isEngine)
+        {
+            ladders.Add(new Double3(w + 0.15, 0, ladderZ));
+            ladders.Add(new Double3(-w - 0.15, 0, ladderZ));
+            ladders.Add(new Double3(EndLadderX, 0, -l - 0.1));
+        }
+        if (hasCarBehind)
+            ladders.Add(new Double3(EndLadderX, 0, l + 0.1));
         return new CarShape(body, coupler, ladders);
     }
 }

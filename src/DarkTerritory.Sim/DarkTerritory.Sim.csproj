@@ -2,5 +2,7 @@
   <!-- Shared simulation: loaded identically by host and client (GDD §33). No rendering, audio or platform deps. -->
   <ItemGroup>
     <ProjectReference Include="../Ballast.Core/Ballast.Core.csproj" />
+    <!-- Message types and the in-process loopback only; no sockets or platform services. -->
+    <ProjectReference Include="../Ballast.Net/Ballast.Net.csproj" />
   </ItemGroup>
 </Project>

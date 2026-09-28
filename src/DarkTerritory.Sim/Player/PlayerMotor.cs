@@ -12,6 +12,10 @@ public enum PlayerButtons : byte
     Jump = 2,
     /// <summary>Interact: grab or let go of a ladder, later levers, switches, cargo.</summary>
     Use = 4,
+    /// <summary>Hold the train brake. Only honoured from the engine.</summary>
+    Brake = 8,
+    /// <summary>Flip the reverser. Only honoured from the engine, with the train stopped.</summary>
+    Reverser = 16,
 }
 
 /// <summary>
@@ -27,6 +31,8 @@ public struct PlayerIntent
     public float LookYaw;
     public float LookPitch;
     public PlayerButtons Buttons;
+    /// <summary>Throttle notches to move this tick (−4..4). Only honoured from the engine.</summary>
+    public sbyte ThrottleNotch;
 
     public readonly bool Has(PlayerButtons b) => (Buttons & b) != 0;
 }
@@ -113,12 +119,14 @@ public static class PlayerMotor
             s.Velocity = new Double3(wish.X, 0, wish.Z);
             if (intent.Has(PlayerButtons.Jump))
             {
+                // Take off in the car's frame and integrate this tick there. The car has already moved
+                // this tick; switching to world first would count its motion twice (0.73 m at 22 m/s).
+                // Support resolution below moves us into the world frame once we're clear of the roof.
                 s.Velocity = s.Velocity with { Y = p.JumpVelocity };
                 s.Surface = Surface.Air;
-                Reparent(ref s, train, PlayerState.World);
             }
         }
-        else
+        else if (s.Parent == PlayerState.World)
         {
             s.Velocity -= Double3.Up * (p.Gravity * dt);
         }
@@ -305,11 +313,11 @@ public static class PlayerMotor
     static void StepLadder(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt)
     {
         var frame = train.Frames[s.Parent];
+        var inward = frame.Shape.LadderInward(s.Position);
         if (intent.Has(PlayerButtons.Jump) || intent.Has(PlayerButtons.Use) && intent.MoveZ < -0.5)
         {
-            // Let go: push off the side of the car and fall.
-            var outward = new Double3(Math.Sign(s.Position.X), 0, 0);
-            s.Velocity = outward * 1.5;
+            // Let go: push off the car and fall.
+            s.Velocity = inward * -1.5;
             s.Surface = Surface.Air;
             Reparent(ref s, train, PlayerState.World);
             return;
@@ -320,8 +328,8 @@ public static class PlayerMotor
         if (y >= top)
         {
             // Over the top onto the roof, just inside the edge.
-            double inside = frame.Shape.Body.Max.X - p.Radius - 0.1;
-            s.Position = new Double3(Math.Sign(s.Position.X) * inside, top, s.Position.Z);
+            var onto = s.Position + inward * (p.Radius + 0.45);
+            s.Position = onto with { Y = top };
             s.Surface = Surface.Roof;
             s.Velocity = default;
             return;
