@@ -1,0 +1,16 @@
+// Player movement and survival. Source: systems spec B.2. First pass.
+{
+  "run": 5.5,
+  "walk": 2.4,
+  "roofRun": 3.5,
+  "roofWalkSafe": 1.8,
+  "ladderClimb": 1.6,
+  "carryHeavy": 2.8,
+  "jumpGap": 2.2,
+  "health": 100,
+  "cold": {
+    "onsetSeconds": 200,
+    "deathSeconds": 320,
+    "recoverSecondsNearHeat": 45
+  }
+}

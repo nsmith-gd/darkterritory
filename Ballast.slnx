@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Ballast.Core/Ballast.Core.csproj" />
+    <Project Path="src/Ballast.Net/Ballast.Net.csproj" />
+    <Project Path="src/DarkTerritory.Sim/DarkTerritory.Sim.csproj" />
+    <Project Path="src/DarkTerritory.Cli/DarkTerritory.Cli.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DarkTerritory.Sim.Tests/DarkTerritory.Sim.Tests.csproj" />
+    <Project Path="tests/Ballast.Net.Tests/Ballast.Net.Tests.csproj" />
+  </Folder>
+</Solution>

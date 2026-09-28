@@ -1,0 +1,67 @@
+using DarkTerritory.Sim.Train;
+
+namespace DarkTerritory.Sim.Tests;
+
+/// <summary>
+/// Pins the sim to the systems spec (Part B). If a designer retunes content/tuning/train.json,
+/// these fail on purpose: update the expected values here and in docs/design/systems-spec.md together.
+/// </summary>
+public class SpecTableTests
+{
+    static readonly TrainTuning T = Tuning.Train;
+
+    [Theory]
+    [InlineData(3, 14, 151)]
+    [InlineData(6, 21, 230)]
+    [InlineData(10, 31, 336)]
+    [InlineData(15, 46, 504)]
+    [InlineData(20, 63, 690)]
+    public void StopFromMaxSpeedMatchesSpecB5(int cars, double seconds, double metres)
+    {
+        var r = TrainScenarios.StopFrom(T, cars, T.MaxSpeed);
+        Assert.InRange(r.Seconds, seconds - 1, seconds + 1);
+        Assert.InRange(r.Metres, metres * 0.98, metres * 1.02);
+    }
+
+    [Theory]
+    [InlineData(3, 9.2)]
+    [InlineData(10, 4.3)]
+    [InlineData(15, 2.8)]
+    [InlineData(20, 1.8)]
+    public void MaxClimbableGradeMatchesSpecB5(int cars, double grade)
+    {
+        var dyn = new TrainDynamics(Consist.Uniform(T, cars, 1));
+        Assert.InRange(dyn.MaxClimbableGradePercent(), grade - 0.1, grade + 0.1);
+        Assert.True(TrainScenarios.Climb(T, cars, grade - 0.2).Holds);
+        Assert.False(TrainScenarios.Climb(T, cars, grade + 0.2).Holds);
+    }
+
+    [Fact]
+    public void ThreePercentGradeIsTrivialEarlyAndImpossibleAtTwentyCars()
+    {
+        Assert.True(TrainScenarios.Climb(T, 3, 3).Holds);
+        Assert.False(TrainScenarios.Climb(T, 20, 3).Holds);
+    }
+
+    [Theory]
+    [InlineData(3, 66)]
+    [InlineData(10, 175)]
+    [InlineData(20, 330)]
+    public void ConsistLengthMatchesSpecB4(int cars, double metres) =>
+        Assert.InRange(Consist.Uniform(T, cars, 1).LengthMetres, metres - 1, metres + 1);
+
+    [Fact]
+    public void TwentyCarRoofTraverseTakesAboutNinetyFourSeconds() =>
+        Assert.InRange(Consist.Uniform(T, 20, 1).LengthMetres / Tuning.Player.RoofRun, 93, 95);
+
+    [Theory]
+    [InlineData(3, 20, 133)]
+    [InlineData(10, 12, 80)]
+    [InlineData(20, 8, 53)]
+    public void CoalBurnMatchesSpecB6(int cars, double secondsPerUnit, double enduranceMinutes)
+    {
+        var dyn = new TrainDynamics(Consist.Uniform(T, cars, 1));
+        Assert.Equal(secondsPerUnit, dyn.CoalSecondsPerUnit, 3);
+        Assert.InRange(T.TenderCapacity * dyn.CoalSecondsPerUnit / 60, enduranceMinutes - 1, enduranceMinutes + 1);
+    }
+}

@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Shared simulation: loaded identically by host and client (GDD §33). No rendering, audio or platform deps. -->
+  <ItemGroup>
+    <ProjectReference Include="../Ballast.Core/Ballast.Core.csproj" />
+  </ItemGroup>
+</Project>
