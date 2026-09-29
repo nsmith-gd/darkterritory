@@ -68,6 +68,9 @@ public sealed class ClientSession
         _transport.Send(PeerId.Host, _voiceWriter.Written, Delivery.Unreliable);
     }
     public string SessionInfo { get; private set; } = "";
+    /// <summary>Set while welcomed but not yet aboard (spec E: drop-in at POIs), with the host's reason.</summary>
+    public string? WaitingReason { get; private set; }
+    public bool Waiting => WaitingReason is not null && !Connected;
     public bool Connected => PlayerId is not null && _haveState;
     /// <summary>This player as predicted locally: what the local camera shows.</summary>
     public PlayerState Predicted;
@@ -158,6 +161,9 @@ public sealed class ClientSession
                     ushort vseq = r.U16();
                     var path = (VoicePath)r.U8();
                     VoiceFrames.Enqueue(new VoiceFrame(speaker, vseq, path, r.Rest().ToArray()));
+                    break;
+                case MessageType.Wait:
+                    WaitingReason = r.Str();
                     break;
                 case MessageType.Welcome:
                     (PlayerId, _, SessionInfo) = Messages.ReadWelcome(ref r);

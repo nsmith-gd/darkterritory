@@ -313,7 +313,6 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - the other facilities' modules (spec D) and loading cargo at them;
       - ammunition resupply;
       - the fortress departure phase (contracts, purchases);
-      - drop-in at POIs;
       - autosave;
       - the Vigil (spec C.2);
       - an oncoming train as the dawn failure, rather than the run just ending.
@@ -333,9 +332,16 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - body-to-body collision: crates pass through each other, so the guard van stocks them side by side;
       - true rigid-box contact: crates are spheres to the world and cubes to the eye;
       - the thrower predicting their own throw (it shows on the host's timeline, 100 ms interpolated);
-      - bodies on the Choir's list, the Vigil itself, and interest management for bodies.
+      - bodies on the Choir's list, and the Vigil itself.
 22. **The editor is a local web page, not ImGui (T18).** `dt edit` runs a small HTTP server on 127.0.0.1 over `content/`, and the designer uses a browser next to the running game.
     - **Why.** A designer-first tool needs forms, tables, maps and help text. A browser has all of that today, while ImGui needs a Vulkan UI path (textures, fonts, input) the renderer doesn't have yet. The page is plain HTML and JS embedded in `DarkTerritory.Editor`, and an agent can drive it and screenshot it headless (`dt edit --screenshot`, via Playwright).
     - **Comments survive.** Tuning files carry their rationale and spec citations in comments, so an edit replaces only the characters of the value (`Ballast.Jsonc`, tested on every shipped content file). A serialise-and-write round trip would have thrown the comments away.
     - **Safety.** An edit is validated against the game's own record type before it's written, so the running game never hot-reloads a file it can't load. Only known content files are writable, and routes save only under a plain name.
     - **In-game UI** (the HUD beyond the window title, menus, VR panels) still needs text rendering in the engine. That's separate work, and the editor doesn't wait for it.
+23. **Session rules: interest, drop-out, content, drop-in (T19).**
+    - **Interest.** Each client is sent the train, the players, the run and the world in full, but enemies and bodies only within the interest radius of their own player, plus anything they're carrying. Each client has its own delta baselines, so a record that leaves someone's radius is simply absent from their next snapshot and removed on their side.
+      - **The radius is 520 m** (`enemies.json` → `interestRadius`). An enemy that isn't on your machine can't play its tell there, so the radius must cover the farthest one, the hound howl's 500 m. `AudioTests` holds every enemy tell's range to it. The Choir's voice comes from the world record, which always goes.
+      - **Measured:** at 20 cars, 8 bots, 10 minutes of Frontier with enemies, down per client falls from 52 to 39 kbit/s (budget 64). Most of that is the route's dormant threats up the line.
+    - **Drop-out (spec E).** A player who disconnects alive leaves an inert body where they stood: the same ragdoll a death makes, carryable and revivable at the gate.
+    - **Content hash.** The host puts a hash of every `content/tuning/*.json` (line endings normalised) in the session setup. A joiner whose files differ is refused before building a world, with the files named ("your content differs from the host's: tuning/train.json"). Mods will need the same check over their own files; routes are already sent as a spec the joiner rebuilds.
+    - **Drop-in at POIs (spec E).** Joiners are welcomed straight away but boarded only in the yard, stopped at a facility, or at the terminus. Between stops they get a Wait message (the HUD shows "WAITING: …") and board at the next stop on the ballast beside the engine, "like a pickup". A session with no run (the free-play line) boards anyone at once.

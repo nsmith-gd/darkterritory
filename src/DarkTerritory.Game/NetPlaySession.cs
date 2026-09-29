@@ -18,6 +18,33 @@ namespace DarkTerritory.Game;
 /// <param name="Route">A route spec (<c>frontier:7</c>), or null to play <paramref name="Line"/>.</param>
 public sealed record SessionSetup(string? Route = null, string Line = "test-loop", int Cars = 6, bool Enemies = true)
 {
+    /// <summary>
+    /// The host's tuning, file by file (content/tuning/*.json, line endings normalised). A joiner whose tuning
+    /// differs would predict a different game from the one the host runs, so it's refused by name.
+    /// </summary>
+    public Dictionary<string, string>? Content { get; init; }
+
+    public static Dictionary<string, string> HashContent(string content)
+    {
+        var hashes = new Dictionary<string, string>();
+        foreach (var file in Directory.EnumerateFiles(Path.Combine(content, "tuning"), "*.json").Order(StringComparer.Ordinal))
+        {
+            var text = File.ReadAllText(file).Replace("\r\n", "\n");
+            var hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text));
+            hashes["tuning/" + Path.GetFileName(file)] = Convert.ToHexString(hash, 0, 8).ToLowerInvariant();
+        }
+        return hashes;
+    }
+
+    /// <summary>Files that differ between the host's content and this machine's.</summary>
+    public IReadOnlyList<string> ContentDifferences(string content)
+    {
+        if (Content is null)
+            return [];
+        var mine = HashContent(content);
+        return [.. Content.Keys.Union(mine.Keys).Where(k => Content.GetValueOrDefault(k) != mine.GetValueOrDefault(k)).Order()];
+    }
+
     public string Encode() => JsonSerializer.Serialize(this, DataFile.Options);
     public static SessionSetup Decode(string json) => JsonSerializer.Deserialize<SessionSetup>(json, DataFile.Options) ?? new SessionSetup();
 
@@ -92,11 +119,20 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
+        setup = setup with { Content = SessionSetup.HashContent(content) };
         var (hostWorld, route) = setup.Build(content, authority: true);
         var hostTransport = UdpTransport.Host(port);
         var host = new HostSession(hostTransport, hostWorld, trainTuning, playerTuning) { SessionInfo = setup.Encode() };
         hostWorld.EnableBodies();
         hostWorld.Stock();
+        // Spec E: drop-in at POIs only: in the yard, stopped at a facility, or home. Mid-run joiners wait by
+        // the train at the facility, "like a pickup".
+        if (hostWorld.Run is { } run)
+        {
+            host.CanBoard = () => run.Phase is Sim.Run.RunPhase.Yard or Sim.Run.RunPhase.AtFacility or Sim.Run.RunPhase.Arrived;
+            host.BoardAt = n => run.Phase == Sim.Run.RunPhase.Yard ? PlayerMotor.SpawnOnRoof(hostWorld.Train, 1 + (n - 1) % Math.Max(1, hostWorld.Train.Frames.Count - 1), 0, playerTuning)
+                : Beside(hostWorld.Train, n, playerTuning);
+        }
         if (setup.Enemies && route is not null)
             host.EnableEnemies(DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)), route, route.Seed, expectedCrew);
         var (clientWorld, _) = setup.Build(content);
@@ -114,6 +150,15 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     }
 
     public int Port => _hostTransport?.Port ?? 0;
+
+    /// <summary>On the ballast beside the engine, a few metres apart: where someone who was waiting at a stop is standing.</summary>
+    static PlayerState Beside(TrainOnLine train, int n, PlayerTuning p)
+    {
+        var engine = train.Frames[0];
+        double side = n % 2 == 0 ? 1 : -1;
+        var world = engine.ToWorld(new Ballast.Double3(side * (engine.Shape.HalfWidth + 2.5), 0, engine.Shape.HalfLength - 4 - 2 * (n / 2)));
+        return PlayerMotor.SpawnOnGround(world, train.Line, train.Dynamics.Distance - train.Dynamics.Tuning.Geometry.EngineLength / 2, p);
+    }
 
     /// <summary>Connects to a host and waits (up to the transport's connect timeout) for its Welcome.</summary>
     /// <param name="whileWaiting">Called each time round the wait (a test steps its in-process host here).</param>
@@ -146,6 +191,11 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             Thread.Sleep(5);
         }
         var setup = SessionSetup.Decode(session);
+        if (setup.ContentDifferences(content) is { Count: > 0 } differ)
+        {
+            transport.Dispose();
+            throw new IOException($"your content differs from the host's: {string.Join(", ", differ)}");
+        }
         var (world, route) = setup.Build(content);
         var client = new ClientSession(new Replay(transport, early), world,
             DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File)), DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)));
@@ -188,7 +238,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var d = Train.Dynamics;
         var p = Player;
         string role = Host is not null ? $"hosting :{Port}" : "joined";
-        string link = !Client.Connected ? "connecting…" : Lost ? "CONNECTION LOST" : $"{Client.RemoteIds.Count() + 1} aboard, ping {_clientTransport.RoundTrip(PeerId.Host) * 1000:0} ms";
+        string link = Client.Waiting ? $"WAITING: {Client.WaitingReason}" : !Client.Connected ? "connecting…" : Lost ? "CONNECTION LOST"
+            : $"{Client.RemoteIds.Count() + 1} aboard, ping {_clientTransport.RoundTrip(PeerId.Host) * 1000:0} ms";
         string where = PrototypeSession.Where(p, Train);
         string state = p.Alive ? $"{p.Surface} {where} hp {p.Health}" : $"DEAD ({p.Death})";
         return $"{d.Speed,5:0.0} m/s | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} | P {Train.Boiler.Pressure,3:0} fire {Train.Boiler.Firebox:0.0} tender {Train.Boiler.Tender:0} | " +
