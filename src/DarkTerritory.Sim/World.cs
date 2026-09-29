@@ -93,6 +93,8 @@ public sealed class World
     }
     /// <summary>GDD §23: derailment kills the entire crew at once.</summary>
     public bool Derailed { get; private set; }
+    /// <summary>Host: the crew has braked hard for a Long Whistle's horn, a train that wasn't there (App. B.2's "false positive").</summary>
+    public bool BrakedForFalseAlarm { get; set; }
     /// <summary>Host: how long nobody alive has been in the engine's cab (T53, the Deadman and the Stoker).</summary>
     public double CabEmptySeconds { get; private set; }
 
@@ -440,6 +442,9 @@ public sealed class World
                 break;
             case EnemyKind.Stoker:
                 _enemies.Add(Stoker.InFirebox(_nextEnemyId++, Train));
+                break;
+            case EnemyKind.LongWhistle when LongWhistle.Spot(Train, t.LongWhistle) is { } spot:
+                _enemies.Add(LongWhistle.At(_nextEnemyId++, Train, spot));
                 break;
             case EnemyKind.Ferryman:
                 _enemies.Add(Ferryman.Ahead(_nextEnemyId++, Train, d.NextRange(0, 1) < 0.5 ? -1 : 1, t.Ferryman));

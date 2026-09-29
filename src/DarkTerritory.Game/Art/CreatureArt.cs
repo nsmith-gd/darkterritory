@@ -472,6 +472,9 @@ public sealed class CreatureArt
             case EnemyKind.Stoker:
                 // In the firebox: never seen, only its work (the gauge, the wrong glow the scene gives the fire, the hiss).
                 return true;
+            case EnemyKind.LongWhistle:
+                // "Never visible; operates from ahead on the line" (App. A.2): the horn is all of it.
+                return true;
             case EnemyKind.Rattle:
                 // "Pure audio tell" (App. A.5): in the coupling, never seen. Drawn, as nothing.
                 return true;

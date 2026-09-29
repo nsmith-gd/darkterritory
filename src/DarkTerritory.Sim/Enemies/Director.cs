@@ -60,6 +60,7 @@ public sealed class Director
         EnemyKind.Deadman => "deadman",
         EnemyKind.Stoker => "stoker",
         EnemyKind.Ferryman => "ferryman",
+        EnemyKind.LongWhistle => "longWhistle",
         _ => "sleepers",
     }, 2);
 
@@ -155,7 +156,13 @@ public sealed class Director
         if (_route is { } fr && fr.Tier >= RouteTier.Frontier && world.Enemies is { } ft && s >= fr.Length * ft.Ferryman.MidRunFrom
             && world.LampOutSeconds <= 0 && train.Dynamics.Speed >= ft.Ferryman.MinSpeed && Zone(PressureZone.Forward) < _t.MaxConcurrentZone
             && !Log.Any(l => l.Kind == EnemyKind.Ferryman) && Ferryman.ClearAhead(world, ft.Ferryman))
-            options.Add((EnemyKind.Ferryman, 1));
+            options.Add((EnemyKind.Ferryman, world.BrakedForFalseAlarm ? ft.Ferryman.FalsePositiveWeight : 1));
+        // App. B.2: the Long Whistle on the Frontier and beyond, just short of a grade or curve 400-900 m ahead, and never
+        // alone: "requires ≥1 other active lineside threat in region" (App. A.8's co-spawn rule). One at a time. Weight up in fog.
+        if (_route is { } wr && wr.Tier >= RouteTier.Frontier && world.Enemies is { } wt && Zone(PressureZone.Forward) < _t.MaxConcurrentZone
+            && !active.Any(e => !e.Gone && e.Kind == EnemyKind.LongWhistle) && LongWhistle.Company(world, wt.LongWhistle)
+            && LongWhistle.Spot(train, wt.LongWhistle) is not null)
+            options.Add((EnemyKind.LongWhistle, wr.Weather.FogDensity >= wt.LongWhistle.FogFrom ? wt.LongWhistle.FogWeight : 1));
         options.RemoveAll(o => Cost(o.Kind) > available);
         if (options.Count == 0)
             return null;
@@ -184,7 +191,7 @@ public sealed class Director
         {
             EnemyKind.CinderHound => PressureZone.Rear,
             EnemyKind.Clinger or EnemyKind.Dragger => PressureZone.Flank,
-            EnemyKind.Switchman or EnemyKind.Ferryman => PressureZone.Forward,
+            EnemyKind.Switchman or EnemyKind.Ferryman or EnemyKind.LongWhistle => PressureZone.Forward,
             EnemyKind.SootChildren or EnemyKind.Lamplighter => PressureZone.Structural,
             _ => PressureZone.Interior,
         };

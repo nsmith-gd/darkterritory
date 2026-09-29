@@ -15,6 +15,25 @@ public sealed record EnemyTuning(
     public DeadmanTuning Deadman { get; init; } = new();
     public StokerTuning Stoker { get; init; } = new();
     public FerrymanTuning Ferryman { get; init; } = new();
+    public LongWhistleTuning LongWhistle { get; init; } = new();
+}
+
+/// <summary>The Long Whistle (App. A.2, B.2). Field docs live in enemies.json.</summary>
+public sealed record LongWhistleTuning
+{
+    public double AheadMin { get; init; } = 400;
+    public double AheadMax { get; init; } = 900;
+    public double ShortOf { get; init; } = 60;
+    public double CurveRadius { get; init; } = 1200;
+    public double GradePercent { get; init; } = 1;
+    public double BlastEvery { get; init; } = 9;
+    public int Escalations { get; init; } = 2;
+    public double HardBrake { get; init; } = 4;
+    public double StoppedBelow { get; init; } = 0.5;
+    public double CommitSeconds { get; init; } = 45;
+    public double Region { get; init; } = 1500;
+    public double FogFrom { get; init; } = 0.02;
+    public double FogWeight { get; init; } = 2;
 }
 
 /// <summary>The Ferryman (App. A.2, B.2). Field docs live in enemies.json.</summary>
@@ -39,6 +58,7 @@ public sealed record FerrymanTuning
     public double MaxGradePercent { get; init; } = 1;
     public double ClearPast { get; init; } = 100;
     public double StopMargin { get; init; } = 600;
+    public double FalsePositiveWeight { get; init; } = 2;
 }
 
 /// <summary>The Deadman (App. A.5, B.5). Field docs live in enemies.json.</summary>

@@ -404,7 +404,7 @@ public sealed class HostSession
         var at = PlayerMotor.WorldPosition(c.State, Train);
         _far.Clear();
         foreach (var e in World.ActiveEnemies)
-            if ((e.WorldPosition(Train) - at).Length > InterestRadius)
+            if (!e.Far && (e.WorldPosition(Train) - at).Length > InterestRadius)
                 _far.Add(WireRecord.MakeKey(RecordKind.Enemy, e.Id));
         foreach (var b in World.Bodies.All)
             if (!b.HeldBy(c.Id) && (Physics.Bodies.WorldCentre(b, Train) - at).Length > InterestRadius)

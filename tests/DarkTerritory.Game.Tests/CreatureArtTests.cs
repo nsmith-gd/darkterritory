@@ -180,6 +180,8 @@ public class CreatureArtTests
                         || kind == EnemyKind.Rattle
                         // The Stoker's in the firebox; the Deadman is only seen once it holds the cab (T53).
                         || kind == EnemyKind.Stoker
+                        // The Long Whistle is never seen (T57): only its horn.
+                        || kind == EnemyKind.LongWhistle
                         || kind == EnemyKind.Deadman && phase is not (SpinePhase.Commit or SpinePhase.Punish);
                     Assert.True(hidden ? mesh.Count == 0 : mesh.Count > 0, $"{kind} {phase} drew {mesh.Count / 3} triangles");
                 }

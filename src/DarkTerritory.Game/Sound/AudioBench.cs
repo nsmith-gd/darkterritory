@@ -39,6 +39,7 @@ public static class AudioBench
         ["stoker-hiss"] = (1000, 3000),
         ["hollow-gutter"] = (100, 1000),
         ["choir-voice"] = (300, 4000),
+        ["long-whistle"] = (200, 800),
     };
 
     /// <summary>
@@ -53,6 +54,8 @@ public static class AudioBench
         // The engine's business: whoever's nearest the cab, which in the bench is the cab (T53).
         "deadman-click" or "stoker-hiss" => listenerCar == 0,
         "hound-howl" => listenerCar == cars - 1,
+        // Everyone hears it; the driver's the one it's for (the brake's in the cab).
+        "long-whistle" => listenerCar == 0,
         "clinger-drill" => listenerCar == 1,
         // The one it's reaching for is on that car's roof: they're who has to hear it.
         "dragger-scrape" => listenerCar == 1,
