@@ -89,8 +89,9 @@ public enum Surface : byte { Air, Ground, Roof, Coupler, Ladder, Deck }
 /// <summary><see cref="PulledUnder"/>: into a coupling gap while the Rattle rattled (T51).</summary>
 /// <summary><see cref="Lamplighter"/>: nearest when a Lamplighter reached the lamp (T52).</summary>
 /// <summary><see cref="Deadman"/>, <see cref="Stoker"/>: fighting one out of the cab, or out of the firebox (T53).</summary>
+/// <summary><see cref="Burned"/>, <see cref="Gnawed"/>: in a car with a fire, or a nest of Gnawers (the in-car incidents).</summary>
 /// <summary><see cref="Struck"/>: stood on a roof into a tunnel's mouth; <see cref="Thrown"/>: off a roof on a curve taken over its board.</summary>
-public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged, Crushed, PulledUnder, Lamplighter, Deadman, Stoker, Ferryman, Struck, Thrown }
+public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged, Crushed, PulledUnder, Lamplighter, Deadman, Stoker, Ferryman, Struck, Thrown, Burned, Gnawed }
 
 /// <summary>Conditions a player carries.</summary>
 [Flags]

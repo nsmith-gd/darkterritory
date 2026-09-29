@@ -331,6 +331,8 @@ public sealed class GreyboxScene
             mesh.Box(L(x, y, z), r, u, b, new Vector3((float)hx, (float)hy, (float)hz), colour);
         float pulse = (float)(0.5 + 0.5 * Math.Sin(e.PhaseSeconds * 9));
 
+        if (Art.IncidentArt.Draw(mesh, o, r, u, b, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health))
+            return;
         switch (e.Kind)
         {
             case EnemyKind.Sleepers:

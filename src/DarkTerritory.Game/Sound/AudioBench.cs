@@ -39,6 +39,10 @@ public static class AudioBench
         ["stoker-hiss"] = (1000, 3000),
         ["hollow-gutter"] = (100, 1000),
         ["choir-voice"] = (300, 4000),
+        // The in-car incidents (after the playtest), up where nothing else is, or rhythmic where the bed isn't.
+        ["car-fire"] = (6000, 9000),
+        ["gnawers"] = (9000, 12000),
+        ["load-creak"] = (1400, 2200),
     };
 
     /// <summary>
@@ -53,6 +57,9 @@ public static class AudioBench
         // The engine's business: whoever's nearest the cab, which in the bench is the cab (T53).
         "deadman-click" or "stoker-hiss" => listenerCar == 0,
         "hound-howl" => listenerCar == cars - 1,
+        // Trouble in a car: whoever's on it. Staging puts the fire in the first cargo car and the rest in the middle one.
+        "car-fire" => listenerCar == 1,
+        "load-creak" or "gnawers" => listenerCar == cars / 2,
         "clinger-drill" => listenerCar == 1,
         // The one it's reaching for is on that car's roof: they're who has to hear it.
         "dragger-scrape" => listenerCar == 1,

@@ -566,6 +566,13 @@ public sealed class Dragger(int id) : Enemy(id)
                     Rearm(ctx);
                     break;
                 }
+                // Stamped on at the lip (after the playtest: it has to be beatable): the one it's reaching for, holding Use,
+                // drives it back under, and hurt. Twice and it lets go of the car for good.
+                if (ctx.Crew.Any(c => c.Player.Id == reaching && c.Intent.Has(PlayerButtons.Use) && c.Intent.MoveZ <= 0.5))
+                {
+                    Hurt(ctx, t);
+                    break;
+                }
                 Creep(mark.State.Position.Z, t, shape);
                 if (PhaseSeconds >= t.TelegraphSeconds && Enter(ctx, SpinePhase.Commit) && Enter(ctx, SpinePhase.Punish))
                 {
@@ -588,7 +595,7 @@ public sealed class Dragger(int id) : Enemy(id)
                 if (freed)
                 {
                     Enter(ctx, SpinePhase.BreakOff);
-                    Rearm(ctx);
+                    Hurt(ctx, t);
                     break;
                 }
                 if (PhaseSeconds >= _window)
@@ -611,7 +618,20 @@ public sealed class Dragger(int id) : Enemy(id)
         Local = Local with { Z = Local.Z + Math.Clamp(to - Local.Z, -step, step) };
     }
 
-    /// <summary>Back under the lip, not reaching again for a while. It never leaves its car.</summary>
+    /// <summary>Hurt by a stamp or a crewmate pulling free: back under, or, hurt enough, off the car and gone.</summary>
+    void Hurt(EnemyContext ctx, DraggerTuning t)
+    {
+        Health -= t.StampDamage;
+        if (Health <= 1e-9)
+        {
+            Enter(ctx, SpinePhase.BreakOff);
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        Rearm(ctx);
+    }
+
+    /// <summary>Back under the lip, not reaching again for a while. Only hurting it gets it off its car.</summary>
     void Rearm(EnemyContext ctx)
     {
         Extra = -1;

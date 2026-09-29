@@ -15,6 +15,57 @@ public sealed record EnemyTuning(
     public DeadmanTuning Deadman { get; init; } = new();
     public StokerTuning Stoker { get; init; } = new();
     public FerrymanTuning Ferryman { get; init; } = new();
+    public CarFireTuning CarFire { get; init; } = new();
+    public LooseLoadTuning LooseLoad { get; init; } = new();
+    public GnawerTuning Gnawers { get; init; } = new();
+}
+
+/// <summary>A car fire (the in-car incidents). Field docs live in enemies.json.</summary>
+public sealed record CarFireTuning
+{
+    public double StartIntensity { get; init; } = 0.1;
+    public double GrowPerSecond { get; init; } = 0.02;
+    public double BurnFrom { get; init; } = 0.35;
+    public double BeatReach { get; init; } = 1.6;
+    public double BeatPerSecond { get; init; } = 0.08;
+    public double ScorchAbove { get; init; } = 0.6;
+    public int ScorchDamage { get; init; } = 4;
+    public int BurnDamage { get; init; } = 12;
+    public double BurnEverySeconds { get; init; } = 2;
+    public double CargoPerSecond { get; init; } = 0.012;
+    public double IntegrityPerSecond { get; init; } = 0.004;
+    public double SpreadSeconds { get; init; } = 20;
+    public int MaxActive { get; init; } = 2;
+}
+
+/// <summary>A loose load (the in-car incidents). Field docs live in enemies.json.</summary>
+public sealed record LooseLoadTuning
+{
+    public double LashReach { get; init; } = 1.6;
+    public double LashSeconds { get; init; } = 5;
+    public double LurchAccel { get; init; } = 0.45;
+    public double SnapSeconds { get; init; } = 60;
+    public double SlideReach { get; init; } = 2.5;
+    public int CrushDamage { get; init; } = 80;
+    public double Breakage { get; init; } = 0.2;
+    public double MinLoad { get; init; } = 0.3;
+    public int MaxActive { get; init; } = 2;
+}
+
+/// <summary>Gnawers (the in-car incidents). Field docs live in enemies.json.</summary>
+public sealed record GnawerTuning
+{
+    public double StartSwarm { get; init; } = 0.3;
+    public double BreedPerSecond { get; init; } = 0.01;
+    public double Reach { get; init; } = 1.8;
+    public double StampPerSecond { get; init; } = 0.1;
+    public double OutAfterSeconds { get; init; } = 6;
+    public int BiteDamage { get; init; } = 10;
+    public double BiteEverySeconds { get; init; } = 2;
+    public double EatPerSecond { get; init; } = 0.004;
+    public double SpreadSeconds { get; init; } = 30;
+    public double MinLoad { get; init; } = 0.2;
+    public int MaxActive { get; init; } = 2;
 }
 
 /// <summary>The Ferryman (App. A.2, B.2). Field docs live in enemies.json.</summary>
@@ -107,6 +158,7 @@ public sealed record DraggerTuning
     public double AloneSeconds { get; init; } = 0.4;
     public double PullSpeed { get; init; } = 3;
     public double RearmSeconds { get; init; } = 8;
+    public double StampDamage { get; init; } = 0.5;
     public int MinCars { get; init; } = 2;
     public int MaxAttached { get; init; } = 2;
 

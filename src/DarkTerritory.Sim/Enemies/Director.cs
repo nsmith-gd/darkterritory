@@ -60,6 +60,9 @@ public sealed class Director
         EnemyKind.Deadman => "deadman",
         EnemyKind.Stoker => "stoker",
         EnemyKind.Ferryman => "ferryman",
+        EnemyKind.CarFire => "carFire",
+        EnemyKind.LooseLoad => "looseLoad",
+        EnemyKind.Gnawers => "gnawers",
         _ => "sleepers",
     }, 2);
 
@@ -156,6 +159,19 @@ public sealed class Director
             && world.LampOutSeconds <= 0 && train.Dynamics.Speed >= ft.Ferryman.MinSpeed && Zone(PressureZone.Forward) < _t.MaxConcurrentZone
             && !Log.Any(l => l.Kind == EnemyKind.Ferryman) && Ferryman.ClearAhead(world, ft.Ferryman))
             options.Add((EnemyKind.Ferryman, 1));
+        // The in-car incidents: a cargo car in the engine's rake, with a load for the ones that live in it, at most so many of
+        // each about, and one of a kind a car. Fires come on more with the boiler hot and throwing cinders.
+        if (world.Enemies is { } it && Zone(PressureZone.Interior) < _t.MaxConcurrentZone)
+        {
+            bool Room(EnemyKind kind, int max, double minLoad) => active.Count(e => !e.Gone && e.Kind == kind) < max
+                && IncidentCars(world, kind, minLoad).Any();
+            if (Room(EnemyKind.CarFire, it.CarFire.MaxActive, 0))
+                options.Add((EnemyKind.CarFire, train.BoilerTuning is { } fb && train.Boiler.Pressure > fb.WorkingBandMax ? 1.5 : 1));
+            if (Room(EnemyKind.LooseLoad, it.LooseLoad.MaxActive, it.LooseLoad.MinLoad))
+                options.Add((EnemyKind.LooseLoad, 1));
+            if (Room(EnemyKind.Gnawers, it.Gnawers.MaxActive, it.Gnawers.MinLoad))
+                options.Add((EnemyKind.Gnawers, 1));
+        }
         options.RemoveAll(o => Cost(o.Kind) > available);
         if (options.Count == 0)
             return null;
@@ -175,6 +191,11 @@ public sealed class Director
         _cooldown = _rng.Range(_t.CooldownSeconds[0], _t.CooldownSeconds[1]) / Math.Max(1e-6, RateMultiplier);
         return kind;
     }
+
+    /// <summary>Cargo cars in the engine's rake an incident of this kind could take: loaded enough, and without one already.</summary>
+    public static IEnumerable<int> IncidentCars(World world, EnemyKind kind, double minLoad) =>
+        world.Train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Load >= minLoad
+            && !world.ActiveEnemies.Any(e => !e.Gone && e.Kind == kind && e.Attached == v.Id)).Select(v => v.Id);
 
     /// <summary>Condition-triggered enemies (the Hollow) cost budget only when they actually fire (App. B.5).</summary>
     public void Charge(World world, EnemyKind kind, IReadOnlyList<Enemy> active)

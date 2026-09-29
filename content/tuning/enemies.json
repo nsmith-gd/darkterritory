@@ -129,6 +129,9 @@
     "pullSpeed": 3,
     // Freed, or its reach dodged, it's back under the lip this long before it reaches again.
     "rearmSeconds": 8,
+    // After the 100-night playtest, it's beatable: stamped on as it reaches (the one it's reaching for holds Use), or a
+    // grabbed crewmate pulled free, takes this much of its health (1). At none it lets go of the car for good.
+    "stampDamage": 0.5,
     // App. B.4 "Train length ≥2". At most this many under one train at once.
     "minCars": 2,
     "maxAttached": 2
@@ -252,6 +255,65 @@
     "depthWeight": 2
   },
 
+  // The in-car incidents (after the 100-night playtest: "more problems players need to face in cars, and reasons not to
+  // roof walk the whole time; defeatable, but able to hurt or kill"). Each takes a cargo car in the engine's rake, is
+  // told through its walls, and is answered from its floor by holding Use at it (at the cargo stack's face, beside the
+  // aisle). Not in the GDD's roster; interior zone (App. B.1's cap of 2 applies). Cut the car loose and it goes with it.
+
+  // CAR FIRE: cinders through a vent. Smoke and crackle (5-9 kHz) while it's taking; alight at burnFrom, it burns the
+  // cargo (cargo integrity per second at full) and the car (integrity), and whoever's in the car (burnDamage x how far
+  // it's gone, every burnEverySeconds). Beating it (Use within beatReach) takes beatPerSecond off per person; above
+  // scorchAbove, beating it scorches you (scorchDamage). At full blaze for spreadSeconds it takes the next cargo car.
+  "carFire": {
+    "startIntensity": 0.1,
+    "growPerSecond": 0.02,
+    "burnFrom": 0.35,
+    "beatReach": 1.6,
+    "beatPerSecond": 0.08,
+    "scorchAbove": 0.6,
+    "scorchDamage": 4,
+    "burnDamage": 12,
+    "burnEverySeconds": 2,
+    "cargoPerSecond": 0.012,
+    "integrityPerSecond": 0.004,
+    "spreadSeconds": 20,
+    "maxActive": 2
+  },
+
+  // LOOSE LOAD: a lashing's parted. The stack groans against its straps (700 Hz-1.4 kHz). The train's speed changing by
+  // lurchAccel (m/s², a hard brake or the slack running in) or snapSeconds of it, and it comes down across the aisle:
+  // crushDamage to anyone within slideReach of it along the car, breakage off the car's cargo. Re-lashed with
+  // lashSeconds of Use at it (two lash twice as fast). Only in a car loaded minLoad or more.
+  "looseLoad": {
+    "lashReach": 1.6,
+    "lashSeconds": 5,
+    "lurchAccel": 0.45,
+    "snapSeconds": 60,
+    "slideReach": 2.5,
+    "crushDamage": 80,
+    "breakage": 0.2,
+    "minLoad": 0.3,
+    "maxActive": 2
+  },
+
+  // GNAWERS: a nest in the load. Chittering high up (7-10 kHz). They eat the cargo (eatPerSecond x their number) and
+  // breed; outAfterSeconds after they're heard they're out of the crates, biting anyone in the car within reach
+  // (biteDamage x their number, every biteEverySeconds). Stamping them (Use) takes stampPerSecond off each. At their
+  // full number for spreadSeconds they're into the next cargo car.
+  "gnawers": {
+    "startSwarm": 0.3,
+    "breedPerSecond": 0.01,
+    "reach": 1.8,
+    "stampPerSecond": 0.1,
+    "outAfterSeconds": 6,
+    "biteDamage": 10,
+    "biteEverySeconds": 2,
+    "eatPerSecond": 0.004,
+    "spreadSeconds": 30,
+    "minLoad": 0.2,
+    "maxActive": 2
+  },
+
   "choirSwarm": {
     // In the Swarm phase, anyone exposed (roof, ground, ladder) takes this every few seconds.
     "exposedDamage": 10,
@@ -273,7 +335,8 @@
     "maxConcurrentLargeCrew": 6,
     // Budget share spent before the first facility, across the middle, and in the final approach.
     "phaseShares": [0.15, 0.45, 0.40],
-    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3, "ferryman": 4 },
+    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3, "ferryman": 4,
+      "carFire": 2, "looseLoad": 1, "gnawers": 2 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5

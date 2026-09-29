@@ -276,6 +276,9 @@ public static class WorldRecords
             EnemyKind.Lamplighter => new Lamplighter(r.Id),
             EnemyKind.Deadman => new Deadman(r.Id),
             EnemyKind.Stoker => new Stoker(r.Id),
+            EnemyKind.CarFire => new CarFire(r.Id),
+            EnemyKind.LooseLoad => new LooseLoad(r.Id),
+            EnemyKind.Gnawers => new Gnawers(r.Id),
             EnemyKind.Ferryman => new Ferryman(r.Id),
             _ => new Hollow(r.Id),
         };

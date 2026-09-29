@@ -181,6 +181,8 @@ public static class Hud
                 DeathCause.Deadman => "KILLED TAKING BACK THE CAB",
                 DeathCause.Struck => "STRUCK BY THE TUNNEL MOUTH",
                 DeathCause.Thrown => "THROWN OFF ON THE CURVE",
+                DeathCause.Burned => "BURNED IN A BLAZING CAR",
+                DeathCause.Gnawed => "EATEN BY THE GNAWERS",
                 DeathCause.Ferryman => "SLOWED FOR THE LANTERN",
                 DeathCause.Stoker => "BURNED DRIVING IT OUT OF THE FIREBOX",
                 _ => "",

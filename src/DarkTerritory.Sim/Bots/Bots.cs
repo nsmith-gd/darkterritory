@@ -47,7 +47,9 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         if (!self.Alive)
             return default;
         // A tunnel's mouth ahead: at the gun it's down behind the shield; anywhere else on the roofs, off them.
-        _legs.Looked(world, safe: Guns.MannedGun(self, world.Train, guns) is not null);
+        // Trouble in a car: off the gun for it only while there's nothing at the back to shoot (hounds out).
+        bool hounds = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && !e.Gone);
+        _legs.Looked(world, safe: Guns.MannedGun(self, world.Train, guns) is not null, tend: !hounds);
         // Nobody holds a gun through the cold (spec B.2): off it and indoors until warm, then back. Nor through a stop
         // they have a part in.
         if (_legs.Warming(self) || _legs.Work(self, world) is not null)
@@ -119,9 +121,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     bool _looked;
 
     /// <summary>The gunner has read the line for its legs this tick already (it knows whether it's at the gun).</summary>
-    internal void Looked(World world, bool safe)
+    internal void Looked(World world, bool safe, bool tend = true)
     {
-        Look(world, safe);
+        Look(world, safe, tend);
         _looked = true;
     }
 
@@ -143,10 +145,33 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// off the roofs and indoors (sight.json: the mouth takes anyone standing up there). <paramref name="safe"/>: where it
     /// stands is clear anyway (a gun's crew are down behind its shield).
     /// </summary>
-    public void Look(World world, bool safe = false)
+    public void Look(World world, bool safe = false, bool tend = true)
     {
-        if (_warm is not null)
-            _warm.Shelter = !safe && TunnelNear(world);
+        if (_warm is null)
+            return;
+        _warm.Shelter = !safe && TunnelNear(world);
+        // Trouble inside a car: in to it, and work it from the aisle, unless it's too much for us (hurt, get out).
+        _trouble = tend ? world.ActiveEnemies.OfType<Incident>().Where(e => !e.Gone && e.Attached > 0)
+            .OrderBy(e => e.Kind == EnemyKind.LooseLoad ? 0 : 1).ThenBy(e => e.Id).FirstOrDefault() : null;
+        _warm.Into = _trouble?.Attached;
+        var train = world.Train;
+        _warm.Indoors = _trouble is { } trouble ? s => Tend(s, trouble, train) : null;
+    }
+
+    Incident? _trouble;
+
+    /// <summary>Hurt this badly, a walker leaves the trouble to someone else and gets out.</summary>
+    const int TooHurt = 35;
+
+    /// <summary>In the troubled car: along the aisle to beside it, facing along the car (away from the side doors), and hold Use.</summary>
+    static PlayerIntent? Tend(in PlayerState self, Incident trouble, TrainOnLine train)
+    {
+        if (trouble.Gone || self.Parent != trouble.Attached || self.Health < TooHurt)
+            return null;
+        var aisle = new Double3(train.Dynamics.Tuning.Geometry.Interior!.DoorX, 0, trouble.Local.Z);
+        double yaw = self.Position.Z > trouble.Local.Z ? 0 : Math.PI;
+        var (step, there) = WarmUp.Steer(self, aisle, yaw);
+        return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
     }
 
     /// <summary>Seconds' warning a walker wants to get off the roofs and in before a tunnel's mouth.</summary>
@@ -178,6 +203,14 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         if (self.Alive && self.Parent > 0 && self.Parent < train.Frames.Count)
         {
             int parent = self.Parent;
+            // A Dragger reaching over the lip for us: stamp on it (it's beatable, after the playtest).
+            var at = self.Position;
+            if (self.Surface == Surface.Roof && world.ActiveEnemies.OfType<Dragger>().Any(d => d.Phase == SpinePhase.Telegraph && d.Attached == parent
+                    && Math.Sign(at.X + 1e-9) == d.Side && Math.Abs(at.Z - d.Local.Z) < 2))
+                return new PlayerIntent { Buttons = PlayerButtons.Use };
+            // Trouble in another car: head along the roofs for it (in through its door when we're there).
+            if (_trouble is { } trouble && trouble.Attached != parent && _warm is { Active: false } && self.Surface == Surface.Roof)
+                _direction = trouble.Attached < parent ? -1 : 1;
             var clinger = world.ActiveEnemies.Where(e => e.Kind == EnemyKind.Clinger && !e.Gone)
                 .OrderBy(e => Math.Abs(e.Attached - parent)).FirstOrDefault();
             if (clinger is not null && clinger.Attached == self.Parent && self.Grounded && self.Surface == Surface.Roof)
@@ -528,7 +561,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     /// <summary>Times it's been in and got warm.</summary>
     public int Done { get; private set; }
 
-    public bool Wants(in PlayerState s) => Shelter ||
+    public bool Wants(in PlayerState s) => Shelter || Into is not null ||
         s.Cold >= cold.OnsetSeconds * goInAt * (s.Has(PlayerFlags.Revived) ? cold.RevivedOnsetScale : 1);
 
     /// <summary>
@@ -536,6 +569,15 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     /// in, and it waits in there until it's clear.
     /// </summary>
     public bool Shelter { get; set; }
+
+    /// <summary>
+    /// A car to go into, cold or not (trouble in it: a fire, a loose load, Gnawers). The way in is this car's own rear
+    /// door, from its roof, or from the roof of the car behind it.
+    /// </summary>
+    public int? Into { get; set; }
+
+    /// <summary>What to do once in and shut in (work the trouble); null for nothing (then it warms up, and out).</summary>
+    public Func<PlayerState, PlayerIntent?>? Indoors { get; set; }
 
     /// <summary>This tick's intent while getting warm; null when there's nothing to do (walk as usual).</summary>
     public PlayerIntent? Decide(in PlayerState self, TrainOnLine train)
@@ -605,6 +647,8 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                 }
             case Step.Warm:
                 _ticks = 0; // waiting's not being stuck
+                if (Indoors?.Invoke(self) is { } busy)
+                    return busy;
                 // Someone came or went and left a door open: shut it again.
                 if (train.Vehicles[_car].DoorsOpen != 0)
                     return Next(Step.Shut);
@@ -682,6 +726,12 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
         int behind = train.VehicleBehind(here), ahead = train.VehicleAhead(here);
         bool back = behind > 0 && Walkable(train, here) && Rattled?.Invoke(here) != true;
         bool front = ahead > 0 && Walkable(train, ahead) && Rattled?.Invoke(ahead) != true;
+        // Sent into one car in particular: its own rear door, from its roof or the roof behind it.
+        if (Into is { } into)
+        {
+            back &= here == into;
+            front &= ahead == into;
+        }
         if (!back && !front)
             return false;
         bool goBack = back && (!front || s.Position.Z > 0);

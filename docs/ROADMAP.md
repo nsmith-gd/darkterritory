@@ -177,6 +177,14 @@ M3 is done but for a test with eight people.
 - A pixel-font HUD in the low-res frame: engine gauges, ping to host (spec E), the prompt for what your hands can do, and the night.
 - `dt screenshot --hud` captures it.
 
+**Trouble inside the cars (after the 100-night playtest):**
+- A car fire: smoke, then flames. It burns the cargo, the car, and whoever's inside, and spreads at full blaze. You beat it out from inside.
+- A loose load: straps groaning. On a hard brake, slack action, or after a minute, it comes down across the aisle and crushes whoever's beside it. You lash it from inside.
+- Gnawers: a nest in the cargo that eats it, breeds, and bites anyone in the car. You stamp them out, taking bites.
+- Each has its own tell in a band nothing else uses. The director spends on them (interior zone) and they go with a car cut loose.
+- Walkers go in and deal with them; the gunner goes too while there's nothing at the back.
+- Draggers can be beaten now: stamp on the limb as it reaches, twice, and it lets go of the car.
+
 **The line's boards (sight.json, after the 100-night playtest):**
 - Speed boards before sharp curves and weak bridges, and low-clearance boards before tunnels, read in the headlamp at 350 m. Lamps down they're unread, and the curve or tunnel mouth is only made out 10 m short.
 - Over a board, the cars strain and the cargo lurches, roof riders are thrown, and far over the train derails. A tunnel mouth takes anyone standing on a roof.

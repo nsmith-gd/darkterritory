@@ -180,7 +180,10 @@ public class CreatureArtTests
                         || kind == EnemyKind.Rattle
                         // The Stoker's in the firebox; the Deadman is only seen once it holds the cab (T53).
                         || kind == EnemyKind.Stoker
-                        || kind == EnemyKind.Deadman && phase is not (SpinePhase.Commit or SpinePhase.Punish);
+                        || kind == EnemyKind.Deadman && phase is not (SpinePhase.Commit or SpinePhase.Punish)
+                        // A loose load is only heard; Gnawers are only seen once they're out of the crates.
+                        || kind == EnemyKind.LooseLoad
+                        || kind == EnemyKind.Gnawers && phase != SpinePhase.Punish;
                     Assert.True(hidden ? mesh.Count == 0 : mesh.Count > 0, $"{kind} {phase} drew {mesh.Count / 3} triangles");
                 }
         foreach (var pose in Enum.GetValues<CrewPose>())

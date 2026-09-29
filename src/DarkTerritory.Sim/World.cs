@@ -457,6 +457,23 @@ public sealed class World
             case EnemyKind.Stoker:
                 _enemies.Add(Stoker.InFirebox(_nextEnemyId++, Train));
                 break;
+            case EnemyKind.CarFire or EnemyKind.LooseLoad or EnemyKind.Gnawers:
+                {
+                    double minLoad = kind == EnemyKind.LooseLoad ? t.LooseLoad.MinLoad : kind == EnemyKind.Gnawers ? t.Gnawers.MinLoad : 0;
+                    var holds = DarkTerritory.Sim.Enemies.Director.IncidentCars(this, kind, minLoad).ToList();
+                    if (holds.Count == 0)
+                        break;
+                    int hold = holds[(int)d.NextRange(0, holds.Count - 1e-9)];
+                    double half = Train.Frames[hold].Shape.HalfLength;
+                    double along = d.NextRange(-half + 2, half - 2);
+                    _enemies.Add(kind switch
+                    {
+                        EnemyKind.CarFire => CarFire.In(_nextEnemyId++, Train, hold, along, t.CarFire),
+                        EnemyKind.LooseLoad => LooseLoad.In(_nextEnemyId++, Train, hold, along),
+                        _ => Gnawers.In(_nextEnemyId++, Train, hold, along, t.Gnawers),
+                    });
+                    break;
+                }
             case EnemyKind.Ferryman:
                 _enemies.Add(Ferryman.Ahead(_nextEnemyId++, Train, d.NextRange(0, 1) < 0.5 ? -1 : 1, t.Ferryman));
                 break;
