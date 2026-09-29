@@ -1,0 +1,11 @@
+// Train bed: brake application: shoes on the tyres, heavier and harsher with speed.
+{
+  "tier": 5, "loop": true, "maxInstances": 2, "minDistance": 3, "maxDistance": 120,
+  "layers": [
+    { "source": "noise", "gain": { "param": "load", "points": [[0, 0], [22, 0.25]] },
+      "filters": [{ "type": "bandPass", "frequency": 700, "q": 3 }],
+      "tremolo": { "rate": 3.1, "depth": 0.4, "jitter": 0.5 } },
+    { "source": "sine", "frequency": 1180, "gain": { "param": "load", "points": [[0, 0], [8, 0], [22, 0.06]] },
+      "vibrato": { "rate": 6, "depth": 0.01 } }
+  ]
+}

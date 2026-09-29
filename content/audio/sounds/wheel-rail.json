@@ -1,0 +1,13 @@
+// Train bed: wheel on rail under each car near you: a roar with speed, and the rail-joint clicks
+// (12 m rails, two trucks).
+{
+  "tier": 5, "loop": true, "maxInstances": 6, "minDistance": 3, "maxDistance": 90,
+  "crush": { "bits": 10, "rate": 22050 },
+  "layers": [
+    { "source": "noise", "gain": { "param": "speed", "points": [[0, 0], [3, 0.08], [22, 0.3]] },
+      "filters": [{ "type": "bandPass", "frequency": { "param": "speed", "points": [[0, 180], [22, 420]] }, "q": 0.9 }] },
+    { "source": "impulse", "gain": { "param": "speed", "points": [[0, 0], [1, 0.6], [22, 0.9]] },
+      "frequency": { "param": "speed", "points": [[0, 0], [22, 3.7]] },
+      "filters": [{ "type": "bandPass", "frequency": 260, "q": 3 }, { "type": "lowPass", "frequency": 900 }] }
+  ]
+}

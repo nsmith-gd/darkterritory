@@ -1,0 +1,9 @@
+// Player action (tier 4): a round from a mounted gun. Every one of these raises the Choir.
+{
+  "tier": 4, "duration": 0.5, "maxInstances": 6, "minDistance": 3, "maxDistance": 400,
+  "crush": { "bits": 8, "rate": 16000 },
+  "layers": [
+    { "source": "noise", "gain": 1.4, "filters": [{ "type": "lowPass", "frequency": 2600 }], "envelope": [[0, 1], [0.03, 0.5], [0.4, 0]] },
+    { "source": "sine", "frequency": 70, "gain": 0.9, "pitchEnvelope": [[0, 1.6], [0.15, 0.8]], "envelope": [[0, 1], [0.25, 0]] }
+  ]
+}

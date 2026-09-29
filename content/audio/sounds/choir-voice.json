@@ -1,0 +1,12 @@
+// Tell (tier 1), the Choir: "layered voices, multiplying", 300 Hz-4 kHz, wide (spec A.4). One voice of
+// many: the game adds voices as aggro climbs and moves them in around the train. "pitch" detunes each.
+{
+  "tier": 1, "loop": true, "maxInstances": 8, "minDistance": 20, "maxDistance": 600, "rolloff": 0.6, "gainDb": 8,
+  "layers": [
+    { "source": "saw", "gain": 0.45, "frequency": { "param": "pitch", "points": [[0, 0], [2, 440]] },
+      "filters": [{ "type": "bandPass", "frequency": 720, "q": 5 }, { "type": "peak", "frequency": 1180, "q": 6, "gainDb": 9 }, { "type": "peak", "frequency": 2650, "q": 7, "gainDb": 7 }],
+      "vibrato": { "rate": 5.3, "depth": 0.014 }, "tremolo": { "rate": 0.23, "depth": 0.6, "jitter": 0.5 } },
+    { "source": "noise", "gain": 0.08, "filters": [{ "type": "bandPass", "frequency": 3400, "q": 3 }],
+      "tremolo": { "rate": 0.23, "depth": 0.6, "jitter": 0.5 } }
+  ]
+}

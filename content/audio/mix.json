@@ -1,0 +1,30 @@
+// Mix buses and ducking (spec A.3). Tiers: 1 enemy telegraphs, 2 proximity voice, 3 critical train
+// state, 4 player actions, 5 train bed, 6 ambient world. "Higher tiers duck everything below."
+{
+  "ducking": [
+    // Tier 1 is inviolable: while any telegraph is audible, everything else drops 9 dB.
+    { "tier": 1, "ducks": [2, 3, 4, 5, 6], "db": -9 },
+    // Proximity voice ducks the bed 6 dB while someone's talking.
+    { "tier": 2, "ducks": [5], "db": -6 },
+    // Not in the spec's table, which only gives tiers 1 and 2 a number: the rest duck what's below
+    // them gently, so an alarm reads over the bed without the bed pumping.
+    { "tier": 3, "ducks": [4, 5, 6], "db": -3 },
+    { "tier": 4, "ducks": [5, 6], "db": -1.5 }
+  ],
+  // Spec A.4's own band table has the Choir (300 Hz-4 kHz) over the hounds (500 Hz-3 kHz) and the
+  // Sleepers (400 Hz-2 kHz). A full swarm is continuous and global, a howl or a writhe is brief and
+  // local, so the Choir steps back while one of those is sounding (ARCHITECTURE §8). Loops (a drill,
+  // the Hollow) don't duck it, or it would never come back.
+  "soundDucking": [
+    { "when": ["hound-howl", "sleepers-writhe"], "ducks": ["choir-voice"], "db": -8 }
+  ],
+  "duckAttack": 0.03,
+  "duckRelease": 0.45,
+  // Spec A.7: budget 64 concurrent voices.
+  "maxVoices": 64,
+  // Spec A.3 and A.5: car walls are -12 dB and a 900 Hz lowpass; a telegraph never loses more than 6 dB.
+  "occlusionDb": -12,
+  "occlusionLowpass": 900,
+  "tellOcclusionFloorDb": -6,
+  "masterDb": 9
+}

@@ -132,6 +132,21 @@ FMOD's power lives in FMOD Studio, a GUI authoring tool whose projects an agent 
 - **Offline render**: the mixer can render any sim state to a buffer. The harness then *measures* tell audibility against the bed, which makes spec A.3's "tier 1 is inviolable" an automated test.
 - Steam Audio for HRTF (spec A.4: ~30° localisation, and essential in VR) and geometric occlusion.
 
+**Status (T12).** `Ballast.Audio` exists. It has no device dependency, so the same code renders to the speakers and offline.
+- **Sounds:**
+  - Layered synthesis nodes: noise, sine, saw, square, impulse.
+  - Biquad filter chains, tremolo and gates with jitter, vibrato, envelopes and bit-crush.
+  - Every number can be a curve over a live parameter.
+- **Buses:** six tier buses, with the ducking rules in `content/audio/mix.json`.
+- **Spatialisation:** distance rolloff and equal-power pan with a small rear cut, plus occlusion. Tells are floored at −6 dB.
+- **Voices:** per-sound instance limits with stealing, and a 64-voice budget. Past the budget, voices virtualise, but tells always render.
+- **Game hookup (`DarkTerritory.Game.Sound.GameAudio`)** drives it all from world state, so clients hear what the host does:
+  - the bed follows speed, pressure, fire, throttle and brake;
+  - slack action runs down the consist one coupling at a time;
+  - the tells follow enemy phases;
+  - the Choir adds voices and closes in as aggro climbs.
+- **Output:** device output is an SDL3 audio stream. miniaudio isn't needed yet, and Steam Audio's HRTF comes with VR.
+
 ### 6.5 Rendering (art direction)
 Forward+ renderer, deliberately limited:
 - Point-sampled 256–512 px textures with mips; optional internal resolution scale with nearest upscale for pixel crawl (off or reduced in VR for comfort).
@@ -220,3 +235,17 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Still open from that run:**
       - The gunner fired all 200 rounds. Ammunition needs a resupply (facilities).
       - Five Sleeper hits at braking speed each took 0.4 of the engine's integrity, and an engine at zero integrity does nothing yet.
+17. **Audio mix (spec A).**
+    - **What's measured.** `dt audio render --listener all` renders a staged moment from the cab, the Clinger's car, mid-train and the guard car, and measures each tell's level in its own spec A.4 band against everything else. It counts only the moments the tell is sounding.
+    - **Who has to hear what.** Only the players who need a tell are held to it:
+      - the cab, for the Sleepers and the Hollow;
+      - the guard car, for the hounds;
+      - the Clinger's own car, for the Clinger;
+      - everyone, for the Choir.
+    - **The test.** `AudioTests` requires +6 dB over the bed in maximum chaos: 20 cars at 22 m/s, surging regulator and brake, the valve lifting, the gun firing, the Choir in full swarm, and every tell at once. The tuned sounds clear it by 8–18 dB.
+    - **The spec's own band table collides.** The Choir (300 Hz–4 kHz) spans the hounds (500 Hz–3 kHz) and the Sleepers (400 Hz–2 kHz).
+      - Resolution: the Choir ducks 8 dB whenever a howl or a writhe is sounding (`soundDucking` in `mix.json`).
+      - Loops (the drill, the Hollow) don't duck it.
+      - Even so, with everything at once, a full swarm still roughly equals a howl at the guard car. Tell against tell is reported, not required.
+    - **Ducking for tiers 3 and 4** isn't in the spec's table, which gives numbers only for tiers 1 and 2. They duck the tiers below them gently (−3 dB and −1.5 dB).
+    - **Distance behaviour.** Tells carry further than 1/d: the howl rolls off at 0.7 and the Choir at 0.6, because "distant howl, closing" and "audible singing far off" have to be heard at 150–250 m.

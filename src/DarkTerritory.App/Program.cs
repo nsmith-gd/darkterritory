@@ -1,8 +1,10 @@
 using System.Diagnostics;
 using Ballast;
+using Ballast.Audio;
 using Ballast.Platform;
 using Ballast.Render;
 using DarkTerritory.Game;
+using DarkTerritory.Game.Sound;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Route;
@@ -13,7 +15,7 @@ using DarkTerritory.Sim.Route;
 //   E at the firebox: shovel (hold) · E at the valve: vent (hold) · E on a coupler plate: cut (hold)
 //   Left mouse at a gun (engine cab roof, guard car roof): fire
 //   1–9 respawn on that car's roof · Backspace respawn in the cab · Tab chase camera · Esc release mouse / quit
-// Options: --route tier:seed [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png
+// Options: --route tier:seed [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png --mute
 
 string Arg(string name, string fallback)
 {
@@ -45,6 +47,15 @@ using var renderer = new GreyboxRenderer(gpu, internalSize[0], internalSize[1]);
 var (w, h) = window.PixelSize;
 using var swapchain = new Swapchain(gpu, w, h);
 Console.WriteLine($"GPU: {gpu.DeviceName}, window {w}x{h}, internal {renderer.Width}x{renderer.Height}");
+
+var sound = new GameAudio(content);
+using var speaker = args.Contains("--mute") ? null : AudioOut.Open(Audio.SampleRate, out var audioError) is { } s ? s : Warn(audioError);
+var audioBlock = new float[Audio.Block * 2];
+static AudioOut? Warn(string? error)
+{
+    Console.WriteLine($"audio: no output device ({error}); running silent");
+    return null;
+}
 
 var clock = new FixedStepClock(SimConstants.TickRate);
 var scene = new GreyboxScene { Route = session.Route, Enemies = session.World.Enemies is null ? null : session.World.ActiveEnemies };
@@ -101,6 +112,15 @@ while (!window.CloseRequested)
         };
         pendingYaw = pendingPitch = 0;
         session.Step(intent);
+        // The ears are where the eyes were last frame; audio follows the sim tick so no shot is missed.
+        bool exposed = session.Player.Surface is not Surface.Deck || session.Player.Parent == PlayerState.World;
+        sound.Update(session.World, session.Controls, Listener.At(camera.Position, camera.Yaw), exposed, SimConstants.TickSeconds);
+    }
+    // Keep ~60 ms queued at the device.
+    while (speaker is not null && speaker.QueuedSeconds < 0.06)
+    {
+        sound.Mixer.Render(audioBlock);
+        speaker.Write(audioBlock);
     }
 
     var frames = session.InterpolatedFrames(clock.Alpha);

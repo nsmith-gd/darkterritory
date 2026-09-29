@@ -41,6 +41,7 @@ return args switch
     ["route", "gen", ..] => Print(GenerateRoute(routeTuning, content, args)),
     ["route", "sweep", ..] => Print(SweepRoutes(routeTuning, (int)Opt(args, "--seeds", 200))),
     ["harness", ..] => Print(RunHarness(args)),
+    ["audio", "render", ..] => Print(RenderAudio(content, args)),
 
     _ => Usage(),
 };
@@ -215,7 +216,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     using var gpu = new GpuContext("dt screenshot");
     using var renderer = new GreyboxRenderer(gpu, width, height);
     var mesh = new MeshBuilder();
-    new GreyboxScene { Route = route, Enemies = args.Contains("--threats") ? StagedThreats(train) : null }.Build(mesh, train, camera.Position);
+    new GreyboxScene { Route = route, Enemies = args.Contains("--threats") ? Staging.Threats(train) : null }.Build(mesh, train, camera.Position);
     var lighting = Views.Lighting(train);
     if (route is not null)
         lighting.FogDensity = (float)route.Weather.FogDensity;
@@ -224,34 +225,21 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     return new { path = Path.GetFullPath(output), view, device = gpu.DeviceName, triangles = mesh.Count / 3, width = width * scale, height = height * scale, ms = clock.ElapsedMilliseconds };
 }
 
-// One of each demo enemy mid-telegraph or mid-punish around the train, to look at their greybox stand-ins.
-static List<Enemy> StagedThreats(TrainOnLine train)
+// Renders a staged moment through the real mixer to a WAV, and measures every tell against the bed.
+static object RenderAudio(string content, string[] args)
 {
-    var d = train.Dynamics;
-    int rear = d.Consist.Vehicles[^1].Id;
-    var rearShape = train.Frames[rear].Shape;
-    var threats = new List<Enemy>();
-    var sleepers = new Sleepers(1);
-    sleepers.Restore(SpinePhase.Telegraph, 1.2, 1, -1, default, d.Distance + 40, 0, 0.2, 0, 0);
-    threats.Add(sleepers);
-    for (int i = 0; i < 3; i++)
-    {
-        var hound = new CinderHound(10 + i, 10);
-        hound.Restore(SpinePhase.Commit, 2, 60, -1, default, d.RearDistance - 14 - i * 6, (i % 2 == 0 ? 1 : -1) * (2.5 + i), 0.6, 10, 0);
-        threats.Add(hound);
-    }
-    var boarded = new CinderHound(13, 10);
-    boarded.Restore(SpinePhase.Punish, 0.4, 60, rear, new Double3(0.6, rearShape.RoofHeight, rearShape.HalfLength - 2.5), 0, 0, 0, 10, 0);
-    threats.Add(boarded);
-    int cargo = d.Consist.Vehicles.First(v => v.Kind == VehicleKind.Cargo).Id;
-    var cargoShape = train.Frames[cargo].Shape;
-    var clinger = new Clinger(20);
-    clinger.Restore(SpinePhase.Telegraph, 50, 1, cargo, new Double3(cargoShape.HalfWidth + 0.15, 2.0, 0), 0, 0, 0, 0.55, 0);
-    threats.Add(clinger);
-    var hollow = new Hollow(30);
-    hollow.Restore(SpinePhase.Punish, 2, 1, 0, train.Frames[0].Shape.Cab!.Value.Centre, 0, 0, 0, 0, 0);
-    threats.Add(hollow);
-    return threats;
+    string scenario = Str(args, "--scenario", "chaos");
+    if (Str(args, "--listener", "") == "all")
+        return DarkTerritory.Game.Sound.AudioBench.Sweep(content, scenario, (int)Opt(args, "--cars", 20), Opt(args, "--speed", 22), Opt(args, "--seconds", 6));
+    string output = Str(args, "--out", $"out/audio/{scenario}.wav");
+    var clock = Stopwatch.StartNew();
+    var (report, mix) = DarkTerritory.Game.Sound.AudioBench.Render(content, scenario, (int)Opt(args, "--cars", 20), Opt(args, "--speed", 22),
+        (int)Opt(args, "--listener", 5), Opt(args, "--seconds", 6));
+    Ballast.Audio.Wav.Write(output, mix);
+    // The picture of it: a spectrogram beside the WAV, for looking at bands without listening.
+    string picture = Path.ChangeExtension(output, ".png");
+    PngWriter.Write(picture, DarkTerritory.Game.Sound.Spectrogram.Render(mix, 800, 300), 800, 300, 1);
+    return new { path = Path.GetFullPath(output), spectrogram = Path.GetFullPath(picture), report, ms = clock.ElapsedMilliseconds };
 }
 
 static string Str(string[] args, string name, string fallback)
@@ -291,6 +279,8 @@ static int Usage()
           route sweep [--seeds n]                  generate n routes per tier and report ranges
           harness [--bots n] [--cars n] [--seconds t] [--seed s] [--latency s] [--jitter s] [--loss 0..1] [--line name | --route tier:seed]
                      [--enemies] [--no-combat] [--no-boiler]
+          audio render [--scenario bed|tells|chaos] [--cars n] [--speed v] [--listener car (0 = cab) | all] [--seconds t] [--out file.wav]
+                     renders through the mixer to a WAV and a spectrogram PNG, and reports each tell's margin over the bed (spec A.3)
                      host + bot clients over a simulated network; reports prediction error, bandwidth, deaths,
                      and with --enemies the director's spawns, punishes, deaths by cause and fairness audit
         """);
