@@ -20,7 +20,7 @@ public readonly record struct CarPose(int Index, Double3 Centre, Double3 Forward
 public readonly record struct RakeContact(int Front, int Rear, double ClosingSpeed, bool Coupled, double Damage);
 
 public readonly record struct RakeState(int[] Vehicles, double Distance, double Velocity, double BrakeEfficiency, bool Handbrake, bool FrontCouplerLocked);
-public readonly record struct VehicleState(int Id, double Load, double Integrity, double CargoIntegrity);
+public readonly record struct VehicleState(int Id, double Load, double Integrity, double CargoIntegrity, GunState Gun = default);
 
 /// <summary>Everything about the train that the host owns and clients re-simulate from.</summary>
 public sealed record TrainState(RakeState[] Rakes, VehicleState[] Vehicles, Boiler Boiler);
@@ -158,7 +158,7 @@ public sealed class TrainOnLine
 
     public TrainState Capture() => new(
         _rakes.Select(r => new RakeState(r.Consist.Vehicles.Select(v => v.Id).ToArray(), r.Distance, r.Velocity, r.BrakeEfficiency, r.Handbrake, r.FrontCouplerLocked)).ToArray(),
-        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity)).ToArray(),
+        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun)).ToArray(),
         Boiler);
 
     /// <summary>Adopts host state and rebuilds rakes and poses; clients then re-simulate forward from it.</summary>
@@ -170,6 +170,7 @@ public sealed class TrainOnLine
             vehicle.Load = v.Load;
             vehicle.Integrity = v.Integrity;
             vehicle.CargoIntegrity = v.CargoIntegrity;
+            vehicle.Gun = v.Gun;
         }
         var previous = _rakes.ToDictionary(r => r.Consist.Vehicles[0].Id);
         _rakes.Clear();
@@ -354,24 +355,24 @@ public sealed class TrainOnLine
                 var forward = (fb - rb).Length > 1e-9 ? (fb - rb).Normalized : Line.Sample(front).Tangent;
                 var pose = new CarPose(v.Id, Double3.Lerp(fb, rb, 0.5), forward, length, front);
                 poses[v.Id] = pose;
-                frames[v.Id] = CarFrame.From(pose, rake.Velocity, Shape(g, v.IsEngine, i < vehicles.Count - 1));
+                frames[v.Id] = CarFrame.From(pose, rake.Velocity, Shape(g, v.Kind, i < vehicles.Count - 1));
                 front -= length + g.CouplingGap;
             }
         }
     }
 
-    readonly Dictionary<(bool, bool), CarShape> _shapes = new();
+    readonly Dictionary<(VehicleKind, bool), CarShape> _shapes = new();
     GeometryTuning? _shapeGeometry;
 
-    CarShape Shape(GeometryTuning g, bool engine, bool hasCarBehind)
+    CarShape Shape(GeometryTuning g, VehicleKind kind, bool hasCarBehind)
     {
         if (!ReferenceEquals(g, _shapeGeometry))
         {
             _shapes.Clear();
             _shapeGeometry = g;
         }
-        if (!_shapes.TryGetValue((engine, hasCarBehind), out var shape))
-            _shapes[(engine, hasCarBehind)] = shape = CarShape.Build(g, engine, hasCarBehind);
+        if (!_shapes.TryGetValue((kind, hasCarBehind), out var shape))
+            _shapes[(kind, hasCarBehind)] = shape = CarShape.Build(g, kind, hasCarBehind);
         return shape;
     }
 }

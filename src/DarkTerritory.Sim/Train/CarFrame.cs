@@ -44,7 +44,10 @@ public readonly record struct Box(Double3 Min, Double3 Max)
 public enum SurfaceKind : byte { Roof, Deck, Coupler }
 
 /// <summary>What a solid is, so presentation can draw and colour it. Collision ignores this.</summary>
-public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler }
+public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount }
+
+/// <summary>Where a gun is bolted on, and which way it faces in the car's frame (−Z forward, +Z back).</summary>
+public readonly record struct GunMount(Double3 Position, Double3 Facing);
 
 public readonly record struct Solid(Box Box, SurfaceKind Top, PartKind Part);
 
@@ -60,7 +63,8 @@ public readonly record struct Interactable(InteractableKind Kind, Double3 Positi
 /// Greybox collision for one car in its own frame: solids to stand on and bump into, ladders,
 /// interactables, and (on the engine) the cab volume that makes a player the crew in charge.
 /// </summary>
-public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnlyList<Ladder> Ladders, IReadOnlyList<Interactable> Interactables, Box? Cab)
+public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnlyList<Ladder> Ladders, IReadOnlyList<Interactable> Interactables, Box? Cab,
+    GunMount? Gun = null)
 {
     /// <summary>End ladders sit to the right of the coupler so they don't collide with the plate.</summary>
     public const double EndLadderX = 0.55;
@@ -70,19 +74,38 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     /// <summary>Height of the highest walkable roof.</summary>
     public double RoofHeight => Bounds.Max.Y;
 
-    /// <summary>The highest walkable surface over a point in the car's frame, and what kind it is.</summary>
-    public (double Top, SurfaceKind Kind)? TopAt(double x, double z)
+    /// <summary>The highest walkable surface over a point in the car's frame (at or below <paramref name="maxY"/>), and what kind it is.</summary>
+    public (double Top, SurfaceKind Kind)? TopAt(double x, double z, double maxY = double.MaxValue)
     {
         (double, SurfaceKind)? best = null;
         var p = new Double3(x, 0, z);
         foreach (var solid in Solids)
-            if (solid.Box.ContainsXZ(p) && (best is null || solid.Box.Max.Y > best.Value.Item1))
+            if (solid.Box.ContainsXZ(p) && solid.Box.Max.Y <= maxY + 1e-6 && (best is null || solid.Box.Max.Y > best.Value.Item1))
                 best = (solid.Box.Max.Y, solid.Top);
         return best;
     }
 
+    public static CarShape Build(GeometryTuning g, VehicleKind kind, bool hasCarBehind) => kind switch
+    {
+        VehicleKind.Engine => Engine(g, hasCarBehind),
+        VehicleKind.Guard => Guard(g, hasCarBehind),
+        _ => Car(g, hasCarBehind),
+    };
+
     public static CarShape Build(GeometryTuning g, bool isEngine, bool hasCarBehind) =>
-        isEngine ? Engine(g, hasCarBehind) : Car(g, hasCarBehind);
+        Build(g, isEngine ? VehicleKind.Engine : VehicleKind.Cargo, hasCarBehind);
+
+    /// <summary>A car with the rear gun on its roof, facing back down the line.</summary>
+    static CarShape Guard(GeometryTuning g, bool hasCarBehind)
+    {
+        var car = Car(g, hasCarBehind);
+        double l = g.CarLength / 2, h = g.CarHeight;
+        var mount = new Double3(0, h, l - 1.6);
+        var solids = car.Solids.Append(new Solid(Box.FromCentre(mount + new Double3(0, 0.25, 0), new Double3(0.35, 0.25, 0.35)), SurfaceKind.Roof, PartKind.GunMount)).ToList();
+        // The brake wheel moves to the front end so it isn't under the gun.
+        var interactables = new[] { new Interactable(InteractableKind.Handbrake, new Double3(0, h, -l + 0.5), 0.8) };
+        return car with { Solids = solids, Interactables = interactables, Gun = new GunMount(mount + new Double3(0, 0.9, 0), new Double3(0, 0, 1)) };
+    }
 
     static Solid? CouplerPlate(GeometryTuning g, double halfLength, bool hasCarBehind) => hasCarBehind
         ? new Solid(new Box(new Double3(-g.CouplerWidth / 2, g.CouplerHeight - 0.1, halfLength), new Double3(g.CouplerWidth / 2, g.CouplerHeight, halfLength + g.CouplingGap)),
@@ -160,6 +183,11 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         };
         var cab = new Box(new Double3(-w + 0.1, deck - 0.1, cabFront), new Double3(w - 0.1, g.EngineHeight - 0.2, cabBack));
         var bounds = new Box(new Double3(-w, 0, -l), new Double3(w, g.EngineHeight, l));
-        return new CarShape(bounds, solids, ladders, interactables, cab);
+
+        // Forward gun on the cab roof, reached by a hatch ladder up from the cab floor.
+        var mount = new Double3(0, g.EngineHeight, cabFront + 0.8);
+        solids.Add(new Solid(Box.FromCentre(mount + new Double3(0, 0.25, 0), new Double3(0.35, 0.25, 0.35)), SurfaceKind.Roof, PartKind.GunMount));
+        ladders.Add(new Ladder(new Double3(-w + 0.45, deck, cabBack - 0.35), g.EngineHeight, new Double3(0, 0, -1)));
+        return new CarShape(bounds, solids, ladders, interactables, cab, new GunMount(mount + new Double3(0, 0.9, 0), new Double3(0, 0, -1)));
     }
 }

@@ -268,6 +268,12 @@ public sealed class GreyboxScene
             // Roof walkway plank down the safe centreline.
             Draw(new Box(new Double3(-0.35, shape.RoofHeight, -half + 0.2), new Double3(0.35, shape.RoofHeight + 0.04, half - 0.2)), Palette.TarnishedBrass);
         }
+        if (shape.Gun is { } gun)
+        {
+            // Barrel along the gun's facing: its arc is readable from its silhouette (GDD §26).
+            Draw(Box.FromCentre(gun.Position + gun.Facing * 0.9, new Double3(0.08, 0.08, 0.9)), Palette.SootBlack);
+            Draw(Box.FromCentre(gun.Position, new Double3(0.3, 0.25, 0.35)), Palette.IronGrey);
+        }
         foreach (var ladder in shape.Ladders)
         {
             // Rails run up the face the ladder is fixed to: thin across it, a hand-width wide along it.

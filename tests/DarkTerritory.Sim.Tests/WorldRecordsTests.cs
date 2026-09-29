@@ -36,14 +36,14 @@ public class WorldRecordsTests
     {
         var train = Train();
         var players = new List<PlayerSnapshot> { new(1, PlayerMotor.SpawnInCab(train, P)), new(2, PlayerMotor.SpawnOnRoof(train, 4, 2, P)) };
-        var a = WorldRecords.Capture(train, new TrainControls { Throttle = 0.5, Reverser = 1 }, players);
+        var a = WorldRecords.Capture(new World(train), new TrainControls { Throttle = 0.5, Reverser = 1 }, players);
         SameRecords(a, RoundTrip(a, null, out int full));
 
         train.Step(SimConstants.TickSeconds, new TrainControls { Throttle = 1, Reverser = 1 });
         train.Uncouple(5);
         players[1] = players[1] with { State = players[1].State with { Position = players[1].State.Position + new Double3(0, 0, -0.05) } };
         players.RemoveAt(0);
-        var b = WorldRecords.Capture(train, new TrainControls { Throttle = 1, Reverser = 1 }, players);
+        var b = WorldRecords.Capture(new World(train), new TrainControls { Throttle = 1, Reverser = 1 }, players);
         SameRecords(b, RoundTrip(b, a, out int delta));
         Assert.True(delta < full / 3, $"delta {delta} B vs full {full} B");
     }
@@ -52,7 +52,7 @@ public class WorldRecordsTests
     public void AnUnchangedWorldCostsAlmostNothing()
     {
         var train = Train();
-        var a = WorldRecords.Capture(train, default, []);
+        var a = WorldRecords.Capture(new World(train), default, []);
         RoundTrip(a, a, out int bytes);
         Assert.Equal(2, bytes);
     }
@@ -64,8 +64,9 @@ public class WorldRecordsTests
         train.Dynamics.Velocity = 13.3333333;
         var controls = new TrainControls { Throttle = 1 / 3.0, Reverser = 1 };
         var players = new List<PlayerSnapshot> { new(1, PlayerMotor.SpawnInCab(train, P) with { Yaw = Math.PI / 7 }) };
-        var once = WorldRecords.Quantise(train, ref controls, players);
-        var twice = WorldRecords.Quantise(train, ref controls, players);
+        var world = new World(train);
+        var once = WorldRecords.Quantise(world, ref controls, players);
+        var twice = WorldRecords.Quantise(world, ref controls, players);
         SameRecords(once, twice);
     }
 

@@ -10,6 +10,7 @@ public enum Key
 {
     W, A, S, D, E, R, F, B, X, C, Q, Space, LeftShift, Escape, Tab, F1, F5, Backspace,
     D1, D2, D3, D4, D5, D6, D7, D8, D9,
+    MouseLeft, MouseRight,
 }
 
 /// <summary>
@@ -128,7 +129,17 @@ public sealed unsafe class Window : IDisposable
                     }
                     break;
                 case SDL_EventType.SDL_EVENT_MOUSE_BUTTON_DOWN:
-                    MouseCaptured = true;
+                case SDL_EventType.SDL_EVENT_MOUSE_BUTTON_UP:
+                    bool down = (SDL_EventType)e.type == SDL_EventType.SDL_EVENT_MOUSE_BUTTON_DOWN;
+                    if (down && !MouseCaptured)
+                    {
+                        MouseCaptured = true;
+                        break;
+                    }
+                    if (e.button.button == 1)
+                        Input.Set(Key.MouseLeft, down);
+                    else if (e.button.button == 3)
+                        Input.Set(Key.MouseRight, down);
                     break;
             }
         }

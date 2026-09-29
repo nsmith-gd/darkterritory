@@ -1,11 +1,12 @@
 using Ballast;
 using Ballast.Net;
+using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, Choir = 6 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the high byte, id in the low.</summary>
 public readonly record struct WireRecord(ushort Key, long[] Fields)
@@ -32,8 +33,9 @@ public static class WorldRecords
     static long Q(double v, double scale) => (long)Math.Round(v * scale);
     static double D(long q, double scale) => q / scale;
 
-    public static List<WireRecord> Capture(TrainOnLine train, in TrainControls controls, IEnumerable<PlayerSnapshot> players)
+    public static List<WireRecord> Capture(World world, in TrainControls controls, IEnumerable<PlayerSnapshot> players)
     {
+        var train = world.Train;
         var list = new List<WireRecord>();
         foreach (var rake in train.Rakes)
         {
@@ -49,7 +51,9 @@ public static class WorldRecords
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Rake, ids[0].Id), f));
         }
         foreach (var v in train.Vehicles)
-            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Vehicle, v.Id), [Q(v.Load, Fine), Q(v.Integrity, Fine), Q(v.CargoIntegrity, Fine)]));
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Vehicle, v.Id),
+                [Q(v.Load, Fine), Q(v.Integrity, Fine), Q(v.CargoIntegrity, Fine), v.Gun.Ammo, v.Gun.Cooldown, v.Gun.Jammed ? 1 : 0, v.Gun.LastShotTick]));
+        list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Choir, 0), [Q(world.Choir.Aggro, Fine), Q(world.Choir.SecondsSinceShot, Fine), Q(world.Choir.Floor, Fine)]));
         var b = train.Boiler;
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Boiler, 0),
         [
@@ -73,8 +77,9 @@ public static class WorldRecords
     }
 
     /// <summary>Writes records back into live state: the client adopting a snapshot, or the host adopting its own quantised state.</summary>
-    public static void Apply(IReadOnlyList<WireRecord> records, TrainOnLine train, ref TrainControls controls, List<PlayerSnapshot> players)
+    public static void Apply(IReadOnlyList<WireRecord> records, World world, ref TrainControls controls, List<PlayerSnapshot> players)
     {
+        var train = world.Train;
         players.Clear();
         var rakes = new List<RakeState>();
         var vehicles = new List<VehicleState>();
@@ -92,7 +97,11 @@ public static class WorldRecords
                     rakes.Add(new RakeState(ids, D(f[n + 1], Pos), D(f[n + 2], Pos), D(f[n + 3], Fine), (f[n + 4] & 1) != 0, (f[n + 4] & 2) != 0));
                     break;
                 case RecordKind.Vehicle:
-                    vehicles.Add(new VehicleState(r.Id, D(f[0], Fine), D(f[1], Fine), D(f[2], Fine)));
+                    vehicles.Add(new VehicleState(r.Id, D(f[0], Fine), D(f[1], Fine), D(f[2], Fine),
+                        new GunState { Ammo = (int)f[3], Cooldown = (int)f[4], Jammed = f[5] != 0, LastShotTick = (uint)f[6] }));
+                    break;
+                case RecordKind.Choir:
+                    world.Choir = new ChoirState { Aggro = D(f[0], Fine), SecondsSinceShot = D(f[1], Fine), Floor = D(f[2], Fine) };
                     break;
                 case RecordKind.Boiler:
                     boiler = new Boiler
@@ -220,10 +229,10 @@ public static class WorldRecords
     }
 
     /// <summary>Snaps live host state onto the replication grid. Call at the end of every host tick.</summary>
-    public static List<WireRecord> Quantise(TrainOnLine train, ref TrainControls controls, List<PlayerSnapshot> players)
+    public static List<WireRecord> Quantise(World world, ref TrainControls controls, List<PlayerSnapshot> players)
     {
-        var records = Capture(train, controls, players);
-        Apply(records, train, ref controls, players);
+        var records = Capture(world, controls, players);
+        Apply(records, world, ref controls, players);
         return records;
     }
 }

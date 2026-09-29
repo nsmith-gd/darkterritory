@@ -1,6 +1,7 @@
 using Ballast;
 using Ballast.Render;
 using DarkTerritory.Sim;
+using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
@@ -18,6 +19,7 @@ public sealed class PrototypeSession
     readonly HotData<TrainTuning> _trainTuning;
     readonly HotData<PlayerTuning> _playerTuning;
     readonly HotData<BoilerTuning> _boilerTuning;
+    readonly HotData<CombatTuning> _combatTuning;
     PlayerState _previousPlayer;
 
     public PrototypeSession(string contentRoot, string lineName = "test-loop", int cars = 6, double start = 600)
@@ -37,16 +39,19 @@ public sealed class PrototypeSession
         _trainTuning = new HotData<TrainTuning>(Path.Combine(contentRoot, TrainTuning.File));
         _playerTuning = new HotData<PlayerTuning>(Path.Combine(contentRoot, PlayerTuning.File));
         _boilerTuning = new HotData<BoilerTuning>(Path.Combine(contentRoot, BoilerTuning.File));
+        _combatTuning = new HotData<CombatTuning>(Path.Combine(contentRoot, CombatTuning.File));
         var consist = Consist.Uniform(_trainTuning.Value, cars, 1);
         // On a route, start in the fortress yard with the whole train on the level.
         if (route is not null)
             start = consist.LengthMetres + 150;
         Train = new TrainOnLine(new TrainDynamics(consist), line, start, _boilerTuning.Value);
+        World = new World(Train, _combatTuning.Value);
         Controls = new TrainControls { Reverser = 1 };
         Respawn(0);
     }
 
     public TrainOnLine Train { get; }
+    public World World { get; }
     public Route? Route { get; }
     public double ElapsedSeconds => Tick * SimConstants.TickSeconds;
     public PlayerState Player;
@@ -61,8 +66,9 @@ public sealed class PrototypeSession
     {
         ReloadTuning();
         _previousPlayer = Player;
-        CrewActions.Apply(ref Player, intent, Train, SimConstants.TickSeconds);
-        Train.Step(SimConstants.TickSeconds, Controls);
+        World.BeginTick();
+        World.CrewAct(ref Player, intent, 1);
+        World.Step(Controls);
         PlayerMotor.Step(ref Player, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds);
         Tick++;
     }
@@ -76,6 +82,11 @@ public sealed class PrototypeSession
         }
         if (_playerTuning.Refresh(e => LastReloadError = e.Message))
             LastReloadError = null;
+        if (_combatTuning.Refresh(e => LastReloadError = e.Message))
+        {
+            World.Combat = _combatTuning.Value;
+            LastReloadError = null;
+        }
         if (_boilerTuning.Refresh(e => LastReloadError = e.Message))
         {
             Train.BoilerTuning = _boilerTuning.Value;
@@ -141,9 +152,16 @@ public sealed class PrototypeSession
             (Player.ActionProgress > 0 ? $" shovel {Player.ActionProgress:0.0}s" : "");
         string state = Player.Alive ? $"{Player.Surface} {where} hp {Player.Health}" : $"DEAD ({Player.Death}) — Backspace to respawn";
         return $"{d.Speed,5:0.0} m/s {SpeedBands.Classify(TrainTuning, d.Speed),-7} | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} rev {(Controls.Reverser > 0 ? "F" : "R")} " +
-               $"| {boiler} |{(Train.Rakes.Count > 1 ? $" {Train.Rakes.Count} rakes |" : "")} grade {Train.AverageGrade(),4:0.0}% | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state}" +
+               $"| {boiler} |{Gunnery()}{(Train.Rakes.Count > 1 ? $" {Train.Rakes.Count} rakes |" : "")} grade {Train.AverageGrade(),4:0.0}% | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state}" +
                RouteStatus() +
                (LastReloadError is null ? "" : $" | TUNING ERROR: {LastReloadError}");
+    }
+
+    string Gunnery()
+    {
+        var c = _combatTuning.Value;
+        string gun = Guns.MannedGun(Player, Train, c.Guns) is { } g ? $" GUN {Train.Vehicles[g].Gun.Ammo} rds |" : "";
+        return $"{gun} choir {World.Choir.Phase(c.Choir).ToString().ToLowerInvariant()} {World.Choir.Aggro:0} |";
     }
 
     string RouteStatus()

@@ -1,0 +1,28 @@
+// Mounted guns (spec B.7) and The Choir (spec B.7, GDD App. A.6). First pass.
+{
+  "guns": {
+    "roundsPerSecond": 3,
+    "range": 80,
+    // Total traverse either side of the gun's facing is half of this.
+    "traverseDegrees": 200,
+    // Spec B.7: no firing within this many degrees of the train's own body axis.
+    "deadZoneDegrees": 20,
+    "minPitchDegrees": -12,
+    "maxPitchDegrees": 45,
+    "ammo": 200,
+    // Stand within this of the gun to work it.
+    "reach": 1.0,
+    "damagePerRound": 25
+  },
+  "choir": {
+    "aggroPerRound": 1.5,
+    // App. A.6: no gunfire for ~45 s and they disperse.
+    "quietSecondsBeforeDecay": 45,
+    "decayPerSecond": 1.0,
+    "approachThreshold": 12,
+    "swarmThreshold": 30,
+    "maxAggro": 60,
+    // App. B.8: livestock raises the floor by 25% of the approach threshold.
+    "livestockFloor": 3
+  }
+}

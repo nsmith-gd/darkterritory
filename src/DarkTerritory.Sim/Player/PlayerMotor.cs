@@ -16,6 +16,8 @@ public enum PlayerButtons : byte
     Brake = 8,
     /// <summary>Flip the reverser. Only honoured from the engine, with the train stopped.</summary>
     Reverser = 16,
+    /// <summary>Fire the mounted gun you're standing at.</summary>
+    Fire = 32,
 }
 
 /// <summary>
@@ -324,7 +326,7 @@ public static class PlayerMotor
                 double dx = local.X - ladder.Foot.X, dz = local.Z - ladder.Foot.Z;
                 if (dx * dx + dz * dz > p.Ladder.GrabRange * p.Ladder.GrabRange)
                     continue;
-                if (local.Y < -0.5 || local.Y > ladder.Top + 0.1)
+                if (local.Y < ladder.Foot.Y - 0.5 || local.Y > ladder.Top + 0.1)
                     continue;
                 var relative = frame.VelocityToLocal(worldVelocity);
                 if (Math.Sqrt(relative.X * relative.X + relative.Z * relative.Z) >= p.Ladder.GrabMaxRelativeSpeed)
@@ -333,7 +335,7 @@ public static class PlayerMotor
                     s.Yaw += (s.Parent == PlayerState.World ? 0 : train.Frames[s.Parent].Heading) - frame.Heading;
                 s.Parent = frame.Index;
                 s.Surface = Surface.Ladder;
-                s.Position = new Double3(ladder.Foot.X, Math.Clamp(local.Y, 0, ladder.Top - 0.05), ladder.Foot.Z);
+                s.Position = new Double3(ladder.Foot.X, Math.Clamp(local.Y, ladder.Foot.Y, ladder.Top - 0.05), ladder.Foot.Z);
                 s.Velocity = default;
                 return;
             }
@@ -366,8 +368,16 @@ public static class PlayerMotor
             s.Velocity = default;
             return;
         }
-        s.Position = s.Position with { Y = Math.Max(0, y) };
+        s.Position = s.Position with { Y = Math.Max(ladder.Foot.Y, y) };
         s.Velocity = default;
+        if (y <= ladder.Foot.Y && ladder.Foot.Y > 0)
+        {
+            // A hatch ladder: step off onto the floor it stands on.
+            var floor = frame.Shape.TopAt(s.Position.X, s.Position.Z, ladder.Foot.Y);
+            s.Position = s.Position with { Y = ladder.Foot.Y };
+            s.Surface = ToSurface(floor?.Kind ?? SurfaceKind.Deck);
+            return;
+        }
         if (y <= 0)
         {
             // Stepping off the bottom rung onto the ballast at whatever speed the train is doing.
