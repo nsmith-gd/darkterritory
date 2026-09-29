@@ -44,7 +44,7 @@ public readonly record struct Box(Double3 Min, Double3 Max)
 public enum SurfaceKind : byte { Roof, Deck, Coupler }
 
 /// <summary>What a solid is, so presentation can draw and colour it. Collision ignores this.</summary>
-public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker }
+public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps }
 
 /// <summary>Where a gun is bolted on, and which way it faces in the car's frame (−Z forward, +Z back).</summary>
 public readonly record struct GunMount(Double3 Position, Double3 Facing);
@@ -130,20 +130,33 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
 
     /// <summary>
     /// A walk-in car: floor level with the coupler plate, walls, a roof slab you can still walk the length of,
-    /// and a door in each end wall. Cargo stacks down the right side; the aisle runs from door to door.
+    /// and a door in each end wall. Cargo stacks down the right side; the aisle runs from door to door. A cargo car also
+    /// has a sliding door in the middle of each side with steps up to it (spec D.2: freight is carried in from the ground).
     /// </summary>
     static CarShape Shell(GeometryTuning g, InteriorLayout i, bool hasCarBehind, bool cargo)
     {
         double w = g.RoofWidth / 2, l = g.CarLength / 2, h = g.CarHeight;
         double floor = i.FloorHeight, t = i.WallThickness, ceiling = h - i.RoofThickness;
         double d0 = i.DoorX - i.DoorWidth / 2, d1 = i.DoorX + i.DoorWidth / 2, lintel = floor + i.DoorHeight;
+        double sd = i.SideDoorWidth / 2;
         var solids = new List<Solid>
         {
             new(new Box(new Double3(-w, 0, -l), new Double3(w, floor, l)), SurfaceKind.Deck, PartKind.Chassis),
             new(new Box(new Double3(-w, ceiling, -l), new Double3(w, h, l)), SurfaceKind.Roof, PartKind.Body),
-            new(new Box(new Double3(-w, floor, -l), new Double3(-w + t, ceiling, l)), SurfaceKind.Deck, PartKind.Wall),
-            new(new Box(new Double3(w - t, floor, -l), new Double3(w, ceiling, l)), SurfaceKind.Deck, PartKind.Wall),
         };
+        foreach (int side in new[] { -1, 1 })
+        {
+            double x0 = side < 0 ? -w : w - t, x1 = side < 0 ? -w + t : w;
+            if (!cargo)
+            {
+                solids.Add(new(new Box(new Double3(x0, floor, -l), new Double3(x1, ceiling, l)), SurfaceKind.Deck, PartKind.Wall));
+                continue;
+            }
+            // Either side of the sliding door, and the lintel over it.
+            solids.Add(new(new Box(new Double3(x0, floor, -l), new Double3(x1, ceiling, -sd)), SurfaceKind.Deck, PartKind.Wall));
+            solids.Add(new(new Box(new Double3(x0, floor, sd), new Double3(x1, ceiling, l)), SurfaceKind.Deck, PartKind.Wall));
+            solids.Add(new(new Box(new Double3(x0, lintel, -sd), new Double3(x1, ceiling, sd)), SurfaceKind.Deck, PartKind.Wall));
+        }
         var doors = new List<Door>();
         var interactables = new List<Interactable>();
         foreach (int end in new[] { -1, 1 })
@@ -159,7 +172,30 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             interactables.Add(new Interactable(InteractableKind.Door, new Double3(i.DoorX, floor, end * l), 0.75, index));
         }
         if (cargo)
-            solids.Add(new(new Box(new Double3(w - t - i.CargoDepth, floor, -l + 1.2), new Double3(w - t, floor + i.CargoHeight, l - 1.2)), SurfaceKind.Deck, PartKind.Cargo));
+        {
+            foreach (int side in new[] { -1, 1 })
+            {
+                // The sliding doors come after the end doors (bits 2 and 3: left, right), in reach from inside or the steps.
+                double x0 = side < 0 ? -w : w - t, x1 = side < 0 ? -w + t : w;
+                int index = doors.Count;
+                doors.Add(new Door(new Box(new Double3(x0, floor, -sd), new Double3(x1, lintel, sd)), index));
+                interactables.Add(new Interactable(InteractableKind.Door, new Double3(side * (w - t / 2), floor, 0), 0.9, index));
+                // Outside it, a landing level with the floor, and treads coming up to it from the front along the car side:
+                // rises under 0.3 m, which you walk up (player.json stepUp) with freight in your arms and can't climb.
+                double o0 = side < 0 ? -w - i.StepWidth : w, o1 = side < 0 ? -w : w + i.StepWidth;
+                solids.Add(new(new Box(new Double3(o0, 0, -sd), new Double3(o1, floor, sd)), SurfaceKind.Deck, PartKind.Steps));
+                int rises = (int)Math.Ceiling(floor / 0.3);
+                for (int k = 1; k < rises; k++)
+                {
+                    double z1 = -sd - (k - 1) * i.StepDepth;
+                    solids.Add(new(new Box(new Double3(o0, 0, z1 - i.StepDepth), new Double3(o1, floor * (rises - k) / rises, z1)), SurfaceKind.Deck, PartKind.Steps));
+                }
+            }
+            // The load stands down the right-hand side, either side of its door.
+            double c0 = w - t - i.CargoDepth, c1 = w - t, top = floor + i.CargoHeight;
+            solids.Add(new(new Box(new Double3(c0, floor, -l + 1.2), new Double3(c1, top, -sd - 0.3)), SurfaceKind.Deck, PartKind.Cargo));
+            solids.Add(new(new Box(new Double3(c0, floor, sd + 0.3), new Double3(c1, top, l - 1.2)), SurfaceKind.Deck, PartKind.Cargo));
+        }
         if (CouplerPlate(g, l, hasCarBehind) is { } plate)
             solids.Add(plate);
 

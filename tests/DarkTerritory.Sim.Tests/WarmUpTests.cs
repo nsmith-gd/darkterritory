@@ -68,4 +68,38 @@ public class WarmUpTests
         // Nobody cut the train on the way (Use on the coupler plate cuts it unless you're facing a door).
         Assert.Single(train.Rakes);
     }
+
+    [Fact]
+    public void AWalkerWarmingUpShutsASideDoorLeftOpenForLoading()
+    {
+        // Loading leaves a cargo car's side door open (T34); a car only warms you shut, so whoever goes in shuts it.
+        var line = RailLine.Load(Path.Combine(DataFile.FindContentRoot(), "lines/test-loop.json"));
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), line, 1500);
+        var world = new World(train);
+        const int car = 2;
+        var shape = train.Frames[car].Shape;
+        int side = shape.DoorList.First(d => Math.Abs(d.Box.Centre.Z) < 1).Index;
+        train.Vehicles[car].ToggleDoor(side);
+        var bot = new RoofWalkerBot(7, P.Cold);
+        var s = new PlayerState
+        {
+            Parent = car,
+            Position = new Double3(T.Geometry.Interior!.DoorX, T.Geometry.Interior.FloorHeight, 4),
+            Surface = Surface.Deck,
+            Health = P.Health,
+            Cold = P.Cold.OnsetSeconds * 0.8,
+            LineHint = train.Cars[car].FrontDistance,
+        };
+        for (uint tick = 0; tick < SimConstants.TickRate * 30 && train.Vehicles[car].DoorsOpen != 0; tick++)
+        {
+            world.BeginTick();
+            var intent = bot.Decide(s, world, tick, out _);
+            world.CrewAct(ref s, intent, 1);
+            world.Step(new TrainControls { Brake = 1, Reverser = 1 });
+            PlayerMotor.Step(ref s, intent, train, P, T, SimConstants.TickSeconds, applyLook: false);
+        }
+        Assert.Equal(0, train.Vehicles[car].DoorsOpen);
+        Assert.True(PlayerMotor.NearHeat(s, train), $"{s.Surface} on {s.Parent} at {s.Position}");
+    }
 }
+

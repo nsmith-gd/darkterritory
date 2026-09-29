@@ -24,7 +24,14 @@ public sealed record GeometryTuning(
 
 /// <summary>Walk-in cars (GDD §10, §26): a floor, walls, a roof you can still walk on, and a door at each end.</summary>
 public sealed record InteriorLayout(double FloorHeight, double WallThickness, double RoofThickness, double DoorWidth, double DoorHeight, double DoorX,
-    double DoorSeconds, double CargoDepth, double CargoHeight);
+    double DoorSeconds, double CargoDepth, double CargoHeight)
+{
+    /// <summary>A cargo car's sliding side doors (one each side, in the middle), for loading from the ground (spec D.2).</summary>
+    public double SideDoorWidth { get; init; } = 1.8;
+    /// <summary>The steps up to each side door: how far out from the car side, and how long each tread is.</summary>
+    public double StepWidth { get; init; } = 0.6;
+    public double StepDepth { get; init; } = 0.4;
+}
 
 /// <summary>Greybox layout of the 20 m engine + tender unit, front to back: boiler, cab, tender.</summary>
 public sealed record EngineLayout(double DeckHeight, double BoilerHalfWidth, double BoilerTop, double CabLength, double TenderLength, double TenderTop, double DoorWidth);

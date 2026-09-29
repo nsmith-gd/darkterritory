@@ -461,14 +461,17 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                 return Reach(self, new Double3(self.Surface == Surface.Coupler ? PlateLine : _doorX, 0, _l - 1.6), 0, Step.Shut);
             case Step.Shut:
                 {
-                    // Every door shut: a car only warms you shut, and someone else may have left the far one open.
-                    var doors = train.Vehicles[_car];
-                    int door = doors.DoorOpen(RearDoor) ? RearDoor : doors.DoorOpen(FrontDoor) ? FrontDoor : -1;
-                    if (door < 0)
+                    // Every door shut: a car only warms you shut, and someone else may have left another open (the far end,
+                    // or a cargo car's side door left open for loading).
+                    var shape = train.Frames[_car].Shape;
+                    var openDoor = shape.DoorList.Where(d => train.Vehicles[_car].DoorOpen(d.Index)).Select(d => (int?)d.Index).FirstOrDefault();
+                    if (openDoor is not { } door)
                         return Next(Step.Warm);
-                    // By it, inside, facing it.
-                    var at = new Double3(_doorX, 0, door == RearDoor ? _l - 0.5 : -_l + 0.5);
-                    double facing = door == RearDoor ? Math.PI : 0;
+                    // By it, inside, facing it. A side door is across the car from the aisle: along the aisle to it first.
+                    var (at, facing) = Inside(shape, door);
+                    bool sideDoor = Math.Abs(at.Z) < _l - 1;
+                    if (sideDoor && Math.Abs(self.Position.Z - at.Z) > 0.6)
+                        return Reach(self, new Double3(_doorX, 0, at.Z), facing, Step.Shut);
                     if ((Flat(self.Position) - Flat(at)).Length > 0.2 || !Aligned(self, facing))
                         return Reach(self, at, facing, Step.Shut);
                     return CrewActions.Nearest(self, train) == InteractableKind.Door ? new PlayerIntent { Buttons = PlayerButtons.Use } : Abandon();
@@ -481,7 +484,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                 if (self.Cold > WarmEnough)
                     return new PlayerIntent();
                 Done++;
-                _outEnd = self.Position.Z >= 0 ? 1 : -1;
+                _outEnd = WayOut(self, train);
                 return Next(Step.Reopen);
             case Step.Reopen:
                 {
@@ -527,11 +530,17 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
         _car = self.Parent;
         _l = train.Frames[_car].Shape.Bounds.Max.Z;
         _doorX = train.Dynamics.Tuning.Geometry.Interior!.DoorX;
-        _outEnd = self.Position.Z >= 0 ? 1 : -1;
+        _outEnd = WayOut(self, train);
         _step = Wants(self) ? Step.Shut : Step.Reopen;
         _ticks = 0;
         return new PlayerIntent();
     }
+
+    /// <summary>
+    /// Out by the nearer end door, but never the one onto the engine's plate: its ladder goes up onto the tender, which is
+    /// the fireman's and lower than a car roof, and there's no way back along the train from there.
+    /// </summary>
+    int WayOut(in PlayerState self, TrainOnLine train) => train.VehicleAhead(_car) == 0 ? 1 : self.Position.Z >= 0 ? 1 : -1;
 
     /// <summary>
     /// Which plate to drop onto: the one behind this car (this car's own), or in front (the car ahead's), whichever is
@@ -551,6 +560,20 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
         _l = train.Frames[_car].Shape.Bounds.Max.Z;
         _doorX = interior.DoorX;
         return true;
+    }
+
+    /// <summary>
+    /// Where to stand inside a car to work one of its doors, and the way to face: half a metre in from it. End doors are
+    /// at the car's ends, side doors (a cargo car's) in the middle of its sides.
+    /// </summary>
+    public static (Double3 At, double Yaw) Inside(CarShape shape, int door)
+    {
+        var handle = shape.Interactables.First(i => i.Kind == InteractableKind.Door && i.Index == door).Position;
+        var box = shape.DoorList.First(d => d.Index == door).Box;
+        bool side = box.Max.Z - box.Min.Z > box.Max.X - box.Min.X;
+        var inward = side ? new Double3(-Math.Sign(handle.X), 0, 0) : new Double3(0, 0, -Math.Sign(handle.Z));
+        // Facing out through it: forward is (−sin yaw, 0, −cos yaw).
+        return (handle with { Y = 0 } + inward * 0.5, Math.Atan2(inward.X, inward.Z));
     }
 
     /// <summary>
