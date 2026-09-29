@@ -357,6 +357,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var settings = frontEnd.Settings;
     var proto = session as PrototypeSession;
     var net = session as NetPlaySession;
+    // A generated night has its own far horizon (Art.PlanSky); a hand-laid line keeps the look's.
+    if (look is not null)
+    {
+        look.Sky = DarkTerritory.Game.Art.PlanSky.For(session.Route);
+        look.Dress(renderer);
+        vr?.Dress(look);
+    }
     if (proto is not null)
         proto.Controls.Throttle = double.Parse(Arg("--throttle", "0"));
     var voice = net is null ? null : new VoiceChat(sound.Mixer) { PushToTalk = settings.PushToTalk || args.Contains("--push-to-talk") };

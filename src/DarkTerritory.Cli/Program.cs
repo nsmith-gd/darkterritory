@@ -629,6 +629,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     using var renderer = new GreyboxRenderer(gpu, width, height);
     var mesh = new MeshBuilder();
     var look = Looked(content, args);
+    if (look is not null)
+        look.Sky = DarkTerritory.Game.Art.PlanSky.For(route);
     look?.Dress(renderer);
     // --muzzle: the guns fired a tick ago (their flash, and its light).
     if (args.Contains("--muzzle"))

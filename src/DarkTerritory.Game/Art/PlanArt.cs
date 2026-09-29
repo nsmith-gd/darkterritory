@@ -116,7 +116,7 @@ public sealed partial class WorldArt
     void PlanDressing(MeshBuilder mesh, RailLine line, Route route, PlanScene p, Double3 eye, double from, double to, int seed, Func<double, double, bool> onBranch)
     {
         bool Clear(double s) => !route.InTunnel(s) && !route.InTunnel(s + 30) && !route.InTunnel(s - 30) && route.BridgeAt(s) is null;
-        (Matrix4x4 M, float Slope) Place(double s, double lateral, float yaw, float scale, float sink)
+        (Matrix4x4 M, float Slope) Place(double s, double lateral, float yaw, float scale, float sink, Vector3? stretch = null)
         {
             var t = line.Sample(Math.Clamp(s, 0, line.Length));
             var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
@@ -126,43 +126,65 @@ public sealed partial class WorldArt
             var fwd = Vector3.Normalize(new Vector3((float)t.Tangent.X, 0, (float)t.Tangent.Z));
             var right = Vector3.Cross(fwd, Vector3.UnitY);
             var m = new Matrix4x4(right.X, 0, right.Z, 0, 0, 1, 0, 0, -fwd.X, 0, -fwd.Z, 0, o.X, o.Y, o.Z, 1);
-            return (Matrix4x4.CreateScale(scale) * Matrix4x4.CreateRotationY(yaw) * m, slope);
+            return (Matrix4x4.CreateScale(stretch ?? Vector3.One * scale) * Matrix4x4.CreateRotationY(yaw) * m, slope);
         }
         bool Free(double s, double lateral) => !onBranch(s, lateral) && PlanClear(route, line, s, lateral);
+        MeshAsset Tree(string kind, int v) => kind switch
+        {
+            "fir" => Piece($"fir-{v}", () => NovaKit.Conifer(_look, v, 12, 0.46f)),
+            "birch" => Piece($"birch-{v % 3}", () => NovaKit.Birch(_look, v % 3)),
+            "pine" => Piece($"pine-{v}", () => WorldKit.Pine(_look, v, 12)),
+            _ => Piece($"spruce-{v}", () => NovaKit.Conifer(_look, v, 12, 0.3f)),
+        };
 
         for (double s = Math.Ceiling(from / 12) * 12; s < to; s += 12)
         {
             if (!Clear(s) || p.Biome(s) is not { } def)
                 continue;
-            string biome = p.BiomeAt(s);
             var rng = new Random(unchecked(seed * 73856093 ^ (int)(s / 12) * 19349663));
-            bool forest = biome is "blackForest" or "forestEdge";
-            // Trees: per 100 m² as the biome has it, over both sides out to 90 m; the black forest crowds the line.
-            double near = biome == "blackForest" ? 7 : forest ? 10 : 14;
-            int count = Math.Min(18, (int)Math.Round(def.TreeDensity * 12 * 2 * (90 - near) / 100 * 0.45 + rng.NextDouble()));
+            bool dense = def.TreeDensity >= 0.8;
+            // Trees: per 100 m² as the biome grows them, both sides out to 90 m; a dense forest crowds the line.
+            double near = def.TreeDensity >= 1.2 ? 7 : dense ? 10 : 14;
+            int count = Math.Min(20, (int)Math.Round(def.TreeDensity * 12 * 2 * (90 - near) / 100 * 0.45 + rng.NextDouble()));
+            double floraTotal = def.Flora.Values.Sum();
             for (int k = 0; k < count; k++)
             {
                 double side = rng.Next(2) == 0 ? -1 : 1;
-                double offset = side * (near + Math.Pow(rng.NextDouble(), forest ? 0.9 : 0.6) * (90 - near));
+                double offset = side * (near + Math.Pow(rng.NextDouble(), dense ? 0.9 : 0.6) * (90 - near));
                 double along = s + rng.NextDouble() * 12;
                 bool dead = rng.NextDouble() < def.DeadTrees;
                 bool corrupted = dead && def.Trees.Contains("corrupted") && rng.NextDouble() < 0.35;
-                float height = (dead ? 6 : 8) + (float)rng.NextDouble() * (forest ? 12 : 8);
                 int variant = rng.Next(4);
                 float yaw = (float)rng.NextDouble() * MathF.Tau;
+                // Which kind, by the biome's flora weights.
+                string kind = "spruce";
+                double pick = rng.NextDouble() * floraTotal;
+                foreach (var (name, w) in def.Flora)
+                    if ((pick -= w) < 0)
+                    {
+                        kind = name;
+                        break;
+                    }
+                // Stunted on the barrens and the highland (krummholz), tall in the forest.
+                float height = def.Verge == "barrens" ? 3 + (float)rng.NextDouble() * 5 : (dead ? 7 : 9) + (float)rng.NextDouble() * (dense ? 13 : 9);
                 if (!Free(along, offset))
                     continue;
-                var (m, slope) = Place(along, offset, yaw, dead ? 0.8f * height / 10 : height / 12, 0.15f);
+                var (m, slope) = Place(along, offset, yaw, height / 12, 0.15f);
                 if (slope > 1.1f)
                     continue; // nothing grows on the crag
-                var piece = dead ? Piece($"dead-{variant % 2}", () => WorldKit.DeadTree(_look, variant % 2, 10)) : Piece($"pine-{variant}", () => WorldKit.Pine(_look, variant, 12));
+                MeshAsset piece = dead
+                    ? rng.Next(2) == 0 ? Piece($"ghost-{variant}", () => NovaKit.GhostSpruce(_look, variant)) : Piece($"dead-{variant % 2}", () => WorldKit.DeadTree(_look, variant % 2, 10))
+                    : Tree(kind, variant);
+                if (dead)
+                    (m, _) = Place(along, offset, yaw, height / (piece.Name.StartsWith("ghost") ? 8 + variant * 2.5f : 10) * 0.9f, 0.15f);
+                if (kind == "birch" && !dead)
+                    (m, _) = Place(along, offset, yaw, height / 11, 0.1f);
                 mesh.Append(piece, m, new Vector3(0.8f + 0.3f * (float)rng.NextDouble()));
                 if (corrupted)
                     mesh.Append(Piece($"brass-{variant % 3}", () => BrassCluster(_look, variant % 3)), Place(along + 0.6, offset, yaw, 0.9f, 0.05f).M);
             }
-            // Rock: boulders where the land is rough, bigger and more of them the rougher it is; crags on the steep.
-            double rocks = def.NoiseScale * (biome is "mountain" or "slag" ? 2.2 : biome == "hills" ? 1.4 : 0.35);
-            for (int k = 0; k < (int)(rocks + rng.NextDouble()); k++)
+            // Boulders where the land is rough, bigger and more of them the rougher it is, sunk into the slope.
+            for (int k = 0; k < (int)(def.Rocks + rng.NextDouble()); k++)
             {
                 double offset = (rng.Next(2) == 0 ? -1 : 1) * (6 + rng.NextDouble() * 80);
                 double along = s + rng.NextDouble() * 12;
@@ -170,89 +192,115 @@ public sealed partial class WorldArt
                     continue;
                 int v = rng.Next(3);
                 float size = 0.8f + (float)rng.NextDouble() * (float)(1.2 + def.NoiseScale * 1.6);
-                // Sunk into the slope by as much as the slope drops across it, so none stands proud of the ground downhill.
                 var (_, slope) = Place(along, offset, 0, 1, 0);
                 size *= slope > 0.6f ? 1.6f : 1;
                 var (m, _) = Place(along, offset, (float)rng.NextDouble() * 6.28f, size, size * (0.3f + 1.1f * Math.Min(slope, 1.5f)));
                 mesh.Append(Piece($"rock-{v}", () => WorldKit.Rock(_look, v, 1)), m);
             }
         }
-        // Low growth along the verge: grass, or the marsh's reeds thick out to its water.
+        // Low growth along the verge: dead grass, the bog's reeds thick out to its water, the barrens' heath and lichen.
         for (double s = Math.Ceiling(from / 3) * 3; s < to; s += 3)
         {
             if (!Clear(s) || p.Biome(s) is not { } def)
                 continue;
-            bool marsh = p.BiomeAt(s) is "marsh" or "contaminatedMarsh";
+            bool reeds = def.Verge == "reeds", barrens = def.Verge == "barrens";
             var rng = new Random(unchecked(seed * 19349663 ^ (int)(s / 3) * 83492791));
-            for (int k = 0; k < (marsh ? 4 : 2); k++)
+            for (int k = 0; k < (reeds ? 4 : barrens ? 3 : 2); k++)
             {
-                double offset = (rng.Next(2) == 0 ? -1 : 1) * (3.3 + rng.NextDouble() * (marsh ? 40 : 14));
+                double offset = (rng.Next(2) == 0 ? -1 : 1) * (3.3 + rng.NextDouble() * (reeds ? 40 : barrens ? 30 : 14));
                 double along = s + rng.NextDouble() * 3;
                 if (!Free(along, offset))
                     continue;
                 int v = rng.Next(3);
                 bool weed = def.Trees.Contains("corrupted") && rng.NextDouble() < 0.15;
-                var piece = marsh && !weed ? Piece($"reeds-{v}", () => SettingKit.Reeds(_look, v)) : Piece($"tuft-{v}-{weed}", () => WorldKit.Tuft(_look, v, weed));
-                mesh.Append(piece, Place(along, offset, (float)rng.NextDouble() * 6.28f, 0.7f + (float)rng.NextDouble() * 0.7f, 0.02f).M);
+                var piece = reeds && !weed ? Piece($"reeds-{v}", () => SettingKit.Reeds(_look, v)) : Piece($"tuft-{v}-{weed}", () => WorldKit.Tuft(_look, v, weed));
+                mesh.Append(piece, Place(along, offset, (float)rng.NextDouble() * 6.28f, (barrens ? 0.5f : 0.7f) + (float)rng.NextDouble() * 0.7f, 0.02f).M,
+                    barrens ? new Vector3(0.75f, 0.55f, 0.45f) : Vector3.One);
             }
         }
-        // What people left: by the block, so each stands clear of the next.
+        // What people left, and what the ice left: by the block, each piece as the biome has it (biomes.json props).
         const double block = 150;
         for (double b = Math.Floor(from / block) * block; b < to; b += block)
         {
-            if (b < from || !Clear(b) || p.Biome(b) is null)
+            if (b < from || !Clear(b) || p.Biome(b) is not { } def)
                 continue;
-            string biome = p.BiomeAt(b);
             var rng = new Random(unchecked(seed * 486187739 ^ (int)(b / block) * 6700417));
-            void Put(MeshAsset piece, double lateral, float yawJitter, double chance)
-            {
-                if (rng.NextDouble() > chance)
-                    return;
-                double along = b + rng.NextDouble() * block;
-                if (!Free(along, lateral) || !Free(along, lateral * 0.8))
-                    return;
-                float face = lateral > 0 ? MathF.PI / 2 : -MathF.PI / 2;
-                mesh.Instances.Add(new MeshInstance(piece, Place(along, lateral, face + (float)(rng.NextDouble() - 0.5) * yawJitter, 1, 0.3f).M));
-            }
-            double Out(double min, double max) => (rng.Next(2) == 0 ? -1 : 1) * (min + rng.NextDouble() * (max - min));
-            int v = rng.Next(9);
-            switch (biome)
-            {
-                case "farmland" or "plains":
-                    Put(Piece($"house-{v}", () => TownKit.House(_look, v)), Out(35, 90), 0.8f, biome == "farmland" ? 0.3 : 0.12);
-                    break;
-                case "deadTown":
-                    for (int i = 0; i < 5; i++)
-                    {
-                        int h = rng.Next(9);
-                        Put(rng.Next(3) > 0 ? Piece($"house-{h}", () => TownKit.House(_look, h)) : Piece($"ruin-{i % 3}", () => SettingKit.RuinWall(_look, i % 3)), Out(14, 55), 1.2f, 0.75);
-                    }
-                    Put(Piece("church", () => TownKit.Church(_look)), Out(30, 70), 0.4f, 0.12);
-                    break;
-                case "industrialRuin":
-                    Put(Piece($"chimney-{v % 3}", () => SettingKit.Chimney(_look, v % 3)), Out(30, 90), 0.3f, 0.55);
-                    Put(Piece($"tank-{v % 3}", () => SettingKit.Tank(_look, v % 3)), Out(18, 60), 3f, 0.5);
-                    for (int i = 0; i < 3; i++)
-                        Put(Piece($"ruin-{i}", () => SettingKit.RuinWall(_look, i)), Out(12, 50), 0.6f, 0.65);
-                    break;
-                case "slag":
-                    Put(Piece("headframe", () => SettingKit.Headframe(_look)), Out(45, 120), 0.4f, 0.22);
-                    Put(Piece($"tank-{v % 3}", () => SettingKit.Tank(_look, v % 3)), Out(30, 90), 3f, 0.2);
-                    break;
-                case "mountain" or "hills":
-                    Put(Piece($"house-{v}", () => TownKit.House(_look, v)), Out(40, 100), 0.8f, 0.06);
-                    break;
-            }
+            foreach (var (name, rule) in def.Props.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+                for (int n = 0; n < rule.Count; n++)
+                {
+                    if (rng.NextDouble() > rule.Chance)
+                        continue;
+                    double lateral = (rng.Next(2) == 0 ? -1 : 1) * (rule.OutM[0] + rng.NextDouble() * (rule.OutM[1] - rule.OutM[0]));
+                    double along = b + rng.NextDouble() * block;
+                    int v = rng.Next(12);
+                    Prop(name, along, lateral, v, rng);
+                }
         }
-        // Fields have their fences: a broken run along each side where the noise says, posts every 3 m.
-        for (double s = Math.Ceiling(from / 3) * 3; s < to; s += 3)
+
+        void Prop(string name, double along, double lateral, int v, Random rng)
         {
-            if (!Clear(s) || p.BiomeAt(s) is not ("farmland" or "plains") || Noise((float)(s * 0.004), 3.3f) < 0.45f)
-                continue;
-            int index = (int)(s / 3);
-            if (Hash(index * 0.37f) < 0.12f || !Free(s, -14))
-                continue;
-            mesh.Append(Piece($"fence-{index % 3}", () => WorldKit.FencePost(_look, index % 3)), Place(s, -14, 0, 1, 0.05f).M);
+            float face = lateral > 0 ? MathF.PI / 2 : -MathF.PI / 2, jitter = (float)(rng.NextDouble() - 0.5);
+            void Put(MeshAsset piece, float yaw, float sink = 0.3f, Vector3? stretch = null)
+            {
+                if (Free(along, lateral) && Free(along, lateral * 0.8) && Free(along + 8, lateral) && Free(along - 8, lateral))
+                    mesh.Instances.Add(new MeshInstance(piece, Place(along, lateral, yaw, 1, sink, stretch).M));
+            }
+            switch (name)
+            {
+                case "saltbox": Put(Piece($"saltbox-{v % 8}", () => NovaKit.Saltbox(_look, v % 8)), face + jitter * 0.6f); break;
+                case "barn": Put(Piece($"barn-{v % 2}", () => NovaKit.Barn(_look, v % 2)), face + jitter * 0.5f); break;
+                case "church": Put(Piece("nova-church", () => NovaKit.Church(_look)), face + jitter * 0.2f); break;
+                case "buryingGround": Put(Piece($"burying-{v % 3}", () => NovaKit.BuryingGround(_look, v % 3)), face + jitter * 0.3f, 0.1f); break;
+                case "fishShed": Put(Piece($"fishshed-{v % 3}", () => NovaKit.FishShed(_look, v % 3)), face + jitter * 0.8f, 0.2f); break;
+                case "ruin": Put(Piece($"ruin-{v % 3}", () => SettingKit.RuinWall(_look, v % 3)), face + jitter, 0.2f); break;
+                case "chimney": Put(Piece($"chimney-{v % 3}", () => SettingKit.Chimney(_look, v % 3)), jitter); break;
+                case "tank": Put(Piece($"tank-{v % 3}", () => SettingKit.Tank(_look, v % 3)), jitter * 6); break;
+                case "headframe": Put(Piece("headframe", () => SettingKit.Headframe(_look)), face + jitter * 0.4f); break;
+                case "erratic":
+                    {
+                        // A granite erratic: a house-sized boulder the ice left sitting in the open, paler than the ledge.
+                        float size = 2.2f + (float)rng.NextDouble() * 3;
+                        if (Free(along, lateral))
+                            mesh.Append(Piece($"rock-{v % 3}", () => WorldKit.Rock(_look, v % 3, 1)), Place(along, lateral, jitter * 6, size, size * 0.25f).M, new Vector3(1.35f, 1.35f, 1.3f));
+                        break;
+                    }
+                case "outcrop":
+                    {
+                        // Granite ledge breaking through the thin soil: a broad, low slab.
+                        float size = 2 + (float)rng.NextDouble() * 4;
+                        if (Free(along, lateral))
+                            mesh.Append(Piece($"rock-{v % 3}", () => WorldKit.Rock(_look, v % 3, 1)),
+                                Place(along, lateral, jitter * 6, 1, size * 0.18f, new Vector3(size * 1.8f, size * 0.45f, size * 1.3f)).M, new Vector3(1.2f, 1.2f, 1.15f));
+                        break;
+                    }
+                case "stoneWall":
+                    {
+                        // A field's wall, run along the line for a stretch, gaps where it's fallen.
+                        int lengths = 6 + rng.Next(12);
+                        for (int i = 0; i < lengths; i++)
+                        {
+                            double s = along + i * 8;
+                            if (s > line.Length || !Clear(s) || !Free(s, lateral) || rng.NextDouble() < 0.12)
+                                continue;
+                            mesh.Instances.Add(new MeshInstance(Piece($"stonewall-{i % 3}", () => NovaKit.StoneWall(_look, i % 3)), Place(s + 8, lateral, 0, 1, 0.1f).M));
+                        }
+                        break;
+                    }
+                case "orchard":
+                    {
+                        // An orchard gone to ruin: rows of small, gnarled dead apple trees.
+                        for (int row = 0; row < 4; row++)
+                            for (int i = 0; i < 6; i++)
+                            {
+                                double s = along + i * 6, l = lateral + Math.Sign(lateral) * row * 6;
+                                if (!Free(s, l) || rng.NextDouble() < 0.15)
+                                    continue;
+                                mesh.Append(Piece($"dead-{(i + row) % 2}", () => WorldKit.DeadTree(_look, (i + row) % 2, 10)),
+                                    Place(s, l, (float)rng.NextDouble() * 6.28f, 0.42f + 0.1f * (float)rng.NextDouble(), 0.1f).M, new Vector3(0.9f, 0.85f, 0.8f));
+                            }
+                        break;
+                    }
+            }
         }
     }
 

@@ -135,7 +135,10 @@ public sealed class Look
     public Art.SceneArt Art => _art ??= new Art.SceneArt(this);
 
     /// <summary>Loads the look's textures, backdrop, grade and post settings into a renderer.</summary>
-    public void Dress(GreyboxRenderer renderer) => renderer.Load(_assets ??= Assets());
+    public void Dress(GreyboxRenderer renderer) => renderer.Load(Sky is { } sky ? (_assets ??= Assets()) with { Backdrop = sky } : _assets ??= Assets());
+
+    /// <summary>A night's own far horizon in place of the look's band (a generated line's, <see cref="Art.PlanSky"/>); null for the look's.</summary>
+    public Image? Sky { get; set; }
 
     /// <summary>Everything the renderer needs: the material maps, the backdrop, the grade and the post settings.</summary>
     public RenderAssets Assets()

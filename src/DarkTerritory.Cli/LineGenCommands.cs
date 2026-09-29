@@ -13,6 +13,7 @@ static class LineGenCommands
         "sweep" => Sweep(content, args),
         "bench" => Bench(content, args),
         "transect" => Transect(content, args),
+        "sky" => Sky(content, args),
         "debug" => LineGenerator.Debug(LineGenContent.Load(content), Parameters(args), (int)Opt(args, "--attempt", 0)).ToList(),
         _ => throw new ArgumentException($"linegen {verb}? (generate, sweep)"),
     };
@@ -92,6 +93,17 @@ static class LineGenCommands
             double x = t.Position.X - t.Tangent.Z * l, z = t.Position.Z + t.Tangent.X * l;
             return new { lateral = l, height = Math.Round(terrain.Height(x, z) - t.Position.Y, 1) };
         }).ToList();
+    }
+
+    /// <summary>A route's far horizon (Art.PlanSky) as a PNG, to look at the band flat.</summary>
+    static object Sky(string content, string[] args)
+    {
+        var route = Routes.Generate(content, Str(args, "--route", "frontier:7"), (int)Opt(args, "--cars", 6));
+        var sky = DarkTerritory.Game.Art.PlanSky.For(route)!;
+        string output = Str(args, "--out", $"out/linegen/{route.Name}.sky.png");
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
+        Ballast.Render.PngWriter.Write(output, sky.Rgba, sky.Width, sky.Height, 1);
+        return new { path = Path.GetFullPath(output) };
     }
 
     static object Bench(string content, string[] args)
