@@ -511,6 +511,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             lighting.Wetness = r.Weather.Wet ? 1 : 0;
         }
         scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
+        scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
         // A Vigil: emergency lighting, and no power to the headlamp.
         scene.Emergency = session.World.EmergencyLights;
         scene.Controls = session.Controls;

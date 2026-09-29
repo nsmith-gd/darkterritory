@@ -1,0 +1,8 @@
+<Project>
+  <!-- The skinned creatures and crew (Art/CreatureArt.cs) draw through Ballast.Assets. This lives here, not in
+       DarkTerritory.Game.csproj, only because the art pass that added it was not to touch existing files: fold it into
+       the csproj's ProjectReference list (and delete this file) the next time that file is edited. -->
+  <ItemGroup>
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../Ballast.Assets/Ballast.Assets.csproj" />
+  </ItemGroup>
+</Project>

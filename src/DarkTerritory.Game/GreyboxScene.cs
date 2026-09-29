@@ -42,6 +42,8 @@ public sealed class GreyboxScene
     public SwitchStands? Stands { get; set; }
     /// <summary>The cab's controls, for where the levers' handles are.</summary>
     public TrainControls Controls { get; set; } = new() { Reverser = 1 };
+    /// <summary>The boiler's pressure as a fraction of its maximum, for the cab's gauge (the sim's; unset, a working pressure).</summary>
+    public float Pressure { get; set; } = 0.78f;
     /// <summary>The art pass's surfaces (T39, look.json). Unset, the greybox is flat colour.</summary>
     public Look? Look { get; set; }
 
@@ -788,6 +790,13 @@ public sealed class GreyboxScene
         if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency))
         {
             CarWorkings(mesh, frame, Draw);
+            if (engine)
+            {
+                // The dials: pressure from the boiler, heat from the fire, the water glass (no water model yet: steady),
+                // and speed against the line's 80 km/h top.
+                float speed = (float)frame.Velocity.Length / 22.2f;
+                Look.Art.Gauges(mesh, frame, eye, [Pressure, FireGlow, 0.72f, speed]);
+            }
             return;
         }
         // What you see is what you collide with: every solid is drawn, coloured by what it is. Long interior

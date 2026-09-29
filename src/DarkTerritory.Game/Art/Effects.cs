@@ -117,8 +117,10 @@ public sealed class Effects(Look look)
         // "headlamp and lantern cones"). Additive and faint, strongest at the lamp.
         var lamp = Views.Lighting(engine, look);
         var at0 = lamp.LampPosition.RelativeTo(eye);
-        mesh.Billboard(at0 - lamp.LampDirection * 0.2f, 2.6f, 0, new Vector4(lamp.LampColour * 0.5f, 1), -1, FxBlend.Additive);
-        mesh.Billboard(at0 - lamp.LampDirection * 0.25f, 0.9f, 0, new Vector4(lamp.LampColour, 1), -1, FxBlend.Additive);
+        // The halo is glare seen from afar; close to, it would hide the lamp it's round, so it fades in with distance.
+        float glare = Math.Clamp((at0.Length() - 4) / 16, 0, 1);
+        mesh.Billboard(at0 - lamp.LampDirection * 0.2f, 2.6f, 0, new Vector4(lamp.LampColour * 0.5f * glare, 1), -1, FxBlend.Additive);
+        mesh.Billboard(at0 - lamp.LampDirection * 0.25f, 0.9f, 0, new Vector4(lamp.LampColour * (0.3f + 0.7f * glare), 1), -1, FxBlend.Additive);
         Beam(mesh, at0, lamp.LampDirection, lamp.LampConeDegrees * 0.8f, 40, lamp.LampColour * 0.09f);
         // The tail lamp's glow at the back of the train.
         var last = frames[^1];

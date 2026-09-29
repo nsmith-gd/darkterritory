@@ -87,6 +87,25 @@ public sealed class SceneArt(Look look)
         return true;
     }
 
+    /// <summary>
+    /// The backhead's dials as the engine stands (pipeline "diegetic readouts: needle and lever meshes"): each needle
+    /// turned through its dial's 270° sweep by its fraction (pressure, heat, water, speed; 0..1).
+    /// </summary>
+    public void Gauges(MeshBuilder mesh, in CarFrame engine, Double3 eye, ReadOnlySpan<float> fractions)
+    {
+        if (engine.Shape.Cab is null || (engine.Origin - eye).Length > 30)
+            return;
+        var m = FrameMatrix(engine, eye);
+        var needle = Piece("needle", () => TrainKit.Needle(Look));
+        for (int i = 0; i < 4 && i < fractions.Length; i++)
+        {
+            // From 7:30 round to 4:30, clockwise as you face it: the dial faces +Z (back into the cab).
+            float angle = (0.75f - 1.5f * Math.Clamp(fractions[i], 0, 1)) * MathF.PI;
+            var c = TrainKit.GaugeCentre(engine.Shape, i);
+            mesh.Append(needle, Matrix4x4.CreateRotationZ(angle) * Matrix4x4.CreateTranslation(c) * m);
+        }
+    }
+
     /// <summary>A flame's flicker, 0.85..1.05, different for each light and steady enough not to strobe.</summary>
     public static float Flicker(double time, int id)
     {

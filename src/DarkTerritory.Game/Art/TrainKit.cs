@@ -377,11 +377,10 @@ public static class TrainKit
         k.Box(new Vector3(-0.42f, fy - 0.22f, face), new Vector3(-0.32f, fy + 0.22f, face + 0.08f));
         k.Box(new Vector3(0.32f, fy - 0.22f, face), new Vector3(0.42f, fy + 0.22f, face + 0.08f));
         // Gauges: pressure, heat, water, speed (the gauge atlas's four quarters), in brass bezels at eye height.
-        float gy = deck + 1.85f;
         string[] order = ["pressure", "heat", "water", "speed"];
         for (int i = 0; i < 4; i++)
         {
-            var c = new Vector3(-0.54f + i * 0.36f, gy + (i % 2) * 0.06f, face + 0.06f);
+            var c = GaugeCentre(shape, i) - new Vector3(0, 0, 0.012f);
             k.Use("brass", Palette.TarnishedBrass, 0.5f, 0.7f);
             k.Cylinder(c - new Vector3(0, 0, 0.05f), c + new Vector3(0, 0, 0.01f), 0.13f, 12);
             k.Use("gauge_face", Palette.TarnishedBrass * 1.6f, 0.2f, 0.3f, tile: 1);
@@ -395,6 +394,27 @@ public static class TrainKit
         k.Rod(new Vector3(-0.8f, deck + 0.2f, face + 0.05f), new Vector3(-0.8f, top - 0.2f, face + 0.05f), 0.025f, 6);
         k.Rod(new Vector3(-0.8f, top - 0.2f, face + 0.05f), new Vector3(0.7f, top - 0.2f, face + 0.05f), 0.025f, 6);
         k.Rod(new Vector3(0.75f, deck + 0.3f, face + 0.05f), new Vector3(0.75f, top - 0.2f, face + 0.05f), 0.02f, 6);
+    }
+
+    /// <summary>The centre of dial <paramref name="index"/>'s face on the backhead (pressure, heat, water, speed), in the engine's frame.</summary>
+    public static Vector3 GaugeCentre(CarShape shape, int index)
+    {
+        var boiler = shape.Solids.First(s => s.Part == PartKind.Boiler).Box;
+        float face = (float)shape.Cab!.Value.Min.Z + 0.085f;
+        return new Vector3(-0.54f + index * 0.36f, (float)boiler.Min.Y + 1.85f + index % 2 * 0.06f, face + 0.072f);
+    }
+
+    /// <summary>A gauge's needle: pointing up (+Y) from its pivot, dark with a red tip, on a brass boss.</summary>
+    public static MeshAsset Needle(Look? look)
+    {
+        var k = new Kit(look, 60);
+        k.Use("paint_black", Palette.SootBlack, 0.2f, 0.4f, tile: 0.1f);
+        k.Box(new Vector3(-0.004f, -0.015f, 0), new Vector3(0.004f, 0.08f, 0.004f));
+        k.Use("paint_oxide", Palette.SignalRed, 0.2f, 0.2f, tile: 0.1f);
+        k.Box(new Vector3(-0.004f, 0.06f, 0.0005f), new Vector3(0.004f, 0.085f, 0.0045f));
+        k.Use("brass", Palette.TarnishedBrass, 0.3f, 0.7f);
+        k.Cylinder(new Vector3(0, 0, 0), new Vector3(0, 0, 0.008f), 0.012f, 6);
+        return k.Build("needle");
     }
 
     /// <summary>Where on the gauge atlas a dial is, in texture coordinates: the four quarters, left to right, top to bottom.</summary>
