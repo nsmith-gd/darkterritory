@@ -183,6 +183,9 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Clinger, SpinePhase.BreakOff) => "it comes away and drops",
         (EnemyKind.Hollow, SpinePhase.Telegraph) => "the fire gutters; soot falls in the cab",
         (EnemyKind.Hollow, SpinePhase.BreakOff) => "the heat drives it back up the stack",
+        (EnemyKind.Switchman, SpinePhase.Telegraph) => "a figure at the points ahead; the switch lamp reads wrong",
+        (EnemyKind.Switchman, SpinePhase.Punish) => "the train takes a dead line",
+        (EnemyKind.Switchman, SpinePhase.BreakOff) => "the figure at the points slips away",
         _ => null,
     };
 
@@ -196,6 +199,8 @@ public sealed class PrototypeSession : IPlaySession
                 parts.Add($"drilling on car {c.Attached} ({c.Extra:P0})");
             else if (e is Hollow { Phase: SpinePhase.Punish })
                 parts.Add("SOMETHING IN THE CAB");
+            else if (e is Switchman { Phase: SpinePhase.Telegraph })
+                parts.Add("a switch ahead set for a dead line");
             else if (e is CinderHound { Phase: SpinePhase.Punish } h && !parts.Contains("hounds aboard"))
                 parts.Add("hounds aboard");
         }

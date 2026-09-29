@@ -337,6 +337,9 @@ public sealed class World
                     Local = new Ballast.Double3(side * (shape.HalfWidth + 0.15), 2.0, d.NextRange(-shape.HalfLength + 1.5, shape.HalfLength - 1.5)),
                 });
                 break;
+            case EnemyKind.Switchman when DarkTerritory.Sim.Enemies.Switchman.Junction(this, t.Switchman) is { } junction:
+                _enemies.Add(DarkTerritory.Sim.Enemies.Switchman.At(_nextEnemyId++, junction, t.Switchman, Switches?.Tuning.LeverOffset ?? 2.6));
+                break;
         }
     }
 

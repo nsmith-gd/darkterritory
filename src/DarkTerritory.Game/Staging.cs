@@ -51,6 +51,10 @@ public static class Staging
         var hollow = new Hollow(30);
         hollow.Restore(SpinePhase.Punish, 2, 1, 0, train.Frames[0].Shape.Cab!.Value.Centre, 0, 0, 0, 0, 0);
         threats.Add(hollow);
+        // At the side of the line ahead, where a switch stand would be, lantern out.
+        var switchman = new Switchman(40);
+        switchman.Restore(SpinePhase.Telegraph, 3, 1, -1, default, d.Distance + 55, 3.8, 0, -1, 0);
+        threats.Add(switchman);
         return threats;
     }
 }

@@ -87,6 +87,11 @@ Remaining for M3: Soot Children mimicry, the radio as an item, and interior occl
 - Rakes take the branch the switch is set for, and back out without a choice.
 - Switches are thrown by hand at a stand beside the points, never under a wheel, and their lamp reads the setting from the cab.
 - `dt screenshot --route frontier:7 --junction 0 --diverge --through` shows one.
+- **The Switchman (T37, App. A.7):**
+  - it throws a junction ahead for its dead line: the lamp reads wrong, and a figure with a lantern stands at the stand;
+  - it flees anyone on the ground, but chasing it off doesn't set the switch back;
+  - crew bots stop short, set it back on the ground, and go on; left alone, the train takes the dead line and backs out, costing the clock, never a life;
+  - `dt screenshot --threats` shows it.
 
 **Loading at facilities (spec D, GDD §17):**
 - Manual crates you carry into the cars (heavy: slow, no climbing).

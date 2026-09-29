@@ -60,6 +60,24 @@
     "retreatFireFraction": 0.4
   },
 
+  // App. A.7 THE SWITCHMAN: "reaches an upcoming junction → throws it to a dead line". Its telegraph is the switch
+  // itself (the stand's lamp reads wrong from the cab) and the figure standing at it; the spec gives it no sound (A.4
+  // lists none), so it's silent. The commit is the train taking the points; the dead line and its buffer stop do the
+  // rest. "Never directly lethal. It costs you the clock."
+  "switchman": {
+    // It goes to a junction whose points are this far ahead of the engine: far enough that the lamp is seen and the
+    // train stopped in time at cruise (the fairness rule), near enough that it's the next one.
+    "ahead": [500, 1200],
+    // It stands beside the switch stand, this much farther out from the track than the lever.
+    "standBeside": 1.2,
+    // "Approached on the ground → retreats; will not fight."
+    "fleeRadius": 25,
+    // Once the train's down the dead line, it lingers this long, then it's gone.
+    "lingerSeconds": 20,
+    // App. B.7: "route must contain ≥3 junctions" (dead lines, not facility spurs).
+    "minJunctions": 3
+  },
+
   "choirSwarm": {
     // In the Swarm phase, anyone exposed (roof, ground, ladder) takes this every few seconds.
     "exposedDamage": 10,
@@ -81,7 +99,7 @@
     "maxConcurrentLargeCrew": 6,
     // Budget share spent before the first facility, across the middle, and in the final approach.
     "phaseShares": [0.15, 0.45, 0.40],
-    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3 },
+    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5
