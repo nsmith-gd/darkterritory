@@ -51,6 +51,7 @@ public sealed class Director
         EnemyKind.CinderHound => "cinderHounds",
         EnemyKind.Clinger => "clingers",
         EnemyKind.Hollow => "hollow",
+        EnemyKind.Switchman => "switchman",
         _ => "sleepers",
     }, 2);
 
@@ -101,6 +102,13 @@ public sealed class Director
                 w *= _t.HoundsHotBoilerWeight;
             options.Add((EnemyKind.CinderHound, w));
         }
+        // App. B.7: the Switchman works junctions on the Frontier and beyond, on a route with enough of them to have a
+        // network, and there's never more than one corrupted human about. It needs a dead line's points ahead in its window.
+        if (_route is { } r && r.Tier >= RouteTier.Frontier && world.Enemies is { } et
+            && r.Branches.Count(b => b.Kind == Rail.BranchKind.DeadLine) >= et.Switchman.MinJunctions
+            && !active.Any(e => !e.Gone && e.Kind == EnemyKind.Switchman) && Zone(PressureZone.Forward) < _t.MaxConcurrentZone
+            && Switchman.Junction(world, et.Switchman) is not null)
+            options.Add((EnemyKind.Switchman, 1));
         options.RemoveAll(o => Cost(o.Kind) > available);
         if (options.Count == 0)
             return null;
@@ -125,7 +133,13 @@ public sealed class Director
     public void Charge(World world, EnemyKind kind, IReadOnlyList<Enemy> active)
     {
         _spent += Cost(kind);
-        var zone = kind switch { EnemyKind.CinderHound => PressureZone.Rear, EnemyKind.Clinger => PressureZone.Flank, _ => PressureZone.Interior };
+        var zone = kind switch
+        {
+            EnemyKind.CinderHound => PressureZone.Rear,
+            EnemyKind.Clinger => PressureZone.Flank,
+            EnemyKind.Switchman => PressureZone.Forward,
+            _ => PressureZone.Interior,
+        };
         Log.Add(new DirectorSpawn(world.Tick, kind, Cost(kind), world.Train.Dynamics.Distance,
             active.Count(e => !e.Gone && e.Zone == zone && e.Kind != EnemyKind.Sleepers) + 1,
             active.Count(e => !e.Gone && e.Kind != EnemyKind.Sleepers) + 1));

@@ -36,6 +36,19 @@ public class StopCrewTests
         throw new InvalidOperationException($"no frontier route has a stop with {string.Join(", ", modules)}");
     }
 
+    /// <summary>A route with a dead line: its branch index, and where its points are.</summary>
+    static (Route.Route Route, int Branch, double Toe) DeadLine()
+    {
+        for (ulong seed = 1; seed < 200; seed++)
+        {
+            var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, seed);
+            int i = route.Branches.ToList().FindIndex(b => b.Kind == BranchKind.DeadLine);
+            if (i >= 0)
+                return (route, i, route.Branches[i].Toe);
+        }
+        throw new InvalidOperationException("no frontier route has a dead line");
+    }
+
     /// <summary>A route with a coaling tower: its facility index, and where along the line its spout is.</summary>
     static (Route.Route Route, int Facility, double Spout) CoalingTower()
     {
@@ -57,6 +70,8 @@ public class StopCrewTests
         public readonly List<PlayerState> Crew = [];
         public readonly ConductorBot Driver;
         public readonly Site Site;
+        /// <summary>The dead line it runs up to, on a <c>deadLine</c> night.</summary>
+        public readonly int Branch;
         TrainControls _controls = new() { Reverser = 1 };
         uint _tick;
 
@@ -64,16 +79,18 @@ public class StopCrewTests
         /// Running up to the stop from a standing start 600 m short of it: a crew of the driver, a shunter, the winch pair
         /// (unless <paramref name="winchPair"/> is false) and <paramref name="walkers"/> more on the roofs.
         /// </summary>
-        public Night(int cars, int walkers = 1, bool winchPair = true, bool crateHands = false, bool coaling = false, params ModuleKind[] modules)
+        public Night(int cars, int walkers = 1, bool winchPair = true, bool crateHands = false, bool coaling = false, bool deadLine = false,
+            params ModuleKind[] modules)
         {
-            var (route, facility, toe) = coaling ? CoalingTower() : StopWith(modules.Length > 0 ? modules : [ModuleKind.Winch]);
+            var (route, facility, toe) = deadLine ? DeadLine() : coaling ? CoalingTower() : StopWith(modules.Length > 0 ? modules : [ModuleKind.Winch]);
             var calls = new CrewCalls();
             var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, Tuning.Run.DepartureLoad)), route.Build(), toe - 600, Tuning.Boiler);
             World = new World(train);
             World.EnableBodies();
             World.EnableSwitches(Tuning.Route.Junctions);
             World.EnableRun(Tuning.Run, route, Tuning.Route.YardLength, authority: true, F);
-            Site = World.Run!.Sites[facility]!;
+            Site = deadLine ? null! : World.Run!.Sites[facility]!;
+            Branch = deadLine ? facility : -1;
             Driver = new ConductorBot(calls, 0);
             Add(Driver, PlayerMotor.SpawnInCab(train, P));
             Add(new RoofWalkerBot(11, P.Cold, new StopHand(StopJob.Shunter, calls, 1, P.Cold)), PlayerMotor.SpawnOnRoof(train, 1, 0, P));
@@ -138,7 +155,9 @@ public class StopCrewTests
         Assert.True(run.Departures > 0, $"never left the stop: driver {night.Driver.Stops!.Doing}; crew {where}");
         Assert.Equal(night.Site.Index, run.Departed);
         // Every leg of GDD §17's sequence, driven from the cab.
-        Assert.Superset(new HashSet<StopDriver.Leg>(Enum.GetValues<StopDriver.Leg>().Except([StopDriver.Leg.ToCoal, StopDriver.Leg.Coaling])), seen);
+        StopDriver.Leg[] spur = [StopDriver.Leg.Cruise, StopDriver.Leg.Approach, StopDriver.Leg.Held, StopDriver.Leg.SpurIn, StopDriver.Leg.Loading,
+            StopDriver.Leg.BackOut, StopDriver.Leg.Clear, StopDriver.Leg.Depart];
+        Assert.Superset(new HashSet<StopDriver.Leg>(spur), seen);
         // Both sleds in: the cars by the winch took them.
         Assert.Equal(0, night.Site.SledsLeft);
         double loadAfter = train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).Sum(v => v.Load);
@@ -250,6 +269,46 @@ public class StopCrewTests
         // Shut in time: no overflow onto the engine, and the chute's shut as it leaves.
         Assert.Equal(1, train.Vehicles[0].Integrity, 6);
         Assert.False(night.World.Run.ChuteOpen);
+        Assert.All(night.Crew, c => Assert.True(c.Alive));
+        Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
+    }
+
+    [Fact]
+    public void ASwitchSetWrongAheadIsSetBackOnTheGround()
+    {
+        // App. A.7 "verify every switch on the ground": the lamp reads wrong from the cab, the driver stops short of the
+        // points, the shunter sets it back, and the train goes on down the main line.
+        var night = new Night(cars: 8, deadLine: true);
+        var train = night.Train;
+        var toe = train.Line.Branches[night.Branch].Toe;
+        night.World.SetSwitch(night.Branch, true);
+        bool tookIt = false;
+        night.Until(() => train.Dynamics.Distance > toe + 150, 600, () => tookIt |= train.Dynamics.Path == night.Branch && train.Dynamics.Distance > toe);
+        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent}"));
+
+        Assert.True(train.Dynamics.Distance > toe + 150, $"stuck: driver {night.Driver.Stops!.Doing}; crew {where}");
+        Assert.False(tookIt);
+        Assert.False(train.Diverging(night.Branch));
+        Assert.Equal(RailLine.MainPath, train.Dynamics.Path);
+        Assert.Contains(night.Driver.Stops!.Log, r => r.Kind == "SwitchSetBack");
+        Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
+    }
+
+    [Fact]
+    public void DownADeadLineItBacksOutAndGoesOn()
+    {
+        // Taken: stop on the dead line, back out past the points, set the switch back, and go on down the main line.
+        var night = new Night(cars: 8, deadLine: true);
+        var train = night.Train;
+        var toe = train.Line.Branches[night.Branch].Toe;
+        night.World.SetSwitch(night.Branch, true);
+        var state = train.Capture();
+        train.Restore(state with { Rakes = [state.Rakes[0] with { Path = night.Branch, Distance = toe + 120, Velocity = 0 }] });
+        night.Until(() => train.OnMain && train.Dynamics.Distance > toe + 150, 900);
+        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent}"));
+
+        Assert.True(train.OnMain && train.Dynamics.Distance > toe + 150, $"stuck: driver {night.Driver.Stops!.Doing} at {train.Dynamics.Distance:0} on {train.Dynamics.Path}; crew {where}");
+        Assert.False(train.Diverging(night.Branch));
         Assert.All(night.Crew, c => Assert.True(c.Alive));
         Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
     }

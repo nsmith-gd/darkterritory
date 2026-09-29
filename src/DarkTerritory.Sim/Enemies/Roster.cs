@@ -245,3 +245,99 @@ public sealed class Hollow(int id) : Enemy(id)
         }
     }
 }
+
+/// <summary>
+/// THE SWITCHMAN · sight · forward (App. A.7). A corrupted railway worker still doing its job: at a junction ahead it
+/// throws the switch for the dead line. Its telegraph is the switch itself (the stand's lamp reads wrong from the cab)
+/// and the figure standing at it; the commit is the train taking the points; the dead line and its buffer stop are the
+/// punish. Approached on the ground, it goes, leaving the switch as it set it. Never directly lethal: it costs the clock.
+/// Rule: verify every switch on the ground.
+/// </summary>
+public sealed class Switchman(int id) : Enemy(id)
+{
+    public override EnemyKind Kind => EnemyKind.Switchman;
+    public override PressureZone Zone => PressureZone.Forward;
+    public override Sense Sense => Sense.Sight;
+    public override bool OnMainLine => true;
+
+    /// <summary>The branch whose switch it works (replicated in <see cref="Enemy.Extra"/>).</summary>
+    public int Branch => (int)Extra;
+
+    /// <summary>
+    /// A dead line's points ahead of the engine, inside the spawn window, whose switch is still set for the main line: the
+    /// junction a Switchman would go to (App. B.7), or null. The engine has to be on the main line.
+    /// </summary>
+    public static Rail.Branch? Junction(World world, SwitchmanTuning t)
+    {
+        var train = world.Train;
+        if (!train.OnMain)
+            return null;
+        double front = train.Dynamics.Distance;
+        return train.Line.Branches.Where(b => b.Kind == Rail.BranchKind.DeadLine && !train.Diverging(b.Index)
+                && b.Toe - front >= t.Ahead[0] && b.Toe - front <= t.Ahead[1])
+            .OrderBy(b => b.Toe).FirstOrDefault();
+    }
+
+    /// <summary>At a junction's switch stand: beside the lever, farther out from the track.</summary>
+    public static Switchman At(int id, Rail.Branch branch, SwitchmanTuning t, double leverOffset) => new(id)
+    {
+        Extra = branch.Index,
+        LineDistance = branch.Toe,
+        Lateral = branch.Side * (leverOffset + t.StandBeside),
+    };
+
+    protected override void Tick(EnemyContext ctx)
+    {
+        var t = ctx.Tuning.Switchman;
+        var train = ctx.Train;
+        if (Branch < 0 || Branch >= train.Line.Branches.Count)
+        {
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        var branch = train.Line.Branches[Branch];
+        var engine = train.Dynamics;
+        switch (Phase)
+        {
+            case SpinePhase.Dormant:
+                // Over it goes, for the dead line: the lamp now reads wrong from the cab. A wheel on the points holds them.
+                Enter(ctx, ctx.World.SetSwitch(Branch, true) ? SpinePhase.Telegraph : SpinePhase.Gone);
+                break;
+            case SpinePhase.Telegraph:
+                if (Approached(ctx, t) || !train.Diverging(Branch))
+                {
+                    // Seen to, or somebody coming for it: it goes. (Put back, it's lost this one.)
+                    Enter(ctx, SpinePhase.BreakOff);
+                    Enter(ctx, SpinePhase.Gone);
+                }
+                else if (engine.Path == Branch && engine.Distance > branch.Toe)
+                {
+                    // The train's taken the points: down the dead line it goes, to the buffer stop or a long way back.
+                    Enter(ctx, Enter(ctx, SpinePhase.Commit) ? SpinePhase.Punish : SpinePhase.BreakOff);
+                }
+                else if (engine.Distance > branch.Toe + train.Dynamics.Consist.LengthMetres)
+                {
+                    // Got by on the main line (the switch was set back and thrown again behind it): nothing to do here.
+                    Enter(ctx, SpinePhase.Gone);
+                }
+                break;
+            case SpinePhase.Punish:
+                if (PhaseSeconds >= t.LingerSeconds || Approached(ctx, t))
+                {
+                    Enter(ctx, SpinePhase.BreakOff);
+                    Enter(ctx, SpinePhase.Gone);
+                }
+                break;
+            default:
+                Enter(ctx, SpinePhase.Gone);
+                break;
+        }
+    }
+
+    /// <summary>Someone on the ground near it.</summary>
+    bool Approached(EnemyContext ctx, SwitchmanTuning t)
+    {
+        var at = WorldPosition(ctx.Train);
+        return ctx.LivingCrew().Any(c => c.Player.State.Parent == PlayerState.World && (c.World - at).Length <= t.FleeRadius);
+    }
+}

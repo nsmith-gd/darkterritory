@@ -250,6 +250,20 @@ public sealed class GreyboxScene
                 Draw(outward * 0.41, 0.1, 0, 0.02, 0.06, 0.5, bite);
                 mesh.Emissive = 0;
                 break;
+            case EnemyKind.Switchman:
+                {
+                    // A railwayman, stooped wrong, standing at the switch with a lantern held out: the lantern's the only
+                    // light on it, and it swings while it waits for the train.
+                    Draw(0, 0.45, 0, 0.12, 0.45, 0.12, Palette.SootBlack);
+                    Draw(0, 1.2, 0.05, 0.22, 0.35, 0.14, Palette.SootBlack);
+                    Draw(0, 1.62, -0.12, 0.13, 0.13, 0.13, Palette.Corrupted);
+                    double swing = e.Phase == SpinePhase.Telegraph ? 0.15 * Math.Sin(e.PhaseSeconds * 2.2) : 0;
+                    Draw(0.32, 1.0, -0.1 + swing, 0.05, 0.28, 0.05, Palette.SootBlack);
+                    mesh.Emissive = 1;
+                    Draw(0.32, 0.7, -0.1 + swing, 0.08, 0.1, 0.08, Palette.LampAmber);
+                    mesh.Emissive = 0;
+                    break;
+                }
             case EnemyKind.Hollow:
                 if (e.Phase == SpinePhase.Telegraph)
                 {

@@ -171,6 +171,43 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
 public sealed record StopRecord(int Facility, string Kind, double Seconds, int SledsHauled, IReadOnlyDictionary<string, double> Legs, double Coal = 0);
 
 /// <summary>
+/// A dead line's switch set against the train (App. A.7, the Switchman's work): its lamp reads wrong from the cab. The
+/// crew stops short of its points and someone sets it back on the ground; if the train's already down the dead line, it
+/// backs out first.
+/// </summary>
+/// <param name="Hold">Where the engine's front stands to wait: two metres short of the points' reach.</param>
+public sealed record SwitchPlan(Branch Branch, double Hold)
+{
+    /// <summary>How far ahead a switch stand's lamp reads from the cab.</summary>
+    const double LampSeen = 1200;
+
+    /// <summary>The nearest dead line ahead whose switch is set for it, in sight of the cab.</summary>
+    public static SwitchPlan? Ahead(World world)
+    {
+        var train = world.Train;
+        double front = train.Dynamics.Distance, points = world.Switches?.Tuning.PointsLength ?? 12;
+        return train.Line.Branches.Where(b => b.Kind == BranchKind.DeadLine && train.Diverging(b.Index)
+                && b.Toe - points - 2 >= front - 3 && b.Toe - front <= LampSeen)
+            .OrderBy(b => b.Toe).Select(b => new SwitchPlan(b, b.Toe - points - 2)).FirstOrDefault();
+    }
+
+    /// <summary>The engine's down a dead line past its points: it took a switch set wrong.</summary>
+    public static SwitchPlan? DownOne(World world)
+    {
+        var train = world.Train;
+        int path = train.Dynamics.Path;
+        if (path < 0 || path >= train.Line.Branches.Count || train.Line.Branches[path] is not { Kind: BranchKind.DeadLine } b
+            || train.Dynamics.Distance <= b.Toe)
+            return null;
+        return new SwitchPlan(b, b.Toe - (world.Switches?.Tuning.PointsLength ?? 12) - 2);
+    }
+
+    /// <summary>The whole train's standing short of the points on the main line.</summary>
+    public bool StandingAt(TrainOnLine train) =>
+        train.OnMain && train.Rakes.Count == 1 && Math.Abs(train.Dynamics.Velocity) < 0.05 && Math.Abs(train.Dynamics.Distance - Hold) < 3;
+}
+
+/// <summary>
 /// A coaling stop (GDD §18, spec D.2 gravity chute): the tower stands over the main line, and the engine stops with its
 /// tender under the spout while someone on the ground works the chute's lever.
 /// </summary>
@@ -215,7 +252,7 @@ public sealed record CoalPlan(int Facility, double Spout, double Hold, Double3 L
 /// </summary>
 public sealed class StopDriver(CrewCalls calls)
 {
-    public enum Leg : byte { Cruise, Approach, Held, SpurIn, Loading, BackOut, Clear, Depart, ToCoal, Coaling }
+    public enum Leg : byte { Cruise, Approach, Held, SpurIn, Loading, BackOut, Clear, Depart, ToCoal, Coaling, ToSwitch, OffDeadLine, SetBack, Forward }
 
     // Long enough for a crew to do their part at walking pace; past it, the stop is given up rather than the night.
     const double HeldGiveUp = 240, LoadingGiveUp = 420, AboardGiveUp = 120, CoalGiveUp = 150;
@@ -231,6 +268,8 @@ public sealed class StopDriver(CrewCalls calls)
     public StopPlan? Plan { get; private set; }
     /// <summary>The coaling stop it's making, if that's what it's doing.</summary>
     public CoalPlan? Coal { get; private set; }
+    /// <summary>The switch set wrong it's stopped for (or backing off the dead line of).</summary>
+    public SwitchPlan? Switch { get; private set; }
     readonly HashSet<int> _coaled = [];
     double _tenderAtStart;
     /// <summary>The speed it runs up to a stop at (the driver's cruise).</summary>
@@ -263,8 +302,20 @@ public sealed class StopDriver(CrewCalls calls)
         {
             case Leg.Cruise:
                 {
+                    // Down a dead line (a switch set wrong, taken): stop, and back out onto the main line.
+                    if (SwitchPlan.DownOne(world) is { } down)
+                    {
+                        BeginSwitch(down, Leg.OffDeadLine);
+                        return Hold(world);
+                    }
                     if (train.Rakes.Count > 1 || !train.OnMain || world.Run is not { } run)
                         return null;
+                    // A switch lamp ahead reading wrong: stop short of its points and have it set back (App. A.7).
+                    if (SwitchPlan.Ahead(world) is { } wrong && wrong.Hold <= engine.Distance + StoppingDistance(engine) + 80)
+                    {
+                        BeginSwitch(wrong, Leg.ToSwitch);
+                        return Toward(world, wrong.Hold, +1, CruiseSpeed);
+                    }
                     // Every stop is optional (GDD §18): only one there's time for before the dawn, after the run to the end of
                     // the line. The tender's the exception once it's low: without coal there's no getting there at all.
                     double spare = run.DawnIn - (run.Route.Length - engine.Distance) / CruiseSpeed;
@@ -291,6 +342,42 @@ public sealed class StopDriver(CrewCalls calls)
                     Begin(Leg.Approach);
                     return Toward(world, plan.Hold, +1, CruiseSpeed);
                 }
+            case Leg.ToSwitch:
+                {
+                    var w = Switch!;
+                    if (SwitchPlan.DownOne(world) is not null)
+                    {
+                        Begin(Leg.OffDeadLine);
+                        return Hold(world);
+                    }
+                    if (still && w.StandingAt(train))
+                    {
+                        Begin(Leg.SetBack);
+                        return Hold(world);
+                    }
+                    return engine.Distance > w.Hold + 3 && (still || engine.Velocity < 0) ? Toward(world, w.Hold, -1, 1) : Toward(world, w.Hold, +1, CruiseSpeed);
+                }
+            case Leg.OffDeadLine:
+                {
+                    var w = Switch!;
+                    if (train.OnMain && still && engine.Distance <= w.Hold + 3)
+                    {
+                        Begin(Leg.SetBack);
+                        return Hold(world);
+                    }
+                    return Toward(world, w.Hold, -1, 3);
+                }
+            case Leg.SetBack:
+                // Until it's set back for the main line and everyone's aboard. Nobody to do it, nobody goes anywhere: over
+                // those points is the dead line again.
+                if (!train.Diverging(Switch!.Branch.Index) && calls.AllAboard)
+                    Begin(Leg.Forward);
+                return Hold(world);
+            case Leg.Forward:
+                if (world.Controls.Reverser < 0)
+                    return Toward(world, Switch!.Hold + 50, +1, 3); // flips it at a stand
+                FinishSwitch();
+                return null;
             case Leg.ToCoal:
                 {
                     var c = Coal!;
@@ -391,6 +478,21 @@ public sealed class StopDriver(CrewCalls calls)
         }
     }
 
+    void BeginSwitch(SwitchPlan plan, Leg leg)
+    {
+        Switch = plan;
+        _legs.Clear();
+        _stopStart = _ticks;
+        Begin(leg);
+    }
+
+    void FinishSwitch()
+    {
+        Begin(Leg.Cruise);
+        _log.Add(new StopRecord(-1, "SwitchSetBack", Math.Round(Seconds(_ticks - _stopStart), 1), 0, new Dictionary<string, double>(_legs)));
+        Switch = null;
+    }
+
     void FinishCoaling(TrainOnLine train)
     {
         var c = Coal!;
@@ -485,6 +587,8 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         if (job == StopJob.None || !self.Alive || world.Run is null)
             return null;
         var train = world.Train;
+        if (job == StopJob.Shunter && _plan is null && _coal is null && SettingBack(self, world, out var setting))
+            return setting;
         if (job == StopJob.Shunter && _plan is null && Coaling(self, world, out var coaling))
             return coaling;
         if (_plan is null)
@@ -547,13 +651,13 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         {
             if (!set && p.CutBehind >= 0 && train.Rakes.Count == 1)
                 return Cut(self, train, p);
-            return set ? Ride(self, train, p) : Throw(self, train, p);
+            return set ? Ride(self, train, p) : Throw(self, train, p.Spur);
         }
         // In the cab while the empties are down the spur, until the whole train's back together short of the points.
         bool back = train.Rakes.Count == 1 && train.OnMain && Math.Abs(train.Dynamics.Velocity) < 0.05 && train.Dynamics.Distance <= p.Hold + 3;
         if (!back)
             return Ride(self, train, p);
-        return set ? Throw(self, train, p) : Aboard(self, p);
+        return set ? Throw(self, train, p.Spur) : Aboard(self, p);
     }
 
     PlayerIntent? Crank(in PlayerState self, World world, StopPlan p)
@@ -581,6 +685,46 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
     CoalPlan? _coal;
     readonly HashSet<int> _coaled = [];
     bool _poured;
+    SwitchPlan? _switch;
+
+    /// <summary>
+    /// A switch set wrong ahead (true while there's one to see to): once the train's standing short of its points, down to
+    /// the stand and set it back for the main line (App. A.7: "verify every switch on the ground"), then aboard.
+    /// </summary>
+    bool SettingBack(in PlayerState self, World world, out PlayerIntent? intent)
+    {
+        intent = null;
+        var train = world.Train;
+        if (_switch is null)
+        {
+            if (SwitchPlan.Ahead(world) is not { } plan || !plan.StandingAt(train))
+                return false;
+            _switch = plan;
+        }
+        var branch = _switch.Branch;
+        if (!train.Diverging(branch.Index))
+        {
+            // Set back: aboard (the walker climbs the nearest car), and done.
+            if (self.Parent == PlayerState.World && self.Surface == Surface.Ground)
+            {
+                Doing = "boarding";
+                return true;
+            }
+            _switch = null;
+            return false;
+        }
+        if (!_switch.StandingAt(train))
+            return false; // it's moving: wait aboard for it to stop
+        if (self.Surface == Surface.Air)
+        {
+            intent = new PlayerIntent();
+            return true;
+        }
+        if (self.Surface == Surface.Ladder || self.Surface == Surface.Deck && self.Parent > 0)
+            return true; // the walker knows the way off a ladder or out of a car
+        intent = Throw(self, train, branch);
+        return true;
+    }
 
     /// <summary>
     /// A coaling stop (true while there's one to work): down to the chute's lever beside the line, open it, shut it again a
@@ -903,12 +1047,12 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
     }
 
     /// <summary>Off the train on the switch's side, to the stand beside the points, and hold Use until they go over.</summary>
-    PlayerIntent? Throw(in PlayerState self, TrainOnLine train, StopPlan p)
+    PlayerIntent? Throw(in PlayerState self, TrainOnLine train, Branch branch)
     {
         if (self.Parent != PlayerState.World)
-            return GetDown(self, train, p.Spur.Side);
+            return GetDown(self, train, branch.Side);
         Doing = "at the switch";
-        var stand = TrackPoint(train.Line, RailLine.MainPath, p.Spur.Toe, p.Spur.Side * StandOff);
+        var stand = TrackPoint(train.Line, RailLine.MainPath, branch.Toe, branch.Side * StandOff);
         var (step, there) = WalkTo(self, train.Line, RailLine.MainPath, stand, null);
         return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
     }

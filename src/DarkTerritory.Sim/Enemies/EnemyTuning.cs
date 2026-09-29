@@ -6,6 +6,18 @@ public sealed record EnemyTuning(
     HollowTuning Hollow, ChoirSwarmTuning ChoirSwarm, DirectorTuning Director, double InterestRadius)
 {
     public const string File = "tuning/enemies.json";
+
+    public SwitchmanTuning Switchman { get; init; } = new();
+}
+
+/// <summary>The Switchman (App. A.7, B.7). Field docs live in enemies.json.</summary>
+public sealed record SwitchmanTuning
+{
+    public double[] Ahead { get; init; } = [500, 1200];
+    public double StandBeside { get; init; } = 1.2;
+    public double FleeRadius { get; init; } = 25;
+    public double LingerSeconds { get; init; } = 20;
+    public int MinJunctions { get; init; } = 3;
 }
 
 public sealed record SleeperTuning(double LampRevealDistance, double BraceDistance, double DerailAbove, double HeavyDamageAbove, double HeavyDamage, double MinorDamage);
