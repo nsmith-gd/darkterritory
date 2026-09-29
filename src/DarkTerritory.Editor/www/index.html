@@ -45,6 +45,10 @@
   .legend span { display: inline-block; margin-right: 12px; font-size: 12px; color: var(--dim); }
   .legend i { display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: -1px; border-radius: 2px; }
   code { background: #121417; padding: 2px 6px; border-radius: 3px; }
+  .help { color: var(--dim); font-size: 12.5px; }
+  label.mod { white-space: nowrap; margin-right: 6px; }
+  label.mod.dflt { color: var(--dim); }
+  td button.act { padding: 2px 8px; }
   @media (max-width: 800px) { .cols { grid-template-columns: 1fr; } .row { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -84,7 +88,12 @@
     <div class="panel" style="margin-top:16px">
       <div class="toolbar"><b>Features</b><span class="help">Edit, then Preview to redraw. Distances are metres along the line.</span><span style="flex:1"></span>
         <button class="act" id="add">Add feature</button><button class="act" id="preview">Preview</button></div>
-      <table><thead><tr><th>Kind</th><th>Facility</th><th>Start</th><th>End</th><th>Side</th><th>Max cars</th><th></th></tr></thead><tbody id="features"></tbody></table>
+      <table><thead><tr><th>Kind</th><th>Facility</th><th>Modules</th><th>Start</th><th>End</th><th>Side</th><th>Max cars</th><th></th></tr></thead><tbody id="features"></tbody></table>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <div class="toolbar"><b>Track</b><span class="help">The line from the fortress, piece by piece: length, curve radius (+ left, − right, 0 straight; no tighter than <span id="tightest">…</span> m) and grade (% uphill).</span><span style="flex:1"></span>
+        <button class="act" id="addTrack">Add track</button></div>
+      <table><thead><tr><th>#</th><th>From</th><th>Length</th><th>Radius</th><th>Grade %</th><th></th></tr></thead><tbody id="track"></tbody></table>
     </div>
   </section>
 </main>
@@ -185,8 +194,36 @@ function show(d) {
   $('name').value = route.name.toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
   $('summary').textContent = `${route.name} · ${(d.length / 1000).toFixed(1)} km · dawn in ${(route.dawnSeconds / 60).toFixed(0)} min · fog ${route.weather.fogDensity.toFixed(3)} · ${route.features.length} features`;
   $('legend').innerHTML = Object.entries(colours).map(([k, c]) => `<span><i style="background:${c}"></i>${k}</span>`).join('');
-  drawPlan(d); drawProfile(d); renderFeatures();
+  modules = d.modules;
+  $('tightest').textContent = d.tightestRadius;
+  drawPlan(d); drawProfile(d); renderFeatures(); renderTrack();
 }
+let modules = { names: [], byKind: {} };
+// A facility's modules: its own if the route gives it some, else its kind's (shown faint, "as its kind").
+function moduleCell(f) {
+  const own = f.modules != null, have = own ? f.modules : (modules.byKind[f.facility] || []);
+  return modules.names.map(m => `<label class="mod${own ? '' : ' dflt'}"><input type="checkbox" data-m="${m}"${have.includes(m) ? ' checked' : ''}>${m}</label>`).join(' ')
+    + (own ? ` <button class="act" data-reset title="back to what its kind has">↺</button>` : ' <span class="help">as its kind</span>');
+}
+function renderTrack() {
+  const body = $('track');
+  body.innerHTML = '';
+  let from = 0;
+  route.line.segments.forEach((t, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i + 1}</td><td class="help">${(from / 1000).toFixed(2)} km</td>
+      <td><input type="number" data-k="length" value="${Math.round(t.length)}" min="1"></td>
+      <td><input type="number" data-k="radius" value="${Math.round(t.radius)}"></td>
+      <td><input type="number" data-k="gradePercent" value="${t.gradePercent}" step="0.1" style="width:70px"></td>
+      <td><button class="act" data-ins title="add a piece after this">+</button> <button class="act" data-del>✕</button></td>`;
+    from += t.length;
+    tr.querySelectorAll('[data-k]').forEach(el => el.onchange = () => { t[el.dataset.k] = parseFloat(el.value) || 0; });
+    tr.querySelector('[data-ins]').onclick = () => { route.line.segments.splice(i + 1, 0, { length: 200, radius: 0, gradePercent: 0 }); renderTrack(); };
+    tr.querySelector('[data-del]').onclick = () => { if (route.line.segments.length > 1) { route.line.segments.splice(i, 1); renderTrack(); } };
+    body.append(tr);
+  });
+}
+$('addTrack').onclick = () => { route.line.segments.push({ length: 500, radius: 0, gradePercent: 0 }); renderTrack(); };
 function drawPlan(d) {
   const xs = d.plan.map(p => p[0]), zs = d.plan.map(p => p[1]);
   const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs);
@@ -225,14 +262,22 @@ function renderFeatures() {
     const tr = document.createElement('tr');
     const sel = (opts, v, key) => `<select data-k="${key}">${opts.map(o => `<option${o === v ? ' selected' : ''}>${o}</option>`).join('')}</select>`;
     tr.innerHTML = `<td>${sel(kinds, f.kind, 'kind')}</td><td>${f.kind === 'facility' ? sel(facilities, f.facility, 'facility') : ''}</td>
+      <td>${f.kind === 'facility' ? moduleCell(f) : ''}</td>
       <td><input type="number" data-k="start" value="${Math.round(f.start)}"></td><td><input type="number" data-k="end" value="${Math.round(f.end)}"></td>
       <td><input type="number" data-k="side" value="${f.side}" min="-1" max="1" style="width:60px"></td>
       <td><input type="number" data-k="maxCars" value="${f.maxCars}" min="0" style="width:60px"></td><td><button class="act" data-del>✕</button></td>`;
     tr.querySelectorAll('[data-k]').forEach(el => el.onchange = () => {
       const k = el.dataset.k;
       f[k] = el.tagName === 'SELECT' ? el.value : parseFloat(el.value);
-      if (k === 'kind') { f.facility = f.kind === 'facility' ? (f.facility || 'coalingTower') : null; renderFeatures(); }
+      if (k === 'kind') { f.facility = f.kind === 'facility' ? (f.facility || 'coalingTower') : null; if (f.kind !== 'facility') f.modules = null; renderFeatures(); }
+      if (k === 'facility') renderFeatures();
     });
+    // Ticking a module gives the facility its own set, starting from what it had.
+    tr.querySelectorAll('[data-m]').forEach(el => el.onchange = () => {
+      f.modules = [...tr.querySelectorAll('[data-m]')].filter(c => c.checked).map(c => c.dataset.m);
+      renderFeatures();
+    });
+    tr.querySelector('[data-reset]')?.addEventListener('click', () => { f.modules = null; renderFeatures(); });
     tr.querySelector('[data-del]').onclick = () => { route.features.splice(i, 1); renderFeatures(); };
     body.append(tr);
   });

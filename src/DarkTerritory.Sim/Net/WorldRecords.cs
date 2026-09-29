@@ -30,6 +30,8 @@ public static class WorldRecords
 {
     // Fixed-point scales. Positions and speeds to 0.1 mm; angles to 10 µrad; slow scalars and timers to 1e-6.
     const double Pos = 1e4, Ang = 1e5, Fine = 1e6, Hint = 1e2;
+    /// <summary>A body record's fields before its particles: kind, parent, carrier, owner, asleep, yaw, count, second carrier.</summary>
+    const int BodyParticles = 8;
 
     static long Q(double v, double scale) => (long)Math.Round(v * scale);
     static double D(long q, double scale) => q / scale;
@@ -77,7 +79,7 @@ public static class WorldRecords
         if (world.Run is { } run)
         {
             // Per facility: the chute's coal left, then its loading modules (crates out, winch sled, sleds left, turning).
-            const int Each = 4;
+            const int Each = 5;
             var f = new long[5 + run.FacilityCount * Each];
             f[0] = (long)run.Phase;
             f[1] = (long)run.End;
@@ -88,9 +90,10 @@ public static class WorldRecords
             {
                 var site = i < run.Sites.Count ? run.Sites[i] : null;
                 f[5 + i * Each] = Q(run.ChuteLeft(i), Fine);
-                f[6 + i * Each] = (site?.Stocked == true ? 1 : 0) | (site?.Turning == true ? 2 : 0);
+                f[6 + i * Each] = (site?.Stocked == true ? 1 : 0) | (site?.Turning == true ? 2 : 0) | (site?.OutOfRhythm == true ? 4 : 0);
                 f[7 + i * Each] = Q(site?.Progress ?? 0, Fine);
                 f[8 + i * Each] = site?.SledsLeft ?? 0;
+                f[9 + i * Each] = Q(site?.Crank ?? 0, Ang);
             }
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Run, 0), f));
         }
@@ -99,7 +102,7 @@ public static class WorldRecords
         foreach (var body in world.Bodies.All)
         {
             var ps = body.Pbd.Particles;
-            var f = new long[7 + ps.Length * 3];
+            var f = new long[BodyParticles + ps.Length * 3];
             f[0] = (long)body.Kind;
             f[1] = body.Parent;
             f[2] = body.Carrier;
@@ -107,11 +110,12 @@ public static class WorldRecords
             f[4] = body.Pbd.Asleep ? 1 : 0;
             f[5] = Q(body.Yaw, Ang);
             f[6] = ps.Length;
+            f[7] = body.Second;
             for (int i = 0; i < ps.Length; i++)
             {
-                f[7 + i * 3] = Q(ps[i].Position.X, Pos);
-                f[8 + i * 3] = Q(ps[i].Position.Y, Pos);
-                f[9 + i * 3] = Q(ps[i].Position.Z, Pos);
+                f[BodyParticles + i * 3] = Q(ps[i].Position.X, Pos);
+                f[BodyParticles + 1 + i * 3] = Q(ps[i].Position.Y, Pos);
+                f[BodyParticles + 2 + i * 3] = Q(ps[i].Position.Z, Pos);
             }
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Body, body.Id), f));
         }
@@ -197,10 +201,12 @@ public static class WorldRecords
                     vigil.Mirror(f[0] != 0, D(f[1], Fine), (int)f[2], (int)f[3], (int)f[4]);
                     break;
                 case RecordKind.Run when !world.Authority && world.Run is { } run:
-                    int facilities = (f.Length - 5) / 4;
+                    const int Each = 5;
+                    int facilities = (f.Length - 5) / Each;
                     run.Mirror((Run.RunPhase)f[0], (Run.RunEnd)f[1], D(f[2], Fine), (int)f[3], f[4] != 0,
-                        [.. Enumerable.Range(0, facilities).Select(i => D(f[5 + i * 4], Fine))],
-                        [.. Enumerable.Range(0, facilities).Select(i => ((f[6 + i * 4] & 1) != 0, D(f[7 + i * 4], Fine), (int)f[8 + i * 4], (f[6 + i * 4] & 2) != 0))]);
+                        [.. Enumerable.Range(0, facilities).Select(i => D(f[5 + i * Each], Fine))],
+                        [.. Enumerable.Range(0, facilities).Select(i => new Run.SiteState((f[6 + i * Each] & 1) != 0, D(f[7 + i * Each], Fine), (int)f[8 + i * Each],
+                            (f[6 + i * Each] & 2) != 0, (f[6 + i * Each] & 4) != 0, D(f[9 + i * Each], Ang)))]);
                     break;
             }
         }
@@ -223,10 +229,15 @@ public static class WorldRecords
         int n = (int)f[6];
         var particles = new Ballast.Physics.Particle[n];
         for (int i = 0; i < n; i++)
-            particles[i] = new Ballast.Physics.Particle(new Ballast.Double3(D(f[7 + i * 3], Pos), D(f[8 + i * 3], Pos), D(f[9 + i * 3], Pos)), 1, 0.1);
-        return new Physics.Body(r.Id, (Physics.BodyKind)f[0], (int)f[1], new Ballast.Physics.PbdBody(particles))
+            particles[i] = new Ballast.Physics.Particle(new Ballast.Double3(D(f[BodyParticles + i * 3], Pos), D(f[BodyParticles + 1 + i * 3], Pos), D(f[BodyParticles + 2 + i * 3], Pos)), 1, 0.1);
+        var pbd = new Ballast.Physics.PbdBody(particles);
+        // At rest on the host, at rest here: a bot's hand picks up a crate left on a car's steps once it's lain still (T50).
+        if (f[4] != 0)
+            pbd.Sleep();
+        return new Physics.Body(r.Id, (Physics.BodyKind)f[0], (int)f[1], pbd)
         {
             Carrier = (int)f[2],
+            Second = (int)f[7],
             Owner = (int)f[3],
             Yaw = D(f[5], Ang),
         };

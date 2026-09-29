@@ -231,7 +231,7 @@ public sealed class World
         if (Authority)
         {
             // Freight in your arms slows you and keeps you off ladders (spec B.2); the motor reads the flag.
-            bool heavy = Bodies.All.Any(b => b.Carrier == playerId && b.Kind == Physics.BodyKind.Cargo);
+            bool heavy = Bodies.All.Any(b => b.HeldBy(playerId) && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy);
             s.Flags = heavy ? s.Flags | PlayerFlags.Heavy : s.Flags & ~PlayerFlags.Heavy;
         }
         if (!handsTookIt)

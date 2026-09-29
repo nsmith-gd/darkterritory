@@ -1,0 +1,2200 @@
+[
+  {
+    "name": "iron_plate",
+    "diffuse": "iron_plate.png",
+    "spec": "iron_plate_s.png",
+    "size": 256,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "iron",
+    "alphaTest": false,
+    "albedoTarget": 0.1,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "plate seams, rivets, heat tint, soot, oil and rust streaks",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "iron_smokebox",
+    "diffuse": "iron_smokebox.png",
+    "spec": "iron_smokebox_s.png",
+    "size": 256,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "iron",
+    "alphaTest": false,
+    "albedoTarget": 0.04,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "heat-scale flakes (voronoi), ash bloom, soot fields",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "paint_oxide",
+    "diffuse": "paint_oxide.png",
+    "spec": "paint_oxide_s.png",
+    "size": 256,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "paint",
+    "alphaTest": false,
+    "albedoTarget": 0.11,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "panel seams, rivets, ribs, chipped oxide paint, rust bleed",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "paint_olive",
+    "diffuse": "paint_olive.png",
+    "spec": "paint_olive_s.png",
+    "size": 256,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "paint",
+    "alphaTest": false,
+    "albedoTarget": 0.1,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "panel seams, rivets, ribs, chipped olive paint, rust bleed",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "paint_black",
+    "diffuse": "paint_black.png",
+    "spec": "paint_black_s.png",
+    "size": 256,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "paint",
+    "alphaTest": false,
+    "albedoTarget": 0.05,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "black paint rubbed to grey steel at edges, rivets, soot",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "corrugated_iron",
+    "diffuse": "corrugated_iron.png",
+    "spec": "corrugated_iron_s.png",
+    "size": 256,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "iron",
+    "alphaTest": false,
+    "albedoTarget": 0.1,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "corrugation profile, lap and nails, valley rust streaks",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "steel_grate",
+    "diffuse": "steel_grate.png",
+    "spec": "steel_grate_s.png",
+    "size": 256,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "iron",
+    "alphaTest": true,
+    "albedoTarget": 0.1,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "bar grating, cutout holes, worn tops",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "brass",
+    "diffuse": "brass.png",
+    "spec": "brass_s.png",
+    "size": 256,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "brass",
+    "alphaTest": false,
+    "albedoTarget": 0.12,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "tarnish fields, verdigris in cavities, rubbed high spots",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "copper_pipe",
+    "diffuse": "copper_pipe.png",
+    "spec": "copper_pipe_s.png",
+    "size": 256,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "brass",
+    "alphaTest": false,
+    "albedoTarget": 0.12,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "drawn streaks, tarnish, sweated joint, verdigris weep",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "rail_steel",
+    "diffuse": "rail_steel.png",
+    "spec": "rail_steel_s.png",
+    "size": 256,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "iron",
+    "alphaTest": false,
+    "albedoTarget": 0.11,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "running strip, side rust, lengthwise scratches, wheel burns",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "wheel_iron",
+    "diffuse": "wheel_iron.png",
+    "spec": "wheel_iron_s.png",
+    "size": 256,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "iron",
+    "alphaTest": false,
+    "albedoTarget": 0.09,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "casting pits, grease fields, grit",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "rust_heavy",
+    "diffuse": "rust_heavy.png",
+    "spec": "rust_heavy_s.png",
+    "size": 256,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "iron",
+    "alphaTest": false,
+    "albedoTarget": 0.09,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/metal_rust_diffuse.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "rust flakes (voronoi), pits, streaks",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "wood_siding",
+    "diffuse": "wood_siding.png",
+    "spec": "wood_siding_s.png",
+    "size": 256,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "wood",
+    "alphaTest": false,
+    "albedoTarget": 0.09,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "plank layout, per-board offsets, iron strap, soot",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "wood_sleeper",
+    "diffuse": "wood_sleeper.png",
+    "spec": "wood_sleeper_s.png",
+    "size": 256,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "wood",
+    "alphaTest": false,
+    "albedoTarget": 0.075,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "checking cracks, creosote sheen, ballast dust",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "wood_grey",
+    "diffuse": "wood_grey.png",
+    "spec": "wood_grey_s.png",
+    "size": 256,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "wood",
+    "alphaTest": false,
+    "albedoTarget": 0.11,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "board layout, raised grain, nails, edge rot",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "wood_crate",
+    "diffuse": "wood_crate.png",
+    "spec": "wood_crate_s.png",
+    "size": 256,
+    "tileMetres": 1.0,
+    "tiling": false,
+    "family": "wood",
+    "alphaTest": false,
+    "albedoTarget": 0.09,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "crate boards, frame, brace, nails, faded stencil",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "wood_floor",
+    "diffuse": "wood_floor.png",
+    "spec": "wood_floor_s.png",
+    "size": 256,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "wood",
+    "alphaTest": false,
+    "albedoTarget": 0.09,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/WoodFloor051_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "board layout, butt joints, nails, worn lane, dirt",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "ballast",
+    "diffuse": "ballast.png",
+    "spec": "ballast_s.png",
+    "size": 256,
+    "tileMetres": 2.0,
+    "tiling": true,
+    "family": "ground",
+    "alphaTest": false,
+    "albedoTarget": 0.12,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/gravel_ground_diffuse.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "angular stones (voronoi facets), oil stains",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "ground_mud",
+    "diffuse": "ground_mud.png",
+    "spec": "ground_mud_s.png",
+    "size": 256,
+    "tileMetres": 2.0,
+    "tiling": true,
+    "family": "ground",
+    "alphaTest": false,
+    "albedoTarget": 0.06,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_ao.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/dirt_ground_diffuse.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "wet lows, pressed dead grass",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "ground_grass",
+    "diffuse": "ground_grass.png",
+    "spec": "ground_grass_s.png",
+    "size": 256,
+    "tileMetres": 2.0,
+    "tiling": true,
+    "family": "ground",
+    "alphaTest": false,
+    "albedoTarget": 0.085,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Grass005_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Grass005_ao.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Grass005_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "bald mud patches, straw-dead blades",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "ground_forest",
+    "diffuse": "ground_forest.png",
+    "spec": "ground_forest_s.png",
+    "size": 256,
+    "tileMetres": 2.0,
+    "tiling": true,
+    "family": "ground",
+    "alphaTest": false,
+    "albedoTarget": 0.055,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "needle litter, roots",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "marsh",
+    "diffuse": "marsh.png",
+    "spec": "marsh_s.png",
+    "size": 256,
+    "tileMetres": 2.0,
+    "tiling": true,
+    "family": "ground",
+    "alphaTest": false,
+    "albedoTarget": 0.05,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/moss_ground_diffuse.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "hummocks, standing water (spec), reed litter",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "rock_cliff",
+    "diffuse": "rock_cliff.png",
+    "spec": "rock_cliff_s.png",
+    "size": 256,
+    "tileMetres": 2.0,
+    "tiling": true,
+    "family": "ground",
+    "alphaTest": false,
+    "albedoTarget": 0.1,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_ao.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_roughness.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "wet streaks, moss drained to olive",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "coal",
+    "diffuse": "coal.png",
+    "spec": "coal_s.png",
+    "size": 256,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "ground",
+    "alphaTest": false,
+    "albedoTarget": 0.04,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "faceted lumps (voronoi), gloss on lit facets",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "slag",
+    "diffuse": "slag.png",
+    "spec": "slag_s.png",
+    "size": 256,
+    "tileMetres": 2.0,
+    "tiling": true,
+    "family": "ground",
+    "alphaTest": false,
+    "albedoTarget": 0.08,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "clinker (voronoi), ash drifts, vesicles, glassy beads",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "cobbles",
+    "diffuse": "cobbles.png",
+    "spec": "cobbles_s.png",
+    "size": 256,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "masonry",
+    "alphaTest": false,
+    "albedoTarget": 0.1,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/PavingStones151_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/PavingStones151_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/PavingStones151_ao.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/PavingStones151_roughness.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "joint dirt and moss, soot, wet tops",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "stone_block",
+    "diffuse": "stone_block.png",
+    "spec": "stone_block_s.png",
+    "size": 256,
+    "tileMetres": 2.0,
+    "tiling": true,
+    "family": "masonry",
+    "alphaTest": false,
+    "albedoTarget": 0.11,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Concrete034_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "coursed bond, pillowed faces, chipped arrises, joint soot, moss",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "brick_soot",
+    "diffuse": "brick_soot.png",
+    "spec": "brick_soot_s.png",
+    "size": 256,
+    "tileMetres": 2.0,
+    "tiling": true,
+    "family": "masonry",
+    "alphaTest": false,
+    "albedoTarget": 0.075,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Bricks105_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Bricks105_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Bricks105_ao.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Bricks105_roughness.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "soot plumes, rain streaks, efflorescence",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "concrete_stain",
+    "diffuse": "concrete_stain.png",
+    "spec": "concrete_stain_s.png",
+    "size": 256,
+    "tileMetres": 2.0,
+    "tiling": true,
+    "family": "masonry",
+    "alphaTest": false,
+    "albedoTarget": 0.13,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Concrete034_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Concrete034_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/concrete_wall_diffuse.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "formwork lines, cracks, rust and water streaks, soot",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "plaster_ruin",
+    "diffuse": "plaster_ruin.png",
+    "spec": "plaster_ruin_s.png",
+    "size": 256,
+    "tileMetres": 2.0,
+    "tiling": true,
+    "family": "masonry",
+    "alphaTest": false,
+    "albedoTarget": 0.13,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/plaster_wall_diffuse.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Concrete034_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Bricks105_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Bricks105_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Bricks105_ao.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "plaster loss mask, broken lip, damp, soot",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "roof_slate",
+    "diffuse": "roof_slate.png",
+    "spec": "roof_slate_s.png",
+    "size": 256,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "masonry",
+    "alphaTest": false,
+    "albedoTarget": 0.06,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "slate courses, ragged edges, lichen, soot",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "pine_card",
+    "diffuse": "pine_card.png",
+    "spec": "pine_card_s.png",
+    "size": [
+      256,
+      512
+    ],
+    "tileMetres": null,
+    "tiling": false,
+    "family": "foliage",
+    "alphaTest": true,
+    "albedoTarget": 0.04,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "tier skirts, ragged needle fringe, holes, shade and rim",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "dead_tree_card",
+    "diffuse": "dead_tree_card.png",
+    "spec": "dead_tree_card_s.png",
+    "size": [
+      256,
+      512
+    ],
+    "tileMetres": null,
+    "tiling": false,
+    "family": "foliage",
+    "alphaTest": true,
+    "albedoTarget": 0.07,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "recursive gnarled branches (strokes), bark furrows",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "grass_card",
+    "diffuse": "grass_card.png",
+    "spec": "grass_card_s.png",
+    "size": [
+      256,
+      128
+    ],
+    "tileMetres": null,
+    "tiling": false,
+    "family": "foliage",
+    "alphaTest": true,
+    "tilesU": true,
+    "albedoTarget": 0.08,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "dead grass blades (strokes)",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "brass_weed_card",
+    "diffuse": "brass_weed_card.png",
+    "spec": "brass_weed_card_s.png",
+    "size": [
+      256,
+      128
+    ],
+    "tileMetres": null,
+    "tiling": false,
+    "family": "foliage",
+    "alphaTest": true,
+    "tilesU": true,
+    "albedoTarget": 0.08,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "segmented stalks and pods (strokes)",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "pine_bark",
+    "diffuse": "pine_bark.png",
+    "spec": "pine_bark_s.png",
+    "size": 256,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "wood",
+    "alphaTest": false,
+    "albedoTarget": 0.07,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "bark plates (stretched voronoi), furrows, flaking, lichen",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "coat_oilskin",
+    "diffuse": "coat_oilskin.png",
+    "spec": "coat_oilskin_s.png",
+    "size": 256,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "cloth",
+    "alphaTest": false,
+    "albedoTarget": 0.07,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/fabric_canvas_diffuse.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "plain weave, creases, wax wear on ridges, soot",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "leather",
+    "diffuse": "leather.png",
+    "spec": "leather_s.png",
+    "size": 256,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "cloth",
+    "alphaTest": false,
+    "albedoTarget": 0.08,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/leather_brown_diffuse.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "pebble grain (voronoi), creases, scuffs",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "wool",
+    "diffuse": "wool.png",
+    "spec": "wool_s.png",
+    "size": 256,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "cloth",
+    "alphaTest": false,
+    "albedoTarget": 0.06,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/fabric_canvas_diffuse.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "stockinette knit, fuzz, pilling",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "skin",
+    "diffuse": "skin.png",
+    "spec": "skin_s.png",
+    "size": 256,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "flesh",
+    "alphaTest": false,
+    "albedoTarget": 0.14,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "pores, blotches, grime",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "crew_atlas",
+    "diffuse": "crew_atlas.png",
+    "spec": "crew_atlas_s.png",
+    "size": 256,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "cloth",
+    "alphaTest": false,
+    "cells": [
+      {
+        "name": "face_front",
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      {
+        "name": "face_side",
+        "x": 64,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      {
+        "name": "cap",
+        "x": 128,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      {
+        "name": "helmet",
+        "x": 192,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      {
+        "name": "gloves",
+        "x": 0,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      {
+        "name": "belt_buckle",
+        "x": 64,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      {
+        "name": "harness",
+        "x": 128,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      {
+        "name": "boot",
+        "x": 192,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      },
+      {
+        "name": "lantern_glass",
+        "x": 0,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      {
+        "name": "coat_front",
+        "x": 64,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      {
+        "name": "coat_back",
+        "x": 128,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      {
+        "name": "trouser",
+        "x": 192,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      },
+      {
+        "name": "satchel",
+        "x": 0,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      {
+        "name": "badge",
+        "x": 64,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      {
+        "name": "hair",
+        "x": 128,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      },
+      {
+        "name": "scarf",
+        "x": 192,
+        "y": 192,
+        "w": 64,
+        "h": 64
+      }
+    ],
+    "albedoTarget": 0.09,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/fabric_canvas_diffuse.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/leather_brown_diffuse.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "crew atlas cells drawn over the cloth, leather, wool and skin materials",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "flesh",
+    "diffuse": "flesh.png",
+    "spec": "flesh_s.png",
+    "size": 256,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "flesh",
+    "alphaTest": false,
+    "albedoTarget": 0.14,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "folds, bruise fields, veins, damp",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "fungal_crust",
+    "diffuse": "fungal_crust.png",
+    "spec": "fungal_crust_s.png",
+    "size": 256,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "flesh",
+    "alphaTest": false,
+    "albedoTarget": 0.1,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "bump clusters (voronoi), pits, soot",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "mineral_growth",
+    "diffuse": "mineral_growth.png",
+    "spec": "mineral_growth_s.png",
+    "size": 256,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "flesh",
+    "alphaTest": false,
+    "albedoTarget": 0.07,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "crystal facets (voronoi), soot",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "tar",
+    "diffuse": "tar.png",
+    "spec": "tar_s.png",
+    "size": 256,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "flesh",
+    "alphaTest": false,
+    "albedoTarget": 0.035,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "fibres, flow, blisters",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "sac",
+    "diffuse": "sac.png",
+    "spec": "sac_s.png",
+    "size": 256,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "flesh",
+    "alphaTest": false,
+    "albedoTarget": 0.08,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Marble012_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "swellings (voronoi), veins, translucency",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "glass_dirty",
+    "diffuse": "glass_dirty.png",
+    "spec": "glass_dirty_s.png",
+    "size": 256,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "glass",
+    "alphaTest": false,
+    "albedoTarget": 0.04,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Concrete034_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "dust film, rain runs, smears",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "lamp_lens",
+    "diffuse": "lamp_lens.png",
+    "spec": "lamp_lens_s.png",
+    "size": 256,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "emissive",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "Fresnel rings, bezel, soot crescent",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "window_lit",
+    "diffuse": "window_lit.png",
+    "spec": "window_lit_s.png",
+    "size": 256,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "emissive",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "sash and muntins, interior glow, curtain, grime, crack",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "firebox",
+    "diffuse": "firebox.png",
+    "spec": "firebox_s.png",
+    "size": 256,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "emissive",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "coal lumps (voronoi), heat field",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "ember_crack",
+    "diffuse": "ember_crack.png",
+    "spec": "ember_crack_s.png",
+    "size": 256,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "emissive",
+    "alphaTest": false,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "cinder plates (voronoi), glowing cracks",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "gauge_face",
+    "diffuse": "gauge_face.png",
+    "spec": "gauge_face_s.png",
+    "size": 256,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "paper",
+    "alphaTest": false,
+    "dials": [
+      {
+        "name": "pressure",
+        "kind": "dial",
+        "cell": [
+          0,
+          0,
+          128,
+          128
+        ],
+        "centre": [
+          64,
+          64
+        ],
+        "sweepDegrees": [
+          -120.0,
+          120.0
+        ],
+        "min": 0,
+        "max": 250,
+        "redline": 200,
+        "units": "PSI"
+      },
+      {
+        "name": "heat",
+        "kind": "dial",
+        "cell": [
+          128,
+          0,
+          128,
+          128
+        ],
+        "centre": [
+          192,
+          64
+        ],
+        "sweepDegrees": [
+          -120.0,
+          120.0
+        ],
+        "min": 100,
+        "max": 500,
+        "redline": 450,
+        "units": "\u00b0F"
+      },
+      {
+        "name": "water",
+        "kind": "glass",
+        "cell": [
+          0,
+          128,
+          128,
+          128
+        ],
+        "tube": [
+          34.0,
+          165.4,
+          52.0,
+          222.7
+        ],
+        "min": 0,
+        "max": 1
+      },
+      {
+        "name": "speed",
+        "kind": "dial",
+        "cell": [
+          128,
+          128,
+          128,
+          128
+        ],
+        "centre": [
+          192,
+          192
+        ],
+        "sweepDegrees": [
+          -120.0,
+          120.0
+        ],
+        "min": 0,
+        "max": 60,
+        "redline": null,
+        "units": "MPH"
+      }
+    ],
+    "needlesPainted": false,
+    "sources": [
+      {
+        "font": "DejaVuSansCondensed-Bold.ttf",
+        "license": "Bitstream Vera / DejaVu (free) or GNU FreeFont (GPL+font exception)",
+        "note": "rendered glyphs only; no font file is redistributed"
+      },
+      {
+        "font": "DejaVuSerifCondensed-Bold.ttf",
+        "license": "Bitstream Vera / DejaVu (free) or GNU FreeFont (GPL+font exception)",
+        "note": "rendered glyphs only; no font file is redistributed"
+      },
+      {
+        "font": "DejaVuSerifCondensed.ttf",
+        "license": "Bitstream Vera / DejaVu (free) or GNU FreeFont (GPL+font exception)",
+        "note": "rendered glyphs only; no font file is redistributed"
+      },
+      {
+        "font": "DejaVuSansMono.ttf",
+        "license": "Bitstream Vera / DejaVu (free) or GNU FreeFont (GPL+font exception)",
+        "note": "rendered glyphs only; no font file is redistributed"
+      },
+      {
+        "font": "FreeSansOblique.ttf",
+        "license": "Bitstream Vera / DejaVu (free) or GNU FreeFont (GPL+font exception)",
+        "note": "rendered glyphs only; no font file is redistributed"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "dial faces, ticks, numerals, brass bezels, glass haze",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "paper_form",
+    "diffuse": "paper_form.png",
+    "spec": "paper_form_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "paper",
+    "alphaTest": false,
+    "sources": [
+      {
+        "font": "DejaVuSansCondensed-Bold.ttf",
+        "license": "Bitstream Vera / DejaVu (free) or GNU FreeFont (GPL+font exception)",
+        "note": "rendered glyphs only; no font file is redistributed"
+      },
+      {
+        "font": "DejaVuSerifCondensed-Bold.ttf",
+        "license": "Bitstream Vera / DejaVu (free) or GNU FreeFont (GPL+font exception)",
+        "note": "rendered glyphs only; no font file is redistributed"
+      },
+      {
+        "font": "DejaVuSerifCondensed.ttf",
+        "license": "Bitstream Vera / DejaVu (free) or GNU FreeFont (GPL+font exception)",
+        "note": "rendered glyphs only; no font file is redistributed"
+      },
+      {
+        "font": "DejaVuSansMono.ttf",
+        "license": "Bitstream Vera / DejaVu (free) or GNU FreeFont (GPL+font exception)",
+        "note": "rendered glyphs only; no font file is redistributed"
+      },
+      {
+        "font": "FreeSansOblique.ttf",
+        "license": "Bitstream Vera / DejaVu (free) or GNU FreeFont (GPL+font exception)",
+        "note": "rendered glyphs only; no font file is redistributed"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "form stock, typed order, pencil, creases, stains",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "sky_backdrop",
+    "diffuse": "sky_backdrop.png",
+    "spec": "sky_backdrop_s.png",
+    "size": [
+      2048,
+      512
+    ],
+    "tileMetres": null,
+    "tiling": false,
+    "family": "sky",
+    "alphaTest": false,
+    "wrapsU": true,
+    "horizonV": 0.8496,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "layered silhouettes: mountains, ridges, viaduct, town on crag, windmill, pine edge, smoke",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "fx_smoke",
+    "diffuse": "fx_smoke.png",
+    "spec": "fx_smoke_s.png",
+    "size": 256,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "fx",
+    "alphaTest": false,
+    "frames": [
+      4,
+      4
+    ],
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "blob cluster + sliding noise erosion, top-lit, posterised alpha",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "fx_steam",
+    "diffuse": "fx_steam.png",
+    "spec": "fx_steam_s.png",
+    "size": 256,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "fx",
+    "alphaTest": false,
+    "frames": [
+      4,
+      4
+    ],
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "blob cluster + sliding noise erosion, top-lit, posterised alpha",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "fx_spark",
+    "diffuse": "fx_spark.png",
+    "spec": "fx_spark_s.png",
+    "size": 128,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "fx",
+    "alphaTest": false,
+    "frames": [
+      2,
+      2
+    ],
+    "blend": "additive",
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "glows and tapered streaks",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "fx_fog",
+    "diffuse": "fx_fog.png",
+    "spec": "fx_fog_s.png",
+    "size": [
+      256,
+      128
+    ],
+    "tileMetres": null,
+    "tiling": false,
+    "family": "fx",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "stretched fractal wisps, edge fade",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  }
+]

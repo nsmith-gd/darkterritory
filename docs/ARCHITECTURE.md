@@ -162,6 +162,8 @@ Forward+ renderer, deliberately limited:
 - Offscreen capture path for agents: `dt screenshot --scene … --camera … --out shot.png`.
 - VR: multiview single-pass stereo, 90 Hz target. The PS2-level poly budget makes this easy.
 
+**Status (art pass v2, §8 note 48).** The renderer draws the art pipeline plan's look: a sky pass (gradient, hazy moon, clouds, a 360° backdrop band of far silhouettes), the scene in a float target (point-sampled texture arrays with box-filtered mips and a positive bias, two-layer terrain blend, alpha test, per-pixel practical lights, Blinn-Phong speculars from spec maps, exponential height fog), a blended effects pass (flipbook smoke and steam, additive sparks and glows), then half-res bloom, a 16³ LUT grade, vignette, grain and the ordered dither into reduced colour depth. The kits (`DarkTerritory.Game/Art`) build the train over the sim's own collision, and the track, lineside and structures along the line; textures come from `tools/art/textures.py` (CC0 photo sources through a PBR-to-legacy converter, plus procedural ones). `dt art check` holds every piece to its budget; `dt art show <piece>` turns one on a turntable. Not yet: the lamp's shadow map, multiview, normal maps on the cab.
+
 ### 6.6 Level editor
 The world is mostly **generated** (GDD §22: the line is generated per run; spec D: POIs are assembled from modules). So the designer mainly authors **pieces and rules**:
 - **Module editor**: place prefabs, snap to grid and rail, set properties via a reflection inspector, mark interaction points (switches, ladders, chutes), spawn points and light and fog volumes.
@@ -860,3 +862,80 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - trying a different voice after a decay (it's a new spawn instead);
       - a radio lying on the floor as a way in (GDD §32 open question 4: the corrupted on the radio);
       - its own sound for the moment it takes someone.
+45. **Editor v2: the rail and the modules (T44, roadmap M5 "simple editor (module + rail + tuning)").**
+    - **Rail.** The routes page has a track table: the line from the fortress, piece by piece (length, curve radius, grade), with pieces added after any other or taken out. Preview redraws the plan and the profile.
+      - Save refuses track that can't be laid: a piece with no length, or a curve tighter than the generator lays on any tier (the least `minRadius` in `route.json`, 250 m today; the page shows it).
+      - Branches (dead lines, spurs) still come with the features. Moving a junction feature moves where the generator put its branch the next time it's generated, not the saved branch: that's the next step.
+    - **Modules.** A facility can have its own loading modules (`RouteFeature.Modules`: "crates", "winch"). Unset, it has its kind's (`facilities.json` `kinds`), which is all any facility had before.
+      - The page shows each facility's kind's set, faint, until one's ticked. Then that facility has its own set, which can be reset to its kind's.
+      - `FacilityTuning.ModulesOf(feature)` is what the run lays out from.
+      - The route model keeps them as names, so it doesn't depend on the run's types. Preview and save both refuse a name that isn't a module, and modules on anything but a facility.
+    - **Tuning.** `facilities.json`, `vigil.json` and `campaign.json` are editable now, each checked against its record on every edit like the rest. `vr.json` and `look.json` are the game's, which the editor doesn't reference.
+    - **Verified:** `EditorTests`:
+      - the new files are listed;
+      - a facility given crates only, with the third piece of track bent the other way and steeper, previews differently, saves, and lays out exactly crates when played;
+      - unknown modules and a curve a metre tighter than any tier lays are refused, and nothing is written.
+      - `dt edit --screenshot` shows both tables.
+46. **Two to lift, two to turn (T43, spec D.2, roadmap M4 "two-handed grips").**
+    - **The winch's cranks.** The drum lies along the track between two cranks, half a turn apart (`facilities.json` `winch.crank`). Each manned crank has a pace:
+      - a keyboard holding E, the crank's own (0.5 turns a second, which hauls at the winch's `speed` as before);
+      - a reaching hand (VR), how fast it goes round the crank's circle: forward only, smoothed over 0.25 s, and no faster than the crank's pace. A headset is no stronger than a keyboard, as with the shovel (T29).
+      - The drum goes at the slower crank's pace, and stalls when one is below `inRhythm` (0.6) of the other. That's D.2's "desync stalls it", and D.3's "two people out of rhythm".
+      - A hand is on a crank anywhere within grab of the circle its grip goes round, not only at the grip. The drum's angle reaches a client a snapshot late, so a hand following the drawn grip lags it; the circle doesn't care.
+      - **Ambiguity:** on the keyboard, holding E is always in rhythm, so two keyboards never desync; the stall comes from letting go, or from a headset out of step. A keyboard rhythm (strokes on a beat) is the obvious next step if play-tests want the failure on flat screens too.
+    - **Heavy crates (D.2 "heavy items need two").** A few per crate stack (`crates.heavy`: 1–2, each half a car's load), set apart from the stack so a hand reaching for a light one doesn't get one.
+      - One on it holds an end: it stays where it lies, you're slowed, and you let go by walking off. The other end taken, it rides between the two carriers' hands in the first one's frame, both at the heavy pace. Either lets go, or they get more than `span` (2.4 m) apart, and it's down. Nobody throws one.
+      - Put down inside a cargo car, it's stowed like a crate.
+      - `Body.Second` is the other carrier, replicated in the body record.
+    - **Both hands (VR).** The intent carries the other hand as well as the reaching one when it's tracked (`PlayerIntent.Other*`, a flag byte and three more centimetre shorts on the wire). A headset takes its end of a heavy crate only with both hands on it. Nothing else reads the other hand yet.
+    - **Bots** take them in pairs (T45, note 47).
+    - **Verified:** `TwoHandedTests`:
+      - a hand going round at the crank's pace hauls as a keyboard does, and faster hauls no faster;
+      - 0.8 of the pace goes at 0.8; much slower, backwards or still stalls it, out of rhythm;
+      - a hand off the circle or on the axle isn't on the crank;
+      - a heavy crate held by one stays put; taken by two, it goes between them at the heavy pace; dropped by either, or pulled apart, it's down;
+      - carried into a car together, it's loaded as half a car;
+      - a headset with one hand on it can't take it, with both it can;
+      - a client sees the drum's angle, the stall and both carriers.
+      - `dt screenshot --site --crank` shows the cranks; CI keeps `site-crank.png`.
+47. **Bots carry heavy crates in pairs (T45, spec D.2).**
+    - A hand needs its own player id to know which end is whose (`StopHand.PlayerId`). The harness sets it; a hand without one leaves heavy crates to others, as before.
+    - The light crates go first. Once none is loose and there are two crate hands that know themselves (`CrewCalls.HeavyHands`), one takes an end of a heavy crate and waits.
+    - Anyone holding one alone, a bot or a player, gets a hand: the nearest free crate hand comes to the other end. It stands across the crate from the holder, if the holder has said where they are (`CrewCalls.Standing`), and takes hold.
+    - **The front end** walks it in exactly as a light crate: to the car with room, up the side steps, in by the door, down in the middle.
+    - **The back end** follows the crate's own trail a metre behind it. It needs nobody's position, only where the crate has been. It takes the steps and the door in the order the front end did, and it follows a player's lead the same way.
+      - This is stable: the crate rides at the midpoint, so the back end settles 0.8 m behind the front end's hands, well inside the 2.4 m span.
+    - **What keeps the train.** A heavy crate keeps it while it's up, put down in a car, held by one with a hand to lend, or loose with two to take it. Otherwise it doesn't, so a crew without ids isn't held at a stop by freight it won't touch.
+    - **Found on the way:** a hand with no car to go to (every car's room spoken for by crates on their way in) used to go aboard. That marked the stop done for it, so if the room then ran out, nobody came back to shut the doors. It waits on the ground now. Heavy crates made "more freight than room" common enough to show it.
+    - **Verified:**
+      - `StopCrewTests.TwoHandsCarryTheHeavyCratesInTogether`: a crates-only stop loads every crate, light and heavy, up to the room there is; the back end is walked; everyone's aboard; the doors are shut.
+      - `AHandComesToHelpAPlayerHoldingAHeavyCrate`: a player holds an end, and a bot takes the other.
+      - The frontier:7 harness night delivers (net 2614: the stop's timeline moved, and a hound mauled one crewmate, who was revived at the gate). Its Switchyard stop still ended on the driver's 420 s give-up, as it had before; T50 (note 49) fixed that.
+48. **Art pass v2: the look from the art & animation pipeline plan (GDD §25-32).**
+    - **Renderer (Ballast.Render).**
+      - Passes: sky → scene (float target) → effects → bloom (half res, threshold, two blurs) → composite (LUT grade, vignette, grain, dither and colour levels) → overlay. `ColorImage` is still the frame, so the window, the headset and readback didn't change.
+      - The frame's constants moved from push constants to a uniform buffer (the push constants' 128 bytes were full); push constants now carry a draw's model matrix and tint.
+      - Vertices grew to 80 bytes: texture coordinates, a layer in the material array, and a second layer with a blend weight (the terrain). A layer past what's loaded draws as flat colour, so a renderer without the look's textures still draws the greybox.
+      - Materials are one 256² texture array for diffuse (sRGB, alpha = cutout) and one for spec (R strength, G gloss → Phong 4-128, B emissive mask). Nearest sampling with box-filtered mips and a +0.4 bias, no anisotropy: the pipeline's "intended pixel crawl".
+      - Practical lights are per pixel (up to 32, nearest kept), no longer baked into vertices as geometry is added.
+      - Cooked `MeshAsset`s (the train, structures) are uploaded once and drawn by transform (`MeshBuilder.Instances`); small pieces (trees, tufts, poles) are baked into the frame's soup (`MeshBuilder.Append`), cheaper than hundreds of draws.
+      - Effects are billboards facing the eye *point*, not the view plane, so a headset's two eyes see the same sprite, and they're all computed from the time and the train's state (puff `i` left the stack at a known time), so screenshots repeat and clients agree without replication.
+    - **The kits (DarkTerritory.Game/Art).** A small modelling kit (boxes with chosen faces, bevelled prisms, faceted cylinders, lathes, panels; texture coordinates in metres) and the pieces built with it:
+      - `TrainKit`: the engine (an armoured 2-8-0: octagonal plate casing over the boiler, a lamp box like an eye, spoked drivers and rods, cab with backhead, gauges and firebox frame, tender with heaped coal), cargo cars in three liveries, the guard van (lit windows, stovepipe), doors and the gun. **Built over the sim's `CarShape`**, so they follow the train tuning, and what you see is what you collide with (the one exception is above head height: the cab's visor).
+      - `WorldKit`/`WorldArt`: the ground (bed, shoulders, ditch, verge, then hills), sleepers and rails, poles with sagging wires, pines and dead trees on crossed alpha cards, tufts, rocks, fences, dead signals.
+      - `StructureKit`: masonry viaducts over a gorge and timber trestles for weak bridges, tunnel portals and brick bores under a hill, fortress walls, towers and gatehouse, the home station's platform and canopy with a lantern to each bay, facility buildings by kind, buffer stops and switch stands.
+      - `Effects`: stack smoke and cinders, cylinder-cock steam, brake sparks, the headlamp's beam and halo, fog banks.
+      - The greybox path is untouched: `--greybox` (and any scene without a `Look`) draws it as before.
+    - **Ground where the sim stands you.** Players off the train stand at rail height (`PlayerMotor.GroundAt`), so the ground stays within 0.3 m of it for the first 12 m either side (the bed, a shallow ditch, the verge). Hills rise only beyond 16 m, the gorge under a bridge and the hill over a tunnel are drawn, not simulated. When the sim gets terrain, `WorldArt.Ground` is the function to share.
+    - **Ambiguity, the fog's shape:** the pipeline asks for "exponential height fog"; the route's weather sets a density whose 1/e distance is the visibility the spec plays with. Plain exponential fog made the near ground murky and the middle distance soup. `look.json` `atmosphere.fogCurve` (1.45) raises the optical depth to a power, which keeps the fog exactly as it was at the 1/e distance, clearer nearer, thicker further. A curve of 1 is the old fog.
+    - **Aerial perspective anchored to the fog:** geometry converges to the fog colour, so the sky's horizon haze is `horizonGlow` brighter and the backdrop's darkest layer *is* the fog colour. Otherwise far things read darker than near ones.
+    - **Assets as text and scripts:** textures are PNGs generated by `tools/art/textures.py` from CC0 sources fetched by `tools/art/fetch_sources.sh` (never committed; provenance per texture in `content/art/textures/index.json`) and procedural generators. Models are C# (the kits) or Blender scripts (`tools/blender`, the creatures); the cooked files are committed so a build needs neither Python nor Blender.
+    - **Verified:** `dt art check` (every piece within its class's triangle budget: the engine is 7.7k of 45k); `LookTests` (materials map, lights stay clean, worn surfaces break up without burying the room, wear rides with the car); every `dt screenshot` view looked at, and `dt art show` for the pieces.
+    - **Not yet:** the headlamp's shadow map; normal maps on the cab; the engine's damage states and persistent scars; LODs (the fog caps view distance at 60-120 m, and the budgets hold at LOD0); rain.
+49. **Why the harness's crate stop never finished (T50).** frontier:7's Switchyard stop ended on the driver's 420 s loading give-up on every night. `StopCrewTests`' crate stops never did, because their bots see the host's world directly; the harness bots are clients. Three faults, found by logging what each hand was doing when the driver gave up:
+    - **Clients never saw a body at rest.** The body record carries "asleep", but the client's stand-in dropped it. A crate put down on a car's steps (to open the door) is only picked up again once it lies still, so on a bot's client it never was. `PbdBody.Sleep()` lets the mirror adopt the flag.
+    - **Room was counted as taken by crates that weren't in the car.** A car's room had pending crates subtracted, meaning every crate lying on the car, including on its steps. So those stranded crates held the room of two cars forever.
+    - **A hand with no room went aboard,** which marks the stop done for it. With every hand aboard and two heavy crates still wanting carrying, the driver waited out the give-up. It now waits where it is. (T45 had it wait only on the ground; on a car's landing it still went aboard.)
+    - While there, the door dealing was fixed too. Doors to shut were dealt out by position to the crate hands, including ones that had gone aboard or away to warm, so a door could be dealt to nobody who'd come. Now each hand claims the nearest open door no one else still at it has claimed (`CrewCalls.ClaimDoor`).
+    - **Result:** the stop loads in 272 s instead of giving up at 420, and the night is 143 s shorter. It still delivers: 0 deaths, worst correction 0.35 m, fairness 0.
+    - **Verified:** `TwoHandedTests.AClientSeesACrateAtRest`, `StopCrewTests.EachOpenDoorIsShutByOneHandThatsStillAtIt`, and the harness night.

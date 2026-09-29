@@ -68,6 +68,10 @@ M3 is done but for a test with eight people.
 **Designer tools (level editor v1):**
 - `dt edit` opens a local editor page for every tuning and sound value. Edits keep the comments, are validated, and are hot-reloaded by the running game.
 - A route editor: generate, see the plan and profile, edit the features, save, and play with `--route-file`.
+- **v2 (T44), M5's "module + rail + tuning":**
+  - the track itself, piece by piece (length, curve, grade);
+  - each facility's own loading modules (crates, the winch), or its kind's;
+  - the facilities', the Vigil's and the campaign's tuning too.
 
 **Physics:**
 - Crates, lamps and crewmates' bodies, host-simulated in car frames.
@@ -128,6 +132,12 @@ M3 is done but for a test with eight people.
 - The wear rides with each car. Materials come from the palette (`tuning/look.json`), and `--greybox` gives flat colour to compare.
 - Screenshots are deterministic now: the pines stopped moving between runs.
 
+**Art pass v2 (the art & animation pipeline plan):**
+- A renderer with the plan's post stack: textures, per-pixel practical lights, a sky with a backdrop, height fog, effects, bloom, a LUT grade, grain and dither.
+- The train, the track and the lineside, bridges, tunnels, fortresses and facilities, built from kits over the sim's own shapes.
+- A texture library from CC0 photo sources and procedural generators, with provenance.
+- `dt art check` holds every piece to its triangle budget; `dt art show <piece>` puts one on a turntable.
+
 **HUD:**
 - A pixel-font HUD in the low-res frame: engine gauges, ping to host (spec E), the prompt for what your hands can do, and the night.
 - `dt screenshot --hud` captures it.
@@ -183,8 +193,13 @@ Remaining for M2:
   - the menus work from the controllers;
   - `dt vr check --hud` / `--menu title` show them.
 
+- **Two to lift, two to turn (T43):**
+  - the winch's cranks go round with the hand, at most at the keyboard's pace;
+  - the drum stalls when the two are out of rhythm (spec D.2);
+  - heavy crates take one at each end, and a headset's end takes both hands;
+  - bots carry them in pairs, and come to help a player holding one (T45).
+
 Remaining for M4:
-- two-handed grips (the winch, heavy crates)
 - body IK
 - multiview
 - the exit test on a real Quest and SteamVR

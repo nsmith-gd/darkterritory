@@ -11,6 +11,8 @@ On foot
   mouse look, WASD walk, Shift run, Space jump
   E: grab or let go of a ladder; hold E to work things (the firebox shovel, the valve, a door, a coupler, a switch stand)
   E near a crate, a lamp or a body: pick it up or put it down; right mouse: throw it
+  the big crates take two: one takes an end with E, then the other; either lets go and it's down
+  the winch: one on each crank, both holding E. In VR, turn the crank round with your hand, together
   left mouse at a gun (the engine's roof, the guard car's roof): fire. Every round brings the Choir.
 Driving (from the cab)
   R/F regulator up/down, B brake (hold), X reverser (stopped only)
@@ -22,6 +24,7 @@ Other
   F1 the HUD, F2 invite Steam friends, Tab chase camera, Esc frees the mouse, Esc again leaves the night
 VR
   start with --vr: head to look, left stick to walk (click to run), right stick to turn, grip to use, trigger to fire
+  both hands on a heavy crate's end to take it
 
 Hosting on a LAN or the internet: friends join your address on UDP port 27015 (forward it on your router, or use Steam).
 Your saves, settings and any crash reports are in your user folder's app data, under DarkTerritory.

@@ -44,19 +44,32 @@ public struct PlayerIntent
     /// (x right, y up, z behind, so ahead is −Z as ever). Reach is tested from it instead of from the body (T29).
     /// </summary>
     public float HandX, HandY, HandZ;
+    /// <summary>
+    /// With <see cref="Other"/> (and a reaching hand): the VR player's other hand, in the same frame (T43). Nothing reaches
+    /// from it; it's there for what takes both hands, like getting a grip on your end of a heavy crate.
+    /// </summary>
+    public float OtherX, OtherY, OtherZ;
+    public bool Other;
 
     public readonly bool Has(PlayerButtons b) => (Buttons & b) != 0;
 
     /// <summary>
     /// Reports a hand, on the centimetre grid the wire carries (<see cref="Net.Messages"/>), so a predicting client
-    /// uses the hand the host will.
+    /// uses the hand the host will. The other hand too, when it's tracked.
     /// </summary>
-    public void Reach(Double3 hand)
+    public void Reach(Double3 hand, Double3? other = null)
     {
         HandX = Centimetres(hand.X);
         HandY = Centimetres(hand.Y);
         HandZ = Centimetres(hand.Z);
         Buttons |= PlayerButtons.Hand;
+        Other = other is not null;
+        if (other is { } o)
+        {
+            OtherX = Centimetres(o.X);
+            OtherY = Centimetres(o.Y);
+            OtherZ = Centimetres(o.Z);
+        }
     }
 
     public static float Centimetres(double metres) => (float)(Math.Round(Math.Clamp(metres, -300, 300) * 100) / 100);
@@ -113,6 +126,8 @@ public struct PlayerState
     /// replicated: the host and a predicting client both have it from the same intent.
     /// </summary>
     public Double3 Hand;
+    /// <summary>The VR player's other hand, the same way (T43); zero when it isn't reported.</summary>
+    public Double3 OtherHand;
     /// <summary>
     /// Counts the host's authoritative moves (respawns, revivals, a harness shift change). A client that sees it change
     /// adopts the new state as a placement, not as a misprediction to correct.
@@ -223,27 +238,37 @@ public static class PlayerMotor
     /// </summary>
     public static void TakeHand(ref PlayerState s, in PlayerIntent intent, HandTuning? hand)
     {
-        s.Hand = default;
-        if (hand is null || !s.Alive || !intent.Has(PlayerButtons.Hand) || !float.IsFinite(intent.HandX) || !float.IsFinite(intent.HandY) || !float.IsFinite(intent.HandZ))
+        s.Hand = s.OtherHand = default;
+        if (hand is null || !s.Alive || !intent.Has(PlayerButtons.Hand))
             return;
-        double x = intent.HandX, z = intent.HandZ, across = Math.Sqrt(x * x + z * z);
+        s.Hand = Held(intent.HandX, intent.HandY, intent.HandZ, hand);
+        if (s.Hand != default && intent.Other)
+            s.OtherHand = Held(intent.OtherX, intent.OtherY, intent.OtherZ, hand);
+    }
+
+    static Double3 Held(float hx, float hy, float hz, HandTuning hand)
+    {
+        if (!float.IsFinite(hx) || !float.IsFinite(hy) || !float.IsFinite(hz))
+            return default;
+        double x = hx, z = hz, across = Math.Sqrt(x * x + z * z);
         if (across > hand.Arm)
             (x, z) = (x * hand.Arm / across, z * hand.Arm / across);
         static double Cm(double v) => Math.Round(v * 100) / 100;
-        s.Hand = new Double3(Cm(x), Cm(Math.Clamp(intent.HandY, 0.01, hand.Overhead)), Cm(z));
+        return new Double3(Cm(x), Cm(Math.Clamp(hy, 0.01, hand.Overhead)), Cm(z));
     }
 
-    /// <summary>A player's reaching hand in their parent frame, or null for a player without one.</summary>
-    public static Double3? HandAt(in PlayerState s)
+    /// <summary>A player's reaching hand (or, with <paramref name="other"/>, their other hand) in their parent frame, or null.</summary>
+    public static Double3? HandAt(in PlayerState s, bool other = false)
     {
-        if (s.Hand == default)
+        var hand = other ? s.OtherHand : s.Hand;
+        if (hand == default)
             return null;
         double c = Math.Cos(s.Yaw), n = Math.Sin(s.Yaw);
-        return s.Position + new Double3(s.Hand.X * c + s.Hand.Z * n, s.Hand.Y, -s.Hand.X * n + s.Hand.Z * c);
+        return s.Position + new Double3(hand.X * c + hand.Z * n, hand.Y, -hand.X * n + hand.Z * c);
     }
 
-    /// <summary>A player's reaching hand in the world, or null for a player without one.</summary>
-    public static Double3? HandWorld(in PlayerState s, TrainOnLine train) => HandAt(s) is { } h ? ToWorld(s, train, h) : null;
+    /// <summary>A player's reaching hand (or their other hand) in the world, or null for a player without one.</summary>
+    public static Double3? HandWorld(in PlayerState s, TrainOnLine train, bool other = false) => HandAt(s, other) is { } h ? ToWorld(s, train, h) : null;
 
     /// <summary>
     /// Whether a player's hands are on a grip (in the world): a reported hand within grab of it, or, for everyone else,
