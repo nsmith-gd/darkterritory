@@ -187,8 +187,12 @@ Remaining for M2:
   - the menus work from the controllers;
   - `dt vr check --hud` / `--menu title` show them.
 
+- **Two to lift, two to turn (T43):**
+  - the winch's cranks go round with the hand, at most at the keyboard's pace;
+  - the drum stalls when the two are out of rhythm (spec D.2);
+  - heavy crates take one at each end, and a headset's end takes both hands.
+
 Remaining for M4:
-- two-handed grips (the winch, heavy crates)
 - body IK
 - multiview
 - the exit test on a real Quest and SteamVR

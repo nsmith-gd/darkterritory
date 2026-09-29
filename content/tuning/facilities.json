@@ -14,7 +14,18 @@
     "settleSeconds": 1.0,
     // The stack: this far from the track centreline, this far along from the facility's middle.
     "lateral": 6,
-    "along": -15
+    "along": -15,
+    // D.2 "heavy items need two" (T43): on top of the stack, a few crates nobody lifts alone. One of you takes an end
+    // (a reaching hand needs both hands on it) and it stays put; the other takes the other end and it comes up between
+    // you, at the heavy-cargo pace. Either lets go, or you get more than "span" apart, and it's down.
+    "heavy": {
+      "count": [1, 2],
+      "loadPerCrate": 0.5,
+      "radius": 0.55,
+      "span": 2.4,
+      // Set apart from the stack, back along the track from it, so nobody reaching for a light one gets a heavy one.
+      "along": -6
+    }
   },
   // D.2 "Capstan winch: two players hand-crank in rhythm to drag cargo from distance. 2 mandatory. Desync stalls
   // it; sustained, slow, both players fully exposed." Both handles held or it doesn't move.
@@ -30,7 +41,17 @@
     // Where the capstan stands along the track from the layout point (ours, not the spec's). The sled comes to rest
     // between the first two cars behind the engine at the buffer stop, in reach of both, so a half-full train (the
     // run's departure load) takes both sleds: one in each. The engine can't pull further forward to spot another car.
-    "along": 8
+    "along": 8,
+    // The crank at each end of the drum (T43). Holding E turns yours at the crank's pace; a reaching hand (VR) turns it
+    // by going round with it, over the top towards the track, and no faster than that pace. The drum goes at the slower
+    // crank's pace, and not at all when one's slower than "inRhythm" of the other: D.2's desync stall. A hand's pace is
+    // smoothed over "smoothSeconds" so one tick's jitter isn't a stall.
+    "crank": {
+      "revsPerSecond": 0.5,
+      "radius": 0.3,
+      "inRhythm": 0.6,
+      "smoothSeconds": 0.25
+    }
   },
   // Which modules each facility offers (spec D.1: 2–4 per POI once the roster is built; the coaling tower is its chute).
   "kinds": {

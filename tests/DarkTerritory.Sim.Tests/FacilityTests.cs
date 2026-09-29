@@ -14,7 +14,7 @@ public class FacilityTests
 {
     static readonly TrainTuning T = Tuning.Train;
     static readonly PlayerTuning P = Tuning.Player;
-    static readonly FacilityTuning F = DataFile.Load<FacilityTuning>(Path.Combine(DataFile.FindContentRoot(), FacilityTuning.File));
+    internal static readonly FacilityTuning F = DataFile.Load<FacilityTuning>(Path.Combine(DataFile.FindContentRoot(), FacilityTuning.File));
 
     /// <summary>A route with a facility that has the module, and that facility.</summary>
     static (Route.Route Route, RouteFeature Facility) With(ModuleKind module)
@@ -30,7 +30,7 @@ public class FacilityTests
         throw new InvalidOperationException($"no route has a {module}");
     }
 
-    sealed class Stop
+    internal sealed class Stop
     {
         public readonly World World;
         public readonly List<PlayerState> Crew = [];

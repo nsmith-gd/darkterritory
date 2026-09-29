@@ -26,8 +26,37 @@ public sealed record FacilityTuning(CrateTuning Crates, WinchTuning Winch, Dicti
     }
 }
 
-public sealed record CrateTuning(int[] Count, double LoadPerCrate, double SettleSeconds, double Lateral, double Along);
-public sealed record WinchTuning(double HaulMetres, double Speed, double LoadPerSled, int Sleds, double HandleReach, double CarReach, double Along);
+public sealed record CrateTuning(int[] Count, double LoadPerCrate, double SettleSeconds, double Lateral, double Along)
+{
+    public HeavyCrateTuning Heavy { get; init; } = new();
+}
+
+/// <summary>D.2 "heavy items need two" (T43). Field docs in facilities.json.</summary>
+public sealed record HeavyCrateTuning
+{
+    public int[] Count { get; init; } = [1, 2];
+    public double LoadPerCrate { get; init; } = 0.5;
+    public double Radius { get; init; } = 0.55;
+    public double Span { get; init; } = 2.4;
+    public double Along { get; init; } = -6;
+}
+
+public sealed record WinchTuning(double HaulMetres, double Speed, double LoadPerSled, int Sleds, double HandleReach, double CarReach, double Along)
+{
+    public CrankTuning Crank { get; init; } = new();
+}
+
+/// <summary>The winch's two cranks and D.2's desync stall (T43). Field docs in facilities.json.</summary>
+public sealed record CrankTuning
+{
+    public double RevsPerSecond { get; init; } = 0.5;
+    public double Radius { get; init; } = 0.3;
+    public double InRhythm { get; init; } = 0.6;
+    public double SmoothSeconds { get; init; } = 0.25;
+}
+
+/// <summary>A site's replicated state (the Run record), for a client to adopt.</summary>
+public readonly record struct SiteState(bool Stocked, double Progress, int SledsLeft, bool Turning, bool OutOfRhythm, double Crank);
 
 /// <summary>Spec D.2 loading modules built so far.</summary>
 public enum ModuleKind : byte { Crates, Winch }
@@ -46,7 +75,7 @@ public sealed class Site
     /// <param name="mid">Distance along <paramref name="track"/> the modules are laid out from.</param>
     /// <param name="mainDistance">About where that is along the main line (to find the ground from).</param>
     public Site(int index, RouteFeature feature, IReadOnlyList<ModuleKind> modules, FacilityTuning t, RailLine track, double mid, int side,
-        double mainDistance, int crates, int spur = RailLine.MainPath)
+        double mainDistance, int crates, int spur = RailLine.MainPath, int heavy = 0)
     {
         Index = index;
         Feature = feature;
@@ -65,6 +94,10 @@ public sealed class Site
         LoadPerCrate = t.Crates.LoadPerCrate;
         CrateStack = [.. Enumerable.Range(0, CrateCount).Select(i => At(t.Crates.Along + i / 2 * 1.1, t.Crates.Lateral + i % 2 * 1.1, 0.6))];
         CrateLineHint = mainDistance + t.Crates.Along;
+        var h = t.Crates.Heavy;
+        HeavyStack = [.. Enumerable.Range(0, CrateCount > 0 ? heavy : 0).Select(i => At(t.Crates.Along + h.Along - i * (h.Radius * 2 + 0.6), t.Crates.Lateral, h.Radius))];
+        HeavyRadius = h.Radius;
+        LoadPerHeavy = h.LoadPerCrate;
         if (Has(ModuleKind.Winch))
         {
             var w = t.Winch;
@@ -73,6 +106,12 @@ public sealed class Site
             SledFrom = At(w.Along, 5 + w.HaulMetres);
             SledTo = At(w.Along, 3.6);
             SledsLeft = w.Sleds;
+            // The drum lies along the track between the two cranks; each turns in the plane across it, and "forward"
+            // (hauling in) takes a crank over the top towards the track, winding the rope in off the top of the drum.
+            Axis = (Handles[1] - Handles[0]) with { Y = 0 };
+            Axis = Axis.Normalized;
+            Outward = ((SledFrom - SledTo) with { Y = 0 }).Normalized;
+            CrankRadius = w.Crank.Radius;
         }
     }
 
@@ -95,8 +134,43 @@ public sealed class Site
     /// <summary>The crates are out on the platform (they appear when the train first stops here).</summary>
     public bool Stocked { get; internal set; }
 
+    /// <summary>D.2's heavy crates (T43): where they stand, how big, and how much of a car's load each is.</summary>
+    public Double3[] HeavyStack { get; }
+    public double HeavyRadius { get; }
+    public double LoadPerHeavy { get; }
+
     public Double3 Capstan { get; }
+    /// <summary>The hub of each crank, one at either end of the drum.</summary>
     public Double3[] Handles { get; } = [];
+    /// <summary>Along the drum (handle 0 to handle 1), and out from the track: the cranks turn in the plane of this and up.</summary>
+    public Double3 Axis { get; }
+    public Double3 Outward { get; }
+    public double CrankRadius { get; }
+    /// <summary>The drum's turn, radians (T43): crank 0's grip is out from the track at 0, over the top at π/2.</summary>
+    public double Crank { get; internal set; }
+    /// <summary>Both cranks are manned but out of rhythm, so the drum's stalled (D.2's desync).</summary>
+    public bool OutOfRhythm { get; internal set; }
+
+    /// <summary>Where a crank's grip is now: the two are half a turn apart.</summary>
+    public Double3 Grip(int handle)
+    {
+        double a = Crank + handle * Math.PI;
+        return Handles[handle] + (Outward * Math.Cos(a) + Double3.Up * Math.Sin(a)) * CrankRadius;
+    }
+
+    /// <summary>
+    /// A reaching hand on a crank (T43): within <paramref name="grab"/> of the circle its grip goes round, and out from
+    /// the hub (a hand on the axle isn't going round). Returns the hand's angle round the hub, or null.
+    /// </summary>
+    public double? OnCrank(int handle, Double3 hand, double grab)
+    {
+        var d = hand - Handles[handle];
+        double a = Double3.Dot(d, Axis), u = Double3.Dot(d, Outward), v = d.Y;
+        double rho = Math.Sqrt(u * u + v * v);
+        if (rho < CrankRadius * 0.5 || Math.Sqrt((rho - CrankRadius) * (rho - CrankRadius) + a * a) > grab)
+            return null;
+        return Math.Atan2(v, u) - handle * Math.PI;
+    }
     public Double3 SledFrom { get; }
     public Double3 SledTo { get; }
     /// <summary>0 at the far end of the haul, 1 at the track.</summary>
@@ -105,15 +179,25 @@ public sealed class Site
     public Double3 Sled => SledFrom + (SledTo - SledFrom) * Progress;
     /// <summary>Who is on each handle this tick (−1 for nobody). Host only.</summary>
     internal readonly int[] Cranking = [-1, -1];
+    /// <summary>
+    /// Host only (T43): a reaching hand's angle on each crank this tick (null for a keyboard's hold), the last one it
+    /// had, and each crank's pace in turns a second, a hand's smoothed.
+    /// </summary>
+    internal readonly double?[] HandAngle = [null, null], LastAngle = [null, null];
+    internal readonly double[] Pace = [0, 0];
     /// <summary>Both handles were turning last tick (for the HUD and the sound).</summary>
     public bool Turning { get; internal set; }
 
+    public SiteState State => new(Stocked, Progress, SledsLeft, Turning, OutOfRhythm, Crank);
+
     /// <summary>Client side: adopts the host's state.</summary>
-    public void Mirror(bool stocked, double progress, int sledsLeft, bool turning)
+    public void Mirror(in SiteState s)
     {
-        Stocked = stocked;
-        Progress = progress;
-        SledsLeft = sledsLeft;
-        Turning = turning;
+        Stocked = s.Stocked;
+        Progress = s.Progress;
+        SledsLeft = s.SledsLeft;
+        Turning = s.Turning;
+        OutOfRhythm = s.OutOfRhythm;
+        Crank = s.Crank;
     }
 }

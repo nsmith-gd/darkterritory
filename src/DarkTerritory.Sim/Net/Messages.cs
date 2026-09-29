@@ -73,6 +73,14 @@ public static class Messages
             w.I16(Centimetres(i.HandX));
             w.I16(Centimetres(i.HandY));
             w.I16(Centimetres(i.HandZ));
+            // And the other hand, when it's tracked (T43).
+            w.U8(i.Other ? (byte)1 : (byte)0);
+            if (i.Other)
+            {
+                w.I16(Centimetres(i.OtherX));
+                w.I16(Centimetres(i.OtherY));
+                w.I16(Centimetres(i.OtherZ));
+            }
         }
     }
 
@@ -94,6 +102,13 @@ public static class Messages
             i.HandX = r.I16() / 100f;
             i.HandY = r.I16() / 100f;
             i.HandZ = r.I16() / 100f;
+            i.Other = r.U8() != 0;
+            if (i.Other)
+            {
+                i.OtherX = r.I16() / 100f;
+                i.OtherY = r.I16() / 100f;
+                i.OtherZ = r.I16() / 100f;
+            }
         }
         return i;
     }
