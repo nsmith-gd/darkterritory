@@ -18,6 +18,8 @@ public enum PlayerButtons : byte
     Reverser = 16,
     /// <summary>Fire the mounted gun you're standing at.</summary>
     Fire = 32,
+    /// <summary>Throw what you're carrying.</summary>
+    Throw = 64,
 }
 
 /// <summary>
@@ -499,6 +501,18 @@ public static class PlayerMotor
     }
 
     /// <summary>Ground under a player off the train: flat terrain at rail height for now.</summary>
+    /// <summary>Height of the ground near a world point, refining a hint along the line (bodies use this too).</summary>
+    public static double GroundAt(Double3 world, RailLine line, ref double hint)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            var sample = line.Sample(hint);
+            hint = sample.Distance + Double3.Dot(world - sample.Position, sample.Tangent);
+        }
+        hint = Math.Clamp(hint, 0, line.Length);
+        return line.Sample(hint).Position.Y;
+    }
+
     static double GroundHeight(ref PlayerState s, RailLine line)
     {
         double hint = s.LineHint;

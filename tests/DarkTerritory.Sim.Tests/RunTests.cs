@@ -145,6 +145,24 @@ public class RunTests
     }
 
     [Fact]
+    public void ABodyBroughtHomeIsRevivedAtTheGate()
+    {
+        // Spec C.2: "A body carried to the terminus is revived free at the gate."
+        var n = new Night(front: Frontier.Length - 150);
+        var dead = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P) with { Health = 0, Death = DeathCause.Mauled };
+        n.World.EnableBodies();
+        n.World.Bodies.SpawnRagdoll(n.Train, 2, dead);
+        n.Train.Dynamics.Velocity = 0;
+        n.World.BeginTick();
+        n.World.Step(n.Controls);
+        n.World.StepRun([n.Player, dead]);
+        var report = n.Run.Report!;
+        Assert.Equal(1, report.RevivedAtGate);
+        Assert.Equal(2, report.CrewHome);
+        Assert.Equal(0, report.CrewLost);
+    }
+
+    [Fact]
     public void DerailingEndsTheNight()
     {
         var n = new Night(front: 5000);

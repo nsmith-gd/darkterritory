@@ -29,6 +29,8 @@ public sealed class GreyboxScene
     public double Time { get; set; }
     /// <summary>Vehicle state for doors (open or shut). Without it every door is drawn shut.</summary>
     public IReadOnlyList<Vehicle>? Vehicles { get; set; }
+    /// <summary>Loose bodies: crates, lamps, the dead.</summary>
+    public IReadOnlyList<Sim.Physics.Body>? Bodies { get; set; }
     /// <summary>Other players, drawn as greybox figures.</summary>
     public IReadOnlyList<Crewmate>? Crew { get; set; }
 
@@ -59,7 +61,12 @@ public sealed class GreyboxScene
             Fortress(mesh, line, eye, from, to, 0, yard, gateAt: yard);
             Fortress(mesh, line, eye, from, to, line.Length - terminus - 200, line.Length, gateAt: line.Length - terminus - 200);
         }
-        // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox.
+        // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox,
+        // and any hand lamp lying about or being carried.
+        if (Bodies is not null)
+            foreach (var b in Bodies.Where(b => b.Kind == Sim.Physics.BodyKind.Lamp))
+                if (BodyWorld(b, frames, b.Centre) is { } at && (at - eye).Length < 60)
+                    mesh.PointLights.Add(new PointLight(V(at, eye), Palette.LampAmber * 1.8f, 7f));
         foreach (var frame in frames)
         {
             if ((frame.Origin - eye).Length > 60)
@@ -76,9 +83,61 @@ public sealed class GreyboxScene
             foreach (var e in Enemies)
                 if (!e.Gone)
                     DrawEnemy(mesh, line, frames, e, eye, from, to);
+        if (Bodies is not null)
+            foreach (var b in Bodies)
+                DrawBody(mesh, frames, b, eye);
         if (Crew is not null)
             foreach (var c in Crew)
-                DrawCrewmate(mesh, c, eye);
+                if (c.Alive) // the dead are drawn as their bodies
+                    DrawCrewmate(mesh, c, eye);
+    }
+
+    static Double3? BodyWorld(Sim.Physics.Body b, IReadOnlyList<CarFrame> frames, Double3 local) =>
+        b.Parent == Sim.Player.PlayerState.World ? local : b.Parent < frames.Count ? frames[b.Parent].ToWorld(local) : null;
+
+    /// <summary>Crates and lamps as boxes turned by their yaw; a body as bones between its joints.</summary>
+    static void DrawBody(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye)
+    {
+        var up = b.Parent == Sim.Player.PlayerState.World || b.Parent >= frames.Count ? Double3.Up : frames[b.Parent].Up;
+        double heading = b.Parent == Sim.Player.PlayerState.World || b.Parent >= frames.Count ? 0 : frames[b.Parent].Heading;
+        var ps = b.Pbd.Particles;
+        if (b.Kind != Sim.Physics.BodyKind.Ragdoll)
+        {
+            if (BodyWorld(b, frames, ps[0].Position) is not { } at)
+                return;
+            double yaw = b.Yaw + heading;
+            var right = new Vector3((float)Math.Cos(yaw), 0, (float)-Math.Sin(yaw));
+            var back = new Vector3((float)Math.Sin(yaw), 0, (float)Math.Cos(yaw));
+            if (b.Kind == Sim.Physics.BodyKind.Crate)
+            {
+                mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.34f, 0.34f, 0.34f), Palette.TarnishedBrass * 0.8f);
+                mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.35f, 0.06f, 0.35f), Palette.DeepBrown);
+            }
+            else
+            {
+                mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.1f, 0.14f, 0.1f), Palette.IronGrey);
+                mesh.Emissive = 1;
+                mesh.Box(V(at, eye) + ToF(up) * 0.02f, right, ToF(up), back, new Vector3(0.07f, 0.07f, 0.11f), Palette.LampAmber);
+                mesh.Emissive = 0;
+            }
+            return;
+        }
+        // Bones: head-chest, chest-pelvis, arms, legs.
+        (int, int, float)[] bones = [(0, 1, 0.12f), (1, 2, 0.17f), (1, 3, 0.07f), (3, 4, 0.06f), (1, 5, 0.07f), (5, 6, 0.06f), (2, 7, 0.09f), (7, 8, 0.08f), (2, 9, 0.09f), (9, 10, 0.08f)];
+        foreach (var (a, c, r) in bones)
+        {
+            if (a >= ps.Length || c >= ps.Length || BodyWorld(b, frames, ps[a].Position) is not { } pa || BodyWorld(b, frames, ps[c].Position) is not { } pc)
+                continue;
+            var axis = pc - pa;
+            double len = axis.Length;
+            if (len < 1e-4)
+                continue;
+            var dir = axis * (1 / len);
+            var side = Double3.Cross(dir, Math.Abs(dir.Y) > 0.9 ? new Double3(1, 0, 0) : Double3.Up).Normalized;
+            var third = Double3.Cross(side, dir);
+            var colour = a == 0 ? Palette.Corrupted : Palette.DeepBrown;
+            mesh.Box(V((pa + pc) * 0.5, eye), ToF(side), ToF(dir), ToF(third), new Vector3(r, (float)len / 2 + r * 0.5f, r), colour);
+        }
     }
 
     /// <summary>A crewmate: coat, head and a lamp at the chest so you can find each other in the dark. Dead ones lie down.</summary>

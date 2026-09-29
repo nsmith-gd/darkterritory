@@ -235,7 +235,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     using var gpu = new GpuContext("dt screenshot");
     using var renderer = new GreyboxRenderer(gpu, width, height);
     var mesh = new MeshBuilder();
-    new GreyboxScene { Route = route, Run = run, Time = 0.37, Enemies = args.Contains("--threats") ? Staging.Threats(train) : null }.Build(mesh, train, camera.Position);
+    new GreyboxScene
+    {
+        Route = route,
+        Run = run,
+        Time = 0.37,
+        Enemies = args.Contains("--threats") ? Staging.Threats(train) : null,
+        Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All : null
+    }.Build(mesh, train, camera.Position);
     var lighting = Views.Lighting(train);
     if (route is not null)
         lighting.FogDensity = (float)route.Weather.FogDensity;
@@ -294,6 +301,7 @@ static int Usage()
                      [--cam s,lateral,height --target s,lateral,height --fov deg]   camera by line coordinates
                      [--width w] [--height h] [--scale k] [--out file.png] [--threats]   --threats stages one of each enemy
                      [--route tier:seed [--coaling]]   a generated night; --coaling stops at its coaling tower, chute pouring
+                     [--bodies]   crates, a lamp and a crewmate's body on the roofs, settled by the physics
           route gen [--tier local|frontier|deadLines|deepTerritory] [--seed n] [--name generated] [--map file.png]
                      writes content/lines/<name>.json (+ .route.json) and a map; try `screenshot --line generated`
           route sweep [--seeds n]                  generate n routes per tier and report ranges

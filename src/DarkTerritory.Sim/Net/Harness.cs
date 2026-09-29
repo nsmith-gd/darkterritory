@@ -53,6 +53,8 @@ public static class Harness
         var host = new HostSession(hostTransport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
         if (o.Enemies is { } et)
             host.EnableEnemies(et, o.Route, (ulong)o.Seed, o.Bots);
+        host.World.EnableBodies();
+        host.World.Stock();
         if (o.Run is { } rt && o.Route is { } route)
             host.World.EnableRun(rt, route, o.YardLength, authority: true);
 
