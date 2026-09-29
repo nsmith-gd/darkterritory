@@ -37,6 +37,8 @@ public class CreatureArtTests
         // A chain of 8-12, plus a root.
         ["sleeper"] = new(400, 3000, 8, 13, ["dormant", "writhe"], ["lift"]),
         ["clinger"] = new(1500, 6000, 10, 45, ["cling", "drill"], ["punish"]),
+        // A limb, not a body (App. A.4: all you see of one): a chain of arm, hand and two-bone fingers.
+        ["dragger"] = new(300, 3000, 8, 20, ["grip"], ["reach"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -62,8 +64,9 @@ public class CreatureArtTests
                 Assert.InRange(p.Weights[i * 4] + p.Weights[i * 4 + 1] + p.Weights[i * 4 + 2] + p.Weights[i * 4 + 3], 0.999f, 1.001f);
             Assert.All(p.Indices, i => Assert.InRange(i, 0, p.Positions.Length - 1));
         }
-        // Standing on the floor at the origin, facing −Z: the pivot's between the feet (the clinger's is on the hull).
-        if (name != "clinger")
+        // Standing on the floor at the origin, facing −Z: the pivot's between the feet (the clinger's is on the hull, the
+        // dragger's at the car's edge, the rest of it hanging below).
+        if (name is not ("clinger" or "dragger"))
         {
             Assert.InRange(m.Min.Y, -0.02f, 0.05f);
             Assert.InRange((m.Min.X + m.Max.X) / 2, -0.25f, 0.25f);
@@ -87,6 +90,9 @@ public class CreatureArtTests
         var clinger = Get("clinger");
         Assert.InRange(clinger.Max.X, 0.3f, 0.7f); // bulging out from the hull at x = 0
         Assert.True(clinger.Min.X > -0.05f, "the clinger doesn't go through the hull");
+        var dragger = Get("dragger");
+        Assert.InRange(dragger.Max.X, 0.6f, 1.0f); // the hand reaches in over the roof (+X) from outside the eave
+        Assert.True(dragger.Min.X > -0.3f && dragger.Min.Y < -0.8f, "the limb comes up from under the car, close by its side");
         // The crew's hand socket is at the right hand, and forward is −Z (the face is in front of the head's centre).
         Assert.True(Get("crew").Skeleton.IndexOf("hand_r_weapon") >= 0);
         Assert.True(Get("crew").Skeleton.Socket[Get("crew").Skeleton.IndexOf("head_hat")]);
@@ -168,7 +174,9 @@ public class CreatureArtTests
                 {
                     mesh.Clear();
                     Assert.True(Art.Enemy(mesh, Matrix4x4.CreateTranslation(0, 0, -5), kind, phase, t, 0.5), $"{kind} {phase}");
-                    Assert.True(mesh.Count > 0, $"{kind} {phase} drew nothing");
+                    // A Dragger is out of sight under the car's edge until it reaches, as the greybox has it.
+                    bool hidden = kind == EnemyKind.Dragger && phase is not (SpinePhase.Telegraph or SpinePhase.Punish);
+                    Assert.True(hidden ? mesh.Count == 0 : mesh.Count > 0, $"{kind} {phase} drew {mesh.Count / 3} triangles");
                 }
         foreach (var pose in Enum.GetValues<CrewPose>())
             for (int variant = 0; variant < 4; variant++)
@@ -346,6 +354,7 @@ public class CreatureArtTests
         "soot_child" => (Vector3.Zero, 0.9f),
         "cinder_hound" => (Vector3.Zero, 1.2f),
         "hollow" => (Vector3.Zero, 2.2f),
+        "dragger" => (new Vector3(0.2f, 0.1f, 0), 1.4f),
         _ => (Vector3.Zero, 1.9f),
     };
 

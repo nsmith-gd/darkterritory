@@ -13,7 +13,7 @@ out="$root/content/art/models"
 blender="${BLENDER:-blender}"
 models=("$@")
 if [ ${#models[@]} -eq 0 ]; then
-  models=(crew cinder_hound sleeper clinger hollow switchman soot_child)
+  models=(crew cinder_hound sleeper clinger hollow switchman soot_child dragger)
 fi
 mkdir -p "$out"
 for m in "${models[@]}"; do

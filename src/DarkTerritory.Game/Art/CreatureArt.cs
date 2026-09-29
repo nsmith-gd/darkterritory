@@ -25,7 +25,7 @@ public sealed class CreatureArt
 {
     public const string Folder = "art/models";
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
-    public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child"];
+    public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger"];
 
     /// <summary>Wear shown over each model's textures (the shader's grime): crew middling, monsters by how they're made.</summary>
     static readonly Dictionary<string, float> WearOf = new()
@@ -37,6 +37,7 @@ public sealed class CreatureArt
         ["hollow"] = 0.6f,
         ["switchman"] = 0.55f,
         ["soot_child"] = 0.5f,
+        ["dragger"] = 0.2f,
     };
 
     sealed class Entry(Model model, MaterialLook[] looks)
@@ -359,6 +360,23 @@ public sealed class CreatureArt
                     }
                     return true;
                 }
+            case EnemyKind.Dragger:
+                {
+                    if (!_models.ContainsKey("dragger"))
+                        return false;
+                    // Under the lip until it reaches (App. A.4): nothing to see. Then one limb up over the eave and down
+                    // on the roof; grabbing, two, further in and gripping, out of step.
+                    if (phase is not (SpinePhase.Telegraph or SpinePhase.Punish))
+                        return true;
+                    if (phase == SpinePhase.Telegraph)
+                        return Draw(mesh, "dragger", "reach", t, false, model);
+                    for (int i = 0; i < 2; i++)
+                    {
+                        var at = Matrix4x4.CreateTranslation(0.12f, 0, (i - 0.5f) * 0.45f) * model;
+                        Draw(mesh, "dragger", "grip", t + i * 0.37, true, at, seed: i);
+                    }
+                    return true;
+                }
         }
         return false;
     }
@@ -373,6 +391,7 @@ public sealed class CreatureArt
         var m = model;
         switch (e.Kind)
         {
+            case EnemyKind.Dragger when e.Local.X > 0:
             case EnemyKind.Clinger when e.Local.X < 0:
             case EnemyKind.SootChildren when e.Lateral < 0:
                 m = Matrix4x4.CreateRotationY(MathF.PI) * model;
