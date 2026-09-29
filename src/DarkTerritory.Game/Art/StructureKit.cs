@@ -439,6 +439,111 @@ public static class StructureKit
                     k.Cylinder(new Vector3(s * 26, -0.5f, 14), new Vector3(s * 26, 38, 14), 2.2f, 10, radiusB: 1.5f);
                     break;
                 }
+            case FacilityKind.MineHead:
+                {
+                    // The headframe over the shaft, its back-stays raking away from the line to the winding house; the
+                    // house's chimney; the spoil heap behind (GDD §18: the mine head's winch hauls from it).
+                    // Up by half again: the prop is modelled to a small colliery's frame, and next to the winding house it
+                    // should be the tallest thing on the site.
+                    Piece(k, "headframe", s * 12, 0, Facing(s), 1.5f);
+                    WorksHouse(k, s * 25, 0, 10, 14, 8, "brick_soot");
+                    k.Use("brick_soot", Palette.RustRed, 0.9f, 0.1f, tile: 1.2f);
+                    k.Cylinder(new Vector3(s * 29, -0.5f, -5), new Vector3(s * 29, 26, -5), 1.4f, 10, radiusB: 1.0f);
+                    k.Use("slag", Palette.Charcoal, 0.9f, 0, tile: 2);
+                    k.Cylinder(new Vector3(s * 34, -1, 26), new Vector3(s * 34, 11, 26), 16, 12, radiusB: 1.5f);
+                    break;
+                }
+            case FacilityKind.ChemicalWorks:
+                {
+                    // Storage tanks in a row, a pipe rack along the front on its trestles, the works behind with two
+                    // tall thin stacks.
+                    foreach (float z in new[] { -16f, 0, 16 })
+                        Piece(k, "chem_tank", s * 13, z, Facing(s));
+                    k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.4f);
+                    for (float z = -24; z <= 24; z += 6)
+                    {
+                        k.Rod(new Vector3(s * 7, -0.3f, z), new Vector3(s * 7, 4.2f, z), 0.12f);
+                        k.Rod(new Vector3(s * 7 - 0.6f, 4.1f, z), new Vector3(s * 7 + 0.6f, 4.1f, z), 0.08f);
+                    }
+                    foreach (float dx in new[] { -0.4f, 0, 0.4f })
+                        k.Cylinder(new Vector3(s * 7 + dx, 4.35f, -25), new Vector3(s * 7 + dx, 4.35f, 25), 0.16f, 8);
+                    WorksHouse(k, s * 26, 0, 12, 30, 10, "brick_soot");
+                    k.Use("brick_soot", Palette.RustRed, 0.9f, 0.1f, tile: 1.2f);
+                    foreach (float z in new[] { -8f, 8 })
+                        k.Cylinder(new Vector3(s * 28, 9, z), new Vector3(s * 28, 34, z), 0.8f, 10, radiusB: 0.6f);
+                    break;
+                }
+            case FacilityKind.MilitaryDepot:
+                {
+                    // A watchtower at the gate end, sandbag walls along the front, Nissen huts behind, a line of
+                    // barbed-wire posts between the depot and the line.
+                    Piece(k, "watchtower", s * 6, -20, Facing(s));
+                    for (float z = -12; z <= 12; z += 3)
+                        Piece(k, "sandbags", s * 5, z, MathF.PI / 2);
+                    k.Use("corrugated_iron", Palette.IronGrey, 0.9f, 0.3f, tile: 1.5f);
+                    var hut = new List<Vector2>();
+                    for (int i = 0; i <= 10; i++)
+                    {
+                        float a = MathF.PI * i / 10;
+                        hut.Add(new Vector2(MathF.Cos(a) * 4.5f, MathF.Sin(a) * 4.5f - 0.3f));
+                    }
+                    foreach (float z in new[] { -18f, 0, 18 })
+                        k.With(Kit.At(s * 17, 0, z), () => k.Prism(hut, -7, 7, caps: true, smooth: true));
+                    k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+                    for (float z = -28; z <= 28; z += 3.5f)
+                        k.Rod(new Vector3(s * 3.5f, -0.2f, z), new Vector3(s * 3.5f, 1.6f, z), 0.05f);
+                    k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.4f);
+                    foreach (float y in new[] { 0.6f, 1.1f, 1.5f })
+                        k.Rod(new Vector3(s * 3.5f, y, -28), new Vector3(s * 3.5f, y, 28), 0.012f);
+                    break;
+                }
+            case FacilityKind.Slaughterhouse:
+                {
+                    // The killing hall, long and windowless, and in front of it the pens and the ramp the cattle came
+                    // up out of the cars by.
+                    WorksHouse(k, s * 22, 0, 14, 44, 9, "brick_soot");
+                    for (float x = 8; x <= 14; x += 3)
+                        for (float z = -18; z <= -3; z += 3)
+                            Piece(k, "cattle_pen", s * x, z + 1.5f, MathF.PI / 2);
+                    for (float z = -18; z <= -3; z += 3)
+                        Piece(k, "cattle_pen", s * 15.5f, z + 1.5f, MathF.PI / 2);
+                    foreach (float x in new[] { 9.5f, 12.5f })
+                        Piece(k, "cattle_pen", s * x, -18, 0);
+                    Piece(k, "cattle_ramp", s * 4.2f, -10, Facing(s));
+                    break;
+                }
+            case FacilityKind.Switchyard:
+                {
+                    // The signal box that ran the yard, looking out over it, and a water tower with its spout swung
+                    // out over the track; a goods shed behind.
+                    Piece(k, "signal_box", s * 9, -6, Facing(s));
+                    Piece(k, "water_tower", s * 6, 22, Facing(s));
+                    WorksHouse(k, s * 24, -4, 10, 30, 7, "wood_grey");
+                    break;
+                }
+            case FacilityKind.WreckYard:
+                {
+                    // Heaps of what's left of trains: carbodies on their sides and on each other, wheelsets, scrap; the
+                    // sheds behind, rusted through.
+                    for (int i = 0; i < 6; i++)
+                    {
+                        float x = s * (10 + (i % 3) * 5.5f), z = -22 + i * 8.5f;
+                        float lean = (i % 2 == 0 ? 1 : -1) * (0.3f + 0.25f * (i % 3));
+                        float y = i % 3 == 2 ? 2.6f : 0;
+                        k.With(Matrix4x4.CreateRotationZ(lean) * Matrix4x4.CreateRotationY(0.25f * (i - 3)) * Kit.At(x, y, z), () => WreckedBody(k, i));
+                    }
+                    k.Use("wheel_iron", Palette.IronGrey, 0.8f, 0.4f, tile: 0.5f);
+                    for (int i = 0; i < 5; i++)
+                    {
+                        float x = s * (7 + i * 1.2f), z = 18 + (i % 2) * 2;
+                        k.Cylinder(new Vector3(x - 0.8f, 0.45f, z), new Vector3(x + 0.8f, 0.45f, z), 0.12f, 8);
+                        foreach (float dx in new[] { -0.7f, 0.7f })
+                            k.Cylinder(new Vector3(x + dx - 0.07f, 0.45f, z), new Vector3(x + dx + 0.07f, 0.45f, z), 0.45f, 12);
+                    }
+                    // The sheds set back behind the heaps (the default's would stand on them), rusted through.
+                    WorksHouse(k, s * 34, 0, 14, 50, 9, "rust_heavy");
+                    break;
+                }
             default:
                 {
                     // Sheds: long timber buildings on a stone sill, corrugated roofs, doors hanging open.
@@ -446,7 +551,7 @@ public static class StructureKit
                     var (a, b) = (MathF.Min(x0, x1), MathF.Max(x0, x1));
                     k.Use("stone_block", Palette.Charcoal, 0.8f, 0.1f, tile: 2.5f);
                     k.Box(new Vector3(a, -0.5f, -30), new Vector3(b, 1, 30), Kit.Faces.All & ~Kit.Faces.NegY);
-                    k.Use(kind == FacilityKind.WreckYard ? "rust_heavy" : "wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
+                    k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
                     k.Box(new Vector3(a, 1, -30), new Vector3(b, 9, 30), Kit.Faces.Sides);
                     k.Use("corrugated_iron", Palette.IronGrey, 0.9f, 0.3f, tile: 1.5f);
                     float mid = (a + b) / 2;
@@ -464,6 +569,49 @@ public static class StructureKit
                 }
         }
         return k.Build($"facility-{kind}-{side}");
+    }
+
+    /// <summary>The yaw that turns a modelled piece (its front the model's +Z) to face the line from side <paramref name="s"/>.</summary>
+    static float Facing(float s) => -s * MathF.PI / 2;
+
+    /// <summary>A modelled piece (tools/models facility_pieces) set among a facility's buildings where it's built.</summary>
+    static void Piece(Kit k, string name, float x, float z, float yaw, float scale = 1)
+    {
+        if (k.Look is { } look && PropArt.Of(look).Get(name) is { } piece)
+            // Sunk a little, as the kit's buildings sit on sills down to -0.5: the ground falls away off the formation.
+            k.Append(piece, Matrix4x4.CreateScale(scale) * Matrix4x4.CreateRotationY(yaw) * Kit.At(x, -0.3f, z));
+    }
+
+    /// <summary>A plain works building: walls of <paramref name="wall"/> on a stone sill, a corrugated pitched roof, a
+    /// dark doorway facing the line. Centred at (x, z), <paramref name="width"/> across, <paramref name="length"/> along.</summary>
+    static void WorksHouse(Kit k, float x, float z, float width, float length, float height, string wall)
+    {
+        float a = x - width / 2, b = x + width / 2, z0 = z - length / 2, z1 = z + length / 2, mid = x;
+        k.Use("stone_block", Palette.Charcoal, 0.8f, 0.1f, tile: 2.5f);
+        k.Box(new Vector3(a, -0.5f, z0), new Vector3(b, 0.8f, z1), Kit.Faces.All & ~Kit.Faces.NegY);
+        k.Use(wall, wall == "brick_soot" ? Palette.RustRed : Palette.DeepBrown, 0.9f, 0.1f, tile: wall == "brick_soot" ? 1.2f : 1.5f);
+        k.Box(new Vector3(a, 0.8f, z0), new Vector3(b, height, z1), Kit.Faces.Sides);
+        foreach (float zz in new[] { z0, z1 })
+            k.Tri(new Vector3(a, height, zz), new Vector3(b, height, zz), new Vector3(mid, height + width * 0.3f, zz), new(a, -height), new(b, -height), new(mid, -height - width * 0.3f));
+        k.Use("corrugated_iron", Palette.IronGrey, 0.9f, 0.3f, tile: 1.5f);
+        k.Quad(new Vector3(a - 0.4f, height - 0.1f, z1 + 0.4f), new Vector3(a - 0.4f, height - 0.1f, z0 - 0.4f), new Vector3(mid, height + width * 0.3f, z0 - 0.4f), new Vector3(mid, height + width * 0.3f, z1 + 0.4f), twoSided: true);
+        k.Quad(new Vector3(mid, height + width * 0.3f, z1 + 0.4f), new Vector3(mid, height + width * 0.3f, z0 - 0.4f), new Vector3(b + 0.4f, height - 0.1f, z0 - 0.4f), new Vector3(b + 0.4f, height - 0.1f, z1 + 0.4f), twoSided: true);
+        k.Shade(0.08f);
+        bool right = x > 0;
+        k.Panel(new Vector3(right ? a - 0.01f : b + 0.01f, 2.5f, z), new Vector3(right ? -1 : 1, 0, 0), Vector3.UnitY, 4, 3.5f, twoSided: false);
+    }
+
+    /// <summary>A stripped carbody for a wreck yard's heaps: its floor and sides, the roof half gone, rusted through.</summary>
+    static void WreckedBody(Kit k, int seed)
+    {
+        k.Use(seed % 2 == 0 ? "rust_heavy" : "paint_oxide", Palette.RustRed, 0.9f, 0.3f, tile: 1.5f);
+        const float w = 1.4f, h = 2.6f, l = 6.5f;
+        k.Box(new Vector3(-w, 0, -l), new Vector3(w, 0.2f, l));
+        k.Box(new Vector3(-w, 0.2f, -l), new Vector3(-w + 0.08f, h, l), Kit.Faces.All);
+        k.Box(new Vector3(w - 0.08f, 0.2f, -l), new Vector3(w, h * (0.6f + 0.1f * (seed % 3)), l), Kit.Faces.All);
+        k.Box(new Vector3(-w, 0.2f, l - 0.08f), new Vector3(w, h, l), Kit.Faces.All);
+        k.Use("corrugated_iron", Palette.IronGrey, 0.9f, 0.3f, tile: 1.5f);
+        k.Quad(new Vector3(-w, h, -l * 0.2f), new Vector3(-w, h, l), new Vector3(w * 0.3f, h + 0.3f, l), new Vector3(w * 0.3f, h + 0.3f, -l * 0.2f), twoSided: true);
     }
 
     /// <summary>A buffer stop: baulks of timber on an iron frame across the rails, a red lamp on top (lit separately).</summary>

@@ -92,6 +92,10 @@ public static class Staging
         var hollow = new Hollow(30);
         hollow.Restore(SpinePhase.Punish, 2, 1, 0, train.Frames[0].Shape.Cab!.Value.Centre, 0, 0, 0, 0, 0);
         threats.Add(hollow);
+        // Up the line out of sight, its first blast sounding (T57): never seen, only heard.
+        var whistle = new LongWhistle(43);
+        whistle.Restore(SpinePhase.Telegraph, 1, 1, -1, default, d.Distance + 450, 0, 3, 1, 14);
+        threats.Add(whistle);
         // On the line further up, lantern raised and swinging, waving the train down (T56).
         var ferryman = new Ferryman(42);
         ferryman.Restore(SpinePhase.Telegraph, 2, 1, -1, default, d.Distance + 90, 0.3, 0, 14, 1);

@@ -221,7 +221,35 @@
     "straightRadius": 1500,
     "maxGradePercent": 1,
     "clearPast": 100,
-    "stopMargin": 600
+    "stopMargin": 600,
+    // App. B.2 "weight up if crew has braked for a false positive earlier": braked hard for a Long Whistle's horn.
+    "falsePositiveWeight": 2
+  },
+
+  // App. A.2 THE LONG WHISTLE: "sounds a horn on the line ahead. There is no train ahead. RULE: don't trust the horn." Never
+  // seen; the horn is the telegraph (200-800 Hz, no doppler, a flaw in its pitch: spec A.4). It has no punish of its own:
+  // a crew that brakes hard for it stops where stopping is worst, among whatever else is about.
+  "longWhistle": {
+    // App. B.2: "400-900m ahead, immediately before a grade or curve so braking is worst": this far short of the first
+    // curve tighter than this radius (m), or grade this steep (%), in that window.
+    "aheadMin": 400,
+    "aheadMax": 900,
+    "shortOf": 60,
+    "curveRadius": 1200,
+    "gradePercent": 1,
+    // "If ignored → escalates twice, then abandons": a blast this often (s), louder each time, this many more after the first.
+    "blastEvery": 9,
+    "escalations": 2,
+    // Ambiguity (ARCHITECTURE §8): "if crew brakes hard". Slower than the fastest the train came at it by this much (m/s).
+    // Then brought below this (m/s), that's the stop: its punish. Picked up again and not stopped in this long, it's gone.
+    "hardBrake": 4,
+    "stoppedBelow": 0.5,
+    "commitSeconds": 45,
+    // "Requires ≥1 other active lineside threat in region": anything else active within this of the engine (m).
+    "region": 1500,
+    // "Weight up in fog": this much, on a route this foggy (the weather's density).
+    "fogFrom": 0.02,
+    "fogWeight": 2
   },
 
   "lamplighters": {
@@ -273,7 +301,7 @@
     "maxConcurrentLargeCrew": 6,
     // Budget share spent before the first facility, across the middle, and in the final approach.
     "phaseShares": [0.15, 0.45, 0.40],
-    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3, "ferryman": 4 },
+    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3, "ferryman": 4, "longWhistle": 3 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5
