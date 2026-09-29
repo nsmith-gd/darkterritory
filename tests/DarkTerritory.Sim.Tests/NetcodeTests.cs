@@ -258,3 +258,107 @@ public class BodyNetcodeTests
         Assert.Equal(2, body.Parent);
     }
 }
+
+/// <summary>M2's remainder: interest management, inert bodies, drop-in at stops (spec E).</summary>
+public class SessionRulesTests
+{
+    static readonly TrainTuning T = Tuning.Train;
+    static readonly PlayerTuning P = Tuning.Player;
+    static readonly RailLine Line = RailLine.Load(Path.Combine(DataFile.FindContentRoot(), "lines/test-loop.json"));
+
+    static (LoopbackNetwork Net, HostSession Host, List<ClientSession> Clients, List<ITransport> Transports) Session(int clients, int cars = 6, Action<HostSession>? configure = null)
+    {
+        var net = new LoopbackNetwork();
+        var host = new HostSession(net.CreateHost(), new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, 1)), Line, 1500), T, P);
+        host.World.EnableBodies();
+        configure?.Invoke(host);
+        var transports = new List<ITransport>();
+        var list = new List<ClientSession>();
+        for (int i = 0; i < clients; i++)
+        {
+            var t = net.CreateClient();
+            transports.Add(t);
+            list.Add(Client(t, cars));
+        }
+        return (net, host, list, transports);
+    }
+
+    static ClientSession Client(ITransport t, int cars = 6) =>
+        new(t, new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, 1)), Line, 1500), T, P);
+
+    static void Run(LoopbackNetwork net, HostSession host, IEnumerable<ClientSession> clients, int ticks)
+    {
+        for (int t = 0; t < ticks; t++)
+        {
+            net.Advance(SimConstants.TickSeconds);
+            host.Step();
+            foreach (var c in clients)
+                c.Step(default);
+        }
+    }
+
+    [Fact]
+    public void FarAwayEnemiesAndBodiesArentSent()
+    {
+        var (net, host, clients, _) = Session(2, cars: 20);
+        host.EnableEnemies(Tuning.Enemies, null, 1, 2);
+        Assert.Equal(Tuning.Enemies.InterestRadius, host.InterestRadius);
+        // Shorter than the train, so each end is out of the other's interest.
+        host.InterestRadius = 220;
+        Run(net, host, clients, 10);
+        // Client 0 has the cab; client 1 goes to the guard car, ~300 m back.
+        int guard = host.Train.Dynamics.Consist.Vehicles[^1].Id;
+        host.SetPlayerState(clients[1].PlayerId!.Value, PlayerMotor.SpawnOnRoof(host.Train, guard, 0, P));
+        var shape = host.Train.Frames[guard].Shape;
+        host.World.AddEnemy(id => new DarkTerritory.Sim.Enemies.Clinger(id) { Attached = guard, Local = new Ballast.Double3(shape.HalfWidth + 0.15, 2, 0) });
+        host.World.Bodies.SpawnCrate(host.Train, 1, new Ballast.Double3(0, T.Geometry.CarHeight, 0));
+        Run(net, host, clients, 20);
+        Assert.Empty(clients[0].World.ActiveEnemies);
+        Assert.Single(clients[1].World.ActiveEnemies);
+        Assert.Single(clients[0].World.Bodies.All);
+        Assert.Empty(clients[1].World.Bodies.All);
+        Assert.True(host.RecordsSkipped > 0);
+    }
+
+    [Fact]
+    public void SomeoneWhoDropsOutLeavesTheirBodyBehind()
+    {
+        // Spec E: "Character remains as an inert body until recovered or the run ends."
+        var (net, host, clients, transports) = Session(2);
+        Run(net, host, clients, 10);
+        byte leaver = clients[1].PlayerId!.Value;
+        transports[1].Dispose();
+        Run(net, host, [clients[0]], 20);
+        Assert.Equal(1, host.PlayerCount);
+        var body = Assert.Single(clients[0].World.Bodies.All);
+        Assert.Equal(leaver, body.Owner);
+    }
+
+    [Fact]
+    public void BetweenStopsAJoinerWaitsAndBoardsAtTheNext()
+    {
+        bool stopped = false;
+        var standHere = PlayerMotor.SpawnOnRoof(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), Line, 1500), 4, 2, P);
+        var (net, host, clients, _) = Session(1, configure: h =>
+        {
+            h.CanBoard = () => stopped;
+            h.BoardAt = _ => standHere;
+        });
+        // The first aboard (the host's own player, in a real session) is let on as the session is made.
+        stopped = true;
+        Run(net, host, clients, 10);
+        stopped = false;
+        clients.Add(Client(net.CreateClient()));
+        Run(net, host, clients, 20);
+        Assert.True(clients[1].Waiting);
+        Assert.Contains("next", clients[1].WaitingReason);
+        Assert.Equal(1, host.PlayerCount);
+
+        stopped = true;
+        Run(net, host, clients, 20);
+        Assert.False(clients[1].Waiting);
+        Assert.True(clients[1].Connected);
+        Assert.Equal(2, host.PlayerCount);
+        Assert.Equal(4, clients[1].Predicted.Parent);
+    }
+}

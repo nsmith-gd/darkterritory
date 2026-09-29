@@ -15,6 +15,8 @@ public enum MessageType : byte
     Welcome = 3,
     /// <summary>Voice frame. Client → host: sequence, radio flag, Opus. Host → client: speaker, sequence, path, Opus.</summary>
     Voice = 4,
+    /// <summary>Host → client, reliable: welcomed, but not aboard yet (spec E: drop-in at POIs only), and why.</summary>
+    Wait = 5,
 }
 
 public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent);
@@ -100,6 +102,13 @@ public static class Messages
         w.U16(sequence);
         w.U8((byte)path);
         w.Bytes(opus);
+    }
+
+    public static void WriteWait(NetWriter w, string reason)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Wait);
+        w.Str(reason);
     }
 
     public static void WriteWelcome(NetWriter w, byte playerId, uint tick, string session = "")

@@ -73,8 +73,12 @@ Remaining for M3: Soot Children mimicry, the radio as an item, and interior occl
 - Shelter rules shared by the Choir, voice and sound.
 - Warm practical light inside.
 
+**Session rules (M2):**
+- Interest management for enemies and bodies (520 m, past the farthest tell), with per-client baselines.
+- Someone who drops out leaves an inert body.
+- Joiners with different tuning are refused, with the files named.
+- Mid-run joiners wait and board at the next stop (spec E drop-in at POIs).
+
 Remaining for M2:
-- interest management (only needed once enemies and props multiply the record count)
-- a Steam transport and lobby (and EOS for itch.io); a content hash check on join
-- physics object sync
-- inert bodies on disconnect
+- a Steam transport and lobby (and EOS for itch.io)
+- the 30-minute, 8-client rough-link soak as a nightly job

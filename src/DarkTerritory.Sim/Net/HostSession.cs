@@ -27,6 +27,8 @@ public sealed class HostSession
         public PlayerIntent ThisTick;
         public PlayerState State;
         public int MissedInputs;
+        /// <summary>What this client was sent at each tick: its own delta baselines, since interest differs per client.</summary>
+        public readonly Dictionary<uint, List<WireRecord>> Sent = new();
     }
 
     readonly ITransport _transport;
@@ -35,7 +37,6 @@ public sealed class HostSession
     readonly List<InputFrame> _frames = new();
     readonly NetWriter _writer = new();
     readonly List<PlayerSnapshot> _snapshotScratch = new();
-    readonly Dictionary<uint, List<WireRecord>> _history = new();
     /// <summary>Ticks of snapshot history kept for delta baselines (~2 s).</summary>
     const int HistoryTicks = 64;
     byte _nextId = 1;
@@ -70,8 +71,11 @@ public sealed class HostSession
     public int MissedInputs(byte id) => _crew.First(c => c.Id == id).MissedInputs;
 
     /// <summary>Starts the night's threats: the director, the route's Sleepers, the Hollow's watch (host authority).</summary>
-    public void EnableEnemies(Enemies.EnemyTuning tuning, Route.Route? route, ulong seed, int expectedCrew) =>
+    public void EnableEnemies(Enemies.EnemyTuning tuning, Route.Route? route, ulong seed, int expectedCrew)
+    {
         World.EnableEnemies(tuning, route, seed, Math.Max(expectedCrew, _crew.Count), authority: true);
+        InterestRadius = tuning.InterestRadius;
+    }
 
     /// <summary>Puts a player somewhere authoritatively (respawns, debug teleports, tests).</summary>
     public void SetPlayerState(byte id, PlayerState state) => _crew.First(c => c.Id == id).State = state;
@@ -79,6 +83,7 @@ public sealed class HostSession
     public void Step()
     {
         Receive();
+        BoardWaiting();
 
         foreach (var c in _crew)
             c.ThisTick = NextIntent(c);
@@ -108,8 +113,6 @@ public sealed class HostSession
         var records = WorldRecords.Quantise(World, ref Controls, _snapshotScratch);
         foreach (var p in _snapshotScratch)
             _crew.First(c => c.Id == p.Id).State = p.State;
-        _history[Tick] = records;
-        _history.Remove(Tick - HistoryTicks);
 
         Broadcast(records);
     }
@@ -149,8 +152,14 @@ public sealed class HostSession
                     Join(e.Peer);
                     break;
                 case TransportEventKind.Disconnected:
-                    // Spec E: the character should remain as an inert body. For now, remove it.
-                    _crew.RemoveAll(c => c.Peer == e.Peer);
+                    // Spec E: "Character remains as an inert body until recovered or the run ends."
+                    foreach (var gone in _crew.Where(c => c.Peer == e.Peer).ToList())
+                    {
+                        if (gone.State.Alive && !World.Bodies.HasRagdoll(gone.Id))
+                            World.Bodies.SpawnRagdoll(Train, gone.Id, gone.State);
+                        _crew.Remove(gone);
+                    }
+                    _waiting.RemoveAll(w => w.Peer == e.Peer);
                     break;
                 case TransportEventKind.Data when e.Payload is { Length: > 0 } payload:
                     OnData(e.Peer, payload);
@@ -159,15 +168,50 @@ public sealed class HostSession
         }
     }
 
+    /// <summary>
+    /// Spec E: drop-in "at POIs only". While this says no (the train is between stops), a joiner is welcomed,
+    /// builds the world and watches, but only boards when it says yes, at <see cref="BoardAt"/>. Null: board now.
+    /// </summary>
+    public Func<bool>? CanBoard { get; set; }
+    /// <summary>Where someone boarding mid-run appears (a figure waiting at the facility). Null: the usual spots.</summary>
+    public Func<int, PlayerState>? BoardAt { get; set; }
+    public string WaitReason { get; set; } = "the train is between stops: you'll board at the next one";
+    readonly List<(byte Id, PeerId Peer)> _waiting = new();
+    public int Waiting => _waiting.Count;
+
     void Join(PeerId peer)
     {
-        var c = new Crew(_nextId++, peer);
+        byte id = _nextId++;
+        Messages.WriteWelcome(_writer, id, Tick, SessionInfo);
+        _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
+        if (CanBoard is { } can && !can())
+        {
+            _waiting.Add((id, peer));
+            Messages.WriteWait(_writer, WaitReason);
+            _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
+            return;
+        }
+        Board(id, peer);
+    }
+
+    void Board(byte id, PeerId peer)
+    {
+        var c = new Crew(id, peer);
         // First aboard takes the cab; everyone else spreads down the train.
         int car = 1 + (_crew.Count - 1) % Math.Max(1, Train.Frames.Count - 1);
-        c.State = _crew.Count == 0 ? PlayerMotor.SpawnInCab(Train, PlayerTuning) : PlayerMotor.SpawnOnRoof(Train, car, 0, PlayerTuning);
+        c.State = BoardAt is { } at && _crew.Count > 0 ? at(_crew.Count)
+            : _crew.Count == 0 ? PlayerMotor.SpawnInCab(Train, PlayerTuning) : PlayerMotor.SpawnOnRoof(Train, car, 0, PlayerTuning);
         _crew.Add(c);
-        Messages.WriteWelcome(_writer, c.Id, Tick, SessionInfo);
-        _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
+    }
+
+    /// <summary>Boards anyone waiting, once the train is somewhere they can board it.</summary>
+    void BoardWaiting()
+    {
+        if (_waiting.Count == 0 || CanBoard is { } can && !can())
+            return;
+        foreach (var (id, peer) in _waiting)
+            Board(id, peer);
+        _waiting.Clear();
     }
 
     void OnData(PeerId peer, byte[] payload)
@@ -240,18 +284,49 @@ public sealed class HostSession
         return i;
     }
 
+    /// <summary>
+    /// Interest management (ARCHITECTURE §6.2): enemies and loose bodies farther than this from a client's player
+    /// aren't sent to that client; the train, the crew and the world state always go. Set from the enemy tuning,
+    /// which keeps it past the farthest audible tell. 0 (no enemies) sends everything.
+    /// </summary>
+    public double InterestRadius { get; set; }
+    public long RecordsSkipped { get; private set; }
+
     void Broadcast(List<WireRecord> records)
     {
         foreach (var c in _crew)
         {
+            var mine = Interest(records, c);
+            c.Sent[Tick] = mine;
+            c.Sent.Remove(Tick - HistoryTicks);
             // Delta against the newest snapshot the client has confirmed; full if that's gone from history.
             uint baseTick = c.AckedSnapshot;
-            var baseline = baseTick > 0 ? _history.GetValueOrDefault(baseTick) : null;
+            var baseline = baseTick > 0 ? c.Sent.GetValueOrDefault(baseTick) : null;
             if (baseline is null)
                 baseTick = 0;
-            Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, records, baseline);
+            Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, mine, baseline);
             LastSnapshotBytes = _writer.Length;
             _transport.Send(c.Peer, _writer.Written, Delivery.Unreliable);
         }
+    }
+
+    readonly HashSet<uint> _far = new();
+
+    List<WireRecord> Interest(List<WireRecord> records, Crew c)
+    {
+        if (InterestRadius <= 0)
+            return records;
+        var at = PlayerMotor.WorldPosition(c.State, Train);
+        _far.Clear();
+        foreach (var e in World.ActiveEnemies)
+            if ((e.WorldPosition(Train) - at).Length > InterestRadius)
+                _far.Add(WireRecord.MakeKey(RecordKind.Enemy, e.Id));
+        foreach (var b in World.Bodies.All)
+            if (b.Carrier != c.Id && (Physics.Bodies.WorldCentre(b, Train) - at).Length > InterestRadius)
+                _far.Add(WireRecord.MakeKey(RecordKind.Body, b.Id));
+        if (_far.Count == 0)
+            return records;
+        RecordsSkipped += _far.Count;
+        return records.Where(r => !_far.Contains(r.Key)).ToList();
     }
 }

@@ -50,4 +50,33 @@ public class NetPlayTests
         Assert.Throws<IOException>(() => NetPlaySession.Join(Content, new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, port),
             options: new Ballast.Net.UdpOptions { ConnectSeconds = 0.5 }));
     }
+
+    [Fact]
+    public void AJoinerWithDifferentTuningIsToldWhichFile()
+    {
+        // Spec E: everyone plays the host's game. A joiner who'd edited train.json would predict a different train.
+        string mine = Path.Combine(Path.GetTempPath(), "dt-content-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(Content, "*", SearchOption.AllDirectories))
+            {
+                var to = Path.Combine(mine, Path.GetRelativePath(Content, file));
+                Directory.CreateDirectory(Path.GetDirectoryName(to)!);
+                File.Copy(file, to);
+            }
+            var train = Path.Combine(mine, "tuning", "train.json");
+            File.WriteAllText(train, File.ReadAllText(train).Replace("\"maxSpeed\": 22.0", "\"maxSpeed\": 30.0"));
+            // Line endings alone don't count.
+            var boiler = Path.Combine(mine, "tuning", "boiler.json");
+            File.WriteAllText(boiler, File.ReadAllText(boiler).Replace("\r\n", "\n").Replace("\n", "\r\n"));
+
+            using var host = NetPlaySession.HostGame(Content, new SessionSetup(Cars: 4, Enemies: false), port: 0);
+            var e = Assert.Throws<IOException>(() => NetPlaySession.Join(mine, new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port), () => host.Step(default)));
+            Assert.Equal("your content differs from the host's: tuning/train.json", e.Message);
+        }
+        finally
+        {
+            Directory.Delete(mine, recursive: true);
+        }
+    }
 }

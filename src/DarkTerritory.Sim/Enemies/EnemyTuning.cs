@@ -3,7 +3,7 @@ namespace DarkTerritory.Sim.Enemies;
 /// <summary>Mirror of content/tuning/enemies.json. Field docs live in that file.</summary>
 public sealed record EnemyTuning(
     double MinReactionSeconds, SleeperTuning Sleepers, HoundTuning CinderHounds, ClingerTuning Clingers,
-    HollowTuning Hollow, ChoirSwarmTuning ChoirSwarm, DirectorTuning Director)
+    HollowTuning Hollow, ChoirSwarmTuning ChoirSwarm, DirectorTuning Director, double InterestRadius)
 {
     public const string File = "tuning/enemies.json";
 }

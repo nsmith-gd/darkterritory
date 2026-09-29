@@ -4,6 +4,11 @@
   // App. A.1: every telegraph gives at least this long before a commit.
   "minReactionSeconds": 1.5,
 
+  // Enemies farther than this from a player aren't sent to that player's machine (ARCHITECTURE §8 note 23).
+  // It must cover the farthest tell anyone can hear, the hound howl's 500 m (audio/sounds/hound-howl.json);
+  // AudioTests holds it to that.
+  "interestRadius": 520,
+
   "sleepers": {
     // Telegraph: the lamp finds them at 120 m; brace (and the wet writhe you can hear) at 60 m.
     "lampRevealDistance": 120,
