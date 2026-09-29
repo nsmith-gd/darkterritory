@@ -19,6 +19,10 @@ public sealed record VrTuning
     public float SnapRelease { get; init; } = 0.35f;
     public float StickDeadzone { get; init; } = 0.2f;
     public VignetteTuning Vignette { get; init; } = new();
+    /// <summary>The HUD's panel in a night (T36).</summary>
+    public VrPanelTuning Hud { get; init; } = new();
+    /// <summary>The menus' panel in the front end (T36).</summary>
+    public VrPanelTuning Menu { get; init; } = new() { Distance = 2.0, Width = 2.0, Drop = 0, FollowDegrees = 35, FollowSeconds = 0.6 };
 }
 
 public sealed record VignetteTuning

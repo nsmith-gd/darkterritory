@@ -135,10 +135,31 @@ static object VrCheck(TrainTuning t, string content, string[] args)
         var outcomes = new Dictionary<string, int>();
         var clock = Stopwatch.StartNew();
         var comfort = new DarkTerritory.Game.VrLocomotion(DataFile.Load<DarkTerritory.Game.VrTuning>(Path.Combine(content, DarkTerritory.Game.VrTuning.File)));
+        // --hud: the HUD on its panel (T36), from a solo night stepped a few seconds, as the game draws it; --menu screen:
+        // the front end on the menus' panel instead.
+        DarkTerritory.Game.VrPanelContent? panel = null;
+        if (args.Contains("--menu"))
+        {
+            var drawn = new Overlay();
+            var menu = DemoMenu(content, args).Menu;
+            menu.Headset = true;
+            menu.Draw(drawn, 480, 270);
+            panel = new DarkTerritory.Game.VrPanelContent(new DarkTerritory.Game.VrPanel(comfort.Tuning.Menu), drawn, 480, 270);
+        }
+        else if (args.Contains("--hud"))
+        {
+            var night = new PrototypeSession(content, Str(args, "--line", "test-loop"), (int)Opt(args, "--cars", 6));
+            night.Controls.Throttle = 0.6;
+            for (int i = 0; i < 3 * SimConstants.TickRate; i++)
+                night.Step(default);
+            var hud = new Overlay();
+            DarkTerritory.Game.Hud.Build(hud, 480, 270, night, crosshair: false);
+            panel = new DarkTerritory.Game.VrPanelContent(new DarkTerritory.Game.VrPanel(comfort.Tuning.Hud), hud, 480, 270);
+        }
         void Count(Ballast.Xr.XrFrameResult r) => outcomes[r.ToString()] = outcomes.GetValueOrDefault(r.ToString()) + 1;
         while (vr.Session.FramesRendered < frames && clock.Elapsed.TotalSeconds < 30)
         {
-            var r = vr.Frame(mesh, body, lighting, lighting.FogColor, comfort);
+            var r = vr.Frame(mesh, body, lighting, lighting.FogColor, comfort, panel);
             Count(r);
             if (r == Ballast.Xr.XrFrameResult.Exiting)
                 break;
@@ -181,6 +202,8 @@ static object VrCheck(TrainTuning t, string content, string[] args)
             outcomes,
             states = vr.Session.States.Select(s => s.ToString()).ToList(),
             eyes = new[] { Eye(0), Eye(1) },
+            // The panel's triangles in each eye (and the vignette's, when it's closing in), for CI to check both got the HUD.
+            overlayVertices = new[] { vr.OverlayVertices(0), vr.OverlayVertices(1) },
             // What the game would send from them, standing still with the controllers at rest.
             controllers = new
             {
@@ -606,6 +629,25 @@ static object Screenshot(TrainTuning t, string content, string[] args)
 // screens use a demo slot (a few nights in, some scrip) in a scratch directory unless --saves names real ones.
 static object MenuShot(TrainTuning t, string content, string[] args)
 {
+    var (menu, screen) = DemoMenu(content, args);
+    var line = RailLine.Load(Path.Combine(content, "lines", "test-loop.json"));
+    var standing = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, 6, 1)), line, 1200);
+    var view = Views.Get("trackside", standing);
+    var mesh = new MeshBuilder();
+    new GreyboxScene { Time = 0.37 }.Build(mesh, standing, view.Position);
+    var light = Views.Lighting(standing);
+    using var gpu = new GpuContext("dt screenshot");
+    using var renderer = new GreyboxRenderer(gpu, 480, 270);
+    var overlay = new Overlay();
+    menu.Draw(overlay, renderer.Width, renderer.Height);
+    string output = Str(args, "--out", $"out/shots/menu-{screen.ToString().ToLowerInvariant()}.png");
+    PngWriter.Write(output, renderer.Render(mesh, view, light, light.FogColor, overlay), renderer.Width, renderer.Height, (int)Opt(args, "--scale", 2));
+    return new { path = Path.GetFullPath(output), screen = screen.ToString(), items = menu.Items.Select(i => i.Label) };
+}
+
+/// <summary>The front end on <c>--menu</c>'s screen, with a demo campaign slot unless <c>--saves</c> names real ones.</summary>
+static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) DemoMenu(string content, string[] args)
+{
     var screen = Enum.Parse<DarkTerritory.Game.Screen>(Str(args, "--menu", "title"), ignoreCase: true);
     var ct = DataFile.Load<DarkTerritory.Sim.Campaign.CampaignTuning>(Path.Combine(content, DarkTerritory.Sim.Campaign.CampaignTuning.File));
     var rt = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
@@ -631,20 +673,7 @@ static object MenuShot(TrainTuning t, string content, string[] args)
     menu.Show(screen);
     for (int i = 0; i < (int)Opt(args, "--down", 0); i++)
         menu.Down();
-
-    var line = RailLine.Load(Path.Combine(content, "lines", "test-loop.json"));
-    var standing = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, 6, 1)), line, 1200);
-    var view = Views.Get("trackside", standing);
-    var mesh = new MeshBuilder();
-    new GreyboxScene { Time = 0.37 }.Build(mesh, standing, view.Position);
-    var light = Views.Lighting(standing);
-    using var gpu = new GpuContext("dt screenshot");
-    using var renderer = new GreyboxRenderer(gpu, 480, 270);
-    var overlay = new Overlay();
-    menu.Draw(overlay, renderer.Width, renderer.Height);
-    string output = Str(args, "--out", $"out/shots/menu-{screen.ToString().ToLowerInvariant()}.png");
-    PngWriter.Write(output, renderer.Render(mesh, view, light, light.FogColor, overlay), renderer.Width, renderer.Height, (int)Opt(args, "--scale", 2));
-    return new { path = Path.GetFullPath(output), screen = screen.ToString(), items = menu.Items.Select(i => i.Label) };
+    return (menu, screen);
 }
 
 // A frame as the game draws it: a solo session stepped for a while, seen first person, with the HUD (T23).

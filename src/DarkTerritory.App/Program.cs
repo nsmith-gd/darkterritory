@@ -40,8 +40,8 @@ using DarkTerritory.Sim.Train;
 // VR: --vr plays in an OpenXR headset (Quest via Link, SteamVR, Monado) and mirrors to the window; --vr-scale 0.5 of the
 //   runtime's per-eye size. You look with your head and walk where you look: left stick walks (click it to run), right
 //   stick turns (snap by default, content/tuning/vr.json and the settings), grip uses/grabs, trigger fires, A jumps, B
-//   throws. The keyboard and mouse still work alongside (mouse yaw turns the body). Driving is from the keyboard until
-//   levers. The menus show on the window, not in the headset, for now.
+//   throws. The keyboard and mouse still work alongside (mouse yaw turns the body). Grip a cab lever to work it; the
+//   HUD and the menus float on a panel ahead (left stick moves through the menus, trigger or A chooses, B goes back).
 // Voice (networked): open mic with voice activity, or push to talk (the settings, or --push-to-talk) and hold V. Hold T
 //   to talk on the radio. --no-mic to only listen.
 
@@ -200,6 +200,13 @@ Launch? Menu()
     backdrop.Build(mesh, standing, view.Position);
     var light = Views.Lighting(standing);
     double started = timer.Elapsed.TotalSeconds;
+    // In a headset the menus float ahead, over the yard (T36), and the controllers work them.
+    var vrMenu = vr is null ? null : new VrPanel(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Menu);
+    var vrKeys = new VrMenuInput();
+    frontEnd.Headset = vr is not null;
+    // Whatever's held coming in (the A that ended the night) isn't a press here.
+    if (vr is not null)
+        vrKeys.Read(vr.Session.Controllers);
     while (!window.CloseRequested && !QuitNow())
     {
         window.PumpEvents();
@@ -215,6 +222,8 @@ Launch? Menu()
         if (input.Pressed(Key.Escape)) frontEnd.Back();
         if (input.Pressed(Key.Backspace)) frontEnd.Erase();
         if (input.Text.Length > 0) frontEnd.Type(input.Text);
+        if (vr is not null)
+            chosen ??= VrMenuInput.Apply(vrKeys.Read(vr.Session.Controllers), frontEnd);
         if (chosen is not null)
         {
             // The key that chose it isn't also the night's first press.
@@ -227,6 +236,8 @@ Launch? Menu()
         frontEnd.Draw(overlay, renderer.Width, renderer.Height);
         renderer.Prepare(mesh, overlay);
         Present(camera, light);
+        if (vr is not null && vr.Frame(mesh, view, light, light.FogColor, panel: new VrPanelContent(vrMenu!, overlay, renderer.Width, renderer.Height)) == XrFrameResult.Exiting)
+            return new Launch.Quit();
         FeedSpeaker();
         input.EndFrame();
         frameCount++;
@@ -347,6 +358,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var clock = new FixedStepClock(SimConstants.TickRate);
     var locomotion = vr is null ? null : new VrLocomotion(settings.Apply(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File))));
     var levers = vr is null ? null : new VrLevers();
+    // The HUD in the headset (T36), drawn as for the window but without the aiming cross.
+    var vrHud = locomotion is null ? null : new VrPanel(locomotion.Tuning.Hud);
+    var vrOverlay = new Overlay();
     bool showHud = settings.Hud && !args.Contains("--no-hud");
     var scene = new GreyboxScene
     {
@@ -499,7 +513,18 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         renderer.Prepare(mesh, showHud ? overlay : null);
         Present(camera, lighting);
         // The body is the flat camera's eye point, turned to where the room faces; the head does the looking.
-        if (vr is not null && vr.Frame(mesh, locomotion!.Body(camera, Eyes.Heading(session.Player, frames)), lighting, lighting.FogColor, locomotion) == XrFrameResult.Exiting)
+        VrPanelContent? onPanel = null;
+        if (vr is not null && showHud)
+        {
+            Hud.Build(vrOverlay, 480, 270, session, crosshair: false);
+            if (session.World.Run?.Over == true)
+                vrOverlay.TextCentred(240, 248, campaign is not null ? "A: BACK TO THE FORTRESS" : "A: BACK", new Vector4(1, 0.7f, 0.3f, 1));
+            onPanel = new VrPanelContent(vrHud!, vrOverlay, 480, 270);
+        }
+        if (vr is not null && vr.Frame(mesh, locomotion!.Body(camera, Eyes.Heading(session.Player, frames)), lighting, lighting.FogColor, locomotion, onPanel) == XrFrameResult.Exiting)
+            break;
+        // The night's over: A goes back, as Enter does.
+        if (vr is not null && session.World.Run?.Over == true && vr.Session.Controllers.Primary)
             break;
 
         if (now >= titleAt)
