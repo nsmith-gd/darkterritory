@@ -80,7 +80,8 @@ public enum Surface : byte { Air, Ground, Roof, Coupler, Ladder, Deck }
 
 /// <summary><see cref="Taken"/>: by the Soot Children, answering a voice from outside (T40).</summary>
 /// <summary><see cref="Dragged"/>: pulled off the train at speed by the Draggers (T46).</summary>
-public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged }
+/// <summary><see cref="Crushed"/>: under a casting let go of by the crane (T48).</summary>
+public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged, Crushed }
 
 /// <summary>Conditions a player carries.</summary>
 [Flags]
@@ -93,6 +94,8 @@ public enum PlayerFlags : byte
     Heavy = 2,
     /// <summary>A hand has coal on the shovel from the tender, on its way to the firebox (T29).</summary>
     Shovelful = 4,
+    /// <summary>At a crane's controls (T48): the stick and Jump drive the crane, not you.</summary>
+    Operating = 8,
 }
 
 /// <summary>
@@ -307,9 +310,11 @@ public static class PlayerMotor
                 speed *= p.Cold.OnsetSpeedScale;
             if (s.Has(PlayerFlags.Heavy))
                 speed = Math.Min(speed, p.CarryHeavy);
+            if (s.Has(PlayerFlags.Operating))
+                speed = 0;
             var wish = WishDirection(s.Yaw, intent) * speed;
             s.Velocity = new Double3(wish.X, 0, wish.Z);
-            if (intent.Has(PlayerButtons.Jump) && !s.Has(PlayerFlags.Heavy))
+            if (intent.Has(PlayerButtons.Jump) && !s.Has(PlayerFlags.Heavy) && !s.Has(PlayerFlags.Operating))
             {
                 // Take off in the car's frame and integrate this tick there. The car has already moved
                 // this tick; switching to world first would count its motion twice (0.73 m at 22 m/s).

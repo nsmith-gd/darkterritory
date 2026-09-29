@@ -53,11 +53,45 @@
       "smoothSeconds": 0.25
     }
   },
+  // D.2 "Gantry crane: one player in an elevated cab drives X/Y/Z; ground crew rigs the load and calls position. 2
+  // mandatory. Crane operator cannot see the ground crew. Dropped loads kill." (T48). A gantry astride the track, its
+  // castings stacked on the far side. The operator holds E in the cab to drive it: WASD the bridge along the track and
+  // the trolley across, Space and B the hook up and down, left mouse to let go. Someone on the ground holds E at the hook
+  // beside a casting to rig it. Set down on a cargo car's roof it's lashed there, and loaded. Let go of it high, and it
+  // falls: anyone under it is crushed.
+  "crane": {
+    // The gantry: centred this far along from the layout point, running this long, spanning from this far out on the
+    // near side of the track to the far side, its hook's highest point.
+    // Over the first cars behind the engine at the buffer stop, clear of the crate stack and the winch.
+    "along": -4,
+    "length": 20,
+    "span": [-3.5, 9],
+    "height": 8,
+    // The castings stand on the far side, this far out, this far apart along the track.
+    "stackLateral": 7.5,
+    "castings": 2,
+    "spacing": 3,
+    "loadPerCasting": 0.5,
+    "castingSize": [1.4, 0.9, 1.0],
+    // How fast it moves, metres a second: the bridge along the rails, the trolley across the bridge, the hook.
+    "bridgeSpeed": 1.2,
+    "trolleySpeed": 1.0,
+    "hoistSpeed": 0.8,
+    // At the controls: within this of the cab's control stand. The cab's at the gantry's near end, up at the top.
+    "controlsReach": 1.2,
+    // Rigging: on the ground, within this of the hook, the hook low enough to reach, for this long.
+    "rigReach": 1.5,
+    "rigHeight": 2.2,
+    "rigSeconds": 2,
+    // A casting let go more than this above what's under it falls, and kills anyone within this of where it lands.
+    "dropAbove": 0.6,
+    "crushRadius": 1.4
+  },
   // Which modules each facility offers (spec D.1: 2–4 per POI once the roster is built; the coaling tower is its chute).
   "kinds": {
     "grainElevator": ["crates"],
     "switchyard": ["crates"],
-    "foundry": ["winch", "crates"],
+    "foundry": ["crane", "winch", "crates"],
     "slaughterhouse": ["crates"],
     "wreckYard": ["winch"],
     "mineHead": ["winch", "crates"],

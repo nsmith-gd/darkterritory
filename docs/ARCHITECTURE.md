@@ -964,3 +964,21 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `ArmsTests`: bone lengths hold, the hand arrives, the bend is outward, an out-of-reach hand reaches as far as it can, and hands are assigned to sides.
       - `HandTests.TheRestOfTheCrewSeeAHeadsetsHands`: over loopback, another client sees both hands, and sees them drop when the controllers go down.
       - `dt screenshot --view roof --crew` stages three crewmates on a roof: arms hanging, one reaching up, one holding out both hands. CI keeps `crew-arms.png`.
+52. **The gantry crane (T48, spec D.2 and D.3; GDD's foundry: "overhead crane run from a gantry. The operator can't see the ground crew").** The third loading module (`facilities.json` `crane`). The foundry has it, along with the winch and crates.
+    - **Layout.** A gantry astride the track over the first cars behind the engine at the buffer stop, its castings stacked on the far side. Like the rest of a site, it's laid out from the route, so every machine agrees where it stands.
+    - **The operator.** Holds Use at the control stand at the near leg, and is up in the cab.
+      - The stick runs the bridge along the track and the trolley across; Space and B move the hook up and down; left mouse lets go.
+      - At the controls, the stick drives the crane, not their feet (`PlayerFlags.Operating`). That's worked out from where they stand and what they hold, the same on every machine, so a client predicts standing still.
+      - **Ambiguity, the elevated cab:** the world has no climbable structures, so the stand is on the ground and holding it puts you in the cab. Your view moves up there (`Eyes.Operator`) and looks along the gantry at the bridge, not down at the hook. That's spec D.3's "blind instruction": the ground crew have to call the position. In a headset, the view stays with the head (a cab you can stand in comes with climbable structures).
+    - **The ground crew.** Hold Use on the ground at the hook, with the hook low enough to reach, beside a casting, for 2 s: it's rigged.
+    - **Setting down.** A casting set down (its base within 0.6 m of what's under it) on a cargo car's roof is lashed there and loaded, half a car each. It rides the car from then on. Set down on the ground, it can be rigged again.
+    - **"Dropped loads kill."** Let go of higher, it falls: the casting is lost, and anyone within 1.4 m of where it lands is crushed (`DeathCause.Crushed`). The world applies it on the next tick, through each player's crew step, since the run doesn't hold the crew with their ids.
+    - **Replication:** a Crane record per crane: bridge, trolley, hook, the rig's progress, and each casting (state, car, place).
+    - **Bots** don't run cranes. Castings don't keep the train, and the driver stops for the winch and crates as before.
+    - **Verified:** `CraneTests` (5):
+      - the operator drives it from the stand and stays put, and letting go stops it;
+      - rigged on the ground, lifted, driven by the stick over a car, and set down on its roof, it's loaded;
+      - let go of high, it's lost and kills the one under it but not the one beside;
+      - nobody at the controls, nothing moves, and a hook up in the air can't be rigged;
+      - a client sees the crane.
+      - `dt screenshot --site --crane`; CI keeps `site-crane.png`.

@@ -43,6 +43,18 @@ public static class Eyes
     /// <summary>How far over the feet the eyes are, alive. A headset's tracking space hangs from here (<see cref="VrLocomotion"/>).</summary>
     public const double Height = 1.65;
 
+    /// <summary>
+    /// Up in the crane's cab while at its controls (T48): looking along the gantry at the bridge and trolley, not down at the
+    /// hook. Spec D.2: "the crane operator cannot see the ground crew", who have to call the position.
+    /// </summary>
+    public static Camera? Operator(in PlayerState s, Sim.World world)
+    {
+        if (!s.Has(PlayerFlags.Operating) || world.Run?.CurrentSite?.Crane is not { } crane)
+            return null;
+        var trolley = crane.HookAt with { Y = crane.BridgeEnd(0).Y - 0.6 };
+        return Camera.LookAt(crane.Cab + Double3.Up * 0.3, trolley, 55);
+    }
+
     public static Camera From(in PlayerState cur, in PlayerState prev, IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch)
     {
         var local = prev.Parent == cur.Parent ? Double3.Lerp(prev.Position, cur.Position, alpha) : cur.Position;

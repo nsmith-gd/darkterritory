@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Vigil = 10, Switch = 11 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Vigil = 10, Switch = 11, Crane = 12 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -97,6 +97,16 @@ public static class WorldRecords
             }
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Run, 0), f));
         }
+        // A facility's gantry crane (T48): where it is, the rig, and each casting.
+        if (world.Run is { } withSites)
+            foreach (var site in withSites.Sites)
+                if (site?.Crane is { } crane)
+                {
+                    var f = new List<long> { Q(crane.Bridge, Pos), Q(crane.Trolley, Pos), Q(crane.Hook, Pos), Q(crane.Rigging, Fine), crane.Castings.Length };
+                    foreach (var c in crane.Castings)
+                        f.AddRange([(long)c.State, c.Car, Q(c.At.X, Pos), Q(c.At.Y, Pos), Q(c.At.Z, Pos)]);
+                    list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Crane, site.Index), [.. f]));
+                }
         if (world.Vigil is { } vigil)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Vigil, 0), [vigil.Active ? 1 : 0, Q(vigil.Left, Fine), vigil.Revivals, vigil.Body, vigil.For]));
         foreach (var body in world.Bodies.All)
@@ -198,6 +208,11 @@ public static class WorldRecords
                     break;
                 case RecordKind.Body when !world.Authority:
                     bodies.Add(ToBody(r));
+                    break;
+                case RecordKind.Crane when !world.Authority && world.Run is { } craneRun && r.Id < craneRun.Sites.Count && craneRun.Sites[r.Id]?.Crane is { } crane:
+                    int castings = (int)f[4];
+                    crane.Mirror(D(f[0], Pos), D(f[1], Pos), D(f[2], Pos), D(f[3], Fine), [.. Enumerable.Range(0, castings).Select(i =>
+                        ((Run.CastingState)f[5 + i * 5], (int)f[6 + i * 5], new Ballast.Double3(D(f[7 + i * 5], Pos), D(f[8 + i * 5], Pos), D(f[9 + i * 5], Pos))))]);
                     break;
                 case RecordKind.Vigil when !world.Authority && world.Vigil is { } vigil:
                     vigil.Mirror(f[0] != 0, D(f[1], Fine), (int)f[2], (int)f[3], (int)f[4]);
