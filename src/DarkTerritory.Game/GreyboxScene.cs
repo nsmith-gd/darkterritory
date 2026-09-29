@@ -106,6 +106,12 @@ public sealed class GreyboxScene
         }
         foreach (var frame in frames)
             Car(mesh, frame, eye);
+        if (Look is not null)
+        {
+            // The art pass's effects (Art/Effects): smoke, steam, sparks, the lamp's beam, and fog banks along the line.
+            Look.Art.Effects.Train(mesh, frames, eye, Time, Controls, FireGlow, Emergency);
+            Look.Art.Effects.Fog(mesh, line, eye, centre, Time, Look.Apply(FrameLighting.Night).FogColor, (float)(Route?.Weather.FogDensity ?? 0.016));
+        }
         mesh.Seed = 0;
         if (Enemies is not null)
             foreach (var e in Enemies)

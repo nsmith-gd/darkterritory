@@ -75,6 +75,12 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     readonly VkDescriptorSetLayout _sceneSetLayout, _postSetLayout, _compositeSetLayout;
     readonly VkDescriptorSet _sceneSet, _brightSet, _blurHSet, _blurVSet, _compositeSet;
     readonly VkPipelineLayout _sceneLayout, _postLayout, _compositeLayout, _overlayLayout;
+    readonly VkPipeline _fxAlphaPipeline, _fxAddPipeline;
+    VkBuffer _fxVertices;
+    VkDeviceMemory _fxMemory;
+    ulong _fxCapacity;
+    int _fxAlphaCount, _fxAddCount;
+    readonly List<FxVertex> _fx = new();
     readonly VkPipeline _skyPipeline, _scenePipeline, _brightPipeline, _blurPipeline, _compositePipeline, _overlayPipeline;
     readonly VkSampler _nearest, _linear;
 
@@ -159,6 +165,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
         _skyPipeline = Pipeline(_sceneLayout, "fullscreen.vert", "sky.frag", SceneFormat, PipelineKind.Fullscreen, depth: true);
         _scenePipeline = Pipeline(_sceneLayout, "scene.vert", "scene.frag", SceneFormat, PipelineKind.Scene, depth: true);
+        _fxAlphaPipeline = Pipeline(_sceneLayout, "fx.vert", "fx.frag", SceneFormat, PipelineKind.FxAlpha, depth: true);
+        _fxAddPipeline = Pipeline(_sceneLayout, "fx.vert", "fx.frag", SceneFormat, PipelineKind.FxAdditive, depth: true);
         _brightPipeline = Pipeline(_postLayout, "fullscreen.vert", "bright.frag", SceneFormat, PipelineKind.Fullscreen, depth: false);
         _blurPipeline = Pipeline(_postLayout, "fullscreen.vert", "blur.frag", SceneFormat, PipelineKind.Fullscreen, depth: false);
         _compositePipeline = Pipeline(_compositeLayout, "fullscreen.vert", "composite.frag", _colorFormat, PipelineKind.Fullscreen, depth: false);
@@ -275,6 +283,28 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             _lights.Sort((a, b) => (a.Position.LengthSquared() - a.Range * a.Range * 0.25f).CompareTo(b.Position.LengthSquared() - b.Range * b.Range * 0.25f));
             _lights.RemoveRange(FrameData.MaxLights, _lights.Count - FrameData.MaxLights);
         }
+        // Effects: smoke and dust sorted far to near (they're blended), then the additive glows (order doesn't matter).
+        _fx.Clear();
+        var alpha = CollectionsMarshal.AsSpan(mesh.AlphaFx);
+        int tris = alpha.Length / 3;
+        if (tris > 0)
+        {
+            var order = new (float Distance, int Index)[tris];
+            for (int i = 0; i < tris; i++)
+                order[i] = (-(alpha[i * 3].Position + alpha[i * 3 + 1].Position + alpha[i * 3 + 2].Position).LengthSquared(), i);
+            Array.Sort(order, (a, b) => a.Distance.CompareTo(b.Distance));
+            foreach (var (_, i) in order)
+            {
+                _fx.Add(alpha[i * 3]);
+                _fx.Add(alpha[i * 3 + 1]);
+                _fx.Add(alpha[i * 3 + 2]);
+            }
+        }
+        _fxAlphaCount = _fx.Count;
+        _fx.AddRange(mesh.AdditiveFx);
+        _fxAddCount = _fx.Count - _fxAlphaCount;
+        if (_fx.Count > 0)
+            Upload(CollectionsMarshal.AsSpan(_fx), (uint)FxVertex.Stride, ref _fxVertices, ref _fxMemory, ref _fxCapacity);
         _overlayCount = overlay?.Count ?? 0;
         if (overlay is { Count: > 0 })
             Upload(CollectionsMarshal.AsSpan(overlay.Vertices), OverlayVertex.Stride, ref _overlayVertices, ref _overlayMemory, ref _overlayCapacity);
@@ -372,6 +402,26 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             Api.vkCmdBindVertexBuffers(cmd, 0, 1, &vb, &offset);
             Api.vkCmdDraw(cmd, (uint)mesh.Count, 1, 0, 0);
             triangles += mesh.Count / 3;
+        }
+        if (_fxAlphaCount + _fxAddCount > 0)
+        {
+            var fb = _fxVertices;
+            ulong offset = 0;
+            Api.vkCmdBindVertexBuffers(cmd, 0, 1, &fb, &offset);
+            if (_fxAlphaCount > 0)
+            {
+                Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _fxAlphaPipeline);
+                var d = new DrawConstants { Model = Matrix4x4.Identity, Tint = new Vector4(1, 1, 1, 0) };
+                Api.vkCmdPushConstants(cmd, _sceneLayout, VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment, 0, (uint)sizeof(DrawConstants), &d);
+                Api.vkCmdDraw(cmd, (uint)_fxAlphaCount, 1, 0, 0);
+            }
+            if (_fxAddCount > 0)
+            {
+                Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _fxAddPipeline);
+                var d = new DrawConstants { Model = Matrix4x4.Identity, Tint = new Vector4(1, 1, 1, 1) };
+                Api.vkCmdPushConstants(cmd, _sceneLayout, VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment, 0, (uint)sizeof(DrawConstants), &d);
+                Api.vkCmdDraw(cmd, (uint)_fxAddCount, 1, (uint)_fxAlphaCount, 0);
+            }
         }
         Api.vkCmdEndRendering(cmd);
         Transition(cmd, _scene.Image, VkImageAspectFlags.Color, VkImageLayout.ColorAttachmentOptimal, VkImageLayout.ShaderReadOnlyOptimal);
@@ -589,7 +639,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         return layout;
     }
 
-    enum PipelineKind { Scene, Fullscreen, Overlay }
+    enum PipelineKind { Scene, Fullscreen, Overlay, FxAlpha, FxAdditive }
 
     VkPipeline Pipeline(VkPipelineLayout layout, string vertName, string fragName, VkFormat colorFormat, PipelineKind kind, bool depth)
     {
@@ -618,6 +668,15 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                 for (int i = 0; i < layoutOf.Length; i++)
                     attributes[i] = new VkVertexInputAttributeDescription { location = (uint)i, binding = 0, format = layoutOf[i].Item1, offset = layoutOf[i].Item2 };
                 attributeCount = (uint)layoutOf.Length;
+            }
+            else if (kind is PipelineKind.FxAlpha or PipelineKind.FxAdditive)
+            {
+                binding.stride = FxVertex.Stride;
+                attributes[0] = new VkVertexInputAttributeDescription { location = 0, binding = 0, format = VkFormat.R32G32B32Sfloat, offset = 0 };
+                attributes[1] = new VkVertexInputAttributeDescription { location = 1, binding = 0, format = VkFormat.R32G32Sfloat, offset = 12 };
+                attributes[2] = new VkVertexInputAttributeDescription { location = 2, binding = 0, format = VkFormat.R32G32B32A32Sfloat, offset = 20 };
+                attributes[3] = new VkVertexInputAttributeDescription { location = 3, binding = 0, format = VkFormat.R32Sfloat, offset = 36 };
+                attributeCount = 4;
             }
             else if (kind == PipelineKind.Overlay)
             {
@@ -652,7 +711,19 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                 depthWriteEnable = depth && kind == PipelineKind.Scene,
                 depthCompareOp = VkCompareOp.LessOrEqual,
             };
-            var blendAttachment = kind == PipelineKind.Overlay
+            var blendAttachment = kind == PipelineKind.FxAdditive
+                ? new VkPipelineColorBlendAttachmentState
+                {
+                    blendEnable = true,
+                    srcColorBlendFactor = VkBlendFactor.One,
+                    dstColorBlendFactor = VkBlendFactor.One,
+                    colorBlendOp = VkBlendOp.Add,
+                    srcAlphaBlendFactor = VkBlendFactor.Zero,
+                    dstAlphaBlendFactor = VkBlendFactor.One,
+                    alphaBlendOp = VkBlendOp.Add,
+                    colorWriteMask = VkColorComponentFlags.All,
+                }
+                : kind is PipelineKind.Overlay or PipelineKind.FxAlpha
                 ? new VkPipelineColorBlendAttachmentState
                 {
                     blendEnable = true,
@@ -732,7 +803,12 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     public void Dispose()
     {
         Api.vkDeviceWaitIdle();
-        foreach (var p in new[] { _skyPipeline, _scenePipeline, _brightPipeline, _blurPipeline, _compositePipeline, _overlayPipeline })
+        if (_fxCapacity > 0)
+        {
+            Api.vkDestroyBuffer(_fxVertices, null);
+            Api.vkFreeMemory(_fxMemory, null);
+        }
+        foreach (var p in new[] { _fxAlphaPipeline, _fxAddPipeline, _skyPipeline, _scenePipeline, _brightPipeline, _blurPipeline, _compositePipeline, _overlayPipeline })
             Api.vkDestroyPipeline(p, null);
         foreach (var l in new[] { _sceneLayout, _postLayout, _compositeLayout, _overlayLayout })
             Api.vkDestroyPipelineLayout(l, null);

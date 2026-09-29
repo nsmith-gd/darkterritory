@@ -48,6 +48,20 @@ public sealed record SurfaceStyle(float TexelsPerMetre, float Baked, Func<Vector
 /// <param name="Position">In the same (camera-relative) space as the geometry.</param>
 public readonly record struct PointLight(Vector3 Position, Vector3 Colour, float Range);
 
+/// <summary>A vertex of the blended effects pass (VFX): position, texture coordinates, colour with alpha, texture layer.</summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct FxVertex(Vector3 position, Vector2 uv, Vector4 colour, float layer)
+{
+    public Vector3 Position = position;
+    public Vector2 Uv = uv;
+    public Vector4 Colour = colour;
+    public float Layer = layer;
+    public const int Stride = 40;
+}
+
+/// <summary>How an effect goes over the scene (pipeline "blend modes: additive for fire, sparks and muzzle flash; alpha for smoke and dust").</summary>
+public enum FxBlend { Alpha, Additive }
+
 /// <summary>A cooked mesh placed in the scene: the renderer uploads <see cref="Asset"/> once and draws it by transform.</summary>
 /// <param name="Model">Object to camera-relative space.</param>
 /// <param name="Glow">Scales the asset's emissive surfaces (a lamp dimmed in a Vigil, a firebox dying down).</param>
@@ -81,6 +95,48 @@ public sealed class MeshBuilder
     /// <summary>Cooked meshes to draw this frame. Cleared with the mesh.</summary>
     public List<MeshInstance> Instances { get; } = new();
 
+    /// <summary>The effects this frame, in triangles: smoke and dust (alpha), fire, sparks and glows (additive).</summary>
+    public List<FxVertex> AlphaFx { get; } = new();
+    public List<FxVertex> AdditiveFx { get; } = new();
+
+    /// <summary>
+    /// A camera-facing sprite (pipeline "camera-facing billboards ... from flipbook atlases"). It faces the eye point (the
+    /// origin), not the view plane, so both eyes of a headset see the same one. <paramref name="frame"/> picks a cell of a
+    /// <paramref name="grid"/>×<paramref name="grid"/> flipbook.
+    /// </summary>
+    public void Billboard(Vector3 at, float size, float rotation, Vector4 colour, int layer, FxBlend blend, int frame = 0, int grid = 1, float stretch = 1)
+    {
+        float dist = at.Length();
+        if (dist < 0.05f || colour.W <= 0.002f)
+            return;
+        var n = -at / dist;
+        var up = MathF.Abs(n.Y) > 0.98f ? Vector3.UnitZ : Vector3.UnitY;
+        var right = Vector3.Normalize(Vector3.Cross(up, n));
+        up = Vector3.Cross(n, right);
+        float c = MathF.Cos(rotation), s = MathF.Sin(rotation);
+        var r = (right * c + up * s) * (size / 2);
+        var u = (up * c - right * s) * (size / 2 * stretch);
+        float cell = 1f / grid;
+        var uv0 = new Vector2(frame % grid, frame / grid % grid) * cell;
+        var list = blend == FxBlend.Additive ? AdditiveFx : AlphaFx;
+        void V(Vector3 p, Vector2 t) => list.Add(new FxVertex(p, uv0 + t * cell, colour, layer));
+        V(at - r + u, new(0, 0));
+        V(at - r - u, new(0, 1));
+        V(at + r - u, new(1, 1));
+        V(at - r + u, new(0, 0));
+        V(at + r - u, new(1, 1));
+        V(at + r + u, new(1, 0));
+    }
+
+    /// <summary>A blended triangle of glow geometry (a lamp's beam), colour and alpha per corner.</summary>
+    public void FxTriangle(FxBlend blend, in FxVertex a, in FxVertex b, in FxVertex c)
+    {
+        var list = blend == FxBlend.Additive ? AdditiveFx : AlphaFx;
+        list.Add(a);
+        list.Add(b);
+        list.Add(c);
+    }
+
     /// <summary>Emissive amount applied to everything added until changed.</summary>
     public float Emissive { get; set; }
 
@@ -106,6 +162,8 @@ public sealed class MeshBuilder
         _vertices.Clear();
         PointLights.Clear();
         Instances.Clear();
+        AlphaFx.Clear();
+        AdditiveFx.Clear();
     }
 
     /// <summary>Drops everything added after the first <paramref name="count"/> vertices (lights stay).</summary>
