@@ -215,13 +215,22 @@ public sealed class World
         PlayerMotor.Look(ref s, intent);
         PlayerMotor.TakeHand(ref s, intent, Hand);
         if (Authority && Run is { } run)
+        {
             run.CrewAct(s, intent, playerId, Train, Hand);
+            // Spec D.2 "dropped loads kill": under a casting the crane let go of.
+            if (run.Crushes(s, Train))
+                Damage.Add(new Enemies.DamageEvent(playerId, 1000, DeathCause.Crushed));
+        }
         if (Authority && Switches?.CrewAct(s, intent, playerId, Train, Hand) is { } thrown)
             SwitchThrows.Add(thrown);
         if (Authority)
             Vigil?.CrewAct(s, intent, playerId, Train, Hand);
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever.
         bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand);
+        // At the crane's controls, the stick drives the crane, not your feet (T48). Worked out the same everywhere, so a
+        // client predicts standing still at the stand.
+        bool operating = Run?.CurrentSite?.Crane is { } crane && crane.AtControls(s, intent, Train);
+        s.Flags = operating ? s.Flags | PlayerFlags.Operating : s.Flags & ~PlayerFlags.Operating;
         if (Authority)
         {
             // Freight in your arms slows you and keeps you off ladders (spec B.2); the motor reads the flag.

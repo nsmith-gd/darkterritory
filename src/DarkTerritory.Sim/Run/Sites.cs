@@ -9,6 +9,8 @@ public sealed record FacilityTuning(CrateTuning Crates, WinchTuning Winch, Dicti
 {
     public const string File = "tuning/facilities.json";
 
+    public CraneTuning Crane { get; init; } = new();
+
     /// <summary>On a spur, the modules are laid out from this far back from its buffer stop (beside the first cars).</summary>
     public double SpurLayout { get; init; } = 45;
 
@@ -55,11 +57,37 @@ public sealed record CrankTuning
     public double SmoothSeconds { get; init; } = 0.25;
 }
 
+/// <summary>The gantry crane (spec D.2, T48). Field docs in facilities.json.</summary>
+public sealed record CraneTuning
+{
+    public double Along { get; init; } = -4;
+    public double Length { get; init; } = 20;
+    public double[] Span { get; init; } = [-3.5, 9];
+    public double Height { get; init; } = 8;
+    public double StackLateral { get; init; } = 7.5;
+    public int Castings { get; init; } = 2;
+    public double Spacing { get; init; } = 3;
+    public double LoadPerCasting { get; init; } = 0.5;
+    public double[] CastingSize { get; init; } = [1.4, 0.9, 1.0];
+    public double BridgeSpeed { get; init; } = 1.2;
+    public double TrolleySpeed { get; init; } = 1.0;
+    public double HoistSpeed { get; init; } = 0.8;
+    public double ControlsReach { get; init; } = 1.2;
+    public double RigReach { get; init; } = 1.5;
+    public double RigHeight { get; init; } = 2.2;
+    public double RigSeconds { get; init; } = 2;
+    public double DropAbove { get; init; } = 0.6;
+    public double CrushRadius { get; init; } = 1.4;
+}
+
+/// <summary>Where a crane's casting is (T48): on the ground where it was stacked, on the hook, or lashed on a car.</summary>
+public enum CastingState : byte { Stacked, Hooked, Loaded, Lost }
+
 /// <summary>A site's replicated state (the Run record), for a client to adopt.</summary>
 public readonly record struct SiteState(bool Stocked, double Progress, int SledsLeft, bool Turning, bool OutOfRhythm, double Crank);
 
 /// <summary>Spec D.2 loading modules built so far.</summary>
-public enum ModuleKind : byte { Crates, Winch }
+public enum ModuleKind : byte { Crates, Winch, Crane }
 
 /// <summary>
 /// One facility's loading modules and where they stand, laid out beside its track from the route (so every machine
@@ -113,7 +141,12 @@ public sealed class Site
             Outward = ((SledFrom - SledTo) with { Y = 0 }).Normalized;
             CrankRadius = w.Crank.Radius;
         }
+        if (Has(ModuleKind.Crane))
+            Crane = new Crane(t.Crane, (along, lateral, up) => At(along, lateral, up));
     }
+
+    /// <summary>The gantry crane here, if the facility has one (T48).</summary>
+    public Crane? Crane { get; }
 
     public int Index { get; }
     public RouteFeature Feature { get; }

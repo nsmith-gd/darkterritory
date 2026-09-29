@@ -505,7 +505,15 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     {
         run = new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
         run.EnableSites(DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)), line);
-        site = run.Sites.FirstOrDefault(x => x is not null && x.Has(DarkTerritory.Sim.Run.ModuleKind.Winch)) ?? run.Sites.FirstOrDefault(x => x is not null);
+        // --crane: the first facility with a gantry crane (T48) instead, its first casting on the hook.
+        site = args.Contains("--crane") ? run.Sites.FirstOrDefault(x => x?.Crane is not null)
+            : run.Sites.FirstOrDefault(x => x is not null && x.Has(DarkTerritory.Sim.Run.ModuleKind.Winch)) ?? run.Sites.FirstOrDefault(x => x is not null);
+        if (site?.Crane is { } shownCrane)
+        {
+            shownCrane.Castings[0].State = DarkTerritory.Sim.Run.CastingState.Hooked;
+            shownCrane.Hook = 4;
+            shownCrane.Trolley = 3;
+        }
         if (site is not null)
         {
             // Down its spur, the engine up at the buffer stop (T28); on the main line for one without.
@@ -574,7 +582,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         cargo = [.. shelf.All];
         if (Str(args, "--cam", "") is not { Length: > 0 })
         {
-            if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Winch))
+            if (site.Crane is { } crane)
+            {
+                // High on the near side of the track, past the gantry's end, looking down across the train at the hook and castings.
+                var outward = (crane.Corner(0, 1) - crane.Corner(0, 0)) with { Y = 0 };
+                var along = (crane.Corner(1, 0) - crane.Corner(0, 0)).Normalized;
+                camera = Camera.LookAt(crane.Corner(1, 0) - outward.Normalized * 5 + along * 6 + Double3.Up * 11, crane.HookAt - Double3.Up * 2.5, 65);
+            }
+            else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Winch))
             {
                 // Out beyond the sled, a little along the line, looking back at the capstan and the train.
                 var outward = (site.SledFrom - site.SledTo).Normalized;
@@ -898,7 +913,7 @@ static int Usage()
                      [--route tier:seed [--coaling]]   a generated night; --coaling stops at its coaling tower, chute pouring
                      [--bodies]   crates, a lamp and a crewmate's body on the roofs, settled by the physics
                      [--vigil]    emergency lighting, as during a Vigil (spec C.2)
-                     [--route tier:seed --site [--crank]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks
+                     [--route tier:seed --site [--crank | --crane]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
