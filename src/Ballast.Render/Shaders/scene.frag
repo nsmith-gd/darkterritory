@@ -8,6 +8,7 @@
 
 layout(set = 0, binding = 1) uniform sampler2DArray diffuseMaps;
 layout(set = 0, binding = 2) uniform sampler2DArray specMaps;
+layout(set = 0, binding = 4) uniform sampler2DShadow lampShadow;
 
 layout(location = 0) in vec3 vPos;
 layout(location = 1) in vec3 vNormal;
@@ -72,6 +73,22 @@ float fogAmount(vec3 p) {
     return 1.0 - exp(-pow(optical, frame.sky2.y));
 }
 
+// How much of the headlamp reaches this point past whatever's in front of it: four taps of the shadow map, so the
+// edges are soft by a texel or two (pipeline: "1024^2 shadow map, 4-tap PCF").
+float lampShadowAt(vec3 p, vec3 n) {
+    vec4 ls = frame.lampViewProj * vec4(p + n * 0.04, 1.0);
+    if (ls.w <= 0.0)
+        return 1.0;
+    vec3 c = ls.xyz / ls.w;
+    vec2 uv = c.xy * 0.5 + 0.5;
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || c.z >= 1.0)
+        return 1.0;
+    float texel = 1.0 / 1024.0;
+    float z = c.z - 0.0006;
+    return 0.25 * (texture(lampShadow, vec3(uv + vec2(-0.6, -0.6) * texel, z)) + texture(lampShadow, vec3(uv + vec2(0.6, -0.6) * texel, z))
+                 + texture(lampShadow, vec3(uv + vec2(-0.6, 0.6) * texel, z)) + texture(lampShadow, vec3(uv + vec2(0.6, 0.6) * texel, z)));
+}
+
 void main() {
     vec3 n = normalize(vNormal);
     if (!gl_FrontFacing)
@@ -128,6 +145,8 @@ void main() {
     float cone = smoothstep(frame.lampDir.w, mix(frame.lampDir.w, 1.0, 0.35), dot(-l, normalize(frame.lampDir.xyz)));
     float falloff = clamp(1.0 - lampDist / frame.lampPos.w, 0.0, 1.0);
     float lampLit = cone * falloff * falloff;
+    if (lampLit > 0.0)
+        lampLit *= lampShadowAt(vPos, n);
     vec3 lampC = frame.lampColour.rgb * frame.lampColour.a;
     light += lampC * lampLit * max(dot(n, l), 0.0);
     spec += lampC * lampLit * pow(max(dot(n, normalize(l + v)), 0.0), shininess) * 0.75;

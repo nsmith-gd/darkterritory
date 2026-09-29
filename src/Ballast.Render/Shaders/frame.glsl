@@ -2,6 +2,7 @@
 layout(set = 0, binding = 0) uniform Frame {
     mat4 viewProj;
     mat4 invViewProj;
+    mat4 lampViewProj; // camera-relative to the headlamp's shadow map
     vec4 fog;          // rgb colour, a = density per metre
     vec4 fogHeight;    // x = fog base height (camera-relative), y = falloff per metre up, z = density kept up high, w = seconds
     vec4 moon;         // xyz towards the moon, w = ambient
