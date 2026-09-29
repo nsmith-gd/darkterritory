@@ -14,7 +14,11 @@ using DarkTerritory.Sim.Train;
 // `dt` — the headless command-line entry point. Everything an agent needs to inspect or verify
 // the game without a window goes through here. Output is JSON unless stated otherwise.
 
-var content = DataFile.FindContentRoot(Environment.CurrentDirectory);
+var baseContent = DataFile.FindContentRoot(Environment.CurrentDirectory);
+// Mods (T49) laid over the content like the game does (--no-mods for the base game). The editor edits the base content.
+bool noMods = args.Contains("--no-mods");
+args = [.. args.Where(a => a != "--no-mods")];
+var content = args is ["edit", ..] or ["mods", ..] ? baseContent : Mods.Mount(baseContent, enabled: !noMods);
 var train = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
 var player = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
 var boiler = DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File));
@@ -22,6 +26,13 @@ var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.F
 
 return args switch
 {
+    // dt mods: the mods found, in load order, and what each does to which file (T49).
+    ["mods", ..] => Print(new
+    {
+        folders = Mods.Folders(baseContent),
+        mods = ContentMods.Find(Mods.Folders(baseContent)).Select(m => new { m.Name, m.Version, m.Order, m.Description, m.Directory }),
+        files = ContentMods.Plan(baseContent, ContentMods.Find(Mods.Folders(baseContent))),
+    }),
     ["train", "table"] => Print(TrainTable(train, player)),
     ["boiler", "table"] => Print(new[] { 3, 6, 10, 15, 20 }.Select(n => new
     {
@@ -899,7 +910,8 @@ static int Print(object value)
 static int Usage()
 {
     Console.Error.WriteLine("""
-        usage: dt <command>
+        usage: dt <command>        (mods in ./mods and the user's app data are laid over content/; --no-mods for the base game)
+          mods                                     the mods found, their load order, and what each does to which file
           train table                              spec table (B.4–B.6) as produced by current tuning
           train stop <cars> [--from v] [--load l] [--grade g]
           train climb <cars> <grade%> [--from v] [--load l]

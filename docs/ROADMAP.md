@@ -133,6 +133,11 @@ M3 is done but for a test with eight people.
   - cargo cars have a sliding door on each side with steps up to it, so you walk freight in;
   - crate hands carry the stack in and shut the doors after.
 
+**Mods v1 (T49, M7's "mod loader v1"):**
+- Folders in `mods/` (or app data) laid over `content/`: they add files, replace them, or `$patch` a JSON file one key at a time.
+- The game reads the merged copy. The content hash keeps a crew on the same mods, and a refused joiner is told which mods differ.
+- `dt mods` shows what's loaded; `--no-mods` gives the base game.
+
 **Art pass v1 (T39, M5's "art pass to style sheet"):**
 - Greybox surfaces are weathered to GDD §27, standing in for textures: blocky grain at 128 px/m, soot fields, rust patches and streaks, a baked shadow low down, and harsh speculars on iron and brass.
 - The wear rides with each car. Materials come from the palette (`tuning/look.json`), and `--greybox` gives flat colour to compare.
