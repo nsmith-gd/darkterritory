@@ -1,0 +1,11 @@
+// GDD §34 "Agent verification harness": the balance sweep's targets, as `dt balance` judges a sweep of bot nights.
+// Bots are not people (they don't talk, and they keep to a plan), so these are floors for the harness, not the design's
+// numbers for players: a sweep that fails one has found a night the bots can't play, or one nothing happens in.
+{
+  // "Crew-size sweep: survivable at 2": at least this share of a two-crew's nights get home.
+  "survivableCrew": 2,
+  "survivableDelivered": 0.5,
+  // "...non-trivial at 8": an eight-crew's night sees at least this many punishes (a threat landing) on average.
+  "nonTrivialCrew": 8,
+  "nonTrivialPunishes": 5
+}

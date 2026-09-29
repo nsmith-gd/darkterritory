@@ -1178,3 +1178,17 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Verified:**
       - `StopCrewTests.AtTheFoundryThePairRunTheCraneAndTheCastingsGoOnTheRoofs`: both castings loaded, everyone alive, and the train back together and away.
       - The harness's stop records count `castings`.
+60. **The balance sweep (T55, roadmap M7 "balance sweeps", GDD §34).** `dt balance` runs harness nights across a grid (tiers, seeds, crew sizes, train lengths) side by side, and judges them (`Net/Balance.cs`) against `tuning/balance.json`.
+    - **Each night** is a whole host with its bots over its own loopback, as `dt harness --route --enemies` runs it. Nothing is shared between nights, so they run in parallel (`--parallel`, the machine's cores by default).
+    - **The checks:**
+      - the crew-size sweep: "survivable at 2" (at least half a two-crew's nights get home) and "non-trivial at 8" (an eight-crew's night sees at least 5 punishes);
+      - App. A.1's fairness contract on every night.
+    - **The train-length sweep** ("where is the real progression cap?") is reported by length, not judged: that's a design call. So is anything about fun (§34: "agents cannot tell us whether it is funny").
+    - **Bots aren't people.** They keep to a plan and don't talk. So the targets are floors that find nights the bots can't play, or nights where nothing happens; they aren't the design's numbers for players.
+    - The targets are loaded before any night runs: a sweep is an hour of nights, and a bad file shouldn't lose them at the end.
+    - **First sweep** (frontier seeds 1 and 2, 10 cars, crews of 2 and 8), 10 min on 4 cores:
+      - every night delivered, nobody lost, 0 fairness violations;
+      - a crew of two: net 2100, 28.5 punishes a night; a crew of eight: net 3791, 24 punishes.
+      - Two bots don't work facilities: the stops need a shunter, and the second bot is the gunner. That's why their net is lower.
+    - The nightly soak runs that sweep and fails on a failed check.
+    - **Verified:** `BalanceTests` (4): the grid is every combination; a survivable, busy sweep passes; each target fails on its own; train length is reported, not judged.

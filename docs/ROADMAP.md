@@ -152,6 +152,11 @@ M3 is done but for a test with eight people.
 - The game reads the merged copy. The content hash keeps a crew on the same mods, and a refused joiner is told which mods differ.
 - `dt mods` shows what's loaded; `--no-mods` gives the base game.
 
+**Balance sweeps (T55, M7, GDD §34):**
+- `dt balance` runs harness nights over tiers, seeds, crew sizes and train lengths, side by side.
+- It checks "survivable at 2, non-trivial at 8" and fairness, and reports by train length for the progression-cap question.
+- It runs nightly in the soak.
+
 **Art pass v1 (T39, M5's "art pass to style sheet"):**
 - Greybox surfaces are weathered to GDD §27, standing in for textures: blocky grain at 128 px/m, soot fields, rust patches and streaks, a baked shadow low down, and harsh speculars on iron and brass.
 - The wear rides with each car. Materials come from the palette (`tuning/look.json`), and `--greybox` gives flat colour to compare.
