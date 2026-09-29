@@ -48,6 +48,53 @@ public sealed class SceneArt(Look look)
         $"{s.HalfWidth:0.###}x{s.HalfLength:0.###}x{s.RoofHeight:0.###}:{s.Solids.Count}:{s.Solids.Any(x => x.Part == PartKind.Coupler)}";
 
     /// <summary>
+    /// A loose body that isn't a ragdoll (crates, freight, a lamp, a radio) as its prop, turned by its yaw in its parent's
+    /// frame. A lamp lights its surroundings and glows. Returns false for what the kit doesn't draw (the dead).
+    /// </summary>
+    public bool Body(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, double heavyHalf, double time)
+    {
+        if (b.Kind == Sim.Physics.BodyKind.Ragdoll)
+            return false;
+        bool onCar = b.Parent != Sim.Player.PlayerState.World && b.Parent < frames.Count;
+        if (!onCar && b.Parent != Sim.Player.PlayerState.World)
+            return true;
+        var local = b.Pbd.Particles[0].Position;
+        var at = onCar ? frames[b.Parent].ToWorld(local) : local;
+        if ((at - eye).Length > 250)
+            return true;
+        var up = onCar ? frames[b.Parent].Up : Double3.Up;
+        double yaw = b.Yaw + (onCar ? frames[b.Parent].Heading : 0);
+        var u = new Vector3((float)up.X, (float)up.Y, (float)up.Z);
+        var right = Vector3.Normalize(Vector3.Cross(new Vector3((float)Math.Sin(yaw), 0, (float)Math.Cos(yaw)), u));
+        var back = Vector3.Cross(right, u);
+        var o = at.RelativeTo(eye);
+        var m = new Matrix4x4(right.X, right.Y, right.Z, 0, u.X, u.Y, u.Z, 0, back.X, back.Y, back.Z, 0, o.X, o.Y, o.Z, 1);
+        var piece = b.Kind switch
+        {
+            Sim.Physics.BodyKind.Cargo => Piece("prop-cargo", () => PropKit.Cargo(Look)),
+            Sim.Physics.BodyKind.Heavy => Piece($"prop-heavy-{heavyHalf:0.00}", () => PropKit.Heavy(Look, (float)heavyHalf)),
+            Sim.Physics.BodyKind.Crate => Piece("prop-crate", () => PropKit.Crate(Look)),
+            Sim.Physics.BodyKind.Radio => Piece("prop-radio", () => PropKit.Radio(Look)),
+            _ => Piece("prop-lantern", () => PropKit.Lantern(Look)),
+        };
+        mesh.Append(piece, m);
+        if (b.Kind == Sim.Physics.BodyKind.Lamp)
+        {
+            // A hand lamp's glow round it, flickering a little (pipeline: "dynamic point lights with flicker curves").
+            float flicker = Flicker(time, b.Id);
+            mesh.Billboard(o, 0.7f * flicker, 0, new Vector4(Palette.LampAmber * 0.55f * flicker, 1), -1, FxBlend.Additive);
+        }
+        return true;
+    }
+
+    /// <summary>A flame's flicker, 0.85..1.05, different for each light and steady enough not to strobe.</summary>
+    public static float Flicker(double time, int id)
+    {
+        double t = time * 7 + id * 13.7;
+        return (float)(0.95 + 0.05 * Math.Sin(t) + 0.03 * Math.Sin(t * 2.7 + 1.3) + 0.02 * Math.Sin(t * 5.3 + 0.4));
+    }
+
+    /// <summary>
     /// A car: its body from the kit, its doors where the vehicle has them (shut in the doorway, or slid aside), and its gun
     /// turned the way it faces. Returns false when the kit can't draw this car (so the greybox does).
     /// </summary>

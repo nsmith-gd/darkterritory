@@ -125,7 +125,8 @@ public sealed class GreyboxScene
             // Heavy crates only come from a facility's site, so its size is there (facilities.json "heavy").
             double heavyHalf = Run?.Sites.FirstOrDefault(x => x is not null)?.HeavyRadius ?? 0.5;
             foreach (var b in Bodies)
-                DrawBody(mesh, frames, b, eye, heavyHalf);
+                if (Look?.Art.Body(mesh, frames, b, eye, heavyHalf, Time) != true)
+                    DrawBody(mesh, frames, b, eye, heavyHalf);
         }
         if (Crew is not null)
             foreach (var c in Crew)
