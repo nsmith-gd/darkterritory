@@ -636,6 +636,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             v.Gun.LastShotTick = 100;
     var scene = new GreyboxScene
     {
+        // --draw m: how far along the line to build it (an aerial view of a stretch wants more than the cab's 400).
+        DrawDistance = (float)Opt(args, "--draw", 400),
         Tick = args.Contains("--muzzle") ? 101 : -1,
         Look = look,
         Route = route,
@@ -664,6 +666,21 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     {
         lighting.FogDensity = (float)route.Weather.FogDensity;
         lighting.Wetness = route.Weather.Wet ? 1 : 0;
+    }
+    // --fog d: a thinner (or thicker) night than the route's, to look the lie of the land over.
+    if (args.Contains("--fog"))
+        lighting.FogDensity = (float)Opt(args, "--fog", lighting.FogDensity);
+    // --survey: a flat, bright, clear light for reading the land's shape (the curves, the grades, the cuttings): a
+    // designer's view of a generated line, not the game's night.
+    if (args.Contains("--survey"))
+    {
+        lighting.MoonDirection = System.Numerics.Vector3.Normalize(new System.Numerics.Vector3(0.4f, 0.8f, 0.3f));
+        lighting.MoonColour = new System.Numerics.Vector3(1, 0.97f, 0.9f);
+        lighting.MoonStrength = 2.2f;
+        lighting.Ambient = 0.55f;
+        lighting.FogColor = new System.Numerics.Vector3(0.62f, 0.64f, 0.66f);
+        lighting.FogDensity = args.Contains("--fog") ? lighting.FogDensity : 0.0012f;
+        lighting.Wetness = 0;
     }
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor);
     PngWriter.Write(output, pixels, width, height, scale);

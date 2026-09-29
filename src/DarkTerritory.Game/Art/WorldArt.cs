@@ -71,6 +71,8 @@ public sealed partial class WorldArt(Look look)
 
     /// <summary>The terrain's cross-section: lateral offsets (m) out from the centre line, and heights at them.</summary>
     static readonly float[] Lateral = [0, 1.55f, 2.35f, 2.95f, 3.7f, 5.5f, 8, 12, 17, 24, 33, 45, 60, 78, 100];
+    /// <summary>A generated line's land runs on out to its terrain corridor's edge (linegen plan §12.2), where it falls away under the fog.</summary>
+    static readonly float[] PlanLateral = [.. Lateral, 130, 165, 205, 250, 300];
     static readonly float[] Profile = [0.0f, 0.0f, -0.24f, -0.3f, -0.06f, -0.02f, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
     const double Wrap = 4096;
@@ -170,11 +172,12 @@ public sealed partial class WorldArt(Look look)
         var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
         var origin = k.SurfaceOrigin;
         const double step = 5;
-        int columns = Lateral.Length;
+        var lateral = Scene(route) is null ? Lateral : PlanLateral;
+        int columns = lateral.Length;
         var left = new Vector3[columns * 2 - 1];
         var right = new Vector3[columns * 2 - 1];
         // Across the line: from the far left to the far right, both sides of one profile.
-        float LateralAt(int c) => c < columns - 1 ? -Lateral[columns - 1 - c] : Lateral[c - (columns - 1)];
+        float LateralAt(int c) => c < columns - 1 ? -lateral[columns - 1 - c] : lateral[c - (columns - 1)];
         void Row(double s, Vector3[] into, out float gorge, out bool bore)
         {
             var sample = line.Sample(s);

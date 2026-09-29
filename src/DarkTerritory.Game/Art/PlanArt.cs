@@ -146,7 +146,7 @@ public sealed partial class WorldArt
 
     /// <summary>
     /// One 100 m cell of a branch's land either side of its bed, out to 78 m, where the main line's own land doesn't
-    /// already reach (it runs 100 m out); a stand of trees on it.
+    /// already reach (it runs 300 m out); a stand of trees on it.
     /// </summary>
     Cell BranchCell(PlanScene p, int branch, RailLine local, long index)
     {
@@ -157,9 +157,9 @@ public sealed partial class WorldArt
         int columns = BranchLateral.Length;
         bool Covered(Double3 w)
         {
-            foreach (var n in p.Terrain.Nearby(w.X, w.Z, 100))
+            foreach (var n in p.Terrain.Nearby(w.X, w.Z, 300))
                 if (n.Edge == p.Main)
-                    return Math.Abs(n.Lateral) < 96;
+                    return Math.Abs(n.Lateral) < 290;
             return false;
         }
         (Vector3 P, bool Covered)[] Row(double s, int side)
