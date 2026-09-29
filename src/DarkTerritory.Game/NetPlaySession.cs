@@ -19,6 +19,23 @@ namespace DarkTerritory.Game;
 /// <param name="Route">A route spec (<c>frontier:7</c>), or null to play <paramref name="Line"/>.</param>
 public sealed record SessionSetup(string? Route = null, string Line = "test-loop", int Cars = 6, bool Enemies = true)
 {
+    /// <summary>The campaign's upgrades (spec F.3). Every machine applies the same list to the same content.</summary>
+    public IReadOnlyList<string> Upgrades { get; init; } = [];
+    /// <summary>Where the engine's front starts, along the line; null for the fortress yard. A resumed night starts where it was saved.</summary>
+    public double? Start { get; init; }
+
+    /// <summary>The night's tunings, with the upgrades applied.</summary>
+    public Sim.Campaign.Loadout Loadout(string content)
+    {
+        var loadout = new Sim.Campaign.Loadout(
+            DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File)),
+            DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)),
+            DataFile.Load<CombatTuning>(Path.Combine(content, CombatTuning.File)),
+            DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)));
+        return Upgrades.Count == 0 ? loadout
+            : Sim.Campaign.Campaign.Apply(DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)), Upgrades, loadout);
+    }
+
     /// <summary>
     /// The host's tuning, file by file (content/tuning/*.json, line endings normalised). A joiner whose tuning
     /// differs would predict a different game from the one the host runs, so it's refused by name.
@@ -53,9 +70,8 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// <param name="authority">The host's world runs the night; a joiner's mirrors it.</param>
     public (World World, Route? Route) Build(string content, bool authority = false)
     {
-        var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
-        var boiler = DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File));
-        var combat = DataFile.Load<CombatTuning>(Path.Combine(content, CombatTuning.File));
+        var loadout = Loadout(content);
+        var (trainTuning, boiler, combat) = (loadout.Train, loadout.Boiler, loadout.Combat);
         Route? route = null;
         RailLine line;
         var runTuning = DataFile.Load<Sim.Run.RunTuning>(Path.Combine(content, Sim.Run.RunTuning.File));
@@ -73,6 +89,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         {
             line = RailLine.Load(Path.Combine(content, "lines", Line + ".json"));
         }
+        start = Start ?? start;
         var train = new TrainOnLine(new TrainDynamics(consist), line, start, boiler);
         var world = new World(train, combat);
         world.EnableVigil(DataFile.Load<Sim.Run.VigilTuning>(Path.Combine(content, Sim.Run.VigilTuning.File)));
@@ -134,12 +151,17 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <param name="port">UDP port for LAN and direct-IP joiners (0 = any free one), or null to take none: the host's
     /// own player then connects on a private localhost port.</param>
     /// <param name="online">A platform to host a friends-only lobby on as well (Steam).</param>
-    public static NetPlaySession HostGame(string content, SessionSetup setup, int? port = DefaultPort, int expectedCrew = 4, IOnlineBackend? online = null)
+    /// <param name="resume">A night's autosave (spec E): start again from the facility it last left.</param>
+    public static NetPlaySession HostGame(string content, SessionSetup setup, int? port = DefaultPort, int expectedCrew = 4, IOnlineBackend? online = null,
+        Sim.Campaign.RunCheckpoint? resume = null)
     {
-        var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
-        setup = setup with { Content = SessionSetup.HashContent(content) };
+        setup = setup with { Content = SessionSetup.HashContent(content), Start = resume?.Front ?? setup.Start };
+        var loadout = setup.Loadout(content);
+        var trainTuning = loadout.Train;
         var (hostWorld, route) = setup.Build(content, authority: true);
+        if (resume is not null)
+            Restore(hostWorld, resume);
         var udp = port is { } p ? UdpTransport.Host(p) : UdpTransport.Host(0, bind: IPAddress.Loopback);
         ITransport hostTransport = online is null ? udp : new HostGroup(udp, OnlineTransport.Host(online));
         var lobby = online is null ? null : Lobby.Host(online, Game, Protocol.Version, MaxCrew);
@@ -155,7 +177,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 : Beside(hostWorld.Train, n, playerTuning);
         }
         if (setup.Enemies && route is not null)
-            host.EnableEnemies(DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)), route, route.Seed, expectedCrew);
+            host.EnableEnemies(loadout.Enemies!, route, route.Seed, expectedCrew);
         var (clientWorld, _) = setup.Build(content);
         var clientTransport = UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, udp.Port));
         var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning);
@@ -168,6 +190,32 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             Thread.Sleep(1);
         }
         return new NetPlaySession(host, hostTransport, port is null ? null : udp, client, clientTransport, setup, route, lobby);
+    }
+
+    static Sim.Campaign.RunCheckpoint Capture(World world, string route, int facility)
+    {
+        var train = world.Train;
+        return new Sim.Campaign.RunCheckpoint(route, facility, world.Run!.Seconds, train.Dynamics.Distance, train.Boiler.Tender,
+            [.. train.Vehicles.Select(v => new Sim.Campaign.CarState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun.Ammo))],
+            world.Vigil?.Revivals ?? 0);
+    }
+
+    /// <summary>Puts a night back as it was saved: the cars, the coal, the clock, and the stops already made.</summary>
+    static void Restore(World world, Sim.Campaign.RunCheckpoint c)
+    {
+        var train = world.Train;
+        foreach (var car in c.Cars)
+            if (car.Id < train.Vehicles.Count)
+            {
+                var v = train.Vehicles[car.Id];
+                v.Load = car.Load;
+                v.Integrity = car.Integrity;
+                v.CargoIntegrity = car.CargoIntegrity;
+                v.Gun = v.Gun with { Ammo = car.Ammo };
+            }
+        train.Boiler.Tender = c.Tender;
+        world.Run?.Resume(c.Seconds, c.Facility, c.Tender, c.Cars.Sum(x => x.Ammo));
+        world.Vigil?.Mirror(false, 0, c.Revivals, -1, -1);
     }
 
     /// <summary>The UDP port direct joiners use, or 0 when the host took none.</summary>
@@ -252,14 +300,33 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         var (world, route) = setup.Build(content);
         var client = new ClientSession(new Replay(transport, early), world,
-            DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File)), DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)));
+            setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)));
         return new NetPlaySession(null, null, null, client, transport, setup, route, lobby);
     }
+
+    /// <summary>
+    /// Spec E "autosave per POI, on successful departure": the host takes one each time the train pulls away from a
+    /// facility, and counts them so the app knows when to write the save.
+    /// </summary>
+    public Sim.Campaign.RunCheckpoint? Checkpoint { get; private set; }
+    public int Checkpoints { get; private set; }
+    Sim.Run.RunPhase _lastPhase;
+    int _lastFacility = -1;
 
     public void Step(in PlayerIntent intent)
     {
         Lobby?.Poll();
         Host?.Step();
+        if (Host?.World.Run is { } run)
+        {
+            if (_lastPhase == Sim.Run.RunPhase.AtFacility && run.Phase == Sim.Run.RunPhase.Underway && Setup.Route is { } spec)
+            {
+                Checkpoint = Capture(Host.World, spec, _lastFacility);
+                Checkpoints++;
+            }
+            _lastPhase = run.Phase;
+            _lastFacility = run.Facility >= 0 ? run.Facility : _lastFacility;
+        }
         _previous = Client.Predicted;
         Client.Step(intent);
         Tick++;

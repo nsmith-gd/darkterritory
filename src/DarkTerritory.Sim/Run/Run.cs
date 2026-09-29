@@ -297,6 +297,25 @@ public sealed class Run
             Math.Round(gross - coal - ammo - repairs), crewHome + revived, crew.Count - crewHome - revived, revived);
     }
 
+    /// <summary>
+    /// A night resumed from its autosave (spec E): under way with the clock where it was, and every stop up to the one it
+    /// last left already made (their chutes and modules spent), so the train pulls away from the save point again.
+    /// </summary>
+    /// <param name="tender">Coal aboard at the save, and <paramref name="ammo"/> rounds: the night's running costs count on from there.</param>
+    public void Resume(double seconds, int departedFacility, double tender, int ammo)
+    {
+        Phase = RunPhase.Underway;
+        Seconds = seconds;
+        Facility = -1;
+        _tenderAtDeparture = tender;
+        _ammoAtDeparture = ammo;
+        for (int i = 0; i <= departedFacility && i < _facilities.Count; i++)
+        {
+            _chuteLeft[i] = 0;
+            _sites.ElementAtOrDefault(i)?.Mirror(true, 0, 0, false);
+        }
+    }
+
     /// <summary>Client side: adopts the host's run state.</summary>
     public void Mirror(RunPhase phase, RunEnd end, double seconds, int facility, bool chuteOpen, double[] chuteLeft,
         IReadOnlyList<(bool Stocked, double Progress, int SledsLeft, bool Turning)>? sites = null)

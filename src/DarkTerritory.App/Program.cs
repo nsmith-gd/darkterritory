@@ -11,6 +11,7 @@ using Ballast.Xr;
 using DarkTerritory.Game;
 using DarkTerritory.Game.Sound;
 using DarkTerritory.Sim;
+using DarkTerritory.Sim.Campaign;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Route;
 
@@ -21,6 +22,8 @@ using DarkTerritory.Sim.Route;
 //   Left mouse at a gun (engine cab roof, guard car roof): fire · E (press) near a crate, lamp or body: pick up / put down · Right mouse: throw it
 //   1–9 respawn on that car's roof · Backspace respawn in the cab · Tab chase camera · Esc release mouse / quit
 // F1 toggles the HUD (--no-hud to start without it).
+// Campaign: --campaign <slot> [--contract i] [--resume] [--saves dir] plays tonight's contract with the slot's cars and
+//   upgrades, autosaves leaving each facility, and settles at the end (spec E, F). `dt campaign` runs the fortress.
 // Options: --route tier:seed | --route-file name (saved from dt edit) [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png --mute
 // Multiplayer (UDP, direct IP / LAN): --host [port] hosts the same options for others to join; --join address[:port] joins one.
 // Steam: --steam hosts a friends-only lobby as well (F2 opens the invite dialog; friends can also "Join Game" from the
@@ -52,6 +55,8 @@ static SteamBackend? NoSteam(string? error)
     return null;
 }
 IPlaySession session;
+SaveSlots? saves = null;
+CampaignState? campaign = null;
 if (connectLobby is { } lobbyId)
 {
     if (steam is null)
@@ -67,6 +72,25 @@ else if (args.Contains("--join"))
         endpoint.Port = NetPlaySession.DefaultPort;
     Console.WriteLine($"joining {endpoint}…");
     session = NetPlaySession.Join(content, endpoint);
+}
+else if (Arg("--campaign", "") is { Length: > 0 } slotArg)
+{
+    // Spec E: the host owns the campaign, and picks a slot. The night is the contract picked from the board, with
+    // the slot's cars and upgrades; --host and --steam take friends as usual.
+    var ct = DataFile.Load<CampaignTuning>(Path.Combine(content, CampaignTuning.File));
+    var rt = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
+    saves = new SaveSlots(Arg("--saves", SaveSlots.DefaultDirectory), ct.SaveSlots);
+    int slot = int.Parse(slotArg);
+    campaign = saves.Load(slot) ?? Campaign.New(ct, slot, $"Crew {slot}", (ulong)Random.Shared.Next(1, 100000));
+    // --resume: the night that was under way, from the last facility it left (spec E "crash: rolls back to last POI autosave").
+    var resume = args.Contains("--resume") && campaign.Current is not null ? campaign.Checkpoint : null;
+    var contract = resume is not null ? campaign.Current! : Campaign.Offers(ct, rt, campaign)[int.Parse(Arg("--contract", "0"))];
+    campaign = Campaign.Begin(campaign, contract) with { Checkpoint = resume };
+    saves.Save(campaign);
+    int? port = args.Contains("--host") ? int.TryParse(Arg("--host", ""), out var hp) ? hp : NetPlaySession.DefaultPort : null;
+    var setup = new SessionSetup(Route: contract.Route, Cars: campaign.Cars, Enemies: !args.Contains("--no-enemies")) { Upgrades = campaign.Upgrades };
+    Console.WriteLine($"campaign slot {slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
+    session = NetPlaySession.HostGame(content, setup, port, online: steam, resume: resume);
 }
 else if (args.Contains("--host") || (args.Contains("--steam") && steam is not null))
 {
@@ -243,6 +267,8 @@ while (!window.CloseRequested)
         pendingReverser = false;
         pendingYaw = pendingPitch = 0;
         session.Step(intent);
+        if (campaign is not null && session is NetPlaySession played)
+            campaign = Autosave(saves!, campaign, played);
         // The ears are where the eyes were last frame; audio follows the sim tick so no shot is missed.
         bool exposed = !PlayerMotor.Indoors(session.Player, session.Train);
         sound.Update(session.World, session.Controls, Listener.At(camera.Position, camera.Yaw), exposed, SimConstants.TickSeconds,
@@ -319,6 +345,8 @@ if (capture is not null)
 }
 Console.WriteLine($"frames {frameCount} ({frameCount / timer.Elapsed.TotalSeconds:0} fps), ticks {session.Tick}, {session.Status()}");
 (session as IDisposable)?.Dispose();
+if (campaign is { Current: not null } unfinished)
+    Console.WriteLine($"campaign: the night on {unfinished.Current.Route} isn't settled; --campaign {unfinished.Slot} --resume picks it up from the last facility");
 if (relaunch is { } next)
 {
     // The simplest way into another game is a fresh start, the same one Steam gives an invite accepted from outside.
@@ -327,3 +355,23 @@ if (relaunch is { } next)
     Process.Start(Environment.ProcessPath!, ["+connect_lobby", next.ToString()]);
 }
 return 0;
+
+// Spec E: autosave on each departure from a facility, and settle the night into the slot when it's over.
+static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySession session)
+{
+    if (campaign.Current is null)
+        return campaign;
+    if (session.World.Run?.Report is { } report)
+    {
+        var settled = Campaign.Settle(campaign, report);
+        saves.Save(settled);
+        Console.WriteLine($"campaign: {report.End}, net {report.Net:0} scrip; now {settled.Cars} cars and {settled.Scrip:0} scrip after {settled.Runs} nights");
+        return settled;
+    }
+    if (session.Checkpoint is { } c && !ReferenceEquals(c, campaign.Checkpoint))
+    {
+        campaign = campaign with { Checkpoint = c };
+        saves.Save(campaign);
+    }
+    return campaign;
+}
