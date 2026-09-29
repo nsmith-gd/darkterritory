@@ -9,6 +9,7 @@
 layout(set = 0, binding = 1) uniform sampler2DArray diffuseMaps;
 layout(set = 0, binding = 2) uniform sampler2DArray specMaps;
 layout(set = 0, binding = 4) uniform sampler2DShadow lampShadow;
+layout(set = 0, binding = 5) uniform sampler2DArray normalMaps;
 
 layout(location = 0) in vec3 vPos;
 layout(location = 1) in vec3 vNormal;
@@ -79,6 +80,22 @@ vec4 scarAt(vec3 s, vec2 scar) {
     float pick = step(1.0 - 0.18 * scar.x, hash(cell + seed));
     float hole = pick * step(t + 0.02, m) * step(length(fract(s / 8.0) - 0.5), 0.2 + 0.1 * hash(cell.zxy));
     return vec4(scorch, rust * (1.0 - hole), bare * (1.0 - hole), hole);
+}
+
+// The surface's normal bent by its normal map (x along +u, y along +v: tools/art's convention). No tangents in the
+// vertex: the frame comes from the screen-space derivatives of position and texture coordinate (Schüler's cotangent
+// frame), so every kit piece, skinned model and terrain cell gets relief without a vertex format change.
+vec3 perturb(vec3 n, vec3 p, vec2 uv, vec3 mapped) {
+    vec3 dp1 = dFdx(p), dp2 = dFdy(p);
+    vec2 duv1 = dFdx(uv), duv2 = dFdy(uv);
+    vec3 dp2perp = cross(dp2, n), dp1perp = cross(n, dp1);
+    vec3 t = dp2perp * duv1.x + dp1perp * duv2.x;
+    vec3 b = dp2perp * duv1.y + dp1perp * duv2.y;
+    float len = max(dot(t, t), dot(b, b));
+    if (len < 1e-20)
+        return n;
+    float inv = inversesqrt(len);
+    return normalize(t * inv * mapped.x + b * inv * mapped.y + n * mapped.z);
 }
 
 // Exponential height fog: thick in the low ground and the valleys under bridges, thinner up on the roofs, never gone.
@@ -155,6 +172,15 @@ void main() {
         }
         if (ps2)
             specMap = vec3(specMap.r * 0.5, 0.2, specMap.b);
+        else {
+            vec3 mapped = texture(normalMaps, vec3(vUv, vLayer)).xyz * 2.0 - 1.0;
+            if (vLayer2 >= 0.0 && vLayer2 < frame.params.w) {
+                vec3 mapped2 = texture(normalMaps, vec3(vUv, vLayer2)).xyz * 2.0 - 1.0;
+                float w2 = smoothstep(0.0, 0.18, vBlend * 1.4 - 0.2 - (dot(tex.rgb, vec3(0.3, 0.59, 0.11)) * 1.4) * 0.6 + 0.3);
+                mapped = mix(mapped, mapped2, w2);
+            }
+            n = perturb(n, vPos, vUv, normalize(mapped));
+        }
     }
     vec3 albedo = tex.rgb * vColor;
     if (vWear > 0.0)

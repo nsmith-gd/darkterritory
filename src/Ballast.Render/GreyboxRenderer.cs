@@ -46,6 +46,7 @@ struct PostConstants
 {
     public Vector4 A;
     public Vector4 B;
+    public Vector4 C;
 }
 
 /// <summary>
@@ -70,7 +71,11 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     readonly GpuContext _gpu;
     VkDeviceApi Api => _gpu.Api;
 
+    readonly VkSampler _crunchy;
     readonly Target _color, _scene, _depth, _bloomA, _bloomB, _shadow;
+    // The wide bloom's quarter-resolution pair, and the tonemapped frame FXAA reads (luma in alpha).
+    readonly Target _bloomC, _bloomD, _ldr;
+    const VkFormat LdrFormat = VkFormat.R8G8B8A8Unorm;
     const int ShadowSize = 1024;
     readonly VkSampler _shadowSampler;
     readonly VkPipeline _shadowPipeline;
@@ -83,7 +88,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
     readonly VkDescriptorPool _pool;
     readonly VkDescriptorSetLayout _sceneSetLayout, _postSetLayout, _compositeSetLayout;
-    readonly VkDescriptorSet _sceneSet, _brightSet, _blurHSet, _blurVSet, _compositeSet;
+    readonly VkDescriptorSet _sceneSet, _brightSet, _blurHSet, _blurVSet, _compositeSet, _blurH2Set, _blurV2Set, _fxaaSet;
     readonly VkPipelineLayout _sceneLayout, _postLayout, _compositeLayout, _overlayLayout;
     readonly VkPipeline _fxAlphaPipeline, _fxAddPipeline;
     VkBuffer _fxVertices;
@@ -91,10 +96,10 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     ulong _fxCapacity;
     int _fxAlphaCount, _fxAddCount;
     readonly List<FxVertex> _fx = new();
-    readonly VkPipeline _skyPipeline, _scenePipeline, _brightPipeline, _blurPipeline, _compositePipeline, _overlayPipeline;
+    readonly VkPipeline _skyPipeline, _scenePipeline, _brightPipeline, _blurPipeline, _compositePipeline, _overlayPipeline, _fxaaPipeline;
     readonly VkSampler _nearest, _linear;
 
-    GpuTexture _diffuse, _spec, _backdrop, _lut;
+    GpuTexture _diffuse, _spec, _backdrop, _lut, _normal;
     RenderAssets? _assets;
 
     VkBuffer _vertices;
@@ -140,6 +145,10 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _depth = CreateTarget(DepthFormat, width, height, VkImageUsageFlags.DepthStencilAttachment, VkImageAspectFlags.Depth);
         _bloomA = CreateTarget(SceneFormat, hw, hh, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color);
         _bloomB = CreateTarget(SceneFormat, hw, hh, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color);
+        int qw = Math.Max(1, width / 4), qh = Math.Max(1, height / 4);
+        _bloomC = CreateTarget(SceneFormat, qw, qh, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color);
+        _bloomD = CreateTarget(SceneFormat, qw, qh, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color);
+        _ldr = CreateTarget(LdrFormat, width, height, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color);
         _shadow = CreateTarget(DepthFormat, ShadowSize, ShadowSize, VkImageUsageFlags.DepthStencilAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Depth);
         {
             var info = new VkSamplerCreateInfo
@@ -166,18 +175,23 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
         _nearest = GpuTexture.CreateSampler(gpu, VkFilter.Nearest, VkFilter.Nearest, VkSamplerMipmapMode.Nearest, VkSamplerAddressMode.ClampToEdge, VkSamplerAddressMode.ClampToEdge);
         _linear = GpuTexture.CreateSampler(gpu, VkFilter.Linear, VkFilter.Linear, VkSamplerMipmapMode.Nearest, VkSamplerAddressMode.ClampToEdge, VkSamplerAddressMode.ClampToEdge);
+        // The PS2 comparison mode's material sampler: point-sampled, mips biased up so distance shimmers.
+        _crunchy = GpuTexture.CreateSampler(gpu, VkFilter.Nearest, VkFilter.Nearest, VkSamplerMipmapMode.Linear, VkSamplerAddressMode.Repeat,
+            VkSamplerAddressMode.Repeat, 0.4f, 16);
 
         // Descriptor sets: the scene's (frame constants, the material maps, the backdrop), and the post passes'.
         _sceneSetLayout = SetLayout([(VkDescriptorType.UniformBuffer, VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment),
             (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
-            (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment)]);
+            (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
+            (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment)]);
         _postSetLayout = SetLayout([(VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment)]);
         _compositeSetLayout = SetLayout([(VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
-            (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment)]);
+            (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
+            (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment)]);
         var sizes = stackalloc VkDescriptorPoolSize[2];
         sizes[0] = new VkDescriptorPoolSize { type = VkDescriptorType.UniformBuffer, descriptorCount = 2 };
-        sizes[1] = new VkDescriptorPoolSize { type = VkDescriptorType.CombinedImageSampler, descriptorCount = 20 };
-        var poolInfo = new VkDescriptorPoolCreateInfo { maxSets = 8, poolSizeCount = 2, pPoolSizes = sizes };
+        sizes[1] = new VkDescriptorPoolSize { type = VkDescriptorType.CombinedImageSampler, descriptorCount = 32 };
+        var poolInfo = new VkDescriptorPoolCreateInfo { maxSets = 12, poolSizeCount = 2, pPoolSizes = sizes };
         VkDescriptorPool pool;
         Check(Api.vkCreateDescriptorPool(&poolInfo, null, &pool), "vkCreateDescriptorPool");
         _pool = pool;
@@ -186,6 +200,9 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _blurHSet = Allocate(_postSetLayout);
         _blurVSet = Allocate(_postSetLayout);
         _compositeSet = Allocate(_compositeSetLayout);
+        _blurH2Set = Allocate(_postSetLayout);
+        _blurV2Set = Allocate(_postSetLayout);
+        _fxaaSet = Allocate(_postSetLayout);
 
         _sceneLayout = PipelineLayout(_sceneSetLayout, (uint)sizeof(DrawConstants), VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment);
         _postLayout = PipelineLayout(_postSetLayout, (uint)sizeof(PostConstants), VkShaderStageFlags.Fragment);
@@ -199,11 +216,13 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _fxAddPipeline = Pipeline(_sceneLayout, "fx.vert", "fx.frag", SceneFormat, PipelineKind.FxAdditive, depth: true);
         _brightPipeline = Pipeline(_postLayout, "fullscreen.vert", "bright.frag", SceneFormat, PipelineKind.Fullscreen, depth: false);
         _blurPipeline = Pipeline(_postLayout, "fullscreen.vert", "blur.frag", SceneFormat, PipelineKind.Fullscreen, depth: false);
-        _compositePipeline = Pipeline(_compositeLayout, "fullscreen.vert", "composite.frag", _colorFormat, PipelineKind.Fullscreen, depth: false);
+        _compositePipeline = Pipeline(_compositeLayout, "fullscreen.vert", "composite.frag", LdrFormat, PipelineKind.Fullscreen, depth: false);
+        _fxaaPipeline = Pipeline(_postLayout, "fullscreen.vert", "fxaa.frag", _colorFormat, PipelineKind.Fullscreen, depth: false);
         _overlayPipeline = Pipeline(_overlayLayout, "overlay.vert", "overlay.frag", _colorFormat, PipelineKind.Overlay, depth: false);
 
         // Until there are assets: one plain white layer (the greybox's flat colour), no backdrop, no grade.
         (_diffuse, _spec, _backdrop, _lut) = Upload(new RenderAssets());
+        _normal = UploadNormals(new RenderAssets());
         WriteSets();
     }
 
@@ -213,8 +232,19 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// <summary>The rendered frame. After <see cref="Record"/> it is in TransferSrcOptimal layout.</summary>
     public VkImage ColorImage => _color.Image;
 
-    /// <summary>The post stack's settings: from the loaded assets, or the defaults.</summary>
-    public PostSettings Post { get; set; } = new();
+    /// <summary>The post stack's settings: from the loaded assets, or the defaults. Set outside command recording.</summary>
+    public PostSettings Post
+    {
+        get => _post;
+        set
+        {
+            bool rebind = value.Ps2 != _post.Ps2;
+            _post = value;
+            if (rebind && _diffuse is not null)
+                WriteSets();
+        }
+    }
+    PostSettings _post = new();
 
     /// <summary>Counts from the last frame recorded, for budgets (pipeline "frame-level ceilings").</summary>
     public (int Triangles, int Draws, int Lights) Stats { get; private set; }
@@ -227,7 +257,9 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _spec.Dispose();
         _backdrop.Dispose();
         _lut.Dispose();
+        _normal.Dispose();
         (_diffuse, _spec, _backdrop, _lut) = Upload(assets);
+        _normal = UploadNormals(assets);
         _assets = assets;
         Post = assets.Post;
         WriteSets();
@@ -243,16 +275,29 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         var diffuse = layers.Select(l => (IReadOnlyList<byte[]>)GpuTexture.MipChain(l.Diffuse.Resized(size, size))).ToList();
         var spec = layers.Select(l => (IReadOnlyList<byte[]>)GpuTexture.MipChain(l.Spec.Resized(size, size))).ToList();
         float bias = assets.Post.MipBias;
-        var d = new GpuTexture(_gpu, GpuTexture.Kind.Array2D, VkFormat.R8G8B8A8Srgb, size, size, diffuse, VkFilter.Nearest,
-            VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, bias);
-        var s = new GpuTexture(_gpu, GpuTexture.Kind.Array2D, VkFormat.R8G8B8A8Unorm, size, size, spec, VkFilter.Nearest,
-            VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, bias);
+        // Trilinear and anisotropic: the 2008-2012 look the benchmarks set (BioShock 2, Dead Space). The PS2 comparison
+        // mode swaps in the point-sampled, positively biased sampler instead (_crunchy).
+        var d = new GpuTexture(_gpu, GpuTexture.Kind.Array2D, VkFormat.R8G8B8A8Srgb, size, size, diffuse, VkFilter.Linear,
+            VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, bias, anisotropy: _gpu.MaxAnisotropy);
+        var s = new GpuTexture(_gpu, GpuTexture.Kind.Array2D, VkFormat.R8G8B8A8Unorm, size, size, spec, VkFilter.Linear,
+            VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, bias, anisotropy: _gpu.MaxAnisotropy);
         var sky = assets.Backdrop ?? Image.Solid(4, 0, 0, 0, 0);
-        var b = new GpuTexture(_gpu, GpuTexture.Kind.Image2D, VkFormat.R8G8B8A8Srgb, sky.Width, sky.Height, [GpuTexture.MipChain(sky)], VkFilter.Nearest,
+        var b = new GpuTexture(_gpu, GpuTexture.Kind.Image2D, VkFormat.R8G8B8A8Srgb, sky.Width, sky.Height, [GpuTexture.MipChain(sky)], VkFilter.Linear,
             VkSamplerAddressMode.Repeat, VkSamplerAddressMode.ClampToEdge, bias);
         var lut = new GpuTexture(_gpu, GpuTexture.Kind.Volume, VkFormat.R8G8B8A8Unorm, ColourGrade.Size, ColourGrade.Size, [[assets.Lut ?? ColourGrade.Identity()]],
             VkFilter.Linear, VkSamplerAddressMode.ClampToEdge, VkSamplerAddressMode.ClampToEdge, depth: ColourGrade.Size);
         return (d, s, b, lut);
+    }
+
+    /// <summary>Every layer's normal map (flat where a layer has none), filtered like the diffuse, linear (not sRGB).</summary>
+    GpuTexture UploadNormals(RenderAssets assets)
+    {
+        int size = assets.LayerSize;
+        var flat = Image.Solid(size, 128, 128, 255);
+        var layers = assets.Layers.Count > 0 ? assets.Layers : [new MaterialLayer("white", Image.Solid(size, 255, 255, 255), Image.Solid(size, 0, 0, 0))];
+        var normals = layers.Select(l => (IReadOnlyList<byte[]>)GpuTexture.MipChain((l.Normal ?? flat).Resized(size, size))).ToList();
+        return new GpuTexture(_gpu, GpuTexture.Kind.Array2D, VkFormat.R8G8B8A8Unorm, size, size, normals, VkFilter.Linear,
+            VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, assets.Post.MipBias, anisotropy: _gpu.MaxAnisotropy);
     }
 
     /// <summary>Draws the mesh (camera-relative positions) and returns the frame as RGBA8, top row first.</summary>
@@ -517,19 +562,37 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         PostPass(cmd, _bloomA, _brightPipeline, _postLayout, _brightSet, new PostConstants { A = new Vector4(Post.BloomThreshold, 0, 0, 0) });
         PostPass(cmd, _bloomB, _blurPipeline, _postLayout, _blurHSet, new PostConstants { A = new Vector4(bloomStep.X, 0, 0, 0) });
         PostPass(cmd, _bloomA, _blurPipeline, _postLayout, _blurVSet, new PostConstants { A = new Vector4(0, bloomStep.Y, 0, 0) });
+        // The wide bloom: the half-res glow again at quarter res, blurred twice as far, so a lamp in fog has a halo you
+        // feel as much as see (the benchmarks' lanterns and emergency lights).
+        var wideStep = new Vector2(2f / _bloomC.Width, 2f / _bloomC.Height);
+        PostPass(cmd, _bloomC, _brightPipeline, _postLayout, _blurHSet, new PostConstants { A = Vector4.Zero });
+        PostPass(cmd, _bloomD, _blurPipeline, _postLayout, _blurH2Set, new PostConstants { A = new Vector4(wideStep.X, 0, 0, 0) });
+        PostPass(cmd, _bloomC, _blurPipeline, _postLayout, _blurV2Set, new PostConstants { A = new Vector4(0, wideStep.Y, 0, 0) });
 
-        // 4: the composite and the overlay, into the frame.
-        Transition(cmd, _color.Image, VkImageAspectFlags.Color, VkImageLayout.Undefined, VkImageLayout.ColorAttachmentOptimal);
-        BeginRendering(cmd, _color, withDepth: false);
+        // 4: the composite (tonemapped, graded) into the LDR frame; FXAA and the overlay into the final one.
         var composite = new PostConstants
         {
             A = new Vector4(Post.BloomStrength, Post.Vignette, Post.Grain, Post.ColourLevels),
-            B = new Vector4((float)(lighting.Time * 30 % 997), (float)Width / Height, Post.Ps2 ? 1 : 0, 0),
+            B = new Vector4((float)(lighting.Time * 30 % 997), (float)Width / Height, Post.Ps2 ? 1 : 0, Post.Exposure),
+            C = new Vector4(Post.WideBloom, Post.LensFringe, 0, 0),
         };
+        Transition(cmd, _ldr.Image, VkImageAspectFlags.Color, VkImageLayout.Undefined, VkImageLayout.ColorAttachmentOptimal);
+        BeginRendering(cmd, _ldr, withDepth: false);
         var compositeSet = _compositeSet;
         Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _compositePipeline);
         Api.vkCmdBindDescriptorSets(cmd, VkPipelineBindPoint.Graphics, _compositeLayout, 0, 1, &compositeSet, 0, null);
         Api.vkCmdPushConstants(cmd, _compositeLayout, VkShaderStageFlags.Fragment, 0, (uint)sizeof(PostConstants), &composite);
+        Api.vkCmdDraw(cmd, 3, 1, 0, 0);
+        Api.vkCmdEndRendering(cmd);
+        Transition(cmd, _ldr.Image, VkImageAspectFlags.Color, VkImageLayout.ColorAttachmentOptimal, VkImageLayout.ShaderReadOnlyOptimal);
+
+        Transition(cmd, _color.Image, VkImageAspectFlags.Color, VkImageLayout.Undefined, VkImageLayout.ColorAttachmentOptimal);
+        BeginRendering(cmd, _color, withDepth: false);
+        var fxaa = new PostConstants { A = new Vector4(1f / Width, 1f / Height, Post.Ps2 ? 0 : 1, 0) };
+        var fxaaSet = _fxaaSet;
+        Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _fxaaPipeline);
+        Api.vkCmdBindDescriptorSets(cmd, VkPipelineBindPoint.Graphics, _postLayout, 0, 1, &fxaaSet, 0, null);
+        Api.vkCmdPushConstants(cmd, _postLayout, VkShaderStageFlags.Fragment, 0, (uint)sizeof(PostConstants), &fxaa);
         Api.vkCmdDraw(cmd, 3, 1, 0, 0);
         if (_overlayCount > 0)
         {
@@ -701,9 +764,9 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
     void WriteSets()
     {
-        var images = stackalloc VkDescriptorImageInfo[11];
-        images[0] = new VkDescriptorImageInfo { sampler = _diffuse.Sampler, imageView = _diffuse.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
-        images[1] = new VkDescriptorImageInfo { sampler = _spec.Sampler, imageView = _spec.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
+        var images = stackalloc VkDescriptorImageInfo[16];
+        images[0] = new VkDescriptorImageInfo { sampler = Post.Ps2 ? _crunchy : _diffuse.Sampler, imageView = _diffuse.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
+        images[1] = new VkDescriptorImageInfo { sampler = Post.Ps2 ? _crunchy : _spec.Sampler, imageView = _spec.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[2] = new VkDescriptorImageInfo { sampler = _backdrop.Sampler, imageView = _backdrop.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[3] = new VkDescriptorImageInfo { sampler = _linear, imageView = _scene.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[4] = new VkDescriptorImageInfo { sampler = _linear, imageView = _bloomA.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
@@ -713,7 +776,11 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         images[8] = new VkDescriptorImageInfo { sampler = _lut.Sampler, imageView = _lut.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[9] = new VkDescriptorImageInfo { sampler = _shadowSampler, imageView = _shadow.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         var buffer = new VkDescriptorBufferInfo { buffer = _frame, offset = 0, range = (ulong)sizeof(FrameData) };
-        var writes = stackalloc VkWriteDescriptorSet[11];
+        images[10] = new VkDescriptorImageInfo { sampler = _linear, imageView = _bloomC.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
+        images[11] = new VkDescriptorImageInfo { sampler = _linear, imageView = _bloomD.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
+        images[12] = new VkDescriptorImageInfo { sampler = _linear, imageView = _ldr.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
+        images[13] = new VkDescriptorImageInfo { sampler = Post.Ps2 ? _crunchy : _normal.Sampler, imageView = _normal.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
+        var writes = stackalloc VkWriteDescriptorSet[16];
         VkWriteDescriptorSet Image(VkDescriptorSet set, uint binding, int image) => new()
         {
             dstSet = set,
@@ -733,7 +800,12 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         writes[8] = Image(_compositeSet, 1, 7);
         writes[9] = Image(_compositeSet, 2, 8);
         writes[10] = Image(_sceneSet, 4, 9);
-        Api.vkUpdateDescriptorSets(11, writes, 0, null);
+        writes[11] = Image(_compositeSet, 3, 10);
+        writes[12] = Image(_blurH2Set, 0, 10);
+        writes[13] = Image(_blurV2Set, 0, 11);
+        writes[14] = Image(_fxaaSet, 0, 12);
+        writes[15] = Image(_sceneSet, 5, 13);
+        Api.vkUpdateDescriptorSets(16, writes, 0, null);
     }
 
     VkPipelineLayout PipelineLayout(VkDescriptorSetLayout? set, uint pushSize, VkShaderStageFlags pushStages)
@@ -926,7 +998,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             Api.vkFreeMemory(_fxMemory, null);
         }
         Api.vkDestroySampler(_shadowSampler, null);
-        foreach (var p in new[] { _shadowPipeline, _fxAlphaPipeline, _fxAddPipeline, _skyPipeline, _scenePipeline, _brightPipeline, _blurPipeline, _compositePipeline, _overlayPipeline })
+        foreach (var p in new[] { _shadowPipeline, _fxAlphaPipeline, _fxAddPipeline, _skyPipeline, _scenePipeline, _brightPipeline, _blurPipeline, _compositePipeline, _overlayPipeline, _fxaaPipeline })
             Api.vkDestroyPipeline(p, null);
         foreach (var l in new[] { _sceneLayout, _postLayout, _compositeLayout, _overlayLayout })
             Api.vkDestroyPipelineLayout(l, null);
@@ -934,11 +1006,13 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         foreach (var l in new[] { _sceneSetLayout, _postSetLayout, _compositeSetLayout })
             Api.vkDestroyDescriptorSetLayout(l, null);
         _diffuse.Dispose();
+        _normal.Dispose();
         _spec.Dispose();
         _backdrop.Dispose();
         _lut.Dispose();
         Api.vkDestroySampler(_nearest, null);
         Api.vkDestroySampler(_linear, null);
+        Api.vkDestroySampler(_crunchy, null);
         foreach (var (_, m) in _allMeshes)
         {
             Api.vkDestroyBuffer(m.Buffer, null);
@@ -959,7 +1033,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         Api.vkFreeMemory(_frameMemory, null);
         Api.vkDestroyBuffer(_readback, null);
         Api.vkFreeMemory(_readbackMemory, null);
-        foreach (var t in new[] { _color, _scene, _depth, _bloomA, _bloomB, _shadow })
+        foreach (var t in new[] { _color, _scene, _depth, _bloomA, _bloomB, _shadow, _bloomC, _bloomD, _ldr })
             DestroyTarget(t);
     }
 }

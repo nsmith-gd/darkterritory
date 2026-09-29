@@ -1,0 +1,440 @@
+[
+  {
+    "name": "boy_room_0",
+    "diffuse": "models/boy_room_0.png",
+    "spec": "models/boy_room_0_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-boyroom",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/imaginary-friend-room",
+        "license": "CC-BY-4.0",
+        "attribution": "Boy Room by Iman Aliakbar (sketchfab.com/Iman.Aliakbar), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "boy_room_1",
+    "diffuse": "models/boy_room_1.png",
+    "spec": "models/boy_room_1_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-boyroom",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/imaginary-friend-room",
+        "license": "CC-BY-4.0",
+        "attribution": "Boy Room by Iman Aliakbar (sketchfab.com/Iman.Aliakbar), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "boy_room_2",
+    "diffuse": "models/boy_room_2.png",
+    "spec": "models/boy_room_2_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-boyroom",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/imaginary-friend-room",
+        "license": "CC-BY-4.0",
+        "attribution": "Boy Room by Iman Aliakbar (sketchfab.com/Iman.Aliakbar), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "boy_room_3",
+    "diffuse": "models/boy_room_3.png",
+    "spec": "models/boy_room_3_s.png",
+    "normal": "models/boy_room_3_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-boyroom",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/imaginary-friend-room",
+        "license": "CC-BY-4.0",
+        "attribution": "Boy Room by Iman Aliakbar (sketchfab.com/Iman.Aliakbar), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "boy_room_4",
+    "diffuse": "models/boy_room_4.png",
+    "spec": "models/boy_room_4_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-boyroom",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/imaginary-friend-room",
+        "license": "CC-BY-4.0",
+        "attribution": "Boy Room by Iman Aliakbar (sketchfab.com/Iman.Aliakbar), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "boy_room_5",
+    "diffuse": "models/boy_room_5.png",
+    "spec": "models/boy_room_5_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-boyroom",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/imaginary-friend-room",
+        "license": "CC-BY-4.0",
+        "attribution": "Boy Room by Iman Aliakbar (sketchfab.com/Iman.Aliakbar), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "boy_room_6",
+    "diffuse": "models/boy_room_6.png",
+    "spec": "models/boy_room_6_s.png",
+    "normal": "models/boy_room_6_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-boyroom",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/imaginary-friend-room",
+        "license": "CC-BY-4.0",
+        "attribution": "Boy Room by Iman Aliakbar (sketchfab.com/Iman.Aliakbar), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "boy_room_7",
+    "diffuse": "models/boy_room_7.png",
+    "spec": "models/boy_room_7_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-boyroom",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/imaginary-friend-room",
+        "license": "CC-BY-4.0",
+        "attribution": "Boy Room by Iman Aliakbar (sketchfab.com/Iman.Aliakbar), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "effigy_0",
+    "diffuse": "models/effigy_0.png",
+    "spec": "models/effigy_0_s.png",
+    "normal": "models/effigy_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      }
+    ]
+  },
+  {
+    "name": "hand_lantern_0",
+    "diffuse": "models/hand_lantern_0.png",
+    "spec": "models/hand_lantern_0_s.png",
+    "normal": "models/hand_lantern_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "khronos-lantern",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "Lantern, Microsoft (Khronos glTF sample assets), CC0"
+      }
+    ]
+  },
+  {
+    "name": "hollow_0",
+    "diffuse": "models/hollow_0.png",
+    "spec": "models/hollow_0_s.png",
+    "normal": "models/hollow_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-transi",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Le Transi de Rene de Chalon, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      }
+    ]
+  },
+  {
+    "name": "lamp_post_0",
+    "diffuse": "models/lamp_post_0.png",
+    "spec": "models/lamp_post_0_s.png",
+    "normal": "models/lamp_post_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "khronos-lantern",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "Lantern, Microsoft (Khronos glTF sample assets), CC0"
+      }
+    ]
+  },
+  {
+    "name": "mercury_defaced_0",
+    "diffuse": "models/mercury_defaced_0.png",
+    "spec": "models/mercury_defaced_0_s.png",
+    "normal": "models/mercury_defaced_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-mercury",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/mercury-about-to-kill-argos",
+        "license": "CC0-1.0",
+        "attribution": "Mercury about to kill Argos by B. Thorvaldsen, scanned by Virtual Museums of Malopolska, CC0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "skull_0",
+    "diffuse": "models/skull_0.png",
+    "spec": "models/skull_0_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "khronos-skull",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "ScatteringSkull (Khronos glTF sample assets), CC0"
+      }
+    ]
+  },
+  {
+    "name": "skull_cairn_0",
+    "diffuse": "models/skull_cairn_0.png",
+    "spec": "models/skull_cairn_0_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "khronos-skull",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "ScatteringSkull (Khronos glTF sample assets), CC0"
+      }
+    ]
+  },
+  {
+    "name": "skull_lantern_0",
+    "diffuse": "models/skull_lantern_0.png",
+    "spec": "models/skull_lantern_0_s.png",
+    "normal": "models/skull_lantern_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "khronos-lantern",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "Lantern, Microsoft (Khronos glTF sample assets), CC0"
+      },
+      {
+        "id": "khronos-skull",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "ScatteringSkull (Khronos glTF sample assets), CC0"
+      }
+    ]
+  },
+  {
+    "name": "skull_lantern_1",
+    "diffuse": "models/skull_lantern_1.png",
+    "spec": "models/skull_lantern_1_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "khronos-lantern",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "Lantern, Microsoft (Khronos glTF sample assets), CC0"
+      },
+      {
+        "id": "khronos-skull",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "ScatteringSkull (Khronos glTF sample assets), CC0"
+      }
+    ]
+  },
+  {
+    "name": "soot_child_0",
+    "diffuse": "models/soot_child_0.png",
+    "spec": "models/soot_child_0_s.png",
+    "normal": "models/soot_child_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-boyroom",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/imaginary-friend-room",
+        "license": "CC-BY-4.0",
+        "attribution": "Boy Room by Iman Aliakbar (sketchfab.com/Iman.Aliakbar), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "transi_0",
+    "diffuse": "models/transi_0.png",
+    "spec": "models/transi_0_s.png",
+    "normal": "models/transi_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-transi",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Le Transi de Rene de Chalon, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      }
+    ]
+  },
+  {
+    "name": "wall_face_0",
+    "diffuse": "models/wall_face_0.png",
+    "spec": "models/wall_face_0_s.png",
+    "normal": "models/wall_face_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "threejs-leeperrysmith",
+        "repo": "https://github.com/mrdoob/three.js",
+        "commit": "b1061fb8b5a040414719fc342f404eb5f63ea795",
+        "dir": "examples/models/gltf/LeePerrySmith",
+        "license": "CC-BY-3.0",
+        "attribution": "Infinite, 3D Head Scan by Lee Perry-Smith (ir-ltd.net), CC BY 3.0, based on a work at triplegangers.com",
+        "files": null
+      }
+    ]
+  }
+]

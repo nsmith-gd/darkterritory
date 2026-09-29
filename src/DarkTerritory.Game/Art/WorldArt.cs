@@ -16,6 +16,8 @@ namespace DarkTerritory.Game.Art;
 public sealed partial class WorldArt(Look look)
 {
     readonly Look _look = look;
+    /// <summary>The sourced props (tools/models), placed where the kit's pieces would be.</summary>
+    readonly PropArt _props = PropArt.Of(look);
     readonly Dictionary<string, MeshAsset> _pieces = new();
 
     MeshAsset Piece(string key, Func<MeshAsset> make)
@@ -28,7 +30,7 @@ public sealed partial class WorldArt(Look look)
     /// <summary>How long a cell of the line is: its ground, track and lineside cooked together (pipeline "20 m cells"; 100 m here, fewer draws).</summary>
     public const double CellLength = 100;
 
-    readonly record struct Cell(MeshAsset Soup, (MeshAsset Piece, Matrix4x4 Local)[] Pieces, Double3 Origin);
+    readonly record struct Cell(MeshAsset Soup, (MeshAsset Piece, Matrix4x4 Local)[] Pieces, PointLight[] Lights, Double3 Origin);
     readonly Dictionary<long, Cell> _cells = new();
     RailLine? _cellLine;
     Route? _cellRoute;
@@ -56,6 +58,13 @@ public sealed partial class WorldArt(Look look)
             mesh.Instances.Add(new MeshInstance(cell.Soup, at));
             foreach (var (piece, local) in cell.Pieces)
                 mesh.Instances.Add(new MeshInstance(piece, local * at));
+            // The lineside's lamps (a wayside shrine's): the light, and a small glow at its flame.
+            foreach (var l in cell.Lights)
+            {
+                var p = l.Position + at.Translation;
+                mesh.PointLights.Add(l with { Position = p });
+                mesh.Billboard(p, 0.5f, 0, new Vector4(l.Colour * 0.45f, 1), -1, FxBlend.Additive);
+            }
         }
     }
 
@@ -66,7 +75,7 @@ public sealed partial class WorldArt(Look look)
         var built = new MeshBuilder();
         Track(built, line, route, origin, a, b, valleyDepth);
         Lineside(built, line, route, origin, a, b, seed, valleyDepth);
-        return new Cell(MeshAsset.From($"cell-{index}", built), [.. built.Instances.Select(x => (x.Asset, x.Model))], origin);
+        return new Cell(MeshAsset.From($"cell-{index}", built), [.. built.Instances.Select(x => (x.Asset, x.Model))], [.. built.PointLights], origin);
     }
 
     /// <summary>The terrain's cross-section: lateral offsets (m) out from the centre line, and heights at them.</summary>
@@ -426,6 +435,50 @@ public sealed partial class WorldArt(Look look)
                 continue;
             mesh.Append(Piece($"fence-{index % 3}", () => WorldKit.FencePost(_look, index % 3)), Place(s, -14, 0, 1, 0.05f));
         }
+        // Wayside shrines (the sourced statues, tools/models): now and then close beside the line, where the headlamp
+        // finds them as the train goes by. A cadaver saint or a defaced one on the verge, facing the rails, a cairn of
+        // skulls at its feet and a dead lamp post leaning over it: somebody put them there, for someone to see.
+        for (double s = Math.Ceiling(from / 1300) * 1300; s < to; s += 1300)
+        {
+            int k = (int)(s / 1300);
+            if (s < 900 || Hash(k * 0.731f + seed) > 0.55f || !Clear(s))
+                continue;
+            int side = Hash(k * 1.37f) < 0.5f ? -1 : 1;
+            double lat = side * (7.5 + Hash(k * 2.1f) * 2.5);
+            if (OnBranch(s, lat) || OnBranch(s, lat * 1.3))
+                continue;
+            bool transi = Hash(k * 3.3f) < 0.5f;
+            var statue = _props.Get(transi ? "transi" : "mercury_defaced");
+            if (statue is null)
+                continue;
+            float face = side > 0 ? MathF.PI / 2 : -MathF.PI / 2;
+            // The scans don't all face the same way: turn each so it looks at the line.
+            float turn = transi ? MathF.PI / 2 : 0;
+            mesh.Instances.Add(new MeshInstance(statue, Place(s, lat, face + turn + (Hash(k * 4.7f) - 0.5f) * 0.4f, 1, 0.08f)));
+            if (_props.Get("skull_cairn") is { } cairn)
+                mesh.Instances.Add(new MeshInstance(cairn, Place(s + 0.9, lat - side * 0.9, Hash(k * 5.1f) * 6.28f, 1, 0.12f)));
+            if (_props.Get("lamp_post") is { } post)
+            {
+                // Its lamp is lit. Out here, with nobody for miles: somebody keeps it burning.
+                var at = Place(s - 2.2, lat + side * 0.6, face + MathF.PI / 2, 1, 0.1f);
+                mesh.Instances.Add(new MeshInstance(post, at));
+                if (_props.Socket("lamp_post", "lamp") is { } flame)
+                {
+                    // (A cell keeps its lights, and draws each one's glow where it's drawn.)
+                    mesh.PointLights.Add(new PointLight(Vector3.Transform(flame, at), Palette.LampAmber * 0.9f, 7));
+                }
+            }
+        }
+        // And on their own, cairns on the verge.
+        for (double s = Math.Ceiling(from / 450) * 450; s < to; s += 450)
+        {
+            int k = (int)(s / 450);
+            if (s < 900 || Hash(k * 0.917f + seed * 0.1f) > 0.22f || !Clear(s) || _props.Get("skull_cairn") is not { } cairn)
+                continue;
+            double lat = (Hash(k * 1.9f) < 0.5f ? -1 : 1) * (4.6 + Hash(k * 2.9f) * 4);
+            if (!OnBranch(s, lat))
+                mesh.Instances.Add(new MeshInstance(cairn, Place(s, lat, Hash(k * 3.9f) * 6.28f, 0.8f + Hash(k * 6.1f) * 0.5f, 0.1f)));
+        }
         // A generated line has its own towns and dead signals (PlanArt), where the plan put them.
         if (Scene(route) is not null)
             return;
@@ -473,9 +526,36 @@ public sealed partial class WorldArt(Look look)
             }
             double landmark = rng.NextDouble();
             if (landmark < 0.45)
+            {
                 Place(Piece("church", () => TownKit.Church(_look)), centre + 20, lateral + side * 26, (float)(rng.NextDouble() - 0.5) * 0.3f);
+                // The churchyard, between the church and the line: the cadaver saint at its gate, and the tombs.
+                if (_props.Get("transi") is { } saint)
+                    Place(saint, centre + 20, lateral + side * 11, 0);
+                if (_props.Get("effigy") is { } tomb)
+                    for (int i = 0; i < 3; i++)
+                        Place(tomb, centre + 8 + i * 9 + (rng.NextDouble() - 0.5) * 3, lateral + side * (15 + rng.NextDouble() * 6), MathF.PI / 2 + (float)(rng.NextDouble() - 0.5) * 0.4f);
+            }
             else if (landmark < 0.8)
                 Place(Piece("windmill", () => TownKit.Windmill(_look)), centre - 30, lateral + side * 20, (float)rng.NextDouble() * 3);
+            // One house nearest the line has lost its front wall: from the train you can see into the child's room
+            // (tools/models boy_room), grey with dust, the imaginary friend sitting with him. The bedside lamp is on.
+            if (_props.Get("boy_room") is { } room)
+            {
+                double along = centre - 40, across = side * (15 + rng.NextDouble() * 4);
+                if (!onBranch(along, across))
+                {
+                    var t = line.Sample(Math.Clamp(along, 0, line.Length));
+                    var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+                    float h = Ground(route, along, (float)across, valleyDepth) - 0.1f;
+                    float face = across > 0 ? MathF.PI / 2 : -MathF.PI / 2;
+                    var at = Basis(t.Tangent, t.Position + r * across + Double3.Up * h, eye, face);
+                    mesh.Instances.Add(new MeshInstance(room, at));
+                    if (_props.Socket("boy_room", "lamp") is { } bulb)
+                        mesh.PointLights.Add(new PointLight(Vector3.Transform(bulb, at), new Vector3(1.0f, 0.72f, 0.42f) * 1.6f, 6.5f));
+                }
+            }
+            if (landmark >= 0.45 && _props.Get("mercury_defaced") is { } square)
+                Place(square, centre, lateral - side * 4, (float)(rng.NextDouble() - 0.5) * 0.6f);
         }
     }
 

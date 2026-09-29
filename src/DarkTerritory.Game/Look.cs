@@ -58,6 +58,8 @@ public sealed record LookTuning
 {
     public const string File = "tuning/look.json";
     public float TexelsPerMetre { get; init; } = 128;
+    /// <summary>Every material layer's size in the GPU array (the library is authored at 512: ARCHITECTURE §8 note 55).</summary>
+    public int LayerSize { get; init; } = 512;
     public float Baked { get; init; } = 0.35f;
     /// <summary>By <see cref="Palette"/> colour name.</summary>
     public Dictionary<string, MaterialTuning> Materials { get; init; } = new();
@@ -73,6 +75,8 @@ public sealed record TextureEntry
     public string Name { get; init; } = "";
     public string Diffuse { get; init; } = "";
     public string? Spec { get; init; }
+    /// <summary>The tangent-space normal map, where the texture has relief (index.json "normal").</summary>
+    public string? Normal { get; init; }
     /// <summary>Metres to one repeat; none for cards, atlases and decals (they're mapped whole, 1 m to the texture).</summary>
     public float? TileMetres { get; init; }
     public string Family { get; init; } = "";
@@ -132,6 +136,10 @@ public sealed class Look
         if (!System.IO.File.Exists(index))
             return new Look(tuning);
         var entries = JsonSerializer.Deserialize<List<TextureEntry>>(System.IO.File.ReadAllText(index), DataFile.Options) ?? [];
+        // The sourced props' own layers (tools/models writes them beside the library, index.models.json), after it.
+        string models = Path.Combine(root, "index.models.json");
+        if (System.IO.File.Exists(models))
+            entries.AddRange(JsonSerializer.Deserialize<List<TextureEntry>>(System.IO.File.ReadAllText(models), DataFile.Options) ?? []);
         // A texture named in the index but not on disk is skipped (and so is its material's texture): the look degrades
         // to flat colour rather than failing to start.
         entries = [.. entries.Where(e => System.IO.File.Exists(Path.Combine(root, e.Diffuse)))];
@@ -182,11 +190,12 @@ public sealed class Look
                 }
                 var diffuse = Read(Path.Combine(TextureRoot, t.Diffuse), Image.Solid(4, 80, 80, 80));
                 var spec = t.Spec is { } s && System.IO.File.Exists(Path.Combine(TextureRoot, s)) ? Read(Path.Combine(TextureRoot, s), Image.Solid(4, 20, 60, 0)) : Image.Solid(4, 20, 60, 0);
-                layers.Add(new MaterialLayer(t.Name, diffuse, spec, t.AlphaTest));
+                var normal = t.Normal is { } n && System.IO.File.Exists(Path.Combine(TextureRoot, n)) ? Read(Path.Combine(TextureRoot, n), Image.Solid(4, 128, 128, 255)) : null;
+                layers.Add(new MaterialLayer(t.Name, diffuse, spec, t.AlphaTest, normal));
                 if (t.Family == "sky")
                     backdrop = diffuse;
             }
-        return new RenderAssets { Layers = layers, Backdrop = backdrop, Lut = Tuning.Grade.Bake(), Post = Tuning.Post };
+        return new RenderAssets { LayerSize = Tuning.LayerSize, Layers = layers, Backdrop = backdrop, Lut = Tuning.Grade.Bake(), Post = Tuning.Post };
     }
 
     /// <summary>The night's lighting with the look's atmosphere over it.</summary>

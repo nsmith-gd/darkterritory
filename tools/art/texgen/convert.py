@@ -35,6 +35,8 @@ def pbr_to_legacy(albedo, ao=None, height=None, normal=None, rough=None, metal=0
     step, done before shading so AO, cavity and the metal darkening survive it. Metal ramps are
     therefore authored as raw metal albedo, ~2.2x brighter than the dark iron they end up as."""
     h, w = albedo.shape[:2]
+    core.capture("height", height)
+    core.capture("normal", normal)
     metal = np.broadcast_to(np.asarray(metal, np.float32), (h, w)).astype(np.float32)
     if ramp is not None:
         albedo = to_ramp(albedo, ramp, pull=pull, desat=desat, contrast=contrast, bias=bias)
@@ -117,6 +119,11 @@ def finish(tex: core.Tex, rng) -> core.Tex:
     subtle pixel crawl"), a little 2x2 chroma averaging and quantisation for the compression feel."""
     d = tex.diffuse.astype(np.float32)
     h, w = d.shape[:2]
+    if core.ERA == "ps3":
+        # Film-era textures: the photo's own grain, no compression artefacts laid over it.
+        tex.grain *= 0.3
+        tex.chroma_block = 1
+        tex.quant = 256
     if tex.grain > 0:
         g = (rng.random((h, w), dtype=np.float32) - 0.5) * 2
         g2 = (noise.block_noise(rng, (h, w), 2) - 0.5) * 2
@@ -174,3 +181,48 @@ def save_png(arr: np.ndarray, path):
     mode = {3: "RGB", 4: "RGBA"}[arr.shape[2]]
     # optimize=True is deterministic in Pillow (zlib level 9); no metadata chunks are written.
     Image.fromarray(arr, mode).save(path, format="PNG", optimize=True)
+
+
+# How hard each family's relief reads in its normal map (slope per unit of normalised height per texel). Flat
+# families (fx, sky, paper, the lamps' glass) get no map: the engine draws them with the geometry's normal.
+NORMAL_STRENGTH = {
+    "masonry": 5.0, "ground": 4.5, "flesh": 4.0, "wood": 3.2, "iron": 2.6, "cloth": 2.2, "paint": 1.8,
+    "brass": 1.6, "foliage": 2.0, "glass": 0.6,
+}
+
+
+def normal_map(tex: core.Tex, captured) -> np.ndarray | None:
+    """The texture's tangent-space normal map at final size (x right, y down the image, z out), from the relief its
+    builder shaded with: every height field it passed through (each normalised, summed), or, failing that, the
+    diffuse's own light and dark (a high pass of its log luminance, the way a 2008 artist ran CrazyBump over a
+    photo). Tiling, because every gradient is periodic."""
+    strength = NORMAL_STRENGTH.get(tex.family)
+    if strength is None:
+        return None
+    h_out, w_out = tex.diffuse.shape[:2]
+    heights = [f for kind, f in captured if kind == "height" and f.ndim == 2]
+    total = None
+    for f in heights:
+        if f.shape[0] % h_out or f.shape[1] % w_out:
+            continue
+        f = noise.box_down(f.astype(np.float32), f.shape[0] // h_out) if f.shape[0] != h_out else f.astype(np.float32)
+        sd = float(f.std())
+        if sd < 1e-6:
+            continue
+        f = (f - f.mean()) / sd
+        total = f if total is None else total + f
+    if total is None:
+        l = np.log(lum(tex.diffuse) + 1e-3)
+        total = noise.blur(l, 0.7) - noise.blur(l, 10)
+        total = total / max(float(total.std()), 1e-6) * 0.6
+    else:
+        total = total / max(float(total.std()), 1e-6)
+    # Relief per texel: a feature a few texels across tilts ~20-30 degrees; scaled so a 256 map would read the same.
+    n = noise.normals_from_height(total, strength * 0.35 * (h_out / 512))
+    if tex.alpha is not None:
+        n[tex.alpha < 0.5] = (0, 0, 1)
+    return n
+
+
+def encode_normal(n: np.ndarray) -> np.ndarray:
+    return np.round((n * 0.5 + 0.5) * 255).clip(0, 255).astype(np.uint8)

@@ -90,8 +90,10 @@ public class LookTests
         Assert.True(Breakup(worn, 160) > Breakup(flat, 160) * 1.5, $"breakup {Breakup(worn, 160):0.00} vs flat {Breakup(flat, 160):0.00}");
         // ...but still a readable room (§32 wants it read fast): not a black hole, and not washed out either. Since the art
         // pass (ARCHITECTURE §8 note 48) the look's room is textured and lit per pixel, so it can be brighter than flat
-        // colour by its lamp; it mustn't be much brighter.
-        Assert.InRange(Mean(worn), Mean(flat) * 0.6, Mean(flat) * 1.6);
+        // colour by its lamp; and since the filmic tonemap (note 55), whose toe darkens the flat room more than the lit
+        // one, up to about twice. Washed out is held absolutely: a night interior stays under a quarter grey.
+        Assert.InRange(Mean(worn), Mean(flat) * 0.6, Mean(flat) * 2.2);
+        Assert.True(Mean(worn) < 64, $"the room is washed out: mean {Mean(worn):0.0}");
     }
 
     [Fact]

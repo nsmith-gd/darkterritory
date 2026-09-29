@@ -27,6 +27,8 @@ public static class ArtCatalog
     /// <summary>A track and lineside cell (20 m) is 25k; a structure's bay is a fraction of a cell, so a bay gets 8k.</summary>
     public static readonly AssetClass StructureBay = new("structure bay (part of a 20 m track cell)", 8_000);
     public static readonly AssetClass Facility = new("facility (per spur)", 90_000);
+    /// <summary>A whole ruined room seen from the line (tools/models: a sourced interior): one per village at most.</summary>
+    public static readonly AssetClass Interior = new("ruined interior (a whole room)", 30_000);
 
     public static IReadOnlyList<CatalogEntry> Entries(Look? look, TrainTuning train)
     {
@@ -96,6 +98,24 @@ public static class ArtCatalog
         list.Add(new("reeds", SmallProp, () => SettingKit.Reeds(look, 0)));
         list.Add(new("buffer-stop", MediumProp, () => StructureKit.BufferStop(look)));
         list.Add(new("switch-stand", MediumProp, () => StructureKit.SwitchStand(look)));
+        // The sourced props (tools/models): each budgeted as what it stands in for.
+        if (look is not null)
+        {
+            var props = PropArt.Of(look);
+            foreach (var name in props.Names)
+            {
+                var n = name;
+                // The hand lantern is also the crew's held lamp (the plan's first-person tool: 4-6k); a skull is seen
+                // close, in a pile or a lantern, so it gets a medium prop's budget, not a pebble's.
+                var cls = n switch
+                {
+                    "hand_lantern" or "skull" => MediumProp,
+                    "boy_room" => Interior,
+                    _ => LargeProp,
+                };
+                list.Add(new($"prop-{n}", cls, () => props.Get(n)!));
+            }
+        }
         foreach (var kind in Enum.GetValues<FacilityKind>())
         {
             var k = kind;
