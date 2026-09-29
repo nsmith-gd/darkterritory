@@ -4,6 +4,7 @@
     <Project Path="src/Ballast.Net/Ballast.Net.csproj" />
     <Project Path="src/Ballast.Platform/Ballast.Platform.csproj" />
     <Project Path="src/Ballast.Render/Ballast.Render.csproj" />
+    <Project Path="src/Ballast.Assets/Ballast.Assets.csproj" />
     <Project Path="src/Ballast.Audio/Ballast.Audio.csproj" />
     <Project Path="src/Ballast.Physics/Ballast.Physics.csproj" />
     <Project Path="src/Ballast.Voice/Ballast.Voice.csproj" />

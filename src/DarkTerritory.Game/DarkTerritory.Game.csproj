@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- Presentation: turns simulation state into things to draw and hear. Never feeds back into the sim. -->
   <ItemGroup>
+    <ProjectReference Include="../Ballast.Assets/Ballast.Assets.csproj" />
     <ProjectReference Include="../Ballast.Audio/Ballast.Audio.csproj" />
     <ProjectReference Include="../Ballast.Voice/Ballast.Voice.csproj" />
     <ProjectReference Include="../Ballast.Online/Ballast.Online.csproj" />

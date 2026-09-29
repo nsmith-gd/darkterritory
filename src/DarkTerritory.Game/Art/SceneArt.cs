@@ -19,6 +19,35 @@ public sealed class SceneArt(Look look)
     /// <summary>The line and its lineside.</summary>
     public WorldArt World { get; } = new(look);
 
+    CreatureArt? _creatures;
+    readonly Dictionary<byte, (Double3 Feet, double Time, float Speed)> _crewMotion = new();
+
+    /// <summary>The crew and the creatures, skinned (content/art/models, tools/blender); loaded on first use.</summary>
+    public CreatureArt Creatures => _creatures ??= new CreatureArt(Look);
+
+    /// <summary>
+    /// A crewmate as the crew model, walking or running by how fast they've moved since last drawn (the snapshot
+    /// doesn't say; this is presentation only, so a frame's lag in the gait doesn't matter). False without the model.
+    /// </summary>
+    public bool Crewmate(MeshBuilder mesh, Crewmate c, Double3 eye, double time)
+    {
+        float speed = 0;
+        if (_crewMotion.TryGetValue(c.Id, out var last) && time > last.Time)
+        {
+            var d = c.Feet - last.Feet;
+            float moved = (float)Math.Sqrt(d.X * d.X + d.Z * d.Z);
+            float now = moved / (float)(time - last.Time);
+            // Smoothed a little, so the gait doesn't flicker between clips on one jittery snapshot.
+            speed = float.Lerp(last.Speed, now, 0.35f);
+        }
+        _crewMotion[c.Id] = (c.Feet, time, speed);
+        var pose = speed < 0.4f ? CrewPose.Idle : speed < 2.6f ? CrewPose.Walk : CrewPose.Run;
+        var right = new Vector3((float)Math.Cos(c.Yaw), 0, (float)-Math.Sin(c.Yaw));
+        var back = new Vector3((float)Math.Sin(c.Yaw), 0, (float)Math.Cos(c.Yaw));
+        var m = CreatureArt.Basis(c.Feet.RelativeTo(eye), right, Vector3.UnitY, back);
+        return Creatures.Crewmate(mesh, m, pose, time, c.Id);
+    }
+
     /// <summary>Smoke, steam, sparks, the lamp's beam, drifting fog.</summary>
     public Effects Effects { get; } = new(look);
 
