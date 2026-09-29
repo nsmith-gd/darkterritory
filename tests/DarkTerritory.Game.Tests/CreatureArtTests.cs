@@ -174,8 +174,10 @@ public class CreatureArtTests
                 {
                     mesh.Clear();
                     Assert.True(Art.Enemy(mesh, Matrix4x4.CreateTranslation(0, 0, -5), kind, phase, t, 0.5), $"{kind} {phase}");
-                    // A Dragger is out of sight under the car's edge until it reaches, as the greybox has it.
-                    bool hidden = kind == EnemyKind.Dragger && phase is not (SpinePhase.Telegraph or SpinePhase.Punish);
+                    // A Dragger is out of sight under the car's edge until it reaches, as the greybox has it. The Rattle is
+                    // never seen at all: it's the sound in the coupling (T51).
+                    bool hidden = kind == EnemyKind.Dragger && phase is not (SpinePhase.Telegraph or SpinePhase.Punish)
+                        || kind == EnemyKind.Rattle;
                     Assert.True(hidden ? mesh.Count == 0 : mesh.Count > 0, $"{kind} {phase} drew {mesh.Count / 3} triangles");
                 }
         foreach (var pose in Enum.GetValues<CrewPose>())

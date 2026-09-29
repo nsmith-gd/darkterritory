@@ -55,6 +55,7 @@ public sealed class Director
         EnemyKind.Switchman => "switchman",
         EnemyKind.SootChildren => "sootChildren",
         EnemyKind.Dragger => "draggers",
+        EnemyKind.Rattle => "rattle",
         _ => "sleepers",
     }, 2);
 
@@ -127,6 +128,13 @@ public sealed class Director
         if (world.Enemies is { } dt && onRoofs > 0 && train.Dynamics.Consist.CarCount >= dt.Draggers.MinCars && Zone(PressureZone.Flank) < _t.MaxConcurrentZone
             && active.Count(e => !e.Gone && e.Kind == EnemyKind.Dragger) < dt.Draggers.MaxAttached)
             options.Add((EnemyKind.Dragger, onRoofs));
+        // App. B.5: the Rattle takes a coupling gap during a facility stop, on a train of two or more (the engine's rake,
+        // loading). One at a time. Weight up on longer consists.
+        int rake = train.Dynamics.Consist.Vehicles.Count - 1;
+        if (world.Enemies is { } rt && world.Run is { Phase: Run.RunPhase.AtFacility } && rake >= rt.Rattle.MinCars
+            && !active.Any(e => !e.Gone && e.Kind == EnemyKind.Rattle) && Zone(PressureZone.Interior) < _t.MaxConcurrentZone
+            && Rattle.Nests(world).Count > 0)
+            options.Add((EnemyKind.Rattle, 1 + rt.Rattle.PerCarWeight * (rake - rt.Rattle.MinCars)));
         options.RemoveAll(o => Cost(o.Kind) > available);
         if (options.Count == 0)
             return null;

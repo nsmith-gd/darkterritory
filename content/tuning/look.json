@@ -7,7 +7,7 @@
 {
   // §27's texture density for the shader's grain: environment 128-256 px/m. One grain is one texel.
   "texelsPerMetre": 128,
-  // Each material map's size on the GPU: the library's 512 (the 2008-2012 target, ARCHITECTURE §8 note 54).
+  // Each material map's size on the GPU: the library's 512 (the 2008-2012 target, ARCHITECTURE §8 note 55).
   "layerSize": 512,
   // The bottoms of things are this much darker: the baked shadow, and the soot and wet that collect low.
   "baked": 0.35,

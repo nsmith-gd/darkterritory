@@ -112,6 +112,11 @@ M3 is done but for a test with eight people.
   - a limb and a scrape at the lip, then a grab: alone, you're pulled off (at speed, that's death); with a mate near, they have two seconds to pull you free;
   - the centreline is safe, and they reach half as far again at max speed (spec B.3);
   - `dt screenshot --threats` shows one reaching.
+- **The Rattle (T51, App. A.5):**
+  - in a coupling gap during a facility stop, mid-train by preference;
+  - silent until someone comes near below the roofs, then a dry bone rattle;
+  - step into the gap while it rattles and you're pulled under; wait it out, or go over the roof;
+  - bots stop short of a rattling gap.
 - **The Switchman (T37, App. A.7):**
   - it throws a junction ahead for its dead line: the lamp reads wrong, and a figure with a lantern stands at the stand;
   - it flees anyone on the ground, but chasing it off doesn't set the switch back;

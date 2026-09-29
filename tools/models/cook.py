@@ -4,7 +4,7 @@ bashes it into the thing it wants (cuts, bends, grime, parts of one model on ano
 
   * decimates to the recipe's triangle budget and puts the pivot where the engine wants it (floor centre, metres,
     the model facing -Y in Blender, which the exporter turns into the engine's -Z forward);
-  * bakes each material's PBR maps into the engine's layer format at 512 (ARCHITECTURE §8 note 54): a diffuse (base
+  * bakes each material's PBR maps into the engine's layer format at 512 (ARCHITECTURE §8 note 55): a diffuse (base
     colour x occlusion, metals darkened as the texture library's converter does), a spec map (R strength, G gloss,
     B emissive mask) and a tangent-space normal map in tools/art's convention (glTF's +Y-up green flipped to y-down);
   * writes them to content/art/textures/models/ with an index (index.models.json) the engine reads beside the library's,
