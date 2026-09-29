@@ -52,8 +52,11 @@ def decode(glb: Path):
     beside it, with gltf-transform (installed into intake/_sources/tools from npm the first time)."""
     import struct
     data = glb.read_bytes()
-    n = struct.unpack_from("<I", data, 12)[0]
-    used = json.loads(data[20:20 + n]).get("extensionsUsed", [])
+    if glb.suffix == ".gltf":
+        used = json.loads(data).get("extensionsUsed", [])
+    else:
+        n = struct.unpack_from("<I", data, 12)[0]
+        used = json.loads(data[20:20 + n]).get("extensionsUsed", [])
     if not {"EXT_meshopt_compression", "KHR_draco_mesh_compression"} & set(used):
         return
     plain = glb.with_suffix(".plain.glb")
@@ -89,7 +92,7 @@ def main():
                 continue
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(data)
-        for glb in out.rglob("*.glb"):
+        for glb in [*out.rglob("*.glb"), *out.rglob("*.gltf")]:
             if not glb.name.endswith(".plain.glb"):
                 decode(glb)
         (out / "SOURCE.json").write_text(json.dumps(src, indent=2) + "\n")

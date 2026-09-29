@@ -27,6 +27,8 @@ public static class ArtCatalog
     /// <summary>A track and lineside cell (20 m) is 25k; a structure's bay is a fraction of a cell, so a bay gets 8k.</summary>
     public static readonly AssetClass StructureBay = new("structure bay (part of a 20 m track cell)", 8_000);
     public static readonly AssetClass Facility = new("facility (per spur)", 90_000);
+    /// <summary>A whole ruined room seen from the line (tools/models: a sourced interior): one per village at most.</summary>
+    public static readonly AssetClass Interior = new("ruined interior (a whole room)", 30_000);
 
     public static IReadOnlyList<CatalogEntry> Entries(Look? look, TrainTuning train)
     {
@@ -92,6 +94,7 @@ public static class ArtCatalog
                 var cls = n switch
                 {
                     "hand_lantern" or "skull" => MediumProp,
+                    "boy_room" => Interior,
                     _ => LargeProp,
                 };
                 list.Add(new($"prop-{n}", cls, () => props.Get(n)!));

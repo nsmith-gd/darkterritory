@@ -510,8 +510,19 @@ def bake_layers(name, objs, grade=None, grime=0.0, family="model", source_ids=()
     mats = [m for m in mats if not m.get("dt_library")]
     for i, m in enumerate(mats):
         layer = f"{name}_{i}"
+        source_name = m.name
         bsdf = next((n for n in m.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None) if m.use_nodes else None
         base_img, _ = _linked_image(bsdf.inputs["Base Color"]) if bsdf else (None, None)
+        spec_gloss_normal = None
+        if bsdf is None and m.use_nodes:
+            # KHR_materials_pbrSpecularGlossiness comes in as Diffuse and Glossy BSDFs: the diffuse's colour is the base,
+            # any Normal Map node's image the normal.
+            diff = next((n for n in m.node_tree.nodes if n.type == "BSDF_DIFFUSE"), None)
+            if diff is not None:
+                base_img, _ = _linked_image(diff.inputs["Color"])
+            nm = next((n for n in m.node_tree.nodes if n.type == "NORMAL_MAP"), None)
+            if nm is not None:
+                spec_gloss_normal, _ = _linked_image(nm.inputs["Color"])
         if base_img is not None:
             base = _image_array(base_img)
             albedo = srgb_to_lin(base[..., :3])
@@ -542,8 +553,8 @@ def bake_layers(name, objs, grade=None, grime=0.0, family="model", source_ids=()
                 emissive = np.clip(e.max(-1) * 1.5, 0, 1)
                 flame = srgb_to_lin(e)
         normal = None
-        if bsdf:
-            img, _ = _linked_image(bsdf.inputs["Normal"])
+        if bsdf or spec_gloss_normal is not None:
+            img = spec_gloss_normal if bsdf is None else _linked_image(bsdf.inputs["Normal"])[0]
             if img is not None:
                 n = _image_array(img)[..., :3].copy()
                 n[..., 1] = 1 - n[..., 1]  # glTF's +Y (up the image) to tools/art's y-down
@@ -563,7 +574,8 @@ def bake_layers(name, objs, grade=None, grime=0.0, family="model", source_ids=()
             soot = np.array([0.012, 0.011, 0.010], np.float32)
             diffuse = diffuse * (1 - grime * crev)[..., None] + soot * (grime * crev)[..., None] * lum.mean()
         if grade is not None:
-            diffuse = grade(diffuse)
+            # A grade may take the material's (source) name too, to treat parts differently.
+            diffuse = grade(diffuse, source_name) if grade.__code__.co_argcount >= 2 else grade(diffuse)
         base_lum = albedo.mean(-1)
         spec = (0.06 * (1 - metal) + np.clip(lin_to_srgb(base_lum) * 0.9, 0, 1) * metal) * ao
         gloss = np.clip(1 - rough, 0.05, 0.85)

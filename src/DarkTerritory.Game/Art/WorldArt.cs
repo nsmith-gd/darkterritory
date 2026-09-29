@@ -512,6 +512,23 @@ public sealed partial class WorldArt(Look look)
             }
             else if (landmark < 0.8)
                 Place(Piece("windmill", () => TownKit.Windmill(_look)), centre - 30, lateral + side * 20, (float)rng.NextDouble() * 3);
+            // One house nearest the line has lost its front wall: from the train you can see into the child's room
+            // (tools/models boy_room), grey with dust, the imaginary friend sitting with him. The bedside lamp is on.
+            if (_props.Get("boy_room") is { } room)
+            {
+                double along = centre - 40, across = side * (15 + rng.NextDouble() * 4);
+                if (!onBranch(along, across))
+                {
+                    var t = line.Sample(Math.Clamp(along, 0, line.Length));
+                    var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+                    float h = Ground(route, along, (float)across, valleyDepth) - 0.1f;
+                    float face = across > 0 ? MathF.PI / 2 : -MathF.PI / 2;
+                    var at = Basis(t.Tangent, t.Position + r * across + Double3.Up * h, eye, face);
+                    mesh.Instances.Add(new MeshInstance(room, at));
+                    if (_props.Socket("boy_room", "lamp") is { } bulb)
+                        mesh.PointLights.Add(new PointLight(Vector3.Transform(bulb, at), new Vector3(1.0f, 0.72f, 0.42f) * 1.6f, 6.5f));
+                }
+            }
             if (landmark >= 0.45 && _props.Get("mercury_defaced") is { } square)
                 Place(square, centre, lateral - side * 4, (float)(rng.NextDouble() - 0.5) * 0.6f);
         }

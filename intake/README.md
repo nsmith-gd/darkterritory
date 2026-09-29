@@ -61,6 +61,8 @@ Sourced 3D models follow the same rule, through `tools/models/`:
 | Le Transi de René de Chalon | gkjohnson/3d-demo-data `models/threedscans` | `9149f69c…` | Three D Scans: free, no copyright restrictions* | Three D Scans |
 | Hosmer | gkjohnson/3d-demo-data `models/threedscans` | `9149f69c…` | Three D Scans: free, no copyright restrictions* | Three D Scans |
 | PigMan | gkjohnson/3d-demo-data `models/pigman` | `9149f69c…` | CC BY 4.0 | Grigorii Ischenko |
+| Boy Room | gkjohnson/3d-demo-data `models/imaginary-friend-room` | `9149f69c…` | CC BY 4.0 | Iman Aliakbar |
+| Interior Scene | gkjohnson/3d-demo-data `models/interior-scene` | `9149f69c…` | CC BY 4.0 | Allay Design |
 
 \* The Three D Scans files carry no licence of their own; their terms are threedscans.com's ("free to use, no
 copyright restrictions"), which can't be re-read from the build machines (the site is blocked). They're recorded as

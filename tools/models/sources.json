@@ -82,5 +82,21 @@
     "dir": "models/pigman",
     "license": "CC-BY-4.0",
     "attribution": "PigMan by Grigorii Ischenko (sketchfab.com/grigoriyarx), CC BY 4.0"
+  },
+  {
+    "id": "gk-boyroom",
+    "repo": "https://github.com/gkjohnson/3d-demo-data",
+    "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+    "dir": "models/imaginary-friend-room",
+    "license": "CC-BY-4.0",
+    "attribution": "Boy Room by Iman Aliakbar (sketchfab.com/Iman.Aliakbar), CC BY 4.0"
+  },
+  {
+    "id": "gk-interior",
+    "repo": "https://github.com/gkjohnson/3d-demo-data",
+    "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+    "dir": "models/interior-scene",
+    "license": "CC-BY-4.0",
+    "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0"
   }
 ]

@@ -1030,6 +1030,12 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - The kit's piece stays as the fallback, so a checkout without the props still draws.
       - `dt art check` budgets the props like kit pieces. The hand lantern and the skull are medium props: the lantern doubles as the held lamp, and the skull is seen close.
     - **Creatures from scans.** A scan can be rigged on its own pose. `recipes/hollow.py` bakes Le Transi down and places a 21-bone skeleton on the statue's joints, read off its silhouette. It weights each vertex to its nearest bones and keys the clips on `tools/blender/rig`'s `Clip`. The Hollow is that cadaver now: it replaces the procedural one, with the same clips and the same place. The Dragger and the rest stay procedural for now.
+    - **Ruined interiors.** A whole sourced room can be ruined in its recipe and set where the line can see into it. `recipes/boy_room.py` does this with "Boy Room" (CC BY 4.0), a child's bedroom with a hulking imaginary friend.
+      - It's split by material: the wardrobe knocked askew, a picture hung crooked.
+      - It's graded per part: dust over everything, the boy ash-pale, the thing he drew soot-black but for its eyes.
+      - It's walled by a house shell in the library's plaster, broken off raggedly above it, with fallen rafters and rubble.
+      - It stands in each village with its front wall gone, facing the line, and its bedside lamp is still lit (a socket).
+      - The cook reads spec-gloss materials (KHR_materials_pbrSpecularGlossiness) too. `dt art check` gives a whole room its own class (30k).
     - **First set.**
       - The Khronos Lantern, split into a lamp post and a hand lantern. The hand lantern replaces the kit's cage in the cars, on the platforms and as the dropped lamp.
       - The photoscanned skull.
