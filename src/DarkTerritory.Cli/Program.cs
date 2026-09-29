@@ -621,7 +621,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (args.Contains("--vigil"))
         lighting.LampRange = 0.01f; // a Vigil: no power to the headlamp
     if (route is not null)
+    {
         lighting.FogDensity = (float)route.Weather.FogDensity;
+        lighting.Wetness = route.Weather.Wet ? 1 : 0;
+    }
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor);
     PngWriter.Write(output, pixels, width, height, scale);
     return new
@@ -791,7 +794,10 @@ static object HudShot(string content, string[] args)
         .Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
     var lighting = Views.Lighting(frames[0], look);
     if (session.Route is { } r)
+    {
         lighting.FogDensity = (float)r.Weather.FogDensity;
+        lighting.Wetness = r.Weather.Wet ? 1 : 0;
+    }
     var hud = new Overlay();
     Hud.Build(hud, width, height, session);
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, hud);

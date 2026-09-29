@@ -168,6 +168,36 @@ public sealed class Effects(Look look)
     }
 
     /// <summary>
+    /// Rain, when the night's wet: streaks in a box of world cells round the eye (so they fall past you rather than moving
+    /// with you), slanted by the wind, grey where the night lights them and gone into the fog.
+    /// </summary>
+    public void Rain(MeshBuilder mesh, Double3 eye, double time, float wind, Vector3 fogColour)
+    {
+        const float cell = 2.5f, height = 12, fall = 9;
+        const int reach = 9;
+        int cx = (int)Math.Floor(eye.X / cell), cz = (int)Math.Floor(eye.Z / cell);
+        var slant = new Vector3(0.6f, 0, 0.35f) * wind;
+        for (int x = -reach; x <= reach; x++)
+            for (int z = -reach; z <= reach; z++)
+            {
+                int wx = cx + x, wz = cz + z;
+                for (int k = 0; k < 2; k++)
+                {
+                    float h = Hash(wx * 12.9898f + wz * 78.233f + k * 3.1f);
+                    float h2 = Hash(wx * 3.7f + wz * 9.1f + k * 7.3f);
+                    float drop = (float)((time * fall + h * height) % height);
+                    var world = new Double3((wx + h) * cell, eye.Y + height * 0.55 - drop, (wz + h2) * cell);
+                    var p = world.RelativeTo(eye) + slant * (height * 0.55f - drop) * 0.15f;
+                    float d = p.Length();
+                    if (d < 0.6f || d > reach * cell)
+                        continue;
+                    float a = 0.22f * (1 - d / (reach * cell)) * (0.6f + 0.4f * h2);
+                    mesh.Billboard(p, 0.03f, 0.06f * wind, new Vector4(fogColour * 2.2f + new Vector3(0.04f), a), -1, FxBlend.Alpha, stretch: 20);
+                }
+            }
+    }
+
+    /// <summary>
     /// Drifting fog lying along the line near the eye (pipeline "fog cards along the track spline"): big, faint, slow,
     /// low to the ground; thicker in hollows. They break the fog into banks, so it moves and hides things by turns.
     /// </summary>

@@ -347,7 +347,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         f->LampDir = new Vector4(lighting.LampDirection, MathF.Cos(lighting.LampConeDegrees * MathF.PI / 180));
         f->LampColour = new Vector4(lighting.LampColour, lighting.LampIntensity);
         f->Sky = new Vector4(Post.SkyZenith, Post.BackdropFog);
-        f->Sky2 = new Vector4(Post.BackdropDegrees * MathF.PI / 180, MathF.Max(0.2f, lighting.FogCurve), Post.HorizonGlow, 0);
+        f->Sky2 = new Vector4(Post.BackdropDegrees * MathF.PI / 180, MathF.Max(0.2f, lighting.FogCurve), Post.HorizonGlow, lighting.Wetness);
         f->Params = new Vector4(_lights.Count, Post.Ps2 ? 1 : 0, Post.TexturedWear, _assets?.Layers.Count ?? 0);
         for (int i = 0; i < _lights.Count; i++)
         {

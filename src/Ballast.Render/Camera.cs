@@ -92,6 +92,8 @@ public struct FrameLighting
     public float LampConeDegrees;
     public Vector3 LampColour;
     public float LampIntensity;
+    /// <summary>How wet everything is, 0..1: rain darkens surfaces and puts a sheen on what faces the sky.</summary>
+    public float Wetness;
     /// <summary>Seconds, for what drifts (clouds, grain). Screenshots keep it fixed so they're repeatable.</summary>
     public double Time;
 

@@ -104,6 +104,10 @@ void main() {
     if (vWear > 0.0)
         albedo = weathered(albedo, vSurface, vWear * (textured ? frame.params.z : 1.0), textured);
 
+    // Rain: darker surfaces, and a sheen on everything that faces the sky (ballast, roofs, puddles in the mud).
+    float wet = frame.sky2.w * (vWear > 0.0 || textured ? 1.0 : 0.0);
+    albedo *= 1.0 - 0.3 * wet;
+
     vec3 v = normalize(-vPos);
     vec3 moonDir = normalize(frame.moon.xyz);
     vec3 light = frame.moon.w * mix(GROUND_BOUNCE, SKY_FILL, n.y * 0.5 + 0.5);
@@ -112,6 +116,9 @@ void main() {
     // Phong exponent from gloss: 4..128, clamped so nothing mirror-polishes (pipeline "Gloss").
     float shininess = textured ? mix(4.0, 128.0, specMap.g * specMap.g) : 40.0;
     float specStrength = specMap.r;
+    float up = smoothstep(0.5, 0.95, n.y) * wet;
+    specStrength = max(specStrength, 0.16 * up);
+    shininess = mix(shininess, 70.0, up);
     vec3 spec = vec3(0.0);
 
     // The headlamp: the one light that reaches out into the dark.
