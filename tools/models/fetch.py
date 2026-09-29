@@ -44,6 +44,30 @@ def clone(repo, commit):
     return d
 
 
+TOOLS = ROOT / "intake" / "_sources" / "tools"
+
+
+def decode(glb: Path):
+    """Blender's packaged build reads neither meshopt nor Draco: such a model is decoded once to <name>.plain.glb
+    beside it, with gltf-transform (installed into intake/_sources/tools from npm the first time)."""
+    import struct
+    data = glb.read_bytes()
+    n = struct.unpack_from("<I", data, 12)[0]
+    used = json.loads(data[20:20 + n]).get("extensionsUsed", [])
+    if not {"EXT_meshopt_compression", "KHR_draco_mesh_compression"} & set(used):
+        return
+    plain = glb.with_suffix(".plain.glb")
+    if plain.exists():
+        return
+    cli = TOOLS / "node_modules" / ".bin" / "gltf-transform"
+    if not cli.exists():
+        TOOLS.mkdir(parents=True, exist_ok=True)
+        subprocess.run(["npm", "init", "-y"], cwd=TOOLS, check=True, capture_output=True)
+        subprocess.run(["npm", "install", "--silent", "@gltf-transform/cli@4.1.1"], cwd=TOOLS, check=True)
+    subprocess.run([str(cli), "copy", str(glb), str(plain)], check=True, capture_output=True)
+    print(f"  decoded {glb.name} -> {plain.name}")
+
+
 def main():
     want = sys.argv[1:]
     for src in load_manifest():
@@ -65,6 +89,9 @@ def main():
                 continue
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(data)
+        for glb in out.rglob("*.glb"):
+            if not glb.name.endswith(".plain.glb"):
+                decode(glb)
         (out / "SOURCE.json").write_text(json.dumps(src, indent=2) + "\n")
         size = sum(p.stat().st_size for p in out.rglob("*") if p.is_file())
         print(f"{src['id']:28s} {len(files):3d} files {size / 1e6:6.1f} MB  {src['license']}")

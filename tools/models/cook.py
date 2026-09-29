@@ -132,6 +132,24 @@ def fit(objs, height=None, size=None, floor=True, centre=True):
     transform(objs, Matrix.Translation(off * s) @ Matrix.Scale(s, 4))
 
 
+def cube(centre, half, name="cube"):
+    """A box mesh (a plinth, a slab), to join into what's baked."""
+    bpy.ops.mesh.primitive_cube_add(size=2, location=centre)
+    o = bpy.context.view_layer.objects.active
+    o.name = name
+    o.scale = half
+    bpy.ops.object.transform_apply(location=True, rotation=False, scale=True)
+    return o
+
+
+def top_point(objs, fraction=0.03):
+    """The centre of the highest few percent of vertices (a figure's head)."""
+    pts = [o.matrix_world @ v.co for o in objs for v in o.data.vertices]
+    pts.sort(key=lambda p: -p.z)
+    k = max(1, int(len(pts) * fraction))
+    return sum(pts[:k], Vector()) / k
+
+
 def rotate(objs, degrees, axis="Z"):
     transform(objs, Matrix.Rotation(math.radians(degrees), 4, axis))
 
@@ -195,6 +213,27 @@ def deform(objs, fn):
         for v in o.data.vertices:
             v.co = Vector(fn(v.co.copy()))
         o.data.update()
+
+
+def noise_np(p, seed=0, scale=1.0):
+    """Vectorised value noise in -1..1 over an Nx3 array (the masks and lumps over a million-vertex scan)."""
+    x = np.asarray(p, np.float64) * scale
+    i = np.floor(x).astype(np.int64)
+    f = x - i
+    f = f * f * (3 - 2 * f)
+
+    def h(ii):
+        n = (ii[:, 0] * 73856093) ^ (ii[:, 1] * 19349663) ^ (ii[:, 2] * 83492791) ^ (seed * 2654435761)
+        n = (n ^ (n >> 13)) * 1274126177
+        return ((n ^ (n >> 16)) & 0xFFFF) / 32767.5 - 1.0
+
+    acc = np.zeros(len(x))
+    for dx in (0, 1):
+        for dy in (0, 1):
+            for dz in (0, 1):
+                w = (f[:, 0] if dx else 1 - f[:, 0]) * (f[:, 1] if dy else 1 - f[:, 1]) * (f[:, 2] if dz else 1 - f[:, 2])
+                acc += h(i + np.array([dx, dy, dz])) * w
+    return acc.astype(np.float32)
 
 
 def lumps(objs, amount, scale, seed=0, along_normal=True):
@@ -274,16 +313,139 @@ def delete(objs):
 
 
 # ----------------------------------------------------------------------------------------------------------------
+# Baking a scan down (the 2008 way: a game mesh wearing the million-triangle original as maps)
+
+def bake_down(objs, name, target, colour=None, size=1024, masks=None, paint=None):
+    """Replaces a high-resolution (untextured) scan with a `target`-triangle copy UV-unwrapped and wearing the
+    original's detail: a tangent-space normal map and ambient occlusion baked in Cycles from the full mesh, and a
+    base colour of `colour` (linear RGB) darkened by that occlusion. `grime(ao, pos_z01) -> multiplier` may stain it
+    (tar weeping down, soot in the folds). Returns [low]; the high mesh is deleted."""
+    high = join(objs, name + "_high")
+    lo, hi = bounds([high])
+    extent = (hi - lo).length
+    low = duplicate([high])[0]
+    low.name = name
+    decimate([low], target)
+    bpy.context.view_layer.objects.active = low
+    bpy.ops.object.select_all(action="DESELECT")
+    low.select_set(True)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.004, area_weight=0.0, scale_to_bounds=True)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    for f in low.data.polygons:
+        f.use_smooth = True
+    # Images to bake into, on a material the low mesh wears.
+    nimg = bpy.data.images.new(name + "_normal", size, size, alpha=False, float_buffer=False)
+    nimg.colorspace_settings.name = "Non-Color"
+    aoimg = bpy.data.images.new(name + "_ao", size, size, alpha=False)
+    aoimg.colorspace_settings.name = "Non-Color"
+    mat = bpy.data.materials.new(name + "_mat")
+    mat.use_nodes = True
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    low.data.materials.clear()
+    low.data.materials.append(mat)
+    scene = bpy.context.scene
+    scene.render.engine = "CYCLES"
+    scene.cycles.device = "CPU"
+    scene.cycles.use_denoising = False
+    scene.cycles.samples = 16
+    scene.render.bake.use_selected_to_active = True
+    scene.render.bake.cage_extrusion = extent * 0.012
+    scene.render.bake.max_ray_distance = extent * 0.03
+    scene.render.bake.margin = 6
+    bpy.ops.object.select_all(action="DESELECT")
+    high.select_set(True)
+    low.select_set(True)
+    bpy.context.view_layer.objects.active = low
+    cimg = None
+    bakes = [(nimg, "NORMAL"), (aoimg, "AO")]
+    if colour is None:
+        cimg = bpy.data.images.new(name + "_colour", size, size, alpha=False)
+        bakes.append((cimg, "DIFFUSE"))
+    for img, kind in bakes:
+        tex.image = img
+        nt.nodes.active = tex
+        if kind == "NORMAL":
+            scene.render.bake.normal_space = "TANGENT"
+            bpy.ops.object.bake(type="NORMAL")
+        elif kind == "DIFFUSE":
+            scene.render.bake.use_pass_direct = False
+            scene.render.bake.use_pass_indirect = False
+            scene.render.bake.use_pass_color = True
+            bpy.ops.object.bake(type="DIFFUSE")
+        else:
+            bpy.ops.object.bake(type="AO")
+    baked = {}
+    for mname, fn in sorted((masks or {}).items()):
+        # The mask as the high mesh's vertex colour, emitted, baked across onto the low mesh's UVs.
+        attr = high.data.color_attributes.new(mname, "FLOAT_COLOR", "POINT")
+        co = np.empty(len(high.data.vertices) * 3, np.float32)
+        high.data.vertices.foreach_get("co", co)
+        m = np.clip(np.asarray(fn(co.reshape(-1, 3)), np.float32), 0, 1)
+        attr.data.foreach_set("color", np.repeat(m, 4) * np.tile(np.array([1, 1, 1, 0], np.float32), len(m)) + np.tile(np.array([0, 0, 0, 1], np.float32), len(m)))
+        em = bpy.data.materials.new(mname + "_emit")
+        em.use_nodes = True
+        ent = em.node_tree
+        ent.nodes.remove(ent.nodes["Principled BSDF"])
+        attr_node = ent.nodes.new("ShaderNodeVertexColor")
+        attr_node.layer_name = mname
+        emit = ent.nodes.new("ShaderNodeEmission")
+        ent.links.new(attr_node.outputs["Color"], emit.inputs["Color"])
+        ent.links.new(emit.outputs["Emission"], ent.nodes["Material Output"].inputs["Surface"])
+        high.data.materials.clear()
+        high.data.materials.append(em)
+        mimg = bpy.data.images.new(name + "_" + mname, size, size, alpha=False)
+        mimg.colorspace_settings.name = "Non-Color"
+        tex.image = mimg
+        nt.nodes.active = tex
+        bpy.ops.object.bake(type="EMIT")
+        baked[mname] = _image_array(mimg, size)[..., 0]
+    delete([high])
+    # The low mesh's material: colour x occlusion (and grime), the baked normal through a normal map node.
+    ao = _image_array(aoimg, size)[..., 0]
+    if cimg is not None:
+        base = srgb_to_lin(_image_array(cimg, size)[..., :3])
+    else:
+        base = np.ones((size, size, 3), np.float32) * np.array(colour, np.float32)
+    base = base * (0.35 + 0.65 * ao)[..., None]
+    if paint is not None:
+        base = paint(base, ao, baked)
+    bimg = bpy.data.images.new(name + "_base", size, size, alpha=True)
+    rgba = np.ones((size, size, 4), np.float32)
+    rgba[..., :3] = lin_to_srgb(base)
+    bimg.pixels.foreach_set(rgba[::-1].ravel())
+    tex.image = bimg
+    nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    ntex = nt.nodes.new("ShaderNodeTexImage")
+    ntex.image = nimg
+    nmap = nt.nodes.new("ShaderNodeNormalMap")
+    nt.links.new(ntex.outputs["Color"], nmap.inputs["Color"])
+    nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+    bsdf.inputs["Roughness"].default_value = 0.8
+    bsdf.inputs["Metallic"].default_value = 0.0
+    return [low]
+
+
+# ----------------------------------------------------------------------------------------------------------------
 # Materials to layers
 
 def _image_array(img, size=SIZE):
-    """An image's pixels, resized to size x size, as float32 HxWx4 in 0..1, top row first."""
-    im = img.copy()
-    im.scale(size, size)
-    px = np.empty(size * size * 4, np.float32)
-    im.pixels.foreach_get(px)
-    bpy.data.images.remove(im)
-    return px.reshape(size, size, 4)[::-1].copy()
+    """An image's pixels, resized to size x size, as float32 HxWx4 in 0..1, top row first. Read straight from the
+    image (a copy of a baked, in-memory image comes back blank), then box-filtered or repeated to size."""
+    w, h = img.size
+    px = np.empty(w * h * 4, np.float32)
+    img.pixels.foreach_get(px)
+    a = px.reshape(h, w, 4)[::-1]
+    if (w, h) == (size, size):
+        return a.copy()
+    if w % size == 0 and h % size == 0:
+        return a.reshape(size, h // size, size, w // size, 4).mean((1, 3)).astype(np.float32)
+    ys = (np.arange(size) * h // size).clip(0, h - 1)
+    xs = (np.arange(size) * w // size).clip(0, w - 1)
+    return a[ys][:, xs].copy()
 
 
 def _linked_image(socket):
@@ -449,6 +611,22 @@ def rig_and_export(name, objs, sockets=None):
         s.use_deform = False
     bpy.ops.object.mode_set(mode="OBJECT")
     for o in objs:
+        # Only what the engine reads: one UV layer and the materials (stray colour attributes and extra UV maps from
+        # joined parts upset the exporter, which then drops the mesh without a word).
+        for a in list(o.data.color_attributes):
+            o.data.color_attributes.remove(a)
+        # Decimating a join can leave degenerate faces; an invalid mesh exports as nothing.
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+        bmesh.ops.dissolve_degenerate(bm, dist=1e-6, edges=bm.edges)
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+        bm.to_mesh(o.data)
+        bm.free()
+        o.data.validate(clean_customdata=True)
+        uv = o.data.uv_layers.active
+        for layer in list(o.data.uv_layers):
+            if uv is not None and layer.name != uv.name:
+                o.data.uv_layers.remove(layer)
         g = o.vertex_groups.new(name="root")
         g.add(list(range(len(o.data.vertices))), 1.0, "REPLACE")
         mod = o.modifiers.new("Armature", "ARMATURE")
@@ -475,8 +653,25 @@ def _merge_index(name, layers):
         f.write("\n")
 
 
+def share_materials(objs):
+    """Materials that read the same images are one material (the same model imported twice is one layer, not two)."""
+    seen = {}
+    for o in objs:
+        for i, m in enumerate(o.data.materials):
+            if m is None or not m.use_nodes:
+                continue
+            key = tuple(sorted(n.image.name.split(".")[0] for n in m.node_tree.nodes if n.type == "TEX_IMAGE" and n.image))
+            if not key:
+                continue
+            if key in seen:
+                o.data.materials[i] = seen[key]
+            else:
+                seen[key] = m
+
+
 def finish(name, objs, budget, grade=None, grime=0.0, family="model", sockets=None):
     """Decimate, bake the layers, index them, rig and export. Prints the one [dt] line build.sh keeps."""
+    share_materials(objs)
     decimate(objs, budget)
     for o in objs:
         for f in o.data.polygons:

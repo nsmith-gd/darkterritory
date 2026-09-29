@@ -60,7 +60,9 @@ public class PropArtTests
             foreach (var s in sources)
             {
                 var licence = s.GetProperty("license").GetString();
-                Assert.Contains(licence, new[] { "CC0-1.0", "CC-BY-4.0", "CC-BY-3.0" });
+                // CC0 or CC-BY, or Three D Scans' own terms (threedscans.com: free to use, no copyright restrictions;
+                // intake/README.md).
+                Assert.Contains(licence, new[] { "CC0-1.0", "CC-BY-4.0", "CC-BY-3.0", "LicenseRef-ThreeDScans" });
                 Assert.False(string.IsNullOrWhiteSpace(s.GetProperty("attribution").GetString()), $"{name}: no attribution");
                 Assert.StartsWith("https://github.com/", s.GetProperty("repo").GetString());
                 Assert.Matches("^[0-9a-f]{40}$", s.GetProperty("commit").GetString()!);

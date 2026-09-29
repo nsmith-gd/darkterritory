@@ -1,5 +1,26 @@
 [
   {
+    "name": "effigy_0",
+    "diffuse": "models/effigy_0.png",
+    "spec": "models/effigy_0_s.png",
+    "normal": "models/effigy_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      }
+    ]
+  },
+  {
     "name": "hand_lantern_0",
     "diffuse": "models/hand_lantern_0.png",
     "spec": "models/hand_lantern_0_s.png",
@@ -42,9 +63,51 @@
     ]
   },
   {
+    "name": "mercury_defaced_0",
+    "diffuse": "models/mercury_defaced_0.png",
+    "spec": "models/mercury_defaced_0_s.png",
+    "normal": "models/mercury_defaced_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-mercury",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/mercury-about-to-kill-argos",
+        "license": "CC0-1.0",
+        "attribution": "Mercury about to kill Argos by B. Thorvaldsen, scanned by Virtual Museums of Malopolska, CC0",
+        "files": null
+      }
+    ]
+  },
+  {
     "name": "skull_0",
     "diffuse": "models/skull_0.png",
     "spec": "models/skull_0_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "khronos-skull",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "ScatteringSkull (Khronos glTF sample assets), CC0"
+      }
+    ]
+  },
+  {
+    "name": "skull_cairn_0",
+    "diffuse": "models/skull_cairn_0.png",
+    "spec": "models/skull_cairn_0_s.png",
     "size": 512,
     "tileMetres": null,
     "tiling": false,
@@ -115,6 +178,27 @@
         "files": null,
         "license": "CC0-1.0",
         "attribution": "ScatteringSkull (Khronos glTF sample assets), CC0"
+      }
+    ]
+  },
+  {
+    "name": "transi_0",
+    "diffuse": "models/transi_0.png",
+    "spec": "models/transi_0_s.png",
+    "normal": "models/transi_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-transi",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Le Transi de Rene de Chalon, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
       }
     ]
   }
