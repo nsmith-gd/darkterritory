@@ -134,7 +134,7 @@ public sealed class GreyboxScene
         if (Enemies is not null)
             foreach (var e in Enemies)
                 if (!e.Gone)
-                    DrawEnemy(mesh, line, frames, e, eye, from, to);
+                    DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures);
         if (Bodies is not null)
         {
             // Heavy crates only come from a facility's site, so its size is there (facilities.json "heavy").
@@ -145,7 +145,7 @@ public sealed class GreyboxScene
         }
         if (Crew is not null)
             foreach (var c in Crew)
-                if (c.Alive) // the dead are drawn as their bodies
+                if (c.Alive && Look?.Art.Crewmate(mesh, c, eye, Time) != true) // the dead are drawn as their bodies
                     DrawCrewmate(mesh, c, eye);
     }
 
@@ -271,7 +271,7 @@ public sealed class GreyboxScene
     /// Greybox stand-ins, each readable by silhouette and by its telegraph (App. A.1: the tell must be
     /// perceivable). The real creatures come with the art pass; these exist to make pacing watchable.
     /// </summary>
-    static void DrawEnemy(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Enemy e, Double3 eye, double from, double to)
+    static void DrawEnemy(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Enemy e, Double3 eye, double from, double to, Art.CreatureArt? creatures = null)
     {
         // A basis for the enemy: its car's, or the line's at its distance.
         Double3 origin, right, up = Double3.Up, back;
@@ -294,6 +294,9 @@ public sealed class GreyboxScene
         }
         var o = V(origin, eye);
         var (r, u, b) = (ToF(right), ToF(up), ToF(back));
+        // The art pass's creature, where it has one (Art/CreatureArt): the same place, the thing itself.
+        if (creatures is not null && creatures.Enemy(mesh, Art.CreatureArt.Basis(o, r, u, b), e))
+            return;
         Vector3 L(double x, double y, double z) => o + r * (float)x + u * (float)y + b * (float)z;
         void Draw(double x, double y, double z, double hx, double hy, double hz, Vector3 colour) =>
             mesh.Box(L(x, y, z), r, u, b, new Vector3((float)hx, (float)hy, (float)hz), colour);

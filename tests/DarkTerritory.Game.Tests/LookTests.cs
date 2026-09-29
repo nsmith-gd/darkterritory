@@ -109,4 +109,26 @@ public class LookTests
         // Up to a little: the line curves, so the moon and fog through the door come in from elsewhere.
         Assert.True(differing < here.Length / 4 / 10, $"{differing} pixels differ");
     }
+    [Fact]
+    public void AFacilitysBuildingsLeaveItsYardToItsModules()
+    {
+        // The gantry crane's far leg and its castings stand in the yard beside the spur (facilities.json "crane"): the
+        // buildings of every facility that has one start past it, or the crane and the loads the crew must see are
+        // inside a wall. (Others may reach over the track on purpose: a coaling chute, a grain spout.)
+        using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(Content, "tuning/facilities.json")),
+            new System.Text.Json.JsonDocumentOptions { CommentHandling = System.Text.Json.JsonCommentHandling.Skip });
+        double far = doc.RootElement.GetProperty("crane").GetProperty("span")[1].GetDouble();
+        var withCranes = doc.RootElement.GetProperty("kinds").EnumerateObject()
+            .Where(k => k.Value.EnumerateArray().Any(m => m.GetString() == "crane"))
+            .Select(k => Enum.Parse<Sim.Route.FacilityKind>(k.Name, ignoreCase: true))
+            .ToArray();
+        Assert.NotEmpty(withCranes);
+        foreach (var kind in withCranes)
+            foreach (int side in new[] { -1, 1 })
+            {
+                var piece = Art.StructureKit.Facility(Look, kind, side);
+                float near = piece.Vertices.Min(v => v.Position.X * side);
+                Assert.True(near > far + 1, $"{kind} on side {side} comes to {near:0.0} m of the spur; the crane reaches {far} m");
+            }
+    }
 }

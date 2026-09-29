@@ -417,8 +417,10 @@ public static class StructureKit
                 }
             case FacilityKind.Foundry:
                 {
-                    // Long brick sheds with sawtooth roofs, a tall stack, and the dim glow of a furnace nobody tends.
-                    float x0 = s * 22 - 14, x1 = s * 22 + 14;
+                    // Long brick sheds with sawtooth roofs, a tall stack, and the dim glow of a furnace nobody tends. Where the
+                    // greybox's block was, 14-30 m out: the yard between it and the spur is the gantry crane's (its far leg
+                    // and the castings' stack stand at 7.5-9 m, facilities.json "crane").
+                    float x0 = s * 22 - 8, x1 = s * 22 + 8;
                     var (a, b) = (MathF.Min(x0, x1), MathF.Max(x0, x1));
                     k.Use("brick_soot", Palette.RustRed, 0.9f, 0.1f, tile: 1.2f);
                     k.Box(new Vector3(a, -0.5f, -40), new Vector3(b, 12, 40), Kit.Faces.All & ~Kit.Faces.NegY);

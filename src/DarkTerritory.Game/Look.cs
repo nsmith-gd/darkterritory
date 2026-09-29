@@ -34,6 +34,26 @@ public sealed record AtmosphereTuning
 }
 
 /// <summary>Mirror of content/tuning/look.json: the art pass's surfaces, the grade and the post stack (GDD §25-28).</summary>
+/// <summary>
+/// The consist's wear and tear (pipeline plan, consist kit: "3 damage states per car; scars persist between runs as
+/// decal and mask layers"), read off each car's integrity.
+/// </summary>
+public sealed record DamageTuning
+{
+    /// <summary>Integrity below the first is damaged (plate torn and bent, claw gouges), below the second wrecked (breached).</summary>
+    public float[] States { get; init; } = [0.66f, 0.33f];
+    /// <summary>The scar mask starts below this integrity...</summary>
+    public float ScarsFrom { get; init; } = 0.95f;
+    /// <summary>...and is at its worst by this one.</summary>
+    public float ScarsFull { get; init; } = 0.1f;
+
+    /// <summary>0 whole, 1 damaged, 2 wrecked.</summary>
+    public int StateOf(double integrity) => integrity < States[1] ? 2 : integrity < States[0] ? 1 : 0;
+
+    /// <summary>How much of the scar mask shows, 0..1.</summary>
+    public float ScarOf(double integrity) => Math.Clamp((ScarsFrom - (float)integrity) / Math.Max(1e-3f, ScarsFrom - ScarsFull), 0, 1);
+}
+
 public sealed record LookTuning
 {
     public const string File = "tuning/look.json";
@@ -44,6 +64,7 @@ public sealed record LookTuning
     public ColourGrade Grade { get; init; } = new();
     public PostSettings Post { get; init; } = new();
     public AtmosphereTuning Atmosphere { get; init; } = new();
+    public DamageTuning Damage { get; init; } = new();
 }
 
 /// <summary>One entry of content/art/textures/index.json (written by tools/art/textures.py).</summary>

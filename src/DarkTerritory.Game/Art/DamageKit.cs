@@ -1,0 +1,152 @@
+using System.Numerics;
+using Ballast.Render;
+using DarkTerritory.Sim.Train;
+
+namespace DarkTerritory.Game.Art;
+
+/// <summary>
+/// The consist's wear (pipeline plan, consist kit: "3 damage states per car; scars persist between runs as decal and
+/// mask layers"). The scar mask (<see cref="MeshInstance.Scar"/>) does the scorch, rust and holes over the whole body;
+/// this is what a mask can't do, the geometry: plate torn back on its rivets, a hound's claw gouges, and once a car is
+/// wrecked, a breach with the ribs showing. Cooked per car shape, state and seed, and drawn with the car's own
+/// transform, over its body. It keeps clear of the side doors, which slide, and of the ends, where the gangways are.
+/// </summary>
+public static class DamageKit
+{
+    /// <summary>
+    /// A car's damage at <paramref name="state"/> (1 damaged, 2 wrecked: <see cref="DamageTuning.StateOf"/>);
+    /// <paramref name="seed"/> (the car) chooses where, the same way every time. A wrecked car keeps its damaged
+    /// state's marks and adds to them, so getting worse never moves a scar.
+    /// </summary>
+    public static MeshAsset Car(Look? look, CarShape shape, int state, int seed)
+    {
+        var k = new Kit(look, 900 + seed);
+        float w = (float)shape.HalfWidth, l = (float)shape.HalfLength, h = (float)shape.RoofHeight;
+        float floor = shape.Interior is { } room ? (float)room.Min.Y + 0.1f : h * 0.35f;
+        // Side doors by side (−1, +1) and their span along the car.
+        var doors = shape.DoorList
+            .Select(d => d.Box)
+            .Where(b => b.Max.Z - b.Min.Z > b.Max.X - b.Min.X)
+            .Select(b => (Side: b.Min.X < 0 ? -1 : 1, Z0: (float)b.Min.Z - 0.15f, Z1: (float)b.Max.Z + 0.15f))
+            .ToArray();
+
+        // One generator per state, so the damaged state's marks are the same ones under the wrecked state's.
+        for (int s = 1; s <= Math.Min(state, 2); s++)
+        {
+            var rng = new Random(4200 + seed * 31 + s * 7);
+            (int Side, float Z, float Y) Spot(float halfWidth, float halfHeight)
+            {
+                for (int tries = 0; ; tries++)
+                {
+                    int side = rng.Next(2) * 2 - 1;
+                    float z = Lerp(-l + 0.7f + halfWidth, l - 0.7f - halfWidth, (float)rng.NextDouble());
+                    float y = Lerp(floor + halfHeight + 0.25f, h - halfHeight - 0.3f, (float)rng.NextDouble());
+                    if (tries > 20 || !doors.Any(d => d.Side == side && z + halfWidth > d.Z0 && z - halfWidth < d.Z1))
+                        return (side, z, y);
+                }
+            }
+            if (s == 1)
+            {
+                for (int i = 0; i < 3; i++)
+                    Gouge(k, w, Spot(0.35f, 0.4f), rng);
+                for (int i = 0; i < 2; i++)
+                    Flap(k, w, Spot(0.3f, 0.25f), rng);
+            }
+            else
+            {
+                Breach(k, w, Spot(0.65f, 0.6f), rng, 0.55f);
+                Breach(k, w, Spot(0.45f, 0.4f), rng, 0.35f);
+                for (int i = 0; i < 2; i++)
+                    Flap(k, w, Spot(0.3f, 0.25f), rng);
+                Gouge(k, w, Spot(0.35f, 0.4f), rng);
+            }
+        }
+        return k.Build($"damage-{state}");
+    }
+
+    static float Lerp(float a, float b, float t) => a + (b - a) * t;
+
+    /// <summary>Three parallel slashes raked down the plate (a cinder hound going up the side): black, with bright torn lips.</summary>
+    static void Gouge(Kit k, float w, (int Side, float Z, float Y) at, Random rng)
+    {
+        var n = new Vector3(at.Side, 0, 0);
+        float slant = (float)(rng.NextDouble() - 0.5) * 0.9f;
+        var up = Vector3.Normalize(new Vector3(0, 1, slant));
+        var across = Vector3.Normalize(Vector3.Cross(up, n));
+        float length = 0.45f + (float)rng.NextDouble() * 0.3f;
+        for (int j = -1; j <= 1; j++)
+        {
+            var c = new Vector3(at.Side * (w + 0.05f), at.Y, at.Z) + across * (j * 0.09f) + up * (MathF.Abs(j) * -0.04f);
+            k.Use("rust_heavy", Palette.SootBlack, 0.3f, 0).Shade(0.18f);
+            k.Panel(c, n, up, 0.03f, length * (1 - MathF.Abs(j) * 0.15f));
+            k.Use("iron_plate", Palette.IronGrey, 0.1f, 0.5f).Shade(1.25f);
+            k.Panel(c + across * 0.022f + n * 0.002f, n, up, 0.008f, length * (1 - MathF.Abs(j) * 0.15f) * 0.9f);
+        }
+    }
+
+    /// <summary>A plate torn off its lower rivets and bent out from the car, the hole it left black behind it.</summary>
+    static void Flap(Kit k, float w, (int Side, float Z, float Y) at, Random rng)
+    {
+        float hw = 0.22f + (float)rng.NextDouble() * 0.12f, hh = 0.18f + (float)rng.NextDouble() * 0.1f;
+        float x = at.Side * (w + 0.05f);
+        k.Use("rust_heavy", Palette.SootBlack, 0.3f, 0).Shade(0.12f);
+        k.Panel(new Vector3(x, at.Y, at.Z), new Vector3(at.Side, 0, 0), Vector3.UnitY, hw * 2, hh * 2);
+        // Hinged along its top edge, swung out 25-55°, a little twisted.
+        float swing = (25 + (float)rng.NextDouble() * 30) * MathF.PI / 180;
+        float twist = ((float)rng.NextDouble() - 0.5f) * 0.12f;
+        var hingeA = new Vector3(x + at.Side * 0.005f, at.Y + hh, at.Z - hw);
+        var hingeB = new Vector3(x + at.Side * 0.005f, at.Y + hh, at.Z + hw);
+        var drop = new Vector3(at.Side * MathF.Sin(swing), -MathF.Cos(swing), 0) * (hh * 2);
+        k.Use("rust_heavy", Palette.RustRed, 0.7f, 0.2f);
+        k.Quad(hingeA, hingeB, hingeB + drop + new Vector3(0, twist, 0), hingeA + drop - new Vector3(0, twist, 0), twoSided: true);
+    }
+
+    /// <summary>
+    /// Holed through: a ragged black opening, its plate petalled outward round the edge, the car's frame across it.
+    /// </summary>
+    static void Breach(Kit k, float w, (int Side, float Z, float Y) at, Random rng, float radius)
+    {
+        var n = new Vector3(at.Side, 0, 0);
+        var centre = new Vector3(at.Side * (w + 0.05f), at.Y, at.Z);
+        const int Sides = 9;
+        var rim = new Vector3[Sides];
+        for (int i = 0; i < Sides; i++)
+        {
+            float a = i * MathF.Tau / Sides + (float)rng.NextDouble() * 0.3f;
+            float r = radius * (0.7f + (float)rng.NextDouble() * 0.45f);
+            rim[i] = centre + new Vector3(0, MathF.Sin(a) * r, MathF.Cos(a) * r);
+        }
+        k.Use("rust_heavy", Palette.SootBlack, 0.2f, 0).Shade(0.08f);
+        for (int i = 0; i < Sides; i++)
+            Face(k, centre, rim[i], rim[(i + 1) % Sides], n);
+        // The frame showing through: an upright and a rail, bent.
+        k.Use("iron_plate", Palette.IronGrey, 0.6f, 0.3f).Shade(0.55f);
+        float lean = ((float)rng.NextDouble() - 0.5f) * radius * 0.5f;
+        k.Rod(centre + new Vector3(0.02f * at.Side, -radius * 0.95f, lean * 0.2f), centre + new Vector3(0.05f * at.Side, radius * 0.95f, lean), 0.035f);
+        k.Rod(centre + new Vector3(0.02f * at.Side, lean * 0.3f, -radius * 0.9f), centre + new Vector3(0.04f * at.Side, -lean * 0.4f, radius * 0.9f), 0.025f);
+        // Petals: each stretch of the rim peeled outward and back, torn lip bright.
+        for (int i = 0; i < Sides; i++)
+        {
+            if (rng.NextDouble() < 0.25)
+                continue;
+            var a = rim[i];
+            var b = rim[(i + 1) % Sides];
+            var mid = (a + b) / 2;
+            var outward = Vector3.Normalize(mid - centre);
+            var tip = mid + outward * (radius * (0.25f + (float)rng.NextDouble() * 0.3f)) + n * (0.1f + (float)rng.NextDouble() * 0.18f);
+            k.Use("rust_heavy", Palette.RustRed, 0.8f, 0.2f);
+            k.Tri(a, b, tip, new(0, 0), new(0.3f, 0), new(0.15f, 0.3f));
+            k.Tri(b, a, tip, new(0.3f, 0), new(0, 0), new(0.15f, 0.3f));
+            k.Use("iron_plate", Palette.IronGrey, 0.1f, 0.5f).Shade(1.2f);
+            k.Rod(a + n * 0.004f, b + n * 0.004f, 0.012f, 3);
+        }
+    }
+
+    /// <summary>A triangle facing <paramref name="n"/> whichever way its corners were given.</summary>
+    static void Face(Kit k, Vector3 a, Vector3 b, Vector3 c, Vector3 n)
+    {
+        if (Vector3.Dot(Vector3.Cross(b - a, c - a), n) < 0)
+            (b, c) = (c, b);
+        k.Tri(a, b, c, new(a.Z, -a.Y), new(b.Z, -b.Y), new(c.Z, -c.Y));
+    }
+}
