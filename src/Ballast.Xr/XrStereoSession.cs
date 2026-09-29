@@ -88,6 +88,7 @@ public sealed unsafe class XrStereoSession : IDisposable
         XrHeadset.Check(_xr.CreateReferenceSpace(_session, &spaceInfo, &space), "xrCreateReferenceSpace");
         _space = space;
 
+        Controls = new XrControls(_xr, headset.Instance, _session);
         (SwapchainFormat, EyeFormat) = PickFormat();
         _swapchainWidth = headset.EyeWidth;
         _swapchainHeight = headset.EyeHeight;
@@ -107,6 +108,11 @@ public sealed unsafe class XrStereoSession : IDisposable
     /// <summary>Every state the session has been through, oldest first (for the headless check).</summary>
     public List<SessionState> States { get; } = [];
     public int FramesRendered { get; private set; }
+    public XrControls Controls { get; }
+    /// <summary>The controllers as of the last frame (read at its predicted display time).</summary>
+    public XrControllerState Controllers { get; private set; }
+    /// <summary>The head's orientation in the tracking space, as of the last frame drawn.</summary>
+    public Quaternion Head { get; private set; } = Quaternion.Identity;
 
     (VkFormat Swapchain, VkFormat Eye) PickFormat()
     {
@@ -181,6 +187,8 @@ public sealed unsafe class XrStereoSession : IDisposable
                         break;
                 }
             }
+            else if (buffer.Type == StructureType.EventDataInteractionProfileChanged)
+                Controls.ProfileChanged();
             buffer = new EventDataBuffer { Type = StructureType.EventDataBuffer };
         }
         return State is not (SessionState.Exiting or SessionState.LossPending);
@@ -189,8 +197,10 @@ public sealed unsafe class XrStereoSession : IDisposable
     /// <summary>
     /// One frame at the runtime's pace (this blocks until the headset wants the next one). <paramref name="drawEye"/>
     /// records an eye into its renderer and returns it; it's called for eye 0 (left) then eye 1 (right).
+    /// <paramref name="synced"/>, if given, runs first, as soon as the controllers are read for the frame: whatever
+    /// follows the hands (the hands themselves) is placed there, not a frame late.
     /// </summary>
-    public XrFrameResult Frame(Func<XrEye, VkCommandBuffer, GreyboxRenderer> drawEye)
+    public XrFrameResult Frame(Func<XrEye, VkCommandBuffer, GreyboxRenderer> drawEye, Action<XrControllerState>? synced = null)
     {
         if (!PollEvents())
             return XrFrameResult.Exiting;
@@ -202,6 +212,8 @@ public sealed unsafe class XrStereoSession : IDisposable
         XrHeadset.Check(_xr.WaitFrame(_session, &wait, &state), "xrWaitFrame");
         var beginFrame = new FrameBeginInfo { Type = StructureType.FrameBeginInfo };
         XrHeadset.Check(_xr.BeginFrame(_session, &beginFrame), "xrBeginFrame");
+        Controllers = Controls.Sync(state.PredictedDisplayTime, _space);
+        synced?.Invoke(Controllers);
 
         var views = stackalloc View[2];
         views[0] = new View { Type = StructureType.View };
@@ -222,6 +234,8 @@ public sealed unsafe class XrStereoSession : IDisposable
             XrHeadset.Check(_xr.LocateView(_session, &locate, &viewState, 2, &located, views), "xrLocateViews");
             // No tracking this frame (the headset lost its bearings): submit nothing rather than a wrong view.
             draw = located == 2 && (viewState.ViewStateFlags & ViewStateFlags.OrientationValidBit) != 0;
+            if (draw)
+                Head = Quaternion.Slerp(Orientation(views[0].Pose), Orientation(views[1].Pose), 0.5f);
         }
         if (draw)
         {
@@ -270,6 +284,8 @@ public sealed unsafe class XrStereoSession : IDisposable
         return draw ? XrFrameResult.Rendered : XrFrameResult.Skipped;
     }
 
+    static Quaternion Orientation(in Posef pose) => new(pose.Orientation.X, pose.Orientation.Y, pose.Orientation.Z, pose.Orientation.W);
+
     (int Width, int Height) DrawEye(int eye, XrEye view, Func<XrEye, VkCommandBuffer, GreyboxRenderer> drawEye)
     {
         var swapchain = _swapchains[eye];
@@ -314,6 +330,7 @@ public sealed unsafe class XrStereoSession : IDisposable
             return;
         _disposed = true;
         _gpu.Api.vkDeviceWaitIdle();
+        Controls.Dispose();
         foreach (var s in _swapchains)
             _xr.DestroySwapchain(s);
         _xr.DestroySpace(_space);

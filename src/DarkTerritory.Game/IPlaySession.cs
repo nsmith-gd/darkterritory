@@ -56,6 +56,10 @@ public static class Eyes
         };
     }
 
+    /// <summary>The world heading of the frame a player's state is in (0 for the ground).</summary>
+    public static double Heading(in PlayerState s, IReadOnlyList<CarFrame> frames) =>
+        s.Parent != PlayerState.World && s.Parent < frames.Count ? frames[s.Parent].Heading : 0;
+
     /// <summary>A player's feet and facing in world space.</summary>
     public static (Double3 Feet, double Yaw) World(in PlayerState s, IReadOnlyList<CarFrame> frames)
     {

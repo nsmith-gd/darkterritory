@@ -8,7 +8,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game.Tests;
 
-/// <summary>Stereo views (T21). The session test needs an OpenXR runtime: CI runs Monado's simulated headset.</summary>
+/// <summary>Stereo views (T21) and controllers (T26). The session test needs an OpenXR runtime: CI runs Monado's simulated headset.</summary>
 public class VrTests
 {
     static readonly string Content = DataFile.FindContentRoot();
@@ -82,6 +82,23 @@ public class VrTests
                     Thread.Sleep(5);
             Assert.Equal(5, vr.Session.FramesRendered);
             Assert.Contains(Silk.NET.OpenXR.SessionState.Focused, vr.Session.States);
+
+            // Monado's simulated driver brings two Khronos simple controllers (tools/xr-sim.sh): the bindings take, and
+            // the hands are drawn where the eyes can see them.
+            if (vr.Headset.Runtime.Contains("Monado", StringComparison.OrdinalIgnoreCase))
+            {
+                var pads = vr.Session.Controllers;
+                Assert.Equal("/interaction_profiles/khr/simple_controller", pads.Profile);
+                Assert.True(pads.Left.Tracked && pads.Right.Tracked, "both simulated hands should be tracked");
+                var yaw = Quaternion.CreateFromAxisAngle(Vector3.UnitY, (float)body.Yaw);
+                foreach (var hand in new[] { pads.Left, pads.Right })
+                {
+                    var c = Clip(vr.LastEye(0), VrHands.Place(yaw, hand));
+                    Assert.True(c.W > 0, "a hand behind the eye");
+                    Assert.InRange(c.X / c.W, -1, 1);
+                    Assert.InRange(c.Y / c.W, -1, 1);
+                }
+            }
 
             // Two eyes, two viewpoints a head's width apart, and two different pictures of the same train.
             double ipd = (vr.LastEye(1).EyeOffset - vr.LastEye(0).EyeOffset).Length();

@@ -31,7 +31,9 @@ using DarkTerritory.Sim.Route;
 //   Needs steam_api64.dll next to the game (external/steam/README.md); --no-steam to not even try.
 // Networked, the cab is the only place to drive from (GDD §12): R/F/B/X work when you're standing in it.
 // VR: --vr plays in an OpenXR headset (Quest via Link, SteamVR, Monado) and mirrors to the window; --vr-scale 0.5 of the
-//   runtime's per-eye size. Mouse yaw still turns the body; the head does the rest.
+//   runtime's per-eye size. You look with your head and walk where you look: left stick walks (click it to run), right
+//   stick turns (snap by default, content/tuning/vr.json), grip uses/grabs, trigger fires, A jumps, B throws. The
+//   keyboard and mouse still work alongside (mouse yaw turns the body). Driving is from the keyboard until levers.
 // Voice (networked): open mic with voice activity, or --push-to-talk and hold V. Hold T to talk on the radio. --no-mic to only listen.
 
 string Arg(string name, string fallback)
@@ -171,6 +173,7 @@ static AudioOut? Warn(string? error)
 }
 
 var clock = new FixedStepClock(SimConstants.TickRate);
+var locomotion = vr is null ? null : new VrLocomotion(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)));
 var hud = new Overlay();
 bool showHud = !args.Contains("--no-hud");
 var scene = new GreyboxScene { Route = session.Route, Enemies = session.World.ActiveEnemies, Run = session.World.Run, Vehicles = session.Train.Vehicles, Bodies = session.World.Bodies.All };
@@ -239,6 +242,12 @@ while (!window.CloseRequested)
 
     pendingYaw -= input.MouseDX * Sensitivity;
     pendingPitch -= input.MouseDY * Sensitivity;
+    if (locomotion is not null)
+    {
+        // In a headset the head looks; the mouse only turns the room.
+        locomotion.Turn(pendingYaw);
+        pendingYaw = pendingPitch = 0;
+    }
 
     int ticks = clock.Advance(dt);
     for (int i = 0; i < ticks; i++)
@@ -263,6 +272,16 @@ while (!window.CloseRequested)
             Buttons = buttons,
             ThrottleNotch = proto is null ? (sbyte)Math.Clamp(pendingNotch, -4, 4) : (sbyte)0,
         };
+        if (locomotion is not null)
+        {
+            locomotion.Follow(session.Player, Eyes.Heading(session.Player, session.Train.Frames));
+            var headset = locomotion.Intent(session.Player, vr!.Session.Controllers);
+            intent.MoveX = Math.Clamp(intent.MoveX + headset.MoveX, -1, 1);
+            intent.MoveZ = Math.Clamp(intent.MoveZ + headset.MoveZ, -1, 1);
+            intent.LookYaw = headset.LookYaw;
+            intent.LookPitch = headset.LookPitch;
+            intent.Buttons |= headset.Buttons;
+        }
         pendingNotch = 0;
         pendingReverser = false;
         pendingYaw = pendingPitch = 0;
@@ -320,8 +339,8 @@ while (!window.CloseRequested)
         (w, h) = window.PixelSize;
         swapchain.Recreate(w, h);
     }
-    // The body is the flat camera: its eye point and yaw. The head does the looking.
-    if (vr is not null && vr.Frame(mesh, cam, light, light.FogColor) == XrFrameResult.Exiting)
+    // The body is the flat camera's eye point, turned to where the room faces; the head does the looking.
+    if (vr is not null && vr.Frame(mesh, locomotion!.Body(cam, Eyes.Heading(session.Player, frames)), light, light.FogColor, locomotion) == XrFrameResult.Exiting)
         break;
 
     if (now >= titleAt)

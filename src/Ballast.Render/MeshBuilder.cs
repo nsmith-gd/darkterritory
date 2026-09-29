@@ -42,6 +42,13 @@ public sealed class MeshBuilder
         PointLights.Clear();
     }
 
+    /// <summary>Drops everything added after the first <paramref name="count"/> vertices (lights stay).</summary>
+    public void Truncate(int count)
+    {
+        if (count < _vertices.Count)
+            _vertices.RemoveRange(count, _vertices.Count - count);
+    }
+
     public void Triangle(Vector3 a, Vector3 b, Vector3 c, Vector3 color)
     {
         var n = Vector3.Normalize(Vector3.Cross(b - a, c - a));

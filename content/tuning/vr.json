@@ -1,0 +1,28 @@
+// VR controls and comfort (roadmap M4). Not in the GDD or the spec: these are defaults a player changes in settings,
+// picked from what headset players expect (snap turn and a locomotion vignette on by default, both switchable).
+{
+  // "snap" turns in steps (the comfortable default), "smooth" turns continuously.
+  "turn": "snap",
+  "snapDegrees": 45,
+  "smoothDegreesPerSecond": 120,
+  // Snap once the right stick is pushed past `snapEngage`; it has to come back inside `snapRelease` to snap again.
+  "snapEngage": 0.7,
+  "snapRelease": 0.35,
+  // Stick travel ignored at the centre (worn sticks drift).
+  "stickDeadzone": 0.2,
+
+  // Darkens the edge of view while the stick moves you: artificial motion is what makes people sick, and the
+  // periphery is where it's felt. The train carrying you isn't artificial (you're riding it), so it doesn't count.
+  "vignette": {
+    "enabled": true,
+    // How dark the edge gets (0..1) at full stick walking, at full smooth turn, and for a moment on a snap.
+    "moving": 0.55,
+    "turning": 0.8,
+    "snap": 0.9,
+    // The clear middle, as a fraction of the eye's half-size.
+    "inner": 0.5,
+    // Seconds to close in, and to open up again.
+    "riseSeconds": 0.12,
+    "fallSeconds": 0.35
+  }
+}

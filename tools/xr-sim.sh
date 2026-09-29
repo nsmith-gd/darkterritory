@@ -2,6 +2,8 @@
 # Starts a simulated OpenXR headset (Monado's "Simulated HMD") on a virtual display, so `dt vr check` and VrTests run
 # without a headset (ARCHITECTURE §8 note 25). Needs, from apt: monado-service libopenxr1-monado libopenxr-loader1
 # xvfb mesa-vulkan-drivers. Afterwards run things with XDG_RUNTIME_DIR=/tmp/xr.
+# The simulated driver brings two Khronos simple controllers as well, so the action bindings and hand poses are
+# exercised too (they sit still: nothing presses their buttons).
 set -euo pipefail
 dir=/tmp/xr # short on purpose: Monado's IPC socket path has to fit a sockaddr_un (108 bytes)
 display=:97
@@ -14,7 +16,8 @@ rm -f "$dir/monado_comp_ipc" "$dir/monado.pid"
 pgrep -f "Xvfb $display" >/dev/null || (Xvfb "$display" -screen 0 1280x720x24 >/dev/null 2>&1 &)
 sleep 1
 # monado-service polls stdin, so it needs a pipe that stays open rather than /dev/null.
-(sleep infinity | DISPLAY="$display" XRT_COMPOSITOR_FORCE_XCB=1 XDG_RUNTIME_DIR="$dir" monado-service > /tmp/monado.log 2>&1 &)
+(sleep infinity | DISPLAY="$display" XRT_COMPOSITOR_FORCE_XCB=1 XDG_RUNTIME_DIR="$dir" \
+  SIMULATED_ENABLE=1 SIMULATED_LEFT=simple SIMULATED_RIGHT=simple monado-service > /tmp/monado.log 2>&1 &)
 for _ in $(seq 1 20); do
   [ -S "$dir/monado_comp_ipc" ] && break
   sleep 0.5

@@ -122,10 +122,11 @@ static object VrCheck(TrainTuning t, string content, string[] args)
         var lighting = Views.Lighting(train);
         var outcomes = new Dictionary<string, int>();
         var clock = Stopwatch.StartNew();
+        var comfort = new DarkTerritory.Game.VrLocomotion(DataFile.Load<DarkTerritory.Game.VrTuning>(Path.Combine(content, DarkTerritory.Game.VrTuning.File)));
         void Count(Ballast.Xr.XrFrameResult r) => outcomes[r.ToString()] = outcomes.GetValueOrDefault(r.ToString()) + 1;
         while (vr.Session.FramesRendered < frames && clock.Elapsed.TotalSeconds < 30)
         {
-            var r = vr.Frame(mesh, body, lighting, lighting.FogColor);
+            var r = vr.Frame(mesh, body, lighting, lighting.FogColor, comfort);
             Count(r);
             if (r == Ballast.Xr.XrFrameResult.Exiting)
                 break;
@@ -152,6 +153,8 @@ static object VrCheck(TrainTuning t, string content, string[] args)
             static double Deg(float r) => Math.Round(r * 180 / Math.PI, 1);
             return new { offsetM = new[] { Math.Round(c.EyeOffset.X, 3), Math.Round(c.EyeOffset.Y, 3), Math.Round(c.EyeOffset.Z, 3) }, fovDeg = new[] { Deg(f.Left), Deg(f.Right), Deg(f.Up), Deg(f.Down) } };
         }
+        static object Hand(Ballast.Xr.XrHand h) => new { h.Tracked, positionM = new[] { Math.Round(h.Position.X, 3), Math.Round(h.Position.Y, 3), Math.Round(h.Position.Z, 3) } };
+        var pads = vr.Session.Controllers;
         return new
         {
             headset = true,
@@ -166,6 +169,16 @@ static object VrCheck(TrainTuning t, string content, string[] args)
             outcomes,
             states = vr.Session.States.Select(s => s.ToString()).ToList(),
             eyes = new[] { Eye(0), Eye(1) },
+            // What the game would send from them, standing still with the controllers at rest.
+            controllers = new
+            {
+                profile = pads.Profile,
+                left = Hand(pads.Left),
+                right = Hand(pads.Right),
+                buttons = comfort.Intent(default, pads).Buttons.ToString(),
+                turn = comfort.Tuning.Turn.ToString(),
+                vignette = Math.Round(comfort.Vignette, 3),
+            },
             path = Path.GetFullPath(output),
         };
     }
