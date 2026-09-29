@@ -126,7 +126,7 @@ public sealed record TerminusTemplate(double SkyGlowM, double YardLimitBoardM, d
 
 /// <summary>§6.3.</summary>
 public sealed record JunctionRules(double TangentClearM, double MaxGrade, double LampVisibleM, double SeparationM, double SeparationWithinM, double PadM,
-    double MinSpacingM, double BoardFarM, double BoardNearM);
+    double MinSpacingM, double BoardFarM, double BoardNearM, double TurnoutRadius, double TurnoutLength);
 
 /// <summary>§6.2 step 4.</summary>
 public sealed record AlternateRules(double[] WindowKm, Dictionary<string, TradeOff> TradeOffs, double ClosureReserveM, double MinBulgeM, double LengthOverChordMin);

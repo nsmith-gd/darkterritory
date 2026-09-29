@@ -46,6 +46,19 @@ public sealed record Route(string Name, RouteTier Tier, ulong Seed, LineDefiniti
     public IReadOnlyList<BranchDefinition> Branches { get; init; } = [];
     public RailLine Build() => Branches.Count == 0 ? new(Line) : new(Line, Branches);
 
+    /// <summary>
+    /// The generated line this route is a projection of (docs/design/linegen-plan.md): terrain, signage, authority and the
+    /// route card read it. Null for a hand-laid line. Not saved with a route file: an edited line is hand-laid.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public LineGen.LinePlan? Plan { get; init; }
+
+    /// <summary>Main-line distance of the fortress's outer gate, where the night starts; 0 for route.json's yardLength.</summary>
+    public double Gate { get; init; }
+
+    /// <summary>Where the night starts: the outer gate (linegen plan §10.2), or the end of the tuning's yard.</summary>
+    public double GateOr(double yardLength) => Gate > 0 ? Gate : yardLength;
+
     /// <summary>The next feature starting ahead of <paramref name="s"/> (hazards excluded: those you find).</summary>
     public RouteFeature? NextLandmark(double s) =>
         Features.Where(f => f.Start > s && f.Kind is FeatureKind.Tunnel or FeatureKind.Bridge or FeatureKind.Facility or FeatureKind.Junction)

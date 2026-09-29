@@ -63,11 +63,13 @@
 
   // Plan §6.3. A turnout on tangent, nearly level track; its lamp seen from 250 m; branches curve away to 300 m
   // separation within 2 km; a level pad ±150 m where the corridors meet. Boards 2 km and 1 km out. Junctions no nearer
-  // each other than minSpacingM (a train's tail clears one before its front reaches the next). The turnout itself is
-  // route.json's junction kit.
+  // each other than minSpacingM (a train's tail clears one before its front reaches the next). An alternate's or dead
+  // line's turnout: two curves of turnoutLength at turnoutRadius, out to 7 m between track centres. The radius keeps a
+  // train that takes one at the line's top speed on the rails (sqrt(aDerail R) above spec B.1's 22 m/s): a switch the
+  // Switchman threw costs the clock, never the train (App. A.7). Facility spurs are route.json's kit, taken at a crawl.
   "junctions": {
     "tangentClearM": 40, "maxGrade": 0.5, "lampVisibleM": 250, "separationM": 300, "separationWithinM": 2000, "padM": 150,
-    "minSpacingM": 600, "boardFarM": 2000, "boardNearM": 1000
+    "minSpacingM": 600, "boardFarM": 2000, "boardNearM": 1000, "turnoutRadius": 500, "turnoutLength": 60
   },
 
   // Plan §6.2 step 4. Windows of main line an alternate bypasses; each differs from the main line in what it trades.

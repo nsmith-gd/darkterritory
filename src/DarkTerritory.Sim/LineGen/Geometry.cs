@@ -86,7 +86,7 @@ public static class Geometry
         return new Pose(x, z, h);
     }
 
-    static double K(HPrim p, double u) => p.K0 + (p.K1 - p.K0) * (p.Length <= 0 ? 0 : u / p.Length);
+    static double K(HPrim p, double u) => p.K0 + (p.K1 - p.K0) * (p.Length <= 0 ? 0 : Math.Clamp(u / p.Length, 0, 1));
 
     public static Pose Advance(Pose p, IEnumerable<HPrim> prims)
     {
@@ -116,13 +116,19 @@ public static class Geometry
         // Seeds: the tangent along the chord between the two, in either turning sense.
         double chord = Math.Atan2(-(to.X - from.X), -(to.Z - from.Z));
         double distance = Math.Sqrt((to.X - from.X) * (to.X - from.X) + (to.Z - from.Z) * (to.Z - from.Z));
-        foreach (double seed in new[] { Wrap(chord - from.Heading), 0.0, dh / 2, Wrap(chord - from.Heading) * 1.5 })
+        // Every seed that converges, and the shortest of them that doesn't loop round (no more than a half turn).
+        List<HPrim>? best = null;
+        double bestLength = double.MaxValue;
+        foreach (double seed in new[] { Wrap(chord - from.Heading), 0.0, dh / 2, Wrap(chord - from.Heading) * 1.5, -Wrap(chord - from.Heading) })
         {
             var solved = Solve(c, from, to, radius, speed, seed, Math.Max(1, distance - 2 * radius * Math.Abs(seed)), dh, tolerance);
-            if (solved is not null)
-                return solved;
+            if (solved is null)
+                continue;
+            double turning = solved.Sum(p => Math.Abs(p.Deflection)), length = solved.Sum(p => p.Length);
+            if (turning <= Math.PI && length < bestLength)
+                (best, bestLength) = (solved, length);
         }
-        return null;
+        return best;
     }
 
     static List<HPrim> Build(CurveRules c, double d1, double tangent, double d2, double radius, double speed)
@@ -192,9 +198,10 @@ public static class Geometry
             if (cutMm > total)
                 break;
             double at = atMm / 1000.0, cut = cutMm / 1000.0;
-            while (hi < prims.Count - 1 && at >= hStart + prims[hi].Length - 1e-6)
+            // Cuts are on the millimetre grid and a primitive's end may be a hair past one: within a millimetre is past it.
+            while (hi < prims.Count - 1 && at >= hStart + prims[hi].Length - 0.0015)
                 hStart += prims[hi++].Length;
-            while (vi < grades.Count - 1 && at >= vStart + grades[vi].Length - 1e-6)
+            while (vi < grades.Count - 1 && at >= vStart + grades[vi].Length - 0.0015)
                 vStart += grades[vi++].Length;
             var hp = prims[hi];
             var vp = grades[vi];
