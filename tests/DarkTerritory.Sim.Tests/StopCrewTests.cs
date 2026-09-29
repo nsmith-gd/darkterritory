@@ -149,6 +149,27 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void WithTheShunterDeadTheFirstHandLeftTakesItOver()
+    {
+        var calls = new CrewCalls();
+        var alive = new PlayerState { Health = 100, Parent = 3 };
+        calls.Say(0, StopJob.Driver, alive);
+        calls.Say(1, StopJob.None, alive);
+        calls.Say(3, StopJob.Winch0, alive);
+        calls.Say(4, StopJob.Crates, alive);
+        // Nobody's said they're the shunter yet: that's not a dead shunter, so nobody takes it.
+        Assert.False(calls.StandIn(3, StopJob.Shunter));
+        calls.Say(2, StopJob.Shunter, alive);
+        Assert.False(calls.StandIn(3, StopJob.Shunter));
+        // Mauled: the first of the rest with a part of their own steps in (not the driver, not the gunner), and only them.
+        calls.Say(2, StopJob.Shunter, alive with { Health = 0, Death = DeathCause.Mauled });
+        Assert.True(calls.StandIn(3, StopJob.Shunter));
+        Assert.False(calls.StandIn(4, StopJob.Shunter));
+        calls.Say(3, StopJob.Shunter, alive);
+        Assert.False(calls.StandIn(4, StopJob.Shunter));
+    }
+
+    [Fact]
     public void ACrewWorksAWinchStopAndGoesOn()
     {
         var night = new Night(cars: 8);
