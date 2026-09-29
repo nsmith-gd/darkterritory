@@ -42,6 +42,8 @@ public sealed class GreyboxScene
     public SwitchStands? Stands { get; set; }
     /// <summary>The cab's controls, for where the levers' handles are.</summary>
     public TrainControls Controls { get; set; } = new() { Reverser = 1 };
+    /// <summary>The art pass's surfaces (T39, look.json). Unset, the greybox is flat colour.</summary>
+    public Look? Look { get; set; }
 
     /// <summary>Depth of the valley under a bridge.</summary>
     const double ValleyDepth = 18;
@@ -57,6 +59,13 @@ public sealed class GreyboxScene
     public void Build(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, double hint, Double3 eye)
     {
         mesh.Clear();
+        mesh.Style = Look?.Style;
+        mesh.Seed = 0;
+        // Bare triangles (the ground, the ballast, the trees) take world texels, wrapped every few km so they fit a
+        // float; the pattern jumps at a wrap, rarely and far off in the fog.
+        const double Wrap = 4096;
+        static float W(double v) => (float)(v - Math.Floor(v / Wrap) * Wrap);
+        mesh.SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z));
         double centre = NearestDistance(line, eye, hint);
         double from = Math.Max(0, centre - DrawDistance), to = Math.Min(line.Length, centre + DrawDistance);
 
@@ -97,6 +106,7 @@ public sealed class GreyboxScene
         }
         foreach (var frame in frames)
             Car(mesh, frame, eye);
+        mesh.Seed = 0;
         if (Enemies is not null)
             foreach (var e in Enemies)
                 if (!e.Gone)
@@ -361,7 +371,9 @@ public sealed class GreyboxScene
         {
             if (Route is not null && (Route.InTunnel(s) || Route.BridgeAt(s) is not null))
                 continue;
-            var rng = new Random(HashCode.Combine(Seed, (int)(s / 12)));
+            // A fixed hash, not HashCode.Combine: that one's seeded afresh every process, and the pines would move.
+            var rng = new Random(unchecked(Seed * 73856093 ^ (int)(s / 12) * 19349663));
+            mesh.Seed = (float)(s / 12 % 997);
             for (int k = 0; k < 3; k++)
             {
                 double side = rng.Next(2) == 0 ? -1 : 1;
@@ -663,6 +675,8 @@ public sealed class GreyboxScene
 
         var shape = frame.Shape;
         bool engine = frame.Index == 0;
+        // Each car wears its own way (the grime pattern is in the car's own frame, so it rides with it).
+        mesh.Seed = frame.Index + 1;
         // What you see is what you collide with: every solid is drawn, coloured by what it is. Long interior
         // surfaces go down in 2 m slices so the per-vertex lamp light has vertices to land on.
         foreach (var solid in shape.Solids)

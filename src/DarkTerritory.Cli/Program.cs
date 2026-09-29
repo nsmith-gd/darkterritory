@@ -130,7 +130,7 @@ static object VrCheck(TrainTuning t, string content, string[] args)
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, (int)Opt(args, "--cars", 6), 1)), line, Opt(args, "--at", 1200));
         var body = Views.Get(Str(args, "--view", "roof"), train, (int)Opt(args, "--car", 2));
         var mesh = new MeshBuilder();
-        new GreyboxScene { Time = 0.37 }.Build(mesh, train, body.Position);
+        new GreyboxScene { Time = 0.37, Look = Looked(content, args) }.Build(mesh, train, body.Position);
         var lighting = Views.Lighting(train);
         var outcomes = new Dictionary<string, int>();
         var clock = Stopwatch.StartNew();
@@ -594,6 +594,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var mesh = new MeshBuilder();
     new GreyboxScene
     {
+        Look = Looked(content, args),
         Route = route,
         Run = run,
         Time = 0.37,
@@ -625,6 +626,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     };
 }
 
+// The art pass's surfaces (T39, look.json), unless --greybox asks for flat colour to compare against.
+static DarkTerritory.Game.Look? Looked(string content, string[] args) => args.Contains("--greybox") ? null : DarkTerritory.Game.Look.Load(content);
+
 // The front end as the game draws it (T30): a screen of the menus over the yard, at the game's 480x270. The campaign
 // screens use a demo slot (a few nights in, some scrip) in a scratch directory unless --saves names real ones.
 static object MenuShot(TrainTuning t, string content, string[] args)
@@ -634,7 +638,7 @@ static object MenuShot(TrainTuning t, string content, string[] args)
     var standing = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, 6, 1)), line, 1200);
     var view = Views.Get("trackside", standing);
     var mesh = new MeshBuilder();
-    new GreyboxScene { Time = 0.37 }.Build(mesh, standing, view.Position);
+    new GreyboxScene { Time = 0.37, Look = Looked(content, args) }.Build(mesh, standing, view.Position);
     var light = Views.Lighting(standing);
     using var gpu = new GpuContext("dt screenshot");
     using var renderer = new GreyboxRenderer(gpu, 480, 270);
@@ -694,7 +698,7 @@ static object HudShot(string content, string[] args)
     using var gpu = new GpuContext("dt screenshot --hud");
     using var renderer = new GreyboxRenderer(gpu, width, height);
     var mesh = new MeshBuilder();
-    new GreyboxScene { Route = session.Route, Run = session.World.Run, Vehicles = session.Train.Vehicles, Bodies = session.World.Bodies.All, Time = 0.37 }
+    new GreyboxScene { Route = session.Route, Run = session.World.Run, Vehicles = session.Train.Vehicles, Bodies = session.World.Bodies.All, Time = 0.37, Look = Looked(content, args) }
         .Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
     var lighting = Views.Lighting(frames[0]);
     if (session.Route is { } r)

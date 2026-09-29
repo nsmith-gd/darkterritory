@@ -783,3 +783,34 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - a panel you can grab and move;
       - the text's size is the flat HUD's, legible at a real headset's pixel density but small at the simulated one's;
       - the exit test on a real headset.
+42. **Art pass v1 (T39, GDD §25-28).** Surfaces stand in for textures until there are any, and they're all from the style sheet's short list.
+    - **In the vertex, not in the frame's constants.**
+      - The push constants are already at the 128 bytes every GPU guarantees. So each vertex carries its surface: texel coordinates, wear and shine (`Vertex` is 60 bytes).
+      - `MeshBuilder.Style` fills them in. With no style, the greybox is flat colour as before (`--greybox`, and every test that doesn't ask).
+    - **Texels that stay put.**
+      - A box's texels are in its own frame, at `look.json` `texelsPerMetre` (§27's environment density, 128 px/m). So the grime rides with a moving car, and nothing swims as the camera moves.
+      - Bare triangles (the ground, the trees) take world texels, wrapped every 4 km so they fit a float. The pattern jumps at a wrap, rarely and far off in the fog.
+      - `MeshBuilder.Seed` (a vehicle's index, a prop's place along the line) keeps identical parts from wearing identically.
+    - **What the shader does with them.** In texel space:
+      - blocky per-texel grain: the low-res texture look, and §27's "subtle pixel crawl" as the camera moves;
+      - broad soot fields about half a metre across;
+      - warm rust and chipped patches;
+      - streaks stretched down the surface.
+      - The existing dither and 48-level colour then give it the "compression feel".
+      - Metal throws a harsh Blinn specular from the headlamp and a cold one from the moon (§25), dulled in patches by the grime.
+      - The bottoms of boxes are darker by `baked`: the baked shadow, and the soot that collects low.
+    - **Materials by colour** (`Look`).
+      - Every `Palette` colour named in `look.json` is one of §27's material families: iron dark and oily with a specular, brass tarnished, paint and wood the most worn, lights clean.
+      - Any other colour (a tint, a lamp dimmed in a Vigil) takes the nearest named one's by hue first, then brightness. So the whole scene is dressed without the scene saying what anything is.
+      - A name that isn't a palette colour is an error.
+    - **Found on the way:** the lineside pines were placed with `HashCode.Combine`, which .NET seeds afresh every process. So they moved between runs and no two screenshots matched. They use a fixed hash now.
+    - **Verified:**
+      - `LookTests`: every material maps, lights stay clean, and a dimmed or tinted colour keeps its family;
+      - worn walls break up (4×4 blocks, which cancel the dither, differ more than flat colour's) without burying the room: its mean brightness stays within 60-110% of flat;
+      - the guard van's wear is the same seen from inside the car with the train 300 m further on.
+      - CI's screenshots all carry the look.
+    - **Not yet:**
+      - the look hot-reloaded;
+      - real textures (the vertex layout leaves room: the texel coordinates are UVs in waiting);
+      - normal breakup;
+      - VFX (§31: steam, sparks, cinders).

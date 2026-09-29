@@ -111,6 +111,11 @@ Remaining for M3: Soot Children mimicry, the radio as an item, and interior occl
   - cargo cars have a sliding door on each side with steps up to it, so you walk freight in;
   - crate hands carry the stack in and shut the doors after.
 
+**Art pass v1 (T39, M5's "art pass to style sheet"):**
+- Greybox surfaces are weathered to GDD §27, standing in for textures: blocky grain at 128 px/m, soot fields, rust patches and streaks, a baked shadow low down, and harsh speculars on iron and brass.
+- The wear rides with each car. Materials come from the palette (`tuning/look.json`), and `--greybox` gives flat colour to compare.
+- Screenshots are deterministic now: the pines stopped moving between runs.
+
 **HUD:**
 - A pixel-font HUD in the low-res frame: engine gauges, ping to host (spec E), the prompt for what your hands can do, and the night.
 - `dt screenshot --hud` captures it.

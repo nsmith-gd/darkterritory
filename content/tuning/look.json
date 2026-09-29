@@ -1,0 +1,36 @@
+// The art pass (T39, GDD §25-28): how the greybox's surfaces weather, standing in for textures until there are any.
+// Each palette colour (Palette.cs) is a material: how much wear shows on it (blocky grain, broad soot and rust fields,
+// streaks running down) and how hard a specular it throws back. A colour that's been tinted or dimmed takes the nearest.
+// "If it looks like a pristine Substance demo, it is off target." (§27)
+{
+  // §27's texture density: environment 128-256 px/m. One grain is one texel.
+  "texelsPerMetre": 128,
+  // The bottoms of things are this much darker: the baked shadow, and the soot and wet that collect low.
+  "baked": 0.35,
+  // §27's material families.
+  "materials": {
+    // Iron and steel: dark, oily, cold. The one surface with a harsh specular (§25).
+    "IronGrey": { "wear": 0.8, "shine": 0.35 },
+    "SootBlack": { "wear": 0.5, "shine": 0.25 },
+    "Charcoal": { "wear": 0.7, "shine": 0.15 },
+    "GreaseSheen": { "wear": 0.3, "shine": 0.6 },
+    // Brass and copper: muted warm metal, tarnished.
+    "TarnishedBrass": { "wear": 0.5, "shine": 0.7 },
+    // Painted metal: chipped, faded, practical.
+    "RustRed": { "wear": 1.0, "shine": 0.05 },
+    "BlueGrey": { "wear": 0.8, "shine": 0.1 },
+    // Wood: dark, worn, rough grain.
+    "DeepBrown": { "wear": 0.9, "shine": 0 },
+    "MuddyOlive": { "wear": 0.8, "shine": 0 },
+    // The ground and what grows on it.
+    "Ballast": { "wear": 1.0, "shine": 0 },
+    "PineDark": { "wear": 0.5, "shine": 0 },
+    // Flesh and corruption: waxy, bruised, damp. A dull sheen.
+    "Corrupted": { "wear": 0.6, "shine": 0.2 },
+    // Light sources stay clean.
+    "LampAmber": { "wear": 0, "shine": 0 },
+    "FurnaceOrange": { "wear": 0, "shine": 0 },
+    "SignalGreen": { "wear": 0, "shine": 0 },
+    "SignalRed": { "wear": 0, "shine": 0 }
+  }
+}
