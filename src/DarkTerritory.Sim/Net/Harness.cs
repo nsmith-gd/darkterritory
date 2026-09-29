@@ -192,7 +192,7 @@ public static class Harness
         string doing = bot switch
         {
             ConductorBot c => c.Stops?.Doing.ToString() ?? "",
-            RoofWalkerBot r => r.Job?.Doing is { Length: > 0 } job ? job : r.WarmUpStep is { } w and not "Off" ? $"warm:{w}" : "",
+            RoofWalkerBot r => r.WarmUpStep is { } w and not "Off" ? $"warm:{w}" : r.Job?.Doing ?? "",
             GunnerBot g => g.Job?.Doing ?? "",
             _ => "",
         };

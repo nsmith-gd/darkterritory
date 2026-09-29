@@ -617,7 +617,8 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - It carries nothing a player couldn't say.
       - What each bot sees is its own client's world. Clients now mirror the run in the harness, as they do in the game.
     - **Cold still applies.**
-      - At 85% of the onset, a hand on the ground goes and gets warm the walker's way, then comes back to the work.
+      - At 85% of the onset, a hand stops work and gets warm until it's nearly back to nothing (5 s), then returns.
+      - It warms in the cab when the engine is within 60 m, and the walker's way in a car otherwise. The cab has no doors, so two hands can't undo each other: the winch pair both went cold at once and froze in one car, shutting and reopening its door (the T31 door race).
       - The cab is warm, so riding in and out doubles as a warm-up. Both 80 s sleds fit inside the onset from a warm start.
     - **Found on the way, and fixed:**
       - **The cab steps put you on the cab roof.** Over the top of a ladder you now land on the highest footing at the top rung, not whatever's overhead. That fixes it for players too (`PlayerMotorTests`).

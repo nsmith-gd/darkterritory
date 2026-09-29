@@ -286,9 +286,14 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
     /// <summary>Stand this far from the track at the switch stand: in reach of the lever (2.6 m out), clear of the train.</summary>
     const double StandOff = 3.2;
 
+    /// <summary>Warm enough again to go back to it (from 85% of the onset).</summary>
+    const double WarmAgain = 5;
+    /// <summary>The cab's the place to get warm when it's this near: no doors to fight over, and the driver's there.</summary>
+    const double CabNear = 60;
+
     readonly HashSet<int> _done = [];
     StopPlan? _plan;
-    bool _wentIn, _reachedEnd;
+    bool _wentIn, _reachedEnd, _warming;
 
     public StopJob Job => job;
     /// <summary>What it's doing (for tests and traces).</summary>
@@ -327,11 +332,17 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             return new PlayerIntent();
         if (self.Surface == Surface.Ladder || self.Surface == Surface.Deck && self.Parent > 0)
             return null;
-        // Too cold to keep at it: aboard and in to get warm (the walker's way), then back to it.
+        // Too cold to keep at it: into the cab if it's near (the walker's way into a car if not), until properly warm again.
         if (cold is not null && self.Cold >= cold.OnsetSeconds * 0.85 && !PlayerMotor.NearHeat(self, train))
+            _warming = true;
+        else if (self.Cold <= WarmAgain)
+            _warming = false;
+        if (_warming)
         {
+            var cab = train.Frames[0].ToWorld(train.Frames[0].Shape.Cab!.Value.Centre);
+            var warming = (PlayerMotor.WorldPosition(self, train) - cab).Length < CabNear ? Ride(self, train, p) : null;
             Doing = "warming";
-            return null;
+            return warming;
         }
         return job == StopJob.Shunter ? Shunt(self, world, p) : Crank(self, world, p);
     }
