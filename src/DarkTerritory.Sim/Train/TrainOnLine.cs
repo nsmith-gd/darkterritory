@@ -171,17 +171,21 @@ public sealed class TrainOnLine
             vehicle.Integrity = v.Integrity;
             vehicle.CargoIntegrity = v.CargoIntegrity;
         }
+        var previous = _rakes.ToDictionary(r => r.Consist.Vehicles[0].Id);
         _rakes.Clear();
         foreach (var r in state.Rakes)
         {
             var consist = new Consist(Tuning);
             foreach (int id in r.Vehicles)
                 consist.Add(_vehicles[id]);
-            // Reuse the engine rake object so references to Dynamics stay valid.
-            var rake = consist.HasEngine ? _engineRake : new TrainDynamics(consist);
+            // Reuse the engine rake object so references to Dynamics stay valid, and any rake that still
+            // exists so its render interpolation carries on.
+            var rake = consist.HasEngine ? _engineRake : previous.GetValueOrDefault(r.Vehicles[0]) ?? new TrainDynamics(consist);
+            bool known = previous.ContainsKey(r.Vehicles[0]);
             rake.Consist = consist;
             rake.Restore(r.Distance, r.Velocity, r.BrakeEfficiency);
-            rake.PreviousDistance = r.Distance;
+            if (!known)
+                rake.PreviousDistance = r.Distance;
             rake.Handbrake = r.Handbrake;
             rake.FrontCouplerLocked = r.FrontCouplerLocked;
             _rakes.Add(rake);

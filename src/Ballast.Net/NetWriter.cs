@@ -42,6 +42,9 @@ public sealed class NetWriter
         U8((byte)v);
     }
 
+    /// <summary>Signed LEB128 via zigzag: small deltas either side of zero cost one byte.</summary>
+    public void VarS(long v) => VarU((ulong)((v << 1) ^ (v >> 63)));
+
     public void Double3(Double3 v)
     {
         F64(v.X);
@@ -96,6 +99,12 @@ public ref struct NetReader(ReadOnlySpan<byte> data)
                 return v;
         }
         throw new InvalidDataException("varint too long");
+    }
+
+    public long VarS()
+    {
+        ulong u = VarU();
+        return (long)(u >> 1) ^ -(long)(u & 1);
     }
 
     public Double3 Double3() => new(F64(), F64(), F64());

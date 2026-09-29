@@ -20,6 +20,8 @@ public sealed class HostSession
         public readonly PeerId Peer = peer;
         public readonly SortedDictionary<uint, PlayerIntent> Pending = new();
         public uint LastApplied;
+        /// <summary>Newest snapshot this client says it has decoded: the baseline for its next delta.</summary>
+        public uint AckedSnapshot;
         public PlayerIntent LastIntent;
         public PlayerIntent ThisTick;
         public PlayerState State;
@@ -31,7 +33,10 @@ public sealed class HostSession
     readonly List<TransportEvent> _events = new();
     readonly List<InputFrame> _frames = new();
     readonly NetWriter _writer = new();
-    readonly PlayerSnapshot[] _snapshotScratch = new PlayerSnapshot[byte.MaxValue];
+    readonly List<PlayerSnapshot> _snapshotScratch = new();
+    readonly Dictionary<uint, List<WireRecord>> _history = new();
+    /// <summary>Ticks of snapshot history kept for delta baselines (~2 s).</summary>
+    const int HistoryTicks = 64;
     byte _nextId = 1;
 
     public HostSession(ITransport transport, TrainOnLine train, TrainTuning trainTuning, PlayerTuning playerTuning)
@@ -75,7 +80,17 @@ public sealed class HostSession
             PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds);
         Tick++;
 
-        Broadcast();
+        // Snap the world onto the replication grid and keep simulating from exactly that.
+        _snapshotScratch.Clear();
+        foreach (var c in _crew)
+            _snapshotScratch.Add(new PlayerSnapshot(c.Id, c.State));
+        var records = WorldRecords.Quantise(Train, ref Controls, _snapshotScratch);
+        foreach (var p in _snapshotScratch)
+            _crew.First(c => c.Id == p.Id).State = p.State;
+        _history[Tick] = records;
+        _history.Remove(Tick - HistoryTicks);
+
+        Broadcast(records);
     }
 
     PlayerIntent NextIntent(Crew c)
@@ -145,7 +160,8 @@ public sealed class HostSession
             if ((MessageType)r.U8() != MessageType.Input)
                 return;
             _frames.Clear();
-            Messages.ReadInput(ref r, _frames, out _);
+            Messages.ReadInput(ref r, _frames, out uint ackedSnapshot);
+            c.AckedSnapshot = Math.Max(c.AckedSnapshot, ackedSnapshot);
             foreach (var f in _frames)
                 if (f.Sequence > c.LastApplied)
                     c.Pending.TryAdd(f.Sequence, Sanitise(f.Intent));
@@ -168,15 +184,16 @@ public sealed class HostSession
         return i;
     }
 
-    void Broadcast()
+    void Broadcast(List<WireRecord> records)
     {
-        int n = 0;
-        foreach (var c in _crew)
-            _snapshotScratch[n++] = new PlayerSnapshot(c.Id, c.State);
-        var train = TrainSnapshot.Capture(Train, Controls);
         foreach (var c in _crew)
         {
-            Messages.WriteSnapshot(_writer, Tick, c.LastApplied, train, _snapshotScratch.AsSpan(0, n));
+            // Delta against the newest snapshot the client has confirmed; full if that's gone from history.
+            uint baseTick = c.AckedSnapshot;
+            var baseline = baseTick > 0 ? _history.GetValueOrDefault(baseTick) : null;
+            if (baseline is null)
+                baseTick = 0;
+            Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, records, baseline);
             LastSnapshotBytes = _writer.Length;
             _transport.Send(c.Peer, _writer.Written, Delivery.Unreliable);
         }
