@@ -741,3 +741,87 @@ def weathered(d):
     """Old timber and iron gone grey under soot: desaturated, darkened, a little brown left in it."""
     lum = d.mean(-1, keepdims=True)
     return (lum * 0.7 + d * 0.3) * np.array([0.78, 0.74, 0.68], np.float32)
+
+
+# ----------------------------------------------------------------------------------------------------------------
+# Creatures from scans: rigged on their own pose
+
+def rig_creature(name, meshes, bones, clips, rigid=None, plant=None):
+    """Rigs baked-down scan meshes on a skeleton placed on the scan's own pose and exports content/art/models/<name>.glb
+    with `clips` (tools/blender/rig Clips). `bones` is [(name, parent, head, tail)], placed where the scan's joints are;
+    each vertex is weighted to its nearest bones (inverse distance to the bone's segment, the closest four), except the
+    meshes in `rigid` ({mesh: bone}), which ride one bone (eyes on the head). Returns the path."""
+    sys.path.insert(0, os.path.join(os.path.dirname(HERE), "blender"))
+    import rig as blender_rig
+    sk = blender_rig.Skeleton("SK_Human", [blender_rig.Bone(n, p, h, t) for n, p, h, t in bones])
+    arm_obj = sk.build()
+    names = [b.name for b in sk.bones if b.name != "root"]
+    rigid = rigid or {}
+    for obj in meshes:
+        co = np.empty(len(obj.data.vertices) * 3, np.float32)
+        obj.data.vertices.foreach_get("co", co)
+        co = co.reshape(-1, 3)
+        if obj in rigid:
+            g = obj.vertex_groups.new(name=rigid[obj])
+            g.add(list(range(len(co))), 1.0, "REPLACE")
+        else:
+            d = np.empty((len(co), len(names)), np.float32)
+            for i, n in enumerate(names):
+                b = sk[n]
+                a, c = np.array(b.head, np.float32), np.array(b.tail, np.float32)
+                ab = c - a
+                t = np.clip(((co - a) @ ab) / max(float(ab @ ab), 1e-9), 0, 1)
+                d[:, i] = np.linalg.norm(co - (a + t[:, None] * ab), axis=1)
+            w = 1.0 / (d + 0.015) ** 6
+            top = np.argsort(-w, axis=1)[:, :4]
+            groups = {n: obj.vertex_groups.new(name=n) for n in names}
+            for vi in range(len(co)):
+                ws = w[vi, top[vi]]
+                ws = ws / ws.sum()
+                for k, bi in enumerate(top[vi]):
+                    if ws[k] > 0.03:
+                        groups[names[bi]].add([vi], float(ws[k]), "REPLACE")
+        for a in list(obj.data.color_attributes):
+            obj.data.color_attributes.remove(a)
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        bmesh.ops.dissolve_degenerate(bm, dist=1e-6, edges=bm.edges)
+        bm.to_mesh(obj.data)
+        bm.free()
+        obj.data.validate(clean_customdata=True)
+        for f in obj.data.polygons:
+            f.use_smooth = True
+        mod = obj.modifiers.new("Armature", "ARMATURE")
+        mod.object = arm_obj
+        obj.parent = arm_obj
+    blender_rig.bake(sk, clips, plant=plant(sk) if plant else None)
+    path = os.path.join(ROOT, "content", "art", "models", f"{name}.glb")
+    bpy.ops.object.select_all(action="DESELECT")
+    bpy.ops.export_scene.gltf(
+        filepath=path, export_format="GLB", export_yup=True, export_apply=False,
+        export_animations=True, export_animation_mode="ACTIONS", export_force_sampling=True, export_frame_step=1,
+        export_optimize_animation_size=False, export_anim_slide_to_zero=True, export_def_bones=False,
+        export_extras=True, export_skins=True, export_morph=False, export_texcoords=True, export_normals=True,
+        export_tangents=False, export_materials="EXPORT", export_image_format="NONE", export_cameras=False,
+        export_lights=False, export_all_influences=False, export_reset_pose_bones=True)
+    print(f"[dt] {name}: {tris(meshes)} tris, {len(sk.bones)} bones -> {os.path.relpath(path, ROOT)}")
+    return path
+
+
+def eyes_at(points, radius, colour=(0.69, 0.64, 0.5), name="eye"):
+    """Small emissive spheres (a creature's eyes: pure light, drawn at full colour)."""
+    mat = bpy.data.materials.new(f"{name}.light")
+    mat.use_nodes = True
+    mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (*colour, 1)
+    mat["dt_library"] = True
+    mat["dt_emissive"] = 1.0
+    mat["dt_shine"] = 0.0
+    mat["dt_glow"] = 0.0
+    out = []
+    for i, at in enumerate(points):
+        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=radius, location=at)
+        e = bpy.context.view_layer.objects.active
+        e.name = f"{name}_{i}"
+        e.data.materials.append(mat)
+        out.append(e)
+    return out

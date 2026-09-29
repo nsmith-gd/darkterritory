@@ -12,21 +12,18 @@ tools/blender's procedural Hollow; same clips (idle, reach), same place (feet at
 
     python3 tools/models/fetch.py gk-transi && tools/models/build.sh hollow
 """
-import math
 import os
 import sys
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), "blender"))
-import bmesh  # noqa: E402
 import bpy  # noqa: E402
 import numpy as np  # noqa: E402
 from mathutils import Matrix, Vector  # noqa: E402
 
 import cook  # noqa: E402
-import rig  # noqa: E402
-from rig import Bone, Clip, Skeleton, over  # noqa: E402
+from rig import Clip, over  # noqa: E402
 
 cook.reset()
 objs = cook.load("gk-transi", "models/threedscans/Le_Transi_De_Rene_De_Chalon.plain.glb")
@@ -109,56 +106,6 @@ for s in ("l", "r"):
         (f"calf_{s}", f"thigh_{s}", J[f"calf_{s}"], J[f"foot_{s}"]),
         (f"foot_{s}", f"calf_{s}", J[f"foot_{s}"], J[f"toe_{s}"]),
     ]
-sk = Skeleton("SK_Human", [Bone(n, p, h, t) for n, p, h, t in chain])
-arm_obj = sk.build()
-
-
-def weigh(obj, only=None):
-    """Each vertex to its nearest bones (inverse distance to the bone's segment, the closest four), or wholly to `only`."""
-    co = np.empty(len(obj.data.vertices) * 3, np.float32)
-    obj.data.vertices.foreach_get("co", co)
-    co = co.reshape(-1, 3)
-    names = [b.name for b in sk.bones if b.name != "root"]
-    if only is not None:
-        g = obj.vertex_groups.new(name=only)
-        g.add(list(range(len(co))), 1.0, "REPLACE")
-        return
-    d = np.empty((len(co), len(names)), np.float32)
-    for i, n in enumerate(names):
-        b = sk[n]
-        a, c = np.array(b.head, np.float32), np.array(b.tail, np.float32)
-        ab = c - a
-        t = np.clip(((co - a) @ ab) / max(float(ab @ ab), 1e-9), 0, 1)
-        d[:, i] = np.linalg.norm(co - (a + t[:, None] * ab), axis=1)
-    w = 1.0 / (d + 0.015) ** 6
-    top = np.argsort(-w, axis=1)[:, :4]
-    groups = {n: obj.vertex_groups.new(name=n) for n in names}
-    for vi in range(len(co)):
-        ws = w[vi, top[vi]]
-        ws = ws / ws.sum()
-        for k, bi in enumerate(top[vi]):
-            if ws[k] > 0.03:
-                groups[names[bi]].add([vi], float(ws[k]), "REPLACE")
-
-
-weigh(low)
-for e in eyes:
-    weigh(e, only="head")
-for o in [low] + eyes:
-    for a in list(o.data.color_attributes):
-        o.data.color_attributes.remove(a)
-    bm = bmesh.new()
-    bm.from_mesh(o.data)
-    bmesh.ops.dissolve_degenerate(bm, dist=1e-6, edges=bm.edges)
-    bm.to_mesh(o.data)
-    bm.free()
-    o.data.validate(clean_customdata=True)
-    for f in o.data.polygons:
-        f.use_smooth = True
-    mod = o.modifiers.new("Armature", "ARMATURE")
-    mod.object = arm_obj
-    o.parent = arm_obj
-
 # ----------------------------------------------------------------------------------------------------------------
 # Clips. Rotations in the armature's axes at each joint: about X, - tips something standing forward (toward +Y, the
 # way it faces); about Z it turns.
@@ -190,15 +137,4 @@ reach.key(4, lunge, "CONSTANT")
 reach.key(22, lunge, "LINEAR")
 reach.key(26, over(lunge, head=(0, 0, 0)), "LINEAR")
 reach.key(33, STILL, "CONSTANT")
-rig.bake(sk, [idle, reach])
-
-path = os.path.join(cook.ROOT, "content", "art", "models", "hollow.glb")
-bpy.ops.object.select_all(action="DESELECT")
-bpy.ops.export_scene.gltf(
-    filepath=path, export_format="GLB", export_yup=True, export_apply=False,
-    export_animations=True, export_animation_mode="ACTIONS", export_force_sampling=True, export_frame_step=1,
-    export_optimize_animation_size=False, export_anim_slide_to_zero=True, export_def_bones=False,
-    export_extras=True, export_skins=True, export_morph=False, export_texcoords=True, export_normals=True,
-    export_tangents=False, export_materials="EXPORT", export_image_format="NONE", export_cameras=False,
-    export_lights=False, export_all_influences=False, export_reset_pose_bones=True)
-print(f"[dt] hollow: {cook.tris([low] + eyes)} tris, {len(sk.bones)} bones, from gk-transi -> content/art/models/hollow.glb")
+cook.rig_creature("hollow", [low] + eyes, chain, [idle, reach], rigid={e: "head" for e in eyes})
