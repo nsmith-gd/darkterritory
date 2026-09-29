@@ -143,9 +143,12 @@ Remaining for M3: Soot Children mimicry, the radio as an item, and interior occl
 - `dt harness --online` runs 8 bots through a lobby on a fake Steam. `dt online check` checks a machine's Steam setup.
 - It needs Valve's `steam_api64.dll` in `external/steam/`.
 
+**The soak (T42), M2's exit test:**
+- The nightly `Soak` workflow runs 8 clients on the rough link (90 ms ±20, 3% loss) for 30 minutes, then a whole frontier:7 night with the enemies.
+- The first run locally passed: worst correction 0.32 m, at most 17 corrections per client, every snapshot but ~4%, and nobody died.
+
 Remaining for M2:
 - a first run on real Steam between two accounts (needs the SDK library and two machines)
-- the 30-minute, 8-client rough-link soak as a nightly job
 - EOS for itch.io moves to M6 with the itch build
 
 **M4 (VR), foundation done:**
