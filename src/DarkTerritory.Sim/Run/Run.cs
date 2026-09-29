@@ -104,7 +104,7 @@ public sealed class Run
         _facilityTuning = t;
         _sites = [.. _facilities.Select((f, i) =>
         {
-            var modules = f.Facility is { } kind ? t.ModulesOf(kind) : [];
+            var modules = t.ModulesOf(f);
             if (modules.Count == 0)
                 return null;
             int span = Math.Max(0, t.Crates.Count[1] - t.Crates.Count[0]);

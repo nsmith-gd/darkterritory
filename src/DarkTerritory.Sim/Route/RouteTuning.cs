@@ -50,6 +50,9 @@ public sealed record TierTable(TierTuning Local, TierTuning Frontier, TierTuning
         RouteTier.DeadLines => DeadLines,
         _ => DeepTerritory,
     };
+
+    /// <summary>The tightest main-line curve any tier lays: a hand-laid line (the editor, T44) goes no tighter.</summary>
+    public double TightestRadius() => new[] { Local, Frontier, DeadLines, DeepTerritory }.Min(t => t.MinRadius);
 }
 
 public sealed record TierTuning(

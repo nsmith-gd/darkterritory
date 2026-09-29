@@ -12,6 +12,11 @@ public sealed record FacilityTuning(CrateTuning Crates, WinchTuning Winch, Dicti
     /// <summary>On a spur, the modules are laid out from this far back from its buffer stop (beside the first cars).</summary>
     public double SpurLayout { get; init; } = 45;
 
+    /// <summary>A facility's modules: its own, if the route gives it some (T44), else its kind's.</summary>
+    public IReadOnlyList<ModuleKind> ModulesOf(RouteFeature facility) =>
+        facility.Modules is { } own ? [.. own.Select(n => Enum.Parse<ModuleKind>(n, ignoreCase: true))]
+        : facility.Facility is { } kind ? ModulesOf(kind) : [];
+
     public IReadOnlyList<ModuleKind> ModulesOf(FacilityKind kind)
     {
         string key = char.ToLowerInvariant(kind.ToString()[0]) + kind.ToString()[1..];
