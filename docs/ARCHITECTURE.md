@@ -1094,3 +1094,16 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - a client sees who holds the cab.
       - `dt audio render`: the click and the hiss clear the bed by 24 dB in the cab.
       - `dt screenshot --threats --view cab` shows the green fire.
+57. **Crew bots run the gantry crane (T54, spec D.2 and D.3).** The winch pair take the crane first, while the cars under the gantry still have room (the crates and the sleds would fill them), then the winch.
+    - **The operator (Winch0):** down on the stand's side of the train (across the track from the castings), to the stand, and holding Use there.
+      - Hook up while traversing, down over the next stacked casting to where it can be rigged, held there.
+      - Hooked: up clear of the roofs, over a cargo car with room, down onto its roof, and let go only once it's sitting on it (never above `dropAbove`: a load let go of high kills).
+      - It steers by bridge and trolley settings found by `Crane.Over`, a search over the gantry's reach that's remembered per point.
+      - A car counts if the hook reaches anywhere along its roof clear of the ends: the 20 m gantry spans only part of the first cars.
+    - **The rigger (Winch1):** down on the castings' side, beside the next one, and holding Use once the hook's down over it (`Crane.Riggable`); then clear, beyond the stack, while it's lifted away.
+    - **Spec D.3's "blind instruction":** the operator and the rigger don't see each other. They agree by working the same plan: the next casting still stacked, and the nearest car in reach with room.
+    - **The driver** waits in the Loading leg for the crane too, until no casting's left or no car in reach has room. `CrewCalls.CanWork` counts a crane site the pair can work.
+    - **Found on the way:** a hand going to the cab to warm up walked to its door on the site's side of the train. The operator, across the track, walked into the train and froze. Hands now go to the cab door on the side they're on.
+    - **Verified:**
+      - `StopCrewTests.AtTheFoundryThePairRunTheCraneAndTheCastingsGoOnTheRoofs`: both castings loaded, everyone alive, and the train back together and away.
+      - The harness's stop records count `castings`.
