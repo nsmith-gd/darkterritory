@@ -42,6 +42,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// </summary>
     public Dictionary<string, string>? Content { get; init; }
 
+    /// <summary>The mods the host plays with, in order ("name version", T49): named to a joiner whose content differs.</summary>
+    public IReadOnlyList<string> Mods { get; init; } = [];
+
     public static Dictionary<string, string> HashContent(string content)
     {
         var hashes = new Dictionary<string, string>();
@@ -61,6 +64,14 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             return [];
         var mine = HashContent(content);
         return [.. Content.Keys.Union(mine.Keys).Where(k => Content.GetValueOrDefault(k) != mine.GetValueOrDefault(k)).Order()];
+    }
+
+    /// <summary>Why a joiner's refused: the files that differ, and the mods on each side when they're not the same.</summary>
+    public static string Refusal(IReadOnlyList<string> differ, IReadOnlyList<string> hostMods, IReadOnlyList<string> mine)
+    {
+        string text = $"your content differs from the host's: {string.Join(", ", differ)}";
+        static string List(IReadOnlyList<string> m) => m.Count == 0 ? "none" : string.Join(", ", m);
+        return hostMods.SequenceEqual(mine) ? text : $"{text} (the host's mods: {List(hostMods)}; yours: {List(mine)})";
     }
 
     public string Encode() => JsonSerializer.Serialize(this, DataFile.Options);
@@ -160,7 +171,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         Sim.Campaign.RunCheckpoint? resume = null)
     {
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
-        setup = setup with { Content = SessionSetup.HashContent(content), Start = resume?.Front ?? setup.Start };
+        setup = setup with { Content = SessionSetup.HashContent(content), Mods = ContentMods.MountedIn(content), Start = resume?.Front ?? setup.Start };
         var loadout = setup.Loadout(content);
         var trainTuning = loadout.Train;
         var (hostWorld, route) = setup.Build(content, authority: true);
@@ -300,7 +311,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         if (setup.ContentDifferences(content) is { Count: > 0 } differ)
         {
             transport.Dispose();
-            throw new IOException($"your content differs from the host's: {string.Join(", ", differ)}");
+            throw new IOException(SessionSetup.Refusal(differ, setup.Mods, ContentMods.MountedIn(content)));
         }
         var (world, route) = setup.Build(content);
         var client = new ClientSession(new Replay(transport, early), world,
