@@ -112,17 +112,29 @@ public sealed class SceneArt(Look look)
         if (frame.Shape.Interior is not { } room || (frame.Origin - eye).Length > 80)
             return;
         var m = FrameMatrix(frame, eye);
-        var lantern = Piece("prop-lantern", () => PropKit.Lantern(Look));
-        foreach (double z in new[] { -room.HalfSize.Z * 0.5, room.HalfSize.Z * 0.5 })
+        var lamps = Piece($"lamps:{room.Min.Y:0.00}:{room.Max.Y:0.00}:{room.HalfSize.Z:0.00}:{room.Centre.Z:0.00}", () =>
         {
-            var at = new Vector3(0, (float)room.Max.Y - 0.42f, (float)(room.Centre.Z + z));
-            // The chain up to the carline.
-            var chain = Matrix4x4.CreateScale(0.5f, (float)(room.Max.Y - at.Y - 0.26) / 0.18f, 0.5f) * Matrix4x4.CreateTranslation(at + new Vector3(0, 0.26f + (float)(room.Max.Y - at.Y - 0.26) / 2, 0));
-            mesh.Append(Piece("chain", () => Chain(Look)), chain * m);
-            mesh.Append(lantern, Matrix4x4.CreateTranslation(at) * m, emergency ? new Vector3(0.6f, 0.08f, 0.05f) : null);
-            var glow = emergency ? new Vector3(0.35f, 0.04f, 0.03f) : Palette.LampAmber * 0.35f;
+            var k = new Kit(Look, 71);
+            var lantern = PropKit.Lantern(Look);
+            var chain = Chain(Look);
+            foreach (var at in LampPositions(room))
+            {
+                float drop = (float)room.Max.Y - at.Y - 0.26f;
+                k.Append(chain, Matrix4x4.CreateScale(0.5f, drop / 0.18f, 0.5f) * Matrix4x4.CreateTranslation(at + new Vector3(0, 0.26f + drop / 2, 0)));
+                k.Append(lantern, Matrix4x4.CreateTranslation(at));
+            }
+            return k.Build("car-lamps");
+        });
+        mesh.Instances.Add(new MeshInstance(lamps, m, 1, emergency ? new Vector3(0.6f, 0.08f, 0.05f) : default));
+        var glow = emergency ? new Vector3(0.35f, 0.04f, 0.03f) : Palette.LampAmber * 0.35f;
+        foreach (var at in LampPositions(room))
             mesh.Billboard(Vector3.Transform(at, m), 0.6f, 0, new Vector4(glow, 1), -1, FxBlend.Additive);
-        }
+    }
+
+    static IEnumerable<Vector3> LampPositions(Box room)
+    {
+        foreach (double z in new[] { -room.HalfSize.Z * 0.5, room.HalfSize.Z * 0.5 })
+            yield return new Vector3(0, (float)room.Max.Y - 0.42f, (float)(room.Centre.Z + z));
     }
 
     static MeshAsset Chain(Look? look)

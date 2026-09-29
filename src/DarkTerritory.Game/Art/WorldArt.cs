@@ -25,6 +25,50 @@ public sealed partial class WorldArt(Look look)
         return p;
     }
 
+    /// <summary>How long a cell of the line is: its ground, track and lineside cooked together (pipeline "20 m cells"; 100 m here, fewer draws).</summary>
+    public const double CellLength = 100;
+
+    readonly record struct Cell(MeshAsset Soup, (MeshAsset Piece, Matrix4x4 Local)[] Pieces, Double3 Origin);
+    readonly Dictionary<long, Cell> _cells = new();
+    RailLine? _cellLine;
+    Route? _cellRoute;
+
+    /// <summary>
+    /// The line from <paramref name="from"/> to <paramref name="to"/> as cooked cells (the ground, the track and the
+    /// lineside don't change, so they're built once, relative to each cell's own origin, and drawn by transform). Cells
+    /// fall out of the cache once they're well behind.
+    /// </summary>
+    public void Cells(MeshBuilder mesh, RailLine line, Route? route, Double3 eye, double from, double to, int seed, float valleyDepth)
+    {
+        if (!ReferenceEquals(line, _cellLine) || !ReferenceEquals(route, _cellRoute))
+        {
+            _cells.Clear();
+            (_cellLine, _cellRoute) = (line, route);
+        }
+        long first = (long)Math.Floor(from / CellLength), last = (long)Math.Floor(Math.Min(to, line.Length - 1e-6) / CellLength);
+        foreach (var gone in _cells.Keys.Where(k => k < first - 2 || k > last + 2).ToList())
+            _cells.Remove(gone);
+        for (long i = first; i <= last; i++)
+        {
+            if (!_cells.TryGetValue(i, out var cell))
+                _cells[i] = cell = BuildCell(line, route, i, seed, valleyDepth);
+            var at = Matrix4x4.CreateTranslation(cell.Origin.RelativeTo(eye));
+            mesh.Instances.Add(new MeshInstance(cell.Soup, at));
+            foreach (var (piece, local) in cell.Pieces)
+                mesh.Instances.Add(new MeshInstance(piece, local * at));
+        }
+    }
+
+    Cell BuildCell(RailLine line, Route? route, long index, int seed, float valleyDepth)
+    {
+        double a = index * CellLength, b = Math.Min((index + 1) * CellLength, line.Length);
+        var origin = line.Sample(a).Position;
+        var built = new MeshBuilder();
+        Track(built, line, route, origin, a, b, valleyDepth);
+        Lineside(built, line, route, origin, a, b, seed, valleyDepth);
+        return new Cell(MeshAsset.From($"cell-{index}", built), [.. built.Instances.Select(x => (x.Asset, x.Model))], origin);
+    }
+
     /// <summary>The terrain's cross-section: lateral offsets (m) out from the centre line, and heights at them.</summary>
     static readonly float[] Lateral = [0, 1.55f, 2.35f, 2.95f, 3.7f, 5.5f, 8, 12, 17, 24, 33, 45, 60, 78, 100];
     static readonly float[] Profile = [0.0f, 0.0f, -0.24f, -0.3f, -0.06f, -0.02f, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -118,7 +162,7 @@ public sealed partial class WorldArt(Look look)
     static float GroundShade(float lateral, double s) => 0.8f + 0.35f * Noise((float)(s * 0.05), lateral * 0.08f);
 
     /// <summary>The ballast bed, the ground either side, sleepers and rails, from <paramref name="from"/> to <paramref name="to"/>.</summary>
-    public void Track(MeshBuilder mesh, RailLine line, Route? route, Double3 eye, double from, double to, double centre, float valleyDepth)
+    public void Track(MeshBuilder mesh, RailLine line, Route? route, Double3 eye, double from, double to, float valleyDepth)
     {
         var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
         var origin = k.SurfaceOrigin;
@@ -184,9 +228,7 @@ public sealed partial class WorldArt(Look look)
 
         // Sleepers near the eye only (past ~150 m the fog has them anyway), each a little off true; rails all along.
         // A timber trestle's deck carries its own ties.
-        Rails(k, line, eye, from, to,
-            s => Math.Abs(s - centre) < 150 && route?.BridgeAt(s) is not { MaxCars: > 0 },
-            _ => true);
+        Rails(k, line, eye, from, to, s => route?.BridgeAt(s) is not { MaxCars: > 0 }, _ => true);
     }
 
     /// <summary>A transform from a piece's frame (−Z along <paramref name="tangent"/>, +X to its right) to camera-relative space.</summary>
@@ -243,7 +285,11 @@ public sealed partial class WorldArt(Look look)
     /// The lineside: poles with their wires every 50 m, stands of pines and dead trees, tufts near the track, rocks,
     /// fences, and a dead signal now and then. Clear of tunnels, bridges and branches (their own furniture is theirs).
     /// </summary>
-    public void Lineside(MeshBuilder mesh, RailLine line, Route? route, Double3 eye, double from, double to, double centre, int seed, float valleyDepth)
+    /// <remarks>
+    /// Everything with its start in [<paramref name="from"/>, <paramref name="to"/>), so neighbouring cells (<see cref="Cells"/>)
+    /// share nothing and miss nothing.
+    /// </remarks>
+    public void Lineside(MeshBuilder mesh, RailLine line, Route? route, Double3 eye, double from, double to, int seed, float valleyDepth)
     {
         // Clear of bridges, and of tunnels and their cuttings (the hill's approaches).
         bool Clear(double s) => route is null || (!route.InTunnel(s) && !route.InTunnel(s + 30) && !route.InTunnel(s - 30) && route.BridgeAt(s) is null);
@@ -269,8 +315,12 @@ public sealed partial class WorldArt(Look look)
         wire.Use("rust_heavy", Palette.SootBlack, 0.2f, 0.2f, tile: 1);
         wire.Shade(0.35f);
         wire.Baked = 0;
-        Vector3[]? lastTops = null;
-        for (double s = Math.Ceiling(from / 50) * 50; s < to; s += 50)
+        // The wires come in from the last pole before this stretch, if there is one.
+        double first = Math.Ceiling(from / 50) * 50;
+        Vector3[]? lastTops = first - 50 >= 0 && Clear(first - 50)
+            ? WorldKit.Insulators.Select(i => Vector3.Transform(i, Place(first - 50, 4.5, 0, 1))).ToArray()
+            : null;
+        for (double s = first; s < to; s += 50)
         {
             if (!Clear(s))
             {
@@ -288,7 +338,7 @@ public sealed partial class WorldArt(Look look)
         }
 
         // The forest: stands of pines, thinner near the line, thick further out, gaps where the ground is open.
-        for (double s = Math.Floor(from / 12) * 12; s < to; s += 12)
+        for (double s = Math.Ceiling(from / 12) * 12; s < to; s += 12)
         {
             if (!Clear(s))
                 continue;
@@ -316,9 +366,8 @@ public sealed partial class WorldArt(Look look)
             }
         }
 
-        // Near the eye: tufts along the verge, rocks, and stretches of broken fence.
-        double nearFrom = Math.Max(from, centre - 90), nearTo = Math.Min(to, centre + 90);
-        for (double s = Math.Floor(nearFrom / 3) * 3; s < nearTo; s += 3)
+        // Tufts along the verge, rocks, and stretches of broken fence.
+        for (double s = Math.Ceiling(from / 3) * 3; s < to; s += 3)
         {
             if (!Clear(s))
                 continue;
@@ -343,10 +392,10 @@ public sealed partial class WorldArt(Look look)
                     mesh.Append(Piece($"rock-{v}", () => WorldKit.Rock(_look, v, 1)), Place(s, offset, (float)rng.NextDouble() * 6.28f, 0.4f + (float)rng.NextDouble() * 1.2f, 0.1f));
             }
         }
-        for (double s = Math.Floor(from / 3) * 3; s < to; s += 3)
+        for (double s = Math.Ceiling(from / 3) * 3; s < to; s += 3)
         {
             // A fence runs where the noise says, at 14 m out on the side away from the poles, posts every 3 m.
-            if (!Clear(s) || Noise((float)(s * 0.004), 3.3f) < 0.6f || (s - centre) * (s - centre) > 200 * 200)
+            if (!Clear(s) || Noise((float)(s * 0.004), 3.3f) < 0.6f)
                 continue;
             int index = (int)(s / 3);
             if (Hash(index * 0.37f) < 0.12f)
@@ -368,7 +417,7 @@ public sealed partial class WorldArt(Look look)
     void Settlements(MeshBuilder mesh, RailLine line, Route? route, Double3 eye, double from, double to, int seed, float valleyDepth, Func<double, double, bool> onBranch)
     {
         const double block = 2400;
-        for (double b = Math.Floor((from - 150) / block) * block; b < to + 150; b += block)
+        for (double b = Math.Floor(from / block) * block; b < to; b += block)
         {
             var rng = new Random(unchecked(seed * 486187739 ^ (int)(b / block) * 6700417));
             if (rng.NextDouble() > 0.6 || b < 800)
@@ -379,7 +428,7 @@ public sealed partial class WorldArt(Look look)
             if (centre > line.Length - 900 || route is not null && route.Features.Any(f => f.Kind is FeatureKind.Facility or FeatureKind.Bridge or FeatureKind.Tunnel
                     && centre > f.Start - 150 && centre < f.End + 150))
                 continue;
-            if (onBranch(centre, lateral) || (line.Sample(centre).Position - eye).Length > 450)
+            if (centre < from || centre >= to || onBranch(centre, lateral))
                 continue;
             void Place(MeshAsset piece, double along, double across, float yaw)
             {

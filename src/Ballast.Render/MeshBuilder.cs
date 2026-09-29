@@ -193,13 +193,20 @@ public sealed class MeshBuilder
     public void Append(MeshAsset piece, in Matrix4x4 model, Vector3? tint = null)
     {
         var t = tint ?? Vector3.One;
-        foreach (var src in piece.Vertices)
+        var from = piece.Vertices;
+        int start = _vertices.Count;
+        CollectionsMarshal.SetCount(_vertices, start + from.Length);
+        var into = CollectionsMarshal.AsSpan(_vertices)[start..];
+        // A uniform scale only lengthens normals, so they're renormalised by one factor, not per vertex.
+        float scale = new Vector3(model.M11, model.M12, model.M13).Length();
+        float inverse = scale > 1e-6f ? 1 / scale : 1;
+        for (int i = 0; i < from.Length; i++)
         {
-            var v = src;
-            v.Position = Vector3.Transform(src.Position, model);
-            v.Normal = Vector3.Normalize(Vector3.TransformNormal(src.Normal, model));
+            ref var v = ref into[i];
+            v = from[i];
+            v.Position = Vector3.Transform(v.Position, model);
+            v.Normal = Vector3.TransformNormal(v.Normal, model) * inverse;
             v.Color *= t;
-            _vertices.Add(v);
         }
     }
 

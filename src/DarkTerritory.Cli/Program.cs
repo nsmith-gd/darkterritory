@@ -608,7 +608,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (args.Contains("--muzzle"))
         foreach (var v in train.Vehicles.Where(v => v.HasGun))
             v.Gun.LastShotTick = 100;
-    new GreyboxScene
+    var scene = new GreyboxScene
     {
         Tick = args.Contains("--muzzle") ? 101 : -1,
         Look = look,
@@ -621,7 +621,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Diverging = train.Diverging,
         // --throttle x: the regulator's handle drawn that far open (T29's cab levers).
         Controls = new TrainControls { Throttle = Math.Clamp(Opt(args, "--throttle", 0), 0, 1), Reverser = 1 },
-    }.Build(mesh, train, camera.Position);
+    };
+    scene.Build(mesh, train, camera.Position);
+    // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
+    var buildClock = Stopwatch.StartNew();
+    int builds = (int)Opt(args, "--builds", 5);
+    for (int b = 0; b < builds; b++)
+        scene.Build(mesh, train, camera.Position);
+    double buildMs = buildClock.Elapsed.TotalMilliseconds / builds;
     var lighting = Views.Lighting(train, look);
     if (args.Contains("--vigil"))
         lighting.LampRange = 0.01f; // a Vigil: no power to the headlamp
@@ -638,7 +645,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         view,
         trainAt = Math.Round(at, 1),
         device = gpu.DeviceName,
-        triangles = mesh.Count / 3,
+        triangles = renderer.Stats.Triangles,
+        draws = renderer.Stats.Draws,
+        lights = renderer.Stats.Lights,
+        buildMs = Math.Round(buildMs, 2),
         width = width * scale,
         height = height * scale,
         ms = clock.ElapsedMilliseconds,

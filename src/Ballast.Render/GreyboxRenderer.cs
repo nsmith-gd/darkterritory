@@ -102,7 +102,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
     // Cooked meshes on the GPU, for as long as their asset lives (MeshInstance.Asset).
     readonly ConditionalWeakTable<MeshAsset, GpuMesh> _meshes = new();
-    readonly List<GpuMesh> _allMeshes = new();
+    readonly List<(WeakReference<MeshAsset> Asset, GpuMesh Mesh)> _allMeshes = new();
+    int _prepares;
     readonly List<(GpuMesh Mesh, DrawConstants Draw)> _draws = new();
     readonly List<PointLight> _lights = new();
     readonly List<Room> _rooms = new();
@@ -283,6 +284,16 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     public void Prepare(MeshBuilder mesh, Overlay? overlay = null)
     {
         Upload(mesh.Vertices, (uint)Vertex.Stride, ref _vertices, ref _vertexMemory, ref _vertexCapacity);
+        // Now and then, free the GPU copies of pieces nobody holds any more (the line's cells behind the train). Frames
+        // are submitted and waited for, so nothing in flight still uses them.
+        if (++_prepares % 120 == 0)
+            for (int i = _allMeshes.Count - 1; i >= 0; i--)
+                if (!_allMeshes[i].Asset.TryGetTarget(out _))
+                {
+                    Api.vkDestroyBuffer(_allMeshes[i].Mesh.Buffer, null);
+                    Api.vkFreeMemory(_allMeshes[i].Mesh.Memory, null);
+                    _allMeshes.RemoveAt(i);
+                }
         _vertexCount = mesh.Count;
         _draws.Clear();
         foreach (var instance in mesh.Instances)
@@ -297,7 +308,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                 Upload<Vertex>(instance.Asset.Vertices, (uint)Vertex.Stride, ref buffer, ref memory, ref capacity);
                 gpuMesh = new GpuMesh(buffer, memory, instance.Asset.Vertices.Length);
                 _meshes.Add(instance.Asset, gpuMesh);
-                _allMeshes.Add(gpuMesh);
+                _allMeshes.Add((new WeakReference<MeshAsset>(instance.Asset), gpuMesh));
             }
             var tint = instance.Tint == default ? Vector3.One : instance.Tint;
             _draws.Add((gpuMesh, new DrawConstants { Model = instance.Model, Tint = new Vector4(tint, instance.Glow) }));
@@ -926,7 +937,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _lut.Dispose();
         Api.vkDestroySampler(_nearest, null);
         Api.vkDestroySampler(_linear, null);
-        foreach (var m in _allMeshes)
+        foreach (var (_, m) in _allMeshes)
         {
             Api.vkDestroyBuffer(m.Buffer, null);
             Api.vkFreeMemory(m.Memory, null);

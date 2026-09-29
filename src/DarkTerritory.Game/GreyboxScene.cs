@@ -373,8 +373,8 @@ public sealed class GreyboxScene
     {
         if (Look is not null)
         {
-            // The art pass's track and ground (WorldArt): the bed, shoulders and ditch, hills, a gorge under bridges.
-            Look.Art.World.Track(mesh, line, Route, eye, from, to, centre, (float)ValleyDepth);
+            // The art pass's line (WorldArt): the ground, the track and the lineside, cooked in cells.
+            Look.Art.World.Cells(mesh, line, Route, eye, from, to, Seed, (float)ValleyDepth);
             return;
         }
         const double step = 5, gauge = 0.72, sleeperPitch = 0.75;
@@ -423,8 +423,7 @@ public sealed class GreyboxScene
     {
         if (Look is not null)
         {
-            Look.Art.World.Lineside(mesh, line, Route, eye, from, to, NearestDistance(line, eye, from + DrawDistance), Seed, (float)ValleyDepth);
-            return;
+            return; // cooked with the track (WorldArt.Cells)
         }
         // Telegraph poles every 50 m and a scatter of pines: depth cues for fog and speed.
         for (double s = Math.Ceiling(from / 50) * 50; s < to; s += 50)
