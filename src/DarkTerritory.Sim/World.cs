@@ -446,6 +446,9 @@ public sealed class World
             case EnemyKind.LongWhistle when LongWhistle.Spot(Train, t.LongWhistle) is { } spot:
                 _enemies.Add(LongWhistle.At(_nextEnemyId++, Train, spot));
                 break;
+            case EnemyKind.Climber when Climber.Gaps(Train) is { Count: > 0 } gaps:
+                _enemies.Add(Climber.Pacing(_nextEnemyId++, Train, gaps[(int)d.NextRange(0, gaps.Count - 1e-9)], d.NextRange(0, 1) < 0.5 ? -1 : 1, t.Climbers));
+                break;
             case EnemyKind.Ferryman:
                 _enemies.Add(Ferryman.Ahead(_nextEnemyId++, Train, d.NextRange(0, 1) < 0.5 ? -1 : 1, t.Ferryman));
                 break;

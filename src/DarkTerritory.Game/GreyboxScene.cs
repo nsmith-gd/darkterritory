@@ -397,6 +397,16 @@ public sealed class GreyboxScene
                     mesh.Emissive = 0;
                     break;
                 }
+            case EnemyKind.Climber:
+                {
+                    // Thin, soot-black, bent over; in the cab it stands on the deck (the origin is the cab's centre).
+                    double y0 = e.Phase == SpinePhase.Punish && e.Attached == 0 ? -1.35 : 0;
+                    double lean = e.Phase == SpinePhase.Telegraph ? 0.25 * Math.Sin(e.PhaseSeconds * 14) : 0;
+                    Draw(0, y0 + 0.45, 0, 0.1, 0.45, 0.1, Palette.SootBlack);
+                    Draw(0, y0 + 1.15, -0.15 + lean, 0.18, 0.32, 0.12, Palette.SootBlack);
+                    Draw(0, y0 + 1.45, -0.35 + lean, 0.1, 0.1, 0.1, Palette.Corrupted * 0.6f);
+                    break;
+                }
             case EnemyKind.Ferryman:
                 {
                     // Tall, in a railwayman's coat, on the line with a lantern raised and swinging (App. A.2). Aboard, it's

@@ -252,6 +252,39 @@
     "fogWeight": 2
   },
 
+  // App. A.4 CLIMBERS: "PACE alongside at track level, matching speed. MOUNT only at a coupling gap (TELEGRAPH: brief
+  // scrabbling at the gap, visible from adjacent roofs). TRAVERSE along the roofs toward the engine. ENTER the first unlit
+  // or unoccupied car: interior threat. COUNTER: a player physically occupying a gap blocks that mount point."
+  "climbers": {
+    // Pacing this far out from the car's side, for at least this long before it goes in at the gap; it closes on the gap
+    // at this much a second per metre off, as fast as this (m/s). This far behind the last car and it's lost.
+    "paceOut": 2.5,
+    "paceSeconds": 6,
+    "catch": 1.2,
+    "maxSpeed": 18,
+    "loseBehind": 60,
+    // The scrabbling at the gap (well past minReactionSeconds) before it's up. Someone in the gap below the roofs, or on a
+    // roof end within this of it (m), holds it: it drops back and tries another, this many in all, then gives up.
+    "scrabbleSeconds": 2.5,
+    "holdReach": 2,
+    "maxTries": 3,
+    // Along the roofs toward the engine at this pace (m/s); into the first car with nobody in it (every car, with the
+    // lamps out), or the cab at the engine.
+    "traverseSpeed": 2.2,
+    // Inside: whoever comes within reach takes this every so often. Left alone this long, it goes.
+    "reach": 1.8,
+    "biteDamage": 25,
+    "biteEvery": 1.5,
+    "boredSeconds": 120,
+    // Out on the roofs and at the gap, the guns can take it (hounds have 60).
+    "health": 40,
+    // App. B.4 gates and weighting: at least this many gaps (couplings behind a car), the train at least this fast, and
+    // this much weight per gap.
+    "minGaps": 2,
+    "minSpeed": 5,
+    "perGapWeight": 0.5
+  },
+
   "lamplighters": {
     // Where it paces: this far out from the track, this far back from the engine's front (beside the cab).
     "paceLateral": 14,
@@ -301,7 +334,7 @@
     "maxConcurrentLargeCrew": 6,
     // Budget share spent before the first facility, across the middle, and in the final approach.
     "phaseShares": [0.15, 0.45, 0.40],
-    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3, "ferryman": 4, "longWhistle": 3 },
+    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3, "ferryman": 4, "longWhistle": 3, "climbers": 3 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5

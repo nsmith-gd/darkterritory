@@ -61,6 +61,7 @@ public sealed class Director
         EnemyKind.Stoker => "stoker",
         EnemyKind.Ferryman => "ferryman",
         EnemyKind.LongWhistle => "longWhistle",
+        EnemyKind.Climber => "climbers",
         _ => "sleepers",
     }, 2);
 
@@ -128,6 +129,11 @@ public sealed class Director
             && !active.Any(e => !e.Gone && e.Kind == EnemyKind.SootChildren) && Zone(PressureZone.Structural) < _t.MaxConcurrentZone
             && SootChildren.Choose(world, st.SootChildren, world.CrewThisTick) is not null)
             options.Add((EnemyKind.SootChildren, 1 + world.CrewThisTick.Count(c => c.State.Alive && PlayerMotor.Space(c.State, train) == PlayerMotor.Outside)));
+        // App. B.4: Climbers alongside at track level, mounting at a coupling gap: "≥2 coupling gaps · minimum speed
+        // threshold", and "weight scales directly with gap count — the length curve made literal".
+        if (world.Enemies is { } ct && Climber.Gaps(train) is { } gaps && gaps.Count >= ct.Climbers.MinGaps
+            && train.Dynamics.Speed >= ct.Climbers.MinSpeed && Zone(PressureZone.Flank) < _t.MaxConcurrentZone)
+            options.Add((EnemyKind.Climber, ct.Climbers.PerGapWeight * gaps.Count));
         // App. B.4: Draggers under a train of two or more, woken by someone on the roofs. Weight up per roof walker.
         int onRoofs = world.CrewThisTick.Count(c => c.State is { Alive: true, Surface: Surface.Roof } r && r.Parent > 0);
         if (world.Enemies is { } dt && onRoofs > 0 && train.Dynamics.Consist.CarCount >= dt.Draggers.MinCars && Zone(PressureZone.Flank) < _t.MaxConcurrentZone
@@ -190,7 +196,7 @@ public sealed class Director
         var zone = kind switch
         {
             EnemyKind.CinderHound => PressureZone.Rear,
-            EnemyKind.Clinger or EnemyKind.Dragger => PressureZone.Flank,
+            EnemyKind.Clinger or EnemyKind.Dragger or EnemyKind.Climber => PressureZone.Flank,
             EnemyKind.Switchman or EnemyKind.Ferryman or EnemyKind.LongWhistle => PressureZone.Forward,
             EnemyKind.SootChildren or EnemyKind.Lamplighter => PressureZone.Structural,
             _ => PressureZone.Interior,

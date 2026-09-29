@@ -131,9 +131,10 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
         aimed = self;
-        // Warming up means a coupler plate, so it keeps to the gaps no Rattle's in (App. A.5): its client can see them.
+        // Warming up means a coupler plate, so it keeps to the gaps no Rattle's in (App. A.5), and out of a car a Climber's
+        // got into (App. A.4): its client can see both.
         if (_warm is not null)
-            _warm.Rattled = car => world.ActiveEnemies.Any(e => e is Rattle r && r.Attached == car);
+            _warm.Barred = car => world.ActiveEnemies.Any(e => e is Rattle r && r.Attached == car || e is Climber { Inside: true } c && c.Attached == car);
         if (Work(self, world) is { } working)
             return working;
         var train = world.Train;
@@ -577,15 +578,18 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     /// Which plate to drop onto: the one behind this car (this car's own), or in front (the car ahead's), whichever is
     /// nearer and has a car on it; in through that plate's car's rear door. Never the engine's: its cab is the fireman's.
     /// </summary>
-    /// <summary>Whether a Rattle's in the gap behind a vehicle (T54): that end's no way in. Set by the bot, which sees the world.</summary>
-    public Func<int, bool>? Rattled { get; set; }
+    /// <summary>
+    /// Whether that way in is barred: a Rattle in the gap behind the vehicle (T54), or a Climber in the car (T58). Set by the
+    /// bot, which sees the world.
+    /// </summary>
+    public Func<int, bool>? Barred { get; set; }
 
     bool Plan(in PlayerState s, TrainOnLine train)
     {
         int here = s.Parent;
         int behind = train.VehicleBehind(here), ahead = train.VehicleAhead(here);
-        bool back = behind > 0 && Walkable(train, here) && Rattled?.Invoke(here) != true;
-        bool front = ahead > 0 && Walkable(train, ahead) && Rattled?.Invoke(ahead) != true;
+        bool back = behind > 0 && Walkable(train, here) && Barred?.Invoke(here) != true;
+        bool front = ahead > 0 && Walkable(train, ahead) && Barred?.Invoke(ahead) != true;
         if (!back && !front)
             return false;
         bool goBack = back && (!front || s.Position.Z > 0);
