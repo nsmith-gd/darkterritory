@@ -313,7 +313,8 @@ static object Summarise(Route r, string? map = null) => new
     facilities = r.Of(FeatureKind.Facility).Select(f => $"{f.Facility} @ {f.Start / 1000:0.0} km"),
     tunnels = r.Of(FeatureKind.Tunnel).Count(),
     bridges = r.Of(FeatureKind.Bridge).Select(b => b.MaxCars > 0 ? $"weak ({b.MaxCars} cars)" : "sound"),
-    junctions = r.Of(FeatureKind.Junction).Count(),
+    // Each junction's branch: where its points are, which side, and how far to its buffer stop.
+    junctions = r.Branches.Select(b => $"{b.Kind} @ {b.Toe / 1000:0.0} km {(b.Side < 0 ? "left" : "right")}, {b.Length:0} m"),
     sleepers = r.Of(FeatureKind.Sleepers).Count(),
     grease = r.Of(FeatureKind.Grease).Count(),
     r.Weather,
@@ -332,6 +333,8 @@ static object SweepRoutes(RouteTuning t, int seeds) => Enum.GetValues<RouteTier>
         meanSleepers = Math.Round(routes.Average(r => r.Of(FeatureKind.Sleepers).Count()), 1),
         meanGrease = Math.Round(routes.Average(r => r.Of(FeatureKind.Grease).Count()), 1),
         meanFacilities = Math.Round(routes.Average(r => r.Of(FeatureKind.Facility).Count()), 1),
+        junctions = new[] { routes.Min(r => r.Branches.Count), routes.Max(r => r.Branches.Count) },
+        meanJunctions = Math.Round(routes.Average(r => r.Branches.Count), 1),
         weakBridgeShare = Math.Round(routes.SelectMany(r => r.Of(FeatureKind.Bridge)).DefaultIfEmpty().Average(b => b is { MaxCars: > 0 } ? 1.0 : 0), 2),
         meanClimbM = Math.Round(routes.Average(r => r.Line.Segments.Where(s => s.GradePercent > 0).Sum(s => s.Length * s.GradePercent / 100))),
     };
@@ -419,7 +422,21 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 [.. Enumerable.Repeat(0.0, run.FacilityCount)], [.. run.Sites.Select(x => (true, x == site ? 0.45 : 0, x?.SledsLeft ?? 0, x == site))]);
         }
     }
+    // --junction i: at a branch's points (T27), [--diverge] set for the branch, [--through] and the train run in onto it.
+    int junction = (int)Opt(args, "--junction", -1);
+    if (junction >= 0 && junction < line.Branches.Count)
+        at = line.Branches[junction].Toe - (args.Contains("--through") ? 10 : 25);
     var train = new TrainOnLine(new TrainDynamics(consist), line, at);
+    if (junction >= 0 && junction < line.Branches.Count)
+    {
+        var branch = line.Branches[junction];
+        train.ThrowSwitch(junction, args.Contains("--diverge"), 0);
+        for (int i = 0; args.Contains("--through") && i < SimConstants.TickRate * 60 && train.Dynamics.Distance < branch.Toe + 160; i++)
+            train.Step(SimConstants.TickSeconds, new TrainControls { Throttle = train.Dynamics.Speed < 4 ? 0.6 : 0, Reverser = 1 });
+        for (int i = 0; i < SimConstants.TickRate * 20 && train.Dynamics.Speed > 0.05; i++)
+            train.Step(SimConstants.TickSeconds, new TrainControls { Brake = 1, Reverser = 1 });
+        at = train.Dynamics.Distance;
+    }
     // --cut N: cut behind car N and pull the engine forward, to see a split train.
     if (Opt(args, "--cut", -1) is var cutAt and >= 0)
     {
@@ -439,6 +456,15 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             return t.Position + right * p[1] + Double3.Up * p[2];
         }
         camera = Camera.LookAt(At(cam), At(Str(args, "--target", cam)), (float)Opt(args, "--fov", 65));
+    }
+    if (junction >= 0 && junction < line.Branches.Count && Str(args, "--cam", "") is not { Length: > 0 } && !args.Contains("--view"))
+    {
+        // Behind and beside the stand, looking up the line: both routes, the lamp, and the train in the points.
+        var b = line.Branches[junction];
+        var toe = line.Sample(b.Toe);
+        var right = Double3.Cross(toe.Tangent, Double3.Up).Normalized;
+        var ahead = line.Sample(b.Toe + 70);
+        camera = Camera.LookAt(toe.Position - toe.Tangent * 18 + right * (b.Side * 7) + Double3.Up * 3.5, ahead.Position + right * (b.Side * 4), 70);
     }
     List<DarkTerritory.Sim.Physics.Body>? cargo = null;
     if (site is not null)
@@ -481,6 +507,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Enemies = args.Contains("--threats") ? Staging.Threats(train) : null,
         Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All : cargo,
         Emergency = args.Contains("--vigil"),
+        Diverging = train.Diverging,
     }.Build(mesh, train, camera.Position);
     var lighting = Views.Lighting(train);
     if (args.Contains("--vigil"))
@@ -489,7 +516,18 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         lighting.FogDensity = (float)route.Weather.FogDensity;
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor);
     PngWriter.Write(output, pixels, width, height, scale);
-    return new { path = Path.GetFullPath(output), view, trainAt = Math.Round(at, 1), device = gpu.DeviceName, triangles = mesh.Count / 3, width = width * scale, height = height * scale, ms = clock.ElapsedMilliseconds };
+    return new
+    {
+        path = Path.GetFullPath(output),
+        view,
+        trainAt = Math.Round(at, 1),
+        device = gpu.DeviceName,
+        triangles = mesh.Count / 3,
+        width = width * scale,
+        height = height * scale,
+        ms = clock.ElapsedMilliseconds,
+        paths = junction >= 0 ? train.Rakes.Select(r => r.Path).ToArray() : null,
+    };
 }
 
 // A frame as the game draws it: a solo session stepped for a while, seen first person, with the HUD (T23).
@@ -599,6 +637,7 @@ static int Usage()
                      [--bodies]   crates, a lamp and a crewmate's body on the roofs, settled by the physics
                      [--vigil]    emergency lighting, as during a Vigil (spec C.2)
                      [--route tier:seed --site]   stopped at a facility: crates out, the winch sled part-hauled (spec D)
+             [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           screenshot --hud [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
           route gen [--tier local|frontier|deadLines|deepTerritory] [--seed n] [--name generated] [--map file.png]

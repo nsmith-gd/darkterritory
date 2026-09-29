@@ -176,7 +176,16 @@ var clock = new FixedStepClock(SimConstants.TickRate);
 var locomotion = vr is null ? null : new VrLocomotion(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)));
 var hud = new Overlay();
 bool showHud = !args.Contains("--no-hud");
-var scene = new GreyboxScene { Route = session.Route, Enemies = session.World.ActiveEnemies, Run = session.World.Run, Vehicles = session.Train.Vehicles, Bodies = session.World.Bodies.All };
+var scene = new GreyboxScene
+{
+    Route = session.Route,
+    Enemies = session.World.ActiveEnemies,
+    Run = session.World.Run,
+    Vehicles = session.Train.Vehicles,
+    Bodies = session.World.Bodies.All,
+    Diverging = session.Train.Diverging,
+    Stands = session.World.Switches,
+};
 var mesh = new MeshBuilder();
 var timer = Stopwatch.StartNew();
 double last = 0, titleAt = 0;

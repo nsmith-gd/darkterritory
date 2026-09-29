@@ -26,4 +26,7 @@ public static class Palette
     /// <summary>GDD §28 corruption accents: dead ivory and bruised flesh, never neon.</summary>
     public static readonly Vector3 Corrupted = Hex(0x6E5A52);
     public static readonly Vector3 GreaseSheen = Hex(0x3A4452);
+    /// <summary>A switch stand's target lamp: pale green set for the main line, red set for the branch.</summary>
+    public static readonly Vector3 SignalGreen = Hex(0x8FB894);
+    public static readonly Vector3 SignalRed = Hex(0xB8402A);
 }

@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Vigil = 10 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Vigil = 10, Switch = 11 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -41,7 +41,7 @@ public static class WorldRecords
         foreach (var rake in train.Rakes)
         {
             var ids = rake.Consist.Vehicles;
-            var f = new long[ids.Count + 5];
+            var f = new long[ids.Count + 6];
             f[0] = ids.Count;
             for (int i = 0; i < ids.Count; i++)
                 f[1 + i] = ids[i].Id;
@@ -49,8 +49,11 @@ public static class WorldRecords
             f[ids.Count + 2] = Q(rake.Velocity, Pos);
             f[ids.Count + 3] = Q(rake.BrakeEfficiency, Fine);
             f[ids.Count + 4] = (rake.Handbrake ? 1 : 0) | (rake.FrontCouplerLocked ? 2 : 0);
+            f[ids.Count + 5] = rake.Path;
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Rake, ids[0].Id), f));
         }
+        for (int i = 0; i < train.Line.Branches.Count; i++)
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Switch, i), [train.Diverging(i) ? 1 : 0]));
         foreach (var v in train.Vehicles)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Vehicle, v.Id),
                 [Q(v.Load, Fine), Q(v.Integrity, Fine), Q(v.CargoIntegrity, Fine), v.Gun.Ammo, v.Gun.Cooldown, v.Gun.Jammed ? 1 : 0, v.Gun.LastShotTick, v.DoorsOpen]));
@@ -147,7 +150,11 @@ public static class WorldRecords
                     var ids = new int[n];
                     for (int i = 0; i < n; i++)
                         ids[i] = (int)f[1 + i];
-                    rakes.Add(new RakeState(ids, D(f[n + 1], Pos), D(f[n + 2], Pos), D(f[n + 3], Fine), (f[n + 4] & 1) != 0, (f[n + 4] & 2) != 0));
+                    rakes.Add(new RakeState(ids, D(f[n + 1], Pos), D(f[n + 2], Pos), D(f[n + 3], Fine), (f[n + 4] & 1) != 0, (f[n + 4] & 2) != 0,
+                        f.Length > n + 5 ? (int)f[n + 5] : Rail.RailLine.MainPath));
+                    break;
+                case RecordKind.Switch:
+                    train.MirrorSwitch(r.Id, f[0] != 0);
                     break;
                 case RecordKind.Vehicle:
                     vehicles.Add(new VehicleState(r.Id, D(f[0], Fine), D(f[1], Fine), D(f[2], Fine),

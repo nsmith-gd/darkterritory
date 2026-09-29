@@ -28,7 +28,24 @@ public sealed class World
         Choir = ChoirState.Quiet;
         if (combat is not null)
             Guns.Arm(train, combat.Guns);
+        if (train.Line.Branches.Count > 0)
+            Switches = new Rail.SwitchStands(new Route.JunctionTuning());
     }
+
+    /// <summary>The stands at the line's switches; null on a line without branches.</summary>
+    public Rail.SwitchStands? Switches { get; private set; }
+    /// <summary>Switches thrown (or tried) this tick.</summary>
+    public List<Rail.SwitchThrow> SwitchThrows { get; } = new();
+
+    /// <summary>The switch stands' tuning, from content (host and clients alike: the HUD asks them what's in reach).</summary>
+    public void EnableSwitches(Route.JunctionTuning tuning)
+    {
+        if (Train.Line.Branches.Count > 0)
+            Switches = new Rail.SwitchStands(tuning);
+    }
+
+    /// <summary>Host: sets a switch without anyone at its stand (the Switchman, scripted set pieces, tests).</summary>
+    public bool SetSwitch(int branch, bool diverge) => Train.ThrowSwitch(branch, diverge, Switches?.Tuning.PointsLength ?? 0);
 
     public TrainOnLine Train { get; }
     public CombatTuning? Combat { get; set; }
@@ -171,6 +188,8 @@ public sealed class World
         PlayerMotor.Look(ref s, intent);
         if (Authority && Run is { } run)
             run.CrewAct(s, intent, playerId, Train);
+        if (Authority && Switches?.CrewAct(s, intent, playerId, Train) is { } thrown)
+            SwitchThrows.Add(thrown);
         if (Authority)
             Vigil?.CrewAct(s, intent, playerId, Train);
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever.
@@ -195,6 +214,7 @@ public sealed class World
     public void BeginTick()
     {
         Shots.Clear();
+        SwitchThrows.Clear();
         EnemyEvents.Clear();
         Damage.Clear();
         if (Authority && Enemies is { } t)

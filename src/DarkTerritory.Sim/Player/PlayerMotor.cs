@@ -566,26 +566,12 @@ public static class PlayerMotor
 
     /// <summary>Ground under a player off the train: flat terrain at rail height for now.</summary>
     /// <summary>Height of the ground near a world point, refining a hint along the line (bodies use this too).</summary>
+    /// <remarks>The ground is at the height of the nearest track: the main line, or a branch off it.</remarks>
     public static double GroundAt(Double3 world, RailLine line, ref double hint)
     {
-        for (int i = 0; i < 3; i++)
-        {
-            var sample = line.Sample(hint);
-            hint = sample.Distance + Double3.Dot(world - sample.Position, sample.Tangent);
-        }
-        hint = Math.Clamp(hint, 0, line.Length);
-        return line.Sample(hint).Position.Y;
+        var (path, along) = line.Nearest(world, ref hint);
+        return line.Sample(path, along).Position.Y;
     }
 
-    static double GroundHeight(ref PlayerState s, RailLine line)
-    {
-        double hint = s.LineHint;
-        for (int i = 0; i < 3; i++)
-        {
-            var sample = line.Sample(hint);
-            hint = sample.Distance + Double3.Dot(s.Position - sample.Position, sample.Tangent);
-        }
-        s.LineHint = Math.Clamp(hint, 0, line.Length);
-        return line.Sample(s.LineHint).Position.Y;
-    }
+    static double GroundHeight(ref PlayerState s, RailLine line) => GroundAt(s.Position, line, ref s.LineHint);
 }

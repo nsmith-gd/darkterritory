@@ -5,6 +5,7 @@ using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
 
@@ -212,6 +213,14 @@ public static class Hud
             return thing.Kind == BodyKind.Ragdoll ? "[E] PICK UP THE BODY" : "[E] PICK UP";
         if (world.Run?.LeverInReach(p, train) == true)
             return "[E] HOLD: CHUTE LEVER";
+        if (world.Switches?.InReach(p, train) is { } branch)
+        {
+            // Say which way it'll go, and when it won't: the points don't move with a wheel on them.
+            string to = train.Diverging(branch) ? "THE MAIN LINE" : $"THE {(train.Line.Branches[branch].Kind == BranchKind.Spur ? "SPUR" : "DEAD LINE")}";
+            return train.PointsOccupied(branch, world.Switches.Tuning.PointsLength)
+                ? "SWITCH: POINTS HELD, A WHEEL IS ON THEM"
+                : $"[E] HOLD: THROW THE SWITCH TO {to}";
+        }
         if (world.Run?.HandleInReach(p, train) is not null && world.Run.CurrentSite is { } site)
             return site.Turning ? "[E] HOLD: CRANK. KEEP TOGETHER" : "[E] HOLD: CRANK (IT NEEDS TWO)";
         if (CabControls.CanDrive(p, train))

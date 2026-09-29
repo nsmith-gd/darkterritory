@@ -38,6 +38,11 @@ public sealed class TrainDynamics
     public double Velocity { get; set; }
     /// <summary>Distance along the line, m. Double: routes run 18–40 km.</summary>
     public double Distance { get; set; }
+    /// <summary>
+    /// Which track the front is on (<see cref="Rail.RailLine.MainPath"/>, or a branch taken at its switch). Distance
+    /// is along that path, which is the main line up to the branch's points.
+    /// </summary>
+    public int Path { get; set; } = Rail.RailLine.MainPath;
     /// <summary>1 = fresh brakes; drops while braking on descents.</summary>
     public double BrakeEfficiency { get; private set; } = 1;
     public double Acceleration { get; private set; }

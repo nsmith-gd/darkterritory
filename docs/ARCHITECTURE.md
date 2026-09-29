@@ -498,3 +498,32 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `VrTests` asserts the binding and that both hands are in view.
       - `VrLocomotionTests` covers the rest without a runtime, ending in four snaps and a walk the other way down a car through `PrototypeSession`.
     - **Not yet:** room-scale walking (the tracked head offsets the eyes, not the sim player); hand interactions with levers, ladders and the shovel; body IK; the HUD as a world panel in the headset; a seated/standing height option.
+31. **Branches and switches (T27, GDD §17, App. A.7).**
+    - **Paths, not a graph.** `RailLine` has branches, each off the main line at a switch's points (the toe) and built as its own line from there. A rake runs on a path: the main line, or the main line up to a branch's points and the branch beyond them.
+      - Distances agree up to the points, so a rake on the shared track is where it is whichever path it's on. The 1D rake physics, cutting, coupling and replication carry on unchanged; a rake just carries a `Path` (one more field on its wire record).
+      - **The switch decides once:** as a rake's front runs forward through the points, it takes the branch if the switch is set for it. Backing out needs no choice, and a rake whose front is back behind the points is on the main line again.
+      - The switch settings are train state, like the rakes: the host owns them, and a `Switch` record per branch replicates them.
+    - **Rakes meet along each path in turn** (`TrainOnLine.ResolveOn`). A rake on another path takes part only by what's on the track the two share.
+      - Its tail over the points can be run into from behind, and coupled to.
+      - A rake whose front is off down the other route can't couple on this one. It only sideswipes (collides, shares momentum, is pushed back) whatever is fouling the points.
+    - **A dead line's end is a buffer stop.** Running into it at speed damages the front vehicle and the cargo, on the coupling tuning's curve. The main line's ends still just stop the train, as before.
+    - **Thrown by hand** (`SwitchStands`, `tuning/route.json` "junctions"):
+      - Stand at a branch's stand (beside the points, on its side) and hold Use for `throwSeconds`. It goes over once per hold, and says which way on the HUD.
+      - The points won't move with a wheel within `pointsLength` of the toe. Throwing them under a train would split its bogies, and the model only reads the switch as a front passes.
+      - The stand's target lamp is green set for the main line, red for the branch: from the cab, that's how you read a switch before you're on it (the Switchman's telegraph, App. A.7). `World.SetSwitch` is the hook for him.
+    - **Generated dead lines** (`RouteGenerator.AddJunctions`): every junction feature gets one.
+      - It goes out through a turnout on straight, evenly graded main line, back to parallel at about 8.4 m, then alongside the main line to a buffer stop 450–700 m on.
+      - Alongside is the main line's own segments offset: the same angle, the radius plus or minus the offset, and the same rise. So it lies on the main line's ground, never crosses it, and needs no terrain of its own.
+      - Nothing else is within 150 m of its whole length: no tunnel or bridge to run into.
+      - Over 80 routes, 273 dead lines sit within 7 mm of the main line's height and 3 cm of their offset.
+    - **Exact segment boundaries.** Laying the turnout exposed a flaw in `RailLine`: a step that crossed a segment boundary used the old segment's curve for the whole step, so a curve could run up to a metre long. Each step now integrates piecewise through the segments it crosses. Every line moves by less than that, and all the existing tests held.
+    - **What else follows the path.**
+      - The ground under a player is the nearest track's (`RailLine.Nearest`).
+      - Off-train enemies are placed along the engine's path. Sleepers lie on the main line and can't be reached from a branch past them.
+      - The driver bot brakes for the end of the track it's on.
+      - A train down a dead line is at no facility and not at the terminus.
+    - **Headless:**
+      - `dt route gen` lists each junction's branch.
+      - `dt screenshot --route tier:seed --junction i [--diverge] [--through]` shows the switch, or the train run in onto it.
+      - `SwitchTests` covers the geometry, taking and backing out of a branch, locked points, the buffer stop, rakes that only meet at the points, a sideswipe, the hand throw, replication, the ground, and the generator. A `HudTests` case plays a stand through a `PrototypeSession`.
+    - **Not yet:** facility spurs (T28 puts the facilities on them, with the cut, spur-in, load, back-out and recouple); the Switchman; a derailment for taking a turnout too fast.
