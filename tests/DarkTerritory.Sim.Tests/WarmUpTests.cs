@@ -54,13 +54,13 @@ public class WarmUpTests
     [Fact]
     public void WalkersGoInBeforeTheColdSlowsThemAndComeBackOut()
     {
-        // Ten minutes on the roofs: twice as long as it takes to freeze to death out there.
-        var (crew, train, coldest, warmed, after) = Night(walkers: 3, seconds: 600);
+        // Twenty-five minutes on the roofs: longer than it takes to freeze to death out there.
+        var (crew, train, coldest, warmed, after) = Night(walkers: 3, seconds: 1500);
         Assert.All(crew, s => Assert.True(s.Alive, $"died of {s.Death}"));
         for (int i = 0; i < crew.Count; i++)
         {
             Assert.True(warmed[i], $"walker {i} never got warm (coldest {coldest[i]:0} s)");
-            // In before the onset (spec B.2: 200 s), never mind death.
+            // In before the onset (spec B.2: 600 s), never mind death.
             Assert.True(coldest[i] < P.Cold.OnsetSeconds, $"walker {i} got to {coldest[i]:0} s of cold");
         }
         // And they didn't stay in: out on the roofs again, getting cold again, after warming.
@@ -100,6 +100,60 @@ public class WarmUpTests
         }
         Assert.Equal(0, train.Vehicles[car].DoorsOpen);
         Assert.True(PlayerMotor.NearHeat(s, train), $"{s.Surface} on {s.Parent} at {s.Position}");
+    }
+
+    [Fact]
+    public void TwoWalkersWarmingUpInOneCarGetItsDoorShut()
+    {
+        // The 100-night playtest: two walkers in from the cold stood at one open door, both pulled it, and each pull undid
+        // the other's every time. They froze indoors, and the driver waited on them at the stop all night.
+        var line = RailLine.Load(Path.Combine(DataFile.FindContentRoot(), "lines/test-loop.json"));
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), line, 1500);
+        var world = new World(train);
+        const int car = 2;
+        int rear = train.Frames[car].Shape.DoorList.OrderBy(d => d.Box.Centre.Z).Last().Index;
+        train.Vehicles[car].ToggleDoor(rear);
+        train.Step(SimConstants.TickSeconds, new TrainControls { Brake = 1, Reverser = 1 });
+        var bots = new[] { new RoofWalkerBot(3, P.Cold), new RoofWalkerBot(3, P.Cold) };
+        var crew = bots.Select(_ => new PlayerState
+        {
+            Parent = car,
+            Position = new Double3(T.Geometry.Interior!.DoorX, T.Geometry.Interior.FloorHeight, 2),
+            Surface = Surface.Deck,
+            Health = P.Health,
+            Cold = P.Cold.OnsetSeconds * 0.8,
+            LineHint = train.Cars[car].FrontDistance,
+        }).ToArray();
+        bool shut = false;
+        for (uint tick = 0; tick < SimConstants.TickRate * 30 && !shut; tick++)
+        {
+            world.BeginTick();
+            var intents = new PlayerIntent[crew.Length];
+            for (int i = 0; i < crew.Length; i++)
+            {
+                intents[i] = bots[i].Decide(crew[i], world, tick, out _);
+                world.CrewAct(ref crew[i], intents[i], i + 1);
+            }
+            world.Step(new TrainControls { Brake = 1, Reverser = 1 });
+            for (int i = 0; i < crew.Length; i++)
+                PlayerMotor.Step(ref crew[i], intents[i], train, P, T, SimConstants.TickSeconds, applyLook: false);
+            shut = train.Vehicles[car].DoorsOpen == 0 && crew.All(c => PlayerMotor.NearHeat(c, train));
+        }
+        Assert.True(shut, $"doors {train.Vehicles[car].DoorsOpen}");
+    }
+
+    [Fact]
+    public void TwoHandsOnADoorInOneTickMoveItOnce()
+    {
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 3, 1)),
+            RailLine.Load(Path.Combine(DataFile.FindContentRoot(), "lines/test-loop.json")), 1500);
+        var v = train.Vehicles[1];
+        v.ToggleDoor(0);
+        v.ToggleDoor(0);
+        Assert.True(v.DoorOpen(0));
+        train.Step(SimConstants.TickSeconds, new TrainControls { Brake = 1, Reverser = 1 });
+        v.ToggleDoor(0);
+        Assert.False(v.DoorOpen(0));
     }
 }
 

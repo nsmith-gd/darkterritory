@@ -301,6 +301,25 @@ public sealed class StopDriver(CrewCalls calls)
     int _ticks, _legStart, _stopStart, _stillTicks, _sledsAtStart;
 
     public Leg Doing { get; private set; }
+
+    /// <summary>
+    /// A switch the train stands waiting on to be set back with nobody alive to do it (the shunter's dead and no hand has
+    /// taken it over): the driver has to get down and do it (a crew of two, one of them lost). Null otherwise.
+    /// </summary>
+    public Branch? SetBackAlone(World world)
+    {
+        var train = world.Train;
+        Branch? branch = Doing switch
+        {
+            Leg.SetBack => Switch?.Branch,
+            Leg.Clear => Plan?.Spur,
+            _ => null,
+        };
+        return branch is { } b && train.Diverging(b.Index) && !calls.Has(StopJob.Shunter) && Waited > AloneAfter ? b : null;
+    }
+
+    /// <summary>Seconds the driver waits for someone else to take a dead shunter's part before it gets down itself.</summary>
+    const double AloneAfter = 15;
     public StopPlan? Plan { get; private set; }
     /// <summary>The coaling stop it's making, if that's what it's doing.</summary>
     public CoalPlan? Coal { get; private set; }
@@ -456,7 +475,9 @@ public sealed class StopDriver(CrewCalls calls)
                         Begin(train.Rakes.Count > 1 ? Leg.BackOut : Leg.Clear);
                         return Hold(world);
                     }
-                    if (set && cut && calls.Riding(EngineRake(train)))
+                    // Everyone who's coming in aboard, or long enough waited for whoever isn't (stuck, or warming up somewhere):
+                    // the ones left with the waiting cars are picked up on the way back out.
+                    if (set && cut && (calls.Riding(EngineRake(train)) || Waited > HeldGiveUp + AboardGiveUp))
                         Begin(Leg.SpurIn);
                     return Hold(world);
                 }
@@ -1154,7 +1175,10 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             if (inLane)
                 return Head(self, frame.ToWorld(landing with { Y = 0, Z = local.Z + 1.5 }), heavy ? "up the steps with it" : "up the steps");
             Doing = heavy ? "carrying" : "to the door";
-            return WalkTo(self, train.Line, p.Spur.Index, foot, null).Step;
+            // Arrived at the foot but a hand's width outside the lane (the 100-night playtest's crate hands, stood there for
+            // good with the crates in their arms): straight on up from there.
+            var (walk, atFoot) = WalkTo(self, train.Line, p.Spur.Index, foot, null);
+            return atFoot ? Head(self, frame.ToWorld(landing with { Y = 0, Z = local.Z + 1.5 }), heavy ? "up the steps with it" : "up the steps") : walk;
         }
         // Nothing loose just now, though some are still on their way in (in someone's arms, settling): wait by the stack
         // for the next, rather than give up the stop.
@@ -1400,6 +1424,30 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
     }
 
+    /// <summary>
+    /// The driver on its own (<see cref="StopDriver.SetBackAlone"/>): down out of the cab, the switch set back, and back up
+    /// into the cab. Null once it's back at the controls with the switch right.
+    /// </summary>
+    public PlayerIntent? SetBackAlone(in PlayerState self, World world, Branch? branch)
+    {
+        var train = world.Train;
+        if (branch is { } b && train.Diverging(b.Index))
+            return self.Surface == Surface.Air ? new PlayerIntent() : Throw(self, train, b);
+        if (PlayerMotor.InCab(self, train))
+            return null;
+        if (self.Surface == Surface.Air || Math.Abs(train.Dynamics.Velocity) > 0.05)
+            return new PlayerIntent();
+        return IntoCab(self, train, self.LineHint >= 0 && self.Parent == PlayerState.World ? Side(train, self.Position, self.LineHint) : 1);
+    }
+
+    /// <summary>Which side of the main line a point on the ground is (+1 right).</summary>
+    static int Side(TrainOnLine train, Double3 at, double lineHint)
+    {
+        var t = train.Line.Sample(RailLine.MainPath, lineHint);
+        var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+        return Double3.Dot(at - t.Position, right) >= 0 ? 1 : -1;
+    }
+
     /// <summary>Into the engine's cab up its steps on the working side, and stand there (it's warm while the fire's lit).</summary>
     PlayerIntent? Ride(in PlayerState self, TrainOnLine train, StopPlan p)
     {
@@ -1413,10 +1461,15 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         // You don't climb onto an engine that's moving.
         if (Math.Abs(train.Dynamics.Velocity) > 0.05)
             return new PlayerIntent();
-        Doing = "to the cab";
         // By the cab's door on the side it's on (the crane's operator is across the track from the rest, T54): there's no
         // walking through the train.
-        int side = SideOf(train, p, self.Position, self.LineHint);
+        return IntoCab(self, train, SideOf(train, p, self.Position, self.LineHint));
+    }
+
+    /// <summary>From the ground on one side (+1 right), to the foot of the cab's steps there and up into it.</summary>
+    PlayerIntent? IntoCab(in PlayerState self, TrainOnLine train, int side)
+    {
+        Doing = "to the cab";
         var engine = train.Frames[0];
         var foot = engine.ToWorld(new Double3(side * (engine.Shape.Bounds.Max.X + 0.5), 0, CabDoorZ(train)));
         var inward = engine.DirToWorld(new Double3(-side, 0, 0));
@@ -1479,7 +1532,12 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         bool nearEnd = direction < 0 ? z < -half + 0.45 : z > half - 0.45;
         int beyond = direction < 0 ? train.VehicleAhead(self.Parent) : train.VehicleBehind(self.Parent);
         if (jumpGaps && nearEnd && beyond > 0)
-            intent.Buttons |= PlayerButtons.Jump;
+        {
+            if (WarmUp.CanJumpGap(self, train, null))
+                intent.Buttons |= PlayerButtons.Jump;
+            else
+                intent.MoveZ = 0; // square up on the centreline first (or wait out the curve)
+        }
         return intent;
     }
 

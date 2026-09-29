@@ -391,8 +391,8 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - a real headset run: Quest over Link and SteamVR, which needs a person with one.
 26. **Cold and the Vigil (T22, spec B.2 and C.2).**
     - **Cold** is `PlayerState.Cold`, stepped inside the motor, so a client predicts it exactly.
-      - It climbs outside and kills at 320 s (`DeathCause.Cold`).
-      - Near heat it falls at 320/45 per second, so even the nearly frozen are recovered within spec B.2's "45 s near heat". That's our reading of "resets in 45s".
+      - It climbs outside and kills at 1200 s (`DeathCause.Cold`); inside a car with a door open it climbs at a quarter of that rate.
+      - Near heat it falls at 1200/20 per second, so even the nearly frozen are recovered within spec B.2's "20 s near heat". That's our reading of "resets in 20s".
       - Heat is the cab while the fire burns, or a shut car while the boiler has steam to heat it. A Vigil's vent leaves the cars cold.
       - The spec gives onset no effect. Past onset you move at 0.8 of your speed (`player.json` → `cold.onsetSpeedScale`, ours), and the HUD says how long you have.
     - **The Vigil** (`Sim/Run/Vigil`, `tuning/vigil.json`), host-authoritative and mirrored by clients in a Vigil record.
@@ -408,7 +408,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - **Spawns.** "Every noise-triggered spawn weight doubles" is read as the director coming twice as often (its cooldown halved). Doubling every weight alike wouldn't change which enemy it picks.
       - **The guns** now need steam generally: they don't traverse below 20 pressure (`combat.json` → `guns.minPressure`, the same floor where the engine loses its pull). That's our reading of "turret traverse dead (no boiler pressure)". After a Vigil they come back as the pressure does.
       - **Breaking it.** Taking the body out of the engine breaks the Vigil; the pressure is gone either way.
-      - **The revived** come back in the cab with `PlayerFlags.Revived`: cold onset halved (spec's 100 s; death stays at 320), light things only (lamps), and no guns until the run reaches a stop other than the one they came back at, or the terminus.
+      - **The revived** come back in the cab with `PlayerFlags.Revived`: cold onset halved (spec's 300 s; death stays at 1200), light things only (lamps), and no guns until the run reaches a stop other than the one they came back at, or the terminus.
     - **Placements.** `PlayerState.Placed` counts the host's authoritative moves: respawns, revivals, the gunner's posting. A client adopts a changed one as a placement, not a misprediction, so the prediction statistics stay honest.
     - **Bots and cold.** At first the bots couldn't climb down and shut a door behind them, so the harness moved a chilled bot into the cab on the host and back once warm. Since T31 they do it themselves by intent (note 34), and the host-side move is gone. Bots don't hold Vigils yet.
     - **Tested** over the real netcode (`VigilTests`):

@@ -247,7 +247,18 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         int beyond = _direction < 0 ? train.VehicleAhead(self.Parent) : train.VehicleBehind(self.Parent);
         bool carBeyond = beyond > 0;
         if (nearEnd && carBeyond && aligned)
-            intent.Buttons |= PlayerButtons.Jump;
+        {
+            if (WarmUp.CanJumpGap(self, train, cold))
+                intent.Buttons |= PlayerButtons.Jump;
+            else
+            {
+                // Not a jump to make from here (off the centreline, a curve pulling the roof away, or too cold to run at it):
+                // stand at the end and square up, and chilled, turn back rather than try it.
+                intent.MoveZ = 0;
+                if (cold is { } c && self.Cold >= c.OnsetSeconds * (self.Has(PlayerFlags.Revived) ? c.RevivedOnsetScale : 1))
+                    _direction = -_direction;
+            }
+        }
         return intent;
     }
 
@@ -320,6 +331,8 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     /// <summary>How long it keeps the lamp down after the last eyeshine.</summary>
     public double LampDownSeconds { get; init; } = 30;
     uint? _sawEyes;
+    Rail.Branch? _alone;
+    StopHand? _aloneHand;
     /// <summary>With a crew to call to, it stops to work the facilities they can (T32, GDD §17).</summary>
     public StopDriver? Stops { get; } = calls is null ? null : new StopDriver(calls);
 
@@ -344,6 +357,19 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         var lamp = Lamp(world, tick);
         if (Stops is { } stops)
         {
+            // Nobody left to set a switch back but the driver: down it gets, and back up (the train stands on its brake).
+            if (self.Alive && stops.SetBackAlone(world) is { } wrong)
+                _alone = wrong;
+            if (_alone is not null && calls is not null)
+            {
+                _aloneHand ??= new StopHand(StopJob.None, calls, member);
+                if (_aloneHand.SetBackAlone(self, world, _alone) is { } getting)
+                {
+                    stops.Decide(self, world); // its clock runs on while it's out of the cab
+                    return getting with { Lamp = lamp };
+                }
+                _alone = null;
+            }
             stops.CruiseSpeed = CruiseSpeed;
             if (stops.Decide(self, world) is { } stopping)
                 return Work(self, train, stopping) with { Lamp = lamp };
@@ -414,7 +440,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 }
 
 /// <summary>
-/// Getting out of the cold (spec B.2: onset after 200 s outside, death at 320, and back to nothing within 45 s near
+/// Getting out of the cold (spec B.2: onset after 600 s outside, death at 1200, and back to nothing within 20 s near
 /// heat), the way a person would: off the end of the roof onto the coupler plate, in through the car's end door, shut
 /// it (a car only warms you shut), and wait by it until warm; then out, and back up the end ladder. All intent. Use is
 /// only ever pressed facing a door that's in reach: on the coupler plate, Use anywhere else cuts the coupling.
@@ -624,6 +650,16 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
 
     /// <summary>m/s²: at 15 m/s, a curve of 750 m radius or wider.</summary>
     const double MaxDropPull = 0.3;
+
+    /// <summary>
+    /// Whether a gap jump from where a walker stands will make the far roof: square on the centreline (the coupler plate
+    /// under the gap is only 0.8 m wide, and off its edge is the ballast), on a straight enough bit that the roof ahead
+    /// doesn't swing away under the jump, and not chilled (spec B.2: slowed, a flat jump carries a fifth less, short of the
+    /// far edge). Walkers who jumped off-centre from the top of an end ladder, or chilled, died between the cars.
+    /// </summary>
+    public static bool CanJumpGap(in PlayerState self, TrainOnLine train, ColdTuning? cold) =>
+        Math.Abs(self.Position.X) < 0.3 && SteadyUnder(train, self.Parent)
+        && (cold is null || self.Cold < cold.OnsetSeconds * (self.Has(PlayerFlags.Revived) ? cold.RevivedOnsetScale : 1));
 
     /// <summary>A car you can walk into: it has a room and its doors.</summary>
     static bool Walkable(TrainOnLine train, int car) => car > 0 && train.Frames[car].Shape is { Interior: not null, DoorList.Count: >= 2 };

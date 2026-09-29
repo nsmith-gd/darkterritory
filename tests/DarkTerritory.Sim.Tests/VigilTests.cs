@@ -206,7 +206,7 @@ public class VigilTests
     }
 }
 
-/// <summary>Spec B.2: cold exposure. 200 s outside to onset, 320 s to death, reset in 45 s near heat.</summary>
+/// <summary>Spec B.2: cold exposure. 600 s outside to onset, 1200 s to death, reset in 20 s near heat.</summary>
 public class ColdTests
 {
     static readonly TrainTuning T = Tuning.Train;
@@ -224,9 +224,10 @@ public class ColdTests
     [Fact]
     public void TheNumbersAreTheSpecs()
     {
-        Assert.Equal(200, P.Cold.OnsetSeconds);
-        Assert.Equal(320, P.Cold.DeathSeconds);
-        Assert.Equal(45, P.Cold.RecoverSecondsNearHeat);
+        Assert.Equal(600, P.Cold.OnsetSeconds);
+        Assert.Equal(1200, P.Cold.DeathSeconds);
+        Assert.Equal(20, P.Cold.RecoverSecondsNearHeat);
+        Assert.Equal(0.25, P.Cold.IndoorsRate);
         Assert.Equal(0.5, P.Cold.RevivedOnsetScale);
     }
 
@@ -235,11 +236,11 @@ public class ColdTests
     {
         var train = Train();
         var s = PlayerMotor.SpawnOnRoof(train, 2, 0, P);
-        Wait(ref s, train, 199);
+        Wait(ref s, train, 599);
         Assert.False(PlayerMotor.Chilled(s, P));
         Wait(ref s, train, 2);
         Assert.True(PlayerMotor.Chilled(s, P));
-        Wait(ref s, train, 118);
+        Wait(ref s, train, 598);
         Assert.True(s.Alive);
         Wait(ref s, train, 2);
         Assert.Equal(DeathCause.Cold, s.Death);
@@ -262,12 +263,12 @@ public class ColdTests
     }
 
     [Fact]
-    public void TheCabWarmsYouBackWithinFortyFiveSeconds()
+    public void TheCabWarmsYouBackWithinTwentySeconds()
     {
         var train = Train();
         var s = PlayerMotor.SpawnInCab(train, P);
         s.Cold = P.Cold.DeathSeconds - 1;
-        Wait(ref s, train, 45);
+        Wait(ref s, train, 20);
         Assert.Equal(0, s.Cold);
     }
 
@@ -288,7 +289,7 @@ public class ColdTests
     [Fact]
     public void TheRevivedGetColdSooner()
     {
-        var s = new PlayerState { Health = P.Health, Cold = 101, Flags = PlayerFlags.Revived };
+        var s = new PlayerState { Health = P.Health, Cold = P.Cold.OnsetSeconds * P.Cold.RevivedOnsetScale + 1, Flags = PlayerFlags.Revived };
         Assert.True(PlayerMotor.Chilled(s, P));
         Assert.False(PlayerMotor.Chilled(s with { Flags = PlayerFlags.None }, P));
     }

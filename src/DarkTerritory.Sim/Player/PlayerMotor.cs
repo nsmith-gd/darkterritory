@@ -365,7 +365,8 @@ public static class PlayerMotor
             s.Cold = Math.Max(0, s.Cold - dt * c.DeathSeconds / c.RecoverSecondsNearHeat);
             return;
         }
-        s.Cold += dt;
+        // Out of the wind inside a car with a door open: it comes on, but slower (spec B.2).
+        s.Cold += Indoors(s, train) ? dt * c.IndoorsRate : dt;
         if (s.Cold >= c.DeathSeconds)
         {
             s.Health = 0;

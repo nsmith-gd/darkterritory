@@ -162,7 +162,7 @@ The alternative is Unity's built-in AudioMixer with hand-rolled ducking. It's vi
 | Carrying heavy cargo | 2.8 m/s | No climbing |
 | Jump gap | 2.2m max | Coupling gaps are 1.5m — jumpable, but not while it's rattling |
 | Health | 100 | Most attacks 35–60 |
-| Cold exposure | 200s to onset, 320s to death | Resets in 45s near heat |
+| Cold exposure | 600s to onset, 1200s to death | Resets in 20s near heat. Inside a car with a door open it builds at ¼ rate. (Was 200 / 320 / 45: cold was 73% of deaths in the 100-night playtest.) |
 
 ## B.3 Speed bands
 
@@ -322,7 +322,7 @@ Revival is possible, expensive, and genuinely capable of ending a run.
 
 ### The revived
 
-They come back **cold**: cold exposure onset halved (100s), carry capacity reduced to light only, and they cannot operate the guns until the next POI.
+They come back **cold**: cold exposure onset halved (300s), carry capacity reduced to light only, and they cannot operate the guns until the next POI.
 
 ### The alternative
 

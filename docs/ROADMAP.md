@@ -178,7 +178,7 @@ M3 is done but for a test with eight people.
 - `dt screenshot --hud` captures it.
 
 **Cold and the Vigil (spec B.2, C.2):**
-- Cold exposure is predicted like movement: 200 s to onset, 320 s to death, recovered near heat.
+- Cold exposure is predicted like movement: 600 s to onset, 1200 s to death, recovered in 20 s near heat, and a quarter as fast inside a car with a door open.
 - The Vigil revives a body laid in the engine at a dead stop, for 90/120/150 s of maximum exposure. Engine off, lights to emergency, guns dead (they need steam now), the Choir at maximum.
 - The revived come back cold.
 
