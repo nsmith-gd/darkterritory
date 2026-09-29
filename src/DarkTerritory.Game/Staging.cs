@@ -82,6 +82,13 @@ public static class Staging
         var lamplighter = new Lamplighter(23);
         lamplighter.Restore(SpinePhase.Telegraph, 3, 1, -1, default, d.Distance + 4, 3.2, 0, 0, 0);
         threats.Add(lamplighter);
+        // Coming for the empty cab, and in the firebox (T53).
+        var deadman = new Deadman(31);
+        deadman.Restore(SpinePhase.Telegraph, 4, 1, 0, train.Frames[0].Shape.Cab!.Value.Centre, 0, 0, 0, 0, 0);
+        threats.Add(deadman);
+        var stoker = Stoker.InFirebox(32, train);
+        stoker.Restore(SpinePhase.Telegraph, 6, 1, 0, stoker.Local, 0, 0, 0, 0, 0);
+        threats.Add(stoker);
         var hollow = new Hollow(30);
         hollow.Restore(SpinePhase.Punish, 2, 1, 0, train.Frames[0].Shape.Cab!.Value.Centre, 0, 0, 0, 0, 0);
         threats.Add(hollow);

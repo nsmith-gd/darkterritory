@@ -57,6 +57,8 @@ public sealed class Director
         EnemyKind.Dragger => "draggers",
         EnemyKind.Rattle => "rattle",
         EnemyKind.Lamplighter => "lamplighters",
+        EnemyKind.Deadman => "deadman",
+        EnemyKind.Stoker => "stoker",
         _ => "sleepers",
     }, 2);
 
@@ -142,6 +144,11 @@ public sealed class Director
             && active.Count(e => !e.Gone && e.Kind == EnemyKind.Lamplighter) < lt.Lamplighters.MaxActive
             && !(_route is { } lr && lr.Features.Any(f => f.Kind is FeatureKind.Tunnel or FeatureKind.Facility && f.Contains(s))))
             options.Add((EnemyKind.Lamplighter, _route is { } dr && s > dr.Length * 0.5 ? lt.Lamplighters.DepthWeight : 1));
+        // App. B.5: the Stoker gets into the firebox during a stop with it unattended (nobody in the cab), any tier.
+        if (world.Enemies is { } kt && train.BoilerTuning is not null && !train.Boiler.Ruptured && train.Dynamics.Speed < kt.Stoker.StoppedBelow
+            && world.CabEmptySeconds >= kt.Stoker.UnattendedSeconds && Zone(PressureZone.Interior) < _t.MaxConcurrentZone
+            && !active.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker))
+            options.Add((EnemyKind.Stoker, 1));
         options.RemoveAll(o => Cost(o.Kind) > available);
         if (options.Count == 0)
             return null;

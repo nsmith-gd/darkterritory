@@ -833,3 +833,132 @@ public sealed class Lamplighter(int id) : Enemy(id)
         Lateral += Math.Clamp(wantLateral - Lateral, -t.CloseSpeed * dt, t.CloseSpeed * dt);
     }
 }
+
+/// <summary>
+/// DEADMAN · absence · interior (App. A.5). "Takes the cab if nobody is in it." Condition-triggered: the cab's been empty a
+/// while and it begins its approach (the tell: the cab lamp dims and the controls click on their own). Still empty when
+/// its time's up, it takes the cab: the regulator locks open, the brake does nothing, and the train runs on at whatever's
+/// next. Someone in the cab contests it; it takes a few seconds, and it hurts. Fully preventable, and it costs budget only
+/// when it takes the cab (App. B.5). Rule: never leave the cab empty.
+/// </summary>
+public sealed class Deadman(int id) : Enemy(id)
+{
+    double _contest;
+
+    public override EnemyKind Kind => EnemyKind.Deadman;
+    public override PressureZone Zone => PressureZone.Interior;
+    public override Sense Sense => Sense.Absence;
+
+    /// <summary>At the controls: the world locks the regulator open and the brake off while it is.</summary>
+    public bool Holding => Phase == SpinePhase.Punish;
+
+    /// <summary>Watching the cab from outside.</summary>
+    public static Deadman Watching(int id, TrainOnLine train) => new(id) { Attached = 0, Local = train.Frames[0].Shape.Cab!.Value.Centre };
+
+    protected override void Tick(EnemyContext ctx)
+    {
+        var t = ctx.Tuning.Deadman;
+        var train = ctx.Train;
+        var inCab = ctx.Crew.Where(c => c.Player.State.Alive && PlayerMotor.InCab(c.Player.State, train)).Select(c => c.Player.Id).ToList();
+        switch (Phase)
+        {
+            case SpinePhase.Dormant:
+                Enter(ctx, SpinePhase.Telegraph); // the lamp dims, the controls click
+                break;
+            case SpinePhase.Telegraph:
+                // Someone back in the cab: it's free to prevent.
+                if (inCab.Count > 0)
+                {
+                    Enter(ctx, SpinePhase.BreakOff);
+                    Enter(ctx, SpinePhase.Gone);
+                }
+                else if (PhaseSeconds >= t.TelegraphSeconds && Enter(ctx, SpinePhase.Commit) && Enter(ctx, SpinePhase.Punish))
+                    ctx.World.Director?.Charge(ctx.World, EnemyKind.Deadman, ctx.World.ActiveEnemies);
+                break;
+            case SpinePhase.Punish:
+                if (inCab.Count == 0)
+                {
+                    _contest = 0;
+                    break;
+                }
+                // "A player entering contests it: ~4 s and damage taken."
+                if (_contest == 0)
+                    ctx.Bite(inCab[0], t.EvictDamage, DeathCause.Deadman);
+                _contest += SimConstants.TickSeconds;
+                if (_contest >= t.EvictSeconds)
+                {
+                    Enter(ctx, SpinePhase.BreakOff);
+                    Enter(ctx, SpinePhase.Gone);
+                }
+                break;
+            default:
+                Enter(ctx, SpinePhase.Gone);
+                break;
+        }
+    }
+}
+
+/// <summary>
+/// STOKER · heat · interior (App. A.5). "Gets into the firebox. Pressure climbs on its own." In during a stop with the
+/// firebox unattended, it feeds the boiler (through <see cref="Boiler.ExternalHeat"/>) and holds the safety valve shut: the
+/// gauge climbs with no fuel going in (the tell, with the fire's wrong colour and its hiss). At the maximum for the
+/// boiler's rupture hold, the boiler goes. Counters: vent (faster than it feeds, but it costs the pressure and so the
+/// clock), or hold Use at the firebox and drive it out, which it makes whoever does it pay for. Rule: vent, or the boiler
+/// goes.
+/// </summary>
+public sealed class Stoker(int id) : Enemy(id)
+{
+    double _driving;
+
+    public override EnemyKind Kind => EnemyKind.Stoker;
+    public override PressureZone Zone => PressureZone.Interior;
+    public override Sense Sense => Sense.Heat;
+
+    /// <summary>In the engine's firebox.</summary>
+    public static Stoker InFirebox(int id, TrainOnLine train) => new(id)
+    {
+        Attached = 0,
+        Local = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position,
+    };
+
+    protected override void Tick(EnemyContext ctx)
+    {
+        var t = ctx.Tuning.Stoker;
+        var train = ctx.Train;
+        if (train.BoilerTuning is not { } bt || train.Boiler.Ruptured)
+        {
+            Leave(ctx, train);
+            return;
+        }
+        if (Phase == SpinePhase.Dormant)
+            Enter(ctx, SpinePhase.Telegraph); // the gauge starts to climb on its own
+        // The train's boiler is a struct it holds: written through, not a copy.
+        train.Boiler.ExternalHeat = t.FeedRate;
+        train.Boiler.SafetyValveJammed = true;
+        if (Phase == SpinePhase.Telegraph && train.Boiler.Pressure >= bt.PressureMax - 1e-6 && Enter(ctx, SpinePhase.Commit))
+            Enter(ctx, SpinePhase.Punish); // at the maximum: the rupture clock runs
+        // Drive it out: Use held at the firebox, and it lashes out at whoever's doing it.
+        var driver = ctx.Crew.Where(c => c.Player.State.Alive && c.Intent.Has(PlayerButtons.Use) && PlayerMotor.InCab(c.Player.State, train)
+            && CrewActions.Nearest(c.Player.State, train, ctx.World.Hand) == InteractableKind.Firebox).Select(c => (int?)c.Player.Id).FirstOrDefault();
+        if (driver is not { } who)
+        {
+            _driving = 0;
+            return;
+        }
+        if (_driving == 0)
+            ctx.Bite(who, t.DriveOutDamage, DeathCause.Stoker);
+        _driving += SimConstants.TickSeconds;
+        if (_driving >= t.DriveOutSeconds)
+        {
+            Enter(ctx, SpinePhase.BreakOff);
+            Leave(ctx, train);
+        }
+    }
+
+    void Leave(EnemyContext ctx, TrainOnLine train)
+    {
+        train.Boiler.ExternalHeat = 0;
+        train.Boiler.SafetyValveJammed = false;
+        Enter(ctx, SpinePhase.Gone);
+    }
+}

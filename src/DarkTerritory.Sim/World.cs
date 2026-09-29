@@ -93,6 +93,8 @@ public sealed class World
     }
     /// <summary>GDD §23: derailment kills the entire crew at once.</summary>
     public bool Derailed { get; private set; }
+    /// <summary>Host: how long nobody alive has been in the engine's cab (T53, the Deadman and the Stoker).</summary>
+    public double CabEmptySeconds { get; private set; }
 
     /// <summary>True on the host: enemies and the director run. False on clients, which mirror them.</summary>
     public bool Authority { get; private set; }
@@ -289,6 +291,12 @@ public sealed class World
             applied.Brake = 1;
             Train.Boiler.Venting = true;
         }
+        // The Deadman at the controls (App. A.5): "throttle locks, brake unresponsive, train accelerates".
+        if (_enemies.Any(e => e is Deadman { Holding: true }))
+        {
+            applied.Throttle = 1;
+            applied.Brake = 0;
+        }
         Train.Step(SimConstants.TickSeconds, applied);
         LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
         if (Combat is { } c)
@@ -319,6 +327,8 @@ public sealed class World
             foreach (var shot in Shots.Where(s => s.HitTargetId > 0))
                 _enemies.FirstOrDefault(e => e.Id == shot.HitTargetId)?.Hit(ctx, c.Guns.DamagePerRound);
 
+        // How long the cab's been empty (the Deadman's condition, and the Stoker's "unattended").
+        CabEmptySeconds = ctx.Crew.Any(c => c.Player.State.Alive && PlayerMotor.InCab(c.Player.State, Train)) ? 0 : CabEmptySeconds + SimConstants.TickSeconds;
         // The director thinks once a second; the Hollow comes whenever its condition holds (App. B.5).
         if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed)
         {
@@ -330,6 +340,12 @@ public sealed class World
                 d.Charge(this, EnemyKind.Hollow, _enemies);
                 _enemies.Add(new Hollow(_nextEnemyId++));
             }
+            // The Deadman (App. B.5): "not on Local routes; cab empty 30 s (20 s on Deep territory)". It starts its
+            // approach that long less its telegraph, so it takes the cab at the spec's time; it's charged when it does.
+            if (Route is { Tier: not RouteTier.Local } r && Train.Frames[0].Shape.Cab is not null
+                && CabEmptySeconds >= (r.Tier == RouteTier.DeepTerritory ? t.Deadman.EmptySecondsDeep : t.Deadman.EmptySeconds) - t.Deadman.TelegraphSeconds
+                && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Deadman))
+                _enemies.Add(Deadman.Watching(_nextEnemyId++, Train));
         }
 
         foreach (var e in _enemies.ToList())
@@ -421,6 +437,9 @@ public sealed class World
                     pick -= weight;
                 }
                 _enemies.Add(Rattle.In(_nextEnemyId++, Train, nest, Train.Dynamics.Tuning.Geometry.CouplingGap));
+                break;
+            case EnemyKind.Stoker:
+                _enemies.Add(Stoker.InFirebox(_nextEnemyId++, Train));
                 break;
             case EnemyKind.Lamplighter:
                 // Out in the dark beside the engine, on the side the other isn't (if there's one already).

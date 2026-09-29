@@ -178,6 +178,8 @@ public static class Hud
                 DeathCause.Crushed => "CRUSHED UNDER A DROPPED LOAD",
                 DeathCause.PulledUnder => "PULLED UNDER BETWEEN THE CARS",
                 DeathCause.Lamplighter => "TORN DOWN AT THE LAMP",
+                DeathCause.Deadman => "KILLED TAKING BACK THE CAB",
+                DeathCause.Stoker => "BURNED DRIVING IT OUT OF THE FIREBOX",
                 _ => "",
             }, Ink);
             if (world.Vigil is { Permitted: true })

@@ -1063,3 +1063,34 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - a client sees the eyes and the lamp out;
       - the driver bot puts the lamp down for the eyes and up again after.
       - `dt screenshot --threats` stages one coming in for the lamp; CI keeps `threats-lamplighter.png`.
+56. **The Deadman and the Stoker (T53, App. A.5 and B.5).** Both punish a crew that all piles out at a stop: the cab and the firebox are what's left open. Tuned in `enemies.json` `deadman` and `stoker`.
+    - **The Deadman** ("never leave the cab empty"): condition-triggered, and charged its 4 only when it takes the cab (App. B.5's "cost budget only when they actually fire").
+      - Not on Local routes, and not without a route: a route-less world (tests, the prototype) is left alone.
+      - The host keeps `World.CabEmptySeconds`: how long nobody alive has been in the cab.
+      - **Watch (the telegraph):** it starts its approach 10 s before the spec's "cab empty 30 s (20 s on Deep territory)", so it takes the cab at the spec's time. The tell is the controls clicking on their own over the lamp's dimming hum (1–2 kHz, `deadman-click`). Someone back in the cab in that time, and it's gone, free.
+      - **Take:** the world holds the regulator open and the brake off while it's at the controls, whatever the cab controls say.
+      - **Evict:** someone in the cab contests it. That takes 4 s, and it hurts them (25) as they start.
+      - It's only seen at the controls: a crewman, or what was one, drawn from the crew model and darkened.
+      - **Ambiguity, "cab lamp dims":** the tell is the sound for now. The cab has no light of its own to dim yet.
+    - **The Stoker** ("vent, or the boiler goes"): cost 3.
+      - **Spawn:** the director's option during a stop (the train under 0.5 m/s) with the firebox unattended (nobody in the cab for 10 s), any tier.
+      - **Feed (the telegraph):** it feeds the boiler through `Boiler.ExternalHeat` (1.5 a second) and holds the safety valve shut (`SafetyValveJammed`, already replicated). So the gauge climbs past where the valve would lift, with no fuel going in.
+      - **The tells:** the fire's light turns a sick green (the scene gives the firebox that colour whenever a Stoker's in it), and a hiss (1–3 kHz, `stoker-hiss`).
+      - **Critical:** at the maximum it's committed, and the boiler's own rupture hold (20 s at 100, spec B.6) does the rest.
+      - **Counters:**
+        - venting, 6 a second against its 1.5, holds the pressure down but spends it: "the counter has a clock cost";
+        - Use held at the firebox for 3 s drives it out, and it burns whoever does it (30): "exposing the boiler player".
+      - It's never seen.
+      - **Ambiguity, "the box open":** the firebox has no door state, so the spawn is "unattended" alone, and App. B.5's x3 weight for a box left open waits on one.
+    - **Bots** keep the driver in the cab at every stop, so neither fires in the harness. The rules are the crew's to keep, and the tests keep them.
+    - **Verified:** `DeadmanStokerTests` (8):
+      - leave the cab empty and the Deadman takes it at the spec's time, and the train runs on with the brake held;
+      - back in the cab in time, it's gone and cost nothing;
+      - taking the cab back takes 4 s and hurts;
+      - not on Local routes, and sooner on Deep territory;
+      - the Stoker feeds the boiler past the valve until it goes;
+      - venting holds it, and driving it out ends it but burns you;
+      - the director puts a Stoker in only at a stop with the cab empty;
+      - a client sees who holds the cab.
+      - `dt audio render`: the click and the hiss clear the bed by 24 dB in the cab.
+      - `dt screenshot --threats --view cab` shows the green fire.

@@ -442,6 +442,19 @@ public sealed class CreatureArt
                     }
                     return true;
                 }
+            case EnemyKind.Deadman:
+                {
+                    // Outside, tracking the cab, it isn't seen: its tell is the cab (the lamp dims, the controls click).
+                    // At the controls it's a crewman, or was: stood at the backhead, still, one hand on the regulator. The
+                    // origin is the cab's centre, as the Hollow's is.
+                    if (phase is not (SpinePhase.Commit or SpinePhase.Punish))
+                        return true;
+                    var at = Matrix4x4.CreateTranslation(0.35f, -1.35f, -0.4f) * model;
+                    return Draw(mesh, "crew", "idle", t * 0.2, true, at, variant: 5, seed: 11, adjust: (_, l) => l with { Colour = l.Colour * 0.45f });
+                }
+            case EnemyKind.Stoker:
+                // In the firebox: never seen, only its work (the gauge, the wrong glow the scene gives the fire, the hiss).
+                return true;
             case EnemyKind.Rattle:
                 // "Pure audio tell" (App. A.5): in the coupling, never seen. Drawn, as nothing.
                 return true;

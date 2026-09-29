@@ -177,7 +177,10 @@ public class CreatureArtTests
                     // A Dragger is out of sight under the car's edge until it reaches, as the greybox has it. The Rattle is
                     // never seen at all: it's the sound in the coupling (T51).
                     bool hidden = kind == EnemyKind.Dragger && phase is not (SpinePhase.Telegraph or SpinePhase.Punish)
-                        || kind == EnemyKind.Rattle;
+                        || kind == EnemyKind.Rattle
+                        // The Stoker's in the firebox; the Deadman is only seen once it holds the cab (T53).
+                        || kind == EnemyKind.Stoker
+                        || kind == EnemyKind.Deadman && phase is not (SpinePhase.Commit or SpinePhase.Punish);
                     Assert.True(hidden ? mesh.Count == 0 : mesh.Count > 0, $"{kind} {phase} drew {mesh.Count / 3} triangles");
                 }
         foreach (var pose in Enum.GetValues<CrewPose>())
