@@ -91,9 +91,10 @@ public sealed class GreyboxScene
             if (Run is not null)
                 foreach (var site in Run.Sites)
                 {
-                    if (site is not null && (site.Capstan - eye).Length < DrawDistance)
+                    // The modules modelled by the art pass where it has them (SceneArt.Depots), boxes where not.
+                    if (site is not null && (site.Capstan - eye).Length < DrawDistance && Look?.Art.Winch(mesh, site, eye) != true)
                         Winch(mesh, site, eye);
-                    if (site?.Crane is { } crane && (crane.HookAt - eye).Length < DrawDistance)
+                    if (site?.Crane is { } crane && (crane.HookAt - eye).Length < DrawDistance && Look?.Art.Crane(mesh, crane, frames, eye) != true)
                         Crane(mesh, crane, frames, eye);
                 }
             // GDD §9: the fortress yard behind the gates, and the terminus: "lights, then walls, then gun towers".
@@ -752,10 +753,13 @@ public sealed class GreyboxScene
         var (spout, lever) = run.ChuteAt(f, line);
         var t = line.Sample(spout);
         var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
-        mesh.Box(V(lever - Double3.Up * 0.45, eye), ToF(right), Vector3.UnitY, ToF(t.Tangent * -1), new Vector3(0.06f, 0.45f, 0.06f), Palette.IronGrey);
         bool open = run.ChuteOpen && run.FacilityFeature == f;
-        // The handle: down when pouring, up when shut.
-        mesh.Box(V(lever + Double3.Up * (open ? -0.1 : 0.25) + right * (f.Side * 0.15), eye), ToF(right), Vector3.UnitY, ToF(t.Tangent * -1), new Vector3(0.2f, 0.04f, 0.04f), Palette.TarnishedBrass);
+        if (Look?.Art.ChuteLever(mesh, lever, t.Tangent, f.Side, open, eye) != true)
+        {
+            mesh.Box(V(lever - Double3.Up * 0.45, eye), ToF(right), Vector3.UnitY, ToF(t.Tangent * -1), new Vector3(0.06f, 0.45f, 0.06f), Palette.IronGrey);
+            // The handle: down when pouring, up when shut.
+            mesh.Box(V(lever + Double3.Up * (open ? -0.1 : 0.25) + right * (f.Side * 0.15), eye), ToF(right), Vector3.UnitY, ToF(t.Tangent * -1), new Vector3(0.2f, 0.04f, 0.04f), Palette.TarnishedBrass);
+        }
         if (!open)
             return;
         // A curtain of coal from the spout onto whatever's under it, and dust lit by the tower's lamp.

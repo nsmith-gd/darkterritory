@@ -1171,6 +1171,12 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - the brake valve's handle swings about its pedestal pivot, and the reverser about its floor pivot, so each handle stays within a few cm of the sim's straight-line travel;
         - the blow-off valve sits at the vent.
       - Blender's diffuse bake scales colour by (1 − metallic), so the library materials bake as non-metals: brass would bake black. The engine's shine comes from the layer's spec.
+      - The facilities' modules are the third set (`recipes/depot_modules.py`), parts that `SceneArt.Depots` places and moves where the sim has them. The greybox is the fallback.
+        - The capstan winch: its frame, the drum turned by the crank, a crank arm per handle at the sim's grip (T43), the rope, and the freight sled as far as it's hauled.
+        - The gantry crane (T48): legs, rail girders in 5 m lengths, the bridge where it is (scaled to the span), the trolley, the hook on its cable, the cab and the control stand.
+        - The castings: stacked, hooked, or on a car's roof.
+        - The coaling tower's lever stand, its handle down when pouring.
+        - `dt screenshot --site --crank` now closes on the cranks even at a facility with a crane.
     - **First set.**
       - The Khronos Lantern, split into a lamp post and a hand lantern. The hand lantern replaces the kit's cage in the cars, on the platforms and as the dropped lamp.
       - The photoscanned skull.

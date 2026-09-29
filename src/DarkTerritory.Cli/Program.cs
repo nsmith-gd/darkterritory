@@ -596,7 +596,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         cargo = [.. shelf.All];
         if (Str(args, "--cam", "") is not { Length: > 0 })
         {
-            if (site.Crane is { } crane)
+            // (--crank closes on the winch's cranks even at a facility that also has a crane.)
+            if (site.Crane is { } crane && !args.Contains("--crank"))
             {
                 // High on the near side of the track, past the gantry's end, looking down across the train at the hook and castings.
                 var outward = (crane.Corner(0, 1) - crane.Corner(0, 0)) with { Y = 0 };

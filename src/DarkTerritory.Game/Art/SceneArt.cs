@@ -10,7 +10,7 @@ namespace DarkTerritory.Game.Art;
 /// the gun's facing, the lamps' glow) placed from the sim's state. One per <see cref="Look"/>; pieces are cooked the
 /// first time they're wanted and kept.
 /// </summary>
-public sealed class SceneArt(Look look)
+public sealed partial class SceneArt(Look look)
 {
     readonly Dictionary<string, MeshAsset> _pieces = new();
 
