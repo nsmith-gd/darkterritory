@@ -40,6 +40,7 @@ public sealed class ClientSession
     public ClientSession(ITransport transport, World world, TrainTuning trainTuning, PlayerTuning playerTuning)
     {
         World = world;
+        // Clients mirror enemies; only the host simulates them.
         _transport = transport;
 
         TrainTuning = trainTuning;
@@ -86,10 +87,14 @@ public sealed class ClientSession
     void Predict(in PlayerIntent intent)
     {
         World.BeginTick();
+        // The host clears the brake every tick and re-applies whoever is holding it. If we're the one in
+        // the cab it's almost certainly us, so do the same; otherwise assume whoever was braking still is.
+        if (CabControls.CanDrive(Predicted, Train))
+            Controls.Brake = 0;
         CabControls.Apply(ref Controls, intent, Predicted, Train);
         World.CrewAct(ref Predicted, intent, PlayerId ?? 0);
         World.Step(Controls);
-        PlayerMotor.Step(ref Predicted, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds);
+        PlayerMotor.Step(ref Predicted, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
         // The host snaps its world to the replication grid every tick; do the same so we match it exactly.
         _quantise.Clear();
         _quantise.Add(new PlayerSnapshot(PlayerId ?? 0, Predicted));

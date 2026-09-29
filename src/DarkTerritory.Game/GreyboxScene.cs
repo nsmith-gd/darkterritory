@@ -1,6 +1,7 @@
 using System.Numerics;
 using Ballast;
 using Ballast.Render;
+using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Train;
@@ -20,6 +21,8 @@ public sealed class GreyboxScene
     public float FireGlow { get; set; } = 0.7f;
     /// <summary>Tunnels, bridges, facilities and hazards to draw along the line, when it's a generated route.</summary>
     public Route? Route { get; set; }
+    /// <summary>Live enemies to draw. When set, the route's Sleepers come from here rather than its features.</summary>
+    public IReadOnlyList<Enemy>? Enemies { get; set; }
 
     /// <summary>Depth of the valley under a bridge.</summary>
     const double ValleyDepth = 18;
@@ -41,6 +44,98 @@ public sealed class GreyboxScene
             Features(mesh, line, eye, from, to);
         foreach (var frame in frames)
             Car(mesh, frame, eye);
+        if (Enemies is not null)
+            foreach (var e in Enemies)
+                if (!e.Gone)
+                    DrawEnemy(mesh, line, frames, e, eye, from, to);
+    }
+
+    /// <summary>
+    /// Greybox stand-ins, each readable by silhouette and by its telegraph (App. A.1: the tell must be
+    /// perceivable). The real creatures come with the art pass; these exist to make pacing watchable.
+    /// </summary>
+    static void DrawEnemy(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Enemy e, Double3 eye, double from, double to)
+    {
+        // A basis for the enemy: its car's, or the line's at its distance.
+        Double3 origin, right, up = Double3.Up, back;
+        if (e.Attached >= 0)
+        {
+            if (e.Attached >= frames.Count)
+                return;
+            var f = frames[e.Attached];
+            origin = f.ToWorld(e.Local);
+            (right, up, back) = (f.Right, f.Up, f.Back);
+        }
+        else
+        {
+            if (e.LineDistance < from || e.LineDistance > to)
+                return;
+            var t = line.Sample(e.LineDistance);
+            right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+            back = t.Tangent * -1;
+            origin = t.Position + right * e.Lateral + Double3.Up * e.Height;
+        }
+        var o = V(origin, eye);
+        var (r, u, b) = (ToF(right), ToF(up), ToF(back));
+        Vector3 L(double x, double y, double z) => o + r * (float)x + u * (float)y + b * (float)z;
+        void Draw(double x, double y, double z, double hx, double hy, double hz, Vector3 colour) =>
+            mesh.Box(L(x, y, z), r, u, b, new Vector3((float)hx, (float)hy, (float)hz), colour);
+        float pulse = (float)(0.5 + 0.5 * Math.Sin(e.PhaseSeconds * 9));
+
+        switch (e.Kind)
+        {
+            case EnemyKind.Sleepers:
+                // Ties that aren't: across the rail, and braced (lifting, writhing) once they've telegraphed.
+                bool braced = e.Phase >= SpinePhase.Telegraph;
+                for (int i = 0; i < 6; i++)
+                {
+                    double lift = braced ? 0.12 + 0.08 * Math.Sin(e.PhaseSeconds * 6 + i) : 0;
+                    Draw(0, lift, -i * 2.6, 1.5, 0.14, 0.45, Palette.Corrupted);
+                }
+                break;
+            case EnemyKind.CinderHound:
+                // Low, long, and lit from inside: the heat they hunt by is what you see of them at night.
+                bool aboard = e.Phase == SpinePhase.Punish;
+                double y = e.Attached >= 0 ? 0.35 : 0; // boarded: standing on the roof, not centred in it
+                Draw(0, y, 0, 0.22, 0.28, 0.65, Palette.SootBlack);
+                Draw(0, y + 0.2, -0.75, 0.16, 0.16, 0.25, Palette.SootBlack);
+                mesh.Emissive = 1;
+                // Cracks of ember along the flanks and back, proud of the body so they read from any side.
+                Draw(0, y + 0.02, 0, 0.24, 0.1, 0.45, Palette.FurnaceOrange * (0.5f + 0.5f * (aboard ? pulse : 0.7f)));
+                Draw(0, y + 0.29, 0.1, 0.08, 0.02, 0.4, Palette.FurnaceOrange * 0.8f);
+                Draw(0.07, y + 0.26, -1.01, 0.03, 0.03, 0.02, Palette.LampAmber);
+                Draw(-0.07, y + 0.26, -1.01, 0.03, 0.03, 0.02, Palette.LampAmber);
+                mesh.Emissive = 0;
+                break;
+            case EnemyKind.Clinger:
+                // A bulge on the hull; the drill point brightens as it works through (Extra = drill progress).
+                double outward = Math.Sign(e.Local.X);
+                Draw(outward * 0.2, 0, 0, 0.2, 0.55, 0.8, Palette.Corrupted);
+                mesh.Emissive = 1;
+                float drilled = (float)Math.Clamp(e.Extra, 0, 1);
+                var bite = e.Phase == SpinePhase.Punish ? Palette.FurnaceOrange * (0.6f + 0.4f * pulse) : Palette.FurnaceOrange * (0.1f + 0.5f * drilled);
+                // The seam where it's working through shows on its back, away from the hull.
+                Draw(outward * 0.41, 0.1, 0, 0.02, 0.06, 0.5, bite);
+                mesh.Emissive = 0;
+                break;
+            case EnemyKind.Hollow:
+                if (e.Phase == SpinePhase.Telegraph)
+                {
+                    // Soot falling into the cab from the stack.
+                    for (int i = 0; i < 4; i++)
+                        Draw(0.3 * Math.Sin(i * 1.7), 1.0 - (e.PhaseSeconds * 2 + i * 0.4) % 1.6, 0.3 * Math.Cos(i * 2.3), 0.04, 0.2, 0.04, Palette.SootBlack);
+                }
+                else
+                {
+                    // Tall and thin, blacker than the cab.
+                    Draw(0, -0.1, 0, 0.22, 0.95, 0.16, Palette.SootBlack);
+                    mesh.Emissive = 1;
+                    Draw(0.07, 0.7, -0.17, 0.025, 0.02, 0.01, Palette.Corrupted * 1.6f);
+                    Draw(-0.07, 0.7, -0.17, 0.025, 0.02, 0.01, Palette.Corrupted * 1.6f);
+                    mesh.Emissive = 0;
+                }
+                break;
+        }
     }
 
     /// <summary>Finds the along-line distance nearest a point, starting from a guess.</summary>
@@ -182,7 +277,7 @@ public sealed class GreyboxScene
                     for (double s = Math.Ceiling(a / 25) * 25; s < b; s += 25)
                         Along(mesh, line, eye, s, 3, 0, -ValleyDepth, f.MaxCars > 0 ? 1.6 : 2.0, ValleyDepth - 0.6, f.MaxCars > 0 ? Palette.DeepBrown : Palette.Charcoal);
                     break;
-                case FeatureKind.Sleepers:
+                case FeatureKind.Sleepers when Enemies is null:
                     // Shaped like ties, lying across the rail: invisible until the lamp finds them (App. A.2).
                     for (double s = a; s < b; s += 2.6)
                         Along(mesh, line, eye, s, 0.9, 0, 0.12, 1.5, 0.28, Palette.Corrupted);

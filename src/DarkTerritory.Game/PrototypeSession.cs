@@ -2,6 +2,7 @@ using Ballast;
 using Ballast.Render;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Combat;
+using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
@@ -28,9 +29,12 @@ public sealed class PrototypeSession
     }
 
     /// <summary>Plays a generated route from the fortress yard to the terminus, against the dawn clock.</summary>
-    public PrototypeSession(string contentRoot, Route route, int cars = 6)
+    /// <param name="enemies">Run the pressure director and the route's Sleepers (GDD App. B).</param>
+    public PrototypeSession(string contentRoot, Route route, int cars = 6, bool enemies = true)
         : this(contentRoot, route.Build(), route, cars, 0)
     {
+        if (enemies)
+            World.EnableEnemies(DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)), route, route.Seed, crew: 1, authority: true);
     }
 
     PrototypeSession(string contentRoot, RailLine line, Route? route, int cars, double start)
@@ -69,7 +73,12 @@ public sealed class PrototypeSession
         World.BeginTick();
         World.CrewAct(ref Player, intent, 1);
         World.Step(Controls);
-        PlayerMotor.Step(ref Player, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds);
+        World.ApplyDamage(id => id == 1 ? Player : null, (_, s) => Player = s, [1]);
+        foreach (var e in World.EnemyEvents)
+            if (Cue(e) is { } cue)
+                _cues.Add((ElapsedSeconds, cue));
+        _cues.RemoveAll(c => ElapsedSeconds - c.At > CueSeconds);
+        PlayerMotor.Step(ref Player, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
         Tick++;
     }
 
@@ -153,8 +162,46 @@ public sealed class PrototypeSession
         string state = Player.Alive ? $"{Player.Surface} {where} hp {Player.Health}" : $"DEAD ({Player.Death}) — Backspace to respawn";
         return $"{d.Speed,5:0.0} m/s {SpeedBands.Classify(TrainTuning, d.Speed),-7} | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} rev {(Controls.Reverser > 0 ? "F" : "R")} " +
                $"| {boiler} |{Gunnery()}{(Train.Rakes.Count > 1 ? $" {Train.Rakes.Count} rakes |" : "")} grade {Train.AverageGrade(),4:0.0}% | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state}" +
-               RouteStatus() +
+               RouteStatus() + Threats() +
                (LastReloadError is null ? "" : $" | TUNING ERROR: {LastReloadError}");
+    }
+
+    const double CueSeconds = 4;
+    readonly List<(double At, string Text)> _cues = new();
+
+    /// <summary>
+    /// Stand-ins for the audio telegraphs until the mixer exists (spec §2: the tell is a sound). Each is
+    /// what you'd hear or see at that transition, worded so it's clear what the answer is.
+    /// </summary>
+    static string? Cue(in EnemyEvent e) => (e.Kind, e.To) switch
+    {
+        (EnemyKind.Sleepers, SpinePhase.Telegraph) => "the lamp catches ties that move, ahead",
+        (EnemyKind.Sleepers, SpinePhase.Punish) => "the engine rides up over something",
+        (EnemyKind.CinderHound, SpinePhase.Telegraph) => "howling behind, closing",
+        (EnemyKind.CinderHound, SpinePhase.Punish) => "something lands on the rear car",
+        (EnemyKind.CinderHound, SpinePhase.BreakOff) => "the howling falls away",
+        (EnemyKind.Clinger, SpinePhase.Telegraph) => "scraping on a hull",
+        (EnemyKind.Clinger, SpinePhase.Punish) => "a hull gives: cargo spilling",
+        (EnemyKind.Clinger, SpinePhase.BreakOff) => "it comes away and drops",
+        (EnemyKind.Hollow, SpinePhase.Telegraph) => "the fire gutters; soot falls in the cab",
+        (EnemyKind.Hollow, SpinePhase.BreakOff) => "the heat drives it back up the stack",
+        _ => null,
+    };
+
+    /// <summary>Recent cues plus anything still ongoing, e.g. a Clinger drilling.</summary>
+    public string Threats()
+    {
+        var parts = _cues.Select(c => c.Text).Distinct().ToList();
+        foreach (var e in World.ActiveEnemies)
+        {
+            if (e is Clinger { Phase: SpinePhase.Telegraph } c)
+                parts.Add($"drilling on car {c.Attached} ({c.Extra:P0})");
+            else if (e is Hollow { Phase: SpinePhase.Punish })
+                parts.Add("SOMETHING IN THE CAB");
+            else if (e is CinderHound { Phase: SpinePhase.Punish } h && !parts.Contains("hounds aboard"))
+                parts.Add("hounds aboard");
+        }
+        return parts.Count == 0 ? "" : " | " + string.Join(" · ", parts);
     }
 
     string Gunnery()

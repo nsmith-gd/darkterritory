@@ -22,14 +22,20 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
 - **Boiler, walkable cab and resistance:** spec B.6 is pinned.
 - **Rakes:** cutting, coupling and collision damage.
 - **Procedural routes:** tiers, facilities, tunnels, bridges, and hazards as level content.
-- **Play a night:** `DarkTerritory -- --route frontier:7` runs one.
+- **Play a night:** `DarkTerritory -- --route frontier:7` runs one, enemies and all (`--no-enemies` for a quiet line). The HUD prints text cues for the telegraphs until there's audio.
+- **Guns and the Choir:** two mounted guns with real arcs, and the Choir's global aggro.
+- **Demo roster and director (M5's "5 demo enemies"):**
+  - Sleepers, Cinder Hounds, Clingers and the Hollow run on the shared five-state spine, with the fairness rule enforced in code.
+  - The pressure director follows App. B.1.
+  - Greybox stand-ins for each: `dt screenshot --threats`.
+  - `dt harness --route frontier:7 --enemies` plays a whole night with bots and reports pacing, punishes, deaths by cause and fairness violations.
 
 **M1 (feel prototype):** playable. `dotnet run --project src/DarkTerritory.App`. Rail line model, train on the line with mass-weighted grade, moving car frames, first-person motor (roof and ground speeds, gap jumps, ladders, lethal jump-off), Vulkan greybox renderer with a pixelated low-res look, headless screenshots. Waiting on the director to answer spec G.1 and G.2. Not in M1 yet: Jolt crates.
 
 **M2 (crew of eight):** the netcode core exists and is exercised by `dt harness` over a lossy loopback network:
 - **Model:** host-authoritative 30 Hz ticks, intent-only input with 4× redundancy, snapshots with an input ack, and client prediction plus reconciliation of both the player and the train.
 - **Remote players:** interpolated 100 ms behind, in car-local frames.
-- **Results:** prediction is exact on a perfect link. On a rough link (90 ms, ±20 ms, 3% loss) the worst correction is under 1 m, with a handful of corrections per client over 5 minutes.
+- **Results:** on a perfect link, prediction is exact except where another player's cab input reaches you a round trip late (under a millimetre). On a rough link (90 ms, ±20 ms, 3% loss) the worst correction is under 1 m, with a handful of corrections per client over 5 minutes.
 
 - **Snapshots** are fixed-point records delta-encoded against the client's last acked snapshot. The host adopts the quantised state itself, so prediction stays exact. At 20 cars with 8 players they're about 110 bytes, around 28 kbit/s down per client (target ≤ 64).
 
@@ -38,4 +44,3 @@ Remaining for M2:
 - a Steam transport and lobby
 - physics object sync
 - inert bodies on disconnect
-- hitscan lag compensation

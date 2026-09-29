@@ -4,6 +4,7 @@ using Ballast;
 using Ballast.Render;
 using DarkTerritory.Game;
 using DarkTerritory.Sim;
+using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
@@ -39,16 +40,8 @@ return args switch
     ["screenshot", ..] => Print(Screenshot(train, content, args)),
     ["route", "gen", ..] => Print(GenerateRoute(routeTuning, content, args)),
     ["route", "sweep", ..] => Print(SweepRoutes(routeTuning, (int)Opt(args, "--seeds", 200))),
-    ["harness", ..] => Print(Harness.Run(Str(args, "--route", "") is { Length: > 0 } spec
-            ? RouteGenerator.Generate(routeTuning, Route.ParseSpec(spec).Tier, Route.ParseSpec(spec).Seed).Build()
-            : LoadLine(Str(args, "--line", "test-loop")), train, player, new HarnessOptions
-            {
-                Bots = (int)Opt(args, "--bots", 8),
-                Cars = (int)Opt(args, "--cars", 10),
-                Seconds = Opt(args, "--seconds", 120),
-                Seed = (int)Opt(args, "--seed", 1),
-                Link = new Ballast.Net.LinkConditions(Opt(args, "--latency", 0.09), Opt(args, "--jitter", 0.02), Opt(args, "--loss", 0.03)),
-            }, args.Contains("--no-boiler") ? null : boiler)),
+    ["harness", ..] => Print(RunHarness(args)),
+
     _ => Usage(),
 };
 
@@ -68,6 +61,26 @@ static object TrainTable(TrainTuning t, PlayerTuning p) => t.Performance.Select(
         maxGradePct = Math.Round(dyn.MaxClimbableGradePercent(), 2),
     };
 }).ToList();
+
+object RunHarness(string[] args)
+{
+    Route? route = Str(args, "--route", "") is { Length: > 0 } spec ? RouteGenerator.Generate(routeTuning, Route.ParseSpec(spec).Tier, Route.ParseSpec(spec).Seed) : null;
+    var line = route?.Build() ?? LoadLine(Str(args, "--line", "test-loop"));
+    var combat = DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File));
+    var enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File));
+    return Harness.Run(line, train, player, new HarnessOptions
+    {
+        Bots = (int)Opt(args, "--bots", 8),
+        Cars = (int)Opt(args, "--cars", 10),
+        Seconds = Opt(args, "--seconds", 120),
+        Seed = (int)Opt(args, "--seed", 1),
+        Link = new Ballast.Net.LinkConditions(Opt(args, "--latency", 0.09), Opt(args, "--jitter", 0.02), Opt(args, "--loss", 0.03)),
+        StartDistance = route is null ? 600 : 400,
+        Combat = args.Contains("--no-combat") ? null : combat,
+        Enemies = args.Contains("--enemies") ? enemies : null,
+        Route = route,
+    }, args.Contains("--no-boiler") ? null : boiler);
+}
 
 RailLine LoadLine(string name) => RailLine.Load(Path.Combine(content, "lines", name + ".json"));
 
@@ -202,13 +215,43 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     using var gpu = new GpuContext("dt screenshot");
     using var renderer = new GreyboxRenderer(gpu, width, height);
     var mesh = new MeshBuilder();
-    new GreyboxScene { Route = route }.Build(mesh, train, camera.Position);
+    new GreyboxScene { Route = route, Enemies = args.Contains("--threats") ? StagedThreats(train) : null }.Build(mesh, train, camera.Position);
     var lighting = Views.Lighting(train);
     if (route is not null)
         lighting.FogDensity = (float)route.Weather.FogDensity;
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor);
     PngWriter.Write(output, pixels, width, height, scale);
     return new { path = Path.GetFullPath(output), view, device = gpu.DeviceName, triangles = mesh.Count / 3, width = width * scale, height = height * scale, ms = clock.ElapsedMilliseconds };
+}
+
+// One of each demo enemy mid-telegraph or mid-punish around the train, to look at their greybox stand-ins.
+static List<Enemy> StagedThreats(TrainOnLine train)
+{
+    var d = train.Dynamics;
+    int rear = d.Consist.Vehicles[^1].Id;
+    var rearShape = train.Frames[rear].Shape;
+    var threats = new List<Enemy>();
+    var sleepers = new Sleepers(1);
+    sleepers.Restore(SpinePhase.Telegraph, 1.2, 1, -1, default, d.Distance + 40, 0, 0.2, 0, 0);
+    threats.Add(sleepers);
+    for (int i = 0; i < 3; i++)
+    {
+        var hound = new CinderHound(10 + i, 10);
+        hound.Restore(SpinePhase.Commit, 2, 60, -1, default, d.RearDistance - 14 - i * 6, (i % 2 == 0 ? 1 : -1) * (2.5 + i), 0.6, 10, 0);
+        threats.Add(hound);
+    }
+    var boarded = new CinderHound(13, 10);
+    boarded.Restore(SpinePhase.Punish, 0.4, 60, rear, new Double3(0.6, rearShape.RoofHeight, rearShape.HalfLength - 2.5), 0, 0, 0, 10, 0);
+    threats.Add(boarded);
+    int cargo = d.Consist.Vehicles.First(v => v.Kind == VehicleKind.Cargo).Id;
+    var cargoShape = train.Frames[cargo].Shape;
+    var clinger = new Clinger(20);
+    clinger.Restore(SpinePhase.Telegraph, 50, 1, cargo, new Double3(cargoShape.HalfWidth + 0.15, 2.0, 0), 0, 0, 0, 0.55, 0);
+    threats.Add(clinger);
+    var hollow = new Hollow(30);
+    hollow.Restore(SpinePhase.Punish, 2, 1, 0, train.Frames[0].Shape.Cab!.Value.Centre, 0, 0, 0, 0, 0);
+    threats.Add(hollow);
+    return threats;
 }
 
 static string Str(string[] args, string name, string fallback)
@@ -242,12 +285,14 @@ static int Usage()
           line drive <name> [--cars n] [--start s] [--from v] [--throttle 0..1] [--seconds t]
           screenshot [--view trackside|roof|cab|chase|ahead] [--line name] [--cars n] [--at s] [--car i] [--cut n]
                      [--cam s,lateral,height --target s,lateral,height --fov deg]   camera by line coordinates
-                     [--width w] [--height h] [--scale k] [--out file.png]
+                     [--width w] [--height h] [--scale k] [--out file.png] [--threats]   --threats stages one of each enemy
           route gen [--tier local|frontier|deadLines|deepTerritory] [--seed n] [--name generated] [--map file.png]
                      writes content/lines/<name>.json (+ .route.json) and a map; try `screenshot --line generated`
           route sweep [--seeds n]                  generate n routes per tier and report ranges
           harness [--bots n] [--cars n] [--seconds t] [--seed s] [--latency s] [--jitter s] [--loss 0..1] [--line name | --route tier:seed]
-                     host + bot clients over a simulated network; reports prediction error, bandwidth, deaths
+                     [--enemies] [--no-combat] [--no-boiler]
+                     host + bot clients over a simulated network; reports prediction error, bandwidth, deaths,
+                     and with --enemies the director's spawns, punishes, deaths by cause and fairness audit
         """);
     return 2;
 }

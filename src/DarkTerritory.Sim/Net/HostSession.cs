@@ -67,6 +67,10 @@ public sealed class HostSession
     public IEnumerable<PlayerSnapshot> Players => _crew.Select(c => new PlayerSnapshot(c.Id, c.State));
     public int MissedInputs(byte id) => _crew.First(c => c.Id == id).MissedInputs;
 
+    /// <summary>Starts the night's threats: the director, the route's Sleepers, the Hollow's watch (host authority).</summary>
+    public void EnableEnemies(Enemies.EnemyTuning tuning, Route.Route? route, ulong seed, int expectedCrew) =>
+        World.EnableEnemies(tuning, route, seed, Math.Max(expectedCrew, _crew.Count), authority: true);
+
     /// <summary>Puts a player somewhere authoritatively (respawns, debug teleports, tests).</summary>
     public void SetPlayerState(byte id, PlayerState state) => _crew.First(c => c.Id == id).State = state;
 
@@ -82,11 +86,14 @@ public sealed class HostSession
         foreach (var c in _crew)
         {
             CabControls.Apply(ref Controls, c.ThisTick, c.State, Train);
-            World.CrewAct(ref c.State, c.ThisTick, c.Id);
+            // Lag compensation: check this player's shots against where targets were on their screen.
+            uint? view = c.AckedSnapshot > ClientSession.InterpolationTicks ? c.AckedSnapshot - ClientSession.InterpolationTicks : null;
+            World.CrewAct(ref c.State, c.ThisTick, c.Id, view);
         }
         World.Step(Controls);
+        World.ApplyDamage(id => _crew.FirstOrDefault(c => c.Id == id)?.State, (id, s) => _crew.First(c => c.Id == id).State = s, _crew.Select(c => (int)c.Id));
         foreach (var c in _crew)
-            PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds);
+            PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
         Tick++;
 
         // Snap the world onto the replication grid and keep simulating from exactly that.
