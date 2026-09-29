@@ -6,6 +6,7 @@
 layout(push_constant) uniform Draw {
     mat4 model;
     vec4 tint;    // rgb multiplies the albedo, a = glow (scales emissive surfaces: a lamp dimmed in a Vigil)
+    vec4 scar;    // x how scarred 0..1, y the pattern's seed (MeshInstance.Scar)
 } draw;
 
 layout(location = 0) in vec3 inPos;
@@ -32,6 +33,7 @@ layout(location = 8) flat out float vLayer;
 layout(location = 9) flat out float vGlow;
 layout(location = 10) flat out float vLayer2;
 layout(location = 11) out float vBlend;
+layout(location = 12) flat out vec2 vScar;
 
 void main() {
     vec4 p = draw.model * vec4(inPos, 1.0);
@@ -47,5 +49,6 @@ void main() {
     vGlow = draw.tint.a;
     vLayer2 = inLayer2;
     vBlend = inBlend;
+    vScar = draw.scar.xy;
     gl_Position = frame.viewProj * p;
 }

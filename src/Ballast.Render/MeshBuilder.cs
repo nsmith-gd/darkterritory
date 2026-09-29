@@ -71,7 +71,12 @@ public readonly record struct Room(Vector3 Centre, Vector3 Right, Vector3 Up, Ve
 /// <summary>A cooked mesh placed in the scene: the renderer uploads <see cref="Asset"/> once and draws it by transform.</summary>
 /// <param name="Model">Object to camera-relative space.</param>
 /// <param name="Glow">Scales the asset's emissive surfaces (a lamp dimmed in a Vigil, a firebox dying down).</param>
-public readonly record struct MeshInstance(MeshAsset Asset, Matrix4x4 Model, float Glow = 1, Vector3 Tint = default);
+/// <param name="Scar">
+/// The damage mask (pipeline shader set: "damage-mask blend for persistent car scars"): x how much of it is scarred,
+/// 0..1; y a seed choosing where. The mask lies in the asset's own texel space, so one seed scars the same places
+/// every time: give each car its own, and a car keeps its scars.
+/// </param>
+public readonly record struct MeshInstance(MeshAsset Asset, Matrix4x4 Model, float Glow = 1, Vector3 Tint = default, Vector2 Scar = default);
 
 /// <summary>
 /// Geometry built once (a car body, a tree, a creature's pose) and drawn many times by transform: the kit's pieces.
