@@ -508,10 +508,12 @@ def _save(arr, path):
     bpy.data.images.remove(img)
 
 
-def bake_layers(name, objs, grade=None, grime=0.0, family="model", source_ids=(), made=()):
+def bake_layers(name, objs, grade=None, grime=0.0, family="model", source_ids=(), made=(), size=None):
     """Every material on `objs` becomes a layer <name>_<i> (its maps written to content/art/textures/models/), and is
     renamed to it, carrying the engine's extras. `grade(diffuse_linear, mask_info) -> diffuse` may push the palette
-    (the hand pass); `grime` darkens toward soot in the crevices (occlusion) and low down."""
+    (the hand pass); `grime` darkens toward soot in the crevices (occlusion) and low down. `size` overrides the layers'
+    resolution (SIZE): a character seen close wears 1024."""
+    SIZE = size or globals()["SIZE"]
     os.makedirs(TEXTURES, exist_ok=True)
     mats = []
     for o in objs:
@@ -538,7 +540,7 @@ def bake_layers(name, objs, grade=None, grime=0.0, family="model", source_ids=()
             if nm is not None:
                 spec_gloss_normal, _ = _linked_image(nm.inputs["Color"])
         if base_img is not None:
-            base = _image_array(base_img)
+            base = _image_array(base_img, SIZE)
             albedo = srgb_to_lin(base[..., :3])
             alpha = base[..., 3]
         else:
@@ -550,27 +552,27 @@ def bake_layers(name, objs, grade=None, grime=0.0, family="model", source_ids=()
         if bsdf:
             img, ch = _linked_image(bsdf.inputs["Roughness"])
             if img is not None:
-                rough = _image_array(img)[..., ch if isinstance(ch, int) else 1]
+                rough = _image_array(img, SIZE)[..., ch if isinstance(ch, int) else 1]
             img, ch = _linked_image(bsdf.inputs["Metallic"])
             if img is not None:
-                metal = _image_array(img)[..., ch if isinstance(ch, int) else 2]
+                metal = _image_array(img, SIZE)[..., ch if isinstance(ch, int) else 2]
         ao = np.ones((SIZE, SIZE), np.float32)
         img, ch = _occlusion(m)
         if img is not None:
-            ao = _image_array(img)[..., ch if isinstance(ch, int) else 0]
+            ao = _image_array(img, SIZE)[..., ch if isinstance(ch, int) else 0]
         emissive = np.zeros((SIZE, SIZE), np.float32)
         flame = None
         if bsdf and "Emission Color" in bsdf.inputs:
             img, _ = _linked_image(bsdf.inputs["Emission Color"])
             if img is not None:
-                e = _image_array(img)[..., :3]
+                e = _image_array(img, SIZE)[..., :3]
                 emissive = np.clip(e.max(-1) * 1.5, 0, 1)
                 flame = srgb_to_lin(e)
         normal = None
         if bsdf or spec_gloss_normal is not None:
             img = spec_gloss_normal if bsdf is None else _linked_image(bsdf.inputs["Normal"])[0]
             if img is not None:
-                n = _image_array(img)[..., :3].copy()
+                n = _image_array(img, SIZE)[..., :3].copy()
                 n[..., 1] = 1 - n[..., 1]  # glTF's +Y (up the image) to tools/art's y-down
                 normal = n
         # The legacy conversion (as tools/art/texgen/convert.pbr_to_legacy): occlusion into the diffuse, metals
