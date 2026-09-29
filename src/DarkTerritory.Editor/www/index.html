@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dark Territory Editor</title>
+<style>
+  :root {
+    --bg: #15171a; --panel: #1d2024; --line: #2c3036; --text: #d9d4c7; --dim: #8b877d;
+    --lamp: #e0a050; --rust: #a0583a; --ok: #7fa36b; --bad: #d0604a; --steel: #4a4d52;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 24px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #111316; }
+  header h1 { font-size: 15px; margin: 0; letter-spacing: 0.04em; color: var(--lamp); }
+  nav button { background: none; border: 0; color: var(--dim); font: inherit; padding: 6px 10px; cursor: pointer; border-bottom: 2px solid transparent; }
+  nav button.on { color: var(--text); border-bottom-color: var(--lamp); }
+  main { padding: 16px; }
+  .cols { display: grid; grid-template-columns: 260px 1fr; gap: 16px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+  .files button { display: block; width: 100%; text-align: left; background: none; border: 0; color: var(--text); padding: 6px 8px; border-radius: 4px; cursor: pointer; font: inherit; }
+  .files button:hover { background: #262a2f; }
+  .files button.on { background: #2e2a22; color: var(--lamp); }
+  .files small { display: block; color: var(--dim); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  input[type=search], input[type=text], input[type=number], select { background: #121417; color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 5px 7px; font: inherit; }
+  input[type=number] { width: 110px; }
+  .row { display: grid; grid-template-columns: minmax(180px, 280px) 130px 1fr; gap: 12px; align-items: start; padding: 7px 0; border-bottom: 1px solid #23262b; }
+  .row .path { font-family: ui-monospace, monospace; font-size: 12.5px; word-break: break-all; }
+  .row .path .group { color: var(--dim); }
+  .row .help { color: var(--dim); font-size: 12.5px; }
+  .row.saved input { outline: 1px solid var(--ok); }
+  .row.error input { outline: 1px solid var(--bad); }
+  .msg { font-size: 12px; margin-top: 4px; }
+  .msg.bad { color: var(--bad); }
+  .msg.ok { color: var(--ok); }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  button.act { background: #2e2a22; color: var(--lamp); border: 1px solid #4a3f2b; border-radius: 4px; padding: 6px 12px; cursor: pointer; font: inherit; }
+  button.act:hover { background: #3a3326; }
+  svg { width: 100%; background: #0f1113; border-radius: 4px; display: block; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid #23262b; }
+  th { color: var(--dim); font-weight: normal; }
+  td input[type=number] { width: 90px; }
+  .legend span { display: inline-block; margin-right: 12px; font-size: 12px; color: var(--dim); }
+  .legend i { display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: -1px; border-radius: 2px; }
+  code { background: #121417; padding: 2px 6px; border-radius: 3px; }
+  @media (max-width: 800px) { .cols { grid-template-columns: 1fr; } .row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>DARK TERRITORY · EDITOR</h1>
+  <nav><button id="tab-tuning" class="on">Tuning</button><button id="tab-routes">Routes</button></nav>
+</header>
+<main>
+  <section id="tuning" class="cols">
+    <div class="panel files" id="files"></div>
+    <div class="panel">
+      <div class="toolbar"><input type="search" id="filter" placeholder="Filter by name or note…" size="30"><span id="where" class="help"></span></div>
+      <div id="values"></div>
+    </div>
+  </section>
+
+  <section id="routes" hidden>
+    <div class="panel">
+      <div class="toolbar">
+        <select id="tier"><option>local</option><option selected>frontier</option><option>deadLines</option><option>deepTerritory</option></select>
+        <input type="number" id="seed" value="7" min="1" style="width:80px">
+        <button class="act" id="generate">Generate</button>
+        <span class="help">or open</span>
+        <select id="saved"></select>
+        <button class="act" id="open">Open</button>
+        <span style="flex:1"></span>
+        <input type="text" id="name" placeholder="route-name" size="16">
+        <button class="act" id="save">Save as</button>
+      </div>
+      <div id="summary" class="help"></div>
+      <div class="legend" id="legend"></div>
+      <svg id="plan" viewBox="0 0 1000 420"></svg>
+      <svg id="profile" viewBox="0 0 1000 140" style="margin-top:8px"></svg>
+      <div class="msg" id="routeMsg"></div>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <div class="toolbar"><b>Features</b><span class="help">Edit, then Preview to redraw. Distances are metres along the line.</span><span style="flex:1"></span>
+        <button class="act" id="add">Add feature</button><button class="act" id="preview">Preview</button></div>
+      <table><thead><tr><th>Kind</th><th>Facility</th><th>Start</th><th>End</th><th>Side</th><th>Max cars</th><th></th></tr></thead><tbody id="features"></tbody></table>
+    </div>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const api = async (path, body) => {
+  const r = await fetch(path, body === undefined ? {} : { method: 'POST', body: JSON.stringify(body) });
+  const text = await r.text();
+  if (!r.ok) throw new Error(text);
+  return JSON.parse(text);
+};
+
+// Tabs
+for (const t of ['tuning', 'routes'])
+  $('tab-' + t).onclick = () => {
+    for (const u of ['tuning', 'routes']) { $(u).hidden = u !== t; $('tab-' + u).classList.toggle('on', u === t); }
+    if (t === 'routes' && !route) generate();
+  };
+
+// Tuning
+let file = null, values = [];
+async function loadFiles() {
+  const files = await api('/api/tuning');
+  $('files').innerHTML = '';
+  for (const f of files) {
+    const b = document.createElement('button');
+    b.innerHTML = `${f.file}<small title="${esc(f.header)}">${esc(f.header || '')}</small>`;
+    b.onclick = () => openFile(f.file, b);
+    $('files').append(b);
+  }
+  $('files').querySelector('button')?.click();
+}
+async function openFile(name, button) {
+  document.querySelectorAll('.files button').forEach(b => b.classList.toggle('on', b === button));
+  file = name;
+  values = (await api('/api/tuning/file?name=' + encodeURIComponent(name))).values;
+  $('where').textContent = `content/${name} · saves in place, comments kept · the running game reloads it`;
+  renderValues();
+}
+function renderValues() {
+  const q = $('filter').value.toLowerCase();
+  const host = $('values');
+  host.innerHTML = '';
+  for (const v of values) {
+    if (q && !(v.path.toLowerCase().includes(q) || (v.comment || '').toLowerCase().includes(q))) continue;
+    const row = document.createElement('div');
+    row.className = 'row';
+    const dot = v.path.lastIndexOf('.');
+    const group = dot > 0 ? v.path.slice(0, dot + 1) : '';
+    const leaf = v.path.slice(group.length);
+    let input;
+    if (v.kind === 'bool') {
+      input = document.createElement('input'); input.type = 'checkbox'; input.checked = v.text === 'true';
+    } else if (v.kind === 'number') {
+      input = document.createElement('input'); input.type = 'number'; input.value = v.text;
+      const n = Math.abs(parseFloat(v.text)) || 1;
+      input.step = n >= 100 ? 10 : n >= 10 ? 1 : n >= 1 ? 0.1 : n >= 0.1 ? 0.01 : 0.001;
+    } else {
+      input = document.createElement('input'); input.type = 'text'; input.value = JSON.parse(v.text);
+    }
+    input.onchange = () => save(v, input, row);
+    row.innerHTML = `<div class="path"><span class="group">${esc(group)}</span>${esc(leaf)}</div>`;
+    const cell = document.createElement('div'); cell.append(input);
+    const msg = document.createElement('div'); msg.className = 'msg'; cell.append(msg);
+    row.append(cell);
+    const help = document.createElement('div'); help.className = 'help'; help.textContent = v.comment || '';
+    row.append(help);
+    host.append(row);
+  }
+}
+async function save(v, input, row) {
+  const value = v.kind === 'bool' ? input.checked : v.kind === 'number' ? parseFloat(input.value) : input.value;
+  const msg = row.querySelector('.msg');
+  row.classList.remove('saved', 'error');
+  try {
+    const r = await api('/api/tuning/set', { file, path: v.path, value });
+    v.text = r.text;
+    row.classList.add('saved');
+    msg.className = 'msg ok'; msg.textContent = 'saved';
+  } catch (e) {
+    row.classList.add('error');
+    msg.className = 'msg bad'; msg.textContent = e.message;
+  }
+}
+$('filter').oninput = renderValues;
+
+// Routes
+const colours = { tunnel: '#8b877d', bridge: '#4a90c0', facility: '#e0a050', junction: '#c0c0c0', sleepers: '#c05050', grease: '#6070a0' };
+let route = null;
+async function generate() { show(await api(`/api/route?spec=${$('tier').value}:${$('seed').value}`)); }
+async function openSaved() { if ($('saved').value) show(await api('/api/route?file=' + encodeURIComponent($('saved').value))); }
+async function loadSaved() {
+  const names = await api('/api/routes');
+  $('saved').innerHTML = names.map(n => `<option>${esc(n)}</option>`).join('');
+}
+function show(d) {
+  route = d.route;
+  $('name').value = route.name.toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+  $('summary').textContent = `${route.name} · ${(d.length / 1000).toFixed(1)} km · dawn in ${(route.dawnSeconds / 60).toFixed(0)} min · fog ${route.weather.fogDensity.toFixed(3)} · ${route.features.length} features`;
+  $('legend').innerHTML = Object.entries(colours).map(([k, c]) => `<span><i style="background:${c}"></i>${k}</span>`).join('');
+  drawPlan(d); drawProfile(d); renderFeatures();
+}
+function drawPlan(d) {
+  const xs = d.plan.map(p => p[0]), zs = d.plan.map(p => p[1]);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs);
+  const scale = Math.min(960 / Math.max(1, maxX - minX), 380 / Math.max(1, maxZ - minZ));
+  const px = p => [20 + (p[0] - minX) * scale, 20 + (p[1] - minZ) * scale];
+  let s = `<polyline fill="none" stroke="#3a3f46" stroke-width="3" points="${d.plan.map(p => px(p).join(',')).join(' ')}"/>`;
+  const at = m => px(d.plan[Math.min(d.plan.length - 1, Math.max(0, Math.round(m / 25)))]);
+  for (const f of route.features) {
+    const pts = [];
+    for (let m = f.start; m <= f.end; m += 25) pts.push(at(m).join(','));
+    pts.push(at(f.end).join(','));
+    const c = colours[f.kind] || '#fff';
+    s += `<polyline fill="none" stroke="${c}" stroke-width="${f.kind === 'facility' ? 7 : 5}" stroke-linecap="round" points="${pts.join(' ')}"/>`;
+    if (f.kind === 'facility') { const [x, y] = at((f.start + f.end) / 2); s += `<text x="${x + 8}" y="${y - 8}" fill="${c}" font-size="13">${esc(f.facility)}</text>`; }
+  }
+  const [sx, sy] = at(0), [ex, ey] = at(d.length);
+  s += `<text x="${sx + 6}" y="${sy + 16}" fill="#d9d4c7" font-size="12">fortress</text><text x="${ex + 6}" y="${ey + 16}" fill="#d9d4c7" font-size="12">terminus</text>`;
+  $('plan').innerHTML = s;
+}
+function drawProfile(d) {
+  const ys = d.profile.map(p => p[1]);
+  const lo = Math.min(...ys), hi = Math.max(...ys) + 0.01;
+  const X = m => 10 + m / d.length * 980, Y = y => 130 - (y - lo) / (hi - lo) * 110;
+  let s = '';
+  for (const f of route.features) s += `<rect x="${X(f.start)}" y="4" width="${Math.max(2, X(f.end) - X(f.start))}" height="132" fill="${colours[f.kind] || '#fff'}" opacity="0.18"/>`;
+  s += `<polyline fill="none" stroke="#d9d4c7" stroke-width="1.5" points="${d.profile.map(p => X(p[0]) + ',' + Y(p[1])).join(' ')}"/>`;
+  s += `<text x="12" y="16" fill="#8b877d" font-size="11">elevation ${lo.toFixed(0)}–${hi.toFixed(0)} m · steepest ${Math.max(...d.profile.map(p => Math.abs(p[2]))).toFixed(1)}%</text>`;
+  $('profile').innerHTML = s;
+}
+const kinds = ['tunnel', 'bridge', 'facility', 'junction', 'sleepers', 'grease'];
+const facilities = ['coalingTower', 'grainElevator', 'switchyard', 'foundry', 'slaughterhouse', 'wreckYard', 'mineHead', 'chemicalWorks', 'militaryDepot'];
+function renderFeatures() {
+  const body = $('features');
+  body.innerHTML = '';
+  route.features.forEach((f, i) => {
+    const tr = document.createElement('tr');
+    const sel = (opts, v, key) => `<select data-k="${key}">${opts.map(o => `<option${o === v ? ' selected' : ''}>${o}</option>`).join('')}</select>`;
+    tr.innerHTML = `<td>${sel(kinds, f.kind, 'kind')}</td><td>${f.kind === 'facility' ? sel(facilities, f.facility, 'facility') : ''}</td>
+      <td><input type="number" data-k="start" value="${Math.round(f.start)}"></td><td><input type="number" data-k="end" value="${Math.round(f.end)}"></td>
+      <td><input type="number" data-k="side" value="${f.side}" min="-1" max="1" style="width:60px"></td>
+      <td><input type="number" data-k="maxCars" value="${f.maxCars}" min="0" style="width:60px"></td><td><button class="act" data-del>✕</button></td>`;
+    tr.querySelectorAll('[data-k]').forEach(el => el.onchange = () => {
+      const k = el.dataset.k;
+      f[k] = el.tagName === 'SELECT' ? el.value : parseFloat(el.value);
+      if (k === 'kind') { f.facility = f.kind === 'facility' ? (f.facility || 'coalingTower') : null; renderFeatures(); }
+    });
+    tr.querySelector('[data-del]').onclick = () => { route.features.splice(i, 1); renderFeatures(); };
+    body.append(tr);
+  });
+}
+$('generate').onclick = generate;
+$('open').onclick = openSaved;
+$('add').onclick = () => { route.features.push({ kind: 'sleepers', start: 5000, end: 5020, side: 0, maxCars: 0, facility: null }); renderFeatures(); };
+$('preview').onclick = async () => {
+  route.features.sort((a, b) => a.start - b.start);
+  try { show(await api('/api/route/preview', route)); $('routeMsg').textContent = ''; }
+  catch (e) { $('routeMsg').className = 'msg bad'; $('routeMsg').textContent = e.message; }
+};
+$('save').onclick = async () => {
+  try {
+    route.features.sort((a, b) => a.start - b.start);
+    const r = await api('/api/route/save', { name: $('name').value, route });
+    $('routeMsg').className = 'msg ok';
+    $('routeMsg').innerHTML = `Saved content/lines/${esc(r.name)}.route.json · play it: <code>${esc(r.play)}</code>`;
+    loadSaved();
+  } catch (e) { $('routeMsg').className = 'msg bad'; $('routeMsg').textContent = e.message; }
+};
+function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+loadFiles();
+loadSaved();
+</script>
+</body>
+</html>

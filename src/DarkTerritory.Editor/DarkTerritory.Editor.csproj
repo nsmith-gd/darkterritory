@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Designer tools (T18): a local web editor for tuning and routes. Everything it saves is text in content/. -->
+  <ItemGroup>
+    <ProjectReference Include="../DarkTerritory.Sim/DarkTerritory.Sim.csproj" />
+    <ProjectReference Include="../Ballast.Audio/Ballast.Audio.csproj" />
+    <EmbeddedResource Include="www/**" />
+  </ItemGroup>
+</Project>

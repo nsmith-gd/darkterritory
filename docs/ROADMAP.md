@@ -53,6 +53,10 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
 
 Remaining for M3: Soot Children mimicry, the radio as an item, and interior occlusion (after car interiors).
 
+**Designer tools (level editor v1):**
+- `dt edit` opens a local editor page for every tuning and sound value. Edits keep the comments, are validated, and are hot-reloaded by the running game.
+- A route editor: generate, see the plan and profile, edit the features, save, and play with `--route-file`.
+
 **Physics:**
 - Crates, lamps and crewmates' bodies, host-simulated in car frames.
 - Pick up (E), put down (E) and throw (right mouse).
