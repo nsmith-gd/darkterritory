@@ -175,7 +175,13 @@ public sealed class HostSession
         try
         {
             var r = new NetReader(payload);
-            if ((MessageType)r.U8() != MessageType.Input)
+            var type = (MessageType)r.U8();
+            if (type == MessageType.Voice)
+            {
+                ForwardVoice(c, ref r);
+                return;
+            }
+            if (type != MessageType.Input)
                 return;
             _frames.Clear();
             Messages.ReadInput(ref r, _frames, out uint ackedSnapshot);
@@ -187,6 +193,35 @@ public sealed class HostSession
         catch (Exception e) when (e is EndOfStreamException or InvalidDataException)
         {
             // Malformed packet: drop it. Never let a client crash the host.
+        }
+    }
+
+    readonly NetWriter _voiceWriter = new();
+
+    /// <summary>Route for tunnels (radio dies in them). Defaults to the world's.</summary>
+    public Route.Route? Route { get; set; }
+    public long VoiceFramesForwarded { get; private set; }
+
+    /// <summary>Forwards a voice frame to exactly the listeners it reaches (spec A.5, C.1). Never back to the speaker.</summary>
+    void ForwardVoice(Crew speaker, ref NetReader r)
+    {
+        ushort seq = r.U16();
+        bool radio = r.Bool();
+        var opus = r.Rest();
+        if (opus.Length is 0 or > 400)
+            return;
+        var route = Route ?? World.Route;
+        Func<double, bool>? tunnel = route is null ? null : route.InTunnel;
+        foreach (var listener in _crew)
+        {
+            if (listener == speaker)
+                continue;
+            var path = VoiceRouting.Route(speaker.State, listener.State, radio, Train, tunnel);
+            if (path == VoicePath.None)
+                continue;
+            Messages.WriteVoiceDown(_voiceWriter, speaker.Id, seq, path, opus);
+            _transport.Send(listener.Peer, _voiceWriter.Written, Delivery.Unreliable);
+            VoiceFramesForwarded++;
         }
     }
 

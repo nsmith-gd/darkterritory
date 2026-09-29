@@ -13,6 +13,8 @@ namespace DarkTerritory.Sim.Net;
 /// its state and controls, so the client predicts it too. Other players are shown interpolated
 /// between snapshots, a little in the past.
 /// </summary>
+public readonly record struct VoiceFrame(byte Speaker, ushort Sequence, VoicePath Path, byte[] Opus);
+
 public sealed class ClientSession
 {
     /// <summary>Remote players are drawn this many ticks behind the newest snapshot (100 ms at 30 Hz).</summary>
@@ -53,6 +55,18 @@ public sealed class ClientSession
     public TrainTuning TrainTuning { get; set; }
     public PlayerTuning PlayerTuning { get; set; }
     public byte? PlayerId { get; private set; }
+    /// <summary>Voice frames from others, as they arrived. The game drains and decodes these.</summary>
+    public Queue<VoiceFrame> VoiceFrames { get; } = new();
+    readonly NetWriter _voiceWriter = new();
+
+    /// <summary>Sends one encoded voice frame to the host, which forwards it to whoever it reaches.</summary>
+    public void SendVoice(ushort sequence, bool radio, ReadOnlySpan<byte> opus)
+    {
+        if (PlayerId is null)
+            return;
+        Messages.WriteVoiceUp(_voiceWriter, sequence, radio, opus);
+        _transport.Send(PeerId.Host, _voiceWriter.Written, Delivery.Unreliable);
+    }
     public string SessionInfo { get; private set; } = "";
     public bool Connected => PlayerId is not null && _haveState;
     /// <summary>This player as predicted locally: what the local camera shows.</summary>
@@ -139,6 +153,12 @@ public sealed class ClientSession
             var r = new NetReader(payload);
             switch ((MessageType)r.U8())
             {
+                case MessageType.Voice:
+                    byte speaker = r.U8();
+                    ushort vseq = r.U16();
+                    var path = (VoicePath)r.U8();
+                    VoiceFrames.Enqueue(new VoiceFrame(speaker, vseq, path, r.Rest().ToArray()));
+                    break;
                 case MessageType.Welcome:
                     (PlayerId, _, SessionInfo) = Messages.ReadWelcome(ref r);
                     break;

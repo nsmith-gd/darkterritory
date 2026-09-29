@@ -20,6 +20,7 @@ using DarkTerritory.Sim.Route;
 // Options: --route tier:seed [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png --mute
 // Multiplayer (UDP, direct IP / LAN): --host [port] hosts the same options for others to join; --join address[:port] joins one.
 // Networked, the cab is the only place to drive from (GDD §12): R/F/B/X work when you're standing in it.
+// Voice (networked): open mic with voice activity, or --push-to-talk and hold V. Hold T to talk on the radio. --no-mic to only listen.
 
 string Arg(string name, string fallback)
 {
@@ -74,6 +75,16 @@ Console.WriteLine($"GPU: {gpu.DeviceName}, window {w}x{h}, internal {renderer.Wi
 var sound = new GameAudio(content);
 using var speaker = args.Contains("--mute") ? null : AudioOut.Open(Audio.SampleRate, out var audioError) is { } s ? s : Warn(audioError);
 var audioBlock = new float[Audio.Block * 2];
+var net = session as NetPlaySession;
+var voice = net is null ? null : new VoiceChat(sound.Mixer) { PushToTalk = args.Contains("--push-to-talk") };
+using var mic = voice is null || args.Contains("--mute") || args.Contains("--no-mic") ? null
+    : AudioIn.Open(Audio.SampleRate, out var micError) is { } m ? m : NoMic(micError);
+var micSamples = new float[4800];
+static AudioIn? NoMic(string? error)
+{
+    Console.WriteLine($"voice: no microphone ({error}); you can still hear the crew");
+    return null;
+}
 static AudioOut? Warn(string? error)
 {
     Console.WriteLine($"audio: no output device ({error}); running silent");
@@ -156,6 +167,15 @@ while (!window.CloseRequested)
         // The ears are where the eyes were last frame; audio follows the sim tick so no shot is missed.
         bool exposed = session.Player.Surface is not Surface.Deck || session.Player.Parent == PlayerState.World;
         sound.Update(session.World, session.Controls, Listener.At(camera.Position, camera.Yaw), exposed, SimConstants.TickSeconds);
+        if (voice is not null && net is not null)
+            voice.Update(net.Client, session.Crew(session.InterpolatedFrames(1), 1), SimConstants.TickSeconds);
+    }
+    if (voice is not null && net is not null)
+    {
+        voice.TalkHeld = input.Down(Key.V);
+        voice.RadioHeld = input.Down(Key.T);
+        for (int n; mic is not null && (n = mic.Read(micSamples)) > 0;)
+            voice.Capture(micSamples.AsSpan(0, n), net.Client);
     }
     // Keep ~60 ms queued at the device.
     while (speaker is not null && speaker.QueuedSeconds < 0.06)
@@ -190,7 +210,8 @@ while (!window.CloseRequested)
 
     if (now >= titleAt)
     {
-        window.Title = $"Dark Territory — {session.Status()}";
+        string talking = voice is { Transmitting: true } ? voice.RadioHeld ? " | ON THE RADIO" : " | talking" : "";
+        window.Title = $"Dark Territory — {session.Status()}{talking}";
         titleAt = now + 0.25;
     }
     input.EndFrame();

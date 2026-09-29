@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Voice chat codec and signal logic (ARCHITECTURE §6.3). Pure C#: Concentus is a managed port of Opus. -->
+  <PropertyGroup>
+    <RootNamespace>Ballast.Voice</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Concentus" Version="2.2.2" />
+  </ItemGroup>
+</Project>

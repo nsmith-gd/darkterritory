@@ -1,0 +1,6 @@
+// Proximity voice (spec A.5), tier 2: full clarity to 8 m, logarithmic falloff to nothing at 26 m.
+// Positioned at the speaker's head; occluded through the cab walls by the mixer's occlusion rule.
+{
+  "tier": 2, "loop": true, "maxInstances": 16, "minDistance": 8, "maxDistance": 26, "curve": "voice",
+  "layers": [ { "source": "stream", "gain": 1.0 } ]
+}

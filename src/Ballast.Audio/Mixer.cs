@@ -126,7 +126,7 @@ public sealed class Mixer
         foreach (var v in _voices)
             v.LastAudibleGain = Spatial(v, out _, out _);
         _selected.Clear();
-        _selected.AddRange(_voices.Where(v => v.LastAudibleGain > 1e-4f)
+        _selected.AddRange(_voices.Where(v => v.LastAudibleGain > 1e-4f || v.Stream is not null)
             .OrderBy(v => v.Def.Tier == 1 ? 0 : 1).ThenByDescending(v => v.LastAudibleGain).Take(_buffers.Length));
         foreach (var v in _voices)
         {
@@ -246,9 +246,15 @@ public sealed class Mixer
         }
         var offset = v.Position - Listener.Position;
         double d = offset.Length;
-        double attenuation = d <= def.MinDistance ? 1 : Math.Pow(def.MinDistance / d, def.Rolloff);
-        // Fade out over the last 10% of range instead of cutting off.
-        attenuation *= Math.Clamp((def.MaxDistance - d) / (0.1 * def.MaxDistance), 0, 1);
+        double attenuation;
+        if (def.Curve == RolloffCurve.Voice)
+            attenuation = d <= def.MinDistance ? 1 : d >= def.MaxDistance ? 0 : 1 - Math.Log(d / def.MinDistance) / Math.Log(def.MaxDistance / def.MinDistance);
+        else
+        {
+            attenuation = d <= def.MinDistance ? 1 : Math.Pow(def.MinDistance / d, def.Rolloff);
+            // Fade out over the last 10% of range instead of cutting off.
+            attenuation *= Math.Clamp((def.MaxDistance - d) / (0.1 * def.MaxDistance), 0, 1);
+        }
         gain *= (float)attenuation;
 
         double pan = 0, behind = 0;

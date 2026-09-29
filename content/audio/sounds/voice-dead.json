@@ -1,0 +1,5 @@
+// The dead channel (spec C.1), tier 2: flat, spectators to spectators, a little dulled.
+{
+  "tier": 2, "loop": true, "flat": true, "maxInstances": 16,
+  "layers": [ { "source": "stream", "gain": 0.9, "filters": [{ "type": "lowPass", "frequency": 4500 }] } ]
+}

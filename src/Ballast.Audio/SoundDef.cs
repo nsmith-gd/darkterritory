@@ -69,6 +69,17 @@ public enum SourceKind : byte
     Square,
     /// <summary>One click per period: through resonant filters it's metal (rod clank, a drill bit, a coupling).</summary>
     Impulse,
+    /// <summary>Samples pushed in from outside: voice chat, decoded as it arrives (<see cref="SoundInstance.Stream"/>).</summary>
+    Stream,
+}
+
+/// <summary>How level falls with distance.</summary>
+public enum RolloffCurve : byte
+{
+    /// <summary>Inverse distance (to the power Rolloff) beyond MinDistance, faded out over the last 10% of MaxDistance.</summary>
+    Inverse,
+    /// <summary>Spec A.5 proximity voice: full clarity to MinDistance, logarithmic falloff to nothing at MaxDistance.</summary>
+    Voice,
 }
 
 public sealed record FilterDef(FilterType Type, Value Frequency, double Q = 0.707, double GainDb = 0);
@@ -100,7 +111,8 @@ public sealed record SoundDef(int Tier, LayerDef[] Layers, bool Loop = false, do
     double GainDb = 0,
     CrushDef? Crush = null,
     // Heard without position (UI, the listener's own wind).
-    bool Flat = false);
+    bool Flat = false,
+    RolloffCurve Curve = RolloffCurve.Inverse);
 
 /// <summary>Mix bus rules (<c>content/audio/mix.json</c>).</summary>
 public sealed record MixDef(DuckRule[] Ducking, double DuckAttack, double DuckRelease, int MaxVoices,
