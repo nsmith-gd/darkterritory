@@ -42,7 +42,9 @@ public sealed record Route(string Name, RouteTier Tier, ulong Seed, LineDefiniti
     public IEnumerable<RouteFeature> Of(FeatureKind kind) => Features.Where(f => f.Kind == kind);
     public bool InTunnel(double s) => Features.Any(f => f.Kind == FeatureKind.Tunnel && f.Contains(s));
     public RouteFeature? BridgeAt(double s) => Features.FirstOrDefault(f => f.Kind == FeatureKind.Bridge && f.Contains(s));
-    public RailLine Build() => new(Line);
+    /// <summary>The branches off the main line at its switches, in order along it (GDD §17, App. A.7).</summary>
+    public IReadOnlyList<BranchDefinition> Branches { get; init; } = [];
+    public RailLine Build() => Branches.Count == 0 ? new(Line) : new(Line, Branches);
 
     /// <summary>The next feature starting ahead of <paramref name="s"/> (hazards excluded: those you find).</summary>
     public RouteFeature? NextLandmark(double s) =>

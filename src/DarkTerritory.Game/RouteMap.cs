@@ -34,6 +34,13 @@ public static class RouteMap
         }
 
         Track(0, line.Length, 120, 120, 125, 1);
+        // Branches off the switches, drawn darker: a dead line alongside reads as one at this scale, so it's a shade apart.
+        foreach (var b in line.Branches)
+            for (double s = 0; s < b.Local.Length; s += 5)
+            {
+                var (x, y) = Plan(b.Local.Sample(s).Position);
+                Dot(px, width, height, x, y, 1, 90, 70, 60);
+            }
         foreach (var f in route.Features)
         {
             switch (f.Kind)

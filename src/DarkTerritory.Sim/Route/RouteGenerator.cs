@@ -48,13 +48,89 @@ public static class RouteGenerator
             int maxCars = featureRng.Chance(tt.WeakBridgeChance) ? featureRng.RangeInclusive(6, 16) : 0;
             AddSpans(FeatureKind.Bridge, 1, 60, 400, maxCars, length, blocked, features, ref featureRng);
         }
-        int junctions = featureRng.RangeInclusive(tt.Junctions[0], tt.Junctions[1]);
-        for (int i = 0; i < junctions; i++)
-            AddSpans(FeatureKind.Junction, 1, 30, 30, 0, length, blocked, features, ref featureRng, side: featureRng.Chance(0.5) ? 1 : -1);
+        var branches = new List<BranchDefinition>();
+        AddJunctions(t.Junctions, featureRng.RangeInclusive(tt.Junctions[0], tt.Junctions[1]), built, length, blocked, features, branches, ref featureRng);
 
         AddHazards(t, tt, weather, built, length, zones, features, ref hazardRng);
         features.Sort((a, b) => a.Start.CompareTo(b.Start));
-        return new Route(line.Name, tier, seed, line, features, weather, dawn);
+        branches.Sort((a, b) => a.Toe.CompareTo(b.Toe));
+        return new Route(line.Name, tier, seed, line, features, weather, dawn) { Branches = branches };
+    }
+
+    /// <summary>
+    /// Junctions with a dead line off each (App. A.7: what the Switchman sets you onto). The turnout is on straight
+    /// main line, and the dead line runs alongside, so it lies on the main line's ground and never crosses it.
+    /// </summary>
+    static void AddJunctions(JunctionTuning j, int count, RailLine line, double length, List<(double Start, double End)> blocked,
+        List<RouteFeature> features, List<BranchDefinition> branches, ref Pcg32 rng)
+    {
+        const double Span = 30;
+        double turnout = Turnout(j).Advance;
+        for (int placed = 0, tries = 0; placed < count && tries < 400; tries++)
+        {
+            int side = rng.Chance(0.5) ? 1 : -1;
+            double deadLine = Math.Round(rng.Range(j.DeadLineLength[0], j.DeadLineLength[1]));
+            double start = Math.Round(rng.Range(0, length - deadLine));
+            // Clear of every other feature for its whole length: a tunnel or a bridge alongside would swallow it.
+            if (blocked.Any(b => start < b.End + 150 && start + deadLine > b.Start - 150) || !Straight(line, start - 10, start + turnout + 10))
+                continue;
+            blocked.Add((start, start + deadLine));
+            features.Add(new RouteFeature(FeatureKind.Junction, start, start + Span, side));
+            branches.Add(DeadLine(j, line, start, side, deadLine));
+            placed++;
+        }
+    }
+
+    /// <summary>The turnout's out-and-back curves: how far along the main line they take, and how far beside it they end.</summary>
+    static (double Advance, double Offset) Turnout(JunctionTuning j)
+    {
+        double theta = j.DivergeLength / j.DivergeRadius;
+        return (2 * j.DivergeRadius * Math.Sin(theta), 2 * j.DivergeRadius * (1 - Math.Cos(theta)));
+    }
+
+    /// <summary>
+    /// A dead line: out through the turnout and back to parallel (radius positive curving left; side −1 is left), then
+    /// alongside the main line at that offset to a buffer stop. Alongside is the main line's own segments, each as the
+    /// curve parallel to it: the same angle at the main's radius plus or minus the offset, climbing the same height.
+    /// </summary>
+    static BranchDefinition DeadLine(JunctionTuning j, RailLine main, double toe, int side, double length)
+    {
+        var (advance, offset) = Turnout(j);
+        double L = j.DivergeLength, R = j.DivergeRadius;
+        double Grade(double from, double to) => Math.Round((main.Sample(to).Position.Y - main.Sample(from).Position.Y) / L * 100, 4);
+        var segments = new List<TrackSegment>
+        {
+            new(L, -side * R, Grade(toe, toe + advance / 2)),
+            new(L, side * R, Grade(toe + advance / 2, toe + advance)),
+        };
+        double left = length - 2 * L, s = 0;
+        foreach (var m in main.Segments)
+        {
+            double from = Math.Max(s, toe + advance), to = s + m.Length;
+            s = to;
+            if (to <= from)
+                continue;
+            double along = to - from;
+            // A parallel curve's radius: the main's, less the offset on the inside of the bend, more on the outside.
+            double radius = m.Radius == 0 ? 0 : m.Radius + side * offset;
+            double scale = m.Radius == 0 ? 1 : radius / m.Radius;
+            double piece = Math.Min(along * scale, left);
+            segments.Add(new TrackSegment(Math.Round(piece, 3), radius, Math.Round(m.GradePercent / scale, 4)));
+            left -= piece;
+            if (left <= 0.01)
+                break;
+        }
+        return new BranchDefinition(BranchKind.DeadLine, toe, side, segments);
+    }
+
+    /// <summary>No curve and no change of grade over a stretch: where a turnout can be laid.</summary>
+    static bool Straight(RailLine line, double from, double to)
+    {
+        double grade = line.Sample(Math.Max(0, from)).GradePercent;
+        for (double s = Math.Max(0, from); s <= to; s += 2)
+            if (line.Sample(s) is var t && (t.Curvature != 0 || t.GradePercent != grade))
+                return false;
+        return true;
     }
 
     static List<double> PlaceFacilities(RouteTuning t, TierTuning tt, double length, ref Pcg32 rng)

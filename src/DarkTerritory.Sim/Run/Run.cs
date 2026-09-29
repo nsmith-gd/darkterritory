@@ -114,11 +114,12 @@ public sealed class Run
             Finish(world, crew, RunPhase.Failed, RunEnd.CrewLost);
         else if (Seconds > _route.DawnSeconds + Tuning.DawnGraceSeconds)
             Finish(world, crew, RunPhase.Failed, RunEnd.DawnMissed);
-        else if (engine.Speed < Tuning.StopBelowSpeed && front >= _route.Length - Tuning.TerminusZone)
+        else if (engine.Speed < Tuning.StopBelowSpeed && train.OnMain && front >= _route.Length - Tuning.TerminusZone)
             Finish(world, crew, RunPhase.Arrived, RunEnd.Delivered);
         else
         {
-            int at = engine.Speed < Tuning.StopBelowSpeed ? _facilities.FindIndex(f => f.Contains(front)) : -1;
+            // Down a dead line is nowhere: distances there aren't the main line's.
+            int at = engine.Speed < Tuning.StopBelowSpeed && train.OnMain ? _facilities.FindIndex(f => f.Contains(front)) : -1;
             Facility = at;
             Phase = at >= 0 ? RunPhase.AtFacility : RunPhase.Underway;
             if (at < 0)

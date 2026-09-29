@@ -248,7 +248,8 @@ public sealed class ConductorBot : IWorldBot
     PlayerIntent Drive(TrainOnLine train, uint tick)
     {
         var d = train.Dynamics;
-        double remaining = train.Line.Length - d.Distance;
+        // To the end of the track it's on: the terminus, or a dead line's buffer stop.
+        double remaining = train.Line.PathLength(d.Path) - d.Distance;
         var brakeRate = d.MaxBrakeForce / d.Consist.MassTonnes;
         double stopping = d.Speed * d.Speed / (2 * Math.Max(0.1, brakeRate)) + 150;
         var intent = new PlayerIntent();

@@ -36,6 +36,10 @@ public sealed class GreyboxScene
     public IReadOnlyList<Sim.Physics.Body>? Bodies { get; set; }
     /// <summary>Other players, drawn as greybox figures.</summary>
     public IReadOnlyList<Crewmate>? Crew { get; set; }
+    /// <summary>How each branch's switch is set (true: for the branch), for its stand's lamp. Unset, all read main.</summary>
+    public Func<int, bool>? Diverging { get; set; }
+    /// <summary>The switch stands, for where their levers are. Unset, they stand where the default tuning puts them.</summary>
+    public SwitchStands? Stands { get; set; }
 
     /// <summary>Depth of the valley under a bridge.</summary>
     const double ValleyDepth = 18;
@@ -55,6 +59,9 @@ public sealed class GreyboxScene
         double from = Math.Max(0, centre - DrawDistance), to = Math.Min(line.Length, centre + DrawDistance);
 
         Track(mesh, line, eye, from, to, centre);
+        foreach (var branch in line.Branches)
+            if (branch.Toe < to && branch.End > from)
+                Branch(mesh, line, branch, eye);
         Lineside(mesh, line, eye, from, to);
         if (Route is not null)
         {
@@ -353,6 +360,82 @@ public sealed class GreyboxScene
         }
     }
 
+    /// <summary>
+    /// A branch off the main line (GDD §17, App. A.7): its own ballast, rails and sleepers from the points, the
+    /// switch stand beside them with its target lamp (green set for the main line, red for the branch: from the cab,
+    /// the lamp is how you read a switch before you're on it), and a buffer stop at the far end.
+    /// </summary>
+    void Branch(MeshBuilder mesh, RailLine main, Branch branch, Double3 eye)
+    {
+        const double step = 5, gauge = 0.72, sleeperPitch = 0.75, bedHalfWidth = 1.8, start = 4;
+        var local = branch.Local;
+        for (double s = start; s < local.Length; s += step)
+        {
+            var a = local.Sample(s);
+            var b = local.Sample(Math.Min(s + step, local.Length));
+            if ((a.Position - eye).Length > DrawDistance)
+                continue;
+            var ra = Double3.Cross(a.Tangent, Double3.Up).Normalized;
+            var rb = Double3.Cross(b.Tangent, Double3.Up).Normalized;
+            var up = new Double3(0, 0.01, 0); // over the main line's bed where the two still overlap
+            mesh.Quad(V(a.Position - ra * bedHalfWidth + up, eye), V(a.Position + ra * bedHalfWidth + up, eye),
+                      V(b.Position + rb * bedHalfWidth + up, eye), V(b.Position - rb * bedHalfWidth + up, eye), Palette.Ballast);
+            // Its shoulders run down into the ground: the main line's ground falls away from it, so out here the
+            // branch sits on a low embankment of its own.
+            var shoulder = new Double3(0, -0.35, 0);
+            mesh.Quad(V(a.Position + ra * bedHalfWidth + up, eye), V(a.Position + ra * (bedHalfWidth + 0.8) + shoulder, eye),
+                      V(b.Position + rb * (bedHalfWidth + 0.8) + shoulder, eye), V(b.Position + rb * bedHalfWidth + up, eye), Palette.Ballast);
+            mesh.Quad(V(a.Position - ra * (bedHalfWidth + 0.8) + shoulder, eye), V(a.Position - ra * bedHalfWidth + up, eye),
+                      V(b.Position - rb * bedHalfWidth + up, eye), V(b.Position - rb * (bedHalfWidth + 0.8) + shoulder, eye), Palette.Ballast);
+            foreach (var side in new[] { -1.0, 1.0 })
+            {
+                var p0 = V(a.Position + ra * (side * gauge), eye);
+                var p1 = V(b.Position + rb * (side * gauge), eye);
+                var fwd = Vector3.Normalize(p1 - p0);
+                var right = Vector3.Normalize(Vector3.Cross(fwd, Vector3.UnitY));
+                mesh.Box((p0 + p1) / 2 + new Vector3(0, 0.12f, 0), right, Vector3.UnitY, -fwd, new Vector3(0.04f, 0.07f, (p1 - p0).Length() / 2), Palette.IronGrey);
+            }
+        }
+        for (double s = start; s < local.Length; s += sleeperPitch)
+        {
+            var t = local.Sample(s);
+            if ((t.Position - eye).Length > 150)
+                continue;
+            var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+            mesh.Box(V(t.Position, eye) + new Vector3(0, 0.035f, 0), ToF(right), Vector3.UnitY, ToF(t.Tangent * -1), new Vector3(1.25f, 0.05f, 0.12f), Palette.DeepBrown);
+        }
+
+        // The buffer stop: a timber-and-iron block across the rails, with a red lamp on it.
+        var end = local.Sample(local.Length);
+        if ((end.Position - eye).Length < DrawDistance)
+        {
+            var right = Double3.Cross(end.Tangent, Double3.Up).Normalized;
+            mesh.Box(V(end.Position + Double3.Up * 0.6, eye), ToF(right), Vector3.UnitY, ToF(end.Tangent * -1), new Vector3(1.3f, 0.6f, 0.4f), Palette.RustRed);
+            mesh.Emissive = 1;
+            mesh.Box(V(end.Position + Double3.Up * 1.35, eye), ToF(right), Vector3.UnitY, ToF(end.Tangent * -1), new Vector3(0.12f, 0.12f, 0.12f), Palette.SignalRed);
+            mesh.Emissive = 0;
+        }
+
+        // The stand at the points: a post, the throw lever at hand height, and the target lamp on top.
+        var lever = (Stands ?? DefaultStands).LeverAt(main, branch.Index);
+        if ((lever - eye).Length > DrawDistance)
+            return;
+        var toe = main.Sample(branch.Toe);
+        var across = Double3.Cross(toe.Tangent, Double3.Up).Normalized;
+        var foot = lever - Double3.Up * 0.9;
+        mesh.Box(V(foot + Double3.Up * 0.8, eye), ToF(across), Vector3.UnitY, ToF(toe.Tangent * -1), new Vector3(0.08f, 0.8f, 0.08f), Palette.IronGrey);
+        mesh.Box(V(lever - across * (branch.Side * 0.35), eye), ToF(across), Vector3.UnitY, ToF(toe.Tangent * -1), new Vector3(0.35f, 0.035f, 0.035f), Palette.TarnishedBrass);
+        bool diverging = Diverging?.Invoke(branch.Index) ?? false;
+        var lamp = diverging ? Palette.SignalRed : Palette.SignalGreen;
+        var lampAt = foot + Double3.Up * 1.75;
+        mesh.PointLights.Add(new PointLight(V(lampAt, eye), lamp * 0.6f, 5));
+        mesh.Emissive = 1;
+        mesh.Box(V(lampAt, eye), ToF(across), Vector3.UnitY, ToF(toe.Tangent * -1), new Vector3(0.16f, 0.16f, 0.16f), lamp);
+        mesh.Emissive = 0;
+    }
+
+    static readonly SwitchStands DefaultStands = new(new JunctionTuning());
+
     /// <summary>A box following the line: <paramref name="lateral"/> metres right of centre, base at <paramref name="y"/> above rail.</summary>
     static void Along(MeshBuilder mesh, RailLine line, Double3 eye, double s, double length, double lateral, double y, double halfWidth, double height, Vector3 color)
     {
@@ -414,14 +497,7 @@ public sealed class GreyboxScene
                     mesh.Emissive = 0;
                     break;
                 case FeatureKind.Junction:
-                    // Switch stand with a lamp, and a stub of diverging rail: what the Switchman throws.
-                    double side2 = f.Side * 2.6;
-                    Along(mesh, line, eye, f.Start, 0.3, side2, 0, 0.15, 1.4, Palette.IronGrey);
-                    mesh.Emissive = 1;
-                    Along(mesh, line, eye, f.Start, 0.25, side2, 1.4, 0.12, 0.25, Palette.LampAmber);
-                    mesh.Emissive = 0;
-                    for (int i = 0; i < 6; i++)
-                        Along(mesh, line, eye, f.Start + i * 5, 5, f.Side * (0.9 + i * 0.35), 0.05, 0.05, 0.15, Palette.IronGrey);
+                    // The branch and its switch stand are drawn with the track.
                     break;
                 case FeatureKind.Facility:
                     Facility(mesh, line, eye, f);

@@ -94,8 +94,12 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         var world = new World(train, combat);
         world.EnableVigil(DataFile.Load<Sim.Run.VigilTuning>(Path.Combine(content, Sim.Run.VigilTuning.File)));
         if (route is not null)
-            world.EnableRun(runTuning, route, DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File)).YardLength, authority,
+        {
+            var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File));
+            world.EnableSwitches(routeTuning.Junctions);
+            world.EnableRun(runTuning, route, routeTuning.YardLength, authority,
                 DataFile.Load<Sim.Run.FacilityTuning>(Path.Combine(content, Sim.Run.FacilityTuning.File)));
+        }
         return (world, route);
     }
 }

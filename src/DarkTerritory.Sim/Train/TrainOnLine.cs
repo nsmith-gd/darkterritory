@@ -14,12 +14,13 @@ public readonly record struct CarPose(int Index, Double3 Centre, Double3 Forward
     public Double3 Up => Double3.Cross(Right, Forward);
 }
 
-/// <summary>Two rakes touched this tick.</summary>
-/// <param name="Front">Vehicle id at the rear of the front rake.</param>
-/// <param name="Rear">Vehicle id at the front of the rear rake.</param>
+/// <summary>Two rakes touched this tick, or one hit a buffer stop.</summary>
+/// <param name="Front">Vehicle id at the rear of the front rake (the front of a rake at a buffer stop).</param>
+/// <param name="Rear">Vehicle id at the front of the rear rake; −1 for a buffer stop.</param>
 public readonly record struct RakeContact(int Front, int Rear, double ClosingSpeed, bool Coupled, double Damage);
 
-public readonly record struct RakeState(int[] Vehicles, double Distance, double Velocity, double BrakeEfficiency, bool Handbrake, bool FrontCouplerLocked);
+/// <param name="Path">The track the rake's front is on: <see cref="RailLine.MainPath"/>, or a branch index.</param>
+public readonly record struct RakeState(int[] Vehicles, double Distance, double Velocity, double BrakeEfficiency, bool Handbrake, bool FrontCouplerLocked, int Path = RailLine.MainPath);
 public readonly record struct VehicleState(int Id, double Load, double Integrity, double CargoIntegrity, GunState Gun = default, byte DoorsOpen = 0);
 
 /// <summary>Everything about the train that the host owns and clients re-simulate from.</summary>
@@ -29,6 +30,11 @@ public sealed record TrainState(RakeState[] Rakes, VehicleState[] Vehicles, Boil
 /// All rolling stock on a line: one or more rakes, each a 1D body with its own speed. The rake with the
 /// engine is "the train"; cutting leaves the rest behind, and rakes that meet couple or collide.
 /// Also owns the boiler, and the 3D pose and collision frame of every vehicle, indexed by vehicle id.
+/// <para>
+/// The line may have branches at switches (GDD §17). Each rake runs on a path, the main line or a branch taken at its
+/// points, chosen by the switch as the rake's front runs through them. Backing out through the points needs no
+/// choice. The switches are the train's state, like the rakes: the host owns them and they're replicated.
+/// </para>
 /// </summary>
 public sealed class TrainOnLine
 {
@@ -37,6 +43,7 @@ public sealed class TrainOnLine
     readonly CarPose[] _poses;
     readonly CarFrame[] _frames;
     readonly List<RakeContact> _contacts = new();
+    readonly bool[] _diverging;
     TrainDynamics _engineRake;
 
     /// <param name="boiler">Boiler tuning. Without it the engine has unlimited steam, which the pure
@@ -53,6 +60,7 @@ public sealed class TrainOnLine
             _vehicles[v.Id] = v;
         _poses = new CarPose[_vehicles.Length];
         _frames = new CarFrame[_vehicles.Length];
+        _diverging = new bool[line.Branches.Count];
         BoilerTuning = boiler;
         if (boiler is not null)
             Boiler = Boiler.Fresh(boiler);
@@ -99,7 +107,37 @@ public sealed class TrainOnLine
     /// <summary>Traction multiplier for the whole train this tick (Grease sets it; 1 is dry rail).</summary>
     public double Traction { get; set; } = 1;
 
-    public bool AtEndOfLine => Dynamics.Distance >= Line.Length || RearDistance <= 0;
+    /// <summary>At a buffer stop: the end of the line, a dead line's end, or back at the start.</summary>
+    public bool AtEndOfLine => Dynamics.Distance >= Line.PathLength(Dynamics.Path) || RearDistance <= 0;
+    /// <summary>The engine is on the main line (not off down a branch).</summary>
+    public bool OnMain => Line.OnMain(Dynamics.Path, Dynamics.Distance);
+
+    /// <summary>Whether a branch's switch is set for the branch (true) or for the main line (false, as they start).</summary>
+    public bool Diverging(int branch) => _diverging[branch];
+
+    /// <summary>A wheel is on a switch's points (within <paramref name="pointsLength"/> of the toe): they won't move.</summary>
+    public bool PointsOccupied(int branch, double pointsLength)
+    {
+        double toe = Line.Branches[branch].Toe;
+        return _rakes.Any(r => r.RearDistance < toe + pointsLength && r.Distance > toe - pointsLength
+            && Line.Shared(r.Path, branch) >= toe);
+    }
+
+    /// <summary>Throws a switch, unless a wheel is on its points. Returns whether it moved.</summary>
+    public bool ThrowSwitch(int branch, bool diverge, double pointsLength)
+    {
+        if (_diverging[branch] == diverge || PointsOccupied(branch, pointsLength))
+            return false;
+        _diverging[branch] = diverge;
+        return true;
+    }
+
+    /// <summary>Adopts a switch's setting from the host.</summary>
+    public void MirrorSwitch(int branch, bool diverge)
+    {
+        if (branch >= 0 && branch < _diverging.Length)
+            _diverging[branch] = diverge;
+    }
     public double RearDistance => Dynamics.RearDistance;
     TrainTuning Tuning => _engineRake.Tuning;
 
@@ -133,6 +171,8 @@ public sealed class TrainOnLine
         double shift = front.LengthMetres + Tuning.Geometry.CouplingGap;
         var cut = new TrainDynamics(rear)
         {
+            // Behind the front half on the same track: the path only matters past a branch's points, where it's the front half's.
+            Path = rake.Path,
             Distance = rake.Distance - shift,
             PreviousDistance = rake.PreviousDistance - shift,
             Velocity = rake.Velocity,
@@ -157,7 +197,7 @@ public sealed class TrainOnLine
     }
 
     public TrainState Capture() => new(
-        _rakes.Select(r => new RakeState(r.Consist.Vehicles.Select(v => v.Id).ToArray(), r.Distance, r.Velocity, r.BrakeEfficiency, r.Handbrake, r.FrontCouplerLocked)).ToArray(),
+        _rakes.Select(r => new RakeState(r.Consist.Vehicles.Select(v => v.Id).ToArray(), r.Distance, r.Velocity, r.BrakeEfficiency, r.Handbrake, r.FrontCouplerLocked, r.Path)).ToArray(),
         _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen)).ToArray(),
         Boiler);
 
@@ -190,6 +230,7 @@ public sealed class TrainOnLine
                 rake.PreviousDistance = r.Distance;
             rake.Handbrake = r.Handbrake;
             rake.FrontCouplerLocked = r.FrontCouplerLocked;
+            rake.Path = r.Path;
             _rakes.Add(rake);
         }
         Boiler = state.Boiler;
@@ -222,34 +263,94 @@ public sealed class TrainOnLine
                 var parked = new TrainControls { Brake = rake.Handbrake ? 1 : 0, Reverser = 1 };
                 rake.Step(dt, parked, new TrackConditions { GradePercent = AverageGrade(rake), Traction = Traction });
             }
+            TakeSwitches(rake);
             // Buffer stops: the line ends are hard limits.
-            double min = rake.Consist.LengthMetres, max = Line.Length;
+            double min = rake.Consist.LengthMetres, max = Line.PathLength(rake.Path);
             if (rake.Distance > max || rake.Distance < min)
             {
+                // A branch's buffer stop is a stop block at the end of a dead line: running into it hurts (App. A.7).
+                if (rake.Distance > max && rake.Path >= 0)
+                    HitBufferStop(rake);
                 rake.Distance = Math.Clamp(rake.Distance, min, max);
                 rake.Velocity = 0;
             }
         }
         ResolveContacts();
+        foreach (var rake in _rakes)
+        {
+            TakeSwitches(rake); // shoved through the points by a collision
+            if (rake.Path >= 0 && rake.Distance <= Line.Branches[rake.Path].Toe)
+                rake.Path = RailLine.MainPath; // backed out through the points: the whole rake is on the main line
+        }
         UpdatePoses();
+    }
+
+    /// <summary>A rake's front running forward through a branch's points goes where the switch is set.</summary>
+    void TakeSwitches(TrainDynamics rake)
+    {
+        if (rake.Path >= 0 || rake.Distance <= rake.PreviousDistance)
+            return;
+        foreach (var b in Line.Branches)
+            if (_diverging[b.Index] && rake.PreviousDistance <= b.Toe && rake.Distance > b.Toe)
+            {
+                rake.Path = b.Index;
+                return;
+            }
+    }
+
+    void HitBufferStop(TrainDynamics rake)
+    {
+        var c = Tuning.Couplings;
+        double speed = Math.Max(0, rake.Velocity);
+        double damage = speed > c.SafeContactSpeed ? (speed - c.SafeContactSpeed) * (speed - c.SafeContactSpeed) * c.DamagePerSpeedSquared : 0;
+        int front = rake.Consist.Vehicles[0].Id;
+        if (damage > 0)
+        {
+            Damage(_vehicles[front], damage);
+            foreach (var v in rake.Consist.Vehicles)
+                v.CargoIntegrity = Math.Max(0, v.CargoIntegrity - damage * c.CargoDamageShare);
+        }
+        _contacts.Add(new RakeContact(front, -1, speed, false, damage));
     }
 
     /// <summary>
     /// Rakes that meet: closing gently they couple (buckeye couplers), harder they collide, share momentum,
     /// and damage the two vehicles that hit (GDD §19: cargo is physical; §23: failures cascade).
+    /// <para>
+    /// Resolved along each path in turn. A rake on another path takes part by whatever of it is on the track the two
+    /// share (up to the points): its tail can be hit from behind, but a rake whose front has gone off down the other
+    /// route can't couple to anything on this one; it only sideswipes what's fouling the points.
+    /// </para>
     /// </summary>
     void ResolveContacts()
     {
         if (_rakes.Count < 2)
             return;
+        ResolveOn(RailLine.MainPath);
+        foreach (var b in Line.Branches)
+            if (_rakes.Any(r => r.Path == b.Index))
+                ResolveOn(b.Index);
+    }
+
+    /// <summary>A rake's front as seen along <paramref name="path"/>: clipped to the shared track if it's on another.</summary>
+    double FrontOn(TrainDynamics r, int path) => r.Path == path ? r.Distance : Math.Min(r.Distance, Line.Shared(path, r.Path));
+
+    void ResolveOn(int path)
+    {
+        var on = _rakes.Where(r => r.Path == path || r.RearDistance < Line.Shared(path, r.Path)).ToList();
+        if (on.Count < 2)
+            return;
         var c = Tuning.Couplings;
         double gap = Tuning.Geometry.CouplingGap;
-        _rakes.Sort((a, b) => b.Distance.CompareTo(a.Distance));
-        for (int i = 0; i + 1 < _rakes.Count;)
+        on.Sort((a, b) => FrontOn(b, path).CompareTo(FrontOn(a, path)));
+        for (int i = 0; i + 1 < on.Count;)
         {
-            var a = _rakes[i];
-            var b = _rakes[i + 1];
-            double free = a.RearDistance - gap - b.Distance;
+            var a = on[i];
+            var b = on[i + 1];
+            double bFront = FrontOn(b, path);
+            // b's front is off down another route: it can foul the points but not couple on this track.
+            bool offPath = bFront < b.Distance;
+            double free = a.RearDistance - gap - bFront;
             if (b.FrontCouplerLocked && free > 0.3)
                 b.FrontCouplerLocked = false;
             if (free >= 0)
@@ -275,9 +376,9 @@ public sealed class TrainOnLine
                 double v = (ma * a.Velocity + mb * b.Velocity) / (ma + mb);
                 a.Velocity = b.Velocity = v;
             }
-            b.Distance = a.RearDistance - gap;
+            b.Distance += free; // back to just touching, along whichever path it's on
 
-            bool couple = !b.FrontCouplerLocked && closing <= c.CoupleMaxSpeed;
+            bool couple = !offPath && !b.FrontCouplerLocked && closing <= c.CoupleMaxSpeed;
             _contacts.Add(new RakeContact(frontId, rearId, Math.Max(0, closing), couple, damage));
             if (!couple)
             {
@@ -285,20 +386,24 @@ public sealed class TrainOnLine
                 continue;
             }
             // Keep the engine's rake as the survivor so Dynamics stays the same object.
+            // The merged rake runs on the front one's path: the rear one is wholly on track the two share.
             if (b == _engineRake)
             {
                 b.Consist.Prepend(a.Consist);
                 b.Distance = a.Distance;
                 b.PreviousDistance = a.PreviousDistance;
                 b.FrontCouplerLocked = a.FrontCouplerLocked;
-                _rakes.RemoveAt(i);
+                b.Path = a.Path;
+                _rakes.Remove(a);
+                on.RemoveAt(i);
             }
             else
             {
                 if (a != _engineRake)
                     a.Handbrake |= b.Handbrake;
                 a.Consist.Append(b.Consist);
-                _rakes.RemoveAt(i + 1);
+                _rakes.Remove(b);
+                on.RemoveAt(i + 1);
             }
             // Stay on this index: the merged rake may now touch the one behind it.
         }
@@ -316,7 +421,7 @@ public sealed class TrainOnLine
         foreach (var v in rake.Consist.Vehicles)
         {
             double len = v.Length(t), m = v.MassTonnes(t);
-            weighted += m * Line.Sample(front - len / 2).GradePercent;
+            weighted += m * Line.Sample(rake.Path, front - len / 2).GradePercent;
             mass += m;
             front -= len + t.Geometry.CouplingGap;
         }
@@ -351,9 +456,9 @@ public sealed class TrainOnLine
                 double length = v.Length(Tuning);
                 // Bogies sit a fifth of the way in from each end; the body is the chord between them.
                 double inset = length * 0.2;
-                var fb = Line.Sample(front - inset).Position;
-                var rb = Line.Sample(front - length + inset).Position;
-                var forward = (fb - rb).Length > 1e-9 ? (fb - rb).Normalized : Line.Sample(front).Tangent;
+                var fb = Line.Sample(rake.Path, front - inset).Position;
+                var rb = Line.Sample(rake.Path, front - length + inset).Position;
+                var forward = (fb - rb).Length > 1e-9 ? (fb - rb).Normalized : Line.Sample(rake.Path, front).Tangent;
                 var pose = new CarPose(v.Id, Double3.Lerp(fb, rb, 0.5), forward, length, front);
                 poses[v.Id] = pose;
                 frames[v.Id] = CarFrame.From(pose, rake.Velocity, Shape(g, v.Kind, i < vehicles.Count - 1));

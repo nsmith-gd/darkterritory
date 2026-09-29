@@ -45,6 +45,11 @@ public abstract class Enemy
     public double Height { get; set; }
     /// <summary>Hit volume radius; 0 means it can't be shot (Clingers, Sleepers, the Hollow in the stack).</summary>
     public virtual double HitRadius => 0;
+    /// <summary>
+    /// Lies on the main line wherever the train is (Sleepers across the rail). Everything else off the train is
+    /// placed along the engine's path: it's after the train, down a branch too.
+    /// </summary>
+    public virtual bool OnMainLine => false;
 
     /// <summary>Free per-kind values that are replicated (drill progress, pry progress, pack id).</summary>
     public double Extra { get; set; }
@@ -54,7 +59,7 @@ public abstract class Enemy
     {
         if (Attached >= 0)
             return train.Frames[Attached].ToWorld(Local);
-        var t = train.Line.Sample(LineDistance);
+        var t = OnMainLine ? train.Line.Sample(LineDistance) : train.Line.Sample(train.Dynamics.Path, LineDistance);
         var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
         return t.Position + right * Lateral + Double3.Up * Height;
     }

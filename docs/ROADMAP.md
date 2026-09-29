@@ -72,6 +72,12 @@ Remaining for M3: Soot Children mimicry, the radio as an item, and interior occl
 - Autosave on leaving each facility, and `--resume`.
 - `dt campaign sim` holds F.4's 55–60 nights to 20 cars. `dt campaign play` settles a bot night.
 
+**Switches and dead lines (GDD §17, App. A.7):**
+- Junctions have real branches: a turnout, then a dead line alongside the main line to a buffer stop.
+- Rakes take the branch the switch is set for, and back out without a choice.
+- Switches are thrown by hand at a stand beside the points, never under a wheel, and their lamp reads the setting from the cab.
+- `dt screenshot --route frontier:7 --junction 0 --diverge --through` shows one.
+
 **Loading at facilities (spec D):**
 - Manual crates you carry into the cars (heavy: slow, no climbing).
 - A capstan winch that needs two on it.

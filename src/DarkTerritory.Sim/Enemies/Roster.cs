@@ -13,11 +13,15 @@ public sealed class Sleepers(int id) : Enemy(id)
     public override EnemyKind Kind => EnemyKind.Sleepers;
     public override PressureZone Zone => PressureZone.Forward;
     public override Sense Sense => Sense.Vibration;
+    public override bool OnMainLine => true;
 
     protected override void Tick(EnemyContext ctx)
     {
         var t = ctx.Tuning.Sleepers;
         var engine = ctx.Train.Dynamics;
+        // Off down a branch past their stretch of main line, the engine can't reach them (it will when it backs out).
+        if (!ctx.Train.Line.OnMain(engine.Path, LineDistance))
+            return;
         double ahead = LineDistance - engine.Distance;
         if (Phase == SpinePhase.Dormant && (ctx.World.LampShining && ahead <= t.LampRevealDistance || ahead <= t.BraceDistance) && ahead > 0)
             Enter(ctx, SpinePhase.Telegraph);
