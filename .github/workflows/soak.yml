@@ -1,0 +1,44 @@
+# The nightly soak (roadmap M2's exit test, T42): eight clients on the rough link for 30 minutes with no desync, and a
+# whole night on a generated route with the enemies, bots working every stop. Too long for every push; run nightly,
+# and by hand (Actions > Soak > Run workflow). Each run keeps its reports.
+name: Soak
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: How long the rough-link soak runs
+        default: '1800'
+jobs:
+  soak:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet build src/DarkTerritory.Cli -c Release
+      - name: Eight clients, rough link (90 ms ±20, 3 % loss), 30 minutes
+        env:
+          SECONDS_TO_RUN: ${{ inputs.seconds || '1800' }}
+        run: |
+          mkdir -p out/soak
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- harness --bots 8 --seconds "$SECONDS_TO_RUN" > out/soak/rough.json
+          jq -c '{ticks, deaths, link, maxCorrectionM, clients: [.clients[] | {id, bot, maxCorrectionM, corrections, snapshots, alive}]}' out/soak/rough.json
+          # No desync: every client stays within 2 m of the host at worst, rarely corrects, hears nearly every snapshot,
+          # and nobody dies on a quiet line.
+          jq -e '.ticks as $t | .deaths == 0 and (.clients | length == 8)
+            and all(.clients[]; .alive and .maxCorrectionM < 2 and .snapshots > 0.9 * $t and .corrections < ($t / 180))' out/soak/rough.json
+      - name: A night on frontier:7 with the enemies, eight bots
+        run: |
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- harness --route frontier:7 --bots 8 --enemies --seconds 3600 > out/soak/night.json
+          jq -c '{seconds, deaths, maxCorrectionM, run: .run.end, net: .run.net, threats: .threats.spawned, fairness: .threats.fairnessViolations, stops: [.stops[] | {kind, seconds}]}' out/soak/night.json
+          # The night gets home, nobody's corrected by more than 2 m, and the director never broke App. A.1's fairness rule.
+          jq -e '.run.end == "delivered" and .maxCorrectionM < 2 and .threats.fairnessViolations == 0' out/soak/night.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: soak
+          path: out/soak/
