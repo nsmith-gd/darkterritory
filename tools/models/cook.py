@@ -746,14 +746,14 @@ def weathered(d):
 # ----------------------------------------------------------------------------------------------------------------
 # Creatures from scans: rigged on their own pose
 
-def rig_creature(name, meshes, bones, clips, rigid=None, plant=None):
+def rig_creature(name, meshes, bones, clips, rigid=None, plant=None, skeleton="SK_Human"):
     """Rigs baked-down scan meshes on a skeleton placed on the scan's own pose and exports content/art/models/<name>.glb
     with `clips` (tools/blender/rig Clips). `bones` is [(name, parent, head, tail)], placed where the scan's joints are;
     each vertex is weighted to its nearest bones (inverse distance to the bone's segment, the closest four), except the
     meshes in `rigid` ({mesh: bone}), which ride one bone (eyes on the head). Returns the path."""
     sys.path.insert(0, os.path.join(os.path.dirname(HERE), "blender"))
     import rig as blender_rig
-    sk = blender_rig.Skeleton("SK_Human", [blender_rig.Bone(n, p, h, t) for n, p, h, t in bones])
+    sk = blender_rig.Skeleton(skeleton, [blender_rig.Bone(n, p, h, t) for n, p, h, t in bones])
     arm_obj = sk.build()
     names = [b.name for b in sk.bones if b.name != "root"]
     rigid = rigid or {}

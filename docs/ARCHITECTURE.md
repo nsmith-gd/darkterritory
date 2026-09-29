@@ -1123,7 +1123,12 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - the Khronos Flight Helmet (CC0) over it: leather cap, goggles, and a rubber mask with its hose down the chest;
         - the cooked hand lantern, hung from her chain on its own bone, with a flame of pure light in it.
       - The Switchman is baked down as one figure and rigged on the statue's pose. It replaces the procedural one, with the same clips (wait, flee) and the "lantern" bone the engine lights.
-      - The Dragger and the rest stay procedural for now.
+      - The Sleepers (`recipes/sleeper.py`) are Le Transi again:
+        - laid on its back and drawn out to a tie's 2.8 m;
+        - pressed flat and sunk into a rotten tie of the library's sleeper timber (cut along its length so the chain bends it);
+        - graded creosote-brown with the grain running along it.
+      - At a glance a Sleeper is one more tie across the rails. Close to, the ribs, the face and the raised arm are the scan's. It keeps the same chain rig and clips (`rig_creature` takes the skeleton's name).
+      - The crew, the hound, the Clinger and the Dragger stay procedural for now.
     - **Ruined interiors.** A whole sourced room can be ruined in its recipe and set where the line can see into it. `recipes/boy_room.py` does this with "Boy Room" (CC BY 4.0), a child's bedroom with a hulking imaginary friend.
       - It's split by material: the wardrobe knocked askew, a picture hung crooked.
       - It's graded per part: dust over everything, the boy ash-pale, the thing he drew soot-black but for its eyes.
