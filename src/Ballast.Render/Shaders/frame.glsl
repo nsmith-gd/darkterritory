@@ -14,4 +14,6 @@ layout(set = 0, binding = 0) uniform Frame {
     vec4 params;       // x = point lights, y = 1 for the PS2 look, z = shader grime over textures, w = layers loaded
     vec4 sky2;         // x = the backdrop band's height in radians, y = fog curve exponent, z = horizon haze over the fog, w = wetness
     vec4 lights[64];   // pairs: xyz position (camera-relative) + range, rgb colour
+    vec4 rooms[48];    // triples: centre + half x, right axis + half y, back axis + half z (up = back x right)
+    vec4 counts;       // x = rooms
 } frame;

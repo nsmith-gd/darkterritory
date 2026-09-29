@@ -13,6 +13,7 @@ namespace Ballast.Render;
 unsafe struct FrameData
 {
     public const int MaxLights = 32;
+    public const int MaxRooms = 16;
     public Matrix4x4 ViewProj;
     public Matrix4x4 InvViewProj;
     public Matrix4x4 LampViewProj;
@@ -27,6 +28,8 @@ unsafe struct FrameData
     public Vector4 Params;
     public Vector4 Sky2;
     public fixed float Lights[MaxLights * 8];
+    public fixed float Rooms[MaxRooms * 12];
+    public Vector4 Counts;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -102,6 +105,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     readonly List<GpuMesh> _allMeshes = new();
     readonly List<(GpuMesh Mesh, DrawConstants Draw)> _draws = new();
     readonly List<PointLight> _lights = new();
+    readonly List<Room> _rooms = new();
 
     // The 2D pass over the frame: HUD, prompts, menus (Overlay).
     VkBuffer _overlayVertices;
@@ -328,6 +332,13 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _fxAddCount = _fx.Count - _fxAlphaCount;
         if (_fx.Count > 0)
             Upload(CollectionsMarshal.AsSpan(_fx), (uint)FxVertex.Stride, ref _fxVertices, ref _fxMemory, ref _fxCapacity);
+        _rooms.Clear();
+        _rooms.AddRange(mesh.Rooms);
+        if (_rooms.Count > FrameData.MaxRooms)
+        {
+            _rooms.Sort((a, b) => a.Centre.LengthSquared().CompareTo(b.Centre.LengthSquared()));
+            _rooms.RemoveRange(FrameData.MaxRooms, _rooms.Count - FrameData.MaxRooms);
+        }
         _overlayCount = overlay?.Count ?? 0;
         if (overlay is { Count: > 0 })
             Upload(CollectionsMarshal.AsSpan(overlay.Vertices), OverlayVertex.Stride, ref _overlayVertices, ref _overlayMemory, ref _overlayCapacity);
@@ -386,6 +397,15 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             f->Lights[i * 8 + 5] = l.Colour.Y;
             f->Lights[i * 8 + 6] = l.Colour.Z;
         }
+        for (int i = 0; i < _rooms.Count; i++)
+        {
+            var r = _rooms[i];
+            float* p = f->Rooms + i * 12;
+            (p[0], p[1], p[2], p[3]) = (r.Centre.X, r.Centre.Y, r.Centre.Z, r.Half.X);
+            (p[4], p[5], p[6], p[7]) = (r.Right.X, r.Right.Y, r.Right.Z, r.Half.Y);
+            (p[8], p[9], p[10], p[11]) = (r.Back.X, r.Back.Y, r.Back.Z, r.Half.Z);
+        }
+        f->Counts = new Vector4(_rooms.Count, 0, 0, 0);
         _ = horizon;
     }
 

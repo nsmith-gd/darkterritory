@@ -62,6 +62,12 @@ public struct FxVertex(Vector3 position, Vector2 uv, Vector4 colour, float layer
 /// <summary>How an effect goes over the scene (pipeline "blend modes: additive for fire, sparks and muzzle flash; alpha for smoke and dust").</summary>
 public enum FxBlend { Alpha, Additive }
 
+/// <summary>
+/// An enclosed space (a car's interior) in camera-relative space: inside it the night doesn't reach, no moon, no
+/// headlamp, no rain, only the practical lights (GDD §28: "inside = warm, human, temporary safety").
+/// </summary>
+public readonly record struct Room(Vector3 Centre, Vector3 Right, Vector3 Up, Vector3 Back, Vector3 Half);
+
 /// <summary>A cooked mesh placed in the scene: the renderer uploads <see cref="Asset"/> once and draws it by transform.</summary>
 /// <param name="Model">Object to camera-relative space.</param>
 /// <param name="Glow">Scales the asset's emissive surfaces (a lamp dimmed in a Vigil, a firebox dying down).</param>
@@ -91,6 +97,9 @@ public sealed class MeshBuilder
 
     /// <summary>The practical lights this frame. Cleared with the mesh.</summary>
     public List<PointLight> PointLights { get; } = new();
+
+    /// <summary>Enclosed spaces this frame (up to 16 are lit as such, the nearest). Cleared with the mesh.</summary>
+    public List<Room> Rooms { get; } = new();
 
     /// <summary>Cooked meshes to draw this frame. Cleared with the mesh.</summary>
     public List<MeshInstance> Instances { get; } = new();
@@ -162,6 +171,7 @@ public sealed class MeshBuilder
         _vertices.Clear();
         PointLights.Clear();
         Instances.Clear();
+        Rooms.Clear();
         AlphaFx.Clear();
         AdditiveFx.Clear();
     }

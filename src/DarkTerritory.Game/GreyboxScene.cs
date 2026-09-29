@@ -98,6 +98,9 @@ public sealed class GreyboxScene
         {
             if ((frame.Origin - eye).Length > 60)
                 continue;
+            // Its interior as an enclosed space: the night stays outside it (Room).
+            if (Look is not null && frame.Shape.Interior is { } inside)
+                mesh.Rooms.Add(new Room(V(frame.ToWorld(inside.Centre), eye), ToF(frame.Right), ToF(frame.Up), ToF(frame.Back), ToF(inside.HalfSize)));
             if (frame.Shape.Interior is { } room)
                 foreach (double z in new[] { -room.HalfSize.Z * 0.5, room.HalfSize.Z * 0.5 })
                     mesh.PointLights.Add(Emergency

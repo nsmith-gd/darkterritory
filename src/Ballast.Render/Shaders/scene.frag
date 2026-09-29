@@ -89,6 +89,20 @@ float lampShadowAt(vec3 p, vec3 n) {
                  + texture(lampShadow, vec3(uv + vec2(-0.6, 0.6) * texel, z)) + texture(lampShadow, vec3(uv + vec2(0.6, 0.6) * texel, z)));
 }
 
+// 1 inside an enclosed space (a car's interior), fading to 0 over its last 15 cm, so a doorway isn't a hard line.
+float indoors(vec3 p) {
+    float best = 0.0;
+    for (int i = 0; i < int(frame.counts.x); i++) {
+        vec4 c = frame.rooms[i * 3], r = frame.rooms[i * 3 + 1], b = frame.rooms[i * 3 + 2];
+        vec3 u = cross(b.xyz, r.xyz);
+        vec3 d = p - c.xyz;
+        vec3 l = abs(vec3(dot(d, r.xyz), dot(d, u), dot(d, b.xyz)));
+        vec3 edge = clamp((vec3(c.w, r.w, b.w) - l) / 0.15, 0.0, 1.0);
+        best = max(best, edge.x * edge.y * edge.z);
+    }
+    return best;
+}
+
 void main() {
     vec3 n = normalize(vNormal);
     if (!gl_FrontFacing)
@@ -122,13 +136,16 @@ void main() {
         albedo = weathered(albedo, vSurface, vWear * (textured ? frame.params.z : 1.0), textured);
 
     // Rain: darker surfaces, and a sheen on everything that faces the sky (ballast, roofs, puddles in the mud).
-    float wet = frame.sky2.w * (vWear > 0.0 || textured ? 1.0 : 0.0);
+    float inside = frame.counts.x > 0.0 ? indoors(vPos) : 0.0;
+    float night = 1.0 - inside;
+    float wet = frame.sky2.w * (vWear > 0.0 || textured ? 1.0 : 0.0) * night;
     albedo *= 1.0 - 0.3 * wet;
 
     vec3 v = normalize(-vPos);
     vec3 moonDir = normalize(frame.moon.xyz);
-    vec3 light = frame.moon.w * mix(GROUND_BOUNCE, SKY_FILL, n.y * 0.5 + 0.5);
-    light += frame.moonColour.rgb * frame.moonColour.a * max(dot(n, moonDir), 0.0);
+    // Indoors the fill is low and warm (lamplight off the boards), and the moon doesn't get in.
+    vec3 light = frame.moon.w * mix(mix(GROUND_BOUNCE, SKY_FILL, n.y * 0.5 + 0.5), vec3(0.55, 0.42, 0.3), inside);
+    light += frame.moonColour.rgb * frame.moonColour.a * max(dot(n, moonDir), 0.0) * night;
 
     // Phong exponent from gloss: 4..128, clamped so nothing mirror-polishes (pipeline "Gloss").
     float shininess = textured ? mix(4.0, 128.0, specMap.g * specMap.g) : 40.0;
@@ -144,13 +161,13 @@ void main() {
     vec3 l = toLamp / max(lampDist, 1e-4);
     float cone = smoothstep(frame.lampDir.w, mix(frame.lampDir.w, 1.0, 0.35), dot(-l, normalize(frame.lampDir.xyz)));
     float falloff = clamp(1.0 - lampDist / frame.lampPos.w, 0.0, 1.0);
-    float lampLit = cone * falloff * falloff;
+    float lampLit = cone * falloff * falloff * night;
     if (lampLit > 0.0)
         lampLit *= lampShadowAt(vPos, n);
     vec3 lampC = frame.lampColour.rgb * frame.lampColour.a;
     light += lampC * lampLit * max(dot(n, l), 0.0);
     spec += lampC * lampLit * pow(max(dot(n, normalize(l + v)), 0.0), shininess) * 0.75;
-    spec += frame.moonColour.rgb * pow(max(dot(n, normalize(moonDir + v)), 0.0), shininess * 0.6) * 0.08;
+    spec += frame.moonColour.rgb * pow(max(dot(n, normalize(moonDir + v)), 0.0), shininess * 0.6) * 0.08 * night;
 
     // Practical lights, per pixel and unshadowed: warm pools the crew work in.
     int count = int(frame.params.x);
