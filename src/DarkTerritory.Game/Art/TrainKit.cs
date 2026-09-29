@@ -171,9 +171,39 @@ public static class TrainKit
         // Running gear: pilot truck, four drivers, the steam cylinders ahead of them, and the tender's two axles.
         const float driverR = 0.7f;
         float[] drivers = [-l + 3.8f, -l + 5.4f, -l + 7.0f, -l + 8.6f];
+        // The crank pins are a quarter turn apart side to side, so the train never stops on a dead centre.
+        static float Phase(int side) => side < 0 ? 0.4f : 0.4f + MathF.PI / 2;
+        // A modelled driver (tools/models engine_parts) has its pin towards +Z: turned to its side's phase (and, on the
+        // left, round to face out first).
+        static Matrix4x4 Turned(int side, Vector3 at) => side > 0
+            ? Matrix4x4.CreateRotationX(-Phase(side)) * Kit.At(at)
+            : Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateRotationX(MathF.PI - Phase(side)) * Kit.At(at);
         foreach (float z in drivers)
-            Axle(k, z, driverR, 12, driver: true);
-        Axle(k, -l + 1.55f, 0.4f, 8);
+        {
+            bool modelled = true;
+            foreach (int side in new[] { -1, 1 })
+                modelled &= Prop(k, "driver_wheel", Turned(side, new Vector3(side * HalfGauge, driverR, z)));
+            if (!modelled)
+                Axle(k, z, driverR, 12, driver: true);
+            else
+            {
+                k.Use("wheel_iron", Palette.SootBlack, 0.6f, 0.4f);
+                k.Cylinder(new Vector3(-HalfGauge + 0.05f, driverR, z), new Vector3(HalfGauge - 0.05f, driverR, z), 0.07f, 8);
+            }
+        }
+        {
+            float z = -l + 1.55f;
+            bool modelled = true;
+            foreach (int side in new[] { -1, 1 })
+                modelled &= Prop(k, "pilot_wheel", (side > 0 ? Matrix4x4.Identity : Matrix4x4.CreateRotationY(MathF.PI)) * Kit.At(side * HalfGauge, 0.4f, z));
+            if (!modelled)
+                Axle(k, z, 0.4f, 8);
+            else
+            {
+                k.Use("wheel_iron", Palette.SootBlack, 0.6f, 0.4f);
+                k.Cylinder(new Vector3(-HalfGauge + 0.05f, 0.4f, z), new Vector3(HalfGauge - 0.05f, 0.4f, z), 0.06f, 8);
+            }
+        }
         foreach (float z in new[] { tender.Min.Z + 1.0f, tender.Max.Z - 1.0f })
             Axle(k, (float)z, 0.45f, 0);
         // Frames: deep plates inside the wheels.
@@ -184,14 +214,18 @@ public static class TrainKit
         k.Use("wheel_iron", Palette.IronGrey, 0.5f, 0.7f);
         foreach (int side in new[] { -1, 1 })
         {
-            // The pins are a quarter turn apart side to side, so the train never stops on a dead centre.
-            float phase = side < 0 ? 0.4f : 0.4f + MathF.PI / 2;
+            float phase = Phase(side);
             var pin = new Vector3(0, MathF.Sin(phase), MathF.Cos(phase)) * 0.3f;
             float x = side * (HalfGauge + 0.2f);
-            k.Box(new Vector3(x - 0.03f, driverR + pin.Y - 0.06f, drivers[0] + pin.Z - 0.1f), new Vector3(x + 0.03f, driverR + pin.Y + 0.06f, drivers[^1] + pin.Z + 0.1f));
+            var rodAt = new Vector3(x, driverR + pin.Y, (drivers[0] + drivers[^1]) / 2 + pin.Z);
+            if (!Prop(k, "coupling_rod", (side > 0 ? Matrix4x4.Identity : Matrix4x4.CreateRotationY(MathF.PI)) * Kit.At(rodAt)))
+                k.Box(new Vector3(x - 0.03f, driverR + pin.Y - 0.06f, drivers[0] + pin.Z - 0.1f), new Vector3(x + 0.03f, driverR + pin.Y + 0.06f, drivers[^1] + pin.Z + 0.1f));
+            k.Use("wheel_iron", Palette.IronGrey, 0.5f, 0.7f);
             var crosshead = new Vector3(x + side * 0.06f, 0.95f, -l + 3.0f);
             k.Rod(crosshead, new Vector3(x + side * 0.06f, driverR + pin.Y, drivers[2] + pin.Z), 0.045f);
             // Crosshead guides and the cylinder, with its drain cocks.
+            if (Prop(k, side > 0 ? "cylinder_r" : "cylinder_l", Kit.At(side * 1.12f, 0.98f, -l + 1.65f)))
+                continue;
             k.Box(new Vector3(x + side * 0.06f - 0.03f, 0.88f, -l + 2.2f), new Vector3(x + side * 0.06f + 0.03f, 1.02f, -l + 3.4f));
             k.Use("paint_black", Palette.SootBlack, 0.8f, 0.3f);
             var cylA = new Vector3(side * 1.12f, 0.98f, -l + 1.1f);
@@ -242,29 +276,38 @@ public static class TrainKit
         k.Use("rust_heavy", Palette.RustRed, 0.9f, 0.2f);
         Vector2[] strap = Octagon(-bw - 0.025f, deck + 0.02f, bw + 0.025f, top + 0.025f, 0.46f, 0.18f);
         for (float z = boilerFront + 1.6f; z < cabFront - 0.4f; z += 2.2f)
-            k.Prism(strap, z, z + 0.14f, caps: false, smooth: false);
+            if (!Prop(k, "casing_strap", Matrix4x4.CreateScale(bw / 0.95f, 1, 1) * Kit.At(0, 0, z + 0.07f)))
+                k.Prism(strap, z, z + 0.14f, caps: false, smooth: false);
         // The front: a flat armour face, the smokebox door's ring on it, and the lamp in its armoured box above.
         k.Use("iron_smokebox", Palette.SootBlack, 0.9f, 0.3f);
         k.Prism(casing, boilerFront - 0.2f, boilerFront, caps: true, smooth: false);
         k.Use("iron_smokebox", Palette.SootBlack, 0.9f, 0.4f);
         float doorY = deck + (top - deck) * 0.35f;
-        k.Cylinder(new Vector3(0, doorY, boilerFront - 0.2f), new Vector3(0, doorY, boilerFront - 0.3f), 0.5f, 14);
-        k.Use("brass", Palette.TarnishedBrass, 0.6f, 0.6f);
-        k.Cylinder(new Vector3(0, doorY, boilerFront - 0.3f), new Vector3(0, doorY, boilerFront - 0.42f), 0.07f, 8);
-        k.Rod(new Vector3(-0.3f, doorY, boilerFront - 0.36f), new Vector3(0.3f, doorY, boilerFront - 0.36f), 0.018f);
+        if (!Prop(k, "smokebox_door", Kit.At(0, doorY, boilerFront - 0.2f)))
+        {
+            k.Cylinder(new Vector3(0, doorY, boilerFront - 0.2f), new Vector3(0, doorY, boilerFront - 0.3f), 0.5f, 14);
+            k.Use("brass", Palette.TarnishedBrass, 0.6f, 0.6f);
+            k.Cylinder(new Vector3(0, doorY, boilerFront - 0.3f), new Vector3(0, doorY, boilerFront - 0.42f), 0.07f, 8);
+            k.Rod(new Vector3(-0.3f, doorY, boilerFront - 0.36f), new Vector3(0.3f, doorY, boilerFront - 0.36f), 0.018f);
+        }
         // The headlamp box: where Views puts the lamp's light, on a shelf, hooded, caged.
         var lamp = new Vector3(0, 2.8f, -l - 0.05f);
-        k.Use("paint_black", Palette.SootBlack, 0.7f, 0.3f);
-        k.Box(new Vector3(-0.42f, lamp.Y - 0.38f, lamp.Z + 0.02f), new Vector3(0.42f, lamp.Y + 0.38f, boilerFront - 0.18f));
-        k.Use("iron_plate", Palette.IronGrey, 0.8f, 0.35f);
-        k.Box(new Vector3(-0.5f, lamp.Y + 0.38f, lamp.Z - 0.2f), new Vector3(0.5f, lamp.Y + 0.44f, boilerFront - 0.1f));
-        k.Box(new Vector3(-0.46f, lamp.Y - 0.44f, lamp.Z), new Vector3(0.46f, lamp.Y - 0.38f, boilerFront - 0.1f));
+        // (The modelled box runs back 1 m from the lens: stretched to the boiler front.)
+        bool lampBox = Prop(k, "headlamp_box", Matrix4x4.CreateScale(1, 1, (boilerFront - 0.18f - lamp.Z) / 1.0f) * Kit.At(lamp));
+        if (!lampBox)
+        {
+            k.Use("paint_black", Palette.SootBlack, 0.7f, 0.3f);
+            k.Box(new Vector3(-0.42f, lamp.Y - 0.38f, lamp.Z + 0.02f), new Vector3(0.42f, lamp.Y + 0.38f, boilerFront - 0.18f));
+            k.Use("iron_plate", Palette.IronGrey, 0.8f, 0.35f);
+            k.Box(new Vector3(-0.5f, lamp.Y + 0.38f, lamp.Z - 0.2f), new Vector3(0.5f, lamp.Y + 0.44f, boilerFront - 0.1f));
+            k.Box(new Vector3(-0.46f, lamp.Y - 0.44f, lamp.Z), new Vector3(0.46f, lamp.Y - 0.38f, boilerFront - 0.1f));
+        }
         k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.64f);
         k.Emissive = 1;
         k.Panel(lamp, -Vector3.UnitZ, Vector3.UnitY, 0.64f, 0.64f);
         k.Emissive = 0;
         k.Use("rust_heavy", Palette.SootBlack, 0.8f, 0.3f);
-        for (int i = -1; i <= 1; i++)
+        for (int i = -1; i <= 1 && !lampBox; i++)
             k.Rod(new Vector3(i * 0.18f, lamp.Y - 0.36f, lamp.Z - 0.06f), new Vector3(i * 0.18f, lamp.Y + 0.36f, lamp.Z - 0.06f), 0.014f);
 
         // The stack: a tapered funnel with a flared lip, soot-black inside.
@@ -278,8 +321,12 @@ public static class TrainKit
         }
         // Steam dome and sand dome, low (the boiler top is walkable), and the whistle and safety valves by the cab.
         k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.35f);
-        k.Lathe(new Vector3(0, top - 0.08f, boilerFront + (cabFront - boilerFront) * 0.45f), [new(0.5f, 0), new(0.42f, 0.2f), new(0.3f, 0.36f), new(0, 0.42f)], 10, smooth: true);
-        k.Lathe(new Vector3(0, top - 0.08f, boilerFront + (cabFront - boilerFront) * 0.72f), [new(0.4f, 0), new(0.32f, 0.16f), new(0.2f, 0.27f), new(0, 0.3f)], 10, smooth: true);
+        var steamDome = new Vector3(0, top - 0.08f, boilerFront + (cabFront - boilerFront) * 0.45f);
+        var sandDome = new Vector3(0, top - 0.08f, boilerFront + (cabFront - boilerFront) * 0.72f);
+        if (!Prop(k, "steam_dome", Kit.At(steamDome)))
+            k.Lathe(steamDome, [new(0.5f, 0), new(0.42f, 0.2f), new(0.3f, 0.36f), new(0, 0.42f)], 10, smooth: true);
+        if (!Prop(k, "sand_dome", Kit.At(sandDome)))
+            k.Lathe(sandDome, [new(0.4f, 0), new(0.32f, 0.16f), new(0.2f, 0.27f), new(0, 0.3f)], 10, smooth: true);
         k.Use("brass", Palette.TarnishedBrass, 0.5f, 0.7f);
         foreach (float dx in new[] { -0.12f, 0.12f })
             k.Lathe(new Vector3(dx, top - 0.05f, cabFront - 0.7f), [new(0.07f, 0), new(0.06f, 0.2f), new(0.09f, 0.22f), new(0.02f, 0.3f)], 8);
