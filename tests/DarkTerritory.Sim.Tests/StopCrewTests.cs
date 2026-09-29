@@ -79,8 +79,9 @@ public class StopCrewTests
         /// Running up to the stop from a standing start 600 m short of it: a crew of the driver, a shunter, the winch pair
         /// (unless <paramref name="winchPair"/> is false) and <paramref name="walkers"/> more on the roofs.
         /// </summary>
+        /// <param name="ids">Each hand knows its own player id (as the harness tells them), so they take heavy crates (T45).</param>
         public Night(int cars, int walkers = 1, bool winchPair = true, bool crateHands = false, bool coaling = false, bool deadLine = false,
-            params ModuleKind[] modules)
+            bool ids = false, params ModuleKind[] modules)
         {
             var (route, facility, toe) = deadLine ? DeadLine() : coaling ? CoalingTower() : StopWith(modules.Length > 0 ? modules : [ModuleKind.Winch]);
             var calls = new CrewCalls();
@@ -100,12 +101,18 @@ public class StopCrewTests
             for (int w = 0; w < walkers; w++)
                 Add(new RoofWalkerBot(20 + w, P.Cold, new StopHand(crateHands ? StopJob.Crates : StopJob.None, calls, 4 + w, P.Cold)),
                     PlayerMotor.SpawnOnRoof(train, 3 + w % (cars - 3), -3, P));
+            if (ids)
+                for (int i = 0; i < Bots.Count; i++)
+                    if (Bots[i] is RoofWalkerBot { Job: { } hand })
+                        hand.PlayerId = i + 1;
         }
 
-        void Add(IWorldBot bot, PlayerState s)
+        /// <summary>Adds someone to the crew; their player id is their place in it, from 1.</summary>
+        public int Add(IWorldBot bot, PlayerState s)
         {
             Bots.Add(bot);
             Crew.Add(s);
+            return Crew.Count;
         }
 
         public TrainOnLine Train => World.Train;
@@ -242,6 +249,69 @@ public class StopCrewTests
         Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
         Assert.Empty(OpenSideDoors(train, night.Site.Side));
         Assert.Single(train.Rakes);
+    }
+
+    [Fact]
+    public void TwoHandsCarryTheHeavyCratesInTogether()
+    {
+        // As above, but the hands know who they are: the light crates in, then the heavy ones between two (T45).
+        var night = new Night(cars: 8, walkers: 1, crateHands: true, ids: true, modules: ModuleKind.Crates);
+        var train = night.Train;
+        var run = night.World.Run!;
+        var cargoCars = train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).ToList();
+        double before = cargoCars.Sum(v => v.Load);
+        var doing = new HashSet<string>();
+        night.Until(() => run.Departures > 0, 1500, () =>
+        {
+            foreach (var b in night.Bots)
+                if (b is RoofWalkerBot { Job.Doing: { Length: > 0 } d })
+                    doing.Add(d);
+        });
+        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent}"));
+        Assert.True(run.Departures > 0, $"never left: driver {night.Driver.Stops!.Doing}; crew {where}; did {string.Join(", ", doing)}");
+        Assert.Contains("carrying the back end", doing);
+        int fit = SpurDrill.Capacity(T.Geometry, train.Line.Branches[night.Site.Spur], Tuning.Route.Junctions.PointsLength);
+        double room = fit * (1 - Tuning.Run.DepartureLoad);
+        double offered = night.Site.CrateCount * F.Crates.LoadPerCrate + night.Site.HeavyStack.Length * F.Crates.Heavy.LoadPerCrate;
+        Assert.Equal(Math.Min(offered, room), cargoCars.Sum(v => v.Load) - before, 6);
+        // None left lying at the site if there was room for it.
+        if (offered <= room)
+            Assert.DoesNotContain(night.World.Bodies.All, b => b.Kind == Physics.BodyKind.Heavy);
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
+        Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
+        Assert.True(OpenSideDoors(train, night.Site.Side).Count == 0,
+            $"doors open at {night.World.Run!.Seconds:0}s: {string.Join(", ", night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job?.Doing))}; driver {night.Driver.Stops!.Doing}");
+    }
+
+    /// <summary>Someone who stands still: a player holding a heavy crate's end, waiting.</summary>
+    sealed class Waiting : IWorldBot
+    {
+        public string Name => "waiting";
+        public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => default;
+        public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
+        {
+            aimed = self;
+            return default;
+        }
+    }
+
+    [Fact]
+    public void AHandComesToHelpAPlayerHoldingAHeavyCrate()
+    {
+        var night = new Night(cars: 8, walkers: 1, crateHands: true, ids: true, modules: ModuleKind.Crates);
+        var run = night.World.Run!;
+        night.Until(() => night.Site.Stocked, 900);
+        Assert.True(night.Site.Stocked);
+        // A player (not a bot) takes an end of one and waits.
+        var heavy = night.World.Bodies.All.First(b => b.Kind == Physics.BodyKind.Heavy);
+        var at = heavy.Centre;
+        var player = PlayerMotor.SpawnOnGround(at + new Double3(0, 0, 1.0), night.Train.Line, night.Site.CrateLineHint, P);
+        int id = night.Add(new Waiting(), player);
+        heavy.Carrier = id;
+        night.Until(() => heavy.Lifted, 600);
+        Assert.True(heavy.Lifted, $"nobody came: {string.Join(", ", night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job?.Doing))}");
+        Assert.NotEqual(id, heavy.Second);
+        Assert.Equal(id, heavy.Carrier);
     }
 
     static List<int> OpenSideDoors(TrainOnLine train, int side) =>
