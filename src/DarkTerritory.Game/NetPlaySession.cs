@@ -37,19 +37,26 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     }
 
     /// <summary>
-    /// The host's tuning, file by file (content/tuning/*.json, line endings normalised). A joiner whose tuning
-    /// differs would predict a different game from the one the host runs, so it's refused by name.
+    /// The host's tuning and line generator, file by file (content/tuning/*.json, content/linegen/*.json, line endings
+    /// normalised). A joiner whose content differs would predict (and generate) a different game from the one the host
+    /// runs, so it's refused by name.
     /// </summary>
     public Dictionary<string, string>? Content { get; init; }
 
     public static Dictionary<string, string> HashContent(string content)
     {
         var hashes = new Dictionary<string, string>();
-        foreach (var file in Directory.EnumerateFiles(Path.Combine(content, "tuning"), "*.json").Order(StringComparer.Ordinal))
+        // The tuning, and the line generator's files: every machine generates the night's line from them (linegen plan §17.3).
+        foreach (var dir in new[] { "tuning", Sim.LineGen.LineGenConfig.Directory })
         {
-            var text = File.ReadAllText(file).Replace("\r\n", "\n");
-            var hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text));
-            hashes["tuning/" + Path.GetFileName(file)] = Convert.ToHexString(hash, 0, 8).ToLowerInvariant();
+            if (!Directory.Exists(Path.Combine(content, dir)))
+                continue;
+            foreach (var file in Directory.EnumerateFiles(Path.Combine(content, dir), "*.json").Order(StringComparer.Ordinal))
+            {
+                var text = File.ReadAllText(file).Replace("\r\n", "\n");
+                var hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text));
+                hashes[dir + "/" + Path.GetFileName(file)] = Convert.ToHexString(hash, 0, 8).ToLowerInvariant();
+            }
         }
         return hashes;
     }
