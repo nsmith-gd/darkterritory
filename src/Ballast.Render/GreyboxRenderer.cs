@@ -99,7 +99,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     readonly VkPipeline _skyPipeline, _scenePipeline, _brightPipeline, _blurPipeline, _compositePipeline, _overlayPipeline, _fxaaPipeline;
     readonly VkSampler _nearest, _linear;
 
-    GpuTexture _diffuse, _spec, _backdrop, _lut;
+    GpuTexture _diffuse, _spec, _backdrop, _lut, _normal;
     RenderAssets? _assets;
 
     VkBuffer _vertices;
@@ -182,7 +182,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         // Descriptor sets: the scene's (frame constants, the material maps, the backdrop), and the post passes'.
         _sceneSetLayout = SetLayout([(VkDescriptorType.UniformBuffer, VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment),
             (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
-            (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment)]);
+            (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
+            (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment)]);
         _postSetLayout = SetLayout([(VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment)]);
         _compositeSetLayout = SetLayout([(VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
             (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
@@ -221,6 +222,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
         // Until there are assets: one plain white layer (the greybox's flat colour), no backdrop, no grade.
         (_diffuse, _spec, _backdrop, _lut) = Upload(new RenderAssets());
+        _normal = UploadNormals(new RenderAssets());
         WriteSets();
     }
 
@@ -255,7 +257,9 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _spec.Dispose();
         _backdrop.Dispose();
         _lut.Dispose();
+        _normal.Dispose();
         (_diffuse, _spec, _backdrop, _lut) = Upload(assets);
+        _normal = UploadNormals(assets);
         _assets = assets;
         Post = assets.Post;
         WriteSets();
@@ -283,6 +287,17 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         var lut = new GpuTexture(_gpu, GpuTexture.Kind.Volume, VkFormat.R8G8B8A8Unorm, ColourGrade.Size, ColourGrade.Size, [[assets.Lut ?? ColourGrade.Identity()]],
             VkFilter.Linear, VkSamplerAddressMode.ClampToEdge, VkSamplerAddressMode.ClampToEdge, depth: ColourGrade.Size);
         return (d, s, b, lut);
+    }
+
+    /// <summary>Every layer's normal map (flat where a layer has none), filtered like the diffuse, linear (not sRGB).</summary>
+    GpuTexture UploadNormals(RenderAssets assets)
+    {
+        int size = assets.LayerSize;
+        var flat = Image.Solid(size, 128, 128, 255);
+        var layers = assets.Layers.Count > 0 ? assets.Layers : [new MaterialLayer("white", Image.Solid(size, 255, 255, 255), Image.Solid(size, 0, 0, 0))];
+        var normals = layers.Select(l => (IReadOnlyList<byte[]>)GpuTexture.MipChain((l.Normal ?? flat).Resized(size, size))).ToList();
+        return new GpuTexture(_gpu, GpuTexture.Kind.Array2D, VkFormat.R8G8B8A8Unorm, size, size, normals, VkFilter.Linear,
+            VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, assets.Post.MipBias, anisotropy: _gpu.MaxAnisotropy);
     }
 
     /// <summary>Draws the mesh (camera-relative positions) and returns the frame as RGBA8, top row first.</summary>
@@ -749,7 +764,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
     void WriteSets()
     {
-        var images = stackalloc VkDescriptorImageInfo[15];
+        var images = stackalloc VkDescriptorImageInfo[16];
         images[0] = new VkDescriptorImageInfo { sampler = Post.Ps2 ? _crunchy : _diffuse.Sampler, imageView = _diffuse.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[1] = new VkDescriptorImageInfo { sampler = Post.Ps2 ? _crunchy : _spec.Sampler, imageView = _spec.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[2] = new VkDescriptorImageInfo { sampler = _backdrop.Sampler, imageView = _backdrop.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
@@ -764,7 +779,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         images[10] = new VkDescriptorImageInfo { sampler = _linear, imageView = _bloomC.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[11] = new VkDescriptorImageInfo { sampler = _linear, imageView = _bloomD.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[12] = new VkDescriptorImageInfo { sampler = _linear, imageView = _ldr.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
-        var writes = stackalloc VkWriteDescriptorSet[15];
+        images[13] = new VkDescriptorImageInfo { sampler = Post.Ps2 ? _crunchy : _normal.Sampler, imageView = _normal.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
+        var writes = stackalloc VkWriteDescriptorSet[16];
         VkWriteDescriptorSet Image(VkDescriptorSet set, uint binding, int image) => new()
         {
             dstSet = set,
@@ -788,7 +804,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         writes[12] = Image(_blurH2Set, 0, 10);
         writes[13] = Image(_blurV2Set, 0, 11);
         writes[14] = Image(_fxaaSet, 0, 12);
-        Api.vkUpdateDescriptorSets(15, writes, 0, null);
+        writes[15] = Image(_sceneSet, 5, 13);
+        Api.vkUpdateDescriptorSets(16, writes, 0, null);
     }
 
     VkPipelineLayout PipelineLayout(VkDescriptorSetLayout? set, uint pushSize, VkShaderStageFlags pushStages)
@@ -989,6 +1006,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         foreach (var l in new[] { _sceneSetLayout, _postSetLayout, _compositeSetLayout })
             Api.vkDestroyDescriptorSetLayout(l, null);
         _diffuse.Dispose();
+        _normal.Dispose();
         _spec.Dispose();
         _backdrop.Dispose();
         _lut.Dispose();

@@ -43,7 +43,8 @@ public sealed record Image(int Width, int Height, byte[] Rgba)
 
 /// <summary>One material's maps (GDD §27, pipeline "at most three maps"): diffuse (alpha = cutout) and spec.</summary>
 /// <param name="Spec">R: specular strength. G: gloss (Phong exponent 4..128). B: emissive mask.</param>
-public sealed record MaterialLayer(string Name, Image Diffuse, Image Spec, bool AlphaTest = false);
+/// <param name="Normal">Tangent-space normal map (x right, y down the image, z out: tools/art's convention), or null for flat.</param>
+public sealed record MaterialLayer(string Name, Image Diffuse, Image Spec, bool AlphaTest = false, Image? Normal = null);
 
 /// <summary>The post stack's settings (pipeline "Lighting, VFX and post"): what 2006–2008 hardware shipped with.</summary>
 public sealed record PostSettings
