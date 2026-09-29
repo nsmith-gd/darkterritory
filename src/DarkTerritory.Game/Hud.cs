@@ -174,6 +174,7 @@ public static class Hud
                 DeathCause.Hollow => "THE HOLLOW",
                 DeathCause.Choir => "THE CHOIR",
                 DeathCause.Taken => "TAKEN. IT WASN'T THEM OUTSIDE",
+                DeathCause.Dragged => "DRAGGED OFF THE EDGE",
                 _ => "",
             }, Ink);
             if (world.Vigil is { Permitted: true })
@@ -200,6 +201,16 @@ public static class Hud
         var world = s.World;
         if (!p.Alive)
             return null;
+        // The Draggers (T46): grabbed at the edge, or near someone who is.
+        if (world.Enemies is { } et)
+            foreach (var e in world.ActiveEnemies)
+                if (e is Sim.Enemies.Dragger { Phase: Sim.Enemies.SpinePhase.Punish } d && d.Target is { } held)
+                {
+                    if (held == s.PlayerId)
+                        return "GRABBED AT THE EDGE! SOMEONE PULL YOU FREE";
+                    if ((d.WorldPosition(train) - PlayerMotor.WorldPosition(p, train)).Length <= et.Draggers.FreeReach + 1)
+                        return "[E] HOLD: PULL THEM FREE";
+                }
         if (world.Bodies.CarriedBy(s.PlayerId) is { } carried)
             return carried.Kind switch
             {

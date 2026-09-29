@@ -107,6 +107,11 @@ M3 is done but for a test with eight people.
 - Rakes take the branch the switch is set for, and back out without a choice.
 - Switches are thrown by hand at a stand beside the points, never under a wheel, and their lamp reads the setting from the cab.
 - `dt screenshot --route frontier:7 --junction 0 --diverge --through` shows one.
+- **The Draggers (T46, App. A.4):**
+  - under a car's edge, woken by someone on the roofs;
+  - a limb and a scrape at the lip, then a grab: alone, you're pulled off (at speed, that's death); with a mate near, they have two seconds to pull you free;
+  - the centreline is safe, and they reach half as far again at max speed (spec B.3);
+  - `dt screenshot --threats` shows one reaching.
 - **The Switchman (T37, App. A.7):**
   - it throws a junction ahead for its dead line: the lamp reads wrong, and a figure with a lantern stands at the stand;
   - it flees anyone on the ground, but chasing it off doesn't set the switch back;
