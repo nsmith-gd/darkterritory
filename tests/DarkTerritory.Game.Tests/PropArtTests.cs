@@ -5,7 +5,7 @@ using DarkTerritory.Game.Art;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The sourced props (tools/models: CC0 and CC-BY models cooked and kitbashed in Blender, ARCHITECTURE §8 note 56): each
+/// The sourced props (tools/models: CC0 and CC-BY models cooked and kitbashed in Blender, ARCHITECTURE §8 note 58): each
 /// one loads, wears its own layers, has the sockets the scene hangs and lights it by, and says where it came from under
 /// a licence the intake rule allows.
 /// </summary>

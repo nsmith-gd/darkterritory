@@ -56,6 +56,9 @@ public sealed class Director
         EnemyKind.SootChildren => "sootChildren",
         EnemyKind.Dragger => "draggers",
         EnemyKind.Rattle => "rattle",
+        EnemyKind.Lamplighter => "lamplighters",
+        EnemyKind.Deadman => "deadman",
+        EnemyKind.Stoker => "stoker",
         _ => "sleepers",
     }, 2);
 
@@ -135,6 +138,17 @@ public sealed class Director
             && !active.Any(e => !e.Gone && e.Kind == EnemyKind.Rattle) && Zone(PressureZone.Interior) < _t.MaxConcurrentZone
             && Rattle.Nests(world).Count > 0)
             options.Add((EnemyKind.Rattle, 1 + rt.Rattle.PerCarWeight * (rake - rt.Rattle.MinCars)));
+        // App. B.6: Lamplighters work the lineside, any tier, only while there's a lit lamp to draw them (x0 with every light
+        // out), and not in a tunnel or at a facility. Weight x2 at night depth (the back half of the route).
+        if (world.Enemies is { } lt && world.LampShining && Zone(PressureZone.Structural) < _t.MaxConcurrentZone
+            && active.Count(e => !e.Gone && e.Kind == EnemyKind.Lamplighter) < lt.Lamplighters.MaxActive
+            && !(_route is { } lr && lr.Features.Any(f => f.Kind is FeatureKind.Tunnel or FeatureKind.Facility && f.Contains(s))))
+            options.Add((EnemyKind.Lamplighter, _route is { } dr && s > dr.Length * 0.5 ? lt.Lamplighters.DepthWeight : 1));
+        // App. B.5: the Stoker gets into the firebox during a stop with it unattended (nobody in the cab), any tier.
+        if (world.Enemies is { } kt && train.BoilerTuning is not null && !train.Boiler.Ruptured && train.Dynamics.Speed < kt.Stoker.StoppedBelow
+            && world.CabEmptySeconds >= kt.Stoker.UnattendedSeconds && Zone(PressureZone.Interior) < _t.MaxConcurrentZone
+            && !active.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker))
+            options.Add((EnemyKind.Stoker, 1));
         options.RemoveAll(o => Cost(o.Kind) > available);
         if (options.Count == 0)
             return null;
@@ -164,7 +178,7 @@ public sealed class Director
             EnemyKind.CinderHound => PressureZone.Rear,
             EnemyKind.Clinger or EnemyKind.Dragger => PressureZone.Flank,
             EnemyKind.Switchman => PressureZone.Forward,
-            EnemyKind.SootChildren => PressureZone.Structural,
+            EnemyKind.SootChildren or EnemyKind.Lamplighter => PressureZone.Structural,
             _ => PressureZone.Interior,
         };
         Log.Add(new DirectorSpawn(world.Tick, kind, Cost(kind), world.Train.Dynamics.Distance,

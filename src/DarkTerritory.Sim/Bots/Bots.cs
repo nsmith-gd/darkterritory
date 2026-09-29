@@ -302,28 +302,51 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
 /// for what the lamp shows), brakes hard when the lamp finds something on the line, brakes before the
 /// end of the line, and keeps the fire fed (walks to the firebox and shovels when pressure drops).
 /// One bot doing both jobs is fine at short consists; at twenty cars it can't keep up (spec B.6).
+/// <para>
+/// Lamps down (App. A.6): eyes catching the lamp out in the dark and it switches the lamp off, and leaves it off a while
+/// after the last it saw of them. With the lamp off, the Sleepers only show close (App. A.2), at bracing distance: too
+/// late to brake from cruise to under the speed they derail at. So in the dark it runs just under that speed.
+/// </para>
 /// </summary>
 public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWorldBot
 {
     public string Name => "conductor";
     public double CruiseSpeed { get; init; } = 14;
+    /// <summary>Cruise with the lamp out: just under the Sleepers' derailing speed (enemies.json, 11.1 m/s: 40 km/h).</summary>
+    public double DarkCruiseSpeed { get; init; } = 10.5;
+    /// <summary>How long it keeps the lamp down after the last eyeshine.</summary>
+    public double LampDownSeconds { get; init; } = 30;
+    uint? _sawEyes;
     /// <summary>With a crew to call to, it stops to work the facilities they can (T32, GDD §17).</summary>
     public StopDriver? Stops { get; } = calls is null ? null : new StopDriver(calls);
 
-    public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => Work(self, train, Drive(train, tick));
+    public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => Work(self, train, Drive(train, tick, CruiseSpeed));
+
+    /// <summary>Lamps down while eyes are out there, and for a while after; up again once they've been gone a while.</summary>
+    LampSwitch Lamp(World world, uint tick)
+    {
+        if (world.ActiveEnemies.Any(e => e is Lamplighter { Eyeshine: true }))
+            _sawEyes = tick;
+        if (_sawEyes is { } saw && (tick - saw) * SimConstants.TickSeconds < LampDownSeconds)
+            return LampSwitch.Off;
+        _sawEyes = null;
+        return world.LampLit ? LampSwitch.None : LampSwitch.On;
+    }
 
     public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
         aimed = self;
         var train = world.Train;
         calls?.Say(member, StopJob.Driver, self);
+        var lamp = Lamp(world, tick);
         if (Stops is { } stops)
         {
             stops.CruiseSpeed = CruiseSpeed;
             if (stops.Decide(self, world) is { } stopping)
-                return Work(self, train, stopping);
+                return Work(self, train, stopping) with { Lamp = lamp };
         }
-        var intent = Drive(train, tick);
+        var intent = Drive(train, tick, world.LampShining ? CruiseSpeed : DarkCruiseSpeed);
+        intent.Lamp = lamp;
         // Watch the road: something showing on the line ahead means get below derailing speed.
         bool somethingAhead = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.Sleepers && e.Phase == SpinePhase.Telegraph
             && e.LineDistance > train.Dynamics.Distance && e.LineDistance - train.Dynamics.Distance < 200);
@@ -356,7 +379,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 
     bool _holdingDown;
 
-    PlayerIntent Drive(TrainOnLine train, uint tick)
+    PlayerIntent Drive(TrainOnLine train, uint tick, double cruise)
     {
         var d = train.Dynamics;
         // To the end of the track it's on: the terminus, or a dead line's buffer stop.
@@ -366,9 +389,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         var intent = new PlayerIntent();
         // A descent runs the train away with the regulator shut; hold it on the brake, with some
         // hysteresis so it isn't hammered every tick (fade only builds while it's applied).
-        if (d.Speed > CruiseSpeed + 1.5)
+        if (d.Speed > cruise + 1.5)
             _holdingDown = true;
-        else if (d.Speed <= CruiseSpeed)
+        else if (d.Speed <= cruise)
             _holdingDown = false;
         if (remaining < stopping || _holdingDown)
         {
@@ -377,7 +400,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         }
         else if (tick % 15 == 0)
             // Notch towards cruise: open up below it, ease off above it.
-            intent.ThrottleNotch = (sbyte)(d.Speed < CruiseSpeed - 1 ? 1 : d.Speed > CruiseSpeed + 0.5 ? -1 : 0);
+            intent.ThrottleNotch = (sbyte)(d.Speed < cruise - 1 ? 1 : d.Speed > cruise + 0.5 ? -1 : 0);
         return intent;
     }
 }

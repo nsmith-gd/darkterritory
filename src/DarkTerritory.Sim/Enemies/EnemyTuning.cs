@@ -11,6 +11,48 @@ public sealed record EnemyTuning(
     public SootChildrenTuning SootChildren { get; init; } = new();
     public DraggerTuning Draggers { get; init; } = new();
     public RattleTuning Rattle { get; init; } = new();
+    public LamplighterTuning Lamplighters { get; init; } = new();
+    public DeadmanTuning Deadman { get; init; } = new();
+    public StokerTuning Stoker { get; init; } = new();
+}
+
+/// <summary>The Deadman (App. A.5, B.5). Field docs live in enemies.json.</summary>
+public sealed record DeadmanTuning
+{
+    public double EmptySeconds { get; init; } = 30;
+    public double EmptySecondsDeep { get; init; } = 20;
+    public double TelegraphSeconds { get; init; } = 10;
+    public double EvictSeconds { get; init; } = 4;
+    public int EvictDamage { get; init; } = 25;
+}
+
+/// <summary>The Stoker (App. A.5, B.5). Field docs live in enemies.json.</summary>
+public sealed record StokerTuning
+{
+    public double FeedRate { get; init; } = 1.5;
+    public double DriveOutSeconds { get; init; } = 3;
+    public int DriveOutDamage { get; init; } = 30;
+    public double StoppedBelow { get; init; } = 0.5;
+    public double UnattendedSeconds { get; init; } = 10;
+}
+
+/// <summary>The Lamplighters (App. A.6, B.6). Field docs live in enemies.json.</summary>
+public sealed record LamplighterTuning
+{
+    public double PaceLateral { get; init; } = 14;
+    public double PaceBehind { get; init; } = 6;
+    public double StrikeLateral { get; init; } = 1.9;
+    public double StrikeReach { get; init; } = 2.6;
+    public double CloseSpeed { get; init; } = 2.5;
+    public double MaxSpeed { get; init; } = 16;
+    public double Catch { get; init; } = 1.5;
+    public double LoseBehind { get; init; } = 40;
+    public double RelightSeconds { get; init; } = 45;
+    public int BiteDamage { get; init; } = 40;
+    public double BiteReach { get; init; } = 20;
+    public double LingerSeconds { get; init; } = 240;
+    public int MaxActive { get; init; } = 2;
+    public double DepthWeight { get; init; } = 2;
 }
 
 /// <summary>The Rattle (App. A.5, B.5). Field docs live in enemies.json.</summary>

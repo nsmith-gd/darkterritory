@@ -199,6 +199,15 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Rattle, SpinePhase.Telegraph) => "a dry rattle in the coupling: don't cross there",
         (EnemyKind.Rattle, SpinePhase.Punish) => "pulled under between the cars",
         (EnemyKind.Rattle, SpinePhase.Dormant) => "the rattle in the coupling stops",
+        (EnemyKind.Deadman, SpinePhase.Telegraph) => "the cab lamp's dimming and the controls are clicking on their own: get in the cab",
+        (EnemyKind.Deadman, SpinePhase.Punish) => "something's taken the cab: the regulator's locked open",
+        (EnemyKind.Deadman, SpinePhase.BreakOff) => "the cab is yours again",
+        (EnemyKind.Stoker, SpinePhase.Telegraph) => "the pressure's climbing on its own and the fire's the wrong colour: vent it, or drive it out",
+        (EnemyKind.Stoker, SpinePhase.Punish) => "the boiler's at its limit",
+        (EnemyKind.Stoker, SpinePhase.BreakOff) => "driven out of the firebox",
+        (EnemyKind.Lamplighter, SpinePhase.Telegraph) => "eyes out in the dark, catching the lamp: lamps down (L)",
+        (EnemyKind.Lamplighter, SpinePhase.Punish) => "the lamp's smashed",
+        (EnemyKind.Lamplighter, SpinePhase.BreakOff) => "the eyes go back out into the dark",
         _ => null,
     };
 

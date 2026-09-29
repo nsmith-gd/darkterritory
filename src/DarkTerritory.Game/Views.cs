@@ -51,7 +51,7 @@ public static class Views
     public static FrameLighting Lighting(in CarFrame engine, Look? look = null)
     {
         var light = look?.Apply(FrameLighting.Night) ?? FrameLighting.Night;
-        light.LampPosition = engine.ToWorld(new Double3(0, 2.8, -engine.Shape.HalfLength - 0.3));
+        light.LampPosition = Sim.World.LampPosition(engine);
         var fwd = engine.Back * -1;
         light.LampDirection = Vector3.Normalize(new Vector3((float)fwd.X, (float)fwd.Y - 0.04f, (float)fwd.Z));
         return light;
