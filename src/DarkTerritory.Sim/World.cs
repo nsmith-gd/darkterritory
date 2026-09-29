@@ -74,8 +74,23 @@ public sealed class World
     public uint Tick { get; set; }
     public double ElapsedSeconds => Tick * SimConstants.TickSeconds;
 
-    /// <summary>The engine's forward lamp. Sleepers need it lit to be seen from far off (App. A.2).</summary>
+    /// <summary>The engine's forward lamp. Sleepers need it lit to be seen from far off (App. A.2); Lamplighters come for it (App. A.6).</summary>
     public bool LampLit { get; set; } = true;
+    /// <summary>
+    /// Seconds until a lamp the Lamplighters smashed can be lit again (T52: the glass is out until someone fits the spare).
+    /// Counted down every tick, on the host and the clients alike.
+    /// </summary>
+    public double LampOutSeconds { get; set; }
+
+    /// <summary>Where the engine's forward lamp is (world): high on the smokebox door, at the very front.</summary>
+    public static Ballast.Double3 LampPosition(in CarFrame engine) => engine.ToWorld(new Ballast.Double3(0, 2.8, -engine.Shape.HalfLength - 0.3));
+
+    /// <summary>Smashed: out, and no lighting it for a while.</summary>
+    public void SmashLamp(double seconds)
+    {
+        LampLit = false;
+        LampOutSeconds = Math.Max(LampOutSeconds, seconds);
+    }
     /// <summary>GDD §23: derailment kills the entire crew at once.</summary>
     public bool Derailed { get; private set; }
 
@@ -214,6 +229,9 @@ public sealed class World
     {
         PlayerMotor.Look(ref s, intent);
         PlayerMotor.TakeHand(ref s, intent, Hand);
+        // The lamp switch in the cab (T52, "lamps down"): a predicting client sets it too, so the lamp goes out at once.
+        if (intent.Lamp != LampSwitch.None && Net.CabControls.CanDrive(s, Train))
+            LampLit = intent.Lamp == LampSwitch.On && LampOutSeconds <= 0;
         if (Authority && Run is { } run)
         {
             run.CrewAct(s, intent, playerId, Train, Hand);
@@ -272,6 +290,7 @@ public sealed class World
             Train.Boiler.Venting = true;
         }
         Train.Step(SimConstants.TickSeconds, applied);
+        LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
         if (Combat is { } c)
         {
             Guns.Step(Train);
@@ -402,6 +421,12 @@ public sealed class World
                     pick -= weight;
                 }
                 _enemies.Add(Rattle.In(_nextEnemyId++, Train, nest, Train.Dynamics.Tuning.Geometry.CouplingGap));
+                break;
+            case EnemyKind.Lamplighter:
+                // Out in the dark beside the engine, on the side the other isn't (if there's one already).
+                int taken = _enemies.OfType<Lamplighter>().Select(l => l.Side).FirstOrDefault();
+                int flank = taken != 0 ? -taken : d.NextRange(0, 1) < 0.5 ? -1 : 1;
+                _enemies.Add(Lamplighter.Beside(_nextEnemyId++, Train, flank, t.Lamplighters));
                 break;
         }
     }

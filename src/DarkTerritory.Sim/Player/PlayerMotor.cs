@@ -24,6 +24,9 @@ public enum PlayerButtons : byte
     Hand = 128,
 }
 
+/// <summary>The forward lamp's switch in the cab (T52): set it on or off (a setting, not a toggle, so a held key or a resent intent is harmless).</summary>
+public enum LampSwitch : byte { None, On, Off }
+
 /// <summary>
 /// What a client sends each tick (GDD §33: intent only, never positions).
 /// Look is a delta so it stays meaningful when the player changes reference frame.
@@ -39,6 +42,8 @@ public struct PlayerIntent
     public PlayerButtons Buttons;
     /// <summary>Throttle notches to move this tick (−4..4). Only honoured from the engine.</summary>
     public sbyte ThrottleNotch;
+    /// <summary>The forward lamp switched on or off (T52, "lamps down" against the Lamplighters). Only honoured from the cab.</summary>
+    public LampSwitch Lamp;
     /// <summary>
     /// With <see cref="PlayerButtons.Hand"/>: a VR player's reaching hand, in metres from their feet in the frame they face
     /// (x right, y up, z behind, so ahead is −Z as ever). Reach is tested from it instead of from the body (T29).
@@ -82,7 +87,8 @@ public enum Surface : byte { Air, Ground, Roof, Coupler, Ladder, Deck }
 /// <summary><see cref="Dragged"/>: pulled off the train at speed by the Draggers (T46).</summary>
 /// <summary><see cref="Crushed"/>: under a casting let go of by the crane (T48).</summary>
 /// <summary><see cref="PulledUnder"/>: into a coupling gap while the Rattle rattled (T51).</summary>
-public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged, Crushed, PulledUnder }
+/// <summary><see cref="Lamplighter"/>: nearest when a Lamplighter reached the lamp (T52).</summary>
+public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged, Crushed, PulledUnder, Lamplighter }
 
 /// <summary>Conditions a player carries.</summary>
 [Flags]

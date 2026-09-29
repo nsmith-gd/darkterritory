@@ -78,6 +78,10 @@ public static class Staging
         int middle = Math.Max(0, (train.Frames.Count - 1) / 2);
         rattle.Restore(SpinePhase.Telegraph, 1, 1, middle, Rattle.In(0, train, middle, train.Dynamics.Tuning.Geometry.CouplingGap).Local, 0, 0, 0, 0, 0);
         threats.Add(rattle);
+        // Coming in for the lamp off the engine's right, its eyes catching the beam's spill.
+        var lamplighter = new Lamplighter(23);
+        lamplighter.Restore(SpinePhase.Telegraph, 3, 1, -1, default, d.Distance + 4, 3.2, 0, 0, 0);
+        threats.Add(lamplighter);
         var hollow = new Hollow(30);
         hollow.Restore(SpinePhase.Punish, 2, 1, 0, train.Frames[0].Shape.Cab!.Value.Centre, 0, 0, 0, 0, 0);
         threats.Add(hollow);

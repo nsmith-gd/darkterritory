@@ -374,6 +374,25 @@ public sealed class GreyboxScene
                     mesh.Emissive = 0;
                     break;
                 }
+            case EnemyKind.Lamplighter:
+                {
+                    // Tall, thin and stooped, soot-dark against the dark (App. A.6): nothing of it shows but the eyes, and
+                    // those only when they've caught the lamp (the tell). Facing in at the track.
+                    double inward = -Math.Sign(e.Lateral + 1e-9);
+                    Draw(0, 0.6, 0, 0.1, 0.6, 0.1, Palette.SootBlack);
+                    Draw(inward * 0.08, 1.55, 0, 0.14, 0.38, 0.12, Palette.SootBlack);
+                    Draw(inward * 0.2, 2.02, 0, 0.1, 0.12, 0.1, Palette.SootBlack);
+                    if (((Sim.Enemies.Lamplighter)e).Eyeshine)
+                    {
+                        mesh.Emissive = 1;
+                        var shine = Palette.SignalGreen * 1.6f;
+                        // Big enough to read at a low resolution across the dark: two points, set close.
+                        Draw(inward * 0.31, 2.05, -0.06, 0.02, 0.035, 0.04, shine);
+                        Draw(inward * 0.31, 2.05, 0.06, 0.02, 0.035, 0.04, shine);
+                        mesh.Emissive = 0;
+                    }
+                    break;
+                }
             case EnemyKind.SootChildren:
                 {
                     // Small, crouched, huddled in the dark out from the car: three of them, soot on waxy skin, heads

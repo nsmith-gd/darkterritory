@@ -1030,3 +1030,36 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `StopCrewTests.WithTheShunterDeadTheFirstHandLeftTakesItOver`.
       - `RattleTests` (11): silent until someone comes near on the ground, not from the roof; a bot already in the gap gets out; step in while it rattles and you're pulled under; someone already in the gap when it wakes has the reaction window to get out; walk off and wait and it goes quiet; cut at its gap and it's gone; it nests mid-train and never on someone; a bot waits rather than cross; the director puts one in only at a facility stop; a client knows which gap is rattling.
       - `dt audio render`: its tell clears the bed by 8.5 dB for a listener on the middle car in the chaos scenario (`AudioTests` needs 6).
+55. **The Lamplighters and the lamp switch (T52, App. A.6 and B.6; GDD: "light-reactive. Work the lineside. RULE: lamps down. Contradicts everything that needs forward visibility").** `EnemyKind.Lamplighter`, cost 2, tuned in `enemies.json` `lamplighters`.
+    - **The lamp switch.** Until now nothing could put the forward lamp out. It's a cab control now, through intent: `PlayerIntent.Lamp` (on or off: a setting, not a toggle, so a resent intent or a held key is harmless).
+      - On the wire it rides in the notch byte's top bits, so no intent grows.
+      - The host and a predicting client both apply it, from the cab only (the same rule as the regulator).
+      - Keyboard **L** in the app. The HUD in the cab shows it.
+      - With the lamp off (or smashed, or in a Vigil) the renderer draws no beam.
+    - **Spawn (B.6).** Any tier, only while the lamp is lit (so x0 with every light out), not in a tunnel or at a facility, at most two (one each side). Weight x2 in the route's back half ("night depth").
+      - **Ambiguity, "dark forest and open sections":** the routes don't mark forest, so anywhere that isn't a tunnel or a facility counts.
+    - **The spine.**
+      - **Dormant:** it paces the engine 14 m out, beside the cab, as fast as 16 m/s. A faster train leaves it behind and it's lost.
+      - **Telegraph:** a lit lamp brings it in, its eyes catching the light. That's the tell ("near-silent; eyeshine is visual", spec A.3): about 5 s of it coming in from 14 m.
+      - **Strike:** within 2.6 m of the lamp, across the ground, it smashes the lamp and bites the nearest player within 20 m for 40. That's usually the cab: the engine's length is in reach.
+      - **Break off:** put the lamp out while it's coming and it loses track: it stands where it lost the light, and a moving train leaves it behind. (Having smashed the lamp, it goes back out to pace the train instead.)
+      - **Ambiguity, "returns to the lineside":** read as standing there, not pacing the train again. A pacing one re-acquires the moment the lamp's relit, and on frontier:7 that kept the lamp down for most of the night and missed the dawn.
+      - It goes when it's dormant after 240 s.
+      - **Not shootable:** the counter is the lamp.
+    - **Ambiguity, "destroys the lamp":** smashed, it can't be lit again for 45 s (the spare glass), replicated as `LampOutSeconds`. Destroying it for the rest of the night would leave the Sleepers unanswerable for the rest of the night.
+    - **Bots.** The driver bot puts the lamp down when it sees eyeshine and keeps it down 30 s after the last it saw.
+      - With the lamp out, the Sleepers only show at bracing distance (60 m), too late to brake from cruise to under their derailing speed (`derailAbove` 11.1 m/s: App. A.2's 40 km/h). So in the dark it runs at 10.5 m/s, and a Sleeper found late does heavy damage instead of derailing. That's the contradiction, played.
+      - Faster was tried: at 14 m/s in the dark the frontier:7 night derailed on a Sleeper.
+      - Stops still plan by the usual cruise. Planned by the dark one, the dawn looked nearer, and the crew ran past every facility.
+    - **Not yet:** carried lamps as light sources (they have no lit state), and a lamp switch for VR hands (a headset player can't press L).
+    - **Verified:** `LamplighterTests` (9):
+      - with the lamp down it just paces the train;
+      - a lit lamp draws it in, and it smashes the lamp and bites the driver;
+      - put the lamp out as it comes and it loses track, stands, and is left behind, and nobody's hurt;
+      - only the cab works the switch, and a smashed lamp stays out 45 s;
+      - a train faster than it leaves it behind;
+      - the director sends them only to a lit lamp;
+      - the switch rides the notch byte;
+      - a client sees the eyes and the lamp out;
+      - the driver bot puts the lamp down for the eyes and up again after.
+      - `dt screenshot --threats` stages one coming in for the lamp; CI keeps `threats-lamplighter.png`.

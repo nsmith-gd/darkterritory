@@ -154,6 +154,39 @@
     "perCarWeight": 0.25
   },
 
+  // App. A.6 LAMPLIGHTERS: "light-reactive. Work the lineside. RULE: lamps down." Out in the dark beside the engine, just
+  // beyond the lamp's reach (App. B.6: any tier, only while a lamp is lit). While the forward lamp shines it comes for
+  // it, its eyes catching the light at the edge of the beam (the tell: "near-silent; eyeshine is visual", spec A.3).
+  // Reaching it, it smashes the lamp and goes for the nearest player. Lights out, it loses track and goes back out.
+  // Not shootable: the counter is the lamp. The counter blinds you to the Sleepers, and "that contradiction is the point".
+  "lamplighters": {
+    // Where it paces: this far out from the track, this far back from the engine's front (beside the cab).
+    "paceLateral": 14,
+    "paceBehind": 6,
+    // Coming for the lamp: in to beside the smokebox at this pace across (it has to come in from the dark: at 2.5 m/s
+    // from 14 m, about 5 s of eyeshine, well past minReactionSeconds), and within this reach of the lamp it strikes.
+    "strikeLateral": 1.9,
+    "strikeReach": 2.6,
+    "closeSpeed": 2.5,
+    // It runs alongside as fast as this (m/s), closing on where it wants to be by this much a second per metre off.
+    // A train faster than it leaves it behind: this far behind the last car and it's lost.
+    "maxSpeed": 16,
+    "catch": 1.5,
+    "loseBehind": 40,
+    // Ambiguity (ARCHITECTURE §8): "destroys the lamp". The glass is out until someone fits the spare: no lighting it
+    // again for this long.
+    "relightSeconds": 45,
+    // "attacks the nearest player": whoever's nearest within this reach when it strikes. That takes in the engine's
+    // length, so the cab's crew, usually, back past the boiler.
+    "biteDamage": 40,
+    "biteReach": 20,
+    // Gone the next time it's dormant after this long.
+    "lingerSeconds": 240,
+    // At most this many beside the train (one each side), and App. B.6's "weight x2 at night depth" (the route's back half).
+    "maxActive": 2,
+    "depthWeight": 2
+  },
+
   "choirSwarm": {
     // In the Swarm phase, anyone exposed (roof, ground, ladder) takes this every few seconds.
     "exposedDamage": 10,
@@ -175,7 +208,7 @@
     "maxConcurrentLargeCrew": 6,
     // Budget share spent before the first facility, across the middle, and in the final approach.
     "phaseShares": [0.15, 0.45, 0.40],
-    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1 },
+    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5

@@ -11,6 +11,26 @@ public sealed record EnemyTuning(
     public SootChildrenTuning SootChildren { get; init; } = new();
     public DraggerTuning Draggers { get; init; } = new();
     public RattleTuning Rattle { get; init; } = new();
+    public LamplighterTuning Lamplighters { get; init; } = new();
+}
+
+/// <summary>The Lamplighters (App. A.6, B.6). Field docs live in enemies.json.</summary>
+public sealed record LamplighterTuning
+{
+    public double PaceLateral { get; init; } = 14;
+    public double PaceBehind { get; init; } = 6;
+    public double StrikeLateral { get; init; } = 1.9;
+    public double StrikeReach { get; init; } = 2.6;
+    public double CloseSpeed { get; init; } = 2.5;
+    public double MaxSpeed { get; init; } = 16;
+    public double Catch { get; init; } = 1.5;
+    public double LoseBehind { get; init; } = 40;
+    public double RelightSeconds { get; init; } = 45;
+    public int BiteDamage { get; init; } = 40;
+    public double BiteReach { get; init; } = 20;
+    public double LingerSeconds { get; init; } = 240;
+    public int MaxActive { get; init; } = 2;
+    public double DepthWeight { get; init; } = 2;
 }
 
 /// <summary>The Rattle (App. A.5, B.5). Field docs live in enemies.json.</summary>

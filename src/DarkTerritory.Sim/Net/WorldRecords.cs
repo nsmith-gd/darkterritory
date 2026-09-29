@@ -60,7 +60,7 @@ public static class WorldRecords
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Vehicle, v.Id),
                 [Q(v.Load, Fine), Q(v.Integrity, Fine), Q(v.CargoIntegrity, Fine), v.Gun.Ammo, v.Gun.Cooldown, v.Gun.Jammed ? 1 : 0, v.Gun.LastShotTick, v.DoorsOpen]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
-            [Q(world.Choir.Aggro, Fine), Q(world.Choir.SecondsSinceShot, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0]));
+            [Q(world.Choir.Aggro, Fine), Q(world.Choir.SecondsSinceShot, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0, Q(world.LampOutSeconds, Fine)]));
         foreach (var e in world.ActiveEnemies)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),
             [
@@ -180,6 +180,7 @@ public static class WorldRecords
                     world.Choir = new ChoirState { Aggro = D(f[0], Fine), SecondsSinceShot = D(f[1], Fine), Floor = D(f[2], Fine) };
                     world.SetDerailed(f[3] != 0);
                     world.LampLit = f[4] != 0;
+                    world.LampOutSeconds = f.Length > 5 ? D(f[5], Fine) : 0;
                     break;
                 case RecordKind.Enemy:
                     if (!world.Authority)
@@ -272,6 +273,7 @@ public static class WorldRecords
             EnemyKind.SootChildren => new SootChildren(r.Id),
             EnemyKind.Dragger => new Dragger(r.Id),
             EnemyKind.Rattle => new Rattle(r.Id),
+            EnemyKind.Lamplighter => new Lamplighter(r.Id),
             _ => new Hollow(r.Id),
         };
         e.Restore((SpinePhase)f[1], D(f[2], 1e3), D(f[3], 1e3), (int)f[4], new Double3(D(f[5], Pos), D(f[6], Pos), D(f[7], Pos)),
