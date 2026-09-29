@@ -187,6 +187,47 @@ public class CreatureArtTests
     }
 
     [Fact]
+    public void TheDeadLieAsTheirRagdollLies()
+    {
+        // The staged body (Staging.Bodies: a crewmate dead on car 3's roof, settled for 90 ticks), as the scene draws it.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var body = Staging.Bodies(train, Content).All.Single(b => b.Kind == Sim.Physics.BodyKind.Ragdoll);
+        var frame = train.Frames[body.Parent];
+        var origin = frame.ToWorld(body.Pbd.Particles[2].Position);
+        var joints = body.Pbd.Particles.Select(p => frame.ToWorld(p.Position).RelativeTo(origin)).ToArray();
+        Assert.Equal(CreatureArt.RagdollJoints, joints.Length);
+
+        var one = Draw(joints);
+        Assert.InRange(one.Length / 3, 2000, 9000);
+        Assert.Equal(one.Select(v => v.Position), Draw(joints).Select(v => v.Position)); // deterministic
+        // All of it lies where the body is (a bone swung the wrong way would put a limb through the roof or into the air)...
+        var min = joints.Aggregate(Vector3.Min) - new Vector3(0.45f);
+        var max = joints.Aggregate(Vector3.Max) + new Vector3(0.45f);
+        foreach (var v in one)
+        {
+            Assert.True(float.IsFinite(v.Position.X) && float.IsFinite(v.Position.Y) && float.IsFinite(v.Position.Z));
+            Assert.True(v.Position.X >= min.X && v.Position.Y >= min.Y && v.Position.Z >= min.Z
+                && v.Position.X <= max.X && v.Position.Y <= max.Y && v.Position.Z <= max.Z, $"{v.Position} is outside the body");
+        }
+        // ...and the head, hands and feet reach their joints.
+        foreach (int j in new[] { 0, 4, 6, 8, 10 })
+            Assert.InRange(one.Min(v => Vector3.Distance(v.Position, joints[j])), 0, 0.15f);
+
+        // A body folded to a point (every joint together) still draws, and nothing in it is NaN.
+        var folded = Draw(new Vector3[CreatureArt.RagdollJoints]);
+        Assert.All(folded, v => Assert.True(float.IsFinite(v.Position.X + v.Position.Y + v.Position.Z + v.Normal.X + v.Normal.Y + v.Normal.Z)));
+
+        static Vertex[] Draw(Vector3[] joints)
+        {
+            var mesh = new MeshBuilder();
+            Assert.True(Art.Corpse(mesh, joints, 9));
+            return mesh.Vertices.ToArray();
+        }
+    }
+
+    [Fact]
     public void AFrameOfEightCrewAndTwelveEnemiesIsCheap()
     {
         // The brief: 8 crew and 12 enemies a frame, skinned on the CPU. (Sleepers are six ties and Soot children three

@@ -180,4 +180,69 @@ public sealed class Skinner
             throw new KeyNotFoundException($"{source.Name} has no bone '{bone}'");
         return pose.World[b] * model;
     }
+
+    // ----------------------------------------------------------------------------------------------------------------
+    // Driving a pose from outside (a ragdoll's particles): move it whole, then aim bones one at a time, parents first.
+
+    /// <summary>Applies <paramref name="transform"/> to every bone of the pose (after it: model space becomes its target).</summary>
+    public static void Place(Model model, Pose pose, in Matrix4x4 transform)
+    {
+        for (int b = 0; b < model.Skeleton.Count; b++)
+            pose.World[b] *= transform;
+        Reskin(model, pose);
+    }
+
+    /// <summary>
+    /// Turns <paramref name="bone"/> about its head, carrying everything below it, so the head of <paramref name="toward"/>
+    /// (a bone further down its chain) lies in the direction of <paramref name="target"/>. A swing only: the bone keeps
+    /// the twist it inherited. Aim parents before children, or a child's aim is undone by its parent's.
+    /// </summary>
+    public static void Aim(Model model, Pose pose, int bone, int toward, Vector3 target)
+    {
+        var sk = model.Skeleton;
+        var head = pose.World[bone].Translation;
+        var from = pose.World[toward].Translation - head;
+        var to = target - head;
+        if (from.LengthSquared() < 1e-10f || to.LengthSquared() < 1e-10f)
+            return;
+        var swing = Matrix4x4.CreateTranslation(-head) * Matrix4x4.CreateFromQuaternion(Between(Vector3.Normalize(from), Vector3.Normalize(to)))
+            * Matrix4x4.CreateTranslation(head);
+        for (int b = 0; b < sk.Count; b++)
+            if (Below(sk, b, bone))
+            {
+                pose.World[b] *= swing;
+                pose.Skin[b] = sk.InverseBind[b] * pose.World[b];
+            }
+    }
+
+    /// <summary>The shortest rotation taking unit <paramref name="a"/> to unit <paramref name="b"/>.</summary>
+    public static Quaternion Between(Vector3 a, Vector3 b)
+    {
+        float d = Vector3.Dot(a, b);
+        if (d > 0.999999f)
+            return Quaternion.Identity;
+        if (d < -0.999999f)
+        {
+            // Opposite: half a turn about any axis square to them.
+            var axis = Vector3.Cross(MathF.Abs(a.X) < 0.9f ? Vector3.UnitX : Vector3.UnitY, a);
+            return Quaternion.CreateFromAxisAngle(Vector3.Normalize(axis), MathF.PI);
+        }
+        var c = Vector3.Cross(a, b);
+        return Quaternion.Normalize(new Quaternion(c, 1 + d));
+    }
+
+    static bool Below(Skeleton sk, int bone, int ancestor)
+    {
+        for (int b = bone; b >= 0; b = sk.Parents[b])
+            if (b == ancestor)
+                return true;
+        return false;
+    }
+
+    static void Reskin(Model model, Pose pose)
+    {
+        var sk = model.Skeleton;
+        for (int b = 0; b < sk.Count; b++)
+            pose.Skin[b] = sk.InverseBind[b] * pose.World[b];
+    }
 }

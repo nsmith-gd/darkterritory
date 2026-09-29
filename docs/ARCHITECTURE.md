@@ -935,6 +935,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `Ballast.Assets` reads the .glb (a small GLB reader, no dependency), resamples clips to 30 fps and skins on the CPU into the frame's soup.
       - Each creature stands where its greybox stand-in did, so gameplay reads the same. The scene asks `CreatureArt` first and falls back to the boxes.
       - Crewmates walk or run by how fast they've moved since last drawn. The snapshot doesn't carry a gait, and a frame's lag in one is presentation only.
-      - `CreatureArtTests` pins budgets, bones, clip rates, clean loops, deterministic skinning, every phase drawing, and the turntables (`out/shots/creatures/`).
-    - **Not yet:** the dead drawn as the crew model rather than bones; normal maps on the cab; the engine's damage states and persistent scars; LODs (the fog caps view distance at 60-120 m, and the budgets hold at LOD0).
+      - The dead are the crew model fitted to the ragdoll's 11 joints, wearing the body's owner's variant. The torso turns onto the pelvis→chest line and the line across shoulders and hips; then each limb bone swings onto its joint, parents first (`Skinner.Place`, `Skinner.Aim`). The ragdoll stays the truth: the sim knows nothing of the model. The chest lamp is down to an ember, so a body reads as dead from a distance but can still be found in the dark to carry back.
+      - `CreatureArtTests` pins budgets, bones, clip rates, clean loops, deterministic skinning, every phase drawing, the dead lying inside their ragdoll with head, hands and feet on its joints, and the turntables (`out/shots/creatures/`).
+    - **Not yet:** normal maps on the cab; the engine's damage states and persistent scars; LODs (the fog caps view distance at 60-120 m, and the budgets hold at LOD0).
 

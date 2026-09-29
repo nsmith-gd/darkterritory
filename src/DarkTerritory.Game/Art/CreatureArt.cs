@@ -104,6 +104,14 @@ public sealed class CreatureArt
         if (!_models.TryGetValue(name, out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
         _skinner.Evaluate(m.Model, c, time, loop, m.Pose);
+        Emit(mesh, m, clip, at, variant, glow, seed, adjust);
+        return true;
+    }
+
+    /// <summary>Draws a model in the pose it was last given.</summary>
+    void Emit(MeshBuilder mesh, Entry m, string? clip, in Matrix4x4 at, int variant, float glow, float seed,
+        Func<ModelMaterial, MaterialLook, MaterialLook>? adjust = null)
+    {
         var mats = m.Model.Materials;
         for (int i = 0; i < mats.Length; i++)
         {
@@ -114,7 +122,6 @@ public sealed class CreatureArt
         }
         var seedOffset = new Vector3(MathF.Sin(seed * 12.9898f), MathF.Sin(seed * 78.233f), MathF.Sin(seed * 37.719f)) * 97;
         _skinner.Emit(mesh, m.Model, m.Pose, at, m.Scratch, new EmitSettings(variant % Math.Max(1, m.Model.VariantCount), clip, _texels, seedOffset));
-        return true;
     }
 
     /// <summary>Where a bone of the model last drawn by name is, in camera-relative space (the Switchman's lantern).</summary>
@@ -147,6 +154,74 @@ public sealed class CreatureArt
         // Each crewmate breathes and steps on their own beat: a fixed offset by variant, not a random one.
         double offset = (variant & 7) * 0.41;
         return Draw(mesh, "crew", ClipOf(pose), time + offset, pose != CrewPose.Dead, model, variant, seed: variant);
+    }
+
+    /// <summary>How many joints a ragdoll has (Sim.Physics.Bodies' skeleton), in the order <see cref="Corpse"/> reads them.</summary>
+    public const int RagdollJoints = 11;
+
+    // Which bone reaches which ragdoll joint: (bone, the bone whose head it swings, the joint that head goes to).
+    static readonly (string Bone, string Toward, int Joint)[] Limbs =
+    [
+        ("neck", "head_hat", 0),
+        ("upperarm_l", "lowerarm_l", 3), ("lowerarm_l", "hand_l", 4),
+        ("upperarm_r", "lowerarm_r", 5), ("lowerarm_r", "hand_r", 6),
+        ("thigh_l", "calf_l", 7), ("calf_l", "foot_l", 8),
+        ("thigh_r", "calf_r", 9), ("calf_r", "foot_r", 10),
+    ];
+
+    /// <summary>
+    /// A dead crewmate as their body lies (spec C.1: it persists where they fell, to be carried back): the crew model
+    /// fitted to the ragdoll's joints (camera-relative: head, chest, pelvis, left elbow and hand, right elbow and hand,
+    /// left knee and foot, right knee and foot). The torso is turned to the pelvis→chest line and the line across the
+    /// shoulders and hips, then each limb bone swung onto its joint, parents first. <paramref name="variant"/> is whose
+    /// body it is, so it wears what they wore. Their lamp is down to an ember: dead from a distance, but findable.
+    /// </summary>
+    public bool Corpse(MeshBuilder mesh, ReadOnlySpan<Vector3> joints, int variant)
+    {
+        if (joints.Length < RagdollJoints || !_models.TryGetValue("crew", out var m))
+            return false;
+        var model = m.Model;
+        var sk = model.Skeleton;
+        int pelvis = sk.IndexOf("pelvis"), neck = sk.IndexOf("neck"), armL = sk.IndexOf("upperarm_l"), armR = sk.IndexOf("upperarm_r");
+        if (pelvis < 0 || neck < 0 || armL < 0 || armR < 0)
+            return false;
+        _skinner.Evaluate(model, null, 0, false, m.Pose);
+
+        // The torso: the bind pose's pelvis-up and left-to-right, onto the body's.
+        var hip = m.Pose.World[pelvis].Translation;
+        var bindUp = Vector3.Normalize(m.Pose.World[neck].Translation - hip);
+        var bindRight = Vector3.Normalize(m.Pose.World[armR].Translation - m.Pose.World[armL].Translation);
+        var up = joints[1] - joints[2];
+        if (up.LengthSquared() < 1e-8f)
+            up = Vector3.UnitY;
+        up = Vector3.Normalize(up);
+        var across = joints[5] - joints[3] + (joints[9] - joints[7]);
+        across -= up * Vector3.Dot(across, up);
+        if (across.LengthSquared() < 1e-8f)
+        {
+            // Shoulders and hips folded onto the spine: any square to it will do.
+            across = Vector3.Cross(up, MathF.Abs(up.Y) < 0.9f ? Vector3.UnitY : Vector3.UnitZ);
+        }
+        var right = Vector3.Normalize(across);
+        var turn = Matrix4x4.Transpose(Frame(bindRight, bindUp)) * Frame(right, up);
+        Skinner.Place(model, m.Pose, Matrix4x4.CreateTranslation(-hip) * turn * Matrix4x4.CreateTranslation(joints[2]));
+
+        foreach (var (bone, toward, joint) in Limbs)
+        {
+            int b = sk.IndexOf(bone), t = sk.IndexOf(toward);
+            if (b >= 0 && t >= 0)
+                Skinner.Aim(model, m.Pose, b, t, joints[joint]);
+        }
+        Emit(mesh, m, "dead", Matrix4x4.Identity, variant, glow: 0.2f, seed: variant);
+        return true;
+
+        // Rows right, up, back: takes model +X, +Y, +Z onto them (right squared to up first).
+        static Matrix4x4 Frame(Vector3 r, Vector3 u)
+        {
+            r = Vector3.Normalize(r - u * Vector3.Dot(r, u));
+            var b = Vector3.Cross(r, u);
+            return new Matrix4x4(r.X, r.Y, r.Z, 0, u.X, u.Y, u.Z, 0, b.X, b.Y, b.Z, 0, 0, 0, 0, 1);
+        }
     }
 
     // ----------------------------------------------------------------------------------------------------------------

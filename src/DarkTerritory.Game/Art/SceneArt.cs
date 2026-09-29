@@ -82,11 +82,11 @@ public sealed class SceneArt(Look look)
     /// </summary>
     public bool Body(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, double heavyHalf, double time)
     {
-        if (b.Kind == Sim.Physics.BodyKind.Ragdoll)
-            return false;
         bool onCar = b.Parent != Sim.Player.PlayerState.World && b.Parent < frames.Count;
         if (!onCar && b.Parent != Sim.Player.PlayerState.World)
             return true;
+        if (b.Kind == Sim.Physics.BodyKind.Ragdoll)
+            return Corpse(mesh, frames, b, eye, onCar);
         var local = b.Pbd.Particles[0].Position;
         var at = onCar ? frames[b.Parent].ToWorld(local) : local;
         if ((at - eye).Length > 250)
@@ -114,6 +114,22 @@ public sealed class SceneArt(Look look)
             mesh.Billboard(o, 0.7f * flicker, 0, new Vector4(Palette.LampAmber * 0.55f * flicker, 1), -1, FxBlend.Additive);
         }
         return true;
+    }
+
+    readonly Vector3[] _joints = new Vector3[CreatureArt.RagdollJoints];
+
+    /// <summary>A ragdoll as the crew model lying as its joints lie; false (the greybox's bones) if the model isn't there.</summary>
+    bool Corpse(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, bool onCar)
+    {
+        var ps = b.Pbd.Particles;
+        if (ps.Length < _joints.Length)
+            return false;
+        var near = onCar ? frames[b.Parent].ToWorld(ps[2].Position) : ps[2].Position;
+        if ((near - eye).Length > 250)
+            return true;
+        for (int i = 0; i < _joints.Length; i++)
+            _joints[i] = (onCar ? frames[b.Parent].ToWorld(ps[i].Position) : ps[i].Position).RelativeTo(eye);
+        return Creatures.Corpse(mesh, _joints, b.Owner);
     }
 
     /// <summary>
