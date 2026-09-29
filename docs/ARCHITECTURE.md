@@ -407,8 +407,8 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - **The guns** now need steam generally: they don't traverse below 20 pressure (`combat.json` → `guns.minPressure`, the same floor where the engine loses its pull). That's our reading of "turret traverse dead (no boiler pressure)". After a Vigil they come back as the pressure does.
       - **Breaking it.** Taking the body out of the engine breaks the Vigil; the pressure is gone either way.
       - **The revived** come back in the cab with `PlayerFlags.Revived`: cold onset halved (spec's 100 s; death stays at 320), light things only (lamps), and no guns until the run reaches a stop other than the one they came back at, or the terminus.
-    - **Placements.** `PlayerState.Placed` counts the host's authoritative moves: respawns, revivals, the harness's shift changes. A client adopts a changed one as a placement, not a misprediction, so the prediction statistics stay honest.
-    - **Bots and cold.** The bots can't yet climb down and shut a door behind them. So the harness gives a chilled bot a warm-up shift in the cab (a host-side move, like the gunner's posting) and sends it back once warm. Without this, 7 of 8 bots froze by 570 s on a Frontier night; with it, none died in 15 minutes (28 shifts). Bots don't hold Vigils yet.
+    - **Placements.** `PlayerState.Placed` counts the host's authoritative moves: respawns, revivals, the gunner's posting. A client adopts a changed one as a placement, not a misprediction, so the prediction statistics stay honest.
+    - **Bots and cold.** At first the bots couldn't climb down and shut a door behind them, so the harness moved a chilled bot into the cab on the host and back once warm. Since T31 they do it themselves by intent (note 34), and the host-side move is gone. Bots don't hold Vigils yet.
     - **Tested** over the real netcode (`VigilTests`):
       - a full 90 s Vigil: pressure to zero, the Choir at maximum, the regulator ignored, lamps out, then the dead back in the cab, revived, agreed by their own machine;
       - the body on a roof, or a moving train, starts nothing;
@@ -568,3 +568,24 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Settings** (`Settings`, `settings.json` beside the save slots in the user's app data): sound, open mic or push to talk, the HUD, VR snap or smooth turning and the comfort vignette (over `tuning/vr.json`), and mouse speed. A file that can't be read is the defaults.
     - **Input:** the window gained arrow keys, Enter and typed text (SDL text input, on only while the join screen wants it).
     - **Not yet:** the menus in the headset (they're on the window); a lobby screen that shows who's aboard before the night starts; renaming a crew or deleting a slot from the menu (`dt campaign` does both); rebinding keys.
+34. **Bots keep warm by themselves (T31, spec B.2).**
+    - **`WarmUp` does it the way a person would.** A walker or the gunner:
+      1. Walks off the roof's end onto a coupler plate. It's always the plate of the car it'll enter, and never the engine's: the cab is the fireman's.
+      2. Opens that car's end door and goes in.
+      3. Shuts the door behind it, and the far one if someone left it open: a car only warms you shut.
+      4. Waits by the door until warm.
+      5. Leaves by the nearer door and climbs the end ladder.
+    - All of it is intent through the same path as a player's.
+    - **What made it hard:**
+      - **The plate is 0.8 m wide.** The doorway is left of centre and the end ladder just off the plate's right edge. Any sideways step on the plate at speed is off it and a death. So the bot crosses between door and plate on one line that's in both, steps straight in and out, and stands in reach of the ladder rather than at it.
+      - **Use on the plate cuts the coupling unless you're facing a door.** So the bot only presses it when `CrewActions.Nearest`, the sim's own rule, says a door is in reach.
+      - **Two hands on one door toggle it twice.** The bots go in at their own point in the onset (seeded, 45–70% of it), so a crew that started together doesn't queue at one door. A door shut in its face sends it back to opening.
+      - **Harness bots decide from their client's predicted state.** Corrections up to a third of a metre are why the margins above matter, and why the isolated test passed long before the harness did.
+    - **Walkers now recover from where they end up.**
+      - In a gap, they steer to the end ladder before climbing, not only when they happen to land by it.
+      - On a car's floor, they leave by the nearer door.
+      - On the ballast, they walk to the nearest car's side ladder and climb. That catches a train at a stand or a crawl, not one at speed.
+    - **Verified:**
+      - `WarmUpTests` runs three walkers on a standing train for ten minutes, twice the time it takes to freeze. They all live, each goes in before the onset, they come out again, and nobody cuts the train.
+      - The harness (`HarnessOptions.Observe` traces a night tick by tick) ran 10-minute Frontier nights with enemies at seeds 1–3: no deaths, 14–18 warm-ups each.
+    - **Not yet:** bots working a facility stop (the winch in pairs, crates, the switches, the cut and recouple; `SpurDrill` scripts it for now); the fireman's own trips out.

@@ -31,6 +31,8 @@ public sealed record HarnessOptions
     public Run.VigilTuning? Vigil { get; init; }
     /// <summary>Another network to run over (the CLI's fake Steam lobby), in place of the loopback or UDP.</summary>
     public IHarnessNetwork? Network { get; init; }
+    /// <summary>Called every tick after everyone has stepped, with each bot and its player's state on the host (to trace a night).</summary>
+    public Action<uint, IReadOnlyList<(IBot Bot, PlayerState State)>>? Observe { get; init; }
 }
 
 /// <summary>Transports for the harness from elsewhere: the Sim doesn't reference platform code, so the CLI brings it.</summary>
@@ -46,7 +48,7 @@ public interface IHarnessNetwork : IDisposable
 public sealed record ClientReport(byte Id, string Bot, double MaxCorrectionM, int Corrections, int Snapshots, int HostMissedInputs,
     bool Alive, string Surface, string Where, long BytesUp, long BytesDown);
 
-/// <param name="WarmUps">Shifts in the warm cab taken by chilled bots (see <see cref="Harness"/>).</param>
+/// <param name="WarmUps">Times a bot went in out of the cold (down to a coupler plate, in through a door and shut it; T31).</param>
 public sealed record HarnessReport(int Ticks, double Seconds, string Link, double TrainDistance, double TrainSpeed, double BoilerPressure, double Tender,
     int SnapshotBytes, double DownKbpsPerClient, double UpKbpsPerClient, double MaxCorrectionM, int Deaths,
     IReadOnlyList<ClientReport> Clients, ThreatReport? Threats = null, Run.RunReport? Run = null, int WarmUps = 0);
@@ -82,7 +84,9 @@ public static class Harness
         for (int i = 0; i < o.Bots; i++)
         {
             var transport = new CountingTransport(ClientTransport(i));
-            IBot bot = i == 0 ? new ConductorBot() : i == 1 && o.Combat is { } c ? new GunnerBot(c.Guns, c.Choir, o.Seed * 1000 + i) : new RoofWalkerBot(o.Seed * 1000 + i);
+            IBot bot = i == 0 ? new ConductorBot()
+                : i == 1 && o.Combat is { } c ? new GunnerBot(c.Guns, c.Choir, o.Seed * 1000 + i, playerTuning.Cold)
+                : new RoofWalkerBot(o.Seed * 1000 + i, playerTuning.Cold);
             var session = new ClientSession(transport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
             if (o.Vigil is { } v)
                 session.World.EnableVigil(v);
@@ -93,8 +97,7 @@ public static class Harness
         var events = new List<EnemyEvent>();
         var deaths = new Dictionary<string, int>();
         double choirPeak = 0;
-        int rounds = 0, warmUps = 0;
-        var warming = new HashSet<byte>();
+        int rounds = 0;
         for (uint t = 0; t < ticks; t++)
         {
             if (host.World.Run is { Over: true })
@@ -114,14 +117,17 @@ public static class Harness
             if (t == 60)
                 foreach (var c in clients)
                     c.Session.ResetStats();
-            if (t > 60 && t % SimConstants.TickRate == 0)
-                warmUps += ShiftChange(host, clients.Select(c => (c.Session, c.Bot)).ToList(), warming);
             foreach (var (session, bot, _) in clients)
             {
                 PlayerIntent intent = default;
                 if (session.Connected)
                     intent = bot is IWorldBot wb ? wb.Decide(session.Predicted, session.World, t, out _) : bot.Decide(session.Predicted, session.Train, t);
                 session.Step(intent);
+            }
+            if (o.Observe is { } observe)
+            {
+                var states = host.Players.ToDictionary(p => p.Id, p => p.State);
+                observe(t, [.. clients.Select(c => (c.Bot, c.Session.PlayerId is { } pid ? states.GetValueOrDefault(pid) : default))]);
             }
         }
 
@@ -160,38 +166,8 @@ public static class Harness
             Math.Round(host.Train.Boiler.Pressure, 1), Math.Round(host.Train.Boiler.Tender), host.LastSnapshotBytes,
             Math.Round(reports.Average(r => r.BytesDown) * 8 / 1000 / seconds, 1), Math.Round(reports.Average(r => r.BytesUp) * 8 / 1000 / seconds, 1),
             reports.Max(r => r.MaxCorrectionM), reports.Count(r => !r.Alive), reports, threats,
-            host.World.Run is { } run ? run.Report ?? run.Tally(host.World, [.. host.Players.Select(p => p.State)]) : null, warmUps);
-    }
-
-    /// <summary>
-    /// Spec B.2 cold kills anyone outside for 320 s, and the bots can't yet climb down and shut a door behind them.
-    /// So a chilled bot takes a turn in the warm cab (a host-side move, like <see cref="PostGunner"/>) and goes back
-    /// to its post once it's warm: a shift change. Returns how many went in.
-    /// </summary>
-    static int ShiftChange(HostSession host, List<(ClientSession Session, IBot Bot)> clients, HashSet<byte> warming)
-    {
-        int went = 0;
-        var train = host.Train;
-        foreach (var (session, bot) in clients)
-        {
-            if (session.PlayerId is not { } id || bot is ConductorBot || host.Players.FirstOrDefault(p => p.Id == id).State is not { Alive: true } s)
-                continue;
-            if (!warming.Contains(id) && PlayerMotor.Chilled(s, host.PlayerTuning))
-            {
-                host.SetPlayerState(id, PlayerMotor.SpawnInCab(train, host.PlayerTuning, localX: 0.3 * (warming.Count % 3 - 1)));
-                warming.Add(id);
-                went++;
-            }
-            else if (warming.Contains(id) && s.Cold <= 0)
-            {
-                warming.Remove(id);
-                if (bot is GunnerBot)
-                    PostGunner(host, [(session, bot)]);
-                else
-                    host.SetPlayerState(id, PlayerMotor.SpawnOnRoof(train, 1 + id % Math.Max(1, train.Frames.Count - 1), 0, host.PlayerTuning));
-            }
-        }
-        return went;
+            host.World.Run is { } run ? run.Report ?? run.Tally(host.World, [.. host.Players.Select(p => p.State)]) : null,
+            clients.Sum(c => c.Bot switch { RoofWalkerBot r => r.WarmUps, GunnerBot g => g.WarmUps, _ => 0 }));
     }
 
     static void PostGunner(HostSession host, List<(ClientSession Session, IBot Bot)> clients)

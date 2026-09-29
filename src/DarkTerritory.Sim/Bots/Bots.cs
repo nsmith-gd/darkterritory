@@ -1,3 +1,4 @@
+using Ballast;
 using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Player;
@@ -28,12 +29,13 @@ public interface IWorldBot : IBot
 /// bring the swarm, and lets the hounds come rather than get the whole crew killed. Aims by turning
 /// to face the target.
 /// </summary>
-public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int seed = 1) : IWorldBot
+public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int seed = 1, ColdTuning? cold = null) : IWorldBot
 {
     public string Name => "gunner";
+    public int WarmUps => _legs.WarmUps;
     bool _holding;
-    // Off the gun, it gets about like anyone else on the roofs.
-    readonly RoofWalkerBot _legs = new(seed);
+    // Off the gun, it gets about like anyone else on the roofs, and goes in to get warm like them.
+    readonly RoofWalkerBot _legs = new(seed, cold);
 
     public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => default;
 
@@ -42,6 +44,9 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         aimed = self;
         if (!self.Alive)
             return default;
+        // Nobody holds a gun through the cold (spec B.2): off it and indoors until warm, then back.
+        if (_legs.Warming(self))
+            return _legs.Decide(self, world, tick, out aimed);
         // Hounds that got aboard can't be shot from the gun they're standing next to: get clear (they drop
         // off once nobody's near), then walk back to the guard car and take the gun again.
         bool houndsAboard = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && e.Attached >= 0);
@@ -89,9 +94,18 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
 /// Exercises car-frame changes, airborne world-frame play and landing: the hard cases for prediction.
 /// With the world in view it also answers Clingers (App. A.4): heads for the car and prises them off.
 /// </summary>
-public sealed class RoofWalkerBot(int seed) : IWorldBot
+public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null) : IWorldBot
 {
     const double PryReach = 1.0;
+    // Each walker goes in at its own point in the onset, so a crew that started out together doesn't all queue at one door.
+    readonly WarmUp? _warm = cold is null ? null : new WarmUp(cold, 0.45 + 0.25 * new Random(seed).NextDouble());
+
+    /// <summary>Cold enough to go in, or already on the way (a gunner leaves its gun for it).</summary>
+    public bool Warming(in PlayerState self) => _warm is { } w && (w.Active || w.Wants(self));
+    /// <summary>Where getting warm has got to (for tests and the harness).</summary>
+    public string? WarmUpStep => _warm?.Doing;
+    /// <summary>Times it's gone in and got warm.</summary>
+    public int WarmUps => _warm?.Done ?? 0;
 
     public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
@@ -140,11 +154,32 @@ public sealed class RoofWalkerBot(int seed) : IWorldBot
 
     public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick)
     {
-        if (!self.Alive || self.Parent == PlayerState.World)
+        if (!self.Alive)
             return default;
-        // Fell into a coupling gap, or mid-climb: grab the end ladder and go up.
-        if (self.Surface is Surface.Coupler or Surface.Ladder)
+        // Off onto the ballast (not just in the air over a gap, which is how you get down onto a coupler plate).
+        if (self.Parent == PlayerState.World && self.Surface == Surface.Ground)
+        {
+            _warm?.Abandon();
+            return Board(self, train);
+        }
+        if (_warm?.Decide(self, train) is { } warming)
+            return warming;
+        if (self.Parent == PlayerState.World)
+            return default;
+        // On a car's floor (in from the cold, or knocked in): out through the nearer door, then up the end ladder.
+        if (self.Surface == Surface.Deck && self.Parent > 0 && _warm is not null && _warm.Leave(self, train) is { } leaving)
+            return leaving;
+        // Mid-climb: keep going up.
+        if (self.Surface == Surface.Ladder)
             return new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use };
+        // Fell into a coupling gap: over to the foot of the end ladder (the plate is narrow, the ladder's just off its
+        // edge), facing it, then take hold and climb. Use here is only ever with a push: standing, it cuts the coupling.
+        if (self.Surface == Surface.Coupler)
+        {
+            double l = train.Frames[self.Parent].Shape.Bounds.Max.Z;
+            var (step, there) = WarmUp.Steer(self, new Double3(0.2, 0, l + 0.45), 0);
+            return there ? new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use } : step;
+        }
         if (!self.Grounded)
             return default;
         var frame = train.Frames[self.Parent];
@@ -195,6 +230,47 @@ public sealed class RoofWalkerBot(int seed) : IWorldBot
         while (a > Math.PI) a -= 2 * Math.PI;
         while (a < -Math.PI) a += 2 * Math.PI;
         return a;
+    }
+
+    /// <summary>
+    /// Off onto the ballast (slipped off a plate, knocked off): walk to the nearest car's side ladder and climb it. You
+    /// catch a train at a stand or a crawl this way, not one at speed.
+    /// </summary>
+    static PlayerIntent Board(in PlayerState self, TrainOnLine train)
+    {
+        Double3? best = null;
+        double bestD = 60;
+        foreach (var frame in train.Frames)
+        {
+            if (frame.Index == 0)
+                continue; // the engine is boarded by its crew
+            foreach (var ladder in frame.Shape.Ladders)
+            {
+                // Side ladders from the ground: stand just outside the foot.
+                if (Math.Abs(ladder.Inward.X) < 0.9 || ladder.Foot.Y > 0.5)
+                    continue;
+                var at = frame.ToWorld(ladder.Foot - ladder.Inward * 0.3);
+                double d = Math.Sqrt(Math.Pow(at.X - self.Position.X, 2) + Math.Pow(at.Z - self.Position.Z, 2));
+                if (d < bestD)
+                {
+                    bestD = d;
+                    best = at;
+                }
+            }
+        }
+        if (best is not { } target || !self.Grounded)
+            return default;
+        double dx = target.X - self.Position.X, dz = target.Z - self.Position.Z;
+        double yaw = Math.Atan2(-dx, -dz);
+        double turn = WrapAngle(yaw - self.Yaw);
+        bool aligned = Math.Abs(turn) < 0.15;
+        return new PlayerIntent
+        {
+            LookYaw = (float)Math.Clamp(turn, -0.4, 0.4),
+            MoveZ = aligned ? 1 : 0,
+            // At the foot, push on and take hold: it climbs from there as out of any gap.
+            Buttons = bestD < 0.6 ? PlayerButtons.Use : PlayerButtons.None,
+        };
     }
 }
 
@@ -269,4 +345,216 @@ public sealed class ConductorBot : IWorldBot
             intent.ThrottleNotch = (sbyte)(d.Speed < CruiseSpeed - 1 ? 1 : d.Speed > CruiseSpeed + 0.5 ? -1 : 0);
         return intent;
     }
+}
+
+/// <summary>
+/// Getting out of the cold (spec B.2: onset after 200 s outside, death at 320, and back to nothing within 45 s near
+/// heat), the way a person would: off the end of the roof onto the coupler plate, in through the car's end door, shut
+/// it (a car only warms you shut), and wait by it until warm; then out, and back up the end ladder. All intent. Use is
+/// only ever pressed facing a door that's in reach: on the coupler plate, Use anywhere else cuts the coupling.
+/// </summary>
+/// <param name="goInAt">How far into the onset to go in (0.6: at 120 s of the 200).</param>
+public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
+{
+    enum Step : byte { Off, ToEnd, Drop, ToDoor, Open, In, Shut, Warm, Reopen, Out }
+
+    /// <summary>Come out this warm.</summary>
+    const double WarmEnough = 5;
+    const int GiveUpTicks = SimConstants.TickRate * 25;
+
+    Step _step;
+    int _car = -1, _ticks;
+    double _l, _doorX;
+
+    public bool Active => _step != Step.Off;
+    /// <summary>Where it's got to (for tests and the harness).</summary>
+    public string Doing => _step.ToString();
+    /// <summary>Times it's been in and got warm.</summary>
+    public int Done { get; private set; }
+
+    public bool Wants(in PlayerState s) =>
+        s.Cold >= cold.OnsetSeconds * goInAt * (s.Has(PlayerFlags.Revived) ? cold.RevivedOnsetScale : 1);
+
+    /// <summary>This tick's intent while getting warm; null when there's nothing to do (walk as usual).</summary>
+    public PlayerIntent? Decide(in PlayerState self, TrainOnLine train)
+    {
+        if (_step == Step.Off)
+        {
+            if (!Wants(self) || self.Surface != Surface.Roof || self.Parent <= 0 || !Plan(self, train))
+                return null;
+            _step = Step.ToEnd;
+            _ticks = 0;
+        }
+        // Stuck (the train split under us, the door jammed by something): give it up and walk on as usual.
+        if (++_ticks > GiveUpTicks || !self.Alive)
+        {
+            _step = Step.Off;
+            return null;
+        }
+        // Mid-drop onto the plate: nothing to do until we land.
+        if (self.Surface == Surface.Air)
+            return new PlayerIntent();
+        bool open = train.Vehicles[_car].DoorOpen(RearDoor);
+        switch (_step)
+        {
+            case Step.ToEnd:
+                // Along the roof to the end that has the plate we want, then straight off it (no jump).
+                if (self.Surface == Surface.Coupler)
+                    return Next(Step.ToDoor);
+                return new PlayerIntent { LookYaw = Turn(self, _dropYaw), MoveZ = Aligned(self, _dropYaw) ? 1 : 0, MoveX = (float)Math.Clamp(-self.Position.X * 0.8 * (_dropYaw == 0 ? 1 : -1), -1, 1) };
+            case Step.ToDoor:
+                if (self.Parent != _car || self.Surface != Surface.Coupler)
+                    return Abandon();
+                // Just outside the door, facing it: on the plate (0.8 m wide), which the door's edge is just off.
+                return Reach(self, new Double3(PlateLine, 0, _l + 0.45), 0, Step.Open);
+            case Step.Open:
+                if (open)
+                    return Next(Step.In);
+                return CrewActions.Nearest(self, train) == InteractableKind.Door ? new PlayerIntent { Buttons = PlayerButtons.Use } : Next(Step.ToDoor);
+            case Step.In:
+                // Someone else's hand on the same door shut it again: back to opening it.
+                if (!open && self.Surface == Surface.Coupler)
+                    return Next(Step.Open);
+                // Straight in, not sideways: on the plate that's off its edge. The doorway takes the plate's middle.
+                return Reach(self, new Double3(self.Surface == Surface.Coupler ? PlateLine : _doorX, 0, _l - 1.6), 0, Step.Shut);
+            case Step.Shut:
+                {
+                    // Every door shut: a car only warms you shut, and someone else may have left the far one open.
+                    var doors = train.Vehicles[_car];
+                    int door = doors.DoorOpen(RearDoor) ? RearDoor : doors.DoorOpen(FrontDoor) ? FrontDoor : -1;
+                    if (door < 0)
+                        return Next(Step.Warm);
+                    // By it, inside, facing it.
+                    var at = new Double3(_doorX, 0, door == RearDoor ? _l - 0.5 : -_l + 0.5);
+                    double facing = door == RearDoor ? Math.PI : 0;
+                    if ((Flat(self.Position) - Flat(at)).Length > 0.2 || !Aligned(self, facing))
+                        return Reach(self, at, facing, Step.Shut);
+                    return CrewActions.Nearest(self, train) == InteractableKind.Door ? new PlayerIntent { Buttons = PlayerButtons.Use } : Abandon();
+                }
+            case Step.Warm:
+                _ticks = 0; // waiting's not being stuck
+                // Someone came or went and left a door open: shut it again.
+                if (train.Vehicles[_car].DoorsOpen != 0)
+                    return Next(Step.Shut);
+                if (self.Cold > WarmEnough)
+                    return new PlayerIntent();
+                Done++;
+                _outEnd = self.Position.Z >= 0 ? 1 : -1;
+                return Next(Step.Reopen);
+            case Step.Reopen:
+                {
+                    // The way out: the door nearer where we are (in by the rear, but someone may have moved us).
+                    int door = _outEnd > 0 ? RearDoor : FrontDoor;
+                    if (train.Vehicles[_car].DoorOpen(door))
+                        return Next(Step.Out);
+                    var at = new Double3(_doorX, 0, _outEnd * (_l - 0.5));
+                    double facing = _outEnd > 0 ? Math.PI : 0;
+                    if ((Flat(self.Position) - Flat(at)).Length > 0.2 || !Aligned(self, facing))
+                        return Reach(self, at, facing, Step.Reopen);
+                    return CrewActions.Nearest(self, train) == InteractableKind.Door ? new PlayerIntent { Buttons = PlayerButtons.Use } : Abandon();
+                }
+            case Step.Out:
+                // Straight out through the doorway onto the plate (it's narrow: off its side is the ballast); on it,
+                // the walker climbs the end ladder as it does out of any gap.
+                if (self.Surface == Surface.Coupler || self.Parent != _car)
+                {
+                    _step = Step.Off;
+                    return null;
+                }
+                return Reach(self, new Double3(PlateLine, 0, _outEnd * (_l + 0.6)), _outEnd > 0 ? Math.PI : 0, Step.Out);
+            default:
+                _step = Step.Off;
+                return null;
+        }
+    }
+
+    const int FrontDoor = 0, RearDoor = 1; // doors are listed front (−Z) then rear (+Z)
+    // Where to cross between a doorway (left of centre) and the coupler plate (0.8 m wide, centred): in both.
+    const double PlateLine = -0.15;
+    double _dropYaw;
+    int _outEnd = 1;
+
+    /// <summary>
+    /// Found on a car's floor with nothing under way (knocked in, or given up in there): cold, shut it up and warm up
+    /// here; warm, out by the nearer door.
+    /// </summary>
+    public PlayerIntent? Leave(in PlayerState self, TrainOnLine train)
+    {
+        if (_step != Step.Off || !Walkable(train, self.Parent))
+            return null;
+        _car = self.Parent;
+        _l = train.Frames[_car].Shape.Bounds.Max.Z;
+        _doorX = train.Dynamics.Tuning.Geometry.Interior!.DoorX;
+        _outEnd = self.Position.Z >= 0 ? 1 : -1;
+        _step = Wants(self) ? Step.Shut : Step.Reopen;
+        _ticks = 0;
+        return new PlayerIntent();
+    }
+
+    /// <summary>
+    /// Which plate to drop onto: the one behind this car (this car's own), or in front (the car ahead's), whichever is
+    /// nearer and has a car on it; in through that plate's car's rear door. Never the engine's: its cab is the fireman's.
+    /// </summary>
+    bool Plan(in PlayerState s, TrainOnLine train)
+    {
+        int here = s.Parent;
+        int behind = train.VehicleBehind(here), ahead = train.VehicleAhead(here);
+        bool back = behind > 0 && Walkable(train, here), front = ahead > 0 && Walkable(train, ahead);
+        if (!back && !front)
+            return false;
+        bool goBack = back && (!front || s.Position.Z > 0);
+        _car = goBack ? here : ahead;
+        _dropYaw = goBack ? Math.PI : 0; // +Z is yaw π; −Z is 0
+        var interior = train.Dynamics.Tuning.Geometry.Interior!;
+        _l = train.Frames[_car].Shape.Bounds.Max.Z;
+        _doorX = interior.DoorX;
+        return true;
+    }
+
+    /// <summary>A car you can walk into: it has a room and its doors.</summary>
+    static bool Walkable(TrainOnLine train, int car) => car > 0 && train.Frames[car].Shape is { Interior: not null, DoorList.Count: >= 2 };
+
+    PlayerIntent? Next(Step step)
+    {
+        _step = step;
+        return new PlayerIntent();
+    }
+
+    /// <summary>Gives up getting warm (knocked off the train, or stuck): the walker carries on as usual.</summary>
+    public PlayerIntent? Abandon()
+    {
+        _step = Step.Off;
+        return null;
+    }
+
+    /// <summary>Walk to a point on this car's floor (car frame), then face <paramref name="yaw"/>; <paramref name="then"/> once there.</summary>
+    PlayerIntent? Reach(in PlayerState self, Double3 target, double yaw, Step then)
+    {
+        var (step, there) = Steer(self, target, yaw);
+        return there ? Next(then) : step;
+    }
+
+    /// <summary>
+    /// One step towards a point in the player's frame, turning to <paramref name="yaw"/> on the way: true once it's
+    /// there and facing that way. Slow near the point, so it stops on a plate rather than walking off its edge.
+    /// </summary>
+    public static (PlayerIntent Step, bool There) Steer(in PlayerState self, Double3 target, double yaw)
+    {
+        var offset = Flat(target) - Flat(self.Position);
+        if (offset.Length < 0.15)
+            return Aligned(self, yaw) ? (new PlayerIntent(), true) : (new PlayerIntent { LookYaw = Turn(self, yaw) }, false);
+        double fx = -Math.Sin(self.Yaw), fz = -Math.Cos(self.Yaw), rx = Math.Cos(self.Yaw), rz = -Math.Sin(self.Yaw);
+        double gain = offset.Length < 1 ? 1.2 : 2;
+        return (new PlayerIntent
+        {
+            LookYaw = Turn(self, yaw),
+            MoveZ = (float)Math.Clamp((offset.X * fx + offset.Z * fz) * gain, -1, 1),
+            MoveX = (float)Math.Clamp((offset.X * rx + offset.Z * rz) * gain, -1, 1),
+        }, false);
+    }
+
+    static Double3 Flat(Double3 v) => new(v.X, 0, v.Z);
+    static float Turn(in PlayerState self, double yaw) => (float)Math.Clamp(Wrap(yaw - self.Yaw), -0.5, 0.5);
+    static bool Aligned(in PlayerState self, double yaw) => Math.Abs(Wrap(yaw - self.Yaw)) < 0.1;
+    static double Wrap(double a) => Math.IEEERemainder(a, 2 * Math.PI);
 }
