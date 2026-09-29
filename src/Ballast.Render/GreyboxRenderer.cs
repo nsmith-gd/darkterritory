@@ -37,6 +37,8 @@ struct DrawConstants
 {
     public Matrix4x4 Model;
     public Vector4 Tint;
+    /// <summary>x how scarred (0..1), y the scar pattern's seed (see <see cref="MeshInstance.Scar"/>).</summary>
+    public Vector4 Scar;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -311,7 +313,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                 _allMeshes.Add((new WeakReference<MeshAsset>(instance.Asset), gpuMesh));
             }
             var tint = instance.Tint == default ? Vector3.One : instance.Tint;
-            _draws.Add((gpuMesh, new DrawConstants { Model = instance.Model, Tint = new Vector4(tint, instance.Glow) }));
+            _draws.Add((gpuMesh, new DrawConstants { Model = instance.Model, Tint = new Vector4(tint, instance.Glow), Scar = new Vector4(instance.Scar, 0, 0) }));
         }
         _lights.Clear();
         _lights.AddRange(mesh.PointLights);

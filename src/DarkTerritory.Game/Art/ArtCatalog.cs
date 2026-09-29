@@ -42,6 +42,17 @@ public static class ArtCatalog
         foreach (var livery in Enum.GetValues<TrainKit.Livery>())
             list.Add(new($"car-{livery.ToString().ToLowerInvariant()}", Car, () => TrainKit.Car(look, cargo, livery, 0)));
         list.Add(new("guard", Car, () => TrainKit.Car(look, guard, TrainKit.Livery.Armoured, 0)));
+        // A car's damage rides on its body (the car class's budget, what the body leaves of it: the kit's are 9-11k).
+        list.Add(new("damage-1", MediumProp, () => DamageKit.Car(look, cargo, 1, 3)));
+        list.Add(new("damage-2", MediumProp, () => DamageKit.Car(look, cargo, 2, 3)));
+        list.Add(new("car-wrecked", Car, () =>
+        {
+            // The two as the scene draws them, one over the other: what `dt art show` should turn.
+            var k = new Kit(look);
+            k.Append(TrainKit.Car(look, cargo, TrainKit.Livery.Steel, 0), Matrix4x4.Identity);
+            k.Append(DamageKit.Car(look, cargo, 2, 3), Matrix4x4.Identity);
+            return k.Build("car-wrecked");
+        }));
         list.Add(new("door-end", SmallProp, () => TrainKit.Door(look, new Vector3(0.9f, 2.1f, 0.1f), side: false)));
         list.Add(new("door-side", SmallProp, () => TrainKit.Door(look, new Vector3(0.1f, 2.1f, 1.8f), side: true)));
         for (int v = 0; v < 4; v++)

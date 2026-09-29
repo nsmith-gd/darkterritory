@@ -632,10 +632,20 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (look is not null)
         look.Sky = DarkTerritory.Game.Art.PlanSky.For(route);
     look?.Dress(renderer);
+    // --ps2: the pipeline's debug era mode, for art direction to compare against (no spec maps, harder banding, no bloom).
+    if (args.Contains("--ps2"))
+        renderer.Post = renderer.Post with { Ps2 = true };
     // --muzzle: the guns fired a tick ago (their flash, and its light).
     if (args.Contains("--muzzle"))
         foreach (var v in train.Vehicles.Where(v => v.HasGun))
             v.Gun.LastShotTick = 100;
+    // --integrity a[,b,...]: each car's condition, front to back, the last repeating (look.json "damage": scars, states).
+    if (Str(args, "--integrity", "") is { Length: > 0 } integrity)
+    {
+        var each = integrity.Split(',').Select(x => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+        for (int i = 0; i < train.Vehicles.Count; i++)
+            train.Vehicles[i].Integrity = Math.Clamp(each[Math.Min(i, each.Length - 1)], 0, 1);
+    }
     var scene = new GreyboxScene
     {
         // --draw m: how far along the line to build it (an aerial view of a stretch wants more than the cab's 400).
@@ -952,6 +962,8 @@ static int Usage()
                      [--route tier:seed [--coaling]]   a generated night; --coaling stops at its coaling tower, chute pouring
                      [--bodies]   crates, a lamp and a crewmate's body on the roofs, settled by the physics
                      [--vigil]    emergency lighting, as during a Vigil (spec C.2)
+                     [--ps2]      the era comparison mode   [--muzzle] the guns just fired   [--builds n] time n warm builds
+                     [--integrity a,b,..] each car's condition, front to back (scars and damage states)
                      [--route tier:seed --site [--crank | --crane]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)

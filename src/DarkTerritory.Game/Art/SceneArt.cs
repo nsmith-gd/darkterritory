@@ -19,6 +19,48 @@ public sealed class SceneArt(Look look)
     /// <summary>The line and its lineside.</summary>
     public WorldArt World { get; } = new(look);
 
+    CreatureArt? _creatures;
+    readonly Dictionary<byte, (Double3 Feet, double Time, float Speed)> _crewMotion = new();
+
+    /// <summary>The crew and the creatures, skinned (content/art/models, tools/blender); loaded on first use.</summary>
+    public CreatureArt Creatures => _creatures ??= new CreatureArt(Look);
+
+    /// <summary>
+    /// A crewmate as the crew model, walking or running by how fast they've moved since last drawn (the snapshot
+    /// doesn't say; this is presentation only, so a frame's lag in the gait doesn't matter). False without the model.
+    /// </summary>
+    public bool Crewmate(MeshBuilder mesh, Crewmate c, Double3 eye, double time)
+    {
+        float speed = 0;
+        if (_crewMotion.TryGetValue(c.Id, out var last) && time > last.Time)
+        {
+            var d = c.Feet - last.Feet;
+            float moved = (float)Math.Sqrt(d.X * d.X + d.Z * d.Z);
+            float now = moved / (float)(time - last.Time);
+            // Smoothed a little, so the gait doesn't flicker between clips on one jittery snapshot.
+            speed = float.Lerp(last.Speed, now, 0.35f);
+        }
+        _crewMotion[c.Id] = (c.Feet, time, speed);
+        var pose = speed < 0.4f ? CrewPose.Idle : speed < 2.6f ? CrewPose.Walk : CrewPose.Run;
+        var right = new Vector3((float)Math.Cos(c.Yaw), 0, (float)-Math.Sin(c.Yaw));
+        var back = new Vector3((float)Math.Sin(c.Yaw), 0, (float)Math.Cos(c.Yaw));
+        var m = CreatureArt.Basis(c.Feet.RelativeTo(eye), right, Vector3.UnitY, back);
+        // A headset player's hands where they are (T47), the same way GreyboxScene's figure has them; the other arm (and
+        // everyone's, on a keyboard) stays with the clip's swing.
+        Vector3? left = null, rightHand = null;
+        if (c.Hand != default || c.Other != default)
+        {
+            var (l, r) = Arms.Hands(c.Hand, c.Other);
+            if (l != Arms.Hanging(-1))
+                left = ToF(l);
+            if (r != Arms.Hanging(1))
+                rightHand = ToF(r);
+        }
+        return Creatures.Crewmate(mesh, m, pose, time, c.Id, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)));
+    }
+
+    static Vector3 ToF(Double3 d) => new((float)d.X, (float)d.Y, (float)d.Z);
+
     /// <summary>Smoke, steam, sparks, the lamp's beam, drifting fog.</summary>
     public Effects Effects { get; } = new(look);
 
@@ -53,11 +95,11 @@ public sealed class SceneArt(Look look)
     /// </summary>
     public bool Body(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, double heavyHalf, double time)
     {
-        if (b.Kind == Sim.Physics.BodyKind.Ragdoll)
-            return false;
         bool onCar = b.Parent != Sim.Player.PlayerState.World && b.Parent < frames.Count;
         if (!onCar && b.Parent != Sim.Player.PlayerState.World)
             return true;
+        if (b.Kind == Sim.Physics.BodyKind.Ragdoll)
+            return Corpse(mesh, frames, b, eye, onCar);
         var local = b.Pbd.Particles[0].Position;
         var at = onCar ? frames[b.Parent].ToWorld(local) : local;
         if ((at - eye).Length > 250)
@@ -85,6 +127,22 @@ public sealed class SceneArt(Look look)
             mesh.Billboard(o, 0.7f * flicker, 0, new Vector4(Palette.LampAmber * 0.55f * flicker, 1), -1, FxBlend.Additive);
         }
         return true;
+    }
+
+    readonly Vector3[] _joints = new Vector3[CreatureArt.RagdollJoints];
+
+    /// <summary>A ragdoll as the crew model lying as its joints lie; false (the greybox's bones) if the model isn't there.</summary>
+    bool Corpse(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, bool onCar)
+    {
+        var ps = b.Pbd.Particles;
+        if (ps.Length < _joints.Length)
+            return false;
+        var near = onCar ? frames[b.Parent].ToWorld(ps[2].Position) : ps[2].Position;
+        if ((near - eye).Length > 250)
+            return true;
+        for (int i = 0; i < _joints.Length; i++)
+            _joints[i] = (onCar ? frames[b.Parent].ToWorld(ps[i].Position) : ps[i].Position).RelativeTo(eye);
+        return Creatures.Corpse(mesh, _joints, b.Owner);
     }
 
     /// <summary>
@@ -167,8 +225,17 @@ public sealed class SceneArt(Look look)
         int variant = frame.Index % 2;
         string key = engine ? $"engine:{ShapeKey(shape)}" : $"car:{ShapeKey(shape)}:{livery}:{variant}:{shape.Gun is not null}";
         var body = Piece(key, () => engine ? TrainKit.Engine(Look, shape, 0) : TrainKit.Car(Look, shape, livery, variant));
+        // Wear and tear off the car's integrity (look.json "damage"): the scar mask over the body and doors, seeded by
+        // the car so its scars stay where they are, and past the first state the torn plate the mask can't draw.
+        var damage = Look.Tuning.Damage;
+        double integrity = vehicle?.Integrity ?? 1;
+        int seed = vehicle?.Id ?? frame.Index;
+        var scar = new Vector2(damage.ScarOf(integrity), seed * 0.618f % 1 * 97);
         // In a Vigil the headlamp and tail lamp have no power (spec C.2).
-        mesh.Instances.Add(new MeshInstance(body, m, emergency ? 0.06f : 1));
+        mesh.Instances.Add(new MeshInstance(body, m, emergency ? 0.06f : 1, Scar: scar));
+        int state = damage.StateOf(integrity);
+        if (state > 0 && !engine)
+            mesh.Instances.Add(new MeshInstance(Piece($"damage:{ShapeKey(shape)}:{state}:{seed}", () => DamageKit.Car(Look, shape, state, seed)), m));
 
         foreach (var door in shape.DoorList)
         {
@@ -185,7 +252,7 @@ public sealed class SceneArt(Look look)
             var size = new Vector3((float)(box.Max.X - box.Min.X), (float)(box.Max.Y - box.Min.Y), (float)(box.Max.Z - box.Min.Z));
             var leaf = Piece($"door:{side}:{size.X:0.##}x{size.Y:0.##}x{size.Z:0.##}", () => TrainKit.Door(Look, size, side));
             var c = box.Centre;
-            mesh.Instances.Add(new MeshInstance(leaf, Matrix4x4.CreateTranslation((float)c.X, (float)c.Y, (float)c.Z) * m));
+            mesh.Instances.Add(new MeshInstance(leaf, Matrix4x4.CreateTranslation((float)c.X, (float)c.Y, (float)c.Z) * m, Scar: scar));
         }
         if (shape.Gun is { } gun)
         {

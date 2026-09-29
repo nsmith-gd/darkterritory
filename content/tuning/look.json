@@ -79,5 +79,14 @@
     "ambient": 0.1,
     "lampColour": [1.0, 0.74, 0.42],
     "lampIntensity": 3.2
+  },
+  // The consist's wear and tear (pipeline plan, consist kit: "3 damage states per car; scars persist between runs").
+  // Read off each car's integrity, which the campaign keeps, so a car comes back scarred where it was (ARCHITECTURE §8).
+  "damage": {
+    // Below the first a car is damaged (plate torn back, claw gouges); below the second, wrecked (breached, smoking).
+    "states": [0.66, 0.33],
+    // The scar mask shows from here, and is at its worst by the second.
+    "scarsFrom": 0.95,
+    "scarsFull": 0.1
   }
 }

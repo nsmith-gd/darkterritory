@@ -22,6 +22,7 @@ layout(location = 8) flat in float vLayer;
 layout(location = 9) flat in float vGlow;
 layout(location = 10) flat in float vLayer2;
 layout(location = 11) in float vBlend;
+layout(location = 12) flat in vec2 vScar;
 
 layout(location = 0) out vec4 outColor;
 
@@ -54,6 +55,30 @@ vec3 weathered(vec3 albedo, vec3 s, float wear, bool textured) {
     c = mix(c, c * vec3(0.72, 0.5, 0.38), wear * patches * (textured ? 0.3 : 0.55));
     c *= 1.0 - wear * streak * 0.3;
     return c;
+}
+
+// Persistent scars (pipeline shader set: "damage-mask blend for persistent car scars"). A mask in the piece's own texel
+// space, seeded per car, so a car scars in the same places every time it's drawn, run to run. As the amount grows the
+// scorched patches spread out from their worst points, blistered to rust round the edge; plate near them is scraped
+// bright in streaks along the car; and a few punctures go through (the breaches proper are geometry: DamageKit).
+// Stepped at the texel, like a painted damage layer. Returns x scorch, y rust, z bare metal, w hole.
+vec4 scarAt(vec3 s, vec2 scar) {
+    vec3 seed = vec3(scar.y * 7.31, scar.y * 3.17, scar.y * 5.53);
+    // Sampled on 2-texel blocks: the edges step like a painted mask's pixels instead of blurring.
+    vec3 q = floor(s / 2.0) * (2.0 / 128.0 * 1.3) + seed;
+    float m = noise(q) * 0.64 + noise(q * 3.1 + vec3(11.0)) * 0.36;
+    // Value noise piles up round 0.5: at 0.8 almost nothing is scarred, at 0.6 about a fifth of the surface.
+    float t = 0.8 - 0.2 * scar.x;
+    float scorch = step(t, m) * smoothstep(t, t + 0.06, m);
+    float rust = step(t - 0.05, m) * (1.0 - step(t, m));
+    float near = step(t - 0.09, m);
+    float streak = step(0.74, noise(floor(s / 2.0) * vec3(1.0 / 36.0, 1.0 / 1.4, 1.0 / 36.0) + seed));
+    float bare = streak * near * (1.0 - step(t, m));
+    // Punctures: one 8-texel cell in so many, near the worst, a round hole of 2-3 texels.
+    vec3 cell = floor(s / 8.0);
+    float pick = step(1.0 - 0.18 * scar.x, hash(cell + seed));
+    float hole = pick * step(t + 0.02, m) * step(length(fract(s / 8.0) - 0.5), 0.2 + 0.1 * hash(cell.zxy));
+    return vec4(scorch, rust * (1.0 - hole), bare * (1.0 - hole), hole);
 }
 
 // Exponential height fog: thick in the low ground and the valleys under bridges, thinner up on the roofs, never gone.
@@ -135,6 +160,15 @@ void main() {
     if (vWear > 0.0)
         albedo = weathered(albedo, vSurface, vWear * (textured ? frame.params.z : 1.0), textured);
 
+    vec4 scar = vec4(0.0);
+    if (vScar.x > 0.0 && vEmissive < 0.5) {
+        scar = scarAt(vSurface, vScar);
+        albedo = mix(albedo, albedo * 0.6 * vec3(1.05, 0.7, 0.5) + vec3(0.008, 0.004, 0.002), scar.y);
+        albedo = mix(albedo, albedo * vec3(0.3, 0.27, 0.25), scar.x);
+        albedo = mix(albedo, max(albedo, vec3(0.075, 0.075, 0.08)), scar.z);
+        albedo = mix(albedo, vec3(0.003), scar.w);
+    }
+
     // Rain: darker surfaces, and a sheen on everything that faces the sky (ballast, roofs, puddles in the mud).
     float inside = frame.counts.x > 0.0 ? indoors(vPos) : 0.0;
     float night = 1.0 - inside;
@@ -153,6 +187,9 @@ void main() {
     float up = smoothstep(0.5, 0.95, n.y) * wet;
     specStrength = max(specStrength, 0.16 * up);
     shininess = mix(shininess, 70.0, up);
+    // Torn edges catch the light; scorch doesn't; a hole throws nothing back.
+    specStrength = mix(mix(specStrength, specStrength * 0.3, scar.x), 0.4, scar.z) * (1.0 - scar.w);
+    shininess = mix(shininess, 56.0, scar.z);
     vec3 spec = vec3(0.0);
 
     // The headlamp: the one light that reaches out into the dark.
