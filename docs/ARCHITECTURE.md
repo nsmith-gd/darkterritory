@@ -1219,6 +1219,12 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - the bolted domes;
         - the riveted straps round the casing.
       - The engine unit comes to about 15.7k triangles of its 45k.
+      - The gun car's gun is the eighth (`recipes/gun_mount.py`), to TrainKit.Gun's frame, so the muzzle flash still sits at its muzzle. It's a water-cooled heavy machine gun on a bolted pedestal and cradle, and replaces the kit's boxes (282 triangles). It has:
+        - a riveted receiver with its top cover and crank, the spade grips and the trigger;
+        - the corrugated jacket with its filler, drain and steam union, and the muzzle booster;
+        - the feed block, with the belt curling down into the ammunition box;
+        - the raked, rimmed, riveted and dented shield.
+      - It comes to 944 triangles of the mount's 4k.
     - **First set.**
       - The Khronos Lantern, split into a lamp post and a hand lantern. The hand lantern replaces the kit's cage in the cars, on the platforms and as the dropped lamp.
       - The photoscanned skull.

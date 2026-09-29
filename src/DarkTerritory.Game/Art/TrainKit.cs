@@ -867,6 +867,9 @@ public static class TrainKit
     /// </summary>
     public static MeshAsset Gun(Look? look)
     {
+        // The modelled gun (tools/models gun_mount) to this frame: pivot at the origin, muzzle 1.5 m out along -Z.
+        if (look is not null && PropArt.Of(look).Get("gun_mount") is { } modelled)
+            return modelled;
         var k = new Kit(look, 53);
         k.Use("paint_olive", Palette.MuddyOlive, 0.9f, 0.3f);
         k.Cylinder(new Vector3(0, -0.9f, 0), new Vector3(0, -0.35f, 0), 0.16f, 8);
