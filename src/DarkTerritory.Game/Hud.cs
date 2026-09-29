@@ -176,6 +176,7 @@ public static class Hud
                 DeathCause.Taken => "TAKEN. IT WASN'T THEM OUTSIDE",
                 DeathCause.Dragged => "DRAGGED OFF THE EDGE",
                 DeathCause.Crushed => "CRUSHED UNDER A DROPPED LOAD",
+                DeathCause.PulledUnder => "PULLED UNDER BETWEEN THE CARS",
                 _ => "",
             }, Ink);
             if (world.Vigil is { Permitted: true })

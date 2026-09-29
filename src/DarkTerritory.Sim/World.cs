@@ -386,6 +386,23 @@ public sealed class World
                 double length = Train.Frames[under].Shape.HalfLength;
                 _enemies.Add(Dragger.Under(_nextEnemyId++, Train, under, d.NextRange(0, 1) < 0.5 ? -1 : 1, d.NextRange(-length, length)));
                 break;
+            case EnemyKind.Rattle:
+                var nests = Rattle.Nests(this);
+                if (nests.Count == 0)
+                    break;
+                double pick = d.NextRange(0, nests.Sum(n => n.Weight));
+                var nest = nests[^1].Car;
+                foreach (var (at, weight) in nests)
+                {
+                    if (pick < weight)
+                    {
+                        nest = at;
+                        break;
+                    }
+                    pick -= weight;
+                }
+                _enemies.Add(Rattle.In(_nextEnemyId++, Train, nest, Train.Dynamics.Tuning.Geometry.CouplingGap));
+                break;
         }
     }
 

@@ -637,3 +637,28 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     static bool Aligned(in PlayerState self, double yaw) => Math.Abs(Wrap(yaw - self.Yaw)) < 0.1;
     static double Wrap(double a) => Math.IEEERemainder(a, 2 * Math.PI);
 }
+
+/// <summary>
+/// What every bot heeds whatever its job: "don't cross between cars rattling" (App. A.5). A bot whose next step would take
+/// it into a gap the Rattle is rattling in stands where it is instead, and waits it out; the rest of its intent (its hands,
+/// its look) goes through. Worked out from what its client sees (the Rattle replicates), by stepping a copy of itself.
+/// </summary>
+public static class Heed
+{
+    public static PlayerIntent Rattles(PlayerIntent intent, in PlayerState self, World world, PlayerTuning player)
+    {
+        if (!self.Alive || (intent.MoveX == 0 && intent.MoveZ == 0))
+            return intent;
+        var train = world.Train;
+        var rattling = world.ActiveEnemies.OfType<Rattle>().Where(r => r.Rattling).ToList();
+        if (rattling.Count == 0)
+            return intent;
+        var next = self;
+        PlayerMotor.Step(ref next, intent, train, player, train.Dynamics.Tuning, SimConstants.TickSeconds, applyLook: false);
+        var now = PlayerMotor.WorldPosition(self, train);
+        var then = PlayerMotor.WorldPosition(next, train);
+        if (!rattling.Any(r => r.InGap(then, train) && !r.InGap(now, train)))
+            return intent;
+        return intent with { MoveX = 0, MoveZ = 0 };
+    }
+}

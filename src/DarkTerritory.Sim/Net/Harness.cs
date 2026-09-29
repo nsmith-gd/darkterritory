@@ -147,6 +147,7 @@ public static class Harness
                     if (((bot as GunnerBot)?.Job ?? (bot as RoofWalkerBot)?.Job) is { } part)
                         part.PlayerId = session.PlayerId;
                     intent = bot is IWorldBot wb ? wb.Decide(session.Predicted, session.World, t, out _) : bot.Decide(session.Predicted, session.Train, t);
+                    intent = Heed.Rattles(intent, session.Predicted, session.World, playerTuning);
                 }
                 session.Step(intent);
             }

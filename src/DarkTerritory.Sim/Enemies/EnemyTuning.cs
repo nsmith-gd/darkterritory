@@ -10,6 +10,18 @@ public sealed record EnemyTuning(
     public SwitchmanTuning Switchman { get; init; } = new();
     public SootChildrenTuning SootChildren { get; init; } = new();
     public DraggerTuning Draggers { get; init; } = new();
+    public RattleTuning Rattle { get; init; } = new();
+}
+
+/// <summary>The Rattle (App. A.5, B.5). Field docs live in enemies.json.</summary>
+public sealed record RattleTuning
+{
+    public double ArmRadius { get; init; } = 6;
+    public double QuietSeconds { get; init; } = 10;
+    public int GrabDamage { get; init; } = 200;
+    public double LingerSeconds { get; init; } = 300;
+    public int MinCars { get; init; } = 2;
+    public double PerCarWeight { get; init; } = 0.25;
 }
 
 /// <summary>The Draggers (App. A.4, B.4, spec B.3). Field docs live in enemies.json.</summary>
