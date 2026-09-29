@@ -3,7 +3,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Enemies;
 
-public enum EnemyKind : byte { Sleepers = 1, CinderHound = 2, Clinger = 3, Hollow = 4, Switchman = 5, SootChildren = 6, Dragger = 7, Rattle = 8, Lamplighter = 9, Deadman = 10, Stoker = 11, Ferryman = 12, LongWhistle = 13, Climber = 14 }
+public enum EnemyKind : byte { Sleepers = 1, CinderHound = 2, Clinger = 3, Hollow = 4, Switchman = 5, SootChildren = 6, Dragger = 7, Rattle = 8, Lamplighter = 9, Deadman = 10, Stoker = 11, Ferryman = 12, LongWhistle = 13, Climber = 14, Weight = 15 }
 
 /// <summary>Where on the train a threat comes from (GDD §21), and so which answer applies.</summary>
 public enum PressureZone : byte { Forward, Rear, Flank, Interior, Structural }

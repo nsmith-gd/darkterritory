@@ -62,6 +62,7 @@ public sealed class Director
         EnemyKind.Ferryman => "ferryman",
         EnemyKind.LongWhistle => "longWhistle",
         EnemyKind.Climber => "climbers",
+        EnemyKind.Weight => "weight",
         _ => "sleepers",
     }, 2);
 
@@ -119,6 +120,12 @@ public sealed class Director
                 w *= _t.HoundsHotBoilerWeight;
             options.Add((EnemyKind.CinderHound, w));
         }
+        // App. B.3: the Weight on low ground only (a water crossing ahead, level there), under a train of two or more, out on
+        // the main line (not a stop's cut-down rake). One at a time. Weight up at low speed.
+        if (world.Enemies is { } gt && train.Dynamics.Consist.CarCount >= gt.Weight.MinCars && Zone(PressureZone.Rear) < _t.MaxConcurrentZone
+            && train.OnMain && train.Rakes.Count == 1 && world.Run is not { Phase: Run.RunPhase.AtFacility }
+            && !active.Any(e => !e.Gone && e.Kind == EnemyKind.Weight) && Weight.Spot(world, gt.Weight) is not null)
+            options.Add((EnemyKind.Weight, train.Dynamics.Speed < gt.Weight.LowSpeed ? gt.Weight.LowSpeedWeight : 1));
         // App. B.7: the Switchman works junctions on the Frontier and beyond, on a route with enough of them to have a
         // network, and there's never more than one corrupted human about. It needs a dead line's points ahead in its window.
         // An alternate is two junctions of the network, where it leaves and where it rejoins (linegen plan §3.2's count).
@@ -212,7 +219,7 @@ public sealed class Director
         _spent += Cost(kind);
         var zone = kind switch
         {
-            EnemyKind.CinderHound => PressureZone.Rear,
+            EnemyKind.CinderHound or EnemyKind.Weight => PressureZone.Rear,
             EnemyKind.Clinger or EnemyKind.Dragger or EnemyKind.Climber => PressureZone.Flank,
             EnemyKind.Switchman or EnemyKind.Ferryman or EnemyKind.LongWhistle => PressureZone.Forward,
             EnemyKind.SootChildren or EnemyKind.Lamplighter => PressureZone.Structural,

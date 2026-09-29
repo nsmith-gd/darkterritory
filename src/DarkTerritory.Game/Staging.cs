@@ -92,6 +92,10 @@ public static class Staging
         var hollow = new Hollow(30);
         hollow.Restore(SpinePhase.Punish, 2, 1, 0, train.Frames[0].Shape.Cab!.Value.Centre, 0, 0, 0, 0, 0);
         threats.Add(hollow);
+        // Hung under the rear coupling, dragging (T59): below the guard van's gun, beside the boarded hound's car.
+        var weight = new Weight(46);
+        weight.Restore(SpinePhase.Telegraph, 2, 1, rear, new Double3(0, 0.35, rearShape.HalfLength + 0.4), 0, 0, 0, 0, 0);
+        threats.Add(weight);
         // Scrabbling up the gap behind the second car on its right, and one already walking the third car's roof (T58).
         int gapCar = Math.Min(2, train.Frames.Count - 2);
         var gapShape = train.Frames[gapCar].Shape;

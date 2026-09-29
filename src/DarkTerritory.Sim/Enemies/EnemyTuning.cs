@@ -17,8 +17,27 @@ public sealed record EnemyTuning(
     public FerrymanTuning Ferryman { get; init; } = new();
     public LongWhistleTuning LongWhistle { get; init; } = new();
     public ClimberTuning Climbers { get; init; } = new();
+    public WeightTuning Weight { get; init; } = new();
 }
 
+/// <summary>The Weight (App. A.3, B.3). Field docs live in enemies.json.</summary>
+public sealed record WeightTuning
+{
+    public double AheadMin { get; init; } = 200;
+    public double AheadMax { get; init; } = 1200;
+    public double IntoCrossing { get; init; } = 8;
+    public double MaxGradePercent { get; init; } = 1;
+    public double DragFactor { get; init; } = 1.25;
+    public double StoppedBelow { get; init; } = 0.3;
+    public double MeleeReach { get; init; } = 2.2;
+    public int BlowsToRelease { get; init; } = 5;
+    public int TearOffDamage { get; init; } = 60;
+    public double LingerSeconds { get; init; } = 300;
+    public double LingerPast { get; init; } = 50;
+    public int MinCars { get; init; } = 2;
+    public double LowSpeed { get; init; } = 10;
+    public double LowSpeedWeight { get; init; } = 2;
+}
 
 /// <summary>Climbers (App. A.4, B.4). Field docs live in enemies.json.</summary>
 public sealed record ClimberTuning

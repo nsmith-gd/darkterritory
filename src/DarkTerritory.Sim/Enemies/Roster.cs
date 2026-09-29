@@ -1428,3 +1428,128 @@ public sealed class Climber(int id) : Enemy(id)
         }
     }
 }
+
+/// <summary>
+/// THE WEIGHT · vibration · rear (App. A.3). Buried beside the track on low ground (a water crossing), it feels the train
+/// come and, as the rear car passes, takes hold of its coupling from underneath: the telegraph is the abrupt loss of speed
+/// and the heavy scraping from the rear. Then it drags, harder than the engine can pull, and the train's speed decays.
+/// Brought to a stand, it pulls the car off the rails. Counters: cut the rear car loose (it takes the car and goes), or
+/// get down on the rear platform and beat it off (about five blows). "Deliberately below the rear gun's arc": it can't be
+/// shot. "Forces either a sacrifice or a trip outside."
+/// </summary>
+/// <remarks><see cref="Enemy.Extra"/> counts the blows it's taken.</remarks>
+public sealed class Weight(int id) : Enemy(id)
+{
+    readonly HashSet<int> _swinging = [];
+
+    public override EnemyKind Kind => EnemyKind.Weight;
+    public override PressureZone Zone => PressureZone.Rear;
+    public override Sense Sense => Sense.Vibration;
+
+    /// <summary>Holding the rear car and dragging: the world puts its drag on that car's rake while it does.</summary>
+    public bool Holding => Phase == SpinePhase.Telegraph && Attached >= 0;
+    public int Blows => (int)Extra;
+
+    /// <summary>Buried beside the track at <paramref name="along"/>, on one side.</summary>
+    public static Weight Buried(int id, double along, int side) => new(id) { LineDistance = along, Lateral = side * 2.4, Height = -0.4 };
+
+    /// <summary>
+    /// Where it lies (App. B.3): "marsh, water crossings, low ground only", read as the next bridge this far ahead, and
+    /// "cannot spawn on grades": level there. Null if there's none.
+    /// </summary>
+    public static double? Spot(World world, WeightTuning t)
+    {
+        if (world.Route is not { } route)
+            return null;
+        var train = world.Train;
+        double front = train.Dynamics.Distance;
+        foreach (var f in route.Of(Route.FeatureKind.Bridge))
+        {
+            double at = f.Start + t.IntoCrossing;
+            if (at < front + t.AheadMin || at > front + t.AheadMax)
+                continue;
+            if (Math.Abs(train.Line.Sample(train.Dynamics.Path, at).GradePercent) <= t.MaxGradePercent)
+                return at;
+        }
+        return null;
+    }
+
+    protected override void Tick(EnemyContext ctx)
+    {
+        var t = ctx.Tuning.Weight;
+        var train = ctx.Train;
+        var rake = train.Dynamics.Consist.Vehicles;
+        switch (Phase)
+        {
+            case SpinePhase.Dormant:
+                {
+                    // The rear car passes over it: it takes hold.
+                    if (PhaseSeconds >= t.LingerSeconds || train.Dynamics.RearDistance > LineDistance + t.LingerPast)
+                    {
+                        Enter(ctx, SpinePhase.Gone);
+                        break;
+                    }
+                    if (rake.Count >= 2 && train.Dynamics.RearDistance <= LineDistance && train.Dynamics.Distance > LineDistance)
+                    {
+                        int rear = rake[^1].Id;
+                        Attached = rear;
+                        Local = new Double3(0, 0.35, train.Frames[rear].Shape.HalfLength + 0.4);
+                        Enter(ctx, SpinePhase.Telegraph); // the lurch and the scrape
+                    }
+                    break;
+                }
+            case SpinePhase.Telegraph:
+                {
+                    // Cut loose: it takes the car and goes.
+                    if (Attached < 0 || Attached >= train.Frames.Count || rake.Count == 0 || rake[^1].Id != Attached)
+                    {
+                        if (Attached >= 0 && Attached < train.Vehicles.Count)
+                            train.Vehicles[Attached].CargoIntegrity = 0;
+                        Enter(ctx, SpinePhase.BreakOff);
+                        Enter(ctx, SpinePhase.Gone);
+                        break;
+                    }
+                    // Beaten at from the rear platform: a blow for each swing (Use pressed within reach, once per press).
+                    var at = WorldPosition(train);
+                    foreach (var (player, intent) in ctx.Crew)
+                    {
+                        bool swinging = player.State.Alive && intent.Has(PlayerButtons.Use)
+                            && (PlayerMotor.WorldPosition(player.State, train) - at).Length <= t.MeleeReach;
+                        if (swinging && _swinging.Add(player.Id))
+                            Extra += 1;
+                        else if (!swinging)
+                            _swinging.Remove(player.Id);
+                    }
+                    if (Blows >= t.BlowsToRelease)
+                    {
+                        Enter(ctx, SpinePhase.BreakOff);
+                        Enter(ctx, SpinePhase.Gone);
+                        break;
+                    }
+                    // Dragged to a stand: it pulls the car off the rails.
+                    if (train.Dynamics.Speed <= t.StoppedBelow && Enter(ctx, SpinePhase.Commit) && Enter(ctx, SpinePhase.Punish))
+                        TearOff(ctx, t);
+                    break;
+                }
+            default:
+                Enter(ctx, SpinePhase.Gone);
+                break;
+        }
+    }
+
+    /// <summary>Off the rails with the car: cut away, wrecked, and anyone on it or in it hurt.</summary>
+    void TearOff(EnemyContext ctx, WeightTuning t)
+    {
+        var train = ctx.Train;
+        int car = Attached;
+        int ahead = train.VehicleAhead(car);
+        if (ahead >= 0)
+            train.Uncouple(ahead);
+        train.Vehicles[car].Integrity = 0;
+        train.Vehicles[car].CargoIntegrity = 0;
+        foreach (var (player, _) in ctx.Crew)
+            if (player.State.Alive && player.State.Parent == car)
+                ctx.Bite(player.Id, t.TearOffDamage, DeathCause.TornOff);
+        Enter(ctx, SpinePhase.Gone);
+    }
+}
