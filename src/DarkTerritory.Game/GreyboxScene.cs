@@ -42,6 +42,8 @@ public sealed class GreyboxScene
     public SwitchStands? Stands { get; set; }
     /// <summary>The cab's controls, for where the levers' handles are.</summary>
     public TrainControls Controls { get; set; } = new() { Reverser = 1 };
+    /// <summary>The sim's tick now, for effects timed from the sim (a gun's muzzle flash); unset, none are shown.</summary>
+    public long Tick { get; set; } = -1;
     /// <summary>The boiler's pressure as a fraction of its maximum, for the cab's gauge (the sim's; unset, a working pressure).</summary>
     public float Pressure { get; set; } = 0.78f;
     /// <summary>The art pass's surfaces (T39, look.json). Unset, the greybox is flat colour.</summary>
@@ -794,7 +796,7 @@ public sealed class GreyboxScene
         mesh.Seed = frame.Index + 1;
         var vehicle = Vehicles is { } vs && frame.Index < vs.Count ? vs[frame.Index] : null;
         // The art pass's kit (TrainKit): the body, doors and gun as cooked pieces; what's left here is what glows and moves.
-        if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency))
+        if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick))
         {
             CarWorkings(mesh, frame, eye, Draw);
             if (engine)

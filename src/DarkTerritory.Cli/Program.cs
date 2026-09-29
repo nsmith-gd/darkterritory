@@ -604,8 +604,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var mesh = new MeshBuilder();
     var look = Looked(content, args);
     look?.Dress(renderer);
+    // --muzzle: the guns fired a tick ago (their flash, and its light).
+    if (args.Contains("--muzzle"))
+        foreach (var v in train.Vehicles.Where(v => v.HasGun))
+            v.Gun.LastShotTick = 100;
     new GreyboxScene
     {
+        Tick = args.Contains("--muzzle") ? 101 : -1,
         Look = look,
         Route = route,
         Run = run,

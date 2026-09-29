@@ -144,7 +144,7 @@ public sealed class SceneArt(Look look)
     /// A car: its body from the kit, its doors where the vehicle has them (shut in the doorway, or slid aside), and its gun
     /// turned the way it faces. Returns false when the kit can't draw this car (so the greybox does).
     /// </summary>
-    public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, bool emergency)
+    public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, bool emergency, long tick = -1)
     {
         var shape = frame.Shape;
         var m = FrameMatrix(frame, eye);
@@ -179,8 +179,19 @@ public sealed class SceneArt(Look look)
         {
             float yaw = MathF.Atan2(-(float)gun.Facing.X, -(float)gun.Facing.Z);
             var at = gun.Position;
-            mesh.Instances.Add(new MeshInstance(Piece("gun", () => TrainKit.Gun(Look)),
-                Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateTranslation((float)at.X, (float)at.Y, (float)at.Z) * m));
+            var gunM = Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateTranslation((float)at.X, (float)at.Y, (float)at.Z) * m;
+            mesh.Instances.Add(new MeshInstance(Piece("gun", () => TrainKit.Gun(Look)), gunM));
+            // The muzzle flash, for the two ticks after a round (pipeline VFX: "muzzle flash", additive): a hot star
+            // at the muzzle and a burst of light over the roof and whatever it's aimed at.
+            if (vehicle is { Gun.LastShotTick: > 0 } v && tick >= v.Gun.LastShotTick && tick - v.Gun.LastShotTick <= 2)
+            {
+                var muzzle = Vector3.Transform(new Vector3(0, -0.02f, -1.5f), gunM);
+                float fade = 1 - (tick - v.Gun.LastShotTick) / 3f;
+                int shot = (int)(v.Gun.LastShotTick % 4);
+                mesh.Billboard(muzzle, 0.9f * fade, shot * 0.8f, new Vector4(1.0f, 0.75f, 0.4f, fade), -1, FxBlend.Additive);
+                mesh.Billboard(muzzle, 0.35f, shot * 1.3f, new Vector4(1.2f, 1.0f, 0.8f, fade), -1, FxBlend.Additive, stretch: 2.5f);
+                mesh.PointLights.Add(new PointLight(muzzle, new Vector3(1.6f, 1.1f, 0.6f) * fade, 12));
+            }
         }
         return true;
     }
