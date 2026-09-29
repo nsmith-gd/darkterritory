@@ -76,6 +76,8 @@ public sealed class FrontEnd
     public string Address { get; private set; } = "127.0.0.1";
     /// <summary>The join screen wants typed text (the app turns text input on).</summary>
     public bool WantsText => Screen == Screen.Join;
+    /// <summary>Played in a headset (T36): the hints name the controllers' buttons, not the keys.</summary>
+    public bool Headset { get; set; }
 
     public IReadOnlyList<MenuItem> Items => Entries().Select(e => e.Item).ToList();
 
@@ -371,6 +373,8 @@ public sealed class FrontEnd
         }
         if (Message is { } m)
             o.Text(x, y, m.ToUpperInvariant(), Amber);
-        o.TextRight(width - 8, height - 12, WantsText ? "TYPE   ENTER JOIN   ESC BACK" : "UP/DOWN CHOOSE   ENTER   LEFT/RIGHT CHANGE   ESC BACK", Faint);
+        o.TextRight(width - 8, height - 12, WantsText ? "TYPE   ENTER JOIN   ESC BACK"
+            : Headset ? "STICK UP/DOWN CHOOSE   TRIGGER   STICK LEFT/RIGHT CHANGE   B BACK"
+            : "UP/DOWN CHOOSE   ENTER   LEFT/RIGHT CHANGE   ESC BACK", Faint);
     }
 }

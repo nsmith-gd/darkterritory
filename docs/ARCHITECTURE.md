@@ -753,3 +753,33 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - carrying at the hand;
       - remote players' hands (body IK);
       - the exit test on a real headset.
+41. **The HUD and menus in the headset (T36, roadmap M4).**
+    - **The flat screen's own drawing, on a panel** (`VrPanel`).
+      - The HUD and the front end are drawn exactly as for the window: an `Overlay` at 480×270.
+      - That overlay is carried onto a flat panel floating ahead of the head. Each vertex is projected through each eye's camera into that eye's overlay, under the comfort vignette.
+      - So it has real depth in both eyes, and nothing about the HUD or the menus knows about headsets. No new renderer path: it's the 2D pass the window already has.
+      - It's drawn over the scene rather than into it, as a HUD should be. Triangles behind an eye are dropped.
+    - **This frame's eyes.**
+      - `XrStereoSession.Frame` now locates the views before it reads the controllers.
+      - So the synced callback, where the panel is projected and each eye's overlay prepared, has this frame's eyes.
+      - A panel projected with last frame's eyes would drag behind every head movement.
+    - **Lazy follow.** A panel pinned to the face is the classic way to make people sick. So:
+      - its place moves with the head at once (leaning doesn't slide it away);
+      - it only turns once the head has looked `followDegrees` off it, then eases round over about `followSeconds`, and stops within 2° of the head;
+      - a glance at a corner doesn't move it.
+      - The HUD's panel is nearer and lower (1.6 m ahead, 0.2 m down, 1.8 m across); the menus' is straight ahead at 2 m (`vr.json` `hud`, `menu`).
+    - **No crosshair on it.** The head aims, and a lazily following panel is never quite where the head points, so the cross is left off (`Hud.Build(..., crosshair: false)`).
+    - **Menus by controller** (`VrMenuInput`).
+      - The left stick moves through them: one step per push, and it has to come back near the middle for another, so there's no chatter at the threshold.
+      - The trigger or A chooses; B goes back.
+      - The front end's hints say so in a headset (`FrontEnd.Headset`).
+      - Coming in from a night, whatever's held (the A that ended it) isn't a press.
+      - Typing an address (Join) is still the keyboard's.
+    - **Verified:**
+      - `VrPanelTests`: straight ahead and below by the drop, at the panel's distance; the two eyes' disparity is what that distance gives; a glance doesn't move it but a turn brings it round, and then it stays; it turns with the body and isn't drawn from behind; the menu sticks and buttons press once.
+      - `dt vr check --hud` and `--menu title` project the real HUD (a solo night stepped three seconds) and the title screen into both eyes on Monado's simulated headset. CI checks both eyes got the panel, and keeps `vr-hud.png` and `vr-menu.png`.
+    - **Not yet:**
+      - pointing at menu items with a hand;
+      - a panel you can grab and move;
+      - the text's size is the flat HUD's, legible at a real headset's pixel density but small at the simulated one's;
+      - the exit test on a real headset.

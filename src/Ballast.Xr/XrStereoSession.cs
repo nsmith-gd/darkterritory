@@ -113,6 +113,11 @@ public sealed unsafe class XrStereoSession : IDisposable
     public XrControllerState Controllers { get; private set; }
     /// <summary>The head's orientation in the tracking space, as of the last frame drawn.</summary>
     public Quaternion Head { get; private set; } = Quaternion.Identity;
+    /// <summary>Where the head is in the tracking space (between the eyes), as of the last frame drawn.</summary>
+    public Vector3 HeadPosition => (_eyes[0].Position + _eyes[1].Position) / 2;
+    /// <summary>Both eyes, left then right, as of the last frame drawn (this frame's, from the synced callback on).</summary>
+    public IReadOnlyList<XrEye> Eyes => _eyes;
+    readonly XrEye[] _eyes = new XrEye[2];
 
     (VkFormat Swapchain, VkFormat Eye) PickFormat()
     {
@@ -198,7 +203,8 @@ public sealed unsafe class XrStereoSession : IDisposable
     /// One frame at the runtime's pace (this blocks until the headset wants the next one). <paramref name="drawEye"/>
     /// records an eye into its renderer and returns it; it's called for eye 0 (left) then eye 1 (right).
     /// <paramref name="synced"/>, if given, runs first, as soon as the controllers are read for the frame: whatever
-    /// follows the hands (the hands themselves) is placed there, not a frame late.
+    /// follows the hands (the hands themselves) is placed there, not a frame late. The eyes are located by then too
+    /// (<see cref="Eyes"/>), so what's placed by the head (a HUD panel projected into each eye) isn't a frame late either.
     /// </summary>
     public XrFrameResult Frame(Func<XrEye, VkCommandBuffer, GreyboxRenderer> drawEye, Action<XrControllerState>? synced = null)
     {
@@ -212,8 +218,6 @@ public sealed unsafe class XrStereoSession : IDisposable
         XrHeadset.Check(_xr.WaitFrame(_session, &wait, &state), "xrWaitFrame");
         var beginFrame = new FrameBeginInfo { Type = StructureType.FrameBeginInfo };
         XrHeadset.Check(_xr.BeginFrame(_session, &beginFrame), "xrBeginFrame");
-        Controllers = Controls.Sync(state.PredictedDisplayTime, _space);
-        synced?.Invoke(Controllers);
 
         var views = stackalloc View[2];
         views[0] = new View { Type = StructureType.View };
@@ -235,18 +239,26 @@ public sealed unsafe class XrStereoSession : IDisposable
             // No tracking this frame (the headset lost its bearings): submit nothing rather than a wrong view.
             draw = located == 2 && (viewState.ViewStateFlags & ViewStateFlags.OrientationValidBit) != 0;
             if (draw)
+            {
                 Head = Quaternion.Slerp(Orientation(views[0].Pose), Orientation(views[1].Pose), 0.5f);
+                for (int eye = 0; eye < 2; eye++)
+                {
+                    var pose = views[eye].Pose;
+                    var fov = views[eye].Fov;
+                    _eyes[eye] = new XrEye(eye, new Vector3(pose.Position.X, pose.Position.Y, pose.Position.Z), Orientation(pose),
+                        new EyeFov(fov.AngleLeft, fov.AngleRight, fov.AngleUp, fov.AngleDown));
+                }
+            }
         }
+        Controllers = Controls.Sync(state.PredictedDisplayTime, _space);
+        synced?.Invoke(Controllers);
         if (draw)
         {
             for (int eye = 0; eye < 2; eye++)
             {
                 var pose = views[eye].Pose;
                 var fov = views[eye].Fov;
-                var xrEye = new XrEye(eye, new Vector3(pose.Position.X, pose.Position.Y, pose.Position.Z),
-                    new Quaternion(pose.Orientation.X, pose.Orientation.Y, pose.Orientation.Z, pose.Orientation.W),
-                    new EyeFov(fov.AngleLeft, fov.AngleRight, fov.AngleUp, fov.AngleDown));
-                var (width, height) = DrawEye(eye, xrEye, drawEye);
+                var (width, height) = DrawEye(eye, _eyes[eye], drawEye);
                 projection[eye] = new CompositionLayerProjectionView
                 {
                     Type = StructureType.CompositionLayerProjectionView,

@@ -24,5 +24,24 @@
     // Seconds to close in, and to open up again.
     "riseSeconds": 0.12,
     "fallSeconds": 0.35
+  },
+
+  // The HUD and the menus in the headset (T36): the flat screen's own drawing, on a panel floating `distance` metres
+  // ahead of the head, `width` metres across and `drop` below the eyes. It moves with the head, but only turns once
+  // the head's looked `followDegrees` off it, then eases round over about `followSeconds`: a panel pinned to the face
+  // makes people sick, one that waits can be glanced at. The HUD's is lower and nearer; the menus' is straight ahead.
+  "hud": {
+    "distance": 1.6,
+    "width": 1.8,
+    "drop": 0.2,
+    "followDegrees": 25,
+    "followSeconds": 0.4
+  },
+  "menu": {
+    "distance": 2.0,
+    "width": 2.0,
+    "drop": 0.0,
+    "followDegrees": 35,
+    "followSeconds": 0.6
   }
 }

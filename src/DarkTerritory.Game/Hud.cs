@@ -32,7 +32,9 @@ public static class Hud
     static readonly Vector4 Panel = new(0.02f, 0.02f, 0.03f, 0.55f);
     static readonly Vector4 Track = new(0.25f, 0.24f, 0.22f, 0.9f);
 
-    public static void Build(Overlay o, int width, int height, IPlaySession s)
+    /// <param name="crosshair">The aiming cross at the middle. Not on a headset's panel (T36): it lags the head, which
+    /// does the aiming, so a cross on it would point somewhere else.</param>
+    public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true)
     {
         o.Clear();
         int line = o.Font.LineHeight;
@@ -48,7 +50,7 @@ public static class Hud
             o.TextCentred(width / 2f, height - 42, prompt, Ink);
         }
         Night(o, height, s, line);
-        if (p.Alive)
+        if (p.Alive && crosshair)
         {
             // A small cross, for aiming and for "what am I looking at".
             float cx = width / 2f, cy = height / 2f;

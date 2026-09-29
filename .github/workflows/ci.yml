@@ -46,6 +46,11 @@ jobs:
         run: |
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- vr check --frames 30 --out out/shots/vr.png | tee out/vr.json
           jq -e '.headset and .framesRendered == 30 and (.states | index("Exiting"))' out/vr.json
+          # The HUD and the menus on their panels in both eyes (T36).
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- vr check --frames 20 --hud --out out/shots/vr-hud.png | tee out/vr-hud.json
+          jq -e '.framesRendered == 20 and (.overlayVertices | all(. > 1000))' out/vr-hud.json
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- vr check --frames 20 --menu title --out out/shots/vr-menu.png | tee out/vr-menu.json
+          jq -e '.framesRendered == 20 and (.overlayVertices | all(. > 1000))' out/vr-menu.json
       - name: Prototype window smoke test (Xvfb + lavapipe)
         if: runner.os == 'Linux'
         run: xvfb-run -a -s "-screen 0 1280x720x24" dotnet run --project src/DarkTerritory.App -c Release --no-build -- --route frontier:7 --throttle 1 --quit-after 10 --capture out/shots/app.png

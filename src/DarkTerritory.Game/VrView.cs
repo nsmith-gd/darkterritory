@@ -9,17 +9,18 @@ namespace DarkTerritory.Game;
 /// The game in a headset (T21, roadmap M4): an OpenXR session, a renderer per eye, and the flat camera as the
 /// player's body. The eyes sit where the flat camera's eye point is, turned to its yaw; the head supplies the rest.
 /// Both eyes draw the same mesh (it's built around the body's eye point), each from its own few centimetres off it.
+/// A panel (the HUD, the menus: <see cref="VrPanel"/>) is projected into each eye's overlay, under the vignette.
 /// </summary>
 public sealed class VrView : IDisposable
 {
     readonly GreyboxRenderer[] _eyes;
     readonly Camera[] _last = new Camera[2];
-    readonly Overlay[] _vignettes = [new(), new()];
+    readonly Overlay[] _overlays = [new(), new()];
     readonly Overlay?[] _lastOverlay = new Overlay?[2];
     Camera _lastBody;
     XrControllerState _lastControllers;
     readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
-    double _lastFrame;
+    double _lastFrame, _lastPanel;
 
     VrView(XrHeadset headset, GpuContext gpu, XrStereoSession session)
     {
@@ -56,7 +57,8 @@ public sealed class VrView : IDisposable
     /// <param name="mesh">The scene, built round <paramref name="body"/>'s eye point. The hands are added to it for the
     /// eyes and taken off again, so it comes back as it went in.</param>
     /// <param name="comfort">The player's turning and comfort vignette: stepped with this frame's controllers and head.</param>
-    public XrFrameResult Frame(MeshBuilder mesh, in Camera body, in FrameLighting lighting, Vector3 clear, VrLocomotion? comfort = null)
+    /// <param name="panel">What's on the floating panel this frame (the HUD, a menu), if anything.</param>
+    public XrFrameResult Frame(MeshBuilder mesh, in Camera body, in FrameLighting lighting, Vector3 clear, VrLocomotion? comfort = null, VrPanelContent? panel = null)
     {
         var b = body;
         var light = lighting;
@@ -73,8 +75,19 @@ public sealed class VrView : IDisposable
             _lastControllers = controllers;
             int scene = mesh.Count;
             VrHands.Build(mesh, b, controllers);
+            // The eyes are this frame's by now, so the panel sits still in the world while the head moves.
+            double now = _clock.Elapsed.TotalSeconds;
+            panel?.Panel.Follow(Session.HeadPosition, Session.Head, Math.Clamp(now - _lastPanel, 0, 0.1));
+            _lastPanel = now;
             for (int i = 0; i < 2; i++)
-                _eyes[i].Prepare(mesh, _lastOverlay[i] = Vignette(i, comfort));
+            {
+                var overlay = _overlays[i];
+                overlay.Clear();
+                if (panel is { } p)
+                    p.Panel.Project(p.Overlay, p.Width, p.Height, Session.Eyes[i].From(b), b.Yaw, Session.EyeWidth, Session.EyeHeight, overlay);
+                Vignette(i, comfort, overlay);
+                _eyes[i].Prepare(mesh, _lastOverlay[i] = overlay.Count > 0 ? overlay : null);
+            }
             mesh.Truncate(scene);
         });
         if (result is XrFrameResult.Rendered or XrFrameResult.Skipped)
@@ -87,26 +100,22 @@ public sealed class VrView : IDisposable
     }
 
     /// <summary>The comfort vignette for an eye, centred where it looks straight ahead (towards the nose, not mid-image).</summary>
-    Overlay? Vignette(int eye, VrLocomotion? comfort)
+    void Vignette(int eye, VrLocomotion? comfort, Overlay into)
     {
         if (comfort is not { Vignette: > 0.01f })
-            return null;
+            return;
         float w = Session.EyeWidth, h = Session.EyeHeight;
-        float cx = w / 2, cy = h / 2;
-        if (_last[eye].Fov is { } f)
-        {
-            float l = MathF.Tan(f.Left), r = MathF.Tan(f.Right), u = MathF.Tan(f.Up), d = MathF.Tan(f.Down);
-            cx = w * -l / (r - l);
-            cy = h * u / (u - d);
-        }
-        var overlay = _vignettes[eye];
-        overlay.Clear();
-        overlay.Vignette(w, h, cx, cy, comfort.Tuning.Vignette.Inner, comfort.Vignette);
-        return overlay;
+        var f = Session.Eyes[eye].Fov;
+        float l = MathF.Tan(f.Left), r = MathF.Tan(f.Right), u = MathF.Tan(f.Up), d = MathF.Tan(f.Down);
+        float cx = r > l ? w * -l / (r - l) : w / 2, cy = u > d ? h * u / (u - d) : h / 2;
+        into.Vignette(w, h, cx, cy, comfort.Tuning.Vignette.Inner, comfort.Vignette);
     }
 
     /// <summary>The camera each eye last drew with.</summary>
     public Camera LastEye(int eye) => _last[eye];
+
+    /// <summary>Overlay vertices each eye last drew (the panel and the vignette), for the headless check.</summary>
+    public int OverlayVertices(int eye) => _lastOverlay[eye]?.Count ?? 0;
 
     /// <summary>
     /// Both eyes side by side, as RGBA, drawn again as they last were, hands and vignette too (for screenshots and tests).
@@ -140,3 +149,6 @@ public sealed class VrView : IDisposable
         Headset.Dispose();
     }
 }
+
+/// <summary>What's on a headset panel this frame: an overlay as drawn for the flat screen, the size it was drawn at, and the panel.</summary>
+public readonly record struct VrPanelContent(VrPanel Panel, Overlay Overlay, float Width, float Height);

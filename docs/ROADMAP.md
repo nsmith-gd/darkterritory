@@ -157,10 +157,14 @@ Remaining for M2:
   - the cab's regulator, brake and reverser move with the hand;
   - ladders climb hand over hand;
   - all of it through the same intent as a keyboard (`player.json` `hand`).
+- **The HUD and menus in the headset (T36):**
+  - the flat HUD and the front end on a panel ahead, projected into both eyes at a real depth;
+  - it follows the head lazily, and there's no crosshair on it;
+  - the menus work from the controllers;
+  - `dt vr check --hud` / `--menu title` show them.
 
 Remaining for M4:
 - two-handed grips (the winch, heavy crates)
 - body IK
-- the HUD in the headset
 - multiview
 - the exit test on a real Quest and SteamVR
