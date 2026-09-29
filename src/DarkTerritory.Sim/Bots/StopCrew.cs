@@ -137,8 +137,11 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
         var room = WithRoom(train).Select(v => v.Id).ToHashSet();
         if (room.Count == 0)
             return false;
+        // A heavy crate only while two have it up, or once it's down inside a car (T43): bots don't take one yet, so one
+        // lying at the site, or held by one waiting for a hand, doesn't keep the train.
         return world.Bodies.All.Any(b => b.Kind == Physics.BodyKind.Cargo
-            && (b.Carrier >= 0 || room.Contains(b.Parent) && Inside(train, b) || Loose(world, b)));
+            && (b.Carrier >= 0 || room.Contains(b.Parent) && Inside(train, b) || Loose(world, b))
+            || b.Kind == Physics.BodyKind.Heavy && (b.Lifted || room.Contains(b.Parent) && Inside(train, b)));
     }
 
     /// <summary>

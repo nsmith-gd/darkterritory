@@ -258,9 +258,9 @@ public sealed class PrototypeSession : IPlaySession
             return " — nothing here to load";
         var parts = new List<string>();
         if (site.Has(ModuleKind.Crates))
-            parts.Add("crates on the platform: carry them into the cars");
+            parts.Add(site.HeavyStack.Length > 0 ? "crates on the platform: carry them into the cars (the big ones take two)" : "crates on the platform: carry them into the cars");
         if (site.Has(ModuleKind.Winch))
-            parts.Add(site.SledsLeft == 0 ? "the winch is done" : site.Turning ? $"winch HAULING {site.Progress * 100:0}%" : $"winch: two on the capstan ({site.SledsLeft} sleds)");
+            parts.Add(site.SledsLeft == 0 ? "the winch is done" : site.Turning ? $"winch HAULING {site.Progress * 100:0}%" : site.OutOfRhythm ? "winch STALLED: out of rhythm" : $"winch: two on the capstan ({site.SledsLeft} sleds)");
         return " — " + string.Join(", ", parts);
     }
 

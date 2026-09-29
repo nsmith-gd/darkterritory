@@ -68,6 +68,10 @@ M3 is done but for a test with eight people.
 **Designer tools (level editor v1):**
 - `dt edit` opens a local editor page for every tuning and sound value. Edits keep the comments, are validated, and are hot-reloaded by the running game.
 - A route editor: generate, see the plan and profile, edit the features, save, and play with `--route-file`.
+- **v2 (T44), M5's "module + rail + tuning":**
+  - the track itself, piece by piece (length, curve, grade);
+  - each facility's own loading modules (crates, the winch), or its kind's;
+  - the facilities', the Vigil's and the campaign's tuning too.
 
 **Physics:**
 - Crates, lamps and crewmates' bodies, host-simulated in car frames.
@@ -183,8 +187,12 @@ Remaining for M2:
   - the menus work from the controllers;
   - `dt vr check --hud` / `--menu title` show them.
 
+- **Two to lift, two to turn (T43):**
+  - the winch's cranks go round with the hand, at most at the keyboard's pace;
+  - the drum stalls when the two are out of rhythm (spec D.2);
+  - heavy crates take one at each end, and a headset's end takes both hands.
+
 Remaining for M4:
-- two-handed grips (the winch, heavy crates)
 - body IK
 - multiview
 - the exit test on a real Quest and SteamVR

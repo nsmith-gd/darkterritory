@@ -129,7 +129,7 @@ public sealed class ClientSession
         _quantise.Clear();
         _quantise.Add(new PlayerSnapshot(PlayerId ?? 0, Predicted));
         WorldRecords.Quantise(World, ref Controls, _quantise);
-        Predicted = _quantise[0].State with { Hand = Predicted.Hand };
+        Predicted = _quantise[0].State with { Hand = Predicted.Hand, OtherHand = Predicted.OtherHand };
     }
 
     readonly List<PlayerSnapshot> _quantise = new();

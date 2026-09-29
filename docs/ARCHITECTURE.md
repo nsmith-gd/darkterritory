@@ -860,3 +860,39 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - trying a different voice after a decay (it's a new spawn instead);
       - a radio lying on the floor as a way in (GDD §32 open question 4: the corrupted on the radio);
       - its own sound for the moment it takes someone.
+45. **Editor v2: the rail and the modules (T44, roadmap M5 "simple editor (module + rail + tuning)").**
+    - **Rail.** The routes page has a track table: the line from the fortress, piece by piece (length, curve radius, grade), with pieces added after any other or taken out. Preview redraws the plan and the profile.
+      - Save refuses track that can't be laid: a piece with no length, or a curve tighter than the generator lays on any tier (the least `minRadius` in `route.json`, 250 m today; the page shows it).
+      - Branches (dead lines, spurs) still come with the features. Moving a junction feature moves where the generator put its branch the next time it's generated, not the saved branch: that's the next step.
+    - **Modules.** A facility can have its own loading modules (`RouteFeature.Modules`: "crates", "winch"). Unset, it has its kind's (`facilities.json` `kinds`), which is all any facility had before.
+      - The page shows each facility's kind's set, faint, until one's ticked. Then that facility has its own set, which can be reset to its kind's.
+      - `FacilityTuning.ModulesOf(feature)` is what the run lays out from.
+      - The route model keeps them as names, so it doesn't depend on the run's types. Preview and save both refuse a name that isn't a module, and modules on anything but a facility.
+    - **Tuning.** `facilities.json`, `vigil.json` and `campaign.json` are editable now, each checked against its record on every edit like the rest. `vr.json` and `look.json` are the game's, which the editor doesn't reference.
+    - **Verified:** `EditorTests`:
+      - the new files are listed;
+      - a facility given crates only, with the third piece of track bent the other way and steeper, previews differently, saves, and lays out exactly crates when played;
+      - unknown modules and a curve a metre tighter than any tier lays are refused, and nothing is written.
+      - `dt edit --screenshot` shows both tables.
+46. **Two to lift, two to turn (T43, spec D.2, roadmap M4 "two-handed grips").**
+    - **The winch's cranks.** The drum lies along the track between two cranks, half a turn apart (`facilities.json` `winch.crank`). Each manned crank has a pace:
+      - a keyboard holding E, the crank's own (0.5 turns a second, which hauls at the winch's `speed` as before);
+      - a reaching hand (VR), how fast it goes round the crank's circle: forward only, smoothed over 0.25 s, and no faster than the crank's pace. A headset is no stronger than a keyboard, as with the shovel (T29).
+      - The drum goes at the slower crank's pace, and stalls when one is below `inRhythm` (0.6) of the other. That's D.2's "desync stalls it", and D.3's "two people out of rhythm".
+      - A hand is on a crank anywhere within grab of the circle its grip goes round, not only at the grip. The drum's angle reaches a client a snapshot late, so a hand following the drawn grip lags it; the circle doesn't care.
+      - **Ambiguity:** on the keyboard, holding E is always in rhythm, so two keyboards never desync; the stall comes from letting go, or from a headset out of step. A keyboard rhythm (strokes on a beat) is the obvious next step if play-tests want the failure on flat screens too.
+    - **Heavy crates (D.2 "heavy items need two").** A few per crate stack (`crates.heavy`: 1–2, each half a car's load), set apart from the stack so a hand reaching for a light one doesn't get one.
+      - One on it holds an end: it stays where it lies, you're slowed, and you let go by walking off. The other end taken, it rides between the two carriers' hands in the first one's frame, both at the heavy pace. Either lets go, or they get more than `span` (2.4 m) apart, and it's down. Nobody throws one.
+      - Put down inside a cargo car, it's stowed like a crate.
+      - `Body.Second` is the other carrier, replicated in the body record.
+    - **Both hands (VR).** The intent carries the other hand as well as the reaching one when it's tracked (`PlayerIntent.Other*`, a flag byte and three more centimetre shorts on the wire). A headset takes its end of a heavy crate only with both hands on it. Nothing else reads the other hand yet.
+    - **Bots** don't take heavy crates yet (T45). One lying at the site, or held by one waiting for a hand, doesn't keep the train; one up between two, or put down in a car, does.
+    - **Verified:** `TwoHandedTests`:
+      - a hand going round at the crank's pace hauls as a keyboard does, and faster hauls no faster;
+      - 0.8 of the pace goes at 0.8; much slower, backwards or still stalls it, out of rhythm;
+      - a hand off the circle or on the axle isn't on the crank;
+      - a heavy crate held by one stays put; taken by two, it goes between them at the heavy pace; dropped by either, or pulled apart, it's down;
+      - carried into a car together, it's loaded as half a car;
+      - a headset with one hand on it can't take it, with both it can;
+      - a client sees the drum's angle, the stall and both carriers.
+      - `dt screenshot --site --crank` shows the cranks; CI keeps `site-crank.png`.

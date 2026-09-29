@@ -509,7 +509,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // Down its spur, the engine up at the buffer stop (T28); on the main line for one without.
             at = site.Spur >= 0 ? line.Branches[site.Spur].End - 0.5 : (site.Feature.Start + site.Feature.End) / 2 + 45;
             run.Mirror(DarkTerritory.Sim.Run.RunPhase.AtFacility, DarkTerritory.Sim.Run.RunEnd.None, 900, site.Index, false,
-                [.. Enumerable.Repeat(0.0, run.FacilityCount)], [.. run.Sites.Select(x => (true, x == site ? 0.45 : 0, x?.SledsLeft ?? 0, x == site))]);
+                [.. Enumerable.Repeat(0.0, run.FacilityCount)], [.. run.Sites.Select(x => new DarkTerritory.Sim.Run.SiteState(true, x == site ? 0.45 : 0, x?.SledsLeft ?? 0, x == site, false, x == site ? 0.7 : 0))]);
         }
     }
     // --junction i: at a branch's points (T27), [--diverge] set for the branch, [--through] and the train run in onto it.
@@ -567,6 +567,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var shelf = new DarkTerritory.Sim.Physics.Bodies();
         foreach (var crate in site.CrateStack)
             shelf.SpawnCargo(crate - Double3.Up * 0.15, site.CrateLineHint);
+        foreach (var crate in site.HeavyStack)
+            shelf.SpawnCargo(crate, site.CrateLineHint, site.HeavyRadius);
         cargo = [.. shelf.All];
         if (Str(args, "--cam", "") is not { Length: > 0 })
         {
@@ -575,7 +577,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 // Out beyond the sled, a little along the line, looking back at the capstan and the train.
                 var outward = (site.SledFrom - site.SledTo).Normalized;
                 var along = (site.Handles[1] - site.Handles[0]).Normalized;
-                camera = Camera.LookAt(site.Sled + outward * 9 + along * 7 + Double3.Up * 3.2, site.Capstan + Double3.Up * 1.2, 70);
+                camera = args.Contains("--crank")
+                    // Close on the drum and its two cranks (T43), from the far side of it from the track.
+                    ? Camera.LookAt(site.Capstan + outward * 3.2 + along * 2.2 + Double3.Up * 1.9, site.Capstan + Double3.Up * 0.8, 70)
+                    : Camera.LookAt(site.Sled + outward * 9 + along * 7 + Double3.Up * 3.2, site.Capstan + Double3.Up * 1.2, 70);
             }
             else
             {
@@ -795,7 +800,7 @@ static int Usage()
                      [--route tier:seed [--coaling]]   a generated night; --coaling stops at its coaling tower, chute pouring
                      [--bodies]   crates, a lamp and a crewmate's body on the roofs, settled by the physics
                      [--vigil]    emergency lighting, as during a Vigil (spec C.2)
-                     [--route tier:seed --site]   stopped at a facility: crates out, the winch sled part-hauled (spec D)
+                     [--route tier:seed --site [--crank]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           screenshot --menu title|slots|fortress|upgrades|quickNight|join|settings [--down n] [--saves dir]
                      a screen of the front end over the yard, as the game draws it

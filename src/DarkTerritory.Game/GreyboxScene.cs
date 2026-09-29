@@ -112,8 +112,12 @@ public sealed class GreyboxScene
                 if (!e.Gone)
                     DrawEnemy(mesh, line, frames, e, eye, from, to);
         if (Bodies is not null)
+        {
+            // Heavy crates only come from a facility's site, so its size is there (facilities.json "heavy").
+            double heavyHalf = Run?.Sites.FirstOrDefault(x => x is not null)?.HeavyRadius ?? 0.5;
             foreach (var b in Bodies)
-                DrawBody(mesh, frames, b, eye);
+                DrawBody(mesh, frames, b, eye, heavyHalf);
+        }
         if (Crew is not null)
             foreach (var c in Crew)
                 if (c.Alive) // the dead are drawn as their bodies
@@ -124,7 +128,8 @@ public sealed class GreyboxScene
         b.Parent == Sim.Player.PlayerState.World ? local : b.Parent < frames.Count ? frames[b.Parent].ToWorld(local) : null;
 
     /// <summary>Crates and lamps as boxes turned by their yaw; a body as bones between its joints.</summary>
-    static void DrawBody(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye)
+    /// <param name="heavyHalf">A heavy crate's half-size, its body's radius (a client's stand-in bodies don't carry their radius).</param>
+    static void DrawBody(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, double heavyHalf)
     {
         var up = b.Parent == Sim.Player.PlayerState.World || b.Parent >= frames.Count ? Double3.Up : frames[b.Parent].Up;
         double heading = b.Parent == Sim.Player.PlayerState.World || b.Parent >= frames.Count ? 0 : frames[b.Parent].Heading;
@@ -142,6 +147,18 @@ public sealed class GreyboxScene
                 mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.44f, 0.44f, 0.44f), Palette.BlueGrey);
                 mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.45f, 0.05f, 0.45f), Palette.SootBlack);
                 mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.05f, 0.45f, 0.45f), Palette.SootBlack);
+            }
+            else if (b.Kind == Sim.Physics.BodyKind.Heavy)
+            {
+                // Two-man freight (T43): a long iron-banded case with a rope grip at each end, so it reads as one for two.
+                float h = (float)heavyHalf;
+                mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(h * 1.3f, h * 0.8f, h * 0.8f), Palette.RustRed * 0.8f);
+                mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(h * 1.31f, 0.05f, h * 0.81f), Palette.IronGrey);
+                foreach (float end in new[] { -1f, 1f })
+                {
+                    mesh.Box(V(at, eye) + right * (end * h * 1.1f), right, ToF(up), back, new Vector3(0.05f, h * 0.81f, h * 0.81f), Palette.IronGrey);
+                    mesh.Box(V(at, eye) + right * (end * (h * 1.3f + 0.06f)) + ToF(up) * (h * 0.3f), right, ToF(up), back, new Vector3(0.05f, 0.03f, 0.18f), Palette.DeepBrown);
+                }
             }
             else if (b.Kind == Sim.Physics.BodyKind.Crate)
             {
@@ -640,21 +657,41 @@ public sealed class GreyboxScene
     {
         if (!site.Has(Sim.Run.ModuleKind.Winch))
             return;
-        var drum = site.Capstan;
-        mesh.Box(V(drum + Double3.Up * 0.5, eye), Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, new Vector3(0.45f, 0.5f, 0.45f), Palette.IronGrey);
-        foreach (var h in site.Handles)
+        // The drum on its trestle, lying along the track between the cranks, turned by the crank's angle (T43).
+        var axis = ToF(site.Axis);
+        var outward = ToF(site.Outward);
+        var hub = site.Capstan + Double3.Up * 0.9;
+        float half = (float)((site.Handles[1] - site.Handles[0]).Length * 0.5) - 0.15f;
+        foreach (float end in new[] { -1f, 1f })
+            mesh.Box(V(site.Capstan + site.Axis * (end * (half - 0.05f)) + Double3.Up * 0.45, eye), axis, Vector3.UnitY, outward, new Vector3(0.05f, 0.45f, 0.35f), Palette.DeepBrown);
+        var turn = new Vector3(0, (float)Math.Sin(site.Crank), 0) + outward * (float)Math.Cos(site.Crank);
+        var turnUp = Vector3.Cross(axis, turn);
+        mesh.Box(V(hub, eye), axis, turn, turnUp, new Vector3(half - 0.1f, 0.22f, 0.22f), Palette.IronGrey);
+        mesh.Box(V(hub, eye), axis, turn, turnUp, new Vector3(half - 0.3f, 0.235f, 0.06f), Palette.DeepBrown);
+        for (int i = 0; i < site.Handles.Length; i++)
         {
-            var arm = (h - drum) with { Y = 0 };
-            var mid = drum + arm * 0.5 + Double3.Up * 0.9;
-            var dir = arm.Normalized;
-            mesh.Box(V(mid, eye), ToF(dir), Vector3.UnitY, ToF(Double3.Cross(dir, Double3.Up)), new Vector3((float)arm.Length * 0.5f, 0.04f, 0.04f), Palette.TarnishedBrass);
+            // Each crank: an arm from the hub out to its grip, and the grip sticking out from the drum's end.
+            var h = site.Handles[i];
+            var grip = site.Grip(i);
+            var arm = grip - h;
+            var dir = ToF(arm.Normalized);
+            var side = Vector3.Cross(axis, dir);
+            // Brass, worn bright by hands, so the crank reads in the dark as the thing to take hold of.
+            mesh.Box(V(h + arm * 0.5, eye), dir, side, axis, new Vector3((float)arm.Length * 0.5f + 0.04f, 0.035f, 0.025f), Palette.TarnishedBrass);
+            float outOf = i == 0 ? -1 : 1;
+            mesh.Box(V(grip + site.Axis * (outOf * 0.12), eye), axis, dir, side, new Vector3(0.12f, 0.035f, 0.035f), Palette.TarnishedBrass * 1.3f);
         }
+        var drum = site.Capstan;
         var sled = site.Sled;
         var rope = sled - drum;
-        if (rope.Length > 0.5)
+        // The rope comes off the top of the drum and down to the sled.
+        var from = hub + Double3.Up * 0.22;
+        var line = sled + Double3.Up * 0.3 - from;
+        if (line.Length > 0.5)
         {
-            var dir = rope.Normalized;
-            mesh.Box(V(drum + rope * 0.5 + Double3.Up * 0.3, eye), ToF(dir), Vector3.UnitY, ToF(Double3.Cross(dir, Double3.Up)), new Vector3((float)rope.Length * 0.5f, 0.02f, 0.02f), Palette.DeepBrown);
+            var dir = line.Normalized;
+            var ropeSide = Double3.Cross(dir, Double3.Up).Normalized;
+            mesh.Box(V(from + line * 0.5, eye), ToF(dir), ToF(Double3.Cross(ropeSide, dir)), ToF(ropeSide), new Vector3((float)line.Length * 0.5f, 0.02f, 0.02f), Palette.DeepBrown);
         }
         if (site.SledsLeft > 0)
         {

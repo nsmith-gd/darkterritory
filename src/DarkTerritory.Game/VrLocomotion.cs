@@ -175,9 +175,12 @@ public sealed class VrLocomotion(VrTuning tuning)
         _leftWas = c.Left.Grip;
         _rightWas = c.Right.Grip;
         var hand = _leftReaches ? c.Left : c.Right;
+        var other = _leftReaches ? c.Right : c.Left;
         if (hand.Tracked)
         {
-            intent.Reach(Reach(hand.Position, BodyYaw - (self.Yaw + intent.LookYaw)));
+            // The other hand goes too (T43): a heavy crate's end takes both.
+            double turn = BodyYaw - (self.Yaw + intent.LookYaw);
+            intent.Reach(Reach(hand.Position, turn), other.Tracked ? Reach(other.Position, turn) : null);
             if (self.Surface == Surface.Ladder && hand.Grip && ladderClimb > 0)
             {
                 // Hand over hand: the hand stays on its rung while the body goes up past it. Pushing the hand up

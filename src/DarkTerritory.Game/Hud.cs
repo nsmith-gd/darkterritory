@@ -201,7 +201,14 @@ public static class Hud
         if (!p.Alive)
             return null;
         if (world.Bodies.CarriedBy(s.PlayerId) is { } carried)
-            return carried.Kind == BodyKind.Cargo ? "INTO A CAR TO LOAD IT: [E] PUT DOWN   [RMB] THROW" : "[E] PUT DOWN   [RMB] THROW";
+            return carried.Kind switch
+            {
+                // Spec D.2 "heavy items need two" (T43).
+                BodyKind.Heavy when !carried.Lifted => "HOLDING AN END: IT NEEDS TWO   [E] LET GO",
+                BodyKind.Heavy => "TOGETHER, INTO A CAR: [E] PUT IT DOWN",
+                BodyKind.Cargo => "INTO A CAR TO LOAD IT: [E] PUT DOWN   [RMB] THROW",
+                _ => "[E] PUT DOWN   [RMB] THROW",
+            };
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is not null)
             return p.Has(PlayerFlags.Revived) ? "NO GUNS UNTIL THE NEXT STOP"
                 : world.EmergencyLights || train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM FOR THE TURRET"
@@ -230,11 +237,14 @@ public static class Hud
                 return "[E] DOOR";
         }
         bool wearing = world.Bodies.RadiosCarried && world.Bodies.HasRadio(s.PlayerId);
-        if (world.Bodies.InReach(p, train, hand, wearing) is { } thing)
+        if (world.Bodies.InReach(p, train, hand, wearing, s.PlayerId) is { } thing)
             return thing.Kind switch
             {
                 BodyKind.Ragdoll => "[E] PICK UP THE BODY",
                 BodyKind.Radio => "[E] TAKE THE RADIO",
+                // A reaching hand takes its end with both hands on it (T43).
+                BodyKind.Heavy when thing.Carrier >= 0 => p.Hand != default ? "BOTH HANDS ON IT: TAKE THE OTHER END" : "[E] TAKE THE OTHER END",
+                BodyKind.Heavy => p.Hand != default ? "HEAVY: BOTH HANDS ON AN END (IT NEEDS TWO)" : "[E] TAKE AN END (IT NEEDS TWO)",
                 _ => "[E] PICK UP",
             };
         if (world.Run?.LeverInReach(p, train, hand) == true)
@@ -248,7 +258,10 @@ public static class Hud
                 : $"[E] HOLD: THROW THE SWITCH TO {to}";
         }
         if (world.Run?.HandleInReach(p, train, hand) is not null && world.Run.CurrentSite is { } site)
-            return site.Turning ? "[E] HOLD: CRANK. KEEP TOGETHER" : "[E] HOLD: CRANK (IT NEEDS TWO)";
+            // A headset turns the crank round with the hand (T43); out of rhythm, the drum stalls (spec D.2).
+            return site.OutOfRhythm ? "OUT OF RHYTHM: MATCH THE OTHER CRANK"
+                : p.Hand != default ? site.Turning ? "CRANK: OVER THE TOP, TOWARDS THE TRACK. KEEP TOGETHER" : "CRANK: OVER THE TOP, TOWARDS THE TRACK (IT NEEDS TWO)"
+                : site.Turning ? "[E] HOLD: CRANK. KEEP TOGETHER" : "[E] HOLD: CRANK (IT NEEDS TWO)";
         if (CabControls.CanDrive(p, train))
             return "[R/F] REGULATOR   [B] BRAKE   [X] REVERSER";
         return null;

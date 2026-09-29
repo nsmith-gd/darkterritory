@@ -405,7 +405,7 @@ public sealed class HostSession
             if ((e.WorldPosition(Train) - at).Length > InterestRadius)
                 _far.Add(WireRecord.MakeKey(RecordKind.Enemy, e.Id));
         foreach (var b in World.Bodies.All)
-            if (b.Carrier != c.Id && (Physics.Bodies.WorldCentre(b, Train) - at).Length > InterestRadius)
+            if (!b.HeldBy(c.Id) && (Physics.Bodies.WorldCentre(b, Train) - at).Length > InterestRadius)
                 _far.Add(WireRecord.MakeKey(RecordKind.Body, b.Id));
         if (_far.Count == 0)
             return records;
