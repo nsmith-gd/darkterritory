@@ -22,7 +22,7 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
 - **Boiler, walkable cab and resistance:** spec B.6 is pinned.
 - **Rakes:** cutting, coupling and collision damage.
 - **Procedural routes:** tiers, facilities, tunnels, bridges, and hazards as level content.
-- **Procedural line v1 (M5, docs/design/linegen-plan.md):** every night's line comes from the line generator: a route graph with alternates, dead lines and facility spurs, set pieces scripted to a budget curve, clothoid alignment and a vertical profile, a terrain field the players stand on, authority and its tells (boards, Form 19, the route card), director context, and validation by driving it on the real train sim. `dt linegen generate|sweep|debug|bench`; `C` shows the route card, `F3` the overlay, `--ride` rides a line. ARCHITECTURE §6.10 and §8 note 59.
+- **Procedural line v1 (M5, docs/design/linegen-plan.md):** every night's line comes from the line generator: a route graph with alternates, dead lines and facility spurs, set pieces scripted to a budget curve, clothoid alignment and a vertical profile, a terrain field the players stand on, authority and its tells (boards, Form 19, the route card), director context, and validation by driving it on the real train sim. `dt linegen generate|sweep|debug|bench`; `C` shows the route card, `F3` the overlay, `--ride` rides a line. ARCHITECTURE §6.10 and §8 note 62.
 - **Play a night:** `DarkTerritory -- --route frontier:7` runs one, enemies and all (`--no-enemies` for a quiet line). The HUD prints text cues for the telegraphs until there's audio.
 - **Guns and the Choir:** two mounted guns with real arcs, and the Choir's global aggro.
 - **Demo roster and director (M5's "5 demo enemies"):**
@@ -126,6 +126,11 @@ M3 is done but for a test with eight people.
   - reaching it, they smash the lamp (out for 45 s) and go for the cab;
   - lamps down (L in the cab) and they lose track, but then the Sleepers only show close: the driver bot slows down in the dark;
   - `dt screenshot --threats` shows one.
+- **The Ferryman (T56, App. A.2):**
+  - a lantern on a long straight ahead, waving the train down, seen from far out;
+  - slow for it and it comes down the line, boards and kills whoever's driving; hold your speed and it steps aside for good;
+  - the driver bot holds its speed past it, even with the lamps down;
+  - `dt screenshot --threats` shows one.
 - **The Switchman (T37, App. A.7):**
   - it throws a junction ahead for its dead line: the lamp reads wrong, and a figure with a lantern stands at the stand;
   - it flees anyone on the ground, but chasing it off doesn't set the switch back;
@@ -136,6 +141,7 @@ M3 is done but for a test with eight people.
 - Manual crates you carry into the cars (heavy: slow, no climbing).
 - A capstan winch that needs two on it.
 - A gantry crane at the foundry (T48): one up in the cab drives it, one on the ground rigs the castings, a casting set down on a car's roof is loaded, and one let go of high kills whoever's under it. `dt screenshot --site --crane`.
+- Crew bots run it (T54): the winch pair, one at the controls and one rigging, before the winch; `dt harness` counts the castings loaded at each stop.
 - Cars leave the fortress half full, so the facilities are where the money is.
 - Every facility but the coaling tower is down a spur that takes the engine and four cars. Cut the rest, run the empties in, load, back out and recouple, set the switch back, go. The night autosaves as you leave.
 - `dt facility drill` plays the sequence headless; `dt screenshot --site` shows a stop.
@@ -151,6 +157,11 @@ M3 is done but for a test with eight people.
 - Folders in `mods/` (or app data) laid over `content/`: they add files, replace them, or `$patch` a JSON file one key at a time.
 - The game reads the merged copy. The content hash keeps a crew on the same mods, and a refused joiner is told which mods differ.
 - `dt mods` shows what's loaded; `--no-mods` gives the base game.
+
+**Balance sweeps (T55, M7, GDD §34):**
+- `dt balance` runs harness nights over tiers, seeds, crew sizes and train lengths, side by side.
+- It checks "survivable at 2, non-trivial at 8" and fairness, and reports by train length for the progression-cap question.
+- It runs nightly in the soak.
 
 **Art pass v1 (T39, M5's "art pass to style sheet"):**
 - Greybox surfaces are weathered to GDD §27, standing in for textures: blocky grain at 128 px/m, soot fields, rust patches and streaks, a baked shadow low down, and harsh speculars on iron and brass.

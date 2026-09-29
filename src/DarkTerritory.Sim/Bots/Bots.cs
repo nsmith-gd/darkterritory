@@ -131,6 +131,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
         aimed = self;
+        // Warming up means a coupler plate, so it keeps to the gaps no Rattle's in (App. A.5): its client can see them.
+        if (_warm is not null)
+            _warm.Rattled = car => world.ActiveEnemies.Any(e => e is Rattle r && r.Attached == car);
         if (Work(self, world) is { } working)
             return working;
         var train = world.Train;
@@ -341,6 +344,10 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         var lamp = Lamp(world, tick);
         // On a generated line, no faster than its authority allows here (linegen plan §9, §16.1): what the boards say.
         double cruise = world.LampShining ? CruiseSpeed : DarkCruiseSpeed;
+        // A lantern on the line ahead, waving us down (App. A.2): do not slow down. Hold the fastest we've come at it, lamp
+        // or no lamp (the Lamplighters + Ferryman bind: the lantern is its own light); the boards still cap it.
+        if (world.ActiveEnemies.OfType<Ferryman>().FirstOrDefault(f => f.Waving) is { } ferryman)
+            cruise = Math.Max(cruise, ferryman.Extra);
         if (world.TrackPlan is { } plan)
             cruise = Math.Min(cruise, LineGen.LineAuthority.For(plan, train.Line).Allowed(train));
         if (Stops is { } stops)
@@ -574,11 +581,15 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     /// Which plate to drop onto: the one behind this car (this car's own), or in front (the car ahead's), whichever is
     /// nearer and has a car on it; in through that plate's car's rear door. Never the engine's: its cab is the fireman's.
     /// </summary>
+    /// <summary>Whether a Rattle's in the gap behind a vehicle (T54): that end's no way in. Set by the bot, which sees the world.</summary>
+    public Func<int, bool>? Rattled { get; set; }
+
     bool Plan(in PlayerState s, TrainOnLine train)
     {
         int here = s.Parent;
         int behind = train.VehicleBehind(here), ahead = train.VehicleAhead(here);
-        bool back = behind > 0 && Walkable(train, here), front = ahead > 0 && Walkable(train, ahead);
+        bool back = behind > 0 && Walkable(train, here) && Rattled?.Invoke(here) != true;
+        bool front = ahead > 0 && Walkable(train, ahead) && Rattled?.Invoke(ahead) != true;
         if (!back && !front)
             return false;
         bool goBack = back && (!front || s.Position.Z > 0);
@@ -687,11 +698,19 @@ public static class Heed
             return Out(intent, self, train, player, around);
         if (intent.MoveX == 0 && intent.MoveZ == 0)
             return intent;
-        var then = After(self, intent, train, player);
-        if (!rattling.Any(r => r.InGap(then, train)))
-            return intent;
-        return intent with { MoveX = 0, MoveZ = 0 };
+        // A third of a second on, not just the next tick: what its client predicts isn't quite where the host has it (the
+        // lag), and a car's end door opens straight onto the plate.
+        var ahead = self;
+        for (int i = 0; i < SimConstants.TickRate / 3; i++)
+        {
+            PlayerMotor.Step(ref ahead, intent, train, player, train.Dynamics.Tuning, SimConstants.TickSeconds, applyLook: false);
+            var at = PlayerMotor.WorldPosition(ahead, train);
+            if (rattling.Any(r => r.InGap(at, train)))
+                return intent with { MoveX = 0, MoveZ = 0 };
+        }
+        return intent;
     }
+
 
     static Double3 After(in PlayerState self, in PlayerIntent intent, TrainOnLine train, PlayerTuning player)
     {

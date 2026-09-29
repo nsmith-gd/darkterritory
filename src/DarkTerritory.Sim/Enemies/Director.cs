@@ -59,6 +59,7 @@ public sealed class Director
         EnemyKind.Lamplighter => "lamplighters",
         EnemyKind.Deadman => "deadman",
         EnemyKind.Stoker => "stoker",
+        EnemyKind.Ferryman => "ferryman",
         _ => "sleepers",
     }, 2);
 
@@ -153,6 +154,12 @@ public sealed class Director
             && world.CabEmptySeconds >= kt.Stoker.UnattendedSeconds && Zone(PressureZone.Interior) < _t.MaxConcurrentZone
             && !active.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker))
             options.Add((EnemyKind.Stoker, 1));
+        // App. B.2: the Ferryman on the Frontier and beyond, mid-to-late run only, once per run, on a long straight with a clear
+        // sightline, and only with a working forward lamp (not smashed). The train has to be coming on at some speed.
+        if (_route is { } fr && fr.Tier >= RouteTier.Frontier && world.Enemies is { } ft && s >= fr.Length * ft.Ferryman.MidRunFrom
+            && world.LampOutSeconds <= 0 && train.Dynamics.Speed >= ft.Ferryman.MinSpeed && Zone(PressureZone.Forward) < _t.MaxConcurrentZone
+            && !Log.Any(l => l.Kind == EnemyKind.Ferryman) && Ferryman.ClearAhead(world, ft.Ferryman))
+            options.Add((EnemyKind.Ferryman, 1));
         options.RemoveAll(o => Cost(o.Kind) > available);
         // A generated line's director context (linegen plan §15): no spawns under a ban (the grace stretch, the
         // terminus), none of its own while the terrain is already at its hardest there (§15.4), and under the terrain's
@@ -194,7 +201,7 @@ public sealed class Director
         {
             EnemyKind.CinderHound => PressureZone.Rear,
             EnemyKind.Clinger or EnemyKind.Dragger => PressureZone.Flank,
-            EnemyKind.Switchman => PressureZone.Forward,
+            EnemyKind.Switchman or EnemyKind.Ferryman => PressureZone.Forward,
             EnemyKind.SootChildren or EnemyKind.Lamplighter => PressureZone.Structural,
             _ => PressureZone.Interior,
         };

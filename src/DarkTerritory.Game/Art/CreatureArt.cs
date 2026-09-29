@@ -282,6 +282,7 @@ public sealed class CreatureArt
     /// <item>Hollow: the origin is the cab's centre, so it stands 1.35 m below it on the deck. Telegraphing it hasn't come
     /// down yet: soot falls from the stack. Hunting, it stands unnaturally still and reaches.</item>
     /// <item>Switchman: feet at the origin, lantern swinging while it waits; it flees when broken off.</item>
+    /// <item>Ferryman: feet at the origin, lantern swung hard while it waves; aboard (punish) the origin is the cab's centre.</item>
     /// <item>Soot children: three huddled as GreyboxScene places them, facing the basis's −X (the car when they're on
     /// its +X side; turn the basis for the other); they turn their heads up at the doors while they call.</item>
     /// </list>
@@ -452,6 +453,22 @@ public sealed class CreatureArt
                     var at = Matrix4x4.CreateTranslation(0.35f, -1.35f, -0.4f) * model;
                     return Draw(mesh, "crew", "idle", t * 0.2, true, at, variant: 5, seed: 11, adjust: (_, l) => l with { Colour = l.Colour * 0.45f });
                 }
+            case EnemyKind.Ferryman:
+                {
+                    // A railwayman too tall for his coat, lantern raised (App. A.2): the Switchman's figure drawn out taller,
+                    // stood on the line swinging the lantern hard while it waves the train down, lowering it and walking
+                    // when it steps aside. Aboard (the origin is the cab's centre, as the Hollow's), stood on the deck.
+                    bool aboard = phase == SpinePhase.Punish;
+                    var at = Matrix4x4.CreateScale(1.08f, 1.16f, 1.08f) * (aboard ? Matrix4x4.CreateTranslation(0, -1.35f, 0) : Matrix4x4.Identity) * model;
+                    bool waving = phase is SpinePhase.Dormant or SpinePhase.Telegraph;
+                    bool lit = phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish;
+                    // The lantern burns brighter than the Switchman's: it's meant to be seen from far up the line.
+                    if (!Draw(mesh, "switchman", waving || aboard ? "wait" : "flee", waving ? t * 2.2 : t, true, at, glow: lit ? 2.2f : 0.3f, seed: 3))
+                        return false;
+                    if (lit)
+                        mesh.PointLights.Add(new PointLight(BoneAt("switchman", "lantern", at), Palette.LampAmber * 2.2f, 12f));
+                    return true;
+                }
             case EnemyKind.Stoker:
                 // In the firebox: never seen, only its work (the gauge, the wrong glow the scene gives the fire, the hiss).
                 return true;
@@ -475,6 +492,10 @@ public sealed class CreatureArt
             case EnemyKind.Dragger when e.Local.X > 0:
             case EnemyKind.Clinger when e.Local.X < 0:
             case EnemyKind.SootChildren when e.Lateral < 0:
+                m = Matrix4x4.CreateRotationY(MathF.PI) * model;
+                break;
+            case EnemyKind.Ferryman when !((Sim.Enemies.Ferryman)e).Aboard:
+                // Facing down the line at the train coming.
                 m = Matrix4x4.CreateRotationY(MathF.PI) * model;
                 break;
             case EnemyKind.Switchman:

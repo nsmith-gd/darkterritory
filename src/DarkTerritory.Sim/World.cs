@@ -450,6 +450,9 @@ public sealed class World
             case EnemyKind.Stoker:
                 _enemies.Add(Stoker.InFirebox(_nextEnemyId++, Train));
                 break;
+            case EnemyKind.Ferryman:
+                _enemies.Add(Ferryman.Ahead(_nextEnemyId++, Train, d.NextRange(0, 1) < 0.5 ? -1 : 1, t.Ferryman));
+                break;
             case EnemyKind.Lamplighter:
                 // Out in the dark beside the engine, on the side the other isn't (if there's one already).
                 int taken = _enemies.OfType<Lamplighter>().Select(l => l.Side).FirstOrDefault();

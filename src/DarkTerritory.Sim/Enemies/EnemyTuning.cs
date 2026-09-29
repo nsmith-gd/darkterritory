@@ -14,6 +14,31 @@ public sealed record EnemyTuning(
     public LamplighterTuning Lamplighters { get; init; } = new();
     public DeadmanTuning Deadman { get; init; } = new();
     public StokerTuning Stoker { get; init; } = new();
+    public FerrymanTuning Ferryman { get; init; } = new();
+}
+
+/// <summary>The Ferryman (App. A.2, B.2). Field docs live in enemies.json.</summary>
+public sealed record FerrymanTuning
+{
+    public double SpawnAhead { get; init; } = 600;
+    public double WaitLateral { get; init; } = 2.6;
+    public double SlowTolerance { get; init; } = 2.5;
+    public double StepAsideAt { get; init; } = 30;
+    public double StepAsideLateral { get; init; } = 3.5;
+    public double StepSpeed { get; init; } = 3;
+    public double AdvanceSpeed { get; init; } = 5;
+    public double BoardReach { get; init; } = 3;
+    public int StrikeDamage { get; init; } = 100;
+    public double StrikeReach { get; init; } = 20;
+    public double AboardSeconds { get; init; } = 2;
+    public double LoseBehind { get; init; } = 40;
+    public double LingerSeconds { get; init; } = 180;
+    public double MinSpeed { get; init; } = 8;
+    public double MidRunFrom { get; init; } = 0.4;
+    public double StraightRadius { get; init; } = 1500;
+    public double MaxGradePercent { get; init; } = 1;
+    public double ClearPast { get; init; } = 100;
+    public double StopMargin { get; init; } = 600;
 }
 
 /// <summary>The Deadman (App. A.5, B.5). Field docs live in enemies.json.</summary>

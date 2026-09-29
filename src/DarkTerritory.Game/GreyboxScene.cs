@@ -58,6 +58,8 @@ public sealed class GreyboxScene
 
     /// <summary>Depth of the valley under a bridge.</summary>
     const double ValleyDepth = 18;
+    /// <summary>How far past the draw distance the Ferryman's lantern still shows.</summary>
+    const double FarLantern = 1200;
 
     public void Build(MeshBuilder mesh, TrainOnLine train, Double3 eye)
     {
@@ -297,7 +299,20 @@ public sealed class GreyboxScene
         else
         {
             if (e.LineDistance < from || e.LineDistance > to)
+            {
+                // The Ferryman's lantern is "visible from very far out" (App. A.2): past the draw distance, the light alone.
+                if (e is Sim.Enemies.Ferryman { Lantern: true } && e.LineDistance > to && e.LineDistance < to + FarLantern)
+                {
+                    var far = line.Sample(e.LineDistance);
+                    var at = far.Position + Double3.Cross(far.Tangent, Double3.Up).Normalized * e.Lateral + Double3.Up * 1.9;
+                    // A couple of pixels at any range: it grows with distance to stay one.
+                    float size = (float)(0.0025 * (at - eye).Length);
+                    mesh.Emissive = 1;
+                    mesh.Box(V(at, eye), Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, new Vector3(size), Palette.LampAmber * 1.6f);
+                    mesh.Emissive = 0;
+                }
                 return;
+            }
             var t = line.Sample(e.LineDistance);
             right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
             back = t.Tangent * -1;
@@ -383,6 +398,25 @@ public sealed class GreyboxScene
                     mesh.Emissive = 1;
                     Draw(0.32, 0.7, -0.1 + swing, 0.08, 0.1, 0.08, Palette.LampAmber);
                     mesh.Emissive = 0;
+                    break;
+                }
+            case EnemyKind.Ferryman:
+                {
+                    // Tall, in a railwayman's coat, on the line with a lantern raised and swinging (App. A.2). Aboard, it's
+                    // stood on the cab's deck (the origin is the cab's centre).
+                    double y0 = e.Phase == SpinePhase.Punish ? -1.35 : 0;
+                    Draw(0, y0 + 0.5, 0, 0.13, 0.5, 0.13, Palette.SootBlack);
+                    Draw(0, y0 + 1.35, 0, 0.24, 0.4, 0.15, Palette.SootBlack);
+                    Draw(0, y0 + 1.9, 0, 0.13, 0.14, 0.13, Palette.Corrupted);
+                    double swing = e.Phase == SpinePhase.Telegraph ? 0.4 * Math.Sin(e.PhaseSeconds * 4.4) : 0;
+                    Draw(0.34, y0 + 1.9, swing * 0.5, 0.05, 0.3, 0.05, Palette.SootBlack);
+                    if (((Sim.Enemies.Ferryman)e).Lantern)
+                    {
+                        mesh.Emissive = 1;
+                        Draw(0.34, y0 + 2.25, swing, 0.09, 0.11, 0.09, Palette.LampAmber);
+                        mesh.Emissive = 0;
+                        mesh.PointLights.Add(new PointLight(L(0.34, y0 + 2.25, swing), Palette.LampAmber * 1.3f, 9f));
+                    }
                     break;
                 }
             case EnemyKind.Lamplighter:

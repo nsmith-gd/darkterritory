@@ -91,7 +91,8 @@ public sealed class CrewCalls
 
     /// <summary>A site this crew can load at: a winch with the pair for it, or crates with anyone to carry them.</summary>
     public bool CanWork(Site site) => Has(StopJob.Shunter)
-        && (site.Has(ModuleKind.Winch) && site.SledsLeft > 0 && CanWorkWinch || site.Has(ModuleKind.Crates) && site.CrateCount > 0 && CrateHands > 0);
+        && (site.Has(ModuleKind.Winch) && site.SledsLeft > 0 && CanWorkWinch || site.Has(ModuleKind.Crates) && site.CrateCount > 0 && CrateHands > 0
+            || site.Crane is { Left: > 0 } && CanWorkWinch);
 
     /// <summary>Everyone alive with a part at the stop is on one of these vehicles.</summary>
     public bool Riding(IReadOnlyCollection<int> vehicles) =>
@@ -202,7 +203,8 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
 /// <summary>One facility stop as the driver worked it, for the harness report.</summary>
 /// <param name="Legs">Seconds spent on each leg, by name.</param>
 /// <param name="Coal">Coal taken into the tender (a coaling stop).</param>
-public sealed record StopRecord(int Facility, string Kind, double Seconds, int SledsHauled, IReadOnlyDictionary<string, double> Legs, double Coal = 0);
+/// <param name="Castings">Castings the crane put on the cars at this stop (T54).</param>
+public sealed record StopRecord(int Facility, string Kind, double Seconds, int SledsHauled, IReadOnlyDictionary<string, double> Legs, double Coal = 0, int Castings = 0);
 
 /// <summary>
 /// A dead line's switch set against the train (App. A.7, the Switchman's work): its lamp reads wrong from the cab. The
@@ -472,9 +474,11 @@ public sealed class StopDriver(CrewCalls calls)
                 {
                     var p = Plan!;
                     bool winched = !p.Site.Has(ModuleKind.Winch) || p.Site.SledsLeft == 0 || !calls.CanWorkWinch;
+                    // The castings on (T54): the pair on the crane, until there's none left or no room under the gantry.
+                    bool craned = p.Site.Crane is not { } crane || !calls.CanWorkWinch || StopHand.CraneTarget(crane, train) is null;
                     // Crates in, and the doors they went in by shut again: nobody moves a train with its doors open.
                     bool crated = calls.CrateHands == 0 || !p.CratesToLoad(world, calls.HeavyHands) && !p.OpenSideDoors(train).Any();
-                    bool loaded = winched && crated || Waited > LoadingGiveUp;
+                    bool loaded = winched && crated && craned || Waited > LoadingGiveUp;
                     if (loaded && (calls.Riding(EngineRake(train)) || Waited > LoadingGiveUp + AboardGiveUp))
                         Begin(Leg.BackOut);
                     return Hold(world);
@@ -543,7 +547,8 @@ public sealed class StopDriver(CrewCalls calls)
         Begin(Leg.Cruise);
         _done.Add(p.Facility);
         _log.Add(new StopRecord(p.Facility, p.Site.Feature.Facility?.ToString() ?? "", Math.Round(Seconds(_ticks - _stopStart), 1),
-            _sledsAtStart - p.Site.SledsLeft, new Dictionary<string, double>(_legs)));
+            _sledsAtStart - p.Site.SledsLeft, new Dictionary<string, double>(_legs),
+            Castings: p.Site.Crane?.Castings.Count(c => c.State == CastingState.Loaded) ?? 0));
         Plan = null;
     }
 
@@ -683,6 +688,17 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             Doing = "warming";
             return warming;
         }
+        // The gantry crane (T54, spec D.2): the pair work it first, one at the controls and one rigging, while the cars under
+        // the gantry still have room (the crates and the sleds would fill them); then the winch.
+        if (job is StopJob.Winch0 or StopJob.Winch1 && p.Site.Crane is { } crane
+            && (CraneTarget(crane, train) is not null || crane.Hooked is not null))
+            return job == StopJob.Winch0 ? Operate(self, world, p, crane) : RigCasting(self, world, p, crane);
+        if (_atControls)
+        {
+            // Done at the crane: let go of the controls (and so step down) before anything else.
+            _atControls = false;
+            return new PlayerIntent();
+        }
         return part switch
         {
             StopJob.Shunter => Shunt(self, world, p),
@@ -690,6 +706,171 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             _ => Crank(self, world, p),
         };
     }
+
+    bool _atControls, _fired;
+    (int Casting, double Bridge, double Trolley)? _castingAt;
+    (int Car, double Bridge, double Trolley)? _carAt;
+
+    /// <summary>
+    /// What's left for the crane: the next casting still stacked (in order, so the operator and the rigger agree on it
+    /// without seeing each other: spec D.3's "blind instruction", called as the plan) and a cargo car with room that the
+    /// hook reaches over. Null when there's nothing to load or nowhere to put it.
+    /// </summary>
+    public static (int Casting, int Car)? CraneTarget(Crane crane, TrainOnLine train)
+    {
+        int casting = Array.FindIndex(crane.Castings, c => c.State == CastingState.Stacked);
+        if (casting < 0 && crane.Hooked is null)
+            return null;
+        return RoofFor(crane, train) is { } roof ? (casting, roof.Car) : null;
+    }
+
+    /// <summary>
+    /// A cargo car with room and where on its roof the hook reaches (anywhere along it, clear of its ends: the gantry may
+    /// only span part of a car), the nearest car first: null for none in reach.
+    /// </summary>
+    static (int Car, double Bridge, double Trolley)? RoofFor(Crane crane, TrainOnLine train)
+    {
+        (int Car, double Bridge, double Trolley, double Off)? best = null;
+        foreach (var v in StopPlan.WithRoom(train))
+        {
+            var frame = train.Frames[v.Id];
+            double half = frame.Shape.HalfLength - 1;
+            for (double z = -half; z <= half + 1e-9; z += 1)
+            {
+                var (b, x, off) = crane.Over(frame.ToWorld(new Double3(0, frame.Shape.RoofHeight, z)));
+                if (off < 0.3 && (best is null || Math.Abs(z) < Math.Abs(best.Value.Off)))
+                    best = (v.Id, b, x, z);
+            }
+            if (best is { } found && found.Car == v.Id)
+                break;
+        }
+        return best is { } w ? (w.Car, w.Bridge, w.Trolley) : null;
+    }
+
+    /// <summary>
+    /// At the crane's controls (spec D.2): down on the stand's side, to the stand, and holding Use there, the stick drives
+    /// the crane. Hook down over the next casting and held there while it's rigged; up high, over a car with room, down onto
+    /// its roof, and let go (only ever when it's set down: a load let go of high kills).
+    /// </summary>
+    PlayerIntent? Operate(in PlayerState self, World world, StopPlan p, Crane c)
+    {
+        var train = world.Train;
+        if (!_reachedEnd)
+            return Ride(self, train, p);
+        if (self.Parent != PlayerState.World)
+            return GetDown(self, train, SideOf(train, p, c.Controls, self.LineHint));
+        if (!_atControls)
+        {
+            var (step, there) = WalkTo(self, train.Line, p.Spur.Index, c.Controls, null);
+            if (!there && ((self.Position - c.Controls) with { Y = 0 }).Length > c.Tuning.ControlsReach - 0.4)
+            {
+                Doing = "to the crane";
+                return step;
+            }
+            _atControls = true;
+        }
+        Doing = "at the crane";
+        var drive = new PlayerIntent { Buttons = PlayerButtons.Use };
+        var t = c.Tuning;
+        if (c.Hooked is null)
+        {
+            _fired = false;
+            _carAt = null;
+            if (CraneTarget(c, train) is not { Casting: >= 0 } target)
+                return drive;
+            if (_castingAt is not { } at || at.Casting != target.Casting)
+            {
+                var (b, x, _) = c.Over(c.Castings[target.Casting].At);
+                _castingAt = at = (target.Casting, b, x);
+            }
+            bool over = Steer(ref drive, c, at.Bridge, at.Trolley);
+            // Traversing, the hook up out of the way; over the casting, down to where the rigger can reach it.
+            if (!over && c.Hook < t.Height - 0.5)
+                drive.Buttons |= PlayerButtons.Jump;
+            else if (over && c.Hook > t.RigHeight - 0.8)
+                drive.Buttons |= PlayerButtons.Brake;
+            return drive;
+        }
+        _castingAt = null;
+        if (_carAt is not { } car || train.Vehicles[car.Car].Load >= 1 - 1e-6)
+        {
+            if (RoofFor(c, train) is not { } roof)
+                return drive;
+            _carAt = car = roof;
+        }
+        // Up first, clear of the roofs; then across; then down onto it and let go once it's sitting on the roof.
+        if (c.Hook < t.Height - 0.3 && !Near(c, car.Bridge, car.Trolley))
+        {
+            drive.Buttons |= PlayerButtons.Jump;
+            return drive;
+        }
+        if (!Steer(ref drive, c, car.Bridge, car.Trolley))
+            return drive;
+        var (under, roofY) = c.Under(train);
+        double above = c.HookedBase.Y - roofY;
+        if (under == car.Car && above <= Math.Min(0.3, t.DropAbove - 0.1))
+        {
+            if (!_fired)
+            {
+                drive.Buttons |= PlayerButtons.Fire;
+                _fired = true;
+            }
+            return drive;
+        }
+        drive.Buttons |= PlayerButtons.Brake;
+        return drive;
+    }
+
+    /// <summary>The stick towards a bridge and trolley setting (a little ahead of time for the lag); true once it's there.</summary>
+    static bool Steer(ref PlayerIntent drive, Crane c, double bridge, double trolley)
+    {
+        double db = bridge - c.Bridge, dx = trolley - c.Trolley;
+        drive.MoveZ = Math.Abs(db) < 0.04 ? 0 : (float)Math.Clamp(db * 2.5, -1, 1);
+        drive.MoveX = Math.Abs(dx) < 0.04 ? 0 : (float)Math.Clamp(dx * 2.5, -1, 1);
+        return Near(c, bridge, trolley);
+    }
+
+    static bool Near(Crane c, double bridge, double trolley) => Math.Abs(bridge - c.Bridge) < 0.08 && Math.Abs(trolley - c.Trolley) < 0.08;
+
+    /// <summary>
+    /// Rigging on the ground (spec D.2): down on the castings' side, beside the next one, and once the hook's come down
+    /// over it, holding Use until it's hooked on. Then back out of the way while it goes up and over.
+    /// </summary>
+    PlayerIntent? RigCasting(in PlayerState self, World world, StopPlan p, Crane c)
+    {
+        var train = world.Train;
+        if (!_reachedEnd)
+            return Ride(self, train, p);
+        int next = Array.FindIndex(c.Castings, k => k.State == CastingState.Stacked);
+        var at = next >= 0 ? c.Castings[next].At : c.Castings[0].At;
+        if (self.Parent != PlayerState.World)
+            return GetDown(self, train, SideOf(train, p, at, self.LineHint));
+        var (along, across) = TrackCoords(train.Line, p.Spur.Index, at, self.LineHint);
+        if (c.Hooked is not null || next < 0)
+        {
+            // Stand off beyond the stack while it's lifted away.
+            Doing = "standing clear";
+            return WalkTo(self, train.Line, p.Spur.Index, TrackPoint(train.Line, p.Spur.Index, along, across + Math.Sign(across) * 2.5), null).Step;
+        }
+        var stand = TrackPoint(train.Line, p.Spur.Index, along + 1.0, across);
+        var (step, there) = WalkTo(self, train.Line, p.Spur.Index, stand, null);
+        if (!there && ((self.Position - stand) with { Y = 0 }).Length > 0.35)
+        {
+            Doing = "to the castings";
+            return step;
+        }
+        if (c.Riggable(PlayerMotor.WorldPosition(self, train)) is null)
+        {
+            Doing = "calling the hook down";
+            return new PlayerIntent();
+        }
+        Doing = "rigging";
+        return new PlayerIntent { Buttons = PlayerButtons.Use };
+    }
+
+    /// <summary>Which side of the spur a point on the ground is (+1 right looking up it).</summary>
+    static int SideOf(TrainOnLine train, StopPlan p, Double3 world, double hint) =>
+        TrackCoords(train.Line, p.Spur.Index, world, hint).Across >= 0 ? 1 : -1;
 
     /// <summary>The part this stop: the winch pair carry crates where there's no winch, or once its sleds are in.</summary>
     StopJob Part(StopPlan p) => job is StopJob.Winch0 or StopJob.Winch1 && (!p.Site.Has(ModuleKind.Winch) || p.Site.SledsLeft == 0)
@@ -1233,7 +1414,9 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         if (Math.Abs(train.Dynamics.Velocity) > 0.05)
             return new PlayerIntent();
         Doing = "to the cab";
-        int side = p.Spur.Side;
+        // By the cab's door on the side it's on (the crane's operator is across the track from the rest, T54): there's no
+        // walking through the train.
+        int side = SideOf(train, p, self.Position, self.LineHint);
         var engine = train.Frames[0];
         var foot = engine.ToWorld(new Double3(side * (engine.Shape.Bounds.Max.X + 0.5), 0, CabDoorZ(train)));
         var inward = engine.DirToWorld(new Double3(-side, 0, 0));

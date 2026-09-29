@@ -102,9 +102,47 @@ public sealed class Crane
         Bridge = Math.Clamp(Bridge + intent.MoveZ * _t.BridgeSpeed * dt, _t.Along - 0.5 * _t.Length, _t.Along + 0.5 * _t.Length);
         Trolley = Math.Clamp(Trolley + intent.MoveX * _t.TrolleySpeed * dt, _t.Span[0] + 0.5, _t.Span[1] - 0.5);
         double lift = (intent.Has(PlayerButtons.Jump) ? 1 : 0) - (intent.Has(PlayerButtons.Brake) ? 1 : 0);
+        Hook = Math.Clamp(Hook + lift * _t.HoistSpeed * dt, Lowest(train), _t.Height);
+    }
+
+    /// <summary>
+    /// Where the bridge and trolley put the hook over a point (world): what an operator's eye does from the cab, by search
+    /// (coarse, then fine) since the gantry's laid along a curve. The distance left across the ground is how near it gets.
+    /// </summary>
+    public (double Bridge, double Trolley, double Off) Over(Double3 world)
+    {
+        // The gantry doesn't move, so the answer for a point doesn't either: remembered to the centimetre (the crew ask
+        // about the same roofs and castings every tick).
+        var key = ((long)Math.Round(world.X * 100), (long)Math.Round(world.Z * 100));
+        if (_over.TryGetValue(key, out var known))
+            return known;
+        return _over[key] = Search(world);
+    }
+
+    readonly Dictionary<(long, long), (double, double, double)> _over = new();
+
+    (double Bridge, double Trolley, double Off) Search(Double3 world)
+    {
+        double lo = _t.Along - 0.5 * _t.Length, hi = _t.Along + 0.5 * _t.Length, x0 = _t.Span[0] + 0.5, x1 = _t.Span[1] - 0.5;
+        double Off(double b, double x) => ((_at(b, x, 0) - world) with { Y = 0 }).Length;
+        (double B, double X, double Off) best = (lo, x0, double.MaxValue);
+        for (double b = lo; b <= hi + 1e-9; b += 0.5)
+            for (double x = x0; x <= x1 + 1e-9; x += 0.5)
+                if (Off(b, x) is var o && o < best.Off)
+                    best = (b, x, o);
+        var (cb, cx) = (best.B, best.X);
+        for (double b = cb - 0.5; b <= cb + 0.5 + 1e-9; b += 0.05)
+            for (double x = cx - 0.5; x <= cx + 0.5 + 1e-9; x += 0.05)
+                if (b >= lo && b <= hi && x >= x0 && x <= x1 && Off(b, x) is var o && o < best.Off)
+                    best = (b, x, o);
+        return best;
+    }
+
+    /// <summary>The lowest the hook goes over what's under it now (with a casting on it, the casting's base just above).</summary>
+    public double Lowest(TrainOnLine train)
+    {
         var (_, floor) = Under(train);
-        double lowest = floor - _at(Bridge, Trolley, 0).Y + (Hooked is null ? 0.3 : 2 * CastingHalf + 0.05);
-        Hook = Math.Clamp(Hook + lift * _t.HoistSpeed * dt, lowest, _t.Height);
+        return floor - _at(Bridge, Trolley, 0).Y + (Hooked is null ? 0.3 : 2 * CastingHalf + 0.05);
     }
 
     /// <summary>The ground point under a casting on the hook.</summary>

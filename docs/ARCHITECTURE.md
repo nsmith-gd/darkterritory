@@ -1025,7 +1025,8 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - Step into the gap while it rattles, once it has rattled for the reaction window (App. A.1), and you're pulled under: `DeathCause.PulledUnder`.
       - With nobody near for 10 s it goes quiet again.
       - It can't be shot. Cut the cars apart at its gap and it goes with the coupling.
-    - **Ambiguity, when it leaves:** App. B.5 spawns it at a stop but doesn't say when it goes. It stays 300 s (`lingerSeconds`), so it's usually still there as you pull out, and it leaves the next time it's quiet after that.
+    - **Ambiguity, when it leaves:** App. B.5 spawns it at a stop but doesn't say when it goes. It stays 300 s (`lingerSeconds`), so it's often still there as you pull out, then goes, rattling or not.
+      - At first it went only once it was quiet after that. On frontier:2 the bots' warm-ups kept it rattling, so it rode the night out in a gap they used, and it took four of them (T54).
     - **No visual on purpose:** "Pure audio tell." Neither the greybox nor the art pass's creatures draw it (`CreatureArtTests` knows it's never seen); the rattle plays from the gap, muffled by a car in between like any other sound.
     - **Bots heed it** (`Heed.Rattles`, applied to every bot's intent in the harness). A bot whose next step would take it into a rattling gap stands still instead. One already in the gap when it starts (on the coupler plate, say) walks out the quickest way, never off the train at a speed that kills (`RattleTests.AtSpeedABotOnThePlateNeverStepsOffToGetOut`). Worked out on its client by stepping a copy of itself; the rest of its intent goes through.
     - **Found on the way: a dead shunter stalled the night.** Adding the Rattle to the director's options changed its draws, and on frontier:7 the hounds mauled three bots, the shunter among them. Parts were fixed at the start, so nobody set the Switchman's switch back, and the train stood at it for the rest of the night.
@@ -1129,7 +1130,17 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - the Khronos Flight Helmet (CC0) over it: leather cap, goggles, and a rubber mask with its hose down the chest;
         - the cooked hand lantern, hung from her chain on its own bone, with a flame of pure light in it.
       - The Switchman is baked down as one figure and rigged on the statue's pose. It replaces the procedural one, with the same clips (wait, flee) and the "lantern" bone the engine lights.
-      - The Dragger and the rest stay procedural for now.
+      - The Sleepers (`recipes/sleeper.py`) are Le Transi again:
+        - laid on its back and drawn out to a tie's 2.8 m;
+        - pressed flat and sunk into a rotten tie of the library's sleeper timber (cut along its length so the chain bends it);
+        - graded creosote-brown with the grain running along it.
+      - At a glance a Sleeper is one more tie across the rails. Close to, the ribs, the face and the raised arm are the scan's. It keeps the same chain rig and clips (`rig_creature` takes the skeleton's name).
+      - The Clinger (`recipes/clinger.py`) is a spiny crab (Three D Scans):
+        - turned with its back out of the hull and pressed flat to the plate, its legs splayed on the steel;
+        - three of Lee Perry-Smith's faces pushed up through its shell where the procedural one's sacs were, so they swell and ebb with the cling pulse;
+        - a tar lip and a mineral-crust drill at its lower seam, with the hot plate.
+      - It's rigged as before. The legs ride radial limb bones off the root, so when the body drives into the car they stay gripping it.
+      - The crew, the hound and the Dragger stay procedural for now.
     - **Ruined interiors.** A whole sourced room can be ruined in its recipe and set where the line can see into it. `recipes/boy_room.py` does this with "Boy Room" (CC BY 4.0), a child's bedroom with a hulking imaginary friend.
       - It's split by material: the wardrobe knocked askew, a picture hung crooked.
       - It's graded per part: dust over everything, the boy ash-pale, the thing he drew soot-black but for its eyes.
@@ -1142,11 +1153,73 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - Its walls and floor were lit by a baked atlas that only works from inside the closed box, so they're replaced by the library's plaster, sooted brick and floorboards, broken off raggedly, with the window's hole left.
         - Zenobia is taken off her plinth and laid out on her back on the bier: the pale body the room is for.
         - The pendant lamp's globes are gone. Its bare bulbs are lit emissive spheres (`cook.eyes_at`), with a light at its "lamp" socket. `PropArtTests` lets pure light be drawn flat; everything else wears its own layers.
+      - `recipes/portrait_room.py` is a third: a photographer's studio across the line, set up for a Victorian memorial portrait.
+        - The Boy Room's boy is posed seated at full resolution, propped in the Khronos damask chair (CC BY 4.0) with an iron posing stand's clamp behind his head.
+        - The Khronos Antique Camera (CC0) stands on its tripod pointed at him.
+        - A candle burns on a crate: the Khronos hurricane holder (CC BY 4.0) with its glass (and the logos on it) gone.
+        - Behind him hangs a torn painted backdrop.
+        - Its light is at the flame's "lamp" socket. Most villages have one, hashed on the village's place.
+      - The rooms share `cook.ruined_shell` (the broken plaster-and-brick walls and floorboards) and `cook.box_uv`. The posed figures share `tools/models/figures.py`: the boy's joint table and skeleton, and the full-resolution linear-blend pose the Soot children use too.
     - **First set.**
       - The Khronos Lantern, split into a lamp post and a hand lantern. The hand lantern replaces the kit's cage in the cars, on the platforms and as the dropped lamp.
       - The photoscanned skull.
       - The first bash: the skull lantern at the fortress gate, a cage lantern with a human skull where the flame should be, lit from beneath. `PropArtTests` holds the loading, the sockets and the provenance.
-59. **The procedural line (docs/design/linegen-plan.md, roadmap M5 "procedural line v1").** The readings where the plan or the spec was ambiguous, and what's not done:
+59. **Crew bots run the gantry crane (T54, spec D.2 and D.3).** The winch pair take the crane first, while the cars under the gantry still have room (the crates and the sleds would fill them), then the winch.
+    - **The operator (Winch0):** down on the stand's side of the train (across the track from the castings), to the stand, and holding Use there.
+      - Hook up while traversing, down over the next stacked casting to where it can be rigged, held there.
+      - Hooked: up clear of the roofs, over a cargo car with room, down onto its roof, and let go only once it's sitting on it (never above `dropAbove`: a load let go of high kills).
+      - It steers by bridge and trolley settings found by `Crane.Over`, a search over the gantry's reach that's remembered per point.
+      - A car counts if the hook reaches anywhere along its roof clear of the ends: the 20 m gantry spans only part of the first cars.
+    - **The rigger (Winch1):** down on the castings' side, beside the next one, and holding Use once the hook's down over it (`Crane.Riggable`); then clear, beyond the stack, while it's lifted away.
+    - **Spec D.3's "blind instruction":** the operator and the rigger don't see each other. They agree by working the same plan: the next casting still stacked, and the nearest car in reach with room.
+    - **The driver** waits in the Loading leg for the crane too, until no casting's left or no car in reach has room. `CrewCalls.CanWork` counts a crane site the pair can work.
+    - **Found on the way:**
+      - A hand going to the cab to warm up walked to its door on the site's side of the train. The operator, across the track, walked into the train and froze. Hands now go to the cab door on the side they're on.
+      - The first night on frontier:2 (with a foundry, though the crew passed it by) lost four bots to the Rattle. Three fixes:
+        - its lifetime is now a hard limit (note 54);
+        - the warm-up routine (T31) keeps to car ends with no Rattle in the gap (`WarmUp.Rattled`, set by the bot from what its client sees);
+        - `Heed.Rattles` looks a third of a second ahead rather than one tick: with the lag, the client's prediction isn't quite where the host has a bot.
+      - A margin round the gap was tried too, and made it worse: bots near a car's end stuck in it.
+      - After the fixes both nights deliver: frontier:7 net 3943 as before, frontier:2 net 3163, nobody lost on either.
+    - **Verified:**
+      - `StopCrewTests.AtTheFoundryThePairRunTheCraneAndTheCastingsGoOnTheRoofs`: both castings loaded, everyone alive, and the train back together and away.
+      - The harness's stop records count `castings`.
+60. **The balance sweep (T55, roadmap M7 "balance sweeps", GDD §34).** `dt balance` runs harness nights across a grid (tiers, seeds, crew sizes, train lengths) side by side, and judges them (`Net/Balance.cs`) against `tuning/balance.json`.
+    - **Each night** is a whole host with its bots over its own loopback, as `dt harness --route --enemies` runs it. Nothing is shared between nights, so they run in parallel (`--parallel`, the machine's cores by default).
+    - **The checks:**
+      - the crew-size sweep: "survivable at 2" (at least half a two-crew's nights get home) and "non-trivial at 8" (an eight-crew's night sees at least 5 punishes);
+      - App. A.1's fairness contract on every night.
+    - **The train-length sweep** ("where is the real progression cap?") is reported by length, not judged: that's a design call. So is anything about fun (§34: "agents cannot tell us whether it is funny").
+    - **Bots aren't people.** They keep to a plan and don't talk. So the targets are floors that find nights the bots can't play, or nights where nothing happens; they aren't the design's numbers for players.
+    - The targets are loaded before any night runs: a sweep is an hour of nights, and a bad file shouldn't lose them at the end.
+    - **First sweep** (frontier seeds 1 and 2, 10 cars, crews of 2 and 8), 10 min on 4 cores:
+      - every night delivered, nobody lost, 0 fairness violations;
+      - a crew of two: net 2100, 28.5 punishes a night; a crew of eight: net 3791, 24 punishes.
+      - Two bots don't work facilities: the stops need a shunter, and the second bot is the gunner. That's why their net is lower.
+    - The nightly soak runs that sweep and fails on a failed check.
+    - **Verified:** `BalanceTests` (4): the grid is every combination; a survivable, busy sweep passes; each target fails on its own; train length is reported, not judged.
+61. **The Ferryman (T56, App. A.2 and B.2; GDD: "stands on the track ahead holding a lantern, waving you down. RULE: do not slow down").** `EnemyKind.Ferryman`, cost 4 (App. B.1's table), tuned in `enemies.json` `ferryman`.
+    - **The lantern is the telegraph.** It's placed 600 m up the line at the lineside, and telegraphing from the first tick. Past the draw distance the scene still shows the lantern's light, out to 1.2 km ("visible from very far out").
+    - **Ambiguity: "train DECELERATES".** Read as the train going slower than the fastest it has come at the Ferryman, by at least `slowTolerance` (2.5 m/s). Cruise notching wobbles by about 1 m/s, so it doesn't count; a brake application, or easing off to the dark cruise, does. Any such slowing commits (ADVANCE). That still only happens after App. A.1's reaction window, which the spine enforces.
+    - **Holding speed:** within 30 m of the engine, it steps aside and breaks off, and can't re-engage ("cannot re-engage after breaking off").
+    - **Slowing:** it comes down the line at 5 m/s and boards the engine. It strikes whoever is in the cab (100: a life; if the cab is empty, the nearest crew within 20 m) and is gone. It can't be shot ("entirely defeated by doing nothing").
+    - **Ambiguity: "long straight with clear sightline".** Read as its gate, `Ferryman.ClearAhead`: from the engine to 100 m past where it stands, no curve tighter than 1500 m and no grade over 1 %. Nothing else on that stretch may give the crew a reason to slow: Sleepers, Grease, a tunnel, a facility, or the end of the line within 600 m past it. Otherwise the rule contradicts "watch the road" with no way to satisfy both, and that isn't the kind of contradiction the conflict table seeds.
+    - The other B.2 gates: Frontier and beyond, the back 60 % of the route ("mid-to-late"), once per run (the director's own log), a lamp that isn't smashed ("functioning forward lamp"), and a train coming on at 8 m/s or more.
+    - **Not modelled yet:** B.2's "weight up if crew has braked for a false positive earlier". That wants the Long Whistle (T57), whose false horn is the false positive.
+    - **The driver bot** holds the fastest speed it has come at a waving lantern, with the lamp down or not. That is the Lamplighters + Ferryman bind: with the lamps down, the lantern is its own light.
+    - **Art:** the Switchman's railwayman, drawn taller, swinging the lantern hard while it waves; the lantern is a point light. The greybox has its own figure. `dt screenshot --threats` shows one on the line ahead.
+    - **Verified:** `FerrymanTests` (10) cover:
+      - the lantern telegraphs from the start;
+      - held speed: it steps aside and is gone;
+      - slowing: it boards and kills the conductor;
+      - slowing at once still gets the reaction window;
+      - a notching wobble isn't slowing;
+      - once it has stepped aside, slowing does nothing;
+      - the director sends one mid-run, only once;
+      - none with Sleepers ahead, on a Local line, with the lamp smashed, or with the train crawling;
+      - a client sees it;
+      - the driver bot holds its speed past it with the lamp down.
+62. **The procedural line (docs/design/linegen-plan.md, roadmap M5 "procedural line v1").** The readings where the plan or the spec was ambiguous, and what's not done:
     - **Junction count** (§3.2's "junctions" beside its own alternate and dead-line counts): both ends of an alternate count, so junctions = 2 × alternates + dead lines. It's the reading that keeps the table's three columns consistent. The quotas' "facing junctions" (§15.3) and the Switchman's network size (App. B.7) count the same way.
     - **Dawn (§22.1):** the timer is the spec's formula over the gate-to-terminus distance. The validator holds the ideal transit to it and reports transit plus four minutes a stop as a warning (`validation.dawnWithStopsHard: false`): by the spec's own numbers the deeper tiers can't take every stop in time. Note 13 is the same conflict.
     - **Descent grades** come from brake fade's equilibrium: a train braking on a descent a third of the time recovers as fast as it fades (`profile`), so the ruling descent is the steepest where that duty holds at the consist's brake. Approaches to a stop never descend.
