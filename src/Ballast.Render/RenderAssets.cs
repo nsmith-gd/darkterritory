@@ -66,8 +66,14 @@ public sealed record PostSettings
     /// <summary>How much brighter the sky's horizon haze is than the fog (so far is paler than near, not darker).</summary>
     public float HorizonGlow { get; init; } = 1.3f;
     public Vector3 SkyZenith { get; init; } = new(0.018f, 0.02f, 0.028f);
-    /// <summary>Mip bias: a little positive, so distant surfaces shimmer (the pipeline's "intended pixel crawl").</summary>
-    public float MipBias { get; init; } = 0.4f;
+    /// <summary>Mip bias for the filtered materials (the PS2 comparison mode has its own, positive, for the pixel crawl).</summary>
+    public float MipBias { get; init; } = 0;
+    /// <summary>Scales the scene before the filmic tonemap (the camera's exposure).</summary>
+    public float Exposure { get; init; } = 1.0f;
+    /// <summary>How much of the bloom is the wide, quarter-res halo rather than the tight half-res glow (0..1).</summary>
+    public float WideBloom { get; init; } = 0.5f;
+    /// <summary>Red and blue pulled apart toward the frame's corners (a fraction of the frame).</summary>
+    public float LensFringe { get; init; } = 0.006f;
 }
 
 /// <summary>

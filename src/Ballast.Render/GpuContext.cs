@@ -31,6 +31,9 @@ public sealed unsafe class GpuContext : IDisposable
     public VkQueue Queue { get; }
     public uint QueueFamily { get; }
     public VkCommandPool CommandPool { get; }
+    /// <summary>The anisotropy the samplers may use (16 at most), or 0 when the device has none.</summary>
+    public float MaxAnisotropy { get; private set; }
+
     public string DeviceName { get; }
 
     readonly VkPhysicalDeviceMemoryProperties _memory;
@@ -94,10 +97,17 @@ public sealed unsafe class GpuContext : IDisposable
         float priority = 1;
         var queueInfo = new VkDeviceQueueCreateInfo { queueFamilyIndex = QueueFamily, queueCount = 1, pQueuePriorities = &priority };
         var features13 = new VkPhysicalDeviceVulkan13Features { dynamicRendering = true, synchronization2 = true };
+        // Anisotropic filtering where the device has it (every desktop GPU, and lavapipe): textures stay sharp at a
+        // glancing angle, the track and the roofs running away from you.
+        VkPhysicalDeviceFeatures supported;
+        InstanceApi.vkGetPhysicalDeviceFeatures(PhysicalDevice, &supported);
+        var enabled = new VkPhysicalDeviceFeatures { samplerAnisotropy = supported.samplerAnisotropy };
+        MaxAnisotropy = supported.samplerAnisotropy ? Math.Min(16f, props.limits.maxSamplerAnisotropy) : 0;
         using var deviceExtensions = new Utf8Array(CanPresent ? ["VK_KHR_swapchain"] : []);
         var deviceInfo = new VkDeviceCreateInfo
         {
             pNext = &features13,
+            pEnabledFeatures = &enabled,
             queueCreateInfoCount = 1,
             pQueueCreateInfos = &queueInfo,
             enabledExtensionCount = (uint)deviceExtensions.Count,

@@ -1009,3 +1009,13 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Verified:**
       - `ContentModsTests` (4): with no mods, the base content is used as it is; mods replace, add and patch in order; taking a mod out takes its files out; a patch with nothing under it is refused.
       - `NetPlayTests.AJoinerWithDifferentModsIsToldWhichMods`.
+54. **The fidelity target moves up to 2008-2012 (art direction, after the art pass).** Art direction's call: the art pass read as early PS2, and the benchmarks are BioShock 2, Silent Hill 4, Dead Space and Resident Evil Revelations. The pipeline plan's "late PS2 / early PS3" now means its PS3 end; the PS2 end stays as the comparison mode (`--ps2`, `post.ps2`). The work goes in phases, each looked at before the next:
+    - **Image (this note).**
+      - Materials are sampled trilinear and 16× anisotropic with no mip bias, instead of point-sampled with a positive one.
+      - The scene goes through exposure and a filmic tonemap (ACES fit) instead of a hard shoulder. The fog's long gradients get a one-step triangular dither instead of Bayer banding into 48 levels.
+      - Bloom has two scales: the tight half-res glow and a wide quarter-res halo.
+      - Lens fringing toward the corners, finer grain.
+      - FXAA over the tonemapped frame (luma in alpha). The overlay draws after it, so the HUD stays crisp.
+      - `look.json` `post`: `exposure` 1.0, `wideBloom`, `lensFringe`, `mipBias` 0.
+      - `LookTests`' room-brightness ratio is widened to 2.2×, because the filmic toe darkens flat colour more than a lamp-lit texture. It gains an absolute washed-out ceiling.
+    - **Next:** normal and spec maps on every surface at higher resolution; ambient occlusion, more shadowed lights and light shafts in the fog; then a geometry and material detail pass.
