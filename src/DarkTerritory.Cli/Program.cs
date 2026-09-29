@@ -79,8 +79,18 @@ object RunHarness(string[] args)
     var combat = DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File));
     var enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File));
     using var online = args.Contains("--online") ? new DarkTerritory.Game.FakeLobbyNetwork() : null;
+    // --trace file: a line each time anyone changes what they're doing (where they are, their part at a stop, warming up).
+    using var trace = Str(args, "--trace", "") is { Length: > 0 } tracePath ? new StreamWriter(tracePath) : null;
+    string lastTrace = "";
     return Harness.Run(line, train, player, new HarnessOptions
     {
+        Observe = trace is null ? null : (tick, crew) =>
+        {
+            string now = string.Join(" | ", crew.Select(c => Harness.Describe(c.Bot, c.State)));
+            if (now != lastTrace)
+                trace.WriteLine($"{tick / 30.0,7:0.0}s  {now}");
+            lastTrace = now;
+        },
         Bots = (int)Opt(args, "--bots", 8),
         Cars = (int)Opt(args, "--cars", 10),
         Seconds = Opt(args, "--seconds", 120),
@@ -296,7 +306,7 @@ object CampaignCommand(string content, string verb, string[] args)
             }
         case "play":
             {
-                // A night on a contract from the board, crewed by bots (they drive and shoot; they don't load yet), settled.
+                // A night on a contract from the board, crewed by bots (they drive, shoot, and load at winch stops), settled.
                 var s = Load();
                 var contract = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s)[(int)Opt(args, "--contract", 0)];
                 s = DarkTerritory.Sim.Campaign.Campaign.Begin(s, contract);
@@ -751,10 +761,11 @@ static int Usage()
                      writes content/lines/<name>.json (+ .route.json) and a map; try `screenshot --line generated`
           route sweep [--seeds n]                  generate n routes per tier and report ranges
           harness [--bots n] [--cars n] [--seconds t] [--seed s] [--latency s] [--jitter s] [--loss 0..1] [--line name | --route tier:seed]
-                     [--enemies] [--no-combat] [--no-boiler] [--udp | --online]   --udp: real sockets on localhost instead of the simulated link;
+                     [--enemies] [--no-combat] [--no-boiler] [--udp | --online] [--trace file]   --udp: real sockets on localhost instead of the simulated link;
                      --online: every bot joins a lobby on the fake Steam and plays over relayed P2P
                      host + bot clients over a simulated network; reports prediction error, bandwidth, deaths,
-                     and with --enemies the director's spawns, punishes, deaths by cause and fairness audit
+                     and with --enemies the director's spawns, punishes, deaths by cause and fairness audit; on a route, the
+                     facility stops the crew worked (five bots make a crew for a winch); --trace writes who's doing what
           facility drill [--route tier:seed] [--facility i] [--cars n] [--load-seconds s]
                      GDD §17's set piece scripted: cut, spur in, load, back out, recouple, switch back, go; the timeline
           vr check [--frames n] [--view roof|cab|…] [--scale 0.5] [--out out/shots/vr.png]

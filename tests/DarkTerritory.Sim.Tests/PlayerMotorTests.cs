@@ -156,6 +156,19 @@ public class PlayerMotorTests
     }
 
     [Fact]
+    public void TheCabStepsComeUpIntoTheCabNotOntoItsRoof()
+    {
+        // Standing at the foot of the engine's right-hand steps, facing them: grab, climb, and you're on the cab floor.
+        var rig = OnRoof(3, 0, car: 1);
+        var engine = rig.Train.Frames[0];
+        var steps = engine.Shape.Ladders.First(l => l.Foot.X > 0 && l.Inward.X < 0);
+        rig.Player = PlayerMotor.SpawnOnGround(engine.ToWorld(steps.Foot + new Double3(0.35, 0, 0)), rig.Train.Line, rig.Train.Cars[0].FrontDistance, P);
+        rig.Player.Yaw = engine.Heading + Math.PI / 2; // facing the engine's left, into the steps
+        rig.Run(4, r => r.Player.Surface is Surface.Ground or Surface.Ladder ? Move(0, 1, PlayerButtons.Use) : default);
+        Assert.True(PlayerMotor.InCab(rig.Player, rig.Train), $"on {rig.Player.Surface} of {rig.Player.Parent} at {rig.Player.Position}");
+    }
+
+    [Fact]
     public void APassingLadderAtSpeedCannotBeGrabbed()
     {
         var rig = BesideLadder(T.MaxSpeed, behind: -6);

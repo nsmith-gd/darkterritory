@@ -111,9 +111,10 @@ public class SpurDrillTests
         Assert.Equal(order, rake.Consist.Vehicles.Select(v => v.Id));
         Assert.Equal(RailLine.MainPath, train.Dynamics.Path);
         Assert.False(train.Diverging(night.World.Run!.SpurOf(night.World.Run.Departed)));
-        // It stopped at the facility, the winch's two sleds went into the first car, and the night saw it leave.
+        // It stopped at the facility, the winch's two sleds went into the cars it took in (the sled rests between the
+        // first two), and the night saw it leave.
         Assert.Contains(RunPhase.AtFacility, night.Phases);
-        Assert.Equal(2 * F.Winch.LoadPerSled, train.Vehicles[night.Drill.TookIn[0]].Load, 6);
+        Assert.Equal(2 * F.Winch.LoadPerSled, night.Drill.TookIn.Take(2).Sum(id => train.Vehicles[id].Load), 6);
         Assert.All(night.Drill.LeftWaiting, id => Assert.Equal(0, train.Vehicles[id].Load));
         Assert.Equal(1, night.World.Run.Departures);
         Assert.Equal(RunPhase.Underway, night.World.Run.Phase);
