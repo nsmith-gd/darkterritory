@@ -121,7 +121,7 @@ public sealed class Effects(Look look)
         float glare = Math.Clamp((at0.Length() - 4) / 16, 0, 1);
         mesh.Billboard(at0 - lamp.LampDirection * 0.2f, 2.6f, 0, new Vector4(lamp.LampColour * 0.5f * glare, 1), -1, FxBlend.Additive);
         mesh.Billboard(at0 - lamp.LampDirection * 0.25f, 0.9f, 0, new Vector4(lamp.LampColour * (0.3f + 0.7f * glare), 1), -1, FxBlend.Additive);
-        Beam(mesh, at0, lamp.LampDirection, lamp.LampConeDegrees * 0.8f, 40, lamp.LampColour * 0.09f);
+        Beam(mesh, at0, lamp.LampDirection, lamp.LampConeDegrees * 0.8f, 40, lamp.LampColour * 0.07f);
         // The tail lamp's glow at the back of the train.
         var last = frames[^1];
         var tail = last.ToWorld(new Double3(-last.Shape.HalfWidth + 0.25, last.Shape.RoofHeight - 0.3, last.Shape.HalfLength + 0.15)).RelativeTo(eye);
@@ -155,7 +155,7 @@ public sealed class Effects(Look look)
             float facing = MathF.Abs(Vector3.Dot(radial, toEye));
             float along = MathF.Pow(1 - (float)ring / rings, 2);
             float near = Math.Clamp((p.Length() - 2) / 10, 0, 1);
-            return new FxVertex(p, new(0.5f, 0.5f), new Vector4(colour, along * (0.18f + 0.82f * facing * facing) * near), -2);
+            return new FxVertex(p, new(0.5f, 0.5f), new Vector4(colour, along * (0.06f + 0.94f * facing * facing * facing) * near), -2);
         }
         for (int r = 0; r < rings; r++)
             for (int i = 0; i < sides; i++)
@@ -193,7 +193,8 @@ public sealed class Effects(Look look)
                     float d = p.Length();
                     if (d < 0.6f || d > reach * cell)
                         continue;
-                    float a = 0.22f * (1 - d / (reach * cell)) * (0.6f + 0.4f * h2);
+                    // Drops right at the lens would be white bars across the frame: they fade in from 3 m.
+                    float a = 0.22f * (1 - d / (reach * cell)) * (0.6f + 0.4f * h2) * Math.Clamp((d - 1.5f) / 2.5f, 0, 1);
                     mesh.Billboard(p, 0.03f, 0.06f * wind, new Vector4(fogColour * 2.2f + new Vector3(0.04f), a), -1, FxBlend.Alpha, stretch: 20);
                 }
             }
