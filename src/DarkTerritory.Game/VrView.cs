@@ -111,6 +111,13 @@ public sealed class VrView : IDisposable
         into.Vignette(w, h, cx, cy, comfort.Tuning.Vignette.Inner, comfort.Vignette);
     }
 
+    /// <summary>Both eyes wear the look's textures, backdrop and grade.</summary>
+    public void Dress(Look look)
+    {
+        foreach (var eye in _eyes)
+            look.Dress(eye);
+    }
+
     /// <summary>The camera each eye last drew with.</summary>
     public Camera LastEye(int eye) => _last[eye];
 

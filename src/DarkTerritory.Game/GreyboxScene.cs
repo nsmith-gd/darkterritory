@@ -698,6 +698,13 @@ public sealed class GreyboxScene
         bool engine = frame.Index == 0;
         // Each car wears its own way (the grime pattern is in the car's own frame, so it rides with it).
         mesh.Seed = frame.Index + 1;
+        var vehicle = Vehicles is { } vs && frame.Index < vs.Count ? vs[frame.Index] : null;
+        // The art pass's kit (TrainKit): the body, doors and gun as cooked pieces; what's left here is what glows and moves.
+        if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency))
+        {
+            CarWorkings(mesh, frame, Draw);
+            return;
+        }
         // What you see is what you collide with: every solid is drawn, coloured by what it is. Long interior
         // surfaces go down in 2 m slices so the per-vertex lamp light has vertices to land on.
         foreach (var solid in shape.Solids)
@@ -721,36 +728,19 @@ public sealed class GreyboxScene
         double half = shape.HalfLength;
         if (engine)
         {
-            mesh.Emissive = 1;
-            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
-                Draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.17), new Double3(0.3, 0.2, 0.02)), Palette.FurnaceOrange * (0.15f + 0.85f * FireGlow));
             // The headlamp: dark with no power in a Vigil.
+            mesh.Emissive = 1;
             Draw(Box.FromCentre(new Double3(0, 2.8, -half - 0.05), new Double3(0.35, 0.35, 0.1)), Emergency ? Palette.LampAmber * 0.08f : Palette.LampAmber);
             mesh.Emissive = 0;
-            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
-                Draw(Box.FromCentre(i.Position + new Double3(0, 1.1, 0), new Double3(0.12, 0.12, 0.04)), Palette.TarnishedBrass);
-            // The driver's levers, their handles where the controls have them (T29): a headset player takes hold of
-            // these. The regulator comes back as it opens, the brake handle as it goes on, the reverser forward for ahead.
-            if (shape.Levers is { } levers)
-            {
-                void Lever(Double3 handle, double rod)
-                {
-                    Draw(Box.FromCentre(handle - new Double3(0, rod / 2, 0), new Double3(0.02, rod / 2, 0.02)), Palette.IronGrey);
-                    Draw(Box.FromCentre(handle, new Double3(0.07, 0.03, 0.03)), Palette.TarnishedBrass);
-                }
-                Lever(levers.RegulatorAt(Controls.Throttle), 0.3);
-                Lever(levers.BrakeAt(Controls.Brake), 0.2);
-                Lever(levers.ReverserAt(Controls.Reverser), 0.9);
-            }
         }
-        else
+        CarWorkings(mesh, frame, Draw);
+        if (!engine)
         {
             // Roof walkway plank down the safe centreline.
             Draw(new Box(new Double3(-0.35, shape.RoofHeight, -half + 0.2), new Double3(0.35, shape.RoofHeight + 0.04, half - 0.2)), Palette.TarnishedBrass);
         }
         // Doors: shut in the doorway, or slid aside when open: an end door along the end wall inside, a side door back
         // along the outside of the car (a boxcar's sliding door).
-        var vehicle = Vehicles is { } vs && frame.Index < vs.Count ? vs[frame.Index] : null;
         foreach (var door in shape.DoorList)
         {
             bool open = vehicle?.DoorOpen(door.Index) ?? false;
@@ -769,13 +759,6 @@ public sealed class GreyboxScene
                 : new Double3(open ? box.Min.X + 0.1 : box.Max.X - 0.12, box.Min.Y + 1.0, box.Centre.Z);
             Draw(Box.FromCentre(handle, side ? new Double3(0.08, 0.04, 0.04) : new Double3(0.04, 0.04, 0.08)), Palette.TarnishedBrass);
         }
-        if (shape.Interior is { } room)
-        {
-            // A lamp in every car: the warm interior against the hostile exterior (GDD §26).
-            mesh.Emissive = 1;
-            Draw(Box.FromCentre(new Double3(0, room.Max.Y - 0.08, 0), new Double3(0.12, 0.06, 0.12)), Emergency ? EmergencyRed : Palette.LampAmber);
-            mesh.Emissive = 0;
-        }
         if (shape.Gun is { } gun)
         {
             // Barrel along the gun's facing: its arc is readable from its silhouette (GDD §26).
@@ -792,6 +775,44 @@ public sealed class GreyboxScene
         // Wheel sets under both ends.
         foreach (double z in new[] { -half * 0.6, half * 0.6 })
             Draw(Box.FromCentre(new Double3(0, 0.45, z), new Double3(shape.HalfWidth * 0.8, 0.4, 1.2)), Palette.SootBlack);
+    }
+
+    /// <summary>
+    /// What glows and moves on a car, with or without the kit: the firebox's glow, the vent valve, the driver's levers
+    /// where the controls have them, and the lamp in every car.
+    /// </summary>
+    void CarWorkings(MeshBuilder mesh, CarFrame frame, Action<Box, Vector3> draw)
+    {
+        var shape = frame.Shape;
+        if (frame.Index == 0)
+        {
+            mesh.Emissive = 1;
+            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
+                draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.17), new Double3(0.3, 0.2, 0.02)), Palette.FurnaceOrange * (0.15f + 0.85f * FireGlow));
+            mesh.Emissive = 0;
+            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
+                draw(Box.FromCentre(i.Position + new Double3(0, 1.1, 0), new Double3(0.12, 0.12, 0.04)), Palette.TarnishedBrass);
+            // The driver's levers, their handles where the controls have them (T29): a headset player takes hold of
+            // these. The regulator comes back as it opens, the brake handle as it goes on, the reverser forward for ahead.
+            if (shape.Levers is { } levers)
+            {
+                void Lever(Double3 handle, double rod)
+                {
+                    draw(Box.FromCentre(handle - new Double3(0, rod / 2, 0), new Double3(0.02, rod / 2, 0.02)), Palette.IronGrey);
+                    draw(Box.FromCentre(handle, new Double3(0.07, 0.03, 0.03)), Palette.TarnishedBrass);
+                }
+                Lever(levers.RegulatorAt(Controls.Throttle), 0.3);
+                Lever(levers.BrakeAt(Controls.Brake), 0.2);
+                Lever(levers.ReverserAt(Controls.Reverser), 0.9);
+            }
+        }
+        if (shape.Interior is { } room)
+        {
+            // A lamp in every car: the warm interior against the hostile exterior (GDD §26).
+            mesh.Emissive = 1;
+            draw(Box.FromCentre(new Double3(0, room.Max.Y - 0.08, 0), new Double3(0.12, 0.06, 0.12)), Emergency ? EmergencyRed : Palette.LampAmber);
+            mesh.Emissive = 0;
+        }
     }
 
     static Vector3 PartColour(PartKind part, int car) => part switch

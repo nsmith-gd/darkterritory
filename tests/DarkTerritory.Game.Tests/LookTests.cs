@@ -32,6 +32,7 @@ public class LookTests
         var mesh = new MeshBuilder();
         new GreyboxScene { Look = look, Time = 0.37 }.Build(mesh, train, camera.Position);
         using var renderer = new GreyboxRenderer(gpu, w, h);
+        look?.Dress(renderer);
         var lighting = Views.Lighting(train);
         return renderer.Render(mesh, camera, lighting, lighting.FogColor);
     }
@@ -72,11 +73,11 @@ public class LookTests
         Assert.Equal(0, Look.Material(Palette.FurnaceOrange).Wear);
         // Iron throws a harder specular than wood; paint and wood carry the most wear.
         Assert.True(Look.Material(Palette.IronGrey).Shine > Look.Material(Palette.DeepBrown).Shine);
-        Assert.True(Look.Material(Palette.RustRed).Wear >= 0.9f);
+        Assert.True(Look.Material(Palette.RustRed).Wear >= Look.Material(Palette.TarnishedBrass).Wear);
         // A tinted or dimmed colour takes its family's: a lamp dimmed to a glow in a Vigil is still clean.
         Assert.Equal(Look.Material(Palette.LampAmber), Look.Material(Palette.LampAmber * 0.08f));
         Assert.Equal(Look.Material(Palette.RustRed), Look.Material(Palette.RustRed * 0.9f));
-        Assert.Throws<InvalidDataException>(() => new Look(Look.Tuning with { Materials = new() { ["Mauve"] = new(1, 0) } }));
+        Assert.Throws<InvalidDataException>(() => new Look(Look.Tuning with { Materials = new() { ["Mauve"] = new() { Wear = 1 } } }));
     }
 
     [Fact]

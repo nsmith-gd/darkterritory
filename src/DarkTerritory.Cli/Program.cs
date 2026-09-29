@@ -130,8 +130,11 @@ static object VrCheck(TrainTuning t, string content, string[] args)
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, (int)Opt(args, "--cars", 6), 1)), line, Opt(args, "--at", 1200));
         var body = Views.Get(Str(args, "--view", "roof"), train, (int)Opt(args, "--car", 2));
         var mesh = new MeshBuilder();
-        new GreyboxScene { Time = 0.37, Look = Looked(content, args) }.Build(mesh, train, body.Position);
-        var lighting = Views.Lighting(train);
+        var look = Looked(content, args);
+        new GreyboxScene { Time = 0.37, Look = look }.Build(mesh, train, body.Position);
+        var lighting = Views.Lighting(train, look);
+        if (look is not null)
+            vr.Dress(look);
         var outcomes = new Dictionary<string, int>();
         var clock = Stopwatch.StartNew();
         var comfort = new DarkTerritory.Game.VrLocomotion(DataFile.Load<DarkTerritory.Game.VrTuning>(Path.Combine(content, DarkTerritory.Game.VrTuning.File)));
@@ -592,9 +595,11 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     using var gpu = new GpuContext("dt screenshot");
     using var renderer = new GreyboxRenderer(gpu, width, height);
     var mesh = new MeshBuilder();
+    var look = Looked(content, args);
+    look?.Dress(renderer);
     new GreyboxScene
     {
-        Look = Looked(content, args),
+        Look = look,
         Route = route,
         Run = run,
         Time = 0.37,
@@ -605,7 +610,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --throttle x: the regulator's handle drawn that far open (T29's cab levers).
         Controls = new TrainControls { Throttle = Math.Clamp(Opt(args, "--throttle", 0), 0, 1), Reverser = 1 },
     }.Build(mesh, train, camera.Position);
-    var lighting = Views.Lighting(train);
+    var lighting = Views.Lighting(train, look);
     if (args.Contains("--vigil"))
         lighting.LampRange = 0.01f; // a Vigil: no power to the headlamp
     if (route is not null)
@@ -638,10 +643,12 @@ static object MenuShot(TrainTuning t, string content, string[] args)
     var standing = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, 6, 1)), line, 1200);
     var view = Views.Get("trackside", standing);
     var mesh = new MeshBuilder();
-    new GreyboxScene { Time = 0.37, Look = Looked(content, args) }.Build(mesh, standing, view.Position);
-    var light = Views.Lighting(standing);
+    var look = Looked(content, args);
+    new GreyboxScene { Time = 0.37, Look = look }.Build(mesh, standing, view.Position);
+    var light = Views.Lighting(standing, look);
     using var gpu = new GpuContext("dt screenshot");
     using var renderer = new GreyboxRenderer(gpu, 480, 270);
+    look?.Dress(renderer);
     var overlay = new Overlay();
     menu.Draw(overlay, renderer.Width, renderer.Height);
     string output = Str(args, "--out", $"out/shots/menu-{screen.ToString().ToLowerInvariant()}.png");
@@ -698,9 +705,11 @@ static object HudShot(string content, string[] args)
     using var gpu = new GpuContext("dt screenshot --hud");
     using var renderer = new GreyboxRenderer(gpu, width, height);
     var mesh = new MeshBuilder();
-    new GreyboxScene { Route = session.Route, Run = session.World.Run, Vehicles = session.Train.Vehicles, Bodies = session.World.Bodies.All, Time = 0.37, Look = Looked(content, args) }
+    var look = Looked(content, args);
+    look?.Dress(renderer);
+    new GreyboxScene { Route = session.Route, Run = session.World.Run, Vehicles = session.Train.Vehicles, Bodies = session.World.Bodies.All, Time = 0.37, Look = look }
         .Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
-    var lighting = Views.Lighting(frames[0]);
+    var lighting = Views.Lighting(frames[0], look);
     if (session.Route is { } r)
         lighting.FogDensity = (float)r.Weather.FogDensity;
     var hud = new Overlay();
