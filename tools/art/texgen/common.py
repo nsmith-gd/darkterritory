@@ -10,12 +10,17 @@ from .core import hexc, lerp, saturate
 
 
 def light(d, height, strength=6.0, amount=0.6):
-    """Bake the painted-in key light (from above) into the diffuse."""
+    """Bake the painted-in key light (from above) into the diffuse. With normal maps (the "ps3" era) the engine lights
+    the relief itself, so only a little of the painted light stays: enough to read, not to double the shading."""
+    core.capture("height", height)
+    if core.ERA == "ps3":
+        amount *= 0.35
     return d * noise.bake_light(height, strength, amount)[..., None]
 
 
 def occlude(d, height, sigma=6.0, amount=0.4):
     """Baked ambient occlusion from a height map: crevices collect shadow and dirt."""
+    core.capture("height", height)
     cav = noise.cavity_from_height(height, sigma)
     return d * (1 - amount * cav)[..., None], cav
 

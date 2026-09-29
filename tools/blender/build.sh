@@ -13,7 +13,7 @@ out="$root/content/art/models"
 blender="${BLENDER:-blender}"
 models=("$@")
 if [ ${#models[@]} -eq 0 ]; then
-  models=(crew cinder_hound sleeper clinger hollow switchman soot_child dragger)
+  models=(crew cinder_hound sleeper clinger dragger)  # the Hollow, the Switchman and the Soot children are sourced scans: tools/models/recipes
 fi
 mkdir -p "$out"
 for m in "${models[@]}"; do

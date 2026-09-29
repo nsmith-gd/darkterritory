@@ -12,11 +12,24 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-# Final texture size (GDD §27: environment 128-256 px/m, hero 256-512 px/m; tileMetres picks the density).
-N = 256
-# Procedural textures are built at 2x and box-filtered down: circles and seams get one texel of
-# anti-aliasing, but the grain (added after the downscale) stays one texel wide.
+# Final texture size. The fidelity target moved to 2008-2012 (ARCHITECTURE §8 note 57): 512 px a map, which at the
+# library's tile sizes is 256-512 px/m (the GDD §27 hero density everywhere). The CC0 sources are 1024.
+N = 512
+# The builders work at 512 (their layouts are authored in its pixels: board widths, brick courses), and in the "ps3"
+# era that is also the final size; photo sources come in from 1024.
 WORK = 512
+# The era: "ps3" (the benchmarks) keeps the full 8 bits, no chroma blocking and a fine grain; "ps2" is the old
+# compressed-texture feel (quantised levels, 2x2 chroma, a one-texel grain).
+ERA = "ps3"
+
+# Height fields (and normal maps) the builder passed through the shading helpers while it ran: what the texture's
+# relief is, for its normal map (textures.py resets it per texture).
+CAPTURED: list = []
+
+
+def capture(kind: str, field):
+    if field is not None:
+        CAPTURED.append((kind, field))
 
 
 def srgb_to_lin(x):
@@ -167,6 +180,7 @@ class Tex:
     gloss: np.ndarray              # HxW 0..1
     emissive: np.ndarray | None = None  # HxW 0..1
     alpha: np.ndarray | None = None     # HxW 0..1 (None = opaque)
+    normal: np.ndarray | None = None    # HxWx3 tangent space (x right, y down the image, z out), None = flat
     tile_metres: float | None = 1.0
     alpha_test: bool = False
     tiling: bool = True

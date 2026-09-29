@@ -42,8 +42,10 @@ OUT = ROOT / "content" / "art" / "textures"
 
 def build(entry: reg.Entry, src: Sources):
     src.begin()
+    core.CAPTURED.clear()
     ctx = reg.Ctx(entry, src)
     tex = entry.fn(ctx)
+    tex.normal = convert.normal_map(tex, core.CAPTURED)
     tex = grade.grade(tex)          # lift to the material's target mean albedo (texgen/grade.py)
     tex = convert.finish(tex, core.rng_for(entry.name, "finish"))
     diffuse, spec = convert.encode(tex, core.rng_for(entry.name, "encode"))
@@ -56,6 +58,7 @@ def index_entry(tex: core.Tex, diffuse) -> dict:
         "name": tex.name,
         "diffuse": f"{tex.name}.png",
         "spec": f"{tex.name}_s.png",
+        **({"normal": f"{tex.name}_n.png"} if tex.normal is not None else {}),
         "size": w if w == h else [w, h],
         "tileMetres": tex.tile_metres,
         "tiling": tex.tiling,
@@ -100,6 +103,11 @@ def main():
         tex, diffuse, spec = build(entry, src)
         convert.save_png(diffuse, args.out / f"{entry.name}.png")
         convert.save_png(spec, args.out / f"{entry.name}_s.png")
+        normal_path = args.out / f"{entry.name}_n.png"
+        if tex.normal is not None:
+            convert.save_png(convert.encode_normal(tex.normal), normal_path)
+        elif normal_path.exists():
+            normal_path.unlink()
         entries.append(index_entry(tex, diffuse))
         built.append((tex, diffuse, spec))
         rgb = diffuse[..., :3].astype(np.float32) / 255

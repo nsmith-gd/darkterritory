@@ -1095,7 +1095,53 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - a client sees who holds the cab.
       - `dt audio render`: the click and the hiss clear the bed by 24 dB in the cab.
       - `dt screenshot --threats --view cab` shows the green fire.
-57. **Crew bots run the gantry crane (T54, spec D.2 and D.3).** The winch pair take the crane first, while the cars under the gantry still have room (the crates and the sleds would fill them), then the winch.
+57. **The fidelity target moves up to 2008-2012 (art direction, after the art pass).** Art direction's call: the art pass read as early PS2, and the benchmarks are BioShock 2, Silent Hill 4, Dead Space and Resident Evil Revelations. The pipeline plan's "late PS2 / early PS3" now means its PS3 end; the PS2 end stays as the comparison mode (`--ps2`, `post.ps2`). The work goes in phases, each looked at before the next:
+    - **Image (this note).**
+      - Materials are sampled trilinear and 16× anisotropic with no mip bias, instead of point-sampled with a positive one.
+      - The scene goes through exposure and a filmic tonemap (ACES fit) instead of a hard shoulder. The fog's long gradients get a one-step triangular dither instead of Bayer banding into 48 levels.
+      - Bloom has two scales: the tight half-res glow and a wide quarter-res halo.
+      - Lens fringing toward the corners, finer grain.
+      - FXAA over the tonemapped frame (luma in alpha). The overlay draws after it, so the HUD stays crisp.
+      - `look.json` `post`: `exposure` 1.0, `wideBloom`, `lensFringe`, `mipBias` 0.
+      - `LookTests`' room-brightness ratio is widened to 2.2×, because the filmic toe darkens flat colour more than a lamp-lit texture. It gains an absolute washed-out ceiling.
+    - **Next:** normal and spec maps on every surface at higher resolution; ambient occlusion, more shadowed lights and light shafts in the fog; then a geometry and material detail pass.
+58. **Sourced models, and model bashing (art direction: "a texture and model fidelity problem").** Procedural kits can't reach the benchmarks' prop density and detail on their own. So the art now also takes free CC0 and CC-BY models and bashes them into the game's own things.
+    - **Where they come from.** Only GitHub is reachable from the build machines (the asset sites are blocked). The sources are public GitHub collections (the Khronos glTF sample assets, three.js's examples, gkjohnson's demo data), pinned to a commit in `tools/models/sources.json`. Licences are read from each model's own files, and the intake rule is `intake/README.md`'s.
+    - **The cook** (`tools/models/cook.py`, Blender, headless, deterministic).
+      - A recipe imports the sources, deforms and combines them, and calls `finish`.
+      - `finish` decimates to a triangle budget and scales to metres with the pivot at the foot.
+      - It bakes each material's PBR maps into the library's format at 512: diffuse (base colour × occlusion, metals darkened, lit glass taking the light's colour), spec (strength, gloss, emissive) and a normal map (glTF's +Y green flipped to our y-down).
+      - It exports a one-bone skinned `.glb`, so `Ballast.Assets` reads a prop the way it reads a creature. Socket bones mark where a prop's light is or what it hangs by.
+    - **In the engine.** `PropArt` cooks each prop's bind pose once into a `MeshAsset`, and `Look` loads `index.models.json` beside the library.
+      - The kit's piece stays as the fallback, so a checkout without the props still draws.
+      - `dt art check` budgets the props like kit pieces. The hand lantern and the skull are medium props: the lantern doubles as the held lamp, and the skull is seen close.
+    - **Creatures from scans.** A scan can be rigged on its own pose. `recipes/hollow.py` bakes Le Transi down and places a 21-bone skeleton on the statue's joints, read off its silhouette. It weights each vertex to its nearest bones and keys the clips on `tools/blender/rig`'s `Clip`. The Hollow is that cadaver now: it replaces the procedural one, with the same clips and the same place.
+      - A figure that has to fold a long way (standing to crouched) is posed at full resolution first, with a linear-blend skin of its own in numpy, then baked down and rigged again on the new pose. The game rig only bends what the clips move, never the big fold, so the low mesh never has to survive it. `cook.rig_creature` holds the weighting and export both recipes share.
+      - The Soot children are made this way (`recipes/soot_child.py`): the Boy Room's boy, his toy sword cut out of his hand, sat down in the ash, graded waxy-pale where the skin shows and rag-grey elsewhere, with soot run down him and his eyes painted into dark pits. It's the same child the line passes standing in the villages' ruined bedrooms. He replaces the procedural one, with the same clips (huddle, turn).
+      - The Switchman is a three-scan bash (`recipes/switchman.py`), built from:
+        - the Three D Scans Zenobia's gown and mantle, sooted to an oiled black coat;
+        - Lee Perry-Smith's head (CC BY 3.0) set on her shoulders;
+        - the Khronos Flight Helmet (CC0) over it: leather cap, goggles, and a rubber mask with its hose down the chest;
+        - the cooked hand lantern, hung from her chain on its own bone, with a flame of pure light in it.
+      - The Switchman is baked down as one figure and rigged on the statue's pose. It replaces the procedural one, with the same clips (wait, flee) and the "lantern" bone the engine lights.
+      - The Dragger and the rest stay procedural for now.
+    - **Ruined interiors.** A whole sourced room can be ruined in its recipe and set where the line can see into it. `recipes/boy_room.py` does this with "Boy Room" (CC BY 4.0), a child's bedroom with a hulking imaginary friend.
+      - It's split by material: the wardrobe knocked askew, a picture hung crooked.
+      - It's graded per part: dust over everything, the boy ash-pale, the thing he drew soot-black but for its eyes.
+      - It's walled by a house shell in the library's plaster, broken off raggedly above it, with fallen rafters and rubble.
+      - It stands in each village with its front wall gone, facing the line, and its bedside lamp is still lit (a socket).
+      - The cook reads spec-gloss materials (KHR_materials_pbrSpecularGlossiness) too. `dt art check` gives a whole room its own class (30k).
+      - `recipes/wake_room.py` is a second, bashed from two sources: "Interior Scene" (CC BY 4.0), a modern living room, and the Three D Scans "Zenobia in Chains". Most villages have one further along from the boy's room (hashed on the village's place, so nothing after it moves).
+        - The room is cut open on its long side and its far half taken away. Its glass is knocked out, its plants gone, and its coffee table cleared for a bier of library timber.
+        - The pictures are hung with black crepe. The soft furnishings are baked down (`bake_down`) and yellowed with dust.
+        - Its walls and floor were lit by a baked atlas that only works from inside the closed box, so they're replaced by the library's plaster, sooted brick and floorboards, broken off raggedly, with the window's hole left.
+        - Zenobia is taken off her plinth and laid out on her back on the bier: the pale body the room is for.
+        - The pendant lamp's globes are gone. Its bare bulbs are lit emissive spheres (`cook.eyes_at`), with a light at its "lamp" socket. `PropArtTests` lets pure light be drawn flat; everything else wears its own layers.
+    - **First set.**
+      - The Khronos Lantern, split into a lamp post and a hand lantern. The hand lantern replaces the kit's cage in the cars, on the platforms and as the dropped lamp.
+      - The photoscanned skull.
+      - The first bash: the skull lantern at the fortress gate, a cage lantern with a human skull where the flame should be, lit from beneath. `PropArtTests` holds the loading, the sockets and the provenance.
+59. **Crew bots run the gantry crane (T54, spec D.2 and D.3).** The winch pair take the crane first, while the cars under the gantry still have room (the crates and the sleds would fill them), then the winch.
     - **The operator (Winch0):** down on the stand's side of the train (across the track from the castings), to the stand, and holding Use there.
       - Hook up while traversing, down over the next stacked casting to where it can be rigged, held there.
       - Hooked: up clear of the roofs, over a cargo car with room, down onto its roof, and let go only once it's sitting on it (never above `dropAbove`: a load let go of high kills).

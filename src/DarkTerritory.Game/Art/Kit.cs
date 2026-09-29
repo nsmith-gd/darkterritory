@@ -250,7 +250,9 @@ public sealed class Kit(Look? look, float seed = 0)
     /// A profile in X–Y (counter-clockwise seen from +Z) extruded from <paramref name="z0"/> to <paramref name="z1"/>. Texture
     /// runs round the profile (u, metres) and along Z (v). Smooth shading averages normals round the section.
     /// </summary>
-    public void Prism(IReadOnlyList<Vector2> profile, float z0, float z1, bool caps, bool smooth)
+    /// <param name="lengthwise">Texture u along the length (z) and v round the profile, so courses of brick run along a
+    /// tunnel's bore rather than up its walls.</param>
+    public void Prism(IReadOnlyList<Vector2> profile, float z0, float z1, bool caps, bool smooth, bool lengthwise = false)
     {
         int n = profile.Count;
         float u = 0;
@@ -275,8 +277,9 @@ public sealed class Kit(Look? look, float seed = 0)
                 nb = Vector3.Normalize(face + Vector3.Normalize(new Vector3(next.Y - b.Y, b.X - next.X, 0)));
             }
             // Seen from outside: pa1 (back) … the quad pa0, pb0, pb1, pa1 winds counter-clockwise from outside.
-            Tri(pa0, pb0, pb1, na, nb, nb, new(u, z0), new(u + len, z0), new(u + len, z1));
-            Tri(pa0, pb1, pa1, na, nb, na, new(u, z0), new(u + len, z1), new(u, z1));
+            Vector2 T(float along, float z) => lengthwise ? new(z, along) : new(along, z);
+            Tri(pa0, pb0, pb1, na, nb, nb, T(u, z0), T(u + len, z0), T(u + len, z1));
+            Tri(pa0, pb1, pa1, na, nb, na, T(u, z0), T(u + len, z1), T(u, z1));
             u += len;
         }
         if (!caps)

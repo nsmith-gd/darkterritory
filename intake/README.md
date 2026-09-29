@@ -35,3 +35,38 @@ textures, no font file is redistributed. Their use is recorded in the provenance
 1. Check the licence at the source (not a mirror's claim). Record it in the table above.
 2. Add a pinned fetch to `tools/art/fetch_sources.sh`.
 3. Read it from the generator through `texgen/sources.py`, which records provenance automatically.
+
+## Models
+
+Sourced 3D models follow the same rule, through `tools/models/`:
+
+- `tools/models/sources.json` pins each model to a public GitHub repository and commit, with its licence and the
+  attribution it asks for. Only CC0 and CC-BY are taken, and each model's licence is read from its own files.
+  `tools/models/fetch.py` pulls just the listed files out of a blob-less clone into `intake/_sources/models/<id>/`,
+  which is gitignored.
+- A recipe (`tools/models/recipes/<name>.py`, run in Blender by `tools/models/build.sh`) imports, bashes and bakes
+  them. What's committed is what the recipe made: `content/art/models/props/<name>.glb`, and its layers in
+  `content/art/textures/models/` with their provenance in `content/art/textures/index.models.json`.
+- CC-BY attributions are collected from those entries for the credits.
+
+| Model | Where | Pinned commit | Licence | Attribution |
+|---|---|---|---|---|
+| Lantern | KhronosGroup/glTF-Sample-Assets `Models/Lantern` | `f36bfdab…` | CC0 1.0 | Microsoft |
+| ScatteringSkull | KhronosGroup/glTF-Sample-Assets `Models/ScatteringSkull` | `f36bfdab…` | CC0 1.0 | (Khronos sample) |
+| FlightHelmet | KhronosGroup/glTF-Sample-Assets `Models/FlightHelmet` | `f36bfdab…` | CC0 1.0 | Microsoft |
+| Lee Perry-Smith head scan | mrdoob/three.js `examples/models/gltf/LeePerrySmith` | pinned in sources.json | CC BY 3.0 | Lee Perry-Smith, Infinite-Realities (triplegangers.com) |
+| Nemetona | mrdoob/three.js `examples/models/gltf/nemetona.glb` | pinned | CC BY 4.0 | JOJObrush |
+| Steampunk Camera | mrdoob/three.js `examples/models/gltf/steampunk_camera.glb` | pinned | CC BY 4.0 | lumoize |
+| Mercury about to kill Argos | gkjohnson/3d-demo-data `models/mercury-about-to-kill-argos` | `9149f69c…` | CC0 1.0 | Virtual Museums of Małopolska |
+| Le Transi de René de Chalon | gkjohnson/3d-demo-data `models/threedscans` | `9149f69c…` | Three D Scans: free, no copyright restrictions* | Three D Scans |
+| Zenobia in Chains (Harriet Hosmer; the file is `Hosmer`) | gkjohnson/3d-demo-data `models/threedscans` | `9149f69c…` | Three D Scans: free, no copyright restrictions* | Three D Scans |
+| PigMan | gkjohnson/3d-demo-data `models/pigman` | `9149f69c…` | CC BY 4.0 | Grigorii Ischenko |
+| Boy Room | gkjohnson/3d-demo-data `models/imaginary-friend-room` | `9149f69c…` | CC BY 4.0 | Iman Aliakbar |
+| Interior Scene | gkjohnson/3d-demo-data `models/interior-scene` | `9149f69c…` | CC BY 4.0 | Allay Design |
+
+\* The Three D Scans files carry no licence of their own; their terms are threedscans.com's ("free to use, no
+copyright restrictions"), which can't be re-read from the build machines (the site is blocked). They're recorded as
+`LicenseRef-ThreeDScans`; confirm the site's terms before release.
+
+Compressed sources (meshopt, Draco) are decoded to a plain `.plain.glb` beside the original with gltf-transform
+(`npm install @gltf-transform/cli@4.1.1` into `intake/_sources/tools/`), since Blender's packaged build can't read them.
