@@ -205,6 +205,9 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Stoker, SpinePhase.Telegraph) => "the pressure's climbing on its own and the fire's the wrong colour: vent it, or drive it out",
         (EnemyKind.Stoker, SpinePhase.Punish) => "the boiler's at its limit",
         (EnemyKind.Stoker, SpinePhase.BreakOff) => "driven out of the firebox",
+        // The Gaunt's telegraph is only that it's closer than it was: no cue for it here either (spec A.4: silent by design).
+        (EnemyKind.Gaunt, SpinePhase.Punish) => "someone on the roofs is gone",
+        (EnemyKind.Gaunt, SpinePhase.BreakOff) => "the thing on the roofs is gone",
         (EnemyKind.Weight, SpinePhase.Telegraph) => "the train lurches and a deep scraping starts at the rear: cut the rear car or beat it off from the platform",
         (EnemyKind.Weight, SpinePhase.Punish) => "the rear car's dragged off the rails",
         (EnemyKind.Weight, SpinePhase.BreakOff) => "the scraping at the rear stops",

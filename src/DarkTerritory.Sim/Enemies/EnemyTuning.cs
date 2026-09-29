@@ -18,6 +18,25 @@ public sealed record EnemyTuning(
     public LongWhistleTuning LongWhistle { get; init; } = new();
     public ClimberTuning Climbers { get; init; } = new();
     public WeightTuning Weight { get; init; } = new();
+    public GauntTuning Gaunt { get; init; } = new();
+}
+
+/// <summary>The Gaunt (App. A.4, B.4). Field docs live in enemies.json.</summary>
+public sealed record GauntTuning
+{
+    public double ViewHalfAngleDegrees { get; init; } = 35;
+    public double ViewRange { get; init; } = 60;
+    public double EyeHeight { get; init; } = 1.6;
+    public double AdvanceSpeed { get; init; } = 5;
+    public double Reach { get; init; } = 1.3;
+    public int StrikeDamage { get; init; } = 100;
+    public double RetreatSeconds { get; init; } = 60;
+    public double LingerSeconds { get; init; } = 300;
+    public int MinCrew { get; init; } = 3;
+    public double TunnelExitWithin { get; init; } = 150;
+    public double StoppedBelow { get; init; } = 0.5;
+    public double InteriorSeconds { get; init; } = 180;
+    public double InteriorWeight { get; init; } = 2;
 }
 
 /// <summary>The Weight (App. A.3, B.3). Field docs live in enemies.json.</summary>

@@ -144,6 +144,19 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         if (Work(self, world) is { } working)
             return working;
         var train = world.Train;
+        // The Gaunt (App. A.4): eyes on it, and kept there. It can't move while anyone's watching; that's the counter, and
+        // what it costs is whatever the watcher was doing. (Not through the cold: that's a life too.)
+        if (self.Alive && self.Surface == Surface.Roof && self.Parent >= 0 && self.Parent < train.Frames.Count && _warm is not { Active: true }
+            && world.Enemies is { } et && world.ActiveEnemies.OfType<Gaunt>().FirstOrDefault(g => g.Phase == SpinePhase.Telegraph) is { } gaunt)
+        {
+            var to = gaunt.WorldPosition(train) + Ballast.Double3.Up * 1.2 - (PlayerMotor.WorldPosition(self, train) + Ballast.Double3.Up * et.Gaunt.EyeHeight);
+            if (to.Length <= et.Gaunt.ViewRange * 0.9)
+            {
+                var d = train.Frames[self.Parent].DirToLocal(to).Normalized;
+                double yaw = Math.Atan2(-d.X, -d.Z), pitch = Math.Asin(Math.Clamp(d.Y, -1, 1));
+                return new PlayerIntent { LookYaw = (float)Wrap(yaw - self.Yaw), LookPitch = (float)(pitch - self.Pitch) };
+            }
+        }
         if (self.Alive && self.Parent > 0 && self.Parent < train.Frames.Count)
         {
             int parent = self.Parent;
@@ -163,6 +176,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         }
         return Decide(self, train, tick);
     }
+
+    static double Wrap(double a) => Math.IEEERemainder(a, 2 * Math.PI);
 
     /// <summary>Walk to the roof edge over it, then stand and hold Use until it lets go.</summary>
     static PlayerIntent Pry(in PlayerState self, Enemy clinger)

@@ -1198,6 +1198,16 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - soots the result: creases, mud climbing the boots and hem, smoke settled on the shoulders, and the face sallow and smudged, its occlusion softened.
       - A Cycles bake clears the whole image, and only the colour pass leaves alpha where it didn't write. So each group bakes into images of its own, and its colour coverage masks all four maps into the atlas.
       - The chest lamp's glass keeps crew_atlas's lit cell, and the shovel keeps its library layers. `tools/blender/build.sh` no longer builds the crew.
+      - The cars are the sixth. Pieces TrainKit set as boxes are modelled once, baked, and set by the kit where the boxes were, with the boxes as the fallback:
+        - `recipes/car_gear.py` has three pieces:
+          - the arch-bar truck, with plate wheels, journal boxes with their lids, top, arch and tie bars through the columns, coil springs, the bolster, and brake beams with their shoes on the treads;
+          - the knuckle coupler, with its striker, knuckle and guard arm, the cut lever out to the car side, and the air hose with its angle cock and glad hand. It's turned for a car's rear and raised to the kit's height;
+          - the brake gear under the middle: the reservoir on straps, the cylinder, the triple valve, the levers and the push rods.
+        - `recipes/car_body.py` has modules laid to the car's tuned geometry:
+          - roof-walk bays of gapped, nailed boards, stretched to fit the walk end to end;
+          - the roof sheets' riveted seam caps between the bays, on a steel roof, scaled to the roof's width;
+          - side posts: riveted pressed ribs on the steel cars, and bolted timber posts with iron plates on the planked ones.
+        - A car goes from about 5k triangles to about 10k, inside its class's 15k.
     - **First set.**
       - The Khronos Lantern, split into a lamp post and a hand lantern. The hand lantern replaces the kit's cage in the cars, on the platforms and as the dropped lamp.
       - The photoscanned skull.
@@ -1328,7 +1338,29 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - the guns can't take it;
       - the director lays it at a water crossing ahead and nowhere else;
       - a client drags as the host does.
-65. **The procedural line (docs/design/linegen-plan.md, roadmap M5 "procedural line v1").** The readings where the plan or the spec was ambiguous, and what's not done:
+65. **The Gaunt (T60, App. A.4 and B.4; GDD: "the cost is a person. Whoever watches it can do nothing else, and the train still needs running").** `EnemyKind.Gaunt`, cost 5 (App. B.1), tuned in `enemies.json` `gaunt`.
+    - **Ambiguity: "inside ANY player's view cone".** Read as: a living player, not shut in a car (walls), within 60 m, with the Gaunt's chest inside 35° of where they're looking, from 1.6 m eye height. No occlusion beyond the walls; the roofs are open. It's worked out on the host each tick (`Gaunt.Seen`). Clients just see it not moving.
+    - **FROZEN** while seen, not so much as a pose change: the art holds one frame of the Hollow's idle, never played.
+    - **ADVANCE** when unseen: along the roofs at 5 m/s toward the nearest living crew member on a roof, crossing the gaps car by car. There's no audio at all (spec A.4: silent by design), and no HUD text cue for it either.
+    - **REACH:** within 1.3 m of them, unseen, and past App. A.1's window from its arrival, it takes them (100, `DeathCause.Gaunt`) and is gone: "the cost is a person".
+    - **RETREAT:** seen without a break for 60 s. Any gap in the watching starts the minute again.
+    - **Director gates** (B.4):
+      - Frontier and beyond, once per run, a crew of three or more;
+      - "during a stop" (the train below 0.5 m/s) or "on tunnel exit" (the engine within 150 m past a tunnel's mouth);
+      - ×2 weight once the whole living crew has been shut in somewhere for three minutes;
+      - it's put on the roof of the car furthest from the crew.
+    - **Bots:** a roof walker within range stops and keeps its eyes on it (look deltas, as a player turns). A warm-up in progress goes on: the cold's a life too.
+    - **Art:** the Hollow's figure drawn out taller still (0.78 × 1.32), dark, facing whoever it's after (its facing replicates). The greybox has a figure. CI shot `threats-gaunt`.
+    - **Verified:** `GauntTests` (9):
+      - watched, it doesn't move;
+      - unwatched, it comes and takes them (after the window);
+      - watched for a minute, it withdraws;
+      - a glance away restarts the minute;
+      - someone shut in a car can't watch it;
+      - the director sends it once, at a stop or a tunnel's mouth, to a crew of three, and not on a Local line;
+      - a roof walker bot keeps its eyes on it until it goes;
+      - a client sees where it stands and which way it faces.
+66. **The procedural line (docs/design/linegen-plan.md, roadmap M5 "procedural line v1").** The readings where the plan or the spec was ambiguous, and what's not done:
     - **Junction count** (§3.2's "junctions" beside its own alternate and dead-line counts): both ends of an alternate count, so junctions = 2 × alternates + dead lines. It's the reading that keeps the table's three columns consistent. The quotas' "facing junctions" (§15.3) and the Switchman's network size (App. B.7) count the same way.
     - **Dawn (§22.1):** the timer is the spec's formula over the gate-to-terminus distance. The validator holds the ideal transit to it and reports transit plus four minutes a stop as a warning (`validation.dawnWithStopsHard: false`): by the spec's own numbers the deeper tiers can't take every stop in time. Note 13 is the same conflict.
     - **Descent grades** come from brake fade's equilibrium: a train braking on a descent a third of the time recovers as fast as it fades (`profile`), so the ruling descent is the steepest where that duty holds at the consist's brake. Approaches to a stop never descend.

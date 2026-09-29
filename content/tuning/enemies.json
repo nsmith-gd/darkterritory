@@ -313,6 +313,32 @@
     "lowSpeedWeight": 2
   },
 
+  // App. A.4 THE GAUNT: "FROZEN perfectly motionless while inside ANY player's view cone. ADVANCE moves only when
+  // unobserved, fast, silent (TELEGRAPH: it is closer than it was. No audio cue at all). REACH adjacent to a player →
+  // attacks on the next unobserved frame. RETREAT continuously observed for 60s → withdraws. COUNTER sustained
+  // observation, by anyone."
+  "gaunt": {
+    // Ambiguity (ARCHITECTURE §8): "view cone". This half-angle about where someone's looking (degrees), out to this
+    // range (m), from this eye height; nobody shut in a car sees out.
+    "viewHalfAngleDegrees": 35,
+    "viewRange": 60,
+    "eyeHeight": 1.6,
+    // Unobserved, it comes along the roofs at this pace (m/s); within this reach (m) of someone, it takes them.
+    "advanceSpeed": 5,
+    "reach": 1.3,
+    "strikeDamage": 100,
+    // Watched this long without a break and it withdraws; around this long at all and it goes.
+    "retreatSeconds": 60,
+    "lingerSeconds": 300,
+    // App. B.4 gates: crew of at least this many; "during a stop" (the train below this, m/s) "or on tunnel exit" (the
+    // engine within this of a tunnel's mouth, m); "weight up if the crew has been fully interior for >3 min", by this.
+    "minCrew": 3,
+    "stoppedBelow": 0.5,
+    "tunnelExitWithin": 150,
+    "interiorSeconds": 180,
+    "interiorWeight": 2
+  },
+
   "lamplighters": {
     // Where it paces: this far out from the track, this far back from the engine's front (beside the cab).
     "paceLateral": 14,
@@ -362,7 +388,7 @@
     "maxConcurrentLargeCrew": 6,
     // Budget share spent before the first facility, across the middle, and in the final approach.
     "phaseShares": [0.15, 0.45, 0.40],
-    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3, "ferryman": 4, "longWhistle": 3, "climbers": 3, "weight": 3 },
+    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3, "ferryman": 4, "longWhistle": 3, "climbers": 3, "weight": 3, "gaunt": 5 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5

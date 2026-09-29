@@ -1553,3 +1553,166 @@ public sealed class Weight(int id) : Enemy(id)
         Enter(ctx, SpinePhase.Gone);
     }
 }
+
+/// <summary>
+/// THE GAUNT · sight · flank (App. A.4). On the roofs. Perfectly still while it's inside anyone's view; unobserved, it
+/// moves, fast and silent, toward whoever's nearest out on the roofs. The telegraph is only that it's closer than it was:
+/// no sound at all (spec A.4: silent by design). Beside someone and unobserved, it takes them. Watched without a break
+/// for a minute, it withdraws. "The cost is a person": whoever watches it can do nothing else, and the train still needs
+/// running. Once a run.
+/// </summary>
+/// <remarks><see cref="Enemy.Extra"/> is how long it's been watched without a break; <see cref="Enemy.Extra2"/> its facing
+/// (yaw in its car's frame), toward whoever it's after.</remarks>
+public sealed class Gaunt(int id) : Enemy(id)
+{
+    public override EnemyKind Kind => EnemyKind.Gaunt;
+    public override PressureZone Zone => PressureZone.Flank;
+    public override Sense Sense => Sense.Sight;
+
+    /// <summary>Held still by someone's eyes on it (the host works it out; clients see it not move).</summary>
+    public bool Observed { get; private set; }
+
+    /// <summary>On the roof of a car, standing at a point along it.</summary>
+    public static Gaunt OnRoof(int id, TrainOnLine train, int car, double z) =>
+        new(id) { Attached = car, Local = new Double3(0, train.Frames[car].Shape.RoofHeight, z) };
+
+    /// <summary>
+    /// Whether anyone can see a point: alive, not shut in a car (walls), within range, and the point inside the cone
+    /// about where they're looking.
+    /// </summary>
+    public static bool Seen(EnemyContext ctx, Double3 at, GauntTuning t)
+    {
+        var train = ctx.Train;
+        double cos = Math.Cos(t.ViewHalfAngleDegrees * Math.PI / 180);
+        foreach (var (player, _) in ctx.Crew)
+        {
+            var s = player.State;
+            if (!s.Alive || PlayerMotor.Space(s, train) > 0)
+                continue;
+            var eye = PlayerMotor.WorldPosition(s, train) + Double3.Up * t.EyeHeight;
+            var to = at + Double3.Up * 1.2 - eye;
+            double d = to.Length;
+            if (d > t.ViewRange)
+                continue;
+            if (d < 1e-6)
+                return true;
+            var look = Combat.Guns.AimLocal(s);
+            var world = s.Parent >= 0 && s.Parent < train.Frames.Count ? train.Frames[s.Parent].DirToWorld(look) : look;
+            if (Double3.Dot(world.Normalized, to * (1 / d)) >= cos)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// The car to put it on (App. B.4 "roof, during a stop or on tunnel exit"): a car's roof as far from the crew as the
+    /// train allows, so it starts out of reach and has to come.
+    /// </summary>
+    public static (int Car, double Z)? Perch(World world)
+    {
+        var train = world.Train;
+        var rake = train.Dynamics.Consist.Vehicles;
+        var crew = world.CrewThisTick.Where(c => c.State.Alive).Select(c => PlayerMotor.WorldPosition(c.State, train)).ToList();
+        (int Car, double Far)? best = null;
+        for (int i = 1; i < rake.Count; i++)
+        {
+            var frame = train.Frames[rake[i].Id];
+            double far = crew.Count == 0 ? 0 : crew.Min(c => (c - frame.Origin).Length);
+            if (best is null || far > best.Value.Far)
+                best = (rake[i].Id, far);
+        }
+        return best is { } b ? (b.Car, 0) : null;
+    }
+
+    protected override void Tick(EnemyContext ctx)
+    {
+        var t = ctx.Tuning.Gaunt;
+        var train = ctx.Train;
+        double dt = SimConstants.TickSeconds;
+        if (Attached < 0 || Attached >= train.Frames.Count || train.Dynamics.Consist.IndexOf(Attached) < 0)
+        {
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        switch (Phase)
+        {
+            case SpinePhase.Dormant:
+                Enter(ctx, SpinePhase.Telegraph); // it's there
+                break;
+            case SpinePhase.Telegraph:
+                {
+                    var at = WorldPosition(train);
+                    Observed = Seen(ctx, at, t);
+                    if (Observed)
+                    {
+                        // Frozen. Watched for long enough without a break, it goes.
+                        Extra += dt;
+                        if (Extra >= t.RetreatSeconds)
+                        {
+                            Enter(ctx, SpinePhase.BreakOff);
+                            Enter(ctx, SpinePhase.Gone);
+                        }
+                        break;
+                    }
+                    Extra = 0;
+                    if (PhaseSeconds >= t.LingerSeconds)
+                    {
+                        Enter(ctx, SpinePhase.Gone);
+                        break;
+                    }
+                    // Whoever's nearest out on the roofs.
+                    var roofs = ctx.Crew.Where(c => c.Player.State is { Alive: true, Surface: Surface.Roof } s && s.Parent > 0 && s.Parent < train.Frames.Count
+                            && train.Dynamics.Consist.IndexOf(s.Parent) >= 0)
+                        .Select(c => (c.Player, World: PlayerMotor.WorldPosition(c.Player.State, train))).ToList();
+                    if (roofs.Count == 0)
+                        break;
+                    var prey = roofs.MinBy(c => (c.World - at).Length);
+                    if ((prey.World - at).Length <= t.Reach)
+                    {
+                        // Beside them, and nobody's looking.
+                        if (Enter(ctx, SpinePhase.Commit) && Enter(ctx, SpinePhase.Punish))
+                        {
+                            ctx.Bite(prey.Player.Id, t.StrikeDamage, DeathCause.Gaunt);
+                            Enter(ctx, SpinePhase.BreakOff);
+                            Enter(ctx, SpinePhase.Gone);
+                        }
+                        break;
+                    }
+                    Advance(train, prey.Player.State, t.AdvanceSpeed * dt);
+                    break;
+                }
+            default:
+                Enter(ctx, SpinePhase.Gone);
+                break;
+        }
+    }
+
+    /// <summary>Along the roofs toward someone: across the car it's on to their car, then to them.</summary>
+    void Advance(TrainOnLine train, in PlayerState prey, double step)
+    {
+        var consist = train.Dynamics.Consist;
+        int mine = consist.IndexOf(Attached), theirs = consist.IndexOf(prey.Parent);
+        var shape = train.Frames[Attached].Shape;
+        Double3 goal;
+        if (theirs == mine)
+            goal = new Double3(prey.Position.X, shape.RoofHeight, prey.Position.Z);
+        else
+        {
+            // To the end toward them, then over the gap onto the next roof.
+            double end = theirs < mine ? -shape.HalfLength + 0.3 : shape.HalfLength - 0.3;
+            goal = new Double3(0, shape.RoofHeight, end);
+            if (Math.Abs(Local.Z - end) <= step)
+            {
+                int next = consist.Vehicles[mine + (theirs < mine ? -1 : 1)].Id;
+                var nextShape = train.Frames[next].Shape;
+                Attached = next;
+                Local = new Double3(0, nextShape.RoofHeight, theirs < mine ? nextShape.HalfLength - 0.3 : -nextShape.HalfLength + 0.3);
+                return;
+            }
+        }
+        var to = goal - Local;
+        double d = to.Length;
+        Extra2 = Math.Atan2(-to.X, -to.Z);
+        Local = d <= step ? goal : Local + to * (step / d);
+    }
+}

@@ -92,6 +92,11 @@ public static class Staging
         var hollow = new Hollow(30);
         hollow.Restore(SpinePhase.Punish, 2, 1, 0, train.Frames[0].Shape.Cab!.Value.Centre, 0, 0, 0, 0, 0);
         threats.Add(hollow);
+        // Stood on the fourth car's roof, still, facing back along the train (T60).
+        int gauntCar = Math.Min(4, train.Frames.Count - 1);
+        var gaunt = new Gaunt(47);
+        gaunt.Restore(SpinePhase.Telegraph, 5, 1, gauntCar, new Double3(0.3, train.Frames[gauntCar].Shape.RoofHeight, -1), 0, 0, 0, 0, Math.PI);
+        threats.Add(gaunt);
         // Hung under the rear coupling, dragging (T59): below the guard van's gun, beside the boarded hound's car.
         var weight = new Weight(46);
         weight.Restore(SpinePhase.Telegraph, 2, 1, rear, new Double3(0, 0.35, rearShape.HalfLength + 0.4), 0, 0, 0, 0, 0);

@@ -27,6 +27,8 @@ public sealed class Director
     /// </summary>
     public double RateMultiplier { get; set; } = 1;
     double _spent;
+    /// <summary>Seconds (the director's own, one a decision) the whole living crew has been shut in somewhere.</summary>
+    double _allInside;
 
     public Director(DirectorTuning tuning, Route.Route? route, ulong seed, int cars, int crew)
     {
@@ -63,6 +65,7 @@ public sealed class Director
         EnemyKind.LongWhistle => "longWhistle",
         EnemyKind.Climber => "climbers",
         EnemyKind.Weight => "weight",
+        EnemyKind.Gaunt => "gaunt",
         _ => "sleepers",
     }, 2);
 
@@ -145,6 +148,14 @@ public sealed class Director
         if (world.Enemies is { } ct && Climber.Gaps(train) is { } gaps && gaps.Count >= ct.Climbers.MinGaps
             && train.Dynamics.Speed >= ct.Climbers.MinSpeed && Zone(PressureZone.Flank) < _t.MaxConcurrentZone)
             options.Add((EnemyKind.Climber, ct.Climbers.PerGapWeight * gaps.Count));
+        // App. B.4: the Gaunt on the roofs, "during a stop or on tunnel exit", Frontier and beyond, once per run, crew of
+        // three or more. Weight up if the crew has been fully interior for over three minutes.
+        int outside = world.CrewThisTick.Count(c => c.State.Alive && PlayerMotor.Space(c.State, train) == PlayerMotor.Outside);
+        _allInside = outside == 0 && world.CrewThisTick.Any(c => c.State.Alive) ? _allInside + 1 : 0;
+        if (_route is { } gr && gr.Tier >= RouteTier.Frontier && world.Enemies is { } at && Crew >= at.Gaunt.MinCrew
+            && Zone(PressureZone.Flank) < _t.MaxConcurrentZone && !Log.Any(l => l.Kind == EnemyKind.Gaunt) && train.Dynamics.Consist.CarCount >= 1
+            && (train.Dynamics.Speed < at.Gaunt.StoppedBelow || gr.Of(FeatureKind.Tunnel).Any(f => s >= f.End && s <= f.End + at.Gaunt.TunnelExitWithin)))
+            options.Add((EnemyKind.Gaunt, _allInside >= at.Gaunt.InteriorSeconds ? at.Gaunt.InteriorWeight : 1));
         // App. B.4: Draggers under a train of two or more, woken by someone on the roofs. Weight up per roof walker.
         int onRoofs = world.CrewThisTick.Count(c => c.State is { Alive: true, Surface: Surface.Roof } r && r.Parent > 0);
         if (world.Enemies is { } dt && onRoofs > 0 && train.Dynamics.Consist.CarCount >= dt.Draggers.MinCars && Zone(PressureZone.Flank) < _t.MaxConcurrentZone
@@ -220,7 +231,7 @@ public sealed class Director
         var zone = kind switch
         {
             EnemyKind.CinderHound or EnemyKind.Weight => PressureZone.Rear,
-            EnemyKind.Clinger or EnemyKind.Dragger or EnemyKind.Climber => PressureZone.Flank,
+            EnemyKind.Clinger or EnemyKind.Dragger or EnemyKind.Climber or EnemyKind.Gaunt => PressureZone.Flank,
             EnemyKind.Switchman or EnemyKind.Ferryman or EnemyKind.LongWhistle => PressureZone.Forward,
             EnemyKind.SootChildren or EnemyKind.Lamplighter => PressureZone.Structural,
             _ => PressureZone.Interior,
