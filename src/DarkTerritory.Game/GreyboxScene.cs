@@ -42,6 +42,10 @@ public sealed class GreyboxScene
     public SwitchStands? Stands { get; set; }
     /// <summary>The cab's controls, for where the levers' handles are.</summary>
     public TrainControls Controls { get; set; } = new() { Reverser = 1 };
+    /// <summary>The sim's tick now, for effects timed from the sim (a gun's muzzle flash); unset, none are shown.</summary>
+    public long Tick { get; set; } = -1;
+    /// <summary>The boiler's pressure as a fraction of its maximum, for the cab's gauge (the sim's; unset, a working pressure).</summary>
+    public float Pressure { get; set; } = 0.78f;
     /// <summary>The art pass's surfaces (T39, look.json). Unset, the greybox is flat colour.</summary>
     public Look? Look { get; set; }
 
@@ -96,16 +100,32 @@ public sealed class GreyboxScene
         {
             if ((frame.Origin - eye).Length > 60)
                 continue;
+            // Its interior as an enclosed space: the night stays outside it (Room).
+            if (Look is not null && frame.Shape.Interior is { } inside)
+                mesh.Rooms.Add(new Room(V(frame.ToWorld(inside.Centre), eye), ToF(frame.Right), ToF(frame.Up), ToF(frame.Back), ToF(inside.HalfSize)));
             if (frame.Shape.Interior is { } room)
                 foreach (double z in new[] { -room.HalfSize.Z * 0.5, room.HalfSize.Z * 0.5 })
+                {
+                    // With the art pass the lamps are flames, and flicker (Art.SceneArt.Flicker); the greybox's are steady.
+                    float flicker = Look is null ? 1 : Art.SceneArt.Flicker(Time, frame.Index * 2 + (z < 0 ? 0 : 1));
                     mesh.PointLights.Add(Emergency
                         ? new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), EmergencyRed, 4f)
-                        : new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), Palette.LampAmber * 1.6f, 7.5f));
+                        : new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), Palette.LampAmber * 1.6f * flicker, 7.5f));
+                }
             foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
                 mesh.PointLights.Add(new PointLight(V(frame.ToWorld(i.Position + new Double3(0, 0.7, 0.3)), eye), Palette.FurnaceOrange * (0.6f + 1.6f * FireGlow), 5f));
         }
         foreach (var frame in frames)
             Car(mesh, frame, eye);
+        if (Look is not null)
+        {
+            // The art pass's effects (Art/Effects): smoke, steam, sparks, the lamp's beam, and fog banks along the line.
+            Look.Art.Effects.Train(mesh, frames, eye, Time, Controls, FireGlow, Emergency);
+            var fog = Look.Apply(FrameLighting.Night).FogColor;
+            Look.Art.Effects.Fog(mesh, line, eye, centre, Time, fog, (float)(Route?.Weather.FogDensity ?? 0.016));
+            if (Route?.Weather is { Wet: true } weather)
+                Look.Art.Effects.Rain(mesh, eye, Time, (float)weather.Wind, fog);
+        }
         mesh.Seed = 0;
         if (Enemies is not null)
             foreach (var e in Enemies)
@@ -116,7 +136,8 @@ public sealed class GreyboxScene
             // Heavy crates only come from a facility's site, so its size is there (facilities.json "heavy").
             double heavyHalf = Run?.Sites.FirstOrDefault(x => x is not null)?.HeavyRadius ?? 0.5;
             foreach (var b in Bodies)
-                DrawBody(mesh, frames, b, eye, heavyHalf);
+                if (Look?.Art.Body(mesh, frames, b, eye, heavyHalf, Time) != true)
+                    DrawBody(mesh, frames, b, eye, heavyHalf);
         }
         if (Crew is not null)
             foreach (var c in Crew)
@@ -350,6 +371,12 @@ public sealed class GreyboxScene
 
     void Track(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double centre)
     {
+        if (Look is not null)
+        {
+            // The art pass's line (WorldArt): the ground, the track and the lineside, cooked in cells.
+            Look.Art.World.Cells(mesh, line, Route, eye, from, to, Seed, (float)ValleyDepth);
+            return;
+        }
         const double step = 5, gauge = 0.72, sleeperPitch = 0.75;
         const double groundHalfWidth = 90, bedHalfWidth = 1.8;
         for (double s = from; s < to; s += step)
@@ -394,6 +421,10 @@ public sealed class GreyboxScene
 
     void Lineside(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to)
     {
+        if (Look is not null)
+        {
+            return; // cooked with the track (WorldArt.Cells)
+        }
         // Telegraph poles every 50 m and a scatter of pines: depth cues for fog and speed.
         for (double s = Math.Ceiling(from / 50) * 50; s < to; s += 50)
         {
@@ -438,6 +469,12 @@ public sealed class GreyboxScene
     /// </summary>
     void Branch(MeshBuilder mesh, RailLine main, Branch branch, Double3 eye)
     {
+        if (Look is not null)
+        {
+            var at = (Stands ?? DefaultStands).LeverAt(main, branch.Index);
+            Look.Art.World.Branch(mesh, branch, eye, DrawDistance, at, main.Sample(branch.Toe).Tangent, Diverging?.Invoke(branch.Index) ?? false);
+            return;
+        }
         const double step = 5, gauge = 0.72, sleeperPitch = 0.75, bedHalfWidth = 1.8, start = 4;
         var local = branch.Local;
         for (double s = start; s < local.Length; s += step)
@@ -523,6 +560,17 @@ public sealed class GreyboxScene
             if (f.End < from || f.Start > to)
                 continue;
             double a = Math.Max(f.Start, from), b = Math.Min(f.End, to);
+            // The art pass's structures (Art/StructureKit): viaducts and trestles, portals and bores.
+            if (Look is not null && f.Kind == FeatureKind.Bridge)
+            {
+                Look.Art.World.Bridge(mesh, line, f, eye, from, to, (float)ValleyDepth);
+                continue;
+            }
+            if (Look is not null && f.Kind == FeatureKind.Tunnel)
+            {
+                Look.Art.World.Tunnel(mesh, line, f, eye, from, to);
+                continue;
+            }
             switch (f.Kind)
             {
                 case FeatureKind.Tunnel:
@@ -589,8 +637,13 @@ public sealed class GreyboxScene
     }
 
     /// <summary>Walls both sides, gun towers with lamps, and a gatehouse over the line.</summary>
-    static void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt)
+    void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt)
     {
+        if (Look is not null)
+        {
+            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0);
+            return;
+        }
         double a = Math.Max(start, from), b = Math.Min(end, to);
         if (a >= b)
             return;
@@ -691,12 +744,17 @@ public sealed class GreyboxScene
     }
 
     /// <summary>Placeholder silhouettes until facility modules exist: oversized, dark, one working lamp (GDD §30).</summary>
-    static void Facility(MeshBuilder mesh, RailLine line, Double3 eye, RouteFeature f) =>
+    void Facility(MeshBuilder mesh, RailLine line, Double3 eye, RouteFeature f) =>
         FacilityBuildings(mesh, line, eye, f.Facility, (f.Start + f.End) / 2, f.Side, push: 0);
 
     /// <summary>A facility's buildings beside a track (the main line, or its spur), centred along it at <paramref name="mid"/>.</summary>
-    static void FacilityBuildings(MeshBuilder mesh, RailLine line, Double3 eye, FacilityKind? kind, double mid, double side, double push)
+    void FacilityBuildings(MeshBuilder mesh, RailLine line, Double3 eye, FacilityKind? kind, double mid, double side, double push)
     {
+        if (Look is not null)
+        {
+            Look.Art.World.Facility(mesh, line, eye, kind, mid, side, push);
+            return;
+        }
         side = side == 0 ? 1 : side;
         double Out(double lateral) => side * (lateral + push);
         switch (kind)
@@ -735,6 +793,20 @@ public sealed class GreyboxScene
         bool engine = frame.Index == 0;
         // Each car wears its own way (the grime pattern is in the car's own frame, so it rides with it).
         mesh.Seed = frame.Index + 1;
+        var vehicle = Vehicles is { } vs && frame.Index < vs.Count ? vs[frame.Index] : null;
+        // The art pass's kit (TrainKit): the body, doors and gun as cooked pieces; what's left here is what glows and moves.
+        if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick))
+        {
+            CarWorkings(mesh, frame, eye, Draw);
+            if (engine)
+            {
+                // The dials: pressure from the boiler, heat from the fire, the water glass (no water model yet: steady),
+                // and speed against the line's 80 km/h top.
+                float speed = (float)frame.Velocity.Length / 22.2f;
+                Look.Art.Gauges(mesh, frame, eye, [Pressure, FireGlow, 0.72f, speed]);
+            }
+            return;
+        }
         // What you see is what you collide with: every solid is drawn, coloured by what it is. Long interior
         // surfaces go down in 2 m slices so the per-vertex lamp light has vertices to land on.
         foreach (var solid in shape.Solids)
@@ -758,36 +830,19 @@ public sealed class GreyboxScene
         double half = shape.HalfLength;
         if (engine)
         {
-            mesh.Emissive = 1;
-            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
-                Draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.17), new Double3(0.3, 0.2, 0.02)), Palette.FurnaceOrange * (0.15f + 0.85f * FireGlow));
             // The headlamp: dark with no power in a Vigil.
+            mesh.Emissive = 1;
             Draw(Box.FromCentre(new Double3(0, 2.8, -half - 0.05), new Double3(0.35, 0.35, 0.1)), Emergency ? Palette.LampAmber * 0.08f : Palette.LampAmber);
             mesh.Emissive = 0;
-            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
-                Draw(Box.FromCentre(i.Position + new Double3(0, 1.1, 0), new Double3(0.12, 0.12, 0.04)), Palette.TarnishedBrass);
-            // The driver's levers, their handles where the controls have them (T29): a headset player takes hold of
-            // these. The regulator comes back as it opens, the brake handle as it goes on, the reverser forward for ahead.
-            if (shape.Levers is { } levers)
-            {
-                void Lever(Double3 handle, double rod)
-                {
-                    Draw(Box.FromCentre(handle - new Double3(0, rod / 2, 0), new Double3(0.02, rod / 2, 0.02)), Palette.IronGrey);
-                    Draw(Box.FromCentre(handle, new Double3(0.07, 0.03, 0.03)), Palette.TarnishedBrass);
-                }
-                Lever(levers.RegulatorAt(Controls.Throttle), 0.3);
-                Lever(levers.BrakeAt(Controls.Brake), 0.2);
-                Lever(levers.ReverserAt(Controls.Reverser), 0.9);
-            }
         }
-        else
+        CarWorkings(mesh, frame, eye, Draw);
+        if (!engine)
         {
             // Roof walkway plank down the safe centreline.
             Draw(new Box(new Double3(-0.35, shape.RoofHeight, -half + 0.2), new Double3(0.35, shape.RoofHeight + 0.04, half - 0.2)), Palette.TarnishedBrass);
         }
         // Doors: shut in the doorway, or slid aside when open: an end door along the end wall inside, a side door back
         // along the outside of the car (a boxcar's sliding door).
-        var vehicle = Vehicles is { } vs && frame.Index < vs.Count ? vs[frame.Index] : null;
         foreach (var door in shape.DoorList)
         {
             bool open = vehicle?.DoorOpen(door.Index) ?? false;
@@ -806,13 +861,6 @@ public sealed class GreyboxScene
                 : new Double3(open ? box.Min.X + 0.1 : box.Max.X - 0.12, box.Min.Y + 1.0, box.Centre.Z);
             Draw(Box.FromCentre(handle, side ? new Double3(0.08, 0.04, 0.04) : new Double3(0.04, 0.04, 0.08)), Palette.TarnishedBrass);
         }
-        if (shape.Interior is { } room)
-        {
-            // A lamp in every car: the warm interior against the hostile exterior (GDD §26).
-            mesh.Emissive = 1;
-            Draw(Box.FromCentre(new Double3(0, room.Max.Y - 0.08, 0), new Double3(0.12, 0.06, 0.12)), Emergency ? EmergencyRed : Palette.LampAmber);
-            mesh.Emissive = 0;
-        }
         if (shape.Gun is { } gun)
         {
             // Barrel along the gun's facing: its arc is readable from its silhouette (GDD §26).
@@ -829,6 +877,49 @@ public sealed class GreyboxScene
         // Wheel sets under both ends.
         foreach (double z in new[] { -half * 0.6, half * 0.6 })
             Draw(Box.FromCentre(new Double3(0, 0.45, z), new Double3(shape.HalfWidth * 0.8, 0.4, 1.2)), Palette.SootBlack);
+    }
+
+    /// <summary>
+    /// What glows and moves on a car, with or without the kit: the firebox's glow, the vent valve, the driver's levers
+    /// where the controls have them, and the lamp in every car.
+    /// </summary>
+    void CarWorkings(MeshBuilder mesh, CarFrame frame, Double3 eye, Action<Box, Vector3> draw)
+    {
+        var shape = frame.Shape;
+        if (frame.Index == 0)
+        {
+            mesh.Emissive = 1;
+            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
+                draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.17), new Double3(0.3, 0.2, 0.02)), Palette.FurnaceOrange * (0.15f + 0.85f * FireGlow));
+            mesh.Emissive = 0;
+            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
+                draw(Box.FromCentre(i.Position + new Double3(0, 1.1, 0), new Double3(0.12, 0.12, 0.04)), Palette.TarnishedBrass);
+            // The driver's levers, their handles where the controls have them (T29): a headset player takes hold of
+            // these. The regulator comes back as it opens, the brake handle as it goes on, the reverser forward for ahead.
+            if (shape.Levers is { } levers)
+            {
+                void Lever(Double3 handle, double rod)
+                {
+                    draw(Box.FromCentre(handle - new Double3(0, rod / 2, 0), new Double3(0.02, rod / 2, 0.02)), Palette.IronGrey);
+                    draw(Box.FromCentre(handle, new Double3(0.07, 0.03, 0.03)), Palette.TarnishedBrass);
+                }
+                Lever(levers.RegulatorAt(Controls.Throttle), 0.3);
+                Lever(levers.BrakeAt(Controls.Brake), 0.2);
+                Lever(levers.ReverserAt(Controls.Reverser), 0.9);
+            }
+        }
+        if (shape.Interior is not null && Look is not null)
+        {
+            // Lanterns hanging where the car's lights are (the art pass's).
+            Look.Art.CarLamps(mesh, frame, eye, Emergency);
+        }
+        else if (shape.Interior is { } room)
+        {
+            // A lamp in every car: the warm interior against the hostile exterior (GDD §26).
+            mesh.Emissive = 1;
+            draw(Box.FromCentre(new Double3(0, room.Max.Y - 0.08, 0), new Double3(0.12, 0.06, 0.12)), Emergency ? EmergencyRed : Palette.LampAmber);
+            mesh.Emissive = 0;
+        }
     }
 
     static Vector3 PartColour(PartKind part, int car) => part switch

@@ -71,21 +71,47 @@ public struct FrameLighting
 {
     public Vector3 FogColor;
     public float FogDensity;
+    /// <summary>World height the fog is thickest at and below (the ground under the eye when NaN).</summary>
+    public double FogBase;
+    /// <summary>How fast the fog thins going up, per metre (0: the same everywhere).</summary>
+    public float FogHeightFalloff;
+    /// <summary>How much of the fog is left however high you go.</summary>
+    public float FogFloor;
+    /// <summary>
+    /// The fog's shape: 1 is plain exponential; above 1 it's clearer near and thicker far, crossing plain exponential at
+    /// the 1/e distance (1 / <see cref="FogDensity"/>), so the weather's visibility stays where it was.
+    /// </summary>
+    public float FogCurve;
     public Vector3 MoonDirection;
+    public Vector3 MoonColour;
+    public float MoonStrength;
     public float Ambient;
     public Double3 LampPosition;
     public Vector3 LampDirection;
     public float LampRange;
     public float LampConeDegrees;
+    public Vector3 LampColour;
+    public float LampIntensity;
+    /// <summary>How wet everything is, 0..1: rain darkens surfaces and puts a sheen on what faces the sky.</summary>
+    public float Wetness;
+    /// <summary>Seconds, for what drifts (clouds, grain). Screenshots keep it fixed so they're repeatable.</summary>
+    public double Time;
 
     public static FrameLighting Night => new()
     {
         FogColor = new Vector3(0.075f, 0.080f, 0.092f),
         FogDensity = 0.016f,
+        FogBase = double.NaN,
+        FogFloor = 1,
+        FogCurve = 1,
         MoonDirection = Vector3.Normalize(new Vector3(-0.3f, 0.6f, 0.4f)),
+        MoonColour = new Vector3(0.55f, 0.62f, 0.78f),
+        MoonStrength = 0.6f,
         Ambient = 0.09f,
         LampRange = 120,
         LampConeDegrees = 18,
         LampDirection = -Vector3.UnitZ,
+        LampColour = new Vector3(1.0f, 0.72f, 0.38f),
+        LampIntensity = 3,
     };
 }

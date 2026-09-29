@@ -37,6 +37,8 @@ return args switch
     ["train", "climb", var cars, var grade, ..] => Print(TrainScenarios.Climb(train, int.Parse(cars), double.Parse(grade), Opt(args, "--from", 10), Opt(args, "--load", 1))),
     ["line", "info", var name, ..] => Print(LineInfo(LoadLine(name), Opt(args, "--every", 100))),
     ["line", "drive", var name, ..] => Print(Drive(train, LoadLine(name), (int)Opt(args, "--cars", 3), Opt(args, "--start", -1), Opt(args, "--from", 0), Opt(args, "--throttle", 1), (int)Opt(args, "--seconds", 120))),
+    ["art", "check", ..] => ArtCheck(train, content, args),
+    ["art", "show", var piece, ..] => Print(ArtShow(train, content, piece, args)),
     ["screenshot", ..] when args.Contains("--hud") => Print(HudShot(content, args)),
     ["screenshot", ..] when args.Contains("--menu") => Print(MenuShot(train, content, args)),
     ["screenshot", ..] => Print(Screenshot(train, content, args)),
@@ -130,8 +132,11 @@ static object VrCheck(TrainTuning t, string content, string[] args)
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, (int)Opt(args, "--cars", 6), 1)), line, Opt(args, "--at", 1200));
         var body = Views.Get(Str(args, "--view", "roof"), train, (int)Opt(args, "--car", 2));
         var mesh = new MeshBuilder();
-        new GreyboxScene { Time = 0.37, Look = Looked(content, args) }.Build(mesh, train, body.Position);
-        var lighting = Views.Lighting(train);
+        var look = Looked(content, args);
+        new GreyboxScene { Time = 0.37, Look = look }.Build(mesh, train, body.Position);
+        var lighting = Views.Lighting(train, look);
+        if (look is not null)
+            vr.Dress(look);
         var outcomes = new Dictionary<string, int>();
         var clock = Stopwatch.StartNew();
         var comfort = new DarkTerritory.Game.VrLocomotion(DataFile.Load<DarkTerritory.Game.VrTuning>(Path.Combine(content, DarkTerritory.Game.VrTuning.File)));
@@ -597,9 +602,16 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     using var gpu = new GpuContext("dt screenshot");
     using var renderer = new GreyboxRenderer(gpu, width, height);
     var mesh = new MeshBuilder();
-    new GreyboxScene
+    var look = Looked(content, args);
+    look?.Dress(renderer);
+    // --muzzle: the guns fired a tick ago (their flash, and its light).
+    if (args.Contains("--muzzle"))
+        foreach (var v in train.Vehicles.Where(v => v.HasGun))
+            v.Gun.LastShotTick = 100;
+    var scene = new GreyboxScene
     {
-        Look = Looked(content, args),
+        Tick = args.Contains("--muzzle") ? 101 : -1,
+        Look = look,
         Route = route,
         Run = run,
         Time = 0.37,
@@ -609,12 +621,22 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Diverging = train.Diverging,
         // --throttle x: the regulator's handle drawn that far open (T29's cab levers).
         Controls = new TrainControls { Throttle = Math.Clamp(Opt(args, "--throttle", 0), 0, 1), Reverser = 1 },
-    }.Build(mesh, train, camera.Position);
-    var lighting = Views.Lighting(train);
+    };
+    scene.Build(mesh, train, camera.Position);
+    // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
+    var buildClock = Stopwatch.StartNew();
+    int builds = (int)Opt(args, "--builds", 5);
+    for (int b = 0; b < builds; b++)
+        scene.Build(mesh, train, camera.Position);
+    double buildMs = buildClock.Elapsed.TotalMilliseconds / builds;
+    var lighting = Views.Lighting(train, look);
     if (args.Contains("--vigil"))
         lighting.LampRange = 0.01f; // a Vigil: no power to the headlamp
     if (route is not null)
+    {
         lighting.FogDensity = (float)route.Weather.FogDensity;
+        lighting.Wetness = route.Weather.Wet ? 1 : 0;
+    }
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor);
     PngWriter.Write(output, pixels, width, height, scale);
     return new
@@ -623,11 +645,87 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         view,
         trainAt = Math.Round(at, 1),
         device = gpu.DeviceName,
-        triangles = mesh.Count / 3,
+        triangles = renderer.Stats.Triangles,
+        draws = renderer.Stats.Draws,
+        lights = renderer.Stats.Lights,
+        buildMs = Math.Round(buildMs, 2),
         width = width * scale,
         height = height * scale,
         ms = clock.ElapsedMilliseconds,
         paths = junction >= 0 ? train.Rakes.Select(r => r.Path).ToArray() : null,
+    };
+}
+
+// The art pipeline's validator (pipeline plan, "Automation and QA"): every kit piece against its class's triangle
+// budget. Exit code 1 when anything is over, so CI can hold the line.
+static int ArtCheck(TrainTuning t, string content, string[] args)
+{
+    var look = DarkTerritory.Game.Look.Load(content);
+    var rows = DarkTerritory.Game.Art.ArtCatalog.Entries(look, t).Select(e =>
+    {
+        var piece = e.Make();
+        return new { piece = e.Name, triangles = piece.Triangles, budget = e.Class.MaxTriangles, @class = e.Class.Name, over = piece.Triangles > e.Class.MaxTriangles };
+    }).ToList();
+    var textures = look.Textures.Select(x => x.Name).ToHashSet();
+    Print(new { pieces = rows, textures = textures.Count, over = rows.Where(r => r.over).Select(r => r.piece) });
+    return rows.Any(r => r.over) ? 1 : 0;
+}
+
+// A kit piece on a turntable (pipeline plan: "an in-engine turntable viewer with era-mode toggle"): four quarters,
+// lit by a lantern beside the camera and the moon, in thin fog. --ps2 for the era comparison, --greybox for flat.
+static object ArtShow(TrainTuning t, string content, string name, string[] args)
+{
+    var look = Looked(content, args);
+    var entry = DarkTerritory.Game.Art.ArtCatalog.Entries(look, t).FirstOrDefault(e => e.Name == name)
+        ?? throw new ArgumentException($"no piece '{name}' (known: {string.Join(", ", DarkTerritory.Game.Art.ArtCatalog.Entries(look, t).Select(e => e.Name))})");
+    var piece = entry.Make();
+    var (min, max) = DarkTerritory.Game.Art.ArtCatalog.Bounds(piece);
+    var centre = (min + max) / 2;
+    float radius = Math.Max(0.5f, (max - min).Length() / 2);
+    int w = (int)Opt(args, "--width", 480), h = (int)Opt(args, "--height", 270);
+    float fov = (float)Opt(args, "--fov", 50);
+    double dist = radius / Math.Sin(fov * Math.PI / 360) * Opt(args, "--zoom", 0.65);
+    using var gpu = new GpuContext("dt art show");
+    using var renderer = new GreyboxRenderer(gpu, w, h);
+    look?.Dress(renderer);
+    if (args.Contains("--ps2"))
+        renderer.Post = renderer.Post with { Ps2 = true };
+    var sheet = new byte[w * 2 * h * 2 * 4];
+    double start = Opt(args, "--yaw", 35) * Math.PI / 180;
+    for (int q = 0; q < 4; q++)
+    {
+        double yaw = start + q * Math.PI / 2, pitch = Opt(args, "--pitch", 15) * Math.PI / 180;
+        var target = new Double3(centre.X, centre.Y, centre.Z);
+        var eye = target + new Double3(Math.Sin(yaw) * Math.Cos(pitch), Math.Sin(pitch), Math.Cos(yaw) * Math.Cos(pitch)) * dist;
+        var camera = Camera.LookAt(eye, target, fov);
+        var mesh = new MeshBuilder();
+        mesh.Instances.Add(new MeshInstance(piece, System.Numerics.Matrix4x4.CreateTranslation(-(float)eye.X, -(float)eye.Y, -(float)eye.Z)));
+        // A dark floor under it, and a lantern over the viewer's shoulder.
+        var floor = new System.Numerics.Vector3(0, min.Y - 0.01f, 0) - new System.Numerics.Vector3((float)eye.X, (float)eye.Y, (float)eye.Z);
+        float f = radius * 4;
+        mesh.Quad(floor + new System.Numerics.Vector3(-f, 0, f), floor + new System.Numerics.Vector3(f, 0, f), floor + new System.Numerics.Vector3(f, 0, -f), floor + new System.Numerics.Vector3(-f, 0, -f), DarkTerritory.Game.Palette.Charcoal * 0.5f);
+        var right = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(camera.Forward, System.Numerics.Vector3.UnitY));
+        mesh.PointLights.Add(new PointLight(right * (float)(dist * 0.35) + new System.Numerics.Vector3(0, radius * 0.6f, 0), DarkTerritory.Game.Palette.LampAmber * 2.4f, (float)dist * 2.2f));
+        mesh.PointLights.Add(new PointLight(-right * (float)(dist * 0.6) + new System.Numerics.Vector3(0, radius, 0), new System.Numerics.Vector3(0.25f, 0.3f, 0.4f), (float)dist * 2.5f));
+        var light = look?.Apply(FrameLighting.Night) ?? FrameLighting.Night;
+        light.FogDensity = (float)Opt(args, "--fog", 0.004);
+        light.LampRange = 0.01f;
+        light.Time = 0.37;
+        var px = renderer.Render(mesh, camera, light, light.FogColor);
+        int ox = q % 2 * w, oy = q / 2 * h;
+        for (int y = 0; y < h; y++)
+            px.AsSpan(y * w * 4, w * 4).CopyTo(sheet.AsSpan(((oy + y) * w * 2 + ox) * 4));
+    }
+    string output = Str(args, "--out", $"out/shots/art/{name}.png");
+    PngWriter.Write(output, sheet, w * 2, h * 2, (int)Opt(args, "--scale", 1));
+    return new
+    {
+        path = Path.GetFullPath(output),
+        piece = name,
+        triangles = piece.Triangles,
+        budget = entry.Class.MaxTriangles,
+        @class = entry.Class.Name,
+        size = new[] { Math.Round(max.X - min.X, 2), Math.Round(max.Y - min.Y, 2), Math.Round(max.Z - min.Z, 2) }
     };
 }
 
@@ -643,10 +741,12 @@ static object MenuShot(TrainTuning t, string content, string[] args)
     var standing = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, 6, 1)), line, 1200);
     var view = Views.Get("trackside", standing);
     var mesh = new MeshBuilder();
-    new GreyboxScene { Time = 0.37, Look = Looked(content, args) }.Build(mesh, standing, view.Position);
-    var light = Views.Lighting(standing);
+    var look = Looked(content, args);
+    new GreyboxScene { Time = 0.37, Look = look }.Build(mesh, standing, view.Position);
+    var light = Views.Lighting(standing, look);
     using var gpu = new GpuContext("dt screenshot");
     using var renderer = new GreyboxRenderer(gpu, 480, 270);
+    look?.Dress(renderer);
     var overlay = new Overlay();
     menu.Draw(overlay, renderer.Width, renderer.Height);
     string output = Str(args, "--out", $"out/shots/menu-{screen.ToString().ToLowerInvariant()}.png");
@@ -703,11 +803,16 @@ static object HudShot(string content, string[] args)
     using var gpu = new GpuContext("dt screenshot --hud");
     using var renderer = new GreyboxRenderer(gpu, width, height);
     var mesh = new MeshBuilder();
-    new GreyboxScene { Route = session.Route, Run = session.World.Run, Vehicles = session.Train.Vehicles, Bodies = session.World.Bodies.All, Time = 0.37, Look = Looked(content, args) }
+    var look = Looked(content, args);
+    look?.Dress(renderer);
+    new GreyboxScene { Route = session.Route, Run = session.World.Run, Vehicles = session.Train.Vehicles, Bodies = session.World.Bodies.All, Time = 0.37, Look = look }
         .Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
-    var lighting = Views.Lighting(frames[0]);
+    var lighting = Views.Lighting(frames[0], look);
     if (session.Route is { } r)
+    {
         lighting.FogDensity = (float)r.Weather.FogDensity;
+        lighting.Wetness = r.Weather.Wet ? 1 : 0;
+    }
     var hud = new Overlay();
     Hud.Build(hud, width, height, session);
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, hud);
@@ -793,6 +898,8 @@ static int Usage()
                      [--vigil]    emergency lighting, as during a Vigil (spec C.2)
                      [--route tier:seed --site [--crank]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
+          art check                                every kit piece against its triangle budget (exit 1 if any is over)
+          art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
           screenshot --menu title|slots|fortress|upgrades|quickNight|join|settings [--down n] [--saves dir]
                      a screen of the front end over the yard, as the game draws it
           screenshot --hud [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]

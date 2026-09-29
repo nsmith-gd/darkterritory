@@ -45,11 +45,12 @@ public static class Views
         return Camera.LookAt(last.ToWorld(new Double3(-12, 14, last.Shape.HalfLength + 30)), mid.ToWorld(new Double3(0, 2, 0)), 60);
     }
 
-    public static FrameLighting Lighting(TrainOnLine train) => Lighting(train.Frames[0]);
+    public static FrameLighting Lighting(TrainOnLine train, Look? look = null) => Lighting(train.Frames[0], look);
 
-    public static FrameLighting Lighting(in CarFrame engine)
+    /// <param name="look">The art pass's atmosphere (look.json) over the night's defaults, when there is one.</param>
+    public static FrameLighting Lighting(in CarFrame engine, Look? look = null)
     {
-        var light = FrameLighting.Night;
+        var light = look?.Apply(FrameLighting.Night) ?? FrameLighting.Night;
         light.LampPosition = engine.ToWorld(new Double3(0, 2.8, -engine.Shape.HalfLength - 0.3));
         var fwd = engine.Back * -1;
         light.LampDirection = Vector3.Normalize(new Vector3((float)fwd.X, (float)fwd.Y - 0.04f, (float)fwd.Z));

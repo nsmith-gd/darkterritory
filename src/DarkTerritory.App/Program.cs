@@ -120,6 +120,11 @@ VrView? StartVr()
 using var ownGpu = vr is null ? new GpuContext("Dark Territory", Window.VulkanInstanceExtensions(), window.CreateSurface) : null;
 var gpu = vr?.Gpu ?? ownGpu!;
 using var renderer = new GreyboxRenderer(gpu, internalSize[0], internalSize[1]);
+if (look is not null)
+{
+    look.Dress(renderer);
+    vr?.Dress(look);
+}
 var (w, h) = window.PixelSize;
 // In VR the headset sets the pace; the mirror shouldn't wait for the monitor as well.
 using var swapchain = new Swapchain(gpu, w, h, vsync: vr is null);
@@ -200,7 +205,7 @@ Launch? Menu()
     var view = Views.Get("trackside", standing);
     var backdrop = new GreyboxScene { Time = 0.37, Look = look };
     backdrop.Build(mesh, standing, view.Position);
-    var light = Views.Lighting(standing);
+    var light = Views.Lighting(standing, look);
     double started = timer.Elapsed.TotalSeconds;
     // In a headset the menus float ahead, over the yard (T36), and the controllers work them.
     var vrMenu = vr is null ? null : new VrPanel(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Menu);
@@ -498,10 +503,16 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         camera = chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
         scene.Crew = session.Crew(frames, clock.Alpha);
         scene.Time = now;
-        lighting = Views.Lighting(frames[0]);
+        lighting = Views.Lighting(frames[0], look);
+        lighting.Time = now;
         if (session.Route is { } r)
+        {
             lighting.FogDensity = (float)r.Weather.FogDensity;
+            lighting.Wetness = r.Weather.Wet ? 1 : 0;
+        }
         scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
+        scene.Tick = session.Tick;
+        scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
         // A Vigil: emergency lighting, and no power to the headlamp.
         scene.Emergency = session.World.EmergencyLights;
         scene.Controls = session.Controls;
