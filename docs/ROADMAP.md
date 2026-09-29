@@ -53,6 +53,11 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
 
 Remaining for M3: Soot Children mimicry, the radio as an item, and interior occlusion (after car interiors).
 
+**Physics:**
+- Crates, lamps and crewmates' bodies, host-simulated in car frames.
+- Pick up (E), put down (E) and throw (right mouse).
+- Bodies persist, can be carried, and are revived at the gate if brought home.
+
 **The run:**
 - A night is a game: through the gates, a stop at the coaling tower (a working gravity chute), the terminus, and pay by spec F.1.
 - Dawn, derailment or losing the crew ends it.

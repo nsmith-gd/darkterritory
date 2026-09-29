@@ -15,7 +15,7 @@ using DarkTerritory.Sim.Route;
 //   mouse look · WASD move · Shift run · Space jump · E grab/let go of ladders
 //   R/F throttle notch up/down · B brake (hold) · X reverser (stopped only)
 //   E at the firebox: shovel (hold) · E at the valve: vent (hold) · E on a coupler plate: cut (hold)
-//   Left mouse at a gun (engine cab roof, guard car roof): fire
+//   Left mouse at a gun (engine cab roof, guard car roof): fire · E (press) near a crate, lamp or body: pick up / put down · Right mouse: throw it
 //   1–9 respawn on that car's roof · Backspace respawn in the cab · Tab chase camera · Esc release mouse / quit
 // Options: --route tier:seed [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png --mute
 // Multiplayer (UDP, direct IP / LAN): --host [port] hosts the same options for others to join; --join address[:port] joins one.
@@ -92,7 +92,7 @@ static AudioOut? Warn(string? error)
 }
 
 var clock = new FixedStepClock(SimConstants.TickRate);
-var scene = new GreyboxScene { Route = session.Route, Enemies = session.World.ActiveEnemies, Run = session.World.Run, Vehicles = session.Train.Vehicles };
+var scene = new GreyboxScene { Route = session.Route, Enemies = session.World.ActiveEnemies, Run = session.World.Run, Vehicles = session.Train.Vehicles, Bodies = session.World.Bodies.All };
 var mesh = new MeshBuilder();
 var timer = Stopwatch.StartNew();
 double last = 0, titleAt = 0;
@@ -146,6 +146,7 @@ while (!window.CloseRequested)
         if (input.Down(Key.Space)) buttons |= PlayerButtons.Jump;
         if (input.Down(Key.E)) buttons |= PlayerButtons.Use;
         if (input.Down(Key.MouseLeft)) buttons |= PlayerButtons.Fire;
+        if (input.Down(Key.MouseRight)) buttons |= PlayerButtons.Throw;
         if (proto is null)
         {
             if (input.Down(Key.B)) buttons |= PlayerButtons.Brake;

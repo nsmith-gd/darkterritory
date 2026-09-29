@@ -180,3 +180,81 @@ public class UdpNetcodeTests
         Assert.True(r.TrainSpeed > 5, "the conductor should have the train moving");
     }
 }
+
+/// <summary>Thrown objects and bodies over the network: host-simulated, mirrored on every client.</summary>
+public class BodyNetcodeTests
+{
+    static readonly TrainTuning T = Tuning.Train;
+    static readonly PlayerTuning P = Tuning.Player;
+
+    [Fact]
+    public void AClientThrowsACrateAndEveryoneSeesItFlyAndLand()
+    {
+        var line = RailLine.Load(Path.Combine(DataFile.FindContentRoot(), "lines/test-loop.json"));
+        var net = new LoopbackNetwork();
+        var host = new HostSession(net.CreateHost(), new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), line, 600), T, P);
+        host.World.EnableBodies();
+        var clients = Enumerable.Range(0, 2).Select(_ => new ClientSession(net.CreateClient(), new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), line, 600), T, P)).ToArray();
+        void Run(int ticks, Func<int, PlayerIntent> intent)
+        {
+            for (int t = 0; t < ticks; t++)
+            {
+                net.Advance(SimConstants.TickSeconds);
+                host.Step();
+                for (int i = 0; i < clients.Length; i++)
+                    clients[i].Step(intent(i));
+            }
+        }
+        Run(10, _ => default);
+        byte thrower = clients[1].PlayerId!.Value;
+        var roof = PlayerMotor.SpawnOnRoof(host.Train, 3, 0, P) with { Yaw = -Math.PI / 2 };
+        host.SetPlayerState(thrower, roof);
+        var crate = host.World.Bodies.SpawnCrate(host.Train, 3, roof.Position + new Ballast.Double3(0.6, 0, 0));
+        Run(10, _ => default);
+        var watcher = clients[0];
+        Assert.Single(watcher.World.Bodies.All);
+
+        Run(2, i => i == 1 ? new PlayerIntent { Buttons = PlayerButtons.Use } : default);
+        Run(2, _ => default);
+        Assert.Equal(thrower, crate.Carrier);
+        Assert.Equal(thrower, watcher.World.Bodies.All[0].Carrier);
+        Run(2, i => i == 1 ? new PlayerIntent { Buttons = PlayerButtons.Throw } : default);
+        Run(60, _ => default);
+        Assert.Equal(-1, crate.Carrier);
+        // Off the side, over the edge, onto the ground: everyone saw it end up where the host has it.
+        Assert.Equal(PlayerState.World, crate.Parent);
+        var seen = watcher.World.Bodies.All[0];
+        Assert.Equal(PlayerState.World, seen.Parent);
+        Assert.InRange((seen.Centre - crate.Centre).Length, 0, 1.0);
+    }
+
+    [Fact]
+    public void WhoeverDiesLeavesABodyEveryoneCanSee()
+    {
+        var line = RailLine.Load(Path.Combine(DataFile.FindContentRoot(), "lines/test-loop.json"));
+        var net = new LoopbackNetwork();
+        var host = new HostSession(net.CreateHost(), new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), line, 600), T, P);
+        host.World.EnableBodies();
+        var clients = Enumerable.Range(0, 2).Select(_ => new ClientSession(net.CreateClient(), new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), line, 600), T, P)).ToArray();
+        for (int t = 0; t < 10; t++)
+        {
+            net.Advance(SimConstants.TickSeconds);
+            host.Step();
+            foreach (var c in clients)
+                c.Step(default);
+        }
+        byte victim = clients[1].PlayerId!.Value;
+        host.SetPlayerState(victim, PlayerMotor.SpawnOnRoof(host.Train, 2, 0, P) with { Health = 0, Death = DeathCause.Mauled });
+        for (int t = 0; t < 30; t++)
+        {
+            net.Advance(SimConstants.TickSeconds);
+            host.Step();
+            foreach (var c in clients)
+                c.Step(default);
+        }
+        var body = Assert.Single(clients[0].World.Bodies.All);
+        Assert.Equal(Physics.BodyKind.Ragdoll, body.Kind);
+        Assert.Equal(victim, body.Owner);
+        Assert.Equal(2, body.Parent);
+    }
+}

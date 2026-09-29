@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -83,6 +83,25 @@ public static class WorldRecords
                 f[5 + i] = Q(run.ChuteLeft(i), Fine);
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Run, 0), f));
         }
+        foreach (var body in world.Bodies.All)
+        {
+            var ps = body.Pbd.Particles;
+            var f = new long[7 + ps.Length * 3];
+            f[0] = (long)body.Kind;
+            f[1] = body.Parent;
+            f[2] = body.Carrier;
+            f[3] = body.Owner;
+            f[4] = body.Pbd.Asleep ? 1 : 0;
+            f[5] = Q(body.Yaw, Ang);
+            f[6] = ps.Length;
+            for (int i = 0; i < ps.Length; i++)
+            {
+                f[7 + i * 3] = Q(ps[i].Position.X, Pos);
+                f[8 + i * 3] = Q(ps[i].Position.Y, Pos);
+                f[9 + i * 3] = Q(ps[i].Position.Z, Pos);
+            }
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Body, body.Id), f));
+        }
         foreach (var p in players)
         {
             var s = p.State;
@@ -106,6 +125,7 @@ public static class WorldRecords
         var vehicles = new List<VehicleState>();
         var boiler = train.Boiler;
         var enemies = new List<Enemy>();
+        var bodies = new List<Physics.Body>();
         foreach (var r in records)
         {
             var f = r.Fields;
@@ -152,6 +172,9 @@ public static class WorldRecords
                 case RecordKind.Player:
                     players.Add(ToPlayer(r));
                     break;
+                case RecordKind.Body when !world.Authority:
+                    bodies.Add(ToBody(r));
+                    break;
                 case RecordKind.Run when !world.Authority && world.Run is { } run:
                     run.Mirror((Run.RunPhase)f[0], (Run.RunEnd)f[1], D(f[2], Fine), (int)f[3], f[4] != 0,
                         [.. Enumerable.Range(0, f.Length - 5).Select(i => D(f[5 + i], Fine))]);
@@ -161,7 +184,26 @@ public static class WorldRecords
         train.Restore(new TrainState([.. rakes], [.. vehicles], boiler));
         // The host owns its enemies' full state; only clients rebuild them from the wire.
         if (!world.Authority)
+        {
             world.MirrorEnemies(enemies);
+            world.Bodies.Mirror(bodies);
+        }
+    }
+
+    /// <summary>A client-side stand-in for a host body: positions only, it isn't simulated here.</summary>
+    static Physics.Body ToBody(in WireRecord r)
+    {
+        var f = r.Fields;
+        int n = (int)f[6];
+        var particles = new Ballast.Physics.Particle[n];
+        for (int i = 0; i < n; i++)
+            particles[i] = new Ballast.Physics.Particle(new Ballast.Double3(D(f[7 + i * 3], Pos), D(f[8 + i * 3], Pos), D(f[9 + i * 3], Pos)), 1, 0.1);
+        return new Physics.Body(r.Id, (Physics.BodyKind)f[0], (int)f[1], new Ballast.Physics.PbdBody(particles))
+        {
+            Carrier = (int)f[2],
+            Owner = (int)f[3],
+            Yaw = D(f[5], Ang),
+        };
     }
 
     static Enemy ToEnemy(in WireRecord r)

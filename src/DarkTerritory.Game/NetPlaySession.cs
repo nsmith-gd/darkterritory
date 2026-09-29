@@ -95,6 +95,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var (hostWorld, route) = setup.Build(content, authority: true);
         var hostTransport = UdpTransport.Host(port);
         var host = new HostSession(hostTransport, hostWorld, trainTuning, playerTuning) { SessionInfo = setup.Encode() };
+        hostWorld.EnableBodies();
+        hostWorld.Stock();
         if (setup.Enemies && route is not null)
             host.EnableEnemies(DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)), route, route.Seed, expectedCrew);
         var (clientWorld, _) = setup.Build(content);

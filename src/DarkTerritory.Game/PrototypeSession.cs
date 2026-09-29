@@ -53,6 +53,8 @@ public sealed class PrototypeSession : IPlaySession
             start = consist.LengthMetres + 150;
         Train = new TrainOnLine(new TrainDynamics(consist), line, start, _boilerTuning.Value);
         World = new World(Train, _combatTuning.Value);
+        World.EnableBodies();
+        World.Stock();
         Controls = new TrainControls { Reverser = 1 };
         Respawn(0);
     }
@@ -86,6 +88,7 @@ public sealed class PrototypeSession : IPlaySession
                 _cues.Add((ElapsedSeconds, cue));
         _cues.RemoveAll(c => ElapsedSeconds - c.At > CueSeconds);
         PlayerMotor.Step(ref Player, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
+        World.StepBodies([(1, Player)]);
         World.StepRun([Player]);
         Tick++;
     }

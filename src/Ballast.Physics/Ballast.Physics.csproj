@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Position-based dynamics: particles and constraints, frame-agnostic. Pure C#, deterministic (ARCHITECTURE §8). -->
+  <PropertyGroup>
+    <RootNamespace>Ballast.Physics</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Ballast.Core/Ballast.Core.csproj" />
+  </ItemGroup>
+</Project>

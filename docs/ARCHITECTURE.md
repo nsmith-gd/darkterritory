@@ -63,7 +63,7 @@ Trade-offs accepted: we ship the JIT runtime (not NativeAOT) so mods can load; s
 | Windowing, input, gamepad | **SDL3** (`SDL3-CS`) | Also used for audio device I/O fallback |
 | Graphics API | **Vulkan 1.3** (`Vortice.Vulkan`) | Dynamic rendering, no render-pass boilerplate. It is the API with universal OpenXR support (Meta PC runtime, SteamVR, standalone Quest if ever wanted) and it runs headless on Linux via lavapipe for agent screenshots. D3D11 would not run in the Linux containers. OpenGL's OpenXR support is uneven. |
 | VR | **OpenXR** (`Silk.NET.OpenXR`), `XR_KHR_vulkan_enable2`, multiview stereo | PCVR first (Link / Air Link / Virtual Desktop / SteamVR). Standalone Quest (Android) is a post-launch option that this stack does not rule out. |
-| Physics | **Jolt** (`JoltPhysicsSharp`) | Rigid bodies, ragdolls (from the animation skeleton), `CharacterVirtual`, constraints. Deterministic build flag available. |
+| Physics | **Custom PBD** (`Ballast.Physics`), Jolt held in reserve | Loose bodies and ragdolls as position-based particles and constraints, living in car frames like players do (§8 note 21). Jolt (`JoltPhysicsSharp`, verified to restore and run on Linux) stays the option if we need true rigid-body stacking. |
 | Train | **Custom 1D rail sim** (`DarkTerritory.Sim/Train`) | Cars live on the rail spline, driven by longitudinal dynamics, and appear to Jolt as kinematic bodies. Already implemented and pinned to the spec. |
 | ECS | **Friflo.Engine.ECS** or **Arch**, decided in M1 | Needs: fast queries, struct components, and component change tracking for replication |
 | Audio | **Custom mixer** in C# + **miniaudio** device I/O + **Steam Audio** (HRTF, occlusion) | See §6 |
@@ -105,7 +105,7 @@ tests/
 ### 6.1 Moving reference frames (the hardest problem in this game)
 Players walk, fight and throw crates on cars moving at 22 m/s around curves, 40 km from the origin. Approach:
 - **Entities have a parent frame**: world, or a specific car. Positions are stored and replicated *car-local*.
-- Jolt runs in a **floating origin** centred on the train and rebased periodically. Cars are kinematic bodies with correct velocity, so friction carries bodies resting on them.
+- ~~Jolt runs in a floating origin centred on the train, with cars as kinematic bodies.~~ Superseded: loose bodies use the same car-frame treatment as players (§8 note 21).
 - Character controllers resolve in car-local space while grounded on a car. On leaving it (jumping, falling, being dragged off) they inherit the car's world velocity, which is how the lethal jump-off happens with no special-case code.
 - Voice, audio and AI all query positions through the same frame system.
 This gets prototyped in M1 alongside the 4:1 speed-ratio feel test (spec G.1).
@@ -312,3 +312,20 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - autosave;
       - the Vigil (spec C.2);
       - an oncoming train as the dawn failure, rather than the run just ending.
+21. **Physics: position-based dynamics, not Jolt (T17).**
+    - **Why.** Bodies on a train at 22 m/s, 40 km out, round curves, have exactly the player's problem: resting on a car they must be still in its frame, and in flight they must carry its velocity. A kinematic-car rigid-body engine gets there through friction against fast-moving colliders and a rebased floating origin. PBD in the car's frame gets there directly.
+      - A crate on a roof at 22 m/s doesn't move (tested to 5 cm over 10 s).
+      - One thrown off the side flies on with the train's speed, lands, and is left behind (tested).
+      - It's pure C#, deterministic, and its state is positions, which quantise and delta-compress like everything else.
+    - **Bodies (`Sim/Physics/Bodies`)** are particles and distance constraints.
+      - **Crates and lamps** are one particle each, with a drawn yaw that tumbles in flight.
+      - **The dead** are an 11-particle ragdoll (head, chest, pelvis, elbows, hands, knees, feet, plus soft braces). It spawns with the player's velocity and a backwards tip, so bodies fall over rather than fold into a pile.
+    - **Frames.** A body lives in the frame of the car it touched, or the world's after three steps touching no car.
+    - **Physics.** Gravity plus the car's own braking or pulling, felt as a pseudo-force. Sleep after half a second still. A hard stop wakes everything aboard.
+    - **Hands.** Press E near a body (nothing else in reach) to pick it up. A crate rides at your hands; a body hangs from its chest and drags. E puts it down; right mouse throws it along your view (9 m/s, a body 4 m/s) on top of your own motion. The host resolves all of it; clients mirror the Body records.
+    - **Spec C.** A body persists where its player died, can be carried, and one brought home aboard is "revived free at the gate" (RunReport.RevivedAtGate).
+    - **Not yet:**
+      - body-to-body collision: crates pass through each other, so the guard van stocks them side by side;
+      - true rigid-box contact: crates are spheres to the world and cubes to the eye;
+      - the thrower predicting their own throw (it shows on the host's timeline, 100 ms interpolated);
+      - bodies on the Choir's list, the Vigil itself, and interest management for bodies.

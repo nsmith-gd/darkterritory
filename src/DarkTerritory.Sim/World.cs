@@ -68,6 +68,34 @@ public sealed class World
                 _enemies.Add(new Sleepers(_nextEnemyId++) { LineDistance = f.Start, Height = 0.2 });
     }
 
+    /// <summary>Loose bodies: cargo crates, tools, the dead (GDD §33). Host-simulated, mirrored on clients.</summary>
+    public Physics.Bodies Bodies { get; } = new();
+
+    /// <summary>This world simulates loose bodies itself (the host, or the single-player prototype).</summary>
+    public void EnableBodies() => Authority = true;
+
+    /// <summary>Host: after everyone has moved, bodies for anyone who died, then a physics step.</summary>
+    public void StepBodies(IReadOnlyCollection<(int Id, PlayerState State)> crew)
+    {
+        if (!Authority)
+            return;
+        Bodies.OnDeaths(Train, crew);
+        Bodies.Step(Train, Train.Dynamics.Tuning, id => crew.FirstOrDefault(c => c.Id == id) is { State: var s } pair && pair.Id == id ? s : null);
+    }
+
+    /// <summary>Host: what the train leaves the yard with that isn't cargo: crates and a lamp in the guard van (GDD §10 tool storage).</summary>
+    public void Stock()
+    {
+        var guard = Train.Dynamics.Consist.Vehicles.LastOrDefault(v => v.Kind == VehicleKind.Guard);
+        if (guard is null || Train.Frames[guard.Id].Shape.Interior is not { } room)
+            return;
+        double floor = room.Min.Y + 0.1;
+        // Side by side: bodies don't collide with each other yet (ARCHITECTURE §8).
+        foreach (double z in new[] { 1.2, 2.0, 2.8 })
+            Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.6, floor, room.Min.Z + z));
+        Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(-0.9, floor, room.Max.Z - 2.5), Physics.BodyKind.Lamp);
+    }
+
     /// <summary>Tonight's run (departure, facilities, terminus, dawn), when playing a route.</summary>
     public Run.Run? Run { get; private set; }
 
@@ -110,7 +138,10 @@ public sealed class World
         PlayerMotor.Look(ref s, intent);
         if (Authority && Run is { } run)
             run.CrewAct(s, intent, playerId, Train);
-        CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds);
+        // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever.
+        bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train);
+        if (!handsTookIt)
+            CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds);
         var targets = viewTick is { } vt && _targetHistory.TryGetValue(vt, out var then) ? then : Targets;
         if (Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
             Shots.Add(shot);
