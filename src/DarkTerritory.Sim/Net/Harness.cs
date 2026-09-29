@@ -34,8 +34,11 @@ public sealed record HarnessOptions
     public Run.VigilTuning? Vigil { get; init; }
     /// <summary>Another network to run over (the CLI's fake Steam lobby), in place of the loopback or UDP.</summary>
     public IHarnessNetwork? Network { get; init; }
-    /// <summary>Called every tick after everyone has stepped, with each bot and its player's state on the host (to trace a night).</summary>
-    public Action<uint, IReadOnlyList<(IBot Bot, PlayerState State)>>? Observe { get; init; }
+    /// <summary>
+    /// Called every tick after everyone has stepped, with each bot and its player's state on the host, and the host's world
+    /// (to trace a night).
+    /// </summary>
+    public Action<uint, IReadOnlyList<(IBot Bot, PlayerState State)>, World>? Observe { get; init; }
 }
 
 /// <summary>Transports for the harness from elsewhere: the Sim doesn't reference platform code, so the CLI brings it.</summary>
@@ -147,13 +150,14 @@ public static class Harness
                     if (((bot as GunnerBot)?.Job ?? (bot as RoofWalkerBot)?.Job) is { } part)
                         part.PlayerId = session.PlayerId;
                     intent = bot is IWorldBot wb ? wb.Decide(session.Predicted, session.World, t, out _) : bot.Decide(session.Predicted, session.Train, t);
+                    intent = Heed.Rattles(intent, session.Predicted, session.World, playerTuning);
                 }
                 session.Step(intent);
             }
             if (o.Observe is { } observe)
             {
                 var states = host.Players.ToDictionary(p => p.Id, p => p.State);
-                observe(t, [.. clients.Select(c => (c.Bot, c.Session.PlayerId is { } pid ? states.GetValueOrDefault(pid) : default))]);
+                observe(t, [.. clients.Select(c => (c.Bot, c.Session.PlayerId is { } pid ? states.GetValueOrDefault(pid) : default))], host.World);
             }
         }
 

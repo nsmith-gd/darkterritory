@@ -196,6 +196,9 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Dragger, SpinePhase.Telegraph) => "a scrape at the roof's edge: something reaching over the lip",
         (EnemyKind.Dragger, SpinePhase.Punish) => "grabbed at the edge! get them free",
         (EnemyKind.Dragger, SpinePhase.BreakOff) => "it lets go and sinks back under the edge",
+        (EnemyKind.Rattle, SpinePhase.Telegraph) => "a dry rattle in the coupling: don't cross there",
+        (EnemyKind.Rattle, SpinePhase.Punish) => "pulled under between the cars",
+        (EnemyKind.Rattle, SpinePhase.Dormant) => "the rattle in the coupling stops",
         _ => null,
     };
 

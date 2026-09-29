@@ -618,3 +618,114 @@ public sealed class Dragger(int id) : Enemy(id)
         Enter(ctx, SpinePhase.Dormant);
     }
 }
+
+/// <summary>
+/// RATTLE · vibration · interior (App. A.5). "Lives in the couplings. You hear it before you cross." It nests in a coupling
+/// gap, silent, until someone comes near it below the roofs; then it rattles, and whoever steps into the gap while it
+/// rattles is grabbed and pulled under. No approach for a while and it goes quiet again. It can't be shot or driven off:
+/// wait it out, or go over the roof. Rule: don't cross between cars rattling.
+/// </summary>
+/// <remarks>
+/// <see cref="Enemy.Attached"/> is the vehicle ahead of its gap and <see cref="Enemy.Local"/> the gap's middle in that
+/// vehicle's frame; both replicate, so a client knows which gap is rattling (the tell, and what bots keep out of).
+/// </remarks>
+public sealed class Rattle(int id) : Enemy(id)
+{
+    double _quiet;
+    double _age;
+
+    public override EnemyKind Kind => EnemyKind.Rattle;
+    public override PressureZone Zone => PressureZone.Interior;
+    public override Sense Sense => Sense.Vibration;
+
+    /// <summary>Rattling: the telegraph, and all the warning there is.</summary>
+    public bool Rattling => Phase == SpinePhase.Telegraph;
+
+    /// <summary>In the gap behind <paramref name="car"/> (it has to have a vehicle coupled behind it).</summary>
+    public static Rattle In(int id, TrainOnLine train, int car, double couplingGap) => new(id)
+    {
+        Attached = car,
+        Local = new Double3(0, 0.6, train.Frames[car].Shape.HalfLength + couplingGap * 0.5),
+    };
+
+    /// <summary>
+    /// The gaps it could take in the engine's rake (the vehicle ahead of each, and how much it prefers it): mid-train
+    /// ones most (App. B.5), and none with someone already standing in it.
+    /// </summary>
+    public static List<(int Car, double Weight)> Nests(World world)
+    {
+        var train = world.Train;
+        var rake = train.Dynamics.Consist.Vehicles;
+        double mid = (rake.Count - 2) * 0.5;
+        var nests = new List<(int, double)>();
+        for (int i = 0; i + 1 < rake.Count; i++)
+        {
+            var probe = In(0, train, rake[i].Id, train.Dynamics.Tuning.Geometry.CouplingGap);
+            if (world.CrewThisTick.Any(c => c.State.Alive && probe.InGap(PlayerMotor.WorldPosition(c.State, train), train)))
+                continue;
+            nests.Add((rake[i].Id, 1 / (1 + Math.Abs(i - mid))));
+        }
+        return nests;
+    }
+
+    /// <summary>
+    /// Whether a point is in its gap: between the two cars' ends, no wider than the cars, below their roofs (over the roofs
+    /// is the way round it). The ground between the cars at a stop counts; that's the gap too.
+    /// </summary>
+    public bool InGap(Double3 world, TrainOnLine train)
+    {
+        if (Attached < 0 || Attached >= train.Frames.Count)
+            return false;
+        var frame = train.Frames[Attached];
+        var local = frame.ToLocal(world);
+        double half = frame.Shape.HalfLength;
+        return Math.Abs(local.X) <= frame.Shape.HalfWidth && local.Z >= half && local.Z <= 2 * Local.Z - half
+            && local.Y < frame.Shape.RoofHeight - 0.5 && local.Y > -1.5;
+    }
+
+    protected override void Tick(EnemyContext ctx)
+    {
+        var t = ctx.Tuning.Rattle;
+        var train = ctx.Train;
+        _age += SimConstants.TickSeconds;
+        // It lives in the coupling: cut the cars apart there and it's gone with it.
+        if (Attached < 0 || Attached >= train.Frames.Count || train.VehicleBehind(Attached) < 0)
+        {
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        var gap = WorldPosition(train);
+        var near = ctx.LivingCrew().Where(c => (c.World - gap).Length <= t.ArmRadius && train.Frames[Attached].ToLocal(c.World).Y < train.Frames[Attached].Shape.RoofHeight - 0.5).ToList();
+        switch (Phase)
+        {
+            case SpinePhase.Dormant:
+                if (near.Count > 0)
+                {
+                    _quiet = 0;
+                    Enter(ctx, SpinePhase.Telegraph); // the rattle
+                }
+                else if (_age >= t.LingerSeconds)
+                    Enter(ctx, SpinePhase.Gone);
+                break;
+            case SpinePhase.Telegraph:
+                _quiet = near.Count > 0 ? 0 : _quiet + SimConstants.TickSeconds;
+                if (_quiet >= t.QuietSeconds)
+                {
+                    Enter(ctx, SpinePhase.Dormant);
+                    break;
+                }
+                // Stepping into the gap while it rattles (and it's rattled long enough to have been heard, App. A.1).
+                var into = near.Where(c => InGap(c.World, train)).Select(c => (int?)c.Player.Id).FirstOrDefault();
+                if (into is { } victim && Enter(ctx, SpinePhase.Commit) && Enter(ctx, SpinePhase.Punish))
+                {
+                    ctx.Bite(victim, t.GrabDamage, DeathCause.PulledUnder);
+                    Enter(ctx, SpinePhase.BreakOff);
+                    Enter(ctx, SpinePhase.Dormant);
+                }
+                break;
+            default:
+                Enter(ctx, SpinePhase.Dormant);
+                break;
+        }
+    }
+}

@@ -73,6 +73,11 @@ public static class Staging
         var dragger = new Dragger(21);
         dragger.Restore(SpinePhase.Telegraph, 0.6, 1, cargo, new Double3(-(cargoShape.HalfWidth + 0.1), cargoShape.RoofHeight - 0.35, 3), 0, 0, 0, 1, 0);
         threats.Add(dragger);
+        // In the coupling behind the middle car, rattling at someone come up to cross.
+        var rattle = new Rattle(22);
+        int middle = Math.Max(0, (train.Frames.Count - 1) / 2);
+        rattle.Restore(SpinePhase.Telegraph, 1, 1, middle, Rattle.In(0, train, middle, train.Dynamics.Tuning.Geometry.CouplingGap).Local, 0, 0, 0, 0, 0);
+        threats.Add(rattle);
         var hollow = new Hollow(30);
         hollow.Restore(SpinePhase.Punish, 2, 1, 0, train.Frames[0].Shape.Cab!.Value.Centre, 0, 0, 0, 0, 0);
         threats.Add(hollow);

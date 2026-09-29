@@ -81,7 +81,8 @@ public enum Surface : byte { Air, Ground, Roof, Coupler, Ladder, Deck }
 /// <summary><see cref="Taken"/>: by the Soot Children, answering a voice from outside (T40).</summary>
 /// <summary><see cref="Dragged"/>: pulled off the train at speed by the Draggers (T46).</summary>
 /// <summary><see cref="Crushed"/>: under a casting let go of by the crane (T48).</summary>
-public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged, Crushed }
+/// <summary><see cref="PulledUnder"/>: into a coupling gap while the Rattle rattled (T51).</summary>
+public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged, Crushed, PulledUnder }
 
 /// <summary>Conditions a player carries.</summary>
 [Flags]

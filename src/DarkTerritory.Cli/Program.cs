@@ -98,9 +98,12 @@ object RunHarness(string[] args)
     string lastTrace = "";
     return Harness.Run(line, train, player, new HarnessOptions
     {
-        Observe = trace is null ? null : (tick, crew) =>
+        Observe = trace is null ? null : (tick, crew, world) =>
         {
-            string now = string.Join(" | ", crew.Select(c => Harness.Describe(c.Bot, c.State)));
+            // And what's out there: each enemy, what it's doing, and where (its car, or along the line).
+            string enemies = string.Join(" ", world.ActiveEnemies.Where(e => e.Kind != DarkTerritory.Sim.Enemies.EnemyKind.Sleepers)
+                .Select(e => $"{e.Kind}:{e.Phase}@{(e.Attached >= 0 ? $"car{e.Attached}" : $"{e.LineDistance:0}")}"));
+            string now = string.Join(" | ", crew.Select(c => Harness.Describe(c.Bot, c.State))) + (enemies.Length > 0 ? $"  || {enemies}" : "");
             if (now != lastTrace)
                 trace.WriteLine($"{tick / 30.0,7:0.0}s  {now}");
             lastTrace = now;
