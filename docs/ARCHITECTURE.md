@@ -602,7 +602,16 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Crash reports** (`CrashReports`): the console is teed through a ring of its last 200 lines.
       - An unhandled exception writes `crash-<time>.txt` to the user's app data (`DarkTerritory/crashes`): the version, the OS, the exception with its stack, and those lines.
       - It says where the report is on the way out.
-    - **Not yet:** a Steam depot and an itch.io upload (both are `butler`/`steamcmd` steps once there's an app id and a page); a Windows smoke test (the CI's Windows runners have no Vulkan); code signing; a crash reporter that sends reports.
+    - **Store uploads (T38).** `tools/upload.sh steam|itch` sends those folders on (`tools/store/README.md`).
+      - **Steam:** it writes one SteamPipe app build with a depot per platform, then runs `steamcmd +run_app_build`. The game and the demo are separate apps (`--demo`).
+      - **itch.io:** `butler push` to a channel per platform. The demo goes on `-demo` channels on the same page.
+      - **IDs and credentials.** The IDs are in `tools/store/store.conf`. The credentials come from the environment.
+      - **Checks.** Each folder has to be a whole game: its executable, content, and how to play. A real Steam upload also refuses a Windows build without Valve's library, since lobbies need it.
+      - **Never the default branch.** A Steam build goes live on a beta branch at most. Steamworks doesn't let a script set the default branch live anyway, so a release to players is a person's click.
+      - **CI dry-runs both on every push.** It checks the builds, writes the app build and the butler commands to `out/store/`, and checks them with `jq`, with no tool and no login.
+      - **The real upload** is the hand-run `Release` workflow, with the credentials as secrets. Steam Guard is passed with a saved `config.vdf`.
+      - The demo is the same build as the game for now. When the demo's content is cut down, `package.sh` gets a demo variant.
+    - **Not yet:** a real upload (it needs the app ids and an itch page); a Windows smoke test (the CI's Windows runners have no Vulkan); code signing; a crash reporter that sends reports.
 36. **The crew works a stop (T32, GDD §17, spec D).**
     - **Parts at a stop.** The crew is a driver (`ConductorBot` with a `StopDriver`), a shunter, and two on the winch (`StopHand`s on walkers, or on the gunner when a crew of four needs it). Everyone else keeps walking the roofs.
       - The driver stops only where the crew can do the work: a spur with a winch, and a living shunter and winch pair. Crate stops wait for T34: a 0.9 m crate won't go through a 0.9 m end door from a plate 1.1 m up, and carrying one stops you climbing.

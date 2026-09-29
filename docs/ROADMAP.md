@@ -70,6 +70,10 @@ Remaining for M3: Soot Children mimicry, the radio as an item, and interior occl
 **Builds for players (M6):**
 - `tools/package.sh` makes self-contained Windows and Linux folders with their content, and CI keeps both as artifacts on every push, after starting the Linux one from elsewhere and playing it.
 - Crashes leave a report in the user's app data.
+- **Store uploads (T38):**
+  - `tools/upload.sh steam|itch [--demo]` sends them through `steamcmd` or `butler`, and never sets Steam's default branch live;
+  - CI dry-runs both on every push;
+  - the hand-run Release workflow does it for real, once there are app IDs and an itch page (`tools/store/README.md`).
 
 **Front end (T30):**
 - `DarkTerritory` opens on a title screen with Campaign (three slots, and the fortress between nights: the board, cars, upgrades), Quick night, Join, Settings and Quit.
