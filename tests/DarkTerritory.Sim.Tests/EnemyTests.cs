@@ -293,6 +293,20 @@ public class EnemyTests
     }
 
     [Fact]
+    public void AShutCarIsCoverFromTheChoirAndAnOpenDoorIsNot()
+    {
+        var n = new Night(6, speed: 10);
+        var inside = new PlayerState { Parent = 3, Position = new Double3(-0.45, Tuning.Train.Geometry.Interior!.FloorHeight, 0), Surface = Surface.Deck, Health = P.Health };
+        n.Crew[1] = inside;
+        n.Crew[2] = inside with { Parent = 4 };
+        n.Train.Vehicles[4].ToggleDoor(0);
+        n.World.Choir.Deafening(Tuning.Combat.Choir);
+        n.Run(10.1);
+        Assert.Equal(P.Health, n.Crew[1].Health);
+        Assert.True(n.Crew[2].Health < P.Health);
+    }
+
+    [Fact]
     public void TheDirectorKeepsItsPacingRules()
     {
         // App. B.9: grace period, troughs, caps and terminus silence, over whole generated nights.

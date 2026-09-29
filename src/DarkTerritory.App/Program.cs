@@ -165,8 +165,9 @@ while (!window.CloseRequested)
         pendingYaw = pendingPitch = 0;
         session.Step(intent);
         // The ears are where the eyes were last frame; audio follows the sim tick so no shot is missed.
-        bool exposed = session.Player.Surface is not Surface.Deck || session.Player.Parent == PlayerState.World;
-        sound.Update(session.World, session.Controls, Listener.At(camera.Position, camera.Yaw), exposed, SimConstants.TickSeconds);
+        bool exposed = !PlayerMotor.Indoors(session.Player, session.Train);
+        sound.Update(session.World, session.Controls, Listener.At(camera.Position, camera.Yaw), exposed, SimConstants.TickSeconds,
+            PlayerMotor.Space(session.Player, session.Train));
         if (voice is not null && net is not null)
             voice.Update(net.Client, session.Crew(session.InterpolatedFrames(1), 1), SimConstants.TickSeconds);
     }

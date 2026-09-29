@@ -23,14 +23,19 @@ public sealed class GreyboxScene
     public Route? Route { get; set; }
     /// <summary>Live enemies to draw. When set, the route's Sleepers come from here rather than its features.</summary>
     public IReadOnlyList<Enemy>? Enemies { get; set; }
+    /// <summary>Vehicle state for doors (open or shut). Without it every door is drawn shut.</summary>
+    public IReadOnlyList<Vehicle>? Vehicles { get; set; }
     /// <summary>Other players, drawn as greybox figures.</summary>
     public IReadOnlyList<Crewmate>? Crew { get; set; }
 
     /// <summary>Depth of the valley under a bridge.</summary>
     const double ValleyDepth = 18;
 
-    public void Build(MeshBuilder mesh, TrainOnLine train, Double3 eye) =>
+    public void Build(MeshBuilder mesh, TrainOnLine train, Double3 eye)
+    {
+        Vehicles ??= train.Vehicles;
         Build(mesh, train.Line, train.Frames, train.Dynamics.Distance, eye);
+    }
 
     /// <param name="frames">Car frames to draw, e.g. interpolated between ticks.</param>
     /// <param name="hint">Any distance along the line near the eye, to start the nearest-point search.</param>
@@ -44,6 +49,17 @@ public sealed class GreyboxScene
         Lineside(mesh, line, eye, from, to);
         if (Route is not null)
             Features(mesh, line, eye, from, to);
+        // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox.
+        foreach (var frame in frames)
+        {
+            if ((frame.Origin - eye).Length > 60)
+                continue;
+            if (frame.Shape.Interior is { } room)
+                foreach (double z in new[] { -room.HalfSize.Z * 0.5, room.HalfSize.Z * 0.5 })
+                    mesh.PointLights.Add(new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), Palette.LampAmber * 1.6f, 7.5f));
+            foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
+                mesh.PointLights.Add(new PointLight(V(frame.ToWorld(i.Position + new Double3(0, 0.7, 0.3)), eye), Palette.FurnaceOrange * (0.6f + 1.6f * FireGlow), 5f));
+        }
         foreach (var frame in frames)
             Car(mesh, frame, eye);
         if (Enemies is not null)
@@ -367,9 +383,25 @@ public sealed class GreyboxScene
 
         var shape = frame.Shape;
         bool engine = frame.Index == 0;
-        // What you see is what you collide with: every solid is drawn, coloured by what it is.
+        // What you see is what you collide with: every solid is drawn, coloured by what it is. Long interior
+        // surfaces go down in 2 m slices so the per-vertex lamp light has vertices to land on.
         foreach (var solid in shape.Solids)
-            Draw(solid.Box, PartColour(solid.Part, frame.Index));
+        {
+            var colour = PartColour(solid.Part, frame.Index);
+            var b = solid.Box;
+            double length = b.Max.Z - b.Min.Z;
+            if (shape.Interior is null || length <= 2.5 || solid.Part is not (PartKind.Wall or PartKind.Chassis or PartKind.Body or PartKind.Cargo))
+            {
+                Draw(b, colour);
+                continue;
+            }
+            int slices = (int)Math.Ceiling(length / 2);
+            for (int k = 0; k < slices; k++)
+            {
+                double z0 = b.Min.Z + length * k / slices, z1 = b.Min.Z + length * (k + 1) / slices;
+                Draw(new Box(b.Min with { Z = z0 }, b.Max with { Z = z1 }), colour);
+            }
+        }
 
         double half = shape.HalfLength;
         if (engine)
@@ -386,6 +418,28 @@ public sealed class GreyboxScene
         {
             // Roof walkway plank down the safe centreline.
             Draw(new Box(new Double3(-0.35, shape.RoofHeight, -half + 0.2), new Double3(0.35, shape.RoofHeight + 0.04, half - 0.2)), Palette.TarnishedBrass);
+        }
+        // Doors: shut in the doorway, or slid aside along the end wall when open.
+        var vehicle = Vehicles is { } vs && frame.Index < vs.Count ? vs[frame.Index] : null;
+        foreach (var door in shape.DoorList)
+        {
+            bool open = vehicle?.DoorOpen(door.Index) ?? false;
+            var box = door.Box;
+            if (open)
+            {
+                double slide = box.Max.X - box.Min.X;
+                double inward = box.Min.Z < 0 ? 0.12 : -0.12;
+                box = new Box(box.Min + new Double3(slide, 0, inward), box.Max + new Double3(slide, 0, inward));
+            }
+            Draw(box, Palette.DeepBrown);
+            Draw(Box.FromCentre(new Double3(open ? box.Min.X + 0.1 : box.Max.X - 0.12, box.Min.Y + 1.0, box.Centre.Z), new Double3(0.04, 0.04, 0.08)), Palette.TarnishedBrass);
+        }
+        if (shape.Interior is { } room)
+        {
+            // A lamp in every car: the warm interior against the hostile exterior (GDD §26).
+            mesh.Emissive = 1;
+            Draw(Box.FromCentre(new Double3(0, room.Max.Y - 0.08, 0), new Double3(0.12, 0.06, 0.12)), Palette.LampAmber);
+            mesh.Emissive = 0;
         }
         if (shape.Gun is { } gun)
         {
@@ -412,6 +466,9 @@ public sealed class GreyboxScene
         PartKind.Boiler or PartKind.Stack => Palette.SootBlack,
         PartKind.CabWall or PartKind.CabRoof or PartKind.Coupler => Palette.IronGrey,
         PartKind.Tender => Palette.Charcoal,
+        PartKind.Wall => car % 3 == 0 ? Palette.RustRed : Palette.DeepBrown,
+        PartKind.Cargo => Palette.MuddyOlive,
+        PartKind.Locker => Palette.IronGrey,
         _ => Palette.IronGrey,
     };
 

@@ -39,8 +39,8 @@ public static class VoiceRouting
         if ((a - b).Length <= ProximityCutoff + ForwardMargin)
         {
             path |= VoicePath.Proximity;
-            // Cars have no interiors yet; the cab is the one enclosed space, so its walls are the occluder.
-            if (PlayerMotor.InCab(speaker, train) != PlayerMotor.InCab(listener, train))
+            // Walls between you: the cab's, or a car shut up with its doors closed (an open door lets it through).
+            if (PlayerMotor.Space(speaker, train) != PlayerMotor.Space(listener, train))
                 path |= VoicePath.Occluded;
         }
         if (radio && !InTunnel(speaker, train, inTunnel) && !InTunnel(listener, train, inTunnel))

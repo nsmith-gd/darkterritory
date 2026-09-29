@@ -29,6 +29,23 @@
       "tenderLength": 4.0,
       "tenderTop": 3.4,
       "doorWidth": 0.9
+    },
+    // Cars are walk-in (GDD §10: "the back door"; §26: warm interior, hostile exterior). The floor is
+    // level with the coupler plate, so you step from the gap through the end door. The roof slab keeps
+    // the full-length roof walk (spec B.4 traverse times are unchanged).
+    "interior": {
+      "floorHeight": 1.1,
+      "wallThickness": 0.1,
+      "roofThickness": 0.15,
+      "doorWidth": 0.9,
+      "doorHeight": 2.1,
+      // End doors sit left of centre; the end ladders are right of the coupler.
+      "doorX": -0.45,
+      // Holding Use at a door this long opens or shuts it.
+      "doorSeconds": 0.4,
+      // Cargo is stacked down the right-hand side, leaving an aisle to the doors.
+      "cargoDepth": 1.1,
+      "cargoHeight": 1.3
     }
   },
 

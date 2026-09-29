@@ -37,6 +37,10 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     public double Integrity { get; set; } = 1;
     /// <summary>Fraction of the cargo that would still pay on delivery (spec F.1).</summary>
     public double CargoIntegrity { get; set; } = 1;
+    /// <summary>One bit per door in <see cref="CarShape.Doors"/>: set is open. Doors start shut.</summary>
+    public byte DoorsOpen { get; set; }
+    public bool DoorOpen(int index) => (DoorsOpen & (1 << index)) != 0;
+    public void ToggleDoor(int index) => DoorsOpen ^= (byte)(1 << index);
 
     public double MassTonnes(TrainTuning t) =>
         IsEngine ? t.Mass.EngineTonnes : t.Mass.EmptyCarTonnes + Load * (t.Mass.LoadedCarTonnes - t.Mass.EmptyCarTonnes);

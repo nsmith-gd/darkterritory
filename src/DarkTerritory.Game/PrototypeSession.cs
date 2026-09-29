@@ -141,7 +141,7 @@ public sealed class PrototypeSession : IPlaySession
     public string Status()
     {
         var d = Train.Dynamics;
-        string where = Player.Parent == PlayerState.World ? "ground" : PlayerMotor.InCab(Player, Train) ? "cab" : Player.Parent == 0 ? "engine" : $"car {Player.Parent}";
+        string where = Where(Player, Train);
         var b = Train.Boiler;
         string boiler = b.Ruptured ? "BOILER RUPTURED" :
             $"P {b.Pressure,3:0}{(b.SafetyValveLifting ? " VALVE" : "")} fire {b.Firebox:0.0} tender {b.Tender:0}" +
@@ -189,6 +189,18 @@ public sealed class PrototypeSession : IPlaySession
                 parts.Add("hounds aboard");
         }
         return parts.Count == 0 ? "" : " | " + string.Join(" · ", parts);
+    }
+
+    /// <summary>Where a player is, the way the crew would say it: the cab, on car 4, inside car 4 with the doors shut.</summary>
+    public static string Where(in PlayerState p, TrainOnLine train)
+    {
+        if (p.Parent == PlayerState.World)
+            return "ground";
+        if (PlayerMotor.InCab(p, train))
+            return "cab";
+        if (PlayerMotor.Indoors(p, train))
+            return PlayerMotor.Space(p, train) == PlayerMotor.Outside ? $"inside car {p.Parent}, door open" : $"inside car {p.Parent}, shut in";
+        return p.Parent == 0 ? "engine" : $"car {p.Parent}";
     }
 
     string Gunnery()

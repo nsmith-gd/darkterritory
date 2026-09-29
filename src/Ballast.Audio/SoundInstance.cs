@@ -40,6 +40,13 @@ public sealed class SoundInstance
     public bool Stopped { get; private set; }
     public bool Finished => Stopped || !Def.Loop && Age >= Def.Duration;
 
+    /// <summary>Configures a voice inline: <c>mixer.Play(...)?.Also(v => v.Occlusion = 1)</c>.</summary>
+    public SoundInstance Also(Action<SoundInstance> configure)
+    {
+        configure(this);
+        return this;
+    }
+
     /// <summary>Stops a loop (or cuts a one-shot short) at the end of this block.</summary>
     public void Stop() => Stopped = true;
 

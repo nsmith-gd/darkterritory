@@ -20,7 +20,7 @@ public readonly record struct CarPose(int Index, Double3 Centre, Double3 Forward
 public readonly record struct RakeContact(int Front, int Rear, double ClosingSpeed, bool Coupled, double Damage);
 
 public readonly record struct RakeState(int[] Vehicles, double Distance, double Velocity, double BrakeEfficiency, bool Handbrake, bool FrontCouplerLocked);
-public readonly record struct VehicleState(int Id, double Load, double Integrity, double CargoIntegrity, GunState Gun = default);
+public readonly record struct VehicleState(int Id, double Load, double Integrity, double CargoIntegrity, GunState Gun = default, byte DoorsOpen = 0);
 
 /// <summary>Everything about the train that the host owns and clients re-simulate from.</summary>
 public sealed record TrainState(RakeState[] Rakes, VehicleState[] Vehicles, Boiler Boiler);
@@ -158,7 +158,7 @@ public sealed class TrainOnLine
 
     public TrainState Capture() => new(
         _rakes.Select(r => new RakeState(r.Consist.Vehicles.Select(v => v.Id).ToArray(), r.Distance, r.Velocity, r.BrakeEfficiency, r.Handbrake, r.FrontCouplerLocked)).ToArray(),
-        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun)).ToArray(),
+        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen)).ToArray(),
         Boiler);
 
     /// <summary>Adopts host state and rebuilds rakes and poses; clients then re-simulate forward from it.</summary>
@@ -171,6 +171,7 @@ public sealed class TrainOnLine
             vehicle.Integrity = v.Integrity;
             vehicle.CargoIntegrity = v.CargoIntegrity;
             vehicle.Gun = v.Gun;
+            vehicle.DoorsOpen = v.DoorsOpen;
         }
         var previous = _rakes.ToDictionary(r => r.Consist.Vehicles[0].Id);
         _rakes.Clear();

@@ -53,6 +53,12 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
 
 Remaining for M3: Soot Children mimicry, the radio as an item, and interior occlusion (after car interiors).
 
+**Car interiors:**
+- Walk-in cars and a guard van with the back door.
+- Replicated doors.
+- Shelter rules shared by the Choir, voice and sound.
+- Warm practical light inside.
+
 Remaining for M2:
 - interest management (only needed once enemies and props multiply the record count)
 - a Steam transport and lobby (and EOS for itch.io); a content hash check on join

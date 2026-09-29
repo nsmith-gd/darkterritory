@@ -116,6 +116,30 @@ public static class PlayerMotor
     public static bool InCab(in PlayerState s, TrainOnLine train) =>
         s.Parent == 0 && s.Surface == Surface.Deck && train.Frames[0].Shape.Cab is { } cab && cab.Contains(s.Position);
 
+    /// <summary>
+    /// The enclosed space a player is in: <see cref="Outside"/>, the engine cab (vehicle 0), or a car's
+    /// interior with every door shut (that car's id). A car with a door open is part of the outside: sound,
+    /// voice and the Choir come in through it (GDD §26: protected versus exposed).
+    /// </summary>
+    public static int Space(in PlayerState s, TrainOnLine train)
+    {
+        if (s.Parent == PlayerState.World || s.Parent >= train.Frames.Count)
+            return Outside;
+        if (InCab(s, train))
+            return 0;
+        var shape = train.Frames[s.Parent].Shape;
+        if (shape.Interior is { } room && room.Contains(s.Position) && s.Surface == Surface.Deck && train.Vehicles[s.Parent].DoorsOpen == 0)
+            return s.Parent;
+        return Outside;
+    }
+
+    public const int Outside = -1;
+
+    /// <summary>Inside a car's walls, doors open or not.</summary>
+    public static bool Indoors(in PlayerState s, TrainOnLine train) =>
+        InCab(s, train) || s.Parent != PlayerState.World && s.Parent < train.Frames.Count
+            && train.Frames[s.Parent].Shape.Interior is { } room && room.Contains(s.Position) && s.Surface == Surface.Deck;
+
     static Surface ToSurface(SurfaceKind k) => k switch
     {
         SurfaceKind.Roof => Surface.Roof,
@@ -181,7 +205,9 @@ public static class PlayerMotor
         s.Position += s.Velocity * dt;
         var world = ToWorld(s, train, s.Position);
 
-        world = Collide(world, train, p);
+        world = Collide(world, train, p, out bool ceiling);
+        if (ceiling && s.Velocity.Y > 0)
+            s.Velocity = s.Velocity with { Y = 0 };
         UpdateSupport(ref s, world, prevWorld, train, p, t);
 
         // Use while pushing towards it grabs a ladder; Use standing still is for working things (CrewActions).
@@ -199,19 +225,39 @@ public static class PlayerMotor
         return right * x + forward * z;
     }
 
-    /// <summary>Pushes the player's cylinder out of every car body and coupler plate nearby.</summary>
-    static Double3 Collide(Double3 world, TrainOnLine train, PlayerTuning p)
+    /// <summary>
+    /// Pushes the player's cylinder out of every car body, wall, shut door and coupler plate nearby. A head
+    /// that rises into something overhead (a car's ceiling) stops there instead of being shoved sideways.
+    /// </summary>
+    static Double3 Collide(Double3 world, TrainOnLine train, PlayerTuning p, out bool ceiling)
     {
+        ceiling = false;
         foreach (var frame in train.Frames)
         {
             if ((frame.Origin - world).Length > NearbyCar)
                 continue;
             var local = frame.ToLocal(world);
             foreach (var solid in frame.Shape.Solids)
+                local = Ceiling(local, solid.Box, p, ref ceiling);
+            foreach (var solid in frame.Shape.Solids)
                 local = PushOut(local, solid.Box, p);
+            var vehicle = train.Vehicles[frame.Index];
+            foreach (var door in frame.Shape.DoorList)
+                if (!vehicle.DoorOpen(door.Index))
+                    local = PushOut(local, door.Box, p);
             world = frame.ToWorld(local);
         }
         return world;
+    }
+
+    /// <summary>Head up into the underside of a box whose footprint we're under: stop at it.</summary>
+    static Double3 Ceiling(Double3 feet, Box box, PlayerTuning p, ref bool hit)
+    {
+        double head = feet.Y + p.Height;
+        if (head <= box.Min.Y || feet.Y >= box.Min.Y || head - box.Min.Y > 0.5 || !box.ContainsXZ(feet))
+            return feet;
+        hit = true;
+        return feet with { Y = box.Min.Y - p.Height };
     }
 
     static Double3 PushOut(Double3 feet, Box box, PlayerTuning p)

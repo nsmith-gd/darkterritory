@@ -15,29 +15,74 @@ public struct Vertex(Vector3 position, Vector3 normal, Vector3 color, float emis
     public const int Stride = 40;
 }
 
+/// <summary>A practical light (a car's lamp, the firebox) baked into vertices as geometry is added.</summary>
+/// <param name="Position">In the same (camera-relative) space as the geometry.</param>
+public readonly record struct PointLight(Vector3 Position, Vector3 Colour, float Range);
+
 /// <summary>
 /// CPU-side triangle soup for greybox geometry. Flat-shaded on purpose: faceted, chunky forms
-/// are the art direction (GDD §27), not a limitation.
+/// are the art direction (GDD §27), not a limitation. Practical lights are per-vertex, the way late
+/// PS2 games lit interiors: set <see cref="PointLights"/> before adding what they should light.
 /// </summary>
 public sealed class MeshBuilder
 {
     readonly List<Vertex> _vertices = new();
+
+    /// <summary>Lights applied to everything added until cleared. Cleared with the mesh.</summary>
+    public List<PointLight> PointLights { get; } = new();
 
     /// <summary>Emissive amount applied to everything added until changed.</summary>
     public float Emissive { get; set; }
 
     public int Count => _vertices.Count;
     public ReadOnlySpan<Vertex> Vertices => CollectionsMarshal.AsSpan(_vertices);
-    public void Clear() => _vertices.Clear();
+    public void Clear()
+    {
+        _vertices.Clear();
+        PointLights.Clear();
+    }
 
     public void Triangle(Vector3 a, Vector3 b, Vector3 c, Vector3 color)
     {
         var n = Vector3.Normalize(Vector3.Cross(b - a, c - a));
         if (float.IsNaN(n.X))
             return;
-        _vertices.Add(new Vertex(a, n, color, Emissive));
-        _vertices.Add(new Vertex(b, n, color, Emissive));
-        _vertices.Add(new Vertex(c, n, color, Emissive));
+        if (PointLights.Count == 0 || Emissive >= 1)
+        {
+            _vertices.Add(new Vertex(a, n, color, Emissive));
+            _vertices.Add(new Vertex(b, n, color, Emissive));
+            _vertices.Add(new Vertex(c, n, color, Emissive));
+            return;
+        }
+        _vertices.Add(Lit(a, n, color));
+        _vertices.Add(Lit(b, n, color));
+        _vertices.Add(Lit(c, n, color));
+    }
+
+    /// <summary>
+    /// Sums the practical lights at a vertex and folds them in through the emissive channel, tinted: the
+    /// shader already draws emissive surfaces at albedo strength, which is what "lit by a lamp" looks like.
+    /// </summary>
+    Vertex Lit(Vector3 p, Vector3 n, Vector3 color)
+    {
+        var light = Vector3.Zero;
+        foreach (var l in PointLights)
+        {
+            var d = l.Position - p;
+            float dist = d.Length();
+            if (dist >= l.Range || dist < 1e-4f)
+                continue;
+            float facing = Vector3.Dot(n, d / dist);
+            if (facing <= 0)
+                continue;
+            float falloff = 1 - dist / l.Range;
+            light += l.Colour * (falloff * falloff * facing);
+        }
+        float strength = (light.X * 0.3f + light.Y * 0.59f + light.Z * 0.11f);
+        if (strength <= 1e-3f)
+            return new Vertex(p, n, color, Emissive);
+        var tint = light / strength;
+        return new Vertex(p, n, color * Vector3.Lerp(Vector3.One, tint, 0.55f), Math.Max(Emissive, Math.Min(0.9f, strength * 1.3f)));
     }
 
     /// <summary>Counter-clockwise quad a→b→c→d seen from the front.</summary>

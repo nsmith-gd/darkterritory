@@ -20,7 +20,11 @@ public sealed record TrainTuning
 public sealed record GeometryTuning(
     double CarLength, double CouplingGap, double EngineLength, double RoofWidth, double RoofSafeCentreline,
     double CarHeight, double EngineHeight, double CouplerHeight, double CouplerWidth, double LadderInset,
-    EngineLayout Engine);
+    EngineLayout Engine, InteriorLayout? Interior = null);
+
+/// <summary>Walk-in cars (GDD §10, §26): a floor, walls, a roof you can still walk on, and a door at each end.</summary>
+public sealed record InteriorLayout(double FloorHeight, double WallThickness, double RoofThickness, double DoorWidth, double DoorHeight, double DoorX,
+    double DoorSeconds, double CargoDepth, double CargoHeight);
 
 /// <summary>Greybox layout of the 20 m engine + tender unit, front to back: boiler, cab, tender.</summary>
 public sealed record EngineLayout(double DeckHeight, double BoilerHalfWidth, double BoilerTop, double CabLength, double TenderLength, double TenderTop, double DoorWidth);
