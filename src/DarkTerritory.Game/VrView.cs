@@ -14,6 +14,12 @@ public sealed class VrView : IDisposable
 {
     readonly GreyboxRenderer[] _eyes;
     readonly Camera[] _last = new Camera[2];
+    readonly Overlay[] _vignettes = [new(), new()];
+    readonly Overlay?[] _lastOverlay = new Overlay?[2];
+    Camera _lastBody;
+    XrControllerState _lastControllers;
+    readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
+    double _lastFrame;
 
     VrView(XrHeadset headset, GpuContext gpu, XrStereoSession session)
     {
@@ -47,31 +53,72 @@ public sealed class VrView : IDisposable
     }
 
     /// <summary>Draws a frame to the headset, at its pace (this blocks until it wants one).</summary>
-    public XrFrameResult Frame(MeshBuilder mesh, in Camera body, in FrameLighting lighting, Vector3 clear)
+    /// <param name="mesh">The scene, built round <paramref name="body"/>'s eye point. The hands are added to it for the
+    /// eyes and taken off again, so it comes back as it went in.</param>
+    /// <param name="comfort">The player's turning and comfort vignette: stepped with this frame's controllers and head.</param>
+    public XrFrameResult Frame(MeshBuilder mesh, in Camera body, in FrameLighting lighting, Vector3 clear, VrLocomotion? comfort = null)
     {
-        foreach (var eye in _eyes)
-            eye.Prepare(mesh);
         var b = body;
         var light = lighting;
-        return Session.Frame((eye, cmd) =>
+        var result = Session.Frame((eye, cmd) =>
         {
             var camera = eye.From(b);
             _last[eye.Index] = camera;
             var renderer = _eyes[eye.Index];
             renderer.Record(cmd, camera, light, clear);
             return renderer;
+        }, controllers =>
+        {
+            _lastBody = b;
+            _lastControllers = controllers;
+            int scene = mesh.Count;
+            VrHands.Build(mesh, b, controllers);
+            for (int i = 0; i < 2; i++)
+                _eyes[i].Prepare(mesh, _lastOverlay[i] = Vignette(i, comfort));
+            mesh.Truncate(scene);
         });
+        if (result is XrFrameResult.Rendered or XrFrameResult.Skipped)
+        {
+            double now = _clock.Elapsed.TotalSeconds;
+            comfort?.Frame(Session.Controllers, Session.Head, Math.Clamp(now - _lastFrame, 0, 0.1));
+            _lastFrame = now;
+        }
+        return result;
+    }
+
+    /// <summary>The comfort vignette for an eye, centred where it looks straight ahead (towards the nose, not mid-image).</summary>
+    Overlay? Vignette(int eye, VrLocomotion? comfort)
+    {
+        if (comfort is not { Vignette: > 0.01f })
+            return null;
+        float w = Session.EyeWidth, h = Session.EyeHeight;
+        float cx = w / 2, cy = h / 2;
+        if (_last[eye].Fov is { } f)
+        {
+            float l = MathF.Tan(f.Left), r = MathF.Tan(f.Right), u = MathF.Tan(f.Up), d = MathF.Tan(f.Down);
+            cx = w * -l / (r - l);
+            cy = h * u / (u - d);
+        }
+        var overlay = _vignettes[eye];
+        overlay.Clear();
+        overlay.Vignette(w, h, cx, cy, comfort.Tuning.Vignette.Inner, comfort.Vignette);
+        return overlay;
     }
 
     /// <summary>The camera each eye last drew with.</summary>
     public Camera LastEye(int eye) => _last[eye];
 
-    /// <summary>Both eyes side by side, as RGBA, drawn again from where they last were (for screenshots and tests).</summary>
+    /// <summary>
+    /// Both eyes side by side, as RGBA, drawn again as they last were, hands and vignette too (for screenshots and tests).
+    /// </summary>
     public (byte[] Pixels, int Width, int Height) SideBySide(MeshBuilder mesh, in FrameLighting lighting, Vector3 clear)
     {
         int w = Session.EyeWidth, h = Session.EyeHeight;
-        var left = _eyes[0].Render(mesh, _last[0], lighting, clear);
-        var right = _eyes[1].Render(mesh, _last[1], lighting, clear);
+        int scene = mesh.Count;
+        VrHands.Build(mesh, _lastBody, _lastControllers);
+        var left = _eyes[0].Render(mesh, _last[0], lighting, clear, _lastOverlay[0]);
+        var right = _eyes[1].Render(mesh, _last[1], lighting, clear, _lastOverlay[1]);
+        mesh.Truncate(scene);
         var both = new byte[w * 2 * h * 4];
         for (int y = 0; y < h; y++)
         {

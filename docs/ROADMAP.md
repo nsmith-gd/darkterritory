@@ -114,11 +114,14 @@ Remaining for M2:
 - An OpenXR session with stereo rendering: `--vr` in the app, mirrored to the window.
 - The headset's pose on the player's body, in the car's frame.
 - Verified headless on Monado's simulated headset: `tools/xr-sim.sh`, then `dt vr check`. CI runs it on every push.
+- **Controllers and comfort (T26):**
+  - OpenXR actions bound for Touch, Index and the simple controller.
+  - Head-relative walking through the same intent path as the keyboard.
+  - Snap or smooth turn, a locomotion vignette (`tuning/vr.json`), and the player's hands drawn.
 
 Remaining for M4:
-- controllers and action mapping
 - hand interactions
 - body IK
-- comfort options
+- the HUD in the headset
 - multiview
 - the exit test on a real Quest and SteamVR

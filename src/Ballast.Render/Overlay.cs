@@ -39,6 +39,41 @@ public sealed class Overlay
         Vertices.Add(new OverlayVertex(d, colour));
     }
 
+    /// <summary>
+    /// Darkens the frame's edge, clear inside an ellipse round (<paramref name="cx"/>, <paramref name="cy"/>) and
+    /// fading to <paramref name="strength"/> by the edge: a headset's comfort vignette.
+    /// </summary>
+    /// <param name="inner">The clear ellipse's size, as a fraction of the frame's half-size.</param>
+    public void Vignette(float width, float height, float cx, float cy, float inner, float strength, int segments = 32)
+    {
+        if (strength <= 0 || width <= 0 || height <= 0)
+            return;
+        var clear = new Vector4(0, 0, 0, 0);
+        var dark = new Vector4(0, 0, 0, Math.Min(1, strength));
+        float rx = width / 2, ry = height / 2;
+        inner = Math.Clamp(inner, 0, 0.95f);
+        // Far past the corners, so an off-centre middle (a headset eye's) still covers the whole frame.
+        const float Far = 3;
+        Vector2 At(float r, float a) => new(cx + MathF.Cos(a) * r * rx, cy + MathF.Sin(a) * r * ry);
+        for (int i = 0; i < segments; i++)
+        {
+            float a0 = i * MathF.Tau / segments, a1 = (i + 1) * MathF.Tau / segments;
+            Band(At(inner, a0), At(inner, a1), At(1, a1), At(1, a0), clear, dark);
+            Band(At(1, a0), At(1, a1), At(Far, a1), At(Far, a0), dark, dark);
+        }
+    }
+
+    /// <summary>A quad from an inner edge (a, b) in one colour to an outer edge (c, d) in another.</summary>
+    void Band(Vector2 a, Vector2 b, Vector2 c, Vector2 d, Vector4 inner, Vector4 outer)
+    {
+        Vertices.Add(new OverlayVertex(a, inner));
+        Vertices.Add(new OverlayVertex(b, inner));
+        Vertices.Add(new OverlayVertex(c, outer));
+        Vertices.Add(new OverlayVertex(a, inner));
+        Vertices.Add(new OverlayVertex(c, outer));
+        Vertices.Add(new OverlayVertex(d, outer));
+    }
+
     /// <summary>A frame of the given thickness inside the rectangle.</summary>
     public void Outline(float x, float y, float w, float h, Vector4 colour, float t = 1)
     {
