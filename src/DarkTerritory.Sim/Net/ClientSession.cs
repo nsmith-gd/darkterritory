@@ -53,6 +53,7 @@ public sealed class ClientSession
     public TrainTuning TrainTuning { get; set; }
     public PlayerTuning PlayerTuning { get; set; }
     public byte? PlayerId { get; private set; }
+    public string SessionInfo { get; private set; } = "";
     public bool Connected => PlayerId is not null && _haveState;
     /// <summary>This player as predicted locally: what the local camera shows.</summary>
     public PlayerState Predicted;
@@ -139,7 +140,7 @@ public sealed class ClientSession
             switch ((MessageType)r.U8())
             {
                 case MessageType.Welcome:
-                    PlayerId = r.U8();
+                    (PlayerId, _, SessionInfo) = Messages.ReadWelcome(ref r);
                     break;
                 case MessageType.Snapshot:
                     uint tick = r.U32(), acked = r.U32(), baseTick = r.U32();

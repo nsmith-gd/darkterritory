@@ -42,8 +42,10 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
 
 - **Snapshots** are fixed-point records delta-encoded against the client's last acked snapshot. The host adopts the quantised state itself, so prediction stays exact. At 20 cars with 8 players they're about 110 bytes, around 28 kbit/s down per client (target ≤ 64).
 
+- **UDP transport:** real sockets, direct IP or LAN. `--host` / `--join` in the app. `dt harness --udp` runs 8 bots over localhost sockets with exact prediction.
+
 Remaining for M2:
 - interest management (only needed once enemies and props multiply the record count)
-- a Steam transport and lobby
+- a Steam transport and lobby (and EOS for itch.io); a content hash check on join
 - physics object sync
 - inert bodies on disconnect

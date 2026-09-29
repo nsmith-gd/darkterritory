@@ -80,11 +80,16 @@ public static class Messages
         WorldRecords.WriteDelta(w, records, baseline);
     }
 
-    public static void WriteWelcome(NetWriter w, byte playerId, uint tick)
+    /// <param name="session">What a joining machine needs to build the same world (route, cars...), opaque to the sim.</param>
+    public static void WriteWelcome(NetWriter w, byte playerId, uint tick, string session = "")
     {
         w.Reset();
         w.U8((byte)MessageType.Welcome);
         w.U8(playerId);
         w.U32(tick);
+        w.Str(session);
     }
+
+    /// <summary>Reads a Welcome after its type byte.</summary>
+    public static (byte PlayerId, uint Tick, string Session) ReadWelcome(ref NetReader r) => (r.U8(), r.U32(), r.Remaining > 0 ? r.Str() : "");
 }

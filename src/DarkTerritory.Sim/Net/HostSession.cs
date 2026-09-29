@@ -60,6 +60,8 @@ public sealed class HostSession
     public TrainTuning TrainTuning { get; set; }
     public PlayerTuning PlayerTuning { get; set; }
     public TrainControls Controls;
+    /// <summary>Sent to everyone who joins, so they can build the same world (the host's route, car count...).</summary>
+    public string SessionInfo { get; set; } = "";
     public uint Tick { get; private set; }
     public int PlayerCount => _crew.Count;
     public int LastSnapshotBytes { get; private set; }
@@ -161,7 +163,7 @@ public sealed class HostSession
         int car = 1 + (_crew.Count - 1) % Math.Max(1, Train.Frames.Count - 1);
         c.State = _crew.Count == 0 ? PlayerMotor.SpawnInCab(Train, PlayerTuning) : PlayerMotor.SpawnOnRoof(Train, car, 0, PlayerTuning);
         _crew.Add(c);
-        Messages.WriteWelcome(_writer, c.Id, Tick);
+        Messages.WriteWelcome(_writer, c.Id, Tick, SessionInfo);
         _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
     }
 

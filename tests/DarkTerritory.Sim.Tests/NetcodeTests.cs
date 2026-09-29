@@ -163,3 +163,20 @@ public class NetcodeTests
         Assert.True(double.IsFinite(player.Position.X) && double.IsFinite(player.Yaw));
     }
 }
+
+/// <summary>The same netcode over real sockets: what two machines on a LAN (or an itch.io build) will run.</summary>
+public class UdpNetcodeTests
+{
+    [Fact]
+    public void EightBotsPlayOverRealUdpSockets()
+    {
+        var line = RailLine.Load(Path.Combine(DataFile.FindContentRoot(), "lines/test-loop.json"));
+        var r = Harness.Run(line, Tuning.Train, Tuning.Player, new HarnessOptions { Bots = 8, Seconds = 20, Udp = true });
+        Assert.Equal("udp localhost", r.Link);
+        Assert.Equal(8, r.Clients.Count);
+        Assert.All(r.Clients, c => Assert.True(c.Snapshots > r.Ticks * 0.9, $"player {c.Id} got {c.Snapshots} of {r.Ticks} snapshots"));
+        Assert.All(r.Clients, c => Assert.True(c.MaxCorrectionM < 0.01, $"player {c.Id} corrected by {c.MaxCorrectionM} m"));
+        Assert.Equal(0, r.Deaths);
+        Assert.True(r.TrainSpeed > 5, "the conductor should have the train moving");
+    }
+}

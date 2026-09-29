@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Net;
+using System.Net.Sockets;
 using Ballast;
 using Ballast.Audio;
 using Ballast.Platform;
@@ -16,6 +18,8 @@ using DarkTerritory.Sim.Route;
 //   Left mouse at a gun (engine cab roof, guard car roof): fire
 //   1–9 respawn on that car's roof · Backspace respawn in the cab · Tab chase camera · Esc release mouse / quit
 // Options: --route tier:seed [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png --mute
+// Multiplayer (UDP, direct IP / LAN): --host [port] hosts the same options for others to join; --join address[:port] joins one.
+// Networked, the cab is the only place to drive from (GDD §12): R/F/B/X work when you're standing in it.
 
 string Arg(string name, string fallback)
 {
@@ -25,8 +29,25 @@ string Arg(string name, string fallback)
 
 var content = DataFile.FindContentRoot(Environment.CurrentDirectory);
 int cars = int.Parse(Arg("--cars", "6"));
-PrototypeSession session;
-if (Arg("--route", "") is { Length: > 0 } routeSpec)
+IPlaySession session;
+if (args.Contains("--join"))
+{
+    string target = Arg("--join", "127.0.0.1");
+    var endpoint = IPEndPoint.TryParse(target, out var ep) ? ep : new IPEndPoint(Dns.GetHostAddresses(target.Split(':')[0]).First(a => a.AddressFamily == AddressFamily.InterNetwork), NetPlaySession.DefaultPort);
+    if (endpoint.Port == 0)
+        endpoint.Port = NetPlaySession.DefaultPort;
+    Console.WriteLine($"joining {endpoint}…");
+    session = NetPlaySession.Join(content, endpoint);
+}
+else if (args.Contains("--host"))
+{
+    int port = int.TryParse(Arg("--host", ""), out var p) ? p : NetPlaySession.DefaultPort;
+    var setup = new SessionSetup(Route: Arg("--route", "") is { Length: > 0 } r ? r : null, Line: Arg("--line", "test-loop"), Cars: cars, Enemies: !args.Contains("--no-enemies"));
+    var hosted = NetPlaySession.HostGame(content, setup, port);
+    Console.WriteLine($"hosting on UDP port {hosted.Port}: others join with --join <this machine's address>:{hosted.Port}");
+    session = hosted;
+}
+else if (Arg("--route", "") is { Length: > 0 } routeSpec)
 {
     var (tier, seed) = Route.ParseSpec(routeSpec);
     var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File));
@@ -36,10 +57,12 @@ else
 {
     session = new PrototypeSession(content, Arg("--line", "test-loop"), cars);
 }
+var proto = session as PrototypeSession;
 var internalSize = Arg("--internal", "480x270").Split('x').Select(int.Parse).ToArray();
 double quitAfter = double.Parse(Arg("--quit-after", "0"));
 string? capture = Arg("--capture", "") is { Length: > 0 } c ? c : null;
-session.Controls.Throttle = double.Parse(Arg("--throttle", "0"));
+if (proto is not null)
+    proto.Controls.Throttle = double.Parse(Arg("--throttle", "0"));
 
 using var window = new Window("Dark Territory — prototype", 1280, 720);
 using var gpu = new GpuContext("Dark Territory", Window.VulkanInstanceExtensions(), window.CreateSurface);
@@ -58,12 +81,14 @@ static AudioOut? Warn(string? error)
 }
 
 var clock = new FixedStepClock(SimConstants.TickRate);
-var scene = new GreyboxScene { Route = session.Route, Enemies = session.World.Enemies is null ? null : session.World.ActiveEnemies };
+var scene = new GreyboxScene { Route = session.Route, Enemies = session.World.ActiveEnemies };
 var mesh = new MeshBuilder();
 var timer = Stopwatch.StartNew();
 double last = 0, titleAt = 0;
 long frameCount = 0;
 double pendingYaw = 0, pendingPitch = 0;
+int pendingNotch = 0;
+bool pendingReverser = false;
 bool chase = false;
 const double Sensitivity = 0.0025;
 var input = window.Input;
@@ -82,14 +107,22 @@ while (!window.CloseRequested)
         if (window.MouseCaptured) window.MouseCaptured = false;
         else break;
     }
-    if (input.Pressed(Key.R)) session.Notch(+1);
-    if (input.Pressed(Key.F)) session.Notch(-1);
-    if (input.Pressed(Key.X)) session.FlipReverser();
+    // The prototype drives from anywhere; networked, cab controls go through intent like everything else.
+    sbyte notch = (sbyte)((input.Pressed(Key.R) ? 1 : 0) - (input.Pressed(Key.F) ? 1 : 0));
+    bool reverser = input.Pressed(Key.X);
+    // Held until a tick sends them: at a high frame rate a key press can land on a frame with no tick.
+    pendingNotch += notch;
+    pendingReverser |= reverser;
+    if (proto is not null)
+    {
+        if (notch != 0) proto.Notch(notch);
+        if (reverser) proto.FlipReverser();
+        if (input.Pressed(Key.Backspace)) proto.Respawn(0);
+        for (var k = Key.D1; k <= Key.D9; k++)
+            if (input.Pressed(k)) proto.Respawn(k - Key.D1 + 1);
+        proto.Controls.Brake = input.Down(Key.B) ? 1 : 0;
+    }
     if (input.Pressed(Key.Tab)) chase = !chase;
-    if (input.Pressed(Key.Backspace)) session.Respawn(0);
-    for (var k = Key.D1; k <= Key.D9; k++)
-        if (input.Pressed(k)) session.Respawn(k - Key.D1 + 1);
-    session.Controls.Brake = input.Down(Key.B) ? 1 : 0;
 
     pendingYaw -= input.MouseDX * Sensitivity;
     pendingPitch -= input.MouseDY * Sensitivity;
@@ -102,6 +135,11 @@ while (!window.CloseRequested)
         if (input.Down(Key.Space)) buttons |= PlayerButtons.Jump;
         if (input.Down(Key.E)) buttons |= PlayerButtons.Use;
         if (input.Down(Key.MouseLeft)) buttons |= PlayerButtons.Fire;
+        if (proto is null)
+        {
+            if (input.Down(Key.B)) buttons |= PlayerButtons.Brake;
+            if (pendingReverser) buttons |= PlayerButtons.Reverser;
+        }
         var intent = new PlayerIntent
         {
             MoveX = (input.Down(Key.D) ? 1 : 0) - (input.Down(Key.A) ? 1 : 0),
@@ -109,7 +147,10 @@ while (!window.CloseRequested)
             LookYaw = (float)pendingYaw,
             LookPitch = (float)pendingPitch,
             Buttons = buttons,
+            ThrottleNotch = proto is null ? (sbyte)Math.Clamp(pendingNotch, -4, 4) : (sbyte)0,
         };
+        pendingNotch = 0;
+        pendingReverser = false;
         pendingYaw = pendingPitch = 0;
         session.Step(intent);
         // The ears are where the eyes were last frame; audio follows the sim tick so no shot is missed.
@@ -125,6 +166,7 @@ while (!window.CloseRequested)
 
     var frames = session.InterpolatedFrames(clock.Alpha);
     camera = chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
+    scene.Crew = session.Crew(frames, clock.Alpha);
     lighting = Views.Lighting(frames[0]);
     if (session.Route is { } r)
         lighting.FogDensity = (float)r.Weather.FogDensity;
@@ -165,3 +207,4 @@ if (capture is not null)
     Console.WriteLine($"captured {Path.GetFullPath(capture)}");
 }
 Console.WriteLine($"frames {frameCount} ({frameCount / timer.Elapsed.TotalSeconds:0} fps), ticks {session.Tick}, {session.Status()}");
+(session as IDisposable)?.Dispose();

@@ -45,6 +45,16 @@ public sealed class NetWriter
     /// <summary>Signed LEB128 via zigzag: small deltas either side of zero cost one byte.</summary>
     public void VarS(long v) => VarU((ulong)((v << 1) ^ (v >> 63)));
 
+    /// <summary>UTF-8 with a VarU length prefix.</summary>
+    public void Str(string v)
+    {
+        int n = System.Text.Encoding.UTF8.GetByteCount(v);
+        VarU((ulong)n);
+        System.Text.Encoding.UTF8.GetBytes(v, Take(n));
+    }
+
+    public void Bytes(ReadOnlySpan<byte> v) => v.CopyTo(Take(v.Length));
+
     public void Double3(Double3 v)
     {
         F64(v.X);
@@ -109,4 +119,15 @@ public ref struct NetReader(ReadOnlySpan<byte> data)
 
     public Double3 Double3() => new(F64(), F64(), F64());
     public Double3 Float3() => new(F32(), F32(), F32());
+
+    public string Str()
+    {
+        int n = checked((int)VarU());
+        if (n > Remaining)
+            throw new EndOfStreamException("string truncated");
+        return System.Text.Encoding.UTF8.GetString(Take(n));
+    }
+
+    /// <summary>Everything left in the packet.</summary>
+    public ReadOnlySpan<byte> Rest() => Take(Remaining);
 }

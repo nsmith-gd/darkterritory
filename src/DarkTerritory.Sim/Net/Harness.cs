@@ -20,6 +20,8 @@ public sealed record HarnessOptions
     /// <summary>With enemy tuning the host runs the director and the route's threats.</summary>
     public EnemyTuning? Enemies { get; init; }
     public Route.Route? Route { get; init; }
+    /// <summary>Real UDP sockets on localhost instead of the simulated network (runs in real time's order, not faster).</summary>
+    public bool Udp { get; init; }
 }
 
 public sealed record ClientReport(byte Id, string Bot, double MaxCorrectionM, int Corrections, int Snapshots, int HostMissedInputs,
@@ -42,7 +44,9 @@ public static class Harness
     public static HarnessReport Run(RailLine line, TrainTuning trainTuning, PlayerTuning playerTuning, HarnessOptions o, BoilerTuning? boiler = null)
     {
         var net = new LoopbackNetwork(o.Seed, o.Link);
-        var hostTransport = new CountingTransport(net.CreateHost());
+        var udpHost = o.Udp ? UdpTransport.Host(0, bind: System.Net.IPAddress.Loopback) : null;
+        ITransport ClientTransport() => udpHost is null ? net.CreateClient() : UdpTransport.Connect(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, udpHost.Port));
+        var hostTransport = new CountingTransport(udpHost ?? net.CreateHost());
         var host = new HostSession(hostTransport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
         if (o.Enemies is { } et)
             host.EnableEnemies(et, o.Route, (ulong)o.Seed, o.Bots);
@@ -50,7 +54,7 @@ public static class Harness
         var clients = new List<(ClientSession Session, IBot Bot, CountingTransport Transport)>();
         for (int i = 0; i < o.Bots; i++)
         {
-            var transport = new CountingTransport(net.CreateClient());
+            var transport = new CountingTransport(ClientTransport());
             IBot bot = i == 0 ? new ConductorBot() : i == 1 && o.Combat is { } c ? new GunnerBot(c.Guns, c.Choir, o.Seed * 1000 + i) : new RoofWalkerBot(o.Seed * 1000 + i);
             clients.Add((new ClientSession(transport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat), bot, transport));
         }
@@ -105,7 +109,14 @@ public static class Harness
                 deaths, unfair, host.World.Derailed, Math.Round(choirPeak, 1),
                 Math.Round(host.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).DefaultIfEmpty().Average(v => v?.CargoIntegrity ?? 1), 3), rounds);
         }
-        return new HarnessReport(ticks, seconds, $"{o.Link.LatencySeconds * 1000:0}ms ±{o.Link.JitterSeconds * 1000:0} loss {o.Link.LossRate:P0}",
+        if (o.Udp)
+        {
+            foreach (var c in clients)
+                c.Transport.Dispose();
+            hostTransport.Dispose();
+        }
+        string link = o.Udp ? "udp localhost" : $"{o.Link.LatencySeconds * 1000:0}ms ±{o.Link.JitterSeconds * 1000:0} loss {o.Link.LossRate:P0}";
+        return new HarnessReport(ticks, seconds, link,
             Math.Round(host.Train.Dynamics.Distance, 1), Math.Round(host.Train.Dynamics.Speed, 2),
             Math.Round(host.Train.Boiler.Pressure, 1), Math.Round(host.Train.Boiler.Tender), host.LastSnapshotBytes,
             Math.Round(reports.Average(r => r.BytesDown) * 8 / 1000 / seconds, 1), Math.Round(reports.Average(r => r.BytesUp) * 8 / 1000 / seconds, 1),
