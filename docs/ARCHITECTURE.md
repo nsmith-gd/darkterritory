@@ -1273,7 +1273,29 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - it's sent to every client;
       - braking for it weights the Ferryman up.
     - `AudioTests` holds the horn over the bed with every other tell still clear, and `CreatureArtTests` has it drawn as nothing.
-63. **The procedural line (docs/design/linegen-plan.md, roadmap M5 "procedural line v1").** The readings where the plan or the spec was ambiguous, and what's not done:
+63. **Climbers (T58, App. A.4 and B.4; GDD: "scales directly with train length. More cars means more gaps means more mount points, defended by the same crew").** `EnemyKind.Climber`, cost 3, tuned in `enemies.json` `climbers`.
+    - **PACE:** out beside the train at track level, level with its gap, for at least 6 s.
+    - **MOUNT:** only at a coupling gap. The gaps are the couplings behind each car in the engine's rake; the engine's own is left out, since that's the cab's and the fireman's. It spends 2.5 s scrabbling at the gap, in at the couplers from the side (the telegraph), then climbs onto the roof of the car ahead.
+    - **COUNTER, "a player physically occupying a gap blocks that mount point":** read as someone in the gap below the roofs (the Rattle's own gap volume), or stood on a roof end within 2 m of it. Blocked, as it comes or while it scrabbles, it drops back and makes for the nearest gap it hasn't tried. Three tries, then it gives up.
+    - **TRAVERSE:** along the roofs toward the engine at 2.2 m/s.
+    - **Ambiguity: "ENTER first unlit or unoccupied car".** Read as: over the middle of a car with a room in it and nobody standing inside, it goes in. During the Vigil every lamp is out, so every car counts. At the engine it goes down into the cab.
+    - **Inside** (an interior threat): whoever comes within 1.8 m takes 25 every 1.5 s (`DeathCause.Climbed`). Left alone for 120 s, it leaves.
+    - It can be shot while it scrabbles and while it's on the roofs (40 health). It can't be shot pacing (it's down beside the car, in the dark) or once it's inside.
+    - **Director gates** (B.4): at least 2 gaps, and the train at 5 m/s or more. Weight is 0.5 a gap: "weight scales directly with gap count".
+    - **Bots:** the warm-up's `Rattled` became `Barred`, so a bot won't go in by a Rattle's gap or into a car a Climber is in. The gunner shoots Climbers on the roofs like anything else with a hit volume. Holding gaps is left to people for now.
+    - **Art:** a crewman gone wrong: the crew model drawn thin and soot-black, hunched running and walking, climbing fast at the gap, crouched inside. There's a greybox figure too, and a CI shot (`threats-climbers`).
+    - **Verified:** `ClimberTests` (10):
+      - it paces to its gap and scrabbles before it's up (with the reaction window);
+      - it goes along the roofs, past an occupied car, into the first empty one;
+      - an empty car it's on, it gets into;
+      - inside, it goes for whoever comes in, and left alone it leaves;
+      - someone in the gap holds it, and it tries another;
+      - getting into the gap while it scrabbles stops it;
+      - with every gap held it gives up;
+      - the guns can take it on the roofs;
+      - the gaps and the director's gates and weight;
+      - a client sees it at the gap.
+64. **The procedural line (docs/design/linegen-plan.md, roadmap M5 "procedural line v1").** The readings where the plan or the spec was ambiguous, and what's not done:
     - **Junction count** (§3.2's "junctions" beside its own alternate and dead-line counts): both ends of an alternate count, so junctions = 2 × alternates + dead lines. It's the reading that keeps the table's three columns consistent. The quotas' "facing junctions" (§15.3) and the Switchman's network size (App. B.7) count the same way.
     - **Dawn (§22.1):** the timer is the spec's formula over the gate-to-terminus distance. The validator holds the ideal transit to it and reports transit plus four minutes a stop as a warning (`validation.dawnWithStopsHard: false`): by the spec's own numbers the deeper tiers can't take every stop in time. Note 13 is the same conflict.
     - **Descent grades** come from brake fade's equilibrium: a train braking on a descent a third of the time recovers as fast as it fades (`profile`), so the ruling descent is the steepest where that duty holds at the consist's brake. Approaches to a stop never descend.

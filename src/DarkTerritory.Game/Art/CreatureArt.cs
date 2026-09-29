@@ -282,6 +282,7 @@ public sealed class CreatureArt
     /// <item>Hollow: the origin is the cab's centre, so it stands 1.35 m below it on the deck. Telegraphing it hasn't come
     /// down yet: soot falls from the stack. Hunting, it stands unnaturally still and reaches.</item>
     /// <item>Switchman: feet at the origin, lantern swinging while it waits; it flees when broken off.</item>
+    /// <item>Climber: feet at the origin; in the cab (punish, <paramref name="extra"/> below 0) the origin is the cab's centre.</item>
     /// <item>Ferryman: feet at the origin, lantern swung hard while it waves; aboard (punish) the origin is the cab's centre.</item>
     /// <item>Soot children: three huddled as GreyboxScene places them, facing the basis's −X (the car when they're on
     /// its +X side; turn the basis for the other); they turn their heads up at the doors while they call.</item>
@@ -472,6 +473,23 @@ public sealed class CreatureArt
             case EnemyKind.Stoker:
                 // In the firebox: never seen, only its work (the gauge, the wrong glow the scene gives the fire, the hiss).
                 return true;
+            case EnemyKind.Climber:
+                {
+                    // A crewman gone wrong (App. A.4): drawn out thin, soot-black, running bent double alongside; climbing at
+                    // the gap (the scrabbling: fast, and facing into the train); walking the roofs; crouched in a car.
+                    // Bent forward from the feet running and walking: nothing upright about it.
+                    float hunch = phase is SpinePhase.Telegraph or SpinePhase.Punish ? 0 : -0.42f;
+                    var at = Matrix4x4.CreateScale(0.86f, 1.08f, 0.86f) * Matrix4x4.CreateRotationX(hunch)
+                        * (phase == SpinePhase.Punish && extra < 0 ? Matrix4x4.CreateTranslation(0, -1.35f, 0) : Matrix4x4.Identity) * model;
+                    var (clip, speed) = phase switch
+                    {
+                        SpinePhase.Telegraph => ("climb", 2.4),
+                        SpinePhase.Commit => ("walk", 1.3),
+                        SpinePhase.Punish => ("crouch_idle", 1.0),
+                        _ => ("run", 1.2),
+                    };
+                    return Draw(mesh, "crew", clip, t * speed, true, at, variant: 3, seed: 17, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.28f, 0.26f, 0.25f) });
+                }
             case EnemyKind.LongWhistle:
                 // "Never visible; operates from ahead on the line" (App. A.2): the horn is all of it.
                 return true;
@@ -497,6 +515,13 @@ public sealed class CreatureArt
             case EnemyKind.SootChildren when e.Lateral < 0:
                 m = Matrix4x4.CreateRotationY(MathF.PI) * model;
                 break;
+            case EnemyKind.Climber when e.Phase == SpinePhase.Telegraph:
+                // At the gap, facing in at the couplers.
+                m = Matrix4x4.CreateRotationY(e.Local.X > 0 ? MathF.PI / 2 : -MathF.PI / 2) * model;
+                break;
+            case EnemyKind.Climber when e.Phase == SpinePhase.Punish:
+                // In the cab (the origin is its centre, as the Hollow's): stood 1.35 m below it. Flagged through extra.
+                return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Attached == 0 ? -1 : 0);
             case EnemyKind.Ferryman when !((Sim.Enemies.Ferryman)e).Aboard:
                 // Facing down the line at the train coming.
                 m = Matrix4x4.CreateRotationY(MathF.PI) * model;

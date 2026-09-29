@@ -1198,3 +1198,233 @@ public sealed class LongWhistle(int id) : Enemy(id)
         }
     }
 }
+
+/// <summary>
+/// CLIMBERS · movement · flank (App. A.4). They run alongside at track level, matching the train, and mount only at a
+/// coupling gap: a brief scrabbling there (the telegraph, "visible from adjacent roofs"), then up between the cars and along
+/// the roofs toward the engine, and into the first car nobody's in (any car, lights out), where it's an interior threat.
+/// At the engine, the cab. Someone standing in the gap blocks that mount point: it drops back and tries another. On the
+/// roofs it can be shot. "Scales directly with train length": every gap is a way on, held by the same crew.
+/// </summary>
+/// <remarks>
+/// <see cref="Enemy.Extra"/> is the vehicle ahead of the gap it's making for (pacing and mounting), <see cref="Enemy.Extra2"/>
+/// its side (−1 or +1). Pacing it's free on the line; from the gap on it's on a vehicle.
+/// </remarks>
+public sealed class Climber(int id) : Enemy(id)
+{
+    double _bored, _bite;
+    int _tries;
+    readonly List<int> _tried = [];
+
+    public override EnemyKind Kind => EnemyKind.Climber;
+    public override PressureZone Zone => PressureZone.Flank;
+    public override Sense Sense => Sense.Movement;
+    /// <summary>Out on the roofs (or scrabbling at the gap), it's in the open: the guns can take it.</summary>
+    public override double HitRadius => Phase is SpinePhase.Telegraph or SpinePhase.Commit ? 0.55 : 0;
+
+    public int Gap => (int)Extra;
+    public int Side => Extra2 < 0 ? -1 : 1;
+    /// <summary>Scrabbling at the gap: the telegraph.</summary>
+    public bool Scrabbling => Phase == SpinePhase.Telegraph;
+    /// <summary>In a car (or the cab): the interior threat.</summary>
+    public bool Inside => Phase == SpinePhase.Punish;
+
+    /// <summary>Alongside the gap behind <paramref name="car"/>, out from the train on one side.</summary>
+    public static Climber Pacing(int id, TrainOnLine train, int car, int side, ClimberTuning t)
+    {
+        var c = new Climber(id) { Extra = car, Extra2 = side, Health = t.Health };
+        c.LineDistance = GapAlong(train, car);
+        c.Lateral = side * (train.Frames[car].Shape.HalfWidth + t.PaceOut);
+        return c;
+    }
+
+    /// <summary>Along-line distance of the gap behind a vehicle.</summary>
+    static double GapAlong(TrainOnLine train, int car) =>
+        train.Cars[car].FrontDistance - train.Cars[car].Length - train.Dynamics.Tuning.Geometry.CouplingGap * 0.5;
+
+    /// <summary>
+    /// The gaps it can mount at, as the vehicle ahead of each: every coupling in the engine's rake behind a car (not the
+    /// engine's own: that's the cab, and the fireman's). App. B.4: "weight scales directly with gap count".
+    /// </summary>
+    public static List<int> Gaps(TrainOnLine train)
+    {
+        var rake = train.Dynamics.Consist.Vehicles;
+        var gaps = new List<int>();
+        for (int i = 1; i + 1 < rake.Count; i++)
+            gaps.Add(rake[i].Id);
+        return gaps;
+    }
+
+    /// <summary>Someone's in the gap behind that vehicle, below the roofs or stood on a roof end over it: it's held.</summary>
+    public static bool Held(EnemyContext ctx, int car, ClimberTuning t)
+    {
+        var train = ctx.Train;
+        var probe = Rattle.In(0, train, car, train.Dynamics.Tuning.Geometry.CouplingGap);
+        var gap = probe.WorldPosition(train);
+        return ctx.LivingCrew().Any(c => probe.InGap(c.World, train) || ((c.World - gap) with { Y = 0 }).Length <= t.HoldReach);
+    }
+
+    /// <summary>Someone living is inside that car (standing in it, doors shut or not).</summary>
+    static bool Occupied(EnemyContext ctx, int car) =>
+        ctx.Crew.Any(c => c.Player.State is { Alive: true, Surface: Surface.Deck } s && s.Parent == car
+            && ctx.Train.Frames[car].Shape.Interior is { } room && room.Contains(s.Position));
+
+    protected override void Tick(EnemyContext ctx)
+    {
+        var t = ctx.Tuning.Climbers;
+        var train = ctx.Train;
+        double dt = SimConstants.TickSeconds;
+        // The car it's on or making for has gone (cut off and left behind): so has it.
+        if (Gap >= train.Frames.Count || Attached >= train.Frames.Count)
+        {
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        switch (Phase)
+        {
+            case SpinePhase.Dormant:
+                {
+                    // PACE: alongside, making for its gap, as fast as it can run.
+                    if (train.VehicleBehind(Gap) < 0)
+                    {
+                        Retry(ctx, t);
+                        break;
+                    }
+                    double want = GapAlong(train, Gap);
+                    double speed = Math.Clamp(train.Dynamics.Velocity + (want - LineDistance) * t.Catch, -t.MaxSpeed, t.MaxSpeed);
+                    LineDistance += speed * dt;
+                    if (LineDistance < train.Dynamics.RearDistance - t.LoseBehind)
+                    {
+                        Enter(ctx, SpinePhase.Gone);
+                        break;
+                    }
+                    if (PhaseSeconds >= t.PaceSeconds && Math.Abs(want - LineDistance) <= 1.5)
+                    {
+                        if (Held(ctx, Gap, t))
+                        {
+                            Retry(ctx, t);
+                            break;
+                        }
+                        // At the gap: the scrabbling, in at the couplers from the side.
+                        var shape = train.Frames[Gap].Shape;
+                        Attached = Gap;
+                        Local = new Double3(Side * (shape.HalfWidth - 0.2), 1.0, shape.HalfLength + train.Dynamics.Tuning.Geometry.CouplingGap * 0.5);
+                        Enter(ctx, SpinePhase.Telegraph);
+                    }
+                    break;
+                }
+            case SpinePhase.Telegraph:
+                // Someone gets into the gap as it scrabbles: blocked, it drops back and tries another.
+                if (Held(ctx, Gap, t))
+                {
+                    Retry(ctx, t);
+                    break;
+                }
+                if (PhaseSeconds >= t.ScrabbleSeconds && Enter(ctx, SpinePhase.Commit))
+                {
+                    // MOUNT: up between the cars, onto the roof of the one ahead, at its back end.
+                    var shape = train.Frames[Gap].Shape;
+                    Local = new Double3(0, shape.RoofHeight, shape.HalfLength - 0.4);
+                }
+                break;
+            case SpinePhase.Commit:
+                Traverse(ctx, t);
+                break;
+            case SpinePhase.Punish:
+                Nest(ctx, t);
+                break;
+            default:
+                Enter(ctx, SpinePhase.Gone);
+                break;
+        }
+    }
+
+    /// <summary>Blocked or lost its gap: drop back off the train and make for another it hasn't tried, or give up.</summary>
+    void Retry(EnemyContext ctx, ClimberTuning t)
+    {
+        var train = ctx.Train;
+        _tried.Add(Gap);
+        _tries++;
+        var left = Gaps(train).Where(g => !_tried.Contains(g)).ToList();
+        if (_tries >= t.MaxTries || left.Count == 0)
+        {
+            Enter(ctx, SpinePhase.BreakOff);
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        // The nearest untried gap: it doesn't run the train's length to find one.
+        int next = left.OrderBy(g => Math.Abs(g - Gap)).First();
+        if (Attached >= 0)
+        {
+            LineDistance = GapAlong(train, Gap);
+            Lateral = Side * (train.Frames[Gap].Shape.HalfWidth + t.PaceOut);
+            Attached = -1;
+        }
+        Extra = next;
+        Enter(ctx, SpinePhase.BreakOff);
+        Enter(ctx, SpinePhase.Dormant);
+    }
+
+    /// <summary>TRAVERSE: along the roofs toward the engine, into the first car nobody's in; at the engine, the cab.</summary>
+    void Traverse(EnemyContext ctx, ClimberTuning t)
+    {
+        var train = ctx.Train;
+        int car = Attached;
+        var shape = train.Frames[car].Shape;
+        double z = Local.Z - t.TraverseSpeed * SimConstants.TickSeconds;
+        // Over the middle of a car with a room in it and nobody inside (or every lamp out): in it goes.
+        if (Local.Z > 0 && z <= 0 && shape.Interior is { } room && (ctx.World.EmergencyLights || !Occupied(ctx, car)))
+        {
+            Local = room.Centre with { Y = room.Min.Y };
+            Enter(ctx, SpinePhase.Punish);
+            return;
+        }
+        if (z > -shape.HalfLength + 0.3)
+        {
+            Local = Local with { Z = z };
+            return;
+        }
+        // Over the gap onto the next roof ahead.
+        int ahead = train.VehicleAhead(car);
+        if (ahead < 0)
+        {
+            Enter(ctx, SpinePhase.BreakOff);
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        if (ahead == 0)
+        {
+            // The engine: down into the cab.
+            Attached = 0;
+            Local = train.Frames[0].Shape.Cab!.Value.Centre;
+            Enter(ctx, SpinePhase.Punish);
+            return;
+        }
+        var next = train.Frames[ahead].Shape;
+        Attached = ahead;
+        Local = new Double3(0, next.RoofHeight, next.HalfLength - 0.3);
+    }
+
+    /// <summary>In a car (or the cab): it goes for whoever's in there with it. Left alone long enough, it leaves.</summary>
+    void Nest(EnemyContext ctx, ClimberTuning t)
+    {
+        var train = ctx.Train;
+        var at = WorldPosition(train);
+        var near = ctx.LivingCrew().Where(c => (c.World - at).Length <= t.Reach).OrderBy(c => (c.World - at).Length).Select(c => (int?)c.Player.Id).FirstOrDefault();
+        bool company = Attached == 0 ? ctx.Crew.Any(c => c.Player.State.Alive && PlayerMotor.InCab(c.Player.State, train)) : Occupied(ctx, Attached);
+        if (!company && near is null)
+        {
+            _bored += SimConstants.TickSeconds;
+            if (_bored >= t.BoredSeconds)
+                Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        _bored = 0;
+        _bite += SimConstants.TickSeconds;
+        if (near is { } victim && _bite >= t.BiteEvery)
+        {
+            _bite = 0;
+            ctx.Bite(victim, t.BiteDamage, DeathCause.Climbed);
+        }
+    }
+}
