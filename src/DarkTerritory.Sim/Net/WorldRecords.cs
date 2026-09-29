@@ -73,14 +73,22 @@ public static class WorldRecords
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Controls, 0), [Q(controls.Throttle, Fine), Q(controls.Brake, Fine), controls.Reverser]));
         if (world.Run is { } run)
         {
-            var f = new long[5 + run.FacilityCount];
+            // Per facility: the chute's coal left, then its loading modules (crates out, winch sled, sleds left, turning).
+            const int Each = 4;
+            var f = new long[5 + run.FacilityCount * Each];
             f[0] = (long)run.Phase;
             f[1] = (long)run.End;
             f[2] = Q(run.Seconds, Fine);
             f[3] = run.Facility;
             f[4] = run.ChuteOpen ? 1 : 0;
             for (int i = 0; i < run.FacilityCount; i++)
-                f[5 + i] = Q(run.ChuteLeft(i), Fine);
+            {
+                var site = i < run.Sites.Count ? run.Sites[i] : null;
+                f[5 + i * Each] = Q(run.ChuteLeft(i), Fine);
+                f[6 + i * Each] = (site?.Stocked == true ? 1 : 0) | (site?.Turning == true ? 2 : 0);
+                f[7 + i * Each] = Q(site?.Progress ?? 0, Fine);
+                f[8 + i * Each] = site?.SledsLeft ?? 0;
+            }
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Run, 0), f));
         }
         if (world.Vigil is { } vigil)
@@ -182,8 +190,10 @@ public static class WorldRecords
                     vigil.Mirror(f[0] != 0, D(f[1], Fine), (int)f[2], (int)f[3], (int)f[4]);
                     break;
                 case RecordKind.Run when !world.Authority && world.Run is { } run:
+                    int facilities = (f.Length - 5) / 4;
                     run.Mirror((Run.RunPhase)f[0], (Run.RunEnd)f[1], D(f[2], Fine), (int)f[3], f[4] != 0,
-                        [.. Enumerable.Range(0, f.Length - 5).Select(i => D(f[5 + i], Fine))]);
+                        [.. Enumerable.Range(0, facilities).Select(i => D(f[5 + i * 4], Fine))],
+                        [.. Enumerable.Range(0, facilities).Select(i => ((f[6 + i * 4] & 1) != 0, D(f[7 + i * 4], Fine), (int)f[8 + i * 4], (f[6 + i * 4] & 2) != 0))]);
                     break;
             }
         }

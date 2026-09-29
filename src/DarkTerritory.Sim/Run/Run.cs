@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Run;
 
 /// <summary>Mirror of content/tuning/run.json. Field docs live in that file.</summary>
-public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, double DawnGraceSeconds, ChuteTuning Chute, EconomyTuning Economy)
+public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, double DawnGraceSeconds, ChuteTuning Chute, EconomyTuning Economy, double DepartureLoad)
 {
     public const string File = "tuning/run.json";
 }
@@ -49,6 +49,30 @@ public sealed class Run
 
     public RunTuning Tuning { get; set; }
     public Route.Route Route => _route;
+
+    /// <summary>Each facility's loading modules (spec D), by facility index; null where there are none (the coaling tower).</summary>
+    public IReadOnlyList<Site?> Sites => _sites;
+    Site?[] _sites = [];
+    FacilityTuning? _facilityTuning;
+    // How long each loose cargo crate has lain still inside a cargo car.
+    readonly Dictionary<int, double> _settling = new();
+
+    /// <summary>Lays out every facility's loading modules from the route. Host and clients both do this; the host runs them.</summary>
+    public void EnableSites(FacilityTuning t, RailLine line)
+    {
+        _facilityTuning = t;
+        _sites = [.. _facilities.Select((f, i) =>
+        {
+            var modules = f.Facility is { } kind ? t.ModulesOf(kind) : [];
+            if (modules.Count == 0)
+                return null;
+            int span = Math.Max(0, t.Crates.Count[1] - t.Crates.Count[0]);
+            int crates = t.Crates.Count[0] + (int)((_route.Seed * 31 + (ulong)i * 17) % (ulong)(span + 1));
+            return new Site(i, f, modules, t, line, crates);
+        })];
+    }
+
+    public Site? CurrentSite => Facility >= 0 && Facility < _sites.Length ? _sites[Facility] : null;
     public RunPhase Phase { get; private set; }
     public RunEnd End { get; private set; }
     /// <summary>Seconds since the gates opened (the dawn clock runs from departure).</summary>
@@ -82,6 +106,7 @@ public sealed class Run
         }
         Seconds += dt;
         Pour(train, dt);
+        StepSites(world, dt);
 
         if (world.Derailed)
             Finish(world, crew, RunPhase.Failed, RunEnd.Derailed);
@@ -100,6 +125,59 @@ public sealed class Run
                 ChuteOpen = false;
         }
     }
+
+    /// <summary>
+    /// Spec D loading: crates come out when the train first stops at their facility; the winch hauls only while both
+    /// handles turn; cargo that ends up still inside a cargo car is stowed as load.
+    /// </summary>
+    void StepSites(World world, double dt)
+    {
+        if (_facilityTuning is not { } t)
+            return;
+        var train = world.Train;
+        if (CurrentSite is { } site)
+        {
+            if (!site.Stocked && Phase == RunPhase.AtFacility)
+            {
+                site.Stocked = true;
+                foreach (var at in site.CrateStack)
+                    world.Bodies.SpawnCargo(at, site.CrateLineHint);
+            }
+            site.Turning = site.SledsLeft > 0 && site.Cranking[0] >= 0 && site.Cranking[1] >= 0 && site.Cranking[0] != site.Cranking[1];
+            if (site.Turning && site.Progress < 1)
+                site.Progress = Math.Min(1, site.Progress + t.Winch.Speed * dt / t.Winch.HaulMetres);
+            if (site.Progress >= 1 && site.SledsLeft > 0 && CargoCarNear(train, site.SledTo, t.Winch.CarReach) is { } car)
+            {
+                car.Load = Math.Min(1, car.Load + t.Winch.LoadPerSled);
+                site.SledsLeft--;
+                site.Progress = 0;
+            }
+        }
+        foreach (var s in _sites)
+            if (s is not null)
+                s.Cranking[0] = s.Cranking[1] = -1;
+
+        // A crate put down (or thrown) inside a cargo car's walls, and lying still there, is loaded.
+        foreach (var b in world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Cargo).ToList())
+        {
+            bool stowed = b.Carrier < 0 && b.Parent > 0 && b.Parent < train.Vehicles.Count && train.Vehicles[b.Parent].Kind == VehicleKind.Cargo
+                && train.Vehicles[b.Parent].Load < 1 && train.Frames[b.Parent].Shape.Interior is { } room && room.Contains(b.Pbd.Particles[0].Position);
+            double still = stowed ? _settling.GetValueOrDefault(b.Id) + dt : 0;
+            if (still < t.Crates.SettleSeconds)
+            {
+                _settling[b.Id] = still;
+                continue;
+            }
+            var vehicle = train.Vehicles[b.Parent];
+            vehicle.Load = Math.Min(1, vehicle.Load + t.Crates.LoadPerCrate);
+            world.Bodies.Remove(b);
+            _settling.Remove(b.Id);
+        }
+    }
+
+    static Vehicle? CargoCarNear(TrainOnLine train, Double3 at, double reach) =>
+        train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Load < 1)
+            .Select(v => (v, d: (train.Frames[v.Id].Origin - at).Length)).Where(x => x.d <= reach).OrderBy(x => x.d).FirstOrDefault().v;
 
     /// <summary>The fortress yard's length, from generation (RouteTuning.YardLength); the gate is its end.</summary>
     public double YardLength { get; init; } = 600;
@@ -121,6 +199,8 @@ public sealed class Run
     /// </summary>
     public void CrewAct(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train)
     {
+        if (CurrentSite is { } site && HandleInReach(s, train) is { } handle && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5)
+            site.Cranking[handle] = playerId;
         bool holding = LeverInReach(s, train) && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5;
         if (!holding)
         {
@@ -131,6 +211,18 @@ public sealed class Run
         _lever[playerId] = before + SimConstants.TickSeconds;
         if (before < Tuning.Chute.LeverSeconds && before + SimConstants.TickSeconds >= Tuning.Chute.LeverSeconds)
             ChuteOpen = !ChuteOpen;
+    }
+
+    /// <summary>The capstan handle a player is standing at, if the winch here has cargo left to haul.</summary>
+    public int? HandleInReach(in PlayerState s, TrainOnLine train)
+    {
+        if (Over || !s.Alive || CurrentSite is not { SledsLeft: > 0 } site || _facilityTuning is not { } t)
+            return null;
+        var at = PlayerMotor.WorldPosition(s, train);
+        for (int i = 0; i < site.Handles.Length; i++)
+            if ((at + Double3.Up * 0.9 - site.Handles[i]).Length <= t.Winch.HandleReach)
+                return i;
+        return null;
     }
 
     /// <summary>Standing at a working chute's lever (the HUD's prompt, and <see cref="CrewAct"/>).</summary>
@@ -206,7 +298,8 @@ public sealed class Run
     }
 
     /// <summary>Client side: adopts the host's run state.</summary>
-    public void Mirror(RunPhase phase, RunEnd end, double seconds, int facility, bool chuteOpen, double[] chuteLeft)
+    public void Mirror(RunPhase phase, RunEnd end, double seconds, int facility, bool chuteOpen, double[] chuteLeft,
+        IReadOnlyList<(bool Stocked, double Progress, int SledsLeft, bool Turning)>? sites = null)
     {
         Phase = phase;
         End = end;
@@ -215,6 +308,9 @@ public sealed class Run
         ChuteOpen = chuteOpen;
         for (int i = 0; i < Math.Min(chuteLeft.Length, _chuteLeft.Length); i++)
             _chuteLeft[i] = chuteLeft[i];
+        if (sites is not null)
+            for (int i = 0; i < Math.Min(sites.Count, _sites.Length); i++)
+                _sites[i]?.Mirror(sites[i].Stocked, sites[i].Progress, sites[i].SledsLeft, sites[i].Turning);
     }
 
     public int FacilityCount => _facilities.Count;

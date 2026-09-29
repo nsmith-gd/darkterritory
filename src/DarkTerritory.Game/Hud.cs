@@ -184,8 +184,8 @@ public static class Hud
         var world = s.World;
         if (!p.Alive)
             return null;
-        if (world.Bodies.All.Any(b => b.Carrier == s.PlayerId))
-            return "[E] PUT DOWN   [RMB] THROW";
+        if (world.Bodies.All.FirstOrDefault(b => b.Carrier == s.PlayerId) is { } carried)
+            return carried.Kind == BodyKind.Cargo ? "INTO A CAR TO LOAD IT: [E] PUT DOWN   [RMB] THROW" : "[E] PUT DOWN   [RMB] THROW";
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is not null)
             return p.Has(PlayerFlags.Revived) ? "NO GUNS UNTIL THE NEXT STOP"
                 : world.EmergencyLights || train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM FOR THE TURRET"
@@ -212,6 +212,8 @@ public static class Hud
             return thing.Kind == BodyKind.Ragdoll ? "[E] PICK UP THE BODY" : "[E] PICK UP";
         if (world.Run?.LeverInReach(p, train) == true)
             return "[E] HOLD: CHUTE LEVER";
+        if (world.Run?.HandleInReach(p, train) is not null && world.Run.CurrentSite is { } site)
+            return site.Turning ? "[E] HOLD: CRANK. KEEP TOGETHER" : "[E] HOLD: CRANK (IT NEEDS TWO)";
         if (CabControls.CanDrive(p, train))
             return "[R/F] REGULATOR   [B] BRAKE   [X] REVERSER";
         return null;

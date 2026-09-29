@@ -59,6 +59,10 @@ public sealed class GreyboxScene
         if (Route is not null)
         {
             Features(mesh, line, eye, from, to);
+            if (Run is not null)
+                foreach (var site in Run.Sites)
+                    if (site is not null && (site.Capstan - eye).Length < DrawDistance)
+                        Winch(mesh, site, eye);
             // GDD §9: the fortress yard behind the gates, and the terminus: "lights, then walls, then gun towers".
             double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
             Fortress(mesh, line, eye, from, to, 0, yard, gateAt: yard);
@@ -113,7 +117,14 @@ public sealed class GreyboxScene
             double yaw = b.Yaw + heading;
             var right = new Vector3((float)Math.Cos(yaw), 0, (float)-Math.Sin(yaw));
             var back = new Vector3((float)Math.Sin(yaw), 0, (float)Math.Cos(yaw));
-            if (b.Kind == Sim.Physics.BodyKind.Crate)
+            if (b.Kind == Sim.Physics.BodyKind.Cargo)
+            {
+                // Freight: bigger than the train's own stores, stencilled, strapped.
+                mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.44f, 0.44f, 0.44f), Palette.BlueGrey);
+                mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.45f, 0.05f, 0.45f), Palette.SootBlack);
+                mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.05f, 0.45f, 0.45f), Palette.SootBlack);
+            }
+            else if (b.Kind == Sim.Physics.BodyKind.Crate)
             {
                 mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.34f, 0.34f, 0.34f), Palette.TarnishedBrass * 0.8f);
                 mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.35f, 0.06f, 0.35f), Palette.DeepBrown);
@@ -468,6 +479,38 @@ public sealed class GreyboxScene
             double fall = (Time * 7 + i * 0.37) % 5.4;
             var p = top - Double3.Up * fall + right * (0.3 * Math.Sin(i * 2.1)) + t.Tangent * (0.35 * Math.Cos(i * 1.3));
             mesh.Box(V(p, eye), ToF(right), Vector3.UnitY, ToF(t.Tangent * -1), new Vector3(0.22f, 0.26f, 0.22f), i % 3 == 0 ? Palette.IronGrey : Palette.Charcoal);
+        }
+    }
+
+    /// <summary>
+    /// A capstan winch (spec D.2): the drum by the track with its two handles, the rope out across the ground, and the
+    /// sled of freight on it, as far along as the crew have hauled it.
+    /// </summary>
+    static void Winch(MeshBuilder mesh, Sim.Run.Site site, Double3 eye)
+    {
+        if (!site.Has(Sim.Run.ModuleKind.Winch))
+            return;
+        var drum = site.Capstan;
+        mesh.Box(V(drum + Double3.Up * 0.5, eye), Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, new Vector3(0.45f, 0.5f, 0.45f), Palette.IronGrey);
+        foreach (var h in site.Handles)
+        {
+            var arm = (h - drum) with { Y = 0 };
+            var mid = drum + arm * 0.5 + Double3.Up * 0.9;
+            var dir = arm.Normalized;
+            mesh.Box(V(mid, eye), ToF(dir), Vector3.UnitY, ToF(Double3.Cross(dir, Double3.Up)), new Vector3((float)arm.Length * 0.5f, 0.04f, 0.04f), Palette.TarnishedBrass);
+        }
+        var sled = site.Sled;
+        var rope = sled - drum;
+        if (rope.Length > 0.5)
+        {
+            var dir = rope.Normalized;
+            mesh.Box(V(drum + rope * 0.5 + Double3.Up * 0.3, eye), ToF(dir), Vector3.UnitY, ToF(Double3.Cross(dir, Double3.Up)), new Vector3((float)rope.Length * 0.5f, 0.02f, 0.02f), Palette.DeepBrown);
+        }
+        if (site.SledsLeft > 0)
+        {
+            var across = ToF(rope.Length > 0.1 ? rope.Normalized : Double3.Cross(Double3.Up, new Double3(1, 0, 0)));
+            mesh.Box(V(sled + Double3.Up * 0.15, eye), across, Vector3.UnitY, Vector3.Cross(across, Vector3.UnitY), new Vector3(1.2f, 0.15f, 0.8f), Palette.RustRed);
+            mesh.Box(V(sled + Double3.Up * 0.75, eye), across, Vector3.UnitY, Vector3.Cross(across, Vector3.UnitY), new Vector3(0.9f, 0.45f, 0.6f), Palette.BlueGrey);
         }
     }
 

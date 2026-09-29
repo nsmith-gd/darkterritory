@@ -53,6 +53,8 @@ public enum PlayerFlags : byte
     None = 0,
     /// <summary>Spec C.2 "the revived": back from a Vigil cold. Onset comes sooner, light things only, no guns until the next POI.</summary>
     Revived = 1,
+    /// <summary>Carrying freight (spec B.2 "carrying heavy cargo: 2.8 m/s, no climbing").</summary>
+    Heavy = 2,
 }
 
 /// <summary>
@@ -210,9 +212,11 @@ public static class PlayerMotor
                 : (intent.Has(PlayerButtons.Run) ? p.Run : p.Walk);
             if (Chilled(s, p))
                 speed *= p.Cold.OnsetSpeedScale;
+            if (s.Has(PlayerFlags.Heavy))
+                speed = Math.Min(speed, p.CarryHeavy);
             var wish = WishDirection(s.Yaw, intent) * speed;
             s.Velocity = new Double3(wish.X, 0, wish.Z);
-            if (intent.Has(PlayerButtons.Jump))
+            if (intent.Has(PlayerButtons.Jump) && !s.Has(PlayerFlags.Heavy))
             {
                 // Take off in the car's frame and integrate this tick there. The car has already moved
                 // this tick; switching to world first would count its motion twice (0.73 m at 22 m/s).
@@ -237,7 +241,7 @@ public static class PlayerMotor
         UpdateSupport(ref s, world, prevWorld, train, p, t);
 
         // Use while pushing towards it grabs a ladder; Use standing still is for working things (CrewActions).
-        if (intent.Has(PlayerButtons.Use) && intent.MoveZ > 0.5 && s.Surface != Surface.Ladder)
+        if (intent.Has(PlayerButtons.Use) && intent.MoveZ > 0.5 && s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Heavy))
             TryGrabLadder(ref s, train, p);
     }
 
