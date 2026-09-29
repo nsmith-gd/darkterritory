@@ -75,6 +75,39 @@ public sealed class SceneArt(Look look)
     /// <summary>Every piece cooked so far (for budgets: `dt art check`).</summary>
     public IReadOnlyDictionary<string, MeshAsset> Pieces => _pieces;
 
+    /// <summary>Pivot to handle of the brake valve's handle and of the reverser (tools/models cab_levers): each swings
+    /// about its pivot, below its handle, so the handle travels where the sim's does (CabLevers), near enough.</summary>
+    const float BrakeLever = 0.25f, ReverserLever = 0.9f;
+
+    /// <summary>
+    /// The driver's controls, modelled (tools/models cab_levers), where the sim has them (T29): the regulator's handle
+    /// slid back along its rack as it opens, the brake valve's handle and the reverser swung about their pivots, and
+    /// the blow-off valve on the cab wall at the vent. False where the models aren't built (the greybox draws them).
+    /// </summary>
+    public bool CabControls(MeshBuilder mesh, in CarFrame frame, Double3 eye, TrainControls controls)
+    {
+        var props = PropArt.Of(Look);
+        if (frame.Shape.Levers is not { } levers || props.Get("lever_regulator") is not { } regulator)
+            return false;
+        var m = FrameMatrix(frame, eye);
+        mesh.Append(regulator, Matrix4x4.CreateTranslation(ToF(levers.RegulatorAt(controls.Throttle))) * m);
+        void Swung(string lever, string stand, Double3 rest, Double3 now, float length)
+        {
+            var pivot = ToF(rest) - new Vector3(0, length, 0);
+            float angle = MathF.Asin(Math.Clamp((float)(now.Z - rest.Z) / length, -1, 1));
+            if (props.Get(stand) is { } s)
+                mesh.Append(s, Matrix4x4.CreateTranslation(pivot) * m);
+            if (props.Get(lever) is { } l)
+                mesh.Append(l, Matrix4x4.CreateRotationX(angle) * Matrix4x4.CreateTranslation(pivot) * m);
+        }
+        Swung("lever_brake", "brake_stand", levers.Brake, levers.BrakeAt(controls.Brake), BrakeLever);
+        Swung("lever_reverser", "reverser_quadrant", levers.Reverser, levers.ReverserAt(controls.Reverser), ReverserLever);
+        if (props.Get("vent_valve") is { } vent)
+            foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
+                mesh.Append(vent, Matrix4x4.CreateTranslation(ToF(i.Position) + new Vector3(0, 1.1f, 0)) * m);
+        return true;
+    }
+
     /// <summary>A car frame's transform to camera-relative space: its axes as rows, its origin relative to the eye.</summary>
     public static Matrix4x4 FrameMatrix(in CarFrame frame, Double3 eye)
     {

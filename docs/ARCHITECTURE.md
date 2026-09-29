@@ -1165,6 +1165,12 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - the two-man `heavy_crate`;
         - the `field_radio`, with its lamp pure light.
       - They're budgeted as medium props.
+      - The cab is the second set. `cab_backhead` is appended into the engine's kit mesh at the firebox door: the doors standing ajar, the steam turret and its valves, siphons to each gauge, the injectors' valves and copper pipework, the lubricator, the whistle, the damper and the regulator's rack. It's baked in four groups so it holds up close.
+      - The moving controls are drawn by `SceneArt.CabControls` where the sim puts them (T29), with the greybox's boxes as the fallback:
+        - the regulator's handle slides along its rack, exactly the sim's travel;
+        - the brake valve's handle swings about its pedestal pivot, and the reverser about its floor pivot, so each handle stays within a few cm of the sim's straight-line travel;
+        - the blow-off valve sits at the vent.
+      - Blender's diffuse bake scales colour by (1 − metallic), so the library materials bake as non-metals: brass would bake black. The engine's shine comes from the layer's spec.
     - **First set.**
       - The Khronos Lantern, split into a lamp post and a hand lantern. The hand lantern replaces the kit's cage in the cars, on the platforms and as the dropped lamp.
       - The photoscanned skull.

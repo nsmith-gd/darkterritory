@@ -1022,11 +1022,13 @@ public sealed class GreyboxScene
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
                 draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.17), new Double3(0.3, 0.2, 0.02)), FireColour(0.15f + 0.85f * FireGlow));
             mesh.Emissive = 0;
-            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
+            // The vent valve and the driver's levers: modelled by the art pass where it has them (SceneArt.CabControls).
+            bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls) == true;
+            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent && !modelled))
                 draw(Box.FromCentre(i.Position + new Double3(0, 1.1, 0), new Double3(0.12, 0.12, 0.04)), Palette.TarnishedBrass);
             // The driver's levers, their handles where the controls have them (T29): a headset player takes hold of
             // these. The regulator comes back as it opens, the brake handle as it goes on, the reverser forward for ahead.
-            if (shape.Levers is { } levers)
+            if (shape.Levers is { } levers && !modelled)
             {
                 void Lever(Double3 handle, double rod)
                 {

@@ -48,7 +48,10 @@ def lib(layer, scale=1.0, tint=(1, 1, 1), rough=0.7, metal=0.0):
     mix.inputs[7].default_value = (*tint, 1)
     nt.links.new(mix.outputs[2], bsdf.inputs["Base Color"])
     bsdf.inputs["Roughness"].default_value = rough
-    bsdf.inputs["Metallic"].default_value = metal
+    # Never metallic in Blender: its diffuse bake is the base colour times (1 - metallic), so brass would bake black.
+    # (The engine's shine is the layer's spec; `metal` is kept on the material for it.)
+    bsdf.inputs["Metallic"].default_value = 0.0
+    m["dt_metal"] = metal
     _mats[key] = m
     return m
 
@@ -60,7 +63,8 @@ def flat(name, colour, rough=0.6, metal=0.0):
     bsdf = m.node_tree.nodes["Principled BSDF"]
     bsdf.inputs["Base Color"].default_value = (*colour, 1)
     bsdf.inputs["Roughness"].default_value = rough
-    bsdf.inputs["Metallic"].default_value = metal
+    bsdf.inputs["Metallic"].default_value = 0.0  # (see lib)
+    m["dt_metal"] = metal
     return m
 
 
@@ -217,4 +221,34 @@ def provenance(recipe, what):
                 seen.add((s["repo"], s.get("path")))
                 out.append({"repo": s["repo"], "commit": s["commit"], "path": s.get("path"), "license": s["license"],
                             "attribution": f"{s.get('author', 'unknown')} ({s['license']}), via the library's {layer}"})
+    return out
+
+
+def handwheel(centre, axis, r, material, spokes=4, name="wheel"):
+    """A valve's handwheel: a rim, spokes and a hub, facing along `axis`."""
+    c, ax = Vector(centre), Vector(axis).normalized()
+    out = [torus(c, ax, r, r * 0.12, material, n=20, m=6, name=name + "_rim", low=(10, 3))]
+    ref = Vector((0, 0, 1)) if abs(ax.z) < 0.9 else Vector((1, 0, 0))
+    u = ax.cross(ref).normalized()
+    v = ax.cross(u).normalized()
+    for k in range(spokes):
+        a = k * math.pi * 2 / spokes
+        d = u * math.cos(a) + v * math.sin(a)
+        out.append(cyl(c, c + d * r * 0.95, r * 0.07, material, n=6, bevel=0, name=name + "_spoke", low=4))
+    out.append(cyl(c - ax * r * 0.12, c + ax * r * 0.15, r * 0.2, material, n=10, name=name + "_hub", low=6))
+    return out
+
+
+def pipe(points, r, material, name="pipe", n=10, low=6):
+    """A run of pipe through `points`, with a ball of a joint at each bend (a union)."""
+    out = []
+    pts = [Vector(p) for p in points]
+    for a, b in zip(pts, pts[1:]):
+        out.append(cyl(a, b, r, material, n=n, bevel=0, name=name, low=low))
+    for p in pts[1:-1]:
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=r * 1.25, segments=n, ring_count=max(4, n // 2), location=p)
+        o = bpy.context.view_layer.objects.active
+        o.data.transform(Matrix.Translation(o.location))
+        o.location = (0, 0, 0)
+        out.append(_finish(o, material, 0, 1, name + "_joint"))
     return out
