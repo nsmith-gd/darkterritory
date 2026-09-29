@@ -120,6 +120,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var line = RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
     var consist = Consist.Uniform(t, cars, 1);
     var train = new TrainOnLine(new TrainDynamics(consist), line, Opt(args, "--at", 1200));
+    // --cut N: cut behind car N and pull the engine forward, to see a split train.
+    if (Opt(args, "--cut", -1) is var cutAt and >= 0)
+    {
+        train.Uncouple((int)cutAt);
+        for (int i = 0; i < SimConstants.TickRate * 12; i++)
+            train.Step(SimConstants.TickSeconds, new TrainControls { Throttle = i < SimConstants.TickRate * 6 ? 1 : 0, Brake = i < SimConstants.TickRate * 6 ? 0 : 1, Reverser = 1 });
+    }
     var camera = Views.Get(view, train, (int)Opt(args, "--car", 2));
 
     var clock = Stopwatch.StartNew();
@@ -162,7 +169,7 @@ static int Usage()
           boiler run <cars> [--seconds t] [--throttle 0..1] [--fire-at p | --no-fireman] [--pressure p] [--firebox u] [--vent]
           line info <name> [--every m]             position/grade profile of content/lines/<name>.json
           line drive <name> [--cars n] [--start s] [--from v] [--throttle 0..1] [--seconds t]
-          screenshot [--view trackside|roof|cab|chase|ahead] [--line name] [--cars n] [--at s] [--car i]
+          screenshot [--view trackside|roof|cab|chase|ahead] [--line name] [--cars n] [--at s] [--car i] [--cut n]
                      [--width w] [--height h] [--scale k] [--out file.png]
           harness [--bots n] [--cars n] [--seconds t] [--seed s] [--latency s] [--jitter s] [--loss 0..1] [--line name]
                      host + bot clients over a simulated network; reports prediction error, bandwidth, deaths

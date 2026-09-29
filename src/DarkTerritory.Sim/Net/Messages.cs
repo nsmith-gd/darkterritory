@@ -20,20 +20,10 @@ public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent);
 /// <summary>Everything a client needs to rebuild the train: it re-simulates it forward from here.</summary>
 public struct TrainSnapshot
 {
-    public double Distance;
-    public double Velocity;
-    public double BrakeEfficiency;
-    public Boiler Boiler;
+    public TrainState State;
     public TrainControls Controls;
 
-    public static TrainSnapshot Capture(TrainOnLine train, in TrainControls controls) => new()
-    {
-        Distance = train.Dynamics.Distance,
-        Velocity = train.Dynamics.Velocity,
-        BrakeEfficiency = train.Dynamics.BrakeEfficiency,
-        Boiler = train.Boiler,
-        Controls = controls,
-    };
+    public static TrainSnapshot Capture(TrainOnLine train, in TrainControls controls) => new() { State = train.Capture(), Controls = controls };
 }
 
 public readonly record struct PlayerSnapshot(byte Id, PlayerState State);
@@ -94,10 +84,7 @@ public static class Messages
         w.U8((byte)MessageType.Snapshot);
         w.U32(tick);
         w.U32(ackedInput);
-        w.F64(train.Distance);
-        w.F64(train.Velocity);
-        w.F64(train.BrakeEfficiency);
-        WriteBoiler(w, train.Boiler);
+        WriteTrain(w, train.State);
         w.F32((float)train.Controls.Throttle);
         w.F32((float)train.Controls.Brake);
         w.I8((sbyte)train.Controls.Reverser);
@@ -125,10 +112,7 @@ public static class Messages
         ackedInput = r.U32();
         train = new TrainSnapshot
         {
-            Distance = r.F64(),
-            Velocity = r.F64(),
-            BrakeEfficiency = r.F64(),
-            Boiler = ReadBoiler(ref r),
+            State = ReadTrain(ref r),
             Controls = new TrainControls { Throttle = r.F32(), Brake = r.F32(), Reverser = r.I8() },
         };
         int n = r.U8();
@@ -150,6 +134,48 @@ public static class Messages
             };
             players.Add(new PlayerSnapshot(id, s));
         }
+    }
+
+    static void WriteTrain(NetWriter w, TrainState s)
+    {
+        w.U8((byte)s.Rakes.Length);
+        foreach (var rake in s.Rakes)
+        {
+            w.U8((byte)rake.Vehicles.Length);
+            foreach (int id in rake.Vehicles)
+                w.U8((byte)id);
+            w.F64(rake.Distance);
+            w.F64(rake.Velocity);
+            w.F64(rake.BrakeEfficiency);
+            w.U8((byte)((rake.Handbrake ? 1 : 0) | (rake.FrontCouplerLocked ? 2 : 0)));
+        }
+        w.U8((byte)s.Vehicles.Length);
+        foreach (var v in s.Vehicles)
+        {
+            w.U8((byte)v.Id);
+            w.F64(v.Load);
+            w.F64(v.Integrity);
+            w.F64(v.CargoIntegrity);
+        }
+        WriteBoiler(w, s.Boiler);
+    }
+
+    static TrainState ReadTrain(ref NetReader r)
+    {
+        var rakes = new RakeState[r.U8()];
+        for (int i = 0; i < rakes.Length; i++)
+        {
+            var ids = new int[r.U8()];
+            for (int k = 0; k < ids.Length; k++)
+                ids[k] = r.U8();
+            double distance = r.F64(), velocity = r.F64(), brake = r.F64();
+            byte flags = r.U8();
+            rakes[i] = new RakeState(ids, distance, velocity, brake, (flags & 1) != 0, (flags & 2) != 0);
+        }
+        var vehicles = new VehicleState[r.U8()];
+        for (int i = 0; i < vehicles.Length; i++)
+            vehicles[i] = new VehicleState(r.U8(), r.F64(), r.F64(), r.F64());
+        return new TrainState(rakes, vehicles, ReadBoiler(ref r));
     }
 
     static void WriteBoiler(NetWriter w, in Boiler b)

@@ -30,7 +30,8 @@ public sealed class TrainDynamics
 {
     public TrainDynamics(Consist consist) => Consist = consist;
 
-    public Consist Consist { get; }
+    /// <summary>The vehicles in this rake. Replaced when rakes are cut or coupled.</summary>
+    public Consist Consist { get; internal set; }
     public TrainTuning Tuning => Consist.Tuning;
 
     /// <summary>Signed speed along the line, m/s.</summary>
@@ -52,9 +53,20 @@ public sealed class TrainDynamics
     }
 
     /// <summary>Tractive force in kN at full throttle for the current length.</summary>
-    public double MaxTractiveForce => Lookup(Tuning.Performance, r => r.Cars, r => r.Accel) * Consist.LoadedMassTonnes(Tuning, Consist.CarCount);
+    public double MaxTractiveForce => Consist.HasEngine ? Lookup(Tuning.Performance, r => r.Cars, r => r.Accel) * Consist.LoadedMassTonnes(Tuning, Consist.CarCount) : 0;
     /// <summary>Brake force in kN at full application for the current length, before fade.</summary>
-    public double MaxBrakeForce => Lookup(Tuning.Performance, r => r.Cars, r => r.Brake) * Consist.LoadedMassTonnes(Tuning, Consist.CarCount);
+    /// <remarks>A rake without an engine has no air brakes working; only its handbrakes, if wound on.</remarks>
+    public double MaxBrakeForce => Consist.HasEngine
+        ? Lookup(Tuning.Performance, r => r.Cars, r => r.Brake) * Consist.LoadedMassTonnes(Tuning, Consist.CarCount)
+        : Handbrake ? Tuning.Couplings.HandbrakeDecel * Consist.MassTonnes : 0;
+
+    /// <summary>Handbrakes wound on across a rake without an engine (parked cars, GDD §17).</summary>
+    public bool Handbrake { get; set; }
+    /// <summary>Front-of-rake distance at the start of the current tick, for render interpolation.</summary>
+    public double PreviousDistance { get; set; }
+    /// <summary>This rake's front coupler was just cut; it won't re-couple until it has pulled clear.</summary>
+    public bool FrontCouplerLocked { get; set; }
+    public double RearDistance => Distance - Consist.LengthMetres;
 
     public void Step(double dt, in TrainControls controls, in TrackConditions track)
     {

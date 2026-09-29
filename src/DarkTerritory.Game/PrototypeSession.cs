@@ -18,7 +18,6 @@ public sealed class PrototypeSession
     readonly HotData<PlayerTuning> _playerTuning;
     readonly HotData<BoilerTuning> _boilerTuning;
     PlayerState _previousPlayer;
-    double _previousDistance;
 
     public PrototypeSession(string contentRoot, string lineName = "test-loop", int cars = 6, double start = 600)
     {
@@ -44,7 +43,6 @@ public sealed class PrototypeSession
     {
         ReloadTuning();
         _previousPlayer = Player;
-        _previousDistance = Train.Dynamics.Distance;
         CrewActions.Apply(ref Player, intent, Train, SimConstants.TickSeconds);
         Train.Step(SimConstants.TickSeconds, Controls);
         PlayerMotor.Step(ref Player, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds);
@@ -83,17 +81,14 @@ public sealed class PrototypeSession
         car = Math.Clamp(car, 0, Train.Frames.Count - 1);
         Player = car == 0 ? PlayerMotor.SpawnInCab(Train, PlayerTuning) : PlayerMotor.SpawnOnRoof(Train, car, 0, PlayerTuning);
         _previousPlayer = Player;
-        _previousDistance = Train.Dynamics.Distance;
     }
 
-    readonly List<CarPose> _renderPoses = new();
     readonly List<CarFrame> _renderFrames = new();
 
-    /// <summary>Car frames between the previous and current tick, for smooth rendering at any frame rate.</summary>
+    /// <summary>Vehicle frames between the previous and current tick, for smooth rendering at any frame rate.</summary>
     public IReadOnlyList<CarFrame> InterpolatedFrames(double alpha)
     {
-        double d = _previousDistance + (Train.Dynamics.Distance - _previousDistance) * alpha;
-        Train.PosesAt(d, _renderPoses, _renderFrames);
+        Train.FramesAt(alpha, _renderFrames);
         return _renderFrames;
     }
 
@@ -128,7 +123,7 @@ public sealed class PrototypeSession
             (Player.ActionProgress > 0 ? $" shovel {Player.ActionProgress:0.0}s" : "");
         string state = Player.Alive ? $"{Player.Surface} {where} hp {Player.Health}" : $"DEAD ({Player.Death}) — Backspace to respawn";
         return $"{d.Speed,5:0.0} m/s {SpeedBands.Classify(TrainTuning, d.Speed),-7} | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} rev {(Controls.Reverser > 0 ? "F" : "R")} " +
-               $"| {boiler} | grade {Train.AverageGrade(),4:0.0}% | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state}" +
+               $"| {boiler} |{(Train.Rakes.Count > 1 ? $" {Train.Rakes.Count} rakes |" : "")} grade {Train.AverageGrade(),4:0.0}% | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state}" +
                (LastReloadError is null ? "" : $" | TUNING ERROR: {LastReloadError}");
     }
 }

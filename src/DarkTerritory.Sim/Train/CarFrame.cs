@@ -51,7 +51,7 @@ public readonly record struct Solid(Box Box, SurfaceKind Top, PartKind Part);
 /// <summary>A ladder fixed to a face: its foot, how high it goes, and which way is "onto" what it serves.</summary>
 public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward);
 
-public enum InteractableKind : byte { Firebox, Vent }
+public enum InteractableKind : byte { Firebox, Vent, Handbrake }
 
 /// <summary>A thing a player uses by standing near it and holding Use.</summary>
 public readonly record struct Interactable(InteractableKind Kind, Double3 Position, double Radius);
@@ -106,7 +106,9 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         };
         if (hasCarBehind)
             ladders.Add(new Ladder(new Double3(EndLadderX, 0, l + 0.1), h, new Double3(0, 0, -1)));
-        return new CarShape(new Box(new Double3(-w, 0, -l), new Double3(w, h, l)), solids, ladders, [], null);
+        // Brake wheel on the roof at the rear end, above the end ladder.
+        var interactables = new[] { new Interactable(InteractableKind.Handbrake, new Double3(0, h, l - 0.5), 0.8) };
+        return new CarShape(new Box(new Double3(-w, 0, -l), new Double3(w, h, l)), solids, ladders, interactables, null);
     }
 
     /// <summary>

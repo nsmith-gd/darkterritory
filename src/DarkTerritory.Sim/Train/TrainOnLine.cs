@@ -3,8 +3,8 @@ using DarkTerritory.Sim.Rail;
 
 namespace DarkTerritory.Sim.Train;
 
-/// <summary>Where one car sits in the world this tick.</summary>
-/// <param name="Index">0 is the engine + tender, then cars front to back.</param>
+/// <summary>Where one vehicle sits in the world this tick.</summary>
+/// <param name="Index">Vehicle id: 0 is the engine + tender, cars are 1..n.</param>
 /// <param name="Centre">Centre of the car at rail height.</param>
 /// <param name="Forward">Unit vector from rear bogie to front bogie.</param>
 /// <param name="FrontDistance">Distance along the line of the car's front face.</param>
@@ -14,21 +14,45 @@ public readonly record struct CarPose(int Index, Double3 Centre, Double3 Forward
     public Double3 Up => Double3.Cross(Right, Forward);
 }
 
+/// <summary>Two rakes touched this tick.</summary>
+/// <param name="Front">Vehicle id at the rear of the front rake.</param>
+/// <param name="Rear">Vehicle id at the front of the rear rake.</param>
+public readonly record struct RakeContact(int Front, int Rear, double ClosingSpeed, bool Coupled, double Damage);
+
+public readonly record struct RakeState(int[] Vehicles, double Distance, double Velocity, double BrakeEfficiency, bool Handbrake, bool FrontCouplerLocked);
+public readonly record struct VehicleState(int Id, double Load, double Integrity, double CargoIntegrity);
+
+/// <summary>Everything about the train that the host owns and clients re-simulate from.</summary>
+public sealed record TrainState(RakeState[] Rakes, VehicleState[] Vehicles, Boiler Boiler);
+
 /// <summary>
-/// The train on a real line: dynamics fed by the track under it, and the 3D pose of every car.
+/// All rolling stock on a line: one or more rakes, each a 1D body with its own speed. The rake with the
+/// engine is "the train"; cutting leaves the rest behind, and rakes that meet couple or collide.
+/// Also owns the boiler, and the 3D pose and collision frame of every vehicle, indexed by vehicle id.
 /// </summary>
 public sealed class TrainOnLine
 {
-    readonly List<CarPose> _poses = new();
-    readonly List<CarFrame> _frames = new();
+    readonly List<TrainDynamics> _rakes = new();
+    readonly Vehicle[] _vehicles;
+    readonly CarPose[] _poses;
+    readonly CarFrame[] _frames;
+    readonly List<RakeContact> _contacts = new();
+    TrainDynamics _engineRake;
 
     /// <param name="boiler">Boiler tuning. Without it the engine has unlimited steam, which the pure
     /// dynamics tests (spec B.5) rely on.</param>
     public TrainOnLine(TrainDynamics dynamics, RailLine line, double startDistance, BoilerTuning? boiler = null)
     {
-        Dynamics = dynamics;
+        _engineRake = dynamics;
+        _rakes.Add(dynamics);
         Line = line;
         dynamics.Distance = startDistance;
+        dynamics.PreviousDistance = startDistance;
+        _vehicles = new Vehicle[dynamics.Consist.Vehicles.Max(v => v.Id) + 1];
+        foreach (var v in dynamics.Consist.Vehicles)
+            _vehicles[v.Id] = v;
+        _poses = new CarPose[_vehicles.Length];
+        _frames = new CarFrame[_vehicles.Length];
         BoilerTuning = boiler;
         if (boiler is not null)
             Boiler = Boiler.Fresh(boiler);
@@ -40,88 +64,295 @@ public sealed class TrainOnLine
     /// <summary>True for the one tick on which the boiler ruptured.</summary>
     public bool RupturedThisTick { get; private set; }
 
-    public TrainDynamics Dynamics { get; }
+    /// <summary>The engine's rake: the train that can drive.</summary>
+    public TrainDynamics Dynamics => _engineRake;
+    public IReadOnlyList<TrainDynamics> Rakes => _rakes;
+    public IReadOnlyList<Vehicle> Vehicles => _vehicles;
     public RailLine Line { get; }
+    /// <summary>Poses of every vehicle, indexed by vehicle id.</summary>
     public IReadOnlyList<CarPose> Cars => _poses;
-    /// <summary>Local frames and collision shapes of every car, valid for the current tick.</summary>
+    /// <summary>Local frames and collision shapes of every vehicle, indexed by vehicle id, valid for the current tick.</summary>
     public IReadOnlyList<CarFrame> Frames => _frames;
+    /// <summary>Couplings and collisions that happened this tick (for audio, damage feedback and tests).</summary>
+    public IReadOnlyList<RakeContact> ContactsThisTick => _contacts;
+    /// <summary>The engine's controls as of the last step; a working engine puts its couplings under load.</summary>
+    public TrainControls LastControls { get; private set; }
+
+    /// <summary>
+    /// True when the coupling behind <paramref name="vehicleId"/> is under load: its rake has the engine
+    /// and is working (throttle or brake) while moving. Cutting takes longer then (spec F.3 hints at this).
+    /// </summary>
+    public bool CouplingUnderLoad(int vehicleId)
+    {
+        var rake = RakeOf(vehicleId);
+        return rake.Consist.HasEngine && rake.Speed > 0.1 && (LastControls.Throttle > 0 || LastControls.Brake > 0);
+    }
+
+    /// <summary>Winds a rake's handbrakes on or off. A rake with the engine uses its air brakes instead.</summary>
+    public void SetHandbrake(int vehicleId, bool on)
+    {
+        var rake = RakeOf(vehicleId);
+        if (!rake.Consist.HasEngine)
+            rake.Handbrake = on;
+    }
+
     /// <summary>Traction multiplier for the whole train this tick (Grease sets it; 1 is dry rail).</summary>
     public double Traction { get; set; } = 1;
 
     public bool AtEndOfLine => Dynamics.Distance >= Line.Length || RearDistance <= 0;
-    public double RearDistance => Dynamics.Distance - Dynamics.Consist.LengthMetres;
+    public double RearDistance => Dynamics.RearDistance;
+    TrainTuning Tuning => _engineRake.Tuning;
 
-    /// <summary>Adopts host state (see <see cref="TrainDynamics.Restore"/>) and rebuilds car poses.</summary>
-    public void Restore(double distance, double velocity, double brakeEfficiency, in Boiler boiler)
+    public TrainDynamics RakeOf(int vehicleId) => _rakes.First(r => r.Consist.IndexOf(vehicleId) >= 0);
+
+    /// <summary>The vehicle coupled directly behind <paramref name="vehicleId"/>, or −1.</summary>
+    public int VehicleBehind(int vehicleId)
     {
-        Dynamics.Restore(distance, velocity, brakeEfficiency);
-        Boiler = boiler;
+        var c = RakeOf(vehicleId).Consist;
+        int i = c.IndexOf(vehicleId);
+        return i + 1 < c.Vehicles.Count ? c.Vehicles[i + 1].Id : -1;
+    }
+
+    /// <summary>The vehicle coupled directly ahead of <paramref name="vehicleId"/>, or −1.</summary>
+    public int VehicleAhead(int vehicleId)
+    {
+        var c = RakeOf(vehicleId).Consist;
+        int i = c.IndexOf(vehicleId);
+        return i > 0 ? c.Vehicles[i - 1].Id : -1;
+    }
+
+    /// <summary>Cuts the coupling behind <paramref name="vehicleId"/>. Returns false if nothing is coupled there.</summary>
+    public bool Uncouple(int vehicleId)
+    {
+        var rake = RakeOf(vehicleId);
+        int index = rake.Consist.IndexOf(vehicleId);
+        if (index + 1 >= rake.Consist.Vehicles.Count)
+            return false;
+        var front = rake.Consist;
+        var rear = front.SplitAfter(index);
+        double shift = front.LengthMetres + Tuning.Geometry.CouplingGap;
+        var cut = new TrainDynamics(rear)
+        {
+            Distance = rake.Distance - shift,
+            PreviousDistance = rake.PreviousDistance - shift,
+            Velocity = rake.Velocity,
+            FrontCouplerLocked = true,
+            Handbrake = rake.Handbrake,
+        };
+        if (rear.HasEngine)
+        {
+            // Keep the engine's rake object as the train: it takes the rear half, the new rake the front.
+            (rake.Consist, cut.Consist) = (rear, front);
+            (rake.Distance, cut.Distance) = (cut.Distance, rake.Distance);
+            (rake.PreviousDistance, cut.PreviousDistance) = (cut.PreviousDistance, rake.PreviousDistance);
+            (rake.FrontCouplerLocked, cut.FrontCouplerLocked) = (true, rake.FrontCouplerLocked);
+            rake.Handbrake = false;
+        }
+        // Cars cut at a stand are parked with handbrakes wound on; cut at speed, they roll free.
+        if (Math.Abs(cut.Velocity) < Tuning.Couplings.ParkBelowSpeed)
+            cut.Handbrake = true;
+        _rakes.Add(cut);
+        UpdatePoses();
+        return true;
+    }
+
+    public TrainState Capture() => new(
+        _rakes.Select(r => new RakeState(r.Consist.Vehicles.Select(v => v.Id).ToArray(), r.Distance, r.Velocity, r.BrakeEfficiency, r.Handbrake, r.FrontCouplerLocked)).ToArray(),
+        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity)).ToArray(),
+        Boiler);
+
+    /// <summary>Adopts host state and rebuilds rakes and poses; clients then re-simulate forward from it.</summary>
+    public void Restore(TrainState state)
+    {
+        foreach (var v in state.Vehicles)
+        {
+            var vehicle = _vehicles[v.Id];
+            vehicle.Load = v.Load;
+            vehicle.Integrity = v.Integrity;
+            vehicle.CargoIntegrity = v.CargoIntegrity;
+        }
+        _rakes.Clear();
+        foreach (var r in state.Rakes)
+        {
+            var consist = new Consist(Tuning);
+            foreach (int id in r.Vehicles)
+                consist.Add(_vehicles[id]);
+            // Reuse the engine rake object so references to Dynamics stay valid.
+            var rake = consist.HasEngine ? _engineRake : new TrainDynamics(consist);
+            rake.Consist = consist;
+            rake.Restore(r.Distance, r.Velocity, r.BrakeEfficiency);
+            rake.PreviousDistance = r.Distance;
+            rake.Handbrake = r.Handbrake;
+            rake.FrontCouplerLocked = r.FrontCouplerLocked;
+            _rakes.Add(rake);
+        }
+        Boiler = state.Boiler;
         UpdatePoses();
     }
 
     public void Step(double dt, in TrainControls controls)
     {
-        var effective = controls;
         RupturedThisTick = false;
-        if (BoilerTuning is { } bt)
+        LastControls = controls;
+        _contacts.Clear();
+        foreach (var rake in _rakes)
+            rake.PreviousDistance = rake.Distance;
+
+        foreach (var rake in _rakes)
         {
-            // Tractive effort comes from the pressure there is now; then the fire and the cylinders move it.
-            effective.Throttle *= Boiler.PowerFactor(bt);
-            RupturedThisTick = Boiler.Step(bt, dt, controls.Throttle, Dynamics.Consist.CarCount);
+            if (rake == _engineRake)
+            {
+                var effective = controls;
+                if (BoilerTuning is { } bt)
+                {
+                    // Tractive effort comes from the pressure there is now; then the fire and the cylinders move it.
+                    effective.Throttle *= Boiler.PowerFactor(bt);
+                    RupturedThisTick = Boiler.Step(bt, dt, controls.Throttle, rake.Consist.CarCount);
+                }
+                rake.Step(dt, effective, new TrackConditions { GradePercent = AverageGrade(rake), Traction = Traction });
+            }
+            else
+            {
+                var parked = new TrainControls { Brake = rake.Handbrake ? 1 : 0, Reverser = 1 };
+                rake.Step(dt, parked, new TrackConditions { GradePercent = AverageGrade(rake), Traction = Traction });
+            }
+            // Buffer stops: the line ends are hard limits.
+            double min = rake.Consist.LengthMetres, max = Line.Length;
+            if (rake.Distance > max || rake.Distance < min)
+            {
+                rake.Distance = Math.Clamp(rake.Distance, min, max);
+                rake.Velocity = 0;
+            }
         }
-        Dynamics.Step(dt, effective, new TrackConditions { GradePercent = AverageGrade(), Traction = Traction });
-        // Buffer stops: the line ends are hard limits.
-        double min = Dynamics.Consist.LengthMetres, max = Line.Length;
-        if (Dynamics.Distance > max || Dynamics.Distance < min)
-        {
-            Dynamics.Distance = Math.Clamp(Dynamics.Distance, min, max);
-            Dynamics.Velocity = 0;
-        }
+        ResolveContacts();
         UpdatePoses();
     }
 
-    /// <summary>Mass-weighted grade under the whole consist; a long train straddling a summit feels both sides.</summary>
-    public double AverageGrade()
+    /// <summary>
+    /// Rakes that meet: closing gently they couple (buckeye couplers), harder they collide, share momentum,
+    /// and damage the two vehicles that hit (GDD §19: cargo is physical; §23: failures cascade).
+    /// </summary>
+    void ResolveContacts()
     {
-        var consist = Dynamics.Consist;
-        var t = consist.Tuning;
-        double weighted = 0, mass = 0;
-        foreach (var pose in _poses)
+        if (_rakes.Count < 2)
+            return;
+        var c = Tuning.Couplings;
+        double gap = Tuning.Geometry.CouplingGap;
+        _rakes.Sort((a, b) => b.Distance.CompareTo(a.Distance));
+        for (int i = 0; i + 1 < _rakes.Count;)
         {
-            double m = pose.Index == 0
-                ? t.Mass.EngineTonnes
-                : t.Mass.EmptyCarTonnes + consist.Loads[pose.Index - 1] * (t.Mass.LoadedCarTonnes - t.Mass.EmptyCarTonnes);
-            weighted += m * Line.Sample(pose.FrontDistance - pose.Length / 2).GradePercent;
+            var a = _rakes[i];
+            var b = _rakes[i + 1];
+            double free = a.RearDistance - gap - b.Distance;
+            if (b.FrontCouplerLocked && free > 0.3)
+                b.FrontCouplerLocked = false;
+            if (free >= 0)
+            {
+                i++;
+                continue;
+            }
+
+            double closing = b.Velocity - a.Velocity;
+            double ma = a.Consist.MassTonnes, mb = b.Consist.MassTonnes;
+            int frontId = a.Consist.Vehicles[^1].Id, rearId = b.Consist.Vehicles[0].Id;
+            double damage = 0;
+            if (closing > c.SafeContactSpeed)
+            {
+                damage = (closing - c.SafeContactSpeed) * (closing - c.SafeContactSpeed) * c.DamagePerSpeedSquared;
+                Damage(_vehicles[frontId], damage);
+                Damage(_vehicles[rearId], damage);
+                foreach (var v in a.Consist.Vehicles.Concat(b.Consist.Vehicles))
+                    v.CargoIntegrity = Math.Max(0, v.CargoIntegrity - damage * c.CargoDamageShare);
+            }
+            if (closing > 0)
+            {
+                double v = (ma * a.Velocity + mb * b.Velocity) / (ma + mb);
+                a.Velocity = b.Velocity = v;
+            }
+            b.Distance = a.RearDistance - gap;
+
+            bool couple = !b.FrontCouplerLocked && closing <= c.CoupleMaxSpeed;
+            _contacts.Add(new RakeContact(frontId, rearId, Math.Max(0, closing), couple, damage));
+            if (!couple)
+            {
+                i++;
+                continue;
+            }
+            // Keep the engine's rake as the survivor so Dynamics stays the same object.
+            if (b == _engineRake)
+            {
+                b.Consist.Prepend(a.Consist);
+                b.Distance = a.Distance;
+                b.PreviousDistance = a.PreviousDistance;
+                b.FrontCouplerLocked = a.FrontCouplerLocked;
+                _rakes.RemoveAt(i);
+            }
+            else
+            {
+                if (a != _engineRake)
+                    a.Handbrake |= b.Handbrake;
+                a.Consist.Append(b.Consist);
+                _rakes.RemoveAt(i + 1);
+            }
+            // Stay on this index: the merged rake may now touch the one behind it.
+        }
+    }
+
+    static void Damage(Vehicle v, double amount) => v.Integrity = Math.Max(0, v.Integrity - amount);
+
+    /// <summary>Mass-weighted grade under the engine's rake; a long train straddling a summit feels both sides.</summary>
+    public double AverageGrade() => AverageGrade(_engineRake);
+
+    public double AverageGrade(TrainDynamics rake)
+    {
+        var t = rake.Tuning;
+        double weighted = 0, mass = 0, front = rake.Distance;
+        foreach (var v in rake.Consist.Vehicles)
+        {
+            double len = v.Length(t), m = v.MassTonnes(t);
+            weighted += m * Line.Sample(front - len / 2).GradePercent;
             mass += m;
+            front -= len + t.Geometry.CouplingGap;
         }
         return mass > 0 ? weighted / mass : 0;
     }
 
-    void UpdatePoses() => PosesAt(Dynamics.Distance, _poses, _frames);
+    void UpdatePoses() => Layout(1, _poses, _frames);
 
     /// <summary>
-    /// Car poses and frames as they would be with the engine front at <paramref name="distance"/>.
-    /// Renderers use this to draw the train between ticks without touching simulation state.
+    /// Vehicle poses and frames between the previous and current tick (<paramref name="alpha"/> 0..1),
+    /// indexed by vehicle id. Renderers use this to draw the train smoothly without touching sim state.
     /// </summary>
-    public void PosesAt(double distance, List<CarPose> poses, List<CarFrame> frames)
+    public void FramesAt(double alpha, List<CarFrame> into)
     {
-        poses.Clear();
-        frames.Clear();
-        var g = Dynamics.Tuning.Geometry;
-        double front = distance;
-        int count = Dynamics.Consist.CarCount + 1;
-        for (int i = 0; i < count; i++)
+        var poses = new CarPose[_vehicles.Length];
+        var frames = new CarFrame[_vehicles.Length];
+        Layout(alpha, poses, frames);
+        into.Clear();
+        into.AddRange(frames);
+    }
+
+    void Layout(double alpha, CarPose[] poses, CarFrame[] frames)
+    {
+        var g = Tuning.Geometry;
+        foreach (var rake in _rakes)
         {
-            double length = i == 0 ? g.EngineLength : g.CarLength;
-            // Bogies sit a fifth of the way in from each end; the body is the chord between them.
-            double inset = length * 0.2;
-            var fb = Line.Sample(front - inset).Position;
-            var rb = Line.Sample(front - length + inset).Position;
-            var forward = (fb - rb).Length > 1e-9 ? (fb - rb).Normalized : Line.Sample(front).Tangent;
-            var pose = new CarPose(i, Double3.Lerp(fb, rb, 0.5), forward, length, front);
-            poses.Add(pose);
-            frames.Add(CarFrame.From(pose, Dynamics.Velocity, Shape(g, i == 0, i < count - 1)));
-            front -= length + g.CouplingGap;
+            double front = rake.PreviousDistance + (rake.Distance - rake.PreviousDistance) * alpha;
+            var vehicles = rake.Consist.Vehicles;
+            for (int i = 0; i < vehicles.Count; i++)
+            {
+                var v = vehicles[i];
+                double length = v.Length(Tuning);
+                // Bogies sit a fifth of the way in from each end; the body is the chord between them.
+                double inset = length * 0.2;
+                var fb = Line.Sample(front - inset).Position;
+                var rb = Line.Sample(front - length + inset).Position;
+                var forward = (fb - rb).Length > 1e-9 ? (fb - rb).Normalized : Line.Sample(front).Tangent;
+                var pose = new CarPose(v.Id, Double3.Lerp(fb, rb, 0.5), forward, length, front);
+                poses[v.Id] = pose;
+                frames[v.Id] = CarFrame.From(pose, rake.Velocity, Shape(g, v.IsEngine, i < vehicles.Count - 1));
+                front -= length + g.CouplingGap;
+            }
         }
     }
 

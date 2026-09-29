@@ -41,7 +41,8 @@ public sealed class RoofWalkerBot(int seed) : IBot
 
         // Turn round at the ends of the cars. The engine belongs to whoever is working the cab, and its
         // tender sits lower than a car roof, so there's no jumping back from it anyway.
-        if (self.Parent <= 1 && _direction < 0 && z < -halfLength + 1.5 || self.Parent == train.Frames.Count - 1 && _direction > 0 && z > halfLength - 1.5)
+        bool frontEnd = train.VehicleAhead(self.Parent) <= 0, backEnd = train.VehicleBehind(self.Parent) < 0;
+        if (frontEnd && _direction < 0 && z < -halfLength + 1.5 || backEnd && _direction > 0 && z > halfLength - 1.5)
             _direction = -_direction;
         if (self.Parent == 0)
             _direction = 1;
@@ -70,7 +71,8 @@ public sealed class RoofWalkerBot(int seed) : IBot
 
         // Jump the gap at the car end we're heading for, if there's a car beyond it.
         bool nearEnd = _direction < 0 ? z < -halfLength + 0.45 : z > halfLength - 0.45;
-        bool carBeyond = _direction < 0 ? self.Parent > 1 : self.Parent < train.Frames.Count - 1;
+        int beyond = _direction < 0 ? train.VehicleAhead(self.Parent) : train.VehicleBehind(self.Parent);
+        bool carBeyond = beyond > 0;
         if (nearEnd && carBeyond && aligned)
             intent.Buttons |= PlayerButtons.Jump;
         return intent;

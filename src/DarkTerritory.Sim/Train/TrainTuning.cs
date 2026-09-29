@@ -12,6 +12,7 @@ public sealed record TrainTuning
     public required BrakeFadeTuning BrakeFade { get; init; }
     public required SpeedBandTuning SpeedBands { get; init; }
     public required ResistanceTuning Resistance { get; init; }
+    public required CouplingTuning Couplings { get; init; }
 
     public const string File = "tuning/train.json";
 }
@@ -26,6 +27,10 @@ public sealed record EngineLayout(double DeckHeight, double BoilerHalfWidth, dou
 public sealed record MassTuning(double EngineTonnes, double EmptyCarTonnes, double LoadedCarTonnes);
 public sealed record PerformanceRow(int Cars, double Accel, double Brake);
 public sealed record BrakeFadeTuning(double FadePerSecond, double RecoverPerSecond, double MinEfficiency, bool OnlyOnDescent);
+/// <summary>Coupling, cutting and collision between rakes. Field docs live in train.json.</summary>
+public sealed record CouplingTuning(double CoupleMaxSpeed, double SafeContactSpeed, double DamagePerSpeedSquared, double CargoDamageShare,
+    double UncoupleSeconds, double UncoupleUnderLoadSeconds, double HandbrakeDecel, double ParkBelowSpeed, double HandbrakeSeconds);
+
 /// <summary>Deceleration from rolling (m/s²) and air (per (m/s)²) resistance.</summary>
 public sealed record ResistanceTuning(double Rolling, double Air);
 public sealed record SpeedBandTuning(double Yard, double JumpOffLethal, double Slow, double WorkingMin, double Cruise);

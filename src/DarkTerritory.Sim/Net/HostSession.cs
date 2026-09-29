@@ -54,6 +54,9 @@ public sealed class HostSession
     public IEnumerable<PlayerSnapshot> Players => _crew.Select(c => new PlayerSnapshot(c.Id, c.State));
     public int MissedInputs(byte id) => _crew.First(c => c.Id == id).MissedInputs;
 
+    /// <summary>Puts a player somewhere authoritatively (respawns, debug teleports, tests).</summary>
+    public void SetPlayerState(byte id, PlayerState state) => _crew.First(c => c.Id == id).State = state;
+
     public void Step()
     {
         Receive();

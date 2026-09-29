@@ -54,6 +54,13 @@ public sealed class ClientSession
     public double MaxCorrection { get; private set; }
     public int Corrections { get; private set; }
     public int SnapshotsReceived { get; private set; }
+
+    /// <summary>Clears the correction statistics (after a deliberate host-side teleport, for example).</summary>
+    public void ResetStats()
+    {
+        LastCorrection = MaxCorrection = 0;
+        Corrections = 0;
+    }
     public uint NewestSnapshotTick => _newestSnapshotTick;
 
     public void Step(in PlayerIntent intent)
@@ -153,7 +160,7 @@ public sealed class ClientSession
             return;
         var truth = _players[mine].State;
 
-        Train.Restore(train.Distance, train.Velocity, train.BrakeEfficiency, train.Boiler);
+        Train.Restore(train.State);
         Controls = train.Controls;
 
         if (!_haveState)

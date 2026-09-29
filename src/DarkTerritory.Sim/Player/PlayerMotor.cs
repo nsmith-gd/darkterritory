@@ -172,7 +172,8 @@ public static class PlayerMotor
         world = Collide(world, train, p);
         UpdateSupport(ref s, world, prevWorld, train, p, t);
 
-        if (intent.Has(PlayerButtons.Use) && s.Surface != Surface.Ladder)
+        // Use while pushing towards it grabs a ladder; Use standing still is for working things (CrewActions).
+        if (intent.Has(PlayerButtons.Use) && intent.MoveZ > 0.5 && s.Surface != Surface.Ladder)
             TryGrabLadder(ref s, train, p);
     }
 

@@ -67,6 +67,25 @@
     "air": 0.00003
   },
 
+  // Couplings (GDD §17, §24). Not in the spec; first pass.
+  "couplings": {
+    // Rakes that touch closing slower than this couple automatically (buckeye couplers).
+    "coupleMaxSpeed": 1.5,
+    // Contact above this closing speed damages the two end vehicles: (closing - safe)^2 x this, per hit.
+    "safeContactSpeed": 1.0,
+    "damagePerSpeedSquared": 0.06,
+    // Fraction of structural damage that also spoils cargo in every vehicle of both rakes.
+    "cargoDamageShare": 0.5,
+    // Hold Use on the coupler plate this long to cut. Longer while the train is working (under load).
+    "uncoupleSeconds": 1.5,
+    "uncoupleUnderLoadSeconds": 4.0,
+    // Deceleration handbrakes give a parked rake, and the speed below which a cut rake is parked for you.
+    "handbrakeDecel": 0.3,
+    "parkBelowSpeed": 0.5,
+    // Hold Use at a car's brake wheel this long to wind handbrakes on or off.
+    "handbrakeSeconds": 1.0
+  },
+
   "speedBands": {
     "yard": 2.5,
     "jumpOffLethal": 4.0,
