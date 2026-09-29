@@ -1,18 +1,20 @@
 using Ballast;
 using Ballast.Net;
+using DarkTerritory.Sim.Combat;
+using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7 }
 
-/// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the high byte, id in the low.</summary>
-public readonly record struct WireRecord(ushort Key, long[] Fields)
+/// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
+public readonly record struct WireRecord(uint Key, long[] Fields)
 {
-    public RecordKind Kind => (RecordKind)(Key >> 8);
-    public int Id => Key & 0xFF;
-    public static ushort MakeKey(RecordKind kind, int id) => (ushort)(((int)kind << 8) | id);
+    public RecordKind Kind => (RecordKind)(Key >> 24);
+    public int Id => (int)(Key & 0xFFFFFF);
+    public static uint MakeKey(RecordKind kind, int id) => ((uint)kind << 24) | (uint)(id & 0xFFFFFF);
     public bool SameAs(in WireRecord other) => Key == other.Key && Fields.AsSpan().SequenceEqual(other.Fields);
 }
 
@@ -32,8 +34,9 @@ public static class WorldRecords
     static long Q(double v, double scale) => (long)Math.Round(v * scale);
     static double D(long q, double scale) => q / scale;
 
-    public static List<WireRecord> Capture(TrainOnLine train, in TrainControls controls, IEnumerable<PlayerSnapshot> players)
+    public static List<WireRecord> Capture(World world, in TrainControls controls, IEnumerable<PlayerSnapshot> players)
     {
+        var train = world.Train;
         var list = new List<WireRecord>();
         foreach (var rake in train.Rakes)
         {
@@ -49,7 +52,17 @@ public static class WorldRecords
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Rake, ids[0].Id), f));
         }
         foreach (var v in train.Vehicles)
-            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Vehicle, v.Id), [Q(v.Load, Fine), Q(v.Integrity, Fine), Q(v.CargoIntegrity, Fine)]));
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Vehicle, v.Id),
+                [Q(v.Load, Fine), Q(v.Integrity, Fine), Q(v.CargoIntegrity, Fine), v.Gun.Ammo, v.Gun.Cooldown, v.Gun.Jammed ? 1 : 0, v.Gun.LastShotTick]));
+        list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
+            [Q(world.Choir.Aggro, Fine), Q(world.Choir.SecondsSinceShot, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0]));
+        foreach (var e in world.ActiveEnemies)
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),
+            [
+                (long)e.Kind, (long)e.Phase, Q(e.PhaseSeconds, 1e3), Q(e.Health, 1e3), e.Attached,
+                Q(e.Local.X, Pos), Q(e.Local.Y, Pos), Q(e.Local.Z, Pos), Q(e.LineDistance, Pos), Q(e.Lateral, Pos), Q(e.Height, Pos),
+                Q(e.Extra, 1e3), Q(e.Extra2, 1e3),
+            ]));
         var b = train.Boiler;
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Boiler, 0),
         [
@@ -73,12 +86,14 @@ public static class WorldRecords
     }
 
     /// <summary>Writes records back into live state: the client adopting a snapshot, or the host adopting its own quantised state.</summary>
-    public static void Apply(IReadOnlyList<WireRecord> records, TrainOnLine train, ref TrainControls controls, List<PlayerSnapshot> players)
+    public static void Apply(IReadOnlyList<WireRecord> records, World world, ref TrainControls controls, List<PlayerSnapshot> players)
     {
+        var train = world.Train;
         players.Clear();
         var rakes = new List<RakeState>();
         var vehicles = new List<VehicleState>();
         var boiler = train.Boiler;
+        var enemies = new List<Enemy>();
         foreach (var r in records)
         {
             var f = r.Fields;
@@ -92,7 +107,17 @@ public static class WorldRecords
                     rakes.Add(new RakeState(ids, D(f[n + 1], Pos), D(f[n + 2], Pos), D(f[n + 3], Fine), (f[n + 4] & 1) != 0, (f[n + 4] & 2) != 0));
                     break;
                 case RecordKind.Vehicle:
-                    vehicles.Add(new VehicleState(r.Id, D(f[0], Fine), D(f[1], Fine), D(f[2], Fine)));
+                    vehicles.Add(new VehicleState(r.Id, D(f[0], Fine), D(f[1], Fine), D(f[2], Fine),
+                        new GunState { Ammo = (int)f[3], Cooldown = (int)f[4], Jammed = f[5] != 0, LastShotTick = (uint)f[6] }));
+                    break;
+                case RecordKind.World:
+                    world.Choir = new ChoirState { Aggro = D(f[0], Fine), SecondsSinceShot = D(f[1], Fine), Floor = D(f[2], Fine) };
+                    world.SetDerailed(f[3] != 0);
+                    world.LampLit = f[4] != 0;
+                    break;
+                case RecordKind.Enemy:
+                    if (!world.Authority)
+                        enemies.Add(ToEnemy(r));
                     break;
                 case RecordKind.Boiler:
                     boiler = new Boiler
@@ -118,6 +143,24 @@ public static class WorldRecords
             }
         }
         train.Restore(new TrainState([.. rakes], [.. vehicles], boiler));
+        // The host owns its enemies' full state; only clients rebuild them from the wire.
+        if (!world.Authority)
+            world.MirrorEnemies(enemies);
+    }
+
+    static Enemy ToEnemy(in WireRecord r)
+    {
+        var f = r.Fields;
+        Enemy e = (EnemyKind)f[0] switch
+        {
+            EnemyKind.Sleepers => new Sleepers(r.Id),
+            EnemyKind.CinderHound => new CinderHound(r.Id, (int)D(f[11], 1e3)),
+            EnemyKind.Clinger => new Clinger(r.Id),
+            _ => new Hollow(r.Id),
+        };
+        e.Restore((SpinePhase)f[1], D(f[2], 1e3), D(f[3], 1e3), (int)f[4], new Double3(D(f[5], Pos), D(f[6], Pos), D(f[7], Pos)),
+            D(f[8], Pos), D(f[9], Pos), D(f[10], Pos), D(f[11], 1e3), D(f[12], 1e3));
+        return e;
     }
 
     /// <summary>
@@ -126,8 +169,8 @@ public static class WorldRecords
     /// </summary>
     public static void WriteDelta(NetWriter w, IReadOnlyList<WireRecord> current, IReadOnlyList<WireRecord>? baseline)
     {
-        var old = baseline?.ToDictionary(r => r.Key) ?? new Dictionary<ushort, WireRecord>();
-        var keys = new HashSet<ushort>(current.Select(r => r.Key));
+        var old = baseline?.ToDictionary(r => r.Key) ?? new Dictionary<uint, WireRecord>();
+        var keys = new HashSet<uint>(current.Select(r => r.Key));
         var removed = old.Keys.Where(k => !keys.Contains(k)).ToList();
         w.VarU((ulong)removed.Count);
         foreach (var k in removed)
@@ -159,14 +202,14 @@ public static class WorldRecords
 
     public static List<WireRecord> ReadDelta(ref NetReader r, IReadOnlyList<WireRecord>? baseline)
     {
-        var result = baseline?.ToDictionary(x => x.Key) ?? new Dictionary<ushort, WireRecord>();
+        var result = baseline?.ToDictionary(x => x.Key) ?? new Dictionary<uint, WireRecord>();
         int removed = (int)r.VarU();
         for (int i = 0; i < removed; i++)
-            result.Remove((ushort)r.VarU());
+            result.Remove((uint)r.VarU());
         int changed = (int)r.VarU();
         for (int i = 0; i < changed; i++)
         {
-            var key = (ushort)r.VarU();
+            var key = (uint)r.VarU();
             ulong header = r.VarU();
             int count = (int)(header >> 1);
             if (count > 1024)
@@ -220,10 +263,10 @@ public static class WorldRecords
     }
 
     /// <summary>Snaps live host state onto the replication grid. Call at the end of every host tick.</summary>
-    public static List<WireRecord> Quantise(TrainOnLine train, ref TrainControls controls, List<PlayerSnapshot> players)
+    public static List<WireRecord> Quantise(World world, ref TrainControls controls, List<PlayerSnapshot> players)
     {
-        var records = Capture(train, controls, players);
-        Apply(records, train, ref controls, players);
+        var records = Capture(world, controls, players);
+        Apply(records, world, ref controls, players);
         return records;
     }
 }

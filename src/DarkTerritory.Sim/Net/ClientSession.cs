@@ -1,5 +1,6 @@
 using Ballast;
 using Ballast.Net;
+using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Train;
 
@@ -31,16 +32,24 @@ public sealed class ClientSession
     uint _newestSnapshotTick;
     bool _haveState;
 
-    public ClientSession(ITransport transport, TrainOnLine train, TrainTuning trainTuning, PlayerTuning playerTuning)
+    public ClientSession(ITransport transport, TrainOnLine train, TrainTuning trainTuning, PlayerTuning playerTuning, CombatTuning? combat = null)
+        : this(transport, new World(train, combat), trainTuning, playerTuning)
     {
+    }
+
+    public ClientSession(ITransport transport, World world, TrainTuning trainTuning, PlayerTuning playerTuning)
+    {
+        World = world;
+        // Clients mirror enemies; only the host simulates them.
         _transport = transport;
-        Train = train;
+
         TrainTuning = trainTuning;
         PlayerTuning = playerTuning;
         Controls = new TrainControls { Reverser = 1 };
     }
 
-    public TrainOnLine Train { get; }
+    public World World { get; }
+    public TrainOnLine Train => World.Train;
     public TrainTuning TrainTuning { get; set; }
     public PlayerTuning PlayerTuning { get; set; }
     public byte? PlayerId { get; private set; }
@@ -77,14 +86,19 @@ public sealed class ClientSession
 
     void Predict(in PlayerIntent intent)
     {
+        World.BeginTick();
+        // The host clears the brake every tick and re-applies whoever is holding it. If we're the one in
+        // the cab it's almost certainly us, so do the same; otherwise assume whoever was braking still is.
+        if (CabControls.CanDrive(Predicted, Train))
+            Controls.Brake = 0;
         CabControls.Apply(ref Controls, intent, Predicted, Train);
-        CrewActions.Apply(ref Predicted, intent, Train, SimConstants.TickSeconds);
-        Train.Step(SimConstants.TickSeconds, Controls);
-        PlayerMotor.Step(ref Predicted, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds);
+        World.CrewAct(ref Predicted, intent, PlayerId ?? 0);
+        World.Step(Controls);
+        PlayerMotor.Step(ref Predicted, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
         // The host snaps its world to the replication grid every tick; do the same so we match it exactly.
         _quantise.Clear();
         _quantise.Add(new PlayerSnapshot(PlayerId ?? 0, Predicted));
-        WorldRecords.Quantise(Train, ref Controls, _quantise);
+        WorldRecords.Quantise(World, ref Controls, _quantise);
         Predicted = _quantise[0].State;
     }
 
@@ -172,7 +186,7 @@ public sealed class ClientSession
     {
         if (PlayerId is not { } id)
             return;
-        WorldRecords.Apply(records, Train, ref Controls, _players);
+        WorldRecords.Apply(records, World, ref Controls, _players);
         int mine = _players.FindIndex(p => p.Id == id);
         if (mine < 0)
             return;

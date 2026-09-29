@@ -16,6 +16,8 @@ public enum PlayerButtons : byte
     Brake = 8,
     /// <summary>Flip the reverser. Only honoured from the engine, with the train stopped.</summary>
     Reverser = 16,
+    /// <summary>Fire the mounted gun you're standing at.</summary>
+    Fire = 32,
 }
 
 /// <summary>
@@ -40,7 +42,7 @@ public struct PlayerIntent
 /// <summary>What the player is on. Roof is exposed (roof speeds, Draggers); Deck is footing on the train that isn't.</summary>
 public enum Surface : byte { Air, Ground, Roof, Coupler, Ladder, Deck }
 
-public enum DeathCause : byte { None, JumpedAtSpeed }
+public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir }
 
 /// <summary>
 /// Authoritative player movement state. Position and velocity are in the parent frame:
@@ -128,14 +130,24 @@ public static class PlayerMotor
         return s;
     }
 
+    /// <summary>Turns the view by this tick's look input. <see cref="World.CrewAct"/> does this first, so shots go where you look.</summary>
+    public static void Look(ref PlayerState s, in PlayerIntent intent)
+    {
+        if (!s.Alive)
+            return;
+        s.Yaw += intent.LookYaw;
+        s.Pitch = Math.Clamp(s.Pitch + intent.LookPitch, -MaxPitch, MaxPitch);
+    }
+
     /// <summary>Advances one tick. Call after the train has stepped this tick.</summary>
-    public static void Step(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt)
+    /// <param name="applyLook">False when look was already applied this tick (the world's crew step does it).</param>
+    public static void Step(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt, bool applyLook = true)
     {
         if (!s.Alive)
             return;
 
-        s.Yaw += intent.LookYaw;
-        s.Pitch = Math.Clamp(s.Pitch + intent.LookPitch, -MaxPitch, MaxPitch);
+        if (applyLook)
+            Look(ref s, intent);
 
         if (s.Surface == Surface.Ladder)
         {
@@ -324,7 +336,7 @@ public static class PlayerMotor
                 double dx = local.X - ladder.Foot.X, dz = local.Z - ladder.Foot.Z;
                 if (dx * dx + dz * dz > p.Ladder.GrabRange * p.Ladder.GrabRange)
                     continue;
-                if (local.Y < -0.5 || local.Y > ladder.Top + 0.1)
+                if (local.Y < ladder.Foot.Y - 0.5 || local.Y > ladder.Top + 0.1)
                     continue;
                 var relative = frame.VelocityToLocal(worldVelocity);
                 if (Math.Sqrt(relative.X * relative.X + relative.Z * relative.Z) >= p.Ladder.GrabMaxRelativeSpeed)
@@ -333,7 +345,7 @@ public static class PlayerMotor
                     s.Yaw += (s.Parent == PlayerState.World ? 0 : train.Frames[s.Parent].Heading) - frame.Heading;
                 s.Parent = frame.Index;
                 s.Surface = Surface.Ladder;
-                s.Position = new Double3(ladder.Foot.X, Math.Clamp(local.Y, 0, ladder.Top - 0.05), ladder.Foot.Z);
+                s.Position = new Double3(ladder.Foot.X, Math.Clamp(local.Y, ladder.Foot.Y, ladder.Top - 0.05), ladder.Foot.Z);
                 s.Velocity = default;
                 return;
             }
@@ -366,8 +378,16 @@ public static class PlayerMotor
             s.Velocity = default;
             return;
         }
-        s.Position = s.Position with { Y = Math.Max(0, y) };
+        s.Position = s.Position with { Y = Math.Max(ladder.Foot.Y, y) };
         s.Velocity = default;
+        if (y <= ladder.Foot.Y && ladder.Foot.Y > 0)
+        {
+            // A hatch ladder: step off onto the floor it stands on.
+            var floor = frame.Shape.TopAt(s.Position.X, s.Position.Z, ladder.Foot.Y);
+            s.Position = s.Position with { Y = ladder.Foot.Y };
+            s.Surface = ToSurface(floor?.Kind ?? SurfaceKind.Deck);
+            return;
+        }
         if (y <= 0)
         {
             // Stepping off the bottom rung onto the ballast at whatever speed the train is doing.

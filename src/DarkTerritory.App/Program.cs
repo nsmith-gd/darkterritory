@@ -10,9 +10,10 @@ using DarkTerritory.Sim.Route;
 // Feel prototype (roadmap M1). Controls:
 //   mouse look · WASD move · Shift run · Space jump · E grab/let go of ladders
 //   R/F throttle notch up/down · B brake (hold) · X reverser (stopped only)
-//   E at the firebox: shovel (hold) · E at the valve: vent (hold)
+//   E at the firebox: shovel (hold) · E at the valve: vent (hold) · E on a coupler plate: cut (hold)
+//   Left mouse at a gun (engine cab roof, guard car roof): fire
 //   1–9 respawn on that car's roof · Backspace respawn in the cab · Tab chase camera · Esc release mouse / quit
-// Options: --route tier:seed | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png
+// Options: --route tier:seed [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png
 
 string Arg(string name, string fallback)
 {
@@ -27,7 +28,7 @@ if (Arg("--route", "") is { Length: > 0 } routeSpec)
 {
     var (tier, seed) = Route.ParseSpec(routeSpec);
     var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File));
-    session = new PrototypeSession(content, RouteGenerator.Generate(routeTuning, tier, seed), cars);
+    session = new PrototypeSession(content, RouteGenerator.Generate(routeTuning, tier, seed), cars, enemies: !args.Contains("--no-enemies"));
 }
 else
 {
@@ -46,7 +47,7 @@ using var swapchain = new Swapchain(gpu, w, h);
 Console.WriteLine($"GPU: {gpu.DeviceName}, window {w}x{h}, internal {renderer.Width}x{renderer.Height}");
 
 var clock = new FixedStepClock(SimConstants.TickRate);
-var scene = new GreyboxScene { Route = session.Route };
+var scene = new GreyboxScene { Route = session.Route, Enemies = session.World.Enemies is null ? null : session.World.ActiveEnemies };
 var mesh = new MeshBuilder();
 var timer = Stopwatch.StartNew();
 double last = 0, titleAt = 0;
@@ -89,6 +90,7 @@ while (!window.CloseRequested)
         if (input.Down(Key.LeftShift)) buttons |= PlayerButtons.Run;
         if (input.Down(Key.Space)) buttons |= PlayerButtons.Jump;
         if (input.Down(Key.E)) buttons |= PlayerButtons.Use;
+        if (input.Down(Key.MouseLeft)) buttons |= PlayerButtons.Fire;
         var intent = new PlayerIntent
         {
             MoveX = (input.Down(Key.D) ? 1 : 0) - (input.Down(Key.A) ? 1 : 0),

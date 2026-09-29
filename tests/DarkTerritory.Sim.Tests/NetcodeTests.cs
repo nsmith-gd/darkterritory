@@ -17,10 +17,13 @@ public class NetcodeTests
     public void OnAPerfectLinkPredictionMatchesTheHostExactly()
     {
         var r = Harness.Run(TestLoop, T, P, new HarnessOptions { Bots = 8, Seconds = 90, Link = LinkConditions.Perfect });
-        Assert.All(r.Clients, c => Assert.Equal(0, c.MaxCorrectionM));
+        // Exact, except that another crew member's cab input reaches us a round trip late: a roof
+        // walker mid-jump when the conductor brakes lands a fraction of a millimetre off.
+        Assert.All(r.Clients, c => Assert.True(c.MaxCorrectionM < 0.001, $"player {c.Id} corrected by {c.MaxCorrectionM} m"));
+        Assert.True(r.Clients.Count(c => c.MaxCorrectionM == 0) >= r.Clients.Count - 2);
         Assert.All(r.Clients, c => Assert.InRange(c.Snapshots, r.Ticks - 5, r.Ticks));
         Assert.Equal(0, r.Deaths);
-        Assert.True(r.TrainSpeed > 20, "the conductor bot should have driven the train up to speed");
+        Assert.InRange(r.TrainSpeed, 12, 16); // the conductor bot holds spec B.3 cruise
     }
 
     [Fact]
@@ -108,6 +111,32 @@ public class NetcodeTests
 
         Assert.Equal(2, host.Train.Rakes.Count);
         Assert.All(clients, c => Assert.Equal(2, c.Train.Rakes.Count));
+        Assert.All(clients, c => Assert.Equal(0, c.MaxCorrection));
+    }
+
+    [Fact]
+    public void AClientGunnerIsPredictedExactlyAndWakesTheSameChoir()
+    {
+        var net = new LoopbackNetwork();
+        var combat = Tuning.Combat;
+        TrainOnLine NewTrain() => new(new TrainDynamics(Consist.Uniform(T, 6, 1)), TestLoop, 600);
+        var host = new HostSession(net.CreateHost(), NewTrain(), T, P, combat);
+        var clients = new[] { new ClientSession(net.CreateClient(), NewTrain(), T, P, combat), new ClientSession(net.CreateClient(), NewTrain(), T, P, combat) };
+        Run(net, host, clients, 10, _ => default);
+
+        var mount = host.Train.Frames[0].Shape.Gun!.Value;
+        var gunner = PlayerMotor.SpawnOnRoof(host.Train, 0, mount.Position.Z + 0.7, P);
+        HostTeleport(host, clients[1].PlayerId!.Value, gunner);
+        Run(net, host, clients, 5, _ => default);
+        foreach (var c in clients)
+            c.ResetStats();
+
+        Run(net, host, clients, 90, i => i == 1 ? new PlayerIntent { Buttons = PlayerButtons.Fire } : default);
+        Run(net, host, clients, 3, _ => default);
+        int fired = combat.Guns.Ammo - host.Train.Vehicles[0].Gun.Ammo;
+        Assert.InRange(fired, 8, 10); // 3 s at 3 rounds a second
+        Assert.All(clients, c => Assert.Equal(host.Train.Vehicles[0].Gun.Ammo, c.Train.Vehicles[0].Gun.Ammo));
+        Assert.All(clients, c => Assert.Equal(host.World.Choir.Aggro, c.World.Choir.Aggro, 6));
         Assert.All(clients, c => Assert.Equal(0, c.MaxCorrection));
     }
 

@@ -1,13 +1,36 @@
 namespace DarkTerritory.Sim.Train;
 
+/// <summary>What a vehicle is for (GDD §10): engine at the front, guard car with the rear gun at the back.</summary>
+public enum VehicleKind : byte { Engine, Cargo, Guard }
+
+/// <summary>A mounted gun's state (spec B.7). Lives on the vehicle it's bolted to.</summary>
+public struct GunState
+{
+    public int Ammo;
+    /// <summary>Ticks until it can fire again.</summary>
+    public int Cooldown;
+    /// <summary>GDD §23: "Gun jams: someone repairs it by hand, under fire."</summary>
+    public bool Jammed;
+    /// <summary>Tick of the last round fired (for muzzle flash and sound on clients), 0 if never.</summary>
+    public uint LastShotTick;
+}
+
 /// <summary>
 /// One piece of rolling stock. The id is stable for the whole run: players, enemies and snapshots
 /// refer to vehicles by id, so cutting and re-coupling never changes who is standing on what.
 /// </summary>
-public sealed class Vehicle(int id, bool isEngine, double load)
+public sealed class Vehicle(int id, VehicleKind kind, double load)
 {
+    public Vehicle(int id, bool isEngine, double load) : this(id, isEngine ? VehicleKind.Engine : VehicleKind.Cargo, load)
+    {
+    }
+
     public int Id { get; } = id;
-    public bool IsEngine { get; } = isEngine;
+    public VehicleKind Kind { get; set; } = kind;
+    public bool IsEngine => Kind == VehicleKind.Engine;
+    /// <summary>The mounted gun's state, if this vehicle carries one (engine and guard cars).</summary>
+    public GunState Gun;
+    public bool HasGun => Kind is VehicleKind.Engine or VehicleKind.Guard;
     /// <summary>0 empty to 1 full.</summary>
     public double Load { get; set; } = Math.Clamp(load, 0, 1);
     /// <summary>Structural condition, 1 sound to 0 wrecked.</summary>
@@ -38,13 +61,19 @@ public sealed class Consist
     public int CarCount => _vehicles.Count(v => !v.IsEngine);
     public IReadOnlyList<double> Loads => _vehicles.Where(v => !v.IsEngine).Select(v => v.Load).ToList();
 
-    /// <summary>The engine (id 0) followed by <paramref name="cars"/> cars with ids 1..n.</summary>
+    /// <summary>
+    /// The engine (id 0) followed by <paramref name="cars"/> cars with ids 1..n. With two or more cars the
+    /// last is the guard car (GDD §10), which counts as one of the cars (spec F.3: a second guard car
+    /// "costs a cargo slot").
+    /// </summary>
     public static Consist Uniform(TrainTuning tuning, int cars, double load)
     {
         var c = new Consist(tuning);
         c._vehicles.Add(new Vehicle(0, isEngine: true, 0));
         for (int i = 0; i < cars; i++)
             c.AddCar(load);
+        if (cars >= 2)
+            c._vehicles[^1].Kind = VehicleKind.Guard;
         return c;
     }
 

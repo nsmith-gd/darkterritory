@@ -1,3 +1,5 @@
+using DarkTerritory.Sim.Combat;
+using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Train;
 
@@ -14,17 +16,127 @@ public interface IBot
     PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick);
 }
 
+/// <summary>A bot that needs to see more of the world than the train (enemies, the Choir).</summary>
+public interface IWorldBot : IBot
+{
+    PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed);
+}
+
+/// <summary>
+/// Mans the guard gun and shoots running hounds only inside range: restraint, because every round
+/// brings the Choir (GDD §14). Given the Choir's tuning it also holds fire once another burst would
+/// bring the swarm, and lets the hounds come rather than get the whole crew killed. Aims by turning
+/// to face the target.
+/// </summary>
+public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int seed = 1) : IWorldBot
+{
+    public string Name => "gunner";
+    bool _holding;
+    // Off the gun, it gets about like anyone else on the roofs.
+    readonly RoofWalkerBot _legs = new(seed);
+
+    public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => default;
+
+    public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
+    {
+        aimed = self;
+        if (!self.Alive)
+            return default;
+        // Hounds that got aboard can't be shot from the gun they're standing next to: get clear (they drop
+        // off once nobody's near), then walk back to the guard car and take the gun again.
+        bool houndsAboard = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && e.Attached >= 0);
+        if (houndsAboard || Guns.MannedGun(self, world.Train, guns) is not { } gun)
+        {
+            if (!houndsAboard)
+                _legs.Head(+1);
+            return self.Parent > 0 ? _legs.Decide(self, world, tick, out aimed) : default;
+        }
+        // Hold fire once another burst would bring the swarm, and keep holding until they've dispersed
+        // below the approach: firing again sooner resets the Choir's quiet clock and it never drops.
+        if (choir is not null && world.Choir.Aggro + 3 * choir.AggroPerRound >= choir.SwarmThreshold)
+            _holding = true;
+        else if (choir is null || world.Choir.Aggro < choir.ApproachThreshold)
+            _holding = false;
+        bool holdFire = _holding;
+        var frame = world.Train.Frames[gun];
+        var muzzle = frame.ToWorld(frame.Shape.Gun!.Value.Position);
+        var target = world.ActiveEnemies.Where(e => e.HitRadius > 0 && !e.Gone)
+            .Select(e => (e, offset: e.WorldPosition(world.Train) - muzzle))
+            .Where(x => x.offset.Length <= guns.Range)
+            .OrderBy(x => x.offset.Length).FirstOrDefault();
+        if (target.e is null)
+            return default;
+        var d = frame.DirToLocal(target.offset).Normalized;
+        double yaw = Math.Atan2(-d.X, -d.Z), pitch = Math.Asin(d.Y);
+        // Turn by look deltas, the way a player would.
+        var intent = new PlayerIntent { LookYaw = (float)Wrap(yaw - self.Yaw), LookPitch = (float)(pitch - self.Pitch) };
+        aimed = self with { Yaw = self.Yaw + intent.LookYaw, Pitch = self.Pitch + intent.LookPitch };
+        if (!holdFire)
+            intent.Buttons = PlayerButtons.Fire;
+        return intent;
+    }
+
+    static double Wrap(double a)
+    {
+        while (a > Math.PI) a -= 2 * Math.PI;
+        while (a < -Math.PI) a += 2 * Math.PI;
+        return a;
+    }
+}
+
 /// <summary>
 /// Paces the roofs end to end, jumping the coupling gaps, with occasional stops and glances.
 /// Exercises car-frame changes, airborne world-frame play and landing: the hard cases for prediction.
+/// With the world in view it also answers Clingers (App. A.4): heads for the car and prises them off.
 /// </summary>
-public sealed class RoofWalkerBot(int seed) : IBot
+public sealed class RoofWalkerBot(int seed) : IWorldBot
 {
+    const double PryReach = 1.0;
+
+    public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
+    {
+        aimed = self;
+        var train = world.Train;
+        if (self.Alive && self.Parent > 0 && self.Parent < train.Frames.Count)
+        {
+            int parent = self.Parent;
+            var clinger = world.ActiveEnemies.Where(e => e.Kind == EnemyKind.Clinger && !e.Gone)
+                .OrderBy(e => Math.Abs(e.Attached - parent)).FirstOrDefault();
+            if (clinger is not null && clinger.Attached == self.Parent && self.Grounded && self.Surface == Surface.Roof)
+                return Pry(self, clinger);
+            if (clinger is not null && clinger.Attached != self.Parent)
+                _direction = clinger.Attached < self.Parent ? -1 : 1;
+            // Hounds aboard: nobody goes near them, and anyone close walks away (they drop off when bored).
+            if (world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && e.Attached >= 0 && e.Attached >= parent - 1))
+                _direction = -1;
+        }
+        return Decide(self, train, tick);
+    }
+
+    /// <summary>Walk to the roof edge over it, then stand and hold Use until it lets go.</summary>
+    static PlayerIntent Pry(in PlayerState self, Enemy clinger)
+    {
+        double side = Math.Sign(clinger.Local.X);
+        double dx = side * 0.6 - self.Position.X, dz = clinger.Local.Z - self.Position.Z;
+        if (Math.Abs(dz) < PryReach * 0.5 && Math.Abs(dx) < 0.3)
+            return new PlayerIntent { Buttons = PlayerButtons.Use };
+        // Move in the car frame whichever way we happen to be facing: forward is −Z turned by yaw.
+        double fx = -Math.Sin(self.Yaw), fz = -Math.Cos(self.Yaw), rx = Math.Cos(self.Yaw), rz = -Math.Sin(self.Yaw);
+        return new PlayerIntent
+        {
+            MoveZ = (float)Math.Clamp((dx * fx + dz * fz) * 2, -1, 1),
+            MoveX = (float)Math.Clamp((dx * rx + dz * rz) * 2, -1, 1),
+        };
+    }
+
     readonly Random _rng = new(seed);
     int _direction = -1; // −1 walks toward the engine (car-local −Z), +1 toward the back
     int _pauseTicks;
 
     public string Name => "roof-walker";
+
+    /// <summary>Walk towards the back (+1) or the engine (−1) from here on.</summary>
+    public void Head(int direction) => _direction = Math.Sign(direction);
 
     public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick)
     {
@@ -87,17 +199,36 @@ public sealed class RoofWalkerBot(int seed) : IBot
 }
 
 /// <summary>
-/// Works the cab alone: opens the throttle, brakes before the end of the line, and keeps the fire fed
-/// (walks to the firebox and shovels when pressure drops). One bot doing both jobs is fine at short
-/// consists; at twenty cars it can't keep up, which is the point (spec B.6).
+/// Works the cab alone: holds cruise (spec B.3: 14 m/s, the speed at which even twenty cars can stop
+/// for what the lamp shows), brakes hard when the lamp finds something on the line, brakes before the
+/// end of the line, and keeps the fire fed (walks to the firebox and shovels when pressure drops).
+/// One bot doing both jobs is fine at short consists; at twenty cars it can't keep up (spec B.6).
 /// </summary>
-public sealed class ConductorBot : IBot
+public sealed class ConductorBot : IWorldBot
 {
     public string Name => "conductor";
+    public double CruiseSpeed { get; init; } = 14;
 
-    public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick)
+    public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => Work(self, train, Drive(train, tick));
+
+    public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
+        aimed = self;
+        var train = world.Train;
         var intent = Drive(train, tick);
+        // Watch the road: something showing on the line ahead means get below derailing speed.
+        bool somethingAhead = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.Sleepers && e.Phase == SpinePhase.Telegraph
+            && e.LineDistance > train.Dynamics.Distance && e.LineDistance - train.Dynamics.Distance < 200);
+        if (somethingAhead && train.Dynamics.Speed > 4)
+        {
+            intent.Buttons |= PlayerButtons.Brake;
+            intent.ThrottleNotch = -4;
+        }
+        return Work(self, train, intent);
+    }
+
+    PlayerIntent Work(in PlayerState self, TrainOnLine train, PlayerIntent intent)
+    {
         if (train.BoilerTuning is { } bt && train.Boiler.Pressure < bt.WorkingBandMax - 2 && train.Boiler.Tender >= 1 && PlayerMotor.InCab(self, train))
         {
             if (CrewActions.Nearest(self, train) == InteractableKind.Firebox)
@@ -112,17 +243,29 @@ public sealed class ConductorBot : IBot
         return intent;
     }
 
-    static PlayerIntent Drive(TrainOnLine train, uint tick)
+    bool _holdingDown;
+
+    PlayerIntent Drive(TrainOnLine train, uint tick)
     {
         var d = train.Dynamics;
         double remaining = train.Line.Length - d.Distance;
         var brakeRate = d.MaxBrakeForce / d.Consist.MassTonnes;
         double stopping = d.Speed * d.Speed / (2 * Math.Max(0.1, brakeRate)) + 150;
         var intent = new PlayerIntent();
-        if (remaining < stopping)
+        // A descent runs the train away with the regulator shut; hold it on the brake, with some
+        // hysteresis so it isn't hammered every tick (fade only builds while it's applied).
+        if (d.Speed > CruiseSpeed + 1.5)
+            _holdingDown = true;
+        else if (d.Speed <= CruiseSpeed)
+            _holdingDown = false;
+        if (remaining < stopping || _holdingDown)
+        {
             intent.Buttons |= PlayerButtons.Brake;
-        else if (tick % 30 == 0)
-            intent.ThrottleNotch = 1;
+            intent.ThrottleNotch = -4;
+        }
+        else if (tick % 15 == 0)
+            // Notch towards cruise: open up below it, ease off above it.
+            intent.ThrottleNotch = (sbyte)(d.Speed < CruiseSpeed - 1 ? 1 : d.Speed > CruiseSpeed + 0.5 ? -1 : 0);
         return intent;
     }
 }

@@ -1,0 +1,84 @@
+// Enemies (GDD Part Six, App. A behaviour trees, App. B spawn rules). Demo roster: one per pressure zone.
+// First pass. Speeds in m/s; the GDD's Sleeper thresholds (40 / 20) are km/h, converted here.
+{
+  // App. A.1: every telegraph gives at least this long before a commit.
+  "minReactionSeconds": 1.5,
+
+  "sleepers": {
+    // Telegraph: the lamp finds them at 120 m; brace (and the wet writhe you can hear) at 60 m.
+    "lampRevealDistance": 120,
+    "braceDistance": 60,
+    "derailAbove": 11.1,
+    "heavyDamageAbove": 5.6,
+    "heavyDamage": 0.4,
+    "minorDamage": 0.05
+  },
+
+  "cinderHounds": {
+    "packSize": [3, 5],
+    "health": 60,
+    "radius": 0.8,
+    // Their sustainable speed: a train faster than this outruns them (App. A.3 break off).
+    "maxSpeed": 19,
+    // How fast they close on the train when they can.
+    "closingSpeed": 3,
+    "spawnBehind": 180,
+    "howlSeconds": 4,
+    "leapDistance": 30,
+    "biteDamage": 45,
+    "biteEverySeconds": 2.5,
+    "reach": 4,
+    // A boarded hound with nobody near for this long drops off.
+    "boredSeconds": 6,
+    // App. B.3: needs sustained speed first.
+    "minTrainSpeed": 8,
+    // App. A.3 break off: "sustained rear gun fire". This many rounds from a gun in range of the pack,
+    // inside this window, and a running hound peels away (ARCHITECTURE §8).
+    "suppressRounds": 9,
+    "suppressWindowSeconds": 4
+  },
+
+  "clingers": {
+    "drillSeconds": 90,
+    "prySeconds": 6,
+    "pryReach": 2.0,
+    "breachCargoLossPerSecond": 0.01
+  },
+
+  "hollow": {
+    // App. B.5: firebox below threshold for 45 s.
+    "lowFireSeconds": 45,
+    "descendSeconds": 3,
+    "biteDamage": 35,
+    "biteEverySeconds": 3,
+    // Temperature restored: firebox back above this fraction and it leaves.
+    "retreatFireFraction": 0.4
+  },
+
+  "choirSwarm": {
+    // In the Swarm phase, anyone exposed (roof, ground, ladder) takes this every few seconds.
+    "exposedDamage": 10,
+    "everySeconds": 2.0
+  },
+
+  "director": {
+    // App. B.1.
+    "baseBudget": { "local": 40, "frontier": 70, "deadLines": 110, "deepTerritory": 160 },
+    "lengthPerCarBeyondThird": 0.15,
+    "crewBase": 0.7,
+    "crewPerPlayer": 0.12,
+    "crewCap": 1.6,
+    "graceSeconds": 90,
+    "facilityLullSeconds": 20,
+    "cooldownSeconds": [30, 60],
+    "maxConcurrentZone": 2,
+    "maxConcurrentSmallCrew": 4,
+    "maxConcurrentLargeCrew": 6,
+    // Budget share spent before the first facility, across the middle, and in the final approach.
+    "phaseShares": [0.15, 0.45, 0.40],
+    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3 },
+    // App. B.3/B.8 weights.
+    "houndsLivestockWeight": 2.5,
+    "houndsHotBoilerWeight": 1.5
+  }
+}

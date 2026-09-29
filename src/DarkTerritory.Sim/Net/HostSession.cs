@@ -1,4 +1,5 @@
 using Ballast.Net;
+using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Train;
 
@@ -39,16 +40,23 @@ public sealed class HostSession
     const int HistoryTicks = 64;
     byte _nextId = 1;
 
-    public HostSession(ITransport transport, TrainOnLine train, TrainTuning trainTuning, PlayerTuning playerTuning)
+    public HostSession(ITransport transport, TrainOnLine train, TrainTuning trainTuning, PlayerTuning playerTuning, CombatTuning? combat = null)
+        : this(transport, new World(train, combat), trainTuning, playerTuning)
     {
+    }
+
+    public HostSession(ITransport transport, World world, TrainTuning trainTuning, PlayerTuning playerTuning)
+    {
+        World = world;
         _transport = transport;
-        Train = train;
+
         TrainTuning = trainTuning;
         PlayerTuning = playerTuning;
         Controls = new TrainControls { Reverser = 1 };
     }
 
-    public TrainOnLine Train { get; }
+    public World World { get; }
+    public TrainOnLine Train => World.Train;
     public TrainTuning TrainTuning { get; set; }
     public PlayerTuning PlayerTuning { get; set; }
     public TrainControls Controls;
@@ -58,6 +66,10 @@ public sealed class HostSession
 
     public IEnumerable<PlayerSnapshot> Players => _crew.Select(c => new PlayerSnapshot(c.Id, c.State));
     public int MissedInputs(byte id) => _crew.First(c => c.Id == id).MissedInputs;
+
+    /// <summary>Starts the night's threats: the director, the route's Sleepers, the Hollow's watch (host authority).</summary>
+    public void EnableEnemies(Enemies.EnemyTuning tuning, Route.Route? route, ulong seed, int expectedCrew) =>
+        World.EnableEnemies(tuning, route, seed, Math.Max(expectedCrew, _crew.Count), authority: true);
 
     /// <summary>Puts a player somewhere authoritatively (respawns, debug teleports, tests).</summary>
     public void SetPlayerState(byte id, PlayerState state) => _crew.First(c => c.Id == id).State = state;
@@ -69,22 +81,26 @@ public sealed class HostSession
         foreach (var c in _crew)
             c.ThisTick = NextIntent(c);
 
+        World.BeginTick();
         Controls.Brake = 0;
         foreach (var c in _crew)
         {
             CabControls.Apply(ref Controls, c.ThisTick, c.State, Train);
-            CrewActions.Apply(ref c.State, c.ThisTick, Train, SimConstants.TickSeconds);
+            // Lag compensation: check this player's shots against where targets were on their screen.
+            uint? view = c.AckedSnapshot > ClientSession.InterpolationTicks ? c.AckedSnapshot - ClientSession.InterpolationTicks : null;
+            World.CrewAct(ref c.State, c.ThisTick, c.Id, view);
         }
-        Train.Step(SimConstants.TickSeconds, Controls);
+        World.Step(Controls);
+        World.ApplyDamage(id => _crew.FirstOrDefault(c => c.Id == id)?.State, (id, s) => _crew.First(c => c.Id == id).State = s, _crew.Select(c => (int)c.Id));
         foreach (var c in _crew)
-            PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds);
+            PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
         Tick++;
 
         // Snap the world onto the replication grid and keep simulating from exactly that.
         _snapshotScratch.Clear();
         foreach (var c in _crew)
             _snapshotScratch.Add(new PlayerSnapshot(c.Id, c.State));
-        var records = WorldRecords.Quantise(Train, ref Controls, _snapshotScratch);
+        var records = WorldRecords.Quantise(World, ref Controls, _snapshotScratch);
         foreach (var p in _snapshotScratch)
             _crew.First(c => c.Id == p.Id).State = p.State;
         _history[Tick] = records;

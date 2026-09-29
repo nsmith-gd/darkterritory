@@ -22,7 +22,8 @@ dotnet run --project src/DarkTerritory.App -- --route frontier:7     # a generat
 | Input | Action |
 |---|---|
 | Mouse · WASD · Shift · Space | Look · move · run · jump |
-| E (hold) | Grab / let go of a ladder · shovel at the firebox · vent at the valve (in the cab) |
+| E (hold) | With W: grab a ladder. Standing still: shovel at the firebox, vent at the valve, cut at a coupler plate, wind a brake wheel |
+| Left mouse | Fire the gun you're standing at (engine cab roof, via the hatch ladder; guard car roof) |
 | R / F | Throttle notch up / down |
 | B (hold) | Brake |
 | X | Reverser (train stopped only) |
