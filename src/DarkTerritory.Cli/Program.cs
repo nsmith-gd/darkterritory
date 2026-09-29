@@ -520,7 +520,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         run = new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
         run.EnableSites(DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)), line);
         // --crane: the first facility with a gantry crane (T48) instead, its first casting on the hook.
-        site = args.Contains("--crane") ? run.Sites.FirstOrDefault(x => x?.Crane is not null)
+        // --facility i: that facility's site, whatever it has (to look at a kind's buildings).
+        int pick = (int)Opt(args, "--facility", -1);
+        site = pick >= 0 && pick < run.Sites.Count ? run.Sites[pick]
+            : args.Contains("--crane") ? run.Sites.FirstOrDefault(x => x?.Crane is not null)
             : run.Sites.FirstOrDefault(x => x is not null && x.Has(DarkTerritory.Sim.Run.ModuleKind.Winch)) ?? run.Sites.FirstOrDefault(x => x is not null);
         if (site?.Crane is { } shownCrane)
         {
@@ -941,7 +944,7 @@ static int Usage()
                      [--vigil]    emergency lighting, as during a Vigil (spec C.2)
                      [--ps2]      the era comparison mode   [--muzzle] the guns just fired   [--builds n] time n warm builds
                      [--integrity a,b,..] each car's condition, front to back (scars and damage states)
-                     [--route tier:seed --site [--crank | --crane]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook
+                     [--route tier:seed --site [--crank | --crane | --facility i]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --facility: the route's i-th
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/

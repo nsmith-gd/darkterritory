@@ -1177,6 +1177,14 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - The castings: stacked, hooked, or on a car's roof.
         - The coaling tower's lever stand, its handle down when pouring.
         - `dt screenshot --site --crank` now closes on the cranks even at a facility with a crane.
+      - The facility buildings are the fourth set (`recipes/facility_pieces.py`). The six kinds that shared the generic sheds now read by shape, as the coaling tower, the elevator and the foundry did (GDD §30). `StructureKit.Facility` sets the pieces among kit buildings, sunk 0.3 m as the kit's sills are; without the props the kit parts still stand.
+        - Mine head: the headframe over the shaft (at 1.5×, the tallest thing there), its winding house and chimney, and the spoil heap.
+        - Chemical works: three storage tanks, a pipe rack on trestles, and the works with two thin stacks.
+        - Military depot: a watchtower at the gate end, sandbag walls, Nissen huts, and a wire fence along the line.
+        - Slaughterhouse: the long windowless hall, cattle pens in front, and the ramp down from the cars.
+        - Switchyard: the signal box with one window lit, the water tower's spout swung over the track, and a goods shed.
+        - Wreck yard: heaps of stripped carbodies and wheelsets, with the sheds set back behind them.
+        - `dt screenshot --route tier:seed --site --facility i` stops at the route's i-th facility, to look at a kind's buildings.
     - **First set.**
       - The Khronos Lantern, split into a lamp post and a hand lantern. The hand lantern replaces the kit's cage in the cars, on the platforms and as the dropped lamp.
       - The photoscanned skull.
