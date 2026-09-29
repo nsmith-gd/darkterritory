@@ -182,6 +182,8 @@ public class CreatureArtTests
                         || kind == EnemyKind.Stoker
                         // The Long Whistle is never seen (T57): only its horn.
                         || kind == EnemyKind.LongWhistle
+                        // The Weight is buried until it grabs (T59).
+                        || kind == EnemyKind.Weight && phase == SpinePhase.Dormant
                         || kind == EnemyKind.Deadman && phase is not (SpinePhase.Commit or SpinePhase.Punish);
                     Assert.True(hidden ? mesh.Count == 0 : mesh.Count > 0, $"{kind} {phase} drew {mesh.Count / 3} triangles");
                 }

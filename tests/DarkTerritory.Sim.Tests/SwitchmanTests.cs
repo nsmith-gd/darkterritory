@@ -141,4 +141,18 @@ public class SwitchmanTests
         var far = new Line(speed: 14, @short: S.Ahead[1] + 50);
         Assert.NotEqual(far.DeadLine.Index, Switchman.Junction(far.World, S)?.Index);
     }
+
+    [Fact]
+    public void BackedOffTheDeadLineWellShortOfTheHoldTheTrainStillStandsForTheSwitch()
+    {
+        // T59: backing off a dead line, the driver stops wherever the train's clear of the points, which can be well short of
+        // the hold. The hand setting the switch back has to count that as standing for it, or the night never goes on.
+        var line = new Line(speed: 0, @short: 60);
+        var plan = new Bots.SwitchPlan(line.DeadLine, line.DeadLine.Toe - Tuning.Route.Junctions.PointsLength - 2);
+        Assert.True(plan.Hold - line.Train.Dynamics.Distance > 3);
+        Assert.True(plan.StandingAt(line.Train));
+        // Over the points: not standing for it.
+        var over = new Line(speed: 0, @short: -5);
+        Assert.False(plan.StandingAt(over.Train));
+    }
 }

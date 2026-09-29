@@ -106,6 +106,12 @@ public sealed class TrainOnLine
 
     /// <summary>Traction multiplier for the whole train this tick (Grease sets it; 1 is dry rail).</summary>
     public double Traction { get; set; } = 1;
+    /// <summary>
+    /// A vehicle something is dragging on this tick (the Weight, App. A.3), or −1; its rake is held back by
+    /// <see cref="DragFactor"/> times the engine's full tractive force: more than the engine can pull against.
+    /// </summary>
+    public int DraggedVehicle { get; set; } = -1;
+    public double DragFactor { get; set; }
 
     /// <summary>At a buffer stop: the end of the line, a dead line's end, or back at the start.</summary>
     public bool AtEndOfLine => Dynamics.Distance >= Line.PathLength(Dynamics.Path) || RearDistance <= 0;
@@ -140,6 +146,9 @@ public sealed class TrainOnLine
     }
     public double RearDistance => Dynamics.RearDistance;
     TrainTuning Tuning => _engineRake.Tuning;
+
+    double DragOn(TrainDynamics rake) =>
+        DraggedVehicle >= 0 && rake.Consist.IndexOf(DraggedVehicle) >= 0 ? DragFactor * _engineRake.MaxTractiveForce / rake.Consist.MassTonnes : 0;
 
     public TrainDynamics RakeOf(int vehicleId) => _rakes.First(r => r.Consist.IndexOf(vehicleId) >= 0);
 
@@ -256,12 +265,12 @@ public sealed class TrainOnLine
                     effective.Throttle *= Boiler.PowerFactor(bt);
                     RupturedThisTick = Boiler.Step(bt, dt, controls.Throttle, rake.Consist.CarCount);
                 }
-                rake.Step(dt, effective, new TrackConditions { GradePercent = AverageGrade(rake), Traction = Traction });
+                rake.Step(dt, effective, new TrackConditions { GradePercent = AverageGrade(rake), Traction = Traction, Drag = DragOn(rake) });
             }
             else
             {
                 var parked = new TrainControls { Brake = rake.Handbrake ? 1 : 0, Reverser = 1 };
-                rake.Step(dt, parked, new TrackConditions { GradePercent = AverageGrade(rake), Traction = Traction });
+                rake.Step(dt, parked, new TrackConditions { GradePercent = AverageGrade(rake), Traction = Traction, Drag = DragOn(rake) });
             }
             TakeSwitches(rake);
             // Buffer stops: the line ends are hard limits.

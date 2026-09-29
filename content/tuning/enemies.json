@@ -285,6 +285,34 @@
     "perGapWeight": 0.5
   },
 
+  // App. A.3 THE WEIGHT: "BURIED waits beside the track, sensing vibration. GRAB rear car passes → attaches to the coupling
+  // or underframe (TELEGRAPH: abrupt speed loss plus heavy scraping audio from the rear). DRAG constant negative force; speed
+  // decays continuously; speed reaches 0 → pulls the car off the rails. COUNTER uncouple the rear car (it takes the car and
+  // leaves) OR engineer melee from the rear platform, ~5 hits to release." Can't be shot.
+  "weight": {
+    // App. B.3 "marsh, water crossings, low ground only": this far into the next bridge between these distances ahead
+    // (m), and "cannot spawn on grades": no steeper than this there (%).
+    "aheadMin": 200,
+    "aheadMax": 1200,
+    "intoCrossing": 8,
+    "maxGradePercent": 1,
+    // The drag, as a share of the engine's full tractive force: over 1 and full throttle can't hold speed against it.
+    "dragFactor": 1.25,
+    // Dragged below this (m/s): a stand, and the car comes off the rails. Anyone on it takes this.
+    "stoppedBelow": 0.3,
+    "tearOffDamage": 60,
+    // "~5 hits to release": Use pressed within this reach of it (m), once a press.
+    "meleeReach": 2.2,
+    "blowsToRelease": 5,
+    // Never passed over in this long, or the train's rear this far past it (m), and it's gone.
+    "lingerSeconds": 300,
+    "lingerPast": 50,
+    // "Train length ≥2"; "weight up at low speed" (below this, m/s, by this much).
+    "minCars": 2,
+    "lowSpeed": 10,
+    "lowSpeedWeight": 2
+  },
+
   "lamplighters": {
     // Where it paces: this far out from the track, this far back from the engine's front (beside the cab).
     "paceLateral": 14,
@@ -334,7 +362,7 @@
     "maxConcurrentLargeCrew": 6,
     // Budget share spent before the first facility, across the middle, and in the final approach.
     "phaseShares": [0.15, 0.45, 0.40],
-    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3, "ferryman": 4, "longWhistle": 3, "climbers": 3 },
+    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3, "ferryman": 4, "longWhistle": 3, "climbers": 3, "weight": 3 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5

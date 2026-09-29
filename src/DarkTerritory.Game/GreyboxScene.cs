@@ -397,6 +397,11 @@ public sealed class GreyboxScene
                     mesh.Emissive = 0;
                     break;
                 }
+            case EnemyKind.Weight when e.Attached >= 0:
+                // A dark mass hung under the rear coupling, below the gun's arc, trailing on the ballast.
+                Draw(0, -0.1, 0.5, 0.55, 0.35, 0.7, Palette.SootBlack);
+                Draw(0, 0.25, 0.05, 0.2, 0.12, 0.3, Palette.Corrupted * 0.5f);
+                break;
             case EnemyKind.Climber:
                 {
                     // Thin, soot-black, bent over; in the cab it stands on the deck (the origin is the cab's centre).

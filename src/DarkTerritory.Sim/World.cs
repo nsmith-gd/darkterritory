@@ -299,6 +299,11 @@ public sealed class World
             applied.Throttle = 1;
             applied.Brake = 0;
         }
+        // The Weight holding the rear car (App. A.3): "constant negative force; speed decays continuously". On the clients
+        // too, from their mirror of it, so prediction drags as the host does.
+        var weight = _enemies.OfType<Weight>().FirstOrDefault(w => w.Holding);
+        Train.DraggedVehicle = weight?.Attached ?? -1;
+        Train.DragFactor = Enemies?.Weight.DragFactor ?? 0;
         Train.Step(SimConstants.TickSeconds, applied);
         LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
         if (Combat is { } c)
@@ -445,6 +450,9 @@ public sealed class World
                 break;
             case EnemyKind.LongWhistle when LongWhistle.Spot(Train, t.LongWhistle) is { } spot:
                 _enemies.Add(LongWhistle.At(_nextEnemyId++, Train, spot));
+                break;
+            case EnemyKind.Weight when Weight.Spot(this, t.Weight) is { } lies:
+                _enemies.Add(Weight.Buried(_nextEnemyId++, lies, d.NextRange(0, 1) < 0.5 ? -1 : 1));
                 break;
             case EnemyKind.Climber when Climber.Gaps(Train) is { Count: > 0 } gaps:
                 _enemies.Add(Climber.Pacing(_nextEnemyId++, Train, gaps[(int)d.NextRange(0, gaps.Count - 1e-9)], d.NextRange(0, 1) < 0.5 ? -1 : 1, t.Climbers));
