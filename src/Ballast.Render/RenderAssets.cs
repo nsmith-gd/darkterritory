@@ -61,6 +61,10 @@ public sealed record PostSettings
     public float TexturedWear { get; init; } = 0.5f;
     /// <summary>How far the sky's backdrop silhouettes sink into the fog (0: stark, 1: gone).</summary>
     public float BackdropFog { get; init; } = 0.55f;
+    /// <summary>How many degrees of elevation the backdrop band spans, top to bottom (its horizon is 85 % of the way down).</summary>
+    public float BackdropDegrees { get; init; } = 30;
+    /// <summary>How much brighter the sky's horizon haze is than the fog (so far is paler than near, not darker).</summary>
+    public float HorizonGlow { get; init; } = 1.3f;
     public Vector3 SkyZenith { get; init; } = new(0.018f, 0.02f, 0.028f);
     /// <summary>Mip bias: a little positive, so distant surfaces shimmer (the pipeline's "intended pixel crawl").</summary>
     public float MipBias { get; init; } = 0.4f;

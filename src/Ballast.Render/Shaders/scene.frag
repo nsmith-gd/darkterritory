@@ -66,7 +66,10 @@ float fogAmount(vec3 p) {
     else
         thickness = exp(-k * above) * (1.0 - exp(-k * p.y)) / (k * p.y);
     thickness = mix(frame.fogHeight.z, 1.0, clamp(thickness, 0.0, 1.0));
-    return 1.0 - exp(-frame.fog.a * dist * thickness);
+    // The curve: past the 1/e distance (1 / density) the exponent closes the fog faster, and short of it clears the
+    // near ground, so the weather's visibility (spec) is where it was, and the ground at your feet reads.
+    float optical = frame.fog.a * dist * thickness;
+    return 1.0 - exp(-pow(optical, frame.sky2.y));
 }
 
 void main() {

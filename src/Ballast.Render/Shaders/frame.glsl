@@ -11,5 +11,6 @@ layout(set = 0, binding = 0) uniform Frame {
     vec4 lampColour;   // rgb, a = intensity
     vec4 sky;          // rgb zenith, a = how far the backdrop sinks into the fog
     vec4 params;       // x = point lights, y = 1 for the PS2 look, z = shader grime over textures, w = layers loaded
+    vec4 sky2;         // x = the backdrop band's height in radians, y = fog curve exponent, z = horizon haze over the fog
     vec4 lights[64];   // pairs: xyz position (camera-relative) + range, rgb colour
 } frame;

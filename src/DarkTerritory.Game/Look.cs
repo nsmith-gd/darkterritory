@@ -22,6 +22,10 @@ public sealed record AtmosphereTuning
 {
     public float FogHeightFalloff { get; init; }
     public float FogFloor { get; init; } = 1;
+    public Vector3? FogColour { get; init; }
+    public float FogCurve { get; init; } = 1;
+    /// <summary>Towards the moon (normalised on use): low over the horizon, so it's in the sky you look at.</summary>
+    public Vector3? MoonDirection { get; init; }
     public Vector3? MoonColour { get; init; }
     public float? MoonStrength { get; init; }
     public float? Ambient { get; init; }
@@ -141,8 +145,19 @@ public sealed class Look
         if (TextureRoot is not null)
             foreach (var t in Textures)
             {
-                var diffuse = ImageFile.Load(Path.Combine(TextureRoot, t.Diffuse));
-                var spec = t.Spec is { } s && System.IO.File.Exists(Path.Combine(TextureRoot, s)) ? ImageFile.Load(Path.Combine(TextureRoot, s)) : Image.Solid(4, 20, 60, 0);
+                // A texture that won't read (half-written, corrupt) becomes flat grey, keeping every layer where the
+                // materials expect it, rather than stopping the game.
+                static Image Read(string path, Image fallback)
+                {
+                    try { return ImageFile.Load(path); }
+                    catch (Exception e) when (e is InvalidOperationException or IOException)
+                    {
+                        Console.Error.WriteLine($"look: {Path.GetFileName(path)} unreadable ({e.Message}); drawing it flat");
+                        return fallback;
+                    }
+                }
+                var diffuse = Read(Path.Combine(TextureRoot, t.Diffuse), Image.Solid(4, 80, 80, 80));
+                var spec = t.Spec is { } s && System.IO.File.Exists(Path.Combine(TextureRoot, s)) ? Read(Path.Combine(TextureRoot, s), Image.Solid(4, 20, 60, 0)) : Image.Solid(4, 20, 60, 0);
                 layers.Add(new MaterialLayer(t.Name, diffuse, spec, t.AlphaTest));
                 if (t.Family == "sky")
                     backdrop = diffuse;
@@ -156,6 +171,11 @@ public sealed class Look
         var a = Tuning.Atmosphere;
         light.FogHeightFalloff = a.FogHeightFalloff;
         light.FogFloor = a.FogFloor;
+        light.FogCurve = a.FogCurve;
+        if (a.FogColour is { } fc)
+            light.FogColor = fc;
+        if (a.MoonDirection is { } md)
+            light.MoonDirection = Vector3.Normalize(md);
         if (a.MoonColour is { } mc)
             light.MoonColour = mc;
         if (a.MoonStrength is { } ms)

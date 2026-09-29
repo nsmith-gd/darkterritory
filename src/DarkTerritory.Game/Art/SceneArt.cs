@@ -16,6 +16,9 @@ public sealed class SceneArt(Look look)
 
     public Look Look { get; } = look;
 
+    /// <summary>The line and its lineside.</summary>
+    public WorldArt World { get; } = new(look);
+
     /// <summary>A cooked piece by name, made by <paramref name="make"/> the first time.</summary>
     public MeshAsset Piece(string key, Func<MeshAsset> make)
     {

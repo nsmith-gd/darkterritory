@@ -77,6 +77,11 @@ public struct FrameLighting
     public float FogHeightFalloff;
     /// <summary>How much of the fog is left however high you go.</summary>
     public float FogFloor;
+    /// <summary>
+    /// The fog's shape: 1 is plain exponential; above 1 it's clearer near and thicker far, crossing plain exponential at
+    /// the 1/e distance (1 / <see cref="FogDensity"/>), so the weather's visibility stays where it was.
+    /// </summary>
+    public float FogCurve;
     public Vector3 MoonDirection;
     public Vector3 MoonColour;
     public float MoonStrength;
@@ -96,6 +101,7 @@ public struct FrameLighting
         FogDensity = 0.016f,
         FogBase = double.NaN,
         FogFloor = 1,
+        FogCurve = 1,
         MoonDirection = Vector3.Normalize(new Vector3(-0.3f, 0.6f, 0.4f)),
         MoonColour = new Vector3(0.55f, 0.62f, 0.78f),
         MoonStrength = 0.6f,
