@@ -37,6 +37,9 @@ public sealed record LinePlan
     /// <summary>The lakes beside and across the line, and the shores it runs along (maritime-rules.md §2-4).</summary>
     public IReadOnlyList<PlanLake> Lakes { get; init; } = [];
     public IReadOnlyList<PlanShore> Shores { get; init; } = [];
+    /// <summary>The country roads beside the main line and where they cross it at grade (maritime-rules.md §2.2).</summary>
+    public IReadOnlyList<PlanRoad> Roads { get; init; } = [];
+    public IReadOnlyList<PlanCrossing> Crossings { get; init; } = [];
     public required PlanAuthority Authority { get; init; }
     public IReadOnlyList<PlanSign> Signage { get; init; } = [];
     public IReadOnlyList<PlanPoi> Pois { get; init; } = [];
@@ -140,6 +143,16 @@ public sealed record PlanWater(string Id, string Type, double LevelM, string Edg
 /// </summary>
 public sealed record PlanLake(string Id, double X, double Z, double RadiusM, double Stretch, double Cos, double Sin, double Wobble, double LevelM, double DepthM,
     bool Crossed);
+
+/// <summary>
+/// A country road beside the main line from <paramref name="S0"/> to <paramref name="S1"/>: starting on
+/// <paramref name="FirstSide"/>, <paramref name="OffsetM"/> out, wandering <paramref name="WanderM"/> over
+/// <paramref name="WavelengthM"/> (at <paramref name="Phase"/>), changing sides at each of its crossings.
+/// </summary>
+public sealed record PlanRoad(string Id, string Edge, double S0, double S1, int FirstSide, double OffsetM, double WanderM, double WavelengthM, double Phase);
+
+/// <summary>Where a road crosses the line at grade: a level crossing, planks between the rails and a crossbuck each side.</summary>
+public sealed record PlanCrossing(string Road, double S);
 
 /// <summary>
 /// The kinds of shore (maritime-rules.md §3-5): the Atlantic's rock and shingle, Fundy's red mudflats, a dyked marsh;

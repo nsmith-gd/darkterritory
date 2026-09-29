@@ -65,6 +65,26 @@ What the Maritime railways did, and what the generator now does with it.
 - **Old-field spruce (§12).** A farm field given up, grown in solid with white spruce all of an age: the `oldField` prop in farmland, drumlin country and the fishing towns.
 - **White church on the rise (§10), coal country (§13), plateau and gorge (§14).** These were already there, from the earlier passes.
 
+## 2b. The second pass: forest mass, roads and the shore at the water
+
+After the first renders read more like moor than Nova Scotia, three changes:
+
+- **The spruce wall.** The forest now comes in stands, world-space patches with hard edges (a cut, an old field's line, a bog's shore) covering as much of the land as the biome's tree density says (`PlanArt.Stand`, `Cover`), planted solid, with only the odd tree outside them.
+  - Spruce wear a new spire card (`spruce_card`): narrow, ragged whorls, trunk gaps and a clubbed top, in place of the broad pine.
+  - Long `treeline_card` walls of packed spires (`NovaKit.Treeline`) stand at the stand's near edge and deep in it, so the forest has a body and a serrated top. They are stunted on the barrens and the coast.
+  - The ground under a stand is darkened to the forest's duff.
+  - The far skyline was already black spruce (`PlanSky`).
+- **The country road** (plan data: `LinePlan.Roads`, `LinePlan.Crossings`; `tiers.json` `terrain.roads`, biomes.json `roads`).
+  - A gravel road runs `offsetM` (20-38 m) beside the main line through settled country, wandering, and crossing at grade every 1.2-3 km: it swings across over `rampM` either side.
+  - Its bed is in the sim's terrain: flat across the road at the height of the land under its centre, banked back to it (`TerrainField.Roads`). It keeps clear of structures, cuttings, junctions and pads, and stays inland along the Atlantic.
+  - The art draws the gravel, laid on whichever is higher of the bed and the land mesh's own surface.
+  - Crossings get a plank deck and crossbucks.
+  - Along the road: its own leaning poles; homesteads on the far side (saltbox, woodpile, a barn now and then, a fence along the front); and now and then a car left where it stopped. None of it lit.
+- **The coast at the water.**
+  - The Atlantic's water now stands `seaBelowRailM` (2 m) under the rail, `seaNearM` (12-30 m) out, with coves `seaCoveM` (15-60 m) deep, so the sea is beside the train, not below the horizon. Fundy and the dykes keep their deep low water.
+  - A barachois: on an Atlantic shore, lakes become long narrow ponds lying along the line just behind its bank on the landward side, so there's water both sides.
+  - At the edge: broad pale granite ledges running down into the water, weed-black rocks at the tide line, a broken surf line, and lobster traps stacked on the wharves.
+
 ## 3. How it holds together
 
 - **Deterministic, and the same on every machine.**

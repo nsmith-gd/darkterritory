@@ -24,9 +24,13 @@ public static class NovaKit
         var k = new Kit(look, 2100 + variant);
         k.Use("pine_bark", Palette.DeepBrown, 0.6f, 0, tile: 1.5f);
         k.Cylinder(Vector3.Zero, new Vector3(0, height * 0.7f, 0), height * 0.018f, 5, caps: false, radiusB: height * 0.006f);
-        k.Use("pine_card", Palette.PineDark, 0.3f, 0, tile: 1);
+        // A spruce wears the Maritime spire (narrow, ragged, clubbed: maritime-rules.md §5), a fir the broader card.
+        bool spire = width < 0.4f && look?.Layer("spruce_card") >= 0;
+        k.Use(spire ? "spruce_card" : "pine_card", Palette.PineDark, 0.3f, 0, tile: 1);
         k.Baked = 0;
-        k.Tint = new Vector3(0.62f, 0.72f, 0.74f);
+        k.Tint = spire ? new Vector3(0.75f, 0.85f, 0.85f) : new Vector3(0.62f, 0.72f, 0.74f);
+        if (spire)
+            width = 0.32f;
         bool flip = variant % 2 == 1;
         for (int i = 0; i < 3; i++)
         {
@@ -35,8 +39,8 @@ public static class NovaKit
             k.Panel(new Vector3(0, height * 0.5f, 0), n, Vector3.UnitY, height * width, height,
                 flip ? new Vector2(1, 0) : Vector2.Zero, flip ? new Vector2(0, 1) : Vector2.One, twoSided: true);
         }
-        // Black spruce's club: a knot of dense growth at the very top.
-        if (width < 0.4f)
+        // Black spruce's club: a knot of dense growth at the very top (the spire card has its own).
+        if (width < 0.4f && !spire)
             for (int i = 0; i < 2; i++)
             {
                 float a = variant * 1.3f + i * MathF.PI / 2;
@@ -373,6 +377,98 @@ public static class NovaKit
         for (float z = 0.2f; z > -len; z -= 0.35f)
             if (rng.NextDouble() > 0.1)
                 k.Box(new Vector3(-w / 2 - 0.2f, deck - 0.2f, z - 0.3f), new Vector3(w / 2 + 0.2f, deck, z), Kit.Faces.All & ~Kit.Faces.NegY);
+        // Lobster traps stacked on the deck, slatted boxes three and four high, some fallen.
+        k.Use("wood_crate", Palette.DeepBrown, 0.9f, 0.05f, tile: 0.8f);
+        k.Tint = new Vector3(0.85f);
+        for (int i = 0; i < 14; i++)
+        {
+            float z = -2 - (i / 4) * 1.1f, x = -1.2f + (i % 2) * 1.0f, y = deck + ((i % 4) / 2) * 0.5f;
+            if (rng.NextDouble() < 0.2)
+                continue;
+            k.Box(new Vector3(x - 0.45f, y, z - 0.3f), new Vector3(x + 0.45f, y + 0.48f, z + 0.3f), Kit.Faces.All & ~Kit.Faces.NegY);
+        }
         return k.Build($"wharf-{variant}");
+    }
+
+    /// <summary>
+    /// A stretch of stand edge (maritime-rules.md §5, "the spruce wall"): a long two-sided card of packed spruce spires
+    /// facing the line, <paramref name="width"/> along it and <paramref name="height"/> tall, set behind the single
+    /// trees so the forest reads as a mass with a serrated top, not trees dotted on open ground.
+    /// </summary>
+    public static MeshAsset Treeline(Look? look, int variant, float width, float height)
+    {
+        var k = new Kit(look, 3300 + variant);
+        k.Use("treeline_card", Palette.PineDark, 0.3f, 0, tile: 1);
+        k.Baked = 0;
+        k.Tint = new Vector3(0.75f, 0.85f, 0.85f);
+        float u0 = variant * 0.37f % 1;
+        // Its foot runs 3 m into the ground (the solid stand at the card's bottom), so it never floats on a slope.
+        k.Panel(new Vector3(0, height / 2 - 3f, 0), Vector3.UnitX, Vector3.UnitY, width, height + 3, new Vector2(u0, 0), new Vector2(u0 + width / 30, 1), twoSided: true);
+        return k.Build($"treeline-{variant}-{width:0}-{height:0}");
+    }
+
+    /// <summary>A level crossing's crossbuck: two white boards in an X on a grey post, the paint gone to the wood in places.</summary>
+    public static MeshAsset Crossbuck(Look? look)
+    {
+        var k = new Kit(look, 3400);
+        k.Use("wood_grey", Palette.BlueGrey, 0.9f, 0.05f, tile: 1);
+        k.Box(new Vector3(-0.07f, 0, -0.07f), new Vector3(0.07f, 3.6f, 0.07f), Kit.Faces.All & ~Kit.Faces.NegY);
+        k.Use("wood_siding", new Vector3(0.8f, 0.8f, 0.76f), 0.9f, 0.05f, tile: 1);
+        k.Tint = new Vector3(1.4f, 1.4f, 1.35f);
+        foreach (float a in new[] { 0.72f, -0.72f })
+        {
+            var c = new Vector3(0, 3.05f, -0.1f);
+            var along = new Vector3(MathF.Cos(a), MathF.Sin(a), 0);
+            k.Panel(c, -Vector3.UnitZ, Vector3.Cross(Vector3.UnitZ, along), 0.22f, 1.35f, Vector2.Zero, new Vector2(0.25f, 1.4f), twoSided: true);
+        }
+        return k.Build("crossbuck");
+    }
+
+    /// <summary>
+    /// A car left where it stopped (maritime-rules.md §2.2): a rounded 1940s sedan, its paint gone to rust and primer,
+    /// glass out, sitting low on flat tyres.
+    /// </summary>
+    public static MeshAsset Car(Look? look, int variant)
+    {
+        var k = new Kit(look, 3500 + variant);
+        var paint = Paints[(variant + 1) % Paints.Length] * 0.7f;
+        k.Use("rust_heavy", paint, 0.8f, 0.2f, tile: 1.2f);
+        k.Tint = paint * 1.8f;
+        // Body, cabin and the long hood; wheel arches as dark boxes under it.
+        k.Box(new Vector3(-0.9f, 0.35f, -2.5f), new Vector3(0.9f, 1.05f, 2.4f), Kit.Faces.All);
+        k.Box(new Vector3(-0.8f, 1.05f, -0.9f), new Vector3(0.8f, 1.6f, 1.1f), Kit.Faces.All & ~Kit.Faces.NegY);
+        k.Box(new Vector3(-0.95f, 0.5f, -2.2f), new Vector3(0.95f, 0.95f, -1.4f), Kit.Faces.Sides);
+        k.Box(new Vector3(-0.95f, 0.5f, 1.4f), new Vector3(0.95f, 0.95f, 2.1f), Kit.Faces.Sides);
+        k.Use("glass_dirty", Palette.SootBlack, 0.4f, 0.4f, tile: 1);
+        k.Tint = Vector3.One * 0.4f;
+        foreach (float x in new[] { -0.81f, 0.81f })
+            k.Panel(new Vector3(x, 1.33f, 0.1f), new Vector3(x, 0, 0), Vector3.UnitY, 1.7f, 0.42f, Vector2.Zero, Vector2.One);
+        k.Use("iron_plate", Palette.SootBlack, 0.8f, 0.2f, tile: 1);
+        k.Tint = Vector3.One * 0.5f;
+        foreach (float x in new[] { -0.8f, 0.8f })
+            foreach (float z in new[] { -1.8f, 1.75f })
+                k.Cylinder(new Vector3(x - 0.12f, 0.3f, z), new Vector3(x + 0.12f, 0.3f, z), 0.33f, 8, caps: true);
+        return k.Build($"car-{variant}");
+    }
+
+    /// <summary>A woodpile by a house: split stove wood stacked between two end posts, a sheet of rusted roofing on top.</summary>
+    public static MeshAsset Woodpile(Look? look, int variant)
+    {
+        var k = new Kit(look, 3600 + variant);
+        var rng = new Random(3600 + variant);
+        k.Use("pine_bark", Palette.DeepBrown, 0.9f, 0.05f, tile: 0.6f);
+        float len = 3 + variant;
+        for (float y = 0; y < 1.3f; y += 0.18f)
+            for (float z = -len / 2; z < len / 2; z += 0.2f)
+            {
+                if (y > 0.9f && rng.NextDouble() < 0.3)
+                    continue;
+                k.Tint = Vector3.One * (0.7f + 0.5f * (float)rng.NextDouble());
+                k.Box(new Vector3(-0.4f, y, z), new Vector3(0.4f, y + 0.17f, z + 0.18f), Kit.Faces.PosX | Kit.Faces.NegX | Kit.Faces.PosY);
+            }
+        k.Use("rust_heavy", Palette.RustRed, 0.9f, 0.2f, tile: 1);
+        k.Tint = Vector3.One;
+        k.Quad(new Vector3(-0.6f, 1.45f, -len / 2 - 0.2f), new Vector3(-0.6f, 1.45f, len / 2 + 0.2f), new Vector3(0.6f, 1.35f, len / 2 + 0.2f), new Vector3(0.6f, 1.35f, -len / 2 - 0.2f), twoSided: true);
+        return k.Build($"woodpile-{variant}");
     }
 }

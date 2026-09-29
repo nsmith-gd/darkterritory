@@ -2523,5 +2523,51 @@
       }
     ],
     "license": "CC0-1.0"
+  },
+  {
+    "name": "spruce_card",
+    "diffuse": "spruce_card.png",
+    "spec": "spruce_card_s.png",
+    "normal": "spruce_card_n.png",
+    "size": [
+      160,
+      512
+    ],
+    "tileMetres": null,
+    "tiling": false,
+    "family": "foliage",
+    "alphaTest": true,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "ragged whorls, trunk gaps, clubbed top, rim",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "treeline_card",
+    "diffuse": "treeline_card.png",
+    "spec": "treeline_card_s.png",
+    "normal": "treeline_card_n.png",
+    "size": [
+      512,
+      256
+    ],
+    "tileMetres": null,
+    "tiling": false,
+    "family": "foliage",
+    "alphaTest": true,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "packed spires wrapped to tile, solid stand below, rim",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
   }
 ]

@@ -21,7 +21,7 @@ public class WatersideTests
     }
 
     [Theory]
-    [InlineData("local:5")]
+    [InlineData("frontier:9")]
     [InlineData("deadLines:1")]
     public void LakesHoldWaterAndACrossedOneIsCrossedOnTheFormation(string spec)
     {
@@ -96,5 +96,35 @@ public class WatersideTests
         Assert.Equal(a.Lakes, c.Lakes);
         Assert.Equal(a.Shores, c.Shores);
         Assert.Contains(a.Shores, s => s.Kind == ShoreKind.River);
+    }
+
+    [Fact]
+    public void RoadsLieFlatAcrossTheirBedAndCrossTheLineAtRailHeight()
+    {
+        var (plan, line, terrain) = Night("frontier:7");
+        Assert.NotEmpty(plan.Roads);
+        Assert.NotEmpty(plan.Crossings);
+        var rules = plan.Rules.Terrain.Roads;
+        foreach (var road in plan.Roads)
+            for (double s = road.S0 + 40; s < road.S1 - 40; s += 90)
+            {
+                var t = line.Sample(s);
+                var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+                double lat = TerrainField.RoadLateral(road, plan.Crossings, s, rules.RampM);
+                if (Math.Abs(lat) < plan.Rules.Terrain.ShoulderM + rules.HalfWidthM)
+                    continue;
+                double H(double l) => terrain.Height(t.Position.X + right.X * l, t.Position.Z + right.Z * l);
+                // Across the bed: flat but for its crown.
+                Assert.InRange(H(lat + 2) - H(lat), -0.15, 0.15);
+                Assert.InRange(H(lat - 2) - H(lat), -0.15, 0.15);
+            }
+        // Over a crossing the ballast is still at rail height.
+        foreach (var c in plan.Crossings)
+        {
+            var t = line.Sample(c.S);
+            var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+            foreach (double l in new[] { -2.0, 0, 2.0 })
+                Assert.InRange(terrain.Height(t.Position.X + right.X * l, t.Position.Z + right.Z * l) - t.Position.Y, -0.35, 0.1);
+        }
     }
 }

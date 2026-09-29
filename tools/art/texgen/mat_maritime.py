@@ -308,3 +308,101 @@ def water_dark(ctx):
     s = np.full((W, W), 0.65, np.float32)
     g = np.full((W, W), 0.93, np.float32)
     return ctx.out(d, s, g, procedural="wind swell and cat's-paws (fbm heights for the normal map), tannin-dark and glossy")
+
+
+def _spruce(rng, mass, tone, cx, top, base, half_base, lines, widths, vals, club=True):
+    """One Maritime spruce into the given buffers: a narrow ragged spire (red and black spruce, maritime-rules.md §5),
+    short drooping branches in uneven whorls with gaps where the trunk shows, and a dense club of growth at the top."""
+    H, W = mass.shape
+    ys, xs = np.mgrid[0:H, 0:W].astype(np.float32)
+    y = top + (base - top) * 0.06
+    while y < base:
+        f = (y - top) / (base - top)
+        # The club: the top tenth packed with short dense whorls, wider than the spire just under it.
+        clubbed = club and f < 0.12
+        half = half_base * ((0.3 + 0.2 * f) if clubbed else (0.14 + 0.86 * f ** 0.85)) * rng.uniform(0.7, 1.1)
+        thick = (base - top) * rng.uniform(0.03, 0.055)
+        for side in (-1, 1):
+            if rng.random() < (0.02 if clubbed else 0.06 + 0.1 * f):
+                continue                                  # a whorl missing on one side: the ragged look
+            hs = half * rng.uniform(0.55, 1.0)
+            droop = hs * rng.uniform(0.3, 0.65)
+            u = saturate((xs - cx) * side / hs)
+            inside = ((xs - cx) * side >= 0) & ((xs - cx) * side <= hs)
+            upper = y + droop * u ** 1.3
+            lower = upper + thick * (1 - 0.6 * u)
+            sk = inside & (ys >= upper) & (ys <= lower)
+            mass[...] = np.maximum(mass, sk.astype(np.float32))
+            tone[...] = np.where(sk, np.maximum(tone, saturate(1 - (ys - upper) / thick)), tone)
+            # Needles hanging off the branch's end and underside.
+            for _ in range(int(3 + 6 * f)):
+                t = rng.uniform(0.3, 1.0)
+                px, py = cx + side * hs * t, y + droop * t ** 1.3 + thick * 0.5
+                a = rng.normal(np.pi / 2 + side * -0.3, 0.5)
+                ln = rng.uniform(3, 9) * (0.6 + f)
+                lines.append([(px, py), (px + np.cos(a) * ln, py + np.sin(a) * ln)])
+                widths.append(rng.uniform(1.5, 3.5))
+                vals.append(rng.uniform(0.15, 0.5))
+        y += (base - top) * (rng.uniform(0.008, 0.016) if clubbed else rng.uniform(0.014, 0.03))
+    # Fill out the whorls a little into a ragged mass (needle clumps between the branches), keeping the gaps.
+    grown = noise.blur(mass, 2.5) + 0.25 * (noise.white(rng, (H, W)) - 0.5)
+    grown[:8] = 0                                         # the blur wraps: nothing bleeds in from the bottom edge
+    mass[...] = np.maximum(mass, smoothstep(0.32, 0.5, grown))
+    lines.append([(cx, top), (cx + rng.normal(0, 1), base + 4)])     # leader and trunk
+    widths.append(max(2.5, half_base * 0.06))
+    vals.append(0.12)
+
+
+@texture("spruce_card", "foliage", tile=None)
+def spruce_card(ctx):
+    """A Maritime spruce for crossed cards: a narrow ragged spire, not a Christmas tree. Short drooping branches in
+    uneven whorls, gaps where the trunk shows through, a club of dense growth at the top; near-black green with a cold
+    rim. Card width 0.3 of its height."""
+    from .mat_foliage import card_out, rim, self_shadow
+    H, W = 1024, 320
+    rng = ctx.rng("spruce")
+    mass = np.zeros((H, W), np.float32)
+    tone = np.zeros((H, W), np.float32)
+    lines, widths, vals = [], [], []
+    _spruce(rng, mass, tone, W / 2, 16, H - 20, W * 0.46, lines, widths, vals)
+    fringe = draw.strokes((H, W), lines, widths, None, wrap=False)
+    fval = draw.strokes((H, W), lines, widths, vals, wrap=False)
+    alpha = saturate(np.maximum(mass, fringe))
+    clumps = noise.fbm01(ctx.rng("clump"), (H, W), 4, octaves=3)
+    t = np.where(mass > 0.5, 0.1 + 0.4 * tone + 0.3 * (clumps - 0.5), fval)
+    d = core.apply_ramp(saturate(t), "pine")
+    d = d * self_shadow(alpha, 8, 0.4)[..., None]
+    d = lerp(d, hexc("#34404A"), rim(alpha, 2.0) * 0.45)
+    s = np.full((H, W), 0.05, np.float32)
+    g = np.full((H, W), 0.2, np.float32)
+    return card_out(ctx, d, alpha, s, g, "ragged whorls, trunk gaps, clubbed top, rim")
+
+
+@texture("treeline_card", "foliage", tile=None)
+def treeline_card(ctx):
+    """The edge of a spruce stand, for long cards at the forest's edge and the far treeline: a row of spires of every
+    height, packed shoulder to shoulder, its bottom solid (the stand behind), wrapping left to right so it tiles along."""
+    from .mat_foliage import card_out, rim
+    H, W = 512, 1024
+    rng = ctx.rng("treeline")
+    mass = np.zeros((H, W), np.float32)
+    tone = np.zeros((H, W), np.float32)
+    lines, widths, vals = [], [], []
+    x = 0.0
+    while x < W:
+        h = H * rng.uniform(0.5, 0.98)
+        half = h * rng.uniform(0.09, 0.14)
+        for cx in (x, x - W, x + W):                       # drawn wrapped, so the strip tiles
+            if -half < cx < W + half:
+                _spruce(rng, mass, tone, cx, H - h, H - 2, half, lines, widths, vals, club=rng.random() < 0.6)
+        x += half * rng.uniform(0.7, 1.3)
+    ys = np.mgrid[0:H, 0:W][0].astype(np.float32)
+    mass = np.maximum(mass, (ys > H * 0.62).astype(np.float32))     # the stand behind, solid below
+    fringe = draw.strokes((H, W), lines, widths, None, wrap=False)
+    alpha = saturate(np.maximum(mass, fringe))
+    t = 0.08 + 0.3 * tone * (ys < H * 0.8) + 0.08 * noise.fbm01(ctx.rng("tl"), (H, W), 6, octaves=3)
+    d = core.apply_ramp(saturate(t), "pine")
+    d = lerp(d, hexc("#34404A"), rim(alpha, 2.0) * 0.35)
+    s = np.full((H, W), 0.04, np.float32)
+    g = np.full((H, W), 0.2, np.float32)
+    return card_out(ctx, d, alpha, s, g, "packed spires wrapped to tile, solid stand below, rim")

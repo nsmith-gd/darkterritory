@@ -163,7 +163,7 @@ public sealed record AuthorityRules(double SleeperSafeMargin, double LampHeightM
 public sealed record TerrainRules(double CorridorM, double TileM, double GridM, double FormationM, double ShoulderM, double BlendM, double NoiseAmplitudeM,
     double[] NoiseWavelengthM, double JunctionPadM, double SkirtDropM, double SampleM, double WalkableSlope, double WalkableWithinM,
     double TunnelCoverM, double RiverWidthM, double ReliefM, double[] ReliefWavelengthM, double ReliefFromM, double ReliefFullM, double ReliefRidged,
-    double ReliefUp, DrumlinRules Drumlins, KnobRules Knobs, PlateauRules Plateau, LakeRules Lakes, ShoreRules Shore, DykeRules Dykes, RiverRules Rivers);
+    double ReliefUp, DrumlinRules Drumlins, KnobRules Knobs, PlateauRules Plateau, LakeRules Lakes, ShoreRules Shore, DykeRules Dykes, RiverRules Rivers, RoadRules Roads);
 
 /// <summary>The Maritimes' landforms (TerrainField.Landform): heights as a share of reliefM, lengths in metres.</summary>
 public sealed record DrumlinRules(double WavelengthM, double Stretch, double FlowDeg, double Height);
@@ -185,7 +185,7 @@ public sealed record LakeRules(double[] RadiusM, double[] Stretch, double[] OffM
 /// </summary>
 public sealed record ShoreRules(double LevelBelowRailM, double[] NearM, double[] CoveM, double[] CoveWavelengthM, double BeachSlope, double CliffAboveM,
     double CliffSlope, double DepthM, double[] FlatM, double TaperM, double MinM, double IslandShare, double IslandWavelengthM, double TidalSpanFactor,
-    double TidalDepthFactor);
+    double TidalDepthFactor, double SeaBelowRailM, double[] SeaNearM, double[] SeaCoveM);
 
 /// <summary>
 /// A river the line runs up the valley of (maritime-rules.md §5, §7: the lines kept to the valleys): its near bank bankM
@@ -193,6 +193,15 @@ public sealed record ShoreRules(double LevelBelowRailM, double[] NearM, double[]
 /// bank rising at farSlope into the valley side.
 /// </summary>
 public sealed record RiverRules(double[] BankM, double[] MeanderM, double[] WidthM, double BelowRailM, double DepthM, double FarSlope);
+
+/// <summary>
+/// The country road beside the line (maritime-rules.md §2.2): a gravel road offsetM out, wandering by wanderM over
+/// wanderWavelengthM, that crosses the line at grade every crossEveryM or so (over rampM either side), its bed
+/// halfWidthM each side of its centre with banks at bankSlope; pieces shorter than minM aren't laid, and it keeps
+/// clearM from structures, cuttings and junctions.
+/// </summary>
+public sealed record RoadRules(double[] OffsetM, double[] WanderM, double[] WanderWavelengthM, double[] CrossEveryM, double RampM, double HalfWidthM,
+    double BankSlope, double MinM, double ClearM);
 
 /// <summary>Acadian dykeland (maritime-rules.md §4): hay fields dead flat under the rail, a dyke along the shore, salt marsh and mud past it.</summary>
 public sealed record DykeRules(double FieldsBelowRailM, double HeightM, double CrestM, double SideSlope, double[] OutM, double MarshAboveWaterM, double LandwardM,
@@ -243,7 +252,7 @@ public sealed record BiomesFile(Dictionary<string, BiomeDef> Biomes, Dictionary<
 /// <summary>A biome (§13.1): what grows, what the ground is, how rough, and which set pieces it favours (§7.5).</summary>
 public sealed record BiomeDef(string Name, string Ground, string[] Materials, double NoiseScale, double TreeDensity, string[] Trees, double DeadTrees,
     double Water, Dictionary<string, double> Pieces, Dictionary<string, double> Flora, double Rocks, string Verge, Dictionary<string, PropRule> Props,
-    Dictionary<string, double> Landform, double LakesPerKm, double Shore, string ShoreKind, double SweepChance, bool TidalRivers, double[] Colour);
+    Dictionary<string, double> Landform, double LakesPerKm, double Shore, string ShoreKind, double SweepChance, bool TidalRivers, double Roads, double[] Colour);
 
 /// <summary>A dressing piece a biome stands along the line: per 150 m, its chance, how far out, how many.</summary>
 public sealed record PropRule(double Chance, double[] OutM, int Count);

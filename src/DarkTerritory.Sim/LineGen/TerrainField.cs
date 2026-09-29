@@ -27,6 +27,7 @@ public sealed class TerrainField
     readonly double _flowCos, _flowSin;
     readonly PlanLake[] _lakes;
     readonly PlanShore[] _shores;
+    readonly PlanRoad[] _roads;
     const double Cell = 128;
 
     sealed class EdgeInfo
@@ -52,6 +53,7 @@ public sealed class TerrainField
         (_flowCos, _flowSin) = (DetCos(flow), DetCos(flow - Math.PI / 2));
         _lakes = [.. plan.Lakes];
         _shores = [.. plan.Shores];
+        _roads = [.. plan.Roads];
         var list = new List<EdgeInfo>();
         foreach (var a in plan.Alignment)
         {
@@ -140,7 +142,10 @@ public sealed class TerrainField
     }
 
     /// <summary>The height of the land at (x, z) (plan §12.2).</summary>
-    public double Height(double x, double z)
+    public double Height(double x, double z) => Height(x, z, true);
+
+    /// <summary>The land at (x, z), with or without the roads' beds (a road's surface is the land under its centre).</summary>
+    double Height(double x, double z, bool roads)
     {
         var near = Nearby(x, z, _r.CorridorM + 60);
         if (near.Count == 0)
@@ -172,7 +177,72 @@ public sealed class TerrainField
             height = formation * formationW + height * (1 - formationW);
         if (_lakes.Length > 0 || _shores.Length > 0)
             height = Waterside(x, z, height, near);
+        if (_roads.Length > 0 && roads)
+            height = Roads(x, z, height, near);
         return Pads(x, z, height);
+    }
+
+    // ------------------------------------------------------------------ roads (maritime-rules.md §2.2)
+
+    /// <summary>
+    /// A road's centre at s, metres out from the main line (positive right): its offset on its side, wandering, and
+    /// swinging across the line at each of its crossings (level with the rail at the crossing itself).
+    /// </summary>
+    public static double RoadLateral(PlanRoad road, IReadOnlyList<PlanCrossing> crossings, double s, double rampM = 70)
+    {
+        double off = road.OffsetM + road.WanderM * Value(s / road.WavelengthM + road.Phase, 0.37, 0x0AD5EED);
+        double side = road.FirstSide, lateral = double.NaN;
+        foreach (var c in crossings)
+        {
+            if (c.Road != road.Id)
+                continue;
+            if (s >= c.S - rampM && s <= c.S + rampM)
+            {
+                // Across the line: straight from one side's offset through the rail to the other's.
+                double u = (s - c.S) / rampM;
+                lateral = side * off * -u;
+            }
+            if (s > c.S)
+                side = -side;
+        }
+        return double.IsNaN(lateral) ? side * off : lateral;
+    }
+
+    /// <summary>
+    /// The road beds: flat across the road at the height of the land under its centre (it follows the country), banks
+    /// at bankSlope out to the land, a little crown; faded in over its first and last 30 m. The formation keeps its own.
+    /// </summary>
+    double Roads(double x, double z, double height, List<Near> near)
+    {
+        if (MainOf(near) is not { } n)
+            return height;
+        var rr = _r.Roads;
+        foreach (var road in _roads)
+        {
+            if (n.S < road.S0 || n.S > road.S1)
+                continue;
+            double lat = RoadLateral(road, _plan.Crossings, n.S, rr.RampM);
+            double d = Math.Abs(n.Lateral - lat);
+            if (d > rr.HalfWidthM + 25)
+                continue;
+            if (Math.Abs(n.Lateral) < _r.ShoulderM + 1 && Math.Abs(lat) > _r.ShoulderM)
+                continue;
+            var t = _main.Sample(n.S);
+            double cx = t.Position.X - t.Tangent.Z * lat, cz = t.Position.Z + t.Tangent.X * lat;
+            double surface = Math.Abs(lat) <= _r.ShoulderM ? n.Rail : Height(cx, cz, false);
+            surface -= 0.06 * Smooth(0, rr.HalfWidthM, d);
+            double w = Smooth(road.S0, road.S0 + 30, n.S) * Smooth(road.S1, road.S1 - 30, n.S);
+            double shaped;
+            if (d <= rr.HalfWidthM)
+                shaped = surface;
+            else
+            {
+                double bank = (d - rr.HalfWidthM) * rr.BankSlope;
+                shaped = Math.Abs(height - surface) <= bank ? height : surface + Math.Sign(height - surface) * bank;
+            }
+            height += (shaped - height) * w;
+        }
+        return height;
     }
 
     // ------------------------------------------------------------------ waterside (docs/design/maritime-rules.md)

@@ -167,13 +167,22 @@
     // drumlins for islands (islandShare of the sea floor humps up). Tidal rivers: the span and depth scaled.
     "shore": { "levelBelowRailM": 4.5, "nearM": [30, 70], "coveM": [30, 140], "coveWavelengthM": [260, 650], "beachSlope": 0.16, "cliffAboveM": 11,
       "cliffSlope": 1.7, "depthM": 8, "flatM": [50, 160], "taperM": 350, "minM": 900, "islandShare": 0.25, "islandWavelengthM": 170,
-      "tidalSpanFactor": 2.2, "tidalDepthFactor": 1.8 },
+      "tidalSpanFactor": 2.2, "tidalDepthFactor": 1.8,
+      // The Atlantic's own: its water seaBelowRailM under the lowest rail (the line on its bank just over the tide), its
+      // edge seaNearM out and its coves seaCoveM deeper; levelBelowRailM and nearM are Fundy's low water and the dykes'.
+      "seaBelowRailM": 2.0, "seaNearM": [12, 30], "seaCoveM": [15, 60] },
     // Acadian dykeland: hay fields dead flat under the line (the Tantramar: 90% dyked; the railway grade itself holds
     // back the tide in places), a dyke 1-2.5 m high outM from the track, salt marsh past it, then the red mud. A shore
     // whose rail rises or falls more than maxRailRangeM along it is a mudflat shore instead.
     // A river alongside the line up its valley (the ICR up the Wentworth, the DAR along the Gaspereau and the
     // Annapolis, the St. John River line): tea-brown upland water over boulders, falling with the rail.
     "rivers": { "bankM": [16, 40], "meanderM": [10, 45], "widthM": [18, 45], "belowRailM": 3.5, "depthM": 1.8, "farSlope": 0.45 },
+    // The country road (biomes.json "roads": the chance a region has one): a gravel road offsetM out from the line,
+    // wandering, crossing at grade every crossEveryM or so (swinging across over rampM either side); its bed follows
+    // the land under its centre, halfWidthM each side, banked at bankSlope; kept clearM from structures, cuttings and
+    // junctions, and no piece shorter than minM.
+    "roads": { "offsetM": [20, 38], "wanderM": [3, 9], "wanderWavelengthM": [300, 800], "crossEveryM": [1200, 3000], "rampM": 70, "halfWidthM": 3,
+      "bankSlope": 0.45, "minM": 600, "clearM": 80 },
     "dykes": { "fieldsBelowRailM": 1.5, "heightM": 2.2, "crestM": 3, "sideSlope": 0.55, "outM": [40, 90], "marshAboveWaterM": 2.8, "landwardM": 160,
       "maxRailRangeM": 8 }
   },

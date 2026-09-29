@@ -18,6 +18,7 @@ sealed partial class LineBuilder
     {
         var rng = Rng("waterside", "main");
         LayShores(ref rng);
+        LayRoads(ref rng);
         LayLakes(ref rng);
     }
 
@@ -76,8 +77,10 @@ sealed partial class LineBuilder
             // A dyked marsh is dead flat: where the line climbs or falls along it, it's a mudflat shore instead.
             if (kind == ShoreKind.Dyke && hi - lo > dr.MaxRailRangeM)
                 kind = ShoreKind.Fundy;
-            double level = lo - sr.LevelBelowRailM;
-            double near = rng.Range(sr.NearM), cove = rng.Range(sr.CoveM), wl = rng.Range(sr.CoveWavelengthM), phase = rng.Range(0, 1000);
+            // The Atlantic comes up close under the line, a couple of metres below the rail on its bank (the South Shore
+            // line along its coves); Fundy's low water and the dykes' stand far lower.
+            double level = lo - (kind == ShoreKind.Sea ? sr.SeaBelowRailM : sr.LevelBelowRailM);
+            double near = rng.Range(kind == ShoreKind.Sea ? sr.SeaNearM : sr.NearM), cove = rng.Range(kind == ShoreKind.Sea ? sr.SeaCoveM : sr.CoveM), wl = rng.Range(sr.CoveWavelengthM), phase = rng.Range(0, 1000);
             double flat = kind == ShoreKind.Sea ? 0 : rng.Range(sr.FlatM);
             // A river alongside: its bank close in, the water falling with the rail, its width in place of the mud's.
             if (kind == ShoreKind.River)
@@ -127,12 +130,26 @@ sealed partial class LineBuilder
             double heading = _t.Terrain.Drumlins.FlowDeg + rng.Range(-lr.TurnDeg, lr.TurnDeg);
             double wobble = lr.Wobble * rng.Range(0.5, 1.0);
             int side = rng.Chance(0.5) ? 1 : -1;
+            // On an Atlantic shore, a barachois: a pond close in on the landward side behind the line's bank, so there's
+            // water both sides of the train (maritime-rules.md §3).
+            bool barachois = false;
+            if (_shores.FirstOrDefault(x => x.Kind == ShoreKind.Sea && s > x.S0 + 100 && s < x.S1 - 100) is { } sea)
+                (side, cross, barachois) = (-sea.Side, false, true);
             var t = line.Sample(s);
             var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
             // A crossed lake lies across the line (its long axis near square to it), a side lake off it.
             double off = cross ? rng.Range(-0.3, 0.3) * radius : side * (radius * (1 + rng.Range(lr.OffM)));
             if (cross)
                 heading = Math.Atan2(right.Z, right.X) * 180 / Math.PI + rng.Range(-lr.TurnDeg, lr.TurnDeg);
+            if (barachois)
+            {
+                // Long and narrow, lying along the line behind its bank, the near shore just past the ballast's slope.
+                radius = rng.Range(22, 50);
+                stretch = rng.Range(2.2, 3.6);
+                heading = Math.Atan2(t.Tangent.Z, t.Tangent.X) * 180 / Math.PI + rng.Range(-8, 8);
+                off = side * (radius + _t.Terrain.ShoulderM + 10 + rng.Range(0, 12));
+                wobble = rng.Range(0.04, 0.1);
+            }
             // A side lake slides out from the line until it's clear of it (its long axis lies along the ice, not the
             // track); a crossed one stays where it is or goes.
             double? found = null;
@@ -201,6 +218,17 @@ sealed partial class LineBuilder
         if (double.IsInfinity(low) || (cross && (inside < 40 || inside > 420)))
             return null;
         // Not out on a shore's sea side.
+        // Clear of the roads (a lake doesn't drown one).
+        foreach (var road in _roads)
+            for (double d = Math.Max(road.S0, 0); d <= road.S1; d += 25)
+            {
+                var t = line.Sample(Math.Min(d, line.Length));
+                var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+                var p = t.Position + r * TerrainField.RoadLateral(road, _crossings, d, _t.Terrain.Roads.RampM);
+                if ((p.X - lake.X) * (p.X - lake.X) + (p.Z - lake.Z) * (p.Z - lake.Z) < reach * reach
+                    && TerrainField.LakeMetric(lake, p.X, p.Z) < 1 + (_t.Terrain.Roads.HalfWidthM + 12) / lake.RadiusM)
+                    return null;
+            }
         // Out in the corridor the terrain models, where it can be seen, not under the fog past it.
         var (at, lat) = NearestMain(lake.X, lake.Z, 0, line.Length);
         if (Math.Abs(lat) > _t.Terrain.CorridorM - lake.RadiusM * 0.5)

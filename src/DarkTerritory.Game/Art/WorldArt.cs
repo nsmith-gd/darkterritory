@@ -264,9 +264,12 @@ public sealed partial class WorldArt(Look look)
                     var water = MathF.Abs(lat) > 6 ? plan.Terrain.WaterNear(mid.X + eye.X, mid.Z + eye.Z, 30) : null;
                     int shore = water is { } wn ? _look.Layer(wn.Kind is "lake" or "sea" or "river" ? "shore_shingle" : "ground_red_clay") : -1;
                     float Wet(Vector3[] row, int i) => water is { } wn2 && shore >= 0 ? SmoothStep(2.4f, 0.6f, (float)(row[i].Y + eye.Y - wn2.Level)) : 0;
+                    // Under a stand the ground is the forest's: dark needle duff in the shade, not the open heath.
+                    float cover = plan.Biome(s) is { } bd ? Cover(bd) : 0;
+                    float Duff(Vector3[] row, int i) => cover > 0 && MathF.Abs(LateralAt(i)) > 6 ? 1 - 0.5f * Stand(new Double3(row[i].X + eye.X, row[i].Y + eye.Y, row[i].Z + eye.Z), cover) : 1;
                     Corner At(Vector3[] row, int i, float l, double at) => shore >= 0
                         ? new(Macro(World(row, i)) * GroundShade(l, at), Wet(row, i))
-                        : new(Macro(World(row, i)) * GroundShade(l, at), MathF.Max(Steep(row, i), Patches(World(row, i)) * SmoothStep(9, 20, MathF.Abs(l))));
+                        : new(Macro(World(row, i)) * GroundShade(l, at) * Duff(row, i), MathF.Max(Steep(row, i), Patches(World(row, i)) * SmoothStep(9, 20, MathF.Abs(l))));
                     Quad(mesh, left[c], left[c + 1], right[c + 1], right[c], At(left, c, l0, s), At(left, c + 1, l1, s), At(right, c + 1, l1, s1), At(right, c, l0, s1),
                         origin, ga, shore >= 0 ? shore : gb, TerrainTile);
                     continue;
