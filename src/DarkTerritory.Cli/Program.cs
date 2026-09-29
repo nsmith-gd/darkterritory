@@ -42,6 +42,7 @@ return args switch
     ["route", "sweep", ..] => Print(SweepRoutes(routeTuning, (int)Opt(args, "--seeds", 200))),
     ["harness", ..] => Print(RunHarness(args)),
     ["audio", "render", ..] => Print(RenderAudio(content, args)),
+    ["edit", ..] => Edit(content, args),
     ["voice", "bench", ..] => Print(DarkTerritory.Game.Sound.VoiceBench.Run(content, (int)Opt(args, "--car", 3), Opt(args, "--z", 4), args.Contains("--radio"),
         Opt(args, "--seconds", 2), new Ballast.Net.LinkConditions(Opt(args, "--latency", 0), Opt(args, "--jitter", 0), Opt(args, "--loss", 0)))),
 
@@ -251,6 +252,30 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     return new { path = Path.GetFullPath(output), view, trainAt = Math.Round(at, 1), device = gpu.DeviceName, triangles = mesh.Count / 3, width = width * scale, height = height * scale, ms = clock.ElapsedMilliseconds };
 }
 
+// The designer's editor: tuning and routes in a local web page (T18). --screenshot captures both pages headless.
+static int Edit(string content, string[] args)
+{
+    using var server = new DarkTerritory.Editor.EditorServer(content, (int)Opt(args, "--port", 0));
+    server.Start();
+    if (Str(args, "--screenshot", "") is { Length: > 0 } shot)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(shot))!);
+        var script = Path.Combine(Path.GetDirectoryName(content)!, "tools", "editor-shot.cjs");
+        var psi = new ProcessStartInfo("node", [script, server.Url, Path.GetFullPath(shot)]) { RedirectStandardError = true };
+        psi.Environment["NODE_PATH"] = Environment.GetEnvironmentVariable("NODE_PATH") ?? "/opt/node22/lib/node_modules";
+        using var node = Process.Start(psi)!;
+        string errors = node.StandardError.ReadToEnd();
+        node.WaitForExit();
+        return Print(new { tuning = Path.GetFullPath(shot.Replace(".png", "-tuning.png")), routes = Path.GetFullPath(shot.Replace(".png", "-routes.png")), exit = node.ExitCode, errors });
+    }
+    Console.WriteLine($"Dark Territory editor: {server.Url}  (Ctrl+C to stop)");
+    Console.WriteLine("Edits save into content/ in place; a running game picks them up.");
+    var done = new ManualResetEventSlim();
+    Console.CancelKeyPress += (_, e) => { e.Cancel = true; done.Set(); };
+    done.Wait();
+    return 0;
+}
+
 // Renders a staged moment through the real mixer to a WAV, and measures every tell against the bed.
 static object RenderAudio(string content, string[] args)
 {
@@ -309,6 +334,7 @@ static int Usage()
                      [--enemies] [--no-combat] [--no-boiler] [--udp]   --udp: real sockets on localhost instead of the simulated link
           audio render [--scenario bed|tells|chaos] [--cars n] [--speed v] [--listener car (0 = cab) | all] [--seconds t] [--out file.wav]
                      renders through the mixer to a WAV and a spectrogram PNG, and reports each tell's margin over the bed (spec A.3)
+          edit [--port p] [--screenshot file.png]   the designer's editor (tuning + routes) at http://127.0.0.1:<port>/
           voice bench [--car n (0 = cab)] [--z m] [--radio] [--latency s --jitter s --loss 0..1]
                      one speaker to a listener on car 3 through host routing, Opus and the mixer (spec A.5)
                      host + bot clients over a simulated network; reports prediction error, bandwidth, deaths,

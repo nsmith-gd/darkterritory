@@ -171,6 +171,11 @@ The world is mostly **generated** (GDD §22: the line is generated per run; spec
 - **Play from here**: drop into the scene as a player (flat or VR), with bots.
 Scenes save as stable-ID, sorted, one-entity-per-block JSON so diffs stay readable to humans and agents.
 
+**Status (T18).** `dt edit` serves the first two pieces as a **local web page**, rather than ImGui inside the game (§8 note 22):
+- **Tuning panels:** every value in `content/tuning/` and `content/audio/`, with the comment above it as the help text.
+- **Generator preview:** generate any tier and seed, see the plan and the elevation profile, edit the features, and save a named route. The game plays it with `--route-file name`.
+The module editor, the rail tool and "play from here" are still to come.
+
 ### 6.7 Modding
 - `content/` is the base mod. Mods are folders (`mods/<id>/mod.json`) that add or override data and assets, with an optional C# assembly that gets a documented `IModEntry` API.
 - The host broadcasts its mod list and hashes. Clients must match (or auto-download from Steam Workshop, post-launch).
@@ -329,3 +334,8 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - true rigid-box contact: crates are spheres to the world and cubes to the eye;
       - the thrower predicting their own throw (it shows on the host's timeline, 100 ms interpolated);
       - bodies on the Choir's list, the Vigil itself, and interest management for bodies.
+22. **The editor is a local web page, not ImGui (T18).** `dt edit` runs a small HTTP server on 127.0.0.1 over `content/`, and the designer uses a browser next to the running game.
+    - **Why.** A designer-first tool needs forms, tables, maps and help text. A browser has all of that today, while ImGui needs a Vulkan UI path (textures, fonts, input) the renderer doesn't have yet. The page is plain HTML and JS embedded in `DarkTerritory.Editor`, and an agent can drive it and screenshot it headless (`dt edit --screenshot`, via Playwright).
+    - **Comments survive.** Tuning files carry their rationale and spec citations in comments, so an edit replaces only the characters of the value (`Ballast.Jsonc`, tested on every shipped content file). A serialise-and-write round trip would have thrown the comments away.
+    - **Safety.** An edit is validated against the game's own record type before it's written, so the running game never hot-reloads a file it can't load. Only known content files are writable, and routes save only under a plain name.
+    - **In-game UI** (the HUD beyond the window title, menus, VR panels) still needs text rendering in the engine. That's separate work, and the editor doesn't wait for it.

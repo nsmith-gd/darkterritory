@@ -17,7 +17,7 @@ using DarkTerritory.Sim.Route;
 //   E at the firebox: shovel (hold) · E at the valve: vent (hold) · E on a coupler plate: cut (hold)
 //   Left mouse at a gun (engine cab roof, guard car roof): fire · E (press) near a crate, lamp or body: pick up / put down · Right mouse: throw it
 //   1–9 respawn on that car's roof · Backspace respawn in the cab · Tab chase camera · Esc release mouse / quit
-// Options: --route tier:seed [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png --mute
+// Options: --route tier:seed | --route-file name (saved from dt edit) [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png --mute
 // Multiplayer (UDP, direct IP / LAN): --host [port] hosts the same options for others to join; --join address[:port] joins one.
 // Networked, the cab is the only place to drive from (GDD §12): R/F/B/X work when you're standing in it.
 // Voice (networked): open mic with voice activity, or --push-to-talk and hold V. Hold T to talk on the radio. --no-mic to only listen.
@@ -47,6 +47,12 @@ else if (args.Contains("--host"))
     var hosted = NetPlaySession.HostGame(content, setup, port);
     Console.WriteLine($"hosting on UDP port {hosted.Port}: others join with --join <this machine's address>:{hosted.Port}");
     session = hosted;
+}
+else if (Arg("--route-file", "") is { Length: > 0 } routeFile)
+{
+    // A route saved from the editor (dt edit): content/lines/<name>.route.json.
+    var saved = DataFile.Load<Route>(Path.Combine(content, "lines", routeFile + ".route.json"));
+    session = new PrototypeSession(content, saved, cars, enemies: !args.Contains("--no-enemies"));
 }
 else if (Arg("--route", "") is { Length: > 0 } routeSpec)
 {

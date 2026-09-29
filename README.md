@@ -35,6 +35,13 @@ Add `--no-enemies` for a quiet line, `--mute` for no sound.
 
 Speed, speed band, controls, grade, your state and text cues for enemy telegraphs are shown in the window title. Edit `content/tuning/*.json` or `content/audio/**/*.json` while it runs and the changes apply immediately.
 
+### Designer tools
+```bash
+dotnet run --project src/DarkTerritory.Cli -- edit     # prints a local URL; open it in a browser
+```
+- **Tuning:** every number in `content/tuning` and `content/audio`, with its note from the file beside it. A change saves straight into the file (comments kept) and a running game picks it up at once.
+- **Routes:** generate a night by tier and seed, look at the map and elevation profile, move, add or delete features, then *Save as* and play it with `-- --route-file <name>`.
+
 ### Multiplayer (UDP: LAN or direct IP)
 ```bash
 dotnet run --project src/DarkTerritory.App -- --host --route frontier:7 --cars 6   # host on UDP 27450 (or --host <port>)
