@@ -604,6 +604,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var mesh = new MeshBuilder();
     var look = Looked(content, args);
     look?.Dress(renderer);
+    // --ps2: the pipeline's debug era mode, for art direction to compare against (no spec maps, harder banding, no bloom).
+    if (args.Contains("--ps2"))
+        renderer.Post = renderer.Post with { Ps2 = true };
     // --muzzle: the guns fired a tick ago (their flash, and its light).
     if (args.Contains("--muzzle"))
         foreach (var v in train.Vehicles.Where(v => v.HasGun))
@@ -896,6 +899,7 @@ static int Usage()
                      [--route tier:seed [--coaling]]   a generated night; --coaling stops at its coaling tower, chute pouring
                      [--bodies]   crates, a lamp and a crewmate's body on the roofs, settled by the physics
                      [--vigil]    emergency lighting, as during a Vigil (spec C.2)
+                     [--ps2]      the era comparison mode   [--muzzle] the guns just fired   [--builds n] time n warm builds
                      [--route tier:seed --site [--crank]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
