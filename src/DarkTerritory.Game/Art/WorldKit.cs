@@ -49,18 +49,28 @@ public static class WorldKit
         return k.Build($"dead-{variant}");
     }
 
-    /// <summary>Tufts of dead grass (or the corruption's brass weeds): two small crossed cards.</summary>
+    /// <summary>
+    /// Tufts of dead grass (or the corruption's brass weeds): five narrow cards fanned round a centre, each leaning out
+    /// and a different height, so a tuft is a clump from any side rather than a cross of two flat pictures. Darkened
+    /// toward the root: grass in the dark is lit at its tips.
+    /// </summary>
     public static MeshAsset Tuft(Look? look, int variant, bool weed)
     {
         var k = new Kit(look, 400 + variant);
         k.Use(weed ? "brass_weed_card" : "grass_card", weed ? Palette.TarnishedBrass : Palette.MuddyOlive, 0.3f, 0, tile: 1);
-        k.Baked = 0;
-        float w = weed ? 1.1f : 1.4f, h = weed ? 0.75f : 0.6f;
-        for (int i = 0; i < 2; i++)
+        k.Baked = 0.6f;
+        k.Shade(weed ? 0.7f : 0.55f);
+        float w = weed ? 0.7f : 0.8f, h = weed ? 0.75f : 0.55f;
+        for (int i = 0; i < 5; i++)
         {
-            float a = variant * 1.3f + i * MathF.PI / 2;
-            k.Panel(new Vector3(0, h / 2 - 0.03f, 0), new Vector3(MathF.Sin(a), 0, MathF.Cos(a)), Vector3.UnitY, w, h,
-                Vector2.Zero, new Vector2(1, 1), twoSided: true);
+            float a = variant * 1.3f + i * MathF.PI * 2 / 5 + MathF.Sin(i * 3.7f + variant) * 0.3f;
+            var dir = new Vector3(MathF.Sin(a), 0, MathF.Cos(a));
+            float hi = h * (0.75f + 0.4f * Frac(MathF.Sin(i * 17.3f + variant * 4.1f) * 43758.5f));
+            // Leaning out from the clump's middle, its foot a little off centre.
+            var side = Vector3.Cross(dir, Vector3.UnitY);
+            var up = Vector3.Normalize(Vector3.UnitY + side * 0.28f);
+            k.Panel(side * 0.08f + up * (hi / 2 - 0.04f), dir, up, w * (0.8f + 0.2f * (i % 2)), hi,
+                i % 2 == 0 ? Vector2.Zero : new Vector2(1, 0), i % 2 == 0 ? new Vector2(1, 1) : new Vector2(0, 1), twoSided: true);
         }
         return k.Build($"tuft-{variant}-{weed}");
     }

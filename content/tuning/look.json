@@ -7,6 +7,8 @@
 {
   // §27's texture density for the shader's grain: environment 128-256 px/m. One grain is one texel.
   "texelsPerMetre": 128,
+  // Each material map's size on the GPU: the library's 512 (the 2008-2012 target, ARCHITECTURE §8 note 57).
+  "layerSize": 512,
   // The bottoms of things are this much darker: the baked shadow, and the soot and wet that collect low.
   "baked": 0.35,
   // §27's material families. The kit's own pieces (the train, the track, the world) name their textures directly; these
@@ -54,7 +56,7 @@
     "bloomThreshold": 0.55,
     "bloomStrength": 0.7,
     "vignette": 0.42,
-    "grain": 0.04,
+    "grain": 0.025,
     "colourLevels": 48,
     "ps2": false,
     "texturedWear": 0.45,
@@ -62,7 +64,12 @@
     "horizonGlow": 1.35,
     "backdropDegrees": 32,
     "skyZenith": [0.016, 0.018, 0.026],
-    "mipBias": 0.4
+    // Filtered materials, sharp at a distance (the PS2 comparison mode keeps its own positive bias, for the crawl).
+    "mipBias": 0,
+    // The filmic tonemap's exposure; the wide bloom's share of the glow; lens fringing toward the corners.
+    "exposure": 1.0,
+    "wideBloom": 0.5,
+    "lensFringe": 0.006
   },
   // The night's light and air (§28: "cool ambient night, deep shadow pockets, headlamp and lantern cones").
   "atmosphere": {

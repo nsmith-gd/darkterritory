@@ -27,7 +27,7 @@ public sealed unsafe class GpuTexture : IDisposable
     /// "layer" holding the whole table and depth = <paramref name="depth"/>.</param>
     /// <param name="filter">Nearest for the crunchy look; linear for smooth things (the grade table).</param>
     public GpuTexture(GpuContext gpu, Kind kind, VkFormat format, int width, int height, IReadOnlyList<IReadOnlyList<byte[]>> levels,
-        VkFilter filter, VkSamplerAddressMode addressU, VkSamplerAddressMode addressV, float mipBias = 0, int depth = 1)
+        VkFilter filter, VkSamplerAddressMode addressU, VkSamplerAddressMode addressV, float mipBias = 0, int depth = 1, float anisotropy = 0)
     {
         _gpu = gpu;
         Width = width;
@@ -109,11 +109,12 @@ public sealed unsafe class GpuTexture : IDisposable
         Api.vkDestroyBuffer(staging, null);
         Api.vkFreeMemory(stagingMemory, null);
 
-        Sampler = CreateSampler(gpu, filter, filter, mips > 1 ? VkSamplerMipmapMode.Linear : VkSamplerMipmapMode.Nearest, addressU, addressV, mipBias, mips);
+        Sampler = CreateSampler(gpu, filter, filter, mips > 1 ? VkSamplerMipmapMode.Linear : VkSamplerMipmapMode.Nearest, addressU, addressV, mipBias, mips,
+            filter == VkFilter.Linear ? anisotropy : 0);
     }
 
     public static VkSampler CreateSampler(GpuContext gpu, VkFilter mag, VkFilter min, VkSamplerMipmapMode mip, VkSamplerAddressMode u,
-        VkSamplerAddressMode v, float bias = 0, int levels = 1)
+        VkSamplerAddressMode v, float bias = 0, int levels = 1, float anisotropy = 0)
     {
         var info = new VkSamplerCreateInfo
         {
@@ -125,6 +126,8 @@ public sealed unsafe class GpuTexture : IDisposable
             addressModeW = VkSamplerAddressMode.ClampToEdge,
             mipLodBias = bias,
             maxLod = levels,
+            anisotropyEnable = anisotropy > 1,
+            maxAnisotropy = Math.Max(1, anisotropy),
         };
         VkSampler sampler;
         Check(gpu.Api.vkCreateSampler(&info, null, &sampler), "vkCreateSampler");
