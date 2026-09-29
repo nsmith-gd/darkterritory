@@ -31,7 +31,7 @@ using DarkTerritory.Sim.Train;
 // F1 toggles the HUD (--no-hud to start without it).
 // Campaign: --campaign <slot> [--contract i] [--resume] [--saves dir] plays tonight's contract with the slot's cars and
 //   upgrades, autosaves leaving each facility, and settles at the end (spec E, F). `dt campaign` runs the fortress headless.
-// Options: --route tier:seed | --route-file name (saved from dt edit) [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png --mute
+// Options: --route tier:seed | --route-file name (saved from dt edit) [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png --mute --greybox (flat colour, no art pass)
 // Multiplayer (UDP, direct IP / LAN): --host [port] hosts the same options for others to join; --join address[:port] joins one.
 // Steam: --steam hosts a friends-only lobby as well (F2 opens the invite dialog; friends can also "Join Game" from the
 //   friends list). Accepting an invite starts the game with +connect_lobby <id>, or --join-lobby <id> by hand.
@@ -55,6 +55,8 @@ string Arg(string name, string fallback)
 }
 
 var content = DataFile.FindContentRoot(Environment.CurrentDirectory);
+// The art pass's surfaces (T39); --greybox draws flat colour instead.
+var look = args.Contains("--greybox") ? null : Look.Load(content);
 var connectLobby = LaunchArgs.ConnectLobby(args);
 // Steam when asked for, when an invite brought us here, or when Steam launched us (so invites reach a solo game).
 using var steam = args.Contains("--no-steam") || !(args.Contains("--steam") || connectLobby is not null || Environment.GetEnvironmentVariable("SteamAppId") is not null)
@@ -196,7 +198,7 @@ Launch? Menu()
     var line = DarkTerritory.Sim.Rail.RailLine.Load(Path.Combine(content, "lines", "test-loop.json"));
     var standing = new TrainOnLine(new TrainDynamics(Consist.Uniform(trainTuning, 6, 1)), line, 1200);
     var view = Views.Get("trackside", standing);
-    var backdrop = new GreyboxScene { Time = 0.37 };
+    var backdrop = new GreyboxScene { Time = 0.37, Look = look };
     backdrop.Build(mesh, standing, view.Position);
     var light = Views.Lighting(standing);
     double started = timer.Elapsed.TotalSeconds;
@@ -364,6 +366,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     bool showHud = settings.Hud && !args.Contains("--no-hud");
     var scene = new GreyboxScene
     {
+        Look = look,
         Route = session.Route,
         Enemies = session.World.ActiveEnemies,
         Run = session.World.Run,

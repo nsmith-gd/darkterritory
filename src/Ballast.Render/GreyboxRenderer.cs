@@ -307,16 +307,20 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             stages[1] = new VkPipelineShaderStageCreateInfo { stage = VkShaderStageFlags.Fragment, module = frag, pName = pEntry };
 
             var binding = new VkVertexInputBindingDescription { binding = 0, stride = Vertex.Stride, inputRate = VkVertexInputRate.Vertex };
-            var attributes = stackalloc VkVertexInputAttributeDescription[4];
+            var attributes = stackalloc VkVertexInputAttributeDescription[7];
             attributes[0] = new VkVertexInputAttributeDescription { location = 0, binding = 0, format = VkFormat.R32G32B32Sfloat, offset = 0 };
             attributes[1] = new VkVertexInputAttributeDescription { location = 1, binding = 0, format = VkFormat.R32G32B32Sfloat, offset = 12 };
             attributes[2] = new VkVertexInputAttributeDescription { location = 2, binding = 0, format = VkFormat.R32G32B32Sfloat, offset = 24 };
             attributes[3] = new VkVertexInputAttributeDescription { location = 3, binding = 0, format = VkFormat.R32Sfloat, offset = 36 };
+            // The surface treatment (T39): texel coordinates, wear, shine.
+            attributes[4] = new VkVertexInputAttributeDescription { location = 4, binding = 0, format = VkFormat.R32G32B32Sfloat, offset = 40 };
+            attributes[5] = new VkVertexInputAttributeDescription { location = 5, binding = 0, format = VkFormat.R32Sfloat, offset = 52 };
+            attributes[6] = new VkVertexInputAttributeDescription { location = 6, binding = 0, format = VkFormat.R32Sfloat, offset = 56 };
             var vertexInput = new VkPipelineVertexInputStateCreateInfo
             {
                 vertexBindingDescriptionCount = 1,
                 pVertexBindingDescriptions = &binding,
-                vertexAttributeDescriptionCount = 4,
+                vertexAttributeDescriptionCount = 7,
                 pVertexAttributeDescriptions = attributes,
             };
             var inputAssembly = new VkPipelineInputAssemblyStateCreateInfo { topology = VkPrimitiveTopology.TriangleList };
