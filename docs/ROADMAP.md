@@ -125,6 +125,11 @@ M3 is done but for a test with eight people.
   - reaching it, they smash the lamp (out for 45 s) and go for the cab;
   - lamps down (L in the cab) and they lose track, but then the Sleepers only show close: the driver bot slows down in the dark;
   - `dt screenshot --threats` shows one.
+- **The Ferryman (T56, App. A.2):**
+  - a lantern on a long straight ahead, waving the train down, seen from far out;
+  - slow for it and it comes down the line, boards and kills whoever's driving; hold your speed and it steps aside for good;
+  - the driver bot holds its speed past it, even with the lamps down;
+  - `dt screenshot --threats` shows one.
 - **The Switchman (T37, App. A.7):**
   - it throws a junction ahead for its dead line: the lamp reads wrong, and a figure with a lantern stands at the stand;
   - it flees anyone on the ground, but chasing it off doesn't set the switch back;

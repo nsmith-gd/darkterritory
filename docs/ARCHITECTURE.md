@@ -1192,3 +1192,24 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - Two bots don't work facilities: the stops need a shunter, and the second bot is the gunner. That's why their net is lower.
     - The nightly soak runs that sweep and fails on a failed check.
     - **Verified:** `BalanceTests` (4): the grid is every combination; a survivable, busy sweep passes; each target fails on its own; train length is reported, not judged.
+61. **The Ferryman (T56, App. A.2 and B.2; GDD: "stands on the track ahead holding a lantern, waving you down. RULE: do not slow down").** `EnemyKind.Ferryman`, cost 4 (App. B.1's table), tuned in `enemies.json` `ferryman`.
+    - **The lantern is the telegraph.** It's placed 600 m up the line at the lineside, and telegraphing from the first tick. Past the draw distance the scene still shows the lantern's light, out to 1.2 km ("visible from very far out").
+    - **Ambiguity: "train DECELERATES".** Read as the train going slower than the fastest it has come at the Ferryman, by at least `slowTolerance` (2.5 m/s). Cruise notching wobbles by about 1 m/s, so it doesn't count; a brake application, or easing off to the dark cruise, does. Any such slowing commits (ADVANCE). That still only happens after App. A.1's reaction window, which the spine enforces.
+    - **Holding speed:** within 30 m of the engine, it steps aside and breaks off, and can't re-engage ("cannot re-engage after breaking off").
+    - **Slowing:** it comes down the line at 5 m/s and boards the engine. It strikes whoever is in the cab (100: a life; if the cab is empty, the nearest crew within 20 m) and is gone. It can't be shot ("entirely defeated by doing nothing").
+    - **Ambiguity: "long straight with clear sightline".** Read as its gate, `Ferryman.ClearAhead`: from the engine to 100 m past where it stands, no curve tighter than 1500 m and no grade over 1 %. Nothing else on that stretch may give the crew a reason to slow: Sleepers, Grease, a tunnel, a facility, or the end of the line within 600 m past it. Otherwise the rule contradicts "watch the road" with no way to satisfy both, and that isn't the kind of contradiction the conflict table seeds.
+    - The other B.2 gates: Frontier and beyond, the back 60 % of the route ("mid-to-late"), once per run (the director's own log), a lamp that isn't smashed ("functioning forward lamp"), and a train coming on at 8 m/s or more.
+    - **Not modelled yet:** B.2's "weight up if crew has braked for a false positive earlier". That wants the Long Whistle (T57), whose false horn is the false positive.
+    - **The driver bot** holds the fastest speed it has come at a waving lantern, with the lamp down or not. That is the Lamplighters + Ferryman bind: with the lamps down, the lantern is its own light.
+    - **Art:** the Switchman's railwayman, drawn taller, swinging the lantern hard while it waves; the lantern is a point light. The greybox has its own figure. `dt screenshot --threats` shows one on the line ahead.
+    - **Verified:** `FerrymanTests` (10) cover:
+      - the lantern telegraphs from the start;
+      - held speed: it steps aside and is gone;
+      - slowing: it boards and kills the conductor;
+      - slowing at once still gets the reaction window;
+      - a notching wobble isn't slowing;
+      - once it has stepped aside, slowing does nothing;
+      - the director sends one mid-run, only once;
+      - none with Sleepers ahead, on a Local line, with the lamp smashed, or with the train crawling;
+      - a client sees it;
+      - the driver bot holds its speed past it with the lamp down.

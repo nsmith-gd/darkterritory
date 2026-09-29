@@ -1,5 +1,6 @@
 using Ballast;
 using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Enemies;
@@ -966,5 +967,123 @@ public sealed class Stoker(int id) : Enemy(id)
         train.Boiler.ExternalHeat = 0;
         train.Boiler.SafetyValveJammed = false;
         Enter(ctx, SpinePhase.Gone);
+    }
+}
+
+/// <summary>
+/// THE FERRYMAN · sight · forward (App. A.2). "Stands on the track ahead holding a lantern, waving you down." It waits at
+/// the lineside far up a long straight, the lantern raised: the lantern itself is the telegraph, seen from very far out.
+/// As the train comes it waves and steps onto the line. If the train slows (any real deceleration from the fastest it has
+/// come at it), it closes on the slowed train, boards the engine and goes for the conductor. If the train holds its speed
+/// or goes faster, it steps aside at the last moment and is gone, never to come again. Rule: do not slow down. "Entirely
+/// defeated by doing nothing." It can't be shot.
+/// </summary>
+/// <remarks>
+/// Free on the line along the engine's path until it boards; then in the cab. <see cref="Enemy.Extra"/> is the fastest the
+/// train has come at it, <see cref="Enemy.Extra2"/> the side it stepped (or steps) to.
+/// </remarks>
+public sealed class Ferryman(int id) : Enemy(id)
+{
+    public override EnemyKind Kind => EnemyKind.Ferryman;
+    public override PressureZone Zone => PressureZone.Forward;
+    public override Sense Sense => Sense.Sight;
+
+    /// <summary>The lantern's lit and raised: until it's stepped aside or struck.</summary>
+    public bool Lantern => Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish;
+    /// <summary>Waving the train down: the lantern swings while it lures.</summary>
+    public bool Waving => Phase == SpinePhase.Telegraph;
+    public bool Aboard => Attached == 0;
+    int Side => Extra2 < 0 ? -1 : 1;
+
+    /// <summary>Up the line ahead of the engine at the lineside, on one side.</summary>
+    public static Ferryman Ahead(int id, TrainOnLine train, int side, FerrymanTuning t) => new(id)
+    {
+        LineDistance = train.Dynamics.Distance + t.SpawnAhead,
+        Lateral = side * t.WaitLateral,
+        Height = 0,
+        Extra = train.Dynamics.Speed,
+        Extra2 = side,
+    };
+
+    /// <summary>
+    /// The director's gate for placing one (App. B.2 "long straight with clear sightline"): from the engine to past where it
+    /// would stand, the line is straight enough and near level, and nothing on it gives a crew a reason to slow down: no
+    /// Sleepers, Grease, tunnel, facility or the end of the line. It's not a trap you can only lose.
+    /// </summary>
+    public static bool ClearAhead(World world, FerrymanTuning t)
+    {
+        var train = world.Train;
+        double from = train.Dynamics.Distance, to = from + t.SpawnAhead + t.ClearPast;
+        if (train.Line.PathLength(train.Dynamics.Path) < to + t.StopMargin)
+            return false;
+        for (double s = from; s <= to; s += 25)
+        {
+            var sample = train.Line.Sample(train.Dynamics.Path, s);
+            if (Math.Abs(sample.Curvature) > 1 / t.StraightRadius || Math.Abs(sample.GradePercent) > t.MaxGradePercent)
+                return false;
+        }
+        return world.Route is not { } r || !r.Features.Any(f => f.Kind is FeatureKind.Sleepers or FeatureKind.Grease or FeatureKind.Tunnel or FeatureKind.Facility
+            && f.End >= from && f.Start <= to + t.StopMargin);
+    }
+
+    protected override void Tick(EnemyContext ctx)
+    {
+        var t = ctx.Tuning.Ferryman;
+        var train = ctx.Train;
+        double dt = SimConstants.TickSeconds;
+        double speed = train.Dynamics.Speed;
+        double gap = LineDistance - train.Dynamics.Distance;
+        switch (Phase)
+        {
+            case SpinePhase.Dormant:
+                Enter(ctx, SpinePhase.Telegraph); // the lantern, raised
+                break;
+            case SpinePhase.Telegraph:
+                Extra = Math.Max(Extra, speed);
+                // It waves the train down, stepping out onto the line.
+                Lateral += Math.Clamp(-Lateral, -t.StepSpeed * dt, t.StepSpeed * dt);
+                if (speed < Extra - t.SlowTolerance)
+                {
+                    // The train's slowing for it: it comes.
+                    Enter(ctx, SpinePhase.Commit);
+                    break;
+                }
+                // Held its speed: at the last moment it steps aside, and it's done.
+                if (gap <= t.StepAsideAt)
+                    Enter(ctx, SpinePhase.BreakOff);
+                else if (PhaseSeconds >= t.LingerSeconds)
+                    Enter(ctx, SpinePhase.Gone);
+                break;
+            case SpinePhase.Commit:
+                // ADVANCE: onto the line and down it to the slowed train.
+                Lateral += Math.Clamp(-Lateral, -t.StepSpeed * dt, t.StepSpeed * dt);
+                LineDistance -= t.AdvanceSpeed * dt;
+                if (LineDistance - train.Dynamics.Distance <= t.BoardReach)
+                {
+                    Attached = 0;
+                    Local = train.Frames[0].Shape.Cab!.Value.Centre;
+                    Enter(ctx, SpinePhase.Punish);
+                    // "Cab invasion; attacks the conductor directly": whoever's in the cab, else whoever's nearest.
+                    var at = WorldPosition(train);
+                    var victim = ctx.Crew.Where(c => c.Player.State.Alive && PlayerMotor.InCab(c.Player.State, train)).Select(c => (int?)c.Player.Id).FirstOrDefault()
+                        ?? ctx.LivingCrew().Where(c => (c.World - at).Length <= t.StrikeReach).OrderBy(c => (c.World - at).Length).Select(c => (int?)c.Player.Id).FirstOrDefault();
+                    if (victim is { } who)
+                        ctx.Bite(who, t.StrikeDamage, DeathCause.Ferryman);
+                }
+                break;
+            case SpinePhase.Punish:
+                if (PhaseSeconds >= t.AboardSeconds)
+                    Enter(ctx, SpinePhase.Gone);
+                break;
+            case SpinePhase.BreakOff:
+                // Aside, lantern down, watching it go by. Cannot re-engage.
+                Lateral += Math.Clamp(Side * t.StepAsideLateral - Lateral, -t.StepSpeed * dt, t.StepSpeed * dt);
+                if (LineDistance < train.Dynamics.RearDistance - t.LoseBehind || PhaseSeconds >= t.LingerSeconds)
+                    Enter(ctx, SpinePhase.Gone);
+                break;
+            default:
+                Enter(ctx, SpinePhase.Gone);
+                break;
+        }
     }
 }
