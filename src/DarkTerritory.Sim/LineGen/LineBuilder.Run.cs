@@ -157,6 +157,8 @@ sealed partial class LineBuilder
             Markers = _markers,
             Fortress = _fortress ?? new PlanFortress("", "", _departureRoad, _innerGate, _gate, 0, []),
             Terminus = _terminusPlan ?? new PlanTerminus("", false, true, _terminus, 0, 0, []),
+            Rules = new PlanRules(_t.Curves.ADerail, _t.Hazards.BrassCuttingSpeed, _t.Hazards.BrassDamagePerSpeedSquared, _t.Hazards.BrassDrag,
+                _t.Conflicts.WeakBridgeCollapses, _t.Weather.WetAdhesion, _t.Weather.WetBiasAdhesion, _t.Terrain),
             Validation = new PlanValidation
             {
                 IdealTransitS = Math.Round(_idealTransit, 1),

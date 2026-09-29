@@ -20,7 +20,11 @@ public static class PlanRoutes
                 EdgeRole.Spur => BranchKind.Spur,
                 _ => BranchKind.DeadLine,
             }, a.Toe, a.Side, a.Segments)
-            { Rejoin = a.Rejoin }).ToList();
+            {
+                Rejoin = a.Rejoin,
+                // §6.3: a junction whose main line is washed out starts the night set for its alternate.
+                StartsDiverging = plan.Graph.Nodes.Any(n => n.Type == NodeType.JunctionFacing && n.DefaultEdge == a.Edge),
+            }).ToList();
 
         var features = new List<RouteFeature>();
         foreach (var st in plan.Structures.Where(s => s.Edge == "main"))

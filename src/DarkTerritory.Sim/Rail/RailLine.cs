@@ -61,6 +61,23 @@ public sealed record BranchDefinition(BranchKind Kind, double Toe, int Side, IRe
     public double Length => Segments.Sum(s => s.Length);
     /// <summary>An alternate's end: the main-line distance where it comes back in. Unset for a branch that ends at a buffer stop.</summary>
     public double? Rejoin { get; init; }
+    /// <summary>The switch starts set for the branch (the main line past it is closed, linegen plan §6.3).</summary>
+    public bool StartsDiverging { get; init; }
+}
+
+/// <summary>
+/// What the land and the rail are like along a line, where a generated line says (linegen plan §12, §14): the ground
+/// people and bodies stand on, the rail's adhesion, and anything dragging at a train. A hand-laid line has none: flat
+/// ground at rail height and dry rail.
+/// </summary>
+public interface ITrackConditions
+{
+    /// <summary>The height of the ground under a world point.</summary>
+    double Ground(Double3 world);
+    /// <summary>Adhesion (1 dry) at a distance along a path.</summary>
+    double Adhesion(int path, double distance);
+    /// <summary>A deceleration (m/s²) the track puts on a train at <paramref name="speed"/> there (brass across the rail).</summary>
+    double Drag(int path, double distance, double speed);
 }
 
 /// <summary>A built branch: its own line, laid from the main line's points onwards.</summary>
@@ -221,6 +238,8 @@ public sealed class RailLine
     public string Name { get; }
     public double Length { get; }
     public IReadOnlyList<TrackSegment> Segments { get; }
+    /// <summary>The land and rail conditions along it, for a generated line (null: flat ground at rail height, dry rail).</summary>
+    public ITrackConditions? Conditions { get; set; }
 
     /// <summary>Samples the line at a distance, clamped to its ends.</summary>
     public TrackSample Sample(double distance)

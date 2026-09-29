@@ -61,6 +61,8 @@ public sealed class TrainOnLine
         _poses = new CarPose[_vehicles.Length];
         _frames = new CarFrame[_vehicles.Length];
         _diverging = new bool[line.Branches.Count];
+        for (int i = 0; i < _diverging.Length; i++)
+            _diverging[i] = line.Branches[i].Definition.StartsDiverging;
         BoilerTuning = boiler;
         if (boiler is not null)
             Boiler = Boiler.Fresh(boiler);
@@ -255,13 +257,16 @@ public sealed class TrainOnLine
                     effective.Throttle *= Boiler.PowerFactor(bt);
                     RupturedThisTick = Boiler.Step(bt, dt, controls.Throttle, rake.Consist.CarCount);
                 }
-                rake.Step(dt, effective, new TrackConditions { GradePercent = AverageGrade(rake), Traction = Traction });
+                rake.Step(dt, effective, Conditions(rake));
             }
             else
             {
                 var parked = new TrainControls { Brake = rake.Handbrake ? 1 : 0, Reverser = 1 };
-                rake.Step(dt, parked, new TrackConditions { GradePercent = AverageGrade(rake), Traction = Traction });
+                rake.Step(dt, parked, Conditions(rake));
             }
+            // What drags at it where the line says (brass across the rail, linegen plan §7.2).
+            if (Line.Conditions is { } lc && lc.Drag(rake.Path, rake.Distance, rake.Speed) is var drag and > 0 && rake.Speed > 0)
+                rake.Velocity -= Math.Sign(rake.Velocity) * Math.Min(rake.Speed, drag * dt);
             TakeSwitches(rake);
             // Buffer stops: the line ends are hard limits.
             double min = rake.Consist.LengthMetres, max = Line.PathLength(rake.Path);
@@ -314,6 +319,13 @@ public sealed class TrainOnLine
         rake.Distance += by;
         rake.PreviousDistance += by;
     }
+
+    /// <summary>The track under a rake this tick: its grade, and the rail's traction (wet rail on a generated line, §14).</summary>
+    TrackConditions Conditions(TrainDynamics rake) => new()
+    {
+        GradePercent = AverageGrade(rake),
+        Traction = Traction * (Line.Conditions?.Adhesion(rake.Path, rake.Distance) ?? 1),
+    };
 
     /// <summary>A rake's front running forward through a branch's points goes where the switch is set.</summary>
     void TakeSwitches(TrainDynamics rake)

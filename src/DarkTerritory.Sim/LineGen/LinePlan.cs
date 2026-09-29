@@ -47,6 +47,8 @@ public sealed record LinePlan
     public required PlanFortress Fortress { get; init; }
     public required PlanTerminus Terminus { get; init; }
     public PlanValidation Validation { get; init; } = new();
+    /// <summary>The rules the sim holds a train to on this line, from content when it was generated (a save keeps them).</summary>
+    public required PlanRules Rules { get; init; }
 
     /// <summary>Km as the posts and paperwork count it: from the outer gate.</summary>
     public double Km(double mainDistance) => (mainDistance - GateM) / 1000;
@@ -170,6 +172,13 @@ public sealed record PlanMarker(string Type, string Edge, double S);
 public sealed record PlanFortress(string Name, string Identity, double DepartureRoadM, double InnerGateM, double OuterGateM, int ThroatSwitches,
     IReadOnlyList<double[]> Lights);
 public sealed record PlanTerminus(string Name, bool Silent, bool GateSafe, double GateM, double SkyGlowFromM, double HomeStraightFromM, IReadOnlyList<double[]> Lights);
+
+/// <summary>
+/// §8.5 and §9.2's lethal checks and hazards as the sim applies them, and the terrain rules the height field is built
+/// with: part of the plan so that a plan (and a save of one) plays the same whatever content changes after.
+/// </summary>
+public sealed record PlanRules(double ADerail, double BrassCuttingSpeed, double BrassDamagePerSpeedSquared, double BrassDrag, bool WeakBridgeCollapses,
+    double WetAdhesion, double WetBiasAdhesion, TerrainRules Terrain);
 
 public sealed record PlanCheck(string Name, bool Pass, string Detail);
 public sealed record PlanValidation
