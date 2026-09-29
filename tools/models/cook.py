@@ -819,8 +819,10 @@ def eyes_at(points, radius, colour=(0.69, 0.64, 0.5), name="eye"):
     mat["dt_glow"] = 0.0
     out = []
     for i, at in enumerate(points):
-        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=radius, location=at)
+        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=radius)
         e = bpy.context.view_layer.objects.active
+        # Placed in the mesh itself (like everything cook makes), so a later cook.transform carries it along.
+        e.data.transform(Matrix.Translation(Vector(at)))
         e.name = f"{name}_{i}"
         e.data.materials.append(mat)
         out.append(e)

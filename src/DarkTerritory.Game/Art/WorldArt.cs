@@ -529,6 +529,24 @@ public sealed partial class WorldArt(Look look)
                         mesh.PointLights.Add(new PointLight(Vector3.Transform(bulb, at), new Vector3(1.0f, 0.72f, 0.42f) * 1.6f, 6.5f));
                 }
             }
+            // And in most, further along, another house open to the line: the parlour laid out for a wake (tools/models
+            // wake_room), the body on its bier under a lamp with its glass broken out and its bulbs still burning.
+            // Hashed on the village's place, not drawn from rng, so nothing after it moves.
+            if (Hash((float)(centre * 0.0313)) < 0.7f && _props.Get("wake_room") is { } parlour)
+            {
+                double along = centre + 42, across = side * (16 + Hash((float)(centre * 0.0291)) * 3);
+                if (!onBranch(along, across))
+                {
+                    var t = line.Sample(Math.Clamp(along, 0, line.Length));
+                    var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+                    float h = Ground(route, along, (float)across, valleyDepth) - 0.1f;
+                    float face = across > 0 ? MathF.PI / 2 : -MathF.PI / 2;
+                    var at = Basis(t.Tangent, t.Position + r * across + Double3.Up * h, eye, face);
+                    mesh.Instances.Add(new MeshInstance(parlour, at));
+                    if (_props.Socket("wake_room", "lamp") is { } bulbs)
+                        mesh.PointLights.Add(new PointLight(Vector3.Transform(bulbs, at), new Vector3(1.0f, 0.74f, 0.46f) * 0.9f, 4.5f));
+                }
+            }
             if (landmark >= 0.45 && _props.Get("mercury_defaced") is { } square)
                 Place(square, centre, lateral - side * 4, (float)(rng.NextDouble() - 0.5) * 0.6f);
         }

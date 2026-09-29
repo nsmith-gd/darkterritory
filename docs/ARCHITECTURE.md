@@ -1060,6 +1060,12 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - It's walled by a house shell in the library's plaster, broken off raggedly above it, with fallen rafters and rubble.
       - It stands in each village with its front wall gone, facing the line, and its bedside lamp is still lit (a socket).
       - The cook reads spec-gloss materials (KHR_materials_pbrSpecularGlossiness) too. `dt art check` gives a whole room its own class (30k).
+      - `recipes/wake_room.py` is a second, bashed from two sources: "Interior Scene" (CC BY 4.0), a modern living room, and the Three D Scans "Zenobia in Chains". Most villages have one further along from the boy's room (hashed on the village's place, so nothing after it moves).
+        - The room is cut open on its long side and its far half taken away. Its glass is knocked out, its plants gone, and its coffee table cleared for a bier of library timber.
+        - The pictures are hung with black crepe. The soft furnishings are baked down (`bake_down`) and yellowed with dust.
+        - Its walls and floor were lit by a baked atlas that only works from inside the closed box, so they're replaced by the library's plaster, sooted brick and floorboards, broken off raggedly, with the window's hole left.
+        - Zenobia is taken off her plinth and laid out on her back on the bier: the pale body the room is for.
+        - The pendant lamp's globes are gone. Its bare bulbs are lit emissive spheres (`cook.eyes_at`), with a light at its "lamp" socket. `PropArtTests` lets pure light be drawn flat; everything else wears its own layers.
     - **First set.**
       - The Khronos Lantern, split into a lamp post and a hand lantern. The hand lantern replaces the kit's cage in the cars, on the platforms and as the dropped lamp.
       - The photoscanned skull.

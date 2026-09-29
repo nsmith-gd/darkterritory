@@ -416,6 +416,621 @@
     ]
   },
   {
+    "name": "wake_room_0",
+    "diffuse": "models/wake_room_0.png",
+    "spec": "models/wake_room_0_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_1",
+    "diffuse": "models/wake_room_1.png",
+    "spec": "models/wake_room_1_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_10",
+    "diffuse": "models/wake_room_10.png",
+    "spec": "models/wake_room_10_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_11",
+    "diffuse": "models/wake_room_11.png",
+    "spec": "models/wake_room_11_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_12",
+    "diffuse": "models/wake_room_12.png",
+    "spec": "models/wake_room_12_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_13",
+    "diffuse": "models/wake_room_13.png",
+    "spec": "models/wake_room_13_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_14",
+    "diffuse": "models/wake_room_14.png",
+    "spec": "models/wake_room_14_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_15",
+    "diffuse": "models/wake_room_15.png",
+    "spec": "models/wake_room_15_s.png",
+    "normal": "models/wake_room_15_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_16",
+    "diffuse": "models/wake_room_16.png",
+    "spec": "models/wake_room_16_s.png",
+    "normal": "models/wake_room_16_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_17",
+    "diffuse": "models/wake_room_17.png",
+    "spec": "models/wake_room_17_s.png",
+    "normal": "models/wake_room_17_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_18",
+    "diffuse": "models/wake_room_18.png",
+    "spec": "models/wake_room_18_s.png",
+    "normal": "models/wake_room_18_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_19",
+    "diffuse": "models/wake_room_19.png",
+    "spec": "models/wake_room_19_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_2",
+    "diffuse": "models/wake_room_2.png",
+    "spec": "models/wake_room_2_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_20",
+    "diffuse": "models/wake_room_20.png",
+    "spec": "models/wake_room_20_s.png",
+    "normal": "models/wake_room_20_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_3",
+    "diffuse": "models/wake_room_3.png",
+    "spec": "models/wake_room_3_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_4",
+    "diffuse": "models/wake_room_4.png",
+    "spec": "models/wake_room_4_s.png",
+    "normal": "models/wake_room_4_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_5",
+    "diffuse": "models/wake_room_5.png",
+    "spec": "models/wake_room_5_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_6",
+    "diffuse": "models/wake_room_6.png",
+    "spec": "models/wake_room_6_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_7",
+    "diffuse": "models/wake_room_7.png",
+    "spec": "models/wake_room_7_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_8",
+    "diffuse": "models/wake_room_8.png",
+    "spec": "models/wake_room_8_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
+    "name": "wake_room_9",
+    "diffuse": "models/wake_room_9.png",
+    "spec": "models/wake_room_9_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "gk-interior",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/interior-scene",
+        "license": "CC-BY-4.0",
+        "attribution": "Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0",
+        "files": null
+      }
+    ]
+  },
+  {
     "name": "wall_face_0",
     "diffuse": "models/wall_face_0.png",
     "spec": "models/wall_face_0_s.png",
