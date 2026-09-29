@@ -66,7 +66,8 @@ public static class Messages
         w.F32(i.LookYaw);
         w.F32(i.LookPitch);
         w.U8((byte)i.Buttons);
-        w.I8(i.ThrottleNotch);
+        // The notch (−4..4) in the low five bits, the lamp switch (T52) in the two above: no extra byte on every intent.
+        w.U8((byte)((i.ThrottleNotch & 0x1F) | ((byte)i.Lamp & 3) << 5));
         // A reaching hand (T29) in centimetres, only when there is one: keyboards and bots send nothing more.
         if (i.Has(PlayerButtons.Hand))
         {
@@ -95,8 +96,10 @@ public static class Messages
             LookYaw = r.F32(),
             LookPitch = r.F32(),
             Buttons = (PlayerButtons)r.U8(),
-            ThrottleNotch = r.I8(),
         };
+        byte notch = r.U8();
+        i.ThrottleNotch = (sbyte)((sbyte)(notch << 3) >> 3);
+        i.Lamp = (LampSwitch)((notch >> 5) & 3);
         if (i.Has(PlayerButtons.Hand))
         {
             i.HandX = r.I16() / 100f;

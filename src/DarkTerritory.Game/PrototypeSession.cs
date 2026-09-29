@@ -199,6 +199,9 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Rattle, SpinePhase.Telegraph) => "a dry rattle in the coupling: don't cross there",
         (EnemyKind.Rattle, SpinePhase.Punish) => "pulled under between the cars",
         (EnemyKind.Rattle, SpinePhase.Dormant) => "the rattle in the coupling stops",
+        (EnemyKind.Lamplighter, SpinePhase.Telegraph) => "eyes out in the dark, catching the lamp: lamps down (L)",
+        (EnemyKind.Lamplighter, SpinePhase.Punish) => "the lamp's smashed",
+        (EnemyKind.Lamplighter, SpinePhase.BreakOff) => "the eyes go back out into the dark",
         _ => null,
     };
 

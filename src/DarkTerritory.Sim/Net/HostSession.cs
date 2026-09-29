@@ -364,6 +364,8 @@ public sealed class HostSession
         i.LookYaw = Clamp(i.LookYaw, MathF.PI);
         i.LookPitch = Clamp(i.LookPitch, MathF.PI);
         i.ThrottleNotch = (sbyte)Math.Clamp((int)i.ThrottleNotch, -4, 4);
+        if (i.Lamp > LampSwitch.Off)
+            i.Lamp = LampSwitch.None;
         return i;
     }
 

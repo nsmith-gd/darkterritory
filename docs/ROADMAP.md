@@ -117,6 +117,11 @@ M3 is done but for a test with eight people.
   - silent until someone comes near below the roofs, then a dry bone rattle;
   - step into the gap while it rattles and you're pulled under; wait it out, or go over the roof;
   - bots stop short of a rattling gap.
+- **The Lamplighters (T52, App. A.6):**
+  - out in the dark beside the engine; a lit lamp brings them in, eyes catching the light;
+  - reaching it, they smash the lamp (out for 45 s) and go for the cab;
+  - lamps down (L in the cab) and they lose track, but then the Sleepers only show close: the driver bot slows down in the dark;
+  - `dt screenshot --threats` shows one.
 - **The Switchman (T37, App. A.7):**
   - it throws a junction ahead for its dead line: the lamp reads wrong, and a figure with a lantern stands at the stand;
   - it flees anyone on the ground, but chasing it off doesn't set the switch back;

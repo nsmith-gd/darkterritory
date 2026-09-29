@@ -177,6 +177,7 @@ public static class Hud
                 DeathCause.Dragged => "DRAGGED OFF THE EDGE",
                 DeathCause.Crushed => "CRUSHED UNDER A DROPPED LOAD",
                 DeathCause.PulledUnder => "PULLED UNDER BETWEEN THE CARS",
+                DeathCause.Lamplighter => "TORN DOWN AT THE LAMP",
                 _ => "",
             }, Ink);
             if (world.Vigil is { Permitted: true })
@@ -287,7 +288,9 @@ public static class Hud
                 : p.Hand != default ? site.Turning ? "CRANK: OVER THE TOP, TOWARDS THE TRACK. KEEP TOGETHER" : "CRANK: OVER THE TOP, TOWARDS THE TRACK (IT NEEDS TWO)"
                 : site.Turning ? "[E] HOLD: CRANK. KEEP TOGETHER" : "[E] HOLD: CRANK (IT NEEDS TWO)";
         if (CabControls.CanDrive(p, train))
-            return "[R/F] REGULATOR   [B] BRAKE   [X] REVERSER";
+            // The lamp switch too (T52): out, smashed (the glass is out a while), or lit.
+            return world.LampOutSeconds > 0 ? $"[R/F] REGULATOR   [B] BRAKE   [X] REVERSER   LAMP SMASHED ({world.LampOutSeconds:0}s)"
+                : $"[R/F] REGULATOR   [B] BRAKE   [X] REVERSER   [L] LAMP {(world.LampLit ? "OFF" : "ON")}";
         return null;
     }
 

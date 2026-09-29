@@ -729,3 +729,107 @@ public sealed class Rattle(int id) : Enemy(id)
         }
     }
 }
+
+/// <summary>
+/// LAMPLIGHTERS · light · structural (App. A.6). "Light-reactive. Work the lineside." One paces the train out in the dark
+/// beside the engine, just beyond the lamp's reach. While the forward lamp is lit it comes for it (the tell: its eyeshine at
+/// the edge of the lamp's light), and reaching it, smashes the lamp and goes for whoever's nearest. Put the lights out and
+/// it loses track and goes back to the lineside. It can't keep up with a train at speed. Rule: lamps down, which is what
+/// the Sleepers ahead need lit. "That contradiction is the point."
+/// </summary>
+/// <remarks><see cref="Enemy.Lateral"/>'s sign is its side; it's free on the line, placed along the engine's path.</remarks>
+public sealed class Lamplighter(int id) : Enemy(id)
+{
+    double _age;
+    bool _lost;
+
+    public override EnemyKind Kind => EnemyKind.Lamplighter;
+    public override PressureZone Zone => PressureZone.Structural;
+    public override Sense Sense => Sense.Light;
+
+    /// <summary>Its eyes catching the light: while it comes for the lamp (the telegraph), and as it strikes.</summary>
+    public bool Eyeshine => Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish;
+    public int Side => Lateral >= 0 ? 1 : -1;
+
+    /// <summary>Beside the engine, out past the lamp, on one side.</summary>
+    public static Lamplighter Beside(int id, TrainOnLine train, int side, LamplighterTuning t) => new(id)
+    {
+        LineDistance = train.Dynamics.Distance - t.PaceBehind,
+        Lateral = side * t.PaceLateral,
+    };
+
+    /// <summary>The engine's forward lamp (world): the light it's after.</summary>
+    public static Double3 Lamp(TrainOnLine train) => World.LampPosition(train.Frames[0]);
+
+    protected override void Tick(EnemyContext ctx)
+    {
+        var t = ctx.Tuning.Lamplighters;
+        var train = ctx.Train;
+        double dt = SimConstants.TickSeconds;
+        _age += dt;
+        double front = train.Dynamics.Distance;
+        // Left behind by a train going faster than it can run, it's lost.
+        if (LineDistance < train.Dynamics.RearDistance - t.LoseBehind)
+        {
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        bool lit = ctx.World.LampShining;
+        double wantAlong = front - t.PaceBehind, wantLateral = Side * t.PaceLateral;
+        switch (Phase)
+        {
+            case SpinePhase.Dormant:
+                if (lit)
+                    Enter(ctx, SpinePhase.Telegraph); // a light: it comes, eyes catching it
+                else if (_age >= t.LingerSeconds)
+                    Enter(ctx, SpinePhase.Gone);
+                break;
+            case SpinePhase.Telegraph:
+                if (!lit)
+                {
+                    // Lights out: it's lost the light, and stops following ("loses track, returns to the lineside").
+                    _lost = true;
+                    Enter(ctx, SpinePhase.BreakOff);
+                    break;
+                }
+                wantAlong = front;
+                wantLateral = Side * t.StrikeLateral;
+                // It reaches up to the lamp from the ballast: within reach of it across the ground.
+                if (((WorldPosition(train) - Lamp(train)) with { Y = 0 }).Length <= t.StrikeReach && Enter(ctx, SpinePhase.Commit) && Enter(ctx, SpinePhase.Punish))
+                {
+                    ctx.World.SmashLamp(t.RelightSeconds);
+                    var at = WorldPosition(train);
+                    var nearest = ctx.LivingCrew().Where(c => (c.World - at).Length <= t.BiteReach).OrderBy(c => (c.World - at).Length).Select(c => (int?)c.Player.Id).FirstOrDefault();
+                    if (nearest is { } victim)
+                        ctx.Bite(victim, t.BiteDamage, DeathCause.Lamplighter);
+                    _lost = false;
+                    Enter(ctx, SpinePhase.BreakOff);
+                }
+                break;
+            case SpinePhase.BreakOff when _lost:
+                // Standing out at the lineside where it lost the light: a moving train leaves it behind. Lit again while
+                // it's still near (a stopped train), it comes again.
+                if (lit && Math.Abs(Lateral) >= t.PaceLateral - 0.5)
+                {
+                    _lost = false;
+                    Enter(ctx, SpinePhase.Telegraph);
+                }
+                else if (_age >= t.LingerSeconds)
+                    Enter(ctx, SpinePhase.Gone);
+                break;
+            case SpinePhase.BreakOff:
+                // Having smashed the lamp: back out to pace the train until it's lit again.
+                if (Math.Abs(Lateral) >= t.PaceLateral - 0.5)
+                    Enter(ctx, SpinePhase.Dormant);
+                break;
+            default:
+                Enter(ctx, SpinePhase.BreakOff);
+                break;
+        }
+        // It runs alongside, as fast as it can; having lost track, it stands.
+        double speed = Phase == SpinePhase.BreakOff && _lost ? 0
+            : Math.Clamp(train.Dynamics.Velocity + (wantAlong - LineDistance) * t.Catch, -t.MaxSpeed, t.MaxSpeed);
+        LineDistance += speed * dt;
+        Lateral += Math.Clamp(wantLateral - Lateral, -t.CloseSpeed * dt, t.CloseSpeed * dt);
+    }
+}
