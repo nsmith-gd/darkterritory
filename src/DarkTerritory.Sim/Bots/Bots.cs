@@ -53,9 +53,14 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // Hounds that got aboard can't be shot from the gun they're standing next to: get clear (they drop
         // off once nobody's near), then walk back to the guard car and take the gun again.
         bool houndsAboard = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && e.Attached >= 0);
-        if (houndsAboard || Guns.MannedGun(self, world.Train, guns) is not { } gun)
+        // The Weight on the rear car (App. A.3): the gun's no answer to it (it's below the arc), and the car may be about to
+        // go. The bots' answer is the sacrifice: off it, up the train, and let it take the car.
+        bool rearHeld = world.ActiveEnemies.Any(e => e is Weight { Holding: true } w && w.Attached == world.Train.Dynamics.Consist.Vehicles[^1].Id);
+        if (houndsAboard || rearHeld || Guns.MannedGun(self, world.Train, guns) is not { } gun)
         {
-            if (!houndsAboard)
+            if (rearHeld)
+                _legs.Head(-1);
+            else if (!houndsAboard)
                 _legs.Head(+1);
             return self.Parent > 0 ? _legs.Decide(self, world, tick, out aimed) : default;
         }
@@ -134,7 +139,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // Warming up means a coupler plate, so it keeps to the gaps no Rattle's in (App. A.5), and out of a car a Climber's
         // got into (App. A.4): its client can see both.
         if (_warm is not null)
-            _warm.Barred = car => world.ActiveEnemies.Any(e => e is Rattle r && r.Attached == car || e is Climber { Inside: true } c && c.Attached == car);
+            _warm.Barred = car => world.ActiveEnemies.Any(e => e is Rattle r && r.Attached == car || e is Climber { Inside: true } c && c.Attached == car
+                || e is Weight { Holding: true } w && w.Attached == car);
         if (Work(self, world) is { } working)
             return working;
         var train = world.Train;
@@ -149,6 +155,10 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
                 _direction = clinger.Attached < self.Parent ? -1 : 1;
             // Hounds aboard: nobody goes near them, and anyone close walks away (they drop off when bored).
             if (world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && e.Attached >= 0 && e.Attached >= parent - 1))
+                _direction = -1;
+            // The Weight holding a car (App. A.3): off that car and the one ahead of it, toward the engine. It may take the car.
+            int mine = train.Dynamics.Consist.IndexOf(parent);
+            if (mine >= 0 && world.ActiveEnemies.Any(e => e is Weight { Holding: true } w && train.Dynamics.Consist.IndexOf(w.Attached) is var held && held >= 0 && mine >= held - 1))
                 _direction = -1;
         }
         return Decide(self, train, tick);

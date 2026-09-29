@@ -228,6 +228,15 @@ public sealed class GameAudio
                         s.Loop.Occlusion = occlusion;
                     }
                     break;
+                case EnemyKind.Weight when e.Phase == SpinePhase.Telegraph && e.Attached >= 0:
+                    // The drag scrape under the rear coupling (App. A.3), for as long as it holds on.
+                    s.Loop ??= Mixer.Play("weight-scrape", at);
+                    if (s.Loop is not null)
+                    {
+                        s.Loop.Position = at;
+                        s.Loop.Occlusion = occlusion;
+                    }
+                    break;
                 case EnemyKind.Rattle when e.Phase == SpinePhase.Telegraph:
                     // The rattle in the coupling (App. A.5): all the tell there is. Out in the gap, so a car between you and it
                     // muffles it like anything else.

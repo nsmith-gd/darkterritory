@@ -238,9 +238,12 @@ public sealed record SwitchPlan(Branch Branch, double Hold)
         return new SwitchPlan(b, b.Toe - (world.Switches?.Tuning.PointsLength ?? 12) - 2);
     }
 
-    /// <summary>The whole train's standing short of the points on the main line.</summary>
+    /// <summary>
+    /// The whole train's standing short of the points on the main line: at the hold, or further back (backed off a dead
+    /// line, the driver stops wherever the train's clear of them, which can be well short of the hold).
+    /// </summary>
     public bool StandingAt(TrainOnLine train) =>
-        train.OnMain && train.Rakes.Count == 1 && Math.Abs(train.Dynamics.Velocity) < 0.05 && Math.Abs(train.Dynamics.Distance - Hold) < 3;
+        train.OnMain && train.Rakes.Count == 1 && Math.Abs(train.Dynamics.Velocity) < 0.05 && train.Dynamics.Distance - Hold < 3;
 }
 
 /// <summary>

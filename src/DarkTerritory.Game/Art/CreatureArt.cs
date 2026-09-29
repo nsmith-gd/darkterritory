@@ -490,6 +490,23 @@ public sealed class CreatureArt
                     };
                     return Draw(mesh, "crew", clip, t * speed, true, at, variant: 3, seed: 17, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.28f, 0.26f, 0.25f) });
                 }
+            case EnemyKind.Weight:
+                {
+                    // Buried beside the track until the rear car passes: nothing to see. Then under the rear coupling, below
+                    // the gun's arc (App. A.3): a heap of limbs hooked over the coupler and the headstock, dragging. The
+                    // Dragger's limbs, bigger and more of them, pulled back along −Z... the way the train isn't going.
+                    if (phase == SpinePhase.Dormant)
+                        return true;
+                    if (!_models.ContainsKey("dragger"))
+                        return false;
+                    for (int i = 0; i < 3; i++)
+                    {
+                        var limb = Matrix4x4.CreateScale(1.7f) * Matrix4x4.CreateRotationZ((i - 1) * 0.5f) * Matrix4x4.CreateRotationY(MathF.PI / 2)
+                            * Matrix4x4.CreateTranslation((i - 1) * 0.35f, -0.2f, 0.2f) * model;
+                        Draw(mesh, "dragger", "grip", t * 0.6 + i * 0.4, true, limb, seed: 20 + i);
+                    }
+                    return true;
+                }
             case EnemyKind.LongWhistle:
                 // "Never visible; operates from ahead on the line" (App. A.2): the horn is all of it.
                 return true;

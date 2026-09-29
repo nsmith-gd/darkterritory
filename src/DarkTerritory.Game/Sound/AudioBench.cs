@@ -40,6 +40,7 @@ public static class AudioBench
         ["hollow-gutter"] = (100, 1000),
         ["choir-voice"] = (300, 4000),
         ["long-whistle"] = (200, 800),
+        ["weight-scrape"] = (60, 300),
     };
 
     /// <summary>
@@ -53,7 +54,7 @@ public static class AudioBench
         "sleepers-writhe" or "hollow-gutter" => listenerCar == 0,
         // The engine's business: whoever's nearest the cab, which in the bench is the cab (T53).
         "deadman-click" or "stoker-hiss" => listenerCar == 0,
-        "hound-howl" => listenerCar == cars - 1,
+        "hound-howl" or "weight-scrape" => listenerCar == cars - 1,
         // Everyone hears it; the driver's the one it's for (the brake's in the cab).
         "long-whistle" => listenerCar == 0,
         "clinger-drill" => listenerCar == 1,
