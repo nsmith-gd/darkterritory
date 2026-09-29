@@ -292,10 +292,12 @@ public class CreatureArtTests
         }
         Frame(0);
         // The best of twenty frames, not their mean: what a frame costs, rather than how often a CI box (every test
-        // assembly at once on two cores) took the thread away. A mean there ran to 166 ms for an 11 ms frame.
-        const int Frames = 20;
+        // assembly at once on two cores) took the thread away. A mean there ran to 166 ms for an 11 ms frame. Up to
+        // sixty while none has come in under budget: on a box that busy even the best of twenty can land in a stretch
+        // where another assembly holds every core.
+        const int Frames = 20, MaxFrames = 60;
         double ms = double.MaxValue;
-        for (int f = 0; f < Frames; f++)
+        for (int f = 0; f < MaxFrames && (f < Frames || ms >= 120); f++)
         {
             var clock = System.Diagnostics.Stopwatch.StartNew();
             Frame(f / 30.0);

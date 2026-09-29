@@ -8,7 +8,7 @@ namespace Ballast.Platform;
 /// <summary>Keys the engine cares about, independent of SDL.</summary>
 public enum Key
 {
-    W, A, S, D, E, R, F, B, X, C, Q, T, V, L, Space, LeftShift, Escape, Tab, F1, F2, F5, Backspace,
+    W, A, S, D, E, R, F, B, X, C, Q, T, V, L, Space, LeftShift, Escape, Tab, F1, F2, F3, F5, Backspace,
     D1, D2, D3, D4, D5, D6, D7, D8, D9,
     MouseLeft, MouseRight,
     Up, Down, Left, Right, Enter,
@@ -191,6 +191,7 @@ public sealed unsafe class Window : IDisposable
         SDL_Scancode.SDL_SCANCODE_TAB => Key.Tab,
         SDL_Scancode.SDL_SCANCODE_F1 => Key.F1,
         SDL_Scancode.SDL_SCANCODE_F2 => Key.F2,
+        SDL_Scancode.SDL_SCANCODE_F3 => Key.F3,
         SDL_Scancode.SDL_SCANCODE_F5 => Key.F5,
         SDL_Scancode.SDL_SCANCODE_BACKSPACE => Key.Backspace,
         SDL_Scancode.SDL_SCANCODE_UP => Key.Up,

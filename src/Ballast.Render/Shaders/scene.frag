@@ -45,6 +45,26 @@ float noise(vec3 x) {
                mix(mix(hash(i + vec3(0, 0, 1)), hash(i + vec3(1, 0, 1)), f.x), mix(hash(i + vec3(0, 1, 1)), hash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
 }
 
+// Texture bombing for the terrain (after Quilez, "texture repetition", technique 3): a slow noise picks one of eight
+// offsets of the same tile, and neighbouring offsets cross-fade through its fractional part, weighted by where the
+// two samples differ so the seam follows the texture's own features. Offsets only translate, so the normal map's
+// tangent frame still holds. The same Tiling drives a layer's diffuse, spec and normal maps.
+struct Tiling { vec2 uv, a, b, dx, dy; float f; };
+
+Tiling tiling(vec2 uv) {
+    float l = noise(vec3(uv * 0.29, 0.5)) * 8.0 + noise(vec3(uv * 0.061, 3.5)) * 6.0;
+    float i = floor(l);
+    return Tiling(uv, sin(vec2(3.0, 7.0) * i), sin(vec2(3.0, 7.0) * (i + 1.0)), dFdx(uv), dFdy(uv), fract(l));
+}
+
+vec4 bombed(sampler2DArray m, inout Tiling t, float layer, bool weigh) {
+    vec4 a = textureGrad(m, vec3(t.uv + t.a, layer), t.dx, t.dy);
+    vec4 b = textureGrad(m, vec3(t.uv + t.b, layer), t.dx, t.dy);
+    if (weigh)
+        t.f = smoothstep(0.2, 0.8, t.f - 0.1 * dot(a.rgb - b.rgb, vec3(1.0)));
+    return mix(a, b, t.f);
+}
+
 // Grain, grime and staining in texel space (T39): what a hand-painted 128 px/m texture would carry. Over a real
 // texture only the broad fields and streaks apply (the texture has its own grain), so no two cars wear alike.
 vec3 weathered(vec3 albedo, vec3 s, float wear, bool textured) {
@@ -152,35 +172,49 @@ void main() {
     // A layer past what's loaded (a renderer not given the look's textures) draws as flat colour, not garbage.
     bool textured = vLayer >= 0.0 && vLayer < frame.params.w;
     bool ps2 = frame.params.y > 0.5;
+    bool terrain = textured && vLayer2 >= 0.0 && vLayer2 < frame.params.w;
 
     vec4 tex = vec4(1.0);
     vec3 specMap = vec3(vShine, 0.3, 0.0);
-    if (textured) {
+    if (textured && terrain) {
+        // The terrain blend (pipeline shader set, "terrain layer blend"): the second layer shows through by the
+        // vertex weight, broken up by the first's own brightness and a blocky noise, so the edge is crunchy and
+        // follows the texture (grass fills the low spots of the mud first), not a smooth crossfade.
+        // Each layer is bombed (Tiling), the second at an off-ratio scale so the two never line up, and both are
+        // modulated by a much larger copy of themselves (brightness over the layer's mean from its last mip), more
+        // so with distance, where a hillside of five-metre tiles would otherwise read as a quilt.
+        vec2 uv2 = vUv * 0.63;
+        Tiling t1 = tiling(vUv), t2 = tiling(uv2 + 13.7);
+        vec4 tex2;
+        tex = bombed(diffuseMaps, t1, vLayer, true);
+        tex2 = bombed(diffuseMaps, t2, vLayer2, true);
+        vec3 lw = vec3(0.3, 0.59, 0.11);
+        float far = smoothstep(8.0, 45.0, length(vPos));
+        float macro = dot(texture(diffuseMaps, vec3(vUv * 0.173 + 0.37, vLayer)).rgb, lw)
+            / max(dot(textureLod(diffuseMaps, vec3(0.5, 0.5, vLayer), 12.0).rgb, lw), 0.02);
+        float macro2 = dot(texture(diffuseMaps, vec3(vUv * 0.117 + 0.71, vLayer2)).rgb, lw)
+            / max(dot(textureLod(diffuseMaps, vec3(0.5, 0.5, vLayer2), 12.0).rgb, lw), 0.02);
+        tex.rgb *= mix(1.0, clamp(macro, 0.45, 1.7), 0.3 + 0.35 * far);
+        tex2.rgb *= mix(1.0, clamp(macro2, 0.45, 1.7), 0.3 + 0.35 * far);
+        float breakup = dot(tex.rgb, lw) * 1.4 + (noise(floor(vSurface / 3.0)) - 0.5) * 0.5;
+        float w = smoothstep(0.0, 0.18, vBlend * 1.4 - 0.2 - breakup * 0.6 + 0.3);
+        tex = mix(tex, tex2, w);
+        specMap = mix(bombed(specMaps, t1, vLayer, false).rgb, bombed(specMaps, t2, vLayer2, false).rgb, w);
+        if (ps2)
+            specMap = vec3(specMap.r * 0.5, 0.2, specMap.b);
+        else {
+            vec3 mapped = mix(bombed(normalMaps, t1, vLayer, false).xyz, bombed(normalMaps, t2, vLayer2, false).xyz, w) * 2.0 - 1.0;
+            n = perturb(n, vPos, vUv, normalize(mapped));
+        }
+    } else if (textured) {
         tex = texture(diffuseMaps, vec3(vUv, vLayer));
         if (tex.a < 0.5)
             discard; // alpha test, never blend (pipeline: "alpha test at 0.5")
         specMap = texture(specMaps, vec3(vUv, vLayer)).rgb;
-        if (vLayer2 >= 0.0 && vLayer2 < frame.params.w) {
-            // The terrain blend (pipeline shader set, "terrain layer blend"): the second layer shows through by the
-            // vertex weight, broken up by the first's own brightness and a blocky noise, so the edge is crunchy and
-            // follows the texture (grass fills the low spots of the mud first), not a smooth crossfade.
-            vec4 tex2 = texture(diffuseMaps, vec3(vUv, vLayer2));
-            float breakup = dot(tex.rgb, vec3(0.3, 0.59, 0.11)) * 1.4 + (noise(floor(vSurface / 3.0)) - 0.5) * 0.5;
-            float w = smoothstep(0.0, 0.18, vBlend * 1.4 - 0.2 - breakup * 0.6 + 0.3);
-            tex = mix(tex, tex2, w);
-            specMap = mix(specMap, texture(specMaps, vec3(vUv, vLayer2)).rgb, w);
-        }
         if (ps2)
             specMap = vec3(specMap.r * 0.5, 0.2, specMap.b);
-        else {
-            vec3 mapped = texture(normalMaps, vec3(vUv, vLayer)).xyz * 2.0 - 1.0;
-            if (vLayer2 >= 0.0 && vLayer2 < frame.params.w) {
-                vec3 mapped2 = texture(normalMaps, vec3(vUv, vLayer2)).xyz * 2.0 - 1.0;
-                float w2 = smoothstep(0.0, 0.18, vBlend * 1.4 - 0.2 - (dot(tex.rgb, vec3(0.3, 0.59, 0.11)) * 1.4) * 0.6 + 0.3);
-                mapped = mix(mapped, mapped2, w2);
-            }
-            n = perturb(n, vPos, vUv, normalize(mapped));
-        }
+        else
+            n = perturb(n, vPos, vUv, normalize(texture(normalMaps, vec3(vUv, vLayer)).xyz * 2.0 - 1.0));
     }
     vec3 albedo = tex.rgb * vColor;
     if (vWear > 0.0)

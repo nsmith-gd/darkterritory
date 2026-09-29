@@ -349,7 +349,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     /// <summary>With a crew to call to, it stops to work the facilities they can (T32, GDD §17).</summary>
     public StopDriver? Stops { get; } = calls is null ? null : new StopDriver(calls);
 
-    public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => Work(self, train, Drive(train, tick, CruiseSpeed));
+    public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => Work(self, train, Drive(train, tick, CruiseSpeed, 1.5));
 
     /// <summary>Lamps down while eyes are out there, and for a while after; up again once they've been gone a while.</summary>
     LampSwitch Lamp(World world, uint tick)
@@ -368,18 +368,21 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         var train = world.Train;
         calls?.Say(member, StopJob.Driver, self);
         var lamp = Lamp(world, tick);
+        // On a generated line, no faster than its authority allows here (linegen plan §9, §16.1): what the boards say.
+        double cruise = world.LampShining ? CruiseSpeed : DarkCruiseSpeed;
+        // A lantern on the line ahead, waving us down (App. A.2): do not slow down. Hold the fastest we've come at it, lamp
+        // or no lamp (the Lamplighters + Ferryman bind: the lantern is its own light); the boards still cap it.
+        if (world.ActiveEnemies.OfType<Ferryman>().FirstOrDefault(f => f.Waving) is { } ferryman)
+            cruise = Math.Max(cruise, ferryman.Extra);
+        if (world.TrackPlan is { } plan)
+            cruise = Math.Min(cruise, LineGen.LineAuthority.For(plan, train.Line).Allowed(train));
         if (Stops is { } stops)
         {
-            stops.CruiseSpeed = CruiseSpeed;
+            stops.CruiseSpeed = cruise;
             if (stops.Decide(self, world) is { } stopping)
                 return Work(self, train, stopping) with { Lamp = lamp };
         }
-        // A lantern on the line ahead, waving us down (App. A.2): do not slow down. Hold the fastest we've come at it, lamp
-        // or no lamp (the Lamplighters + Ferryman bind: the lantern is its own light).
-        double cruise = world.LampShining ? CruiseSpeed : DarkCruiseSpeed;
-        if (world.ActiveEnemies.OfType<Ferryman>().FirstOrDefault(f => f.Waving) is { } ferryman)
-            cruise = Math.Max(cruise, ferryman.Extra);
-        var intent = Drive(train, tick, cruise);
+        var intent = Drive(train, tick, cruise, world.TrackPlan is null ? 1.5 : 0.5);
         intent.Lamp = lamp;
         // Watch the road: something showing on the line ahead means get below derailing speed.
         bool somethingAhead = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.Sleepers && e.Phase == SpinePhase.Telegraph
@@ -413,7 +416,8 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 
     bool _holdingDown;
 
-    PlayerIntent Drive(TrainOnLine train, uint tick, double cruise)
+    /// <param name="over">How far over <paramref name="cruise"/> before holding it on the brake: a posted limit gets less slack.</param>
+    PlayerIntent Drive(TrainOnLine train, uint tick, double cruise, double over)
     {
         var d = train.Dynamics;
         // To the end of the track it's on: the terminus, or a dead line's buffer stop.
@@ -423,7 +427,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         var intent = new PlayerIntent();
         // A descent runs the train away with the regulator shut; hold it on the brake, with some
         // hysteresis so it isn't hammered every tick (fade only builds while it's applied).
-        if (d.Speed > cruise + 1.5)
+        if (d.Speed > cruise + over)
             _holdingDown = true;
         else if (d.Speed <= cruise)
             _holdingDown = false;

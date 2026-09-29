@@ -192,10 +192,16 @@ public sealed class World
         return e;
     }
 
+    /// <summary>The generated line whose track rules the host holds the train to (curves, weak bridges, washouts); null for a hand-laid one.</summary>
+    public LineGen.LinePlan? TrackPlan { get; set; }
+    /// <summary>What derailed the train, when the track did it (the report and the HUD say so).</summary>
+    public string? DerailCause { get; private set; }
+
     /// <summary>Starts the run. The host steps it (<see cref="StepRun"/>); clients mirror it from records.</summary>
     /// <param name="facilities">The facilities' loading modules (spec D); null for none.</param>
     public void EnableRun(Run.RunTuning tuning, Route.Route route, double yardLength, bool authority, Run.FacilityTuning? facilities = null)
     {
+        TrackPlan ??= route.Plan;
         Run = new Run.Run(tuning, route) { YardLength = yardLength };
         if (facilities is not null)
             Run.EnableSites(facilities, Train.Line);
@@ -306,6 +312,9 @@ public sealed class World
         Train.DragFactor = Enemies?.Weight.DragFactor ?? 0;
         Train.Step(SimConstants.TickSeconds, applied);
         LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
+        // A generated line's lethal checks: a curve too fast, a weak bridge overloaded, a washout (linegen plan §7.3).
+        if (Authority && TrackPlan is { } plan && LineGen.TrackRules.Step(this, plan, SimConstants.TickSeconds) is { } why)
+            DerailCause = why;
         if (Combat is { } c)
         {
             Guns.Step(Train);

@@ -147,8 +147,10 @@ public sealed class EditorTests : IDisposable
         var catapult = route with { Features = [.. route.Features.Select(f => f == facility ? f with { Modules = ["catapult"] } : f)] };
         Assert.Equal(400, Call("POST", "/api/route/preview", catapult).Status);
         Assert.Equal(400, Call("POST", "/api/route/save", new { name = "catapult", route = catapult }).Status);
-        // A curve a metre tighter than any tier lays (route.json's least minRadius, which the page is told).
-        double tightest = DataFile.Load<RouteTuning>(Path.Combine(_content, RouteTuning.File)).Tiers.TightestRadius();
+        // A curve a metre tighter than any tier lays (the least minRadius of route.json and the line generator's
+        // deepest column, which the page is told).
+        double tightest = Math.Min(DataFile.Load<RouteTuning>(Path.Combine(_content, RouteTuning.File)).Tiers.TightestRadius(),
+            DarkTerritory.Sim.LineGen.LineGenConfig.Load(_content).Tiers.Columns.DeepMax.MinRadius);
         Assert.Equal(tightest, described.GetProperty("tightestRadius").GetDouble());
         var hairpin = route with { Line = route.Line with { Segments = [.. route.Line.Segments.Select((t, i) => i == 1 ? t with { Radius = -(tightest - 1) } : t)] } };
         Assert.Equal(400, Call("POST", "/api/route/save", new { name = "hairpin", route = hairpin }).Status);
