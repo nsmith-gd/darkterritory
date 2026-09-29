@@ -1192,6 +1192,16 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - soots the result: creases, mud climbing the boots and hem, smoke settled on the shoulders, and the face sallow and smudged, its occlusion softened.
       - A Cycles bake clears the whole image, and only the colour pass leaves alpha where it didn't write. So each group bakes into images of its own, and its colour coverage masks all four maps into the atlas.
       - The chest lamp's glass keeps crew_atlas's lit cell, and the shovel keeps its library layers. `tools/blender/build.sh` no longer builds the crew.
+      - The cars are the sixth. Pieces TrainKit set as boxes are modelled once, baked, and set by the kit where the boxes were, with the boxes as the fallback:
+        - `recipes/car_gear.py` has three pieces:
+          - the arch-bar truck, with plate wheels, journal boxes with their lids, top, arch and tie bars through the columns, coil springs, the bolster, and brake beams with their shoes on the treads;
+          - the knuckle coupler, with its striker, knuckle and guard arm, the cut lever out to the car side, and the air hose with its angle cock and glad hand. It's turned for a car's rear and raised to the kit's height;
+          - the brake gear under the middle: the reservoir on straps, the cylinder, the triple valve, the levers and the push rods.
+        - `recipes/car_body.py` has modules laid to the car's tuned geometry:
+          - roof-walk bays of gapped, nailed boards, stretched to fit the walk end to end;
+          - the roof sheets' riveted seam caps between the bays, on a steel roof, scaled to the roof's width;
+          - side posts: riveted pressed ribs on the steel cars, and bolted timber posts with iron plates on the planked ones.
+        - A car goes from about 5k triangles to about 10k, inside its class's 15k.
     - **First set.**
       - The Khronos Lantern, split into a lamp post and a hand lantern. The hand lantern replaces the kit's cage in the cars, on the platforms and as the dropped lamp.
       - The photoscanned skull.
