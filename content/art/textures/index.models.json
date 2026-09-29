@@ -1,0 +1,121 @@
+[
+  {
+    "name": "hand_lantern_0",
+    "diffuse": "models/hand_lantern_0.png",
+    "spec": "models/hand_lantern_0_s.png",
+    "normal": "models/hand_lantern_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "khronos-lantern",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "Lantern, Microsoft (Khronos glTF sample assets), CC0"
+      }
+    ]
+  },
+  {
+    "name": "lamp_post_0",
+    "diffuse": "models/lamp_post_0.png",
+    "spec": "models/lamp_post_0_s.png",
+    "normal": "models/lamp_post_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "khronos-lantern",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "Lantern, Microsoft (Khronos glTF sample assets), CC0"
+      }
+    ]
+  },
+  {
+    "name": "skull_0",
+    "diffuse": "models/skull_0.png",
+    "spec": "models/skull_0_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "khronos-skull",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "ScatteringSkull (Khronos glTF sample assets), CC0"
+      }
+    ]
+  },
+  {
+    "name": "skull_lantern_0",
+    "diffuse": "models/skull_lantern_0.png",
+    "spec": "models/skull_lantern_0_s.png",
+    "normal": "models/skull_lantern_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "khronos-lantern",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "Lantern, Microsoft (Khronos glTF sample assets), CC0"
+      },
+      {
+        "id": "khronos-skull",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "ScatteringSkull (Khronos glTF sample assets), CC0"
+      }
+    ]
+  },
+  {
+    "name": "skull_lantern_1",
+    "diffuse": "models/skull_lantern_1.png",
+    "spec": "models/skull_lantern_1_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "khronos-lantern",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "Lantern, Microsoft (Khronos glTF sample assets), CC0"
+      },
+      {
+        "id": "khronos-skull",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "ScatteringSkull (Khronos glTF sample assets), CC0"
+      }
+    ]
+  }
+]

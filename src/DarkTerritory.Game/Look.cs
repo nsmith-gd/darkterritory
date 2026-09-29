@@ -136,6 +136,10 @@ public sealed class Look
         if (!System.IO.File.Exists(index))
             return new Look(tuning);
         var entries = JsonSerializer.Deserialize<List<TextureEntry>>(System.IO.File.ReadAllText(index), DataFile.Options) ?? [];
+        // The sourced props' own layers (tools/models writes them beside the library, index.models.json), after it.
+        string models = Path.Combine(root, "index.models.json");
+        if (System.IO.File.Exists(models))
+            entries.AddRange(JsonSerializer.Deserialize<List<TextureEntry>>(System.IO.File.ReadAllText(models), DataFile.Options) ?? []);
         // A texture named in the index but not on disk is skipped (and so is its material's texture): the look degrades
         // to flat colour rather than failing to start.
         entries = [.. entries.Where(e => System.IO.File.Exists(Path.Combine(root, e.Diffuse)))];

@@ -151,10 +151,27 @@ public sealed partial class WorldArt
         if (gateAt >= from && gateAt <= to)
         {
             var t = line.Sample(gateAt);
-            mesh.Instances.Add(new MeshInstance(Piece("gatehouse", () => StructureKit.Gatehouse(_look)), Basis(t.Tangent, t.Position, eye, 0)));
+            var gm = Basis(t.Tangent, t.Position, eye, 0);
+            mesh.Instances.Add(new MeshInstance(Piece("gatehouse", () => StructureKit.Gatehouse(_look)), gm));
             var lamp = (t.Position + Double3.Up * 8.0 + t.Tangent * -3.8).RelativeTo(eye);
             mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.6f, 14));
             mesh.Billboard(lamp, 1.8f, 0, new Vector4(Palette.LampAmber * 0.7f, 1), -1, FxBlend.Additive);
+            // Either side of the way in, a lamp post whose lantern holds a skull where the flame should be (tools/models
+            // skull_lantern): the first thing on the line that says what this place has become.
+            if (_props.Get("skull_lantern") is { } skulls)
+                foreach (int side in new[] { -1, 1 })
+                {
+                    var at = Matrix4x4.CreateRotationY(side > 0 ? MathF.PI / 2 : -MathF.PI / 2) * Matrix4x4.CreateTranslation(side * 4.6f, 0, 6f) * gm;
+                    mesh.Instances.Add(new MeshInstance(skulls, at));
+                    if (_props.Socket("skull_lantern", "lamp") is { } s)
+                    {
+                        // A candle guttering under the skull, so its brow and teeth catch the light from below and
+                        // the sockets stay black; a small halo at the flame, not over the face.
+                        var flame = Vector3.Transform(s + new Vector3(0, -0.2f, 0), at);
+                        mesh.PointLights.Add(new PointLight(flame, new Vector3(1.0f, 0.55f, 0.25f) * 1.1f, 6));
+                        mesh.Billboard(flame, 0.35f, 0, new Vector4(0.6f, 0.32f, 0.12f, 1), -1, FxBlend.Additive);
+                    }
+                }
         }
         if (!platform)
             return;
@@ -167,7 +184,14 @@ public sealed partial class WorldArt
             int v = (int)(s / 8) % 3;
             var t = line.Sample(s);
             var m = Basis(t.Tangent, t.Position, eye, 0);
-            mesh.Instances.Add(new MeshInstance(Piece($"platform-{v}", () => StructureKit.PlatformBay(_look, v)), m));
+            var hand = _props.Get("hand_lantern");
+            mesh.Instances.Add(new MeshInstance(Piece($"platform-{v}:{hand is not null}", () => StructureKit.PlatformBay(_look, v, lantern: hand is null)), m));
+            if (hand is not null)
+            {
+                // The sourced lantern on the bay's bracket, a little bigger than a hand lamp: a station's.
+                var flame = _props.Socket("hand_lantern", "lamp") ?? Vector3.Zero;
+                mesh.Instances.Add(new MeshInstance(hand, Matrix4x4.CreateTranslation(-flame) * Matrix4x4.CreateScale(1.35f) * Matrix4x4.CreateTranslation(StructureKit.Lantern) * m));
+            }
             var lantern = Vector3.Transform(StructureKit.Lantern, m);
             mesh.PointLights.Add(new PointLight(lantern, Palette.LampAmber * 1.5f, 9));
             mesh.Billboard(lantern, 0.9f, 0, new Vector4(Palette.LampAmber * 0.7f, 1), -1, FxBlend.Additive);

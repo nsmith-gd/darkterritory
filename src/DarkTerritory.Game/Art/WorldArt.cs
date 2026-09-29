@@ -16,6 +16,8 @@ namespace DarkTerritory.Game.Art;
 public sealed partial class WorldArt(Look look)
 {
     readonly Look _look = look;
+    /// <summary>The sourced props (tools/models), placed where the kit's pieces would be.</summary>
+    readonly PropArt _props = PropArt.Of(look);
     readonly Dictionary<string, MeshAsset> _pieces = new();
 
     MeshAsset Piece(string key, Func<MeshAsset> make)

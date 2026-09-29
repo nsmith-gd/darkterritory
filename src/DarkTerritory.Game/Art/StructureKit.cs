@@ -316,7 +316,8 @@ public static class StructureKit
     /// A bay of the fortified station's platform (the art sheet's "fortified station"): cobbles at a low kerb, timber posts,
     /// a pitched canopy of slate on rafters, a lantern hanging under each bay. <see cref="Lantern"/> is where its light is.
     /// </summary>
-    public static MeshAsset PlatformBay(Look? look, int variant)
+    /// <param name="lantern">False when the scene hangs a sourced lantern on the bracket instead (tools/models).</param>
+    public static MeshAsset PlatformBay(Look? look, int variant, bool lantern = true)
     {
         var k = new Kit(look, 970 + variant);
         const float x0 = 3.6f, x1 = 10, len = 8;
@@ -337,15 +338,18 @@ public static class StructureKit
             k.Rod(new Vector3(4.0f, 4.35f, z), new Vector3(10.4f, 5.3f, z), 0.05f);
         k.Use("roof_slate", Palette.Charcoal, 0.8f, 0.2f, tile: 1.5f);
         k.Quad(new Vector3(3.7f, 4.4f, 0), new Vector3(3.7f, 4.4f, -len), new Vector3(10.6f, 5.4f, -len), new Vector3(10.6f, 5.4f, 0), twoSided: true);
-        // The lantern: an iron cage on a bracket, lit glass.
+        // The lantern: an iron cage on a bracket, lit glass (or just the bracket, when a sourced lantern hangs there).
         k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.3f);
         var l = Lantern;
         k.Rod(l + new Vector3(0, 0.25f, 0), l + new Vector3(0, 0.75f, 0), 0.015f);
-        k.BoxAt(l + new Vector3(0, 0.22f, 0), new Vector3(0.14f, 0.03f, 0.14f));
-        k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
-        k.Emissive = 1;
-        k.BoxAt(l, new Vector3(0.1f, 0.18f, 0.1f));
-        k.Emissive = 0;
+        if (lantern)
+        {
+            k.BoxAt(l + new Vector3(0, 0.22f, 0), new Vector3(0.14f, 0.03f, 0.14f));
+            k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+            k.Emissive = 1;
+            k.BoxAt(l, new Vector3(0.1f, 0.18f, 0.1f));
+            k.Emissive = 0;
+        }
         // Something on the platform: a bench, or crates, or a sack barrow.
         if (variant % 3 == 0)
         {

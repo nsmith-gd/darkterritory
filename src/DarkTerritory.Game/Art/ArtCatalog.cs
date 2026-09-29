@@ -80,6 +80,23 @@ public static class ArtCatalog
         list.Add(new("windmill", LargeProp, () => TownKit.Windmill(look)));
         list.Add(new("buffer-stop", MediumProp, () => StructureKit.BufferStop(look)));
         list.Add(new("switch-stand", MediumProp, () => StructureKit.SwitchStand(look)));
+        // The sourced props (tools/models): each budgeted as what it stands in for.
+        if (look is not null)
+        {
+            var props = PropArt.Of(look);
+            foreach (var name in props.Names)
+            {
+                var n = name;
+                // The hand lantern is also the crew's held lamp (the plan's first-person tool: 4-6k); a skull is seen
+                // close, in a pile or a lantern, so it gets a medium prop's budget, not a pebble's.
+                var cls = n switch
+                {
+                    "hand_lantern" or "skull" => MediumProp,
+                    _ => LargeProp,
+                };
+                list.Add(new($"prop-{n}", cls, () => props.Get(n)!));
+            }
+        }
         foreach (var kind in Enum.GetValues<FacilityKind>())
         {
             var k = kind;

@@ -117,7 +117,8 @@ public sealed class SceneArt(Look look)
             Sim.Physics.BodyKind.Heavy => Piece($"prop-heavy-{heavyHalf:0.00}", () => PropKit.Heavy(Look, (float)heavyHalf)),
             Sim.Physics.BodyKind.Crate => Piece("prop-crate", () => PropKit.Crate(Look)),
             Sim.Physics.BodyKind.Radio => Piece("prop-radio", () => PropKit.Radio(Look)),
-            _ => Piece("prop-lantern", () => PropKit.Lantern(Look)),
+            // The hand lamp: the sourced lantern (tools/models hand_lantern) where it's built.
+            _ => PropArt.Of(Look).Get("hand_lantern") ?? Piece("prop-lantern", () => PropKit.Lantern(Look)),
         };
         mesh.Append(piece, m);
         if (b.Kind == Sim.Physics.BodyKind.Lamp)
@@ -173,13 +174,21 @@ public sealed class SceneArt(Look look)
         var lamps = Piece($"lamps:{room.Min.Y:0.00}:{room.Max.Y:0.00}:{room.HalfSize.Z:0.00}:{room.Centre.Z:0.00}", () =>
         {
             var k = new Kit(Look, 71);
-            var lantern = PropKit.Lantern(Look);
+            // The sourced hand lantern hung by its ring where it's built (tools/models), the kit's cage where it isn't.
+            var props = PropArt.Of(Look);
+            var sourced = props.Get("hand_lantern");
+            var lantern = sourced ?? PropKit.Lantern(Look);
+            var ring = sourced is not null ? props.Socket("hand_lantern", "hang") ?? new Vector3(0, 0.36f, 0) : new Vector3(0, 0.26f, 0);
+            var flame = sourced is not null ? props.Socket("hand_lantern", "lamp") ?? new Vector3(0, 0.15f, 0) : Vector3.Zero;
             var chain = Chain(Look);
             foreach (var at in LampPositions(room))
             {
-                float drop = (float)room.Max.Y - at.Y - 0.26f;
-                k.Append(chain, Matrix4x4.CreateScale(0.5f, drop / 0.18f, 0.5f) * Matrix4x4.CreateTranslation(at + new Vector3(0, 0.26f + drop / 2, 0)));
-                k.Append(lantern, Matrix4x4.CreateTranslation(at));
+                // The flame where the light is (LampPositions); the ring under the chain.
+                var foot = at - flame;
+                float top = foot.Y + ring.Y;
+                float drop = (float)room.Max.Y - top;
+                k.Append(chain, Matrix4x4.CreateScale(0.5f, drop / 0.18f, 0.5f) * Matrix4x4.CreateTranslation(new Vector3(at.X, top + drop / 2, at.Z)));
+                k.Append(lantern, Matrix4x4.CreateTranslation(foot));
             }
             return k.Build("car-lamps");
         });
