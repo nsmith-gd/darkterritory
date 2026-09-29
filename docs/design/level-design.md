@@ -1,0 +1,210 @@
+# DARK TERRITORY — LEVEL DESIGN PRINCIPLES
+## Companion to GDD v1.0 · September 2026 · living document, one example at a time
+
+This document turns hand-drawn example levels into **rules a generator can follow at any scale**. Each example gets a breakdown: what's on the page, why it works in terms of the GDD, and the generator rule it implies. Part Z collects the rules that hold across examples. As more examples arrive, rules that hold get promoted to Part Z, and rules that one example contradicts get split into per-archetype variants.
+
+Numbers here are **first-pass readings of a sketch**, not tuning. Once a generator implements a rule, its number moves into `content/tuning/*.json`, and that file cites this section (CLAUDE.md: "design numbers live in tuning").
+
+**Conventions.** Everything is placed in the **rail frame**: `s` is distance along the main line in metres, `d` is lateral offset in metres (+ right of travel direction). This is the frame `RouteGenerator` and `WorldArt` already use, and it is the only frame that stays meaningful on a line of unbounded length.
+
+---
+
+# EXAMPLE 1 — THE LOADING YARD
+
+![Loading yard sketch](level-examples/01-loading-yard.jpg)
+
+*Solid lines are roads, dashed lines are track. The timber buildings on the right are storage sheds holding crates and bulk loot, with gantry cranes over the sidings. The plaster buildings on the left are houses in a long-abandoned village, sometimes still holding small hidden loot (medicine, treats, valuable tools).*
+
+## 1.1 Reading the scale
+
+The sketch has no scale bar. **Read it at about 0.5 m per pixel**, so the page is about 300 m square. This is the reading that keeps the existing numbers true:
+
+- A storage shed (~55 px) comes out at ~27 m, about two cars (`train.json` carLength 14).
+- A siding row of three sheds comes out at ~90 m, about the engine plus four cars. That matches `facilities.json`/`route.json` spurLength 100 and GDD §17: "most cannot accommodate a full armoured freight train".
+- The village sits 40–105 m off the main line. `WorldArt` already scatters villages 38–68 m out.
+- The yard's farthest shed is ~150 m from the throat, mid-range on spec D.1's Compact (60 m) → Sprawling (400 m) scale.
+
+At 1 m/px a siding would hold ten cars and the split-consist problem would disappear, so that reading is rejected.
+
+## 1.2 Inventory
+
+| Element | What's drawn | Rail frame (approx.) |
+|---|---|---|
+| **Main line** | One straight track through the whole page | `d = 0`, `s` ∈ [0, 290] |
+| **Yard throat, south** | A single lead diverging from the main, fanning into the sidings | toe at `s ≈ 70`, `d` 0 → +60 |
+| **Yard lead, north** | A second lead that curves in from the north and joins the top of the yard | `d` +10 → +60 |
+| **Sidings** | ~4 parallel dead-end sidings, perpendicular-ish to the main after the fan | `d` +60 → +145 |
+| **Storage grid** | 4 rows × 3 sheds, rows alternating with sidings | `d` +60 → +145 |
+| **Hero cluster** | 5 sheds joined in a chevron that follows the north lead's curve, plus 1 standalone | far end of the yard, `d` +65 → +130 |
+| **Throat sheds** | 2 small sheds on the inside of the north lead, between the main and the yard | `d ≈ +35` |
+| **Village** | ~15 houses in 4 road-bounded blocks, stacked along the line | `d` −40 → −105 |
+| **Frontage road** | A village road running parallel to the main, ~20 m off it | `d ≈ −20` |
+| **Level crossing** | The one place a road crosses the main line | south edge, `s ≈ 20` |
+| **Through road** | Road from the SW corner, over the crossing, off the east edge | leaves the page both ways |
+| **Outliers** | A lone building at the end of a stub road (NW); a grey-green square-roofed type, of which there are two | `d ≈ −105` |
+| **Village edge sheds** | Timber outbuildings on the village side, nearest the rail | `d ≈ −25` |
+
+## 1.3 Principles
+
+Each principle below gives what the sketch does, why it works (with its GDD/spec basis), and the generator rule it implies.
+
+### P1 — The main line is the spine *and* the divider
+**Sketch:** industry on one side, homes on the other, the main line between them.
+**Why:** the two halves ask for different crews doing different things at the same time, so the site splits the crew by design (GDD §17: "several isolated pieces"). A crew can't do both halves together. It has to choose, or split.
+**Rule:** a site places its **districts on opposite sides of the main line when their loot logic differs**. Crossing the main line is always a deliberate act.
+
+**Consequence worth keeping:** by GDD §17 the loaded cars wait on the main line while the engine works the yard. At this site that means **the parked half-consist sits between the yard and the village**. Anyone going to the village has to pass it, climb over it or go round it, and anything hiding in it is between them and the engine. The generator doesn't place this. It falls out of P1 plus the existing split-consist rules, so it's free.
+
+### P2 — The portability gradient
+**Sketch:** crane loot sits right on the track. Hand loot is 40–105 m away across open ground.
+**Why:** it matches loot to the tool that moves it. Heavy loot needs the train brought to it (switches, spotting, a 2-player crane: spec D.2's *blind instruction* failure). Light loot needs people taken to it (distance, isolation, *being left behind*: GDD §23). Different kinds of loot fail in different ways, which is spec D.3's intent applied across a whole site rather than within one module.
+**Rule:** **value per kilogram rises with distance from track; mass falls.**
+- Band 0, on the track (`|d|` < crane span): uncarryable. Loading needs a module (crane, winch, chute).
+- Band 1, the flanks (`|d|` < ~40 m): two-person and one-person crates (`facilities.json` crates, heavy crates).
+- Band 2, off-rail (`|d|` > ~40 m): pocketable. Medicine, treats, tools. Found by searching, not by loading.
+
+A site rolls its loot *by band*, and nothing uncarryable is ever placed beyond crane reach of a siding.
+
+### P3 — The train goes to heavy loot; people go to light loot
+**Sketch:** the yard's leads and sidings reach every shed. No track goes anywhere near a house.
+**Why:** the train is the only thing that can carry bulk, and it's also the only safety (GDD pillar 1). Wherever bulk loot is, the engine has to be there too. Wherever light loot is, the engine isn't. So each site's layout already answers "who's near the engine tonight?"
+**Rule:** every storage building is **within crane reach of at least one siding**. Every lootable house is **off the rail network**.
+
+### P4 — Planned vs grown: the silhouette tells you what kind of place it is
+**Sketch:** the yard is a strict grid, every shed square to its siding. The village is scattered and irregular: every house turned a little, footprints mixed (rectangle, L, cross, cluster).
+**Why:** art pillar 1 (readability through silhouette) and pillar 3 (shouting). In the dark, from the cab, a row of long identical roofs means "cranes, crates, the train goes in there". A jumble of small roofs means "go on foot and search". The layout itself tells the crew what to do.
+**Rule:** **industrial districts are laid out on the track's axes; domestic districts are jittered off them.** Parameters: yard yaw jitter 0°; village yaw jitter ±25° (the existing village code's ±0.4 rad is a match); a mix of footprint types per village, with no single type above ~40%.
+
+### P5 — Double-loaded sidings
+**Sketch:** sidings and shed rows alternate, so most sheds touch a siding on one side and many touch one on both.
+**Why:** one crane over one siding serves the sheds on both sides. Choosing *which siding to spot the train in* is the yard's decision: each siding offers two rows of loot, and every siding needs its own set of switches thrown.
+**Rule:** a storage grid is `N` sidings (2–6, spec D.1) at a pitch of **track, shed row, track, shed row…**. Row depth ≈ crane span minus clearance, so a gantry astride a siding (`facilities.json` crane.span [−3.5, 9]) reaches halfway into each flanking shed. The outermost rows may be single-loaded (a wall on the far side).
+
+### P6 — One throat
+**Sketch:** every siding branches off one short ladder next to the main line, so all the yard's switches are in one small area.
+**Why:** it gives the site one point where ground exposure is concentrated (GDD §17: "someone is on the ground at every junction, alone, calling the route"). Everyone who works the yard passes through the throat, so it's the place to put the tension. It also makes switch calls shoutable: "third road off the ladder" (pillar 3).
+**Rule:** a yard has **one throat per lead**. Its switches are packed into a ladder no longer than ~60 m. A **throat landmark** stands at the throat (in the sketch, the two sheds on the inside of the north lead). That's the natural place for the yard's power (spec D.1: the dead-facility restart excursion) or its switch key.
+
+### P7 — Depth: the far end is the prize
+**Sketch:** the regular grid gives way at the far end to a chevron of joined sheds plus a standalone shed, larger and irregular, reached along the curving north lead.
+**Why:** it rewards going deeper, and distance from the throat and the main line is exactly what makes a thing dangerous to fetch (more switches, longer reverse out, further from the parked cars). A single hero structure also gives the whole yard a silhouette.
+**Rule:** loot value inside a district **increases with graph distance from the throat** (switches thrown + metres of track). Each yard has **one hero structure at its deepest point**, and it breaks the grid.
+
+### P8 — Buildings follow the track, never the reverse
+**Sketch:** the chevron is what a shed row looks like when its siding curves. The sheds bend to the north lead's arc.
+**Why:** track geometry is constrained (turnout radii, `route.json` spurRadius 150, divergeRadius 190) and buildings aren't. If the track is laid first and the buildings fitted to it, curvature limits never have to be negotiated.
+**Rule:** **generation order is rail → roads → buildings → loot.** Industrial buildings are placed as segments tangent to their siding. A curved siding produces a chain of short sheds, each rotated to its local tangent.
+
+### P9 — Two networks: rail serves industry, roads serve people
+**Sketch:** the roads make the village's blocks, run a frontage road beside the line, end in stubs at outliers, cross the main line exactly once, and run off the page in both directions. The yard has no roads of its own.
+**Why:** the roads are older than the collapse and belong to the village. The rail is what still works. Keeping the two separate stops the yard and the village merging into one mush. Roads that leave the page are what make a site feel like part of a world rather than a room.
+**Rule:** roads are generated **as their own network, at a coarser scale than sites** (see Z.3). A site doesn't invent its through road; it inherits it from the regional road net and hangs its village off it. Roads never run *into* a yard.
+
+### P10 — The level crossing is the hinge
+**Sketch:** the one road–rail crossing is at the south end, next to the yard's south throat and the densest village block.
+**Why:** it's where the two halves meet. It's the shortest safe-feeling route between them, a name everyone can shout ("meet at the crossing"), and the obvious path that creatures and players alike will use. That makes it a natural place for an ambush or a Sleeper (App. B.2).
+**Rule:** each site with districts on both sides has **exactly one level crossing inside it**, placed **within ~60 m of a yard throat**. The village's densest block is placed next to it.
+
+### P11 — Village anatomy
+**Sketch:** four blocks, each bounded by roads, 2–5 houses per block. The densest cluster is at the road junction nearest the crossing. Lone buildings stand at the ends of stub roads. Timber outbuildings sit on the village's rail-facing edge.
+**Why:** the density gradient gives the search an order: the obvious, picked-over houses near the road first, the lonely ones last. The outliers are where a scavenger crew *hopes* the good stuff is, and they're the furthest from the engine. The timber edge sheds share a material with the yard, so the gradient from industrial to domestic stays readable.
+**Rule:**
+- Blocks are road-bounded, 2–5 houses each, 3–5 blocks per village.
+- Density falls with distance from the crossing and the through road.
+- **Each village gets 1–2 outliers**, reached by stub roads or open ground. Outliers get **higher loot odds and a better quality roll**.
+- The houses nearest the rail are small outbuildings in timber. Plaster is further out.
+- **Setback:** no house within ~20 m of the main line (the frontage road runs in that gap).
+
+### P12 — Certain-but-costly vs uncertain-but-quiet
+**Sketch/brief:** the yard's loot is *there*, crated, visible. The village "sometimes still has loot", hidden.
+**Why:** the two halves carry different risks. The yard is a known payout paid for in noise (cranes are "slow, loud": GDD §17), coordination and switch exposure. The village is a gamble paid for in distance and time. A crew that's losing the dawn race (GDD §8) takes the certain one. A crew that's ahead takes the gamble. Either way it's a decision, not a chore (GDD §18: "the payout exists to force bad decisions").
+**Rule:**
+- Yard loot is **deterministic and visible on arrival** (crate counts shown on shed doors or through the doorways).
+- Village loot is **probabilistic and hidden**. Per house, roll whether it holds anything (~30–40%); then roll hiding spots within it (under floorboards, behind a wall panel, in a cellar) that take time to search.
+- **Floor guarantee:** each village holds at least one find. Otherwise a crew that spends the excursion and finds nothing learns never to go again, and the village becomes scenery.
+
+### P13 — The gap is the danger
+**Sketch:** about 20–40 m of open ground between the rail and each district, with no buildings in it.
+**Why:** open ground is exposure. The walk from the parked consist to the first house is when "the engine can leave without you" (GDD §17) is felt most, because you can see the train and it's too far. It also keeps the line clear for the train (collision, sightlines).
+**Rule:** a **no-build buffer** either side of the main line (~20 m from the rail to the first house; sidings and their sheds are exempt on their own side). Cover in the buffer is sparse and deliberate: a handful of props, never a building.
+
+---
+
+# PART Z — RULES FOR GENERATING AT ANY SCALE
+
+These are the rules that let the principles above be applied to a line of any length, in any order, identically on every machine. Example 1 is the only evidence so far, so treat every rule here as provisional.
+
+## Z.1 Determinism and random access
+
+- **Every level of the hierarchy is seeded by a hash of its parent's seed and its own index**: `seed(child) = hash(seed(parent), kind, index)`. Never draw siblings sequentially from one RNG stream. With a sequential stream, generating site #9000 means generating the 8999 sites before it, and changing one rule reshuffles everything after it. `WorldArt` already does this for the villages' wake rooms ("hashed on the village's place, so nothing after it moves"). Promote that to the rule everywhere.
+- `RouteGenerator` today draws the whole route from one sequential `Pcg32`. That's fine while a line is 18–40 km. An unbounded line needs **per-cell seeding** (Z.3).
+- **Lootable and collidable structure is sim state.** Villages are currently Game-side dressing. The moment a house can be entered or searched, its layout and loot must be generated in `DarkTerritory.Sim` (no platform deps, deterministic: CLAUDE.md), so clients predict the same walls the host collides against. The visuals stay in Game and *read* the sim layout. They never re-derive it.
+
+## Z.2 The hierarchy
+
+```
+WORLD seed
+ └─ CORRIDOR CELL   fixed length along s (e.g. 2 km), one hash each
+     └─ SITE SLOT   0 or 1 per cell, jittered within it (spacing without global lists)
+         └─ SITE     archetype chosen by tier + region weights   ← Example 1 is "loading yard + village"
+             ├─ RAIL      throat(s), leads, sidings               (P6, P5, P8)
+             ├─ ROADS     inherited through road + local streets  (P9)
+             ├─ DISTRICTS yard | village | … on sides of the main (P1)
+             │   └─ PARCELS → BUILDINGS                           (P4, P7, P11)
+             └─ LOOT      by band, by depth, by district budget   (P2, P7, P12)
+```
+
+Generation order within a site is fixed: **rail → roads → districts → buildings → loot** (P8). Each step may only read the steps before it.
+
+## Z.3 Spacing and continuity without global state
+
+- **Sites:** one candidate per corridor cell, at a hashed offset inside the cell's middle portion. Minimum spacing (`route.json` poiMinSpacing 3000) then holds without looking at any other cell: cell length ≥ spacing, or reject candidates whose jitter would violate it against the two neighbouring cells, which can be computed from their hashes alone.
+- **Regional road net:** a coarser grid (e.g. 4 km cells), one hashed node per cell, with roads between neighbouring nodes. Where a road crosses the main line there's a level crossing. A site slot **prefers a cell with a crossing**, so P9 and P10 come from the road net rather than being faked per site.
+- **Hazard and region fields** (fog, cold, Corruption level) are continuous noise over `s`, not per-route rolls, so any `s` can be evaluated on its own.
+
+## Z.4 The "loading yard + village" archetype as a grammar
+
+```
+SITE(loading-yard)   = MAIN + CROSSING + YARD(side A) + VILLAGE(side B)?
+YARD                 = THROAT(south) [+ THROAT(north)] + GRID + HERO + THROAT-LANDMARK
+GRID                 = siding (row siding)*            ; alternate, N sidings = 2–6
+HERO                 = chain of 3–6 sheds tangent to the deepest lead
+VILLAGE              = BLOCK{3–5} + OUTLIER{1–2} + EDGE-SHEDS
+BLOCK                = road-bounded, HOUSE{2–5}, jitter ±25°
+```
+
+| Parameter | Example 1 reading | Constraint it serves |
+|---|---|---|
+| Sidings | 4 | spec D.1: 1–6 |
+| Siding usable length | ~90 m (engine + 4 cars) | GDD §17: can't take the full train |
+| Throat ladder length | ≤ 60 m | P6: one exposure point |
+| Yard depth (throat → hero) | ~150 m | spec D.1 scale |
+| Village lateral band | 40–105 m | P2 band 2, P13 buffer |
+| Rail → first house | ≥ 20 m | P13 |
+| Crossing → throat | ≤ 60 m | P10 |
+| Houses | 12–20 | P11 |
+| House loot chance | 30–40%, floor of 1 per village | P12 |
+
+## Z.5 Invariants (the validator)
+
+A generator is only as trustworthy as what it's checked against. These must hold for every seed and are cheap to test over thousands of seeds headless:
+
+1. Every storage building is within crane reach of a siding (P3, P5).
+2. Every siding is reachable from the main line through a throat, and each throat's switches fit in its ladder length (P6).
+3. No uncarryable loot beyond crane reach. No loot of any kind inside the rail buffer (P2, P13).
+4. Each two-sided site has exactly one level crossing, within the throat distance (P10).
+5. Every house is reachable on foot from the crossing without crossing the main line again (P1, P10).
+6. Every village has ≥ 1 find and 1–2 outliers (P11, P12).
+7. Loot value rises monotonically with throat distance in the yard (P7). Mean value per kg rises with `|d|` (P2).
+8. Nothing overlaps: buildings vs track clearance, buildings vs buildings, roads vs sidings.
+9. **Same seed → same bytes** on every machine, and generating cell `k` alone equals generating cells `0..k` and taking the last one (Z.1).
+
+Per CLAUDE.md ("make it verifiable headless") the implementation gets `dt site --seed N [--png]`, which prints the layout as JSON and draws a top-down plan like the sketch, plus a test that sweeps these invariants.
+
+## Z.6 Open questions on Example 1
+
+1. **The north lead.** Is it a second connection to the main line, so the yard is a loop and the engine can enter one end and leave the other without reversing? Or is it a separate line? This decides whether "reverse out" (GDD §17) is guaranteed at every yard or only at some.
+2. **The throat sheds** (two small sheds between the main line and the north lead): yard office, power, switch tower? I've assumed they're the throat landmark and home of the yard's power.
+3. **House colours** (pink, purple, blue-grey, the two grey-green square roofs, the round blue structure): do they encode building types or loot tables, or are they just variety?
+4. **Is the village always opposite the yard?** Or is that this example's choice? P1 treats it as the rule whenever the two districts' loot logic differs.
+5. **"Infinite scale":** longer and more varied runs on the existing fortress → terminus structure, or a continuous world you can keep driving into? Part Z supports both, but the second one pushes harder on Z.3.
