@@ -94,6 +94,10 @@ Remaining for M3: Soot Children mimicry, the radio as an item, and interior occl
 - Cars leave the fortress half full, so the facilities are where the money is.
 - Every facility but the coaling tower is down a spur that takes the engine and four cars. Cut the rest, run the empties in, load, back out and recouple, set the switch back, go. The night autosaves as you leave.
 - `dt facility drill` plays the sequence headless; `dt screenshot --site` shows a stop.
+- **Crew bots work it (T32):**
+  - the driver on the regulator, a shunter on the coupler and switch, and two on the winch, all through intent;
+  - `dt harness --route frontier:6` reports each stop's legs and the sleds loaded;
+  - crates wait for a loading dock (T34).
 
 **HUD:**
 - A pixel-font HUD in the low-res frame: engine gauges, ping to host (spec E), the prompt for what your hands can do, and the night.

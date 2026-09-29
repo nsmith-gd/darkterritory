@@ -48,6 +48,11 @@ public sealed class World
     public bool SetSwitch(int branch, bool diverge) => Train.ThrowSwitch(branch, diverge, Switches?.Tuning.PointsLength ?? 0);
 
     public TrainOnLine Train { get; }
+    /// <summary>
+    /// Where the cab's controls were set for the last step: what its gauges and levers show anyone in the cab (a
+    /// driver notches the throttle and flips the reverser from where they are). The Vigil's engine-off isn't in it.
+    /// </summary>
+    public TrainControls Controls { get; private set; } = new() { Reverser = 1 };
     public CombatTuning? Combat { get; set; }
     public ChoirState Choir;
     /// <summary>Hit volumes for this tick (from the enemies).</summary>
@@ -224,6 +229,7 @@ public sealed class World
     /// <summary>Advances the train and the world systems after everyone's crew actions.</summary>
     public void Step(in TrainControls controls)
     {
+        Controls = controls;
         var applied = controls;
         if (EmergencyLights)
         {

@@ -25,7 +25,10 @@ public sealed record HarnessOptions
     /// <summary>With a route: run the night as a game (departure, facilities, terminus, dawn) and report the result.</summary>
     public Run.RunTuning? Run { get; init; }
     public double YardLength { get; init; } = 600;
-    /// <summary>The facilities' loading modules; the bots don't load yet, so the cars stay as they left.</summary>
+    /// <summary>
+    /// The facilities' loading modules. With a crew for it (a driver, a shunter and two for the winch: five bots, or four
+    /// with the gunner lending a hand), the bots stop at the winch facilities and load (T32).
+    /// </summary>
     public Run.FacilityTuning? Facilities { get; init; }
     /// <summary>With it, the crew can revive the dead (spec C.2); bots don't hold Vigils yet.</summary>
     public Run.VigilTuning? Vigil { get; init; }
@@ -49,9 +52,11 @@ public sealed record ClientReport(byte Id, string Bot, double MaxCorrectionM, in
     bool Alive, string Surface, string Where, long BytesUp, long BytesDown);
 
 /// <param name="WarmUps">Times a bot went in out of the cold (down to a coupler plate, in through a door and shut it; T31).</param>
+/// <param name="Stops">The facility stops the crew worked, as the driver saw them (T32).</param>
 public sealed record HarnessReport(int Ticks, double Seconds, string Link, double TrainDistance, double TrainSpeed, double BoilerPressure, double Tender,
     int SnapshotBytes, double DownKbpsPerClient, double UpKbpsPerClient, double MaxCorrectionM, int Deaths,
-    IReadOnlyList<ClientReport> Clients, ThreatReport? Threats = null, Run.RunReport? Run = null, int WarmUps = 0);
+    IReadOnlyList<ClientReport> Clients, ThreatReport? Threats = null, Run.RunReport? Run = null, int WarmUps = 0,
+    IReadOnlyList<StopRecord>? Stops = null);
 
 /// <summary>What the director and the enemies did (GDD §34 / App. B.9 audit).</summary>
 public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictionary<string, int> Spawned, IReadOnlyDictionary<string, int> Punishes,
@@ -80,16 +85,25 @@ public static class Harness
         if (o.Vigil is { } vt)
             host.World.EnableVigil(vt);
 
+        // On a night with facilities, the crew call to each other at the stops, and each has a part: the walkers first, and
+        // the gunner only if it takes them to make up a shunter and a winch pair.
+        var calls = o.Run is not null && o.Route is not null && o.Facilities is not null ? new CrewCalls() : null;
+        var hands = Enumerable.Range(1, Math.Max(0, o.Bots - 1)).OrderBy(i => i == 1 && o.Combat is not null ? 1 : 0).ToList();
+        StopHand? Hand(int i) => calls is null ? null
+            : new StopHand(hands.IndexOf(i) switch { 0 => StopJob.Shunter, 1 => StopJob.Winch0, 2 => StopJob.Winch1, _ => StopJob.None }, calls, i, playerTuning.Cold);
         var clients = new List<(ClientSession Session, IBot Bot, CountingTransport Transport)>();
         for (int i = 0; i < o.Bots; i++)
         {
             var transport = new CountingTransport(ClientTransport(i));
-            IBot bot = i == 0 ? new ConductorBot()
-                : i == 1 && o.Combat is { } c ? new GunnerBot(c.Guns, c.Choir, o.Seed * 1000 + i, playerTuning.Cold)
-                : new RoofWalkerBot(o.Seed * 1000 + i, playerTuning.Cold);
+            IBot bot = i == 0 ? new ConductorBot(calls, i)
+                : i == 1 && o.Combat is { } c ? new GunnerBot(c.Guns, c.Choir, o.Seed * 1000 + i, playerTuning.Cold, Hand(i))
+                : new RoofWalkerBot(o.Seed * 1000 + i, playerTuning.Cold, Hand(i));
             var session = new ClientSession(transport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
             if (o.Vigil is { } v)
                 session.World.EnableVigil(v);
+            // Clients see the night as players do: the phase, and each site's winch (mirrored from the host).
+            if (o.Run is { } crt && o.Route is { } croute)
+                session.World.EnableRun(crt, croute, o.YardLength, authority: false, o.Facilities);
             clients.Add((session, bot, transport));
         }
 
@@ -167,7 +181,22 @@ public static class Harness
             Math.Round(reports.Average(r => r.BytesDown) * 8 / 1000 / seconds, 1), Math.Round(reports.Average(r => r.BytesUp) * 8 / 1000 / seconds, 1),
             reports.Max(r => r.MaxCorrectionM), reports.Count(r => !r.Alive), reports, threats,
             host.World.Run is { } run ? run.Report ?? run.Tally(host.World, [.. host.Players.Select(p => p.State)]) : null,
-            clients.Sum(c => c.Bot switch { RoofWalkerBot r => r.WarmUps, GunnerBot g => g.WarmUps, _ => 0 }));
+            clients.Sum(c => c.Bot switch { RoofWalkerBot r => r.WarmUps, GunnerBot g => g.WarmUps, _ => 0 }),
+            clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Log);
+    }
+
+    /// <summary>A bot and what it's doing, in a few words (the harness trace).</summary>
+    public static string Describe(IBot bot, in PlayerState s)
+    {
+        string where = !s.Alive ? $"dead ({s.Death})" : s.Parent == PlayerState.World ? "ground" : $"{s.Surface} {s.Parent}";
+        string doing = bot switch
+        {
+            ConductorBot c => c.Stops?.Doing.ToString() ?? "",
+            RoofWalkerBot r => r.WarmUpStep is { } w and not "Off" ? $"warm:{w}" : r.Job?.Doing ?? "",
+            GunnerBot g => g.Job?.Doing ?? "",
+            _ => "",
+        };
+        return doing.Length > 0 ? $"{bot.Name}[{doing}] {where}" : $"{bot.Name} {where}";
     }
 
     static void PostGunner(HostSession host, List<(ClientSession Session, IBot Bot)> clients)
@@ -183,8 +212,9 @@ public static class Harness
         host.SetPlayerState(id, post);
     }
 
+    /// <summary>On a night the cars leave the fortress as they do in the game, part loaded (run.json departureLoad).</summary>
     static TrainOnLine NewTrain(RailLine line, TrainTuning t, HarnessOptions o, BoilerTuning? boiler) =>
-        new(new TrainDynamics(Consist.Uniform(t, o.Cars, 1)), line, o.StartDistance, boiler);
+        new(new TrainDynamics(Consist.Uniform(t, o.Cars, o.Run is { } r && o.Route is not null ? r.DepartureLoad : 1)), line, o.StartDistance, boiler);
 
     /// <summary>Counts payload bytes both ways for bandwidth reporting.</summary>
     sealed class CountingTransport(ITransport inner) : ITransport

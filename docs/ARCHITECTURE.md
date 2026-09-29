@@ -440,7 +440,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - A crate lying still inside a cargo car's walls for a second is stowed: +0.25 of a load, and the crate is gone.
     - **Capstan winch** (D.2, "2 mandatory"): two handles by the track, and a sled of freight 40 m out on a rope.
       - It hauls only while both handles are held by different people. One alone stalls it; that's our first cut of "desync", and a real rhythm comes later.
-      - At the track it loads whichever cargo car is within 9 m: +0.5, two sleds a site.
+      - At the track it loads the nearest cargo car with room within 10 m (9 until T32): +0.5, two sleds a site.
       - Both players stand in the open for 80 s a sled.
     - **Departure load.** Cars leave the fortress half full (`run.json` → `departureLoad`, ours). GDD §18 says "every facility is optional; skipping is safe and poor", and with full cars there'd be nothing to gain. Spec F.1's table is the fully loaded train, the ceiling. Existing pay tests build their consists explicitly, so they still pin F.1.
     - **Presentation.** Freight crates are stencilled and strapped. The capstan, its handles, the rope and the sled are drawn where the sim has them. The HUD prompts are "[E] HOLD: CRANK (IT NEEDS TWO)" and "INTO A CAR TO LOAD IT", and the status line says what the stop offers.
@@ -451,7 +451,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - the winch still with one on the capstan, hauling at speed with two, then loading the car by the track;
       - a client mirroring the site.
       - `dt screenshot --route … --site` shows a stop (CI keeps a winch and a crate stack).
-    - **Not yet:** power states (D.1); the other seven modules; 2–4 modules per POI; heavy items needing two; bots that load (the harness's cars stay as they left). Spurs and the "break the consist apart" set piece came with T27 and T28 (notes 31, 32).
+    - **Not yet:** power states (D.1); the other seven modules; 2–4 modules per POI; heavy items needing two; crates bots can load (T34; bots work the winch since T32, note 36). Spurs and the "break the consist apart" set piece came with T27 and T28 (notes 31, 32).
 29. **The campaign (T25, spec E and F).**
     - **Rules are pure** (`Sim/Campaign`, `tuning/campaign.json`): states in, states out, no files.
       - Car costs follow spec F.2's curve.
@@ -588,7 +588,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Verified:**
       - `WarmUpTests` runs three walkers on a standing train for ten minutes, twice the time it takes to freeze. They all live, each goes in before the onset, they come out again, and nobody cuts the train.
       - The harness (`HarnessOptions.Observe` traces a night tick by tick) ran 10-minute Frontier nights with enemies at seeds 1–3: no deaths, 14–18 warm-ups each.
-    - **Not yet:** bots working a facility stop (the winch in pairs, crates, the switches, the cut and recouple; `SpurDrill` scripts it for now); the fireman's own trips out.
+    - **Not yet:** the fireman's own trips out. Bots working a facility stop came with T32 (note 36).
 35. **Builds for players (T33, roadmap M6).**
     - **`tools/package.sh [win-x64] [linux-x64]`** publishes the app self-contained (the .NET runtime inside, nothing to install) into `out/dist/DarkTerritory-<rid>/`, and zips it.
       - Each folder has `content/` and `PLAYING.txt` (`tools/package/PLAYING.txt`: the menus, the controls, hosting).
@@ -603,3 +603,36 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - An unhandled exception writes `crash-<time>.txt` to the user's app data (`DarkTerritory/crashes`): the version, the OS, the exception with its stack, and those lines.
       - It says where the report is on the way out.
     - **Not yet:** a Steam depot and an itch.io upload (both are `butler`/`steamcmd` steps once there's an app id and a page); a Windows smoke test (the CI's Windows runners have no Vulkan); code signing; a crash reporter that sends reports.
+36. **The crew works a stop (T32, GDD §17, spec D).**
+    - **Parts at a stop.** The crew is a driver (`ConductorBot` with a `StopDriver`), a shunter, and two on the winch (`StopHand`s on walkers, or on the gunner when a crew of four needs it). Everyone else keeps walking the roofs.
+      - The driver stops only where the crew can do the work: a spur with a winch, and a living shunter and winch pair. Crate stops wait for T34: a 0.9 m crate won't go through a 0.9 m end door from a plate 1.1 m up, and carrying one stops you climbing.
+      - The facility is worked out the same way by everyone from the route (`StopPlan`): stop short of the points, cut behind the cars the spur takes.
+    - **All of it is intent**, through the same path as a player's.
+      - The driver runs the whole sequence from the cab with notches, the brake and the reverser: run up and stop two metres short of the points; wait for the cut, the switch and the riders; run the empties in to the buffer stop; wait for the winch; back out onto the waiting cars at 0.8 m/s so they couple; stop clear of the points; wait for the switch and everyone aboard; go.
+      - It reads the cab's levers from `World.Controls`, what a person in the cab sees.
+      - The shunter drops into the gap behind the cut car and holds Use facing away from both doors. Then it gets down, walks beside the train to the stand, and throws the switch. It rides in and out in the cab, which is warm and where the driver can see it, and then sets the switch back and climbs aboard.
+      - The winch pair ride in in the cab, walk to their handles, crank until both sleds are in, and climb onto the nearest car.
+      - Walking on the ground keeps 2.4 m from the track until level with the target, so nobody walks into the train.
+    - **What they tell each other** (`CrewCalls`): who has which part and where each of them is. A crew of people says that on the radio.
+      - It carries nothing a player couldn't say.
+      - What each bot sees is its own client's world. Clients now mirror the run in the harness, as they do in the game.
+    - **Cold still applies.**
+      - At 85% of the onset, a hand stops work and gets warm until it's nearly back to nothing (5 s), then returns.
+      - It warms in the cab when the engine is within 60 m, and the walker's way in a car otherwise. The cab has no doors, so two hands can't undo each other: the winch pair both went cold at once and froze in one car, shutting and reopening its door (the T31 door race).
+      - The cab is warm, so riding in and out doubles as a warm-up. Both 80 s sleds fit inside the onset from a warm start.
+    - **Found on the way, and fixed:**
+      - **The cab steps put you on the cab roof.** Over the top of a ladder you now land on the highest footing at the top rung, not whatever's overhead. That fixes it for players too (`PlayerMotorTests`).
+      - **A half-full train could only take one sled.** The sled came to rest by the first car only, which takes 0.5 when half full, and the engine can't pull forward from the buffer stop to bring the next car up. The capstan now stands where the sled rests between the first two cars, in reach of both (`facilities.json` `winch.along` 20 → 8, and `carReach` 9 → 10 for a margin either side; our numbers, not the spec's).
+      - **A second winch stop loaded nothing.** The cars by the winch were filled at the first, and a train can't reorder its cars at a spur. A sled's load now goes into the nearest cargo car with room in the train standing by it, handed along. Spec D.2 doesn't say which car a sled fills.
+      - **The harness's trains left full** (`Consist.Uniform`'s third argument is the load). On a night they now leave at `run.json` `departureLoad`, as in the game, so night pay in the harness drops to what a real night pays for what it loads.
+      - **Walkers dropped into a gap on curves at speed and missed the plate.** In the air you go straight on while the train turns under you: 0.5 m across a 0.8 m plate at 15 m/s on a 333 m curve. `WarmUp` now waits at the roof's end until the pull (v²/R) is under 0.3 m/s².
+      - **At a long stand the fire burned low** while pressure held up, and the Hollow came down the stack. The conductor now keeps the firebox above twice the low-fire mark too. The safety valve sheds what a standing fire makes (at most 1.8 a second against its 2.5).
+    - **Verified:**
+      - `StopCrewTests`, direct:
+        - a crew of five runs every leg;
+        - both sleds are loaded;
+        - the train leaves in one rake, with the switch back and everyone alive and aboard;
+        - without the winch pair the driver runs straight past.
+      - Over the harness (`dt harness --route frontier:6`, 90 ms ±20 with 3% loss), the foundry stop took 437 s with five bots, 622 s with four, and 500 s with eight and enemies. Both sleds went in each time, with no deaths.
+      - The report lists each stop's legs, and `--trace file` writes who's doing what whenever it changes.
+    - **Not yet:** crates (T34); stops at the coaling tower; a second spur visit if the winch was left unfinished; the driver taking over the switch when the shunter is dead (a stop with no shunter left strands the train at the points, as it would a real crew).

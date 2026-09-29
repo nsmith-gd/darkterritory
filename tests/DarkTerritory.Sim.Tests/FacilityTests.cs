@@ -172,11 +172,26 @@ public class FacilityTests
         Assert.True(site.Turning);
         Assert.Equal(10 * F.Winch.Speed / F.Winch.HaulMetres, site.Progress, 2);
 
-        // Haul it all the way and the car by the track takes the load.
-        var car = stop.Train.Vehicles.First(v => v.Kind == VehicleKind.Cargo);
+        // Haul it all the way and a car by the track takes the load: the sled rests between the first two behind the engine.
+        var byTheSled = stop.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).Take(2).ToList();
         stop.Step(F.Winch.HaulMetres / F.Winch.Speed, [crank, crank]);
-        Assert.Equal(F.Winch.LoadPerSled, car.Load, 6);
+        Assert.Equal(F.Winch.LoadPerSled, byTheSled.Sum(v => v.Load), 6);
         Assert.Equal(F.Winch.Sleds - 1, site.SledsLeft);
+    }
+
+    [Fact]
+    public void WithTheCarsByTheWinchFullTheSledsLoadHandsOnDownTheTrain()
+    {
+        // A second winch stop: the cars nearest the winch were filled at the first, and a train can't reorder its cars.
+        var stop = new Stop(ModuleKind.Winch);
+        var cargo = stop.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).ToList();
+        cargo[0].Load = cargo[1].Load = 1;
+        var crank = new PlayerIntent { Buttons = PlayerButtons.Use };
+        foreach (var handle in stop.Site.Handles)
+            stop.Crew.Add(stop.OnTheGround(handle - Double3.Up * 0.9));
+        stop.Step(F.Winch.HaulMetres / F.Winch.Speed + 1, [crank, crank]);
+        Assert.Equal(F.Winch.Sleds - 1, stop.Site.SledsLeft);
+        Assert.Equal(F.Winch.LoadPerSled, cargo[2].Load, 6);
     }
 
     [Fact]

@@ -28,7 +28,8 @@ public enum DrillStep : byte
 /// The facility set piece driven by script (GDD §17): "decouple the engine; take empty cars into the facility; switches
 /// are thrown by hand; start the loading machinery; reverse out and recouple". The host does it the way a crew would,
 /// with the regulator, the brake, the coupler and the switch, and nothing else. It verifies the track, the rakes and the
-/// run headless (`dt facility drill`, <c>SpurDrillTests</c>); crew bots doing it through intent come after (T31).
+/// run headless (`dt facility drill`, <c>SpurDrillTests</c>); crew bots do it through intent with
+/// <see cref="Bots.StopDriver"/> and <see cref="Bots.StopHand"/> (T32).
 /// </summary>
 public sealed class SpurDrill
 {

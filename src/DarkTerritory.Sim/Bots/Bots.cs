@@ -29,13 +29,15 @@ public interface IWorldBot : IBot
 /// bring the swarm, and lets the hounds come rather than get the whole crew killed. Aims by turning
 /// to face the target.
 /// </summary>
-public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int seed = 1, ColdTuning? cold = null) : IWorldBot
+public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int seed = 1, ColdTuning? cold = null, StopHand? job = null) : IWorldBot
 {
     public string Name => "gunner";
     public int WarmUps => _legs.WarmUps;
+    /// <summary>Its part when the train stops to work a facility (a small crew needs the gunner on the winch too).</summary>
+    public StopHand? Job => _legs.Job;
     bool _holding;
-    // Off the gun, it gets about like anyone else on the roofs, and goes in to get warm like them.
-    readonly RoofWalkerBot _legs = new(seed, cold);
+    // Off the gun, it gets about like anyone else on the roofs, goes in to get warm like them, and works stops like them.
+    readonly RoofWalkerBot _legs = new(seed, cold, job);
 
     public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => default;
 
@@ -44,8 +46,9 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         aimed = self;
         if (!self.Alive)
             return default;
-        // Nobody holds a gun through the cold (spec B.2): off it and indoors until warm, then back.
-        if (_legs.Warming(self))
+        // Nobody holds a gun through the cold (spec B.2): off it and indoors until warm, then back. Nor through a stop
+        // they have a part in.
+        if (_legs.Warming(self) || _legs.Work(self, world) is not null)
             return _legs.Decide(self, world, tick, out aimed);
         // Hounds that got aboard can't be shot from the gun they're standing next to: get clear (they drop
         // off once nobody's near), then walk back to the guard car and take the gun again.
@@ -94,7 +97,7 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
 /// Exercises car-frame changes, airborne world-frame play and landing: the hard cases for prediction.
 /// With the world in view it also answers Clingers (App. A.4): heads for the car and prises them off.
 /// </summary>
-public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null) : IWorldBot
+public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? job = null) : IWorldBot
 {
     const double PryReach = 1.0;
     // Each walker goes in at its own point in the onset, so a crew that started out together doesn't all queue at one door.
@@ -106,10 +109,30 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null) : IWorldBot
     public string? WarmUpStep => _warm?.Doing;
     /// <summary>Times it's gone in and got warm.</summary>
     public int WarmUps => _warm?.Done ?? 0;
+    /// <summary>Its part when the train stops to work a facility (T32).</summary>
+    public StopHand? Job => job;
+
+    uint _workedTick = uint.MaxValue;
+    PlayerIntent? _work;
+
+    /// <summary>This tick's intent for its part in a stop, if it has one to do now (worked out once a tick).</summary>
+    public PlayerIntent? Work(in PlayerState self, World world)
+    {
+        if (job is null || _warm is { Active: true })
+            return null;
+        if (_workedTick != world.Tick)
+        {
+            _workedTick = world.Tick;
+            _work = job.Decide(self, world);
+        }
+        return _work;
+    }
 
     public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
         aimed = self;
+        if (Work(self, world) is { } working)
+            return working;
         var train = world.Train;
         if (self.Alive && self.Parent > 0 && self.Parent < train.Frames.Count)
         {
@@ -280,10 +303,12 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null) : IWorldBot
 /// end of the line, and keeps the fire fed (walks to the firebox and shovels when pressure drops).
 /// One bot doing both jobs is fine at short consists; at twenty cars it can't keep up (spec B.6).
 /// </summary>
-public sealed class ConductorBot : IWorldBot
+public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWorldBot
 {
     public string Name => "conductor";
     public double CruiseSpeed { get; init; } = 14;
+    /// <summary>With a crew to call to, it stops to work the facilities they can (T32, GDD §17).</summary>
+    public StopDriver? Stops { get; } = calls is null ? null : new StopDriver(calls);
 
     public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => Work(self, train, Drive(train, tick));
 
@@ -291,6 +316,13 @@ public sealed class ConductorBot : IWorldBot
     {
         aimed = self;
         var train = world.Train;
+        calls?.Say(member, StopJob.Driver, self);
+        if (Stops is { } stops)
+        {
+            stops.CruiseSpeed = CruiseSpeed;
+            if (stops.Decide(self, world) is { } stopping)
+                return Work(self, train, stopping);
+        }
         var intent = Drive(train, tick);
         // Watch the road: something showing on the line ahead means get below derailing speed.
         bool somethingAhead = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.Sleepers && e.Phase == SpinePhase.Telegraph
@@ -305,7 +337,10 @@ public sealed class ConductorBot : IWorldBot
 
     PlayerIntent Work(in PlayerState self, TrainOnLine train, PlayerIntent intent)
     {
-        if (train.BoilerTuning is { } bt && train.Boiler.Pressure < bt.WorkingBandMax - 2 && train.Boiler.Tender >= 1 && PlayerMotor.InCab(self, train))
+        // Fire it for pressure, and at a stand (where pressure holds up on its own while the fire burns down) keep the fire
+        // itself from going low: that brings the Hollow (App. A.5). The safety valve sheds what a standing fire makes.
+        if (train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && PlayerMotor.InCab(self, train)
+            && (train.Boiler.Pressure < bt.WorkingBandMax - 2 || train.Boiler.FireFraction(bt) < bt.LowFireFraction * 2))
         {
             if (CrewActions.Nearest(self, train) == InteractableKind.Firebox)
                 intent.Buttons |= PlayerButtons.Use;
@@ -398,10 +433,17 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
         switch (_step)
         {
             case Step.ToEnd:
-                // Along the roof to the end that has the plate we want, then straight off it (no jump).
-                if (self.Surface == Surface.Coupler)
-                    return Next(Step.ToDoor);
-                return new PlayerIntent { LookYaw = Turn(self, _dropYaw), MoveZ = Aligned(self, _dropYaw) ? 1 : 0, MoveX = (float)Math.Clamp(-self.Position.X * 0.8 * (_dropYaw == 0 ? 1 : -1), -1, 1) };
+                {
+                    // Along the roof to the end that has the plate we want, then straight off it (no jump).
+                    if (self.Surface == Surface.Coupler)
+                        return Next(Step.ToDoor);
+                    // Not off the end on a curve at speed: in the air you go straight on while the train turns under you, and
+                    // the plate is only 0.8 m wide. Wait at the end for a straighter bit, as anyone would.
+                    double end = train.Frames[self.Parent].Shape.HalfLength * (_dropYaw == 0 ? -1 : 1);
+                    bool atEdge = Math.Abs(end - self.Position.Z) < 0.8;
+                    bool go = Aligned(self, _dropYaw) && (!atEdge || SteadyUnder(train, self.Parent));
+                    return new PlayerIntent { LookYaw = Turn(self, _dropYaw), MoveZ = go ? 1 : 0, MoveX = (float)Math.Clamp(-self.Position.X * 0.8 * (_dropYaw == 0 ? 1 : -1), -1, 1) };
+                }
             case Step.ToDoor:
                 if (self.Parent != _car || self.Surface != Surface.Coupler)
                     return Abandon();
@@ -510,6 +552,20 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
         _doorX = interior.DoorX;
         return true;
     }
+
+    /// <summary>
+    /// Straight enough under a car to drop into its gap: the train's sideways pull there (v²/R) small enough that the drift
+    /// across the plate in the fall stays well inside its half-width.
+    /// </summary>
+    static bool SteadyUnder(TrainOnLine train, int car)
+    {
+        var rake = train.RakeOf(car);
+        double curvature = train.Line.Sample(rake.Path, train.Cars[car].FrontDistance).Curvature;
+        return rake.Speed * rake.Speed * Math.Abs(curvature) < MaxDropPull;
+    }
+
+    /// <summary>m/s²: at 15 m/s, a curve of 750 m radius or wider.</summary>
+    const double MaxDropPull = 0.3;
 
     /// <summary>A car you can walk into: it has a room and its doors.</summary>
     static bool Walkable(TrainOnLine train, int car) => car > 0 && train.Frames[car].Shape is { Interior: not null, DoorList.Count: >= 2 };
