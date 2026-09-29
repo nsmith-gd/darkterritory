@@ -314,6 +314,29 @@ public class StopCrewTests
         Assert.Equal(id, heavy.Carrier);
     }
 
+    [Fact]
+    public void EachOpenDoorIsShutByOneHandThatsStillAtIt()
+    {
+        // T50: doors used to be dealt out by position, and one dealt to a hand that had gone aboard stayed open.
+        var calls = new CrewCalls();
+        var s = new PlayerState { Health = P.Health };
+        foreach (int member in new[] { 1, 2, 3 })
+            calls.Say(member, StopJob.Crates, s);
+        double Near1(int car) => car == 10 ? 0 : 5;
+        Assert.Equal(10, calls.ClaimDoor(1, [10, 11], Near1));
+        // The next hand takes the other door, not the claimed one, and a third finds none left for it.
+        Assert.Equal(11, calls.ClaimDoor(2, [10, 11], Near1));
+        Assert.Null(calls.ClaimDoor(3, [10, 11], Near1));
+        // A hand keeps its claim while that door's open, and loses it once it's shut.
+        Assert.Equal(10, calls.ClaimDoor(1, [10, 11], car => 0));
+        Assert.Null(calls.ClaimDoor(3, [11], Near1));
+        // One that's dead (or gone off to warm) gives its door up to whoever's still at it.
+        calls.Say(2, StopJob.Crates, s with { Health = 0, Death = DeathCause.Mauled });
+        Assert.Equal(11, calls.ClaimDoor(3, [11], Near1));
+        calls.Unclaim(3);
+        Assert.Equal(11, calls.ClaimDoor(1, [11], Near1));
+    }
+
     static List<int> OpenSideDoors(TrainOnLine train, int side) =>
         [.. train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && StopHand.SideDoor(train.Frames[v.Id].Shape, side) is { } d && v.DoorOpen(d)).Select(v => v.Id)];
 
