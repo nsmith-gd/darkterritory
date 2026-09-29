@@ -109,16 +109,18 @@ public sealed class Run
                 return null;
             int span = Math.Max(0, t.Crates.Count[1] - t.Crates.Count[0]);
             int crates = t.Crates.Count[0] + (int)((_route.Seed * 31 + (ulong)i * 17) % (ulong)(span + 1));
+            var h = t.Crates.Heavy.Count;
+            int heavy = h[0] + (int)((_route.Seed * 13 + (ulong)i * 29) % (ulong)(Math.Max(0, h[1] - h[0]) + 1));
             if (_spurs[i] >= 0 && _spurs[i] < line.Branches.Count)
             {
                 // Laid out from where the first cars stand with the engine up at the buffer stop.
                 var spur = line.Branches[_spurs[i]];
                 double mid = spur.Local.Length - t.SpurLayout;
-                return new Site(i, f, modules, t, spur.Local, mid, spur.Side, spur.Toe + mid, crates, spur.Index);
+                return new Site(i, f, modules, t, spur.Local, mid, spur.Side, spur.Toe + mid, crates, spur.Index, heavy);
             }
             int side = f.Side == 0 ? 1 : f.Side;
             double centre = (f.Start + f.End) / 2;
-            return new Site(i, f, modules, t, line, centre, side, centre, crates);
+            return new Site(i, f, modules, t, line, centre, side, centre, crates, heavy: heavy);
         })];
     }
 
@@ -209,6 +211,7 @@ public sealed class Run
         if (_facilityTuning is not { } t)
             return;
         var train = world.Train;
+        world.Bodies.HeavySpan = t.Crates.Heavy.Span;
         if (CurrentSite is { } site)
         {
             if (!site.Stocked && Phase == RunPhase.AtFacility)
@@ -216,10 +219,10 @@ public sealed class Run
                 site.Stocked = true;
                 foreach (var at in site.CrateStack)
                     world.Bodies.SpawnCargo(at, site.CrateLineHint);
+                foreach (var at in site.HeavyStack)
+                    world.Bodies.SpawnCargo(at, site.CrateLineHint, t.Crates.Heavy.Radius);
             }
-            site.Turning = site.SledsLeft > 0 && site.Cranking[0] >= 0 && site.Cranking[1] >= 0 && site.Cranking[0] != site.Cranking[1];
-            if (site.Turning && site.Progress < 1)
-                site.Progress = Math.Min(1, site.Progress + t.Winch.Speed * dt / t.Winch.HaulMetres);
+            Crank(site, t.Winch, dt);
             if (site.Progress >= 1 && site.SledsLeft > 0 && CargoCarNear(train, site.SledTo, t.Winch.CarReach) is { } car)
             {
                 car.Load = Math.Min(1, car.Load + t.Winch.LoadPerSled);
@@ -229,10 +232,13 @@ public sealed class Run
         }
         foreach (var s in _sites)
             if (s is not null)
+            {
                 s.Cranking[0] = s.Cranking[1] = -1;
+                s.HandAngle[0] = s.HandAngle[1] = null;
+            }
 
         // A crate put down (or thrown) inside a cargo car's walls, and lying still there, is loaded.
-        foreach (var b in world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Cargo).ToList())
+        foreach (var b in world.Bodies.All.Where(b => b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy).ToList())
         {
             bool stowed = b.Carrier < 0 && b.Parent > 0 && b.Parent < train.Vehicles.Count && train.Vehicles[b.Parent].Kind == VehicleKind.Cargo
                 && train.Vehicles[b.Parent].Load < 1 && train.Frames[b.Parent].Shape.Interior is { } room && room.Contains(b.Pbd.Particles[0].Position);
@@ -243,10 +249,50 @@ public sealed class Run
                 continue;
             }
             var vehicle = train.Vehicles[b.Parent];
-            vehicle.Load = Math.Min(1, vehicle.Load + t.Crates.LoadPerCrate);
+            vehicle.Load = Math.Min(1, vehicle.Load + (b.Kind == Physics.BodyKind.Heavy ? t.Crates.Heavy.LoadPerCrate : t.Crates.LoadPerCrate));
             world.Bodies.Remove(b);
             _settling.Remove(b.Id);
         }
+    }
+
+    /// <summary>
+    /// The drum (spec D.2, T43): each manned crank has a pace, a keyboard's hold the crank's own, a reaching hand's how
+    /// fast it's going round (smoothed, forward only, no faster than the crank's pace: a headset hauls no faster than a
+    /// keyboard). The drum goes at the slower one's pace, and stalls when the two are out of rhythm.
+    /// </summary>
+    static void Crank(Site site, WinchTuning w, double dt)
+    {
+        var c = w.Crank;
+        for (int i = 0; i < 2; i++)
+        {
+            if (site.Cranking[i] < 0 || site.SledsLeft == 0)
+            {
+                site.Pace[i] = 0;
+                site.LastAngle[i] = null;
+            }
+            else if (site.HandAngle[i] is { } angle)
+            {
+                double turned = site.LastAngle[i] is { } last ? Math.IEEERemainder(angle - last, 2 * Math.PI) : 0;
+                double raw = Math.Clamp(turned / (2 * Math.PI * dt), -3 * c.RevsPerSecond, 3 * c.RevsPerSecond);
+                site.LastAngle[i] = angle;
+                site.Pace[i] += (raw - site.Pace[i]) * Math.Min(1, dt / c.SmoothSeconds);
+            }
+            else
+            {
+                site.Pace[i] = c.RevsPerSecond;
+                site.LastAngle[i] = null;
+            }
+        }
+        double a = Math.Clamp(site.Pace[0], 0, c.RevsPerSecond), b = Math.Clamp(site.Pace[1], 0, c.RevsPerSecond);
+        double slow = Math.Min(a, b), fast = Math.Max(a, b);
+        bool manned = site.SledsLeft > 0 && site.Cranking[0] >= 0 && site.Cranking[1] >= 0 && site.Cranking[0] != site.Cranking[1];
+        site.Turning = manned && slow > 0 && slow >= c.InRhythm * fast;
+        site.OutOfRhythm = manned && !site.Turning;
+        if (!site.Turning)
+            return;
+        site.Crank = (site.Crank + slow * 2 * Math.PI * dt) % (2 * Math.PI);
+        if (site.Progress < 1)
+            site.Progress = Math.Min(1, site.Progress + slow / c.RevsPerSecond * w.Speed * dt / w.HaulMetres);
     }
 
     /// <summary>
@@ -282,8 +328,11 @@ public sealed class Run
     /// <param name="hand">When hands are reported (T29), a reaching hand has to be on the handle or the lever.</param>
     public void CrewAct(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null)
     {
-        if (CurrentSite is { } site && HandleInReach(s, train, hand) is { } handle && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5)
-            site.Cranking[handle] = playerId;
+        if (CurrentSite is { } site && CrankInReach(s, train, hand) is { } crank && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5)
+        {
+            site.Cranking[crank.Handle] = playerId;
+            site.HandAngle[crank.Handle] = crank.Angle;
+        }
         bool holding = LeverInReach(s, train, hand) && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5;
         if (!holding)
         {
@@ -297,14 +346,27 @@ public sealed class Run
     }
 
     /// <summary>The capstan handle a player is standing at, if the winch here has cargo left to haul.</summary>
-    public int? HandleInReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
+    public int? HandleInReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null) => CrankInReach(s, train, hand)?.Handle;
+
+    /// <summary>
+    /// The crank a player has hold of: standing at its hub, or (a reaching hand, T43) with the hand on the circle its grip
+    /// goes round, and then the hand's angle round it.
+    /// </summary>
+    (int Handle, double? Angle)? CrankInReach(in PlayerState s, TrainOnLine train, HandTuning? hand)
     {
         if (Over || !s.Alive || CurrentSite is not { SledsLeft: > 0 } site || _facilityTuning is not { } t)
             return null;
+        if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)
+        {
+            for (int i = 0; i < site.Handles.Length; i++)
+                if (site.OnCrank(i, h, hand.Grab) is { } angle)
+                    return (i, angle);
+            return null;
+        }
         var at = PlayerMotor.WorldPosition(s, train);
         for (int i = 0; i < site.Handles.Length; i++)
-            if (PlayerMotor.Grips(s, train, hand, site.Handles[i], (at + Double3.Up * 0.9 - site.Handles[i]).Length <= t.Winch.HandleReach))
-                return i;
+            if ((at + Double3.Up * 0.9 - site.Handles[i]).Length <= t.Winch.HandleReach)
+                return (i, null);
         return null;
     }
 
@@ -399,7 +461,7 @@ public sealed class Run
         for (int i = 0; i <= departedFacility && i < _facilities.Count; i++)
         {
             _chuteLeft[i] = 0;
-            _sites.ElementAtOrDefault(i)?.Mirror(true, 0, 0, false);
+            _sites.ElementAtOrDefault(i)?.Mirror(new SiteState(true, 0, 0, false, false, 0));
             _visited[i] = _departed[i] = true;
         }
         Departed = departedFacility;
@@ -407,7 +469,7 @@ public sealed class Run
 
     /// <summary>Client side: adopts the host's run state.</summary>
     public void Mirror(RunPhase phase, RunEnd end, double seconds, int facility, bool chuteOpen, double[] chuteLeft,
-        IReadOnlyList<(bool Stocked, double Progress, int SledsLeft, bool Turning)>? sites = null)
+        IReadOnlyList<SiteState>? sites = null)
     {
         Phase = phase;
         End = end;
@@ -418,7 +480,7 @@ public sealed class Run
             _chuteLeft[i] = chuteLeft[i];
         if (sites is not null)
             for (int i = 0; i < Math.Min(sites.Count, _sites.Length); i++)
-                _sites[i]?.Mirror(sites[i].Stocked, sites[i].Progress, sites[i].SledsLeft, sites[i].Turning);
+                _sites[i]?.Mirror(sites[i]);
     }
 
     public int FacilityCount => _facilities.Count;

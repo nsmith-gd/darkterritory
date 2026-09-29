@@ -53,9 +53,20 @@ public class HandTests
         var read = new List<InputFrame>();
         Messages.ReadInput(ref r, read, out _);
         Assert.Equal(reaching, read[0].Intent);
-        // A keyboard's intent carries nothing more than it did.
+        // A keyboard's intent carries nothing more than it did; a hand is three centimetre shorts and a byte for the other.
         Messages.WriteInput(w, [new InputFrame(7, reaching with { Buttons = PlayerButtons.Use })], 3);
-        Assert.Equal(6, withHand - w.Length);
+        Assert.Equal(7, withHand - w.Length);
+        // Both hands (T43): three more.
+        var both = new PlayerIntent { Buttons = PlayerButtons.Use };
+        both.Reach(new Double3(0.2, 1.1, -0.4), new Double3(-0.2, 1.1, -0.4));
+        Messages.WriteInput(w, [new InputFrame(7, both)], 3);
+        Assert.Equal(13, w.Length - (withHand - 7));
+        r = new NetReader(w.Written);
+        r.U8();
+        read.Clear();
+        Messages.ReadInput(ref r, read, out _);
+        Assert.Equal(both, read[0].Intent);
+        Assert.Equal(-0.2f, read[0].Intent.OtherX);
     }
 
     [Fact]

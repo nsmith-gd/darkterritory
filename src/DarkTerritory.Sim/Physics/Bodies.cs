@@ -7,7 +7,8 @@ namespace DarkTerritory.Sim.Physics;
 
 /// <summary>Crate and lamp are the train's own stores; cargo is freight from a facility (spec D.2 manual crates).</summary>
 /// <summary><see cref="Radio"/> is a walkie-talkie (T41, spec A.5): worn on the belt, not carried in the hands.</summary>
-public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5 }
+/// <summary><see cref="Heavy"/> is freight that takes two to lift (spec D.2 "heavy items need two", T43).</summary>
+public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6 }
 
 /// <summary>
 /// A loose physical thing: cargo, a tool, a crewmate's body. It lives in a car's frame while it touches that
@@ -31,6 +32,14 @@ public sealed class Body
     public PbdBody Pbd { get; }
     /// <summary>Player carrying it, or −1.</summary>
     public int Carrier { get; set; } = -1;
+    /// <summary>
+    /// A heavy crate's other carrier, or −1 (T43). With one on it, it's held but not lifted; with both, it rides between them.
+    /// </summary>
+    public int Second { get; set; } = -1;
+    /// <summary>Whether a player has hold of it (either end of a heavy crate).</summary>
+    public bool HeldBy(int playerId) => Carrier == playerId || Second == playerId;
+    /// <summary>Off the ground in someone's hands: a heavy crate only with both ends taken.</summary>
+    public bool Lifted => Carrier >= 0 && (Kind != BodyKind.Heavy || Second >= 0);
     /// <summary>For a ragdoll, whose body it is.</summary>
     public int Owner { get; set; } = -1;
     /// <summary>Facing, for drawing single-point bodies (crates, lamps); tumbles in flight.</summary>
@@ -70,7 +79,10 @@ public sealed class Bodies
     public bool HasRadio(int playerId) => !RadiosCarried || _bodies.Any(b => b.Kind == BodyKind.Radio && b.Carrier == playerId);
 
     /// <summary>What a player carries in their hands (a radio's on the belt, not in them).</summary>
-    public Body? CarriedBy(int playerId) => _bodies.FirstOrDefault(b => b.Carrier == playerId && b.Kind != BodyKind.Radio);
+    public Body? CarriedBy(int playerId) => _bodies.FirstOrDefault(b => b.HeldBy(playerId) && b.Kind != BodyKind.Radio);
+
+    /// <summary>A heavy crate's span (T43): its carriers this far apart at most, hands to hands, or it's down.</summary>
+    public double HeavySpan { get; set; } = 2.4;
 
     public Body SpawnCrate(TrainOnLine train, int car, Double3 local, BodyKind kind = BodyKind.Crate)
     {
@@ -81,12 +93,12 @@ public sealed class Bodies
         return b;
     }
 
-    /// <summary>A crate of freight on the ground at a facility, in the world frame.</summary>
-    public Body SpawnCargo(Double3 world, double lineHint)
+    /// <summary>A crate of freight on the ground at a facility, in the world frame; given a <paramref name="heavy"/> radius, one that takes two.</summary>
+    public Body SpawnCargo(Double3 world, double lineHint, double? heavy = null)
     {
-        const double radius = 0.45;
+        double radius = heavy ?? 0.45;
         var pbd = new PbdBody([new Particle(world + Double3.Up * radius, 1, radius)]) { Friction = 0.35, Bounce = 0.05 };
-        var b = new Body(_nextId++, BodyKind.Cargo, PlayerState.World, pbd) { LineHint = lineHint };
+        var b = new Body(_nextId++, heavy is null ? BodyKind.Cargo : BodyKind.Heavy, PlayerState.World, pbd) { LineHint = lineHint };
         _bodies.Add(b);
         return b;
     }
@@ -172,9 +184,10 @@ public sealed class Bodies
         }
         if (carried is not null && (throwPressed || usePressed))
         {
-            double speed = throwPressed ? carried.Kind == BodyKind.Ragdoll ? Hands.RagdollThrowSpeed : Hands.ThrowSpeed : 0;
+            // Nobody throws a heavy crate: either of you lets go, and it's down.
+            double speed = !throwPressed || carried.Kind == BodyKind.Heavy ? 0 : carried.Kind == BodyKind.Ragdoll ? Hands.RagdollThrowSpeed : Hands.ThrowSpeed;
             Release(carried, s, train, speed);
-            return usePressed;
+            return usePressed || carried.Kind == BodyKind.Heavy;
         }
         if (carried is null && throwPressed && worn is not null)
         {
@@ -183,9 +196,20 @@ public sealed class Bodies
         }
         if (!usePressed || carried is not null || intent.MoveZ > 0.5 || CrewActions.NearestInteractable(s, train, hand) is not null)
             return false;
-        if (InReach(s, train, hand, wearingRadio: worn is not null) is not { } nearest)
+        if (InReach(s, train, hand, wearingRadio: worn is not null, playerId) is not { } nearest)
             return false;
-        nearest.Carrier = playerId;
+        if (nearest.Kind == BodyKind.Heavy)
+        {
+            // Your end of it, with both hands on it if they're reported (T43); the other end, if someone has the first.
+            if (hand is not null && PlayerMotor.HandWorld(s, train, other: true) is { } other && Surface(nearest, train, other) > hand.Grab)
+                return false;
+            if (nearest.Carrier >= 0)
+                nearest.Second = playerId;
+            else
+                nearest.Carrier = playerId;
+        }
+        else
+            nearest.Carrier = playerId;
         nearest.Pbd.Wake();
         return true;
     }
@@ -193,11 +217,14 @@ public sealed class Bodies
     /// <summary>The loose body a player's hands would take with Use right now, if any (also the HUD's prompt).</summary>
     /// <remarks>A reaching hand (T29) takes the one it's on: within grab of any part of it, a crate's side or a body's arm.</remarks>
     /// <param name="wearingRadio">One radio each: someone already wearing one doesn't reach for another.</param>
-    public Body? InReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null, bool wearingRadio = false)
+    /// <param name="playerId">Who's reaching: the far end of a heavy crate they hold isn't theirs to take again.</param>
+    public Body? InReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null, bool wearingRadio = false, int playerId = -1)
     {
         // Spec C.2: the revived can carry light things only.
         bool lightOnly = s.Has(PlayerFlags.Revived);
-        var free = _bodies.Where(b => b.Carrier < 0 && (!lightOnly || b.Kind is BodyKind.Lamp or BodyKind.Radio) && !(wearingRadio && b.Kind == BodyKind.Radio));
+        // A heavy crate with one on it is still free at its other end (T43).
+        var free = _bodies.Where(b => (b.Carrier < 0 || b.Kind == BodyKind.Heavy && b.Second < 0 && b.Carrier != playerId)
+            && (!lightOnly || b.Kind is BodyKind.Lamp or BodyKind.Radio) && !(wearingRadio && b.Kind == BodyKind.Radio));
         if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)
             return free.Select(b => (b, d: Surface(b, train, h))).Where(x => x.d <= hand.Grab).OrderBy(x => x.d).FirstOrDefault().b;
         var hands = HandsAt(s, train);
@@ -224,7 +251,7 @@ public sealed class Bodies
 
     void Release(Body b, in PlayerState s, TrainOnLine train, double speed)
     {
-        b.Carrier = -1;
+        b.Carrier = b.Second = -1;
         var p = b.Pbd.Particles;
         int grip = b.Kind == BodyKind.Ragdoll ? 1 : 0;
         p[grip].InverseMass = 1;
@@ -248,7 +275,9 @@ public sealed class Bodies
                     b.Pbd.Wake();
         foreach (var b in _bodies)
         {
-            if (b.Carrier >= 0 && player(b.Carrier) is { } carrier)
+            if (b.Kind == BodyKind.Heavy)
+                CarryHeavy(b, train, player);
+            else if (b.Carrier >= 0 && player(b.Carrier) is { } carrier)
                 Carry(b, carrier, train);
             if (b.Parent != PlayerState.World && b.Parent >= train.Frames.Count)
                 ToWorld(b, train, b.Parent);
@@ -257,11 +286,11 @@ public sealed class Bodies
             double carAccel = frame is { } cf ? (train.Rakes.FirstOrDefault(r => r.Consist.Vehicles.Any(v => v.Id == cf.Index))?.Acceleration ?? 0) : 0;
             var gravity = frame is { } f ? f.DirToLocal(Double3.Up * -t.Gravity + f.Back * carAccel) : Double3.Up * -t.Gravity;
             // Asleep, it stays in the frame it fell asleep in: it isn't touching anything new.
-            if (b.Pbd.Asleep && b.Carrier < 0)
+            if (b.Pbd.Asleep && !b.Lifted)
                 continue;
             int touchedCar = -1;
             b.Pbd.Step(Dt, gravity, (pos, r) => Contact(b, frame, pos, r, train, ref touchedCar));
-            if (b.Carrier < 0 && !b.Pbd.Asleep)
+            if (!b.Lifted && !b.Pbd.Asleep)
             {
                 b.Yaw += b.Spin * Dt;
                 b.Spin *= b.Pbd.Particles.Any(p => p.Contact) ? 0.5 : 0.995;
@@ -270,10 +299,41 @@ public sealed class Bodies
         }
     }
 
-    /// <summary>Held at the carrier's hands: a crate rides there; a body hangs from its chest and drags. A radio's on the belt.</summary>
-    void Carry(Body b, in PlayerState s, TrainOnLine train)
+    /// <summary>
+    /// A heavy crate (spec D.2, T43): with one on it, it's held where it lies (and let go by walking off from it); with
+    /// both, it rides between their hands, in the first one's frame. Too far apart, and it's down.
+    /// </summary>
+    void CarryHeavy(Body b, TrainOnLine train, Func<int, PlayerState?> player)
     {
-        var hands = b.Kind == BodyKind.Radio ? PlayerMotor.WorldPosition(s, train) + Double3.Up * 1.0 : HandsAt(s, train);
+        if (b.Second >= 0 && player(b.Second) is not { Alive: true })
+            b.Second = -1;
+        if (b.Carrier >= 0 && player(b.Carrier) is not { Alive: true })
+            (b.Carrier, b.Second) = (b.Second, -1);
+        if (b.Carrier < 0 || player(b.Carrier) is not { } lead)
+            return;
+        var a = HandsAt(lead, train);
+        if (b.Second < 0 || player(b.Second) is not { } second)
+        {
+            // Held, not lifted: it lies as it lay (and drops, if it had been up between two).
+            b.Pbd.Particles[0].InverseMass = 1;
+            if (Surface(b, train, a) > Hands.Reach)
+                b.Carrier = -1;
+            return;
+        }
+        var c = HandsAt(second, train);
+        if ((a - c).Length > HeavySpan)
+        {
+            Release(b, lead, train, 0);
+            return;
+        }
+        Carry(b, lead, train, (a + c) * 0.5);
+    }
+
+    /// <summary>Held at the carrier's hands: a crate rides there; a body hangs from its chest and drags. A radio's on the belt.</summary>
+    /// <param name="at">Where it's held in the world, when that isn't the carrier's own hands (a heavy crate between two).</param>
+    void Carry(Body b, in PlayerState s, TrainOnLine train, Double3? at = null)
+    {
+        var hands = at ?? (b.Kind == BodyKind.Radio ? PlayerMotor.WorldPosition(s, train) + Double3.Up * 1.0 : HandsAt(s, train));
         if (b.Parent != s.Parent)
         {
             if (b.Parent == PlayerState.World)
@@ -342,7 +402,7 @@ public sealed class Bodies
     /// <summary>Touching a car: live in its frame. Off every car for a few steps: the world's.</summary>
     static void Reparent(Body b, TrainOnLine train, int touchedCar)
     {
-        if (b.Carrier >= 0)
+        if (b.Lifted)
             return;
         if (touchedCar >= 0)
         {
