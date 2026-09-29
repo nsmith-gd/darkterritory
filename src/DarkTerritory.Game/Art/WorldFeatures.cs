@@ -224,7 +224,8 @@ public sealed partial class WorldArt
         Rails(k, local, eye, start, local.Length, s => (local.Sample(s).Position - eye).Length < 150, s => (local.Sample(s).Position - eye).Length < drawDistance);
 
         var end = local.Sample(local.Length);
-        if ((end.Position - eye).Length < drawDistance)
+        // An alternate has no end of its own: it runs back into the main line (linegen plan §6.2).
+        if (!branch.Rejoins && (end.Position - eye).Length < drawDistance)
         {
             mesh.Instances.Add(new MeshInstance(Piece("buffer-stop", () => StructureKit.BufferStop(_look)), Basis(end.Tangent, end.Position, eye, 0)));
             var lamp = (end.Position + Double3.Up * 1.4 - end.Tangent * 0.13).RelativeTo(eye);

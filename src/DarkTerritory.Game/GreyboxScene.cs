@@ -81,6 +81,9 @@ public sealed class GreyboxScene
         if (Route is not null)
         {
             Features(mesh, line, eye, from, to);
+            // A generated line's own land, boards, hazards, water and places (Art/PlanArt, linegen plan §12-13).
+            if (Look is not null && Route.Plan is not null)
+                Look.Art.World.Plan(mesh, line, Route, eye, centre, DrawDistance, Time);
             if (Run is not null)
                 foreach (var site in Run.Sites)
                     if (site is not null && (site.Capstan - eye).Length < DrawDistance)
@@ -88,7 +91,8 @@ public sealed class GreyboxScene
             // GDD §9: the fortress yard behind the gates, and the terminus: "lights, then walls, then gun towers".
             double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
             Fortress(mesh, line, eye, from, to, 0, yard, gateAt: yard);
-            Fortress(mesh, line, eye, from, to, line.Length - terminus - 200, line.Length, gateAt: line.Length - terminus - 200);
+            double home = Route.Plan?.Terminus.GateM ?? line.Length - terminus - 200;
+            Fortress(mesh, line, eye, from, to, home, line.Length, gateAt: home);
         }
         // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox,
         // and any hand lamp lying about or being carried.
@@ -515,7 +519,8 @@ public sealed class GreyboxScene
 
         // The buffer stop: a timber-and-iron block across the rails, with a red lamp on it.
         var end = local.Sample(local.Length);
-        if ((end.Position - eye).Length < DrawDistance)
+        // An alternate has no end of its own: it runs back into the main line (linegen plan §6.2).
+        if (!branch.Rejoins && (end.Position - eye).Length < DrawDistance)
         {
             var right = Double3.Cross(end.Tangent, Double3.Up).Normalized;
             mesh.Box(V(end.Position + Double3.Up * 0.6, eye), ToF(right), Vector3.UnitY, ToF(end.Tangent * -1), new Vector3(1.3f, 0.6f, 0.4f), Palette.RustRed);
@@ -563,7 +568,7 @@ public sealed class GreyboxScene
             // The art pass's structures (Art/StructureKit): viaducts and trestles, portals and bores.
             if (Look is not null && f.Kind == FeatureKind.Bridge)
             {
-                Look.Art.World.Bridge(mesh, line, f, eye, from, to, (float)ValleyDepth);
+                Look.Art.World.Bridge(mesh, line, f, eye, from, to, Art.WorldArt.SpanDepth(Route, f) ?? (float)ValleyDepth);
                 continue;
             }
             if (Look is not null && f.Kind == FeatureKind.Tunnel)

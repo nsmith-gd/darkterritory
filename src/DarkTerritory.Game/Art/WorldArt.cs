@@ -116,6 +116,9 @@ public sealed partial class WorldArt(Look look)
             i++;
         float t = Math.Clamp((a - Lateral[i - 1]) / (Lateral[i] - Lateral[i - 1]), 0, 1);
         h = float.Lerp(Profile[i - 1], Profile[i], t);
+        // A generated line's land is its terrain field's, what the sim stands people on (linegen plan §12).
+        if (Scene(route) is { } plan)
+            return Relief(plan, route!, s, lateral, h);
         // Hills past the verge: rising with distance, a long wavelength along the line, different each side.
         float hill = MathF.Max(0, (a - 16) / 84);
         float side = lateral < 0 ? 31.7f : 0;
@@ -228,7 +231,7 @@ public sealed partial class WorldArt(Look look)
 
         // Sleepers near the eye only (past ~150 m the fog has them anyway), each a little off true; rails all along.
         // A timber trestle's deck carries its own ties.
-        Rails(k, line, eye, from, to, s => route?.BridgeAt(s) is not { MaxCars: > 0 }, _ => true);
+        Rails(k, line, eye, from, to, s => route?.BridgeAt(s) is not { MaxCars: > 0 } && Laid(route, s), s => Laid(route, s));
     }
 
     /// <summary>A transform from a piece's frame (−Z along <paramref name="tangent"/>, +X to its right) to camera-relative space.</summary>
@@ -294,7 +297,7 @@ public sealed partial class WorldArt(Look look)
         // Clear of bridges, and of tunnels and their cuttings (the hill's approaches).
         bool Clear(double s) => route is null || (!route.InTunnel(s) && !route.InTunnel(s + 30) && !route.InTunnel(s - 30) && route.BridgeAt(s) is null);
         bool OnBranch(double along, double offset) => line.Branches.Any(b => along > b.Toe - 20 && along < b.End + 20 && Math.Sign(offset) == b.Side
-            && Math.Abs(offset) < (b.Kind == BranchKind.Spur ? 60 : 16));
+            && Math.Abs(offset) < (b.Kind == BranchKind.Spur ? 60 : 16)) || !PlanClear(route, line, along, offset);
         Matrix4x4 Place(double s, double lateral, float yaw, float scale, float sink = 0)
         {
             var t = line.Sample(s);
@@ -404,6 +407,9 @@ public sealed partial class WorldArt(Look look)
                 continue;
             mesh.Append(Piece($"fence-{index % 3}", () => WorldKit.FencePost(_look, index % 3)), Place(s, -14, 0, 1, 0.05f));
         }
+        // A generated line has its own towns and dead signals (PlanArt), where the plan put them.
+        if (Scene(route) is not null)
+            return;
         Settlements(mesh, line, route, eye, from, to, seed, valleyDepth, OnBranch);
         for (double s = Math.Ceiling(from / 700) * 700; s < to; s += 700)
             if (Clear(s) && !OnBranch(s, -3.8))

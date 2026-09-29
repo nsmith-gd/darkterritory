@@ -178,7 +178,13 @@ public sealed record PlanTerminus(string Name, bool Silent, bool GateSafe, doubl
 /// with: part of the plan so that a plan (and a save of one) plays the same whatever content changes after.
 /// </summary>
 public sealed record PlanRules(double ADerail, double BrassCuttingSpeed, double BrassDamagePerSpeedSquared, double BrassDrag, bool WeakBridgeCollapses,
-    double WetAdhesion, double WetBiasAdhesion, TerrainRules Terrain);
+    double WetAdhesion, double WetBiasAdhesion, TerrainRules Terrain)
+{
+    /// <summary>How far out from the track the boards stand (signage.json sideOffsetM).</summary>
+    public double SignOffsetM { get; init; } = 3.2;
+    /// <summary>Each kind of board as the signage kit builds it (signage.json "boards"), by type.</summary>
+    public IReadOnlyDictionary<string, BoardDef> Boards { get; init; } = new Dictionary<string, BoardDef>();
+}
 
 public sealed record PlanCheck(string Name, bool Pass, string Detail);
 public sealed record PlanValidation
