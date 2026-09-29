@@ -3,6 +3,7 @@ using Ballast.Audio;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Enemies;
+using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game.Sound;
@@ -23,6 +24,10 @@ public sealed class GameAudio
     readonly Pcg32Ish _rng = new(20260929);
     SoundInstance? _roar, _chuff, _brake, _wind, _valve;
     double _time, _lastAccel;
+    int _space = PlayerMotor.Outside;
+
+    /// <summary>Through the walls unless the listener is outside, or the sound is in their own space.</summary>
+    float Occlusion(int soundSpace) => _space == PlayerMotor.Outside || soundSpace == _space ? 0 : 1;
 
     public GameAudio(string contentRoot)
     {
@@ -43,10 +48,12 @@ public sealed class GameAudio
 
     /// <summary>
     /// Call once per sim tick (or per frame with the frame's dt). <paramref name="exposed"/>: the listener is
-    /// outside (roof, ladder, ground), so hears the wind.
+    /// outside (roof, ladder, ground), so hears the wind. <paramref name="space"/>: the enclosed space they're
+    /// in (<see cref="PlayerMotor.Space"/>); anything not in it is heard through the walls (spec A.5).
     /// </summary>
-    public void Update(World world, in TrainControls controls, Listener listener, bool exposed, double dt)
+    public void Update(World world, in TrainControls controls, Listener listener, bool exposed, double dt, int space = PlayerMotor.Outside)
     {
+        _space = space;
         _time += dt;
         if (_mix.Refresh())
             Mixer.Mix = _mix.Value;
@@ -70,6 +77,7 @@ public sealed class GameAudio
         if (_roar is not null)
         {
             _roar.Position = engine.ToWorld(new Double3(0, 2.6, -engine.Shape.HalfLength * 0.4));
+            _roar.Occlusion = Occlusion(0);
             _roar.Params.Set("pressure", train.Boiler.Ruptured ? 0 : train.Boiler.Pressure);
             _roar.Params.Set("fire", bt is null ? 0.7 : train.Boiler.FireFraction(bt));
         }
@@ -77,6 +85,7 @@ public sealed class GameAudio
         if (_chuff is not null)
         {
             _chuff.Position = engine.ToWorld(new Double3(0, 3.5, -engine.Shape.HalfLength * 0.7));
+            _chuff.Occlusion = Occlusion(0);
             _chuff.Params.Set("speed", speed);
             _chuff.Params.Set("throttle", controls.Throttle * (train.Boiler.Ruptured ? 0 : 1));
         }
@@ -169,13 +178,15 @@ public sealed class GameAudio
             bool entered = s.Phase != e.Phase;
             s.Phase = e.Phase;
             var at = e.WorldPosition(train);
+            // A Clinger is heard inside the car it's drilling (App. A.4); the Hollow is in the cab with you.
+            float occlusion = Occlusion(e.Attached >= 0 ? e.Attached : PlayerMotor.Outside);
             switch (e.Kind)
             {
                 case EnemyKind.Sleepers when e.Phase == SpinePhase.Telegraph:
                     // Braced: the writhe, again at uneven intervals so it never becomes wallpaper (spec A.4 rule 4).
                     if (entered || _time >= s.Next)
                     {
-                        Mixer.Play("sleepers-writhe", at);
+                        Mixer.Play("sleepers-writhe", at)?.Also(v => v.Occlusion = occlusion);
                         s.Next = _time + 1.6 + 2.2 * _rng.Next();
                     }
                     break;
@@ -184,7 +195,7 @@ public sealed class GameAudio
                     int pack = (int)e.Extra;
                     if (!_packs.TryGetValue(pack, out double next) || _time >= next)
                     {
-                        Mixer.Play("hound-howl", at);
+                        Mixer.Play("hound-howl", at)?.Also(v => v.Occlusion = occlusion);
                         _packs[pack] = _time + 3 + 2.5 * _rng.Next();
                     }
                     break;
@@ -193,13 +204,17 @@ public sealed class GameAudio
                     if (s.Loop is not null)
                     {
                         s.Loop.Position = at;
+                        s.Loop.Occlusion = occlusion;
                         s.Loop.Params.Set("progress", e.Phase == SpinePhase.Punish ? 1 : e.Extra);
                     }
                     break;
                 case EnemyKind.Hollow when e.Phase is SpinePhase.Telegraph or SpinePhase.Punish:
                     s.Loop ??= Mixer.Play("hollow-gutter", at);
                     if (s.Loop is not null)
+                    {
                         s.Loop.Position = at;
+                        s.Loop.Occlusion = occlusion;
+                    }
                     break;
                 default:
                     s.Loop?.Stop();
@@ -245,13 +260,14 @@ public sealed class GameAudio
             var frame = train.Frames[Math.Min(train.Frames.Count - 1, (int)((i + 0.5) / _choir.Count * train.Frames.Count))];
             double side = i % 2 == 0 ? 1 : -1, drift = Math.Sin(_time * 0.11 + i * 1.7) * 12;
             _choir[i].Position = frame.Origin + frame.Right * (side * range) + frame.Back * drift + Double3.Up * 4;
+            _choir[i].Occlusion = Occlusion(PlayerMotor.Outside);
         }
     }
 
     void Actions(World world)
     {
         foreach (var shot in world.Shots)
-            Mixer.Play("gunshot", shot.Muzzle);
+            Mixer.Play("gunshot", shot.Muzzle)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
     }
 
     /// <summary>Plays a one-shot at a point: crew actions the game knows about (a shovel of coal).</summary>

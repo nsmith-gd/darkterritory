@@ -44,7 +44,7 @@ public readonly record struct Box(Double3 Min, Double3 Max)
 public enum SurfaceKind : byte { Roof, Deck, Coupler }
 
 /// <summary>What a solid is, so presentation can draw and colour it. Collision ignores this.</summary>
-public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount }
+public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker }
 
 /// <summary>Where a gun is bolted on, and which way it faces in the car's frame (−Z forward, +Z back).</summary>
 public readonly record struct GunMount(Double3 Position, Double3 Facing);
@@ -54,18 +54,22 @@ public readonly record struct Solid(Box Box, SurfaceKind Top, PartKind Part);
 /// <summary>A ladder fixed to a face: its foot, how high it goes, and which way is "onto" what it serves.</summary>
 public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward);
 
-public enum InteractableKind : byte { Firebox, Vent, Handbrake }
+public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door }
 
-/// <summary>A thing a player uses by standing near it and holding Use.</summary>
-public readonly record struct Interactable(InteractableKind Kind, Double3 Position, double Radius);
+/// <summary>A thing a player uses by standing near it and holding Use. <see cref="Index"/> says which door.</summary>
+public readonly record struct Interactable(InteractableKind Kind, Double3 Position, double Radius, int Index = 0);
+
+/// <summary>A hinged door: solid while shut. <see cref="Index"/> is its bit in <see cref="Vehicle.DoorsOpen"/>.</summary>
+public readonly record struct Door(Box Box, int Index);
 
 /// <summary>
 /// Greybox collision for one car in its own frame: solids to stand on and bump into, ladders,
 /// interactables, and (on the engine) the cab volume that makes a player the crew in charge.
 /// </summary>
 public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnlyList<Ladder> Ladders, IReadOnlyList<Interactable> Interactables, Box? Cab,
-    GunMount? Gun = null)
+    GunMount? Gun = null, Box? Interior = null, IReadOnlyList<Door>? Doors = null)
 {
+    public IReadOnlyList<Door> DoorList => Doors ?? [];
     /// <summary>End ladders sit to the right of the coupler so they don't collide with the plate.</summary>
     public const double EndLadderX = 0.55;
 
@@ -98,13 +102,22 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     /// <summary>A car with the rear gun on its roof, facing back down the line.</summary>
     static CarShape Guard(GeometryTuning g, bool hasCarBehind)
     {
-        var car = Car(g, hasCarBehind);
+        var car = g.Interior is { } layout ? Shell(g, layout, hasCarBehind, cargo: false) : SolidCar(g, hasCarBehind);
         double l = g.CarLength / 2, h = g.CarHeight;
         var mount = new Double3(0, h, l - 1.6);
         var solids = car.Solids.Append(new Solid(Box.FromCentre(mount + new Double3(0, 0.25, 0), new Double3(0.35, 0.25, 0.35)), SurfaceKind.Roof, PartKind.GunMount)).ToList();
         // The brake wheel moves to the front end so it isn't under the gun.
-        var interactables = new[] { new Interactable(InteractableKind.Handbrake, new Double3(0, h, -l + 0.5), 0.8) };
-        return car with { Solids = solids, Interactables = interactables, Gun = new GunMount(mount + new Double3(0, 0.9, 0), new Double3(0, 0, 1)) };
+        var interactables = car.Interactables.Where(i => i.Kind != InteractableKind.Handbrake)
+            .Append(new Interactable(InteractableKind.Handbrake, new Double3(0, h, -l + 0.5), 0.8)).ToList();
+        var ladders = car.Ladders.ToList();
+        if (g.Interior is { } i)
+        {
+            // Tool storage along the left wall (GDD §10), and a hatch ladder up to the gun from inside.
+            double w = g.RoofWidth / 2;
+            solids.Add(new Solid(new Box(new Double3(-w + i.WallThickness, i.FloorHeight, -l + 1.5), new Double3(-w + i.WallThickness + 0.5, i.FloorHeight + 1.8, -l + 3.5)), SurfaceKind.Deck, PartKind.Locker));
+            ladders.Add(new Ladder(new Double3(0.6, i.FloorHeight, l - 2.4), h, new Double3(0, 0, -1)));
+        }
+        return car with { Solids = solids, Interactables = interactables, Ladders = ladders, Gun = new GunMount(mount + new Double3(0, 0.9, 0), new Double3(0, 0, 1)) };
     }
 
     static Solid? CouplerPlate(GeometryTuning g, double halfLength, bool hasCarBehind) => hasCarBehind
@@ -112,7 +125,59 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             SurfaceKind.Coupler, PartKind.Coupler)
         : null;
 
-    static CarShape Car(GeometryTuning g, bool hasCarBehind)
+    static CarShape Car(GeometryTuning g, bool hasCarBehind) =>
+        g.Interior is { } i ? Shell(g, i, hasCarBehind, cargo: true) : SolidCar(g, hasCarBehind);
+
+    /// <summary>
+    /// A walk-in car: floor level with the coupler plate, walls, a roof slab you can still walk the length of,
+    /// and a door in each end wall. Cargo stacks down the right side; the aisle runs from door to door.
+    /// </summary>
+    static CarShape Shell(GeometryTuning g, InteriorLayout i, bool hasCarBehind, bool cargo)
+    {
+        double w = g.RoofWidth / 2, l = g.CarLength / 2, h = g.CarHeight;
+        double floor = i.FloorHeight, t = i.WallThickness, ceiling = h - i.RoofThickness;
+        double d0 = i.DoorX - i.DoorWidth / 2, d1 = i.DoorX + i.DoorWidth / 2, lintel = floor + i.DoorHeight;
+        var solids = new List<Solid>
+        {
+            new(new Box(new Double3(-w, 0, -l), new Double3(w, floor, l)), SurfaceKind.Deck, PartKind.Chassis),
+            new(new Box(new Double3(-w, ceiling, -l), new Double3(w, h, l)), SurfaceKind.Roof, PartKind.Body),
+            new(new Box(new Double3(-w, floor, -l), new Double3(-w + t, ceiling, l)), SurfaceKind.Deck, PartKind.Wall),
+            new(new Box(new Double3(w - t, floor, -l), new Double3(w, ceiling, l)), SurfaceKind.Deck, PartKind.Wall),
+        };
+        var doors = new List<Door>();
+        var interactables = new List<Interactable>();
+        foreach (int end in new[] { -1, 1 })
+        {
+            // End wall either side of the doorway, and the lintel over it.
+            double z0 = end < 0 ? -l : l - t, z1 = end < 0 ? -l + t : l;
+            solids.Add(new(new Box(new Double3(-w, floor, z0), new Double3(d0, ceiling, z1)), SurfaceKind.Deck, PartKind.Wall));
+            solids.Add(new(new Box(new Double3(d1, floor, z0), new Double3(w, ceiling, z1)), SurfaceKind.Deck, PartKind.Wall));
+            solids.Add(new(new Box(new Double3(d0, lintel, z0), new Double3(d1, ceiling, z1)), SurfaceKind.Deck, PartKind.Wall));
+            int index = doors.Count;
+            doors.Add(new Door(new Box(new Double3(d0, floor, z0), new Double3(d1, lintel, z1)), index));
+            // Reachable from inside or from the coupler plate outside.
+            interactables.Add(new Interactable(InteractableKind.Door, new Double3(i.DoorX, floor, end * l), 0.75, index));
+        }
+        if (cargo)
+            solids.Add(new(new Box(new Double3(w - t - i.CargoDepth, floor, -l + 1.2), new Double3(w - t, floor + i.CargoHeight, l - 1.2)), SurfaceKind.Deck, PartKind.Cargo));
+        if (CouplerPlate(g, l, hasCarBehind) is { } plate)
+            solids.Add(plate);
+
+        double ladderZ = l - g.LadderInset;
+        var ladders = new List<Ladder>
+        {
+            new(new Double3(w + 0.15, 0, ladderZ), h, new Double3(-1, 0, 0)),
+            new(new Double3(-w - 0.15, 0, ladderZ), h, new Double3(1, 0, 0)),
+            new(new Double3(EndLadderX, 0, -l - 0.1), h, new Double3(0, 0, 1)),
+        };
+        if (hasCarBehind)
+            ladders.Add(new Ladder(new Double3(EndLadderX, 0, l + 0.1), h, new Double3(0, 0, -1)));
+        interactables.Add(new Interactable(InteractableKind.Handbrake, new Double3(0, h, l - 0.5), 0.8));
+        var interior = new Box(new Double3(-w + t, floor - 0.1, -l + t), new Double3(w - t, ceiling, l - t));
+        return new CarShape(new Box(new Double3(-w, 0, -l), new Double3(w, h, l)), solids, ladders, interactables, null, Interior: interior, Doors: doors);
+    }
+
+    static CarShape SolidCar(GeometryTuning g, bool hasCarBehind)
     {
         double w = g.RoofWidth / 2, l = g.CarLength / 2, h = g.CarHeight;
         var solids = new List<Solid> { new(new Box(new Double3(-w, 0, -l), new Double3(w, h, l)), SurfaceKind.Roof, PartKind.Body) };

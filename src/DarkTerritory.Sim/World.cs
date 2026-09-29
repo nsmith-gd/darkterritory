@@ -159,8 +159,9 @@ public sealed class World
             if (_choirTimer >= t.ChoirSwarm.EverySeconds)
             {
                 _choirTimer = 0;
+                // Sheltered means the cab, or a car with its doors shut (GDD §26: protected versus exposed).
                 foreach (var (player, _) in ctx.Crew)
-                    if (player.State.Alive && player.State.Surface is not Surface.Deck)
+                    if (player.State.Alive && PlayerMotor.Space(player.State, Train) == PlayerMotor.Outside)
                         ctx.Bite(player.Id, t.ChoirSwarm.ExposedDamage, DeathCause.Choir);
             }
         }

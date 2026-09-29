@@ -140,7 +140,9 @@ public class PlayerMotorTests
     public void AYardSpeedTrainCanBeRunDownAndBoarded()
     {
         var rig = BesideLadder(T.SpeedBands.Yard, behind: 8);
-        rig.Run(15, Move(0, 1, PlayerButtons.Run | PlayerButtons.Use));
+        // Run it down, grab, climb, and stand still once up: car 3 is the guard van, and pushing on across
+        // its roof with Use held grabs the gun hatch.
+        rig.Run(15, r => r.Player.Surface == Surface.Roof ? default : Move(0, 1, PlayerButtons.Run | PlayerButtons.Use));
         Assert.Equal(Surface.Roof, rig.Player.Surface);
         Assert.Equal(3, rig.Player.Parent);
     }

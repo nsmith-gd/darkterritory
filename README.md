@@ -23,7 +23,7 @@ Add `--no-enemies` for a quiet line, `--mute` for no sound.
 | Input | Action |
 |---|---|
 | Mouse · WASD · Shift · Space | Look · move · run · jump |
-| E (hold) | With W: grab a ladder. Standing still: shovel at the firebox, vent at the valve, cut at a coupler plate, wind a brake wheel |
+| E (hold) | With W: grab a ladder. Standing still: shovel at the firebox, vent at the valve, open or shut a door you're facing, cut at a coupler plate, wind a brake wheel |
 | Left mouse | Fire the gun you're standing at (engine cab roof, via the hatch ladder; guard car roof) |
 | R / F | Throttle notch up / down |
 | B (hold) | Brake |

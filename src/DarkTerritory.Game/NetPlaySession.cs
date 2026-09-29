@@ -182,7 +182,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var p = Player;
         string role = Host is not null ? $"hosting :{Port}" : "joined";
         string link = !Client.Connected ? "connecting…" : Lost ? "CONNECTION LOST" : $"{Client.RemoteIds.Count() + 1} aboard, ping {_clientTransport.RoundTrip(PeerId.Host) * 1000:0} ms";
-        string where = p.Parent == PlayerState.World ? "ground" : PlayerMotor.InCab(p, Train) ? "cab" : p.Parent == 0 ? "engine" : $"car {p.Parent}";
+        string where = PrototypeSession.Where(p, Train);
         string state = p.Alive ? $"{p.Surface} {where} hp {p.Health}" : $"DEAD ({p.Death})";
         return $"{d.Speed,5:0.0} m/s | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} | P {Train.Boiler.Pressure,3:0} fire {Train.Boiler.Firebox:0.0} | " +
                $"choir {World.Choir.Aggro:0} | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state} | {role} | {link}";
