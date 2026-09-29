@@ -125,6 +125,10 @@ M3 is done but for a test with eight people.
   - reaching it, they smash the lamp (out for 45 s) and go for the cab;
   - lamps down (L in the cab) and they lose track, but then the Sleepers only show close: the driver bot slows down in the dark;
   - `dt screenshot --threats` shows one.
+- **Climbers (T58, App. A.4):**
+  - they run alongside and mount only at a coupling gap, scrabbling there first; stand in the gap and they try another;
+  - up and along the roofs toward the engine, then into the first car nobody's in (the guns can take them on the roofs);
+  - the more cars, the more gaps: the director weighs them by gap count. `dt screenshot --threats` shows two.
 - **The Long Whistle (T57, App. A.2):**
   - a horn on the line ahead, just short of a bend or a grade, and no train: the horn is out of tune and doesn't bend as you close;
   - brake hard for it and the stop is the punishment; ignored, it sounds twice more and gives up;

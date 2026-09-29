@@ -16,6 +16,30 @@ public sealed record EnemyTuning(
     public StokerTuning Stoker { get; init; } = new();
     public FerrymanTuning Ferryman { get; init; } = new();
     public LongWhistleTuning LongWhistle { get; init; } = new();
+    public ClimberTuning Climbers { get; init; } = new();
+}
+
+
+/// <summary>Climbers (App. A.4, B.4). Field docs live in enemies.json.</summary>
+public sealed record ClimberTuning
+{
+    public double PaceOut { get; init; } = 2.5;
+    public double PaceSeconds { get; init; } = 6;
+    public double Catch { get; init; } = 1.2;
+    public double MaxSpeed { get; init; } = 18;
+    public double LoseBehind { get; init; } = 60;
+    public double ScrabbleSeconds { get; init; } = 2.5;
+    public double HoldReach { get; init; } = 2;
+    public int MaxTries { get; init; } = 3;
+    public double TraverseSpeed { get; init; } = 2.2;
+    public double Reach { get; init; } = 1.8;
+    public int BiteDamage { get; init; } = 25;
+    public double BiteEvery { get; init; } = 1.5;
+    public double BoredSeconds { get; init; } = 120;
+    public double Health { get; init; } = 40;
+    public int MinGaps { get; init; } = 2;
+    public double MinSpeed { get; init; } = 5;
+    public double PerGapWeight { get; init; } = 0.5;
 }
 
 /// <summary>The Long Whistle (App. A.2, B.2). Field docs live in enemies.json.</summary>
