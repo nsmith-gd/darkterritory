@@ -64,12 +64,13 @@
   // Plan §6.3. A turnout on tangent, nearly level track; its lamp seen from 250 m; branches curve away to 300 m
   // separation within 2 km; a level pad ±150 m where the corridors meet. Boards 2 km and 1 km out. Junctions no nearer
   // each other than minSpacingM (a train's tail clears one before its front reaches the next). An alternate's or dead
-  // line's turnout: two curves of turnoutLength at turnoutRadius, out to 7 m between track centres. The radius keeps a
-  // train that takes one at the line's top speed on the rails (sqrt(aDerail R) above spec B.1's 22 m/s): a switch the
-  // Switchman threw costs the clock, never the train (App. A.7). Facility spurs are route.json's kit, taken at a crawl.
+  // line's turnout: two curves of turnoutLength at turnoutRadius, out to 7.5 m between track centres. The radius posts
+  // no lower than the fastest line speed (floor(sqrt(aPost R)) >= 20 m/s) and derails above spec B.1's 22 m/s: the
+  // diverging route is taken at line speed, and a switch the Switchman threw costs the clock, never the train
+  // (App. A.7). Facility spurs are route.json's kit, taken at a crawl.
   "junctions": {
     "tangentClearM": 40, "maxGrade": 0.5, "lampVisibleM": 250, "separationM": 300, "separationWithinM": 2000, "padM": 150,
-    "minSpacingM": 600, "boardFarM": 2000, "boardNearM": 1000, "turnoutRadius": 500, "turnoutLength": 60
+    "minSpacingM": 600, "boardFarM": 2000, "boardNearM": 1000, "turnoutRadius": 650, "turnoutLength": 70
   },
 
   // Plan §6.2 step 4. Windows of main line an alternate bypasses; each differs from the main line in what it trades.
@@ -167,10 +168,12 @@
   // Plan §16. Attempts before a curated fallback seed; the brake effectiveness a descent may never go below; the
   // minutes each facility slot adds to transit against dawn; a coaling tower when a night runs past this share of the
   // tender (spec B.6); the most seconds a drive may take; the rollback zone past a consist's length at a momentum
-  // bank's foot; the driver's speed band.
+  // bank's foot; the driver's speed band, and how far over a limit its control may drift. dawnWithStopsHard: the
+  // dawn check holds transit plus every stop to the timer (§16.3); off, only the transit is held and the stops are
+  // reported, since by the spec's own formula the deeper tiers can't take every stop in time (§22.1, ARCHITECTURE §8).
   "validation": {
     "attempts": 10, "minBrakeEfficiency": 0.6, "dawnMinutesPerFacility": 4, "coalingEnduranceShare": 0.8, "maxSeconds": 7200,
-    "stallRollbackExtraM": 200, "driverBandMs": 0.4
+    "stallRollbackExtraM": 200, "driverBandMs": 0.4, "dawnWithStopsHard": false, "overspeedTolerance": 0.8
   },
 
   // Plan §22: the defaults for conflicts in the source documents. Each is logged as a warning when it applies.

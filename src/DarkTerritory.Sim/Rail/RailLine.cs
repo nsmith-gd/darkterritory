@@ -161,7 +161,8 @@ public sealed class RailLine
         Segments = def.Segments;
         Length = def.Segments.Sum(s => s.Length);
 
-        int n = (int)Math.Ceiling(Length / Step) + 1;
+        // A line a hair over a whole number of steps would end on a step too short to have a direction.
+        int n = (int)Math.Ceiling(Length / Step - 1e-9) + 1;
         _points = new Double3[n];
         _grade = new double[n];
         _curvature = new double[n];
@@ -232,7 +233,10 @@ public sealed class RailLine
         var a = _points[i];
         var b = _points[i + 1];
         int nearest = t < 0.5 ? i : i + 1;
-        return new TrackSample(s, Double3.Lerp(a, b, t), (b - a).Normalized, _grade[nearest], _curvature[nearest]);
+        var d = b - a;
+        if (d.Length < 1e-9 && i > 0)
+            d = a - _points[i - 1];
+        return new TrackSample(s, Double3.Lerp(a, b, t), d.Normalized, _grade[nearest], _curvature[nearest]);
     }
 
     public static RailLine Load(string path) => new(DataFile.Load<LineDefinition>(path));

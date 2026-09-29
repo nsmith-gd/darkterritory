@@ -1,4 +1,3 @@
-#pragma warning disable CS0649 // TEMP: assigned by stages still to come
 using Ballast;
 using DarkTerritory.Sim.Rail;
 
@@ -61,13 +60,54 @@ sealed partial class LineBuilder
                 _edges.Remove(w.Edge);
                 _traces.Remove(w.Edge);
             }
-        // The branches in order along the main line: a rake's path onto one is its index (RailLine).
+        Reindex();
+        if (ProfileAndBuild() is { } why)
+            return (null, why);
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        void Lap(string stage)
+        {
+            _timings[stage] = clock.Elapsed.TotalMilliseconds;
+            clock.Restart();
+        }
+        Lap("geometry");
+        LayStructuresAndIntents();
+        LayStations();
+        RollWeather();
+        LayTags();
+        LayExposure();
+        Lap("stations+tags");
+        // §22.1: dawn by the spec's formula (route / 11 m/s + 18%); the validator reports the slack against ideal transit.
+        var cf = _t.Conflicts;
+        _dawn = (_terminus - _gate) / cf.DawnAverageSpeed * (1 + cf.DawnSlack);
+        LayAuthority();
+        Lap("authority");
+        LaySignage();
+        LayDirector();
+        LayRouteCard();
+        Lap("signage+director");
+        Validate();
+        Lap("validate");
+        LayDirector();
+        LayRouteCard();
+        return (Freeze(), null);
+    }
+
+    /// <summary>The branches in order along the main line: a rake's path onto one is its index (RailLine).</summary>
+    void Reindex()
+    {
         int index = 0;
         foreach (var e in _edges.Values.Where(e => e.Role != EdgeRole.Main).OrderBy(e => e.Toe).ThenBy(e => e.Id, StringComparer.Ordinal))
             e.Branch = index++;
-        if (ProfileAndBuild() is { } why)
-            return (null, why);
-        return (Freeze(), null);
+    }
+
+    /// <summary>Takes an alternate out of the line altogether (it couldn't be laid), keeping the rest.</summary>
+    void DropAlternate(EdgeDraft e, string why)
+    {
+        Warn($"dropped {e.Id}: {why}");
+        _alts.RemoveAll(a => a.Edge == e.Id);
+        _edges.Remove(e.Id);
+        _traces.Remove(e.Id);
+        Reindex();
     }
 
     /// <summary>Smallest scope first (§16.4): an edge that won't lay is tried again on its own before the run is.</summary>
@@ -144,8 +184,22 @@ sealed partial class LineBuilder
     }
 
     /// <summary>For `dt linegen debug`: each main-line item with its heading at the end, and each branch's planned end against the built one.</summary>
+    readonly Dictionary<string, double> _timings = new();
+
     public IEnumerable<string> Debug()
     {
+        foreach (var (k, v) in _timings)
+            yield return $"time {k}: {v:0} ms";
+        if (_ideal is { } ideal)
+        {
+            yield return $"ideal: {ideal.Survived} {ideal.Failure} transit {ideal.TransitSeconds / 60:0.0} min, brake {ideal.MinBrake:0.00}, over {ideal.WorstOverspeed:0.0} {ideal.WorstOverspeedAt}, trace {ideal.Trace.Count}";
+            for (int i = 0; i < ideal.Trace.Count; i += Math.Max(1, ideal.Trace.Count / 40))
+                yield return $"  t {i / 2.0:0}s  d {ideal.Trace[i].D}  v {ideal.Trace[i].V}";
+        }
+        foreach (var (e, r) in _alternateDrives)
+            yield return $"{e}: {r.Survived} {r.Failure} transit {r.TransitSeconds / 60:0.0} min, trace {r.Trace.Count}";
+        foreach (var c in _checks.Where(c => !c.Pass))
+            yield return $"FAIL {c.Name}: {c.Detail}";
         var pose = new Pose(0, 0, 0);
         foreach (var i in Main.Items)
         {

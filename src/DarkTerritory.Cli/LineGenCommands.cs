@@ -11,6 +11,7 @@ static class LineGenCommands
     {
         "generate" => Generate(content, args),
         "sweep" => Sweep(content, args),
+        "bench" => Bench(content, args),
         "debug" => LineGenerator.Debug(LineGenContent.Load(content), Parameters(args), (int)Opt(args, "--attempt", 0)).ToList(),
         _ => throw new ArgumentException($"linegen {verb}? (generate, sweep)"),
     };
@@ -40,7 +41,9 @@ static class LineGenCommands
         var c = LineGenContent.Load(content);
         var p = Parameters(args);
         var clock = Stopwatch.StartNew();
-        var plan = LineGenerator.Generate(c, p);
+        // --attempt n: that one attempt as it came out, passed or not (for looking at why one failed).
+        var plan = args.Contains("--attempt") ? LineGenerator.Attempt(c, p, (int)Opt(args, "--attempt", 0)).Plan ?? throw new InvalidOperationException("that attempt didn't build")
+            : LineGenerator.Generate(c, p);
         long ms = clock.ElapsedMilliseconds;
         var route = plan.ToRoute(c.Route);
         var line = route.Build();
@@ -71,8 +74,139 @@ static class LineGenCommands
         };
     }
 
+    static object Bench(string content, string[] args)
+    {
+        var c = LineGenContent.Load(content);
+        var plan = LineGenerator.Generate(c, Parameters(args));
+        var line = plan.ToRoute(c.Route).Build();
+        var train = new DarkTerritory.Sim.Train.TrainOnLine(new DarkTerritory.Sim.Train.TrainDynamics(DarkTerritory.Sim.Train.Consist.Uniform(c.Train, 8, 1)), line, 1500);
+        var clock = Stopwatch.StartNew();
+        for (int i = 0; i < 50000; i++)
+            train.Step(1 / 30.0, new DarkTerritory.Sim.Train.TrainControls { Throttle = train.Dynamics.Speed < 12 ? 1 : 0, Reverser = 1 });
+        double step = clock.Elapsed.TotalMilliseconds;
+        clock.Restart();
+        double k = 0;
+        for (int i = 0; i < 50000; i++)
+            foreach (var car in train.Cars)
+                k += line.Sample(-1, car.FrontDistance - i % 100).Curvature;
+        return new { stepMs = step, samplesMs = clock.Elapsed.TotalMilliseconds, k };
+    }
+
+    /// <summary>
+    /// §16.5 / §20.2: generation, validation and metrics over many seeds per tier and consist; checks that deeper is
+    /// harder at a matched consist (GDD B.9). With --fallbacks, the first passing seeds per band go to fallback_seeds.json.
+    /// </summary>
     static object Sweep(string content, string[] args)
     {
-        return new { todo = true };
+        var c = LineGenContent.Load(content);
+        string tierArg = Str(args, "--tier", "all");
+        var tiers = tierArg == "all" ? Enum.GetValues<RouteTier>() : [Enum.Parse<RouteTier>(tierArg, ignoreCase: true)];
+        var cars = Str(args, "--cars", "3,10,20").Split(',').Select(int.Parse).ToArray();
+        int seeds = (int)Opt(args, "--seeds", 50);
+        ulong first = ulong.Parse(Str(args, "--first", "1"));
+        string report = Str(args, "--report", "");
+        var rows = new List<string> { "tier,cars,seed,attempts,fallback,passed,ms,lengthKm,idealMin,dawnSlackMin,minRadius,ruling,tunnelM,bridgeM,junctions,alternates,deadLines,stackMax,terrainCost,requiredTells,restricted,sleepers,failed" };
+        var summary = new List<object>();
+        foreach (var tier in tiers)
+            foreach (int n in cars)
+            {
+                var results = new (LinePlan Plan, long Ms)[seeds];
+                Parallel.For(0, seeds, i =>
+                {
+                    var clock = Stopwatch.StartNew();
+                    ulong seed = first + (ulong)i;
+                    LinePlan plan;
+                    try
+                    {
+                        plan = LineGenerator.Generate(c, new RunParameters(tier, seed, RunParameters.SeverityOf(tier, seed), n, []));
+                    }
+                    catch (Exception e)
+                    {
+                        throw new InvalidOperationException($"{tier}:{seed} at {n} cars: {e.Message}", e);
+                    }
+                    results[i] = (plan, clock.ElapsedMilliseconds);
+                });
+                var failures = new Dictionary<string, int>();
+                foreach (var (plan, ms) in results)
+                {
+                    var m = plan.Validation.Metrics;
+                    double M(string k) => m.TryGetValue(k, out var v) ? v : 0;
+                    // Each failed check once per attempt, with the first words of why ("quotas: climb_long 0/1").
+                    var failed = plan.Validation.Warnings.Where(w => w.StartsWith("attempt")).SelectMany(w => w.Split(": ", 2)[1].Split("; "))
+                        .Select(f => string.Join(' ', f.Split(' ').Take(f.StartsWith("quotas") || f.StartsWith("geometry") || f.StartsWith("tells") ? 4 : 1)).TrimEnd(',', ':'))
+                        .Concat(plan.Validation.Checks.Where(k => !k.Pass).Select(k => "final " + k.Name)).ToList();
+                    foreach (var f in failed)
+                        failures[f] = failures.GetValueOrDefault(f) + 1;
+                    rows.Add(string.Join(",", tier, n, plan.Route.Id.Split('-')[^1], plan.Validation.Attempts, plan.Validation.Fallback, plan.Validation.Passed, ms,
+                        M("lengthKm"), M("idealTransitMin"), M("dawnSlackMin"), M("minRadius"), M("rulingGradeMain"), M("tunnelM"), M("bridgeM"), M("junctions"),
+                        M("alternates"), M("deadLines"), M("stackDepthMax"), M("terrainCost"), M("requiredTells"), M("restrictedZones"), M("sleepers"),
+                        "\"" + string.Join(";", failed.Distinct()) + "\""));
+                }
+                var plans = results.Select(r => r.Plan).ToList();
+                summary.Add(new
+                {
+                    tier,
+                    cars = n,
+                    seeds,
+                    firstAttempt = Math.Round(plans.Count(p => p.Validation.Attempts == 1 && !p.Validation.Fallback) / (double)seeds, 3),
+                    withinTwo = Math.Round(plans.Count(p => p.Validation.Attempts <= 2 && !p.Validation.Fallback) / (double)seeds, 3),
+                    fallbacks = plans.Count(p => p.Validation.Fallback),
+                    unpassed = plans.Count(p => !p.Validation.Passed),
+                    meanMs = Math.Round(results.Average(r => r.Ms)),
+                    maxMs = results.Max(r => r.Ms),
+                    meanIdealMin = Math.Round(plans.Average(p => p.Validation.Metrics.GetValueOrDefault("idealTransitMin")), 1),
+                    meanTerrainCost = Math.Round(plans.Average(p => p.Validation.Metrics.GetValueOrDefault("terrainCost")), 1),
+                    meanDemands = Math.Round(plans.Average(p => p.Authority.Demands.Count), 1),
+                    meanAverageSpeed = Math.Round(plans.Average(p => p.Validation.Metrics.GetValueOrDefault("averageSpeed")), 2),
+                    failures = failures.OrderByDescending(kv => kv.Value).ToDictionary(kv => kv.Key, kv => kv.Value),
+                });
+            }
+        if (report.Length > 0)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(report))!);
+            File.WriteAllLines(report, rows);
+        }
+        if (args.Contains("--fallbacks"))
+            WriteFallbacks(c, content, tiers);
+        return summary;
+    }
+
+    /// <summary>§16.4: for each tier and consist band, seeds whose first attempt passes, written to fallback_seeds.json.</summary>
+    static void WriteFallbacks(LineGenContent c, string content, RouteTier[] tiers)
+    {
+        var bands = new[] { (1, 5), (6, 10), (11, 15), (16, 20) };
+        var lines = new List<string>
+        {
+            "// Plan §16.4: seeds proven to pass, per tier and consist band, used after ten failed attempts (every use is logged:",
+            "// it's a generator bug). Found by `dt linegen sweep --fallbacks`: each seed's first attempt passes at both ends of its band.",
+            "{",
+            "  \"seeds\": {",
+        };
+        var tierLines = new List<string>();
+        foreach (var tier in Enum.GetValues<RouteTier>())
+        {
+            var bandLines = new List<string>();
+            foreach (var (lo, hi) in bands)
+            {
+                var found = new List<ulong>();
+                for (ulong seed = 1000; seed < 1400 && found.Count < 4; seed++)
+                {
+                    bool ok = new[] { lo, hi }.All(n =>
+                    {
+                        var p = new RunParameters(tier, seed, RunParameters.SeverityOf(tier, seed), n, []);
+                        var (plan, _) = LineGenerator.Attempt(c, p, 0);
+                        return plan is not null && plan.Validation.Passed;
+                    });
+                    if (ok)
+                        found.Add(seed);
+                }
+                bandLines.Add($"\"{lo}-{hi}\": [{string.Join(", ", found)}]");
+            }
+            tierLines.Add($"    \"{char.ToLowerInvariant(tier.ToString()[0])}{tier.ToString()[1..]}\": {{ {string.Join(", ", bandLines)} }}");
+        }
+        lines.Add(string.Join(",\n", tierLines));
+        lines.Add("  }");
+        lines.Add("}");
+        File.WriteAllText(Path.Combine(content, LineGenConfig.Directory, "fallback_seeds.json"), string.Join("\n", lines) + "\n");
     }
 }

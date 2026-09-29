@@ -249,7 +249,9 @@ sealed partial class LineBuilder
                 chosen[next++] = kind;
         // Spec B.6 / plan §11.1: coal when the expected run approaches the tender's endurance. The validator checks the
         // real figure; this is its estimate from line speed and the stops.
-        double expected = (_terminus - _gate) / (0.75 * _l.LineSpeed) + _facilities.Count * _t.Validation.DawnMinutesPerFacility * 60;
+        // A heavy train averages well under line speed (it's slow to accelerate out of every stop and limit).
+        double average = _l.LineSpeed * Math.Clamp(0.45 + _l.Accel, 0.5, 0.8);
+        double expected = (_terminus - _gate) / average + _facilities.Count * _t.Validation.DawnMinutesPerFacility * 60;
         if (expected > _t.Validation.CoalingEnduranceShare * _l.TenderEnduranceS && !chosen.Contains(FacilityKind.CoalingTower))
         {
             // The middle slot, so the tender's halves either side of it are both short.

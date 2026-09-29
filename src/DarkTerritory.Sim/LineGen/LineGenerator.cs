@@ -41,9 +41,15 @@ public static class LineGenerator
                     },
                 };
         }
-        // Nothing passed: the last attempt as it is, its failed checks on it, so a caller can still play and see why.
-        var (last, lastWhy) = Attempt(content, p, 0);
-        return last ?? throw new InvalidOperationException($"line generation failed for {p.RouteId}: {lastWhy}");
+        // Nothing passed: the first attempt that built at all, its failed checks on it, so a caller can still play and
+        // see why (and a sweep counts it). It never comes to nothing: a night is always generated.
+        for (int attempt = 0; attempt < t.Validation.Attempts * 2; attempt++)
+        {
+            var (plan, _) = Attempt(content, p, attempt);
+            if (plan is not null)
+                return plan with { Validation = plan.Validation with { Attempts = 2 * t.Validation.Attempts, Warnings = [.. plan.Validation.Warnings, .. failures.Take(8)] } };
+        }
+        throw new InvalidOperationException($"line generation failed for {p.RouteId}: {string.Join("; ", failures.Take(3))}");
     }
 
     /// <summary>One attempt: every stage, then validation. Null plan with a reason when a stage couldn't lay its part.</summary>

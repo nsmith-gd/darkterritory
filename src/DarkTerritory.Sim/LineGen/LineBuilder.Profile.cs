@@ -18,10 +18,14 @@ sealed partial class LineBuilder
         var runs = new List<GradeRun>();
         foreach (var item in e.Items)
         {
+            if (item.Length < 1e-6)
+                continue;
             double cap = Math.Min(item.DriftCap, _t.Profile.DriftMaxGrade);
             if (item.Grades is null)
             {
-                runs.Add(new GradeRun(item.S0, item.S1, 0, false, true, cap));
+                // Into a facility the approach climbs or is level, never falls: a long stop on a descent fades the brakes
+                // (spec B.5), and the loaded cars wait at the foot of it.
+                runs.Add(new GradeRun(item.S0, item.S1, 0, false, true, item.Type == "approach" ? -cap : cap));
                 continue;
             }
             foreach (var (f0, f1, g) in item.Grades)
@@ -46,9 +50,11 @@ sealed partial class LineBuilder
                 if (r.Soft)
                 {
                     double target = e.Role == EdgeRole.Main ? Drift(r.S1) : z0 + (Drift(e.Toe + r.S1) - Drift(e.Toe)) * 0.5;
-                    double g = (target - z) / (r.S1 - r.S0) * 100;
-                    double cap = Math.Min(r.Cap, e.Role == EdgeRole.Main ? _l.MainGrade : _t.DeadLines.MaxGrade);
-                    g = Math.Clamp(g, -Math.Min(cap, _l.DescentGrade), cap);
+                    double g = (target - z) / Math.Max(1, r.S1 - r.S0) * 100;
+                    // A negative cap marks a run that may climb but not fall (a facility's approach).
+                    bool noFall = r.Cap < 0;
+                    double cap = Math.Min(Math.Abs(r.Cap), e.Role == EdgeRole.Main ? _l.MainGrade : _t.DeadLines.MaxGrade);
+                    g = Math.Clamp(g, noFall ? 0 : -Math.Min(cap, _l.DescentGrade), cap);
                     runs[i] = r with { G = Math.Round(g, 3) };
                 }
                 z += (runs[i].S1 - runs[i].S0) * runs[i].G / 100;
@@ -86,6 +92,43 @@ sealed partial class LineBuilder
                 merged.Add(r);
         }
         double rv = _l.MinVerticalRadius * 1.15;
+        // A drift run too short for the vertical curves at both its ends takes its neighbour's grade instead: fewer,
+        // gentler changes rather than curves tighter than the tier allows (§8.3).
+        for (int pass = 0; pass < 4; pass++)
+        {
+            bool changed = false;
+            for (int i = 0; i < merged.Count; i++)
+            {
+                var r = merged[i];
+                if (!r.Soft)
+                    continue;
+                double need = 0;
+                if (i > 0)
+                    need += Math.Abs(r.G - merged[i - 1].G) / 100 * rv / (merged[i - 1].Hard ? 1 : 2);
+                if (i + 1 < merged.Count)
+                    need += Math.Abs(merged[i + 1].G - r.G) / 100 * rv / (merged[i + 1].Hard ? 1 : 2);
+                if (need <= (r.S1 - r.S0) * 0.9)
+                    continue;
+                double to = i > 0 && !(i + 1 < merged.Count && merged[i + 1].S1 - merged[i + 1].S0 > merged[i - 1].S1 - merged[i - 1].S0) ? merged[i - 1].G
+                    : i + 1 < merged.Count ? merged[i + 1].G : r.G;
+                if (Math.Abs(to - r.G) > 1e-6)
+                {
+                    merged[i] = r with { G = to };
+                    changed = true;
+                }
+            }
+            if (!changed)
+                break;
+            var again = new List<GradeRun>();
+            foreach (var r in merged)
+            {
+                if (again.Count > 0 && Math.Abs(again[^1].G - r.G) < 1e-6 && again[^1].Hard == r.Hard)
+                    again[^1] = again[^1] with { S1 = r.S1, Soft = again[^1].Soft && r.Soft };
+                else
+                    again.Add(r);
+            }
+            merged = again;
+        }
         int n = merged.Count;
         var into = new double[n]; // vertical curve length taken from the end of run i
         var outOf = new double[n]; // and from the start of run i+1... indexed by the later run
@@ -160,9 +203,15 @@ sealed partial class LineBuilder
             e.Grades = Smooth(e, runs);
             e.Segments = Geometry.Segments(e.Prims, e.Grades);
         }
-        foreach (var e in Branches().Where(b => b.Role == EdgeRole.Alternate))
+        foreach (var e in Branches().Where(b => b.Role == EdgeRole.Alternate).ToList())
             if (ProfileAlternate(e, 0) is { } why)
-                return why;
+            {
+                // Its pieces' own grades on the drift instead, and if it still can't meet the main line, no alternate here.
+                foreach (var item in e.Items.Where(i => i.IsPiece && i.Kind is "climb" or "descent" or "summit" or "roller"))
+                    item.Grades = null;
+                if (ProfileAlternate(e, 0) is { } still)
+                    DropAlternate(e, still);
+            }
         // Build, then correct each alternate's closure on the line the rail model actually lays.
         for (int iter = 0; iter <= _t.Alignment.ClosureIterations; iter++)
         {
@@ -183,11 +232,19 @@ sealed partial class LineBuilder
                 if (iter == _t.Alignment.ClosureIterations)
                 {
                     if (flat > _t.Alignment.ClosureTolM || angle > _t.Alignment.ClosureTolDeg * Math.PI / 180)
-                        return $"{e.Id} closes {flat:0.00} m and {angle * 180 / Math.PI:0.00}° off the main line";
+                    {
+                        DropAlternate(e, $"closes {flat:0.00} m and {angle * 180 / Math.PI:0.00}° off the main line");
+                        _line = BuildLine();
+                        break;
+                    }
                     continue;
                 }
                 if (Reclose(e, err, b) is { } why)
-                    return why;
+                {
+                    DropAlternate(e, why);
+                    _line = BuildLine();
+                    break;
+                }
             }
             if (closed)
                 break;
@@ -251,6 +308,10 @@ sealed partial class LineBuilder
 
     RailLine BuildLine()
     {
+        foreach (var e in _edges.Values)
+            foreach (var seg in e.Segments)
+                if (!double.IsFinite(seg.Length) || !double.IsFinite(seg.Radius) || !double.IsFinite(seg.GradePercent) || seg.EndGradePercent is { } eg && !double.IsFinite(eg) || seg.EndRadius is { } er && !double.IsFinite(er))
+                    throw new InvalidOperationException($"{e.Id}: a segment isn't finite: {seg}; items {string.Join(", ", e.Items.Where(i => i.Grades?.Any(g => !double.IsFinite(g.G)) == true).Select(i => i.ToString()))}");
         var main = new LineDefinition(_p.RouteId, Main.Segments);
         var defs = Branches().Select(e => new BranchDefinition(e.Role switch
         {

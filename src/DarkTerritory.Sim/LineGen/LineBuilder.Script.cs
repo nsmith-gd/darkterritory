@@ -80,9 +80,10 @@ sealed partial class LineBuilder
             }
             else
             {
-                double half = _c.Route.PoiZoneHalfLength;
-                items.Add(Fixed("approach", slot.LullStart, slot.S - half, HShape.Straight, false, r.ApproachMinRadius, _t.Profile.ApproachGrade));
-                items.Add(Fixed("stand", slot.S - half, slot.S + half, HShape.Straight, level: true));
+                // The tower's zone either side of the chute; the holding track (the whole train, level) runs up to it.
+                double half = _c.Route.PoiZoneHalfLength, before = Math.Max(half, slot.Holding);
+                items.Add(Fixed("approach", slot.LullStart, slot.S - before, HShape.Straight, false, r.ApproachMinRadius, _t.Profile.ApproachGrade));
+                items.Add(Fixed("stand", slot.S - before, slot.S + half, HShape.Straight, level: true));
                 items.Add(Fixed("departure", slot.S + half, slot.LullEnd, HShape.Straight, level: true));
             }
         }
@@ -183,6 +184,36 @@ sealed partial class LineBuilder
             if (fitting.Count > 0)
                 sigs.Remove(fitting[0]);
         }
+        // In order of need: the §15.3 quotas (acceptance checks, each tier adding to the ones before, the largest
+        // count of each kind holding), the tier's counts of hazards, then the §7.4 signatures where there's room.
+        var quotas = QuotaRows();
+        var spikeChain = spike?.Must.FirstOrDefault() ?? [];
+        if (quotas.Any(q => q.DeadSettlementNearFacility > 0) && _facilities.Count > 0)
+            must.Add(("settlementNearFacility", ["deadSettlement"], s => s.NearFacility is not null && (s.BeforeStop || s.AfterFacility), 700));
+        bool contaminated = quotas.Any(q => q.Tags.ContainsKey("contaminated"));
+        // A causeway from D 2 is contaminated marsh: one serves both quotas.
+        bool causewayContaminated = D >= Def("causeway").Param("contaminatedFromD");
+        if (quotas.Any(q => q.Tags.ContainsKey("marsh_or_water")))
+            must.Add(("water", [Def("causeway").MinD <= D && (contaminated && causewayContaminated || rng.Chance(0.5)) ? "causeway" : "riverCrossing"], _ => true, 900));
+        if (contaminated && !(causewayContaminated && must.Any(m => m.Chain[0] == "causeway")))
+            must.Add(("contaminated", ["causeway"], _ => true, 900));
+        // The quotas are placed for themselves: what the spike carries is on top (its pieces may not all fit).
+        int tunnels = quotas.Count == 0 ? 0 : quotas.Max(q => q.Tunnels);
+        for (int i = 0; i < tunnels && Allowed("tunnel"); i++)
+            must.Add(("tunnel", ["tunnel"], _ => true, 800));
+        int climbLong = quotas.Count == 0 ? 0 : quotas.Max(q => q.Tags.GetValueOrDefault("climb_long"));
+        for (int i = 0; i < climbLong; i++)
+            must.Add(("climb_long", ["climb"], _ => true, 1500));
+        if (quotas.Any(q => q.Tags.ContainsKey("climb")) && climbLong <= 0)
+            must.Add(("climb", ["climb"], _ => true, 800));
+        foreach (var _ in _mainWeakBridges)
+            must.Add(("weakTrestle", ["trestle"], _ => true, 700));
+        int momentum = D >= Def("momentumBank").MinD && _l.MomentumGrade > 0 ? rng.Count(_l.MomentumBanks[0], _l.MomentumBanks[1]) - (spikeChain.Any(c => c.Contains("momentumBank")) ? 1 : 0) : 0;
+        for (int i = 0; i < momentum; i++)
+            must.Add(("momentumBank", ["momentumBank"], s => s.Zone != "opening", 1600));
+        int brass = D >= Def("brassField").MinD ? rng.Count(_l.BrassFields[0], _l.BrassFields[1]) : 0;
+        for (int i = 0; i < brass; i++)
+            must.Add(("brassField", ["brassField"], _ => true, 700));
         foreach (var g in sigs)
         {
             Func<Stretch, bool> fits = g.AfterFacility ? s => s.AfterFacility
@@ -190,28 +221,6 @@ sealed partial class LineBuilder
                 : _ => true;
             must.Add((g.Id, g.Chain, s => fits(s) && Depth(g.Chain) <= StackCapAt(s), MinLen(g.Chain)));
         }
-        // §15.3 quotas on the main line, each tier adding to the ones before.
-        var quotas = QuotaRows();
-        int climbLong = quotas.Sum(q => q.Tags.GetValueOrDefault("climb_long")) - (sigs.Any(g => g.Id == "houndsHill") ? 1 : 0);
-        for (int i = 0; i < climbLong; i++)
-            must.Add(("climb_long", ["climb"], _ => true, 1400));
-        if (quotas.Any(q => q.Tags.ContainsKey("climb")) && climbLong <= 0)
-            must.Add(("climb", ["climb"], _ => true, 800));
-        if (quotas.Any(q => q.Tags.ContainsKey("marsh_or_water")))
-            must.Add(("water", [Def("causeway").MinD <= D && rng.Chance(0.5) ? "causeway" : "riverCrossing"], _ => true, 900));
-        int tunnels = Math.Max(quotas.Sum(q => q.Tunnels), 0) - sigs.Count(g => g.Chain.Any(c => c.Contains("tunnel")));
-        for (int i = 0; i < tunnels && Allowed("tunnel"); i++)
-            must.Add(("tunnel", ["tunnel"], _ => true, 800));
-        if (quotas.Any(q => q.Tags.ContainsKey("contaminated")))
-            must.Add(("contaminated", ["causeway"], _ => true, 900));
-        int momentum = D >= Def("momentumBank").MinD && _l.MomentumGrade > 0 ? rng.Count(_l.MomentumBanks[0], _l.MomentumBanks[1]) - sigs.Count(g => g.Id == "theGauntlet") : 0;
-        for (int i = 0; i < momentum; i++)
-            must.Add(("momentumBank", ["momentumBank"], s => s.Zone != "opening", 1600));
-        int brass = D >= Def("brassField").MinD ? rng.Count(_l.BrassFields[0], _l.BrassFields[1]) : 0;
-        for (int i = 0; i < brass; i++)
-            must.Add(("brassField", ["brassField"], _ => true, 700));
-        foreach (var _ in _mainWeakBridges)
-            must.Add(("weakTrestle", ["trestle"], _ => true, 700));
 
         foreach (var m in must)
         {
@@ -220,6 +229,7 @@ sealed partial class LineBuilder
                 candidates = stretches.Where(s => m.Fits(s) && s.Length - s.Reserved >= m.MinLength).ToList();
             if (candidates.Count == 0)
             {
+                // A signature is placed where the tier allows and there's room; a quota's absence fails validation.
                 Warn($"no room on the main line for {m.Name}");
                 continue;
             }
@@ -262,8 +272,8 @@ sealed partial class LineBuilder
         LayRegion(st, ref rng);
         var queue = new List<(string[] Chain, string Id)>(st.Must.Zip(st.MustIds));
         // Hounds' Hill starts as the train pulls out of the facility; Junction at the Bottom ends at the next stop's approach.
-        var first = queue.FirstOrDefault(q => q.Id == "houndsHill");
-        var last = queue.FirstOrDefault(q => q.Id == "junctionAtTheBottom");
+        var first = queue.FirstOrDefault(q => q.Id == "houndsHill" || q.Id == "settlementNearFacility" && st.AfterFacility && !st.BeforeStop);
+        var last = queue.FirstOrDefault(q => q.Id == "junctionAtTheBottom" || q.Id == "settlementNearFacility" && st.BeforeStop);
         if (first.Chain is not null)
             queue.Remove(first);
         if (last.Chain is not null)
@@ -282,30 +292,33 @@ sealed partial class LineBuilder
             // Signature tags: the climb out of the stop.
             opener[0].Tags.Add("climb_long");
         }
-        double nextSettlement = NextSettlement(s, ref rng);
-        bool quotaSettlement = st.NearFacility is not null && _p.Tier >= Route.RouteTier.Frontier && !_placedNearFacilitySettlement;
+        // §11.3: every 4–8 km of main line, counted along the whole line (a stretch is often shorter than that).
+        if (double.IsNaN(_nextSettlement))
+            _nextSettlement = NextSettlement(_gate + _t.Budget.GraceM, ref rng);
         int guard = 0;
         while (end - s > 1 && guard++ < 200)
         {
             double room = end - s;
             // Recovery: a connector long enough to outrun what's chasing (§7.1), shorter only when the stretch is.
             double rec = Math.Min(room, list.Count == 0 && first.Chain is null ? rng.Range(200, 700) : rng.Range(RecoveryLength(), RecoveryLength() * 1.5));
+            // What must still go in this stretch keeps its room: recovery shortens (to a floor) before a must is squeezed out.
+            double owed = Owed(queue);
+            if (queue.Count > 0)
+                rec = Math.Max(Math.Min(rec, room - owed), Math.Min(room, 150));
             bool anyLeft = queue.Count > 0 || budget > 0.4;
-            if (!anyLeft || room < rec + 400)
+            if (!anyLeft || room < rec + 400 && queue.Count == 0)
                 rec = room;
             list.Add(Connector(s, s + rec, st, ref rng));
             s += rec;
             if (end - s < 300)
                 break;
             // Dead settlements every 4-8 km (§11.3), and one within 2 km of a facility from the Frontier on (§15.3).
-            if (s >= nextSettlement || (quotaSettlement && st.BeforeStop && end - s < 2500))
+            if (s >= _nextSettlement && st.Window is null)
             {
                 if (Settlement(s, end - s, ref rng) is { } town)
                 {
                     Place([town], list, ref s, ref budget);
-                    nextSettlement = NextSettlement(s, ref rng);
-                    if (quotaSettlement && st.NearFacility is { } f && Math.Abs(town.S1 - f.S) < _t.Director.DeadSettlementNearFacilityM + 1000)
-                        _placedNearFacilitySettlement = true;
+                    _nextSettlement = NextSettlement(s, ref rng);
                     continue;
                 }
             }
@@ -314,7 +327,8 @@ sealed partial class LineBuilder
             {
                 var (chain, id) = queue[0];
                 queue.RemoveAt(0);
-                unit = Unit(chain, id, s, end - s - Math.Min(200, RecoveryLength()), st, ref rng);
+                // Sized to leave what's still queued its room (a piece takes as much as it's given, up to its longest).
+                unit = Unit(chain, id, s, end - s - Owed(queue) - Math.Min(200, RecoveryLength()), st, ref rng);
                 if (unit is null)
                     Warn($"{id} didn't fit its stretch at km {Km(s):0.0}");
             }
@@ -323,6 +337,8 @@ sealed partial class LineBuilder
             if (unit is not null)
                 Place(unit, list, ref s, ref budget);
         }
+        foreach (var (_, id) in queue)
+            Warn($"{id} didn't fit its stretch at km {Km(st.S0):0.0}");
         if (lastUnit is not null)
         {
             double at = st.S1 - lastLen;
@@ -345,7 +361,6 @@ sealed partial class LineBuilder
         return list;
     }
 
-    bool _placedNearFacilitySettlement;
 
     IEnumerable<Item> Split(Item i, double most)
     {
@@ -373,6 +388,14 @@ sealed partial class LineBuilder
                 Params = new(i.Params),
             };
     }
+
+    double _nextSettlement = double.NaN;
+
+    /// <summary>The least a must-place unit needs: its pieces' shortest (a long climb's 1.2 km and a bit).</summary>
+    double MustLength(string id, string[] chain) => id == "climb_long" ? 1400 : chain.Sum(c => c.Split('+').Max(x => Def(x).LengthM[0])) + 100;
+
+    /// <summary>The room still owed to queued must-place units, and the recovery between them.</summary>
+    double Owed(List<(string[] Chain, string Id)> queue) => queue.Sum(q => MustLength(q.Id, q.Chain)) + queue.Count * Math.Min(RecoveryLength(), 400);
 
     double NextSettlement(double s, ref Pcg32 rng) => s + rng.Range(Def("deadSettlement").Range("everyKm")) * 1000;
 
@@ -443,7 +466,10 @@ sealed partial class LineBuilder
             item.Tags.Add("curve_gentle");
         }
         if (st.Window is { } w)
+        {
             item.Params["window"] = w.Index;
+            item.DriftCap = 0.15;
+        }
         return item;
     }
 
@@ -452,6 +478,9 @@ sealed partial class LineBuilder
         var def = Def("deadSettlement");
         bool town = rng.Chance(def.Param("townChance"));
         double len = town ? rng.Range(def.Range("townM")) : def.Param("haltM");
+        // A town that won't fit is a halt.
+        if (town && len + 200 > room)
+            (town, len) = (false, def.Param("haltM"));
         if (len + 200 > room)
             return null;
         var item = Make(def, s, len);
@@ -482,9 +511,13 @@ sealed partial class LineBuilder
             .Select(p => (p, p.Weight * Bias(biome, p.Id) * Bias(_region, p.Id))).ToList();
         if (options.Count == 0)
             return null;
-        // A window's main side keeps to its flavour (§6.2: every alternate differs in what it trades).
+        // A window's main side keeps to its flavour (§6.2: every alternate differs in what it trades), and comes out
+        // near the height it went in at, so its alternate can meet it again within its grades: summits and rollers
+        // rather than climbs or descents.
         if (st.Window is { } w)
-            options = [.. options.Where(o => w.TradeOff.Level ? true : o.p.Kind is not ("tunnel"))];
+            options = [.. options.Where(o => o.p.Kind is not ("climb" or "descent" or "drop" or "momentum") && (w.TradeOff.Level || o.p.Kind != "tunnel"))];
+        if (options.Count == 0)
+            return null;
         var pick = rng.Weighted(options.Select(o => (o.p, o.Item2)).ToList())!;
         string[] chain = [pick.Id];
         // Stacks where allowed (§7.3): a Blind Throat or a brass field on a grade, a tunnel on a climb.
@@ -702,9 +735,11 @@ sealed partial class LineBuilder
                 }
             case "tunnel":
                 {
-                    double approach = rng.Range(def.Range("approachM"));
-                    double longest = Math.Min(_l.MaxTunnel, len - 2 * approach);
                     double shortest = def.Range("boreM")[0];
+                    // The approach cuttings shorten to fit the room before the tunnel gives up.
+                    double approach = Math.Min(rng.Range(def.Range("approachM")), Math.Max(def.Range("approachM")[0] * 0.6, (max - shortest) / 2));
+                    len = Math.Max(len, Math.Min(max, 2 * approach + shortest + 100));
+                    double longest = Math.Min(_l.MaxTunnel, len - 2 * approach);
                     if (longest < shortest)
                         return null;
                     double bore = rng.Range(shortest, longest);

@@ -136,10 +136,13 @@ public sealed class Limits
         TierMainGrade = L(c => c.MainGrade);
         MainGrade = Math.Min(TierMainGrade, cfg.Consist.MainGradeShareOfClimbMax * ClimbMax);
         TunnelGrade = a.TunnelGrade <= 0 ? MainGrade : Math.Min(MainGrade, b.TunnelGrade <= 0 ? a.TunnelGrade : L(c => c.TunnelGrade));
-        // The steepest sustained descent a loaded train can hold its speed on with its brakes at the least effectiveness
-        // the validator allows, on wet rail (§16.3 "brake effectiveness never below 60%").
+        // The steepest sustained descent a loaded train holds its speed on without its brakes fading away (§16.3: never
+        // below 60%). Spec B.5's brakes fade while applied and recover while released, so braking in pulses holds
+        // steady at a duty of recover / (fade + recover): the grade that duty of full braking holds, on wet rail.
         double wet = content.Config.Tiers.Weather.WetBiasAdhesion;
-        DescentGrade = Math.Min(MainGrade, Math.Tan(Math.Asin(Math.Min(1, Brake * cfg.Validation.MinBrakeEfficiency * wet / content.Train.Gravity))) * 100);
+        var fade = content.Train.BrakeFade;
+        double duty = fade.RecoverPerSecond / (fade.FadePerSecond + fade.RecoverPerSecond);
+        DescentGrade = Math.Min(MainGrade, Math.Tan(Math.Asin(Math.Min(1, Brake * duty * wet / content.Train.Gravity))) * 100);
         var longest = Consist.Uniform(content.Train, cfg.Consist.MaxCars, 1);
         LongestConsist = longest.LengthMetres;
         TenderEnduranceS = BoilerScenarios.TenderEnduranceMinutes(content.Boiler, p.Cars) * 60;
