@@ -8,7 +8,7 @@ namespace DarkTerritory.Game.Art;
 
 /// <summary>
 /// The sourced props (content/art/models/props, cooked by tools/models from CC0 and CC-BY models: ARCHITECTURE §8 note
-/// 54): each one a one-bone model whose bind pose is cooked once into a <see cref="MeshAsset"/> the scene places like
+/// 55): each one a one-bone model whose bind pose is cooked once into a <see cref="MeshAsset"/> the scene places like
 /// any kit piece, wearing its own layers (content/art/textures/models). A prop's sockets say where its light is, or
 /// where it hangs from. Anything missing returns null, and the caller draws the kit's own piece instead.
 /// </summary>

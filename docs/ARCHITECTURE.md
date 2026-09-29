@@ -1019,7 +1019,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `look.json` `post`: `exposure` 1.0, `wideBloom`, `lensFringe`, `mipBias` 0.
       - `LookTests`' room-brightness ratio is widened to 2.2×, because the filmic toe darkens flat colour more than a lamp-lit texture. It gains an absolute washed-out ceiling.
     - **Next:** normal and spec maps on every surface at higher resolution; ambient occlusion, more shadowed lights and light shafts in the fog; then a geometry and material detail pass.
-54. **Sourced models, and model bashing (art direction: "a texture and model fidelity problem").** Procedural kits can't reach the benchmarks' prop density and detail on their own. So the art now also takes free CC0 and CC-BY models and bashes them into the game's own things.
+55. **Sourced models, and model bashing (art direction: "a texture and model fidelity problem").** Procedural kits can't reach the benchmarks' prop density and detail on their own. So the art now also takes free CC0 and CC-BY models and bashes them into the game's own things.
     - **Where they come from.** Only GitHub is reachable from the build machines (the asset sites are blocked). The sources are public GitHub collections (the Khronos glTF sample assets, three.js's examples, gkjohnson's demo data), pinned to a commit in `tools/models/sources.json`. Licences are read from each model's own files, and the intake rule is `intake/README.md`'s.
     - **The cook** (`tools/models/cook.py`, Blender, headless, deterministic).
       - A recipe imports the sources, deforms and combines them, and calls `finish`.
