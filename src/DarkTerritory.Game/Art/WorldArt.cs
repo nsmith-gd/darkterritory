@@ -241,8 +241,19 @@ public sealed partial class WorldArt(Look look)
                     : new(colour * GroundShade(l, at), GroundBlend(band, l, at));
                 if (bridge)
                     (a, b) = (_look.Layer("rock_cliff"), _look.Layer("ground_mud"));
+                // A generated line's cess: the bed's ballast spills straight into its biome's ground, not a strip of
+                // mud (a strip that narrow lines its puddles up into a chain however the tile's shifted); past the bed
+                // the biome's ground takes over below.
+                if (plan is not null && !bridge && !hill && band == 0 && a >= 0 && BiomeGround(plan, s) is var (pa, _) && pa >= 0)
+                {
+                    // Tinted like the land past it (Macro), or the cess shows as a lighter stripe with a hard edge.
+                    Corner Cess(Vector3 p, float l, double at) => new(Macro(p + origin) * GroundShade(l, at), GroundBlend(0, l, at));
+                    Quad(mesh, left[c], left[c + 1], right[c + 1], right[c], Cess(left[c], l0, s), Cess(left[c + 1], l1, s), Cess(right[c + 1], l1, s1),
+                        Cess(right[c], l0, s1), origin, a, pa, _look.Textures[a].TileMetres ?? 2);
+                    continue;
+                }
                 // A generated line's land: its biome's own ground, going to bare rock where it's steep (linegen plan §12.5).
-                if (plan is not null && !bridge && !hill && MathF.Abs(lat) > 3.7f && BiomeGround(plan, s) is var (ga, gb) && ga >= 0)
+                if (plan is not null && !bridge && !hill && band > 0 && BiomeGround(plan, s) is var (ga, gb) && ga >= 0)
                 {
                     float Steep(Vector3[] row, int i) => SmoothStep(0.65f, 1.3f, SlopeAt(row, i));
                     // World position of a corner (the rows are camera-relative), for the slow macro variation.

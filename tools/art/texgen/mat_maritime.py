@@ -26,7 +26,7 @@ from .reg import texture
 # The Maritime palette: rust-red heath, spruce duff, the grey of the granite, the red of the clay.
 core.RAMPS.update({
     "heath": ["#110E09", "#201910", "#302416", "#40301D", "#524026"],
-    "lichen": ["#2A2C28", "#3E423C", "#565B52", "#6E7468", "#868C7E"],
+    "lichen": ["#262824", "#363A34", "#4A4E46", "#5E6458", "#72786A"],
     "duff": ["#100A07", "#20140C", "#332114", "#48301D", "#5C412A"],
     "feather_moss": ["#0E120A", "#182010", "#243018", "#324020", "#40502A"],
     "granite": ["#1E1F20", "#303234", "#46484A", "#5E6062", "#76787A"],
@@ -64,7 +64,7 @@ def ground_heath(ctx):
     d, s, g = convert.pbr_to_legacy(alb, height=height, rough=np.full((W, W), 0.85, np.float32), ramp="heath",
                                     contrast=1.35, desat=0.75, dielectric_spec=0.04)
     # Grit where the mat thins: pale grey-pink granite gravel.
-    bare = smoothstep(0.42, 0.3, clumps)
+    bare = smoothstep(0.38, 0.28, clumps)
     grit, _, _ = convert.pbr_to_legacy(grav, height=gdisp, rough=np.full((W, W), 0.8, np.float32), ramp="granite", contrast=1.2)
     d = lerp(d, grit, bare)
     height = lerp(height, noise.standardize(gdisp) * 0.4 - 1.2, bare)
@@ -72,9 +72,9 @@ def ground_heath(ctx):
     # sitting proud of the mat.
     lf = noise.fbm01(ctx.rng("lichen"), (W, W), 9, octaves=5, gain=0.6)
     ragged = noise.fbm01(ctx.rng("lr"), (W, W), 1.6, octaves=2)
-    cushion = smoothstep(0.64, 0.7, lf + (ragged - 0.5) * 0.12) * (1 - bare)
+    cushion = smoothstep(0.68, 0.74, lf + (ragged - 0.5) * 0.12) * (1 - bare)
     lich = core.apply_ramp(saturate(0.4 + 0.45 * ragged), "lichen")
-    d = lerp(d, lich, cushion * 0.8)
+    d = lerp(d, lich, cushion * 0.6)
     height = height + cushion * (0.8 + ragged)
     # Leaves: a scatter of redder and darker, the blueberry's crimson, the crowberry's near-black.
     tint = noise.fbm01(ctx.rng("tint"), (W, W), 6, octaves=3)
