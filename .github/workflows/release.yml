@@ -1,0 +1,77 @@
+# Sends a build to a store (roadmap M6, tools/store/README.md). Run by hand: Actions > Release > Run workflow.
+# CI dry-runs the same script on every push, so what this sends has already been checked.
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      store:
+        description: Where to
+        type: choice
+        options: [itch, steam, both]
+        default: itch
+      demo:
+        description: The demo (Steam's demo app, itch's -demo channels)
+        type: boolean
+        default: false
+      branch:
+        description: Steam beta branch to set live (never the default; that's a click in Steamworks)
+        type: string
+        default: ''
+      preview:
+        description: "Steam preview: build the manifests, upload nothing"
+        type: boolean
+        default: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Valve's Steam library
+        env:
+          STEAM_REDIST_URL: ${{ secrets.STEAM_REDIST_URL }}
+        run: |
+          # Without it an itch build still works (and a Steam upload refuses, saying why).
+          if [ -n "$STEAM_REDIST_URL" ]; then
+            curl -fsSL "$STEAM_REDIST_URL" -o "$RUNNER_TEMP/redist.zip"
+            unzip -oj "$RUNNER_TEMP/redist.zip" '*steam_api64.dll' '*libsteam_api.so' -d external/steam || [ $? = 11 ]  # 11: one of them isn't in it
+          fi
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq zip
+      - run: tools/package.sh win-x64 linux-x64
+      - name: steamcmd
+        if: inputs.store != 'itch'
+        env:
+          STEAM_CONFIG_VDF: ${{ secrets.STEAM_CONFIG_VDF }}
+        run: |
+          sudo apt-get install -y -qq lib32gcc-s1
+          mkdir -p "$RUNNER_TEMP/steamcmd" && curl -fsSL https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz | tar xz -C "$RUNNER_TEMP/steamcmd"
+          # The build account's saved login, so Steam Guard doesn't ask for a code.
+          for d in "$RUNNER_TEMP/steamcmd/config" "$HOME/Steam/config"; do mkdir -p "$d" && echo "$STEAM_CONFIG_VDF" | base64 -d > "$d/config.vdf"; done
+          echo "STEAMCMD=$RUNNER_TEMP/steamcmd/steamcmd.sh" >> "$GITHUB_ENV"
+      - name: Steam
+        if: inputs.store != 'itch'
+        env:
+          STEAM_USERNAME: ${{ secrets.STEAM_USERNAME }}
+          DEMO: ${{ inputs.demo && '--demo' || '' }}
+          PREVIEW: ${{ inputs.preview && '--preview' || '' }}
+          BRANCH: ${{ inputs.branch }}
+        run: tools/upload.sh steam $DEMO $PREVIEW ${BRANCH:+--branch "$BRANCH"}
+      - name: butler
+        if: inputs.store != 'steam'
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/butler.zip" https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          unzip -oq "$RUNNER_TEMP/butler.zip" -d "$RUNNER_TEMP/butler" && chmod +x "$RUNNER_TEMP/butler/butler"
+          echo "BUTLER=$RUNNER_TEMP/butler/butler" >> "$GITHUB_ENV"
+      - name: itch.io
+        if: inputs.store != 'steam'
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          DEMO: ${{ inputs.demo && '--demo' || '' }}
+        run: tools/upload.sh itch $DEMO
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: store
+          path: out/store/
