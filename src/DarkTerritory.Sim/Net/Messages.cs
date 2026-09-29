@@ -67,17 +67,36 @@ public static class Messages
         w.F32(i.LookPitch);
         w.U8((byte)i.Buttons);
         w.I8(i.ThrottleNotch);
+        // A reaching hand (T29) in centimetres, only when there is one: keyboards and bots send nothing more.
+        if (i.Has(PlayerButtons.Hand))
+        {
+            w.I16(Centimetres(i.HandX));
+            w.I16(Centimetres(i.HandY));
+            w.I16(Centimetres(i.HandZ));
+        }
     }
 
-    static PlayerIntent ReadIntent(ref NetReader r) => new()
+    static short Centimetres(float metres) => (short)Math.Round(Math.Clamp(float.IsFinite(metres) ? metres : 0, -300, 300) * 100);
+
+    static PlayerIntent ReadIntent(ref NetReader r)
     {
-        MoveX = r.F32(),
-        MoveZ = r.F32(),
-        LookYaw = r.F32(),
-        LookPitch = r.F32(),
-        Buttons = (PlayerButtons)r.U8(),
-        ThrottleNotch = r.I8(),
-    };
+        var i = new PlayerIntent
+        {
+            MoveX = r.F32(),
+            MoveZ = r.F32(),
+            LookYaw = r.F32(),
+            LookPitch = r.F32(),
+            Buttons = (PlayerButtons)r.U8(),
+            ThrottleNotch = r.I8(),
+        };
+        if (i.Has(PlayerButtons.Hand))
+        {
+            i.HandX = r.I16() / 100f;
+            i.HandY = r.I16() / 100f;
+            i.HandZ = r.I16() / 100f;
+        }
+        return i;
+    }
 
     /// <summary>Snapshot: tick, the input it acknowledges, the tick it's a delta against (0 = full), then the records.</summary>
     public static void WriteSnapshot(NetWriter w, uint tick, uint ackedInput, uint baselineTick, IReadOnlyList<WireRecord> records, IReadOnlyList<WireRecord>? baseline)

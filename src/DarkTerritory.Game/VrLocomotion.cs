@@ -1,4 +1,5 @@
 using System.Numerics;
+using Ballast;
 using Ballast.Render;
 using Ballast.Xr;
 using DarkTerritory.Sim.Player;
@@ -47,7 +48,8 @@ public sealed class VrLocomotion(VrTuning tuning)
     int _parent;
     double _heading;
     byte _placed;
-    bool _known, _snapHeld, _running;
+    bool _known, _snapHeld, _running, _leftReaches, _leftWas, _rightWas;
+    float? _pulledFrom;
 
     public VrTuning Tuning { get; } = tuning;
 
@@ -62,6 +64,12 @@ public sealed class VrLocomotion(VrTuning tuning)
 
     /// <summary>Snap turns so far (for the headless check).</summary>
     public int Snaps { get; private set; }
+
+    /// <summary>
+    /// The hand that reaches for things (T29): the last one to grip, the right until then. Reach is tested from it,
+    /// so it's the one the sim hears about.
+    /// </summary>
+    public bool LeftReaches => _leftReaches;
 
     /// <summary>Once per display frame: the stick turns the body, and the vignette follows what the sticks are doing.</summary>
     /// <param name="head">The head (either eye will do: they share an orientation) in the tracking space.</param>
@@ -123,8 +131,14 @@ public sealed class VrLocomotion(VrTuning tuning)
     /// <remarks>
     /// Look is still a delta (the host clamps it and bots use it the same way): the one that turns the player, as
     /// this machine last predicted them, to face where the head is.
+    /// <para>
+    /// The reaching hand goes with it (T29), from the feet in the frame the player will face: the tracking space hangs
+    /// from the sim's eye point, so that's the hand's place in the room turned by the room's facing, less the look.
+    /// On a ladder, a gripping hand pulled down climbs, at up to the ladder's climbing speed
+    /// (<paramref name="ladderClimb"/>; 0 leaves climbing to the stick).
+    /// </para>
     /// </remarks>
-    public PlayerIntent Intent(in PlayerState self, in XrControllerState c)
+    public PlayerIntent Intent(in PlayerState self, in XrControllerState c, double ladderClimb = 0)
     {
         var (yaw, pitch) = Angles(Head);
         var move = Deadzone(c.Move);
@@ -142,7 +156,7 @@ public sealed class VrLocomotion(VrTuning tuning)
         if (c.Grip) buttons |= PlayerButtons.Use;
         if (c.Trigger) buttons |= PlayerButtons.Fire;
         if (c.Secondary) buttons |= PlayerButtons.Throw;
-        return new PlayerIntent
+        var intent = new PlayerIntent
         {
             MoveX = move.X,
             MoveZ = move.Y,
@@ -150,6 +164,40 @@ public sealed class VrLocomotion(VrTuning tuning)
             LookPitch = (float)(pitch - self.Pitch),
             Buttons = buttons,
         };
+
+        // Whichever hand grips last is the one reaching.
+        if (c.Left.Grip && !_leftWas) _leftReaches = true;
+        else if (c.Right.Grip && !_rightWas) _leftReaches = false;
+        _leftWas = c.Left.Grip;
+        _rightWas = c.Right.Grip;
+        var hand = _leftReaches ? c.Left : c.Right;
+        if (hand.Tracked)
+        {
+            intent.Reach(Reach(hand.Position, BodyYaw - (self.Yaw + intent.LookYaw)));
+            if (self.Surface == Surface.Ladder && hand.Grip && ladderClimb > 0)
+            {
+                // Hand over hand: the hand stays on its rung while the body goes up past it. Pushing the hand up
+                // only climbs down slowly, never as far as letting go (Use with the stick back does that).
+                float pulled = _pulledFrom is { } from ? from - hand.Position.Y : 0;
+                float climb = (float)Math.Clamp(pulled / (ladderClimb * Sim.SimConstants.TickSeconds), -0.45, 1);
+                if (MathF.Abs(climb) > MathF.Abs(intent.MoveZ))
+                    intent.MoveZ = climb;
+                _pulledFrom = hand.Position.Y;
+            }
+            else
+                _pulledFrom = null;
+        }
+        return intent;
+    }
+
+    /// <summary>
+    /// A hand's place in the tracking space as the sim takes it: from the feet (the room hangs from the eye point,
+    /// <see cref="Eyes.Height"/> over them), turned by <paramref name="turn"/> radians into the frame the player faces.
+    /// </summary>
+    public static Double3 Reach(Vector3 hand, double turn)
+    {
+        double c = Math.Cos(turn), s = Math.Sin(turn);
+        return new Double3(hand.X * c + hand.Z * s, hand.Y + Eyes.Height, -hand.X * s + hand.Z * c);
     }
 
     /// <summary>The body the eyes hang off: the eye point, turned to the tracking space's facing in the world.</summary>

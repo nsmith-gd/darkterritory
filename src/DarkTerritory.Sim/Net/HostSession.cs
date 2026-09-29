@@ -59,7 +59,17 @@ public sealed class HostSession
     public World World { get; }
     public TrainOnLine Train => World.Train;
     public TrainTuning TrainTuning { get; set; }
-    public PlayerTuning PlayerTuning { get; set; }
+    /// <summary>The player tuning; its hand tuning is the world's too (<see cref="World.Hand"/>), so hot reload reaches both.</summary>
+    public PlayerTuning PlayerTuning
+    {
+        get => _playerTuning;
+        set
+        {
+            _playerTuning = value;
+            World.Hand = value.Hand;
+        }
+    }
+    PlayerTuning _playerTuning = null!;
     public TrainControls Controls;
     /// <summary>Sent to everyone who joins, so they can build the same world (the host's route, car count...).</summary>
     public string SessionInfo { get; set; } = "";

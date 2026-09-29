@@ -38,10 +38,13 @@ public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, 
 /// <summary>First-person eye from a player's state, interpolated in their own frame so riding a car at speed is smooth.</summary>
 public static class Eyes
 {
+    /// <summary>How far over the feet the eyes are, alive. A headset's tracking space hangs from here (<see cref="VrLocomotion"/>).</summary>
+    public const double Height = 1.65;
+
     public static Camera From(in PlayerState cur, in PlayerState prev, IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch)
     {
         var local = prev.Parent == cur.Parent ? Double3.Lerp(prev.Position, cur.Position, alpha) : cur.Position;
-        var eyeLocal = local + Double3.Up * (cur.Alive ? 1.65 : 0.3);
+        var eyeLocal = local + Double3.Up * (cur.Alive ? Height : 0.3);
         bool onCar = cur.Parent != PlayerState.World && cur.Parent < frames.Count;
         var eye = onCar ? frames[cur.Parent].ToWorld(eyeLocal) : eyeLocal;
         double heading = onCar ? frames[cur.Parent].Heading : 0;

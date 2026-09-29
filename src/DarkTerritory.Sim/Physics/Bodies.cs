@@ -135,7 +135,8 @@ public sealed class Bodies
     /// or puts down what you're carrying; Throw throws it where you're looking. Returns true if it took the
     /// Use press, so the press doesn't also work a lever.
     /// </summary>
-    public bool Handle(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train)
+    /// <param name="hand">The hand tuning, when hands are reported (T29): a reaching hand takes what it's on.</param>
+    public bool Handle(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null)
     {
         bool use = intent.Has(PlayerButtons.Use), thrown = intent.Has(PlayerButtons.Throw);
         bool usePressed = use && !_useWas.GetValueOrDefault(playerId);
@@ -155,9 +156,9 @@ public sealed class Bodies
             Release(carried, s, train, speed);
             return usePressed;
         }
-        if (!usePressed || carried is not null || intent.MoveZ > 0.5 || CrewActions.NearestInteractable(s, train) is not null)
+        if (!usePressed || carried is not null || intent.MoveZ > 0.5 || CrewActions.NearestInteractable(s, train, hand) is not null)
             return false;
-        if (InReach(s, train) is not { } nearest)
+        if (InReach(s, train, hand) is not { } nearest)
             return false;
         nearest.Carrier = playerId;
         nearest.Pbd.Wake();
@@ -165,13 +166,27 @@ public sealed class Bodies
     }
 
     /// <summary>The loose body a player's hands would take with Use right now, if any (also the HUD's prompt).</summary>
-    public Body? InReach(in PlayerState s, TrainOnLine train)
+    /// <remarks>A reaching hand (T29) takes the one it's on: within grab of any part of it, a crate's side or a body's arm.</remarks>
+    public Body? InReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
     {
-        var hands = HandsAt(s, train);
         // Spec C.2: the revived can carry light things only.
         bool lightOnly = s.Has(PlayerFlags.Revived);
-        return _bodies.Where(b => b.Carrier < 0 && (!lightOnly || b.Kind == BodyKind.Lamp))
-            .Select(b => (b, d: (WorldCentre(b, train) - hands).Length)).Where(x => x.d <= Hands.Reach).OrderBy(x => x.d).FirstOrDefault().b;
+        var free = _bodies.Where(b => b.Carrier < 0 && (!lightOnly || b.Kind == BodyKind.Lamp));
+        if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)
+            return free.Select(b => (b, d: Surface(b, train, h))).Where(x => x.d <= hand.Grab).OrderBy(x => x.d).FirstOrDefault().b;
+        var hands = HandsAt(s, train);
+        return free.Select(b => (b, d: (WorldCentre(b, train) - hands).Length)).Where(x => x.d <= Hands.Reach).OrderBy(x => x.d).FirstOrDefault().b;
+    }
+
+    /// <summary>How far a world point is from a body's nearest surface (0 inside it).</summary>
+    static double Surface(Body b, TrainOnLine train, Double3 world)
+    {
+        var frame = b.Parent == PlayerState.World ? (CarFrame?)null : train.Frames[b.Parent];
+        var at = frame?.ToLocal(world) ?? world;
+        double best = double.MaxValue;
+        foreach (var p in b.Pbd.Particles)
+            best = Math.Min(best, Math.Max(0, (p.Position - at).Length - p.Radius));
+        return best;
     }
 
     Double3 HandsAt(in PlayerState s, TrainOnLine train)

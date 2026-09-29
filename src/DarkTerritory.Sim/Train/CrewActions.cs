@@ -12,20 +12,32 @@ namespace DarkTerritory.Sim.Train;
 /// <item>on a coupler plate, cut the coupling behind that car (GDD §17, §24);</item>
 /// <item>at a car's brake wheel, wind its rake's handbrakes on or off.</item>
 /// </list>
+/// A VR player's reaching hand (T29) picks what's worked by where it is, not where they stand, and shovels by the
+/// stroke: coal onto the shovel at the tender, then into the firebox (<see cref="ShovelByHand"/>).
 /// Runs on the host for everyone and on a client for its own player, before the train steps.
 /// </summary>
 public static class CrewActions
 {
-    public static void Apply(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, double dt)
+    /// <param name="hand">The hand tuning, when hands are reported at all (<see cref="World.Hand"/>).</param>
+    public static void Apply(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, double dt, HandTuning? hand = null)
     {
         if (!s.Alive || !intent.Has(PlayerButtons.Use) || intent.MoveZ > 0.5 || s.Parent == PlayerState.World)
         {
+            // Let go of the shovel and what's on it is spilled.
             s.ActionProgress = 0;
+            s.Flags &= ~PlayerFlags.Shovelful;
             return;
         }
         double before = s.ActionProgress;
         var couplings = train.Dynamics.Tuning.Couplings;
-        var near = NearestInteractable(s, train);
+        var near = NearestInteractable(s, train, hand);
+        if (Hand(s, hand) && train.BoilerTuning is { } boiler && PlayerMotor.InCab(s, train)
+            && near?.Thing.Kind is InteractableKind.Coal or InteractableKind.Firebox or null)
+        {
+            ShovelByHand(ref s, near?.Thing.Kind, train, boiler, dt);
+            return;
+        }
+        s.Flags &= ~PlayerFlags.Shovelful;
 
         // A door you're facing comes first, even from the coupler plate; otherwise Use there cuts the coupling.
         if (s.Surface == Surface.Coupler && near?.Thing.Kind != InteractableKind.Door)
@@ -57,7 +69,8 @@ public static class CrewActions
                 train.Boiler.Venting = true;
                 s.ActionProgress = 0;
                 break;
-            case InteractableKind.Handbrake when s.Surface == Surface.Roof:
+            // A hand reaches the wheel from the top of the end ladder, too.
+            case InteractableKind.Handbrake when s.Surface == Surface.Roof || Hand(s, hand):
                 s.ActionProgress += dt;
                 if (before < couplings.HandbrakeSeconds && s.ActionProgress >= couplings.HandbrakeSeconds)
                     train.SetHandbrake(s.Parent, !train.RakeOf(s.Parent).Handbrake);
@@ -68,18 +81,46 @@ public static class CrewActions
         }
     }
 
+    /// <summary>
+    /// A shovelful by hand (T29): a hand gripping at the tender's coal face puts coal on the shovel; carried to the
+    /// firebox, it goes in. Never faster than spec B.6's one unit per <see cref="BoilerTuning.ShovelSeconds"/>: the
+    /// time counts from the grip, or from the last shovelful, so a steady swing shovels at the keyboard's rate and a
+    /// frantic one doesn't beat it.
+    /// </summary>
+    static void ShovelByHand(ref PlayerState s, InteractableKind? at, TrainOnLine train, BoilerTuning boiler, double dt)
+    {
+        s.ActionProgress += dt;
+        if (at == InteractableKind.Coal)
+            s.Flags |= PlayerFlags.Shovelful;
+        else if (at == InteractableKind.Firebox && s.Has(PlayerFlags.Shovelful) && s.ActionProgress >= boiler.ShovelSeconds)
+        {
+            train.Boiler.Shovel(boiler);
+            s.Flags &= ~PlayerFlags.Shovelful;
+            s.ActionProgress = 0;
+        }
+    }
+
+    static bool Hand(in PlayerState s, HandTuning? hand) => hand is not null && s.Hand != default;
+
     /// <summary>The interactable on the player's own vehicle within reach, if any.</summary>
-    public static InteractableKind? Nearest(in PlayerState s, TrainOnLine train) => NearestInteractable(s, train)?.Thing.Kind;
+    public static InteractableKind? Nearest(in PlayerState s, TrainOnLine train, HandTuning? hand = null) => NearestInteractable(s, train, hand)?.Thing.Kind;
 
     /// <summary>
     /// Within reach across and about the same height: the roof's brake wheel isn't in reach from the floor
     /// under it. A door is also in reach from the coupler plate or next car's end, so it can be opened from
     /// outside (Soot Children: "the failure is opening a door").
+    /// <para>
+    /// A reaching hand (T29) is tested instead of the feet: within the thing's reach across and between knee and head
+    /// height over its footing. It picks by where it is, so it wants no facing, and the brake wheel is in reach of a
+    /// hand from the top of the end ladder. The tender's coal face is only for hands (the keyboard shovels at the
+    /// firebox, as it always has).
+    /// </para>
     /// </summary>
-    public static (Interactable Thing, int Vehicle)? NearestInteractable(in PlayerState s, TrainOnLine train)
+    public static (Interactable Thing, int Vehicle)? NearestInteractable(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
     {
         if (s.Parent == PlayerState.World)
             return null;
+        var reaching = Hand(s, hand) ? PlayerMotor.HandAt(s) : null;
         (Interactable, int)? best = null;
         double bestD = double.MaxValue;
         // Doors want facing: the coupler plate is in reach of two of them, and Use there also cuts the coupling.
@@ -88,24 +129,26 @@ public static class CrewActions
         {
             foreach (var i in train.Frames[vehicle].Shape.Interactables)
             {
-                if (doorsOnly && i.Kind != InteractableKind.Door)
+                if (doorsOnly && i.Kind != InteractableKind.Door || reaching is null && i.Kind == InteractableKind.Coal)
                     continue;
                 double dx = at.X - i.Position.X, dz = at.Z - i.Position.Z;
                 double d = dx * dx + dz * dz;
-                if (i.Kind == InteractableKind.Door && -(dx * fx + dz * fz) < 0.6 * Math.Sqrt(d))
+                if (reaching is null && i.Kind == InteractableKind.Door && -(dx * fx + dz * fz) < 0.6 * Math.Sqrt(d))
                     continue;
-                if (d <= i.Radius * i.Radius && Math.Abs(at.Y - i.Position.Y) < 1.2 && d < bestD)
+                bool height = reaching is null ? Math.Abs(at.Y - i.Position.Y) < 1.2 : at.Y - i.Position.Y is >= 0.2 and <= 1.8;
+                if (d <= i.Radius * i.Radius && height && d < bestD)
                 {
                     bestD = d;
                     best = (i, vehicle);
                 }
             }
         }
-        Search(s.Parent, s.Position, doorsOnly: false);
+        var from = reaching ?? s.Position;
+        Search(s.Parent, from, doorsOnly: false);
         // On a coupler plate, the next car's front door is in reach too.
         if (s.Surface == Surface.Coupler && train.VehicleBehind(s.Parent) is var behind and >= 0)
         {
-            var world = train.Frames[s.Parent].ToWorld(s.Position);
+            var world = train.Frames[s.Parent].ToWorld(from);
             Search(behind, train.Frames[behind].ToLocal(world), doorsOnly: true);
         }
         return best;

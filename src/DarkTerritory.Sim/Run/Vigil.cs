@@ -50,10 +50,10 @@ public sealed class Vigil(VigilTuning tuning)
     public bool Still(TrainOnLine train) => Math.Abs(train.Dynamics.Speed) < Tuning.StillBelowSpeed;
 
     /// <summary>A player's hands this tick (host, from <see cref="World.CrewAct"/>): are they holding the vent?</summary>
-    public void CrewAct(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train)
+    public void CrewAct(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null)
     {
         bool holding = s.Alive && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5 && PlayerMotor.InCab(s, train)
-            && CrewActions.Nearest(s, train) == InteractableKind.Vent;
+            && CrewActions.Nearest(s, train, hand) == InteractableKind.Vent;
         _hold[playerId] = holding ? _hold.GetValueOrDefault(playerId) + SimConstants.TickSeconds : 0;
     }
 

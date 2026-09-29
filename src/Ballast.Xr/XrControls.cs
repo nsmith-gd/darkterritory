@@ -5,8 +5,8 @@ using XrAction = Silk.NET.OpenXR.Action;
 
 namespace Ballast.Xr;
 
-/// <summary>A tracked hand: where the grip is in the tracking space, when the runtime knows.</summary>
-public readonly record struct XrHand(bool Tracked, Vector3 Position, Quaternion Orientation);
+/// <summary>A tracked hand: where the grip is in the tracking space, when the runtime knows, and whether it's squeezed.</summary>
+public readonly record struct XrHand(bool Tracked, Vector3 Position, Quaternion Orientation, bool Grip = false);
 
 /// <summary>What the controllers say this frame, in engine terms the game maps to intent.</summary>
 public readonly record struct XrControllerState
@@ -14,7 +14,7 @@ public readonly record struct XrControllerState
     /// <summary>Left stick: walk. Right stick: turn (x).</summary>
     public Vector2 Move { get; init; }
     public Vector2 Turn { get; init; }
-    /// <summary>Either grip: take hold of things (Use).</summary>
+    /// <summary>Either grip: take hold of things (Use). Each hand's own is on <see cref="XrHand.Grip"/>.</summary>
     public bool Grip { get; init; }
     /// <summary>Either trigger: fire.</summary>
     public bool Trigger { get; init; }
@@ -177,8 +177,8 @@ public sealed unsafe class XrControls : IDisposable
             Secondary = Bool(_secondary),
             Run = Bool(_run),
             Menu = Bool(_menu),
-            Left = Locate(_leftSpace, baseSpace, time),
-            Right = Locate(_rightSpace, baseSpace, time),
+            Left = Locate(_leftSpace, baseSpace, time) with { Grip = Bool(_grip, _left) },
+            Right = Locate(_rightSpace, baseSpace, time) with { Grip = Bool(_grip, _right) },
             Profile = CurrentProfile(),
         };
     }
@@ -205,9 +205,10 @@ public sealed unsafe class XrControls : IDisposable
         return state.IsActive != 0 ? new Vector2(state.CurrentState.X, state.CurrentState.Y) : Vector2.Zero;
     }
 
-    bool Bool(XrAction action)
+    /// <param name="hand">One hand's half of an action bound to both, or 0 for either.</param>
+    bool Bool(XrAction action, ulong hand = 0)
     {
-        var get = new ActionStateGetInfo { Type = StructureType.ActionStateGetInfo, Action = action };
+        var get = new ActionStateGetInfo { Type = StructureType.ActionStateGetInfo, Action = action, SubactionPath = hand };
         var state = new ActionStateBoolean { Type = StructureType.ActionStateBoolean };
         XrHeadset.Check(_xr.GetActionStateBoolean(_session, &get, &state), "xrGetActionStateBoolean");
         return state.IsActive != 0 && state.CurrentState != 0;

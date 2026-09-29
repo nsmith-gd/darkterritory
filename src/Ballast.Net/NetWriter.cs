@@ -25,6 +25,7 @@ public sealed class NetWriter
     public void I8(sbyte v) => Take(1)[0] = (byte)v;
     public void Bool(bool v) => U8(v ? (byte)1 : (byte)0);
     public void U16(ushort v) => BinaryPrimitives.WriteUInt16LittleEndian(Take(2), v);
+    public void I16(short v) => BinaryPrimitives.WriteInt16LittleEndian(Take(2), v);
     public void U32(uint v) => BinaryPrimitives.WriteUInt32LittleEndian(Take(4), v);
     public void I32(int v) => BinaryPrimitives.WriteInt32LittleEndian(Take(4), v);
     public void U64(ulong v) => BinaryPrimitives.WriteUInt64LittleEndian(Take(8), v);
@@ -92,6 +93,7 @@ public ref struct NetReader(ReadOnlySpan<byte> data)
     public sbyte I8() => (sbyte)Take(1)[0];
     public bool Bool() => U8() != 0;
     public ushort U16() => BinaryPrimitives.ReadUInt16LittleEndian(Take(2));
+    public short I16() => BinaryPrimitives.ReadInt16LittleEndian(Take(2));
     public uint U32() => BinaryPrimitives.ReadUInt32LittleEndian(Take(4));
     public int I32() => BinaryPrimitives.ReadInt32LittleEndian(Take(4));
     public ulong U64() => BinaryPrimitives.ReadUInt64LittleEndian(Take(8));

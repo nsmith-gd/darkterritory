@@ -30,14 +30,18 @@ public sealed class SwitchStands(JunctionTuning tuning)
     }
 
     /// <summary>The switch a player could put their hands on (the HUD's prompt, and <see cref="CrewAct"/>).</summary>
-    public int? InReach(in PlayerState s, TrainOnLine train)
+    /// <param name="hand">When hands are reported (T29), a reaching hand has to be on the lever.</param>
+    public int? InReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
     {
         if (!s.Alive || train.Line.Branches.Count == 0)
             return null;
         var at = PlayerMotor.WorldPosition(s, train);
         foreach (var b in train.Line.Branches)
-            if ((at - LeverAt(train.Line, b.Index)).Length <= Tuning.LeverReach)
+        {
+            var lever = LeverAt(train.Line, b.Index);
+            if (PlayerMotor.Grips(s, train, hand, lever, (at - lever).Length <= Tuning.LeverReach))
                 return b.Index;
+        }
         return null;
     }
 
@@ -45,9 +49,9 @@ public sealed class SwitchStands(JunctionTuning tuning)
     public double Progress(int playerId) => _held.TryGetValue(playerId, out var h) ? Math.Min(1, h.Held / Tuning.ThrowSeconds) : 0;
 
     /// <summary>Host: a player's hands this tick. Holding Use at a stand long enough throws it over, once per hold.</summary>
-    public SwitchThrow? CrewAct(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train)
+    public SwitchThrow? CrewAct(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null)
     {
-        if (InReach(s, train) is not { } branch || !intent.Has(PlayerButtons.Use) || intent.MoveZ > 0.5)
+        if (InReach(s, train, hand) is not { } branch || !intent.Has(PlayerButtons.Use) || intent.MoveZ > 0.5)
         {
             _held.Remove(playerId);
             return null;

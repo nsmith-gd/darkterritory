@@ -40,6 +40,8 @@ public sealed class GreyboxScene
     public Func<int, bool>? Diverging { get; set; }
     /// <summary>The switch stands, for where their levers are. Unset, they stand where the default tuning puts them.</summary>
     public SwitchStands? Stands { get; set; }
+    /// <summary>The cab's controls, for where the levers' handles are.</summary>
+    public TrainControls Controls { get; set; } = new() { Reverser = 1 };
 
     /// <summary>Depth of the valley under a bridge.</summary>
     const double ValleyDepth = 18;
@@ -692,6 +694,19 @@ public sealed class GreyboxScene
             mesh.Emissive = 0;
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
                 Draw(Box.FromCentre(i.Position + new Double3(0, 1.1, 0), new Double3(0.12, 0.12, 0.04)), Palette.TarnishedBrass);
+            // The driver's levers, their handles where the controls have them (T29): a headset player takes hold of
+            // these. The regulator comes back as it opens, the brake handle as it goes on, the reverser forward for ahead.
+            if (shape.Levers is { } levers)
+            {
+                void Lever(Double3 handle, double rod)
+                {
+                    Draw(Box.FromCentre(handle - new Double3(0, rod / 2, 0), new Double3(0.02, rod / 2, 0.02)), Palette.IronGrey);
+                    Draw(Box.FromCentre(handle, new Double3(0.07, 0.03, 0.03)), Palette.TarnishedBrass);
+                }
+                Lever(levers.RegulatorAt(Controls.Throttle), 0.3);
+                Lever(levers.BrakeAt(Controls.Brake), 0.2);
+                Lever(levers.ReverserAt(Controls.Reverser), 0.9);
+            }
         }
         else
         {

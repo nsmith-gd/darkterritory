@@ -53,7 +53,17 @@ public sealed class ClientSession
     public World World { get; }
     public TrainOnLine Train => World.Train;
     public TrainTuning TrainTuning { get; set; }
-    public PlayerTuning PlayerTuning { get; set; }
+    /// <summary>The player tuning; its hand tuning is the world's too (<see cref="World.Hand"/>), so hot reload reaches both.</summary>
+    public PlayerTuning PlayerTuning
+    {
+        get => _playerTuning;
+        set
+        {
+            _playerTuning = value;
+            World.Hand = value.Hand;
+        }
+    }
+    PlayerTuning _playerTuning = null!;
     public byte? PlayerId { get; private set; }
     /// <summary>Voice frames from others, as they arrived. The game drains and decodes these.</summary>
     public Queue<VoiceFrame> VoiceFrames { get; } = new();
@@ -113,11 +123,12 @@ public sealed class ClientSession
         World.CrewAct(ref Predicted, intent, PlayerId ?? 0);
         World.Step(Controls);
         PlayerMotor.Step(ref Predicted, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
-        // The host snaps its world to the replication grid every tick; do the same so we match it exactly.
+        // The host snaps its world to the replication grid every tick; do the same so we match it exactly. The hand
+        // isn't replicated (the next intent brings it), but this machine's HUD reads it between ticks, so it stays.
         _quantise.Clear();
         _quantise.Add(new PlayerSnapshot(PlayerId ?? 0, Predicted));
         WorldRecords.Quantise(World, ref Controls, _quantise);
-        Predicted = _quantise[0].State;
+        Predicted = _quantise[0].State with { Hand = Predicted.Hand };
     }
 
     readonly List<PlayerSnapshot> _quantise = new();

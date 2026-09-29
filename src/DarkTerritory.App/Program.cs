@@ -346,6 +346,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         : AudioIn.Open(Audio.SampleRate, out var micError) is { } m ? m : NoMic(micError);
     var clock = new FixedStepClock(SimConstants.TickRate);
     var locomotion = vr is null ? null : new VrLocomotion(settings.Apply(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File))));
+    var levers = vr is null ? null : new VrLevers();
     bool showHud = settings.Hud && !args.Contains("--no-hud");
     var scene = new GreyboxScene
     {
@@ -443,12 +444,15 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (locomotion is not null)
             {
                 locomotion.Follow(session.Player, Eyes.Heading(session.Player, session.Train.Frames));
-                var headset = locomotion.Intent(session.Player, vr!.Session.Controllers);
+                var headset = locomotion.Intent(session.Player, vr!.Session.Controllers, session.PlayerTuning.LadderClimb);
                 intent.MoveX = Math.Clamp(intent.MoveX + headset.MoveX, -1, 1);
                 intent.MoveZ = Math.Clamp(intent.MoveZ + headset.MoveZ, -1, 1);
                 intent.LookYaw = headset.LookYaw;
                 intent.LookPitch = headset.LookPitch;
                 intent.Buttons |= headset.Buttons;
+                (intent.HandX, intent.HandY, intent.HandZ) = (headset.HandX, headset.HandY, headset.HandZ);
+                // The cab's levers by hand (T29): the same notches, brake and reverser a keyboard sends.
+                levers!.Apply(ref intent, session.Player, session.Train, session.Controls, session.PlayerTuning.Hand);
             }
             pendingNotch = 0;
             pendingReverser = false;
@@ -482,6 +486,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
         // A Vigil: emergency lighting, and no power to the headlamp.
         scene.Emergency = session.World.EmergencyLights;
+        scene.Controls = session.Controls;
         if (!session.World.LampShining)
             lighting.LampRange = 0.01f; // not 0: the shader divides by it
         scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);

@@ -20,6 +20,8 @@ public enum PlayerButtons : byte
     Fire = 32,
     /// <summary>Throw what you're carrying.</summary>
     Throw = 64,
+    /// <summary>A reaching hand is reported in <see cref="PlayerIntent.HandX"/>..<see cref="PlayerIntent.HandZ"/> (T29, VR).</summary>
+    Hand = 128,
 }
 
 /// <summary>
@@ -37,8 +39,27 @@ public struct PlayerIntent
     public PlayerButtons Buttons;
     /// <summary>Throttle notches to move this tick (−4..4). Only honoured from the engine.</summary>
     public sbyte ThrottleNotch;
+    /// <summary>
+    /// With <see cref="PlayerButtons.Hand"/>: a VR player's reaching hand, in metres from their feet in the frame they face
+    /// (x right, y up, z behind, so ahead is −Z as ever). Reach is tested from it instead of from the body (T29).
+    /// </summary>
+    public float HandX, HandY, HandZ;
 
     public readonly bool Has(PlayerButtons b) => (Buttons & b) != 0;
+
+    /// <summary>
+    /// Reports a hand, on the centimetre grid the wire carries (<see cref="Net.Messages"/>), so a predicting client
+    /// uses the hand the host will.
+    /// </summary>
+    public void Reach(Double3 hand)
+    {
+        HandX = Centimetres(hand.X);
+        HandY = Centimetres(hand.Y);
+        HandZ = Centimetres(hand.Z);
+        Buttons |= PlayerButtons.Hand;
+    }
+
+    public static float Centimetres(double metres) => (float)(Math.Round(Math.Clamp(metres, -300, 300) * 100) / 100);
 }
 
 /// <summary>What the player is on. Roof is exposed (roof speeds, Draggers); Deck is footing on the train that isn't.</summary>
@@ -55,6 +76,8 @@ public enum PlayerFlags : byte
     Revived = 1,
     /// <summary>Carrying freight (spec B.2 "carrying heavy cargo: 2.8 m/s, no climbing").</summary>
     Heavy = 2,
+    /// <summary>A hand has coal on the shovel from the tender, on its way to the firebox (T29).</summary>
+    Shovelful = 4,
 }
 
 /// <summary>
@@ -83,6 +106,12 @@ public struct PlayerState
     /// <summary>Seconds of cold exposure (spec B.2): climbs outside, falls near heat, kills at the death mark.</summary>
     public double Cold;
     public PlayerFlags Flags;
+    /// <summary>
+    /// A VR player's reaching hand this tick, from the feet in the frame they face (<see cref="PlayerIntent.HandX"/>);
+    /// zero for a player without one. Taken from each tick's intent by <see cref="PlayerMotor.TakeHand"/>, so it isn't
+    /// replicated: the host and a predicting client both have it from the same intent.
+    /// </summary>
+    public Double3 Hand;
     /// <summary>
     /// Counts the host's authoritative moves (respawns, revivals, a harness shift change). A client that sees it change
     /// adopts the new state as a placement, not as a misprediction to correct.
@@ -185,6 +214,43 @@ public static class PlayerMotor
         s.Pitch = Math.Clamp(s.Pitch + intent.LookPitch, -MaxPitch, MaxPitch);
     }
 
+    /// <summary>
+    /// Takes this tick's reaching hand from the intent (after <see cref="Look"/>, so it's in the frame the player now
+    /// faces), held within an arm's length across of the body and between the feet and overhead: an intent can say
+    /// where a hand is, not put it through a wall at the far end of the car. It can be as low as the feet because the
+    /// headset player crouches for real (the sim's body doesn't). Without hand tuning, or without a hand, there's none.
+    /// </summary>
+    public static void TakeHand(ref PlayerState s, in PlayerIntent intent, HandTuning? hand)
+    {
+        s.Hand = default;
+        if (hand is null || !s.Alive || !intent.Has(PlayerButtons.Hand) || !float.IsFinite(intent.HandX) || !float.IsFinite(intent.HandY) || !float.IsFinite(intent.HandZ))
+            return;
+        double x = intent.HandX, z = intent.HandZ, across = Math.Sqrt(x * x + z * z);
+        if (across > hand.Arm)
+            (x, z) = (x * hand.Arm / across, z * hand.Arm / across);
+        static double Cm(double v) => Math.Round(v * 100) / 100;
+        s.Hand = new Double3(Cm(x), Cm(Math.Clamp(intent.HandY, 0.01, hand.Overhead)), Cm(z));
+    }
+
+    /// <summary>A player's reaching hand in their parent frame, or null for a player without one.</summary>
+    public static Double3? HandAt(in PlayerState s)
+    {
+        if (s.Hand == default)
+            return null;
+        double c = Math.Cos(s.Yaw), n = Math.Sin(s.Yaw);
+        return s.Position + new Double3(s.Hand.X * c + s.Hand.Z * n, s.Hand.Y, -s.Hand.X * n + s.Hand.Z * c);
+    }
+
+    /// <summary>A player's reaching hand in the world, or null for a player without one.</summary>
+    public static Double3? HandWorld(in PlayerState s, TrainOnLine train) => HandAt(s) is { } h ? ToWorld(s, train, h) : null;
+
+    /// <summary>
+    /// Whether a player's hands are on a grip (in the world): a reported hand within grab of it, or, for everyone else,
+    /// whatever the thing's own reach rule says (<paramref name="body"/>).
+    /// </summary>
+    public static bool Grips(in PlayerState s, TrainOnLine train, HandTuning? hand, Double3 grip, bool body) =>
+        hand is not null && HandWorld(s, train) is { } h ? (h - grip).Length <= hand.Grab : body;
+
     /// <summary>Advances one tick. Call after the train has stepped this tick.</summary>
     /// <param name="applyLook">False when look was already applied this tick (the world's crew step does it).</param>
     public static void Step(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt, bool applyLook = true)
@@ -240,9 +306,10 @@ public static class PlayerMotor
             s.Velocity = s.Velocity with { Y = 0 };
         UpdateSupport(ref s, world, prevWorld, train, p, t);
 
-        // Use while pushing towards it grabs a ladder; Use standing still is for working things (CrewActions).
-        if (intent.Has(PlayerButtons.Use) && intent.MoveZ > 0.5 && s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Heavy))
-            TryGrabLadder(ref s, train, p);
+        // Use while pushing towards it grabs a ladder; Use standing still is for working things (CrewActions). A hand on
+        // the ladder takes hold of it without pushing (T29).
+        if (intent.Has(PlayerButtons.Use) && (intent.MoveZ > 0.5 || s.Hand != default) && s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Heavy))
+            TryGrabLadder(ref s, train, p, byHand: intent.MoveZ <= 0.5);
     }
 
     /// <summary>
@@ -436,10 +503,14 @@ public static class PlayerMotor
         }
     }
 
-    static void TryGrabLadder(ref PlayerState s, TrainOnLine train, PlayerTuning p)
+    /// <param name="byHand">The reaching hand has to be on the ladder: from its foot to a grab iron over the top rung.</param>
+    static void TryGrabLadder(ref PlayerState s, TrainOnLine train, PlayerTuning p, bool byHand)
     {
         var world = ToWorld(s, train, s.Position);
         var worldVelocity = WorldVelocity(s, train);
+        var hand = byHand ? HandWorld(s, train) : null;
+        if (byHand && hand is null)
+            return;
         foreach (var frame in train.Frames)
         {
             var local = frame.ToLocal(world);
@@ -449,6 +520,8 @@ public static class PlayerMotor
                 if (dx * dx + dz * dz > p.Ladder.GrabRange * p.Ladder.GrabRange)
                     continue;
                 if (local.Y < ladder.Foot.Y - 0.5 || local.Y > ladder.Top + 0.1)
+                    continue;
+                if (hand is { } h && !OnLadder(frame.ToLocal(h), ladder, p.Hand.Grab))
                     continue;
                 var relative = frame.VelocityToLocal(worldVelocity);
                 if (Math.Sqrt(relative.X * relative.X + relative.Z * relative.Z) >= p.Ladder.GrabMaxRelativeSpeed)
@@ -509,6 +582,12 @@ public static class PlayerMotor
             SetWorld(ref s, train, world, frame.Velocity);
             UpdateSupport(ref s, world, world, train, p, t);
         }
+    }
+
+    static bool OnLadder(Double3 hand, Ladder ladder, double grab)
+    {
+        double dx = hand.X - ladder.Foot.X, dz = hand.Z - ladder.Foot.Z;
+        return dx * dx + dz * dz <= grab * grab && hand.Y >= ladder.Foot.Y && hand.Y <= ladder.Top + 0.4;
     }
 
     static Ladder NearestLadder(CarShape shape, Double3 p)

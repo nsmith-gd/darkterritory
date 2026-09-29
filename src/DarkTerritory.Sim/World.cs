@@ -54,6 +54,11 @@ public sealed class World
     /// </summary>
     public TrainControls Controls { get; private set; } = new() { Reverser = 1 };
     public CombatTuning? Combat { get; set; }
+    /// <summary>
+    /// How reaching hands work (T29, player.json <c>hand</c>). The sessions set it from their player tuning; while it's
+    /// unset, hands in intents are ignored and everyone reaches from the body.
+    /// </summary>
+    public HandTuning? Hand { get; set; }
     public ChoirState Choir;
     /// <summary>Hit volumes for this tick (from the enemies).</summary>
     public List<HitTarget> Targets { get; } = new();
@@ -191,14 +196,15 @@ public sealed class World
     public void CrewAct(ref PlayerState s, in PlayerIntent intent, int playerId, uint? viewTick = null)
     {
         PlayerMotor.Look(ref s, intent);
+        PlayerMotor.TakeHand(ref s, intent, Hand);
         if (Authority && Run is { } run)
-            run.CrewAct(s, intent, playerId, Train);
-        if (Authority && Switches?.CrewAct(s, intent, playerId, Train) is { } thrown)
+            run.CrewAct(s, intent, playerId, Train, Hand);
+        if (Authority && Switches?.CrewAct(s, intent, playerId, Train, Hand) is { } thrown)
             SwitchThrows.Add(thrown);
         if (Authority)
-            Vigil?.CrewAct(s, intent, playerId, Train);
+            Vigil?.CrewAct(s, intent, playerId, Train, Hand);
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever.
-        bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train);
+        bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand);
         if (Authority)
         {
             // Freight in your arms slows you and keeps you off ladders (spec B.2); the motor reads the flag.
@@ -206,7 +212,7 @@ public sealed class World
             s.Flags = heavy ? s.Flags | PlayerFlags.Heavy : s.Flags & ~PlayerFlags.Heavy;
         }
         if (!handsTookIt)
-            CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds);
+            CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand);
         var targets = viewTick is { } vt && _targetHistory.TryGetValue(vt, out var then) ? then : Targets;
         // Spec C.2: no guns during a Vigil (no steam to traverse them), nor for the revived until the next POI.
         if (Combat is { } c && !EmergencyLights && !s.Has(PlayerFlags.Revived)
