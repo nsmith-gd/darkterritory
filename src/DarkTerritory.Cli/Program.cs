@@ -43,6 +43,7 @@ return args switch
     ["route", "sweep", ..] => Print(SweepRoutes(routeTuning, (int)Opt(args, "--seeds", 200))),
     ["harness", ..] => Print(RunHarness(args)),
     ["online", "check"] => Print(OnlineCheck()),
+    ["campaign", var verb, ..] => Print(CampaignCommand(content, verb, args)),
     ["vr", "check", ..] => Print(VrCheck(train, content, args)),
     ["audio", "render", ..] => Print(RenderAudio(content, args)),
     ["edit", ..] => Edit(content, args),
@@ -167,6 +168,99 @@ static object VrCheck(TrainTuning t, string content, string[] args)
             eyes = new[] { Eye(0), Eye(1) },
             path = Path.GetFullPath(output),
         };
+    }
+}
+
+// The campaign between nights (spec E, F): save slots, the board, purchases, the progression check, and a night
+// played by bots to settle.
+object CampaignCommand(string content, string verb, string[] args)
+{
+    var t = DataFile.Load<DarkTerritory.Sim.Campaign.CampaignTuning>(Path.Combine(content, DarkTerritory.Sim.Campaign.CampaignTuning.File));
+    var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
+    var saves = new DarkTerritory.Game.SaveSlots(Str(args, "--saves", DarkTerritory.Game.SaveSlots.DefaultDirectory), t.SaveSlots);
+    int slot = (int)Opt(args, "--slot", 1);
+    object Board(DarkTerritory.Sim.Campaign.CampaignState s) => new
+    {
+        slot = s.Slot,
+        s.Name,
+        cars = s.Cars,
+        scrip = Math.Round(s.Scrip),
+        runs = s.Runs,
+        tier = DarkTerritory.Sim.Campaign.Campaign.TierFor(t, s.Cars).ToString(),
+        nextCar = DarkTerritory.Sim.Campaign.Campaign.NextCarCost(t, s),
+        upgrades = s.Upgrades,
+        contracts = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s).Select((c, i) => new { index = i, route = c.Route, perCar = c.PerCar }),
+        shop = t.Upgrades.Where(u => !s.Upgrades.Contains(u.Id)).Select(u => new { u.Id, u.Name, size = u.Size.ToString(), cost = DarkTerritory.Sim.Campaign.Campaign.UpgradeCost(t, s, u), modelled = u.Effect.Count > 0 }),
+        underway = s.Current?.Route,
+        autosave = s.Checkpoint is { } c ? $"left facility {c.Facility} at {c.Seconds / 60:0.0} min" : null,
+        s.History,
+    };
+    DarkTerritory.Sim.Campaign.CampaignState Load() => saves.Load(slot) ?? throw new InvalidOperationException($"slot {slot} is empty: dt campaign new --slot {slot}");
+    switch (verb)
+    {
+        case "new":
+            {
+                var s = DarkTerritory.Sim.Campaign.Campaign.New(t, slot, Str(args, "--name", $"Crew {slot}"), (ulong)Opt(args, "--seed", Random.Shared.Next(1, 100000)));
+                saves.Save(s);
+                return new { path = saves.PathOf(slot), board = Board(s) };
+            }
+        case "show":
+            return Board(Load());
+        case "slots":
+            return saves.List().Select(x => new { x.Slot, name = x.State?.Name, cars = x.State?.Cars, scrip = x.State is { } st ? Math.Round(st.Scrip) : (double?)null, runs = x.State?.Runs });
+        case "buy":
+            {
+                var s = Load();
+                string what = args.SkipWhile(a => a != "buy").Skip(1).FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal)) ?? "car";
+                var p = what == "car" ? DarkTerritory.Sim.Campaign.Campaign.BuyCar(t, s) : DarkTerritory.Sim.Campaign.Campaign.BuyUpgrade(t, s, what);
+                if (p.Ok)
+                    saves.Save(p.State);
+                return new { bought = p.Ok ? what : null, refused = p.Refused, board = Board(p.State) };
+            }
+        case "sim":
+            {
+                var reached = DarkTerritory.Sim.Campaign.Campaign.Simulate(t, runTuning);
+                return new
+                {
+                    crew = t.StandardCrew,
+                    runsTo = reached.OrderBy(k => k.Key).ToDictionary(k => k.Key.ToString(), k => k.Value),
+                    specF4 = "6 cars by ~8 runs, 10 by ~20, 15 by ~38, 20 by 55-60",
+                    carCosts = Enumerable.Range(4, t.MaxCars - 3).ToDictionary(n => n.ToString(), n => DarkTerritory.Sim.Campaign.Campaign.CarCost(t, n)),
+                };
+            }
+        case "play":
+            {
+                // A night on a contract from the board, crewed by bots (they drive and shoot; they don't load yet), settled.
+                var s = Load();
+                var contract = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s)[(int)Opt(args, "--contract", 0)];
+                s = DarkTerritory.Sim.Campaign.Campaign.Begin(s, contract);
+                var route = RouteGenerator.Generate(routeTuning, contract.Tier, contract.Seed);
+                var loadout = DarkTerritory.Sim.Campaign.Campaign.Apply(t, s.Upgrades, new DarkTerritory.Sim.Campaign.Loadout(train, boiler,
+                    DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)),
+                    DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File))));
+                var report = Harness.Run(route.Build(), loadout.Train, player, new HarnessOptions
+                {
+                    Bots = (int)Opt(args, "--bots", 4),
+                    Cars = s.Cars,
+                    Seconds = Opt(args, "--seconds", 3600),
+                    Link = Ballast.Net.LinkConditions.Perfect,
+                    StartDistance = 400,
+                    Combat = loadout.Combat,
+                    Enemies = args.Contains("--no-enemies") ? null : loadout.Enemies,
+                    Route = route,
+                    Run = runTuning,
+                    YardLength = routeTuning.YardLength,
+                    Facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
+                    Vigil = DataFile.Load<DarkTerritory.Sim.Run.VigilTuning>(Path.Combine(content, DarkTerritory.Sim.Run.VigilTuning.File)),
+                }, loadout.Boiler);
+                if (report.Run is not { } night)
+                    return new { error = "the night didn't run" };
+                s = DarkTerritory.Sim.Campaign.Campaign.Settle(s, night);
+                saves.Save(s);
+                return new { contract = contract.Route, night, board = Board(s) };
+            }
+        default:
+            return new { error = $"unknown campaign command '{verb}': new, show, slots, buy car|<upgrade>, sim, play" };
     }
 }
 
@@ -504,6 +598,8 @@ static int Usage()
                      and with --enemies the director's spawns, punishes, deaths by cause and fairness audit
           vr check [--frames n] [--view roof|cab|…] [--scale 0.5] [--out out/shots/vr.png]
                      an OpenXR session end to end (Monado's simulated headset works headless) and both eyes as a PNG
+          campaign new|show|slots|buy car|buy <upgrade>|sim|play [--slot 1..3] [--saves dir] [--contract i] [--seed n]
+                     the campaign between nights (spec E, F): the board, purchases, F.4's progression check, a bot night settled
           online check                             is Steam reachable from here (signed-in user, or what's missing)
           audio render [--scenario bed|tells|chaos] [--cars n] [--speed v] [--listener car (0 = cab) | all] [--seconds t] [--out file.wav]
                      renders through the mixer to a WAV and a spectrogram PNG, and reports each tell's margin over the bed (spec A.3)

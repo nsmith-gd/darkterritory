@@ -1,0 +1,49 @@
+// The campaign between nights: scrip, cars, upgrades and contracts (systems spec E and F.2-F.4). First pass.
+{
+  // Spec F.4 "early": a crew starts with a three-car consist on local work, and no scrip.
+  "startingCars": 3,
+  "startingScrip": 0,
+  "maxCars": 20,
+  // Spec F.2: the Nth car costs about 1,300 x 1.24^(N-4).
+  "carCost": { "base": 1300, "growth": 1.24, "fromCar": 4 },
+  // Spec F.4: the tier a consist of this many cars works. F.4's ranges overlap at 10 and 15; F.1's table works a
+  // 10-car train on Frontier and a 15-car one on Dead lines, so each tier starts one car later.
+  "tiers": [
+    { "tier": "local", "fromCars": 1 },
+    { "tier": "frontier", "fromCars": 6 },
+    { "tier": "deadLines", "fromCars": 11 },
+    { "tier": "deepTerritory", "fromCars": 16 }
+  ],
+  // GDD §9 departure: "choose freight contracts". This many on the board each night: the consist's own tier,
+  // and one from the tier below for a crew that wants a safer, poorer night.
+  "contractsOffered": 3,
+  // Spec E: 3 save slots per host.
+  "saveSlots": 3,
+  // Spec F.3. Cost is a share of what the next car costs now. "effect" multiplies tuning: tender (tender capacity),
+  // ammo (rounds per gun), lamp (how far the headlamp finds Sleepers), brakes (braking), burn (coal per unit of steam).
+  // Upgrades with no effect listed are bought and saved but not modelled yet.
+  "upgrades": [
+    { "id": "lampBrightness", "name": "Lamp brightness", "size": "small", "costShare": 0.15, "effect": { "lamp": 1.25 } },
+    { "id": "lampArmour", "name": "Lamp armour", "size": "small", "costShare": 0.2, "effect": {} },
+    { "id": "gunCooling", "name": "Gun cooling", "size": "small", "costShare": 0.2, "effect": {} },
+    { "id": "ammunitionCapacity", "name": "Ammunition capacity", "size": "small", "costShare": 0.2, "effect": { "ammo": 1.5 } },
+    { "id": "repairKit", "name": "Repair kit charges", "size": "small", "costShare": 0.15, "effect": {} },
+    { "id": "tenderCapacity", "name": "Tender capacity", "size": "small", "costShare": 0.25, "effect": { "tender": 1.25 } },
+    { "id": "couplingReinforcement", "name": "Coupling reinforcement", "size": "small", "costShare": 0.2, "effect": {} },
+    { "id": "roofHandrails", "name": "Roof handrails", "size": "small", "costShare": 0.2, "effect": {} },
+    { "id": "radioRange", "name": "Radio range", "size": "small", "costShare": 0.15, "effect": {} },
+    { "id": "carInsulation", "name": "Car insulation", "size": "small", "costShare": 0.2, "effect": {} },
+    { "id": "armouredCar", "name": "Armoured car conversion", "size": "major", "costShare": 1.2, "effect": {} },
+    { "id": "secondGuardCar", "name": "Second guard car", "size": "major", "costShare": 1.5, "effect": {} },
+    { "id": "improvedBrakes", "name": "Improved brakes", "size": "major", "costShare": 1.0, "effect": { "brakes": 1.2 } },
+    { "id": "boilerUpgrade", "name": "Boiler upgrade", "size": "major", "costShare": 1.4, "effect": { "burn": 0.85 } },
+    { "id": "poweredSwitchThrower", "name": "Powered switch thrower", "size": "major", "costShare": 1.6, "effect": {} },
+    { "id": "reinforcedCouplings", "name": "Reinforced couplings", "size": "major", "costShare": 1.8, "effect": {} }
+  ],
+  // The yardstick for `dt campaign sim`: a crew that buys a car as soon as it can also afford upgrades worth
+  // smallShare of it (F.3 "one or two small upgrades per car purchase"), a major worth majorShare every majorEvery
+  // cars, loses lossFraction of its cargo on an average night (F.1 "expected loss"), and pays F.1's 15% running
+  // costs. It reaches 20 cars in 56 successful runs, F.4's "roughly 55-60" (6 cars by run 12, 10 by 23, 15 by 39;
+  // F.4 has the early phase quicker, 6 by 8, which would need a crew that buys almost nothing but cars at first).
+  "standardCrew": { "smallShare": 0.3, "majorShare": 1.8, "majorEvery": 2, "lossFraction": 0.25, "runningCosts": 0.15 }
+}
