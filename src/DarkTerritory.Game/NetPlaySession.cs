@@ -345,7 +345,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     }
 
     public Camera EyeCamera(IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch) =>
-        Eyes.From(Player, _previous, frames, alpha, pendingYaw, pendingPitch);
+        Eyes.Operator(Player, World) ?? Eyes.From(Player, _previous, frames, alpha, pendingYaw, pendingPitch);
 
     public IReadOnlyList<Crewmate> Crew(IReadOnlyList<CarFrame> frames, double alpha)
     {

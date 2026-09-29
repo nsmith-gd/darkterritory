@@ -223,6 +223,8 @@ public sealed class Run
                     world.Bodies.SpawnCargo(at, site.CrateLineHint, t.Crates.Heavy.Radius);
             }
             Crank(site, t.Winch, dt);
+            if (site.Crane is { } crane)
+                Operate(world, crane, dt);
             if (site.Progress >= 1 && site.SledsLeft > 0 && CargoCarNear(train, site.SledTo, t.Winch.CarReach) is { } car)
             {
                 car.Load = Math.Min(1, car.Load + t.Winch.LoadPerSled);
@@ -253,6 +255,38 @@ public sealed class Run
             world.Bodies.Remove(b);
             _settling.Remove(b.Id);
         }
+    }
+
+    PlayerIntent _craneIntent;
+
+    /// <summary>
+    /// The crane this tick (T48): whoever's at the controls drives it, and Fire lets the hook go. A casting let go of high
+    /// falls, and it kills whoever's under where it lands: spec D.2 "dropped loads kill".
+    /// </summary>
+    void Operate(World world, Crane crane, double dt)
+    {
+        _drop = null;
+        if (crane.Operator >= 0)
+        {
+            crane.Drive(_craneIntent, world.Train, dt);
+            if (crane.Pressed(_craneIntent.Has(PlayerButtons.Fire)) && crane.Release(world.Train) is { Fell: true } drop)
+                _drop = (drop.Landed, crane.Tuning.CrushRadius);
+        }
+        else
+            crane.Pressed(false);
+        crane.Operator = -1;
+    }
+
+    // Where a casting let go of high came down last tick, and how wide it hits: each player's next CrewAct asks.
+    (Double3 At, double Radius)? _drop;
+
+    /// <summary>Under a casting that's just come down (T48): the host's crew step asks, and the world applies the hit.</summary>
+    public bool Crushes(in PlayerState s, TrainOnLine train)
+    {
+        if (_drop is not { } d || !s.Alive)
+            return false;
+        var at = PlayerMotor.WorldPosition(s, train);
+        return ((at - d.At) with { Y = 0 }).Length <= d.Radius && at.Y < d.At.Y + 2.5;
     }
 
     /// <summary>
@@ -332,6 +366,17 @@ public sealed class Run
         {
             site.Cranking[crank.Handle] = playerId;
             site.HandAngle[crank.Handle] = crank.Angle;
+        }
+        // The crane (T48): at its controls, the operator's intent drives it this tick; on the ground at the hook, rigging.
+        if (!Over && CurrentSite?.Crane is { } crane && s.Alive)
+        {
+            if (crane.AtControls(s, intent, train))
+            {
+                crane.Operator = playerId;
+                _craneIntent = intent;
+            }
+            else if (s.Parent == PlayerState.World)
+                crane.Rig(playerId, PlayerMotor.WorldPosition(s, train), intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5, SimConstants.TickSeconds);
         }
         bool holding = LeverInReach(s, train, hand) && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5;
         if (!holding)
