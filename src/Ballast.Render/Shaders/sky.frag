@@ -33,9 +33,10 @@ void main() {
     float toMoon = max(dot(dir, moonDir), 0.0);
     colour = mix(colour, horizon * 1.15, cloud * 0.5 * smoothstep(0.0, 0.3, up));
     // The moon: a hazy disc and a wide glow, dimmed by the cloud.
-    float disc = smoothstep(0.9993, 0.9997, toMoon);
-    float glow = pow(toMoon, 64.0) * 0.5 + pow(toMoon, 8.0) * 0.15;
-    colour += frame.moonColour.rgb * (disc * 1.4 + glow) * (1.0 - cloud * 0.7);
+    // Small (half a degree, like the real one) and smothered: more glow in the haze than disc.
+    float disc = smoothstep(0.99994, 0.99997, toMoon);
+    float glow = pow(toMoon, 300.0) * 0.35 + pow(toMoon, 24.0) * 0.12 + pow(toMoon, 4.0) * 0.05;
+    colour += frame.moonColour.rgb * (disc * 0.9 + glow) * (1.0 - cloud * 0.75);
 
     // The backdrop band: 360 degrees across, sky2.x tall, the horizon 85 % of the way down.
     float azimuth = atan(dir.x, -dir.z) / (2.0 * PI) + 0.5;

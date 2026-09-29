@@ -37,6 +37,8 @@ return args switch
     ["train", "climb", var cars, var grade, ..] => Print(TrainScenarios.Climb(train, int.Parse(cars), double.Parse(grade), Opt(args, "--from", 10), Opt(args, "--load", 1))),
     ["line", "info", var name, ..] => Print(LineInfo(LoadLine(name), Opt(args, "--every", 100))),
     ["line", "drive", var name, ..] => Print(Drive(train, LoadLine(name), (int)Opt(args, "--cars", 3), Opt(args, "--start", -1), Opt(args, "--from", 0), Opt(args, "--throttle", 1), (int)Opt(args, "--seconds", 120))),
+    ["art", "check", ..] => ArtCheck(train, content, args),
+    ["art", "show", var piece, ..] => Print(ArtShow(train, content, piece, args)),
     ["screenshot", ..] when args.Contains("--hud") => Print(HudShot(content, args)),
     ["screenshot", ..] when args.Contains("--menu") => Print(MenuShot(train, content, args)),
     ["screenshot", ..] => Print(Screenshot(train, content, args)),
@@ -636,6 +638,79 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     };
 }
 
+// The art pipeline's validator (pipeline plan, "Automation and QA"): every kit piece against its class's triangle
+// budget. Exit code 1 when anything is over, so CI can hold the line.
+static int ArtCheck(TrainTuning t, string content, string[] args)
+{
+    var look = DarkTerritory.Game.Look.Load(content);
+    var rows = DarkTerritory.Game.Art.ArtCatalog.Entries(look, t).Select(e =>
+    {
+        var piece = e.Make();
+        return new { piece = e.Name, triangles = piece.Triangles, budget = e.Class.MaxTriangles, @class = e.Class.Name, over = piece.Triangles > e.Class.MaxTriangles };
+    }).ToList();
+    var textures = look.Textures.Select(x => x.Name).ToHashSet();
+    Print(new { pieces = rows, textures = textures.Count, over = rows.Where(r => r.over).Select(r => r.piece) });
+    return rows.Any(r => r.over) ? 1 : 0;
+}
+
+// A kit piece on a turntable (pipeline plan: "an in-engine turntable viewer with era-mode toggle"): four quarters,
+// lit by a lantern beside the camera and the moon, in thin fog. --ps2 for the era comparison, --greybox for flat.
+static object ArtShow(TrainTuning t, string content, string name, string[] args)
+{
+    var look = Looked(content, args);
+    var entry = DarkTerritory.Game.Art.ArtCatalog.Entries(look, t).FirstOrDefault(e => e.Name == name)
+        ?? throw new ArgumentException($"no piece '{name}' (known: {string.Join(", ", DarkTerritory.Game.Art.ArtCatalog.Entries(look, t).Select(e => e.Name))})");
+    var piece = entry.Make();
+    var (min, max) = DarkTerritory.Game.Art.ArtCatalog.Bounds(piece);
+    var centre = (min + max) / 2;
+    float radius = Math.Max(0.5f, (max - min).Length() / 2);
+    int w = (int)Opt(args, "--width", 480), h = (int)Opt(args, "--height", 270);
+    float fov = (float)Opt(args, "--fov", 50);
+    double dist = radius / Math.Sin(fov * Math.PI / 360) * Opt(args, "--zoom", 0.65);
+    using var gpu = new GpuContext("dt art show");
+    using var renderer = new GreyboxRenderer(gpu, w, h);
+    look?.Dress(renderer);
+    if (args.Contains("--ps2"))
+        renderer.Post = renderer.Post with { Ps2 = true };
+    var sheet = new byte[w * 2 * h * 2 * 4];
+    double start = Opt(args, "--yaw", 35) * Math.PI / 180;
+    for (int q = 0; q < 4; q++)
+    {
+        double yaw = start + q * Math.PI / 2, pitch = Opt(args, "--pitch", 15) * Math.PI / 180;
+        var target = new Double3(centre.X, centre.Y, centre.Z);
+        var eye = target + new Double3(Math.Sin(yaw) * Math.Cos(pitch), Math.Sin(pitch), Math.Cos(yaw) * Math.Cos(pitch)) * dist;
+        var camera = Camera.LookAt(eye, target, fov);
+        var mesh = new MeshBuilder();
+        mesh.Instances.Add(new MeshInstance(piece, System.Numerics.Matrix4x4.CreateTranslation(-(float)eye.X, -(float)eye.Y, -(float)eye.Z)));
+        // A dark floor under it, and a lantern over the viewer's shoulder.
+        var floor = new System.Numerics.Vector3(0, min.Y - 0.01f, 0) - new System.Numerics.Vector3((float)eye.X, (float)eye.Y, (float)eye.Z);
+        float f = radius * 4;
+        mesh.Quad(floor + new System.Numerics.Vector3(-f, 0, f), floor + new System.Numerics.Vector3(f, 0, f), floor + new System.Numerics.Vector3(f, 0, -f), floor + new System.Numerics.Vector3(-f, 0, -f), DarkTerritory.Game.Palette.Charcoal * 0.5f);
+        var right = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(camera.Forward, System.Numerics.Vector3.UnitY));
+        mesh.PointLights.Add(new PointLight(right * (float)(dist * 0.35) + new System.Numerics.Vector3(0, radius * 0.6f, 0), DarkTerritory.Game.Palette.LampAmber * 2.4f, (float)dist * 2.2f));
+        mesh.PointLights.Add(new PointLight(-right * (float)(dist * 0.6) + new System.Numerics.Vector3(0, radius, 0), new System.Numerics.Vector3(0.25f, 0.3f, 0.4f), (float)dist * 2.5f));
+        var light = look?.Apply(FrameLighting.Night) ?? FrameLighting.Night;
+        light.FogDensity = (float)Opt(args, "--fog", 0.004);
+        light.LampRange = 0.01f;
+        light.Time = 0.37;
+        var px = renderer.Render(mesh, camera, light, light.FogColor);
+        int ox = q % 2 * w, oy = q / 2 * h;
+        for (int y = 0; y < h; y++)
+            px.AsSpan(y * w * 4, w * 4).CopyTo(sheet.AsSpan(((oy + y) * w * 2 + ox) * 4));
+    }
+    string output = Str(args, "--out", $"out/shots/art/{name}.png");
+    PngWriter.Write(output, sheet, w * 2, h * 2, (int)Opt(args, "--scale", 1));
+    return new
+    {
+        path = Path.GetFullPath(output),
+        piece = name,
+        triangles = piece.Triangles,
+        budget = entry.Class.MaxTriangles,
+        @class = entry.Class.Name,
+        size = new[] { Math.Round(max.X - min.X, 2), Math.Round(max.Y - min.Y, 2), Math.Round(max.Z - min.Z, 2) }
+    };
+}
+
 // The art pass's surfaces (T39, look.json), unless --greybox asks for flat colour to compare against.
 static DarkTerritory.Game.Look? Looked(string content, string[] args) => args.Contains("--greybox") ? null : DarkTerritory.Game.Look.Load(content);
 
@@ -802,6 +877,8 @@ static int Usage()
                      [--vigil]    emergency lighting, as during a Vigil (spec C.2)
                      [--route tier:seed --site [--crank]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
+          art check                                every kit piece against its triangle budget (exit 1 if any is over)
+          art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
           screenshot --menu title|slots|fortress|upgrades|quickNight|join|settings [--down n] [--saves dir]
                      a screen of the front end over the yard, as the game draws it
           screenshot --hud [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]

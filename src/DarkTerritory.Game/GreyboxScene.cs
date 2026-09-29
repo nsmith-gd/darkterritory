@@ -455,6 +455,12 @@ public sealed class GreyboxScene
     /// </summary>
     void Branch(MeshBuilder mesh, RailLine main, Branch branch, Double3 eye)
     {
+        if (Look is not null)
+        {
+            var at = (Stands ?? DefaultStands).LeverAt(main, branch.Index);
+            Look.Art.World.Branch(mesh, branch, eye, DrawDistance, at, main.Sample(branch.Toe).Tangent, Diverging?.Invoke(branch.Index) ?? false);
+            return;
+        }
         const double step = 5, gauge = 0.72, sleeperPitch = 0.75, bedHalfWidth = 1.8, start = 4;
         var local = branch.Local;
         for (double s = start; s < local.Length; s += step)
@@ -540,6 +546,17 @@ public sealed class GreyboxScene
             if (f.End < from || f.Start > to)
                 continue;
             double a = Math.Max(f.Start, from), b = Math.Min(f.End, to);
+            // The art pass's structures (Art/StructureKit): viaducts and trestles, portals and bores.
+            if (Look is not null && f.Kind == FeatureKind.Bridge)
+            {
+                Look.Art.World.Bridge(mesh, line, f, eye, from, to, (float)ValleyDepth);
+                continue;
+            }
+            if (Look is not null && f.Kind == FeatureKind.Tunnel)
+            {
+                Look.Art.World.Tunnel(mesh, line, f, eye, from, to);
+                continue;
+            }
             switch (f.Kind)
             {
                 case FeatureKind.Tunnel:
@@ -606,8 +623,13 @@ public sealed class GreyboxScene
     }
 
     /// <summary>Walls both sides, gun towers with lamps, and a gatehouse over the line.</summary>
-    static void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt)
+    void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt)
     {
+        if (Look is not null)
+        {
+            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0);
+            return;
+        }
         double a = Math.Max(start, from), b = Math.Min(end, to);
         if (a >= b)
             return;
@@ -708,12 +730,17 @@ public sealed class GreyboxScene
     }
 
     /// <summary>Placeholder silhouettes until facility modules exist: oversized, dark, one working lamp (GDD §30).</summary>
-    static void Facility(MeshBuilder mesh, RailLine line, Double3 eye, RouteFeature f) =>
+    void Facility(MeshBuilder mesh, RailLine line, Double3 eye, RouteFeature f) =>
         FacilityBuildings(mesh, line, eye, f.Facility, (f.Start + f.End) / 2, f.Side, push: 0);
 
     /// <summary>A facility's buildings beside a track (the main line, or its spur), centred along it at <paramref name="mid"/>.</summary>
-    static void FacilityBuildings(MeshBuilder mesh, RailLine line, Double3 eye, FacilityKind? kind, double mid, double side, double push)
+    void FacilityBuildings(MeshBuilder mesh, RailLine line, Double3 eye, FacilityKind? kind, double mid, double side, double push)
     {
+        if (Look is not null)
+        {
+            Look.Art.World.Facility(mesh, line, eye, kind, mid, side, push);
+            return;
+        }
         side = side == 0 ? 1 : side;
         double Out(double lateral) => side * (lateral + push);
         switch (kind)

@@ -1,0 +1,490 @@
+using System.Numerics;
+using Ballast.Render;
+using DarkTerritory.Sim.Route;
+
+namespace DarkTerritory.Game.Art;
+
+/// <summary>
+/// The line's structures (GDD §30: "rail bridges ... fortified towns ... facilities oversized, half-abandoned and too big
+/// for the train"; the art sheet's viaduct and fortified station): cooked pieces in a frame along the line (−Z forward,
+/// +X right, origin at rail height on the centre line), each built to be repeated bay by bay.
+/// </summary>
+public static class StructureKit
+{
+    /// <summary>A viaduct bay's length along the line: pier centre to pier centre.</summary>
+    public const float Bay = 25;
+    /// <summary>A timber trestle's bent spacing.</summary>
+    public const float Bent = 5;
+
+    /// <summary>A quad mapped by its position on one plane (<paramref name="axis"/> 0 = a face across X, 2 = across Z), metres.</summary>
+    static void Planar(Kit k, Vector3 a, Vector3 b, Vector3 c, Vector3 d, int axis)
+    {
+        Vector2 U(Vector3 p) => axis == 0 ? new Vector2(p.Z, -p.Y) : new Vector2(p.X, -p.Y);
+        k.Quad(a, b, c, d, U(a), U(b), U(c), U(d));
+    }
+
+    /// <summary>
+    /// One bay of a masonry viaduct over a gorge <paramref name="depth"/> deep (the sheet's arches): a pier at z = 0, a
+    /// round arch springing from it to the next, the spandrel walls, a string course and a coped parapet either side, and
+    /// the ballasted deck on top.
+    /// </summary>
+    public static MeshAsset ViaductBay(Look? look, float depth, bool lastPier)
+    {
+        var k = new Kit(look, 900);
+        const float half = 2.6f, pier = 3.0f, deck = 1.8f;
+        float span = Bay - pier, r = span / 2, crown = -deck, spring = crown - r;
+        float z0 = -pier / 2, zc = z0 - r; // the arch's start and centre
+        k.Use("stone_block", Palette.Charcoal, 0.7f, 0.1f, tile: 2.5f);
+        // The pier: battered a little (wider at its foot), from well below the gorge floor to the springing.
+        foreach (float pz in lastPier ? new[] { 0f, -Bay } : new[] { 0f })
+        {
+            float foot = -depth - 3;
+            var p0 = new Vector3(-half - 0.6f, foot, pz + pier / 2 + 0.3f);
+            var p1 = new Vector3(half + 0.6f, spring, pz - pier / 2 - 0.3f);
+            k.Box(new Vector3(p0.X, p0.Y, p1.Z), new Vector3(p1.X, p1.Y, p0.Z), Kit.Faces.All & ~Kit.Faces.NegY);
+            // A plinth course where the batter steps in.
+            k.Box(new Vector3(-half - 0.35f, spring, pz - pier / 2 - 0.1f), new Vector3(half + 0.35f, spring + 0.5f, pz + pier / 2 + 0.1f), Kit.Faces.All & ~Kit.Faces.NegY);
+        }
+        // The spandrels: each side face between the deck and the arch, and the pier's face up to the deck.
+        const int n = 12;
+        foreach (int side in new[] { -1, 1 })
+        {
+            float x = side * half;
+            for (int i = 0; i < n; i++)
+            {
+                float t0 = MathF.PI * i / n, t1 = MathF.PI * (i + 1) / n;
+                var a0 = new Vector3(x, spring + r * MathF.Sin(t0), zc + r * MathF.Cos(t0));
+                var a1 = new Vector3(x, spring + r * MathF.Sin(t1), zc + r * MathF.Cos(t1));
+                var top0 = a0 with { Y = 0 };
+                var top1 = a1 with { Y = 0 };
+                // Clockwise from the top left as seen from outside (+X side looks at −X: its left is +Z).
+                if (side > 0)
+                    Planar(k, top0, top1, a1, a0, 0);
+                else
+                    Planar(k, top1, top0, a0, a1, 0);
+            }
+            // The pier's part of the face, from the springing to the deck (either side of z = 0).
+            var pa = new Vector3(x, 0, pier / 2);
+            var pb = new Vector3(x, 0, -pier / 2);
+            if (side > 0)
+                Planar(k, pa, pb, pb with { Y = spring }, pa with { Y = spring }, 0);
+            else
+                Planar(k, pb, pa, pa with { Y = spring }, pb with { Y = spring }, 0);
+        }
+        // The arch's underside (the intrados), in voussoir-sized stone.
+        k.Use("stone_block", Palette.Charcoal, 0.8f, 0.1f, tile: 1.6f);
+        k.Shade(0.8f);
+        for (int i = 0; i < n; i++)
+        {
+            float t0 = MathF.PI * i / n, t1 = MathF.PI * (i + 1) / n;
+            var a0 = new Vector3(0, spring + r * MathF.Sin(t0), zc + r * MathF.Cos(t0));
+            var a1 = new Vector3(0, spring + r * MathF.Sin(t1), zc + r * MathF.Cos(t1));
+            // Seen from below: facing down and in, toward the arch's centre.
+            k.Quad(a0 with { X = -half }, a0 with { X = half }, a1 with { X = half }, a1 with { X = -half },
+                new(-half, t0 * r), new(half, t0 * r), new(half, t1 * r), new(-half, t1 * r));
+        }
+        // String course, parapets and coping.
+        k.Use("stone_block", Palette.Charcoal, 0.7f, 0.1f, tile: 2.5f);
+        foreach (int side in new[] { -1, 1 })
+        {
+            float x0 = side < 0 ? -half - 0.15f : half - 0.3f, x1 = side < 0 ? -half + 0.3f : half + 0.15f;
+            k.Box(new Vector3(x0, -0.45f, -Bay), new Vector3(x1, -0.25f, 0));
+            float p0 = side < 0 ? -half : half - 0.3f, p1 = side < 0 ? -half + 0.3f : half;
+            k.Box(new Vector3(p0, -0.25f, -Bay), new Vector3(p1, 0.95f, 0), Kit.Faces.All & ~Kit.Faces.NegY);
+            k.Shade(1.15f);
+            k.Box(new Vector3(p0 - 0.06f, 0.95f, -Bay), new Vector3(p1 + 0.06f, 1.08f, 0), Kit.Faces.All & ~Kit.Faces.NegY);
+            k.Use("stone_block", Palette.Charcoal, 0.7f, 0.1f, tile: 2.5f);
+        }
+        // The deck: ballast between the parapets (the sleepers and rails are the track's).
+        k.Use("ballast", Palette.Ballast, 0.6f, 0, tile: 1.5f);
+        k.Box(new Vector3(-half + 0.3f, -0.25f, -Bay), new Vector3(half - 0.3f, 0.0f, 0), Kit.Faces.PosY);
+        return k.Build($"viaduct-{depth:0}-{lastPier}");
+    }
+
+    /// <summary>
+    /// A timber trestle bent (a weak bridge, GDD §17: "a bridge that takes four cars"): four raked posts from the gorge
+    /// floor, sway bracing, a cap, and the stringers and deck timbers to the next bent. Handrails of rough timber.
+    /// </summary>
+    public static MeshAsset TrestleBent(Look? look, float depth)
+    {
+        var k = new Kit(look, 910);
+        float foot = -depth - 1;
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
+        foreach (float x in new[] { -1.9f, -0.7f, 0.7f, 1.9f })
+        {
+            float rake = MathF.Sign(x) * (MathF.Abs(x) > 1 ? 0.14f : 0.03f);
+            k.Rod(new Vector3(x + rake * depth, foot, 0), new Vector3(x, -0.6f, 0), 0.17f);
+        }
+        k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
+        for (float y = -3.5f; y > foot + 2; y -= 4.5f)
+        {
+            float w = 2.2f + (-y) * 0.14f;
+            k.Rod(new Vector3(-w, y, 0.2f), new Vector3(w, y - 4.0f, 0.2f), 0.08f);
+            k.Rod(new Vector3(w, y, -0.2f), new Vector3(-w, y - 4.0f, -0.2f), 0.08f);
+            k.Box(new Vector3(-w, y - 0.12f, -0.12f), new Vector3(w, y + 0.12f, 0.12f));
+        }
+        k.Box(new Vector3(-2.3f, -0.75f, -0.25f), new Vector3(2.3f, -0.45f, 0.25f));
+        // Stringers to the next bent, and the ties' deck.
+        foreach (float x in new[] { -0.75f, 0.75f })
+            k.Box(new Vector3(x - 0.18f, -0.45f, -Bent), new Vector3(x + 0.18f, -0.08f, 0));
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.2f);
+        for (float z = -0.2f; z > -Bent; z -= 0.9f)
+            k.Box(new Vector3(-2.2f, -0.08f, z - 0.3f), new Vector3(2.2f, 0.0f, z), Kit.Faces.All & ~Kit.Faces.NegY);
+        foreach (int side in new[] { -1, 1 })
+        {
+            k.Rod(new Vector3(side * 2.1f, 0, -0.1f), new Vector3(side * 2.1f, 1.0f, -0.1f), 0.06f);
+            k.Rod(new Vector3(side * 2.1f, 1.0f, 0), new Vector3(side * 2.1f, 1.0f, -Bent), 0.05f);
+        }
+        return k.Build($"trestle-{depth:0}");
+    }
+
+    /// <summary>A tunnel's bore profile: sides up to <see cref="TunnelSpring"/>, a round crown, counter-clockwise seen from +Z (inside out).</summary>
+    public const float TunnelHalf = 3.1f, TunnelSpring = 4.4f;
+
+    static Vector2[] Bore(float grow)
+    {
+        var p = new List<Vector2> { new(TunnelHalf + grow, -0.3f) };
+        const int n = 10;
+        for (int i = 0; i <= n; i++)
+        {
+            float a = MathF.PI * i / n;
+            p.Add(new Vector2(MathF.Cos(a) * (TunnelHalf + grow), TunnelSpring + MathF.Sin(a) * (TunnelHalf + grow)));
+        }
+        p.Add(new Vector2(-TunnelHalf - grow, -0.3f));
+        return [.. p];
+    }
+
+    /// <summary>A length of tunnel lining: sooted brick, seen from inside, and the ballast floor.</summary>
+    public static MeshAsset TunnelLining(Look? look, float length)
+    {
+        var k = new Kit(look, 920);
+        k.Use("brick_soot", Palette.Charcoal, 0.9f, 0.1f, tile: 1.2f);
+        // The prism faces outward for a counter-clockwise profile; reversed, it faces in.
+        var bore = Bore(0);
+        Array.Reverse(bore);
+        k.Prism(bore, -length, 0, caps: false, smooth: true);
+        k.Use("ballast", Palette.Ballast, 0.6f, 0, tile: 1.5f);
+        k.Box(new Vector3(-TunnelHalf, -0.35f, -length), new Vector3(TunnelHalf, -0.02f, 0), Kit.Faces.PosY);
+        // Refuges (the manholes railwaymen stepped into) either side, dark.
+        k.Shade(0.25f);
+        foreach (int side in new[] { -1, 1 })
+            k.Box(new Vector3(side * TunnelHalf - 0.02f, 0, -length / 2 - 0.5f), new Vector3(side * TunnelHalf + 0.02f, 1.9f, -length / 2 + 0.5f), side > 0 ? Kit.Faces.NegX : Kit.Faces.PosX);
+        return k.Build($"tunnel-{length:0}");
+    }
+
+    /// <summary>
+    /// A tunnel portal facing +Z (the way into it): a dressed stone face with the bore's opening, a ring of voussoirs
+    /// and a keystone, a coping along the top, wing walls raked back into the hill.
+    /// </summary>
+    public static MeshAsset Portal(Look? look)
+    {
+        var k = new Kit(look, 930);
+        const float w = 10, top = 11.5f, t = 1.6f;
+        var bore = Bore(0.02f);
+        k.Use("stone_block", Palette.Charcoal, 0.7f, 0.1f, tile: 2.5f);
+        // The face at z = 0: from each point of the opening's outline out to the rectangle's edge.
+        Vector3 Out(Vector2 p)
+        {
+            // Project from the bore's centre out to the rectangle's edge (sides, top).
+            var c = new Vector2(0, TunnelSpring * 0.6f);
+            var d = p - c;
+            float sx = d.X != 0 ? w / MathF.Abs(d.X) : float.MaxValue, sy = d.Y > 0 ? (top - c.Y) / d.Y : float.MaxValue;
+            float s = MathF.Min(sx, sy);
+            var e = c + d * s;
+            if (p.Y < 0)
+                e = new Vector2(MathF.Sign(p.X) * w, p.Y);
+            return new Vector3(e, 0);
+        }
+        for (int i = 0; i + 1 < bore.Length; i++)
+        {
+            var a = new Vector3(bore[i], 0);
+            var b = new Vector3(bore[i + 1], 0);
+            var oa = Out(bore[i]);
+            var ob = Out(bore[i + 1]);
+            // Each band of the face, from the opening's edge out to the rectangle's.
+            k.Quad(ob, oa, a, b, new(-ob.X, -ob.Y), new(-oa.X, -oa.Y), new(-a.X, -a.Y), new(-b.X, -b.Y));
+            // The corners the projection misses (the top corners of the face).
+            if (MathF.Abs(oa.X) < w - 0.01f && MathF.Abs(ob.X) >= w - 0.01f || MathF.Abs(ob.X) < w - 0.01f && MathF.Abs(oa.X) >= w - 0.01f)
+            {
+                var corner = new Vector3(MathF.Sign(oa.X + ob.X) * w, top, 0);
+                // Whichever way round it falls, one of the two windings faces out of the portal.
+                var facing = Vector3.Cross(oa - corner, ob - corner);
+                if (facing.Z < 0)
+                    k.Tri(corner, oa, ob, new(-corner.X, -corner.Y), new(-oa.X, -oa.Y), new(-ob.X, -ob.Y));
+                else
+                    k.Tri(corner, ob, oa, new(-corner.X, -corner.Y), new(-ob.X, -ob.Y), new(-oa.X, -oa.Y));
+            }
+        }
+        // Thickness: the top and ends of the face, and its back is the hill's.
+        k.Box(new Vector3(-w, top, -t), new Vector3(w, top + 0.3f, 0.2f), Kit.Faces.All & ~Kit.Faces.NegY);
+        k.Box(new Vector3(-w - 0.2f, -0.5f, -t), new Vector3(-w, top, 0), Kit.Faces.NegX | Kit.Faces.PosZ);
+        k.Box(new Vector3(w, -0.5f, -t), new Vector3(w + 0.2f, top, 0), Kit.Faces.PosX | Kit.Faces.PosZ);
+        // The reveal: the opening's depth through the face, lined like the bore.
+        k.Use("brick_soot", Palette.Charcoal, 0.9f, 0.1f, tile: 1.2f);
+        var inner = Bore(0.02f);
+        Array.Reverse(inner);
+        k.Prism(inner, -t, 0.01f, caps: false, smooth: true);
+        // Voussoirs: a ring of lighter stone proud of the face, and the keystone.
+        k.Use("stone_block", Palette.Charcoal, 0.6f, 0.1f, tile: 1.2f);
+        k.Shade(1.25f);
+        const int n = 11;
+        for (int i = 0; i < n; i++)
+        {
+            float a0 = MathF.PI * i / n + 0.01f, a1 = MathF.PI * (i + 1) / n - 0.01f;
+            float r0 = TunnelHalf + 0.05f, r1 = TunnelHalf + 0.75f;
+            var p00 = new Vector3(MathF.Cos(a0) * r0, TunnelSpring + MathF.Sin(a0) * r0, 0.15f);
+            var p01 = new Vector3(MathF.Cos(a1) * r0, TunnelSpring + MathF.Sin(a1) * r0, 0.15f);
+            var p10 = new Vector3(MathF.Cos(a0) * r1, TunnelSpring + MathF.Sin(a0) * r1, 0.15f);
+            var p11 = new Vector3(MathF.Cos(a1) * r1, TunnelSpring + MathF.Sin(a1) * r1, 0.15f);
+            k.Quad(p10, p11, p01, p00);
+            k.Quad(p11 with { Z = 0 }, p10 with { Z = 0 }, p10, p11);
+        }
+        k.BoxAt(new Vector3(0, TunnelSpring + TunnelHalf + 0.5f, 0.1f), new Vector3(0.4f, 0.65f, 0.25f));
+        // Wing walls, raked back.
+        k.Use("stone_block", Palette.Charcoal, 0.7f, 0.1f, tile: 2.5f);
+        foreach (int side in new[] { -1, 1 })
+            k.With(Matrix4x4.CreateRotationY(side * -0.5f) * Kit.At(side * w, 0, 0), () =>
+                k.Box(new Vector3(side < 0 ? -9 : 0, -0.5f, -0.8f), new Vector3(side < 0 ? 0 : 9, 5.5f, 0), Kit.Faces.All & ~Kit.Faces.NegY));
+        return k.Build("portal");
+    }
+
+    /// <summary>
+    /// Ten metres of fortress wall (GDD §9: "lights, then walls, then gun towers"): dressed stone, battered, with a
+    /// wall-walk and crenellations, facing the line from <paramref name="side"/>.
+    /// </summary>
+    public static MeshAsset Wall(Look? look, int side)
+    {
+        var k = new Kit(look, 940 + side);
+        const float h = 8, t = 1.6f, len = 10;
+        k.Use("stone_block", Palette.Charcoal, 0.8f, 0.1f, tile: 2.5f);
+        k.Box(new Vector3(-t / 2 - 0.3f, -0.5f, -len), new Vector3(t / 2 + 0.3f, 1.2f, 0), Kit.Faces.All & ~Kit.Faces.NegY);
+        k.Box(new Vector3(-t / 2, 1.2f, -len), new Vector3(t / 2, h, 0), Kit.Faces.All & ~Kit.Faces.NegY);
+        for (float z = -0.3f; z > -len; z -= 1.25f)
+            k.Box(new Vector3(-t / 2, h, z - 0.7f), new Vector3(t / 2, h + 0.9f, z), Kit.Faces.All & ~Kit.Faces.NegY);
+        // Soot and seep stains run down it from the walk: the texture's, darkened low on the side facing the line.
+        k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.3f);
+        for (float z = -2.5f; z > -len; z -= 5f)
+            k.Box(new Vector3(-side * (t / 2) - 0.04f * side - 0.04f, 3.5f, z - 0.35f), new Vector3(-side * (t / 2) - 0.04f * side + 0.04f, 4.2f, z + 0.35f));
+        return k.Build($"wall-{side}");
+    }
+
+    /// <summary>A gun tower on the wall: square, taller than the wall, crenellated, a lit loophole and a lamp towards the line.</summary>
+    public static MeshAsset Tower(Look? look, int side)
+    {
+        var k = new Kit(look, 950 + side);
+        const float half = 2.4f, h = 13;
+        k.Use("stone_block", Palette.Charcoal, 0.8f, 0.1f, tile: 2.5f);
+        k.Box(new Vector3(-half - 0.3f, -0.5f, -half - 0.3f), new Vector3(half + 0.3f, 1.5f, half + 0.3f), Kit.Faces.All & ~Kit.Faces.NegY);
+        k.Box(new Vector3(-half, 1.5f, -half), new Vector3(half, h, half), Kit.Faces.All & ~Kit.Faces.NegY);
+        k.Box(new Vector3(-half - 0.35f, h, -half - 0.35f), new Vector3(half + 0.35f, h + 0.4f, half + 0.35f));
+        for (int i = 0; i < 4; i++)
+            foreach (float a in new[] { -1.6f, 0f, 1.6f })
+            {
+                var c = i switch { 0 => new Vector3(a, 0, -half - 0.1f), 1 => new Vector3(a, 0, half + 0.1f), 2 => new Vector3(-half - 0.1f, 0, a), _ => new Vector3(half + 0.1f, 0, a) };
+                var e = i < 2 ? new Vector3(0.45f, 0.5f, 0.25f) : new Vector3(0.25f, 0.5f, 0.45f);
+                k.BoxAt(c + new Vector3(0, h + 0.9f, 0), e);
+            }
+        // A lit loophole towards the line, and the searchlight's housing over the parapet.
+        k.Use("window_lit", Palette.LampAmber, 0.1f, 0.3f, tile: 1);
+        k.Panel(new Vector3(-side * (half + 0.01f), h - 3, 0), new Vector3(-side, 0, 0), Vector3.UnitY, 0.35f, 0.9f, Vector2.Zero, Vector2.One);
+        k.Use("paint_black", Palette.SootBlack, 0.8f, 0.3f);
+        k.BoxAt(new Vector3(-side * (half - 0.4f), h + 1.1f, 0), new Vector3(0.3f, 0.3f, 0.3f));
+        return k.Build($"tower-{side}");
+    }
+
+    /// <summary>The gatehouse over the line: two drum-less square towers and a deep arch between them, a lamp at the keystone.</summary>
+    public static MeshAsset Gatehouse(Look? look)
+    {
+        var k = new Kit(look, 960);
+        k.Use("stone_block", Palette.Charcoal, 0.8f, 0.1f, tile: 2.5f);
+        foreach (int side in new[] { -1, 1 })
+            k.Box(new Vector3(side < 0 ? -8.5f : 3.5f, -0.5f, -3.5f), new Vector3(side < 0 ? -3.5f : 8.5f, 14, 3.5f), Kit.Faces.All & ~Kit.Faces.NegY);
+        k.Box(new Vector3(-3.5f, 8.2f, -3.5f), new Vector3(3.5f, 13, 3.5f));
+        for (float x = -8; x < 8.6f; x += 1.3f)
+            foreach (float z in new[] { -3.4f, 3.4f })
+                k.BoxAt(new Vector3(x, 14.45f, z), new Vector3(0.4f, 0.45f, 0.18f));
+        // The iron gates, drawn back against the passage walls.
+        k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.35f);
+        foreach (int side in new[] { -1, 1 })
+            k.Box(new Vector3(side * 3.5f - side * 0.25f - 0.06f, 0, -3.2f), new Vector3(side * 3.5f - side * 0.25f + 0.06f, 7.8f, 0.5f));
+        k.Use("rust_heavy", Palette.RustRed, 0.9f, 0.2f);
+        k.Box(new Vector3(-3.5f, 7.8f, 3.3f), new Vector3(3.5f, 8.2f, 3.6f));
+        return k.Build("gatehouse");
+    }
+
+    /// <summary>
+    /// A bay of the fortified station's platform (the art sheet's "fortified station"): cobbles at a low kerb, timber posts,
+    /// a pitched canopy of slate on rafters, a lantern hanging under each bay. <see cref="Lantern"/> is where its light is.
+    /// </summary>
+    public static MeshAsset PlatformBay(Look? look, int variant)
+    {
+        var k = new Kit(look, 970 + variant);
+        const float x0 = 3.6f, x1 = 10, len = 8;
+        k.Use("cobbles", Palette.Ballast, 0.7f, 0.05f, tile: 2);
+        k.Box(new Vector3(x0, -0.3f, -len), new Vector3(x1, 0.25f, 0), Kit.Faces.PosY | Kit.Faces.NegX);
+        k.Use("stone_block", Palette.Charcoal, 0.7f, 0.1f, tile: 1.2f);
+        k.Box(new Vector3(x0, -0.3f, -len), new Vector3(x0 + 0.35f, 0.3f, 0), Kit.Faces.PosY | Kit.Faces.NegX);
+        k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
+        foreach (float x in new[] { 5.2f, 9.2f })
+        {
+            k.Box(new Vector3(x - 0.13f, 0.25f, -0.13f), new Vector3(x + 0.13f, 4.2f, 0.13f));
+            // Knee braces up under the canopy.
+            k.Rod(new Vector3(x, 3.4f, 0), new Vector3(x - 0.9f, 4.2f, 0), 0.06f);
+            k.Rod(new Vector3(x, 3.4f, 0), new Vector3(x + 0.9f, 4.2f, 0), 0.06f);
+        }
+        k.Box(new Vector3(4.2f, 4.1f, -len), new Vector3(10.2f, 4.3f, 0));
+        for (float z = -0.5f; z > -len; z -= 1)
+            k.Rod(new Vector3(4.0f, 4.35f, z), new Vector3(10.4f, 5.3f, z), 0.05f);
+        k.Use("roof_slate", Palette.Charcoal, 0.8f, 0.2f, tile: 1.5f);
+        k.Quad(new Vector3(3.7f, 4.4f, 0), new Vector3(3.7f, 4.4f, -len), new Vector3(10.6f, 5.4f, -len), new Vector3(10.6f, 5.4f, 0), twoSided: true);
+        // The lantern: an iron cage on a bracket, lit glass.
+        k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.3f);
+        var l = Lantern;
+        k.Rod(l + new Vector3(0, 0.25f, 0), l + new Vector3(0, 0.75f, 0), 0.015f);
+        k.BoxAt(l + new Vector3(0, 0.22f, 0), new Vector3(0.14f, 0.03f, 0.14f));
+        k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+        k.Emissive = 1;
+        k.BoxAt(l, new Vector3(0.1f, 0.18f, 0.1f));
+        k.Emissive = 0;
+        // Something on the platform: a bench, or crates, or a sack barrow.
+        if (variant % 3 == 0)
+        {
+            k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+            k.Box(new Vector3(8.6f, 0.25f, -5.5f), new Vector3(9.1f, 0.7f, -3.5f));
+            k.Box(new Vector3(9.0f, 0.7f, -5.5f), new Vector3(9.1f, 1.2f, -3.5f));
+        }
+        else if (variant % 3 == 1)
+        {
+            k.Use("wood_crate", Palette.TarnishedBrass * 0.8f, 0.8f, 0, tile: 0.6f);
+            k.Box(new Vector3(7.5f, 0.25f, -3), new Vector3(8.1f, 0.85f, -2.4f));
+            k.Box(new Vector3(7.6f, 0.85f, -2.95f), new Vector3(8.1f, 1.35f, -2.45f));
+            k.Box(new Vector3(8.2f, 0.25f, -3.1f), new Vector3(8.8f, 0.85f, -2.5f));
+        }
+        return k.Build($"platform-{variant}");
+    }
+
+    /// <summary>Where a platform bay's lantern hangs, in the bay's frame.</summary>
+    public static readonly Vector3 Lantern = new(6.6f, 3.3f, -4);
+
+    /// <summary>
+    /// A facility's buildings (GDD §30: "oversized, dangerous, partially abandoned, barely operable, dimly lit"), beside
+    /// the line on <paramref name="side"/> (+1 right), centred along it. Each kind reads by shape: the coaling tower's
+    /// bunker on stilts, the elevator's silos, the foundry's sawtooth sheds and stack, sheds and gantries for the rest.
+    /// </summary>
+    public static MeshAsset Facility(Look? look, FacilityKind? kind, int side)
+    {
+        var k = new Kit(look, 980 + (int)(kind ?? 0));
+        float s = side == 0 ? 1 : side;
+        switch (kind)
+        {
+            case FacilityKind.CoalingTower:
+                {
+                    // A concrete bunker up on timber stilts, its chute arm reaching over the track.
+                    float x = s * 7;
+                    k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
+                    foreach (float dx in new[] { -3.5f, 3.5f })
+                        foreach (float dz in new[] { -4.5f, 4.5f })
+                            k.Rod(new Vector3(x + dx, -0.3f, dz), new Vector3(x + dx * 0.9f, 12, dz * 0.9f), 0.25f);
+                    for (float y = 3; y < 12; y += 3.2f)
+                        foreach (float dz in new[] { -4.5f, 4.5f })
+                            k.Rod(new Vector3(x - 3.5f, y, dz), new Vector3(x + 3.5f, y + 3, dz), 0.1f);
+                    k.Use("concrete_stain", Palette.BlueGrey, 0.9f, 0.1f, tile: 2.5f);
+                    k.Box(new Vector3(x - 4, 12, -5.5f), new Vector3(x + 4, 22, 5.5f));
+                    k.Use("corrugated_iron", Palette.IronGrey, 0.9f, 0.3f, tile: 1.5f);
+                    k.Box(new Vector3(x - 4.3f, 22, -5.8f), new Vector3(x + 4.3f, 22.6f, 5.8f));
+                    k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
+                    // The hopper under the bunker, and the chute arm out over the rails.
+                    k.Cylinder(new Vector3(x, 12, 0), new Vector3(x, 9.8f, 0), 2.2f, 8, radiusB: 0.6f);
+                    k.Box(new Vector3(MathF.Min(x, s * 0.4f) - 0.4f, 9.2f, -0.45f), new Vector3(MathF.Max(x, s * 0.4f) + 0.4f, 9.7f, 0.45f));
+                    k.Cylinder(new Vector3(s * 0.4f, 9.3f, 0), new Vector3(s * 0.4f, 8.8f, 0), 0.4f, 8);
+                    break;
+                }
+            case FacilityKind.GrainElevator:
+                {
+                    // Three silos and a headhouse over them: the tallest thing for miles.
+                    float x = s * 15;
+                    k.Use("concrete_stain", Palette.BlueGrey, 0.9f, 0.1f, tile: 3);
+                    for (int i = 0; i < 3; i++)
+                        k.Cylinder(new Vector3(x, -0.5f, -12 + i * 12), new Vector3(x, 26, -12 + i * 12), 5, 14);
+                    k.Box(new Vector3(x - 4, 26, -18), new Vector3(x + 4, 32, 18));
+                    k.Use("corrugated_iron", Palette.IronGrey, 0.9f, 0.3f, tile: 1.5f);
+                    k.Box(new Vector3(x - 4.4f, 32, -18.4f), new Vector3(x + 4.4f, 32.5f, 18.4f));
+                    k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
+                    k.Rod(new Vector3(x - s * 4, 28, 0), new Vector3(s * 2.5f, 6, 0), 0.35f);
+                    k.Use("window_lit", Palette.LampAmber, 0.1f, 0.3f, tile: 1);
+                    k.Panel(new Vector3(x - s * 4.01f, 29, 6), new Vector3(-s, 0, 0), Vector3.UnitY, 0.8f, 1.1f, Vector2.Zero, Vector2.One);
+                    break;
+                }
+            case FacilityKind.Foundry:
+                {
+                    // Long brick sheds with sawtooth roofs, a tall stack, and the dim glow of a furnace nobody tends.
+                    float x0 = s * 22 - 14, x1 = s * 22 + 14;
+                    var (a, b) = (MathF.Min(x0, x1), MathF.Max(x0, x1));
+                    k.Use("brick_soot", Palette.RustRed, 0.9f, 0.1f, tile: 1.2f);
+                    k.Box(new Vector3(a, -0.5f, -40), new Vector3(b, 12, 40), Kit.Faces.All & ~Kit.Faces.NegY);
+                    k.Use("corrugated_iron", Palette.IronGrey, 0.9f, 0.3f, tile: 1.5f);
+                    for (float z = -40; z < 40; z += 8)
+                        k.Quad(new Vector3(a, 12, z + 8), new Vector3(b, 12, z + 8), new Vector3(b, 16, z), new Vector3(a, 16, z), twoSided: true);
+                    k.Use("window_lit", Palette.FurnaceOrange, 0.1f, 0.3f, tile: 1);
+                    k.Tint = new Vector3(1.0f, 0.55f, 0.3f);
+                    for (float z = -36; z < 38; z += 6)
+                        k.Panel(new Vector3(s > 0 ? a - 0.01f : b + 0.01f, 6, z), new Vector3(-s, 0, 0), Vector3.UnitY, 1.4f, 2.4f, Vector2.Zero, Vector2.One);
+                    k.Use("brick_soot", Palette.RustRed, 0.9f, 0.1f, tile: 1.2f);
+                    k.Cylinder(new Vector3(s * 26, -0.5f, 14), new Vector3(s * 26, 38, 14), 2.2f, 10, radiusB: 1.5f);
+                    break;
+                }
+            default:
+                {
+                    // Sheds: long timber buildings on a stone sill, corrugated roofs, doors hanging open.
+                    float x0 = s * 20 - 12, x1 = s * 20 + 12;
+                    var (a, b) = (MathF.Min(x0, x1), MathF.Max(x0, x1));
+                    k.Use("stone_block", Palette.Charcoal, 0.8f, 0.1f, tile: 2.5f);
+                    k.Box(new Vector3(a, -0.5f, -30), new Vector3(b, 1, 30), Kit.Faces.All & ~Kit.Faces.NegY);
+                    k.Use(kind == FacilityKind.WreckYard ? "rust_heavy" : "wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
+                    k.Box(new Vector3(a, 1, -30), new Vector3(b, 9, 30), Kit.Faces.Sides);
+                    k.Use("corrugated_iron", Palette.IronGrey, 0.9f, 0.3f, tile: 1.5f);
+                    float mid = (a + b) / 2;
+                    k.Quad(new Vector3(a - 0.5f, 8.8f, 30.5f), new Vector3(a - 0.5f, 8.8f, -30.5f), new Vector3(mid, 12.5f, -30.5f), new Vector3(mid, 12.5f, 30.5f), twoSided: true);
+                    k.Quad(new Vector3(mid, 12.5f, 30.5f), new Vector3(mid, 12.5f, -30.5f), new Vector3(b + 0.5f, 8.8f, -30.5f), new Vector3(b + 0.5f, 8.8f, 30.5f), twoSided: true);
+                    k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
+                    foreach (float z in new[] { -30f, 30f })
+                        k.Tri(new Vector3(a, 9, z), new Vector3(b, 9, z), new Vector3(mid, 12.4f, z), new(a, -9), new(b, -9), new(mid, -12.4f));
+                    // A black doorway facing the line, and a door leaf hanging off it.
+                    k.Shade(0.08f);
+                    k.Panel(new Vector3(s > 0 ? a - 0.01f : b + 0.01f, 3.5f, -8), new Vector3(-s, 0, 0), Vector3.UnitY, 5, 5, twoSided: false);
+                    k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
+                    k.With(Matrix4x4.CreateRotationY(0.9f * s) * Kit.At(s > 0 ? a : b, 1, -5.5f), () => k.Box(new Vector3(-0.08f, 0, -2.5f), new Vector3(0.08f, 5, 0)));
+                    break;
+                }
+        }
+        return k.Build($"facility-{kind}-{side}");
+    }
+
+    /// <summary>A buffer stop: baulks of timber on an iron frame across the rails, a red lamp on top (lit separately).</summary>
+    public static MeshAsset BufferStop(Look? look)
+    {
+        var k = new Kit(look, 990);
+        k.Use("rust_heavy", Palette.RustRed, 0.9f, 0.2f);
+        foreach (int side in new[] { -1, 1 })
+            k.Rod(new Vector3(side * TrainKit.HalfGauge, 0.15f, 2.2f), new Vector3(side * TrainKit.HalfGauge, 1.0f, 0), 0.07f);
+        k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
+        k.Box(new Vector3(-1.4f, 0.7f, -0.3f), new Vector3(1.4f, 1.2f, 0.2f));
+        k.Box(new Vector3(-1.3f, 0.15f, -0.25f), new Vector3(1.3f, 0.7f, 0.15f));
+        k.Use("paint_black", Palette.SootBlack, 0.8f, 0.3f);
+        k.Box(new Vector3(-0.12f, 1.2f, -0.12f), new Vector3(0.12f, 1.55f, 0.12f));
+        return k.Build("buffer-stop");
+    }
+
+    /// <summary>A switch stand: an iron post, the throw lever's pivot, and the target lamp's housing on top (its glass lit per frame).</summary>
+    public static MeshAsset SwitchStand(Look? look)
+    {
+        var k = new Kit(look, 995);
+        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
+        k.Box(new Vector3(-0.25f, -0.1f, -0.25f), new Vector3(0.25f, 0.25f, 0.25f));
+        k.Cylinder(new Vector3(0, 0.25f, 0), new Vector3(0, 1.6f, 0), 0.06f, 8);
+        k.Use("paint_black", Palette.SootBlack, 0.8f, 0.3f);
+        k.BoxAt(new Vector3(0, 1.75f, 0), new Vector3(0.19f, 0.19f, 0.19f));
+        k.Lathe(new Vector3(0, 1.94f, 0), [new(0.12f, 0), new(0.04f, 0.12f), new(0.02f, 0.2f)], 6, smooth: false);
+        return k.Build("switch-stand");
+    }
+}

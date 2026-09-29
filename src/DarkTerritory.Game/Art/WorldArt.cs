@@ -13,7 +13,7 @@ namespace DarkTerritory.Game.Art;
 /// rocks, fences, and the odd dead signal. Near the track the ground stays at rail height, because that is where the sim
 /// stands people (PlayerMotor.GroundAt); the hills only rise where nobody walks.
 /// </summary>
-public sealed class WorldArt(Look look)
+public sealed partial class WorldArt(Look look)
 {
     readonly Look _look = look;
     readonly Dictionary<string, MeshAsset> _pieces = new();
@@ -77,6 +77,7 @@ public sealed class WorldArt(Look look)
         float side = lateral < 0 ? 31.7f : 0;
         float n = Noise((float)(s * 0.012) + side, a * 0.025f) * 0.7f + Noise((float)(s * 0.04) + side, a * 0.07f) * 0.3f;
         h += hill * hill * (n * 16 - 3);
+        h += Hill(route, s, lateral);
         float g = gorge >= 0 ? gorge : Gorge(route, s);
         if (g > 0)
         {
@@ -125,34 +126,50 @@ public sealed class WorldArt(Look look)
         int columns = Lateral.Length;
         var left = new Vector3[columns * 2 - 1];
         var right = new Vector3[columns * 2 - 1];
-        var gorgeLeft = 0f;
         // Across the line: from the far left to the far right, both sides of one profile.
         float LateralAt(int c) => c < columns - 1 ? -Lateral[columns - 1 - c] : Lateral[c - (columns - 1)];
-        void Row(double s, Vector3[] into, out float gorge)
+        void Row(double s, Vector3[] into, out float gorge, out bool bore)
         {
             var sample = line.Sample(s);
             var r = Double3.Cross(sample.Tangent, Double3.Up).Normalized;
             gorge = Gorge(route, s);
+            Ridge(route, s, out bore);
             for (int c = 0; c < into.Length; c++)
             {
                 float lat = LateralAt(c);
-                // On a bridge the bed isn't there: the ground under the deck is the gorge's.
+                // On a bridge the bed isn't there: the ground under the deck is the gorge's. Over a bore it's the hill.
                 float h = gorge > 0.5f && MathF.Abs(lat) < 3.7f ? Ground(route, s, 3.7f, valleyDepth, gorge) : Ground(route, s, lat, valleyDepth, gorge);
                 into[c] = (sample.Position + r * lat + Double3.Up * h).RelativeTo(eye);
             }
         }
-        Row(from, left, out gorgeLeft);
+        var rows = new List<double>();
         for (double s = from; s < to; s += step)
+            rows.Add(s);
+        rows.Add(to);
+        rows.AddRange(Breaks(route, from, to));
+        rows.Sort();
+        Row(rows[0], left, out float gorgeLeft, out bool boreLeft);
+        for (int ri = 1; ri < rows.Count; ri++)
         {
-            double s1 = Math.Min(s + step, to);
-            Row(s1, right, out float gorgeRight);
+            double s = rows[ri - 1], s1 = rows[ri];
+            if (s1 - s < 0.01)
+                continue;
+            Row(s1, right, out float gorgeRight, out bool boreRight);
+            bool hill = boreLeft || boreRight;
+            // Where the ground climbs from the cutting onto the hill at a portal, the portal's face is the ground:
+            // leave that step out across its width, or it walls the bore up.
+            bool portal = boreLeft != boreRight;
             for (int c = 0; c + 1 < left.Length; c++)
             {
                 float l0 = LateralAt(c), l1 = LateralAt(c + 1), lat = (l0 + l1) / 2;
+                if (portal && MathF.Abs(l0) < 10.5f && MathF.Abs(l1) < 10.5f)
+                    continue;
                 var (a, b, band) = GroundLayers(lat);
                 bool bridge = (gorgeLeft > 0.5f || gorgeRight > 0.5f) && MathF.Abs(lat) < 3.7f;
+                if (hill && MathF.Abs(lat) < 12)
+                    (a, b, band) = (_look.Layer("ground_forest"), _look.Layer("rock_cliff"), 2);
                 // Per corner: blend and tint (untextured, the greybox's colours for bed and ground).
-                var colour = a >= 0 ? Vector3.One : (MathF.Abs(lat) < 2.4f && !bridge ? Palette.Ballast : Palette.MuddyOlive);
+                var colour = a >= 0 ? Vector3.One : (MathF.Abs(lat) < 2.4f && !bridge && !hill ? Palette.Ballast : Palette.MuddyOlive);
                 Corner Make(float l, double at) => bridge
                     ? new(colour * GroundShade(l, at), 0.5f)
                     : new(colour * GroundShade(l, at), GroundBlend(band, l, at));
@@ -162,45 +179,14 @@ public sealed class WorldArt(Look look)
                     a >= 0 && _look.Textures[a].TileMetres is { } tm ? tm : 2);
             }
             (left, right) = (right, left);
-            gorgeLeft = gorgeRight;
+            (gorgeLeft, boreLeft) = (gorgeRight, boreRight);
         }
 
-        // Sleepers, near the eye only (past ~150 m the fog has them anyway), each a little off true.
-        const double pitch = 0.68;
-        double sleeperFrom = Math.Max(from, centre - 150), sleeperTo = Math.Min(to, centre + 150);
-        k.Use("wood_sleeper", Palette.DeepBrown, 0.8f, 0, tile: 1.3f);
-        for (double s = Math.Ceiling(sleeperFrom / pitch) * pitch; s < sleeperTo; s += pitch)
-        {
-            if (route?.BridgeAt(s) is not null)
-                continue;
-            float j = Hash((float)(s * 1.37));
-            k.Tint = Vector3.One * (0.75f + 0.35f * j);
-            var t = line.Sample(s);
-            var m = Basis(t.Tangent, t.Position, eye, (j - 0.5f) * 0.05f);
-            k.With(m, () => k.Box(new Vector3(-1.3f, -0.05f, -0.12f), new Vector3(1.3f, 0.07f, 0.12f), Kit.Faces.All & ~Kit.Faces.NegY));
-        }
-        // Rails: head, web and foot, in 5 m lengths (a bridge carries them on its deck too).
-        k.Use("rail_steel", Palette.IronGrey, 0.4f, 0.6f, tile: 1);
-        k.Tint = Vector3.One;
-        for (double s = from; s < to; s += step)
-        {
-            var a = line.Sample(s);
-            var b = line.Sample(Math.Min(s + step, to));
-            var mid = a.Position + (b.Position - a.Position) * 0.5;
-            var dir = (b.Position - a.Position).Normalized;
-            float half = (float)((b.Position - a.Position).Length / 2);
-            var m = Basis(dir, mid, eye, 0);
-            k.With(m, () =>
-            {
-                foreach (int side in new[] { -1, 1 })
-                {
-                    float x = side * TrainKit.HalfGauge;
-                    k.Box(new Vector3(x - 0.035f, 0.14f, -half), new Vector3(x + 0.035f, 0.19f, half), Kit.Faces.All & ~(Kit.Faces.PosZ | Kit.Faces.NegZ));
-                    k.Box(new Vector3(x - 0.01f, 0.08f, -half), new Vector3(x + 0.01f, 0.14f, half), Kit.Faces.PosX | Kit.Faces.NegX);
-                    k.Box(new Vector3(x - 0.07f, 0.07f, -half), new Vector3(x + 0.07f, 0.085f, half), Kit.Faces.PosY | Kit.Faces.PosX | Kit.Faces.NegX);
-                }
-            });
-        }
+        // Sleepers near the eye only (past ~150 m the fog has them anyway), each a little off true; rails all along.
+        // A timber trestle's deck carries its own ties.
+        Rails(k, line, eye, from, to,
+            s => Math.Abs(s - centre) < 150 && route?.BridgeAt(s) is not { MaxCars: > 0 },
+            _ => true);
     }
 
     /// <summary>A transform from a piece's frame (−Z along <paramref name="tangent"/>, +X to its right) to camera-relative space.</summary>
@@ -259,7 +245,8 @@ public sealed class WorldArt(Look look)
     /// </summary>
     public void Lineside(MeshBuilder mesh, RailLine line, Route? route, Double3 eye, double from, double to, double centre, int seed, float valleyDepth)
     {
-        bool Clear(double s) => route is null || (!route.InTunnel(s) && route.BridgeAt(s) is null);
+        // Clear of bridges, and of tunnels and their cuttings (the hill's approaches).
+        bool Clear(double s) => route is null || (!route.InTunnel(s) && !route.InTunnel(s + 30) && !route.InTunnel(s - 30) && route.BridgeAt(s) is null);
         bool OnBranch(double along, double offset) => line.Branches.Any(b => along > b.Toe - 20 && along < b.End + 20 && Math.Sign(offset) == b.Side
             && Math.Abs(offset) < (b.Kind == BranchKind.Spur ? 60 : 16));
         Matrix4x4 Place(double s, double lateral, float yaw, float scale, float sink = 0)

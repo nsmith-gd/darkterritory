@@ -132,6 +132,12 @@ M3 is done but for a test with eight people.
 - The wear rides with each car. Materials come from the palette (`tuning/look.json`), and `--greybox` gives flat colour to compare.
 - Screenshots are deterministic now: the pines stopped moving between runs.
 
+**Art pass v2 (the art & animation pipeline plan):**
+- A renderer with the plan's post stack: textures, per-pixel practical lights, a sky with a backdrop, height fog, effects, bloom, a LUT grade, grain and dither.
+- The train, the track and the lineside, bridges, tunnels, fortresses and facilities, built from kits over the sim's own shapes.
+- A texture library from CC0 photo sources and procedural generators, with provenance.
+- `dt art check` holds every piece to its triangle budget; `dt art show <piece>` puts one on a turntable.
+
 **HUD:**
 - A pixel-font HUD in the low-res frame: engine gauges, ping to host (spec E), the prompt for what your hands can do, and the night.
 - `dt screenshot --hud` captures it.
