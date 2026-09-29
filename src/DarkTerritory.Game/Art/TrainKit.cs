@@ -73,9 +73,20 @@ public static class TrainKit
         k.Cylinder(new Vector3(-HalfGauge + 0.05f, radius, z), new Vector3(HalfGauge - 0.05f, radius, z), 0.07f, 8);
     }
 
+    /// <summary>A modelled piece (tools/models car_gear) appended at <paramref name="at"/>, when the look has it.</summary>
+    static bool Prop(Kit k, string name, Matrix4x4 at)
+    {
+        if (k.Look is not { } look || PropArt.Of(look).Get(name) is not { } piece)
+            return false;
+        k.Append(piece, at);
+        return true;
+    }
+
     /// <summary>A freight bogie (arch-bar truck): side frames, bolster, springs, two axles.</summary>
     static void Truck(Kit k, float z)
     {
+        if (Prop(k, "truck_archbar", Kit.At(0, 0, z)))
+            return;
         const float r = 0.42f, pitch = 0.8f;
         Axle(k, z - pitch, r, 0);
         Axle(k, z + pitch, r, 0);
@@ -100,6 +111,9 @@ public static class TrainKit
     /// <summary>A knuckle coupler and its draft gear, out from the end beam at <paramref name="z"/> towards <paramref name="dir"/> (±1).</summary>
     static void Coupler(Kit k, float z, float dir, float height)
     {
+        // The modelled one points forward (−Z) with its centre line 0.9 m up: turned for the rear, raised or lowered.
+        if (Prop(k, "coupler_knuckle", (dir > 0 ? Matrix4x4.CreateRotationY(MathF.PI) : Matrix4x4.Identity) * Kit.At(0, height - 0.9f, z)))
+            return;
         k.Use("wheel_iron", Palette.SootBlack, 0.7f, 0.35f);
         float z0 = z, z1 = z + dir * 0.35f;
         k.Box(new Vector3(-0.09f, height - 0.08f, MathF.Min(z0, z1)), new Vector3(0.09f, height + 0.08f, MathF.Max(z0, z1)));
@@ -555,8 +569,12 @@ public static class TrainKit
             for (float z = -l + 0.06f; z <= l - 0.05f; z += (2 * l - 0.12f) / 8)
                 if (sd == 0 || MathF.Abs(z) > sd + 0.1f)
                     posts.Add(z);
+            // (A modelled post, tools/models car_body, faces +X from the car side at its foot: turned for the left.)
+            string post = livery == Livery.Planked ? "post_wood" : "post_steel";
+            var turn = side > 0 ? Matrix4x4.Identity : Matrix4x4.CreateRotationY(MathF.PI);
             foreach (float z in posts)
-                k.Box(new Vector3(x - 0.03f, floor - 0.05f, z - 0.06f), new Vector3(x + 0.03f, ceiling, z + 0.06f));
+                if (!Prop(k, post, turn * Matrix4x4.CreateScale(1, (ceiling - floor + 0.05f) / 2.7f, 1) * Kit.At(side * w, floor - 0.05f, z)))
+                    k.Box(new Vector3(x - 0.03f, floor - 0.05f, z - 0.06f), new Vector3(x + 0.03f, ceiling, z + 0.06f));
             if (livery == Livery.Planked)
                 for (int i = 0; i + 1 < posts.Count; i++)
                 {
@@ -607,10 +625,23 @@ public static class TrainKit
             profile.Add(new Vector2(-w - 0.07f, ceiling - 0.02f));
             k.Prism(profile, -l - 0.06f, l + 0.06f, caps: true, smooth: false);
         }
-        // Roof walk: boards on saddles down the safe centreline, gapped.
-        k.Use("wood_grey", Palette.TarnishedBrass, 0.9f, 0, 1f);
-        for (int i = -2; i <= 2; i++)
-            k.Box(new Vector3(i * 0.14f - 0.06f, h, -l + 0.2f), new Vector3(i * 0.14f + 0.06f, h + 0.04f, l - 0.2f), Kit.Faces.All & ~Kit.Faces.NegY);
+        // Roof walk: boards on saddles down the safe centreline, gapped: modelled bays laid end to end (tools/models
+        // car_body, 1.1 m each, stretched to fit), with the roof sheets' seam caps between them on a steel roof.
+        float run = 2 * l - 0.4f;
+        int bays = Math.Max(1, (int)MathF.Round(run / 1.1f));
+        float bay = run / bays;
+        bool modelled = true;
+        for (int i = 0; i < bays && modelled; i++)
+            modelled = Prop(k, "roof_walk_bay", Matrix4x4.CreateScale(1, 1, bay / 1.1f) * Kit.At(0, h, -l + 0.2f + bay * (i + 0.5f)));
+        if (!modelled)
+        {
+            k.Use("wood_grey", Palette.TarnishedBrass, 0.9f, 0, 1f);
+            for (int i = -2; i <= 2; i++)
+                k.Box(new Vector3(i * 0.14f - 0.06f, h, -l + 0.2f), new Vector3(i * 0.14f + 0.06f, h + 0.04f, l - 0.2f), Kit.Faces.All & ~Kit.Faces.NegY);
+        }
+        else if (livery != Livery.Planked)
+            for (int i = 1; i < bays; i++)
+                Prop(k, "roof_seam", Matrix4x4.CreateScale(w / 1.5f, 1, 1) * Kit.At(0, h, -l + 0.2f + bay * i));
         // The brake wheel on its staff at the rear of the walk.
         foreach (var brake in shape.Interactables.Where(i => i.Kind == InteractableKind.Handbrake))
             BrakeWheel(k, F(brake.Position));
@@ -624,9 +655,12 @@ public static class TrainKit
         foreach (float z in new[] { -l + 1.9f, l - 1.9f })
             k.Box(new Vector3(-w + 0.2f, 0.78f, z - 0.2f), new Vector3(w - 0.2f, floor - 0.2f, z + 0.2f));
         // The brake gear: reservoir and cylinder slung under the middle.
-        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.2f);
-        k.Cylinder(new Vector3(0.45f, 0.8f, -1.2f), new Vector3(0.45f, 0.8f, 0.4f), 0.2f, 10);
-        k.Cylinder(new Vector3(-0.5f, 0.82f, 0.2f), new Vector3(-0.5f, 0.82f, 0.9f), 0.15f, 10);
+        if (!Prop(k, "brake_gear", Matrix4x4.Identity))
+        {
+            k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.2f);
+            k.Cylinder(new Vector3(0.45f, 0.8f, -1.2f), new Vector3(0.45f, 0.8f, 0.4f), 0.2f, 10);
+            k.Cylinder(new Vector3(-0.5f, 0.82f, 0.2f), new Vector3(-0.5f, 0.82f, 0.9f), 0.15f, 10);
+        }
         foreach (float z in new[] { -l + 1.9f, l - 1.9f })
             Truck(k, z);
         // End beams, couplers.
