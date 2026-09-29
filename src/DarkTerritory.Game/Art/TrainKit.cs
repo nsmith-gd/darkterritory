@@ -394,6 +394,10 @@ public static class TrainKit
         k.Rod(new Vector3(-0.8f, deck + 0.2f, face + 0.05f), new Vector3(-0.8f, top - 0.2f, face + 0.05f), 0.025f, 6);
         k.Rod(new Vector3(-0.8f, top - 0.2f, face + 0.05f), new Vector3(0.7f, top - 0.2f, face + 0.05f), 0.025f, 6);
         k.Rod(new Vector3(0.75f, deck + 0.3f, face + 0.05f), new Vector3(0.75f, top - 0.2f, face + 0.05f), 0.02f, 6);
+        // The backhead's fittings, modelled (tools/models cab_backhead: the firebox doors ajar, the steam turret and its
+        // valves, the injectors, the whistle, the damper), set on the face at the firebox door's centre.
+        if (k.Look is { } look && PropArt.Of(look).Get("cab_backhead") is { } fittings)
+            k.Append(fittings, Matrix4x4.CreateTranslation(0, fy, face));
     }
 
     /// <summary>The centre of dial <paramref name="index"/>'s face on the backhead (pressure, heat, water, speed), in the engine's frame.</summary>

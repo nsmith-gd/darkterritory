@@ -1154,6 +1154,37 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - Behind him hangs a torn painted backdrop.
         - Its light is at the flame's "lamp" socket. Most villages have one, hashed on the village's place.
       - The rooms share `cook.ruined_shell` (the broken plaster-and-brick walls and floorboards) and `cook.box_uv`. The posed figures share `tools/models/figures.py`: the boy's joint table and skeleton, and the full-resolution linear-blend pose the Soot children use too.
+    - **Modelled here, for the game's own things** (`tools/models/make.py`). No free model exists for the crew's stores, the freight or the cab's controls, so each is modelled at high resolution in its recipe, then baked down (`bake_down(low=make.LOW)`) onto a plain game mesh built alongside it: the crate's shell, its battens, the pipes at a few sides.
+      - The high-poly model is bevelled boards with gaps, nail heads, strap iron, rope grips and stencils (Blender text).
+      - It wears the library's own maps, box-projected at the library's scale. Only layers without printed-in structure (`wood_sleeper`'s plain grain, `rust_heavy`, `paint_olive`, `brass`) suit it: a layer with boards or rivets printed in doubles them.
+      - `bake_down` takes a smaller cage for these (a modelled low mesh lies almost on the high one). The low mesh is invisible to the bake's rays, or it would shadow the high one's flat faces black.
+      - Provenance: a modelled layer's `sources` name its recipe (Dark Territory's own, CC0) and the pinned sources of every library layer it wore. `PropArtTests` accepts a recipe that exists in the repo as a source.
+      - The first set is the physics bodies' models, drawn by `SceneArt.Body` with the kit's pieces as the fallback:
+        - `stores_crate` (BodyKind.Crate);
+        - four kinds of facility freight (BodyKind.Cargo, chosen by the body's id): `freight_parts`, `freight_ammo`, `freight_sacks`, `freight_medical`;
+        - the two-man `heavy_crate`;
+        - the `field_radio`, with its lamp pure light.
+      - They're budgeted as medium props.
+      - The cab is the second set. `cab_backhead` is appended into the engine's kit mesh at the firebox door: the doors standing ajar, the steam turret and its valves, siphons to each gauge, the injectors' valves and copper pipework, the lubricator, the whistle, the damper and the regulator's rack. It's baked in four groups so it holds up close.
+      - The moving controls are drawn by `SceneArt.CabControls` where the sim puts them (T29), with the greybox's boxes as the fallback:
+        - the regulator's handle slides along its rack, exactly the sim's travel;
+        - the brake valve's handle swings about its pedestal pivot, and the reverser about its floor pivot, so each handle stays within a few cm of the sim's straight-line travel;
+        - the blow-off valve sits at the vent.
+      - Blender's diffuse bake scales colour by (1 − metallic), so the library materials bake as non-metals: brass would bake black. The engine's shine comes from the layer's spec.
+      - The facilities' modules are the third set (`recipes/depot_modules.py`), parts that `SceneArt.Depots` places and moves where the sim has them. The greybox is the fallback.
+        - The capstan winch: its frame, the drum turned by the crank, a crank arm per handle at the sim's grip (T43), the rope, and the freight sled as far as it's hauled.
+        - The gantry crane (T48): legs, rail girders in 5 m lengths, the bridge where it is (scaled to the span), the trolley, the hook on its cable, the cab and the control stand.
+        - The castings: stacked, hooked, or on a car's roof.
+        - The coaling tower's lever stand, its handle down when pouring.
+        - `dt screenshot --site --crank` now closes on the cranks even at a facility with a crane.
+      - The facility buildings are the fourth set (`recipes/facility_pieces.py`). The six kinds that shared the generic sheds now read by shape, as the coaling tower, the elevator and the foundry did (GDD §30). `StructureKit.Facility` sets the pieces among kit buildings, sunk 0.3 m as the kit's sills are; without the props the kit parts still stand.
+        - Mine head: the headframe over the shaft (at 1.5×, the tallest thing there), its winding house and chimney, and the spoil heap.
+        - Chemical works: three storage tanks, a pipe rack on trestles, and the works with two thin stacks.
+        - Military depot: a watchtower at the gate end, sandbag walls, Nissen huts, and a wire fence along the line.
+        - Slaughterhouse: the long windowless hall, cattle pens in front, and the ramp down from the cars.
+        - Switchyard: the signal box with one window lit, the water tower's spout swung over the track, and a goods shed.
+        - Wreck yard: heaps of stripped carbodies and wheelsets, with the sheds set back behind them.
+        - `dt screenshot --route tier:seed --site --facility i` stops at the route's i-th facility, to look at a kind's buildings.
     - **First set.**
       - The Khronos Lantern, split into a lamp post and a hand lantern. The hand lantern replaces the kit's cage in the cars, on the platforms and as the dropped lamp.
       - The photoscanned skull.

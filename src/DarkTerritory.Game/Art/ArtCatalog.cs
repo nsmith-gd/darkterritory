@@ -94,6 +94,9 @@ public static class ArtCatalog
                 var cls = n switch
                 {
                     "hand_lantern" or "skull" => MediumProp,
+                    // What the crew carry (the physics bodies' models, tools/models make): picked up and seen close.
+                    "stores_crate" or "heavy_crate" or "field_radio" => MediumProp,
+                    _ when n.StartsWith("freight_", StringComparison.Ordinal) => MediumProp,
                     "boy_room" or "wake_room" or "portrait_room" => Interior,
                     _ => LargeProp,
                 };
