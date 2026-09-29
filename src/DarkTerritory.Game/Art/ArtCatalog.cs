@@ -80,22 +80,6 @@ public static class ArtCatalog
         list.Add(new("house", LargeProp, () => TownKit.House(look, 1)));
         list.Add(new("church", LargeProp, () => TownKit.Church(look)));
         list.Add(new("windmill", LargeProp, () => TownKit.Windmill(look)));
-        // The country's own kit (NovaKit, SettingKit): a generated line's dressing by biome.
-        list.Add(new("spruce", SmallProp, () => NovaKit.Conifer(look, 0, 12, 0.3f)));
-        list.Add(new("fir", SmallProp, () => NovaKit.Conifer(look, 1, 12, 0.46f)));
-        list.Add(new("birch", SmallProp, () => NovaKit.Birch(look, 0)));
-        list.Add(new("ghost-spruce", SmallProp, () => NovaKit.GhostSpruce(look, 2)));
-        list.Add(new("stone-wall", MediumProp, () => NovaKit.StoneWall(look, 0)));
-        list.Add(new("saltbox", LargeProp, () => NovaKit.Saltbox(look, 3)));
-        list.Add(new("barn", LargeProp, () => NovaKit.Barn(look, 0)));
-        list.Add(new("nova-church", LargeProp, () => NovaKit.Church(look)));
-        list.Add(new("burying-ground", MediumProp, () => NovaKit.BuryingGround(look, 0)));
-        list.Add(new("fish-shed", LargeProp, () => NovaKit.FishShed(look, 0)));
-        list.Add(new("chimney", LargeProp, () => SettingKit.Chimney(look, 1)));
-        list.Add(new("tank", LargeProp, () => SettingKit.Tank(look, 1)));
-        list.Add(new("ruin-wall", MediumProp, () => SettingKit.RuinWall(look, 0)));
-        list.Add(new("headframe", LargeProp, () => SettingKit.Headframe(look)));
-        list.Add(new("reeds", SmallProp, () => SettingKit.Reeds(look, 0)));
         list.Add(new("buffer-stop", MediumProp, () => StructureKit.BufferStop(look)));
         list.Add(new("switch-stand", MediumProp, () => StructureKit.SwitchStand(look)));
         // The sourced props (tools/models): each budgeted as what it stands in for.
@@ -110,7 +94,7 @@ public static class ArtCatalog
                 var cls = n switch
                 {
                     "hand_lantern" or "skull" => MediumProp,
-                    "boy_room" => Interior,
+                    "boy_room" or "wake_room" => Interior,
                     _ => LargeProp,
                 };
                 list.Add(new($"prop-{n}", cls, () => props.Get(n)!));

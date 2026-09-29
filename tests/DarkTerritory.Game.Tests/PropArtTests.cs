@@ -26,8 +26,8 @@ public class PropArtTests
             var mesh = props.Get(name);
             Assert.NotNull(mesh);
             Assert.True(mesh!.Triangles > 100, $"{name}: {mesh.Triangles} triangles");
-            // Textured with its own maps, not the flat fallback.
-            Assert.All(mesh.Vertices, v => Assert.True(v.Layer >= 0, $"{name}: a vertex with no layer"));
+            // Textured with its own maps, not the flat fallback; only pure light (a lamp's bare bulbs) is drawn flat.
+            Assert.All(mesh.Vertices, v => Assert.True(v.Layer >= 0 || v.Emissive >= 0.99f, $"{name}: a vertex with no layer"));
             Assert.All(mesh.Vertices, v => Assert.True(float.IsFinite(v.Position.X + v.Position.Y + v.Position.Z)));
         }
     }
