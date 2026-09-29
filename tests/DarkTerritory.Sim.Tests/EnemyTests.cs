@@ -317,7 +317,9 @@ public class EnemyTests
             n.Run(route.Length / 14 - 40);
             var d = n.World.Director!;
             Assert.NotEmpty(d.Log);
-            var spawns = d.Log.Where(l => l.Kind != EnemyKind.Hollow).ToList();
+            // The condition-triggered ones (App. B.5) come whenever their condition holds, grace or no: here, nobody's
+            // minding the fire or the cab.
+            var spawns = d.Log.Where(l => l.Kind is not (EnemyKind.Hollow or EnemyKind.Deadman)).ToList();
             Assert.All(spawns, l => Assert.True(l.Tick * SimConstants.TickSeconds >= E.Director.GraceSeconds, $"spawn at {l.Tick / 30} s"));
             for (int i = 1; i < spawns.Count; i++)
                 Assert.True((spawns[i].Tick - spawns[i - 1].Tick) * SimConstants.TickSeconds >= E.Director.CooldownSeconds[0] - 1);

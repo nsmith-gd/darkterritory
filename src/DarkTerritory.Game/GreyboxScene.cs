@@ -26,6 +26,13 @@ public sealed class GreyboxScene
     public Route? Route { get; set; }
     /// <summary>Live enemies to draw. When set, the route's Sleepers come from here rather than its features.</summary>
     public IReadOnlyList<Enemy>? Enemies { get; set; }
+
+    /// <summary>
+    /// The firebox's light: the fire's orange, or with a Stoker in it (T53) "wrong-coloured firebox glow" (App. A.5), a sick
+    /// green that burns brighter, not dimmer, as the pressure climbs.
+    /// </summary>
+    Vector3 FireColour(float scale) => Enemies?.Any(e => e.Kind == EnemyKind.Stoker && !e.Gone) == true
+        ? Palette.SignalGreen * (0.5f + 0.8f * scale) : Palette.FurnaceOrange * scale;
     /// <summary>Tonight's run, for facility machinery (the coaling chute pouring).</summary>
     public Sim.Run.Run? Run { get; set; }
     /// <summary>Seconds, for animating things that move on their own.</summary>
@@ -117,7 +124,7 @@ public sealed class GreyboxScene
                         : new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), Palette.LampAmber * 1.6f * flicker, 7.5f));
                 }
             foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
-                mesh.PointLights.Add(new PointLight(V(frame.ToWorld(i.Position + new Double3(0, 0.7, 0.3)), eye), Palette.FurnaceOrange * (0.6f + 1.6f * FireGlow), 5f));
+                mesh.PointLights.Add(new PointLight(V(frame.ToWorld(i.Position + new Double3(0, 0.7, 0.3)), eye), FireColour(0.6f + 1.6f * FireGlow), 5f));
         }
         foreach (var frame in frames)
             Car(mesh, frame, eye);
@@ -1013,7 +1020,7 @@ public sealed class GreyboxScene
         {
             mesh.Emissive = 1;
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
-                draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.17), new Double3(0.3, 0.2, 0.02)), Palette.FurnaceOrange * (0.15f + 0.85f * FireGlow));
+                draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.17), new Double3(0.3, 0.2, 0.02)), FireColour(0.15f + 0.85f * FireGlow));
             mesh.Emissive = 0;
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
                 draw(Box.FromCentre(i.Position + new Double3(0, 1.1, 0), new Double3(0.12, 0.12, 0.04)), Palette.TarnishedBrass);

@@ -274,6 +274,8 @@ public static class WorldRecords
             EnemyKind.Dragger => new Dragger(r.Id),
             EnemyKind.Rattle => new Rattle(r.Id),
             EnemyKind.Lamplighter => new Lamplighter(r.Id),
+            EnemyKind.Deadman => new Deadman(r.Id),
+            EnemyKind.Stoker => new Stoker(r.Id),
             _ => new Hollow(r.Id),
         };
         e.Restore((SpinePhase)f[1], D(f[2], 1e3), D(f[3], 1e3), (int)f[4], new Double3(D(f[5], Pos), D(f[6], Pos), D(f[7], Pos)),

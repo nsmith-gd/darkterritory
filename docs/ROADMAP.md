@@ -117,6 +117,9 @@ M3 is done but for a test with eight people.
   - silent until someone comes near below the roofs, then a dry bone rattle;
   - step into the gap while it rattles and you're pulled under; wait it out, or go over the roof;
   - bots stop short of a rattling gap.
+- **The Deadman and the Stoker (T53, App. A.5):**
+  - leave the cab empty (not on Local routes) and the controls start clicking; still empty at 30 s (20 on Deep territory), it takes the cab, locks the regulator open and the brake off, and it takes 4 s and some blood to get it back;
+  - leave the firebox unattended at a stop and a Stoker gets in: the pressure climbs with the valve held shut and the fire turns green; vent to hold it, or drive it out at the firebox and get burned.
 - **The Lamplighters (T52, App. A.6):**
   - out in the dark beside the engine; a lit lamp brings them in, eyes catching the light;
   - reaching it, they smash the lamp (out for 45 s) and go for the cab;
