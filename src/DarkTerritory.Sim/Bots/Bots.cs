@@ -640,25 +640,51 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
 
 /// <summary>
 /// What every bot heeds whatever its job: "don't cross between cars rattling" (App. A.5). A bot whose next step would take
-/// it into a gap the Rattle is rattling in stands where it is instead, and waits it out; the rest of its intent (its hands,
-/// its look) goes through. Worked out from what its client sees (the Rattle replicates), by stepping a copy of itself.
+/// it into a gap the Rattle is rattling in stands where it is instead, and waits it out; one already in the gap when it
+/// starts gets out of it, the quickest way it can. The rest of its intent (its hands, its look) goes through. Worked out
+/// from what its client sees (the Rattle replicates), by stepping copies of itself.
 /// </summary>
 public static class Heed
 {
     public static PlayerIntent Rattles(PlayerIntent intent, in PlayerState self, World world, PlayerTuning player)
     {
-        if (!self.Alive || (intent.MoveX == 0 && intent.MoveZ == 0))
+        if (!self.Alive)
             return intent;
         var train = world.Train;
         var rattling = world.ActiveEnemies.OfType<Rattle>().Where(r => r.Rattling).ToList();
         if (rattling.Count == 0)
             return intent;
-        var next = self;
-        PlayerMotor.Step(ref next, intent, train, player, train.Dynamics.Tuning, SimConstants.TickSeconds, applyLook: false);
         var now = PlayerMotor.WorldPosition(self, train);
-        var then = PlayerMotor.WorldPosition(next, train);
-        if (!rattling.Any(r => r.InGap(then, train) && !r.InGap(now, train)))
+        if (rattling.FirstOrDefault(r => r.InGap(now, train)) is { } around)
+            return Out(intent, self, train, player, around);
+        if (intent.MoveX == 0 && intent.MoveZ == 0)
+            return intent;
+        var then = After(self, intent, train, player);
+        if (!rattling.Any(r => r.InGap(then, train)))
             return intent;
         return intent with { MoveX = 0, MoveZ = 0 };
+    }
+
+    static Double3 After(in PlayerState self, in PlayerIntent intent, TrainOnLine train, PlayerTuning player)
+    {
+        var next = self;
+        PlayerMotor.Step(ref next, intent, train, player, train.Dynamics.Tuning, SimConstants.TickSeconds, applyLook: false);
+        return PlayerMotor.WorldPosition(next, train);
+    }
+
+    /// <summary>In the gap as it rattles: whichever way of walking gets it furthest out to a side (off the plate, clear of the cars).</summary>
+    static PlayerIntent Out(PlayerIntent intent, in PlayerState self, TrainOnLine train, PlayerTuning player, Rattle r)
+    {
+        var frame = train.Frames[r.Attached];
+        PlayerIntent best = intent with { MoveX = 0, MoveZ = 0 };
+        double bestOut = Math.Abs(frame.ToLocal(PlayerMotor.WorldPosition(self, train)).X);
+        foreach (var (x, z) in new (float, float)[] { (1, 0), (-1, 0), (0, 1), (0, -1) })
+        {
+            var tryIt = intent with { MoveX = x, MoveZ = z, Buttons = intent.Buttons | PlayerButtons.Run };
+            double outward = Math.Abs(frame.ToLocal(After(self, tryIt, train, player)).X);
+            if (outward > bestOut + 1e-4)
+                (best, bestOut) = (tryIt, outward);
+        }
+        return best;
     }
 }

@@ -186,6 +186,23 @@ public class RattleTests
         Assert.False(rattle.InGap(PlayerMotor.WorldPosition(stop.Crew[0], stop.Train), stop.Train));
     }
 
+    [Fact]
+    public void ABotAlreadyInTheGapWhenItStartsGetsOut()
+    {
+        var stop = new Stop();
+        var rattle = stop.Nest();
+        // Standing in the gap beside the coupler, its job holding it there: heeding the rattle, it gets out in time.
+        stop.Beside(-0.9);
+        for (int i = 0; i < 4 * SimConstants.TickRate; i++)
+        {
+            stop.Intents[0] = Heed.Rattles(default, stop.Crew[0], stop.World, Tuning.Player);
+            stop.Run(SimConstants.TickSeconds);
+        }
+        Assert.True(rattle.Rattling || rattle.Phase == SpinePhase.Dormant);
+        Assert.True(stop.Crew[0].Alive);
+        Assert.False(rattle.InGap(PlayerMotor.WorldPosition(stop.Crew[0], stop.Train), stop.Train));
+    }
+
     /// <summary>Enemy tuning whose director can afford the Rattle and nothing else, straight away.</summary>
     static EnemyTuning OnlyTheRattle()
     {
