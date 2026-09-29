@@ -23,35 +23,19 @@ import sys
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
-BLENDER = os.path.join(os.path.dirname(HERE), "blender")
-sys.path.insert(0, BLENDER)
 import bmesh  # noqa: E402
 import bpy  # noqa: E402
 import numpy as np  # noqa: E402
 from mathutils import Matrix, Vector  # noqa: E402
 
 import cook  # noqa: E402
-import rig  # noqa: E402
+import overbake  # noqa: E402
+from overbake import bell, fine, smooth01  # noqa: E402
 
-# ----------------------------------------------------------------------------------------------------------------
-# The crew as tools/blender builds it, its export held back until the game mesh wears the bake.
-_export = rig.export
-held = {}
-rig.export = lambda path, kit: held.update(kit=kit)
-CREW = os.path.join(BLENDER, "crew.py")
-g = {"__name__": "crew_source", "__file__": CREW}
-exec(compile(open(CREW).read(), CREW, "exec"), g)
-rig.export = _export
-kit, sk = held["kit"], g["sk"]
-arm = sk.rig
-parts = {o.name: o for o in bpy.data.objects if o.type == "MESH" and o.parent is arm}
-# Modelled and baked in the bind pose (the clips' last key is still on the armature).
-arm.data.pose_position = "REST"
+# The crew as tools/blender builds it, its export held back until the game mesh wears the bake (tools/models overbake).
+kit, g, arm, parts = overbake.hold("crew.py")
 print("[dt] crew parts", {n: len(o.data.polygons) for n, o in sorted(parts.items())})
-
-
-def mat_named(o, prefix):
-    return {i for i, m in enumerate(o.data.materials) if m is not None and m.name.startswith(prefix)}
+mat_named = overbake.mat_slots
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -174,80 +158,14 @@ DRESS = {
 
 
 def dress(m):
-    if m.name.startswith("scan_skin"):
-        return m, 0
-    key = next(k for k in DRESS if m.name.startswith(k))
+    """The kit material's library layer and subdivision; the lamp's glass and the scan's skin aren't in the copy."""
+    if m.name.startswith(("crew_atlas.lamp", "scan_skin")):
+        return None
+    key = next((k for k in DRESS if m.name.startswith(k)), None)
+    if key is None:
+        raise KeyError(f"crew: no dress for {m.name}")
     layer, scale, tint, rough, subdiv = DRESS[key]
     return make.lib(layer, scale, tint, rough), subdiv
-
-
-def high_of(o):
-    """The part's high copy, split by material, each piece subdivided (soft) or bevelled (hard) and dressed."""
-    out = []
-    for mi, m in enumerate(o.data.materials):
-        if m is None or m.name.startswith(("crew_atlas.lamp", "scan_skin")):
-            continue
-        me = o.data.copy()
-        bm = bmesh.new()
-        bm.from_mesh(me)
-        bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.material_index != mi], context="FACES")
-        bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
-        if not bm.faces:
-            bm.free()
-            continue
-        bm.to_mesh(me)
-        bm.free()
-        h = bpy.data.objects.new(f"{o.name}_{m.name}_high", me)
-        bpy.context.scene.collection.objects.link(h)
-        h.matrix_world = o.matrix_world
-        h.vertex_groups.clear()
-        mat, subdiv = dress(m)
-        me.materials.clear()
-        me.materials.append(mat)
-        bpy.context.view_layer.objects.active = h
-        if subdiv:
-            mod = h.modifiers.new("sub", "SUBSURF")
-            mod.levels = mod.render_levels = subdiv
-            bpy.ops.object.modifier_apply(modifier=mod.name)
-        elif not m.name.startswith("scan_skin"):
-            mod = h.modifiers.new("bevel", "BEVEL")
-            mod.width, mod.segments, mod.limit_method = 0.0025, 2, "ANGLE"
-            bpy.ops.object.modifier_apply(modifier=mod.name)
-            mod = h.modifiers.new("sub", "SUBSURF")
-            mod.subdivision_type = "SIMPLE"
-            mod.levels = mod.render_levels = 2
-            bpy.ops.object.modifier_apply(modifier=mod.name)
-        for f in me.polygons:
-            f.use_smooth = True
-        h["dt_kind"] = m.name.split(".")[0] if m.name.startswith("scan_skin") else next(k for k in DRESS if m.name.startswith(k))
-        out.append(h)
-    return out
-
-
-def bell(x):
-    return np.exp(-x * x)
-
-
-def smooth01(a, b, x):
-    t = np.clip((x - a) / (b - a), 0, 1)
-    return t * t * (3 - 2 * t)
-
-
-def displace(o, fn):
-    """Pushes every vertex along its normal by fn(positions Nx3, normals Nx3) metres."""
-    me = o.data
-    co = np.empty(len(me.vertices) * 3, np.float32)
-    me.vertices.foreach_get("co", co)
-    no = np.empty(len(me.vertices) * 3, np.float32)
-    me.vertices.foreach_get("normal", no)
-    co, no = co.reshape(-1, 3), no.reshape(-1, 3)
-    d = np.asarray(fn(co, no), np.float32)
-    me.vertices.foreach_set("co", (co + no * d[:, None]).ravel())
-    me.update()
-
-
-def fine(p, amount=0.0012, scale=70, seed=0):
-    return amount * cook.noise_np(p, seed, scale)
 
 
 def coat(p, n):
@@ -336,20 +254,13 @@ SHAPE = {"crew_atlas.coat": coat, "crew_atlas.sleeve": sleeve, "crew_atlas.trous
 
 # Which highs bake onto which game part (a cap never shadows the helmet it isn't worn with).
 BAKED = ["body", "hat_cap", "hat_helmet", "scarf"]
-highs = {}
-for name in BAKED:
-    hs = high_of(parts[name])
-    for h in hs:
-        fn = SHAPE.get(h["dt_kind"])
-        if fn is not None:
-            displace(h, fn)
-    highs[name] = hs
+highs = {name: overbake.high_of(parts[name], dress, SHAPE) for name in BAKED}
 # The scan's own head, full resolution, in the body's group.
 highs["body"] += head
 
 from mathutils.bvhtree import BVHTree  # noqa: E402
 
-coat_high = next(h for h in highs["body"] if h["dt_kind"] == "crew_atlas.coat")
+coat_high = next(h for h in highs["body"] if h["dt_kind"].startswith("crew_atlas.coat"))
 tree = BVHTree.FromObject(coat_high, bpy.context.evaluated_depsgraph_get())
 BUTTON = make.lib("paint_black", 8.0, (0.6, 0.55, 0.5), 0.4)
 for z in (0.8, 0.9, 1.13, 1.23, 1.33, 1.43):
@@ -414,58 +325,19 @@ if os.environ.get("CREW_PREVIEW"):
     sys.exit(0)
 
 # ----------------------------------------------------------------------------------------------------------------
-# One atlas over every baked part: the parts are joined for the unwrap and the bakes (a face's part kept as an
-# attribute), then split back into the parts the engine draws per variant. The lamp's glass keeps crew_atlas's lit cell
-# (its faces keep their UVs and their material: a pure light). The face and the hands get more of the atlas than their
-# area would: they're seen closest.
-SIZE = 1024
-LAMP = next(m for m in bpy.data.materials if m.name.startswith("crew_atlas.lamp"))
-LAMP["dt_library"] = True
-keep = {n: {"props": {k: parts[n][k] for k in parts[n].keys()}} for n in BAKED}
-for pi, n in enumerate(BAKED):
-    o = parts[n]
-    attr = o.data.attributes.new("dt_part", "INT", "FACE")
-    attr.data.foreach_set("value", [pi] * len(o.data.polygons))
-    kinds = []
-    for f in o.data.polygons:
-        m = o.data.materials[f.material_index]
-        kinds.append(2 if m.name.startswith("crew_atlas.lamp") else 1 if m.name.startswith("scan_skin")
-                     else 3 if m.name.startswith("crew_atlas.gloves") else 0)
-    k = o.data.attributes.new("dt_kind", "INT", "FACE")
-    k.data.foreach_set("value", kinds)
-bpy.ops.object.select_all(action="DESELECT")
-for n in BAKED:
-    parts[n].select_set(True)
-bpy.context.view_layer.objects.active = parts["body"]
-bpy.ops.object.join()
-low = parts["body"]
-low.name = "crew_joined"
-nf = len(low.data.polygons)
-part_of = np.empty(nf, np.int32)
-low.data.attributes["dt_part"].data.foreach_get("value", part_of)
-kind_of = np.empty(nf, np.int32)
-low.data.attributes["dt_kind"].data.foreach_get("value", kind_of)
-lit = kind_of == 2
+# One atlas over every baked part. The lamp's glass keeps crew_atlas's lit cell (its faces keep their UVs and their
+# material: a pure light). The face (kind 1) and the hands (kind 3) get more of the atlas than their area would: they're
+# seen closest. The head is unwrapped in one piece, round a cylinder on the neck (the seam down the back, under the
+# collar and the cap), in metres, so it lies at the same density as the rest before the boost.
+FACE, HANDS = 1, 3
 
-low.data.uv_layers.active = low.data.uv_layers.new(name="baked")
-bpy.ops.object.select_all(action="DESELECT")
-low.select_set(True)
-bpy.context.view_layer.objects.active = low
-bpy.ops.object.mode_set(mode="EDIT")
-bpy.ops.mesh.select_mode(type="FACE")
-bm = bmesh.from_edit_mesh(low.data)
-for f in bm.faces:
-    f.select = not lit[f.index] and kind_of[f.index] != 1
-bmesh.update_edit_mesh(low.data)
-bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.006, area_weight=0.0, scale_to_bounds=True)
-# The head in one piece, projected round a cylinder on the neck (the seam down the back, under the collar and the cap),
-# in metres, so it lies at the same density as the rest before the boost.
-bm = bmesh.from_edit_mesh(low.data)
-uvl = bm.loops.layers.uv.active
-for f in bm.faces:
-    if kind_of[f.index] != 1:
-        continue
-    f.select = True
+
+def kind(m):
+    return (overbake.Atlas.KEEP if m.name.startswith("crew_atlas.lamp") else FACE if m.name.startswith("scan_skin")
+            else HANDS if m.name.startswith("crew_atlas.gloves") else 0)
+
+
+def head_uv(f, uvl):
     us = []
     for loop in f.loops:
         q = loop.vert.co - HEAD_C
@@ -475,139 +347,25 @@ for f in bm.faces:
         us = [u + 1.0 if u < 0.5 else u for u in us]
     for loop, u in zip(f.loops, us):
         loop[uvl].uv = (u * 0.62, (loop.vert.co.z - 1.5) * 1.0)
-bmesh.update_edit_mesh(low.data)
-bpy.ops.uv.select_all(action="SELECT")
-bpy.ops.uv.average_islands_scale()
-bm = bmesh.from_edit_mesh(low.data)
-uvl = bm.loops.layers.uv.active
-for f in bm.faces:
-    k = {1: 3.5, 3: 1.8}.get(int(kind_of[f.index]), 1.0)
-    if k != 1.0:
-        for loop in f.loops:
-            loop[uvl].uv *= k
-bmesh.update_edit_mesh(low.data)
-bpy.ops.uv.select_all(action="SELECT")
-bpy.ops.uv.pack_islands(rotate=True, margin=0.006)
-bpy.ops.object.mode_set(mode="OBJECT")
-low.data.uv_layers.remove(low.data.uv_layers["UVMap"])
-low.data.uv_layers["baked"].name = "UVMap"
-# Bake targets: a group's faces bake into the atlas, every other face (the other groups', the lamp's) into a scrap
-# image, so each part only ever takes its own high copy.
-bake_mat = bpy.data.materials.new("crew_bake")
-bake_mat.use_nodes = True
-bake_tex = bake_mat.node_tree.nodes.new("ShaderNodeTexImage")
-scrap_mat = bpy.data.materials.new("crew_scrap")
-scrap_mat.use_nodes = True
-scrap_tex = scrap_mat.node_tree.nodes.new("ShaderNodeTexImage")
-scrap_tex.image = bpy.data.images.new("crew_scrap", 8, 8)
-scrap_mat.node_tree.nodes.active = scrap_tex
-low.data.materials.clear()
-low.data.materials.append(bake_mat)
-low.data.materials.append(scrap_mat)
-for flag in ("visible_diffuse", "visible_glossy", "visible_shadow", "visible_transmission", "visible_volume_scatter"):
-    setattr(low, flag, False)
-parts["shovel"].hide_render = True
 
-# A height mask off the high surface (grime rising from the boots): its z, emitted.
-zmat = bpy.data.materials.new("crew_z")
-zmat.use_nodes = True
-znt = zmat.node_tree
-znt.nodes.remove(znt.nodes["Principled BSDF"])
-geo = znt.nodes.new("ShaderNodeNewGeometry")
-sep = znt.nodes.new("ShaderNodeSeparateXYZ")
-div = znt.nodes.new("ShaderNodeMath")
-div.operation = "DIVIDE"
-div.inputs[1].default_value = 1.8
-emit = znt.nodes.new("ShaderNodeEmission")
-znt.links.new(geo.outputs["Position"], sep.inputs["Vector"])
-znt.links.new(sep.outputs["Z"], div.inputs[0])
-znt.links.new(div.outputs[0], emit.inputs["Color"])
-znt.links.new(emit.outputs["Emission"], znt.nodes["Material Output"].inputs["Surface"])
 
-scene = bpy.context.scene
-scene.render.engine = "CYCLES"
-scene.cycles.device = "CPU"
-scene.cycles.use_denoising = False
-scene.cycles.samples = 24
-scene.render.bake.use_selected_to_active = True
-scene.render.bake.cage_extrusion = 0.02
-scene.render.bake.max_ray_distance = 0.05
-scene.render.bake.margin = 3
-all_highs = [h for hs in highs.values() for h in hs]
-# (A bake clears the whole image, so each group bakes into an image of its own, and its pixels, where the bake wrote
-# them (alpha), go into the atlas.)
-acc = {"NORMAL": np.tile(np.array([0.5, 0.5, 1.0, 1.0], np.float32), (SIZE, SIZE, 1)),
-       "AO": np.ones((SIZE, SIZE, 4), np.float32), "DIFFUSE": np.full((SIZE, SIZE, 4), 0.2, np.float32),
-       "EMIT": np.full((SIZE, SIZE, 4), 0.5, np.float32)}
-# (Only the colour bake leaves alpha where it didn't write: its coverage is the group's mask for every map.)
-masks = {}
-# The head bakes as a group of its own, from the scan, with a tight cage: the cloth's high copy is subdivided in from
-# its game mesh by a centimetre or two, but a face's cage that deep projects the cheeks onto the nose.
+atlas = overbake.Atlas("crew", parts, BAKED, kind)
+atlas.unwrap(boosts={FACE: 3.5, HANDS: 1.8}, special={FACE: head_uv})
+# Each part bakes from its own high copy (a cap never shadows the helmet it isn't worn with). The head bakes as a group
+# of its own, from the scan, with a tight cage: the cloth's high copy is subdivided in from its game mesh by a
+# centimetre or two, but a face's cage that deep projects the cheeks onto the nose.
 highs["head"] = [h for h in highs["body"] if h in head]
 highs["body"] = [h for h in highs["body"] if h not in head]
-group_of = np.where(kind_of == 1, len(BAKED), part_of)
-CAGES = {"head": (0.006, 0.02)}
-for pi, name in enumerate(BAKED + ["head"]):
-    low.data.polygons.foreach_set("material_index", np.where((group_of == pi) & ~lit, 0, 1).astype(np.int32))
-    low.data.update()
-    for h in all_highs:
-        h.hide_render = h not in highs[name]
-    scene.render.bake.cage_extrusion, scene.render.bake.max_ray_distance = CAGES.get(name, (0.02, 0.05))
-    wrote = None
-    for kind in ("DIFFUSE", "NORMAL", "AO", "EMIT"):
-        if kind == "EMIT":
-            for h in highs[name]:
-                h.data.materials.clear()
-                h.data.materials.append(zmat)
-        img = bpy.data.images.new(f"crew_{kind}_{name}", SIZE, SIZE, alpha=True)
-        img.generated_color = (0, 0, 0, 0)
-        img.colorspace_settings.name = "sRGB" if kind == "DIFFUSE" else "Non-Color"
-        bake_tex.image = img
-        bake_mat.node_tree.nodes.active = bake_tex
-        bpy.ops.object.select_all(action="DESELECT")
-        for h in highs[name]:
-            h.select_set(True)
-        low.select_set(True)
-        bpy.context.view_layer.objects.active = low
-        if kind == "NORMAL":
-            scene.render.bake.normal_space = "TANGENT"
-            bpy.ops.object.bake(type="NORMAL")
-        elif kind == "DIFFUSE":
-            scene.render.bake.use_pass_direct = False
-            scene.render.bake.use_pass_indirect = False
-            scene.render.bake.use_pass_color = True
-            bpy.ops.object.bake(type="DIFFUSE")
-        else:
-            bpy.ops.object.bake(type=kind)
-        px = cook._image_array(img, SIZE)
-        if wrote is None:
-            wrote = px[..., 3] > 0.5
-        acc[kind][wrote] = px[wrote]
-        bpy.data.images.remove(img)
-    masks[name] = wrote
-    if os.environ.get("CREW_DEBUG"):
-        print("[dt] bake", name, int(wrote.sum()))
-cook.delete(all_highs)
-parts["shovel"].hide_render = False
-if os.environ.get("DT_BAKE_DEBUG"):
-    for kind, arr in acc.items():
-        cook._save(arr, os.path.join(cook.ROOT, "out", "review", f"bake-crew_{kind.lower()}.png"))
-nimg = bpy.data.images.new("crew_normal", SIZE, SIZE, alpha=False)
-nimg.colorspace_settings.name = "Non-Color"
-nimg.pixels.foreach_set(acc["NORMAL"][::-1].ravel())
+groups = {name: ((atlas.part_of == pi) & (atlas.kind_of != FACE), highs[name]) for pi, name in enumerate(BAKED)}
+groups["head"] = (atlas.kind_of == FACE, highs["head"])
+atlas.bake(groups, cages={"head": (0.006, 0.02)}, hide=[parts["shovel"]])
 
 # The colour, darkened by the occlusion and sooted: soot in every crease, the mud and wet of the ballast climbing the
 # boots and the coat's hem, the shoulders and cap dulled where the smoke settles on them.
-ao = acc["AO"][..., 0]
-z = acc["EMIT"][..., 0] * 1.8
-base = cook.srgb_to_lin(acc["DIFFUSE"][..., :3])
-face = masks["head"]
-# (A face takes its occlusion gently: the lips' line, deep in the scan, would soot into an open mouth.)
-ao = np.where(face, ao ** 0.35, ao)
-base = base * (0.35 + 0.65 * ao)[..., None]
-crease = np.clip((1 - ao) * 2.2, 0, 1) * np.where(face, 0.3, 1.0)
+face = atlas.masks["head"]
 soot = np.array([0.018, 0.016, 0.014], np.float32)
-base = base * (1 - 0.45 * crease)[..., None] + soot * (0.45 * crease)[..., None]
+base = atlas.base(soot=soot, gentle=face)
+z = atlas.height()
 mud = np.array([0.05, 0.04, 0.03], np.float32)
 low_down = np.clip((0.55 - z) / 0.5, 0, 1) ** 1.5 * 0.55
 base = base * (1 - low_down)[..., None] + mud * low_down[..., None]
@@ -615,6 +373,7 @@ settled = np.clip((z - 1.35) / 0.4, 0, 1) * 0.2
 base = base * (1 - settled)[..., None] + soot * settled[..., None]
 # The skin: the scan's is a clean, warm studio face. Out here it's sallow with cold and smoke, soot worked into it in
 # smudges (the atlas's own noise: the head's one island takes it as blotches across the face).
+SIZE = atlas.size
 yy, xx = np.mgrid[0:SIZE, 0:SIZE].astype(np.float32) / SIZE
 smudge = np.clip(cook.noise_np(np.stack([xx.ravel() * 9, yy.ravel() * 9, np.zeros(SIZE * SIZE)], 1), 17, 1.0).reshape(SIZE, SIZE)
                  * 0.8 + cook.noise_np(np.stack([xx.ravel() * 31, yy.ravel() * 31, np.ones(SIZE * SIZE)], 1), 19, 1.0).reshape(SIZE, SIZE) * 0.4, 0, 1)
@@ -623,66 +382,5 @@ grey = base.mean(-1, keepdims=True)
 sallow = (base * 0.55 + grey * 0.45) * tone
 sallow = sallow * (1 - 0.55 * smudge)[..., None] + soot * (0.55 * smudge)[..., None]
 base = np.where(face[..., None], sallow, base)
-bimg = bpy.data.images.new("crew_base", SIZE, SIZE, alpha=True)
-rgba = np.ones((SIZE, SIZE, 4), np.float32)
-rgba[..., :3] = cook.lin_to_srgb(base)
-bimg.pixels.foreach_set(rgba[::-1].ravel())
-
-final = bpy.data.materials.new("crew_final")
-final.use_nodes = True
-nt = final.node_tree
-bsdf = nt.nodes["Principled BSDF"]
-t = nt.nodes.new("ShaderNodeTexImage")
-t.image = bimg
-nt.links.new(t.outputs["Color"], bsdf.inputs["Base Color"])
-ntex = nt.nodes.new("ShaderNodeTexImage")
-ntex.image = nimg
-nmap = nt.nodes.new("ShaderNodeNormalMap")
-nt.links.new(ntex.outputs["Color"], nmap.inputs["Color"])
-nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
-bsdf.inputs["Roughness"].default_value = 0.75
-bsdf.inputs["Metallic"].default_value = 0.0
-low.data.materials[0] = final
-low.data.materials[1] = LAMP
-low.data.polygons.foreach_set("material_index", lit.astype(np.int32))
-for f in low.data.polygons:
-    f.use_smooth = True
-for flag in ("visible_diffuse", "visible_glossy", "visible_shadow", "visible_transmission", "visible_volume_scatter"):
-    setattr(low, flag, True)
-
-# Split back into the parts, each with its name and extras (variants), still skinned to the rig.
-lows = []
-for pi, name in enumerate(BAKED):
-    o = low.copy()
-    o.data = low.data.copy()
-    bpy.context.scene.collection.objects.link(o)
-    bm = bmesh.new()
-    bm.from_mesh(o.data)
-    bm.faces.ensure_lookup_table()
-    bmesh.ops.delete(bm, geom=[f for f in bm.faces if part_of[f.index] != pi], context="FACES")
-    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
-    bm.to_mesh(o.data)
-    bm.free()
-    for a in ("dt_part", "dt_kind"):
-        if a in o.data.attributes:
-            o.data.attributes.remove(o.data.attributes[a])
-    if not any(o.data.polygons[i].material_index == 1 for i in range(len(o.data.polygons))):
-        o.data.materials.pop(index=1)
-    for k in list(o.keys()):
-        del o[k]
-    for k, v in keep[name]["props"].items():
-        o[k] = v
-    o.name = name
-    o.data.name = f"crew_{name}"
-    lows.append(o)
-bpy.data.objects.remove(low, do_unlink=True)
-print("[dt] crew parts baked", {o.name: len(o.data.polygons) for o in lows})
-layers = cook.bake_layers("crew", lows, family="creature", source_ids=["threejs-leeperrysmith"],
-                          made=make.provenance("crew", "the crew's clothes and kit, modelled over tools/blender/crew.py"),
-                          size=SIZE)
-cook._merge_index("crew", layers)
-# (Scraps the bake left: nothing but the rig and its parts may go in the file.)
-for o in [o for o in bpy.data.objects if o.type == "MESH" and o.parent is not arm]:
-    bpy.data.objects.remove(o, do_unlink=True)
-arm.data.pose_position = "POSE"
-rig.export(os.path.join(cook.ROOT, "content", "art", "models", "crew.glb"), kit)
+atlas.finish(base, kit, arm, source_ids=["threejs-leeperrysmith"],
+             made=make.provenance("crew", "the crew's clothes and kit, modelled over tools/blender/crew.py"))

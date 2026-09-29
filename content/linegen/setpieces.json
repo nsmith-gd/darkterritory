@@ -1,0 +1,56 @@
+// The set piece library (plan §7.2) and the signature stacks (§7.4). A piece's kind is the code that realises it; its
+// numbers are here. cost is terrain budget units (§3.3): a climb or descent costs cost + costScale x (g / g_main) x
+// (length / 4 km); a tunnel cost per 300 m, +1 on a grade, +1 curved; a weak trestle +costScale. crunch: a piece
+// the sawtooth builds up to (§7.1). minD / fullD: the difficulty it's allowed from, and where it reaches its full
+// form. weight: how often it's picked among what fits, before the biome's bias (biomes.json "pieces").
+{
+  "pieces": [
+    { "id": "straight", "kind": "straight", "minD": 0, "fullD": 0, "lengthM": [200, 2500], "cost": 0, "costScale": 0, "crunch": false,
+      "tags": ["straight"], "params": {}, "weight": 1 },
+    { "id": "sweep", "kind": "sweep", "minD": 0, "fullD": 0, "lengthM": [300, 1200], "cost": 0, "costScale": 0, "crunch": false,
+      "tags": ["curve_gentle"], "params": { "radius": [800, 2500], "deflectionDeg": [5, 40] }, "weight": 1 },
+    { "id": "climb", "kind": "climb", "minD": 0, "fullD": 0, "lengthM": [600, 4000], "cost": 1, "costScale": 3, "crunch": false,
+      "tags": ["climb"], "params": { "gradeShare": [0.55, 1.0] }, "weight": 1.4 },
+    { "id": "descent", "kind": "descent", "minD": 0, "fullD": 0, "lengthM": [600, 4000], "cost": 1, "costScale": 2, "crunch": false,
+      "tags": ["descent"], "params": { "gradeShare": [0.55, 1.0] }, "weight": 1.2 },
+    { "id": "summit", "kind": "summit", "minD": 0.5, "fullD": 0.5, "lengthM": [1800, 6000], "cost": 0, "costScale": 0, "crunch": true,
+      "tags": ["climb", "crest", "descent"], "params": { "gradeShare": [0.6, 1.0], "levelM": [150, 400] }, "weight": 0.8 },
+    { "id": "roller", "kind": "roller", "minD": 0.5, "fullD": 0.5, "lengthM": [1200, 3000], "cost": 1, "costScale": 0, "crunch": false,
+      "tags": ["roller"], "params": { "grade": [0.5, 1.5], "wavelengthM": [300, 600] }, "weight": 0.7 },
+    { "id": "theDrop", "kind": "drop", "minD": 0.3, "fullD": 1.0, "lengthM": [1900, 3500], "cost": 3, "costScale": 0, "crunch": true,
+      "tags": ["descent", "pre_curve"], "params": { "limitMs": [9, 15], "mildShareOfLineSpeed": [0.85], "gradeShare": [0.6, 1.0], "curveDeg": [35, 75], "descentMinM": [1500] }, "weight": 1 },
+    { "id": "blindThroat", "kind": "blindThroat", "minD": 1.0, "fullD": 1.0, "lengthM": [500, 1100], "cost": 3, "costScale": 0, "crunch": true,
+      "tags": ["cutting", "blind_curve_exit", "wet_bias"], "params": { "wallM": [8, 20], "radiusFactor": [1.0, 1.6], "deflectionDeg": [20, 45] }, "weight": 1 },
+    { "id": "ledge", "kind": "ledge", "minD": 1.0, "fullD": 1.0, "lengthM": [500, 1500], "cost": 2, "costScale": 0, "crunch": false,
+      "tags": ["ledge", "exposed"], "params": { "upM": [15, 40], "dropM": [20, 60], "radiusFactor": [1.2, 2.5], "deflectionDeg": [15, 50] }, "weight": 1 },
+    { "id": "trestle", "kind": "trestle", "minD": 0.5, "fullD": 0.5, "lengthM": [400, 1000], "cost": 2, "costScale": 2, "crunch": false,
+      "tags": ["bridge", "exposed"], "params": { "spanM": [60, 400], "heightM": [15, 50], "weakFromD": [1.0], "weakChance": [0.35] }, "weight": 1 },
+    { "id": "riverCrossing", "kind": "river", "minD": 0, "fullD": 0, "lengthM": [700, 1500], "cost": 2, "costScale": 0, "crunch": false,
+      "tags": ["bridge", "water_crossing", "low_ground"], "params": { "spanM": [40, 200], "depthM": [3, 8] }, "weight": 1 },
+    { "id": "causeway", "kind": "causeway", "minD": 1.0, "fullD": 1.0, "lengthM": [600, 2500], "cost": 2, "costScale": 0, "crunch": false,
+      "tags": ["marsh", "low_ground"], "params": { "contaminatedFromD": [2.0], "culvertEveryM": [100] }, "weight": 1 },
+    { "id": "tunnel", "kind": "tunnel", "minD": 0.5, "fullD": 0.5, "lengthM": [450, 2800], "cost": 1, "costScale": 300, "crunch": true,
+      "tags": ["tunnel"], "params": { "boreM": [150, 2200], "approachM": [150, 300], "curvedFromD": [2.0], "curvedChance": [0.5], "gradeChance": [0.5] }, "weight": 1 },
+    { "id": "darkForest", "kind": "region", "minD": 0, "fullD": 0, "lengthM": [1000, 4000], "cost": 1, "costScale": 0, "crunch": false,
+      "tags": ["dark_forest"], "params": { "curveBias": [0.7] }, "weight": 0.6 },
+    { "id": "openPlain", "kind": "region", "minD": 0, "fullD": 0, "lengthM": [1000, 5000], "cost": 0, "costScale": 0, "crunch": false,
+      "tags": ["open", "exposed"], "params": { "curveBias": [0.0] }, "weight": 0.6 },
+    { "id": "brassField", "kind": "brass", "minD": 1.0, "fullD": 1.0, "lengthM": [400, 700], "cost": 1, "costScale": 0, "crunch": false,
+      "tags": ["brass"], "params": {}, "weight": 0 },
+    { "id": "momentumBank", "kind": "momentum", "minD": 1.3, "fullD": 1.3, "lengthM": [900, 2200], "cost": 4, "costScale": 0, "crunch": true,
+      "tags": ["climb", "momentum"], "params": { "runUpM": [600, 1200], "carryShare": [0.7], "gradeOverMain": [0.25, 1.0] }, "weight": 0 },
+    { "id": "deadSettlement", "kind": "settlement", "minD": 0, "fullD": 0, "lengthM": [300, 900], "cost": 0, "costScale": 0, "crunch": false,
+      "tags": ["dead_settlement", "landmark"], "params": { "townChance": [0.35], "haltM": [300], "townM": [600, 900], "everyKm": [4, 8] }, "weight": 0 }
+  ],
+
+  // Plan §7.4: placed at least once a run where the tier allows. chain: pieces one after another, each inside the
+  // last's demand window; "a+b" lays b on a's grade (a Blind Throat on a descent).
+  "signatures": [
+    { "id": "houndsHill",          "minD": 1.0, "chain": ["climb"],                            "afterFacility": true,  "onDescent": false, "weight": 1 },
+    { "id": "blindGrease",         "minD": 1.5, "chain": ["descent+blindThroat"],              "afterFacility": false, "onDescent": true,  "weight": 1 },
+    { "id": "junctionAtTheBottom", "minD": 2.0, "chain": ["descent"],                          "afterFacility": false, "onDescent": true,  "weight": 1 },
+    { "id": "dropIntoHighIron",    "minD": 2.0, "chain": ["theDrop", "trestle"],               "afterFacility": false, "onDescent": false, "weight": 1 },
+    { "id": "theLongDark",         "minD": 2.5, "chain": ["climb+tunnel", "ledge"],            "afterFacility": false, "onDescent": false, "weight": 1 },
+    { "id": "theGauntlet",         "minD": 3.0, "chain": ["momentumBank", "blindThroat", "tunnel"], "afterFacility": false, "onDescent": false, "weight": 1 }
+  ]
+}

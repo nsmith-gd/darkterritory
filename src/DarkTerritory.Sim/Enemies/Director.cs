@@ -144,6 +144,9 @@ public sealed class Director
         return reserve;
     }
 
+    /// <summary>An enemy's name as a generated line's affinity table has it (linegen/tiers.json): its kind, camel-cased.</summary>
+    static string Name(EnemyKind kind) => kind.ToString() is var n ? char.ToLowerInvariant(n[0]) + n[1..] : "";
+
     /// <summary>How much of the budget may have been spent by this point along the line.</summary>
     public double Allowance(double distance)
     {
@@ -203,8 +206,9 @@ public sealed class Director
             options.Add((EnemyKind.Weight, train.Dynamics.Speed < gt.Weight.LowSpeed ? gt.Weight.LowSpeedWeight : 1));
         // App. B.7: the Switchman works junctions on the Frontier and beyond, on a route with enough of them to have a
         // network, and there's never more than one corrupted human about. It needs a dead line's points ahead in its window.
+        // An alternate is two junctions of the network, where it leaves and where it rejoins (linegen plan §3.2's count).
         if (_route is { } r && r.Tier >= RouteTier.Frontier && world.Enemies is { } et
-            && r.Branches.Count(b => b.Kind == Rail.BranchKind.DeadLine) >= et.Switchman.MinJunctions
+            && r.Branches.Sum(b => b.Kind switch { Rail.BranchKind.DeadLine => 1, Rail.BranchKind.Alternate => 2, _ => 0 }) >= et.Switchman.MinJunctions
             && !active.Any(e => !e.Gone && e.Kind == EnemyKind.Switchman) && Zone(PressureZone.Forward) < _t.MaxConcurrentZone
             && Switchman.Junction(world, et.Switchman) is not null)
             options.Add((EnemyKind.Switchman, 1));
@@ -263,6 +267,19 @@ public sealed class Director
             && LongWhistle.Spot(train, wt.LongWhistle) is not null)
             options.Add((EnemyKind.LongWhistle, wr.Weather.FogDensity >= wt.LongWhistle.FogFrom ? wt.LongWhistle.FogWeight : 1));
         options.RemoveAll(o => Cost(o.Kind) > available - Reserve(world, s, o.Kind));
+        // A generated line's director context (linegen plan §15): no spawns under a ban (the grace stretch, the
+        // terminus), none of its own while the terrain is already at its hardest there (§15.4), and under the terrain's
+        // tags the enemies that belong there come more often (§15.1).
+        if (_route?.Plan?.Director is { } context)
+        {
+            var tags = context.TagsAt(s).ToList();
+            if (tags.Any(context.SpawnBans.Contains) || context.PressureAt(s) >= context.PressureCeiling)
+                return null;
+            for (int i = 0; i < options.Count; i++)
+                foreach (var tag in tags)
+                    if (context.Affinity.GetValueOrDefault(tag)?.GetValueOrDefault(Name(options[i].Kind)) is { } w)
+                        options[i] = (options[i].Kind, options[i].Weight * w);
+        }
         if (options.Count == 0)
             return null;
         // App. B.1 contradiction seeding: "the director draws pairs from a conflict table rather than spawning

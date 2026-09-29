@@ -36,6 +36,10 @@ ALBEDO = {
     # ground
     "ballast": 0.12, "ground_mud": 0.06, "ground_grass": 0.085, "ground_forest": 0.055, "marsh": 0.05,
     "rock_cliff": 0.10, "coal": 0.04, "slag": 0.08, "cobbles": 0.10,
+    # the Maritimes (mat_maritime): the heath and the clay a little lighter than the black forest's floor, the
+    # granite the palest ground there is (it catches the headlamp), the bog near black
+    "ground_heath": 0.075, "ground_needles": 0.065, "granite_lichen": 0.13, "ground_red_clay": 0.075, "water_dark": 0.016,
+    "bog_sphagnum": 0.06, "shore_shingle": 0.10,
     # masonry
     "stone_block": 0.11, "brick_soot": 0.075, "concrete_stain": 0.13, "plaster_ruin": 0.13, "roof_slate": 0.06,
     # foliage

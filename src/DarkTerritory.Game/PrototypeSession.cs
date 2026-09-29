@@ -39,7 +39,7 @@ public sealed class PrototypeSession : IPlaySession
         var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(contentRoot, RouteTuning.File));
         World.EnableSwitches(routeTuning.Junctions);
         World.EnableRun(DataFile.Load<RunTuning>(Path.Combine(contentRoot, RunTuning.File)), route,
-            routeTuning.YardLength, authority: true,
+            route.GateOr(routeTuning.YardLength), authority: true,
             DataFile.Load<FacilityTuning>(Path.Combine(contentRoot, FacilityTuning.File)));
     }
 
@@ -326,7 +326,11 @@ public sealed class PrototypeSession : IPlaySession
                     stop = $" | {zone.Facility.ToString()!.ToUpperInvariant()} IS DOWN THE SPUR: ENGINE + {fit} CARS FIT" +
                         (train.Dynamics.Consist.CarCount > fit ? ", CUT THE REST" : "");
                 }
-        string next = route.NextLandmark(s) is { } l
+        // On a generated line, the next place by its name, as the route card has it (linegen plan §13.3).
+        string next = route.Plan?.Landmarks.Where(p => p.Edge == "main" && p.S0 > s).MinBy(p => p.S0) is { } place
+            ? $"{place.Name} in {(place.S0 - s) / 1000:0.0} km"
+            : route.Plan is { } plan ? $"{plan.Terminus.Name} in {Math.Max(0, plan.Terminus.GateM - s) / 1000:0.0} km"
+            : route.NextLandmark(s) is { } l
             ? $"{(l.Kind == FeatureKind.Facility ? $"{l.Facility}" : $"{l.Kind}").ToLowerInvariant()} in {(l.Start - s) / 1000:0.0} km"
             : "terminus ahead";
         string tunnel = route.InTunnel(s) ? " | IN TUNNEL" : "";

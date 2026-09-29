@@ -78,8 +78,16 @@ public sealed partial class WorldArt(Look look)
         return new Cell(MeshAsset.From($"cell-{index}", built), [.. built.Instances.Select(x => (x.Asset, x.Model))], [.. built.PointLights], origin);
     }
 
+    /// <summary>
+    /// How many metres a generated line's land repeats over: both of a quad's layers share one mapping, and the rock at
+    /// the heath's 2 m would read as a quilt across a hillside. 512 maps at 5 m are ~100 px a metre, a 2008 terrain's.
+    /// </summary>
+    const float TerrainTile = 5f;
+
     /// <summary>The terrain's cross-section: lateral offsets (m) out from the centre line, and heights at them.</summary>
     static readonly float[] Lateral = [0, 1.55f, 2.35f, 2.95f, 3.7f, 5.5f, 8, 12, 17, 24, 33, 45, 60, 78, 100];
+    /// <summary>A generated line's land runs on out to its terrain corridor's edge (linegen plan §12.2), where it falls away under the fog.</summary>
+    static readonly float[] PlanLateral = [.. Lateral, 130, 165, 205, 250, 300];
     static readonly float[] Profile = [0.0f, 0.0f, -0.24f, -0.3f, -0.06f, -0.02f, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
     const double Wrap = 4096;
@@ -125,6 +133,9 @@ public sealed partial class WorldArt(Look look)
             i++;
         float t = Math.Clamp((a - Lateral[i - 1]) / (Lateral[i] - Lateral[i - 1]), 0, 1);
         h = float.Lerp(Profile[i - 1], Profile[i], t);
+        // A generated line's land is its terrain field's, what the sim stands people on (linegen plan §12).
+        if (Scene(route) is { } plan)
+            return Relief(plan, route!, s, lateral, h);
         // Hills past the verge: rising with distance, a long wavelength along the line, different each side.
         float hill = MathF.Max(0, (a - 16) / 84);
         float side = lateral < 0 ? 31.7f : 0;
@@ -176,11 +187,13 @@ public sealed partial class WorldArt(Look look)
         var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
         var origin = k.SurfaceOrigin;
         const double step = 5;
-        int columns = Lateral.Length;
+        var plan = Scene(route);
+        var lateral = plan is null ? Lateral : PlanLateral;
+        int columns = lateral.Length;
         var left = new Vector3[columns * 2 - 1];
         var right = new Vector3[columns * 2 - 1];
         // Across the line: from the far left to the far right, both sides of one profile.
-        float LateralAt(int c) => c < columns - 1 ? -Lateral[columns - 1 - c] : Lateral[c - (columns - 1)];
+        float LateralAt(int c) => c < columns - 1 ? -lateral[columns - 1 - c] : lateral[c - (columns - 1)];
         void Row(double s, Vector3[] into, out float gorge, out bool bore)
         {
             var sample = line.Sample(s);
@@ -228,6 +241,39 @@ public sealed partial class WorldArt(Look look)
                     : new(colour * GroundShade(l, at), GroundBlend(band, l, at));
                 if (bridge)
                     (a, b) = (_look.Layer("rock_cliff"), _look.Layer("ground_mud"));
+                // A generated line's cess: the bed's ballast spills straight into its biome's ground, not a strip of
+                // mud (a strip that narrow lines its puddles up into a chain however the tile's shifted); past the bed
+                // the biome's ground takes over below.
+                if (plan is not null && !bridge && !hill && band == 0 && a >= 0 && BiomeGround(plan, s) is var (pa, _) && pa >= 0)
+                {
+                    // Tinted like the land past it (Macro), or the cess shows as a lighter stripe with a hard edge.
+                    Corner Cess(Vector3 p, float l, double at) => new(Macro(p + origin) * GroundShade(l, at), GroundBlend(0, l, at));
+                    Quad(mesh, left[c], left[c + 1], right[c + 1], right[c], Cess(left[c], l0, s), Cess(left[c + 1], l1, s), Cess(right[c + 1], l1, s1),
+                        Cess(right[c], l0, s1), origin, a, pa, _look.Textures[a].TileMetres ?? 2);
+                    continue;
+                }
+                // A generated line's land: its biome's own ground, going to bare rock where it's steep (linegen plan §12.5).
+                if (plan is not null && !bridge && !hill && band > 0 && BiomeGround(plan, s) is var (ga, gb) && ga >= 0)
+                {
+                    float Steep(Vector3[] row, int i) => SmoothStep(0.65f, 1.3f, SlopeAt(row, i));
+                    // World position of a corner (the rows are camera-relative), for the slow macro variation.
+                    Vector3 World(Vector3[] row, int i) => row[i] + origin;
+                    // By the water (maritime-rules.md §2-5) the ground goes to its shore: the lakes' and the Atlantic's
+                    // shingle and boulders, Fundy's and the tidal rivers' red mud, up to a couple of metres over the water.
+                    var mid = (left[c] + right[c + 1]) / 2;
+                    var water = MathF.Abs(lat) > 6 ? plan.Terrain.WaterNear(mid.X + eye.X, mid.Z + eye.Z, 30) : null;
+                    int shore = water is { } wn ? _look.Layer(wn.Kind is "lake" or "sea" or "river" ? "shore_shingle" : "ground_red_clay") : -1;
+                    float Wet(Vector3[] row, int i) => water is { } wn2 && shore >= 0 ? SmoothStep(2.4f, 0.6f, (float)(row[i].Y + eye.Y - wn2.Level)) : 0;
+                    // Under a stand the ground is the forest's: dark needle duff in the shade, not the open heath.
+                    float cover = plan.Biome(s) is { } bd ? Cover(bd) : 0;
+                    float Duff(Vector3[] row, int i) => cover > 0 && MathF.Abs(LateralAt(i)) > 6 ? 1 - 0.5f * Stand(new Double3(row[i].X + eye.X, row[i].Y + eye.Y, row[i].Z + eye.Z), cover) : 1;
+                    Corner At(Vector3[] row, int i, float l, double at) => shore >= 0
+                        ? new(Macro(World(row, i)) * GroundShade(l, at), Wet(row, i))
+                        : new(Macro(World(row, i)) * GroundShade(l, at) * Duff(row, i), MathF.Max(Steep(row, i), Patches(World(row, i)) * SmoothStep(9, 20, MathF.Abs(l))));
+                    Quad(mesh, left[c], left[c + 1], right[c + 1], right[c], At(left, c, l0, s), At(left, c + 1, l1, s), At(right, c + 1, l1, s1), At(right, c, l0, s1),
+                        origin, ga, shore >= 0 ? shore : gb, TerrainTile);
+                    continue;
+                }
                 Quad(mesh, left[c], left[c + 1], right[c + 1], right[c], Make(l0, s), Make(l1, s), Make(l1, s1), Make(l0, s1), origin, a, b,
                     a >= 0 && _look.Textures[a].TileMetres is { } tm ? tm : 2);
             }
@@ -237,7 +283,7 @@ public sealed partial class WorldArt(Look look)
 
         // Sleepers near the eye only (past ~150 m the fog has them anyway), each a little off true; rails all along.
         // A timber trestle's deck carries its own ties.
-        Rails(k, line, eye, from, to, s => route?.BridgeAt(s) is not { MaxCars: > 0 }, _ => true);
+        Rails(k, line, eye, from, to, s => route?.BridgeAt(s) is not { MaxCars: > 0 } && Laid(route, s), s => Laid(route, s));
     }
 
     /// <summary>A transform from a piece's frame (−Z along <paramref name="tangent"/>, +X to its right) to camera-relative space.</summary>
@@ -269,6 +315,9 @@ public sealed partial class WorldArt(Look look)
                 (k1, k2) = (k2, k1);
                 n = -n;
             }
+            // Mapped straight down on the level, and from the side on the steep (a cutting's wall, a bank, a scarp),
+            // whichever way the face looks: a 2008 terrain's cheap triplanar, per triangle, so a cliff isn't smeared.
+            int axis = MathF.Abs(n.Y) > 0.8f ? 1 : MathF.Abs(n.X) > MathF.Abs(n.Z) ? 0 : 2;
             void V(Vector3 p, Corner k)
             {
                 var w = p + origin;
@@ -276,7 +325,7 @@ public sealed partial class WorldArt(Look look)
                 {
                     Surface = w * 128,
                     Wear = 0.45f,
-                    Uv = new Vector2(w.X, w.Z) / tile,
+                    Uv = axis switch { 1 => new Vector2(w.X, w.Z), 0 => new Vector2(w.Z, -w.Y), _ => new Vector2(w.X, -w.Y) } / tile,
                     Layer = layer,
                     Layer2 = layer2,
                     Blend = k.Blend,
@@ -303,7 +352,7 @@ public sealed partial class WorldArt(Look look)
         // Clear of bridges, and of tunnels and their cuttings (the hill's approaches).
         bool Clear(double s) => route is null || (!route.InTunnel(s) && !route.InTunnel(s + 30) && !route.InTunnel(s - 30) && route.BridgeAt(s) is null);
         bool OnBranch(double along, double offset) => line.Branches.Any(b => along > b.Toe - 20 && along < b.End + 20 && Math.Sign(offset) == b.Side
-            && Math.Abs(offset) < (b.Kind == BranchKind.Spur ? 60 : 16));
+            && Math.Abs(offset) < (b.Kind == BranchKind.Spur ? 60 : 16)) || !PlanClear(route, line, along, offset);
         Matrix4x4 Place(double s, double lateral, float yaw, float scale, float sink = 0)
         {
             var t = line.Sample(s);
@@ -346,6 +395,12 @@ public sealed partial class WorldArt(Look look)
             lastTops = tops;
         }
 
+        // A generated line is dressed by its biomes (PlanArt).
+        if (Scene(route) is { } plan)
+        {
+            PlanDressing(mesh, line, route!, plan, eye, from, to, seed, OnBranch);
+            return;
+        }
         // The forest: stands of pines, thinner near the line, thick further out, gaps where the ground is open.
         for (double s = Math.Ceiling(from / 12) * 12; s < to; s += 12)
         {
@@ -457,6 +512,9 @@ public sealed partial class WorldArt(Look look)
             if (!OnBranch(s, lat))
                 mesh.Instances.Add(new MeshInstance(cairn, Place(s, lat, Hash(k * 3.9f) * 6.28f, 0.8f + Hash(k * 6.1f) * 0.5f, 0.1f)));
         }
+        // A generated line has its own towns and dead signals (PlanArt), where the plan put them.
+        if (Scene(route) is not null)
+            return;
         Settlements(mesh, line, route, eye, from, to, seed, valleyDepth, OnBranch);
         for (double s = Math.Ceiling(from / 700) * 700; s < to; s += 700)
             if (Clear(s) && !OnBranch(s, -3.8))
