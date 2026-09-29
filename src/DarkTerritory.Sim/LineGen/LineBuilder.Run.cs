@@ -200,6 +200,8 @@ sealed partial class LineBuilder
             {
                 SignOffsetM = _c.Config.Signage.SideOffsetM,
                 Biomes = new SortedDictionary<string, BiomeDef>(_c.Config.Biomes.Biomes, StringComparer.Ordinal),
+                BiomeLandforms = new SortedDictionary<string, IReadOnlyDictionary<string, double>>(_c.Config.Biomes.Biomes.ToDictionary(b => b.Key,
+                    b => (IReadOnlyDictionary<string, double>)new SortedDictionary<string, double>(b.Value.Landform, StringComparer.Ordinal)), StringComparer.Ordinal),
                 BiomeRelief = new SortedDictionary<string, double>(_c.Config.Biomes.Biomes.ToDictionary(b => b.Key, b => b.Value.NoiseScale), StringComparer.Ordinal),
                 Boards = new SortedDictionary<string, BoardDef>(_c.Config.Signage.Boards, StringComparer.Ordinal),
             },

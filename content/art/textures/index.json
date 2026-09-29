@@ -2243,5 +2243,264 @@
       }
     ],
     "license": "CC0-1.0"
+  },
+  {
+    "name": "ground_heath",
+    "diffuse": "ground_heath.png",
+    "spec": "ground_heath_s.png",
+    "normal": "ground_heath_n.png",
+    "size": 512,
+    "tileMetres": 2.0,
+    "tiling": true,
+    "family": "ground",
+    "alphaTest": false,
+    "albedoTarget": 0.075,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/moss_ground_diffuse.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/moss_ground_displacement.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "heath mat (fbm clumps), lichen cushions (voronoi), granite grit",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "ground_needles",
+    "diffuse": "ground_needles.png",
+    "spec": "ground_needles_s.png",
+    "normal": "ground_needles_n.png",
+    "size": 512,
+    "tileMetres": 2.0,
+    "tiling": true,
+    "family": "ground",
+    "alphaTest": false,
+    "albedoTarget": 0.065,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_diffuse.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_displacement.jpg",
+        "author": "ambientCG",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/moss_ground_diffuse.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "needle duff, feather moss clumps, cones",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "granite_lichen",
+    "diffuse": "granite_lichen.png",
+    "spec": "granite_lichen_s.png",
+    "normal": "granite_lichen_n.png",
+    "size": 512,
+    "tileMetres": 3.0,
+    "tiling": true,
+    "family": "ground",
+    "alphaTest": false,
+    "albedoTarget": 0.13,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/rock_granite_diffuse.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/rock_granite_displacement.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/rock_granite_ao.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/rock_granite_roughness.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "joints, lichen rosettes (voronoi), wet streaks",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "ground_red_clay",
+    "diffuse": "ground_red_clay.png",
+    "spec": "ground_red_clay_s.png",
+    "normal": "ground_red_clay_n.png",
+    "size": 512,
+    "tileMetres": 2.0,
+    "tiling": true,
+    "family": "ground",
+    "alphaTest": false,
+    "albedoTarget": 0.075,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/dirt_ground_diffuse.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/dirt_ground_displacement.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/dirt_ground_ao.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "drying cracks (voronoi), ruts, wet lows, dead grass",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "bog_sphagnum",
+    "diffuse": "bog_sphagnum.png",
+    "spec": "bog_sphagnum_s.png",
+    "normal": "bog_sphagnum_n.png",
+    "size": 512,
+    "tileMetres": 2.0,
+    "tiling": true,
+    "family": "ground",
+    "alphaTest": false,
+    "albedoTarget": 0.06,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/moss_ground_diffuse.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/moss_ground_displacement.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "sphagnum hummocks, peat pools (spec), sedge",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "shore_shingle",
+    "diffuse": "shore_shingle.png",
+    "spec": "shore_shingle_s.png",
+    "normal": "shore_shingle_n.png",
+    "size": 512,
+    "tileMetres": 2.0,
+    "tiling": true,
+    "family": "ground",
+    "alphaTest": false,
+    "albedoTarget": 0.1,
+    "sources": [
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/gravel_ground_diffuse.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/gravel_ground_displacement.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/sand_desert_diffuse.jpg",
+        "author": "Mini Texture",
+        "license": "CC0-1.0"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "elliptical cobbles (domes, largest first) on gravel and sand, wet low line, wrack",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
   }
 ]

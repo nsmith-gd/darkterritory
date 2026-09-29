@@ -86,16 +86,41 @@ public sealed partial class WorldArt
     /// </summary>
     (int Ground, int Rock) BiomeGround(PlanScene p, double s)
     {
-        string texture = p.Biome(s)?.Ground switch
+        // biomes.json names the textures (the Maritime ground, tools/art/texgen/mat_maritime.py); an older plan's names
+        // are the splat families they stood for.
+        string Texture(string? name) => name switch
         {
+            null => "ground_grass",
             "deadGrass" => "ground_grass",
             "soil" => "ground_forest",
-            "mud" => p.BiomeAt(s) is "marsh" or "contaminatedMarsh" ? "marsh" : "ground_mud",
+            "mud" => "ground_mud",
             "rock" => "rock_cliff",
-            "cinder" or "slag" => "slag",
-            _ => "ground_grass",
+            "cinder" => "slag",
+            _ => name,
         };
-        return (_look.Layer(texture), _look.Layer(texture == "rock_cliff" ? "ground_forest" : "rock_cliff"));
+        var def = p.Biome(s);
+        int ground = _look.Layer(Texture(def?.Ground)), second = _look.Layer(Texture(def?.Materials.FirstOrDefault() ?? "rock"));
+        return (ground >= 0 ? ground : _look.Layer("ground_grass"), second >= 0 ? second : _look.Layer("rock_cliff"));
+    }
+
+    /// <summary>
+    /// How far the land gives way to its biome's second ground at a world point: on the steep (the slope), and in
+    /// patches (outcrops, bare clay) the size of a field, so it isn't one texture to the horizon. A 2008 terrain's macro
+    /// variation: world-space and slow, so it never repeats with the tiles.
+    /// </summary>
+    static float Patches(Vector3 world)
+    {
+        float big = Noise(world.X * 0.011f + 17.3f, world.Z * 0.011f - 4.1f), small = Noise(world.X * 0.05f - 9.2f, world.Z * 0.05f + 2.7f);
+        return SmoothStep(0.58f, 0.78f, big * 0.75f + small * 0.25f);
+    }
+
+    /// <summary>The land's tint at a world point: broad light and dark swathes, a little warmer and cooler, over the tiles.</summary>
+    static Vector3 Macro(Vector3 world)
+    {
+        float a = Noise(world.X * 0.004f + 3.1f, world.Z * 0.004f + 8.7f), b = Noise(world.X * 0.021f - 1.3f, world.Z * 0.021f + 5.5f);
+        float v = 0.72f + 0.42f * (a * 0.6f + b * 0.4f);
+        float warm = (Noise(world.X * 0.007f - 6.6f, world.Z * 0.007f - 2.2f) - 0.5f) * 0.18f;
+        return new Vector3(v * (1 + warm), v, v * (1 - warm));
     }
 
     /// <summary>How steep the land is at one vertex of a row across the line: rise over run to its neighbours.</summary>
@@ -447,7 +472,7 @@ public sealed partial class WorldArt
             var m = Matrix4x4.CreateScale(height / 12) * Matrix4x4.CreateRotationY((float)rng.NextDouble() * MathF.Tau) * Matrix4x4.CreateTranslation(w.RelativeTo(origin));
             built.Instances.Add(new MeshInstance(piece, m));
         }
-        return new Cell(MeshAsset.From($"branch-{branch}-{index}", built), [.. built.Instances.Select(x => (x.Asset, x.Model))], origin);
+        return new Cell(MeshAsset.From($"branch-{branch}-{index}", built), [.. built.Instances.Select(x => (x.Asset, x.Model))], [.. built.PointLights], origin);
     }
 
     // ------------------------------------------------------------------ boards

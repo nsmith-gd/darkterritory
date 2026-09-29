@@ -211,6 +211,8 @@ public sealed record PlanRules(double ADerail, double BrassCuttingSpeed, double 
     public double SignOffsetM { get; init; } = 3.2;
     /// <summary>The biomes as their dressing reads them (biomes.json): the ground, the trees, the water.</summary>
     public IReadOnlyDictionary<string, BiomeDef> Biomes { get; init; } = new Dictionary<string, BiomeDef>();
+    /// <summary>Each biome's landform mix (biomes.json "landform"), by biome.</summary>
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> BiomeLandforms { get; init; } = new Dictionary<string, IReadOnlyDictionary<string, double>>();
     /// <summary>How rough each biome's land is (biomes.json noiseScale): the terrain's relief is multiplied by it.</summary>
     public IReadOnlyDictionary<string, double> BiomeRelief { get; init; } = new Dictionary<string, double>();
     /// <summary>Each kind of board as the signage kit builds it (signage.json "boards"), by type.</summary>

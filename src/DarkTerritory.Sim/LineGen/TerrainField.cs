@@ -23,6 +23,8 @@ public sealed class TerrainField
     readonly Dictionary<long, List<(int Edge, double S, double X, double Z)>> _cells = new();
     readonly ulong _seed;
     readonly IReadOnlyDictionary<string, double> _relief;
+    readonly Dictionary<string, Landform> _landforms;
+    readonly double _flowCos, _flowSin;
     const double Cell = 128;
 
     sealed class EdgeInfo
@@ -43,6 +45,9 @@ public sealed class TerrainField
         _main = line;
         _seed = Streams.Mix(Streams.Hash(plan.Seed), "terrain");
         _relief = plan.Rules.BiomeRelief;
+        _landforms = plan.Rules.BiomeLandforms.ToDictionary(kv => kv.Key, kv => Landform.From(kv.Value));
+        double flow = (_r.Drumlins.FlowDeg) * Math.PI / 180;
+        (_flowCos, _flowSin) = (Math.Cos(flow), Math.Sin(flow));
         var list = new List<EdgeInfo>();
         foreach (var a in plan.Alignment)
         {
@@ -191,7 +196,7 @@ public sealed class TerrainField
         }
         if (a <= _r.ShoulderM)
             return rail;
-        var (type, h, up, down) = IntentAt(e, s, n.Lateral >= 0);
+        var (type, h, up, down, land) = IntentAt(e, s, n.Lateral >= 0);
         double noise = Noise(x, z) * _r.NoiseAmplitudeM * Smooth(_r.ShoulderM, 30, a) * BiomeNoise(type);
         double target = h + noise;
         double run = a - _r.ShoulderM;
@@ -213,7 +218,7 @@ public sealed class TerrainField
             delta = Math.Max(target, -_r.WalkableWithinM * _r.WalkableSlope - (run - _r.WalkableWithinM) * 1.4);
         // Past the corridor, down under the fog.
         double skirt = _r.SkirtDropM * Smooth(_r.CorridorM, _r.CorridorM + 70, a);
-        return rail + delta + Relief(x, z, a, up, down) - skirt;
+        return rail + delta + Relief(x, z, a, up, down, land) - skirt;
     }
 
     /// <summary>
@@ -237,38 +242,93 @@ public sealed class TerrainField
     };
 
     /// <summary>Two intents <paramref name="f"/> of the way from one to the other: height, relief and biome all blended, so the land never steps.</summary>
-    (IntentType, double, double, double) Blend(SideIntent a, string? biomeA, SideIntent b, string? biomeB, double f)
+    (IntentType, double, double, double, Landform) Blend(SideIntent a, string? biomeA, SideIntent b, string? biomeB, double f)
     {
         var (ua, da) = Takes(a.T);
         var (ub, db) = Takes(b.T);
         double ra = ReliefOf(biomeA), rb = ReliefOf(biomeB);
-        return (f < 0.5 ? a.T : b.T, a.H + (b.H - a.H) * f, (ua * ra) * (1 - f) + (ub * rb) * f, (da * ra) * (1 - f) + (db * rb) * f);
+        return (f < 0.5 ? a.T : b.T, a.H + (b.H - a.H) * f, (ua * ra) * (1 - f) + (ub * rb) * f, (da * ra) * (1 - f) + (db * rb) * f,
+            Landform.Lerp(LandformOf(biomeA), LandformOf(biomeB), f));
+    }
+
+    Landform LandformOf(string? biome) => biome is not null && _landforms.TryGetValue(biome, out var l) ? l : Landform.Plain;
+
+    /// <summary>
+    /// The Maritimes' landforms, as weights a biome mixes (biomes.json "landform"): rolling ground; drumlins, the ice's
+    /// long whaleback hills all lying one way (the flow, <c>terrain.drumlins</c>); knobs, the granite barrens' bare
+    /// rounded humps with bogs in the hollows between; the highland plateau, flat-topped and cut by steep river gorges.
+    /// </summary>
+    public readonly record struct Landform(double Rolling, double Drumlins, double Knobs, double Plateau)
+    {
+        public static readonly Landform Plain = new(1, 0, 0, 0);
+
+        public static Landform Lerp(Landform a, Landform b, double f) => new(a.Rolling + (b.Rolling - a.Rolling) * f, a.Drumlins + (b.Drumlins - a.Drumlins) * f,
+            a.Knobs + (b.Knobs - a.Knobs) * f, a.Plateau + (b.Plateau - a.Plateau) * f);
+
+        public static Landform From(IReadOnlyDictionary<string, double> w)
+        {
+            double r = w.GetValueOrDefault("rolling"), d = w.GetValueOrDefault("drumlins"), k = w.GetValueOrDefault("knobs"), p = w.GetValueOrDefault("plateau");
+            double sum = r + d + k + p;
+            return sum <= 0 ? Plain : new(r / sum, d / sum, k / sum, p / sum);
+        }
     }
 
     /// <summary>
     /// The land's own shape out past the formation: hills and ridges at landform scale, as rough as the biome is (its
     /// noiseScale), and none near the track, which stays walkable (§12.6).
     /// </summary>
-    double Relief(double x, double z, double a, double up, double down)
+    double Relief(double x, double z, double a, double up, double down, Landform land)
     {
         double ramp = Smooth(_r.ReliefFromM, _r.ReliefFullM, a);
         if (ramp <= 0 || _r.ReliefM <= 0)
             return 0;
-        double w0 = _r.ReliefWavelengthM[0], w1 = _r.ReliefWavelengthM[^1];
-        double n = 0.65 * Value(x / w1, z / w1, _seed ^ 0x2545F491) + 0.35 * Value(x / w0, z / w0, _seed ^ 0x9E3779B9);
-        double ridged = 1 - 2 * Math.Abs(Value(x / (w1 * 0.7), z / (w1 * 0.7), _seed ^ 0x68E31DA4));
-        double shape = (1 - _r.ReliefRidged) * n + _r.ReliefRidged * ridged + _r.ReliefUp;
+        double shape = 0;
+        if (land.Rolling > 0)
+        {
+            double w0 = _r.ReliefWavelengthM[0], w1 = _r.ReliefWavelengthM[^1];
+            double n = 0.65 * Value(x / w1, z / w1, _seed ^ 0x2545F491) + 0.35 * Value(x / w0, z / w0, _seed ^ 0x9E3779B9);
+            double ridged = 1 - 2 * Math.Abs(Value(x / (w1 * 0.7), z / (w1 * 0.7), _seed ^ 0x68E31DA4));
+            shape += land.Rolling * ((1 - _r.ReliefRidged) * n + _r.ReliefRidged * ridged + _r.ReliefUp);
+        }
+        if (land.Drumlins > 0)
+        {
+            // Stretched along the ice's flow: an isolated whaleback wherever the noise stands high, the ground between low.
+            var d = _r.Drumlins;
+            double u = x * _flowCos + z * _flowSin, v = -x * _flowSin + z * _flowCos;
+            double n = 0.5 + 0.5 * Value(u / (d.WavelengthM * d.Stretch), v / d.WavelengthM, _seed ^ 0x51ED270B);
+            double hump = Smooth(0.45, 0.85, n);
+            shape += land.Drumlins * (Math.Sqrt(hump) * d.Height + 0.15 * Value(x / 60, z / 60, _seed ^ 0x3C6EF372));
+        }
+        if (land.Knobs > 0)
+        {
+            // Bare granite humps, rounded by the ice, close together, and the hollows between them holding the bogs.
+            var k = _r.Knobs;
+            double n = Value(x / k.WavelengthM, z / k.WavelengthM, _seed ^ 0x7F4A7C15), m = Value(x / (k.WavelengthM * 3.1), z / (k.WavelengthM * 3.1), _seed ^ 0x2C1B3C6D);
+            double knob = Math.Pow(Math.Max(0, n + 0.2), 1.6);
+            shape += land.Knobs * (knob * k.Height + m * 0.35 - 0.1);
+        }
+        if (land.Plateau > 0)
+        {
+            // The highland: a flat top at a height (the noise clamped, with a scarp where it falls away), and gorges cut
+            // down through it where a river runs (a thin valley along a noise's zero line).
+            var p = _r.Plateau;
+            double n = 0.5 + 0.5 * Value(x / p.WavelengthM, z / p.WavelengthM, _seed ^ 0x6A09E667);
+            double top = Smooth(0.35, 0.5, n) * p.Height + 0.12 * Value(x / 90, z / 90, _seed ^ 0x1F83D9AB);
+            double river = Math.Abs(Value(x / p.GorgeWavelengthM, z / p.GorgeWavelengthM, _seed ^ 0x5BE0CD19));
+            double gorge = Smooth(p.GorgeWidth, 0, river);
+            shape += land.Plateau * (top - gorge * (top + p.GorgeDepth));
+        }
         return _r.ReliefM * ramp * shape * (shape > 0 ? up : down);
     }
 
     static double BiomeNoise(IntentType t) => t switch { IntentType.Pad => 0.1, IntentType.Marsh => 0.3, IntentType.Mountain => 2, _ => 1 };
 
     /// <summary>The intent at s on one side, blended over <c>blendM</c> at span boundaries so the land never steps.</summary>
-    (IntentType Type, double H, double Up, double Down) IntentAt(EdgeInfo e, double s, bool right)
+    (IntentType Type, double H, double Up, double Down, Landform Land) IntentAt(EdgeInfo e, double s, bool right)
     {
         var spans = e.Intents;
         if (spans.Length == 0)
-            return (IntentType.Plain, 0, 1, 1);
+            return (IntentType.Plain, 0, 1, 1, Landform.Plain);
         int lo = 0, hi = spans.Length - 1;
         while (lo < hi)
         {

@@ -163,7 +163,12 @@ public sealed record AuthorityRules(double SleeperSafeMargin, double LampHeightM
 public sealed record TerrainRules(double CorridorM, double TileM, double GridM, double FormationM, double ShoulderM, double BlendM, double NoiseAmplitudeM,
     double[] NoiseWavelengthM, double JunctionPadM, double SkirtDropM, double SampleM, double WalkableSlope, double WalkableWithinM,
     double TunnelCoverM, double RiverWidthM, double ReliefM, double[] ReliefWavelengthM, double ReliefFromM, double ReliefFullM, double ReliefRidged,
-    double ReliefUp);
+    double ReliefUp, DrumlinRules Drumlins, KnobRules Knobs, PlateauRules Plateau);
+
+/// <summary>The Maritimes' landforms (TerrainField.Landform): heights as a share of reliefM, lengths in metres.</summary>
+public sealed record DrumlinRules(double WavelengthM, double Stretch, double FlowDeg, double Height);
+public sealed record KnobRules(double WavelengthM, double Height);
+public sealed record PlateauRules(double WavelengthM, double Height, double GorgeWavelengthM, double GorgeWidth, double GorgeDepth);
 
 /// <summary>§14.</summary>
 public sealed record WeatherRules(double FogLowGround, double FogCrest, double WindExposed, double ColdStepPerM, double ColdExposedStep, double WetAdhesion,
@@ -210,7 +215,7 @@ public sealed record BiomesFile(Dictionary<string, BiomeDef> Biomes, Dictionary<
 /// <summary>A biome (§13.1): what grows, what the ground is, how rough, and which set pieces it favours (§7.5).</summary>
 public sealed record BiomeDef(string Name, string Ground, string[] Materials, double NoiseScale, double TreeDensity, string[] Trees, double DeadTrees,
     double Water, Dictionary<string, double> Pieces, Dictionary<string, double> Flora, double Rocks, string Verge, Dictionary<string, PropRule> Props,
-    double[] Colour);
+    Dictionary<string, double> Landform, double[] Colour);
 
 /// <summary>A dressing piece a biome stands along the line: per 150 m, its chance, how far out, how many.</summary>
 public sealed record PropRule(double Chance, double[] OutM, int Count);

@@ -164,18 +164,30 @@ void main() {
             // The terrain blend (pipeline shader set, "terrain layer blend"): the second layer shows through by the
             // vertex weight, broken up by the first's own brightness and a blocky noise, so the edge is crunchy and
             // follows the texture (grass fills the low spots of the mud first), not a smooth crossfade.
-            vec4 tex2 = texture(diffuseMaps, vec3(vUv, vLayer2));
+            // Anti-tiling (the 2008 terrain trick): the second layer at an off-ratio scale so the two never repeat
+            // together, and both modulated by the first at a much larger scale (brightness only, over its own mean
+            // from the last mip), fading in with distance, where a hillside of five-metre tiles would read as a quilt.
+            vec2 uv2 = vUv * 0.63;
+            vec4 tex2 = texture(diffuseMaps, vec3(uv2, vLayer2));
+            vec3 lw = vec3(0.3, 0.59, 0.11);
+            float far = smoothstep(8.0, 45.0, length(vPos));
+            float macro = dot(texture(diffuseMaps, vec3(vUv * 0.173 + 0.37, vLayer)).rgb, lw)
+                / max(dot(textureLod(diffuseMaps, vec3(0.5, 0.5, vLayer), 12.0).rgb, lw), 0.02);
+            float macro2 = dot(texture(diffuseMaps, vec3(vUv * 0.117 + 0.71, vLayer2)).rgb, lw)
+                / max(dot(textureLod(diffuseMaps, vec3(0.5, 0.5, vLayer2), 12.0).rgb, lw), 0.02);
+            tex.rgb *= mix(1.0, clamp(macro, 0.45, 1.7), 0.3 + 0.35 * far);
+            tex2.rgb *= mix(1.0, clamp(macro2, 0.45, 1.7), 0.3 + 0.35 * far);
             float breakup = dot(tex.rgb, vec3(0.3, 0.59, 0.11)) * 1.4 + (noise(floor(vSurface / 3.0)) - 0.5) * 0.5;
             float w = smoothstep(0.0, 0.18, vBlend * 1.4 - 0.2 - breakup * 0.6 + 0.3);
             tex = mix(tex, tex2, w);
-            specMap = mix(specMap, texture(specMaps, vec3(vUv, vLayer2)).rgb, w);
+            specMap = mix(specMap, texture(specMaps, vec3(vUv * 0.63, vLayer2)).rgb, w);
         }
         if (ps2)
             specMap = vec3(specMap.r * 0.5, 0.2, specMap.b);
         else {
             vec3 mapped = texture(normalMaps, vec3(vUv, vLayer)).xyz * 2.0 - 1.0;
             if (vLayer2 >= 0.0 && vLayer2 < frame.params.w) {
-                vec3 mapped2 = texture(normalMaps, vec3(vUv, vLayer2)).xyz * 2.0 - 1.0;
+                vec3 mapped2 = texture(normalMaps, vec3(vUv * 0.63, vLayer2)).xyz * 2.0 - 1.0;
                 float w2 = smoothstep(0.0, 0.18, vBlend * 1.4 - 0.2 - (dot(tex.rgb, vec3(0.3, 0.59, 0.11)) * 1.4) * 0.6 + 0.3);
                 mapped = mix(mapped, mapped2, w2);
             }

@@ -78,6 +78,12 @@ public sealed partial class WorldArt(Look look)
         return new Cell(MeshAsset.From($"cell-{index}", built), [.. built.Instances.Select(x => (x.Asset, x.Model))], [.. built.PointLights], origin);
     }
 
+    /// <summary>
+    /// How many metres a generated line's land repeats over: both of a quad's layers share one mapping, and the rock at
+    /// the heath's 2 m would read as a quilt across a hillside. 512 maps at 5 m are ~100 px a metre, a 2008 terrain's.
+    /// </summary>
+    const float TerrainTile = 5f;
+
     /// <summary>The terrain's cross-section: lateral offsets (m) out from the centre line, and heights at them.</summary>
     static readonly float[] Lateral = [0, 1.55f, 2.35f, 2.95f, 3.7f, 5.5f, 8, 12, 17, 24, 33, 45, 60, 78, 100];
     /// <summary>A generated line's land runs on out to its terrain corridor's edge (linegen plan §12.2), where it falls away under the fog.</summary>
@@ -238,10 +244,13 @@ public sealed partial class WorldArt(Look look)
                 // A generated line's land: its biome's own ground, going to bare rock where it's steep (linegen plan §12.5).
                 if (plan is not null && !bridge && !hill && MathF.Abs(lat) > 3.7f && BiomeGround(plan, s) is var (ga, gb) && ga >= 0)
                 {
-                    float Steep(Vector3[] row, int i) => SmoothStep(0.45f, 1.1f, SlopeAt(row, i));
-                    Corner At(Vector3[] row, int i, float l, double at) => new(Vector3.One * GroundShade(l, at), Steep(row, i));
+                    float Steep(Vector3[] row, int i) => SmoothStep(0.65f, 1.3f, SlopeAt(row, i));
+                    // World position of a corner (the rows are camera-relative), for the slow macro variation.
+                    Vector3 World(Vector3[] row, int i) => row[i] + origin;
+                    Corner At(Vector3[] row, int i, float l, double at) =>
+                        new(Macro(World(row, i)) * GroundShade(l, at), MathF.Max(Steep(row, i), Patches(World(row, i)) * SmoothStep(9, 20, MathF.Abs(l))));
                     Quad(mesh, left[c], left[c + 1], right[c + 1], right[c], At(left, c, l0, s), At(left, c + 1, l1, s), At(right, c + 1, l1, s1), At(right, c, l0, s1),
-                        origin, ga, gb, _look.Textures[ga].TileMetres ?? 2);
+                        origin, ga, gb, TerrainTile);
                     continue;
                 }
                 Quad(mesh, left[c], left[c + 1], right[c + 1], right[c], Make(l0, s), Make(l1, s), Make(l1, s1), Make(l0, s1), origin, a, b,
@@ -285,6 +294,9 @@ public sealed partial class WorldArt(Look look)
                 (k1, k2) = (k2, k1);
                 n = -n;
             }
+            // Mapped straight down on the level, and from the side on the steep (a cutting's wall, a bank, a scarp),
+            // whichever way the face looks: a 2008 terrain's cheap triplanar, per triangle, so a cliff isn't smeared.
+            int axis = MathF.Abs(n.Y) > 0.8f ? 1 : MathF.Abs(n.X) > MathF.Abs(n.Z) ? 0 : 2;
             void V(Vector3 p, Corner k)
             {
                 var w = p + origin;
@@ -292,7 +304,7 @@ public sealed partial class WorldArt(Look look)
                 {
                     Surface = w * 128,
                     Wear = 0.45f,
-                    Uv = new Vector2(w.X, w.Z) / tile,
+                    Uv = axis switch { 1 => new Vector2(w.X, w.Z), 0 => new Vector2(w.Z, -w.Y), _ => new Vector2(w.X, -w.Y) } / tile,
                     Layer = layer,
                     Layer2 = layer2,
                     Blend = k.Blend,

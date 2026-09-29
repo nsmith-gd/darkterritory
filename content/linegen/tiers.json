@@ -148,7 +148,13 @@
     // threads between, reliefM high at full (times the biome's noiseScale), starting reliefFromM out and full by
     // reliefFullM; reliefRidged of it is ridged noise (crests, spurs), and reliefUp biases it upward (a line runs along
     // valleys more than it runs along crests).
-    "reliefM": 32, "reliefWavelengthM": [120, 420], "reliefFromM": 10, "reliefFullM": 80, "reliefRidged": 0.5, "reliefUp": 0.5
+    "reliefM": 32, "reliefWavelengthM": [120, 420], "reliefFromM": 10, "reliefFullM": 80, "reliefRidged": 0.5, "reliefUp": 0.5,
+    // The Maritimes' landforms (biomes.json "landform" mixes them): drumlins, the ice's whalebacks lying along its flow
+    // (NW-SE across Nova Scotia); knobs, the granite barrens' humps; the Cape Breton highland's plateau and its gorges.
+    // Heights are shares of reliefM.
+    "drumlins": { "wavelengthM": 150, "stretch": 2.8, "flowDeg": -35, "height": 1.6 },
+    "knobs": { "wavelengthM": 38, "height": 0.9 },
+    "plateau": { "wavelengthM": 520, "height": 1.8, "gorgeWavelengthM": 900, "gorgeWidth": 0.09, "gorgeDepth": 0.6 }
   },
 
   // Plan §14: terrain's local change to the night's weather. Fog denser in low ground, thinner on crests; wind worse
