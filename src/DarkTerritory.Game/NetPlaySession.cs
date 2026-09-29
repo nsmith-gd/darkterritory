@@ -23,6 +23,11 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     public IReadOnlyList<string> Upgrades { get; init; } = [];
     /// <summary>Where the engine's front starts, along the line; null for the fortress yard. A resumed night starts where it was saved.</summary>
     public double? Start { get; init; }
+    /// <summary>The host's only: a resumed night's own line, from its save (linegen plan §17.4), rather than generated afresh.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Sim.LineGen.LinePlan? Plan { get; init; }
+    /// <summary>The host's line's fingerprint: a joiner whose own generated line differs (another generator version) is refused.</summary>
+    public string? PlanPrint { get; init; }
 
     /// <summary>The night's tunings, with the upgrades applied.</summary>
     public Sim.Campaign.Loadout Loadout(string content)
@@ -37,27 +42,25 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     }
 
     /// <summary>
-    /// The host's tuning and line generator, file by file (content/tuning/*.json, content/linegen/*.json, line endings
-    /// normalised). A joiner whose content differs would predict (and generate) a different game from the one the host
-    /// runs, so it's refused by name.
+    /// The host's tuning, file by file (content/tuning/*.json), and the line generator's files together (content/linegen),
+    /// line endings normalised. A joiner whose content differs would predict (and generate) a different game from the
+    /// one the host runs, so it's refused by name.
     /// </summary>
     public Dictionary<string, string>? Content { get; init; }
 
     public static Dictionary<string, string> HashContent(string content)
     {
+        static string Hash(string text) =>
+            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text.Replace("\r\n", "\n"))), 0, 8).ToLowerInvariant();
         var hashes = new Dictionary<string, string>();
-        // The tuning, and the line generator's files: every machine generates the night's line from them (linegen plan §17.3).
-        foreach (var dir in new[] { "tuning", Sim.LineGen.LineGenConfig.Directory })
-        {
-            if (!Directory.Exists(Path.Combine(content, dir)))
-                continue;
-            foreach (var file in Directory.EnumerateFiles(Path.Combine(content, dir), "*.json").Order(StringComparer.Ordinal))
-            {
-                var text = File.ReadAllText(file).Replace("\r\n", "\n");
-                var hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text));
-                hashes[dir + "/" + Path.GetFileName(file)] = Convert.ToHexString(hash, 0, 8).ToLowerInvariant();
-            }
-        }
+        foreach (var file in Directory.EnumerateFiles(Path.Combine(content, "tuning"), "*.json").Order(StringComparer.Ordinal))
+            hashes["tuning/" + Path.GetFileName(file)] = Hash(File.ReadAllText(file));
+        // The line generator's files, as one: every machine generates the night's line from them (linegen plan §17.3),
+        // and the Welcome that carries these has to fit one packet.
+        string linegen = Path.Combine(content, Sim.LineGen.LineGenConfig.Directory);
+        if (Directory.Exists(linegen))
+            hashes["linegen/*.json"] = Hash(string.Concat(Directory.EnumerateFiles(linegen, "*.json").Order(StringComparer.Ordinal)
+                .Select(f => Path.GetFileName(f) + "\n" + File.ReadAllText(f))));
         return hashes;
     }
 
@@ -87,7 +90,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         double start = 600;
         if (Route is { Length: > 0 } spec)
         {
-            route = Sim.LineGen.Routes.Generate(content, spec, Cars);
+            route = Plan is { } saved ? Sim.LineGen.Routes.FromPlan(content, saved) : Sim.LineGen.Routes.Generate(content, spec, Cars);
             line = route.Build();
             start = consist.LengthMetres + 150; // the fortress yard, as in the prototype
         }
@@ -166,10 +169,16 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         Sim.Campaign.RunCheckpoint? resume = null)
     {
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
-        setup = setup with { Content = SessionSetup.HashContent(content), Start = resume?.Front ?? setup.Start };
+        setup = setup with
+        {
+            Content = SessionSetup.HashContent(content),
+            Start = resume?.Front ?? setup.Start,
+            Plan = resume?.Plan is { } saved ? Sim.LineGen.LinePlan.Decompress(saved) : setup.Plan,
+        };
         var loadout = setup.Loadout(content);
         var trainTuning = loadout.Train;
         var (hostWorld, route) = setup.Build(content, authority: true);
+        setup = setup with { PlanPrint = route?.Plan?.Fingerprint() };
         if (resume is not null)
             Restore(hostWorld, resume);
         var udp = port is { } p ? UdpTransport.Host(p) : UdpTransport.Host(0, bind: IPAddress.Loopback);
@@ -207,7 +216,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var train = world.Train;
         return new Sim.Campaign.RunCheckpoint(route, facility, world.Run!.Seconds, train.Dynamics.Distance, train.Boiler.Tender,
             [.. train.Vehicles.Select(v => new Sim.Campaign.CarState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun.Ammo))],
-            world.Vigil?.Revivals ?? 0);
+            world.Vigil?.Revivals ?? 0)
+        { Plan = world.TrackPlan?.Compress() };
     }
 
     /// <summary>Puts a night back as it was saved: the cars, the coal, the clock, and the stops already made.</summary>
@@ -309,6 +319,11 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             throw new IOException($"your content differs from the host's: {string.Join(", ", differ)}");
         }
         var (world, route) = setup.Build(content);
+        if (setup.PlanPrint is { } print && route?.Plan?.Fingerprint() != print)
+        {
+            transport.Dispose();
+            throw new IOException("the host's night is on a line this build of the game doesn't generate (it was saved by another version): update to the host's version to join");
+        }
         var client = new ClientSession(new Replay(transport, early), world,
             setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)));
         return new NetPlaySession(null, null, null, client, transport, setup, route, lobby);

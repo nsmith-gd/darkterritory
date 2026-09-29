@@ -95,6 +95,8 @@ public class CampaignSessionTests
             Assert.Equal(index, saved.Facility);
             Assert.True(saved.Front > facility.End);
             Assert.Equal(0.9, saved.Cars[1].Load, 6);
+            // The save keeps the line itself (linegen plan §17.4), not just its spec.
+            Assert.Equal(route.Plan!.Fingerprint(), Sim.LineGen.LinePlan.Decompress(saved.Plan!).Fingerprint());
         }
 
         // The session is lost; the night starts again from the save.
@@ -110,5 +112,7 @@ public class CampaignSessionTests
         Assert.Equal(0, run.ChuteLeft(index));
         // And a joiner arriving now builds the train where it is, not in the yard.
         Assert.Equal(saved.Front, resumed.Setup.Start);
+        // It plays the saved line, and tells joiners which line that is.
+        Assert.Equal(route.Plan!.Fingerprint(), resumed.Setup.PlanPrint);
     }
 }

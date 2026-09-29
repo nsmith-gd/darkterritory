@@ -64,13 +64,26 @@ public sealed record LinePlan
     public static LinePlan FromJson(string json) => JsonSerializer.Deserialize<LinePlan>(json, Compact) ?? throw new InvalidDataException("no line plan");
 
     /// <summary>Size compressed, the §17.5 budget's measure.</summary>
-    public int CompressedBytes()
+    public int CompressedBytes() => Compress().Length;
+
+    /// <summary>The plan's JSON, Brotli-compressed: what a save keeps (§17.4) and the network would send (§17.3).</summary>
+    public byte[] Compress()
     {
         using var buffer = new MemoryStream();
         using (var gz = new System.IO.Compression.BrotliStream(buffer, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true))
             gz.Write(System.Text.Encoding.UTF8.GetBytes(ToJson()));
-        return (int)buffer.Length;
+        return buffer.ToArray();
     }
+
+    public static LinePlan Decompress(byte[] data)
+    {
+        using var gz = new System.IO.Compression.BrotliStream(new MemoryStream(data), System.IO.Compression.CompressionMode.Decompress);
+        using var text = new StreamReader(gz, System.Text.Encoding.UTF8);
+        return FromJson(text.ReadToEnd());
+    }
+
+    /// <summary>A short fingerprint of the plan (FNV-1a over its JSON): whether two machines have the same line.</summary>
+    public string Fingerprint() => Streams.Hash(ToJson()).ToString("x16");
 }
 
 public sealed record PlanRoute(string Id, RouteTier Tier, double Severity, double D, string Region, string Name);
