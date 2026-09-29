@@ -18,7 +18,8 @@ sleep 1
 # monado-service polls stdin, so it needs a pipe that stays open rather than /dev/null.
 (sleep infinity | DISPLAY="$display" XRT_COMPOSITOR_FORCE_XCB=1 XDG_RUNTIME_DIR="$dir" \
   SIMULATED_ENABLE=1 SIMULATED_LEFT=simple SIMULATED_RIGHT=simple monado-service > /tmp/monado.log 2>&1 &)
-for _ in $(seq 1 20); do
+# Up to 30 s: a busy CI runner has taken more than 10 to bring the compositor up.
+for _ in $(seq 1 60); do
   [ -S "$dir/monado_comp_ipc" ] && break
   sleep 0.5
 done

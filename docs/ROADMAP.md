@@ -57,7 +57,13 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
 - The dead drop theirs.
 - Occlusion through a shut car is pinned by a test.
 
-Remaining for M3: Soot Children mimicry.
+**The Soot Children (T40, App. A.4):**
+- Outside a car with crew shut in, they call for help in the voice of someone who isn't there: the host replays what that crewmate last said.
+- The call plays at one loudness however far away (spec A.5's tell).
+- Open the door to it, or go out, and it takes you. Ignored for 30 s, it gives up.
+- Never for a solo crew, and only after somebody's spoken.
+
+M3 is done but for a test with eight people.
 
 **Designer tools (level editor v1):**
 - `dt edit` opens a local editor page for every tuning and sound value. Edits keep the comments, are validated, and are hot-reloaded by the running game.

@@ -341,3 +341,141 @@ public sealed class Switchman(int id) : Enemy(id)
         return ctx.LivingCrew().Any(c => c.Player.State.Parent == PlayerState.World && (c.World - at).Length <= t.FleeRadius);
     }
 }
+
+/// <summary>
+/// App. A.4 SOOT CHILDREN (T40): outside in the dark, calling for help in a crewmate's voice. It picks a car with crew
+/// shut inside and the voice of someone who spoke lately and isn't in it: the friend the listeners think is out there.
+/// <list type="bullet">
+/// <item>Telegraph: the call itself, in that voice, with no distance falloff (spec A.5), every so often. The host plays
+/// it (<see cref="World.Calls"/>).</item>
+/// <item>Lure and commit: a door of its car opened near it, or someone on the ground near it. It takes whoever came.</item>
+/// <item>Decay: ignored for its patience, it gives up and moves on.</item>
+/// </list>
+/// "RULE: never answer a voice from outside."
+/// </summary>
+public sealed class SootChildren(int id) : Enemy(id)
+{
+    double _nextCall;
+
+    public override EnemyKind Kind => EnemyKind.SootChildren;
+    public override PressureZone Zone => PressureZone.Structural;
+    public override Sense Sense => Sense.Sound;
+
+    /// <summary>Whose voice it's using (replicated in <see cref="Enemy.Extra"/>).</summary>
+    public int Voice => (int)Extra;
+    /// <summary>The car it's calling at (<see cref="Enemy.Extra2"/>).</summary>
+    public int Car => (int)Extra2;
+
+    /// <summary>
+    /// Where it would go and whose voice it would use: the car with the most of the living crew shut inside it (someone
+    /// to open a door), and someone who has spoken lately and isn't in there. Null when there's nobody to fool: a crew
+    /// under <see cref="SootChildrenTuning.MinCrew"/>, nobody talking, or nobody shut in.
+    /// </summary>
+    public static (int Car, int Voice)? Choose(World world, SootChildrenTuning t, IReadOnlyList<(int Id, PlayerState State)> crew)
+    {
+        var train = world.Train;
+        var living = crew.Where(c => c.State.Alive).ToList();
+        if (living.Count < t.MinCrew)
+            return null;
+        uint window = (uint)Math.Min(world.Tick, t.RecentVoiceSeconds * SimConstants.TickRate);
+        var talked = world.Voices.SpokeSince(world.Tick - window).ToHashSet();
+        var shutIn = living.Select(c => (c.Id, Space: PlayerMotor.Space(c.State, train))).Where(c => c.Space > 0).ToList();
+        foreach (var room in shutIn.GroupBy(c => c.Space).OrderByDescending(g => g.Count()).ThenBy(g => g.Key))
+        {
+            int voice = living.Where(c => talked.Contains(c.Id) && PlayerMotor.Space(c.State, train) != room.Key)
+                .Select(c => c.Id).DefaultIfEmpty(-1).First();
+            if (voice >= 0)
+                return (room.Key, voice);
+        }
+        return null;
+    }
+
+    /// <summary>Crouched out from a car's side, the side with a door on it if there is one.</summary>
+    public static SootChildren At(int id, TrainOnLine train, int car, int voice, SootChildrenTuning t)
+    {
+        var shape = train.Frames[car].Shape;
+        double side = shape.Interactables.Where(i => i.Kind == InteractableKind.Door && Math.Abs(i.Position.X) > 0.5)
+            .Select(i => (double)Math.Sign(i.Position.X)).DefaultIfEmpty(1).First();
+        var at = train.Frames[car].ToWorld(new Double3(side * (shape.HalfWidth + t.StandOff), 0, 0));
+        double hint = train.Cars[car].FrontDistance;
+        var (_, along) = train.Line.Nearest(at, ref hint);
+        return new SootChildren(id)
+        {
+            Extra = voice,
+            Extra2 = car,
+            LineDistance = along,
+            Lateral = side * (shape.HalfWidth + t.StandOff),
+        };
+    }
+
+    protected override void Tick(EnemyContext ctx)
+    {
+        var t = ctx.Tuning.SootChildren;
+        var train = ctx.Train;
+        if (Car <= 0 || Car >= train.Frames.Count)
+        {
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        var at = WorldPosition(train);
+        switch (Phase)
+        {
+            case SpinePhase.Dormant:
+                _nextCall = 0;
+                Enter(ctx, SpinePhase.Telegraph);
+                break;
+            case SpinePhase.Telegraph:
+                // Left behind (the train went on), or ignored long enough: it moves on.
+                if ((train.Frames[Car].ToWorld(Double3.Zero) - at).Length > t.CallRadius || PhaseSeconds >= t.IgnoredSeconds)
+                {
+                    Enter(ctx, SpinePhase.BreakOff);
+                    Enter(ctx, SpinePhase.Gone);
+                    break;
+                }
+                if (PhaseSeconds >= _nextCall)
+                {
+                    ctx.World.Calls.Add((Id, Voice));
+                    _nextCall += t.CallEverySeconds;
+                }
+                if (Answered(ctx, t, at) is { } who && Enter(ctx, SpinePhase.Commit))
+                {
+                    ctx.Bite(who, t.TakeDamage, DeathCause.Taken);
+                    Enter(ctx, SpinePhase.Punish);
+                }
+                break;
+            case SpinePhase.Punish:
+                // It has what it came for.
+                Enter(ctx, SpinePhase.BreakOff);
+                Enter(ctx, SpinePhase.Gone);
+                break;
+            default:
+                Enter(ctx, SpinePhase.Gone);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Whoever answered it: someone on the ground near it, or, with a door of its car opened (any door: it's in the
+    /// dark, and it's quick), whoever's at that door.
+    /// </summary>
+    int? Answered(EnemyContext ctx, SootChildrenTuning t, Double3 at)
+    {
+        var train = ctx.Train;
+        var crew = ctx.LivingCrew().ToList();
+        // (Nullable on purpose: a default crew entry reads as alive.)
+        var outside = crew.Where(c => c.Player.State.Parent == PlayerState.World && (c.World - at).Length <= t.LureRadius)
+            .OrderBy(c => (c.World - at).Length).Select(c => (int?)c.Player.Id).FirstOrDefault();
+        if (outside is not null)
+            return outside;
+        var frame = train.Frames[Car];
+        foreach (var door in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Door))
+        {
+            if (!train.Vehicles[Car].DoorOpen(door.Index))
+                continue;
+            var doorway = frame.ToWorld(door.Position);
+            if (crew.Where(c => (c.World - doorway).Length <= 3).OrderBy(c => (c.World - doorway).Length).Select(c => (int?)c.Player.Id).FirstOrDefault() is { } opener)
+                return opener;
+        }
+        return null;
+    }
+}

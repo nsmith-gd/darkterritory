@@ -13,7 +13,8 @@ namespace DarkTerritory.Sim.Net;
 /// its state and controls, so the client predicts it too. Other players are shown interpolated
 /// between snapshots, a little in the past.
 /// </summary>
-public readonly record struct VoiceFrame(byte Speaker, ushort Sequence, VoicePath Path, byte[] Opus);
+/// <param name="Source">For a <see cref="VoicePath.Mimic"/> frame, the enemy it comes from (T40); 0 otherwise.</param>
+public readonly record struct VoiceFrame(byte Speaker, ushort Sequence, VoicePath Path, byte[] Opus, int Source = 0);
 
 public sealed class ClientSession
 {
@@ -171,7 +172,8 @@ public sealed class ClientSession
                     byte speaker = r.U8();
                     ushort vseq = r.U16();
                     var path = (VoicePath)r.U8();
-                    VoiceFrames.Enqueue(new VoiceFrame(speaker, vseq, path, r.Rest().ToArray()));
+                    int source = path.HasFlag(VoicePath.Mimic) ? r.I32() : 0;
+                    VoiceFrames.Enqueue(new VoiceFrame(speaker, vseq, path, r.Rest().ToArray(), source));
                     break;
                 case MessageType.Wait:
                     WaitingReason = r.Str();

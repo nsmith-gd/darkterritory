@@ -241,6 +241,7 @@ public static class WorldRecords
             EnemyKind.CinderHound => new CinderHound(r.Id, (int)D(f[11], 1e3)),
             EnemyKind.Clinger => new Clinger(r.Id),
             EnemyKind.Switchman => new Switchman(r.Id),
+            EnemyKind.SootChildren => new SootChildren(r.Id),
             _ => new Hollow(r.Id),
         };
         e.Restore((SpinePhase)f[1], D(f[2], 1e3), D(f[3], 1e3), (int)f[4], new Double3(D(f[5], Pos), D(f[6], Pos), D(f[7], Pos)),

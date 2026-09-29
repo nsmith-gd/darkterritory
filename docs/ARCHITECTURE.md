@@ -832,3 +832,31 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - breaking a radio (damage);
       - F.3's radio range upgrade;
       - a radio on the floor heard in the room (a Soot Child's way in).
+44. **The Soot Children (T40, App. A.4, B.6, spec A.5).** "Outside in the dark, calling for help in your crewmates' voices." They are the one enemy made of the voice system itself.
+    - **Listening** (`VoiceMemory`, host only). Every frame the host forwards from a living speaker is kept: the last 250 frames (5 s) each, and when they last spoke.
+      - That's the "samples crew proximity voice" of A.4. It's also B.6's gate "requires recent proximity voice activity".
+    - **Who, and where** (`SootChildren.Choose`).
+      - The car with the most of the living crew shut inside, so there's someone to open a door. The cab doesn't count: it has no door to open.
+      - The voice is someone who has spoken lately and *isn't* in that car. It's the friend the listeners think is outside: GDD §23's "the failure is opening a door for a friend who is standing right next to you".
+      - None for a crew under 2, nobody talking, or nobody shut in.
+      - It crouches 6 m out from the car's side, the side with a door if it has one.
+    - **The spine.**
+      - **Telegraph:** the call. Every 7 s it replays the last thing that voice said (up to 2.5 s of it). The fairness rule holds: nothing can answer it inside the reaction window.
+      - **Commit:** somebody answered: a door of its car opened (the one at that door is taken), or someone on the ground within 7 m.
+      - **Punish:** 200 damage, `DeathCause.Taken`.
+      - **Decay:** ignored for 30 s, or left behind by the train, it gives up.
+    - **The call is the tell.**
+      - The host plays it as `VoicePath.Mimic` frames (with the enemy's id), at the voice's own 50 frames a second, with a sequence of their own.
+      - Everyone living within 40 m of it hears it; walls still muffle it.
+      - The client plays each Soot Child as its own stream, keyed by the thing, not the crewmate. The frames are replayed, so the crewmate's own decoder would drop them as stale.
+      - It plays from where the thing is, at one loudness however far (`voice-mimic.json`: rolloff 0). That's spec A.5's missing falloff, the thing a crew learns to hear.
+    - **The director** (App. B.6): near facilities (within 250 m of one), never with another about, cost 4. It's weighted up per crew member outside.
+    - **The harness never meets them.** Bots don't talk, so there's no voice to steal, which is App. B.6's own rule.
+    - **Verified:**
+      - `SootChildrenTests`: it calls in the voice of someone who isn't there, from off the car's side; it needs a voice to steal and someone to fool; opening the door takes the opener, but not inside the reaction window; going out to it takes you; ignored, it gives up, having called the whole time.
+      - Over loopback, the host plays the stolen voice: every frame of it, in order, at the voice's pace, labelled as the Soot Child's, to those near, and not beyond its radius.
+      - `dt screenshot --threats` stages a huddle off car 2 (CI's `threats-soot.png`).
+    - **Not yet:**
+      - trying a different voice after a decay (it's a new spawn instead);
+      - a radio lying on the floor as a way in (GDD §32 open question 4: the corrupted on the radio);
+      - its own sound for the moment it takes someone.

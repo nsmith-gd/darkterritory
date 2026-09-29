@@ -55,6 +55,11 @@ public static class Staging
         var switchman = new Switchman(40);
         switchman.Restore(SpinePhase.Telegraph, 3, 1, -1, default, d.Distance + 55, 3.8, 0, -1, 0);
         threats.Add(switchman);
+        // Out in the dark off the second car's side, calling in someone's voice.
+        int beside = Math.Min(2, train.Frames.Count - 1);
+        var soot = new SootChildren(41);
+        soot.Restore(SpinePhase.Telegraph, 4, 1, -1, default, train.Cars[beside].FrontDistance - train.Frames[beside].Shape.HalfLength, -(train.Frames[beside].Shape.HalfWidth + 6), 0, 1, beside);
+        threats.Add(soot);
         return threats;
     }
 }

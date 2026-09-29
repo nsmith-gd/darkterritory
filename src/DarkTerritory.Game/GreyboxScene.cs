@@ -285,6 +285,18 @@ public sealed class GreyboxScene
                     mesh.Emissive = 0;
                     break;
                 }
+            case EnemyKind.SootChildren:
+                {
+                    // Small, crouched, huddled in the dark out from the car: three of them, soot on waxy skin, heads
+                    // turned up at the doors. Only ever seen at the edge of the lamplight, and never moving while looked at.
+                    for (int i = 0; i < 3; i++)
+                    {
+                        double x = (i - 1) * 0.45, z = (i % 2) * 0.35;
+                        Draw(x, 0.28, z, 0.16, 0.28, 0.14, Palette.SootBlack);
+                        Draw(x, 0.66, z - 0.05, 0.1, 0.1, 0.1, Palette.Corrupted * 0.7f);
+                    }
+                    break;
+                }
             case EnemyKind.Hollow:
                 if (e.Phase == SpinePhase.Telegraph)
                 {

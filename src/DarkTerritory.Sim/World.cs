@@ -54,6 +54,13 @@ public sealed class World
     /// </summary>
     public TrainControls Controls { get; private set; } = new() { Reverser = 1 };
     public CombatTuning? Combat { get; set; }
+    /// <summary>Host: what the crew have said lately (T40), fed by the session as voice arrives. The Soot Children listen here.</summary>
+    public Net.VoiceMemory Voices { get; } = new();
+    /// <summary>Host, this tick: the Soot Children calling (the enemy, and whose voice), for the session to play (T40).</summary>
+    public List<(int Enemy, int Voice)> Calls { get; } = new();
+    /// <summary>The crew as they acted this tick (host, with enemies on), for spawns that go after someone in particular.</summary>
+    public IReadOnlyList<(int Id, PlayerState State)> CrewThisTick =>
+        _context is { } c ? [.. c.Crew.Select(x => ((int)x.Player.Id, x.Player.State))] : [];
     /// <summary>
     /// How reaching hands work (T29, player.json <c>hand</c>). The sessions set it from their player tuning; while it's
     /// unset, hands in intents are ignored and everyone reaches from the body.
@@ -236,6 +243,7 @@ public sealed class World
     {
         Shots.Clear();
         SwitchThrows.Clear();
+        Calls.Clear();
         EnemyEvents.Clear();
         Damage.Clear();
         if (Authority && Enemies is { } t)
@@ -355,6 +363,9 @@ public sealed class World
                 break;
             case EnemyKind.Switchman when DarkTerritory.Sim.Enemies.Switchman.Junction(this, t.Switchman) is { } junction:
                 _enemies.Add(DarkTerritory.Sim.Enemies.Switchman.At(_nextEnemyId++, junction, t.Switchman, Switches?.Tuning.LeverOffset ?? 2.6));
+                break;
+            case EnemyKind.SootChildren when SootChildren.Choose(this, t.SootChildren, CrewThisTick) is { } mark:
+                _enemies.Add(SootChildren.At(_nextEnemyId++, Train, mark.Car, mark.Voice, t.SootChildren));
                 break;
         }
     }

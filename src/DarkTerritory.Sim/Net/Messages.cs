@@ -119,13 +119,16 @@ public static class Messages
         w.Bytes(opus);
     }
 
-    public static void WriteVoiceDown(NetWriter w, byte speaker, ushort sequence, VoicePath path, ReadOnlySpan<byte> opus)
+    /// <param name="source">For <see cref="VoicePath.Mimic"/>: the Soot Child it's coming from (T40).</param>
+    public static void WriteVoiceDown(NetWriter w, byte speaker, ushort sequence, VoicePath path, ReadOnlySpan<byte> opus, int source = 0)
     {
         w.Reset();
         w.U8((byte)MessageType.Voice);
         w.U8(speaker);
         w.U16(sequence);
         w.U8((byte)path);
+        if (path.HasFlag(VoicePath.Mimic))
+            w.I32(source);
         w.Bytes(opus);
     }
 

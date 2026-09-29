@@ -65,7 +65,8 @@ public struct PlayerIntent
 /// <summary>What the player is on. Roof is exposed (roof speeds, Draggers); Deck is footing on the train that isn't.</summary>
 public enum Surface : byte { Air, Ground, Roof, Coupler, Ladder, Deck }
 
-public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold }
+/// <summary><see cref="Taken"/>: by the Soot Children, answering a voice from outside (T40).</summary>
+public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken }
 
 /// <summary>Conditions a player carries.</summary>
 [Flags]

@@ -189,6 +189,10 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Switchman, SpinePhase.Telegraph) => "a figure at the points ahead; the switch lamp reads wrong",
         (EnemyKind.Switchman, SpinePhase.Punish) => "the train takes a dead line",
         (EnemyKind.Switchman, SpinePhase.BreakOff) => "the figure at the points slips away",
+        // The voice is the telegraph; the cue only says the call's there (the listener has to notice it doesn't fall off).
+        (EnemyKind.SootChildren, SpinePhase.Telegraph) => "someone outside is calling for help",
+        (EnemyKind.SootChildren, SpinePhase.Punish) => "somebody answered the voice outside",
+        (EnemyKind.SootChildren, SpinePhase.BreakOff) => "the voice outside gives up",
         _ => null,
     };
 
