@@ -433,3 +433,22 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Controls.** F1 toggles it, `--no-hud` starts without it, and the window title keeps the full debug line.
     - **Verified:** `dt screenshot --hud` plays a solo session for a few seconds and captures the frame at 480×270 (CI keeps it). `HudTests` check font coverage, the run-length quads, the prompts, and that the overlay really blends over the frame on the GPU.
     - **Not yet:** the HUD in VR (it wants a world-space panel, not screen-locked text), menus, and a lower-case font.
+28. **Loading modules v1 (T24, spec D).**
+    - **Layout from the route.** Each facility's modules come from its kind (`facilities.json` → `kinds`) and are laid out beside the line from the route itself. So host and clients agree without sending positions. `Run.Sites` holds them, and the Run record carries their state per facility.
+    - **Manual crates** (D.2): freight crates (`BodyKind.Cargo`) are put out on the platform the first time the train stops there.
+      - Carrying one holds you to spec B.2's 2.8 m/s, and stops you jumping or climbing (`PlayerFlags.Heavy`, set by the host, read by the motor).
+      - A crate lying still inside a cargo car's walls for a second is stowed: +0.25 of a load, and the crate is gone.
+    - **Capstan winch** (D.2, "2 mandatory"): two handles by the track, and a sled of freight 40 m out on a rope.
+      - It hauls only while both handles are held by different people. One alone stalls it; that's our first cut of "desync", and a real rhythm comes later.
+      - At the track it loads whichever cargo car is within 9 m: +0.5, two sleds a site.
+      - Both players stand in the open for 80 s a sled.
+    - **Departure load.** Cars leave the fortress half full (`run.json` → `departureLoad`, ours). GDD §18 says "every facility is optional; skipping is safe and poor", and with full cars there'd be nothing to gain. Spec F.1's table is the fully loaded train, the ceiling. Existing pay tests build their consists explicitly, so they still pin F.1.
+    - **Presentation.** Freight crates are stencilled and strapped. The capstan, its handles, the rope and the sled are drawn where the sim has them. The HUD prompts are "[E] HOLD: CRANK (IT NEEDS TWO)" and "INTO A CAR TO LOAD IT", and the status line says what the stop offers.
+    - **Verified:** `FacilityTests` cover:
+      - each kind's modules;
+      - crates stocked on arrival and stowed as load;
+      - carrying freight slow, with no ladders;
+      - the winch still with one on the capstan, hauling at speed with two, then loading the car by the track;
+      - a client mirroring the site.
+      - `dt screenshot --route … --site` shows a stop (CI keeps a winch and a crate stack).
+    - **Not yet:** spur topology, switches and the "break the consist apart" set piece (GDD §17); power states (D.1); the other seven modules; 2–4 modules per POI; heavy items needing two; bots that load (the harness's cars stay as they left).

@@ -1,0 +1,38 @@
+// Loading modules (systems spec D). First pass: two of the D.2 roster, manual crates and the capstan winch.
+// A facility is still a stop beside the main line; spur topology, switches and power state come later.
+{
+  // D.2 "Manual crates: carry by hand. Slow, but works when everything else is dead." Carrying one holds you to
+  // spec B.2's heavy-cargo speed and off ladders. Put one down inside a cargo car and it's loaded.
+  "crates": {
+    "count": [6, 10],
+    "loadPerCrate": 0.25,
+    // How long a crate lies still inside a car before it counts as stowed.
+    "settleSeconds": 1.0,
+    // The stack: this far from the track centreline, this far along from the facility's middle.
+    "lateral": 6,
+    "along": -15
+  },
+  // D.2 "Capstan winch: two players hand-crank in rhythm to drag cargo from distance. 2 mandatory. Desync stalls
+  // it; sustained, slow, both players fully exposed." Both handles held or it doesn't move.
+  "winch": {
+    "haulMetres": 40,
+    "speed": 0.5,
+    "loadPerSled": 0.5,
+    "sleds": 2,
+    "handleReach": 1.1,
+    // The sled's cargo goes into whichever cargo car is within this of where it comes to rest.
+    "carReach": 9,
+    "along": 20
+  },
+  // Which modules each facility offers (spec D.1: 2–4 per POI once the roster is built; the coaling tower is its chute).
+  "kinds": {
+    "grainElevator": ["crates"],
+    "switchyard": ["crates"],
+    "foundry": ["winch", "crates"],
+    "slaughterhouse": ["crates"],
+    "wreckYard": ["winch"],
+    "mineHead": ["winch", "crates"],
+    "chemicalWorks": ["crates"],
+    "militaryDepot": ["crates", "winch"]
+  }
+}

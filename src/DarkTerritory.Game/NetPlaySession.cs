@@ -58,7 +58,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         var combat = DataFile.Load<CombatTuning>(Path.Combine(content, CombatTuning.File));
         Route? route = null;
         RailLine line;
-        var consist = Consist.Uniform(trainTuning, Cars, 1);
+        var runTuning = DataFile.Load<Sim.Run.RunTuning>(Path.Combine(content, Sim.Run.RunTuning.File));
+        // A night leaves the fortress part loaded; the facilities fill the rest (GDD §17-18).
+        var consist = Consist.Uniform(trainTuning, Cars, Route is { Length: > 0 } ? runTuning.DepartureLoad : 1);
         double start = 600;
         if (Route is { Length: > 0 } spec)
         {
@@ -75,8 +77,8 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         var world = new World(train, combat);
         world.EnableVigil(DataFile.Load<Sim.Run.VigilTuning>(Path.Combine(content, Sim.Run.VigilTuning.File)));
         if (route is not null)
-            world.EnableRun(DataFile.Load<Sim.Run.RunTuning>(Path.Combine(content, Sim.Run.RunTuning.File)), route,
-                DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File)).YardLength, authority);
+            world.EnableRun(runTuning, route, DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File)).YardLength, authority,
+                DataFile.Load<Sim.Run.FacilityTuning>(Path.Combine(content, Sim.Run.FacilityTuning.File)));
         return (world, route);
     }
 }

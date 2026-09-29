@@ -37,7 +37,8 @@ public sealed class PrototypeSession : IPlaySession
         if (enemies)
             World.EnableEnemies(DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)), route, route.Seed, crew: 1, authority: true);
         World.EnableRun(DataFile.Load<RunTuning>(Path.Combine(contentRoot, RunTuning.File)), route,
-            DataFile.Load<RouteTuning>(Path.Combine(contentRoot, RouteTuning.File)).YardLength, authority: true);
+            DataFile.Load<RouteTuning>(Path.Combine(contentRoot, RouteTuning.File)).YardLength, authority: true,
+            DataFile.Load<FacilityTuning>(Path.Combine(contentRoot, FacilityTuning.File)));
     }
 
     PrototypeSession(string contentRoot, RailLine line, Route? route, int cars, double start)
@@ -47,7 +48,8 @@ public sealed class PrototypeSession : IPlaySession
         _playerTuning = new HotData<PlayerTuning>(Path.Combine(contentRoot, PlayerTuning.File));
         _boilerTuning = new HotData<BoilerTuning>(Path.Combine(contentRoot, BoilerTuning.File));
         _combatTuning = new HotData<CombatTuning>(Path.Combine(contentRoot, CombatTuning.File));
-        var consist = Consist.Uniform(_trainTuning.Value, cars, 1);
+        // A night leaves the fortress part loaded; the facilities fill the rest (GDD §17-18).
+        var consist = Consist.Uniform(_trainTuning.Value, cars, route is null ? 1 : DataFile.Load<RunTuning>(Path.Combine(contentRoot, RunTuning.File)).DepartureLoad);
         // On a route, start in the fortress yard with the whole train on the level.
         if (route is not null)
             start = consist.LengthMetres + 150;
@@ -235,6 +237,19 @@ public sealed class PrototypeSession : IPlaySession
         _ => "",
     };
 
+    /// <summary>What there is to load at a facility (spec D).</summary>
+    static string SiteStatus(Site? site)
+    {
+        if (site is null)
+            return " — nothing here to load";
+        var parts = new List<string>();
+        if (site.Has(ModuleKind.Crates))
+            parts.Add("crates on the platform: carry them into the cars");
+        if (site.Has(ModuleKind.Winch))
+            parts.Add(site.SledsLeft == 0 ? "the winch is done" : site.Turning ? $"winch HAULING {site.Progress * 100:0}%" : $"winch: two on the capstan ({site.SledsLeft} sleds)");
+        return " — " + string.Join(", ", parts);
+    }
+
     public static string RouteStatus(Route? route, World world, TrainOnLine train)
     {
         if (route is null)
@@ -249,7 +264,8 @@ public sealed class PrototypeSession : IPlaySession
             : dawn > 0 ? $"dawn {(int)dawn / 60:00}:{(int)dawn % 60:00}" : "DAWN — the line is live, get in";
         string stop = run?.FacilityFeature is { } f
             ? $" | STOPPED AT {f.Facility.ToString()!.ToUpperInvariant()}" + (f.Facility == FacilityKind.CoalingTower
-                ? run.ChuteOpen ? $" — chute POURING ({run.ChuteLeft(run.Facility):0} left)" : run.ChuteLeft(run.Facility) > 0 ? " — lever on the ground, hold E" : " — chute empty" : "")
+                ? run.ChuteOpen ? $" — chute POURING ({run.ChuteLeft(run.Facility):0} left)" : run.ChuteLeft(run.Facility) > 0 ? " — lever on the ground, hold E" : " — chute empty"
+                : SiteStatus(run.CurrentSite))
             : "";
         double s = train.Dynamics.Distance;
         string next = route.NextLandmark(s) is { } l

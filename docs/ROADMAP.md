@@ -67,6 +67,12 @@ Remaining for M3: Soot Children mimicry, the radio as an item, and interior occl
 - Dawn, derailment or losing the crew ends it.
 - The harness reports the outcome and the payout.
 
+**Loading at facilities (spec D):**
+- Manual crates you carry into the cars (heavy: slow, no climbing).
+- A capstan winch that needs two on it.
+- Cars leave the fortress half full, so the facilities are where the money is.
+- `dt screenshot --site` shows a stop.
+
 **HUD:**
 - A pixel-font HUD in the low-res frame: engine gauges, ping to host (spec E), the prompt for what your hands can do, and the night.
 - `dt screenshot --hud` captures it.

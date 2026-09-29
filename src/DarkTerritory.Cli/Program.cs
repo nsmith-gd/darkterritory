@@ -91,6 +91,7 @@ object RunHarness(string[] args)
         Network = online,
         Vigil = DataFile.Load<DarkTerritory.Sim.Run.VigilTuning>(Path.Combine(content, DarkTerritory.Sim.Run.VigilTuning.File)),
         Run = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)),
+        Facilities = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
         YardLength = routeTuning.YardLength,
     }, args.Contains("--no-boiler") ? null : boiler);
 }
@@ -297,6 +298,20 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         int index = generated.Of(FeatureKind.Facility).ToList().IndexOf(tower);
         run.Mirror(DarkTerritory.Sim.Run.RunPhase.AtFacility, DarkTerritory.Sim.Run.RunEnd.None, 900, index, true, [.. Enumerable.Repeat(200.0, run.FacilityCount)]);
     }
+    // --site: stop at the first facility with loading modules (spec D), crates out and the winch sled part-hauled.
+    DarkTerritory.Sim.Run.Site? site = null;
+    if (args.Contains("--site") && generated is not null)
+    {
+        run = new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
+        run.EnableSites(DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)), line);
+        site = run.Sites.FirstOrDefault(x => x is not null && x.Has(DarkTerritory.Sim.Run.ModuleKind.Winch)) ?? run.Sites.FirstOrDefault(x => x is not null);
+        if (site is not null)
+        {
+            at = (site.Feature.Start + site.Feature.End) / 2 + 45;
+            run.Mirror(DarkTerritory.Sim.Run.RunPhase.AtFacility, DarkTerritory.Sim.Run.RunEnd.None, 900, site.Index, false,
+                [.. Enumerable.Repeat(0.0, run.FacilityCount)], [.. run.Sites.Select(x => (true, x == site ? 0.45 : 0, x?.SledsLeft ?? 0, x == site))]);
+        }
+    }
     var train = new TrainOnLine(new TrainDynamics(consist), line, at);
     // --cut N: cut behind car N and pull the engine forward, to see a split train.
     if (Opt(args, "--cut", -1) is var cutAt and >= 0)
@@ -318,6 +333,32 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         }
         camera = Camera.LookAt(At(cam), At(Str(args, "--target", cam)), (float)Opt(args, "--fov", 65));
     }
+    List<DarkTerritory.Sim.Physics.Body>? cargo = null;
+    if (site is not null)
+    {
+        var shelf = new DarkTerritory.Sim.Physics.Bodies();
+        foreach (var crate in site.CrateStack)
+            shelf.SpawnCargo(crate - Double3.Up * 0.15, site.CrateLineHint);
+        cargo = [.. shelf.All];
+        if (Str(args, "--cam", "") is not { Length: > 0 })
+        {
+            if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Winch))
+            {
+                // Out beyond the sled, a little along the line, looking back at the capstan and the train.
+                var outward = (site.SledFrom - site.SledTo).Normalized;
+                var along = (site.Handles[1] - site.Handles[0]).Normalized;
+                camera = Camera.LookAt(site.Sled + outward * 9 + along * 7 + Double3.Up * 3.2, site.Capstan + Double3.Up * 1.2, 70);
+            }
+            else
+            {
+                // Beyond the crate stack, looking back over it at the train.
+                var stack = site.CrateStack.Aggregate(Double3.Zero, (a, b) => a + b) * (1.0 / site.CrateStack.Length);
+                var sample = line.Sample(site.CrateLineHint);
+                var outward = (stack - sample.Position) with { Y = 0 };
+                camera = Camera.LookAt(stack + outward.Normalized * 7 + sample.Tangent * 5 + Double3.Up * 2.8, stack, 70);
+            }
+        }
+    }
     string routeFile = Path.Combine(content, "lines", lineName + ".route.json");
     var route = generated ?? (File.Exists(routeFile) ? DataFile.Load<Route>(routeFile) : null);
 
@@ -331,7 +372,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Run = run,
         Time = 0.37,
         Enemies = args.Contains("--threats") ? Staging.Threats(train) : null,
-        Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All : null,
+        Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All : cargo,
         Emergency = args.Contains("--vigil"),
     }.Build(mesh, train, camera.Position);
     var lighting = Views.Lighting(train);
@@ -450,6 +491,7 @@ static int Usage()
                      [--route tier:seed [--coaling]]   a generated night; --coaling stops at its coaling tower, chute pouring
                      [--bodies]   crates, a lamp and a crewmate's body on the roofs, settled by the physics
                      [--vigil]    emergency lighting, as during a Vigil (spec C.2)
+                     [--route tier:seed --site]   stopped at a facility: crates out, the winch sled part-hauled (spec D)
           screenshot --hud [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
           route gen [--tier local|frontier|deadLines|deepTerritory] [--seed n] [--name generated] [--map file.png]

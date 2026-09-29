@@ -5,7 +5,8 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Physics;
 
-public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3 }
+/// <summary>Crate and lamp are the train's own stores; cargo is freight from a facility (spec D.2 manual crates).</summary>
+public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4 }
 
 /// <summary>
 /// A loose physical thing: cargo, a tool, a crewmate's body. It lives in a car's frame while it touches that
@@ -63,6 +64,16 @@ public sealed class Bodies
         double radius = kind == BodyKind.Crate ? 0.35 : 0.15;
         var pbd = new PbdBody([new Particle(local + Double3.Up * radius, 1, radius)]) { Friction = 0.2, Bounce = 0.1 };
         var b = new Body(_nextId++, kind, car, pbd) { LineHint = train.Cars[Math.Max(0, car)].FrontDistance };
+        _bodies.Add(b);
+        return b;
+    }
+
+    /// <summary>A crate of freight on the ground at a facility, in the world frame.</summary>
+    public Body SpawnCargo(Double3 world, double lineHint)
+    {
+        const double radius = 0.45;
+        var pbd = new PbdBody([new Particle(world + Double3.Up * radius, 1, radius)]) { Friction = 0.35, Bounce = 0.05 };
+        var b = new Body(_nextId++, BodyKind.Cargo, PlayerState.World, pbd) { LineHint = lineHint };
         _bodies.Add(b);
         return b;
     }

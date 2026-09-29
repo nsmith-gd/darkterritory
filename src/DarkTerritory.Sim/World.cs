@@ -130,9 +130,12 @@ public sealed class World
     }
 
     /// <summary>Starts the run. The host steps it (<see cref="StepRun"/>); clients mirror it from records.</summary>
-    public void EnableRun(Run.RunTuning tuning, Route.Route route, double yardLength, bool authority)
+    /// <param name="facilities">The facilities' loading modules (spec D); null for none.</param>
+    public void EnableRun(Run.RunTuning tuning, Route.Route route, double yardLength, bool authority, Run.FacilityTuning? facilities = null)
     {
         Run = new Run.Run(tuning, route) { YardLength = yardLength };
+        if (facilities is not null)
+            Run.EnableSites(facilities, Train.Line);
         Authority |= authority;
     }
 
@@ -172,6 +175,12 @@ public sealed class World
             Vigil?.CrewAct(s, intent, playerId, Train);
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever.
         bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train);
+        if (Authority)
+        {
+            // Freight in your arms slows you and keeps you off ladders (spec B.2); the motor reads the flag.
+            bool heavy = Bodies.All.Any(b => b.Carrier == playerId && b.Kind == Physics.BodyKind.Cargo);
+            s.Flags = heavy ? s.Flags | PlayerFlags.Heavy : s.Flags & ~PlayerFlags.Heavy;
+        }
         if (!handsTookIt)
             CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds);
         var targets = viewTick is { } vt && _targetHistory.TryGetValue(vt, out var then) ? then : Targets;

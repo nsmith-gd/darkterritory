@@ -25,6 +25,8 @@ public sealed record HarnessOptions
     /// <summary>With a route: run the night as a game (departure, facilities, terminus, dawn) and report the result.</summary>
     public Run.RunTuning? Run { get; init; }
     public double YardLength { get; init; } = 600;
+    /// <summary>The facilities' loading modules; the bots don't load yet, so the cars stay as they left.</summary>
+    public Run.FacilityTuning? Facilities { get; init; }
     /// <summary>With it, the crew can revive the dead (spec C.2); bots don't hold Vigils yet.</summary>
     public Run.VigilTuning? Vigil { get; init; }
     /// <summary>Another network to run over (the CLI's fake Steam lobby), in place of the loopback or UDP.</summary>
@@ -72,7 +74,7 @@ public static class Harness
         host.World.EnableBodies();
         host.World.Stock();
         if (o.Run is { } rt && o.Route is { } route)
-            host.World.EnableRun(rt, route, o.YardLength, authority: true);
+            host.World.EnableRun(rt, route, o.YardLength, authority: true, o.Facilities);
         if (o.Vigil is { } vt)
             host.World.EnableVigil(vt);
 
