@@ -1,6 +1,7 @@
 using Ballast;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
 
@@ -149,7 +150,14 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
         if (b.Kind != Physics.BodyKind.Cargo || b.Carrier >= 0)
             return false;
         if (b.Parent == PlayerState.World)
-            return Site.CrateStack.Length > 0 && (b.Centre - Site.CrateStack[0]).Length < 60;
+        {
+            // At the site, on its side of the train (there's no carrying one round the train).
+            if (Site.CrateStack.Length == 0 || (b.Centre - Site.CrateStack[0]).Length >= 60)
+                return false;
+            double hint = Site.Mid;
+            var s = Site.Track.Sample(Site.Track.Nearest(b.Centre, ref hint).Distance);
+            return Math.Sign(Double3.Dot(b.Centre - s.Position, Double3.Cross(s.Tangent, Double3.Up))) == Site.Side;
+        }
         return world.Train.Dynamics.Consist.IndexOf(b.Parent) >= 0 && !Inside(world.Train, b) && b.Pbd.Asleep;
     }
 
@@ -159,7 +167,44 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
 
 /// <summary>One facility stop as the driver worked it, for the harness report.</summary>
 /// <param name="Legs">Seconds spent on each leg, by name.</param>
-public sealed record StopRecord(int Facility, string Kind, double Seconds, int SledsHauled, IReadOnlyDictionary<string, double> Legs);
+/// <param name="Coal">Coal taken into the tender (a coaling stop).</param>
+public sealed record StopRecord(int Facility, string Kind, double Seconds, int SledsHauled, IReadOnlyDictionary<string, double> Legs, double Coal = 0);
+
+/// <summary>
+/// A coaling stop (GDD §18, spec D.2 gravity chute): the tower stands over the main line, and the engine stops with its
+/// tender under the spout while someone on the ground works the chute's lever.
+/// </summary>
+/// <param name="Hold">Where the engine's front stands: the tender's middle under the spout.</param>
+public sealed record CoalPlan(int Facility, double Spout, double Hold, Double3 Lever)
+{
+    /// <summary>Worth stopping for: this much of the tender to fill.</summary>
+    const double WorthFilling = 0.25;
+
+    /// <summary>The next coaling tower ahead with coal left, if the tender has room enough and someone can work the lever.</summary>
+    public static CoalPlan? Ahead(World world, double from, IReadOnlySet<int> done, CrewCalls calls)
+    {
+        var train = world.Train;
+        if (world.Run is not { } run || train.BoilerTuning is not { } bt || !calls.Has(StopJob.Shunter)
+            || bt.TenderCapacity - train.Boiler.Tender < bt.TenderCapacity * WorthFilling)
+            return null;
+        var g = train.Dynamics.Tuning.Geometry;
+        double tender = g.EngineLength - g.Engine.TenderLength / 2;
+        var facilities = run.Route.Of(FeatureKind.Facility).ToList();
+        for (int i = 0; i < facilities.Count; i++)
+        {
+            if (facilities[i].Facility != FacilityKind.CoalingTower || done.Contains(i) || run.ChuteLeft(i) <= 0)
+                continue;
+            var (spout, lever) = run.ChuteAt(facilities[i], train.Line);
+            if (spout + tender >= from - 5)
+                return new CoalPlan(i, spout, spout + tender, lever);
+        }
+        return null;
+    }
+
+    /// <summary>The engine's standing with its tender under the spout (well inside run.json's spout tolerance).</summary>
+    public bool StandingAt(TrainOnLine train) =>
+        train.OnMain && train.Rakes.Count == 1 && Math.Abs(train.Dynamics.Velocity) < 0.05 && Math.Abs(train.Dynamics.Distance - Hold) < 1.5;
+}
 
 /// <summary>
 /// The driver's side of a facility stop, through the cab's controls and nothing else (the scripted
@@ -170,10 +215,12 @@ public sealed record StopRecord(int Facility, string Kind, double Seconds, int S
 /// </summary>
 public sealed class StopDriver(CrewCalls calls)
 {
-    public enum Leg : byte { Cruise, Approach, Held, SpurIn, Loading, BackOut, Clear, Depart }
+    public enum Leg : byte { Cruise, Approach, Held, SpurIn, Loading, BackOut, Clear, Depart, ToCoal, Coaling }
 
     // Long enough for a crew to do their part at walking pace; past it, the stop is given up rather than the night.
-    const double HeldGiveUp = 240, LoadingGiveUp = 420, AboardGiveUp = 120;
+    const double HeldGiveUp = 240, LoadingGiveUp = 420, AboardGiveUp = 120, CoalGiveUp = 150;
+    /// <summary>Seconds a facility stop (or a coaling stop) takes a crew, to leave spare before the dawn.</summary>
+    const double StopAllowance = 600, CoalAllowance = 120;
 
     readonly HashSet<int> _done = [];
     readonly List<StopRecord> _log = [];
@@ -182,6 +229,10 @@ public sealed class StopDriver(CrewCalls calls)
 
     public Leg Doing { get; private set; }
     public StopPlan? Plan { get; private set; }
+    /// <summary>The coaling stop it's making, if that's what it's doing.</summary>
+    public CoalPlan? Coal { get; private set; }
+    readonly HashSet<int> _coaled = [];
+    double _tenderAtStart;
     /// <summary>The speed it runs up to a stop at (the driver's cruise).</summary>
     public double CruiseSpeed { get; set; } = 14;
     /// <summary>The stops worked so far.</summary>
@@ -212,9 +263,26 @@ public sealed class StopDriver(CrewCalls calls)
         {
             case Leg.Cruise:
                 {
-                    if (train.Rakes.Count > 1 || !train.OnMain || StopPlan.Ahead(world, engine.Distance, _done, calls) is not { } plan)
+                    if (train.Rakes.Count > 1 || !train.OnMain || world.Run is not { } run)
                         return null;
-                    if (plan.Hold - engine.Distance > StoppingDistance(engine) + 80)
+                    // Every stop is optional (GDD §18): only one there's time for before the dawn, after the run to the end of
+                    // the line. The tender's the exception once it's low: without coal there's no getting there at all.
+                    double spare = run.DawnIn - (run.Route.Length - engine.Distance) / CruiseSpeed;
+                    var plan = spare > StopAllowance ? StopPlan.Ahead(world, engine.Distance, _done, calls) : null;
+                    bool low = train.BoilerTuning is { } bt && train.Boiler.Tender < bt.TenderCapacity * 0.2;
+                    var coal = spare > CoalAllowance || low ? CoalPlan.Ahead(world, engine.Distance, _coaled, calls) : null;
+                    double reach = engine.Distance + StoppingDistance(engine) + 80;
+                    // Whichever comes first, when it's near enough to start stopping for.
+                    if (coal is not null && coal.Hold <= reach && (plan is null || coal.Hold < plan.Hold))
+                    {
+                        Coal = coal;
+                        _legs.Clear();
+                        _stopStart = _ticks;
+                        _tenderAtStart = train.Boiler.Tender;
+                        Begin(Leg.ToCoal);
+                        return Toward(world, coal.Hold, +1, CruiseSpeed);
+                    }
+                    if (plan is null || plan.Hold > reach)
                         return null;
                     Plan = plan;
                     _legs.Clear();
@@ -222,6 +290,26 @@ public sealed class StopDriver(CrewCalls calls)
                     _sledsAtStart = plan.Site.SledsLeft;
                     Begin(Leg.Approach);
                     return Toward(world, plan.Hold, +1, CruiseSpeed);
+                }
+            case Leg.ToCoal:
+                {
+                    var c = Coal!;
+                    if (c.StandingAt(train) && still)
+                    {
+                        Begin(Leg.Coaling);
+                        return Hold(world);
+                    }
+                    // A little past it (or short and stopped): creep to it.
+                    return engine.Distance > c.Hold + 0.5 && (still || engine.Velocity < 0) ? Toward(world, c.Hold, -1, 1) : Toward(world, c.Hold, +1, CruiseSpeed);
+                }
+            case Leg.Coaling:
+                {
+                    // Until the chute's been opened and shut again (or nobody's come to it), and everyone's back aboard.
+                    bool poured = train.Boiler.Tender > _tenderAtStart + 1 && world.Run is { ChuteOpen: false };
+                    bool nobody = !calls.Has(StopJob.Shunter) || Waited > CoalGiveUp;
+                    if ((poured || nobody) && (calls.AllAboard || Waited > CoalGiveUp + AboardGiveUp))
+                        Begin(Leg.Depart);
+                    return Hold(world);
                 }
             case Leg.Approach:
                 {
@@ -292,12 +380,25 @@ public sealed class StopDriver(CrewCalls calls)
                 return Hold(world);
             case Leg.Depart:
                 if (world.Controls.Reverser < 0)
-                    return Toward(world, Plan!.Hold + 50, +1, 3); // brakes and flips the reverser at a stand
-                Finish();
+                    return Toward(world, (Plan?.Hold ?? Coal!.Hold) + 50, +1, 3); // brakes and flips the reverser at a stand
+                if (Coal is not null)
+                    FinishCoaling(train);
+                else
+                    Finish();
                 return null; // away as usual
             default:
                 return null;
         }
+    }
+
+    void FinishCoaling(TrainOnLine train)
+    {
+        var c = Coal!;
+        Begin(Leg.Cruise);
+        _coaled.Add(c.Facility);
+        _log.Add(new StopRecord(c.Facility, nameof(FacilityKind.CoalingTower), Math.Round(Seconds(_ticks - _stopStart), 1), 0,
+            new Dictionary<string, double>(_legs), Math.Round(train.Boiler.Tender - _tenderAtStart, 1)));
+        Coal = null;
     }
 
     void Finish()
@@ -384,6 +485,8 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         if (job == StopJob.None || !self.Alive || world.Run is null)
             return null;
         var train = world.Train;
+        if (job == StopJob.Shunter && _plan is null && Coaling(self, world, out var coaling))
+            return coaling;
         if (_plan is null)
         {
             // The train's standing short of the points for a stop (the driver only makes the ones the crew can work).
@@ -475,6 +578,77 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         return new PlayerIntent { Buttons = PlayerButtons.Use };
     }
 
+    CoalPlan? _coal;
+    readonly HashSet<int> _coaled = [];
+    bool _poured;
+
+    /// <summary>
+    /// A coaling stop (true while there's one to work): down to the chute's lever beside the line, open it, shut it again a
+    /// moment before the tender's full (the overflow damages the engine) or once the tower's empty, and back aboard.
+    /// </summary>
+    bool Coaling(in PlayerState self, World world, out PlayerIntent? intent)
+    {
+        intent = null;
+        var train = world.Train;
+        var run = world.Run!;
+        if (_coal is null)
+        {
+            if (CoalPlan.Ahead(world, train.Dynamics.Distance - 10, _coaled, calls) is not { } plan || !plan.StandingAt(train))
+                return false;
+            _coal = plan;
+            _poured = false;
+        }
+        var coal = _coal;
+        // The train's gone on: that stop's over.
+        if (Math.Abs(train.Dynamics.Distance - coal.Hold) > 5 || train.BoilerTuning is not { } bt)
+        {
+            _coaled.Add(coal.Facility);
+            _coal = null;
+            return false;
+        }
+        if (self.Surface == Surface.Air)
+        {
+            intent = new PlayerIntent();
+            return true;
+        }
+        if (self.Surface == Surface.Ladder || self.Surface == Surface.Deck && self.Parent > 0)
+            return true; // the walker knows the way off a ladder or out of a car
+        bool open = run.ChuteOpen;
+        _poured |= open;
+        if (_poured && !open)
+        {
+            // Opened and shut again: aboard (the walker climbs the nearest car), and done.
+            if (self.Parent == PlayerState.World)
+            {
+                Doing = "boarding";
+                return true;
+            }
+            _coaled.Add(coal.Facility);
+            _coal = null;
+            return false;
+        }
+        bool enough = train.Boiler.Tender >= bt.TenderCapacity - run.Tuning.Chute.PourPerSecond * 1.5 || run.ChuteLeft(coal.Facility) <= 0;
+        var (along, across) = TrackCoords(train.Line, RailLine.MainPath, coal.Lever, self.LineHint);
+        if (self.Parent != PlayerState.World)
+        {
+            intent = GetDown(self, train, Math.Sign(across));
+            return true;
+        }
+        // Just beyond the lever from the track, in reach of it.
+        var stand = TrackPoint(train.Line, RailLine.MainPath, along, Math.Sign(across) * (Math.Abs(across) + 0.5));
+        var (step, there) = WalkTo(self, train.Line, RailLine.MainPath, stand, null);
+        if (!there)
+        {
+            Doing = "to the chute";
+            intent = step;
+            return true;
+        }
+        bool wantOpen = !enough;
+        Doing = open == wantOpen ? "at the chute" : open ? "shutting the chute" : "opening the chute";
+        intent = open == wantOpen ? new PlayerIntent() : new PlayerIntent { Buttons = PlayerButtons.Use };
+        return true;
+    }
+
     int _car = -1;
     bool _pressed;
 
@@ -560,6 +734,14 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         }
         if (self.Parent != PlayerState.World)
             return GetDown(self, train, side);
+        // On the far side of the train from the steps there's no way round on foot: put it down, over the train (the
+        // walker climbs the nearest car; off it, we get down on this side), and back to it.
+        var (_, across) = TrackCoords(train.Line, p.Spur.Index, self.Position, self.LineHint);
+        if (Math.Sign(across) != side && Math.Abs(across) > 1.2)
+        {
+            Doing = "over the train";
+            return heavy ? Press() : null;
+        }
         // On the ground: the door first, then a crate, then up the steps with it.
         var foot = frame.ToWorld(landing with { Y = 0, Z = -sd - 4 * layout.StepDepth - 0.4 });
         if (!open || heavy)
@@ -574,8 +756,13 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             Doing = heavy ? "carrying" : "to the door";
             return WalkTo(self, train.Line, p.Spur.Index, foot, null).Step;
         }
+        // Nothing loose just now, though some are still on their way in (in someone's arms, settling): wait by the stack
+        // for the next, rather than give up the stop.
         if (Crate(world, p, self) is not { } crate)
-            return Aboard(self, p);
+        {
+            Doing = "waiting for a crate";
+            return new PlayerIntent();
+        }
         var at = crate.Parent == PlayerState.World ? crate.Centre : train.Frames[crate.Parent].ToWorld(crate.Centre);
         var from = new Double3(self.Position.X - at.X, 0, self.Position.Z - at.Z);
         var stand = at + (from.Length > 0.01 ? from.Normalized : new Double3(1, 0, 0)) * 0.8;
@@ -607,13 +794,13 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             .Select(x => x.Id).DefaultIfEmpty(-1).First();
     }
 
-    /// <summary>The nearest crate a hand can pick up from the ground (<see cref="StopPlan.Loose"/>).</summary>
+    /// <summary>The nearest crate a hand can pick up from the ground (<see cref="StopPlan.Loose"/>) on the working side.</summary>
     static Physics.Body? Crate(World world, StopPlan p, in PlayerState self)
     {
         var train = world.Train;
         var me = self.Position;
-        return world.Bodies.All.Where(b => p.Loose(world, b))
-            .OrderBy(b => ((b.Parent == PlayerState.World ? b.Centre : train.Frames[b.Parent].ToWorld(b.Centre)) - me).Length).FirstOrDefault();
+        Double3 At(Physics.Body b) => b.Parent == PlayerState.World ? b.Centre : train.Frames[b.Parent].ToWorld(b.Centre);
+        return world.Bodies.All.Where(b => p.Loose(world, b)).OrderBy(b => (At(b) - me).Length).FirstOrDefault();
     }
 
     /// <summary>A cargo car in the engine's rake with its door on the working side still open, that's this hand's to shut.</summary>

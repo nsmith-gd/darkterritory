@@ -662,3 +662,21 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `StopCrewTests`: at a crates-only stop a crew of five loads every crate the cars have room for, shuts the doors, and leaves with nobody left behind; a full train runs straight past.
       - `dt screenshot --route frontier:7 --site` shows the doors and steps by the crate stack.
     - **Not yet:** heavy items that need two (D.2); crates at the coaling tower; a human-facing prompt for which car has room (the HUD still says only "INTO A CAR TO LOAD IT").
+38. **The crew coals up (T35, spec B.6, D.2 gravity chute).**
+    - **Why.** Spec B.6's tender endurance is finite, and the bots never stopped at the coaling tower. A long night's tender could run dry, with the Hollow close behind.
+    - **When it stops.** The driver stops at a coaling tower that has coal left, when the tender has a quarter of its capacity to fill and there's a shunter (`CoalPlan`). Of that and a spur stop, it takes whichever comes first.
+    - **The driver** stops with the tender's middle under the spout, well inside `run.json`'s spout tolerance. If it rolls past, it creeps back.
+      - It holds until the chute has been opened and shut again and everyone's aboard.
+      - It leaves through the same `Depart` leg as a spur stop, so a reverser left in reverse after backing up is flipped first.
+    - **The shunter** gets down on the lever's side and stands just beyond the lever from the track.
+      - It holds Use to open the chute, and to shut it again once the tender is a second and a half's pour from full (`pourPerSecond`) or the tower's empty. Overflow damages the engine.
+      - Then it climbs aboard the walker's way.
+    - **Reported:** the stop's `StopRecord` has the coal taken.
+    - **Verified:** in `StopCrewTests`, a train with its tender at 40% stops, fills it by more than 100 units, shuts the chute with no overflow damage, and leaves with everyone aboard.
+    - **Stops the dawn has time for.** Every stop is optional (GDD §18). The driver takes a facility stop only with 600 s to spare before the dawn after the run to the end of the line, and a coaling stop with 120 s. It always coals when the tender is under a fifth: without coal the train goes nowhere. On frontier:7 two long crate stops had made the train miss the dawn.
+    - **Crate stops, faster** (from T34's first full night, 527 s and 689 s for two stops):
+      - A hand with no loose crate to hand waits by the stack for the next, rather than taking itself off the stop while crates are still in other hands' arms.
+      - A hand on the far side of the train from the steps goes over it: it puts the crate down, climbs a car, and gets down on the working side. There's no way round on foot.
+      - Only crates on the working side count as loose, so nobody waits on one over the train.
+    - **Correction reports.** A prediction on a different frame from the host's truth (the ballast against a step, one roof against the next) used to count as a 100 m correction. It's now measured in the world through the current frames (`ClientSession`).
+    - **Not yet:** topping up the tender by shovelling from a coal car; a coaling tower on a spur.

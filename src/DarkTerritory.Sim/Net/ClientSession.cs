@@ -250,8 +250,20 @@ public sealed class ClientSession
     }
 
     /// <summary>Position error in metres, measured in the player's own frame; a frame change counts as large.</summary>
-    static double Difference(in PlayerState a, in PlayerState b) =>
-        a.Parent != b.Parent ? 100 : (a.Position - b.Position).Length;
+    /// <summary>
+    /// How far the prediction was out. Across two frames (the ballast against a car's step, one roof against the next)
+    /// it's measured in the world through the frames as they are now: exact at a stand, near enough on the move. It used to
+    /// count any change of frame as 100 m, which hid how small those corrections are (a crate picked up on the host slows
+    /// its carrier a round trip before their client knows).
+    /// </summary>
+    double Difference(in PlayerState a, in PlayerState b)
+    {
+        if (a.Parent == b.Parent)
+            return (a.Position - b.Position).Length;
+        if (a.Parent >= Train.Frames.Count || b.Parent >= Train.Frames.Count)
+            return 100;
+        return (PlayerMotor.WorldPosition(a, Train) - PlayerMotor.WorldPosition(b, Train)).Length;
+    }
 
     /// <summary>
     /// Another player's state for rendering, interpolated <see cref="InterpolationTicks"/> behind the newest
