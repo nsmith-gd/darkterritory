@@ -265,7 +265,8 @@ sealed partial class LineBuilder
             if (chosen[i] is not null)
                 continue;
             string biome = BiomeAt(_facilities[i].S);
-            var options = types.Where(t => t.Kind != FacilityKind.CoalingTower)
+            // Any kind the tier has may be drawn, the coaling tower too (§11.1's table: "Any" land), though one is enough.
+            var options = types.Where(t => t.Kind != FacilityKind.CoalingTower || !chosen.Contains(FacilityKind.CoalingTower))
                 .Select(t => (t.Kind, (t.Biomes.TryGetValue(biome, out var w) ? w : t.Biomes.GetValueOrDefault("*", 0))
                     // Variety: a kind already on the line is less likely again.
                     / (1 + 2 * chosen.Count(c => c == t.Kind)))).ToList();

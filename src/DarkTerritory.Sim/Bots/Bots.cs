@@ -310,20 +310,22 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     /// <summary>With a crew to call to, it stops to work the facilities they can (T32, GDD §17).</summary>
     public StopDriver? Stops { get; } = calls is null ? null : new StopDriver(calls);
 
-    public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => Work(self, train, Drive(train, tick));
+    public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => Work(self, train, Drive(train, tick, CruiseSpeed, 1.5));
 
     public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
         aimed = self;
         var train = world.Train;
         calls?.Say(member, StopJob.Driver, self);
+        // On a generated line, no faster than its authority allows here (linegen plan §9, §16.1): what the boards say.
+        double cruise = world.TrackPlan is { } plan ? Math.Min(CruiseSpeed, LineGen.LineAuthority.For(plan, train.Line).Allowed(train)) : CruiseSpeed;
         if (Stops is { } stops)
         {
-            stops.CruiseSpeed = CruiseSpeed;
+            stops.CruiseSpeed = cruise;
             if (stops.Decide(self, world) is { } stopping)
                 return Work(self, train, stopping);
         }
-        var intent = Drive(train, tick);
+        var intent = Drive(train, tick, cruise, world.TrackPlan is null ? 1.5 : 0.5);
         // Watch the road: something showing on the line ahead means get below derailing speed.
         bool somethingAhead = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.Sleepers && e.Phase == SpinePhase.Telegraph
             && e.LineDistance > train.Dynamics.Distance && e.LineDistance - train.Dynamics.Distance < 200);
@@ -356,7 +358,8 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 
     bool _holdingDown;
 
-    PlayerIntent Drive(TrainOnLine train, uint tick)
+    /// <param name="over">How far over <paramref name="cruise"/> before holding it on the brake: a posted limit gets less slack.</param>
+    PlayerIntent Drive(TrainOnLine train, uint tick, double cruise, double over)
     {
         var d = train.Dynamics;
         // To the end of the track it's on: the terminus, or a dead line's buffer stop.
@@ -366,9 +369,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         var intent = new PlayerIntent();
         // A descent runs the train away with the regulator shut; hold it on the brake, with some
         // hysteresis so it isn't hammered every tick (fade only builds while it's applied).
-        if (d.Speed > CruiseSpeed + 1.5)
+        if (d.Speed > cruise + over)
             _holdingDown = true;
-        else if (d.Speed <= CruiseSpeed)
+        else if (d.Speed <= cruise)
             _holdingDown = false;
         if (remaining < stopping || _holdingDown)
         {
@@ -377,7 +380,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         }
         else if (tick % 15 == 0)
             // Notch towards cruise: open up below it, ease off above it.
-            intent.ThrottleNotch = (sbyte)(d.Speed < CruiseSpeed - 1 ? 1 : d.Speed > CruiseSpeed + 0.5 ? -1 : 0);
+            intent.ThrottleNotch = (sbyte)(d.Speed < cruise - 1 ? 1 : d.Speed > cruise + 0.5 ? -1 : 0);
         return intent;
     }
 }

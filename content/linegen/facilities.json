@@ -14,7 +14,7 @@
   // (§12.1); spur: on a spur (the coaling tower stands over the main line, as since T28); minePortal: its spur goes into
   // the hill (GDD §17: radio blackout in and out). owners/type make its name (§13.3: "Voss Foundry").
   "types": {
-    "coalingTower":   { "kind": "coalingTower",   "fromTier": "local",         "biomes": { "*": 1 }, "intent": "pad", "spur": false, "minePortal": false, "owners": [], "type": "Coaling Stage" },
+    "coalingTower":   { "kind": "coalingTower",   "fromTier": "local",         "biomes": { "*": 0.5 }, "intent": "pad", "spur": false, "minePortal": false, "owners": [], "type": "Coaling Stage" },
     "grainElevator":  { "kind": "grainElevator",  "fromTier": "local",         "biomes": { "farmland": 3, "plains": 3, "forestEdge": 1, "hills": 1, "marsh": 0.5 }, "intent": "pad", "spur": true, "minePortal": false, "owners": [], "type": "Grain Elevator" },
     "switchyard":     { "kind": "switchyard",     "fromTier": "local",         "biomes": { "*": 1, "industrialRuin": 2, "deadTown": 2 }, "intent": "pad", "spur": true, "minePortal": false, "owners": [], "type": "Yard" },
     "foundry":        { "kind": "foundry",        "fromTier": "frontier",      "biomes": { "industrialRuin": 3, "slag": 3, "hills": 1, "deadTown": 1, "blackForest": 0.5 }, "intent": "pad", "spur": true, "minePortal": false, "owners": [], "type": "Foundry" },

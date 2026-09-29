@@ -30,6 +30,9 @@ static class LineGenCommands
 
     static RunParameters Parameters(string[] args)
     {
+        // --route tier:seed[:severity], as the rest of dt and the game take it; or --tier, --seed, --severity.
+        if (Str(args, "--route", "") is { Length: > 0 } spec)
+            return RunParameters.Parse(spec, (int)Opt(args, "--cars", 8));
         var tier = Enum.Parse<RouteTier>(Str(args, "--tier", "frontier"), ignoreCase: true);
         ulong seed = ulong.Parse(Str(args, "--seed", "1"));
         double severity = args.Contains("--severity") ? Opt(args, "--severity", 0.5) : RunParameters.SeverityOf(tier, seed);

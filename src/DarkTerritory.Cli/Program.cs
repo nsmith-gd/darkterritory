@@ -77,7 +77,7 @@ static object TrainTable(TrainTuning t, PlayerTuning p) => t.Performance.Select(
 
 object RunHarness(string[] args)
 {
-    Route? route = Str(args, "--route", "") is { Length: > 0 } spec ? RouteGenerator.Generate(routeTuning, Route.ParseSpec(spec).Tier, Route.ParseSpec(spec).Seed) : null;
+    Route? route = Str(args, "--route", "") is { Length: > 0 } spec ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, (int)Opt(args, "--cars", 10)) : null;
     var line = route?.Build() ?? LoadLine(Str(args, "--line", "test-loop"));
     var combat = DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File));
     var enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File));
@@ -108,7 +108,7 @@ object RunHarness(string[] args)
         Vigil = DataFile.Load<DarkTerritory.Sim.Run.VigilTuning>(Path.Combine(content, DarkTerritory.Sim.Run.VigilTuning.File)),
         Run = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)),
         Facilities = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
-        YardLength = routeTuning.YardLength,
+        YardLength = route?.GateOr(routeTuning.YardLength) ?? routeTuning.YardLength,
     }, args.Contains("--no-boiler") ? null : boiler);
 }
 
@@ -230,8 +230,8 @@ static object VrCheck(TrainTuning t, string content, string[] args)
 // set the switch back, and go. Prints when each step began and how the train came out of it.
 static object FacilityDrill(TrainTuning t, string content, RouteTuning rt, string[] args)
 {
-    var (tier, seed) = Route.ParseSpec(Str(args, "--route", "frontier:7"));
-    var route = RouteGenerator.Generate(rt, tier, seed);
+    int cars = (int)Opt(args, "--cars", 7);
+    var route = DarkTerritory.Sim.LineGen.Routes.Generate(content, Str(args, "--route", "frontier:7"), cars);
     var facilities = route.Of(FeatureKind.Facility).ToList();
     var run = new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), route);
     int facility = (int)Opt(args, "--facility", Enumerable.Range(0, facilities.Count).FirstOrDefault(i => run.SpurOf(i) >= 0, -1));
@@ -239,11 +239,10 @@ static object FacilityDrill(TrainTuning t, string content, RouteTuning rt, strin
         return new { error = $"{route.Name} has no facility with a spur{(facility >= 0 ? $" at {facility}" : "")}" };
     var line = route.Build();
     var spur = line.Branches[run.SpurOf(facility)];
-    int cars = (int)Opt(args, "--cars", 7);
     var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, cars, 0.5)), line, spur.Toe - 120);
     var world = new World(train);
     world.EnableSwitches(rt.Junctions);
-    world.EnableRun(run.Tuning, route, rt.YardLength, authority: true);
+    world.EnableRun(run.Tuning, route, route.GateOr(rt.YardLength), authority: true);
     var drill = new DarkTerritory.Sim.Run.SpurDrill(world, facility);
     double loadFor = Opt(args, "--load-seconds", 0), loading = 0;
     var order = train.Dynamics.Consist.Vehicles.Select(v => v.Id).ToArray();
@@ -339,7 +338,7 @@ object CampaignCommand(string content, string verb, string[] args)
                 var s = Load();
                 var contract = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s)[(int)Opt(args, "--contract", 0)];
                 s = DarkTerritory.Sim.Campaign.Campaign.Begin(s, contract);
-                var route = RouteGenerator.Generate(routeTuning, contract.Tier, contract.Seed);
+                var route = DarkTerritory.Sim.LineGen.Routes.Generate(content, contract.Tier, contract.Seed, s.Cars);
                 var loadout = DarkTerritory.Sim.Campaign.Campaign.Apply(t, s.Upgrades, new DarkTerritory.Sim.Campaign.Loadout(train, boiler,
                     DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)),
                     DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File))));
@@ -354,7 +353,7 @@ object CampaignCommand(string content, string verb, string[] args)
                     Enemies = args.Contains("--no-enemies") ? null : loadout.Enemies,
                     Route = route,
                     Run = runTuning,
-                    YardLength = routeTuning.YardLength,
+                    YardLength = route.GateOr(routeTuning.YardLength),
                     Facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
                     Vigil = DataFile.Load<DarkTerritory.Sim.Run.VigilTuning>(Path.Combine(content, DarkTerritory.Sim.Run.VigilTuning.File)),
                 }, loadout.Boiler);
@@ -486,7 +485,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
 
     // --route tier:seed generates the night in memory; --coaling stops the train at its coaling tower, chute pouring.
     Route? generated = Str(args, "--route", "") is { Length: > 0 } spec
-        ? RouteGenerator.Generate(DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File)), Route.ParseSpec(spec).Tier, Route.ParseSpec(spec).Seed)
+        ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
         : null;
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
     var consist = Consist.Uniform(t, cars, 1);
@@ -791,7 +790,7 @@ static object HudShot(string content, string[] args)
 {
     int cars = (int)Opt(args, "--cars", 6);
     Route? generated = Str(args, "--route", "") is { Length: > 0 } spec
-        ? RouteGenerator.Generate(DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File)), Route.ParseSpec(spec).Tier, Route.ParseSpec(spec).Seed)
+        ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
         : null;
     var session = generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
     session.Controls.Throttle = Opt(args, "--throttle", 0.6);

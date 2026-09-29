@@ -173,13 +173,13 @@ public sealed class World
         return e;
     }
 
-    /// <summary>Starts the run. The host steps it (<see cref="StepRun"/>); clients mirror it from records.</summary>
-    /// <param name="facilities">The facilities' loading modules (spec D); null for none.</param>
     /// <summary>The generated line whose track rules the host holds the train to (curves, weak bridges, washouts); null for a hand-laid one.</summary>
     public LineGen.LinePlan? TrackPlan { get; set; }
     /// <summary>What derailed the train, when the track did it (the report and the HUD say so).</summary>
     public string? DerailCause { get; private set; }
 
+    /// <summary>Starts the run. The host steps it (<see cref="StepRun"/>); clients mirror it from records.</summary>
+    /// <param name="facilities">The facilities' loading modules (spec D); null for none.</param>
     public void EnableRun(Run.RunTuning tuning, Route.Route route, double yardLength, bool authority, Run.FacilityTuning? facilities = null)
     {
         TrackPlan ??= route.Plan;

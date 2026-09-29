@@ -3,6 +3,9 @@
 {
   // Stored in every Line Plan and save (plan §5, §17.4).
   "version": "linegen-1.0.0",
+  // Where the game's nights come from: "linegen" (this generator) or "legacy" (the prototype's RouteGenerator, whose
+  // tuning is content/tuning/route.json). Specs, saves and the network setup are the same either way.
+  "routes": "linegen",
 
   // Plan §3.2. Each column is the start of a tier; a route's severity (0..1) lerps it toward the next column, and Deep
   // territory toward "deepMax". Two-element arrays are [min, max] counts, lerped end by end and then rolled.

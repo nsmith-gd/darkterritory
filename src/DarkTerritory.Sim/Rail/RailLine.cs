@@ -369,9 +369,11 @@ public sealed class RailLine
         double bestD = Flat(Sample(main).Position - world);
         foreach (var b in _branches)
         {
-            if (!_index.Near(b.Index, world))
+            // A spur or a dead line is near only when its points are within its own length of here (as it always was);
+            // an alternate can loop out of sight of the main line, so the index says whether it's near.
+            if (!b.Rejoins && (main < b.Toe - 50 || main > b.End + 50) || b.Rejoins && !_index.Near(b.Index, world))
                 continue;
-            double guess = _index.NearestOn(b.Index, world) ?? Math.Clamp(main - b.Toe, 0, b.Local.Length);
+            double guess = b.Rejoins ? _index.NearestOn(b.Index, world) ?? Math.Clamp(main - b.Toe, 0, b.Local.Length) : Math.Clamp(main - b.Toe, 0, b.Local.Length);
             double along = Project(b.Local, world, guess);
             double d = Flat(b.Local.Sample(along).Position - world);
             // Only its own track: at its points it is the main line, and an alternate is the main line again where it rejoins.

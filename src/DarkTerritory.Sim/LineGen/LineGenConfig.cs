@@ -30,6 +30,8 @@ public sealed record LineGenConfig(
 public sealed record TiersFile
 {
     public string Version { get; init; } = "";
+    /// <summary>Which generator the game's nights come from: "linegen", or "legacy" (the prototype's RouteGenerator).</summary>
+    public string Routes { get; init; } = "linegen";
     public required TierColumns Columns { get; init; }
     public required BudgetCurve Budget { get; init; }
     public required CurveRules Curves { get; init; }

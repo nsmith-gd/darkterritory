@@ -14,6 +14,7 @@ using DarkTerritory.Game.Sound;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Campaign;
 using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.LineGen;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Train;
 
@@ -308,9 +309,7 @@ Launch? Menu()
             }
         case Launch.Night { Route: { } spec } alone:
             {
-                var (tier, seed) = Route.ParseSpec(spec);
-                var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File));
-                return (new PrototypeSession(content, RouteGenerator.Generate(routeTuning, tier, seed), alone.Cars, enemies), null);
+                return (new PrototypeSession(content, Routes.Generate(content, spec, alone.Cars), alone.Cars, enemies), null);
             }
         case Launch.Night alone:
             return (new PrototypeSession(content, alone.Line, alone.Cars), null);
