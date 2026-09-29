@@ -24,107 +24,15 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), "blender"))
 import bpy  # noqa: E402
 import numpy as np  # noqa: E402
-from mathutils import Matrix, Quaternion, Vector  # noqa: E402
+from mathutils import Vector  # noqa: E402
 
 import cook  # noqa: E402
+import figures  # noqa: E402
 import rig  # noqa: E402
-from rig import Bone, Clip, Skeleton, over, rot  # noqa: E402
+from rig import Clip, over  # noqa: E402
 
 cook.reset()
-objs = cook.load("gk-boyroom", "models/imaginary-friend-room/scene.plain.glb")
-cook.fit(objs, height=2.7)
-room = objs[0]
-bpy.ops.object.select_all(action="DESELECT")
-room.select_set(True)
-bpy.context.view_layer.objects.active = room
-bpy.ops.object.mode_set(mode="EDIT")
-bpy.ops.mesh.separate(type="MATERIAL")
-bpy.ops.object.mode_set(mode="OBJECT")
-parts = [o for o in bpy.context.scene.objects if o.type == "MESH"]
-boy = [o for o in parts if o.data.materials and "boy" in o.data.materials[0].name]
-cook.delete([o for o in parts if o not in boy])
-boy = boy[0]
-co = np.empty(len(boy.data.vertices) * 3, np.float32)
-boy.data.vertices.foreach_get("co", co)
-co = co.reshape(-1, 3)
-cook.transform([boy], Matrix.Translation(Vector((-float(co[:, 0].mean()), -float(co[:, 1].mean()), -float(co[:, 2].min())))))
-# His toy sword out of his hand: everything past the fist. (He had it up at the thing he drew.)
-cook.cut([boy], lambda c: c.y < 0.37)
-
-# The boy's joints as he stands (vertex centroids in bands of the figure, 1.1 m tall, facing +Y): the right arm
-# reaching out to the thing he drew, the left hanging back, the head tipped up to it.
-J = {
-    "pelvis": (0.004, 0.01, 0.463), "belly": (-0.001, 0.095, 0.594), "chest": (0.019, 0.043, 0.707),
-    "neck": (0.017, -0.024, 0.81), "head": (0.048, -0.061, 0.955), "top": (0.056, -0.097, 1.086),
-    "hip_l": (-0.07, 0.0, 0.44), "hip_r": (0.07, 0.03, 0.44),
-    "knee_l": (-0.078, -0.037, 0.251), "knee_r": (0.061, 0.07, 0.251),
-    "ankle_l": (-0.086, -0.07, 0.058), "ankle_r": (0.098, 0.07, 0.058),
-    "toe_l": (-0.086, 0.06, 0.02), "toe_r": (0.098, 0.2, 0.02),
-    "sh_l": (-0.097, -0.076, 0.741), "sh_r": (0.117, 0.115, 0.744),
-    "elbow_l": (-0.178, -0.219, 0.606), "hand_l": (-0.247, -0.274, 0.496),
-    "elbow_r": (0.114, 0.174, 0.688), "hand_r": (0.024, 0.35, 0.629),
-}
-J = {k: Vector(v) for k, v in J.items()}
-J["tip_l"] = J["hand_l"] + (J["hand_l"] - J["elbow_l"]) * 0.5
-J["tip_r"] = J["hand_r"] + (J["hand_r"] - J["elbow_r"]) * 0.5
-J["mid"] = (J["belly"] + J["chest"]) / 2
-
-
-def chain(J):
-    out = [
-        ("root", None, (0, 0, 0), (0, 0.15, 0)),
-        ("pelvis", "root", J["pelvis"], J["belly"]),
-        ("spine_01", "pelvis", J["belly"], J["mid"]),
-        ("spine_02", "spine_01", J["mid"], J["chest"]),
-        ("spine_03", "spine_02", J["chest"], J["neck"]),
-        ("neck", "spine_03", J["neck"], J["head"]),
-        ("head", "neck", J["head"], J["top"]),
-    ]
-    for s in ("l", "r"):
-        out += [
-            (f"clavicle_{s}", "spine_03", J["chest"] + (J[f"sh_{s}"] - J["chest"]) * 0.3, J[f"sh_{s}"]),
-            (f"upperarm_{s}", f"clavicle_{s}", J[f"sh_{s}"], J[f"elbow_{s}"]),
-            (f"lowerarm_{s}", f"upperarm_{s}", J[f"elbow_{s}"], J[f"hand_{s}"]),
-            (f"hand_{s}", f"lowerarm_{s}", J[f"hand_{s}"], J[f"tip_{s}"]),
-            (f"thigh_{s}", "pelvis", J[f"hip_{s}"], J[f"knee_{s}"]),
-            (f"calf_{s}", f"thigh_{s}", J[f"knee_{s}"], J[f"ankle_{s}"]),
-            (f"foot_{s}", f"calf_{s}", J[f"ankle_{s}"], J[f"toe_{s}"]),
-        ]
-    return out
-
-
-stand = Skeleton("SK_Stand", [Bone(*b) for b in chain(J)])
-
-
-def fk(sk, pose):
-    """Each bone's world rotation and posed head (rig.pose_points' FK, kept per bone for skinning)."""
-    world = {}
-    for b in sk.bones:
-        r = pose.get(b.name, (0, 0, 0))
-        R = (r if isinstance(r, Quaternion) else rot(*r)).to_matrix()
-        loc = Vector(pose.get(b.name + "@loc", (0, 0, 0)))
-        if b.parent is None:
-            world[b.name] = (R, b.head + loc)
-        else:
-            pW, ph = world[b.parent]
-            world[b.name] = (pW @ R, ph + pW @ (b.head - sk[b.parent].head) + pW @ loc)
-    return world
-
-
-def weights(sk, co):
-    names = [b.name for b in sk.bones if b.name != "root"]
-    d = np.empty((len(co), len(names)), np.float32)
-    for i, n in enumerate(names):
-        a, c = np.array(sk[n].head, np.float32), np.array(sk[n].tail, np.float32)
-        ab = c - a
-        t = np.clip(((co - a) @ ab) / max(float(ab @ ab), 1e-9), 0, 1)
-        d[:, i] = np.linalg.norm(co - (a + t[:, None] * ab), axis=1)
-    w = 1.0 / (d + 0.012) ** 6
-    keep = np.argsort(-w, axis=1)[:, :4]
-    mask = np.zeros_like(w)
-    np.put_along_axis(mask, keep, 1.0, axis=1)
-    w = w * mask
-    return names, w / w.sum(axis=1, keepdims=True)
+boy, stand = figures.boy()
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -155,27 +63,9 @@ for s in ("l", "r"):
     HUDDLE = rig.reach(stand, HUDDLE, f"upperarm_{s}", f"lowerarm_{s}", target, elbow_axis=0, bend=1, avoid=avoid)
     HUDDLE[f"hand_{s}"] = (20, 0, (1 if s == "l" else -1) * 30)
 
-co = np.empty(len(boy.data.vertices) * 3, np.float32)
-boy.data.vertices.foreach_get("co", co)
-co = co.reshape(-1, 3)
-names, w = weights(stand, co)
-world = fk(stand, HUDDLE)
-posed = np.zeros_like(co)
-for i, n in enumerate(names):
-    R, h = world[n]
-    Rm = np.array(R, np.float32)
-    rest = np.array(stand[n].head, np.float32)
-    posed += w[:, i:i + 1] * ((co - rest) @ Rm.T + np.array(h, np.float32))
-floor = float(posed[:, 2].min())
-posed[:, 2] -= floor
-boy.data.vertices.foreach_set("co", posed.ravel())
-boy.data.update()
-
-# The joints where the huddle left them: the game rig's bind pose.
-P = {}
-for b in stand.bones:
-    R, h = world[b.name]
-    P[b.name] = (h - Vector((0, 0, floor)), h + R @ (b.tail - b.head) - Vector((0, 0, floor)))
+# Posed at full resolution; the joints where the huddle left them are the game rig's bind pose.
+P, world, floor = figures.pose(boy, stand, HUDDLE)
+posed = figures.verts(boy)
 
 if os.environ.get("SOOT_PREVIEW"):
     out = os.path.join(cook.ROOT, "out", "review")

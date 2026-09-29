@@ -94,7 +94,7 @@ public static class ArtCatalog
                 var cls = n switch
                 {
                     "hand_lantern" or "skull" => MediumProp,
-                    "boy_room" or "wake_room" => Interior,
+                    "boy_room" or "wake_room" or "portrait_room" => Interior,
                     _ => LargeProp,
                 };
                 list.Add(new($"prop-{n}", cls, () => props.Get(n)!));
