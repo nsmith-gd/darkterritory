@@ -16,6 +16,8 @@ Driving (from the cab)
   R/F regulator up/down, B brake (hold), X reverser (stopped only)
 Voice
   talk nearby with an open mic (or hold V for push to talk); hold T for the radio
+  the radio is a thing: E near one puts it on your belt (the train carries two, in the cab and the guard van);
+  right mouse with empty hands sets it down for someone else. Without one you're not on it, and it's dead in tunnels and mines
 Other
   F1 the HUD, F2 invite Steam friends, Tab chase camera, Esc frees the mouse, Esc again leaves the night
 VR

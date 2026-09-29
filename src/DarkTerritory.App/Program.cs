@@ -487,7 +487,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (voice is not null && net is not null)
         {
             voice.TalkHeld = input.Down(Key.V);
-            voice.RadioHeld = input.Down(Key.T);
+            // Only with a radio on you (T41); the host checks too.
+            voice.RadioHeld = input.Down(Key.T) && session.World.Bodies.HasRadio(session.PlayerId);
             for (int n; mic is not null && (n = mic.Read(micSamples)) > 0;)
                 voice.Capture(micSamples.AsSpan(0, n), net.Client);
         }

@@ -13,8 +13,16 @@ public sealed record TrainTuning
     public required SpeedBandTuning SpeedBands { get; init; }
     public required ResistanceTuning Resistance { get; init; }
     public required CouplingTuning Couplings { get; init; }
+    /// <summary>What the train carries from the fortress (T41). Unset, nothing.</summary>
+    public KitTuning Kit { get; init; } = new();
 
     public const string File = "tuning/train.json";
+}
+
+/// <summary>The train's kit from the fortress (train.json <c>kit</c>).</summary>
+public sealed record KitTuning
+{
+    public int Radios { get; init; }
 }
 
 public sealed record GeometryTuning(

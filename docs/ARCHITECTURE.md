@@ -814,3 +814,21 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - real textures (the vertex layout leaves room: the texel coordinates are UVs in waiting);
       - normal breakup;
       - VFX (§31: steam, sparks, cinders).
+43. **The radio is a thing (T41, spec A.5, GDD §24).**
+    - **Worn, not held.**
+      - A radio is a body (`BodyKind.Radio`). Picked up with Use, it goes on the belt, one each, so the hands stay free for crates and lamps.
+      - Right mouse with empty hands sets it down to pass on.
+      - The dead drop theirs where they fall. Its red lamp stays lit, so a dropped one can be found in the dark.
+    - **Only wearers are on the radio.** The host checks both ends of every radio frame: a speaker without one isn't on the radio, and a listener without one hears nobody on it. The client doesn't send it either, and the HUD says NO RADIO.
+      - GDD §24's "radio breaks: shouting down the length of a moving train" is now something a crew can do to itself: lose them.
+      - The spec's "dies in tunnels and mine spurs" now covers the mine spurs too (`Run.Underground`): aboard a rake down a mine head's spur, or on the ground beside it.
+    - **The kit** (`train.json` `kit.radios`): the train leaves with 2. One sits at the back of the cab floor, clear of the firebox so a stoker's Use doesn't pick it up. The rest are in the guard van.
+    - **Legacy.** Until the train has been stocked, `Bodies.RadiosCarried` is false and the radio is the button everyone has, as before, so the voice tests and a bare world still work. A client that has seen a radio in a snapshot knows they're things tonight.
+    - **Interior occlusion was already done** (`PlayerMotor.Space`: a car shut up is its own space, and an open door makes it the outside's). `VoiceRoutingTests` pins it now.
+    - **Verified:**
+      - `RadioTests`: the train leaves with its radios; a radio goes on the belt and the hands stay free; one each, passed on by setting it down; the dead drop theirs; routing without one.
+      - Over loopback, the host puts only wearers on the radio: nobody's heard until both the talker and the listener wear one.
+    - **Not yet:**
+      - breaking a radio (damage);
+      - F.3's radio range upgrade;
+      - a radio on the floor heard in the room (a Soot Child's way in).

@@ -29,7 +29,11 @@ public static class VoiceRouting
     public const double ProximityCutoff = 26;
     const double ForwardMargin = 4;
 
-    public static VoicePath Route(in PlayerState speaker, in PlayerState listener, bool radio, TrainOnLine train, Func<double, bool>? inTunnel = null)
+    /// <param name="radio">The speaker is talking on the radio, and has one (T41: the host checks).</param>
+    /// <param name="listenerRadio">The listener has a radio to hear it on.</param>
+    /// <param name="underground">Where else the radio's dead: down a mine head's spur (<see cref="Run.Run.Underground"/>).</param>
+    public static VoicePath Route(in PlayerState speaker, in PlayerState listener, bool radio, TrainOnLine train, Func<double, bool>? inTunnel = null,
+        bool listenerRadio = true, Func<PlayerState, bool>? underground = null)
     {
         if (!speaker.Alive)
             return listener.Alive ? VoicePath.None : VoicePath.Dead;
@@ -43,7 +47,8 @@ public static class VoiceRouting
             if (PlayerMotor.Space(speaker, train) != PlayerMotor.Space(listener, train))
                 path |= VoicePath.Occluded;
         }
-        if (radio && !InTunnel(speaker, train, inTunnel) && !InTunnel(listener, train, inTunnel))
+        if (radio && listenerRadio && !InTunnel(speaker, train, inTunnel) && !InTunnel(listener, train, inTunnel)
+            && underground?.Invoke(speaker) != true && underground?.Invoke(listener) != true)
             path |= VoicePath.Radio;
         return path;
     }

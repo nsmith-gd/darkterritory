@@ -42,6 +42,7 @@ public static class Hud
         Engine(o, s, line);
         if (s.Link is { } link)
             Link(o, width, link, line);
+        Radio(o, width, s, line);
         Alerts(o, width, height, s, line);
         if (Prompt(s) is { } prompt)
         {
@@ -117,6 +118,17 @@ public static class Hud
             o.TextRight(right, 5 + 4 * line, "CONNECTION LOST", Red);
     }
 
+    /// <summary>Whether you've a radio on you (T41), under the link: without one, T does nothing and nobody's on it for you.</summary>
+    static void Radio(Overlay o, int width, IPlaySession s, int line)
+    {
+        var bodies = s.World.Bodies;
+        if (!bodies.RadiosCarried || !s.Player.Alive)
+            return;
+        // Right mouse throws what's in your hands; with them empty, it sets the radio down to pass on.
+        string wearing = bodies.CarriedBy(s.PlayerId) is null ? "RADIO [T]  [RMB] SET IT DOWN" : "RADIO [T]";
+        o.TextRight(width - 6, 5 + 5 * line, bodies.HasRadio(s.PlayerId) ? wearing : "NO RADIO", bodies.HasRadio(s.PlayerId) ? Dim : Amber);
+    }
+
     static void Alerts(Overlay o, int width, int height, IPlaySession s, int line)
     {
         var p = s.Player;
@@ -187,7 +199,7 @@ public static class Hud
         var world = s.World;
         if (!p.Alive)
             return null;
-        if (world.Bodies.All.FirstOrDefault(b => b.Carrier == s.PlayerId) is { } carried)
+        if (world.Bodies.CarriedBy(s.PlayerId) is { } carried)
             return carried.Kind == BodyKind.Cargo ? "INTO A CAR TO LOAD IT: [E] PUT DOWN   [RMB] THROW" : "[E] PUT DOWN   [RMB] THROW";
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is not null)
             return p.Has(PlayerFlags.Revived) ? "NO GUNS UNTIL THE NEXT STOP"
@@ -216,8 +228,14 @@ public static class Hud
             case InteractableKind.Door:
                 return "[E] DOOR";
         }
-        if (world.Bodies.InReach(p, train, hand) is { } thing)
-            return thing.Kind == BodyKind.Ragdoll ? "[E] PICK UP THE BODY" : "[E] PICK UP";
+        bool wearing = world.Bodies.RadiosCarried && world.Bodies.HasRadio(s.PlayerId);
+        if (world.Bodies.InReach(p, train, hand, wearing) is { } thing)
+            return thing.Kind switch
+            {
+                BodyKind.Ragdoll => "[E] PICK UP THE BODY",
+                BodyKind.Radio => "[E] TAKE THE RADIO",
+                _ => "[E] PICK UP",
+            };
         if (world.Run?.LeverInReach(p, train, hand) == true)
             return "[E] HOLD: CHUTE LEVER";
         if (world.Switches?.InReach(p, train, hand) is { } branch)

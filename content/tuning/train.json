@@ -116,5 +116,11 @@
     "slow": 6.0,
     "workingMin": 10.0,
     "cruise": 14.0
+  },
+  // What the train leaves the fortress with (T41). Radios are things you wear (spec A.5's radio channel): only someone
+  // wearing one talks or hears on it, so a crew that loses them is shouting down the train (GDD §24 "radio breaks").
+  // One rides in the cab, the rest in the guard van.
+  "kit": {
+    "radios": 2
   }
 }

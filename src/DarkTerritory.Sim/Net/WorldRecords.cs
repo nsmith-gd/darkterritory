@@ -210,6 +210,9 @@ public static class WorldRecords
         {
             world.MirrorEnemies(enemies);
             world.Bodies.Mirror(bodies);
+            // Seen a radio once, a client knows they're things tonight (T41): no radio on you, no radio.
+            if (bodies.Any(b => b.Kind == Physics.BodyKind.Radio))
+                world.Bodies.RadiosCarried = true;
         }
     }
 

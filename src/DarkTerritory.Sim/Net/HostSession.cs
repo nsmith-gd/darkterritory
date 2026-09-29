@@ -280,11 +280,14 @@ public sealed class HostSession
             return;
         var route = Route ?? World.Route;
         Func<double, bool>? tunnel = route is null ? null : route.InTunnel;
+        Func<PlayerState, bool>? underground = World.Run is { } run ? s => run.Underground(s, Train) : null;
+        // The radio's a thing (T41): no radio on you, nobody hears you on it, and you hear nobody.
+        radio &= World.Bodies.HasRadio(speaker.Id);
         foreach (var listener in _crew)
         {
             if (listener == speaker)
                 continue;
-            var path = VoiceRouting.Route(speaker.State, listener.State, radio, Train, tunnel);
+            var path = VoiceRouting.Route(speaker.State, listener.State, radio, Train, tunnel, World.Bodies.HasRadio(listener.Id), underground);
             if (path == VoicePath.None)
                 continue;
             Messages.WriteVoiceDown(_voiceWriter, speaker.Id, seq, path, opus);
