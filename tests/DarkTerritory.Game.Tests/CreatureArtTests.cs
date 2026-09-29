@@ -282,13 +282,18 @@ public class CreatureArtTests
                 Art.Enemy(mesh, Matrix4x4.CreateTranslation(i, 0, -12), kinds[i], SpinePhase.Commit, t + i, 0.4);
         }
         Frame(0);
-        var clock = System.Diagnostics.Stopwatch.StartNew();
+        // The best of twenty frames, not their mean: what a frame costs, rather than how often a CI box (every test
+        // assembly at once on two cores) took the thread away. A mean there ran to 166 ms for an 11 ms frame.
         const int Frames = 20;
+        double ms = double.MaxValue;
         for (int f = 0; f < Frames; f++)
+        {
+            var clock = System.Diagnostics.Stopwatch.StartNew();
             Frame(f / 30.0);
-        double ms = clock.Elapsed.TotalMilliseconds / Frames;
+            ms = Math.Min(ms, clock.Elapsed.TotalMilliseconds);
+        }
         TestContext.Current.TestOutputHelper?.WriteLine($"{ms:0.0} ms a frame, {mesh.Count / 3} triangles");
-        // Generous (Debug builds, a loaded CI box); on a desktop Release build it's a few ms.
+        // Generous (Debug builds, a loaded CI box); on a desktop Release build it's about 11 ms.
         Assert.True(ms < 120, $"{ms:0.0} ms a frame");
     }
 
