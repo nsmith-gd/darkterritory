@@ -121,7 +121,8 @@ public sealed partial class WorldArt
     /// lamps burning, the gatehouse over the line, and at the home fortress the station platform under its canopy,
     /// a lantern to every bay (the sheet's fortified station: warm pools, and the dark between them).
     /// </summary>
-    public void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool platform)
+    /// <param name="lit">A town that has stopped answering (linegen plan §22.4) stands dark: its lamps are out.</param>
+    public void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool platform, bool lit = true)
     {
         double a = Math.Max(start, from), b = Math.Min(end, to);
         if (a >= b)
@@ -144,6 +145,8 @@ public sealed partial class WorldArt
                 mesh.Instances.Add(new MeshInstance(tower, Basis(t.Tangent, at, eye, 0)));
                 // The tower's lamp over the line, a lit pool on the tracks below it.
                 var lamp = (at + r * (-side * 2.2) + Double3.Up * 14.1).RelativeTo(eye);
+                if (!lit)
+                    continue;
                 mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.4f, 16));
                 mesh.Billboard(lamp, 2.2f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
             }
@@ -153,8 +156,10 @@ public sealed partial class WorldArt
             var t = line.Sample(gateAt);
             mesh.Instances.Add(new MeshInstance(Piece("gatehouse", () => StructureKit.Gatehouse(_look)), Basis(t.Tangent, t.Position, eye, 0)));
             var lamp = (t.Position + Double3.Up * 8.0 + t.Tangent * -3.8).RelativeTo(eye);
-            mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.6f, 14));
-            mesh.Billboard(lamp, 1.8f, 0, new Vector4(Palette.LampAmber * 0.7f, 1), -1, FxBlend.Additive);
+            if (lit)
+                mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.6f, 14));
+            if (lit)
+                mesh.Billboard(lamp, 1.8f, 0, new Vector4(Palette.LampAmber * 0.7f, 1), -1, FxBlend.Additive);
         }
         if (!platform)
             return;

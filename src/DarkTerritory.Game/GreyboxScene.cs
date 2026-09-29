@@ -92,7 +92,7 @@ public sealed class GreyboxScene
             double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
             Fortress(mesh, line, eye, from, to, 0, yard, gateAt: yard);
             double home = Route.Plan?.Terminus.GateM ?? line.Length - terminus - 200;
-            Fortress(mesh, line, eye, from, to, home, line.Length, gateAt: home);
+            Fortress(mesh, line, eye, from, to, home, line.Length, gateAt: home, lit: Route.Plan?.Terminus.Silent != true);
         }
         // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox,
         // and any hand lamp lying about or being carried.
@@ -642,11 +642,11 @@ public sealed class GreyboxScene
     }
 
     /// <summary>Walls both sides, gun towers with lamps, and a gatehouse over the line.</summary>
-    void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt)
+    void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool lit = true)
     {
         if (Look is not null)
         {
-            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0);
+            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit);
             return;
         }
         double a = Math.Max(start, from), b = Math.Min(end, to);
