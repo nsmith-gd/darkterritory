@@ -46,6 +46,8 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         aimed = self;
         if (!self.Alive)
             return default;
+        // A tunnel's mouth ahead: at the gun it's down behind the shield; anywhere else on the roofs, off them.
+        _legs.Looked(world, safe: Guns.MannedGun(self, world.Train, guns) is not null);
         // Nobody holds a gun through the cold (spec B.2): off it and indoors until warm, then back. Nor through a stop
         // they have a part in.
         if (_legs.Warming(self) || _legs.Work(self, world) is not null)
@@ -114,6 +116,14 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
 
     uint _workedTick = uint.MaxValue;
     PlayerIntent? _work;
+    bool _looked;
+
+    /// <summary>The gunner has read the line for its legs this tick already (it knows whether it's at the gun).</summary>
+    internal void Looked(World world, bool safe)
+    {
+        Look(world, safe);
+        _looked = true;
+    }
 
     /// <summary>This tick's intent for its part in a stop, if it has one to do now (worked out once a tick).</summary>
     public PlayerIntent? Work(in PlayerState self, World world)
@@ -128,12 +138,40 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         return _work;
     }
 
+    /// <summary>
+    /// Reads the line ahead: a posted tunnel (its board read) whose mouth is near enough, or the train still in one, means
+    /// off the roofs and indoors (sight.json: the mouth takes anyone standing up there). <paramref name="safe"/>: where it
+    /// stands is clear anyway (a gun's crew are down behind its shield).
+    /// </summary>
+    public void Look(World world, bool safe = false)
+    {
+        if (_warm is not null)
+            _warm.Shelter = !safe && TunnelNear(world);
+    }
+
+    /// <summary>Seconds' warning a walker wants to get off the roofs and in before a tunnel's mouth.</summary>
+    const double ShelterSeconds = 40;
+
+    /// <summary>A tunnel ahead that's been posted (the board read, or its mouth made out in the dark), and near.</summary>
+    public static bool TunnelNear(World world)
+    {
+        if (world.Lineside is not { } lineside)
+            return false;
+        var d = world.Train.Dynamics;
+        double reach = Math.Max(d.Speed, 3) * ShelterSeconds + 30;
+        return lineside.Signs.Any(s => s.Kind == Sim.Route.SignKind.LowClearance && lineside.Read(s.Id) && s.End >= d.RearDistance - 5
+            && s.Start - d.Distance <= reach);
+    }
+
     public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
         aimed = self;
         // Warming up means a coupler plate, so it keeps to the gaps no Rattle's in (App. A.5): its client can see them.
         if (_warm is not null)
             _warm.Rattled = car => world.ActiveEnemies.Any(e => e is Rattle r && r.Attached == car);
+        if (!_looked)
+            Look(world);
+        _looked = false;
         if (Work(self, world) is { } working)
             return working;
         var train = world.Train;
@@ -379,6 +417,8 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         double cruise = world.LampShining ? CruiseSpeed : DarkCruiseSpeed;
         if (world.ActiveEnemies.OfType<Ferryman>().FirstOrDefault(f => f.Waving) is { } ferryman)
             cruise = Math.Max(cruise, ferryman.Extra);
+        // The boards it's read (sight.json): down to a posted speed in time, and held there till the last car's through.
+        cruise = Math.Min(cruise, Posted(world));
         var intent = Drive(train, tick, cruise);
         intent.Lamp = lamp;
         // Watch the road: something showing on the line ahead means get below derailing speed.
@@ -390,6 +430,30 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             intent.ThrottleNotch = -4;
         }
         return Work(self, train, intent);
+    }
+
+    /// <summary>Under a posted speed by this much (m/s): the driver's cruise wobbles either side of what it's holding.</summary>
+    const double PostedMargin = 1;
+
+    /// <summary>
+    /// The fastest the boards read so far allow here: a posted stretch's speed on it, until the last car's through, and
+    /// short of it no faster than a gentle brake gets down to that by the time it's there.
+    /// </summary>
+    static double Posted(World world)
+    {
+        if (world.Lineside is not { } lineside)
+            return double.MaxValue;
+        var d = world.Train.Dynamics;
+        double brake = 0.3 * d.MaxBrakeForce / d.Consist.MassTonnes;
+        double allowed = double.MaxValue;
+        foreach (var s in lineside.Signs)
+        {
+            if (s.Kind != Sim.Route.SignKind.SpeedLimit || !lineside.Read(s.Id) || s.End < d.RearDistance)
+                continue;
+            double target = s.Limit - PostedMargin, to = s.Start - d.Distance - 15;
+            allowed = Math.Min(allowed, to <= 0 ? target : Math.Sqrt(target * target + 2 * brake * to));
+        }
+        return allowed;
     }
 
     PlayerIntent Work(in PlayerState self, TrainOnLine train, PlayerIntent intent)
@@ -464,8 +528,14 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     /// <summary>Times it's been in and got warm.</summary>
     public int Done { get; private set; }
 
-    public bool Wants(in PlayerState s) =>
+    public bool Wants(in PlayerState s) => Shelter ||
         s.Cold >= cold.OnsetSeconds * goInAt * (s.Has(PlayerFlags.Revived) ? cold.RevivedOnsetScale : 1);
+
+    /// <summary>
+    /// Off the roofs and indoors, cold or not, for as long as it's set (a tunnel's mouth ahead, sight.json): the same way
+    /// in, and it waits in there until it's clear.
+    /// </summary>
+    public bool Shelter { get; set; }
 
     /// <summary>This tick's intent while getting warm; null when there's nothing to do (walk as usual).</summary>
     public PlayerIntent? Decide(in PlayerState self, TrainOnLine train)
@@ -538,7 +608,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                 // Someone came or went and left a door open: shut it again.
                 if (train.Vehicles[_car].DoorsOpen != 0)
                     return Next(Step.Shut);
-                if (self.Cold > WarmEnough)
+                if (self.Cold > WarmEnough || Shelter)
                     return new PlayerIntent();
                 Done++;
                 _outEnd = WayOut(self, train);

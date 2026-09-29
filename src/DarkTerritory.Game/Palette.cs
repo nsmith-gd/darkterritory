@@ -29,4 +29,8 @@ public static class Palette
     /// <summary>A switch stand's target lamp: pale green set for the main line, red set for the branch.</summary>
     public static readonly Vector3 SignalGreen = Hex(0x8FB894);
     public static readonly Vector3 SignalRed = Hex(0xB8402A);
+    /// <summary>A lineside board's enamel (sight.json): pale, so the headlamp picks it out; nothing in the dark.</summary>
+    public static readonly Vector3 BoardEnamel = Hex(0xB8B2A2);
+    /// <summary>A clearance board's warning stripes.</summary>
+    public static readonly Vector3 HazardYellow = Hex(0xB89030);
 }

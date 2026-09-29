@@ -374,6 +374,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     {
         Look = look,
         Route = session.Route,
+        Signs = session.World.Lineside?.Signs,
+        SignRange = session.World.Lineside?.Tuning.LampSignRange ?? 350,
         Enemies = session.World.ActiveEnemies,
         Run = session.World.Run,
         Vehicles = session.Train.Vehicles,
@@ -525,6 +527,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
         // A Vigil: emergency lighting, and no power to the headlamp.
         scene.Emergency = session.World.EmergencyLights;
+        scene.LampLit = session.World.LampShining;
         scene.Controls = session.Controls;
         if (!session.World.LampShining)
             lighting.LampRange = 0.01f; // not 0: the shader divides by it

@@ -157,6 +157,15 @@ public sealed class World
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(-0.9, floor, room.Max.Z - 3.3 - 0.5 * i), Physics.BodyKind.Radio);
     }
 
+    /// <summary>The route's boards and the hazards they warn of (sight.json), when playing a route.</summary>
+    public Route.Lineside? Lineside { get; private set; }
+
+    /// <summary>Puts up the route's boards: every machine reads them the same way; the host runs their hazards.</summary>
+    public void EnableLineside(Route.SightTuning tuning, Route.Route route) => Lineside = new Route.Lineside(tuning, route);
+
+    /// <summary>The crew as they acted this tick, on the host, with or without enemies (the lineside's hazards).</summary>
+    readonly List<(int Id, PlayerState State)> _actors = new();
+
     /// <summary>Tonight's run (departure, facilities, terminus, dawn), when playing a route.</summary>
     public Run.Run? Run { get; private set; }
 
@@ -265,6 +274,8 @@ public sealed class World
             && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
             Shots.Add(shot);
         _context?.Crew.Add((new PlayerSnapshot((byte)playerId, s), intent));
+        if (Authority)
+            _actors.Add((playerId, s));
     }
 
     /// <summary>Starts a tick: clears last tick's shots and events.</summary>
@@ -275,6 +286,7 @@ public sealed class World
         Calls.Clear();
         EnemyEvents.Clear();
         Damage.Clear();
+        _actors.Clear();
         if (Authority && Enemies is { } t)
             _context = new EnemyContext { Tuning = t, World = this, RecentRounds = _recentRounds };
     }
@@ -297,7 +309,11 @@ public sealed class World
             applied.Throttle = 1;
             applied.Brake = 0;
         }
+        // The boards the lamp reaches, and the rail's grip where the engine is (both machines alike: it's prediction).
+        Lineside?.See(Train, LampShining);
         Train.Step(SimConstants.TickSeconds, applied);
+        if (Authority && Lineside is { } lineside)
+            lineside.Hazards(this, _actors, Damage);
         LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
         if (Combat is { } c)
         {
@@ -488,7 +504,7 @@ public sealed class World
                 continue;
             if (d.Pull is { } outward)
             {
-                PlayerMotor.PullOff(ref s, Train, outward, Train.Dynamics.Tuning);
+                PlayerMotor.PullOff(ref s, Train, outward, Train.Dynamics.Tuning, d.Cause);
                 set(d.PlayerId, s);
                 continue;
             }

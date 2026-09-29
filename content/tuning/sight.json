@@ -1,0 +1,32 @@
+// What the headlamp shows, and the line's boards (GDD §22 hazards, App. A.2 and A.6: "lamps down" contradicts everything
+// that needs forward visibility). Added after the 100-night playtest: running dark has to cost obstacle sight (the
+// Sleepers, enemies.json, and the Grease here) and sign sight (the boards). First pass, not in the spec.
+{
+  // A board is read once the headlamp reaches it; lamps down, only once it's almost alongside.
+  "lampSignRange": 350,
+  "darkSignRange": 10,
+  // Grease's sheen on the rail: seen this far out in the lamp, and this far without it.
+  "lampGreaseRange": 150,
+  "darkGreaseRange": 15,
+  // Boards stand this far short of what they warn of.
+  "boardAhead": 450,
+  // A curve is posted at the speed that gives this lateral pull (m/s², v = sqrt(a R)), if that's under postBelow (m/s).
+  "curveLateral": 0.4,
+  "postBelow": 15,
+  // A weak bridge (route.json weakBridgeChance) is posted at this.
+  "weakBridgeLimit": 7,
+  // Over a posted speed by this much (m/s), the cars strain (integrity lost per second per m/s over: strainPerSecond) and
+  // the cargo lurches about (cargo integrity, cargoDamagePerSecond); by
+  // throwOver, whoever's up on the roofs goes over the side at throwSpeed outward (at speed, that's death); at derailRatio
+  // times the board, the train's off the rails.
+  "lurchOver": 1.5,
+  "throwOver": 3.5,
+  "cargoDamagePerSecond": 0.01,
+  "strainPerSecond": 0.004,
+  "throwSpeed": 3,
+  "derailRatio": 1.55,
+  // GDD App. A.2 GREASE: "slicks the rail. No traction — can't climb, can't stop." The rail's grip while the engine's on it.
+  "greaseTraction": 0.25,
+  // A tunnel's mouth, to anyone standing on a roof going into it.
+  "struckDamage": 200
+}

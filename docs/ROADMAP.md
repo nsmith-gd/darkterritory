@@ -177,6 +177,12 @@ M3 is done but for a test with eight people.
 - A pixel-font HUD in the low-res frame: engine gauges, ping to host (spec E), the prompt for what your hands can do, and the night.
 - `dt screenshot --hud` captures it.
 
+**The line's boards (sight.json, after the 100-night playtest):**
+- Speed boards before sharp curves and weak bridges, and low-clearance boards before tunnels, read in the headlamp at 350 m. Lamps down they're unread, and the curve or tunnel mouth is only made out 10 m short.
+- Over a board, the cars strain and the cargo lurches, roof riders are thrown, and far over the train derails. A tunnel mouth takes anyone standing on a roof.
+- Grease now takes the rail's grip.
+- The driver bot slows for boards it has read; walkers get inside for a posted tunnel.
+
 **Cold and the Vigil (spec B.2, C.2):**
 - Cold exposure is predicted like movement: 600 s to onset, 1200 s to death, recovered in 20 s near heat, and a quarter as fast inside a car with a door open.
 - The Vigil revives a body laid in the engine at a dead stop, for 90/120/150 s of maximum exposure. Engine off, lights to emergency, guns dead (they need steam now), the Choir at maximum.

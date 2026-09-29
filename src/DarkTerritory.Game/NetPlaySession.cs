@@ -110,6 +110,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             world.EnableSwitches(routeTuning.Junctions);
             world.EnableRun(runTuning, route, routeTuning.YardLength, authority,
                 DataFile.Load<Sim.Run.FacilityTuning>(Path.Combine(content, Sim.Run.FacilityTuning.File)));
+            world.EnableLineside(DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)), route);
         }
         return (world, route);
     }

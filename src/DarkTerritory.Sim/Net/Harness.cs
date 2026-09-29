@@ -30,6 +30,8 @@ public sealed record HarnessOptions
     /// with the gunner lending a hand), the bots stop at the winch facilities and load (T32).
     /// </summary>
     public Run.FacilityTuning? Facilities { get; init; }
+    /// <summary>With a route, the line's boards and what they warn of (sight.json): posted curves, tunnel mouths, Grease.</summary>
+    public Route.SightTuning? Sight { get; init; }
     /// <summary>With it, the crew can revive the dead (spec C.2); bots don't hold Vigils yet.</summary>
     public Run.VigilTuning? Vigil { get; init; }
     /// <summary>Another network to run over (the CLI's fake Steam lobby), in place of the loopback or UDP.</summary>
@@ -87,6 +89,8 @@ public static class Harness
             host.World.EnableRun(rt, route, o.YardLength, authority: true, o.Facilities);
         if (o.Vigil is { } vt)
             host.World.EnableVigil(vt);
+        if (o.Sight is { } sight && o.Route is { } sightRoute)
+            host.World.EnableLineside(sight, sightRoute);
 
         // On a night with facilities, the crew call to each other at the stops, and each has a part: the walkers first (a
         // shunter, the winch pair, then crates), and the gunner only if it takes them to make up the winch pair.
@@ -114,6 +118,8 @@ public static class Harness
             // Clients see the night as players do: the phase, and each site's winch (mirrored from the host).
             if (o.Run is { } crt && o.Route is { } croute)
                 session.World.EnableRun(crt, croute, o.YardLength, authority: false, o.Facilities);
+            if (o.Sight is { } csight && o.Route is { } lroute)
+                session.World.EnableLineside(csight, lroute);
             clients.Add((session, bot, transport));
         }
 
