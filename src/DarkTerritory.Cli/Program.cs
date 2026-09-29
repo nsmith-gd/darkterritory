@@ -83,6 +83,8 @@ object RunHarness(string[] args)
         Enemies = args.Contains("--enemies") ? enemies : null,
         Route = route,
         Udp = args.Contains("--udp"),
+        Run = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)),
+        YardLength = routeTuning.YardLength,
     }, args.Contains("--no-boiler") ? null : boiler);
 }
 
@@ -189,9 +191,23 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     int width = (int)Opt(args, "--width", 640), height = (int)Opt(args, "--height", 360), scale = (int)Opt(args, "--scale", 2);
     string output = Str(args, "--out", $"out/shots/{view}.png");
 
-    var line = RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
+    // --route tier:seed generates the night in memory; --coaling stops the train at its coaling tower, chute pouring.
+    Route? generated = Str(args, "--route", "") is { Length: > 0 } spec
+        ? RouteGenerator.Generate(DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File)), Route.ParseSpec(spec).Tier, Route.ParseSpec(spec).Seed)
+        : null;
+    var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
     var consist = Consist.Uniform(t, cars, 1);
-    var train = new TrainOnLine(new TrainDynamics(consist), line, Opt(args, "--at", 1200));
+    DarkTerritory.Sim.Run.Run? run = null;
+    double at = Opt(args, "--at", 1200);
+    RouteFeature? tower = generated?.Of(FeatureKind.Facility).FirstOrDefault(f => f.Facility == FacilityKind.CoalingTower);
+    if (args.Contains("--coaling") && generated is not null && tower is not null)
+    {
+        run = new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
+        at = run.ChuteAt(tower, line).SpoutAlong + t.Geometry.EngineLength - t.Geometry.Engine.TenderLength / 2;
+        int index = generated.Of(FeatureKind.Facility).ToList().IndexOf(tower);
+        run.Mirror(DarkTerritory.Sim.Run.RunPhase.AtFacility, DarkTerritory.Sim.Run.RunEnd.None, 900, index, true, [.. Enumerable.Repeat(200.0, run.FacilityCount)]);
+    }
+    var train = new TrainOnLine(new TrainDynamics(consist), line, at);
     // --cut N: cut behind car N and pull the engine forward, to see a split train.
     if (Opt(args, "--cut", -1) is var cutAt and >= 0)
     {
@@ -213,19 +229,19 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         camera = Camera.LookAt(At(cam), At(Str(args, "--target", cam)), (float)Opt(args, "--fov", 65));
     }
     string routeFile = Path.Combine(content, "lines", lineName + ".route.json");
-    var route = File.Exists(routeFile) ? DataFile.Load<Route>(routeFile) : null;
+    var route = generated ?? (File.Exists(routeFile) ? DataFile.Load<Route>(routeFile) : null);
 
     var clock = Stopwatch.StartNew();
     using var gpu = new GpuContext("dt screenshot");
     using var renderer = new GreyboxRenderer(gpu, width, height);
     var mesh = new MeshBuilder();
-    new GreyboxScene { Route = route, Enemies = args.Contains("--threats") ? Staging.Threats(train) : null }.Build(mesh, train, camera.Position);
+    new GreyboxScene { Route = route, Run = run, Time = 0.37, Enemies = args.Contains("--threats") ? Staging.Threats(train) : null }.Build(mesh, train, camera.Position);
     var lighting = Views.Lighting(train);
     if (route is not null)
         lighting.FogDensity = (float)route.Weather.FogDensity;
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor);
     PngWriter.Write(output, pixels, width, height, scale);
-    return new { path = Path.GetFullPath(output), view, device = gpu.DeviceName, triangles = mesh.Count / 3, width = width * scale, height = height * scale, ms = clock.ElapsedMilliseconds };
+    return new { path = Path.GetFullPath(output), view, trainAt = Math.Round(at, 1), device = gpu.DeviceName, triangles = mesh.Count / 3, width = width * scale, height = height * scale, ms = clock.ElapsedMilliseconds };
 }
 
 // Renders a staged moment through the real mixer to a WAV, and measures every tell against the bed.
@@ -277,6 +293,7 @@ static int Usage()
           screenshot [--view trackside|roof|cab|chase|ahead] [--line name] [--cars n] [--at s] [--car i] [--cut n]
                      [--cam s,lateral,height --target s,lateral,height --fov deg]   camera by line coordinates
                      [--width w] [--height h] [--scale k] [--out file.png] [--threats]   --threats stages one of each enemy
+                     [--route tier:seed [--coaling]]   a generated night; --coaling stops at its coaling tower, chute pouring
           route gen [--tier local|frontier|deadLines|deepTerritory] [--seed n] [--name generated] [--map file.png]
                      writes content/lines/<name>.json (+ .route.json) and a map; try `screenshot --line generated`
           route sweep [--seeds n]                  generate n routes per tier and report ranges

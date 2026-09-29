@@ -29,6 +29,7 @@ jobs:
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --threats --cam 1058,5,2.5 --target 1090,0,2 --fov 55 --out out/shots/threats-rear.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --threats --cam 1184,6,3.4 --target 1185,0,2.6 --fov 55 --out out/shots/threats-cab.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --cars 4 --cam 1122,-0.4,2.8 --target 1130,0.4,2.0 --fov 75 --out out/shots/inside-guard.png
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --coaling --cam 13008,7,5 --target 13024,-0.5,5 --fov 60 --out out/shots/coaling.png
       - name: Prototype window smoke test (Xvfb + lavapipe)
         if: runner.os == 'Linux'
         run: xvfb-run -a -s "-screen 0 1280x720x24" dotnet run --project src/DarkTerritory.App -c Release --no-build -- --route frontier:7 --throttle 1 --quit-after 10 --capture out/shots/app.png

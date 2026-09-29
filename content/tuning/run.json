@@ -1,0 +1,31 @@
+// A night as a game (GDD §9 run structure, spec B.8 and F.1). First pass.
+{
+  // Stopped means slower than this, for pulling up at a facility or the terminus.
+  "stopBelowSpeed": 0.5,
+  // The terminus gates: the train is home once it's stopped with its front this close to the end of line.
+  "terminusZone": 400,
+  // GDD §8: at dawn the main line reopens and dispatch can't guarantee it's clear. This long after,
+  // traffic is on it: the run is lost.
+  "dawnGraceSeconds": 120,
+
+  // Coaling tower (GDD §18, spec D.2 gravity chute): someone on the ground pulls the lever; it pours
+  // whether you're ready or not; coal that misses the tender is lost, and overfilling damages the engine.
+  "chute": {
+    "leverReach": 2.2,
+    "leverSeconds": 0.6,
+    // How far the tender can be from under the spout and still catch it.
+    "spoutTolerance": 2.5,
+    "pourPerSecond": 12,
+    "capacity": 260,
+    "overfillDamagePerUnit": 0.0015
+  },
+
+  // Spec F.1: contracts pay on delivered cargo that survives, and nothing else.
+  "economy": {
+    "perCar": { "local": 450, "frontier": 700, "deadLines": 1100, "deepTerritory": 1700 },
+    // Running costs, priced so a competent night averages spec F.1's 15% of gross.
+    "coalPerUnit": 2,
+    "roundsPerRound": 1,
+    "repairPerIntegrity": 150
+  }
+}

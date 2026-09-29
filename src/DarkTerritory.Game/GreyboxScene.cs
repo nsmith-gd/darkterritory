@@ -23,6 +23,10 @@ public sealed class GreyboxScene
     public Route? Route { get; set; }
     /// <summary>Live enemies to draw. When set, the route's Sleepers come from here rather than its features.</summary>
     public IReadOnlyList<Enemy>? Enemies { get; set; }
+    /// <summary>Tonight's run, for facility machinery (the coaling chute pouring).</summary>
+    public Sim.Run.Run? Run { get; set; }
+    /// <summary>Seconds, for animating things that move on their own.</summary>
+    public double Time { get; set; }
     /// <summary>Vehicle state for doors (open or shut). Without it every door is drawn shut.</summary>
     public IReadOnlyList<Vehicle>? Vehicles { get; set; }
     /// <summary>Other players, drawn as greybox figures.</summary>
@@ -48,7 +52,13 @@ public sealed class GreyboxScene
         Track(mesh, line, eye, from, to, centre);
         Lineside(mesh, line, eye, from, to);
         if (Route is not null)
+        {
             Features(mesh, line, eye, from, to);
+            // GDD §9: the fortress yard behind the gates, and the terminus: "lights, then walls, then gun towers".
+            double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
+            Fortress(mesh, line, eye, from, to, 0, yard, gateAt: yard);
+            Fortress(mesh, line, eye, from, to, line.Length - terminus - 200, line.Length, gateAt: line.Length - terminus - 200);
+        }
         // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox.
         foreach (var frame in frames)
         {
@@ -340,8 +350,60 @@ public sealed class GreyboxScene
                     break;
                 case FeatureKind.Facility:
                     Facility(mesh, line, eye, f);
+                    if (f.Facility == FacilityKind.CoalingTower && Run is { } run)
+                        Chute(mesh, line, eye, f, run);
                     break;
             }
+        }
+    }
+
+    /// <summary>Walls both sides, gun towers with lamps, and a gatehouse over the line.</summary>
+    static void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt)
+    {
+        double a = Math.Max(start, from), b = Math.Min(end, to);
+        if (a >= b)
+            return;
+        for (double s = Math.Floor(a / 10) * 10; s < b; s += 10)
+            foreach (int side in new[] { -1, 1 })
+                Along(mesh, line, eye, s, 10, side * 14, 0, 0.8, 7, Palette.IronGrey);
+        for (double s = Math.Ceiling(a / 120) * 120; s < b; s += 120)
+            foreach (int side in new[] { -1, 1 })
+            {
+                Along(mesh, line, eye, s, 4, side * 14, 0, 2.2, 11, Palette.Charcoal);
+                mesh.Emissive = 1;
+                Along(mesh, line, eye, s + 1.5, 1, side * 11.6, 9.5, 0.2, 0.4, Palette.LampAmber);
+                mesh.Emissive = 0;
+            }
+        if (gateAt >= from && gateAt <= to)
+        {
+            foreach (int side in new[] { -1, 1 })
+                Along(mesh, line, eye, gateAt - 3, 6, side * 5, 0, 1.5, 10, Palette.Charcoal);
+            Along(mesh, line, eye, gateAt - 3, 6, 0, 8.5, 6.5, 1.5, Palette.Charcoal);
+            mesh.Emissive = 1;
+            Along(mesh, line, eye, gateAt, 0.4, 0, 8.2, 0.5, 0.3, Palette.LampAmber);
+            mesh.Emissive = 0;
+        }
+    }
+
+    /// <summary>The coaling lever on the ground, and coal falling from the spout while the chute is open.</summary>
+    void Chute(MeshBuilder mesh, RailLine line, Double3 eye, RouteFeature f, Sim.Run.Run run)
+    {
+        var (spout, lever) = run.ChuteAt(f, line);
+        var t = line.Sample(spout);
+        var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+        mesh.Box(V(lever - Double3.Up * 0.45, eye), ToF(right), Vector3.UnitY, ToF(t.Tangent * -1), new Vector3(0.06f, 0.45f, 0.06f), Palette.IronGrey);
+        bool open = run.ChuteOpen && run.FacilityFeature == f;
+        // The handle: down when pouring, up when shut.
+        mesh.Box(V(lever + Double3.Up * (open ? -0.1 : 0.25) + right * (f.Side * 0.15), eye), ToF(right), Vector3.UnitY, ToF(t.Tangent * -1), new Vector3(0.2f, 0.04f, 0.04f), Palette.TarnishedBrass);
+        if (!open)
+            return;
+        // A curtain of coal from the spout onto whatever's under it, and dust lit by the tower's lamp.
+        var top = t.Position + right * (f.Side * 0.4) + Double3.Up * 8.8;
+        for (int i = 0; i < 24; i++)
+        {
+            double fall = (Time * 7 + i * 0.37) % 5.4;
+            var p = top - Double3.Up * fall + right * (0.3 * Math.Sin(i * 2.1)) + t.Tangent * (0.35 * Math.Cos(i * 1.3));
+            mesh.Box(V(p, eye), ToF(right), Vector3.UnitY, ToF(t.Tangent * -1), new Vector3(0.22f, 0.26f, 0.22f), i % 3 == 0 ? Palette.IronGrey : Palette.Charcoal);
         }
     }
 

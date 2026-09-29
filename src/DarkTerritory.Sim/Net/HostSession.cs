@@ -96,6 +96,8 @@ public sealed class HostSession
         World.ApplyDamage(id => _crew.FirstOrDefault(c => c.Id == id)?.State, (id, s) => _crew.First(c => c.Id == id).State = s, _crew.Select(c => (int)c.Id));
         foreach (var c in _crew)
             PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
+        if (World.Run is not null)
+            World.StepRun([.. _crew.Select(c => c.State)]);
         Tick++;
 
         // Snap the world onto the replication grid and keep simulating from exactly that.

@@ -92,7 +92,7 @@ static AudioOut? Warn(string? error)
 }
 
 var clock = new FixedStepClock(SimConstants.TickRate);
-var scene = new GreyboxScene { Route = session.Route, Enemies = session.World.ActiveEnemies };
+var scene = new GreyboxScene { Route = session.Route, Enemies = session.World.ActiveEnemies, Run = session.World.Run, Vehicles = session.Train.Vehicles };
 var mesh = new MeshBuilder();
 var timer = Stopwatch.StartNew();
 double last = 0, titleAt = 0;
@@ -188,6 +188,7 @@ while (!window.CloseRequested)
     var frames = session.InterpolatedFrames(clock.Alpha);
     camera = chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
     scene.Crew = session.Crew(frames, clock.Alpha);
+    scene.Time = now;
     lighting = Views.Lighting(frames[0]);
     if (session.Route is { } r)
         lighting.FogDensity = (float)r.Weather.FogDensity;

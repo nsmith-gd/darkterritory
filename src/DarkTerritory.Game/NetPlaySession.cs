@@ -22,7 +22,8 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     public static SessionSetup Decode(string json) => JsonSerializer.Deserialize<SessionSetup>(json, DataFile.Options) ?? new SessionSetup();
 
     /// <summary>The world this setup describes, identically on every machine.</summary>
-    public (World World, Route? Route) Build(string content)
+    /// <param name="authority">The host's world runs the night; a joiner's mirrors it.</param>
+    public (World World, Route? Route) Build(string content, bool authority = false)
     {
         var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
         var boiler = DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File));
@@ -43,7 +44,11 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             line = RailLine.Load(Path.Combine(content, "lines", Line + ".json"));
         }
         var train = new TrainOnLine(new TrainDynamics(consist), line, start, boiler);
-        return (new World(train, combat), route);
+        var world = new World(train, combat);
+        if (route is not null)
+            world.EnableRun(DataFile.Load<Sim.Run.RunTuning>(Path.Combine(content, Sim.Run.RunTuning.File)), route,
+                DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File)).YardLength, authority);
+        return (world, route);
     }
 }
 
@@ -87,7 +92,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
-        var (hostWorld, route) = setup.Build(content);
+        var (hostWorld, route) = setup.Build(content, authority: true);
         var hostTransport = UdpTransport.Host(port);
         var host = new HostSession(hostTransport, hostWorld, trainTuning, playerTuning) { SessionInfo = setup.Encode() };
         if (setup.Enemies && route is not null)
@@ -184,8 +189,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         string link = !Client.Connected ? "connecting…" : Lost ? "CONNECTION LOST" : $"{Client.RemoteIds.Count() + 1} aboard, ping {_clientTransport.RoundTrip(PeerId.Host) * 1000:0} ms";
         string where = PrototypeSession.Where(p, Train);
         string state = p.Alive ? $"{p.Surface} {where} hp {p.Health}" : $"DEAD ({p.Death})";
-        return $"{d.Speed,5:0.0} m/s | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} | P {Train.Boiler.Pressure,3:0} fire {Train.Boiler.Firebox:0.0} | " +
-               $"choir {World.Choir.Aggro:0} | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state} | {role} | {link}";
+        return $"{d.Speed,5:0.0} m/s | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} | P {Train.Boiler.Pressure,3:0} fire {Train.Boiler.Firebox:0.0} tender {Train.Boiler.Tender:0} | " +
+               $"choir {World.Choir.Aggro:0} | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state} | {role} | {link}" +
+               PrototypeSession.RouteStatus(Route, World, Train);
     }
 
     public void Dispose()

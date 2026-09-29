@@ -6,6 +6,7 @@ using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
+using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game;
@@ -35,6 +36,8 @@ public sealed class PrototypeSession : IPlaySession
     {
         if (enemies)
             World.EnableEnemies(DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)), route, route.Seed, crew: 1, authority: true);
+        World.EnableRun(DataFile.Load<RunTuning>(Path.Combine(contentRoot, RunTuning.File)), route,
+            DataFile.Load<RouteTuning>(Path.Combine(contentRoot, RouteTuning.File)).YardLength, authority: true);
     }
 
     PrototypeSession(string contentRoot, RailLine line, Route? route, int cars, double start)
@@ -83,6 +86,7 @@ public sealed class PrototypeSession : IPlaySession
                 _cues.Add((ElapsedSeconds, cue));
         _cues.RemoveAll(c => ElapsedSeconds - c.At > CueSeconds);
         PlayerMotor.Step(ref Player, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
+        World.StepRun([Player]);
         Tick++;
     }
 
@@ -210,17 +214,30 @@ public sealed class PrototypeSession : IPlaySession
         return $"{gun} choir {World.Choir.Phase(c.Choir).ToString().ToLowerInvariant()} {World.Choir.Aggro:0} |";
     }
 
-    string RouteStatus()
+    string RouteStatus() => RouteStatus(Route, World, Train);
+
+    /// <summary>The night so far: the dawn clock, where you are on the route, what's next, and how it ended.</summary>
+    public static string RouteStatus(Route? route, World world, TrainOnLine train)
     {
-        if (Route is null)
+        if (route is null)
             return "";
-        double dawn = Route.DawnSeconds - ElapsedSeconds;
-        string clock = dawn > 0 ? $"dawn {(int)dawn / 60:00}:{(int)dawn % 60:00}" : "DAWN — the line is live";
-        double s = Train.Dynamics.Distance;
-        string next = Route.NextLandmark(s) is { } f
-            ? $"{(f.Kind == FeatureKind.Facility ? $"{f.Facility}" : $"{f.Kind}").ToLowerInvariant()} in {(f.Start - s) / 1000:0.0} km"
+        var run = world.Run;
+        if (run?.Report is { } r)
+            return r.End == RunEnd.Delivered
+                ? $" | DELIVERED {r.CarsDelivered} cars ({r.CargoDelivered:0.0} loads), {r.CarsLost} lost | gross {r.Gross:0} − coal {r.CoalCost:0} − ammo {r.AmmoCost:0} − repairs {r.RepairCost:0} = {r.Net:0} scrip | crew home {r.CrewHome}"
+                : $" | RUN LOST: {r.End switch { RunEnd.Derailed => "derailed", RunEnd.CrewLost => "the whole crew is dead", _ => "still out when the line went live" }} | {r.DistanceKm:0.0} km in {r.Seconds / 60:0} min";
+        double dawn = run?.DawnIn ?? route.DawnSeconds;
+        string clock = run?.Phase == RunPhase.Yard ? "in the yard: gates ahead"
+            : dawn > 0 ? $"dawn {(int)dawn / 60:00}:{(int)dawn % 60:00}" : "DAWN — the line is live, get in";
+        string stop = run?.FacilityFeature is { } f
+            ? $" | STOPPED AT {f.Facility.ToString()!.ToUpperInvariant()}" + (f.Facility == FacilityKind.CoalingTower
+                ? run.ChuteOpen ? $" — chute POURING ({run.ChuteLeft(run.Facility):0} left)" : run.ChuteLeft(run.Facility) > 0 ? " — lever on the ground, hold E" : " — chute empty" : "")
+            : "";
+        double s = train.Dynamics.Distance;
+        string next = route.NextLandmark(s) is { } l
+            ? $"{(l.Kind == FeatureKind.Facility ? $"{l.Facility}" : $"{l.Kind}").ToLowerInvariant()} in {(l.Start - s) / 1000:0.0} km"
             : "terminus ahead";
-        string tunnel = Route.InTunnel(s) ? " | IN TUNNEL" : "";
-        return $" | {Route.Name} | {clock} | {next}{tunnel}";
+        string tunnel = route.InTunnel(s) ? " | IN TUNNEL" : "";
+        return $" | {route.Name} | {clock} | {next}{tunnel}{stop}";
     }
 }
