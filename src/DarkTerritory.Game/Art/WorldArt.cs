@@ -172,7 +172,8 @@ public sealed partial class WorldArt(Look look)
         var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
         var origin = k.SurfaceOrigin;
         const double step = 5;
-        var lateral = Scene(route) is null ? Lateral : PlanLateral;
+        var plan = Scene(route);
+        var lateral = plan is null ? Lateral : PlanLateral;
         int columns = lateral.Length;
         var left = new Vector3[columns * 2 - 1];
         var right = new Vector3[columns * 2 - 1];
@@ -225,6 +226,15 @@ public sealed partial class WorldArt(Look look)
                     : new(colour * GroundShade(l, at), GroundBlend(band, l, at));
                 if (bridge)
                     (a, b) = (_look.Layer("rock_cliff"), _look.Layer("ground_mud"));
+                // A generated line's land: its biome's own ground, going to bare rock where it's steep (linegen plan §12.5).
+                if (plan is not null && !bridge && !hill && MathF.Abs(lat) > 3.7f && BiomeGround(plan, s) is var (ga, gb) && ga >= 0)
+                {
+                    float Steep(Vector3[] row, int i) => SmoothStep(0.45f, 1.1f, SlopeAt(row, i));
+                    Corner At(Vector3[] row, int i, float l, double at) => new(Vector3.One * GroundShade(l, at), Steep(row, i));
+                    Quad(mesh, left[c], left[c + 1], right[c + 1], right[c], At(left, c, l0, s), At(left, c + 1, l1, s), At(right, c + 1, l1, s1), At(right, c, l0, s1),
+                        origin, ga, gb, _look.Textures[ga].TileMetres ?? 2);
+                    continue;
+                }
                 Quad(mesh, left[c], left[c + 1], right[c + 1], right[c], Make(l0, s), Make(l1, s), Make(l1, s1), Make(l0, s1), origin, a, b,
                     a >= 0 && _look.Textures[a].TileMetres is { } tm ? tm : 2);
             }
@@ -343,6 +353,12 @@ public sealed partial class WorldArt(Look look)
             lastTops = tops;
         }
 
+        // A generated line is dressed by its biomes (PlanArt).
+        if (Scene(route) is { } plan)
+        {
+            PlanDressing(mesh, line, route!, plan, eye, from, to, seed, OnBranch);
+            return;
+        }
         // The forest: stands of pines, thinner near the line, thick further out, gaps where the ground is open.
         for (double s = Math.Ceiling(from / 12) * 12; s < to; s += 12)
         {

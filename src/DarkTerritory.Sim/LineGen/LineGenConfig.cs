@@ -162,7 +162,8 @@ public sealed record AuthorityRules(double SleeperSafeMargin, double LampHeightM
 /// <summary>§12.</summary>
 public sealed record TerrainRules(double CorridorM, double TileM, double GridM, double FormationM, double ShoulderM, double BlendM, double NoiseAmplitudeM,
     double[] NoiseWavelengthM, double JunctionPadM, double SkirtDropM, double SampleM, double WalkableSlope, double WalkableWithinM,
-    double TunnelCoverM, double RiverWidthM);
+    double TunnelCoverM, double RiverWidthM, double ReliefM, double[] ReliefWavelengthM, double ReliefFromM, double ReliefFullM, double ReliefRidged,
+    double ReliefUp);
 
 /// <summary>§14.</summary>
 public sealed record WeatherRules(double FogLowGround, double FogCrest, double WindExposed, double ColdStepPerM, double ColdExposedStep, double WetAdhesion,

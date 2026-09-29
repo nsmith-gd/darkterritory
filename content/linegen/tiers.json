@@ -143,7 +143,12 @@
   "terrain": {
     "corridorM": 250, "tileM": 256, "gridM": 2, "formationM": 3.5, "shoulderM": 5, "blendM": 60,
     "noiseAmplitudeM": 3, "noiseWavelengthM": [30, 120], "junctionPadM": 150, "skirtDropM": 30, "sampleM": 5,
-    "walkableSlope": 1.0, "walkableWithinM": 40, "tunnelCoverM": 18, "riverWidthM": 24
+    "walkableSlope": 1.0, "walkableWithinM": 40, "tunnelCoverM": 18, "riverWidthM": 24,
+    // The land's own shape past the formation (§12.2 step 3's "biome noise" at landform scale): hills and ridges the line
+    // threads between, reliefM high at full (times the biome's noiseScale), starting reliefFromM out and full by
+    // reliefFullM; reliefRidged of it is ridged noise (crests, spurs), and reliefUp biases it upward (a line runs along
+    // valleys more than it runs along crests).
+    "reliefM": 32, "reliefWavelengthM": [120, 420], "reliefFromM": 10, "reliefFullM": 80, "reliefRidged": 0.5, "reliefUp": 0.5
   },
 
   // Plan §14: terrain's local change to the night's weather. Fog denser in low ground, thinner on crests; wind worse

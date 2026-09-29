@@ -12,6 +12,7 @@ static class LineGenCommands
         "generate" => Generate(content, args),
         "sweep" => Sweep(content, args),
         "bench" => Bench(content, args),
+        "transect" => Transect(content, args),
         "debug" => LineGenerator.Debug(LineGenContent.Load(content), Parameters(args), (int)Opt(args, "--attempt", 0)).ToList(),
         _ => throw new ArgumentException($"linegen {verb}? (generate, sweep)"),
     };
@@ -75,6 +76,22 @@ static class LineGenCommands
             pieces = plan.Pieces.GroupBy(x => x.Type).ToDictionary(g => g.Key, g => g.Count()),
             metrics = plan.Validation.Metrics,
         };
+    }
+
+    /// <summary>The land across the line at --at (main-line metres): its height over the rail, out to 300 m either side.</summary>
+    static object Transect(string content, string[] args)
+    {
+        var c = LineGenContent.Cached(content);
+        var route = Routes.Generate(content, Str(args, "--route", "frontier:7"), (int)Opt(args, "--cars", 6));
+        var line = route.Build();
+        var terrain = ((PlanConditions)line.Conditions!).Terrain;
+        double at = Opt(args, "--at", 5000);
+        var t = line.Sample(at);
+        return new[] { -300, -200, -150, -100, -60, -30, -15, -8, -4, 0, 4, 8, 15, 30, 60, 100, 150, 200, 300 }.Select(l =>
+        {
+            double x = t.Position.X - t.Tangent.Z * l, z = t.Position.Z + t.Tangent.X * l;
+            return new { lateral = l, height = Math.Round(terrain.Height(x, z) - t.Position.Y, 1) };
+        }).ToList();
     }
 
     static object Bench(string content, string[] args)

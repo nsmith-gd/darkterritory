@@ -22,6 +22,7 @@ public sealed class TerrainField
     readonly EdgeInfo[] _edges;
     readonly Dictionary<long, List<(int Edge, double S, double X, double Z)>> _cells = new();
     readonly ulong _seed;
+    readonly IReadOnlyDictionary<string, double> _relief;
     const double Cell = 128;
 
     sealed class EdgeInfo
@@ -41,6 +42,7 @@ public sealed class TerrainField
         _r = rules;
         _main = line;
         _seed = Streams.Mix(Streams.Hash(plan.Seed), "terrain");
+        _relief = plan.Rules.BiomeRelief;
         var list = new List<EdgeInfo>();
         foreach (var a in plan.Alignment)
         {
@@ -189,7 +191,7 @@ public sealed class TerrainField
         }
         if (a <= _r.ShoulderM)
             return rail;
-        var (type, h) = IntentAt(e, s, n.Lateral >= 0);
+        var (type, h, up, down) = IntentAt(e, s, n.Lateral >= 0);
         double noise = Noise(x, z) * _r.NoiseAmplitudeM * Smooth(_r.ShoulderM, 30, a) * BiomeNoise(type);
         double target = h + noise;
         double run = a - _r.ShoulderM;
@@ -211,17 +213,62 @@ public sealed class TerrainField
             delta = Math.Max(target, -_r.WalkableWithinM * _r.WalkableSlope - (run - _r.WalkableWithinM) * 1.4);
         // Past the corridor, down under the fog.
         double skirt = _r.SkirtDropM * Smooth(_r.CorridorM, _r.CorridorM + 70, a);
-        return rail + delta - skirt;
+        return rail + delta + Relief(x, z, a, up, down) - skirt;
+    }
+
+    /// <summary>
+    /// The land's own shape out past the formation: hills and ridges at landform scale, as rough as the biome is, none
+    /// near the track (it stays walkable, §12.6), and shaped by what the intent says the land does there: a cutting's
+    /// walls go on up into the hill, a marsh or a river stays low, a ledge's drop side only falls.
+    /// </summary>
+    double ReliefOf(string? biome) => biome is not null && _relief.TryGetValue(biome, out var r) ? r : 1;
+
+    /// <summary>How much of the relief an intent takes, rising and falling: a cutting's walls go on up into the hill, a
+    /// marsh or a river stays low, a ledge's drop side only falls.</summary>
+    static (double Up, double Down) Takes(IntentType t) => t switch
+    {
+        IntentType.Cutting or IntentType.LedgeUp or IntentType.Mountain => (1.3, 1.0),
+        IntentType.Embankment => (0.6, 0.6),
+        IntentType.Ravine => (0.4, 0.4),
+        IntentType.River or IntentType.Marsh => (0.12, 0.12),
+        IntentType.Pad => (0.2, 0.2),
+        IntentType.LedgeDrop => (0, 1),
+        _ => (1, 1),
+    };
+
+    /// <summary>Two intents <paramref name="f"/> of the way from one to the other: height, relief and biome all blended, so the land never steps.</summary>
+    (IntentType, double, double, double) Blend(SideIntent a, string? biomeA, SideIntent b, string? biomeB, double f)
+    {
+        var (ua, da) = Takes(a.T);
+        var (ub, db) = Takes(b.T);
+        double ra = ReliefOf(biomeA), rb = ReliefOf(biomeB);
+        return (f < 0.5 ? a.T : b.T, a.H + (b.H - a.H) * f, (ua * ra) * (1 - f) + (ub * rb) * f, (da * ra) * (1 - f) + (db * rb) * f);
+    }
+
+    /// <summary>
+    /// The land's own shape out past the formation: hills and ridges at landform scale, as rough as the biome is (its
+    /// noiseScale), and none near the track, which stays walkable (§12.6).
+    /// </summary>
+    double Relief(double x, double z, double a, double up, double down)
+    {
+        double ramp = Smooth(_r.ReliefFromM, _r.ReliefFullM, a);
+        if (ramp <= 0 || _r.ReliefM <= 0)
+            return 0;
+        double w0 = _r.ReliefWavelengthM[0], w1 = _r.ReliefWavelengthM[^1];
+        double n = 0.65 * Value(x / w1, z / w1, _seed ^ 0x2545F491) + 0.35 * Value(x / w0, z / w0, _seed ^ 0x9E3779B9);
+        double ridged = 1 - 2 * Math.Abs(Value(x / (w1 * 0.7), z / (w1 * 0.7), _seed ^ 0x68E31DA4));
+        double shape = (1 - _r.ReliefRidged) * n + _r.ReliefRidged * ridged + _r.ReliefUp;
+        return _r.ReliefM * ramp * shape * (shape > 0 ? up : down);
     }
 
     static double BiomeNoise(IntentType t) => t switch { IntentType.Pad => 0.1, IntentType.Marsh => 0.3, IntentType.Mountain => 2, _ => 1 };
 
     /// <summary>The intent at s on one side, blended over <c>blendM</c> at span boundaries so the land never steps.</summary>
-    (IntentType Type, double H) IntentAt(EdgeInfo e, double s, bool right)
+    (IntentType Type, double H, double Up, double Down) IntentAt(EdgeInfo e, double s, bool right)
     {
         var spans = e.Intents;
         if (spans.Length == 0)
-            return (IntentType.Plain, 0);
+            return (IntentType.Plain, 0, 1, 1);
         int lo = 0, hi = spans.Length - 1;
         while (lo < hi)
         {
@@ -238,15 +285,15 @@ public sealed class TerrainField
         {
             var next = right ? spans[lo + 1].Right : spans[lo + 1].Left;
             double f = Smooth(-half, half, s - spans[lo + 1].S0);
-            return (f < 0.5 ? here.T : next.T, here.H + (next.H - here.H) * f);
+            return Blend(here, span.Biome, next, spans[lo + 1].Biome, f);
         }
         if (lo > 0 && s - span.S0 < half)
         {
             var prev = right ? spans[lo - 1].Right : spans[lo - 1].Left;
             double f = Smooth(-half, half, s - span.S0);
-            return (f < 0.5 ? prev.T : here.T, prev.H + (here.H - prev.H) * f);
+            return Blend(prev, spans[lo - 1].Biome, here, span.Biome, f);
         }
-        return (here.T, here.H);
+        return Blend(here, span.Biome, here, span.Biome, 0);
     }
 
     /// <summary>Flattened pads (§12.1 "pad"): the fortress, the facilities, the settlements, blended in over 30 m.</summary>

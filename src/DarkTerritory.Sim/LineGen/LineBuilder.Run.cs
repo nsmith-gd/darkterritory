@@ -199,6 +199,8 @@ sealed partial class LineBuilder
                 _t.Conflicts.WeakBridgeCollapses, _t.Weather.WetAdhesion, _t.Weather.WetBiasAdhesion, _t.Terrain)
             {
                 SignOffsetM = _c.Config.Signage.SideOffsetM,
+                Biomes = new SortedDictionary<string, BiomeDef>(_c.Config.Biomes.Biomes, StringComparer.Ordinal),
+                BiomeRelief = new SortedDictionary<string, double>(_c.Config.Biomes.Biomes.ToDictionary(b => b.Key, b => b.Value.NoiseScale), StringComparer.Ordinal),
                 Boards = new SortedDictionary<string, BoardDef>(_c.Config.Signage.Boards, StringComparer.Ordinal),
             },
             Validation = new PlanValidation
