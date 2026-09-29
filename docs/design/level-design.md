@@ -135,6 +135,91 @@ A site rolls its loot *by band*, and nothing uncarryable is ever placed beyond c
 
 ---
 
+# PART D — DIFFICULTY AND VARIETY
+
+The brief after Example 1: layouts need more variety, early runs need to be easier, and later runs need to be harder. This part says what makes a stop hard to work, how the generator scales it by route tier (GDD §11), and how it guarantees the result. All numbers are first-pass. They move to `content/tuning/` with the generator.
+
+## D.1 What makes a stop hard
+
+Difficulty is **what the crew physically has to do to load**, counted move by move. Everything below makes one or more of those counts bigger:
+
+| Count | What drives it |
+|---|---|
+| **Trips into the yard** | Empties to fill ÷ siding capacity. The consist grows with tier while sidings get shorter (P16). |
+| **Switch throws on foot** | Switches on each route × trips, plus two more for every blocked siding that has to be cleared. |
+| **Couplings** | Two per trip (uncouple the cut, couple it back). |
+| **Reversals** | One per trip with facing points, two with trailing points (pass the throat, back in), plus one per clearance. A loop needs none in the yard; the one it costs is on the open main (P17). |
+| **Blind moves** | Moves with cars ahead of the engine. Trailing points turn every crane spot into a blind spot, called by shouted distance (P17). |
+| **Crane re-spots** | Cars per trip ÷ cars under the runway. Shorter runways mean more re-spots (P18). |
+| **Cars loaded by hand** | Cars filled at a siding with no crane: slow, loud and exposed (P18, spec D.2 manual crates). |
+| **Hard pulls** | Trips that drag loaded cars up a grade of 2% or more out of the yard (P18, spec D.1 spur grade). |
+| **Metres on foot** | The switchman's walks from the waiting cars to each route's switch and back, the walk to the powerhouse when power is low or dead, and the village round trip (P19). |
+| **Blocked crossing** | The waiting cut of loaded cars sits across the level crossing, so everyone climbs through it (P19). |
+
+The score is a weighted sum: throws ×1, couplings ×0.5, reversals ×1.5, blind moves on a curve ×2.5 (on the straight ×1), blind spots ×1.5, re-spots ×0.6, cars by hand ×2.5, clearances ×5, hard pulls ×0.9 per % of grade, 1 per 80 m walked, 2 for low power and 5 for dead, 3 for a blocked crossing. A village adds its round trip (1 per 50 m), 3 ÷ the tier's find odds, 0.15 per house to search and 1 per 25 m it sits off the line. That village part counts at 0.4 on a stop that also has a yard, because the village is optional there.
+
+## D.2 The levers, by tier
+
+| Lever | Local | Frontier | Dead lines | Deep territory |
+|---|---|---|---|---|
+| Consist (spec F table) | 3 cars | 8 | 15 | 20 |
+| Empties to fill (half, the departure load) | 2 | 4 | 8 | 10 |
+| Yard forms | spur 45%, loop 40%, fan 15% | spur 15%, loop 25%, fan 40%, parallel 20% | loop 10%, fan 35%, parallel 35%, split 20% | fan 30%, parallel 35%, split 35% |
+| Sidings | 1–2 | 2–4 | 3–5 | 4–6 |
+| Siding holds | 5–7 cars | 3–5 | 3–5 | 2–4 |
+| Sidings with a crane | 100% | 75% | 55% | 40% (at least one) |
+| Crane runway | 45–60 m | 35–50 m | 28–42 m | 22–34 m |
+| Blocked sidings | 0 | 0–1 | 1–2 | 1–3 (never all) |
+| Power | live | live 60%, low 40% | low 50%, dead 50% | low 20%, dead 80% |
+| Grade out of the yard | 0–0.5% | 0–1.5% | 0.5–2.5% | 1–4% |
+| Trailing points | 0% | 30% | 60% | 80% |
+| Fans that loop back to the main | 80% | 50% | 30% | 10% |
+| Village forms | street, blocks, crossroads | + farmsteads | more farmsteads | farmsteads 45% |
+| Village distance off the line | 30–40 m | 32–60 m | 45–90 m | 60–110 m |
+| Crossing to throat | ≤ 70 m, clear of the waiting cars | ≤ 90 m | ≤ 110 m | ≤ 130 m |
+| No-build buffer | 20 m | 24 m | 28 m | 34 m |
+| Find odds per house | 45% | 38% | 32% | 26% |
+| Outlier stub roads | 20–30 m | 25–45 m | 35–60 m | 45–75 m |
+| **Difficulty band, yard stops** | **6–20** | **16–38** | **36–64** | **62–125** |
+| **Difficulty band, village-only stops** | **10–17** | **14–22** | **18–28** | **22–36** |
+
+In a sweep of 40 runs per tier, first-attempt medians came out at 14, 22, 51 and 85, and 100% of stops landed in their band within 8 attempts (mean 1.3–1.9 attempts).
+
+## D.3 Principles
+
+### P15 — Measure it, then keep or reroll
+**Rule:** every stop is scored as in D.1. A stop that's outside its tier's band, or that fails any Z.5 invariant, is rebuilt from `hash(stop, "attempt", k + 1)`, up to 8 attempts, keeping the closest.
+**Why:** tier ranges alone overlap. A lucky deep stop can be easier than an unlucky frontier one. Measuring is what makes "early runs are easier" a guarantee instead of a tendency. Rerolling is deterministic, so every machine keeps the same attempt.
+
+### P16 — Siding length against train length
+**Rule:** sidings shorten as the tier rises while the consist grows. The number of trips (`ceil(empties ÷ capacity)`) is the main multiplier on every other count.
+**Why:** GDD §11: "difficulty is produced by success." The yard doesn't have to get meaner. Your train gets too long for it.
+
+### P17 — Which way the points face
+**Rule:** with facing points the engine heads straight into the siding. With trailing points it passes the throat and propels the empties in blind. A loop needs no reversing in the yard. Trailing points are rolled by tier, and the generator builds them by laying the whole stop out facing the other way.
+**Why:** pillar 3. A blind shove to a buffer stop, spotted under a crane by shouted distances, is the most sentences per metre in the game.
+
+### P18 — Take the machine away
+**Rule:** crane coverage, runway length, power, blocked sidings and grade all get worse with tier. Hand loading is always available.
+**Why:** GDD §22: hazards remove tools and never change rules. The answer stays known; tonight it's slow, loud and on foot.
+
+### P19 — Distance is exposure
+**Rule:** the buffer widens, the crossing drifts from the throat, villages sit further out, stub roads lengthen and fewer houses pay. From frontier on, the waiting cut may block the crossing. On local routes it never does.
+**Why:** every metre walked is a metre from the only thing that outruns anything (GDD §17).
+
+### P20 — Variety comes from forms, not noise
+**Rule:** five yard forms and four village forms, each with its own maneuver shape. Tiers weight which forms appear.
+- **Spur:** one dead-end siding alongside the main. One switch.
+- **Loop:** a track that rejoins the main at both ends, sometimes with a siding off it. Drive through; no reversing in the yard.
+- **Fan:** Example 1. Sidings off one ladder, double-loaded rows, a hero chain on the far lead.
+- **Parallel:** a diagonal ladder with tracks alongside the main. The outer tracks are shorter and more switches deep, and the outermost runs on into the hero spur.
+- **Split:** a fan or parallel yard plus a spur across the main, with a throat on each side. The crew splits across the line.
+- **Village forms:** road-bounded blocks (Example 1); a street with houses both sides and sometimes a lane; a crossroads hamlet; farmsteads (a house and a barn each) strung along a winding track.
+
+**Why:** jittering numbers inside one form only changes how a stop looks. A new form changes how the crew plays it.
+
+---
+
 # PART Z — RULES FOR GENERATING AT ANY SCALE
 
 **The goal is infinite replayability, not an infinite world** (answered). Each run is a finite line, fortress → stops → terminus, generated fresh from one seed, so every night with friends is a new route with new stops. These are the rules that make that work identically on every machine. Example 1 is the only evidence so far, so treat every rule here as provisional.
@@ -159,15 +244,17 @@ RUN seed (tier)
      └─ CONTAINERS by band, by depth, by kind                      (P2, P7, P12, P14)
 ```
 
-Generation order within a stop is fixed: **rail → roads → districts → buildings → containers**, then the economy fills containers (P8, P14). Each step may only read the steps before it.
+Generation order within a stop is fixed: **rail → roads → districts → buildings → containers**, then the economy fills containers (P8, P14), then the stop is measured and kept or rerolled (P15). Each step may only read the steps before it.
 
 ## Z.3 Variety across runs
 
 - **Archetypes:** yard + village, yard only, village only, alongside the GDD §18 facilities. Tier weights decide the mix, so deep territory can lean on yards (bulk, loud) and local routes on villages (quiet, cheap).
+- **Forms, weighted by tier** (P20): five yard forms and four village forms.
 - **Every rolled choice is a real choice.** One lead or two, which side, opposite or set back, 2–6 sidings, crane coverage, how many outliers. Each should change how the crew plays the stop, not just how it looks. A roll that only changes looks goes to the art pass.
+- **Difficulty is measured, not hoped for** (Part D).
 - **Hazard and weather** stay per run (`route.json` tiers), so the same stop layout plays differently under fog or wind.
 
-## Z.4 The "loading yard + village" archetype as a grammar
+## Z.4 The "loading yard + village" archetype as a grammar (Example 1's fan form)
 
 ```
 STOP                 = MAIN + ROAD? + ( YARD | VILLAGE | YARD + VILLAGE )
@@ -205,6 +292,9 @@ A generator is only as trustworthy as what it's checked against. These must hold
 8. Nothing overlaps: buildings vs track clearance, buildings vs buildings, roads vs sidings.
 9. **Same seed → same bytes** on every machine, and generating stop `i` alone equals generating the whole run and taking stop `i` (Z.1).
 10. Containers only ever hold item kinds their container kind allows (P14).
+11. Every siding holds a number of cars inside the tier's range (P16).
+12. Roads never enter a yard (P9).
+13. The stop's difficulty score is inside its tier's band (P15).
 
 Per CLAUDE.md ("make it verifiable headless") the implementation gets `dt site --seed N [--png]`, which prints the layout as JSON and draws a top-down plan like the sketch, plus a test that sweeps these invariants.
 
@@ -215,3 +305,4 @@ Per CLAUDE.md ("make it verifiable headless") the implementation gets `dt site -
 3. **House colours** are just variety. Loot spawns in sensible locations, and what it is comes from the run's economy (P14).
 4. **The village** doesn't have to be opposite the yard, or attached to it. A stop can be just a village, or a yard with no village (P1, Z.4).
 5. **"Infinite scale"** means infinite replayability: every run is generated fresh from a seed (Part Z preamble).
+6. **More variety; early runs easier, later runs harder:** Part D.
