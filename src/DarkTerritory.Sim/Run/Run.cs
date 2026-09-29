@@ -227,9 +227,17 @@ public sealed class Run
         }
     }
 
-    static Vehicle? CargoCarNear(TrainOnLine train, Double3 at, double reach) =>
-        train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Load < 1)
-            .Select(v => (v, d: (train.Frames[v.Id].Origin - at).Length)).Where(x => x.d <= reach).OrderBy(x => x.d).FirstOrDefault().v;
+    /// <summary>
+    /// Where a sled's load goes: into the cargo car with room nearest the sled, in the train standing by it (one of its
+    /// vehicles within reach). The load's handed along the train to it: a train can't put its cars in a different order at
+    /// a spur, so the cars nearest the winch fill at the first stop and the next winch loads the ones behind them.
+    /// </summary>
+    static Vehicle? CargoCarNear(TrainOnLine train, Double3 at, double reach)
+    {
+        double Distance(Vehicle v) => (train.Frames[v.Id].Origin - at).Length;
+        var rake = train.Rakes.FirstOrDefault(r => r.Consist.Vehicles.Any(v => Distance(v) <= reach));
+        return rake?.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Load < 1).OrderBy(Distance).FirstOrDefault();
+    }
 
     /// <summary>The fortress yard's length, from generation (RouteTuning.YardLength); the gate is its end.</summary>
     public double YardLength { get; init; } = 600;
