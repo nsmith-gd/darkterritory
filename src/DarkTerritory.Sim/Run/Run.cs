@@ -59,6 +59,28 @@ public sealed class Run
     public int SpurOf(int facility) => facility >= 0 && facility < _spurs.Length ? _spurs[facility] : RailLine.MainPath;
 
     /// <summary>
+    /// Down a mine head's spur, where the radio dies (spec A.5 "dies in tunnels and mine spurs"; GDD §17 "the spur
+    /// descends underground. Radio blackout in and out"): aboard a rake standing on it, or on the ground beside it.
+    /// </summary>
+    public bool Underground(in PlayerState s, TrainOnLine train)
+    {
+        int path;
+        if (s.Parent != PlayerState.World && s.Parent < train.Vehicles.Count)
+            path = train.RakeOf(s.Parent).Path;
+        else
+        {
+            double hint = s.LineHint;
+            path = train.Line.Nearest(s.Position, ref hint).Path;
+        }
+        if (path == RailLine.MainPath)
+            return false;
+        for (int i = 0; i < _facilities.Count; i++)
+            if (_spurs[i] == path && _facilities[i].Facility == FacilityKind.MineHead)
+                return true;
+        return false;
+    }
+
+    /// <summary>
     /// The facility the train last left: stopped at it, then its engine out past the end of its zone on the main line
     /// (spec E's "leaving a POI", where the night autosaves). −1 until one has been.
     /// </summary>

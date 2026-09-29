@@ -6,7 +6,8 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Physics;
 
 /// <summary>Crate and lamp are the train's own stores; cargo is freight from a facility (spec D.2 manual crates).</summary>
-public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4 }
+/// <summary><see cref="Radio"/> is a walkie-talkie (T41, spec A.5): worn on the belt, not carried in the hands.</summary>
+public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5 }
 
 /// <summary>
 /// A loose physical thing: cargo, a tool, a crewmate's body. It lives in a car's frame while it touches that
@@ -58,6 +59,18 @@ public sealed class Bodies
 
     public IReadOnlyList<Body> All => _bodies;
     public HandsTuning Hands { get; set; } = new(1.6, 9, 4, 1.15, 0.6);
+
+    /// <summary>
+    /// The radios are things (T41): only someone wearing one talks or hears on the radio. False until the train's
+    /// been stocked with them (<see cref="World.Stock"/>), when the radio's just a button everyone has.
+    /// </summary>
+    public bool RadiosCarried { get; set; }
+
+    /// <summary>Whether a player can use the radio: wearing one, or everyone while radios aren't things.</summary>
+    public bool HasRadio(int playerId) => !RadiosCarried || _bodies.Any(b => b.Kind == BodyKind.Radio && b.Carrier == playerId);
+
+    /// <summary>What a player carries in their hands (a radio's on the belt, not in them).</summary>
+    public Body? CarriedBy(int playerId) => _bodies.FirstOrDefault(b => b.Carrier == playerId && b.Kind != BodyKind.Radio);
 
     public Body SpawnCrate(TrainOnLine train, int car, Double3 local, BodyKind kind = BodyKind.Crate)
     {
@@ -134,6 +147,10 @@ public sealed class Bodies
     /// A player's hands, on the host, before crew actions: Use (pressed) picks up the nearest body in reach
     /// or puts down what you're carrying; Throw throws it where you're looking. Returns true if it took the
     /// Use press, so the press doesn't also work a lever.
+    /// <para>
+    /// A radio picked up goes on the belt (one each), leaving the hands free; Throw with empty hands takes it off and
+    /// sets it down, to pass to someone. The dead drop theirs where they fall, still squawking (T41).
+    /// </para>
     /// </summary>
     /// <param name="hand">The hand tuning, when hands are reported (T29): a reaching hand takes what it's on.</param>
     public bool Handle(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null)
@@ -143,11 +160,14 @@ public sealed class Bodies
         bool throwPressed = thrown && !_throwWas.GetValueOrDefault(playerId);
         _useWas[playerId] = use;
         _throwWas[playerId] = thrown;
-        var carried = _bodies.FirstOrDefault(b => b.Carrier == playerId);
+        var carried = CarriedBy(playerId);
+        var worn = _bodies.FirstOrDefault(b => b.Kind == BodyKind.Radio && b.Carrier == playerId);
         if (!s.Alive)
         {
             if (carried is not null)
                 Release(carried, s, train, 0);
+            if (worn is not null)
+                Release(worn, s, train, 0);
             return false;
         }
         if (carried is not null && (throwPressed || usePressed))
@@ -156,9 +176,14 @@ public sealed class Bodies
             Release(carried, s, train, speed);
             return usePressed;
         }
+        if (carried is null && throwPressed && worn is not null)
+        {
+            Release(worn, s, train, 0);
+            return false;
+        }
         if (!usePressed || carried is not null || intent.MoveZ > 0.5 || CrewActions.NearestInteractable(s, train, hand) is not null)
             return false;
-        if (InReach(s, train, hand) is not { } nearest)
+        if (InReach(s, train, hand, wearingRadio: worn is not null) is not { } nearest)
             return false;
         nearest.Carrier = playerId;
         nearest.Pbd.Wake();
@@ -167,11 +192,12 @@ public sealed class Bodies
 
     /// <summary>The loose body a player's hands would take with Use right now, if any (also the HUD's prompt).</summary>
     /// <remarks>A reaching hand (T29) takes the one it's on: within grab of any part of it, a crate's side or a body's arm.</remarks>
-    public Body? InReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
+    /// <param name="wearingRadio">One radio each: someone already wearing one doesn't reach for another.</param>
+    public Body? InReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null, bool wearingRadio = false)
     {
         // Spec C.2: the revived can carry light things only.
         bool lightOnly = s.Has(PlayerFlags.Revived);
-        var free = _bodies.Where(b => b.Carrier < 0 && (!lightOnly || b.Kind == BodyKind.Lamp));
+        var free = _bodies.Where(b => b.Carrier < 0 && (!lightOnly || b.Kind is BodyKind.Lamp or BodyKind.Radio) && !(wearingRadio && b.Kind == BodyKind.Radio));
         if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)
             return free.Select(b => (b, d: Surface(b, train, h))).Where(x => x.d <= hand.Grab).OrderBy(x => x.d).FirstOrDefault().b;
         var hands = HandsAt(s, train);
@@ -244,10 +270,10 @@ public sealed class Bodies
         }
     }
 
-    /// <summary>Held at the carrier's hands: a crate rides there; a body hangs from its chest and drags.</summary>
+    /// <summary>Held at the carrier's hands: a crate rides there; a body hangs from its chest and drags. A radio's on the belt.</summary>
     void Carry(Body b, in PlayerState s, TrainOnLine train)
     {
-        var hands = HandsAt(s, train);
+        var hands = b.Kind == BodyKind.Radio ? PlayerMotor.WorldPosition(s, train) + Double3.Up * 1.0 : HandsAt(s, train);
         if (b.Parent != s.Parent)
         {
             if (b.Parent == PlayerState.World)

@@ -51,7 +51,13 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
 - Opus, host-routed so a listener is sent only what reaches them.
 - Measured end to end, headless.
 
-Remaining for M3: Soot Children mimicry, the radio as an item, and interior occlusion (after car interiors).
+**The radio as a thing (T41):**
+- Worn on the belt, one each; the train leaves with two (`train.json` `kit`).
+- Only those wearing one are on it, and it's dead down mine spurs as in tunnels.
+- The dead drop theirs.
+- Occlusion through a shut car is pinned by a test.
+
+Remaining for M3: Soot Children mimicry.
 
 **Designer tools (level editor v1):**
 - `dt edit` opens a local editor page for every tuning and sound value. Edits keep the comments, are validated, and are hot-reloaded by the running game.

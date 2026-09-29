@@ -148,6 +148,15 @@ public sealed class GreyboxScene
                 mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.34f, 0.34f, 0.34f), Palette.TarnishedBrass * 0.8f);
                 mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.35f, 0.06f, 0.35f), Palette.DeepBrown);
             }
+            else if (b.Kind == Sim.Physics.BodyKind.Radio)
+            {
+                // A walkie-talkie (T41): an iron brick with its aerial up and a pinprick of a lamp, so a dropped one's found.
+                mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.07f, 0.12f, 0.04f), Palette.IronGrey);
+                mesh.Box(V(at, eye) + ToF(up) * 0.2f + right * 0.04f, right, ToF(up), back, new Vector3(0.008f, 0.1f, 0.008f), Palette.SootBlack);
+                mesh.Emissive = 1;
+                mesh.Box(V(at, eye) + ToF(up) * 0.09f - back * 0.042f, right, ToF(up), back, new Vector3(0.012f, 0.012f, 0.004f), Palette.SignalRed);
+                mesh.Emissive = 0;
+            }
             else
             {
                 mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.1f, 0.14f, 0.1f), Palette.IronGrey);

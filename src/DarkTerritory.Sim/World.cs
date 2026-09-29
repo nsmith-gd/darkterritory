@@ -113,6 +113,14 @@ public sealed class World
     /// <summary>Host: what the train leaves the yard with that isn't cargo: crates and a lamp in the guard van (GDD §10 tool storage).</summary>
     public void Stock()
     {
+        // The radios (T41, train.json kit): one on the cab floor at the back, clear of the firebox, the rest in the guard van.
+        int radios = Train.Dynamics.Tuning.Kit.Radios;
+        if (radios > 0 && Train.Frames[0].Shape.Cab is { } cab)
+        {
+            Bodies.RadiosCarried = true;
+            Bodies.SpawnCrate(Train, 0, new Ballast.Double3(cab.Max.X - 0.4, cab.Min.Y + 0.2, cab.Max.Z - 0.5), Physics.BodyKind.Radio);
+            radios--;
+        }
         var guard = Train.Dynamics.Consist.Vehicles.LastOrDefault(v => v.Kind == VehicleKind.Guard);
         if (guard is null || Train.Frames[guard.Id].Shape.Interior is not { } room)
             return;
@@ -121,6 +129,8 @@ public sealed class World
         foreach (double z in new[] { 1.2, 2.0, 2.8 })
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.6, floor, room.Min.Z + z));
         Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(-0.9, floor, room.Max.Z - 2.5), Physics.BodyKind.Lamp);
+        for (int i = 0; i < radios; i++)
+            Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(-0.9, floor, room.Max.Z - 3.3 - 0.5 * i), Physics.BodyKind.Radio);
     }
 
     /// <summary>Tonight's run (departure, facilities, terminus, dawn), when playing a route.</summary>

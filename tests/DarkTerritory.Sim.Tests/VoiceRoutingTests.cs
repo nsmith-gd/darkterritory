@@ -44,6 +44,20 @@ public class VoiceRoutingTests
     }
 
     [Fact]
+    public void AShutCarMufflesAndAnOpenDoorLetsItOut()
+    {
+        // Spec A.5 "car walls -12 dB": inside a car shut up, to someone on its roof. Open a door and it carries.
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 4, 1)), Train.Line, 1200);
+        int guard = train.Vehicles.Count - 1;
+        var room = train.Frames[guard].Shape.Interior!.Value;
+        var inside = new PlayerState { Parent = guard, Position = new Double3(0, room.Min.Y + 0.1, room.Centre.Z), Surface = Surface.Deck, Health = 100 };
+        var roof = PlayerMotor.SpawnOnRoof(train, guard, 2, Tuning.Player);
+        Assert.Equal(VoicePath.Proximity | VoicePath.Occluded, VoiceRouting.Route(inside, roof, radio: false, train));
+        train.Vehicles[guard].ToggleDoor(0);
+        Assert.Equal(VoicePath.Proximity, VoiceRouting.Route(inside, roof, radio: false, train));
+    }
+
+    [Fact]
     public void TheDeadTalkOnlyToTheDead()
     {
         // Spec C.1: "a separate dead channel which the living cannot hear".
