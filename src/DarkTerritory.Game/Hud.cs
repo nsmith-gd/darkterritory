@@ -174,6 +174,8 @@ public static class Hud
                 DeathCause.Hollow => "THE HOLLOW",
                 DeathCause.Choir => "THE CHOIR",
                 DeathCause.Taken => "TAKEN. IT WASN'T THEM OUTSIDE",
+                DeathCause.Dragged => "DRAGGED OFF THE EDGE",
+                DeathCause.Crushed => "CRUSHED UNDER A DROPPED LOAD",
                 _ => "",
             }, Ink);
             if (world.Vigil is { Permitted: true })
@@ -200,6 +202,16 @@ public static class Hud
         var world = s.World;
         if (!p.Alive)
             return null;
+        // The Draggers (T46): grabbed at the edge, or near someone who is.
+        if (world.Enemies is { } et)
+            foreach (var e in world.ActiveEnemies)
+                if (e is Sim.Enemies.Dragger { Phase: Sim.Enemies.SpinePhase.Punish } d && d.Target is { } held)
+                {
+                    if (held == s.PlayerId)
+                        return "GRABBED AT THE EDGE! SOMEONE PULL YOU FREE";
+                    if ((d.WorldPosition(train) - PlayerMotor.WorldPosition(p, train)).Length <= et.Draggers.FreeReach + 1)
+                        return "[E] HOLD: PULL THEM FREE";
+                }
         if (world.Bodies.CarriedBy(s.PlayerId) is { } carried)
             return carried.Kind switch
             {
@@ -256,6 +268,17 @@ public static class Hud
             return train.PointsOccupied(branch, world.Switches.Tuning.PointsLength)
                 ? "SWITCH: POINTS HELD, A WHEEL IS ON THEM"
                 : $"[E] HOLD: THROW THE SWITCH TO {to}";
+        }
+        // The crane (T48): at its controls, or at its hook on the ground.
+        if (world.Run?.CurrentSite?.Crane is { } crane)
+        {
+            if (p.Has(PlayerFlags.Operating))
+                return crane.Hooked is null ? "CRANE: WASD BRIDGE AND TROLLEY   SPACE/B HOOK   LET GO OF E TO STEP DOWN"
+                    : "CRANE: WASD BRIDGE AND TROLLEY   SPACE/B HOOK   [LMB] LET GO (SET IT DOWN FIRST)";
+            if (p.Parent == PlayerState.World && ((PlayerMotor.WorldPosition(p, train) - crane.Controls) with { Y = 0 }).Length <= crane.Tuning.ControlsReach)
+                return "[E] HOLD: THE CRANE'S CONTROLS (UP IN THE CAB)";
+            if (p.Parent == PlayerState.World && crane.Riggable(PlayerMotor.WorldPosition(p, train)) is not null)
+                return crane.Rigging > 0 ? $"RIGGING THE CASTING {crane.Rigging * 100:0}%" : "[E] HOLD: RIG THE CASTING TO THE HOOK";
         }
         if (world.Run?.HandleInReach(p, train, hand) is not null && world.Run.CurrentSite is { } site)
             // A headset turns the crank round with the hand (T43); out of rhythm, the drum stalls (spec D.2).

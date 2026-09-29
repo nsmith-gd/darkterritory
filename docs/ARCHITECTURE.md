@@ -945,7 +945,63 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - While there, the door dealing was fixed too. Doors to shut were dealt out by position to the crate hands, including ones that had gone aboard or away to warm, so a door could be dealt to nobody who'd come. Now each hand claims the nearest open door no one else still at it has claimed (`CrewCalls.ClaimDoor`).
     - **Result:** the stop loads in 272 s instead of giving up at 420, and the night is 143 s shorter. It still delivers: 0 deaths, worst correction 0.35 m, fairness 0.
     - **Verified:** `TwoHandedTests.AClientSeesACrateAtRest`, `StopCrewTests.EachOpenDoorIsShutByOneHandThatsStillAtIt`, and the harness night.
-50. **The procedural line (docs/design/linegen-plan.md, roadmap M5 "procedural line v1").** The readings where the plan or the spec was ambiguous, and what's not done:
+50. **The Draggers (T46, App. A.4, B.4, spec B.3).** "Reach up from beneath the car edges. RULE: stay off the edges." A flank threat on the shared spine (`enemies.json` `draggers`).
+    - **Where.** Under one edge of one car, and it never leaves that car. App. B.4 has them "pre-attached … dormant until a player is on the roofs"; the director makes that literal. It offers them only while someone's on a roof, under a car being walked, weighted by the roof walkers, at most two at a time, cost 2.
+    - **Dormant:** under the lip, it follows the nearest walker on its side along the car. Nothing to see or hear.
+    - **Telegraph:** a walker within `grabRange` (1 m) of its edge and near it along the car. A limb comes up over the lip with a single scrape (`dragger-scrape.json`, 2–4 kHz, spec A.4).
+      - Stepping back to the centreline in time sinks it back under, and it won't reach again for `rearmSeconds`.
+      - The grab waits for App. A.1's reaction window (1.5 s), which is longer than the GDD's "~1 s".
+    - **Grab:**
+      - **Alone:** after a beat, you're pulled off over the side (`DamageEvent.Pull`, `PlayerMotor.PullOff`). Spec B.3's one threshold decides it: faster than a survivable jump, that's death (`DeathCause.Dragged`, and the body goes over the side); slower, you land on the ballast and the train goes on.
+      - **With someone within 4 m:** they have two seconds to pull you free: Use, within 1.5 m of you. After that, you're pulled off anyway.
+    - **Speed.** Spec B.3's "Max 22 m/s: Draggers +50% grab range" is a ramp from cruise (14) to max (22), so there's no cliff at 21.9 m/s.
+    - **The pull is the host's move.** It puts the player in the world frame outside the car, falling, and bumps `Placed`, so a predicting client adopts it rather than correcting it.
+    - **Seen:** a pale limb just outside the eave, hooking in over the roof. Two limbs when it's grabbed. The HUD tells the grabbed and whoever's near them. `dt screenshot --threats` stages one; CI keeps `threats-dragger.png`.
+    - **Heard:** the scrape passes `AudioTests`' "tier 1 is inviolable": +23 dB over the bed on that car's roof in maximum chaos, and the Clinger's drill, which shares 3–4 kHz, stays as audible as it was.
+    - **Bots** walk the centreline, so they're never taken. On frontier:7, two Draggers woke and punished nobody. They did take the Flank slots the Clingers used to get, so that night's mix moved (more hounds): 4 were mauled, none lost for good, delivered.
+    - **Verified:** `DraggerTests` (10): the centreline is safe; near the edge, it telegraphs, then pulls you off, and at 14 m/s that kills; at 2 m/s you're left on the ballast; stepping back in time sinks it and it rearms; with a mate, the window and the rescue, or no rescue and taken; farther reach at max speed; the other edge isn't its edge; the director wakes them only for roof walkers; a client sees the limb and who it's got.
+51. **The crew see a headset's arms (T47, roadmap M4 "VR body IK").**
+    - **The hands go out with the rest of the player.** The player record now carries the reaching hand and the other hand, on the centimetre grid the intent brought them in on. They're zero for a keyboard or a bot, so delta encoding makes them free: 8 bots' snapshots are exactly the size they were (160 bytes, 37.6 kbit/s down). Remote players' hands are interpolated with their feet.
+    - **Prediction is unchanged.** A client's own hands still come from its own intent each tick, not from the host's echo, and a correction measures position only.
+    - **Two bones from the shoulder** (`Game/Arms.cs`, 0.30 m and 0.32 m): the elbow bends down, out and a little back, like a person's. A hand past the arm's length is reached for as far as the arm goes; the sim lets a hand go 0.8 m across from the body because a real player leans, and the figure doesn't lean yet.
+    - The sim doesn't say which hand is which, so each reported hand goes to the arm on its side. A single hand leaves the other arm hanging, and a keyboard player's arms hang.
+    - **Not yet:** a spine or neck that follows the headset, legs that step, and hands that hold what they're carrying. That's the rest of M4's body IK.
+    - **Verified:**
+      - `ArmsTests`: bone lengths hold, the hand arrives, the bend is outward, an out-of-reach hand reaches as far as it can, and hands are assigned to sides.
+      - `HandTests.TheRestOfTheCrewSeeAHeadsetsHands`: over loopback, another client sees both hands, and sees them drop when the controllers go down.
+      - `dt screenshot --view roof --crew` stages three crewmates on a roof: arms hanging, one reaching up, one holding out both hands. CI keeps `crew-arms.png`.
+52. **The gantry crane (T48, spec D.2 and D.3; GDD's foundry: "overhead crane run from a gantry. The operator can't see the ground crew").** The third loading module (`facilities.json` `crane`). The foundry has it, along with the winch and crates.
+    - **Layout.** A gantry astride the track over the first cars behind the engine at the buffer stop, its castings stacked on the far side. Like the rest of a site, it's laid out from the route, so every machine agrees where it stands.
+    - **The operator.** Holds Use at the control stand at the near leg, and is up in the cab.
+      - The stick runs the bridge along the track and the trolley across; Space and B move the hook up and down; left mouse lets go.
+      - At the controls, the stick drives the crane, not their feet (`PlayerFlags.Operating`). That's worked out from where they stand and what they hold, the same on every machine, so a client predicts standing still.
+      - **Ambiguity, the elevated cab:** the world has no climbable structures, so the stand is on the ground and holding it puts you in the cab. Your view moves up there (`Eyes.Operator`) and looks along the gantry at the bridge, not down at the hook. That's spec D.3's "blind instruction": the ground crew have to call the position. In a headset, the view stays with the head (a cab you can stand in comes with climbable structures).
+    - **The ground crew.** Hold Use on the ground at the hook, with the hook low enough to reach, beside a casting, for 2 s: it's rigged.
+    - **Setting down.** A casting set down (its base within 0.6 m of what's under it) on a cargo car's roof is lashed there and loaded, half a car each. It rides the car from then on. Set down on the ground, it can be rigged again.
+    - **"Dropped loads kill."** Let go of higher, it falls: the casting is lost, and anyone within 1.4 m of where it lands is crushed (`DeathCause.Crushed`). The world applies it on the next tick, through each player's crew step, since the run doesn't hold the crew with their ids.
+    - **Replication:** a Crane record per crane: bridge, trolley, hook, the rig's progress, and each casting (state, car, place).
+    - **Bots** don't run cranes. Castings don't keep the train, and the driver stops for the winch and crates as before.
+    - **Verified:** `CraneTests` (5):
+      - the operator drives it from the stand and stays put, and letting go stops it;
+      - rigged on the ground, lifted, driven by the stick over a car, and set down on its roof, it's loaded;
+      - let go of high, it's lost and kills the one under it but not the one beside;
+      - nobody at the controls, nothing moves, and a hook up in the air can't be rigged;
+      - a client sees the crane.
+      - `dt screenshot --site --crane`; CI keeps `site-crane.png`.
+53. **Mods v1 (T49, roadmap M7 "mod loader v1"; CLAUDE.md: "content/ is also the base mod").**
+    - **Where they live.** A mod is a folder with a `mod.json` (name, version, description, order, enabled), in `mods/` beside `content/` or in the user's app data (`DarkTerritory/mods`).
+    - **What a mod file does.** It's laid over the base content at the same path:
+      - a new path adds a file, and the same path replaces it;
+      - a JSON file marked `"$patch": true` is merged into the one below it, key by key, so a mod can change one number without copying the file. Arrays are replaced whole.
+      - Mods go in `order`, then by name; a later one wins.
+    - **One content root, as ever.** `ContentMods.Mount` writes the merged copy to app data (`content-with-mods`), rewriting only what changed, and everything downstream (hot reload, the content hash, the sim) reads it. With no mods, the base content is used untouched. The copy lists its mods in `mounted-mods.json`.
+    - **Multiplayer.** The content hash already covers every file, so different mods can't join. A refused joiner is now told which mods the host has and which they have, instead of just "content differs".
+    - **Switches.** `--no-mods` gives the base game, in the app and in `dt`. `dt edit` edits the base content, not the mounted copy. `dt mods` lists the folders, the mods in load order, and what each does to which file.
+    - **Not yet:** mods can't add code, the Workshop, and an in-game mods screen.
+    - **Verified:**
+      - `ContentModsTests` (4): with no mods, the base content is used as it is; mods replace, add and patch in order; taking a mod out takes its files out; a patch with nothing under it is refused.
+      - `NetPlayTests.AJoinerWithDifferentModsIsToldWhichMods`.
+54. **The procedural line (docs/design/linegen-plan.md, roadmap M5 "procedural line v1").** The readings where the plan or the spec was ambiguous, and what's not done:
     - **Junction count** (§3.2's "junctions" beside its own alternate and dead-line counts): both ends of an alternate count, so junctions = 2 × alternates + dead lines. It's the reading that keeps the table's three columns consistent. The quotas' "facing junctions" (§15.3) and the Switchman's network size (App. B.7) count the same way.
     - **Dawn (§22.1):** the timer is the spec's formula over the gate-to-terminus distance. The validator holds the ideal transit to it and reports transit plus four minutes a stop as a warning (`validation.dawnWithStopsHard: false`): by the spec's own numbers the deeper tiers can't take every stop in time. Note 13 is the same conflict.
     - **Descent grades** come from brake fade's equilibrium: a train braking on a descent a third of the time recovers as fast as it fades (`profile`), so the ruling descent is the steepest where that duty holds at the consist's brake. Approaches to a stop never descend.

@@ -304,6 +304,11 @@ public sealed class ClientSession
         {
             state.Position = Double3.Lerp(a.Position, b.Position, t);
             state.Yaw = a.Yaw + (b.Yaw - a.Yaw) * t;
+            // Their hands too, while they had them at both ends (T47).
+            if (a.Hand != default && b.Hand != default)
+                state.Hand = Double3.Lerp(a.Hand, b.Hand, t);
+            if (a.OtherHand != default && b.OtherHand != default)
+                state.OtherHand = Double3.Lerp(a.OtherHand, b.OtherHand, t);
         }
         return true;
     }

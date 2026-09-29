@@ -221,13 +221,22 @@ public sealed class World
         PlayerMotor.Look(ref s, intent);
         PlayerMotor.TakeHand(ref s, intent, Hand);
         if (Authority && Run is { } run)
+        {
             run.CrewAct(s, intent, playerId, Train, Hand);
+            // Spec D.2 "dropped loads kill": under a casting the crane let go of.
+            if (run.Crushes(s, Train))
+                Damage.Add(new Enemies.DamageEvent(playerId, 1000, DeathCause.Crushed));
+        }
         if (Authority && Switches?.CrewAct(s, intent, playerId, Train, Hand) is { } thrown)
             SwitchThrows.Add(thrown);
         if (Authority)
             Vigil?.CrewAct(s, intent, playerId, Train, Hand);
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever.
         bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand);
+        // At the crane's controls, the stick drives the crane, not your feet (T48). Worked out the same everywhere, so a
+        // client predicts standing still at the stand.
+        bool operating = Run?.CurrentSite?.Crane is { } crane && crane.AtControls(s, intent, Train);
+        s.Flags = operating ? s.Flags | PlayerFlags.Operating : s.Flags & ~PlayerFlags.Operating;
         if (Authority)
         {
             // Freight in your arms slows you and keeps you off ladders (spec B.2); the motor reads the flag.
@@ -376,6 +385,16 @@ public sealed class World
             case EnemyKind.SootChildren when SootChildren.Choose(this, t.SootChildren, CrewThisTick) is { } mark:
                 _enemies.Add(SootChildren.At(_nextEnemyId++, Train, mark.Car, mark.Voice, t.SootChildren));
                 break;
+            case EnemyKind.Dragger:
+                // Under a car someone's walking the roof of (it was always there; they've woken it), on either edge.
+                var walked = CrewThisTick.Where(c => c.State is { Alive: true, Surface: Surface.Roof } r && r.Parent > 0 && r.Parent < Train.Frames.Count)
+                    .Select(c => c.State.Parent).Distinct().Order().ToList();
+                if (walked.Count == 0)
+                    break;
+                int under = walked[(int)d.NextRange(0, walked.Count - 1e-9)];
+                double length = Train.Frames[under].Shape.HalfLength;
+                _enemies.Add(Dragger.Under(_nextEnemyId++, Train, under, d.NextRange(0, 1) < 0.5 ? -1 : 1, d.NextRange(-length, length)));
+                break;
         }
     }
 
@@ -412,6 +431,12 @@ public sealed class World
         {
             if (get(d.PlayerId) is not { Alive: true } s)
                 continue;
+            if (d.Pull is { } outward)
+            {
+                PlayerMotor.PullOff(ref s, Train, outward, Train.Dynamics.Tuning);
+                set(d.PlayerId, s);
+                continue;
+            }
             s.Health -= d.Amount;
             if (s.Health <= 0)
             {

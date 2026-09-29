@@ -22,7 +22,7 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
 - **Boiler, walkable cab and resistance:** spec B.6 is pinned.
 - **Rakes:** cutting, coupling and collision damage.
 - **Procedural routes:** tiers, facilities, tunnels, bridges, and hazards as level content.
-- **Procedural line v1 (M5, docs/design/linegen-plan.md):** every night's line comes from the line generator: a route graph with alternates, dead lines and facility spurs, set pieces scripted to a budget curve, clothoid alignment and a vertical profile, a terrain field the players stand on, authority and its tells (boards, Form 19, the route card), director context, and validation by driving it on the real train sim. `dt linegen generate|sweep|debug|bench`; `C` shows the route card, `F3` the overlay, `--ride` rides a line. ARCHITECTURE §6.10 and §8 note 50.
+- **Procedural line v1 (M5, docs/design/linegen-plan.md):** every night's line comes from the line generator: a route graph with alternates, dead lines and facility spurs, set pieces scripted to a budget curve, clothoid alignment and a vertical profile, a terrain field the players stand on, authority and its tells (boards, Form 19, the route card), director context, and validation by driving it on the real train sim. `dt linegen generate|sweep|debug|bench`; `C` shows the route card, `F3` the overlay, `--ride` rides a line. ARCHITECTURE §6.10 and §8 note 54.
 - **Play a night:** `DarkTerritory -- --route frontier:7` runs one, enemies and all (`--no-enemies` for a quiet line). The HUD prints text cues for the telegraphs until there's audio.
 - **Guns and the Choir:** two mounted guns with real arcs, and the Choir's global aggro.
 - **Demo roster and director (M5's "5 demo enemies"):**
@@ -108,6 +108,11 @@ M3 is done but for a test with eight people.
 - Rakes take the branch the switch is set for, and back out without a choice.
 - Switches are thrown by hand at a stand beside the points, never under a wheel, and their lamp reads the setting from the cab.
 - `dt screenshot --route frontier:7 --junction 0 --diverge --through` shows one.
+- **The Draggers (T46, App. A.4):**
+  - under a car's edge, woken by someone on the roofs;
+  - a limb and a scrape at the lip, then a grab: alone, you're pulled off (at speed, that's death); with a mate near, they have two seconds to pull you free;
+  - the centreline is safe, and they reach half as far again at max speed (spec B.3);
+  - `dt screenshot --threats` shows one reaching.
 - **The Switchman (T37, App. A.7):**
   - it throws a junction ahead for its dead line: the lamp reads wrong, and a figure with a lantern stands at the stand;
   - it flees anyone on the ground, but chasing it off doesn't set the switch back;
@@ -117,6 +122,7 @@ M3 is done but for a test with eight people.
 **Loading at facilities (spec D, GDD §17):**
 - Manual crates you carry into the cars (heavy: slow, no climbing).
 - A capstan winch that needs two on it.
+- A gantry crane at the foundry (T48): one up in the cab drives it, one on the ground rigs the castings, a casting set down on a car's roof is loaded, and one let go of high kills whoever's under it. `dt screenshot --site --crane`.
 - Cars leave the fortress half full, so the facilities are where the money is.
 - Every facility but the coaling tower is down a spur that takes the engine and four cars. Cut the rest, run the empties in, load, back out and recouple, set the switch back, go. The night autosaves as you leave.
 - `dt facility drill` plays the sequence headless; `dt screenshot --site` shows a stop.
@@ -127,6 +133,11 @@ M3 is done but for a test with eight people.
 - **Crates go in by the side door (T34):**
   - cargo cars have a sliding door on each side with steps up to it, so you walk freight in;
   - crate hands carry the stack in and shut the doors after.
+
+**Mods v1 (T49, M7's "mod loader v1"):**
+- Folders in `mods/` (or app data) laid over `content/`: they add files, replace them, or `$patch` a JSON file one key at a time.
+- The game reads the merged copy. The content hash keeps a crew on the same mods, and a refused joiner is told which mods differ.
+- `dt mods` shows what's loaded; `--no-mods` gives the base game.
 
 **Art pass v1 (T39, M5's "art pass to style sheet"):**
 - Greybox surfaces are weathered to GDD §27, standing in for textures: blocky grain at 128 px/m, soot fields, rust patches and streaks, a baked shadow low down, and harsh speculars on iron and brass.
@@ -200,7 +211,9 @@ Remaining for M2:
   - heavy crates take one at each end, and a headset's end takes both hands;
   - bots carry them in pairs, and come to help a player holding one (T45).
 
+- **The crew see a headset's arms (T47):** the hands go out in snapshots (free for keyboard players), and a two-bone arm reaches from the shoulder to each; `dt screenshot --view roof --crew` shows them.
+
 Remaining for M4:
-- body IK
+- the rest of body IK (a spine that follows the headset, stepping legs)
 - multiview
 - the exit test on a real Quest and SteamVR

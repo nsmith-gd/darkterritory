@@ -54,6 +54,7 @@ public sealed class Director
         EnemyKind.Hollow => "hollow",
         EnemyKind.Switchman => "switchman",
         EnemyKind.SootChildren => "sootChildren",
+        EnemyKind.Dragger => "draggers",
         _ => "sleepers",
     }, 2);
 
@@ -125,6 +126,11 @@ public sealed class Director
             && !active.Any(e => !e.Gone && e.Kind == EnemyKind.SootChildren) && Zone(PressureZone.Structural) < _t.MaxConcurrentZone
             && SootChildren.Choose(world, st.SootChildren, world.CrewThisTick) is not null)
             options.Add((EnemyKind.SootChildren, 1 + world.CrewThisTick.Count(c => c.State.Alive && PlayerMotor.Space(c.State, train) == PlayerMotor.Outside)));
+        // App. B.4: Draggers under a train of two or more, woken by someone on the roofs. Weight up per roof walker.
+        int onRoofs = world.CrewThisTick.Count(c => c.State is { Alive: true, Surface: Surface.Roof } r && r.Parent > 0);
+        if (world.Enemies is { } dt && onRoofs > 0 && train.Dynamics.Consist.CarCount >= dt.Draggers.MinCars && Zone(PressureZone.Flank) < _t.MaxConcurrentZone
+            && active.Count(e => !e.Gone && e.Kind == EnemyKind.Dragger) < dt.Draggers.MaxAttached)
+            options.Add((EnemyKind.Dragger, onRoofs));
         options.RemoveAll(o => Cost(o.Kind) > available);
         // A generated line's director context (linegen plan §15): no spawns under a ban (the grace stretch, the
         // terminus), none of its own while the terrain is already at its hardest there (§15.4), and under the terrain's
@@ -165,7 +171,7 @@ public sealed class Director
         var zone = kind switch
         {
             EnemyKind.CinderHound => PressureZone.Rear,
-            EnemyKind.Clinger => PressureZone.Flank,
+            EnemyKind.Clinger or EnemyKind.Dragger => PressureZone.Flank,
             EnemyKind.Switchman => PressureZone.Forward,
             EnemyKind.SootChildren => PressureZone.Structural,
             _ => PressureZone.Interior,

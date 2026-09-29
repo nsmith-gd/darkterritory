@@ -6,7 +6,8 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Enemies;
 
 /// <summary>A hit on a player from something in the world. The host applies these after the world steps.</summary>
-public readonly record struct DamageEvent(int PlayerId, int Amount, DeathCause Cause);
+/// <param name="Pull">A pull off the train (the Draggers, T46): this velocity outward in the world, on top of the train's.</param>
+public readonly record struct DamageEvent(int PlayerId, int Amount, DeathCause Cause, Double3? Pull = null);
 
 /// <summary>What an enemy can see and do this tick.</summary>
 public sealed class EnemyContext
@@ -24,6 +25,9 @@ public sealed class EnemyContext
         Crew.Where(c => c.Player.State.Alive).Select(c => (c.Player, PlayerMotor.WorldPosition(c.Player.State, Train)));
 
     public void Bite(int playerId, int amount, DeathCause cause) => Damage.Add(new DamageEvent(playerId, amount, cause));
+
+    /// <summary>Pulls a player off the train over the side (App. A.4, the Draggers): at speed, that's death.</summary>
+    public void Pull(int playerId, Double3 outward) => Damage.Add(new DamageEvent(playerId, 0, DeathCause.Dragged, outward));
 
     /// <summary>Rounds fired lately (tick, muzzle), newest last, for enemies that react to sustained fire.</summary>
     public IReadOnlyList<(uint Tick, Double3 Muzzle)> RecentRounds { get; init; } = [];

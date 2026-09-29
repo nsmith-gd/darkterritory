@@ -50,6 +50,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// </summary>
     public Dictionary<string, string>? Content { get; init; }
 
+    /// <summary>The mods the host plays with, in order ("name version", T49): named to a joiner whose content differs.</summary>
+    public IReadOnlyList<string> Mods { get; init; } = [];
+
     public static Dictionary<string, string> HashContent(string content)
     {
         static string Hash(string text) =>
@@ -73,6 +76,14 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             return [];
         var mine = HashContent(content);
         return [.. Content.Keys.Union(mine.Keys).Where(k => Content.GetValueOrDefault(k) != mine.GetValueOrDefault(k)).Order()];
+    }
+
+    /// <summary>Why a joiner's refused: the files that differ, and the mods on each side when they're not the same.</summary>
+    public static string Refusal(IReadOnlyList<string> differ, IReadOnlyList<string> hostMods, IReadOnlyList<string> mine)
+    {
+        string text = $"your content differs from the host's: {string.Join(", ", differ)}";
+        static string List(IReadOnlyList<string> m) => m.Count == 0 ? "none" : string.Join(", ", m);
+        return hostMods.SequenceEqual(mine) ? text : $"{text} (the host's mods: {List(hostMods)}; yours: {List(mine)})";
     }
 
     public string Encode() => JsonSerializer.Serialize(this, DataFile.Options);
@@ -174,6 +185,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         setup = setup with
         {
             Content = SessionSetup.HashContent(content),
+            Mods = ContentMods.MountedIn(content),
             Start = resume?.Front ?? setup.Start,
             Plan = resume?.Plan is { } saved ? Sim.LineGen.LinePlan.Decompress(saved) : setup.Plan,
         };
@@ -320,7 +332,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         if (setup.ContentDifferences(content) is { Count: > 0 } differ)
         {
             transport.Dispose();
-            throw new IOException($"your content differs from the host's: {string.Join(", ", differ)}");
+            throw new IOException(SessionSetup.Refusal(differ, setup.Mods, ContentMods.MountedIn(content)));
         }
         var (world, route) = setup.Build(content);
         if (setup.PlanPrint is { } print && route?.Plan?.Fingerprint() != print)
@@ -375,7 +387,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     }
 
     public Camera EyeCamera(IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch) =>
-        Eyes.From(Player, _previous, frames, alpha, pendingYaw, pendingPitch);
+        Eyes.Operator(Player, World) ?? Eyes.From(Player, _previous, frames, alpha, pendingYaw, pendingPitch);
 
     public IReadOnlyList<Crewmate> Crew(IReadOnlyList<CarFrame> frames, double alpha)
     {
@@ -384,7 +396,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             if (Client.TryGetRemote(id, alpha, out var s))
             {
                 var (feet, yaw) = Eyes.World(s, frames);
-                _crew.Add(new Crewmate(id, feet, yaw, s.Alive));
+                _crew.Add(new Crewmate(id, feet, yaw, s.Alive, s.Hand, s.OtherHand));
             }
         return _crew;
     }

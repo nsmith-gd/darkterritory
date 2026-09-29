@@ -79,7 +79,9 @@ public struct PlayerIntent
 public enum Surface : byte { Air, Ground, Roof, Coupler, Ladder, Deck }
 
 /// <summary><see cref="Taken"/>: by the Soot Children, answering a voice from outside (T40).</summary>
-public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken }
+/// <summary><see cref="Dragged"/>: pulled off the train at speed by the Draggers (T46).</summary>
+/// <summary><see cref="Crushed"/>: under a casting let go of by the crane (T48).</summary>
+public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged, Crushed }
 
 /// <summary>Conditions a player carries.</summary>
 [Flags]
@@ -92,6 +94,8 @@ public enum PlayerFlags : byte
     Heavy = 2,
     /// <summary>A hand has coal on the shovel from the tender, on its way to the firebox (T29).</summary>
     Shovelful = 4,
+    /// <summary>At a crane's controls (T48): the stick and Jump drive the crane, not you.</summary>
+    Operating = 8,
 }
 
 /// <summary>
@@ -306,9 +310,11 @@ public static class PlayerMotor
                 speed *= p.Cold.OnsetSpeedScale;
             if (s.Has(PlayerFlags.Heavy))
                 speed = Math.Min(speed, p.CarryHeavy);
+            if (s.Has(PlayerFlags.Operating))
+                speed = 0;
             var wish = WishDirection(s.Yaw, intent) * speed;
             s.Velocity = new Double3(wish.X, 0, wish.Z);
-            if (intent.Has(PlayerButtons.Jump) && !s.Has(PlayerFlags.Heavy))
+            if (intent.Has(PlayerButtons.Jump) && !s.Has(PlayerFlags.Heavy) && !s.Has(PlayerFlags.Operating))
             {
                 // Take off in the car's frame and integrate this tick there. The car has already moved
                 // this tick; switching to world first would count its motion twice (0.73 m at 22 m/s).
@@ -660,6 +666,30 @@ public static class PlayerMotor
         s.Position = frame.ToLocal(world);
         s.Velocity = frame.VelocityToLocal(velocity);
         s.Yaw = yaw - frame.Heading;
+    }
+
+    /// <summary>
+    /// Pulled off a car over its side (the Draggers, App. A.4): out past its edge and falling, with the train's speed and
+    /// <paramref name="outward"/> on top. Spec B.3's one threshold decides it: faster than a survivable jump, that's death
+    /// (the body goes over the side); slower, you land on the ballast and the train goes on without you. An authoritative
+    /// move, so a predicting client adopts it (<see cref="PlayerState.Placed"/>).
+    /// </summary>
+    public static void PullOff(ref PlayerState s, TrainOnLine train, Double3 outward, TrainTuning t)
+    {
+        if (s.Parent == PlayerState.World || s.Parent >= train.Frames.Count)
+            return;
+        var frame = train.Frames[s.Parent];
+        var across = frame.DirToLocal(outward);
+        var local = s.Position with { X = Math.Sign(across.X == 0 ? 1 : across.X) * (frame.Shape.HalfWidth + 0.4), Y = s.Position.Y - 0.3 };
+        var carVelocity = frame.VelocityToWorld(Double3.Zero);
+        SetWorld(ref s, train, frame.ToWorld(local), carVelocity + outward);
+        s.Surface = Surface.Air;
+        s.Placed++;
+        if (SpeedBands.JumpOffIsLethal(t, Math.Sqrt(carVelocity.X * carVelocity.X + carVelocity.Z * carVelocity.Z)))
+        {
+            s.Health = 0;
+            s.Death = DeathCause.Dragged;
+        }
     }
 
     static void SetWorld(ref PlayerState s, TrainOnLine train, Double3 world, Double3 worldVelocity)

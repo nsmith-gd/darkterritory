@@ -86,8 +86,12 @@ public sealed class GreyboxScene
                 Look.Art.World.Plan(mesh, line, Route, eye, centre, DrawDistance, Time);
             if (Run is not null)
                 foreach (var site in Run.Sites)
+                {
                     if (site is not null && (site.Capstan - eye).Length < DrawDistance)
                         Winch(mesh, site, eye);
+                    if (site?.Crane is { } crane && (crane.HookAt - eye).Length < DrawDistance)
+                        Crane(mesh, crane, frames, eye);
+                }
             // GDD §9: the fortress yard behind the gates, and the terminus: "lights, then walls, then gun towers".
             double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
             Fortress(mesh, line, eye, from, to, 0, yard, gateAt: yard);
@@ -240,6 +244,28 @@ public sealed class GreyboxScene
         mesh.Box(o + Vector3.UnitY * 0.45f, right, Vector3.UnitY, back, new Vector3(0.16f, 0.45f, 0.12f), Palette.Charcoal);
         mesh.Box(o + Vector3.UnitY * 1.2f, right, Vector3.UnitY, back, new Vector3(0.24f, 0.33f, 0.15f), Palette.DeepBrown);
         mesh.Box(o + Vector3.UnitY * 1.68f, right, Vector3.UnitY, back, new Vector3(0.12f, 0.13f, 0.12f), Palette.Corrupted);
+        // Arms (T47): to a headset player's hands where they are, hanging for everyone else.
+        Vector3 At(Double3 local) => o + right * (float)local.X + Vector3.UnitY * (float)local.Y + back * (float)local.Z;
+        void Segment(Double3 a, Double3 b, float r, Vector3 colour)
+        {
+            var axis = At(b) - At(a);
+            float len = axis.Length();
+            if (len < 1e-4f)
+                return;
+            var dir = axis / len;
+            var side = Vector3.Normalize(Vector3.Cross(dir, MathF.Abs(dir.Y) > 0.9f ? Vector3.UnitX : Vector3.UnitY));
+            mesh.Box((At(a) + At(b)) * 0.5f, side, dir, Vector3.Cross(side, dir), new Vector3(r, len * 0.5f + r * 0.5f, r), colour);
+        }
+        var (left, rightHand) = Arms.Hands(c.Hand, c.Other);
+        foreach (var (armSide, target) in new[] { (-1, left), (1, rightHand) })
+        {
+            var shoulder = Arms.Shoulder(armSide);
+            var (elbow, hand) = Arms.Solve(shoulder, target, Arms.Pole(armSide));
+            Segment(shoulder, elbow, 0.06f, Palette.DeepBrown);
+            Segment(elbow, hand, 0.05f, Palette.DeepBrown);
+            // A glove, a shade lighter: the hand is what the others watch.
+            mesh.Box(At(hand), right, Vector3.UnitY, back, new Vector3(0.05f, 0.05f, 0.05f), Palette.Corrupted * 0.8f);
+        }
         mesh.Emissive = 1;
         mesh.Box(o + Vector3.UnitY * 1.3f - back * 0.16f, right, Vector3.UnitY, back, new Vector3(0.05f, 0.05f, 0.02f), Palette.LampAmber);
         mesh.Emissive = 0;
@@ -313,6 +339,28 @@ public sealed class GreyboxScene
                 Draw(outward * 0.41, 0.1, 0, 0.02, 0.06, 0.5, bite);
                 mesh.Emissive = 0;
                 break;
+            case EnemyKind.Dragger when e.Phase is SpinePhase.Telegraph or SpinePhase.Punish:
+                {
+                    // Out of sight under the edge until it reaches (App. A.4): then a long limb comes up just outside the eave
+                    // and hooks in over the roof, rising through the telegraph's second; grabbing, two of them, further in.
+                    // Corrupted flesh, pale: the one light-coloured thing at a car's dark edge, so the reach reads in time.
+                    double inward = -Math.Sign(e.Local.X);
+                    double rise = e.Phase == SpinePhase.Punish ? 1 : Math.Clamp(e.PhaseSeconds / 1.0, 0.2, 1);
+                    int limbs = e.Phase == SpinePhase.Punish ? 2 : 1;
+                    var flesh = Palette.Corrupted * 1.7f;
+                    double outside = -inward * 0.14;
+                    for (int i = 0; i < limbs; i++)
+                    {
+                        double z = (i - (limbs - 1) * 0.5) * 0.4;
+                        double top = -0.1 + 0.8 * rise;
+                        Draw(outside, (top - 0.4) * 0.5, z, 0.08, (top + 0.4) * 0.5, 0.08, flesh);
+                        double reach = 0.3 + (e.Phase == SpinePhase.Punish ? 0.3 : 0.12) * rise;
+                        Draw(outside + inward * reach * 0.5, top, z, reach * 0.5 + 0.04, 0.06, 0.07, flesh);
+                        // Fingers splayed on the roof sheet.
+                        Draw(outside + inward * (reach + 0.08), top - 0.04, z, 0.09, 0.03, 0.12, Palette.Corrupted * 1.3f);
+                    }
+                    break;
+                }
             case EnemyKind.Switchman:
                 {
                     // A railwayman, stooped wrong, standing at the switch with a lantern held out: the lantern's the only
@@ -746,6 +794,59 @@ public sealed class GreyboxScene
             mesh.Box(V(sled + Double3.Up * 0.15, eye), across, Vector3.UnitY, Vector3.Cross(across, Vector3.UnitY), new Vector3(1.2f, 0.15f, 0.8f), Palette.RustRed);
             mesh.Box(V(sled + Double3.Up * 0.75, eye), across, Vector3.UnitY, Vector3.Cross(across, Vector3.UnitY), new Vector3(0.9f, 0.45f, 0.6f), Palette.BlueGrey);
         }
+    }
+
+    /// <summary>
+    /// A gantry crane (spec D.2, T48): four legs astride the track, the rails along the top, the bridge across them where it
+    /// is, the trolley on it, the hook on its cable, and the castings: stacked, on the hook, or lashed on a car's roof. The
+    /// cab's up at the near end, a box on the leg with its window looking along the gantry.
+    /// </summary>
+    static void Crane(MeshBuilder mesh, Sim.Run.Crane crane, IReadOnlyList<CarFrame> frames, Double3 eye)
+    {
+        void Beam(Double3 a, Double3 b, float r, Vector3 colour)
+        {
+            var axis = b - a;
+            double len = axis.Length;
+            if (len < 1e-4)
+                return;
+            var dir = axis * (1 / len);
+            var side = Double3.Cross(dir, Math.Abs(dir.Y) > 0.9 ? new Double3(1, 0, 0) : Double3.Up).Normalized;
+            mesh.Box(V((a + b) * 0.5, eye), ToF(side), ToF(dir), ToF(Double3.Cross(side, dir)), new Vector3(r, (float)len * 0.5f + r, r), colour);
+        }
+        double top = crane.Top;
+        for (int end = 0; end < 2; end++)
+            for (int side = 0; side < 2; side++)
+            {
+                var foot = crane.Corner(end, side);
+                Beam(foot, foot + Double3.Up * top, 0.18f, Palette.IronGrey);
+            }
+        // The rails along the top, one over each row of legs.
+        for (int side = 0; side < 2; side++)
+            Beam(crane.Corner(0, side) + Double3.Up * top, crane.Corner(1, side) + Double3.Up * top, 0.15f, Palette.RustRed);
+        // The bridge where it is, and the trolley on it.
+        Beam(crane.BridgeEnd(0), crane.BridgeEnd(1), 0.22f, Palette.RustRed * 1.1f);
+        var hook = crane.HookAt;
+        var trolley = hook with { Y = crane.BridgeEnd(0).Y };
+        Beam(trolley - Double3.Up * 0.3, trolley + Double3.Up * 0.3, 0.35f, Palette.IronGrey);
+        Beam(trolley, hook, 0.02f, Palette.SootBlack);
+        Beam(hook, hook - Double3.Up * 0.3, 0.07f, Palette.TarnishedBrass);
+        // The cab up at the near end, and its control stand at the foot of the leg.
+        var cab = crane.Cab;
+        mesh.Box(V(cab, eye), Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, new Vector3(0.9f, 0.8f, 0.9f), Palette.DeepBrown);
+        mesh.Emissive = 1;
+        mesh.Box(V(cab + Double3.Up * 0.3, eye), Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, new Vector3(0.92f, 0.12f, 0.6f), Palette.LampAmber * 0.5f);
+        mesh.Emissive = 0;
+        mesh.Box(V(crane.Controls + Double3.Up * 0.55, eye), Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, new Vector3(0.25f, 0.55f, 0.2f), Palette.IronGrey);
+        var size = crane.Tuning.CastingSize;
+        foreach (var c in crane.Castings)
+            if (crane.Where(c, frames) is { } at)
+            {
+                var up = c.State == Sim.Run.CastingState.Loaded && c.Car >= 0 && c.Car < frames.Count ? frames[c.Car].Up : Double3.Up;
+                var centre = at + up * (size[1] * 0.5);
+                // A foundry casting: a dark iron block with a lifting eye on top, rust on its edges.
+                mesh.Box(V(centre, eye), Vector3.UnitX, ToF(up), Vector3.UnitZ, new Vector3((float)size[0] * 0.5f, (float)size[1] * 0.5f, (float)size[2] * 0.5f), Palette.SootBlack * 1.4f);
+                mesh.Box(V(centre + up * (size[1] * 0.5 + 0.1), eye), Vector3.UnitX, ToF(up), Vector3.UnitZ, new Vector3(0.08f, 0.1f, 0.03f), Palette.RustRed);
+            }
     }
 
     /// <summary>Placeholder silhouettes until facility modules exist: oversized, dark, one working lamp (GDD §30).</summary>

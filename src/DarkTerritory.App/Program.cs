@@ -55,7 +55,8 @@ string Arg(string name, string fallback)
     return i >= 0 && i + 1 < args.Length ? args[i + 1] : fallback;
 }
 
-var content = DataFile.FindContentRoot(Environment.CurrentDirectory);
+// Mods (T49) laid over the base content, unless --no-mods plays the base game.
+var content = Mods.Mount(DataFile.FindContentRoot(Environment.CurrentDirectory), enabled: !args.Contains("--no-mods"));
 // The art pass's surfaces (T39); --greybox draws flat colour instead.
 var look = args.Contains("--greybox") ? null : Look.Load(content);
 var connectLobby = LaunchArgs.ConnectLobby(args);

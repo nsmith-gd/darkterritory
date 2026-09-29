@@ -144,4 +144,14 @@ public class NetPlayTests
         Assert.True(r.TrainSpeed > 5, "the conductor should have the train moving");
         Assert.Equal(0, online.Cloud.Refused);
     }
+
+    [Fact]
+    public void AJoinerWithDifferentModsIsToldWhichMods()
+    {
+        // T49: the refusal names the files that differ, and the mods on each side when they don't match.
+        var text = SessionSetup.Refusal(["tuning/enemies.json"], ["hard-edges 1.2"], []);
+        Assert.Contains("tuning/enemies.json", text);
+        Assert.Contains("the host's mods: hard-edges 1.2; yours: none", text);
+        Assert.DoesNotContain("mods", SessionSetup.Refusal(["tuning/enemies.json"], [], []));
+    }
 }
