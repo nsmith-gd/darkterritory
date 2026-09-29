@@ -147,7 +147,9 @@ public sealed class Bodies
         if (!usePressed || carried is not null || intent.MoveZ > 0.5 || CrewActions.NearestInteractable(s, train) is not null)
             return false;
         var hands = HandsAt(s, train);
-        var nearest = _bodies.Where(b => b.Carrier < 0 && _bodies.All(o => o.Carrier != playerId))
+        // Spec C.2: the revived can carry light things only.
+        bool lightOnly = s.Has(PlayerFlags.Revived);
+        var nearest = _bodies.Where(b => b.Carrier < 0 && (!lightOnly || b.Kind == BodyKind.Lamp) && _bodies.All(o => o.Carrier != playerId))
             .Select(b => (b, d: (WorldCentre(b, train) - hands).Length)).Where(x => x.d <= Hands.Reach).OrderBy(x => x.d).FirstOrDefault();
         if (nearest.b is null)
             return false;

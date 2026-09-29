@@ -99,6 +99,36 @@ public sealed class World
     /// <summary>Tonight's run (departure, facilities, terminus, dawn), when playing a route.</summary>
     public Run.Run? Run { get; private set; }
 
+    /// <summary>Spec C.2 revival. Networked sessions only: the host runs it, clients mirror it.</summary>
+    public Run.Vigil? Vigil { get; private set; }
+    public void EnableVigil(Run.VigilTuning tuning) => Vigil = new Run.Vigil(tuning);
+    /// <summary>A Vigil under way: engine off, lights to emergency only, guns dead, the vent roaring.</summary>
+    public bool EmergencyLights => Vigil is { Active: true };
+    /// <summary>The headlamp is on and has power (it doesn't in a Vigil).</summary>
+    public bool LampShining => LampLit && !EmergencyLights;
+
+    /// <summary>
+    /// Host, after bodies: runs the Vigil and brings back whoever it revives, in the cab, cold (spec C.2 "the revived").
+    /// Also lifts "the revived" off anyone who has reached the next stop.
+    /// </summary>
+    public Run.VigilEvent? StepVigil(Func<int, PlayerState?> get, Action<int, PlayerState> set, IEnumerable<int> crew, PlayerTuning p)
+    {
+        if (!Authority || Vigil is not { } v)
+            return null;
+        foreach (int id in crew)
+            if (get(id) is { } s && s.Has(PlayerFlags.Revived) && v.RecoveredAt(id, Run))
+                set(id, s with { Flags = s.Flags & ~PlayerFlags.Revived });
+        var e = v.Step(this, get, SimConstants.TickSeconds);
+        if (e is { Outcome: global::DarkTerritory.Sim.Run.VigilOutcome.Revived } r && get(r.PlayerId) is { } dead)
+        {
+            var back = PlayerMotor.SpawnInCab(Train, p);
+            back.Flags = dead.Flags | PlayerFlags.Revived;
+            back.Placed = (byte)(dead.Placed + 1);
+            set(r.PlayerId, back);
+        }
+        return e;
+    }
+
     /// <summary>Starts the run. The host steps it (<see cref="StepRun"/>); clients mirror it from records.</summary>
     public void EnableRun(Run.RunTuning tuning, Route.Route route, double yardLength, bool authority)
     {
@@ -138,12 +168,16 @@ public sealed class World
         PlayerMotor.Look(ref s, intent);
         if (Authority && Run is { } run)
             run.CrewAct(s, intent, playerId, Train);
+        if (Authority)
+            Vigil?.CrewAct(s, intent, playerId, Train);
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever.
         bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train);
         if (!handsTookIt)
             CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds);
         var targets = viewTick is { } vt && _targetHistory.TryGetValue(vt, out var then) ? then : Targets;
-        if (Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
+        // Spec C.2: no guns during a Vigil (no steam to traverse them), nor for the revived until the next POI.
+        if (Combat is { } c && !EmergencyLights && !s.Has(PlayerFlags.Revived)
+            && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
             Shots.Add(shot);
         _context?.Crew.Add((new PlayerSnapshot((byte)playerId, s), intent));
     }
@@ -161,12 +195,25 @@ public sealed class World
     /// <summary>Advances the train and the world systems after everyone's crew actions.</summary>
     public void Step(in TrainControls controls)
     {
-        Train.Step(SimConstants.TickSeconds, controls);
+        var applied = controls;
+        if (EmergencyLights)
+        {
+            // Spec C.2 "during the Vigil": engine off, no movement, and the boiler venting to nothing.
+            applied.Throttle = 0;
+            applied.Brake = 1;
+            Train.Boiler.Venting = true;
+        }
+        Train.Step(SimConstants.TickSeconds, applied);
         if (Combat is { } c)
         {
             Guns.Step(Train);
             Choir.Step(c.Choir, SimConstants.TickSeconds);
+            // "The vent is deafening. Choir aggro spikes to maximum instantly", and stays there while it roars.
+            if (EmergencyLights)
+                Choir.Deafening(c.Choir);
         }
+        if (Authority && Director is { } director)
+            director.RateMultiplier = EmergencyLights && Vigil is { } v ? v.Tuning.NoiseSpawnMultiplier : 1;
         if (Authority && _context is { } ctx)
             StepEnemies(ctx);
         Tick++;

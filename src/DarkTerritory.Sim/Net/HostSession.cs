@@ -78,7 +78,15 @@ public sealed class HostSession
     }
 
     /// <summary>Puts a player somewhere authoritatively (respawns, debug teleports, tests).</summary>
-    public void SetPlayerState(byte id, PlayerState state) => _crew.First(c => c.Id == id).State = state;
+    public void SetPlayerState(byte id, PlayerState state)
+    {
+        var crew = _crew.First(c => c.Id == id);
+        state.Placed = (byte)(crew.State.Placed + 1);
+        crew.State = state;
+    }
+
+    /// <summary>Every Vigil begun, broken or completed this session, oldest first.</summary>
+    public List<Run.VigilEvent> VigilEvents { get; } = new();
 
     public void Step()
     {
@@ -102,6 +110,9 @@ public sealed class HostSession
         foreach (var c in _crew)
             PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
         World.StepBodies([.. _crew.Select(c => ((int)c.Id, c.State))]);
+        if (World.StepVigil(id => _crew.FirstOrDefault(c => c.Id == id)?.State, (id, s) => _crew.First(c => c.Id == id).State = s,
+            _crew.Select(c => (int)c.Id), PlayerTuning) is { } vigil)
+            VigilEvents.Add(vigil);
         if (World.Run is not null)
             World.StepRun([.. _crew.Select(c => c.State)]);
         Tick++;

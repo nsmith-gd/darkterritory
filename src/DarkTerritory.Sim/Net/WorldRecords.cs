@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Vigil = 10 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -83,6 +83,8 @@ public static class WorldRecords
                 f[5 + i] = Q(run.ChuteLeft(i), Fine);
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Run, 0), f));
         }
+        if (world.Vigil is { } vigil)
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Vigil, 0), [vigil.Active ? 1 : 0, Q(vigil.Left, Fine), vigil.Revivals, vigil.Body, vigil.For]));
         foreach (var body in world.Bodies.All)
         {
             var ps = body.Pbd.Particles;
@@ -110,6 +112,7 @@ public static class WorldRecords
                 s.Parent, Q(s.Position.X, Pos), Q(s.Position.Y, Pos), Q(s.Position.Z, Pos),
                 Q(s.Velocity.X, Pos), Q(s.Velocity.Y, Pos), Q(s.Velocity.Z, Pos),
                 Q(s.Yaw, Ang), Q(s.Pitch, Ang), (long)s.Surface, s.Health, (long)s.Death, Q(s.LineHint, Hint), Q(s.ActionProgress, Fine),
+                Q(s.Cold, Fine), (long)s.Flags, s.Placed,
             ]));
         }
         list.Sort((a, c) => a.Key.CompareTo(c.Key));
@@ -174,6 +177,9 @@ public static class WorldRecords
                     break;
                 case RecordKind.Body when !world.Authority:
                     bodies.Add(ToBody(r));
+                    break;
+                case RecordKind.Vigil when !world.Authority && world.Vigil is { } vigil:
+                    vigil.Mirror(f[0] != 0, D(f[1], Fine), (int)f[2], (int)f[3], (int)f[4]);
                     break;
                 case RecordKind.Run when !world.Authority && world.Run is { } run:
                     run.Mirror((Run.RunPhase)f[0], (Run.RunEnd)f[1], D(f[2], Fine), (int)f[3], f[4] != 0,
@@ -317,6 +323,9 @@ public static class WorldRecords
             Death = (DeathCause)f[11],
             LineHint = D(f[12], Hint),
             ActionProgress = D(f[13], Fine),
+            Cold = D(f[14], Fine),
+            Flags = (PlayerFlags)f[15],
+            Placed = (byte)f[16],
         });
     }
 

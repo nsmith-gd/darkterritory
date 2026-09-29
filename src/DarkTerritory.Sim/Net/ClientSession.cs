@@ -228,7 +228,8 @@ public sealed class ClientSession
         }
 
         var predicted = _history[acked % HistoryLength];
-        if (acked > 0 && predicted.Seq == acked)
+        // A host placement (respawn, revival) isn't a misprediction: adopt it without counting it.
+        if (acked > 0 && predicted.Seq == acked && predicted.After.Placed == truth.Placed)
         {
             LastCorrection = Difference(predicted.After, truth);
             MaxCorrection = Math.Max(MaxCorrection, LastCorrection);

@@ -68,6 +68,8 @@ public static class Guns
         ref var gun = ref vehicle.Gun;
         if (gun.Jammed || gun.Ammo <= 0 || gun.Cooldown > 0)
             return null;
+        if (train.BoilerTuning is not null && train.Boiler.Pressure < t.MinPressure)
+            return null;
         var frame = train.Frames[gunVehicle];
         var mount = frame.Shape.Gun!.Value;
         var aimLocal = AimLocal(s);

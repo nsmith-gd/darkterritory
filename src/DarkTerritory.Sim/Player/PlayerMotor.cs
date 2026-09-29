@@ -44,7 +44,16 @@ public struct PlayerIntent
 /// <summary>What the player is on. Roof is exposed (roof speeds, Draggers); Deck is footing on the train that isn't.</summary>
 public enum Surface : byte { Air, Ground, Roof, Coupler, Ladder, Deck }
 
-public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir }
+public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold }
+
+/// <summary>Conditions a player carries.</summary>
+[Flags]
+public enum PlayerFlags : byte
+{
+    None = 0,
+    /// <summary>Spec C.2 "the revived": back from a Vigil cold. Onset comes sooner, light things only, no guns until the next POI.</summary>
+    Revived = 1,
+}
 
 /// <summary>
 /// Authoritative player movement state. Position and velocity are in the parent frame:
@@ -69,8 +78,17 @@ public struct PlayerState
     public double LineHint;
     /// <summary>Seconds into a timed action (shovelling). Resets when the action stops.</summary>
     public double ActionProgress;
+    /// <summary>Seconds of cold exposure (spec B.2): climbs outside, falls near heat, kills at the death mark.</summary>
+    public double Cold;
+    public PlayerFlags Flags;
+    /// <summary>
+    /// Counts the host's authoritative moves (respawns, revivals, a harness shift change). A client that sees it change
+    /// adopts the new state as a placement, not as a misprediction to correct.
+    /// </summary>
+    public byte Placed;
 
     public readonly bool Alive => Death == DeathCause.None;
+    public readonly bool Has(PlayerFlags flag) => (Flags & flag) != 0;
     public readonly bool Grounded => Surface is Surface.Ground or Surface.Roof or Surface.Coupler or Surface.Deck;
 }
 
@@ -175,6 +193,10 @@ public static class PlayerMotor
         if (applyLook)
             Look(ref s, intent);
 
+        StepCold(ref s, train, p, dt);
+        if (!s.Alive)
+            return;
+
         if (s.Surface == Surface.Ladder)
         {
             StepLadder(ref s, intent, train, p, t, dt);
@@ -186,6 +208,8 @@ public static class PlayerMotor
             double speed = s.Surface == Surface.Roof
                 ? (intent.Has(PlayerButtons.Run) ? p.RoofRun : p.RoofWalkSafe)
                 : (intent.Has(PlayerButtons.Run) ? p.Run : p.Walk);
+            if (Chilled(s, p))
+                speed *= p.Cold.OnsetSpeedScale;
             var wish = WishDirection(s.Yaw, intent) * speed;
             s.Velocity = new Double3(wish.X, 0, wish.Z);
             if (intent.Has(PlayerButtons.Jump))
@@ -216,6 +240,42 @@ public static class PlayerMotor
         if (intent.Has(PlayerButtons.Use) && intent.MoveZ > 0.5 && s.Surface != Surface.Ladder)
             TryGrabLadder(ref s, train, p);
     }
+
+    /// <summary>
+    /// Spec B.2 cold: exposure climbs outside and kills at the death mark; near heat it falls fast enough that even the
+    /// nearly frozen are recovered within the reset time. Heat is the cab while the fire's lit, or a shut car while the
+    /// boiler has steam to heat it (the Vigil's vent leaves the cars cold).
+    /// </summary>
+    static void StepCold(ref PlayerState s, TrainOnLine train, PlayerTuning p, double dt)
+    {
+        var c = p.Cold;
+        if (NearHeat(s, train))
+        {
+            s.Cold = Math.Max(0, s.Cold - dt * c.DeathSeconds / c.RecoverSecondsNearHeat);
+            return;
+        }
+        s.Cold += dt;
+        if (s.Cold >= c.DeathSeconds)
+        {
+            s.Health = 0;
+            s.Death = DeathCause.Cold;
+        }
+    }
+
+    /// <summary>Warm enough to recover: see <see cref="StepCold"/>.</summary>
+    public static bool NearHeat(in PlayerState s, TrainOnLine train)
+    {
+        int space = Space(s, train);
+        if (space == Outside)
+            return false;
+        if (train.BoilerTuning is null)
+            return true;
+        return space == 0 ? train.Boiler.Firebox > 0 || train.Boiler.Pressure > 0 : train.Boiler.Pressure > 0;
+    }
+
+    /// <summary>Past the onset of cold: slower, and the HUD says so. The revived reach it sooner (spec C.2).</summary>
+    public static bool Chilled(in PlayerState s, PlayerTuning p) =>
+        s.Cold >= p.Cold.OnsetSeconds * (s.Has(PlayerFlags.Revived) ? p.Cold.RevivedOnsetScale : 1);
 
     static Double3 WishDirection(double yaw, in PlayerIntent intent)
     {

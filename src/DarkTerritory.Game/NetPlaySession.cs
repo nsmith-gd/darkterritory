@@ -73,6 +73,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         }
         var train = new TrainOnLine(new TrainDynamics(consist), line, start, boiler);
         var world = new World(train, combat);
+        world.EnableVigil(DataFile.Load<Sim.Run.VigilTuning>(Path.Combine(content, Sim.Run.VigilTuning.File)));
         if (route is not null)
             world.EnableRun(DataFile.Load<Sim.Run.RunTuning>(Path.Combine(content, Sim.Run.RunTuning.File)), route,
                 DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File)).YardLength, authority);
@@ -293,7 +294,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             : Host is not null ? $"{Client.RemoteIds.Count() + 1} aboard" // the host's own ping is to itself
             : $"{Client.RemoteIds.Count() + 1} aboard, ping {_link.RoundTrip(PeerId.Host) * 1000:0} ms";
         string where = PrototypeSession.Where(p, Train);
-        string state = p.Alive ? $"{p.Surface} {where} hp {p.Health}" : $"DEAD ({p.Death})";
+        string state = p.Alive ? $"{p.Surface} {where} hp {p.Health}{PrototypeSession.Condition(p, Client.PlayerTuning)}" : $"DEAD ({p.Death})";
         return $"{d.Speed,5:0.0} m/s | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} | P {Train.Boiler.Pressure,3:0} fire {Train.Boiler.Firebox:0.0} tender {Train.Boiler.Tender:0} | " +
                $"choir {World.Choir.Aggro:0} | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state} | {Role()} | {link}" +
                PrototypeSession.RouteStatus(Route, World, Train);

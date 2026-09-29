@@ -1,0 +1,14 @@
+// Death and revival: the Vigil (systems spec C.2). First pass.
+// Requirements: a dead crewmate's body laid aboard the engine, the train completely stationary, the boiler vented.
+// During it the engine is off, the lights drop to emergency, the guns are dead, and the vent is deafening.
+{
+  // Spec C.2 "the cycle": the first revival this run takes 90 s, the second 120, the third 150. There's no fourth.
+  "seconds": [90, 120, 150],
+  // "Full stop. The train must be completely stationary."
+  "stillBelowSpeed": 0.05,
+  // Not in the spec: holding Use at the vent this long, with a body laid in the engine and the train stopped,
+  // begins the Vigil, so a moment's venting at a stop doesn't start one by accident.
+  "beginHoldSeconds": 1.5,
+  // "Every noise-triggered spawn weight doubles for the duration": the director comes this many times as often.
+  "noiseSpawnMultiplier": 2
+}

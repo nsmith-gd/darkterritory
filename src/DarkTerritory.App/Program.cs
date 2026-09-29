@@ -268,6 +268,10 @@ while (!window.CloseRequested)
     if (session.Route is { } r)
         lighting.FogDensity = (float)r.Weather.FogDensity;
     scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
+    // A Vigil: emergency lighting, and no power to the headlamp.
+    scene.Emergency = session.World.EmergencyLights;
+    if (!session.World.LampShining)
+        lighting.LampRange = 0.01f; // not 0: the shader divides by it
     scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
     renderer.Prepare(mesh);
 

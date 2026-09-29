@@ -7,7 +7,7 @@ public sealed record CombatTuning(GunTuning Guns, ChoirTuning Choir)
 }
 
 public sealed record GunTuning(double RoundsPerSecond, double Range, double TraverseDegrees, double DeadZoneDegrees,
-    double MinPitchDegrees, double MaxPitchDegrees, int Ammo, double Reach, double DamagePerRound)
+    double MinPitchDegrees, double MaxPitchDegrees, int Ammo, double Reach, double DamagePerRound, double MinPressure)
 {
     public int TicksPerRound => (int)Math.Round(SimConstants.TickRate / RoundsPerSecond);
 }
