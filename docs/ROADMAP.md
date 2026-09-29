@@ -190,7 +190,8 @@ Remaining for M2:
 - **Two to lift, two to turn (T43):**
   - the winch's cranks go round with the hand, at most at the keyboard's pace;
   - the drum stalls when the two are out of rhythm (spec D.2);
-  - heavy crates take one at each end, and a headset's end takes both hands.
+  - heavy crates take one at each end, and a headset's end takes both hands;
+  - bots carry them in pairs, and come to help a player holding one (T45).
 
 Remaining for M4:
 - body IK

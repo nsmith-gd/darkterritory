@@ -886,7 +886,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - Put down inside a cargo car, it's stowed like a crate.
       - `Body.Second` is the other carrier, replicated in the body record.
     - **Both hands (VR).** The intent carries the other hand as well as the reaching one when it's tracked (`PlayerIntent.Other*`, a flag byte and three more centimetre shorts on the wire). A headset takes its end of a heavy crate only with both hands on it. Nothing else reads the other hand yet.
-    - **Bots** don't take heavy crates yet (T45). One lying at the site, or held by one waiting for a hand, doesn't keep the train; one up between two, or put down in a car, does.
+    - **Bots** take them in pairs (T45, note 47).
     - **Verified:** `TwoHandedTests`:
       - a hand going round at the crank's pace hauls as a keyboard does, and faster hauls no faster;
       - 0.8 of the pace goes at 0.8; much slower, backwards or still stalls it, out of rhythm;
@@ -896,3 +896,16 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - a headset with one hand on it can't take it, with both it can;
       - a client sees the drum's angle, the stall and both carriers.
       - `dt screenshot --site --crank` shows the cranks; CI keeps `site-crank.png`.
+47. **Bots carry heavy crates in pairs (T45, spec D.2).**
+    - A hand needs its own player id to know which end is whose (`StopHand.PlayerId`). The harness sets it; a hand without one leaves heavy crates to others, as before.
+    - The light crates go first. Once none is loose and there are two crate hands that know themselves (`CrewCalls.HeavyHands`), one takes an end of a heavy crate and waits.
+    - Anyone holding one alone, a bot or a player, gets a hand: the nearest free crate hand comes to the other end. It stands across the crate from the holder, if the holder has said where they are (`CrewCalls.Standing`), and takes hold.
+    - **The front end** walks it in exactly as a light crate: to the car with room, up the side steps, in by the door, down in the middle.
+    - **The back end** follows the crate's own trail a metre behind it. It needs nobody's position, only where the crate has been. It takes the steps and the door in the order the front end did, and it follows a player's lead the same way.
+      - This is stable: the crate rides at the midpoint, so the back end settles 0.8 m behind the front end's hands, well inside the 2.4 m span.
+    - **What keeps the train.** A heavy crate keeps it while it's up, put down in a car, held by one with a hand to lend, or loose with two to take it. Otherwise it doesn't, so a crew without ids isn't held at a stop by freight it won't touch.
+    - **Found on the way:** a hand with no car to go to (every car's room spoken for by crates on their way in) used to go aboard. That marked the stop done for it, so if the room then ran out, nobody came back to shut the doors. It waits on the ground now. Heavy crates made "more freight than room" common enough to show it.
+    - **Verified:**
+      - `StopCrewTests.TwoHandsCarryTheHeavyCratesInTogether`: a crates-only stop loads every crate, light and heavy, up to the room there is; the back end is walked; everyone's aboard; the doors are shut.
+      - `AHandComesToHelpAPlayerHoldingAHeavyCrate`: a player holds an end, and a bot takes the other.
+      - The frontier:7 harness night delivers (net 2614: the stop's timeline moved, and a hound mauled one crewmate, who was revived at the gate). Its Switchyard stop still ends on the driver's 420 s give-up, as it did before; T50 looks into that.

@@ -142,7 +142,12 @@ public static class Harness
             {
                 PlayerIntent intent = default;
                 if (session.Connected)
+                {
+                    // Its part at a stop needs its own id for the heavy crates (T45).
+                    if (((bot as GunnerBot)?.Job ?? (bot as RoofWalkerBot)?.Job) is { } part)
+                        part.PlayerId = session.PlayerId;
                     intent = bot is IWorldBot wb ? wb.Decide(session.Predicted, session.World, t, out _) : bot.Decide(session.Predicted, session.Train, t);
+                }
                 session.Step(intent);
             }
             if (o.Observe is { } observe)
