@@ -5,6 +5,12 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
+/// <summary>Bump when any message's layout changes: a lobby on another protocol is refused before connecting.</summary>
+public static class Protocol
+{
+    public const int Version = 1;
+}
+
 public enum MessageType : byte
 {
     /// <summary>Client → host, unreliable: the latest few inputs, redundantly, to ride out loss.</summary>

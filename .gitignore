@@ -11,3 +11,7 @@ TestResults/
 content/.cooked/
 out/
 content/lines/generated*.json
+# Valve's redistributables (external/steam/README.md)
+external/steam/*.dll
+external/steam/*.so
+external/steam/*.dylib

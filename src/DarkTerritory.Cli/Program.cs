@@ -41,6 +41,7 @@ return args switch
     ["route", "gen", ..] => Print(GenerateRoute(routeTuning, content, args)),
     ["route", "sweep", ..] => Print(SweepRoutes(routeTuning, (int)Opt(args, "--seeds", 200))),
     ["harness", ..] => Print(RunHarness(args)),
+    ["online", "check"] => Print(OnlineCheck()),
     ["audio", "render", ..] => Print(RenderAudio(content, args)),
     ["edit", ..] => Edit(content, args),
     ["voice", "bench", ..] => Print(DarkTerritory.Game.Sound.VoiceBench.Run(content, (int)Opt(args, "--car", 3), Opt(args, "--z", 4), args.Contains("--radio"),
@@ -72,6 +73,7 @@ object RunHarness(string[] args)
     var line = route?.Build() ?? LoadLine(Str(args, "--line", "test-loop"));
     var combat = DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File));
     var enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File));
+    using var online = args.Contains("--online") ? new DarkTerritory.Game.FakeLobbyNetwork() : null;
     return Harness.Run(line, train, player, new HarnessOptions
     {
         Bots = (int)Opt(args, "--bots", 8),
@@ -84,9 +86,19 @@ object RunHarness(string[] args)
         Enemies = args.Contains("--enemies") ? enemies : null,
         Route = route,
         Udp = args.Contains("--udp"),
+        Network = online,
         Run = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)),
         YardLength = routeTuning.YardLength,
     }, args.Contains("--no-boiler") ? null : boiler);
+}
+
+// Can this machine reach Steam? Says who it's signed in as, or exactly what's missing.
+static object OnlineCheck()
+{
+    using var steam = Ballast.Online.Steam.SteamBackend.TryStart(Ballast.Online.Steam.SteamBackend.DevAppId, out var error);
+    return steam is null
+        ? new { steam = false, error }
+        : new { steam = true, error = (string?)null, user = steam.NameOf(steam.Me), id = steam.Me.ToString() };
 }
 
 RailLine LoadLine(string name) => RailLine.Load(Path.Combine(content, "lines", name + ".json"));
@@ -331,14 +343,16 @@ static int Usage()
                      writes content/lines/<name>.json (+ .route.json) and a map; try `screenshot --line generated`
           route sweep [--seeds n]                  generate n routes per tier and report ranges
           harness [--bots n] [--cars n] [--seconds t] [--seed s] [--latency s] [--jitter s] [--loss 0..1] [--line name | --route tier:seed]
-                     [--enemies] [--no-combat] [--no-boiler] [--udp]   --udp: real sockets on localhost instead of the simulated link
+                     [--enemies] [--no-combat] [--no-boiler] [--udp | --online]   --udp: real sockets on localhost instead of the simulated link;
+                     --online: every bot joins a lobby on the fake Steam and plays over relayed P2P
+                     host + bot clients over a simulated network; reports prediction error, bandwidth, deaths,
+                     and with --enemies the director's spawns, punishes, deaths by cause and fairness audit
+          online check                             is Steam reachable from here (signed-in user, or what's missing)
           audio render [--scenario bed|tells|chaos] [--cars n] [--speed v] [--listener car (0 = cab) | all] [--seconds t] [--out file.wav]
                      renders through the mixer to a WAV and a spectrogram PNG, and reports each tell's margin over the bed (spec A.3)
           edit [--port p] [--screenshot file.png]   the designer's editor (tuning + routes) at http://127.0.0.1:<port>/
           voice bench [--car n (0 = cab)] [--z m] [--radio] [--latency s --jitter s --loss 0..1]
                      one speaker to a listener on car 3 through host routing, Opus and the mixer (spec A.5)
-                     host + bot clients over a simulated network; reports prediction error, bandwidth, deaths,
-                     and with --enemies the director's spawns, punishes, deaths by cause and fairness audit
         """);
     return 2;
 }

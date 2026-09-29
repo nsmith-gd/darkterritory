@@ -3,6 +3,8 @@ using System.Net;
 using System.Net.Sockets;
 using Ballast;
 using Ballast.Audio;
+using Ballast.Online;
+using Ballast.Online.Steam;
 using Ballast.Platform;
 using Ballast.Render;
 using DarkTerritory.Game;
@@ -19,6 +21,9 @@ using DarkTerritory.Sim.Route;
 //   1–9 respawn on that car's roof · Backspace respawn in the cab · Tab chase camera · Esc release mouse / quit
 // Options: --route tier:seed | --route-file name (saved from dt edit) [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png --mute
 // Multiplayer (UDP, direct IP / LAN): --host [port] hosts the same options for others to join; --join address[:port] joins one.
+// Steam: --steam hosts a friends-only lobby as well (F2 opens the invite dialog; friends can also "Join Game" from the
+//   friends list). Accepting an invite starts the game with +connect_lobby <id>, or --join-lobby <id> by hand.
+//   Needs steam_api64.dll next to the game (external/steam/README.md); --no-steam to not even try.
 // Networked, the cab is the only place to drive from (GDD §12): R/F/B/X work when you're standing in it.
 // Voice (networked): open mic with voice activity, or --push-to-talk and hold V. Hold T to talk on the radio. --no-mic to only listen.
 
@@ -30,8 +35,27 @@ string Arg(string name, string fallback)
 
 var content = DataFile.FindContentRoot(Environment.CurrentDirectory);
 int cars = int.Parse(Arg("--cars", "6"));
+var connectLobby = LaunchArgs.ConnectLobby(args);
+// Steam when asked for, when an invite brought us here, or when Steam launched us (so invites reach a solo game).
+using var steam = args.Contains("--no-steam") || !(args.Contains("--steam") || connectLobby is not null || Environment.GetEnvironmentVariable("SteamAppId") is not null)
+    ? null
+    : SteamBackend.TryStart(uint.TryParse(Arg("--steam-appid", ""), out var appId) ? appId : SteamBackend.DevAppId, out var steamError) is { } started
+        ? started
+        : NoSteam(steamError);
+static SteamBackend? NoSteam(string? error)
+{
+    Console.WriteLine($"steam: {error}; LAN and direct IP still work");
+    return null;
+}
 IPlaySession session;
-if (args.Contains("--join"))
+if (connectLobby is { } lobbyId)
+{
+    if (steam is null)
+        return 1;
+    Console.WriteLine($"joining lobby {lobbyId} on Steam…");
+    session = NetPlaySession.JoinLobby(content, steam, lobbyId);
+}
+else if (args.Contains("--join"))
 {
     string target = Arg("--join", "127.0.0.1");
     var endpoint = IPEndPoint.TryParse(target, out var ep) ? ep : new IPEndPoint(Dns.GetHostAddresses(target.Split(':')[0]).First(a => a.AddressFamily == AddressFamily.InterNetwork), NetPlaySession.DefaultPort);
@@ -40,12 +64,15 @@ if (args.Contains("--join"))
     Console.WriteLine($"joining {endpoint}…");
     session = NetPlaySession.Join(content, endpoint);
 }
-else if (args.Contains("--host"))
+else if (args.Contains("--host") || (args.Contains("--steam") && steam is not null))
 {
-    int port = int.TryParse(Arg("--host", ""), out var p) ? p : NetPlaySession.DefaultPort;
+    int? port = !args.Contains("--host") ? null : int.TryParse(Arg("--host", ""), out var p) ? p : NetPlaySession.DefaultPort;
     var setup = new SessionSetup(Route: Arg("--route", "") is { Length: > 0 } r ? r : null, Line: Arg("--line", "test-loop"), Cars: cars, Enemies: !args.Contains("--no-enemies"));
-    var hosted = NetPlaySession.HostGame(content, setup, port);
-    Console.WriteLine($"hosting on UDP port {hosted.Port}: others join with --join <this machine's address>:{hosted.Port}");
+    var hosted = NetPlaySession.HostGame(content, setup, port, online: steam);
+    if (port is not null)
+        Console.WriteLine($"hosting on UDP port {hosted.Port}: others join with --join <this machine's address>:{hosted.Port}");
+    if (steam is not null)
+        Console.WriteLine($"hosting a friends-only Steam lobby as {steam.NameOf(steam.Me)}: F2 to invite");
     session = hosted;
 }
 else if (Arg("--route-file", "") is { Length: > 0 } routeFile)
@@ -112,6 +139,19 @@ var input = window.Input;
 Camera camera = default;
 FrameLighting lighting = default;
 
+LobbyId? relaunch = null;
+var steamEvents = new List<OnlineEvent>();
+LobbyId? Invited()
+{
+    if (net?.Lobby is not null)
+        return net.TakeJoinRequest();
+    if (steam is null)
+        return null;
+    steamEvents.Clear();
+    steam.Poll(steamEvents);
+    return steamEvents.Where(e => e.Kind == OnlineEventKind.JoinRequested).Select(e => (LobbyId?)e.Lobby).LastOrDefault();
+}
+
 while (!window.CloseRequested)
 {
     window.PumpEvents();
@@ -140,6 +180,13 @@ while (!window.CloseRequested)
         proto.Controls.Brake = input.Down(Key.B) ? 1 : 0;
     }
     if (input.Pressed(Key.Tab)) chase = !chase;
+    if (input.Pressed(Key.F2)) net?.ShowInviteDialog();
+    // An invite accepted (or "Join Game" on a friend) while playing: leave this game for theirs.
+    if (Invited() is { } invitedTo)
+    {
+        relaunch = invitedTo;
+        break;
+    }
 
     pendingYaw -= input.MouseDX * Sensitivity;
     pendingPitch -= input.MouseDY * Sensitivity;
@@ -238,3 +285,11 @@ if (capture is not null)
 }
 Console.WriteLine($"frames {frameCount} ({frameCount / timer.Elapsed.TotalSeconds:0} fps), ticks {session.Tick}, {session.Status()}");
 (session as IDisposable)?.Dispose();
+if (relaunch is { } next)
+{
+    // The simplest way into another game is a fresh start, the same one Steam gives an invite accepted from outside.
+    steam?.Dispose();
+    Console.WriteLine($"leaving for lobby {next}");
+    Process.Start(Environment.ProcessPath!, ["+connect_lobby", next.ToString()]);
+}
+return 0;

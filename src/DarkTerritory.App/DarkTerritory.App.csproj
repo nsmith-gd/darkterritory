@@ -7,4 +7,8 @@
     <ProjectReference Include="../Ballast.Platform/Ballast.Platform.csproj" />
     <ProjectReference Include="../DarkTerritory.Game/DarkTerritory.Game.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Valve's native Steam library, when the developer has put it there (external/steam/README.md). -->
+    <None Include="../../external/steam/*.dll;../../external/steam/*.so;../../external/steam/*.dylib" CopyToOutputDirectory="PreserveNewest" Link="%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

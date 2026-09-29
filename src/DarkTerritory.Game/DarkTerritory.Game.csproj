@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="../Ballast.Audio/Ballast.Audio.csproj" />
     <ProjectReference Include="../Ballast.Voice/Ballast.Voice.csproj" />
+    <ProjectReference Include="../Ballast.Online/Ballast.Online.csproj" />
     <ProjectReference Include="../Ballast.Render/Ballast.Render.csproj" />
     <ProjectReference Include="../DarkTerritory.Sim/DarkTerritory.Sim.csproj" />
   </ItemGroup>

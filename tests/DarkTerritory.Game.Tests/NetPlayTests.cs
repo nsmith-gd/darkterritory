@@ -1,4 +1,5 @@
 using Ballast;
+using Ballast.Online;
 using DarkTerritory.Game;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Player;
@@ -48,7 +49,7 @@ public class NetPlayTests
         using (var probe = new System.Net.Sockets.UdpClient(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 0)))
             port = ((System.Net.IPEndPoint)probe.Client.LocalEndPoint!).Port;
         Assert.Throws<IOException>(() => NetPlaySession.Join(Content, new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, port),
-            options: new Ballast.Net.UdpOptions { ConnectSeconds = 0.5 }));
+            options: new Ballast.Net.DatagramOptions { ConnectSeconds = 0.5 }));
     }
 
     [Fact]
@@ -78,5 +79,65 @@ public class NetPlayTests
         {
             Directory.Delete(mine, recursive: true);
         }
+    }
+
+    [Fact]
+    public void AFriendJoinsThroughTheLobbyAndTheyPlayTogether()
+    {
+        // What a Steam game does, against the fake platform: host a lobby, invite, the friend joins it, and the
+        // game connects them to its owner over relayed P2P. The host takes no UDP port at all.
+        var cloud = new FakeOnline();
+        var alice = cloud.SignIn("alice");
+        var bob = cloud.SignIn("bob");
+        using var host = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: null, online: alice);
+        Assert.Equal(0, host.Port);
+        for (int i = 0; i < 5 && host.Lobby!.Status != Lobby.State.Open; i++)
+            host.Step(default);
+        Assert.Equal(Lobby.State.Open, host.Lobby!.Status);
+
+        alice.Invite(host.Lobby.Id, bob.Me);
+        var events = new List<OnlineEvent>();
+        bob.Poll(events);
+        var invite = events.Single(e => e.Kind == OnlineEventKind.JoinRequested);
+        using var joiner = NetPlaySession.JoinLobby(Content, bob, invite.Lobby, () => host.Step(default));
+        Assert.Equal("frontier:7", joiner.Setup.Route);
+
+        for (int t = 0; t < SimConstants.TickRate * 2; t++)
+        {
+            host.Step(default);
+            joiner.Step(default);
+            Thread.Sleep(1);
+        }
+        Assert.True(joiner.Client.Connected);
+        Assert.Single(host.Crew(host.InterpolatedFrames(1), 1));
+        Assert.Single(joiner.Crew(joiner.InterpolatedFrames(1), 1));
+        Assert.Contains("joined alice on Fake", joiner.Status());
+        Assert.Contains("ping", joiner.Status());
+        Assert.Contains("Fake lobby 2/12", host.Status());
+    }
+
+    [Fact]
+    public void JoiningALobbyThatsGoneSaysSo()
+    {
+        var bob = new FakeOnline().SignIn("bob");
+        var e = Assert.Throws<IOException>(() => NetPlaySession.JoinLobby(Content, bob, new LobbyId(99)));
+        Assert.Equal("couldn't join: that lobby is gone", e.Message);
+    }
+
+    [Fact]
+    public void EightBotsPlayThroughALobby()
+    {
+        // dt harness --online: every bot a separate account in the host's lobby, over relayed P2P.
+        using var online = new FakeLobbyNetwork();
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines/test-loop.json"));
+        var r = Sim.Net.Harness.Run(line, DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File)),
+            DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File)), new Sim.Net.HarnessOptions { Bots = 8, Seconds = 20, Network = online });
+        Assert.Equal("fake Steam lobby", r.Link);
+        Assert.Equal(1, online.Cloud.Lobbies);
+        Assert.Equal(9, online.Members); // the host and eight friends
+        Assert.All(r.Clients, c => Assert.True(c.Snapshots > r.Ticks * 0.9, $"player {c.Id} got {c.Snapshots} of {r.Ticks} snapshots"));
+        Assert.All(r.Clients, c => Assert.True(c.MaxCorrectionM < 0.01, $"player {c.Id} corrected by {c.MaxCorrectionM} m"));
+        Assert.True(r.TrainSpeed > 5, "the conductor should have the train moving");
+        Assert.Equal(0, online.Cloud.Refused);
     }
 }
