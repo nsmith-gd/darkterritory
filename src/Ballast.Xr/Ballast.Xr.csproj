@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Ballast.Xr</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Ballast.Render/Ballast.Render.csproj" />
+    <PackageReference Include="Silk.NET.OpenXR" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.OpenXR.Extensions.KHR" Version="2.23.0" />
+    <!-- Khronos' loader for Windows (Apache-2.0); Linux uses the system's libopenxr_loader.so.1. Native-only, so copied by hand. -->
+    <PackageReference Include="OpenXR.Loader" Version="1.0.10.2" GeneratePathProperty="true" ExcludeAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="$(PkgOpenXR_Loader)/native/x64/release/bin/openxr_loader.dll" CopyToOutputDirectory="PreserveNewest" Link="openxr_loader.dll" Visible="false" />
+  </ItemGroup>
+</Project>

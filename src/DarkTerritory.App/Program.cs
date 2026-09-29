@@ -7,6 +7,7 @@ using Ballast.Online;
 using Ballast.Online.Steam;
 using Ballast.Platform;
 using Ballast.Render;
+using Ballast.Xr;
 using DarkTerritory.Game;
 using DarkTerritory.Game.Sound;
 using DarkTerritory.Sim;
@@ -25,6 +26,8 @@ using DarkTerritory.Sim.Route;
 //   friends list). Accepting an invite starts the game with +connect_lobby <id>, or --join-lobby <id> by hand.
 //   Needs steam_api64.dll next to the game (external/steam/README.md); --no-steam to not even try.
 // Networked, the cab is the only place to drive from (GDD §12): R/F/B/X work when you're standing in it.
+// VR: --vr plays in an OpenXR headset (Quest via Link, SteamVR, Monado) and mirrors to the window; --vr-scale 0.5 of the
+//   runtime's per-eye size. Mouse yaw still turns the body; the head does the rest.
 // Voice (networked): open mic with voice activity, or --push-to-talk and hold V. Hold T to talk on the radio. --no-mic to only listen.
 
 string Arg(string name, string fallback)
@@ -99,10 +102,28 @@ if (proto is not null)
     proto.Controls.Throttle = double.Parse(Arg("--throttle", "0"));
 
 using var window = new Window("Dark Territory — prototype", 1280, 720);
-using var gpu = new GpuContext("Dark Territory", Window.VulkanInstanceExtensions(), window.CreateSurface);
+// --vr: the headset makes the GPU (it has to pick the device and the extensions), and the window mirrors the flat view.
+using var vr = args.Contains("--vr") ? StartVr() : null;
+VrView? StartVr()
+{
+    try
+    {
+        var view = VrView.Start("Dark Territory", double.Parse(Arg("--vr-scale", "0.5")), Window.VulkanInstanceExtensions(), window.CreateSurface);
+        Console.WriteLine($"vr: {view.Headset.System} on {view.Headset.Runtime}, {view.Session.EyeWidth}x{view.Session.EyeHeight} per eye");
+        return view;
+    }
+    catch (XrUnavailableException e)
+    {
+        Console.WriteLine($"vr: {e.Message}; playing flat");
+        return null;
+    }
+}
+using var ownGpu = vr is null ? new GpuContext("Dark Territory", Window.VulkanInstanceExtensions(), window.CreateSurface) : null;
+var gpu = vr?.Gpu ?? ownGpu!;
 using var renderer = new GreyboxRenderer(gpu, internalSize[0], internalSize[1]);
 var (w, h) = window.PixelSize;
-using var swapchain = new Swapchain(gpu, w, h);
+// In VR the headset sets the pace; the mirror shouldn't wait for the monitor as well.
+using var swapchain = new Swapchain(gpu, w, h, vsync: vr is null);
 Console.WriteLine($"GPU: {gpu.DeviceName}, window {w}x{h}, internal {renderer.Width}x{renderer.Height}");
 
 var sound = new GameAudio(content);
@@ -263,6 +284,9 @@ while (!window.CloseRequested)
         (w, h) = window.PixelSize;
         swapchain.Recreate(w, h);
     }
+    // The body is the flat camera: its eye point and yaw. The head does the looking.
+    if (vr is not null && vr.Frame(mesh, cam, light, light.FogColor) == XrFrameResult.Exiting)
+        break;
 
     if (now >= titleAt)
     {

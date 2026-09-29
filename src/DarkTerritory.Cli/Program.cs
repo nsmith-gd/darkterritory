@@ -42,6 +42,7 @@ return args switch
     ["route", "sweep", ..] => Print(SweepRoutes(routeTuning, (int)Opt(args, "--seeds", 200))),
     ["harness", ..] => Print(RunHarness(args)),
     ["online", "check"] => Print(OnlineCheck()),
+    ["vr", "check", ..] => Print(VrCheck(train, content, args)),
     ["audio", "render", ..] => Print(RenderAudio(content, args)),
     ["edit", ..] => Edit(content, args),
     ["voice", "bench", ..] => Print(DarkTerritory.Game.Sound.VoiceBench.Run(content, (int)Opt(args, "--car", 3), Opt(args, "--z", 4), args.Contains("--radio"),
@@ -90,6 +91,80 @@ object RunHarness(string[] args)
         Run = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)),
         YardLength = routeTuning.YardLength,
     }, args.Contains("--no-boiler") ? null : boiler);
+}
+
+// A headset session end to end: runtime, stereo swapchains, frames at the runtime's pace, a clean exit, and both eyes
+// as a PNG. Headless with Monado's simulated HMD (docs/ARCHITECTURE.md §8 note 25).
+static object VrCheck(TrainTuning t, string content, string[] args)
+{
+    int frames = (int)Opt(args, "--frames", 30);
+    string output = Str(args, "--out", "out/shots/vr.png");
+    DarkTerritory.Game.VrView vr;
+    try
+    {
+        vr = DarkTerritory.Game.VrView.Start("dt vr check", Opt(args, "--scale", 0.5));
+    }
+    catch (Ballast.Xr.XrUnavailableException e)
+    {
+        return new { headset = false, error = e.Message };
+    }
+    using (vr)
+    {
+        var line = RailLine.Load(Path.Combine(content, "lines", Str(args, "--line", "test-loop") + ".json"));
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, (int)Opt(args, "--cars", 6), 1)), line, Opt(args, "--at", 1200));
+        var body = Views.Get(Str(args, "--view", "roof"), train, (int)Opt(args, "--car", 2));
+        var mesh = new MeshBuilder();
+        new GreyboxScene { Time = 0.37 }.Build(mesh, train, body.Position);
+        var lighting = Views.Lighting(train);
+        var outcomes = new Dictionary<string, int>();
+        var clock = Stopwatch.StartNew();
+        void Count(Ballast.Xr.XrFrameResult r) => outcomes[r.ToString()] = outcomes.GetValueOrDefault(r.ToString()) + 1;
+        while (vr.Session.FramesRendered < frames && clock.Elapsed.TotalSeconds < 30)
+        {
+            var r = vr.Frame(mesh, body, lighting, lighting.FogColor);
+            Count(r);
+            if (r == Ballast.Xr.XrFrameResult.Exiting)
+                break;
+            if (r == Ballast.Xr.XrFrameResult.Idle)
+                Thread.Sleep(5);
+        }
+        double seconds = clock.Elapsed.TotalSeconds;
+        var (pixels, w, h) = vr.SideBySide(mesh, lighting, lighting.FogColor);
+        PngWriter.Write(output, pixels, w, h, (int)Opt(args, "--png-scale", 1));
+        // And leave properly: the runtime walks the session down to Exiting.
+        vr.Session.RequestExit();
+        for (var stop = Stopwatch.StartNew(); stop.Elapsed.TotalSeconds < 5;)
+        {
+            var r = vr.Frame(mesh, body, lighting, lighting.FogColor);
+            if (r == Ballast.Xr.XrFrameResult.Exiting)
+                break;
+            if (r == Ballast.Xr.XrFrameResult.Idle)
+                Thread.Sleep(5);
+        }
+        object Eye(int i)
+        {
+            var c = vr.LastEye(i);
+            var f = c.Fov!.Value;
+            static double Deg(float r) => Math.Round(r * 180 / Math.PI, 1);
+            return new { offsetM = new[] { Math.Round(c.EyeOffset.X, 3), Math.Round(c.EyeOffset.Y, 3), Math.Round(c.EyeOffset.Z, 3) }, fovDeg = new[] { Deg(f.Left), Deg(f.Right), Deg(f.Up), Deg(f.Down) } };
+        }
+        return new
+        {
+            headset = true,
+            runtime = vr.Headset.Runtime,
+            system = vr.Headset.System,
+            device = vr.Gpu.DeviceName,
+            recommended = new[] { vr.Headset.EyeWidth, vr.Headset.EyeHeight },
+            eyeRender = new[] { vr.Session.EyeWidth, vr.Session.EyeHeight },
+            swapchainFormat = vr.Session.SwapchainFormat.ToString(),
+            framesRendered = vr.Session.FramesRendered,
+            fps = Math.Round(vr.Session.FramesRendered / seconds, 1),
+            outcomes,
+            states = vr.Session.States.Select(s => s.ToString()).ToList(),
+            eyes = new[] { Eye(0), Eye(1) },
+            path = Path.GetFullPath(output),
+        };
+    }
 }
 
 // Can this machine reach Steam? Says who it's signed in as, or exactly what's missing.
@@ -347,6 +422,8 @@ static int Usage()
                      --online: every bot joins a lobby on the fake Steam and plays over relayed P2P
                      host + bot clients over a simulated network; reports prediction error, bandwidth, deaths,
                      and with --enemies the director's spawns, punishes, deaths by cause and fairness audit
+          vr check [--frames n] [--view roof|cab|…] [--scale 0.5] [--out out/shots/vr.png]
+                     an OpenXR session end to end (Monado's simulated headset works headless) and both eyes as a PNG
           online check                             is Steam reachable from here (signed-in user, or what's missing)
           audio render [--scenario bed|tells|chaos] [--cars n] [--speed v] [--listener car (0 = cab) | all] [--seconds t] [--out file.wav]
                      renders through the mixer to a WAV and a spectrogram PNG, and reports each tell's margin over the bed (spec A.3)

@@ -9,6 +9,7 @@ dotnet build Ballast.slnx                          # warnings are errors
 dotnet test --solution Ballast.slnx                # all tests (Microsoft.Testing.Platform runner)
 dotnet test --project tests/DarkTerritory.Sim.Tests  # one project
 dotnet run --project src/DarkTerritory.Cli -- train table   # `dt`: headless inspection tool, JSON out
+tools/xr-sim.sh && XDG_RUNTIME_DIR=/tmp/xr dotnet run --project src/DarkTerritory.Cli -- vr check   # VR end to end on a simulated headset
 dotnet run --project src/DarkTerritory.Cli -- audio render --listener all   # spec A.3 tell audit; one listener → WAV + spectrogram PNG
 dotnet run --project src/DarkTerritory.Cli -- screenshot --view roof   # PNG to out/shots/; then Read it to look
 dotnet run --project src/DarkTerritory.Cli -- harness --bots 8 --seconds 300   # host + bots over lossy loopback; netcode report

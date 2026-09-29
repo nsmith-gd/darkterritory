@@ -10,6 +10,9 @@
     <ProjectReference Include="../Ballast.Core/Ballast.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Ballast.Xr" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- Shaders stay GLSL text in the repo and compile at startup: no binary blobs to regenerate. -->
     <EmbeddedResource Include="Shaders/*.vert;Shaders/*.frag" LogicalName="Shaders/%(Filename)%(Extension)" />
   </ItemGroup>
