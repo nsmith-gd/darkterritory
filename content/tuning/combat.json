@@ -12,7 +12,10 @@
     "ammo": 200,
     // Stand within this of the gun to work it.
     "reach": 1.0,
-    "damagePerRound": 25
+    "damagePerRound": 25,
+    // Spec C.2: "turret traverse dead (no boiler pressure)". The turrets run on steam; below this they don't move.
+    // The same floor where the engine loses its pull (boiler.json powerFloor).
+    "minPressure": 20
   },
   "choir": {
     "aggroPerRound": 1.5,

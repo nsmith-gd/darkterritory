@@ -153,7 +153,7 @@ public sealed class PrototypeSession : IPlaySession
         string boiler = b.Ruptured ? "BOILER RUPTURED" :
             $"P {b.Pressure,3:0}{(b.SafetyValveLifting ? " VALVE" : "")} fire {b.Firebox:0.0} tender {b.Tender:0}" +
             (Player.ActionProgress > 0 ? $" shovel {Player.ActionProgress:0.0}s" : "");
-        string state = Player.Alive ? $"{Player.Surface} {where} hp {Player.Health}" : $"DEAD ({Player.Death}) — Backspace to respawn";
+        string state = Player.Alive ? $"{Player.Surface} {where} hp {Player.Health}{Condition(Player, PlayerTuning)}" : $"DEAD ({Player.Death}) — Backspace to respawn";
         return $"{d.Speed,5:0.0} m/s {SpeedBands.Classify(TrainTuning, d.Speed),-7} | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} rev {(Controls.Reverser > 0 ? "F" : "R")} " +
                $"| {boiler} |{Gunnery()}{(Train.Rakes.Count > 1 ? $" {Train.Rakes.Count} rakes |" : "")} grade {Train.AverageGrade(),4:0.0}% | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state}" +
                RouteStatus() + Threats() +
@@ -220,10 +220,25 @@ public sealed class PrototypeSession : IPlaySession
     string RouteStatus() => RouteStatus(Route, World, Train);
 
     /// <summary>The night so far: the dawn clock, where you are on the route, what's next, and how it ended.</summary>
+    /// <summary>Cold and the revived's limits, for the status line (spec B.2, C.2).</summary>
+    public static string Condition(in PlayerState p, PlayerTuning t)
+    {
+        string cold = PlayerMotor.Chilled(p, t) ? $" | COLD: {Math.Max(0, t.Cold.DeathSeconds - p.Cold):0}s — get inside" : "";
+        string revived = p.Has(PlayerFlags.Revived) ? " | REVIVED: cold, light things only, no guns until the next stop" : "";
+        return cold + revived;
+    }
+
+    /// <summary>A Vigil under way, or the hint that one could be held (spec C.2).</summary>
+    public static string VigilStatus(World world) => world.Vigil switch
+    {
+        { Active: true } v => $" | VIGIL {v.Left:0}s — engine off, lights out, guns dead, the Choir is coming",
+        _ => "",
+    };
+
     public static string RouteStatus(Route? route, World world, TrainOnLine train)
     {
         if (route is null)
-            return "";
+            return VigilStatus(world);
         var run = world.Run;
         if (run?.Report is { } r)
             return r.End == RunEnd.Delivered
@@ -241,6 +256,6 @@ public sealed class PrototypeSession : IPlaySession
             ? $"{(l.Kind == FeatureKind.Facility ? $"{l.Facility}" : $"{l.Kind}").ToLowerInvariant()} in {(l.Start - s) / 1000:0.0} km"
             : "terminus ahead";
         string tunnel = route.InTunnel(s) ? " | IN TUNNEL" : "";
-        return $" | {route.Name} | {clock} | {next}{tunnel}{stop}";
+        return $" | {route.Name} | {clock} | {next}{tunnel}{stop}{VigilStatus(world)}";
     }
 }

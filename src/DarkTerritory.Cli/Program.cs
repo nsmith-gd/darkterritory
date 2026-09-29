@@ -88,6 +88,7 @@ object RunHarness(string[] args)
         Route = route,
         Udp = args.Contains("--udp"),
         Network = online,
+        Vigil = DataFile.Load<DarkTerritory.Sim.Run.VigilTuning>(Path.Combine(content, DarkTerritory.Sim.Run.VigilTuning.File)),
         Run = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)),
         YardLength = routeTuning.YardLength,
     }, args.Contains("--no-boiler") ? null : boiler);
@@ -329,9 +330,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Run = run,
         Time = 0.37,
         Enemies = args.Contains("--threats") ? Staging.Threats(train) : null,
-        Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All : null
+        Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All : null,
+        Emergency = args.Contains("--vigil"),
     }.Build(mesh, train, camera.Position);
     var lighting = Views.Lighting(train);
+    if (args.Contains("--vigil"))
+        lighting.LampRange = 0.01f; // a Vigil: no power to the headlamp
     if (route is not null)
         lighting.FogDensity = (float)route.Weather.FogDensity;
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor);
@@ -414,6 +418,7 @@ static int Usage()
                      [--width w] [--height h] [--scale k] [--out file.png] [--threats]   --threats stages one of each enemy
                      [--route tier:seed [--coaling]]   a generated night; --coaling stops at its coaling tower, chute pouring
                      [--bodies]   crates, a lamp and a crewmate's body on the roofs, settled by the physics
+                     [--vigil]    emergency lighting, as during a Vigil (spec C.2)
           route gen [--tier local|frontier|deadLines|deepTerritory] [--seed n] [--name generated] [--map file.png]
                      writes content/lines/<name>.json (+ .route.json) and a map; try `screenshot --line generated`
           route sweep [--seeds n]                  generate n routes per tier and report ranges

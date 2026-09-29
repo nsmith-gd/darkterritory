@@ -19,6 +19,9 @@ public sealed class GreyboxScene
     public int Seed { get; init; } = 7;
     /// <summary>How hot the firebox is, 0..1: the glow in the cab is how the Boiler reads the fire.</summary>
     public float FireGlow { get; set; } = 0.7f;
+    /// <summary>Spec C.2 "lights drop to emergency only": the cars' lamps go to a dim red during a Vigil.</summary>
+    public bool Emergency { get; set; }
+    static readonly System.Numerics.Vector3 EmergencyRed = new(0.5f, 0.06f, 0.04f);
     /// <summary>Tunnels, bridges, facilities and hazards to draw along the line, when it's a generated route.</summary>
     public Route? Route { get; set; }
     /// <summary>Live enemies to draw. When set, the route's Sleepers come from here rather than its features.</summary>
@@ -73,7 +76,9 @@ public sealed class GreyboxScene
                 continue;
             if (frame.Shape.Interior is { } room)
                 foreach (double z in new[] { -room.HalfSize.Z * 0.5, room.HalfSize.Z * 0.5 })
-                    mesh.PointLights.Add(new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), Palette.LampAmber * 1.6f, 7.5f));
+                    mesh.PointLights.Add(Emergency
+                        ? new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), EmergencyRed, 4f)
+                        : new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), Palette.LampAmber * 1.6f, 7.5f));
             foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
                 mesh.PointLights.Add(new PointLight(V(frame.ToWorld(i.Position + new Double3(0, 0.7, 0.3)), eye), Palette.FurnaceOrange * (0.6f + 1.6f * FireGlow), 5f));
         }
@@ -530,7 +535,8 @@ public sealed class GreyboxScene
             mesh.Emissive = 1;
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
                 Draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.17), new Double3(0.3, 0.2, 0.02)), Palette.FurnaceOrange * (0.15f + 0.85f * FireGlow));
-            Draw(Box.FromCentre(new Double3(0, 2.8, -half - 0.05), new Double3(0.35, 0.35, 0.1)), Palette.LampAmber);
+            // The headlamp: dark with no power in a Vigil.
+            Draw(Box.FromCentre(new Double3(0, 2.8, -half - 0.05), new Double3(0.35, 0.35, 0.1)), Emergency ? Palette.LampAmber * 0.08f : Palette.LampAmber);
             mesh.Emissive = 0;
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
                 Draw(Box.FromCentre(i.Position + new Double3(0, 1.1, 0), new Double3(0.12, 0.12, 0.04)), Palette.TarnishedBrass);
@@ -559,7 +565,7 @@ public sealed class GreyboxScene
         {
             // A lamp in every car: the warm interior against the hostile exterior (GDD §26).
             mesh.Emissive = 1;
-            Draw(Box.FromCentre(new Double3(0, room.Max.Y - 0.08, 0), new Double3(0.12, 0.06, 0.12)), Palette.LampAmber);
+            Draw(Box.FromCentre(new Double3(0, room.Max.Y - 0.08, 0), new Double3(0.12, 0.06, 0.12)), Emergency ? EmergencyRed : Palette.LampAmber);
             mesh.Emissive = 0;
         }
         if (shape.Gun is { } gun)

@@ -19,6 +19,12 @@ public sealed class Director
     readonly Route.Route? _route;
     Pcg32 _rng;
     double _cooldown;
+
+    /// <summary>
+    /// How much more often the director comes. The Vigil sets it: spec C.2's "every noise-triggered spawn weight
+    /// doubles" read as spawn rate, because doubling every weight alike wouldn't change which one is picked.
+    /// </summary>
+    public double RateMultiplier { get; set; } = 1;
     double _spent;
 
     public Director(DirectorTuning tuning, Route.Route? route, ulong seed, int cars, int crew)
@@ -111,7 +117,7 @@ public sealed class Director
             pick -= o.Weight;
         }
         Charge(world, kind, active);
-        _cooldown = _rng.Range(_t.CooldownSeconds[0], _t.CooldownSeconds[1]);
+        _cooldown = _rng.Range(_t.CooldownSeconds[0], _t.CooldownSeconds[1]) / Math.Max(1e-6, RateMultiplier);
         return kind;
     }
 
