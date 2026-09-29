@@ -72,7 +72,9 @@ sealed partial class LineBuilder
         if (_p.Tier <= _t.Reaction.SloppyUpToTier)
             jobs.Add(("sloppy", DefaultAlternates(), true));
         var results = new DriveResult[jobs.Count];
-        Parallel.For(0, jobs.Count, i => results[i] = DriveWay(frozen, jobs[i].Alts, jobs[i].Sloppy));
+        // Side by side, but on no more cores than the tuning allows: the game's still rendering while this runs.
+        Parallel.For(0, jobs.Count, new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, _t.Validation.MaxParallelDrives) },
+            i => results[i] = DriveWay(frozen, jobs[i].Alts, jobs[i].Sloppy));
         DriveResult? sloppy = null;
         for (int i = 0; i < jobs.Count; i++)
             if (jobs[i].Sloppy)

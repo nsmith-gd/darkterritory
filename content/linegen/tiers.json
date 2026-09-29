@@ -189,9 +189,12 @@
   // bank's foot; the driver's speed band, and how far over a limit its control may drift. dawnWithStopsHard: the
   // dawn check holds transit plus every stop to the timer (§16.3); off, only the transit is held and the stops are
   // reported, since by the spec's own formula the deeper tiers can't take every stop in time (§22.1, ARCHITECTURE §8).
+  // maxParallelDrives: how many validation drives run at once. The host generates while the fortress phase is
+  // rendering (§17.5), so generation mustn't take every core.
   "validation": {
     "attempts": 10, "minBrakeEfficiency": 0.6, "dawnMinutesPerFacility": 4, "coalingEnduranceShare": 0.8, "maxSeconds": 7200,
-    "stallRollbackExtraM": 200, "driverBandMs": 0.4, "dawnWithStopsHard": false, "overspeedTolerance": 0.8
+    "stallRollbackExtraM": 200, "driverBandMs": 0.4, "dawnWithStopsHard": false, "overspeedTolerance": 0.8,
+    "maxParallelDrives": 2
   },
 
   // Plan §22: the defaults for conflicts in the source documents. Each is logged as a warning when it applies.

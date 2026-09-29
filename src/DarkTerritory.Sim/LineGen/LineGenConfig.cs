@@ -179,7 +179,7 @@ public sealed record QuotaRow(Dictionary<string, int> Tags, int FacingJunctions,
 
 /// <summary>§16.</summary>
 public sealed record ValidationRules(int Attempts, double MinBrakeEfficiency, double DawnMinutesPerFacility, double CoalingEnduranceShare, double MaxSeconds,
-    double StallRollbackExtraM, double DriverBandMs, bool DawnWithStopsHard, double OverspeedTolerance);
+    double StallRollbackExtraM, double DriverBandMs, bool DawnWithStopsHard, double OverspeedTolerance, int MaxParallelDrives);
 
 /// <summary>§22: the config defaults for the conflicts found in the source documents, each logged when it applies.</summary>
 public sealed record ConflictDefaults(bool DawnFromSpecFormula, double DawnAverageSpeed, double DawnSlack, bool SilentGateSafe, bool WeakBridgeCollapses,
