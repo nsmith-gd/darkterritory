@@ -78,11 +78,12 @@ Remaining for M3: Soot Children mimicry, the radio as an item, and interior occl
 - Switches are thrown by hand at a stand beside the points, never under a wheel, and their lamp reads the setting from the cab.
 - `dt screenshot --route frontier:7 --junction 0 --diverge --through` shows one.
 
-**Loading at facilities (spec D):**
+**Loading at facilities (spec D, GDD §17):**
 - Manual crates you carry into the cars (heavy: slow, no climbing).
 - A capstan winch that needs two on it.
 - Cars leave the fortress half full, so the facilities are where the money is.
-- `dt screenshot --site` shows a stop.
+- Every facility but the coaling tower is down a spur that takes the engine and four cars. Cut the rest, run the empties in, load, back out and recouple, set the switch back, go. The night autosaves as you leave.
+- `dt facility drill` plays the sequence headless; `dt screenshot --site` shows a stop.
 
 **HUD:**
 - A pixel-font HUD in the low-res frame: engine gauges, ping to host (spec E), the prompt for what your hands can do, and the night.

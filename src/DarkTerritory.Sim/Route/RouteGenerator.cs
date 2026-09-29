@@ -49,6 +49,7 @@ public static class RouteGenerator
             AddSpans(FeatureKind.Bridge, 1, 60, 400, maxCars, length, blocked, features, ref featureRng);
         }
         var branches = new List<BranchDefinition>();
+        AddSpurs(t, features, branches);
         AddJunctions(t.Junctions, featureRng.RangeInclusive(tt.Junctions[0], tt.Junctions[1]), built, length, blocked, features, branches, ref featureRng);
 
         AddHazards(t, tt, weather, built, length, zones, features, ref hazardRng);
@@ -82,11 +83,37 @@ public static class RouteGenerator
     }
 
     /// <summary>The turnout's out-and-back curves: how far along the main line they take, and how far beside it they end.</summary>
-    static (double Advance, double Offset) Turnout(JunctionTuning j)
+    static (double Advance, double Offset) Turnout(JunctionTuning j) => Turnout(j.DivergeRadius, j.DivergeLength);
+
+    static (double Advance, double Offset) Turnout(double radius, double length)
     {
-        double theta = j.DivergeLength / j.DivergeRadius;
-        return (2 * j.DivergeRadius * Math.Sin(theta), 2 * j.DivergeRadius * (1 - Math.Cos(theta)));
+        double theta = length / radius;
+        return (2 * radius * Math.Sin(theta), 2 * radius * (1 - Math.Cos(theta)));
     }
+
+    /// <summary>
+    /// A spur for every facility with machinery to load at (GDD §17-18): out through a turnout from the level zone's
+    /// straight and alongside to a buffer stop, on the facility's side. The coaling tower stands over the main line:
+    /// the tender goes under its chute where it is.
+    /// </summary>
+    static void AddSpurs(RouteTuning t, List<RouteFeature> features, List<BranchDefinition> branches)
+    {
+        var j = t.Junctions;
+        foreach (var f in features.Where(f => f.Kind == FeatureKind.Facility && f.Facility != FacilityKind.CoalingTower))
+        {
+            // Level straight track (the zone), so no grade to follow: out, back to parallel, and on.
+            int side = f.Side == 0 ? 1 : f.Side;
+            branches.Add(new BranchDefinition(BranchKind.Spur, f.Start + j.SpurToe, side,
+            [
+                new TrackSegment(j.SpurDiverge, -side * j.SpurRadius),
+                new TrackSegment(j.SpurDiverge, side * j.SpurRadius),
+                new TrackSegment(j.SpurLength - 2 * j.SpurDiverge),
+            ]));
+        }
+    }
+
+    /// <summary>How far a facility's spur runs beside the main line.</summary>
+    public static double SpurOffset(JunctionTuning j) => Turnout(j.SpurRadius, j.SpurDiverge).Offset;
 
     /// <summary>
     /// A dead line: out through the turnout and back to parallel (radius positive curving left; side −1 is left), then

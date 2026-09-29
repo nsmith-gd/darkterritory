@@ -30,6 +30,15 @@ public sealed record JunctionTuning
     public double ThrowSeconds { get; init; } = 1.5;
     /// <summary>The points won't move with a wheel within this of the toe.</summary>
     public double PointsLength { get; init; } = 12;
+
+    /// <summary>
+    /// A facility's spur (GDD §17: "most cannot accommodate a full armoured freight train"): where its points are from
+    /// the start of the facility's level zone, a tighter turnout than a dead line's, and its length to the buffer stop.
+    /// </summary>
+    public double SpurToe { get; init; } = 200;
+    public double SpurRadius { get; init; } = 150;
+    public double SpurDiverge { get; init; } = 30;
+    public double SpurLength { get; init; } = 100;
 }
 
 public sealed record TierTable(TierTuning Local, TierTuning Frontier, TierTuning DeadLines, TierTuning DeepTerritory)

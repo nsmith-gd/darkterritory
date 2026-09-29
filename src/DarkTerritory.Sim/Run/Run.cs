@@ -45,7 +45,26 @@ public sealed class Run
         _route = route;
         _facilities = route.Of(FeatureKind.Facility).ToList();
         _chuteLeft = _facilities.Select(f => f.Facility == FacilityKind.CoalingTower ? tuning.Chute.Capacity : 0).ToArray();
+        // Each facility's spur, if it has one: the branch whose points are in its zone.
+        _spurs = [.. _facilities.Select(f => route.Branches.Select((b, i) => (b, i)).Where(x => x.b.Kind == BranchKind.Spur && f.Contains(x.b.Toe))
+            .Select(x => x.i).DefaultIfEmpty(RailLine.MainPath).First())];
+        _visited = new bool[_facilities.Count];
+        _departed = new bool[_facilities.Count];
     }
+
+    readonly int[] _spurs;
+    readonly bool[] _visited, _departed;
+
+    /// <summary>The branch a facility's machinery is on (GDD §17), or <see cref="RailLine.MainPath"/> for one on the main line.</summary>
+    public int SpurOf(int facility) => facility >= 0 && facility < _spurs.Length ? _spurs[facility] : RailLine.MainPath;
+
+    /// <summary>
+    /// The facility the train last left: stopped at it, then its engine out past the end of its zone on the main line
+    /// (spec E's "leaving a POI", where the night autosaves). −1 until one has been.
+    /// </summary>
+    public int Departed { get; private set; } = -1;
+    /// <summary>How many facilities the train has left (a departure is when this goes up).</summary>
+    public int Departures { get; private set; }
 
     public RunTuning Tuning { get; set; }
     public Route.Route Route => _route;
@@ -68,7 +87,16 @@ public sealed class Run
                 return null;
             int span = Math.Max(0, t.Crates.Count[1] - t.Crates.Count[0]);
             int crates = t.Crates.Count[0] + (int)((_route.Seed * 31 + (ulong)i * 17) % (ulong)(span + 1));
-            return new Site(i, f, modules, t, line, crates);
+            if (_spurs[i] >= 0 && _spurs[i] < line.Branches.Count)
+            {
+                // Laid out from where the first cars stand with the engine up at the buffer stop.
+                var spur = line.Branches[_spurs[i]];
+                double mid = spur.Local.Length - t.SpurLayout;
+                return new Site(i, f, modules, t, spur.Local, mid, spur.Side, spur.Toe + mid, crates, spur.Index);
+            }
+            int side = f.Side == 0 ? 1 : f.Side;
+            double centre = (f.Start + f.End) / 2;
+            return new Site(i, f, modules, t, line, centre, side, centre, crates);
         })];
     }
 
@@ -118,13 +146,36 @@ public sealed class Run
             Finish(world, crew, RunPhase.Arrived, RunEnd.Delivered);
         else
         {
-            // Down a dead line is nowhere: distances there aren't the main line's.
-            int at = engine.Speed < Tuning.StopBelowSpeed && train.OnMain ? _facilities.FindIndex(f => f.Contains(front)) : -1;
+            int at = engine.Speed < Tuning.StopBelowSpeed ? StoppedAt(train, front) : -1;
             Facility = at;
             Phase = at >= 0 ? RunPhase.AtFacility : RunPhase.Underway;
             if (at < 0)
                 ChuteOpen = false;
+            else
+                _visited[at] = true;
+            // Left one behind: out past the end of its zone on the main line, after stopping there.
+            if (train.OnMain)
+                for (int i = 0; i < _facilities.Count; i++)
+                    if (_visited[i] && !_departed[i] && front > _facilities[i].End)
+                    {
+                        _departed[i] = true;
+                        Departed = i;
+                        Departures++;
+                    }
         }
+    }
+
+    /// <summary>
+    /// The facility the engine is stopped at: on its spur, for one with a spur (GDD §17: the machinery is down there,
+    /// not on the main line); in its zone on the main line, for the coaling tower. Down a dead line is nowhere.
+    /// </summary>
+    int StoppedAt(TrainOnLine train, double front)
+    {
+        int path = train.Dynamics.Path;
+        for (int i = 0; i < _facilities.Count; i++)
+            if (_spurs[i] >= 0 ? path == _spurs[i] && !train.OnMain : train.OnMain && _facilities[i].Contains(front))
+                return i;
+        return -1;
     }
 
     /// <summary>
@@ -314,7 +365,9 @@ public sealed class Run
         {
             _chuteLeft[i] = 0;
             _sites.ElementAtOrDefault(i)?.Mirror(true, 0, 0, false);
+            _visited[i] = _departed[i] = true;
         }
+        Departed = departedFacility;
     }
 
     /// <summary>Client side: adopts the host's run state.</summary>

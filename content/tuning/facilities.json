@@ -1,6 +1,9 @@
 // Loading modules (systems spec D). First pass: two of the D.2 roster, manual crates and the capstan winch.
-// A facility is still a stop beside the main line; spur topology, switches and power state come later.
+// Every facility but the coaling tower is on a spur (GDD §17, route.json "junctions"); power state comes later.
 {
+  // On a spur the modules are laid out from this far back from the buffer stop: beside the first cars behind the
+  // engine when it's run up to the end. "along" below is from here.
+  "spurLayout": 45,
   // D.2 "Manual crates: carry by hand. Slow, but works when everything else is dead." Carrying one holds you to
   // spec B.2's heavy-cargo speed and off ladders. Put one down inside a cargo car and it's loaded.
   "crates": {

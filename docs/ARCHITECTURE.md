@@ -451,7 +451,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - the winch still with one on the capstan, hauling at speed with two, then loading the car by the track;
       - a client mirroring the site.
       - `dt screenshot --route … --site` shows a stop (CI keeps a winch and a crate stack).
-    - **Not yet:** spur topology, switches and the "break the consist apart" set piece (GDD §17); power states (D.1); the other seven modules; 2–4 modules per POI; heavy items needing two; bots that load (the harness's cars stay as they left).
+    - **Not yet:** power states (D.1); the other seven modules; 2–4 modules per POI; heavy items needing two; bots that load (the harness's cars stay as they left). Spurs and the "break the consist apart" set piece came with T27 and T28 (notes 31, 32).
 29. **The campaign (T25, spec E and F).**
     - **Rules are pure** (`Sim/Campaign`, `tuning/campaign.json`): states in, states out, no files.
       - Car costs follow spec F.2's curve.
@@ -526,4 +526,29 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `dt route gen` lists each junction's branch.
       - `dt screenshot --route tier:seed --junction i [--diverge] [--through]` shows the switch, or the train run in onto it.
       - `SwitchTests` covers the geometry, taking and backing out of a branch, locked points, the buffer stop, rakes that only meet at the points, a sideswipe, the hand throw, replication, the ground, and the generator. A `HudTests` case plays a stand through a `PrototypeSession`.
-    - **Not yet:** facility spurs (T28 puts the facilities on them, with the cut, spur-in, load, back-out and recouple); the Switchman; a derailment for taking a turnout too fast.
+    - **Not yet:** the Switchman; a derailment for taking a turnout too fast. Facility spurs came with T28 (note 32).
+32. **The facility set piece on spurs (T28, GDD §17).**
+    - **Every facility but the coaling tower is down a spur.**
+      - The spur is laid off the facility's level zone (`route.json` "junctions": `spurToe`, a tighter turnout, 6 m between track centres).
+      - It's 100 m to the buffer stop, which takes the engine and four cars clear of the points (`SpurDrill.Capacity`). A longer train has to break the consist apart: "most cannot accommodate a full armoured freight train".
+      - The coaling tower stays over the main line: the tender goes under its chute where it is.
+    - **The machinery is down there.** A site is laid out along its spur, from where the first cars stand with the engine at the buffer stop (`facilities.json` `spurLayout`), on the side away from the main line. The buildings stand back beyond it, clear of the crate stack and the winch's haul, and lineside trees keep out of the yard.
+    - **The run follows the track.**
+      - At a spur facility the train is only *at* it with the engine stopped down its spur. Pulling up on the main line beside it gets nothing, and the HUD says how much of the train the spur takes and to cut the rest.
+      - **Leaving is a departure:** the engine out on the main line past the end of the zone, after having stopped there (`Run.Departed`, `Departures`). That's where the night autosaves now (spec E's "leaving a POI"), not the first time the train moves at a stop, which the shunting does again and again.
+    - **`SpurDrill` plays it by script**, with only what a crew has: the regulator, the brake, a coupler and the switch.
+      1. Stop short of the points.
+      2. Cut what won't fit.
+      3. Set the switch and run the empties in to the buffer stop.
+      4. Wait while the crew loads.
+      5. Back out onto the waiting cars at a crawl, so the buckeyes couple rather than collide, and on until the whole train's front is behind the points.
+      6. Set the switch back and go.
+    - **Verified on generated nights.** `SpurDrillTests` plays a seven-car train through a winch facility with two crew on the capstan:
+      - four cars go in, three wait;
+      - both sleds load the first car;
+      - the train comes out as one rake in its original order, undamaged, on the main line, with the switch back;
+      - the night sees it leave.
+      - A three-car train goes in whole.
+      - `dt facility drill` prints the timeline: about five minutes for 3, 7 or 12 cars.
+    - **Two things the drill found.** Left alone through the loading, the fire dies and the regulator does nothing: someone has to fire the boiler. And a crew left standing out at the capstan freezes (spec B.2) before the train can leave, which ends the night. Both are the GDD working as written; the tests take unlimited steam and bring the crew aboard.
+    - **Not yet:** crew bots working a stop through intent (T31); more than one trip for a train too long to load in one; the loaded cars' load shown on the HUD.
