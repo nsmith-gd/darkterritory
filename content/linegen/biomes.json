@@ -1,0 +1,34 @@
+// Biomes (plan §13.1), their scatter (§13.2) and the set pieces each favours (§7.5). Along the line, biomes change in
+// regions of regionKm with transitionM blends; a route's region (its most common biome) sets the piece bias.
+// ground: the base splat material (§12.5); materials: the others it mixes in; noiseScale multiplies tiers.json's
+// terrain noise; treeDensity: trees per 100 m2 of ground past treesFromM; deadTrees: the share dead; water: how
+// likely low ground holds standing water; colour: the ground's greybox colour (sRGB 0..1), from the GDD §27 palette.
+{
+  "biomes": {
+    "farmland":          { "name": "Rural farmland",    "ground": "deadGrass", "materials": ["soil", "mud"],            "noiseScale": 0.6, "treeDensity": 0.15, "trees": ["living", "dead"],      "deadTrees": 0.3, "water": 0.1, "pieces": { "straight": 1.4, "sweep": 1.2, "openPlain": 1.5, "riverCrossing": 1.2, "tunnel": 0.3, "ledge": 0.3 }, "colour": [0.26, 0.25, 0.17] },
+    "forestEdge":        { "name": "Forest edge",       "ground": "soil",      "materials": ["deadGrass", "mud"],       "noiseScale": 0.8, "treeDensity": 0.8,  "trees": ["living", "dead"],      "deadTrees": 0.25, "water": 0.1, "pieces": { "sweep": 1.4, "darkForest": 1.6, "climb": 1.1 }, "colour": [0.20, 0.21, 0.14] },
+    "plains":            { "name": "Open plains",       "ground": "deadGrass", "materials": ["soil"],                   "noiseScale": 0.4, "treeDensity": 0.05, "trees": ["dead"],                "deadTrees": 0.7, "water": 0.05, "pieces": { "straight": 2.0, "openPlain": 3.0, "sweep": 0.7, "tunnel": 0.2, "ledge": 0.2 }, "colour": [0.29, 0.27, 0.18] },
+    "blackForest":       { "name": "Black forest",      "ground": "soil",      "materials": ["mud", "rock"],            "noiseScale": 1.0, "treeDensity": 1.4,  "trees": ["living", "dead", "corrupted"], "deadTrees": 0.35, "water": 0.15, "pieces": { "sweep": 1.5, "darkForest": 2.5, "blindThroat": 1.5, "climb": 1.1 }, "colour": [0.16, 0.17, 0.12] },
+    "hills":             { "name": "Hills",             "ground": "deadGrass", "materials": ["rock", "soil"],           "noiseScale": 1.4, "treeDensity": 0.4,  "trees": ["living", "dead"],      "deadTrees": 0.4, "water": 0.05, "pieces": { "roller": 2.0, "climb": 1.3, "summit": 1.4, "trestle": 1.2, "ledge": 1.2 }, "colour": [0.24, 0.23, 0.16] },
+    "marsh":             { "name": "Marsh",             "ground": "mud",       "materials": ["deadGrass"],              "noiseScale": 0.3, "treeDensity": 0.2,  "trees": ["dead"],                "deadTrees": 0.8, "water": 0.9, "pieces": { "causeway": 3.0, "riverCrossing": 2.0, "climb": 0.5, "tunnel": 0.2, "ledge": 0.1 }, "colour": [0.18, 0.19, 0.13] },
+    "mountain":          { "name": "Mountain",          "ground": "rock",      "materials": ["soil", "snowCrust"],      "noiseScale": 2.2, "treeDensity": 0.35, "trees": ["living", "dead"],      "deadTrees": 0.4, "water": 0.05, "pieces": { "tunnel": 2.5, "ledge": 2.2, "climb": 1.5, "trestle": 2.0, "summit": 1.5, "theDrop": 1.3, "openPlain": 0.3 }, "colour": [0.23, 0.22, 0.20] },
+    "deadTown":          { "name": "Dead-town belt",    "ground": "cinder",    "materials": ["soil", "deadGrass"],      "noiseScale": 0.5, "treeDensity": 0.1,  "trees": ["dead", "corrupted"],   "deadTrees": 0.8, "water": 0.1, "pieces": { "straight": 1.3, "blindThroat": 1.2, "sweep": 1.1 }, "colour": [0.21, 0.19, 0.16] },
+    "industrialRuin":    { "name": "Industrial ruin",   "ground": "cinder",    "materials": ["slag", "rock"],           "noiseScale": 0.9, "treeDensity": 0.08, "trees": ["dead", "corrupted"],   "deadTrees": 0.9, "water": 0.2, "pieces": { "blindThroat": 1.8, "straight": 1.2, "ledge": 0.8 }, "colour": [0.19, 0.17, 0.15] },
+    "slag":              { "name": "Slag and mining",   "ground": "slag",      "materials": ["cinder", "rock"],         "noiseScale": 1.6, "treeDensity": 0.03, "trees": ["dead"],                "deadTrees": 1.0, "water": 0.1, "pieces": { "tunnel": 1.6, "blindThroat": 1.5, "ledge": 1.4, "trestle": 1.3 }, "colour": [0.17, 0.15, 0.14] },
+    "contaminatedMarsh": { "name": "Contaminated marsh","ground": "mud",       "materials": ["corruptionCrust"],        "noiseScale": 0.3, "treeDensity": 0.15, "trees": ["corrupted", "dead"],   "deadTrees": 0.6, "water": 1.0, "pieces": { "causeway": 3.5, "riverCrossing": 1.5, "tunnel": 0.2 }, "colour": [0.19, 0.18, 0.12] }
+  },
+  // Plan §13.1: "travelling farther from civilization" is literal.
+  "tierWeights": {
+    "local":         { "farmland": 50, "forestEdge": 30, "plains": 20 },
+    "frontier":      { "blackForest": 40, "hills": 25, "marsh": 20, "farmland": 15 },
+    "deadLines":     { "blackForest": 30, "mountain": 30, "marsh": 20, "deadTown": 20 },
+    "deepTerritory": { "industrialRuin": 35, "mountain": 25, "slag": 25, "contaminatedMarsh": 15 }
+  },
+  "regionKm": [2, 6],
+  "transitionM": 300,
+  // Plan §13.2: corruption rises further near these (added to the tier's level within 400 m).
+  "corruptionNear": { "brass": 0.35, "contaminated": 0.4, "dead_settlement": 0.25 },
+  // Plan §13.2 bands from the track: track kit, lineside kit, telegraph poles every 50 m on one side at 8 m, low
+  // vegetation, then trees. Poles break past this corruption. Scatter is a jittered grid of cellM.
+  "scatter": { "trackKitM": 3.5, "linesideM": 8, "poleOffsetM": 8, "poleEveryM": 50, "lowVegetationM": 15, "treesFromM": 15, "brokenPolesAtCorruption": 0.5, "cellM": 12 }
+}

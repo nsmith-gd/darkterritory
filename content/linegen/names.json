@@ -1,0 +1,24 @@
+// Word lists for naming every callable place (plan §13.3), in period railway style. Names are distinct in their first
+// word within a run, so a callout can't be confused on a bad voice line.
+{
+  "surnames": ["Carrow", "Blackwell", "Harrow", "Grieve", "Voss", "Ashby", "Morrow", "Kettering", "Dunmore", "Halloway", "Crane", "Pell",
+    "Wexley", "Thorne", "Maddox", "Garrick", "Fenwick", "Rooke", "Bramwell", "Cotter", "Lusk", "Aldous", "Stroud", "Quill", "Hensley",
+    "Orme", "Pritchard", "Vane", "Galloway", "Marsh", "Tolley", "Brennan", "Castell", "Drury", "Emory", "Finch", "Gantry", "Holt",
+    "Ingram", "Jessop", "Kell", "Lomax", "Mercer", "Nance", "Oakes", "Penrose", "Radley", "Sallow", "Tarrant", "Ulland", "Vickery", "Whitlow", "Yeld"],
+  "features": ["Mill", "Ford", "Cross", "Moss", "Heath", "Fell", "Brook", "Scar", "Hollow", "Ridge", "Mere", "Carr", "Wold", "Combe", "Gill", "Tor"],
+  "owners": ["Voss", "Harlan", "Stroud", "Kessel", "Ambrose", "Duval", "Marrin", "Oldcastle", "Pryor", "Renwick", "Sutter", "Talbot", "Wren", "Ashgrove"],
+  // {n}: a number; {s}: a surname; {f}: a feature; {o}: an owner; {t}: a type.
+  "patterns": {
+    "junction": ["{s} Junction"],
+    "tunnel": ["{s}", "{s} {f}"],
+    "bridge": ["{s} {k}"],
+    "halt": ["{s} {h}", "Mile {n} Halt", "{s} {f} {h}"],
+    "town": ["{s}", "{s} {f}"],
+    "facility": ["{o} {t}"],
+    "fortress": ["{s}", "Fort {s}"],
+    "wreck": ["{s} Wreck"]
+  },
+  "haltSuffixes": ["Halt", "Siding", "Crossing"],
+  "tunnelWords": ["Tunnel"],
+  "bridgeKinds": ["Trestle", "Viaduct", "Bridge", "Girders"]
+}
