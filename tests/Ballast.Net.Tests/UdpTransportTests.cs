@@ -8,7 +8,7 @@ namespace Ballast.Net.Tests;
 /// <summary>Real sockets on localhost. Each test polls until a condition holds or a short deadline passes.</summary>
 public class UdpTransportTests
 {
-    static readonly UdpOptions Fast = new() { TimeoutSeconds = 2, ConnectSeconds = 2 };
+    static readonly DatagramOptions Fast = new() { TimeoutSeconds = 2, ConnectSeconds = 2 };
 
     sealed class Peer(UdpTransport t)
     {
@@ -30,7 +30,7 @@ public class UdpTransportTests
         }
     }
 
-    static (Peer Host, Peer Client) Pair(UdpOptions? hostOptions = null, UdpOptions? clientOptions = null)
+    static (Peer Host, Peer Client) Pair(DatagramOptions? hostOptions = null, DatagramOptions? clientOptions = null)
     {
         var host = new Peer(UdpTransport.Host(0, hostOptions ?? Fast, IPAddress.Loopback));
         var client = new Peer(UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, host.T.Port), clientOptions ?? Fast));

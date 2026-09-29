@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Ballast;
 using Ballast.Net;
+using Ballast.Online;
 using Ballast.Render;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Combat;
@@ -80,29 +81,41 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
 }
 
 /// <summary>
-/// A networked game over UDP (T13): the host runs <see cref="HostSession"/> and plays through its own
+/// A networked game (T13, T20): the host runs <see cref="HostSession"/> and plays through its own
 /// <see cref="ClientSession"/> over localhost, exactly like everyone else, so the host has no advantage and
-/// no separate code path. A joiner builds its world from the host's <see cref="SessionSetup"/>.
+/// no separate code path. Friends reach the host over UDP (LAN, direct IP) or through a platform lobby (Steam),
+/// often both at once. A joiner builds its world from the host's <see cref="SessionSetup"/>.
 /// </summary>
 public sealed class NetPlaySession : IPlaySession, IDisposable
 {
     public const int DefaultPort = 27450;
-    readonly UdpTransport? _hostTransport;
-    readonly UdpTransport _clientTransport;
+    /// <summary>Lobby size: GDD §3, "2–8+" players.</summary>
+    public const int MaxCrew = 12;
+    const string Game = "darkterritory";
+    readonly ITransport? _hostTransport;
+    readonly UdpTransport? _udp;
+    readonly ITransport _clientTransport;
+    readonly IConnectionInfo _link;
     readonly List<Crewmate> _crew = new();
     readonly List<CarFrame> _frames = new();
     PlayerState _previous;
 
-    NetPlaySession(HostSession? host, UdpTransport? hostTransport, ClientSession client, UdpTransport clientTransport, SessionSetup setup, Route? route)
+    NetPlaySession(HostSession? host, ITransport? hostTransport, UdpTransport? udp, ClientSession client, ITransport clientTransport,
+        SessionSetup setup, Route? route, Lobby? lobby)
     {
         Host = host;
         _hostTransport = hostTransport;
+        _udp = udp;
         Client = client;
         _clientTransport = clientTransport;
+        _link = (IConnectionInfo)clientTransport;
         Setup = setup;
         Route = route;
+        Lobby = lobby;
     }
 
+    /// <summary>The platform lobby this game is hosted in or was joined through, if any.</summary>
+    public Lobby? Lobby { get; }
     public HostSession? Host { get; }
     public ClientSession Client { get; }
     public SessionSetup Setup { get; }
@@ -114,14 +127,19 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public long Tick { get; private set; }
     public bool Lost { get; private set; }
 
-    /// <summary>Hosts on <paramref name="port"/> (0 = any) and joins it from this machine.</summary>
-    public static NetPlaySession HostGame(string content, SessionSetup setup, int port = DefaultPort, int expectedCrew = 4)
+    /// <summary>Hosts and joins it from this machine.</summary>
+    /// <param name="port">UDP port for LAN and direct-IP joiners (0 = any free one), or null to take none: the host's
+    /// own player then connects on a private localhost port.</param>
+    /// <param name="online">A platform to host a friends-only lobby on as well (Steam).</param>
+    public static NetPlaySession HostGame(string content, SessionSetup setup, int? port = DefaultPort, int expectedCrew = 4, IOnlineBackend? online = null)
     {
         var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
         setup = setup with { Content = SessionSetup.HashContent(content) };
         var (hostWorld, route) = setup.Build(content, authority: true);
-        var hostTransport = UdpTransport.Host(port);
+        var udp = port is { } p ? UdpTransport.Host(p) : UdpTransport.Host(0, bind: IPAddress.Loopback);
+        ITransport hostTransport = online is null ? udp : new HostGroup(udp, OnlineTransport.Host(online));
+        var lobby = online is null ? null : Lobby.Host(online, Game, Protocol.Version, MaxCrew);
         var host = new HostSession(hostTransport, hostWorld, trainTuning, playerTuning) { SessionInfo = setup.Encode() };
         hostWorld.EnableBodies();
         hostWorld.Stock();
@@ -136,7 +154,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         if (setup.Enemies && route is not null)
             host.EnableEnemies(DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)), route, route.Seed, expectedCrew);
         var (clientWorld, _) = setup.Build(content);
-        var clientTransport = UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, hostTransport.Port));
+        var clientTransport = UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, udp.Port));
         var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning);
         // The host's own player comes aboard before anyone else can: first aboard takes the cab.
         var clock = System.Diagnostics.Stopwatch.StartNew();
@@ -146,10 +164,11 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             client.Step(default);
             Thread.Sleep(1);
         }
-        return new NetPlaySession(host, hostTransport, client, clientTransport, setup, route);
+        return new NetPlaySession(host, hostTransport, port is null ? null : udp, client, clientTransport, setup, route, lobby);
     }
 
-    public int Port => _hostTransport?.Port ?? 0;
+    /// <summary>The UDP port direct joiners use, or 0 when the host took none.</summary>
+    public int Port => _udp?.Port ?? 0;
 
     /// <summary>On the ballast beside the engine, a few metres apart: where someone who was waiting at a stop is standing.</summary>
     static PlayerState Beside(TrainOnLine train, int n, PlayerTuning p)
@@ -160,24 +179,56 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         return PlayerMotor.SpawnOnGround(world, train.Line, train.Dynamics.Distance - train.Dynamics.Tuning.Geometry.EngineLength / 2, p);
     }
 
-    /// <summary>Connects to a host and waits (up to the transport's connect timeout) for its Welcome.</summary>
+    /// <summary>Connects to a host over UDP and waits (up to the transport's connect timeout) for its Welcome.</summary>
     /// <param name="whileWaiting">Called each time round the wait (a test steps its in-process host here).</param>
-    public static NetPlaySession Join(string content, IPEndPoint address, Action? whileWaiting = null, UdpOptions? options = null)
+    public static NetPlaySession Join(string content, IPEndPoint address, Action? whileWaiting = null, DatagramOptions? options = null) =>
+        Connect(content, UdpTransport.Connect(address, options), address.ToString(), null, whileWaiting);
+
+    /// <summary>Joins a friend's lobby (an invite, "Join Game", <c>+connect_lobby</c>) and connects to its owner.</summary>
+    public static NetPlaySession JoinLobby(string content, IOnlineBackend online, LobbyId id, Action? whileWaiting = null, DatagramOptions? options = null)
     {
-        var transport = UdpTransport.Connect(address, options);
+        var lobby = Lobby.Join(online, id, Game, Protocol.Version);
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        while (lobby.Status == Lobby.State.Joining)
+        {
+            if (clock.Elapsed.TotalSeconds > (options ?? new DatagramOptions()).ConnectSeconds)
+            {
+                lobby.Dispose();
+                throw new IOException("the lobby didn't answer");
+            }
+            lobby.Poll();
+            whileWaiting?.Invoke();
+            Thread.Sleep(5);
+        }
+        if (lobby.Status != Lobby.State.Open)
+            throw new IOException($"couldn't join: {lobby.Error}");
+        try
+        {
+            return Connect(content, OnlineTransport.Connect(online, lobby.Owner, options), $"{online.NameOf(lobby.Owner)}'s game", lobby, whileWaiting);
+        }
+        catch
+        {
+            lobby.Dispose();
+            throw;
+        }
+    }
+
+    static NetPlaySession Connect(string content, ITransport transport, string describe, Lobby? lobby, Action? whileWaiting)
+    {
         var early = new List<TransportEvent>();
         string? session = null;
         var poll = new List<TransportEvent>();
         while (session is null)
         {
             poll.Clear();
+            lobby?.Poll();
             transport.Poll(poll);
             foreach (var e in poll)
             {
                 if (e.Kind == TransportEventKind.Disconnected)
                 {
                     transport.Dispose();
-                    throw new IOException($"no answer from {address}");
+                    throw new IOException($"no answer from {describe}");
                 }
                 if (e is { Kind: TransportEventKind.Data, Payload: { Length: > 0 } p } && p[0] == (byte)MessageType.Welcome)
                 {
@@ -199,16 +250,17 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var (world, route) = setup.Build(content);
         var client = new ClientSession(new Replay(transport, early), world,
             DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File)), DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)));
-        return new NetPlaySession(null, null, client, transport, setup, route);
+        return new NetPlaySession(null, null, null, client, transport, setup, route, lobby);
     }
 
     public void Step(in PlayerIntent intent)
     {
+        Lobby?.Poll();
         Host?.Step();
         _previous = Client.Predicted;
         Client.Step(intent);
         Tick++;
-        if (!_clientTransport.IsConnected && Client.Connected)
+        if (!_link.IsConnected && Client.Connected)
             Lost = true;
     }
 
@@ -237,20 +289,42 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         var d = Train.Dynamics;
         var p = Player;
-        string role = Host is not null ? $"hosting :{Port}" : "joined";
         string link = Client.Waiting ? $"WAITING: {Client.WaitingReason}" : !Client.Connected ? "connecting…" : Lost ? "CONNECTION LOST"
-            : $"{Client.RemoteIds.Count() + 1} aboard, ping {_clientTransport.RoundTrip(PeerId.Host) * 1000:0} ms";
+            : Host is not null ? $"{Client.RemoteIds.Count() + 1} aboard" // the host's own ping is to itself
+            : $"{Client.RemoteIds.Count() + 1} aboard, ping {_link.RoundTrip(PeerId.Host) * 1000:0} ms";
         string where = PrototypeSession.Where(p, Train);
         string state = p.Alive ? $"{p.Surface} {where} hp {p.Health}" : $"DEAD ({p.Death})";
         return $"{d.Speed,5:0.0} m/s | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} | P {Train.Boiler.Pressure,3:0} fire {Train.Boiler.Firebox:0.0} tender {Train.Boiler.Tender:0} | " +
-               $"choir {World.Choir.Aggro:0} | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state} | {role} | {link}" +
+               $"choir {World.Choir.Aggro:0} | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state} | {Role()} | {link}" +
                PrototypeSession.RouteStatus(Route, World, Train);
     }
+
+    string Role()
+    {
+        string udp = Port > 0 ? $":{Port}" : "";
+        if (Lobby is not { } lobby)
+            return Host is not null ? $"hosting {udp}" : "joined";
+        string platform = lobby.Online.Platform;
+        return lobby.Status switch
+        {
+            Lobby.State.Creating => $"hosting {udp} · {platform} lobby…",
+            Lobby.State.Failed => $"hosting {udp} · no {platform} lobby ({lobby.Error})",
+            _ when Host is not null => $"hosting {udp} · {platform} lobby {lobby.Members.Count}/{MaxCrew}, F2 invites",
+            _ when lobby.HostLeft => $"{platform}: the host left",
+            _ => $"joined {lobby.Online.NameOf(lobby.Owner)} on {platform}",
+        };
+    }
+
+    /// <summary>Accepts a friend's invite that arrived while playing, if any, leaving it for the app to act on.</summary>
+    public LobbyId? TakeJoinRequest() => Lobby?.TakeJoinRequest();
+
+    public void ShowInviteDialog() => Lobby?.ShowInviteDialog();
 
     public void Dispose()
     {
         _clientTransport.Dispose();
         _hostTransport?.Dispose();
+        Lobby?.Dispose();
     }
 
     /// <summary>Hands the events read while waiting for the Welcome to the session, then gets out of the way.</summary>

@@ -79,6 +79,13 @@ Remaining for M3: Soot Children mimicry, the radio as an item, and interior occl
 - Joiners with different tuning are refused, with the files named.
 - Mid-run joiners wait and board at the next stop (spec E drop-in at POIs).
 
+**Steam (M2):**
+- Friends-only lobbies, overlay invites, "Join Game" and `+connect_lobby`, over Steam's relayed P2P.
+- The same protocol as UDP, so a host can take Steam friends and LAN players at once.
+- `dt harness --online` runs 8 bots through a lobby on a fake Steam. `dt online check` checks a machine's Steam setup.
+- It needs Valve's `steam_api64.dll` in `external/steam/`.
+
 Remaining for M2:
-- a Steam transport and lobby (and EOS for itch.io)
+- a first run on real Steam between two accounts (needs the SDK library and two machines)
 - the 30-minute, 8-client rough-link soak as a nightly job
+- EOS for itch.io moves to M6 with the itch build

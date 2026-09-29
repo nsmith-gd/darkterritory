@@ -25,6 +25,18 @@ public sealed record HarnessOptions
     /// <summary>With a route: run the night as a game (departure, facilities, terminus, dawn) and report the result.</summary>
     public Run.RunTuning? Run { get; init; }
     public double YardLength { get; init; } = 600;
+    /// <summary>Another network to run over (the CLI's fake Steam lobby), in place of the loopback or UDP.</summary>
+    public IHarnessNetwork? Network { get; init; }
+}
+
+/// <summary>Transports for the harness from elsewhere: the Sim doesn't reference platform code, so the CLI brings it.</summary>
+public interface IHarnessNetwork : IDisposable
+{
+    string Name { get; }
+    ITransport Host();
+    ITransport Client(int index);
+    /// <summary>Once a tick, before anyone steps: pump the platform.</summary>
+    void Pump();
 }
 
 public sealed record ClientReport(byte Id, string Bot, double MaxCorrectionM, int Corrections, int Snapshots, int HostMissedInputs,
@@ -48,8 +60,9 @@ public static class Harness
     {
         var net = new LoopbackNetwork(o.Seed, o.Link);
         var udpHost = o.Udp ? UdpTransport.Host(0, bind: System.Net.IPAddress.Loopback) : null;
-        ITransport ClientTransport() => udpHost is null ? net.CreateClient() : UdpTransport.Connect(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, udpHost.Port));
-        var hostTransport = new CountingTransport(udpHost ?? net.CreateHost());
+        ITransport ClientTransport(int i) => o.Network?.Client(i)
+            ?? (udpHost is null ? net.CreateClient() : UdpTransport.Connect(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, udpHost.Port)));
+        var hostTransport = new CountingTransport(o.Network?.Host() ?? udpHost ?? net.CreateHost());
         var host = new HostSession(hostTransport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
         if (o.Enemies is { } et)
             host.EnableEnemies(et, o.Route, (ulong)o.Seed, o.Bots);
@@ -61,7 +74,7 @@ public static class Harness
         var clients = new List<(ClientSession Session, IBot Bot, CountingTransport Transport)>();
         for (int i = 0; i < o.Bots; i++)
         {
-            var transport = new CountingTransport(ClientTransport());
+            var transport = new CountingTransport(ClientTransport(i));
             IBot bot = i == 0 ? new ConductorBot() : i == 1 && o.Combat is { } c ? new GunnerBot(c.Guns, c.Choir, o.Seed * 1000 + i) : new RoofWalkerBot(o.Seed * 1000 + i);
             clients.Add((new ClientSession(transport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat), bot, transport));
         }
@@ -79,6 +92,7 @@ public static class Harness
                 break;
             }
             net.Advance(SimConstants.TickSeconds);
+            o.Network?.Pump();
             host.Step();
             events.AddRange(host.World.EnemyEvents);
             rounds += host.World.Shots.Count;
@@ -121,13 +135,13 @@ public static class Harness
                 deaths, unfair, host.World.Derailed, Math.Round(choirPeak, 1),
                 Math.Round(host.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).DefaultIfEmpty().Average(v => v?.CargoIntegrity ?? 1), 3), rounds);
         }
-        if (o.Udp)
+        if (o.Udp || o.Network is not null)
         {
             foreach (var c in clients)
                 c.Transport.Dispose();
             hostTransport.Dispose();
         }
-        string link = o.Udp ? "udp localhost" : $"{o.Link.LatencySeconds * 1000:0}ms ±{o.Link.JitterSeconds * 1000:0} loss {o.Link.LossRate:P0}";
+        string link = o.Network is { } n ? n.Name : o.Udp ? "udp localhost" : $"{o.Link.LatencySeconds * 1000:0}ms ±{o.Link.JitterSeconds * 1000:0} loss {o.Link.LossRate:P0}";
         return new HarnessReport(ticks, seconds, link,
             Math.Round(host.Train.Dynamics.Distance, 1), Math.Round(host.Train.Dynamics.Speed, 2),
             Math.Round(host.Train.Boiler.Pressure, 1), Math.Round(host.Train.Boiler.Tender), host.LastSnapshotBytes,

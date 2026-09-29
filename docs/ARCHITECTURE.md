@@ -68,7 +68,7 @@ Trade-offs accepted: we ship the JIT runtime (not NativeAOT) so mods can load; s
 | ECS | **Friflo.Engine.ECS** or **Arch**, decided in M1 | Needs: fast queries, struct components, and component change tracking for replication |
 | Audio | **Custom mixer** in C# + **miniaudio** device I/O + **Steam Audio** (HRTF, occlusion) | See §6 |
 | Voice codec | **Opus** (libopus via P/Invoke, `Concentus` as pure-C# fallback) | |
-| Networking | `ITransport` + **Steam Networking Sockets** (SDR relay, Steam lobbies) / **Epic Online Services P2P** for itch.io / **UDP** for LAN and direct IP (exists) / **loopback** for tests and bots (exists) | EOS gives NAT-punch + relay + lobbies free, no servers for us to run, and no Epic account needed (device-ID login). |
+| Networking | `ITransport`. One protocol (`DatagramTransport`) over **UDP** for LAN and direct IP, and over **Steam's relayed P2P** (`ISteamNetworkingMessages`, Steam Datagram Relay) with Steam lobbies and invites (`Ballast.Online`, Steamworks.NET). **Epic Online Services P2P** will follow for itch.io, and **loopback** serves tests and bots. | EOS gives NAT-punch + relay + lobbies free, no servers for us to run, and no Epic account needed (device-ID login). §8 note 24. |
 | UI / editor | **Dear ImGui** (`Hexa.NET.ImGui` + ImGuizmo) for editor and debug. A small custom retained UI for diegetic and in-game UI. | |
 | Models | **glTF 2.0** is the only interchange format | Blender scripts export glTF; the cooker converts to runtime meshes |
 | Animation | Skeletal, GPU skinning, text-defined blend graphs, two-bone + look-at IK, VR body IK | Clips come from free mocap (CMU, etc.) retargeted in Blender, from procedural motion, and later from AI text-to-motion |
@@ -262,7 +262,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Ducking for tiers 3 and 4** isn't in the spec's table, which gives numbers only for tiers 1 and 2. They duck the tiers below them gently (−3 dB and −1.5 dB).
     - **Distance behaviour.** Tells carry further than 1/d: the howl rolls off at 0.7 and the Choir at 0.6, because "distant howl, closing" and "audible singing far off" have to be heard at 150–250 m.
 18. **UDP transport and host/join (T13).**
-    - **What it is.** `UdpTransport` is the first real network backend: LAN and direct-IP play, for playtests and itch.io builds before Steam and EOS. It uses one non-blocking socket, polled once per tick with no threads.
+    - **What it is.** `UdpTransport` is the first real network backend: LAN and direct-IP play, for playtests and itch.io builds before Steam and EOS. It uses one non-blocking socket, polled once per tick with no threads. (Since T20 the protocol below is `DatagramTransport`, shared with Steam: note 24.)
     - **Handshake.** The client repeats Connect with a magic number, version and nonce. The host Accepts with a peer id and a random session token, and every later datagram carries that token.
     - **Channels.**
       - Unreliable is one datagram per message.
@@ -345,3 +345,23 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Drop-out (spec E).** A player who disconnects alive leaves an inert body where they stood: the same ragdoll a death makes, carryable and revivable at the gate.
     - **Content hash.** The host puts a hash of every `content/tuning/*.json` (line endings normalised) in the session setup. A joiner whose files differ is refused before building a world, with the files named ("your content differs from the host's: tuning/train.json"). Mods will need the same check over their own files; routes are already sent as a spec the joiner rebuilds.
     - **Drop-in at POIs (spec E).** Joiners are welcomed straight away but boarded only in the yard, stopped at a facility, or at the terminus. Between stops they get a Wait message (the HUD shows "WAITING: …") and board at the next stop on the ballast beside the engine, "like a pickup". A session with no run (the free-play line) boards anyone at once.
+24. **Steam: one protocol over every carrier, lobbies as meeting places (T20).**
+    - **One protocol.** The handshake, reliable channel, pings and timeouts from T13 are now `DatagramTransport<TAddress>`, over any `IDatagramCarrier`. `UdpTransport` is that protocol over a socket. `OnlineTransport` is the same protocol over a platform's relayed datagrams, addressed by user id.
+    - **Why not Steam's own connections and reliability?** A Steam game and a direct-IP game are then the same game on the wire, tested once. The harness, the netcode tests and the prediction numbers all carry over, and EOS P2P (itch.io) will be one more carrier.
+      - The cost is a few bytes of header that Steam's own channel wouldn't need.
+      - Messages go out unreliable with no Nagle delay, and Steam reopens a broken session quietly.
+    - **Lobbies (`Ballast.Online.Lobby`).** The host opens a friends-only lobby and writes the game name, protocol version and host name into it.
+      - A friend arrives by an invite (F2 opens Steam's picker), by "Join Game" on the friends list, or by launch with `+connect_lobby <id>`.
+      - The joiner refuses a lobby on another protocol before connecting, then connects to the lobby's owner. The content hash (note 23) is checked in the Welcome, as over UDP.
+      - Everyone stays in the lobby while playing. That's what makes "Join Game" work, and it's the rule the host uses to accept P2P sessions: only lobby-mates, or people it has sent to first. A stranger who knows your SteamID gets nothing.
+    - **The host is on several transports at once (`HostGroup`).** Steam for friends; UDP for its own player on localhost, and for LAN joiners if `--host` is also given. `HostSession` sees one crew.
+    - **Invites mid-game.** An invite accepted while playing ends the game and relaunches with `+connect_lobby`, the same path as an invite accepted from outside. It's simple, and it means one code path.
+    - **Tested without Steam.** `FakeOnline` is an in-process platform with accounts, lobbies (limits, closing, hand-off when the owner leaves), invites and datagrams that follow the lobby-mates rule.
+      - `LobbyTests` cover invite → join → connect, the stranger refused, full/closed/gone lobbies and version refusal.
+      - `NetPlayTests` cover a friend joining a hosted game through a lobby.
+      - `dt harness --online` puts 8 bots in the host's lobby as separate accounts: prediction exact to 0.1 mm, 28 kbit/s down.
+    - **Steam itself.** `SteamBackend` is a thin mapping onto Steamworks.NET 2024.8 (SDK 1.60), and `dt online check` says whether Steam is reachable and who's signed in.
+      - It needs Valve's `steam_api64.dll` from the SDK in `external/steam/` (README there), and a running Steam client. Without them the game says so and carries on over UDP.
+      - It uses app id 480 (Valve's test app) until the game has its own.
+      - **Not yet run against real Steam:** the CI containers have no Steam client. The first two-account test on real machines is the next step for it.
+    - **Not yet:** EOS for itch.io; rich presence; closing the lobby when the crew is full; a lobby browser; reconnecting to a host after a drop.

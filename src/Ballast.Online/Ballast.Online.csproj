@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Ballast.Online</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Ballast.Net/Ballast.Net.csproj" />
+    <!-- Managed wrapper only (MIT). Valve's native steam_api64.dll comes from the Steamworks SDK: external/steam/README.md. -->
+    <PackageReference Include="Steamworks.NET" Version="2024.8.0" />
+  </ItemGroup>
+</Project>
