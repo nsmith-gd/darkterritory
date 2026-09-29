@@ -23,6 +23,14 @@
     // You can only grab a ladder moving past you slower than this: "if you could catch it".
     "grabMaxRelativeSpeed": 3.5
   },
+  // A VR player's reaching hand (T29; the spec has no VR numbers). Reach is tested from the hand instead of the body:
+  // a hand is on a grip (a lever, a handle, a ladder, a crate) within grab of it. The host believes a hand no farther
+  // than arm across from the body, and from the feet (a headset player crouches for real) to overhead above them.
+  "hand": {
+    "arm": 0.8,
+    "overhead": 2.3,
+    "grab": 0.3
+  },
   // Spec B.2: 200 s outside to onset, 320 s to death, reset in 45 s near heat (from any point short of death).
   // Heat is the cab while the fire burns, or a shut car while the boiler has steam to heat it.
   "cold": {

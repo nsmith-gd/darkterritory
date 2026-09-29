@@ -84,6 +84,8 @@ public sealed class PrototypeSession : IPlaySession
         ReloadTuning();
         _previousPlayer = Player;
         World.BeginTick();
+        // The keyboard drives this session's cab directly (Notch, FlipReverser); a headset's levers come as intent (T29).
+        Sim.Net.CabControls.Apply(ref Controls, intent, Player, Train);
         World.CrewAct(ref Player, intent, 1);
         World.Step(Controls);
         World.ApplyDamage(id => id == 1 ? Player : null, (_, s) => Player = s, [1]);
@@ -106,6 +108,7 @@ public sealed class PrototypeSession : IPlaySession
         }
         if (_playerTuning.Refresh(e => LastReloadError = e.Message))
             LastReloadError = null;
+        World.Hand = _playerTuning.Value.Hand;
         if (_combatTuning.Refresh(e => LastReloadError = e.Message))
         {
             World.Combat = _combatTuning.Value;

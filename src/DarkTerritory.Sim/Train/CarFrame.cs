@@ -54,10 +54,30 @@ public readonly record struct Solid(Box Box, SurfaceKind Top, PartKind Part);
 /// <summary>A ladder fixed to a face: its foot, how high it goes, and which way is "onto" what it serves.</summary>
 public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward);
 
-public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door }
+/// <summary><see cref="Coal"/> is the tender's coal face, where a hand fills the shovel (T29).</summary>
+public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal }
 
 /// <summary>A thing a player uses by standing near it and holding Use. <see cref="Index"/> says which door.</summary>
 public readonly record struct Interactable(InteractableKind Kind, Double3 Position, double Radius, int Index = 0);
+
+/// <summary>
+/// Where the driver's hands go in the engine's cab (T29): the regulator's handle on the backhead, the brake valve's and
+/// the reverser's, in the engine's frame. A headset player works them by hand; a keyboard's keys do the same thing.
+/// </summary>
+/// <remarks>Each is given at rest; the handles move with the controls (<see cref="RegulatorAt"/>...), back being +Z.</remarks>
+public readonly record struct CabLevers(Double3 Regulator, Double3 Brake, Double3 Reverser)
+{
+    /// <summary>How far back the regulator's handle comes, shut to wide open.</summary>
+    public const double RegulatorTravel = 0.3;
+    /// <summary>How far back the brake handle comes, off to full.</summary>
+    public const double BrakeTravel = 0.12;
+    /// <summary>How far the reverser throws from mid gear: forward for ahead, back for reverse.</summary>
+    public const double ReverserThrow = 0.15;
+
+    public Double3 RegulatorAt(double throttle) => Regulator + new Double3(0, 0, RegulatorTravel * throttle);
+    public Double3 BrakeAt(double brake) => Brake + new Double3(0, 0, BrakeTravel * brake);
+    public Double3 ReverserAt(int reverser) => Reverser + new Double3(0, 0, -ReverserThrow * Math.Sign(reverser));
+}
 
 /// <summary>A hinged door: solid while shut. <see cref="Index"/> is its bit in <see cref="Vehicle.DoorsOpen"/>.</summary>
 public readonly record struct Door(Box Box, int Index);
@@ -67,7 +87,7 @@ public readonly record struct Door(Box Box, int Index);
 /// interactables, and (on the engine) the cab volume that makes a player the crew in charge.
 /// </summary>
 public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnlyList<Ladder> Ladders, IReadOnlyList<Interactable> Interactables, Box? Cab,
-    GunMount? Gun = null, Box? Interior = null, IReadOnlyList<Door>? Doors = null)
+    GunMount? Gun = null, Box? Interior = null, IReadOnlyList<Door>? Doors = null, CabLevers? Levers = null)
 {
     public IReadOnlyList<Door> DoorList => Doors ?? [];
     /// <summary>End ladders sit to the right of the coupler so they don't collide with the plate.</summary>
@@ -281,6 +301,9 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         {
             new(InteractableKind.Firebox, new Double3(0, deck, cabFront + 0.2), 1.1),
             new(InteractableKind.Vent, new Double3(-w + 0.4, deck, cabFront + 0.9), 0.7),
+            // The coal comes forward through the tender's front onto a shovelling plate at the back of the cab, near
+            // enough the firebox that a fireman turning between them reaches both.
+            new(InteractableKind.Coal, new Double3(0, deck, cabBack - 0.6), 1.0),
         };
         var cab = new Box(new Double3(-w + 0.1, deck - 0.1, cabFront), new Double3(w - 0.1, g.EngineHeight - 0.2, cabBack));
         var bounds = new Box(new Double3(-w, 0, -l), new Double3(w, g.EngineHeight, l));
@@ -289,6 +312,12 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         var mount = new Double3(0, g.EngineHeight, cabFront + 0.8);
         solids.Add(new Solid(Box.FromCentre(mount + new Double3(0, 0.25, 0), new Double3(0.35, 0.25, 0.35)), SurfaceKind.Roof, PartKind.GunMount));
         ladders.Add(new Ladder(new Double3(-w + 0.45, deck, cabBack - 0.35), g.EngineHeight, new Double3(0, 0, -1)));
-        return new CarShape(bounds, solids, ladders, interactables, cab, new GunMount(mount + new Double3(0, 0.9, 0), new Double3(0, 0, -1)));
+        // The driver's side is the right, where the cab view stands: regulator on the backhead right of the firebox,
+        // brake valve on the cab side ahead of the driver, and the reverser standing from the floor beside them.
+        var levers = new CabLevers(
+            Regulator: new Double3(0.55, deck + 1.55, cabFront + 0.3),
+            Brake: new Double3(w - 0.4, deck + 1.15, cabFront + 0.6),
+            Reverser: new Double3(w - 0.35, deck + 0.95, cabFront + 1.1));
+        return new CarShape(bounds, solids, ladders, interactables, cab, new GunMount(mount + new Double3(0, 0.9, 0), new Double3(0, 0, -1)), Levers: levers);
     }
 }

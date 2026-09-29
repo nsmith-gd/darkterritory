@@ -191,13 +191,18 @@ public static class Hud
             return p.Has(PlayerFlags.Revived) ? "NO GUNS UNTIL THE NEXT STOP"
                 : world.EmergencyLights || train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM FOR THE TURRET"
                 : "[LMB] FIRE";
-        var near = CrewActions.Nearest(p, train);
+        // A headset player's prompts follow their reaching hand (T29), as the sim's reach does.
+        var hand = world.Hand;
+        var near = CrewActions.Nearest(p, train, hand);
         if (p.Surface == Surface.Coupler && near != InteractableKind.Door)
             return "[E] HOLD: CUT THE COUPLING";
         switch (near)
         {
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train):
-                return "[E] HOLD: SHOVEL COAL";
+                return p.Hand != default && !p.Has(PlayerFlags.Shovelful) ? "SHOVEL COAL: FILL IT AT THE TENDER FIRST" : "[E] HOLD: SHOVEL COAL";
+            // Only a reaching hand finds the coal face (T29).
+            case InteractableKind.Coal when PlayerMotor.InCab(p, train):
+                return p.Has(PlayerFlags.Shovelful) ? "SHOVEL FULL: INTO THE FIREBOX" : "GRIP: COAL ON THE SHOVEL";
             case InteractableKind.Vent when PlayerMotor.InCab(p, train):
                 // Everyone can see a body laid in the engine; whether its owner is dead, the host decides.
                 bool body = world.Bodies.All.Any(b => b.Kind == BodyKind.Ragdoll && b.Parent == 0 && b.Carrier < 0);
@@ -209,11 +214,11 @@ public static class Hud
             case InteractableKind.Door:
                 return "[E] DOOR";
         }
-        if (world.Bodies.InReach(p, train) is { } thing)
+        if (world.Bodies.InReach(p, train, hand) is { } thing)
             return thing.Kind == BodyKind.Ragdoll ? "[E] PICK UP THE BODY" : "[E] PICK UP";
-        if (world.Run?.LeverInReach(p, train) == true)
+        if (world.Run?.LeverInReach(p, train, hand) == true)
             return "[E] HOLD: CHUTE LEVER";
-        if (world.Switches?.InReach(p, train) is { } branch)
+        if (world.Switches?.InReach(p, train, hand) is { } branch)
         {
             // Say which way it'll go, and when it won't: the points don't move with a wheel on them.
             string to = train.Diverging(branch) ? "THE MAIN LINE" : $"THE {(train.Line.Branches[branch].Kind == BranchKind.Spur ? "SPUR" : "DEAD LINE")}";
@@ -221,7 +226,7 @@ public static class Hud
                 ? "SWITCH: POINTS HELD, A WHEEL IS ON THEM"
                 : $"[E] HOLD: THROW THE SWITCH TO {to}";
         }
-        if (world.Run?.HandleInReach(p, train) is not null && world.Run.CurrentSite is { } site)
+        if (world.Run?.HandleInReach(p, train, hand) is not null && world.Run.CurrentSite is { } site)
             return site.Turning ? "[E] HOLD: CRANK. KEEP TOGETHER" : "[E] HOLD: CRANK (IT NEEDS TWO)";
         if (CabControls.CanDrive(p, train))
             return "[R/F] REGULATOR   [B] BRAKE   [X] REVERSER";

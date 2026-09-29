@@ -578,6 +578,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All : cargo,
         Emergency = args.Contains("--vigil"),
         Diverging = train.Diverging,
+        // --throttle x: the regulator's handle drawn that far open (T29's cab levers).
+        Controls = new TrainControls { Throttle = Math.Clamp(Opt(args, "--throttle", 0), 0, 1), Reverser = 1 },
     }.Build(mesh, train, camera.Position);
     var lighting = Views.Lighting(train);
     if (args.Contains("--vigil"))

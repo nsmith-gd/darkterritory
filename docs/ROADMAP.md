@@ -151,9 +151,15 @@ Remaining for M2:
   - OpenXR actions bound for Touch, Index and the simple controller.
   - Head-relative walking through the same intent path as the keyboard.
   - Snap or smooth turn, a locomotion vignette (`tuning/vr.json`), and the player's hands drawn.
+- **Hand interactions (T29):**
+  - reach from the hand: levers, handles, switch stands, doors, crates and ladders take the hand that's on them;
+  - the shovel is a stroke from the tender's coal face into the firebox, at the keyboard's rate at most;
+  - the cab's regulator, brake and reverser move with the hand;
+  - ladders climb hand over hand;
+  - all of it through the same intent as a keyboard (`player.json` `hand`).
 
 Remaining for M4:
-- hand interactions
+- two-handed grips (the winch, heavy crates)
 - body IK
 - the HUD in the headset
 - multiview

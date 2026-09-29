@@ -257,11 +257,12 @@ public sealed class Run
     /// A player's hands on the chute lever: holding Use near it for a moment opens the chute (or shuts it).
     /// Called from <see cref="World.CrewAct"/> before crew actions on the train.
     /// </summary>
-    public void CrewAct(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train)
+    /// <param name="hand">When hands are reported (T29), a reaching hand has to be on the handle or the lever.</param>
+    public void CrewAct(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null)
     {
-        if (CurrentSite is { } site && HandleInReach(s, train) is { } handle && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5)
+        if (CurrentSite is { } site && HandleInReach(s, train, hand) is { } handle && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5)
             site.Cranking[handle] = playerId;
-        bool holding = LeverInReach(s, train) && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5;
+        bool holding = LeverInReach(s, train, hand) && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5;
         if (!holding)
         {
             _lever.Remove(playerId);
@@ -274,21 +275,25 @@ public sealed class Run
     }
 
     /// <summary>The capstan handle a player is standing at, if the winch here has cargo left to haul.</summary>
-    public int? HandleInReach(in PlayerState s, TrainOnLine train)
+    public int? HandleInReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
     {
         if (Over || !s.Alive || CurrentSite is not { SledsLeft: > 0 } site || _facilityTuning is not { } t)
             return null;
         var at = PlayerMotor.WorldPosition(s, train);
         for (int i = 0; i < site.Handles.Length; i++)
-            if ((at + Double3.Up * 0.9 - site.Handles[i]).Length <= t.Winch.HandleReach)
+            if (PlayerMotor.Grips(s, train, hand, site.Handles[i], (at + Double3.Up * 0.9 - site.Handles[i]).Length <= t.Winch.HandleReach))
                 return i;
         return null;
     }
 
     /// <summary>Standing at a working chute's lever (the HUD's prompt, and <see cref="CrewAct"/>).</summary>
-    public bool LeverInReach(in PlayerState s, TrainOnLine train) =>
-        !Over && s.Alive && Facility >= 0 && _chuteLeft[Facility] > 0
-        && (PlayerMotor.WorldPosition(s, train) - ChuteAt(_facilities[Facility], train.Line).Lever).Length <= Tuning.Chute.LeverReach;
+    public bool LeverInReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
+    {
+        if (Over || !s.Alive || Facility < 0 || _chuteLeft[Facility] <= 0)
+            return false;
+        var lever = ChuteAt(_facilities[Facility], train.Line).Lever;
+        return PlayerMotor.Grips(s, train, hand, lever, (PlayerMotor.WorldPosition(s, train) - lever).Length <= Tuning.Chute.LeverReach);
+    }
 
     // Who has a hand on the lever, and for how long (the ground isn't part of the train, so not ActionProgress).
     readonly Dictionary<int, double> _lever = new();
