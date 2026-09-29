@@ -1,0 +1,14 @@
+// Tell (tier 1), Rattle: "dry bone rattle, fast", 2-5 kHz (spec A.3). The whole tell: "loud, directional,
+// unmistakable" (App. A.5). Loose bone knocking in the coupling, fast and uneven, in shakes: a clatter, not a drill's
+// steady chatter or a scrape's rasp.
+{
+  "tier": 1, "loop": true, "maxInstances": 2, "minDistance": 2, "maxDistance": 40, "gainDb": 9,
+  "layers": [
+    { "source": "impulse", "gain": 1.1, "frequency": 38,
+      "filters": [{ "type": "bandPass", "frequency": 3300, "q": 3 }, { "type": "peak", "frequency": 2400, "q": 5, "gainDb": 5 }],
+      "tremolo": { "rate": 5.5, "depth": 1, "duty": 0.5, "jitter": 0.6 } },
+    { "source": "impulse", "gain": 0.6, "frequency": 23,
+      "filters": [{ "type": "bandPass", "frequency": 4300, "q": 4 }],
+      "tremolo": { "rate": 3.1, "depth": 1, "duty": 0.7, "jitter": 0.5 } }
+  ]
+}

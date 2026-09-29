@@ -34,6 +34,7 @@ public static class AudioBench
         ["hound-howl"] = (500, 3000),
         ["clinger-drill"] = (3000, 6000),
         ["dragger-scrape"] = (2000, 4000),
+        ["rattle"] = (2000, 5000),
         ["hollow-gutter"] = (100, 1000),
         ["choir-voice"] = (300, 4000),
     };
@@ -41,7 +42,8 @@ public static class AudioBench
     /// <summary>
     /// Who has to hear each tell for its counter to be possible: the cab brakes for Sleepers and feeds the fire
     /// against the Hollow, the rear gun answers hounds, whoever's on that car prises off a Clinger, and the
-    /// Choir is everybody's business. <see cref="Staging.Threats"/> puts the Clinger on car 1, and a Dragger under its other edge.
+    /// Choir is everybody's business. <see cref="Staging.Threats"/> puts the Clinger on car 1, a Dragger under its other edge,
+    /// and the Rattle in the gap behind the middle car.
     /// </summary>
     public static bool MustHear(string sound, int listenerCar, int cars) => sound switch
     {
@@ -50,6 +52,8 @@ public static class AudioBench
         "clinger-drill" => listenerCar == 1,
         // The one it's reaching for is on that car's roof: they're who has to hear it.
         "dragger-scrape" => listenerCar == 1,
+        // Whoever's about to cross that gap: the Rattle sits behind the middle car.
+        "rattle" => listenerCar == cars / 2,
         _ => true,
     };
 

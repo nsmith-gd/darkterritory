@@ -218,6 +218,16 @@ public sealed class GameAudio
                     if (s.Loop is not null)
                         s.Loop.Position = at;
                     break;
+                case EnemyKind.Rattle when e.Phase == SpinePhase.Telegraph:
+                    // The rattle in the coupling (App. A.5): all the tell there is. Out in the gap, so a car between you and it
+                    // muffles it like anything else.
+                    s.Loop ??= Mixer.Play("rattle", at);
+                    if (s.Loop is not null)
+                    {
+                        s.Loop.Position = at;
+                        s.Loop.Occlusion = occlusion;
+                    }
+                    break;
                 case EnemyKind.Hollow when e.Phase is SpinePhase.Telegraph or SpinePhase.Punish:
                     s.Loop ??= Mixer.Play("hollow-gutter", at);
                     if (s.Loop is not null)

@@ -1009,3 +1009,24 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Verified:**
       - `ContentModsTests` (4): with no mods, the base content is used as it is; mods replace, add and patch in order; taking a mod out takes its files out; a patch with nothing under it is refused.
       - `NetPlayTests.AJoinerWithDifferentModsIsToldWhichMods`.
+54. **The Rattle (T51, App. A.5 and B.5; GDD: "lives in the couplings. You hear it before you cross. RULE: don't cross between cars rattling").** `EnemyKind.Rattle`, costing 1 (App. B.2's table), tuned in `enemies.json` `rattle`.
+    - **Spawn.** During a facility stop (the run `AtFacility`), on an engine's rake of two cars or more, one at a time. It takes a gap in that rake, mid-train by preference, and never one someone's standing in. It gets more likely by 0.25 per extra car.
+    - **The gap.** The space between two coupled cars' ends, as wide as the cars, from the ground up to half a metre under the roofs.
+      - **Ambiguity, what "the gap" is:** the coupling plate is how you cross on a moving train, and at a stop you'd walk between the cars on the ground. Both count.
+      - The roofs are over it: that's App. A.5's "route over the roof", and someone up there doesn't wake it.
+    - **The spine.**
+      - Silent until someone comes within 6 m of it below the roofs. Then it rattles, and that's the whole tell (a dry bone rattle, 2–5 kHz, spec A.3).
+      - Step into the gap while it rattles, once it has rattled for the reaction window (App. A.1), and you're pulled under: `DeathCause.PulledUnder`.
+      - With nobody near for 10 s it goes quiet again.
+      - It can't be shot. Cut the cars apart at its gap and it goes with the coupling.
+    - **Ambiguity, when it leaves:** App. B.5 spawns it at a stop but doesn't say when it goes. It stays 300 s (`lingerSeconds`), so it's usually still there as you pull out, and it leaves the next time it's quiet after that.
+    - **No visual on purpose:** "Pure audio tell." Neither the greybox nor the art pass's creatures draw it (`CreatureArtTests` knows it's never seen); the rattle plays from the gap, muffled by a car in between like any other sound.
+    - **Bots heed it** (`Heed.Rattles`, applied to every bot's intent in the harness). A bot whose next step would take it into a rattling gap stands still instead. One already in the gap when it starts (on the coupler plate, say) walks out the quickest way, never off the train at a speed that kills (`RattleTests.AtSpeedABotOnThePlateNeverStepsOffToGetOut`). Worked out on its client by stepping a copy of itself; the rest of its intent goes through.
+    - **Found on the way: a dead shunter stalled the night.** Adding the Rattle to the director's options changed its draws, and on frontier:7 the hounds mauled three bots, the shunter among them. Parts were fixed at the start, so nobody set the Switchman's switch back, and the train stood at it for the rest of the night.
+      - Now the first living hand with a part of its own takes over a part whose holder has died (`CrewCalls.StandIn`), between stops, as a crew would sort it out on the radio.
+      - With that, the night delivers as before: net 3890, nobody lost, the Rattle in a gap at the Switchyard.
+      - `dt harness --trace` now writes the enemies out there too (kind, phase, car or place), which is how this was found.
+    - **Verified:**
+      - `StopCrewTests.WithTheShunterDeadTheFirstHandLeftTakesItOver`.
+      - `RattleTests` (11): silent until someone comes near on the ground, not from the roof; a bot already in the gap gets out; step in while it rattles and you're pulled under; someone already in the gap when it wakes has the reaction window to get out; walk off and wait and it goes quiet; cut at its gap and it's gone; it nests mid-train and never on someone; a bot waits rather than cross; the director puts one in only at a facility stop; a client knows which gap is rattling.
+      - `dt audio render`: its tell clears the bed by 8.5 dB for a listener on the middle car in the chaos scenario (`AudioTests` needs 6).

@@ -49,6 +49,13 @@ public sealed class CrewCalls
     public void Say(int member, StopJob job, in PlayerState s) => _crew[member] = new(job, s.Alive ? s.Parent : PlayerState.World, s.Alive);
 
     public IEnumerable<Call> Crew => _crew.Values;
+
+    /// <summary>
+    /// Whether this member should take over a part whoever had it has died with (the shunter mauled, say): the first of the rest of the
+    /// crew alive with a part of their own does, as a crew would sort it out on the radio.
+    /// </summary>
+    public bool StandIn(int member, StopJob part) =>
+        !Has(part) && _crew.Values.Any(c => !c.Alive && c.Job == part) && _crew.Where(c => c.Value.Alive && c.Value.Job is not (StopJob.None or StopJob.Driver)).Select(c => c.Key).DefaultIfEmpty(-1).Min() == member;
     public bool Has(StopJob job) => _crew.Values.Any(c => c.Alive && c.Job == job);
     /// <summary>A shunter and two for the winch, alive: the crew a winch stop needs.</summary>
     public bool CanWorkWinch => Has(StopJob.Shunter) && Has(StopJob.Winch0) && Has(StopJob.Winch1);
@@ -614,6 +621,11 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
     /// <summary>This tick's intent for its part in a stop; null when there's nothing for it to do (walk as usual).</summary>
     public PlayerIntent? Decide(in PlayerState self, World world)
     {
+        // Someone has to shunt, and set the switches back (GDD §17): with the shunter dead, a hand takes it over, between
+        // stops (never mid-part).
+        if (job is not (StopJob.None or StopJob.Driver or StopJob.Shunter) && self.Alive && _plan is null && _coal is null && _switch is null
+            && calls.StandIn(member, StopJob.Shunter))
+            job = StopJob.Shunter;
         calls.Say(member, job, self);
         if (PlayerId is { } id)
         {

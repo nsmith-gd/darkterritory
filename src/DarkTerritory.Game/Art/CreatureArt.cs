@@ -418,6 +418,9 @@ public sealed class CreatureArt
                     }
                     return true;
                 }
+            case EnemyKind.Rattle:
+                // "Pure audio tell" (App. A.5): in the coupling, never seen. Drawn, as nothing.
+                return true;
         }
         return false;
     }
