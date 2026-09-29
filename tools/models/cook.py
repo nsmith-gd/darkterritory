@@ -505,6 +505,9 @@ def bake_layers(name, objs, grade=None, grime=0.0, family="model", source_ids=()
             if m is not None and m not in mats:
                 mats.append(m)
     layers = []
+    # A material marked dt_library names one of the texture library's layers (brick_soot, stone_block...): it's drawn
+    # with that layer and the part's own UVs (metres over the layer's tile), and not baked.
+    mats = [m for m in mats if not m.get("dt_library")]
     for i, m in enumerate(mats):
         layer = f"{name}_{i}"
         bsdf = next((n for n in m.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None) if m.use_nodes else None
@@ -651,6 +654,42 @@ def _merge_index(name, layers):
     with open(path, "w") as f:
         json.dump(entries, f, indent=2)
         f.write("\n")
+
+
+def library_material(layer, shine=0.1):
+    """A material that is the texture library's `layer` (content/art/textures/index.json), not a baked one."""
+    m = bpy.data.materials.get(layer) or bpy.data.materials.new(layer)
+    m["dt_library"] = True
+    m["dt_shine"] = shine
+    m["dt_emissive"] = 0.0
+    m["dt_glow"] = 0.0
+    return m
+
+
+def grid(size_x, size_z, cuts, material, tile, name="grid"):
+    """A flat wall panel in the XZ plane facing -Y... +Y (the model's front), subdivided, UV'd in metres over `tile`."""
+    bpy.ops.mesh.primitive_grid_add(x_subdivisions=cuts, y_subdivisions=cuts, size=1)
+    o = bpy.context.view_layer.objects.active
+    o.name = name
+    for v in o.data.vertices:
+        x, y = v.co.x, v.co.y
+        v.co = Vector((x * size_x, 0, y * size_z))
+    o.data.materials.append(material)
+    uv = o.data.uv_layers.new(name="UVMap")
+    for poly in o.data.polygons:
+        for li in poly.loop_indices:
+            co = o.data.vertices[o.data.loops[li].vertex_index].co
+            uv.data[li].uv = (co.x / tile, co.z / tile)
+    # Facing +Y (the model's front): the grid is built facing +Z, turned up into the XZ plane.
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    for f in bm.faces:
+        if f.normal.y > 0:
+            continue
+        f.normal_flip()
+    bm.to_mesh(o.data)
+    bm.free()
+    return o
 
 
 def share_materials(objs):

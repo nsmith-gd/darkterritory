@@ -162,7 +162,7 @@ public static class StructureKit
         // The prism faces outward for a counter-clockwise profile; reversed, it faces in.
         var bore = Bore(0);
         Array.Reverse(bore);
-        k.Prism(bore, -length, 0, caps: false, smooth: true);
+        k.Prism(bore, -length, 0, caps: false, smooth: true, lengthwise: true);
         k.Use("ballast", Palette.Ballast, 0.6f, 0, tile: 1.5f);
         k.Box(new Vector3(-TunnelHalf, -0.35f, -length), new Vector3(TunnelHalf, -0.02f, 0), Kit.Faces.PosY);
         // Refuges (the manholes railwaymen stepped into) either side, dark.

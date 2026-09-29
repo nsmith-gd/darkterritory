@@ -103,6 +103,19 @@ public sealed partial class WorldArt
             float len = (float)Math.Min(step, f.End - s) + 0.05f;
             mesh.Instances.Add(new MeshInstance(Piece($"tunnel-{len:0.0}", () => StructureKit.TunnelLining(_look, len)), Basis(t.Tangent, t.Position, eye, 0)));
         }
+        // Faces in the walls (tools/models wall_face): deep in the bore, one on each side, where the brick has bulged
+        // round a face pushing out through it at a man's height. The headlamp finds one as the train goes by.
+        if (_props.Get("wall_face") is { } faces)
+            foreach (var (along, side) in new[] { (0.42, 1), (0.71, -1) })
+            {
+                double s = f.Start + (f.End - f.Start) * along;
+                if (s < from || s > to || f.End - f.Start < 40)
+                    continue;
+                var t = line.Sample(s);
+                var at = Matrix4x4.CreateRotationY(side > 0 ? MathF.PI / 2 : -MathF.PI / 2)
+                    * Matrix4x4.CreateTranslation(side * (StructureKit.TunnelHalf - 0.015f), 0.15f, 0) * Basis(t.Tangent, t.Position, eye, 0);
+                mesh.Instances.Add(new MeshInstance(faces, at));
+            }
         var portal = Piece("portal", () => StructureKit.Portal(_look));
         if (f.Start >= from - 50 && f.Start <= to + 50)
         {

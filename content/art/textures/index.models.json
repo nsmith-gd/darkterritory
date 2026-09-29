@@ -201,5 +201,27 @@
         "attribution": "Le Transi de Rene de Chalon, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
       }
     ]
+  },
+  {
+    "name": "wall_face_0",
+    "diffuse": "models/wall_face_0.png",
+    "spec": "models/wall_face_0_s.png",
+    "normal": "models/wall_face_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "threejs-leeperrysmith",
+        "repo": "https://github.com/mrdoob/three.js",
+        "commit": "b1061fb8b5a040414719fc342f404eb5f63ea795",
+        "dir": "examples/models/gltf/LeePerrySmith",
+        "license": "CC-BY-3.0",
+        "attribution": "Infinite, 3D Head Scan by Lee Perry-Smith (ir-ltd.net), CC BY 3.0, based on a work at triplegangers.com",
+        "files": null
+      }
+    ]
   }
 ]
