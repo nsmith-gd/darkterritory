@@ -24,7 +24,7 @@ struct FrameConstants
 /// </summary>
 public sealed unsafe class GreyboxRenderer : IDisposable
 {
-    const VkFormat ColorFormat = VkFormat.R8G8B8A8Unorm;
+    readonly VkFormat _colorFormat;
     const VkFormat DepthFormat = VkFormat.D32Sfloat;
 
     readonly GpuContext _gpu;
@@ -42,13 +42,16 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     VkDeviceMemory _vertexMemory;
     ulong _vertexCapacity;
 
-    public GreyboxRenderer(GpuContext gpu, int width, int height)
+    /// <param name="colorFormat">The frame's format: UNORM, holding display-ready (gamma-encoded) values. A headset renderer
+    /// matches the channel order of its sRGB swapchain so the frame copies across bit for bit.</param>
+    public GreyboxRenderer(GpuContext gpu, int width, int height, VkFormat colorFormat = VkFormat.R8G8B8A8Unorm)
     {
+        _colorFormat = colorFormat;
         _gpu = gpu;
         Width = width;
         Height = height;
 
-        (_color, _colorMemory, _colorView) = CreateImage(ColorFormat, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.TransferSrc, VkImageAspectFlags.Color);
+        (_color, _colorMemory, _colorView) = CreateImage(_colorFormat, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.TransferSrc, VkImageAspectFlags.Color);
         (_depth, _depthMemory, _depthView) = CreateImage(DepthFormat, VkImageUsageFlags.DepthStencilAttachment, VkImageAspectFlags.Depth);
         (_readback, _readbackMemory) = CreateBuffer((ulong)(width * height * 4), VkBufferUsageFlags.TransferDst,
             VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent);
@@ -289,7 +292,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             var blend = new VkPipelineColorBlendStateCreateInfo { attachmentCount = 1, pAttachments = &blendAttachment };
             var dynamicStates = stackalloc VkDynamicState[2] { VkDynamicState.Viewport, VkDynamicState.Scissor };
             var dynamic = new VkPipelineDynamicStateCreateInfo { dynamicStateCount = 2, pDynamicStates = dynamicStates };
-            var colorFormat = ColorFormat;
+            var colorFormat = _colorFormat;
             var renderingInfo = new VkPipelineRenderingCreateInfo
             {
                 colorAttachmentCount = 1,

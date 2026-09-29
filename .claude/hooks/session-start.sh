@@ -18,6 +18,12 @@ if ! dpkg -s mesa-vulkan-drivers >/dev/null 2>&1; then
   DEBIAN_FRONTEND=noninteractive apt-get install -y -qq mesa-vulkan-drivers libvulkan1 xvfb >/dev/null
 fi
 
+# A simulated headset (Monado) for VR checks: start it with tools/xr-sim.sh, then use XDG_RUNTIME_DIR=/tmp/xr.
+if ! dpkg -s monado-service >/dev/null 2>&1; then
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq monado-service libopenxr1-monado libopenxr-loader1 >/dev/null || true
+fi
+
 echo 'export DOTNET_CLI_TELEMETRY_OPTOUT=1' >> "${CLAUDE_ENV_FILE:-/dev/null}"
 echo 'export DOTNET_NOLOGO=1' >> "${CLAUDE_ENV_FILE:-/dev/null}"
 

@@ -10,9 +10,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Software Vulkan (lavapipe) for headless render tests
+      - name: Software Vulkan (lavapipe) and a simulated headset (Monado) for headless render and VR tests
         if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq mesa-vulkan-drivers libvulkan1 xvfb
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq mesa-vulkan-drivers libvulkan1 xvfb monado-service libopenxr1-monado libopenxr-loader1
+      - name: Start the simulated headset
+        if: runner.os == 'Linux'
+        run: |
+          tools/xr-sim.sh
+          echo "XDG_RUNTIME_DIR=/tmp/xr" >> "$GITHUB_ENV"
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
@@ -31,6 +36,11 @@ jobs:
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --cars 4 --cam 1122,-0.4,2.8 --target 1130,0.4,2.0 --fov 75 --out out/shots/inside-guard.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --coaling --cam 13008,7,5 --target 13024,-0.5,5 --fov 60 --out out/shots/coaling.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --bodies --cam 1146,2.5,6 --target 1141,0,4.1 --fov 60 --out out/shots/bodies.png
+      - name: VR session end to end (Monado's simulated headset)
+        if: runner.os == 'Linux'
+        run: |
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- vr check --frames 30 --out out/shots/vr.png | tee out/vr.json
+          jq -e '.headset and .framesRendered == 30 and (.states | index("Exiting"))' out/vr.json
       - name: Prototype window smoke test (Xvfb + lavapipe)
         if: runner.os == 'Linux'
         run: xvfb-run -a -s "-screen 0 1280x720x24" dotnet run --project src/DarkTerritory.App -c Release --no-build -- --route frontier:7 --throttle 1 --quit-after 10 --capture out/shots/app.png

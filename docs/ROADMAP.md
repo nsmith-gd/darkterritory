@@ -10,7 +10,7 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
 | **M1 — Feel prototype** | ready for play-test | SDL3 window, Vulkan greybox renderer, offscreen screenshots, FPS controller, rail spline, train you can drive and walk on (moving frames §6.1), jump-off death, Jolt crates | Director plays it and answers spec G.1 and G.2. Agent can screenshot any scene headless. |
 | **M2 — Crew of eight** | in progress | Snapshot replication, prediction/reconciliation, interpolation, physics object sync, Steam transport + lobby, bots over loopback, `dt harness` skeleton | 8 clients on `LinkConditions.Rough` with no desync over 30 min, run by the harness overnight |
 | **M3 — Voice** | +5.5 wk | Capture, Opus, host routing, proximity falloff, occlusion, radio item, dead channel | 8-player voice test. Radio dies in a tunnel. |
-| **M4 — VR** | +6.5 wk | OpenXR, stereo, action mapping, hand interactions (shovel, levers, ladders), VR body IK, comfort options | Quest via Link and SteamVR both playable in the M1 scene |
+| **M4 — VR** | in progress | OpenXR, stereo, action mapping, hand interactions (shovel, levers, ladders), VR body IK, comfort options | Quest via Link and SteamVR both playable in the M1 scene |
 | **M5 — Demo slice** | +9 wk | Procedural line v1, one fortress, two facilities, 5 demo enemies (one per pressure zone), director budget, audio mixer + tier ducking, art pass to style sheet, simple editor (module + rail + tuning) | Screenshot test (GDD §32) passes director review. Harness sweeps the demo roster. |
 | **M6 — Demo ship** | Dec 2026 | Steam demo build, itch build (EOS transport), crash reporting, settings | Steam demo live |
 | M7 — Next Fest | Feb 2027 | Mod loader v1, more facilities and enemies, balance sweeps | |
@@ -89,3 +89,16 @@ Remaining for M2:
 - a first run on real Steam between two accounts (needs the SDK library and two machines)
 - the 30-minute, 8-client rough-link soak as a nightly job
 - EOS for itch.io moves to M6 with the itch build
+
+**M4 (VR), foundation done:**
+- An OpenXR session with stereo rendering: `--vr` in the app, mirrored to the window.
+- The headset's pose on the player's body, in the car's frame.
+- Verified headless on Monado's simulated headset: `tools/xr-sim.sh`, then `dt vr check`. CI runs it on every push.
+
+Remaining for M4:
+- controllers and action mapping
+- hand interactions
+- body IK
+- comfort options
+- multiview
+- the exit test on a real Quest and SteamVR

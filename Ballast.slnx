@@ -8,6 +8,7 @@
     <Project Path="src/Ballast.Physics/Ballast.Physics.csproj" />
     <Project Path="src/Ballast.Voice/Ballast.Voice.csproj" />
     <Project Path="src/Ballast.Online/Ballast.Online.csproj" />
+    <Project Path="src/Ballast.Xr/Ballast.Xr.csproj" />
     <Project Path="src/DarkTerritory.Sim/DarkTerritory.Sim.csproj" />
     <Project Path="src/DarkTerritory.Game/DarkTerritory.Game.csproj" />
     <Project Path="src/DarkTerritory.Editor/DarkTerritory.Editor.csproj" />

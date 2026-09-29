@@ -6,6 +6,17 @@ namespace Ballast.Render;
 public sealed class GpuUnavailableException(string message) : Exception(message);
 
 /// <summary>
+/// Makes the Vulkan instance and device in place of <see cref="GpuContext"/>. OpenXR's XR_KHR_vulkan_enable2 does
+/// this: the runtime adds the extensions its compositor needs and picks the GPU the headset is on.
+/// </summary>
+public unsafe interface IVulkanFactory
+{
+    VkInstance CreateInstance(VkInstanceCreateInfo* info);
+    VkPhysicalDevice PhysicalDevice(VkInstance instance);
+    VkDevice CreateDevice(VkPhysicalDevice physical, VkDeviceCreateInfo* info);
+}
+
+/// <summary>
 /// Vulkan 1.3 instance, device and graphics queue. Headless by default: on a machine with no GPU
 /// (CI, cloud agents) it runs on Mesa's lavapipe software rasteriser, which is what lets an agent
 /// take screenshots without a display (ARCHITECTURE §2 rule 3).
@@ -30,7 +41,9 @@ public sealed unsafe class GpuContext : IDisposable
 
     /// <param name="instanceExtensions">Extra instance extensions, e.g. what SDL needs for a window surface.</param>
     /// <param name="createSurface">Creates the window surface once the instance exists; enables presentation.</param>
-    public GpuContext(string appName = "Ballast", IReadOnlyList<string>? instanceExtensions = null, Func<VkInstance, VkSurfaceKHR>? createSurface = null)
+    /// <param name="factory">Makes the instance and device instead (a VR runtime); null for plain Vulkan.</param>
+    public GpuContext(string appName = "Ballast", IReadOnlyList<string>? instanceExtensions = null, Func<VkInstance, VkSurfaceKHR>? createSurface = null,
+        IVulkanFactory? factory = null)
     {
         if (vkInitialize() != VkResult.Success)
             throw new GpuUnavailableException("Vulkan loader not found (install a GPU driver, or mesa-vulkan-drivers for software rendering)");
@@ -51,19 +64,26 @@ public sealed unsafe class GpuContext : IDisposable
                 enabledExtensionCount = (uint)extensions.Count,
                 ppEnabledExtensionNames = extensions.Pointers,
             };
-            VkInstance instance;
-            var created = vkCreateInstance(&info, null, &instance);
-            // A loader with no installed driver (e.g. a GPU-less Windows machine) reports this.
-            if (created is VkResult.ErrorIncompatibleDriver or VkResult.ErrorInitializationFailed)
-                throw new GpuUnavailableException($"no Vulkan driver installed ({created})");
-            Check(created, "vkCreateInstance");
-            Instance = instance;
+            if (factory is not null)
+            {
+                Instance = factory.CreateInstance(&info);
+            }
+            else
+            {
+                VkInstance instance;
+                var created = vkCreateInstance(&info, null, &instance);
+                // A loader with no installed driver (e.g. a GPU-less Windows machine) reports this.
+                if (created is VkResult.ErrorIncompatibleDriver or VkResult.ErrorInitializationFailed)
+                    throw new GpuUnavailableException($"no Vulkan driver installed ({created})");
+                Check(created, "vkCreateInstance");
+                Instance = instance;
+            }
         }
         InstanceApi = GetApi(Instance);
         if (createSurface is not null)
             Surface = createSurface(Instance);
 
-        (PhysicalDevice, QueueFamily) = PickDevice();
+        (PhysicalDevice, QueueFamily) = factory is null ? PickDevice() : (factory.PhysicalDevice(Instance), GraphicsFamily(factory.PhysicalDevice(Instance)));
         VkPhysicalDeviceProperties props;
         InstanceApi.vkGetPhysicalDeviceProperties(PhysicalDevice, &props);
         DeviceName = new string((sbyte*)props.deviceName);
@@ -83,9 +103,16 @@ public sealed unsafe class GpuContext : IDisposable
             enabledExtensionCount = (uint)deviceExtensions.Count,
             ppEnabledExtensionNames = deviceExtensions.Pointers,
         };
-        VkDevice device;
-        Check(InstanceApi.vkCreateDevice(PhysicalDevice, &deviceInfo, null, &device), "vkCreateDevice");
-        Device = device;
+        if (factory is not null)
+        {
+            Device = factory.CreateDevice(PhysicalDevice, &deviceInfo);
+        }
+        else
+        {
+            VkDevice device;
+            Check(InstanceApi.vkCreateDevice(PhysicalDevice, &deviceInfo, null, &device), "vkCreateDevice");
+            Device = device;
+        }
         Api = GetApi(Instance, Device);
 
         VkQueue queue;
@@ -145,6 +172,19 @@ public sealed unsafe class GpuContext : IDisposable
             }
         }
         throw new GpuUnavailableException("no Vulkan 1.3 device with a graphics queue");
+    }
+
+    uint GraphicsFamily(VkPhysicalDevice device)
+    {
+        uint families = 0;
+        InstanceApi.vkGetPhysicalDeviceQueueFamilyProperties(device, &families, null);
+        var props = new VkQueueFamilyProperties[families];
+        fixed (VkQueueFamilyProperties* p = props)
+            InstanceApi.vkGetPhysicalDeviceQueueFamilyProperties(device, &families, p);
+        for (uint i = 0; i < families; i++)
+            if ((props[i].queueFlags & VkQueueFlags.Graphics) != 0)
+                return i;
+        throw new GpuUnavailableException("the headset's GPU has no graphics queue");
     }
 
     public uint FindMemoryType(uint typeBits, VkMemoryPropertyFlags flags)

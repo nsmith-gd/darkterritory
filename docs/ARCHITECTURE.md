@@ -62,7 +62,7 @@ Trade-offs accepted: we ship the JIT runtime (not NativeAOT) so mods can load; s
 |---|---|---|
 | Windowing, input, gamepad | **SDL3** (`SDL3-CS`) | Also used for audio device I/O fallback |
 | Graphics API | **Vulkan 1.3** (`Vortice.Vulkan`) | Dynamic rendering, no render-pass boilerplate. It is the API with universal OpenXR support (Meta PC runtime, SteamVR, standalone Quest if ever wanted) and it runs headless on Linux via lavapipe for agent screenshots. D3D11 would not run in the Linux containers. OpenGL's OpenXR support is uneven. |
-| VR | **OpenXR** (`Silk.NET.OpenXR`), `XR_KHR_vulkan_enable2`, multiview stereo | PCVR first (Link / Air Link / Virtual Desktop / SteamVR). Standalone Quest (Android) is a post-launch option that this stack does not rule out. |
+| VR | **OpenXR** (`Silk.NET.OpenXR`), `XR_KHR_vulkan_enable2`, stereo (a pass per eye now, multiview later) | PCVR first (Link / Air Link / Virtual Desktop / SteamVR). Standalone Quest (Android) is a post-launch option that this stack does not rule out. Tested headless on Monado's simulated headset (§8 note 25). |
 | Physics | **Custom PBD** (`Ballast.Physics`), Jolt held in reserve | Loose bodies and ragdolls as position-based particles and constraints, living in car frames like players do (§8 note 21). Jolt (`JoltPhysicsSharp`, verified to restore and run on Linux) stays the option if we need true rigid-body stacking. |
 | Train | **Custom 1D rail sim** (`DarkTerritory.Sim/Train`) | Cars live on the rail spline, driven by longitudinal dynamics, and appear to Jolt as kinematic bodies. Already implemented and pinned to the spec. |
 | ECS | **Friflo.Engine.ECS** or **Arch**, decided in M1 | Needs: fast queries, struct components, and component change tracking for replication |
@@ -365,3 +365,25 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - It uses app id 480 (Valve's test app) until the game has its own.
       - **Not yet run against real Steam:** the CI containers have no Steam client. The first two-account test on real machines is the next step for it.
     - **Not yet:** EOS for itch.io; rich presence; closing the lobby when the crew is full; a lobby browser; reconnecting to a host after a drop.
+25. **VR foundation: OpenXR sessions, stereo, and a headset in CI (T21).**
+    - **`Ballast.Xr`.** `XrHeadset` finds the runtime and the headset, and makes the game's Vulkan instance and device through `XR_KHR_vulkan_enable2`. `GpuContext` takes an `IVulkanFactory` for this, so the runtime adds what its compositor needs and picks the GPU the headset is on.
+      - `XrStereoSession` runs the session's lifecycle (ready → begin, stopping → end, exiting), the stereo swapchains, and the frame loop: wait, begin, locate the views, draw both eyes, end.
+      - When tracking is lost it submits no layer rather than a wrong view.
+    - **Colour.** The renderer's frame is UNORM holding display-ready values. Each eye renders in the UNORM twin of the swapchain's sRGB format and is copied across bit for bit, so there's no conversion and no washed-out image. (A runtime treats a UNORM swapchain as linear, which would wash it out.)
+    - **Resolution.** Eyes render at `--vr-scale` (default 0.5) of the runtime's recommended size into the top-left of the swapchain image, and the compositor scales it up. That keeps the low-res look of GDD §32 without the shimmer a nearest-filter upscale makes in a headset.
+    - **The body and the head.** The flat camera is the player's body: its eye point and yaw. LOCAL space's origin (the head at session start) sits there, so on a moving car the view is in the car's frame, not the room's.
+      - The head supplies pitch, roll and every movement. Mouse yaw still turns the body.
+      - Both eyes draw the one mesh built around the body's eye point, each from its offset (`Camera.EyeOffset`, `Orientation`, and an asymmetric `EyeFov`).
+    - **In the app.** `--vr` plays in the headset and mirrors the flat view to the window, paced by the headset. Without a runtime it says why and plays flat.
+    - **Verified headless.** Monado (Ubuntu's `monado-service`) runs a simulated HMD on lavapipe under Xvfb (`tools/xr-sim.sh`; CI does the same).
+      - `dt vr check` runs a full session: Idle → Ready → Synchronized → Visible → Focused, 30 stereo frames (about 31 fps in software), then a requested exit through Stopping → Exiting. It writes both eyes side by side to a PNG.
+      - `VrTests` check that a centred eye matches the flat projection, that the eyes turn with the body, and that an off-centre frustum puts straight-ahead towards the nose. They also run a real session (eyes 50–80 mm apart, images that differ), skipped where there's no runtime.
+    - **Found on the way:** Monado's IPC socket path must fit a `sockaddr_un` (108 bytes), or its client aborts the whole process. So the runtime dir is `/tmp/xr`. A runtime that's installed but not running reports `ErrorRuntimeFailure`, which is now "not running" rather than a crash.
+    - **Loader.** Windows builds ship Khronos' `openxr_loader.dll` (NuGet `OpenXR.Loader`, Apache-2.0). Linux uses the system `libopenxr-loader1`.
+    - **Not yet (M4):**
+      - action mapping and controllers;
+      - hand interactions (shovel, levers, ladders);
+      - body IK;
+      - comfort options (snap turn, vignette);
+      - multiview (one pass for both eyes);
+      - a real headset run: Quest over Link and SteamVR, which needs a person with one.
