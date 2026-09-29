@@ -119,8 +119,7 @@ public sealed class TrainOnLine
     public bool PointsOccupied(int branch, double pointsLength)
     {
         double toe = Line.Branches[branch].Toe;
-        return _rakes.Any(r => r.RearDistance < toe + pointsLength && r.Distance > toe - pointsLength
-            && Line.Shared(r.Path, branch) >= toe);
+        return _rakes.Any(r => On(r, RailLine.MainPath) is { } o && o.Rear < toe + pointsLength && o.Front > toe - pointsLength);
     }
 
     /// <summary>Throws a switch, unless a wheel is on its points. Returns whether it moved.</summary>
@@ -269,7 +268,7 @@ public sealed class TrainOnLine
             if (rake.Distance > max || rake.Distance < min)
             {
                 // A branch's buffer stop is a stop block at the end of a dead line: running into it hurts (App. A.7).
-                if (rake.Distance > max && rake.Path >= 0)
+                if (rake.Distance > max && rake.Path >= 0 && !Line.Branches[rake.Path].Rejoins)
                     HitBufferStop(rake);
                 rake.Distance = Math.Clamp(rake.Distance, min, max);
                 rake.Velocity = 0;
@@ -279,16 +278,48 @@ public sealed class TrainOnLine
         foreach (var rake in _rakes)
         {
             TakeSwitches(rake); // shoved through the points by a collision
-            if (rake.Path >= 0 && rake.Distance <= Line.Branches[rake.Path].Toe)
-                rake.Path = RailLine.MainPath; // backed out through the points: the whole rake is on the main line
+            Readdress(rake);
         }
         UpdatePoses();
+    }
+
+    /// <summary>
+    /// Keeps each rake addressed along the track it's on (see <see cref="RailLine"/>'s paths): backed out through a
+    /// branch's points it's wholly on the main line again; its front back on the main line past an alternate, it's in
+    /// main-line distance (tail still on the alternate) until the tail has followed it off.
+    /// </summary>
+    void Readdress(TrainDynamics rake)
+    {
+        if (rake.Path >= 0)
+        {
+            var b = Line.Branches[rake.Path];
+            if (rake.Distance <= b.Toe)
+                rake.Path = RailLine.MainPath;
+            else if (b.Rejoins && rake.Distance > b.End)
+                Shift(rake, RailLine.ViaPath(b.Index), b.Offset);
+        }
+        else if (RailLine.ViaOf(rake.Path) is var via and >= 0)
+        {
+            var b = Line.Branches[via];
+            if (rake.RearDistance >= b.Rejoin)
+                rake.Path = RailLine.MainPath;
+            else if (rake.Distance < b.Rejoin)
+                Shift(rake, b.Index, -b.Offset);
+        }
+    }
+
+    static void Shift(TrainDynamics rake, int path, double by)
+    {
+        rake.Path = path;
+        rake.Distance += by;
+        rake.PreviousDistance += by;
     }
 
     /// <summary>A rake's front running forward through a branch's points goes where the switch is set.</summary>
     void TakeSwitches(TrainDynamics rake)
     {
-        if (rake.Path >= 0 || rake.Distance <= rake.PreviousDistance)
+        // A rake whose tail is still coming off an alternate goes straight on (junctions are never that close).
+        if (rake.Path != RailLine.MainPath || rake.Distance <= rake.PreviousDistance)
             return;
         foreach (var b in Line.Branches)
             if (_diverging[b.Index] && rake.PreviousDistance <= b.Toe && rake.Distance > b.Toe)
@@ -317,9 +348,10 @@ public sealed class TrainOnLine
     /// Rakes that meet: closing gently they couple (buckeye couplers), harder they collide, share momentum,
     /// and damage the two vehicles that hit (GDD §19: cargo is physical; §23: failures cascade).
     /// <para>
-    /// Resolved along each path in turn. A rake on another path takes part by whatever of it is on the track the two
-    /// share (up to the points): its tail can be hit from behind, but a rake whose front has gone off down the other
-    /// route can't couple to anything on this one; it only sideswipes what's fouling the points.
+    /// Resolved on each piece of track in turn (the main line's, then each branch's), by whatever of each rake is on it.
+    /// A rake takes part by its stretch on that piece: its tail can be hit from behind there, but only a rake whose
+    /// front is on the piece can couple on it. One whose front has gone off down another route only sideswipes what's
+    /// fouling the points.
     /// </para>
     /// </summary>
     void ResolveContacts()
@@ -328,29 +360,66 @@ public sealed class TrainOnLine
             return;
         ResolveOn(RailLine.MainPath);
         foreach (var b in Line.Branches)
-            if (_rakes.Any(r => r.Path == b.Index))
+            if (_rakes.Any(r => On(r, b.Index) is not null))
                 ResolveOn(b.Index);
     }
 
-    /// <summary>A rake's front as seen along <paramref name="path"/>: clipped to the shared track if it's on another.</summary>
-    double FrontOn(TrainDynamics r, int path) => r.Path == path ? r.Distance : Math.Min(r.Distance, Line.Shared(path, r.Path));
+    /// <summary>A rake's stretch on one piece of track, in the piece's own distance, and whether its ends are on it.</summary>
+    readonly record struct Occupancy(TrainDynamics Rake, double Front, double Rear, bool FrontHere, bool RearHere);
 
-    void ResolveOn(int path)
+    Occupancy? On(TrainDynamics r, int piece)
     {
-        var on = _rakes.Where(r => r.Path == path || r.RearDistance < Line.Shared(path, r.Path)).ToList();
+        double front = r.Distance, rear = r.RearDistance;
+        double f = double.MinValue, b = double.MaxValue;
+        bool found = false, frontHere = false, rearHere = false;
+        foreach (var span in Line.Spans(r.Path))
+        {
+            if (span.Piece != piece)
+                continue;
+            double lo = Math.Max(rear, span.From), hi = Math.Min(front, span.To);
+            if (lo > hi)
+                continue;
+            found = true;
+            f = Math.Max(f, hi + span.Shift);
+            b = Math.Min(b, lo + span.Shift);
+            frontHere |= front >= span.From && front <= span.To;
+            rearHere |= rear >= span.From && rear <= span.To;
+        }
+        return found ? new Occupancy(r, f, b, frontHere, rearHere) : null;
+    }
+
+    /// <summary>Distance along <paramref name="path"/> of a point on a piece of track, or null if the path doesn't run over it.</summary>
+    double? PathDistance(int path, int piece, double at)
+    {
+        foreach (var span in Line.Spans(path))
+            if (span.Piece == piece && at - span.Shift >= span.From - 1e-6 && at - span.Shift <= span.To + 1e-6)
+                return at - span.Shift;
+        return null;
+    }
+
+    /// <summary>The piece of track under a point on a path, and the distance along that piece.</summary>
+    (int Piece, double At) Where(int path, double distance)
+    {
+        var spans = Line.Spans(path);
+        foreach (var span in spans)
+            if (distance <= span.To)
+                return (span.Piece, Math.Max(distance, span.From) + span.Shift);
+        return (spans[^1].Piece, distance + spans[^1].Shift);
+    }
+
+    void ResolveOn(int piece)
+    {
+        var on = _rakes.Select(r => On(r, piece)).OfType<Occupancy>().ToList();
         if (on.Count < 2)
             return;
         var c = Tuning.Couplings;
         double gap = Tuning.Geometry.CouplingGap;
-        on.Sort((a, b) => FrontOn(b, path).CompareTo(FrontOn(a, path)));
+        on.Sort((a, b) => b.Front.CompareTo(a.Front));
         for (int i = 0; i + 1 < on.Count;)
         {
-            var a = on[i];
-            var b = on[i + 1];
-            double bFront = FrontOn(b, path);
-            // b's front is off down another route: it can foul the points but not couple on this track.
-            bool offPath = bFront < b.Distance;
-            double free = a.RearDistance - gap - bFront;
+            var (oa, ob) = (on[i], on[i + 1]);
+            var (a, b) = (oa.Rake, ob.Rake);
+            double free = oa.Rear - gap - ob.Front;
             if (b.FrontCouplerLocked && free > 0.3)
                 b.FrontCouplerLocked = false;
             if (free >= 0)
@@ -377,25 +446,33 @@ public sealed class TrainOnLine
                 a.Velocity = b.Velocity = v;
             }
             b.Distance += free; // back to just touching, along whichever path it's on
+            ob = ob with { Front = ob.Front + free, Rear = ob.Rear + free };
+            on[i + 1] = ob;
 
-            bool couple = !offPath && !b.FrontCouplerLocked && closing <= c.CoupleMaxSpeed;
+            // b's front is off down another route (or a's tail is): it can foul the points but not couple on this track.
+            bool couple = ob.FrontHere && oa.RearHere && !b.FrontCouplerLocked && closing <= c.CoupleMaxSpeed;
             _contacts.Add(new RakeContact(frontId, rearId, Math.Max(0, closing), couple, damage));
             if (!couple)
             {
                 i++;
                 continue;
             }
+            // The merged rake runs on the front one's path if that runs back over the rear one's tail, and on the rear
+            // one's path otherwise (a train come back off an alternate, coupling onto cars ahead of it on the main line).
+            var (tailPiece, tailAt) = Where(b.Path, b.RearDistance);
+            var (path, front) = PathDistance(a.Path, tailPiece, tailAt) is not null
+                ? (a.Path, a.Distance)
+                : (b.Path, PathDistance(b.Path, piece, oa.Front) ?? a.Distance);
+            double previous = a.PreviousDistance + (front - a.Distance);
             // Keep the engine's rake as the survivor so Dynamics stays the same object.
-            // The merged rake runs on the front one's path: the rear one is wholly on track the two share.
+            TrainDynamics survivor;
             if (b == _engineRake)
             {
                 b.Consist.Prepend(a.Consist);
-                b.Distance = a.Distance;
-                b.PreviousDistance = a.PreviousDistance;
                 b.FrontCouplerLocked = a.FrontCouplerLocked;
-                b.Path = a.Path;
                 _rakes.Remove(a);
                 on.RemoveAt(i);
+                survivor = b;
             }
             else
             {
@@ -404,7 +481,12 @@ public sealed class TrainOnLine
                 a.Consist.Append(b.Consist);
                 _rakes.Remove(b);
                 on.RemoveAt(i + 1);
+                survivor = a;
             }
+            survivor.Path = path;
+            survivor.Distance = front;
+            survivor.PreviousDistance = previous;
+            on[i] = On(survivor, piece) ?? on[i];
             // Stay on this index: the merged rake may now touch the one behind it.
         }
     }
