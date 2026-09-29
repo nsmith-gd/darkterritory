@@ -22,6 +22,9 @@ public sealed record HarnessOptions
     public Route.Route? Route { get; init; }
     /// <summary>Real UDP sockets on localhost instead of the simulated network (runs in real time's order, not faster).</summary>
     public bool Udp { get; init; }
+    /// <summary>With a route: run the night as a game (departure, facilities, terminus, dawn) and report the result.</summary>
+    public Run.RunTuning? Run { get; init; }
+    public double YardLength { get; init; } = 600;
 }
 
 public sealed record ClientReport(byte Id, string Bot, double MaxCorrectionM, int Corrections, int Snapshots, int HostMissedInputs,
@@ -29,7 +32,7 @@ public sealed record ClientReport(byte Id, string Bot, double MaxCorrectionM, in
 
 public sealed record HarnessReport(int Ticks, double Seconds, string Link, double TrainDistance, double TrainSpeed, double BoilerPressure, double Tender,
     int SnapshotBytes, double DownKbpsPerClient, double UpKbpsPerClient, double MaxCorrectionM, int Deaths,
-    IReadOnlyList<ClientReport> Clients, ThreatReport? Threats = null);
+    IReadOnlyList<ClientReport> Clients, ThreatReport? Threats = null, Run.RunReport? Run = null);
 
 /// <summary>What the director and the enemies did (GDD §34 / App. B.9 audit).</summary>
 public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictionary<string, int> Spawned, IReadOnlyDictionary<string, int> Punishes,
@@ -50,6 +53,8 @@ public static class Harness
         var host = new HostSession(hostTransport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
         if (o.Enemies is { } et)
             host.EnableEnemies(et, o.Route, (ulong)o.Seed, o.Bots);
+        if (o.Run is { } rt && o.Route is { } route)
+            host.World.EnableRun(rt, route, o.YardLength, authority: true);
 
         var clients = new List<(ClientSession Session, IBot Bot, CountingTransport Transport)>();
         for (int i = 0; i < o.Bots; i++)
@@ -66,6 +71,11 @@ public static class Harness
         int rounds = 0;
         for (uint t = 0; t < ticks; t++)
         {
+            if (host.World.Run is { Over: true })
+            {
+                ticks = (int)t;
+                break;
+            }
             net.Advance(SimConstants.TickSeconds);
             host.Step();
             events.AddRange(host.World.EnemyEvents);
@@ -120,7 +130,8 @@ public static class Harness
             Math.Round(host.Train.Dynamics.Distance, 1), Math.Round(host.Train.Dynamics.Speed, 2),
             Math.Round(host.Train.Boiler.Pressure, 1), Math.Round(host.Train.Boiler.Tender), host.LastSnapshotBytes,
             Math.Round(reports.Average(r => r.BytesDown) * 8 / 1000 / seconds, 1), Math.Round(reports.Average(r => r.BytesUp) * 8 / 1000 / seconds, 1),
-            reports.Max(r => r.MaxCorrectionM), reports.Count(r => !r.Alive), reports, threats);
+            reports.Max(r => r.MaxCorrectionM), reports.Count(r => !r.Alive), reports, threats,
+            host.World.Run is { } run ? run.Report ?? run.Tally(host.World, [.. host.Players.Select(p => p.State)]) : null);
     }
 
     static void PostGunner(HostSession host, List<(ClientSession Session, IBot Bot)> clients)

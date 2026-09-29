@@ -43,4 +43,6 @@ Voice is open-mic with voice activity: `--push-to-talk` makes it hold V, and `--
 
 The host picks the route and train. Joiners build the same world from what the host sends. Everyone, host included, plays through the same client path. The host's player boards first and takes the cab. Networked, you drive from the cab only (GDD §12): stand in it for R/F/B/X. The host needs the UDP port open or forwarded. Steam and EOS transports (relay, lobbies, invites) come later.
 
+A night: leave the fortress yard through the gates, and the dawn clock starts. Stop at the coaling tower to refill the tender: someone gets down, holds E at the lever, and the chute pours, into the tender if it's under the spout, onto the ballast if not. Pull up at the terminus before dawn and you're paid for every loaded car still coupled to the engine.
+
 Sound is synthesised from `content/audio/sounds/*.json`. `dt audio render --scenario chaos --listener all` measures every telegraph against the train in the worst mix. Drop `--listener all` for a WAV and a spectrogram of one listener.

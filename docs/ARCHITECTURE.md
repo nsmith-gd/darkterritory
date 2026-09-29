@@ -290,3 +290,25 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - boarded hounds hunting inside;
       - the side doors of freight cars;
       - Soot Children at the door.
+20. **The run (T16).**
+    - **One night, host-authoritative.** `Run` lives in the sim and clients mirror it through a Run record.
+      - **Departure:** the run and the dawn clock start when the engine passes the yard gate, the end of the 600 m fortress yard.
+      - **Arrival:** stopped with the front within 400 m of the end of line, the train is home.
+      - **Failure:** a derailment, the whole crew dead, or still out 120 s after dawn. GDD §8 says the main line reopens at dawn; the grace before "the railway itself becomes a threat" is `run.json` → `dawnGraceSeconds`. Dawn itself is a warning.
+    - **Pay (spec F.1):** tier value × load × cargo integrity, for cargo cars still in the engine's rake ("everything still attached to the locomotive counts").
+      - **Running costs** are what the night actually burned and broke: coal, rounds and repairs, priced so a competent night lands near the spec's 15% of gross.
+      - **The whole-night harness** delivered 9 of 9 cars on a Frontier 10-car night for exactly spec F.1's table figure of 6,300 gross, at 8.7% costs, because the bots lost nothing.
+      - **Crew home** means alive and aboard, or within 40 m of the train. Someone mid-jump between roofs at the gates still counts.
+    - **The coaling tower (GDD §18, spec D.2 gravity chute).**
+      - Stopped at the facility, someone on the ground holds Use at the lever by the tower, and the chute opens.
+      - It pours 12 units/s from a 260-unit hopper whether you're ready or not. Coal lands in the tender if it's within 2.5 m of the spout, and on the ballast if not.
+      - Overfilling damages the engine. Pulling the lever again shuts the chute.
+      - The ground isn't part of the train, so the lever keeps its own hold timer rather than using `ActionProgress`.
+    - **Not yet:**
+      - the other facilities' modules (spec D) and loading cargo at them;
+      - ammunition resupply;
+      - the fortress departure phase (contracts, purchases);
+      - drop-in at POIs;
+      - autosave;
+      - the Vigil (spec C.2);
+      - an oncoming train as the dawn failure, rather than the run just ending.

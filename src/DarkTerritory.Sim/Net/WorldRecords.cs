@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -71,6 +71,18 @@ public static class WorldRecords
             (b.Ruptured ? 1 : 0) | (b.SafetyValveLifting ? 2 : 0) | (b.SafetyValveJammed ? 4 : 0),
         ]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Controls, 0), [Q(controls.Throttle, Fine), Q(controls.Brake, Fine), controls.Reverser]));
+        if (world.Run is { } run)
+        {
+            var f = new long[5 + run.FacilityCount];
+            f[0] = (long)run.Phase;
+            f[1] = (long)run.End;
+            f[2] = Q(run.Seconds, Fine);
+            f[3] = run.Facility;
+            f[4] = run.ChuteOpen ? 1 : 0;
+            for (int i = 0; i < run.FacilityCount; i++)
+                f[5 + i] = Q(run.ChuteLeft(i), Fine);
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Run, 0), f));
+        }
         foreach (var p in players)
         {
             var s = p.State;
@@ -139,6 +151,10 @@ public static class WorldRecords
                     break;
                 case RecordKind.Player:
                     players.Add(ToPlayer(r));
+                    break;
+                case RecordKind.Run when !world.Authority && world.Run is { } run:
+                    run.Mirror((Run.RunPhase)f[0], (Run.RunEnd)f[1], D(f[2], Fine), (int)f[3], f[4] != 0,
+                        [.. Enumerable.Range(0, f.Length - 5).Select(i => D(f[5 + i], Fine))]);
                     break;
             }
         }

@@ -68,6 +68,23 @@ public sealed class World
                 _enemies.Add(new Sleepers(_nextEnemyId++) { LineDistance = f.Start, Height = 0.2 });
     }
 
+    /// <summary>Tonight's run (departure, facilities, terminus, dawn), when playing a route.</summary>
+    public Run.Run? Run { get; private set; }
+
+    /// <summary>Starts the run. The host steps it (<see cref="StepRun"/>); clients mirror it from records.</summary>
+    public void EnableRun(Run.RunTuning tuning, Route.Route route, double yardLength, bool authority)
+    {
+        Run = new Run.Run(tuning, route) { YardLength = yardLength };
+        Authority |= authority;
+    }
+
+    /// <summary>Host: advances the run after the world and damage are applied, with everyone's state.</summary>
+    public void StepRun(IReadOnlyCollection<PlayerState> crew)
+    {
+        if (Authority)
+            Run?.Step(this, crew, SimConstants.TickSeconds);
+    }
+
     /// <summary>Puts an enemy into the world directly (tests, the editor, scripted set pieces). Host only.</summary>
     public T AddEnemy<T>(Func<int, T> make) where T : Enemy
     {
@@ -91,6 +108,8 @@ public sealed class World
     public void CrewAct(ref PlayerState s, in PlayerIntent intent, int playerId, uint? viewTick = null)
     {
         PlayerMotor.Look(ref s, intent);
+        if (Authority && Run is { } run)
+            run.CrewAct(s, intent, playerId, Train);
         CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds);
         var targets = viewTick is { } vt && _targetHistory.TryGetValue(vt, out var then) ? then : Targets;
         if (Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
