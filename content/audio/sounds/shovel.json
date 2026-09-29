@@ -1,0 +1,9 @@
+// Player action (tier 4): a shovel of coal into the firebox: scrape, then the clang of the door.
+{
+  "tier": 4, "duration": 0.9, "maxInstances": 2, "minDistance": 2, "maxDistance": 40,
+  "layers": [
+    { "source": "noise", "gain": 0.35, "filters": [{ "type": "bandPass", "frequency": 1600, "q": 2 }], "envelope": [[0, 0], [0.05, 1], [0.35, 0.6], [0.45, 0]] },
+    { "source": "impulse", "frequency": 1.1, "gain": 0.9, "delay": 0.5,
+      "filters": [{ "type": "bandPass", "frequency": 640, "q": 14 }, { "type": "bandPass", "frequency": 1470, "q": 10 }], "envelope": [[0, 1], [0.35, 0]] }
+  ]
+}

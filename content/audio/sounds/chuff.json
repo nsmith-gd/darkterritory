@@ -1,0 +1,14 @@
+// Train bed: exhaust chuffs, four per driving-wheel turn (1.7 m wheels: 0.75 beats per m/s), louder with
+// the regulator open. Rod clank rides the same tempo (spec A.2: "tempo-locked").
+{
+  "tier": 5, "loop": true, "maxInstances": 1, "minDistance": 4, "maxDistance": 220,
+  "crush": { "bits": 10, "rate": 22050 },
+  "layers": [
+    { "source": "noise", "gain": { "param": "throttle", "points": [[0, 0.04], [1, 0.55]] },
+      "filters": [{ "type": "bandPass", "frequency": 520, "q": 1.4 }],
+      "tremolo": { "rate": { "param": "speed", "points": [[0, 0], [22, 16.5]] }, "depth": 1, "duty": 0.32 } },
+    { "source": "impulse", "gain": { "param": "speed", "points": [[0, 0], [2, 0.5], [22, 0.9]] },
+      "frequency": { "param": "speed", "points": [[0, 0], [22, 8.2]] },
+      "filters": [{ "type": "bandPass", "frequency": 780, "q": 9 }, { "type": "bandPass", "frequency": 1150, "q": 6 }] }
+  ]
+}

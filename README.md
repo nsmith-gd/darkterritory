@@ -17,8 +17,9 @@ dotnet run --project src/DarkTerritory.Cli -- train table
 ## Feel prototype
 ```bash
 dotnet run --project src/DarkTerritory.App                          # greybox test loop
-dotnet run --project src/DarkTerritory.App -- --route frontier:7     # a generated night: fortress to terminus before dawn
+dotnet run --project src/DarkTerritory.App -- --route frontier:7     # a generated night: fortress to terminus before dawn, enemies and all
 ```
+Add `--no-enemies` for a quiet line, `--mute` for no sound.
 | Input | Action |
 |---|---|
 | Mouse · WASD · Shift · Space | Look · move · run · jump |
@@ -31,4 +32,6 @@ dotnet run --project src/DarkTerritory.App -- --route frontier:7     # a generat
 | Tab | Chase camera |
 | Esc | Release mouse, then quit |
 
-Speed, speed band, controls, grade and your state are shown in the window title. Edit `content/tuning/*.json` while it runs and the changes apply immediately.
+Speed, speed band, controls, grade, your state and text cues for enemy telegraphs are shown in the window title. Edit `content/tuning/*.json` or `content/audio/**/*.json` while it runs and the changes apply immediately.
+
+Sound is synthesised from `content/audio/sounds/*.json`. `dt audio render --scenario chaos --listener all` measures every telegraph against the train in the worst mix. Drop `--listener all` for a WAV and a spectrogram of one listener.

@@ -31,8 +31,19 @@ jobs:
       - name: Prototype window smoke test (Xvfb + lavapipe)
         if: runner.os == 'Linux'
         run: xvfb-run -a -s "-screen 0 1280x720x24" dotnet run --project src/DarkTerritory.App -c Release --no-build -- --route frontier:7 --throttle 1 --quit-after 10 --capture out/shots/app.png
+      - name: Audio renders (spec A.3 tell audit)
+        if: runner.os == 'Linux'
+        run: |
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- audio render --scenario chaos --listener 19 --out out/audio/chaos-guard.wav
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- audio render --scenario tells --listener 0 --out out/audio/tells-cab.wav
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- audio render --scenario bed --listener 5 --out out/audio/bed-roof.wav
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Linux'
         with:
           name: screenshots
           path: out/shots/
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with:
+          name: audio
+          path: out/audio/

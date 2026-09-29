@@ -1,0 +1,8 @@
+// Critical train state (tier 3): the safety valve lifting at the redline. Deafening, and a free warning.
+{
+  "tier": 3, "loop": true, "maxInstances": 1, "minDistance": 4, "maxDistance": 250,
+  "layers": [
+    { "source": "noise", "gain": 0.12, "filters": [{ "type": "highPass", "frequency": 2800 }, { "type": "peak", "frequency": 4800, "q": 1, "gainDb": 6 }],
+      "envelope": [[0, 0], [0.25, 1]] }
+  ]
+}

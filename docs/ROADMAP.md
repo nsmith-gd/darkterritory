@@ -29,6 +29,9 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
   - The pressure director follows App. B.1.
   - Greybox stand-ins for each: `dt screenshot --threats`.
   - `dt harness --route frontier:7 --enemies` plays a whole night with bots and reports pacing, punishes, deaths by cause and fairness violations.
+- **Audio (M5's "audio mixer + tier ducking"):**
+  - A synthesised train bed, slack action, and the five demo tells, all from data, through a tiered mixer.
+  - `dt audio render` produces a WAV plus a spectrogram. `AudioTests` holds spec A.3's "tier 1 is inviolable" in maximum chaos.
 
 **M1 (feel prototype):** playable. `dotnet run --project src/DarkTerritory.App`. Rail line model, train on the line with mass-weighted grade, moving car frames, first-person motor (roof and ground speeds, gap jumps, ladders, lethal jump-off), Vulkan greybox renderer with a pixelated low-res look, headless screenshots. Waiting on the director to answer spec G.1 and G.2. Not in M1 yet: Jolt crates.
 

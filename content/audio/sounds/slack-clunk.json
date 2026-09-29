@@ -1,0 +1,12 @@
+// Slack action (spec A.2: "the highest-value single sound in the game"): one per coupling, fired down the
+// consist with a delay each, whenever the train's acceleration changes.
+{
+  "tier": 5, "duration": 0.45, "maxInstances": 24, "minDistance": 3, "maxDistance": 180,
+  "layers": [
+    { "source": "impulse", "frequency": 2.2, "gain": 1.6,
+      "filters": [{ "type": "bandPass", "frequency": 140, "q": 5 }, { "type": "bandPass", "frequency": 310, "q": 3 }],
+      "envelope": [[0, 1], [0.35, 0]] },
+    { "source": "noise", "gain": 0.25, "filters": [{ "type": "bandPass", "frequency": 700, "q": 2 }],
+      "envelope": [[0, 1], [0.06, 0.2], [0.2, 0]] }
+  ]
+}

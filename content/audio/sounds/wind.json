@@ -1,0 +1,9 @@
+// Ambient (tier 6): wind, exterior only, with speed (spec A.2).
+{
+  "tier": 6, "loop": true, "flat": true, "maxInstances": 1,
+  "layers": [
+    { "source": "noise", "gain": { "param": "wind", "points": [[0, 0], [22, 0.22]] },
+      "filters": [{ "type": "lowPass", "frequency": 650 }, { "type": "peak", "frequency": 240, "q": 0.8, "gainDb": 5 }],
+      "tremolo": { "rate": 0.35, "depth": 0.5, "jitter": 0.6 } }
+  ]
+}

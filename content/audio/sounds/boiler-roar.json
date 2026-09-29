@@ -1,0 +1,11 @@
+// Train bed (spec A.2): boiler roar, driven by pressure and the fire. Low and wide: it's the floor.
+{
+  "tier": 5, "loop": true, "maxInstances": 1, "minDistance": 4, "maxDistance": 160,
+  "crush": { "bits": 10, "rate": 22050 },
+  "layers": [
+    { "source": "noise", "gain": { "param": "pressure", "points": [[0, 0.05], [95, 0.5]] },
+      "filters": [{ "type": "lowPass", "frequency": { "param": "fire", "points": [[0, 180], [1, 420]] }, "q": 0.7 },
+                  { "type": "peak", "frequency": 110, "q": 1.2, "gainDb": 6 }],
+      "tremolo": { "rate": 0.7, "depth": 0.25, "jitter": 0.4 } }
+  ]
+}

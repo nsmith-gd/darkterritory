@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Pure C# mixer and synthesis: no devices, so it renders offline in tests and the harness (ARCHITECTURE §6.4). -->
+  <PropertyGroup>
+    <RootNamespace>Ballast.Audio</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Ballast.Core/Ballast.Core.csproj" />
+  </ItemGroup>
+</Project>
