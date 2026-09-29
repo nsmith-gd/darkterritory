@@ -92,7 +92,24 @@ static class LineGenCommands
         for (int i = 0; i < 50000; i++)
             foreach (var car in train.Cars)
                 k += line.Sample(-1, car.FrontDistance - i % 100).Curvature;
-        return new { stepMs = step, samplesMs = clock.Elapsed.TotalMilliseconds, k };
+        double samples = clock.Elapsed.TotalMilliseconds;
+        // §17.5: the terrain, as the art and the players' ground ask for it, and a whole tile.
+        var terrain = ((PlanConditions)line.Conditions!).Terrain;
+        clock.Restart();
+        double h = 0;
+        for (int i = 0; i < 20000; i++)
+        {
+            var t = line.Sample(1500 + i * 0.9);
+            h += terrain.Height(t.Position.X + (i % 41 - 20) * 3, t.Position.Z + (i % 37 - 18) * 3);
+        }
+        double heightUs = clock.Elapsed.TotalMilliseconds * 1000 / 20000;
+        clock.Restart();
+        var at = line.Sample(6000).Position;
+        var (tx, tz) = terrain.TileOf(at.X, at.Z);
+        for (int i = 0; i < 3; i++)
+            h += terrain.TileHeights(tx + i, tz)[0];
+        double tileMs = clock.Elapsed.TotalMilliseconds / 3;
+        return new { stepMs = step, samplesMs = samples, k, heightUs, tileMs, h };
     }
 
     /// <summary>

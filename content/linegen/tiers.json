@@ -160,6 +160,16 @@
   "director": {
     "preGradeM": [400, 900], "tunnelExitM": 200, "nearFacilityM": 800, "greaseWetCold": 2, "greasePerKm": 0.12, "greaseLengthM": [40, 150],
     "sleeperZonesPerKm": 0.15, "sleeperLengthM": 20, "pressureStepM": 50, "deadSettlementNearFacilityM": 2000,
+    // §15.1 read by the director: under a tag, each enemy's weight is multiplied by these (Cinder Hounds gain on grades,
+    // Clingers pair with a long climb, the Soot Children by dead towns and facilities, the Switchman at junctions); no
+    // spawns at all under spawnBans; and it holds its own spikes while the terrain pressure (§15.4, the stacked cost of
+    // the pieces at a point) is at or over pressureCeiling.
+    "affinity": {
+      "climb": { "cinderHound": 1.5 }, "climb_long": { "cinderHound": 2, "clinger": 2 }, "pre_grade": { "cinderHound": 1.3 },
+      "dead_settlement": { "sootChildren": 2 }, "near_facility": { "sootChildren": 1.5 }, "junction": { "switchman": 2 }
+    },
+    "spawnBans": ["grace", "terminus_safe"],
+    "pressureCeiling": 2.5,
     "quotas": {
       "local":         { "tags": { "straight_long": 1, "climb": 1, "forest_or_open": 1 }, "facingJunctions": 0, "deadLines": 0, "tunnels": 0, "deadSettlementNearFacility": 0 },
       "frontier":      { "tags": { "climb_long": 1, "marsh_or_water": 1 }, "facingJunctions": 3, "deadLines": 0, "tunnels": 0, "deadSettlementNearFacility": 1 },

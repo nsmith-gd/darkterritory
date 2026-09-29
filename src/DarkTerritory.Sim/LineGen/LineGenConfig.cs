@@ -171,7 +171,7 @@ public sealed record WeatherRules(double FogLowGround, double FogCrest, double W
 /// <summary>§15.</summary>
 public sealed record DirectorRules(double[] PreGradeM, double TunnelExitM, double NearFacilityM, double GreaseWetCold, double GreasePerKm,
     double[] GreaseLengthM, double SleeperZonesPerKm, double SleeperLengthM, Dictionary<string, QuotaRow> Quotas, double PressureStepM,
-    double DeadSettlementNearFacilityM);
+    double DeadSettlementNearFacilityM, Dictionary<string, Dictionary<string, double>> Affinity, string[] SpawnBans, double PressureCeiling);
 
 /// <summary>§15.3: affordances a run must contain, by tier (each tier inherits the ones before it).</summary>
 public sealed record QuotaRow(Dictionary<string, int> Tags, int FacingJunctions, int DeadLines, int Tunnels, int DeadSettlementNearFacility);

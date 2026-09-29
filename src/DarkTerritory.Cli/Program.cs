@@ -815,6 +815,14 @@ static object HudShot(string content, string[] args)
     }
     var hud = new Overlay();
     Hud.Build(hud, width, height, session);
+    // --card: the generated line's route card over it; --overlay: the designer's overlay (linegen plan §9.7, §20.2).
+    if (session.Route?.Plan is { } plan)
+    {
+        if (args.Contains("--card"))
+            DarkTerritory.Game.LineGen.PlanHud.RouteCard(hud, width, height, plan, (int)Opt(args, "--page", 0));
+        if (args.Contains("--overlay"))
+            DarkTerritory.Game.LineGen.PlanHud.Overlay(hud, width, height, session, plan);
+    }
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, hud);
     PngWriter.Write(output, pixels, width, height, scale);
     return new { path = Path.GetFullPath(output), prompt = Hud.Prompt(session), quads = hud.Count / 6, status = session.Status() };

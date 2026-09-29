@@ -152,7 +152,14 @@ sealed partial class LineBuilder
             Pads = _pads,
             Biomes = [.. _biomes.Select(b => new PlanBiome("main", Math.Round(b.S0, 1), Math.Round(Math.Min(b.S1, line.Length), 1), b.Biome))],
             Exposure = _exposure,
-            Director = new PlanDirector(_tags, _sleeperZones, _greaseZones, new PlanPressure(_t.Director.PressureStepM, _pressure), _sleepers, _grease),
+            Director = new PlanDirector(_tags, _sleeperZones, _greaseZones, new PlanPressure(_t.Director.PressureStepM, _pressure), _sleepers, _grease)
+            {
+                Affinity = new SortedDictionary<string, IReadOnlyDictionary<string, double>>(
+                    _t.Director.Affinity.ToDictionary(a => a.Key, a => (IReadOnlyDictionary<string, double>)new SortedDictionary<string, double>(a.Value, StringComparer.Ordinal)),
+                    StringComparer.Ordinal),
+                SpawnBans = _t.Director.SpawnBans,
+                PressureCeiling = _t.Director.PressureCeiling,
+            },
             RouteCard = new PlanRouteCard(_routeName, _timetable, _form19, _knownGrades, Math.Round(_dawn), _l.LineSpeed),
             Markers = _markers,
             Fortress = _fortress ?? new PlanFortress("", "", _departureRoad, _innerGate, _gate, 0, []),

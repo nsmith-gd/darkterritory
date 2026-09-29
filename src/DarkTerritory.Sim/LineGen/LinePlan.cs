@@ -172,7 +172,21 @@ public sealed record PlanTag(string Tag, string Edge, double S0, double S1);
 public sealed record PlanZone(string Edge, double S0, double S1);
 public sealed record PlanPressure(double StepM, IReadOnlyList<double> Values);
 public sealed record PlanDirector(IReadOnlyList<PlanTag> Tags, IReadOnlyList<PlanZone> SleeperZones, IReadOnlyList<PlanZone> GreaseZones, PlanPressure Pressure,
-    IReadOnlyList<PlanZone> SleeperPlaced, IReadOnlyList<PlanZone> GreasePlaced);
+    IReadOnlyList<PlanZone> SleeperPlaced, IReadOnlyList<PlanZone> GreasePlaced)
+{
+    /// <summary>§15.1 as the director reads it: under a tag, an enemy's weight (by its content name) is multiplied by this.</summary>
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> Affinity { get; init; } = new Dictionary<string, IReadOnlyDictionary<string, double>>();
+    /// <summary>Tags under which nothing spawns (the grace stretch, the terminus's safety).</summary>
+    public IReadOnlyList<string> SpawnBans { get; init; } = [];
+    /// <summary>§15.4: the director holds its own spikes while the terrain pressure is at or over this.</summary>
+    public double PressureCeiling { get; init; } = double.PositiveInfinity;
+
+    /// <summary>The terrain pressure at a main-line distance.</summary>
+    public double PressureAt(double s) => Pressure.Values.Count == 0 ? 0 : Pressure.Values[Math.Clamp((int)(s / Pressure.StepM), 0, Pressure.Values.Count - 1)];
+
+    /// <summary>The tags over a main-line distance.</summary>
+    public IEnumerable<string> TagsAt(double s) => Tags.Where(t => t.Edge == "main" && s >= t.S0 && s <= t.S1).Select(t => t.Tag);
+}
 
 /// <summary>A line of paperwork (§9.7). Km as counted from the outer gate.</summary>
 public sealed record CardLine(string Kind, double Km, string Text, double? KmTo = null);

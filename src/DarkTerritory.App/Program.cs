@@ -368,6 +368,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var vrHud = locomotion is null ? null : new VrPanel(locomotion.Tuning.Hud);
     var vrOverlay = new Overlay();
     bool showHud = settings.Hud && !args.Contains("--no-hud");
+    // The card's side showing (C turns it over, and puts it away after the last); -1 put away.
+    int cardPage = args.Contains("--card") ? 0 : -1, cardPages = 1;
+    bool showPlan = args.Contains("--overlay");
+    // --ride (linegen plan §20.2): the train drives itself by the line's authority, the camera outside, for looking a
+    // generated line over in minutes.
+    bool ride = args.Contains("--ride");
     var scene = new GreyboxScene
     {
         Look = look,
@@ -383,7 +389,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     double pendingYaw = 0, pendingPitch = 0;
     int pendingNotch = 0;
     bool pendingReverser = false;
-    bool chase = false;
+    bool chase = ride;
     double sensitivity = 0.0025 * settings.MouseSpeed;
     Camera camera = default;
     FrameLighting lighting = default;
@@ -419,10 +425,15 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             for (var k = Key.D1; k <= Key.D9; k++)
                 if (input.Pressed(k)) proto.Respawn(k - Key.D1 + 1);
             proto.Controls.Brake = input.Down(Key.B) ? 1 : 0;
+            if (ride && session.Route?.Plan is { } ridden)
+                DarkTerritory.Game.LineGen.Ride.Drive(proto.Train, ridden, ref proto.Controls);
         }
         if (input.Pressed(Key.Tab)) chase = !chase;
         if (input.Pressed(Key.F1)) showHud = !showHud;
         if (input.Pressed(Key.F2)) net?.ShowInviteDialog();
+        // A generated line's route card (C: the paper the crew is handed) and the designer's overlay (F3).
+        if (input.Pressed(Key.C)) cardPage = cardPage + 1 >= cardPages ? -1 : cardPage + 1;
+        if (input.Pressed(Key.F3)) showPlan = !showPlan;
         // An invite accepted (or "Join Game" on a friend) while playing: leave this game for theirs.
         if (Invited(net) is { } invitedTo)
         {
@@ -521,6 +532,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (showHud)
         {
             Hud.Build(overlay, renderer.Width, renderer.Height, session);
+            if (session.Route?.Plan is { } shown)
+            {
+                if (cardPage >= 0)
+                    cardPages = DarkTerritory.Game.LineGen.PlanHud.RouteCard(overlay, renderer.Width, renderer.Height, shown, cardPage);
+                if (showPlan)
+                    DarkTerritory.Game.LineGen.PlanHud.Overlay(overlay, renderer.Width, renderer.Height, session, shown);
+            }
             if (session.World.Run?.Over == true)
                 overlay.TextCentred(renderer.Width / 2f, renderer.Height - 22, campaign is not null ? "ENTER: BACK TO THE FORTRESS" : "ENTER: BACK", new Vector4(1, 0.7f, 0.3f, 1));
         }

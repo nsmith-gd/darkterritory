@@ -10,6 +10,12 @@ namespace DarkTerritory.Sim.LineGen;
 /// </summary>
 sealed partial class LineBuilder
 {
+    /// <summary>
+    /// A speed as the boards and the paper give it: km/h, as the cab's speedometer reads (the HUD's), down to the five
+    /// below so a crew holding the figure is always within the limit.
+    /// </summary>
+    static string Kmh(double ms) => $"{Math.Max(5, Math.Floor(ms * 3.6 / 5) * 5):0}";
+
     void LaySignage()
     {
         _signs.Clear();
@@ -58,17 +64,17 @@ sealed partial class LineBuilder
                     {
                         var limit = _limits.First(l => l.Edge == d.Edge && Math.Abs(l.S0 - d.SReq) < 1);
                         bool paper = _l.Redundancy >= 2;
-                        Sign("speedBoard", d.Edge, board, $"{d.VReq:0}", true, d.VReq, d.Id, ref rng);
+                        Sign("speedBoard", d.Edge, board, Kmh(d.VReq), true, d.VReq, d.Id, ref rng);
                         if (_l.Redundancy >= 3)
-                            Sign("speedBoard", d.Edge, board - _c.Config.Signage.RepeatBoardGapM, $"{d.VReq:0}", false, d.VReq, d.Id, ref rng);
-                        Sign("resumeBoard", d.Edge, limit.S1, $"{Communicated(d.Edge, limit.S1 + 5):0}", false, Communicated(d.Edge, limit.S1 + 5), d.Id, ref rng);
+                            Sign("speedBoard", d.Edge, board - _c.Config.Signage.RepeatBoardGapM, Kmh(d.VReq), false, d.VReq, d.Id, ref rng);
+                        Sign("resumeBoard", d.Edge, limit.S1, Kmh(Communicated(d.Edge, limit.S1 + 5)), false, Communicated(d.Edge, limit.S1 + 5), d.Id, ref rng);
                         if (d.Type == DemandType.WeakBridge && _structures.FirstOrDefault(s => s.Edge == d.Edge && Math.Abs(s.S0 - d.SReq) < 1) is { Weak: { } weak } bridge)
                         {
                             Sign("bridgeLimit", d.Edge, board + 5, $"MAX {weak.MaxCars} CARS", true, weak.MaxCars, d.Id, ref rng);
-                            _form19.Add(new CardLine("bridge", Card(d.Edge, d.SReq), $"{bridge.Name}: max {weak.MaxCars} cars, {weak.SpeedMs:0} m/s"));
+                            _form19.Add(new CardLine("bridge", Card(d.Edge, d.SReq), $"{bridge.Name}: max {weak.MaxCars} cars, {Kmh(weak.SpeedMs)} km/h"));
                         }
                         else if (paper)
-                            _form19.Add(new CardLine("limit", Card(d.Edge, d.SReq), $"{d.VReq:0} m/s at km {km} ({limit.Why})", Card(d.Edge, limit.S1)));
+                            _form19.Add(new CardLine("limit", Card(d.Edge, d.SReq), $"{Kmh(d.VReq)} km/h at km {km} ({limit.Why})", Card(d.Edge, limit.S1)));
                         break;
                     }
                 case DemandType.Restricted:
@@ -81,7 +87,7 @@ sealed partial class LineBuilder
                             Sign("endRestricted", d.Edge, zone.S1, "END R", false, null, d.Id, ref rng);
                         }
                         if (_l.Redundancy >= 2 || !boardToo)
-                            _form19.Add(new CardLine("restricted", Card(d.Edge, zone.S0), $"Restricted speed {zone.VMs:0} m/s, km {Card(d.Edge, zone.S0):0.0} to {Card(d.Edge, zone.S1):0.0} ({zone.Reason})", Card(d.Edge, zone.S1)));
+                            _form19.Add(new CardLine("restricted", Card(d.Edge, zone.S0), $"Restricted speed {Kmh(zone.VMs)} km/h, km {Card(d.Edge, zone.S0):0.0} to {Card(d.Edge, zone.S1):0.0} ({zone.Reason})", Card(d.Edge, zone.S1)));
                         break;
                     }
                 case DemandType.FacilityStop:
@@ -190,7 +196,7 @@ sealed partial class LineBuilder
         foreach (var p in Main.Items.SelectMany(i => i.All()).Where(i => i.Kind == "momentum"))
             _form19.Add(new CardLine("momentum", Card("main", p.S0), $"Momentum bank km {Card("main", p.S0 + p.Params["runUpM"]):0.0}: {p.Params["grade"]:0.0}% for {p.Params["bankM"]:0} m, take it at line speed"));
         _form19.Sort((a, b) => a.Km.CompareTo(b.Km));
-        _knownGrades.Add(new KnownGrade("main line", Math.Round(Ruling(_line!), 2), Math.Round((_terminus - _gate) / 1000, 1), true, $"line speed {_l.LineSpeed:0} m/s"));
+        _knownGrades.Add(new KnownGrade("main line", Math.Round(Ruling(_line!), 2), Math.Round((_terminus - _gate) / 1000, 1), true, $"line speed {Kmh(_l.LineSpeed)} km/h"));
         foreach (var w in _alts)
         {
             // The validator's verdict on it for the train that's leaving (§8.4: the route card must show a side it can't take).

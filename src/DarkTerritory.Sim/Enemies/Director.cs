@@ -57,6 +57,9 @@ public sealed class Director
         _ => "sleepers",
     }, 2);
 
+    /// <summary>An enemy's name as a generated line's affinity table has it (linegen/tiers.json): its kind, camel-cased.</summary>
+    static string Name(EnemyKind kind) => kind.ToString() is var n ? char.ToLowerInvariant(n[0]) + n[1..] : "";
+
     /// <summary>How much of the budget may have been spent by this point along the line.</summary>
     public double Allowance(double distance)
     {
@@ -123,6 +126,19 @@ public sealed class Director
             && SootChildren.Choose(world, st.SootChildren, world.CrewThisTick) is not null)
             options.Add((EnemyKind.SootChildren, 1 + world.CrewThisTick.Count(c => c.State.Alive && PlayerMotor.Space(c.State, train) == PlayerMotor.Outside)));
         options.RemoveAll(o => Cost(o.Kind) > available);
+        // A generated line's director context (linegen plan §15): no spawns under a ban (the grace stretch, the
+        // terminus), none of its own while the terrain is already at its hardest there (§15.4), and under the terrain's
+        // tags the enemies that belong there come more often (§15.1).
+        if (_route?.Plan?.Director is { } context)
+        {
+            var tags = context.TagsAt(s).ToList();
+            if (tags.Any(context.SpawnBans.Contains) || context.PressureAt(s) >= context.PressureCeiling)
+                return null;
+            for (int i = 0; i < options.Count; i++)
+                foreach (var tag in tags)
+                    if (context.Affinity.GetValueOrDefault(tag)?.GetValueOrDefault(Name(options[i].Kind)) is { } w)
+                        options[i] = (options[i].Kind, options[i].Weight * w);
+        }
         if (options.Count == 0)
             return null;
 
