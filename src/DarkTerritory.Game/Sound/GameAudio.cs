@@ -238,6 +238,15 @@ public sealed class GameAudio
                         s.Loop.Occlusion = occlusion;
                     }
                     break;
+                case EnemyKind.LongWhistle when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit:
+                    // A blast each time it sounds again (App. A.2's escalation), each louder than the last, from up the line
+                    // ahead. Out in the open: a car's walls muffle it like anything else outside.
+                    if (e.Extra > s.Next)
+                    {
+                        s.Next = e.Extra;
+                        Mixer.Play("long-whistle", at, (float)Math.Min(1, 0.6 + 0.2 * (e.Extra - 1)))?.Also(v => v.Occlusion = occlusion);
+                    }
+                    break;
                 case EnemyKind.Hollow when e.Phase is SpinePhase.Telegraph or SpinePhase.Punish:
                     s.Loop ??= Mixer.Play("hollow-gutter", at);
                     if (s.Loop is not null)

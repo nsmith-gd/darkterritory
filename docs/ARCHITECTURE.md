@@ -1199,7 +1199,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Slowing:** it comes down the line at 5 m/s and boards the engine. It strikes whoever is in the cab (100: a life; if the cab is empty, the nearest crew within 20 m) and is gone. It can't be shot ("entirely defeated by doing nothing").
     - **Ambiguity: "long straight with clear sightline".** Read as its gate, `Ferryman.ClearAhead`: from the engine to 100 m past where it stands, no curve tighter than 1500 m and no grade over 1 %. Nothing else on that stretch may give the crew a reason to slow: Sleepers, Grease, a tunnel, a facility, or the end of the line within 600 m past it. Otherwise the rule contradicts "watch the road" with no way to satisfy both, and that isn't the kind of contradiction the conflict table seeds.
     - The other B.2 gates: Frontier and beyond, the back 60 % of the route ("mid-to-late"), once per run (the director's own log), a lamp that isn't smashed ("functioning forward lamp"), and a train coming on at 8 m/s or more.
-    - **Not modelled yet:** B.2's "weight up if crew has braked for a false positive earlier". That wants the Long Whistle (T57), whose false horn is the false positive.
+    - B.2's "weight up if crew has braked for a false positive earlier": ×2 once a crew has braked hard for the Long Whistle's horn (T57, note 62).
     - **The driver bot** holds the fastest speed it has come at a waving lantern, with the lamp down or not. That is the Lamplighters + Ferryman bind: with the lamps down, the lantern is its own light.
     - **Art:** the Switchman's railwayman, drawn taller, swinging the lantern hard while it waves; the lantern is a point light. The greybox has its own figure. `dt screenshot --threats` shows one on the line ahead.
     - **Verified:** `FerrymanTests` (10) cover:
@@ -1213,3 +1213,26 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - none with Sleepers ahead, on a Local line, with the lamp smashed, or with the train crawling;
       - a client sees it;
       - the driver bot holds its speed past it with the lamp down.
+62. **The Long Whistle (T57, App. A.2 and B.2; GDD: "sounds a horn on the line ahead. There is no train ahead. RULE: don't trust the horn").** `EnemyKind.LongWhistle`, cost 3, tuned in `enemies.json` `longWhistle`.
+    - **Never seen.** It sits at a point up the line: 60 m short of the first curve tighter than 1200 m, or grade of 1 % or more, 400-900 m ahead (B.2's "immediately before a grade or curve so braking is worst"). With no such point in that window, there's no Long Whistle.
+    - **The horn is the telegraph** (spec A.4: 200-800 Hz, wrong pitch, no doppler), `content/audio/sounds/long-whistle.json`:
+      - a three-chime locomotive horn whose middle chime is a quarter-tone flat, so it beats, with a sag at the end of each blast;
+      - the mixer has no doppler, and the horn doesn't fake one: a real horn ahead would bend as you closed on it;
+      - 25 dB over the bed at the cab in the chaos bench. An early 35 dB would have masked the other tells while it sounded, so it came down.
+    - **"If ignored → escalates twice, then abandons":** a blast every 9 s, each louder, three in all, then gone. It's also gone once the train reaches its point.
+    - **Ambiguity: "if crew brakes hard".** Read as the train 4 m/s slower than the fastest it came at the horn. That commits (after App. A.1's window, as always). A stop below 0.5 m/s is its punish: "the stop itself is the punishment". It deals no damage; whatever else is about does the killing. Picked up again and not stopped within 45 s, it's gone.
+    - **Never alone.** App. A.8: "the harness must enforce a co-spawn requirement". The director only offers it with another active threat (not Sleepers, which are level content) within 1500 m of the engine, B.2's "≥1 other active lineside threat in region". `LongWhistleTests` pins it.
+    - Frontier and beyond, one at a time, ×2 weight in fog (a route's fog density of 0.02 or more).
+    - **Braking for it** sets `World.BrakedForFalseAlarm`, which weights the Ferryman ×2 (B.2).
+    - **Seen and heard past the interest radius (§6.2):** `Enemy.Far`. The Long Whistle's horn carries 1.5 km, and the Ferryman's lantern is seen from 1.2 km, but interest management drops enemies past 520 m. So these two go to every client wherever they are, as the Choir's voice does. `AudioTests` exempts the horn from the "sent as far as it's heard" check for that reason.
+    - **Bots** ignore it, which is the rule. The driver bot doesn't brake for horns.
+    - **Verified:** `LongWhistleTests` (8):
+      - it sounds from just short of the bend, and nowhere on a straight;
+      - ignored, it escalates twice and abandons;
+      - braking hard for it makes the stop the punishment;
+      - braking at the first blast still gets the window;
+      - it's gone once the train reaches its point;
+      - the director never sends it alone;
+      - it's sent to every client;
+      - braking for it weights the Ferryman up.
+    - `AudioTests` holds the horn over the bed with every other tell still clear, and `CreatureArtTests` has it drawn as nothing.

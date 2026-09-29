@@ -993,6 +993,8 @@ public sealed class Ferryman(int id) : Enemy(id)
     /// <summary>Waving the train down: the lantern swings while it lures.</summary>
     public bool Waving => Phase == SpinePhase.Telegraph;
     public bool Aboard => Attached == 0;
+    /// <summary>The lantern's seen from very far out: past the interest radius.</summary>
+    public override bool Far => Lantern;
     int Side => Extra2 < 0 ? -1 : 1;
 
     /// <summary>Up the line ahead of the engine at the lineside, on one side.</summary>
@@ -1080,6 +1082,115 @@ public sealed class Ferryman(int id) : Enemy(id)
                 Lateral += Math.Clamp(Side * t.StepAsideLateral - Lateral, -t.StepSpeed * dt, t.StepSpeed * dt);
                 if (LineDistance < train.Dynamics.RearDistance - t.LoseBehind || PhaseSeconds >= t.LingerSeconds)
                     Enter(ctx, SpinePhase.Gone);
+                break;
+            default:
+                Enter(ctx, SpinePhase.Gone);
+                break;
+        }
+    }
+}
+
+/// <summary>
+/// THE LONG WHISTLE · sound · forward (App. A.2). "Sounds a horn on the line ahead. There is no train ahead." Hidden, never
+/// seen, from a point up the line just short of a grade or a curve, it sounds an authentic locomotive horn, again and
+/// louder (the telegraph: the horn doesn't doppler and its pitch is flawed). A crew that brakes hard for it has lost: "the
+/// stop itself is the punishment", on the worst stretch to stop on, with whatever else is about. Ignored, it escalates
+/// twice and abandons. It has no punish of its own and never comes alone (App. A.8). Rule: don't trust the horn.
+/// </summary>
+/// <remarks>
+/// Free on the line along the engine's path, at a fixed point. <see cref="Enemy.Extra"/> counts the blasts sounded (the
+/// audio plays one each time it goes up), <see cref="Enemy.Extra2"/> is the fastest the train has come at it.
+/// </remarks>
+public sealed class LongWhistle(int id) : Enemy(id)
+{
+    public override EnemyKind Kind => EnemyKind.LongWhistle;
+    public override PressureZone Zone => PressureZone.Forward;
+    public override Sense Sense => Sense.Sound;
+
+    public int Blasts => (int)Extra;
+    /// <summary>The horn carries far past the interest radius.</summary>
+    public override bool Far => true;
+
+    /// <summary>At a point up the line ahead.</summary>
+    public static LongWhistle At(int id, TrainOnLine train, double along) => new(id)
+    {
+        LineDistance = along,
+        Height = 3,
+        Extra2 = train.Dynamics.Speed,
+    };
+
+    /// <summary>
+    /// Where it sounds from (App. B.2): 400-900 m ahead, "immediately before a grade or curve so braking is worst". The
+    /// first place in that window where the line starts to curve or climb or fall, just short of it; null if there's none.
+    /// </summary>
+    public static double? Spot(TrainOnLine train, LongWhistleTuning t)
+    {
+        double front = train.Dynamics.Distance;
+        double end = Math.Min(front + t.AheadMax, train.Line.PathLength(train.Dynamics.Path) - t.ShortOf);
+        for (double s = front + t.AheadMin + t.ShortOf; s <= end; s += 10)
+        {
+            var at = train.Line.Sample(train.Dynamics.Path, s);
+            if (Math.Abs(at.Curvature) > 1 / t.CurveRadius || Math.Abs(at.GradePercent) >= t.GradePercent)
+                return s - t.ShortOf;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// App. B.2: "requires ≥1 other active lineside threat in region". Anything but Sleepers (level content) and other
+    /// Long Whistles that's out on the line or the train within the region of the engine: whatever does the killing.
+    /// </summary>
+    public static bool Company(World world, LongWhistleTuning t) =>
+        world.ActiveEnemies.Any(e => !e.Gone && e.Kind is not (EnemyKind.Sleepers or EnemyKind.LongWhistle)
+            && (e.WorldPosition(world.Train) - world.Train.Frames[0].Origin).Length <= t.Region);
+
+    protected override void Tick(EnemyContext ctx)
+    {
+        var t = ctx.Tuning.LongWhistle;
+        var train = ctx.Train;
+        double speed = train.Dynamics.Speed;
+        // The train's reached it (or gone by down another line): nothing ahead to sound from.
+        if (LineDistance <= train.Dynamics.Distance && Phase is SpinePhase.Dormant or SpinePhase.Telegraph)
+        {
+            Enter(ctx, SpinePhase.BreakOff);
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        switch (Phase)
+        {
+            case SpinePhase.Dormant:
+                Enter(ctx, SpinePhase.Telegraph);
+                Extra = 1; // the first blast
+                break;
+            case SpinePhase.Telegraph:
+                Extra2 = Math.Max(Extra2, speed);
+                if (Extra2 - speed >= t.HardBrake && Enter(ctx, SpinePhase.Commit))
+                {
+                    // The crew's braking for a train that isn't there: the false positive the Ferryman feeds on (App. B.2).
+                    ctx.World.BrakedForFalseAlarm = true;
+                    break;
+                }
+                // Ignored: louder, twice, then it abandons.
+                if (PhaseSeconds >= Blasts * t.BlastEvery)
+                {
+                    if (Blasts > t.Escalations)
+                    {
+                        Enter(ctx, SpinePhase.BreakOff);
+                        Enter(ctx, SpinePhase.Gone);
+                    }
+                    else
+                        Extra = Blasts + 1;
+                }
+                break;
+            case SpinePhase.Commit:
+                // The stop is the punishment. Picked up again short of a stand, it's had what it wanted all the same.
+                if (speed <= t.StoppedBelow)
+                    Enter(ctx, SpinePhase.Punish);
+                else if (PhaseSeconds >= t.CommitSeconds)
+                {
+                    Enter(ctx, SpinePhase.BreakOff);
+                    Enter(ctx, SpinePhase.Gone);
+                }
                 break;
             default:
                 Enter(ctx, SpinePhase.Gone);

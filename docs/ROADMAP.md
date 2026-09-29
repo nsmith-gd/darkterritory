@@ -125,6 +125,10 @@ M3 is done but for a test with eight people.
   - reaching it, they smash the lamp (out for 45 s) and go for the cab;
   - lamps down (L in the cab) and they lose track, but then the Sleepers only show close: the driver bot slows down in the dark;
   - `dt screenshot --threats` shows one.
+- **The Long Whistle (T57, App. A.2):**
+  - a horn on the line ahead, just short of a bend or a grade, and no train: the horn is out of tune and doesn't bend as you close;
+  - brake hard for it and the stop is the punishment; ignored, it sounds twice more and gives up;
+  - never alone (the director only sends it with another threat about), and a crew that braked for it draws the Ferryman.
 - **The Ferryman (T56, App. A.2):**
   - a lantern on a long straight ahead, waving the train down, seen from far out;
   - slow for it and it comes down the line, boards and kills whoever's driving; hold your speed and it steps aside for good;
