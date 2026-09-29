@@ -125,6 +125,10 @@ M3 is done but for a test with eight people.
   - reaching it, they smash the lamp (out for 45 s) and go for the cab;
   - lamps down (L in the cab) and they lose track, but then the Sleepers only show close: the driver bot slows down in the dark;
   - `dt screenshot --threats` shows one.
+- **The Gaunt (T60, App. A.4):**
+  - on the roofs at a stop or out of a tunnel: dead still while anyone's looking at it, and silent;
+  - unwatched it comes along the roofs and takes whoever's nearest; watched for a minute without a break, it goes;
+  - the roof-walking bots stop and watch it. `dt screenshot --threats` shows it.
 - **The Weight (T59, App. A.3):**
   - buried at a water crossing, it takes the rear coupling as the last car passes: the train lurches, and a deep scraping starts at the rear;
   - it drags harder than the engine can pull, and brought to a stand it pulls the car off the rails;

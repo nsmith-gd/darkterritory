@@ -490,6 +490,17 @@ public sealed class CreatureArt
                     };
                     return Draw(mesh, "crew", clip, t * speed, true, at, variant: 3, seed: 17, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.28f, 0.26f, 0.25f) });
                 }
+            case EnemyKind.Gaunt:
+                {
+                    // Too tall, too thin, standing on the roof (App. A.4): the Hollow's figure drawn out, and utterly still, a
+                    // pose held with no breath in it (one frame of its idle, never played). Striking, it reaches.
+                    if (!_models.ContainsKey("hollow"))
+                        return false;
+                    var at = Matrix4x4.CreateScale(0.78f, 1.32f, 0.78f) * model;
+                    bool striking = phase is SpinePhase.Commit or SpinePhase.Punish;
+                    return Draw(mesh, "hollow", striking ? "reach" : "idle", striking ? t : 0.35, !striking, at, seed: 31,
+                        adjust: (_, l) => l with { Colour = l.Colour * 0.55f });
+                }
             case EnemyKind.Weight:
                 {
                     // Buried beside the track until the rear car passes: nothing to see. Then under the rear coupling, below
@@ -531,6 +542,10 @@ public sealed class CreatureArt
             case EnemyKind.Clinger when e.Local.X < 0:
             case EnemyKind.SootChildren when e.Lateral < 0:
                 m = Matrix4x4.CreateRotationY(MathF.PI) * model;
+                break;
+            case EnemyKind.Gaunt:
+                // Facing whoever it's after (its car frame's yaw).
+                m = Matrix4x4.CreateRotationY((float)e.Extra2) * model;
                 break;
             case EnemyKind.Climber when e.Phase == SpinePhase.Telegraph:
                 // At the gap, facing in at the couplers.

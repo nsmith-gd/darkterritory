@@ -1315,3 +1315,25 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - the guns can't take it;
       - the director lays it at a water crossing ahead and nowhere else;
       - a client drags as the host does.
+65. **The Gaunt (T60, App. A.4 and B.4; GDD: "the cost is a person. Whoever watches it can do nothing else, and the train still needs running").** `EnemyKind.Gaunt`, cost 5 (App. B.1), tuned in `enemies.json` `gaunt`.
+    - **Ambiguity: "inside ANY player's view cone".** Read as: a living player, not shut in a car (walls), within 60 m, with the Gaunt's chest inside 35° of where they're looking, from 1.6 m eye height. No occlusion beyond the walls; the roofs are open. It's worked out on the host each tick (`Gaunt.Seen`). Clients just see it not moving.
+    - **FROZEN** while seen, not so much as a pose change: the art holds one frame of the Hollow's idle, never played.
+    - **ADVANCE** when unseen: along the roofs at 5 m/s toward the nearest living crew member on a roof, crossing the gaps car by car. There's no audio at all (spec A.4: silent by design), and no HUD text cue for it either.
+    - **REACH:** within 1.3 m of them, unseen, and past App. A.1's window from its arrival, it takes them (100, `DeathCause.Gaunt`) and is gone: "the cost is a person".
+    - **RETREAT:** seen without a break for 60 s. Any gap in the watching starts the minute again.
+    - **Director gates** (B.4):
+      - Frontier and beyond, once per run, a crew of three or more;
+      - "during a stop" (the train below 0.5 m/s) or "on tunnel exit" (the engine within 150 m past a tunnel's mouth);
+      - ×2 weight once the whole living crew has been shut in somewhere for three minutes;
+      - it's put on the roof of the car furthest from the crew.
+    - **Bots:** a roof walker within range stops and keeps its eyes on it (look deltas, as a player turns). A warm-up in progress goes on: the cold's a life too.
+    - **Art:** the Hollow's figure drawn out taller still (0.78 × 1.32), dark, facing whoever it's after (its facing replicates). The greybox has a figure. CI shot `threats-gaunt`.
+    - **Verified:** `GauntTests` (9):
+      - watched, it doesn't move;
+      - unwatched, it comes and takes them (after the window);
+      - watched for a minute, it withdraws;
+      - a glance away restarts the minute;
+      - someone shut in a car can't watch it;
+      - the director sends it once, at a stop or a tunnel's mouth, to a crew of three, and not on a Local line;
+      - a roof walker bot keeps its eyes on it until it goes;
+      - a client sees where it stands and which way it faces.
