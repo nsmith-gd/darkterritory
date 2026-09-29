@@ -25,7 +25,8 @@ public class PropArtTests
         {
             var mesh = props.Get(name);
             Assert.NotNull(mesh);
-            Assert.True(mesh!.Triangles > 100, $"{name}: {mesh.Triangles} triangles");
+            // Something there (a lever's handle is only a few dozen; a broken export is none).
+            Assert.True(mesh!.Triangles > 40, $"{name}: {mesh.Triangles} triangles");
             // Textured with its own maps, not the flat fallback; only pure light (a lamp's bare bulbs) is drawn flat.
             Assert.All(mesh.Vertices, v => Assert.True(v.Layer >= 0 || v.Emissive >= 0.99f, $"{name}: a vertex with no layer"));
             Assert.All(mesh.Vertices, v => Assert.True(float.IsFinite(v.Position.X + v.Position.Y + v.Position.Z)));
@@ -64,6 +65,14 @@ public class PropArtTests
                 // intake/README.md).
                 Assert.Contains(licence, new[] { "CC0-1.0", "CC-BY-4.0", "CC-BY-3.0", "LicenseRef-ThreeDScans" });
                 Assert.False(string.IsNullOrWhiteSpace(s.GetProperty("attribution").GetString()), $"{name}: no attribution");
+                // Either sourced (a pinned public commit) or modelled here: a recipe in this repository (its own work,
+                // CC0, alongside the pinned sources of the library layers it wore).
+                if (s.TryGetProperty("generator", out var generator))
+                {
+                    Assert.True(File.Exists(Path.Combine(Content, "..", generator.GetString()!)), $"{name}: no {generator}");
+                    Assert.Equal("CC0-1.0", licence);
+                    continue;
+                }
                 Assert.StartsWith("https://github.com/", s.GetProperty("repo").GetString());
                 Assert.Matches("^[0-9a-f]{40}$", s.GetProperty("commit").GetString()!);
             }
