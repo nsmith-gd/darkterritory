@@ -32,6 +32,7 @@ public class LookTests
         var mesh = new MeshBuilder();
         new GreyboxScene { Look = look, Time = 0.37 }.Build(mesh, train, camera.Position);
         using var renderer = new GreyboxRenderer(gpu, w, h);
+        look?.Dress(renderer);
         var lighting = Views.Lighting(train);
         return renderer.Render(mesh, camera, lighting, lighting.FogColor);
     }
@@ -72,11 +73,11 @@ public class LookTests
         Assert.Equal(0, Look.Material(Palette.FurnaceOrange).Wear);
         // Iron throws a harder specular than wood; paint and wood carry the most wear.
         Assert.True(Look.Material(Palette.IronGrey).Shine > Look.Material(Palette.DeepBrown).Shine);
-        Assert.True(Look.Material(Palette.RustRed).Wear >= 0.9f);
+        Assert.True(Look.Material(Palette.RustRed).Wear >= Look.Material(Palette.TarnishedBrass).Wear);
         // A tinted or dimmed colour takes its family's: a lamp dimmed to a glow in a Vigil is still clean.
         Assert.Equal(Look.Material(Palette.LampAmber), Look.Material(Palette.LampAmber * 0.08f));
         Assert.Equal(Look.Material(Palette.RustRed), Look.Material(Palette.RustRed * 0.9f));
-        Assert.Throws<InvalidDataException>(() => new Look(Look.Tuning with { Materials = new() { ["Mauve"] = new(1, 0) } }));
+        Assert.Throws<InvalidDataException>(() => new Look(Look.Tuning with { Materials = new() { ["Mauve"] = new() { Wear = 1 } } }));
     }
 
     [Fact]
@@ -87,8 +88,10 @@ public class LookTests
         var worn = Luma(Inside(gpu, Look, 1200));
         // GDD §27: grain, grime and staining where there was flat colour...
         Assert.True(Breakup(worn, 160) > Breakup(flat, 160) * 1.5, $"breakup {Breakup(worn, 160):0.00} vs flat {Breakup(flat, 160):0.00}");
-        // ...but still a readable room: darker for the soot, not a black hole (§32 wants it read fast).
-        Assert.InRange(Mean(worn), Mean(flat) * 0.6, Mean(flat) * 1.1);
+        // ...but still a readable room (§32 wants it read fast): not a black hole, and not washed out either. Since the art
+        // pass (ARCHITECTURE §8 note 48) the look's room is textured and lit per pixel, so it can be brighter than flat
+        // colour by its lamp; it mustn't be much brighter.
+        Assert.InRange(Mean(worn), Mean(flat) * 0.6, Mean(flat) * 1.6);
     }
 
     [Fact]

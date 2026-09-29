@@ -25,6 +25,7 @@ jobs:
       - run: dotnet build Ballast.slnx -c Release
       - run: dotnet test --solution Ballast.slnx -c Release --no-build
       - run: dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- train table
+      - run: dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- art check
       - name: Screenshots
         if: runner.os == 'Linux'
         run: |
@@ -43,6 +44,13 @@ jobs:
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --site --out out/shots/site-crates.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --coaling --cam 13008,7,5 --target 13024,-0.5,5 --fov 60 --out out/shots/coaling.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --bodies --cam 1146,2.5,6 --target 1141,0,4.1 --fov 60 --out out/shots/bodies.png
+          # The art pass (ARCHITECTURE §8 note 48): the set pieces, and kit pieces on the turntable.
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --at 18200 --cam 18150,-45,-8 --target 18260,0,-4 --fov 70 --out out/shots/viaduct.png
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --at 17200 --cam 17215,6,3 --target 17262,0,4 --fov 60 --out out/shots/tunnel.png
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --at 330 --cam 250,7,2.2 --target 330,5,2.5 --fov 65 --out out/shots/station.png
+          for p in engine car-steel guard portal viaduct-bay; do
+            dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- art show $p --out out/shots/art-$p.png
+          done
       - name: VR session end to end (Monado's simulated headset)
         if: runner.os == 'Linux'
         run: |

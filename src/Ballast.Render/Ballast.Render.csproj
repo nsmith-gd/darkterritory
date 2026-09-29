@@ -3,6 +3,7 @@
     <RootNamespace>Ballast.Render</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="StbImageSharp" Version="2.30.16" />
     <PackageReference Include="Vortice.Vulkan" Version="3.2.3" />
     <PackageReference Include="Vortice.ShaderCompiler" Version="1.9.0" />
   </ItemGroup>
@@ -14,7 +15,7 @@
   </ItemGroup>
   <ItemGroup>
     <!-- Shaders stay GLSL text in the repo and compile at startup: no binary blobs to regenerate. -->
-    <EmbeddedResource Include="Shaders/*.vert;Shaders/*.frag" LogicalName="Shaders/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Shaders/*.vert;Shaders/*.frag;Shaders/*.glsl" LogicalName="Shaders/%(Filename)%(Extension)" />
     <!-- Fonts are text too: glyphs drawn in '#' and '.'. -->
     <EmbeddedResource Include="Fonts/*.txt" LogicalName="Fonts/%(Filename)%(Extension)" />
   </ItemGroup>
