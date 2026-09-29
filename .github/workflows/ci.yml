@@ -42,7 +42,7 @@ jobs:
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route deadLines:8 --site --out out/shots/site-winch.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route deadLines:8 --site --crank --out out/shots/site-crank.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --site --out out/shots/site-crates.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:1 --coaling --cam 13764,7,5 --target 13780,-0.5,5 --fov 60 --out out/shots/coaling.png
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route deadLines:1 --coaling --cam 19464,7,5 --target 19480,-0.5,5 --fov 60 --out out/shots/coaling.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --bodies --cam 1146,2.5,6 --target 1141,0,4.1 --fov 60 --out out/shots/bodies.png
           # The art pass (ARCHITECTURE §8 note 48): the set pieces, and kit pieces on the turntable.
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --at 7600 --cam 7860,-45,-3 --target 7900,0,-2 --fov 75 --out out/shots/viaduct.png

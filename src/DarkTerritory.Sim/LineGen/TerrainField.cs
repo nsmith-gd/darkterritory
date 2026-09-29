@@ -368,6 +368,24 @@ public sealed class TerrainField
 
     public ulong TileChecksum(int tx, int tz) => Checksum(TileHeights(tx, tz));
 
+    /// <summary>
+    /// §17.3's safety net, cheaply: the land's heights at points spread down the main line and out to either side of it,
+    /// to the millimetre. Host and joiner compare it; if they differ, the joiner's ground (and so its players'
+    /// prediction) would, and it's refused rather than left to desync.
+    /// </summary>
+    public string Print(int points = 256)
+    {
+        var heights = new float[points];
+        for (int i = 0; i < points; i++)
+        {
+            var t = _main.Sample(_main.Length * (i + 0.5) / points);
+            double lateral = (i % 2 == 0 ? 1 : -1) * (5 + (i * 37 % 240));
+            double x = t.Position.X - t.Tangent.Z * lateral, z = t.Position.Z + t.Tangent.X * lateral;
+            heights[i] = (float)(Math.Round(Height(x, z) * 1000) / 1000);
+        }
+        return Checksum(heights).ToString("x16");
+    }
+
     /// <summary>The water planes (§12.4) near a point: the level of the one it's in, or null.</summary>
     public double? WaterAt(double x, double z)
     {

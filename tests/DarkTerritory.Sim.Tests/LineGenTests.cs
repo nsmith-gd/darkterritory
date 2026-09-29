@@ -126,6 +126,8 @@ public class LineGenTests
         }
         foreach (var (x, z) in tiles)
             Assert.Equal(a.TileChecksum(x, z), b.TileChecksum(x, z));
+        // And the fingerprint a joiner is checked by on the way in.
+        Assert.Equal(a.Print(), b.Print());
     }
 
     [Fact]

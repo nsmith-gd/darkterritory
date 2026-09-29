@@ -28,6 +28,8 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     public Sim.LineGen.LinePlan? Plan { get; init; }
     /// <summary>The host's line's fingerprint: a joiner whose own generated line differs (another generator version) is refused.</summary>
     public string? PlanPrint { get; init; }
+    /// <summary>The host's terrain's fingerprint (linegen plan §17.3): a joiner whose ground comes out differently is refused.</summary>
+    public string? TerrainPrint { get; init; }
 
     /// <summary>The night's tunings, with the upgrades applied.</summary>
     public Sim.Campaign.Loadout Loadout(string content)
@@ -178,7 +180,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var loadout = setup.Loadout(content);
         var trainTuning = loadout.Train;
         var (hostWorld, route) = setup.Build(content, authority: true);
-        setup = setup with { PlanPrint = route?.Plan?.Fingerprint() };
+        setup = setup with { PlanPrint = route?.Plan?.Fingerprint(), TerrainPrint = TerrainOf(hostWorld)?.Print() };
         if (resume is not null)
             Restore(hostWorld, resume);
         var udp = port is { } p ? UdpTransport.Host(p) : UdpTransport.Host(0, bind: IPAddress.Loopback);
@@ -210,6 +212,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         return new NetPlaySession(host, hostTransport, port is null ? null : udp, client, clientTransport, setup, route, lobby);
     }
+
+    static Sim.LineGen.TerrainField? TerrainOf(World world) => (world.Train.Line.Conditions as Sim.LineGen.PlanConditions)?.Terrain;
 
     static Sim.Campaign.RunCheckpoint Capture(World world, string route, int facility)
     {
@@ -323,6 +327,11 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         {
             transport.Dispose();
             throw new IOException("the host's night is on a line this build of the game doesn't generate (it was saved by another version): update to the host's version to join");
+        }
+        if (setup.TerrainPrint is { } ground && TerrainOf(world)?.Print() != ground)
+        {
+            transport.Dispose();
+            throw new IOException("the host's land comes out differently on this machine (its terrain checksum differs): report it, it's a bug");
         }
         var client = new ClientSession(new Replay(transport, early), world,
             setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)));

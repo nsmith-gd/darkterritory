@@ -132,26 +132,40 @@ sealed partial class LineBuilder
         int n = merged.Count;
         var into = new double[n]; // vertical curve length taken from the end of run i
         var outOf = new double[n]; // and from the start of run i+1... indexed by the later run
+        // What each change of grade wants of the runs either side: all of it from a soft run next to a hard one.
+        var wantInto = new double[n];
+        var wantOut = new double[n];
         for (int i = 0; i + 1 < n; i++)
         {
             var (a, b) = (merged[i], merged[i + 1]);
-            double dg = Math.Abs(b.G - a.G) / 100;
+            double lv = Math.Abs(b.G - a.G) / 100 * rv;
+            wantInto[i] = a.Hard ? 0 : b.Hard ? lv : lv / 2;
+            wantOut[i + 1] = b.Hard ? 0 : lv - wantInto[i];
+        }
+        // Room: a run gives at most 90% of itself to the curves at its two ends, shared as they want it, so a short
+        // run between two long curves isn't pinched at one end while the other has room over.
+        for (int i = 0; i < n; i++)
+        {
+            double room = (merged[i].S1 - merged[i].S0) * 0.9, want = wantInto[i] + wantOut[i];
+            if (want > room && want > 0)
+            {
+                wantInto[i] *= room / want;
+                wantOut[i] *= room / want;
+            }
+        }
+        for (int i = 0; i + 1 < n; i++)
+        {
+            double dg = Math.Abs(merged[i + 1].G - merged[i].G) / 100;
             if (dg < 1e-7)
                 continue;
+            // A curve squeezed on one side is squeezed on both, so its two halves stay one radius.
             double lv = dg * rv;
-            double ta = a.Hard ? 0 : b.Hard ? lv : lv / 2, tb = lv - ta;
-            // Room: each run gives at most 45% of itself to each end.
-            double roomA = (a.S1 - a.S0) * (a.Hard ? 0 : 0.45), roomB = (b.S1 - b.S0) * (b.Hard ? 0 : 0.45);
-            if (ta > roomA || tb > roomB)
-            {
-                double scale = Math.Min(ta > 0 ? roomA / ta : 1, tb > 0 ? roomB / tb : 1);
-                ta *= scale;
-                tb *= scale;
-            }
-            into[i] = ta;
-            outOf[i + 1] = tb;
-            if (ta + tb > 1e-6)
-                _verticalRadii.Add((e.Id, a.S1, (ta + tb) / dg));
+            double full = (merged[i].Hard ? 0 : merged[i + 1].Hard ? lv : lv / 2);
+            double scale = Math.Min(full > 0 ? wantInto[i] / full : 1, lv - full > 0 ? wantOut[i + 1] / (lv - full) : 1);
+            into[i] = full * scale;
+            outOf[i + 1] = (lv - full) * scale;
+            if (into[i] + outOf[i + 1] > 1e-6)
+                _verticalRadii.Add((e.Id, merged[i].S1, (into[i] + outOf[i + 1]) / dg));
         }
         var list = new List<(double, double, double)>();
         for (int i = 0; i < n; i++)

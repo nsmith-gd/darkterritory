@@ -433,7 +433,12 @@ sealed partial class LineBuilder
             if (_deads.Count > Math.Round(_l.DeadLines[1]))
                 Warn($"junction count {target} needs {_deads.Count} dead lines, past the tier's {_l.DeadLines[1]:0.#}");
         }
-        // Number the facing junctions along the line: J1, J2, ...; an alternate's trailing end shares its number.
+        NumberJunctions();
+    }
+
+    /// <summary>Numbers the facing junctions along the line: J1, J2, ...; an alternate's trailing end shares its number.</summary>
+    void NumberJunctions()
+    {
         int n = 1;
         foreach (var (s, set) in _alts.Select(a => (a.T, (Action<int>)(k => a.Number = k))).Concat(_deads.Select(d => (d.Toe, (Action<int>)(k => d.Number = k)))).OrderBy(x => x.Item1))
             set(n++);

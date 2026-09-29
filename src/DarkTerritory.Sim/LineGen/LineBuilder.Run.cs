@@ -59,7 +59,13 @@ sealed partial class LineBuilder
                 _alts.Remove(w);
                 _edges.Remove(w.Edge);
                 _traces.Remove(w.Edge);
+                // Its junction was scripted for: if the network's now short of the quota's junctions (§15.3), a dead
+                // line leaves there instead.
+                int need = QuotaRows().Max(q => q.FacingJunctions);
+                if (2 * _alts.Count + _deads.Count < need && !w.WashoutOnMain)
+                    InsteadOfAlternate(w);
             }
+        NumberJunctions();
         Reindex();
         if (ProfileAndBuild() is { } why)
             return (null, why);
@@ -90,6 +96,31 @@ sealed partial class LineBuilder
         LayDirector();
         LayRouteCard();
         return (Freeze(), null);
+    }
+
+    /// <summary>A dead line off an alternate's junction, when the alternate couldn't be laid.</summary>
+    void InsteadOfAlternate(AltWindow w)
+    {
+        var rng = Rng("instead", w.Edge);
+        var d = new DeadLinePlan
+        {
+            Toe = w.T,
+            Side = w.Side,
+            Length = Math.Round(rng.Range(_t.DeadLines.LengthKm) * 1000),
+            WreckYard = rng.Chance(_t.DeadLines.WreckYardChance),
+            Edge = $"dead{_deads.Count + 1}x",
+        };
+        if (!Retry(k => BuildDeadLine(d, k), d.Edge))
+        {
+            _edges.Remove(d.Edge);
+            _traces.Remove(d.Edge);
+            return;
+        }
+        Warn($"{w.Edge} couldn't be laid: a dead line leaves its junction instead");
+        _deads.Add(d);
+        _deads.Sort((x, y) => x.Toe.CompareTo(y.Toe));
+        for (int i = 0; i < _deads.Count; i++)
+            _deads[i].Index = i;
     }
 
     /// <summary>The branches in order along the main line: a rake's path onto one is its index (RailLine).</summary>
