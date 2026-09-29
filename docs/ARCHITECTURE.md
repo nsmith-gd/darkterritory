@@ -337,7 +337,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Why.** A designer-first tool needs forms, tables, maps and help text. A browser has all of that today, while ImGui needs a Vulkan UI path (textures, fonts, input) the renderer doesn't have yet. The page is plain HTML and JS embedded in `DarkTerritory.Editor`, and an agent can drive it and screenshot it headless (`dt edit --screenshot`, via Playwright).
     - **Comments survive.** Tuning files carry their rationale and spec citations in comments, so an edit replaces only the characters of the value (`Ballast.Jsonc`, tested on every shipped content file). A serialise-and-write round trip would have thrown the comments away.
     - **Safety.** An edit is validated against the game's own record type before it's written, so the running game never hot-reloads a file it can't load. Only known content files are writable, and routes save only under a plain name.
-    - **In-game UI** (the HUD beyond the window title, menus, VR panels) still needs text rendering in the engine. That's separate work, and the editor doesn't wait for it.
+    - **In-game UI** (the HUD beyond the window title, menus, VR panels) needed text rendering in the engine, which came separately (note 27); the editor didn't wait for it.
 23. **Session rules: interest, drop-out, content, drop-in (T19).**
     - **Interest.** Each client is sent the train, the players, the run and the world in full, but enemies and bodies only within the interest radius of their own player, plus anything they're carrying. Each client has its own delta baselines, so a record that leaves someone's radius is simply absent from their next snapshot and removed on their side.
       - **The radius is 520 m** (`enemies.json` → `interestRadius`). An enemy that isn't on your machine can't play its tell there, so the radius must cover the farthest one, the hound howl's 500 m. `AudioTests` holds every enemy tell's range to it. The Choir's voice comes from the world record, which always goes.
@@ -417,3 +417,19 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - the revived carry lamps but not crates.
       - `ColdTests` pin spec B.2's numbers and the heat rules. `dt screenshot --vigil` shows the emergency lighting.
     - **Not yet:** a spectator camera and UI for the dead; bots that warm themselves or hold a Vigil; the Vigil's own sound design (it borrows the safety valve's roar).
+27. **Text and the HUD (T23).**
+    - **A pixel font authored as text.** `Ballast.Render/Fonts/ballast-5x7.txt` draws each glyph in rows of `#` and `.`: 66 glyphs covering capitals, digits and punctuation.
+      - Lower case draws as capitals (stencilled rail signage, and a 5×7 lower case is mush), typographic dashes and dots fall back to the plain ones, and anything missing draws as `?`.
+      - A designer can redraw a letter in a text editor.
+    - **The overlay is solid quads.** `Overlay` builds 2D quads in the frame's own pixels (top-left origin): panels, bars, outlines and text. Text is one quad per horizontal run of ink, with a one-pixel shadow.
+      - The renderer draws it with a second pipeline at the end of the scene's pass (alpha-blended, no depth). So there are no textures, samplers or descriptor sets, and no binary atlas to regenerate.
+      - It's drawn into the low-res frame (480×270), so the HUD is as chunky as the world and the window blit scales both alike.
+    - **The HUD** (`Game/Hud`) is sparse, per GDD §32:
+      - the engine, top left: speed and band, regulator, brake, reverser, the pressure gauge with its working band and redline, fire and coal;
+      - the link, top right: ping to host at double size, coloured by quality (spec E "shown prominently", non-optional), then the crew count and role;
+      - the middle: dead (and why), waiting, a Vigil's countdown, cold, the revived's limits, the night's result;
+      - the prompt, bottom centre: what your hands can do right there, with the key. It's worked out from the same interactable, reach and chute checks the sim uses, so it can't promise something the sim won't do;
+      - the night, bottom left: the route line.
+    - **Controls.** F1 toggles it, `--no-hud` starts without it, and the window title keeps the full debug line.
+    - **Verified:** `dt screenshot --hud` plays a solo session for a few seconds and captures the frame at 480×270 (CI keeps it). `HudTests` check font coverage, the run-length quads, the prompts, and that the overlay really blends over the frame on the GPU.
+    - **Not yet:** the HUD in VR (it wants a world-space panel, not screen-locked text), menus, and a lower-case font.

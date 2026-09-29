@@ -40,6 +40,10 @@ public class NetPlayTests
         Assert.Single(joiner.Crew(frames, 1));
         Assert.Single(host.Crew(host.InterpolatedFrames(1), 1));
         Assert.Contains("aboard", joiner.Status());
+        // Spec E: the joiner sees its ping to the host; the host has none to show.
+        Assert.NotNull(joiner.Link?.PingMs);
+        Assert.Null(host.Link?.PingMs);
+        Assert.Equal(2, joiner.Link?.Aboard);
     }
 
     [Fact]

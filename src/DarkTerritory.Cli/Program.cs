@@ -37,6 +37,7 @@ return args switch
     ["train", "climb", var cars, var grade, ..] => Print(TrainScenarios.Climb(train, int.Parse(cars), double.Parse(grade), Opt(args, "--from", 10), Opt(args, "--load", 1))),
     ["line", "info", var name, ..] => Print(LineInfo(LoadLine(name), Opt(args, "--every", 100))),
     ["line", "drive", var name, ..] => Print(Drive(train, LoadLine(name), (int)Opt(args, "--cars", 3), Opt(args, "--start", -1), Opt(args, "--from", 0), Opt(args, "--throttle", 1), (int)Opt(args, "--seconds", 120))),
+    ["screenshot", ..] when args.Contains("--hud") => Print(HudShot(content, args)),
     ["screenshot", ..] => Print(Screenshot(train, content, args)),
     ["route", "gen", ..] => Print(GenerateRoute(routeTuning, content, args)),
     ["route", "sweep", ..] => Print(SweepRoutes(routeTuning, (int)Opt(args, "--seeds", 200))),
@@ -343,6 +344,36 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     return new { path = Path.GetFullPath(output), view, trainAt = Math.Round(at, 1), device = gpu.DeviceName, triangles = mesh.Count / 3, width = width * scale, height = height * scale, ms = clock.ElapsedMilliseconds };
 }
 
+// A frame as the game draws it: a solo session stepped for a while, seen first person, with the HUD (T23).
+static object HudShot(string content, string[] args)
+{
+    int cars = (int)Opt(args, "--cars", 6);
+    Route? generated = Str(args, "--route", "") is { Length: > 0 } spec
+        ? RouteGenerator.Generate(DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File)), Route.ParseSpec(spec).Tier, Route.ParseSpec(spec).Seed)
+        : null;
+    var session = generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
+    session.Controls.Throttle = Opt(args, "--throttle", 0.6);
+    for (int i = 0; i < Opt(args, "--seconds", 6) * SimConstants.TickRate; i++)
+        session.Step(new PlayerIntent { LookPitch = i == 0 ? (float)Opt(args, "--pitch", 0) : 0, LookYaw = i == 0 ? (float)Opt(args, "--yaw", 0) : 0 });
+    int width = (int)Opt(args, "--width", 480), height = (int)Opt(args, "--height", 270), scale = (int)Opt(args, "--scale", 2);
+    string output = Str(args, "--out", "out/shots/hud.png");
+    var frames = session.InterpolatedFrames(1);
+    var camera = session.EyeCamera(frames, 1, 0, 0);
+    using var gpu = new GpuContext("dt screenshot --hud");
+    using var renderer = new GreyboxRenderer(gpu, width, height);
+    var mesh = new MeshBuilder();
+    new GreyboxScene { Route = session.Route, Run = session.World.Run, Vehicles = session.Train.Vehicles, Bodies = session.World.Bodies.All, Time = 0.37 }
+        .Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
+    var lighting = Views.Lighting(frames[0]);
+    if (session.Route is { } r)
+        lighting.FogDensity = (float)r.Weather.FogDensity;
+    var hud = new Overlay();
+    Hud.Build(hud, width, height, session);
+    var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, hud);
+    PngWriter.Write(output, pixels, width, height, scale);
+    return new { path = Path.GetFullPath(output), prompt = Hud.Prompt(session), quads = hud.Count / 6, status = session.Status() };
+}
+
 // The designer's editor: tuning and routes in a local web page (T18). --screenshot captures both pages headless.
 static int Edit(string content, string[] args)
 {
@@ -419,6 +450,8 @@ static int Usage()
                      [--route tier:seed [--coaling]]   a generated night; --coaling stops at its coaling tower, chute pouring
                      [--bodies]   crates, a lamp and a crewmate's body on the roofs, settled by the physics
                      [--vigil]    emergency lighting, as during a Vigil (spec C.2)
+          screenshot --hud [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
+                     a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
           route gen [--tier local|frontier|deadLines|deepTerritory] [--seed n] [--name generated] [--map file.png]
                      writes content/lines/<name>.json (+ .route.json) and a map; try `screenshot --line generated`
           route sweep [--seeds n]                  generate n routes per tier and report ranges

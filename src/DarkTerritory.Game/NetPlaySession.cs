@@ -316,6 +316,11 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         };
     }
 
+    public PlayerTuning PlayerTuning => Client.PlayerTuning;
+    public int PlayerId => Client.PlayerId ?? 0;
+    public LinkInfo? Link => new(Role(), Host is null && Client.Connected ? _link.RoundTrip(PeerId.Host) * 1000 : null,
+        Client.RemoteIds.Count() + 1, Client.Waiting ? Client.WaitingReason : null, Lost);
+
     /// <summary>Accepts a friend's invite that arrived while playing, if any, leaving it for the app to act on.</summary>
     public LobbyId? TakeJoinRequest() => Lobby?.TakeJoinRequest();
 

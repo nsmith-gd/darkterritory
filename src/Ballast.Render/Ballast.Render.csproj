@@ -15,5 +15,7 @@
   <ItemGroup>
     <!-- Shaders stay GLSL text in the repo and compile at startup: no binary blobs to regenerate. -->
     <EmbeddedResource Include="Shaders/*.vert;Shaders/*.frag" LogicalName="Shaders/%(Filename)%(Extension)" />
+    <!-- Fonts are text too: glyphs drawn in '#' and '.'. -->
+    <EmbeddedResource Include="Fonts/*.txt" LogicalName="Fonts/%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>
