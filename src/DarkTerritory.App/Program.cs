@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Numerics;
 using Ballast;
 using Ballast.Audio;
 using Ballast.Online;
@@ -14,16 +15,22 @@ using DarkTerritory.Sim;
 using DarkTerritory.Sim.Campaign;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Route;
+using DarkTerritory.Sim.Train;
 
-// Feel prototype (roadmap M1). Controls:
+// Dark Territory. Plain `DarkTerritory` opens the front end (T30): the campaign's three slots and the fortress between
+// nights, a quick night on any tier, joining by address, and the settings (saved in the user's app data). The flags
+// below start a night straight away instead, and quit when it's over.
+// Controls:
 //   mouse look · WASD move · Shift run · Space jump · E grab/let go of ladders
 //   R/F throttle notch up/down · B brake (hold) · X reverser (stopped only)
-//   E at the firebox: shovel (hold) · E at the valve: vent (hold) · E on a coupler plate: cut (hold)
+//   E at the firebox: shovel (hold) · E at the valve: vent (hold) · E on a coupler plate: cut (hold) · E at a switch stand: throw it (hold)
 //   Left mouse at a gun (engine cab roof, guard car roof): fire · E (press) near a crate, lamp or body: pick up / put down · Right mouse: throw it
-//   1–9 respawn on that car's roof · Backspace respawn in the cab · Tab chase camera · Esc release mouse / quit
+//   1–9 respawn on that car's roof · Backspace respawn in the cab · Tab chase camera
+//   Esc frees the mouse; Esc again leaves the night (to the menu, or quits one started from the command line). When the
+//   night's over, Enter goes back.
 // F1 toggles the HUD (--no-hud to start without it).
 // Campaign: --campaign <slot> [--contract i] [--resume] [--saves dir] plays tonight's contract with the slot's cars and
-//   upgrades, autosaves leaving each facility, and settles at the end (spec E, F). `dt campaign` runs the fortress.
+//   upgrades, autosaves leaving each facility, and settles at the end (spec E, F). `dt campaign` runs the fortress headless.
 // Options: --route tier:seed | --route-file name (saved from dt edit) [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png --mute
 // Multiplayer (UDP, direct IP / LAN): --host [port] hosts the same options for others to join; --join address[:port] joins one.
 // Steam: --steam hosts a friends-only lobby as well (F2 opens the invite dialog; friends can also "Join Game" from the
@@ -32,9 +39,11 @@ using DarkTerritory.Sim.Route;
 // Networked, the cab is the only place to drive from (GDD §12): R/F/B/X work when you're standing in it.
 // VR: --vr plays in an OpenXR headset (Quest via Link, SteamVR, Monado) and mirrors to the window; --vr-scale 0.5 of the
 //   runtime's per-eye size. You look with your head and walk where you look: left stick walks (click it to run), right
-//   stick turns (snap by default, content/tuning/vr.json), grip uses/grabs, trigger fires, A jumps, B throws. The
-//   keyboard and mouse still work alongside (mouse yaw turns the body). Driving is from the keyboard until levers.
-// Voice (networked): open mic with voice activity, or --push-to-talk and hold V. Hold T to talk on the radio. --no-mic to only listen.
+//   stick turns (snap by default, content/tuning/vr.json and the settings), grip uses/grabs, trigger fires, A jumps, B
+//   throws. The keyboard and mouse still work alongside (mouse yaw turns the body). Driving is from the keyboard until
+//   levers. The menus show on the window, not in the headset, for now.
+// Voice (networked): open mic with voice activity, or push to talk (the settings, or --push-to-talk) and hold V. Hold T
+//   to talk on the radio. --no-mic to only listen.
 
 string Arg(string name, string fallback)
 {
@@ -43,7 +52,6 @@ string Arg(string name, string fallback)
 }
 
 var content = DataFile.FindContentRoot(Environment.CurrentDirectory);
-int cars = int.Parse(Arg("--cars", "6"));
 var connectLobby = LaunchArgs.ConnectLobby(args);
 // Steam when asked for, when an invite brought us here, or when Steam launched us (so invites reach a solo game).
 using var steam = args.Contains("--no-steam") || !(args.Contains("--steam") || connectLobby is not null || Environment.GetEnvironmentVariable("SteamAppId") is not null)
@@ -56,79 +64,38 @@ static SteamBackend? NoSteam(string? error)
     Console.WriteLine($"steam: {error}; LAN and direct IP still work");
     return null;
 }
-IPlaySession session;
-SaveSlots? saves = null;
-CampaignState? campaign = null;
-if (connectLobby is { } lobbyId)
+
+var campaignTuning = DataFile.Load<CampaignTuning>(Path.Combine(content, CampaignTuning.File));
+var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
+var saves = new SaveSlots(Arg("--saves", SaveSlots.DefaultDirectory), campaignTuning.SaveSlots);
+var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", Settings.DefaultPath));
+
+// A night named on the command line starts straight away; otherwise it's the front end's choice.
+Launch? LaunchFromArgs()
 {
-    if (steam is null)
-        return 1;
-    Console.WriteLine($"joining lobby {lobbyId} on Steam…");
-    session = NetPlaySession.JoinLobby(content, steam, lobbyId);
-}
-else if (args.Contains("--join"))
-{
-    string target = Arg("--join", "127.0.0.1");
-    var endpoint = IPEndPoint.TryParse(target, out var ep) ? ep : new IPEndPoint(Dns.GetHostAddresses(target.Split(':')[0]).First(a => a.AddressFamily == AddressFamily.InterNetwork), NetPlaySession.DefaultPort);
-    if (endpoint.Port == 0)
-        endpoint.Port = NetPlaySession.DefaultPort;
-    Console.WriteLine($"joining {endpoint}…");
-    session = NetPlaySession.Join(content, endpoint);
-}
-else if (Arg("--campaign", "") is { Length: > 0 } slotArg)
-{
-    // Spec E: the host owns the campaign, and picks a slot. The night is the contract picked from the board, with
-    // the slot's cars and upgrades; --host and --steam take friends as usual.
-    var ct = DataFile.Load<CampaignTuning>(Path.Combine(content, CampaignTuning.File));
-    var rt = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
-    saves = new SaveSlots(Arg("--saves", SaveSlots.DefaultDirectory), ct.SaveSlots);
-    int slot = int.Parse(slotArg);
-    campaign = saves.Load(slot) ?? Campaign.New(ct, slot, $"Crew {slot}", (ulong)Random.Shared.Next(1, 100000));
-    // --resume: the night that was under way, from the last facility it left (spec E "crash: rolls back to last POI autosave").
-    var resume = args.Contains("--resume") && campaign.Current is not null ? campaign.Checkpoint : null;
-    var contract = resume is not null ? campaign.Current! : Campaign.Offers(ct, rt, campaign)[int.Parse(Arg("--contract", "0"))];
-    campaign = Campaign.Begin(campaign, contract) with { Checkpoint = resume };
-    saves.Save(campaign);
-    int? port = args.Contains("--host") ? int.TryParse(Arg("--host", ""), out var hp) ? hp : NetPlaySession.DefaultPort : null;
-    var setup = new SessionSetup(Route: contract.Route, Cars: campaign.Cars, Enemies: !args.Contains("--no-enemies")) { Upgrades = campaign.Upgrades };
-    Console.WriteLine($"campaign slot {slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
-    session = NetPlaySession.HostGame(content, setup, port, online: steam, resume: resume);
-}
-else if (args.Contains("--host") || (args.Contains("--steam") && steam is not null))
-{
+    int cars = int.Parse(Arg("--cars", "6"));
     int? port = !args.Contains("--host") ? null : int.TryParse(Arg("--host", ""), out var p) ? p : NetPlaySession.DefaultPort;
-    var setup = new SessionSetup(Route: Arg("--route", "") is { Length: > 0 } r ? r : null, Line: Arg("--line", "test-loop"), Cars: cars, Enemies: !args.Contains("--no-enemies"));
-    var hosted = NetPlaySession.HostGame(content, setup, port, online: steam);
-    if (port is not null)
-        Console.WriteLine($"hosting on UDP port {hosted.Port}: others join with --join <this machine's address>:{hosted.Port}");
-    if (steam is not null)
-        Console.WriteLine($"hosting a friends-only Steam lobby as {steam.NameOf(steam.Me)}: F2 to invite");
-    session = hosted;
+    if (connectLobby is { } lobby)
+        return new Launch.JoinLobby(lobby);
+    if (args.Contains("--join"))
+        return new Launch.Join(Arg("--join", "127.0.0.1"));
+    if (Arg("--campaign", "") is { Length: > 0 } slot)
+        return new Launch.CampaignNight(int.Parse(slot), int.Parse(Arg("--contract", "0")), args.Contains("--resume"), port is not null);
+    string? route = Arg("--route", "") is { Length: > 0 } r ? r : null;
+    string? routeFile = Arg("--route-file", "") is { Length: > 0 } f ? f : null;
+    bool host = port is not null || args.Contains("--steam") && steam is not null;
+    if (host || route is not null || routeFile is not null || args.Contains("--line"))
+        return new Launch.Night(route, cars, host) { Line = Arg("--line", "test-loop"), RouteFile = routeFile };
+    return null;
 }
-else if (Arg("--route-file", "") is { Length: > 0 } routeFile)
-{
-    // A route saved from the editor (dt edit): content/lines/<name>.route.json.
-    var saved = DataFile.Load<Route>(Path.Combine(content, "lines", routeFile + ".route.json"));
-    session = new PrototypeSession(content, saved, cars, enemies: !args.Contains("--no-enemies"));
-}
-else if (Arg("--route", "") is { Length: > 0 } routeSpec)
-{
-    var (tier, seed) = Route.ParseSpec(routeSpec);
-    var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File));
-    session = new PrototypeSession(content, RouteGenerator.Generate(routeTuning, tier, seed), cars, enemies: !args.Contains("--no-enemies"));
-}
-else
-{
-    session = new PrototypeSession(content, Arg("--line", "test-loop"), cars);
-}
-var proto = session as PrototypeSession;
+var launch = LaunchFromArgs();
+bool fromCommandLine = launch is not null;
+
 var internalSize = Arg("--internal", "480x270").Split('x').Select(int.Parse).ToArray();
 double quitAfter = double.Parse(Arg("--quit-after", "0"));
 string? capture = Arg("--capture", "") is { Length: > 0 } c ? c : null;
-if (proto is not null)
-    proto.Controls.Throttle = double.Parse(Arg("--throttle", "0"));
 
-using var window = new Window("Dark Territory — prototype", 1280, 720);
+using var window = new Window("Dark Territory", 1280, 720);
 // --vr: the headset makes the GPU (it has to pick the device and the extensions), and the window mirrors the flat view.
 using var vr = args.Contains("--vr") ? StartVr() : null;
 VrView? StartVr()
@@ -156,10 +123,6 @@ Console.WriteLine($"GPU: {gpu.DeviceName}, window {w}x{h}, internal {renderer.Wi
 var sound = new GameAudio(content);
 using var speaker = args.Contains("--mute") ? null : AudioOut.Open(Audio.SampleRate, out var audioError) is { } s ? s : Warn(audioError);
 var audioBlock = new float[Audio.Block * 2];
-var net = session as NetPlaySession;
-var voice = net is null ? null : new VoiceChat(sound.Mixer) { PushToTalk = args.Contains("--push-to-talk") };
-using var mic = voice is null || args.Contains("--mute") || args.Contains("--no-mic") ? null
-    : AudioIn.Open(Audio.SampleRate, out var micError) is { } m ? m : NoMic(micError);
 var micSamples = new float[4800];
 static AudioIn? NoMic(string? error)
 {
@@ -171,170 +134,28 @@ static AudioOut? Warn(string? error)
     Console.WriteLine($"audio: no output device ({error}); running silent");
     return null;
 }
-
-var clock = new FixedStepClock(SimConstants.TickRate);
-var locomotion = vr is null ? null : new VrLocomotion(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)));
-var hud = new Overlay();
-bool showHud = !args.Contains("--no-hud");
-var scene = new GreyboxScene
+// Keep ~60 ms queued at the device; muted in the settings, it gets silence.
+void FeedSpeaker()
 {
-    Route = session.Route,
-    Enemies = session.World.ActiveEnemies,
-    Run = session.World.Run,
-    Vehicles = session.Train.Vehicles,
-    Bodies = session.World.Bodies.All,
-    Diverging = session.Train.Diverging,
-    Stands = session.World.Switches,
-};
-var mesh = new MeshBuilder();
-var timer = Stopwatch.StartNew();
-double last = 0, titleAt = 0;
-long frameCount = 0;
-double pendingYaw = 0, pendingPitch = 0;
-int pendingNotch = 0;
-bool pendingReverser = false;
-bool chase = false;
-const double Sensitivity = 0.0025;
-var input = window.Input;
-Camera camera = default;
-FrameLighting lighting = default;
-
-LobbyId? relaunch = null;
-var steamEvents = new List<OnlineEvent>();
-LobbyId? Invited()
-{
-    if (net?.Lobby is not null)
-        return net.TakeJoinRequest();
-    if (steam is null)
-        return null;
-    steamEvents.Clear();
-    steam.Poll(steamEvents);
-    return steamEvents.Where(e => e.Kind == OnlineEventKind.JoinRequested).Select(e => (LobbyId?)e.Lobby).LastOrDefault();
-}
-
-while (!window.CloseRequested)
-{
-    window.PumpEvents();
-    double now = timer.Elapsed.TotalSeconds;
-    double dt = now - last;
-    last = now;
-
-    if (input.Pressed(Key.Escape))
-    {
-        if (window.MouseCaptured) window.MouseCaptured = false;
-        else break;
-    }
-    // The prototype drives from anywhere; networked, cab controls go through intent like everything else.
-    sbyte notch = (sbyte)((input.Pressed(Key.R) ? 1 : 0) - (input.Pressed(Key.F) ? 1 : 0));
-    bool reverser = input.Pressed(Key.X);
-    // Held until a tick sends them: at a high frame rate a key press can land on a frame with no tick.
-    pendingNotch += notch;
-    pendingReverser |= reverser;
-    if (proto is not null)
-    {
-        if (notch != 0) proto.Notch(notch);
-        if (reverser) proto.FlipReverser();
-        if (input.Pressed(Key.Backspace)) proto.Respawn(0);
-        for (var k = Key.D1; k <= Key.D9; k++)
-            if (input.Pressed(k)) proto.Respawn(k - Key.D1 + 1);
-        proto.Controls.Brake = input.Down(Key.B) ? 1 : 0;
-    }
-    if (input.Pressed(Key.Tab)) chase = !chase;
-    if (input.Pressed(Key.F1)) showHud = !showHud;
-    if (input.Pressed(Key.F2)) net?.ShowInviteDialog();
-    // An invite accepted (or "Join Game" on a friend) while playing: leave this game for theirs.
-    if (Invited() is { } invitedTo)
-    {
-        relaunch = invitedTo;
-        break;
-    }
-
-    pendingYaw -= input.MouseDX * Sensitivity;
-    pendingPitch -= input.MouseDY * Sensitivity;
-    if (locomotion is not null)
-    {
-        // In a headset the head looks; the mouse only turns the room.
-        locomotion.Turn(pendingYaw);
-        pendingYaw = pendingPitch = 0;
-    }
-
-    int ticks = clock.Advance(dt);
-    for (int i = 0; i < ticks; i++)
-    {
-        var buttons = PlayerButtons.None;
-        if (input.Down(Key.LeftShift)) buttons |= PlayerButtons.Run;
-        if (input.Down(Key.Space)) buttons |= PlayerButtons.Jump;
-        if (input.Down(Key.E)) buttons |= PlayerButtons.Use;
-        if (input.Down(Key.MouseLeft)) buttons |= PlayerButtons.Fire;
-        if (input.Down(Key.MouseRight)) buttons |= PlayerButtons.Throw;
-        if (proto is null)
-        {
-            if (input.Down(Key.B)) buttons |= PlayerButtons.Brake;
-            if (pendingReverser) buttons |= PlayerButtons.Reverser;
-        }
-        var intent = new PlayerIntent
-        {
-            MoveX = (input.Down(Key.D) ? 1 : 0) - (input.Down(Key.A) ? 1 : 0),
-            MoveZ = (input.Down(Key.W) ? 1 : 0) - (input.Down(Key.S) ? 1 : 0),
-            LookYaw = (float)pendingYaw,
-            LookPitch = (float)pendingPitch,
-            Buttons = buttons,
-            ThrottleNotch = proto is null ? (sbyte)Math.Clamp(pendingNotch, -4, 4) : (sbyte)0,
-        };
-        if (locomotion is not null)
-        {
-            locomotion.Follow(session.Player, Eyes.Heading(session.Player, session.Train.Frames));
-            var headset = locomotion.Intent(session.Player, vr!.Session.Controllers);
-            intent.MoveX = Math.Clamp(intent.MoveX + headset.MoveX, -1, 1);
-            intent.MoveZ = Math.Clamp(intent.MoveZ + headset.MoveZ, -1, 1);
-            intent.LookYaw = headset.LookYaw;
-            intent.LookPitch = headset.LookPitch;
-            intent.Buttons |= headset.Buttons;
-        }
-        pendingNotch = 0;
-        pendingReverser = false;
-        pendingYaw = pendingPitch = 0;
-        session.Step(intent);
-        if (campaign is not null && session is NetPlaySession played)
-            campaign = Autosave(saves!, campaign, played);
-        // The ears are where the eyes were last frame; audio follows the sim tick so no shot is missed.
-        bool exposed = !PlayerMotor.Indoors(session.Player, session.Train);
-        sound.Update(session.World, session.Controls, Listener.At(camera.Position, camera.Yaw), exposed, SimConstants.TickSeconds,
-            PlayerMotor.Space(session.Player, session.Train));
-        if (voice is not null && net is not null)
-            voice.Update(net.Client, session.Crew(session.InterpolatedFrames(1), 1), SimConstants.TickSeconds);
-    }
-    if (voice is not null && net is not null)
-    {
-        voice.TalkHeld = input.Down(Key.V);
-        voice.RadioHeld = input.Down(Key.T);
-        for (int n; mic is not null && (n = mic.Read(micSamples)) > 0;)
-            voice.Capture(micSamples.AsSpan(0, n), net.Client);
-    }
-    // Keep ~60 ms queued at the device.
     while (speaker is not null && speaker.QueuedSeconds < 0.06)
     {
         sound.Mixer.Render(audioBlock);
+        if (frontEnd.Settings.Mute)
+            Array.Clear(audioBlock);
         speaker.Write(audioBlock);
     }
+}
 
-    var frames = session.InterpolatedFrames(clock.Alpha);
-    camera = chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
-    scene.Crew = session.Crew(frames, clock.Alpha);
-    scene.Time = now;
-    lighting = Views.Lighting(frames[0]);
-    if (session.Route is { } r)
-        lighting.FogDensity = (float)r.Weather.FogDensity;
-    scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
-    // A Vigil: emergency lighting, and no power to the headlamp.
-    scene.Emergency = session.World.EmergencyLights;
-    if (!session.World.LampShining)
-        lighting.LampRange = 0.01f; // not 0: the shader divides by it
-    scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
-    if (showHud)
-        Hud.Build(hud, renderer.Width, renderer.Height, session);
-    renderer.Prepare(mesh, showHud ? hud : null);
+var input = window.Input;
+var timer = Stopwatch.StartNew();
+var mesh = new MeshBuilder();
+var overlay = new Overlay();
+long frameCount = 0;
+var steamEvents = new List<OnlineEvent>();
+LobbyId? relaunch = null;
 
+void Present(in Camera camera, in FrameLighting lighting)
+{
     if (window.Resized)
     {
         (w, h) = window.PixelSize;
@@ -348,33 +169,158 @@ while (!window.CloseRequested)
         (w, h) = window.PixelSize;
         swapchain.Recreate(w, h);
     }
-    // The body is the flat camera's eye point, turned to where the room faces; the head does the looking.
-    if (vr is not null && vr.Frame(mesh, locomotion!.Body(cam, Eyes.Heading(session.Player, frames)), light, light.FogColor, locomotion) == XrFrameResult.Exiting)
-        break;
-
-    if (now >= titleAt)
-    {
-        string talking = voice is { Transmitting: true } ? voice.RadioHeld ? " | ON THE RADIO" : " | talking" : "";
-        window.Title = $"Dark Territory — {session.Status()}{talking}";
-        titleAt = now + 0.25;
-    }
-    input.EndFrame();
-    frameCount++;
-
-    if (quitAfter > 0 && now >= quitAfter)
-        break;
 }
 
-if (capture is not null)
+// An invite accepted (or "Join Game" on a friend) while in the game or the menus.
+LobbyId? Invited(NetPlaySession? net)
 {
-    var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud ? hud : null);
-    PngWriter.Write(capture, pixels, renderer.Width, renderer.Height, scale: 2);
-    Console.WriteLine($"captured {Path.GetFullPath(capture)}");
+    if (net?.Lobby is not null)
+        return net.TakeJoinRequest();
+    if (steam is null)
+        return null;
+    steamEvents.Clear();
+    steam.Poll(steamEvents);
+    return steamEvents.Where(e => e.Kind == OnlineEventKind.JoinRequested).Select(e => (LobbyId?)e.Lobby).LastOrDefault();
 }
-Console.WriteLine($"frames {frameCount} ({frameCount / timer.Elapsed.TotalSeconds:0} fps), ticks {session.Tick}, {session.Status()}");
-(session as IDisposable)?.Dispose();
-if (campaign is { Current: not null } unfinished)
-    Console.WriteLine($"campaign: the night on {unfinished.Current.Route} isn't settled; --campaign {unfinished.Slot} --resume picks it up from the last facility");
+
+bool QuitNow() => quitAfter > 0 && timer.Elapsed.TotalSeconds >= quitAfter;
+
+// The front end over a night scene: the fortress yard with a train standing in it, the camera slowly looking about.
+Launch? Menu()
+{
+    window.MouseCaptured = false;
+    var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
+    var line = DarkTerritory.Sim.Rail.RailLine.Load(Path.Combine(content, "lines", "test-loop.json"));
+    var standing = new TrainOnLine(new TrainDynamics(Consist.Uniform(trainTuning, 6, 1)), line, 1200);
+    var view = Views.Get("trackside", standing);
+    var backdrop = new GreyboxScene { Time = 0.37 };
+    backdrop.Build(mesh, standing, view.Position);
+    var light = Views.Lighting(standing);
+    double started = timer.Elapsed.TotalSeconds;
+    while (!window.CloseRequested && !QuitNow())
+    {
+        window.PumpEvents();
+        window.TextInput = frontEnd.WantsText;
+        if (Invited(null) is { } lobby)
+            return new Launch.JoinLobby(lobby);
+        Launch? chosen = null;
+        if (input.Pressed(Key.Up) || input.Pressed(Key.W) && !frontEnd.WantsText) frontEnd.Up();
+        if (input.Pressed(Key.Down) || input.Pressed(Key.S) && !frontEnd.WantsText) frontEnd.Down();
+        if (input.Pressed(Key.Left) || input.Pressed(Key.A) && !frontEnd.WantsText) frontEnd.Left();
+        if (input.Pressed(Key.Right) || input.Pressed(Key.D) && !frontEnd.WantsText) frontEnd.Right();
+        if (input.Pressed(Key.Enter) || input.Pressed(Key.Space) && !frontEnd.WantsText) chosen = frontEnd.Select();
+        if (input.Pressed(Key.Escape)) frontEnd.Back();
+        if (input.Pressed(Key.Backspace)) frontEnd.Erase();
+        if (input.Text.Length > 0) frontEnd.Type(input.Text);
+        if (chosen is not null)
+        {
+            // The key that chose it isn't also the night's first press.
+            input.EndFrame();
+            window.TextInput = false;
+            return chosen;
+        }
+        var camera = view;
+        camera.Yaw += Math.Sin((timer.Elapsed.TotalSeconds - started) * 0.07) * 0.25;
+        frontEnd.Draw(overlay, renderer.Width, renderer.Height);
+        renderer.Prepare(mesh, overlay);
+        Present(camera, light);
+        FeedSpeaker();
+        input.EndFrame();
+        frameCount++;
+    }
+    return null;
+}
+
+// Starts what was chosen. A campaign night begins (or resumes) its slot's contract and saves that first.
+(IPlaySession Session, CampaignState? Campaign) Start(Launch chosen)
+{
+    bool enemies = !args.Contains("--no-enemies");
+    switch (chosen)
+    {
+        case Launch.JoinLobby lobby when steam is not null:
+            Console.WriteLine($"joining lobby {lobby.Lobby} on Steam…");
+            return (NetPlaySession.JoinLobby(content, steam, lobby.Lobby), null);
+        case Launch.Join join:
+            {
+                string target = join.Address;
+                var endpoint = IPEndPoint.TryParse(target, out var ep) ? ep
+                    : new IPEndPoint(Dns.GetHostAddresses(target.Split(':')[0]).First(a => a.AddressFamily == AddressFamily.InterNetwork),
+                        target.Contains(':') && int.TryParse(target.Split(':')[1], out var jp) ? jp : NetPlaySession.DefaultPort);
+                if (endpoint.Port == 0)
+                    endpoint.Port = NetPlaySession.DefaultPort;
+                Console.WriteLine($"joining {endpoint}…");
+                return (NetPlaySession.Join(content, endpoint), null);
+            }
+        case Launch.CampaignNight night:
+            {
+                // Spec E: the host owns the campaign, and picks a slot. The night is the contract picked from the board, with
+                // the slot's cars and upgrades; hosting takes friends as usual.
+                var campaign = saves.Load(night.Slot) ?? Campaign.New(campaignTuning, night.Slot, $"Crew {night.Slot}", (ulong)Random.Shared.Next(1, 100000));
+                // Resuming: the night that was under way, from the last facility it left (spec E "crash: rolls back to last POI autosave").
+                var resume = night.Resume && campaign.Current is not null ? campaign.Checkpoint : null;
+                var contract = night.Resume && campaign.Current is not null ? campaign.Current : Campaign.Offers(campaignTuning, runTuning, campaign)[Math.Max(0, night.Contract)];
+                campaign = Campaign.Begin(campaign, contract) with { Checkpoint = resume };
+                saves.Save(campaign);
+                int? port = night.Host ? NetPlaySession.DefaultPort : null;
+                var setup = new SessionSetup(Route: contract.Route, Cars: campaign.Cars, Enemies: enemies) { Upgrades = campaign.Upgrades };
+                Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
+                return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume), campaign);
+            }
+        case Launch.Night { Host: true } hosted:
+            {
+                // From the menu, friends join on the usual port; `--steam` alone takes no UDP port (the lobby's enough).
+                int? port = args.Contains("--host") ? int.TryParse(Arg("--host", ""), out var p) ? p : NetPlaySession.DefaultPort
+                    : fromCommandLine ? null : NetPlaySession.DefaultPort;
+                var setup = new SessionSetup(Route: hosted.Route, Line: hosted.Line, Cars: hosted.Cars, Enemies: enemies);
+                var session = NetPlaySession.HostGame(content, setup, port, online: steam);
+                if (port is not null)
+                    Console.WriteLine($"hosting on UDP port {session.Port}: others join with --join <this machine's address>:{session.Port}");
+                if (steam is not null)
+                    Console.WriteLine($"hosting a friends-only Steam lobby as {steam.NameOf(steam.Me)}: F2 to invite");
+                return (session, null);
+            }
+        case Launch.Night { RouteFile: { } file } alone:
+            {
+                // A route saved from the editor (dt edit): content/lines/<name>.route.json.
+                var saved = DataFile.Load<Route>(Path.Combine(content, "lines", file + ".route.json"));
+                return (new PrototypeSession(content, saved, alone.Cars, enemies), null);
+            }
+        case Launch.Night { Route: { } spec } alone:
+            {
+                var (tier, seed) = Route.ParseSpec(spec);
+                var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File));
+                return (new PrototypeSession(content, RouteGenerator.Generate(routeTuning, tier, seed), alone.Cars, enemies), null);
+            }
+        case Launch.Night alone:
+            return (new PrototypeSession(content, alone.Line, alone.Cars), null);
+        default:
+            throw new InvalidOperationException($"can't start {chosen}");
+    }
+}
+
+while (!window.CloseRequested && !QuitNow())
+{
+    launch ??= Menu();
+    if (launch is null or Launch.Quit || launch is Launch.JoinLobby && steam is null)
+        break;
+    var (session, campaign) = Start(launch);
+    var leaving = launch;
+    launch = null;
+    campaign = Play(session, campaign);
+    (session as IDisposable)?.Dispose();
+    if (campaign is { Current: not null } unfinished)
+        Console.WriteLine($"campaign: the night on {unfinished.Current.Route} isn't settled; its slot carries on from the last facility it left");
+    // Started from the command line: done when the night is. Otherwise, back to where it was chosen.
+    if (fromCommandLine || relaunch is not null)
+        break;
+    if (leaving is Launch.CampaignNight night)
+        frontEnd.ShowFortress(night.Slot, campaign?.History.LastOrDefault() is { } log && campaign.Current is null
+            ? $"{log.End}: {(log.Net >= 0 ? "+" : "")}{log.Net:0} scrip" : null);
+    else
+        frontEnd.Show(Screen.Title);
+}
+
+Console.WriteLine($"frames {frameCount} ({frameCount / timer.Elapsed.TotalSeconds:0} fps)");
 if (relaunch is { } next)
 {
     // The simplest way into another game is a fresh start, the same one Steam gives an invite accepted from outside.
@@ -383,6 +329,191 @@ if (relaunch is { } next)
     Process.Start(Environment.ProcessPath!, ["+connect_lobby", next.ToString()]);
 }
 return 0;
+
+// One night, until it's left, the window closes, or an invite takes us elsewhere. Returns the campaign as it stands.
+CampaignState? Play(IPlaySession session, CampaignState? campaign)
+{
+    var settings = frontEnd.Settings;
+    var proto = session as PrototypeSession;
+    var net = session as NetPlaySession;
+    if (proto is not null)
+        proto.Controls.Throttle = double.Parse(Arg("--throttle", "0"));
+    var voice = net is null ? null : new VoiceChat(sound.Mixer) { PushToTalk = settings.PushToTalk || args.Contains("--push-to-talk") };
+    using var mic = voice is null || settings.Mute || args.Contains("--mute") || args.Contains("--no-mic") ? null
+        : AudioIn.Open(Audio.SampleRate, out var micError) is { } m ? m : NoMic(micError);
+    var clock = new FixedStepClock(SimConstants.TickRate);
+    var locomotion = vr is null ? null : new VrLocomotion(settings.Apply(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File))));
+    bool showHud = settings.Hud && !args.Contains("--no-hud");
+    var scene = new GreyboxScene
+    {
+        Route = session.Route,
+        Enemies = session.World.ActiveEnemies,
+        Run = session.World.Run,
+        Vehicles = session.Train.Vehicles,
+        Bodies = session.World.Bodies.All,
+        Diverging = session.Train.Diverging,
+        Stands = session.World.Switches,
+    };
+    double last = timer.Elapsed.TotalSeconds, titleAt = 0;
+    double pendingYaw = 0, pendingPitch = 0;
+    int pendingNotch = 0;
+    bool pendingReverser = false;
+    bool chase = false;
+    double sensitivity = 0.0025 * settings.MouseSpeed;
+    Camera camera = default;
+    FrameLighting lighting = default;
+    window.MouseCaptured = true;
+    window.TextInput = false;
+
+    while (!window.CloseRequested && !QuitNow())
+    {
+        window.PumpEvents();
+        double now = timer.Elapsed.TotalSeconds;
+        double dt = now - last;
+        last = now;
+
+        if (input.Pressed(Key.Escape))
+        {
+            if (window.MouseCaptured) window.MouseCaptured = false;
+            else break;
+        }
+        // The night's over: Enter goes back (to the fortress, for a campaign night).
+        if (session.World.Run?.Over == true && input.Pressed(Key.Enter))
+            break;
+        // The prototype drives from anywhere; networked, cab controls go through intent like everything else.
+        sbyte notch = (sbyte)((input.Pressed(Key.R) ? 1 : 0) - (input.Pressed(Key.F) ? 1 : 0));
+        bool reverser = input.Pressed(Key.X);
+        // Held until a tick sends them: at a high frame rate a key press can land on a frame with no tick.
+        pendingNotch += notch;
+        pendingReverser |= reverser;
+        if (proto is not null)
+        {
+            if (notch != 0) proto.Notch(notch);
+            if (reverser) proto.FlipReverser();
+            if (input.Pressed(Key.Backspace)) proto.Respawn(0);
+            for (var k = Key.D1; k <= Key.D9; k++)
+                if (input.Pressed(k)) proto.Respawn(k - Key.D1 + 1);
+            proto.Controls.Brake = input.Down(Key.B) ? 1 : 0;
+        }
+        if (input.Pressed(Key.Tab)) chase = !chase;
+        if (input.Pressed(Key.F1)) showHud = !showHud;
+        if (input.Pressed(Key.F2)) net?.ShowInviteDialog();
+        // An invite accepted (or "Join Game" on a friend) while playing: leave this game for theirs.
+        if (Invited(net) is { } invitedTo)
+        {
+            relaunch = invitedTo;
+            break;
+        }
+
+        pendingYaw -= input.MouseDX * sensitivity;
+        pendingPitch -= input.MouseDY * sensitivity;
+        if (locomotion is not null)
+        {
+            // In a headset the head looks; the mouse only turns the room.
+            locomotion.Turn(pendingYaw);
+            pendingYaw = pendingPitch = 0;
+        }
+
+        int ticks = clock.Advance(dt);
+        for (int i = 0; i < ticks; i++)
+        {
+            var buttons = PlayerButtons.None;
+            if (input.Down(Key.LeftShift)) buttons |= PlayerButtons.Run;
+            if (input.Down(Key.Space)) buttons |= PlayerButtons.Jump;
+            if (input.Down(Key.E)) buttons |= PlayerButtons.Use;
+            if (input.Down(Key.MouseLeft)) buttons |= PlayerButtons.Fire;
+            if (input.Down(Key.MouseRight)) buttons |= PlayerButtons.Throw;
+            if (proto is null)
+            {
+                if (input.Down(Key.B)) buttons |= PlayerButtons.Brake;
+                if (pendingReverser) buttons |= PlayerButtons.Reverser;
+            }
+            var intent = new PlayerIntent
+            {
+                MoveX = (input.Down(Key.D) ? 1 : 0) - (input.Down(Key.A) ? 1 : 0),
+                MoveZ = (input.Down(Key.W) ? 1 : 0) - (input.Down(Key.S) ? 1 : 0),
+                LookYaw = (float)pendingYaw,
+                LookPitch = (float)pendingPitch,
+                Buttons = buttons,
+                ThrottleNotch = proto is null ? (sbyte)Math.Clamp(pendingNotch, -4, 4) : (sbyte)0,
+            };
+            if (locomotion is not null)
+            {
+                locomotion.Follow(session.Player, Eyes.Heading(session.Player, session.Train.Frames));
+                var headset = locomotion.Intent(session.Player, vr!.Session.Controllers);
+                intent.MoveX = Math.Clamp(intent.MoveX + headset.MoveX, -1, 1);
+                intent.MoveZ = Math.Clamp(intent.MoveZ + headset.MoveZ, -1, 1);
+                intent.LookYaw = headset.LookYaw;
+                intent.LookPitch = headset.LookPitch;
+                intent.Buttons |= headset.Buttons;
+            }
+            pendingNotch = 0;
+            pendingReverser = false;
+            pendingYaw = pendingPitch = 0;
+            session.Step(intent);
+            if (campaign is not null && session is NetPlaySession played)
+                campaign = Autosave(saves, campaign, played);
+            // The ears are where the eyes were last frame; audio follows the sim tick so no shot is missed.
+            bool exposed = !PlayerMotor.Indoors(session.Player, session.Train);
+            sound.Update(session.World, session.Controls, Listener.At(camera.Position, camera.Yaw), exposed, SimConstants.TickSeconds,
+                PlayerMotor.Space(session.Player, session.Train));
+            if (voice is not null && net is not null)
+                voice.Update(net.Client, session.Crew(session.InterpolatedFrames(1), 1), SimConstants.TickSeconds);
+        }
+        if (voice is not null && net is not null)
+        {
+            voice.TalkHeld = input.Down(Key.V);
+            voice.RadioHeld = input.Down(Key.T);
+            for (int n; mic is not null && (n = mic.Read(micSamples)) > 0;)
+                voice.Capture(micSamples.AsSpan(0, n), net.Client);
+        }
+        FeedSpeaker();
+
+        var frames = session.InterpolatedFrames(clock.Alpha);
+        camera = chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
+        scene.Crew = session.Crew(frames, clock.Alpha);
+        scene.Time = now;
+        lighting = Views.Lighting(frames[0]);
+        if (session.Route is { } r)
+            lighting.FogDensity = (float)r.Weather.FogDensity;
+        scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
+        // A Vigil: emergency lighting, and no power to the headlamp.
+        scene.Emergency = session.World.EmergencyLights;
+        if (!session.World.LampShining)
+            lighting.LampRange = 0.01f; // not 0: the shader divides by it
+        scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
+        if (showHud)
+        {
+            Hud.Build(overlay, renderer.Width, renderer.Height, session);
+            if (session.World.Run?.Over == true)
+                overlay.TextCentred(renderer.Width / 2f, renderer.Height - 22, campaign is not null ? "ENTER: BACK TO THE FORTRESS" : "ENTER: BACK", new Vector4(1, 0.7f, 0.3f, 1));
+        }
+        renderer.Prepare(mesh, showHud ? overlay : null);
+        Present(camera, lighting);
+        // The body is the flat camera's eye point, turned to where the room faces; the head does the looking.
+        if (vr is not null && vr.Frame(mesh, locomotion!.Body(camera, Eyes.Heading(session.Player, frames)), lighting, lighting.FogColor, locomotion) == XrFrameResult.Exiting)
+            break;
+
+        if (now >= titleAt)
+        {
+            string talking = voice is { Transmitting: true } ? voice.RadioHeld ? " | ON THE RADIO" : " | talking" : "";
+            window.Title = $"Dark Territory — {session.Status()}{talking}";
+            titleAt = now + 0.25;
+        }
+        input.EndFrame();
+        frameCount++;
+    }
+
+    if (capture is not null)
+    {
+        var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud ? overlay : null);
+        PngWriter.Write(capture, pixels, renderer.Width, renderer.Height, scale: 2);
+        Console.WriteLine($"captured {Path.GetFullPath(capture)}");
+    }
+    Console.WriteLine($"ticks {session.Tick}, {session.Status()}");
+    window.Title = "Dark Territory";
+    return campaign;
+}
 
 // Spec E: autosave on each departure from a facility, and settle the night into the slot when it's over.
 static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySession session)

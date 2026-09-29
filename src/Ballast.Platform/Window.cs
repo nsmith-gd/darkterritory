@@ -11,6 +11,7 @@ public enum Key
     W, A, S, D, E, R, F, B, X, C, Q, T, V, Space, LeftShift, Escape, Tab, F1, F2, F5, Backspace,
     D1, D2, D3, D4, D5, D6, D7, D8, D9,
     MouseLeft, MouseRight,
+    Up, Down, Left, Right, Enter,
 }
 
 /// <summary>
@@ -27,6 +28,11 @@ public sealed class InputState
     public bool Pressed(Key k) => _pressed.Contains(k);
     public float MouseDX { get; internal set; }
     public float MouseDY { get; internal set; }
+    /// <summary>Characters typed since the last <see cref="EndFrame"/>, while the window takes text (<see cref="Window.TextInput"/>).</summary>
+    public string Text => _text.ToString();
+    readonly System.Text.StringBuilder _text = new();
+
+    internal void Type(string text) => _text.Append(text);
 
     internal void Set(Key k, bool down)
     {
@@ -39,6 +45,7 @@ public sealed class InputState
     public void EndFrame()
     {
         _pressed.Clear();
+        _text.Clear();
         MouseDX = MouseDY = 0;
     }
 }
@@ -66,6 +73,19 @@ public sealed unsafe class Window : IDisposable
     {
         get => SDL_GetWindowRelativeMouseMode(_window);
         set => SDL_SetWindowRelativeMouseMode(_window, value);
+    }
+
+    /// <summary>Takes typed text into <see cref="InputState.Text"/> (a menu's address field); off, keys are only keys.</summary>
+    public bool TextInput
+    {
+        get => SDL_TextInputActive(_window);
+        set
+        {
+            if (value)
+                SDL_StartTextInput(_window);
+            else
+                SDL_StopTextInput(_window);
+        }
     }
 
     public string Title
@@ -121,6 +141,10 @@ public sealed unsafe class Window : IDisposable
                     if (Map(e.key.scancode) is { } key)
                         Input.Set(key, e.key.down);
                     break;
+                case SDL_EventType.SDL_EVENT_TEXT_INPUT:
+                    if (e.text.text != null)
+                        Input.Type(System.Text.Encoding.UTF8.GetString(System.Runtime.InteropServices.MemoryMarshal.CreateReadOnlySpanFromNullTerminated(e.text.text)));
+                    break;
                 case SDL_EventType.SDL_EVENT_MOUSE_MOTION:
                     if (MouseCaptured)
                     {
@@ -168,6 +192,11 @@ public sealed unsafe class Window : IDisposable
         SDL_Scancode.SDL_SCANCODE_F2 => Key.F2,
         SDL_Scancode.SDL_SCANCODE_F5 => Key.F5,
         SDL_Scancode.SDL_SCANCODE_BACKSPACE => Key.Backspace,
+        SDL_Scancode.SDL_SCANCODE_UP => Key.Up,
+        SDL_Scancode.SDL_SCANCODE_DOWN => Key.Down,
+        SDL_Scancode.SDL_SCANCODE_LEFT => Key.Left,
+        SDL_Scancode.SDL_SCANCODE_RIGHT => Key.Right,
+        SDL_Scancode.SDL_SCANCODE_RETURN or SDL_Scancode.SDL_SCANCODE_KP_ENTER => Key.Enter,
         >= SDL_Scancode.SDL_SCANCODE_1 and <= SDL_Scancode.SDL_SCANCODE_9 => Key.D1 + (code - SDL_Scancode.SDL_SCANCODE_1),
         _ => null,
     };
