@@ -106,6 +106,33 @@ public sealed class SceneArt(Look look)
         }
     }
 
+    /// <summary>A car's two lanterns, hanging on their chains from the carlines where its lights are; red glass in a Vigil.</summary>
+    public void CarLamps(MeshBuilder mesh, in CarFrame frame, Double3 eye, bool emergency)
+    {
+        if (frame.Shape.Interior is not { } room || (frame.Origin - eye).Length > 80)
+            return;
+        var m = FrameMatrix(frame, eye);
+        var lantern = Piece("prop-lantern", () => PropKit.Lantern(Look));
+        foreach (double z in new[] { -room.HalfSize.Z * 0.5, room.HalfSize.Z * 0.5 })
+        {
+            var at = new Vector3(0, (float)room.Max.Y - 0.42f, (float)(room.Centre.Z + z));
+            // The chain up to the carline.
+            var chain = Matrix4x4.CreateScale(0.5f, (float)(room.Max.Y - at.Y - 0.26) / 0.18f, 0.5f) * Matrix4x4.CreateTranslation(at + new Vector3(0, 0.26f + (float)(room.Max.Y - at.Y - 0.26) / 2, 0));
+            mesh.Append(Piece("chain", () => Chain(Look)), chain * m);
+            mesh.Append(lantern, Matrix4x4.CreateTranslation(at) * m, emergency ? new Vector3(0.6f, 0.08f, 0.05f) : null);
+            var glow = emergency ? new Vector3(0.35f, 0.04f, 0.03f) : Palette.LampAmber * 0.35f;
+            mesh.Billboard(Vector3.Transform(at, m), 0.6f, 0, new Vector4(glow, 1), -1, FxBlend.Additive);
+        }
+    }
+
+    static MeshAsset Chain(Look? look)
+    {
+        var k = new Kit(look, 70);
+        k.Use("rust_heavy", Palette.SootBlack, 0.6f, 0.4f);
+        k.Rod(new Vector3(0, -0.09f, 0), new Vector3(0, 0.09f, 0), 0.01f);
+        return k.Build("chain");
+    }
+
     /// <summary>A flame's flicker, 0.85..1.05, different for each light and steady enough not to strobe.</summary>
     public static float Flicker(double time, int id)
     {

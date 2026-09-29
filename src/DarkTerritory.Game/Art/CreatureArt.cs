@@ -175,10 +175,10 @@ public sealed class CreatureArt
                     // The heat they hunt by is what you see of them at night (greybox: embers along the flanks).
                     float glow = phase switch
                     {
-                        SpinePhase.Punish => 0.8f + 0.6f * pulse,
-                        SpinePhase.Commit => 1.0f + 0.25f * (float)Math.Sin(t * 5),
-                        SpinePhase.Telegraph => 0.85f,
-                        _ => 0.6f,
+                        SpinePhase.Punish => 0.9f + 0.7f * pulse,
+                        SpinePhase.Commit => 1.25f + 0.25f * (float)Math.Sin(t * 5),
+                        SpinePhase.Telegraph => 1.05f,
+                        _ => 0.75f,
                     };
                     string clip;
                     double ct = t;

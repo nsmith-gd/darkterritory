@@ -103,9 +103,13 @@ public sealed class GreyboxScene
                 mesh.Rooms.Add(new Room(V(frame.ToWorld(inside.Centre), eye), ToF(frame.Right), ToF(frame.Up), ToF(frame.Back), ToF(inside.HalfSize)));
             if (frame.Shape.Interior is { } room)
                 foreach (double z in new[] { -room.HalfSize.Z * 0.5, room.HalfSize.Z * 0.5 })
+                {
+                    // With the art pass the lamps are flames, and flicker (Art.SceneArt.Flicker); the greybox's are steady.
+                    float flicker = Look is null ? 1 : Art.SceneArt.Flicker(Time, frame.Index * 2 + (z < 0 ? 0 : 1));
                     mesh.PointLights.Add(Emergency
                         ? new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), EmergencyRed, 4f)
-                        : new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), Palette.LampAmber * 1.6f, 7.5f));
+                        : new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), Palette.LampAmber * 1.6f * flicker, 7.5f));
+                }
             foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
                 mesh.PointLights.Add(new PointLight(V(frame.ToWorld(i.Position + new Double3(0, 0.7, 0.3)), eye), Palette.FurnaceOrange * (0.6f + 1.6f * FireGlow), 5f));
         }
@@ -792,7 +796,7 @@ public sealed class GreyboxScene
         // The art pass's kit (TrainKit): the body, doors and gun as cooked pieces; what's left here is what glows and moves.
         if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency))
         {
-            CarWorkings(mesh, frame, Draw);
+            CarWorkings(mesh, frame, eye, Draw);
             if (engine)
             {
                 // The dials: pressure from the boiler, heat from the fire, the water glass (no water model yet: steady),
@@ -830,7 +834,7 @@ public sealed class GreyboxScene
             Draw(Box.FromCentre(new Double3(0, 2.8, -half - 0.05), new Double3(0.35, 0.35, 0.1)), Emergency ? Palette.LampAmber * 0.08f : Palette.LampAmber);
             mesh.Emissive = 0;
         }
-        CarWorkings(mesh, frame, Draw);
+        CarWorkings(mesh, frame, eye, Draw);
         if (!engine)
         {
             // Roof walkway plank down the safe centreline.
@@ -878,7 +882,7 @@ public sealed class GreyboxScene
     /// What glows and moves on a car, with or without the kit: the firebox's glow, the vent valve, the driver's levers
     /// where the controls have them, and the lamp in every car.
     /// </summary>
-    void CarWorkings(MeshBuilder mesh, CarFrame frame, Action<Box, Vector3> draw)
+    void CarWorkings(MeshBuilder mesh, CarFrame frame, Double3 eye, Action<Box, Vector3> draw)
     {
         var shape = frame.Shape;
         if (frame.Index == 0)
@@ -903,7 +907,12 @@ public sealed class GreyboxScene
                 Lever(levers.ReverserAt(Controls.Reverser), 0.9);
             }
         }
-        if (shape.Interior is { } room)
+        if (shape.Interior is not null && Look is not null)
+        {
+            // Lanterns hanging where the car's lights are (the art pass's).
+            Look.Art.CarLamps(mesh, frame, eye, Emergency);
+        }
+        else if (shape.Interior is { } room)
         {
             // A lamp in every car: the warm interior against the hostile exterior (GDD §26).
             mesh.Emissive = 1;
