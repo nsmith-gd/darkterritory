@@ -611,6 +611,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (args.Contains("--muzzle"))
         foreach (var v in train.Vehicles.Where(v => v.HasGun))
             v.Gun.LastShotTick = 100;
+    // --integrity a[,b,...]: each car's condition, front to back, the last repeating (look.json "damage": scars, states).
+    if (Str(args, "--integrity", "") is { Length: > 0 } integrity)
+    {
+        var each = integrity.Split(',').Select(x => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+        for (int i = 0; i < train.Vehicles.Count; i++)
+            train.Vehicles[i].Integrity = Math.Clamp(each[Math.Min(i, each.Length - 1)], 0, 1);
+    }
     var scene = new GreyboxScene
     {
         Tick = args.Contains("--muzzle") ? 101 : -1,
@@ -900,6 +907,7 @@ static int Usage()
                      [--bodies]   crates, a lamp and a crewmate's body on the roofs, settled by the physics
                      [--vigil]    emergency lighting, as during a Vigil (spec C.2)
                      [--ps2]      the era comparison mode   [--muzzle] the guns just fired   [--builds n] time n warm builds
+                     [--integrity a,b,..] each car's condition, front to back (scars and damage states)
                      [--route tier:seed --site [--crank]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)

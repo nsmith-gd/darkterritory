@@ -212,8 +212,17 @@ public sealed class SceneArt(Look look)
         int variant = frame.Index % 2;
         string key = engine ? $"engine:{ShapeKey(shape)}" : $"car:{ShapeKey(shape)}:{livery}:{variant}:{shape.Gun is not null}";
         var body = Piece(key, () => engine ? TrainKit.Engine(Look, shape, 0) : TrainKit.Car(Look, shape, livery, variant));
+        // Wear and tear off the car's integrity (look.json "damage"): the scar mask over the body and doors, seeded by
+        // the car so its scars stay where they are, and past the first state the torn plate the mask can't draw.
+        var damage = Look.Tuning.Damage;
+        double integrity = vehicle?.Integrity ?? 1;
+        int seed = vehicle?.Id ?? frame.Index;
+        var scar = new Vector2(damage.ScarOf(integrity), seed * 0.618f % 1 * 97);
         // In a Vigil the headlamp and tail lamp have no power (spec C.2).
-        mesh.Instances.Add(new MeshInstance(body, m, emergency ? 0.06f : 1));
+        mesh.Instances.Add(new MeshInstance(body, m, emergency ? 0.06f : 1, Scar: scar));
+        int state = damage.StateOf(integrity);
+        if (state > 0 && !engine)
+            mesh.Instances.Add(new MeshInstance(Piece($"damage:{ShapeKey(shape)}:{state}:{seed}", () => DamageKit.Car(Look, shape, state, seed)), m));
 
         foreach (var door in shape.DoorList)
         {
@@ -230,7 +239,7 @@ public sealed class SceneArt(Look look)
             var size = new Vector3((float)(box.Max.X - box.Min.X), (float)(box.Max.Y - box.Min.Y), (float)(box.Max.Z - box.Min.Z));
             var leaf = Piece($"door:{side}:{size.X:0.##}x{size.Y:0.##}x{size.Z:0.##}", () => TrainKit.Door(Look, size, side));
             var c = box.Centre;
-            mesh.Instances.Add(new MeshInstance(leaf, Matrix4x4.CreateTranslation((float)c.X, (float)c.Y, (float)c.Z) * m));
+            mesh.Instances.Add(new MeshInstance(leaf, Matrix4x4.CreateTranslation((float)c.X, (float)c.Y, (float)c.Z) * m, Scar: scar));
         }
         if (shape.Gun is { } gun)
         {

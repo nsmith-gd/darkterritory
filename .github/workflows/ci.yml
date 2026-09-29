@@ -48,7 +48,9 @@ jobs:
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --at 18200 --cam 18150,-45,-8 --target 18260,0,-4 --fov 70 --out out/shots/viaduct.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --at 17200 --cam 17215,6,3 --target 17262,0,4 --fov 60 --out out/shots/tunnel.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --at 330 --cam 250,7,2.2 --target 330,5,2.5 --fov 65 --out out/shots/station.png
-          for p in engine car-steel guard portal viaduct-bay; do
+          # Wear and tear (look.json "damage"): the cars from sound at the front to wrecked at the back.
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --integrity 0.3,1,0.8,0.55,0.3,0.1 --cam 1126,-5.5,2.4 --target 1116,0,2.0 --fov 55 --out out/shots/damage.png
+          for p in engine car-steel guard portal viaduct-bay car-wrecked; do
             dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- art show $p --out out/shots/art-$p.png
           done
       - name: VR session end to end (Monado's simulated headset)
