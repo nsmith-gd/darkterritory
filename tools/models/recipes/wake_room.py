@@ -132,45 +132,11 @@ for i, o in enumerate(heavy):
 parts = rest + baked + lamp_parts
 
 
-def standing(c):
-    # What's left of the walls: nearly full height at the back, falling away toward the open side, broken.
-    front = min(1.0, max(0.0, 1 - c.y / depth))
-    line = 2.55 - 0.7 * front ** 1.4 + 0.5 * cook.noise3(c, 51, 1.1) + 0.15 * cook.noise3(c, 52, 4.5)
-    return c.z < line
-
-
-# The house around it: plaster inside, sooted brick outside, a wall's thickness apart; the window's hole left in the
+# The house around it: its walls broken off raggedly where the storey above came down, the window's hole left in the
 # right-hand wall (where the source's window is: y -2.4..20.4, z -5.6..18.5 in its units).
-plaster = cook.library_material("plaster_ruin", 0.05)
-brick = cook.library_material("brick_soot", 0.05)
-floorboards = cook.library_material("wood_floor", 0.08)
+window = (((-2.4 - OPEN) * S, (20.4 - OPEN) * S), ((-5.6 - FLOOR) * S, (18.5 - FLOOR) * S))
+shell, standing = cook.ruined_shell(half, depth, window=window)
 T = 0.22
-shell = []
-
-
-def wall(width, material, rot, at, name):
-    g = cook.grid(width, 3.0, 18, material, tile=2.0, name=name)
-    cook.transform([g], Matrix.Rotation(rot, 4, "Z"))
-    cook.move([g], (at[0], at[1], 1.5))
-    shell.append(g)
-    return g
-
-
-# (cook.grid faces +Y: turned so each face looks the way it should, the plaster into the room, the brick out.)
-wall(2 * half + 2 * T, plaster, math.pi, (0, depth, 0), "back_in")
-wall(2 * half + 2 * T, brick, 0, (0, depth + T, 0), "back_out")
-for side, sx in (("right", 1), ("left", -1)):
-    wall(depth + T, plaster, sx * math.pi / 2, (sx * half, (depth + T) / 2, 0), f"{side}_in")
-    wall(depth + T, brick, -sx * math.pi / 2, (sx * (half + T), (depth + T) / 2, 0), f"{side}_out")
-win_y = ((-2.4 - OPEN) * S, (20.4 - OPEN) * S)
-win_z = ((-5.6 - FLOOR) * S, (18.5 - FLOOR) * S)
-cook.cut(shell, lambda c: standing(c) and not (c.x > half - 0.05 and win_y[0] < c.y < win_y[1] and win_z[0] < c.z < win_z[1]))
-fl = cook.grid(2 * half, depth, 10, floorboards, tile=1.0, name="floor")
-cook.transform([fl], Matrix.Rotation(-math.pi / 2, 4, "X"))
-cook.move([fl], (0, depth / 2, 0.002))
-# Floorboards broken off along the open front.
-cook.cut([fl], lambda c: c.y > 0.1 + 0.18 * (cook.noise3(c, 53, 2.2) + 1))
-shell.append(fl)
 
 # Nothing through the back wall (a cupboard of the next room's stood against it).
 cook.cut([o for o in parts if o not in lamp_parts], lambda c: standing(c) and c.y < depth - 0.01)
@@ -220,13 +186,7 @@ for i, (y, z0, z1) in enumerate(((by, 2.8, 2.8), (depth * 0.82, 2.76, 2.76), (de
     joists.append(j)
 for o in bier + joists:
     o.data.materials.append(wood)
-    uv = o.data.uv_layers.new(name="UVMap")
-    for poly in o.data.polygons:
-        n = poly.normal
-        for li in poly.loop_indices:
-            p = o.data.vertices[o.data.loops[li].vertex_index].co
-            a = (p.y, p.z) if abs(n.x) > 0.5 else (p.x, p.z) if abs(n.y) > 0.5 else (p.x, p.y)
-            uv.data[li].uv = (a[0] / 1.2, a[1] / 1.2)
+cook.box_uv(bier + joists)
 
 # The pictures: flat things hung on the back wall (thin in depth, off the floor, not wide), under black crepe.
 CREPE = set()

@@ -547,6 +547,23 @@ public sealed partial class WorldArt(Look look)
                         mesh.PointLights.Add(new PointLight(Vector3.Transform(bulbs, at), new Vector3(1.0f, 0.74f, 0.46f) * 0.9f, 4.5f));
                 }
             }
+            // And across the line, a photographer's (tools/models portrait_room): the dead boy propped in the chair for
+            // his memorial portrait, the camera still on him, a candle burning.
+            if (Hash((float)(centre * 0.0747)) < 0.6f && _props.Get("portrait_room") is { } studio)
+            {
+                double along = centre - 4, across = -side * (17 + Hash((float)(centre * 0.0533)) * 3);
+                if (!onBranch(along, across))
+                {
+                    var t = line.Sample(Math.Clamp(along, 0, line.Length));
+                    var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+                    float h = Ground(route, along, (float)across, valleyDepth) - 0.1f;
+                    float face = across > 0 ? MathF.PI / 2 : -MathF.PI / 2;
+                    var at = Basis(t.Tangent, t.Position + r * across + Double3.Up * h, eye, face);
+                    mesh.Instances.Add(new MeshInstance(studio, at));
+                    if (_props.Socket("portrait_room", "lamp") is { } wick)
+                        mesh.PointLights.Add(new PointLight(Vector3.Transform(wick, at), new Vector3(1.0f, 0.7f, 0.4f) * 0.9f, 4.0f));
+                }
+            }
             if (landmark >= 0.45 && _props.Get("mercury_defaced") is { } square)
                 Place(square, centre, lateral - side * 4, (float)(rng.NextDouble() - 0.5) * 0.6f);
         }
