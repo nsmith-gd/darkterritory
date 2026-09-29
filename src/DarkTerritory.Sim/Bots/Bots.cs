@@ -348,7 +348,12 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             if (stops.Decide(self, world) is { } stopping)
                 return Work(self, train, stopping) with { Lamp = lamp };
         }
-        var intent = Drive(train, tick, world.LampShining ? CruiseSpeed : DarkCruiseSpeed);
+        // A lantern on the line ahead, waving us down (App. A.2): do not slow down. Hold the fastest we've come at it, lamp
+        // or no lamp (the Lamplighters + Ferryman bind: the lantern is its own light).
+        double cruise = world.LampShining ? CruiseSpeed : DarkCruiseSpeed;
+        if (world.ActiveEnemies.OfType<Ferryman>().FirstOrDefault(f => f.Waving) is { } ferryman)
+            cruise = Math.Max(cruise, ferryman.Extra);
+        var intent = Drive(train, tick, cruise);
         intent.Lamp = lamp;
         // Watch the road: something showing on the line ahead means get below derailing speed.
         bool somethingAhead = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.Sleepers && e.Phase == SpinePhase.Telegraph

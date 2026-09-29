@@ -187,6 +187,43 @@
     "unattendedSeconds": 10
   },
 
+  // App. A.2 THE FERRYMAN: "stands on the track ahead holding a lantern, waving you down. RULE: do not slow down." The
+  // lantern is the telegraph, seen from very far out. The train slows for it: it comes down the line, boards the engine and
+  // goes for the conductor. The train holds its speed: it steps aside at the last moment, gone for the run.
+  "ferryman": {
+    // Where it stands: this far up the line ahead of the engine, this far out at the lineside (it steps onto the line).
+    "spawnAhead": 600,
+    "waitLateral": 2.6,
+    // Ambiguity (ARCHITECTURE §8): "the train decelerates". Slower than the fastest the train has come at it by this
+    // much (m/s): a cruise's notching wobble doesn't count, a brake application or easing off to a crawl does.
+    "slowTolerance": 2.5,
+    // Held: with the engine this close (m) it steps aside, this far out, at this pace across.
+    "stepAsideAt": 30,
+    "stepAsideLateral": 3.5,
+    "stepSpeed": 3,
+    // ADVANCE: down the line to the slowed train at this pace, boarding within this reach of the engine's front.
+    "advanceSpeed": 5,
+    "boardReach": 3,
+    // PUNISH: the conductor (whoever's in the cab; else the nearest within reach) takes this. 100 is a life.
+    "strikeDamage": 100,
+    "strikeReach": 20,
+    // Aboard this long after the strike, then gone. Left behind this far behind the last car, or never reached in this
+    // long, gone too.
+    "aboardSeconds": 2,
+    "loseBehind": 40,
+    "lingerSeconds": 180,
+    // App. B.2 gates: the train coming on at least this fast, "mid-to-late run" (this share of the route in), on a "long
+    // straight with clear sightline": from the engine to this far past where it stands, no curve tighter than this radius
+    // (m), no grade steeper than this (%), and nothing that would give the crew another reason to slow (Sleepers, Grease,
+    // a tunnel, a facility or the end of the line within the stop margin past it).
+    "minSpeed": 8,
+    "midRunFrom": 0.4,
+    "straightRadius": 1500,
+    "maxGradePercent": 1,
+    "clearPast": 100,
+    "stopMargin": 600
+  },
+
   "lamplighters": {
     // Where it paces: this far out from the track, this far back from the engine's front (beside the cab).
     "paceLateral": 14,
@@ -236,7 +273,7 @@
     "maxConcurrentLargeCrew": 6,
     // Budget share spent before the first facility, across the middle, and in the final approach.
     "phaseShares": [0.15, 0.45, 0.40],
-    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3 },
+    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3, "ferryman": 4 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5

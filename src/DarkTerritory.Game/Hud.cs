@@ -179,6 +179,7 @@ public static class Hud
                 DeathCause.PulledUnder => "PULLED UNDER BETWEEN THE CARS",
                 DeathCause.Lamplighter => "TORN DOWN AT THE LAMP",
                 DeathCause.Deadman => "KILLED TAKING BACK THE CAB",
+                DeathCause.Ferryman => "SLOWED FOR THE LANTERN",
                 DeathCause.Stoker => "BURNED DRIVING IT OUT OF THE FIREBOX",
                 _ => "",
             }, Ink);
