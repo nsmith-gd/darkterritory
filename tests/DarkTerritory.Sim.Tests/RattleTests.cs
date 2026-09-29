@@ -21,6 +21,8 @@ public class RattleTests
         public readonly World World;
         public readonly List<PlayerState> Crew = [];
         public readonly List<PlayerIntent> Intents = [];
+        /// <summary>Stood, unless a test has it rolling.</summary>
+        public double Speed;
 
         public Stop()
         {
@@ -51,7 +53,7 @@ public class RattleTests
         {
             for (int i = 0; i < Math.Max(1, seconds * SimConstants.TickRate); i++)
             {
-                Train.Dynamics.Velocity = 0;
+                Train.Dynamics.Velocity = Speed;
                 World.BeginTick();
                 for (int c = 0; c < Crew.Count; c++)
                 {
@@ -201,6 +203,32 @@ public class RattleTests
         Assert.True(rattle.Rattling || rattle.Phase == SpinePhase.Dormant);
         Assert.True(stop.Crew[0].Alive);
         Assert.False(rattle.InGap(PlayerMotor.WorldPosition(stop.Crew[0], stop.Train), stop.Train));
+    }
+
+    [Fact]
+    public void AtSpeedABotOnThePlateNeverStepsOffToGetOut()
+    {
+        var stop = new Stop();
+        var rattle = stop.Nest();
+        // On the coupler plate behind car 2 as it starts rattling, the train rolling faster than you could step down at:
+        // stepping off the side to get clear would be the jump-off death, so it doesn't.
+        var frame = stop.Train.Frames[Car];
+        stop.Crew.Add(new PlayerState
+        {
+            Parent = Car,
+            Surface = Surface.Coupler,
+            Health = Tuning.Player.Health,
+            Position = new Double3(0, Tuning.Train.Geometry.CouplerHeight, frame.Shape.HalfLength + stop.Gap * 0.5),
+        });
+        stop.Intents.Add(default);
+        stop.Speed = Tuning.Train.SpeedBands.JumpOffLethal + 4;
+        for (int i = 0; i < 3 * SimConstants.TickRate; i++)
+        {
+            stop.Intents[0] = Heed.Rattles(default, stop.Crew[0], stop.World, Tuning.Player);
+            stop.Run(SimConstants.TickSeconds);
+        }
+        Assert.NotEqual(DeathCause.JumpedAtSpeed, stop.Crew[0].Death);
+        Assert.NotEqual(PlayerState.World, stop.Crew[0].Parent);
     }
 
     /// <summary>Enemy tuning whose director can afford the Rattle and nothing else, straight away.</summary>

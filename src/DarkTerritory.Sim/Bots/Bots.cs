@@ -672,18 +672,35 @@ public static class Heed
         return PlayerMotor.WorldPosition(next, train);
     }
 
-    /// <summary>In the gap as it rattles: whichever way of walking gets it furthest out to a side (off the plate, clear of the cars).</summary>
+    /// <summary>
+    /// In the gap as it rattles: whichever way of walking takes it out of the gap soonest, or failing that furthest out to a
+    /// side. Never a way off the train while it's going too fast to step down (spec B.3): off the plate at speed is worse.
+    /// </summary>
     static PlayerIntent Out(PlayerIntent intent, in PlayerState self, TrainOnLine train, PlayerTuning player, Rattle r)
     {
         var frame = train.Frames[r.Attached];
+        bool stepDown = !SpeedBands.JumpOffIsLethal(train.Dynamics.Tuning, train.Dynamics.Speed);
         PlayerIntent best = intent with { MoveX = 0, MoveZ = 0 };
-        double bestOut = Math.Abs(frame.ToLocal(PlayerMotor.WorldPosition(self, train)).X);
+        double bestScore = Math.Abs(frame.ToLocal(PlayerMotor.WorldPosition(self, train)).X);
         foreach (var (x, z) in new (float, float)[] { (1, 0), (-1, 0), (0, 1), (0, -1) })
         {
             var tryIt = intent with { MoveX = x, MoveZ = z, Buttons = intent.Buttons | PlayerButtons.Run };
-            double outward = Math.Abs(frame.ToLocal(After(self, tryIt, train, player)).X);
-            if (outward > bestOut + 1e-4)
-                (best, bestOut) = (tryIt, outward);
+            var next = self;
+            PlayerMotor.Step(ref next, tryIt, train, player, train.Dynamics.Tuning, SimConstants.TickSeconds, applyLook: false);
+            // A third of a second on the same way: walking off the plate's edge shows by then.
+            var ahead = next;
+            bool falls = false;
+            for (int i = 0; i < SimConstants.TickRate / 3 && !falls; i++)
+            {
+                PlayerMotor.Step(ref ahead, tryIt, train, player, train.Dynamics.Tuning, SimConstants.TickSeconds, applyLook: false);
+                falls = ahead.Parent == PlayerState.World || ahead.Surface == Surface.Air;
+            }
+            if (!stepDown && self.Parent != PlayerState.World && falls)
+                continue;
+            var at = PlayerMotor.WorldPosition(next, train);
+            double score = r.InGap(at, train) ? Math.Abs(frame.ToLocal(at).X) : 100;
+            if (score > bestScore + 1e-4)
+                (best, bestScore) = (tryIt, score);
         }
         return best;
     }
