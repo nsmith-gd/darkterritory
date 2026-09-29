@@ -23,6 +23,8 @@ public sealed class GreyboxScene
     public Route? Route { get; set; }
     /// <summary>Live enemies to draw. When set, the route's Sleepers come from here rather than its features.</summary>
     public IReadOnlyList<Enemy>? Enemies { get; set; }
+    /// <summary>Other players, drawn as greybox figures.</summary>
+    public IReadOnlyList<Crewmate>? Crew { get; set; }
 
     /// <summary>Depth of the valley under a bridge.</summary>
     const double ValleyDepth = 18;
@@ -48,6 +50,28 @@ public sealed class GreyboxScene
             foreach (var e in Enemies)
                 if (!e.Gone)
                     DrawEnemy(mesh, line, frames, e, eye, from, to);
+        if (Crew is not null)
+            foreach (var c in Crew)
+                DrawCrewmate(mesh, c, eye);
+    }
+
+    /// <summary>A crewmate: coat, head and a lamp at the chest so you can find each other in the dark. Dead ones lie down.</summary>
+    static void DrawCrewmate(MeshBuilder mesh, Crewmate c, Double3 eye)
+    {
+        var right = new Vector3((float)Math.Cos(c.Yaw), 0, (float)-Math.Sin(c.Yaw));
+        var back = new Vector3((float)Math.Sin(c.Yaw), 0, (float)Math.Cos(c.Yaw));
+        var o = V(c.Feet, eye);
+        if (!c.Alive)
+        {
+            mesh.Box(o + Vector3.UnitY * 0.15f, right, Vector3.UnitY, back, new Vector3(0.25f, 0.15f, 0.9f), Palette.DeepBrown);
+            return;
+        }
+        mesh.Box(o + Vector3.UnitY * 0.45f, right, Vector3.UnitY, back, new Vector3(0.16f, 0.45f, 0.12f), Palette.Charcoal);
+        mesh.Box(o + Vector3.UnitY * 1.2f, right, Vector3.UnitY, back, new Vector3(0.24f, 0.33f, 0.15f), Palette.DeepBrown);
+        mesh.Box(o + Vector3.UnitY * 1.68f, right, Vector3.UnitY, back, new Vector3(0.12f, 0.13f, 0.12f), Palette.Corrupted);
+        mesh.Emissive = 1;
+        mesh.Box(o + Vector3.UnitY * 1.3f - back * 0.16f, right, Vector3.UnitY, back, new Vector3(0.05f, 0.05f, 0.02f), Palette.LampAmber);
+        mesh.Emissive = 0;
     }
 
     /// <summary>

@@ -80,6 +80,7 @@ object RunHarness(string[] args)
         Combat = args.Contains("--no-combat") ? null : combat,
         Enemies = args.Contains("--enemies") ? enemies : null,
         Route = route,
+        Udp = args.Contains("--udp"),
     }, args.Contains("--no-boiler") ? null : boiler);
 }
 
@@ -278,7 +279,7 @@ static int Usage()
                      writes content/lines/<name>.json (+ .route.json) and a map; try `screenshot --line generated`
           route sweep [--seeds n]                  generate n routes per tier and report ranges
           harness [--bots n] [--cars n] [--seconds t] [--seed s] [--latency s] [--jitter s] [--loss 0..1] [--line name | --route tier:seed]
-                     [--enemies] [--no-combat] [--no-boiler]
+                     [--enemies] [--no-combat] [--no-boiler] [--udp]   --udp: real sockets on localhost instead of the simulated link
           audio render [--scenario bed|tells|chaos] [--cars n] [--speed v] [--listener car (0 = cab) | all] [--seconds t] [--out file.wav]
                      renders through the mixer to a WAV and a spectrogram PNG, and reports each tell's margin over the bed (spec A.3)
                      host + bot clients over a simulated network; reports prediction error, bandwidth, deaths,

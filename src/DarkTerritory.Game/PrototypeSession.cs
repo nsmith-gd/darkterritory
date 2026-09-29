@@ -15,7 +15,7 @@ namespace DarkTerritory.Game;
 /// Exists to answer spec G.1 (does the 4:1 speed ratio feel right?) and G.2 (is a 94 s roof
 /// traverse fun?). Networking replaces the direct sim calls in M2; the sim itself doesn't change.
 /// </summary>
-public sealed class PrototypeSession
+public sealed class PrototypeSession : IPlaySession
 {
     readonly HotData<TrainTuning> _trainTuning;
     readonly HotData<PlayerTuning> _playerTuning;
@@ -62,6 +62,10 @@ public sealed class PrototypeSession
     public TrainControls Controls;
     public long Tick { get; private set; }
     public string? LastReloadError { get; private set; }
+
+    PlayerState IPlaySession.Player => Player;
+    TrainControls IPlaySession.Controls => Controls;
+    public IReadOnlyList<Crewmate> Crew(IReadOnlyList<CarFrame> frames, double alpha) => [];
 
     public TrainTuning TrainTuning => _trainTuning.Value;
     public PlayerTuning PlayerTuning => _playerTuning.Value;
@@ -131,25 +135,8 @@ public sealed class PrototypeSession
     }
 
     /// <summary>First-person eye, interpolated in the player's own frame so riding a car at speed is smooth.</summary>
-    public Camera EyeCamera(IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch)
-    {
-        var cur = Player;
-        var prev = _previousPlayer;
-        var local = prev.Parent == cur.Parent ? Double3.Lerp(prev.Position, cur.Position, alpha) : cur.Position;
-        var eyeLocal = local + Double3.Up * (cur.Alive ? 1.65 : 0.3);
-        bool onCar = cur.Parent != PlayerState.World;
-        var eye = onCar ? frames[cur.Parent].ToWorld(eyeLocal) : eyeLocal;
-        double heading = onCar ? frames[cur.Parent].Heading : 0;
-        return new Camera
-        {
-            Position = eye,
-            Yaw = cur.Yaw + pendingYaw + heading,
-            Pitch = Math.Clamp(cur.Pitch + pendingPitch, -1.5, 1.5),
-            FovYDegrees = 75,
-            Near = 0.05f,
-            Far = 2000,
-        };
-    }
+    public Camera EyeCamera(IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch) =>
+        Eyes.From(Player, _previousPlayer, frames, alpha, pendingYaw, pendingPitch);
 
     public string Status()
     {
