@@ -108,6 +108,9 @@
   // off the train, which at speed is death. Grabbed with an ally near: they have "freeSeconds" to free them (Use, close by).
   // Never leaves its car; it follows a roof walker along under its edge. "COUNTER: walk the centreline of the roof."
   "draggers": {
+    // Nobody on its car's roof for this long and it lets go of the car (T64): under the lip all night, it would hold one of
+    // the flank's two places the whole run.
+    "lingerSeconds": 180,
     // "player within 1m of a car edge → grab attempt".
     "grabRange": 1.0,
     // Spec B.3 "Max 22 m/s: Draggers +50% grab range": the range grows from cruise to max speed.
@@ -391,6 +394,34 @@
     "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3, "ferryman": 4, "longWhistle": 3, "climbers": 3, "weight": 3, "gaunt": 5 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
-    "houndsHotBoilerWeight": 1.5
+    "houndsHotBoilerWeight": 1.5,
+    // App. B.1 "contradiction seeding": the conflict table, as the tuning's names (and three conditions: "choir", always
+    // about; "grade", a climb or fall just ahead; "facilityLoading", at a facility). Ambiguity (ARCHITECTURE §8): "draws
+    // pairs from a conflict table": read as a spawn that would complete a pair with what's there now weighing this much
+    // more, and this much more again past halfway on a run short of its pairs. Pairs without both enemies in the game yet
+    // (the Drift, Followers) wait for them.
+    "conflicts": [
+      ["choir", "cinderHounds"],
+      ["lamplighters", "sleepers"],
+      ["lamplighters", "ferryman"],
+      ["drift", "grade"],
+      ["clingers", "grade"],
+      ["rattle", "climbers"],
+      ["rattle", "hollow"],
+      ["rattle", "stoker"],
+      ["sootChildren", "followers"],
+      ["deadman", "facilityLoading"]
+    ],
+    "pairWeight": 3,
+    "behindPairWeight": 3,
+    "pairsPerRun": { "frontier": 1, "deadLines": 1, "deepTerritory": 2 },
+    // Sleepers "about" for a pair: lying this far ahead (m). A "grade" ahead: this steep (%) within this far (m).
+    "sleepersAhead": 1500,
+    "gradeAhead": 600,
+    "gradePercent": 1.5,
+    // Saving up (ARCHITECTURE §8): from this share of the route in, cheaper threats leave enough budget for these rare,
+    // expensive ones while the run can still have them, so they come at all.
+    "saveFor": ["gaunt"],
+    "saveFrom": 0.2
   }
 }

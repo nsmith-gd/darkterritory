@@ -123,6 +123,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// <summary>This tick's intent for its part in a stop, if it has one to do now (worked out once a tick).</summary>
     public PlayerIntent? Work(in PlayerState self, World world)
     {
+        job?.Warming(self, _warm is { Active: true });
         if (job is null || _warm is { Active: true })
             return null;
         if (_workedTick != world.Tick)
