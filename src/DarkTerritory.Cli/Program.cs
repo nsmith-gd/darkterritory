@@ -56,6 +56,7 @@ return args switch
     ["route", "gen", ..] => Print(GenerateRoute(routeTuning, content, args)),
     ["route", "sweep", ..] => Print(SweepRoutes(routeTuning, (int)Opt(args, "--seeds", 200))),
     ["harness", ..] => Print(RunHarness(args)),
+    ["balance", ..] => PrintBalance(RunBalance(args)),
     ["online", "check"] => Print(OnlineCheck()),
     ["campaign", var verb, ..] => Print(CampaignCommand(content, verb, args)),
     ["vr", "check", ..] => Print(VrCheck(train, content, args)),
@@ -123,6 +124,57 @@ object RunHarness(string[] args)
         Facilities = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
         YardLength = routeTuning.YardLength,
     }, args.Contains("--no-boiler") ? null : boiler);
+}
+
+// GDD §34's balance sweep (T55): harness nights over tiers, seeds, crew sizes and train lengths, run side by side, and
+// judged against tuning/balance.json. Exit code 1 if a check fails.
+BalanceReport RunBalance(string[] args)
+{
+    var tiers = Str(args, "--tiers", "frontier").Split(',').Select(t => Enum.Parse<RouteTier>(t, ignoreCase: true));
+    var seeds = Enumerable.Range(1, (int)Opt(args, "--seeds", 2)).Select(s => (ulong)s);
+    var crews = Str(args, "--crews", "2,8").Split(',').Select(int.Parse);
+    var lengths = Str(args, "--cars", "10").Split(',').Select(int.Parse);
+    var grid = Balance.Grid(tiers, seeds, crews, lengths);
+    // The targets first: a sweep's an hour of nights, not to be lost to a bad file at the end.
+    var targets = DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File));
+    var combat = DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File));
+    var enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File));
+    var vigil = DataFile.Load<DarkTerritory.Sim.Run.VigilTuning>(Path.Combine(content, DarkTerritory.Sim.Run.VigilTuning.File));
+    var run = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
+    var facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File));
+    double seconds = Opt(args, "--seconds", 3600);
+    var rows = new BalanceRow[grid.Count];
+    // Each night is its own host and bots over their own loopback; nothing's shared, so they run side by side.
+    Parallel.For(0, grid.Count, new ParallelOptions { MaxDegreeOfParallelism = (int)Opt(args, "--parallel", Environment.ProcessorCount) }, i =>
+    {
+        var n = grid[i];
+        var route = RouteGenerator.Generate(routeTuning, n.Tier, n.Seed);
+        var report = Harness.Run(route.Build(), train, player, new HarnessOptions
+        {
+            Bots = n.Crew,
+            Cars = n.Cars,
+            Seconds = seconds,
+            Seed = (int)n.Seed,
+            Link = new Ballast.Net.LinkConditions(0.09, 0.02, 0.03),
+            StartDistance = 400,
+            Combat = combat,
+            Enemies = enemies,
+            Route = route,
+            Vigil = vigil,
+            Run = run,
+            Facilities = facilities,
+            YardLength = routeTuning.YardLength,
+        }, boiler);
+        rows[i] = Balance.Row(n, report);
+        Console.Error.WriteLine($"{n.Tier}:{n.Seed} crew {n.Crew} cars {n.Cars}: {rows[i].End}, net {rows[i].Net}, lost {rows[i].CrewLost}");
+    });
+    return Balance.Judge(rows, targets);
+}
+
+static int PrintBalance(BalanceReport report)
+{
+    Print(report);
+    return report.Pass ? 0 : 1;
 }
 
 // A headset session end to end: runtime, stereo swapchains, frames at the runtime's pace, a clean exit, and both eyes
@@ -957,6 +1009,9 @@ static int Usage()
                      host + bot clients over a simulated network; reports prediction error, bandwidth, deaths,
                      and with --enemies the director's spawns, punishes, deaths by cause and fairness audit; on a route, the
                      facility stops the crew worked (five bots make a crew for a winch); --trace writes who's doing what
+          balance [--tiers frontier,deadLines] [--seeds n] [--crews 2,8] [--cars 6,10,20] [--seconds t] [--parallel p]
+                     GDD §34's sweep: harness nights at each crew size and train length, side by side, judged against
+                     tuning/balance.json (survivable at 2, non-trivial at 8, fair throughout); exit 1 if a check fails
           facility drill [--route tier:seed] [--facility i] [--cars n] [--load-seconds s]
                      GDD §17's set piece scripted: cut, spur in, load, back out, recouple, switch back, go; the timeline
           vr check [--frames n] [--view roof|cab|…] [--scale 0.5] [--out out/shots/vr.png]

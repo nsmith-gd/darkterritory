@@ -37,6 +37,11 @@ jobs:
           jq -c '{seconds, deaths, maxCorrectionM, run: .run.end, net: .run.net, threats: .threats.spawned, fairness: .threats.fairnessViolations, stops: [.stops[] | {kind, seconds}]}' out/soak/night.json
           # The night gets home, nobody's corrected by more than 2 m, and the director never broke App. A.1's fairness rule.
           jq -e '.run.end == "delivered" and .maxCorrectionM < 2 and .threats.fairnessViolations == 0' out/soak/night.json
+      - name: The balance sweep (GDD §34), a crew of two and of eight on two frontier routes, side by side
+        run: |
+          # Exits 1 if a check fails: survivable at 2, non-trivial at 8, fair throughout (tuning/balance.json).
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- balance --tiers frontier --seeds 2 --crews 2,8 --cars 10 > out/soak/balance.json
+          jq -c '{checks, byCrew, byCars}' out/soak/balance.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
