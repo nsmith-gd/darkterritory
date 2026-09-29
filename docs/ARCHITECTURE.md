@@ -1019,7 +1019,8 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - Step into the gap while it rattles, once it has rattled for the reaction window (App. A.1), and you're pulled under: `DeathCause.PulledUnder`.
       - With nobody near for 10 s it goes quiet again.
       - It can't be shot. Cut the cars apart at its gap and it goes with the coupling.
-    - **Ambiguity, when it leaves:** App. B.5 spawns it at a stop but doesn't say when it goes. It stays 300 s (`lingerSeconds`), so it's usually still there as you pull out, and it leaves the next time it's quiet after that.
+    - **Ambiguity, when it leaves:** App. B.5 spawns it at a stop but doesn't say when it goes. It stays 300 s (`lingerSeconds`), so it's often still there as you pull out, then goes, rattling or not.
+      - At first it went only once it was quiet after that. On frontier:2 the bots' warm-ups kept it rattling, so it rode the night out in a gap they used, and it took four of them (T54).
     - **No visual on purpose:** "Pure audio tell." Neither the greybox nor the art pass's creatures draw it (`CreatureArtTests` knows it's never seen); the rattle plays from the gap, muffled by a car in between like any other sound.
     - **Bots heed it** (`Heed.Rattles`, applied to every bot's intent in the harness). A bot whose next step would take it into a rattling gap stands still instead. One already in the gap when it starts (on the coupler plate, say) walks out the quickest way, never off the train at a speed that kills (`RattleTests.AtSpeedABotOnThePlateNeverStepsOffToGetOut`). Worked out on its client by stepping a copy of itself; the rest of its intent goes through.
     - **Found on the way: a dead shunter stalled the night.** Adding the Rattle to the director's options changed its draws, and on frontier:7 the hounds mauled three bots, the shunter among them. Parts were fixed at the start, so nobody set the Switchman's switch back, and the train stood at it for the rest of the night.
@@ -1103,7 +1104,14 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The rigger (Winch1):** down on the castings' side, beside the next one, and holding Use once the hook's down over it (`Crane.Riggable`); then clear, beyond the stack, while it's lifted away.
     - **Spec D.3's "blind instruction":** the operator and the rigger don't see each other. They agree by working the same plan: the next casting still stacked, and the nearest car in reach with room.
     - **The driver** waits in the Loading leg for the crane too, until no casting's left or no car in reach has room. `CrewCalls.CanWork` counts a crane site the pair can work.
-    - **Found on the way:** a hand going to the cab to warm up walked to its door on the site's side of the train. The operator, across the track, walked into the train and froze. Hands now go to the cab door on the side they're on.
+    - **Found on the way:**
+      - A hand going to the cab to warm up walked to its door on the site's side of the train. The operator, across the track, walked into the train and froze. Hands now go to the cab door on the side they're on.
+      - The first night on frontier:2 (with a foundry, though the crew passed it by) lost four bots to the Rattle. Three fixes:
+        - its lifetime is now a hard limit (note 54);
+        - the warm-up routine (T31) keeps to car ends with no Rattle in the gap (`WarmUp.Rattled`, set by the bot from what its client sees);
+        - `Heed.Rattles` looks a third of a second ahead rather than one tick: with the lag, the client's prediction isn't quite where the host has a bot.
+      - A margin round the gap was tried too, and made it worse: bots near a car's end stuck in it.
+      - After the fixes both nights deliver: frontier:7 net 3943 as before, frontier:2 net 3163, nobody lost on either.
     - **Verified:**
       - `StopCrewTests.AtTheFoundryThePairRunTheCraneAndTheCastingsGoOnTheRoofs`: both castings loaded, everyone alive, and the train back together and away.
       - The harness's stop records count `castings`.
