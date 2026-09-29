@@ -135,6 +135,7 @@ M3 is done but for a test with eight people.
 - Manual crates you carry into the cars (heavy: slow, no climbing).
 - A capstan winch that needs two on it.
 - A gantry crane at the foundry (T48): one up in the cab drives it, one on the ground rigs the castings, a casting set down on a car's roof is loaded, and one let go of high kills whoever's under it. `dt screenshot --site --crane`.
+- Crew bots run it (T54): the winch pair, one at the controls and one rigging, before the winch; `dt harness` counts the castings loaded at each stop.
 - Cars leave the fortress half full, so the facilities are where the money is.
 - Every facility but the coaling tower is down a spur that takes the engine and four cars. Cut the rest, run the empties in, load, back out and recouple, set the switch back, go. The night autosaves as you leave.
 - `dt facility drill` plays the sequence headless; `dt screenshot --site` shows a stop.

@@ -170,6 +170,32 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void AtTheFoundryThePairRunTheCraneAndTheCastingsGoOnTheRoofs()
+    {
+        // The foundry: a winch, crates and the gantry crane (spec D.2). The pair take the crane first, one up at the controls
+        // and the other rigging on the ground, and the castings go onto cars' roofs; then the winch. No crate hands here, so
+        // the crates don't take the room under the gantry first. Nobody's under a falling load.
+        var night = new Night(cars: 8, walkers: 0, modules: [ModuleKind.Crane, ModuleKind.Winch, ModuleKind.Crates]);
+        var run = night.World.Run!;
+        var crane = Assert.IsType<Crane>(night.Site.Crane);
+        var doing = new HashSet<string>();
+        night.Until(() => run.Departures > 0, 1500, () =>
+        {
+            foreach (var b in night.Bots)
+                if (b is RoofWalkerBot { Job: { } hand } && hand.Doing.Length > 0)
+                    doing.Add(hand.Doing);
+        });
+        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent}"));
+        Assert.True(run.Departures > 0, $"never left the stop: driver {night.Driver.Stops!.Doing}; crew {where}; did {string.Join(", ", doing)}");
+        Assert.True(doing.Contains("at the crane"), $"did {string.Join(", ", doing)}; target {StopHand.CraneTarget(crane, night.Train)}; loads {string.Join(",", night.Train.Vehicles.Select(v => v.Load.ToString("0.00")))}");
+        Assert.Contains("rigging", doing);
+        Assert.True(crane.Castings.All(c => c.State == CastingState.Loaded),
+            $"castings {string.Join(", ", crane.Castings.Select(c => $"{c.State} car {c.Car}"))}; loads {string.Join(",", night.Train.Vehicles.Select(v => v.Load.ToString("0.00")))}; did {string.Join(", ", doing)}");
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
+        Assert.Single(night.Train.Rakes);
+    }
+
+    [Fact]
     public void ACrewWorksAWinchStopAndGoesOn()
     {
         var night = new Night(cars: 8);

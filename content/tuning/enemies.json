@@ -147,7 +147,7 @@
     // "instant grab, pulled under": a kill.
     "grabDamage": 200,
     // Ambiguity (ARCHITECTURE §8): the spawn is at a stop but nothing says when it leaves. It stays in its gap this long
-    // (so it's still there as you pull out) and goes the next time it's quiet after that. Cut the cars there and it's gone.
+    // (so it's often still there as you pull out), then goes, rattling or not. Cut the cars there and it's gone.
     "lingerSeconds": 300,
     // App. B.5 "Train length ≥2" (cars in the engine's rake), and "weight up on longer consists": this much per car more.
     "minCars": 2,

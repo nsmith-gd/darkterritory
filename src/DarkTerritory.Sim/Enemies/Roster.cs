@@ -699,15 +699,21 @@ public sealed class Rattle(int id) : Enemy(id)
         switch (Phase)
         {
             case SpinePhase.Dormant:
-                if (near.Count > 0)
+                if (_age >= t.LingerSeconds)
+                    Enter(ctx, SpinePhase.Gone);
+                else if (near.Count > 0)
                 {
                     _quiet = 0;
                     Enter(ctx, SpinePhase.Telegraph); // the rattle
                 }
-                else if (_age >= t.LingerSeconds)
-                    Enter(ctx, SpinePhase.Gone);
                 break;
             case SpinePhase.Telegraph:
+                // Its time's up, rattling or not: a stop's thing, it doesn't ride the night out (T54).
+                if (_age >= t.LingerSeconds)
+                {
+                    Enter(ctx, SpinePhase.Gone);
+                    break;
+                }
                 _quiet = near.Count > 0 ? 0 : _quiet + SimConstants.TickSeconds;
                 if (_quiet >= t.QuietSeconds)
                 {
