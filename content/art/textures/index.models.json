@@ -395,6 +395,45 @@
     ]
   },
   {
+    "name": "switchman_0",
+    "diffuse": "models/switchman_0.png",
+    "spec": "models/switchman_0_s.png",
+    "normal": "models/switchman_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-hosmer",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      },
+      {
+        "id": "threejs-leeperrysmith",
+        "repo": "https://github.com/mrdoob/three.js",
+        "commit": "b1061fb8b5a040414719fc342f404eb5f63ea795",
+        "dir": "examples/models/gltf/LeePerrySmith",
+        "license": "CC-BY-3.0",
+        "attribution": "Infinite, 3D Head Scan by Lee Perry-Smith (ir-ltd.net), CC BY 3.0, based on a work at triplegangers.com",
+        "files": null
+      },
+      {
+        "id": "khronos-flighthelmet",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "dir": "Models/FlightHelmet/glTF",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "FlightHelmet, Microsoft (Khronos glTF sample assets), CC0"
+      }
+    ]
+  },
+  {
     "name": "transi_0",
     "diffuse": "models/transi_0.png",
     "spec": "models/transi_0_s.png",

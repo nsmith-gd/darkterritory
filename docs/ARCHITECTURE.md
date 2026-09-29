@@ -1053,6 +1053,12 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Creatures from scans.** A scan can be rigged on its own pose. `recipes/hollow.py` bakes Le Transi down and places a 21-bone skeleton on the statue's joints, read off its silhouette. It weights each vertex to its nearest bones and keys the clips on `tools/blender/rig`'s `Clip`. The Hollow is that cadaver now: it replaces the procedural one, with the same clips and the same place.
       - A figure that has to fold a long way (standing to crouched) is posed at full resolution first, with a linear-blend skin of its own in numpy, then baked down and rigged again on the new pose. The game rig only bends what the clips move, never the big fold, so the low mesh never has to survive it. `cook.rig_creature` holds the weighting and export both recipes share.
       - The Soot children are made this way (`recipes/soot_child.py`): the Boy Room's boy, his toy sword cut out of his hand, sat down in the ash, graded waxy-pale where the skin shows and rag-grey elsewhere, with soot run down him and his eyes painted into dark pits. It's the same child the line passes standing in the villages' ruined bedrooms. He replaces the procedural one, with the same clips (huddle, turn).
+      - The Switchman is a three-scan bash (`recipes/switchman.py`), built from:
+        - the Three D Scans Zenobia's gown and mantle, sooted to an oiled black coat;
+        - Lee Perry-Smith's head (CC BY 3.0) set on her shoulders;
+        - the Khronos Flight Helmet (CC0) over it: leather cap, goggles, and a rubber mask with its hose down the chest;
+        - the cooked hand lantern, hung from her chain on its own bone, with a flame of pure light in it.
+      - The Switchman is baked down as one figure and rigged on the statue's pose. It replaces the procedural one, with the same clips (wait, flee) and the "lantern" bone the engine lights.
       - The Dragger and the rest stay procedural for now.
     - **Ruined interiors.** A whole sourced room can be ruined in its recipe and set where the line can see into it. `recipes/boy_room.py` does this with "Boy Room" (CC BY 4.0), a child's bedroom with a hulking imaginary friend.
       - It's split by material: the wardrobe knocked askew, a picture hung crooked.
