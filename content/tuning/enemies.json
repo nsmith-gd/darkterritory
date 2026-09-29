@@ -102,6 +102,38 @@
     "takeDamage": 200
   },
 
+  // App. A.4 DRAGGERS: "reach up from beneath the car edges. RULE: stay off the edges." Pre-attached under a car's edge,
+  // dormant until someone's on the roofs (App. B.4). A player within "grabRange" of its edge, near it along the car, gets
+  // a limb at the lip (the tell: a single scrape, 2-4 kHz, spec A.4) and, a moment later, the grab. Grabbed alone: pulled
+  // off the train, which at speed is death. Grabbed with an ally near: they have "freeSeconds" to free them (Use, close by).
+  // Never leaves its car; it follows a roof walker along under its edge. "COUNTER: walk the centreline of the roof."
+  "draggers": {
+    // "player within 1m of a car edge → grab attempt".
+    "grabRange": 1.0,
+    // Spec B.3 "Max 22 m/s: Draggers +50% grab range": the range grows from cruise to max speed.
+    "fastFrom": 14,
+    "fastAt": 22,
+    "fastGrabScale": 1.5,
+    // How near it along the car, and how fast it creeps along under the edge after a walker on its side.
+    "reachAlong": 1.5,
+    "creepSpeed": 1.2,
+    // "a limb visible at the edge lip ~1s prior" (the commit also waits for minReactionSeconds, App. A.1).
+    "telegraphSeconds": 1.0,
+    // "grabbed with ally near → ally has a 2s window to free them": an ally this near when it grabs, holding Use this
+    // near the grabbed one. Alone, the pull comes after a beat.
+    "allyRadius": 4,
+    "freeSeconds": 2,
+    "freeReach": 1.5,
+    "aloneSeconds": 0.4,
+    // Pulled off over the side: this fast outward, on top of the train's own speed (which is what kills).
+    "pullSpeed": 3,
+    // Freed, or its reach dodged, it's back under the lip this long before it reaches again.
+    "rearmSeconds": 8,
+    // App. B.4 "Train length ≥2". At most this many under one train at once.
+    "minCars": 2,
+    "maxAttached": 2
+  },
+
   "choirSwarm": {
     // In the Swarm phase, anyone exposed (roof, ground, ladder) takes this every few seconds.
     "exposedDamage": 10,
@@ -123,7 +155,7 @@
     "maxConcurrentLargeCrew": 6,
     // Budget share spent before the first facility, across the middle, and in the final approach.
     "phaseShares": [0.15, 0.45, 0.40],
-    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4 },
+    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5

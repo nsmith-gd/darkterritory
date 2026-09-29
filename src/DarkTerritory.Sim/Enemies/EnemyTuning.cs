@@ -9,6 +9,30 @@ public sealed record EnemyTuning(
 
     public SwitchmanTuning Switchman { get; init; } = new();
     public SootChildrenTuning SootChildren { get; init; } = new();
+    public DraggerTuning Draggers { get; init; } = new();
+}
+
+/// <summary>The Draggers (App. A.4, B.4, spec B.3). Field docs live in enemies.json.</summary>
+public sealed record DraggerTuning
+{
+    public double GrabRange { get; init; } = 1.0;
+    public double FastFrom { get; init; } = 14;
+    public double FastAt { get; init; } = 22;
+    public double FastGrabScale { get; init; } = 1.5;
+    public double ReachAlong { get; init; } = 1.5;
+    public double CreepSpeed { get; init; } = 1.2;
+    public double TelegraphSeconds { get; init; } = 1.0;
+    public double AllyRadius { get; init; } = 4;
+    public double FreeSeconds { get; init; } = 2;
+    public double FreeReach { get; init; } = 1.5;
+    public double AloneSeconds { get; init; } = 0.4;
+    public double PullSpeed { get; init; } = 3;
+    public double RearmSeconds { get; init; } = 8;
+    public int MinCars { get; init; } = 2;
+    public int MaxAttached { get; init; } = 2;
+
+    /// <summary>The grab range at a train speed (spec B.3: +50% at max).</summary>
+    public double GrabAt(double speed) => GrabRange * (1 + (FastGrabScale - 1) * Math.Clamp((speed - FastFrom) / Math.Max(1e-6, FastAt - FastFrom), 0, 1));
 }
 
 /// <summary>The Soot Children (App. A.4, B.6). Field docs live in enemies.json.</summary>

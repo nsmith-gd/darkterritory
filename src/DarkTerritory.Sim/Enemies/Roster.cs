@@ -479,3 +479,142 @@ public sealed class SootChildren(int id) : Enemy(id)
         return null;
     }
 }
+
+/// <summary>
+/// DRAGGERS · movement · flank (App. A.4). Cling under a car's edge, out of sight, dormant until someone's on the roofs
+/// (App. B.4). Walk within a metre of the edge near one and a limb comes up over the lip, with a single scrape (the tell,
+/// spec A.4); a moment later it grabs. Grabbed alone, you're pulled off the train, which at speed is death. Grabbed with
+/// someone near, they have two seconds to free you. It never leaves its car: it follows a walker along under the edge.
+/// Rule: stay off the edges; walk the centreline of the roof.
+/// </summary>
+/// <remarks>
+/// <see cref="Enemy.Local"/> is where it clings (its X the edge it's under), <see cref="Enemy.Extra"/> who it's reaching
+/// for (−1 for nobody); both replicate, so a client draws the limb and knows who's been grabbed.
+/// </remarks>
+public sealed class Dragger(int id) : Enemy(id)
+{
+    bool _rearming;
+    double _window;
+
+    public override EnemyKind Kind => EnemyKind.Dragger;
+    public override PressureZone Zone => PressureZone.Flank;
+    public override Sense Sense => Sense.Movement;
+
+    /// <summary>Which edge it's under: +1 the car's right, −1 its left.</summary>
+    public int Side => Local.X >= 0 ? 1 : -1;
+    /// <summary>Who it's reaching for or holding, or null.</summary>
+    public int? Target => Extra >= 0 ? (int)Extra : null;
+
+    /// <summary>Clinging under one edge of a car, at a point along it.</summary>
+    public static Dragger Under(int id, TrainOnLine train, int car, int side, double along)
+    {
+        var shape = train.Frames[car].Shape;
+        return new Dragger(id)
+        {
+            Attached = car,
+            Local = new Double3(side * (shape.HalfWidth + 0.1), shape.RoofHeight - 0.35, Math.Clamp(along, -shape.HalfLength + 0.5, shape.HalfLength - 0.5)),
+            Extra = -1,
+        };
+    }
+
+    /// <summary>
+    /// Whether a player on its car's roof is in its reach: on its side, within the grab range of its edge (farther at speed,
+    /// spec B.3), and near it along the car.
+    /// </summary>
+    public bool Reaches(in PlayerState s, TrainOnLine train, DraggerTuning t) =>
+        s.Alive && s.Surface == Surface.Roof && s.Parent == Attached && Math.Sign(s.Position.X + 1e-9) == Side
+        && train.Frames[Attached].Shape.HalfWidth - Math.Abs(s.Position.X) <= t.GrabAt(train.Dynamics.Speed)
+        && Math.Abs(s.Position.Z - Local.Z) <= t.ReachAlong;
+
+    protected override void Tick(EnemyContext ctx)
+    {
+        var t = ctx.Tuning.Draggers;
+        var train = ctx.Train;
+        if (Attached < 0 || Attached >= train.Frames.Count)
+        {
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        var shape = train.Frames[Attached].Shape;
+        Net.PlayerSnapshot? Crew(int id) => ctx.Crew.Select(c => (Net.PlayerSnapshot?)c.Player).FirstOrDefault(p => p!.Value.Id == id);
+        switch (Phase)
+        {
+            case SpinePhase.Dormant:
+                Extra = -1;
+                if (_rearming && PhaseSeconds < t.RearmSeconds)
+                    return;
+                _rearming = false;
+                // Under the lip, it follows the nearest walker on its side of this car's roof along the edge.
+                var walkers = ctx.Crew.Where(c => c.Player.State is { Alive: true, Surface: Surface.Roof } s && s.Parent == Attached
+                    && Math.Sign(s.Position.X + 1e-9) == Side).ToList();
+                if (walkers.Count == 0)
+                    return;
+                var near = walkers.MinBy(c => Math.Abs(c.Player.State.Position.Z - Local.Z));
+                Creep(near.Player.State.Position.Z, t, shape);
+                if (Reaches(near.Player.State, train, t))
+                {
+                    Extra = near.Player.Id;
+                    Enter(ctx, SpinePhase.Telegraph); // a limb over the lip, and the scrape
+                }
+                break;
+            case SpinePhase.Telegraph:
+                // Back off the edge in time, and it sinks back under.
+                int reaching = Target ?? -1;
+                if (Crew(reaching) is not { } mark || !Reaches(mark.State, train, t))
+                {
+                    Rearm(ctx);
+                    break;
+                }
+                Creep(mark.State.Position.Z, t, shape);
+                if (PhaseSeconds >= t.TelegraphSeconds && Enter(ctx, SpinePhase.Commit) && Enter(ctx, SpinePhase.Punish))
+                {
+                    // Grabbed. With someone near, they have a moment to free them; alone, it's a beat and over the side.
+                    var at = PlayerMotor.WorldPosition(mark.State, train);
+                    bool ally = ctx.LivingCrew().Any(c => c.Player.Id != reaching && (c.World - at).Length <= t.AllyRadius);
+                    _window = ally ? t.FreeSeconds : t.AloneSeconds;
+                }
+                break;
+            case SpinePhase.Punish:
+                int held = Target ?? -1;
+                if (Crew(held) is not { } victim || !victim.State.Alive || victim.State.Parent != Attached)
+                {
+                    Rearm(ctx);
+                    break;
+                }
+                var there = PlayerMotor.WorldPosition(victim.State, train);
+                bool freed = ctx.Crew.Any(c => c.Player.Id != held && c.Player.State.Alive && c.Intent.Has(PlayerButtons.Use) && c.Intent.MoveZ <= 0.5
+                    && (PlayerMotor.WorldPosition(c.Player.State, train) - there).Length <= t.FreeReach);
+                if (freed)
+                {
+                    Enter(ctx, SpinePhase.BreakOff);
+                    Rearm(ctx);
+                    break;
+                }
+                if (PhaseSeconds >= _window)
+                {
+                    ctx.Pull(held, train.Frames[Attached].DirToWorld(new Double3(Side, 0, 0)) * t.PullSpeed);
+                    Enter(ctx, SpinePhase.BreakOff);
+                    Rearm(ctx);
+                }
+                break;
+            default:
+                Rearm(ctx);
+                break;
+        }
+    }
+
+    void Creep(double z, DraggerTuning t, CarShape shape)
+    {
+        double step = t.CreepSpeed * SimConstants.TickSeconds;
+        double to = Math.Clamp(z, -shape.HalfLength + 0.5, shape.HalfLength - 0.5);
+        Local = Local with { Z = Local.Z + Math.Clamp(to - Local.Z, -step, step) };
+    }
+
+    /// <summary>Back under the lip, not reaching again for a while. It never leaves its car.</summary>
+    void Rearm(EnemyContext ctx)
+    {
+        Extra = -1;
+        _rearming = true;
+        Enter(ctx, SpinePhase.Dormant);
+    }
+}

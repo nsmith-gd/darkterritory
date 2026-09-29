@@ -212,6 +212,12 @@ public sealed class GameAudio
                         s.Loop.Params.Set("progress", e.Phase == SpinePhase.Punish ? 1 : e.Extra);
                     }
                     break;
+                case EnemyKind.Dragger when e.Phase == SpinePhase.Telegraph:
+                    // The scrape at the lip while the limb comes up (spec A.4): out on the roof, not muffled by a car.
+                    s.Loop ??= Mixer.Play("dragger-scrape", at);
+                    if (s.Loop is not null)
+                        s.Loop.Position = at;
+                    break;
                 case EnemyKind.Hollow when e.Phase is SpinePhase.Telegraph or SpinePhase.Punish:
                     s.Loop ??= Mixer.Play("hollow-gutter", at);
                     if (s.Loop is not null)

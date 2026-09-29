@@ -910,7 +910,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Verified:**
       - `StopCrewTests.TwoHandsCarryTheHeavyCratesInTogether`: a crates-only stop loads every crate, light and heavy, up to the room there is; the back end is walked; everyone's aboard; the doors are shut.
       - `AHandComesToHelpAPlayerHoldingAHeavyCrate`: a player holds an end, and a bot takes the other.
-      - The frontier:7 harness night delivers (net 2614: the stop's timeline moved, and a hound mauled one crewmate, who was revived at the gate). Its Switchyard stop still ends on the driver's 420 s give-up, as it did before; T50 looks into that.
+      - The frontier:7 harness night delivers (net 2614: the stop's timeline moved, and a hound mauled one crewmate, who was revived at the gate). Its Switchyard stop still ended on the driver's 420 s give-up, as it had before; T50 (note 49) fixed that.
 48. **Art pass v2: the look from the art & animation pipeline plan (GDD §25-32).**
     - **Renderer (Ballast.Render).**
       - Passes: sky → scene (float target) → effects → bloom (half res, threshold, two blurs) → composite (LUT grade, vignette, grain, dither and colour levels) → overlay. `ColorImage` is still the frame, so the window, the headset and readback didn't change.
@@ -945,4 +945,25 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `dt screenshot --integrity a,b,…` sets each car's condition. `DamageTests` pins the states, the seeds, the monotony, the placement and a render that shows without burying.
     - **Ambiguity, scars that persist:** the plan wants scars kept between runs, but the campaign stores each car's integrity (`CarState`), not a history of hits. The scars are therefore a pure function of the car and the integrity it has lost. They come back where they were, and a repair takes the newest first. A per-hit record would need the sim to keep one, which is the gameplay lane's call.
     - **Not yet:** normal maps on the cab; the engine's own damage geometry and leaks; LODs (the fog caps view distance at 60-120 m, and the budgets hold at LOD0).
-
+49. **Why the harness's crate stop never finished (T50).** frontier:7's Switchyard stop ended on the driver's 420 s loading give-up on every night. `StopCrewTests`' crate stops never did, because their bots see the host's world directly; the harness bots are clients. Three faults, found by logging what each hand was doing when the driver gave up:
+    - **Clients never saw a body at rest.** The body record carries "asleep", but the client's stand-in dropped it. A crate put down on a car's steps (to open the door) is only picked up again once it lies still, so on a bot's client it never was. `PbdBody.Sleep()` lets the mirror adopt the flag.
+    - **Room was counted as taken by crates that weren't in the car.** A car's room had pending crates subtracted, meaning every crate lying on the car, including on its steps. So those stranded crates held the room of two cars forever.
+    - **A hand with no room went aboard,** which marks the stop done for it. With every hand aboard and two heavy crates still wanting carrying, the driver waited out the give-up. It now waits where it is. (T45 had it wait only on the ground; on a car's landing it still went aboard.)
+    - While there, the door dealing was fixed too. Doors to shut were dealt out by position to the crate hands, including ones that had gone aboard or away to warm, so a door could be dealt to nobody who'd come. Now each hand claims the nearest open door no one else still at it has claimed (`CrewCalls.ClaimDoor`).
+    - **Result:** the stop loads in 272 s instead of giving up at 420, and the night is 143 s shorter. It still delivers: 0 deaths, worst correction 0.35 m, fairness 0.
+    - **Verified:** `TwoHandedTests.AClientSeesACrateAtRest`, `StopCrewTests.EachOpenDoorIsShutByOneHandThatsStillAtIt`, and the harness night.
+50. **The Draggers (T46, App. A.4, B.4, spec B.3).** "Reach up from beneath the car edges. RULE: stay off the edges." A flank threat on the shared spine (`enemies.json` `draggers`).
+    - **Where.** Under one edge of one car, and it never leaves that car. App. B.4 has them "pre-attached … dormant until a player is on the roofs"; the director makes that literal. It offers them only while someone's on a roof, under a car being walked, weighted by the roof walkers, at most two at a time, cost 2.
+    - **Dormant:** under the lip, it follows the nearest walker on its side along the car. Nothing to see or hear.
+    - **Telegraph:** a walker within `grabRange` (1 m) of its edge and near it along the car. A limb comes up over the lip with a single scrape (`dragger-scrape.json`, 2–4 kHz, spec A.4).
+      - Stepping back to the centreline in time sinks it back under, and it won't reach again for `rearmSeconds`.
+      - The grab waits for App. A.1's reaction window (1.5 s), which is longer than the GDD's "~1 s".
+    - **Grab:**
+      - **Alone:** after a beat, you're pulled off over the side (`DamageEvent.Pull`, `PlayerMotor.PullOff`). Spec B.3's one threshold decides it: faster than a survivable jump, that's death (`DeathCause.Dragged`, and the body goes over the side); slower, you land on the ballast and the train goes on.
+      - **With someone within 4 m:** they have two seconds to pull you free: Use, within 1.5 m of you. After that, you're pulled off anyway.
+    - **Speed.** Spec B.3's "Max 22 m/s: Draggers +50% grab range" is a ramp from cruise (14) to max (22), so there's no cliff at 21.9 m/s.
+    - **The pull is the host's move.** It puts the player in the world frame outside the car, falling, and bumps `Placed`, so a predicting client adopts it rather than correcting it.
+    - **Seen:** a pale limb just outside the eave, hooking in over the roof. Two limbs when it's grabbed. The HUD tells the grabbed and whoever's near them. `dt screenshot --threats` stages one; CI keeps `threats-dragger.png`.
+    - **Heard:** the scrape passes `AudioTests`' "tier 1 is inviolable": +23 dB over the bed on that car's roof in maximum chaos, and the Clinger's drill, which shares 3–4 kHz, stays as audible as it was.
+    - **Bots** walk the centreline, so they're never taken. On frontier:7, two Draggers woke and punished nobody. They did take the Flank slots the Clingers used to get, so that night's mix moved (more hounds): 4 were mauled, none lost for good, delivered.
+    - **Verified:** `DraggerTests` (10): the centreline is safe; near the edge, it telegraphs, then pulls you off, and at 14 m/s that kills; at 2 m/s you're left on the ballast; stepping back in time sinks it and it rearms; with a mate, the window and the rescue, or no rescue and taken; farther reach at max speed; the other edge isn't its edge; the director wakes them only for roof walkers; a client sees the limb and who it's got.

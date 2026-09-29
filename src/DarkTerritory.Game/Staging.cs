@@ -48,6 +48,10 @@ public static class Staging
         var clinger = new Clinger(20);
         clinger.Restore(SpinePhase.Telegraph, 50, 1, cargo, new Double3(cargoShape.HalfWidth + 0.15, 2.0, 0), 0, 0, 0, 0.55, 0);
         threats.Add(clinger);
+        // Under the same car's other edge, reaching over the lip for someone walking too near it.
+        var dragger = new Dragger(21);
+        dragger.Restore(SpinePhase.Telegraph, 0.6, 1, cargo, new Double3(-(cargoShape.HalfWidth + 0.1), cargoShape.RoofHeight - 0.35, 3), 0, 0, 0, 1, 0);
+        threats.Add(dragger);
         var hollow = new Hollow(30);
         hollow.Restore(SpinePhase.Punish, 2, 1, 0, train.Frames[0].Shape.Cab!.Value.Centre, 0, 0, 0, 0, 0);
         threats.Add(hollow);

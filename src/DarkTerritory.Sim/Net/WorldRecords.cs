@@ -230,7 +230,11 @@ public static class WorldRecords
         var particles = new Ballast.Physics.Particle[n];
         for (int i = 0; i < n; i++)
             particles[i] = new Ballast.Physics.Particle(new Ballast.Double3(D(f[BodyParticles + i * 3], Pos), D(f[BodyParticles + 1 + i * 3], Pos), D(f[BodyParticles + 2 + i * 3], Pos)), 1, 0.1);
-        return new Physics.Body(r.Id, (Physics.BodyKind)f[0], (int)f[1], new Ballast.Physics.PbdBody(particles))
+        var pbd = new Ballast.Physics.PbdBody(particles);
+        // At rest on the host, at rest here: a bot's hand picks up a crate left on a car's steps once it's lain still (T50).
+        if (f[4] != 0)
+            pbd.Sleep();
+        return new Physics.Body(r.Id, (Physics.BodyKind)f[0], (int)f[1], pbd)
         {
             Carrier = (int)f[2],
             Second = (int)f[7],
@@ -249,6 +253,7 @@ public static class WorldRecords
             EnemyKind.Clinger => new Clinger(r.Id),
             EnemyKind.Switchman => new Switchman(r.Id),
             EnemyKind.SootChildren => new SootChildren(r.Id),
+            EnemyKind.Dragger => new Dragger(r.Id),
             _ => new Hollow(r.Id),
         };
         e.Restore((SpinePhase)f[1], D(f[2], 1e3), D(f[3], 1e3), (int)f[4], new Double3(D(f[5], Pos), D(f[6], Pos), D(f[7], Pos)),
