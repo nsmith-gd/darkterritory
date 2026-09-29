@@ -744,6 +744,63 @@ def weathered(d):
 
 
 # ----------------------------------------------------------------------------------------------------------------
+# Ruined rooms: a house's walls round a sourced interior, open to the line
+
+def box_uv(objs, tile=1.2):
+    """Metre UVs from each face's own axes (a box of timber or brick), so the library's layers tile at their size."""
+    for o in objs:
+        uv = o.data.uv_layers.new(name="UVMap")
+        for poly in o.data.polygons:
+            n = poly.normal
+            for li in poly.loop_indices:
+                p = o.data.vertices[o.data.loops[li].vertex_index].co
+                a = (p.y, p.z) if abs(n.x) > 0.5 else (p.x, p.z) if abs(n.y) > 0.5 else (p.x, p.y)
+                uv.data[li].uv = (a[0] / tile, a[1] / tile)
+
+
+def ruined_shell(half, depth, window=None, height=2.55, fall=0.7, seed=51, thickness=0.22):
+    """The walls of a room whose front (y = 0) has come away: ruined plaster inside and sooted brick out, a wall's
+    thickness apart, at x = +-half and y = depth, broken off raggedly (nearly `height` at the back, `fall` lower at
+    the front, noisy), with grey floorboards broken off along the open front. `window` ((y0, y1), (z0, z1)) leaves a
+    hole in the +x wall. Returns (the parts, standing(c) -> whether a point is below the broken line)."""
+    def standing(c):
+        front = min(1.0, max(0.0, 1 - c.y / depth))
+        line = height - fall * front ** 1.4 + 0.5 * noise3(c, seed, 1.1) + 0.15 * noise3(c, seed + 1, 4.5)
+        return c.z < line
+
+    plaster = library_material("plaster_ruin", 0.05)
+    brick = library_material("brick_soot", 0.05)
+    floorboards = library_material("wood_floor", 0.08)
+    T = thickness
+    walls = []
+
+    def wall(width, material, rot, at, name):
+        g = grid(width, 3.0, 18, material, tile=2.0, name=name)
+        transform([g], Matrix.Rotation(rot, 4, "Z"))
+        move([g], (at[0], at[1], 1.5))
+        walls.append(g)
+
+    # (grid faces +Y: turned so each face looks the way it should, the plaster into the room, the brick out.)
+    wall(2 * half + 2 * T, plaster, math.pi, (0, depth, 0), "back_in")
+    wall(2 * half + 2 * T, brick, 0, (0, depth + T, 0), "back_out")
+    for side, sx in (("right", 1), ("left", -1)):
+        wall(depth + T, plaster, sx * math.pi / 2, (sx * half, (depth + T) / 2, 0), f"{side}_in")
+        wall(depth + T, brick, -sx * math.pi / 2, (sx * (half + T), (depth + T) / 2, 0), f"{side}_out")
+
+    def keep(c):
+        if window and c.x > half - 0.05 and window[0][0] < c.y < window[0][1] and window[1][0] < c.z < window[1][1]:
+            return False
+        return standing(c)
+
+    cut(walls, keep)
+    fl = grid(2 * half, depth, 10, floorboards, tile=1.0, name="floor")
+    transform([fl], Matrix.Rotation(-math.pi / 2, 4, "X"))
+    move([fl], (0, depth / 2, 0.002))
+    cut([fl], lambda c: c.y > 0.1 + 0.18 * (noise3(c, seed + 2, 2.2) + 1))
+    return walls + [fl], standing
+
+
+# ----------------------------------------------------------------------------------------------------------------
 # Creatures from scans: rigged on their own pose
 
 def rig_creature(name, meshes, bones, clips, rigid=None, plant=None, skeleton="SK_Human"):

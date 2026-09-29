@@ -306,6 +306,326 @@
     ]
   },
   {
+    "name": "portrait_room_0",
+    "diffuse": "models/portrait_room_0.png",
+    "spec": "models/portrait_room_0_s.png",
+    "normal": "models/portrait_room_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-boyroom",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/imaginary-friend-room",
+        "license": "CC-BY-4.0",
+        "attribution": "Boy Room by Iman Aliakbar (sketchfab.com/Iman.Aliakbar), CC BY 4.0",
+        "files": null
+      },
+      {
+        "id": "khronos-camera",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "Antique Camera, Maximillan Kamps for UX3D (Khronos glTF sample assets), CC0"
+      },
+      {
+        "id": "khronos-candle",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC-BY-4.0",
+        "attribution": "Glass Hurricane Candle Holder, Eric Chadwick for Wayfair (Khronos glTF sample assets), CC BY 4.0"
+      },
+      {
+        "id": "khronos-damask",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC-BY-4.0",
+        "attribution": "Chair Damask Purplegold, Eric Chadwick for Wayfair (Khronos glTF sample assets), CC BY 4.0"
+      }
+    ]
+  },
+  {
+    "name": "portrait_room_1",
+    "diffuse": "models/portrait_room_1.png",
+    "spec": "models/portrait_room_1_s.png",
+    "normal": "models/portrait_room_1_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-boyroom",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/imaginary-friend-room",
+        "license": "CC-BY-4.0",
+        "attribution": "Boy Room by Iman Aliakbar (sketchfab.com/Iman.Aliakbar), CC BY 4.0",
+        "files": null
+      },
+      {
+        "id": "khronos-camera",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "Antique Camera, Maximillan Kamps for UX3D (Khronos glTF sample assets), CC0"
+      },
+      {
+        "id": "khronos-candle",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC-BY-4.0",
+        "attribution": "Glass Hurricane Candle Holder, Eric Chadwick for Wayfair (Khronos glTF sample assets), CC BY 4.0"
+      },
+      {
+        "id": "khronos-damask",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC-BY-4.0",
+        "attribution": "Chair Damask Purplegold, Eric Chadwick for Wayfair (Khronos glTF sample assets), CC BY 4.0"
+      }
+    ]
+  },
+  {
+    "name": "portrait_room_2",
+    "diffuse": "models/portrait_room_2.png",
+    "spec": "models/portrait_room_2_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-boyroom",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/imaginary-friend-room",
+        "license": "CC-BY-4.0",
+        "attribution": "Boy Room by Iman Aliakbar (sketchfab.com/Iman.Aliakbar), CC BY 4.0",
+        "files": null
+      },
+      {
+        "id": "khronos-camera",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "Antique Camera, Maximillan Kamps for UX3D (Khronos glTF sample assets), CC0"
+      },
+      {
+        "id": "khronos-candle",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC-BY-4.0",
+        "attribution": "Glass Hurricane Candle Holder, Eric Chadwick for Wayfair (Khronos glTF sample assets), CC BY 4.0"
+      },
+      {
+        "id": "khronos-damask",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC-BY-4.0",
+        "attribution": "Chair Damask Purplegold, Eric Chadwick for Wayfair (Khronos glTF sample assets), CC BY 4.0"
+      }
+    ]
+  },
+  {
+    "name": "portrait_room_3",
+    "diffuse": "models/portrait_room_3.png",
+    "spec": "models/portrait_room_3_s.png",
+    "normal": "models/portrait_room_3_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-boyroom",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/imaginary-friend-room",
+        "license": "CC-BY-4.0",
+        "attribution": "Boy Room by Iman Aliakbar (sketchfab.com/Iman.Aliakbar), CC BY 4.0",
+        "files": null
+      },
+      {
+        "id": "khronos-camera",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "Antique Camera, Maximillan Kamps for UX3D (Khronos glTF sample assets), CC0"
+      },
+      {
+        "id": "khronos-candle",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC-BY-4.0",
+        "attribution": "Glass Hurricane Candle Holder, Eric Chadwick for Wayfair (Khronos glTF sample assets), CC BY 4.0"
+      },
+      {
+        "id": "khronos-damask",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC-BY-4.0",
+        "attribution": "Chair Damask Purplegold, Eric Chadwick for Wayfair (Khronos glTF sample assets), CC BY 4.0"
+      }
+    ]
+  },
+  {
+    "name": "portrait_room_4",
+    "diffuse": "models/portrait_room_4.png",
+    "spec": "models/portrait_room_4_s.png",
+    "normal": "models/portrait_room_4_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-boyroom",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/imaginary-friend-room",
+        "license": "CC-BY-4.0",
+        "attribution": "Boy Room by Iman Aliakbar (sketchfab.com/Iman.Aliakbar), CC BY 4.0",
+        "files": null
+      },
+      {
+        "id": "khronos-camera",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "Antique Camera, Maximillan Kamps for UX3D (Khronos glTF sample assets), CC0"
+      },
+      {
+        "id": "khronos-candle",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC-BY-4.0",
+        "attribution": "Glass Hurricane Candle Holder, Eric Chadwick for Wayfair (Khronos glTF sample assets), CC BY 4.0"
+      },
+      {
+        "id": "khronos-damask",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC-BY-4.0",
+        "attribution": "Chair Damask Purplegold, Eric Chadwick for Wayfair (Khronos glTF sample assets), CC BY 4.0"
+      }
+    ]
+  },
+  {
+    "name": "portrait_room_5",
+    "diffuse": "models/portrait_room_5.png",
+    "spec": "models/portrait_room_5_s.png",
+    "normal": "models/portrait_room_5_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-boyroom",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/imaginary-friend-room",
+        "license": "CC-BY-4.0",
+        "attribution": "Boy Room by Iman Aliakbar (sketchfab.com/Iman.Aliakbar), CC BY 4.0",
+        "files": null
+      },
+      {
+        "id": "khronos-camera",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "Antique Camera, Maximillan Kamps for UX3D (Khronos glTF sample assets), CC0"
+      },
+      {
+        "id": "khronos-candle",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC-BY-4.0",
+        "attribution": "Glass Hurricane Candle Holder, Eric Chadwick for Wayfair (Khronos glTF sample assets), CC BY 4.0"
+      },
+      {
+        "id": "khronos-damask",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC-BY-4.0",
+        "attribution": "Chair Damask Purplegold, Eric Chadwick for Wayfair (Khronos glTF sample assets), CC BY 4.0"
+      }
+    ]
+  },
+  {
+    "name": "portrait_room_6",
+    "diffuse": "models/portrait_room_6.png",
+    "spec": "models/portrait_room_6_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-boyroom",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "dir": "models/imaginary-friend-room",
+        "license": "CC-BY-4.0",
+        "attribution": "Boy Room by Iman Aliakbar (sketchfab.com/Iman.Aliakbar), CC BY 4.0",
+        "files": null
+      },
+      {
+        "id": "khronos-camera",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC0-1.0",
+        "attribution": "Antique Camera, Maximillan Kamps for UX3D (Khronos glTF sample assets), CC0"
+      },
+      {
+        "id": "khronos-candle",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC-BY-4.0",
+        "attribution": "Glass Hurricane Candle Holder, Eric Chadwick for Wayfair (Khronos glTF sample assets), CC BY 4.0"
+      },
+      {
+        "id": "khronos-damask",
+        "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+        "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+        "files": null,
+        "license": "CC-BY-4.0",
+        "attribution": "Chair Damask Purplegold, Eric Chadwick for Wayfair (Khronos glTF sample assets), CC BY 4.0"
+      }
+    ]
+  },
+  {
     "name": "skull_0",
     "diffuse": "models/skull_0.png",
     "spec": "models/skull_0_s.png",

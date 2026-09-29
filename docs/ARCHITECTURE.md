@@ -1146,6 +1146,13 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - Its walls and floor were lit by a baked atlas that only works from inside the closed box, so they're replaced by the library's plaster, sooted brick and floorboards, broken off raggedly, with the window's hole left.
         - Zenobia is taken off her plinth and laid out on her back on the bier: the pale body the room is for.
         - The pendant lamp's globes are gone. Its bare bulbs are lit emissive spheres (`cook.eyes_at`), with a light at its "lamp" socket. `PropArtTests` lets pure light be drawn flat; everything else wears its own layers.
+      - `recipes/portrait_room.py` is a third: a photographer's studio across the line, set up for a Victorian memorial portrait.
+        - The Boy Room's boy is posed seated at full resolution, propped in the Khronos damask chair (CC BY 4.0) with an iron posing stand's clamp behind his head.
+        - The Khronos Antique Camera (CC0) stands on its tripod pointed at him.
+        - A candle burns on a crate: the Khronos hurricane holder (CC BY 4.0) with its glass (and the logos on it) gone.
+        - Behind him hangs a torn painted backdrop.
+        - Its light is at the flame's "lamp" socket. Most villages have one, hashed on the village's place.
+      - The rooms share `cook.ruined_shell` (the broken plaster-and-brick walls and floorboards) and `cook.box_uv`. The posed figures share `tools/models/figures.py`: the boy's joint table and skeleton, and the full-resolution linear-blend pose the Soot children use too.
     - **First set.**
       - The Khronos Lantern, split into a lamp post and a hand lantern. The hand lantern replaces the kit's cage in the cars, on the platforms and as the dropped lamp.
       - The photoscanned skull.

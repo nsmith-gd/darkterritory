@@ -11,6 +11,30 @@
     "attribution": "Lantern, Microsoft (Khronos glTF sample assets), CC0"
   },
   {
+    "id": "khronos-camera",
+    "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+    "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+    "files": ["Models/AntiqueCamera/glTF-Binary/AntiqueCamera.glb", "Models/AntiqueCamera/LICENSE.md"],
+    "license": "CC0-1.0",
+    "attribution": "Antique Camera, Maximillan Kamps for UX3D (Khronos glTF sample assets), CC0"
+  },
+  {
+    "id": "khronos-damask",
+    "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+    "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+    "files": ["Models/ChairDamaskPurplegold/glTF-Binary/ChairDamaskPurplegold.glb", "Models/ChairDamaskPurplegold/LICENSE.md"],
+    "license": "CC-BY-4.0",
+    "attribution": "Chair Damask Purplegold, Eric Chadwick for Wayfair (Khronos glTF sample assets), CC BY 4.0"
+  },
+  {
+    "id": "khronos-candle",
+    "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
+    "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",
+    "files": ["Models/GlassHurricaneCandleHolder/glTF-Binary/GlassHurricaneCandleHolder.glb", "Models/GlassHurricaneCandleHolder/LICENSE.md"],
+    "license": "CC-BY-4.0",
+    "attribution": "Glass Hurricane Candle Holder, Eric Chadwick for Wayfair (Khronos glTF sample assets), CC BY 4.0"
+  },
+  {
     "id": "khronos-skull",
     "repo": "https://github.com/KhronosGroup/glTF-Sample-Assets",
     "commit": "f36bfdabd1031c3cf6689a50570b8cdf3678b49c",

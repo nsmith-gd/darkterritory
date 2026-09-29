@@ -64,6 +64,9 @@ Sourced 3D models follow the same rule, through `tools/models/`:
 | PigMan | gkjohnson/3d-demo-data `models/pigman` | `9149f69c…` | CC BY 4.0 | Grigorii Ischenko |
 | Boy Room | gkjohnson/3d-demo-data `models/imaginary-friend-room` | `9149f69c…` | CC BY 4.0 | Iman Aliakbar |
 | Interior Scene | gkjohnson/3d-demo-data `models/interior-scene` | `9149f69c…` | CC BY 4.0 | Allay Design |
+| Antique Camera | KhronosGroup/glTF-Sample-Assets `Models/AntiqueCamera` | `f36bfdab…` | CC0 1.0 | Maximillan Kamps, UX3D |
+| Chair Damask Purplegold | KhronosGroup/glTF-Sample-Assets `Models/ChairDamaskPurplegold` | `f36bfdab…` | CC BY 4.0 | Eric Chadwick, Wayfair |
+| Glass Hurricane Candle Holder (the candle only; its glass and logos are not used) | KhronosGroup/glTF-Sample-Assets `Models/GlassHurricaneCandleHolder` | `f36bfdab…` | CC BY 4.0 | Eric Chadwick, Wayfair |
 
 \* The Three D Scans files carry no licence of their own; their terms are threedscans.com's ("free to use, no
 copyright restrictions"), which can't be re-read from the build machines (the site is blocked). They're recorded as
