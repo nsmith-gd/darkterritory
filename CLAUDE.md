@@ -15,8 +15,8 @@ dotnet run --project src/DarkTerritory.Cli -- audio render --listener all   # sp
 dotnet run --project src/DarkTerritory.Cli -- screenshot --view roof   # PNG to out/shots/; then Read it to look
 dotnet run --project src/DarkTerritory.Cli -- art show engine          # a kit piece on a turntable; `art check` = every piece vs its triangle budget
 python3 tools/art/textures.py                                         # rebuild content/art/textures (CC0 sources: tools/art/fetch_sources.sh)
-tools/blender/build.sh                                                # rebuild content/art/models (crew and creatures; needs blender)
-python3 tools/models/fetch.py && tools/models/build.sh                # sourced CC0/CC-BY models -> content/art/models/props (recipes bash them; needs blender)
+tools/blender/build.sh                                                # rebuild the procedural creatures in content/art/models (needs blender)
+python3 tools/models/fetch.py && tools/models/build.sh                # sourced CC0/CC-BY models, and the modelled-and-baked ones (props, the crew) -> content/art/models (needs blender)
 dotnet run --project src/DarkTerritory.Cli -- harness --bots 8 --seconds 300   # host + bots over lossy loopback; netcode report
 XDG_RUNTIME_DIR=/tmp xvfb-run -a dotnet run --project src/DarkTerritory.App -- --throttle 1 --quit-after 10 --capture out/shots/app.png   # real window path, headless
 ```

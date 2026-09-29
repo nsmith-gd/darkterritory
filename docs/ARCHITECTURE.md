@@ -1185,6 +1185,13 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - Switchyard: the signal box with one window lit, the water tower's spout swung over the track, and a goods shed.
         - Wreck yard: heaps of stripped carbodies and wheelsets, with the sheds set back behind them.
         - `dt screenshot --route tier:seed --site --facility i` stops at the route's i-th facility, to look at a kind's buildings.
+      - The crew is the fifth (`recipes/crew.py`), baked over its own game mesh rather than replacing it. `tools/blender/crew.py` stays the source of the mesh, the rig, the weights, the variants and the clips; the recipe runs it with the export held back, then:
+        - swaps the egg of a head for Lee Perry-Smith's scan (CC BY 3.0). The scan's mouth cavity is cut out and capped first: collapsed to a game mesh, the lips caved into it. The whole face rides the head bone, since a chin on the neck bone shears off when the clips tip the two apart;
+        - models a high copy of each part, subdivided and displaced: the coat's folds below the belt, seams, buttons, bunched sleeves and a turned cuff, knee creases, laced boots with a welt, parted fingers, cap panels, the helmet's rolled rim. It's dressed in the library's oilskin, wool and leather at several times their repeat, so the weave reads as texture, not pattern;
+        - joins the parts for one 1024 atlas, unwraps them (the head in one cylindrical piece, and it and the hands given more texels), bakes each group from its own high copy, and splits them back into the parts the variants draw;
+        - soots the result: creases, mud climbing the boots and hem, smoke settled on the shoulders, and the face sallow and smudged, its occlusion softened.
+      - A Cycles bake clears the whole image, and only the colour pass leaves alpha where it didn't write. So each group bakes into images of its own, and its colour coverage masks all four maps into the atlas.
+      - The chest lamp's glass keeps crew_atlas's lit cell, and the shovel keeps its library layers. `tools/blender/build.sh` no longer builds the crew.
     - **First set.**
       - The Khronos Lantern, split into a lamp post and a hand lantern. The hand lantern replaces the kit's cage in the cars, on the platforms and as the dropped lamp.
       - The photoscanned skull.
