@@ -13,11 +13,20 @@ public class WatersideTests
 {
     static readonly string Content = DataFile.FindContentRoot();
 
+    // Each night is generated once for the class: a generation is seconds of solid CPU, and the other assemblies'
+    // wall-clock tests run alongside these (CreatureArtTests' frame time on CI's four-core Windows runner).
+    static readonly Dictionary<string, (LinePlan, Rail.RailLine, TerrainField)> Nights = new();
+
     static (LinePlan Plan, Rail.RailLine Line, TerrainField Terrain) Night(string spec)
     {
-        var route = Routes.Generate(Content, spec, 6);
-        var line = route.Build();
-        return (route.Plan!, line, ((PlanConditions)line.Conditions!).Terrain);
+        lock (Nights)
+        {
+            if (Nights.TryGetValue(spec, out var n))
+                return n;
+            var route = Routes.Generate(Content, spec, 6);
+            var line = route.Build();
+            return Nights[spec] = (route.Plan!, line, ((PlanConditions)line.Conditions!).Terrain);
+        }
     }
 
     [Theory]
@@ -87,7 +96,7 @@ public class WatersideTests
     [Fact]
     public void TheWatersideIsPartOfThePlanAndTheSameEveryRun()
     {
-        var a = Routes.Generate(Content, "deadLines:3", 6).Plan!;
+        var a = Night("deadLines:3").Plan;
         var b = Routes.Generate(Content, "deadLines:3", 6).Plan!;
         Assert.Equal(a.Lakes, b.Lakes);
         Assert.Equal(a.Shores, b.Shores);
