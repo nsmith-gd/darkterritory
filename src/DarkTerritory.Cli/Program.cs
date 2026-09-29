@@ -38,6 +38,7 @@ return args switch
     ["line", "info", var name, ..] => Print(LineInfo(LoadLine(name), Opt(args, "--every", 100))),
     ["line", "drive", var name, ..] => Print(Drive(train, LoadLine(name), (int)Opt(args, "--cars", 3), Opt(args, "--start", -1), Opt(args, "--from", 0), Opt(args, "--throttle", 1), (int)Opt(args, "--seconds", 120))),
     ["screenshot", ..] when args.Contains("--hud") => Print(HudShot(content, args)),
+    ["screenshot", ..] when args.Contains("--menu") => Print(MenuShot(train, content, args)),
     ["screenshot", ..] => Print(Screenshot(train, content, args)),
     ["route", "gen", ..] => Print(GenerateRoute(routeTuning, content, args)),
     ["route", "sweep", ..] => Print(SweepRoutes(routeTuning, (int)Opt(args, "--seeds", 200))),
@@ -589,6 +590,51 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     };
 }
 
+// The front end as the game draws it (T30): a screen of the menus over the yard, at the game's 480x270. The campaign
+// screens use a demo slot (a few nights in, some scrip) in a scratch directory unless --saves names real ones.
+static object MenuShot(TrainTuning t, string content, string[] args)
+{
+    var screen = Enum.Parse<DarkTerritory.Game.Screen>(Str(args, "--menu", "title"), ignoreCase: true);
+    var ct = DataFile.Load<DarkTerritory.Sim.Campaign.CampaignTuning>(Path.Combine(content, DarkTerritory.Sim.Campaign.CampaignTuning.File));
+    var rt = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
+    string dir = Str(args, "--saves", Path.Combine(Path.GetTempPath(), "dt-menu-shot"));
+    var saves = new DarkTerritory.Game.SaveSlots(dir, ct.SaveSlots);
+    if (!args.Contains("--saves"))
+    {
+        var demo = DarkTerritory.Sim.Campaign.Campaign.New(ct, 1, "The Night Shift", 7) with
+        {
+            Cars = 5,
+            Scrip = 2350,
+            Runs = 6,
+            History = [new DarkTerritory.Sim.Campaign.RunLog(6, "frontier:3", DarkTerritory.Sim.Run.RunEnd.Delivered, 812, 0, 2350)],
+            Upgrades = ["lampBrightness"],
+        };
+        saves.Save(demo);
+        saves.Delete(2);
+        saves.Delete(3);
+    }
+    var menu = new DarkTerritory.Game.FrontEnd(ct, rt, saves, Path.Combine(dir, "settings.json"), () => 7);
+    if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades)
+        menu.ShowFortress((int)Opt(args, "--slot", 1));
+    menu.Show(screen);
+    for (int i = 0; i < (int)Opt(args, "--down", 0); i++)
+        menu.Down();
+
+    var line = RailLine.Load(Path.Combine(content, "lines", "test-loop.json"));
+    var standing = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, 6, 1)), line, 1200);
+    var view = Views.Get("trackside", standing);
+    var mesh = new MeshBuilder();
+    new GreyboxScene { Time = 0.37 }.Build(mesh, standing, view.Position);
+    var light = Views.Lighting(standing);
+    using var gpu = new GpuContext("dt screenshot");
+    using var renderer = new GreyboxRenderer(gpu, 480, 270);
+    var overlay = new Overlay();
+    menu.Draw(overlay, renderer.Width, renderer.Height);
+    string output = Str(args, "--out", $"out/shots/menu-{screen.ToString().ToLowerInvariant()}.png");
+    PngWriter.Write(output, renderer.Render(mesh, view, light, light.FogColor, overlay), renderer.Width, renderer.Height, (int)Opt(args, "--scale", 2));
+    return new { path = Path.GetFullPath(output), screen = screen.ToString(), items = menu.Items.Select(i => i.Label) };
+}
+
 // A frame as the game draws it: a solo session stepped for a while, seen first person, with the HUD (T23).
 static object HudShot(string content, string[] args)
 {
@@ -697,6 +743,8 @@ static int Usage()
                      [--vigil]    emergency lighting, as during a Vigil (spec C.2)
                      [--route tier:seed --site]   stopped at a facility: crates out, the winch sled part-hauled (spec D)
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
+          screenshot --menu title|slots|fortress|upgrades|quickNight|join|settings [--down n] [--saves dir]
+                     a screen of the front end over the yard, as the game draws it
           screenshot --hud [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
           route gen [--tier local|frontier|deadLines|deepTerritory] [--seed n] [--name generated] [--map file.png]

@@ -67,6 +67,12 @@ Remaining for M3: Soot Children mimicry, the radio as an item, and interior occl
 - Dawn, derailment or losing the crew ends it.
 - The harness reports the outcome and the payout.
 
+**Front end (T30):**
+- `DarkTerritory` opens on a title screen with Campaign (three slots, and the fortress between nights: the board, cars, upgrades), Quick night, Join, Settings and Quit.
+- Nights return to the menu when they're over.
+- Settings are saved: sound, voice, HUD, VR comfort, mouse.
+- `dt screenshot --menu fortress` shows it.
+
 **The campaign (spec E, F):**
 - Scrip, cars on F.2's curve, F.3 upgrades (five modelled), a board of contracts by F.4 tier, and three text save slots.
 - Autosave on leaving each facility, and `--resume`.
