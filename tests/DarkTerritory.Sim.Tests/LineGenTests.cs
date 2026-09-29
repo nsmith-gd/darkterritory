@@ -14,6 +14,13 @@ namespace DarkTerritory.Sim.Tests;
 /// ground wherever a player can walk, and a client's copy of the plan builds the host's terrain exactly (M2); nights
 /// pass validation within two attempts (M3); and the line's own rules hold the train to its authority.
 /// </summary>
+/// <remarks>
+/// A collection of its own that doesn't run in parallel: xunit runs it after the parallel classes, so the generations
+/// (each a couple of seconds of solid CPU) don't land on top of the other assemblies' wall-clock tests at startup
+/// (CI's Windows runner has four cores: UdpTransportTests' loopback ping and CreatureArtTests' frame time both starved).
+/// </remarks>
+[Collection(nameof(LineGenTests))]
+[CollectionDefinition(nameof(LineGenTests), DisableParallelization = true)]
 public class LineGenTests
 {
     static readonly string Content = DataFile.FindContentRoot();
