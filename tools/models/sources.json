@@ -76,6 +76,14 @@
     "attribution": "Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
   },
   {
+    "id": "gk-crab",
+    "repo": "https://github.com/gkjohnson/3d-demo-data",
+    "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+    "files": ["models/threedscans/Crab.glb", "models/threedscans/Elbow_Crab.glb", "models/threedscans/README.md"],
+    "license": "LicenseRef-ThreeDScans",
+    "attribution": "Crab and Elbow Crab, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+  },
+  {
     "id": "gk-pigman",
     "repo": "https://github.com/gkjohnson/3d-demo-data",
     "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",

@@ -1128,7 +1128,12 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - pressed flat and sunk into a rotten tie of the library's sleeper timber (cut along its length so the chain bends it);
         - graded creosote-brown with the grain running along it.
       - At a glance a Sleeper is one more tie across the rails. Close to, the ribs, the face and the raised arm are the scan's. It keeps the same chain rig and clips (`rig_creature` takes the skeleton's name).
-      - The crew, the hound, the Clinger and the Dragger stay procedural for now.
+      - The Clinger (`recipes/clinger.py`) is a spiny crab (Three D Scans):
+        - turned with its back out of the hull and pressed flat to the plate, its legs splayed on the steel;
+        - three of Lee Perry-Smith's faces pushed up through its shell where the procedural one's sacs were, so they swell and ebb with the cling pulse;
+        - a tar lip and a mineral-crust drill at its lower seam, with the hot plate.
+      - It's rigged as before. The legs ride radial limb bones off the root, so when the body drives into the car they stay gripping it.
+      - The crew, the hound and the Dragger stay procedural for now.
     - **Ruined interiors.** A whole sourced room can be ruined in its recipe and set where the line can see into it. `recipes/boy_room.py` does this with "Boy Room" (CC BY 4.0), a child's bedroom with a hulking imaginary friend.
       - It's split by material: the wardrobe knocked askew, a picture hung crooked.
       - It's graded per part: dust over everything, the boy ash-pale, the thing he drew soot-black but for its eyes.
