@@ -88,8 +88,10 @@ public class LookTests
         var worn = Luma(Inside(gpu, Look, 1200));
         // GDD §27: grain, grime and staining where there was flat colour...
         Assert.True(Breakup(worn, 160) > Breakup(flat, 160) * 1.5, $"breakup {Breakup(worn, 160):0.00} vs flat {Breakup(flat, 160):0.00}");
-        // ...but still a readable room: darker for the soot, not a black hole (§32 wants it read fast).
-        Assert.InRange(Mean(worn), Mean(flat) * 0.6, Mean(flat) * 1.1);
+        // ...but still a readable room (§32 wants it read fast): not a black hole, and not washed out either. Since the art
+        // pass (ARCHITECTURE §8 note 47) the look's room is textured and lit per pixel, so it can be brighter than flat
+        // colour by its lamp; it mustn't be much brighter.
+        Assert.InRange(Mean(worn), Mean(flat) * 0.6, Mean(flat) * 1.6);
     }
 
     [Fact]
