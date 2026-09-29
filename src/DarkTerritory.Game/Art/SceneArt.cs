@@ -93,6 +93,12 @@ public sealed class SceneArt(Look look)
     /// A loose body that isn't a ragdoll (crates, freight, a lamp, a radio) as its prop, turned by its yaw in its parent's
     /// frame. A lamp lights its surroundings and glows. Returns false for what the kit doesn't draw (the dead).
     /// </summary>
+    /// <summary>Facility freight comes in a few kinds of case (machine parts, ammunition, sacks of grain, medical
+    /// stores); a body keeps its kind by its id.</summary>
+    static readonly string[] FreightKinds = ["freight_parts", "freight_ammo", "freight_sacks", "freight_medical"];
+
+    static string Freight(int id) => FreightKinds[(int)((uint)id * 2654435761u % (uint)FreightKinds.Length)];
+
     public bool Body(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, double heavyHalf, double time)
     {
         bool onCar = b.Parent != Sim.Player.PlayerState.World && b.Parent < frames.Count;
@@ -111,12 +117,15 @@ public sealed class SceneArt(Look look)
         var back = Vector3.Cross(right, u);
         var o = at.RelativeTo(eye);
         var m = new Matrix4x4(right.X, right.Y, right.Z, 0, u.X, u.Y, u.Z, 0, back.X, back.Y, back.Z, 0, o.X, o.Y, o.Z, 1);
+        // What the crew carry: the modelled props (tools/models make: stores_crate, freight_*, heavy_crate,
+        // field_radio) where they're built, centred on the body like the kit's; the kit's pieces where not.
+        var props = PropArt.Of(Look);
         var piece = b.Kind switch
         {
-            Sim.Physics.BodyKind.Cargo => Piece("prop-cargo", () => PropKit.Cargo(Look)),
-            Sim.Physics.BodyKind.Heavy => Piece($"prop-heavy-{heavyHalf:0.00}", () => PropKit.Heavy(Look, (float)heavyHalf)),
-            Sim.Physics.BodyKind.Crate => Piece("prop-crate", () => PropKit.Crate(Look)),
-            Sim.Physics.BodyKind.Radio => Piece("prop-radio", () => PropKit.Radio(Look)),
+            Sim.Physics.BodyKind.Cargo => props.Get(Freight(b.Id)) ?? Piece("prop-cargo", () => PropKit.Cargo(Look)),
+            Sim.Physics.BodyKind.Heavy => props.Get("heavy_crate") ?? Piece($"prop-heavy-{heavyHalf:0.00}", () => PropKit.Heavy(Look, (float)heavyHalf)),
+            Sim.Physics.BodyKind.Crate => props.Get("stores_crate") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
+            Sim.Physics.BodyKind.Radio => props.Get("field_radio") ?? Piece("prop-radio", () => PropKit.Radio(Look)),
             // The hand lamp: the sourced lantern (tools/models hand_lantern) where it's built.
             _ => PropArt.Of(Look).Get("hand_lantern") ?? Piece("prop-lantern", () => PropKit.Lantern(Look)),
         };

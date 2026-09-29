@@ -1154,6 +1154,17 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - Behind him hangs a torn painted backdrop.
         - Its light is at the flame's "lamp" socket. Most villages have one, hashed on the village's place.
       - The rooms share `cook.ruined_shell` (the broken plaster-and-brick walls and floorboards) and `cook.box_uv`. The posed figures share `tools/models/figures.py`: the boy's joint table and skeleton, and the full-resolution linear-blend pose the Soot children use too.
+    - **Modelled here, for the game's own things** (`tools/models/make.py`). No free model exists for the crew's stores, the freight or the cab's controls, so each is modelled at high resolution in its recipe, then baked down (`bake_down(low=make.LOW)`) onto a plain game mesh built alongside it: the crate's shell, its battens, the pipes at a few sides.
+      - The high-poly model is bevelled boards with gaps, nail heads, strap iron, rope grips and stencils (Blender text).
+      - It wears the library's own maps, box-projected at the library's scale. Only layers without printed-in structure (`wood_sleeper`'s plain grain, `rust_heavy`, `paint_olive`, `brass`) suit it: a layer with boards or rivets printed in doubles them.
+      - `bake_down` takes a smaller cage for these (a modelled low mesh lies almost on the high one). The low mesh is invisible to the bake's rays, or it would shadow the high one's flat faces black.
+      - Provenance: a modelled layer's `sources` name its recipe (Dark Territory's own, CC0) and the pinned sources of every library layer it wore. `PropArtTests` accepts a recipe that exists in the repo as a source.
+      - The first set is the physics bodies' models, drawn by `SceneArt.Body` with the kit's pieces as the fallback:
+        - `stores_crate` (BodyKind.Crate);
+        - four kinds of facility freight (BodyKind.Cargo, chosen by the body's id): `freight_parts`, `freight_ammo`, `freight_sacks`, `freight_medical`;
+        - the two-man `heavy_crate`;
+        - the `field_radio`, with its lamp pure light.
+      - They're budgeted as medium props.
     - **First set.**
       - The Khronos Lantern, split into a lamp post and a hand lantern. The hand lantern replaces the kit's cage in the cars, on the platforms and as the dropped lamp.
       - The photoscanned skull.

@@ -64,6 +64,14 @@ public class PropArtTests
                 // intake/README.md).
                 Assert.Contains(licence, new[] { "CC0-1.0", "CC-BY-4.0", "CC-BY-3.0", "LicenseRef-ThreeDScans" });
                 Assert.False(string.IsNullOrWhiteSpace(s.GetProperty("attribution").GetString()), $"{name}: no attribution");
+                // Either sourced (a pinned public commit) or modelled here: a recipe in this repository (its own work,
+                // CC0, alongside the pinned sources of the library layers it wore).
+                if (s.TryGetProperty("generator", out var generator))
+                {
+                    Assert.True(File.Exists(Path.Combine(Content, "..", generator.GetString()!)), $"{name}: no {generator}");
+                    Assert.Equal("CC0-1.0", licence);
+                    continue;
+                }
                 Assert.StartsWith("https://github.com/", s.GetProperty("repo").GetString());
                 Assert.Matches("^[0-9a-f]{40}$", s.GetProperty("commit").GetString()!);
             }
