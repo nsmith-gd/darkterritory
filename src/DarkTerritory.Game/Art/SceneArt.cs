@@ -45,8 +45,21 @@ public sealed class SceneArt(Look look)
         var right = new Vector3((float)Math.Cos(c.Yaw), 0, (float)-Math.Sin(c.Yaw));
         var back = new Vector3((float)Math.Sin(c.Yaw), 0, (float)Math.Cos(c.Yaw));
         var m = CreatureArt.Basis(c.Feet.RelativeTo(eye), right, Vector3.UnitY, back);
-        return Creatures.Crewmate(mesh, m, pose, time, c.Id);
+        // A headset player's hands where they are (T47), the same way GreyboxScene's figure has them; the other arm (and
+        // everyone's, on a keyboard) stays with the clip's swing.
+        Vector3? left = null, rightHand = null;
+        if (c.Hand != default || c.Other != default)
+        {
+            var (l, r) = Arms.Hands(c.Hand, c.Other);
+            if (l != Arms.Hanging(-1))
+                left = ToF(l);
+            if (r != Arms.Hanging(1))
+                rightHand = ToF(r);
+        }
+        return Creatures.Crewmate(mesh, m, pose, time, c.Id, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)));
     }
+
+    static Vector3 ToF(Double3 d) => new((float)d.X, (float)d.Y, (float)d.Z);
 
     /// <summary>Smoke, steam, sparks, the lamp's beam, drifting fog.</summary>
     public Effects Effects { get; } = new(look);

@@ -150,11 +150,52 @@ public sealed class CreatureArt
     /// box figure). <paramref name="variant"/> picks cap or helmet, with or without a scarf (variant % 4), so a crew of
     /// eight isn't eight twins; <paramref name="time"/> is any running clock for the clip.
     /// </summary>
-    public bool Crewmate(MeshBuilder mesh, in Matrix4x4 model, CrewPose pose, double time, int variant)
+    /// <param name="left">A headset player's left hand (T47), in the model's space (from the feet: x right, y up, z behind),
+    /// or null to leave the arm to the clip; likewise <paramref name="right"/>. The arm reaches it by two-bone IK on the
+    /// model's own shoulder and arm lengths, the elbow bent toward <paramref name="leftPole"/>/<paramref name="rightPole"/>.</param>
+    public bool Crewmate(MeshBuilder mesh, in Matrix4x4 model, CrewPose pose, double time, int variant,
+        Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default)
     {
         // Each crewmate breathes and steps on their own beat: a fixed offset by variant, not a random one.
         double offset = (variant & 7) * 0.41;
-        return Draw(mesh, "crew", ClipOf(pose), time + offset, pose != CrewPose.Dead, model, variant, seed: variant);
+        string clip = ClipOf(pose);
+        if (left is null && right is null)
+            return Draw(mesh, "crew", clip, time + offset, pose != CrewPose.Dead, model, variant, seed: variant);
+        if (!_models.TryGetValue("crew", out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
+            return false;
+        _skinner.Evaluate(m.Model, c, time + offset, pose != CrewPose.Dead, m.Pose);
+        if (left is { } l)
+            Reach(m, "l", l, leftPole);
+        if (right is { } r)
+            Reach(m, "r", r, rightPole);
+        Emit(mesh, m, clip, model, variant, 1, variant);
+        return true;
+    }
+
+    /// <summary>One arm of the posed model to a hand position (model space) by two-bone IK, the elbow toward the pole.</summary>
+    static void Reach(Entry m, string side, Vector3 target, Vector3 pole)
+    {
+        var sk = m.Model.Skeleton;
+        int upper = sk.IndexOf("upperarm_" + side), lower = sk.IndexOf("lowerarm_" + side), hand = sk.IndexOf("hand_" + side);
+        if (upper < 0 || lower < 0 || hand < 0)
+            return;
+        var shoulder = m.Pose.World[upper].Translation;
+        float a = Vector3.Distance(shoulder, m.Pose.World[lower].Translation);
+        float b = Vector3.Distance(m.Pose.World[lower].Translation, m.Pose.World[hand].Translation);
+        var to = target - shoulder;
+        float d = to.Length();
+        if (d < 1e-4f || a < 1e-4f || b < 1e-4f)
+            return;
+        var dir = to / d;
+        float reach = Math.Clamp(d, MathF.Abs(a - b) + 1e-3f, (a + b) * 0.999f);
+        // Along the reach, x from the shoulder; then out towards the pole by h (law of cosines), as Arms.Solve.
+        float x = (a * a - b * b + reach * reach) / (2 * reach);
+        float h = MathF.Sqrt(MathF.Max(0, a * a - x * x));
+        var bend = pole - dir * Vector3.Dot(pole, dir);
+        bend = bend.LengthSquared() < 1e-8f ? Vector3.Normalize(Vector3.Cross(dir, Vector3.UnitZ) + new Vector3(0, -1e-3f, 0)) : Vector3.Normalize(bend);
+        var elbow = shoulder + dir * x + bend * h;
+        Skinner.Aim(m.Model, m.Pose, upper, lower, elbow);
+        Skinner.Aim(m.Model, m.Pose, lower, hand, shoulder + dir * reach);
     }
 
     /// <summary>How many joints a ragdoll has (Sim.Physics.Bodies' skeleton), in the order <see cref="Corpse"/> reads them.</summary>

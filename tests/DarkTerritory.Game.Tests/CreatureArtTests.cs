@@ -195,6 +195,36 @@ public class CreatureArtTests
     }
 
     [Fact]
+    public void AHeadsetPlayersHandIsWhereTheirHandIs()
+    {
+        // T47: the crew see a headset's arms. The model's arm reaches the reported hand (up and out, and out in front);
+        // without one, the clip's arm is nowhere near it.
+        foreach (var hand in new[] { new Vector3(0.35f, 2.05f, -0.45f), new Vector3(-0.22f, 1.2f, -0.5f) })
+        {
+            var reached = new MeshBuilder();
+            var (l, r) = hand.X < 0 ? ((Vector3?)hand, (Vector3?)null) : (null, hand);
+            Assert.True(Art.Crewmate(reached, Matrix4x4.Identity, CrewPose.Idle, 0.4, 1, l, r,
+                new Vector3(-0.6f, -1, 0.3f), new Vector3(0.6f, -1, 0.3f)));
+            var hanging = new MeshBuilder();
+            Assert.True(Art.Crewmate(hanging, Matrix4x4.Identity, CrewPose.Idle, 0.4, 1));
+            Assert.Equal(hanging.Count, reached.Count);
+            Assert.InRange(reached.Vertices.ToArray().Min(v => Vector3.Distance(v.Position, hand)), 0, 0.1f);
+            Assert.True(hanging.Vertices.ToArray().Min(v => Vector3.Distance(v.Position, hand)) > 0.25f);
+        }
+
+        // And through the scene, as a replicated crewmate: the hand in the frame they face, from their feet.
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 2, 1)), line, 1200);
+        var feet = train.Frames[1].ToWorld(new Double3(0, train.Frames[1].Shape.RoofHeight, 0));
+        var up = new Double3(0.35, 2.05, -0.45);
+        var mesh = new MeshBuilder();
+        new GreyboxScene { Look = Look, Time = 0.37, Crew = [new Crewmate(3, feet, 0, true, up)] }.Build(mesh, train, feet + new Double3(3, 1.5, 0));
+        var at = (feet + up).RelativeTo(feet + new Double3(3, 1.5, 0));
+        Assert.InRange(mesh.Vertices.ToArray().Min(v => Vector3.Distance(v.Position, at)), 0, 0.1f);
+    }
+
+    [Fact]
     public void TheDeadLieAsTheirRagdollLies()
     {
         // The staged body (Staging.Bodies: a crewmate dead on car 3's roof, settled for 90 ticks), as the scene draws it.
