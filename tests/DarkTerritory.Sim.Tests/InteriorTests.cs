@@ -54,6 +54,39 @@ public class InteriorTests
     static readonly PlayerIntent Forward = new() { MoveZ = 1 };
     static readonly PlayerIntent Use = new() { Buttons = PlayerButtons.Use };
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ACargoCarsSideDoorTakesYouInOffItsSteps(bool carrying)
+    {
+        // Spec D.2: freight goes in from the ground, and you can't climb with it. So a cargo car has steps up its side to a
+        // sliding door: walk up them (arms full or not), open it, and you're in.
+        var train = Train(speed: 0);
+        const int car = 1;
+        var frame = train.Frames[car];
+        double w = frame.Shape.Bounds.Max.X, sd = I.SideDoorWidth / 2;
+        var foot = frame.ToWorld(new Double3(w + I.StepWidth / 2, 0, -sd - 4 * I.StepDepth - 0.3));
+        var s = PlayerMotor.SpawnOnGround(foot, train.Line, train.Cars[car].FrontDistance, P);
+        s.Yaw = Math.Atan2(-frame.Back.X, -frame.Back.Z); // facing along the car toward its middle
+        if (carrying)
+            s.Flags |= PlayerFlags.Heavy;
+        Run(train, ref s, 4, x => x.Parent == car && x.Position.Z > -0.2 ? default : Forward);
+        Assert.Equal(car, s.Parent);
+        Assert.Equal(Surface.Deck, s.Surface);
+        Assert.Equal(I.FloorHeight, s.Position.Y, 6);
+        Assert.False(PlayerMotor.Indoors(s, train));
+
+        // Turn to face the door (looking in across the car, −X), open it, and walk in.
+        int door = frame.Shape.DoorList.Single(d => d.Box.Centre.X > 0 && Math.Abs(d.Box.Centre.Z) < 1).Index;
+        Run(train, ref s, 1, x => new PlayerIntent { LookYaw = (float)Math.Clamp(Math.IEEERemainder(Math.PI / 2 - x.Yaw, 2 * Math.PI), -0.3, 0.3) });
+        Run(train, ref s, I.DoorSeconds + 0.1, _ => Use);
+        Assert.True(train.Vehicles[car].DoorOpen(door));
+        Run(train, ref s, 1.5, _ => Forward);
+        Assert.True(PlayerMotor.Indoors(s, train), $"{s.Surface} on {s.Parent} at {s.Position}");
+        // A side door open lets the cold in like any other.
+        Assert.Equal(PlayerMotor.Outside, PlayerMotor.Space(s, train));
+    }
+
     [Fact]
     public void AShutDoorStopsYouAndAnOpenOneLetsYouIn()
     {

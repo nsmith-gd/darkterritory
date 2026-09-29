@@ -85,12 +85,19 @@ public static class Harness
         if (o.Vigil is { } vt)
             host.World.EnableVigil(vt);
 
-        // On a night with facilities, the crew call to each other at the stops, and each has a part: the walkers first, and
-        // the gunner only if it takes them to make up a shunter and a winch pair.
+        // On a night with facilities, the crew call to each other at the stops, and each has a part: the walkers first (a
+        // shunter, the winch pair, then crates), and the gunner only if it takes them to make up the winch pair.
         var calls = o.Run is not null && o.Route is not null && o.Facilities is not null ? new CrewCalls() : null;
-        var hands = Enumerable.Range(1, Math.Max(0, o.Bots - 1)).OrderBy(i => i == 1 && o.Combat is not null ? 1 : 0).ToList();
-        StopHand? Hand(int i) => calls is null ? null
-            : new StopHand(hands.IndexOf(i) switch { 0 => StopJob.Shunter, 1 => StopJob.Winch0, 2 => StopJob.Winch1, _ => StopJob.None }, calls, i, playerTuning.Cold);
+        bool gunner = o.Combat is not null;
+        var hands = Enumerable.Range(1, Math.Max(0, o.Bots - 1)).OrderBy(i => i == 1 && gunner ? 1 : 0).ToList();
+        StopJob JobOf(int i) => hands.IndexOf(i) switch
+        {
+            0 => StopJob.Shunter,
+            1 => StopJob.Winch0,
+            2 => StopJob.Winch1,
+            _ => i == 1 && gunner ? StopJob.None : StopJob.Crates,
+        };
+        StopHand? Hand(int i) => calls is null ? null : new StopHand(JobOf(i), calls, i, playerTuning.Cold);
         var clients = new List<(ClientSession Session, IBot Bot, CountingTransport Transport)>();
         for (int i = 0; i < o.Bots; i++)
         {

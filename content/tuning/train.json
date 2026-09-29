@@ -45,7 +45,14 @@
       "doorSeconds": 0.4,
       // Cargo is stacked down the right-hand side, leaving an aisle to the doors.
       "cargoDepth": 1.1,
-      "cargoHeight": 1.3
+      "cargoHeight": 1.3,
+      // Cargo cars also have a sliding door in the middle of each side, wide enough to carry a crate through (spec D.2
+      // manual crates: a 0.9 m crate won't go through a 0.9 m end door), and a short flight of steps up to it along the
+      // side: nobody climbs a ladder with freight in their arms. The steps stand this far out from the car side and each
+      // tread is this long; the rise is the floor height in steps you can walk up (player.json stepUp).
+      "sideDoorWidth": 1.8,
+      "stepWidth": 0.6,
+      "stepDepth": 0.4
     }
   },
 

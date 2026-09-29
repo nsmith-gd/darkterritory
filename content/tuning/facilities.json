@@ -5,7 +5,8 @@
   // engine when it's run up to the end. "along" below is from here.
   "spurLayout": 45,
   // D.2 "Manual crates: carry by hand. Slow, but works when everything else is dead." Carrying one holds you to
-  // spec B.2's heavy-cargo speed and off ladders. Put one down inside a cargo car and it's loaded.
+  // spec B.2's heavy-cargo speed and off ladders, so you take it up a cargo car's side steps and in by its sliding door
+  // (train.json "interior"). Put one down inside a cargo car and it's loaded.
   "crates": {
     "count": [6, 10],
     "loadPerCrate": 0.25,

@@ -684,20 +684,26 @@ public sealed class GreyboxScene
             // Roof walkway plank down the safe centreline.
             Draw(new Box(new Double3(-0.35, shape.RoofHeight, -half + 0.2), new Double3(0.35, shape.RoofHeight + 0.04, half - 0.2)), Palette.TarnishedBrass);
         }
-        // Doors: shut in the doorway, or slid aside along the end wall when open.
+        // Doors: shut in the doorway, or slid aside when open: an end door along the end wall inside, a side door back
+        // along the outside of the car (a boxcar's sliding door).
         var vehicle = Vehicles is { } vs && frame.Index < vs.Count ? vs[frame.Index] : null;
         foreach (var door in shape.DoorList)
         {
             bool open = vehicle?.DoorOpen(door.Index) ?? false;
             var box = door.Box;
+            bool side = box.Max.Z - box.Min.Z > box.Max.X - box.Min.X;
             if (open)
             {
-                double slide = box.Max.X - box.Min.X;
-                double inward = box.Min.Z < 0 ? 0.12 : -0.12;
-                box = new Box(box.Min + new Double3(slide, 0, inward), box.Max + new Double3(slide, 0, inward));
+                var move = side
+                    ? new Double3(box.Min.X < 0 ? -0.12 : 0.12, 0, box.Max.Z - box.Min.Z)
+                    : new Double3(box.Max.X - box.Min.X, 0, box.Min.Z < 0 ? 0.12 : -0.12);
+                box = new Box(box.Min + move, box.Max + move);
             }
             Draw(box, Palette.DeepBrown);
-            Draw(Box.FromCentre(new Double3(open ? box.Min.X + 0.1 : box.Max.X - 0.12, box.Min.Y + 1.0, box.Centre.Z), new Double3(0.04, 0.04, 0.08)), Palette.TarnishedBrass);
+            var handle = side
+                ? new Double3(box.Min.X < 0 ? box.Min.X - 0.03 : box.Max.X + 0.03, box.Min.Y + 1.0, open ? box.Min.Z + 0.1 : box.Max.Z - 0.12)
+                : new Double3(open ? box.Min.X + 0.1 : box.Max.X - 0.12, box.Min.Y + 1.0, box.Centre.Z);
+            Draw(Box.FromCentre(handle, side ? new Double3(0.08, 0.04, 0.04) : new Double3(0.04, 0.04, 0.08)), Palette.TarnishedBrass);
         }
         if (shape.Interior is { } room)
         {
@@ -733,7 +739,7 @@ public sealed class GreyboxScene
         PartKind.Tender => Palette.Charcoal,
         PartKind.Wall => car % 3 == 0 ? Palette.RustRed : Palette.DeepBrown,
         PartKind.Cargo => Palette.MuddyOlive,
-        PartKind.Locker => Palette.IronGrey,
+        PartKind.Locker or PartKind.Steps => Palette.IronGrey,
         _ => Palette.IronGrey,
     };
 

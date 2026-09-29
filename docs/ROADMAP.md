@@ -96,8 +96,10 @@ Remaining for M3: Soot Children mimicry, the radio as an item, and interior occl
 - `dt facility drill` plays the sequence headless; `dt screenshot --site` shows a stop.
 - **Crew bots work it (T32):**
   - the driver on the regulator, a shunter on the coupler and switch, and two on the winch, all through intent;
-  - `dt harness --route frontier:6` reports each stop's legs and the sleds loaded;
-  - crates wait for a loading dock (T34).
+  - `dt harness --route frontier:6` reports each stop's legs and the sleds loaded.
+- **Crates go in by the side door (T34):**
+  - cargo cars have a sliding door on each side with steps up to it, so you walk freight in;
+  - crate hands carry the stack in and shut the doors after.
 
 **HUD:**
 - A pixel-font HUD in the low-res frame: engine gauges, ping to host (spec E), the prompt for what your hands can do, and the night.

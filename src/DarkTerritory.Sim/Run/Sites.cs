@@ -57,6 +57,7 @@ public sealed class Site
             return sample.Position + right * (side * lateral) + Double3.Up * up;
         }
         CrateCount = Has(ModuleKind.Crates) ? crates : 0;
+        LoadPerCrate = t.Crates.LoadPerCrate;
         CrateStack = [.. Enumerable.Range(0, CrateCount).Select(i => At(t.Crates.Along + i / 2 * 1.1, t.Crates.Lateral + i % 2 * 1.1, 0.6))];
         CrateLineHint = mainDistance + t.Crates.Along;
         if (Has(ModuleKind.Winch))
@@ -82,6 +83,8 @@ public sealed class Site
     public bool Has(ModuleKind m) => Modules.Contains(m);
 
     public int CrateCount { get; }
+    /// <summary>How much of a car's load a stowed crate is (facilities.json).</summary>
+    public double LoadPerCrate { get; }
     public Double3[] CrateStack { get; }
     public double CrateLineHint { get; }
     /// <summary>The crates are out on the platform (they appear when the train first stops here).</summary>
