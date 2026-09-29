@@ -589,3 +589,17 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `WarmUpTests` runs three walkers on a standing train for ten minutes, twice the time it takes to freeze. They all live, each goes in before the onset, they come out again, and nobody cuts the train.
       - The harness (`HarnessOptions.Observe` traces a night tick by tick) ran 10-minute Frontier nights with enemies at seeds 1–3: no deaths, 14–18 warm-ups each.
     - **Not yet:** bots working a facility stop (the winch in pairs, crates, the switches, the cut and recouple; `SpurDrill` scripts it for now); the fireman's own trips out.
+35. **Builds for players (T33, roadmap M6).**
+    - **`tools/package.sh [win-x64] [linux-x64]`** publishes the app self-contained (the .NET runtime inside, nothing to install) into `out/dist/DarkTerritory-<rid>/`, and zips it.
+      - Each folder has `content/` and `PLAYING.txt` (`tools/package/PLAYING.txt`: the menus, the controls, hosting).
+      - It also has the native libraries from the NuGet runtimes: SDL3, shaderc and the OpenXR loader. Vulkan comes with the GPU driver. Steam's own library still has to be dropped in (`external/steam/README.md`); without it the game runs, and says so.
+      - Windows builds cross-publish from Linux.
+    - **Content beside the executable.** `DataFile.FindContentRoot` still prefers a repository's `content/` (found by `Ballast.slnx` in a parent) and falls back to the one beside the executable. A player can start the game from anywhere.
+    - **CI packages every push.**
+      - The `package` job runs after the tests and builds both zips.
+      - It starts the Linux build from a different directory under Xvfb and lavapipe, and plays six seconds with a capture. A build that can't find its content or its native libraries fails there.
+      - Both folders are kept as artifacts.
+    - **Crash reports** (`CrashReports`): the console is teed through a ring of its last 200 lines.
+      - An unhandled exception writes `crash-<time>.txt` to the user's app data (`DarkTerritory/crashes`): the version, the OS, the exception with its stack, and those lines.
+      - It says where the report is on the way out.
+    - **Not yet:** a Steam depot and an itch.io upload (both are `butler`/`steamcmd` steps once there's an app id and a page); a Windows smoke test (the CI's Windows runners have no Vulkan); code signing; a crash reporter that sends reports.

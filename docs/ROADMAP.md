@@ -67,6 +67,10 @@ Remaining for M3: Soot Children mimicry, the radio as an item, and interior occl
 - Dawn, derailment or losing the crew ends it.
 - The harness reports the outcome and the payout.
 
+**Builds for players (M6):**
+- `tools/package.sh` makes self-contained Windows and Linux folders with their content, and CI keeps both as artifacts on every push, after starting the Linux one from elsewhere and playing it.
+- Crashes leave a report in the user's app data.
+
 **Front end (T30):**
 - `DarkTerritory` opens on a title screen with Campaign (three slots, and the fortress between nights: the board, cars, upgrades), Quick night, Join, Settings and Quit.
 - Nights return to the menu when they're over.

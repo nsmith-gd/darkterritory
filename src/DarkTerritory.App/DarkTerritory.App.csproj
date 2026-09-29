@@ -8,6 +8,12 @@
     <ProjectReference Include="../DarkTerritory.Game/DarkTerritory.Game.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <!-- A shipped build carries the game's content beside it (DataFile looks there when there's no repository), and
+         how to play. Development builds read content/ from the repository instead. -->
+    <None Include="../../content/**" Link="content/%(RecursiveDir)%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="Never" />
+    <None Include="../../tools/package/PLAYING.txt" Link="PLAYING.txt" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="Never" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- Valve's native Steam library, when the developer has put it there (external/steam/README.md). -->
     <None Include="../../external/steam/*.dll;../../external/steam/*.so;../../external/steam/*.dylib" CopyToOutputDirectory="PreserveNewest" Link="%(Filename)%(Extension)" />
   </ItemGroup>

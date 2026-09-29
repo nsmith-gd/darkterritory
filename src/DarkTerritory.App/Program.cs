@@ -45,6 +45,9 @@ using DarkTerritory.Sim.Train;
 // Voice (networked): open mic with voice activity, or push to talk (the settings, or --push-to-talk) and hold V. Hold T
 //   to talk on the radio. --no-mic to only listen.
 
+// A crash leaves a report (the exception, and the last things the game said) in the user's app data.
+CrashReports.Install();
+
 string Arg(string name, string fallback)
 {
     int i = Array.IndexOf(args, name);

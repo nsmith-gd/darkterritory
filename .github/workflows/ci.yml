@@ -64,3 +64,29 @@ jobs:
         with:
           name: audio
           path: out/audio/
+  # Builds for players (roadmap M6): self-contained Windows and Linux folders with their content, zipped. The Linux one
+  # is started from somewhere else and plays a few seconds, so a build that can't find its content never ships.
+  package:
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Software Vulkan (lavapipe) for the smoke test
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq mesa-vulkan-drivers libvulkan1 xvfb zip
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: tools/package.sh win-x64 linux-x64
+      - name: The packaged game starts from anywhere and plays
+        run: |
+          cd "$RUNNER_TEMP"
+          xvfb-run -a -s "-screen 0 1280x720x24" "$GITHUB_WORKSPACE/out/dist/DarkTerritory-linux-x64/DarkTerritory" --route frontier:7 --throttle 1 --quit-after 6 --mute --no-steam --capture "$GITHUB_WORKSPACE/out/dist/packaged.png"
+          test -f "$GITHUB_WORKSPACE/out/dist/packaged.png"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DarkTerritory-win-x64
+          path: out/dist/DarkTerritory-win-x64/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DarkTerritory-linux-x64
+          path: out/dist/DarkTerritory-linux-x64/
