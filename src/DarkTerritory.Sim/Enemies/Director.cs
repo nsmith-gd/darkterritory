@@ -1,4 +1,5 @@
 using Ballast;
+using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Train;
 
@@ -52,6 +53,7 @@ public sealed class Director
         EnemyKind.Clinger => "clingers",
         EnemyKind.Hollow => "hollow",
         EnemyKind.Switchman => "switchman",
+        EnemyKind.SootChildren => "sootChildren",
         _ => "sleepers",
     }, 2);
 
@@ -71,6 +73,10 @@ public sealed class Director
     }
 
     int MaxConcurrent => Crew >= 6 ? _t.MaxConcurrentLargeCrew : _t.MaxConcurrentSmallCrew;
+
+    /// <summary>At or near one of the route's facilities: within <paramref name="margin"/> of its span.</summary>
+    bool NearFacility(double distance, double margin) =>
+        _route is not null && _route.Of(FeatureKind.Facility).Any(f => distance >= f.Start - margin && distance <= f.End + margin);
 
     /// <summary>Called once a second by the world. Returns what to spawn, if anything.</summary>
     public EnemyKind? Decide(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
@@ -109,6 +115,12 @@ public sealed class Director
             && !active.Any(e => !e.Gone && e.Kind == EnemyKind.Switchman) && Zone(PressureZone.Forward) < _t.MaxConcurrentZone
             && Switchman.Junction(world, et.Switchman) is not null)
             options.Add((EnemyKind.Switchman, 1));
+        // App. B.6: Soot Children near facilities, never for a solo player, and only after someone's spoken lately (there
+        // has to be a voice to steal). One at a time. Weight up per crew member outside.
+        if (world.Enemies is { } st && NearFacility(s, st.SootChildren.NearFacility)
+            && !active.Any(e => !e.Gone && e.Kind == EnemyKind.SootChildren) && Zone(PressureZone.Structural) < _t.MaxConcurrentZone
+            && SootChildren.Choose(world, st.SootChildren, world.CrewThisTick) is not null)
+            options.Add((EnemyKind.SootChildren, 1 + world.CrewThisTick.Count(c => c.State.Alive && PlayerMotor.Space(c.State, train) == PlayerMotor.Outside)));
         options.RemoveAll(o => Cost(o.Kind) > available);
         if (options.Count == 0)
             return null;
@@ -138,6 +150,7 @@ public sealed class Director
             EnemyKind.CinderHound => PressureZone.Rear,
             EnemyKind.Clinger => PressureZone.Flank,
             EnemyKind.Switchman => PressureZone.Forward,
+            EnemyKind.SootChildren => PressureZone.Structural,
             _ => PressureZone.Interior,
         };
         Log.Add(new DirectorSpawn(world.Tick, kind, Cost(kind), world.Train.Dynamics.Distance,

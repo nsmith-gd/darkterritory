@@ -11,6 +11,11 @@ namespace DarkTerritory.Game.Sound;
 /// the path the host said they came by: a positional voice at the speaker (26 m log falloff, occluded through
 /// the cab walls), a flat band-limited radio, or the flat dead channel. All of it plays on tier 2 of the mixer,
 /// so talking ducks the bed exactly as spec A.3 says.
+/// <para>
+/// A Soot Child's call (T40) comes as its own stream, keyed by the thing and not the crewmate whose voice it's using:
+/// the frames are replayed, so they'd be stale to that crewmate's own decoder. It plays from where the thing is, at one
+/// loudness however far (voice-mimic.json): the tell.
+/// </para>
 /// </summary>
 public sealed class VoiceChat
 {
@@ -20,6 +25,7 @@ public sealed class VoiceChat
     readonly float[] _frame = new float[VoiceFormat.FrameSamples];
     readonly byte[] _packet = new byte[VoiceFormat.MaxPacket];
     readonly Dictionary<byte, Speaker> _speakers = new();
+    readonly Dictionary<int, Speaker> _mimics = new();
     int _filled;
     ushort _sequence;
     double _clock;
@@ -39,8 +45,8 @@ public sealed class VoiceChat
         public readonly byte Id = id;
         public readonly VoiceDecoder Decoder = new();
         public readonly JitterBuffer<VoiceFrame> Order = new();
-        public readonly StreamBuffer Near = new(), Radio = new(), Dead = new();
-        public SoundInstance? NearVoice, RadioVoice, DeadVoice;
+        public readonly StreamBuffer Near = new(), Radio = new(), Dead = new(), Mimic = new();
+        public SoundInstance? NearVoice, RadioVoice, DeadVoice, MimicVoice;
         public double RadioKeyed;
     }
 
@@ -77,12 +83,32 @@ public sealed class VoiceChat
         _clock += dt;
         while (client.VoiceFrames.TryDequeue(out var f))
         {
+            if (f.Path.HasFlag(VoicePath.Mimic))
+            {
+                if (!_mimics.TryGetValue(f.Source, out var m))
+                    _mimics[f.Source] = m = new Speaker(f.Speaker);
+                m.Order.Push(f.Sequence, f, _clock);
+                continue;
+            }
             if (!_speakers.TryGetValue(f.Speaker, out var s))
                 _speakers[f.Speaker] = s = new Speaker(f.Speaker);
             s.Order.Push(f.Sequence, f, _clock);
         }
         foreach (var s in _speakers.Values)
             s.Order.Drain(_clock, (_, f) => Decode(s, f));
+        foreach (var (source, m) in _mimics.ToList())
+        {
+            m.Order.Drain(_clock, (_, f) => Decode(m, f));
+            m.MimicVoice ??= Stream("voice-mimic", m.Mimic);
+            // From where it is; gone (or never seen here), it goes quiet.
+            if (client.World.ActiveEnemies.FirstOrDefault(e => e.Id == source && !e.Gone) is { } thing && m.MimicVoice is not null)
+                m.MimicVoice.Position = thing.WorldPosition(client.Train) + Double3.Up * 0.8;
+            else if (!m.Mimic.Playing)
+            {
+                m.MimicVoice?.Stop();
+                _mimics.Remove(source);
+            }
+        }
         foreach (var s in _speakers.Values)
         {
             s.NearVoice ??= Stream("voice", s.Near);
@@ -111,8 +137,15 @@ public sealed class VoiceChat
             s.RadioKeyed = 0.15;
         if (s.NearVoice is not null)
             s.NearVoice.Occlusion = f.Path.HasFlag(VoicePath.Occluded) ? 1 : 0;
+        if (s.MimicVoice is not null)
+            s.MimicVoice.Occlusion = f.Path.HasFlag(VoicePath.Occluded) ? 1 : 0;
         s.Decoder.Decode(f.Sequence, f.Opus, pcm =>
         {
+            if (f.Path.HasFlag(VoicePath.Mimic))
+            {
+                s.Mimic.Write(pcm);
+                return;
+            }
             if (f.Path.HasFlag(VoicePath.Proximity))
                 s.Near.Write(pcm);
             if (f.Path.HasFlag(VoicePath.Radio))

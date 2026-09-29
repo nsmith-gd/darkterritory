@@ -173,6 +173,7 @@ public static class Hud
                 DeathCause.Mauled => "MAULED",
                 DeathCause.Hollow => "THE HOLLOW",
                 DeathCause.Choir => "THE CHOIR",
+                DeathCause.Taken => "TAKEN. IT WASN'T THEM OUTSIDE",
                 _ => "",
             }, Ink);
             if (world.Vigil is { Permitted: true })

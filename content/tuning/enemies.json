@@ -78,6 +78,30 @@
     "minJunctions": 3
   },
 
+  // App. A.4 SOOT CHILDREN: "outside in the dark, calling for help in your crewmates' voices". It listens to the crew's
+  // proximity voice, then calls from outside a car in the voice of someone who isn't there. The tell (spec A.5): that
+  // voice has no distance falloff, the same loudness near or far. Answer it (open the car's door, or go out to it) and
+  // it takes whoever came. Ignored, it gives up and moves on. "RULE: never answer a voice from outside."
+  "sootChildren": {
+    // It crouches this far out from the car's side, in the dark.
+    "standOff": 6,
+    // Everyone within this of it hears the call, all at the one loudness.
+    "callRadius": 40,
+    // Each call is the last thing its voice said, up to this long, again every so often.
+    "callSeconds": 2.5,
+    "callEverySeconds": 7,
+    // A door of its car opened, or someone on the ground, this near it: that's who it takes.
+    "lureRadius": 7,
+    // App. A.4 "DECAY: ignored ~30s → moves on, tries a different voice".
+    "ignoredSeconds": 30,
+    // App. B.6 gates: "Crew ≥2 (needs a voice to mimic) · requires recent proximity voice activity"; "near facilities".
+    "recentVoiceSeconds": 120,
+    "minCrew": 2,
+    "nearFacility": 250,
+    // Whoever answers doesn't come back.
+    "takeDamage": 200
+  },
+
   "choirSwarm": {
     // In the Swarm phase, anyone exposed (roof, ground, ladder) takes this every few seconds.
     "exposedDamage": 10,
@@ -99,7 +123,7 @@
     "maxConcurrentLargeCrew": 6,
     // Budget share spent before the first facility, across the middle, and in the final approach.
     "phaseShares": [0.15, 0.45, 0.40],
-    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2 },
+    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5

@@ -1,0 +1,7 @@
+// A Soot Child calling in a crewmate's voice (T40, spec A.5), tier 2 like any voice. Placed where it is, so it's
+// heard from the right side, but at one loudness however far away it is, where a real voice falls off with distance.
+// That missing falloff is the tell, and it's all this is.
+{
+  "tier": 2, "loop": true, "maxInstances": 4, "minDistance": 1, "maxDistance": 80, "rolloff": 0,
+  "layers": [ { "source": "stream", "gain": 0.9 } ]
+}

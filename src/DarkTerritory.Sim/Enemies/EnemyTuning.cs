@@ -8,6 +8,22 @@ public sealed record EnemyTuning(
     public const string File = "tuning/enemies.json";
 
     public SwitchmanTuning Switchman { get; init; } = new();
+    public SootChildrenTuning SootChildren { get; init; } = new();
+}
+
+/// <summary>The Soot Children (App. A.4, B.6). Field docs live in enemies.json.</summary>
+public sealed record SootChildrenTuning
+{
+    public double StandOff { get; init; } = 6;
+    public double CallRadius { get; init; } = 40;
+    public double CallSeconds { get; init; } = 2.5;
+    public double CallEverySeconds { get; init; } = 7;
+    public double LureRadius { get; init; } = 7;
+    public double IgnoredSeconds { get; init; } = 30;
+    public double RecentVoiceSeconds { get; init; } = 120;
+    public int MinCrew { get; init; } = 2;
+    public double NearFacility { get; init; } = 250;
+    public int TakeDamage { get; init; } = 200;
 }
 
 /// <summary>The Switchman (App. A.7, B.7). Field docs live in enemies.json.</summary>

@@ -16,6 +16,11 @@ public enum VoicePath : byte
     Occluded = 4,
     /// <summary>The dead channel (spec C.1): spectators to spectators only.</summary>
     Dead = 8,
+    /// <summary>
+    /// A Soot Child calling in a crewmate's voice (T40): played from where it is, at one loudness however far (spec
+    /// A.5's tell), from the frames the host kept. <see cref="VoiceFrame.Source"/> says which.
+    /// </summary>
+    Mimic = 16,
 }
 
 /// <summary>
