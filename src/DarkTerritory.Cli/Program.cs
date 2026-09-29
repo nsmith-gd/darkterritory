@@ -617,6 +617,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Time = 0.37,
         Enemies = args.Contains("--threats") ? Staging.Threats(train) : null,
         Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All : cargo,
+        // --crew: three on car 2's roof, one reaching up, one holding out both hands, one with a keyboard (T47's arms).
+        Crew = args.Contains("--crew") ? Staging.Crew(train, content) : null,
         Emergency = args.Contains("--vigil"),
         Diverging = train.Diverging,
         // --throttle x: the regulator's handle drawn that far open (T29's cab levers).

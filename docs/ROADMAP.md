@@ -204,7 +204,9 @@ Remaining for M2:
   - heavy crates take one at each end, and a headset's end takes both hands;
   - bots carry them in pairs, and come to help a player holding one (T45).
 
+- **The crew see a headset's arms (T47):** the hands go out in snapshots (free for keyboard players), and a two-bone arm reaches from the shoulder to each; `dt screenshot --view roof --crew` shows them.
+
 Remaining for M4:
-- body IK
+- the rest of body IK (a spine that follows the headset, stepping legs)
 - multiview
 - the exit test on a real Quest and SteamVR

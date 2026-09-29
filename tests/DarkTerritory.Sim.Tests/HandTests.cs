@@ -279,4 +279,37 @@ public class HandTests
         Assert.True(host.Train.Boiler.Tender < tender - 3, $"shovelled {tender - host.Train.Boiler.Tender}");
         Assert.Equal(0, client.Corrections);
     }
+
+    [Fact]
+    public void TheRestOfTheCrewSeeAHeadsetsHands()
+    {
+        // T47: the host sends each player's hands with the rest of them, so everyone else can draw their arms.
+        var net = new LoopbackNetwork();
+        TrainOnLine Train() => new(new TrainDynamics(Consist.Uniform(Tuning.Train, 6, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(50_000)])), 1_000);
+        var host = new HostSession(net.CreateHost(), Train(), Tuning.Train, P);
+        var headset = new ClientSession(net.CreateClient(), Train(), Tuning.Train, P);
+        var watcher = new ClientSession(net.CreateClient(), Train(), Tuning.Train, P);
+        var reach = new PlayerIntent();
+        reach.Reach(new Double3(0.35, 2.05, -0.45), new Double3(-0.2, 1.1, -0.4));
+        for (int i = 0; i < 40; i++)
+        {
+            net.Advance(SimConstants.TickSeconds);
+            host.Step();
+            headset.Step(i > 20 ? reach : default);
+            watcher.Step(default);
+        }
+        Assert.True(watcher.TryGetRemote(headset.PlayerId!.Value, 1, out var seen));
+        Assert.Equal(new Double3(0.35, 2.05, -0.45), seen.Hand);
+        Assert.Equal(new Double3(-0.2, 1.1, -0.4), seen.OtherHand);
+        // Put the controllers down, and the arms come down with them.
+        for (int i = 0; i < 20; i++)
+        {
+            net.Advance(SimConstants.TickSeconds);
+            host.Step();
+            headset.Step(default);
+            watcher.Step(default);
+        }
+        Assert.True(watcher.TryGetRemote(headset.PlayerId!.Value, 1, out seen));
+        Assert.Equal(default, seen.Hand);
+    }
 }

@@ -29,7 +29,7 @@ public readonly record struct WireRecord(uint Key, long[] Fields)
 public static class WorldRecords
 {
     // Fixed-point scales. Positions and speeds to 0.1 mm; angles to 10 µrad; slow scalars and timers to 1e-6.
-    const double Pos = 1e4, Ang = 1e5, Fine = 1e6, Hint = 1e2;
+    const double Pos = 1e4, Ang = 1e5, Fine = 1e6, Hint = 1e2, Cm = 1e2;
     /// <summary>A body record's fields before its particles: kind, parent, carrier, owner, asleep, yaw, count, second carrier.</summary>
     const int BodyParticles = 8;
 
@@ -128,6 +128,8 @@ public static class WorldRecords
                 Q(s.Velocity.X, Pos), Q(s.Velocity.Y, Pos), Q(s.Velocity.Z, Pos),
                 Q(s.Yaw, Ang), Q(s.Pitch, Ang), (long)s.Surface, s.Health, (long)s.Death, Q(s.LineHint, Hint), Q(s.ActionProgress, Fine),
                 Q(s.Cold, Fine), (long)s.Flags, s.Placed,
+                // A VR player's hands, on the centimetre grid they came in on (T47): the rest of the crew see their arms.
+                Q(s.Hand.X, Cm), Q(s.Hand.Y, Cm), Q(s.Hand.Z, Cm), Q(s.OtherHand.X, Cm), Q(s.OtherHand.Y, Cm), Q(s.OtherHand.Z, Cm),
             ]));
         }
         list.Sort((a, c) => a.Key.CompareTo(c.Key));
@@ -360,6 +362,8 @@ public static class WorldRecords
             Cold = D(f[14], Fine),
             Flags = (PlayerFlags)f[15],
             Placed = (byte)f[16],
+            Hand = f.Length > 22 ? new Double3(D(f[17], Cm), D(f[18], Cm), D(f[19], Cm)) : default,
+            OtherHand = f.Length > 22 ? new Double3(D(f[20], Cm), D(f[21], Cm), D(f[22], Cm)) : default,
         });
     }
 
