@@ -13,6 +13,8 @@ public enum MessageType : byte
     Snapshot = 2,
     /// <summary>Host → client, reliable: which player you are.</summary>
     Welcome = 3,
+    /// <summary>Voice frame. Client → host: sequence, radio flag, Opus. Host → client: speaker, sequence, path, Opus.</summary>
+    Voice = 4,
 }
 
 public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent);
@@ -81,6 +83,25 @@ public static class Messages
     }
 
     /// <param name="session">What a joining machine needs to build the same world (route, cars...), opaque to the sim.</param>
+    public static void WriteVoiceUp(NetWriter w, ushort sequence, bool radio, ReadOnlySpan<byte> opus)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Voice);
+        w.U16(sequence);
+        w.Bool(radio);
+        w.Bytes(opus);
+    }
+
+    public static void WriteVoiceDown(NetWriter w, byte speaker, ushort sequence, VoicePath path, ReadOnlySpan<byte> opus)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Voice);
+        w.U8(speaker);
+        w.U16(sequence);
+        w.U8((byte)path);
+        w.Bytes(opus);
+    }
+
     public static void WriteWelcome(NetWriter w, byte playerId, uint tick, string session = "")
     {
         w.Reset();

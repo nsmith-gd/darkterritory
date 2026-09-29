@@ -23,6 +23,10 @@ public sealed class SoundInstance
             _layers[i] = new LayerState(def.Layers[i], seed * 7919u + (uint)i * 104729u + 1);
     }
 
+    /// <summary>Samples for <see cref="SourceKind.Stream"/> layers; set for voice chat.</summary>
+    public StreamBuffer? Stream { get; set; }
+    readonly float[] _streamBlock = new float[Audio.Block];
+
     public int Id { get; }
     public string Name { get; }
     public SoundDef Def { get; internal set; }
@@ -50,15 +54,23 @@ public sealed class SoundInstance
     internal void Render(Span<float> output)
     {
         output.Clear();
+        // One read per block, shared by every stream layer (a radio is the stream plus its static).
+        if (Stream is not null)
+            Stream.Read(_streamBlock.AsSpan(0, output.Length));
         foreach (var layer in _layers)
-            layer.Render(output, _scratch, Params, Age, Def.CycleSeconds);
+            layer.Render(output, _scratch, Params, Age, Def.CycleSeconds, _streamBlock);
         if (Def.Crush is { } crush)
             Crush(output, crush);
         Age += (double)output.Length / Audio.SampleRate;
     }
 
     /// <summary>Advances time without producing sound (a virtualised voice keeps its place).</summary>
-    internal void Skip(int samples) => Age += (double)samples / Audio.SampleRate;
+    internal void Skip(int samples)
+    {
+        Age += (double)samples / Audio.SampleRate;
+        // A virtual stream still consumes, or it would play stale speech when it comes back.
+        Stream?.Read(_streamBlock.AsSpan(0, Math.Min(samples, _streamBlock.Length)));
+    }
 
     void Crush(Span<float> buffer, CrushDef crush)
     {
@@ -86,7 +98,7 @@ public sealed class SoundInstance
         bool _filtersSet;
 
         /// <param name="cycleSeconds">If positive, envelopes repeat on this period (a loop's breathing, a pack's howls).</param>
-        public void Render(Span<float> output, float[] scratch, ParamSet p, double age, double cycleSeconds)
+        public void Render(Span<float> output, float[] scratch, ParamSet p, double age, double cycleSeconds, float[] stream)
         {
             double t = age - def.Delay;
             if (t < 0)
@@ -131,6 +143,7 @@ public sealed class SoundInstance
                     SourceKind.Sine => (float)Math.Sin(2 * Math.PI * _phase),
                     SourceKind.Saw => (float)(2 * _phase - 1),
                     SourceKind.Square => _phase < 0.5 ? 1f : -1f,
+                    SourceKind.Stream => stream[i],
                     // A click when the phase wraps, with a little noise so repeats aren't identical.
                     _ => _phase < prev ? 1f + 0.3f * _noise.Next() : 0f,
                 };

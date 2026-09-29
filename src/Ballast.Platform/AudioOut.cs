@@ -50,3 +50,45 @@ public sealed unsafe class AudioOut : IDisposable
 
     public void Dispose() => SDL_DestroyAudioStream(_stream);
 }
+
+/// <summary>
+/// The default recording device (the microphone) as 48 kHz mono float, read by polling. As with output, no
+/// device just means <see cref="Open"/> returns null: you can still hear everyone.
+/// </summary>
+public sealed unsafe class AudioIn : IDisposable
+{
+    readonly SDL_AudioStream* _stream;
+
+    AudioIn(SDL_AudioStream* stream) => _stream = stream;
+
+    public static AudioIn? Open(int sampleRate, out string? error)
+    {
+        error = null;
+        if (!SDL_InitSubSystem(SDL_InitFlags.SDL_INIT_AUDIO))
+        {
+            error = SDL_GetError();
+            return null;
+        }
+        var spec = new SDL_AudioSpec { format = SDL_AudioFormat.SDL_AUDIO_F32LE, channels = 1, freq = sampleRate };
+        var stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_RECORDING, &spec, null, IntPtr.Zero);
+        if (stream is null)
+        {
+            error = SDL_GetError();
+            return null;
+        }
+        SDL_ResumeAudioStreamDevice(stream);
+        return new AudioIn(stream);
+    }
+
+    /// <summary>Reads whatever has been captured, up to the buffer's size; returns the sample count.</summary>
+    public int Read(Span<float> into)
+    {
+        fixed (float* p = into)
+        {
+            int bytes = SDL_GetAudioStreamData(_stream, (IntPtr)p, into.Length * sizeof(float));
+            return Math.Max(0, bytes) / sizeof(float);
+        }
+    }
+
+    public void Dispose() => SDL_DestroyAudioStream(_stream);
+}

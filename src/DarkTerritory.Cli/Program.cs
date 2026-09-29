@@ -42,6 +42,8 @@ return args switch
     ["route", "sweep", ..] => Print(SweepRoutes(routeTuning, (int)Opt(args, "--seeds", 200))),
     ["harness", ..] => Print(RunHarness(args)),
     ["audio", "render", ..] => Print(RenderAudio(content, args)),
+    ["voice", "bench", ..] => Print(DarkTerritory.Game.Sound.VoiceBench.Run(content, (int)Opt(args, "--car", 3), Opt(args, "--z", 4), args.Contains("--radio"),
+        Opt(args, "--seconds", 2), new Ballast.Net.LinkConditions(Opt(args, "--latency", 0), Opt(args, "--jitter", 0), Opt(args, "--loss", 0)))),
 
     _ => Usage(),
 };
@@ -282,6 +284,8 @@ static int Usage()
                      [--enemies] [--no-combat] [--no-boiler] [--udp]   --udp: real sockets on localhost instead of the simulated link
           audio render [--scenario bed|tells|chaos] [--cars n] [--speed v] [--listener car (0 = cab) | all] [--seconds t] [--out file.wav]
                      renders through the mixer to a WAV and a spectrogram PNG, and reports each tell's margin over the bed (spec A.3)
+          voice bench [--car n (0 = cab)] [--z m] [--radio] [--latency s --jitter s --loss 0..1]
+                     one speaker to a listener on car 3 through host routing, Opus and the mixer (spec A.5)
                      host + bot clients over a simulated network; reports prediction error, bandwidth, deaths,
                      and with --enemies the director's spawns, punishes, deaths by cause and fairness audit
         """);

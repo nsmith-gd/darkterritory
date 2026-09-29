@@ -44,6 +44,15 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
 
 - **UDP transport:** real sockets, direct IP or LAN. `--host` / `--join` in the app. `dt harness --udp` runs 8 bots over localhost sockets with exact prediction.
 
+**M3 (voice), core done:**
+- Proximity voice with spec A.5's falloff and cab-wall occlusion.
+- The walkie-talkie (T), dead in tunnels.
+- The dead channel.
+- Opus, host-routed so a listener is sent only what reaches them.
+- Measured end to end, headless.
+
+Remaining for M3: Soot Children mimicry, the radio as an item, and interior occlusion (after car interiors).
+
 Remaining for M2:
 - interest management (only needed once enemies and props multiply the record count)
 - a Steam transport and lobby (and EOS for itch.io); a content hash check on join

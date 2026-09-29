@@ -39,6 +39,8 @@ Speed, speed band, controls, grade, your state and text cues for enemy telegraph
 dotnet run --project src/DarkTerritory.App -- --host --route frontier:7 --cars 6   # host on UDP 27450 (or --host <port>)
 dotnet run --project src/DarkTerritory.App -- --join 192.168.1.20                 # join by address (or address:port)
 ```
+Voice is open-mic with voice activity: `--push-to-talk` makes it hold V, and `--no-mic` means listen only. Hold **T** to talk on the walkie-talkie. Proximity voice is heard out to 26 m and muffled through the cab walls. The radio reaches the whole train, except into a tunnel. The dead hear only each other.
+
 The host picks the route and train. Joiners build the same world from what the host sends. Everyone, host included, plays through the same client path. The host's player boards first and takes the cab. Networked, you drive from the cab only (GDD §12): stand in it for R/F/B/X. The host needs the UDP port open or forwarded. Steam and EOS transports (relay, lobbies, invites) come later.
 
 Sound is synthesised from `content/audio/sounds/*.json`. `dt audio render --scenario chaos --listener all` measures every telegraph against the train in the worst mix. Drop `--listener all` for a WAV and a spectrogram of one listener.

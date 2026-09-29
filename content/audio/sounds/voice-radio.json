@@ -1,0 +1,14 @@
+// Walkie-talkie (spec A.5), tier 2: flat, no falloff, band-limited 300 Hz-3 kHz, a static floor while
+// keyed, and crushed like the cheap set it is (spec A.6).
+{
+  "tier": 2, "loop": true, "flat": true, "maxInstances": 16,
+  "crush": { "bits": 8, "rate": 11025 },
+  "layers": [
+    { "source": "stream", "gain": 1.4,
+      "filters": [{ "type": "highPass", "frequency": 300 }, { "type": "highPass", "frequency": 300 },
+                  { "type": "lowPass", "frequency": 3000 }, { "type": "lowPass", "frequency": 3000 },
+                  { "type": "peak", "frequency": 1800, "q": 1, "gainDb": 4 }] },
+    { "source": "noise", "gain": { "param": "keyed", "points": [[0, 0], [1, 0.02]] },
+      "filters": [{ "type": "bandPass", "frequency": 2000, "q": 0.8 }] }
+  ]
+}
