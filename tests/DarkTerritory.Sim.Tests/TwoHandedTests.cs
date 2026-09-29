@@ -256,4 +256,22 @@ public class TwoHandedTests
         var seen = client.Bodies.All.Single(b => b.Id == heavy.Id);
         Assert.Equal((BodyKind.Heavy, 1, 2), (seen.Kind, seen.Carrier, seen.Second));
     }
+
+    [Fact]
+    public void AClientSeesACrateAtRest()
+    {
+        // T50: a crate lying still on the host lies still on a client too, so a bot's hand there knows it can take it.
+        var stop = new FacilityTests.Stop(ModuleKind.Crates);
+        stop.Step(4, []);
+        var host = stop.World.Bodies.All.First(b => b.Kind == BodyKind.Cargo);
+        Assert.True(host.Pbd.Asleep);
+        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 6, 0)), stop.Train.Line, 1000, Tuning.Boiler));
+        client.EnableRun(Tuning.Run, stop.World.Run!.Route, 600, authority: false, F);
+        var controls = new TrainControls();
+        WorldRecords.Apply(WorldRecords.Capture(stop.World, controls, []), client, ref controls, []);
+        Assert.True(client.Bodies.All.Single(b => b.Id == host.Id).Pbd.Asleep);
+        host.Pbd.Wake();
+        WorldRecords.Apply(WorldRecords.Capture(stop.World, controls, []), client, ref controls, []);
+        Assert.False(client.Bodies.All.Single(b => b.Id == host.Id).Pbd.Asleep);
+    }
 }

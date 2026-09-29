@@ -58,6 +58,9 @@ public sealed class PbdBody
         }
     }
 
+    /// <summary>Puts it to sleep as it is: a mirror adopting the simulating side's word that it's at rest.</summary>
+    public void Sleep() => Asleep = true;
+
     public void Wake()
     {
         Asleep = false;
