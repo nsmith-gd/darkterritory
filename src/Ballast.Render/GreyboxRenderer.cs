@@ -42,6 +42,14 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     VkDeviceMemory _vertexMemory;
     ulong _vertexCapacity;
 
+    // The 2D pass over the frame: HUD, prompts, menus (Overlay).
+    readonly VkPipelineLayout _overlayLayout;
+    readonly VkPipeline _overlayPipeline;
+    VkBuffer _overlayVertices;
+    VkDeviceMemory _overlayMemory;
+    ulong _overlayCapacity;
+    int _overlayCount;
+
     /// <param name="colorFormat">The frame's format: UNORM, holding display-ready (gamma-encoded) values. A headset renderer
     /// matches the channel order of its sRGB swapchain so the frame copies across bit for bit.</param>
     public GreyboxRenderer(GpuContext gpu, int width, int height, VkFormat colorFormat = VkFormat.R8G8B8A8Unorm)
@@ -56,6 +64,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         (_readback, _readbackMemory) = CreateBuffer((ulong)(width * height * 4), VkBufferUsageFlags.TransferDst,
             VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent);
         (_layout, _pipeline) = CreatePipeline();
+        (_overlayLayout, _overlayPipeline) = CreateOverlayPipeline();
     }
 
     public int Width { get; }
@@ -66,9 +75,10 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
     /// <summary>Draws the mesh (camera-relative positions) and returns the frame as RGBA8, top row first.</summary>
     /// <param name="clearColor">Linear colour; gamma-encoded here so the sky matches fogged geometry.</param>
-    public byte[] Render(MeshBuilder mesh, in Camera camera, in FrameLighting lighting, Vector3 clearColor)
+    /// <param name="overlay">2D drawing over the frame (the HUD), or null.</param>
+    public byte[] Render(MeshBuilder mesh, in Camera camera, in FrameLighting lighting, Vector3 clearColor, Overlay? overlay = null)
     {
-        Prepare(mesh);
+        Prepare(mesh, overlay);
         var cam = camera;
         var light = lighting;
         _gpu.Submit(cmd =>
@@ -92,11 +102,35 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
     int _vertexCount;
 
-    /// <summary>Uploads geometry for the next <see cref="Record"/>. Call outside command recording.</summary>
-    public void Prepare(MeshBuilder mesh)
+    /// <summary>Uploads geometry (and the overlay, if any) for the next <see cref="Record"/>. Call outside command recording.</summary>
+    public void Prepare(MeshBuilder mesh, Overlay? overlay = null)
     {
         UploadVertices(mesh.Vertices);
         _vertexCount = mesh.Count;
+        _overlayCount = overlay?.Count ?? 0;
+        if (overlay is { Count: > 0 })
+            Upload(CollectionsMarshal.AsSpan(overlay.Vertices), OverlayVertex.Stride, ref _overlayVertices, ref _overlayMemory, ref _overlayCapacity);
+    }
+
+    void Upload<T>(ReadOnlySpan<T> data, uint stride, ref VkBuffer buffer, ref VkDeviceMemory memory, ref ulong capacity) where T : unmanaged
+    {
+        ulong size = (ulong)Math.Max(1, data.Length) * stride;
+        if (size > capacity)
+        {
+            if (capacity > 0)
+            {
+                Api.vkDestroyBuffer(buffer, null);
+                Api.vkFreeMemory(memory, null);
+            }
+            capacity = Math.Max(size, capacity * 2);
+            (buffer, memory) = CreateBuffer(capacity, VkBufferUsageFlags.VertexBuffer, VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent);
+        }
+        if (data.IsEmpty)
+            return;
+        void* mapped;
+        Check(Api.vkMapMemory(memory, 0, size, 0, &mapped), "vkMapMemory");
+        MemoryMarshal.AsBytes(data).CopyTo(new Span<byte>(mapped, (int)size));
+        Api.vkUnmapMemory(memory);
     }
 
     /// <summary>Records the frame into <see cref="ColorImage"/>, leaving it ready to copy or blit.</summary>
@@ -153,6 +187,16 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             ulong offset = 0;
             Api.vkCmdBindVertexBuffers(cmd, 0, 1, &vb, &offset);
             Api.vkCmdDraw(cmd, (uint)vertexCount, 1, 0, 0);
+        }
+        if (_overlayCount > 0)
+        {
+            Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _overlayPipeline);
+            var size = new Vector2(Width, Height);
+            Api.vkCmdPushConstants(cmd, _overlayLayout, VkShaderStageFlags.Vertex, 0, (uint)sizeof(Vector2), &size);
+            var ob = _overlayVertices;
+            ulong zero = 0;
+            Api.vkCmdBindVertexBuffers(cmd, 0, 1, &ob, &zero);
+            Api.vkCmdDraw(cmd, (uint)_overlayCount, 1, 0, 0);
         }
         Api.vkCmdEndRendering(cmd);
 
@@ -322,6 +366,82 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         }
     }
 
+    /// <summary>The overlay: flat coloured quads in pixels, alpha-blended over the frame, no depth.</summary>
+    (VkPipelineLayout, VkPipeline) CreateOverlayPipeline()
+    {
+        var push = new VkPushConstantRange { stageFlags = VkShaderStageFlags.Vertex, size = (uint)sizeof(Vector2) };
+        var layoutInfo = new VkPipelineLayoutCreateInfo { pushConstantRangeCount = 1, pPushConstantRanges = &push };
+        VkPipelineLayout layout;
+        Check(Api.vkCreatePipelineLayout(&layoutInfo, null, &layout), "vkCreatePipelineLayout");
+
+        var vert = CreateShader("overlay.vert", ShaderKind.VertexShader);
+        var frag = CreateShader("overlay.frag", ShaderKind.FragmentShader);
+        var entry = "main\0"u8;
+        fixed (byte* pEntry = entry)
+        {
+            var stages = stackalloc VkPipelineShaderStageCreateInfo[2];
+            stages[0] = new VkPipelineShaderStageCreateInfo { stage = VkShaderStageFlags.Vertex, module = vert, pName = pEntry };
+            stages[1] = new VkPipelineShaderStageCreateInfo { stage = VkShaderStageFlags.Fragment, module = frag, pName = pEntry };
+            var binding = new VkVertexInputBindingDescription { binding = 0, stride = OverlayVertex.Stride, inputRate = VkVertexInputRate.Vertex };
+            var attributes = stackalloc VkVertexInputAttributeDescription[2];
+            attributes[0] = new VkVertexInputAttributeDescription { location = 0, binding = 0, format = VkFormat.R32G32Sfloat, offset = 0 };
+            attributes[1] = new VkVertexInputAttributeDescription { location = 1, binding = 0, format = VkFormat.R32G32B32A32Sfloat, offset = 8 };
+            var vertexInput = new VkPipelineVertexInputStateCreateInfo
+            {
+                vertexBindingDescriptionCount = 1,
+                pVertexBindingDescriptions = &binding,
+                vertexAttributeDescriptionCount = 2,
+                pVertexAttributeDescriptions = attributes,
+            };
+            var inputAssembly = new VkPipelineInputAssemblyStateCreateInfo { topology = VkPrimitiveTopology.TriangleList };
+            var viewportState = new VkPipelineViewportStateCreateInfo { viewportCount = 1, scissorCount = 1 };
+            var raster = new VkPipelineRasterizationStateCreateInfo { polygonMode = VkPolygonMode.Fill, cullMode = VkCullModeFlags.None, lineWidth = 1 };
+            var multisample = new VkPipelineMultisampleStateCreateInfo { rasterizationSamples = VkSampleCountFlags.Count1 };
+            var depth = new VkPipelineDepthStencilStateCreateInfo { depthTestEnable = false, depthWriteEnable = false };
+            var blendAttachment = new VkPipelineColorBlendAttachmentState
+            {
+                blendEnable = true,
+                srcColorBlendFactor = VkBlendFactor.SrcAlpha,
+                dstColorBlendFactor = VkBlendFactor.OneMinusSrcAlpha,
+                colorBlendOp = VkBlendOp.Add,
+                srcAlphaBlendFactor = VkBlendFactor.One,
+                dstAlphaBlendFactor = VkBlendFactor.OneMinusSrcAlpha,
+                alphaBlendOp = VkBlendOp.Add,
+                colorWriteMask = VkColorComponentFlags.All,
+            };
+            var blend = new VkPipelineColorBlendStateCreateInfo { attachmentCount = 1, pAttachments = &blendAttachment };
+            var dynamicStates = stackalloc VkDynamicState[2] { VkDynamicState.Viewport, VkDynamicState.Scissor };
+            var dynamic = new VkPipelineDynamicStateCreateInfo { dynamicStateCount = 2, pDynamicStates = dynamicStates };
+            var colorFormat = _colorFormat;
+            var renderingInfo = new VkPipelineRenderingCreateInfo
+            {
+                colorAttachmentCount = 1,
+                pColorAttachmentFormats = &colorFormat,
+                depthAttachmentFormat = DepthFormat,
+            };
+            var info = new VkGraphicsPipelineCreateInfo
+            {
+                pNext = &renderingInfo,
+                stageCount = 2,
+                pStages = stages,
+                pVertexInputState = &vertexInput,
+                pInputAssemblyState = &inputAssembly,
+                pViewportState = &viewportState,
+                pRasterizationState = &raster,
+                pMultisampleState = &multisample,
+                pDepthStencilState = &depth,
+                pColorBlendState = &blend,
+                pDynamicState = &dynamic,
+                layout = layout,
+            };
+            VkPipeline pipeline;
+            Check(Api.vkCreateGraphicsPipelines(VkPipelineCache.Null, 1, &info, null, &pipeline), "vkCreateGraphicsPipelines");
+            Api.vkDestroyShaderModule(vert, null);
+            Api.vkDestroyShaderModule(frag, null);
+            return (layout, pipeline);
+        }
+    }
+
     VkShaderModule CreateShader(string name, ShaderKind kind)
     {
         using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Shaders/" + name)
@@ -345,6 +465,13 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         Api.vkDeviceWaitIdle();
         Api.vkDestroyPipeline(_pipeline, null);
         Api.vkDestroyPipelineLayout(_layout, null);
+        Api.vkDestroyPipeline(_overlayPipeline, null);
+        Api.vkDestroyPipelineLayout(_overlayLayout, null);
+        if (_overlayCapacity > 0)
+        {
+            Api.vkDestroyBuffer(_overlayVertices, null);
+            Api.vkFreeMemory(_overlayMemory, null);
+        }
         if (_vertexCapacity > 0)
         {
             Api.vkDestroyBuffer(_vertices, null);

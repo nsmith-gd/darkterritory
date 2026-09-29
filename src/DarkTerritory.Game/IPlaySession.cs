@@ -24,7 +24,16 @@ public interface IPlaySession
     Camera EyeCamera(IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch);
     /// <summary>Everyone else aboard, for drawing.</summary>
     IReadOnlyList<Crewmate> Crew(IReadOnlyList<CarFrame> frames, double alpha);
+    PlayerTuning PlayerTuning { get; }
+    /// <summary>This machine's player id in the world (bodies record who carries them).</summary>
+    int PlayerId => 1;
+    /// <summary>The network, for the HUD; null playing alone.</summary>
+    LinkInfo? Link => null;
 }
+
+/// <summary>What the HUD shows about the connection (spec E: ping to host "shown prominently", non-optional).</summary>
+/// <param name="PingMs">Round trip to the host; null for the host itself.</param>
+public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, string? Waiting, bool Lost);
 
 /// <summary>First-person eye from a player's state, interpolated in their own frame so riding a car at speed is smooth.</summary>
 public static class Eyes

@@ -121,8 +121,7 @@ public sealed class Run
     /// </summary>
     public void CrewAct(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train)
     {
-        bool holding = !Over && s.Alive && Facility >= 0 && _chuteLeft[Facility] > 0 && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5
-            && (PlayerMotor.WorldPosition(s, train) - ChuteAt(_facilities[Facility], train.Line).Lever).Length <= Tuning.Chute.LeverReach;
+        bool holding = LeverInReach(s, train) && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5;
         if (!holding)
         {
             _lever.Remove(playerId);
@@ -133,6 +132,11 @@ public sealed class Run
         if (before < Tuning.Chute.LeverSeconds && before + SimConstants.TickSeconds >= Tuning.Chute.LeverSeconds)
             ChuteOpen = !ChuteOpen;
     }
+
+    /// <summary>Standing at a working chute's lever (the HUD's prompt, and <see cref="CrewAct"/>).</summary>
+    public bool LeverInReach(in PlayerState s, TrainOnLine train) =>
+        !Over && s.Alive && Facility >= 0 && _chuteLeft[Facility] > 0
+        && (PlayerMotor.WorldPosition(s, train) - ChuteAt(_facilities[Facility], train.Line).Lever).Length <= Tuning.Chute.LeverReach;
 
     // Who has a hand on the lever, and for how long (the ground isn't part of the train, so not ActionProgress).
     readonly Dictionary<int, double> _lever = new();

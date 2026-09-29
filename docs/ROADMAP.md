@@ -67,6 +67,10 @@ Remaining for M3: Soot Children mimicry, the radio as an item, and interior occl
 - Dawn, derailment or losing the crew ends it.
 - The harness reports the outcome and the payout.
 
+**HUD:**
+- A pixel-font HUD in the low-res frame: engine gauges, ping to host (spec E), the prompt for what your hands can do, and the night.
+- `dt screenshot --hud` captures it.
+
 **Cold and the Vigil (spec B.2, C.2):**
 - Cold exposure is predicted like movement: 200 s to onset, 320 s to death, recovered near heat.
 - The Vigil revives a body laid in the engine at a dead stop, for 90/120/150 s of maximum exposure. Engine off, lights to emergency, guns dead (they need steam now), the Choir at maximum.

@@ -146,16 +146,21 @@ public sealed class Bodies
         }
         if (!usePressed || carried is not null || intent.MoveZ > 0.5 || CrewActions.NearestInteractable(s, train) is not null)
             return false;
+        if (InReach(s, train) is not { } nearest)
+            return false;
+        nearest.Carrier = playerId;
+        nearest.Pbd.Wake();
+        return true;
+    }
+
+    /// <summary>The loose body a player's hands would take with Use right now, if any (also the HUD's prompt).</summary>
+    public Body? InReach(in PlayerState s, TrainOnLine train)
+    {
         var hands = HandsAt(s, train);
         // Spec C.2: the revived can carry light things only.
         bool lightOnly = s.Has(PlayerFlags.Revived);
-        var nearest = _bodies.Where(b => b.Carrier < 0 && (!lightOnly || b.Kind == BodyKind.Lamp) && _bodies.All(o => o.Carrier != playerId))
-            .Select(b => (b, d: (WorldCentre(b, train) - hands).Length)).Where(x => x.d <= Hands.Reach).OrderBy(x => x.d).FirstOrDefault();
-        if (nearest.b is null)
-            return false;
-        nearest.b.Carrier = playerId;
-        nearest.b.Pbd.Wake();
-        return true;
+        return _bodies.Where(b => b.Carrier < 0 && (!lightOnly || b.Kind == BodyKind.Lamp))
+            .Select(b => (b, d: (WorldCentre(b, train) - hands).Length)).Where(x => x.d <= Hands.Reach).OrderBy(x => x.d).FirstOrDefault().b;
     }
 
     Double3 HandsAt(in PlayerState s, TrainOnLine train)

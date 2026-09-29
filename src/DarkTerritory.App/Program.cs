@@ -20,6 +20,7 @@ using DarkTerritory.Sim.Route;
 //   E at the firebox: shovel (hold) · E at the valve: vent (hold) · E on a coupler plate: cut (hold)
 //   Left mouse at a gun (engine cab roof, guard car roof): fire · E (press) near a crate, lamp or body: pick up / put down · Right mouse: throw it
 //   1–9 respawn on that car's roof · Backspace respawn in the cab · Tab chase camera · Esc release mouse / quit
+// F1 toggles the HUD (--no-hud to start without it).
 // Options: --route tier:seed | --route-file name (saved from dt edit) [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png --mute
 // Multiplayer (UDP, direct IP / LAN): --host [port] hosts the same options for others to join; --join address[:port] joins one.
 // Steam: --steam hosts a friends-only lobby as well (F2 opens the invite dialog; friends can also "Join Game" from the
@@ -146,6 +147,8 @@ static AudioOut? Warn(string? error)
 }
 
 var clock = new FixedStepClock(SimConstants.TickRate);
+var hud = new Overlay();
+bool showHud = !args.Contains("--no-hud");
 var scene = new GreyboxScene { Route = session.Route, Enemies = session.World.ActiveEnemies, Run = session.World.Run, Vehicles = session.Train.Vehicles, Bodies = session.World.Bodies.All };
 var mesh = new MeshBuilder();
 var timer = Stopwatch.StartNew();
@@ -201,6 +204,7 @@ while (!window.CloseRequested)
         proto.Controls.Brake = input.Down(Key.B) ? 1 : 0;
     }
     if (input.Pressed(Key.Tab)) chase = !chase;
+    if (input.Pressed(Key.F1)) showHud = !showHud;
     if (input.Pressed(Key.F2)) net?.ShowInviteDialog();
     // An invite accepted (or "Join Game" on a friend) while playing: leave this game for theirs.
     if (Invited() is { } invitedTo)
@@ -273,7 +277,9 @@ while (!window.CloseRequested)
     if (!session.World.LampShining)
         lighting.LampRange = 0.01f; // not 0: the shader divides by it
     scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
-    renderer.Prepare(mesh);
+    if (showHud)
+        Hud.Build(hud, renderer.Width, renderer.Height, session);
+    renderer.Prepare(mesh, showHud ? hud : null);
 
     if (window.Resized)
     {
@@ -307,7 +313,7 @@ while (!window.CloseRequested)
 
 if (capture is not null)
 {
-    var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor);
+    var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud ? hud : null);
     PngWriter.Write(capture, pixels, renderer.Width, renderer.Height, scale: 2);
     Console.WriteLine($"captured {Path.GetFullPath(capture)}");
 }
