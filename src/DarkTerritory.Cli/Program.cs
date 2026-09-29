@@ -7,6 +7,7 @@ using DarkTerritory.Sim;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Train;
 
 // `dt` — the headless command-line entry point. Everything an agent needs to inspect or verify
@@ -16,6 +17,7 @@ var content = DataFile.FindContentRoot(Environment.CurrentDirectory);
 var train = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
 var player = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
 var boiler = DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File));
+var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File));
 
 return args switch
 {
@@ -35,14 +37,18 @@ return args switch
     ["line", "info", var name, ..] => Print(LineInfo(LoadLine(name), Opt(args, "--every", 100))),
     ["line", "drive", var name, ..] => Print(Drive(train, LoadLine(name), (int)Opt(args, "--cars", 3), Opt(args, "--start", -1), Opt(args, "--from", 0), Opt(args, "--throttle", 1), (int)Opt(args, "--seconds", 120))),
     ["screenshot", ..] => Print(Screenshot(train, content, args)),
-    ["harness", ..] => Print(Harness.Run(LoadLine(Str(args, "--line", "test-loop")), train, player, new HarnessOptions
-    {
-        Bots = (int)Opt(args, "--bots", 8),
-        Cars = (int)Opt(args, "--cars", 10),
-        Seconds = Opt(args, "--seconds", 120),
-        Seed = (int)Opt(args, "--seed", 1),
-        Link = new Ballast.Net.LinkConditions(Opt(args, "--latency", 0.09), Opt(args, "--jitter", 0.02), Opt(args, "--loss", 0.03)),
-    }, args.Contains("--no-boiler") ? null : boiler)),
+    ["route", "gen", ..] => Print(GenerateRoute(routeTuning, content, args)),
+    ["route", "sweep", ..] => Print(SweepRoutes(routeTuning, (int)Opt(args, "--seeds", 200))),
+    ["harness", ..] => Print(Harness.Run(Str(args, "--route", "") is { Length: > 0 } spec
+            ? RouteGenerator.Generate(routeTuning, Route.ParseSpec(spec).Tier, Route.ParseSpec(spec).Seed).Build()
+            : LoadLine(Str(args, "--line", "test-loop")), train, player, new HarnessOptions
+            {
+                Bots = (int)Opt(args, "--bots", 8),
+                Cars = (int)Opt(args, "--cars", 10),
+                Seconds = Opt(args, "--seconds", 120),
+                Seed = (int)Opt(args, "--seed", 1),
+                Link = new Ballast.Net.LinkConditions(Opt(args, "--latency", 0.09), Opt(args, "--jitter", 0.02), Opt(args, "--loss", 0.03)),
+            }, args.Contains("--no-boiler") ? null : boiler)),
     _ => Usage(),
 };
 
@@ -64,6 +70,55 @@ static object TrainTable(TrainTuning t, PlayerTuning p) => t.Performance.Select(
 }).ToList();
 
 RailLine LoadLine(string name) => RailLine.Load(Path.Combine(content, "lines", name + ".json"));
+
+// Generates a route; writes its line to content/lines/<name>.json (so screenshot/app can use it),
+// its features next to it, and a map PNG. Prints a summary.
+static object GenerateRoute(RouteTuning t, string content, string[] args)
+{
+    var tier = Enum.Parse<RouteTier>(Str(args, "--tier", "frontier"), ignoreCase: true);
+    ulong seed = (ulong)Opt(args, "--seed", 1);
+    var route = RouteGenerator.Generate(t, tier, seed);
+    string name = Str(args, "--name", "generated");
+    DataFile.Save(Path.Combine(content, "lines", name + ".json"), route.Line with { Name = name });
+    DataFile.Save(Path.Combine(content, "lines", name + ".route.json"), route);
+    string map = Str(args, "--map", $"out/routes/{route.Name}.png");
+    PngWriter.Write(map, RouteMap.Render(route, 900, 700), 900, 700);
+    return Summarise(route, map);
+}
+
+static object Summarise(Route r, string? map = null) => new
+{
+    r.Name,
+    lengthKm = Math.Round(r.Length / 1000, 2),
+    dawnMinutes = Math.Round(r.DawnSeconds / 60, 1),
+    maxGradePct = r.Line.Segments.Max(s => Math.Abs(s.GradePercent)),
+    minRadiusM = r.Line.Segments.Where(s => s.Radius != 0).Select(s => Math.Abs(s.Radius)).DefaultIfEmpty(0).Min(),
+    facilities = r.Of(FeatureKind.Facility).Select(f => $"{f.Facility} @ {f.Start / 1000:0.0} km"),
+    tunnels = r.Of(FeatureKind.Tunnel).Count(),
+    bridges = r.Of(FeatureKind.Bridge).Select(b => b.MaxCars > 0 ? $"weak ({b.MaxCars} cars)" : "sound"),
+    junctions = r.Of(FeatureKind.Junction).Count(),
+    sleepers = r.Of(FeatureKind.Sleepers).Count(),
+    grease = r.Of(FeatureKind.Grease).Count(),
+    r.Weather,
+    map = map is null ? null : Path.GetFullPath(map),
+};
+
+// Generates many routes per tier and reports ranges: the tier-progression check (App. B.9).
+static object SweepRoutes(RouteTuning t, int seeds) => Enum.GetValues<RouteTier>().Select(tier =>
+{
+    var routes = Enumerable.Range(1, seeds).Select(s => RouteGenerator.Generate(t, tier, (ulong)s)).ToList();
+    return new
+    {
+        tier = tier.ToString(),
+        lengthKm = new[] { routes.Min(r => r.Length), routes.Max(r => r.Length) }.Select(v => Math.Round(v / 1000, 1)),
+        dawnMinutes = new[] { routes.Min(r => r.DawnSeconds), routes.Max(r => r.DawnSeconds) }.Select(v => Math.Round(v / 60)),
+        meanSleepers = Math.Round(routes.Average(r => r.Of(FeatureKind.Sleepers).Count()), 1),
+        meanGrease = Math.Round(routes.Average(r => r.Of(FeatureKind.Grease).Count()), 1),
+        meanFacilities = Math.Round(routes.Average(r => r.Of(FeatureKind.Facility).Count()), 1),
+        weakBridgeShare = Math.Round(routes.SelectMany(r => r.Of(FeatureKind.Bridge)).DefaultIfEmpty().Average(b => b is { MaxCars: > 0 } ? 1.0 : 0), 2),
+        meanClimbM = Math.Round(routes.Average(r => r.Line.Segments.Where(s => s.GradePercent > 0).Sum(s => s.Length * s.GradePercent / 100))),
+    };
+}).ToList();
 
 static object LineInfo(RailLine line, double every) => new
 {
@@ -128,13 +183,29 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             train.Step(SimConstants.TickSeconds, new TrainControls { Throttle = i < SimConstants.TickRate * 6 ? 1 : 0, Brake = i < SimConstants.TickRate * 6 ? 0 : 1, Reverser = 1 });
     }
     var camera = Views.Get(view, train, (int)Opt(args, "--car", 2));
+    // --cam s,lateral,height --target s,lateral,height: place the camera anywhere by line coordinates.
+    if (Str(args, "--cam", "") is { Length: > 0 } cam)
+    {
+        Double3 At(string spec)
+        {
+            var p = spec.Split(',').Select(double.Parse).ToArray();
+            var t = line.Sample(p[0]);
+            var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+            return t.Position + right * p[1] + Double3.Up * p[2];
+        }
+        camera = Camera.LookAt(At(cam), At(Str(args, "--target", cam)), (float)Opt(args, "--fov", 65));
+    }
+    string routeFile = Path.Combine(content, "lines", lineName + ".route.json");
+    var route = File.Exists(routeFile) ? DataFile.Load<Route>(routeFile) : null;
 
     var clock = Stopwatch.StartNew();
     using var gpu = new GpuContext("dt screenshot");
     using var renderer = new GreyboxRenderer(gpu, width, height);
     var mesh = new MeshBuilder();
-    new GreyboxScene().Build(mesh, train, camera.Position);
+    new GreyboxScene { Route = route }.Build(mesh, train, camera.Position);
     var lighting = Views.Lighting(train);
+    if (route is not null)
+        lighting.FogDensity = (float)route.Weather.FogDensity;
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor);
     PngWriter.Write(output, pixels, width, height, scale);
     return new { path = Path.GetFullPath(output), view, device = gpu.DeviceName, triangles = mesh.Count / 3, width = width * scale, height = height * scale, ms = clock.ElapsedMilliseconds };
@@ -170,8 +241,12 @@ static int Usage()
           line info <name> [--every m]             position/grade profile of content/lines/<name>.json
           line drive <name> [--cars n] [--start s] [--from v] [--throttle 0..1] [--seconds t]
           screenshot [--view trackside|roof|cab|chase|ahead] [--line name] [--cars n] [--at s] [--car i] [--cut n]
+                     [--cam s,lateral,height --target s,lateral,height --fov deg]   camera by line coordinates
                      [--width w] [--height h] [--scale k] [--out file.png]
-          harness [--bots n] [--cars n] [--seconds t] [--seed s] [--latency s] [--jitter s] [--loss 0..1] [--line name]
+          route gen [--tier local|frontier|deadLines|deepTerritory] [--seed n] [--name generated] [--map file.png]
+                     writes content/lines/<name>.json (+ .route.json) and a map; try `screenshot --line generated`
+          route sweep [--seeds n]                  generate n routes per tier and report ranges
+          harness [--bots n] [--cars n] [--seconds t] [--seed s] [--latency s] [--jitter s] [--loss 0..1] [--line name | --route tier:seed]
                      host + bot clients over a simulated network; reports prediction error, bandwidth, deaths
         """);
     return 2;

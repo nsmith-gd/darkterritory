@@ -2,6 +2,7 @@ using System.Numerics;
 using Ballast;
 using Ballast.Render;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game;
@@ -17,6 +18,11 @@ public sealed class GreyboxScene
     public int Seed { get; init; } = 7;
     /// <summary>How hot the firebox is, 0..1: the glow in the cab is how the Boiler reads the fire.</summary>
     public float FireGlow { get; set; } = 0.7f;
+    /// <summary>Tunnels, bridges, facilities and hazards to draw along the line, when it's a generated route.</summary>
+    public Route? Route { get; set; }
+
+    /// <summary>Depth of the valley under a bridge.</summary>
+    const double ValleyDepth = 18;
 
     public void Build(MeshBuilder mesh, TrainOnLine train, Double3 eye) =>
         Build(mesh, train.Line, train.Frames, train.Dynamics.Distance, eye);
@@ -31,6 +37,8 @@ public sealed class GreyboxScene
 
         Track(mesh, line, eye, from, to, centre);
         Lineside(mesh, line, eye, from, to);
+        if (Route is not null)
+            Features(mesh, line, eye, from, to);
         foreach (var frame in frames)
             Car(mesh, frame, eye);
     }
@@ -60,14 +68,19 @@ public sealed class GreyboxScene
             var ra = Double3.Cross(a.Tangent, Double3.Up).Normalized;
             var rb = Double3.Cross(b.Tangent, Double3.Up).Normalized;
             var down = new Double3(0, -0.02, 0);
+            bool bridge = Route?.BridgeAt(s + step / 2) is not null;
 
-            // Ground either side, then the raised ballast bed, then rails.
-            mesh.Quad(V(a.Position - ra * groundHalfWidth + down * 10, eye), V(a.Position - ra * bedHalfWidth + down, eye),
-                      V(b.Position - rb * bedHalfWidth + down, eye), V(b.Position - rb * groundHalfWidth + down * 10, eye), Palette.MuddyOlive);
-            mesh.Quad(V(a.Position + ra * bedHalfWidth + down, eye), V(a.Position + ra * groundHalfWidth + down * 10, eye),
-                      V(b.Position + rb * groundHalfWidth + down * 10, eye), V(b.Position + rb * bedHalfWidth + down, eye), Palette.MuddyOlive);
-            mesh.Quad(V(a.Position - ra * bedHalfWidth, eye), V(a.Position + ra * bedHalfWidth, eye),
-                      V(b.Position + rb * bedHalfWidth, eye), V(b.Position - rb * bedHalfWidth, eye), Palette.Ballast);
+            // Ground either side, then the raised ballast bed, then rails. Under a bridge the ground
+            // drops into a valley and there's no ballast: the deck is drawn with the features.
+            var valley = bridge ? new Double3(0, -ValleyDepth, 0) : default;
+            double inner = bridge ? 0 : bedHalfWidth;
+            mesh.Quad(V(a.Position - ra * groundHalfWidth + down * 10 + valley, eye), V(a.Position - ra * inner + down + valley, eye),
+                      V(b.Position - rb * inner + down + valley, eye), V(b.Position - rb * groundHalfWidth + down * 10 + valley, eye), Palette.MuddyOlive);
+            mesh.Quad(V(a.Position + ra * inner + down + valley, eye), V(a.Position + ra * groundHalfWidth + down * 10 + valley, eye),
+                      V(b.Position + rb * groundHalfWidth + down * 10 + valley, eye), V(b.Position + rb * inner + down + valley, eye), Palette.MuddyOlive);
+            if (!bridge)
+                mesh.Quad(V(a.Position - ra * bedHalfWidth, eye), V(a.Position + ra * bedHalfWidth, eye),
+                          V(b.Position + rb * bedHalfWidth, eye), V(b.Position - rb * bedHalfWidth, eye), Palette.Ballast);
             foreach (var side in new[] { -1.0, 1.0 })
             {
                 var p0 = V(a.Position + ra * (side * gauge), eye);
@@ -93,6 +106,8 @@ public sealed class GreyboxScene
         // Telegraph poles every 50 m and a scatter of pines: depth cues for fog and speed.
         for (double s = Math.Ceiling(from / 50) * 50; s < to; s += 50)
         {
+            if (Route is not null && (Route.InTunnel(s) || Route.BridgeAt(s) is not null))
+                continue;
             var t = line.Sample(s);
             var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
             var foot = V(t.Position + right * 4.5, eye);
@@ -101,6 +116,8 @@ public sealed class GreyboxScene
         }
         for (double s = Math.Floor(from / 12) * 12; s < to; s += 12)
         {
+            if (Route is not null && (Route.InTunnel(s) || Route.BridgeAt(s) is not null))
+                continue;
             var rng = new Random(HashCode.Combine(Seed, (int)(s / 12)));
             for (int k = 0; k < 3; k++)
             {
@@ -114,6 +131,110 @@ public sealed class GreyboxScene
                 mesh.Pyramid(foot + new Vector3(0, h * 0.25f, 0), h * 0.22f, h * 0.8f, Palette.PineDark);
             }
         }
+    }
+
+    /// <summary>A box following the line: <paramref name="lateral"/> metres right of centre, base at <paramref name="y"/> above rail.</summary>
+    static void Along(MeshBuilder mesh, RailLine line, Double3 eye, double s, double length, double lateral, double y, double halfWidth, double height, Vector3 color)
+    {
+        var t = line.Sample(s + length / 2);
+        var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+        var centre = t.Position + right * lateral + Double3.Up * (y + height / 2);
+        mesh.Box(V(centre, eye), ToF(right), Vector3.UnitY, ToF(t.Tangent * -1), new Vector3((float)halfWidth, (float)height / 2, (float)length / 2), color);
+    }
+
+    void Features(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to)
+    {
+        foreach (var f in Route!.Features)
+        {
+            if (f.End < from || f.Start > to)
+                continue;
+            double a = Math.Max(f.Start, from), b = Math.Min(f.End, to);
+            switch (f.Kind)
+            {
+                case FeatureKind.Tunnel:
+                    // Walls and roof close round the track, a hill sits on top, and the portals are faced in stone.
+                    for (double s = a; s < b; s += 10)
+                    {
+                        double len = Math.Min(10, b - s);
+                        Along(mesh, line, eye, s, len, -3.2, -0.2, 0.6, 7.2, Palette.Charcoal);
+                        Along(mesh, line, eye, s, len, 3.2, -0.2, 0.6, 7.2, Palette.Charcoal);
+                        Along(mesh, line, eye, s, len, 0, 6.6, 3.8, 1.2, Palette.Charcoal);
+                        Along(mesh, line, eye, s, len, 0, 7.8, 40, 14, Palette.MuddyOlive);
+                    }
+                    foreach (double portal in new[] { f.Start, f.End - 1.5 })
+                        if (portal >= from && portal <= to)
+                        {
+                            Along(mesh, line, eye, portal, 1.5, -5.5, 0, 2.2, 8, Palette.IronGrey);
+                            Along(mesh, line, eye, portal, 1.5, 5.5, 0, 2.2, 8, Palette.IronGrey);
+                            Along(mesh, line, eye, portal, 1.5, 0, 7.4, 7.7, 1.6, Palette.IronGrey);
+                        }
+                    break;
+                case FeatureKind.Bridge:
+                    // Weak bridges are timber trestles; sound ones are iron girders on stone piers.
+                    var deck = f.MaxCars > 0 ? Palette.DeepBrown : Palette.IronGrey;
+                    for (double s = a; s < b; s += 10)
+                    {
+                        double len = Math.Min(10, b - s);
+                        Along(mesh, line, eye, s, len, 0, -0.6, 2.2, 0.6, deck);
+                        Along(mesh, line, eye, s, len, -2.3, -0.6, 0.12, 1.6, deck);
+                        Along(mesh, line, eye, s, len, 2.3, -0.6, 0.12, 1.6, deck);
+                    }
+                    for (double s = Math.Ceiling(a / 25) * 25; s < b; s += 25)
+                        Along(mesh, line, eye, s, 3, 0, -ValleyDepth, f.MaxCars > 0 ? 1.6 : 2.0, ValleyDepth - 0.6, f.MaxCars > 0 ? Palette.DeepBrown : Palette.Charcoal);
+                    break;
+                case FeatureKind.Sleepers:
+                    // Shaped like ties, lying across the rail: invisible until the lamp finds them (App. A.2).
+                    for (double s = a; s < b; s += 2.6)
+                        Along(mesh, line, eye, s, 0.9, 0, 0.12, 1.5, 0.28, Palette.Corrupted);
+                    break;
+                case FeatureKind.Grease:
+                    mesh.Emissive = 0.15f;
+                    foreach (double side in new[] { -0.72, 0.72 })
+                        Along(mesh, line, eye, a, b - a, side, 0.19, 0.05, 0.02, Palette.GreaseSheen);
+                    mesh.Emissive = 0;
+                    break;
+                case FeatureKind.Junction:
+                    // Switch stand with a lamp, and a stub of diverging rail: what the Switchman throws.
+                    double side2 = f.Side * 2.6;
+                    Along(mesh, line, eye, f.Start, 0.3, side2, 0, 0.15, 1.4, Palette.IronGrey);
+                    mesh.Emissive = 1;
+                    Along(mesh, line, eye, f.Start, 0.25, side2, 1.4, 0.12, 0.25, Palette.LampAmber);
+                    mesh.Emissive = 0;
+                    for (int i = 0; i < 6; i++)
+                        Along(mesh, line, eye, f.Start + i * 5, 5, f.Side * (0.9 + i * 0.35), 0.05, 0.05, 0.15, Palette.IronGrey);
+                    break;
+                case FeatureKind.Facility:
+                    Facility(mesh, line, eye, f);
+                    break;
+            }
+        }
+    }
+
+    /// <summary>Placeholder silhouettes until facility modules exist: oversized, dark, one working lamp (GDD §30).</summary>
+    static void Facility(MeshBuilder mesh, RailLine line, Double3 eye, RouteFeature f)
+    {
+        double mid = (f.Start + f.End) / 2, side = f.Side;
+        switch (f.Facility)
+        {
+            case FacilityKind.CoalingTower:
+                Along(mesh, line, eye, mid - 6, 12, side * 7, 0, 5, 22, Palette.Charcoal);
+                Along(mesh, line, eye, mid - 2, 4, side * 2.6, 9, 1.6, 1.2, Palette.IronGrey);
+                break;
+            case FacilityKind.GrainElevator:
+                for (int i = 0; i < 3; i++)
+                    Along(mesh, line, eye, mid - 20 + i * 12, 10, side * 12, 0, 5, 26, Palette.BlueGrey);
+                break;
+            case FacilityKind.Foundry:
+                Along(mesh, line, eye, mid - 40, 80, side * 22, 0, 14, 16, Palette.RustRed);
+                Along(mesh, line, eye, mid + 10, 6, side * 26, 16, 2, 18, Palette.SootBlack);
+                break;
+            default:
+                Along(mesh, line, eye, mid - 30, 60, side * 20, 0, 12, 10, Palette.DeepBrown);
+                break;
+        }
+        mesh.Emissive = 1;
+        Along(mesh, line, eye, mid, 0.4, side * 4, 5, 0.2, 0.3, Palette.LampAmber);
+        mesh.Emissive = 0;
     }
 
     void Car(MeshBuilder mesh, CarFrame frame, Double3 eye)

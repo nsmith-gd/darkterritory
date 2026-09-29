@@ -16,7 +16,8 @@ dotnet run --project src/DarkTerritory.Cli -- train table
 
 ## Feel prototype
 ```bash
-dotnet run --project src/DarkTerritory.App
+dotnet run --project src/DarkTerritory.App                          # greybox test loop
+dotnet run --project src/DarkTerritory.App -- --route frontier:7     # a generated night: fortress to terminus before dawn
 ```
 | Input | Action |
 |---|---|

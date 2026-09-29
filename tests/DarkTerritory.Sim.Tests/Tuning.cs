@@ -9,5 +9,6 @@ static class Tuning
     static readonly string Content = DataFile.FindContentRoot();
     public static readonly TrainTuning Train = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
     public static readonly PlayerTuning Player = DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File));
+    public static readonly DarkTerritory.Sim.Route.RouteTuning Route = DataFile.Load<DarkTerritory.Sim.Route.RouteTuning>(Path.Combine(Content, DarkTerritory.Sim.Route.RouteTuning.File));
     public static readonly BoilerTuning Boiler = DataFile.Load<BoilerTuning>(Path.Combine(Content, BoilerTuning.File));
 }

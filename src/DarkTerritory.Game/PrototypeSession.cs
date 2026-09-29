@@ -3,6 +3,7 @@ using Ballast.Render;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game;
@@ -20,17 +21,34 @@ public sealed class PrototypeSession
     PlayerState _previousPlayer;
 
     public PrototypeSession(string contentRoot, string lineName = "test-loop", int cars = 6, double start = 600)
+        : this(contentRoot, RailLine.Load(Path.Combine(contentRoot, "lines", lineName + ".json")), null, cars, start)
     {
+    }
+
+    /// <summary>Plays a generated route from the fortress yard to the terminus, against the dawn clock.</summary>
+    public PrototypeSession(string contentRoot, Route route, int cars = 6)
+        : this(contentRoot, route.Build(), route, cars, 0)
+    {
+    }
+
+    PrototypeSession(string contentRoot, RailLine line, Route? route, int cars, double start)
+    {
+        Route = route;
         _trainTuning = new HotData<TrainTuning>(Path.Combine(contentRoot, TrainTuning.File));
         _playerTuning = new HotData<PlayerTuning>(Path.Combine(contentRoot, PlayerTuning.File));
         _boilerTuning = new HotData<BoilerTuning>(Path.Combine(contentRoot, BoilerTuning.File));
-        var line = RailLine.Load(Path.Combine(contentRoot, "lines", lineName + ".json"));
-        Train = new TrainOnLine(new TrainDynamics(Consist.Uniform(_trainTuning.Value, cars, 1)), line, start, _boilerTuning.Value);
+        var consist = Consist.Uniform(_trainTuning.Value, cars, 1);
+        // On a route, start in the fortress yard with the whole train on the level.
+        if (route is not null)
+            start = consist.LengthMetres + 150;
+        Train = new TrainOnLine(new TrainDynamics(consist), line, start, _boilerTuning.Value);
         Controls = new TrainControls { Reverser = 1 };
         Respawn(0);
     }
 
     public TrainOnLine Train { get; }
+    public Route? Route { get; }
+    public double ElapsedSeconds => Tick * SimConstants.TickSeconds;
     public PlayerState Player;
     public TrainControls Controls;
     public long Tick { get; private set; }
@@ -124,6 +142,21 @@ public sealed class PrototypeSession
         string state = Player.Alive ? $"{Player.Surface} {where} hp {Player.Health}" : $"DEAD ({Player.Death}) — Backspace to respawn";
         return $"{d.Speed,5:0.0} m/s {SpeedBands.Classify(TrainTuning, d.Speed),-7} | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} rev {(Controls.Reverser > 0 ? "F" : "R")} " +
                $"| {boiler} |{(Train.Rakes.Count > 1 ? $" {Train.Rakes.Count} rakes |" : "")} grade {Train.AverageGrade(),4:0.0}% | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state}" +
+               RouteStatus() +
                (LastReloadError is null ? "" : $" | TUNING ERROR: {LastReloadError}");
+    }
+
+    string RouteStatus()
+    {
+        if (Route is null)
+            return "";
+        double dawn = Route.DawnSeconds - ElapsedSeconds;
+        string clock = dawn > 0 ? $"dawn {(int)dawn / 60:00}:{(int)dawn % 60:00}" : "DAWN — the line is live";
+        double s = Train.Dynamics.Distance;
+        string next = Route.NextLandmark(s) is { } f
+            ? $"{(f.Kind == FeatureKind.Facility ? $"{f.Facility}" : $"{f.Kind}").ToLowerInvariant()} in {(f.Start - s) / 1000:0.0} km"
+            : "terminus ahead";
+        string tunnel = Route.InTunnel(s) ? " | IN TUNNEL" : "";
+        return $" | {Route.Name} | {clock} | {next}{tunnel}";
     }
 }
