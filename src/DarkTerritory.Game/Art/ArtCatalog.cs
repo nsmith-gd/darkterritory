@@ -64,6 +64,9 @@ public static class ArtCatalog
         list.Add(new("tower", LargeProp, () => StructureKit.Tower(look, 1)));
         list.Add(new("gatehouse", LargeProp, () => StructureKit.Gatehouse(look)));
         list.Add(new("platform", StructureBay, () => StructureKit.PlatformBay(look, 1)));
+        list.Add(new("house", LargeProp, () => TownKit.House(look, 1)));
+        list.Add(new("church", LargeProp, () => TownKit.Church(look)));
+        list.Add(new("windmill", LargeProp, () => TownKit.Windmill(look)));
         list.Add(new("buffer-stop", MediumProp, () => StructureKit.BufferStop(look)));
         list.Add(new("switch-stand", MediumProp, () => StructureKit.SwitchStand(look)));
         foreach (var kind in Enum.GetValues<FacilityKind>())

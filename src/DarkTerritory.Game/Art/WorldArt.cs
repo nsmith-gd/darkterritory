@@ -355,9 +355,54 @@ public sealed partial class WorldArt(Look look)
                 continue;
             mesh.Append(Piece($"fence-{index % 3}", () => WorldKit.FencePost(_look, index % 3)), Place(s, -14, 0, 1, 0.05f));
         }
+        Settlements(mesh, line, route, eye, from, to, seed, valleyDepth, OnBranch);
         for (double s = Math.Ceiling(from / 700) * 700; s < to; s += 700)
             if (Clear(s) && !OnBranch(s, -3.8))
                 mesh.Append(Piece($"signal-{(int)(s / 700) % 2 == 0}", () => WorldKit.Signal(_look, (int)(s / 700) % 2 == 0)), Place(s, -3.8, MathF.PI, 1));
+    }
+
+    /// <summary>
+    /// Dead settlements (GDD §30): now and then, a hamlet set back from the line, its houses scattered round a church or
+    /// a windmill, nothing lit. Where the line has nothing else going on: not at a facility, a bridge, a tunnel or a branch.
+    /// </summary>
+    void Settlements(MeshBuilder mesh, RailLine line, Route? route, Double3 eye, double from, double to, int seed, float valleyDepth, Func<double, double, bool> onBranch)
+    {
+        const double block = 2400;
+        for (double b = Math.Floor((from - 150) / block) * block; b < to + 150; b += block)
+        {
+            var rng = new Random(unchecked(seed * 486187739 ^ (int)(b / block) * 6700417));
+            if (rng.NextDouble() > 0.6 || b < 800)
+                continue;
+            double centre = b + 300 + rng.NextDouble() * (block - 600);
+            int side = rng.Next(2) == 0 ? -1 : 1;
+            double lateral = side * (38 + rng.NextDouble() * 30);
+            if (centre > line.Length - 900 || route is not null && route.Features.Any(f => f.Kind is FeatureKind.Facility or FeatureKind.Bridge or FeatureKind.Tunnel
+                    && centre > f.Start - 150 && centre < f.End + 150))
+                continue;
+            if (onBranch(centre, lateral) || (line.Sample(centre).Position - eye).Length > 450)
+                continue;
+            void Place(MeshAsset piece, double along, double across, float yaw)
+            {
+                var t = line.Sample(Math.Clamp(along, 0, line.Length));
+                var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+                float h = Ground(route, along, (float)across, valleyDepth) - 0.2f;
+                var at = t.Position + r * across + Double3.Up * h;
+                // Facing the line, turned a little: nobody laid this village out square to the railway.
+                float face = across > 0 ? MathF.PI / 2 : -MathF.PI / 2;
+                mesh.Instances.Add(new MeshInstance(piece, Basis(t.Tangent, at, eye, face + yaw)));
+            }
+            int houses = 3 + rng.Next(5);
+            for (int i = 0; i < houses; i++)
+            {
+                int v = rng.Next(9);
+                Place(Piece($"house-{v}", () => TownKit.House(_look, v)), centre + (rng.NextDouble() - 0.5) * 90, lateral + side * (rng.NextDouble() - 0.3) * 30, (float)(rng.NextDouble() - 0.5) * 0.8f);
+            }
+            double landmark = rng.NextDouble();
+            if (landmark < 0.45)
+                Place(Piece("church", () => TownKit.Church(_look)), centre + 20, lateral + side * 26, (float)(rng.NextDouble() - 0.5) * 0.3f);
+            else if (landmark < 0.8)
+                Place(Piece("windmill", () => TownKit.Windmill(_look)), centre - 30, lateral + side * 20, (float)rng.NextDouble() * 3);
+        }
     }
 
     /// <summary>A wire between two points, hanging in a catenary-ish curve: a thin cross of two ribbons, so it reads from any side.</summary>
