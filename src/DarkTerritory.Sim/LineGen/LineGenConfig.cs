@@ -163,12 +163,40 @@ public sealed record AuthorityRules(double SleeperSafeMargin, double LampHeightM
 public sealed record TerrainRules(double CorridorM, double TileM, double GridM, double FormationM, double ShoulderM, double BlendM, double NoiseAmplitudeM,
     double[] NoiseWavelengthM, double JunctionPadM, double SkirtDropM, double SampleM, double WalkableSlope, double WalkableWithinM,
     double TunnelCoverM, double RiverWidthM, double ReliefM, double[] ReliefWavelengthM, double ReliefFromM, double ReliefFullM, double ReliefRidged,
-    double ReliefUp, DrumlinRules Drumlins, KnobRules Knobs, PlateauRules Plateau);
+    double ReliefUp, DrumlinRules Drumlins, KnobRules Knobs, PlateauRules Plateau, LakeRules Lakes, ShoreRules Shore, DykeRules Dykes, RiverRules Rivers);
 
 /// <summary>The Maritimes' landforms (TerrainField.Landform): heights as a share of reliefM, lengths in metres.</summary>
 public sealed record DrumlinRules(double WavelengthM, double Stretch, double FlowDeg, double Height);
 public sealed record KnobRules(double WavelengthM, double Height);
 public sealed record PlateauRules(double WavelengthM, double Height, double GorgeWavelengthM, double GorgeWidth, double GorgeDepth);
+
+/// <summary>
+/// The Southern Upland's lakes (docs/design/maritime-rules.md §2): shallow, dark, lying along the ice's flow, some
+/// beside the line and some crossed on a fill. Radii in metres (the minor semi-axis; stretch lengthens it along the
+/// flow); offM: from the track to the near shore, in minor radii; levelBelowRailM under the lowest rail near it.
+/// </summary>
+public sealed record LakeRules(double[] RadiusM, double[] Stretch, double[] OffM, double CrossChance, double[] CrossRadiusM, double TurnDeg, double DepthM,
+    double LevelBelowRailM, double ShoreSlope, double Wobble, double ClearM, double FillSlope);
+
+/// <summary>
+/// A shore the line runs along (maritime-rules.md §3): the sea on one side, its edge wandering in coves and headlands
+/// (nearM from the track, coveM more at most, over coveWavelengthM); a shingle beach up to the bluff, a cliff where the
+/// rail stands more than cliffAboveM over the water; Fundy's mudflats flatM wide at low water; islands offshore.
+/// </summary>
+public sealed record ShoreRules(double LevelBelowRailM, double[] NearM, double[] CoveM, double[] CoveWavelengthM, double BeachSlope, double CliffAboveM,
+    double CliffSlope, double DepthM, double[] FlatM, double TaperM, double MinM, double IslandShare, double IslandWavelengthM, double TidalSpanFactor,
+    double TidalDepthFactor);
+
+/// <summary>
+/// A river the line runs up the valley of (maritime-rules.md §5, §7: the lines kept to the valleys): its near bank bankM
+/// out, meandering up to meanderM further, widthM across, its water belowRailM under the rail and depthM deep; the far
+/// bank rising at farSlope into the valley side.
+/// </summary>
+public sealed record RiverRules(double[] BankM, double[] MeanderM, double[] WidthM, double BelowRailM, double DepthM, double FarSlope);
+
+/// <summary>Acadian dykeland (maritime-rules.md §4): hay fields dead flat under the rail, a dyke along the shore, salt marsh and mud past it.</summary>
+public sealed record DykeRules(double FieldsBelowRailM, double HeightM, double CrestM, double SideSlope, double[] OutM, double MarshAboveWaterM, double LandwardM,
+    double MaxRailRangeM);
 
 /// <summary>§14.</summary>
 public sealed record WeatherRules(double FogLowGround, double FogCrest, double WindExposed, double ColdStepPerM, double ColdExposedStep, double WetAdhesion,
@@ -215,7 +243,7 @@ public sealed record BiomesFile(Dictionary<string, BiomeDef> Biomes, Dictionary<
 /// <summary>A biome (§13.1): what grows, what the ground is, how rough, and which set pieces it favours (§7.5).</summary>
 public sealed record BiomeDef(string Name, string Ground, string[] Materials, double NoiseScale, double TreeDensity, string[] Trees, double DeadTrees,
     double Water, Dictionary<string, double> Pieces, Dictionary<string, double> Flora, double Rocks, string Verge, Dictionary<string, PropRule> Props,
-    Dictionary<string, double> Landform, double[] Colour);
+    Dictionary<string, double> Landform, double LakesPerKm, double Shore, string ShoreKind, double SweepChance, bool TidalRivers, double[] Colour);
 
 /// <summary>A dressing piece a biome stands along the line: per 150 m, its chance, how far out, how many.</summary>
 public sealed record PropRule(double Chance, double[] OutM, int Count);

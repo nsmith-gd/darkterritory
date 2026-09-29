@@ -238,7 +238,7 @@ def bog_sphagnum(ctx):
     return ctx.out(d, s, g, procedural="sphagnum hummocks, peat pools (spec), sedge")
 
 
-@texture("shore_shingle", "ground", tile=2.0)
+@texture("shore_shingle", "ground", tile=5.0)
 def shore_shingle(ctx):
     """River or beach cobble: rounded, flattened stones of every size (grey granite most, brown sandstone, the odd red
     one), lying on and in gravel and sand, wet and dark low down, wrack caught between."""
@@ -256,8 +256,10 @@ def shore_shingle(ctx):
     tex = noise.normalize(core.lum(grav))
     top = np.full((W, W), -1e9, np.float32)
     col = np.zeros((W, W, 3), np.float32)
-    for i in range(170):
-        r = W * (0.07 * (1 - i / 170) ** 1.5 + 0.018)
+    # At the terrain's 5 m tile (WorldArt.TerrainTile): hand-sized to head-sized stones, a lot of them.
+    n = 900
+    for i in range(n):
+        r = W * (0.03 * (1 - i / n) ** 1.5 + 0.0065)
         cx, cy = rng.random(2) * W
         a = rng.uniform(0, np.pi)
         e = rng.uniform(0.55, 0.9)
@@ -268,8 +270,8 @@ def shore_shingle(ctx):
         q = 1 - (u * u + v * v) / (r * r)
         dome = np.where(q > 0, np.sqrt(np.maximum(q, 0)) * r * 0.35 + 1.0, -1e9).astype(np.float32)
         kind = rng.random()
-        ramp = "granite" if kind < 0.6 else "stone" if kind < 0.94 else "red_clay"
-        shade = rng.uniform(0.35, 0.8)
+        ramp = "granite" if kind < 0.7 else "stone" if kind < 0.98 else "red_clay"
+        shade = rng.uniform(0.3, 0.7)
         iy, ix = (yy.astype(int) % W), (xx.astype(int) % W)
         cur = top[iy, ix]
         win = dome > cur
@@ -283,9 +285,26 @@ def shore_shingle(ctx):
     d = d * (1 - 0.45 * wet)[..., None]
     s = lerp(np.full((W, W), 0.06, np.float32), 0.6, wet) * lerp(0.4, 1.0, stone.astype(np.float32))
     g = lerp(np.full((W, W), 0.3, np.float32), 0.9, wet)
-    wrack = dead_blades(ctx, 200, length=(12, 30), width=(1.5, 2.5), key="wrack", curl=0.4) * (1 - stone)
+    wrack = dead_blades(ctx, 500, length=(6, 14), width=(1.0, 1.6), key="wrack", curl=0.4) * (1 - stone)
     d = lerp(d, hexc("#1A1A0C"), wrack * 0.85)
     d, _ = C.occlude(d, height, 4, 0.5)
     d = C.light(d, height, strength=2, amount=0.8)
     d = detile(d)
     return ctx.out(d, s, g, procedural="elliptical cobbles (domes, largest first) on gravel and sand, wet low line, wrack")
+
+
+@texture("water_dark", "ground", tile=8.0)
+def water_dark(ctx):
+    """Still dark water: a Southern Upland lake stained with tannin, a cove on a windless night. Near black, with wind
+    ripples in the normal map and a high gloss, so what it shows is what it reflects (the lamp, the sky's last light)."""
+    W = ctx.W
+    # Ripples: long, low swell across the wind, fine cat's-paws over it.
+    swell = noise.fbm(ctx.rng("swell"), (W, W), 90, octaves=3, stretch=(3.0, 0.5))
+    paws = noise.fbm(ctx.rng("paws"), (W, W), 14, octaves=4, stretch=(2.2, 0.7))
+    height = swell * 0.6 + paws * 0.25 * (0.5 + 0.5 * noise.fbm01(ctx.rng("gust"), (W, W), 60, octaves=2))
+    core.capture("height", height)
+    tone = 0.8 + 0.4 * noise.fbm01(ctx.rng("tone"), (W, W), 70, octaves=3)
+    d = np.stack([np.full((W, W), 0.018, np.float32) * tone, np.full((W, W), 0.016, np.float32) * tone, np.full((W, W), 0.013, np.float32) * tone], axis=-1)
+    s = np.full((W, W), 0.65, np.float32)
+    g = np.full((W, W), 0.93, np.float32)
+    return ctx.out(d, s, g, procedural="wind swell and cat's-paws (fbm heights for the normal map), tannin-dark and glossy")

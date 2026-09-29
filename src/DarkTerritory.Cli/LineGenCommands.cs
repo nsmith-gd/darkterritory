@@ -13,6 +13,7 @@ static class LineGenCommands
         "sweep" => Sweep(content, args),
         "bench" => Bench(content, args),
         "transect" => Transect(content, args),
+        "water" => Water(content, args),
         "sky" => Sky(content, args),
         "debug" => LineGenerator.Debug(LineGenContent.Load(content), Parameters(args), (int)Opt(args, "--attempt", 0)).ToList(),
         _ => throw new ArgumentException($"linegen {verb}? (generate, sweep)"),
@@ -93,6 +94,39 @@ static class LineGenCommands
             double x = t.Position.X - t.Tangent.Z * l, z = t.Position.Z + t.Tangent.X * l;
             return new { lateral = l, height = Math.Round(terrain.Height(x, z) - t.Position.Y, 1) };
         }).ToList();
+    }
+
+    /// <summary>
+    /// A route's lakes and shores (docs/design/maritime-rules.md): where each sits along the main line, which side and
+    /// how far out, its level under the rail, and a lake's water sampled at its centre (the terrain must hold it).
+    /// </summary>
+    static object Water(string content, string[] args)
+    {
+        var route = Routes.Generate(content, Str(args, "--route", "frontier:7"), (int)Opt(args, "--cars", 6));
+        var line = route.Build();
+        var terrain = ((PlanConditions)line.Conditions!).Terrain;
+        var plan = route.Plan!;
+        return new
+        {
+            biomes = plan.Biomes.Select(b => new { b.Biome, s0 = Math.Round(b.S0), s1 = Math.Round(b.S1) }),
+            lakes = plan.Lakes.Select(l =>
+            {
+                var n = terrain.Nearby(l.X, l.Z, 700).Where(q => q.Edge == 0).OrderBy(q => Math.Abs(q.Lateral)).FirstOrDefault();
+                return new
+                {
+                    l.Id,
+                    l.Crossed,
+                    radius = l.RadiusM,
+                    long_ = Math.Round(l.RadiusM * l.Stretch),
+                    s = Math.Round(n.S),
+                    lateral = Math.Round(n.Lateral),
+                    belowRail = Math.Round(n.Rail - l.LevelM, 1),
+                    wet = terrain.WaterAt(l.X, l.Z) is not null,
+                };
+            }),
+            shores = plan.Shores.Select(sh => new { sh.Id, kind = sh.Kind.ToString(), s0 = Math.Round(sh.S0), s1 = Math.Round(sh.S1), sh.Side, sh.NearM, sh.CoveM, sh.DykeM }),
+            tidal = plan.Water.Where(w => w.Type == "tidal").Select(w => new { w.Id, s = Math.Round((w.S0 + w.S1) / 2), span = Math.Round(w.S1 - w.S0) }),
+        };
     }
 
     /// <summary>A route's far horizon (Art.PlanSky) as a PNG, to look at the band flat.</summary>

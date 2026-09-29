@@ -78,6 +78,7 @@ sealed partial class LineBuilder
         Lap("geometry");
         LayStructuresAndIntents();
         LayStations();
+        LayWaterside();
         RollWeather();
         LayTags();
         LayExposure();
@@ -176,6 +177,8 @@ sealed partial class LineBuilder
             Intents = _intents,
             Structures = _structures,
             Water = _water,
+            Lakes = _lakes,
+            Shores = _shores,
             Authority = new PlanAuthority(_l.LineSpeed, _t.Fortress.YardSpeed, _limits, _restricted, _demands, Math.Round(_l.TellMargin, 3), _t.Reaction.TReactS, Math.Round(_l.Brake, 4)),
             Signage = _signs,
             Pois = _pois,

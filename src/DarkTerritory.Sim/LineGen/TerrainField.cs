@@ -25,6 +25,8 @@ public sealed class TerrainField
     readonly IReadOnlyDictionary<string, double> _relief;
     readonly Dictionary<string, Landform> _landforms;
     readonly double _flowCos, _flowSin;
+    readonly PlanLake[] _lakes;
+    readonly PlanShore[] _shores;
     const double Cell = 128;
 
     sealed class EdgeInfo
@@ -47,7 +49,9 @@ public sealed class TerrainField
         _relief = plan.Rules.BiomeRelief;
         _landforms = plan.Rules.BiomeLandforms.ToDictionary(kv => kv.Key, kv => Landform.From(kv.Value));
         double flow = (_r.Drumlins.FlowDeg) * Math.PI / 180;
-        (_flowCos, _flowSin) = (Math.Cos(flow), Math.Sin(flow));
+        (_flowCos, _flowSin) = (DetCos(flow), DetCos(flow - Math.PI / 2));
+        _lakes = [.. plan.Lakes];
+        _shores = [.. plan.Shores];
         var list = new List<EdgeInfo>();
         foreach (var a in plan.Alignment)
         {
@@ -166,7 +170,173 @@ public sealed class TerrainField
         double height = sum / weights;
         if (!double.IsNaN(formation))
             height = formation * formationW + height * (1 - formationW);
+        if (_lakes.Length > 0 || _shores.Length > 0)
+            height = Waterside(x, z, height, near);
         return Pads(x, z, height);
+    }
+
+    // ------------------------------------------------------------------ waterside (docs/design/maritime-rules.md)
+
+    /// <summary>
+    /// The lakes and shores (plan data): the land cut down to a lake's basin and its shore, or a shore's beach, mud and
+    /// sea, or a dyked marsh's fields and dyke set outright. Never under the formation's fill slope down from any track
+    /// it's near (a crossed lake is crossed on a fill), except where a bridge span leaves the ground open.
+    /// </summary>
+    double Waterside(double x, double z, double height, List<Near> near)
+    {
+        double h = height;
+        foreach (var lake in _lakes)
+        {
+            double reach = lake.RadiusM * lake.Stretch * (1 + lake.Wobble) + 40;
+            if (Math.Abs(x - lake.X) > reach || Math.Abs(z - lake.Z) > reach)
+                continue;
+            // Metres past the shore, near enough (the metric is in radii).
+            double past = (LakeMetric(lake, x, z) - 1) * lake.RadiusM;
+            double target = past >= 0
+                ? lake.LevelM + 0.35 + past * _r.Lakes.ShoreSlope
+                : lake.LevelM + 0.35 - (lake.DepthM + 0.35) * Smooth(0, 14, -past);
+            h = Math.Min(h, target);
+        }
+        if (_shores.Length > 0 && MainOf(near) is { } n)
+        {
+            foreach (var sh in _shores)
+            {
+                double taper = _r.Shore.TaperM;
+                if (n.S < sh.S0 - taper || n.S > sh.S1 + taper)
+                    continue;
+                double w = Smooth(sh.S0 - taper, sh.S0, n.S) * Smooth(sh.S1 + taper, sh.S1, n.S);
+                // A dyke sets the ground outright (its fields, its bank); a shore only ever cuts the land down to it.
+                double shore = Shore(sh, n.S, n.Lateral * sh.Side, x, z, n.Rail, h);
+                double shaped = sh.Kind == ShoreKind.Dyke ? shore : Math.Min(h, shore);
+                h += (shaped - h) * w;
+            }
+        }
+        if (h >= height)
+            return h;
+        double fill = double.NegativeInfinity;
+        foreach (var q in near)
+        {
+            if (Disabled(_edges[q.Edge], q.S))
+                continue;
+            double a = Math.Abs(q.Lateral);
+            fill = Math.Max(fill, a <= _r.ShoulderM ? q.Rail : q.Rail - (a - _r.ShoulderM) * _r.Lakes.FillSlope);
+        }
+        return Math.Max(h, Math.Min(height, fill));
+    }
+
+    Near? MainOf(List<Near> near)
+    {
+        foreach (var q in near)
+            if (_edges[q.Edge].Role == EdgeRole.Main)
+                return q;
+        return null;
+    }
+
+    /// <summary>How far out a shore's water's edge is at s: its near distance, and more in the coves.</summary>
+    public double ShoreEdge(PlanShore sh, double s) => sh.NearM + sh.CoveM * (0.5 + 0.5 * Value(s / sh.CoveWavelengthM + sh.Phase, 0.5, _seed ^ 0xC0FEE5EA));
+
+    /// <summary>
+    /// The land at <paramref name="l"/> metres seaward of the line (negative: landward) along a shore. The Atlantic's: a
+    /// beach up from the water, a cliff where the rail stands high over it, the sea deepening with drowned drumlins for
+    /// islands. Fundy's: a red mudflat at low water between. A dyke: flat fields both sides of the line, the dyke, salt
+    /// marsh, then the mud.
+    /// </summary>
+    double Shore(PlanShore sh, double s, double l, double x, double z, double rail, double land)
+    {
+        var sr = _r.Shore;
+        double d = ShoreEdge(sh, s);
+        if (sh.Kind == ShoreKind.River)
+        {
+            // The near bank down from the line, the bed, the far bank climbing into the valley side; the water follows the rail.
+            var rv = _r.Rivers;
+            double water = rail - sh.LevelM;
+            if (l < d)
+                return water + 0.4 + (d - l) * 0.35;
+            if (l < d + sh.FlatM)
+                return water - 0.2 - rv.DepthM * Smooth(0, Math.Min(8, sh.FlatM / 2), Math.Min(l - d, d + sh.FlatM - l))
+                    + 0.5 * Smooth(0.8, 1, Value(x / 14, z / 14, _seed ^ 0x2A4D));
+            return water + 0.4 + (l - d - sh.FlatM) * rv.FarSlope;
+        }
+        if (sh.Kind == ShoreKind.Dyke)
+        {
+            var dr = _r.Dykes;
+            // The fields lie the depth of the low bank under the rail, following it (a dykeland line is all but level).
+            double fields = rail - sh.FieldsM + 0.08 * Value(x / 9, z / 9, _seed ^ 0xD1CE);
+            if (l < 0)
+                return land + (fields - land) * Smooth(dr.LandwardM, dr.LandwardM * 0.6, -l);
+            double run = dr.HeightM / dr.SideSlope, half = dr.CrestM / 2 + run;
+            if (l < sh.DykeM - half)
+                return fields;
+            if (l <= sh.DykeM + half)
+                return fields + dr.HeightM * Math.Clamp((half - Math.Abs(l - sh.DykeM)) / run, 0, 1);
+            if (l < d)
+                return sh.LevelM + dr.MarshAboveWaterM + 0.1 * Value(x / 6, z / 6, _seed ^ 0x5A17);
+        }
+        else if (l < d)
+            return sh.LevelM + 0.6 + (d - l) * (rail - sh.LevelM > sr.CliffAboveM ? sr.CliffSlope : sr.BeachSlope);
+        double flatEnd = d + sh.FlatM;
+        if (l < flatEnd)
+            return sh.LevelM + 0.3 - 0.55 * Smooth(d, flatEnd, l) - 0.4 * Smooth(0.75, 1, Math.Abs(Value(x / 45, z / 45, _seed ^ 0x7A1D)));
+        double deep = sh.LevelM - 0.3 - sr.DepthM * Smooth(flatEnd, flatEnd + 50, l);
+        if (sh.Kind == ShoreKind.Sea)
+        {
+            // The ria coast's islands: drumlins the sea came in round, humped up out of it.
+            double n = 0.5 + 0.5 * Value(x / sr.IslandWavelengthM, z / sr.IslandWavelengthM, _seed ^ 0x1514ED);
+            deep += Smooth(1 - sr.IslandShare, 1 - sr.IslandShare * 0.4, n) * (sr.DepthM + 7) * Smooth(flatEnd + 30, flatEnd + 110, l);
+        }
+        return deep;
+    }
+
+    /// <summary>A lake's shape: under 1 inside its shore; the ellipse along its heading, its shore pushed in and out by a slow wobble.</summary>
+    public static double LakeMetric(PlanLake lake, double x, double z)
+    {
+        double dx = x - lake.X, dz = z - lake.Z;
+        double u = dx * lake.Cos + dz * lake.Sin, v = -dx * lake.Sin + dz * lake.Cos;
+        double ru = lake.RadiusM * lake.Stretch, rv = lake.RadiusM;
+        double m = Math.Sqrt(u * u / (ru * ru) + v * v / (rv * rv));
+        ulong seed = (ulong)(long)Math.Round(lake.X * 10) * 0x9E3779B97F4A7C15UL ^ (ulong)(long)Math.Round(lake.Z * 10);
+        double wob = Value(dx / (rv * 0.8), dz / (rv * 0.8), seed);
+        return m / (1 + lake.Wobble * wob);
+    }
+
+    /// <summary>
+    /// The water nearest (x, z) and whether it's near enough to shape the shore's ground: a lake's or a shore's level
+    /// and kind (lake, sea, fundy, dyke), within <paramref name="margin"/> metres of its edge. For the art's shore materials.
+    /// </summary>
+    public (double Level, string Kind)? WaterNear(double x, double z, double margin)
+    {
+        foreach (var lake in _lakes)
+        {
+            double reach = lake.RadiusM * lake.Stretch * (1 + lake.Wobble) + margin;
+            if (Math.Abs(x - lake.X) > reach || Math.Abs(z - lake.Z) > reach)
+                continue;
+            if ((LakeMetric(lake, x, z) - 1) * lake.RadiusM < margin)
+                return (lake.LevelM, "lake");
+        }
+        bool tidal = false;
+        foreach (var w in _plan.Water)
+            tidal |= w.Type == "tidal";
+        if ((_shores.Length == 0 && !tidal) || MainOf(Nearby(x, z, _r.CorridorM + 60)) is not { } n)
+            return null;
+        foreach (var sh in _shores)
+        {
+            if (n.S < sh.S0 - _r.Shore.TaperM || n.S > sh.S1 + _r.Shore.TaperM)
+                continue;
+            double l = n.Lateral * sh.Side;
+            if (sh.Kind == ShoreKind.River)
+            {
+                double d = ShoreEdge(sh, n.S);
+                if (l > d - margin && l < d + sh.FlatM + margin)
+                    return (n.Rail - sh.LevelM, "river");
+            }
+            else if (l > (sh.Kind == ShoreKind.Dyke ? sh.DykeM : ShoreEdge(sh, n.S) - margin))
+                return (sh.LevelM, sh.Kind.ToString().ToLowerInvariant());
+        }
+        // A tidal river's red mud banks, up and down its reach from the span.
+        foreach (var w in _plan.Water)
+            if (w.Type == "tidal" && w.Edge == _edges[n.Edge].Id && n.S > w.S0 - w.WidthM - margin && n.S < w.S1 + w.WidthM + margin)
+                return (w.LevelM, "tidal");
+        return null;
     }
 
     /// <summary>The formation's rail-height ground doesn't apply inside a tunnel or over a bridge span.</summary>
@@ -304,7 +474,7 @@ public sealed class TerrainField
             // Bare granite humps, rounded by the ice, close together, and the hollows between them holding the bogs.
             var k = _r.Knobs;
             double n = Value(x / k.WavelengthM, z / k.WavelengthM, _seed ^ 0x7F4A7C15), m = Value(x / (k.WavelengthM * 3.1), z / (k.WavelengthM * 3.1), _seed ^ 0x2C1B3C6D);
-            double knob = Math.Pow(Math.Max(0, n + 0.2), 1.6);
+            double k0 = Math.Max(0, n + 0.2), knob = k0 * Math.Sqrt(k0);
             shape += land.Knobs * (knob * k.Height + m * 0.35 - 0.1);
         }
         if (land.Plateau > 0)
@@ -392,6 +562,20 @@ public sealed class TerrainField
     {
         double w0 = _r.NoiseWavelengthM[0], w1 = _r.NoiseWavelengthM[^1];
         return 0.4 * Value(x / w0, z / w0, _seed) + 0.6 * Value(x / w1, z / w1, _seed ^ 0x5bd1e995);
+    }
+
+    /// <summary>A cosine from arithmetic alone (Taylor series after range reduction): the same bits on every machine (§17.3).</summary>
+    static double DetCos(double x)
+    {
+        const double tau = 2 * Math.PI;
+        x -= tau * Math.Floor(x / tau + 0.5);
+        double x2 = x * x, term = 1, sum = 1;
+        for (int i = 1; i < 14; i++)
+        {
+            term *= -x2 / ((2 * i - 1) * (2 * i));
+            sum += term;
+        }
+        return sum;
     }
 
     static double Value(double x, double z, ulong seed)
@@ -502,13 +686,15 @@ public sealed class TerrainField
             if (edge is null)
                 continue;
             var near = Nearby(x, z, w.WidthM + 20).FirstOrDefault(n => n.Edge == edge.Index);
-            if (near == default || near.S < w.S0 - (w.Type == "river" ? w.WidthM : 0) || near.S > w.S1 + (w.Type == "river" ? w.WidthM : 0))
+            if (near == default || near.S < w.S0 - (w.Type is "river" or "tidal" ? w.WidthM : 0) || near.S > w.S1 + (w.Type is "river" or "tidal" ? w.WidthM : 0))
                 continue;
-            if (w.Type == "river" && Math.Abs(near.S - (w.S0 + w.S1) / 2) > w.WidthM / 2 + (w.S1 - w.S0) / 2)
+            if (w.Type is "river" or "tidal" && Math.Abs(near.S - (w.S0 + w.S1) / 2) > w.WidthM / 2 + (w.S1 - w.S0) / 2)
                 continue;
             if (Height(x, z) < w.LevelM)
                 return w.LevelM;
         }
+        if (WaterNear(x, z, 0) is { } water && Height(x, z) < water.Level)
+            return water.Level;
         return null;
     }
 }

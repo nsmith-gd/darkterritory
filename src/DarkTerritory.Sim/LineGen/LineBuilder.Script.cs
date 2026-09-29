@@ -454,8 +454,12 @@ sealed partial class LineBuilder
             Wander = rng.Range(_t.Alignment.WanderDeg),
             MinRadius = _t.Alignment.WanderMinRadius,
         };
-        // In the black forest the connectors curve more: a sweep where there's room (§7.5).
-        if (region is { Straight: false } && s1 - s0 > 500 && rng.Chance(Def(region.Id).Param("curveBias")))
+        // In the black forest the connectors curve more: a sweep where there's room (§7.5). So do they where the biome
+        // keeps to the coast or the contours (maritime-rules.md §7: the South Shore line heading every cove, the Island
+        // railway going round every hill).
+        double curve = region is { Straight: false } ? Def(region.Id).Param("curveBias")
+            : region is null && _c.Config.Biomes.Biomes.TryGetValue(BiomeAt((s0 + s1) / 2), out var bd) ? bd.SweepChance : 0;
+        if (s1 - s0 > 500 && curve > 0 && rng.Chance(curve))
         {
             var sweep = Def("sweep");
             item.Kind = "sweep";

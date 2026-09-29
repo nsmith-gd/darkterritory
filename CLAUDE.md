@@ -18,7 +18,7 @@ python3 tools/art/textures.py                                         # rebuild 
 tools/blender/build.sh                                                # rebuild content/art/models (crew and creatures; needs blender)
 python3 tools/models/fetch.py && tools/models/build.sh                # sourced CC0/CC-BY models -> content/art/models/props (recipes bash them; needs blender)
 dotnet run --project src/DarkTerritory.Cli -- harness --bots 8 --seconds 300   # host + bots over lossy loopback; netcode report
-dotnet run --project src/DarkTerritory.Cli -- linegen generate --route frontier:7 --cars 6   # a night's line plan + map and profile PNGs; `linegen sweep` for pass rates
+dotnet run --project src/DarkTerritory.Cli -- linegen generate --route frontier:7 --cars 6   # a night's line plan + map and profile PNGs; `linegen sweep` for pass rates; `linegen water` its lakes and shores
 XDG_RUNTIME_DIR=/tmp xvfb-run -a dotnet run --project src/DarkTerritory.App -- --throttle 1 --quit-after 10 --capture out/shots/app.png   # real window path, headless
 ```
 **Look at your visual changes.** After touching rendering or scene code, render the relevant `dt screenshot` views and read the PNGs before calling it done. Views: trackside, roof, cab, chase, ahead.

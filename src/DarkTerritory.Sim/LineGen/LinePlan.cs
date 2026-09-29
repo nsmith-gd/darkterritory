@@ -34,6 +34,9 @@ public sealed record LinePlan
     public IReadOnlyList<PlanIntent> Intents { get; init; } = [];
     public IReadOnlyList<PlanStructure> Structures { get; init; } = [];
     public IReadOnlyList<PlanWater> Water { get; init; } = [];
+    /// <summary>The lakes beside and across the line, and the shores it runs along (maritime-rules.md §2-4).</summary>
+    public IReadOnlyList<PlanLake> Lakes { get; init; } = [];
+    public IReadOnlyList<PlanShore> Shores { get; init; } = [];
     public required PlanAuthority Authority { get; init; }
     public IReadOnlyList<PlanSign> Signage { get; init; } = [];
     public IReadOnlyList<PlanPoi> Pois { get; init; } = [];
@@ -129,6 +132,30 @@ public sealed record WeakLimit(int MaxCars, double SpeedMs);
 
 /// <summary>A water body's flat plane (§12.4): a river where it crosses, or a marsh's standing water along a stretch.</summary>
 public sealed record PlanWater(string Id, string Type, double LevelM, string Edge, double S0, double S1, double WidthM);
+
+/// <summary>
+/// A lake (maritime-rules.md §2): an ellipse at (X, Z), <paramref name="RadiusM"/> across and <paramref name="Stretch"/>
+/// times that along its heading (the ice's flow, as a unit vector so the terrain needs no trigonometry, §17.3), its
+/// shore wobbling by <paramref name="Wobble"/>; its water at <paramref name="LevelM"/>, <paramref name="DepthM"/> deep.
+/// </summary>
+public sealed record PlanLake(string Id, double X, double Z, double RadiusM, double Stretch, double Cos, double Sin, double Wobble, double LevelM, double DepthM,
+    bool Crossed);
+
+/// <summary>
+/// The kinds of shore (maritime-rules.md §3-5): the Atlantic's rock and shingle, Fundy's red mudflats, a dyked marsh;
+/// and a river the line runs up the valley of, its water falling with the rail (its level is then how far under it).
+/// </summary>
+public enum ShoreKind : byte { Sea, Fundy, Dyke, River }
+
+/// <summary>
+/// A shore along an edge from <paramref name="S0"/> to <paramref name="S1"/> on <paramref name="Side"/> (+1 right): the
+/// water at <paramref name="LevelM"/>, its edge <paramref name="NearM"/> out plus up to <paramref name="CoveM"/> more in
+/// coves every <paramref name="CoveWavelengthM"/> or so; <paramref name="FlatM"/> of mud at low water (Fundy), or the
+/// river's width (River, whose <paramref name="LevelM"/> is its water's depth under the rail);
+/// a dyke's crest <paramref name="DykeM"/> out, its fields <paramref name="FieldsM"/> under the rail (Dyke).
+/// </summary>
+public sealed record PlanShore(string Id, ShoreKind Kind, string Edge, double S0, double S1, int Side, double LevelM, double NearM, double CoveM,
+    double CoveWavelengthM, double Phase, double FlatM, double DykeM = 0, double FieldsM = 0);
 
 public enum LimitSource : byte { LineSpeed, Board, Form19, Restricted, Yard, Curve, Bridge, Brass }
 

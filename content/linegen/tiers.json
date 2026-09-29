@@ -154,7 +154,28 @@
     // Heights are shares of reliefM.
     "drumlins": { "wavelengthM": 150, "stretch": 2.8, "flowDeg": -35, "height": 1.6 },
     "knobs": { "wavelengthM": 38, "height": 0.9 },
-    "plateau": { "wavelengthM": 520, "height": 1.8, "gorgeWavelengthM": 900, "gorgeWidth": 0.09, "gorgeDepth": 0.6 }
+    "plateau": { "wavelengthM": 520, "height": 1.8, "gorgeWavelengthM": 900, "gorgeWidth": 0.09, "gorgeDepth": 0.6 },
+    // The water the line runs past (docs/design/maritime-rules.md; biomes.json lakesPerKm, shore, shoreKind). Lakes:
+    // the Southern Upland is about 15% water, shallow dark lakes lying along the ice's flow; a crossed one is crossed on
+    // a fill across its narrows (the South Shore line's way). radiusM is the minor semi-axis, stretch the long one's
+    // share; offM from the track to the near shore in radii; the water levelBelowRailM under the lowest rail near it.
+    "lakes": { "radiusM": [35, 150], "stretch": [1.3, 2.6], "offM": [0.1, 0.9], "crossChance": 0.3, "crossRadiusM": [45, 110], "turnDeg": 25,
+      "depthM": 3.5, "levelBelowRailM": 2.2, "shoreSlope": 0.22, "wobble": 0.35, "clearM": 30, "fillSlope": 0.55 },
+    // A shore along the line: its edge nearM out plus coves up to coveM deeper every coveWavelengthM (the Atlantic's
+    // drowned coast); a beach up from the water, a cliff where the rail stands over cliffAboveM above it (Fundy's
+    // sandstone, 30 m at Joggins); Fundy's mudflats flatM wide at low water (a 12-16 m tide leaves kilometres); drowned
+    // drumlins for islands (islandShare of the sea floor humps up). Tidal rivers: the span and depth scaled.
+    "shore": { "levelBelowRailM": 4.5, "nearM": [30, 70], "coveM": [30, 140], "coveWavelengthM": [260, 650], "beachSlope": 0.16, "cliffAboveM": 11,
+      "cliffSlope": 1.7, "depthM": 8, "flatM": [50, 160], "taperM": 350, "minM": 900, "islandShare": 0.25, "islandWavelengthM": 170,
+      "tidalSpanFactor": 2.2, "tidalDepthFactor": 1.8 },
+    // Acadian dykeland: hay fields dead flat under the line (the Tantramar: 90% dyked; the railway grade itself holds
+    // back the tide in places), a dyke 1-2.5 m high outM from the track, salt marsh past it, then the red mud. A shore
+    // whose rail rises or falls more than maxRailRangeM along it is a mudflat shore instead.
+    // A river alongside the line up its valley (the ICR up the Wentworth, the DAR along the Gaspereau and the
+    // Annapolis, the St. John River line): tea-brown upland water over boulders, falling with the rail.
+    "rivers": { "bankM": [16, 40], "meanderM": [10, 45], "widthM": [18, 45], "belowRailM": 3.5, "depthM": 1.8, "farSlope": 0.45 },
+    "dykes": { "fieldsBelowRailM": 1.5, "heightM": 2.2, "crestM": 3, "sideSlope": 0.55, "outM": [40, 90], "marshAboveWaterM": 2.8, "landwardM": 160,
+      "maxRailRangeM": 8 }
   },
 
   // Plan §14: terrain's local change to the night's weather. Fog denser in low ground, thinner on crests; wind worse

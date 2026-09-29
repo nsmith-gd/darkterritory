@@ -291,4 +291,88 @@ public static class NovaKit
         }
         return k.Build($"fishshed-{variant}");
     }
+
+    /// <summary>
+    /// Speckled alder: the thicket every Maritime right-of-way grows up in, a clump of thin grey stems leaning out from a
+    /// root, the late leaves dark olive-brown in crossed cards. Head-high to twice that; it closes the line in.
+    /// </summary>
+    public static MeshAsset Alder(Look? look, int variant)
+    {
+        var k = new Kit(look, 3000 + variant);
+        var rng = new Random(3000 + variant);
+        int stems = 4 + variant % 3;
+        k.Use("wood_grey", Palette.BlueGrey, 0.9f, 0.05f, tile: 0.8f);
+        k.Tint = new Vector3(0.75f, 0.74f, 0.7f);
+        var tops = new List<Vector3>();
+        for (int i = 0; i < stems; i++)
+        {
+            float a = i * MathF.Tau / stems + (float)rng.NextDouble() * 0.6f, lean = 0.6f + (float)rng.NextDouble() * 1.2f, h = 2.6f + (float)rng.NextDouble() * 1.8f;
+            var top = new Vector3(MathF.Sin(a) * lean, h, MathF.Cos(a) * lean);
+            k.Rod(new Vector3(MathF.Sin(a) * 0.15f, 0, MathF.Cos(a) * 0.15f), top, 0.035f, 3);
+            tops.Add(top);
+        }
+        k.Use("pine_card", Palette.PineDark, 0.3f, 0, tile: 1);
+        k.Baked = 0;
+        k.Tint = new Vector3(0.95f, 0.85f, 0.55f);
+        foreach (var top in tops)
+            for (int j = 0; j < 2; j++)
+            {
+                float a = (float)rng.NextDouble() * MathF.PI;
+                k.Panel(top - new Vector3(0, 0.7f, 0), new Vector3(MathF.Sin(a), 0, MathF.Cos(a)), Vector3.UnitY, 1.8f, 1.9f,
+                    new Vector2(0, 0.35f), new Vector2(1, 1), twoSided: true);
+            }
+        return k.Build($"alder-{variant}");
+    }
+
+    /// <summary>
+    /// A lighthouse on a headland (maritime-rules.md §6): the square, tapered wooden tower of the small lights, white
+    /// shingles gone grey, an iron lantern on top with its glass black. Nobody's kept it.
+    /// </summary>
+    public static MeshAsset Lighthouse(Look? look, int variant)
+    {
+        var k = new Kit(look, 3100 + variant);
+        float h = 10 + variant * 2.5f, b = 2.6f, t = 1.5f;
+        k.Use("wood_siding", new Vector3(0.8f, 0.8f, 0.76f), 0.9f, 0.05f, tile: 1.2f);
+        k.Tint = new Vector3(1.3f, 1.3f, 1.25f);
+        var lo = new[] { new Vector3(-b, 0, -b), new Vector3(b, 0, -b), new Vector3(b, 0, b), new Vector3(-b, 0, b) };
+        var hi = new[] { new Vector3(-t, h, -t), new Vector3(t, h, -t), new Vector3(t, h, t), new Vector3(-t, h, t) };
+        for (int i = 0; i < 4; i++)
+        {
+            int j = (i + 1) % 4;
+            k.Quad(lo[j], lo[i], hi[i], hi[j]);
+        }
+        k.Box(new Vector3(-t - 0.4f, h, -t - 0.4f), new Vector3(t + 0.4f, h + 0.3f, t + 0.4f), Kit.Faces.All);
+        k.Use("iron_plate", new Vector3(0.45f, 0.12f, 0.1f), 0.7f, 0.3f, tile: 1);
+        k.Tint = new Vector3(1.4f, 0.7f, 0.6f);
+        k.Cylinder(new Vector3(0, h + 0.3f, 0), new Vector3(0, h + 2.1f, 0), 1.05f, 8, caps: false);
+        k.Cylinder(new Vector3(0, h + 2.1f, 0), new Vector3(0, h + 3.1f, 0), 1.2f, 8, caps: true, radiusB: 0.15f);
+        k.Use("glass_dirty", Palette.SootBlack, 0.4f, 0.6f, tile: 1);
+        k.Tint = Vector3.One;
+        k.Cylinder(new Vector3(0, h + 0.5f, 0), new Vector3(0, h + 1.9f, 0), 1.08f, 8, caps: false);
+        // A door at the foot, and a window a storey up.
+        k.Shade(0.2f);
+        k.Panel(new Vector3(0, 1.0f, -b - 0.02f), -Vector3.UnitZ, Vector3.UnitY, 0.9f, 2.0f, Vector2.Zero, Vector2.One);
+        k.Panel(new Vector3(0, h * 0.55f, -(b + (t - b) * 0.55f) - 0.05f), -Vector3.UnitZ, Vector3.UnitY, 0.6f, 0.9f, Vector2.Zero, Vector2.One);
+        return k.Build($"lighthouse-{variant}");
+    }
+
+    /// <summary>
+    /// A crib wharf (maritime-rules.md §6): log cribs filled with rock, a plank deck across them, run out from the shore
+    /// into the water along +Z's back (−Z out), some of its planks gone.
+    /// </summary>
+    public static MeshAsset Wharf(Look? look, int variant)
+    {
+        var k = new Kit(look, 3200 + variant);
+        var rng = new Random(3200 + variant);
+        float len = 16 + variant * 6, w = 4, deck = 1.6f;
+        k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
+        for (float z = 0; z > -len; z -= 5)
+            k.Box(new Vector3(-w / 2, -4, z - 3.2f), new Vector3(w / 2, deck - 0.2f, z), Kit.Faces.Sides);
+        k.Use("wood_floor", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
+        k.Tint = new Vector3(0.8f, 0.8f, 0.78f);
+        for (float z = 0.2f; z > -len; z -= 0.35f)
+            if (rng.NextDouble() > 0.1)
+                k.Box(new Vector3(-w / 2 - 0.2f, deck - 0.2f, z - 0.3f), new Vector3(w / 2 + 0.2f, deck, z), Kit.Faces.All & ~Kit.Faces.NegY);
+        return k.Build($"wharf-{variant}");
+    }
 }

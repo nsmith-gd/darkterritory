@@ -159,6 +159,7 @@ public sealed partial class WorldArt
             "fir" => Piece($"fir-{v}", () => NovaKit.Conifer(_look, v, 12, 0.46f)),
             "birch" => Piece($"birch-{v % 3}", () => NovaKit.Birch(_look, v % 3)),
             "pine" => Piece($"pine-{v}", () => WorldKit.Pine(_look, v, 12)),
+            "tamarack" => Piece($"tamarack-{v}", () => NovaKit.Conifer(_look, v, 12, 0.26f)),
             _ => Piece($"spruce-{v}", () => NovaKit.Conifer(_look, v, 12, 0.3f)),
         };
 
@@ -192,6 +193,9 @@ public sealed partial class WorldArt
                     }
                 // Stunted on the barrens and the highland (krummholz), tall in the forest.
                 float height = def.Verge == "barrens" ? 3 + (float)rng.NextDouble() * 5 : (dead ? 7 : 9) + (float)rng.NextDouble() * (dense ? 13 : 9);
+                // White pine stands out over the spruce (maritime-rules.md §5: to 35 m over a 20-30 m canopy), even on the barrens.
+                if (kind == "pine" && !dead)
+                    height = (def.Verge == "barrens" ? 9 : 20) + (float)rng.NextDouble() * 9;
                 if (!Free(along, offset))
                     continue;
                 var (m, slope) = Place(along, offset, yaw, height / 12, 0.15f);
@@ -204,7 +208,9 @@ public sealed partial class WorldArt
                     (m, _) = Place(along, offset, yaw, height / (piece.Name.StartsWith("ghost") ? 8 + variant * 2.5f : 10) * 0.9f, 0.15f);
                 if (kind == "birch" && !dead)
                     (m, _) = Place(along, offset, yaw, height / 11, 0.1f);
-                mesh.Append(piece, m, new Vector3(0.8f + 0.3f * (float)rng.NextDouble()));
+                // Tamarack goes gold in the fall, before its needles drop (the bog's one colour).
+                var tint = kind == "tamarack" && !dead ? new Vector3(1.55f, 1.2f, 0.55f) * (0.85f + 0.3f * (float)rng.NextDouble()) : new Vector3(0.8f + 0.3f * (float)rng.NextDouble());
+                mesh.Append(piece, m, tint);
                 if (corrupted)
                     mesh.Append(Piece($"brass-{variant % 3}", () => BrassCluster(_look, variant % 3)), Place(along + 0.6, offset, yaw, 0.9f, 0.05f).M);
             }
@@ -241,6 +247,72 @@ public sealed partial class WorldArt
                 var piece = reeds && !weed ? Piece($"reeds-{v}", () => SettingKit.Reeds(_look, v)) : Piece($"tuft-{v}-{weed}", () => WorldKit.Tuft(_look, v, weed));
                 mesh.Append(piece, Place(along, offset, (float)rng.NextDouble() * 6.28f, (barrens ? 0.5f : 0.7f) + (float)rng.NextDouble() * 0.7f, 0.02f).M,
                     barrens ? new Vector3(0.75f, 0.55f, 0.45f) : Vector3.One);
+            }
+        }
+        // Alder: the thicket that grows up along every right-of-way in the Maritimes (maritime-rules.md §5), a fringe
+        // between the verge and the trees, thicker where the ground's wet, none on the open barrens or the dykeland.
+        for (double s = Math.Ceiling(from / 6) * 6; s < to; s += 6)
+        {
+            if (!Clear(s) || p.Biome(s) is not { } def || def.Verge != "grass" || def.TreeDensity < 0.1)
+                continue;
+            var rng = new Random(unchecked(seed * 2654435 ^ (int)(s / 6) * 40503));
+            double chance = Math.Min(0.8, 0.25 + def.TreeDensity * 0.35 + def.Water * 0.3);
+            foreach (int side in new[] { -1, 1 })
+            {
+                if (rng.NextDouble() > chance)
+                    continue;
+                double offset = side * (5.5 + rng.NextDouble() * 6.5), along = s + rng.NextDouble() * 6;
+                if (!Free(along, offset))
+                    continue;
+                int v = rng.Next(4);
+                var (m, slope) = Place(along, offset, (float)rng.NextDouble() * 6.28f, 0.8f + (float)rng.NextDouble() * 0.6f, 0.1f);
+                if (slope < 0.9f)
+                    mesh.Append(Piece($"alder-{v}", () => NovaKit.Alder(_look, v)), m, new Vector3(0.75f + 0.35f * (float)rng.NextDouble()));
+            }
+        }
+        // The shore's own (maritime-rules.md §6): fish sheds on their stilts at the head of a cove, a crib wharf run out
+        // from them, and a lighthouse out on a headland; all at the water's edge, wherever it wanders.
+        foreach (var sh in p.Plan.Shores.Where(x => x.Kind != ShoreKind.Dyke && x.S1 > from && x.S0 < to))
+        {
+            for (double s = Math.Max(sh.S0 + 60, Math.Ceiling(from / 20) * 20); s < Math.Min(sh.S1 - 60, to); s += 20)
+            {
+                if (!Clear(s))
+                    continue;
+                double e0 = p.Terrain.ShoreEdge(sh, s - 40), e = p.Terrain.ShoreEdge(sh, s), e1 = p.Terrain.ShoreEdge(sh, s + 40);
+                var rng = new Random(unchecked(seed * 7919 ^ (int)(s / 20) * 104729 ^ sh.Id.Length));
+                float seaward = sh.Side > 0 ? MathF.PI / 2 : -MathF.PI / 2;
+                if (e > e0 && e >= e1 && sh.Kind == ShoreKind.Sea && rng.NextDouble() < 0.7)
+                {
+                    // A cove's head: two or three sheds along the waterline, a wharf out from the first.
+                    int sheds = 2 + rng.Next(2);
+                    for (int i = 0; i < sheds; i++)
+                    {
+                        double along = s + (i - sheds / 2.0) * 9, lateral = sh.Side * (p.Terrain.ShoreEdge(sh, along) - 2);
+                        if (Free(along, lateral * 0.85))
+                            mesh.Instances.Add(new MeshInstance(Piece($"fishshed-{i % 3}", () => NovaKit.FishShed(_look, i % 3)),
+                                Place(along, lateral, seaward + (float)(rng.NextDouble() - 0.5) * 0.4f, 1, 0.9f).M));
+                    }
+                    int wv = rng.Next(2);
+                    mesh.Instances.Add(new MeshInstance(Piece($"wharf-{wv}", () => NovaKit.Wharf(_look, wv)),
+                        Place(s + 4, sh.Side * (e + 1), seaward + MathF.PI, 1, 0).M));
+                }
+                else if (e < e0 && e <= e1 && sh.Kind == ShoreKind.Sea && rng.NextDouble() < 0.18)
+                {
+                    int lv = rng.Next(2);
+                    double lateral = sh.Side * Math.Max(12, e - 10);
+                    if (Free(s, lateral))
+                        mesh.Instances.Add(new MeshInstance(Piece($"lighthouse-{lv}", () => NovaKit.Lighthouse(_look, lv)), Place(s, lateral, seaward, 1, 0.3f).M));
+                }
+                // Boulders along the tide line, granite or sandstone; in a river, across its bed (the rapids).
+                for (int i = 0; i < (sh.Kind == ShoreKind.River ? 4 : 2); i++)
+                {
+                    double along = s + rng.NextDouble() * 20;
+                    double lateral = sh.Side * (p.Terrain.ShoreEdge(sh, along) + (sh.Kind == ShoreKind.River ? rng.NextDouble() * sh.FlatM : (rng.NextDouble() - 0.6) * 10));
+                    int v = rng.Next(3);
+                    float size = 0.7f + (float)rng.NextDouble() * 1.6f;
+                    mesh.Append(Piece($"rock-{v}", () => WorldKit.Rock(_look, v, 1)), Place(along, lateral, (float)rng.NextDouble() * 6.28f, size, size * 0.4f).M,
+                        sh.Kind == ShoreKind.Fundy ? new Vector3(1.2f, 0.75f, 0.6f) : Vector3.One);
+                }
             }
         }
         // What people left, and what the ice left: by the block, each piece as the biome has it (biomes.json props).
@@ -308,6 +380,22 @@ public sealed partial class WorldArt
                             if (s > line.Length || !Clear(s) || !Free(s, lateral) || rng.NextDouble() < 0.12)
                                 continue;
                             mesh.Instances.Add(new MeshInstance(Piece($"stonewall-{i % 3}", () => NovaKit.StoneWall(_look, i % 3)), Place(s + 8, lateral, 0, 1, 0.1f).M));
+                        }
+                        break;
+                    }
+                case "oldField":
+                    {
+                        // Pasture spruce (maritime-rules.md §5): a farm field given up, grown in solid with white spruce all of
+                        // an age and a height, a dark block with a hard edge where the field's edge was.
+                        float h = 4 + (float)rng.NextDouble() * 4;
+                        for (int i = 0; i < 30; i++)
+                        {
+                            double s = along + (rng.NextDouble() - 0.5) * 36, l = lateral + (rng.NextDouble() - 0.5) * 24;
+                            if (!Free(s, l))
+                                continue;
+                            int tv = rng.Next(4);
+                            mesh.Append(Piece($"spruce-{tv}", () => NovaKit.Conifer(_look, tv, 12, 0.3f)),
+                                Place(s, l, (float)rng.NextDouble() * 6.28f, h * (0.85f + 0.3f * (float)rng.NextDouble()) / 12, 0.1f).M, new Vector3(0.85f, 0.95f, 0.9f));
                         }
                         break;
                     }
@@ -615,15 +703,21 @@ public sealed partial class WorldArt
     void Water(MeshBuilder mesh, PlanScene p, Double3 eye, float drawDistance)
     {
         var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
-        k.Use("tar", new Vector3(0.05f, 0.06f, 0.07f), 0.05f, 0.9f, tile: 6);
+        k.Use(_look?.Layer("water_dark") >= 0 ? "water_dark" : "tar", new Vector3(0.05f, 0.06f, 0.07f), 0.05f, 0.9f, tile: 29);
         k.Tint = new Vector3(0.35f, 0.4f, 0.45f);
+        // The water's colour (maritime-rules.md §2-5): the upland lakes and rivers tea-dark with tannin, the sea slate,
+        // Fundy's tidal water red-brown with the mud it carries.
+        var peat = new Vector3(1.2f, 0.95f, 0.7f);
+        var slate = new Vector3(0.85f, 1.0f, 1.1f);
+        var mud = new Vector3(2.2f, 1.3f, 0.9f);
         foreach (var w in p.Plan.Water)
         {
             var line = p.EdgeLine(w.Edge);
             var mid = line.Sample(Math.Clamp((w.S0 + w.S1) / 2, 0, line.Length));
             if ((mid.Position - eye).Length > drawDistance + 150)
                 continue;
-            bool river = w.Type == "river";
+            k.Tint = w.Type == "tidal" ? mud : w.Type == "river" ? peat : new Vector3(0.9f, 0.95f, 0.9f);
+            bool river = w.Type is "river" or "tidal";
             // A river runs across under the span, out to the corridor's edge either way; a marsh lies beside the bed.
             double reach = river ? 160 : 90, inner = river ? -160 : 5;
             for (double s = w.S0; s < w.S1; s += 10)
@@ -640,6 +734,78 @@ public sealed partial class WorldArt
                     var q1 = P(a, ra, reach);
                     var q2 = P(b, rb, reach);
                     var q3 = P(b, rb, inner);
+                    k.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
+                }
+            }
+        }
+        // Lakes: a disc a little past the shore at the water's level; the land's own shore hides what's outside it.
+        k.Tint = peat;
+        foreach (var lake in p.Plan.Lakes)
+        {
+            var c = new Double3(lake.X, lake.LevelM, lake.Z);
+            double reach = lake.RadiusM * lake.Stretch * (1 + lake.Wobble);
+            if ((c - eye).Length > drawDistance + reach)
+                continue;
+            const int n = 40;
+            var centre = c.RelativeTo(eye);
+            Vector3 Rim(int i)
+            {
+                double a = i * Math.Tau / n, u = Math.Cos(a) * lake.RadiusM * lake.Stretch, v = Math.Sin(a) * lake.RadiusM;
+                double grow = 1 + lake.Wobble * 1.1 + 0.08;
+                return new Double3(lake.X + (u * lake.Cos - v * lake.Sin) * grow, lake.LevelM, lake.Z + (u * lake.Sin + v * lake.Cos) * grow).RelativeTo(eye);
+            }
+            for (int i = 0; i < n; i++)
+            {
+                var a = Rim(i);
+                var b = Rim(i + 1);
+                k.Quad(centre, a, b, centre, new Vector2(centre.X, centre.Z), new Vector2(a.X, a.Z), new Vector2(b.X, b.Z), new Vector2(centre.X, centre.Z), twoSided: true);
+            }
+        }
+        // Shores: the sea from just inside the water's edge out into the fog, along the shore and past its tapered ends.
+        foreach (var sh in p.Plan.Shores)
+        {
+            var line = p.EdgeLine(sh.Edge);
+            double taper = p.Plan.Rules.Terrain.Shore.TaperM;
+            k.Tint = sh.Kind == ShoreKind.Sea ? slate : sh.Kind == ShoreKind.River ? peat : mud;
+            if (sh.Kind == ShoreKind.River)
+            {
+                // A river: a ribbon between its banks, falling with the rail, along its meander.
+                for (double s = sh.S0 - taper * 0.5; s < sh.S1 + taper * 0.5; s += 10)
+                {
+                    double s1 = Math.Min(s + 10, sh.S1 + taper * 0.5);
+                    var a = line.Sample(Math.Clamp(s, 0, line.Length));
+                    var b = line.Sample(Math.Clamp(s1, 0, line.Length));
+                    if ((a.Position - eye).Length > drawDistance + 200)
+                        continue;
+                    var ra = Double3.Cross(a.Tangent, Double3.Up).Normalized * sh.Side;
+                    var rb = Double3.Cross(b.Tangent, Double3.Up).Normalized * sh.Side;
+                    double da = p.Terrain.ShoreEdge(sh, s), db = p.Terrain.ShoreEdge(sh, s1);
+                    Vector3 R(TrackSample t, Double3 r, double l) => (new Double3(t.Position.X, t.Position.Y - sh.LevelM, t.Position.Z) + r * l).RelativeTo(eye);
+                    var q0 = R(a, ra, da - 4);
+                    var q1 = R(a, ra, da + sh.FlatM + 4);
+                    var q2 = R(b, rb, db + sh.FlatM + 4);
+                    var q3 = R(b, rb, db - 4);
+                    k.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
+                }
+                continue;
+            }
+            for (double s = sh.S0 - taper; s < sh.S1 + taper; s += 20)
+            {
+                double s1 = Math.Min(s + 20, sh.S1 + taper);
+                var a = line.Sample(Math.Clamp(s, 0, line.Length));
+                var b = line.Sample(Math.Clamp(s1, 0, line.Length));
+                if ((a.Position - eye).Length > drawDistance + 1500)
+                    continue;
+                var ra = Double3.Cross(a.Tangent, Double3.Up).Normalized * sh.Side;
+                var rb = Double3.Cross(b.Tangent, Double3.Up).Normalized * sh.Side;
+                double inner = Math.Max(sh.NearM * 0.5, 12);
+                Vector3 P(TrackSample t, Double3 r, double l) => (new Double3(t.Position.X, sh.LevelM, t.Position.Z) + r * l).RelativeTo(eye);
+                foreach (var (l0, l1) in new[] { (inner, 300.0), (300.0, 1500.0) })
+                {
+                    var q0 = P(a, ra, l0);
+                    var q1 = P(a, ra, l1);
+                    var q2 = P(b, rb, l1);
+                    var q3 = P(b, rb, l0);
                     k.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
                 }
             }

@@ -147,15 +147,23 @@ sealed partial class LineBuilder
                 }
             case "river":
                 {
-                    double span = p.Params.GetValueOrDefault("spanM", 80), mid = (p.S0 + p.S1) / 2;
+                    double span = p.Params.GetValueOrDefault("spanM", 80), mid = (p.S0 + p.S1) / 2, depth = p.Params.GetValueOrDefault("depthM", 5);
+                    // A tidal river (maritime-rules.md §5): wide red mud banks, the channel deep at low water, crossed
+                    // on a long iron truss (the Shubenacadie's, the Avon's).
+                    bool tidal = _c.Config.Biomes.Biomes.TryGetValue(BiomeFor(e, mid), out var bd) && bd.TidalRivers;
+                    if (tidal)
+                        (span, depth) = (Math.Min(span * _t.Terrain.Shore.TidalSpanFactor, p.S1 - p.S0 - 200), depth * _t.Terrain.Shore.TidalDepthFactor);
                     double a = mid - span / 2, b = mid + span / 2;
                     _structures.Add(new PlanStructure($"bridge{++bridges}", span > 60 ? StructureType.Truss : StructureType.Girder, e.Id, R(a), R(b),
-                        p.Params.GetValueOrDefault("depthM", 5) + 2, Material: "iron"));
+                        depth + 2, Material: "iron"));
                     // Flood-plain approaches: low ground, a metre or two under the rail.
                     Replace(intents, e.Id, p.S0, a, new SideIntent(IntentType.Plain, -2), new SideIntent(IntentType.Plain, -2));
                     Replace(intents, e.Id, b, p.S1, new SideIntent(IntentType.Plain, -2), new SideIntent(IntentType.Plain, -2));
+                    if (tidal)
+                        Replace(intents, e.Id, a, b, new SideIntent(IntentType.River, -depth), new SideIntent(IntentType.River, -depth));
                     double z = HeightOn(e, mid);
-                    _water.Add(new PlanWater($"river{_water.Count + 1}", "river", R(z - p.Params.GetValueOrDefault("depthM", 5) + 1.2), e.Id, R(a), R(b), _t.Terrain.RiverWidthM));
+                    _water.Add(new PlanWater($"river{_water.Count + 1}", tidal ? "tidal" : "river", R(z - depth + (tidal ? 0.6 : 1.2)), e.Id, R(a), R(b),
+                        tidal ? span * 0.45 : _t.Terrain.RiverWidthM));
                     break;
                 }
             case "causeway":

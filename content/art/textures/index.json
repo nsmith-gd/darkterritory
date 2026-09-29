@@ -2467,7 +2467,7 @@
     "spec": "shore_shingle_s.png",
     "normal": "shore_shingle_n.png",
     "size": 512,
-    "tileMetres": 2.0,
+    "tileMetres": 5.0,
     "tiling": true,
     "family": "ground",
     "alphaTest": false,
@@ -2497,6 +2497,27 @@
       {
         "generator": "tools/art/textures.py",
         "what": "elliptical cobbles (domes, largest first) on gravel and sand, wet low line, wrack",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "water_dark",
+    "diffuse": "water_dark.png",
+    "spec": "water_dark_s.png",
+    "normal": "water_dark_n.png",
+    "size": 512,
+    "tileMetres": 8.0,
+    "tiling": true,
+    "family": "ground",
+    "alphaTest": false,
+    "albedoTarget": 0.016,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "wind swell and cat's-paws (fbm heights for the normal map), tannin-dark and glossy",
         "author": "Dark Territory",
         "license": "CC0-1.0"
       }
