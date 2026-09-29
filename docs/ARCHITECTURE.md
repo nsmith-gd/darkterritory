@@ -939,3 +939,18 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - While there, the door dealing was fixed too. Doors to shut were dealt out by position to the crate hands, including ones that had gone aboard or away to warm, so a door could be dealt to nobody who'd come. Now each hand claims the nearest open door no one else still at it has claimed (`CrewCalls.ClaimDoor`).
     - **Result:** the stop loads in 272 s instead of giving up at 420, and the night is 143 s shorter. It still delivers: 0 deaths, worst correction 0.35 m, fairness 0.
     - **Verified:** `TwoHandedTests.AClientSeesACrateAtRest`, `StopCrewTests.EachOpenDoorIsShutByOneHandThatsStillAtIt`, and the harness night.
+50. **The Draggers (T46, App. A.4, B.4, spec B.3).** "Reach up from beneath the car edges. RULE: stay off the edges." A flank threat on the shared spine (`enemies.json` `draggers`).
+    - **Where.** Under one edge of one car, and it never leaves that car. App. B.4 has them "pre-attached … dormant until a player is on the roofs"; the director makes that literal. It offers them only while someone's on a roof, under a car being walked, weighted by the roof walkers, at most two at a time, cost 2.
+    - **Dormant:** under the lip, it follows the nearest walker on its side along the car. Nothing to see or hear.
+    - **Telegraph:** a walker within `grabRange` (1 m) of its edge and near it along the car. A limb comes up over the lip with a single scrape (`dragger-scrape.json`, 2–4 kHz, spec A.4).
+      - Stepping back to the centreline in time sinks it back under, and it won't reach again for `rearmSeconds`.
+      - The grab waits for App. A.1's reaction window (1.5 s), which is longer than the GDD's "~1 s".
+    - **Grab:**
+      - **Alone:** after a beat, you're pulled off over the side (`DamageEvent.Pull`, `PlayerMotor.PullOff`). Spec B.3's one threshold decides it: faster than a survivable jump, that's death (`DeathCause.Dragged`, and the body goes over the side); slower, you land on the ballast and the train goes on.
+      - **With someone within 4 m:** they have two seconds to pull you free: Use, within 1.5 m of you. After that, you're pulled off anyway.
+    - **Speed.** Spec B.3's "Max 22 m/s: Draggers +50% grab range" is a ramp from cruise (14) to max (22), so there's no cliff at 21.9 m/s.
+    - **The pull is the host's move.** It puts the player in the world frame outside the car, falling, and bumps `Placed`, so a predicting client adopts it rather than correcting it.
+    - **Seen:** a pale limb just outside the eave, hooking in over the roof. Two limbs when it's grabbed. The HUD tells the grabbed and whoever's near them. `dt screenshot --threats` stages one; CI keeps `threats-dragger.png`.
+    - **Heard:** the scrape passes `AudioTests`' "tier 1 is inviolable": +23 dB over the bed on that car's roof in maximum chaos, and the Clinger's drill, which shares 3–4 kHz, stays as audible as it was.
+    - **Bots** walk the centreline, so they're never taken. On frontier:7, two Draggers woke and punished nobody. They did take the Flank slots the Clingers used to get, so that night's mix moved (more hounds): 4 were mauled, none lost for good, delivered.
+    - **Verified:** `DraggerTests` (10): the centreline is safe; near the edge, it telegraphs, then pulls you off, and at 14 m/s that kills; at 2 m/s you're left on the ballast; stepping back in time sinks it and it rearms; with a mate, the window and the rescue, or no rescue and taken; farther reach at max speed; the other edge isn't its edge; the director wakes them only for roof walkers; a client sees the limb and who it's got.

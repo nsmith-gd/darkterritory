@@ -193,6 +193,9 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.SootChildren, SpinePhase.Telegraph) => "someone outside is calling for help",
         (EnemyKind.SootChildren, SpinePhase.Punish) => "somebody answered the voice outside",
         (EnemyKind.SootChildren, SpinePhase.BreakOff) => "the voice outside gives up",
+        (EnemyKind.Dragger, SpinePhase.Telegraph) => "a scrape at the roof's edge: something reaching over the lip",
+        (EnemyKind.Dragger, SpinePhase.Punish) => "grabbed at the edge! get them free",
+        (EnemyKind.Dragger, SpinePhase.BreakOff) => "it lets go and sinks back under the edge",
         _ => null,
     };
 

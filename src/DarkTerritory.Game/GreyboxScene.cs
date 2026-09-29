@@ -309,6 +309,28 @@ public sealed class GreyboxScene
                 Draw(outward * 0.41, 0.1, 0, 0.02, 0.06, 0.5, bite);
                 mesh.Emissive = 0;
                 break;
+            case EnemyKind.Dragger when e.Phase is SpinePhase.Telegraph or SpinePhase.Punish:
+                {
+                    // Out of sight under the edge until it reaches (App. A.4): then a long limb comes up just outside the eave
+                    // and hooks in over the roof, rising through the telegraph's second; grabbing, two of them, further in.
+                    // Corrupted flesh, pale: the one light-coloured thing at a car's dark edge, so the reach reads in time.
+                    double inward = -Math.Sign(e.Local.X);
+                    double rise = e.Phase == SpinePhase.Punish ? 1 : Math.Clamp(e.PhaseSeconds / 1.0, 0.2, 1);
+                    int limbs = e.Phase == SpinePhase.Punish ? 2 : 1;
+                    var flesh = Palette.Corrupted * 1.7f;
+                    double outside = -inward * 0.14;
+                    for (int i = 0; i < limbs; i++)
+                    {
+                        double z = (i - (limbs - 1) * 0.5) * 0.4;
+                        double top = -0.1 + 0.8 * rise;
+                        Draw(outside, (top - 0.4) * 0.5, z, 0.08, (top + 0.4) * 0.5, 0.08, flesh);
+                        double reach = 0.3 + (e.Phase == SpinePhase.Punish ? 0.3 : 0.12) * rise;
+                        Draw(outside + inward * reach * 0.5, top, z, reach * 0.5 + 0.04, 0.06, 0.07, flesh);
+                        // Fingers splayed on the roof sheet.
+                        Draw(outside + inward * (reach + 0.08), top - 0.04, z, 0.09, 0.03, 0.12, Palette.Corrupted * 1.3f);
+                    }
+                    break;
+                }
             case EnemyKind.Switchman:
                 {
                     // A railwayman, stooped wrong, standing at the switch with a lantern held out: the lantern's the only
