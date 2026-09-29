@@ -954,3 +954,13 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Heard:** the scrape passes `AudioTests`' "tier 1 is inviolable": +23 dB over the bed on that car's roof in maximum chaos, and the Clinger's drill, which shares 3–4 kHz, stays as audible as it was.
     - **Bots** walk the centreline, so they're never taken. On frontier:7, two Draggers woke and punished nobody. They did take the Flank slots the Clingers used to get, so that night's mix moved (more hounds): 4 were mauled, none lost for good, delivered.
     - **Verified:** `DraggerTests` (10): the centreline is safe; near the edge, it telegraphs, then pulls you off, and at 14 m/s that kills; at 2 m/s you're left on the ballast; stepping back in time sinks it and it rearms; with a mate, the window and the rescue, or no rescue and taken; farther reach at max speed; the other edge isn't its edge; the director wakes them only for roof walkers; a client sees the limb and who it's got.
+51. **The crew see a headset's arms (T47, roadmap M4 "VR body IK").**
+    - **The hands go out with the rest of the player.** The player record now carries the reaching hand and the other hand, on the centimetre grid the intent brought them in on. They're zero for a keyboard or a bot, so delta encoding makes them free: 8 bots' snapshots are exactly the size they were (160 bytes, 37.6 kbit/s down). Remote players' hands are interpolated with their feet.
+    - **Prediction is unchanged.** A client's own hands still come from its own intent each tick, not from the host's echo, and a correction measures position only.
+    - **Two bones from the shoulder** (`Game/Arms.cs`, 0.30 m and 0.32 m): the elbow bends down, out and a little back, like a person's. A hand past the arm's length is reached for as far as the arm goes; the sim lets a hand go 0.8 m across from the body because a real player leans, and the figure doesn't lean yet.
+    - The sim doesn't say which hand is which, so each reported hand goes to the arm on its side. A single hand leaves the other arm hanging, and a keyboard player's arms hang.
+    - **Not yet:** a spine or neck that follows the headset, legs that step, and hands that hold what they're carrying. That's the rest of M4's body IK.
+    - **Verified:**
+      - `ArmsTests`: bone lengths hold, the hand arrives, the bend is outward, an out-of-reach hand reaches as far as it can, and hands are assigned to sides.
+      - `HandTests.TheRestOfTheCrewSeeAHeadsetsHands`: over loopback, another client sees both hands, and sees them drop when the controllers go down.
+      - `dt screenshot --view roof --crew` stages three crewmates on a roof: arms hanging, one reaching up, one holding out both hands. CI keeps `crew-arms.png`.

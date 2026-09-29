@@ -354,7 +354,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             if (Client.TryGetRemote(id, alpha, out var s))
             {
                 var (feet, yaw) = Eyes.World(s, frames);
-                _crew.Add(new Crewmate(id, feet, yaw, s.Alive));
+                _crew.Add(new Crewmate(id, feet, yaw, s.Alive, s.Hand, s.OtherHand));
             }
         return _crew;
     }
