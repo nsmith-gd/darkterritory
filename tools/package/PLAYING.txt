@@ -1,0 +1,25 @@
+DARK TERRITORY — a co-op night on the last railway
+==================================================
+
+Start DarkTerritory (DarkTerritory.exe on Windows). The title screen has:
+  CAMPAIGN      three save slots; the fortress between nights, where you take contracts, buy cars and upgrades
+  QUICK NIGHT   any tier and seed, alone or hosted for friends
+  JOIN A NIGHT  a friend's address (host:port); Steam friends join from the friends list
+  SETTINGS      sound, voice (open mic or push to talk), HUD, VR comfort, mouse speed
+
+On foot
+  mouse look, WASD walk, Shift run, Space jump
+  E: grab or let go of a ladder; hold E to work things (the firebox shovel, the valve, a door, a coupler, a switch stand)
+  E near a crate, a lamp or a body: pick it up or put it down; right mouse: throw it
+  left mouse at a gun (the engine's roof, the guard car's roof): fire. Every round brings the Choir.
+Driving (from the cab)
+  R/F regulator up/down, B brake (hold), X reverser (stopped only)
+Voice
+  talk nearby with an open mic (or hold V for push to talk); hold T for the radio
+Other
+  F1 the HUD, F2 invite Steam friends, Tab chase camera, Esc frees the mouse, Esc again leaves the night
+VR
+  start with --vr: head to look, left stick to walk (click to run), right stick to turn, grip to use, trigger to fire
+
+Hosting on a LAN or the internet: friends join your address on UDP port 27015 (forward it on your router, or use Steam).
+Your saves, settings and any crash reports are in your user folder's app data, under DarkTerritory.

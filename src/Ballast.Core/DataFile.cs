@@ -35,7 +35,11 @@ public static class DataFile
             if (Directory.Exists(candidate) && File.Exists(Path.Combine(dir.FullName, "Ballast.slnx")))
                 return candidate;
         }
-        throw new DirectoryNotFoundException("Could not locate content/ (looked for Ballast.slnx in parent dirs)");
+        // A shipped build: content/ beside the executable, wherever it was started from.
+        var shipped = Path.Combine(AppContext.BaseDirectory, "content");
+        if (Directory.Exists(shipped))
+            return shipped;
+        throw new DirectoryNotFoundException("Could not locate content/ (looked for Ballast.slnx in parent dirs, and beside the executable)");
     }
 }
 
