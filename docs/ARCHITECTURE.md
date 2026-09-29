@@ -1029,6 +1029,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **In the engine.** `PropArt` cooks each prop's bind pose once into a `MeshAsset`, and `Look` loads `index.models.json` beside the library.
       - The kit's piece stays as the fallback, so a checkout without the props still draws.
       - `dt art check` budgets the props like kit pieces. The hand lantern and the skull are medium props: the lantern doubles as the held lamp, and the skull is seen close.
+    - **Creatures from scans.** A scan can be rigged on its own pose. `recipes/hollow.py` bakes Le Transi down and places a 21-bone skeleton on the statue's joints, read off its silhouette. It weights each vertex to its nearest bones and keys the clips on `tools/blender/rig`'s `Clip`. The Hollow is that cadaver now: it replaces the procedural one, with the same clips and the same place. The Dragger and the rest stay procedural for now.
     - **First set.**
       - The Khronos Lantern, split into a lamp post and a hand lantern. The hand lantern replaces the kit's cage in the cars, on the platforms and as the dropped lamp.
       - The photoscanned skull.

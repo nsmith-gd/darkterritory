@@ -42,6 +42,27 @@
     ]
   },
   {
+    "name": "hollow_0",
+    "diffuse": "models/hollow_0.png",
+    "spec": "models/hollow_0_s.png",
+    "normal": "models/hollow_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "id": "gk-transi",
+        "repo": "https://github.com/gkjohnson/3d-demo-data",
+        "commit": "9149f69c729cae652f2cd4b25f25e726f54efa6a",
+        "files": null,
+        "license": "LicenseRef-ThreeDScans",
+        "attribution": "Le Transi de Rene de Chalon, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions"
+      }
+    ]
+  },
+  {
     "name": "lamp_post_0",
     "diffuse": "models/lamp_post_0.png",
     "spec": "models/lamp_post_0_s.png",
