@@ -451,6 +451,9 @@ public sealed class World
             case EnemyKind.LongWhistle when LongWhistle.Spot(Train, t.LongWhistle) is { } spot:
                 _enemies.Add(LongWhistle.At(_nextEnemyId++, Train, spot));
                 break;
+            case EnemyKind.Gaunt when Gaunt.Perch(this) is { } perch:
+                _enemies.Add(Gaunt.OnRoof(_nextEnemyId++, Train, perch.Car, perch.Z));
+                break;
             case EnemyKind.Weight when Weight.Spot(this, t.Weight) is { } lies:
                 _enemies.Add(Weight.Buried(_nextEnemyId++, lies, d.NextRange(0, 1) < 0.5 ? -1 : 1));
                 break;

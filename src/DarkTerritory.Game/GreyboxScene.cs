@@ -397,6 +397,12 @@ public sealed class GreyboxScene
                     mesh.Emissive = 0;
                     break;
                 }
+            case EnemyKind.Gaunt:
+                // Tall and thin on the roof, dead still.
+                Draw(0, 0.8, 0, 0.09, 0.8, 0.09, Palette.SootBlack);
+                Draw(0, 2.0, 0, 0.16, 0.45, 0.1, Palette.SootBlack);
+                Draw(0, 2.6, -0.05, 0.1, 0.13, 0.1, Palette.Corrupted * 0.5f);
+                break;
             case EnemyKind.Weight when e.Attached >= 0:
                 // A dark mass hung under the rear coupling, below the gun's arc, trailing on the ballast.
                 Draw(0, -0.1, 0.5, 0.55, 0.35, 0.7, Palette.SootBlack);
