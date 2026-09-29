@@ -397,6 +397,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     double pendingYaw = 0, pendingPitch = 0;
     int pendingNotch = 0;
     bool pendingReverser = false;
+    var pendingLamp = LampSwitch.None;
     bool chase = ride;
     double sensitivity = 0.0025 * settings.MouseSpeed;
     Camera camera = default;
@@ -422,6 +423,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // The prototype drives from anywhere; networked, cab controls go through intent like everything else.
         sbyte notch = (sbyte)((input.Pressed(Key.R) ? 1 : 0) - (input.Pressed(Key.F) ? 1 : 0));
         bool reverser = input.Pressed(Key.X);
+        // The lamp switch (T52): a setting, the opposite of how the lamp is now, held until a tick sends it.
+        if (input.Pressed(Key.L))
+            pendingLamp = session.World.LampLit ? LampSwitch.Off : LampSwitch.On;
         // Held until a tick sends them: at a high frame rate a key press can land on a frame with no tick.
         pendingNotch += notch;
         pendingReverser |= reverser;
@@ -480,6 +484,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 LookPitch = (float)pendingPitch,
                 Buttons = buttons,
                 ThrottleNotch = proto is null ? (sbyte)Math.Clamp(pendingNotch, -4, 4) : (sbyte)0,
+                Lamp = pendingLamp,
             };
             if (locomotion is not null)
             {
@@ -495,6 +500,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 levers!.Apply(ref intent, session.Player, session.Train, session.Controls, session.PlayerTuning.Hand);
             }
             pendingNotch = 0;
+            pendingLamp = LampSwitch.None;
             pendingReverser = false;
             pendingYaw = pendingPitch = 0;
             session.Step(intent);
@@ -523,6 +529,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Time = now;
         lighting = Views.Lighting(frames[0], look);
         lighting.Time = now;
+        // Lamps down (T52), smashed, or no power in a Vigil: no beam.
+        if (!session.World.LampShining)
+            lighting.LampIntensity = 0;
         if (session.Route is { } r)
         {
             lighting.FogDensity = (float)r.Weather.FogDensity;

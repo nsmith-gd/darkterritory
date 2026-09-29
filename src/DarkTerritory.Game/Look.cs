@@ -58,7 +58,7 @@ public sealed record LookTuning
 {
     public const string File = "tuning/look.json";
     public float TexelsPerMetre { get; init; } = 128;
-    /// <summary>Every material layer's size in the GPU array (the library is authored at 512: ARCHITECTURE §8 note 55).</summary>
+    /// <summary>Every material layer's size in the GPU array (the library is authored at 512: ARCHITECTURE §8 note 57).</summary>
     public int LayerSize { get; init; } = 512;
     public float Baked { get; init; } = 0.35f;
     /// <summary>By <see cref="Palette"/> colour name.</summary>

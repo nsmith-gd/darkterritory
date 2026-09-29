@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-# Final texture size. The fidelity target moved to 2008-2012 (ARCHITECTURE §8 note 55): 512 px a map, which at the
+# Final texture size. The fidelity target moved to 2008-2012 (ARCHITECTURE §8 note 57): 512 px a map, which at the
 # library's tile sizes is 256-512 px/m (the GDD §27 hero density everywhere). The CC0 sources are 1024.
 N = 512
 # The builders work at 512 (their layouts are authored in its pixels: board widths, brick courses), and in the "ps3"

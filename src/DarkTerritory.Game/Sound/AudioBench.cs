@@ -35,6 +35,8 @@ public static class AudioBench
         ["clinger-drill"] = (3000, 6000),
         ["dragger-scrape"] = (2000, 4000),
         ["rattle"] = (2000, 5000),
+        ["deadman-click"] = (1000, 2000),
+        ["stoker-hiss"] = (1000, 3000),
         ["hollow-gutter"] = (100, 1000),
         ["choir-voice"] = (300, 4000),
     };
@@ -48,6 +50,8 @@ public static class AudioBench
     public static bool MustHear(string sound, int listenerCar, int cars) => sound switch
     {
         "sleepers-writhe" or "hollow-gutter" => listenerCar == 0,
+        // The engine's business: whoever's nearest the cab, which in the bench is the cab (T53).
+        "deadman-click" or "stoker-hiss" => listenerCar == 0,
         "hound-howl" => listenerCar == cars - 1,
         "clinger-drill" => listenerCar == 1,
         // The one it's reaching for is on that car's roof: they're who has to hear it.

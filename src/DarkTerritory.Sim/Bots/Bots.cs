@@ -302,30 +302,55 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
 /// for what the lamp shows), brakes hard when the lamp finds something on the line, brakes before the
 /// end of the line, and keeps the fire fed (walks to the firebox and shovels when pressure drops).
 /// One bot doing both jobs is fine at short consists; at twenty cars it can't keep up (spec B.6).
+/// <para>
+/// Lamps down (App. A.6): eyes catching the lamp out in the dark and it switches the lamp off, and leaves it off a while
+/// after the last it saw of them. With the lamp off, the Sleepers only show close (App. A.2), at bracing distance: too
+/// late to brake from cruise to under the speed they derail at. So in the dark it runs just under that speed.
+/// </para>
 /// </summary>
 public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWorldBot
 {
     public string Name => "conductor";
     public double CruiseSpeed { get; init; } = 14;
+    /// <summary>Cruise with the lamp out: just under the Sleepers' derailing speed (enemies.json, 11.1 m/s: 40 km/h).</summary>
+    public double DarkCruiseSpeed { get; init; } = 10.5;
+    /// <summary>How long it keeps the lamp down after the last eyeshine.</summary>
+    public double LampDownSeconds { get; init; } = 30;
+    uint? _sawEyes;
     /// <summary>With a crew to call to, it stops to work the facilities they can (T32, GDD §17).</summary>
     public StopDriver? Stops { get; } = calls is null ? null : new StopDriver(calls);
 
     public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => Work(self, train, Drive(train, tick, CruiseSpeed, 1.5));
+
+    /// <summary>Lamps down while eyes are out there, and for a while after; up again once they've been gone a while.</summary>
+    LampSwitch Lamp(World world, uint tick)
+    {
+        if (world.ActiveEnemies.Any(e => e is Lamplighter { Eyeshine: true }))
+            _sawEyes = tick;
+        if (_sawEyes is { } saw && (tick - saw) * SimConstants.TickSeconds < LampDownSeconds)
+            return LampSwitch.Off;
+        _sawEyes = null;
+        return world.LampLit ? LampSwitch.None : LampSwitch.On;
+    }
 
     public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
         aimed = self;
         var train = world.Train;
         calls?.Say(member, StopJob.Driver, self);
+        var lamp = Lamp(world, tick);
         // On a generated line, no faster than its authority allows here (linegen plan §9, §16.1): what the boards say.
-        double cruise = world.TrackPlan is { } plan ? Math.Min(CruiseSpeed, LineGen.LineAuthority.For(plan, train.Line).Allowed(train)) : CruiseSpeed;
+        double cruise = world.LampShining ? CruiseSpeed : DarkCruiseSpeed;
+        if (world.TrackPlan is { } plan)
+            cruise = Math.Min(cruise, LineGen.LineAuthority.For(plan, train.Line).Allowed(train));
         if (Stops is { } stops)
         {
             stops.CruiseSpeed = cruise;
             if (stops.Decide(self, world) is { } stopping)
-                return Work(self, train, stopping);
+                return Work(self, train, stopping) with { Lamp = lamp };
         }
         var intent = Drive(train, tick, cruise, world.TrackPlan is null ? 1.5 : 0.5);
+        intent.Lamp = lamp;
         // Watch the road: something showing on the line ahead means get below derailing speed.
         bool somethingAhead = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.Sleepers && e.Phase == SpinePhase.Telegraph
             && e.LineDistance > train.Dynamics.Distance && e.LineDistance - train.Dynamics.Distance < 200);

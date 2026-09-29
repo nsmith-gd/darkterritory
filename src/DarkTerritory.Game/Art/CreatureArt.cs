@@ -418,6 +418,43 @@ public sealed class CreatureArt
                     }
                     return true;
                 }
+            case EnemyKind.Lamplighter:
+                {
+                    // Tall, thin, blacker than the dark (App. A.6): the Hollow's figure drawn out taller still, standing
+                    // still out at the lineside, reaching once it's coming for the lamp. Nothing of it shows at night but
+                    // the eyes, and those only when they've caught the lamp: the tell.
+                    if (!_models.ContainsKey("hollow"))
+                        return false;
+                    bool eyes = phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish;
+                    var at = Matrix4x4.CreateScale(0.85f, 1.18f, 0.85f) * model;
+                    Draw(mesh, "hollow", eyes ? "reach" : "idle", t, !eyes, at, seed: 7);
+                    if (eyes)
+                    {
+                        var head = BoneAt("hollow", "head", at);
+                        var right = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, model));
+                        var up = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, model));
+                        var back = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, model));
+                        var shine = Palette.SignalGreen * 1.6f;
+                        mesh.Emissive = 1;
+                        foreach (float side in new[] { -1f, 1f })
+                            mesh.Box(head + right * (side * 0.045f) - back * 0.1f + up * 0.02f, right, up, back, new Vector3(0.022f, 0.016f, 0.01f), shine);
+                        mesh.Emissive = 0;
+                    }
+                    return true;
+                }
+            case EnemyKind.Deadman:
+                {
+                    // Outside, tracking the cab, it isn't seen: its tell is the cab (the lamp dims, the controls click).
+                    // At the controls it's a crewman, or was: stood at the backhead, still, one hand on the regulator. The
+                    // origin is the cab's centre, as the Hollow's is.
+                    if (phase is not (SpinePhase.Commit or SpinePhase.Punish))
+                        return true;
+                    var at = Matrix4x4.CreateTranslation(0.35f, -1.35f, -0.4f) * model;
+                    return Draw(mesh, "crew", "idle", t * 0.2, true, at, variant: 5, seed: 11, adjust: (_, l) => l with { Colour = l.Colour * 0.45f });
+                }
+            case EnemyKind.Stoker:
+                // In the firebox: never seen, only its work (the gauge, the wrong glow the scene gives the fire, the hiss).
+                return true;
             case EnemyKind.Rattle:
                 // "Pure audio tell" (App. A.5): in the coupling, never seen. Drawn, as nothing.
                 return true;

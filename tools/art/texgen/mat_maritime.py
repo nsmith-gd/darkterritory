@@ -1,5 +1,5 @@
 """The Maritimes' own ground (the world is Nova Scotia and New Brunswick gone dark; the fidelity target is 2008-2012,
-ARCHITECTURE §8 note 55): what the line's land is made of between the ballast and the fog.
+ARCHITECTURE §8 note 57): what the line's land is made of between the ballast and the fog.
 
 - ground_heath: the granite barrens' heath, crowberry and blueberry turned rust-red in the fall, grey reindeer lichen,
   grit where the granite shows through the thin soil.

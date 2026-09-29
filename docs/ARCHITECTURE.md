@@ -1036,7 +1036,71 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `StopCrewTests.WithTheShunterDeadTheFirstHandLeftTakesItOver`.
       - `RattleTests` (11): silent until someone comes near on the ground, not from the roof; a bot already in the gap gets out; step in while it rattles and you're pulled under; someone already in the gap when it wakes has the reaction window to get out; walk off and wait and it goes quiet; cut at its gap and it's gone; it nests mid-train and never on someone; a bot waits rather than cross; the director puts one in only at a facility stop; a client knows which gap is rattling.
       - `dt audio render`: its tell clears the bed by 8.5 dB for a listener on the middle car in the chaos scenario (`AudioTests` needs 6).
-55. **The fidelity target moves up to 2008-2012 (art direction, after the art pass).** Art direction's call: the art pass read as early PS2, and the benchmarks are BioShock 2, Silent Hill 4, Dead Space and Resident Evil Revelations. The pipeline plan's "late PS2 / early PS3" now means its PS3 end; the PS2 end stays as the comparison mode (`--ps2`, `post.ps2`). The work goes in phases, each looked at before the next:
+55. **The Lamplighters and the lamp switch (T52, App. A.6 and B.6; GDD: "light-reactive. Work the lineside. RULE: lamps down. Contradicts everything that needs forward visibility").** `EnemyKind.Lamplighter`, cost 2, tuned in `enemies.json` `lamplighters`.
+    - **The lamp switch.** Until now nothing could put the forward lamp out. It's a cab control now, through intent: `PlayerIntent.Lamp` (on or off: a setting, not a toggle, so a resent intent or a held key is harmless).
+      - On the wire it rides in the notch byte's top bits, so no intent grows.
+      - The host and a predicting client both apply it, from the cab only (the same rule as the regulator).
+      - Keyboard **L** in the app. The HUD in the cab shows it.
+      - With the lamp off (or smashed, or in a Vigil) the renderer draws no beam.
+    - **Spawn (B.6).** Any tier, only while the lamp is lit (so x0 with every light out), not in a tunnel or at a facility, at most two (one each side). Weight x2 in the route's back half ("night depth").
+      - **Ambiguity, "dark forest and open sections":** the routes don't mark forest, so anywhere that isn't a tunnel or a facility counts.
+    - **The spine.**
+      - **Dormant:** it paces the engine 14 m out, beside the cab, as fast as 16 m/s. A faster train leaves it behind and it's lost.
+      - **Telegraph:** a lit lamp brings it in, its eyes catching the light. That's the tell ("near-silent; eyeshine is visual", spec A.3): about 5 s of it coming in from 14 m.
+      - **Strike:** within 2.6 m of the lamp, across the ground, it smashes the lamp and bites the nearest player within 20 m for 40. That's usually the cab: the engine's length is in reach.
+      - **Break off:** put the lamp out while it's coming and it loses track: it stands where it lost the light, and a moving train leaves it behind. (Having smashed the lamp, it goes back out to pace the train instead.)
+      - **Ambiguity, "returns to the lineside":** read as standing there, not pacing the train again. A pacing one re-acquires the moment the lamp's relit, and on frontier:7 that kept the lamp down for most of the night and missed the dawn.
+      - It goes when it's dormant after 240 s.
+      - **Not shootable:** the counter is the lamp.
+    - **Ambiguity, "destroys the lamp":** smashed, it can't be lit again for 45 s (the spare glass), replicated as `LampOutSeconds`. Destroying it for the rest of the night would leave the Sleepers unanswerable for the rest of the night.
+    - **Bots.** The driver bot puts the lamp down when it sees eyeshine and keeps it down 30 s after the last it saw.
+      - With the lamp out, the Sleepers only show at bracing distance (60 m), too late to brake from cruise to under their derailing speed (`derailAbove` 11.1 m/s: App. A.2's 40 km/h). So in the dark it runs at 10.5 m/s, and a Sleeper found late does heavy damage instead of derailing. That's the contradiction, played.
+      - Faster was tried: at 14 m/s in the dark the frontier:7 night derailed on a Sleeper.
+      - Stops still plan by the usual cruise. Planned by the dark one, the dawn looked nearer, and the crew ran past every facility.
+    - **Not yet:** carried lamps as light sources (they have no lit state), and a lamp switch for VR hands (a headset player can't press L).
+    - **Verified:** `LamplighterTests` (9):
+      - with the lamp down it just paces the train;
+      - a lit lamp draws it in, and it smashes the lamp and bites the driver;
+      - put the lamp out as it comes and it loses track, stands, and is left behind, and nobody's hurt;
+      - only the cab works the switch, and a smashed lamp stays out 45 s;
+      - a train faster than it leaves it behind;
+      - the director sends them only to a lit lamp;
+      - the switch rides the notch byte;
+      - a client sees the eyes and the lamp out;
+      - the driver bot puts the lamp down for the eyes and up again after.
+      - `dt screenshot --threats` stages one coming in for the lamp; CI keeps `threats-lamplighter.png`.
+56. **The Deadman and the Stoker (T53, App. A.5 and B.5).** Both punish a crew that all piles out at a stop: the cab and the firebox are what's left open. Tuned in `enemies.json` `deadman` and `stoker`.
+    - **The Deadman** ("never leave the cab empty"): condition-triggered, and charged its 4 only when it takes the cab (App. B.5's "cost budget only when they actually fire").
+      - Not on Local routes, and not without a route: a route-less world (tests, the prototype) is left alone.
+      - The host keeps `World.CabEmptySeconds`: how long nobody alive has been in the cab.
+      - **Watch (the telegraph):** it starts its approach 10 s before the spec's "cab empty 30 s (20 s on Deep territory)", so it takes the cab at the spec's time. The tell is the controls clicking on their own over the lamp's dimming hum (1–2 kHz, `deadman-click`). Someone back in the cab in that time, and it's gone, free.
+      - **Take:** the world holds the regulator open and the brake off while it's at the controls, whatever the cab controls say.
+      - **Evict:** someone in the cab contests it. That takes 4 s, and it hurts them (25) as they start.
+      - It's only seen at the controls: a crewman, or what was one, drawn from the crew model and darkened.
+      - **Ambiguity, "cab lamp dims":** the tell is the sound for now. The cab has no light of its own to dim yet.
+    - **The Stoker** ("vent, or the boiler goes"): cost 3.
+      - **Spawn:** the director's option during a stop (the train under 0.5 m/s) with the firebox unattended (nobody in the cab for 10 s), any tier.
+      - **Feed (the telegraph):** it feeds the boiler through `Boiler.ExternalHeat` (1.5 a second) and holds the safety valve shut (`SafetyValveJammed`, already replicated). So the gauge climbs past where the valve would lift, with no fuel going in.
+      - **The tells:** the fire's light turns a sick green (the scene gives the firebox that colour whenever a Stoker's in it), and a hiss (1–3 kHz, `stoker-hiss`).
+      - **Critical:** at the maximum it's committed, and the boiler's own rupture hold (20 s at 100, spec B.6) does the rest.
+      - **Counters:**
+        - venting, 6 a second against its 1.5, holds the pressure down but spends it: "the counter has a clock cost";
+        - Use held at the firebox for 3 s drives it out, and it burns whoever does it (30): "exposing the boiler player".
+      - It's never seen.
+      - **Ambiguity, "the box open":** the firebox has no door state, so the spawn is "unattended" alone, and App. B.5's x3 weight for a box left open waits on one.
+    - **Bots** keep the driver in the cab at every stop, so neither fires in the harness. The rules are the crew's to keep, and the tests keep them.
+    - **Verified:** `DeadmanStokerTests` (8):
+      - leave the cab empty and the Deadman takes it at the spec's time, and the train runs on with the brake held;
+      - back in the cab in time, it's gone and cost nothing;
+      - taking the cab back takes 4 s and hurts;
+      - not on Local routes, and sooner on Deep territory;
+      - the Stoker feeds the boiler past the valve until it goes;
+      - venting holds it, and driving it out ends it but burns you;
+      - the director puts a Stoker in only at a stop with the cab empty;
+      - a client sees who holds the cab.
+      - `dt audio render`: the click and the hiss clear the bed by 24 dB in the cab.
+      - `dt screenshot --threats --view cab` shows the green fire.
+57. **The fidelity target moves up to 2008-2012 (art direction, after the art pass).** Art direction's call: the art pass read as early PS2, and the benchmarks are BioShock 2, Silent Hill 4, Dead Space and Resident Evil Revelations. The pipeline plan's "late PS2 / early PS3" now means its PS3 end; the PS2 end stays as the comparison mode (`--ps2`, `post.ps2`). The work goes in phases, each looked at before the next:
     - **Image (this note).**
       - Materials are sampled trilinear and 16× anisotropic with no mip bias, instead of point-sampled with a positive one.
       - The scene goes through exposure and a filmic tonemap (ACES fit) instead of a hard shoulder. The fog's long gradients get a one-step triangular dither instead of Bayer banding into 48 levels.
@@ -1046,7 +1110,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `look.json` `post`: `exposure` 1.0, `wideBloom`, `lensFringe`, `mipBias` 0.
       - `LookTests`' room-brightness ratio is widened to 2.2×, because the filmic toe darkens flat colour more than a lamp-lit texture. It gains an absolute washed-out ceiling.
     - **Next:** normal and spec maps on every surface at higher resolution; ambient occlusion, more shadowed lights and light shafts in the fog; then a geometry and material detail pass.
-56. **Sourced models, and model bashing (art direction: "a texture and model fidelity problem").** Procedural kits can't reach the benchmarks' prop density and detail on their own. So the art now also takes free CC0 and CC-BY models and bashes them into the game's own things.
+58. **Sourced models, and model bashing (art direction: "a texture and model fidelity problem").** Procedural kits can't reach the benchmarks' prop density and detail on their own. So the art now also takes free CC0 and CC-BY models and bashes them into the game's own things.
     - **Where they come from.** Only GitHub is reachable from the build machines (the asset sites are blocked). The sources are public GitHub collections (the Khronos glTF sample assets, three.js's examples, gkjohnson's demo data), pinned to a commit in `tools/models/sources.json`. Licences are read from each model's own files, and the intake rule is `intake/README.md`'s.
     - **The cook** (`tools/models/cook.py`, Blender, headless, deterministic).
       - A recipe imports the sources, deforms and combines them, and calls `finish`.
@@ -1070,7 +1134,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - The Khronos Lantern, split into a lamp post and a hand lantern. The hand lantern replaces the kit's cage in the cars, on the platforms and as the dropped lamp.
       - The photoscanned skull.
       - The first bash: the skull lantern at the fortress gate, a cage lantern with a human skull where the flame should be, lit from beneath. `PropArtTests` holds the loading, the sockets and the provenance.
-57. **The procedural line (docs/design/linegen-plan.md, roadmap M5 "procedural line v1").** The readings where the plan or the spec was ambiguous, and what's not done:
+59. **The procedural line (docs/design/linegen-plan.md, roadmap M5 "procedural line v1").** The readings where the plan or the spec was ambiguous, and what's not done:
     - **Junction count** (§3.2's "junctions" beside its own alternate and dead-line counts): both ends of an alternate count, so junctions = 2 × alternates + dead lines. It's the reading that keeps the table's three columns consistent. The quotas' "facing junctions" (§15.3) and the Switchman's network size (App. B.7) count the same way.
     - **Dawn (§22.1):** the timer is the spec's formula over the gate-to-terminus distance. The validator holds the ideal transit to it and reports transit plus four minutes a stop as a warning (`validation.dawnWithStopsHard: false`): by the spec's own numbers the deeper tiers can't take every stop in time. Note 13 is the same conflict.
     - **Descent grades** come from brake fade's equilibrium: a train braking on a descent a third of the time recovers as fast as it fades (`profile`), so the ruling descent is the steepest where that duty holds at the consist's brake. Approaches to a stop never descend.
@@ -1087,7 +1151,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Dressing by biome** (`WorldArt.PlanDressing`, `SettingKit`): trees at the biome's density and dead share (the black forest crowds the line from 7 m), boulders and crags where it's rough, reeds in the marsh, fences and farmhouses in the fields, ruined houses and walls in the dead-town belt, chimneys, tanks and walls in the ruin belt, headframes over the slag. The land takes its biome's ground texture and goes to bare rock where it's steep. `dt screenshot --survey` lights a scene flat and clear to look the shape over.
     - **The country is Nova Scotia gone dark** (biomes.json names, flora, props). `NovaKit`: black spruce and balsam fir, bare white birch, grey ghost spruce, granite erratics and ledge, dry stone walls, clapboard saltbox houses in faded paints, gambrel barns, the white wooden church with its needle steeple, a burying ground of leaning slate, fish sheds on stilts with their lobster traps. Each biome's trees, rocks, verge and props (their chance, distance and count per 150 m) are in `biomes.json`; `WorldArt.PlanDressing` places them.
     - **A far horizon for each night** (`Art.PlanSky`, `dt linegen sky`): the route's own 360° backdrop band, from its seed and tier, in place of the look's. The highland plateau with its scarps, drumlins nearer with a church steeple on one, a headland with its lighthouse over a gap of open sea and the fishing village under it, a colliery's headframe and smoking slag heap in the coal country, and the black spruce line with dead snags. Lights go out with depth: the lighthouse is dark past the Frontier, and the steeple has fallen in deep territory. The sky shader only lifts a band's value from the fog colour toward the horizon's haze, so this band keeps every layer low: the land stands as a dark mass against the paler sky. At night in the route's fog it's faint by design; the survey light shows it plainly.
-    - **Maritime ground at the 2008-2012 bar (note 55):** each biome mixes landforms (`biomes.json` `landform`, shapes in `tiers.json` `terrain.drumlins/knobs/plateau`): drumlin fields, long whalebacks stretched along the ice's flow; the barrens' granite knobs; the highland plateau, flat-topped with gorges cut along a noise's zero line. Rolling relief is the old shape. It's all sim terrain, so it's deterministic and walkable. The ground textures come from `tools/art/texgen/mat_maritime.py`: barrens heath and reindeer lichen, spruce needle duff, lichened granite, Fundy red clay, sphagnum bog and shore shingle. Each is built from the CC0 scans with normal maps like the rest of the library, and detiled, i.e. the tile's own half-tile light and dark is taken out. Biomes name these textures directly as their `ground` and `materials`. Repetition is broken three ways. The terrain projects per triangle (triplanar-lite: a steep face takes its UVs from the side, not the top) at a 5 m tile. The terrain shader bombs both layers (after Quilez's texture-repetition technique 3): slow noise picks one of eight offsets of the tile, and neighbouring offsets cross-fade where the two samples differ. Offsets only translate, so the normal maps' tangent frames hold, and the second layer samples at 0.63 of the first's scale. On a generated line the cess spills its ballast straight into the biome's ground, tinted the same way; the old strip of `ground_mud` lined its puddles up into a chain. The terrain shader (`scene.frag`, terrain layer blend) modulates both layers by their own brightness at 1/6-1/9 scale, over each layer's mean from the last mip, and more so with distance. The second layer shows on slopes past 0.65 (full by 1.3) and in field-sized world-space patches.
+    - **Maritime ground at the 2008-2012 bar (note 57):** each biome mixes landforms (`biomes.json` `landform`, shapes in `tiers.json` `terrain.drumlins/knobs/plateau`): drumlin fields, long whalebacks stretched along the ice's flow; the barrens' granite knobs; the highland plateau, flat-topped with gorges cut along a noise's zero line. Rolling relief is the old shape. It's all sim terrain, so it's deterministic and walkable. The ground textures come from `tools/art/texgen/mat_maritime.py`: barrens heath and reindeer lichen, spruce needle duff, lichened granite, Fundy red clay, sphagnum bog and shore shingle. Each is built from the CC0 scans with normal maps like the rest of the library, and detiled, i.e. the tile's own half-tile light and dark is taken out. Biomes name these textures directly as their `ground` and `materials`. Repetition is broken three ways. The terrain projects per triangle (triplanar-lite: a steep face takes its UVs from the side, not the top) at a 5 m tile. The terrain shader bombs both layers (after Quilez's texture-repetition technique 3): slow noise picks one of eight offsets of the tile, and neighbouring offsets cross-fade where the two samples differ. Offsets only translate, so the normal maps' tangent frames hold, and the second layer samples at 0.63 of the first's scale. On a generated line the cess spills its ballast straight into the biome's ground, tinted the same way; the old strip of `ground_mud` lined its puddles up into a chain. The terrain shader (`scene.frag`, terrain layer blend) modulates both layers by their own brightness at 1/6-1/9 scale, over each layer's mean from the last mip, and more so with distance. The second layer shows on slopes past 0.65 (full by 1.3) and in field-sized world-space patches.
     - **Pass rates (§21 M3, `dt linegen sweep`, 50 seeds per tier at 3 and 20 cars):** within two attempts 98-100% on every tier (local 100%), first attempt 86-100%; no fallbacks used, none left unpassed; 1-2 s a plan in Release (up to 16 s at the worst). An alternate that can't be laid leaves a dead line at its junction when the quota's junctions would otherwise be short; a short grade run shares its room between the vertical curves at its two ends as they need it.
     - **Not yet:** tile builds are 50 ms, not §17.5's 4 ms (tiles are only checksummed; the art builds 100 m cells, not tiles); the industrial bed that should fade out on the gate markers (§10.2) doesn't exist yet, so the markers are emitted and unused; grease has no traction effect in the sim (it didn't before either); the per-biome ballast, the corrupted and brass vegetation variants and the searchlights (§18) are the kits' existing pieces or nothing (a silent terminus is the fortress kit with its lamps out).
     - **Verified:** `LineGenTests` (M0 byte-identical, M1 a drive end to end, M2 ground to 250 m and a client's checksums, M3 six specs within two attempts, the derail, collapse and washout rules, prediction exact on a generated line), `LineGenConfigTests` (every config field is in the files), `AlternateTests` (clothoids, vertical curves, a loop run through, backed onto and coupled across), `dt linegen sweep` for pass rates, and the `lg-*` screenshots.

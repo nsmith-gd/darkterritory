@@ -218,6 +218,16 @@ public sealed class GameAudio
                     if (s.Loop is not null)
                         s.Loop.Position = at;
                     break;
+                case EnemyKind.Deadman when e.Phase == SpinePhase.Telegraph:
+                case EnemyKind.Stoker when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish:
+                    // In the cab (App. A.5): the controls clicking on their own; the firebox hissing wrong.
+                    s.Loop ??= Mixer.Play(e.Kind == EnemyKind.Deadman ? "deadman-click" : "stoker-hiss", at);
+                    if (s.Loop is not null)
+                    {
+                        s.Loop.Position = at;
+                        s.Loop.Occlusion = occlusion;
+                    }
+                    break;
                 case EnemyKind.Rattle when e.Phase == SpinePhase.Telegraph:
                     // The rattle in the coupling (App. A.5): all the tell there is. Out in the gap, so a car between you and it
                     // muffles it like anything else.
