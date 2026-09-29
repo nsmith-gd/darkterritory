@@ -7,7 +7,9 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game;
 
 /// <summary>Someone else on the train, where they are this frame.</summary>
-public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool Alive);
+/// <param name="Hand">A VR crewmate's reaching hand (T47), from the feet in the frame they face (x right, y up, z behind); zero for none.</param>
+/// <param name="Other">Their other hand, the same way.</param>
+public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool Alive, Double3 Hand = default, Double3 Other = default);
 
 /// <summary>What the app plays: the single-player prototype, or a networked session (host or client).</summary>
 public interface IPlaySession

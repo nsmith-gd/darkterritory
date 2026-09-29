@@ -236,6 +236,28 @@ public sealed class GreyboxScene
         mesh.Box(o + Vector3.UnitY * 0.45f, right, Vector3.UnitY, back, new Vector3(0.16f, 0.45f, 0.12f), Palette.Charcoal);
         mesh.Box(o + Vector3.UnitY * 1.2f, right, Vector3.UnitY, back, new Vector3(0.24f, 0.33f, 0.15f), Palette.DeepBrown);
         mesh.Box(o + Vector3.UnitY * 1.68f, right, Vector3.UnitY, back, new Vector3(0.12f, 0.13f, 0.12f), Palette.Corrupted);
+        // Arms (T47): to a headset player's hands where they are, hanging for everyone else.
+        Vector3 At(Double3 local) => o + right * (float)local.X + Vector3.UnitY * (float)local.Y + back * (float)local.Z;
+        void Segment(Double3 a, Double3 b, float r, Vector3 colour)
+        {
+            var axis = At(b) - At(a);
+            float len = axis.Length();
+            if (len < 1e-4f)
+                return;
+            var dir = axis / len;
+            var side = Vector3.Normalize(Vector3.Cross(dir, MathF.Abs(dir.Y) > 0.9f ? Vector3.UnitX : Vector3.UnitY));
+            mesh.Box((At(a) + At(b)) * 0.5f, side, dir, Vector3.Cross(side, dir), new Vector3(r, len * 0.5f + r * 0.5f, r), colour);
+        }
+        var (left, rightHand) = Arms.Hands(c.Hand, c.Other);
+        foreach (var (armSide, target) in new[] { (-1, left), (1, rightHand) })
+        {
+            var shoulder = Arms.Shoulder(armSide);
+            var (elbow, hand) = Arms.Solve(shoulder, target, Arms.Pole(armSide));
+            Segment(shoulder, elbow, 0.06f, Palette.DeepBrown);
+            Segment(elbow, hand, 0.05f, Palette.DeepBrown);
+            // A glove, a shade lighter: the hand is what the others watch.
+            mesh.Box(At(hand), right, Vector3.UnitY, back, new Vector3(0.05f, 0.05f, 0.05f), Palette.Corrupted * 0.8f);
+        }
         mesh.Emissive = 1;
         mesh.Box(o + Vector3.UnitY * 1.3f - back * 0.16f, right, Vector3.UnitY, back, new Vector3(0.05f, 0.05f, 0.02f), Palette.LampAmber);
         mesh.Emissive = 0;
