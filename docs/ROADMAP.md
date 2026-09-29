@@ -97,6 +97,7 @@ Remaining for M3: Soot Children mimicry, the radio as an item, and interior occl
 - **Crew bots work it (T32):**
   - the driver on the regulator, a shunter on the coupler and switch, and two on the winch, all through intent;
   - `dt harness --route frontier:6` reports each stop's legs and the sleds loaded.
+- **Coaling (T35):** the crew stops at a coaling tower when the tender has room, and works the chute from the ground.
 - **Crates go in by the side door (T34):**
   - cargo cars have a sliding door on each side with steps up to it, so you walk freight in;
   - crate hands carry the stack in and shut the doors after.

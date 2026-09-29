@@ -36,6 +36,20 @@ public class StopCrewTests
         throw new InvalidOperationException($"no frontier route has a stop with {string.Join(", ", modules)}");
     }
 
+    /// <summary>A route with a coaling tower: its facility index, and where along the line its spout is.</summary>
+    static (Route.Route Route, int Facility, double Spout) CoalingTower()
+    {
+        for (ulong seed = 1; seed < 200; seed++)
+        {
+            var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, seed);
+            var facilities = route.Of(FeatureKind.Facility).ToList();
+            int i = facilities.FindIndex(f => f.Facility == FacilityKind.CoalingTower);
+            if (i >= 0)
+                return (route, i, (facilities[i].Start + facilities[i].End) / 2);
+        }
+        throw new InvalidOperationException("no frontier route has a coaling tower");
+    }
+
     sealed class Night
     {
         public readonly World World;
@@ -50,9 +64,9 @@ public class StopCrewTests
         /// Running up to the stop from a standing start 600 m short of it: a crew of the driver, a shunter, the winch pair
         /// (unless <paramref name="winchPair"/> is false) and <paramref name="walkers"/> more on the roofs.
         /// </summary>
-        public Night(int cars, int walkers = 1, bool winchPair = true, bool crateHands = false, params ModuleKind[] modules)
+        public Night(int cars, int walkers = 1, bool winchPair = true, bool crateHands = false, bool coaling = false, params ModuleKind[] modules)
         {
-            var (route, facility, toe) = StopWith(modules.Length > 0 ? modules : [ModuleKind.Winch]);
+            var (route, facility, toe) = coaling ? CoalingTower() : StopWith(modules.Length > 0 ? modules : [ModuleKind.Winch]);
             var calls = new CrewCalls();
             var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, Tuning.Run.DepartureLoad)), route.Build(), toe - 600, Tuning.Boiler);
             World = new World(train);
@@ -124,7 +138,7 @@ public class StopCrewTests
         Assert.True(run.Departures > 0, $"never left the stop: driver {night.Driver.Stops!.Doing}; crew {where}");
         Assert.Equal(night.Site.Index, run.Departed);
         // Every leg of GDD §17's sequence, driven from the cab.
-        Assert.Superset(new HashSet<StopDriver.Leg>(Enum.GetValues<StopDriver.Leg>()), seen);
+        Assert.Superset(new HashSet<StopDriver.Leg>(Enum.GetValues<StopDriver.Leg>().Except([StopDriver.Leg.ToCoal, StopDriver.Leg.Coaling])), seen);
         // Both sleds in: the cars by the winch took them.
         Assert.Equal(0, night.Site.SledsLeft);
         double loadAfter = train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).Sum(v => v.Load);
@@ -154,6 +168,20 @@ public class StopCrewTests
         Assert.True(train.Dynamics.Distance > zone.End + 50, $"still at {train.Dynamics.Distance:0} (zone ends {zone.End:0})");
         Assert.False(cut);
         Assert.False(diverged);
+        Assert.Empty(night.Driver.Stops!.Log);
+        Assert.Equal(2, night.Site.SledsLeft);
+    }
+
+    [Fact]
+    public void WithTheDawnCloseItRunsPast()
+    {
+        // Every stop is optional (GDD §18): with no time for one before the line goes live, the driver doesn't make it.
+        var night = new Night(cars: 8);
+        var run = night.World.Run!;
+        run.Resume(run.Route.DawnSeconds - (run.Route.Length - night.Train.Dynamics.Distance) / 14 - 300, -1, night.Train.Boiler.Tender, 0);
+        var zone = night.Site.Feature;
+        night.Until(() => night.Train.Dynamics.Distance > zone.End + 50, 300);
+        Assert.True(night.Train.Dynamics.Distance > zone.End + 50);
         Assert.Empty(night.Driver.Stops!.Log);
         Assert.Equal(2, night.Site.SledsLeft);
     }
@@ -199,4 +227,31 @@ public class StopCrewTests
 
     static List<int> OpenSideDoors(TrainOnLine train, int side) =>
         [.. train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && StopHand.SideDoor(train.Frames[v.Id].Shape, side) is { } d && v.DoorOpen(d)).Select(v => v.Id)];
+
+    [Fact]
+    public void ACrewCoalsUpAtTheTowerAndShutsTheChuteInTime()
+    {
+        // Spec B.6's tender runs down over a night; a coaling tower fills it (D.2 gravity chute). The driver stops with the
+        // tender under the spout, the shunter works the lever, and shuts it before the tender overflows.
+        var night = new Night(cars: 8, coaling: true);
+        var train = night.Train;
+        var bt = train.BoilerTuning!;
+        train.Boiler.Tender = bt.TenderCapacity * 0.4;
+        double before = train.Boiler.Tender;
+        var zone = night.World.Run!.Route.Of(FeatureKind.Facility).First(f => f.Facility == FacilityKind.CoalingTower);
+        night.Until(() => train.Dynamics.Distance > zone.End + 50, 600);
+        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent}"));
+
+        Assert.True(train.Dynamics.Distance > zone.End + 50, $"stuck: driver {night.Driver.Stops!.Doing}; crew {where}");
+        var stop = Assert.Single(night.Driver.Stops!.Log);
+        Assert.Equal(nameof(FacilityKind.CoalingTower), stop.Kind);
+        Assert.True(stop.Coal > 100, $"took {stop.Coal}");
+        Assert.True(train.Boiler.Tender > before + 100);
+        // Shut in time: no overflow onto the engine, and the chute's shut as it leaves.
+        Assert.Equal(1, train.Vehicles[0].Integrity, 6);
+        Assert.False(night.World.Run.ChuteOpen);
+        Assert.All(night.Crew, c => Assert.True(c.Alive));
+        Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
+    }
 }
+
