@@ -18,6 +18,12 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
 
 ## Status
 
+**Since M1:**
+- **Boiler, walkable cab and resistance:** spec B.6 is pinned.
+- **Rakes:** cutting, coupling and collision damage.
+- **Procedural routes:** tiers, facilities, tunnels, bridges, and hazards as level content.
+- **Play a night:** `DarkTerritory -- --route frontier:7` runs one.
+
 **M1 (feel prototype):** playable. `dotnet run --project src/DarkTerritory.App`. Rail line model, train on the line with mass-weighted grade, moving car frames, first-person motor (roof and ground speeds, gap jumps, ladders, lethal jump-off), Vulkan greybox renderer with a pixelated low-res look, headless screenshots. Waiting on the director to answer spec G.1 and G.2. Not in M1 yet: Jolt crates.
 
 **M2 (crew of eight):** the netcode core exists and is exercised by `dt harness` over a lossy loopback network:
@@ -25,9 +31,10 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
 - **Remote players:** interpolated 100 ms behind, in car-local frames.
 - **Results:** prediction is exact on a perfect link. On a rough link (90 ms, ±20 ms, 3% loss) the worst correction is under 1 m, with a handful of corrections per client over 5 minutes.
 
+- **Snapshots** are fixed-point records delta-encoded against the client's last acked snapshot. The host adopts the quantised state itself, so prediction stays exact. At 20 cars with 8 players they're about 110 bytes, around 28 kbit/s down per client (target ≤ 64).
+
 Remaining for M2:
-- delta compression and quantisation (snapshots are 667 bytes for 8 players, about 160 kbit/s down per client against a 64 kbit/s target)
-- interest management
+- interest management (only needed once enemies and props multiply the record count)
 - a Steam transport and lobby
 - physics object sync
 - inert bodies on disconnect

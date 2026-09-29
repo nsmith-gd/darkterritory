@@ -17,25 +17,6 @@ public enum MessageType : byte
 
 public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent);
 
-/// <summary>Everything a client needs to rebuild the train: it re-simulates it forward from here.</summary>
-public struct TrainSnapshot
-{
-    public double Distance;
-    public double Velocity;
-    public double BrakeEfficiency;
-    public double CoalUsed;
-    public TrainControls Controls;
-
-    public static TrainSnapshot Capture(TrainOnLine train, in TrainControls controls) => new()
-    {
-        Distance = train.Dynamics.Distance,
-        Velocity = train.Dynamics.Velocity,
-        BrakeEfficiency = train.Dynamics.BrakeEfficiency,
-        CoalUsed = train.Dynamics.CoalUsed,
-        Controls = controls,
-    };
-}
-
 public readonly record struct PlayerSnapshot(byte Id, PlayerState State);
 
 /// <summary>
@@ -88,66 +69,15 @@ public static class Messages
         ThrottleNotch = r.I8(),
     };
 
-    public static void WriteSnapshot(NetWriter w, uint tick, uint ackedInput, in TrainSnapshot train, ReadOnlySpan<PlayerSnapshot> players)
+    /// <summary>Snapshot: tick, the input it acknowledges, the tick it's a delta against (0 = full), then the records.</summary>
+    public static void WriteSnapshot(NetWriter w, uint tick, uint ackedInput, uint baselineTick, IReadOnlyList<WireRecord> records, IReadOnlyList<WireRecord>? baseline)
     {
         w.Reset();
         w.U8((byte)MessageType.Snapshot);
         w.U32(tick);
         w.U32(ackedInput);
-        w.F64(train.Distance);
-        w.F64(train.Velocity);
-        w.F64(train.BrakeEfficiency);
-        w.F64(train.CoalUsed);
-        w.F32((float)train.Controls.Throttle);
-        w.F32((float)train.Controls.Brake);
-        w.I8((sbyte)train.Controls.Reverser);
-        w.U8((byte)players.Length);
-        foreach (var p in players)
-        {
-            var s = p.State;
-            w.U8(p.Id);
-            w.I8((sbyte)s.Parent);
-            w.Double3(s.Position);
-            w.Double3(s.Velocity);
-            w.F64(s.Yaw);
-            w.F64(s.Pitch);
-            w.U8((byte)s.Surface);
-            w.U8((byte)Math.Clamp(s.Health, 0, 255));
-            w.U8((byte)s.Death);
-            w.F64(s.LineHint);
-        }
-    }
-
-    public static void ReadSnapshot(ref NetReader r, out uint tick, out uint ackedInput, out TrainSnapshot train, List<PlayerSnapshot> players)
-    {
-        tick = r.U32();
-        ackedInput = r.U32();
-        train = new TrainSnapshot
-        {
-            Distance = r.F64(),
-            Velocity = r.F64(),
-            BrakeEfficiency = r.F64(),
-            CoalUsed = r.F64(),
-            Controls = new TrainControls { Throttle = r.F32(), Brake = r.F32(), Reverser = r.I8() },
-        };
-        int n = r.U8();
-        for (int i = 0; i < n; i++)
-        {
-            byte id = r.U8();
-            var s = new PlayerState
-            {
-                Parent = r.I8(),
-                Position = r.Double3(),
-                Velocity = r.Double3(),
-                Yaw = r.F64(),
-                Pitch = r.F64(),
-                Surface = (Surface)r.U8(),
-                Health = r.U8(),
-                Death = (DeathCause)r.U8(),
-                LineHint = r.F64(),
-            };
-            players.Add(new PlayerSnapshot(id, s));
-        }
+        w.U32(baselineTick);
+        WorldRecords.WriteDelta(w, records, baseline);
     }
 
     public static void WriteWelcome(NetWriter w, byte playerId, uint tick)

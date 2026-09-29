@@ -2,6 +2,7 @@ using System.Numerics;
 using Ballast;
 using Ballast.Render;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game;
@@ -15,6 +16,13 @@ public sealed class GreyboxScene
 {
     public float DrawDistance { get; init; } = 400;
     public int Seed { get; init; } = 7;
+    /// <summary>How hot the firebox is, 0..1: the glow in the cab is how the Boiler reads the fire.</summary>
+    public float FireGlow { get; set; } = 0.7f;
+    /// <summary>Tunnels, bridges, facilities and hazards to draw along the line, when it's a generated route.</summary>
+    public Route? Route { get; set; }
+
+    /// <summary>Depth of the valley under a bridge.</summary>
+    const double ValleyDepth = 18;
 
     public void Build(MeshBuilder mesh, TrainOnLine train, Double3 eye) =>
         Build(mesh, train.Line, train.Frames, train.Dynamics.Distance, eye);
@@ -29,6 +37,8 @@ public sealed class GreyboxScene
 
         Track(mesh, line, eye, from, to, centre);
         Lineside(mesh, line, eye, from, to);
+        if (Route is not null)
+            Features(mesh, line, eye, from, to);
         foreach (var frame in frames)
             Car(mesh, frame, eye);
     }
@@ -58,14 +68,19 @@ public sealed class GreyboxScene
             var ra = Double3.Cross(a.Tangent, Double3.Up).Normalized;
             var rb = Double3.Cross(b.Tangent, Double3.Up).Normalized;
             var down = new Double3(0, -0.02, 0);
+            bool bridge = Route?.BridgeAt(s + step / 2) is not null;
 
-            // Ground either side, then the raised ballast bed, then rails.
-            mesh.Quad(V(a.Position - ra * groundHalfWidth + down * 10, eye), V(a.Position - ra * bedHalfWidth + down, eye),
-                      V(b.Position - rb * bedHalfWidth + down, eye), V(b.Position - rb * groundHalfWidth + down * 10, eye), Palette.MuddyOlive);
-            mesh.Quad(V(a.Position + ra * bedHalfWidth + down, eye), V(a.Position + ra * groundHalfWidth + down * 10, eye),
-                      V(b.Position + rb * groundHalfWidth + down * 10, eye), V(b.Position + rb * bedHalfWidth + down, eye), Palette.MuddyOlive);
-            mesh.Quad(V(a.Position - ra * bedHalfWidth, eye), V(a.Position + ra * bedHalfWidth, eye),
-                      V(b.Position + rb * bedHalfWidth, eye), V(b.Position - rb * bedHalfWidth, eye), Palette.Ballast);
+            // Ground either side, then the raised ballast bed, then rails. Under a bridge the ground
+            // drops into a valley and there's no ballast: the deck is drawn with the features.
+            var valley = bridge ? new Double3(0, -ValleyDepth, 0) : default;
+            double inner = bridge ? 0 : bedHalfWidth;
+            mesh.Quad(V(a.Position - ra * groundHalfWidth + down * 10 + valley, eye), V(a.Position - ra * inner + down + valley, eye),
+                      V(b.Position - rb * inner + down + valley, eye), V(b.Position - rb * groundHalfWidth + down * 10 + valley, eye), Palette.MuddyOlive);
+            mesh.Quad(V(a.Position + ra * inner + down + valley, eye), V(a.Position + ra * groundHalfWidth + down * 10 + valley, eye),
+                      V(b.Position + rb * groundHalfWidth + down * 10 + valley, eye), V(b.Position + rb * inner + down + valley, eye), Palette.MuddyOlive);
+            if (!bridge)
+                mesh.Quad(V(a.Position - ra * bedHalfWidth, eye), V(a.Position + ra * bedHalfWidth, eye),
+                          V(b.Position + rb * bedHalfWidth, eye), V(b.Position - rb * bedHalfWidth, eye), Palette.Ballast);
             foreach (var side in new[] { -1.0, 1.0 })
             {
                 var p0 = V(a.Position + ra * (side * gauge), eye);
@@ -91,6 +106,8 @@ public sealed class GreyboxScene
         // Telegraph poles every 50 m and a scatter of pines: depth cues for fog and speed.
         for (double s = Math.Ceiling(from / 50) * 50; s < to; s += 50)
         {
+            if (Route is not null && (Route.InTunnel(s) || Route.BridgeAt(s) is not null))
+                continue;
             var t = line.Sample(s);
             var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
             var foot = V(t.Position + right * 4.5, eye);
@@ -99,6 +116,8 @@ public sealed class GreyboxScene
         }
         for (double s = Math.Floor(from / 12) * 12; s < to; s += 12)
         {
+            if (Route is not null && (Route.InTunnel(s) || Route.BridgeAt(s) is not null))
+                continue;
             var rng = new Random(HashCode.Combine(Seed, (int)(s / 12)));
             for (int k = 0; k < 3; k++)
             {
@@ -114,67 +133,162 @@ public sealed class GreyboxScene
         }
     }
 
-    static void Car(MeshBuilder mesh, CarFrame frame, Double3 eye)
+    /// <summary>A box following the line: <paramref name="lateral"/> metres right of centre, base at <paramref name="y"/> above rail.</summary>
+    static void Along(MeshBuilder mesh, RailLine line, Double3 eye, double s, double length, double lateral, double y, double halfWidth, double height, Vector3 color)
+    {
+        var t = line.Sample(s + length / 2);
+        var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+        var centre = t.Position + right * lateral + Double3.Up * (y + height / 2);
+        mesh.Box(V(centre, eye), ToF(right), Vector3.UnitY, ToF(t.Tangent * -1), new Vector3((float)halfWidth, (float)height / 2, (float)length / 2), color);
+    }
+
+    void Features(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to)
+    {
+        foreach (var f in Route!.Features)
+        {
+            if (f.End < from || f.Start > to)
+                continue;
+            double a = Math.Max(f.Start, from), b = Math.Min(f.End, to);
+            switch (f.Kind)
+            {
+                case FeatureKind.Tunnel:
+                    // Walls and roof close round the track, a hill sits on top, and the portals are faced in stone.
+                    for (double s = a; s < b; s += 10)
+                    {
+                        double len = Math.Min(10, b - s);
+                        Along(mesh, line, eye, s, len, -3.2, -0.2, 0.6, 7.2, Palette.Charcoal);
+                        Along(mesh, line, eye, s, len, 3.2, -0.2, 0.6, 7.2, Palette.Charcoal);
+                        Along(mesh, line, eye, s, len, 0, 6.6, 3.8, 1.2, Palette.Charcoal);
+                        Along(mesh, line, eye, s, len, 0, 7.8, 40, 14, Palette.MuddyOlive);
+                    }
+                    foreach (double portal in new[] { f.Start, f.End - 1.5 })
+                        if (portal >= from && portal <= to)
+                        {
+                            Along(mesh, line, eye, portal, 1.5, -5.5, 0, 2.2, 8, Palette.IronGrey);
+                            Along(mesh, line, eye, portal, 1.5, 5.5, 0, 2.2, 8, Palette.IronGrey);
+                            Along(mesh, line, eye, portal, 1.5, 0, 7.4, 7.7, 1.6, Palette.IronGrey);
+                        }
+                    break;
+                case FeatureKind.Bridge:
+                    // Weak bridges are timber trestles; sound ones are iron girders on stone piers.
+                    var deck = f.MaxCars > 0 ? Palette.DeepBrown : Palette.IronGrey;
+                    for (double s = a; s < b; s += 10)
+                    {
+                        double len = Math.Min(10, b - s);
+                        Along(mesh, line, eye, s, len, 0, -0.6, 2.2, 0.6, deck);
+                        Along(mesh, line, eye, s, len, -2.3, -0.6, 0.12, 1.6, deck);
+                        Along(mesh, line, eye, s, len, 2.3, -0.6, 0.12, 1.6, deck);
+                    }
+                    for (double s = Math.Ceiling(a / 25) * 25; s < b; s += 25)
+                        Along(mesh, line, eye, s, 3, 0, -ValleyDepth, f.MaxCars > 0 ? 1.6 : 2.0, ValleyDepth - 0.6, f.MaxCars > 0 ? Palette.DeepBrown : Palette.Charcoal);
+                    break;
+                case FeatureKind.Sleepers:
+                    // Shaped like ties, lying across the rail: invisible until the lamp finds them (App. A.2).
+                    for (double s = a; s < b; s += 2.6)
+                        Along(mesh, line, eye, s, 0.9, 0, 0.12, 1.5, 0.28, Palette.Corrupted);
+                    break;
+                case FeatureKind.Grease:
+                    mesh.Emissive = 0.15f;
+                    foreach (double side in new[] { -0.72, 0.72 })
+                        Along(mesh, line, eye, a, b - a, side, 0.19, 0.05, 0.02, Palette.GreaseSheen);
+                    mesh.Emissive = 0;
+                    break;
+                case FeatureKind.Junction:
+                    // Switch stand with a lamp, and a stub of diverging rail: what the Switchman throws.
+                    double side2 = f.Side * 2.6;
+                    Along(mesh, line, eye, f.Start, 0.3, side2, 0, 0.15, 1.4, Palette.IronGrey);
+                    mesh.Emissive = 1;
+                    Along(mesh, line, eye, f.Start, 0.25, side2, 1.4, 0.12, 0.25, Palette.LampAmber);
+                    mesh.Emissive = 0;
+                    for (int i = 0; i < 6; i++)
+                        Along(mesh, line, eye, f.Start + i * 5, 5, f.Side * (0.9 + i * 0.35), 0.05, 0.05, 0.15, Palette.IronGrey);
+                    break;
+                case FeatureKind.Facility:
+                    Facility(mesh, line, eye, f);
+                    break;
+            }
+        }
+    }
+
+    /// <summary>Placeholder silhouettes until facility modules exist: oversized, dark, one working lamp (GDD §30).</summary>
+    static void Facility(MeshBuilder mesh, RailLine line, Double3 eye, RouteFeature f)
+    {
+        double mid = (f.Start + f.End) / 2, side = f.Side;
+        switch (f.Facility)
+        {
+            case FacilityKind.CoalingTower:
+                Along(mesh, line, eye, mid - 6, 12, side * 7, 0, 5, 22, Palette.Charcoal);
+                Along(mesh, line, eye, mid - 2, 4, side * 2.6, 9, 1.6, 1.2, Palette.IronGrey);
+                break;
+            case FacilityKind.GrainElevator:
+                for (int i = 0; i < 3; i++)
+                    Along(mesh, line, eye, mid - 20 + i * 12, 10, side * 12, 0, 5, 26, Palette.BlueGrey);
+                break;
+            case FacilityKind.Foundry:
+                Along(mesh, line, eye, mid - 40, 80, side * 22, 0, 14, 16, Palette.RustRed);
+                Along(mesh, line, eye, mid + 10, 6, side * 26, 16, 2, 18, Palette.SootBlack);
+                break;
+            default:
+                Along(mesh, line, eye, mid - 30, 60, side * 20, 0, 12, 10, Palette.DeepBrown);
+                break;
+        }
+        mesh.Emissive = 1;
+        Along(mesh, line, eye, mid, 0.4, side * 4, 5, 0.2, 0.3, Palette.LampAmber);
+        mesh.Emissive = 0;
+    }
+
+    void Car(MeshBuilder mesh, CarFrame frame, Double3 eye)
     {
         var right = ToF(frame.Right);
         var up = ToF(frame.Up);
         var back = ToF(frame.Back);
         var o = V(frame.Origin, eye);
         Vector3 L(double x, double y, double z) => o + right * (float)x + up * (float)y + back * (float)z;
+        void Draw(Box box, Vector3 color) => mesh.Box(L(box.Centre.X, box.Centre.Y, box.Centre.Z), right, up, back, ToF(box.HalfSize), color);
 
-        var body = frame.Shape.Body;
-        var half = ToF((body.Max - body.Min) * 0.5);
-        var centre = L(0, body.Max.Y / 2 + 0.25, 0);
+        var shape = frame.Shape;
         bool engine = frame.Index == 0;
+        // What you see is what you collide with: every solid is drawn, coloured by what it is.
+        foreach (var solid in shape.Solids)
+            Draw(solid.Box, PartColour(solid.Part, frame.Index));
+
+        double half = shape.HalfLength;
         if (engine)
         {
-            // Boiler forward, open cab at the back: the engine must read by silhouette alone (GDD §26).
-            double l = half.Z;
-            float w = half.X;
-            mesh.Box(L(0, 1.0, 0), right, up, back, new Vector3(w, 0.4f, (float)l), Palette.Charcoal);
-            mesh.Box(L(0, 2.5, -l * 0.3), right, up, back, new Vector3(0.95f, 1.1f, (float)l * 0.65f), Palette.SootBlack);
-            mesh.Box(L(0, 4.1, -l * 0.8), right, up, back, new Vector3(0.35f, 0.6f, 0.35f), Palette.SootBlack);
-            // Cab shell: roof, waist-high sides, back wall with a doorway, pillars at the corners.
-            double cabFront = l * 0.35, cabBack = l;
-            double cabMid = (cabFront + cabBack) / 2;
-            float cabHalf = (float)(cabBack - cabFront) / 2;
-            mesh.Box(L(0, 4.3, cabMid), right, up, back, new Vector3(w + 0.1f, 0.1f, cabHalf + 0.1f), Palette.IronGrey);
-            foreach (int side in new[] { -1, 1 })
-            {
-                mesh.Box(L(side * (w - 0.05), 2.0, cabMid), right, up, back, new Vector3(0.05f, 0.6f, cabHalf), Palette.IronGrey);
-                mesh.Box(L(side * (w - 0.05), 3.3, cabFront + 0.1), right, up, back, new Vector3(0.05f, 1.0f, 0.1f), Palette.IronGrey);
-                mesh.Box(L(side * (w - 0.05), 3.3, cabBack - 0.1), right, up, back, new Vector3(0.05f, 1.0f, 0.1f), Palette.IronGrey);
-                mesh.Box(L(side * (w * 0.62), 2.8, cabBack - 0.05), right, up, back, new Vector3(w * 0.38f, 1.4f, 0.05f), Palette.IronGrey);
-            }
-            // Firebox door glow on the boiler backhead.
             mesh.Emissive = 1;
-            mesh.Box(L(0, 2.1, cabFront + 0.03), right, up, back, new Vector3(0.3f, 0.2f, 0.02f), Palette.FurnaceOrange);
-            mesh.Box(L(0, 2.8, -l - 0.05), right, up, back, new Vector3(0.35f, 0.35f, 0.1f), Palette.LampAmber);
+            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
+                Draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.17), new Double3(0.3, 0.2, 0.02)), Palette.FurnaceOrange * (0.15f + 0.85f * FireGlow));
+            Draw(Box.FromCentre(new Double3(0, 2.8, -half - 0.05), new Double3(0.35, 0.35, 0.1)), Palette.LampAmber);
             mesh.Emissive = 0;
+            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
+                Draw(Box.FromCentre(i.Position + new Double3(0, 1.1, 0), new Double3(0.12, 0.12, 0.04)), Palette.TarnishedBrass);
         }
         else
         {
-            mesh.Box(centre, right, up, back, new Vector3(half.X, half.Y - 0.25f, half.Z), frame.Index % 3 == 0 ? Palette.RustRed : Palette.DeepBrown);
             // Roof walkway plank down the safe centreline.
-            mesh.Box(L(0, body.Max.Y + 0.02, 0), right, up, back, new Vector3(0.35f, 0.03f, half.Z - 0.2f), Palette.TarnishedBrass);
+            Draw(new Box(new Double3(-0.35, shape.RoofHeight, -half + 0.2), new Double3(0.35, shape.RoofHeight + 0.04, half - 0.2)), Palette.TarnishedBrass);
         }
-        foreach (var ladder in frame.Shape.Ladders)
+        foreach (var ladder in shape.Ladders)
         {
             // Rails run up the face the ladder is fixed to: thin across it, a hand-width wide along it.
-            bool side = Math.Abs(frame.Shape.LadderInward(ladder).X) > 0;
-            var halfLadder = side ? new Vector3(0.05f, (float)body.Max.Y / 2, 0.25f) : new Vector3(0.25f, (float)body.Max.Y / 2, 0.05f);
-            mesh.Box(L(ladder.X, body.Max.Y / 2, ladder.Z), right, up, back, halfLadder, Palette.IronGrey);
+            bool side = Math.Abs(ladder.Inward.X) > 0;
+            var h = new Double3(side ? 0.05 : 0.25, ladder.Top / 2, side ? 0.25 : 0.05);
+            Draw(Box.FromCentre(ladder.Foot + new Double3(0, ladder.Top / 2, 0), h), Palette.IronGrey);
         }
         // Wheel sets under both ends.
-        foreach (double z in new[] { -half.Z * 0.6, half.Z * 0.6 })
-            mesh.Box(L(0, 0.45, z), right, up, back, new Vector3(half.X * 0.8f, 0.4f, 1.2f), Palette.SootBlack);
-        if (frame.Shape.Coupler is { } c)
-        {
-            var mid = (c.Min + c.Max) * 0.5;
-            var h = ToF((c.Max - c.Min) * 0.5);
-            mesh.Box(L(mid.X, mid.Y, mid.Z), right, up, back, h, Palette.IronGrey);
-        }
+        foreach (double z in new[] { -half * 0.6, half * 0.6 })
+            Draw(Box.FromCentre(new Double3(0, 0.45, z), new Double3(shape.HalfWidth * 0.8, 0.4, 1.2)), Palette.SootBlack);
     }
+
+    static Vector3 PartColour(PartKind part, int car) => part switch
+    {
+        PartKind.Body => car % 3 == 0 ? Palette.RustRed : Palette.DeepBrown,
+        PartKind.Chassis => Palette.Charcoal,
+        PartKind.Boiler or PartKind.Stack => Palette.SootBlack,
+        PartKind.CabWall or PartKind.CabRoof or PartKind.Coupler => Palette.IronGrey,
+        PartKind.Tender => Palette.Charcoal,
+        _ => Palette.IronGrey,
+    };
 
     static Vector3 ToF(Double3 d) => new((float)d.X, (float)d.Y, (float)d.Z);
 }

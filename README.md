@@ -16,16 +16,17 @@ dotnet run --project src/DarkTerritory.Cli -- train table
 
 ## Feel prototype
 ```bash
-dotnet run --project src/DarkTerritory.App
+dotnet run --project src/DarkTerritory.App                          # greybox test loop
+dotnet run --project src/DarkTerritory.App -- --route frontier:7     # a generated night: fortress to terminus before dawn
 ```
 | Input | Action |
 |---|---|
 | Mouse · WASD · Shift · Space | Look · move · run · jump |
-| E | Grab / let go of a ladder |
+| E (hold) | Grab / let go of a ladder · shovel at the firebox · vent at the valve (in the cab) |
 | R / F | Throttle notch up / down |
 | B (hold) | Brake |
 | X | Reverser (train stopped only) |
-| 1–9 · Backspace | Respawn on that car's roof · respawn |
+| 1–9 · Backspace | Respawn on that car's roof · respawn in the cab |
 | Tab | Chase camera |
 | Esc | Release mouse, then quit |
 

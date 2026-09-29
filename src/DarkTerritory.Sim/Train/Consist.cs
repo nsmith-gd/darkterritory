@@ -1,57 +1,104 @@
 namespace DarkTerritory.Sim.Train;
 
-/// <summary>The engine plus an ordered list of cars. Load is 0 (empty) to 1 (full) per car.</summary>
+/// <summary>
+/// One piece of rolling stock. The id is stable for the whole run: players, enemies and snapshots
+/// refer to vehicles by id, so cutting and re-coupling never changes who is standing on what.
+/// </summary>
+public sealed class Vehicle(int id, bool isEngine, double load)
+{
+    public int Id { get; } = id;
+    public bool IsEngine { get; } = isEngine;
+    /// <summary>0 empty to 1 full.</summary>
+    public double Load { get; set; } = Math.Clamp(load, 0, 1);
+    /// <summary>Structural condition, 1 sound to 0 wrecked.</summary>
+    public double Integrity { get; set; } = 1;
+    /// <summary>Fraction of the cargo that would still pay on delivery (spec F.1).</summary>
+    public double CargoIntegrity { get; set; } = 1;
+
+    public double MassTonnes(TrainTuning t) =>
+        IsEngine ? t.Mass.EngineTonnes : t.Mass.EmptyCarTonnes + Load * (t.Mass.LoadedCarTonnes - t.Mass.EmptyCarTonnes);
+
+    public double Length(TrainTuning t) => IsEngine ? t.Geometry.EngineLength : t.Geometry.CarLength;
+}
+
+/// <summary>
+/// A rake: vehicles coupled together, front to back. The engine's rake is the train; a rake without
+/// an engine is cars left behind or rolling free (GDD §17, §24).
+/// </summary>
 public sealed class Consist
 {
-    readonly List<double> _loads = new();
+    readonly List<Vehicle> _vehicles = new();
 
     public Consist(TrainTuning tuning) => Tuning = tuning;
 
     /// <summary>Swappable so edited tuning files apply to a running train.</summary>
     public TrainTuning Tuning { get; set; }
-    public int CarCount => _loads.Count;
-    public IReadOnlyList<double> Loads => _loads;
+    public IReadOnlyList<Vehicle> Vehicles => _vehicles;
+    public bool HasEngine => _vehicles.Exists(v => v.IsEngine);
+    public int CarCount => _vehicles.Count(v => !v.IsEngine);
+    public IReadOnlyList<double> Loads => _vehicles.Where(v => !v.IsEngine).Select(v => v.Load).ToList();
 
+    /// <summary>The engine (id 0) followed by <paramref name="cars"/> cars with ids 1..n.</summary>
     public static Consist Uniform(TrainTuning tuning, int cars, double load)
     {
         var c = new Consist(tuning);
+        c._vehicles.Add(new Vehicle(0, isEngine: true, 0));
         for (int i = 0; i < cars; i++)
             c.AddCar(load);
         return c;
     }
 
-    public void AddCar(double load) => _loads.Add(Math.Clamp(load, 0, 1));
-
-    /// <summary>Uncouples everything from <paramref name="index"/> back. Returns how many cars were left behind.</summary>
-    public int UncoupleFrom(int index)
+    public Vehicle AddCar(double load)
     {
-        int removed = _loads.Count - index;
+        var v = new Vehicle(_vehicles.Count == 0 ? 1 : _vehicles.Max(x => x.Id) + 1, isEngine: false, load);
+        _vehicles.Add(v);
+        return v;
+    }
+
+    public void Add(Vehicle v) => _vehicles.Add(v);
+
+    /// <summary>Keeps the first <paramref name="cars"/> cars behind the engine and drops the rest. Returns how many were dropped.</summary>
+    public int UncoupleFrom(int cars)
+    {
+        int keep = cars + (HasEngine ? 1 : 0);
+        int removed = _vehicles.Count - keep;
         if (removed > 0)
-            _loads.RemoveRange(index, removed);
+            _vehicles.RemoveRange(keep, removed);
         return Math.Max(0, removed);
     }
 
-    public double MassTonnes
+    /// <summary>Cuts behind the vehicle at <paramref name="index"/>; returns the vehicles behind as a new rake.</summary>
+    public Consist SplitAfter(int index)
     {
-        get
-        {
-            var m = Tuning.Mass;
-            double total = m.EngineTonnes;
-            foreach (var load in _loads)
-                total += m.EmptyCarTonnes + load * (m.LoadedCarTonnes - m.EmptyCarTonnes);
-            return total;
-        }
+        var rear = new Consist(Tuning);
+        for (int i = index + 1; i < _vehicles.Count; i++)
+            rear._vehicles.Add(_vehicles[i]);
+        _vehicles.RemoveRange(index + 1, _vehicles.Count - index - 1);
+        return rear;
     }
 
-    /// <summary>Mass of this many cars when fully loaded; the reference for the performance table.</summary>
+    /// <summary>Couples <paramref name="rear"/> on behind this rake.</summary>
+    public void Append(Consist rear) => _vehicles.AddRange(rear._vehicles);
+
+    /// <summary>Couples <paramref name="front"/> on ahead of this rake.</summary>
+    public void Prepend(Consist front) => _vehicles.InsertRange(0, front._vehicles);
+
+    /// <summary>Distance from this rake's front face to the front face of the vehicle at <paramref name="index"/>.</summary>
+    public double OffsetOf(int index)
+    {
+        double d = 0;
+        for (int i = 0; i < index; i++)
+            d += _vehicles[i].Length(Tuning) + Tuning.Geometry.CouplingGap;
+        return d;
+    }
+
+    public int IndexOf(int vehicleId) => _vehicles.FindIndex(v => v.Id == vehicleId);
+
+    public double MassTonnes => _vehicles.Sum(v => v.MassTonnes(Tuning));
+
+    /// <summary>Mass of an engine plus this many cars fully loaded; the reference for the performance table.</summary>
     public static double LoadedMassTonnes(TrainTuning t, int cars) => t.Mass.EngineTonnes + cars * t.Mass.LoadedCarTonnes;
 
-    public double LengthMetres
-    {
-        get
-        {
-            var g = Tuning.Geometry;
-            return g.EngineLength + CarCount * (g.CarLength + g.CouplingGap);
-        }
-    }
+    /// <summary>Front face of the first vehicle to rear face of the last, couplings included (spec B.4).</summary>
+    public double LengthMetres => _vehicles.Sum(v => v.Length(Tuning)) + Math.Max(0, _vehicles.Count - 1) * Tuning.Geometry.CouplingGap;
 }

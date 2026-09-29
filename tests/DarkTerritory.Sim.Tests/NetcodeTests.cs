@@ -87,6 +87,33 @@ public class NetcodeTests
     }
 
     [Fact]
+    public void AClientCutsTheTrainAndPredictsItExactly()
+    {
+        var (net, host, clients) = Session(2);
+        // Warm up, then put client 1 on the coupler plate behind car 3 and hold Use.
+        Run(net, host, clients, 10, _ => default);
+        var cutter = clients[1];
+        var plate = new PlayerState
+        {
+            Parent = 3,
+            Surface = Surface.Coupler,
+            Position = new Ballast.Double3(0, T.Geometry.CouplerHeight, T.Geometry.CarLength / 2 + 0.7),
+            Health = 100,
+        };
+        HostTeleport(host, cutter.PlayerId!.Value, plate);
+        Run(net, host, clients, 5, _ => default);
+        foreach (var c in clients)
+            c.ResetStats();
+        Run(net, host, clients, 90, i => i == 1 ? new PlayerIntent { Buttons = PlayerButtons.Use } : default);
+
+        Assert.Equal(2, host.Train.Rakes.Count);
+        Assert.All(clients, c => Assert.Equal(2, c.Train.Rakes.Count));
+        Assert.All(clients, c => Assert.Equal(0, c.MaxCorrection));
+    }
+
+    static void HostTeleport(HostSession host, byte id, PlayerState state) => host.SetPlayerState(id, state);
+
+    [Fact]
     public void GarbageFromAClientCannotCrashTheHost()
     {
         var net = new LoopbackNetwork();

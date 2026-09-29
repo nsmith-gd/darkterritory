@@ -19,7 +19,7 @@ public sealed record HarnessOptions
 public sealed record ClientReport(byte Id, string Bot, double MaxCorrectionM, int Corrections, int Snapshots, int HostMissedInputs,
     bool Alive, string Surface, string Where, long BytesUp, long BytesDown);
 
-public sealed record HarnessReport(int Ticks, double Seconds, string Link, double TrainDistance, double TrainSpeed,
+public sealed record HarnessReport(int Ticks, double Seconds, string Link, double TrainDistance, double TrainSpeed, double BoilerPressure, double Tender,
     int SnapshotBytes, double DownKbpsPerClient, double UpKbpsPerClient, double MaxCorrectionM, int Deaths,
     IReadOnlyList<ClientReport> Clients);
 
@@ -29,18 +29,18 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
 /// </summary>
 public static class Harness
 {
-    public static HarnessReport Run(RailLine line, TrainTuning trainTuning, PlayerTuning playerTuning, HarnessOptions o)
+    public static HarnessReport Run(RailLine line, TrainTuning trainTuning, PlayerTuning playerTuning, HarnessOptions o, BoilerTuning? boiler = null)
     {
         var net = new LoopbackNetwork(o.Seed, o.Link);
         var hostTransport = new CountingTransport(net.CreateHost());
-        var host = new HostSession(hostTransport, NewTrain(line, trainTuning, o), trainTuning, playerTuning);
+        var host = new HostSession(hostTransport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning);
 
         var clients = new List<(ClientSession Session, IBot Bot, CountingTransport Transport)>();
         for (int i = 0; i < o.Bots; i++)
         {
             var transport = new CountingTransport(net.CreateClient());
             IBot bot = i == 0 ? new ConductorBot() : new RoofWalkerBot(o.Seed * 1000 + i);
-            clients.Add((new ClientSession(transport, NewTrain(line, trainTuning, o), trainTuning, playerTuning), bot, transport));
+            clients.Add((new ClientSession(transport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning), bot, transport));
         }
 
         int ticks = (int)(o.Seconds * SimConstants.TickRate);
@@ -67,13 +67,14 @@ public static class Harness
 
         double seconds = ticks * SimConstants.TickSeconds;
         return new HarnessReport(ticks, seconds, $"{o.Link.LatencySeconds * 1000:0}ms ±{o.Link.JitterSeconds * 1000:0} loss {o.Link.LossRate:P0}",
-            Math.Round(host.Train.Dynamics.Distance, 1), Math.Round(host.Train.Dynamics.Speed, 2), host.LastSnapshotBytes,
+            Math.Round(host.Train.Dynamics.Distance, 1), Math.Round(host.Train.Dynamics.Speed, 2),
+            Math.Round(host.Train.Boiler.Pressure, 1), Math.Round(host.Train.Boiler.Tender), host.LastSnapshotBytes,
             Math.Round(reports.Average(r => r.BytesDown) * 8 / 1000 / seconds, 1), Math.Round(reports.Average(r => r.BytesUp) * 8 / 1000 / seconds, 1),
             reports.Max(r => r.MaxCorrectionM), reports.Count(r => !r.Alive), reports);
     }
 
-    static TrainOnLine NewTrain(RailLine line, TrainTuning t, HarnessOptions o) =>
-        new(new TrainDynamics(Consist.Uniform(t, o.Cars, 1)), line, o.StartDistance);
+    static TrainOnLine NewTrain(RailLine line, TrainTuning t, HarnessOptions o, BoilerTuning? boiler) =>
+        new(new TrainDynamics(Consist.Uniform(t, o.Cars, 1)), line, o.StartDistance, boiler);
 
     /// <summary>Counts payload bytes both ways for bandwidth reporting.</summary>
     sealed class CountingTransport(ITransport inner) : ITransport

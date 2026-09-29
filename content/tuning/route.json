@@ -1,0 +1,36 @@
+// Procedural line generation (GDD §22, spec B.8, App. B.2). First pass.
+{
+  // Spec B.8: dawn timer = route length / 11 m/s average, plus 18% slack.
+  "dawnAverageSpeed": 11,
+  "dawnSlack": 0.18,
+  // Flat straight track at each end: the fortress yard, and the terminus approach where nothing spawns (App. B.1).
+  "yardLength": 600,
+  "terminusApproach": 800,
+  "noSpawnFinalApproach": 500,
+  // App. B.2: Sleepers never within the first 2 km.
+  "noSleepersFirst": 2000,
+  // Level straight track around each facility junction, and minimum spacing between facilities.
+  "poiZoneHalfLength": 350,
+  "poiMinSpacing": 3000,
+  "poiMinFromEnds": 3000,
+
+  "tiers": {
+    "local":         { "lengthKm": [18, 22], "maxGrade": 2.0, "gradeChance": 0.35, "minRadius": 420, "curveChance": 0.30, "pois": [3, 4], "tunnels": [0, 1], "bridges": [1, 2], "weakBridgeChance": 0.10, "junctions": [1, 3], "sleepersPerKm": 0.15, "greasePerKm": 0.08, "fog": [0.010, 0.016], "wetChance": 0.2, "cold": [0.0, 0.3], "wind": [0.0, 0.4] },
+    "frontier":      { "lengthKm": [24, 30], "maxGrade": 3.0, "gradeChance": 0.45, "minRadius": 320, "curveChance": 0.38, "pois": [3, 5], "tunnels": [1, 2], "bridges": [1, 3], "weakBridgeChance": 0.25, "junctions": [2, 4], "sleepersPerKm": 0.30, "greasePerKm": 0.12, "fog": [0.012, 0.022], "wetChance": 0.3, "cold": [0.1, 0.5], "wind": [0.1, 0.6] },
+    "deadLines":     { "lengthKm": [30, 36], "maxGrade": 3.5, "gradeChance": 0.50, "minRadius": 280, "curveChance": 0.42, "pois": [4, 5], "tunnels": [1, 3], "bridges": [2, 4], "weakBridgeChance": 0.35, "junctions": [3, 5], "sleepersPerKm": 0.525, "greasePerKm": 0.16, "fog": [0.015, 0.026], "wetChance": 0.35, "cold": [0.3, 0.7], "wind": [0.2, 0.8] },
+    "deepTerritory": { "lengthKm": [36, 40], "maxGrade": 4.0, "gradeChance": 0.55, "minRadius": 250, "curveChance": 0.45, "pois": [4, 5], "tunnels": [2, 3], "bridges": [2, 4], "weakBridgeChance": 0.45, "junctions": [3, 6], "sleepersPerKm": 0.70, "greasePerKm": 0.20, "fog": [0.018, 0.030], "wetChance": 0.4, "cold": [0.5, 1.0], "wind": [0.3, 1.0] }
+  },
+
+  // GDD §18 facility roster, with the tier each first appears on.
+  "facilities": [
+    { "kind": "coalingTower",  "fromTier": "local" },
+    { "kind": "grainElevator", "fromTier": "local" },
+    { "kind": "switchyard",    "fromTier": "local" },
+    { "kind": "foundry",       "fromTier": "frontier" },
+    { "kind": "slaughterhouse","fromTier": "frontier" },
+    { "kind": "wreckYard",     "fromTier": "frontier" },
+    { "kind": "mineHead",      "fromTier": "deadLines" },
+    { "kind": "chemicalWorks", "fromTier": "deadLines" },
+    { "kind": "militaryDepot", "fromTier": "deepTerritory" }
+  ]
+}

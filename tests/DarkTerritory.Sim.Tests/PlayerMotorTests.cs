@@ -32,7 +32,7 @@ public class PlayerMotorTests
         public void Run(double seconds, PlayerIntent intent) => Run(seconds, _ => intent);
 
         public Double3 Local(int car) => Train.Frames[car].ToLocal(PlayerMotor.WorldPosition(Player, Train));
-        public double CarLength(int car) => Train.Frames[car].Shape.Body.Max.Z * 2;
+        public double CarLength(int car) => Train.Frames[car].Shape.HalfLength * 2;
     }
 
     static Rig OnRoof(int cars, double speed, int car, double localZ = 0, params TrackSegment[] track)
@@ -130,7 +130,7 @@ public class PlayerMotorTests
     {
         var rig = OnRoof(3, speed, car: 3);
         var frame = rig.Train.Frames[3];
-        var ladder = frame.ToWorld(frame.Shape.Ladders[0]);
+        var ladder = frame.ToWorld(frame.Shape.Ladders[0].Foot);
         var start = ladder + frame.Back * behind + frame.Right * 0.3;
         rig.Player = PlayerMotor.SpawnOnGround(start, rig.Train.Line, rig.Train.Cars[3].FrontDistance, P);
         return rig;

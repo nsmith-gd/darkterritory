@@ -5,12 +5,14 @@ using Ballast.Render;
 using DarkTerritory.Game;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Route;
 
 // Feel prototype (roadmap M1). Controls:
 //   mouse look · WASD move · Shift run · Space jump · E grab/let go of ladders
 //   R/F throttle notch up/down · B brake (hold) · X reverser (stopped only)
-//   1–9 respawn on that car's roof · Backspace respawn · Tab chase camera · Esc release mouse / quit
-// Options: --line name --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png
+//   E at the firebox: shovel (hold) · E at the valve: vent (hold)
+//   1–9 respawn on that car's roof · Backspace respawn in the cab · Tab chase camera · Esc release mouse / quit
+// Options: --route tier:seed | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png
 
 string Arg(string name, string fallback)
 {
@@ -19,7 +21,18 @@ string Arg(string name, string fallback)
 }
 
 var content = DataFile.FindContentRoot(Environment.CurrentDirectory);
-var session = new PrototypeSession(content, Arg("--line", "test-loop"), int.Parse(Arg("--cars", "6")));
+int cars = int.Parse(Arg("--cars", "6"));
+PrototypeSession session;
+if (Arg("--route", "") is { Length: > 0 } routeSpec)
+{
+    var (tier, seed) = Route.ParseSpec(routeSpec);
+    var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File));
+    session = new PrototypeSession(content, RouteGenerator.Generate(routeTuning, tier, seed), cars);
+}
+else
+{
+    session = new PrototypeSession(content, Arg("--line", "test-loop"), cars);
+}
 var internalSize = Arg("--internal", "480x270").Split('x').Select(int.Parse).ToArray();
 double quitAfter = double.Parse(Arg("--quit-after", "0"));
 string? capture = Arg("--capture", "") is { Length: > 0 } c ? c : null;
@@ -33,7 +46,7 @@ using var swapchain = new Swapchain(gpu, w, h);
 Console.WriteLine($"GPU: {gpu.DeviceName}, window {w}x{h}, internal {renderer.Width}x{renderer.Height}");
 
 var clock = new FixedStepClock(SimConstants.TickRate);
-var scene = new GreyboxScene();
+var scene = new GreyboxScene { Route = session.Route };
 var mesh = new MeshBuilder();
 var timer = Stopwatch.StartNew();
 double last = 0, titleAt = 0;
@@ -61,7 +74,7 @@ while (!window.CloseRequested)
     if (input.Pressed(Key.F)) session.Notch(-1);
     if (input.Pressed(Key.X)) session.FlipReverser();
     if (input.Pressed(Key.Tab)) chase = !chase;
-    if (input.Pressed(Key.Backspace)) session.Respawn(1);
+    if (input.Pressed(Key.Backspace)) session.Respawn(0);
     for (var k = Key.D1; k <= Key.D9; k++)
         if (input.Pressed(k)) session.Respawn(k - Key.D1 + 1);
     session.Controls.Brake = input.Down(Key.B) ? 1 : 0;
@@ -91,6 +104,9 @@ while (!window.CloseRequested)
     var frames = session.InterpolatedFrames(clock.Alpha);
     camera = chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
     lighting = Views.Lighting(frames[0]);
+    if (session.Route is { } r)
+        lighting.FogDensity = (float)r.Weather.FogDensity;
+    scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
     scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
     renderer.Prepare(mesh);
 

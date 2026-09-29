@@ -3,6 +3,7 @@ using Ballast.Render;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game;
@@ -16,20 +17,38 @@ public sealed class PrototypeSession
 {
     readonly HotData<TrainTuning> _trainTuning;
     readonly HotData<PlayerTuning> _playerTuning;
+    readonly HotData<BoilerTuning> _boilerTuning;
     PlayerState _previousPlayer;
-    double _previousDistance;
 
     public PrototypeSession(string contentRoot, string lineName = "test-loop", int cars = 6, double start = 600)
+        : this(contentRoot, RailLine.Load(Path.Combine(contentRoot, "lines", lineName + ".json")), null, cars, start)
     {
+    }
+
+    /// <summary>Plays a generated route from the fortress yard to the terminus, against the dawn clock.</summary>
+    public PrototypeSession(string contentRoot, Route route, int cars = 6)
+        : this(contentRoot, route.Build(), route, cars, 0)
+    {
+    }
+
+    PrototypeSession(string contentRoot, RailLine line, Route? route, int cars, double start)
+    {
+        Route = route;
         _trainTuning = new HotData<TrainTuning>(Path.Combine(contentRoot, TrainTuning.File));
         _playerTuning = new HotData<PlayerTuning>(Path.Combine(contentRoot, PlayerTuning.File));
-        var line = RailLine.Load(Path.Combine(contentRoot, "lines", lineName + ".json"));
-        Train = new TrainOnLine(new TrainDynamics(Consist.Uniform(_trainTuning.Value, cars, 1)), line, start);
+        _boilerTuning = new HotData<BoilerTuning>(Path.Combine(contentRoot, BoilerTuning.File));
+        var consist = Consist.Uniform(_trainTuning.Value, cars, 1);
+        // On a route, start in the fortress yard with the whole train on the level.
+        if (route is not null)
+            start = consist.LengthMetres + 150;
+        Train = new TrainOnLine(new TrainDynamics(consist), line, start, _boilerTuning.Value);
         Controls = new TrainControls { Reverser = 1 };
-        Respawn(1);
+        Respawn(0);
     }
 
     public TrainOnLine Train { get; }
+    public Route? Route { get; }
+    public double ElapsedSeconds => Tick * SimConstants.TickSeconds;
     public PlayerState Player;
     public TrainControls Controls;
     public long Tick { get; private set; }
@@ -42,7 +61,7 @@ public sealed class PrototypeSession
     {
         ReloadTuning();
         _previousPlayer = Player;
-        _previousDistance = Train.Dynamics.Distance;
+        CrewActions.Apply(ref Player, intent, Train, SimConstants.TickSeconds);
         Train.Step(SimConstants.TickSeconds, Controls);
         PlayerMotor.Step(ref Player, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds);
         Tick++;
@@ -57,6 +76,11 @@ public sealed class PrototypeSession
         }
         if (_playerTuning.Refresh(e => LastReloadError = e.Message))
             LastReloadError = null;
+        if (_boilerTuning.Refresh(e => LastReloadError = e.Message))
+        {
+            Train.BoilerTuning = _boilerTuning.Value;
+            LastReloadError = null;
+        }
     }
 
     /// <summary>Regulator in quarter notches, like a real throttle quadrant.</summary>
@@ -69,22 +93,20 @@ public sealed class PrototypeSession
             Controls.Reverser = -Controls.Reverser;
     }
 
+    /// <summary>Car 0 is the cab; any other number is that car's roof.</summary>
     public void Respawn(int car)
     {
         car = Math.Clamp(car, 0, Train.Frames.Count - 1);
-        Player = PlayerMotor.SpawnOnRoof(Train, car, 0, PlayerTuning);
+        Player = car == 0 ? PlayerMotor.SpawnInCab(Train, PlayerTuning) : PlayerMotor.SpawnOnRoof(Train, car, 0, PlayerTuning);
         _previousPlayer = Player;
-        _previousDistance = Train.Dynamics.Distance;
     }
 
-    readonly List<CarPose> _renderPoses = new();
     readonly List<CarFrame> _renderFrames = new();
 
-    /// <summary>Car frames between the previous and current tick, for smooth rendering at any frame rate.</summary>
+    /// <summary>Vehicle frames between the previous and current tick, for smooth rendering at any frame rate.</summary>
     public IReadOnlyList<CarFrame> InterpolatedFrames(double alpha)
     {
-        double d = _previousDistance + (Train.Dynamics.Distance - _previousDistance) * alpha;
-        Train.PosesAt(d, _renderPoses, _renderFrames);
+        Train.FramesAt(alpha, _renderFrames);
         return _renderFrames;
     }
 
@@ -112,10 +134,29 @@ public sealed class PrototypeSession
     public string Status()
     {
         var d = Train.Dynamics;
-        string where = Player.Parent == PlayerState.World ? "ground" : Player.Parent == 0 ? "engine" : $"car {Player.Parent}";
+        string where = Player.Parent == PlayerState.World ? "ground" : PlayerMotor.InCab(Player, Train) ? "cab" : Player.Parent == 0 ? "engine" : $"car {Player.Parent}";
+        var b = Train.Boiler;
+        string boiler = b.Ruptured ? "BOILER RUPTURED" :
+            $"P {b.Pressure,3:0}{(b.SafetyValveLifting ? " VALVE" : "")} fire {b.Firebox:0.0} tender {b.Tender:0}" +
+            (Player.ActionProgress > 0 ? $" shovel {Player.ActionProgress:0.0}s" : "");
         string state = Player.Alive ? $"{Player.Surface} {where} hp {Player.Health}" : $"DEAD ({Player.Death}) — Backspace to respawn";
         return $"{d.Speed,5:0.0} m/s {SpeedBands.Classify(TrainTuning, d.Speed),-7} | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} rev {(Controls.Reverser > 0 ? "F" : "R")} " +
-               $"| grade {Train.AverageGrade(),4:0.0}% | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state}" +
+               $"| {boiler} |{(Train.Rakes.Count > 1 ? $" {Train.Rakes.Count} rakes |" : "")} grade {Train.AverageGrade(),4:0.0}% | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state}" +
+               RouteStatus() +
                (LastReloadError is null ? "" : $" | TUNING ERROR: {LastReloadError}");
+    }
+
+    string RouteStatus()
+    {
+        if (Route is null)
+            return "";
+        double dawn = Route.DawnSeconds - ElapsedSeconds;
+        string clock = dawn > 0 ? $"dawn {(int)dawn / 60:00}:{(int)dawn % 60:00}" : "DAWN — the line is live";
+        double s = Train.Dynamics.Distance;
+        string next = Route.NextLandmark(s) is { } f
+            ? $"{(f.Kind == FeatureKind.Facility ? $"{f.Facility}" : $"{f.Kind}").ToLowerInvariant()} in {(f.Start - s) / 1000:0.0} km"
+            : "terminus ahead";
+        string tunnel = Route.InTunnel(s) ? " | IN TUNNEL" : "";
+        return $" | {Route.Name} | {clock} | {next}{tunnel}";
     }
 }

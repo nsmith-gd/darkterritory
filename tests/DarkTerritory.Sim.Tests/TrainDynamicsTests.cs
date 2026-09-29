@@ -89,3 +89,27 @@ public class TrainDynamicsTests
         Assert.Equal(210, consist.MassTonnes);
     }
 }
+
+public class ResistanceTests
+{
+    static readonly TrainTuning T = Tuning.Train;
+
+    [Fact]
+    public void ACoastingTrainSlowsButCoastsForKilometres()
+    {
+        var train = new TrainDynamics(Consist.Uniform(T, 10, 1)) { Velocity = T.MaxSpeed };
+        for (int i = 0; i < SimConstants.TickRate * 60; i++)
+            train.Step(SimConstants.TickSeconds, new TrainControls { Reverser = 1 }, TrackConditions.Flat);
+        Assert.InRange(train.Velocity, 20, 21.5);
+        Assert.True(train.Distance > 1200);
+    }
+
+    [Fact]
+    public void AStoppedTrainStaysStoppedOnTheFlat()
+    {
+        var train = new TrainDynamics(Consist.Uniform(T, 3, 1));
+        for (int i = 0; i < 300; i++)
+            train.Step(SimConstants.TickSeconds, default, TrackConditions.Flat);
+        Assert.Equal(0, train.Velocity);
+    }
+}

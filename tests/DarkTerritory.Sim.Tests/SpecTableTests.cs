@@ -54,14 +54,4 @@ public class SpecTableTests
     public void TwentyCarRoofTraverseTakesAboutNinetyFourSeconds() =>
         Assert.InRange(Consist.Uniform(T, 20, 1).LengthMetres / Tuning.Player.RoofRun, 93, 95);
 
-    [Theory]
-    [InlineData(3, 20, 133)]
-    [InlineData(10, 12, 80)]
-    [InlineData(20, 8, 53)]
-    public void CoalBurnMatchesSpecB6(int cars, double secondsPerUnit, double enduranceMinutes)
-    {
-        var dyn = new TrainDynamics(Consist.Uniform(T, cars, 1));
-        Assert.Equal(secondsPerUnit, dyn.CoalSecondsPerUnit, 3);
-        Assert.InRange(T.TenderCapacity * dyn.CoalSecondsPerUnit / 60, enduranceMinutes - 1, enduranceMinutes + 1);
-    }
 }

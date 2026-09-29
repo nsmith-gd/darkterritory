@@ -30,7 +30,8 @@ public sealed class TrainDynamics
 {
     public TrainDynamics(Consist consist) => Consist = consist;
 
-    public Consist Consist { get; }
+    /// <summary>The vehicles in this rake. Replaced when rakes are cut or coupled.</summary>
+    public Consist Consist { get; internal set; }
     public TrainTuning Tuning => Consist.Tuning;
 
     /// <summary>Signed speed along the line, m/s.</summary>
@@ -39,26 +40,33 @@ public sealed class TrainDynamics
     public double Distance { get; set; }
     /// <summary>1 = fresh brakes; drops while braking on descents.</summary>
     public double BrakeEfficiency { get; private set; } = 1;
-    public double CoalUsed { get; private set; }
     public double Acceleration { get; private set; }
 
     public double Speed => Math.Abs(Velocity);
 
     /// <summary>Adopts authoritative state from the host; clients then re-simulate forward from it.</summary>
-    public void Restore(double distance, double velocity, double brakeEfficiency, double coalUsed)
+    public void Restore(double distance, double velocity, double brakeEfficiency)
     {
         Distance = distance;
         Velocity = velocity;
         BrakeEfficiency = brakeEfficiency;
-        CoalUsed = coalUsed;
     }
 
     /// <summary>Tractive force in kN at full throttle for the current length.</summary>
-    public double MaxTractiveForce => Lookup(Tuning.Performance, r => r.Cars, r => r.Accel) * Consist.LoadedMassTonnes(Tuning, Consist.CarCount);
+    public double MaxTractiveForce => Consist.HasEngine ? Lookup(Tuning.Performance, r => r.Cars, r => r.Accel) * Consist.LoadedMassTonnes(Tuning, Consist.CarCount) : 0;
     /// <summary>Brake force in kN at full application for the current length, before fade.</summary>
-    public double MaxBrakeForce => Lookup(Tuning.Performance, r => r.Cars, r => r.Brake) * Consist.LoadedMassTonnes(Tuning, Consist.CarCount);
+    /// <remarks>A rake without an engine has no air brakes working; only its handbrakes, if wound on.</remarks>
+    public double MaxBrakeForce => Consist.HasEngine
+        ? Lookup(Tuning.Performance, r => r.Cars, r => r.Brake) * Consist.LoadedMassTonnes(Tuning, Consist.CarCount)
+        : Handbrake ? Tuning.Couplings.HandbrakeDecel * Consist.MassTonnes : 0;
 
-    public double CoalSecondsPerUnit => Lookup(Tuning.CoalBurn, r => r.Cars, r => r.SecondsPerUnit);
+    /// <summary>Handbrakes wound on across a rake without an engine (parked cars, GDD §17).</summary>
+    public bool Handbrake { get; set; }
+    /// <summary>Front-of-rake distance at the start of the current tick, for render interpolation.</summary>
+    public double PreviousDistance { get; set; }
+    /// <summary>This rake's front coupler was just cut; it won't re-couple until it has pulled clear.</summary>
+    public bool FrontCouplerLocked { get; set; }
+    public double RearDistance => Distance - Consist.LengthMetres;
 
     public void Step(double dt, in TrainControls controls, in TrackConditions track)
     {
@@ -69,8 +77,12 @@ public sealed class TrainDynamics
         double traction = Math.Clamp(track.Traction, 0, 1);
 
         double gravityAccel = -Tuning.Gravity * Math.Sin(Math.Atan(track.GradePercent / 100.0));
-        double drive = reverser * throttle * MaxTractiveForce * traction / mass;
-        double brakeAccel = brake * MaxBrakeForce * BrakeEfficiency * traction / mass;
+        // The spec's accel and brake figures are what the train achieves, net of rolling and air
+        // resistance. So full throttle overcomes resistance and full brake includes it; resistance
+        // only shows on its own when coasting, which is when it matters (GDD §23: boiler dies).
+        double resistance = Tuning.Resistance.Rolling + Tuning.Resistance.Air * Velocity * Velocity;
+        double drive = reverser * throttle * (MaxTractiveForce * traction / mass + resistance);
+        double brakeAccel = brake * Math.Max(MaxBrakeForce * BrakeEfficiency * traction / mass - resistance, 0) + resistance;
 
         double a = drive + gravityAccel;
         double v = Velocity;
@@ -93,8 +105,6 @@ public sealed class TrainDynamics
 
         double travelDir = v != 0 ? Math.Sign(v) : reverser;
         UpdateFade(dt, brake, track.GradePercent * travelDir);
-        if (throttle > 0)
-            CoalUsed += dt / CoalSecondsPerUnit;
     }
 
     void UpdateFade(double dt, double brake, double gradeInTravelDirection)

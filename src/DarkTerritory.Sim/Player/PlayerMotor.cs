@@ -37,7 +37,8 @@ public struct PlayerIntent
     public readonly bool Has(PlayerButtons b) => (Buttons & b) != 0;
 }
 
-public enum Surface : byte { Air, Ground, Roof, Coupler, Ladder }
+/// <summary>What the player is on. Roof is exposed (roof speeds, Draggers); Deck is footing on the train that isn't.</summary>
+public enum Surface : byte { Air, Ground, Roof, Coupler, Ladder, Deck }
 
 public enum DeathCause : byte { None, JumpedAtSpeed }
 
@@ -62,9 +63,11 @@ public struct PlayerState
     public DeathCause Death;
     /// <summary>Last known distance along the line, used to find the ground under a player off the train.</summary>
     public double LineHint;
+    /// <summary>Seconds into a timed action (shovelling). Resets when the action stops.</summary>
+    public double ActionProgress;
 
     public readonly bool Alive => Death == DeathCause.None;
-    public readonly bool Grounded => Surface is Surface.Ground or Surface.Roof or Surface.Coupler;
+    public readonly bool Grounded => Surface is Surface.Ground or Surface.Roof or Surface.Coupler or Surface.Deck;
 }
 
 /// <summary>
@@ -79,13 +82,43 @@ public static class PlayerMotor
     const double GroundSnap = 0.05;
     const double NearbyCar = 40;
 
-    public static PlayerState SpawnOnRoof(TrainOnLine train, int car, double localZ, PlayerTuning p) => new()
+    /// <summary>Stands a player on whatever is highest at (x, z) on a car: a roof, or the engine's boiler.</summary>
+    public static PlayerState SpawnOnRoof(TrainOnLine train, int car, double localZ, PlayerTuning p, double localX = 0)
     {
-        Parent = car,
-        Position = new Double3(0, train.Frames[car].Shape.Body.Max.Y, localZ),
-        Surface = Surface.Roof,
-        Health = p.Health,
-        LineHint = train.Cars[car].FrontDistance,
+        var top = train.Frames[car].Shape.TopAt(localX, localZ) ?? (train.Frames[car].Shape.RoofHeight, SurfaceKind.Roof);
+        return new PlayerState
+        {
+            Parent = car,
+            Position = new Double3(localX, top.Top, localZ),
+            Surface = ToSurface(top.Kind),
+            Health = p.Health,
+            LineHint = train.Cars[car].FrontDistance,
+        };
+    }
+
+    /// <summary>Stands a player on the cab floor, facing forward: where the conductor and fireman work.</summary>
+    public static PlayerState SpawnInCab(TrainOnLine train, PlayerTuning p, double localX = 0)
+    {
+        var cab = train.Frames[0].Shape.Cab ?? throw new InvalidOperationException("engine has no cab");
+        return new PlayerState
+        {
+            Parent = 0,
+            Position = new Double3(localX, cab.Min.Y + 0.1, cab.Centre.Z),
+            Surface = Surface.Deck,
+            Health = p.Health,
+            LineHint = train.Cars[0].FrontDistance,
+        };
+    }
+
+    /// <summary>True when standing inside the engine's cab.</summary>
+    public static bool InCab(in PlayerState s, TrainOnLine train) =>
+        s.Parent == 0 && s.Surface == Surface.Deck && train.Frames[0].Shape.Cab is { } cab && cab.Contains(s.Position);
+
+    static Surface ToSurface(SurfaceKind k) => k switch
+    {
+        SurfaceKind.Roof => Surface.Roof,
+        SurfaceKind.Coupler => Surface.Coupler,
+        _ => Surface.Deck,
     };
 
     public static PlayerState SpawnOnGround(Double3 world, RailLine line, double lineHint, PlayerTuning p)
@@ -139,7 +172,8 @@ public static class PlayerMotor
         world = Collide(world, train, p);
         UpdateSupport(ref s, world, prevWorld, train, p, t);
 
-        if (intent.Has(PlayerButtons.Use) && s.Surface != Surface.Ladder)
+        // Use while pushing towards it grabs a ladder; Use standing still is for working things (CrewActions).
+        if (intent.Has(PlayerButtons.Use) && intent.MoveZ > 0.5 && s.Surface != Surface.Ladder)
             TryGrabLadder(ref s, train, p);
     }
 
@@ -161,9 +195,8 @@ public static class PlayerMotor
             if ((frame.Origin - world).Length > NearbyCar)
                 continue;
             var local = frame.ToLocal(world);
-            local = PushOut(local, frame.Shape.Body, p);
-            if (frame.Shape.Coupler is { } c)
-                local = PushOut(local, c, p);
+            foreach (var solid in frame.Shape.Solids)
+                local = PushOut(local, solid.Box, p);
             world = frame.ToWorld(local);
         }
         return world;
@@ -220,21 +253,18 @@ public static class PlayerMotor
             if ((frame.Origin - world).Length > NearbyCar)
                 continue;
             var local = frame.ToLocal(world);
-            Consider(frame.Shape.Body, CarSurface.Roof);
-            if (frame.Shape.Coupler is { } c)
-                Consider(c, CarSurface.Coupler);
-
-            void Consider(Box box, CarSurface kind)
+            foreach (var solid in frame.Shape.Solids)
             {
+                var box = solid.Box;
                 double top = box.Max.Y;
                 if (!box.ContainsXZ(local) || local.Y > top + snap || local.Y < top - below)
-                    return;
+                    continue;
                 double worldTop = frame.ToWorld(local with { Y = top }).Y;
                 if (worldTop <= bestTop)
-                    return;
+                    continue;
                 bestTop = worldTop;
                 bestParent = frame.Index;
-                bestSurface = kind == CarSurface.Roof ? Surface.Roof : Surface.Coupler;
+                bestSurface = ToSurface(solid.Top);
                 bestLocal = local with { Y = top };
             }
         }
@@ -291,10 +321,10 @@ public static class PlayerMotor
             var local = frame.ToLocal(world);
             foreach (var ladder in frame.Shape.Ladders)
             {
-                double dx = local.X - ladder.X, dz = local.Z - ladder.Z;
+                double dx = local.X - ladder.Foot.X, dz = local.Z - ladder.Foot.Z;
                 if (dx * dx + dz * dz > p.Ladder.GrabRange * p.Ladder.GrabRange)
                     continue;
-                if (local.Y < -0.5 || local.Y > frame.Shape.Body.Max.Y + 0.1)
+                if (local.Y < -0.5 || local.Y > ladder.Top + 0.1)
                     continue;
                 var relative = frame.VelocityToLocal(worldVelocity);
                 if (Math.Sqrt(relative.X * relative.X + relative.Z * relative.Z) >= p.Ladder.GrabMaxRelativeSpeed)
@@ -303,7 +333,7 @@ public static class PlayerMotor
                     s.Yaw += (s.Parent == PlayerState.World ? 0 : train.Frames[s.Parent].Heading) - frame.Heading;
                 s.Parent = frame.Index;
                 s.Surface = Surface.Ladder;
-                s.Position = new Double3(ladder.X, Math.Max(0, local.Y), ladder.Z);
+                s.Position = new Double3(ladder.Foot.X, Math.Clamp(local.Y, 0, ladder.Top - 0.05), ladder.Foot.Z);
                 s.Velocity = default;
                 return;
             }
@@ -313,7 +343,8 @@ public static class PlayerMotor
     static void StepLadder(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt)
     {
         var frame = train.Frames[s.Parent];
-        var inward = frame.Shape.LadderInward(s.Position);
+        var ladder = NearestLadder(frame.Shape, s.Position);
+        var inward = ladder.Inward;
         if (intent.Has(PlayerButtons.Jump) || intent.Has(PlayerButtons.Use) && intent.MoveZ < -0.5)
         {
             // Let go: push off the car and fall.
@@ -323,14 +354,15 @@ public static class PlayerMotor
             return;
         }
 
-        double top = frame.Shape.Body.Max.Y;
+        double top = ladder.Top;
         double y = s.Position.Y + Math.Clamp(intent.MoveZ, -1, 1) * p.LadderClimb * dt;
         if (y >= top)
         {
-            // Over the top onto the roof, just inside the edge.
+            // Over the top onto whatever the ladder serves, just inside the edge.
             var onto = s.Position + inward * (p.Radius + 0.45);
-            s.Position = onto with { Y = top };
-            s.Surface = Surface.Roof;
+            var surface = frame.Shape.TopAt(onto.X, onto.Z);
+            s.Position = onto with { Y = surface?.Top ?? top };
+            s.Surface = ToSurface(surface?.Kind ?? SurfaceKind.Roof);
             s.Velocity = default;
             return;
         }
@@ -344,6 +376,18 @@ public static class PlayerMotor
             SetWorld(ref s, train, world, frame.Velocity);
             UpdateSupport(ref s, world, world, train, p, t);
         }
+    }
+
+    static Ladder NearestLadder(CarShape shape, Double3 p)
+    {
+        Ladder best = shape.Ladders[0];
+        double bestD = double.MaxValue;
+        foreach (var l in shape.Ladders)
+        {
+            double d = (l.Foot.X - p.X) * (l.Foot.X - p.X) + (l.Foot.Z - p.Z) * (l.Foot.Z - p.Z);
+            if (d < bestD) { bestD = d; best = l; }
+        }
+        return best;
     }
 
     static Double3 ToWorld(in PlayerState s, TrainOnLine train, Double3 position) =>

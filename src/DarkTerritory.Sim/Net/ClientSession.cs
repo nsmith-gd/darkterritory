@@ -54,6 +54,13 @@ public sealed class ClientSession
     public double MaxCorrection { get; private set; }
     public int Corrections { get; private set; }
     public int SnapshotsReceived { get; private set; }
+
+    /// <summary>Clears the correction statistics (after a deliberate host-side teleport, for example).</summary>
+    public void ResetStats()
+    {
+        LastCorrection = MaxCorrection = 0;
+        Corrections = 0;
+    }
     public uint NewestSnapshotTick => _newestSnapshotTick;
 
     public void Step(in PlayerIntent intent)
@@ -70,10 +77,20 @@ public sealed class ClientSession
 
     void Predict(in PlayerIntent intent)
     {
-        CabControls.Apply(ref Controls, intent, Predicted, Train.Dynamics.Speed);
+        CabControls.Apply(ref Controls, intent, Predicted, Train);
+        CrewActions.Apply(ref Predicted, intent, Train, SimConstants.TickSeconds);
         Train.Step(SimConstants.TickSeconds, Controls);
         PlayerMotor.Step(ref Predicted, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds);
+        // The host snaps its world to the replication grid every tick; do the same so we match it exactly.
+        _quantise.Clear();
+        _quantise.Add(new PlayerSnapshot(PlayerId ?? 0, Predicted));
+        WorldRecords.Quantise(Train, ref Controls, _quantise);
+        Predicted = _quantise[0].State;
     }
+
+    readonly List<PlayerSnapshot> _quantise = new();
+    readonly Dictionary<uint, List<WireRecord>> _decoded = new();
+    const int DecodedHistory = 64;
 
     void SendInputs()
     {
@@ -91,9 +108,9 @@ public sealed class ClientSession
     {
         _events.Clear();
         _transport.Poll(_events);
-        // Only the newest snapshot matters for reconciliation; all of them feed interpolation.
-        byte[]? newest = null;
-        uint newestTick = _newestSnapshotTick;
+        // Decode every snapshot (each may be the baseline for a later one); reconcile against the newest.
+        List<WireRecord>? newest = null;
+        uint newestAcked = 0;
         foreach (var e in _events)
         {
             if (e.Kind == TransportEventKind.Disconnected)
@@ -111,49 +128,55 @@ public sealed class ClientSession
                     PlayerId = r.U8();
                     break;
                 case MessageType.Snapshot:
-                    uint tick = new NetReader(payload.AsSpan(1)).U32();
+                    uint tick = r.U32(), acked = r.U32(), baseTick = r.U32();
+                    if (tick <= _newestSnapshotTick || _decoded.ContainsKey(tick))
+                        continue;
+                    var baseline = baseTick == 0 ? null : _decoded.GetValueOrDefault(baseTick);
+                    if (baseTick != 0 && baseline is null)
+                        continue; // we no longer have what it's relative to; the next one will be
+                    List<WireRecord> records;
+                    try { records = WorldRecords.ReadDelta(ref r, baseline); }
+                    catch (Exception ex) when (ex is EndOfStreamException or InvalidDataException) { continue; }
                     SnapshotsReceived++;
-                    Buffer(payload);
-                    if (tick > newestTick)
-                    {
-                        newestTick = tick;
-                        newest = payload;
-                    }
+                    _decoded[tick] = records;
+                    if (_decoded.Count > DecodedHistory)
+                        foreach (var old in _decoded.Keys.Where(k => k + DecodedHistory < tick).ToList())
+                            _decoded.Remove(old);
+                    Buffer(tick, records);
+                    _newestSnapshotTick = tick;
+                    newest = records;
+                    newestAcked = acked;
                     break;
             }
         }
         if (newest is not null)
-            Reconcile(newest);
+            Reconcile(newest, newestAcked);
     }
 
-    void Buffer(byte[] payload)
+    void Buffer(uint tick, List<WireRecord> records)
     {
-        var r = new NetReader(payload.AsSpan(1));
-        _players.Clear();
-        Messages.ReadSnapshot(ref r, out uint tick, out _, out _, _players);
-        int at = _snapshots.FindIndex(s => s.Tick >= tick);
-        if (at >= 0 && _snapshots[at].Tick == tick)
-            return;
-        _snapshots.Insert(at < 0 ? _snapshots.Count : at, (tick, _players.ToArray()));
+        var players = records.Where(r => r.Kind == RecordKind.Player).Select(r => PlayerFrom(r)).ToArray();
+        _snapshots.Add((tick, players));
         if (_snapshots.Count > SnapshotBuffer)
             _snapshots.RemoveAt(0);
     }
 
-    void Reconcile(byte[] payload)
+    static PlayerSnapshot PlayerFrom(WireRecord r)
     {
-        var r = new NetReader(payload.AsSpan(1));
-        _players.Clear();
-        Messages.ReadSnapshot(ref r, out uint tick, out uint acked, out var train, _players);
-        _newestSnapshotTick = tick;
+        var list = new List<PlayerSnapshot>(1);
+        WorldRecords.ApplyPlayers([r], list);
+        return list[0];
+    }
+
+    void Reconcile(List<WireRecord> records, uint acked)
+    {
         if (PlayerId is not { } id)
             return;
+        WorldRecords.Apply(records, Train, ref Controls, _players);
         int mine = _players.FindIndex(p => p.Id == id);
         if (mine < 0)
             return;
         var truth = _players[mine].State;
-
-        Train.Restore(train.Distance, train.Velocity, train.BrakeEfficiency, train.CoalUsed);
-        Controls = train.Controls;
 
         if (!_haveState)
         {

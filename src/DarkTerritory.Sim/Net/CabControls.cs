@@ -9,13 +9,14 @@ namespace DarkTerritory.Sim.Net;
 /// </summary>
 public static class CabControls
 {
-    public static bool CanDrive(in PlayerState s) => s.Alive && s.Parent == 0 && s.Surface != Surface.Ladder;
+    public static bool CanDrive(in PlayerState s, TrainOnLine train) => s.Alive && PlayerMotor.InCab(s, train);
 
     /// <summary>Applies one player's cab input. The host clears the brake each tick before applying everyone.</summary>
-    public static void Apply(ref TrainControls controls, in PlayerIntent intent, in PlayerState state, double trainSpeed)
+    public static void Apply(ref TrainControls controls, in PlayerIntent intent, in PlayerState state, TrainOnLine train)
     {
-        if (!CanDrive(state))
+        if (!CanDrive(state, train))
             return;
+        double trainSpeed = train.Dynamics.Speed;
         if (intent.ThrottleNotch != 0)
             controls.Throttle = Math.Clamp(Math.Round(controls.Throttle * 4 + intent.ThrottleNotch) / 4, 0, 1);
         if (intent.Has(PlayerButtons.Brake))

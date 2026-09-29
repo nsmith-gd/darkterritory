@@ -1,0 +1,40 @@
+// Boiler, firebox and tender. Source: systems spec B.6 (and B.5 Vigil rebuild times).
+// The model: coal in the firebox burns at (coal / fireTimeConstant) x draft, each unit burned
+// raises pressure by steamPerUnit, and the train draws steam for the cylinders (throttle), for
+// auxiliaries, and for heating every car. Draft comes from the exhaust, so a standing engine's
+// fire burns slower: that is why rebuilding pressure at a stop is slow, and slower for long trains.
+// These constants are fitted so the spec's own tables fall out; `dt boiler table` shows the result.
+{
+  "pressureMax": 100,
+  "workingBandMin": 60,
+  "workingBandMax": 90,
+  "redline": 95,
+  // Spec B.6: rupture at 100 held for 20 s.
+  "ruptureHoldSeconds": 20,
+  // Not in the spec: a safety valve lifts at the redline and sheds up to this much pressure per second.
+  // Without it an ordinary overfired short train ruptures; with it, only something the valve can't
+  // keep up with (the Stoker, a jammed valve) can reach 100. The lifting valve is itself a loud tell.
+  "safetyValveLift": 95,
+  "safetyValveCapacity": 2.5,
+  // Tractive effort fades out below workingBandMin and is gone at this pressure.
+  "powerFloor": 20,
+
+  "tenderCapacity": 400,
+  "fireboxCapacity": 6,
+  "shovelSeconds": 1.2,
+
+  "fireTimeConstant": 30,
+  // Draft with the regulator shut (blower only), as a fraction of working draft.
+  "idleDraft": 0.6,
+  "steamPerUnit": 15,
+  "auxiliaryDrain": 0.05,
+  "heatingPerCar": 0.0675,
+  "fullThrottleDemand": 0.5,
+
+  // Holding the vent valve open dumps pressure at this rate (Vigil, Stoker counter).
+  "ventRate": 6,
+  // Firebox below this fraction of capacity counts as a low fire (Hollow's trigger, GDD App. A.5).
+  "lowFireFraction": 0.2,
+  "startPressure": 75,
+  "startFirebox": 4
+}

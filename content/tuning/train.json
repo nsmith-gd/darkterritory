@@ -19,7 +19,17 @@
     "couplerHeight": 1.1,
     "couplerWidth": 0.8,
     // Ladders sit on both sides at the rear end of every car.
-    "ladderInset": 0.6
+    "ladderInset": 0.6,
+    // Engine + tender unit: boiler forward, walkable cab, coal tender behind (heights above rail).
+    "engine": {
+      "deckHeight": 1.4,
+      "boilerHalfWidth": 0.95,
+      "boilerTop": 3.6,
+      "cabLength": 4.0,
+      "tenderLength": 4.0,
+      "tenderTop": 3.4,
+      "doorWidth": 0.9
+    }
   },
 
   "mass": {
@@ -49,13 +59,32 @@
     "onlyOnDescent": true
   },
 
-  // Spec B.6: seconds per coal unit burned, by consist length.
-  "coalBurn": [
-    { "cars": 3,  "secondsPerUnit": 20.0 },
-    { "cars": 10, "secondsPerUnit": 12.0 },
-    { "cars": 20, "secondsPerUnit": 8.0 }
-  ],
-  "tenderCapacity": 400,
+
+  // Not in the spec. The accel/brake table above is net performance; this is what slows a train
+  // with the regulator shut: about 0.019 m/s² at max speed, so a dead boiler coasts for kilometres.
+  "resistance": {
+    "rolling": 0.004,
+    "air": 0.00003
+  },
+
+  // Couplings (GDD §17, §24). Not in the spec; first pass.
+  "couplings": {
+    // Rakes that touch closing slower than this couple automatically (buckeye couplers).
+    "coupleMaxSpeed": 1.5,
+    // Contact above this closing speed damages the two end vehicles: (closing - safe)^2 x this, per hit.
+    "safeContactSpeed": 1.0,
+    "damagePerSpeedSquared": 0.06,
+    // Fraction of structural damage that also spoils cargo in every vehicle of both rakes.
+    "cargoDamageShare": 0.5,
+    // Hold Use on the coupler plate this long to cut. Longer while the train is working (under load).
+    "uncoupleSeconds": 1.5,
+    "uncoupleUnderLoadSeconds": 4.0,
+    // Deceleration handbrakes give a parked rake, and the speed below which a cut rake is parked for you.
+    "handbrakeDecel": 0.3,
+    "parkBelowSpeed": 0.5,
+    // Hold Use at a car's brake wheel this long to wind handbrakes on or off.
+    "handbrakeSeconds": 1.0
+  },
 
   "speedBands": {
     "yard": 2.5,
