@@ -270,6 +270,15 @@ public sealed class PrototypeSession : IPlaySession
                 : SiteStatus(run.CurrentSite))
             : "";
         double s = train.Dynamics.Distance;
+        // Pulled up by a facility that's down a spur (GDD §17): say how much of the train it takes.
+        if (stop.Length == 0 && run is not null && train.OnMain && train.Dynamics.Speed < 0.5)
+            for (int i = 0; i < run.FacilityCount; i++)
+                if (run.SpurOf(i) is var b and >= 0 && b < train.Line.Branches.Count && route.Of(FeatureKind.Facility).ElementAt(i) is var zone && zone.Contains(s))
+                {
+                    int fit = SpurDrill.Capacity(train.Dynamics.Tuning.Geometry, train.Line.Branches[b], world.Switches?.Tuning.PointsLength ?? 12);
+                    stop = $" | {zone.Facility.ToString()!.ToUpperInvariant()} IS DOWN THE SPUR: ENGINE + {fit} CARS FIT" +
+                        (train.Dynamics.Consist.CarCount > fit ? ", CUT THE REST" : "");
+                }
         string next = route.NextLandmark(s) is { } l
             ? $"{(l.Kind == FeatureKind.Facility ? $"{l.Facility}" : $"{l.Kind}").ToLowerInvariant()} in {(l.Start - s) / 1000:0.0} km"
             : "terminus ahead";

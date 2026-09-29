@@ -26,7 +26,15 @@
     "leverReach": 2.2,
     "throwSeconds": 1.5,
     // The points won't move with a wheel on them: this far either side of the toe.
-    "pointsLength": 12
+    "pointsLength": 12,
+    // GDD §17: "Most [facilities] cannot accommodate a full armoured freight train, so the crew must break the
+    // consist apart." Each one but the coaling tower (which stands over the main line) is on a spur off its level
+    // zone: points this far into the zone, a tighter turnout (6 m between track centres), and 100 m to the buffer
+    // stop, which takes the engine and four cars clear of the points. The rest wait on the main line.
+    "spurToe": 200,
+    "spurRadius": 150,
+    "spurDiverge": 30,
+    "spurLength": 100
   },
 
   "tiers": {

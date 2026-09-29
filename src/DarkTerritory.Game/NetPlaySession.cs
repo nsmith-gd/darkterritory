@@ -314,22 +314,22 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// </summary>
     public Sim.Campaign.RunCheckpoint? Checkpoint { get; private set; }
     public int Checkpoints { get; private set; }
-    Sim.Run.RunPhase _lastPhase;
-    int _lastFacility = -1;
+    int _departures;
 
     public void Step(in PlayerIntent intent)
     {
         Lobby?.Poll();
         Host?.Step();
-        if (Host?.World.Run is { } run)
+        // Spec E: the night autosaves on leaving a POI: the engine out past the end of its zone, whatever shunting it
+        // took there (GDD §17), so the save is the train going on.
+        if (Host?.World.Run is { } run && run.Departures != _departures)
         {
-            if (_lastPhase == Sim.Run.RunPhase.AtFacility && run.Phase == Sim.Run.RunPhase.Underway && Setup.Route is { } spec)
+            _departures = run.Departures;
+            if (Setup.Route is { } spec)
             {
-                Checkpoint = Capture(Host.World, spec, _lastFacility);
+                Checkpoint = Capture(Host.World, spec, run.Departed);
                 Checkpoints++;
             }
-            _lastPhase = run.Phase;
-            _lastFacility = run.Facility >= 0 ? run.Facility : _lastFacility;
         }
         _previous = Client.Predicted;
         Client.Step(intent);

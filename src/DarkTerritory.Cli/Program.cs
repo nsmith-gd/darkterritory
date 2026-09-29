@@ -45,6 +45,7 @@ return args switch
     ["online", "check"] => Print(OnlineCheck()),
     ["campaign", var verb, ..] => Print(CampaignCommand(content, verb, args)),
     ["vr", "check", ..] => Print(VrCheck(train, content, args)),
+    ["facility", "drill", ..] => Print(FacilityDrill(train, content, routeTuning, args)),
     ["audio", "render", ..] => Print(RenderAudio(content, args)),
     ["edit", ..] => Edit(content, args),
     ["voice", "bench", ..] => Print(DarkTerritory.Game.Sound.VoiceBench.Run(content, (int)Opt(args, "--car", 3), Opt(args, "--z", 4), args.Contains("--radio"),
@@ -182,6 +183,57 @@ static object VrCheck(TrainTuning t, string content, string[] args)
             path = Path.GetFullPath(output),
         };
     }
+}
+
+// GDD §17's facility set piece, scripted end to end on a generated night (T28): stop short of the spur's points, cut
+// what won't fit, run the empties in, load (instantly, or --load-seconds), back out onto the waiting cars and couple,
+// set the switch back, and go. Prints when each step began and how the train came out of it.
+static object FacilityDrill(TrainTuning t, string content, RouteTuning rt, string[] args)
+{
+    var (tier, seed) = Route.ParseSpec(Str(args, "--route", "frontier:7"));
+    var route = RouteGenerator.Generate(rt, tier, seed);
+    var facilities = route.Of(FeatureKind.Facility).ToList();
+    var run = new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), route);
+    int facility = (int)Opt(args, "--facility", Enumerable.Range(0, facilities.Count).FirstOrDefault(i => run.SpurOf(i) >= 0, -1));
+    if (facility < 0 || run.SpurOf(facility) < 0)
+        return new { error = $"{route.Name} has no facility with a spur{(facility >= 0 ? $" at {facility}" : "")}" };
+    var line = route.Build();
+    var spur = line.Branches[run.SpurOf(facility)];
+    int cars = (int)Opt(args, "--cars", 7);
+    var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, cars, 0.5)), line, spur.Toe - 120);
+    var world = new World(train);
+    world.EnableSwitches(rt.Junctions);
+    world.EnableRun(run.Tuning, route, rt.YardLength, authority: true);
+    var drill = new DarkTerritory.Sim.Run.SpurDrill(world, facility);
+    double loadFor = Opt(args, "--load-seconds", 0), loading = 0;
+    var order = train.Dynamics.Consist.Vehicles.Select(v => v.Id).ToArray();
+    int ticks = 0;
+    for (; ticks < SimConstants.TickRate * 3600 && drill.Step != DarkTerritory.Sim.Run.DrillStep.Done; ticks++)
+    {
+        if (drill.Step == DarkTerritory.Sim.Run.DrillStep.Loading && (loading += SimConstants.TickSeconds) >= loadFor)
+            drill.Loaded = true;
+        world.BeginTick();
+        world.Step(drill.Tick(SimConstants.TickSeconds));
+        world.StepRun([]);
+    }
+    return new
+    {
+        route = route.Name,
+        facility = $"{facilities[facility].Facility} ({facility})",
+        spur = new { toe = spur.Toe, length = spur.Local.Length, side = spur.Side < 0 ? "left" : "right" },
+        cars,
+        tookIn = drill.TookIn,
+        leftWaiting = drill.LeftWaiting,
+        timeline = drill.Timeline.Select(x => new { step = x.Step.ToString(), atS = x.Seconds }),
+        done = drill.Step == DarkTerritory.Sim.Run.DrillStep.Done,
+        seconds = Math.Round(ticks * SimConstants.TickSeconds, 1),
+        rakes = train.Rakes.Count,
+        inOrder = train.Rakes.Count == 1 && train.Dynamics.Consist.Vehicles.Select(v => v.Id).SequenceEqual(order),
+        onMain = train.OnMain,
+        switchBack = !train.Diverging(spur.Index),
+        departures = world.Run!.Departures,
+        worstIntegrity = train.Vehicles.Min(v => v.Integrity),
+    };
 }
 
 // The campaign between nights (spec E, F): save slots, the board, purchases, the progression check, and a night
@@ -417,7 +469,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         site = run.Sites.FirstOrDefault(x => x is not null && x.Has(DarkTerritory.Sim.Run.ModuleKind.Winch)) ?? run.Sites.FirstOrDefault(x => x is not null);
         if (site is not null)
         {
-            at = (site.Feature.Start + site.Feature.End) / 2 + 45;
+            // Down its spur, the engine up at the buffer stop (T28); on the main line for one without.
+            at = site.Spur >= 0 ? line.Branches[site.Spur].End - 0.5 : (site.Feature.Start + site.Feature.End) / 2 + 45;
             run.Mirror(DarkTerritory.Sim.Run.RunPhase.AtFacility, DarkTerritory.Sim.Run.RunEnd.None, 900, site.Index, false,
                 [.. Enumerable.Repeat(0.0, run.FacilityCount)], [.. run.Sites.Select(x => (true, x == site ? 0.45 : 0, x?.SledsLeft ?? 0, x == site))]);
         }
@@ -427,6 +480,11 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (junction >= 0 && junction < line.Branches.Count)
         at = line.Branches[junction].Toe - (args.Contains("--through") ? 10 : 25);
     var train = new TrainOnLine(new TrainDynamics(consist), line, at);
+    if (site is { Spur: >= 0 })
+    {
+        var state = train.Capture();
+        train.Restore(state with { Rakes = [state.Rakes[0] with { Path = site.Spur }] });
+    }
     if (junction >= 0 && junction < line.Branches.Count)
     {
         var branch = line.Branches[junction];
@@ -488,7 +546,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 var stack = site.CrateStack.Aggregate(Double3.Zero, (a, b) => a + b) * (1.0 / site.CrateStack.Length);
                 var sample = line.Sample(site.CrateLineHint);
                 var outward = (stack - sample.Position) with { Y = 0 };
-                camera = Camera.LookAt(stack + outward.Normalized * 7 + sample.Tangent * 5 + Double3.Up * 2.8, stack, 70);
+                // Along the track rather than straight out: out there are the facility's buildings.
+                camera = Camera.LookAt(stack + outward.Normalized * 3 + sample.Tangent * 10 + Double3.Up * 3, stack, 70);
             }
         }
     }
@@ -648,6 +707,8 @@ static int Usage()
                      --online: every bot joins a lobby on the fake Steam and plays over relayed P2P
                      host + bot clients over a simulated network; reports prediction error, bandwidth, deaths,
                      and with --enemies the director's spawns, punishes, deaths by cause and fairness audit
+          facility drill [--route tier:seed] [--facility i] [--cars n] [--load-seconds s]
+                     GDD §17's set piece scripted: cut, spur in, load, back out, recouple, switch back, go; the timeline
           vr check [--frames n] [--view roof|cab|…] [--scale 0.5] [--out out/shots/vr.png]
                      an OpenXR session end to end (Monado's simulated headset works headless) and both eyes as a PNG
           campaign new|show|slots|buy car|buy <upgrade>|sim|play [--slot 1..3] [--saves dir] [--contract i] [--seed n]

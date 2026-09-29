@@ -2,6 +2,7 @@ using Ballast;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
@@ -35,14 +36,15 @@ public class FacilityTests
         public readonly List<PlayerState> Crew = [];
         public readonly Site Site;
 
-        /// <param name="carAt">Along-line distance to put the first cargo car's middle at (defaults to the facility's middle).</param>
-        public Stop(ModuleKind module, double? carAt = null)
+        /// <summary>Stopped down the facility's spur with the engine up at the buffer stop (GDD §17), empties behind it.</summary>
+        public Stop(ModuleKind module)
         {
             var (route, f) = With(module);
-            var g = T.Geometry;
-            double firstCar = carAt ?? (f.Start + f.End) / 2;
-            double front = firstCar + g.EngineLength + g.CouplingGap + g.CarLength / 2;
-            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 0)), route.Build(), front, Tuning.Boiler);
+            var line = route.Build();
+            var spur = line.Branches.Single(b => b.Kind == BranchKind.Spur && f.Contains(b.Toe));
+            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 0)), line, spur.End - 0.5, Tuning.Boiler);
+            var state = train.Capture();
+            train.Restore(state with { Rakes = [state.Rakes[0] with { Path = spur.Index }] });
             World = new World(train, Tuning.Combat);
             World.EnableBodies();
             World.EnableRun(Tuning.Run, route, 600, authority: true, F);
@@ -153,9 +155,8 @@ public class FacilityTests
     [Fact]
     public void TheWinchNeedsTwoOnTheCapstan()
     {
-        // Park the first cargo car by the winch, where the sled comes to rest.
-        var (_, f) = With(ModuleKind.Winch);
-        var stop = new Stop(ModuleKind.Winch, carAt: (f.Start + f.End) / 2 + F.Winch.Along);
+        // With the engine at the buffer stop, the first cargo car stands by the winch, where the sled comes to rest.
+        var stop = new Stop(ModuleKind.Winch);
         var site = stop.Site;
         var crank = new PlayerIntent { Buttons = PlayerButtons.Use };
         foreach (var handle in site.Handles)

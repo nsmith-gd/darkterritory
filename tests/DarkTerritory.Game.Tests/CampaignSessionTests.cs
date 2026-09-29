@@ -58,9 +58,13 @@ public class CampaignSessionTests
     [Fact]
     public void LeavingAFacilityAutosavesAndTheNightResumesFromThere()
     {
+        // The coaling tower stands over the main line (the rest are down spurs): stopped under it near the far end of
+        // its zone, then away past the end of it.
         var route = RouteGenerator.Generate(DataFile.Load<RouteTuning>(Path.Combine(Content, RouteTuning.File)), RouteTier.Frontier, 7);
-        var facility = route.Of(FeatureKind.Facility).First();
-        var setup = new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false) { Start = (facility.Start + facility.End) / 2 };
+        var facilities = route.Of(FeatureKind.Facility).ToList();
+        var facility = facilities.First(f => f.Facility == FacilityKind.CoalingTower);
+        int index = facilities.IndexOf(facility);
+        var setup = new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false) { Start = facility.End - 20 };
         Sim.Campaign.RunCheckpoint saved;
         using (var night = NetPlaySession.HostGame(Content, setup, port: 0))
         {
@@ -71,8 +75,14 @@ public class CampaignSessionTests
             Assert.Equal(0, night.Checkpoints);
             train.Vehicles[1].Load = 0.9;
             train.Boiler.Tender = 123;
-            // Pull away.
+            // Moving off isn't leaving: shunting at a stop takes to and fro. Out past the end of the zone is.
             for (int i = 0; i < 10; i++)
+            {
+                train.Dynamics.Velocity = 3;
+                night.Step(default);
+            }
+            Assert.Equal(0, night.Checkpoints);
+            for (int i = 0; i < 10 * DarkTerritory.Sim.SimConstants.TickRate && night.Checkpoints == 0; i++)
             {
                 train.Dynamics.Velocity = 3;
                 night.Step(default);
@@ -80,21 +90,22 @@ public class CampaignSessionTests
             Assert.Equal(1, night.Checkpoints);
             saved = night.Checkpoint!;
             Assert.Equal("frontier:7", saved.Route);
-            Assert.Equal(0, saved.Facility);
+            Assert.Equal(index, saved.Facility);
+            Assert.True(saved.Front > facility.End);
             Assert.Equal(0.9, saved.Cars[1].Load, 6);
         }
 
         // The session is lost; the night starts again from the save.
         using var resumed = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: 0, resume: saved);
         var run = resumed.Host!.World.Run!;
-        // Past the gates with the clock running: stood where it pulled away, so at that stop again until it leaves.
+        // Past the gates with the clock running, and on from where it left.
         Assert.NotEqual(RunPhase.Yard, run.Phase);
         Assert.InRange(run.Seconds, saved.Seconds - 1, saved.Seconds + 1);
         Assert.InRange(resumed.Host.Train.Dynamics.Distance, saved.Front - 1, saved.Front + 1);
         Assert.Equal(0.9, resumed.Host.Train.Vehicles[1].Load, 6);
         Assert.InRange(resumed.Host.Train.Boiler.Tender, 120, 123);
-        // Its first stop is already spent: no second helping of coal or crates.
-        Assert.Equal(0, run.ChuteLeft(0));
+        // That stop is already spent: no second helping of coal or crates.
+        Assert.Equal(0, run.ChuteLeft(index));
         // And a joiner arriving now builds the train where it is, not in the yard.
         Assert.Equal(saved.Front, resumed.Setup.Start);
     }

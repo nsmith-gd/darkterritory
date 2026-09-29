@@ -350,7 +350,12 @@ public sealed class GreyboxScene
             {
                 double side = rng.Next(2) == 0 ? -1 : 1;
                 double offset = side * (9 + rng.NextDouble() * 70);
-                var t = line.Sample(s + rng.NextDouble() * 12);
+                double along = s + rng.NextDouble() * 12;
+                // Not on a branch: clear of a dead line's track, and out of a facility's yard beside its spur.
+                if (line.Branches.Any(b => along > b.Toe - 20 && along < b.End + 20 && Math.Sign(offset) == b.Side
+                        && Math.Abs(offset) < (b.Kind == BranchKind.Spur ? 60 : 16)))
+                    continue;
+                var t = line.Sample(along);
                 var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
                 var foot = V(t.Position + right * offset + new Double3(0, -0.2, 0), eye);
                 float h = 7 + (float)rng.NextDouble() * 9;
@@ -499,6 +504,15 @@ public sealed class GreyboxScene
                 case FeatureKind.Junction:
                     // The branch and its switch stand are drawn with the track.
                     break;
+                case FeatureKind.Facility when line.Branches.FirstOrDefault(b => b.Kind == BranchKind.Spur && f.Contains(b.Toe)) is { } spur:
+                    {
+                        // Down its spur (GDD §17): the buildings stand back beyond the machinery, behind the crate stack
+                        // and short of the winch's haul, so the modules stay in the open where you work them.
+                        var site = Run?.Sites.FirstOrDefault(s => s?.Spur == spur.Index);
+                        double layout = site?.Mid ?? spur.Local.Length - 45;
+                        FacilityBuildings(mesh, spur.Local, eye, f.Facility, layout - 25, spur.Side, push: 4);
+                        break;
+                    }
                 case FeatureKind.Facility:
                     Facility(mesh, line, eye, f);
                     if (f.Facility == FacilityKind.CoalingTower && Run is { } run)
@@ -591,29 +605,34 @@ public sealed class GreyboxScene
     }
 
     /// <summary>Placeholder silhouettes until facility modules exist: oversized, dark, one working lamp (GDD §30).</summary>
-    static void Facility(MeshBuilder mesh, RailLine line, Double3 eye, RouteFeature f)
+    static void Facility(MeshBuilder mesh, RailLine line, Double3 eye, RouteFeature f) =>
+        FacilityBuildings(mesh, line, eye, f.Facility, (f.Start + f.End) / 2, f.Side, push: 0);
+
+    /// <summary>A facility's buildings beside a track (the main line, or its spur), centred along it at <paramref name="mid"/>.</summary>
+    static void FacilityBuildings(MeshBuilder mesh, RailLine line, Double3 eye, FacilityKind? kind, double mid, double side, double push)
     {
-        double mid = (f.Start + f.End) / 2, side = f.Side;
-        switch (f.Facility)
+        side = side == 0 ? 1 : side;
+        double Out(double lateral) => side * (lateral + push);
+        switch (kind)
         {
             case FacilityKind.CoalingTower:
-                Along(mesh, line, eye, mid - 6, 12, side * 7, 0, 5, 22, Palette.Charcoal);
-                Along(mesh, line, eye, mid - 2, 4, side * 2.6, 9, 1.6, 1.2, Palette.IronGrey);
+                Along(mesh, line, eye, mid - 6, 12, Out(7), 0, 5, 22, Palette.Charcoal);
+                Along(mesh, line, eye, mid - 2, 4, Out(2.6), 9, 1.6, 1.2, Palette.IronGrey);
                 break;
             case FacilityKind.GrainElevator:
                 for (int i = 0; i < 3; i++)
-                    Along(mesh, line, eye, mid - 20 + i * 12, 10, side * 12, 0, 5, 26, Palette.BlueGrey);
+                    Along(mesh, line, eye, mid - 20 + i * 12, 10, Out(12), 0, 5, 26, Palette.BlueGrey);
                 break;
             case FacilityKind.Foundry:
-                Along(mesh, line, eye, mid - 40, 80, side * 22, 0, 14, 16, Palette.RustRed);
-                Along(mesh, line, eye, mid + 10, 6, side * 26, 16, 2, 18, Palette.SootBlack);
+                Along(mesh, line, eye, mid - 40, 80, Out(22), 0, 14, 16, Palette.RustRed);
+                Along(mesh, line, eye, mid + 10, 6, Out(26), 16, 2, 18, Palette.SootBlack);
                 break;
             default:
-                Along(mesh, line, eye, mid - 30, 60, side * 20, 0, 12, 10, Palette.DeepBrown);
+                Along(mesh, line, eye, mid - 30, 60, Out(20), 0, 12, 10, Palette.DeepBrown);
                 break;
         }
         mesh.Emissive = 1;
-        Along(mesh, line, eye, mid, 0.4, side * 4, 5, 0.2, 0.3, Palette.LampAmber);
+        Along(mesh, line, eye, mid, 0.4, Out(4), 5, 0.2, 0.3, Palette.LampAmber);
         mesh.Emissive = 0;
     }
 

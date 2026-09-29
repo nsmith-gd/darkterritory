@@ -85,6 +85,21 @@ public class HudTests
     }
 
     [Fact]
+    public void PulledUpByAFacilityOnASpurTheHudSaysHowMuchFits()
+    {
+        var route = DarkTerritory.Sim.Route.RouteGenerator.Generate(
+            DataFile.Load<DarkTerritory.Sim.Route.RouteTuning>(Path.Combine(Content, DarkTerritory.Sim.Route.RouteTuning.File)),
+            DarkTerritory.Sim.Route.RouteTier.Frontier, 7);
+        var s = new PrototypeSession(Content, route, 7, enemies: false);
+        int facility = Enumerable.Range(0, s.World.Run!.FacilityCount).First(i => s.World.Run.SpurOf(i) >= 0);
+        var spur = s.Train.Line.Branches[s.World.Run.SpurOf(facility)];
+        // Stopped on the main line short of its points, as the drill does (T28).
+        var state = s.Train.Capture();
+        s.Train.Restore(state with { Rakes = [state.Rakes[0] with { Distance = spur.Toe - 14, Velocity = 0 }] });
+        Assert.Contains("IS DOWN THE SPUR: ENGINE + 4 CARS FIT, CUT THE REST", PrototypeSession.RouteStatus(route, s.World, s.Train));
+    }
+
+    [Fact]
     public void TheHudDrawsOverTheFrame()
     {
         GpuContext gpu;

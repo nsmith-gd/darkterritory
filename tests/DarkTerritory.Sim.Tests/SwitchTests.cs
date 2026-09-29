@@ -263,13 +263,13 @@ public class SwitchTests
                 var junctions = route.Of(FeatureKind.Junction).ToList();
                 var tt = Tuning.Route.Tiers[tier];
                 Assert.InRange(junctions.Count, 0, tt.Junctions[1]);
-                Assert.Equal(junctions.Select(j => j.Start), route.Branches.Select(b => b.Toe));
+                Assert.Equal(junctions.Select(j => j.Start), route.Branches.Where(b => b.Kind == BranchKind.DeadLine).Select(b => b.Toe));
                 var line = route.Build();
-                foreach (var b in line.Branches)
+                foreach (var b in line.Branches.Where(b => b.Kind == BranchKind.DeadLine))
                 {
                     seen++;
                     Assert.InRange(b.Local.Length, J.DeadLineLength[0] - 1, J.DeadLineLength[1] + 1);
-                    Assert.Equal(junctions[b.Index].Side, b.Side);
+                    Assert.Equal(junctions.Single(j => j.Start == b.Toe).Side, b.Side);
                     // Nothing else within a dead line's reach of it: no tunnel or bridge to run into alongside.
                     Assert.DoesNotContain(route.Features, f => f.Kind is FeatureKind.Tunnel or FeatureKind.Bridge or FeatureKind.Facility
                         && f.Start < b.End + 150 && f.End > b.Toe - 150);
