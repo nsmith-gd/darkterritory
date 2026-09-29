@@ -40,6 +40,8 @@ public sealed class EditorServer : IDisposable
         (TrainTuning.File, typeof(TrainTuning)), (PlayerTuning.File, typeof(PlayerTuning)), (BoilerTuning.File, typeof(BoilerTuning)),
         (CombatTuning.File, typeof(CombatTuning)), (EnemyTuning.File, typeof(EnemyTuning)), (RouteTuning.File, typeof(RouteTuning)),
         (RunTuning.File, typeof(RunTuning)), (MixDef.File, typeof(MixDef)),
+        (FacilityTuning.File, typeof(FacilityTuning)), (VigilTuning.File, typeof(VigilTuning)),
+        (DarkTerritory.Sim.Campaign.CampaignTuning.File, typeof(DarkTerritory.Sim.Campaign.CampaignTuning)),
     ];
 
     public EditorServer(string content, int port = 0)
@@ -126,7 +128,8 @@ public sealed class EditorServer : IDisposable
             case ("GET", "/api/route"):
                 return (200, Json, Serialize(DescribeRoute(LoadRoute(query["spec"], query["file"]))));
             case ("POST", "/api/route/preview"):
-                return (200, Json, Serialize(DescribeRoute(ParseRoute(body))));
+                var previewed = ParseRoute(body);
+                return Invalid(previewed) is { } why ? (400, "text/plain", why) : (200, Json, Serialize(DescribeRoute(previewed)));
             case ("POST", "/api/route/save"):
                 return SaveRoute(body);
             case ("GET", "/api/routes"):
@@ -219,9 +222,13 @@ public sealed class EditorServer : IDisposable
 
     static Route ParseRoute(string body) => JsonSerializer.Deserialize<Route>(body, DataFile.Options) ?? throw new InvalidDataException("no route");
 
-    /// <summary>The route plus what the page needs to draw it: a plan view and an elevation profile, every 25 m.</summary>
-    static object DescribeRoute(Route route)
+    /// <summary>
+    /// The route plus what the page needs to draw it: a plan view and an elevation profile, every 25 m. And the loading
+    /// modules there are, with what each kind of facility has unless the route gives it its own (T44).
+    /// </summary>
+    object DescribeRoute(Route route)
     {
+        var facilities = DataFile.Load<FacilityTuning>(Path.Combine(_content, FacilityTuning.File));
         var line = route.Build();
         var plan = new List<double[]>();
         var profile = new List<double[]>();
@@ -231,7 +238,32 @@ public sealed class EditorServer : IDisposable
             plan.Add([Math.Round(t.Position.X, 1), Math.Round(t.Position.Z, 1)]);
             profile.Add([Math.Round(s, 0), Math.Round(t.Position.Y, 2), Math.Round(t.GradePercent, 2)]);
         }
-        return new { route, length = Math.Round(line.Length, 1), plan, profile };
+        return new
+        {
+            route,
+            length = Math.Round(line.Length, 1),
+            plan,
+            profile,
+            tightestRadius = _routeTuning.Tiers.TightestRadius(),
+            modules = new
+            {
+                names = Enum.GetNames<ModuleKind>().Select(n => char.ToLowerInvariant(n[0]) + n[1..]),
+                byKind = facilities.Kinds,
+            },
+        };
+    }
+
+    /// <summary>A route the game would refuse: modules that don't exist, on a facility.</summary>
+    static string? Invalid(Route route)
+    {
+        foreach (var f in route.Features.Where(f => f.Modules is not null))
+        {
+            if (f.Kind != FeatureKind.Facility)
+                return $"only a facility has loading modules (the {f.Kind} at {f.Start:0} m has some)";
+            if (f.Modules!.FirstOrDefault(m => !Enum.TryParse<ModuleKind>(m, ignoreCase: true, out _)) is { } unknown)
+                return $"no loading module called '{unknown}' (there are {string.Join(", ", Enum.GetNames<ModuleKind>())})";
+        }
+        return null;
     }
 
     (int, string, string) SaveRoute(string body)
@@ -242,6 +274,11 @@ public sealed class EditorServer : IDisposable
             return (400, "text/plain", "a route name is letters, digits, - and _");
         var route = JsonSerializer.Deserialize<Route>(req["route"]!.ToJsonString(), DataFile.Options)!;
         route = route with { Name = name, Line = route.Line with { Name = name } };
+        if (Invalid(route) is { } why)
+            return (400, "text/plain", why);
+        double tightest = _routeTuning.Tiers.TightestRadius();
+        if (route.Line.Segments.Count == 0 || route.Line.Segments.Any(s => s.Length <= 0 || s.Radius != 0 && Math.Abs(s.Radius) < tightest))
+            return (400, "text/plain", $"every piece of track needs a length, and a curve no tighter than {tightest:0} m (route.json's tightest tier)");
         route.Build(); // refuse a line that can't be built
         DataFile.Save(Path.Combine(_content, "lines", name + ".json"), route.Line);
         DataFile.Save(Path.Combine(_content, "lines", name + ".route.json"), route);

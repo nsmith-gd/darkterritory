@@ -860,3 +860,17 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - trying a different voice after a decay (it's a new spawn instead);
       - a radio lying on the floor as a way in (GDD §32 open question 4: the corrupted on the radio);
       - its own sound for the moment it takes someone.
+45. **Editor v2: the rail and the modules (T44, roadmap M5 "simple editor (module + rail + tuning)").**
+    - **Rail.** The routes page has a track table: the line from the fortress, piece by piece (length, curve radius, grade), with pieces added after any other or taken out. Preview redraws the plan and the profile.
+      - Save refuses track that can't be laid: a piece with no length, or a curve tighter than the generator lays on any tier (the least `minRadius` in `route.json`, 250 m today; the page shows it).
+      - Branches (dead lines, spurs) still come with the features. Moving a junction feature moves where the generator put its branch the next time it's generated, not the saved branch: that's the next step.
+    - **Modules.** A facility can have its own loading modules (`RouteFeature.Modules`: "crates", "winch"). Unset, it has its kind's (`facilities.json` `kinds`), which is all any facility had before.
+      - The page shows each facility's kind's set, faint, until one's ticked. Then that facility has its own set, which can be reset to its kind's.
+      - `FacilityTuning.ModulesOf(feature)` is what the run lays out from.
+      - The route model keeps them as names, so it doesn't depend on the run's types. Preview and save both refuse a name that isn't a module, and modules on anything but a facility.
+    - **Tuning.** `facilities.json`, `vigil.json` and `campaign.json` are editable now, each checked against its record on every edit like the rest. `vr.json` and `look.json` are the game's, which the editor doesn't reference.
+    - **Verified:** `EditorTests`:
+      - the new files are listed;
+      - a facility given crates only, with the third piece of track bent the other way and steeper, previews differently, saves, and lays out exactly crates when played;
+      - unknown modules and a 10 m curve are refused, and nothing is written.
+      - `dt edit --screenshot` shows both tables.

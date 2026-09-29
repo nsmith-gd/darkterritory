@@ -28,6 +28,12 @@ public enum FeatureKind
 /// <param name="MaxCars">For bridges: most cars it will carry, 0 for no limit.</param>
 public sealed record RouteFeature(FeatureKind Kind, double Start, double End, int Side = 0, int MaxCars = 0, FacilityKind? Facility = null)
 {
+    /// <summary>
+    /// A facility's own loading modules (T44, by name: "crates", "winch"), set by a designer in <c>dt edit</c>. Unset, it
+    /// has what its kind has (facilities.json <c>kinds</c>).
+    /// </summary>
+    public IReadOnlyList<string>? Modules { get; init; }
+
     public double Length => End - Start;
     public bool Contains(double s) => s >= Start && s <= End;
 }
