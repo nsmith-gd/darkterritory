@@ -19,6 +19,16 @@ public static class TownKit
         var k = new Kit(look, 1200 + variant);
         var rng = new Random(9001 + variant);
         float w = 5 + (float)rng.NextDouble() * 3, d = 6 + (float)rng.NextDouble() * 3;
+        House(k, rng, w, d, variant);
+        return k.Build($"house-{variant}");
+    }
+
+    /// <summary>
+    /// A house <paramref name="w"/> across (X) by <paramref name="d"/> deep (Z), centred on the kit's origin, front to −Z:
+    /// a stop's village house, one per part of its footprint (level-design P9). <paramref name="rng"/> picks the rest.
+    /// </summary>
+    public static void House(Kit k, Random rng, float w, float d, int variant)
+    {
         float h = rng.Next(2) == 0 ? 3.2f : 5.8f;
         int state = variant % 3; // 0 whole, 1 fallen in, 2 shell
         k.Use(rng.Next(2) == 0 ? "plaster_ruin" : "brick_soot", Palette.BlueGrey, 0.9f, 0.05f, tile: 2);
@@ -75,7 +85,6 @@ public static class TownKit
         k.Use("brick_soot", Palette.RustRed, 0.9f, 0.05f, tile: 1.2f);
         float cx = state == 2 ? w / 2 - 0.6f : -w / 4;
         k.Box(new Vector3(cx - 0.35f, h, d / 2 - 1.2f), new Vector3(cx + 0.35f, ridge + 1.1f, d / 2 - 0.5f), Kit.Faces.All & ~Kit.Faces.NegY);
-        return k.Build($"house-{variant}");
     }
 
     /// <summary>The church: a long nave, a square tower and a slate spire, a round window in the gable gone black.</summary>

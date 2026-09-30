@@ -61,6 +61,8 @@ public static class PlanRoutes
         var w = plan.Weather;
         var weather = new RouteWeather(w.FogDensity, w.Rain, w.Cold, w.Wind);
         ulong seed = ulong.TryParse(plan.Route.Id.Split('-')[^1], out var sd) ? sd : 0;
+        // Each facility's yard and each settlement's village (level-design Part Z; App. D's Holdouts with them).
+        (features, branches, plan) = PlanStops.Add(plan, tuning, features, branches, line, seed);
         return new Route.Route(plan.Route.Id, plan.Route.Tier, seed, line, features, weather, plan.RouteCard.DawnS)
         {
             Branches = branches,

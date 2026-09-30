@@ -1,6 +1,7 @@
 using Ballast;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
 
@@ -151,5 +152,76 @@ public class CraneTests
         Assert.Equal(crane.Hook, seen.Hook, 3);
         Assert.Equal(CastingState.Hooked, seen.Castings[1].State);
         Assert.Equal(crane.Castings[0].At.X, seen.Castings[0].At.X, 3);
+    }
+}
+
+/// <summary>
+/// A yard's power (level-design D.2, spec D.1's restart excursion): low, its cranes run at half speed; dead, not at all
+/// until somebody's held the powerhouse door long enough, loudly; and the stops' layouts roll it by tier.
+/// </summary>
+public class PowerTests
+{
+    static readonly FacilityTuning F = FacilityTests.F;
+    static readonly PowerTuning W = F.Power;
+
+    static PlayerIntent Drive(float z) => new() { MoveZ = z, Buttons = PlayerButtons.Use };
+
+    [Theory]
+    [InlineData(Stops.PowerState.Low)]
+    [InlineData(Stops.PowerState.Dead)]
+    public void TheCranesRunOnTheYardsPower(Stops.PowerState power)
+    {
+        var stop = new FacilityTests.Stop(ModuleKind.Crane, power);
+        var crane = stop.Site.Crane!;
+        Assert.Equal(power, stop.Site.Power);
+        stop.Crew.Add(stop.OnTheGround(crane.Controls));
+        double bridge = crane.Bridge;
+        stop.Step(2, [Drive(1)]);
+        double scale = power == Stops.PowerState.Low ? W.LowSpeed : 0;
+        Assert.Equal(bridge + 2 * F.Crane.BridgeSpeed * scale, crane.Bridge, 1);
+    }
+
+    [Fact]
+    public void HoldingThePowerhouseDoorRestartsItAndItsLoud()
+    {
+        var stop = new FacilityTests.Stop(ModuleKind.Crane, Stops.PowerState.Dead);
+        var door = Assert.NotNull(stop.Site.Powerhouse);
+        stop.Crew.Add(stop.OnTheGround(door));
+        double loud = stop.World.Choir.Loudness;
+        var hold = new PlayerIntent { Buttons = PlayerButtons.Use };
+        stop.Step(W.RestartSeconds * 0.5, [hold]);
+        Assert.Equal(Stops.PowerState.Dead, stop.Site.Power);
+        Assert.True(stop.World.Choir.Loudness > loud);
+        // Let go and it starts over.
+        stop.Step(0.2, [default]);
+        Assert.Equal(0, stop.Site.Restart);
+        stop.Step(W.RestartSeconds + 0.2, [hold]);
+        Assert.Equal(Stops.PowerState.Live, stop.Site.Power);
+    }
+
+    [Fact]
+    public void DeeperTiersHaveWorsePowerAndSteeperPullsOut()
+    {
+        // Level-design D.2: live at local, mostly dead in deep territory; the grade out of the yard rises with tier, and
+        // it's the grade the route actually lays past the zone.
+        double Dead(RouteTier tier) => Enumerable.Range(1, 40).Average(s =>
+            Stops.StopGenerator.Generate(Tuning.Route.Stops!, tier, (ulong)s, Stops.StopKind.Yard, Tuning.Route.StopContext).Power == Stops.PowerState.Dead ? 1.0 : 0);
+        Assert.Equal(0, Dead(RouteTier.Local));
+        Assert.True(Dead(RouteTier.DeepTerritory) > 0.6);
+        var grades = new Dictionary<RouteTier, List<double>>();
+        foreach (var tier in Enum.GetValues<RouteTier>())
+            for (ulong seed = 1; seed <= 6; seed++)
+            {
+                var route = RouteGenerator.Generate(Tuning.Route, tier, seed);
+                var line = route.Build();
+                foreach (var f in route.Features.Where(f => f.Stop is { HasYard: true }))
+                {
+                    Assert.Equal(RouteGenerator.ExitGradeOf(line, f), f.Stop!.ExitGrade, 6);
+                    Assert.NotEqual(-1, f.Stop.Powerhouse);
+                    (grades.TryGetValue(tier, out var g) ? g : grades[tier] = []).Add(f.Stop.ExitGrade);
+                }
+            }
+        Assert.True(grades[RouteTier.DeepTerritory].Average() > grades[RouteTier.Local].Average() + 1.5,
+            $"local {grades[RouteTier.Local].Average():0.00} %, deep {grades[RouteTier.DeepTerritory].Average():0.00} %");
     }
 }

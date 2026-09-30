@@ -36,6 +36,14 @@ public class SpurDrillTests
         public readonly List<PlayerState> Crew = [];
         public readonly HashSet<RunPhase> Phases = [];
 
+        /// <summary>How many cars the facility's own siding takes with the engine (its length is generated: level-design P16).</summary>
+        public static int Capacity()
+        {
+            var (route, facility) = WinchStop();
+            var line = route.Build();
+            return SpurDrill.Capacity(T.Geometry, line.Branches[new Run.Run(Tuning.Run, route).SpurOf(facility)], Tuning.Route.Junctions.PointsLength);
+        }
+
         public Night(int cars)
         {
             var (route, facility) = WinchStop();
@@ -95,7 +103,8 @@ public class SpurDrillTests
     [Fact]
     public void CutSpurInLoadBackOutRecoupleAndGo()
     {
-        var night = new Night(cars: 7);
+        int fit = Night.Capacity();
+        var night = new Night(cars: fit + 3);
         var train = night.Train;
         var order = train.Dynamics.Consist.Vehicles.Select(v => v.Id).ToArray();
         night.Play();
@@ -103,8 +112,8 @@ public class SpurDrillTests
         Assert.True(night.Drill.Step == DrillStep.Done, $"stuck at {night.Drill.Step}: {string.Join(", ", night.Drill.Timeline)}; " +
             string.Join(" ; ", train.Rakes.Select(r => $"[{string.Join(",", r.Consist.Vehicles.Select(v => v.Id))}] path {r.Path} at {r.Distance:0.0}..{r.RearDistance:0.0} v {r.Velocity:0.00}")));
         Assert.Equal(Enum.GetValues<DrillStep>(), night.Drill.Timeline.Select(x => x.Step));
-        // Seven cars don't fit: the engine and four went in, three waited on the main line.
-        Assert.Equal(4, night.Drill.TookIn.Count);
+        // Three more cars than the siding takes: the engine and as many as fit went in, three waited on the main line.
+        Assert.Equal(fit, night.Drill.TookIn.Count);
         Assert.Equal(3, night.Drill.LeftWaiting.Count);
         // One train again, in the order it arrived, on the main line, with the switch set back for it.
         var rake = Assert.Single(train.Rakes);
@@ -125,10 +134,11 @@ public class SpurDrillTests
     [Fact]
     public void AShortTrainGoesInWhole()
     {
-        var night = new Night(cars: 3);
+        int cars = Math.Min(3, Night.Capacity());
+        var night = new Night(cars);
         night.Play();
         Assert.Equal(DrillStep.Done, night.Drill.Step);
-        Assert.Equal(3, night.Drill.TookIn.Count);
+        Assert.Equal(cars, night.Drill.TookIn.Count);
         Assert.Empty(night.Drill.LeftWaiting);
         Assert.Single(night.Train.Rakes);
         Assert.Equal(1, night.World.Run!.Departures);

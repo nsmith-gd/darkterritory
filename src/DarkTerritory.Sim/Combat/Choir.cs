@@ -22,7 +22,7 @@ public struct ChoirState
     public bool Spent;
     /// <summary>Seconds quiet while the swarm's here (it disperses at the tuning's).</summary>
     public double QuietSeconds;
-    /// <summary>A floor under the loudness: livestock aboard, never quiet (App. B.9); the Vigil's vent.</summary>
+    /// <summary>A floor under the loudness: livestock aboard, never quiet (App. B.9).</summary>
     public double Floor;
 
     public static ChoirState Quiet => new();
@@ -32,8 +32,11 @@ public struct ChoirState
     /// <summary>A cannon fired: a burst of loudness (App. C.7 "every cannon shot feeds the loudness meter").</summary>
     public void RoundFired(ChoirTuning t) => Loudness += t.RoundLoudness;
 
-    /// <summary>The Vigil's vent is deafening (spec C.2): loud as it gets, while it roars.</summary>
-    public void Deafening(ChoirTuning t) => Loudness = Math.Max(Loudness, t.MaxLoudness);
+    /// <summary>
+    /// Something as loud as <paramref name="roundsPerSecond"/> cannon rounds a second, for <paramref name="dt"/> (a Holdout's
+    /// lock being smashed, GDD App. D.7): it feeds the meter like the guns.
+    /// </summary>
+    public void Loud(ChoirTuning t, double roundsPerSecond, double dt) => Loudness += t.RoundLoudness * roundsPerSecond * dt;
 
     /// <summary>
     /// A tick of the meter: <paramref name="now"/> is this tick's loudness (voices, the whistle, machinery). Returns true on the

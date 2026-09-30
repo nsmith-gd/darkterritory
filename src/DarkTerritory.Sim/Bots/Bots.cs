@@ -518,7 +518,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
                 // Not a jump to make from here (off the centreline, a curve pulling the roof away, or too cold to run at it):
                 // stand at the end and square up, and chilled, turn back rather than try it.
                 intent.MoveZ = 0;
-                if (cold is { } c && self.Cold >= c.OnsetSeconds * (self.Has(PlayerFlags.Revived) ? c.RevivedOnsetScale : 1))
+                if (cold is { } c && self.Cold >= c.OnsetSeconds)
                     _direction = -_direction;
             }
         }
@@ -929,7 +929,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     public int Done { get; private set; }
 
     public bool Wants(in PlayerState s) => Shelter || Into is not null ||
-        s.Cold >= cold.OnsetSeconds * goInAt * (s.Has(PlayerFlags.Revived) ? cold.RevivedOnsetScale : 1);
+        s.Cold >= cold.OnsetSeconds * goInAt;
 
     /// <summary>
     /// Off the roofs and indoors, cold or not, for as long as it's set (a tunnel's mouth ahead, sight.json): the same way
@@ -1166,7 +1166,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     /// </summary>
     public static bool CanJumpGap(in PlayerState self, TrainOnLine train, ColdTuning? cold) =>
         Math.Abs(self.Position.X) < 0.3 && SteadyUnder(train, self.Parent)
-        && (cold is null || self.Cold < cold.OnsetSeconds * (self.Has(PlayerFlags.Revived) ? cold.RevivedOnsetScale : 1));
+        && (cold is null || self.Cold < cold.OnsetSeconds);
 
     /// <summary>A car you can walk into: it has a room and its doors.</summary>
     static bool Walkable(TrainOnLine train, int car) => car > 0 && train.Frames[car].Shape is { Interior: not null, DoorList.Count: >= 2 };

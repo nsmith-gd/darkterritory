@@ -15,7 +15,7 @@ public class PrototypeSessionTests
 
     static PrototypeSession Frontier()
     {
-        var tuning = DataFile.Load<RouteTuning>(Path.Combine(Content, RouteTuning.File));
+        var tuning = RouteTuning.Load(Content);
         return new PrototypeSession(Content, RouteGenerator.Generate(tuning, RouteTier.Frontier, 7), cars: 4);
     }
 

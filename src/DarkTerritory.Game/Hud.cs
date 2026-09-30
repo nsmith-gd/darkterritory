@@ -7,6 +7,7 @@ using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Run;
+using DarkTerritory.Sim.Stops;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game;
@@ -17,7 +18,7 @@ namespace DarkTerritory.Game;
 /// <list type="bullet">
 /// <item>top left: the engine (speed, regulator, the pressure gauge with its working band, fire and coal);</item>
 /// <item>top right: the link, ping to host first and big (spec E: "shown prominently", non-optional);</item>
-/// <item>centre: what's happening to you (dead, waiting, a Vigil, cold, the night's result);</item>
+/// <item>centre: what's happening to you (dead, waiting at a Holdout, cold, the night's result);</item>
 /// <item>bottom centre: what your hands can do right here;</item>
 /// <item>bottom left: the night (dawn clock, next landmark, a stop).</item>
 /// </list>
@@ -219,20 +220,18 @@ public static class Hud
                 DeathCause.Gnawed => "EATEN BY THE GNAWERS",
                 DeathCause.Ferryman => "SLOWED FOR THE LANTERN",
                 DeathCause.Stoker => "BURNED DRIVING IT OUT OF THE FIREBOX",
+                DeathCause.Waiting => "WAITING TO BE PICKED UP",
                 _ => "",
             }, Ink);
-            if (world.Vigil is { Permitted: true })
-                Small("A VIGIL COULD BRING YOU BACK: YOUR BODY IN THE ENGINE, THE TRAIN STOPPED", Dim);
-        }
-        if (world.Vigil is { Active: true } v)
-        {
-            Big($"VIGIL {v.Left:0}", Red);
-            Small("ENGINE OFF. LIGHTS OUT. GUNS DEAD. THE CHOIR IS COMING", Ink);
+            // GDD App. D: the way back is a Holdout at the next halt or yard, if the crew stops for you.
+            if (world.Holdouts is { } holdouts)
+                Small(holdouts.All.FirstOrDefault(h => h.Occupant == s.PlayerId && h.Lit) is { } mine
+                    ? mine.State == HoldoutState.Breaching ? $"THEY'RE BREAKING YOU OUT: {mine.Progress / mine.Breach(holdouts.Tuning).Seconds * 100:0}%"
+                        : $"YOU'RE IN THE {HoldoutName(mine)}. [E] CALL OUT   [RMB] LET SOMEONE ELSE GO FIRST"
+                    : "YOU'LL WAIT AT THE NEXT HALT OR YARD, IF THEY STOP FOR YOU   [RMB] LET SOMEONE ELSE GO FIRST", Dim);
         }
         if (p.Alive && PlayerMotor.Chilled(p, s.PlayerTuning))
             Small($"COLD: {Math.Max(0, s.PlayerTuning.Cold.DeathSeconds - p.Cold):0}S. GET INSIDE", p.Cold > s.PlayerTuning.Cold.DeathSeconds - 30 ? Red : Amber);
-        if (p.Alive && p.Has(PlayerFlags.Revived))
-            Small("REVIVED: COLD, LIGHT THINGS ONLY, NO GUNS UNTIL THE NEXT STOP", Dim);
         if (world.Derailed)
             Big("DERAILED", Red);
     }
@@ -271,11 +270,12 @@ public static class Hud
                 BodyKind.Heavy when !carried.Lifted => "HOLDING AN END: IT NEEDS TWO   [E] LET GO",
                 BodyKind.Heavy => "TOGETHER, INTO A CAR: [E] PUT IT DOWN",
                 BodyKind.Cargo => "INTO A CAR TO LOAD IT: [E] PUT DOWN   [RMB] THROW",
+                // A village find (level-design P12): it pays once it's put down aboard, in any car.
+                BodyKind.Loot => $"{world.Run?.FindName(carried)?.ToUpperInvariant() ?? "A FIND"}: INTO ANY CAR TO KEEP IT   [E] PUT DOWN   [RMB] THROW",
                 _ => "[E] PUT DOWN   [RMB] THROW",
             };
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is not null)
-            return p.Has(PlayerFlags.Revived) ? "NO GUNS UNTIL THE NEXT STOP"
-                : world.EmergencyLights || train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM FOR THE TURRET"
+            return train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM FOR THE TURRET"
                 : "[LMB] FIRE";
         // A headset player's prompts follow their reaching hand (T29), as the sim's reach does.
         var hand = world.Hand;
@@ -290,11 +290,7 @@ public static class Hud
             case InteractableKind.Coal when PlayerMotor.InCab(p, train):
                 return p.Has(PlayerFlags.Shovelful) ? "SHOVEL FULL: INTO THE FIREBOX" : "GRIP: COAL ON THE SHOVEL";
             case InteractableKind.Vent when PlayerMotor.InCab(p, train):
-                // Everyone can see a body laid in the engine; whether its owner is dead, the host decides.
-                bool body = world.Bodies.All.Any(b => b.Kind == BodyKind.Ragdoll && b.Parent == 0 && b.Carrier < 0);
-                return world.Vigil is { Active: false, Permitted: true } v && body && v.Still(train)
-                    ? $"[E] HOLD: VENT AND BEGIN THE VIGIL ({v.NextSeconds:0}S)"
-                    : "[E] HOLD: VENT";
+                return "[E] HOLD: VENT";
             case InteractableKind.Handbrake when p.Surface == Surface.Roof:
                 return "[E] HOLD: HANDBRAKE";
             // Out on the running board (App. A.2): what the sand does is only worth it on greased rail.
@@ -309,6 +305,7 @@ public static class Hud
             {
                 BodyKind.Ragdoll => "[E] PICK UP THE BODY",
                 BodyKind.Radio => "[E] TAKE THE RADIO",
+                BodyKind.Loot => $"[E] TAKE {world.Run?.FindName(thing)?.ToUpperInvariant() ?? "IT"}",
                 // A reaching hand takes its end with both hands on it (T43).
                 BodyKind.Heavy when thing.Carrier >= 0 => p.Hand != default ? "BOTH HANDS ON IT: TAKE THE OTHER END" : "[E] TAKE THE OTHER END",
                 BodyKind.Heavy => p.Hand != default ? "HEAVY: BOTH HANDS ON AN END (IT NEEDS TWO)" : "[E] TAKE AN END (IT NEEDS TWO)",
@@ -324,8 +321,22 @@ public static class Hud
                 ? "SWITCH: POINTS HELD, A WHEEL IS ON THEM"
                 : $"[E] HOLD: THROW THE SWITCH TO {to}";
         }
+        // A yard whose power's down (level-design D.2): restart it at the powerhouse.
+        if (world.Run is { } powered && powered.PowerhouseInReach(p, train) && powered.CurrentSite is { } ps)
+            return ps.Restart > 0 ? $"RESTARTING THE GENERATOR {ps.Restart / powered.PowerTuning.RestartSeconds * 100:0}%. KEEP HOLDING"
+                : $"[E] HOLD: RESTART THE GENERATOR ({powered.PowerTuning.RestartSeconds:0}S, LOUD)";
+        // A Holdout with someone in it (GDD App. D.7): break them out.
+        if (world.Holdouts is { } ho && p.Parent == PlayerState.World)
+        {
+            var at = PlayerMotor.WorldPosition(p, train);
+            foreach (var h in ho.All)
+                if (h.Lit && ((h.Door - at) with { Y = 0 }).Length <= ho.Tuning.BreachReach)
+                    return h.State == HoldoutState.Breaching
+                        ? $"{(h.Layout.Kind == HoldoutKind.Shelter ? "PRYING" : "SMASHING")} IT OPEN {h.Progress / h.Breach(ho.Tuning).Seconds * 100:0}%. LOUD. KEEP AT IT"
+                        : $"[E] HOLD: {(h.Layout.Kind == HoldoutKind.Shelter ? "PRY THE BARRICADE" : "SMASH THE LOCK")} ({h.Breach(ho.Tuning).Seconds:0}S, LOUD)";
+        }
         // The crane (T48): at its controls, or at its hook on the ground.
-        if (world.Run?.CurrentSite?.Crane is { } crane)
+        if (world.Run?.CurrentSite?.CraneNear(PlayerMotor.WorldPosition(p, train)) is { } crane)
         {
             if (p.Has(PlayerFlags.Operating))
                 return crane.Hooked is null ? "CRANE: WASD BRIDGE AND TROLLEY   SPACE/B HOOK   LET GO OF E TO STEP DOWN"
@@ -347,11 +358,19 @@ public static class Hud
         return null;
     }
 
+    /// <summary>What a Holdout is, for the dead player in it (App. D.4 "fiction and art").</summary>
+    static string HoldoutName(Holdout h) => h.Layout.Kind switch
+    {
+        HoldoutKind.PrisonCar => "PRISON CAR",
+        HoldoutKind.Lockup => "HALT'S LOCKUP",
+        _ => "BARRICADED SHELTER",
+    };
+
     static void Night(Overlay o, int height, IPlaySession s, int line)
     {
         string status = PrototypeSession.RouteStatus(s.Route, s.World, s.Train);
         var parts = status.Split(" | ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            // The Vigil and the night's result have their own place in the middle.
+            // The night's result has its own place in the middle.
             .Where(t => !t.StartsWith("VIGIL", StringComparison.Ordinal) && !t.StartsWith("DELIVERED", StringComparison.Ordinal) && !t.StartsWith("RUN LOST", StringComparison.Ordinal))
             .ToList();
         if (parts.Count == 0)

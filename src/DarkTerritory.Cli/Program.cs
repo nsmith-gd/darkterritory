@@ -9,6 +9,7 @@ using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
+using DarkTerritory.Sim.Stops;
 using DarkTerritory.Sim.Train;
 
 // `dt` — the headless command-line entry point. Everything an agent needs to inspect or verify
@@ -23,7 +24,7 @@ var content = args is ["edit", ..] or ["mods", ..] or ["edition", "bake", ..] ? 
 var train = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
 var player = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
 var boiler = DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File));
-var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File));
+var routeTuning = RouteTuning.Load(content);
 var sight = DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File));
 
 return args switch
@@ -60,6 +61,8 @@ return args switch
     ["screenshot", ..] => Print(Screenshot(train, content, args)),
     ["route", "gen", ..] => Print(GenerateRoute(routeTuning, content, args)),
     ["route", "sweep", ..] => Print(SweepRoutes(routeTuning, (int)Opt(args, "--seeds", 200))),
+    ["site", "sweep", ..] => Print(SweepStops(routeTuning, LoadStops(content), (int)Opt(args, "--seeds", 60))),
+    ["site", ..] => Print(ShowStop(content, routeTuning, LoadStops(content), args)),
     ["linegen", var verb, ..] => Print(LineGenCommands.Run(content, verb, args)),
     ["harness", ..] => Print(RunHarness(args)),
     ["balance", ..] => PrintBalance(RunBalance(args)),
@@ -130,7 +133,7 @@ object RunHarness(string[] args)
         Route = route,
         Udp = args.Contains("--udp"),
         Network = online,
-        Vigil = DataFile.Load<DarkTerritory.Sim.Run.VigilTuning>(Path.Combine(content, DarkTerritory.Sim.Run.VigilTuning.File)),
+        Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)),
         Sight = sight,
         Run = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)),
         Facilities = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
@@ -151,7 +154,7 @@ BalanceReport RunBalance(string[] args)
     var targets = DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File));
     var combat = DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File));
     var enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File));
-    var vigil = DataFile.Load<DarkTerritory.Sim.Run.VigilTuning>(Path.Combine(content, DarkTerritory.Sim.Run.VigilTuning.File));
+    var holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File));
     var run = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
     var facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File));
     // Long enough for a Dead Lines night and its yard (T76: they run past 3600 s); a night stops when its run's over.
@@ -174,7 +177,7 @@ BalanceReport RunBalance(string[] args)
             Combat = combat,
             Enemies = enemies,
             Route = route,
-            Vigil = vigil,
+            Holdouts = holdouts,
             Sight = sight,
             Run = run,
             Facilities = facilities,
@@ -456,7 +459,7 @@ object CampaignCommand(string content, string verb, string[] args)
                     Run = runTuning,
                     YardLength = route.GateOr(routeTuning.YardLength),
                     Facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
-                    Vigil = DataFile.Load<DarkTerritory.Sim.Run.VigilTuning>(Path.Combine(content, DarkTerritory.Sim.Run.VigilTuning.File)),
+                    Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)),
                     Sight = sight,
                 }, loadout.Boiler);
                 if (report.Run is not { } night)
@@ -533,6 +536,110 @@ static object SweepRoutes(RouteTuning t, int seeds) => Enum.GetValues<RouteTier>
     };
 }).ToList();
 
+static StopTuning LoadStops(string content) => DataFile.Load<StopTuning>(Path.Combine(content, StopTuning.File));
+
+static StopContext StopContextOf(RouteTuning t) => t.StopContext;
+
+// One stop's layout (level-design Parts D and Z): the summary, every check, and a top-down plan PNG.
+static object ShowStop(string content, RouteTuning rt, StopTuning st, string[] args)
+{
+    var tier = Enum.Parse<RouteTier>(Str(args, "--tier", "frontier"), ignoreCase: true);
+    ulong seed = (ulong)Opt(args, "--seed", 1);
+    var kind = Enum.Parse<StopKind>(Str(args, "--kind", "yardAndVillage"), ignoreCase: true);
+    StopLayout layout;
+    double? start = null;
+    if (Str(args, "--route", "") is { Length: > 0 } spec)
+    {
+        // A stop as a generated night has it (the night the game plays, as `dt screenshot --route` does): the route's i-th
+        // stop (facilities' yards and village halts, in order).
+        var stops = DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, (int)Opt(args, "--cars", 6)).Features.Where(f => f.Stop is not null).ToList();
+        int i = (int)Opt(args, "--stop", 0);
+        if (i < 0 || i >= stops.Count)
+            throw new ArgumentException($"{spec} has {stops.Count} stops (--stop 0..{stops.Count - 1})");
+        layout = stops[i].Stop!;
+        start = stops[i].Start;
+        (tier, seed, kind) = (layout.Tier, layout.Seed, layout.Kind);
+    }
+    else
+        layout = StopGenerator.Generate(st, tier, seed, kind, StopContextOf(rt));
+    string plan = Str(args, "--out", $"out/stops/{tier}-{seed}-{kind}.png");
+    int size = (int)Opt(args, "--size", 900);
+    PngWriter.Write(plan, StopMap.Render(layout, size), size, size);
+    return new
+    {
+        tier = tier.ToString(),
+        seed,
+        kind = layout.Kind.ToString(),
+        form = layout.Form?.ToString(),
+        village = layout.VillageForm?.ToString(),
+        arrangement = layout.Arrangement.ToString(),
+        // Where it is on the night's line (for `dt screenshot --route ... --cam`), and which side its yard and village are.
+        start,
+        yardSide = layout.YardSide,
+        villageSide = layout.VillageSide,
+        villageOffset = layout.VillageOffset,
+        halt = layout.Halt,
+        power = layout.Power.ToString(),
+        powerhouse = layout.Powerhouse >= 0 ? layout.Buildings[layout.Powerhouse].Centre : (Pt?)null,
+        exitGrade = layout.ExitGrade,
+        attempt = layout.Attempt + 1,
+        layout.InBand,
+        band = StopGenerator.Band(st, layout),
+        layout.Moves,
+        tracks = layout.Tracks.Select(t => new { t.Index, side = t.Side, toe = Math.Round(t.Toe, 1), offset = t.Offset, length = Math.Round(t.Length, 1), t.Capacity, t.FaceCars, crane = t.Crane }),
+        buildings = layout.Buildings.GroupBy(b => b.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+        containers = layout.Containers.GroupBy(c => c.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+        // Where a dead player waits to be freed (App. D.4), and where the outside creatures live (B.6, B.8).
+        holdouts = layout.Holdouts.Select(h => new
+        {
+            kind = h.Kind.ToString(),
+            site = h.Site.ToString(),
+            building = layout.Buildings[h.Building].Kind.ToString(),
+            at = layout.Buildings[h.Building].Centre,
+            h.Second,
+            walk = h.Walk
+        }),
+        lairs = layout.Lairs.GroupBy(x => x.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+        checks = layout.Checks.Where(c => c.Applies).Select(c => new { c.Name, c.Pass, c.Detail }),
+        plan = Path.GetFullPath(plan),
+    };
+}
+
+// Many stops per tier: how hard they come out, how often they land in their band, which checks they fail (P15).
+static object SweepStops(RouteTuning rt, StopTuning st, int seeds)
+{
+    var cx = StopContextOf(rt);
+    return Enum.GetValues<RouteTier>().Select(tier =>
+    {
+        var result = new Dictionary<string, object>();
+        foreach (var kind in Enum.GetValues<StopKind>())
+        {
+            var first = new List<double>();
+            var kept = new List<StopLayout>();
+            for (int s = 1; s <= seeds; s++)
+            {
+                first.Add(StopGenerator.Attempt(st, tier, (ulong)s, kind, cx, 0).Moves.Score);
+                kept.Add(StopGenerator.Generate(st, tier, (ulong)s, kind, cx));
+            }
+            double Q(IEnumerable<double> v, double q) { var a = v.OrderBy(x => x).ToList(); return a[(int)Math.Round(q * (a.Count - 1))]; }
+            result[kind.ToString()] = new
+            {
+                firstAttempt = new[] { 0.05, 0.25, 0.5, 0.75, 0.95 }.Select(q => Q(first, q)),
+                kept = new[] { 0.05, 0.5, 0.95 }.Select(q => Q(kept.Select(l => l.Moves.Score), q)),
+                band = StopGenerator.Band(st, kept[0]),
+                inBand = Math.Round(kept.Average(l => l.InBand ? 1.0 : 0), 3),
+                valid = Math.Round(kept.Average(l => l.Valid ? 1.0 : 0), 3),
+                meanAttempts = Math.Round(kept.Average(l => l.Attempt + 1.0), 2),
+                forms = kept.Where(l => l.Form is not null).GroupBy(l => l.Form!.Value).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+                villages = kept.Where(l => l.VillageForm is not null).GroupBy(l => l.VillageForm!.Value).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+                failing = kept.SelectMany(l => l.Checks.Where(c => c.Applies && !c.Pass)).GroupBy(c => c.Name).ToDictionary(g => g.Key, g => g.Count()),
+                examples = kept.Where(l => !l.Valid).Take(4).Select(l => new { l.Seed, failed = l.Checks.Where(c => c.Applies && !c.Pass).Select(c => $"{c.Name}: {c.Detail}") }),
+            };
+        }
+        return new { tier = tier.ToString(), stops = result };
+    }).ToList();
+}
+
 static object LineInfo(RailLine line, double every) => new
 {
     name = line.Name,
@@ -606,7 +713,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (args.Contains("--site") && generated is not null)
     {
         run = new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
-        run.EnableSites(DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)), line);
+        var facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File));
+        run.EnableSites(facilities, line);
+        // The yard's own gantries and loot (level-design P14, P18), out as if the train had just stopped.
+        run.EnableLoot(DataFile.Load<LootTuning>(Path.Combine(content, LootTuning.File)), line, facilities);
         // --crane: the first facility with a gantry crane (T48) instead, its first casting on the hook.
         // --facility i: that facility's site, whatever it has (to look at a kind's buildings).
         int pick = (int)Opt(args, "--facility", -1);
@@ -684,6 +794,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             shelf.SpawnCargo(crate - Double3.Up * 0.15, site.CrateLineHint);
         foreach (var crate in site.HeavyStack)
             shelf.SpawnCargo(crate, site.CrateLineHint, site.HeavyRadius);
+        run!.Stock(shelf, run.Stops.ToList().IndexOf(site.Feature));
         cargo = [.. shelf.All];
         if (Str(args, "--cam", "") is not { Length: > 0 })
         {
@@ -741,6 +852,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         for (int i = 0; i < train.Vehicles.Count; i++)
             train.Vehicles[i].Integrity = Math.Clamp(each[Math.Min(i, each.Length - 1)], 0, 1);
     }
+    // --lit: every Holdout on the route occupied, its lamp burning (GDD App. D.7), as if the dead were waiting at each.
+    DarkTerritory.Sim.Run.Holdouts? holdouts = null;
+    if (args.Contains("--lit") && generated is not null)
+    {
+        holdouts = new DarkTerritory.Sim.Run.Holdouts(DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)), generated, line);
+        foreach (var h in holdouts.All)
+            holdouts.Mirror(h.Index, DarkTerritory.Sim.Run.HoldoutState.Occupied, 1, 0);
+    }
     var scene = new GreyboxScene
     {
         // --draw m: how far along the line to build it (an aerial view of a stretch wants more than the cab's 400).
@@ -749,12 +868,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Look = look,
         Route = route,
         Run = run,
+        Holdouts = holdouts,
         Time = 0.37,
         Enemies = args.Contains("--threats") ? Staging.Threats(train) : null,
         Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All : cargo,
         // --crew: three on car 2's roof, one reaching up, one holding out both hands, one with a keyboard (T47's arms).
         Crew = args.Contains("--crew") ? Staging.Crew(train, content) : null,
-        Emergency = args.Contains("--vigil"),
+        Emergency = args.Contains("--emergency"),
         Diverging = train.Diverging,
         // --throttle x: the regulator's handle drawn that far open (T29's cab levers).
         Controls = new TrainControls { Throttle = Math.Clamp(Opt(args, "--throttle", 0), 0, 1), Reverser = 1 },
@@ -767,8 +887,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Build(mesh, train, camera.Position);
     double buildMs = buildClock.Elapsed.TotalMilliseconds / builds;
     var lighting = Views.Lighting(train, look);
-    if (args.Contains("--vigil"))
-        lighting.LampRange = 0.01f; // a Vigil: no power to the headlamp
+    if (args.Contains("--emergency"))
+        lighting.LampRange = 0.01f; // emergency lighting: no power to the headlamp
     if (route is not null)
     {
         lighting.FogDensity = (float)route.Weather.FogDensity;
@@ -796,6 +916,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         path = Path.GetFullPath(output),
         view,
         trainAt = Math.Round(at, 1),
+        // --site: where its cranes' hooks hang (the facility's own and the yard's), by line distance and offset.
+        cranes = site?.Cranes.Select(c => new { line = Math.Round(GreyboxScene.NearestDistance(line, c.HookAt, site.Feature.Start + 300), 1), castings = c.Castings.Length }),
         device = gpu.DeviceName,
         triangles = renderer.Stats.Triangles,
         draws = renderer.Stats.Draws,
@@ -957,7 +1079,7 @@ static object HudShot(string content, string[] args)
     var mesh = new MeshBuilder();
     var look = Looked(content, args);
     look?.Dress(renderer);
-    new GreyboxScene { Route = session.Route, Run = session.World.Run, Vehicles = session.Train.Vehicles, Bodies = session.World.Bodies.All, Time = 0.37, Look = look }
+    new GreyboxScene { Route = session.Route, Run = session.World.Run, Holdouts = session.World.Holdouts, Vehicles = session.Train.Vehicles, Bodies = session.World.Bodies.All, Time = 0.37, Look = look }
         .Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
     var lighting = Views.Lighting(frames[0], look);
     if (session.Route is { } r)
@@ -1062,7 +1184,8 @@ static int Usage()
                      [--width w] [--height h] [--scale k] [--out file.png] [--threats]   --threats stages one of each enemy
                      [--route tier:seed [--coaling]]   a generated night; --coaling stops at its coaling tower, chute pouring
                      [--bodies]   crates, a lamp and a crewmate's body on the roofs, settled by the physics
-                     [--vigil]    emergency lighting, as during a Vigil (spec C.2)
+                     [--emergency]  emergency lighting: the cars' lamps a dim red, no headlamp
+                     [--lit]      every Holdout occupied, its lamp burning (GDD App. D)
                      [--ps2]      the era comparison mode   [--muzzle] the guns just fired   [--builds n] time n warm builds
                      [--integrity a,b,..] each car's condition, front to back (scars and damage states)
                      [--route tier:seed --site [--crank | --crane | --facility i]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --facility: the route's i-th
@@ -1076,6 +1199,10 @@ static int Usage()
           route gen [--tier local|frontier|deadLines|deepTerritory] [--seed n] [--name generated] [--map file.png]
                      writes content/lines/<name>.json (+ .route.json) and a map; try `screenshot --line generated`
           route sweep [--seeds n]                  generate n routes per tier and report ranges
+          site [--tier t] [--seed n] [--kind yard|yardAndVillage|village] [--route tier:seed --stop i] [--out file.png] [--size px]
+                     one stop's layout (docs/design/level-design.md): its tracks, buildings, loot containers, how hard it
+                     is to work, every invariant, and a top-down plan PNG (default out/stops/)
+          site sweep [--seeds n]                   n stops per tier and kind: difficulty, band hits, attempts, failing checks
           linegen generate [--tier t] [--severity 0..1] [--cars n] [--seed n] [--out plan.json] [--map map.png] [--profile p.png]
                      the procedural line generator (docs/design/linegen-plan.md): a Line Plan, its map and profile
           linegen sweep [--tier all|t] [--cars 3,10,20] [--seeds n] [--report sweep.csv] [--fallbacks]

@@ -161,19 +161,27 @@ public class LineGenTests
     [Fact]
     public void ACurveTakenAboveItsDerailSpeedDerails()
     {
-        var route = Routes.Generate(Content, "frontier:7", 6);
-        var plan = route.Plan!;
-        var line = route.Build();
-        // The main line's tightest curve, past the yard: √(a_derail R) is lethal there (§7.3).
-        double at = 0, tightest = 0, s0 = 0, s1 = 0;
-        foreach (var seg in route.Line.Segments)
+        // The main line's tightest curve, past the yard: √(a_derail R) is lethal there (§7.3). The first frontier night with
+        // one the train can overspeed (below its top speed: a gentle night's line has none).
+        Route.Route route = null!;
+        LinePlan plan = null!;
+        double tightest = 0, s0 = 0, s1 = 0, lethal = double.MaxValue;
+        for (int seed = 7; seed < 27 && lethal + 2 > T.MaxSpeed; seed++)
         {
-            if (at > plan.GateM && seg.EndRadius is null && Math.Abs(seg.Curvature) > tightest)
-                (tightest, s0, s1) = (Math.Abs(seg.Curvature), at, at + seg.Length);
-            at += seg.Length;
+            route = Routes.Generate(Content, $"frontier:{seed}", 6);
+            plan = route.Plan!;
+            double at = 0;
+            tightest = 0;
+            foreach (var seg in route.Line.Segments)
+            {
+                if (at > plan.GateM && seg.EndRadius is null && Math.Abs(seg.Curvature) > tightest)
+                    (tightest, s0, s1) = (Math.Abs(seg.Curvature), at, at + seg.Length);
+                at += seg.Length;
+            }
+            lethal = tightest > 0 ? Math.Sqrt(plan.Rules.ADerail / tightest) : double.MaxValue;
         }
-        Assert.True(tightest > 0);
-        double lethal = Math.Sqrt(plan.Rules.ADerail / tightest);
+        Assert.True(lethal + 2 <= T.MaxSpeed, "no frontier night with a curve the train can overspeed");
+        var line = route.Build();
         var (world, train) = Night(route, 6, s0 - 150, lethal + 2);
         for (int i = 0; i < 60 * SimConstants.TickRate && !world.Derailed && train.Dynamics.Distance < s1; i++)
             world.Step(new TrainControls { Reverser = 1 });

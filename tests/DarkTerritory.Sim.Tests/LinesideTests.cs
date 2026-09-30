@@ -328,7 +328,7 @@ public class DropAndPacingTests
             Run = Tuning.Run,
             YardLength = Tuning.Route.YardLength,
             Sight = S,
-            Vigil = Tuning.Vigil,
+            Holdouts = Tuning.Holdouts,
         }, Tuning.Boiler);
         var pace = report.Pacing!;
         Assert.True(pace.LongestQuietSeconds <= 30, $"quiet for {pace.LongestQuietSeconds} s ({string.Join(", ", pace.Kinds.Select(k => $"{k.Key} {k.Value}"))})");

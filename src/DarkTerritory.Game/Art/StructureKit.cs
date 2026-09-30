@@ -582,9 +582,17 @@ public static class StructureKit
             k.Append(piece, Matrix4x4.CreateScale(scale) * Matrix4x4.CreateRotationY(yaw) * Kit.At(x, -0.3f, z));
     }
 
+    /// <summary>
+    /// A stop's shed (level-design P5, P7): a works building centred on the kit's origin, <paramref name="width"/> across
+    /// (X), <paramref name="length"/> along (Z), its doorway on the +X side if <paramref name="door"/> is +1, else −X.
+    /// </summary>
+    public static void Shed(Kit k, float width, float length, float height, string wall, int door) =>
+        WorksHouse(k, 0, 0, width, length, height, wall, door);
+
     /// <summary>A plain works building: walls of <paramref name="wall"/> on a stone sill, a corrugated pitched roof, a
-    /// dark doorway facing the line. Centred at (x, z), <paramref name="width"/> across, <paramref name="length"/> along.</summary>
-    static void WorksHouse(Kit k, float x, float z, float width, float length, float height, string wall)
+    /// dark doorway facing the line (or the side <paramref name="door"/> says). Centred at (x, z), <paramref name="width"/>
+    /// across, <paramref name="length"/> along.</summary>
+    static void WorksHouse(Kit k, float x, float z, float width, float length, float height, string wall, int door = 0)
     {
         float a = x - width / 2, b = x + width / 2, z0 = z - length / 2, z1 = z + length / 2, mid = x;
         k.Use("stone_block", Palette.Charcoal, 0.8f, 0.1f, tile: 2.5f);
@@ -597,7 +605,7 @@ public static class StructureKit
         k.Quad(new Vector3(a - 0.4f, height - 0.1f, z1 + 0.4f), new Vector3(a - 0.4f, height - 0.1f, z0 - 0.4f), new Vector3(mid, height + width * 0.3f, z0 - 0.4f), new Vector3(mid, height + width * 0.3f, z1 + 0.4f), twoSided: true);
         k.Quad(new Vector3(mid, height + width * 0.3f, z1 + 0.4f), new Vector3(mid, height + width * 0.3f, z0 - 0.4f), new Vector3(b + 0.4f, height - 0.1f, z0 - 0.4f), new Vector3(b + 0.4f, height - 0.1f, z1 + 0.4f), twoSided: true);
         k.Shade(0.08f);
-        bool right = x > 0;
+        bool right = door == 0 ? x > 0 : door < 0;
         k.Panel(new Vector3(right ? a - 0.01f : b + 0.01f, 2.5f, z), new Vector3(right ? -1 : 1, 0, 0), Vector3.UnitY, 4, 3.5f, twoSided: false);
     }
 

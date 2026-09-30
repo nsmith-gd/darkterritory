@@ -62,7 +62,7 @@ public static class Eyes
     /// </summary>
     public static Camera? Operator(in PlayerState s, Sim.World world)
     {
-        if (!s.Has(PlayerFlags.Operating) || world.Run?.CurrentSite?.Crane is not { } crane)
+        if (!s.Has(PlayerFlags.Operating) || world.Run?.CurrentSite?.CraneNear(Sim.Player.PlayerMotor.WorldPosition(s, world.Train)) is not { } crane)
             return null;
         var trolley = crane.HookAt with { Y = crane.BridgeEnd(0).Y - 0.6 };
         return Camera.LookAt(crane.Cab + Double3.Up * 0.3, trolley, 55);

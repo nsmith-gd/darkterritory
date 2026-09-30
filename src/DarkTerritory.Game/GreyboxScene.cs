@@ -19,7 +19,7 @@ public sealed class GreyboxScene
     public int Seed { get; init; } = 7;
     /// <summary>How hot the firebox is, 0..1: the glow in the cab is how the Boiler reads the fire.</summary>
     public float FireGlow { get; set; } = 0.7f;
-    /// <summary>Spec C.2 "lights drop to emergency only": the cars' lamps go to a dim red during a Vigil.</summary>
+    /// <summary>Emergency lighting (`dt screenshot --emergency`): the cars' lamps go to a dim red, the headlamp dark.</summary>
     public bool Emergency { get; set; }
     static readonly System.Numerics.Vector3 EmergencyRed = new(0.5f, 0.06f, 0.04f);
     /// <summary>Tunnels, bridges, facilities and hazards to draw along the line, when it's a generated route.</summary>
@@ -41,6 +41,8 @@ public sealed class GreyboxScene
         ? Palette.SignalGreen * (0.5f + 0.8f * scale) : Palette.FurnaceOrange * scale;
     /// <summary>Tonight's run, for facility machinery (the coaling chute pouring).</summary>
     public Sim.Run.Run? Run { get; set; }
+    /// <summary>The route's Holdouts (GDD App. D): each one's lamp burns while somebody waits in it.</summary>
+    public Sim.Run.Holdouts? Holdouts { get; set; }
     /// <summary>Seconds, for animating things that move on their own.</summary>
     public double Time { get; set; }
     /// <summary>Vehicle state for doors (open or shut). Without it every door is drawn shut.</summary>
@@ -126,8 +128,34 @@ public sealed class GreyboxScene
                     // The modules modelled by the art pass where it has them (SceneArt.Depots), boxes where not.
                     if (site is not null && (site.Capstan - eye).Length < DrawDistance && Look?.Art.Winch(mesh, site, eye) != true)
                         Winch(mesh, site, eye);
-                    if (site?.Crane is { } crane && (crane.HookAt - eye).Length < DrawDistance && Look?.Art.Crane(mesh, crane, frames, eye) != true)
-                        Crane(mesh, crane, frames, eye);
+                    // Its own gantry and the yard's (level-design P18: one over each craned loading face).
+                    foreach (var crane in site?.Cranes ?? [])
+                        if ((crane.HookAt - eye).Length < DrawDistance && Look?.Art.Crane(mesh, crane, frames, eye) != true)
+                            Crane(mesh, crane, frames, eye);
+                }
+            // A yard's powerhouse with its power on (level-design D.2): the lamp over its door burns.
+            if (Run is not null)
+                foreach (var site in Run.Sites)
+                    if (site is { Power: Sim.Stops.PowerState.Live, Powerhouse: { } door } && (door - eye).Length < DrawDistance)
+                    {
+                        var at = V(door + Double3.Up * 3.2, eye);
+                        mesh.PointLights.Add(new PointLight(at, Palette.LampAmber * 1.2f, 10));
+                        mesh.Billboard(at, 0.3f, 0, new Vector4(Palette.LampAmber * 1.2f, 1), -1, FxBlend.Additive);
+                    }
+            // A Holdout's lamp (App. D.7): lit while it's occupied, seen from the approach board; a world light, not a car's.
+            if (Holdouts is not null)
+                foreach (var h in Holdouts.All)
+                {
+                    if (!h.Lit || h.Site.Stop is not { } stop)
+                        continue;
+                    var kind = stop.Buildings[h.Layout.Building].Kind;
+                    var lamp = Sim.Run.Run.StopWorld(line, h.Site, h.Layout.Lamp, Art.WorldArt.LampHeight(kind));
+                    if ((lamp - eye).Length > 1100)
+                        continue;
+                    var at = V(lamp, eye);
+                    mesh.PointLights.Add(new PointLight(at, Palette.LampAmber * 1.6f, 14));
+                    mesh.Billboard(at, 0.35f, 0, new Vector4(Palette.LampAmber * 1.4f, 1), -1, FxBlend.Additive);
+                    mesh.Billboard(at, 2.4f, 0, new Vector4(Palette.LampAmber * 0.35f, 1), -1, FxBlend.Additive);
                 }
             // GDD §9: the fortress yard behind the gates, and the terminus: "lights, then walls, then gun towers".
             double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
@@ -254,6 +282,12 @@ public sealed class GreyboxScene
             {
                 mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.34f, 0.34f, 0.34f), Palette.TarnishedBrass * 0.8f);
                 mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.35f, 0.06f, 0.35f), Palette.DeepBrown);
+            }
+            else if (b.Kind == Sim.Physics.BodyKind.Loot)
+            {
+                // A village find (level-design P12): a small bundle in sacking with a brass-buckled strap.
+                mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.18f, 0.13f, 0.14f), Palette.DeepBrown);
+                mesh.Box(V(at, eye) + ToF(up) * 0.03f, right, ToF(up), back, new Vector3(0.185f, 0.02f, 0.145f), Palette.TarnishedBrass);
             }
             else if (b.Kind == Sim.Physics.BodyKind.Radio)
             {
@@ -1109,7 +1143,7 @@ public sealed class GreyboxScene
         double half = shape.HalfLength;
         if (engine)
         {
-            // The headlamp: dark with no power in a Vigil.
+            // The headlamp: dark under emergency lighting.
             mesh.Emissive = 1;
             Draw(Box.FromCentre(new Double3(0, 2.8, -half - 0.05), new Double3(0.35, 0.35, 0.1)), Emergency ? Palette.LampAmber * 0.08f : Palette.LampAmber);
             mesh.Emissive = 0;

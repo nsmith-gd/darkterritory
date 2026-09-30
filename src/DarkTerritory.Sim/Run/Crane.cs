@@ -51,6 +51,8 @@ public sealed class Crane
     public double Hook { get; set; }
     /// <summary>Who's at the controls this tick, and who's rigging (−1 for nobody). Host only, but the rig's progress replicates.</summary>
     public int Operator { get; internal set; } = -1;
+    /// <summary>How fast it runs, of its full speed: its yard's power (level-design D.2), 0 when the power's dead.</summary>
+    public double SpeedScale { get; internal set; } = 1;
     public double Rigging { get; internal set; }
     internal int Rigger = -1;
     bool _releaseWas;
@@ -99,6 +101,7 @@ public sealed class Crane
     /// </summary>
     public void Drive(in PlayerIntent intent, TrainOnLine train, double dt)
     {
+        dt *= SpeedScale;
         Bridge = Math.Clamp(Bridge + intent.MoveZ * _t.BridgeSpeed * dt, _t.Along - 0.5 * _t.Length, _t.Along + 0.5 * _t.Length);
         Trolley = Math.Clamp(Trolley + intent.MoveX * _t.TrolleySpeed * dt, _t.Span[0] + 0.5, _t.Span[1] - 0.5);
         double lift = (intent.Has(PlayerButtons.Jump) ? 1 : 0) - (intent.Has(PlayerButtons.Brake) ? 1 : 0);

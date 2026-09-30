@@ -87,10 +87,11 @@ public sealed partial class WorldArt(Look look)
     const double NearTrees = 40;
 
     /// <summary>The terrain's cross-section: lateral offsets (m) out from the centre line, and heights at them.</summary>
-    static readonly float[] Lateral = [0, 1.55f, 2.35f, 2.95f, 3.7f, 5.5f, 8, 12, 17, 24, 33, 45, 60, 78, 100];
+    /// <remarks>Out past 220 m, a stop's reach (StopContext.MaxLateral): its villages and Holdouts stand on this ground.</remarks>
+    static readonly float[] Lateral = [0, 1.55f, 2.35f, 2.95f, 3.7f, 5.5f, 8, 12, 17, 24, 33, 45, 60, 78, 100, 130, 170, 220, 280, 360];
     /// <summary>A generated line's land runs on out to its terrain corridor's edge (linegen plan §12.2), where it falls away under the fog.</summary>
-    static readonly float[] PlanLateral = [.. Lateral, 130, 165, 205, 250, 300];
-    static readonly float[] Profile = [0.0f, 0.0f, -0.24f, -0.3f, -0.06f, -0.02f, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    static readonly float[] PlanLateral = [.. Lateral[..15], 130, 165, 205, 250, 300];
+    static readonly float[] Profile = [0.0f, 0.0f, -0.24f, -0.3f, -0.06f, -0.02f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
     const double Wrap = 4096;
     static float W(double v) => (float)(v - Math.Floor(v / Wrap) * Wrap);
@@ -139,10 +140,11 @@ public sealed partial class WorldArt(Look look)
         if (Scene(route) is { } plan)
             return Relief(plan, route!, s, lateral, h);
         // Hills past the verge: rising with distance, a long wavelength along the line, different each side.
-        float hill = MathF.Max(0, (a - 16) / 84);
+        // They level off past 100 m, and a stop's zone is levelled (the sim's is level: people walk out to its village).
+        float hill = Math.Clamp((a - 16) / 84, 0, 1);
         float side = lateral < 0 ? 31.7f : 0;
         float n = Noise((float)(s * 0.012) + side, a * 0.025f) * 0.7f + Noise((float)(s * 0.04) + side, a * 0.07f) * 0.3f;
-        h += hill * hill * (n * 16 - 3);
+        h += hill * hill * (n * 16 - 3) * (1 - Flat(route, s));
         h += Hill(route, s, lateral);
         float g = gorge >= 0 ? gorge : Gorge(route, s);
         if (g > 0)
@@ -353,8 +355,9 @@ public sealed partial class WorldArt(Look look)
     {
         // Clear of bridges, and of tunnels and their cuttings (the hill's approaches).
         bool Clear(double s) => route is null || (!route.InTunnel(s) && !route.InTunnel(s + 30) && !route.InTunnel(s - 30) && route.BridgeAt(s) is null);
+        // (And off a stop's ground: its buildings, roads and tracks, OnStop.)
         bool OnBranch(double along, double offset) => line.Branches.Any(b => along > b.Toe - 20 && along < b.End + 20 && Math.Sign(offset) == b.Side
-            && Math.Abs(offset) < (b.Kind == BranchKind.Spur ? 60 : 16)) || !PlanClear(route, line, along, offset);
+            && Math.Abs(offset) < (b.Kind == BranchKind.Spur ? 60 : 16)) || OnStop(route, along, offset) || !PlanClear(route, line, along, offset);
         Matrix4x4 Place(double s, double lateral, float yaw, float scale, float sink = 0)
         {
             var t = line.Sample(s);
@@ -397,10 +400,11 @@ public sealed partial class WorldArt(Look look)
             lastTops = tops;
         }
 
-        // A generated line is dressed by its biomes (PlanArt).
+        // A generated line is dressed by its biomes (PlanArt), round its stops.
         if (Scene(route) is { } plan)
         {
             PlanDressing(mesh, line, route!, plan, eye, from, to, seed, OnBranch);
+            Stops(mesh, line, route, eye, from, to, valleyDepth);
             return;
         }
         // The forest: stands of pines, thinner near the line, thick further out, gaps where the ground is open.
@@ -520,6 +524,7 @@ public sealed partial class WorldArt(Look look)
         if (Scene(route) is not null)
             return;
         Settlements(mesh, line, route, eye, from, to, seed, valleyDepth, OnBranch);
+        Stops(mesh, line, route, eye, from, to, valleyDepth);
         for (double s = Math.Ceiling(from / 700) * 700; s < to; s += 700)
             if (Clear(s) && !OnBranch(s, -3.8))
                 mesh.Append(Piece($"signal-{(int)(s / 700) % 2 == 0}", () => WorldKit.Signal(_look, (int)(s / 700) % 2 == 0)), Place(s, -3.8, MathF.PI, 1));
@@ -540,8 +545,8 @@ public sealed partial class WorldArt(Look look)
             double centre = b + 300 + rng.NextDouble() * (block - 600);
             int side = rng.Next(2) == 0 ? -1 : 1;
             double lateral = side * (38 + rng.NextDouble() * 30);
-            if (centre > line.Length - 900 || route is not null && route.Features.Any(f => f.Kind is FeatureKind.Facility or FeatureKind.Bridge or FeatureKind.Tunnel
-                    && centre > f.Start - 150 && centre < f.End + 150))
+            if (centre > line.Length - 900 || route is not null && route.Features.Any(f => (f.Kind is FeatureKind.Facility or FeatureKind.Bridge or FeatureKind.Tunnel || f.Stop is not null)
+                    && centre > f.Start - 250 && centre < f.End + 250))
                 continue;
             if (centre < from || centre >= to || onBranch(centre, lateral))
                 continue;

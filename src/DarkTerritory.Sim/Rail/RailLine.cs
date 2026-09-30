@@ -59,6 +59,12 @@ public enum BranchKind : byte
 public sealed record BranchDefinition(BranchKind Kind, double Toe, int Side, IReadOnlyList<TrackSegment> Segments)
 {
     public double Length => Segments.Sum(s => s.Length);
+
+    /// <summary>
+    /// For a generated yard's track (level-design P16): the metres back from its buffer stop that cars stand on to be
+    /// worked, past the tight S-curve out from the main line. Unset, the whole branch.
+    /// </summary>
+    public double? Standing { get; init; }
     /// <summary>An alternate's end: the main-line distance where it comes back in. Unset for a branch that ends at a buffer stop.</summary>
     public double? Rejoin { get; init; }
     /// <summary>The switch starts set for the branch (the main line past it is closed, linegen plan §6.3).</summary>
