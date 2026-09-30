@@ -24,15 +24,41 @@ public static class Mods
     /// <summary>A mod manager's profile folder (<c>--mods-dir</c>), set from the command line.</summary>
     public static string? ManagerFolder { get; set; }
 
-    /// <summary>Takes <c>--mods-dir &lt;folder&gt;</c> out of the arguments (into <see cref="ManagerFolder"/>) and returns the rest.</summary>
+    /// <summary>An edition to lay over the content before any mod (<c>--edition demo</c>, T79): a folder in <c>editions/</c>.</summary>
+    public static string? Edition { get; set; }
+
+    /// <summary>
+    /// Takes <c>--mods-dir &lt;folder&gt;</c> (into <see cref="ManagerFolder"/>) and <c>--edition &lt;name&gt;</c> (into
+    /// <see cref="Edition"/>) out of the arguments and returns the rest.
+    /// </summary>
     public static string[] TakeArgs(string[] args)
     {
-        int at = Array.IndexOf(args, "--mods-dir");
+        args = Take(args, "--mods-dir", v => ManagerFolder = v);
+        return Take(args, "--edition", v => Edition = v);
+    }
+
+    static string[] Take(string[] args, string flag, Action<string> set)
+    {
+        int at = Array.IndexOf(args, flag);
         if (at < 0 || at + 1 >= args.Length)
             return args;
-        ManagerFolder = args[at + 1];
+        set(args[at + 1]);
         return [.. args.Take(at), .. args.Skip(at + 2)];
     }
+
+    /// <summary>The editions beside the content (the repo's <c>editions/</c>; a shipped build has its own baked in).</summary>
+    public static string EditionsFolder(string content) => Path.Combine(Path.GetDirectoryName(Path.GetFullPath(content))!, "editions");
+
+    /// <summary>The named edition's overlay, as a mod that loads before every other.</summary>
+    public static Mod EditionMod(string content, string name)
+    {
+        var dir = Path.Combine(EditionsFolder(content), name);
+        return ContentMods.Scan(EditionsFolder(content)).Mods.FirstOrDefault(m => Path.GetFullPath(m.Directory) == Path.GetFullPath(dir))
+            ?? throw new DirectoryNotFoundException($"no edition \"{name}\" in {EditionsFolder(content)}");
+    }
+
+    /// <summary>The base content with an edition baked in, written to <paramref name="into"/> (<c>dt edition bake</c>).</summary>
+    public static string Bake(string content, string edition, string into) => ContentMods.Mount(content, [EditionMod(content, edition)], into);
 
     public static string[] Folders(string content)
     {
@@ -55,6 +81,7 @@ public static class Mods
         var scan = enabled ? ContentMods.Scan(Folders(content)) : new ModScan([], []);
         foreach (var problem in scan.Problems)
             Console.Error.WriteLine($"mods: {problem}");
-        return ContentMods.Mount(content, scan.Mods, into ?? Path.Combine(AppData, "content-with-mods"));
+        IReadOnlyList<Mod> mods = Edition is { } edition ? [EditionMod(content, edition), .. scan.Mods] : scan.Mods;
+        return ContentMods.Mount(content, mods, into ?? Path.Combine(AppData, Edition is null ? "content-with-mods" : $"content-{Edition}"));
     }
 }

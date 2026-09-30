@@ -77,7 +77,7 @@ static SteamBackend? NoSteam(string? error)
 var campaignTuning = DataFile.Load<CampaignTuning>(Path.Combine(content, CampaignTuning.File));
 var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
 var saves = new SaveSlots(Arg("--saves", SaveSlots.DefaultDirectory), campaignTuning.SaveSlots);
-var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", Settings.DefaultPath));
+var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", Settings.DefaultPath), edition: EditionTuning.Load(content));
 
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
 Launch? LaunchFromArgs()
@@ -88,9 +88,16 @@ Launch? LaunchFromArgs()
         return new Launch.JoinLobby(lobby);
     if (args.Contains("--join"))
         return new Launch.Join(Arg("--join", "127.0.0.1"));
-    if (Arg("--campaign", "") is { Length: > 0 } slot)
+    var edition = EditionTuning.Load(content);
+    if (Arg("--campaign", "") is { Length: > 0 } slot && edition.Campaign)
         return new Launch.CampaignNight(int.Parse(slot), int.Parse(Arg("--contract", "0")), args.Contains("--resume"), port is not null);
     string? route = Arg("--route", "") is { Length: > 0 } r ? r : null;
+    // The demo's nights are on its own tiers (T79), whatever's asked for.
+    if (route is not null && edition.Tiers.Length > 0 && !edition.HasTier(DarkTerritory.Sim.Route.Route.ParseSpec(route).Tier))
+    {
+        Console.WriteLine($"edition {edition.Name}: no {route.Split(':')[0]} nights in it; {edition.Tiers[0]} instead");
+        route = edition.Tiers[0] + (route.Contains(':') ? route[route.IndexOf(':')..] : "");
+    }
     string? routeFile = Arg("--route-file", "") is { Length: > 0 } f ? f : null;
     bool host = port is not null || args.Contains("--steam") && steam is not null;
     if (host || route is not null || routeFile is not null || args.Contains("--line"))
@@ -364,7 +371,7 @@ while (!window.CloseRequested && !QuitNow())
         frontEnd.ShowFortress(night.Slot, campaign?.History.LastOrDefault() is { } log && campaign.Current is null
             ? $"{log.End}: {(log.Net >= 0 ? "+" : "")}{log.Net:0} scrip" : null);
     else
-        frontEnd.Show(Screen.Title);
+        frontEnd.NightOver();
 }
 
 Console.WriteLine($"frames {frameCount} ({frameCount / timer.Elapsed.TotalSeconds:0} fps)");

@@ -1,0 +1,14 @@
+// Which game this build is (T79): the full game. The demo's copy of this file is in editions/demo, laid over the base
+// content with the rest of the demo's scope (GDD §21 "demo ships with five", §35); tools/package.sh --demo bakes it in.
+{
+  "name": "full",
+  "demo": false,
+  // The tiers a quick night can be on; empty is all of them.
+  "tiers": [],
+  "campaign": true,
+  // The longest quick-night train; 0 is the campaign's maxCars.
+  "maxCars": 0,
+  // Shown under the title, and once a night is over; empty for nothing.
+  "tag": "",
+  "afterNight": ""
+}

@@ -49,14 +49,23 @@ public sealed class FrontEnd
     readonly SaveSlots _saves;
     readonly string _settingsPath;
     readonly Func<ulong> _newSeed;
-    int _tier = 1;
+    readonly EditionTuning _edition;
+    readonly RouteTier[] _tiers;
+    int _tier;
     ulong _seed = 7;
     int _cars = 6;
     bool _host;
 
     /// <param name="newSeed">Where a new campaign's seed comes from (tests pin it).</param>
-    public FrontEnd(CampaignTuning campaign, RunTuning run, SaveSlots saves, string settingsPath, Func<ulong>? newSeed = null)
+    /// <param name="edition">Which game this is (T79): the demo has a quick night on its own tiers, and no campaign.</param>
+    public FrontEnd(CampaignTuning campaign, RunTuning run, SaveSlots saves, string settingsPath, Func<ulong>? newSeed = null, EditionTuning? edition = null)
     {
+        _edition = edition ?? new();
+        _tiers = [.. Enum.GetValues<RouteTier>().Where(_edition.HasTier)];
+        if (_tiers.Length == 0)
+            _tiers = Enum.GetValues<RouteTier>();
+        // The Frontier to start with, where there is one: the first tier past the local lines.
+        _tier = Math.Max(0, Array.IndexOf(_tiers, RouteTier.Frontier));
         _campaign = campaign;
         _run = run;
         _saves = saves;
@@ -72,6 +81,7 @@ public sealed class FrontEnd
     /// <summary>The campaign open at the fortress.</summary>
     public CampaignState? Open { get; private set; }
     public Settings Settings { get; private set; }
+    public EditionTuning Edition => _edition;
     /// <summary>The address typed so far on the join screen.</summary>
     public string Address { get; private set; } = "127.0.0.1";
     /// <summary>The join screen wants typed text (the app turns text input on).</summary>
@@ -137,6 +147,13 @@ public sealed class FrontEnd
             Selected++;
     }
 
+    /// <summary>Back at the title after a quick night or a join, with the edition's word after a night (the demo's).</summary>
+    public void NightOver()
+    {
+        Show(Screen.Title);
+        Message = _edition.AfterNight is { Length: > 0 } after ? after : null;
+    }
+
     /// <summary>Opens a slot at the fortress (after a night, with how it went).</summary>
     public void ShowFortress(int slot, string? message = null)
     {
@@ -180,14 +197,12 @@ public sealed class FrontEnd
 
     readonly record struct Entry(MenuItem Item, Func<Launch?>? Select = null, Action<int>? Adjust = null);
 
-    static readonly RouteTier[] Tiers = Enum.GetValues<RouteTier>();
-
     List<Entry> Entries() => Screen switch
     {
         Screen.Title =>
         [
-            new(new("CAMPAIGN", "Three slots. Take contracts, buy cars, go farther out."), () => { Show(Screen.Slots); return null; }),
-            new(new("QUICK NIGHT", "Any tier, any seed. Alone, or hosted for friends."), () => { Show(Screen.QuickNight); return null; }),
+            .. _edition.Campaign ? [new Entry(new("CAMPAIGN", "Three slots. Take contracts, buy cars, go farther out."), () => { Show(Screen.Slots); return null; })] : (Entry[])[],
+            new(new("QUICK NIGHT", _tiers.Length > 1 ? "Any tier, any seed. Alone, or hosted for friends." : "Any seed. Alone, or hosted for friends."), () => { Show(Screen.QuickNight); return null; }),
             new(new("JOIN A NIGHT", "By address. Steam invites join from the friends list."), () => { Show(Screen.Join); return null; }),
             new(new("SETTINGS"), () => { Show(Screen.Settings); return null; }),
             new(new("QUIT"), () => new Launch.Quit()),
@@ -197,11 +212,12 @@ public sealed class FrontEnd
         Screen.Upgrades => UpgradeEntries(),
         Screen.QuickNight =>
         [
-            new(new($"TIER: {Name(Tiers[_tier])}", "Local, frontier, the dead lines, the deep territory: farther is darker."), null, by => _tier = (_tier + by + Tiers.Length) % Tiers.Length),
+            new(new($"TIER: {Name(_tiers[_tier])}", _tiers.Length > 1 ? "Local, frontier, the dead lines, the deep territory: farther is darker." : "The full game goes farther out.", _tiers.Length > 1),
+                null, by => _tier = (_tier + by + _tiers.Length) % _tiers.Length),
             new(new($"SEED: {_seed}", "The same seed is the same line for everyone."), null, by => _seed = by > 0 ? _seed + 1 : Math.Max(1UL, _seed - 1)),
-            new(new($"CARS: {_cars}"), null, by => _cars = Math.Clamp(_cars + by, 3, _campaign.MaxCars)),
-            new(new("PLAY ALONE"), () => new Launch.Night(RouteSpec(Tiers[_tier], _seed), _cars, Host: false)),
-            new(new("HOST FOR FRIENDS", "They join by your address, or from your Steam lobby."), () => new Launch.Night(RouteSpec(Tiers[_tier], _seed), _cars, Host: true)),
+            new(new($"CARS: {_cars}"), null, by => _cars = Math.Clamp(_cars + by, 3, MaxCars)),
+            new(new("PLAY ALONE"), () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: false)),
+            new(new("HOST FOR FRIENDS", "They join by your address, or from your Steam lobby."), () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: true)),
             new(new("BACK"), Go(Screen.Title)),
         ],
         Screen.Join =>
@@ -223,6 +239,8 @@ public sealed class FrontEnd
         ],
         _ => [],
     };
+
+    int MaxCars => _edition.MaxCars > 0 ? Math.Min(_edition.MaxCars, _campaign.MaxCars) : _campaign.MaxCars;
 
     Func<Launch?> Go(Screen screen) => () => { Show(screen); return null; };
 
@@ -330,6 +348,8 @@ public sealed class FrontEnd
         o.Clear();
         float x = 20, y = 18;
         o.Text(x, y, "DARK TERRITORY", Amber, scale: 3);
+        if (_edition.Tag is { Length: > 0 } tag)
+            o.Text(x + o.Font.Measure("DARK TERRITORY", 3) + 8, y + 14, tag, Dim);
         y += 30;
         string? heading = Screen switch
         {

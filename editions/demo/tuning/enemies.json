@@ -1,0 +1,9 @@
+// The demo's roster (GDD §21): one per pressure zone. Forward the Sleepers, rear the Cinder Hounds, flank the Clingers,
+// interior the Hollow; structural, the Choir, is always about (the guns bring it). And the trouble in the cars, which
+// isn't on the roster but is what the crew does between them.
+{
+  "$patch": true,
+  "director": {
+    "roster": ["sleepers", "cinderHounds", "clingers", "hollow", "carFire", "looseLoad", "gnawers"]
+  }
+}

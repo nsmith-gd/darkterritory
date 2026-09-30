@@ -19,7 +19,7 @@ var baseContent = DataFile.FindContentRoot(Environment.CurrentDirectory);
 args = Mods.TakeArgs(args);
 bool noMods = args.Contains("--no-mods");
 args = [.. args.Where(a => a != "--no-mods")];
-var content = args is ["edit", ..] or ["mods", ..] ? baseContent : Mods.Mount(baseContent, enabled: !noMods);
+var content = args is ["edit", ..] or ["mods", ..] or ["edition", "bake", ..] ? baseContent : Mods.Mount(baseContent, enabled: !noMods);
 var train = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
 var player = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
 var boiler = DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File));
@@ -32,6 +32,10 @@ return args switch
     ["mods", "pack", var package, ..] => PrintPack(package, Str(args, "--out", "out/mods")),
     // dt mods: the mods found, in load order, what can't be loaded and why, and what each does to which file (T49, T78).
     ["mods", ..] => Print(ModsReport(baseContent)),
+    // dt edition bake <name> --into <dir>: the base content with an edition (editions/<name>) baked in, as the demo build
+    // ships it (T79). dt [--edition demo] edition: what the content in use is.
+    ["edition", "bake", var name, ..] => Print(new { edition = name, content = Path.GetFullPath(Mods.Bake(baseContent, name, Str(args, "--into", $"out/editions/{name}"))) }),
+    ["edition", ..] => Print(EditionTuning.Load(content)),
     ["train", "table"] => Print(TrainTable(train, player)),
     ["boiler", "table"] => Print(new[] { 3, 6, 10, 15, 20 }.Select(n => new
     {
@@ -924,7 +928,7 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         saves.Delete(2);
         saves.Delete(3);
     }
-    var menu = new DarkTerritory.Game.FrontEnd(ct, rt, saves, Path.Combine(dir, "settings.json"), () => 7);
+    var menu = new DarkTerritory.Game.FrontEnd(ct, rt, saves, Path.Combine(dir, "settings.json"), () => 7, EditionTuning.Load(content));
     if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
     menu.Show(screen);
