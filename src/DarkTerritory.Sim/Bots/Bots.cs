@@ -415,13 +415,13 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             case Surface.Roof:
                 {
                     // To just short of the edge over the ladder, facing back down the line, then push on and take hold.
-                    var (step, there) = WarmUp.Steer(self, new Double3(CarShape.EndLadderX, 0, l - 0.35), Math.PI);
+                    var (step, there) = WarmUp.Steer(self, new Double3(train.Dynamics.Tuning.Geometry.EndLadderX, 0, l - 0.35), Math.PI);
                     return there ? new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use } : step;
                 }
             case Surface.Coupler:
                 {
                     // Over the coupling, clear of the rear door's reach (a press there would work the door) and off the ladder's foot.
-                    var (step, there) = WarmUp.Steer(self, new Double3(0.3, 0, l + 0.5), Math.PI);
+                    var (step, there) = WarmUp.Steer(self, new Double3(train.Dynamics.Tuning.Geometry.EndLadderX + 0.45, 0, l + 0.5), Math.PI);
                     if (!there)
                         return step;
                     // Swinging at it (v1.1 App. C.2): the tool swings as often as it recovers.
@@ -462,11 +462,12 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         if (self.Surface == Surface.Ladder)
             return new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use };
         // Fell into a coupling gap: over to the foot of the end ladder (the plate is narrow, the ladder's just off its
-        // edge), facing it, then take hold and climb. Use here is only ever with a push: standing, it cuts the coupling.
+        // right edge), facing it, then take hold and climb. Use here is only ever with a push: standing, it cuts the coupling.
         if (self.Surface == Surface.Coupler)
         {
             double l = train.Frames[self.Parent].Shape.Bounds.Max.Z;
-            var (step, there) = WarmUp.Steer(self, new Double3(0.2, 0, l + 0.45), 0);
+            var g = train.Dynamics.Tuning.Geometry;
+            var (step, there) = WarmUp.Steer(self, new Double3(g.PlateX + g.CouplerWidth / 2 - 0.2, 0, l + 0.45), 0);
             return there ? new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use } : step;
         }
         if (!self.Grounded)
@@ -518,7 +519,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
                 // Not a jump to make from here (off the centreline, a curve pulling the roof away, or too cold to run at it):
                 // stand at the end and square up, and chilled, turn back rather than try it.
                 intent.MoveZ = 0;
-                if (cold is { } c && self.Cold >= c.OnsetSeconds * (self.Has(PlayerFlags.Revived) ? c.RevivedOnsetScale : 1))
+                if (cold is { } c && self.Cold >= c.OnsetSeconds)
                     _direction = -_direction;
             }
         }
@@ -929,7 +930,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     public int Done { get; private set; }
 
     public bool Wants(in PlayerState s) => Shelter || Into is not null ||
-        s.Cold >= cold.OnsetSeconds * goInAt * (s.Has(PlayerFlags.Revived) ? cold.RevivedOnsetScale : 1);
+        s.Cold >= cold.OnsetSeconds * goInAt;
 
     /// <summary>
     /// Off the roofs and indoors, cold or not, for as long as it's set (a tunnel's mouth ahead, sight.json): the same way
@@ -974,7 +975,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                     if (self.Surface == Surface.Coupler)
                         return Next(Step.ToDoor);
                     // Not off the end on a curve at speed: in the air you go straight on while the train turns under you, and
-                    // the plate is only 0.8 m wide. Wait at the end for a straighter bit, as anyone would.
+                    // the plate is only a metre wide. Wait at the end for a straighter bit, as anyone would.
                     double end = train.Frames[self.Parent].Shape.HalfLength * (_dropYaw == 0 ? -1 : 1);
                     bool atEdge = Math.Abs(end - self.Position.Z) < 0.8;
                     bool go = Aligned(self, _dropYaw) && (!atEdge || SteadyUnder(train, self.Parent));
@@ -983,8 +984,8 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
             case Step.ToDoor:
                 if (self.Parent != _car || self.Surface != Surface.Coupler)
                     return Abandon();
-                // Just outside the door, facing it: on the plate (0.8 m wide), which the door's edge is just off.
-                return Reach(self, new Double3(PlateLine, 0, _l + 0.45), 0, Step.Open);
+                // Just outside the door, facing it, on the plate that lies in line with it.
+                return Reach(self, new Double3(_doorX, 0, _l + 0.45), 0, Step.Open);
             case Step.Open:
                 if (open)
                     return Next(Step.In);
@@ -993,8 +994,8 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                 // Someone else's hand on the same door shut it again: back to opening it.
                 if (!open && self.Surface == Surface.Coupler)
                     return Next(Step.Open);
-                // Straight in, not sideways: on the plate that's off its edge. The doorway takes the plate's middle.
-                return Reach(self, new Double3(self.Surface == Surface.Coupler ? PlateLine : _doorX, 0, _l - 1.6), 0, Step.Shut);
+                // Straight in, not sideways: the plate's middle is the doorway's.
+                return Reach(self, new Double3(_doorX, 0, _l - 1.6), 0, Step.Shut);
             case Step.Shut:
                 {
                     // Every door shut: a car only warms you shut, and someone else may have left another open (the far end,
@@ -1052,7 +1053,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                     _step = Step.Off;
                     return null;
                 }
-                return Reach(self, new Double3(PlateLine, 0, _outEnd * (_l + 0.6)), _outEnd > 0 ? Math.PI : 0, Step.Out);
+                return Reach(self, new Double3(_doorX, 0, _outEnd * (_l + 0.6)), _outEnd > 0 ? Math.PI : 0, Step.Out);
             default:
                 _step = Step.Off;
                 return null;
@@ -1060,8 +1061,6 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     }
 
     const int FrontDoor = 0, RearDoor = 1; // doors are listed front (−Z) then rear (+Z)
-    // Where to cross between a doorway (left of centre) and the coupler plate (0.8 m wide, centred): in both.
-    const double PlateLine = -0.15;
     double _dropYaw;
     int _outEnd = 1;
 
@@ -1160,13 +1159,13 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
 
     /// <summary>
     /// Whether a gap jump from where a walker stands will make the far roof: square on the centreline (the coupler plate
-    /// under the gap is only 0.8 m wide, and off its edge is the ballast), on a straight enough bit that the roof ahead
+    /// under the gap is only a metre wide, and off its edge is the ballast), on a straight enough bit that the roof ahead
     /// doesn't swing away under the jump, and not chilled (spec B.2: slowed, a flat jump carries a fifth less, short of the
     /// far edge). Walkers who jumped off-centre from the top of an end ladder, or chilled, died between the cars.
     /// </summary>
     public static bool CanJumpGap(in PlayerState self, TrainOnLine train, ColdTuning? cold) =>
         Math.Abs(self.Position.X) < 0.3 && SteadyUnder(train, self.Parent)
-        && (cold is null || self.Cold < cold.OnsetSeconds * (self.Has(PlayerFlags.Revived) ? cold.RevivedOnsetScale : 1));
+        && (cold is null || self.Cold < cold.OnsetSeconds);
 
     /// <summary>A car you can walk into: it has a room and its doors.</summary>
     static bool Walkable(TrainOnLine train, int car) => car > 0 && train.Frames[car].Shape is { Interior: not null, DoorList.Count: >= 2 };

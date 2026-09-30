@@ -36,11 +36,12 @@ public sealed class PrototypeSession : IPlaySession
     {
         if (enemies)
             World.EnableEnemies(DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)), route, route.Seed, crew: 1, authority: true);
-        var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(contentRoot, RouteTuning.File));
+        var routeTuning = RouteTuning.Load(contentRoot);
         World.EnableSwitches(routeTuning.Junctions);
         World.EnableRun(DataFile.Load<RunTuning>(Path.Combine(contentRoot, RunTuning.File)), route,
             route.GateOr(routeTuning.YardLength), authority: true,
-            DataFile.Load<FacilityTuning>(Path.Combine(contentRoot, FacilityTuning.File)));
+            DataFile.Load<FacilityTuning>(Path.Combine(contentRoot, FacilityTuning.File)),
+            DataFile.Load<Sim.Stops.LootTuning>(Path.Combine(contentRoot, Sim.Stops.LootTuning.File)));
         World.EnableLineside(DataFile.Load<SightTuning>(Path.Combine(contentRoot, SightTuning.File)), route);
     }
 
@@ -316,22 +317,18 @@ public sealed class PrototypeSession : IPlaySession
     string RouteStatus() => RouteStatus(Route, World, Train);
 
     /// <summary>The night so far: the dawn clock, where you are on the route, what's next, and how it ended.</summary>
-    /// <summary>Cold and the revived's limits, for the status line (spec B.2, C.2).</summary>
+    /// <summary>Cold and being held, for the status line (spec B.2; GDD v1.1 App. C.1).</summary>
     public static string Condition(in PlayerState p, PlayerTuning t)
     {
         string cold = PlayerMotor.Chilled(p, t) ? $" | COLD: {Math.Max(0, t.Cold.DeathSeconds - p.Cold):0}s — get inside" : "";
-        string revived = p.Has(PlayerFlags.Revived) ? " | REVIVED: cold, light things only, no guns until the next stop" : "";
         // GDD v1.1 App. C.1: held, a friend has to hit it or pull you free; alone, you struggle (hold Use).
         string held = p.Has(PlayerFlags.Held) ? " | HELD: shout for help (alone: hold Use to struggle)" : "";
-        return cold + revived + held;
+        return cold + held;
     }
 
-    /// <summary>A Vigil under way, or the hint that one could be held (spec C.2).</summary>
-    public static string VigilStatus(World world) => world.Vigil switch
-    {
-        { Active: true } v => $" | VIGIL {v.Left:0}s — engine off, lights out, guns dead, the Choir is coming",
-        _ => "",
-    };
+    /// <summary>Holdouts lit along the line (GDD App. D): somebody's waiting to be picked up.</summary>
+    public static string HoldoutStatus(World world) =>
+        world.Holdouts?.All.Count(h => h.Lit) is > 0 and var lit ? $" | {lit} HOLDOUT{(lit == 1 ? "" : "S")} LIT — someone's waiting" : "";
 
     /// <summary>What there is to load at a facility (spec D).</summary>
     static string SiteStatus(Site? site)
@@ -339,10 +336,20 @@ public sealed class PrototypeSession : IPlaySession
         if (site is null)
             return " — nothing here to load";
         var parts = new List<string>();
+        // The yard's power (level-design D.2): its cranes wait on it.
+        if (site.Power != Sim.Stops.PowerState.Live && site.Cranes.Count > 0)
+            parts.Add(site.Power == Sim.Stops.PowerState.Dead ? "POWER DEAD: the cranes won't run until someone restarts the generator at the powerhouse"
+                : "power low: the cranes run at half speed (restart the generator at the powerhouse)");
         if (site.Has(ModuleKind.Crates))
             parts.Add(site.HeavyStack.Length > 0 ? "crates on the platform: carry them into the cars (the big ones take two)" : "crates on the platform: carry them into the cars");
-        if (site.Crane is { } crane)
-            parts.Add(crane.Left == 0 ? "the castings are loaded" : crane.Hooked is not null ? "crane: a casting on the hook" : $"crane: {crane.Left} castings to rig and lift (one in the cab, one on the ground)");
+        if (site.Cranes.Count > 0)
+        {
+            // Every gantry here (level-design P18): the facility's own and the yard's.
+            int left = site.Cranes.Sum(c => c.Left);
+            string gantries = site.Cranes.Count > 1 ? $"{site.Cranes.Count} cranes" : "crane";
+            parts.Add(left == 0 ? "the castings are loaded" : site.Cranes.Any(c => c.Hooked is not null) ? $"{gantries}: a casting on the hook"
+                : $"{gantries}: {left} castings to rig and lift (one in the cab, one on the ground)");
+        }
         if (site.Has(ModuleKind.Winch))
             parts.Add(site.SledsLeft == 0 ? "the winch is done" : site.Turning ? $"winch HAULING {site.Progress * 100:0}%" : site.OutOfRhythm ? "winch STALLED: out of rhythm" : $"winch: two on the capstan ({site.SledsLeft} sleds)");
         return " — " + string.Join(", ", parts);
@@ -351,7 +358,7 @@ public sealed class PrototypeSession : IPlaySession
     public static string RouteStatus(Route? route, World world, TrainOnLine train)
     {
         if (route is null)
-            return VigilStatus(world);
+            return HoldoutStatus(world);
         var run = world.Run;
         if (run?.Report is { } r)
             return r.End == RunEnd.Delivered
@@ -383,6 +390,6 @@ public sealed class PrototypeSession : IPlaySession
             ? $"{(l.Kind == FeatureKind.Facility ? $"{l.Facility}" : $"{l.Kind}").ToLowerInvariant()} in {(l.Start - s) / 1000:0.0} km"
             : "terminus ahead";
         string tunnel = route.InTunnel(s) ? " | IN TUNNEL" : "";
-        return $" | {route.Name} | {clock} | {next}{tunnel}{stop}{VigilStatus(world)}";
+        return $" | {route.Name} | {clock} | {next}{tunnel}{stop}{HoldoutStatus(world)}";
     }
 }

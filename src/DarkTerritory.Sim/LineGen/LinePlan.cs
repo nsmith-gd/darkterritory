@@ -200,7 +200,10 @@ public sealed record PlanPoi(string Id, FacilityKind Type, string Name, string J
 public sealed record PlanRange(string Edge, double S0, double S1);
 
 /// <summary>Flattened ground (§12.1 "pad"): a facility's, the fortress's, a settlement's.</summary>
-public sealed record PlanPad(string Id, double X, double Z, double ElevM, double RadiusM, double HalfLengthM = 0, double HeadingDeg = 0);
+/// <param name="Box">A box rather than a capsule: flat out to <paramref name="RadiusM"/> either side of its centre line and
+/// <paramref name="HalfLengthM"/> along it, blended out past those (a stop's ground, PlanStops); the rail's formation stays
+/// its own through it.</param>
+public sealed record PlanPad(string Id, double X, double Z, double ElevM, double RadiusM, double HalfLengthM = 0, double HeadingDeg = 0, bool Box = false);
 
 public sealed record PlanLandmark(string Type, string Name, string Edge, double S0, double S1, int Side = 0, bool LootTable = false);
 public sealed record PlanBiome(string Edge, double S0, double S1, string Biome);

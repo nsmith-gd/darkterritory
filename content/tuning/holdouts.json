@@ -1,0 +1,32 @@
+// Death, Holdouts and return (GDD v1.2 Appendix D; the numbers are D.13's). Replaces the Vigil (vigil.json, systems
+// spec C.2, cut). Where the Holdouts stand is the stop's layout (stops.json "holdouts"); this is what happens there.
+{
+  // D.5 "assign": a site's Holdouts take the queue as the consist comes in, from the 2 km board at a facility and the
+  // whistle board at a halt or dead town (the Line Plan's; its distance is ours, ARCHITECTURE §8).
+  "assignFacility": 2000,
+  "assignHalt": 400,
+  // D.4: a facility's second Holdout only takes anyone with at least this many in the session (range 4-6).
+  "secondCrew": 5,
+  // D.5 "release": the consist has left the site's zone moving away and nobody living is within this of the Holdout
+  // (range 250-600 m). The occupant goes back to their place in the queue.
+  "release": 400,
+  // D.7 Call Out: a dead player's shout from the Holdout, while somebody living is within `callOutRadius` of it
+  // (150-300 m); heard out to `callOutRange` (40-80 m); one per Holdout every `callOutCooldown` seconds (5-10 s).
+  // It never counts toward loudness.
+  "callOutRadius": 200,
+  "callOutRange": 60,
+  "callOutCooldown": 7,
+  // D.7 breach: hold Use at the door. Smashing a lock (a prison car, a halt lockup) and prying a barricade (a shelter)
+  // count toward loudness for their duration: as loud as `rounds` cannon rounds a second on the Choir (cannon level,
+  // machinery level). The repair kit's silent 6 s isn't built yet: the train carries no repair kit (ARCHITECTURE §8).
+  "smash": { "seconds": 3, "rounds": 0.5 },
+  "pry": { "seconds": 6, "rounds": 0.25 },
+  // How close to the door a breacher stands.
+  "breachReach": 1.8,
+  // D.8: the freed player's health (of player.json's 100).
+  "freedHealth": 80,
+  // D.9 bodies as loot: every in-run death costs the crew this share of the tier's per-car value (run.json economy),
+  // and every body brought home refunds this share of its fee. The refund must stay under 1 (no farming, D.14).
+  "crewLossFee": 0.5,
+  "bodyRefund": 0.75
+}

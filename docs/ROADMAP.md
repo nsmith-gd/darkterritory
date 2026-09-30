@@ -23,6 +23,11 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
 - **Rakes:** cutting, coupling and collision damage.
 - **Procedural routes:** tiers, facilities, tunnels, bridges, and hazards as level content.
 - **Procedural line v1 (M5, docs/design/linegen-plan.md):** every night's line comes from the line generator: a route graph with alternates, dead lines and facility spurs, set pieces scripted to a budget curve, clothoid alignment and a vertical profile, a terrain field the players stand on, authority and its tells (boards, Form 19, the route card), director context, and validation by driving it on the real train sim. `dt linegen generate|sweep|debug|bench`; `C` shows the route card, `F3` the overlay, `--ride` rides a line. ARCHITECTURE §6.10 and §8 note 66.
+- **Generated stops (level-design Parts D and Z):**
+  - Every facility has a yard of nested spurs, and many have a village nearby. Village halts sit between the facilities.
+  - Each tier is harder than the last, by a measured difficulty band.
+  - Loot comes from the run's economy: crates, strongrooms, castings under yard gantries, and village finds that pay once stowed aboard.
+  - `dt site` draws a plan, and `dt site sweep` sweeps a tier.
 - **Play a night:** `DarkTerritory -- --route frontier:7` runs one, enemies and all (`--no-enemies` for a quiet line). The HUD prints text cues for the telegraphs until there's audio.
 - **Guns and the Choir:** two mounted guns with real arcs, and the Choir's global aggro.
 - **Demo roster and director (M5's "5 demo enemies"):**

@@ -4,7 +4,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Tests;
 
-/// <summary>Pins the boiler model to spec B.6 (burn, endurance) and B.5/C.2 (Vigil rebuild times).</summary>
+/// <summary>Pins the boiler model to spec B.6 (burn, endurance) and B.5/C.2 (rebuild times at a standstill).</summary>
 public class BoilerTests
 {
     static readonly TrainTuning T = Tuning.Train;
@@ -46,7 +46,7 @@ public class BoilerTests
     [Theory]
     [InlineData(3, 35, 50)]
     [InlineData(20, 180, 300)]
-    public void RebuildingPressureAtAStandstillMatchesTheVigilCost(int cars, double minSeconds, double maxSeconds)
+    public void RebuildingPressureAtAStandstillMatchesTheSpec(int cars, double minSeconds, double maxSeconds)
     {
         // Spec C.2: "Rebuilding to working band takes 40 s at three cars and over three minutes at twenty."
         Assert.InRange(BoilerScenarios.RebuildSeconds(T, B, P, cars), minSeconds, maxSeconds);
@@ -128,7 +128,7 @@ public class BoilerTests
     }
 
     [Fact]
-    public void HoldingTheVentDumpsAWorkingBoilerToZeroForTheVigil()
+    public void HoldingTheVentDumpsAWorkingBoilerToZero()
     {
         var run = BoilerScenarios.Run(T, B, P, 3, 30, throttle: 0, fireAt: null, startPressure: 90, startFirebox: 0, vent: true);
         Assert.Equal(0, run.EndPressure);

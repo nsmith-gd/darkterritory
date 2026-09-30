@@ -100,11 +100,11 @@ public sealed class EditorTests : IDisposable
     }
 
     [Fact]
-    public void TheFacilitiesVigilAndCampaignAreTuningToo()
+    public void TheFacilitiesHoldoutsAndCampaignAreTuningToo()
     {
         var files = Call("GET", "/api/tuning").Json.EnumerateArray().Select(f => f.GetProperty("file").GetString()).ToList();
         Assert.Contains("tuning/facilities.json", files);
-        Assert.Contains("tuning/vigil.json", files);
+        Assert.Contains("tuning/holdouts.json", files);
         Assert.Contains("tuning/campaign.json", files);
     }
 
@@ -160,7 +160,7 @@ public sealed class EditorTests : IDisposable
     [Fact]
     public void BadRouteNamesAreRefused()
     {
-        var route = RouteGenerator.Generate(DataFile.Load<RouteTuning>(Path.Combine(_content, RouteTuning.File)), RouteTier.Local, 1);
+        var route = RouteGenerator.Generate(RouteTuning.Load(_content), RouteTier.Local, 1);
         Assert.Equal(400, Call("POST", "/api/route/save", new { name = "../../escape", route }).Status);
     }
 

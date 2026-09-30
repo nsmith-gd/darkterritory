@@ -287,6 +287,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Walk-in cars.** Every car behind the engine is a shell:
       - a floor level with the coupler plate (1.1 m), walls, and a roof slab whose top is the same 4.0 m walkway, so spec B.4's roof traverse is unchanged;
       - a door in each end wall, left of centre, with the end ladders on the right;
+      - the coupler plate across each gap bridges end door to end door: it lies on the doors' line (`interior.doorX`) and is a hand wider than the doorway (1.0 m to the door's 0.9 m), so stepping off it is stepping through a door. The end ladders stand just clear of its right edge (`GeometryTuning.EndLadderX`), and the roof's brake wheel keeps its place inboard of the ladder's top (a hand reaches it from the ladder; the feet don't). Until this the plate was centred on the car and the doorway overhung its left edge;
       - cargo stacked down the right-hand side of cargo cars.
     - **The guard car** (GDD §10: "rear gun, tool storage, the back door") has a tool locker and a hatch ladder up to the rear gun from inside.
     - **Doors are state.** They're a replicated bitmask on each vehicle and start shut. You open or shut one by holding Use while facing it, from inside or from the coupler plate outside.
@@ -585,7 +586,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       5. Leaves by the nearer door and climbs the end ladder.
     - All of it is intent through the same path as a player's.
     - **What made it hard:**
-      - **The plate is 0.8 m wide.** The doorway is left of centre and the end ladder just off the plate's right edge. Any sideways step on the plate at speed is off it and a death. So the bot crosses between door and plate on one line that's in both, steps straight in and out, and stands in reach of the ladder rather than at it.
+      - **The plate is a metre wide.** The doorway is in line with it and the end ladder just off its right edge. Any sideways step on the plate at speed is off it and a death. So the bot crosses between door and plate on the doors' line, steps straight in and out, and stands in reach of the ladder rather than at it.
       - **Use on the plate cut the coupling unless you were facing a door** (before T91). So the bot only presses it when `CrewActions.Nearest`, the sim's own rule, says a door is in reach.
       - **Two hands on one door toggle it twice.** The bots go in at their own point in the onset (seeded, 45–70% of it), so a crew that started together doesn't queue at one door. A door shut in its face sends it back to opening.
       - **Harness bots decide from their client's predicted state.** Corrections up to a third of a metre are why the margins above matter, and why the isolated test passed long before the harness did.
@@ -1815,11 +1816,94 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - The demo roster (§21) swaps the Ribbits for the Grumbler "if the Foundry is one of the two demo facilities". The demo line has no Foundry, so the Ribbits stay.
       - The Soot Children's call is now a child's voice (`child-call`), not a mimic of a crewmate's. The v1.0 voice-mimic path in `VoiceChat` is unused and kept for now.
     - **Tells:** a new allocation in systems-spec A.4, reusing the retired enemies' bands. `AudioTests` still holds every tier-1 tell 6 dB over the bed for whoever has to hear it, on `Staging.Threats`' new layout: one of every enemy around the train, including a haunting doll in the cab, a Car Hugger on the rear, Ribbits, a Gaunt and a Grumbler on the ground, and two of the Choir's ghosts.
-    - **Presentation:** the new creatures are greybox stand-ins built from the existing model kit (the weight's heap for the Car Hugger, the husk for the Whistler, Tippy Toesie and the Grumbler, the hound's body squat and olive for a Ribbit, the Hollow's figure for the Gaunt and the Choir). Dedicated models are art-pass work (the Track Doll's porcelain face doesn't yet read at 200 m).
+    - **Presentation:** the new creatures are greybox stand-ins built from the existing model kit (the weight's heap for the Car Hugger, the husk for the Whistler, Tippy Toesie and the Grumbler, the hound's body squat and olive for a Ribbit, the Hollow's figure for the Gaunt and the Choir). Dedicated models are art-pass work. The Track Doll has its own since note 97.
     - **Bots** (`Heed.*`, the harness and solo crewmates): rescue anyone held (Use for what lets go, a swing for what doesn't); glance round and face Tippy Toesie; talk (a `Voice` byte), quietly to the Gaunt, and hush for the Choir; keep clear of a Whistler's gap after the whistle; put a swarmed car's lamp out; the gunner reloads, and fires until the meter's half gathered. The driver brakes for the Track Doll, and for a derailing Switchman it stops short, waits for the firebox door to shut, gets down and clubs it. At a stand the fireman only fires to keep the fire and gauge up (every shovelful opens the door). The driver (and a fireman) club a Stoker out of the firebox while they've health to spare. Walkers treat a swarmed lamp as trouble, like a fire: in, and the lamp out. **Car fires, retuned (T88):** the v1.0 numbers had a fire outgrow one extinguisher within 20 s, faster than anyone, bot or player, could get to it, so the fire grows slower and the spray is stronger and longer (DESIGN-TODO in `enemies.json`). **The Stoker's door, reread:** "left open" is open at a stop with the cab empty; a fireman shovelling at a stand had it open more than not, and a Stoker came through every stop. Harness frontier:7 at 4 bots now delivers with the crew home (net −775: the fires still take the cargo). **Not yet:** bots still lose cargo to fires they reach late, and don't pair up at stops.
     - **Verified:** `DemoRosterTests` (each of the demo five against its rule, grab rescue, the solo struggle), `EnemyTests` (hounds and the cannon, the Choir seizing only the exposed and dispersing when hushed), `DraggerTests`, `ClimberTests`, `CarFireTests`, `GunTests` (the reload, the meter), `ConflictSeedingTests`, `RosterTests`, `CargoTests`, `AudioTests`, `CreatureArtTests`; 595 tests green.
 
-93. **The first playtest's movement round (T90-T92).** Solo playtest feedback, all taken as asked:
+93. **Generated stops: yards, villages and their loot (level-design Part D, Part Z).** Every facility's zone, and a few village halts between them, holds a stop (on a generated line, its facilities' and settlements', note 96) generated from `tuning/stops.json` (`Sim/Stops/`). Its loot comes from the run's economy (`tuning/loot.json`).
+    - **Seeded by hash (Z.1):** a stop's seed is `hash(route seed, stop index, tier)`, and each attempt's is `hash(stop seed, attempt)` (`StopSeed`, SplitMix64). One stop never shifts another; the same night is the same stops on every machine.
+    - **Generate, measure, validate, reroll:** up to `maxAttempts` (8). Each attempt is scored for manoeuvre difficulty (P15, `StopGenerator.Measure`) and checked against Z.5's invariants (`StopChecks`). The first attempt that passes everything and lands in the tier's band is kept, or else the closest one. A 60-seed sweep (`dt site sweep`) lands 98–100% in band, all valid.
+    - **Yards are nested spurs off the main line.** `RailLine` branches only come off the main line and face up-line, so a ladder, fan or split is several spurs, each at its own switch. The first toe leads to the outermost track, so none cross. Each track is an S-curve turnout (radius `turnoutRadius`, 60 m) out to its offset, a straight loading face, and for a fan a curve away. `BranchDefinition` carries them as segments; `StopGeneratorTests` pins the branch's world path to the layout's to 0.3 m.
+    - **Deferred, as the engine stands:**
+      - trailing points and loops (Z.6 answer 1: a north lead isn't a rule, and the engine can't build one yet);
+      - power, derelict cars and grade as difficulty levers (Part D lists them; the sim has none of them at stops yet).
+    - **Ambiguity: what a siding "holds" (P16).** A spur's capacity (`SpurDrill.Capacity`) is now its *standing length*: the shared loading face from the buffer stop back, engine included. It no longer counts the S-curve or an outer track's straight before the face. Counted over the whole spur, a long outer siding took the whole train and there was nothing to drill.
+    - **Loot (P2, P12, P14):**
+      - The layout says where: crane bays, crate stacks, the hero's strongroom, and village cupboards, cellars, haylofts and the like.
+      - The economy says what: `StopLoot.Village` shares a budget (`villageBudget` × the tier's `perCar`) across a village's finds, by kind weight and an outlier bonus. `CratesIn` sets each stack's crates.
+      - When the train first stops at a stop, its stacks come out as cargo, its strongroom as a heavy crate, and its finds as `BodyKind.Loot`.
+      - A yard's extra gantries carry a casting per bay they reach (`Site.YardCranes`). The Crane record is keyed site × 16 + crane.
+    - **Ambiguity: when a find pays.** A find put down inside any car and left still is *stowed*. It adds to `Run.Scavenged`, which `RunReport.Scavenged` reports and `Gross` includes on delivery, like the cargo it rode with. The Run record grew a field for it.
+    - **The harness** doesn't pass loot tuning, so its nights are unchanged: bots don't scavenge yet.
+    - **Art:**
+      - `WorldArt.Stops` draws each stop in the lineside cells from its layout.
+      - The terrain now runs out to 220 m, and its hills are levelled over a stop's zone, because the sim walks people out to the village at rail height.
+      - A craned shed gets a roofless bay cut through it under the runway, so the gantry's legs and rails stand clear.
+      - The HUD and the operator's view take the crane nearest you.
+    - **Verified:**
+      - `StopGeneratorTests` (29): invariants over 30 seeds a tier, deeper tiers harder, determinism, the route's branches matching the layout, halts on level straight track, finds within their kind and budget, a stowed find paying, and gantries over their faces.
+      - `StopArtTests`: the ground under a stop is level, and every building is drawn in its cell.
+      - Look at them with `dt site --route frontier:7 --stop 4` (the plan) and `dt screenshot --route frontier:7 --site --facility 2` (in game).
+
+94. **Death, Holdouts and return (GDD v1.2 Appendix D). The Vigil is cut.** Systems spec C.2 is superseded: `Vigil.cs`, `vigil.json`, its record, its HUD, the Revived flag and the revive-at-the-gate rule are gone. Once the gate has opened, a Holdout is the only way back into a run (`Run/Holdouts.cs`, `tuning/holdouts.json` with D.13's numbers).
+    - **Where they are** is level content, part of each stop's layout (level-design Part H, `stops.json` "holdouts").
+    - **The queue (D.6).** The dead join it at the back as they die, and a mid-run joiner as *lobbied*: boarded with `DeathCause.Waiting`, so they spectate with no body. Defer only ever moves you down.
+    - **States (D.5):**
+      - **Assign.** From the approach board, the first eligible entry takes each Holdout at the site. You're never eligible where you last died, but you keep your place. A facility's second Holdout needs a session of five or more.
+      - **Breach.** A living crew member holds Use at the door. Any interruption resets it to zero.
+      - **Freed.** The player comes back inside the Holdout (at its middle: D.14 "no open-world spawns") on 80 health.
+      - **Release.** The consist has left the zone moving away, with nobody living within 400 m. The player goes back to their place, and the Holdout can assign again if the train comes back.
+    - **Ambiguity: the approach boards.** The Line Plan isn't in this repo. The 2 km and 1 km boards are distances before the zone; the whistle board is taken as 400 m (`assignHalt`, and `approach.halt` in stops.json).
+    - **Ambiguity: a village-only stop is both "a halt" and "a dead town".** It gets one Holdout: the halt's lockup at `villageLockup` chance, else a shelter within the village's 80 m.
+    - **Ambiguity: breach noise.** Smash and pry feed the loudness meter (note 92, App. C.7) as a fraction of a cannon round a second (`rounds`, `ChoirState.Loud`). Call Out never touches it.
+    - **The repair kit's silent breach isn't built.** The train carries no repair kit yet (App. C tools), so every breach is loud.
+    - **Controls.** A dead player's Use is Call Out (a shared 7 s cooldown per Holdout, only with someone living within 200 m) and their Throw is Defer. Live Mic, the spectator camera, the creature vote and commendations (D.7, D.10–D.12) aren't built.
+    - **Bodies as loot (D.9).** `Bodies` makes one body per death (die twice, leave two), and counts deaths. A drop-out's body is marked, and carries no fee and no refund. `RunReport` gains Deaths, BodiesHome, CrewLossFees and BodyRefunds, and Net is after both. Fees are charged whenever Holdouts are on. A checkpoint keeps the spent Holdouts where it used to keep revivals.
+    - **On the wire:** one Holdout record per Holdout (state, occupant, breach). A frontier night's snapshot grew from about 110 to 142 bytes, about 31 kbit/s down per client.
+    - **In the world:** a prison car on its derelict siding, a signal box or water tower model with its door barricaded, a brick lamp room, or an iron cage behind a platform. Each lamp is on the corner the train sees first, and burns while the Holdout is occupied (`dt screenshot --lit` lights them all).
+    - **Verified:**
+      - `HoldoutTests` (12): assign, breach and free inside; a stopped breach starts over; eligibility; release and come back; the second Holdout's crew; defer; Call Out's cooldown and silence; smash noise; a lobbied joiner; two deaths, two bodies; no farming over random deaths and recoveries; drop-outs.
+      - `HoldoutSiteTests` (6), and the stop checks in every `StopGeneratorTests` sweep.
+
+95. **A yard's power and the grade out of it (level-design D.2, spec D.1).** Two of Part D's deferred levers.
+    - **Power:**
+      - Each yard rolls its power by tier (`stops.json` tiers "power": live at local, mostly dead in deep territory). A powerhouse is placed at its throat.
+      - At low power the yard's cranes run at `lowSpeed` (0.5); dead, not at all. Holding Use at the powerhouse door for `restartSeconds` restarts it (`facilities.json` "power"), and it's machinery-loud.
+      - The power replicates with the site (the Run record's per-facility fields grew from 5 to 7). The crane itself is only driven on the host.
+    - **Grade:**
+      - The route lays each facility's exit grade (by tier, up to 4%, from its own seed) on the first stretch past its zone, keeping at least 400 m of climb. Every other draw is left as it was, so only that stretch changes.
+      - The stop is told the grade (`StopContext.ExitGrade`), and its score counts a hard pull from 2%.
+    - **Verified:** `PowerTests` (4): the cranes run on the yard's power, the restart and its noise, and deeper tiers having worse power and steeper pulls, as the route lays them.
+    - **Not done:** trailing points and derelict cars. Both need the train sim to change: a switch that faces down the line, and rakes standing on branches at the start of a night (level-design I.4).
+
+96. **Stops on generated lines (level-design Part Z; linegen plan §11.1, §11.3).** The line generator is the default night, so its facilities and settlements get stops too (`LineGen/PlanStops.cs`, called from `PlanRoutes.ToRoute`).
+    - **A facility on a spur gets its yard at its own junction.** The zone is placed so the yard's first switch is the plan's junction. That track becomes the plan's spur branch, so every edge the plan names keeps its branch index; the yard's other tracks are added after the plan's branches.
+    - **Its ground is kept straight and level.** `LineBuilder` stretches a spur facility's departure lull (straight, level) to cover a stop's zone past the junction. The zone must then lie on straight, level main line, and the cut waiting before it on straight track, which may climb a little.
+    - **Ambiguity: a village along the line before the yard.** That arrangement shifts the yard 150 m down its zone, back past the level holding track (up to 0.2%). Such a stop is drawn again, up to 4 times, from `hash(stop seed, n)`. A facility that still doesn't fit goes without a yard, keeping the plan's plain spur. No night in the test set does.
+    - **Coaling towers and mine heads get no yard.** A coaling tower stands on the main line; a mine head's spur runs into its portal.
+    - **Halts and dead towns get villages.** Each settlement on the main line that's clear of a yard's zone (by 100 m) and is straight and level gets a village stop over its stretch. Its halt is at the plan's platform, on the platform's side, and it's seeded from `hash(route seed, halt, S)`. The plan's own platform bays and random houses aren't drawn there; the village is.
+    - **Flattened by pads.** Each stop adds a long pad (`stop:<S>`) to the route's copy of the plan, so the terrain on every machine is flat under it.
+      - It's a box (`PlanPad.Box`), not a capsule. It ends square at the zone's ends, where the line may start to climb. It reaches each side only as far as the stop builds there, so a yard never flattens the sea on the other side (`WatersideTests`). It also leaves the rail's formation its own.
+      - The departure lull this stretches changed the alignment of some nights. `frontier:7` lost the 418 m curve `LineGenTests.ACurveTakenAboveItsDerailSpeedDerails` used, so the test now takes the first frontier night with a curve the train can overspeed. A plan that already carries them (sent to a joiner, or saved) has them stripped and added again, so building its route twice gives the same stops.
+    - **Art:** `WorldArt.Stops` draws a generated line's stops too; it had returned early for plan routes. The plan's woods keep off each stop's ground (`PlanScene.Clearings`), and its platform bays and town houses give way where a village took the settlement. `StopArtTests` runs on both generators' nights. `dt site --route` now reads the line generator's night, the one the game plays.
+    - **Verified:** `PlanStopTests` (22) over four tiers checks:
+      - every spur facility's yard at its own junction, its tracks as branches;
+      - every stop on straight, level track;
+      - villages at their settlements with the halt at the platform;
+      - Holdouts on every tier;
+      - one pad a stop;
+      - a joiner's route from the plan matching the host's;
+      - determinism.
+
+97. **The Track Doll's own model (GDD v1.2 §21, App. A.2).** The Track Doll was the crew figure scaled up and whitened, with a lit box for a face. It is now a jointed porcelain doll (`tools/blender/track_doll.py`, baked by `tools/models/recipes/track_doll.py`, 6.1k triangles, SK_Human in a doll's proportions, 2.15 m).
+    - **The look.** A Victorian bisque doll: the head a quarter of its height, glass eyes under painted lashes, a ringlet wig with a fringe, a lace collar, puffed sleeves, a bell skirt with a ragged hem, porcelain ball joints and moulded boots. What's wrong with it is kept small: a crack down through the left eye, a chip out of the right temple showing the hollow inside, soot run from the eyes, the left eye turned down and out.
+    - **Jointed, not skinned.** Every piece is rigid on one bone (the skirt alone follows the thighs a little), so it moves at the joints and holds its poses. Its clips are keyed as holds that pop (GDD §31): stand (on the rail, nothing moves), admire (bent over the cargo to its right), giggle (hands over its mouth), tamper (fists on the controls), cower (cornered), hit.
+    - **The tell.** App. A.2's telegraph is "white porcelain catches the forward lamp at ~200m", and the sim enters Telegraph only with the lamp on and the doll within that range. So the face and glass eyes draw under a material of their own (`track_doll_0.face`, the atlas's split), and `CreatureArt` gives it a light of its own in Telegraph: strong far off, which also thins the fog over it, easing to a sheen by 15 m. Unrevealed or aboard it's only porcelain. At 200 m it's a white pinprick on the rails (a 2 m figure is 7 px tall at 720p there), at 80 m a pale face with two dark eyes. `dt screenshot --threats --doll-at 200` stages it anywhere up the line.
+    - **Facing.** A thing on the line is drawn facing down it, the way the train goes. The doll turns round to face the train; aboard, it keeps its car's frame.
+    - **Aboard.** A haunting doll takes turns: 12 s admiring, then 5 s giggling. At the cab's controls (`Extra2`) it tampers; cornered (`Extra`) it cowers.
+    - **The bake kit gained two things.** A mask may take the high copy's material (paint that goes on the face and not the hair) and return three masks in one bake. `Atlas.finish` takes a roughness map, so the glaze stays glossy (0.2) while the cloth and the chip's bisque go matte. Every other model's default is unchanged (0.75 all over).
+
+98. **The first playtest's movement round (T90-T92).** Solo playtest feedback, all taken as asked:
     - **Jump.** `player.json` `jumpHeight` 0.8 m sets the take-off speed (`PlayerTuning.JumpVelocity`); the old derivation (a flat jump at roof run spanning exactly the 2.2 m `jumpGap`, 0.48 m high) is its floor. A roof-run jump now carries about 2.8 m.
     - **Landing.** Hitting the ground kills only above `landing.lethalAbove`, 16.5 m/s, three times run speed. Below that it's a knock rising from `rollDamage` (10) to `damageAtLethal` (80) with the speed over the ground. At the old 4 m/s every step off a moving train was a death. Spec B.3 is updated. Being pulled off by the Draggers (`PlayerMotor.PullOff`) still goes by `speedBands.jumpOffLethal` (4 m/s): being dragged off isn't a landing you chose.
     - **Into the cab from the train.** There wasn't a way: the tender was solid and full width. It now has a gangway down its left side at deck height (`train.json` `engine.tenderGangway`, 0.9 m), with a grated footplate off the coupler plate (a `RunningBoard` solid, footing only), leading into the back of the cab. A ladder up the tender's front beside the coal reaches the cab roof and its gun. `MovingFrame`-style tests walk both at 14 m/s (`PlayerMotorTests`), and `dt screenshot --view gangway` shows them.

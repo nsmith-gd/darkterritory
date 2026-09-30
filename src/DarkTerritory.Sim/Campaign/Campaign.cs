@@ -36,7 +36,7 @@ public sealed record CarState(int Id, double Load, double Integrity, double Carg
 /// Spec E "autosave per POI, on successful departure": enough of a night to start it again from the facility the
 /// train last left, if the session is lost.
 /// </summary>
-public sealed record RunCheckpoint(string Route, int Facility, double Seconds, double Front, double Tender, CarState[] Cars, int Revivals)
+public sealed record RunCheckpoint(string Route, int Facility, double Seconds, double Front, double Tender, CarState[] Cars, int[] SpentHoldouts)
 {
     /// <summary>
     /// The night's line itself, its plan compressed (linegen plan §17.4: the save keeps the plan and the generator's

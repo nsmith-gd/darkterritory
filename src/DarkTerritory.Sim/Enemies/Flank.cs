@@ -450,7 +450,7 @@ public sealed class Climber(int id) : Enemy(id)
         var shape = train.Frames[car].Shape;
         double z = Local.Z - t.TraverseSpeed * SimConstants.TickSeconds;
         // Over the middle of a car with a room in it, unlit or with nobody inside (App. A.4 ENTER): in it goes.
-        if (Local.Z > 0 && z <= 0 && shape.Interior is { } room && (ctx.World.EmergencyLights || !train.Vehicles[car].LampLit || !Occupied(ctx, car)))
+        if (Local.Z > 0 && z <= 0 && shape.Interior is { } room && (!train.Vehicles[car].LampLit || !Occupied(ctx, car)))
         {
             Local = room.Centre with { Y = room.Min.Y };
             Extra = -1; // inside: the interior threat

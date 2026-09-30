@@ -63,7 +63,8 @@ public static class Staging
     }
 
     /// <summary>One of each enemy (GDD v1.1 §21) mid-telegraph or mid-commit around the train, where a view can see it.</summary>
-    public static List<Enemy> Threats(TrainOnLine train)
+    /// <param name="dollAhead">How far up the line the Track Doll stands (App. A.2's reveal is 200 m in the lamp).</param>
+    public static List<Enemy> Threats(TrainOnLine train, double dollAhead = 22)
     {
         var d = train.Dynamics;
         int rear = d.Consist.Vehicles[^1].Id;
@@ -108,7 +109,7 @@ public static class Staging
         }
         // On the rails further up, white face in the lamp (A.2).
         var doll = new TrackDoll(23);
-        doll.Restore(SpinePhase.Telegraph, 3, 1, -1, default, d.Distance + 22, 0, 0, 0, 0);
+        doll.Restore(SpinePhase.Telegraph, 3, 1, -1, default, d.Distance + dollAhead, 0, 0, 0, 0);
         threats.Add(doll);
         // Haunting the cab at the controls (A.2 TAMPER), where it's heard giggling.
         var haunting = new TrackDoll(26);

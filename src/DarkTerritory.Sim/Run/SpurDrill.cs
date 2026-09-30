@@ -149,7 +149,8 @@ public sealed class SpurDrill
     /// <summary>How many cars a spur takes behind the engine, clear of its points with a metre spare at each end.</summary>
     public static int Capacity(GeometryTuning g, Branch spur, double pointsLength)
     {
-        double room = spur.Local.Length - 1 - (pointsLength + 1) - g.EngineLength;
+        // A generated yard's track is worked along its straight (level-design P16); an older spur, all of it clear of the points.
+        double room = spur.Definition.Standing is { } standing ? standing - 1 - g.EngineLength : spur.Local.Length - 1 - (pointsLength + 1) - g.EngineLength;
         return Math.Max(0, (int)(room / (g.CarLength + g.CouplingGap)));
     }
 

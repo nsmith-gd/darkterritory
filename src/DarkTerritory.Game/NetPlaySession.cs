@@ -115,14 +115,16 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         start = Start ?? start;
         var train = new TrainOnLine(new TrainDynamics(consist), line, start, boiler);
         var world = new World(train, combat);
-        world.EnableVigil(DataFile.Load<Sim.Run.VigilTuning>(Path.Combine(content, Sim.Run.VigilTuning.File)));
         if (route is not null)
         {
-            var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File));
+            var routeTuning = RouteTuning.Load(content);
             world.EnableSwitches(routeTuning.Junctions);
             world.EnableRun(runTuning, route, route.GateOr(routeTuning.YardLength), authority,
-                DataFile.Load<Sim.Run.FacilityTuning>(Path.Combine(content, Sim.Run.FacilityTuning.File)));
+                DataFile.Load<Sim.Run.FacilityTuning>(Path.Combine(content, Sim.Run.FacilityTuning.File)),
+                DataFile.Load<Sim.Stops.LootTuning>(Path.Combine(content, Sim.Stops.LootTuning.File)));
             world.EnableLineside(DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)), route);
+            // GDD App. D: once the gate has opened, the dead come back only through the route's Holdouts.
+            world.EnableHoldouts(DataFile.Load<Sim.Run.HoldoutTuning>(Path.Combine(content, Sim.Run.HoldoutTuning.File)), route);
         }
         // A client mirrors the enemies, and needs their tuning for what it predicts from them (the Weight's drag, T59) and
         // for bots reading them; the host's world gets its director from HostSession.EnableEnemies.
@@ -265,7 +267,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var train = world.Train;
         return new Sim.Campaign.RunCheckpoint(route, facility, world.Run!.Seconds, train.Dynamics.Distance, train.Boiler.Tender,
             [.. train.Vehicles.Select(v => new Sim.Campaign.CarState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun.Ammo, v.Cargo))],
-            world.Vigil?.Revivals ?? 0)
+            world.Holdouts?.Spent ?? [])
         { Plan = world.TrackPlan?.Compress() };
     }
 
@@ -287,7 +289,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             }
         train.Boiler.Tender = c.Tender;
         world.Run?.Resume(c.Seconds, c.Facility, c.Tender, c.Cars.Sum(x => x.Ammo));
-        world.Vigil?.Mirror(false, 0, c.Revivals, -1, -1);
+        world.Holdouts?.Spend(c.SpentHoldouts ?? []);
     }
 
     /// <summary>The UDP port direct joiners use, or 0 when the host took none.</summary>

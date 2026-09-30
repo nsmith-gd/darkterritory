@@ -223,8 +223,10 @@ class Atlas:
         occlusion and a height mask (z / `height`, emitted). A Cycles bake clears the whole image and only the colour
         pass leaves alpha where it didn't write, so each group bakes into images of its own, and its colour coverage
         masks all four into the atlas. `masks` {name: fn(positions Nx3) -> 0..1} are painted on the high copy and baked
-        across too (where a recipe's grade goes: eye pits, rot, tar). Sets self.maps {DIFFUSE, NORMAL, AO, EMIT: HxWx4,
-        and each mask: HxW} and self.masks {group: HxW}."""
+        across too (where a recipe's grade goes: eye pits, rot, tar). A mask fn may take the high copy's kit material
+        name as a second argument (paint that only goes on a face, not the hair over it), and may return Nx3: three
+        masks in one bake, kept HxWx3. Sets self.maps {DIFFUSE, NORMAL, AO, EMIT: HxWx4, and each mask: HxW or HxWx3}
+        and self.masks {group: HxW}."""
         S = self.size
         low = self.low
         bake_mat = bpy.data.materials.new(f"{self.name}_bake")
@@ -255,7 +257,7 @@ class Atlas:
                      "AO": np.ones((S, S, 4), np.float32), "DIFFUSE": np.full((S, S, 4), 0.2, np.float32),
                      "EMIT": np.full((S, S, 4), 0.5, np.float32)}
         for mname in (masks or {}):
-            self.maps[mname] = np.zeros((S, S), np.float32)
+            self.maps[mname] = None
         mask_mat = _attribute_material("dt_mask")
         self.masks = {}
         for name, (faces, highs) in groups.items():
@@ -299,12 +301,15 @@ class Atlas:
                 for h in highs:
                     co = np.empty(len(h.data.vertices) * 3, np.float32)
                     h.data.vertices.foreach_get("co", co)
-                    v = np.clip(np.asarray(fn(co.reshape(-1, 3)), np.float32), 0, 1)
+                    args = (co.reshape(-1, 3), h.get("dt_kind", "")) if fn.__code__.co_argcount >= 2 else (co.reshape(-1, 3),)
+                    v = np.clip(np.asarray(fn(*args), np.float32), 0, 1)
                     if "dt_mask" in h.data.color_attributes:
                         h.data.color_attributes.remove(h.data.color_attributes["dt_mask"])
                     attr = h.data.color_attributes.new("dt_mask", "FLOAT_COLOR", "POINT")
                     rgba = np.ones((len(v), 4), np.float32)
-                    rgba[:, :3] = v[:, None]
+                    rgba[:, :3] = v if v.ndim == 2 else v[:, None]
+                    if self.maps[mname] is None:
+                        self.maps[mname] = np.zeros((S, S, 3) if v.ndim == 2 else (S, S), np.float32)
                     attr.data.foreach_set("color", rgba.ravel())
                     h.data.materials.clear()
                     h.data.materials.append(mask_mat)
@@ -319,7 +324,8 @@ class Atlas:
                 bpy.context.view_layer.objects.active = low
                 bpy.ops.object.bake(type="EMIT")
                 px = cook._image_array(img, S)
-                self.maps[mname][wrote] = px[wrote][..., 0]
+                if self.maps[mname] is not None:
+                    self.maps[mname][wrote] = px[wrote][..., :3] if self.maps[mname].ndim == 3 else px[wrote][..., 0]
                 bpy.data.images.remove(img)
             self.masks[name] = wrote
         cook.delete(all_highs)
@@ -327,8 +333,12 @@ class Atlas:
             o.hide_render = False
         if os.environ.get("DT_BAKE_DEBUG"):
             for kind, arr in self.maps.items():
+                if arr is None:
+                    continue
                 if arr.ndim == 2:
                     arr = np.dstack([arr, arr, arr, np.ones_like(arr)])
+                elif arr.shape[-1] == 3:
+                    arr = np.dstack([arr, np.ones_like(arr[..., 0])])
                 cook._save(arr, os.path.join(cook.ROOT, "out", "review", f"bake-{self.name}_{kind.lower()}.png"))
 
     def base(self, soot=(0.018, 0.016, 0.014), crease=0.45, ao_floor=0.35, gentle=None):
@@ -346,8 +356,9 @@ class Atlas:
     def height(self, scale=1.8):
         return self.maps["EMIT"][..., 0] * scale
 
-    def finish(self, base, kit, arm, source_ids=(), made=(), family="creature", split=None):
-        """Writes the atlas (`base` linear HxWx3), splits the parts back out with
+    def finish(self, base, kit, arm, source_ids=(), made=(), family="creature", split=None, rough=None):
+        """Writes the atlas (`base` linear HxWx3), with `rough` (HxW, 0 glazed .. 1 matte; default 0.75 all over) its gloss,
+        splits the parts back out with
         their names and extras, bakes the layers, and exports content/art/models/<name>.glb with the rig and clips.
         `split` {kind: suffix}: those faces draw the atlas under a material of their own, <name>_0.<suffix> (the same
         texture; the engine tells them apart by name: the crew's paint, tinted per player)."""
@@ -373,6 +384,14 @@ class Atlas:
         nt.links.new(ntex.outputs["Color"], nmap.inputs["Color"])
         nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
         bsdf.inputs["Roughness"].default_value = 0.75
+        if rough is not None:
+            rimg = bpy.data.images.new(f"{self.name}_rough", S, S, alpha=False)
+            rimg.colorspace_settings.name = "Non-Color"
+            r = np.clip(np.asarray(rough, np.float32), 0, 1)
+            rimg.pixels.foreach_set(np.dstack([r, r, r, np.ones_like(r)])[::-1].ravel())
+            rtex = nt.nodes.new("ShaderNodeTexImage")
+            rtex.image = rimg
+            nt.links.new(rtex.outputs["Color"], bsdf.inputs["Roughness"])
         bsdf.inputs["Metallic"].default_value = 0.0
         # The joined mesh's slots: the atlas, then each kept material.
         kept = sorted(self.kept)

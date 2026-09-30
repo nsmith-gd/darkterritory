@@ -159,6 +159,7 @@ public sealed partial class SceneArt(Look look)
             Sim.Physics.BodyKind.Heavy => props.Get("heavy_crate") ?? Piece($"prop-heavy-{heavyHalf:0.00}", () => PropKit.Heavy(Look, (float)heavyHalf)),
             Sim.Physics.BodyKind.Crate => props.Get("stores_crate") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
             Sim.Physics.BodyKind.Radio => props.Get("field_radio") ?? Piece("prop-radio", () => PropKit.Radio(Look)),
+            Sim.Physics.BodyKind.Loot => Piece("prop-loot", () => PropKit.Loot(Look, 0.15f)),
             // The hand lamp: the sourced lantern (tools/models hand_lantern) where it's built.
             _ => PropArt.Of(Look).Get("hand_lantern") ?? Piece("prop-lantern", () => PropKit.Lantern(Look)),
         };
@@ -207,7 +208,7 @@ public sealed partial class SceneArt(Look look)
         }
     }
 
-    /// <summary>A car's two lanterns, hanging on their chains from the carlines where its lights are; red glass in a Vigil.</summary>
+    /// <summary>A car's two lanterns, hanging on their chains from the carlines where its lights are; red glass under emergency lighting.</summary>
     public void CarLamps(MeshBuilder mesh, in CarFrame frame, Double3 eye, bool emergency)
     {
         if (frame.Shape.Interior is not { } room || (frame.Origin - eye).Length > 80)
@@ -282,7 +283,7 @@ public sealed partial class SceneArt(Look look)
         double integrity = vehicle?.Integrity ?? 1;
         int seed = vehicle?.Id ?? frame.Index;
         var scar = new Vector2(damage.ScarOf(integrity), seed * 0.618f % 1 * 97);
-        // In a Vigil the headlamp and tail lamp have no power (spec C.2).
+        // Under emergency lighting the headlamp and tail lamp have no power.
         mesh.Instances.Add(new MeshInstance(body, m, emergency ? 0.06f : 1, Scar: scar));
         int state = damage.StateOf(integrity);
         if (state > 0 && !engine)

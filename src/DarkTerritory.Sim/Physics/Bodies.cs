@@ -10,7 +10,8 @@ namespace DarkTerritory.Sim.Physics;
 /// <summary><see cref="Heavy"/> is freight that takes two to lift (spec D.2 "heavy items need two", T43).</summary>
 /// <summary>
 /// GDD v1.1 App. C.4 hand-carried loot: a <see cref="Toy"/> (the Track Doll steals one and goes), <see cref="Loot"/> (salvage:
-/// what the Gaunt takes, what the Followers nest by), a rescued <see cref="Child"/> survivor (carried by hand, the most
+/// what the Gaunt takes, what the Followers nest by; a village find, level-design P12, pocketable and paying when stowed
+/// aboard, its <see cref="Body.Owner"/> saying which find), a rescued <see cref="Child"/> survivor (carried by hand, the most
 /// valuable cargo there is), and each car's wall-mounted <see cref="Extinguisher"/> (App. C.5).
 /// </summary>
 public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Toy = 7, Loot = 8, Child = 9, Extinguisher = 10 }
@@ -47,6 +48,8 @@ public sealed class Body
     public bool Lifted => Carrier >= 0 && (Kind != BodyKind.Heavy || Second >= 0);
     /// <summary>For a ragdoll, whose body it is.</summary>
     public int Owner { get; set; } = -1;
+    /// <summary>A ragdoll left by a player who disconnected, not one who died (GDD App. D.2, D.9).</summary>
+    public bool DroppedOut { get; set; }
     /// <summary>Facing, for drawing single-point bodies (crates, lamps); tumbles in flight.</summary>
     public double Yaw { get; set; }
     public double Spin { get; set; }
@@ -64,8 +67,8 @@ public sealed record HandsTuning(double Reach, double ThrowSpeed, double Ragdoll
 
 /// <summary>
 /// Host-simulated loose bodies (GDD §33: thrown objects, cargo, ragdolls, bodies). Clients mirror them from
-/// Body records. A dead player's body persists where they fell (spec C.1) and can be carried: the Vigil
-/// needs it in the engine, and a body carried to the terminus is revived at the gate (spec C.2).
+/// Body records. A dead player's body persists where they fell and can be carried: brought home aboard, it refunds most
+/// of its crew-loss fee (GDD App. D.9).
 /// </summary>
 public sealed class Bodies
 {
@@ -132,6 +135,18 @@ public sealed class Bodies
         return b;
     }
 
+    /// <summary>
+    /// A village find lying where it was hidden (level-design P12, P14), in the world frame. <paramref name="owner"/> says
+    /// which find it is (<see cref="Run.Run.LootOwner"/>), so a client can name it from its own copy of the economy.
+    /// </summary>
+    public Body SpawnLoot(Double3 world, double lineHint, int owner, double radius)
+    {
+        var pbd = new PbdBody([new Particle(world + Double3.Up * radius, 1, radius)]) { Friction = 0.4, Bounce = 0.05 };
+        var b = new Body(_nextId++, BodyKind.Loot, PlayerState.World, pbd) { LineHint = lineHint, Owner = owner };
+        _bodies.Add(b);
+        return b;
+    }
+
     /// <summary>Bone layout: head, chest, pelvis, elbows, hands, knees, feet (standing, in a player's frame).</summary>
     static readonly (Double3 At, double Radius)[] Skeleton =
     [
@@ -176,12 +191,35 @@ public sealed class Bodies
 
     public bool HasRagdoll(int owner) => _bodies.Any(b => b.Kind == BodyKind.Ragdoll && b.Owner == owner);
 
-    /// <summary>Host: a body for everyone who died this tick.</summary>
+    // Who has a body for the death they're in now (one body per death, GDD App. D.9: die twice, leave two).
+    readonly HashSet<int> _bodied = [];
+
+    /// <summary>In-run deaths so far, each with its body (drop-outs aren't deaths: D.2). Host only.</summary>
+    public int Deaths { get; private set; }
+
+    /// <summary>Host: a body for everyone who died this tick (not a mid-run joiner still waiting: they've no body).</summary>
     public void OnDeaths(TrainOnLine train, IEnumerable<(int Id, PlayerState State)> crew)
     {
         foreach (var (id, s) in crew)
-            if (!s.Alive && !HasRagdoll(id))
-                SpawnRagdoll(train, id, s);
+        {
+            if (s.Alive)
+            {
+                _bodied.Remove(id);
+                continue;
+            }
+            if (s.Death == DeathCause.Waiting || !_bodied.Add(id))
+                continue;
+            SpawnRagdoll(train, id, s);
+            Deaths++;
+        }
+    }
+
+    /// <summary>A disconnected player's inert body (D.2): its kit can be recovered, but it carries no fee and no refund.</summary>
+    public Body DropOut(TrainOnLine train, int owner, in PlayerState left)
+    {
+        var b = SpawnRagdoll(train, owner, left);
+        b.DroppedOut = true;
+        return b;
     }
 
     /// <summary>
@@ -249,11 +287,9 @@ public sealed class Bodies
     /// <param name="playerId">Who's reaching: the far end of a heavy crate they hold isn't theirs to take again.</param>
     public Body? InReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null, bool wearingRadio = false, int playerId = -1)
     {
-        // Spec C.2: the revived can carry light things only.
-        bool lightOnly = s.Has(PlayerFlags.Revived);
         // A heavy crate with one on it is still free at its other end (T43).
         var free = _bodies.Where(b => (b.Carrier < 0 || b.Kind == BodyKind.Heavy && b.Second < 0 && b.Carrier != playerId)
-            && (!lightOnly || b.Kind is BodyKind.Lamp or BodyKind.Radio) && !(wearingRadio && b.Kind == BodyKind.Radio));
+            && !(wearingRadio && b.Kind == BodyKind.Radio));
         if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)
             return free.Select(b => (b, d: Surface(b, train, h))).Where(x => x.d <= hand.Grab).OrderBy(x => x.d).FirstOrDefault().b;
         var hands = HandsAt(s, train);
@@ -444,7 +480,11 @@ public sealed class Bodies
             }
             return;
         }
-        if (b.Parent != PlayerState.World && ++b.Airborne > 3)
+        // Falling inside a car's walls (set down a hand's height over its floor) is still in the car: only off it altogether
+        // does a body take the world's frame. Otherwise it flickers out of the car for a tick as it drops, and whatever
+        // counts what's in a car (the crate hands' room, the loading) miscounts it.
+        if (b.Parent != PlayerState.World && ++b.Airborne > 3
+            && !(b.Parent < train.Frames.Count && train.Frames[b.Parent].Shape.Interior is { } room && room.Contains(b.Centre)))
             ToWorld(b, train, b.Parent);
     }
 

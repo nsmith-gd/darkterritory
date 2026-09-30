@@ -17,13 +17,15 @@ public class FacilityTests
     internal static readonly FacilityTuning F = DataFile.Load<FacilityTuning>(Path.Combine(DataFile.FindContentRoot(), FacilityTuning.File));
 
     /// <summary>A route with a facility that has the module, and that facility.</summary>
-    internal static (Route.Route Route, RouteFeature Facility) With(ModuleKind module)
+    /// <param name="power">The yard's power (level-design D.2): live unless a test is about it.</param>
+    internal static (Route.Route Route, RouteFeature Facility) With(ModuleKind module, Stops.PowerState power = Stops.PowerState.Live)
     {
         foreach (var tier in new[] { RouteTier.Frontier, RouteTier.DeadLines, RouteTier.DeepTerritory, RouteTier.Local })
             for (ulong seed = 1; seed < 200; seed++)
             {
                 var route = RouteGenerator.Generate(Tuning.Route, tier, seed);
-                var f = route.Of(FeatureKind.Facility).FirstOrDefault(f => f.Facility is { } k && F.ModulesOf(k).Contains(module));
+                var f = route.Of(FeatureKind.Facility).FirstOrDefault(f => f.Facility is { } k && F.ModulesOf(k).Contains(module)
+                    && (f.Stop?.Power ?? Stops.PowerState.Live) == power);
                 if (f is not null)
                     return (route, f);
             }
@@ -37,11 +39,12 @@ public class FacilityTests
         public readonly Site Site;
 
         /// <summary>Stopped down the facility's spur with the engine up at the buffer stop (GDD §17), empties behind it.</summary>
-        public Stop(ModuleKind module)
+        public Stop(ModuleKind module, Stops.PowerState power = Stops.PowerState.Live)
         {
-            var (route, f) = With(module);
+            var (route, f) = With(module, power);
             var line = route.Build();
-            var spur = line.Branches.Single(b => b.Kind == BranchKind.Spur && f.Contains(b.Toe));
+            // The facility's own track: its yard's first (level-design P6), where its loading modules stand.
+            var spur = line.Branches.First(b => b.Kind == BranchKind.Spur && f.Contains(b.Toe));
             var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 0)), line, spur.End - 0.5, Tuning.Boiler);
             var state = train.Capture();
             train.Restore(state with { Rakes = [state.Rakes[0] with { Path = spur.Index }] });

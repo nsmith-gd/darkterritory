@@ -67,7 +67,7 @@ public class HudTests
     {
         // A generated night with a junction on it; the player walks up to its stand (T27).
         var route = Enumerable.Range(1, 20).Select(seed => DarkTerritory.Sim.Route.RouteGenerator.Generate(
-            DataFile.Load<DarkTerritory.Sim.Route.RouteTuning>(Path.Combine(Content, DarkTerritory.Sim.Route.RouteTuning.File)),
+            DarkTerritory.Sim.Route.RouteTuning.Load(Content),
             DarkTerritory.Sim.Route.RouteTier.Frontier, (ulong)seed)).First(r => r.Branches.Count > 0);
         var s = new PrototypeSession(Content, route, 4, enemies: false);
         var stands = s.World.Switches!;
@@ -88,15 +88,18 @@ public class HudTests
     public void PulledUpByAFacilityOnASpurTheHudSaysHowMuchFits()
     {
         var route = DarkTerritory.Sim.Route.RouteGenerator.Generate(
-            DataFile.Load<DarkTerritory.Sim.Route.RouteTuning>(Path.Combine(Content, DarkTerritory.Sim.Route.RouteTuning.File)),
+            DarkTerritory.Sim.Route.RouteTuning.Load(Content),
             DarkTerritory.Sim.Route.RouteTier.Frontier, 7);
-        var s = new PrototypeSession(Content, route, 7, enemies: false);
+        var s = new PrototypeSession(Content, route, 12, enemies: false);
         int facility = Enumerable.Range(0, s.World.Run!.FacilityCount).First(i => s.World.Run.SpurOf(i) >= 0);
         var spur = s.Train.Line.Branches[s.World.Run.SpurOf(facility)];
         // Stopped on the main line short of its points, as the drill does (T28).
         var state = s.Train.Capture();
         s.Train.Restore(state with { Rakes = [state.Rakes[0] with { Distance = spur.Toe - 14, Velocity = 0 }] });
-        Assert.Contains("IS DOWN THE SPUR: ENGINE + 4 CARS FIT, CUT THE REST", PrototypeSession.RouteStatus(route, s.World, s.Train));
+        // The siding's length is generated with the yard (level-design P16): the HUD says what this one takes.
+        int fit = DarkTerritory.Sim.Run.SpurDrill.Capacity(s.Train.Dynamics.Tuning.Geometry, spur, DarkTerritory.Sim.Route.RouteTuning.Load(Content).Junctions.PointsLength);
+        Assert.True(fit < 12, $"the spur takes the whole train ({fit} cars)");
+        Assert.Contains($"IS DOWN THE SPUR: ENGINE + {fit} CARS FIT, CUT THE REST", PrototypeSession.RouteStatus(route, s.World, s.Train));
     }
 
     [Fact]

@@ -233,6 +233,10 @@ sealed partial class LineBuilder
             slot.LullStart = slot.S - _t.Budget.LullBeforeM;
             // The coaling tower is a stop on the main line (a zone either side of the chute); a spur runs out alongside.
             double after = slot.OnSpur ? Math.Max(_t.Budget.LullAfterM, slot.SpurLength + 100) : _t.Budget.LullAfterM + _c.Route.PoiZoneHalfLength;
+            // A generated stop's yard (level-design Part Z, PlanRoutes) is laid from the facility's junction along the main line:
+            // the departure lull, straight and level, runs the length of its zone.
+            if (slot.OnSpur && _c.Route.Stops is { } stops)
+                after = Math.Max(after, 2 * _c.Route.PoiZoneHalfLength - stops.Track.FirstToe + 20);
             slot.LullEnd = slot.S + after;
             slot.PadRadius = Math.Round(rng.Range(_c.Config.Facilities.Scale.PadRadiusM));
         }

@@ -11,7 +11,7 @@ namespace DarkTerritory.Game;
 /// </summary>
 public static class Views
 {
-    public static readonly string[] Names = ["trackside", "roof", "cab", "chase", "ahead", "gangway"];
+    public static readonly string[] Names = ["trackside", "roof", "cab", "chase", "ahead", "gap", "gangway"];
 
     public static Camera Get(string name, TrainOnLine train, int car = 2)
     {
@@ -26,6 +26,7 @@ public static class Views
             "cab" => CabCamera(engine),
             "chase" => ChaseCamera(train),
             "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
+            "gap" => GapCamera(train, car),
             // On the plate behind the tender, looking up its gangway into the cab and at the ladder to the cab roof (T90).
             "gangway" => Camera.LookAt(engine.ToWorld(new Double3(-0.2, 2.9, engineHalf + 1.4)), engine.ToWorld(new Double3(-0.9, 0.6, engineHalf - 8)), 75),
             _ => throw new ArgumentException($"unknown view '{name}' (known: {string.Join(", ", Names)})"),
@@ -38,6 +39,17 @@ public static class Views
         var cab = engine.Shape.Cab!.Value;
         var eye = new Double3(cab.Max.X - 0.35, cab.Min.Y + 1.75, cab.Centre.Z + 0.6);
         return Camera.LookAt(engine.ToWorld(eye), engine.ToWorld(eye + new Double3(0.1, -0.4, -60)), 75);
+    }
+
+    /// <summary>
+    /// Standing in the coupling gap behind <paramref name="car"/>, on the car behind's side of it, looking at the end door the
+    /// plate leads to (GDD §32 "readable gap and coupling danger"): the plate underfoot, the doorway, the ballast either side.
+    /// </summary>
+    static Camera GapCamera(TrainOnLine train, int car)
+    {
+        var ahead = train.Frames[Math.Clamp(car, 0, train.Frames.Count - 2)];
+        double l = ahead.Shape.HalfLength;
+        return Camera.LookAt(ahead.ToWorld(new Double3(0.35, 2.75, l + 1.3)), ahead.ToWorld(new Double3(-0.4, 1.4, l)), 80);
     }
 
     static Camera ChaseCamera(TrainOnLine train)

@@ -43,7 +43,7 @@ public class InteriorTests
         return new PlayerState
         {
             Parent = ahead,
-            Position = new Double3(-0.3, T.Geometry.CouplerHeight, shape.HalfLength + 0.5),
+            Position = new Double3(T.Geometry.PlateX, T.Geometry.CouplerHeight, shape.HalfLength + 0.5),
             Surface = Surface.Coupler,
             Health = P.Health,
             Yaw = Math.PI, // facing +Z, towards the back of the train
@@ -85,6 +85,32 @@ public class InteriorTests
         Assert.True(PlayerMotor.Indoors(s, train), $"{s.Surface} on {s.Parent} at {s.Position}");
         // A side door open lets the cold in like any other.
         Assert.Equal(PlayerMotor.Outside, PlayerMotor.Space(s, train));
+    }
+
+    /// <summary>
+    /// The plate across a coupling gap bridges end door to end door: it spans both doorways, and the end ladders stand
+    /// clear of its edge, so stepping off it is stepping through a door.
+    /// </summary>
+    [Fact]
+    public void CouplerPlatesLineUpWithTheEndDoors()
+    {
+        var train = Train();
+        for (int i = 0; i + 1 < train.Frames.Count; i++)
+        {
+            var (ahead, behind) = (train.Frames[i].Shape, train.Frames[i + 1].Shape);
+            var plate = ahead.Solids.Single(x => x.Part == PartKind.Coupler).Box;
+            // Every door into a gap: the rear one of the car ahead (the engine has none), the front one of the car behind.
+            var doors = ahead.DoorList.Where(d => d.Box.Max.Z >= ahead.HalfLength - 1e-6)
+                .Concat(behind.DoorList.Where(d => d.Box.Min.Z <= -behind.HalfLength + 1e-6)).ToList();
+            Assert.NotEmpty(doors);
+            foreach (var door in doors)
+            {
+                Assert.True(plate.Min.X <= door.Box.Min.X && plate.Max.X >= door.Box.Max.X, $"gap {i}: plate {plate.Min.X:0.00}..{plate.Max.X:0.00} doesn't span door {door.Box.Min.X:0.00}..{door.Box.Max.X:0.00}");
+                Assert.Equal(door.Box.Centre.X, plate.Centre.X, 6);
+            }
+            foreach (var ladder in ahead.Ladders.Where(l => l.Foot.Z > ahead.HalfLength).Concat(behind.Ladders.Where(l => l.Foot.Z < -behind.HalfLength)))
+                Assert.True(ladder.Foot.X - 0.2 > plate.Max.X, $"gap {i}: ladder at {ladder.Foot.X:0.00} stands on the plate");
+        }
     }
 
     [Fact]

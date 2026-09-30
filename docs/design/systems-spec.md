@@ -296,6 +296,8 @@ The dawn budget assumes an 11 m/s average, below the 14 m/s cruise. **The slack 
 
 # PART C — DEATH AND REVIVAL
 
+> **Superseded by GDD v1.2 Appendix D (Death, Holdouts and Return).** The Vigil is cut. A dead player returns only through a Holdout at a halt, village or yard; bodies are loot (D.9). This part is kept for the record.
+
 ## C.1 Death
 
 A dead player becomes a spectator and **their body persists at the death location.** Bodies do not despawn.
@@ -402,8 +404,8 @@ The generator should favour combinations that split the crew across incompatible
 | **Host migration** | **Not supported.** Host disconnect ends the session. |
 | **Lobby visibility** | Host's choice: public or friends-only |
 | **Ping display** | **Ping to host shown prominently** in browser and lobby — non-optional UI |
-| **Drop-in** | **At POIs only.** Joining player arrives at the facility, like a pickup. |
-| **Drop-out** | Any time. Character remains as an inert body until recovered or the run ends. |
+| **Drop-in** | **At POIs only.** Joining player arrives at the facility, like a pickup. *Superseded by GDD v1.2 App. D.3: a mid-run joiner joins the respawn queue and returns through a Holdout.* |
+| **Drop-out** | Any time. Character remains as an inert body until recovered or the run ends. *GDD v1.2 App. D.2: its kit is recoverable, with no crew-loss fee and no refund.* |
 | **Campaign ownership** | Host owns it entirely |
 | **Save slots** | **3 per host.** Slot must be selected when hosting. |
 | **Autosave** | **Per POI**, on successful departure |

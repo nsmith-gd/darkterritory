@@ -46,7 +46,7 @@ public sealed record LineGenContent(LineGenConfig Config, TrainTuning Train, Boi
         LineGenConfig.Load(content),
         DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File)),
         DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)),
-        DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File)),
+        RouteTuning.Load(content),
         DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)));
 
     static readonly Dictionary<string, (DateTime Stamp, LineGenContent Content)> Cache = new();

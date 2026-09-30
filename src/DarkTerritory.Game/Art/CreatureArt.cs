@@ -28,7 +28,17 @@ public sealed class CreatureArt
     /// <summary>The Drift's mat, drawn from a car's roof: past this half-width (m) it's on the ground, this far down.</summary>
     const float CarHalfWidth = 1.6f, RoofDrop = 3.6f;
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
-    public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight"];
+    public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
+        "track_doll"];
+
+    /// <summary>A haunting Track Doll's turns aboard (App. A.2 HAUNT): this long over the cargo, then this long giggling.</summary>
+    const double DollAdmires = 12, DollGiggles = 5;
+
+    static float SmoothStep(float a, float b, float x)
+    {
+        float t = Math.Clamp((x - a) / (b - a), 0, 1);
+        return t * t * (3 - 2 * t);
+    }
 
     /// <summary>Wear shown over each model's textures (the shader's grime): crew middling, monsters by how they're made.</summary>
     static readonly Dictionary<string, float> WearOf = new()
@@ -43,6 +53,7 @@ public sealed class CreatureArt
         ["dragger"] = 0.2f,
         ["husk"] = 0.7f,
         ["weight"] = 0.3f,
+        ["track_doll"] = 0.35f,
     };
 
     sealed class Entry(Model model, MaterialLook[] looks)
@@ -543,21 +554,29 @@ public sealed class CreatureArt
                 }
             case EnemyKind.TrackDoll:
                 {
-                    // A large porcelain doll (GDD v1.1 A.2): the crew figure, too big and pale, stood stock still; the face is
-                    // what the lamp catches out to 200 m (a faint glow of its own, so the render shows it past the beam).
-                    var at = Matrix4x4.CreateScale(1.25f) * model;
-                    var white = new Vector3(0.86f, 0.84f, 0.8f);
-                    if (!Draw(mesh, "crew", phase == SpinePhase.Punish ? "walk" : "idle", phase == SpinePhase.Punish ? t * 0.6 : 0.1, true, at, variant: 1, seed: 3,
-                            adjust: (_, l) => l with { Colour = white }))
-                        return false;
-                    var head = BoneAt("crew", "head", at);
-                    var (r, u, b) = Basis(model);
-                    mesh.Emissive = 1;
-                    mesh.Box(head - b * 0.1f, r, u, b, new Vector3(0.1f, 0.12f, 0.02f), white * 0.9f);
-                    mesh.Emissive = 0;
-                    foreach (float side in new[] { -1f, 1f })
-                        mesh.Box(head + r * (side * 0.045f) - b * 0.125f + u * 0.02f, r, u, b, new Vector3(0.018f, 0.012f, 0.006f), Palette.SootBlack);
-                    return true;
+                    // The porcelain doll (GDD v1.2 §21, App. A.2; tools/blender/track_doll.py). On the rail it stands stock
+                    // still. Aboard it stands over the cargo admiring it and then giggles, by turns; at the empty cab's
+                    // controls (extra2) it tampers; cornered (extra) it cowers. Its face and glass eyes draw under a material of
+                    // their own, lit a little from within, so the white face reads in the lamp out to 200 m through the fog
+                    // (§21); aboard, close to, it's barely there.
+                    string clip = "stand";
+                    double ct = t;
+                    if (phase == SpinePhase.Punish)
+                    {
+                        double turn = t % (DollAdmires + DollGiggles);
+                        (clip, ct) = extra > 0.5 ? ("cower", t)
+                            : extra2 > 0.5 ? ("tamper", t)
+                            : turn < DollAdmires ? ("admire", turn) : ("giggle", turn - DollAdmires);
+                    }
+                    // TELEGRAPH is the lamp catching the glaze (the sim enters it with the lamp on, within 200 m): the face
+                    // shines out of the fog far off and eases to a sheen as the train closes on it (the model's translation is
+                    // from the eye). Unrevealed, or aboard, it's only porcelain.
+                    float far = SmoothStep(15, 120, model.Translation.Length());
+                    float glow = phase == SpinePhase.Telegraph ? 0.15f + 0.75f * far : 0.05f;
+                    // On the rail it faces the train coming at it (a thing on the line faces down it, the way the train goes).
+                    var at = aboard ? model : Matrix4x4.CreateRotationY(MathF.PI) * model;
+                    return Draw(mesh, "track_doll", clip, ct, true, at, seed: 3,
+                        adjust: (mm, l) => mm.Name.EndsWith(".face", StringComparison.Ordinal) ? l with { Emissive = MathF.Max(l.Emissive, glow) } : l);
                 }
             case EnemyKind.Whistler:
                 {

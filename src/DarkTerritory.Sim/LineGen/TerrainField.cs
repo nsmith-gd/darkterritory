@@ -179,7 +179,7 @@ public sealed class TerrainField
             height = Waterside(x, z, height, near);
         if (_roads.Length > 0 && roads)
             height = Roads(x, z, height, near);
-        return Pads(x, z, height);
+        return Pads(x, z, height, formation, formationW);
     }
 
     // ------------------------------------------------------------------ roads (maritime-rules.md §2.2)
@@ -596,14 +596,23 @@ public sealed class TerrainField
         return Blend(here, span.Biome, here, span.Biome, 0);
     }
 
-    /// <summary>Flattened pads (§12.1 "pad"): the fortress, the facilities, the settlements, blended in over 30 m.</summary>
-    double Pads(double x, double z, double height)
+    /// <summary>
+    /// Flattened pads (§12.1 "pad"): the fortress, the facilities, the settlements, blended in over 30 m. A box pad (a stop's
+    /// ground) ends square at its zone's ends and leaves the rail's formation its own, since the line past a stop may climb.
+    /// </summary>
+    double Pads(double x, double z, double height, double formation, double formationW)
     {
         foreach (var p in _plan.Pads)
         {
             double dx = x - p.X, dz = z - p.Z;
             double d;
-            if (p.HalfLengthM > 0)
+            if (p.Box)
+            {
+                double hx = -Math.Sin(p.HeadingDeg * Math.PI / 180), hz = -Math.Cos(p.HeadingDeg * Math.PI / 180);
+                double along = dx * hx + dz * hz, across = Math.Abs(dx * hz - dz * hx);
+                d = Math.Max(across, p.RadiusM + Math.Max(0, Math.Abs(along) - p.HalfLengthM));
+            }
+            else if (p.HalfLengthM > 0)
             {
                 // A long pad along a heading: distance to its centre line segment.
                 double hx = -Math.Sin(p.HeadingDeg * Math.PI / 180), hz = -Math.Cos(p.HeadingDeg * Math.PI / 180);
@@ -616,6 +625,8 @@ public sealed class TerrainField
             if (d >= p.RadiusM + 30)
                 continue;
             double w = 1 - Smooth(p.RadiusM, p.RadiusM + 30, d);
+            if (p.Box && !double.IsNaN(formation))
+                w *= 1 - formationW;
             height = height * (1 - w) + p.ElevM * w;
         }
         return height;

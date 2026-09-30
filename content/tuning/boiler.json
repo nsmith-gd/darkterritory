@@ -1,4 +1,4 @@
-// Boiler, firebox and tender. Source: systems spec B.6 (and B.5 Vigil rebuild times).
+// Boiler, firebox and tender. Source: systems spec B.6 (and B.5 rebuild times at a standstill).
 // The model: coal in the firebox burns at (coal / fireTimeConstant) x draft, each unit burned
 // raises pressure by steamPerUnit, and the train draws steam for the cylinders (throttle), for
 // auxiliaries, and for heating every car. Draft comes from the exhaust, so a standing engine's
@@ -31,7 +31,7 @@
   "heatingPerCar": 0.0675,
   "fullThrottleDemand": 0.5,
 
-  // Holding the vent valve open dumps pressure at this rate (Vigil, Stoker counter).
+  // Holding the vent valve open dumps pressure at this rate (the Stoker counter).
   "ventRate": 6,
   // Firebox below this fraction of capacity counts as a low fire (Hollow's trigger, GDD App. A.5).
   "lowFireFraction": 0.2,

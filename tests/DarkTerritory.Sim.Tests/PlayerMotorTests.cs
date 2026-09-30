@@ -127,7 +127,9 @@ public class PlayerMotorTests
     [Fact]
     public void WalkingOffTheEndDropsOntoTheCouplerPlate()
     {
+        // On the doors' line, where the plate runs (off it, by the end ladder, walking on takes hold of the ladder: T90).
         var rig = OnRoof(6, 14, car: 3, localZ: -4);
+        rig.Player.Position = rig.Player.Position with { X = T.Geometry.PlateX };
         rig.Run(3, Move(0, 1));
         Assert.True(rig.Player.Alive);
         Assert.Equal(Surface.Coupler, rig.Player.Surface);
@@ -236,7 +238,7 @@ public class PlayerMotorTests
         var rig = OnRoof(4, 0, car: 2);
         var car = rig.Train.Frames[2];
         var ladder = car.Shape.Ladders.First(x => x.Foot.Z > car.Shape.HalfLength);
-        rig.Player = PlayerMotor.SpawnOnRoof(rig.Train, 2, ladder.Foot.Z + 0.3, P, 0.3);
+        rig.Player = PlayerMotor.SpawnOnRoof(rig.Train, 2, ladder.Foot.Z + 0.3, P, 0);
         Assert.Equal(Surface.Coupler, rig.Player.Surface);
         rig.Run(5, Move(0, 1));
         Assert.Equal(Surface.Roof, rig.Player.Surface);
