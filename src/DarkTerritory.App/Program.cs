@@ -251,14 +251,27 @@ Launch? Menu()
         if (Invited(null) is { } lobby)
             return new Launch.JoinLobby(lobby);
         Launch? chosen = null;
-        if (input.Pressed(Key.Up) || input.Pressed(Key.W) && !frontEnd.WantsText) frontEnd.Up();
-        if (input.Pressed(Key.Down) || input.Pressed(Key.S) && !frontEnd.WantsText) frontEnd.Down();
-        if (input.Pressed(Key.Left) || input.Pressed(Key.A) && !frontEnd.WantsText) frontEnd.Left();
-        if (input.Pressed(Key.Right) || input.Pressed(Key.D) && !frontEnd.WantsText) frontEnd.Right();
-        if (input.Pressed(Key.Enter) || input.Pressed(Key.Space) && !frontEnd.WantsText) chosen = frontEnd.Select();
-        if (input.Pressed(Key.Escape)) frontEnd.Back();
-        if (input.Pressed(Key.Backspace)) frontEnd.Erase();
-        if (input.Text.Length > 0) frontEnd.Type(input.Text);
+        // Binding a control (T80): the next key or button pressed is the one, Escape keeps the old. The mouse is held
+        // meanwhile, so a click is a button pressed and not the window taking the mouse.
+        if (frontEnd.Capturing is not null)
+        {
+            window.MouseCaptured = true;
+            if (input.Pressed(Key.Escape)) frontEnd.Back();
+            else if (input.AnyPressed is { } bound) frontEnd.Bind(bound.ToString());
+            if (frontEnd.Capturing is null)
+                window.MouseCaptured = false;
+        }
+        else
+        {
+            if (input.Pressed(Key.Up) || input.Pressed(Key.W) && !frontEnd.WantsText) frontEnd.Up();
+            if (input.Pressed(Key.Down) || input.Pressed(Key.S) && !frontEnd.WantsText) frontEnd.Down();
+            if (input.Pressed(Key.Left) || input.Pressed(Key.A) && !frontEnd.WantsText) frontEnd.Left();
+            if (input.Pressed(Key.Right) || input.Pressed(Key.D) && !frontEnd.WantsText) frontEnd.Right();
+            if (input.Pressed(Key.Enter) || input.Pressed(Key.Space) && !frontEnd.WantsText) chosen = frontEnd.Select();
+            if (input.Pressed(Key.Escape)) frontEnd.Back();
+            if (input.Pressed(Key.Backspace)) frontEnd.Erase();
+            if (input.Text.Length > 0) frontEnd.Type(input.Text);
+        }
         if (vr is not null)
             chosen ??= VrMenuInput.Apply(vrKeys.Read(vr.Session.Controllers), frontEnd);
         if (chosen is not null)
@@ -435,6 +448,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var pendingLamp = LampSwitch.None;
     bool chase = ride;
     double sensitivity = 0.0025 * settings.MouseSpeed;
+    // The player's keys (T80): each control's key, from the settings (a name the platform doesn't know: its default).
+    var keyOf = Enum.GetValues<Control>().ToDictionary(c => c, c => Enum.TryParse<Key>(settings.KeyFor(c), out var k) ? k : Enum.Parse<Key>(Controls.Defaults[c]));
+    Hud.Keys = settings;
+    bool Held(Control c) => input.Down(keyOf[c]);
+    bool Hit(Control c) => input.Pressed(keyOf[c]);
     Camera camera = default;
     FrameLighting lighting = default;
     window.MouseCaptured = true;
@@ -456,10 +474,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (session.World.Run?.Over == true && input.Pressed(Key.Enter))
             break;
         // The prototype drives from anywhere; networked, cab controls go through intent like everything else.
-        sbyte notch = (sbyte)((input.Pressed(Key.R) ? 1 : 0) - (input.Pressed(Key.F) ? 1 : 0));
-        bool reverser = input.Pressed(Key.X);
+        sbyte notch = (sbyte)((Hit(Control.RegulatorOpen) ? 1 : 0) - (Hit(Control.RegulatorClose) ? 1 : 0));
+        bool reverser = Hit(Control.Reverser);
         // The lamp switch (T52): a setting, the opposite of how the lamp is now, held until a tick sends it.
-        if (input.Pressed(Key.L))
+        if (Hit(Control.Lamp))
             pendingLamp = session.World.LampLit ? LampSwitch.Off : LampSwitch.On;
         // Held until a tick sends them: at a high frame rate a key press can land on a frame with no tick.
         pendingNotch += notch;
@@ -471,15 +489,15 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (input.Pressed(Key.Backspace)) proto.Respawn(0);
             for (var k = Key.D1; k <= Key.D9; k++)
                 if (input.Pressed(k)) proto.Respawn(k - Key.D1 + 1);
-            proto.Controls.Brake = input.Down(Key.B) ? 1 : 0;
+            proto.Controls.Brake = Held(Control.Brake) ? 1 : 0;
             if (ride && session.Route?.Plan is { } ridden)
                 DarkTerritory.Game.LineGen.Ride.Drive(proto.Train, ridden, ref proto.Controls);
         }
-        if (input.Pressed(Key.Tab)) chase = !chase;
+        if (Hit(Control.Chase)) chase = !chase;
         if (input.Pressed(Key.F1)) showHud = !showHud;
         if (input.Pressed(Key.F2)) net?.ShowInviteDialog();
         // A generated line's route card (C: the paper the crew is handed) and the designer's overlay (F3).
-        if (input.Pressed(Key.C)) cardPage = cardPage + 1 >= cardPages ? -1 : cardPage + 1;
+        if (Hit(Control.RouteCard)) cardPage = cardPage + 1 >= cardPages ? -1 : cardPage + 1;
         if (input.Pressed(Key.F3)) showPlan = !showPlan;
         // An invite accepted (or "Join Game" on a friend) while playing: leave this game for theirs.
         if (Invited(net) is { } invitedTo)
@@ -501,20 +519,20 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         for (int i = 0; i < ticks; i++)
         {
             var buttons = PlayerButtons.None;
-            if (input.Down(Key.LeftShift)) buttons |= PlayerButtons.Run;
-            if (input.Down(Key.Space)) buttons |= PlayerButtons.Jump;
-            if (input.Down(Key.E)) buttons |= PlayerButtons.Use;
-            if (input.Down(Key.MouseLeft)) buttons |= PlayerButtons.Fire;
-            if (input.Down(Key.MouseRight)) buttons |= PlayerButtons.Throw;
+            if (Held(Control.Run)) buttons |= PlayerButtons.Run;
+            if (Held(Control.Jump)) buttons |= PlayerButtons.Jump;
+            if (Held(Control.Use)) buttons |= PlayerButtons.Use;
+            if (Held(Control.Fire)) buttons |= PlayerButtons.Fire;
+            if (Held(Control.Throw)) buttons |= PlayerButtons.Throw;
             if (proto is null)
             {
-                if (input.Down(Key.B)) buttons |= PlayerButtons.Brake;
+                if (Held(Control.Brake)) buttons |= PlayerButtons.Brake;
                 if (pendingReverser) buttons |= PlayerButtons.Reverser;
             }
             var intent = new PlayerIntent
             {
-                MoveX = (input.Down(Key.D) ? 1 : 0) - (input.Down(Key.A) ? 1 : 0),
-                MoveZ = (input.Down(Key.W) ? 1 : 0) - (input.Down(Key.S) ? 1 : 0),
+                MoveX = (Held(Control.Right) ? 1 : 0) - (Held(Control.Left) ? 1 : 0),
+                MoveZ = (Held(Control.Forward) ? 1 : 0) - (Held(Control.Back) ? 1 : 0),
                 LookYaw = (float)pendingYaw,
                 LookPitch = (float)pendingPitch,
                 Buttons = buttons,
@@ -550,9 +568,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         if (voice is not null && net is not null)
         {
-            voice.TalkHeld = input.Down(Key.V);
+            voice.TalkHeld = Held(Control.Talk);
             // Only with a radio on you (T41); the host checks too.
-            voice.RadioHeld = input.Down(Key.T) && session.World.Bodies.HasRadio(session.PlayerId);
+            voice.RadioHeld = Held(Control.Radio) && session.World.Bodies.HasRadio(session.PlayerId);
             for (int n; mic is not null && (n = mic.Read(micSamples)) > 0;)
                 voice.Capture(micSamples.AsSpan(0, n), net.Client);
         }
@@ -586,7 +604,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         {
             Hud.Build(overlay, UiWidth, UiHeight, session);
             // Q held: the crew roster (T69), with who's been heard.
-            if (input.Down(Key.Q))
+            if (Held(Control.Roster))
                 Hud.Roster(overlay, UiWidth, UiHeight, session.Roster(), voice is null ? null : voice.SinceHeard);
             if (session.Route?.Plan is { } shown)
             {
