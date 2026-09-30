@@ -76,6 +76,9 @@ public static class WorldRecords
             Q(b.Pressure, Fine), Q(b.Firebox, Fine), Q(b.Tender, Fine), Q(b.AtMaxSeconds, Fine), Q(b.LowFireSeconds, Fine),
             Q(b.ExternalHeat, Fine), Q(b.Efficiency, Fine),
             (b.Ruptured ? 1 : 0) | (b.SafetyValveLifting ? 2 : 0) | (b.SafetyValveJammed ? 4 : 0) | (b.FireDoorOpen ? 8 : 0),
+            // The door's swing-shut clock: without it the host's own snap back onto the grid zeroed it every tick, and the
+            // door never shut.
+            Q(Math.Min(b.SinceShovel, 60), Fine),
         ]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Controls, 0), [Q(controls.Throttle, Fine), Q(controls.Brake, Fine), controls.Reverser]));
         if (world.Run is { } run)
@@ -221,6 +224,7 @@ public static class WorldRecords
                         SafetyValveLifting = (f[7] & 2) != 0,
                         SafetyValveJammed = (f[7] & 4) != 0,
                         FireDoorOpen = (f[7] & 8) != 0,
+                        SinceShovel = f.Length > 8 ? D(f[8], Fine) : 0,
                     };
                     break;
                 case RecordKind.Controls:
