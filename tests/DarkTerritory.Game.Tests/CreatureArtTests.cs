@@ -41,6 +41,8 @@ public class CreatureArtTests
         ["clinger"] = new(1500, 6000, 10, 45, ["cling", "drill"], ["punish"]),
         // A limb, not a body (App. A.4: all you see of one): a chain of arm, hand and two-bone fingers.
         ["dragger"] = new(300, 3000, 8, 20, ["grip"], ["reach"]),
+        // A heap of bodies, not a body (App. A.3): the heap, its heads and six arms on a chain rig.
+        ["weight"] = new(2500, 8000, 20, 40, ["drag"], ["grab", "release"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -67,8 +69,8 @@ public class CreatureArtTests
             Assert.All(p.Indices, i => Assert.InRange(i, 0, p.Positions.Length - 1));
         }
         // Standing on the floor at the origin, facing −Z: the pivot's between the feet (the clinger's is on the hull, the
-        // dragger's at the car's edge, the rest of it hanging below).
-        if (name is not ("clinger" or "dragger"))
+        // dragger's at the car's edge, the rest of it hanging below; the weight's at the coupler, the heap on the stones).
+        if (name is not ("clinger" or "dragger" or "weight"))
         {
             Assert.InRange(m.Min.Y, -0.02f, 0.05f);
             Assert.InRange((m.Min.X + m.Max.X) / 2, -0.25f, 0.25f);
@@ -403,6 +405,7 @@ public class CreatureArtTests
         "cinder_hound" => (Vector3.Zero, 1.2f),
         "hollow" => (Vector3.Zero, 2.2f),
         "dragger" => (new Vector3(0.2f, 0.1f, 0), 1.4f),
+        "weight" => (new Vector3(0, 0.42f, 0.9f), 2.6f),
         _ => (Vector3.Zero, 1.9f),
     };
 
