@@ -11,7 +11,7 @@ namespace DarkTerritory.Game;
 /// </summary>
 public static class Views
 {
-    public static readonly string[] Names = ["trackside", "roof", "cab", "chase", "ahead", "gap"];
+    public static readonly string[] Names = ["trackside", "roof", "cab", "chase", "ahead", "gap", "gangway"];
 
     public static Camera Get(string name, TrainOnLine train, int car = 2)
     {
@@ -27,6 +27,8 @@ public static class Views
             "chase" => ChaseCamera(train),
             "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
             "gap" => GapCamera(train, car),
+            // On the plate behind the tender, looking up its gangway into the cab and at the ladder to the cab roof (T90).
+            "gangway" => Camera.LookAt(engine.ToWorld(new Double3(-0.2, 2.9, engineHalf + 1.4)), engine.ToWorld(new Double3(-0.9, 0.6, engineHalf - 8)), 75),
             _ => throw new ArgumentException($"unknown view '{name}' (known: {string.Join(", ", Names)})"),
         };
     }

@@ -129,33 +129,56 @@ public class CouplingTests
         Assert.True(moved > 200 && train.Dynamics.RearDistance - train.RakeOf(5).Distance > 30);
     }
 
-    [Theory]
-    [InlineData(0, 1.5)]
-    [InlineData(14, 4.0)]
-    public void HoldingUseOnTheCouplerPlateCutsIt(double speed, double seconds)
+    static PlayerState OnThePlate(double pitch) => new()
+    {
+        Parent = 3,
+        Surface = Surface.Coupler,
+        Position = new Double3(T.Geometry.PlateX, T.Geometry.CouplerHeight, T.Geometry.CarLength / 2 + 0.7),
+        // Facing across the gap at the coupling: facing along the plate, the door it leads to comes first.
+        Yaw = Math.PI / 2,
+        Health = 100,
+        Pitch = pitch,
+    };
+
+    /// <summary>Seconds until the train's in two rakes, holding <paramref name="intent"/> (null: it never came apart in 10 s).</summary>
+    static double? SecondsToCut(double speed, PlayerState p, PlayerIntent intent)
     {
         var train = Train(6, speed);
-        var p = new PlayerState
-        {
-            Parent = 3,
-            Surface = Surface.Coupler,
-            Position = new Double3(T.Geometry.PlateX, T.Geometry.CouplerHeight, T.Geometry.CarLength / 2 + 0.7),
-            // Facing across the gap at the coupling: facing along the plate, the door it leads to comes first.
-            Yaw = Math.PI / 2,
-            Health = 100,
-        };
-        var use = new PlayerIntent { Buttons = PlayerButtons.Use };
         var controls = speed > 0 ? Forward : default;
-        int ticks = 0;
-        while (train.Rakes.Count == 1 && ticks < SimConstants.TickRate * 10)
+        for (int ticks = 1; ticks <= SimConstants.TickRate * 10; ticks++)
         {
-            CrewActions.Apply(ref p, use, train, Dt);
+            CrewActions.Apply(ref p, intent, train, Dt);
             train.Step(Dt, controls);
-            ticks++;
+            if (train.Rakes.Count == 2)
+            {
+                Assert.Equal(3, train.Dynamics.Consist.CarCount);
+                return ticks * Dt;
+            }
         }
-        Assert.Equal(2, train.Rakes.Count);
-        Assert.InRange(ticks * Dt, seconds - 0.05, seconds + 0.05);
-        Assert.Equal(3, train.Dynamics.Consist.CarCount);
+        return null;
+    }
+
+    static readonly PlayerIntent Uncouple = new() { Actions = PlayerActions.Uncouple };
+
+    [Theory]
+    [InlineData(0, 3.0)]
+    [InlineData(14, 6.0)]
+    public void HoldingUncoupleLookingDownAtThePlateCutsIt(double speed, double seconds)
+    {
+        // T91 playtest: its own key, held long, looking down at the coupler.
+        Assert.Equal(seconds, speed > 0 ? T.Couplings.UncoupleUnderLoadSeconds : T.Couplings.UncoupleSeconds, 6);
+        var cut = SecondsToCut(speed, OnThePlate(pitch: -1.3), Uncouple);
+        Assert.NotNull(cut);
+        Assert.InRange(cut.Value, seconds - 0.05, seconds + 0.05);
+    }
+
+    [Fact]
+    public void UncoupleLookingAheadOrUseOnThePlateNeverCuts()
+    {
+        Assert.Null(SecondsToCut(0, OnThePlate(pitch: 0), Uncouple));
+        Assert.Null(SecondsToCut(0, OnThePlate(pitch: -1.3), new PlayerIntent { Buttons = PlayerButtons.Use }));
+        // Walking while holding it isn't working the coupling either.
+        Assert.Null(SecondsToCut(0, OnThePlate(pitch: -1.3), Uncouple with { MoveZ = 1 }));
     }
 
     [Fact]

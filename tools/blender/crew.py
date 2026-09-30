@@ -15,8 +15,7 @@ Clips (30 fps): idle, walk (1.4 m/s, in place), run (4 m/s), climb, shovel (with
 
     blender -b --python tools/blender/crew.py -- content/art/models/crew.glb
 
-This is the crew's game mesh, rig and clips; the body under the mask is modelled by crewbody.py (blocked in solids,
-voxel-remeshed, retopologised). The game's crew.glb is tools/models/recipes/crew.py's, which runs this
+This is the crew's game mesh, rig and clips. The game's crew.glb is tools/models/recipes/crew.py's, which runs this
 script, models a high-resolution copy over it and bakes that down onto this mesh (tools/models/build.sh crew).
 """
 import math
@@ -106,9 +105,6 @@ HELM = os.environ.get("DT_CREW", "helm") != "bare"
 MASK_C = Vector((0, 0.014, 1.674))     # the gas hood, round the head
 CAP_C = Vector((0, 0.004, 1.698))      # the flying cap over it
 PIVOT = Vector((0, 0.012, 1.702))      # the welder's visor turns about its own centre, on its temple pivots
-VISOR_UP = 40                          # degrees it's raised (any further and its edges meet over the crown in a crest)
-# The hose from the chin's filter drum to its coupling on the chest, out in front of the scarf.
-HOSE = [Vector((0, 0.206, 1.562)), Vector((0, 0.228, 1.53)), Vector((0.035, 0.225, 1.44)), Vector((0.06, 0.19, 1.36))]
 PAINT = Mat("helm.paint", hexc("#8a3a2a"), shine=0.2)          # the cap's dyed leather: the player's colour (CreatureArt tints it)
 BRASS = Mat("helm.brass", hexc("#a08040"), shine=0.6)
 PORT = Mat("helm.glass", hexc("#5a3414"), emissive=1.0)         # the lenses, lit dimly from inside by the wearer's own lamp
@@ -187,8 +183,9 @@ def gas_mask():
     # The hose, down from the drum to its coupling on the chest.
     def hose_w(p):
         return {"head": 1.0} if p.z > 1.6 else ({"neck": 1.0} if p.z > 1.52 else TORSO(p))
-    body.tube(HOSE, [0.018] * len(HOSE), 10, RUBBER, hose_w, ref=(1, 0, 0))
-    body.tube([Vector((0.06, 0.19, 1.365)), Vector((0.062, 0.186, 1.34))], [0.024, 0.022], 10, BRASS, TORSO, ref=(1, 0, 0),
+    hose = [f1 + Vector((0, 0.005, -0.02)), Vector((0, 0.2, 1.54)), Vector((0.03, 0.2, 1.45)), Vector((0.06, 0.18, 1.36))]
+    body.tube(hose, [0.018] * len(hose), 8, RUBBER, hose_w, ref=(1, 0, 0))
+    body.tube([Vector((0.06, 0.18, 1.365)), Vector((0.062, 0.176, 1.34))], [0.024, 0.022], 10, BRASS, TORSO, ref=(1, 0, 0),
               cap1=True)
 
     # The cap: an ellipsoid over the hood cut on a slant (low at the nape, up off the eyepieces at the brow), its fleece
@@ -211,7 +208,7 @@ def welder_visor():
     """The welder's visor, the variants' tell (you can tell two heads apart on a roof in the dark): a riveted steel shield
     on the temple pivots, a slot of dark glass across it. Flipped up over the cap (variants 0, 2), or down over the face
     (1, 3): then there are no eyes at all, only the slot."""
-    up = rig.Matrix.Translation(PIVOT) @ rig.Matrix.Rotation(math.radians(VISOR_UP), 4, "X") @ rig.Matrix.Translation(-PIVOT)
+    up = rig.Matrix.Translation(PIVOT) @ rig.Matrix.Rotation(math.radians(62), 4, "X") @ rig.Matrix.Translation(-PIVOT)
     for name, variants, xform in (("visor_up", (0, 2), up), ("visor_down", (1, 3), rig.Matrix.Identity(4))):
         part = kit.part(name, variants=variants)
         shell(part, PIVOT, (0.13, 0.158, 0.16), (-0.93, 0.93), (1.635, 1.8), VISOR, "head", xform=xform)
@@ -265,15 +262,122 @@ else:
     gas_mask()
 
 
-# --- the body --------------------------------------------------------------------------------------------------
-# Modelled, retopologised and weighted by tools/blender/crewbody.py after the kit is built (it needs the kit's
-# materials): the coat, the sleeves, the gloves, the belt, the bandolier and the satchel, the trousers and the boots.
+# --- coat ----------------------------------------------------------------------------------------------------
+# (z, rx, ry, y offset, squareness): hem at the knee, flared; belted waist; square, slightly rounded shoulders.
+COAT_RINGS = [(0.50, 0.24, 0.19, 0.0, 0.9), (0.56, 0.234, 0.184, 0.0, 0.9), (0.62, 0.228, 0.178, 0.0, 0.9),
+              (0.69, 0.22, 0.171, 0.0, 0.9), (0.76, 0.212, 0.165, 0.0, 0.9), (0.83, 0.205, 0.158, -0.003, 0.88),
+              (0.89, 0.198, 0.152, -0.005, 0.85), (0.95, 0.19, 0.145, -0.005, 0.85), (1.0, 0.182, 0.138, -0.005, 0.85),
+              (1.05, 0.185, 0.14, -0.003, 0.82), (1.1, 0.19, 0.142, 0.0, 0.8), (1.16, 0.198, 0.146, 0.004, 0.78),
+              (1.22, 0.205, 0.148, 0.008, 0.75), (1.28, 0.211, 0.147, 0.008, 0.72), (1.33, 0.215, 0.145, 0.006, 0.7),
+              (1.38, 0.215, 0.14, 0.0, 0.67), (1.41, 0.212, 0.13, -0.004, 0.65), (1.45, 0.19, 0.118, -0.008, 0.68),
+              (1.47, 0.165, 0.108, -0.01, 0.7), (1.51, 0.098, 0.09, 0.0, 1.0), (1.585, 0.1, 0.094, 0.004, 1.0),
+              (1.625, 0.112, 0.104, 0.0, 1.0)]
+
+
+def coat_uv(pts, n):
+    cellname = "coat_front" if n.y >= 0 else "coat_back"
+    k = 1 if n.y >= 0 else -1
+    return [in_cell(cellname, 0.5 + k * p.x / 0.52, (1.58 - p.z) / 1.1) for p in pts]
+
+
+rings = []
+for z, rx, ry, dy, sq in COAT_RINGS:
+    ring = []
+    for j in range(22):
+        a = 2 * math.pi * j / 22
+        sa, ca = math.sin(a), math.cos(a)
+        sa = math.copysign(abs(sa) ** sq, sa)
+        ca = math.copysign(abs(ca) ** sq, ca)
+        # The front hangs open a little lower than the back (a heavy coat's weight), and the hem is ragged.
+        drop = 0.02 * max(0.0, ca) if z < 0.55 else 0.0
+        rag = 0.012 * rig.noise3(Vector((sa * 4, ca * 4, z)), 3, 3.0) if z < 0.55 else 0.0
+        ring.append(Vector((sa * rx, dy + ca * ry, z - drop + rag)))
+    rings.append(ring)
+body.loft(rings, COAT, coat_weights, centres=[Vector((0, r[3], r[0])) for r in COAT_RINGS], fuv=coat_uv)
+
+# The coat's front edge, lapped over, standing proud down the middle; two pocket flaps on the hips.
+edge = []
+for z, rx, ry, dy, sq in COAT_RINGS[:-3]:
+    edge.append(Vector((0.035, dy + ry + 0.004, z + 0.01)))
+body.tube(edge, [(0.016, 0.006)] * len(edge), 4, COAT, coat_weights, ref=(0, 1, 0),
+          uv=lambda i, j, uf, vf, p: in_cell("coat_front", 0.62 + uf * 0.1, vf))
+for sx in (-1, 1):
+    body.box((sx * 0.13, 0.155, 0.8), (0.07, 0.012, 0.03), COAT, coat_weights,
+             rot=rig.Matrix.Rotation(math.radians(-sx * 28), 4, "Z"),
+             uv=lambda ax, sg, l: in_cell("coat_front", 0.2 + l.x * 2, 0.72 - l.z * 2))
+
+# Sleeves: shoulder to a turned-back cuff over the glove.
+for sx in (-1, 1):
+    pts = [(sx * x, 0, 1.448) for x in (0.12, 0.2, 0.33, 0.45, 0.58, 0.69, 0.705, 0.73)]
+    radii = [0.088, 0.082, 0.074, 0.067, 0.063, 0.058, 0.068, 0.066]
+    body.tube(pts, radii, 12, SLEEVE, ARM, ref=(0, 0, 1), cap1=False,
+              uv=lambda i, j, uf, vf, p: in_cell("coat_back", uf, 0.35 + vf * 0.6))
+
+# Belt over the coat, the buckle at the front; the lantern hook on the left hip.
+belt = [(0, -0.005, z) for z in (0.975, 1.035)]
+body.tube(belt, [(0.194, 0.15), (0.19, 0.147)], 18, BELT, TORSO, ref=(0, 1, 0), twist=math.pi, square=0.85,
+          uv=lambda i, j, uf, vf, p: in_cell("belt_buckle", 0.41 + (uf - 0.5) * 1.0, 0.33 + vf * 0.34))
+body.box((-0.196, 0.03, 0.975), (0.008, 0.016, 0.04), IRON, TORSO)
+body.box((-0.205, 0.03, 0.94), (0.012, 0.012, 0.008), IRON, TORSO)
+
+# Satchel on the right hip, on a strap from the left shoulder.
+body.box((0.225, 0.02, 0.86), (0.042, 0.125, 0.105), SATCHEL, sided(lambda p: {"pelvis": 0.7, "thigh_{s}": 0.3}),
+         rot=rig.Matrix.Rotation(math.radians(-6), 4, "Y"),
+         uv=lambda ax, sg, l: in_cell("satchel", 0.5 + l.y / 0.25, 0.5 - l.z / 0.21) if ax == "x" and sg > 0
+         else in_cell("satchel", 0.2 + l.y * 0.5, 0.9 - l.z * 0.5))
+strap = [(0.21, 0.11, 0.96), (0.13, 0.158, 1.13), (0.03, 0.17, 1.27), (-0.08, 0.152, 1.39), (-0.135, 0.085, 1.475),
+         (-0.145, -0.02, 1.49), (-0.12, -0.13, 1.41), (-0.02, -0.158, 1.27), (0.1, -0.153, 1.12), (0.2, -0.11, 0.97)]
+refs = [Vector((p[0] * 0.6, p[1], 0.0 if p[2] < 1.44 else 1.0)).normalized() for p in strap]
+body.tube(strap, [(0.024, 0.006)] * len(strap), 4, STRAP, TORSO, ref=refs)
 
 # The chest lamp, clipped to the strap: iron box, amber lens. It's emissive: the one warm point on a crewmate.
 body.box((-0.04, 0.178, 1.315), (0.038, 0.026, 0.048), IRON, "spine_02")
 body.box((-0.04, 0.203, 1.315), (0.03, 0.004, 0.036), LAMP, "spine_02",
          uv=lambda ax, sg, l: in_cell("lantern_glass", 0.5 + l.x / 0.07, 0.55 - l.z / 0.08))
 body.box((-0.04, 0.178, 1.372), (0.02, 0.018, 0.01), IRON, "spine_02")
+
+# --- gloves --------------------------------------------------------------------------------------------------
+for sx in (-1, 1):
+    s = "r" if sx > 0 else "l"
+    g = lambda ax, sg, l: in_cell("gloves", 0.5 + l.y / 0.1, 0.6 - l.x / 0.12)  # noqa: E731
+    body.box((sx * 0.768, 0, 1.446), (0.052, 0.046, 0.024), GLOVE, f"hand_{s}", uv=g)
+    body.box((sx * 0.858, 0.0, 1.441), (0.044, 0.043, 0.019), GLOVE, f"fingers_{s}", uv=g)
+    body.box((sx * 0.787, 0.052, 1.44), (0.03, 0.015, 0.016), GLOVE, f"thumb_{s}",
+             rot=rig.Matrix.Rotation(math.radians(-40 * sx), 4, "Z"), uv=g)
+
+# --- legs and boots ------------------------------------------------------------------------------------------
+for sx in (-1, 1):
+    x = sx * 0.105
+    pts = [(sx * 0.1, 0, 0.99), (sx * 0.103, 0.004, 0.76), (x, 0.012, 0.515), (x, 0.0, 0.34), (x, -0.008, 0.22)]
+    body.tube(pts, [0.098, 0.086, 0.07, 0.062, 0.058], 12, TROUSER, LEGW, ref=(0, 1, 0), twist=math.pi,
+              uv=lambda i, j, uf, vf, p: in_cell("trouser", uf, vf))
+    # Boot shaft, then the foot as a squared loft heel to toe.
+    body.tube([(x, -0.01, 0.285), (x, -0.012, 0.16), (x, -0.012, 0.1)], [0.066, 0.068, 0.066], 10, BOOT,
+              sided(lambda p: {"calf_{s}": 1.0} if p.z > 0.12 else {"calf_{s}": 0.4, "foot_{s}": 0.6}),
+              twist=math.pi, uv=lambda i, j, uf, vf, p: in_cell("boot", uf, 0.05 + vf * 0.3))
+    foot = [(-0.075, 0.056, 0.105), (-0.03, 0.062, 0.115), (0.05, 0.062, 0.09), (0.13, 0.058, 0.07),
+            (0.195, 0.052, 0.055), (0.228, 0.036, 0.042)]
+    rings = []
+    cents = []
+    for y, hw, top in foot:
+        ring = []
+        for j in range(8):
+            a = 2 * math.pi * j / 8 + math.pi / 8
+            sa, ca = math.sin(a), math.cos(a)
+            sa = math.copysign(abs(sa) ** 0.55, sa)
+            ca = math.copysign(abs(ca) ** 0.55, ca)
+            zc = top / 2 + 0.012
+            ring.append(Vector((x + sa * hw, y, zc + ca * (top / 2 - 0.004))))
+        rings.append(ring)
+        cents.append(Vector((x, y, top / 2)))
+    body.loft(rings, BOOT, sided(lambda p: {"foot_{s}": 1.0} if p.y < 0.1 else
+                                 ({"ball_{s}": 1.0} if p.y > 0.15 else {"foot_{s}": 0.5, "ball_{s}": 0.5})),
+              centres=cents, cap0=True, cap1=True,
+              fuv=lambda pts, n: [in_cell("boot", (p.y + 0.08) / 0.32, (0.3 - p.z) / 0.3) for p in pts])
+    # A thick sole, proud of the upper all round: boots made for wet metal and ballast.
+    body.box((x, 0.075, 0.009), (0.064, 0.158, 0.009), BOOT,
+             sided(lambda p: {"foot_{s}": 1.0} if p.y < 0.1 else {"ball_{s}": 1.0}),
+             uv=lambda ax, sg, l: in_cell("boot", 0.5 + l.y / 0.32, 0.93))
 
 # --- hats and scarf (variants) -------------------------------------------------------------------------------
 if not HELM:
@@ -295,15 +399,12 @@ else:
     welder_visor()
 
 scarf = kit.part("scarf", variants=(2, 3))
-# Wool wound round the coat's stood-up collar (lower at the front, over the collarbones), the end hanging down the
-# left of the chest, clear of the lamp and the hose.
-ring = [(math.sin(a) * 0.158, 0.012 + math.cos(a) * 0.148, 1.558 - 0.03 * math.cos(a))
-        for a in [2 * math.pi * k / 16 for k in range(16)]]
-scarf.tube(ring, [(0.028, 0.034)] * 16, 8, SCARF, along("z", [(1.5, "spine_03"), (1.6, "neck")]),
-           ref=[Vector((0, 0, 1))] * 16, loop=True, uv=lambda i, j, uf, vf, p: in_cell("scarf", vf, uf))
-scarf.tube([(-0.098, 0.168, 1.535), (-0.112, 0.19, 1.49), (-0.122, 0.198, 1.44), (-0.128, 0.196, 1.395)],
-           [(0.034, 0.017), (0.036, 0.016), (0.035, 0.014), (0.03, 0.01)], 8, SCARF, TORSO, ref=(0, 1, 0), cap1=True,
-           uv=lambda i, j, uf, vf, p: in_cell("scarf", uf, vf))
+ring = [(math.sin(a) * 0.098, 0.004 + math.cos(a) * 0.095, 1.535 + 0.012 * math.cos(a))
+        for a in [2 * math.pi * k / 12 for k in range(12)]]
+scarf.tube(ring, [(0.034, 0.04)] * 12, 6, SCARF, along("z", [(1.5, "spine_03"), (1.56, "neck")]),
+           ref=[Vector((0, 0, 1))] * 12, loop=True, uv=lambda i, j, uf, vf, p: in_cell("scarf", vf, uf))
+scarf.tube([(0.05, 0.1, 1.52), (0.065, 0.14, 1.42), (0.07, 0.15, 1.32)], [(0.03, 0.01), (0.032, 0.01), (0.03, 0.01)],
+           4, SCARF, TORSO, ref=(0, 1, 0), cap1=True, uv=lambda i, j, uf, vf, p: in_cell("scarf", uf, vf))
 
 # --- the shovel (only in the shovel clip) --------------------------------------------------------------------
 # Held in the right fist across the palm (bind: along Y), blade forward. The left hand takes the D-grip in the clip.
@@ -500,7 +601,5 @@ dead.key(1, DEAD, "CONSTANT")
 CLIPS = [idle, walk, run, climb, shovel_clip, crouch, dead]
 
 kit.build()
-import crewbody  # noqa: E402
-crewbody.build(globals())
 rig.bake(sk, CLIPS, plant=rig.feet_planter(sk, clips={"idle", "walk", "crouch_idle", "shovel"}))
 rig.export(rig.args()[0] if rig.args() else "crew.glb", kit)

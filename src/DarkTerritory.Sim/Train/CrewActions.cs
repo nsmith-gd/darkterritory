@@ -9,7 +9,7 @@ namespace DarkTerritory.Sim.Train;
 /// <list type="bullet">
 /// <item>at the firebox, shovel coal: one unit per 1.2 s (spec B.6);</item>
 /// <item>at the vent valve, hold it open;</item>
-/// <item>on a coupler plate, cut the coupling behind that car (GDD §17, §24);</item>
+/// <item>on a coupler plate, nothing but the doors: the coupling is cut by <see cref="Uncoupling"/> (T91);</item>
 /// <item>at a car's brake wheel, wind its rake's handbrakes on or off;</item>
 /// <item>at a sandbox on the engine's running boards, sand the rail (Grease's counter, App. A.2).</item>
 /// </list>
@@ -22,6 +22,16 @@ public static class CrewActions
     /// <param name="hand">The hand tuning, when hands are reported at all (<see cref="World.Hand"/>).</param>
     public static void Apply(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, double dt, HandTuning? hand = null)
     {
+        if (Uncoupling(s, intent, train, hand))
+        {
+            var c = train.Dynamics.Tuning.Couplings;
+            double needed = train.CouplingUnderLoad(s.Parent) ? c.UncoupleUnderLoadSeconds : c.UncoupleSeconds;
+            double was = s.ActionProgress;
+            s.ActionProgress += dt;
+            if (was < needed && s.ActionProgress >= needed)
+                train.Uncouple(s.Parent);
+            return;
+        }
         if (!s.Alive || !intent.Has(PlayerButtons.Use) || intent.MoveZ > 0.5 || s.Parent == PlayerState.World)
         {
             // Let go of the shovel and what's on it is spilled.
@@ -40,13 +50,10 @@ public static class CrewActions
         }
         s.Flags &= ~PlayerFlags.Shovelful;
 
-        // A door you're facing comes first, even from the coupler plate; otherwise Use there cuts the coupling.
+        // Use on the coupler plate works a door, never the coupling (T91: that's Uncouple, looking down).
         if (s.Surface == Surface.Coupler && near?.Thing.Kind != InteractableKind.Door)
         {
-            double needed = train.CouplingUnderLoad(s.Parent) ? couplings.UncoupleUnderLoadSeconds : couplings.UncoupleSeconds;
-            s.ActionProgress += dt;
-            if (before < needed && s.ActionProgress >= needed)
-                train.Uncouple(s.Parent);
+            s.ActionProgress = 0;
             return;
         }
 
@@ -107,6 +114,24 @@ public static class CrewActions
     }
 
     static bool Hand(in PlayerState s, HandTuning? hand) => hand is not null && s.Hand != default;
+
+    /// <summary>
+    /// Working the coupling you stand on (T91 playtest): Uncouple held, standing still, looking down at the coupler (well
+    /// below level); or, in a headset, gripping with a hand reached down to it. Deliberate, and nothing else's button.
+    /// </summary>
+    public static bool Uncoupling(in PlayerState s, in PlayerIntent intent, TrainOnLine train, HandTuning? hand = null)
+    {
+        if (!s.Alive || s.Surface != Surface.Coupler || s.Parent == PlayerState.World || s.Has(PlayerFlags.Held)
+            || Math.Abs(intent.MoveX) > 0.1 || Math.Abs(intent.MoveZ) > 0.1)
+            return false;
+        if (Hand(s, hand))
+            return intent.Has(PlayerButtons.Use) && s.Hand.Y < ReachedDown;
+        double down = train.Dynamics.Tuning.Couplings.UncoupleLookDownDegrees * Math.PI / 180;
+        return intent.Has(PlayerActions.Uncouple) && s.Pitch <= -down;
+    }
+
+    /// <summary>A headset hand this low (from the feet) is down at the coupler, not at a door handle.</summary>
+    const double ReachedDown = 0.7;
 
     /// <summary>The interactable on the player's own vehicle within reach, if any.</summary>
     public static InteractableKind? Nearest(in PlayerState s, TrainOnLine train, HandTuning? hand = null) => NearestInteractable(s, train, hand)?.Thing.Kind;
