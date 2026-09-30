@@ -260,7 +260,7 @@
   // told through its walls, and is answered from its floor by holding Use at it (at the cargo stack's face, beside the
   // aisle). Not in the GDD's roster; interior zone (App. B.1's cap of 2 applies). Cut the car loose and it goes with it.
 
-  // CAR FIRE: cinders through a vent. Smoke and crackle (5-9 kHz) while it's taking; alight at burnFrom, it burns the
+  // CAR FIRE: cinders through a vent. Smoke and crackle (6-9 kHz) while it's taking; alight at burnFrom, it burns the
   // cargo (cargo integrity per second at full) and the car (integrity), and whoever's in the car (burnDamage x how far
   // it's gone, every burnEverySeconds). Beating it (Use within beatReach) takes beatPerSecond off per person; above
   // scorchAbove, beating it scorches you (scorchDamage). At full blaze for spreadSeconds it takes the next cargo car.
@@ -284,7 +284,7 @@
     "maxActive": 1
   },
 
-  // LOOSE LOAD: a lashing's parted. The stack groans against its straps (700 Hz-1.4 kHz). The train's speed changing by
+  // LOOSE LOAD: a lashing's parted. The stack groans against its straps (1.4-2.2 kHz). The train's speed changing by
   // lurchAccel (m/s², a hard brake or the slack running in) or snapSeconds of it, and it comes down across the aisle:
   // crushDamage to anyone within slideReach of it along the car, breakage off the car's cargo. Re-lashed with
   // lashSeconds of Use at it (two lash twice as fast). Only in a car loaded minLoad or more.
@@ -300,7 +300,7 @@
     "maxActive": 1
   },
 
-  // GNAWERS: a nest in the load. Chittering high up (7-10 kHz). They eat the cargo (eatPerSecond x their number) and
+  // GNAWERS: a nest in the load. Chittering high up (9-12 kHz). They eat the cargo (eatPerSecond x their number) and
   // breed; outAfterSeconds after they're heard they're out of the crates, biting anyone in the car within reach
   // (biteDamage x their number, every biteEverySeconds). Stamping them (Use) takes stampPerSecond off each. At their
   // full number for spreadSeconds they're into the next cargo car (once each, and never past maxActive). With the cargo
