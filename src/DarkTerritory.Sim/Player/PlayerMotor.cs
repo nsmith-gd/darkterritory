@@ -465,6 +465,9 @@ public static class PlayerMotor
     }
 
     /// <summary>Finds what the player is standing on (if anything), re-parents, and applies landing rules.</summary>
+    /// <summary>How far above someone the ground can be and still be what they step up onto (beyond a step or a fall).</summary>
+    const double GroundLiftMargin = 0.5;
+
     static void UpdateSupport(ref PlayerState s, Double3 world, Double3 prevWorld, TrainOnLine train, PlayerTuning p, TrainTuning t)
     {
         bool wasGrounded = s.Grounded;
@@ -477,7 +480,12 @@ public static class PlayerMotor
         var probe = s with { Position = world };
         double groundY = GroundHeight(ref probe, train.Line);
         s.LineHint = probe.LineHint;
-        double bestTop = world.Y <= groundY + (wasGrounded ? p.StepUp : 0) ? groundY : double.NegativeInfinity;
+        bool underGround = world.Y <= groundY + (wasGrounded ? p.StepUp : 0);
+        // Ground a long way overhead is a bore or a cutting the terrain doesn't know about, not something to be lifted up
+        // onto: under a train's surface it loses, and only catches whoever has nothing else underfoot (T66: a crew on an
+        // alternate line's cutting stood up on the hill and was left behind).
+        bool groundFar = groundY - world.Y > below + GroundLiftMargin;
+        double bestTop = underGround && !groundFar ? groundY : double.NegativeInfinity;
         int bestParent = PlayerState.World;
         var bestSurface = Surface.Ground;
         Double3 bestLocal = default;
@@ -503,6 +511,8 @@ public static class PlayerMotor
             }
         }
 
+        if (double.IsNegativeInfinity(bestTop) && underGround)
+            bestTop = groundY; // nothing of the train underfoot either: the earth, however far up it is
         if (double.IsNegativeInfinity(bestTop))
         {
             // Nothing underfoot: fall, carrying whatever velocity the car gave us.
