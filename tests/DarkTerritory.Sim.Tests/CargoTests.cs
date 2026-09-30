@@ -90,8 +90,13 @@ public class CargoTests
         var d = Tuning.Enemies.Director;
         var t = Tuning.Enemies with
         {
-            Director = d with { GraceSeconds = 0, CooldownSeconds = [1, 1], SaveFor = [],
-                Costs = d.Costs.ToDictionary(c => c.Key, c => c.Key is "cinderHounds" or "clingers" ? 1 : 1e9) },
+            Director = d with
+            {
+                GraceSeconds = 0,
+                CooldownSeconds = [1, 1],
+                SaveFor = [],
+                Costs = d.Costs.ToDictionary(c => c.Key, c => c.Key is "cinderHounds" or "clingers" ? 1 : 1e9)
+            },
         };
         int Hounds(CargoKind cargo)
         {
