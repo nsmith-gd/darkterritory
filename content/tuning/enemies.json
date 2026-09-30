@@ -345,6 +345,37 @@
     "interiorWeight": 2
   },
 
+  // App. A.3 FOLLOWERS: "STALK near facilities; tracks a disembarked player by scent. ATTACH moves into the carrier's blind
+  // spot and matches their pace (TELEGRAPH: visible ONLY to other players, never to the carrier). BOARD carrier enters the
+  // train → it enters with them. NEST moves to an unlit cargo car → becomes an interior threat. COUNTER an observer calls
+  // it out → carrier halts → it detaches and flees light OR refuse boarding until the carrier is visually checked."
+  "followers": {
+    // Put down this far behind whoever it's after (m), closing at this pace on them (m/s) to its place at their back.
+    "stalkDistance": 14,
+    "stalkSpeed": 1.5,
+    "blindSpot": 1.3,
+    // Ambiguity (ARCHITECTURE §8): "observer calls it out → carrier halts". The carrier stood still (below this, m/s) this
+    // long while someone else has it in view (this half-angle of their look, degrees, this range, m): it lets go and runs.
+    "haltSpeed": 0.3,
+    "haltSeconds": 2,
+    "viewHalfAngleDegrees": 35,
+    "viewRange": 30,
+    // Aboard with them, it's this long getting back to a cargo car with no lamp in it, and nests.
+    "boardSeconds": 4,
+    // Nested, a lamp within this reach (m) drives it out ("flees light"). Anyone in its car's room: a bite each this many
+    // seconds they stay, this much.
+    "lightReach": 4,
+    "nestBiteSeconds": 3,
+    "nestDamage": 20,
+    // Left behind on the ground this long with nobody to follow, or nested this long, and it's gone.
+    "lingerSeconds": 600,
+    "nestSeconds": 1200,
+    // App. B.3: "facility grounds only · requires an excursion · any tier · weight up per additional player on the ground
+    // simultaneously". At most this many about; each on the ground past the first adds this to the weight.
+    "maxActive": 2,
+    "perGroundWeight": 1
+  },
+
   // App. A.7 THE PASSENGER: "BOARD enters during a facility stop, unnoticed. BLEND takes crew appearance; appears on the
   // roster. IDLE behaves plausibly — moves between cars, performs half-finished tasks (TELEGRAPH: never speaks on
   // proximity voice · repeats a task loop · crew count reads one too many). ISOLATE waits for a player alone in a car.
@@ -499,7 +530,7 @@
     "maxConcurrentLargeCrew": 6,
     // Budget share spent before the first facility, across the middle, and in the final approach.
     "phaseShares": [0.15, 0.45, 0.40],
-    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3, "ferryman": 4, "longWhistle": 3, "climbers": 3, "weight": 3, "gaunt": 5, "passenger": 5,
+    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3, "ferryman": 4, "longWhistle": 3, "climbers": 3, "weight": 3, "gaunt": 5, "passenger": 5, "followers": 3,
       "carFire": 2, "looseLoad": 2, "gnawers": 2 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,

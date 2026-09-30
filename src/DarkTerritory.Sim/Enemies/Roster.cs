@@ -1973,3 +1973,208 @@ public sealed class Passenger(int id) : Enemy(id)
         Local = d <= step ? Local + to : Local + to * (step / d);
     }
 }
+
+/// <summary>
+/// FOLLOWERS · scent · rear (App. A.3). At a facility, out on the grounds, it picks up someone who's got down off the train
+/// and comes up behind them, into the place at their back they can't see, and keeps it at their pace. "The asymmetry is the
+/// entire mechanic. The person in danger cannot see the danger": the host never sends it to whoever it's following, so
+/// only the others see it (<see cref="Net.HostSession"/>'s interest). They get back aboard with it, and it goes with them, back
+/// to a dark cargo car to nest; after that it's in the car, at anyone who comes in. Counter: somebody sees it and says
+/// so, and the one it's on stands still where they can see it; then it lets go and runs. Or a lamp, once it's nested.
+/// </summary>
+/// <remarks><see cref="Enemy.Extra"/> is who it's following (a player id). On the ground it's <see cref="Enemy.Loose"/>:
+/// <see cref="Enemy.Local"/> is where it stands in the world, just behind them.</remarks>
+public sealed class Follower(int id) : Enemy(id)
+{
+    public override EnemyKind Kind => EnemyKind.Follower;
+    public override PressureZone Zone => PressureZone.Rear;
+    public override Sense Sense => Sense.Scent;
+
+    /// <summary>Whoever it's following.</summary>
+    public int Carrier => (int)Math.Round(Extra);
+    /// <summary>In a car, in the dark, at anyone who comes in.</summary>
+    public bool Nested => Phase == SpinePhase.Punish;
+
+    double _behind, _halted, _age;
+    Double3? _last;
+    readonly Dictionary<int, double> _in = new();
+
+    /// <summary>Far behind someone out on the ground, on their scent.</summary>
+    public static Follower Behind(int id, TrainOnLine train, in PlayerState carrier, int carrierId, FollowerTuning t)
+    {
+        var f = new Follower(id) { Attached = Loose, Extra = carrierId, _behind = t.StalkDistance, LineDistance = train.Dynamics.Distance };
+        f.Local = f.At(train, carrier);
+        return f;
+    }
+
+    /// <summary>Crew members out on the ground (not on the train) with nothing following them yet.</summary>
+    public static List<int> Excursions(World world) =>
+        world.CrewThisTick.Where(c => c.State is { Alive: true, Parent: PlayerState.World })
+            .Where(c => !world.ActiveEnemies.Any(e => e is Follower f && !f.Gone && f.Carrier == c.Id))
+            .Select(c => c.Id).Order().ToList();
+
+    /// <summary>Its place behind them, <see cref="_behind"/> back from their feet, and facing where they face.</summary>
+    Double3 At(TrainOnLine train, in PlayerState carrier)
+    {
+        double yaw = PlayerMotor.WorldYaw(carrier, train);
+        Extra2 = yaw;
+        return PlayerMotor.WorldPosition(carrier, train) + new Double3(Math.Sin(yaw), 0, Math.Cos(yaw)) * _behind;
+    }
+
+    /// <summary>Someone other than the one it's on has it in view: alive, not shut in, near enough, looking its way.</summary>
+    bool SeenByOthers(EnemyContext ctx, FollowerTuning t)
+    {
+        var train = ctx.Train;
+        var at = WorldPosition(train) + Double3.Up * 1.0;
+        double cos = Math.Cos(t.ViewHalfAngleDegrees * Math.PI / 180);
+        foreach (var (player, _) in ctx.Crew)
+        {
+            var s = player.State;
+            if (player.Id == Carrier || !s.Alive || PlayerMotor.Space(s, train) > 0)
+                continue;
+            var eye = PlayerMotor.WorldPosition(s, train) + Double3.Up * ctx.Tuning.Gaunt.EyeHeight;
+            var to = at - eye;
+            double d = to.Length;
+            if (d > t.ViewRange)
+                continue;
+            var look = Combat.Guns.AimLocal(s);
+            var world = s.Parent >= 0 && s.Parent < train.Frames.Count ? train.Frames[s.Parent].DirToWorld(look) : look;
+            if (d < 1e-6 || Double3.Dot(world.Normalized, to * (1 / d)) >= cos)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>A cargo car in the carrier's rake with a room and no lamp in it: the rearmost.</summary>
+    static int? Dark(World world, int car)
+    {
+        var train = world.Train;
+        if (!train.Rakes.Any(r => r.Consist.IndexOf(car) >= 0))
+            return null;
+        foreach (var v in train.RakeOf(car).Consist.Vehicles.Reverse())
+            if (v.Kind == VehicleKind.Cargo && train.Frames[v.Id].Shape.Interior is not null && !Lit(world, v.Id))
+                return v.Id;
+        return null;
+    }
+
+    /// <summary>A lamp in a car's room: carried in, or set down there.</summary>
+    static bool Lit(World world, int car)
+    {
+        var train = world.Train;
+        if (train.Frames[car].Shape.Interior is not { } room)
+            return false;
+        return world.Bodies.All.Any(b => b.Kind == Physics.BodyKind.Lamp && room.Contains(train.Frames[car].ToLocal(Physics.Bodies.WorldCentre(b, train))));
+    }
+
+    protected override void Tick(EnemyContext ctx)
+    {
+        var t = ctx.Tuning.Followers;
+        var train = ctx.Train;
+        double dt = SimConstants.TickSeconds;
+        _age += dt;
+        int found = ctx.Crew.FindIndex(c => c.Player.Id == Carrier);
+        bool withUs = found >= 0 && ctx.Crew[found].Player.State.Alive;
+        switch (Phase)
+        {
+            case SpinePhase.Dormant:
+            case SpinePhase.Telegraph:
+                {
+                    // Whoever it was on is dead, or it's hung about long enough: it's gone.
+                    if (!withUs || _age >= t.LingerSeconds)
+                    {
+                        Enter(ctx, SpinePhase.Gone);
+                        break;
+                    }
+                    var s = ctx.Crew[found].Player.State;
+                    if (s.Parent != PlayerState.World)
+                    {
+                        // Back aboard. At their back, it gets on with them; still coming up, it's lost them.
+                        if (Phase == SpinePhase.Dormant || s.Parent >= train.Frames.Count)
+                            Enter(ctx, SpinePhase.Gone);
+                        else if (Enter(ctx, SpinePhase.Commit))
+                        {
+                            Attached = s.Parent;
+                            Local = s.Position;
+                        }
+                        break;
+                    }
+                    if (Phase == SpinePhase.Dormant)
+                    {
+                        // STALK: up behind them.
+                        _behind = Math.Max(t.BlindSpot, _behind - t.StalkSpeed * dt);
+                        if (_behind <= t.BlindSpot)
+                            Enter(ctx, SpinePhase.Telegraph);
+                    }
+                    Local = At(train, s);
+                    LineDistance = train.Dynamics.Distance;
+                    if (Phase != SpinePhase.Telegraph)
+                        break;
+                    // Called out: they stand still where someone can see it, and it lets go and runs. How fast they're going is
+                    // how far they've come since the last tick (the motor zeroes a grounded player's velocity).
+                    var feet = PlayerMotor.WorldPosition(s, train);
+                    bool still = _last is { } last && ((feet - last) with { Y = 0 }).Length / dt < t.HaltSpeed;
+                    _last = feet;
+                    _halted = still && SeenByOthers(ctx, t) ? _halted + dt : 0;
+                    if (_halted >= t.HaltSeconds)
+                    {
+                        Enter(ctx, SpinePhase.BreakOff);
+                        Enter(ctx, SpinePhase.Gone);
+                    }
+                    break;
+                }
+            case SpinePhase.Commit:
+                {
+                    // In with them, and back through the train to the dark.
+                    if (PhaseSeconds < t.BoardSeconds)
+                        break;
+                    if (Dark(ctx.World, Attached) is not { } nest)
+                    {
+                        Enter(ctx, SpinePhase.BreakOff);
+                        Enter(ctx, SpinePhase.Gone);
+                        break;
+                    }
+                    var room = train.Frames[nest].Shape.Interior!.Value;
+                    Attached = nest;
+                    Local = new Double3(room.Min.X + 0.4, room.Min.Y, room.Max.Z - 0.5);
+                    Enter(ctx, SpinePhase.Punish);
+                    break;
+                }
+            case SpinePhase.Punish:
+                {
+                    if (Attached < 0 || Attached >= train.Frames.Count || !train.Rakes.Any(r => r.Consist.IndexOf(Attached) >= 0) || PhaseSeconds >= t.NestSeconds)
+                    {
+                        Enter(ctx, SpinePhase.Gone);
+                        break;
+                    }
+                    var at = WorldPosition(train);
+                    // "Flees light": a lamp brought into its car, or held up to it at the door.
+                    if (Lit(ctx.World, Attached)
+                        || ctx.World.Bodies.All.Any(b => b.Kind == Physics.BodyKind.Lamp && (Physics.Bodies.WorldCentre(b, train) - at).Length <= t.LightReach))
+                    {
+                        Enter(ctx, SpinePhase.BreakOff);
+                        Enter(ctx, SpinePhase.Gone);
+                        break;
+                    }
+                    // At whoever's in the room with it, a bite every few seconds they stay.
+                    var inside = ctx.Crew.Where(c => c.Player.State.Alive && c.Player.State.Parent == Attached && PlayerMotor.Indoors(c.Player.State, train))
+                        .Select(c => (int)c.Player.Id).ToHashSet();
+                    foreach (var gone in _in.Keys.Where(k => !inside.Contains(k)).ToList())
+                        _in.Remove(gone);
+                    foreach (var id in inside.Order())
+                    {
+                        double held = _in.GetValueOrDefault(id) + dt;
+                        if (held >= t.NestBiteSeconds)
+                        {
+                            ctx.Bite(id, t.NestDamage, DeathCause.Nested);
+                            held = 0;
+                        }
+                        _in[id] = held;
+                    }
+                    break;
+                }
+            default:
+                Enter(ctx, SpinePhase.Gone);
+                break;
+        }
+    }
+}

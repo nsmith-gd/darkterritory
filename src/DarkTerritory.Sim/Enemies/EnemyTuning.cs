@@ -23,6 +23,27 @@ public sealed record EnemyTuning(
     public WeightTuning Weight { get; init; } = new();
     public GauntTuning Gaunt { get; init; } = new();
     public PassengerTuning Passenger { get; init; } = new();
+    public FollowerTuning Followers { get; init; } = new();
+}
+
+/// <summary>Followers (App. A.3, B.3). Field docs live in enemies.json.</summary>
+public sealed record FollowerTuning
+{
+    public double StalkDistance { get; init; } = 14;
+    public double StalkSpeed { get; init; } = 1.5;
+    public double BlindSpot { get; init; } = 1.3;
+    public double HaltSpeed { get; init; } = 0.3;
+    public double HaltSeconds { get; init; } = 2;
+    public double ViewHalfAngleDegrees { get; init; } = 35;
+    public double ViewRange { get; init; } = 30;
+    public double BoardSeconds { get; init; } = 4;
+    public double LightReach { get; init; } = 4;
+    public double NestBiteSeconds { get; init; } = 3;
+    public int NestDamage { get; init; } = 20;
+    public double LingerSeconds { get; init; } = 600;
+    public double NestSeconds { get; init; } = 1200;
+    public int MaxActive { get; init; } = 2;
+    public double PerGroundWeight { get; init; } = 1;
 }
 
 /// <summary>The Passenger (App. A.7, B.7). Field docs live in enemies.json.</summary>

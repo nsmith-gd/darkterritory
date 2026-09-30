@@ -146,6 +146,13 @@ public static class Staging
         var passenger = new Passenger(48);
         passenger.Restore(SpinePhase.Telegraph, 20, 1, beside, new Double3(0.55, train.Frames[beside].Shape.RoofHeight, -7.0), 0, 0, 0, 2, Math.PI - 0.3);
         threats.Add(passenger);
+        // At crewmate 1's back, bent and in their step (T62): stood free in the world, facing the way they face. In play
+        // it's on the grounds at a stop; here it rides the roof behind them, so the roof shot has it.
+        var follower = new Follower(49);
+        double heading = train.Frames[beside].Heading + Math.PI + 0.3;
+        var behind = train.Frames[beside].ToWorld(new Double3(-0.9, train.Frames[beside].Shape.RoofHeight, -5)) + new Double3(Math.Sin(heading), 0, Math.Cos(heading)) * 1.3;
+        follower.Restore(SpinePhase.Telegraph, 8, 1, Enemy.Loose, behind, 0, 0, 0, 1, heading);
+        threats.Add(follower);
         return threats;
     }
 }

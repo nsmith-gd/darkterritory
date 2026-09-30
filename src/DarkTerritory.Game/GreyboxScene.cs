@@ -323,6 +323,13 @@ public sealed class GreyboxScene
             origin = f.ToWorld(e.Local);
             (right, up, back) = (f.Right, f.Up, f.Back);
         }
+        else if (e.Attached == Enemy.Loose)
+        {
+            // Stood free in the world (a Follower at someone's back), facing the way its yaw says.
+            origin = e.Local;
+            right = new Double3(Math.Cos(e.Extra2), 0, -Math.Sin(e.Extra2));
+            back = new Double3(Math.Sin(e.Extra2), 0, Math.Cos(e.Extra2));
+        }
         else
         {
             if (e.LineDistance < from || e.LineDistance > to)
@@ -427,6 +434,15 @@ public sealed class GreyboxScene
                     mesh.Emissive = 1;
                     Draw(0.32, 0.7, -0.1 + swing, 0.08, 0.1, 0.08, Palette.LampAmber);
                     mesh.Emissive = 0;
+                    break;
+                }
+            case EnemyKind.Follower:
+                {
+                    // Low and bent at someone's back, matching their step; nested, a heap in the car's dark corner.
+                    double low = e.Phase == SpinePhase.Punish ? -0.3 : 0;
+                    Draw(0, low + 0.35, 0, 0.14, 0.35, 0.14, Palette.SootBlack);
+                    Draw(0, low + 0.85, -0.2, 0.2, 0.22, 0.26, Palette.SootBlack);
+                    Draw(0, low + 1.0, -0.45, 0.1, 0.1, 0.1, Palette.Corrupted * 0.6f);
                     break;
                 }
             case EnemyKind.Gaunt:

@@ -512,6 +512,15 @@ public sealed class CreatureArt
                     return Draw(mesh, "husk", clip, t * speed, true, at, variant: 3, seed: 17, adjust: (_, l) => l with { Colour = l.Colour * 0.8f })
                         || Draw(mesh, "crew", clip, t * speed, true, at, variant: 3, seed: 17, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.28f, 0.26f, 0.25f) });
                 }
+            case EnemyKind.Follower:
+                {
+                    // At someone's back, bent double and matching their step (App. A.3): the husk, crouched and walking. Nested
+                    // in a car, it's down in the corner and still.
+                    var at = Matrix4x4.CreateScale(0.9f, 0.8f, 0.9f) * model;
+                    var (clip, speed) = phase == SpinePhase.Punish ? ("crouch_idle", 0.6) : ("walk", 1.0);
+                    return Draw(mesh, "husk", clip, t * speed, true, at, variant: 6, seed: 23, adjust: (_, l) => l with { Colour = l.Colour * 0.6f })
+                        || Draw(mesh, "crew", clip, t * speed, true, at, variant: 6, seed: 23, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.22f, 0.2f, 0.2f) });
+                }
             case EnemyKind.Passenger:
                 // One of the crew (App. A.7 BLEND): the crew figure in the look of whoever it copies (extra), walking its loop.
                 // In play it's drawn through the crew's own path (GreyboxScene.AsCrewmate), gait and all.

@@ -33,6 +33,12 @@ public sealed class CrewCalls
     public readonly record struct Call(StopJob Job, int Vehicle, bool Alive);
 
     readonly SortedDictionary<int, Call> _crew = new();
+    readonly Dictionary<int, uint> _followed = new();
+
+    /// <summary>"Stand still, there's something on your back" (App. A.3): an observer calls who a Follower's on.</summary>
+    public void Followed(int playerId, uint tick) => _followed[playerId] = tick;
+    /// <summary>Whether someone's called in the last second that there's a Follower on this player.</summary>
+    public bool IsFollowed(int playerId, uint tick) => _followed.TryGetValue(playerId, out var at) && tick - at <= SimConstants.TickRate;
     readonly Dictionary<int, int> _carryingTo = new();
     readonly Dictionary<int, Double3> _standing = new();
 
