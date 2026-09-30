@@ -281,6 +281,10 @@ public sealed class PrototypeSession : IPlaySession
         if (site is null)
             return " — nothing here to load";
         var parts = new List<string>();
+        // The yard's power (level-design D.2): its cranes wait on it.
+        if (site.Power != Sim.Stops.PowerState.Live && site.Cranes.Count > 0)
+            parts.Add(site.Power == Sim.Stops.PowerState.Dead ? "POWER DEAD: the cranes won't run until someone restarts the generator at the powerhouse"
+                : "power low: the cranes run at half speed (restart the generator at the powerhouse)");
         if (site.Has(ModuleKind.Crates))
             parts.Add(site.HeavyStack.Length > 0 ? "crates on the platform: carry them into the cars (the big ones take two)" : "crates on the platform: carry them into the cars");
         if (site.Cranes.Count > 0)

@@ -10,6 +10,7 @@ public sealed record FacilityTuning(CrateTuning Crates, WinchTuning Winch, Dicti
     public const string File = "tuning/facilities.json";
 
     public CraneTuning Crane { get; init; } = new();
+    public PowerTuning Power { get; init; } = new();
 
     /// <summary>On a spur, the modules are laid out from this far back from its buffer stop (beside the first cars).</summary>
     public double SpurLayout { get; init; } = 45;
@@ -57,6 +58,15 @@ public sealed record CrankTuning
     public double SmoothSeconds { get; init; } = 0.25;
 }
 
+/// <summary>A yard's power (level-design D.2, spec D.1 restart). Field docs in facilities.json.</summary>
+public sealed record PowerTuning
+{
+    public double LowSpeed { get; init; } = 0.5;
+    public double RestartSeconds { get; init; } = 8;
+    public double RestartRounds { get; init; } = 0.25;
+    public double Reach { get; init; } = 2;
+}
+
 /// <summary>The gantry crane (spec D.2, T48). Field docs in facilities.json.</summary>
 public sealed record CraneTuning
 {
@@ -84,7 +94,8 @@ public sealed record CraneTuning
 public enum CastingState : byte { Stacked, Hooked, Loaded, Lost }
 
 /// <summary>A site's replicated state (the Run record), for a client to adopt.</summary>
-public readonly record struct SiteState(bool Stocked, double Progress, int SledsLeft, bool Turning, bool OutOfRhythm, double Crank);
+public readonly record struct SiteState(bool Stocked, double Progress, int SledsLeft, bool Turning, bool OutOfRhythm, double Crank,
+    Stops.PowerState Power = Stops.PowerState.Live, double Restart = 0);
 
 /// <summary>Spec D.2 loading modules built so far.</summary>
 public enum ModuleKind : byte { Crates, Winch, Crane }
@@ -234,7 +245,17 @@ public sealed class Site
     /// <summary>Both handles were turning last tick (for the HUD and the sound).</summary>
     public bool Turning { get; internal set; }
 
-    public SiteState State => new(Stocked, Progress, SledsLeft, Turning, OutOfRhythm, Crank);
+    /// <summary>
+    /// The yard's power (level-design D.2): live, low (the cranes at half speed) or dead (not at all) until someone's
+    /// restarted it at the powerhouse door, <see cref="Powerhouse"/>; <see cref="Restart"/> is the seconds held so far.
+    /// </summary>
+    public Stops.PowerState Power { get; internal set; }
+    public Double3? Powerhouse { get; internal set; }
+    public double Restart { get; internal set; }
+    /// <summary>Who's at the powerhouse restarting it this tick (−1 for nobody). Host only.</summary>
+    internal int Restarter = -1;
+
+    public SiteState State => new(Stocked, Progress, SledsLeft, Turning, OutOfRhythm, Crank, Power, Restart);
 
     /// <summary>Client side: adopts the host's state.</summary>
     public void Mirror(in SiteState s)
@@ -245,5 +266,7 @@ public sealed class Site
         Turning = s.Turning;
         OutOfRhythm = s.OutOfRhythm;
         Crank = s.Crank;
+        Power = s.Power;
+        Restart = s.Restart;
     }
 }

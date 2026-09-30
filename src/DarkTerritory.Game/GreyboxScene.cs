@@ -103,6 +103,15 @@ public sealed class GreyboxScene
                         if ((crane.HookAt - eye).Length < DrawDistance && Look?.Art.Crane(mesh, crane, frames, eye) != true)
                             Crane(mesh, crane, frames, eye);
                 }
+            // A yard's powerhouse with its power on (level-design D.2): the lamp over its door burns.
+            if (Run is not null)
+                foreach (var site in Run.Sites)
+                    if (site is { Power: Sim.Stops.PowerState.Live, Powerhouse: { } door } && (door - eye).Length < DrawDistance)
+                    {
+                        var at = V(door + Double3.Up * 3.2, eye);
+                        mesh.PointLights.Add(new PointLight(at, Palette.LampAmber * 1.2f, 10));
+                        mesh.Billboard(at, 0.3f, 0, new Vector4(Palette.LampAmber * 1.2f, 1), -1, FxBlend.Additive);
+                    }
             // A Holdout's lamp (App. D.7): lit while it's occupied, seen from the approach board; a world light, not a car's.
             if (Holdouts is not null)
                 foreach (var h in Holdouts.All)

@@ -21,7 +21,10 @@ public enum Arrangement : byte { Single, Opposite, Setback, Along }
 
 public enum StopZone : byte { Yard, Village }
 
-public enum BuildingKind : byte { Shed, Hero, House, Outbuilding, Barn, Well, PrisonCar, SignalBox, LampRoom, WaterTower, Lockup }
+public enum BuildingKind : byte { Shed, Hero, House, Outbuilding, Barn, Well, PrisonCar, SignalBox, LampRoom, WaterTower, Lockup, Powerhouse }
+
+/// <summary>A yard's power (level-design D.2): its cranes at full speed, at half, or not at all until it's restarted.</summary>
+public enum PowerState : byte { Live, Low, Dead }
 
 /// <summary>A Holdout's type (GDD App. D.4): how it's freed, and what it looks like.</summary>
 public enum HoldoutKind : byte { PrisonCar, Shelter, Lockup }
@@ -156,6 +159,9 @@ public sealed record StopMoves
     public double CarryWalk { get; init; }
     public int Unfilled { get; init; }
     public double SwitchWalk { get; init; }
+    /// <summary>The switchman's walk to the powerhouse and back, when the power needs restarting.</summary>
+    public double PowerWalk { get; init; }
+    public bool HardPull { get; init; }
     public bool CrossingBlocked { get; init; }
     public double VillageWalk { get; init; }
     public int Houses { get; init; }
@@ -197,6 +203,11 @@ public sealed record StopLayout
     /// <summary>Where the consist stops to work the stop (a yard's first loading face, or the halt): what D.4 measures from.</summary>
     public Pt StopPoint { get; init; }
     public IReadOnlyList<StopHoldout> Holdouts { get; init; } = [];
+    /// <summary>The yard's power and its powerhouse at the throat (a building index; −1 for none), level-design D.2.</summary>
+    public PowerState Power { get; init; }
+    public int Powerhouse { get; init; } = -1;
+    /// <summary>The main line's grade (%, up) where the train pulls out of the stop: a hard pull when it's steep (D.1).</summary>
+    public double ExitGrade { get; init; }
     public IReadOnlyList<StopLair> Lairs { get; init; } = [];
     /// <summary>Where the loaded cars wait on the main line, front and length (GDD §17).</summary>
     public double CutFront { get; init; }

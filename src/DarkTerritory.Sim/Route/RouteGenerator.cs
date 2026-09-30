@@ -30,7 +30,13 @@ public static class RouteGenerator
         zones.AddRange(facilities.Concat(halts).Order().Select(p => (p - t.PoiZoneHalfLength, p + t.PoiZoneHalfLength)));
         zones.Add((length - t.TerminusApproach, length));
 
-        var segments = LayOut(tt, length, zones, ref layoutRng);
+        // The grade out of each facility's yard (level-design D.2 "hard pulls"), up, from its own seed: laid on the stretch
+        // the train pulls out onto, so it moves nothing else about the line.
+        var exits = t.Stops is { } st2
+            ? facilities.Select((p, k) => (End: p + t.PoiZoneHalfLength,
+                Grade: Math.Round(new Pcg32(StopSeed.Of(seed, StopSeed.Grade, (ulong)k * 4 + (ulong)tier)).Range(st2.Tiers[tier].ExitGrade[0], st2.Tiers[tier].ExitGrade[1]), 2))).ToList()
+            : [];
+        var segments = LayOut(tt, length, zones, exits, ref layoutRng);
         var line = new LineDefinition($"{tier}-{seed}", segments);
         var built = new RailLine(line);
 
@@ -44,7 +50,7 @@ public static class RouteGenerator
 
         AddFacilities(t, tier, facilities, dawn, features, ref featureRng);
         if (t.Stops is not null)
-            AddStops(t, tier, seed, halts, features);
+            AddStops(t, tier, seed, halts, features, built);
         var blocked = new List<(double Start, double End)>(zones);
         AddSpans(FeatureKind.Tunnel, featureRng.RangeInclusive(tt.Tunnels[0], tt.Tunnels[1]), 200, 1200, 0, length, blocked, features, ref featureRng);
         int bridges = featureRng.RangeInclusive(tt.Bridges[0], tt.Bridges[1]);
@@ -193,7 +199,7 @@ public static class RouteGenerator
     /// machinery (the coaling tower stands over the main line), with a village at the tier's chance, and a village for
     /// each halt. The yard's side is the facility's.
     /// </summary>
-    static void AddStops(RouteTuning t, RouteTier tier, ulong seed, List<double> halts, List<RouteFeature> features)
+    static void AddStops(RouteTuning t, RouteTier tier, ulong seed, List<double> halts, List<RouteFeature> features, RailLine built)
     {
         var st = t.Stops!;
         var cx = t.StopContext;
@@ -204,7 +210,7 @@ public static class RouteGenerator
                 continue;
             ulong stopSeed = StopSeed.Of(seed, StopSeed.Stop, (ulong)i * 4 + (ulong)tier);
             var kind = new Pcg32(stopSeed).Chance(st.Tiers[tier].VillageChance) ? StopKind.YardAndVillage : StopKind.Yard;
-            var stop = StopGenerator.Generate(st, tier, stopSeed, kind, cx with { Facility = f.Facility });
+            var stop = StopGenerator.Generate(st, tier, stopSeed, kind, cx with { Facility = f.Facility, ExitGrade = ExitGradeOf(built, f) });
             features[i] = f with { Side = stop.YardSide, Stop = stop };
         }
         for (int h = 0; h < halts.Count; h++)
@@ -214,6 +220,10 @@ public static class RouteGenerator
             features.Add(new RouteFeature(FeatureKind.Village, halts[h] - t.PoiZoneHalfLength, halts[h] + t.PoiZoneHalfLength, stop.VillageSide) { Stop = stop });
         }
     }
+
+    /// <summary>The main line's grade (%, up) just past a stop's zone: what a loaded train pulls out onto.</summary>
+    public static double ExitGradeOf(RailLine line, RouteFeature f) =>
+        f.End + 5 < line.Length ? Math.Max(0, line.Sample(f.End + 5).GradePercent) : 0;
 
     static List<double> PlaceFacilities(RouteTuning t, TierTuning tt, double length, ref Pcg32 rng)
     {
@@ -230,7 +240,7 @@ public static class RouteGenerator
     }
 
     /// <summary>Straights, curves and grades between the level zones, keeping elevation from wandering off.</summary>
-    static List<TrackSegment> LayOut(TierTuning tt, double length, List<(double Start, double End)> zones, ref Pcg32 rng)
+    static List<TrackSegment> LayOut(TierTuning tt, double length, List<(double Start, double End)> zones, List<(double End, double Grade)> exits, ref Pcg32 rng)
     {
         var segments = new List<TrackSegment>();
         double s = 0, elevation = 0;
@@ -277,6 +287,13 @@ public static class RouteGenerator
                 grade = rng.Range(-0.4, 0.4);
             }
             grade = Math.Round(grade, 2);
+            // Pulling out of a yard: its exit grade, over a real stretch of climb (still drawing as ever, so nothing else moves).
+            foreach (var exit in exits)
+                if (Math.Abs(exit.End - s) < 0.5)
+                {
+                    grade = exit.Grade;
+                    segLength = Math.Min(available, Math.Max(segLength, 400));
+                }
             segLength = Math.Round(segLength, 1);
             segments.Add(new TrackSegment(segLength, radius, grade));
             elevation += segLength * grade / 100;

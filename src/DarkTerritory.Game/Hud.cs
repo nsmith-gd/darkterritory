@@ -273,6 +273,10 @@ public static class Hud
                 ? "SWITCH: POINTS HELD, A WHEEL IS ON THEM"
                 : $"[E] HOLD: THROW THE SWITCH TO {to}";
         }
+        // A yard whose power's down (level-design D.2): restart it at the powerhouse.
+        if (world.Run is { } powered && powered.PowerhouseInReach(p, train) && powered.CurrentSite is { } ps)
+            return ps.Restart > 0 ? $"RESTARTING THE GENERATOR {ps.Restart / powered.PowerTuning.RestartSeconds * 100:0}%. KEEP HOLDING"
+                : $"[E] HOLD: RESTART THE GENERATOR ({powered.PowerTuning.RestartSeconds:0}S, LOUD)";
         // A Holdout with someone in it (GDD App. D.7): break them out.
         if (world.Holdouts is { } ho && p.Parent == PlayerState.World)
         {

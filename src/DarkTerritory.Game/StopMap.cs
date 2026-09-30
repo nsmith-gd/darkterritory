@@ -48,6 +48,8 @@ public static class StopMap
                 BuildingKind.PrisonCar => (92, 104, 96),
                 BuildingKind.Lockup => (104, 108, 116),
                 BuildingKind.SignalBox or BuildingKind.LampRoom or BuildingKind.WaterTower => (70, 66, 72),
+                // The powerhouse: lit amber when it's live, grey when it's low, black when it's dead.
+                BuildingKind.Powerhouse => l.Power switch { PowerState.Live => (214, 170, 60), PowerState.Low => (120, 110, 90), _ => (40, 40, 40) },
                 BuildingKind.Shed => (139, 94, 58),
                 BuildingKind.Hero => (176, 120, 64),
                 BuildingKind.Outbuilding => (122, 88, 58),

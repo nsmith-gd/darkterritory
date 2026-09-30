@@ -4,7 +4,8 @@ namespace DarkTerritory.Sim.Stops;
 
 /// <summary>What a stop's layout is fitted to: its level zone, and the route's switch points (route.json junctions).</summary>
 /// <param name="Facility">The facility the stop serves, if any: its Holdout's type depends on it (GDD App. D.4).</param>
-public readonly record struct StopContext(double ZoneLength, double PointsLength, double MaxLateral = 220, FacilityKind? Facility = null);
+/// <param name="ExitGrade">The main line's grade (%, up) out of the stop, which the route lays (level-design D.2).</param>
+public readonly record struct StopContext(double ZoneLength, double PointsLength, double MaxLateral = 220, FacilityKind? Facility = null, double ExitGrade = 0);
 
 /// <summary>
 /// Generates a stop's layout (level-design Parts D and Z): rail, then roads, then districts, then buildings, then
@@ -37,6 +38,24 @@ public static partial class StopGenerator
             InBand = bestCost == 0,
             Checks = [.. best!.Checks, BandCheck(t, best!, bestCost == 0)],
         };
+    }
+
+    /// <summary>
+    /// The powerhouse (level-design P6: the throat's auxiliary buildings are "a natural home for the yard office or
+    /// power"): on the yard's side of the main line, around its first switch, clear of the track. −1 if there's no room.
+    /// </summary>
+    static int PlacePowerhouse(StopDraft g, Dice R, StopTuning t, int side)
+    {
+        var p = t.Powerhouse;
+        double toe = g.Tracks.Min(tr => tr.Toe);
+        for (int tries = 0; tries < 60; tries++)
+        {
+            var b = new StopBuilding(BuildingKind.Powerhouse, StopZone.Yard, toe + R.Range(p.Throat), side * R.Range(p.Offset), p.Size[0], p.Size[1],
+                R.Range(-0.1, 0.1)) { Variant = R.Int(0, 2) };
+            if (g.Fits(b, new Fit(Gap: 3, Rail: 4, Road: 2)))
+                return g.Add(b);
+        }
+        return -1;
     }
 
     /// <summary>The tier's band for this kind of stop: a yard's, or a village halt's (P15).</summary>
@@ -172,6 +191,16 @@ public static partial class StopGenerator
             g.AddRoad(RoadKind.Through, [new Pt(RR.Range(150, 320), -sY * edge), new Pt(RR.Range(60, 120), -sY * RR.Range(50, 90)), new Pt(-12, -sY * RR.Range(30, 60))]);
         }
 
+        // The yard's power and its powerhouse at the throat (level-design D.2), from their own seed.
+        var power = PowerState.Live;
+        int powerhouse = -1;
+        if (hasYard)
+        {
+            var RP = new Dice(StopSeed.Of(s, StopSeed.Power));
+            power = RP.Pick<PowerState>(tt.Power);
+            powerhouse = PlacePowerhouse(g, RP, t, sY);
+        }
+
         // Last, from their own seeds: the Holdouts (App. D.4) and where the outside creatures live (B.6, B.8).
         var stopPoint = StopPointOf(g, halt, zone);
         var walk = new StopWalk(g.Buildings, zone, cx.MaxLateral, t.Holdouts.WalkCell).From(stopPoint);
@@ -199,6 +228,9 @@ public static partial class StopGenerator
             Halt = halt,
             HaltLength = halt is null ? 0 : t.Village.Halt.Length,
             StopPoint = stopPoint,
+            Power = power,
+            Powerhouse = powerhouse,
+            ExitGrade = hasYard ? cx.ExitGrade : 0,
             Holdouts = holdouts,
             Lairs = lairs,
             CutFront = cutFront,
@@ -280,8 +312,15 @@ public static partial class StopGenerator
             if (l.Crossing is { } c0 && c0.S <= l.CutFront && c0.S >= l.CutFront - l.CutLength)
                 blocked = true;
         }
+        // Power (D.1): low slows the cranes, dead stops them until the switchman's walked to the powerhouse and restarted it.
+        double powerWalk = l.Power != PowerState.Live && l.Powerhouse >= 0
+            ? 2 * Pt.Distance(new Pt(l.CutFront, 0), l.Buildings[l.Powerhouse].Centre) * w.WalkFactor : 0;
+        double power = l.Power switch { PowerState.Low => w.LowPower, PowerState.Dead => w.DeadPower, _ => 0 } + powerWalk / w.MetresPerPoint;
+        // A hard pull: the loaded train dragged up a steep grade out of the yard.
+        bool hardPull = l.ExitGrade >= w.HardPullFrom;
         double yard = !l.HasYard ? 0 : throws * w.Throw + couplings * w.Coupling + reversals * w.Reversal + blind * w.BlindMove + respots * w.Respot
-            + hand * w.HandCar + carry / w.CarryMetresPerPoint + walk / w.MetresPerPoint + (blocked ? w.BlockedCrossing : 0);
+            + hand * w.HandCar + carry / w.CarryMetresPerPoint + walk / w.MetresPerPoint + (blocked ? w.BlockedCrossing : 0)
+            + power + (hardPull ? l.ExitGrade * w.HardPull : 0);
 
         double villageWalk = 0, village = 0;
         int houses = l.Buildings.Count(b => b.Kind == BuildingKind.House);
@@ -305,6 +344,8 @@ public static partial class StopGenerator
             CarryWalk = Math.Round(carry, 1),
             Unfilled = l.HasYard ? (int)Math.Ceiling(left - 1e-6) : 0,
             SwitchWalk = Math.Round(walk, 1),
+            PowerWalk = Math.Round(powerWalk, 1),
+            HardPull = l.HasYard && hardPull,
             CrossingBlocked = blocked,
             VillageWalk = Math.Round(villageWalk, 1),
             Houses = houses,

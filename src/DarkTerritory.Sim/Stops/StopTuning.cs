@@ -16,6 +16,7 @@ public sealed record StopTuning
     public required HeroTuning Hero { get; init; }
     public required YardCraneTuning Crane { get; init; }
     public required VillageTuning Village { get; init; }
+    public required PowerhouseTuning Powerhouse { get; init; }
     public required HoldoutPlacementTuning Holdouts { get; init; }
     public required LairTuning Lairs { get; init; }
     public required ScoreTuning Score { get; init; }
@@ -34,6 +35,9 @@ public sealed record TrackLayoutTuning
     public required double[] FanAngle { get; init; }
     public required double[] SplitToe { get; init; }
 }
+
+/// <summary>A yard's powerhouse at its throat (level-design P6, D.2). Field docs in stops.json.</summary>
+public sealed record PowerhouseTuning(double[] Size, double[] Throat, double[] Offset);
 
 /// <summary>Where Holdouts go (GDD App. D.4, D.13). Field docs in stops.json.</summary>
 public sealed record HoldoutPlacementTuning
@@ -184,6 +188,10 @@ public sealed record ScoreTuning
     public required double StrongroomLoad { get; init; }
     public required double CarryMetresPerPoint { get; init; }
     public required double HeavyCarry { get; init; }
+    public required double LowPower { get; init; }
+    public required double DeadPower { get; init; }
+    public required double HardPull { get; init; }
+    public required double HardPullFrom { get; init; }
 }
 
 public sealed record StopTierTable(StopTier Local, StopTier Frontier, StopTier DeadLines, StopTier DeepTerritory)
@@ -202,6 +210,9 @@ public sealed record StopTier
 {
     /// <summary>Ribbit warrens per yard or village (GDD B.6).</summary>
     public required int[] Warrens { get; init; }
+    /// <summary>The yard's power, weighted (level-design D.2), and the grade out of it (%), up.</summary>
+    public required IReadOnlyList<Choice> Power { get; init; }
+    public required double[] ExitGrade { get; init; }
     public required int Empties { get; init; }
     public required double VillageChance { get; init; }
     public required int[] Halts { get; init; }

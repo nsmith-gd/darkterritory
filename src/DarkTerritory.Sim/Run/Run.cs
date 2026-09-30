@@ -2,6 +2,7 @@ using Ballast;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
+using DarkTerritory.Sim.Stops;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Run;
@@ -129,6 +130,14 @@ public sealed partial class Run
             double centre = (f.Start + f.End) / 2;
             return new Site(i, f, modules, t, line, centre, side, centre, crates, heavy: heavy);
         })];
+        // A generated yard's power and its powerhouse (level-design D.2), the door on the face towards the main line.
+        foreach (var site in _sites)
+            if (site?.Feature.Stop is { HasYard: true } stop)
+            {
+                site.Power = stop.Power;
+                if (stop.Powerhouse >= 0 && stop.Buildings[stop.Powerhouse] is var ph)
+                    site.Powerhouse = StopWorld(line, site.Feature, StopGenerator.DoorOf(ph, new Pt(ph.S, 0)));
+            }
     }
 
     public Site? CurrentSite => Facility >= 0 && Facility < _sites.Length ? _sites[Facility] : null;
@@ -231,9 +240,13 @@ public sealed partial class Run
                     world.Bodies.SpawnCargo(at, site.CrateLineHint, t.Crates.Heavy.Radius);
             }
             Crank(site, t.Winch, dt);
+            Restart(world, site, t.Power, dt);
             _drop = null;
             foreach (var crane in site.Cranes)
+            {
+                crane.SpeedScale = site.Power switch { PowerState.Live => 1, PowerState.Low => t.Power.LowSpeed, _ => 0 };
                 Operate(world, crane, dt);
+            }
             if (site.Progress >= 1 && site.SledsLeft > 0 && CargoCarNear(train, site.SledTo, t.Winch.CarReach) is { } car)
             {
                 car.Load = Math.Min(1, car.Load + t.Winch.LoadPerSled);
@@ -272,6 +285,36 @@ public sealed partial class Run
     /// The crane this tick (T48): whoever's at the controls drives it, and Fire lets the hook go. A casting let go of high
     /// falls, and it kills whoever's under where it lands: spec D.2 "dropped loads kill".
     /// </summary>
+    /// <summary>
+    /// Spec D.1's restart excursion (level-design D.2): someone holding Use at the powerhouse door, for as long as it
+    /// takes, loudly, and the yard's power is live. Letting go starts it over.
+    /// </summary>
+    void Restart(World world, Site site, PowerTuning t, double dt)
+    {
+        if (site.Power == PowerState.Live || site.Restarter < 0)
+        {
+            site.Restart = 0;
+            site.Restarter = -1;
+            return;
+        }
+        site.Restart += dt;
+        if (world.Combat is { } c)
+            world.Choir.Loud(c.Choir, t.RestartRounds, dt);
+        if (site.Restart >= t.RestartSeconds)
+        {
+            site.Power = PowerState.Live;
+            site.Restart = 0;
+        }
+        site.Restarter = -1;
+    }
+
+    public PowerTuning PowerTuning => _facilityTuning?.Power ?? new();
+
+    /// <summary>At a yard whose power's down, within reach of its powerhouse door (on foot).</summary>
+    public bool PowerhouseInReach(in PlayerState s, TrainOnLine train) =>
+        CurrentSite is { Power: not PowerState.Live, Powerhouse: { } door } && s.Alive && s.Parent == PlayerState.World
+        && ((PlayerMotor.WorldPosition(s, train) - door) with { Y = 0 }).Length <= (_facilityTuning?.Power.Reach ?? 2);
+
     void Operate(World world, Crane crane, double dt)
     {
         if (crane.Operator >= 0)
@@ -370,6 +413,9 @@ public sealed partial class Run
     /// <param name="hand">When hands are reported (T29), a reaching hand has to be on the handle or the lever.</param>
     public void CrewAct(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null)
     {
+        if (intent.Has(PlayerButtons.Use) && PowerhouseInReach(s, train) && CurrentSite is { } powered
+            && (powered.Restarter < 0 || playerId < powered.Restarter))
+            powered.Restarter = playerId;
         if (CurrentSite is { } site && CrankInReach(s, train, hand) is { } crank && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5)
         {
             site.Cranking[crank.Handle] = playerId;

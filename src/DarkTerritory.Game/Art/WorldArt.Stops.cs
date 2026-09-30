@@ -198,6 +198,17 @@ public sealed partial class WorldArt
             case BuildingKind.Well:
                 k.With(frame, () => Well(k));
                 break;
+            case BuildingKind.Powerhouse:
+                // The yard's powerhouse (level-design D.2): a brick engine house, its door to the main line, a tall
+                // stack at the back. Whether it's running, the scene says (its lamp).
+                k.With(frame, () =>
+                {
+                    int door = b.D > 0 ? -1 : 1;
+                    StructureKit.Shed(k, width, length, 5.5f, "brick_soot", door);
+                    k.Use("brick_soot", Palette.RustRed, 0.9f, 0.1f, tile: 1.2f);
+                    k.Cylinder(new Vector3(-door * (width / 2 - 1.2f), 4, length / 4), new Vector3(-door * (width / 2 - 1.2f), 14, length / 4), 0.7f, 8, radiusB: 0.5f);
+                });
+                break;
             case BuildingKind.PrisonCar or BuildingKind.SignalBox or BuildingKind.LampRoom or BuildingKind.WaterTower or BuildingKind.Lockup:
                 if (stop.Holdouts.FirstOrDefault(h => h.Building == index) is { } holdout)
                 {

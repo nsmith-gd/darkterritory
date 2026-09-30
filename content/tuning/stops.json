@@ -59,6 +59,11 @@
     "halt": { "length": 34, "offset": 4.6 }
   },
 
+  // The yard's powerhouse (level-design P6, D.2 "power"): at the throat, where the switchman walks to restart it when
+  // the power's low or dead. Its footprint [length, width], how far back from (−) and past (+) the first switch it
+  // stands, and how far out from the main line.
+  "powerhouse": { "size": [9, 7], "throat": [-70, 10], "offset": [8, 40] },
+
   // Holdouts (GDD App. D.4, D.13; level-design H.1): a sealed place where a dead player waits to be freed, the only way
   // back into a run. Placement only; what happens there is holdouts.json.
   "holdouts": {
@@ -123,7 +128,10 @@
     // stack on average, the heavy crate's loadPerCrate; StopGeneratorTests checks), and carrying: metres of crate
     // carrying per point, a heavy crate counting this many times over (it needs two).
     "craneBayLoad": 0.5, "crateStackLoad": 0.375, "strongroomLoad": 0.5,
-    "carryMetresPerPoint": 60, "heavyCarry": 2
+    "carryMetresPerPoint": 60, "heavyCarry": 2,
+    // Level-design D.1: low power costs this, dead power this (the cranes wait on a walk to the powerhouse and a
+    // restart, counted in metres too); a hard pull out of the yard costs `hardPull` a % of grade, from `hardPullFrom` %.
+    "lowPower": 2, "deadPower": 5, "hardPull": 0.9, "hardPullFrom": 2
   },
   // Generate, measure, keep or reroll (P15): a stop that's outside its band or fails an invariant is rebuilt from the
   // next attempt seed, up to this many, keeping the closest.
@@ -135,6 +143,7 @@
   // shed: thinly beside each track in a big yard, which means more trips and more carrying). Weighted choices are [name, weight] pairs.
   "tiers": {
     "local": {
+      "power": [["live", 1.0]], "exitGrade": [0, 0.5],
       "warrens": [1, 1], "empties": 2, "villageChance": 0.6, "halts": [2, 3],
       "forms": [["spur", 0.55], ["ladder", 0.30], ["fan", 0.15]],
       "sidings": [1, 2], "faceCars": [5, 7], "crane": 1.0, "runway": [45, 60], "stock": [1.3, 1.6],
@@ -144,6 +153,7 @@
       "band": { "yard": [4, 20], "village": [10, 18] }
     },
     "frontier": {
+      "power": [["live", 0.6], ["low", 0.4]], "exitGrade": [0, 1.5],
       "warrens": [1, 2], "empties": 4, "villageChance": 0.5, "halts": [1, 3],
       "forms": [["spur", 0.15], ["ladder", 0.45], ["fan", 0.40]],
       "sidings": [2, 3], "faceCars": [3, 5], "crane": 0.75, "runway": [35, 50], "stock": [1.2, 1.5],
@@ -153,6 +163,7 @@
       "band": { "yard": [14, 36], "village": [14, 22] }
     },
     "deadLines": {
+      "power": [["low", 0.5], ["dead", 0.5]], "exitGrade": [0.5, 2.5],
       "warrens": [2, 3], "empties": 8, "villageChance": 0.45, "halts": [1, 2],
       "forms": [["ladder", 0.40], ["fan", 0.40], ["split", 0.20]],
       "sidings": [2, 4], "faceCars": [3, 5], "crane": 0.55, "runway": [28, 42], "stock": [1.1, 1.4],
@@ -162,6 +173,7 @@
       "band": { "yard": [28, 56], "village": [18, 28] }
     },
     "deepTerritory": {
+      "power": [["low", 0.2], ["dead", 0.8]], "exitGrade": [1, 4],
       "warrens": [2, 4], "empties": 10, "villageChance": 0.4, "halts": [1, 2],
       "forms": [["ladder", 0.30], ["fan", 0.35], ["split", 0.35]],
       "sidings": [3, 5], "faceCars": [2, 4], "crane": 0.3, "runway": [18, 28], "stock": [1.0, 1.3],

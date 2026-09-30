@@ -1,5 +1,6 @@
 // Loading modules (systems spec D). First pass: two of the D.2 roster, manual crates and the capstan winch.
-// Every facility but the coaling tower is on a spur (GDD §17, route.json "junctions"); power state comes later.
+// Every facility but the coaling tower is on a spur (GDD §17, route.json "junctions"). A yard's power is its stop's
+// (stops.json tiers "power").
 {
   // On a spur the modules are laid out from this far back from the buffer stop: beside the first cars behind the
   // engine when it's run up to the end. "along" below is from here.
@@ -59,6 +60,10 @@
   // the trolley across, Space and B the hook up and down, left mouse to let go. Someone on the ground holds E at the hook
   // beside a casting to rig it. Set down on a cargo car's roof it's lashed there, and loaded. Let go of it high, and it
   // falls: anyone under it is crushed.
+  // A yard's power (level-design D.2; spec D.1 "the dead-facility restart excursion"): at low power its cranes run at
+  // this fraction of their speed, dead they don't run at all. Hold Use at the powerhouse door this long to restart it
+  // (as loud as `restartRounds` cannon rounds a second, like any machinery), from within `reach`.
+  "power": { "lowSpeed": 0.5, "restartSeconds": 8, "restartRounds": 0.25, "reach": 2.0 },
   "crane": {
     // The gantry: centred this far along from the layout point, running this long, spanning from this far out on the
     // near side of the track to the far side, its hook's highest point.
