@@ -668,8 +668,10 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
                 _aloneHand ??= new StopHand(StopJob.None, calls, member);
                 if (_aloneHand.Club(self, world, derailer) is { } clubbing)
                 {
+                    // Out of the cab with the brake held, so the train's left standing on it (on a grade it would roll on
+                    // into the points).
                     _clubbed = true;
-                    return clubbing with { Lamp = lamp };
+                    return clubbing with { Lamp = lamp, Buttons = clubbing.Buttons | PlayerButtons.Brake };
                 }
             }
         }
@@ -677,7 +679,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         {
             // Back up into the cab after.
             if (_aloneHand.SetBackAlone(self, world, null) is { } back)
-                return back with { Lamp = lamp };
+                return back with { Lamp = lamp, Buttons = back.Buttons | PlayerButtons.Brake };
             _clubbed = false;
         }
         if (world.TrackPlan is { } plan)
@@ -695,7 +697,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
                 if (_aloneHand.SetBackAlone(self, world, _alone) is { } getting)
                 {
                     stops.Decide(self, world); // its clock runs on while it's out of the cab
-                    return getting with { Lamp = lamp };
+                    return getting with { Lamp = lamp, Buttons = getting.Buttons | PlayerButtons.Brake };
                 }
                 _alone = null;
             }
