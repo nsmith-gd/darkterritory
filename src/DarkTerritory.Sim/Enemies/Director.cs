@@ -76,6 +76,7 @@ public sealed class Director
         EnemyKind.Weight => "weight",
         EnemyKind.Gaunt => "gaunt",
         EnemyKind.Passenger => "passenger",
+        EnemyKind.Follower => "followers",
         _ => "sleepers",
     };
 
@@ -242,6 +243,14 @@ public sealed class Director
             && Zone(PressureZone.Flank) < _t.MaxConcurrentZone && !Log.Any(l => l.Kind == EnemyKind.Gaunt) && train.Dynamics.Consist.CarCount >= 1
             && (train.Dynamics.Speed < at.Gaunt.StoppedBelow || gr.Of(FeatureKind.Tunnel).Any(f => s >= f.End && s <= f.End + at.Gaunt.TunnelExitWithin)))
             options.Add((EnemyKind.Gaunt, _allInside >= at.Gaunt.InteriorSeconds ? at.Gaunt.InteriorWeight : 1));
+        // App. B.3: Followers on facility grounds only, onto someone who's got down off the train ("requires an excursion"),
+        // any tier. Weight up per additional player on the ground at once.
+        if (world.Enemies is { } ft2 && world.Run is { Phase: Run.RunPhase.AtFacility } && Zone(PressureZone.Rear) < _t.MaxConcurrentZone
+            && active.Count(e => !e.Gone && e.Kind == EnemyKind.Follower) < ft2.Followers.MaxActive && Follower.Excursions(world) is { Count: > 0 })
+        {
+            int ground = world.CrewThisTick.Count(c => c.State is { Alive: true, Parent: PlayerState.World });
+            options.Add((EnemyKind.Follower, 1 + ft2.Followers.PerGroundWeight * (ground - 1)));
+        }
         // App. B.7: the Passenger boards during a facility stop, Dead lines and beyond, crew of three or more ("needs a crowd
         // to hide in"), once a run, into a car with a room; never with another corrupted human about. Weight up when the
         // crew's split up over the stop's work.
@@ -382,7 +391,7 @@ public sealed class Director
             Pairs.Add(pair);
         var zone = kind switch
         {
-            EnemyKind.CinderHound or EnemyKind.Weight => PressureZone.Rear,
+            EnemyKind.CinderHound or EnemyKind.Weight or EnemyKind.Follower => PressureZone.Rear,
             EnemyKind.Clinger or EnemyKind.Dragger or EnemyKind.Climber or EnemyKind.Gaunt => PressureZone.Flank,
             EnemyKind.Switchman or EnemyKind.Ferryman or EnemyKind.LongWhistle => PressureZone.Forward,
             EnemyKind.SootChildren or EnemyKind.Lamplighter => PressureZone.Structural,

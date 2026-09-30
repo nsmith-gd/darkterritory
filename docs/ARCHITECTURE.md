@@ -1524,3 +1524,28 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - it has no voice;
       - the director puts it aboard at a stop on the Dead lines to a crew of three, and not on the Frontier, to two, or between stops;
       - a client sees whose face it wears and where it is.
+76. **Followers (T62, App. A.3 and B.3; GDD: "the asymmetry is the entire mechanic. The person in danger cannot see the danger").** `EnemyKind.Follower`, cost 3 (tier 3), tuned in `enemies.json` `followers`.
+    - **Visible only to the others:** `HostSession.Interest` never sends a Follower's record to the player it's on, whatever the interest radius. So their machine has nothing to draw, play or put on the HUD, and a modified client couldn't show it either. Once it's nested in a car it's off their back, and it goes to everyone.
+    - **Where it stands: `Enemy.Loose`.** On the ground a Follower is neither on a car nor at a distance along the line. `Attached = Loose` (−2) means `Local` is its world position. `Enemy.WorldPosition` and `GreyboxScene` read it as such; the record carries it as any other, and `Extra2` is its yaw.
+    - **STALK:** put down 14 m behind someone on the ground (`PlayerState.World`) at a facility stop, closing at 1.5 m/s to 1.3 m at their back.
+    - **ATTACH (the telegraph):** at their back, facing the way they face, every tick; it's placed from where they were as the tick began.
+    - **BOARD:** once they're back on the train, if it's past App. A.1's window, it's in with them (Commit). Still coming up when they get aboard, it's lost them.
+    - **NEST:** 4 s later, it's in the rearmost cargo car of their rake with a room and no lamp in it (Punish). With no dark car, it goes.
+      - Nested, anyone in its room takes 20 every 3 s they stay (`DeathCause.Nested`).
+      - A lamp body in the room, or held within 4 m of it, drives it out: "flees light".
+    - **Ambiguity: "an observer calls it out → carrier halts → it detaches".** The call is voice and is the crew's. In the sim, the carrier standing still (below 0.3 m/s) for 2 s while someone else has it in view (35°, 30 m, not shut in) makes it let go and run. "Refuse boarding until the carrier is visually checked" is the same thing at the train's side. Speed is measured from how far they moved since the last tick, because the motor zeroes a grounded player's velocity.
+    - **Director gates** (B.3):
+      - at a facility stop, onto someone on the ground with nothing on them yet ("requires an excursion"), any tier, two at most;
+      - weight 1 plus 1 for each more of the crew on the ground at once.
+      - The Food cargo ×1.5 waits for cargo types in the director, as the comet cargo does. The conflict table's `sootChildren+followers` pair now has both sides.
+    - **Bots:** `Heed.Followers`. A bot that sees one on someone else stops, keeps its eyes on it, and calls who it's on through `CrewCalls.Followed` (the radio's stand-in). The one it's on, called, stands still. The carrier's own bot never sees it; its world has no record of it.
+    - **Art:** the husk (the Climbers' figure) at 0.9 × 0.8, dark, walking in their step; nested, crouched in the corner. For the `--threats --crew` roof shot it's staged at crewmate 1's back.
+    - **Verified:** `FollowerTests` (11) and `NetcodeTests.AFollowerIsNeverSentToTheOneItsFollowing`:
+      - it comes up behind and keeps to the blind spot at their pace;
+      - stood still where someone can see it, it lets go (and not while they walk on, or with nobody looking);
+      - aboard, it goes with them and nests in a dark cargo car (after the window), and it's lost them if they board before it's up;
+      - nested, it bites whoever stays in its car, to death;
+      - a lamp drives it out, and it won't nest where there's one;
+      - bots call it and the carrier stands still;
+      - the director sends one onto someone on the ground at a stop, and none with everyone aboard;
+      - a client sees it where it stands.

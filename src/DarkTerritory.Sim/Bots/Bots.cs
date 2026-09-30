@@ -955,6 +955,32 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
 public static class Heed
 {
     /// <summary>
+    /// Followers (App. A.3), both halves of the counter. Seeing one on someone else, a bot stops, keeps its eyes on it and
+    /// calls who it's on (<see cref="CrewCalls.Followed"/>, the radio's stand-in); the one it's on, called, stands still. The
+    /// carrier never knows but by the call: their world has no record of it.
+    /// </summary>
+    public static PlayerIntent Followers(PlayerIntent intent, in PlayerState self, World world, int selfId, CrewCalls? calls, uint tick)
+    {
+        if (!self.Alive || calls is null || world.Enemies is not { } et)
+            return intent;
+        if (self.Parent == PlayerState.World && calls.IsFollowed(selfId, tick))
+            return intent with { MoveX = 0, MoveZ = 0, Buttons = intent.Buttons & ~(PlayerButtons.Run | PlayerButtons.Jump) };
+        var train = world.Train;
+        if (PlayerMotor.Space(self, train) > 0)
+            return intent;
+        var eye = PlayerMotor.WorldPosition(self, train) + Double3.Up * et.Gaunt.EyeHeight;
+        var seen = world.ActiveEnemies.OfType<Follower>().Where(f => f.Phase == SpinePhase.Telegraph && f.Carrier != selfId)
+            .Select(f => (f, To: f.WorldPosition(train) + Double3.Up * 1.0 - eye)).Where(x => x.To.Length <= et.Followers.ViewRange * 0.9)
+            .OrderBy(x => x.To.Length).FirstOrDefault();
+        if (seen.f is null)
+            return intent;
+        calls.Followed(seen.f.Carrier, tick);
+        var d = self.Parent >= 0 && self.Parent < train.Frames.Count ? train.Frames[self.Parent].DirToLocal(seen.To).Normalized : seen.To.Normalized;
+        double yaw = Math.Atan2(-d.X, -d.Z), pitch = Math.Asin(Math.Clamp(d.Y, -1, 1));
+        return new PlayerIntent { LookYaw = (float)Math.IEEERemainder(yaw - self.Yaw, 2 * Math.PI), LookPitch = (float)(pitch - self.Pitch) };
+    }
+
+    /// <summary>
     /// The Passenger (App. A.7): in a car's room with it, turn to face it and call it out. A human crew gets there by a head
     /// count and making everyone speak; a bot's stand-in for that is knowing (its world says what it is), so what's exercised
     /// is the counter's last step and the host's check of it, through intent like anything else.

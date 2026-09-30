@@ -200,6 +200,7 @@ public static class Harness
                     intent = bot is IWorldBot wb ? wb.Decide(session.Predicted, session.World, t, out _) : bot.Decide(session.Predicted, session.Train, t);
                     intent = Heed.Rattles(intent, session.Predicted, session.World, playerTuning);
                     intent = Heed.Passengers(intent, session.Predicted, session.World);
+                    intent = Heed.Followers(intent, session.Predicted, session.World, session.PlayerId ?? 0, calls, (uint)t);
                 }
                 session.Step(intent);
             }

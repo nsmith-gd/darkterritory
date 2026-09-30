@@ -321,6 +321,24 @@ public class SessionRulesTests
     }
 
     [Fact]
+    public void AFollowerIsNeverSentToTheOneItsFollowing()
+    {
+        // App. A.3: "visible ONLY to other players, never to the carrier".
+        var (net, host, clients, _) = Session(2);
+        host.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } }, null, 1, 2);
+        Run(net, host, clients, 10);
+        byte carrier = clients[1].PlayerId!.Value;
+        var near = host.Train.Line.Sample(host.Train.Dynamics.Distance - 30);
+        var ground = PlayerMotor.SpawnOnGround(near.Position + Ballast.Double3.Cross(near.Tangent, Ballast.Double3.Up).Normalized * 3.5, host.Train.Line,
+            host.Train.Dynamics.Distance - 30, P);
+        host.SetPlayerState(carrier, ground);
+        host.World.AddEnemy(id => DarkTerritory.Sim.Enemies.Follower.Behind(id, host.Train, ground, carrier, Tuning.Enemies.Followers));
+        Run(net, host, clients, 20);
+        Assert.Single(clients[0].World.ActiveEnemies, e => e is DarkTerritory.Sim.Enemies.Follower);
+        Assert.DoesNotContain(clients[1].World.ActiveEnemies, e => e is DarkTerritory.Sim.Enemies.Follower);
+    }
+
+    [Fact]
     public void SomeoneWhoDropsOutLeavesTheirBodyBehind()
     {
         // Spec E: "Character remains as an inert body until recovered or the run ends."
