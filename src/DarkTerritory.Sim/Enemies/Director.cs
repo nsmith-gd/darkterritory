@@ -187,6 +187,15 @@ public sealed class Director
     bool NearFacility(double distance, double margin) =>
         _route is not null && _route.Of(FeatureKind.Facility).Any(f => distance >= f.Start - margin && distance <= f.End + margin);
 
+    /// <summary>Why the last decision sent nothing (for the harness's pacing report); null after one that sent something.</summary>
+    public string? HeldBecause { get; private set; }
+
+    EnemyKind? Held(string why)
+    {
+        HeldBecause = why;
+        return null;
+    }
+
     /// <summary>Called once a second by the world. Returns what to spawn, if anything.</summary>
     public EnemyKind? Decide(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
     {
@@ -197,12 +206,12 @@ public sealed class Director
         // cooldown and the budget's curve notwithstanding. The caps and each kind's gates still hold.
         bool due = world.QuietSeconds >= _t.PaceSeconds;
         if (elapsed < _t.GraceSeconds || _cooldown > 0 && !due)
-            return null;
+            return Held(elapsed < _t.GraceSeconds ? "grace" : "cooldown");
         if (_route is not null && s > _route.Length - noSpawnFinal)
-            return null;
+            return Held("final stretch");
         int total = active.Count(Engaged);
         if (total >= MaxConcurrent)
-            return null;
+            return Held("at the cap");
         double available = Allowance(s) - _spent;
 
         var options = new List<(EnemyKind Kind, double Weight)>();
@@ -351,15 +360,21 @@ public sealed class Director
         if (_route?.Plan?.Director is { } context)
         {
             var tags = context.TagsAt(s).ToList();
-            if (tags.Any(context.SpawnBans.Contains) || context.PressureAt(s) >= context.PressureCeiling)
-                return null;
+            // The line's grace stretch is sized for the GDD's 90 s grace at speed (plan §4); a crew that takes its time over
+            // the yard and the first two kilometres would sit through minutes of nothing. It gives way to the director's own
+            // grace (T74, ARCHITECTURE §8 note 85): the stretch keeps its easy geometry and no Sleepers or Grease on it.
+            bool graceOver = _t.LineGraceSeconds >= 0 && world.Run is { } graceRun && graceRun.Seconds >= _t.LineGraceSeconds;
+            if (tags.FirstOrDefault(t => context.SpawnBans.Contains(t) && !(t == "grace" && graceOver)) is { } ban)
+                return Held($"banned ({ban})");
+            if (context.PressureAt(s) >= context.PressureCeiling)
+                return Held("terrain at its ceiling");
             for (int i = 0; i < options.Count; i++)
                 foreach (var tag in tags)
                     if (context.Affinity.GetValueOrDefault(tag)?.GetValueOrDefault(Name(options[i].Kind)) is { } w)
                         options[i] = (options[i].Kind, options[i].Weight * w);
         }
         if (options.Count == 0)
-            return null;
+            return Held("nothing fits");
         // App. B.1 contradiction seeding: "the director draws pairs from a conflict table rather than spawning
         // independently". Whatever would make a pair with what's about now is weighted up, and more so past halfway on a
         // run that hasn't had its pairs yet.
@@ -386,6 +401,7 @@ public sealed class Director
             }
             pick -= o.Weight;
         }
+        HeldBecause = null;
         Charge(world, kind, active, paced: due && _cooldown > 0);
         _cooldown = _rng.Range(_t.CooldownSeconds[0], _t.CooldownSeconds[1]) / Math.Max(1e-6, RateMultiplier);
         return kind;

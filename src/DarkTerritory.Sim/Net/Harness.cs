@@ -73,6 +73,8 @@ public sealed record PacingReport(int Beats, double BeatsPerMinute, double Longe
 {
     /// <summary>When the longest quiet stretch ended (seconds into the night), and what the run was doing (for finding it).</summary>
     public string? LongestQuietEnded { get; init; }
+    /// <summary>Every stretch quiet over 30 s: how long, when it ended and where, by what, and why the director had sent nothing.</summary>
+    public IReadOnlyList<string> LongQuiets { get; init; } = [];
 }
 
 /// <summary>What the director and the enemies did (GDD §34 / App. B.9 audit).</summary>
@@ -153,6 +155,8 @@ public static class Harness
         int beats = 0, outTicks = 0, quietTicks = 0;
         double lastQuiet = 0;
         string? longestEnded = null;
+        var longQuiets = new List<string>();
+        string? heldAt20 = null;
         for (uint t = 0; t < ticks; t++)
         {
             if (host.World.Run is { Over: true })
@@ -173,6 +177,8 @@ public static class Harness
             {
                 if (lastQuiet > quiet.DefaultIfEmpty(0).Max())
                     longestEnded = $"{t * SimConstants.TickSeconds:0}s at {host.Train.Dynamics.Distance:0} m, {host.World.Run?.Phase}, by {string.Join(",", host.World.Beats)}";
+                if (lastQuiet > 30)
+                    longQuiets.Add($"{lastQuiet:0.0}s to {t * SimConstants.TickSeconds:0}s at {host.Train.Dynamics.Distance:0} m, {host.World.Run?.Phase}, by {string.Join(",", host.World.Beats)}; director: {heldAt20 ?? "sent something"}");
                 quiet.Add(lastQuiet);
             }
             if (host.World.Run is not { Phase: Sim.Run.RunPhase.Yard or Sim.Run.RunPhase.Arrived or Sim.Run.RunPhase.Failed })
@@ -181,6 +187,9 @@ public static class Harness
                 if (q > 0)
                     quietTicks++;
             }
+            // What the director was holding back for, once it's been quiet long enough that it should have sent something.
+            if (q >= 20 && lastQuiet < 20)
+                heldAt20 = host.World.Director?.HeldBecause;
             lastQuiet = q;
             choirPeak = Math.Max(choirPeak, host.World.Choir.Aggro);
             // Once everyone's in, the gunner goes to the guard gun (a host-side respawn at their post).
@@ -244,7 +253,7 @@ public static class Harness
         }
         string link = o.Network is { } n ? n.Name : o.Udp ? "udp localhost" : $"{o.Link.LatencySeconds * 1000:0}ms ±{o.Link.JitterSeconds * 1000:0} loss {o.Link.LossRate:P0}";
         var pacing = Pace(quiet, lastQuiet, beats, outTicks, quietTicks, beatKinds);
-        pacing = pacing with { LongestQuietEnded = lastQuiet > 0 && lastQuiet >= quiet.DefaultIfEmpty(0).Max() ? $"{seconds:0}s, the night's end" : longestEnded };
+        pacing = pacing with { LongestQuietEnded = lastQuiet > 0 && lastQuiet >= quiet.DefaultIfEmpty(0).Max() ? $"{seconds:0}s, the night's end" : longestEnded, LongQuiets = longQuiets };
         return new HarnessReport(ticks, seconds, link,
             Math.Round(host.Train.Dynamics.Distance, 1), Math.Round(host.Train.Dynamics.Speed, 2),
             Math.Round(host.Train.Boiler.Pressure, 1), Math.Round(host.Train.Boiler.Tender), host.LastSnapshotBytes,
