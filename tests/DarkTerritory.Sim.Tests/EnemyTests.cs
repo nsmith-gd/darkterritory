@@ -286,7 +286,7 @@ public class EnemyTests
         var n = new Night(6, speed: 10);
         n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
         n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 3, 0, P);
-        n.World.Choir.Deafening(Tuning.Combat.Choir);
+        n.World.Choir.Loud(Tuning.Combat.Choir, 1e6, 1); // straight to the swarm
         n.Run(10.1);
         Assert.Equal(P.Health, n.Crew[1].Health);
         Assert.Equal(P.Health - 5 * E.ChoirSwarm.ExposedDamage, n.Crew[2].Health);
@@ -300,7 +300,7 @@ public class EnemyTests
         n.Crew[1] = inside;
         n.Crew[2] = inside with { Parent = 4 };
         n.Train.Vehicles[4].ToggleDoor(0);
-        n.World.Choir.Deafening(Tuning.Combat.Choir);
+        n.World.Choir.Loud(Tuning.Combat.Choir, 1e6, 1); // straight to the swarm
         n.Run(10.1);
         Assert.Equal(P.Health, n.Crew[1].Health);
         Assert.True(n.Crew[2].Health < P.Health);

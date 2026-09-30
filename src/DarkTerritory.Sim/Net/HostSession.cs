@@ -95,8 +95,8 @@ public sealed class HostSession
         crew.State = state;
     }
 
-    /// <summary>Every Vigil begun, broken or completed this session, oldest first.</summary>
-    public List<Run.VigilEvent> VigilEvents { get; } = new();
+    /// <summary>Every Holdout assigned, freed, released or called out from this session, oldest first (GDD App. D).</summary>
+    public List<Run.HoldoutEvent> HoldoutEvents { get; } = new();
 
     public void Step()
     {
@@ -120,9 +120,7 @@ public sealed class HostSession
         foreach (var c in _crew)
             PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
         World.StepBodies([.. _crew.Select(c => ((int)c.Id, c.State))]);
-        if (World.StepVigil(id => _crew.FirstOrDefault(c => c.Id == id)?.State, (id, s) => _crew.First(c => c.Id == id).State = s,
-            _crew.Select(c => (int)c.Id), PlayerTuning) is { } vigil)
-            VigilEvents.Add(vigil);
+        HoldoutEvents.AddRange(World.StepHoldouts([.. _crew.Select(c => ((int)c.Id, c.State))], (id, st) => _crew.First(c => c.Id == id).State = st));
         if (World.Run is not null)
             World.StepRun([.. _crew.Select(c => c.State)]);
         Mimic();
@@ -177,8 +175,8 @@ public sealed class HostSession
                     // Spec E: "Character remains as an inert body until recovered or the run ends."
                     foreach (var gone in _crew.Where(c => c.Peer == e.Peer).ToList())
                     {
-                        if (gone.State.Alive && !World.Bodies.HasRagdoll(gone.Id))
-                            World.Bodies.SpawnRagdoll(Train, gone.Id, gone.State);
+                        if (gone.State.Alive)
+                            World.Bodies.DropOut(Train, gone.Id, gone.State);
                         _crew.Remove(gone);
                     }
                     _waiting.RemoveAll(w => w.Peer == e.Peer);
@@ -206,7 +204,8 @@ public sealed class HostSession
         byte id = _nextId++;
         Messages.WriteWelcome(_writer, id, Tick, SessionInfo);
         _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
-        if (CanBoard is { } can && !can())
+        // GDD App. D.3: with Holdouts, a mid-run joiner goes straight into the respawn queue; otherwise they wait for a stop.
+        if (!Lobbying && CanBoard is { } can && !can())
         {
             _waiting.Add((id, peer));
             Messages.WriteWait(_writer, WaitReason);
@@ -223,8 +222,14 @@ public sealed class HostSession
         int car = 1 + (_crew.Count - 1) % Math.Max(1, Train.Frames.Count - 1);
         c.State = BoardAt is { } at && _crew.Count > 0 ? at(_crew.Count)
             : _crew.Count == 0 ? PlayerMotor.SpawnInCab(Train, PlayerTuning) : PlayerMotor.SpawnOnRoof(Train, car, 0, PlayerTuning);
+        // Past the gate, nobody spawns aboard (D.1): they watch, waiting in the queue, until a Holdout frees them.
+        if (Lobbying && _crew.Count > 0)
+            c.State = c.State with { Health = 0, Death = DeathCause.Waiting };
         _crew.Add(c);
     }
+
+    /// <summary>The run's under way with Holdouts: someone joining now joins the respawn queue (GDD App. D.3).</summary>
+    bool Lobbying => World.Holdouts is not null && World.Run is { Phase: not Run.RunPhase.Yard };
 
     /// <summary>Boards anyone waiting, once the train is somewhere they can board it.</summary>
     void BoardWaiting()

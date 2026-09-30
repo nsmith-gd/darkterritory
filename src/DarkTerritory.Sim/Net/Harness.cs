@@ -30,8 +30,8 @@ public sealed record HarnessOptions
     /// with the gunner lending a hand), the bots stop at the winch facilities and load (T32).
     /// </summary>
     public Run.FacilityTuning? Facilities { get; init; }
-    /// <summary>With it, the crew can revive the dead (spec C.2); bots don't hold Vigils yet.</summary>
-    public Run.VigilTuning? Vigil { get; init; }
+    /// <summary>With it (and a run), the dead come back through the route's Holdouts (GDD App. D); bots don't breach them yet.</summary>
+    public Run.HoldoutTuning? Holdouts { get; init; }
     /// <summary>Another network to run over (the CLI's fake Steam lobby), in place of the loopback or UDP.</summary>
     public IHarnessNetwork? Network { get; init; }
     /// <summary>
@@ -85,8 +85,8 @@ public static class Harness
         host.World.Stock();
         if (o.Run is { } rt && o.Route is { } route)
             host.World.EnableRun(rt, route, o.YardLength, authority: true, o.Facilities);
-        if (o.Vigil is { } vt)
-            host.World.EnableVigil(vt);
+        if (o.Holdouts is { } ht && o.Run is not null && o.Route is { } hroute)
+            host.World.EnableHoldouts(ht, hroute);
 
         // On a night with facilities, the crew call to each other at the stops, and each has a part: the walkers first (a
         // shunter, the winch pair, then crates), and the gunner only if it takes them to make up the winch pair.
@@ -109,11 +109,11 @@ public static class Harness
                 : i == 1 && o.Combat is { } c ? new GunnerBot(c.Guns, c.Choir, o.Seed * 1000 + i, playerTuning.Cold, Hand(i))
                 : new RoofWalkerBot(o.Seed * 1000 + i, playerTuning.Cold, Hand(i));
             var session = new ClientSession(transport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
-            if (o.Vigil is { } v)
-                session.World.EnableVigil(v);
             // Clients see the night as players do: the phase, and each site's winch (mirrored from the host).
             if (o.Run is { } crt && o.Route is { } croute)
                 session.World.EnableRun(crt, croute, o.YardLength, authority: false, o.Facilities);
+            if (o.Holdouts is { } h && o.Run is not null && o.Route is { } hr)
+                session.World.EnableHoldouts(h, hr);
             clients.Add((session, bot, transport));
         }
 

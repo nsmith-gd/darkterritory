@@ -14,5 +14,5 @@ static class Tuning
     public static readonly DarkTerritory.Sim.Enemies.EnemyTuning Enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(Content, DarkTerritory.Sim.Enemies.EnemyTuning.File));
     public static readonly BoilerTuning Boiler = DataFile.Load<BoilerTuning>(Path.Combine(Content, BoilerTuning.File));
     public static readonly DarkTerritory.Sim.Run.RunTuning Run = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(Content, DarkTerritory.Sim.Run.RunTuning.File));
-    public static readonly DarkTerritory.Sim.Run.VigilTuning Vigil = DataFile.Load<DarkTerritory.Sim.Run.VigilTuning>(Path.Combine(Content, DarkTerritory.Sim.Run.VigilTuning.File));
+    public static readonly DarkTerritory.Sim.Run.HoldoutTuning Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(Content, DarkTerritory.Sim.Run.HoldoutTuning.File));
 }

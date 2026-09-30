@@ -100,11 +100,11 @@ public sealed class EditorTests : IDisposable
     }
 
     [Fact]
-    public void TheFacilitiesVigilAndCampaignAreTuningToo()
+    public void TheFacilitiesHoldoutsAndCampaignAreTuningToo()
     {
         var files = Call("GET", "/api/tuning").Json.EnumerateArray().Select(f => f.GetProperty("file").GetString()).ToList();
         Assert.Contains("tuning/facilities.json", files);
-        Assert.Contains("tuning/vigil.json", files);
+        Assert.Contains("tuning/holdouts.json", files);
         Assert.Contains("tuning/campaign.json", files);
     }
 

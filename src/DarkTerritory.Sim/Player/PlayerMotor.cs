@@ -89,15 +89,14 @@ public enum Surface : byte { Air, Ground, Roof, Coupler, Ladder, Deck }
 /// <summary><see cref="PulledUnder"/>: into a coupling gap while the Rattle rattled (T51).</summary>
 /// <summary><see cref="Lamplighter"/>: nearest when a Lamplighter reached the lamp (T52).</summary>
 /// <summary><see cref="Deadman"/>, <see cref="Stoker"/>: fighting one out of the cab, or out of the firebox (T53).</summary>
-public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged, Crushed, PulledUnder, Lamplighter, Deadman, Stoker, Ferryman, Climbed, TornOff }
+/// <remarks><see cref="Waiting"/> isn't a death: a player who joined mid-run, spectating in the respawn queue until a Holdout frees them (GDD App. D.3).</remarks>
+public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged, Crushed, PulledUnder, Lamplighter, Deadman, Stoker, Ferryman, Climbed, TornOff, Waiting }
 
 /// <summary>Conditions a player carries.</summary>
 [Flags]
 public enum PlayerFlags : byte
 {
     None = 0,
-    /// <summary>Spec C.2 "the revived": back from a Vigil cold. Onset comes sooner, light things only, no guns until the next POI.</summary>
-    Revived = 1,
     /// <summary>Carrying freight (spec B.2 "carrying heavy cargo: 2.8 m/s, no climbing").</summary>
     Heavy = 2,
     /// <summary>A hand has coal on the shovel from the tender, on its way to the firebox (T29).</summary>
@@ -355,7 +354,7 @@ public static class PlayerMotor
     /// <summary>
     /// Spec B.2 cold: exposure climbs outside and kills at the death mark; near heat it falls fast enough that even the
     /// nearly frozen are recovered within the reset time. Heat is the cab while the fire's lit, or a shut car while the
-    /// boiler has steam to heat it (the Vigil's vent leaves the cars cold).
+    /// boiler has steam to heat it.
     /// </summary>
     static void StepCold(ref PlayerState s, TrainOnLine train, PlayerTuning p, double dt)
     {
@@ -386,7 +385,7 @@ public static class PlayerMotor
 
     /// <summary>Past the onset of cold: slower, and the HUD says so. The revived reach it sooner (spec C.2).</summary>
     public static bool Chilled(in PlayerState s, PlayerTuning p) =>
-        s.Cold >= p.Cold.OnsetSeconds * (s.Has(PlayerFlags.Revived) ? p.Cold.RevivedOnsetScale : 1);
+        s.Cold >= p.Cold.OnsetSeconds;
 
     static Double3 WishDirection(double yaw, in PlayerIntent intent)
     {

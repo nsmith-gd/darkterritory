@@ -70,7 +70,7 @@ public readonly record struct Room(Vector3 Centre, Vector3 Right, Vector3 Up, Ve
 
 /// <summary>A cooked mesh placed in the scene: the renderer uploads <see cref="Asset"/> once and draws it by transform.</summary>
 /// <param name="Model">Object to camera-relative space.</param>
-/// <param name="Glow">Scales the asset's emissive surfaces (a lamp dimmed in a Vigil, a firebox dying down).</param>
+/// <param name="Glow">Scales the asset's emissive surfaces (a lamp dimmed, a firebox dying down).</param>
 /// <param name="Scar">
 /// The damage mask (pipeline shader set: "damage-mask blend for persistent car scars"): x how much of it is scarred,
 /// 0..1; y a seed choosing where. The mask lies in the asset's own texel space, so one seed scars the same places

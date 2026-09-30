@@ -50,7 +50,7 @@ public sealed class World
     public TrainOnLine Train { get; }
     /// <summary>
     /// Where the cab's controls were set for the last step: what its gauges and levers show anyone in the cab (a
-    /// driver notches the throttle and flips the reverser from where they are). The Vigil's engine-off isn't in it.
+    /// driver notches the throttle and flips the reverser from where they are).
     /// </summary>
     public TrainControls Controls { get; private set; } = new() { Reverser = 1 };
     public CombatTuning? Combat { get; set; }
@@ -162,35 +162,8 @@ public sealed class World
     /// <summary>Tonight's run (departure, facilities, terminus, dawn), when playing a route.</summary>
     public Run.Run? Run { get; private set; }
 
-    /// <summary>Spec C.2 revival. Networked sessions only: the host runs it, clients mirror it.</summary>
-    public Run.Vigil? Vigil { get; private set; }
-    public void EnableVigil(Run.VigilTuning tuning) => Vigil = new Run.Vigil(tuning);
-    /// <summary>A Vigil under way: engine off, lights to emergency only, guns dead, the vent roaring.</summary>
-    public bool EmergencyLights => Vigil is { Active: true };
-    /// <summary>The headlamp is on and has power (it doesn't in a Vigil).</summary>
-    public bool LampShining => LampLit && !EmergencyLights;
-
-    /// <summary>
-    /// Host, after bodies: runs the Vigil and brings back whoever it revives, in the cab, cold (spec C.2 "the revived").
-    /// Also lifts "the revived" off anyone who has reached the next stop.
-    /// </summary>
-    public Run.VigilEvent? StepVigil(Func<int, PlayerState?> get, Action<int, PlayerState> set, IEnumerable<int> crew, PlayerTuning p)
-    {
-        if (!Authority || Vigil is not { } v)
-            return null;
-        foreach (int id in crew)
-            if (get(id) is { } s && s.Has(PlayerFlags.Revived) && v.RecoveredAt(id, Run))
-                set(id, s with { Flags = s.Flags & ~PlayerFlags.Revived });
-        var e = v.Step(this, get, SimConstants.TickSeconds);
-        if (e is { Outcome: global::DarkTerritory.Sim.Run.VigilOutcome.Revived } r && get(r.PlayerId) is { } dead)
-        {
-            var back = PlayerMotor.SpawnInCab(Train, p);
-            back.Flags = dead.Flags | PlayerFlags.Revived;
-            back.Placed = (byte)(dead.Placed + 1);
-            set(r.PlayerId, back);
-        }
-        return e;
-    }
+    /// <summary>The headlamp is on.</summary>
+    public bool LampShining => LampLit;
 
     /// <summary>Starts the run. The host steps it (<see cref="StepRun"/>); clients mirror it from records.</summary>
     /// <param name="facilities">The facilities' loading modules (spec D); null for none.</param>
@@ -205,6 +178,18 @@ public sealed class World
             Run.EnableLoot(loot, Train.Line, facilities);
         Authority |= authority;
     }
+
+    /// <summary>
+    /// GDD App. D: the Holdouts at the route's halts, villages and yards, and the respawn queue, the only way back into
+    /// a run once the gate has opened. The host steps them (<see cref="StepHoldouts"/>); clients mirror them.
+    /// </summary>
+    public Run.Holdouts? Holdouts { get; private set; }
+    public void EnableHoldouts(Run.HoldoutTuning tuning, Route.Route route) => Holdouts = new Run.Holdouts(tuning, route, Train.Line);
+
+    /// <summary>Host, after bodies: the queue and every Holdout (App. D.5-D.8). Returns what happened.</summary>
+    /// <param name="crew">Everyone in the session, living, dead and waiting, in order.</param>
+    public List<Run.HoldoutEvent> StepHoldouts(IReadOnlyList<(int Id, PlayerState State)> crew, Action<int, PlayerState> set) =>
+        Authority && Holdouts is { } h && Run is { Phase: not Sim.Run.RunPhase.Yard } ? h.Step(this, crew, set, SimConstants.TickSeconds) : [];
 
     /// <summary>Host: advances the run after the world and damage are applied, with everyone's state.</summary>
     public void StepRun(IReadOnlyCollection<PlayerState> crew)
@@ -250,7 +235,7 @@ public sealed class World
         if (Authority && Switches?.CrewAct(s, intent, playerId, Train, Hand) is { } thrown)
             SwitchThrows.Add(thrown);
         if (Authority)
-            Vigil?.CrewAct(s, intent, playerId, Train, Hand);
+            Holdouts?.CrewAct(s, intent, playerId, Train);
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever.
         bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand);
         // At the crane's controls, the stick drives the crane, not your feet (T48). Worked out the same everywhere, so a
@@ -269,9 +254,7 @@ public sealed class World
         if (!handsTookIt)
             CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand);
         var targets = viewTick is { } vt && _targetHistory.TryGetValue(vt, out var then) ? then : Targets;
-        // Spec C.2: no guns during a Vigil (no steam to traverse them), nor for the revived until the next POI.
-        if (Combat is { } c && !EmergencyLights && !s.Has(PlayerFlags.Revived)
-            && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
+        if (Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
             Shots.Add(shot);
         _context?.Crew.Add((new PlayerSnapshot((byte)playerId, s), intent));
     }
@@ -293,13 +276,6 @@ public sealed class World
     {
         Controls = controls;
         var applied = controls;
-        if (EmergencyLights)
-        {
-            // Spec C.2 "during the Vigil": engine off, no movement, and the boiler venting to nothing.
-            applied.Throttle = 0;
-            applied.Brake = 1;
-            Train.Boiler.Venting = true;
-        }
         // The Deadman at the controls (App. A.5): "throttle locks, brake unresponsive, train accelerates".
         if (_enemies.Any(e => e is Deadman { Holding: true }))
         {
@@ -317,12 +293,7 @@ public sealed class World
         {
             Guns.Step(Train);
             Choir.Step(c.Choir, SimConstants.TickSeconds);
-            // "The vent is deafening. Choir aggro spikes to maximum instantly", and stays there while it roars.
-            if (EmergencyLights)
-                Choir.Deafening(c.Choir);
         }
-        if (Authority && Director is { } director)
-            director.RateMultiplier = EmergencyLights && Vigil is { } v ? v.Tuning.NoiseSpawnMultiplier : 1;
         if (Authority && _context is { } ctx)
             StepEnemies(ctx);
         Tick++;

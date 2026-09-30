@@ -267,20 +267,13 @@ public sealed class PrototypeSession : IPlaySession
     string RouteStatus() => RouteStatus(Route, World, Train);
 
     /// <summary>The night so far: the dawn clock, where you are on the route, what's next, and how it ended.</summary>
-    /// <summary>Cold and the revived's limits, for the status line (spec B.2, C.2).</summary>
-    public static string Condition(in PlayerState p, PlayerTuning t)
-    {
-        string cold = PlayerMotor.Chilled(p, t) ? $" | COLD: {Math.Max(0, t.Cold.DeathSeconds - p.Cold):0}s — get inside" : "";
-        string revived = p.Has(PlayerFlags.Revived) ? " | REVIVED: cold, light things only, no guns until the next stop" : "";
-        return cold + revived;
-    }
+    /// <summary>Cold, for the status line (spec B.2).</summary>
+    public static string Condition(in PlayerState p, PlayerTuning t) =>
+        PlayerMotor.Chilled(p, t) ? $" | COLD: {Math.Max(0, t.Cold.DeathSeconds - p.Cold):0}s — get inside" : "";
 
-    /// <summary>A Vigil under way, or the hint that one could be held (spec C.2).</summary>
-    public static string VigilStatus(World world) => world.Vigil switch
-    {
-        { Active: true } v => $" | VIGIL {v.Left:0}s — engine off, lights out, guns dead, the Choir is coming",
-        _ => "",
-    };
+    /// <summary>Holdouts lit along the line (GDD App. D): somebody's waiting to be picked up.</summary>
+    public static string HoldoutStatus(World world) =>
+        world.Holdouts?.All.Count(h => h.Lit) is > 0 and var lit ? $" | {lit} HOLDOUT{(lit == 1 ? "" : "S")} LIT — someone's waiting" : "";
 
     /// <summary>What there is to load at a facility (spec D).</summary>
     static string SiteStatus(Site? site)
@@ -306,7 +299,7 @@ public sealed class PrototypeSession : IPlaySession
     public static string RouteStatus(Route? route, World world, TrainOnLine train)
     {
         if (route is null)
-            return VigilStatus(world);
+            return HoldoutStatus(world);
         var run = world.Run;
         if (run?.Report is { } r)
             return r.End == RunEnd.Delivered
@@ -334,6 +327,6 @@ public sealed class PrototypeSession : IPlaySession
             ? $"{(l.Kind == FeatureKind.Facility ? $"{l.Facility}" : $"{l.Kind}").ToLowerInvariant()} in {(l.Start - s) / 1000:0.0} km"
             : "terminus ahead";
         string tunnel = route.InTunnel(s) ? " | IN TUNNEL" : "";
-        return $" | {route.Name} | {clock} | {next}{tunnel}{stop}{VigilStatus(world)}";
+        return $" | {route.Name} | {clock} | {next}{tunnel}{stop}{HoldoutStatus(world)}";
     }
 }

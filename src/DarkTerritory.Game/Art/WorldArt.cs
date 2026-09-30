@@ -79,9 +79,9 @@ public sealed partial class WorldArt(Look look)
     }
 
     /// <summary>The terrain's cross-section: lateral offsets (m) out from the centre line, and heights at them.</summary>
-    /// <remarks>Out to 220 m, a stop's reach (StopContext.MaxLateral): its villages stand on this ground.</remarks>
-    static readonly float[] Lateral = [0, 1.55f, 2.35f, 2.95f, 3.7f, 5.5f, 8, 12, 17, 24, 33, 45, 60, 78, 100, 130, 170, 220];
-    static readonly float[] Profile = [0.0f, 0.0f, -0.24f, -0.3f, -0.06f, -0.02f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    /// <remarks>Out past 220 m, a stop's reach (StopContext.MaxLateral): its villages and Holdouts stand on this ground.</remarks>
+    static readonly float[] Lateral = [0, 1.55f, 2.35f, 2.95f, 3.7f, 5.5f, 8, 12, 17, 24, 33, 45, 60, 78, 100, 130, 170, 220, 280, 360];
+    static readonly float[] Profile = [0.0f, 0.0f, -0.24f, -0.3f, -0.06f, -0.02f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
     const double Wrap = 4096;
     static float W(double v) => (float)(v - Math.Floor(v / Wrap) * Wrap);

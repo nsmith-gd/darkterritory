@@ -40,7 +40,7 @@ public sealed class EditorServer : IDisposable
         (TrainTuning.File, typeof(TrainTuning)), (PlayerTuning.File, typeof(PlayerTuning)), (BoilerTuning.File, typeof(BoilerTuning)),
         (CombatTuning.File, typeof(CombatTuning)), (EnemyTuning.File, typeof(EnemyTuning)), (RouteTuning.File, typeof(RouteTuning)),
         (RunTuning.File, typeof(RunTuning)), (MixDef.File, typeof(MixDef)),
-        (FacilityTuning.File, typeof(FacilityTuning)), (VigilTuning.File, typeof(VigilTuning)),
+        (FacilityTuning.File, typeof(FacilityTuning)), (HoldoutTuning.File, typeof(HoldoutTuning)),
         (DarkTerritory.Sim.Stops.StopTuning.File, typeof(DarkTerritory.Sim.Stops.StopTuning)), (DarkTerritory.Sim.Stops.LootTuning.File, typeof(DarkTerritory.Sim.Stops.LootTuning)),
         (DarkTerritory.Sim.Campaign.CampaignTuning.File, typeof(DarkTerritory.Sim.Campaign.CampaignTuning)),
     ];

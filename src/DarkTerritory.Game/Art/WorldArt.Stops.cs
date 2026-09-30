@@ -198,6 +198,17 @@ public sealed partial class WorldArt
             case BuildingKind.Well:
                 k.With(frame, () => Well(k));
                 break;
+            case BuildingKind.PrisonCar or BuildingKind.SignalBox or BuildingKind.LampRoom or BuildingKind.WaterTower or BuildingKind.Lockup:
+                if (stop.Holdouts.FirstOrDefault(h => h.Building == index) is { } holdout)
+                {
+                    // Which way its door faces in the kit's frame (the building's axis is −Z, across it +X).
+                    var (dx, dy) = Local(b, holdout.Door);
+                    var facing = Math.Abs(dx) / b.Length > Math.Abs(dy) / b.Width ? new Vector3(0, 0, (float)-Math.Sign(dx)) : new Vector3((float)Math.Sign(dy), 0, 0);
+                    k.With(frame, () => Holdout(k, b, facing));
+                    var lampAt = Sim.Run.Run.StopWorld(line, f, holdout.Lamp, Ground(route, f.Start + holdout.Lamp.S, (float)holdout.Lamp.D, valleyDepth) + LampHeight(b.Kind));
+                    k.With(Basis(t.Tangent, lampAt, eye, 0), () => LampFixture(k, (float)LampHeight(b.Kind)));
+                }
+                break;
             default:
                 {
                     // The layout's footprint parts are (x along its axis, y across); the kit's frame has its axis on −Z.

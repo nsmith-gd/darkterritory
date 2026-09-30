@@ -43,7 +43,7 @@ jobs:
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --threats --cam 1080,2.8,1.4 --target 1088,0,0.6 --fov 55 --out out/shots/threats-weight.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --view roof --crew --out out/shots/crew-arms.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --cars 4 --cam 1122,-0.4,2.8 --target 1130,0.4,2.0 --fov 75 --out out/shots/inside-guard.png
-          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --cars 4 --cam 1122,-0.4,2.8 --target 1130,0.4,2.0 --fov 75 --vigil --out out/shots/inside-guard-vigil.png
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --cars 4 --cam 1122,-0.4,2.8 --target 1130,0.4,2.0 --fov 75 --emergency --out out/shots/inside-guard-emergency.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --hud --route frontier:7 --out out/shots/hud.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route deadLines:8 --site --out out/shots/site-winch.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route deadLines:8 --site --crank --out out/shots/site-crank.png

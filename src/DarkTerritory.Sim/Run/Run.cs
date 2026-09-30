@@ -22,10 +22,12 @@ public enum RunPhase : byte { Yard, Underway, AtFacility, Arrived, Failed }
 public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed }
 
 /// <summary>What a night came to (spec F.1): everything still attached to the locomotive counts.</summary>
-/// <param name="RevivedAtGate">Bodies brought home aboard: revived free at the gate (spec C.2), and counted in CrewHome.</param>
 /// <param name="Scavenged">Scrip for village finds stowed aboard (level-design P12), paid with the cargo on delivery and in Gross.</param>
+/// <param name="Deaths">In-run deaths (GDD App. D.9), each charged <paramref name="CrewLossFees"/>' share; <paramref name="BodiesHome"/>
+/// of their bodies came home aboard, refunding <paramref name="BodyRefunds"/>. Net is after both.</param>
 public sealed record RunReport(RunEnd End, double Seconds, double DistanceKm, int CarsDelivered, int CarsLost, double CargoDelivered,
-    double Gross, double CoalCost, double AmmoCost, double RepairCost, double Net, int CrewHome, int CrewLost, int RevivedAtGate = 0, double Scavenged = 0);
+    double Gross, double CoalCost, double AmmoCost, double RepairCost, double Net, int CrewHome, int CrewLost, double Scavenged = 0,
+    int Deaths = 0, int BodiesHome = 0, double CrewLossFees = 0, double BodyRefunds = 0);
 
 /// <summary>
 /// One night's run, host-authoritative (clients mirror it for the HUD). The yard gate opens the run and
@@ -489,13 +491,23 @@ public sealed partial class Run
         const double WithTheTrain = 40;
         int crewHome = crew.Count(c => c.Alive && (c.Parent != PlayerState.World && attached.Contains(c.Parent)
             || attached.Any(id => (train.Frames[id].Origin - PlayerMotor.WorldPosition(c, train)).Length < WithTheTrain)));
-        // Spec C.2 "the alternative": a body carried to the terminus is revived free at the gate.
-        int revived = delivered ? world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.Ragdoll
-            && (attached.Contains(b.Parent) || b.Carrier >= 0)) : 0;
-        revived = Math.Min(revived, crew.Count(c => !c.Alive));
+        // GDD App. D.9, bodies as loot: every death costs the crew a fee; every body brought home (stowed in a car still on
+        // the engine, or carried aboard) refunds most of it, never all. A drop-out's body is neither.
+        int deaths = 0, bodiesHome = 0;
+        double fees = 0, refunds = 0;
+        if (world.Holdouts?.Tuning is { } ht)
+        {
+            deaths = world.Bodies.Deaths;
+            double fee = ht.CrewLossFee * perCar;
+            bodiesHome = delivered ? world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.Ragdoll && !b.DroppedOut
+                && (attached.Contains(b.Parent) || b.Carrier >= 0)) : 0;
+            fees = Math.Round(deaths * fee);
+            refunds = Math.Round(bodiesHome * ht.BodyRefund * fee);
+        }
         return new RunReport(End, Math.Round(Seconds, 1), Math.Round(engine.Distance / 1000, 2), home.Count, cargo.Count - home.Count,
             Math.Round(cargoValue, 2), Math.Round(gross), Math.Round(coal), Math.Round(ammo), Math.Round(repairs),
-            Math.Round(gross - coal - ammo - repairs), crewHome + revived, crew.Count - crewHome - revived, revived, delivered ? Math.Round(Scavenged) : 0);
+            Math.Round(gross - coal - ammo - repairs - fees + refunds), crewHome, crew.Count - crewHome, delivered ? Math.Round(Scavenged) : 0,
+            deaths, bodiesHome, fees, refunds);
     }
 
     /// <summary>

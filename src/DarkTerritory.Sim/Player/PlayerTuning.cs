@@ -13,7 +13,7 @@ public sealed record PlayerTuning(
     public double JumpVelocity => Gravity * JumpGap / (2 * RoofRun);
 }
 
-public sealed record ColdTuning(double OnsetSeconds, double DeathSeconds, double RecoverSecondsNearHeat, double OnsetSpeedScale, double RevivedOnsetScale);
+public sealed record ColdTuning(double OnsetSeconds, double DeathSeconds, double RecoverSecondsNearHeat, double OnsetSpeedScale);
 public sealed record LandingTuning(double RollAbove, int RollDamage);
 public sealed record LadderTuning(double GrabRange, double GrabMaxRelativeSpeed);
 /// <summary>A VR player's reaching hand (T29). Field docs live in player.json.</summary>

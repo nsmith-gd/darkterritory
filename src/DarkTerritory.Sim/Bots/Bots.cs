@@ -450,7 +450,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     public int Done { get; private set; }
 
     public bool Wants(in PlayerState s) =>
-        s.Cold >= cold.OnsetSeconds * goInAt * (s.Has(PlayerFlags.Revived) ? cold.RevivedOnsetScale : 1);
+        s.Cold >= cold.OnsetSeconds * goInAt;
 
     /// <summary>This tick's intent while getting warm; null when there's nothing to do (walk as usual).</summary>
     public PlayerIntent? Decide(in PlayerState self, TrainOnLine train)

@@ -122,7 +122,7 @@ object RunHarness(string[] args)
         Route = route,
         Udp = args.Contains("--udp"),
         Network = online,
-        Vigil = DataFile.Load<DarkTerritory.Sim.Run.VigilTuning>(Path.Combine(content, DarkTerritory.Sim.Run.VigilTuning.File)),
+        Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)),
         Run = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)),
         Facilities = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
         YardLength = routeTuning.YardLength,
@@ -142,7 +142,7 @@ BalanceReport RunBalance(string[] args)
     var targets = DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File));
     var combat = DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File));
     var enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File));
-    var vigil = DataFile.Load<DarkTerritory.Sim.Run.VigilTuning>(Path.Combine(content, DarkTerritory.Sim.Run.VigilTuning.File));
+    var holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File));
     var run = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
     var facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File));
     double seconds = Opt(args, "--seconds", 3600);
@@ -163,7 +163,7 @@ BalanceReport RunBalance(string[] args)
             Combat = combat,
             Enemies = enemies,
             Route = route,
-            Vigil = vigil,
+            Holdouts = holdouts,
             Run = run,
             Facilities = facilities,
             YardLength = routeTuning.YardLength,
@@ -424,7 +424,7 @@ object CampaignCommand(string content, string verb, string[] args)
                     Run = runTuning,
                     YardLength = routeTuning.YardLength,
                     Facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
-                    Vigil = DataFile.Load<DarkTerritory.Sim.Run.VigilTuning>(Path.Combine(content, DarkTerritory.Sim.Run.VigilTuning.File)),
+                    Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)),
                 }, loadout.Boiler);
                 if (report.Run is not { } night)
                     return new { error = "the night didn't run" };
@@ -804,18 +804,27 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         for (int i = 0; i < train.Vehicles.Count; i++)
             train.Vehicles[i].Integrity = Math.Clamp(each[Math.Min(i, each.Length - 1)], 0, 1);
     }
+    // --lit: every Holdout on the route occupied, its lamp burning (GDD App. D.7), as if the dead were waiting at each.
+    DarkTerritory.Sim.Run.Holdouts? holdouts = null;
+    if (args.Contains("--lit") && generated is not null)
+    {
+        holdouts = new DarkTerritory.Sim.Run.Holdouts(DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)), generated, line);
+        foreach (var h in holdouts.All)
+            holdouts.Mirror(h.Index, DarkTerritory.Sim.Run.HoldoutState.Occupied, 1, 0);
+    }
     var scene = new GreyboxScene
     {
         Tick = args.Contains("--muzzle") ? 101 : -1,
         Look = look,
         Route = route,
         Run = run,
+        Holdouts = holdouts,
         Time = 0.37,
         Enemies = args.Contains("--threats") ? Staging.Threats(train) : null,
         Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All : cargo,
         // --crew: three on car 2's roof, one reaching up, one holding out both hands, one with a keyboard (T47's arms).
         Crew = args.Contains("--crew") ? Staging.Crew(train, content) : null,
-        Emergency = args.Contains("--vigil"),
+        Emergency = args.Contains("--emergency"),
         Diverging = train.Diverging,
         // --throttle x: the regulator's handle drawn that far open (T29's cab levers).
         Controls = new TrainControls { Throttle = Math.Clamp(Opt(args, "--throttle", 0), 0, 1), Reverser = 1 },
@@ -828,8 +837,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Build(mesh, train, camera.Position);
     double buildMs = buildClock.Elapsed.TotalMilliseconds / builds;
     var lighting = Views.Lighting(train, look);
-    if (args.Contains("--vigil"))
-        lighting.LampRange = 0.01f; // a Vigil: no power to the headlamp
+    if (args.Contains("--emergency"))
+        lighting.LampRange = 0.01f; // emergency lighting: no power to the headlamp
     if (route is not null)
     {
         lighting.FogDensity = (float)route.Weather.FogDensity;
@@ -1005,7 +1014,7 @@ static object HudShot(string content, string[] args)
     var mesh = new MeshBuilder();
     var look = Looked(content, args);
     look?.Dress(renderer);
-    new GreyboxScene { Route = session.Route, Run = session.World.Run, Vehicles = session.Train.Vehicles, Bodies = session.World.Bodies.All, Time = 0.37, Look = look }
+    new GreyboxScene { Route = session.Route, Run = session.World.Run, Holdouts = session.World.Holdouts, Vehicles = session.Train.Vehicles, Bodies = session.World.Bodies.All, Time = 0.37, Look = look }
         .Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
     var lighting = Views.Lighting(frames[0], look);
     if (session.Route is { } r)
@@ -1096,7 +1105,8 @@ static int Usage()
                      [--width w] [--height h] [--scale k] [--out file.png] [--threats]   --threats stages one of each enemy
                      [--route tier:seed [--coaling]]   a generated night; --coaling stops at its coaling tower, chute pouring
                      [--bodies]   crates, a lamp and a crewmate's body on the roofs, settled by the physics
-                     [--vigil]    emergency lighting, as during a Vigil (spec C.2)
+                     [--emergency]  emergency lighting: the cars' lamps a dim red, no headlamp
+                     [--lit]      every Holdout occupied, its lamp burning (GDD App. D)
                      [--ps2]      the era comparison mode   [--muzzle] the guns just fired   [--builds n] time n warm builds
                      [--integrity a,b,..] each car's condition, front to back (scars and damage states)
                      [--route tier:seed --site [--crank | --crane | --facility i]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --facility: the route's i-th

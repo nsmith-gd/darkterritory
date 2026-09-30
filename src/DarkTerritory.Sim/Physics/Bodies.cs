@@ -43,6 +43,8 @@ public sealed class Body
     public bool Lifted => Carrier >= 0 && (Kind != BodyKind.Heavy || Second >= 0);
     /// <summary>For a ragdoll, whose body it is.</summary>
     public int Owner { get; set; } = -1;
+    /// <summary>A ragdoll left by a player who disconnected, not one who died (GDD App. D.2, D.9).</summary>
+    public bool DroppedOut { get; set; }
     /// <summary>Facing, for drawing single-point bodies (crates, lamps); tumbles in flight.</summary>
     public double Yaw { get; set; }
     public double Spin { get; set; }
@@ -56,8 +58,8 @@ public sealed record HandsTuning(double Reach, double ThrowSpeed, double Ragdoll
 
 /// <summary>
 /// Host-simulated loose bodies (GDD §33: thrown objects, cargo, ragdolls, bodies). Clients mirror them from
-/// Body records. A dead player's body persists where they fell (spec C.1) and can be carried: the Vigil
-/// needs it in the engine, and a body carried to the terminus is revived at the gate (spec C.2).
+/// Body records. A dead player's body persists where they fell and can be carried: brought home aboard, it refunds most
+/// of its crew-loss fee (GDD App. D.9).
 /// </summary>
 public sealed class Bodies
 {
@@ -160,12 +162,35 @@ public sealed class Bodies
 
     public bool HasRagdoll(int owner) => _bodies.Any(b => b.Kind == BodyKind.Ragdoll && b.Owner == owner);
 
-    /// <summary>Host: a body for everyone who died this tick.</summary>
+    // Who has a body for the death they're in now (one body per death, GDD App. D.9: die twice, leave two).
+    readonly HashSet<int> _bodied = [];
+
+    /// <summary>In-run deaths so far, each with its body (drop-outs aren't deaths: D.2). Host only.</summary>
+    public int Deaths { get; private set; }
+
+    /// <summary>Host: a body for everyone who died this tick (not a mid-run joiner still waiting: they've no body).</summary>
     public void OnDeaths(TrainOnLine train, IEnumerable<(int Id, PlayerState State)> crew)
     {
         foreach (var (id, s) in crew)
-            if (!s.Alive && !HasRagdoll(id))
-                SpawnRagdoll(train, id, s);
+        {
+            if (s.Alive)
+            {
+                _bodied.Remove(id);
+                continue;
+            }
+            if (s.Death == DeathCause.Waiting || !_bodied.Add(id))
+                continue;
+            SpawnRagdoll(train, id, s);
+            Deaths++;
+        }
+    }
+
+    /// <summary>A disconnected player's inert body (D.2): its kit can be recovered, but it carries no fee and no refund.</summary>
+    public Body DropOut(TrainOnLine train, int owner, in PlayerState left)
+    {
+        var b = SpawnRagdoll(train, owner, left);
+        b.DroppedOut = true;
+        return b;
     }
 
     /// <summary>
@@ -233,11 +258,9 @@ public sealed class Bodies
     /// <param name="playerId">Who's reaching: the far end of a heavy crate they hold isn't theirs to take again.</param>
     public Body? InReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null, bool wearingRadio = false, int playerId = -1)
     {
-        // Spec C.2: the revived can carry light things only.
-        bool lightOnly = s.Has(PlayerFlags.Revived);
         // A heavy crate with one on it is still free at its other end (T43).
         var free = _bodies.Where(b => (b.Carrier < 0 || b.Kind == BodyKind.Heavy && b.Second < 0 && b.Carrier != playerId)
-            && (!lightOnly || b.Kind is BodyKind.Lamp or BodyKind.Radio) && !(wearingRadio && b.Kind == BodyKind.Radio));
+            && !(wearingRadio && b.Kind == BodyKind.Radio));
         if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)
             return free.Select(b => (b, d: Surface(b, train, h))).Where(x => x.d <= hand.Grab).OrderBy(x => x.d).FirstOrDefault().b;
         var hands = HandsAt(s, train);

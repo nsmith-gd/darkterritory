@@ -11,7 +11,7 @@ public struct ChoirState
 {
     public double Aggro;
     public double SecondsSinceShot;
-    /// <summary>Raised by livestock aboard (App. B.8) and during a Vigil.</summary>
+    /// <summary>Raised by livestock aboard (App. B.8).</summary>
     public double Floor;
 
     /// <summary>Seconds-since-shot saturates here so it stays replicable.</summary>
@@ -28,10 +28,13 @@ public struct ChoirState
         SecondsSinceShot = 0;
     }
 
-    /// <summary>App. C.2: the Vigil's vent is deafening. Aggro to maximum, instantly.</summary>
-    public void Deafening(ChoirTuning t)
+    /// <summary>
+    /// Something as loud as <paramref name="roundsPerSecond"/> cannon rounds a second, for <paramref name="dt"/> (a Holdout's
+    /// lock being smashed, GDD App. D.7): it raises the Choir, and keeps it from settling, like the guns.
+    /// </summary>
+    public void Loud(ChoirTuning t, double roundsPerSecond, double dt)
     {
-        Aggro = t.MaxAggro;
+        Aggro = Math.Min(t.MaxAggro, Aggro + t.AggroPerRound * roundsPerSecond * dt);
         SecondsSinceShot = 0;
     }
 

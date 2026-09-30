@@ -35,7 +35,7 @@ public sealed record CarState(int Id, double Load, double Integrity, double Carg
 /// Spec E "autosave per POI, on successful departure": enough of a night to start it again from the facility the
 /// train last left, if the session is lost.
 /// </summary>
-public sealed record RunCheckpoint(string Route, int Facility, double Seconds, double Front, double Tender, CarState[] Cars, int Revivals);
+public sealed record RunCheckpoint(string Route, int Facility, double Seconds, double Front, double Tender, CarState[] Cars, int[] SpentHoldouts);
 
 /// <summary>What a host owns between nights (spec E: the host owns the campaign). Saved as text, one file a slot.</summary>
 public sealed record CampaignState

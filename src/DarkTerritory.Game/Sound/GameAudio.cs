@@ -60,7 +60,6 @@ public sealed class GameAudio
         Bank.Refresh();
         Mixer.Listener = listener;
         var train = world.Train;
-        _vigil = world.EmergencyLights;
         Bed(train, controls, listener, exposed, dt);
         Enemies(world);
         Choir(world, train);
@@ -128,8 +127,8 @@ public sealed class GameAudio
         _wind ??= Mixer.Play("wind");
         _wind?.Params.Set("wind", exposed ? speed : 0);
 
-        // The safety valve lifting, or the vent held wide for a Vigil: "the vent is deafening" (spec C.2).
-        if ((train.Boiler.SafetyValveLifting || _vigil) && !train.Boiler.Ruptured)
+        // The safety valve lifting.
+        if (train.Boiler.SafetyValveLifting && !train.Boiler.Ruptured)
         {
             _valve ??= Mixer.Play("safety-valve");
             if (_valve is not null)
@@ -163,10 +162,8 @@ public sealed class GameAudio
                 _slack.RemoveAt(i);
             }
     }
-
     static TrainDynamics? RakeOf(TrainOnLine train, int vehicle) => train.Rakes.FirstOrDefault(r => r.Consist.Vehicles.Any(v => v.Id == vehicle));
 
-    bool _vigil;
 
     void Enemies(World world)
     {

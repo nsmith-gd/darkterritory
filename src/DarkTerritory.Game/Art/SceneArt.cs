@@ -208,7 +208,7 @@ public sealed partial class SceneArt(Look look)
         }
     }
 
-    /// <summary>A car's two lanterns, hanging on their chains from the carlines where its lights are; red glass in a Vigil.</summary>
+    /// <summary>A car's two lanterns, hanging on their chains from the carlines where its lights are; red glass under emergency lighting.</summary>
     public void CarLamps(MeshBuilder mesh, in CarFrame frame, Double3 eye, bool emergency)
     {
         if (frame.Shape.Interior is not { } room || (frame.Origin - eye).Length > 80)
@@ -283,7 +283,7 @@ public sealed partial class SceneArt(Look look)
         double integrity = vehicle?.Integrity ?? 1;
         int seed = vehicle?.Id ?? frame.Index;
         var scar = new Vector2(damage.ScarOf(integrity), seed * 0.618f % 1 * 97);
-        // In a Vigil the headlamp and tail lamp have no power (spec C.2).
+        // Under emergency lighting the headlamp and tail lamp have no power.
         mesh.Instances.Add(new MeshInstance(body, m, emergency ? 0.06f : 1, Scar: scar));
         int state = damage.StateOf(integrity);
         if (state > 0 && !engine)

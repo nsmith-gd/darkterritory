@@ -376,6 +376,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Route = session.Route,
         Enemies = session.World.ActiveEnemies,
         Run = session.World.Run,
+        Holdouts = session.World.Holdouts,
         Vehicles = session.Train.Vehicles,
         Bodies = session.World.Bodies.All,
         Diverging = session.Train.Diverging,
@@ -512,7 +513,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Time = now;
         lighting = Views.Lighting(frames[0], look);
         lighting.Time = now;
-        // Lamps down (T52), smashed, or no power in a Vigil: no beam.
+        // Lamps down (T52), or smashed: no beam.
         if (!session.World.LampShining)
             lighting.LampIntensity = 0;
         if (session.Route is { } r)
@@ -523,8 +524,6 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
         scene.Tick = session.Tick;
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
-        // A Vigil: emergency lighting, and no power to the headlamp.
-        scene.Emergency = session.World.EmergencyLights;
         scene.Controls = session.Controls;
         if (!session.World.LampShining)
             lighting.LampRange = 0.01f; // not 0: the shader divides by it

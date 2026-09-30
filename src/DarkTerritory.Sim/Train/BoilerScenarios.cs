@@ -68,7 +68,7 @@ public static class BoilerScenarios
         int ticks = 0;
         while (train.Boiler.Pressure < b.WorkingBandMin && ticks < SimConstants.TickRate * 3600)
         {
-            // Keep the box topped up the way a fireman would during a Vigil rebuild.
+            // Keep the box topped up the way a fireman would while it rebuilds.
             if (train.Boiler.Firebox <= b.FireboxCapacity - 1)
                 train.Boiler.Shovel(b);
             train.Step(SimConstants.TickSeconds, new TrainControls { Reverser = 1 });

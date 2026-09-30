@@ -85,7 +85,7 @@ public sealed record TextureEntry
 
 /// <summary>
 /// The look as the renderer takes it: each <see cref="Palette"/> colour named in <see cref="LookTuning.Materials"/> is
-/// a material, and any other colour takes the nearest one's (a tinted wall, a lamp dimmed in a Vigil), so every
+/// a material, and any other colour takes the nearest one's (a tinted wall, a lamp dimmed to a glow), so every
 /// surface in the scene is something from §27's short list without the scene having to say so. With textures, each
 /// material wears one, tinted by how far the colour asked for is from its palette colour.
 /// </summary>
