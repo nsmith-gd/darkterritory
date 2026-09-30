@@ -151,8 +151,8 @@
   // lowPressure for lowPressureSeconds, or through the firebox door left open doorOpenSeconds at a stop (weighted
   // openDoorWeight). Soot falls sootSeconds, then it feeds feedRate pressure a second and ramps the regulator open over
   // runawayRampSeconds. Each blow at it burns the swinger burnPerBlow. The door shuts itself fireDoorShutSeconds after a
-  // shovel (DESIGN-TODO: the GDD says only "left open"; a door that stays open forever after a shovel would make every stop
-  // a Stoker stop).
+  // shovel with someone in the cab. DESIGN-TODO: the GDD says only "left open"; read as open doorOpenSeconds at a stop
+  // with the cab empty (a fireman shovelling at a stand has it open half the time, and isn't leaving it).
   "stoker": {
     "feedRate": 1.5, "stoppedBelow": 0.5, "lowPressure": 40, "lowPressureSeconds": 45, "doorOpenSeconds": 10,
     "fireDoorShutSeconds": 6, "sootSeconds": 4, "runawayRampSeconds": 40, "health": 4, "burnPerBlow": 12, "openDoorWeight": 3
@@ -203,10 +203,12 @@
   // CAR FIRE (App. C.5, a supporting system: Fire Flies start it, as can a lamp dropped in a car). It grows; past
   // burnFrom it burns anyone within burnReach and the car's cargo and integrity; past spreadFrom for spreadSeconds it
   // takes the next car. Each car has a wall-mounted extinguisher: Fire held within sprayReach knocks it back
-  // sprayPerSecond, for chargeSeconds of spray, recharging over rechargeSeconds on its bracket.
+  // sprayPerSecond, for chargeSeconds of spray, recharging over rechargeSeconds on its bracket. DESIGN-TODO: the GDD has
+  // no numbers; these let one crewmate who gets there in the half minute a fire takes to take hold put it out with one
+  // extinguisher, and a fire left longer need two.
   "carFire": {
-    "startIntensity": 0.1, "growPerSecond": 0.01, "growWithSize": 0.03, "burnFrom": 0.35, "sprayReach": 2.5,
-    "sprayPerSecond": 0.035, "chargeSeconds": 10, "rechargeSeconds": 90, "burnDamage": 10, "burnReach": 4,
+    "startIntensity": 0.1, "growPerSecond": 0.006, "growWithSize": 0.02, "burnFrom": 0.35, "sprayReach": 2.5,
+    "sprayPerSecond": 0.06, "chargeSeconds": 15, "rechargeSeconds": 90, "burnDamage": 10, "burnReach": 4,
     "burnEverySeconds": 2, "cargoPerSecond": 0.003, "integrityPerSecond": 0.0015, "spreadFrom": 0.8, "spreadSeconds": 30,
     "chemicalSpread": 2, "chemicalGrowth": 1.3, "powderGrowth": 1.6, "burnOutPerSecond": 0.05, "maxActive": 3
   },

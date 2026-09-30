@@ -262,6 +262,11 @@ public static class Harness
     public static string Describe(IBot bot, in PlayerState s)
     {
         string where = !s.Alive ? $"dead ({s.Death})" : s.Parent == PlayerState.World ? "ground" : $"{s.Surface} {s.Parent}";
+        // Hurt or held: what's happening to them shows in the trace.
+        if (s.Alive && s.Health < 100)
+            where += $" hp{s.Health}";
+        if (s.Has(PlayerFlags.Held))
+            where += " HELD";
         string doing = bot switch
         {
             ConductorBot { Driving: false } => "firing",

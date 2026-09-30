@@ -197,9 +197,12 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         int here = self.Parent;
         // Too hurt to take it on (health doesn't come back out here): leave it to someone else.
         tend &= self.Health >= TooHurt;
+        var train0 = world.Train;
         // A car that's all but gone up isn't one to walk into: let it burn out.
-        _trouble = tend ? world.ActiveEnemies.OfType<Incident>().Where(e => !e.Gone && e.Attached > 0 && !(e is CarFire && e.Extra > 0.85 && e.Attached != here))
-            .OrderBy(e => Math.Abs(e.Attached - here))
+        // Fire Flies swarming a car's lamp are trouble too (v1.1 App. A.5): in there, the lamp out, before the car catches.
+        _trouble = tend ? world.ActiveEnemies.Where(e => !e.Gone && e.Attached > 0 && (e is Incident && !(e is CarFire && e.Extra > 0.85 && e.Attached != here)
+                || e is FireFlies && e.Attached < train0.Vehicles.Count && train0.Vehicles[e.Attached].LampLit))
+            .OrderBy(e => e is CarFire ? 0 : 1).ThenBy(e => Math.Abs(e.Attached - here))
             .ThenBy(e => e.Id).FirstOrDefault() : null;
         var train = world.Train;
         // Otherwise a bag on a crane ahead, its board read: into a car with a side door that side, and the hook out.
@@ -214,7 +217,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             _warm.Indoors = null;
     }
 
-    Incident? _trouble;
+    Enemy? _trouble;
     Sim.Route.Drop? _drop;
     int? _catchCar;
 
@@ -264,11 +267,14 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// along the aisle to beside the fire, facing along the car, and spray (Fire held). Its charge gone, put it down and
     /// leave it to recharge.
     /// </summary>
-    static PlayerIntent? Tend(in PlayerState self, Incident trouble, World world, int me)
+    static PlayerIntent? Tend(in PlayerState self, Enemy trouble, World world, int me)
     {
         var train = world.Train;
         if (trouble.Gone || self.Parent != trouble.Attached || self.Health < TooHurt)
             return null;
+        // Fire Flies on the lamp: put it out (a press every other tick until it's out; the press is what the host counts).
+        if (trouble is FireFlies)
+            return train.Vehicles[self.Parent].LampLit && world.Tick % 2 == 0 ? new PlayerIntent { Actions = PlayerActions.CarLamp } : new PlayerIntent();
         var held = world.Bodies.CarriedBy(me);
         if (held is { Kind: Physics.BodyKind.Extinguisher, Charge: <= 0.01 })
             return new PlayerIntent { Buttons = PlayerButtons.Use }; // spent: down it goes
@@ -619,12 +625,18 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             if (calls is null || !_sawDriver || calls.Has(StopJob.Driver) || !self.Alive)
             {
                 calls?.Say(member, StopJob.None, self);
+                if (FightStoker(self, world) is { } fightingToo)
+                    return fightingToo with { Buttons = fightingToo.Buttons & ~PlayerButtons.Brake, ThrottleNotch = 0 };
                 return self.Alive && PlayerMotor.InCab(self, train) ? KeepClear(self, world, Work(self, train, default), -1) : default;
             }
             _driving = true;
         }
         calls?.Say(member, StopJob.Driver, self);
         var lamp = Lamp(world);
+        // The Stoker in the firebox (v1.1 App. A.5): at the firebox door and club it out, brake on, whatever else is going on
+        // (every blow burns: it's done while there's health to spare for it, and the brake holds the runaway meanwhile).
+        if (FightStoker(self, world) is { } fighting)
+            return fighting with { Lamp = lamp };
         // On a generated line, no faster than its authority allows here (linegen plan §9, §16.1): what the boards say.
         double cruise = world.LampShining ? CruiseSpeed : DarkCruiseSpeed;
         // The Track Doll on the rail ahead in the lamp (v1.1 App. A.2): stop before you hit the doll. Braking to a stand
@@ -818,6 +830,24 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 
     /// <summary>At a stand, the gauge it fires to hold: comfortably over the Stoker's low-pressure mark (enemies.json, 40).</summary>
     const double StandingPressure = 60;
+
+    /// <summary>Health below which the cab's crew leave a Stoker to burn itself out (each blow at it burns the swinger).</summary>
+    const int StokerHealth = 40;
+
+    /// <summary>At its own side of the firebox door, facing it, swinging, with the brake held: null if there's no Stoker to fight.</summary>
+    PlayerIntent? FightStoker(in PlayerState self, World world)
+    {
+        var train = world.Train;
+        if (!self.Alive || self.Health < StokerHealth || !PlayerMotor.InCab(self, train)
+            || !world.ActiveEnemies.OfType<Stoker>().Any(st => !st.Gone && st.Phase is SpinePhase.Telegraph or SpinePhase.Commit))
+            return null;
+        var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
+        var (step, there) = WarmUp.Steer(self, new Double3((Fireman ? -1 : 1) * FiringSide, 0, firebox.Z + FiringBack), 0);
+        var intent = there ? new PlayerIntent { Actions = PlayerActions.Swing } : step;
+        intent.Buttons |= PlayerButtons.Brake;
+        intent.ThrottleNotch = -4;
+        return intent;
+    }
 
     PlayerIntent Work(in PlayerState self, TrainOnLine train, PlayerIntent intent)
     {

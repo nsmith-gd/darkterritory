@@ -580,7 +580,8 @@ public sealed class World
         if (Train.BoilerTuning is not null && !Train.Boiler.Ruptured)
         {
             _lowPressure = Train.Boiler.Pressure < t.Stoker.LowPressure ? _lowPressure + SimConstants.TickSeconds : 0;
-            _doorOpenAtStop = Train.Boiler.FireDoorOpen && Train.Dynamics.Speed < t.Stoker.StoppedBelow ? _doorOpenAtStop + SimConstants.TickSeconds : 0;
+            // "Left open" (App. B.5): open at a stop with nobody in the cab. A fireman at the door, shovelling, isn't leaving it.
+            _doorOpenAtStop = Train.Boiler.FireDoorOpen && Train.Dynamics.Speed < t.Stoker.StoppedBelow && CabEmptySeconds > 0 ? _doorOpenAtStop + SimConstants.TickSeconds : 0;
         }
         // The director thinks once a second; the Stoker comes whenever its condition holds, charged when it does (App. B.5).
         if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed)
