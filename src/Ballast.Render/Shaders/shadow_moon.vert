@@ -6,7 +6,10 @@
 layout(push_constant) uniform Draw {
     mat4 model;
     vec4 tint;
+    vec4 scar;
+    vec4 skin;
 } draw;
+#include "skin.glsl"
 
 layout(location = 0) in vec3 inPos;
 layout(location = 7) in vec2 inUv;
@@ -17,5 +20,9 @@ layout(location = 1) flat out float vLayer;
 void main() {
     vUv = inUv;
     vLayer = inLayer;
-    gl_Position = frame.moonViewProj * draw.model * vec4(inPos, 1.0);
+    mat4 model = draw.model;
+#ifdef SKINNED
+    model = model * skinOf(draw.skin.w);
+#endif
+    gl_Position = frame.moonViewProj * model * vec4(inPos, 1.0);
 }

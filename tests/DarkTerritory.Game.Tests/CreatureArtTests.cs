@@ -170,7 +170,7 @@ public class CreatureArtTests
         {
             var mesh = new MeshBuilder();
             Assert.True(Art.Draw(mesh, name, clip, t, true, Matrix4x4.Identity));
-            return mesh.Vertices.ToArray();
+            return mesh.Flattened();
         }
     }
 
@@ -198,22 +198,22 @@ public class CreatureArtTests
                         // A loose load is only heard; Gnawers are only seen once they're out of the crates.
                         || kind == EnemyKind.LooseLoad
                         || kind == EnemyKind.Gnawers && phase != SpinePhase.Punish;
-                    Assert.True(hidden ? mesh.Count == 0 : mesh.Count > 0, $"{kind} {phase} drew {mesh.Count / 3} triangles");
+                    Assert.True(hidden ? mesh.Flattened().Length == 0 : mesh.Flattened().Length > 0, $"{kind} {phase} drew {mesh.Flattened().Length / 3} triangles");
                 }
         foreach (var pose in Enum.GetValues<CrewPose>())
             for (int variant = 0; variant < 4; variant++)
             {
                 mesh.Clear();
                 Assert.True(Art.Crewmate(mesh, Matrix4x4.Identity, pose, 3.3, variant));
-                Assert.InRange(mesh.Count / 3, 2000, 9000);
+                Assert.InRange(mesh.Flattened().Length / 3, 2000, 9000);
             }
         // Six sleepers and three children from one call.
         mesh.Clear();
         Art.Enemy(mesh, Matrix4x4.Identity, EnemyKind.Sleepers, SpinePhase.Dormant, 0, 0);
-        Assert.Equal(6 * Get("sleeper").Triangles(), mesh.Count / 3);
+        Assert.Equal(6 * Get("sleeper").Triangles(), mesh.Flattened().Length / 3);
         mesh.Clear();
         Art.Enemy(mesh, Matrix4x4.Identity, EnemyKind.SootChildren, SpinePhase.Dormant, 0, 0);
-        Assert.Equal(3 * Get("soot_child").Triangles(), mesh.Count / 3);
+        Assert.Equal(3 * Get("soot_child").Triangles(), mesh.Flattened().Length / 3);
     }
 
     [Fact]
@@ -229,9 +229,9 @@ public class CreatureArtTests
                 new Vector3(-0.6f, -1, 0.3f), new Vector3(0.6f, -1, 0.3f)));
             var hanging = new MeshBuilder();
             Assert.True(Art.Crewmate(hanging, Matrix4x4.Identity, CrewPose.Idle, 0.4, 1));
-            Assert.Equal(hanging.Count, reached.Count);
-            Assert.InRange(reached.Vertices.ToArray().Min(v => Vector3.Distance(v.Position, hand)), 0, 0.1f);
-            Assert.True(hanging.Vertices.ToArray().Min(v => Vector3.Distance(v.Position, hand)) > 0.25f);
+            Assert.Equal(hanging.Flattened().Length, reached.Flattened().Length);
+            Assert.InRange(reached.Flattened().Min(v => Vector3.Distance(v.Position, hand)), 0, 0.1f);
+            Assert.True(hanging.Flattened().Min(v => Vector3.Distance(v.Position, hand)) > 0.25f);
         }
 
         // And through the scene, as a replicated crewmate: the hand in the frame they face, from their feet.
@@ -243,7 +243,7 @@ public class CreatureArtTests
         var mesh = new MeshBuilder();
         new GreyboxScene { Look = Look, Time = 0.37, Crew = [new Crewmate(3, feet, 0, true, up)] }.Build(mesh, train, feet + new Double3(3, 1.5, 0));
         var at = (feet + up).RelativeTo(feet + new Double3(3, 1.5, 0));
-        Assert.InRange(mesh.Vertices.ToArray().Min(v => Vector3.Distance(v.Position, at)), 0, 0.1f);
+        Assert.InRange(mesh.Flattened().Min(v => Vector3.Distance(v.Position, at)), 0, 0.1f);
     }
 
     [Fact]
@@ -283,15 +283,16 @@ public class CreatureArtTests
         {
             var mesh = new MeshBuilder();
             Assert.True(Art.Corpse(mesh, joints, 9));
-            return mesh.Vertices.ToArray();
+            return mesh.Flattened();
         }
     }
 
     [Fact]
     public void AFrameOfEightCrewAndTwelveEnemiesIsCheap()
     {
-        // The brief: 8 crew and 12 enemies a frame, skinned on the CPU. (Sleepers are six ties and Soot children three
-        // figures a call, so this is more models than it looks.)
+        // The brief: 8 crew and 12 enemies a frame. Posed on the CPU (bones only), skinned on the GPU: the frame-rate
+        // targets (tuning/perf.json) leave the main thread's drawing a few milliseconds. (Sleepers are six ties and Soot
+        // children three figures a call, so this is more models than it looks.)
         var mesh = new MeshBuilder();
         EnemyKind[] kinds = [.. Enumerable.Repeat(EnemyKind.CinderHound, 6), EnemyKind.Clinger, EnemyKind.Clinger, EnemyKind.Hollow,
             EnemyKind.Switchman, EnemyKind.Sleepers, EnemyKind.SootChildren];
@@ -310,15 +311,16 @@ public class CreatureArtTests
         // where another assembly holds every core.
         const int Frames = 20, MaxFrames = 60;
         double ms = double.MaxValue;
-        for (int f = 0; f < MaxFrames && (f < Frames || ms >= 120); f++)
+        for (int f = 0; f < MaxFrames && (f < Frames || ms >= 30); f++)
         {
             var clock = System.Diagnostics.Stopwatch.StartNew();
             Frame(f / 30.0);
             ms = Math.Min(ms, clock.Elapsed.TotalMilliseconds);
         }
-        TestContext.Current.TestOutputHelper?.WriteLine($"{ms:0.0} ms a frame, {mesh.Count / 3} triangles");
-        // Generous (Debug builds, a loaded CI box); on a desktop Release build it's about 11 ms.
-        Assert.True(ms < 120, $"{ms:0.0} ms a frame");
+        TestContext.Current.TestOutputHelper?.WriteLine($"{ms:0.0} ms a frame, {mesh.Flattened().Length / 3} triangles");
+        // Generous (Debug builds, a loaded CI box); skinned on the CPU it was about 11 ms on a desktop Release build, and
+        // this allowed 120.
+        Assert.True(ms < 30, $"{ms:0.0} ms a frame");
     }
 
     [Fact]
@@ -332,7 +334,7 @@ public class CreatureArtTests
             Assert.False(art.Loaded);
             Assert.False(art.Crewmate(mesh, Matrix4x4.Identity, CrewPose.Walk, 0, 0));
             Assert.False(art.Enemy(mesh, Matrix4x4.Identity, EnemyKind.CinderHound, SpinePhase.Commit, 0, 0));
-            Assert.Equal(0, mesh.Count);
+            Assert.Empty(mesh.Flattened());
         }
         finally
         {
@@ -348,7 +350,7 @@ public class CreatureArtTests
         {
             var mesh = new MeshBuilder();
             Art.Draw(mesh, name, clip, 0, true, Matrix4x4.Identity);
-            Assert.Contains(mesh.Vertices.ToArray(), v => v.Emissive >= 1);
+            Assert.Contains(mesh.Flattened(), v => v.Emissive >= 1);
         }
         var hound = Get("cinder_hound");
         Assert.Contains(hound.Materials, m => m.Texture == "ember_crack");

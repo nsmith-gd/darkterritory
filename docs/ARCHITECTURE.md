@@ -1711,3 +1711,8 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       2. Kit meshes in device-local memory.
       3. The eyes sharing one set of shadow maps, and frustum culling for every pass.
       4. Frames in flight, so the CPU builds the next frame while the GPU draws this one.
+    - **1 is done: skinning on the GPU.** Each model's bind pose, for a variant and a look, is cooked once into a skinned asset (`Skinner.Bind`; `SkinWeights` as a second vertex stream). A draw then adds only its pose's bone palette (`MeshBuilder.Skinned`) to the frame's bone buffer (scene set binding 10). The scene and both shadow passes have skinning twins of their pipelines (`skin.glsl`, `SKINNED`).
+      - A glow that pulses goes to the instance (the shader's `tint.a`) rather than into the look. Looks are keyed to 1/128th, so a hull heating as it's drilled doesn't make an asset a frame.
+      - The frames match CPU skinning to within rounding (mean pixel difference 0.0002 on the roof and chase views with the threats).
+      - Building a view went from about 23 ms to 1.5 ms. The CPU share is 2.2 ms flat and 3.1 ms in a headset, inside both budgets.
+      - `MeshBuilder.Flattened` is skin.glsl's blend on the CPU, so the tests still ask where a posed hand or a ragdoll's limbs are.
