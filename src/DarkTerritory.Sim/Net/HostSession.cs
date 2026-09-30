@@ -107,7 +107,11 @@ public sealed class HostSession
             c.ThisTick = NextIntent(c);
 
         World.BeginTick();
-        Controls.Brake = 0;
+        // The brake is held, so it's cleared each tick and re-applied by whoever's holding it; with nobody at the controls
+        // it stays where it was left (a driver who gets down with it on leaves the train standing on it), as the throttle
+        // does and as a predicting client assumes.
+        if (_crew.Any(c => CabControls.CanDrive(c.State, Train)))
+            Controls.Brake = 0;
         foreach (var c in _crew)
         {
             CabControls.Apply(ref Controls, c.ThisTick, c.State, Train);

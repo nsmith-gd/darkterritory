@@ -168,6 +168,28 @@ public class NetcodeTests
         Assert.All(clients, c => Assert.Equal(0, c.MaxCorrection));
     }
 
+    [Fact]
+    public void ABrakeLeftOnStaysOnWithNobodyAtTheControls()
+    {
+        // frontier:7: the driver got down to club a Switchman, the brake came off with nobody holding it, and the train
+        // rolled down the grade into its points. The brake valve stays where it was left, as the throttle does.
+        var (net, host, clients) = Session(2);
+        Run(net, host, clients, 10, _ => default);
+        var driver = clients[1];
+        // The first aboard has the cab: out of it, so the driver's alone at the controls.
+        HostTeleport(host, clients[0].PlayerId!.Value, PlayerMotor.SpawnOnRoof(host.Train, 3, 0, P));
+        HostTeleport(host, driver.PlayerId!.Value, PlayerMotor.SpawnInCab(host.Train, P));
+        Run(net, host, clients, 5, i => i == 1 ? new PlayerIntent { Buttons = PlayerButtons.Brake } : default);
+        Assert.Equal(1, host.Controls.Brake);
+        HostTeleport(host, driver.PlayerId!.Value, PlayerMotor.SpawnOnRoof(host.Train, 2, 0, P));
+        Run(net, host, clients, 30, _ => default);
+        Assert.Equal(1, host.Controls.Brake);
+        // Back at the controls and not holding it: off.
+        HostTeleport(host, driver.PlayerId!.Value, PlayerMotor.SpawnInCab(host.Train, P));
+        Run(net, host, clients, 5, _ => default);
+        Assert.Equal(0, host.Controls.Brake);
+    }
+
     static void HostTeleport(HostSession host, byte id, PlayerState state) => host.SetPlayerState(id, state);
 
     [Fact]
