@@ -106,7 +106,7 @@ object RunHarness(string[] args)
                 .Select(e => $"{e.Kind}:{e.Phase}@{(e.Attached >= 0 ? $"car{e.Attached}" : $"{e.LineDistance:0}")}"));
             string now = string.Join(" | ", crew.Select(c => Harness.Describe(c.Bot, c.State))) + (enemies.Length > 0 ? $"  || {enemies}" : "");
             if (now != lastTrace)
-                trace.WriteLine($"{tick / 30.0,7:0.0}s  {now}");
+                trace.WriteLine($"{tick / 30.0,7:0.0}s  @{world.Train.Dynamics.Distance:0} {world.Train.Dynamics.Velocity:0.0}m/s p{world.Train.Dynamics.Path}  {now}");
             lastTrace = now;
         },
         Bots = (int)Opt(args, "--bots", 8),
