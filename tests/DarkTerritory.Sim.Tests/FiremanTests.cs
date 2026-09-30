@@ -23,9 +23,9 @@ public class FiremanTests
         public readonly ConductorBot Driver, Fireman;
         public PlayerState DriverState, FiremanState;
 
-        public Cab()
+        public Cab(bool boiler = false)
         {
-            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 5, 1)), Line, 2_000);
+            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 5, 1)), Line, 2_000, boiler ? Tuning.Boiler : null);
             train.Dynamics.Velocity = 12;
             World = new World(train, Tuning.Combat);
             var quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } };
@@ -69,6 +69,24 @@ public class FiremanTests
         cab.Run(1);
         Assert.True(cab.Fireman.Driving);
         Assert.True(cab.Calls.Has(StopJob.Driver));
+    }
+
+    [Fact]
+    public void TheFiremanKeepsTheFireFromItsOwnSideOfTheFireboxDoor()
+    {
+        // Standing by with the fire low and no driver heard (deadLines:3: walking straight at the firebox from the left, it
+        // fetched up at the vent's valve and never shovelled, and the Hollow came down a cold stack).
+        var cab = new Cab(boiler: true);
+        cab.DriverState = cab.DriverState with { Death = DeathCause.Climbed };
+        var bt = Tuning.Boiler;
+        var b = cab.Train.Boiler;
+        b.Firebox = bt.FireboxCapacity * bt.LowFireFraction * 0.8;
+        cab.Train.Boiler = b;
+        double tender = b.Tender;
+        cab.Run(30);
+        Assert.False(cab.Fireman.Driving);
+        Assert.True(cab.Train.Boiler.Tender < tender - 5, $"shovelled {tender - cab.Train.Boiler.Tender:0}");
+        Assert.False(cab.Train.Boiler.LowFire(bt));
     }
 
     [Fact]

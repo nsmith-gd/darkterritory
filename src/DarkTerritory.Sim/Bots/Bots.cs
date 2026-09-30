@@ -789,6 +789,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         return allowed;
     }
 
+    /// <summary>Where it stands to fire (engine frame): this far to its side of the firebox door, and this far back from it.</summary>
+    const double FiringSide = 0.35, FiringBack = 0.5;
+
     PlayerIntent Work(in PlayerState self, TrainOnLine train, PlayerIntent intent)
     {
         // Fire it for pressure, and at a stand (where pressure holds up on its own while the fire burns down) keep the fire
@@ -796,14 +799,15 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         if (train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && PlayerMotor.InCab(self, train)
             && (train.Boiler.Pressure < bt.WorkingBandMax - 2 || train.Boiler.FireFraction(bt) < bt.LowFireFraction * 2))
         {
+            // At its own side of the firebox door (the driver right, the fireman left: T75), clear of the vent's valve on the
+            // left wall. Walking straight at the firebox from where it stood, the fireman fetched up at the vent, which was
+            // then the nearest thing to hand, and never shovelled: deadLines:3's fire went out with the tender full.
+            var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
+            var (step, there) = WarmUp.Steer(self, new Double3((Fireman ? -1 : 1) * FiringSide, 0, firebox.Z + FiringBack), 0);
             if (CrewActions.Nearest(self, train) == InteractableKind.Firebox)
                 intent.Buttons |= PlayerButtons.Use;
-            else
-            {
-                var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
-                intent.MoveZ = self.Position.Z > firebox.Z + 0.5 ? 1 : -1;
-                intent.LookYaw = (float)(-self.Yaw * 0.3);
-            }
+            if (!there)
+                intent = intent with { MoveX = step.MoveX, MoveZ = step.MoveZ, LookYaw = step.LookYaw };
         }
         return intent;
     }

@@ -1701,6 +1701,9 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **A Climber in the cab.** It takes whoever comes within reach, and stays while anyone's in the cab; leaving it empty is the Deadman's. So nobody leaves.
       - The driver and fireman keep to the cab's front corners, out of its reach (it comes down at the cab's middle, where the driver used to stand).
       - They work the controls and the firebox from there; only where they stand changes.
-    - **Verified:** `FiremanTests`. The fireman stands by, then takes the controls when the driver dies. With a Climber in the cab, both stay in the cab, unhurt and out of its reach, for 20 s.
+    - **Firing from its own side.** Firing, each keeps to its own side of the firebox door: the driver right, the fireman left, clear of the vent's valve on the left wall.
+      - Before, a bot walked straight fore and aft at the firebox from wherever it stood. The fireman fetched up by the vent, which was then the nearest thing to hand, and never shovelled.
+      - On deadLines:3 the fire went out with 301 units still in the tender. The Hollow came down the cold stack and took the four in the cab.
+    - **Verified:** `FiremanTests`. The fireman stands by, then takes the controls when the driver dies, and keeps a low fire up by itself. With a Climber in the cab, both stay in the cab, unhurt and out of its reach, for 20 s.
       - The sweep (frontier, seeds 1–2, crews 2 and 8) delivers all four nights and passes every check. frontier:1 at crew 8 comes home (2376), frontier:2 at crew 8 makes 3515, 43 punishes a night.
       - frontier:7 delivers (3791).
