@@ -114,7 +114,7 @@ object RunHarness(string[] args)
             {
                 // And the fire (the Hollow's, the Stoker's), with the steam it makes.
                 var b = world.Train.Boiler;
-                string fire = world.Train.BoilerTuning is { } bt ? $" fire {b.FireFraction(bt):0.00} P{b.Pressure:0} tender {b.Tender:0}" : "";
+                string fire = world.Train.BoilerTuning is { } bt ? $" fire {b.FireFraction(bt):0.00} P{b.Pressure:0} tender {b.Tender:0}{(b.FireDoorOpen ? " DOOR" : "")}" : "";
                 trace.WriteLine($"{tick / 30.0,7:0.0}s  @{world.Train.Dynamics.Distance:0} {world.Train.Dynamics.Velocity:0.0}m/s p{world.Train.Dynamics.Path}{fire}  {now}");
             }
             lastTrace = now;

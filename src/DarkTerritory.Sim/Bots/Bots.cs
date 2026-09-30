@@ -53,7 +53,8 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         }
         // A tunnel's mouth ahead: at the gun it's down behind the shield; anywhere else on the roofs, off them.
         // Trouble in a car: off the gun for it only while there's nothing at the back to shoot (hounds out).
-        bool hounds = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && !e.Gone && e.Phase is SpinePhase.Commit or SpinePhase.Punish);
+        // From the first howl (the telegraph): back to the gun, it's a long walk from the front cars and the pack's closing.
+        bool hounds = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && !e.Gone && e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish);
         _legs.Looked(world, self, safe: Guns.MannedGun(self, world.Train, guns) is not null, tend: !hounds);
         // Nobody holds a gun through the cold (spec B.2): off it and indoors until warm, then back. Nor through a stop
         // they have a part in.
@@ -1306,6 +1307,26 @@ public static class Heed
         }
         intent.Actions = PlayerActions.Swing;
         return intent;
+    }
+
+    /// <summary>Health a bot wants before it wades into a pack fight (a hound bites for 45).</summary>
+    const int PackFightHealth = 55;
+
+    /// <summary>
+    /// Cinder Hounds aboard (v1.1 App. A.3 PACK FIGHT): "each takes several bludgeons", so everyone near enough and fit
+    /// enough goes at the nearest, swinging; hurt, a bot keeps its distance (they only bite what's within their reach).
+    /// </summary>
+    public static PlayerIntent Hounds(PlayerIntent intent, in PlayerState self, World world, int selfId)
+    {
+        if (!self.Alive || self.Has(PlayerFlags.Held) || self.Parent < 0)
+            return intent;
+        var train = world.Train;
+        var me = PlayerMotor.WorldPosition(self, train);
+        var hound = world.ActiveEnemies.OfType<CinderHound>().Where(h => !h.Gone && h.Attached >= 0 && h.Phase is SpinePhase.Telegraph or SpinePhase.Commit)
+            .Select(h => (h, At: h.WorldPosition(train))).Where(x => (x.At - me).Length <= 20).OrderBy(x => (x.At - me).Length).FirstOrDefault();
+        if (hound.h is null || self.Health < PackFightHealth)
+            return intent;
+        return Strike(self, train, hound.At, 1.6) ?? intent;
     }
 
     /// <summary>
