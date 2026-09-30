@@ -549,7 +549,12 @@ public sealed class Dragger(int id) : Enemy(id)
                 var walkers = ctx.Crew.Where(c => c.Player.State is { Alive: true, Surface: Surface.Roof } s && s.Parent == Attached
                     && Math.Sign(s.Position.X + 1e-9) == Side).ToList();
                 if (walkers.Count == 0)
+                {
+                    // Nobody up there for long enough: it lets go of the car.
+                    if (PhaseSeconds >= t.LingerSeconds)
+                        Enter(ctx, SpinePhase.Gone);
                     return;
+                }
                 var near = walkers.MinBy(c => Math.Abs(c.Player.State.Position.Z - Local.Z));
                 Creep(near.Player.State.Position.Z, t, shape);
                 if (Reaches(near.Player.State, train, t))

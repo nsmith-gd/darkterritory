@@ -48,8 +48,13 @@ public sealed class Director
     public double Spent => _spent;
     public int Crew { get; }
     public List<DirectorSpawn> Log { get; } = new();
+    /// <summary>The conflict-table pairs this run has put together (App. B.1 "contradiction seeding"), as "a+b".</summary>
+    public List<string> Pairs { get; } = new();
 
-    public double Cost(EnemyKind kind) => _t.Costs.GetValueOrDefault(kind switch
+    public double Cost(EnemyKind kind) => _t.Costs.GetValueOrDefault(Key(kind), 2);
+
+    /// <summary>The kind's name in the tuning (costs, the conflict table).</summary>
+    public static string Key(EnemyKind kind) => kind switch
     {
         EnemyKind.CinderHound => "cinderHounds",
         EnemyKind.Clinger => "clingers",
@@ -67,7 +72,77 @@ public sealed class Director
         EnemyKind.Weight => "weight",
         EnemyKind.Gaunt => "gaunt",
         _ => "sleepers",
-    }, 2);
+    };
+
+    /// <summary>
+    /// Whether one side of a conflict-table pair is there now (App. B.1): an enemy of that kind about (Sleepers: lying
+    /// ahead within reach of the lamp's worry), or a condition: "grade" (a climb or fall just ahead), "facilityLoading" (at a
+    /// facility), "choir" (always: it's the whole night's).
+    /// </summary>
+    bool Present(string side, World world, IReadOnlyList<Enemy> active)
+    {
+        var train = world.Train;
+        double s = train.Dynamics.Distance;
+        switch (side)
+        {
+            case "choir":
+                // Coming (App. A.6): past its approach, its aggro is what firing the guns feeds.
+                return world.Combat is { } c && world.Choir.Aggro >= c.Choir.ApproachThreshold;
+            case "facilityLoading":
+                return world.Run is { Phase: Run.RunPhase.AtFacility };
+            case "grade":
+                for (double at = s; at <= s + _t.GradeAhead; at += 50)
+                    if (Math.Abs(train.Line.Sample(train.Dynamics.Path, at).GradePercent) >= _t.GradePercent)
+                        return true;
+                return false;
+            case "sleepers":
+                return active.Any(e => e.Kind == EnemyKind.Sleepers && !e.Gone && e.LineDistance >= s && e.LineDistance <= s + _t.SleepersAhead);
+            default:
+                return active.Any(e => !e.Gone && Key(e.Kind) == side);
+        }
+    }
+
+    /// <summary>The conflict-table pair spawning this would make, with what's there now, if any.</summary>
+    string? Completes(EnemyKind kind, World world, IReadOnlyList<Enemy> active)
+    {
+        string key = Key(kind);
+        foreach (var pair in _t.Conflicts)
+        {
+            if (pair.Length != 2)
+                continue;
+            string? other = pair[0] == key ? pair[1] : pair[1] == key ? pair[0] : null;
+            if (other is not null && Present(other, world, active))
+                return $"{pair[0]}+{pair[1]}";
+        }
+        return null;
+    }
+
+    /// <summary>App. B.1: "at least one pair per run on Frontier and above. Two on Deep Territory."</summary>
+    int PairsWanted => _route is null ? 0 : _t.PairsPerRun.GetValueOrDefault(char.ToLowerInvariant(_route.Tier.ToString()[0]) + _route.Tier.ToString()[1..], 0);
+
+    /// <summary>
+    /// Budget held back for the rare, expensive threats this run can still have (the Gaunt): the director spends as soon
+    /// as it can afford something, so without saving, a cost-5 threat would only ever come when nothing cheaper could.
+    /// </summary>
+    double Reserve(World world, double distance, EnemyKind forKind)
+    {
+        if (_route is null || distance < _route.Length * _t.SaveFrom || world.Enemies is not { } et)
+            return 0;
+        double reserve = 0;
+        foreach (var name in _t.SaveFor)
+        {
+            if (Key(forKind) == name || Log.Any(l => Key(l.Kind) == name))
+                continue;
+            bool possible = name switch
+            {
+                "gaunt" => _route.Tier >= RouteTier.Frontier && Crew >= et.Gaunt.MinCrew,
+                _ => false,
+            };
+            if (possible)
+                reserve = Math.Max(reserve, _t.Costs.GetValueOrDefault(name, 0));
+        }
+        return reserve;
+    }
 
     /// <summary>An enemy's name as a generated line's affinity table has it (linegen/tiers.json): its kind, camel-cased.</summary>
     static string Name(EnemyKind kind) => kind.ToString() is var n ? char.ToLowerInvariant(n[0]) + n[1..] : "";
@@ -191,7 +266,7 @@ public sealed class Director
             && !active.Any(e => !e.Gone && e.Kind == EnemyKind.LongWhistle) && LongWhistle.Company(world, wt.LongWhistle)
             && LongWhistle.Spot(train, wt.LongWhistle) is not null)
             options.Add((EnemyKind.LongWhistle, wr.Weather.FogDensity >= wt.LongWhistle.FogFrom ? wt.LongWhistle.FogWeight : 1));
-        options.RemoveAll(o => Cost(o.Kind) > available);
+        options.RemoveAll(o => Cost(o.Kind) > available - Reserve(world, s, o.Kind));
         // A generated line's director context (linegen plan §15): no spawns under a ban (the grace stretch, the
         // terminus), none of its own while the terrain is already at its hardest there (§15.4), and under the terrain's
         // tags the enemies that belong there come more often (§15.1).
@@ -207,6 +282,17 @@ public sealed class Director
         }
         if (options.Count == 0)
             return null;
+        // App. B.1 contradiction seeding: "the director draws pairs from a conflict table rather than spawning
+        // independently". Whatever would make a pair with what's about now is weighted up, and more so past halfway on a
+        // run that hasn't had its pairs yet.
+        // Seeded, not flooded: only while the run is short of its pairs.
+        if (_route is { } pr && Pairs.Count < PairsWanted)
+        {
+            bool behind = s > pr.Length * 0.5;
+            for (int i = 0; i < options.Count; i++)
+                if (Completes(options[i].Kind, world, active) is not null)
+                    options[i] = (options[i].Kind, options[i].Weight * _t.PairWeight * (behind ? _t.BehindPairWeight : 1));
+        }
 
         double pick = _rng.NextDouble() * options.Sum(o => o.Weight);
         var kind = options[^1].Kind;
@@ -228,6 +314,8 @@ public sealed class Director
     public void Charge(World world, EnemyKind kind, IReadOnlyList<Enemy> active)
     {
         _spent += Cost(kind);
+        if (Completes(kind, world, active) is { } pair)
+            Pairs.Add(pair);
         var zone = kind switch
         {
             EnemyKind.CinderHound or EnemyKind.Weight => PressureZone.Rear,
