@@ -80,7 +80,7 @@ M3 is done but for a test with eight people.
 - Bodies persist and can be carried. Since GDD App. D they're loot: a fee each at settlement, most of it back if brought home (no revival).
 
 **The run:**
-- A night is a game: through the gates, a stop at the coaling tower (a working gravity chute), the terminus, and pay by spec F.1. It starts with the engine at the gate, ready to depart (ARCHITECTURE §8 note 93).
+- A night is a game: through the gates, a stop at the coaling tower (a working gravity chute), the terminus, and pay by spec F.1. It starts with the engine at the gate, ready to depart (ARCHITECTURE §8 note 94).
 - Dawn, derailment or losing the crew ends it.
 - The harness reports the outcome and the payout.
 
@@ -237,14 +237,15 @@ M3 is done but for a test with eight people.
 - Cold exposure is predicted like movement: 600 s to onset, 1200 s to death, recovered in 20 s near heat, and a quarter as fast inside a car with a door open.
 - The Vigil (spec C.2) was built here and is gone: GDD v1.2's Appendix D cut it (below).
 
-**Death, Holdouts and return (GDD v1.2 App. D, `docs/design/gdd-appendix-d.md`; ARCHITECTURE §8 note 92):**
+**Death, Holdouts and return (GDD v1.2 Appendix D, `docs/design/gdd.md`; ARCHITECTURE §8 note 93):**
 - Once the run has left the gate, a Holdout is the only way back. The line generator places them at facilities, halts and dead towns, lamps seen from the approach boards (`dt screenshot --holdout i --lit [--board]`).
 - The dead and lobbied wait in one respawn queue. They watch a living crewmate's view, talk on the dead channel, Call Out from a Holdout and open its Live Mic. They vote once a run for what comes next. None of it reaches the loudness meter or the director, except the vote.
 - The crew stops, smashes, pries or opens the door; the freed stand up inside at 80 HP with the standard kit, as a survivor (kept by the campaign against their profile).
 - Bodies are loot. The run-end screen has the incident report, bookmarks as stills, and one commendation each, kept on the player's profile.
 - Mid-run joiners are lobbied; the run fails at zero living.
 - `dt holdouts check` runs every row of D.14 headless, the networked ones over a lossy loopback. All pass.
-- **Not yet:** bots that stop for a Holdout or breach one; enemies that path to a Holdout or rank bodies as loot (the v1.1 roster's Gaunt, Followers and Car Hugger); the breach's own sound; VR bindings for the dead phase; a Holdout's collision.
+- Bodies are loot to the v1.1 roster too: the Gaunt takes one, the Followers nest by one, each at its refund.
+- **Not yet:** bots that stop for a Holdout or breach one (so a solo night with a bot crew can't free you); enemies that path to a Holdout; the breach's own sound; VR bindings for the dead phase; a Holdout's collision.
 
 **Car interiors:**
 - Walk-in cars and a guard van with the back door.

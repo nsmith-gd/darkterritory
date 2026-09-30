@@ -134,9 +134,9 @@ public class NetcodeTests
         Run(net, host, clients, 90, i => i == 1 ? new PlayerIntent { Buttons = PlayerButtons.Fire } : default);
         Run(net, host, clients, 3, _ => default);
         int fired = combat.Guns.Ammo - host.Train.Vehicles[0].Gun.Ammo;
-        Assert.InRange(fired, 8, 10); // 3 s at 3 rounds a second
+        Assert.Equal(1, fired); // one round, then a reload by hand (GDD v1.1 App. C.3)
         Assert.All(clients, c => Assert.Equal(host.Train.Vehicles[0].Gun.Ammo, c.Train.Vehicles[0].Gun.Ammo));
-        Assert.All(clients, c => Assert.Equal(host.World.Choir.Aggro, c.World.Choir.Aggro, 6));
+        Assert.All(clients, c => Assert.Equal(host.World.Choir.Loudness, c.World.Choir.Loudness, 6));
         Assert.All(clients, c => Assert.Equal(0, c.MaxCorrection));
     }
 
@@ -310,7 +310,7 @@ public class SessionRulesTests
         int guard = host.Train.Dynamics.Consist.Vehicles[^1].Id;
         host.SetPlayerState(clients[1].PlayerId!.Value, PlayerMotor.SpawnOnRoof(host.Train, guard, 0, P));
         var shape = host.Train.Frames[guard].Shape;
-        host.World.AddEnemy(id => new DarkTerritory.Sim.Enemies.Clinger(id) { Attached = guard, Local = new Ballast.Double3(shape.HalfWidth + 0.15, 2, 0) });
+        host.World.AddEnemy(id => new DarkTerritory.Sim.Enemies.Dragger(id) { Attached = guard, Local = new Ballast.Double3(shape.HalfWidth + 0.1, shape.RoofHeight - 0.35, 0), Extra = -1 });
         host.World.Bodies.SpawnCrate(host.Train, 1, new Ballast.Double3(0, T.Geometry.CarHeight, 0));
         Run(net, host, clients, 20);
         Assert.Empty(clients[0].World.ActiveEnemies);
@@ -323,7 +323,7 @@ public class SessionRulesTests
     [Fact]
     public void AFollowerIsNeverSentToTheOneItsFollowing()
     {
-        // App. A.3: "visible ONLY to other players, never to the carrier".
+        // GDD v1.1 App. A.6: "its host can't see it; their friends can, if they look".
         var (net, host, clients, _) = Session(2);
         host.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } }, null, 1, 2);
         Run(net, host, clients, 10);
@@ -332,7 +332,7 @@ public class SessionRulesTests
         var ground = PlayerMotor.SpawnOnGround(near.Position + Ballast.Double3.Cross(near.Tangent, Ballast.Double3.Up).Normalized * 3.5, host.Train.Line,
             host.Train.Dynamics.Distance - 30, P);
         host.SetPlayerState(carrier, ground);
-        host.World.AddEnemy(id => DarkTerritory.Sim.Enemies.Follower.Behind(id, host.Train, ground, carrier, Tuning.Enemies.Followers));
+        host.World.AddEnemy(id => DarkTerritory.Sim.Enemies.Follower.On(id, host.Train, ground, carrier, Tuning.Enemies.Followers));
         Run(net, host, clients, 20);
         Assert.Single(clients[0].World.ActiveEnemies, e => e is DarkTerritory.Sim.Enemies.Follower);
         Assert.DoesNotContain(clients[1].World.ActiveEnemies, e => e is DarkTerritory.Sim.Enemies.Follower);

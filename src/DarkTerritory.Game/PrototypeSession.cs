@@ -208,93 +208,89 @@ public sealed class PrototypeSession : IPlaySession
 
     static string? Cue(in EnemyEvent e) => (e.Kind, e.To) switch
     {
-        (EnemyKind.Sleepers, SpinePhase.Telegraph) => "the lamp catches ties that move, ahead",
+        // GDD v1.1 §21-22: each line is what the crew would say they saw or heard, and the rule that answers it.
+        (EnemyKind.Sleepers, SpinePhase.Telegraph) => "the lamp catches debris on the line ahead: brake",
         (EnemyKind.Sleepers, SpinePhase.Punish) => "the engine rides up over something",
-        (EnemyKind.CinderHound, SpinePhase.Telegraph) => "howling behind, closing",
-        (EnemyKind.CinderHound, SpinePhase.Punish) => "something lands on the rear car",
-        (EnemyKind.CinderHound, SpinePhase.BreakOff) => "the howling falls away",
-        (EnemyKind.Clinger, SpinePhase.Telegraph) => "scraping on a hull",
-        (EnemyKind.Clinger, SpinePhase.Punish) => "a hull gives: cargo spilling",
-        (EnemyKind.Clinger, SpinePhase.BreakOff) => "it comes away and drops",
-        (EnemyKind.Hollow, SpinePhase.Telegraph) => "the fire gutters; soot falls in the cab",
-        (EnemyKind.Hollow, SpinePhase.BreakOff) => "the heat drives it back up the stack",
-        (EnemyKind.Switchman, SpinePhase.Telegraph) => "a figure at the points ahead; the switch lamp reads wrong",
-        (EnemyKind.Switchman, SpinePhase.Punish) => "the train takes a dead line",
-        (EnemyKind.Switchman, SpinePhase.BreakOff) => "the figure at the points slips away",
-        // The voice is the telegraph; the cue only says the call's there (the listener has to notice it doesn't fall off).
-        (EnemyKind.SootChildren, SpinePhase.Telegraph) => "someone outside is calling for help",
-        (EnemyKind.SootChildren, SpinePhase.Punish) => "somebody answered the voice outside",
-        (EnemyKind.SootChildren, SpinePhase.BreakOff) => "the voice outside gives up",
-        (EnemyKind.Dragger, SpinePhase.Telegraph) => "a scrape at the roof's edge: something reaching over the lip",
-        (EnemyKind.Dragger, SpinePhase.Punish) => "grabbed at the edge! get them free",
-        (EnemyKind.Dragger, SpinePhase.BreakOff) => "it lets go and sinks back under the edge",
-        (EnemyKind.Rattle, SpinePhase.Telegraph) => "a dry rattle in the coupling: don't cross there",
-        (EnemyKind.Rattle, SpinePhase.Punish) => "pulled under between the cars",
-        (EnemyKind.Rattle, SpinePhase.Dormant) => "the rattle in the coupling stops",
-        (EnemyKind.Deadman, SpinePhase.Telegraph) => "the cab lamp's dimming and the controls are clicking on their own: get in the cab",
-        (EnemyKind.Deadman, SpinePhase.Punish) => "something's taken the cab: the regulator's locked open",
-        (EnemyKind.Deadman, SpinePhase.BreakOff) => "the cab is yours again",
-        (EnemyKind.Stoker, SpinePhase.Telegraph) => "the pressure's climbing on its own and the fire's the wrong colour: vent it, or drive it out",
-        (EnemyKind.Stoker, SpinePhase.Punish) => "the boiler's at its limit",
-        (EnemyKind.Stoker, SpinePhase.BreakOff) => "driven out of the firebox",
-        // The Gaunt's telegraph is only that it's closer than it was: no cue for it here either (spec A.4: silent by design).
-        (EnemyKind.Drift, SpinePhase.Telegraph) => "a rustle, and the dark creeping toward someone: stand still",
+        (EnemyKind.Drift, SpinePhase.Telegraph) => "the reeds rustle toward someone: stand still",
         (EnemyKind.Drift, SpinePhase.Punish) => "it's on them. stop moving",
-        (EnemyKind.Drift, SpinePhase.BreakOff) => "it's lost them",
-        // A Follower's telegraph is for everyone but the one it's on: they never get its record, so never this line either.
-        (EnemyKind.Follower, SpinePhase.Telegraph) => "something's walking right behind one of the crew, in their step. tell them. stand still",
-        (EnemyKind.Follower, SpinePhase.Commit) => "it got aboard with them",
-        (EnemyKind.Follower, SpinePhase.Punish) => "something's in the dark in one of the cargo cars. take a lamp in",
-        (EnemyKind.Follower, SpinePhase.BreakOff) => "it lets go and runs from the light",
-        // The Passenger's telegraph is silence (App. A.7): it says nothing, and neither does this, until it's done.
-        (EnemyKind.Passenger, SpinePhase.Punish) => "someone alone in a car is gone. who's the one who came back?",
-        (EnemyKind.Passenger, SpinePhase.BreakOff) => "called out, it drops the face and runs",
-        (EnemyKind.Gaunt, SpinePhase.Punish) => "someone on the roofs is gone",
-        (EnemyKind.Gaunt, SpinePhase.BreakOff) => "the thing on the roofs is gone",
-        (EnemyKind.Weight, SpinePhase.Telegraph) => "the train lurches and a deep scraping starts at the rear: cut the rear car or beat it off from the platform",
-        (EnemyKind.Weight, SpinePhase.Punish) => "the rear car's dragged off the rails",
-        (EnemyKind.Weight, SpinePhase.BreakOff) => "the scraping at the rear stops",
-        (EnemyKind.Climber, SpinePhase.Telegraph) => "scrabbling at a coupling gap: something's climbing on, get in the gap",
+        (EnemyKind.Drift, SpinePhase.BreakOff) => "the reeds go quiet",
+        (EnemyKind.TrackDoll, SpinePhase.Telegraph) => "a white face on the rails in the lamp: stop before you hit it",
+        (EnemyKind.TrackDoll, SpinePhase.BreakOff) => "the doll's gone",
+        (EnemyKind.TrackDoll, SpinePhase.Punish) => "giggling in the cars: keep someone in the cab",
+        (EnemyKind.CinderHound, SpinePhase.Telegraph) => "howling behind, closing: crew the rear cannon",
+        (EnemyKind.CinderHound, SpinePhase.Commit) => "hounds aboard the rear car: club them together",
+        (EnemyKind.CinderHound, SpinePhase.Grab) => "a hound has someone pinned: club it off",
+        (EnemyKind.CinderHound, SpinePhase.BreakOff) => "the howling falls away",
+        (EnemyKind.CarHugger, SpinePhase.Telegraph) => "something low beside the line, keeping pace at the rear",
+        (EnemyKind.CarHugger, SpinePhase.Commit) => "grinding at the rear: it's latched on. cut the caboose or beat it off",
+        (EnemyKind.CarHugger, SpinePhase.Grab) => "it's swallowing someone at the rear: pull them out",
+        (EnemyKind.CarHugger, SpinePhase.Punish) => "the rear car's eaten through and gone",
+        (EnemyKind.CarHugger, SpinePhase.BreakOff) => "the grinding at the rear stops",
+        (EnemyKind.Dragger, SpinePhase.Telegraph) => "a limb over the roof's edge: get away from the edge",
+        (EnemyKind.Dragger, SpinePhase.Grab) => "someone's hanging off the side: haul them up",
+        (EnemyKind.Dragger, SpinePhase.BreakOff) => "it lets go and sinks back under the edge",
+        (EnemyKind.Whistler, SpinePhase.Telegraph) => "the whistle blew and nobody's on the cord: check the gaps, in pairs",
+        (EnemyKind.Whistler, SpinePhase.Grab) => "something's run off with one of the crew: after it",
+        (EnemyKind.Whistler, SpinePhase.BreakOff) => "the thing in the gap runs",
+        (EnemyKind.Climber, SpinePhase.Telegraph) => "scrabbling at a coupling gap: outnumber them there",
         (EnemyKind.Climber, SpinePhase.Commit) => "something's up on the roofs, heading for the engine",
-        (EnemyKind.Climber, SpinePhase.Punish) => "it's got into a car",
+        (EnemyKind.Climber, SpinePhase.Grab) => "a Climber's got someone in a car: club it off",
         (EnemyKind.Climber, SpinePhase.BreakOff) => "it drops back off the train",
-        (EnemyKind.LongWhistle, SpinePhase.Telegraph) => "a horn on the line ahead, but it doesn't bend as you close: don't trust the horn",
-        (EnemyKind.LongWhistle, SpinePhase.Commit) => "braking for a train that isn't there",
-        (EnemyKind.LongWhistle, SpinePhase.Punish) => "stopped where the horn wanted you",
-        (EnemyKind.LongWhistle, SpinePhase.BreakOff) => "the horn ahead gives up",
-        (EnemyKind.Ferryman, SpinePhase.Telegraph) => "a lantern on the line ahead, waving you down: don't slow down",
-        (EnemyKind.Ferryman, SpinePhase.Commit) => "the lantern's coming down the line at you",
-        (EnemyKind.Ferryman, SpinePhase.Punish) => "something's in the cab",
-        (EnemyKind.Ferryman, SpinePhase.BreakOff) => "the lantern steps aside",
-        (EnemyKind.CarFire, SpinePhase.Telegraph) => "smoke and a crackle from a car: get in there and beat it out (Use)",
+        (EnemyKind.Stoker, SpinePhase.Telegraph) => "soot falling in the cab: something's in the firebox",
+        (EnemyKind.Stoker, SpinePhase.Commit) => "the pressure's climbing on its own: vent it, or open up and club it",
+        (EnemyKind.Stoker, SpinePhase.Punish) => "too fast for the line",
+        (EnemyKind.Stoker, SpinePhase.BreakOff) => "driven out of the firebox",
+        (EnemyKind.TippyToesie, SpinePhase.Grab) => "someone's gone quiet: something's got its hand over their mouth",
+        (EnemyKind.TippyToesie, SpinePhase.BreakOff) => "it tiptoes off",
+        (EnemyKind.FireFlies, SpinePhase.Telegraph) => "glow and buzzing round a lamp: lamps off",
+        (EnemyKind.FireFlies, SpinePhase.Punish) => "the car's caught",
+        (EnemyKind.FireFlies, SpinePhase.BreakOff) => "the flies scatter",
+        (EnemyKind.Ribbit, SpinePhase.Telegraph) => "throats swelling in a line: stick together, or run",
+        (EnemyKind.Ribbit, SpinePhase.Grab) => "a tongue's got someone: get to them",
+        (EnemyKind.Ribbit, SpinePhase.BreakOff) => "the toads hop off",
+        (EnemyKind.Gaunt, SpinePhase.Alert) => "something woke and it's following someone: keep talking to it",
+        (EnemyKind.Gaunt, SpinePhase.Telegraph) => "it's leaning in, head tilted: talk",
+        (EnemyKind.Gaunt, SpinePhase.BreakOff) => "the thin thing's gone",
+        // A Follower's lump is on its host's back: they can't see it, so no cue until it's off them (GDD v1.1 A.6).
+        (EnemyKind.Follower, SpinePhase.Punish) => "something's nesting in the loot: find it, bludgeon it",
+        (EnemyKind.Follower, SpinePhase.BreakOff) => "the parasite's dead",
+        (EnemyKind.SootChildren, SpinePhase.Telegraph) => "a child calling for help out there: check its eyes from five metres",
+        (EnemyKind.SootChildren, SpinePhase.Grab) => "it's got someone and it's drinking: kill it",
+        (EnemyKind.SootChildren, SpinePhase.BreakOff) => "the calling stops",
+        // The Passenger's telegraph is silence (App. A.8): it says nothing, and neither does this, until it moves.
+        (EnemyKind.Passenger, SpinePhase.Grab) => "someone's being dragged toward the caboose: kill it",
+        (EnemyKind.Passenger, SpinePhase.Punish) => "the caboose is rolling away with someone",
+        (EnemyKind.Passenger, SpinePhase.BreakOff) => "the one who never spoke is dead",
+        (EnemyKind.Switchman, SpinePhase.Telegraph) => "a figure at the points ahead; the switch lamp reads wrong: shoot it or stop",
+        (EnemyKind.Switchman, SpinePhase.Punish) => "the train takes the wrong line",
+        (EnemyKind.Switchman, SpinePhase.BreakOff) => "the figure at the points is down",
+        (EnemyKind.Grumbler, SpinePhase.Telegraph) => "gnawing in the crates: check before every lift",
+        (EnemyKind.Grumbler, SpinePhase.Commit) => "it's feral: gang up on it",
+        (EnemyKind.Grumbler, SpinePhase.Punish) => "it came aboard with a crate: it's eating the cargo",
+        (EnemyKind.Grumbler, SpinePhase.BreakOff) => "the Grumbler's dead",
+        (EnemyKind.Choir, SpinePhase.Grab) => "the ghosts have someone: hush and shut the doors",
+        (EnemyKind.CarFire, SpinePhase.Telegraph) => "smoke and a crackle from a car: get the extinguisher (Fire)",
         (EnemyKind.CarFire, SpinePhase.Punish) => "a car's alight: it'll take the next one",
         (EnemyKind.CarFire, SpinePhase.BreakOff) => "the fire's out",
-        (EnemyKind.LooseLoad, SpinePhase.Telegraph) => "straps groaning in a car: a load's come loose, lash it (Use), and go easy on the brake",
-        (EnemyKind.LooseLoad, SpinePhase.Punish) => "a load's come down across the aisle",
-        (EnemyKind.LooseLoad, SpinePhase.BreakOff) => "the load's lashed",
-        (EnemyKind.Gnawers, SpinePhase.Telegraph) => "chittering in a car's load: something's nesting in it",
-        (EnemyKind.Gnawers, SpinePhase.Punish) => "they're out of the crates: stamp them out (Use)",
-        (EnemyKind.Gnawers, SpinePhase.BreakOff) => "the last of them stamped out",
-        (EnemyKind.Lamplighter, SpinePhase.Telegraph) => "eyes out in the dark, catching the lamp: lamps down (L)",
-        (EnemyKind.Lamplighter, SpinePhase.Punish) => "the lamp's smashed",
-        (EnemyKind.Lamplighter, SpinePhase.BreakOff) => "the eyes go back out into the dark",
         _ => null,
     };
 
-    /// <summary>Recent cues plus anything still ongoing, e.g. a Clinger drilling.</summary>
+    /// <summary>Recent cues plus anything still ongoing, e.g. the Choir gathering.</summary>
     public string Threats()
     {
         var parts = _cues.Select(c => c.Text).Distinct().ToList();
+        if (World.Choir.Present)
+            parts.Add("THE CHOIR IS HERE: hush");
+        else if (World.Choir.Build > 0.3)
+            parts.Add($"something's gathering to the noise ({World.Choir.Build:P0})");
         foreach (var e in World.ActiveEnemies)
         {
-            if (e is Clinger { Phase: SpinePhase.Telegraph } c)
-                parts.Add($"drilling on car {c.Attached} ({c.Extra:P0})");
-            else if (e is Hollow { Phase: SpinePhase.Punish })
-                parts.Add("SOMETHING IN THE CAB");
-            else if (e is Switchman { Phase: SpinePhase.Telegraph })
-                parts.Add("a switch ahead set for a dead line");
-            else if (e is CinderHound { Phase: SpinePhase.Punish } h && !parts.Contains("hounds aboard"))
-                parts.Add("hounds aboard");
+            if (e is Switchman { Phase: SpinePhase.Telegraph })
+                parts.Add("a switch ahead set wrong");
+            else if (e is CarHugger { Phase: SpinePhase.Commit or SpinePhase.Grab } && !parts.Contains("the rear car's being eaten"))
+                parts.Add("the rear car's being eaten");
+            else if (e is TrackDoll { Phase: SpinePhase.Punish, Extra2: 1 } && !parts.Contains("THE DOLL'S IN THE CAB"))
+                parts.Add("THE DOLL'S IN THE CAB");
         }
         return parts.Count == 0 ? "" : " | " + string.Join(" · ", parts);
     }
@@ -314,16 +310,21 @@ public sealed class PrototypeSession : IPlaySession
     string Gunnery()
     {
         var c = _combatTuning.Value;
-        string gun = Guns.MannedGun(Player, Train, c.Guns) is { } g ? $" GUN {Train.Vehicles[g].Gun.Ammo} rds |" : "";
-        return $"{gun} choir {World.Choir.Phase(c.Choir).ToString().ToLowerInvariant()} {World.Choir.Aggro:0} |";
+        string gun = Guns.MannedGun(Player, Train, c.Guns) is { } g ? $" GUN {Train.Vehicles[g].Gun.Ammo} rds{(Train.Vehicles[g].Gun.ReloadNeeded > 0 ? " RELOAD (hold Use)" : "")} |" : "";
+        return $"{gun} choir {World.Choir.Phase(c.Choir).ToString().ToLowerInvariant()} {World.Choir.Loudness:0.0} |";
     }
 
     string RouteStatus() => RouteStatus(Route, World, Train);
 
     /// <summary>The night so far: the dawn clock, where you are on the route, what's next, and how it ended.</summary>
-    /// <summary>Cold, for the status line (spec B.2).</summary>
-    public static string Condition(in PlayerState p, PlayerTuning t) =>
-        PlayerMotor.Chilled(p, t) ? $" | COLD: {Math.Max(0, t.Cold.DeathSeconds - p.Cold):0}s — get inside" : "";
+    /// <summary>Cold, and held, for the status line (spec B.2; GDD v1.1 App. C.1).</summary>
+    public static string Condition(in PlayerState p, PlayerTuning t)
+    {
+        string cold = PlayerMotor.Chilled(p, t) ? $" | COLD: {Math.Max(0, t.Cold.DeathSeconds - p.Cold):0}s — get inside" : "";
+        // GDD v1.1 App. C.1: held, a friend has to hit it or pull you free; alone, you struggle (hold Use).
+        string held = p.Has(PlayerFlags.Held) ? " | HELD: shout for help (alone: hold Use to struggle)" : "";
+        return cold + held;
+    }
 
     /// <summary>What there is to load at a facility (spec D).</summary>
     static string SiteStatus(Site? site)

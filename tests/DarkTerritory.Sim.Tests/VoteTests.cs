@@ -34,12 +34,13 @@ public class VoteTests
         var d = n.World.Director!;
         Assert.All(options, k => Assert.Equal("weighted", d.SpawnMode(k)));
         Assert.All(options, k => Assert.NotNull(d.WantTag(k)));
-        // D.11 "excluded: condition-triggered (the Stoker)", and the retired v1.0 roster (no want tag in B.1).
+        // D.11 "excluded: condition-triggered (the Stoker) and loudness-triggered (the Choir)", and the line's hazards.
         Assert.DoesNotContain(EnemyKind.Stoker, options);
-        Assert.DoesNotContain(EnemyKind.Hollow, options);
-        Assert.DoesNotContain(EnemyKind.Ferryman, options);
-        Assert.DoesNotContain(EnemyKind.Clinger, options);
+        Assert.DoesNotContain(EnemyKind.Choir, options);
         Assert.DoesNotContain(EnemyKind.Sleepers, options);
+        Assert.DoesNotContain(EnemyKind.Drift, options);
+        Assert.Equal("condition", d.SpawnMode(EnemyKind.Stoker));
+        Assert.Equal("loudness", d.SpawnMode(EnemyKind.Choir));
         Assert.Contains(EnemyKind.CinderHound, options);
         // Gated out on a Local line (the Gaunt and the Switchman are Frontier and beyond, the Passenger Dead lines): not offered.
         var local = Night(Local).World.VoteOptions;
@@ -184,17 +185,21 @@ public class VoteTests
     }
 
     [Fact]
-    public void TheSootChildrensOwnDrawsAreUntouched()
+    public void TheSootChildrensRealChildRollIsUntouched()
     {
-        // GDD v1.2 App. B.6's 50/50 real-child roll isn't in this build (v1.0's Soot Children); what is theirs is who they call
-        // with and where from. A vote touches only the director's pick of kind: the Soot Children's choice, given the same
-        // world, comes out the same with the vote in or not.
+        // GDD v1.1 App. B.6: a true 50/50 with a real child, drawn from the director's dice when they come (and a host's
+        // first call always real). A vote spends none of the dice and touches neither the chance nor that first-call rule, so
+        // the roll comes out the same with the vote in or not.
         var n = Night();
-        var before = SootChildren.Choose(n.World, Tuning.Enemies.SootChildren, n.World.CrewThisTick);
+        var d = n.World.Director!;
+        var dice = d.Rng;
+        bool nextReal = n.World.NextChildReal;
         n.DeadAtTheFortress(2);
         if (n.World.VoteOptions.Contains(EnemyKind.SootChildren))
             Assert.True(n.World.Vote(2, n.Crew[2], EnemyKind.SootChildren));
-        var after = SootChildren.Choose(n.World, Tuning.Enemies.SootChildren, n.World.CrewThisTick);
-        Assert.Equal(before, after);
+        var now = d.Rng;
+        Assert.Equal(dice.NextUInt(), now.NextUInt());
+        Assert.Equal(nextReal, n.World.NextChildReal);
+        Assert.Equal(0.5, Tuning.Enemies.SootChildren.RealChance);
     }
 }

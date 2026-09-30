@@ -49,8 +49,9 @@ public static class Hud
             Report(o, width, height, s, report, dead, line);
         else if (DeadPhaseControls.Waiting(s))
             Waiting(o, width, s, line);
-        if (s.Report is null && Prompt(s) is { } prompt)
+        if (s.Report is null && Prompt(s) is { } written)
         {
+            string prompt = Bound(written);
             float w = o.Font.Measure(prompt) + 8;
             o.Rect(MathF.Round((width - w) / 2), height - 44, w, line + 4, Panel);
             o.TextCentred(width / 2f, height - 42, prompt, Ink);
@@ -126,10 +127,10 @@ public static class Hud
             if (DeadPhaseControls.Assigned(s) is { } mine)
             {
                 rows.Add(($"HOLDOUT: {Short(mine.Site.Name)}, LIT", Green));
-                rows.Add(($"[M] LIVE MIC {(mine.LiveMic ? "ON: HEARD AT ITS DOOR" : "OFF")}", mine.LiveMic ? Amber : Dim));
+                rows.Add(($"[T] LIVE MIC {(mine.LiveMic ? "ON: HEARD AT ITS DOOR" : "OFF")}", mine.LiveMic ? Amber : Dim));
             }
             if (DeadPhaseControls.CallOutFrom(s) is { } from)
-                rows.Add(($"[G] CALL OUT: {Short(from.Site.Name)}", Ink));
+                rows.Add(($"[E] CALL OUT: {Short(from.Site.Name)}", Ink));
             else if (holdouts.All.Any(h => h.Phase is HoldoutPhase.Occupied or HoldoutPhase.Breaching))
                 rows.Add(("CALL OUT: NOBODY IN EARSHOT", Dim));
         }
@@ -142,7 +143,8 @@ public static class Hud
         else if (world.VoteLog.Any(v => v.Player == s.PlayerId))
             rows.Add(("YOUR VOTE IS IN", Dim));
         if (following >= 0)
-            rows.Add(("[B] BOOKMARK", Dim));
+            rows.Add(("[P] BOOKMARK", Dim));
+        rows = [.. rows.Select(r => (Bound(r.Text), r.Colour))];
         float w = rows.Max(r => o.Font.Measure(r.Text)) + 10, x = width - w - 2, y = 5 + 6 * line;
         o.Rect(x, y - 3, w, rows.Count * line + 5, Panel);
         foreach (var (text, colour) in rows)
@@ -210,7 +212,7 @@ public static class Hud
             else
             {
                 int chosen = others[Math.Clamp(dead.CommendChoice, 0, others.Count - 1)];
-                bottom.Add(($"COMMEND {Name(s, chosen)}  [LMB/RMB] SOMEONE ELSE", Amber));
+                bottom.Add((Bound($"COMMEND {Name(s, chosen)}  [LMB/RMB] SOMEONE ELSE"), Amber));
                 var awards = t.Commendations.Awards.Take(9).Select((a, i) => $"[{i + 1}] {a.ToUpperInvariant()}").ToList();
                 for (int i = 0; i < awards.Count; i += 3)
                     bottom.Add(("  " + string.Join("  ", awards.Skip(i).Take(3)), Amber));
@@ -305,7 +307,7 @@ public static class Hud
         if (!bodies.RadiosCarried || !s.Player.Alive)
             return;
         // Right mouse throws what's in your hands; with them empty, it sets the radio down to pass on.
-        string wearing = bodies.CarriedBy(s.PlayerId) is null ? "RADIO [T]  [RMB] SET IT DOWN" : "RADIO [T]";
+        string wearing = Bound(bodies.CarriedBy(s.PlayerId) is null ? "RADIO [T]  [RMB] SET IT DOWN" : "RADIO [T]");
         o.TextRight(width - 6, 5 + 5 * line, bodies.HasRadio(s.PlayerId) ? wearing : "NO RADIO", bodies.HasRadio(s.PlayerId) ? Dim : Amber);
     }
 
@@ -384,6 +386,21 @@ public static class Hud
         if (world.Derailed)
             Big("DERAILED", Red);
     }
+
+    /// <summary>The player's keys (T80), for the prompts: the app sets them from the settings.</summary>
+    public static Settings Keys { get; set; } = new();
+
+    /// <summary>
+    /// A prompt written with the default keys ([E], [RMB], [T]; the dead phase's [LMB/RMB], [N], [P]) as the player has them
+    /// bound.
+    /// </summary>
+    public static string Bound(string prompt) => prompt
+        .Replace("[LMB/RMB]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Fire))}/{Controls.KeyLabel(Keys.KeyFor(Control.Throw))}]", StringComparison.Ordinal)
+        .Replace("[E]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Use))}]", StringComparison.Ordinal)
+        .Replace("[RMB]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Throw))}]", StringComparison.Ordinal)
+        .Replace("[T]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Radio))}]", StringComparison.Ordinal)
+        .Replace("[N]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.LetNextGo))}]", StringComparison.Ordinal)
+        .Replace("[P]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Bookmark))}]", StringComparison.Ordinal);
 
     /// <summary>What your hands can do right here, with the key that does it.</summary>
     public static string? Prompt(IPlaySession s)

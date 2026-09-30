@@ -1,6 +1,6 @@
-// Tell (tier 1), Rattle: "dry bone rattle, fast", 2-5 kHz (spec A.3). The whole tell: "loud, directional,
-// unmistakable" (App. A.5). Loose bone knocking in the coupling, fast and uneven, in shakes: a clatter, not a drill's
-// steady chatter or a scrape's rasp.
+// Tell (tier 1), Climbers mounting a coupling gap: "a brief scrabbling there first" (GDD v1.1 App. A.4), 2-5 kHz (the band
+// the Rattle held). Claws and boots on couplers and ladder rungs, fast and uneven, in bursts: a clatter, not a scrape's
+// rasp. Out in the gap, so a car between you and it muffles it like anything else.
 {
   "tier": 1, "loop": true, "maxInstances": 2, "minDistance": 2, "maxDistance": 40, "gainDb": 9,
   "layers": [

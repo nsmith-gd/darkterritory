@@ -22,10 +22,20 @@ public enum VoicePath : byte
     /// </summary>
     Mimic = 16,
     /// <summary>
+    /// The speaker's mouth covered (GDD v1.1 App. A.5, Tippy Toesie; App. C.8 "voice effects on the server"): the host says
+    /// so, the listener muffles it.
+    /// </summary>
+    Muffled = 32,
+    /// <summary>
+    /// The speaker's being drained (App. A.6, a Soot Child): their cries grow weaker and quieter. A gain byte follows
+    /// (<see cref="VoiceFrame.Gain"/>), the host's.
+    /// </summary>
+    Fading = 64,
+    /// <summary>
     /// A dead player on a Holdout's Live Mic (App. D.7): proximity voice from the Holdout (with <see cref="Proximity"/>).
     /// <see cref="VoiceFrame.Source"/> says which Holdout.
     /// </summary>
-    Holdout = 32,
+    Holdout = 128,
 }
 
 /// <summary>

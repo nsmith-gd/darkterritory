@@ -17,6 +17,8 @@ public abstract record Launch
     public sealed record Night(string? Route, int Cars, bool Host) : Launch
     {
         public string Line { get; init; } = "test-loop";
+        /// <summary>Bot crewmates to take along (T89): the first drives, the rest crew the train with you.</summary>
+        public int Bots { get; init; }
         public string? RouteFile { get; init; }
     }
     /// <summary>Someone else's night, at an address (host[:port]).</summary>
@@ -31,7 +33,7 @@ public abstract record Launch
     public sealed record Quit : Launch;
 }
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings }
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls }
 
 /// <param name="Detail">A line about the selected item, under the list.</param>
 public sealed record MenuItem(string Label, string? Detail = null, bool Enabled = true);
@@ -54,6 +56,9 @@ public sealed class FrontEnd
     int _tier;
     ulong _seed = 7;
     int _cars = 6;
+    /// <summary>Bot crewmates for a quick night (T89): alone is a hard night, so a new player gets a crew by default.</summary>
+    int _bots = 3;
+    public const int MaxBots = 7;
     bool _host;
 
     /// <param name="newSeed">Where a new campaign's seed comes from (tests pin it).</param>
@@ -84,6 +89,25 @@ public sealed class FrontEnd
     public EditionTuning Edition => _edition;
     /// <summary>The address typed so far on the join screen.</summary>
     public string Address { get; private set; } = "127.0.0.1";
+    /// <summary>Waiting for the key to bind this control to (T80): the app hands the next one pressed to <see cref="Bind"/>.</summary>
+    public Control? Capturing { get; private set; }
+
+    /// <summary>The key pressed for the control being bound (a key's name); Escape (<see cref="Back"/>) keeps the old one.</summary>
+    public void Bind(string key)
+    {
+        if (Capturing is not { } c)
+            return;
+        Capturing = null;
+        if (Controls.Reserved.Contains(key))
+        {
+            Message = $"{Controls.KeyLabel(key)} is kept for the menus.";
+            return;
+        }
+        var was = Enum.GetValues<Control>().FirstOrDefault(o => o != c && Settings.KeyFor(o) == key, c);
+        Change(Settings.Bind(c, key));
+        Message = was != c ? $"{Controls.Label(was)} moved to {Controls.KeyLabel(Settings.KeyFor(was))}." : null;
+    }
+
     /// <summary>The join screen wants typed text (the app turns text input on).</summary>
     public bool WantsText => Screen == Screen.Join;
     /// <summary>Played in a headset (T36): the hints name the controllers' buttons, not the keys.</summary>
@@ -100,10 +124,17 @@ public sealed class FrontEnd
     /// <summary>Back a screen (from the title: nothing).</summary>
     public void Back()
     {
+        if (Capturing is not null)
+        {
+            Capturing = null;
+            Message = null;
+            return;
+        }
         Show(Screen switch
         {
             Screen.Upgrades => Screen.Fortress,
             Screen.Fortress => Screen.Slots,
+            Screen.Controls => Screen.Settings,
             Screen.Title => Screen.Title,
             _ => Screen.Title,
         });
@@ -216,8 +247,11 @@ public sealed class FrontEnd
                 null, by => _tier = (_tier + by + _tiers.Length) % _tiers.Length),
             new(new($"SEED: {_seed}", "The same seed is the same line for everyone."), null, by => _seed = by > 0 ? _seed + 1 : Math.Max(1UL, _seed - 1)),
             new(new($"CARS: {_cars}"), null, by => _cars = Math.Clamp(_cars + by, 3, MaxCars)),
-            new(new("PLAY ALONE"), () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: false)),
-            new(new("HOST FOR FRIENDS", "They join by your address, or from your Steam lobby."), () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: true)),
+            new(new(_bots == 0 ? "CREW: JUST YOU" : $"CREW: YOU AND {_bots} BOT{(_bots == 1 ? "" : "S")}",
+                "Bots drive, stoke, man the rear gun and lend a hand. None, and it's all yours to do."), null, by => _bots = Math.Clamp(_bots + by, 0, MaxBots)),
+            new(new("PLAY"), () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: false) { Bots = _bots }),
+            new(new("HOST FOR FRIENDS", "They join by your address, or from your Steam lobby. Bots fill the crew until they do."),
+                () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: true) { Bots = _bots }),
             new(new("BACK"), Go(Screen.Title)),
         ],
         Screen.Join =>
@@ -229,13 +263,22 @@ public sealed class FrontEnd
         Screen.Settings =>
         [
             new(new($"SOUND: {(Settings.Mute ? "OFF" : "ON")}"), Toggle(s => s with { Mute = !s.Mute }), _ => Change(Settings with { Mute = !Settings.Mute })),
-            new(new($"VOICE: {(Settings.PushToTalk ? "PUSH TO TALK (HOLD V)" : "OPEN MIC")}"), Toggle(s => s with { PushToTalk = !s.PushToTalk }), _ => Change(Settings with { PushToTalk = !Settings.PushToTalk })),
+            new(new($"VOICE: {(Settings.PushToTalk ? $"PUSH TO TALK (HOLD {Controls.KeyLabel(Settings.KeyFor(Control.Talk))})" : "OPEN MIC")}"), Toggle(s => s with { PushToTalk = !s.PushToTalk }), _ => Change(Settings with { PushToTalk = !Settings.PushToTalk })),
             new(new($"HUD: {(Settings.Hud ? "ON" : "OFF")}", "F1 in the game as well."), Toggle(s => s with { Hud = !s.Hud }), _ => Change(Settings with { Hud = !Settings.Hud })),
             new(new($"VR TURNING: {(Settings.VrTurn == VrTurn.Snap ? "SNAP" : "SMOOTH")}"), Toggle(s => s with { VrTurn = s.VrTurn == VrTurn.Snap ? VrTurn.Smooth : VrTurn.Snap }),
                 _ => Change(Settings with { VrTurn = Settings.VrTurn == VrTurn.Snap ? VrTurn.Smooth : VrTurn.Snap })),
             new(new($"VR COMFORT VIGNETTE: {(Settings.VrVignette ? "ON" : "OFF")}"), Toggle(s => s with { VrVignette = !s.VrVignette }), _ => Change(Settings with { VrVignette = !Settings.VrVignette })),
             new(new($"MOUSE SPEED: {Settings.MouseSpeed:0.0}", "Left and right to change."), null, by => Change(Settings with { MouseSpeed = Math.Clamp(Math.Round(Settings.MouseSpeed + by * 0.1, 1), 0.2, 3) })),
+            new(new("CONTROLS", "Rebind the keys."), Go(Screen.Controls)),
             new(new("BACK"), Go(Screen.Title)),
+        ],
+        Screen.Controls =>
+        [
+            .. Enum.GetValues<Control>().Select(c => new Entry(
+                new($"{Controls.Label(c)}: {(Capturing == c ? "PRESS A KEY" : Controls.KeyLabel(Settings.KeyFor(c)))}", "Enter, then the key. Esc keeps it."),
+                () => { Capturing = c; Message = null; return null; })),
+            new(new("RESET TO DEFAULTS", null, Settings.Keys.Count > 0), () => { Change(Settings with { Keys = new() }); Message = "Keys reset."; return null; }),
+            new(new("BACK"), Go(Screen.Settings)),
         ],
         _ => [],
     };
@@ -360,6 +403,7 @@ public sealed class FrontEnd
             Screen.QuickNight => "QUICK NIGHT",
             Screen.Join => "JOIN A NIGHT",
             Screen.Settings => "SETTINGS",
+            Screen.Controls => "CONTROLS",
             _ => "A CO-OP NIGHT ON THE LAST RAILWAY",
         };
         o.Text(x, y, heading!, Dim);
@@ -377,12 +421,17 @@ public sealed class FrontEnd
         y += 4;
         var items = Items;
         float widest = items.Select(i => o.Font.Measure(i.Label)).DefaultIfEmpty(0).Max() + 20;
-        o.Rect(x - 6, y - 4, Math.Min(width - x, widest + 8), items.Count * 10 + 6, Panel);
-        for (int i = 0; i < items.Count; i++)
+        // A list longer than the screen (the controls) scrolls to keep the selection in view.
+        int rows = Math.Max(1, (int)((height - y - 44) / 10));
+        int first = Math.Clamp(Selected - rows / 2, 0, Math.Max(0, items.Count - rows));
+        int shown = Math.Min(rows, items.Count - first);
+        o.Rect(x - 6, y - 4, Math.Min(width - x, widest + 8), shown * 10 + 6, Panel);
+        for (int i = first; i < first + shown; i++)
         {
             bool on = i == Selected;
             var colour = !items[i].Enabled ? Faint : on ? Amber : Ink;
-            o.Text(x, y, (on ? "> " : "  ") + items[i].Label, colour);
+            string more = i == first && first > 0 || i == first + shown - 1 && first + shown < items.Count ? "  ..." : "";
+            o.Text(x, y, (on ? "> " : "  ") + items[i].Label + more, colour);
             y += 10;
         }
         y += 6;
@@ -393,7 +442,8 @@ public sealed class FrontEnd
         }
         if (Message is { } m)
             o.Text(x, y, m.ToUpperInvariant(), Amber);
-        o.TextRight(width - 8, height - 12, WantsText ? "TYPE   ENTER JOIN   ESC BACK"
+        o.TextRight(width - 8, height - 12, Capturing is not null ? "PRESS THE KEY   ESC KEEP IT"
+            : WantsText ? "TYPE   ENTER JOIN   ESC BACK"
             : Headset ? "STICK UP/DOWN CHOOSE   TRIGGER   STICK LEFT/RIGHT CHANGE   B BACK"
             : "UP/DOWN CHOOSE   ENTER   LEFT/RIGHT CHANGE   ESC BACK", Faint);
     }

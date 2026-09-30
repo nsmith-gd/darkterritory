@@ -96,28 +96,15 @@ public class DraggerTests
         Assert.Equal(id, dragger.Target);
         night.Run(Tuning.Enemies.MinReactionSeconds - 0.3);
         Assert.Equal(Surface.Roof, night.Crew[0].Surface);
-        // Alone: grabbed, a beat, and over the side at 14 m/s.
-        night.Run(0.3 + D.AloneSeconds + 0.2);
+        // Grabbed (GDD v1.1 App. A.4): hanging off the side for a few seconds, and with nobody to haul them up, dragged under.
+        night.Run(0.5);
+        Assert.Equal(SpinePhase.Grab, dragger.Phase);
+        Assert.True(night.Crew[0].Has(PlayerFlags.Held));
+        night.Run(D.HangSeconds);
         Assert.Equal(DeathCause.Dragged, night.Crew[0].Death);
-        Assert.Equal(PlayerState.World, night.Crew[0].Parent);
         // It never leaves its car: back under the edge.
         Assert.Equal(Car, dragger.Attached);
         Assert.False(dragger.Gone);
-    }
-
-    [Fact]
-    public void AtAWalkingPaceYouAreLeftOnTheBallastInstead()
-    {
-        var night = new Night(speed: 2);
-        night.Under(side: 1);
-        night.OnRoof(NearTheEdge(night));
-        night.Run(Tuning.Enemies.MinReactionSeconds + D.AloneSeconds + 3);
-        var s = night.Crew[0];
-        Assert.True(s.Alive);
-        Assert.Equal(PlayerState.World, s.Parent);
-        Assert.Equal(Surface.Ground, s.Surface);
-        // Off the far side of it, not under the train.
-        Assert.True(Math.Abs(night.Train.Frames[Car].ToLocal(s.Position).X) > night.Shape.HalfWidth);
     }
 
     [Fact]
@@ -139,16 +126,16 @@ public class DraggerTests
     }
 
     [Fact]
-    public void WithSomeoneNearTheyHaveTwoSecondsToPullYouFree()
+    public void WithSomeoneNearTheyHaveTheHangToHaulYouUp()
     {
         var night = new Night(speed: 14);
         var dragger = night.Under(side: 1);
         night.OnRoof(NearTheEdge(night));
         night.OnRoof(0, z: 1.0);
         night.Run(Tuning.Enemies.MinReactionSeconds + 0.3);
-        Assert.Equal(SpinePhase.Punish, dragger.Phase);
-        // Longer than a lone grab takes: the window is open.
-        night.Run(D.AloneSeconds + 0.3);
+        Assert.Equal(SpinePhase.Grab, dragger.Phase);
+        // Hanging there: the window is open.
+        night.Run(2);
         Assert.Equal(Surface.Roof, night.Crew[0].Surface);
         // The mate takes hold (Use, close by): it lets go.
         night.Intents[1] = new PlayerIntent { Buttons = PlayerButtons.Use };
@@ -167,7 +154,7 @@ public class DraggerTests
         night.Under(side: 1);
         night.OnRoof(NearTheEdge(night));
         night.OnRoof(0, z: 1.0);
-        night.Run(Tuning.Enemies.MinReactionSeconds + 0.3 + D.FreeSeconds + 0.3);
+        night.Run(Tuning.Enemies.MinReactionSeconds + 0.3 + D.HangSeconds + 0.3);
         Assert.Equal(DeathCause.Dragged, night.Crew[0].Death);
         Assert.True(night.Crew[1].Alive);
     }

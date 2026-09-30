@@ -898,6 +898,9 @@ def feet_planter(skeleton: Skeleton, floor=None, bones=("foot_l", "foot_r", "bal
 
 def export(path, kit: Kit):
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    # Working meshes a script leaves about (a dense high copy for tools/models to bake from) don't go in the file.
+    for o in [o for o in bpy.data.objects if o.get("dt_scrap")]:
+        bpy.data.objects.remove(o)
     bpy.ops.object.select_all(action="DESELECT")
     bpy.ops.export_scene.gltf(
         filepath=path, export_format="GLB", export_yup=True, export_apply=False,
@@ -907,8 +910,14 @@ def export(path, kit: Kit):
         export_tangents=False, export_materials="EXPORT", export_image_format="NONE", export_cameras=False,
         export_lights=False, export_all_influences=False, export_reset_pose_bones=True)
     bones = len(kit.skeleton.bones)
-    print(f"[dt] {os.path.basename(path)}: {kit.tris()} tris, {bones} bones, "
-          f"{len(kit.mats)} materials, parts {[p.name + ':' + str(p.tris()) for p in kit.parts]}")
+    # Every mesh on the rig, the kit's parts and any a script modelled itself (tools/blender/crewbody.py's).
+    meshes = sorted((o for o in bpy.data.objects if o.type == "MESH" and o.parent is kit.skeleton.rig), key=lambda o: o.name)
+    tris = {}
+    for o in meshes:
+        o.data.calc_loop_triangles()
+        tris[o.name] = len(o.data.loop_triangles)
+    print(f"[dt] {os.path.basename(path)}: {sum(tris.values())} tris, {bones} bones, "
+          f"{len(bpy.data.materials)} materials, parts {[n + ':' + str(t) for n, t in tris.items()]}")
 
 
 def along(axis, stops, extra=None):

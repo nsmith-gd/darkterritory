@@ -496,7 +496,7 @@ The line generator passes the POI generator: pad pose and bounds, pad elevation,
 
 ## 11.2 Drop-in pickup points
 
-> **Superseded by GDD v1.2 App. D** ([`gdd-appendix-d.md`](gdd-appendix-d.md)): pickup points are replaced by Holdouts (D.4), which the generator places at facilities, halts and dead towns (`LineBuilder.Holdouts`, the `holdouts` check). Kept for the record.
+> **Superseded by GDD v1.2 App. D** ([`gdd.md`](gdd.md), Appendix D): pickup points are replaced by Holdouts (D.4), which the generator places at facilities, halts and dead towns (`LineBuilder.Holdouts`, the `holdouts` check). Kept for the record.
 
 Drop-in joins happen only at facilities (Systems Spec Part E). Every facility pad includes a **pickup point**: a lit shelter or platform where a joining player spawns, visible from the consist.
 

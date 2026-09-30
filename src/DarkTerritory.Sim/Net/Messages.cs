@@ -103,6 +103,9 @@ public static class Messages
         w.U8((byte)i.Buttons);
         // The notch (−4..4) in the low five bits, the lamp switch (T52) in the two above: no extra byte on every intent.
         w.U8((byte)((i.ThrottleNotch & 0x1F) | ((byte)i.Lamp & 3) << 5));
+        // v1.1's second byte of buttons, and the voice level the loudness meter hears (App. C.7).
+        w.U8((byte)i.Actions);
+        w.U8(i.Voice);
         // A reaching hand (T29) in centimetres, only when there is one: keyboards and bots send nothing more.
         if (i.Has(PlayerButtons.Hand))
         {
@@ -135,6 +138,8 @@ public static class Messages
         byte notch = r.U8();
         i.ThrottleNotch = (sbyte)((sbyte)(notch << 3) >> 3);
         i.Lamp = (LampSwitch)((notch >> 5) & 3);
+        i.Actions = (PlayerActions)r.U8();
+        i.Voice = r.U8();
         if (i.Has(PlayerButtons.Hand))
         {
             i.HandX = r.I16() / 100f;
@@ -173,7 +178,8 @@ public static class Messages
     }
 
     /// <param name="source">For <see cref="VoicePath.Mimic"/>: the Soot Child it's coming from (T40); for <see cref="VoicePath.Holdout"/>, the Holdout.</param>
-    public static void WriteVoiceDown(NetWriter w, byte speaker, ushort sequence, VoicePath path, ReadOnlySpan<byte> opus, int source = 0)
+    /// <param name="gain">For <see cref="VoicePath.Fading"/>: how much of the voice is left, 0..1.</param>
+    public static void WriteVoiceDown(NetWriter w, byte speaker, ushort sequence, VoicePath path, ReadOnlySpan<byte> opus, int source = 0, double gain = 1)
     {
         w.Reset();
         w.U8((byte)MessageType.Voice);
@@ -182,6 +188,8 @@ public static class Messages
         w.U8((byte)path);
         if (path.HasFlag(VoicePath.Mimic) || path.HasFlag(VoicePath.Holdout))
             w.I32(source);
+        if (path.HasFlag(VoicePath.Fading))
+            w.U8((byte)Math.Round(Math.Clamp(gain, 0, 1) * 255));
         w.Bytes(opus);
     }
 

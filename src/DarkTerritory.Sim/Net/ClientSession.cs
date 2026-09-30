@@ -14,7 +14,8 @@ namespace DarkTerritory.Sim.Net;
 /// between snapshots, a little in the past.
 /// </summary>
 /// <param name="Source">For a <see cref="VoicePath.Mimic"/> frame, the enemy it comes from (T40); 0 otherwise.</param>
-public readonly record struct VoiceFrame(byte Speaker, ushort Sequence, VoicePath Path, byte[] Opus, int Source = 0);
+/// <param name="Gain">With <see cref="VoicePath.Fading"/>: how much of the speaker's voice is left, 0..1 (App. C.8).</param>
+public readonly record struct VoiceFrame(byte Speaker, ushort Sequence, VoicePath Path, byte[] Opus, int Source = 0, double Gain = 1);
 
 public sealed class ClientSession
 {
@@ -184,7 +185,8 @@ public sealed class ClientSession
                     ushort vseq = r.U16();
                     var path = (VoicePath)r.U8();
                     int source = path.HasFlag(VoicePath.Mimic) || path.HasFlag(VoicePath.Holdout) ? r.I32() : 0;
-                    _voiceIn.Add(new VoiceFrame(speaker, vseq, path, r.Rest().ToArray(), source));
+                    double gain = path.HasFlag(VoicePath.Fading) ? r.U8() / 255.0 : 1;
+                    _voiceIn.Add(new VoiceFrame(speaker, vseq, path, r.Rest().ToArray(), source, gain));
                     break;
                 case MessageType.Welcome:
                     (PlayerId, _, SessionInfo) = Messages.ReadWelcome(ref r);

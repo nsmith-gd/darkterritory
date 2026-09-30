@@ -152,6 +152,10 @@ public sealed class Run
     public RunEnd End { get; private set; }
     /// <summary>Seconds since the gates opened (the dawn clock runs from departure).</summary>
     public double Seconds { get; private set; }
+    /// <summary>Seconds at the facility this stop (the Gaunt comes on long stops, v1.1 App. B.6); 0 away from one.</summary>
+    public double StopSeconds { get; private set; }
+    /// <summary>The loading machinery going (the winch turning, the crane's hook moving): it's loud (v1.1 App. C.7).</summary>
+    public bool Machinery => CurrentSite is { } site && (site.Turning || site.Crane?.Hooked is not null);
     public double DawnIn => _route.DawnSeconds - Seconds;
     public bool LineLive => Seconds >= _route.DawnSeconds;
     /// <summary>The facility the train is stopped at, or −1.</summary>
@@ -184,6 +188,7 @@ public sealed class Run
             _ammoAtDeparture = train.Vehicles.Sum(v => v.Gun.Ammo);
         }
         Seconds += dt;
+        StopSeconds = Phase == RunPhase.AtFacility ? StopSeconds + dt : 0;
         Pour(train, dt);
         StepSites(world, dt);
 

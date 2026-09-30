@@ -23,8 +23,6 @@ public sealed class Director
     double _cooldown;
 
     double _spent;
-    /// <summary>Seconds (the director's own, one a decision) the whole living crew has been shut in somewhere.</summary>
-    double _allInside;
 
     public Director(DirectorTuning tuning, Route.Route? route, ulong seed, int cars, int crew)
     {
@@ -48,38 +46,24 @@ public sealed class Director
     public List<string> Pairs { get; } = new();
 
     public double Cost(EnemyKind kind) => _t.Costs.GetValueOrDefault(Key(kind), 2);
+    public DirectorTuning Tuning => _t;
 
-    /// <summary>The kind's name in the tuning (costs, the conflict table).</summary>
+    /// <summary>The kind's name in the tuning (costs, the conflict table, the roster).</summary>
     public static string Key(EnemyKind kind) => kind switch
     {
         EnemyKind.CinderHound => "cinderHounds",
-        EnemyKind.Clinger => "clingers",
-        EnemyKind.Hollow => "hollow",
-        EnemyKind.Switchman => "switchman",
-        EnemyKind.SootChildren => "sootChildren",
         EnemyKind.Dragger => "draggers",
-        EnemyKind.Rattle => "rattle",
-        EnemyKind.Lamplighter => "lamplighters",
-        EnemyKind.Deadman => "deadman",
-        EnemyKind.Stoker => "stoker",
-        EnemyKind.Ferryman => "ferryman",
-        EnemyKind.CarFire => "carFire",
-        EnemyKind.LooseLoad => "looseLoad",
-        EnemyKind.Gnawers => "gnawers",
-        EnemyKind.LongWhistle => "longWhistle",
         EnemyKind.Climber => "climbers",
-        EnemyKind.Weight => "weight",
-        EnemyKind.Gaunt => "gaunt",
-        EnemyKind.Passenger => "passenger",
         EnemyKind.Follower => "followers",
-        EnemyKind.Drift => "drift",
-        _ => "sleepers",
+        EnemyKind.Ribbit => "ribbits",
+        EnemyKind.Sleepers => "sleepers",
+        _ => char.ToLowerInvariant(kind.ToString()[0]) + kind.ToString()[1..],
     };
 
     /// <summary>
-    /// Whether one side of a conflict-table pair is there now (App. B.1): an enemy of that kind about (Sleepers: lying
-    /// ahead within reach of the lamp's worry), or a condition: "grade" (a climb or fall just ahead), "facilityLoading" (at a
-    /// facility), "choir" (always: it's the whole night's).
+    /// Whether one side of a conflict-table pair is there now (App. B.1): an enemy of that kind about, or a condition:
+    /// "grade" (a climb or fall just ahead), "facilityLoading" (at a facility), "facilityStop" (stopped at one), "choir"
+    /// (gathering or here).
     /// </summary>
     bool Present(string side, World world, IReadOnlyList<Enemy> active)
     {
@@ -88,17 +72,14 @@ public sealed class Director
         switch (side)
         {
             case "choir":
-                // Coming (App. A.6): past its approach, its aggro is what firing the guns feeds.
-                return world.Combat is { } c && world.Choir.Aggro >= c.Choir.ApproachThreshold;
-            case "facilityLoading":
+                return world.Choir.Build > 0 || world.Choir.Present;
+            case "facilityLoading" or "facilityStop":
                 return world.Run is { Phase: Run.RunPhase.AtFacility };
             case "grade":
                 for (double at = s; at <= s + _t.GradeAhead; at += 50)
                     if (Math.Abs(train.Line.Sample(train.Dynamics.Path, at).GradePercent) >= _t.GradePercent)
                         return true;
                 return false;
-            case "sleepers":
-                return active.Any(e => e.Kind == EnemyKind.Sleepers && !e.Gone && e.LineDistance >= s && e.LineDistance <= s + _t.SleepersAhead);
             default:
                 return active.Any(e => !e.Gone && Key(e.Kind) == side);
         }
@@ -123,7 +104,7 @@ public sealed class Director
     int PairsWanted => _route is null ? 0 : _t.PairsPerRun.GetValueOrDefault(char.ToLowerInvariant(_route.Tier.ToString()[0]) + _route.Tier.ToString()[1..], 0);
 
     /// <summary>
-    /// Budget held back for the rare, expensive threats this run can still have (the Gaunt): the director spends as soon
+    /// Budget held back for the rare, expensive threats this run can still have (the Passenger): the director spends as soon
     /// as it can afford something, so without saving, a cost-5 threat would only ever come when nothing cheaper could.
     /// </summary>
     double Reserve(World world, double distance, EnemyKind forKind)
@@ -138,11 +119,14 @@ public sealed class Director
                 continue;
             bool possible = name switch
             {
-                "gaunt" => _route.Tier >= Gate(world, RouteTier.Frontier) && Crew >= et.Gaunt.MinCrew,
+                "gaunt" => _route.Tier >= Gate(world, RouteTier.Frontier) && Crew >= et.Gaunt.MinCrew
+                    && _route.Of(FeatureKind.Facility).Any(f => f.End >= distance),
                 // Only at a stop: while there's a facility still to come.
                 "passenger" => _route.Tier >= Gate(world, RouteTier.DeadLines) && Crew >= et.Passenger.MinCrew
                     && _route.Of(FeatureKind.Facility).Any(f => f.End >= distance),
-                _ => false,
+                // Anything else: while its own spawn rule would have it now.
+                _ => Enum.GetValues<EnemyKind>().FirstOrDefault(k => Key(k) == name) is var kind && Key(kind) == name
+                    && Spawns.For(kind)?.Weight(new SpawnContext(world, et, this)) is > 0,
             };
             if (possible)
                 reserve = Math.Max(reserve, _t.Costs.GetValueOrDefault(name, 0));
@@ -156,7 +140,7 @@ public sealed class Director
             .Select(v => v.Cargo).ToHashSet();
 
     /// <summary>A tier gate, relaxed by one with comet-derived material aboard (App. B.8).</summary>
-    RouteTier Gate(World world, RouteTier tier) =>
+    public RouteTier Gate(World world, RouteTier tier) =>
         _t.CometRelaxesGates && tier > RouteTier.Local && Aboard(world).Contains(CargoKind.Comet) ? tier - 1 : tier;
 
     /// <summary>An enemy's name as a generated line's affinity table has it (linegen/tiers.json): its kind, camel-cased.</summary>
@@ -209,126 +193,16 @@ public sealed class Director
         if (total >= MaxConcurrent)
             return Held("at the cap");
         double available = Allowance(s) - _spent;
-
         var options = new List<(EnemyKind Kind, double Weight)>();
-        int cargoCars = train.Dynamics.Consist.Vehicles.Count(v => v.Kind == VehicleKind.Cargo);
-        int Zone(PressureZone z) => active.Count(e => Engaged(e) && e.Zone == z);
-        // App. B.4: Clingers need a middle (length >= 3).
-        if (cargoCars >= 1 && train.Dynamics.Consist.CarCount >= 3 && Zone(PressureZone.Flank) < _t.MaxConcurrentZone)
-            options.Add((EnemyKind.Clinger, 1));
-        // App. B.3: Hounds need a rear car and sustained speed; weight up when the boiler runs hot.
-        if (train.Dynamics.Consist.CarCount >= 1 && train.Dynamics.Speed >= 8 && Zone(PressureZone.Rear) < _t.MaxConcurrentZone
-            && !active.Any(e => !e.Gone && e.Kind == EnemyKind.CinderHound))
+        if (world.Enemies is { } et)
         {
-            double w = 1;
-            if (train.BoilerTuning is { } bt && train.Boiler.Pressure > bt.WorkingBandMax)
-                w *= _t.HoundsHotBoilerWeight;
-            options.Add((EnemyKind.CinderHound, w));
-        }
-        // App. B.3: the Weight on low ground only (a water crossing ahead, level there), under a train of two or more, out on
-        // the main line (not a stop's cut-down rake). One at a time. Weight up at low speed.
-        if (world.Enemies is { } gt && train.Dynamics.Consist.CarCount >= gt.Weight.MinCars && Zone(PressureZone.Rear) < _t.MaxConcurrentZone
-            && train.OnMain && train.Rakes.Count == 1 && world.Run is not { Phase: Run.RunPhase.AtFacility }
-            && !active.Any(e => !e.Gone && e.Kind == EnemyKind.Weight) && Weight.Spot(world, gt.Weight) is not null)
-            options.Add((EnemyKind.Weight, train.Dynamics.Speed < gt.Weight.LowSpeed ? gt.Weight.LowSpeedWeight : 1));
-        // App. B.7: the Switchman works junctions on the Frontier and beyond, on a route with enough of them to have a
-        // network, and there's never more than one corrupted human about. It needs a dead line's points ahead in its window.
-        // An alternate is two junctions of the network, where it leaves and where it rejoins (linegen plan §3.2's count).
-        if (_route is { } r && r.Tier >= RouteTier.Frontier && world.Enemies is { } et
-            && r.Branches.Sum(b => b.Kind switch { Rail.BranchKind.DeadLine => 1, Rail.BranchKind.Alternate => 2, _ => 0 }) >= et.Switchman.MinJunctions
-            && !active.Any(e => !e.Gone && e.Kind is EnemyKind.Switchman or EnemyKind.Passenger) && Zone(PressureZone.Forward) < _t.MaxConcurrentZone
-            && Switchman.Junction(world, et.Switchman) is not null)
-            options.Add((EnemyKind.Switchman, 1));
-        // App. B.6: Soot Children near facilities, never for a solo player, and only after someone's spoken lately (there
-        // has to be a voice to steal). One at a time. Weight up per crew member outside.
-        if (world.Enemies is { } st && NearFacility(s, st.SootChildren.NearFacility)
-            && !active.Any(e => !e.Gone && e.Kind == EnemyKind.SootChildren) && Zone(PressureZone.Structural) < _t.MaxConcurrentZone
-            && SootChildren.Choose(world, st.SootChildren, world.CrewThisTick) is not null)
-            options.Add((EnemyKind.SootChildren, 1 + world.CrewThisTick.Count(c => c.State.Alive && PlayerMotor.Space(c.State, train) == PlayerMotor.Outside)));
-        // App. B.4: Climbers alongside at track level, mounting at a coupling gap: "≥2 coupling gaps · minimum speed
-        // threshold", and "weight scales directly with gap count — the length curve made literal".
-        if (world.Enemies is { } ct && Climber.Gaps(train) is { } gaps && gaps.Count >= ct.Climbers.MinGaps
-            && train.Dynamics.Speed >= ct.Climbers.MinSpeed && Zone(PressureZone.Flank) < _t.MaxConcurrentZone)
-            options.Add((EnemyKind.Climber, ct.Climbers.PerGapWeight * gaps.Count));
-        // App. B.4: the Gaunt on the roofs, "during a stop or on tunnel exit", Frontier and beyond, once per run, crew of
-        // three or more. Weight up if the crew has been fully interior for over three minutes.
-        int outside = world.CrewThisTick.Count(c => c.State.Alive && PlayerMotor.Space(c.State, train) == PlayerMotor.Outside);
-        _allInside = outside == 0 && world.CrewThisTick.Any(c => c.State.Alive) ? _allInside + 1 : 0;
-        if (_route is { } gr && gr.Tier >= Gate(world, RouteTier.Frontier) && world.Enemies is { } at && Crew >= at.Gaunt.MinCrew
-            && Zone(PressureZone.Flank) < _t.MaxConcurrentZone && !Log.Any(l => l.Kind == EnemyKind.Gaunt) && train.Dynamics.Consist.CarCount >= 1
-            && (train.Dynamics.Speed < at.Gaunt.StoppedBelow || gr.Of(FeatureKind.Tunnel).Any(f => s >= f.End && s <= f.End + at.Gaunt.TunnelExitWithin)))
-            options.Add((EnemyKind.Gaunt, _allInside >= at.Gaunt.InteriorSeconds ? at.Gaunt.InteriorWeight : 1));
-        // App. B.3: Followers on facility grounds only, onto someone who's got down off the train ("requires an excursion"),
-        // any tier. Weight up per additional player on the ground at once.
-        if (world.Enemies is { } ft2 && world.Run is { Phase: Run.RunPhase.AtFacility } && Zone(PressureZone.Rear) < _t.MaxConcurrentZone
-            && active.Count(e => !e.Gone && e.Kind == EnemyKind.Follower) < ft2.Followers.MaxActive && Follower.Excursions(world) is { Count: > 0 })
-        {
-            int ground = world.CrewThisTick.Count(c => c.State is { Alive: true, Parent: PlayerState.World });
-            options.Add((EnemyKind.Follower, 1 + ft2.Followers.PerGroundWeight * (ground - 1)));
-        }
-        // App. B.7: the Passenger boards during a facility stop, Dead lines and beyond, crew of three or more ("needs a crowd
-        // to hide in"), once a run, into a car with a room; never with another corrupted human about. Weight up when the
-        // crew's split up over the stop's work.
-        if (_route is { } qr && qr.Tier >= Gate(world, RouteTier.DeadLines) && world.Enemies is { } qt && Crew >= qt.Passenger.MinCrew
-            && world.Run is { Phase: Run.RunPhase.AtFacility } && !Log.Any(l => l.Kind == EnemyKind.Passenger)
-            && !active.Any(e => !e.Gone && e.Kind is EnemyKind.Switchman or EnemyKind.Passenger) && Zone(PressureZone.Interior) < _t.MaxConcurrentZone
-            && world.CrewThisTick.Any(c => c.State.Alive) && Passenger.Boards(world) is not null)
-        {
-            int places = world.CrewThisTick.Where(c => c.State.Alive).Select(c => PlayerMotor.Indoors(c.State, train) ? c.State.Parent : PlayerMotor.Outside)
-                .Distinct().Count();
-            options.Add((EnemyKind.Passenger, places >= qt.Passenger.SplitPlaces ? qt.Passenger.SplitWeight : 1));
-        }
-        // App. B.4: Draggers under a train of two or more, woken by someone on the roofs. Weight up per roof walker.
-        int onRoofs = world.CrewThisTick.Count(c => c.State is { Alive: true, Surface: Surface.Roof } r && r.Parent > 0);
-        if (world.Enemies is { } dt && onRoofs > 0 && train.Dynamics.Consist.CarCount >= dt.Draggers.MinCars && Zone(PressureZone.Flank) < _t.MaxConcurrentZone
-            && active.Count(e => !e.Gone && e.Kind == EnemyKind.Dragger) < dt.Draggers.MaxAttached)
-            options.Add((EnemyKind.Dragger, onRoofs));
-        // App. B.5: the Rattle takes a coupling gap during a facility stop, on a train of two or more (the engine's rake,
-        // loading). One at a time. Weight up on longer consists.
-        int rake = train.Dynamics.Consist.Vehicles.Count - 1;
-        if (world.Enemies is { } rt && world.Run is { Phase: Run.RunPhase.AtFacility } && rake >= rt.Rattle.MinCars
-            && !active.Any(e => !e.Gone && e.Kind == EnemyKind.Rattle) && Zone(PressureZone.Interior) < _t.MaxConcurrentZone
-            && Rattle.Nests(world).Count > 0)
-            options.Add((EnemyKind.Rattle, 1 + rt.Rattle.PerCarWeight * (rake - rt.Rattle.MinCars)));
-        // App. B.6: Lamplighters work the lineside, any tier, only while there's a lit lamp to draw them (x0 with every light
-        // out), and not in a tunnel or at a facility. Weight x2 at night depth (the back half of the route).
-        if (world.Enemies is { } lt && world.LampShining && Zone(PressureZone.Structural) < _t.MaxConcurrentZone
-            && active.Count(e => !e.Gone && e.Kind == EnemyKind.Lamplighter) < lt.Lamplighters.MaxActive
-            && !(_route is { } lr && lr.Features.Any(f => f.Kind is FeatureKind.Tunnel or FeatureKind.Facility && f.Contains(s))))
-            options.Add((EnemyKind.Lamplighter, _route is { } dr && s > dr.Length * 0.5 ? lt.Lamplighters.DepthWeight : 1));
-        // App. B.5: the Stoker gets into the firebox during a stop with it unattended (nobody in the cab), any tier.
-        if (world.Enemies is { } kt && train.BoilerTuning is not null && !train.Boiler.Ruptured && train.Dynamics.Speed < kt.Stoker.StoppedBelow
-            && world.CabEmptySeconds >= kt.Stoker.UnattendedSeconds && Zone(PressureZone.Interior) < _t.MaxConcurrentZone
-            && !active.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker))
-            options.Add((EnemyKind.Stoker, 1));
-        // App. B.2: the Ferryman on the Frontier and beyond, mid-to-late run only, once per run, on a long straight with a clear
-        // sightline, and only with a working forward lamp (not smashed). The train has to be coming on at some speed.
-        if (_route is { } fr && fr.Tier >= RouteTier.Frontier && world.Enemies is { } ft && s >= fr.Length * ft.Ferryman.MidRunFrom
-            && world.LampOutSeconds <= 0 && train.Dynamics.Speed >= ft.Ferryman.MinSpeed && Zone(PressureZone.Forward) < _t.MaxConcurrentZone
-            && !Log.Any(l => l.Kind == EnemyKind.Ferryman) && Ferryman.ClearAhead(world, ft.Ferryman))
-            options.Add((EnemyKind.Ferryman, world.BrakedForFalseAlarm ? ft.Ferryman.FalsePositiveWeight : 1));
-        // App. B.2: the Long Whistle on the Frontier and beyond, just short of a grade or curve 400-900 m ahead, and never
-        // alone: "requires ≥1 other active lineside threat in region" (App. A.8's co-spawn rule). One at a time. Weight up in fog.
-        if (_route is { } wr && wr.Tier >= RouteTier.Frontier && world.Enemies is { } wt && Zone(PressureZone.Forward) < _t.MaxConcurrentZone
-            && !active.Any(e => !e.Gone && e.Kind == EnemyKind.LongWhistle) && LongWhistle.Company(world, wt.LongWhistle)
-            && LongWhistle.Spot(train, wt.LongWhistle) is not null)
-            options.Add((EnemyKind.LongWhistle, wr.Weather.FogDensity >= wt.LongWhistle.FogFrom ? wt.LongWhistle.FogWeight : 1));
-        // The in-car incidents: a cargo car in the engine's rake, with a load for the ones that live in it, at most so many of
-        // each about, and one of a kind a car. Fires come on more with the boiler hot and throwing cinders.
-        if (world.Enemies is { } it && Zone(PressureZone.Interior) < _t.MaxConcurrentZone)
-        {
-            // Less often at a stop: the crew's all hands on the loading, and it's the facility's own threats' turn.
-            // And less for a small crew, who've fewer hands to spare from the roofs and the gun (a crew of two is one hand).
-            double hands = Math.Clamp((Crew - 1) / _t.IncidentFullCrew, 0.2, 1);
-            double atStop = (world.Run is { Phase: Run.RunPhase.AtFacility } ? 0.4 : 1) * _t.IncidentWeight * hands;
-            bool Room(EnemyKind kind, int max, double minLoad) => active.Count(e => !e.Gone && e.Kind == kind) < max
-                && IncidentCars(world, kind, minLoad).Any();
-            if (Room(EnemyKind.CarFire, it.CarFire.MaxActive, 0))
-                options.Add((EnemyKind.CarFire, atStop * (train.BoilerTuning is { } fb && train.Boiler.Pressure > fb.WorkingBandMax ? 1.5 : 1)));
-            if (Room(EnemyKind.LooseLoad, it.LooseLoad.MaxActive, it.LooseLoad.MinLoad))
-                options.Add((EnemyKind.LooseLoad, atStop));
-            if (Room(EnemyKind.Gnawers, it.Gnawers.MaxActive, it.Gnawers.MinLoad))
-                options.Add((EnemyKind.Gnawers, atStop));
+            var ctx = new SpawnContext(world, et, this);
+            foreach (var rule in Spawns.Rules)
+            {
+                if (!Allows(rule.Kind) || !Room(rule.Kind, active) || rule.Weight(ctx) is not { } w || w <= 0)
+                    continue;
+                options.Add((rule.Kind, w));
+            }
         }
         // The budget saved up for what's still to come (the Gaunt) holds, except that a paced spawn (it's been quiet too
         // long) may always spend what a paced spawn may: the pace rule beats saving up.
@@ -347,10 +221,20 @@ public sealed class Director
             }
         options.RemoveAll(o => !Allows(o.Kind));
         options.RemoveAll(o => Cost(o.Kind) > (due ? Math.Max(available - Reserve(world, s, o.Kind), _t.PacedCost) : available - Reserve(world, s, o.Kind)));
-        // Sent because it's been quiet: something that shows itself at once. A Dragger under a car's edge, or a Rattle in its
+        // Sent because it's been quiet: something that shows itself at once. A Dragger under a car's edge, or a Whistler in its
         // gap, lies silent until someone comes near: that's no answer to a quiet night, if there's anything else to send.
-        if (due && options.Any(o => o.Kind is not (EnemyKind.Dragger or EnemyKind.Rattle)))
-            options.RemoveAll(o => o.Kind is EnemyKind.Dragger or EnemyKind.Rattle);
+        if (due && options.Any(o => o.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler)))
+            options.RemoveAll(o => o.Kind is EnemyKind.Dragger or EnemyKind.Whistler);
+        // App. B.1 want balance: each want (kill, split, trust, cargo) aims at its share of what's been spent. A want under
+        // its share weighs up, one over it down, once there's been enough spent to have shares.
+        if (_spent > 0 && _t.WantShares.Count > 0)
+            for (int i = 0; i < options.Count; i++)
+            {
+                string want = WantOf(options[i].Kind).ToString().ToLowerInvariant();
+                double target = _t.WantShares.GetValueOrDefault(want, 0.25);
+                double share = _spentByWant.GetValueOrDefault(want) / _spent;
+                options[i] = (options[i].Kind, options[i].Weight * Math.Clamp(Math.Sqrt(target / Math.Max(0.05, share)), 0.5, 2));
+            }
         // A generated line's director context (linegen plan §15): no spawns under a ban (the grace stretch, the
         // terminus), none of its own while the terrain is already at its hardest there (§15.4), and under the terrain's
         // tags the enemies that belong there come more often (§15.1).
@@ -413,39 +297,92 @@ public sealed class Director
     /// gap, or a Lamplighter that's lost the light and only lingers, isn't pressure (the playtest found them holding the
     /// caps full, and the night went quiet).
     /// </summary>
-    static bool Engaged(Enemy e) => !e.Gone && e.Kind != EnemyKind.Sleepers
-        && (e.Phase is SpinePhase.Alert or SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish
+    public static bool Engaged(Enemy e) => !e.Gone && !e.Hazard
+        && (e.Phase is SpinePhase.Alert or SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish
             // Dormant but on the move is pressure too (a Climber pacing the train); only what lies in wait isn't.
-            || e.Phase == SpinePhase.Dormant && e.Kind is not (EnemyKind.Dragger or EnemyKind.Rattle or EnemyKind.Weight or EnemyKind.Lamplighter));
+            || e.Phase == SpinePhase.Dormant && e.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler or EnemyKind.CarHugger or EnemyKind.Gaunt or EnemyKind.TippyToesie));
 
-    /// <summary>Cargo cars in the engine's rake an incident of this kind could take: loaded enough, and without one already.</summary>
-    public static IEnumerable<int> IncidentCars(World world, EnemyKind kind, double minLoad) =>
-        world.Train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Load >= minLoad
-            && !world.ActiveEnemies.Any(e => !e.Gone && e.Kind == kind && e.Attached == v.Id)).Select(v => v.Id);
+    /// <summary>
+    /// App. B.1's hard caps, on what's engaged: two at a time in the flank, the interior and outside (the middle is
+    /// uncoverable; three is unfair), one corrupted human, and one of a tell type at once (tells must stay distinguishable).
+    /// The total cap is checked before this.
+    /// </summary>
+    bool Room(EnemyKind kind, IReadOnlyList<Enemy> active)
+    {
+        var (zone, sense) = Profile(kind);
+        var engaged = active.Where(Engaged).ToList();
+        int cap = zone == PressureZone.Corrupted ? _t.MaxCorrupted : _t.MaxConcurrentZone;
+        if (engaged.Count(e => e.Zone == zone) >= cap)
+            return false;
+        return !engaged.Any(e => e.Sense == sense && e.Zone == zone);
+    }
 
-    /// <summary>Condition-triggered enemies (the Hollow) cost budget only when they actually fire (App. B.5).</summary>
+    /// <summary>A kind's zone and sense (App. B.1's caps are by them), and want: from a stand-in (they're fixed per kind).</summary>
+    static (PressureZone Zone, Sense Sense) Profile(EnemyKind kind) => Profiles.TryGetValue(kind, out var p) ? (p.Zone, p.Sense) : (PressureZone.Interior, Sense.Heat);
+
+    static Want WantOf(EnemyKind kind) => Profiles.TryGetValue(kind, out var p) ? p.Want : Want.Kill;
+
+    static readonly Dictionary<EnemyKind, (PressureZone Zone, Sense Sense, Want Want)> Profiles = Build();
+
+    static Dictionary<EnemyKind, (PressureZone, Sense, Want)> Build()
+    {
+        var d = new Dictionary<EnemyKind, (PressureZone, Sense, Want)>();
+        foreach (var kind in Enum.GetValues<EnemyKind>())
+        {
+            Enemy e = kind switch
+            {
+                EnemyKind.Sleepers => new Sleepers(0),
+                EnemyKind.CinderHound => new CinderHound(0, 0),
+                EnemyKind.Switchman => new Switchman(0),
+                EnemyKind.SootChildren => new SootChildren(0),
+                EnemyKind.Dragger => new Dragger(0),
+                EnemyKind.Stoker => new Stoker(0),
+                EnemyKind.Climber => new Climber(0),
+                EnemyKind.Gaunt => new Gaunt(0),
+                EnemyKind.CarFire => new CarFire(0),
+                EnemyKind.Passenger => new Passenger(0),
+                EnemyKind.Follower => new Follower(0),
+                EnemyKind.Drift => new Drift(0),
+                EnemyKind.TrackDoll => new TrackDoll(0),
+                EnemyKind.CarHugger => new CarHugger(0),
+                EnemyKind.Whistler => new Whistler(0),
+                EnemyKind.TippyToesie => new TippyToesie(0),
+                EnemyKind.FireFlies => new FireFlies(0),
+                EnemyKind.Ribbit => new Ribbit(0, 0),
+                EnemyKind.Grumbler => new Grumbler(0),
+                _ => new ChoirGhost(0),
+            };
+            d[kind] = (e.Zone, e.Sense, e.Want);
+        }
+        return d;
+    }
+
+    readonly Dictionary<string, double> _spentByWant = new();
+
+    /// <summary>Condition-triggered enemies (the Stoker) cost budget only when they actually fire (App. B.5).</summary>
     public void Charge(World world, EnemyKind kind, IReadOnlyList<Enemy> active, bool paced = false)
     {
         _spent += Cost(kind);
+        string want = WantOf(kind).ToString().ToLowerInvariant();
+        _spentByWant[want] = _spentByWant.GetValueOrDefault(want) + Cost(kind);
         if (Completes(kind, world, active) is { } pair)
             Pairs.Add(pair);
-        var zone = kind switch
-        {
-            EnemyKind.CinderHound or EnemyKind.Weight or EnemyKind.Follower => PressureZone.Rear,
-            EnemyKind.Clinger or EnemyKind.Dragger or EnemyKind.Climber or EnemyKind.Gaunt or EnemyKind.Drift => PressureZone.Flank,
-            EnemyKind.Switchman or EnemyKind.Ferryman or EnemyKind.LongWhistle => PressureZone.Forward,
-            EnemyKind.SootChildren or EnemyKind.Lamplighter => PressureZone.Structural,
-            _ => PressureZone.Interior,
-        };
+        var zone = Profile(kind).Zone;
         Log.Add(new DirectorSpawn(world.Tick, kind, Cost(kind), world.Train.Dynamics.Distance,
             active.Count(e => Engaged(e) && e.Zone == zone) + 1, active.Count(Engaged) + 1, paced));
     }
 
-    /// <summary>App. B.1: the player want a kind attacks (its tag), or null for one B.1's table doesn't have.</summary>
-    public string? WantTag(EnemyKind kind) => _t.WantTags.FirstOrDefault(t => t.Value.Contains(Key(kind))).Key;
+    /// <summary>
+    /// App. B.1: the player want a kind attacks (kill, split, trust, cargo), for a kind the director rolls for; null for one
+    /// it doesn't (the Stoker and the Choir come on their own conditions, the hazards are the line's).
+    /// </summary>
+    public string? WantTag(EnemyKind kind) => Rolled(kind) ? WantOf(kind).ToString().ToLowerInvariant() : null;
 
-    /// <summary>How a kind comes: "weighted" (the roll), "condition", "loudness", "level".</summary>
-    public string SpawnMode(EnemyKind kind) => _t.SpawnModes.GetValueOrDefault(Key(kind), "weighted");
+    /// <summary>How a kind comes: "weighted" (the director's roll, <see cref="Spawns.Rules"/>), "loudness" (the Choir), "level" (a hazard), or "condition".</summary>
+    public string SpawnMode(EnemyKind kind) =>
+        Rolled(kind) ? "weighted" : kind == EnemyKind.Choir ? "loudness" : kind is EnemyKind.Sleepers or EnemyKind.Drift ? "level" : "condition";
+
+    static bool Rolled(EnemyKind kind) => Spawns.Rules.Any(r => r.Kind == kind);
 
     // App. D.11: each voted creature's weight multiplier (×1.2 a vote, capped at ×1.5), applied only within its want tag.
     readonly Dictionary<EnemyKind, double> _votes = new();
@@ -462,29 +399,35 @@ public sealed class Director
 
     /// <summary>
     /// App. D.11 "options": the creatures the director selects by weighted roll that are eligible now for this route, tier,
-    /// crew and consist: weighted in spawn mode, with a want tag (the vote's effect is within it), this edition's, and not
-    /// gated out (a tier, crew, consist or route gate, or a once-a-run creature already sent).
+    /// crew and consist: in the spawn table, this edition's, and not gated out by a standing gate (a tier, crew, consist or
+    /// route gate, or a once-a-run creature already sent). The moment's conditions (the train's speed, a stop) come and go
+    /// and aren't the vote's: it's for what could come tonight.
     /// </summary>
     public IReadOnlyList<EnemyKind> Voteable(World world) =>
-        [.. Enum.GetValues<EnemyKind>().Where(k => SpawnMode(k) == "weighted" && WantTag(k) is not null && Allows(k) && Gated(k, world))];
+        [.. Spawns.Rules.Select(r => r.Kind).Distinct().Where(k => Allows(k) && Gated(k, world))];
 
-    /// <summary>A kind's standing gates (App. B's tables), as Decide holds them: not the moment's (where the train is).</summary>
+    /// <summary>A kind's standing gates, as its rule in <see cref="Spawns.Rules"/> holds them (GDD v1.1 App. B.2-B.8).</summary>
     bool Gated(EnemyKind kind, World world)
     {
-        var train = world.Train;
-        var et = world.Enemies;
-        int cars = train.Dynamics.Consist.CarCount;
-        var tier = _route?.Tier ?? RouteTier.Frontier;
+        if (world.Enemies is not { } et)
+            return false;
+        int cars = world.Train.Dynamics.Consist.CarCount;
+        var tier = world.Route?.Tier ?? RouteTier.Frontier;
+        bool once = !Log.Any(l => l.Kind == kind) && !world.ActiveEnemies.Any(e => !e.Gone && e.Kind == kind);
         return kind switch
         {
+            EnemyKind.TrackDoll => once,
             EnemyKind.CinderHound => cars >= 1,
-            EnemyKind.Dragger => et is not null && cars >= et.Draggers.MinCars,
-            EnemyKind.Climber => et is not null && Climber.Gaps(train).Count >= et.Climbers.MinGaps,
-            EnemyKind.Gaunt => et is not null && tier >= Gate(world, RouteTier.Frontier) && Crew >= et.Gaunt.MinCrew && cars >= 1 && !Log.Any(l => l.Kind == EnemyKind.Gaunt),
-            EnemyKind.SootChildren => et is not null && Crew >= et.SootChildren.MinCrew,
-            EnemyKind.Passenger => et is not null && tier >= Gate(world, RouteTier.DeadLines) && Crew >= et.Passenger.MinCrew && !Log.Any(l => l.Kind == EnemyKind.Passenger),
-            EnemyKind.Switchman => et is not null && _route is { } r && r.Tier >= RouteTier.Frontier
-                && r.Branches.Sum(b => b.Kind switch { Rail.BranchKind.DeadLine => 1, Rail.BranchKind.Alternate => 2, _ => 0 }) >= et.Switchman.MinJunctions,
+            EnemyKind.CarHugger => cars >= et.CarHugger.MinCars,
+            EnemyKind.Climber => CrewSense.Gaps(world.Train).Count >= et.Climbers.MinGaps,
+            EnemyKind.Dragger => cars >= et.Draggers.MinCars,
+            EnemyKind.Whistler => cars >= et.Whistler.MinCars,
+            EnemyKind.TippyToesie => Crew >= et.TippyToesie.MinCrew,
+            EnemyKind.Ribbit => Crew >= 2,
+            EnemyKind.Gaunt => tier >= Gate(world, RouteTier.Frontier) && Crew >= et.Gaunt.MinCrew && once,
+            EnemyKind.SootChildren => Crew >= et.SootChildren.MinCrew,
+            EnemyKind.Passenger => tier >= Gate(world, RouteTier.DeadLines) && Crew >= et.Passenger.MinCrew && once,
+            EnemyKind.Switchman => tier >= RouteTier.Frontier && world.Route is { } r && r.Of(Route.FeatureKind.Junction).Count() >= et.Switchman.MinJunctions,
             _ => true,
         };
     }
@@ -526,6 +469,9 @@ public sealed class Director
 
     /// <summary>This edition has the kind (<see cref="DirectorTuning.Roster"/>, empty for every kind).</summary>
     public bool Allows(EnemyKind kind) => _t.Roster.Length == 0 || _t.Roster.Contains(Key(kind));
+
+    /// <summary>What's been spent on each want (App. B.1), for the harness's want-balance check.</summary>
+    public IReadOnlyDictionary<string, double> SpentByWant => _spentByWant;
 
     public Pcg32 Rng => _rng;
     public double NextRange(double min, double max) => _rng.Range(min, max);

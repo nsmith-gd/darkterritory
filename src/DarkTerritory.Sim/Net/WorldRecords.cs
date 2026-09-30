@@ -64,22 +64,24 @@ public static class WorldRecords
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Switch, i), [train.Diverging(i) ? 1 : 0]));
         foreach (var v in train.Vehicles)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Vehicle, v.Id),
-                [Q(v.Load, Fine), Q(v.Integrity, Fine), Q(v.CargoIntegrity, Fine), v.Gun.Ammo, v.Gun.Cooldown, v.Gun.Jammed ? 1 : 0, v.Gun.LastShotTick, v.DoorsOpen, (long)v.Cargo]));
+                [Q(v.Load, Fine), Q(v.Integrity, Fine), Q(v.CargoIntegrity, Fine), v.Gun.Ammo, v.Gun.Cooldown, v.Gun.Jammed ? 1 : 0, v.Gun.LastShotTick, v.DoorsOpen, (long)v.Cargo,
+                    v.LampLit ? 1 : 0, v.Gun.ReloadNeeded, Q(v.Gun.ReloadProgress, Fine)]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
-            [Q(world.Choir.Aggro, Fine), Q(world.Choir.SecondsSinceShot, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0, Q(world.LampOutSeconds, Fine), Q(train.Sand, Fine)]));
+            [Q(world.Choir.Loudness, Fine), Q(world.Choir.Build, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0, Q(world.LampOutSeconds, Fine), Q(train.Sand, Fine),
+                (world.Choir.Present ? 1 : 0) | (world.Choir.Spent ? 2 : 0), Q(world.Choir.QuietSeconds, Fine), Q(world.WhistleSeconds, Fine)]));
         foreach (var e in world.ActiveEnemies)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),
             [
                 (long)e.Kind, (long)e.Phase, Q(e.PhaseSeconds, 1e3), Q(e.Health, 1e3), e.Attached,
                 Q(e.Local.X, Pos), Q(e.Local.Y, Pos), Q(e.Local.Z, Pos), Q(e.LineDistance, Pos), Q(e.Lateral, Pos), Q(e.Height, Pos),
-                Q(e.Extra, 1e3), Q(e.Extra2, 1e3),
+                Q(e.Extra, 1e3), Q(e.Extra2, 1e3), e.Holding, Q(e.GrabWindow, 1e3),
             ]));
         var b = train.Boiler;
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Boiler, 0),
         [
             Q(b.Pressure, Fine), Q(b.Firebox, Fine), Q(b.Tender, Fine), Q(b.AtMaxSeconds, Fine), Q(b.LowFireSeconds, Fine),
             Q(b.ExternalHeat, Fine), Q(b.Efficiency, Fine),
-            (b.Ruptured ? 1 : 0) | (b.SafetyValveLifting ? 2 : 0) | (b.SafetyValveJammed ? 4 : 0),
+            (b.Ruptured ? 1 : 0) | (b.SafetyValveLifting ? 2 : 0) | (b.SafetyValveJammed ? 4 : 0) | (b.FireDoorOpen ? 8 : 0),
         ]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Controls, 0), [Q(controls.Throttle, Fine), Q(controls.Brake, Fine), controls.Reverser]));
         if (world.Run is { } run)
@@ -216,11 +218,28 @@ public static class WorldRecords
                     break;
                 case RecordKind.Vehicle:
                     vehicles.Add(new VehicleState(r.Id, D(f[0], Fine), D(f[1], Fine), D(f[2], Fine),
-                        new GunState { Ammo = (int)f[3], Cooldown = (int)f[4], Jammed = f[5] != 0, LastShotTick = (uint)f[6] }, f.Length > 7 ? (byte)f[7] : (byte)0,
-                        f.Length > 8 ? (CargoKind)f[8] : CargoKind.None));
+                        new GunState
+                        {
+                            Ammo = (int)f[3],
+                            Cooldown = (int)f[4],
+                            Jammed = f[5] != 0,
+                            LastShotTick = (uint)f[6],
+                            ReloadNeeded = f.Length > 10 ? (int)f[10] : 0,
+                            ReloadProgress = f.Length > 11 ? D(f[11], Fine) : 0,
+                        }, f.Length > 7 ? (byte)f[7] : (byte)0,
+                        f.Length > 8 ? (CargoKind)f[8] : CargoKind.None, f.Length <= 9 || f[9] != 0));
                     break;
                 case RecordKind.World:
-                    world.Choir = new ChoirState { Aggro = D(f[0], Fine), SecondsSinceShot = D(f[1], Fine), Floor = D(f[2], Fine) };
+                    world.Choir = new ChoirState
+                    {
+                        Loudness = D(f[0], Fine),
+                        Build = D(f[1], Fine),
+                        Floor = D(f[2], Fine),
+                        Present = f.Length > 7 && (f[7] & 1) != 0,
+                        Spent = f.Length > 7 && (f[7] & 2) != 0,
+                        QuietSeconds = f.Length > 8 ? D(f[8], Fine) : 0,
+                    };
+                    world.WhistleSeconds = f.Length > 9 ? D(f[9], Fine) : 0;
                     world.SetDerailed(f[3] != 0);
                     world.LampLit = f[4] != 0;
                     world.LampOutSeconds = f.Length > 5 ? D(f[5], Fine) : 0;
@@ -243,6 +262,7 @@ public static class WorldRecords
                         Ruptured = (f[7] & 1) != 0,
                         SafetyValveLifting = (f[7] & 2) != 0,
                         SafetyValveJammed = (f[7] & 4) != 0,
+                        FireDoorOpen = (f[7] & 8) != 0,
                     };
                     break;
                 case RecordKind.Controls:
@@ -341,29 +361,29 @@ public static class WorldRecords
         {
             EnemyKind.Sleepers => new Sleepers(r.Id),
             EnemyKind.CinderHound => new CinderHound(r.Id, (int)D(f[11], 1e3)),
-            EnemyKind.Clinger => new Clinger(r.Id),
             EnemyKind.Switchman => new Switchman(r.Id),
             EnemyKind.SootChildren => new SootChildren(r.Id),
             EnemyKind.Dragger => new Dragger(r.Id),
-            EnemyKind.Rattle => new Rattle(r.Id),
-            EnemyKind.Lamplighter => new Lamplighter(r.Id),
-            EnemyKind.Deadman => new Deadman(r.Id),
             EnemyKind.Stoker => new Stoker(r.Id),
             EnemyKind.CarFire => new CarFire(r.Id),
-            EnemyKind.LooseLoad => new LooseLoad(r.Id),
-            EnemyKind.Gnawers => new Gnawers(r.Id),
-            EnemyKind.Ferryman => new Ferryman(r.Id),
-            EnemyKind.LongWhistle => new LongWhistle(r.Id),
             EnemyKind.Climber => new Climber(r.Id),
-            EnemyKind.Weight => new Weight(r.Id),
             EnemyKind.Gaunt => new Gaunt(r.Id),
             EnemyKind.Passenger => new Passenger(r.Id),
             EnemyKind.Follower => new Follower(r.Id),
             EnemyKind.Drift => new Drift(r.Id),
-            _ => new Hollow(r.Id),
+            EnemyKind.TrackDoll => new TrackDoll(r.Id),
+            EnemyKind.CarHugger => new CarHugger(r.Id),
+            EnemyKind.Whistler => new Whistler(r.Id),
+            EnemyKind.TippyToesie => new TippyToesie(r.Id),
+            EnemyKind.FireFlies => new FireFlies(r.Id),
+            EnemyKind.Ribbit => new Ribbit(r.Id, 0),
+            EnemyKind.Grumbler => new Grumbler(r.Id),
+            _ => new ChoirGhost(r.Id),
         };
+
         e.Restore((SpinePhase)f[1], D(f[2], 1e3), D(f[3], 1e3), (int)f[4], new Double3(D(f[5], Pos), D(f[6], Pos), D(f[7], Pos)),
-            D(f[8], Pos), D(f[9], Pos), D(f[10], Pos), D(f[11], 1e3), D(f[12], 1e3));
+            D(f[8], Pos), D(f[9], Pos), D(f[10], Pos), D(f[11], 1e3), D(f[12], 1e3),
+            f.Length > 13 ? (int)f[13] : -1, f.Length > 14 ? D(f[14], 1e3) : 0);
         return e;
     }
 

@@ -124,7 +124,6 @@ public sealed class HostSession
         SpawnTheQueueAtTheFortress();
         WatchSpawns();
         SendTheReport();
-        Mimic();
         Tick++;
 
         // Snap the world onto the replication grid and keep simulating from exactly that.
@@ -197,7 +196,7 @@ public sealed class HostSession
     /// <remarks>
     /// A night that starts away from the fortress (resumed from its autosave, spec E) has its run start where it is: with
     /// nobody aboard there'd be nobody to free a Holdout, so a joiner with no crew aboard boards as at run start
-    /// (ARCHITECTURE §8 note 92).
+    /// (ARCHITECTURE §8 note 93).
     /// </remarks>
     void Join(PeerId peer)
     {
@@ -429,7 +428,13 @@ public sealed class HostSession
                 : listener.State.Alive ? mic is null ? VoicePath.None : VoiceRouting.FromHoldout(mic.Door, ears, Train) : VoiceRouting.Dead(listener.State);
             if (path == VoicePath.None)
                 continue;
-            Messages.WriteVoiceDown(_voiceWriter, speaker.Id, seq, path, opus, path.HasFlag(VoicePath.Holdout) ? mic!.Index : 0);
+            // What's holding the speaker changes how they sound (App. C.8): muffled under a hand, fading as they're drained.
+            var (muffled, gain) = World.VoiceEffect(speaker.Id);
+            if (muffled)
+                path |= VoicePath.Muffled;
+            if (gain < 1)
+                path |= VoicePath.Fading;
+            Messages.WriteVoiceDown(_voiceWriter, speaker.Id, seq, path, opus, path.HasFlag(VoicePath.Holdout) ? mic!.Index : 0, gain);
             _transport.Send(listener.Peer, _voiceWriter.Written, Delivery.Unreliable);
             VoiceFramesForwarded++;
             if (!listener.State.Alive && path.HasFlag(VoicePath.Dead))
@@ -442,63 +447,6 @@ public sealed class HostSession
     /// <summary>Dead-channel frames sent to the dead and lobbied, and (which must stay 0, D.14) to the living.</summary>
     public long DeadFramesForwarded { get; private set; }
     public long DeadFramesToTheLiving { get; private set; }
-
-    // The Soot Children's calls being played (T40): whose voice, the frames, how far through, and a sequence of their own.
-    readonly List<Call> _calls = new();
-    sealed class Call(int enemy, byte voice, IReadOnlyList<byte[]> frames)
-    {
-        public readonly int Enemy = enemy;
-        public readonly byte Voice = voice;
-        public readonly IReadOnlyList<byte[]> Frames = frames;
-        public int Next;
-        public double Due;
-    }
-    ushort _mimicSequence;
-
-    /// <summary>
-    /// Plays the Soot Children's calls (T40): the last thing the crewmate said, from the frames the host kept, at the
-    /// voice's own pace (50 frames a second), from where the thing is. Everyone living within its call radius hears it at
-    /// the same loudness (spec A.5: the missing falloff is the tell); walls still muffle it.
-    /// </summary>
-    void Mimic()
-    {
-        if (World.Enemies is not { } t)
-            return;
-        int frames = (int)Math.Round(t.SootChildren.CallSeconds * 1000 / 20);
-        foreach (var (enemy, voice) in World.Calls)
-            if (World.Voices.Utterance(voice, frames) is { Count: > 0 } said)
-                _calls.Add(new Call(enemy, (byte)voice, said));
-        foreach (var call in _calls)
-        {
-            var from = World.ActiveEnemies.FirstOrDefault(e => e.Id == call.Enemy && !e.Gone);
-            if (from is null)
-            {
-                call.Next = call.Frames.Count;
-                continue;
-            }
-            var at = from.WorldPosition(Train);
-            for (call.Due += 50 * SimConstants.TickSeconds; call.Due >= 1 && call.Next < call.Frames.Count; call.Due--)
-            {
-                var opus = call.Frames[call.Next++];
-                _mimicSequence++;
-                foreach (var listener in _crew)
-                {
-                    // The dead hear it if whoever they're watching does (D.10).
-                    var (ears, _) = Ears(listener);
-                    if (!ears.Alive || (PlayerMotor.WorldPosition(ears, Train) - at).Length > t.SootChildren.CallRadius)
-                        continue;
-                    var path = VoicePath.Mimic | (PlayerMotor.Space(ears, Train) == PlayerMotor.Outside ? 0 : VoicePath.Occluded);
-                    Messages.WriteVoiceDown(_voiceWriter, call.Voice, _mimicSequence, path, opus, call.Enemy);
-                    _transport.Send(listener.Peer, _voiceWriter.Written, Delivery.Unreliable);
-                    MimicFramesSent++;
-                }
-            }
-        }
-        _calls.RemoveAll(c => c.Next >= c.Frames.Count);
-    }
-
-    /// <summary>Soot Child frames sent, for the headless check.</summary>
-    public long MimicFramesSent { get; private set; }
 
     /// <summary>Anti-cheat baseline: clamp everything a client can send to legal ranges.</summary>
     static PlayerIntent Sanitise(PlayerIntent i)

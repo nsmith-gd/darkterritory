@@ -10,8 +10,9 @@ namespace DarkTerritory.Game;
 /// the HUD shows: each becomes a request to the host, which decides. Nothing here changes the world on this machine.
 /// </summary>
 /// <remarks>
-/// Flat screen: left and right mouse cycle whom you watch (or, at the end, whom you'd commend), G calls out, M is the Live
-/// Mic, N lets the next in the queue go first, 1-9 vote (or, at the end, give an award), B bookmarks.
+/// Flat screen, on the player's bindings (T80): Fire and Throw cycle whom you watch (or, at the end, whom you'd commend), Use
+/// calls out, Radio is the Live Mic, Let Next Go and Bookmark are the dead's own, and 1-9 vote (or, at the end, give an
+/// award).
 /// </remarks>
 public sealed class DeadPhaseControls
 {

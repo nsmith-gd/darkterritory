@@ -12,7 +12,9 @@ public enum Key
     D1, D2, D3, D4, D5, D6, D7, D8, D9,
     MouseLeft, MouseRight,
     Up, Down, Left, Right, Enter,
-    G, M, N,
+    // The rest of the keyboard and mouse, so any control can be bound to them (T80).
+    G, H, I, J, K, M, N, O, P, U, Y, Z, D0, F4, F6, F7, F8, F9, F10, F11, F12,
+    LeftCtrl, LeftAlt, RightShift, RightCtrl, RightAlt, CapsLock, MouseMiddle, Mouse4, Mouse5,
 }
 
 /// <summary>
@@ -27,6 +29,8 @@ public sealed class InputState
     public bool Down(Key k) => _down.Contains(k);
     /// <summary>Went down since the last <see cref="EndFrame"/>.</summary>
     public bool Pressed(Key k) => _pressed.Contains(k);
+    /// <summary>A key that went down since the last <see cref="EndFrame"/>, if any (the lowest, if several): for binding one.</summary>
+    public Key? AnyPressed => _pressed.Count == 0 ? null : _pressed.Min();
     public float MouseDX { get; internal set; }
     public float MouseDY { get; internal set; }
     /// <summary>Characters typed since the last <see cref="EndFrame"/>, while the window takes text (<see cref="Window.TextInput"/>).</summary>
@@ -165,6 +169,12 @@ public sealed unsafe class Window : IDisposable
                         Input.Set(Key.MouseLeft, down);
                     else if (e.button.button == 3)
                         Input.Set(Key.MouseRight, down);
+                    else if (e.button.button == 2)
+                        Input.Set(Key.MouseMiddle, down);
+                    else if (e.button.button == 4)
+                        Input.Set(Key.Mouse4, down);
+                    else if (e.button.button == 5)
+                        Input.Set(Key.Mouse5, down);
                     break;
             }
         }
@@ -186,9 +196,6 @@ public sealed unsafe class Window : IDisposable
         SDL_Scancode.SDL_SCANCODE_T => Key.T,
         SDL_Scancode.SDL_SCANCODE_V => Key.V,
         SDL_Scancode.SDL_SCANCODE_L => Key.L,
-        SDL_Scancode.SDL_SCANCODE_G => Key.G,
-        SDL_Scancode.SDL_SCANCODE_M => Key.M,
-        SDL_Scancode.SDL_SCANCODE_N => Key.N,
         SDL_Scancode.SDL_SCANCODE_SPACE => Key.Space,
         SDL_Scancode.SDL_SCANCODE_LSHIFT => Key.LeftShift,
         SDL_Scancode.SDL_SCANCODE_ESCAPE => Key.Escape,
@@ -204,6 +211,33 @@ public sealed unsafe class Window : IDisposable
         SDL_Scancode.SDL_SCANCODE_RIGHT => Key.Right,
         SDL_Scancode.SDL_SCANCODE_RETURN or SDL_Scancode.SDL_SCANCODE_KP_ENTER => Key.Enter,
         >= SDL_Scancode.SDL_SCANCODE_1 and <= SDL_Scancode.SDL_SCANCODE_9 => Key.D1 + (code - SDL_Scancode.SDL_SCANCODE_1),
+        SDL_Scancode.SDL_SCANCODE_0 => Key.D0,
+        SDL_Scancode.SDL_SCANCODE_G => Key.G,
+        SDL_Scancode.SDL_SCANCODE_H => Key.H,
+        SDL_Scancode.SDL_SCANCODE_I => Key.I,
+        SDL_Scancode.SDL_SCANCODE_J => Key.J,
+        SDL_Scancode.SDL_SCANCODE_K => Key.K,
+        SDL_Scancode.SDL_SCANCODE_M => Key.M,
+        SDL_Scancode.SDL_SCANCODE_N => Key.N,
+        SDL_Scancode.SDL_SCANCODE_O => Key.O,
+        SDL_Scancode.SDL_SCANCODE_P => Key.P,
+        SDL_Scancode.SDL_SCANCODE_U => Key.U,
+        SDL_Scancode.SDL_SCANCODE_Y => Key.Y,
+        SDL_Scancode.SDL_SCANCODE_Z => Key.Z,
+        SDL_Scancode.SDL_SCANCODE_F4 => Key.F4,
+        SDL_Scancode.SDL_SCANCODE_F6 => Key.F6,
+        SDL_Scancode.SDL_SCANCODE_F7 => Key.F7,
+        SDL_Scancode.SDL_SCANCODE_F8 => Key.F8,
+        SDL_Scancode.SDL_SCANCODE_F9 => Key.F9,
+        SDL_Scancode.SDL_SCANCODE_F10 => Key.F10,
+        SDL_Scancode.SDL_SCANCODE_F11 => Key.F11,
+        SDL_Scancode.SDL_SCANCODE_F12 => Key.F12,
+        SDL_Scancode.SDL_SCANCODE_LCTRL => Key.LeftCtrl,
+        SDL_Scancode.SDL_SCANCODE_LALT => Key.LeftAlt,
+        SDL_Scancode.SDL_SCANCODE_RSHIFT => Key.RightShift,
+        SDL_Scancode.SDL_SCANCODE_RCTRL => Key.RightCtrl,
+        SDL_Scancode.SDL_SCANCODE_RALT => Key.RightAlt,
+        SDL_Scancode.SDL_SCANCODE_CAPSLOCK => Key.CapsLock,
         _ => null,
     };
 

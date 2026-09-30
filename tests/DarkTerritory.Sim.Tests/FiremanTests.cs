@@ -96,12 +96,12 @@ public class FiremanTests
         var cabBox = cab.Train.Frames[0].Shape.Cab!.Value;
         // In the cab where it comes down (App. A.4): the middle of it, where the driver was standing.
         var climber = cab.World.AddEnemy(id => new Climber(id));
-        climber.Restore(SpinePhase.Punish, 0, Tuning.Enemies.Climbers.Health, 0, cabBox.Centre, 0, 0, 0, 1, 1);
+        climber.Restore(SpinePhase.Commit, 0, Tuning.Enemies.Climbers.Health, 0, cabBox.Centre, 0, 0, 0, -1, 1);
         cab.Run(20);
         Assert.True(climber.Inside);
         Assert.True(cab.DriverState.Alive && cab.FiremanState.Alive);
         Assert.Equal(P.Health, cab.DriverState.Health);
-        // Still in the cab, both of them (an empty cab's the Deadman's), and out of its reach.
+        // Still in the cab, both of them (an empty cab's the Track Doll's), and out of its reach.
         foreach (var s in new[] { cab.DriverState, cab.FiremanState })
         {
             Assert.True(PlayerMotor.InCab(s, cab.Train));

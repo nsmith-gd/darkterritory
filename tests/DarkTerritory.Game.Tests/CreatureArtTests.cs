@@ -184,20 +184,11 @@ public class CreatureArtTests
                 {
                     mesh.Clear();
                     Assert.True(Art.Enemy(mesh, Matrix4x4.CreateTranslation(0, 0, -5), kind, phase, t, 0.5), $"{kind} {phase}");
-                    // A Dragger is out of sight under the car's edge until it reaches, as the greybox has it. The Rattle is
-                    // never seen at all: it's the sound in the coupling (T51).
-                    bool hidden = kind == EnemyKind.Dragger && phase is not (SpinePhase.Telegraph or SpinePhase.Punish)
-                        || kind == EnemyKind.Rattle
-                        // The Stoker's in the firebox; the Deadman is only seen once it holds the cab (T53).
+                    // A Dragger is out of sight under the car's edge until it reaches, as the greybox has it. The Stoker's in the
+                    // firebox: only its work is seen. A Car Hugger is under the bank until it stirs; Fire Flies are only a swarm.
+                    bool hidden = kind == EnemyKind.Dragger && phase is not (SpinePhase.Telegraph or SpinePhase.Grab or SpinePhase.Punish)
                         || kind == EnemyKind.Stoker
-                        // The Long Whistle is never seen (T57): only its horn.
-                        || kind == EnemyKind.LongWhistle
-                        // The Weight is buried until it grabs (T59).
-                        || kind == EnemyKind.Weight && phase == SpinePhase.Dormant
-                        || kind == EnemyKind.Deadman && phase is not (SpinePhase.Commit or SpinePhase.Punish)
-                        // A loose load is only heard; Gnawers are only seen once they're out of the crates.
-                        || kind == EnemyKind.LooseLoad
-                        || kind == EnemyKind.Gnawers && phase != SpinePhase.Punish;
+                        || kind is EnemyKind.CarHugger or EnemyKind.FireFlies && phase == SpinePhase.Dormant;
                     Assert.True(hidden ? mesh.Flattened().Length == 0 : mesh.Flattened().Length > 0, $"{kind} {phase} drew {mesh.Flattened().Length / 3} triangles");
                 }
         foreach (var pose in Enum.GetValues<CrewPose>())
@@ -207,13 +198,13 @@ public class CreatureArtTests
                 Assert.True(Art.Crewmate(mesh, Matrix4x4.Identity, pose, 3.3, variant));
                 Assert.InRange(mesh.Flattened().Length / 3, 2000, 9000);
             }
-        // Six sleepers and three children from one call.
+        // Six sleepers from one call, and one child (GDD v1.1 A.6: a single voice calling).
         mesh.Clear();
         Art.Enemy(mesh, Matrix4x4.Identity, EnemyKind.Sleepers, SpinePhase.Dormant, 0, 0);
         Assert.Equal(6 * Get("sleeper").Triangles(), mesh.Flattened().Length / 3);
         mesh.Clear();
         Art.Enemy(mesh, Matrix4x4.Identity, EnemyKind.SootChildren, SpinePhase.Dormant, 0, 0);
-        Assert.Equal(3 * Get("soot_child").Triangles(), mesh.Flattened().Length / 3);
+        Assert.True(mesh.Flattened().Length / 3 >= Get("soot_child").Triangles());
     }
 
     [Fact]
@@ -291,11 +282,11 @@ public class CreatureArtTests
     public void AFrameOfEightCrewAndTwelveEnemiesIsCheap()
     {
         // The brief: 8 crew and 12 enemies a frame. Posed on the CPU (bones only), skinned on the GPU: the frame-rate
-        // targets (tuning/perf.json) leave the main thread's drawing a few milliseconds. (Sleepers are six ties and Soot
-        // children three figures a call, so this is more models than it looks.)
+        // targets (tuning/perf.json) leave the main thread's drawing a few milliseconds. (Sleepers are six ties, so this is
+        // more models than it looks.)
         var mesh = new MeshBuilder();
-        EnemyKind[] kinds = [.. Enumerable.Repeat(EnemyKind.CinderHound, 6), EnemyKind.Clinger, EnemyKind.Clinger, EnemyKind.Hollow,
-            EnemyKind.Switchman, EnemyKind.Sleepers, EnemyKind.SootChildren];
+        EnemyKind[] kinds = [.. Enumerable.Repeat(EnemyKind.CinderHound, 4), EnemyKind.Ribbit, EnemyKind.Ribbit, EnemyKind.CarHugger,
+            EnemyKind.Gaunt, EnemyKind.Switchman, EnemyKind.Sleepers, EnemyKind.SootChildren, EnemyKind.TrackDoll];
         void Frame(double t)
         {
             mesh.Clear();

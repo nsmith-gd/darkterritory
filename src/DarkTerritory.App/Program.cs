@@ -104,7 +104,7 @@ Launch? LaunchFromArgs()
     string? routeFile = Arg("--route-file", "") is { Length: > 0 } f ? f : null;
     bool host = port is not null || args.Contains("--steam") && steam is not null;
     if (host || route is not null || routeFile is not null || args.Contains("--line"))
-        return new Launch.Night(route, cars, host) { Line = Arg("--line", "test-loop"), RouteFile = routeFile };
+        return new Launch.Night(route, cars, host) { Line = Arg("--line", "test-loop"), RouteFile = routeFile, Bots = int.TryParse(Arg("--bots", "0"), out var b) ? b : 0 };
     return null;
 }
 var launch = LaunchFromArgs();
@@ -254,14 +254,27 @@ Launch? Menu()
         if (Invited(null) is { } lobby)
             return new Launch.JoinLobby(lobby);
         Launch? chosen = null;
-        if (input.Pressed(Key.Up) || input.Pressed(Key.W) && !frontEnd.WantsText) frontEnd.Up();
-        if (input.Pressed(Key.Down) || input.Pressed(Key.S) && !frontEnd.WantsText) frontEnd.Down();
-        if (input.Pressed(Key.Left) || input.Pressed(Key.A) && !frontEnd.WantsText) frontEnd.Left();
-        if (input.Pressed(Key.Right) || input.Pressed(Key.D) && !frontEnd.WantsText) frontEnd.Right();
-        if (input.Pressed(Key.Enter) || input.Pressed(Key.Space) && !frontEnd.WantsText) chosen = frontEnd.Select();
-        if (input.Pressed(Key.Escape)) frontEnd.Back();
-        if (input.Pressed(Key.Backspace)) frontEnd.Erase();
-        if (input.Text.Length > 0) frontEnd.Type(input.Text);
+        // Binding a control (T80): the next key or button pressed is the one, Escape keeps the old. The mouse is held
+        // meanwhile, so a click is a button pressed and not the window taking the mouse.
+        if (frontEnd.Capturing is not null)
+        {
+            window.MouseCaptured = true;
+            if (input.Pressed(Key.Escape)) frontEnd.Back();
+            else if (input.AnyPressed is { } bound) frontEnd.Bind(bound.ToString());
+            if (frontEnd.Capturing is null)
+                window.MouseCaptured = false;
+        }
+        else
+        {
+            if (input.Pressed(Key.Up) || input.Pressed(Key.W) && !frontEnd.WantsText) frontEnd.Up();
+            if (input.Pressed(Key.Down) || input.Pressed(Key.S) && !frontEnd.WantsText) frontEnd.Down();
+            if (input.Pressed(Key.Left) || input.Pressed(Key.A) && !frontEnd.WantsText) frontEnd.Left();
+            if (input.Pressed(Key.Right) || input.Pressed(Key.D) && !frontEnd.WantsText) frontEnd.Right();
+            if (input.Pressed(Key.Enter) || input.Pressed(Key.Space) && !frontEnd.WantsText) chosen = frontEnd.Select();
+            if (input.Pressed(Key.Escape)) frontEnd.Back();
+            if (input.Pressed(Key.Backspace)) frontEnd.Erase();
+            if (input.Text.Length > 0) frontEnd.Type(input.Text);
+        }
         if (vr is not null)
             chosen ??= VrMenuInput.Apply(vrKeys.Read(vr.Session.Controllers), frontEnd);
         if (chosen is not null)
@@ -326,13 +339,16 @@ Launch? Menu()
                 return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume, characters: campaign.Characters,
                     profile: profile.Id), campaign);
             }
-        case Launch.Night { Host: true } hosted:
+        case Launch.Night hosted when hosted.Host || hosted.Bots > 0:
             {
-                // From the menu, friends join on the usual port; `--steam` alone takes no UDP port (the lobby's enough).
-                int? port = args.Contains("--host") ? int.TryParse(Arg("--host", ""), out var p) ? p : NetPlaySession.DefaultPort
+                // From the menu, friends join on the usual port; `--steam` alone takes no UDP port (the lobby's enough). A night
+                // with bots and no friends (T89) is hosted privately: the bots are clients on localhost.
+                int? port = !hosted.Host ? null : args.Contains("--host") ? int.TryParse(Arg("--host", ""), out var p) ? p : NetPlaySession.DefaultPort
                     : fromCommandLine ? null : NetPlaySession.DefaultPort;
                 var setup = new SessionSetup(Route: hosted.Route, Line: hosted.Line, Cars: hosted.Cars, Enemies: enemies);
-                var session = NetPlaySession.HostGame(content, setup, port, online: steam, profile: profile.Id);
+                var session = NetPlaySession.HostGame(content, setup, port, online: hosted.Host ? steam : null, bots: hosted.Bots, profile: profile.Id);
+                if (hosted.Bots > 0)
+                    Console.WriteLine($"a crew of {hosted.Bots} bot{(hosted.Bots == 1 ? "" : "s")} aboard");
                 if (port is not null)
                     Console.WriteLine($"hosting on UDP port {session.Port}: others join with --join <this machine's address>:{session.Port}");
                 if (steam is not null)
@@ -438,10 +454,17 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     int pendingNotch = 0;
     bool pendingReverser = false;
     var pendingLamp = LampSwitch.None;
+    bool pendingCarLamp = false;
+    double voiceLevel = 0;
     bool chase = ride;
     // Dead or lobbied, what the keys ask the host for (GDD App. D.10); at the run's end, the commendations (D.12).
     var dead = new DeadPhaseControls();
     double sensitivity = 0.0025 * settings.MouseSpeed;
+    // The player's keys (T80): each control's key, from the settings (a name the platform doesn't know: its default).
+    var keyOf = Enum.GetValues<Control>().ToDictionary(c => c, c => Enum.TryParse<Key>(settings.KeyFor(c), out var k) ? k : Enum.Parse<Key>(Controls.Defaults[c]));
+    Hud.Keys = settings;
+    bool Held(Control c) => input.Down(keyOf[c]);
+    bool Hit(Control c) => input.Pressed(keyOf[c]);
     Camera camera = default;
     FrameLighting lighting = default;
     window.MouseCaptured = true;
@@ -463,11 +486,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (session.World.Run?.Over == true && input.Pressed(Key.Enter))
             break;
         // The prototype drives from anywhere; networked, cab controls go through intent like everything else.
-        sbyte notch = (sbyte)((input.Pressed(Key.R) ? 1 : 0) - (input.Pressed(Key.F) ? 1 : 0));
-        bool reverser = input.Pressed(Key.X);
+        sbyte notch = (sbyte)((Hit(Control.RegulatorOpen) ? 1 : 0) - (Hit(Control.RegulatorClose) ? 1 : 0));
+        bool reverser = Hit(Control.Reverser);
         // The lamp switch (T52): a setting, the opposite of how the lamp is now, held until a tick sends it.
-        if (input.Pressed(Key.L))
+        if (Hit(Control.Lamp))
             pendingLamp = session.World.LampLit ? LampSwitch.Off : LampSwitch.On;
+        pendingCarLamp |= Hit(Control.CarLamp);
         // Held until a tick sends them: at a high frame rate a key press can land on a frame with no tick.
         pendingNotch += notch;
         pendingReverser |= reverser;
@@ -478,22 +502,22 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (input.Pressed(Key.Backspace)) proto.Respawn(0);
             for (var k = Key.D1; k <= Key.D9; k++)
                 if (input.Pressed(k)) proto.Respawn(k - Key.D1 + 1);
-            proto.Controls.Brake = input.Down(Key.B) ? 1 : 0;
+            proto.Controls.Brake = Held(Control.Brake) ? 1 : 0;
             if (ride && session.Route?.Plan is { } ridden)
                 DarkTerritory.Game.LineGen.Ride.Drive(proto.Train, ridden, ref proto.Controls);
         }
-        if (input.Pressed(Key.Tab)) chase = !chase;
+        if (Hit(Control.Chase)) chase = !chase;
         if (input.Pressed(Key.F1)) showHud = !showHud;
         if (input.Pressed(Key.F2)) net?.ShowInviteDialog();
         // A generated line's route card (C: the paper the crew is handed) and the designer's overlay (F3).
-        if (input.Pressed(Key.C)) cardPage = cardPage + 1 >= cardPages ? -1 : cardPage + 1;
+        if (Hit(Control.RouteCard)) cardPage = cardPage + 1 >= cardPages ? -1 : cardPage + 1;
         if (input.Pressed(Key.F3)) showPlan = !showPlan;
         bool bookmark = false;
         if (net is not null && session.Report is not null)
         {
             // D.12: choose a crewmate with the mouse, give them an award with its number. One, never to yourself.
-            if (input.Pressed(Key.MouseLeft)) dead.ChooseCommend(session, 1);
-            if (input.Pressed(Key.MouseRight)) dead.ChooseCommend(session, -1);
+            if (Hit(Control.Fire)) dead.ChooseCommend(session, 1);
+            if (Hit(Control.Throw)) dead.ChooseCommend(session, -1);
             for (var k = Key.D1; k <= Key.D9; k++)
                 if (input.Pressed(k)) dead.Commend(session, k - Key.D1);
             // What the crew gave you is your profile's, whoever hosted.
@@ -505,14 +529,15 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         else if (net is not null && DeadPhaseControls.Waiting(session))
         {
-            if (input.Pressed(Key.MouseLeft)) dead.Cycle(session, 1);
-            if (input.Pressed(Key.MouseRight)) dead.Cycle(session, -1);
-            if (input.Pressed(Key.G)) dead.CallOut(session);
-            if (input.Pressed(Key.M)) dead.ToggleLiveMic(session);
-            if (input.Pressed(Key.N)) dead.Defer(session);
+            // On the living's keys where they mean the same (T80): Fire/Throw cycle, Use calls out, Radio is the Live Mic.
+            if (Hit(Control.Fire)) dead.Cycle(session, 1);
+            if (Hit(Control.Throw)) dead.Cycle(session, -1);
+            if (Hit(Control.Use)) dead.CallOut(session);
+            if (Hit(Control.Radio)) dead.ToggleLiveMic(session);
+            if (Hit(Control.LetNextGo)) dead.Defer(session);
             for (var k = Key.D1; k <= Key.D9; k++)
                 if (input.Pressed(k)) dead.Vote(session, k - Key.D1);
-            bookmark = input.Pressed(Key.B) && dead.Bookmark(session);
+            bookmark = Hit(Control.Bookmark) && dead.Bookmark(session);
         }
         // An invite accepted (or "Join Game" on a friend) while playing: leave this game for theirs.
         if (Invited(net) is { } invitedTo)
@@ -534,25 +559,30 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         for (int i = 0; i < ticks; i++)
         {
             var buttons = PlayerButtons.None;
-            if (input.Down(Key.LeftShift)) buttons |= PlayerButtons.Run;
-            if (input.Down(Key.Space)) buttons |= PlayerButtons.Jump;
-            if (input.Down(Key.E)) buttons |= PlayerButtons.Use;
-            if (input.Down(Key.MouseLeft)) buttons |= PlayerButtons.Fire;
-            if (input.Down(Key.MouseRight)) buttons |= PlayerButtons.Throw;
+            if (Held(Control.Run)) buttons |= PlayerButtons.Run;
+            if (Held(Control.Jump)) buttons |= PlayerButtons.Jump;
+            if (Held(Control.Use)) buttons |= PlayerButtons.Use;
+            if (Held(Control.Fire)) buttons |= PlayerButtons.Fire;
+            if (Held(Control.Throw)) buttons |= PlayerButtons.Throw;
             if (proto is null)
             {
-                if (input.Down(Key.B)) buttons |= PlayerButtons.Brake;
+                if (Held(Control.Brake)) buttons |= PlayerButtons.Brake;
                 if (pendingReverser) buttons |= PlayerButtons.Reverser;
             }
             var intent = new PlayerIntent
             {
-                MoveX = (input.Down(Key.D) ? 1 : 0) - (input.Down(Key.A) ? 1 : 0),
-                MoveZ = (input.Down(Key.W) ? 1 : 0) - (input.Down(Key.S) ? 1 : 0),
+                MoveX = (Held(Control.Right) ? 1 : 0) - (Held(Control.Left) ? 1 : 0),
+                MoveZ = (Held(Control.Forward) ? 1 : 0) - (Held(Control.Back) ? 1 : 0),
                 LookYaw = (float)pendingYaw,
                 LookPitch = (float)pendingPitch,
                 Buttons = buttons,
                 ThrottleNotch = proto is null ? (sbyte)Math.Clamp(pendingNotch, -4, 4) : (sbyte)0,
                 Lamp = pendingLamp,
+                Actions = (Held(Control.Swing) ? PlayerActions.Swing : 0) | (Held(Control.Whistle) ? PlayerActions.Whistle : 0)
+                    | (pendingCarLamp ? PlayerActions.CarLamp : 0),
+                // How loud you are (GDD v1.1 App. C.7, C.8): the mic while it sends; with no mic, holding Talk counts as
+                // speaking up, so a player without one can still talk the Gaunt down and answer a roll call.
+                Voice = (byte)Math.Clamp(voiceLevel * 255, 0, 255),
             };
             if (locomotion is not null)
             {
@@ -569,6 +599,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             }
             pendingNotch = 0;
             pendingLamp = LampSwitch.None;
+            pendingCarLamp = false;
             pendingReverser = false;
             pendingYaw = pendingPitch = 0;
             session.Step(intent);
@@ -585,12 +616,23 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         if (voice is not null && net is not null)
         {
-            voice.TalkHeld = input.Down(Key.V);
+            voice.TalkHeld = Held(Control.Talk);
             // Only with a radio on you (T41); the host checks too.
-            voice.RadioHeld = input.Down(Key.T) && session.World.Bodies.HasRadio(session.PlayerId);
+            voice.RadioHeld = Held(Control.Radio) && session.World.Bodies.HasRadio(session.PlayerId);
+            double loud = 0;
             for (int n; mic is not null && (n = mic.Read(micSamples)) > 0;)
+            {
                 voice.Capture(micSamples.AsSpan(0, n), net.Client);
+                double sum = 0;
+                for (int k = 0; k < n; k++)
+                    sum += micSamples[k] * micSamples[k];
+                loud = Math.Max(loud, Math.Sqrt(sum / n));
+            }
+            // Speech RMS sits around 0.05-0.2; a shout nearer 0.3 and up.
+            voiceLevel = mic is null ? (Held(Control.Talk) ? 0.5 : 0) : voice.Transmitting ? Math.Clamp(loud * 3.5, 0, 1) : 0;
         }
+        else
+            voiceLevel = Held(Control.Talk) ? 0.5 : 0;
         FeedSpeaker();
 
         var frames = session.InterpolatedFrames(clock.Alpha);
@@ -619,7 +661,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         {
             Hud.Build(overlay, UiWidth, UiHeight, session, dead: dead);
             // Q held: the crew roster (T69), with who's been heard.
-            if (input.Down(Key.Q))
+            if (Held(Control.Roster))
                 Hud.Roster(overlay, UiWidth, UiHeight, session.Roster(), voice is null ? null : voice.SinceHeard);
             if (session.Route?.Plan is { } shown)
             {

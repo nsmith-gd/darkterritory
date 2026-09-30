@@ -1,5 +1,5 @@
-// Enemies (GDD Part Six, App. A behaviour trees, App. B spawn rules). Demo roster: one per pressure zone.
-// First pass. Speeds in m/s; the GDD's Sleeper thresholds (40 / 20) are km/h, converted here.
+// Enemies (GDD v1.1 §21, App. A behaviour, App. B spawn rules, App. C shared systems): the v1.1 roster of sixteen and the
+// Choir, plus two hazards (§22: track debris, formerly the Sleepers; marsh, formerly the Drift). First pass. Speeds in m/s; the GDD's Sleeper thresholds (40 / 20) are km/h, converted here.
 {
   // App. A.1: every telegraph gives at least this long before a commit.
   "minReactionSeconds": 1.5,
@@ -21,7 +21,8 @@
 
   "cinderHounds": {
     "packSize": [3, 5],
-    "health": 60,
+    // In blows (App. C.2): "each takes several blows". A cannon round is four.
+    "health": 3,
     "radius": 0.8,
     // Their sustainable speed: a train faster than this outruns them (App. A.3 break off).
     "maxSpeed": 19,
@@ -37,497 +38,183 @@
     "boredSeconds": 6,
     // App. B.3: needs sustained speed first.
     "minTrainSpeed": 8,
-    // App. A.3 break off: "sustained rear gun fire". This many rounds from a gun in range of the pack,
-    // inside this window, and a running hound peels away (ARCHITECTURE §8).
-    "suppressRounds": 9,
-    "suppressWindowSeconds": 4
+    // GDD v1.1 App. A.3 break off: "rear cannon hit". A round from a gun in range of the pack inside this window, and a
+    // running hound peels away (the v1.0 "sustained fire" was nine; a cannon that reloads by hand fires one).
+    "suppressRounds": 1,
+    "suppressWindowSeconds": 4,
+    // App. A.1 GRAB: a crewmate bitten down to their last is pinned; friends have this long to club it off.
+    "maulSeconds": 8
   },
 
-  "clingers": {
-    "drillSeconds": 90,
-    "prySeconds": 6,
-    "pryReach": 2.0,
-    "breachCargoLossPerSecond": 0.004
+  // App. C.1 GRAB, shared by every enemy that holds someone: a friend pulls a victim free with Use this close (where the
+  // enemy allows it) or hits the holder. Alone (a crew of one), holding Use for soloStruggle seconds breaks the hold:
+  // the GDD has no solo rule (ARCHITECTURE §8 note 92, a tuning flag).
+  "grab": { "pullReach": 1.6, "soloStruggleOn": true, "soloStruggle": 6 },
+
+  // App. C.2 melee with train tools: any tool (shovel, bar, lamp) swings; a blow is 1 health. Enemy health below is in blows.
+  "melee": { "reach": 2.2, "coneDegrees": 70, "swingSeconds": 0.8, "damage": 1 },
+
+  // TRACK DOLL · sight · forward (App. A.2, B.2). Revealed in the lamp at lampRevealDistance, or in the dark only this close.
+  // Stopped (below stoppedBelow m/s) short of it: gone for the run. Hit: it haunts. Cornered (players within cornerWithin at
+  // both ends of its car) it can be clubbed; approached from one side it vanishes when anyone's within vanishNear and moves
+  // car every hauntMoveSeconds. An empty cab for tamperAfterEmpty s and it's at the controls. A toy within toyReach: it
+  // takes it and leaves. DESIGN-TODO: how much cargo "admiring" costs is unstated; cargoPerSecond is a guess.
+  "trackDoll": {
+    "lampRevealDistance": 200, "darkRevealDistance": 25, "spawnAhead": 700, "stoppedBelow": 0.3, "health": 2,
+    "hauntMoveSeconds": 25, "vanishNear": 3, "cornerWithin": 6, "tamperAfterEmpty": 8, "toyReach": 1.8,
+    "cargoPerSecond": 0.001,
+    // B.2: needs a straight this long ahead (so the lamp can find it), and weighs this much more with the cab empty.
+    "straightNeeded": 250, "emptyCabWeight": 2
   },
 
-  "hollow": {
-    // App. B.5: firebox below threshold for 45 s.
-    "lowFireSeconds": 45,
-    "descendSeconds": 3,
-    "biteDamage": 35,
-    "biteEverySeconds": 3,
-    // Temperature restored: firebox back above this fraction and it leaves.
-    "retreatFireFraction": 0.4
+  // CAR HUGGER · vibration · rear (App. A.3, B.3). Latched: the train's top speed capped at speedCap m/s (the train drags
+  // dragFactor times harder above it), the rear car's shell and loot eaten at these rates; eaten through, the car drops.
+  // Anyone in front of its mouth (mouthReach) is swallowed: swallowSeconds for friends to pull them free. It heals
+  // regenPerSecond blows a second, so one player can barely out-hit it. Lurks at a marsh or bridge lurkAheadMin-Max ahead
+  // on a grade under maxGrade %. B.3: weighs lowSpeedWeight more with the train under lowSpeed m/s.
+  "carHugger": {
+    "speedCap": 9, "dragFactor": 1.6, "shellPerSecond": 0.004, "lootPerSecond": 0.006, "mouthReach": 1.6,
+    "swallowSeconds": 10, "health": 16, "regenPerSecond": 0.15, "lurkAheadMin": 250, "lurkAheadMax": 800, "maxGrade": 0.6,
+    "lowSpeed": 8, "lowSpeedWeight": 2, "minCars": 2
   },
 
-  // App. A.7 THE SWITCHMAN: "reaches an upcoming junction → throws it to a dead line". Its telegraph is the switch
-  // itself (the stand's lamp reads wrong from the cab) and the figure standing at it; the spec gives it no sound (A.4
-  // lists none), so it's silent. The commit is the train taking the points; the dead line and its buffer stop do the
-  // rest. "Never directly lethal. It costs you the clock."
+  // WHISTLER · absence · flank (App. A.4, B.4). Boards at a stop; whistleAfterStop s into the next stop it blows the
+  // whistle for whistleSeconds (it feeds the loudness meter). A player passing within passReach of its gap with nobody
+  // else within pairRadius is snatched and carried off at runSpeed to a nest nestDistance m out, eaten nestSeconds after.
+  // Two players within spotReach of the gap and it flees. B.4: stopWeight: it's weighted toward routes with stops.
+  "whistler": {
+    "stoppedBelow": 0.3, "whistleAfterStop": 4, "whistleSeconds": 2.5, "passReach": 1.6, "pairRadius": 3, "spotReach": 2.5,
+    "runSpeed": 4.5, "nestDistance": 60, "nestSeconds": 20, "health": 3, "stopWeight": 0.3, "minCars": 2
+  },
+
+  // TIPPY TOESIE · absence · interior (App. A.5, B.5). Picks a player idle (moving under idleBelow m/s) for idleSeconds with
+  // nobody within aloneRadius; starts startBehind m behind them and creeps at approachSpeed (slower at a crew of two).
+  // Looked at (within seenDegrees of their view) it flees, up to maxFlees times, and waits waitAfterSeen s. At reach it
+  // covers their mouth: suffocateSeconds for a friend to break it.
+  "tippyToesie": {
+    "idleSeconds": 5, "idleBelow": 0.3, "aloneRadius": 8, "startBehind": 9, "approachSpeed": 0.6, "approachSpeedCrewOfTwo": 0.4,
+    "seenDegrees": 50, "reach": 0.8, "suffocateSeconds": 20, "waitAfterSeen": 20, "maxFlees": 3, "health": 2, "minCrew": 2,
+    "perIdleWeight": 1
+  },
+
+  // FIRE FLIES · light · interior (App. A.5, B.5). On a lit car lamp in a dark section; left igniteSeconds, the car
+  // catches (carFire below). Break off: the lamp out, or the train over pullAwaySpeed m/s for pullAwaySeconds.
+  "fireFlies": { "igniteSeconds": 20, "pullAwaySpeed": 15, "pullAwaySeconds": 8, "depthWeight": 2 },
+
+  // RIBBITS · sight · outside (App. A.6, B.6). A pack of packSize (never more than the crew) hops at hopSpeed toward the
+  // nearest group smaller than it (players within groupRadius of each other: App. C.6); in tongueReach it freezes one and
+  // eats for devourSeconds. They lose interest past giveUpBeyond m.
+  "ribbits": {
+    "packSize": [2, 4], "hopSpeed": 4, "groupRadius": 8, "tongueReach": 4, "devourSeconds": 8, "giveUpBeyond": 45,
+    "spawnOut": 35, "health": 2, "perGroundWeight": 0.5
+  },
+
+  // GRUMBLER · sound · corrupted human (App. A.8, B.8). Gnaws the food crates at a facility; hit, it hunts the last to hit
+  // it at huntSpeed. It regenerates regenPerSecond blows a second unless two players have hit it within gangSeconds.
+  // Aboard with a crate, it eats cargoPerSecond. B.8: foodWeight more with food aboard.
+  "grumbler": {
+    "health": 6, "regenPerSecond": 1.5, "gangSeconds": 5, "huntSpeed": 3.5, "reach": 1.4, "biteDamage": 15, "biteEvery": 1.5,
+    "grabBelowHealth": 30, "maulSeconds": 8, "cargoPerSecond": 0.004, "foodWeight": 2
+  },
+
+  // THE CHOIR's swarm (App. A.7): ghosts come when the meter's gathered (combat.json "choir"). Each seizes anyone outside
+  // or behind no shut door for seizeSeconds (broken only by killing it); hit, it hits back. It flies flySpeed m/s faster
+  // than the train. Quiet for
+  // disperseQuietSeconds and they go.
+  "choir": { "ghosts": 4, "health": 6, "seizeSeconds": 12, "flySpeed": 6, "hitBackDamage": 15, "disperseQuietSeconds": 10, "around": 12 },
+
+  // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. A
+  // derailing one (derailChance) grips the lever at gripAt m, always in time to brake or fire. One cannon round (4 blows)
+  // or three blows kills it. B.8: minJunctions on the route, deadLineWeight more with dead lines about.
   "switchman": {
-    // It goes to a junction whose points are this far ahead of the engine: far enough that the lamp is seen and the
-    // train stopped in time at cruise (the fairness rule), near enough that it's the next one.
-    "ahead": [500, 1200],
-    // It stands beside the switch stand, this much farther out from the track than the lever.
-    "standBeside": 1.2,
-    // "Approached on the ground → retreats; will not fight."
-    "fleeRadius": 25,
-    // Once the train's down the dead line, it lingers this long, then it's gone.
-    "lingerSeconds": 20,
-    // App. B.7: "route must contain ≥3 junctions" (dead lines, not facility spurs).
-    "minJunctions": 3
+    "ahead": [500, 1200], "standBeside": 1.2, "revealAt": 300, "derailChance": 0.3, "gripAt": 250, "health": 3,
+    "lingerSeconds": 20, "minJunctions": 3, "deadLineWeight": 1.5
   },
 
-  // App. A.4 SOOT CHILDREN: "outside in the dark, calling for help in your crewmates' voices". It listens to the crew's
-  // proximity voice, then calls from outside a car in the voice of someone who isn't there. The tell (spec A.5): that
-  // voice has no distance falloff, the same loudness near or far. Answer it (open the car's door, or go out to it) and
-  // it takes whoever came. Ignored, it gives up and moves on. "RULE: never answer a voice from outside."
+  // SOOT CHILDREN · sound · outside (App. A.6, B.6). Calling from callOut m every callEvery s. realChance of a real
+  // survivor (a host's first-ever call is always real). A Soot Child lunges at anyone within lungeWithin m and drinks for
+  // drainSeconds, gaining healthPerSecond blows a second while it does. Ignored for ignoredSeconds, it gives up.
   "sootChildren": {
-    // It crouches this far out from the car's side, in the dark.
-    "standOff": 6,
-    // Everyone within this of it hears the call, all at the one loudness.
-    "callRadius": 40,
-    // Each call is the last thing its voice said, up to this long, again every so often.
-    "callSeconds": 2.5,
-    "callEverySeconds": 7,
-    // A door of its car opened, or someone on the ground, this near it: that's who it takes.
-    "lureRadius": 7,
-    // App. A.4 "DECAY: ignored ~30s → moves on, tries a different voice".
-    "ignoredSeconds": 30,
-    // App. B.6 gates: "Crew ≥2 (needs a voice to mimic) · requires recent proximity voice activity"; "near facilities".
-    "recentVoiceSeconds": 120,
-    "minCrew": 2,
-    "nearFacility": 250,
-    // Whoever answers doesn't come back.
-    "takeDamage": 200
+    "callOut": 45, "callEvery": 6, "lungeWithin": 5, "drainSeconds": 14, "health": 2, "healthPerSecond": 0.35, "realChance": 0.5,
+    "ignoredSeconds": 120, "minCrew": 2, "nearFacility": 400
   },
 
-  // App. A.4 DRAGGERS: "reach up from beneath the car edges. RULE: stay off the edges." Pre-attached under a car's edge,
-  // dormant until someone's on the roofs (App. B.4). A player within "grabRange" of its edge, near it along the car, gets
-  // a limb at the lip (the tell: a single scrape, 2-4 kHz, spec A.4) and, a moment later, the grab. Grabbed alone: pulled
-  // off the train, which at speed is death. Grabbed with an ally near: they have "freeSeconds" to free them (Use, close by).
-  // Never leaves its car; it follows a roof walker along under its edge. "COUNTER: walk the centreline of the roof."
+  // DRAGGERS · movement · flank (App. A.4, B.4). A roof-walker within grabRange of the edge (x fastGrabScale at fastAt m/s)
+  // gets a limb over the lip telegraphSeconds before the grab; grabbed, they hang hangSeconds for a friend to haul them up.
   "draggers": {
-    // Nobody on its car's roof for this long and it lets go of the car (T64): under the lip all night, it would hold one of
-    // the flank's two places the whole run.
-    "lingerSeconds": 180,
-    // "player within 1m of a car edge → grab attempt".
-    "grabRange": 1.0,
-    // Spec B.3 "Max 22 m/s: Draggers +50% grab range": the range grows from cruise to max speed.
-    "fastFrom": 14,
-    "fastAt": 22,
-    "fastGrabScale": 1.5,
-    // How near it along the car, and how fast it creeps along under the edge after a walker on its side.
-    "reachAlong": 1.5,
-    "creepSpeed": 1.2,
-    // "a limb visible at the edge lip ~1s prior" (the commit also waits for minReactionSeconds, App. A.1).
-    "telegraphSeconds": 1.0,
-    // "grabbed with ally near → ally has a 2s window to free them": an ally this near when it grabs, holding Use this
-    // near the grabbed one. Alone, the pull comes after a beat.
-    "allyRadius": 4,
-    "freeSeconds": 2,
-    "freeReach": 1.5,
-    "aloneSeconds": 0.4,
-    // Pulled off over the side: this fast outward, on top of the train's own speed (which is what kills).
-    "pullSpeed": 3,
-    // Freed, or its reach dodged, it's back under the lip this long before it reaches again.
-    "rearmSeconds": 8,
-    // After the 100-night playtest, it's beatable: stamped on as it reaches (the one it's reaching for holds Use), or a
-    // grabbed crewmate pulled free, takes this much of its health (1). At none it lets go of the car for good.
-    "stampDamage": 0.5,
-    // App. B.4 "Train length ≥2". At most this many under one train at once.
-    "minCars": 2,
-    "maxAttached": 2
+    "grabRange": 1.0, "fastFrom": 14, "fastAt": 22, "fastGrabScale": 1.5, "reachAlong": 1.5, "creepSpeed": 1.2,
+    "telegraphSeconds": 1.0, "allyRadius": 4, "freeSeconds": 2, "freeReach": 1.5, "aloneSeconds": 0.4, "pullSpeed": 3,
+    "rearmSeconds": 8, "stampDamage": 0.5, "hangSeconds": 8, "lingerSeconds": 180, "minCars": 2, "maxAttached": 2
   },
 
-  // App. A.5 RATTLE: "lives in the couplings. You hear it before you cross. RULE: don't cross between cars rattling."
-  // Takes a coupling gap in the engine's rake during a facility stop (App. B.5), mid-train by preference. Silent until
-  // someone comes within "armRadius" of it below the roofs; then it rattles (the tell: a dry bone rattle, 2-5 kHz, spec
-  // A.3). Step into the gap while it rattles (after minReactionSeconds of it) and you're grabbed and pulled under.
-  // "COUNTER: wait it out, or route over the roof." Not shootable.
-  "rattle": {
-    // "a player approaches the gap → begins rattling".
-    "armRadius": 6,
-    // "no approach for ~10s → silent again".
-    "quietSeconds": 10,
-    // "instant grab, pulled under": a kill.
-    "grabDamage": 200,
-    // Ambiguity (ARCHITECTURE §8): the spawn is at a stop but nothing says when it leaves. It stays in its gap this long
-    // (so it's often still there as you pull out), then goes, rattling or not. Cut the cars there and it's gone.
-    "lingerSeconds": 300,
-    // App. B.5 "Train length ≥2" (cars in the engine's rake), and "weight up on longer consists": this much per car more.
-    "minCars": 2,
-    "perCarWeight": 0.25
-  },
-
-  // App. A.6 LAMPLIGHTERS: "light-reactive. Work the lineside. RULE: lamps down." Out in the dark beside the engine, just
-  // beyond the lamp's reach (App. B.6: any tier, only while a lamp is lit). While the forward lamp shines it comes for
-  // it, its eyes catching the light at the edge of the beam (the tell: "near-silent; eyeshine is visual", spec A.3).
-  // Reaching it, it smashes the lamp and goes for the nearest player. Lights out, it loses track and goes back out.
-  // Not shootable: the counter is the lamp. The counter blinds you to the Sleepers, and "that contradiction is the point".
-  // App. A.5 DEADMAN: "takes the cab if nobody is in it. RULE: never leave the cab empty." Condition-triggered (App.
-  // B.5), not on Local routes. With the cab empty it starts its approach (the tell: the cab lamp dims, the controls click
-  // on their own, 1-2 kHz, spec A.3) and takes the cab at "cab empty 30s (20s on Deep territory)": the regulator locks
-  // open, the brake does nothing. Someone in the cab contests it: "~4s and damage taken". Charged only when it takes.
-  "deadman": {
-    "emptySeconds": 30,
-    "emptySecondsDeep": 20,
-    // Its approach: this long before it takes the cab, it's heard (well past minReactionSeconds).
-    "telegraphSeconds": 10,
-    "evictSeconds": 4,
-    "evictDamage": 25
-  },
-
-  // App. A.5 STOKER: "gets into the firebox. Pressure climbs on its own. RULE: vent, or the boiler goes." During a stop
-  // with the firebox unattended (App. B.5), it feeds the boiler and holds the safety valve shut (the tell: the gauge
-  // rising with no fuel added, the wrong-coloured glow and its hiss, 1-3 kHz). At the maximum for the boiler's rupture
-  // hold (boiler.json), the boiler goes. Counters: vent (6 a second against its feed: it holds, but costs the pressure),
-  // or hold Use at the firebox and drive it out, "exposing the boiler player".
+  // STOKER · heat · interior (App. A.5, B.5; the Hollow merged in). In through the stack when pressure's under
+  // lowPressure for lowPressureSeconds, or through the firebox door left open doorOpenSeconds at a stop (weighted
+  // openDoorWeight). Soot falls sootSeconds, then it feeds feedRate pressure a second and ramps the regulator open over
+  // runawayRampSeconds. Each blow at it burns the swinger burnPerBlow. The door shuts itself fireDoorShutSeconds after a
+  // shovel (DESIGN-TODO: the GDD says only "left open"; a door that stays open forever after a shovel would make every stop
+  // a Stoker stop).
   "stoker": {
-    // Pressure a second it adds, on top of the fire.
-    "feedRate": 1.5,
-    "driveOutSeconds": 3,
-    "driveOutDamage": 30,
-    // "During a stop" (the train below this speed) "with the box unattended" (nobody in the cab this long).
-    "stoppedBelow": 0.5,
-    "unattendedSeconds": 10
+    "feedRate": 1.5, "stoppedBelow": 0.5, "lowPressure": 40, "lowPressureSeconds": 45, "doorOpenSeconds": 10,
+    "fireDoorShutSeconds": 6, "sootSeconds": 4, "runawayRampSeconds": 40, "health": 4, "burnPerBlow": 12, "openDoorWeight": 3
   },
 
-  // App. A.2 THE FERRYMAN: "stands on the track ahead holding a lantern, waving you down. RULE: do not slow down." The
-  // lantern is the telegraph, seen from very far out. The train slows for it: it comes down the line, boards the engine and
-  // goes for the conductor. The train holds its speed: it steps aside at the last moment, gone for the run.
-  "ferryman": {
-    // Where it stands: this far up the line ahead of the engine, this far out at the lineside (it steps onto the line).
-    "spawnAhead": 600,
-    "waitLateral": 2.6,
-    // Ambiguity (ARCHITECTURE §8): "the train decelerates". Slower than the fastest the train has come at it by this
-    // much (m/s): a cruise's notching wobble doesn't count, a brake application or easing off to a crawl does.
-    "slowTolerance": 2.5,
-    // Held: with the engine this close (m) it steps aside, this far out, at this pace across.
-    "stepAsideAt": 30,
-    "stepAsideLateral": 3.5,
-    "stepSpeed": 3,
-    // ADVANCE: down the line to the slowed train at this pace, boarding within this reach of the engine's front.
-    "advanceSpeed": 5,
-    "boardReach": 3,
-    // PUNISH: the conductor (whoever's in the cab; else the nearest within reach) takes this. 100 is a life.
-    "strikeDamage": 100,
-    "strikeReach": 20,
-    // Aboard this long after the strike, then gone. Left behind this far behind the last car, or never reached in this
-    // long, gone too.
-    "aboardSeconds": 2,
-    "loseBehind": 40,
-    "lingerSeconds": 180,
-    // App. B.2 gates: the train coming on at least this fast, "mid-to-late run" (this share of the route in), on a "long
-    // straight with clear sightline": from the engine to this far past where it stands, no curve tighter than this radius
-    // (m), no grade steeper than this (%), and nothing that would give the crew another reason to slow (Sleepers, Grease,
-    // a tunnel, a facility or the end of the line within the stop margin past it).
-    "minSpeed": 8,
-    "midRunFrom": 0.4,
-    "straightRadius": 1500,
-    "maxGradePercent": 1,
-    "clearPast": 100,
-    "stopMargin": 600,
-    // App. B.2 "weight up if crew has braked for a false positive earlier": braked hard for a Long Whistle's horn.
-    "falsePositiveWeight": 2
-  },
-
-  // App. A.2 THE LONG WHISTLE: "sounds a horn on the line ahead. There is no train ahead. RULE: don't trust the horn." Never
-  // seen; the horn is the telegraph (200-800 Hz, no doppler, a flaw in its pitch: spec A.4). It has no punish of its own:
-  // a crew that brakes hard for it stops where stopping is worst, among whatever else is about.
-  "longWhistle": {
-    // App. B.2: "400-900m ahead, immediately before a grade or curve so braking is worst": this far short of the first
-    // curve tighter than this radius (m), or grade this steep (%), in that window.
-    "aheadMin": 400,
-    "aheadMax": 900,
-    "shortOf": 60,
-    "curveRadius": 1200,
-    "gradePercent": 1,
-    // "If ignored → escalates twice, then abandons": a blast this often (s), louder each time, this many more after the first.
-    "blastEvery": 9,
-    "escalations": 2,
-    // Ambiguity (ARCHITECTURE §8): "if crew brakes hard". Slower than the fastest the train came at it by this much (m/s).
-    // Then brought below this (m/s), that's the stop: its punish. Picked up again and not stopped in this long, it's gone.
-    "hardBrake": 4,
-    "stoppedBelow": 0.5,
-    "commitSeconds": 45,
-    // "Requires ≥1 other active lineside threat in region": anything else active within this of the engine (m).
-    "region": 1500,
-    // "Weight up in fog": this much, on a route this foggy (the weather's density).
-    "fogFrom": 0.02,
-    "fogWeight": 2
-  },
-
-  // App. A.4 CLIMBERS: "PACE alongside at track level, matching speed. MOUNT only at a coupling gap (TELEGRAPH: brief
-  // scrabbling at the gap, visible from adjacent roofs). TRAVERSE along the roofs toward the engine. ENTER the first unlit
-  // or unoccupied car: interior threat. COUNTER: a player physically occupying a gap blocks that mount point."
+  // CLIMBERS · movement · flank (App. A.4, B.4). A pack of packSize paces paceOut m out for paceSeconds, then mounts any gap
+  // held by fewer players (within countRadius) than it has Climbers, scrabbling scrabbleSeconds first. Up, they traverse
+  // at traverseSpeed and go into the first unlit or empty car; a lone player in there is taken over takeSeconds.
   "climbers": {
-    // Pacing this far out from the car's side, for at least this long before it goes in at the gap; it closes on the gap
-    // at this much a second per metre off, as fast as this (m/s). This far behind the last car and it's lost.
-    "paceOut": 2.5,
-    "paceSeconds": 6,
-    "catch": 1.2,
-    "maxSpeed": 18,
-    "loseBehind": 60,
-    // The scrabbling at the gap (well past minReactionSeconds) before it's up. Someone in the gap below the roofs, or on a
-    // roof end within this of it (m), holds it: it drops back and tries another, this many in all, then gives up.
-    "scrabbleSeconds": 2.5,
-    "holdReach": 2,
-    "maxTries": 3,
-    // Along the roofs toward the engine at this pace (m/s); into the first car with nobody in it (every car, with the
-    // lamps out), or the cab at the engine.
-    "traverseSpeed": 2.2,
-    // Inside: whoever comes within reach takes this every so often. Left alone this long, it goes.
-    "reach": 1.8,
-    "biteDamage": 25,
-    "biteEvery": 1.5,
-    "boredSeconds": 120,
-    // Out on the roofs and at the gap, the guns can take it (hounds have 60).
-    "health": 40,
-    // App. B.4 gates and weighting: at least this many gaps (couplings behind a car), the train at least this fast, and
-    // this much weight per gap.
-    "minGaps": 2,
-    "minSpeed": 5,
-    "perGapWeight": 0.5
+    "paceOut": 2.5, "paceSeconds": 6, "catch": 1.2, "maxSpeed": 18, "loseBehind": 60, "scrabbleSeconds": 2.5, "holdReach": 2,
+    "maxTries": 3, "traverseSpeed": 2.2, "reach": 1.8, "biteDamage": 25, "biteEvery": 1.5, "boredSeconds": 120, "health": 3,
+    "minGaps": 2, "minSpeed": 5, "perGapWeight": 0.5, "packSize": [2, 3], "countRadius": 8, "takeSeconds": 10
   },
 
-  // App. A.3 THE WEIGHT: "BURIED waits beside the track, sensing vibration. GRAB rear car passes → attaches to the coupling
-  // or underframe (TELEGRAPH: abrupt speed loss plus heavy scraping audio from the rear). DRAG constant negative force; speed
-  // decays continuously; speed reaches 0 → pulls the car off the rails. COUNTER uncouple the rear car (it takes the car and
-  // leaves) OR engineer melee from the rear platform, ~5 hits to release." Can't be shot.
-  "weight": {
-    // App. B.3 "marsh, water crossings, low ground only": this far into the next bridge between these distances ahead
-    // (m), and "cannot spawn on grades": no steeper than this there (%).
-    "aheadMin": 200,
-    "aheadMax": 1200,
-    "intoCrossing": 8,
-    "maxGradePercent": 1,
-    // The drag, as a share of the engine's full tractive force: over 1 and full throttle can't hold speed against it.
-    "dragFactor": 1.25,
-    // Dragged below this (m/s): a stand, and the car comes off the rails. Anyone on it takes this.
-    "stoppedBelow": 0.3,
-    "tearOffDamage": 60,
-    // "~5 hits to release": Use pressed within this reach of it (m), once a press.
-    "meleeReach": 2.2,
-    "blowsToRelease": 5,
-    // Never passed over in this long, or the train's rear this far past it (m), and it's gone.
-    "lingerSeconds": 300,
-    "lingerPast": 50,
-    // "Train length ≥2"; "weight up at low speed" (below this, m/s, by this much).
-    "minCars": 2,
-    "lowSpeed": 10,
-    "lowSpeedWeight": 2
-  },
-
-  // App. A.4 THE GAUNT: "FROZEN perfectly motionless while inside ANY player's view cone. ADVANCE moves only when
-  // unobserved, fast, silent (TELEGRAPH: it is closer than it was. No audio cue at all). REACH adjacent to a player →
-  // attacks on the next unobserved frame. RETREAT continuously observed for 60s → withdraws. COUNTER sustained
-  // observation, by anyone."
+  // THE GAUNT · sound (silence) · outside (App. A.6, B.6). Asleep; stirs at stirAt m, wakes at wakeAt m and follows its
+  // waker at followAt m. Every silenceSeconds with nobody talking (voice above talkingAbove, 0-255) within listenRadius,
+  // its anger climbs one; at attackAt it attacks. Led into a car, it takes lootCargo of the best load and leaves.
+  // anyVoiceCounts: whose voice holds it off (GDD Part Eleven Q9, open): anyone's (true) or only its waker's.
   "gaunt": {
-    // Ambiguity (ARCHITECTURE §8): "view cone". This half-angle about where someone's looking (degrees), out to this
-    // range (m), from this eye height; nobody shut in a car sees out.
-    "viewHalfAngleDegrees": 35,
-    "viewRange": 60,
-    "eyeHeight": 1.6,
-    // Unobserved, it comes along the roofs at this pace (m/s); within this reach (m) of someone, it takes them.
-    "advanceSpeed": 5,
-    "reach": 1.3,
-    "strikeDamage": 100,
-    // Watched this long without a break and it withdraws; around this long at all and it goes.
-    "retreatSeconds": 60,
-    "lingerSeconds": 300,
-    // App. B.4 gates: crew of at least this many; "during a stop" (the train below this, m/s) "or on tunnel exit" (the
-    // engine within this of a tunnel's mouth, m); "weight up if the crew has been fully interior for >3 min", by this.
-    "minCrew": 3,
-    "stoppedBelow": 0.5,
-    "tunnelExitWithin": 150,
-    "interiorSeconds": 180,
-    "interiorWeight": 2
+    "stirAt": 9, "wakeAt": 4, "followAt": 1.2, "followSpeed": 3, "listenRadius": 8, "silenceSeconds": 5, "talkingAbove": 40,
+    "anyVoiceCounts": true, "attackAt": 4, "reach": 1.6, "hitDamage": 35, "hitEvery": 2, "grabBelowHealth": 35,
+    "crushSeconds": 8, "health": 8, "lootCargo": 0.3, "lingerSeconds": 900, "minCrew": 2, "spawnOut": 25,
+    "longStopWeight": 2, "longStopSeconds": 120
   },
 
-  // App. A.4 THE DRIFT: "SPREAD a mass moving alongside and over the train, expanding toward motion. DETECT any player
-  // movement within radius → surges toward it (TELEGRAPH: visible creeping advance, audible rustle). CONSUME contact →
-  // damage over time, spreads onto the player. COUNTER complete stillness ~4s → loses the target, resumes drifting."
+  // MARSH (§22 hazard, formerly the Drift): something in the reeds surges toward motion; stand still stillSeconds and it
+  // loses you. Level content: placed by linegen at marsh features, never drawn by the director.
   "drift": {
-    // It starts this wide (m) and spreads to this, this fast (m/s), toward whatever moved last.
-    "startRadius": 4,
-    "maxRadius": 9,
-    "spreadSpeed": 0.15,
-    // Ambiguity (ARCHITECTURE §8): "movement". Faster than this (m/s) in your own frame (walking, turning on the spot
-    // doesn't count) and not shut in a car: it's felt. It surges at this pace (m/s): a walk outpaces it, a stand doesn't.
-    "stillSpeed": 0.3,
-    "surgeSpeed": 2.2,
-    // Within this (m, across the ground) it's on them: this much every this many seconds while it stays.
-    "contactReach": 1.2,
-    "damage": 6,
-    "damageSeconds": 1,
-    // "Complete stillness ~4s": this long without moving and it loses them. Twice its radius away, it has already.
-    "stillSeconds": 4,
-    // Past the marsh's end by this (m), or about this long, and it's gone.
-    "exitMargin": 60,
-    "lingerSeconds": 600,
-    // App. B.8 "The Drift ×2 with chemicals aboard". Ambiguity (ARCHITECTURE §8): it isn't drawn (it's terrain), so read as
-    // spreading this much faster.
-    "chemicalSpread": 2
+    "startRadius": 4, "maxRadius": 9, "spreadSpeed": 0.15, "stillSpeed": 0.3, "surgeSpeed": 2.2, "contactReach": 1.2,
+    "damage": 6, "damageSeconds": 1, "stillSeconds": 4, "exitMargin": 60, "lingerSeconds": 600, "chemicalSpread": 2
   },
 
-  // App. A.3 FOLLOWERS: "STALK near facilities; tracks a disembarked player by scent. ATTACH moves into the carrier's blind
-  // spot and matches their pace (TELEGRAPH: visible ONLY to other players, never to the carrier). BOARD carrier enters the
-  // train → it enters with them. NEST moves to an unlit cargo car → becomes an interior threat. COUNTER an observer calls
-  // it out → carrier halts → it detaches and flees light OR refuse boarding until the carrier is visually checked."
+  // FOLLOWERS · scent · outside (App. A.6, B.6). Latches onto a player's back over latchSeconds on facility grounds; off
+  // the train, it crawls at crawlSpeed to the car with the most loot and nests over nestSeconds, then eats eatPerSecond.
   "followers": {
-    // Put down this far behind whoever it's after (m), closing at this pace on them (m/s) to its place at their back.
-    "stalkDistance": 14,
-    "stalkSpeed": 1.5,
-    "blindSpot": 1.3,
-    // Ambiguity (ARCHITECTURE §8): "observer calls it out → carrier halts". The carrier stood still (below this, m/s) this
-    // long while someone else has it in view (this half-angle of their look, degrees, this range, m): it lets go and runs.
-    "haltSpeed": 0.3,
-    "haltSeconds": 2,
-    "viewHalfAngleDegrees": 35,
-    "viewRange": 30,
-    // Aboard with them, it's this long getting back to a cargo car with no lamp in it, and nests.
-    "boardSeconds": 4,
-    // Nested, a lamp within this reach (m) drives it out ("flees light"). Anyone in its car's room: a bite each this many
-    // seconds they stay, this much.
-    "lightReach": 4,
-    "nestBiteSeconds": 3,
-    "nestDamage": 20,
-    // Left behind on the ground this long with nobody to follow, or nested this long, and it's gone.
-    "lingerSeconds": 600,
-    "nestSeconds": 1200,
-    // App. B.3: "facility grounds only · requires an excursion · any tier · weight up per additional player on the ground
-    // simultaneously". At most this many about; each on the ground past the first adds this to the weight.
-    "maxActive": 2,
-    "perGroundWeight": 1
+    "latchSeconds": 3, "crawlSpeed": 0.8, "nestSeconds": 60, "eatPerSecond": 0.003, "health": 1, "nestHealth": 3,
+    "lingerSeconds": 900, "maxActive": 2, "perGroundWeight": 1
   },
 
-  // App. A.7 THE PASSENGER: "BOARD enters during a facility stop, unnoticed. BLEND takes crew appearance; appears on the
-  // roster. IDLE behaves plausibly — moves between cars, performs half-finished tasks (TELEGRAPH: never speaks on
-  // proximity voice · repeats a task loop · crew count reads one too many). ISOLATE waits for a player alone in a car.
-  // STRIKE kills and replaces them. COUNTER head count, and make everyone speak."
+  // THE PASSENGER · absence · corrupted (App. A.8, B.8). Boards at a facility and walks at walkSpeed; a player alone
+  // (nobody within aloneRadius) for stalkSeconds is taken and dragged at dragSpeed to the caboose, uncoupled over
+  // uncoupleSeconds. B.8: minCrew, and splitWeight more when the crew is spread over splitPlaces or more places.
   "passenger": {
-    // The task loop: it walks the car at this pace (m/s), stops at each end this long over a job it never finishes, and
-    // after this many rounds moves on to the next car with a room in it.
-    "walkSpeed": 1.3,
-    "taskSeconds": 6,
-    "loopsPerCar": 2,
-    // Aboard (or just done), it keeps up the act this long before it goes looking for someone alone.
-    "restSeconds": 30,
-    // Ambiguity (ARCHITECTURE §8): "waits for a player alone in a car". In their car, with them still alone, this long
-    // (the victim's window: a crewmate walked in and hasn't said a word), then within this reach (m) it takes them.
-    "stalkSeconds": 4,
-    "reach": 1.2,
-    "strikeDamage": 100,
-    // Ambiguity (ARCHITECTURE §8): the counter's end. Once the crew know which one it is, somebody faces it (inside this
-    // half-angle of where they look, within this reach, m, in its car) and presses Use: called out, it runs.
-    "challengeReach": 2.5,
-    "challengeHalfAngleDegrees": 25,
-    "lingerSeconds": 1500,
-    // App. B.7 gates: Dead lines and beyond, crew of at least this many ("needs a crowd to hide in"), once a run, at a
-    // facility stop. "Weight up if crew were separated across multiple facility tasks": the crew spread over at least this
-    // many places (the ground, the cab, each car's room), by this much.
-    "minCrew": 3,
-    "splitPlaces": 3,
-    "splitWeight": 2
+    "walkSpeed": 1.3, "aloneRadius": 8, "stalkSeconds": 5, "reach": 1.2, "dragSpeed": 1.3, "uncoupleSeconds": 4, "health": 5,
+    "lingerSeconds": 1500, "minCrew": 3, "splitPlaces": 3, "splitWeight": 2
   },
 
-  "lamplighters": {
-    // Where it paces: this far out from the track, this far back from the engine's front (beside the cab).
-    "paceLateral": 14,
-    "paceBehind": 6,
-    // Coming for the lamp: in to beside the smokebox at this pace across (it has to come in from the dark: at 2.5 m/s
-    // from 14 m, about 5 s of eyeshine, well past minReactionSeconds), and within this reach of the lamp it strikes.
-    "strikeLateral": 1.9,
-    "strikeReach": 2.6,
-    "closeSpeed": 2.5,
-    // It runs alongside as fast as this (m/s), closing on where it wants to be by this much a second per metre off.
-    // A train faster than it leaves it behind: this far behind the last car and it's lost.
-    "maxSpeed": 16,
-    "catch": 1.5,
-    "loseBehind": 40,
-    // Ambiguity (ARCHITECTURE §8): "destroys the lamp". The glass is out until someone fits the spare: no lighting it
-    // again for this long.
-    "relightSeconds": 45,
-    // "attacks the nearest player": whoever's nearest within this reach when it strikes. That takes in the engine's
-    // length, so the cab's crew, usually, back past the boiler.
-    "biteDamage": 40,
-    "biteReach": 20,
-    // Gone the next time it's dormant after this long.
-    "lingerSeconds": 240,
-    // At most this many beside the train (one each side), and App. B.6's "weight x2 at night depth" (the route's back half).
-    "maxActive": 2,
-    "depthWeight": 2
-  },
-
-  // The in-car incidents (after the 100-night playtest: "more problems players need to face in cars, and reasons not to
-  // roof walk the whole time; defeatable, but able to hurt or kill"). Each takes a cargo car in the engine's rake, is
-  // told through its walls, and is answered from its floor by holding Use at it (at the cargo stack's face, beside the
-  // aisle). Not in the GDD's roster; interior zone (App. B.1's cap of 2 applies). Cut the car loose and it goes with it.
-
-  // CAR FIRE: cinders through a vent. Smoke and crackle (6-9 kHz) while it's taking; alight at burnFrom, it burns the
-  // cargo (cargo integrity per second at full) and the car (integrity), and whoever's in the car (burnDamage x how far
-  // it's gone, every burnEverySeconds). Beating it (Use within beatReach) takes beatPerSecond off per person; above
-  // scorchAbove, beating it scorches you (scorchDamage). At full blaze for spreadSeconds it takes the next cargo car.
+  // CAR FIRE (App. C.5, a supporting system: Fire Flies start it, as can a lamp dropped in a car). It grows; past
+  // burnFrom it burns anyone within burnReach and the car's cargo and integrity; past spreadFrom for spreadSeconds it
+  // takes the next car. Each car has a wall-mounted extinguisher: Fire held within sprayReach knocks it back
+  // sprayPerSecond, for chargeSeconds of spray, recharging over rechargeSeconds on its bracket.
   "carFire": {
-    "startIntensity": 0.1,
-    "growPerSecond": 0.01,
-    "burnFrom": 0.35,
-    "beatReach": 1.6,
-    "beatPerSecond": 0.08,
-    "scorchAbove": 0.6,
-    "scorchDamage": 4,
-    "burnDamage": 10,
-    // Only near it (along the car): the far end's clear.
-    "burnReach": 4,
-    "burnEverySeconds": 2,
-    "cargoPerSecond": 0.003,
-    "integrityPerSecond": 0.0015,
-    "spreadSeconds": 30,
-    // Nothing left in the car to burn, it dies down this fast.
-    "burnOutPerSecond": 0.05,
-    "maxActive": 1
-  },
-
-  // LOOSE LOAD: a lashing's parted. The stack groans against its straps (1.4-2.2 kHz). The train's speed changing by
-  // lurchAccel (m/s², a hard brake or the slack running in) or snapSeconds of it, and it comes down across the aisle:
-  // crushDamage to anyone within slideReach of it along the car, breakage off the car's cargo. Re-lashed with
-  // lashSeconds of Use at it (two lash twice as fast). Only in a car loaded minLoad or more.
-  "looseLoad": {
-    "lashReach": 1.6,
-    "lashSeconds": 5,
-    "lurchAccel": 0.6,
-    "snapSeconds": 90,
-    "slideReach": 2.5,
-    "crushDamage": 60,
-    "breakage": 0.05,
-    "minLoad": 0.3,
-    "maxActive": 1
-  },
-
-  // GNAWERS: a nest in the load. Chittering high up (9-12 kHz). They eat the cargo (eatPerSecond x their number) and
-  // breed; outAfterSeconds after they're heard they're out of the crates, biting anyone in the car within reach
-  // (biteDamage x their number, every biteEverySeconds). Stamping them (Use) takes stampPerSecond off each. At their
-  // full number for spreadSeconds they're into the next cargo car (once each, and never past maxActive). With the cargo
-  // gone they leave. A fire spreads once, too, and burns out once there's nothing left in its car.
-  "gnawers": {
-    "startSwarm": 0.3,
-    "breedPerSecond": 0.008,
-    "reach": 1.8,
-    "stampPerSecond": 0.1,
-    "outAfterSeconds": 6,
-    "biteDamage": 7,
-    "biteEverySeconds": 2,
-    "eatPerSecond": 0.001,
-    "spreadSeconds": 30,
-    "minLoad": 0.2,
-    "maxActive": 1
+    "startIntensity": 0.1, "growPerSecond": 0.01, "growWithSize": 0.03, "burnFrom": 0.35, "sprayReach": 2.5,
+    "sprayPerSecond": 0.035, "chargeSeconds": 10, "rechargeSeconds": 90, "burnDamage": 10, "burnReach": 4,
+    "burnEverySeconds": 2, "cargoPerSecond": 0.003, "integrityPerSecond": 0.0015, "spreadFrom": 0.8, "spreadSeconds": 30,
+    "chemicalSpread": 2, "chemicalGrowth": 1.3, "powderGrowth": 1.6, "burnOutPerSecond": 0.05, "maxActive": 3
   },
 
   "choirSwarm": {
-    // In the Swarm phase, anyone exposed (roof, ground, ladder) takes this every few seconds.
-    "exposedDamage": 10,
-    "everySeconds": 2.0
+    // Legacy (T9): the Choir's damage to the exposed is now its ghosts' seize (above); kept for old saves' tuning.
+    "exposedDamage": 0,
+    "everySeconds": 1
   },
 
   "director": {
@@ -559,8 +246,10 @@
     "maxConcurrentLargeCrew": 6,
     // Budget share spent before the first facility, across the middle, and in the final approach.
     "phaseShares": [0.15, 0.45, 0.40],
-    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3, "ferryman": 4, "longWhistle": 3, "climbers": 3, "weight": 3, "gaunt": 5, "passenger": 5, "followers": 3, "drift": 4,
-      "carFire": 2, "looseLoad": 2, "gnawers": 2 },
+    // App. B.1 v1.1's cost table (the Choir costs nothing: it isn't spawned; hazards are level content).
+    "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "switchman": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
+      "whistler": 3, "stoker": 3, "ribbits": 3, "carHugger": 4, "tippyToesie": 4, "gaunt": 4, "sootChildren": 4, "grumbler": 4,
+      "passenger": 5 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5,
@@ -569,26 +258,23 @@
     // chemicalSpread (it isn't drawn, it's terrain). The comet cargo also relaxes the
     // Gaunt's and the Passenger's tier gates by one (cometRelaxesGates).
     "cargoWeights": {
-      "food": { "cinderHounds": 2, "followers": 1.5 },
+      "food": { "cinderHounds": 2, "followers": 1.5, "grumbler": 2 },
       "comet": { "*": 1.4 }
     },
     "cometRelaxesGates": true,
-    // App. B.1 "contradiction seeding": the conflict table, as the tuning's names (and three conditions: "choir", always
-    // about; "grade", a climb or fall just ahead; "facilityLoading", at a facility). Ambiguity (ARCHITECTURE §8): "draws
+    // App. B.1 "contradiction seeding": the v1.1 conflict table, as the tuning's names (and conditions: "choir", gathering or
+    // here; "grade", a climb or fall just ahead; "facilityLoading" and "facilityStop", at a facility). Ambiguity (ARCHITECTURE §8): "draws
     // pairs from a conflict table": read as a spawn that would complete a pair with what's there now weighing this much
-    // more, and this much more again past halfway on a run short of its pairs. Pairs without both enemies in the game yet
-    // (the Drift, Followers) wait for them.
+    // more, and this much more again past halfway on a run short of its pairs.
     "conflicts": [
       ["choir", "cinderHounds"],
-      ["lamplighters", "sleepers"],
-      ["lamplighters", "ferryman"],
-      ["drift", "grade"],
-      ["clingers", "grade"],
-      ["rattle", "climbers"],
-      ["rattle", "hollow"],
-      ["rattle", "stoker"],
-      ["sootChildren", "followers"],
-      ["deadman", "facilityLoading"]
+      ["choir", "gaunt"],
+      ["fireFlies", "trackDoll"],
+      ["trackDoll", "facilityLoading"],
+      ["whistler", "facilityStop"],
+      ["tippyToesie", "stoker"],
+      ["ribbits", "switchman"],
+      ["carHugger", "grade"]
     ],
     "pairWeight": 3,
     "behindPairWeight": 3,
@@ -599,25 +285,14 @@
     "gradePercent": 1.5,
     // Saving up (ARCHITECTURE §8): from this share of the route in, cheaper threats leave enough budget for these rare,
     // expensive ones while the run can still have them, so they come at all.
-    "saveFor": ["gaunt", "passenger"],
+    "saveFor": ["passenger"],
     "saveFrom": 0.2,
     // The kinds this edition has, by the names in "costs" above; empty is all of them. The demo edition (editions/demo,
     // T79) has GDD §21's five, one per pressure zone (the Choir, structural, is always about), and the trouble in the cars.
     "roster": [],
-    // GDD v1.2 App. B.1 "want balance": the player want each enemy attacks (Kill 40%, Split 25%, Trust 20%, Cargo 15% of
-    // the budget, as targets). Only the v1.1 roster the game has is in B.1's table; the v1.0 kinds still here (Clingers,
-    // the Rattle, the Hollow, Lamplighters, the Deadman, the Ferryman, the Long Whistle, the Weight) and the trouble in the
-    // cars have no tag. App. D.11's creature vote weighs a creature up within its tag, so the tags' shares hold; an
-    // untagged creature can't be voted for.
-    "wantTags": {
-      "kill": ["cinderHounds", "draggers", "stoker"],
-      "split": ["climbers", "gaunt"],
-      "trust": ["followers", "sootChildren", "passenger"],
-      "cargo": ["switchman"]
-    },
-    // How each kind comes; anything not here is "weighted", drawn by the director's roll. App. D.11: only those can be
-    // voted for ("condition-triggered (the Stoker) and loudness-triggered (the Choir)" are out). v1.2 App. B.5 has the
-    // Stoker condition-triggered, so it's that here (though the director still weighs it in, as v1.0's A.5 had it).
-    "spawnModes": { "sleepers": "level", "hollow": "condition", "drift": "condition", "deadman": "condition", "stoker": "condition" }
+    // App. B.1 v1.1 want balance: each want's target share of the budget; a want over its share weighs less.
+    "wantShares": { "kill": 0.40, "split": 0.25, "trust": 0.20, "cargo": 0.15 },
+    // App. B.1 hard caps: corrupted humans, one at a time (the zone cap, maxConcurrentZone, covers the rest).
+    "maxCorrupted": 1
   }
 }

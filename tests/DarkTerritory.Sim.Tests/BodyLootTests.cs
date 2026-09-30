@@ -124,8 +124,10 @@ public class BodyLootTests
     {
         var n = AtTheTerminus();
         var body = DieInside(n, 2, 2);
-        Assert.Equal(n.World.BodyRecords[body.Id].Refund, n.World.LootValue(body));
+        // Its refund, in the ranking's own terms (a full car of freight is about 1): refund over the tier's pay for a car.
+        Assert.Equal(n.World.BodyRecords[body.Id].Refund / PerCar, n.World.LootValue(body), 9);
         Assert.Equal(0, n.World.LootValue(n.World.Bodies.SpawnCrate(n.Train, 1, Double3.Zero, BodyKind.Lamp)));
+        Assert.Equal(Bodies.Value(BodyKind.Toy), n.World.LootValue(n.World.Bodies.SpawnCrate(n.Train, 1, Double3.Zero, BodyKind.Toy)));
     }
 
     [Fact]

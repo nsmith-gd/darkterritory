@@ -1,7 +1,8 @@
-// Mounted guns (spec B.7) and The Choir (spec B.7, GDD App. A.6). First pass.
+// The crude cannons (GDD v1.1 App. C.3, spec B.7) and the crew loudness meter that draws the Choir (App. A.7, C.7). First pass.
 {
   "guns": {
-    "roundsPerSecond": 3,
+    // The fastest it fires when loaded; in practice each shot waits on the reload below.
+    "roundsPerSecond": 1,
     "range": 80,
     // Total traverse either side of the gun's facing is half of this.
     "traverseDegrees": 200,
@@ -9,31 +10,39 @@
     "deadZoneDegrees": 20,
     "minPitchDegrees": -12,
     "maxPitchDegrees": 45,
-    "ammo": 200,
+    // App. C.3: "powder and shot are stocked at departure" and are rare: a gun's shots for the night.
+    "ammo": 24,
     // Stand within this of the gun to work it.
     "reach": 1.0,
-    "damagePerRound": 25,
+    // In blows (App. C.2's unit): a ball is four clubbings' worth. The Switchman dies to "one cannon shot".
+    "damagePerRound": 4,
     // Spec C.2: "turret traverse dead (no boiler pressure)". The turrets run on steam; below this they don't move.
     // The same floor where the engine loses its pull (boiler.json powerFloor).
-    "minPressure": 20
+    "minPressure": 20,
+    // App. C.3: "a full manual reload (powder, ball, ram, fire)": after each shot, this many steps of Use held at the gun,
+    // each this long. Fire is the trigger.
+    "reloadSteps": 3,
+    "reloadStepSeconds": 1.5
   },
   "choir": {
-    "aggroPerRound": 1.5,
-    // App. A.6: no gunfire for ~45 s and they disperse.
-    "quietSecondsBeforeDecay": 45,
-    "decayPerSecond": 1.0,
-    "approachThreshold": 12,
-    "swarmThreshold": 30,
-    "maxAggro": 60,
-    // App. B.8: livestock raises the floor by 25% of the approach threshold.
-    "livestockFloor": 3
-  },
-  // GDD App. C.7, the crew loudness meter: combined loudness, "measured over a few seconds so single shouts don't count",
-  // and what drives the Choir. Each level is Choir aggro a second while it's going on. "cannon" is the guns' own rate
-  // (3 rounds a second at 1.5 aggro a round); "machinery" isn't in the GDD, and is a third of it here. App. D.7's breach
-  // counts at these levels: smashing a lock at cannon level, prying a barricade at machinery level.
-  "loudness": {
-    "levels": { "cannon": 4.5, "machinery": 1.5 },
-    "windowSeconds": 3
+    // App. C.7: the meter is the crew's combined loudness "measured over a few seconds so single shouts don't count": an
+    // average over this window.
+    "windowSeconds": 4,
+    // One player talking at full voice (their Voice byte 255) adds this much; a normal voice about half.
+    "voicePerPlayer": 0.45,
+    // "Every cannon shot feeds the loudness meter" (App. A.3): a burst this big per shot.
+    "roundLoudness": 1.2,
+    // The whistle, blowing (by a player or the Whistler), and machinery (a crane working, the winch).
+    "whistleLoudness": 0.9,
+    "machineryLoudness": 0.35,
+    // Held above this, it gathers: buildSeconds of loudness and the swarm comes (App. A.7's long rising telegraph). Quiet,
+    // what's gathered drains at quietDecayPerSecond. DESIGN-TODO: the GDD gives no numbers for the meter; these are a
+    // first pass that three players talking normally doesn't trip and three shouting (or cannon fire every few seconds) does.
+    "threshold": 0.6,
+    "buildSeconds": 25,
+    "quietDecayPerSecond": 0.06,
+    "maxLoudness": 3,
+    // App. B.9: livestock aboard is never quiet: a floor under the meter.
+    "livestockFloor": 0.3
   }
 }

@@ -55,7 +55,7 @@ public class ClimberTests
         /// <summary>Stood in the gap behind a car, on the coupler plate.</summary>
         public int InGap(int car)
         {
-            var gap = Rattle.In(0, Train, car, Train.Dynamics.Tuning.Geometry.CouplingGap).Local;
+            var gap = CrewSense.GapLocal(Train, car);
             var s = PlayerMotor.SpawnOnRoof(Train, car, 0, Tuning.Player);
             s.Position = gap with { Y = 0.9 };
             s.Surface = Surface.Coupler;
@@ -117,8 +117,14 @@ public class ClimberTests
     public void AlongTheRoofsItGetsIntoTheFirstCarNobodysIn()
     {
         var night = new Night(speed: 12);
-        // Someone in car 2, so it goes on past to car 1.
+        // Every lamp lit (GDD v1.1 App. A.4: it goes into the first car unlit or with nobody in it), and someone in car 2,
+        // so it goes on past to car 1.
+        foreach (var v in night.Train.Vehicles)
+            v.LampLit = true;
         int inside = night.InCar(2);
+        // At the car's front end, well clear of the gap behind it (so they don't hold the gap, App. A.4 COUNT).
+        var room = night.Train.Frames[2].Shape.Interior!.Value;
+        night.Crew[inside - 1] = night.Crew[inside - 1] with { Position = night.Crew[inside - 1].Position with { Z = room.Min.Z + 0.6 } };
         var c = night.At(car: 2);
         night.Run(C.PaceSeconds + C.ScrabbleSeconds + 30);
         Assert.True(c.Inside);
@@ -137,17 +143,29 @@ public class ClimberTests
     }
 
     [Fact]
-    public void InsideItGoesForWhoeverComesInAndLeftAloneItLeaves()
+    public void InsideItTakesWhoeverComesInAlone()
     {
+        // GDD v1.1 App. A.4: "it takes a lone player in there (a grab a friend can club it off)".
         var night = new Night(speed: 12);
         var c = night.At(car: 3);
         night.Run(C.PaceSeconds + C.ScrabbleSeconds + 20);
         Assert.True(c.Inside);
         int walkedIn = night.InCar(3);
-        night.Run(C.BiteEvery * 2 + 0.1);
-        Assert.True(night.Crew[walkedIn - 1].Health < Tuning.Player.Health);
-        // Out again, and left alone.
-        night.Crew[walkedIn - 1] = night.Crew[walkedIn - 1] with { Parent = 1 };
+        night.Run(C.BiteEvery + 0.2);
+        Assert.Equal(SpinePhase.Grab, c.Phase);
+        Assert.True(night.Crew[walkedIn - 1].Has(PlayerFlags.Held));
+        night.Run(C.TakeSeconds);
+        Assert.Equal(DeathCause.Climbed, night.Crew[walkedIn - 1].Death);
+        Assert.True(c.Gone);
+    }
+
+    [Fact]
+    public void InsideAndLeftAloneItLeaves()
+    {
+        var night = new Night(speed: 12);
+        var c = night.At(car: 3);
+        night.Run(C.PaceSeconds + C.ScrabbleSeconds + 20);
+        Assert.True(c.Inside);
         night.Run(C.BoredSeconds + 1);
         Assert.True(c.Gone);
     }

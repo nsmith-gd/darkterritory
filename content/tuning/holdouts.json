@@ -1,6 +1,6 @@
 // Death, Holdouts and Return (GDD v1.2 Appendix D, the single source of truth for death, respawning and body recovery).
 // Every number in D.13 is here, with D.13's range beside it where it gives one. What D is silent on is this build's
-// reading, marked "not in D", each one noted in ARCHITECTURE §8 note 92. `HoldoutTuning.Validate` holds the ranges.
+// reading, marked "not in D", each one noted in ARCHITECTURE §8 note 93. `HoldoutTuning.Validate` holds the ranges.
 {
   // D.4 "where they are". The line generator reads this section (the sites are part of the night's Line Plan), so a
   // change here is a different line: every machine must have the same file (it's in the joiner's content check).

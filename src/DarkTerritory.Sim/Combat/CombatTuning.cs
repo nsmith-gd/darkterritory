@@ -4,16 +4,33 @@ namespace DarkTerritory.Sim.Combat;
 public sealed record CombatTuning(GunTuning Guns, ChoirTuning Choir)
 {
     public const string File = "tuning/combat.json";
-
-    /// <summary>The crew loudness meter's levels (GDD App. C.7).</summary>
-    public LoudnessTuning Loudness { get; init; } = new();
 }
 
+/// <summary>
+/// The crude cannons (GDD v1.1 §12, App. C.3): arc-limited, loud, and every shot a timed decision. After each shot a full
+/// manual reload (powder, ball, ram) at the gun before it fires again. Field docs live in combat.json.
+/// </summary>
 public sealed record GunTuning(double RoundsPerSecond, double Range, double TraverseDegrees, double DeadZoneDegrees,
     double MinPitchDegrees, double MaxPitchDegrees, int Ammo, double Reach, double DamagePerRound, double MinPressure)
 {
     public int TicksPerRound => (int)Math.Round(SimConstants.TickRate / RoundsPerSecond);
+    /// <summary>The reload's steps: powder, ball, ram (0: the old magazine gun, no reload).</summary>
+    public int ReloadSteps { get; init; } = 3;
+    /// <summary>Seconds of Use held at the gun per step.</summary>
+    public double ReloadStepSeconds { get; init; } = 1.5;
 }
 
-public sealed record ChoirTuning(double AggroPerRound, double QuietSecondsBeforeDecay, double DecayPerSecond,
-    double ApproachThreshold, double SwarmThreshold, double MaxAggro, double LivestockFloor);
+/// <summary>The loudness meter and the Choir it draws (GDD v1.1 App. A.7, C.7). Field docs live in combat.json.</summary>
+public sealed record ChoirTuning
+{
+    public double WindowSeconds { get; init; } = 4;
+    public double VoicePerPlayer { get; init; } = 0.45;
+    public double RoundLoudness { get; init; } = 1.2;
+    public double WhistleLoudness { get; init; } = 0.9;
+    public double MachineryLoudness { get; init; } = 0.35;
+    public double Threshold { get; init; } = 0.6;
+    public double BuildSeconds { get; init; } = 25;
+    public double QuietDecayPerSecond { get; init; } = 0.06;
+    public double MaxLoudness { get; init; } = 3;
+    public double LivestockFloor { get; init; } = 0.3;
+}

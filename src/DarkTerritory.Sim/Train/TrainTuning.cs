@@ -27,6 +27,8 @@ public sealed record KitTuning
     public Dictionary<Physics.BodyKind, int> Tools { get; init; } = new();
     /// <summary>What each player departs the fortress with (App. D.8 "standard kit"): what a freed player comes out with too.</summary>
     public Physics.BodyKind[] Standard { get; init; } = [];
+    /// <summary>Toys in the guard van (GDD v1.1 App. C.4): hand loot, what the Track Doll will leave for.</summary>
+    public int Toys { get; init; }
 }
 
 public sealed record GeometryTuning(

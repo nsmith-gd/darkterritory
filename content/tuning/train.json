@@ -135,6 +135,8 @@
     "tools": { "shovel": 1, "wrench": 1, "crowbar": 1, "repairKit": 1 },
     // App. D.8 "standard kit: the same loadout every player departs the fortress with". Nobody leaves with anything of
     // their own yet (the radios and tools are the train's), so it's nothing; a freed player comes out with the same.
-    "standard": []
+    "standard": [],
+    // GDD v1.1 App. C.4 hand loot: toys in the guard van, for the Track Doll (it steals one and leaves for the run).
+    "toys": 2
   }
 }

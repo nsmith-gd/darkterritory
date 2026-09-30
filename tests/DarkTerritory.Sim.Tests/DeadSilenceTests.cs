@@ -1,3 +1,4 @@
+using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
@@ -33,8 +34,8 @@ public class DeadSilenceTests
         var d = w.Director!;
         var rng = d.Rng;
         return string.Join("|",
-            $"choir {w.Choir.Aggro:R} {w.Choir.SecondsSinceShot:R}",
-            $"loud {w.Loudness.Level:R} " + string.Join(",", w.Loudness.Totals.OrderBy(k => k.Key).Select(k => $"{k.Key}={k.Value:R}")),
+            $"choir {w.Choir.Loudness:R} {w.Choir.Build:R} {w.Choir.Present} {w.Choir.Spent}",
+            $"loud {w.Loudness(Tuning.Combat.Choir):R}",
             $"director {d.Spent:R} {d.HeldBecause} {rng.NextUInt()} " + string.Join(",", d.Log.Select(l => $"{l.Tick}:{l.Kind}")),
             "enemies " + string.Join(",", w.ActiveEnemies.Select(e => $"{e.Id}:{e.Kind}:{e.Phase}")),
             $"voices {string.Join(",", Enumerable.Range(0, 5).Select(i => w.Voices.LastSpoke(i)?.ToString() ?? "-"))}");
@@ -65,28 +66,33 @@ public class DeadSilenceTests
         Assert.Equal(0, hq.CallOuts);
         // The run heard none of it.
         Assert.Equal(Fingerprint(quiet.World), Fingerprint(loud.World));
-        Assert.DoesNotContain(loud.World.Loudness.Totals.Keys, k => k != "gun" && k != "breach");
     }
 
     [Fact]
-    public void ABreachIsTheLivingsAndCountsTowardCrewLoudness()
+    public void ABreachIsTheLivingsAndGoesOnTheMeter()
     {
-        var n = Night(out var h);
-        n.World.Choir = DarkTerritory.Sim.Combat.ChoirState.Quiet;
-        n.World.BeginTick();
-        double before = n.World.Choir.Aggro;
-        // A melee tool: smash (prison car) or pry (the rest), both loud.
-        var tool = n.World.Bodies.SpawnCrate(n.Train, 1, Ballast.Double3.Zero, BodyKind.Crowbar);
-        tool.Carrier = 1;
-        n.Hold(1, true);
-        var method = n.Holdouts.MethodFor(h, BodyKind.Crowbar)!.Value;
+        // Smashing a lock is cannon-loud (a burst a blow, a blow a second); prying a barricade is machinery (D.7, D.13).
+        // Against the same night with the tool held and nobody breaching, the meter's higher, and the Choir hears it.
+        var quiet = Night(out var hq);
+        var loud = Night(out var h);
+        foreach (var n in new[] { quiet, loud })
+            n.World.Bodies.SpawnCrate(n.Train, 1, Ballast.Double3.Zero, BodyKind.Crowbar).Carrier = 1;
+        loud.Hold(1, true);
+        var method = loud.Holdouts.MethodFor(h, BodyKind.Crowbar)!.Value;
         var step = Tuning.Holdouts.Step(method);
-        n.Step(step.Seconds - 0.5);
+        var t = Tuning.Combat.Choir;
+        double during = 0;
+        for (int i = 0; i < (step.Seconds - 0.5) * SimConstants.TickRate; i++)
+        {
+            quiet.Step();
+            loud.Step();
+            during = Math.Max(during, loud.World.Loudness(t) - quiet.World.Loudness(t));
+        }
         Assert.Equal(HoldoutPhase.Breaching, h.Phase);
-        double level = Tuning.Combat.Loudness.Levels[step.Loudness];
-        Assert.InRange(n.World.Loudness.Totals["breach"], level * (step.Seconds - 0.7), level * (step.Seconds - 0.3));
-        Assert.True(n.World.Choir.Aggro >= before + level * (step.Seconds - 1), $"{n.World.Choir.Aggro} from {before}");
-        Assert.InRange(n.World.Loudness.Level, level * 0.9, level * 1.1);
+        Assert.Equal(HoldoutPhase.Occupied, hq.Phase);
+        if (step.Loudness == "machinery")
+            Assert.Equal(t.MachineryLoudness, during, 9);
+        Assert.True(loud.World.Choir.Loudness > quiet.World.Choir.Loudness + 0.1, $"{loud.World.Choir.Loudness} against {quiet.World.Choir.Loudness}");
     }
 
     [Fact]
@@ -95,15 +101,25 @@ public class DeadSilenceTests
         var site = Routes().Plan!.Holdouts.FirstOrDefault(x => x.Type == HoldoutType.PrisonCar);
         if (site is null)
             return;
-        var n = new HoldoutTests.Night(front: site.Zone.S0 + 150);
-        n.DeadAtTheFortress(2);
-        n.Step(0.2);
-        var h = n.Holdouts.Of(site.Id)!;
-        n.AtTheDoor(1, h, BodyKind.RepairKit);
+        HoldoutTests.Night At(out Holdout h)
+        {
+            var n = new HoldoutTests.Night(front: site.Zone.S0 + 150, enemies: true);
+            n.DeadAtTheFortress(2);
+            n.Step(0.2);
+            h = n.Holdouts.Of(site.Id)!;
+            n.AtTheDoor(1, h, BodyKind.RepairKit);
+            return n;
+        }
+        var quiet = At(out _);
+        var n = At(out var h);
         n.Hold(1, true);
-        n.Step(3);
+        for (int i = 0; i < 3 * SimConstants.TickRate; i++)
+        {
+            quiet.Step();
+            n.Step();
+        }
         Assert.Equal(HoldoutPhase.Breaching, h.Phase);
         Assert.Equal(BreachMethod.Open, h.Method);
-        Assert.False(n.World.Loudness.Totals.ContainsKey("breach"));
+        Assert.Equal(quiet.World.Choir.Loudness, n.World.Choir.Loudness, 12);
     }
 }

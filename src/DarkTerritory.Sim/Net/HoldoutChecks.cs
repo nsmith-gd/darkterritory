@@ -570,12 +570,12 @@ public static class HoldoutChecks
 
     // ------------------------------------------------------------------ dead silence
 
-    static string Fingerprint(World w)
+    static string Fingerprint(World w, ChoirTuning t)
     {
         var d = w.Director!;
         return string.Join("|",
-            $"choir {w.Choir.Aggro:R} {w.Choir.SecondsSinceShot:R}",
-            $"loud {w.Loudness.Level:R} " + string.Join(",", w.Loudness.Totals.OrderBy(k => k.Key).Select(k => $"{k.Key}={k.Value:R}")),
+            $"choir {w.Choir.Loudness:R} {w.Choir.Build:R} {w.Choir.Present} {w.Choir.Spent}",
+            $"loud {w.Loudness(t):R}",
             $"director {d.Spent:R} {d.HeldBecause} " + string.Join(",", d.Log.Select(l => $"{l.Tick}:{l.Kind}")),
             "enemies " + string.Join(",", w.ActiveEnemies.Select(e => $"{e.Id}:{e.Kind}:{e.Phase}")),
             $"voices {string.Join(",", Enumerable.Range(0, 5).Select(i => w.Voices.LastSpoke(i)?.ToString() ?? "-"))}");
@@ -611,18 +611,16 @@ public static class HoldoutChecks
             }
             quiet.Step();
             loud.Step();
-            if (tick % (10 * SimConstants.TickRate) == 0 && Fingerprint(quiet.World) != Fingerprint(loud.World))
+            if (tick % (10 * SimConstants.TickRate) == 0 && Fingerprint(quiet.World, o.Combat.Choir) != Fingerprint(loud.World, o.Combat.Choir))
             {
-                faults.Add($"at {tick / SimConstants.TickRate} s the nights differ: {Fingerprint(loud.World)} against {Fingerprint(quiet.World)}");
+                faults.Add($"at {tick / SimConstants.TickRate} s the nights differ: {Fingerprint(loud.World, o.Combat.Choir)} against {Fingerprint(quiet.World, o.Combat.Choir)}");
                 break;
             }
         }
-        if (faults.Count == 0 && Fingerprint(quiet.World) != Fingerprint(loud.World))
+        if (faults.Count == 0 && Fingerprint(quiet.World, o.Combat.Choir) != Fingerprint(loud.World, o.Combat.Choir))
             faults.Add("after the call outs the nights differ");
         if (allowed == 0)
             faults.Add("no Call Out was allowed: nothing was tested");
-        if (loud.World.Loudness.Totals.Keys.Any(k => k is not ("gun" or "breach")))
-            faults.Add("the crew loudness meter heard " + string.Join(",", loud.World.Loudness.Totals.Keys));
         // The networked night's dead talked all night: the silence check (who's spoken) never heard them.
         if (net.DeadVoicesHeardByTheRun > 0)
             faults.Add($"the waiting were heard by the run {net.DeadVoicesHeardByTheRun} times");
@@ -644,7 +642,10 @@ public static class HoldoutChecks
         n.Step(0.1);
         var w = n.World;
         var d = w.Director!;
-        var soot = SootChildren.Choose(w, o.Enemies.SootChildren, w.CrewThisTick);
+        // The Soot Children's 50/50 (App. B.6) is drawn from the director's dice when they come: the votes mustn't spend any,
+        // nor touch the chance or the host's first-call rule.
+        var dice = d.Rng;
+        bool nextReal = w.NextChildReal;
         // A vote for every creature on offer, and more for one than the cap allows.
         int id = 20;
         foreach (var k in w.VoteOptions.ToList())
@@ -674,8 +675,9 @@ public static class HoldoutChecks
         foreach (var (k, m) in d.VoteMultipliers)
             if (m > o.Holdouts.Vote.Cap + 1e-12)
                 faults.Add($"{k} weighs x{m} from votes, over x{o.Holdouts.Vote.Cap}");
-        if (SootChildren.Choose(w, o.Enemies.SootChildren, w.CrewThisTick) != soot)
-            faults.Add("the votes changed the Soot Children's own draw");
+        var diceNow = d.Rng;
+        if (diceNow.NextUInt() != dice.NextUInt() || w.NextChildReal != nextReal)
+            faults.Add("the votes moved the Soot Children's real-child roll (the director's dice, or the first-call rule)");
         // Every decision over a stretch of night: the same options, each want tag's share held, no gain past the cap.
         int decisions = 0, seen = d.Log.Count;
         double budget = d.Budget;
