@@ -151,7 +151,8 @@ BalanceReport RunBalance(string[] args)
     Parallel.For(0, grid.Count, new ParallelOptions { MaxDegreeOfParallelism = (int)Opt(args, "--parallel", Environment.ProcessorCount) }, i =>
     {
         var n = grid[i];
-        var route = RouteGenerator.Generate(routeTuning, n.Tier, n.Seed);
+        // The procedural line players get (T71): planned for this train's length, as a night in the game is.
+        var route = DarkTerritory.Sim.LineGen.Routes.Generate(content, n.Tier, n.Seed, n.Cars);
         var report = Harness.Run(route.Build(), train, player, new HarnessOptions
         {
             Bots = n.Crew,
@@ -167,7 +168,7 @@ BalanceReport RunBalance(string[] args)
             Sight = sight,
             Run = run,
             Facilities = facilities,
-            YardLength = routeTuning.YardLength,
+            YardLength = route.GateOr(routeTuning.YardLength),
         }, boiler);
         rows[i] = Balance.Row(n, report);
         Console.Error.WriteLine($"{n.Tier}:{n.Seed} crew {n.Crew} cars {n.Cars}: {rows[i].End}, net {rows[i].Net}, lost {rows[i].CrewLost}");
