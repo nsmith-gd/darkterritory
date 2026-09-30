@@ -32,6 +32,8 @@ public static class WorldRecords
     const double Pos = 1e4, Ang = 1e5, Fine = 1e6, Hint = 1e2, Cm = 1e2;
     /// <summary>A body record's fields before its particles: kind, parent, carrier, owner, asleep, yaw, count, second carrier.</summary>
     const int BodyParticles = 8;
+    // The Run record's header (phase, end, clock, facility, chute, scavenged), and room in a crane record's id for each of a site's cranes.
+    const int RunHead = 6, CranesPerSite = 16;
 
     static long Q(double v, double scale) => (long)Math.Round(v * scale);
     static double D(long q, double scale) => q / scale;
@@ -79,33 +81,35 @@ public static class WorldRecords
         if (world.Run is { } run)
         {
             // Per facility: the chute's coal left, then its loading modules (crates out, winch sled, sleds left, turning).
-            const int Each = 5;
-            var f = new long[5 + run.FacilityCount * Each];
+            const int Each = 5, Head = RunHead;
+            var f = new long[Head + run.FacilityCount * Each];
             f[0] = (long)run.Phase;
             f[1] = (long)run.End;
             f[2] = Q(run.Seconds, Fine);
             f[3] = run.Facility;
             f[4] = run.ChuteOpen ? 1 : 0;
+            f[5] = Q(run.Scavenged, Fine);
             for (int i = 0; i < run.FacilityCount; i++)
             {
                 var site = i < run.Sites.Count ? run.Sites[i] : null;
-                f[5 + i * Each] = Q(run.ChuteLeft(i), Fine);
-                f[6 + i * Each] = (site?.Stocked == true ? 1 : 0) | (site?.Turning == true ? 2 : 0) | (site?.OutOfRhythm == true ? 4 : 0);
-                f[7 + i * Each] = Q(site?.Progress ?? 0, Fine);
-                f[8 + i * Each] = site?.SledsLeft ?? 0;
-                f[9 + i * Each] = Q(site?.Crank ?? 0, Ang);
+                f[Head + i * Each] = Q(run.ChuteLeft(i), Fine);
+                f[Head + 1 + i * Each] = (site?.Stocked == true ? 1 : 0) | (site?.Turning == true ? 2 : 0) | (site?.OutOfRhythm == true ? 4 : 0);
+                f[Head + 2 + i * Each] = Q(site?.Progress ?? 0, Fine);
+                f[Head + 3 + i * Each] = site?.SledsLeft ?? 0;
+                f[Head + 4 + i * Each] = Q(site?.Crank ?? 0, Ang);
             }
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Run, 0), f));
         }
         // A facility's gantry crane (T48): where it is, the rig, and each casting.
         if (world.Run is { } withSites)
             foreach (var site in withSites.Sites)
-                if (site?.Crane is { } crane)
+                for (int k = 0; site is not null && k < site.Cranes.Count; k++)
                 {
+                    var crane = site.Cranes[k];
                     var f = new List<long> { Q(crane.Bridge, Pos), Q(crane.Trolley, Pos), Q(crane.Hook, Pos), Q(crane.Rigging, Fine), crane.Castings.Length };
                     foreach (var c in crane.Castings)
                         f.AddRange([(long)c.State, c.Car, Q(c.At.X, Pos), Q(c.At.Y, Pos), Q(c.At.Z, Pos)]);
-                    list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Crane, site.Index), [.. f]));
+                    list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Crane, site.Index * CranesPerSite + k), [.. f]));
                 }
         if (world.Vigil is { } vigil)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Vigil, 0), [vigil.Active ? 1 : 0, Q(vigil.Left, Fine), vigil.Revivals, vigil.Body, vigil.For]));
@@ -210,7 +214,9 @@ public static class WorldRecords
                 case RecordKind.Body when !world.Authority:
                     bodies.Add(ToBody(r));
                     break;
-                case RecordKind.Crane when !world.Authority && world.Run is { } craneRun && r.Id < craneRun.Sites.Count && craneRun.Sites[r.Id]?.Crane is { } crane:
+                case RecordKind.Crane when !world.Authority && world.Run is { } craneRun && r.Id / CranesPerSite < craneRun.Sites.Count
+                    && craneRun.Sites[r.Id / CranesPerSite] is { } craneSite && r.Id % CranesPerSite < craneSite.Cranes.Count
+                    && craneSite.Cranes[r.Id % CranesPerSite] is { } crane:
                     int castings = (int)f[4];
                     crane.Mirror(D(f[0], Pos), D(f[1], Pos), D(f[2], Pos), D(f[3], Fine), [.. Enumerable.Range(0, castings).Select(i =>
                         ((Run.CastingState)f[5 + i * 5], (int)f[6 + i * 5], new Ballast.Double3(D(f[7 + i * 5], Pos), D(f[8 + i * 5], Pos), D(f[9 + i * 5], Pos))))]);
@@ -219,12 +225,12 @@ public static class WorldRecords
                     vigil.Mirror(f[0] != 0, D(f[1], Fine), (int)f[2], (int)f[3], (int)f[4]);
                     break;
                 case RecordKind.Run when !world.Authority && world.Run is { } run:
-                    const int Each = 5;
-                    int facilities = (f.Length - 5) / Each;
+                    const int Each = 5, Head = RunHead;
+                    int facilities = (f.Length - Head) / Each;
                     run.Mirror((Run.RunPhase)f[0], (Run.RunEnd)f[1], D(f[2], Fine), (int)f[3], f[4] != 0,
-                        [.. Enumerable.Range(0, facilities).Select(i => D(f[5 + i * Each], Fine))],
-                        [.. Enumerable.Range(0, facilities).Select(i => new Run.SiteState((f[6 + i * Each] & 1) != 0, D(f[7 + i * Each], Fine), (int)f[8 + i * Each],
-                            (f[6 + i * Each] & 2) != 0, (f[6 + i * Each] & 4) != 0, D(f[9 + i * Each], Ang)))]);
+                        [.. Enumerable.Range(0, facilities).Select(i => D(f[Head + i * Each], Fine))],
+                        [.. Enumerable.Range(0, facilities).Select(i => new Run.SiteState((f[Head + 1 + i * Each] & 1) != 0, D(f[Head + 2 + i * Each], Fine), (int)f[Head + 3 + i * Each],
+                            (f[Head + 1 + i * Each] & 2) != 0, (f[Head + 1 + i * Each] & 4) != 0, D(f[Head + 4 + i * Each], Ang)))], D(f[5], Fine));
                     break;
             }
         }

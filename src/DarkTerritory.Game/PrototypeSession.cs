@@ -36,11 +36,12 @@ public sealed class PrototypeSession : IPlaySession
     {
         if (enemies)
             World.EnableEnemies(DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)), route, route.Seed, crew: 1, authority: true);
-        var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(contentRoot, RouteTuning.File));
+        var routeTuning = RouteTuning.Load(contentRoot);
         World.EnableSwitches(routeTuning.Junctions);
         World.EnableRun(DataFile.Load<RunTuning>(Path.Combine(contentRoot, RunTuning.File)), route,
             routeTuning.YardLength, authority: true,
-            DataFile.Load<FacilityTuning>(Path.Combine(contentRoot, FacilityTuning.File)));
+            DataFile.Load<FacilityTuning>(Path.Combine(contentRoot, FacilityTuning.File)),
+            DataFile.Load<Sim.Stops.LootTuning>(Path.Combine(contentRoot, Sim.Stops.LootTuning.File)));
     }
 
     PrototypeSession(string contentRoot, RailLine line, Route? route, int cars, double start)

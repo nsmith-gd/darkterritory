@@ -148,6 +148,15 @@ public sealed class Site
     /// <summary>The gantry crane here, if the facility has one (T48).</summary>
     public Crane? Crane { get; }
 
+    /// <summary>
+    /// The yard's gantries from its stop layout (level-design P5, P18): one over each craned loading face but the
+    /// facility's own, each with a casting in every bay its runway reaches.
+    /// </summary>
+    public IReadOnlyList<Crane> YardCranes { get; internal set; } = [];
+
+    /// <summary>Every crane here: the facility's own first.</summary>
+    public IReadOnlyList<Crane> Cranes => Crane is null ? YardCranes : [Crane, .. YardCranes];
+
     public int Index { get; }
     public RouteFeature Feature { get; }
     /// <summary>The branch the facility's track is (a spur), or <see cref="RailLine.MainPath"/>.</summary>

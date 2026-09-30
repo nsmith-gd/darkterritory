@@ -1,0 +1,123 @@
+// The yards and villages at each stop (docs/design/level-design.md: Example 1, Parts D and Z). First pass.
+// Everything is laid out in the stop's rail frame: `s` metres along the main line from the start of the stop's level
+// zone (route.json poiZoneHalfLength either side of its centre), `d` metres to the right (+) or left (−) of it.
+{
+  // What the sidings are sized in: a car and its coupling gap, and the engine. Must match train.json (carLength +
+  // couplingGap, engineLength); StopGeneratorTests checks.
+  "carPitch": 15.5,
+  "engineLength": 20,
+
+  // Yard track (P5, P6, P8). Every yard track is a spur off the main line at its own hand-thrown switch, nested so the
+  // first switch leads to the outermost track and none cross: a ladder laid on the main line itself. A switch's points
+  // are route.json junctions.pointsLength long.
+  "track": {
+    // Yard trackwork is tighter than a main-line turnout (route.json junctions.spurRadius): an industrial curve, so a
+    // track's S-curve out holds only a couple of cars and its length is mostly its loading face (P16; GDD §17: most
+    // facilities can't take the whole train).
+    "turnoutRadius": 60,
+    // The innermost track's centre from the main line, and the pitch out from there: a 12 m shed row with 4 m clear
+    // each side (P5). A shed row stands between every pair of tracks and between the innermost track and the main.
+    "innermost": 24,
+    "pitch": 20,
+    // The first switch is this far into the zone, the next ones this far apart along the main line.
+    "firstToe": 40,
+    "toeSpacing": 45,
+    // A fan's tracks end in concentric curves away from the main line: the outermost track's radius and the angle.
+    "fanRadius": [140, 180],
+    "fanAngle": [0.25, 0.45],
+    // A split yard's far-side spur has its switch this far along from the near side's first.
+    "splitToe": [30, 90]
+  },
+
+  // Storage sheds in rows along the loading face (the straight past each track's curves).
+  "shed": { "depth": 12, "gap": 3, "perRow": [2, 4], "minLength": 14, "trim": [6, 4] },
+  // The hero (P7): a fan's chain of sheds laid tangent to the outermost track's curve, 11 m off it, on the far side.
+  "hero": { "count": [3, 6], "length": [17, 23], "offset": 11 },
+  // A crane runway reaches this far either side of its track (facilities.json crane.span reaches 9 m out), and bays
+  // are this far apart along a shed. Bays are stocked at random until the yard holds the tier's `stock`.
+  "crane": { "reach": 10, "bayEvery": 9, "bayInset": 2.8 },
+
+  // Villages (P4, P11, P20).
+  "village": {
+    "yawJitter": 0.44,
+    "roadReach": 18,
+    "houseGap": 2.5,
+    "outliers": [1, 2],
+    "outlierFindBonus": 0.3,
+    "secondFindChance": 0.35,
+    "outbuildings": [1, 2],
+    "wellChance": 0.5,
+    // A village set back from the line (arrangement "setback") sits this much further out, within this range.
+    "setbackExtra": 45,
+    "setbackRange": [85, 135],
+    "blocks": { "depth": [38, 48], "length": [40, 55], "twoColumns": 0.55, "keepFrontage": 1, "keepEdge": 0.7, "keepInner": 0.8 },
+    "street": { "length": [120, 180], "bend": 40, "every": [13, 18], "offset": [10, 13], "skip": 0.22, "laneChance": 0.55, "lane": [40, 60] },
+    "crossroads": { "out": [35, 60], "arm": [35, 60], "beyond": [40, 70], "houses": [7, 11], "radius": [9, 38] },
+    "farmsteads": { "length": [160, 210], "farms": [3, 5], "drive": [14, 22], "wiggle": 55 },
+    // A village's extent along the line (for road-bounded blocks), and a halt's platform beside the main line.
+    "extent": [110, 170],
+    "halt": { "length": 34, "offset": 4.6 }
+  },
+
+  // Measuring a stop (P15, level-design D.1): what the crew has to do to fill the empties it brought, weighted.
+  "score": {
+    "throw": 1, "coupling": 0.5, "reversal": 1.5, "blindMove": 2.5, "respot": 0.6, "handCar": 2.5,
+    "metresPerPoint": 80, "blockedCrossing": 3,
+    // The village's part: its round trip, the odds, the houses to search and how far out it is. It counts at
+    // `villageWeight` where the stop also has a yard (the village is optional there).
+    "villageMetresPerPoint": 50, "findOdds": 3, "perHouse": 0.15, "offsetPerPoint": 25, "villageWeight": 0.4,
+    // Walking a route isn't a straight line.
+    "walkFactor": 1.25,
+    // What each yard container loads, in cars (facilities.json loadPerCasting, loadPerCrate × loot.json's crates per
+    // stack on average, the heavy crate's loadPerCrate; StopGeneratorTests checks), and carrying: metres of crate
+    // carrying per point, a heavy crate counting this many times over (it needs two).
+    "craneBayLoad": 0.5, "crateStackLoad": 0.375, "strongroomLoad": 0.5,
+    "carryMetresPerPoint": 60, "heavyCarry": 2
+  },
+  // Generate, measure, keep or reroll (P15): a stop that's outside its band or fails an invariant is rebuilt from the
+  // next attempt seed, up to this many, keeping the closest.
+  "maxAttempts": 8,
+
+  // The difficulty levers by route tier (level-design D.2). `empties`: the cars a typical consist for the tier brings
+  // half empty (spec F table: 3, 8, 15, 20 cars; run.json departureLoad). `faceCars`: cars that fit along a track's
+  // loading face. `stock`: what the yard holds, in cars' worth of the empties (enough to fill the train, spread over every
+  // shed: thinly beside each track in a big yard, which means more trips and more carrying). Weighted choices are [name, weight] pairs.
+  "tiers": {
+    "local": {
+      "empties": 2, "villageChance": 0.6, "halts": [2, 3],
+      "forms": [["spur", 0.55], ["ladder", 0.30], ["fan", 0.15]],
+      "sidings": [1, 2], "faceCars": [5, 7], "crane": 1.0, "runway": [45, 60], "stock": [1.3, 1.6],
+      "villages": [["street", 0.4], ["blocks", 0.35], ["crossroads", 0.25]],
+      "arrangements": [["opposite", 0.8], ["along", 0.2]],
+      "villageOffset": [30, 40], "crossingReach": 70, "crossingClear": true, "buffer": 20, "find": 0.45, "stub": [20, 30],
+      "band": { "yard": [4, 20], "village": [10, 18] }
+    },
+    "frontier": {
+      "empties": 4, "villageChance": 0.5, "halts": [1, 3],
+      "forms": [["spur", 0.15], ["ladder", 0.45], ["fan", 0.40]],
+      "sidings": [2, 3], "faceCars": [3, 5], "crane": 0.75, "runway": [35, 50], "stock": [1.2, 1.5],
+      "villages": [["blocks", 0.35], ["street", 0.25], ["crossroads", 0.25], ["farmsteads", 0.15]],
+      "arrangements": [["opposite", 0.55], ["setback", 0.25], ["along", 0.2]],
+      "villageOffset": [32, 60], "crossingReach": 90, "crossingClear": false, "buffer": 24, "find": 0.38, "stub": [25, 45],
+      "band": { "yard": [14, 36], "village": [14, 22] }
+    },
+    "deadLines": {
+      "empties": 8, "villageChance": 0.45, "halts": [1, 2],
+      "forms": [["ladder", 0.40], ["fan", 0.40], ["split", 0.20]],
+      "sidings": [2, 4], "faceCars": [3, 5], "crane": 0.55, "runway": [28, 42], "stock": [1.1, 1.4],
+      "villages": [["blocks", 0.25], ["crossroads", 0.25], ["farmsteads", 0.3], ["street", 0.2]],
+      "arrangements": [["opposite", 0.35], ["setback", 0.45], ["along", 0.2]],
+      "villageOffset": [45, 90], "crossingReach": 110, "crossingClear": false, "buffer": 28, "find": 0.32, "stub": [35, 60],
+      "band": { "yard": [28, 56], "village": [18, 28] }
+    },
+    "deepTerritory": {
+      "empties": 10, "villageChance": 0.4, "halts": [1, 2],
+      "forms": [["ladder", 0.30], ["fan", 0.35], ["split", 0.35]],
+      "sidings": [3, 5], "faceCars": [2, 4], "crane": 0.3, "runway": [18, 28], "stock": [1.0, 1.3],
+      "villages": [["farmsteads", 0.45], ["crossroads", 0.3], ["blocks", 0.25]],
+      "arrangements": [["setback", 0.6], ["along", 0.25], ["opposite", 0.15]],
+      "villageOffset": [60, 110], "crossingReach": 130, "crossingClear": false, "buffer": 34, "find": 0.26, "stub": [45, 75],
+      "band": { "yard": [34, 100], "village": [22, 36] }
+    }
+  }
+}

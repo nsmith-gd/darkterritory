@@ -148,7 +148,7 @@ public sealed class EditorTests : IDisposable
         Assert.Equal(400, Call("POST", "/api/route/preview", catapult).Status);
         Assert.Equal(400, Call("POST", "/api/route/save", new { name = "catapult", route = catapult }).Status);
         // A curve a metre tighter than any tier lays (route.json's least minRadius, which the page is told).
-        double tightest = DataFile.Load<RouteTuning>(Path.Combine(_content, RouteTuning.File)).Tiers.TightestRadius();
+        double tightest = RouteTuning.Load(_content).Tiers.TightestRadius();
         Assert.Equal(tightest, described.GetProperty("tightestRadius").GetDouble());
         var hairpin = route with { Line = route.Line with { Segments = [.. route.Line.Segments.Select((t, i) => i == 1 ? t with { Radius = -(tightest - 1) } : t)] } };
         Assert.Equal(400, Call("POST", "/api/route/save", new { name = "hairpin", route = hairpin }).Status);
@@ -158,7 +158,7 @@ public sealed class EditorTests : IDisposable
     [Fact]
     public void BadRouteNamesAreRefused()
     {
-        var route = RouteGenerator.Generate(DataFile.Load<RouteTuning>(Path.Combine(_content, RouteTuning.File)), RouteTier.Local, 1);
+        var route = RouteGenerator.Generate(RouteTuning.Load(_content), RouteTier.Local, 1);
         Assert.Equal(400, Call("POST", "/api/route/save", new { name = "../../escape", route }).Status);
     }
 

@@ -92,7 +92,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         if (Route is { Length: > 0 } spec)
         {
             var (tier, seed) = Sim.Route.Route.ParseSpec(spec);
-            route = RouteGenerator.Generate(DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File)), tier, seed);
+            route = RouteGenerator.Generate(RouteTuning.Load(content), tier, seed);
             line = route.Build();
             start = consist.LengthMetres + 150; // the fortress yard, as in the prototype
         }
@@ -106,10 +106,11 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         world.EnableVigil(DataFile.Load<Sim.Run.VigilTuning>(Path.Combine(content, Sim.Run.VigilTuning.File)));
         if (route is not null)
         {
-            var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File));
+            var routeTuning = RouteTuning.Load(content);
             world.EnableSwitches(routeTuning.Junctions);
             world.EnableRun(runTuning, route, routeTuning.YardLength, authority,
-                DataFile.Load<Sim.Run.FacilityTuning>(Path.Combine(content, Sim.Run.FacilityTuning.File)));
+                DataFile.Load<Sim.Run.FacilityTuning>(Path.Combine(content, Sim.Run.FacilityTuning.File)),
+                DataFile.Load<Sim.Stops.LootTuning>(Path.Combine(content, Sim.Stops.LootTuning.File)));
         }
         return (world, route);
     }

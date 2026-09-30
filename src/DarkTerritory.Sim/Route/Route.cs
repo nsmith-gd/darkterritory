@@ -1,4 +1,5 @@
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Stops;
 
 namespace DarkTerritory.Sim.Route;
 
@@ -22,6 +23,11 @@ public enum FeatureKind
     Sleepers,
     /// <summary>Greased rail: no traction (App. A.2).</summary>
     Grease,
+    /// <summary>
+    /// A village halt (level-design P1, P20): no freight, no siding; the train stops on the main line and the crew goes
+    /// on foot for what the houses hide. Its layout is the feature's <see cref="RouteFeature.Stop"/>.
+    /// </summary>
+    Village,
 }
 
 /// <param name="Side">−1 left, +1 right of the direction of travel (facilities, junctions).</param>
@@ -33,6 +39,12 @@ public sealed record RouteFeature(FeatureKind Kind, double Start, double End, in
     /// has what its kind has (facilities.json <c>kinds</c>).
     /// </summary>
     public IReadOnlyList<string>? Modules { get; init; }
+
+    /// <summary>
+    /// The stop's layout (docs/design/level-design.md): a facility's yard tracks, sheds and village, or a halt's village,
+    /// in the rail frame from <see cref="Start"/>. Null for the coaling tower, and for a hand-laid route without one.
+    /// </summary>
+    public StopLayout? Stop { get; init; }
 
     public double Length => End - Start;
     public bool Contains(double s) => s >= Start && s <= End;
@@ -54,7 +66,7 @@ public sealed record Route(string Name, RouteTier Tier, ulong Seed, LineDefiniti
 
     /// <summary>The next feature starting ahead of <paramref name="s"/> (hazards excluded: those you find).</summary>
     public RouteFeature? NextLandmark(double s) =>
-        Features.Where(f => f.Start > s && f.Kind is FeatureKind.Tunnel or FeatureKind.Bridge or FeatureKind.Facility or FeatureKind.Junction)
+        Features.Where(f => f.Start > s && f.Kind is FeatureKind.Tunnel or FeatureKind.Bridge or FeatureKind.Facility or FeatureKind.Junction or FeatureKind.Village)
             .MinBy(f => f.Start);
 
     /// <summary>Parses "tier:seed" (e.g. "frontier:7").</summary>

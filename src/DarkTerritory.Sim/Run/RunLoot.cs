@@ -1,0 +1,170 @@
+using Ballast;
+using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Route;
+using DarkTerritory.Sim.Stops;
+using DarkTerritory.Sim.Train;
+
+namespace DarkTerritory.Sim.Run;
+
+/// <summary>
+/// The stops' loot (level-design P2, P12, P14). A stop's layout says where things are; this half of the run fills it
+/// from the economy and puts it in the world: when the train first stops at a stop, its yard's crate stacks come out as
+/// cargo crates and its strongroom as a heavy crate, and its village's finds as loot to carry aboard; its cranes'
+/// castings are there from the start. A find put down inside any car and left still is stowed: it pays on delivery.
+/// </summary>
+public sealed partial class Run
+{
+    LootTuning? _loot;
+    RailLine? _lootLine;
+    readonly List<(RouteFeature Feature, int Index, StopLayout Stop, IReadOnlyList<LootFind> Finds)> _stopLoot = [];
+    bool[] _stocked = [];
+    readonly Dictionary<int, double> _lootSettling = new();
+    readonly List<LootFind> _stowed = [];
+
+    /// <summary>Scrip for the finds stowed aboard so far (paid with the cargo on delivery).</summary>
+    public double Scavenged { get; private set; }
+    /// <summary>The finds stowed so far (host only), in order.</summary>
+    public IReadOnlyList<LootFind> Stowed => _stowed;
+    /// <summary>The route's stops with layouts (facilities' yards and village halts), in order along the line.</summary>
+    public IReadOnlyList<RouteFeature> Stops => [.. _stopLoot.Select(s => s.Feature)];
+    public bool Stocked(int stop) => stop >= 0 && stop < _stocked.Length && _stocked[stop];
+
+    /// <summary>A find's body's owner: the stop, and the container in its layout.</summary>
+    public static int LootOwner(int stop, int container) => stop << 12 | container;
+
+    /// <summary>
+    /// Fills the stops from the economy and builds their yards' cranes. Host and clients both do this (after
+    /// <see cref="EnableSites"/>), so a client can name a find from its body.
+    /// </summary>
+    public void EnableLoot(LootTuning t, RailLine line, FacilityTuning? facilities)
+    {
+        _loot = t;
+        _lootLine = line;
+        _stopLoot.Clear();
+        double perCar = Tuning.Economy.PerCar.GetValueOrDefault(StopLoot.TierKey(_route.Tier), 700);
+        for (int i = 0; i < _route.Features.Count; i++)
+            if (_route.Features[i].Stop is { } stop)
+                _stopLoot.Add((_route.Features[i], i, stop, StopLoot.Village(t, stop, _route.Seed, i, perCar)));
+        _stocked = new bool[_stopLoot.Count];
+        if (facilities is not null)
+            BuildYardCranes(facilities.Crane);
+    }
+
+    /// <summary>Where a point in a stop's rail frame is in the world: along its (straight, level) zone, out to the side.</summary>
+    public static Double3 StopWorld(RailLine line, RouteFeature stop, Pt p, double up = 0)
+    {
+        var t = line.Sample(stop.Start + p.S);
+        var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+        return t.Position + right * p.D + Double3.Up * up;
+    }
+
+    /// <summary>
+    /// A gantry over every craned loading face but the facility's own (level-design P5, P18): its runway's length, a
+    /// casting for each bay it reaches, stacked towards the sheds they're in.
+    /// </summary>
+    void BuildYardCranes(CraneTuning ct)
+    {
+        foreach (var site in _sites)
+        {
+            if (site?.Feature.Stop is not { } stop)
+                continue;
+            var cranes = new List<Crane>();
+            foreach (var track in stop.Tracks)
+            {
+                if (track.Crane is not { Bays: > 0 } rw || track.Primary && site.Crane is not null)
+                    continue;
+                var bays = stop.Containers.Where(c => c.Kind == ContainerKind.CraneBay && c.Track == track.Index).ToList();
+                double lateral = bays.Average(c => c.At.D) - track.FaceStart.D;
+                int toward = lateral == 0 ? track.Side : Math.Sign(lateral);
+                double mid = (rw.From + rw.To) / 2, d = track.FaceStart.D;
+                var tuning = ct with { Along = 0, Length = rw.Length, Castings = bays.Count, Spacing = Math.Min(ct.Spacing, rw.Length / (bays.Count + 1)) };
+                var feature = site.Feature;
+                var line = _lootLine!;
+                cranes.Add(new Crane(tuning, (along, across, up) => StopWorld(line, feature, new Pt(mid + along, d + toward * across), up)));
+            }
+            site.YardCranes = cranes;
+        }
+    }
+
+    /// <summary>What a find is and what it pays, from its body (null for anything else).</summary>
+    public LootFind? FindOf(Physics.Body b)
+    {
+        if (b.Kind != Physics.BodyKind.Loot)
+            return null;
+        int stop = b.Owner >> 12, container = b.Owner & 0xFFF;
+        if (stop < 0 || stop >= _stopLoot.Count)
+            return null;
+        foreach (var f in _stopLoot[stop].Finds)
+            if (f.Container == container)
+                return f;
+        return null;
+    }
+
+    /// <summary>A find's name for the HUD.</summary>
+    public string? FindName(Physics.Body b) => FindOf(b) is { } f && _loot is { } t ? t.Name(f.Item) : null;
+
+    void StepLoot(World world, double dt)
+    {
+        if (_loot is not { } t || _lootLine is not { } line)
+            return;
+        var train = world.Train;
+        var engine = EngineRake(train);
+        if (engine.Speed < Tuning.StopBelowSpeed)
+            for (int k = 0; k < _stopLoot.Count; k++)
+            {
+                var f = _stopLoot[k].Feature;
+                if (!_stocked[k] && engine.Distance >= f.Start && engine.Distance <= f.End + 100)
+                    Stock(world, line, t, k);
+            }
+
+        // A find put down inside a car, and lying still there, is stowed.
+        foreach (var b in world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Loot).ToList())
+        {
+            bool aboard = b.Carrier < 0 && b.Parent > 0 && b.Parent < train.Vehicles.Count
+                && train.Frames[b.Parent].Shape.Interior is { } room && room.Contains(b.Pbd.Particles[0].Position);
+            double still = aboard ? _lootSettling.GetValueOrDefault(b.Id) + dt : 0;
+            if (still < t.SettleSeconds)
+            {
+                _lootSettling[b.Id] = still;
+                continue;
+            }
+            if (FindOf(b) is { } find)
+            {
+                Scavenged += find.Value;
+                _stowed.Add(find);
+            }
+            world.Bodies.Remove(b);
+            _lootSettling.Remove(b.Id);
+        }
+    }
+
+    /// <summary>A stop's loot comes out: the yard's crate stacks and strongroom, the village's finds.</summary>
+    void Stock(World world, RailLine line, LootTuning t, int k)
+    {
+        _stocked[k] = true;
+        var (f, index, stop, finds) = _stopLoot[k];
+        double heavy = _facilityTuning?.Crates.Heavy.Radius ?? 0.55;
+        foreach (var c in stop.Containers)
+        {
+            double hint = f.Start + c.At.S;
+            switch (c.Kind)
+            {
+                case ContainerKind.CrateStack:
+                    int n = StopLoot.CratesIn(t, stop, _route.Seed, index, c);
+                    for (int i = 0; i < n; i++)
+                        world.Bodies.SpawnCargo(StopWorld(line, f, c.At + new Pt(0, (i - (n - 1) * 0.5) * 1.1)), hint);
+                    break;
+                case ContainerKind.Strongroom:
+                    for (int i = 0; i < t.Yard.Strongroom.Heavy; i++)
+                        world.Bodies.SpawnCargo(StopWorld(line, f, c.At + new Pt(i * 1.6, 0)), hint, heavy);
+                    break;
+                case ContainerKind.CraneBay:
+                    break;
+                default:
+                    if (finds.Any(x => x.Container == c.Index))
+                        world.Bodies.SpawnLoot(StopWorld(line, f, c.At), hint, LootOwner(k, c.Index), t.Radius);
+                    break;
+            }
+        }
+    }
+}

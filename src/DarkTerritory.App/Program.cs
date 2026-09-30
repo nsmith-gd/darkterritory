@@ -310,7 +310,7 @@ Launch? Menu()
         case Launch.Night { Route: { } spec } alone:
             {
                 var (tier, seed) = Route.ParseSpec(spec);
-                var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File));
+                var routeTuning = RouteTuning.Load(content);
                 return (new PrototypeSession(content, RouteGenerator.Generate(routeTuning, tier, seed), alone.Cars, enemies), null);
             }
         case Launch.Night alone:

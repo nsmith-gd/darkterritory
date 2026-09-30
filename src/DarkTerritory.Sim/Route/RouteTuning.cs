@@ -10,6 +10,23 @@ public sealed record RouteTuning(
 {
     public const string File = "tuning/route.json";
     public JunctionTuning Junctions { get; init; } = new();
+
+    /// <summary>
+    /// The stops' yards and villages (content/tuning/stops.json), laid out with the route. Without it (a tuning built by
+    /// hand) every facility gets route.json's single spur and there are no village halts.
+    /// </summary>
+    [JsonIgnore]
+    public Stops.StopTuning? Stops { get; init; }
+
+    /// <summary>route.json with stops.json alongside it: what every caller that generates routes uses.</summary>
+    public static RouteTuning Load(string content) =>
+        Ballast.DataFile.Load<RouteTuning>(Path.Combine(content, File)) with
+        {
+            Stops = Ballast.DataFile.Load<Stops.StopTuning>(Path.Combine(content, DarkTerritory.Sim.Stops.StopTuning.File)),
+        };
+
+    /// <summary>What a stop's layout is fitted to: its level zone and this route's switch points.</summary>
+    public Stops.StopContext StopContext => new(2 * PoiZoneHalfLength, Junctions.PointsLength);
 }
 
 /// <summary>

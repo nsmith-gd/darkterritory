@@ -35,6 +35,12 @@ public enum BranchKind : byte
 public sealed record BranchDefinition(BranchKind Kind, double Toe, int Side, IReadOnlyList<TrackSegment> Segments)
 {
     public double Length => Segments.Sum(s => s.Length);
+
+    /// <summary>
+    /// For a generated yard's track (level-design P16): the metres back from its buffer stop that cars stand on to be
+    /// worked, past the tight S-curve out from the main line. Unset, the whole branch.
+    /// </summary>
+    public double? Standing { get; init; }
 }
 
 /// <summary>A built branch: its own line, laid from the main line's points onwards.</summary>

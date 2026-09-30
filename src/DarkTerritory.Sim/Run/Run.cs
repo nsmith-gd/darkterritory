@@ -23,15 +23,16 @@ public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed }
 
 /// <summary>What a night came to (spec F.1): everything still attached to the locomotive counts.</summary>
 /// <param name="RevivedAtGate">Bodies brought home aboard: revived free at the gate (spec C.2), and counted in CrewHome.</param>
+/// <param name="Scavenged">Scrip for village finds stowed aboard (level-design P12), paid with the cargo on delivery and in Gross.</param>
 public sealed record RunReport(RunEnd End, double Seconds, double DistanceKm, int CarsDelivered, int CarsLost, double CargoDelivered,
-    double Gross, double CoalCost, double AmmoCost, double RepairCost, double Net, int CrewHome, int CrewLost, int RevivedAtGate = 0);
+    double Gross, double CoalCost, double AmmoCost, double RepairCost, double Net, int CrewHome, int CrewLost, int RevivedAtGate = 0, double Scavenged = 0);
 
 /// <summary>
 /// One night's run, host-authoritative (clients mirror it for the HUD). The yard gate opens the run and
 /// starts the dawn clock; facilities are stops you choose to make; the terminus ends it well; derailment,
 /// losing the whole crew, or still being out when the line goes live ends it badly.
 /// </summary>
-public sealed class Run
+public sealed partial class Run
 {
     readonly Route.Route _route;
     readonly List<RouteFeature> _facilities;
@@ -48,11 +49,15 @@ public sealed class Run
         // Each facility's spur, if it has one: the branch whose points are in its zone.
         _spurs = [.. _facilities.Select(f => route.Branches.Select((b, i) => (b, i)).Where(x => x.b.Kind == BranchKind.Spur && f.Contains(x.b.Toe))
             .Select(x => x.i).DefaultIfEmpty(RailLine.MainPath).First())];
+        // A generated yard has several (level-design P5): the engine on any of them is at the facility.
+        _yards = [.. _facilities.Select(f => route.Branches.Select((b, i) => (b, i)).Where(x => x.b.Kind == BranchKind.Spur && f.Contains(x.b.Toe))
+            .Select(x => x.i).ToArray())];
         _visited = new bool[_facilities.Count];
         _departed = new bool[_facilities.Count];
     }
 
     readonly int[] _spurs;
+    readonly int[][] _yards;
     readonly bool[] _visited, _departed;
 
     /// <summary>The branch a facility's machinery is on (GDD §17), or <see cref="RailLine.MainPath"/> for one on the main line.</summary>
@@ -159,6 +164,7 @@ public sealed class Run
         Seconds += dt;
         Pour(train, dt);
         StepSites(world, dt);
+        StepLoot(world, dt);
 
         if (world.Derailed)
             Finish(world, crew, RunPhase.Failed, RunEnd.Derailed);
@@ -197,7 +203,7 @@ public sealed class Run
     {
         int path = train.Dynamics.Path;
         for (int i = 0; i < _facilities.Count; i++)
-            if (_spurs[i] >= 0 ? path == _spurs[i] && !train.OnMain : train.OnMain && _facilities[i].Contains(front))
+            if (_spurs[i] >= 0 ? _yards[i].Contains(path) && !train.OnMain : train.OnMain && _facilities[i].Contains(front))
                 return i;
         return -1;
     }
@@ -223,7 +229,8 @@ public sealed class Run
                     world.Bodies.SpawnCargo(at, site.CrateLineHint, t.Crates.Heavy.Radius);
             }
             Crank(site, t.Winch, dt);
-            if (site.Crane is { } crane)
+            _drop = null;
+            foreach (var crane in site.Cranes)
                 Operate(world, crane, dt);
             if (site.Progress >= 1 && site.SledsLeft > 0 && CargoCarNear(train, site.SledTo, t.Winch.CarReach) is { } car)
             {
@@ -265,7 +272,6 @@ public sealed class Run
     /// </summary>
     void Operate(World world, Crane crane, double dt)
     {
-        _drop = null;
         if (crane.Operator >= 0)
         {
             crane.Drive(_craneIntent, world.Train, dt);
@@ -368,16 +374,17 @@ public sealed class Run
             site.HandAngle[crank.Handle] = crank.Angle;
         }
         // The crane (T48): at its controls, the operator's intent drives it this tick; on the ground at the hook, rigging.
-        if (!Over && CurrentSite?.Crane is { } crane && s.Alive)
-        {
-            if (crane.AtControls(s, intent, train))
+        if (!Over && CurrentSite is { } here && s.Alive)
+            foreach (var crane in here.Cranes)
             {
-                crane.Operator = playerId;
-                _craneIntent = intent;
+                if (crane.AtControls(s, intent, train))
+                {
+                    crane.Operator = playerId;
+                    _craneIntent = intent;
+                }
+                else if (s.Parent == PlayerState.World)
+                    crane.Rig(playerId, PlayerMotor.WorldPosition(s, train), intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5, SimConstants.TickSeconds);
             }
-            else if (s.Parent == PlayerState.World)
-                crane.Rig(playerId, PlayerMotor.WorldPosition(s, train), intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5, SimConstants.TickSeconds);
-        }
         bool holding = LeverInReach(s, train, hand) && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5;
         if (!holding)
         {
@@ -473,7 +480,7 @@ public sealed class Run
         var home = cargo.Where(v => attached.Contains(v.Id)).ToList();
         bool delivered = End == RunEnd.Delivered;
         double cargoValue = home.Sum(v => v.Load * v.CargoIntegrity);
-        double gross = delivered ? perCar * cargoValue : 0;
+        double gross = delivered ? perCar * cargoValue + Scavenged : 0;
         double coal = Math.Max(0, _tenderAtDeparture + _coalLoaded - train.Boiler.Tender) * e.CoalPerUnit;
         double ammo = Math.Max(0, _ammoAtDeparture - train.Vehicles.Sum(v => v.Gun.Ammo)) * e.RoundsPerRound;
         double repairs = train.Vehicles.Where(v => attached.Contains(v.Id)).Sum(v => 1 - v.Integrity) * e.RepairPerIntegrity;
@@ -488,7 +495,7 @@ public sealed class Run
         revived = Math.Min(revived, crew.Count(c => !c.Alive));
         return new RunReport(End, Math.Round(Seconds, 1), Math.Round(engine.Distance / 1000, 2), home.Count, cargo.Count - home.Count,
             Math.Round(cargoValue, 2), Math.Round(gross), Math.Round(coal), Math.Round(ammo), Math.Round(repairs),
-            Math.Round(gross - coal - ammo - repairs), crewHome + revived, crew.Count - crewHome - revived, revived);
+            Math.Round(gross - coal - ammo - repairs), crewHome + revived, crew.Count - crewHome - revived, revived, delivered ? Math.Round(Scavenged) : 0);
     }
 
     /// <summary>
@@ -514,8 +521,9 @@ public sealed class Run
 
     /// <summary>Client side: adopts the host's run state.</summary>
     public void Mirror(RunPhase phase, RunEnd end, double seconds, int facility, bool chuteOpen, double[] chuteLeft,
-        IReadOnlyList<SiteState>? sites = null)
+        IReadOnlyList<SiteState>? sites = null, double scavenged = 0)
     {
+        Scavenged = scavenged;
         Phase = phase;
         End = end;
         Seconds = seconds;

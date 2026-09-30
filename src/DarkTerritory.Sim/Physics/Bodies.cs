@@ -8,7 +8,8 @@ namespace DarkTerritory.Sim.Physics;
 /// <summary>Crate and lamp are the train's own stores; cargo is freight from a facility (spec D.2 manual crates).</summary>
 /// <summary><see cref="Radio"/> is a walkie-talkie (T41, spec A.5): worn on the belt, not carried in the hands.</summary>
 /// <summary><see cref="Heavy"/> is freight that takes two to lift (spec D.2 "heavy items need two", T43).</summary>
-public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6 }
+/// <summary><see cref="Loot"/> is a village find (level-design P12): pocketable, and it pays when stowed aboard. Its <see cref="Body.Owner"/> says which.</summary>
+public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Loot = 7 }
 
 /// <summary>
 /// A loose physical thing: cargo, a tool, a crewmate's body. It lives in a car's frame while it touches that
@@ -99,6 +100,18 @@ public sealed class Bodies
         double radius = heavy ?? 0.45;
         var pbd = new PbdBody([new Particle(world + Double3.Up * radius, 1, radius)]) { Friction = 0.35, Bounce = 0.05 };
         var b = new Body(_nextId++, heavy is null ? BodyKind.Cargo : BodyKind.Heavy, PlayerState.World, pbd) { LineHint = lineHint };
+        _bodies.Add(b);
+        return b;
+    }
+
+    /// <summary>
+    /// A village find lying where it was hidden (level-design P12, P14), in the world frame. <paramref name="owner"/> says
+    /// which find it is (<see cref="Run.Run.LootOwner"/>), so a client can name it from its own copy of the economy.
+    /// </summary>
+    public Body SpawnLoot(Double3 world, double lineHint, int owner, double radius)
+    {
+        var pbd = new PbdBody([new Particle(world + Double3.Up * radius, 1, radius)]) { Friction = 0.4, Bounce = 0.05 };
+        var b = new Body(_nextId++, BodyKind.Loot, PlayerState.World, pbd) { LineHint = lineHint, Owner = owner };
         _bodies.Add(b);
         return b;
     }

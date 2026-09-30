@@ -1,0 +1,39 @@
+// What's found at a stop (level-design P2, P12, P14). The layout (stops.json) places containers, each of a kind, and
+// never items: at the start of a run the economy fills them from these tables and the run's seed. First pass; not in
+// the spec.
+{
+  // Yard containers become things you load: a crate stack is cargo crates to carry into a car, a crane bay a casting
+  // for a crane to lift onto one, a strongroom a heavy crate that needs two (facilities.json). They pay as cargo does
+  // (spec F.1), so they carry no value here.
+  "yard": {
+    "crateStack": { "crates": [1, 2] },
+    "craneBay": { "castings": 1 },
+    "strongroom": { "heavy": 1 }
+  },
+
+  // Village finds are small things a player carries aboard by hand, and they pay on the spot (GDD §19's medicine,
+  // tools and treats). A stop's finds are worth this many of the tier's value per car (run.json economy.perCar)
+  // between them, split by each container's weight; an outlier's weigh this much more (P11).
+  "villageBudget": [0.3, 0.6],
+  "outlierWeight": 1.8,
+  // Stowed: lying still inside any car for this long.
+  "settleSeconds": 1.0,
+  "radius": 0.15,
+
+  // What each kind of container can hold, and how much of the budget it draws.
+  "kinds": {
+    "cupboard":   { "weight": 1.0, "items": ["treats", "tinnedFood", "candles"] },
+    "cabinet":    { "weight": 1.3, "items": ["medicine", "bandages", "morphine"] },
+    "cellar":     { "weight": 1.2, "items": ["preserves", "treats", "tools"] },
+    "underFloor": { "weight": 1.6, "items": ["valuableTools", "medicine", "pocketWatch"] },
+    "bench":      { "weight": 0.9, "items": ["tools", "lampParts"] },
+    "hayloft":    { "weight": 1.0, "items": ["tools", "lampOil", "rope"] }
+  },
+
+  // Names for the HUD.
+  "items": {
+    "treats": "Treats", "tinnedFood": "Tinned food", "candles": "Candles", "medicine": "Medicine", "bandages": "Bandages",
+    "morphine": "Morphine", "preserves": "Preserves", "tools": "Tools", "valuableTools": "Valuable tools",
+    "pocketWatch": "Pocket watch", "lampParts": "Lamp parts", "lampOil": "Lamp oil", "rope": "Rope"
+  }
+}

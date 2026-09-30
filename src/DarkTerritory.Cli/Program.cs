@@ -9,6 +9,7 @@ using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
+using DarkTerritory.Sim.Stops;
 using DarkTerritory.Sim.Train;
 
 // `dt` — the headless command-line entry point. Everything an agent needs to inspect or verify
@@ -22,7 +23,7 @@ var content = args is ["edit", ..] or ["mods", ..] ? baseContent : Mods.Mount(ba
 var train = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
 var player = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
 var boiler = DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File));
-var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File));
+var routeTuning = RouteTuning.Load(content);
 
 return args switch
 {
@@ -55,6 +56,8 @@ return args switch
     ["screenshot", ..] => Print(Screenshot(train, content, args)),
     ["route", "gen", ..] => Print(GenerateRoute(routeTuning, content, args)),
     ["route", "sweep", ..] => Print(SweepRoutes(routeTuning, (int)Opt(args, "--seeds", 200))),
+    ["site", "sweep", ..] => Print(SweepStops(routeTuning, LoadStops(content), (int)Opt(args, "--seeds", 60))),
+    ["site", ..] => Print(ShowStop(routeTuning, LoadStops(content), args)),
     ["harness", ..] => Print(RunHarness(args)),
     ["balance", ..] => PrintBalance(RunBalance(args)),
     ["online", "check"] => Print(OnlineCheck()),
@@ -497,6 +500,88 @@ static object SweepRoutes(RouteTuning t, int seeds) => Enum.GetValues<RouteTier>
     };
 }).ToList();
 
+static StopTuning LoadStops(string content) => DataFile.Load<StopTuning>(Path.Combine(content, StopTuning.File));
+
+static StopContext StopContextOf(RouteTuning t) => t.StopContext;
+
+// One stop's layout (level-design Parts D and Z): the summary, every check, and a top-down plan PNG.
+static object ShowStop(RouteTuning rt, StopTuning st, string[] args)
+{
+    var tier = Enum.Parse<RouteTier>(Str(args, "--tier", "frontier"), ignoreCase: true);
+    ulong seed = (ulong)Opt(args, "--seed", 1);
+    var kind = Enum.Parse<StopKind>(Str(args, "--kind", "yardAndVillage"), ignoreCase: true);
+    StopLayout layout;
+    if (Str(args, "--route", "") is { Length: > 0 } spec)
+    {
+        // A stop as a generated night has it: the route's i-th stop (facilities' yards and village halts, in order).
+        var (rtier, rseed) = Route.ParseSpec(spec);
+        var stops = RouteGenerator.Generate(rt, rtier, rseed).Features.Where(f => f.Stop is not null).ToList();
+        int i = (int)Opt(args, "--stop", 0);
+        if (i < 0 || i >= stops.Count)
+            throw new ArgumentException($"{spec} has {stops.Count} stops (--stop 0..{stops.Count - 1})");
+        layout = stops[i].Stop!;
+        (tier, seed, kind) = (layout.Tier, layout.Seed, layout.Kind);
+    }
+    else
+        layout = StopGenerator.Generate(st, tier, seed, kind, StopContextOf(rt));
+    string plan = Str(args, "--out", $"out/stops/{tier}-{seed}-{kind}.png");
+    int size = (int)Opt(args, "--size", 900);
+    PngWriter.Write(plan, StopMap.Render(layout, size), size, size);
+    return new
+    {
+        tier = tier.ToString(),
+        seed,
+        kind = layout.Kind.ToString(),
+        form = layout.Form?.ToString(),
+        village = layout.VillageForm?.ToString(),
+        arrangement = layout.Arrangement.ToString(),
+        attempt = layout.Attempt + 1,
+        layout.InBand,
+        band = StopGenerator.Band(st, layout),
+        layout.Moves,
+        tracks = layout.Tracks.Select(t => new { t.Index, side = t.Side, toe = Math.Round(t.Toe, 1), offset = t.Offset, length = Math.Round(t.Length, 1), t.Capacity, t.FaceCars, crane = t.Crane }),
+        buildings = layout.Buildings.GroupBy(b => b.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+        containers = layout.Containers.GroupBy(c => c.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+        checks = layout.Checks.Where(c => c.Applies).Select(c => new { c.Name, c.Pass, c.Detail }),
+        plan = Path.GetFullPath(plan),
+    };
+}
+
+// Many stops per tier: how hard they come out, how often they land in their band, which checks they fail (P15).
+static object SweepStops(RouteTuning rt, StopTuning st, int seeds)
+{
+    var cx = StopContextOf(rt);
+    return Enum.GetValues<RouteTier>().Select(tier =>
+    {
+        var result = new Dictionary<string, object>();
+        foreach (var kind in Enum.GetValues<StopKind>())
+        {
+            var first = new List<double>();
+            var kept = new List<StopLayout>();
+            for (int s = 1; s <= seeds; s++)
+            {
+                first.Add(StopGenerator.Attempt(st, tier, (ulong)s, kind, cx, 0).Moves.Score);
+                kept.Add(StopGenerator.Generate(st, tier, (ulong)s, kind, cx));
+            }
+            double Q(IEnumerable<double> v, double q) { var a = v.OrderBy(x => x).ToList(); return a[(int)Math.Round(q * (a.Count - 1))]; }
+            result[kind.ToString()] = new
+            {
+                firstAttempt = new[] { 0.05, 0.25, 0.5, 0.75, 0.95 }.Select(q => Q(first, q)),
+                kept = new[] { 0.05, 0.5, 0.95 }.Select(q => Q(kept.Select(l => l.Moves.Score), q)),
+                band = StopGenerator.Band(st, kept[0]),
+                inBand = Math.Round(kept.Average(l => l.InBand ? 1.0 : 0), 3),
+                valid = Math.Round(kept.Average(l => l.Valid ? 1.0 : 0), 3),
+                meanAttempts = Math.Round(kept.Average(l => l.Attempt + 1.0), 2),
+                forms = kept.Where(l => l.Form is not null).GroupBy(l => l.Form!.Value).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+                villages = kept.Where(l => l.VillageForm is not null).GroupBy(l => l.VillageForm!.Value).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+                failing = kept.SelectMany(l => l.Checks.Where(c => c.Applies && !c.Pass)).GroupBy(c => c.Name).ToDictionary(g => g.Key, g => g.Count()),
+                examples = kept.Where(l => !l.Valid).Take(4).Select(l => new { l.Seed, failed = l.Checks.Where(c => c.Applies && !c.Pass).Select(c => $"{c.Name}: {c.Detail}") }),
+            };
+        }
+        return new { tier = tier.ToString(), stops = result };
+    }).ToList();
+}
+
 static object LineInfo(RailLine line, double every) => new
 {
     name = line.Name,
@@ -551,7 +636,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
 
     // --route tier:seed generates the night in memory; --coaling stops the train at its coaling tower, chute pouring.
     Route? generated = Str(args, "--route", "") is { Length: > 0 } spec
-        ? RouteGenerator.Generate(DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File)), Route.ParseSpec(spec).Tier, Route.ParseSpec(spec).Seed)
+        ? RouteGenerator.Generate(RouteTuning.Load(content), Route.ParseSpec(spec).Tier, Route.ParseSpec(spec).Seed)
         : null;
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
     var consist = Consist.Uniform(t, cars, 1);
@@ -887,7 +972,7 @@ static object HudShot(string content, string[] args)
 {
     int cars = (int)Opt(args, "--cars", 6);
     Route? generated = Str(args, "--route", "") is { Length: > 0 } spec
-        ? RouteGenerator.Generate(DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File)), Route.ParseSpec(spec).Tier, Route.ParseSpec(spec).Seed)
+        ? RouteGenerator.Generate(RouteTuning.Load(content), Route.ParseSpec(spec).Tier, Route.ParseSpec(spec).Seed)
         : null;
     var session = generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
     session.Controls.Throttle = Opt(args, "--throttle", 0.6);
@@ -1007,6 +1092,10 @@ static int Usage()
           route gen [--tier local|frontier|deadLines|deepTerritory] [--seed n] [--name generated] [--map file.png]
                      writes content/lines/<name>.json (+ .route.json) and a map; try `screenshot --line generated`
           route sweep [--seeds n]                  generate n routes per tier and report ranges
+          site [--tier t] [--seed n] [--kind yard|yardAndVillage|village] [--route tier:seed --stop i] [--out file.png] [--size px]
+                     one stop's layout (docs/design/level-design.md): its tracks, buildings, loot containers, how hard it
+                     is to work, every invariant, and a top-down plan PNG (default out/stops/)
+          site sweep [--seeds n]                   n stops per tier and kind: difficulty, band hits, attempts, failing checks
           harness [--bots n] [--cars n] [--seconds t] [--seed s] [--latency s] [--jitter s] [--loss 0..1] [--line name | --route tier:seed]
                      [--enemies] [--no-combat] [--no-boiler] [--udp | --online] [--trace file]   --udp: real sockets on localhost instead of the simulated link;
                      --online: every bot joins a lobby on the fake Steam and plays over relayed P2P

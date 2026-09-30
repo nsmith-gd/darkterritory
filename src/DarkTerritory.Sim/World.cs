@@ -194,11 +194,15 @@ public sealed class World
 
     /// <summary>Starts the run. The host steps it (<see cref="StepRun"/>); clients mirror it from records.</summary>
     /// <param name="facilities">The facilities' loading modules (spec D); null for none.</param>
-    public void EnableRun(Run.RunTuning tuning, Route.Route route, double yardLength, bool authority, Run.FacilityTuning? facilities = null)
+    /// <param name="loot">What the stops' containers hold (level-design P14): the yards' crates and castings, the villages' finds; null for none.</param>
+    public void EnableRun(Run.RunTuning tuning, Route.Route route, double yardLength, bool authority, Run.FacilityTuning? facilities = null,
+        Stops.LootTuning? loot = null)
     {
         Run = new Run.Run(tuning, route) { YardLength = yardLength };
         if (facilities is not null)
             Run.EnableSites(facilities, Train.Line);
+        if (loot is not null)
+            Run.EnableLoot(loot, Train.Line, facilities);
         Authority |= authority;
     }
 
@@ -251,7 +255,10 @@ public sealed class World
         bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand);
         // At the crane's controls, the stick drives the crane, not your feet (T48). Worked out the same everywhere, so a
         // client predicts standing still at the stand.
-        bool operating = Run?.CurrentSite?.Crane is { } crane && crane.AtControls(s, intent, Train);
+        bool operating = false;
+        if (Run?.CurrentSite is { } site)
+            foreach (var crane in site.Cranes)
+                operating |= crane.AtControls(s, intent, Train);
         s.Flags = operating ? s.Flags | PlayerFlags.Operating : s.Flags & ~PlayerFlags.Operating;
         if (Authority)
         {

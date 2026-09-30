@@ -60,7 +60,7 @@ public class CampaignSessionTests
     {
         // The coaling tower stands over the main line (the rest are down spurs): stopped under it near the far end of
         // its zone, then away past the end of it.
-        var route = RouteGenerator.Generate(DataFile.Load<RouteTuning>(Path.Combine(Content, RouteTuning.File)), RouteTier.Frontier, 7);
+        var route = RouteGenerator.Generate(RouteTuning.Load(Content), RouteTier.Frontier, 7);
         var facilities = route.Of(FeatureKind.Facility).ToList();
         var facility = facilities.First(f => f.Facility == FacilityKind.CoalingTower);
         int index = facilities.IndexOf(facility);

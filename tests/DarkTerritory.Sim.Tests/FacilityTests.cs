@@ -41,7 +41,8 @@ public class FacilityTests
         {
             var (route, f) = With(module);
             var line = route.Build();
-            var spur = line.Branches.Single(b => b.Kind == BranchKind.Spur && f.Contains(b.Toe));
+            // The facility's own track: its yard's first (level-design P6), where its loading modules stand.
+            var spur = line.Branches.First(b => b.Kind == BranchKind.Spur && f.Contains(b.Toe));
             var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 0)), line, spur.End - 0.5, Tuning.Boiler);
             var state = train.Capture();
             train.Restore(state with { Rakes = [state.Rakes[0] with { Path = spur.Index }] });
