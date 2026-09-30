@@ -75,7 +75,13 @@
     // The filmic tonemap's exposure; the wide bloom's share of the glow; lens fringing toward the corners.
     "exposure": 1.0,
     "wideBloom": 0.5,
-    "lensFringe": 0.006
+    "lensFringe": 0.006,
+    // Screen-space ambient occlusion (the 2008-2012 benchmarks' contact shadow): how much it darkens, how far round each
+    // point it looks (m), its gain, and where it's faded out into the fog (m).
+    "occlusion": 1.0,
+    "occlusionRadius": 0.6,
+    "occlusionIntensity": 2.0,
+    "occlusionFar": 60
   },
   // The night's light and air (§28: "cool ambient night, deep shadow pockets, headlamp and lantern cones").
   "atmosphere": {

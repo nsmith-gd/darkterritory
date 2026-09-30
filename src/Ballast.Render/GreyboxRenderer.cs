@@ -75,6 +75,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     readonly Target _color, _scene, _depth, _bloomA, _bloomB, _shadow;
     // The wide bloom's quarter-resolution pair, and the tonemapped frame FXAA reads (luma in alpha).
     readonly Target _bloomC, _bloomD, _ldr;
+    // The screen-space occlusion, at half resolution (ssao.frag), from the scene's depth.
+    readonly Target _ao;
     const VkFormat LdrFormat = VkFormat.R8G8B8A8Unorm;
     const int ShadowSize = 1024;
     readonly VkSampler _shadowSampler;
@@ -88,7 +90,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
     readonly VkDescriptorPool _pool;
     readonly VkDescriptorSetLayout _sceneSetLayout, _postSetLayout, _compositeSetLayout;
-    readonly VkDescriptorSet _sceneSet, _brightSet, _blurHSet, _blurVSet, _compositeSet, _blurH2Set, _blurV2Set, _fxaaSet;
+    readonly VkDescriptorSet _sceneSet, _brightSet, _blurHSet, _blurVSet, _compositeSet, _blurH2Set, _blurV2Set, _fxaaSet, _aoSet;
     readonly VkPipelineLayout _sceneLayout, _postLayout, _compositeLayout, _overlayLayout;
     readonly VkPipeline _fxAlphaPipeline, _fxAddPipeline;
     VkBuffer _fxVertices;
@@ -96,7 +98,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     ulong _fxCapacity;
     int _fxAlphaCount, _fxAddCount;
     readonly List<FxVertex> _fx = new();
-    readonly VkPipeline _skyPipeline, _scenePipeline, _brightPipeline, _blurPipeline, _compositePipeline, _overlayPipeline, _fxaaPipeline;
+    readonly VkPipeline _skyPipeline, _scenePipeline, _brightPipeline, _blurPipeline, _compositePipeline, _overlayPipeline, _fxaaPipeline, _aoPipeline;
+    Matrix4x4 _projection;
     readonly VkSampler _nearest, _linear;
 
     GpuTexture _diffuse, _spec, _backdrop, _lut, _normal;
@@ -142,7 +145,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
         _color = CreateTarget(_colorFormat, width, height, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.TransferSrc, VkImageAspectFlags.Color);
         _scene = CreateTarget(SceneFormat, width, height, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color);
-        _depth = CreateTarget(DepthFormat, width, height, VkImageUsageFlags.DepthStencilAttachment, VkImageAspectFlags.Depth);
+        _depth = CreateTarget(DepthFormat, width, height, VkImageUsageFlags.DepthStencilAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Depth);
+        _ao = CreateTarget(LdrFormat, hw, hh, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color);
         _bloomA = CreateTarget(SceneFormat, hw, hh, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color);
         _bloomB = CreateTarget(SceneFormat, hw, hh, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color);
         int qw = Math.Max(1, width / 4), qh = Math.Max(1, height / 4);
@@ -187,7 +191,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _postSetLayout = SetLayout([(VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment)]);
         _compositeSetLayout = SetLayout([(VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
             (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
-            (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment)]);
+            (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment)]);
         var sizes = stackalloc VkDescriptorPoolSize[2];
         sizes[0] = new VkDescriptorPoolSize { type = VkDescriptorType.UniformBuffer, descriptorCount = 2 };
         sizes[1] = new VkDescriptorPoolSize { type = VkDescriptorType.CombinedImageSampler, descriptorCount = 32 };
@@ -203,6 +207,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _blurH2Set = Allocate(_postSetLayout);
         _blurV2Set = Allocate(_postSetLayout);
         _fxaaSet = Allocate(_postSetLayout);
+        _aoSet = Allocate(_postSetLayout);
 
         _sceneLayout = PipelineLayout(_sceneSetLayout, (uint)sizeof(DrawConstants), VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment);
         _postLayout = PipelineLayout(_postSetLayout, (uint)sizeof(PostConstants), VkShaderStageFlags.Fragment);
@@ -218,6 +223,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _blurPipeline = Pipeline(_postLayout, "fullscreen.vert", "blur.frag", SceneFormat, PipelineKind.Fullscreen, depth: false);
         _compositePipeline = Pipeline(_compositeLayout, "fullscreen.vert", "composite.frag", LdrFormat, PipelineKind.Fullscreen, depth: false);
         _fxaaPipeline = Pipeline(_postLayout, "fullscreen.vert", "fxaa.frag", _colorFormat, PipelineKind.Fullscreen, depth: false);
+        _aoPipeline = Pipeline(_postLayout, "fullscreen.vert", "ssao.frag", LdrFormat, PipelineKind.Fullscreen, depth: false);
         _overlayPipeline = Pipeline(_overlayLayout, "overlay.vert", "overlay.frag", _colorFormat, PipelineKind.Overlay, depth: false);
 
         // Until there are assets: one plain white layer (the greybox's flat colour), no backdrop, no grade.
@@ -302,6 +308,12 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
     /// <summary>Draws the mesh (camera-relative positions) and returns the frame as RGBA8, top row first.</summary>
     /// <param name="clearColor">Linear colour at the horizon (the fog's, usually).</param>
+    /// <summary>
+    /// The overlay's canvas, when it isn't the frame's own pixels: the HUD and menus lay out on a small fixed canvas (their
+    /// pixel font's), scaled to however large the frame renders.
+    /// </summary>
+    public Vector2? OverlaySize { get; set; }
+
     /// <param name="overlay">2D drawing over the frame (the HUD), or null.</param>
     public byte[] Render(MeshBuilder mesh, in Camera camera, in FrameLighting lighting, Vector3 clearColor, Overlay? overlay = null)
     {
@@ -555,7 +567,17 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         }
         Api.vkCmdEndRendering(cmd);
         Transition(cmd, _scene.Image, VkImageAspectFlags.Color, VkImageLayout.ColorAttachmentOptimal, VkImageLayout.ShaderReadOnlyOptimal);
+        Transition(cmd, _depth.Image, VkImageAspectFlags.Depth, VkImageLayout.DepthAttachmentOptimal, VkImageLayout.ShaderReadOnlyOptimal);
         Stats = (triangles, _draws.Count + 2, _lights.Count);
+
+        // 2b: the occlusion from the depth, at half resolution.
+        _projection = camera.Projection((float)Width / Height);
+        PostPass(cmd, _ao, _aoPipeline, _postLayout, _aoSet, new PostConstants
+        {
+            A = new Vector4(_projection.M33, _projection.M43, _projection.M11, _projection.M22),
+            B = new Vector4(Post.OcclusionRadius, Post.OcclusionIntensity, 1f / Width, 1f / Height),
+            C = new Vector4(Post.OcclusionFar, 0, 0, 0),
+        });
 
         // 3: bloom at half resolution.
         var bloomStep = new Vector2(1f / _bloomA.Width, 1f / _bloomA.Height);
@@ -574,7 +596,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         {
             A = new Vector4(Post.BloomStrength, Post.Vignette, Post.Grain, Post.ColourLevels),
             B = new Vector4((float)(lighting.Time * 30 % 997), (float)Width / Height, Post.Ps2 ? 1 : 0, Post.Exposure),
-            C = new Vector4(Post.WideBloom, Post.LensFringe, 0, 0),
+            C = new Vector4(Post.WideBloom, Post.LensFringe, Post.Ps2 ? 0 : Post.Occlusion, 1f / _ao.Width),
         };
         Transition(cmd, _ldr.Image, VkImageAspectFlags.Color, VkImageLayout.Undefined, VkImageLayout.ColorAttachmentOptimal);
         BeginRendering(cmd, _ldr, withDepth: false);
@@ -597,7 +619,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         if (_overlayCount > 0)
         {
             Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _overlayPipeline);
-            var size = new Vector2(Width, Height);
+            var size = OverlaySize ?? new Vector2(Width, Height);
             Api.vkCmdPushConstants(cmd, _overlayLayout, VkShaderStageFlags.Vertex, 0, (uint)sizeof(Vector2), &size);
             var ob = _overlayVertices;
             ulong zero = 0;
@@ -660,7 +682,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             imageView = _depth.View,
             imageLayout = VkImageLayout.DepthAttachmentOptimal,
             loadOp = VkAttachmentLoadOp.Clear,
-            storeOp = VkAttachmentStoreOp.DontCare,
+            storeOp = VkAttachmentStoreOp.Store,
             clearValue = new VkClearValue { depthStencil = new VkClearDepthStencilValue(1, 0) },
         };
         var rendering = new VkRenderingInfo
@@ -764,7 +786,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
     void WriteSets()
     {
-        var images = stackalloc VkDescriptorImageInfo[16];
+        var images = stackalloc VkDescriptorImageInfo[18];
         images[0] = new VkDescriptorImageInfo { sampler = Post.Ps2 ? _crunchy : _diffuse.Sampler, imageView = _diffuse.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[1] = new VkDescriptorImageInfo { sampler = Post.Ps2 ? _crunchy : _spec.Sampler, imageView = _spec.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[2] = new VkDescriptorImageInfo { sampler = _backdrop.Sampler, imageView = _backdrop.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
@@ -780,7 +802,9 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         images[11] = new VkDescriptorImageInfo { sampler = _linear, imageView = _bloomD.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[12] = new VkDescriptorImageInfo { sampler = _linear, imageView = _ldr.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[13] = new VkDescriptorImageInfo { sampler = Post.Ps2 ? _crunchy : _normal.Sampler, imageView = _normal.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
-        var writes = stackalloc VkWriteDescriptorSet[16];
+        images[14] = new VkDescriptorImageInfo { sampler = _nearest, imageView = _depth.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
+        images[15] = new VkDescriptorImageInfo { sampler = _linear, imageView = _ao.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
+        var writes = stackalloc VkWriteDescriptorSet[18];
         VkWriteDescriptorSet Image(VkDescriptorSet set, uint binding, int image) => new()
         {
             dstSet = set,
@@ -805,7 +829,9 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         writes[13] = Image(_blurV2Set, 0, 11);
         writes[14] = Image(_fxaaSet, 0, 12);
         writes[15] = Image(_sceneSet, 5, 13);
-        Api.vkUpdateDescriptorSets(16, writes, 0, null);
+        writes[16] = Image(_aoSet, 0, 14);
+        writes[17] = Image(_compositeSet, 4, 15);
+        Api.vkUpdateDescriptorSets(18, writes, 0, null);
     }
 
     VkPipelineLayout PipelineLayout(VkDescriptorSetLayout? set, uint pushSize, VkShaderStageFlags pushStages)
@@ -998,7 +1024,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             Api.vkFreeMemory(_fxMemory, null);
         }
         Api.vkDestroySampler(_shadowSampler, null);
-        foreach (var p in new[] { _shadowPipeline, _fxAlphaPipeline, _fxAddPipeline, _skyPipeline, _scenePipeline, _brightPipeline, _blurPipeline, _compositePipeline, _overlayPipeline, _fxaaPipeline })
+        foreach (var p in new[] { _shadowPipeline, _fxAlphaPipeline, _fxAddPipeline, _skyPipeline, _scenePipeline, _brightPipeline, _blurPipeline, _compositePipeline, _overlayPipeline, _fxaaPipeline, _aoPipeline })
             Api.vkDestroyPipeline(p, null);
         foreach (var l in new[] { _sceneLayout, _postLayout, _compositeLayout, _overlayLayout })
             Api.vkDestroyPipelineLayout(l, null);
@@ -1033,7 +1059,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         Api.vkFreeMemory(_frameMemory, null);
         Api.vkDestroyBuffer(_readback, null);
         Api.vkFreeMemory(_readbackMemory, null);
-        foreach (var t in new[] { _color, _scene, _depth, _bloomA, _bloomB, _shadow, _bloomC, _bloomD, _ldr })
+        foreach (var t in new[] { _color, _scene, _depth, _bloomA, _bloomB, _shadow, _bloomC, _bloomD, _ldr, _ao })
             DestroyTarget(t);
     }
 }

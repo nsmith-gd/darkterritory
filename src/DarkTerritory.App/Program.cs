@@ -98,7 +98,10 @@ Launch? LaunchFromArgs()
 var launch = LaunchFromArgs();
 bool fromCommandLine = launch is not null;
 
-var internalSize = Arg("--internal", "480x270").Split('x').Select(int.Parse).ToArray();
+// The frame renders at the window's 720p (the 2008-2012 target, ARCHITECTURE §8 note 57); the HUD and menus keep their
+// 480x270 canvas (their pixel font's), scaled up over it.
+var internalSize = Arg("--internal", "1280x720").Split('x').Select(int.Parse).ToArray();
+const int UiWidth = 480, UiHeight = 270;
 double quitAfter = double.Parse(Arg("--quit-after", "0"));
 string? capture = Arg("--capture", "") is { Length: > 0 } c ? c : null;
 
@@ -121,7 +124,7 @@ VrView? StartVr()
 }
 using var ownGpu = vr is null ? new GpuContext("Dark Territory", Window.VulkanInstanceExtensions(), window.CreateSurface) : null;
 var gpu = vr?.Gpu ?? ownGpu!;
-using var renderer = new GreyboxRenderer(gpu, internalSize[0], internalSize[1]);
+using var renderer = new GreyboxRenderer(gpu, internalSize[0], internalSize[1]) { OverlaySize = new Vector2(UiWidth, UiHeight) };
 if (look is not null)
 {
     look.Dress(renderer);
@@ -242,10 +245,10 @@ Launch? Menu()
         }
         var camera = view;
         camera.Yaw += Math.Sin((timer.Elapsed.TotalSeconds - started) * 0.07) * 0.25;
-        frontEnd.Draw(overlay, renderer.Width, renderer.Height);
+        frontEnd.Draw(overlay, UiWidth, UiHeight);
         renderer.Prepare(mesh, overlay);
         Present(camera, light);
-        if (vr is not null && vr.Frame(mesh, view, light, light.FogColor, panel: new VrPanelContent(vrMenu!, overlay, renderer.Width, renderer.Height)) == XrFrameResult.Exiting)
+        if (vr is not null && vr.Frame(mesh, view, light, light.FogColor, panel: new VrPanelContent(vrMenu!, overlay, UiWidth, UiHeight)) == XrFrameResult.Exiting)
             return new Launch.Quit();
         FeedSpeaker();
         input.EndFrame();
@@ -551,16 +554,16 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
         if (showHud)
         {
-            Hud.Build(overlay, renderer.Width, renderer.Height, session);
+            Hud.Build(overlay, UiWidth, UiHeight, session);
             if (session.Route?.Plan is { } shown)
             {
                 if (cardPage >= 0)
-                    cardPages = DarkTerritory.Game.LineGen.PlanHud.RouteCard(overlay, renderer.Width, renderer.Height, shown, cardPage);
+                    cardPages = DarkTerritory.Game.LineGen.PlanHud.RouteCard(overlay, UiWidth, UiHeight, shown, cardPage);
                 if (showPlan)
-                    DarkTerritory.Game.LineGen.PlanHud.Overlay(overlay, renderer.Width, renderer.Height, session, shown);
+                    DarkTerritory.Game.LineGen.PlanHud.Overlay(overlay, UiWidth, UiHeight, session, shown);
             }
             if (session.World.Run?.Over == true)
-                overlay.TextCentred(renderer.Width / 2f, renderer.Height - 22, campaign is not null ? "ENTER: BACK TO THE FORTRESS" : "ENTER: BACK", new Vector4(1, 0.7f, 0.3f, 1));
+                overlay.TextCentred(UiWidth / 2f, UiHeight - 22, campaign is not null ? "ENTER: BACK TO THE FORTRESS" : "ENTER: BACK", new Vector4(1, 0.7f, 0.3f, 1));
         }
         renderer.Prepare(mesh, showHud ? overlay : null);
         Present(camera, lighting);
@@ -592,7 +595,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     if (capture is not null)
     {
         var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud ? overlay : null);
-        PngWriter.Write(capture, pixels, renderer.Width, renderer.Height, scale: 2);
+        PngWriter.Write(capture, pixels, renderer.Width, renderer.Height, scale: 1);
         Console.WriteLine($"captured {Path.GetFullPath(capture)}");
     }
     Console.WriteLine($"ticks {session.Tick}, {session.Status()}");

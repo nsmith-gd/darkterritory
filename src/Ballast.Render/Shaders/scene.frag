@@ -30,6 +30,18 @@ layout(location = 0) out vec4 outColor;
 const vec3 GROUND_BOUNCE = vec3(0.55, 0.5, 0.45);
 const vec3 SKY_FILL = vec3(0.75, 0.85, 1.05);
 
+// The night as a surface sees it in reflection: no cubemap, the sky's own gradient (the haze at the horizon, the zenith
+// over it, the dark fogged ground under it). What the benchmarks' wet metal and glass shone with.
+vec3 envAt(vec3 r) {
+    vec3 horizon = frame.fog.rgb * frame.sky2.z;
+    vec3 c = mix(horizon, frame.sky.rgb, smoothstep(0.02, 0.6, r.y));
+    c = mix(c, frame.fog.rgb * 0.45, smoothstep(0.0, -0.25, r.y));
+    // (The moon itself is left to the direct specular: in a reflection, off a bumpy normal map, it scatters into sparkle.)
+    // What a reflection sees along the horizon and under it is mostly the world, not the sky: the other cars, the
+    // cab's own walls, trees. Without a probe to say so, it's darker there.
+    return c * mix(0.3, 1.0, smoothstep(-0.05, 0.45, r.y));
+}
+
 float hash(vec3 p) {
     p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419));
     p *= 17.0;
@@ -283,6 +295,18 @@ void main() {
     }
 
     vec3 colour = albedo * light + spec * specStrength * (vWear > 0.0 ? 0.55 + 0.45 * noise(vSurface / 16.0) : 1.0);
+    // Reflection, by Schlick's Fresnel: every surface picks up the sky at a grazing angle, the glossy ones (brass, glass,
+    // wet steel, a puddle) head on too; the rough ones hardly at all. Indoors it's the lamplit room, warm and dim.
+    if (!ps2) {
+        float gloss = textured ? specMap.g : 0.45;
+        gloss = mix(gloss, 0.8, up);
+        float f0 = mix(0.02, 0.3, clamp(specStrength * 1.4, 0.0, 1.0)); // glass and water ~0.02-0.04, worn metal more
+        // (A face seen from behind, a card or a thin plate, reflects off the side that faces the eye.)
+        vec3 nf = dot(n, v) < 0.0 ? -n : n;
+        float fres = f0 + (1.0 - f0) * pow(1.0 - dot(nf, v), 5.0);
+        vec3 env = mix(envAt(reflect(-v, nf)), vec3(0.03, 0.022, 0.014), inside);
+        colour += env * fres * gloss * gloss * smoothstep(0.25, 0.7, gloss) * (1.0 - scar.w) * 1.6;
+    }
     float emissive = max(vEmissive, specMap.b);
     colour = mix(colour, albedo * 2.0 * vGlow, emissive);
 
