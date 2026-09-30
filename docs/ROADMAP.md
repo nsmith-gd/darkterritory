@@ -22,6 +22,11 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
 - **Boiler, walkable cab and resistance:** spec B.6 is pinned.
 - **Rakes:** cutting, coupling and collision damage.
 - **Procedural routes:** tiers, facilities, tunnels, bridges, and hazards as level content.
+- **Generated stops (level-design Parts D and Z):**
+  - Every facility has a yard of nested spurs, and many have a village nearby. Village halts sit between the facilities.
+  - Each tier is harder than the last, by a measured difficulty band.
+  - Loot comes from the run's economy: crates, strongrooms, castings under yard gantries, and village finds that pay once stowed aboard.
+  - `dt site` draws a plan, and `dt site sweep` sweeps a tier.
 - **Play a night:** `DarkTerritory -- --route frontier:7` runs one, enemies and all (`--no-enemies` for a quiet line). The HUD prints text cues for the telegraphs until there's audio.
 - **Guns and the Choir:** two mounted guns with real arcs, and the Choir's global aggro.
 - **Demo roster and director (M5's "5 demo enemies"):**

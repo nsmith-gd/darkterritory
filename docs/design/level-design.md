@@ -306,3 +306,42 @@ Per CLAUDE.md ("make it verifiable headless") the implementation gets `dt site -
 4. **The village** doesn't have to be opposite the yard, or attached to it. A stop can be just a village, or a yard with no village (P1, Z.4).
 5. **"Infinite scale"** means infinite replayability: every run is generated fresh from a seed (Part Z preamble).
 6. **More variety; early runs easier, later runs harder:** Part D.
+
+---
+
+# PART I — AS BUILT
+
+What the game does with these rules today (ARCHITECTURE §8 note 65 has the engineering).
+
+## I.1 Where it lives
+- **Rules and numbers:** `content/tuning/stops.json`, with the Part D levers per tier, and `content/tuning/loot.json`, the economy's half of P14.
+- **The generator:** `src/DarkTerritory.Sim/Stops/`. It generates, measures (P15), validates (Z.5) and rerolls.
+- **Looking at stops:**
+  - `dt site --tier deadLines --seed 12 --kind yardAndVillage` draws a stop's plan to `out/stops/`.
+  - `dt site --route frontier:7 --stop 4` draws a generated night's own stop.
+  - `dt site sweep --seeds 60` prints each tier's difficulty spread and which checks fail.
+- **Seeing one in game:** `dt screenshot --route frontier:7 --site --facility 2`.
+
+## I.2 How it reads the principles
+- **P1, the stop kinds:** yard only; yard and village (opposite, set back, or along the line); or a village on its own halt. Tiers weight the arrangements.
+- **P5–P8, the yard:** spur, ladder, fan and split forms. Shed rows stand between the tracks, and the hero stands at the far end, or along a fan's curve.
+- **P9–P12, the village:** blocks, street, crossroads and farmsteads. There are stub roads out to 1–2 outlier houses, and a village always has at least one find on its floor.
+- **P14, the loot:** the layout places containers, and the run's economy fills them when the train first stops there.
+- **P15, the score:** the planner is *supply-limited*. Each trip goes to the track with the most loadable loot left, and costs throws, couplings, reversals, blind moves, re-spots, hand cars, carrying, the switchman's walk and a blocked crossing. The village adds its walk and the odds of finding things.
+- **P16, a siding's size:** the cars that fit on its shared loading face, engine included.
+
+## I.3 Tier bands in the sim
+The artifact's scores illustrate the rules. The sim is calibrated to its own measure, so its numbers differ. Median scores over 60 seeds:
+
+| Tier | Yard only | Yard + village | Band (yard / village) |
+|---|---|---|---|
+| Local | 11 | 19 | 4–20 / 10–18 |
+| Frontier | 23 | 32 | 14–36 / 14–22 |
+| Dead Lines | 36 | 47 | 28–56 / 18–28 |
+| Deep Territory | 53 | 66 | 34–100 / 22–36 |
+
+## I.4 Not yet
+- Trailing points and loops (a north lead), since the engine only branches facing off the main line.
+- Power, derelict cars and grade as levers.
+- Bots don't scavenge villages.
+- Buildings have no collision, and their interiors aren't modelled: finds lie where their container is.

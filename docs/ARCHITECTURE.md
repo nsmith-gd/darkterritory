@@ -1322,3 +1322,28 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - the guns can't take it;
       - the director lays it at a water crossing ahead and nowhere else;
       - a client drags as the host does.
+
+65. **Generated stops: yards, villages and their loot (level-design Part D, Part Z).** Every facility's zone, and a few village halts between them, holds a stop generated from `tuning/stops.json` (`Sim/Stops/`). Its loot comes from the run's economy (`tuning/loot.json`).
+    - **Seeded by hash (Z.1):** a stop's seed is `hash(route seed, stop index, tier)`, and each attempt's is `hash(stop seed, attempt)` (`StopSeed`, SplitMix64). One stop never shifts another; the same night is the same stops on every machine.
+    - **Generate, measure, validate, reroll:** up to `maxAttempts` (8). Each attempt is scored for manoeuvre difficulty (P15, `StopGenerator.Measure`) and checked against Z.5's invariants (`StopChecks`). The first attempt that passes everything and lands in the tier's band is kept, or else the closest one. A 60-seed sweep (`dt site sweep`) lands 98–100% in band, all valid.
+    - **Yards are nested spurs off the main line.** `RailLine` branches only come off the main line and face up-line, so a ladder, fan or split is several spurs, each at its own switch. The first toe leads to the outermost track, so none cross. Each track is an S-curve turnout (radius `turnoutRadius`, 60 m) out to its offset, a straight loading face, and for a fan a curve away. `BranchDefinition` carries them as segments; `StopGeneratorTests` pins the branch's world path to the layout's to 0.3 m.
+    - **Deferred, as the engine stands:**
+      - trailing points and loops (Z.6 answer 1: a north lead isn't a rule, and the engine can't build one yet);
+      - power, derelict cars and grade as difficulty levers (Part D lists them; the sim has none of them at stops yet).
+    - **Ambiguity: what a siding "holds" (P16).** A spur's capacity (`SpurDrill.Capacity`) is now its *standing length*: the shared loading face from the buffer stop back, engine included. It no longer counts the S-curve or an outer track's straight before the face. Counted over the whole spur, a long outer siding took the whole train and there was nothing to drill.
+    - **Loot (P2, P12, P14):**
+      - The layout says where: crane bays, crate stacks, the hero's strongroom, and village cupboards, cellars, haylofts and the like.
+      - The economy says what: `StopLoot.Village` shares a budget (`villageBudget` × the tier's `perCar`) across a village's finds, by kind weight and an outlier bonus. `CratesIn` sets each stack's crates.
+      - When the train first stops at a stop, its stacks come out as cargo, its strongroom as a heavy crate, and its finds as `BodyKind.Loot`.
+      - A yard's extra gantries carry a casting per bay they reach (`Site.YardCranes`). The Crane record is keyed site × 16 + crane.
+    - **Ambiguity: when a find pays.** A find put down inside any car and left still is *stowed*. It adds to `Run.Scavenged`, which `RunReport.Scavenged` reports and `Gross` includes on delivery, like the cargo it rode with. The Run record grew a field for it.
+    - **The harness** doesn't pass loot tuning, so its nights are unchanged: bots don't scavenge yet.
+    - **Art:**
+      - `WorldArt.Stops` draws each stop in the lineside cells from its layout.
+      - The terrain now runs out to 220 m, and its hills are levelled over a stop's zone, because the sim walks people out to the village at rail height.
+      - A craned shed gets a roofless bay cut through it under the runway, so the gantry's legs and rails stand clear.
+      - The HUD and the operator's view take the crane nearest you.
+    - **Verified:**
+      - `StopGeneratorTests` (29): invariants over 30 seeds a tier, deeper tiers harder, determinism, the route's branches matching the layout, halts on level straight track, finds within their kind and budget, a stowed find paying, and gantries over their faces.
+      - `StopArtTests`: the ground under a stop is level, and every building is drawn in its cell.
+      - Look at them with `dt site --route frontier:7 --stop 4` (the plan) and `dt screenshot --route frontier:7 --site --facility 2` (in game).
