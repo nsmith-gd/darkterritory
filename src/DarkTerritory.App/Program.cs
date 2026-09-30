@@ -446,6 +446,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     int pendingNotch = 0;
     bool pendingReverser = false;
     var pendingLamp = LampSwitch.None;
+    bool pendingCarLamp = false;
+    double voiceLevel = 0;
     bool chase = ride;
     double sensitivity = 0.0025 * settings.MouseSpeed;
     // The player's keys (T80): each control's key, from the settings (a name the platform doesn't know: its default).
@@ -479,6 +481,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // The lamp switch (T52): a setting, the opposite of how the lamp is now, held until a tick sends it.
         if (Hit(Control.Lamp))
             pendingLamp = session.World.LampLit ? LampSwitch.Off : LampSwitch.On;
+        pendingCarLamp |= Hit(Control.CarLamp);
         // Held until a tick sends them: at a high frame rate a key press can land on a frame with no tick.
         pendingNotch += notch;
         pendingReverser |= reverser;
@@ -538,6 +541,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 Buttons = buttons,
                 ThrottleNotch = proto is null ? (sbyte)Math.Clamp(pendingNotch, -4, 4) : (sbyte)0,
                 Lamp = pendingLamp,
+                Actions = (Held(Control.Swing) ? PlayerActions.Swing : 0) | (Held(Control.Whistle) ? PlayerActions.Whistle : 0)
+                    | (pendingCarLamp ? PlayerActions.CarLamp : 0),
+                // How loud you are (GDD v1.1 App. C.7, C.8): the mic while it sends; with no mic, holding Talk counts as
+                // speaking up, so a player without one can still talk the Gaunt down and answer a roll call.
+                Voice = (byte)Math.Clamp(voiceLevel * 255, 0, 255),
             };
             if (locomotion is not null)
             {
@@ -554,6 +562,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             }
             pendingNotch = 0;
             pendingLamp = LampSwitch.None;
+            pendingCarLamp = false;
             pendingReverser = false;
             pendingYaw = pendingPitch = 0;
             session.Step(intent);
@@ -571,9 +580,20 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             voice.TalkHeld = Held(Control.Talk);
             // Only with a radio on you (T41); the host checks too.
             voice.RadioHeld = Held(Control.Radio) && session.World.Bodies.HasRadio(session.PlayerId);
+            double loud = 0;
             for (int n; mic is not null && (n = mic.Read(micSamples)) > 0;)
+            {
                 voice.Capture(micSamples.AsSpan(0, n), net.Client);
+                double sum = 0;
+                for (int k = 0; k < n; k++)
+                    sum += micSamples[k] * micSamples[k];
+                loud = Math.Max(loud, Math.Sqrt(sum / n));
+            }
+            // Speech RMS sits around 0.05-0.2; a shout nearer 0.3 and up.
+            voiceLevel = mic is null ? (Held(Control.Talk) ? 0.5 : 0) : voice.Transmitting ? Math.Clamp(loud * 3.5, 0, 1) : 0;
         }
+        else
+            voiceLevel = Held(Control.Talk) ? 0.5 : 0;
         FeedSpeaker();
 
         var frames = session.InterpolatedFrames(clock.Alpha);

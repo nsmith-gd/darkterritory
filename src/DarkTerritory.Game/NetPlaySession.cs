@@ -419,7 +419,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         string where = PrototypeSession.Where(p, Train);
         string state = p.Alive ? $"{p.Surface} {where} hp {p.Health}{PrototypeSession.Condition(p, Client.PlayerTuning)}" : $"DEAD ({p.Death})";
         return $"{d.Speed,5:0.0} m/s | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} | P {Train.Boiler.Pressure,3:0} fire {Train.Boiler.Firebox:0.0} tender {Train.Boiler.Tender:0} | " +
-               $"choir {World.Choir.Aggro:0} | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state} | {Role()} | {link}" +
+               $"noise {World.Choir.Loudness:0.0}{(World.Choir.Present ? " CHOIR HERE" : World.Choir.Build > 0 ? $" choir {World.Choir.Build:P0}" : "")} | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state} | {Role()} | {link}" +
                PrototypeSession.RouteStatus(Route, World, Train);
     }
 

@@ -194,7 +194,7 @@ public static class Harness
             if (q >= 20 && lastQuiet < 20)
                 heldAt20 = host.World.Director?.HeldBecause;
             lastQuiet = q;
-            choirPeak = Math.Max(choirPeak, host.World.Choir.Aggro);
+            choirPeak = Math.Max(choirPeak, host.World.Choir.Build);
             // Once everyone's in, the gunner goes to the guard gun (a host-side respawn at their post).
             if (t == 30)
             {
@@ -212,9 +212,17 @@ public static class Harness
                     // Its part at a stop needs its own id for the heavy crates (T45).
                     if (((bot as GunnerBot)?.Job ?? (bot as RoofWalkerBot)?.Job) is { } part)
                         part.PlayerId = session.PlayerId;
+                    if (bot is RoofWalkerBot rw)
+                        rw.Me = session.PlayerId ?? -1;
+                    else if (bot is GunnerBot gb)
+                        gb.Me = session.PlayerId ?? -1;
                     intent = bot is IWorldBot wb ? wb.Decide(session.Predicted, session.World, t, out _) : bot.Decide(session.Predicted, session.Train, t);
-                    intent = Heed.Rattles(intent, session.Predicted, session.World, playerTuning);
-                    intent = Heed.Passengers(intent, session.Predicted, session.World);
+
+                    intent = Heed.Rescue(intent, session.Predicted, session.World, session.PlayerId ?? 0);
+                    intent = Heed.Backs(intent, session.Predicted, session.World, session.PlayerId ?? 0, (uint)t);
+                    intent = Heed.Voice(intent, session.Predicted, session.World, session.PlayerId ?? 0, (uint)t);
+                    intent = Heed.Gaps(intent, session.Predicted, session.World, session.PlayerId ?? 0);
+                    intent = Heed.Flies(intent, session.Predicted, session.World, (uint)t);
                     intent = Heed.Followers(intent, session.Predicted, session.World, session.PlayerId ?? 0, calls, (uint)t);
                     intent = Heed.Drift(intent, session.Predicted, session.World, session.PlayerId ?? 0);
                 }

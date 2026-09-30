@@ -16,8 +16,14 @@ public class GunTests
     static World World(int cars = 10)
     {
         var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
-        return new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, 1)), line, 5_000), C);
+        var w = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, 1)), line, 5_000), C);
+        // The host's (the loudness meter is the host's to keep), with nothing sent.
+        w.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9, PaceSeconds = 1e9 } }, null, 1, crew: 1, authority: true);
+        return w;
     }
+
+    static readonly PlayerIntent Reload = new() { Buttons = PlayerButtons.Use };
+    static double ReloadSeconds => C.Guns.ReloadSteps * C.Guns.ReloadStepSeconds + 0.2;
 
     /// <summary>A player standing just behind a gun's pedestal, facing the way it faces.</summary>
     static PlayerState AtGun(World w, int vehicle)
@@ -56,23 +62,32 @@ public class GunTests
     }
 
     [Fact]
-    public void HoldingFireGivesThreeRoundsASecond()
+    public void OneRoundThenAFullReloadByHand()
     {
+        // GDD v1.1 App. C.3: "a full manual reload (powder, ball, ram, fire), so every shot is a timed decision".
         var w = World();
         var s = AtGun(w, 0);
         Assert.Equal(0, Guns.MannedGun(s, w.Train, C.Guns));
-        var shots = Hold(w, ref s, Fire, 10);
-        Assert.Equal(30, shots.Count);
-        Assert.Equal(C.Guns.Ammo - 30, w.Train.Vehicles[0].Gun.Ammo);
+        Assert.Single(Hold(w, ref s, Fire, 5));
+        Assert.Equal(C.Guns.ReloadSteps, w.Train.Vehicles[0].Gun.ReloadNeeded);
+        // Part of the way through, and it still won't fire.
+        Hold(w, ref s, Reload, C.Guns.ReloadStepSeconds * (C.Guns.ReloadSteps - 1) + 0.1);
+        Assert.Empty(Hold(w, ref s, Fire, 1));
+        Hold(w, ref s, Reload, C.Guns.ReloadStepSeconds + 0.2);
+        Assert.Equal(0, w.Train.Vehicles[0].Gun.ReloadNeeded);
+        Assert.Single(Hold(w, ref s, Fire, 1));
+        Assert.Equal(C.Guns.Ammo - 2, w.Train.Vehicles[0].Gun.Ammo);
     }
 
     [Fact]
-    public void AnEmptyBeltFiresNothing()
+    public void AnEmptyGunFiresNothing()
     {
         var w = World();
-        w.Train.Vehicles[0].Gun.Ammo = 2;
+        w.Train.Vehicles[0].Gun.Ammo = 1;
         var s = AtGun(w, 0);
-        Assert.Equal(2, Hold(w, ref s, Fire, 5).Count);
+        Assert.Single(Hold(w, ref s, Fire, 2));
+        Hold(w, ref s, Reload, ReloadSeconds);
+        Assert.Empty(Hold(w, ref s, Fire, 2));
     }
 
     [Fact]
@@ -185,28 +200,32 @@ public class GunTests
     }
 
     [Fact]
-    public void EveryRoundWakesTheChoirAndSilenceLetsItGo()
+    public void EveryRoundFeedsTheMeterAndSilenceLetsItDrain()
     {
+        // GDD v1.1 App. A.3: "every cannon shot feeds the loudness meter"; App. C.7: measured over a few seconds.
         var w = World();
         var s = AtGun(w, 0);
-        Hold(w, ref s, Fire, 10.0 / 3);
-        Assert.Equal(10 * C.Choir.AggroPerRound, w.Choir.Aggro, 6);
-        Assert.Equal(ChoirPhase.Approach, w.Choir.Phase(C.Choir));
-
+        Hold(w, ref s, Fire, 0.2);
+        Assert.InRange(w.Choir.Loudness, 0.8 * C.Choir.RoundLoudness, C.Choir.RoundLoudness);
+        Assert.True(w.Choir.Loudness >= C.Choir.Threshold);
         var idle = default(PlayerIntent);
-        Hold(w, ref s, idle, C.Choir.QuietSecondsBeforeDecay - 1);
-        Assert.Equal(10 * C.Choir.AggroPerRound, w.Choir.Aggro, 6);
-        Hold(w, ref s, idle, 20);
-        Assert.Equal(0, w.Choir.Aggro);
+        Hold(w, ref s, idle, 6 * C.Choir.WindowSeconds);
+        Assert.True(w.Choir.Loudness < 0.05, $"{w.Choir.Loudness}");
+        Assert.Equal(0, w.Choir.Build);
         Assert.Equal(ChoirPhase.Distant, w.Choir.Phase(C.Choir));
     }
 
     [Fact]
     public void SustainedFireBringsTheSwarm()
     {
+        // Fire as fast as the reload allows, for a minute: the meter held loud gathers the Choir (App. A.7, C.7).
         var w = World();
         var s = AtGun(w, 0);
-        Hold(w, ref s, Fire, 8);
+        for (int i = 0; i < 14 && !w.Choir.Present; i++)
+        {
+            Hold(w, ref s, Fire, 0.2);
+            Hold(w, ref s, Reload, ReloadSeconds);
+        }
         Assert.Equal(ChoirPhase.Swarm, w.Choir.Phase(C.Choir));
     }
 

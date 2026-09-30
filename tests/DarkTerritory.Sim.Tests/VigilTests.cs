@@ -93,7 +93,7 @@ public class VigilTests
         crew.Intents[0] = new PlayerIntent { ThrottleNotch = 4 };
         crew.Run(20);
         Assert.Equal(0, train.Boiler.Pressure);
-        Assert.Equal(Tuning.Combat.Choir.MaxAggro, crew.World.Choir.Aggro);
+        Assert.Equal(Tuning.Combat.Choir.MaxLoudness, crew.World.Choir.Loudness, 2);
         Assert.Equal(0, train.Dynamics.Speed);
         Assert.False(crew.World.LampShining);
         Assert.False(crew.State(1).Alive);

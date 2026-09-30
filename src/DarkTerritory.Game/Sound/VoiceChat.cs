@@ -145,7 +145,13 @@ public sealed class VoiceChat
         if (f.Path.HasFlag(VoicePath.Radio))
             s.RadioKeyed = 0.15;
         if (s.NearVoice is not null)
-            s.NearVoice.Occlusion = f.Path.HasFlag(VoicePath.Occluded) ? 1 : 0;
+        {
+            // A hand over the mouth (Tippy Toesie, GDD v1.1 App. C.8) muffles like a wall; a Soot Child drinking fades the
+            // cries for help, as the host says how much is left.
+            bool muffled = f.Path.HasFlag(VoicePath.Muffled);
+            s.NearVoice.Occlusion = f.Path.HasFlag(VoicePath.Occluded) || muffled ? 1 : 0;
+            s.NearVoice.Volume = (float)((muffled ? 0.45 : 1) * (f.Path.HasFlag(VoicePath.Fading) ? f.Gain : 1));
+        }
         if (s.MimicVoice is not null)
             s.MimicVoice.Occlusion = f.Path.HasFlag(VoicePath.Occluded) ? 1 : 0;
         s.Decoder.Decode(f.Sequence, f.Opus, pcm =>

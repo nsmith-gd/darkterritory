@@ -8,7 +8,12 @@ namespace DarkTerritory.Sim.Physics;
 /// <summary>Crate and lamp are the train's own stores; cargo is freight from a facility (spec D.2 manual crates).</summary>
 /// <summary><see cref="Radio"/> is a walkie-talkie (T41, spec A.5): worn on the belt, not carried in the hands.</summary>
 /// <summary><see cref="Heavy"/> is freight that takes two to lift (spec D.2 "heavy items need two", T43).</summary>
-public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6 }
+/// <summary>
+/// GDD v1.1 App. C.4 hand-carried loot: a <see cref="Toy"/> (the Track Doll steals one and goes), <see cref="Loot"/> (salvage:
+/// what the Gaunt takes, what the Followers nest by), a rescued <see cref="Child"/> survivor (carried by hand, the most
+/// valuable cargo there is), and each car's wall-mounted <see cref="Extinguisher"/> (App. C.5).
+/// </summary>
+public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Toy = 7, Loot = 8, Child = 9, Extinguisher = 10 }
 
 /// <summary>
 /// A loose physical thing: cargo, a tool, a crewmate's body. It lives in a car's frame while it touches that
@@ -45,6 +50,10 @@ public sealed class Body
     /// <summary>Facing, for drawing single-point bodies (crates, lamps); tumbles in flight.</summary>
     public double Yaw { get; set; }
     public double Spin { get; set; }
+    /// <summary>An extinguisher's charge, 0..1 (App. C.5: limited, and it recharges slowly on its mount).</summary>
+    public double Charge { get; set; } = 1;
+    /// <summary>An extinguisher's car: its mount is there (the car it hangs in), or −1.</summary>
+    public int Home { get; set; } = -1;
     internal int Airborne;
     internal double LineHint;
     public Double3 Centre => Pbd.Centre;
@@ -89,6 +98,26 @@ public sealed class Bodies
         double radius = kind == BodyKind.Crate ? 0.35 : 0.15;
         var pbd = new PbdBody([new Particle(local + Double3.Up * radius, 1, radius)]) { Friction = 0.2, Bounce = 0.1 };
         var b = new Body(_nextId++, kind, car, pbd) { LineHint = train.Cars[Math.Max(0, car)].FrontDistance };
+        _bodies.Add(b);
+        return b;
+    }
+
+    /// <summary>What hand loot is worth (GDD v1.1 §19), for what goes after "the most valuable item".</summary>
+    public static double Value(BodyKind kind) => kind switch
+    {
+        BodyKind.Child => 10,
+        BodyKind.Loot => 3,
+        BodyKind.Cargo or BodyKind.Heavy => 2,
+        BodyKind.Toy => 1,
+        _ => 0,
+    };
+
+    /// <summary>A small thing on the ground at a facility (a toy, salvage, a child), in the world frame.</summary>
+    public Body SpawnItem(Double3 world, double lineHint, BodyKind kind)
+    {
+        double radius = kind == BodyKind.Child ? 0.35 : 0.15;
+        var pbd = new PbdBody([new Particle(world + Double3.Up * radius, 1, radius)]) { Friction = 0.35, Bounce = 0.05 };
+        var b = new Body(_nextId++, kind, PlayerState.World, pbd) { LineHint = lineHint };
         _bodies.Add(b);
         return b;
     }

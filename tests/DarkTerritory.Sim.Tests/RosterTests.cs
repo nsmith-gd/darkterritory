@@ -50,22 +50,24 @@ public class RosterTests
     [Fact]
     public void TheDirectorSendsNothingOutsideTheRosterAndSavesUpForNothingOutsideIt()
     {
-        // As ConflictSeedingTests' saving up: stopped halfway, a lamp lit, enough for the Lamplighter or the Gaunt but not
-        // both. With every kind about, the Gaunt comes first; without the Gaunt on the roster, the Lamplighter comes at once.
-        var costs = new Dictionary<string, double> { ["lamplighters"] = 20, ["gaunt"] = 30 };
-        var all = Night(With([], costs), Frontier(), at: 40_000, speed: 0);
-        Run(all, 2, 0);
-        Assert.Equal(EnemyKind.Gaunt, all.Director!.Log[0].Kind);
-        var demo = Night(With(["lamplighters"], costs), Frontier(), at: 40_000, speed: 0);
-        Run(demo, 2, 0);
-        Assert.Equal(EnemyKind.Lamplighter, demo.Director!.Log[0].Kind);
-        Assert.All(demo.Director.Log, l => Assert.Equal(EnemyKind.Lamplighter, l.Kind));
+        // As ConflictSeedingTests' saving up: running on a straight, enough for the Track Doll or the hounds but not both,
+        // saving for the hounds. With every kind about, the hounds come first; without them on the roster, the doll at once.
+        var costs = ConflictSeedingTests.Either(Night(With([]), Frontier(), at: 40_000, speed: 12));
+        EnemyTuning Saving(string[] roster) => With(roster, costs) is var t ? t with { Director = t.Director with { SaveFor = ["cinderHounds"] } } : t;
+        var all = Night(Saving([]), Frontier(), at: 40_000, speed: 12);
+        Run(all, 2, 12);
+        Assert.Equal(EnemyKind.CinderHound, all.Director!.Log[0].Kind);
+        var demo = Night(Saving(["trackDoll"]), Frontier(), at: 40_000, speed: 12);
+        Run(demo, 2, 12);
+        Assert.Equal(EnemyKind.TrackDoll, demo.Director!.Log[0].Kind);
+        Assert.All(demo.Director.Log, l => Assert.Equal(EnemyKind.TrackDoll, l.Kind));
     }
 
     [Fact]
     public void ADemoNightSendsOnlyTheDemosFive()
     {
-        var roster = new[] { "sleepers", "cinderHounds", "clingers", "hollow", "carFire", "looseLoad", "gnawers" };
+        // GDD v1.1 §21: the Track Doll, Car Hugger, Whistler, Tippy Toesie and Ribbits (and the hazards and fire).
+        var roster = new[] { "trackDoll", "carHugger", "whistler", "tippyToesie", "ribbits", "sleepers", "drift", "carFire" };
         var world = Night(With(roster), Frontier(new RouteFeature(FeatureKind.Marsh, 10_500, 11_500)), at: 10_000, speed: 12);
         Run(world, 600, 12);
         Assert.NotEmpty(world.Director!.Log);
@@ -75,18 +77,18 @@ public class RosterTests
     [Fact]
     public void WhatsOffTheRosterDoesntComeUpOnItsConditionEither()
     {
-        // The Deadman's empty cab and the Hollow's low fire, stopped (nobody aboard at all): without them, nothing comes.
-        var world = Night(With(["clingers"], new Dictionary<string, double>()), Frontier(), at: 10_000, speed: 0, boiler: true);
-        var b = world.Train.Boiler;
-        b.Firebox = 0;
-        world.Train.Boiler = b;
-        Run(world, 90, 0);
-        Assert.DoesNotContain(world.ActiveEnemies, e => e.Kind is EnemyKind.Deadman or EnemyKind.Hollow);
-        var every = Night(With([], new Dictionary<string, double>()), Frontier(), at: 10_000, speed: 0, boiler: true);
-        b = every.Train.Boiler;
-        b.Firebox = 0;
-        every.Train.Boiler = b;
-        Run(every, 90, 0);
-        Assert.Contains(every.ActiveEnemies, e => e.Kind is EnemyKind.Deadman or EnemyKind.Hollow);
+        // The Stoker's low fire (App. B.5: pressure under 40 for 45 s), stopped: off the roster, it never comes.
+        World Low(string[] roster)
+        {
+            var world = Night(With(roster, new Dictionary<string, double>()), Frontier(), at: 10_000, speed: 0, boiler: true);
+            var b = world.Train.Boiler;
+            b.Firebox = 0;
+            b.Pressure = 10;
+            world.Train.Boiler = b;
+            Run(world, 90, 0);
+            return world;
+        }
+        Assert.DoesNotContain(Low(["trackDoll"]).ActiveEnemies, e => e.Kind == EnemyKind.Stoker);
+        Assert.Contains(Low([]).ActiveEnemies, e => e.Kind == EnemyKind.Stoker);
     }
 }

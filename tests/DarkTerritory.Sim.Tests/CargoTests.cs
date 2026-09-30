@@ -86,7 +86,7 @@ public class CargoTests
     [Fact]
     public void WithLivestockAboardTheHoundsComeFarMoreOften()
     {
-        // Hounds and Clingers priced alike and nothing else in reach: over a dozen nights, how often the first is the Hounds.
+        // Hounds and the Track Doll priced alike and nothing else in reach: over a dozen nights, how often the first is the Hounds.
         var d = Tuning.Enemies.Director;
         var t = Tuning.Enemies with
         {
@@ -95,7 +95,7 @@ public class CargoTests
                 GraceSeconds = 0,
                 CooldownSeconds = [1, 1],
                 SaveFor = [],
-                Costs = d.Costs.ToDictionary(c => c.Key, c => c.Key is "cinderHounds" or "clingers" ? 1 : 1e9)
+                Costs = d.Costs.ToDictionary(c => c.Key, c => c.Key is "cinderHounds" or "trackDoll" ? 1 : 1e9)
             },
         };
         int Hounds(CargoKind cargo)
@@ -119,10 +119,11 @@ public class CargoTests
     {
         var quiet = Night(10, CargoKind.Goods, enemies: Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } });
         Run(quiet, 2, 10);
-        Assert.Equal(0, quiet.Choir.Aggro, 6);
+        Assert.Equal(0, quiet.Choir.Loudness, 6);
         var lowing = Night(10, CargoKind.Livestock, enemies: Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } });
-        Run(lowing, 2, 10);
-        Assert.Equal(Tuning.Combat.Choir.LivestockFloor, lowing.Choir.Aggro, 6);
+        // The meter's measured over a few seconds (App. C.7): it settles on the floor.
+        Run(lowing, 8 * Tuning.Combat.Choir.WindowSeconds, 10);
+        Assert.Equal(Tuning.Combat.Choir.LivestockFloor, lowing.Choir.Loudness, 2);
     }
 
     [Fact]
@@ -139,18 +140,13 @@ public class CargoTests
     }
 
     [Fact]
-    public void CometMaterialBringsTheGauntToALocalLine()
+    public void CometMaterialRelaxesTheTierGatesByOne()
     {
-        var d = Tuning.Enemies.Director;
-        var only = Tuning.Enemies with
-        {
-            Director = d with { GraceSeconds = 0, CooldownSeconds = [1, 1], SaveFor = [], Costs = d.Costs.ToDictionary(c => c.Key, c => c.Key == "gaunt" ? 0.5 : 1e9) },
-        };
-        var goods = Night(0, CargoKind.Goods, Frontier(RouteTier.Local), enemies: only);
-        Run(goods, 5, 0);
-        Assert.DoesNotContain(goods.Director!.Log, l => l.Kind == EnemyKind.Gaunt);
-        var comet = Night(0, CargoKind.Comet, Frontier(RouteTier.Local), enemies: only);
-        Run(comet, 5, 0);
-        Assert.Contains(comet.Director!.Log, l => l.Kind == EnemyKind.Gaunt);
+        // App. B.9: comet cargo brings the Gaunt to a Local line and the Passenger to the Frontier: their gates, a tier lower.
+        var goods = Night(0, CargoKind.Goods, Frontier(RouteTier.Frontier));
+        Assert.Equal(RouteTier.DeadLines, goods.Director!.Gate(goods, RouteTier.DeadLines));
+        var comet = Night(0, CargoKind.Comet, Frontier(RouteTier.Frontier));
+        Assert.Equal(RouteTier.Frontier, comet.Director!.Gate(comet, RouteTier.DeadLines));
+        Assert.Equal(RouteTier.Local, comet.Director.Gate(comet, RouteTier.Frontier));
     }
 }

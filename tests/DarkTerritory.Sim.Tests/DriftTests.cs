@@ -177,9 +177,9 @@ public class DriftTests
     [Fact]
     public void OverAMarshItComesUpOnceAndNowhereElse()
     {
-        // A terrain region, not an entity (App. B.4): over the marsh it's there, whatever the director's doing (it's quiet
-        // here), and charged when it comes. Once a marsh.
-        Assert.Equal(4, Tuning.Enemies.Director.Costs["drift"]);
+        // A hazard (GDD v1.1 §22), not a spawn: over the marsh it's there, whatever the director's doing (it's quiet here),
+        // and it costs the director nothing. Once a marsh.
+        Assert.False(Tuning.Enemies.Director.Costs.ContainsKey("drift"));
         var dry = new Night(Marsh(40_000, 41_000));
         dry.Run(10);
         Assert.DoesNotContain(dry.World.ActiveEnemies, e => e.Kind == EnemyKind.Drift);
@@ -188,11 +188,10 @@ public class DriftTests
         wet.Run(2);
         var d = Assert.IsType<Drift>(Assert.Single(wet.World.ActiveEnemies, e => e.Kind == EnemyKind.Drift));
         Assert.Contains(d.Attached, wet.Train.Dynamics.Consist.Vehicles.Skip(1).Select(v => v.Id));
-        Assert.Single(wet.World.Director!.Log, l => l.Kind == EnemyKind.Drift);
+        Assert.DoesNotContain(wet.World.Director!.Log, l => l.Kind == EnemyKind.Drift);
         // Through it and out: gone, and not back.
         wet.Run(90);
         Assert.DoesNotContain(wet.World.ActiveEnemies, e => e.Kind == EnemyKind.Drift);
-        Assert.Single(wet.World.Director!.Log, l => l.Kind == EnemyKind.Drift);
     }
 
     [Fact]

@@ -82,8 +82,6 @@ public sealed class GreyboxScene
 
     /// <summary>Depth of the valley under a bridge.</summary>
     const double ValleyDepth = 18;
-    /// <summary>How far past the draw distance the Ferryman's lantern still shows.</summary>
-    const double FarLantern = 1200;
 
     public void Build(MeshBuilder mesh, TrainOnLine train, Double3 eye)
     {
@@ -352,26 +350,18 @@ public sealed class GreyboxScene
         }
         else if (e.Attached == Enemy.Loose)
         {
-            // Stood free in the world (a Follower at someone's back), facing the way its yaw says.
+            // Stood free in the world (on the ground beside the train, in the air over it): facing the nearest car, since
+            // what's loose out there has come for the train.
             origin = e.Local;
-            right = new Double3(Math.Cos(e.Extra2), 0, -Math.Sin(e.Extra2));
-            back = new Double3(Math.Sin(e.Extra2), 0, Math.Cos(e.Extra2));
+            var near = frames.Count == 0 ? origin : frames.MinBy(f => (f.ToWorld(default) - origin).Length)!.ToWorld(default);
+            var away = new Double3(origin.X - near.X, 0, origin.Z - near.Z);
+            back = away.Length > 1e-6 ? away.Normalized : new Double3(0, 0, 1);
+            right = Double3.Cross(Double3.Up, back).Normalized;
         }
         else
         {
             if (e.LineDistance < from || e.LineDistance > to)
             {
-                // The Ferryman's lantern is "visible from very far out" (App. A.2): past the draw distance, the light alone.
-                if (e is Sim.Enemies.Ferryman { Lantern: true } && e.LineDistance > to && e.LineDistance < to + FarLantern)
-                {
-                    var far = line.Sample(e.LineDistance);
-                    var at = far.Position + Double3.Cross(far.Tangent, Double3.Up).Normalized * e.Lateral + Double3.Up * 1.9;
-                    // A couple of pixels at any range: it grows with distance to stay one.
-                    float size = (float)(0.0025 * (at - eye).Length);
-                    mesh.Emissive = 1;
-                    mesh.Box(V(at, eye), Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, new Vector3(size), Palette.LampAmber * 1.6f);
-                    mesh.Emissive = 0;
-                }
                 return;
             }
             var t = line.Sample(e.LineDistance);
@@ -404,7 +394,7 @@ public sealed class GreyboxScene
                 break;
             case EnemyKind.CinderHound:
                 // Low, long, and lit from inside: the heat they hunt by is what you see of them at night.
-                bool aboard = e.Phase == SpinePhase.Punish;
+                bool aboard = e.Attached >= 0;
                 double y = e.Attached >= 0 ? 0.35 : 0; // boarded: standing on the roof, not centred in it
                 Draw(0, y, 0, 0.22, 0.28, 0.65, Palette.SootBlack);
                 Draw(0, y + 0.2, -0.75, 0.16, 0.16, 0.25, Palette.SootBlack);
@@ -416,25 +406,14 @@ public sealed class GreyboxScene
                 Draw(-0.07, y + 0.26, -1.01, 0.03, 0.03, 0.02, Palette.LampAmber);
                 mesh.Emissive = 0;
                 break;
-            case EnemyKind.Clinger:
-                // A bulge on the hull; the drill point brightens as it works through (Extra = drill progress).
-                double outward = Math.Sign(e.Local.X);
-                Draw(outward * 0.2, 0, 0, 0.2, 0.55, 0.8, Palette.Corrupted);
-                mesh.Emissive = 1;
-                float drilled = (float)Math.Clamp(e.Extra, 0, 1);
-                var bite = e.Phase == SpinePhase.Punish ? Palette.FurnaceOrange * (0.6f + 0.4f * pulse) : Palette.FurnaceOrange * (0.1f + 0.5f * drilled);
-                // The seam where it's working through shows on its back, away from the hull.
-                Draw(outward * 0.41, 0.1, 0, 0.02, 0.06, 0.5, bite);
-                mesh.Emissive = 0;
-                break;
-            case EnemyKind.Dragger when e.Phase is SpinePhase.Telegraph or SpinePhase.Punish:
+            case EnemyKind.Dragger when e.Phase is SpinePhase.Telegraph or SpinePhase.Grab:
                 {
                     // Out of sight under the edge until it reaches (App. A.4): then a long limb comes up just outside the eave
                     // and hooks in over the roof, rising through the telegraph's second; grabbing, two of them, further in.
                     // Corrupted flesh, pale: the one light-coloured thing at a car's dark edge, so the reach reads in time.
                     double inward = -Math.Sign(e.Local.X);
-                    double rise = e.Phase == SpinePhase.Punish ? 1 : Math.Clamp(e.PhaseSeconds / 1.0, 0.2, 1);
-                    int limbs = e.Phase == SpinePhase.Punish ? 2 : 1;
+                    double rise = e.Phase == SpinePhase.Grab ? 1 : Math.Clamp(e.PhaseSeconds / 1.0, 0.2, 1);
+                    int limbs = e.Phase == SpinePhase.Grab ? 2 : 1;
                     var flesh = Palette.Corrupted * 1.7f;
                     double outside = -inward * 0.14;
                     for (int i = 0; i < limbs; i++)
@@ -442,7 +421,7 @@ public sealed class GreyboxScene
                         double z = (i - (limbs - 1) * 0.5) * 0.4;
                         double top = -0.1 + 0.8 * rise;
                         Draw(outside, (top - 0.4) * 0.5, z, 0.08, (top + 0.4) * 0.5, 0.08, flesh);
-                        double reach = 0.3 + (e.Phase == SpinePhase.Punish ? 0.3 : 0.12) * rise;
+                        double reach = 0.3 + (e.Phase == SpinePhase.Grab ? 0.3 : 0.12) * rise;
                         Draw(outside + inward * reach * 0.5, top, z, reach * 0.5 + 0.04, 0.06, 0.07, flesh);
                         // Fingers splayed on the roof sheet.
                         Draw(outside + inward * (reach + 0.08), top - 0.04, z, 0.09, 0.03, 0.12, Palette.Corrupted * 1.3f);
@@ -486,87 +465,32 @@ public sealed class GreyboxScene
                 Draw(0, 2.0, 0, 0.16, 0.45, 0.1, Palette.SootBlack);
                 Draw(0, 2.6, -0.05, 0.1, 0.13, 0.1, Palette.Corrupted * 0.5f);
                 break;
-            case EnemyKind.Weight when e.Attached >= 0:
-                // A dark mass hung under the rear coupling, below the gun's arc, trailing on the ballast.
-                Draw(0, -0.1, 0.5, 0.55, 0.35, 0.7, Palette.SootBlack);
-                Draw(0, 0.25, 0.05, 0.2, 0.12, 0.3, Palette.Corrupted * 0.5f);
-                break;
             case EnemyKind.Climber:
                 {
                     // Thin, soot-black, bent over; in the cab it stands on the deck (the origin is the cab's centre).
-                    double y0 = e.Phase == SpinePhase.Punish && e.Attached == 0 ? -1.35 : 0;
+                    double y0 = 0;
                     double lean = e.Phase == SpinePhase.Telegraph ? 0.25 * Math.Sin(e.PhaseSeconds * 14) : 0;
                     Draw(0, y0 + 0.45, 0, 0.1, 0.45, 0.1, Palette.SootBlack);
                     Draw(0, y0 + 1.15, -0.15 + lean, 0.18, 0.32, 0.12, Palette.SootBlack);
                     Draw(0, y0 + 1.45, -0.35 + lean, 0.1, 0.1, 0.1, Palette.Corrupted * 0.6f);
                     break;
                 }
-            case EnemyKind.Ferryman:
-                {
-                    // Tall, in a railwayman's coat, on the line with a lantern raised and swinging (App. A.2). Aboard, it's
-                    // stood on the cab's deck (the origin is the cab's centre).
-                    double y0 = e.Phase == SpinePhase.Punish ? -1.35 : 0;
-                    Draw(0, y0 + 0.5, 0, 0.13, 0.5, 0.13, Palette.SootBlack);
-                    Draw(0, y0 + 1.35, 0, 0.24, 0.4, 0.15, Palette.SootBlack);
-                    Draw(0, y0 + 1.9, 0, 0.13, 0.14, 0.13, Palette.Corrupted);
-                    double swing = e.Phase == SpinePhase.Telegraph ? 0.4 * Math.Sin(e.PhaseSeconds * 4.4) : 0;
-                    Draw(0.34, y0 + 1.9, swing * 0.5, 0.05, 0.3, 0.05, Palette.SootBlack);
-                    if (((Sim.Enemies.Ferryman)e).Lantern)
-                    {
-                        mesh.Emissive = 1;
-                        Draw(0.34, y0 + 2.25, swing, 0.09, 0.11, 0.09, Palette.LampAmber);
-                        mesh.Emissive = 0;
-                        mesh.PointLights.Add(new PointLight(L(0.34, y0 + 2.25, swing), Palette.LampAmber * 1.3f, 9f));
-                    }
-                    break;
-                }
-            case EnemyKind.Lamplighter:
-                {
-                    // Tall, thin and stooped, soot-dark against the dark (App. A.6): nothing of it shows but the eyes, and
-                    // those only when they've caught the lamp (the tell). Facing in at the track.
-                    double inward = -Math.Sign(e.Lateral + 1e-9);
-                    Draw(0, 0.6, 0, 0.1, 0.6, 0.1, Palette.SootBlack);
-                    Draw(inward * 0.08, 1.55, 0, 0.14, 0.38, 0.12, Palette.SootBlack);
-                    Draw(inward * 0.2, 2.02, 0, 0.1, 0.12, 0.1, Palette.SootBlack);
-                    if (((Sim.Enemies.Lamplighter)e).Eyeshine)
-                    {
-                        mesh.Emissive = 1;
-                        var shine = Palette.SignalGreen * 1.6f;
-                        // Big enough to read at a low resolution across the dark: two points, set close.
-                        Draw(inward * 0.31, 2.05, -0.06, 0.02, 0.035, 0.04, shine);
-                        Draw(inward * 0.31, 2.05, 0.06, 0.02, 0.035, 0.04, shine);
-                        mesh.Emissive = 0;
-                    }
-                    break;
-                }
             case EnemyKind.SootChildren:
                 {
-                    // Small, crouched, huddled in the dark out from the car: three of them, soot on waxy skin, heads
-                    // turned up at the doors. Only ever seen at the edge of the lamplight, and never moving while looked at.
-                    for (int i = 0; i < 3; i++)
-                    {
-                        double x = (i - 1) * 0.45, z = (i % 2) * 0.35;
-                        Draw(x, 0.28, z, 0.16, 0.28, 0.14, Palette.SootBlack);
-                        Draw(x, 0.66, z - 0.05, 0.1, 0.1, 0.1, Palette.Corrupted * 0.7f);
-                    }
+                    // One small figure crouched out in the dark; a Soot Child's eyes are black (Extra2), a real child's aren't.
+                    Draw(0, 0.28, 0, 0.16, 0.28, 0.14, Palette.SootBlack);
+                    Draw(0, 0.66, -0.05, 0.1, 0.1, 0.1, Palette.Corrupted * 0.7f);
+                    var eyes = e.Extra2 > 0.5 ? Palette.SootBlack : Palette.BoardEnamel;
+                    Draw(0.035, 0.68, -0.16, 0.015, 0.012, 0.01, eyes);
+                    Draw(-0.035, 0.68, -0.16, 0.015, 0.012, 0.01, eyes);
                     break;
                 }
-            case EnemyKind.Hollow:
-                if (e.Phase == SpinePhase.Telegraph)
-                {
-                    // Soot falling into the cab from the stack.
-                    for (int i = 0; i < 4; i++)
-                        Draw(0.3 * Math.Sin(i * 1.7), 1.0 - (e.PhaseSeconds * 2 + i * 0.4) % 1.6, 0.3 * Math.Cos(i * 2.3), 0.04, 0.2, 0.04, Palette.SootBlack);
-                }
-                else
-                {
-                    // Tall and thin, blacker than the cab.
-                    Draw(0, -0.1, 0, 0.22, 0.95, 0.16, Palette.SootBlack);
-                    mesh.Emissive = 1;
-                    Draw(0.07, 0.7, -0.17, 0.025, 0.02, 0.01, Palette.Corrupted * 1.6f);
-                    Draw(-0.07, 0.7, -0.17, 0.025, 0.02, 0.01, Palette.Corrupted * 1.6f);
-                    mesh.Emissive = 0;
-                }
+            case EnemyKind.Stoker or EnemyKind.CarFire:
+                break;
+            default:
+                // A figure, where the greybox has nothing of its own for it: tall, dark, and a pale head.
+                Draw(0, 0.6, 0, 0.14, 0.6, 0.12, Palette.SootBlack);
+                Draw(0, 1.35, 0, 0.1, 0.12, 0.1, Palette.Corrupted * 0.6f);
                 break;
         }
     }
