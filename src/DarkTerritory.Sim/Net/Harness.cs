@@ -201,6 +201,7 @@ public static class Harness
                     intent = Heed.Rattles(intent, session.Predicted, session.World, playerTuning);
                     intent = Heed.Passengers(intent, session.Predicted, session.World);
                     intent = Heed.Followers(intent, session.Predicted, session.World, session.PlayerId ?? 0, calls, (uint)t);
+                    intent = Heed.Drift(intent, session.Predicted, session.World, session.PlayerId ?? 0);
                 }
                 session.Step(intent);
             }

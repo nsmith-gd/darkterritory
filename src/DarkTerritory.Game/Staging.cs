@@ -153,6 +153,11 @@ public static class Staging
         var behind = train.Frames[beside].ToWorld(new Double3(-0.9, train.Frames[beside].Shape.RoofHeight, -5)) + new Double3(Math.Sin(heading), 0, Math.Cos(heading)) * 1.3;
         follower.Restore(SpinePhase.Telegraph, 8, 1, Enemy.Loose, behind, 0, 0, 0, 1, heading);
         threats.Add(follower);
+        // Over the first car, spread wide and surging at someone on its roof (T63): the dark coming up over the roof's edge.
+        int driftCar = Math.Min(1, train.Frames.Count - 1);
+        var drift = new Drift(50);
+        drift.Restore(SpinePhase.Telegraph, 2, 1, driftCar, new Double3(0.8, train.Frames[driftCar].Shape.RoofHeight, 2), 0, 0, 0, 6, 1);
+        threats.Add(drift);
         return threats;
     }
 }

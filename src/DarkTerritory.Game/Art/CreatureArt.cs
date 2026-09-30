@@ -24,6 +24,8 @@ public enum CrewPose { Idle, Walk, Run, Climb, Shovel, Crouch, Dead }
 public sealed class CreatureArt
 {
     public const string Folder = "art/models";
+    /// <summary>The Drift's mat, drawn from a car's roof: past this half-width (m) it's on the ground, this far down.</summary>
+    const float CarHalfWidth = 1.6f, RoofDrop = 3.6f;
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight"];
 
@@ -511,6 +513,27 @@ public sealed class CreatureArt
                     };
                     return Draw(mesh, "husk", clip, t * speed, true, at, variant: 3, seed: 17, adjust: (_, l) => l with { Colour = l.Colour * 0.8f })
                         || Draw(mesh, "crew", clip, t * speed, true, at, variant: 3, seed: 17, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.28f, 0.26f, 0.25f) });
+                }
+            case EnemyKind.Drift:
+                {
+                    // Not a creature (App. A.4): the ground come up over the roof and down the sides, a mat of dark limbs spread
+                    // round where it's centred, as wide as it's spread (extra). Surging, they reach one way.
+                    if (!_models.ContainsKey("dragger"))
+                        return false;
+                    float r = (float)Math.Clamp(extra, 1, 12);
+                    int n = 5 + (int)(r * 1.5);
+                    for (int i = 0; i < n; i++)
+                    {
+                        float a = i * 2.39996f, d = r * MathF.Sqrt((i + 0.5f) / n);
+                        float x = MathF.Cos(a) * d, z = MathF.Sin(a) * d;
+                        // Past the car's sides it's down on the ballast beside the train, not hanging in the air at the roof.
+                        float y = MathF.Abs(x) > CarHalfWidth ? -RoofDrop : -0.1f;
+                        var limb = Matrix4x4.CreateScale(1.4f) * Matrix4x4.CreateRotationZ(MathF.PI / 2) * Matrix4x4.CreateRotationY(a)
+                            * Matrix4x4.CreateTranslation(x, y, z) * model;
+                        Draw(mesh, "dragger", "grip", t * (phase == SpinePhase.Dormant ? 0.2 : 0.9) + i * 0.37, true, limb, seed: 40 + i,
+                            adjust: (_, l) => l with { Colour = l.Colour * 0.35f });
+                    }
+                    return true;
                 }
             case EnemyKind.Follower:
                 {

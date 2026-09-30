@@ -84,6 +84,7 @@ Because four enemies use vibration triggers and three use sound, their audio sig
 | Car fire *(in-car incident)* | Crackle and pop through the boards | 6–9k |
 | Loose load *(in-car incident)* | Straps groaning in time with the joints | 1.4–2.2k, rhythmic |
 | Gnawers *(in-car incident)* | Skittering, chittering in the load | 9–12k |
+| The Drift | Dry reeds rustling, in slow creeping swells | 12–15k |
 
 Two enemies are deliberately silent. That absence is itself information once players learn the roster.
 

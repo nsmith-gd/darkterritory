@@ -961,6 +961,17 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
 public static class Heed
 {
     /// <summary>
+    /// The Drift (App. A.4): coming at us, or on us, stand stock still until it loses us ("complete stillness ~4s"). The look
+    /// can go where it likes: it's feet it feels.
+    /// </summary>
+    public static PlayerIntent Drift(PlayerIntent intent, in PlayerState self, World world, int selfId)
+    {
+        if (!self.Alive || !world.ActiveEnemies.OfType<Drift>().Any(d => d.Target == selfId && d.Phase is SpinePhase.Telegraph or SpinePhase.Punish))
+            return intent;
+        return intent with { MoveX = 0, MoveZ = 0, Buttons = intent.Buttons & ~(PlayerButtons.Run | PlayerButtons.Jump) };
+    }
+
+    /// <summary>
     /// Followers (App. A.3), both halves of the counter. Seeing one on someone else, a bot stops, keeps its eyes on it and
     /// calls who it's on (<see cref="CrewCalls.Followed"/>, the radio's stand-in); the one it's on, called, stands still. The
     /// carrier never knows but by the call: their world has no record of it.

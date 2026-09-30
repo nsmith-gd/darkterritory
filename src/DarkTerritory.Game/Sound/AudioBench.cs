@@ -45,6 +45,8 @@ public static class AudioBench
         ["load-creak"] = (1400, 2200),
         ["long-whistle"] = (200, 800),
         ["weight-scrape"] = (60, 300),
+        // The Drift (T63): above the Gnawers, the highest there is. A hiss the wind doesn't make, and a rhythm it doesn't have.
+        ["drift-rustle"] = (12000, 15000),
     };
 
     /// <summary>
@@ -59,6 +61,8 @@ public static class AudioBench
         // The engine's business: whoever's nearest the cab, which in the bench is the cab (T53).
         "deadman-click" or "stoker-hiss" => listenerCar == 0,
         "hound-howl" or "weight-scrape" => listenerCar == cars - 1,
+        // Whoever it's surging at: Staging has it coming for someone on car 1's roof.
+        "drift-rustle" => listenerCar == 1,
         // Everyone hears it; the driver's the one it's for (the brake's in the cab).
         "long-whistle" => listenerCar == 0,
         // Trouble in a car: whoever's on it. Staging puts the fire in the first cargo car and the rest in the middle one.

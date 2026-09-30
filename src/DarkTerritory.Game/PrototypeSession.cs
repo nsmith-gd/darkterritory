@@ -229,6 +229,9 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Stoker, SpinePhase.Punish) => "the boiler's at its limit",
         (EnemyKind.Stoker, SpinePhase.BreakOff) => "driven out of the firebox",
         // The Gaunt's telegraph is only that it's closer than it was: no cue for it here either (spec A.4: silent by design).
+        (EnemyKind.Drift, SpinePhase.Telegraph) => "a rustle, and the dark creeping toward someone: stand still",
+        (EnemyKind.Drift, SpinePhase.Punish) => "it's on them. stop moving",
+        (EnemyKind.Drift, SpinePhase.BreakOff) => "it's lost them",
         // A Follower's telegraph is for everyone but the one it's on: they never get its record, so never this line either.
         (EnemyKind.Follower, SpinePhase.Telegraph) => "something's walking right behind one of the crew, in their step. tell them. stand still",
         (EnemyKind.Follower, SpinePhase.Commit) => "it got aboard with them",

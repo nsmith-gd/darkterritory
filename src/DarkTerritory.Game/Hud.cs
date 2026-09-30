@@ -182,6 +182,7 @@ public static class Hud
                 DeathCause.Gaunt => "NOBODY WAS WATCHING IT",
                 DeathCause.Replaced => "IT WASN'T ONE OF YOU. IT IS NOW",
                 DeathCause.Nested => "SOMETHING CAME ABOARD ON SOMEONE'S BACK",
+                DeathCause.Drift => "THE GROUND CAME UP. YOU KEPT MOVING",
                 DeathCause.TornOff => "WENT OFF THE RAILS WITH THE REAR CAR",
                 DeathCause.Climbed => "SOMETHING CAME IN OFF THE ROOF",
                 DeathCause.Struck => "STRUCK BY THE TUNNEL MOUTH",
