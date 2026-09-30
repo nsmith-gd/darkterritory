@@ -81,8 +81,9 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     readonly Target _ao;
     const VkFormat LdrFormat = VkFormat.R8G8B8A8Unorm;
     const int ShadowSize = 1024;
-    // The moon's shadow: orthographic, over MoonShadowReach metres either way of a point ahead of the camera.
-    const int MoonShadowSize = 2048;
+    // The moon's shadow: orthographic, over MoonShadowReach metres either way of a point ahead of the camera, at
+    // MoonShadowSize texels (2048 by default; a headset's eyes, each drawing its own, take less).
+    readonly int MoonShadowSize;
     const float MoonShadowReach = 55;
     readonly Target _moonShadow;
     readonly VkPipeline _moonShadowPipeline;
@@ -146,8 +147,10 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
     /// <param name="colorFormat">The frame's format: UNORM, holding display-ready (gamma-encoded) values. A headset renderer
     /// matches the channel order of its sRGB swapchain so the frame copies across bit for bit.</param>
-    public GreyboxRenderer(GpuContext gpu, int width, int height, VkFormat colorFormat = VkFormat.R8G8B8A8Unorm)
+    /// <param name="moonShadowSize">The moon's shadow map's size, texels square.</param>
+    public GreyboxRenderer(GpuContext gpu, int width, int height, VkFormat colorFormat = VkFormat.R8G8B8A8Unorm, int moonShadowSize = 2048)
     {
+        MoonShadowSize = moonShadowSize;
         _colorFormat = colorFormat;
         _gpu = gpu;
         Width = width;
@@ -532,7 +535,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             (p[4], p[5], p[6], p[7]) = (r.Right.X, r.Right.Y, r.Right.Z, r.Half.Y);
             (p[8], p[9], p[10], p[11]) = (r.Back.X, r.Back.Y, r.Back.Z, r.Half.Z);
         }
-        f->Counts = new Vector4(_rooms.Count, _moonOn ? 1 : 0, 0, 0);
+        f->Counts = new Vector4(_rooms.Count, _moonOn ? 1 : 0, 1f / MoonShadowSize, 0);
         _ = horizon;
     }
 
@@ -557,7 +560,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// the camera (where most of what's seen is), camera-relative. The box is snapped to its own texels in world space, so
     /// its edges don't crawl as the train moves.
     /// </summary>
-    static Matrix4x4 MoonViewProjection(in Camera camera, in FrameLighting lighting, float aspect)
+    Matrix4x4 MoonViewProjection(in Camera camera, in FrameLighting lighting, float aspect)
     {
         var dir = Vector3.Normalize(lighting.MoonDirection);
         var fwd = camera.Forward with { Y = 0 };
@@ -627,13 +630,13 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                 storeOp = VkAttachmentStoreOp.Store,
                 clearValue = new VkClearValue { depthStencil = new VkClearDepthStencilValue(1, 0) },
             };
-            var rendering = new VkRenderingInfo { renderArea = new VkRect2D(0, 0, MoonShadowSize, MoonShadowSize), layerCount = 1, pDepthAttachment = &depthAttachment };
+            var rendering = new VkRenderingInfo { renderArea = new VkRect2D(0, 0, (uint)MoonShadowSize, (uint)MoonShadowSize), layerCount = 1, pDepthAttachment = &depthAttachment };
             Api.vkCmdBeginRendering(cmd, &rendering);
             if (_moonOn)
             {
                 var viewport = new VkViewport(0, 0, MoonShadowSize, MoonShadowSize, 0, 1);
                 Api.vkCmdSetViewport(cmd, 0, 1, &viewport);
-                var scissor = new VkRect2D(0, 0, MoonShadowSize, MoonShadowSize);
+                var scissor = new VkRect2D(0, 0, (uint)MoonShadowSize, (uint)MoonShadowSize);
                 Api.vkCmdSetScissor(cmd, 0, 1, &scissor);
                 var set = _sceneSet;
                 Api.vkCmdBindDescriptorSets(cmd, VkPipelineBindPoint.Graphics, _sceneLayout, 0, 1, &set, 0, null);

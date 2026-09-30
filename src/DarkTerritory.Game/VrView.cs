@@ -27,7 +27,10 @@ public sealed class VrView : IDisposable
         Headset = headset;
         Gpu = gpu;
         Session = session;
-        _eyes = [new(gpu, session.EyeWidth, session.EyeHeight, session.EyeFormat), new(gpu, session.EyeWidth, session.EyeHeight, session.EyeFormat)];
+        // Each eye draws its own shadow maps; at an eye's resolution the moon's needs no more than 1024 (a quarter of the
+        // flat view's 2048 to fill, twice a frame).
+        _eyes = [new(gpu, session.EyeWidth, session.EyeHeight, session.EyeFormat, moonShadowSize: 1024),
+            new(gpu, session.EyeWidth, session.EyeHeight, session.EyeFormat, moonShadowSize: 1024)];
     }
 
     public XrHeadset Headset { get; }

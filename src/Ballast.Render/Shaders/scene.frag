@@ -182,7 +182,7 @@ float moonShadowAt(vec3 p, vec3 n) {
     vec2 uv = c.xy * 0.5 + 0.5;
     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || c.z >= 1.0 || c.z <= 0.0)
         return 1.0;
-    float texel = 1.0 / 2048.0;
+    float texel = frame.counts.z;
     float z = c.z - 0.0008;
     float s = 0.0;
     for (int i = 0; i < 8; i++) {
