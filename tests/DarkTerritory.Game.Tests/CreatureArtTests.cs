@@ -82,8 +82,8 @@ public class CreatureArtTests
     {
         static float Height(Model m) => m.Max.Y - m.Min.Y;
         // Heights and lengths from the brief (GDD §21, App. A): what makes the silhouette read at distance.
-        // 1.8 m to the crown of the head, and the helm and its stack stand over it (the tall stack to about 2.1 m).
-        Assert.InRange(Height(Get("crew")), 1.95f, 2.15f);
+        // 1.8 m to the crown of the head, and the gas mask's flying cap and the welder's visor over it (about 1.86 m).
+        Assert.InRange(Height(Get("crew")), 1.8f, 1.95f);
         Assert.InRange(Height(Get("switchman")), 1.7f, 2.2f);
         Assert.InRange(Height(Get("hollow")), 1.95f, 2.25f);
         var hound = Get("cinder_hound");
@@ -101,7 +101,7 @@ public class CreatureArtTests
         // The crew's hand socket is at the right hand, and forward is −Z (the face is in front of the head's centre).
         Assert.True(Get("crew").Skeleton.IndexOf("hand_r_weapon") >= 0);
         Assert.True(Get("crew").Skeleton.Socket[Get("crew").Skeleton.IndexOf("head_hat")]);
-        // Each crewmate wears their own colour (the helm's paint and the scarf): the paint is its own material on the atlas,
+        // Each crewmate wears their own colour (the flying cap's dyed leather and the scarf): the paint is its own material on the atlas,
         // and no two of the first eight players share a colour.
         Assert.Contains(Get("crew").Materials, m => m.Name.EndsWith(".paint", StringComparison.Ordinal) && m.Texture == "crew_0");
         var colours = Enumerable.Range(0, 8).Select(Look.Tuning.CrewColour).ToList();

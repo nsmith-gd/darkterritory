@@ -218,8 +218,8 @@ public sealed class CreatureArt
     }
 
     /// <summary>
-    /// A crewmate's own colour (look.json crewColours, by player id): the helm's paint and the scarf, the model's ".paint"
-    /// material, tinted, so eight masked heads can be told apart.
+    /// A crewmate's own colour (look.json crewColours, by player id): the flying cap's leather and the scarf, the model's
+    /// ".paint" material, tinted, so eight masked heads can be told apart.
     /// </summary>
     Func<ModelMaterial, MaterialLook, MaterialLook> PaintOf(int variant)
     {
