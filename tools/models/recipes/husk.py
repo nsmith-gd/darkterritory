@@ -123,5 +123,5 @@ SHAPES = {k: torn for k in ("crew_atlas.coat", "crew_atlas.sleeve", "crew_atlas.
 
 crewfigure.build("husk", crewfigure.Style(
     head=shrink, dress=DRESS, shapes=SHAPES, masks={"rot": rot, "eyes": eyes, "tar": tar}, grade=grade,
-    preview="HUSK_PREVIEW", lamp=False, mask="torn",
+    preview="HUSK_PREVIEW", lamp=False, mask="torn", figure="bare",
     what="a crewman gone wrong, modelled over tools/blender/crew.py"))

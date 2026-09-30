@@ -10,6 +10,7 @@ layout(set = 0, binding = 1) uniform sampler2DArray diffuseMaps;
 layout(set = 0, binding = 2) uniform sampler2DArray specMaps;
 layout(set = 0, binding = 4) uniform sampler2DShadow lampShadow;
 layout(set = 0, binding = 5) uniform sampler2DArray normalMaps;
+layout(set = 0, binding = 6) uniform sampler2DShadow moonShadow;
 
 layout(location = 0) in vec3 vPos;
 layout(location = 1) in vec3 vNormal;
@@ -29,6 +30,18 @@ layout(location = 0) out vec4 outColor;
 
 const vec3 GROUND_BOUNCE = vec3(0.55, 0.5, 0.45);
 const vec3 SKY_FILL = vec3(0.75, 0.85, 1.05);
+
+// The night as a surface sees it in reflection: no cubemap, the sky's own gradient (the haze at the horizon, the zenith
+// over it, the dark fogged ground under it). What the benchmarks' wet metal and glass shone with.
+vec3 envAt(vec3 r) {
+    vec3 horizon = frame.fog.rgb * frame.sky2.z;
+    vec3 c = mix(horizon, frame.sky.rgb, smoothstep(0.02, 0.6, r.y));
+    c = mix(c, frame.fog.rgb * 0.45, smoothstep(0.0, -0.25, r.y));
+    // (The moon itself is left to the direct specular: in a reflection, off a bumpy normal map, it scatters into sparkle.)
+    // What a reflection sees along the horizon and under it is mostly the world, not the sky: the other cars, the
+    // cab's own walls, trees. Without a probe to say so, it's darker there.
+    return c * mix(0.3, 1.0, smoothstep(-0.05, 0.45, r.y));
+}
 
 float hash(vec3 p) {
     p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419));
@@ -151,6 +164,28 @@ float lampShadowAt(vec3 p, vec3 n) {
                  + texture(lampShadow, vec3(uv + vec2(-0.6, 0.6) * texel, z)) + texture(lampShadow, vec3(uv + vec2(0.6, 0.6) * texel, z)));
 }
 
+// The moon's shadow: an orthographic map over the ground round the camera, filtered over a few texels (moonlight through
+// cloud has a soft edge), fading out toward the map's edge so its end isn't a line across the ground.
+float moonShadowAt(vec3 p, vec3 n) {
+    if (frame.counts.y < 0.5)
+        return 1.0;
+    vec3 c = (frame.moonViewProj * vec4(p + n * 0.06, 1.0)).xyz;
+    vec2 uv = c.xy * 0.5 + 0.5;
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || c.z >= 1.0 || c.z <= 0.0)
+        return 1.0;
+    float texel = 1.0 / 2048.0;
+    float z = c.z - 0.0008;
+    float s = 0.0;
+    for (int i = 0; i < 8; i++) {
+        float a = float(i) * 2.3999632;
+        vec2 o = vec2(cos(a), sin(a)) * (0.8 + 1.2 * float(i) / 8.0) * texel;
+        s += texture(moonShadow, vec3(uv + o, z));
+    }
+    s /= 8.0;
+    vec2 edge = abs(uv - 0.5) * 2.0;
+    return mix(s, 1.0, smoothstep(0.85, 1.0, max(edge.x, edge.y)));
+}
+
 // 1 inside an enclosed space (a car's interior), fading to 0 over its last 15 cm, so a doorway isn't a hard line.
 float indoors(vec3 p) {
     float best = 0.0;
@@ -239,7 +274,8 @@ void main() {
     vec3 moonDir = normalize(frame.moon.xyz);
     // Indoors the fill is low and warm (lamplight off the boards), and the moon doesn't get in.
     vec3 light = frame.moon.w * mix(mix(GROUND_BOUNCE, SKY_FILL, n.y * 0.5 + 0.5), vec3(0.55, 0.42, 0.3), inside);
-    light += frame.moonColour.rgb * frame.moonColour.a * max(dot(n, moonDir), 0.0) * night;
+    float moonLit = night * moonShadowAt(vPos, n);
+    light += frame.moonColour.rgb * frame.moonColour.a * max(dot(n, moonDir), 0.0) * moonLit;
 
     // Phong exponent from gloss: 4..128, clamped so nothing mirror-polishes (pipeline "Gloss").
     float shininess = textured ? mix(4.0, 128.0, specMap.g * specMap.g) : 40.0;
@@ -264,7 +300,7 @@ void main() {
     vec3 lampC = frame.lampColour.rgb * frame.lampColour.a;
     light += lampC * lampLit * max(dot(n, l), 0.0);
     spec += lampC * lampLit * pow(max(dot(n, normalize(l + v)), 0.0), shininess) * 0.75;
-    spec += frame.moonColour.rgb * pow(max(dot(n, normalize(moonDir + v)), 0.0), shininess * 0.6) * 0.08 * night;
+    spec += frame.moonColour.rgb * pow(max(dot(n, normalize(moonDir + v)), 0.0), shininess * 0.6) * 0.08 * moonLit;
 
     // Practical lights, per pixel and unshadowed: warm pools the crew work in.
     int count = int(frame.params.x);
@@ -283,6 +319,18 @@ void main() {
     }
 
     vec3 colour = albedo * light + spec * specStrength * (vWear > 0.0 ? 0.55 + 0.45 * noise(vSurface / 16.0) : 1.0);
+    // Reflection, by Schlick's Fresnel: every surface picks up the sky at a grazing angle, the glossy ones (brass, glass,
+    // wet steel, a puddle) head on too; the rough ones hardly at all. Indoors it's the lamplit room, warm and dim.
+    if (!ps2) {
+        float gloss = textured ? specMap.g : 0.45;
+        gloss = mix(gloss, 0.8, up);
+        float f0 = mix(0.02, 0.3, clamp(specStrength * 1.4, 0.0, 1.0)); // glass and water ~0.02-0.04, worn metal more
+        // (A face seen from behind, a card or a thin plate, reflects off the side that faces the eye.)
+        vec3 nf = dot(n, v) < 0.0 ? -n : n;
+        float fres = f0 + (1.0 - f0) * pow(1.0 - dot(nf, v), 5.0);
+        vec3 env = mix(envAt(reflect(-v, nf)), vec3(0.03, 0.022, 0.014), inside);
+        colour += env * fres * gloss * gloss * smoothstep(0.25, 0.7, gloss) * (1.0 - scar.w) * 1.6;
+    }
     float emissive = max(vEmissive, specMap.b);
     colour = mix(colour, albedo * 2.0 * vGlow, emissive);
 

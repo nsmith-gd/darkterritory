@@ -27,15 +27,18 @@ from overbake import bell, fine, smooth01
 
 class Style:
     def __init__(self, head=None, dress=None, shapes=None, masks=None, grade=None, preview="CREW_PREVIEW",
-                 what="the crew's clothes and kit, modelled over tools/blender/crew.py", lamp=True, mask="on"):
+                 what="the crew's clothes and kit, modelled over tools/blender/crew.py", lamp=True, mask=None, figure="helm"):
         self.head, self.dress, self.shapes = head, dress or {}, shapes or {}
         self.masks, self.grade, self.preview, self.what = masks or {}, grade, preview, what
         # The chest lamp lit (crew_atlas's glass, kept as a pure light), or dead and baked with the rest (a dress entry
         # for "crew_atlas.lamp" then says what it's made of).
         self.lamp = lamp
-        # The crew's respirator and goggles: "on" (the face covered: nothing to lip-sync, no eyes to animate), "torn"
-        # (the respirator hanging loose at the collar, the goggles gone), or None.
+        # The respirator and goggles over the scan's face: "on", "torn" (hanging loose at the collar, the goggles gone), or
+        # None. Only for the bare figure: the crew's own heads are the helm.
         self.mask = mask
+        # "helm": the crew as they play (tools/blender/crew.py's smokebox helm, the tank on the back, the paint in the
+        # player's colour); "bare": the figure bare-headed in a cap or a helmet, Lee Perry-Smith's scan for its face.
+        self.figure = figure
 
 
 def _shell(centre, radii, keep, material, segments, rings, name):
@@ -116,9 +119,70 @@ def respirator(how, tip, make):
     return high, low
 
 
+# The coat's patches (world boxes: centre, half size): squares of other cloth sewn over where it's torn, low on the back,
+# on the chest, at the right elbow, at the hem.
+PATCHES = [((0.14, -0.12, 0.72), (0.09, 0.1, 0.07)), ((-0.1, 0.15, 1.2), (0.06, 0.08, 0.055)),
+           ((0.45, 0.0, 1.45), (0.05, 0.1, 0.1)), ((-0.16, 0.12, 0.62), (0.07, 0.1, 0.06)),
+           ((-0.16, -0.12, 1.28), (0.06, 0.08, 0.06))]
+
+
+def _box_edge(p, c, h):
+    """How far inside the box each point is, in metres to its nearest face (negative outside)."""
+    return (np.array(h, np.float32) - np.abs(p - np.array(c, np.float32))).min(-1)
+
+
+def patches(p):
+    out = np.zeros(len(p), np.float32)
+    for c, h in PATCHES:
+        out = np.maximum(out, smooth01(-0.002, 0.004, _box_edge(p, c, h)))
+    return out
+
+
+def stitches(p):
+    """The stitching round each patch: a dashed line just inside its edge."""
+    out = np.zeros(len(p), np.float32)
+    for c, h in PATCHES:
+        e = _box_edge(p, c, h)
+        dash = (np.sin((p[:, 0] + p[:, 1] + p[:, 2]) * 420) > 0.1).astype(np.float32)
+        out = np.maximum(out, bell((e - 0.006) / 0.0018) * dash)
+    return out
+
+
+def helm_grade(base, atlas):
+    """The helm's paint laid pale and neutral (the engine tints it the player's colour), chipped to the iron at its edges
+    and worn through in patches; the coat's patches in other cloths, browner and paler than the oilskin they cover."""
+    S = atlas.size
+    yy, xx = np.mgrid[0:S, 0:S].astype(np.float32) / S
+    def nz(scale, seed):
+        return cook.noise_np(np.stack([xx.ravel() * scale, yy.ravel() * scale, np.full(S * S, seed * 0.37)], 1), seed, 1.0).reshape(S, S)
+    paint = atlas.masks.get("paint")
+    if paint is not None and paint.any():
+        lum = base.mean(-1)
+        m = float(np.median(lum[paint]))
+        neutral = np.clip(lum / max(m, 1e-3) * 0.4, 0.03, 0.75)[..., None] * np.ones(3, np.float32)
+        # Chipped through to the iron; rust run down from the rivets and the seams in streaks; soot settled low on it; the
+        # scarf (wool, under the helm) a good deal darker than the enamel.
+        chip = smooth01(0.3, 0.42, nz(48, 61) * 0.7 + nz(140, 62) * 0.3)
+        iron = np.array([0.035, 0.033, 0.03], np.float32)
+        streak = np.clip(atlas.maps["streak"], 0, 1)[..., None]
+        neutral = neutral * (1 - 0.55 * streak) + np.array([0.09, 0.045, 0.025], np.float32) * 0.55 * streak
+        neutral = neutral * (1 - chip)[..., None] + iron * chip[..., None]
+        z = atlas.height()
+        neutral = neutral * np.where(z < 1.585, 0.38, 1.0)[..., None]
+        base = np.where(paint[..., None], neutral, base)
+    patch = atlas.maps.get("patch")
+    if patch is not None:
+        k = np.clip(patch, 0, 1)[..., None] * (1 - (paint[..., None] if paint is not None else 0))
+        cloth = np.where((nz(6, 63) > 0)[..., None], np.array([1.3, 1.08, 0.78], np.float32), np.array([0.62, 0.58, 0.56], np.float32))
+        base = base * (1 - k) + base * cloth * k
+    return base
+
+
 def build(name, style):
     # The crew as tools/blender builds it, its export held back until the game mesh wears the bake (tools/models overbake).
+    os.environ["DT_CREW"] = style.figure
     kit, g, arm, parts = overbake.hold("crew.py")
+    scan = style.figure == "bare"
     print(f"[dt] {name} parts", {n: len(o.data.polygons) for n, o in sorted(parts.items())})
     mat_named = overbake.mat_slots
 
@@ -135,89 +199,91 @@ def build(name, style):
     bm.free()
 
     HEAD_C = g["HEAD_C"]
-    head = cook.load("threejs-leeperrysmith", "examples/models/gltf/LeePerrySmith/LeePerrySmith.glb")
-    skin_img = os.path.join(cook.SOURCES, "threejs-leeperrysmith", "examples/models/gltf/LeePerrySmith/Map-COL.jpg")
-    skin = bpy.data.materials.new("scan_skin")
-    skin.use_nodes = True
-    tex = skin.node_tree.nodes.new("ShaderNodeTexImage")
-    tex.image = bpy.data.images.load(skin_img)
-    skin.node_tree.links.new(tex.outputs["Color"], skin.node_tree.nodes["Principled BSDF"].inputs["Base Color"])
-    for o in head:
-        o.data.materials.clear()
-        o.data.materials.append(skin)
-    cook.fit(head, height=0.46)
-    cook.rotate(head, 180)
-    cook.cut(head, lambda c: c.z > 0.2)
-    lo, hi = cook.bounds(head)
-    # Crown at the egg's crown, centred over the neck, the face as far forward as the egg's was.
-    S = 0.93
-    cook.transform(head, Matrix.Scale(S, 4))
-    lo, hi = cook.bounds(head)
-    cook.move(head, (-(lo.x + hi.x) / 2, HEAD_C.y + 0.006 - (lo.y + hi.y) / 2, HEAD_C.z + 0.118 - hi.z))
-    lo, hi = cook.bounds(head)
-    print("[dt] head", tuple(round(c, 3) for c in lo), tuple(round(c, 3) for c in hi))
+    head, TIP = [], None
+    if scan:
+        head = cook.load("threejs-leeperrysmith", "examples/models/gltf/LeePerrySmith/LeePerrySmith.glb")
+        skin_img = os.path.join(cook.SOURCES, "threejs-leeperrysmith", "examples/models/gltf/LeePerrySmith/Map-COL.jpg")
+        skin = bpy.data.materials.new("scan_skin")
+        skin.use_nodes = True
+        tex = skin.node_tree.nodes.new("ShaderNodeTexImage")
+        tex.image = bpy.data.images.load(skin_img)
+        skin.node_tree.links.new(tex.outputs["Color"], skin.node_tree.nodes["Principled BSDF"].inputs["Base Color"])
+        for o in head:
+            o.data.materials.clear()
+            o.data.materials.append(skin)
+        cook.fit(head, height=0.46)
+        cook.rotate(head, 180)
+        cook.cut(head, lambda c: c.z > 0.2)
+        lo, hi = cook.bounds(head)
+        # Crown at the egg's crown, centred over the neck, the face as far forward as the egg's was.
+        S = 0.93
+        cook.transform(head, Matrix.Scale(S, 4))
+        lo, hi = cook.bounds(head)
+        cook.move(head, (-(lo.x + hi.x) / 2, HEAD_C.y + 0.006 - (lo.y + hi.y) / 2, HEAD_C.z + 0.118 - hi.z))
+        lo, hi = cook.bounds(head)
+        print("[dt] head", tuple(round(c, 3) for c in lo), tuple(round(c, 3) for c in hi))
 
 
-    def close_mouth(o):
-        """The scan's lips are parted on a cavity (a mouth, teeth, a tongue): everything a few mm behind the lips' own front
-        surface, in the band between them, goes, and the slit is capped. A game mesh collapsed from it would otherwise cave
-        the lips into the hole."""
-        me = o.data
-        co = np.array([v.co for v in me.vertices], np.float32)
-        tip = co[co[:, 1].argmax()]
-        lo_z, hi_z = tip[2] - 0.068, tip[2] - 0.025
-        band = (np.abs(co[:, 0]) < 0.034) & (co[:, 2] > lo_z) & (co[:, 2] < hi_z)
-        pts = co[band]
-        bm = bmesh.new()
-        bm.from_mesh(me)
-        doomed = []
-        for f in bm.faces:
-            c = f.calc_center_median()
-            if abs(c.x) >= 0.03 or not (lo_z + 0.006 < c.z < hi_z - 0.006):
-                continue
-            near = pts[(np.abs(pts[:, 0] - c.x) < 0.005) & (np.abs(pts[:, 2] - c.z) < 0.005)]
-            if len(near) and c.y < near[:, 1].max() - 0.005:
-                doomed.append(f)
-        bmesh.ops.delete(bm, geom=doomed, context="FACES")
-        bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
-        rim = [e for e in bm.edges if e.is_boundary and abs(e.verts[0].co.x) < 0.04 and lo_z - 0.01 < e.verts[0].co.z < hi_z + 0.01]
-        bmesh.ops.holes_fill(bm, edges=rim, sides=0)
-        bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 4])
-        bm.to_mesh(me)
-        bm.free()
-        me.update()
-        print("[dt] mouth closed:", len(doomed), "faces out")
+        def close_mouth(o):
+            """The scan's lips are parted on a cavity (a mouth, teeth, a tongue): everything a few mm behind the lips' own front
+            surface, in the band between them, goes, and the slit is capped. A game mesh collapsed from it would otherwise cave
+            the lips into the hole."""
+            me = o.data
+            co = np.array([v.co for v in me.vertices], np.float32)
+            tip = co[co[:, 1].argmax()]
+            lo_z, hi_z = tip[2] - 0.068, tip[2] - 0.025
+            band = (np.abs(co[:, 0]) < 0.034) & (co[:, 2] > lo_z) & (co[:, 2] < hi_z)
+            pts = co[band]
+            bm = bmesh.new()
+            bm.from_mesh(me)
+            doomed = []
+            for f in bm.faces:
+                c = f.calc_center_median()
+                if abs(c.x) >= 0.03 or not (lo_z + 0.006 < c.z < hi_z - 0.006):
+                    continue
+                near = pts[(np.abs(pts[:, 0] - c.x) < 0.005) & (np.abs(pts[:, 2] - c.z) < 0.005)]
+                if len(near) and c.y < near[:, 1].max() - 0.005:
+                    doomed.append(f)
+            bmesh.ops.delete(bm, geom=doomed, context="FACES")
+            bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+            rim = [e for e in bm.edges if e.is_boundary and abs(e.verts[0].co.x) < 0.04 and lo_z - 0.01 < e.verts[0].co.z < hi_z + 0.01]
+            bmesh.ops.holes_fill(bm, edges=rim, sides=0)
+            bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 4])
+            bm.to_mesh(me)
+            bm.free()
+            me.update()
+            print("[dt] mouth closed:", len(doomed), "faces out")
 
 
-    for o in head:
-        close_mouth(o)
-    # The scan's landmarks, before any style reshapes it: the nose tip, and the eyes above and behind it.
-    hco = np.concatenate([np.array([v.co for v in o.data.vertices], np.float32) for o in head])
-    TIP = Vector(hco[hco[:, 1].argmax()])
-    if style.head is not None:
-        style.head(head, HEAD_C)
+        for o in head:
+            close_mouth(o)
+        # The scan's landmarks, before any style reshapes it: the nose tip, and the eyes above and behind it.
+        hco = np.concatenate([np.array([v.co for v in o.data.vertices], np.float32) for o in head])
+        TIP = Vector(hco[hco[:, 1].argmax()])
+        if style.head is not None:
+            style.head(head, HEAD_C)
 
 
-    # The game mesh's head: the scan decimated, on the head bone, blending into the neck under the collar.
-    head_low = cook.duplicate(head)
-    cook.decimate(head_low, 2600)
-    for o in head_low:
-        co = np.array([v.co for v in o.data.vertices], np.float32)
-        # The whole face rides the head (a chin on the neck bone shears off it when the clips tip the two apart); only the
-        # last of the neck, under the collar, blends.
-        w = np.clip((co[:, 2] - 1.545) / 0.02, 0, 1)
-        gh, gn = o.vertex_groups.new(name="head"), o.vertex_groups.new(name="neck")
-        for vi, k in enumerate(w):
-            if k > 0.02:
-                gh.add([vi], float(k), "REPLACE")
-            if k < 0.98:
-                gn.add([vi], float(1 - k), "REPLACE")
-    bpy.ops.object.select_all(action="DESELECT")
-    for o in head_low:
-        o.select_set(True)
-    body.select_set(True)
-    bpy.context.view_layer.objects.active = body
-    bpy.ops.object.join()
+        # The game mesh's head: the scan decimated, on the head bone, blending into the neck under the collar.
+        head_low = cook.duplicate(head)
+        cook.decimate(head_low, 2600)
+        for o in head_low:
+            co = np.array([v.co for v in o.data.vertices], np.float32)
+            # The whole face rides the head (a chin on the neck bone shears off it when the clips tip the two apart); only the
+            # last of the neck, under the collar, blends.
+            w = np.clip((co[:, 2] - 1.545) / 0.02, 0, 1)
+            gh, gn = o.vertex_groups.new(name="head"), o.vertex_groups.new(name="neck")
+            for vi, k in enumerate(w):
+                if k > 0.02:
+                    gh.add([vi], float(k), "REPLACE")
+                if k < 0.98:
+                    gn.add([vi], float(1 - k), "REPLACE")
+        bpy.ops.object.select_all(action="DESELECT")
+        for o in head_low:
+            o.select_set(True)
+        body.select_set(True)
+        bpy.context.view_layer.objects.active = body
+        bpy.ops.object.join()
 
     # ----------------------------------------------------------------------------------------------------------------
     # The high copy, dressed in the library. Each kit material (by name) wears a library layer at the library's scale
@@ -244,6 +310,15 @@ def build(name, style):
         "crew_atlas.badge": ("brass", 6.0, (1, 1, 1), 0.35, 0),
         "crew_atlas.scarf": ("wool", 10.0, (0.38, 0.3, 0.3), 0.95, 2),
         "iron_plate.crew": ("iron_plate", 4.0, (0.55, 0.55, 0.55), 0.5, 0),
+        # The helm and the tank. The paint is laid down pale and neutral: the engine tints it the player's colour.
+        "helm.paint": ("paint_olive", 3.0, (0.95, 0.95, 0.95), 0.35, 2),
+        "helm.door": ("paint_olive", 3.0, (0.95, 0.95, 0.95), 0.35, 2),
+        "helm.brass": ("brass", 6.0, (1.0, 0.95, 0.85), 0.3, 1),
+        "helm.glass": ("glass_dirty", 6.0, (0.2, 0.22, 0.24), 0.08, 0),
+        "helm.rubber": ("paint_black", 6.0, (0.45, 0.43, 0.42), 0.7, 2),
+        "helm.stack": ("iron_smokebox", 5.0, (0.6, 0.58, 0.56), 0.5, 1),
+        "tank.copper": ("copper_pipe", 4.0, (1.0, 0.95, 0.9), 0.35, 2),
+        "leather.harness": ("leather", 5.0, (0.42, 0.32, 0.25), 0.5, 0),
     }
 
 
@@ -251,7 +326,7 @@ def build(name, style):
 
     def dress(m):
         """The kit material's library layer and subdivision; the lamp's glass and the scan's skin aren't in the copy."""
-        if m.name.startswith("scan_skin") or (style.lamp and m.name.startswith("crew_atlas.lamp")):
+        if m.name.startswith(("scan_skin", "helm.glass")) or (style.lamp and m.name.startswith("crew_atlas.lamp")):
             return None
         key = next((k for k in DRESS if m.name.startswith(k)), None)
         if key is None:
@@ -339,18 +414,63 @@ def build(name, style):
         return 0.004 * cook.noise_np(p, 13, 30) + 0.0012 * np.sin(p[:, 2] * 400) + fine(p, 0.001, 90)
 
 
+    HC = g.get("HC")
+
+    def drum(p, n):
+        # Rivets round the drum by each band, a few dents, the paint's orange peel.
+        x, y, z = p[:, 0], p[:, 1] - HC.y, p[:, 2] - HC.z
+        a = np.arctan2(x, z)
+        d = np.zeros(len(p), np.float32)
+        for yb in (-0.104, 0.084, 0.118):
+            d += 0.0035 * bell((y - yb) / 0.004) * np.maximum(0, np.cos(a * 18)) ** 8
+        d -= 0.004 * np.maximum(0, cook.noise_np(p, 41, 9)) ** 3
+        return d + fine(p, 0.0004, 160, 42)
+
+    def door(p, n):
+        # The door's rivets round its rim, its dish pressed in, hammered.
+        x, z = p[:, 0], p[:, 2] - HC.z
+        r, a = np.hypot(x, z), np.arctan2(x, z)
+        d = 0.003 * bell((r - 0.122) / 0.004) * np.maximum(0, np.cos(a * 12)) ** 8
+        return d + 0.0012 * cook.noise_np(p, 43, 30) + fine(p, 0.0005, 140, 44)
+
+    def brass(p, n):
+        # The grille's slots; the rest just worn.
+        x, y, z = p[:, 0], p[:, 1] - HC.y, p[:, 2] - HC.z
+        grille = (np.abs(x) < 0.045) & (np.abs(z + 0.072) < 0.016) & (y > 0.15)
+        return -0.004 * grille * (np.sin(z * 520) > 0.2) + fine(p, 0.0003, 200, 45)
+
+    def rubber(p, n):
+        # The hose's corrugations, the seal's lip.
+        return 0.0025 * np.sin((p[:, 0] + p[:, 1] + p[:, 2]) * 380) + fine(p, 0.0004, 150, 46)
+
+    def copper(p, n):
+        # A seam down the tank's back and its rivets; hammered dents.
+        x = p[:, 0]
+        d = 0.003 * bell(x / 0.004) * np.maximum(0, np.sin(p[:, 2] * 150)) ** 6
+        return d - 0.002 * np.maximum(0, cook.noise_np(p, 47, 14)) ** 2 + fine(p, 0.0004, 150, 48)
+
+    def patched(p, n):
+        # The coat's patches: squares of other cloth sewn on over the holes, their stitched edges standing proud.
+        return 0.0035 * np.clip(patches(p), 0, 1) - 0.0018 * stitches(p)
+
     SHAPE = {"crew_atlas.coat": coat, "crew_atlas.sleeve": sleeve, "crew_atlas.trouser": trouser, "crew_atlas.boot": boot,
              "crew_atlas.gloves": glove, "crew_atlas.cap": cap, "crew_atlas.helmet": helmet, "crew_atlas.scarf": scarf,
              "crew_atlas.satchel": lambda p, n: fine(p, 0.001, 60), "crew_atlas.belt": lambda p, n: fine(p, 0.0005, 150),
              "leather.strap": lambda p, n: fine(p, 0.0005, 150)}
+    if not scan:
+        SHAPE.update({"helm.paint": drum, "helm.door": door, "helm.brass": brass, "helm.rubber": rubber,
+                      "helm.stack": lambda p, n: 0.0015 * cook.noise_np(p, 49, 40) + fine(p, 0.0005, 140, 50),
+                      "tank.copper": copper, "helm.glass": lambda p, n: 0.0004 * cook.noise_np(p, 51, 60)})
+        SHAPE["crew_atlas.coat"] = (lambda base: lambda p, n: base(p, n) + patched(p, n))(SHAPE["crew_atlas.coat"])
+        SHAPE["crew_atlas.sleeve"] = (lambda base: lambda p, n: base(p, n) + patched(p, n))(SHAPE["crew_atlas.sleeve"])
 
     # Which highs bake onto which game part (a cap never shadows the helmet it isn't worn with).
-    BAKED = ["body", "hat_cap", "hat_helmet", "scarf"]
+    BAKED = ["body", "hat_cap", "hat_helmet", "scarf"] if scan else ["body", "stack_short", "stack_tall", "scarf"]
     for k, fn in style.shapes.items():
         SHAPE[k] = (lambda f, base: (lambda p, n: base(p, n) + f(p, n)) if base else f)(fn, SHAPE.get(k))
     highs = {part: overbake.high_of(parts[part], dress, SHAPE) for part in BAKED}
     # The respirator and goggles (Style.mask), modelled on the scan's landmarks, their game mesh on the head bone.
-    if style.mask:
+    if style.mask and scan:
         mask_high, mask_low = respirator(style.mask, TIP, make)
         head += mask_high
         mat = bpy.data.materials.new("crew_mask")
@@ -390,13 +510,14 @@ def build(name, style):
                                               bevel=0, name="lace", low=0))
                 highs["body"].append(make.torus((x + s * 0.022, 0.055, z), (0, 1, 0), 0.0045, 0.0015, BUTTON, n=8, m=4,
                                                 name="eyelet", low=None))
-    # The helmet's rolled rim.
-    RIM = make.lib("paint_olive", 2.0, (0.8, 0.8, 0.7), 0.5)
-    rim = make.torus((0, 0.006, 1.712), (0, 0, 1), 0.153, 0.006, RIM, n=48, m=8, name="rim", low=None)
-    rim.scale = (1.0, 1.066, 1.0)
-    bpy.context.view_layer.objects.active = rim
-    bpy.ops.object.transform_apply(scale=True)
-    highs["hat_helmet"].append(rim)
+    if scan:
+        # The helmet's rolled rim.
+        RIM = make.lib("paint_olive", 2.0, (0.8, 0.8, 0.7), 0.5)
+        rim = make.torus((0, 0.006, 1.712), (0, 0, 1), 0.153, 0.006, RIM, n=48, m=8, name="rim", low=None)
+        rim.scale = (1.0, 1.066, 1.0)
+        bpy.context.view_layer.objects.active = rim
+        bpy.ops.object.transform_apply(scale=True)
+        highs["hat_helmet"].append(rim)
     print(f"[dt] {name} highs", {k: sum(len(h.data.polygons) for h in v) for k, v in highs.items()})
 
     if os.environ.get(style.preview):
@@ -423,9 +544,9 @@ def build(name, style):
             o.hide_render = True
         for part, hs in highs.items():
             for h in hs:
-                h.hide_render = part not in ("body", "hat_helmet" if variant == "helmet" else "hat_cap")
+                h.hide_render = part not in ("body", BAKED[2] if variant in ("helmet", "tall") else BAKED[1])
         for view, d, c, dist in (("front", (0.2, 1, 0.1), (0, 0, 0.95), 4.2), ("back", (-0.3, -1, 0.1), (0, 0, 0.95), 4.2),
-                                 ("head", (0.4, 1, 0.15), (0, 0.02, 1.62), 1.0), ("hand", (0.2, 0.6, 1), (0.75, 0, 1.44), 0.7),
+                                 ("head", (0.4, 1, 0.15), (0, 0.02, 1.68 if not scan else 1.62), 1.0 if scan else 1.2), ("hand", (0.2, 0.6, 1), (0.75, 0, 1.44), 0.7),
                                  ("boot", (0.5, 1, 0.3), (0.1, 0.05, 0.15), 0.9)):
             cam.location = Vector(c) + Vector(d).normalized() * dist
             cam.rotation_euler = (Vector(c) - cam.location).to_track_quat("-Z", "Y").to_euler()
@@ -439,12 +560,16 @@ def build(name, style):
     # material: a pure light). The face (kind 1) and the hands (kind 3) get more of the atlas than their area would: they're
     # seen closest. The head is unwrapped in one piece, round a cylinder on the neck (the seam down the back, under the
     # collar and the cap), in metres, so it lies at the same density as the rest before the boost.
-    FACE, HANDS, MASK = 1, 3, 4
+    FACE, HANDS, MASK, HELM, PAINT = 1, 3, 4, 5, 6
 
 
     def kind(m):
-        return (overbake.Atlas.KEEP if style.lamp and m.name.startswith("crew_atlas.lamp") else FACE if m.name.startswith("scan_skin")
-                else HANDS if m.name.startswith("crew_atlas.gloves") else MASK if m.name.startswith("crew_mask") else 0)
+        if style.lamp and m.name.startswith("crew_atlas.lamp") or m.name.startswith("helm.glass"):
+            return overbake.Atlas.KEEP
+        if not scan and m.name.startswith(("helm.paint", "helm.door", "crew_atlas.scarf")):
+            return PAINT
+        return (FACE if m.name.startswith("scan_skin") else HANDS if m.name.startswith("crew_atlas.gloves")
+                else MASK if m.name.startswith("crew_mask") else HELM if m.name.startswith(("helm.", "tank.")) else 0)
 
 
     def head_uv(f, uvl):
@@ -460,20 +585,32 @@ def build(name, style):
 
 
     atlas = overbake.Atlas(name, parts, BAKED, kind)
-    atlas.unwrap(boosts={FACE: 3.5, HANDS: 1.8, MASK: 2.5}, special={FACE: head_uv})
+    atlas.unwrap(boosts={FACE: 3.5, HANDS: 1.8, MASK: 2.5, HELM: 2.2, PAINT: 2.2}, special={FACE: head_uv} if scan else {})
     # Each part bakes from its own high copy (a cap never shadows the helmet it isn't worn with). The head bakes as a group
     # of its own, from the scan, with a tight cage: the cloth's high copy is subdivided in from its game mesh by a
     # centimetre or two, but a face's cage that deep projects the cheeks onto the nose.
     highs["head"] = [h for h in highs["body"] if h in head]
     highs["body"] = [h for h in highs["body"] if h not in head]
-    groups = {part: ((atlas.part_of == pi) & (atlas.kind_of != FACE) & (atlas.kind_of != MASK), highs[part])
-              for pi, part in enumerate(BAKED)}
-    groups["head"] = ((atlas.kind_of == FACE) | (atlas.kind_of == MASK), highs["head"])
-    atlas.bake(groups, cages={"head": (0.006, 0.02)}, hide=[parts["shovel"]], masks=style.masks)
+    groups = {part: ((atlas.part_of == pi) & (atlas.kind_of != FACE) & (atlas.kind_of != MASK) & (atlas.kind_of != PAINT),
+                     highs[part]) for pi, part in enumerate(BAKED)}
+    if scan:
+        groups["head"] = ((atlas.kind_of == FACE) | (atlas.kind_of == MASK), highs["head"])
+    else:
+        # The paint bakes as a group of its own (the drum and the scarf), so the grade knows its texels.
+        groups["paint"] = (atlas.kind_of == PAINT, [h for part in ("body", "scarf") for h in highs[part]
+                                                    if h.get("dt_kind", "").startswith(("helm.paint", "helm.door", "crew_atlas.scarf"))])
+    groups = {k: v for k, v in groups.items() if v[0].any()}
+    masks = dict(style.masks)
+    if not scan:
+        masks["patch"] = patches
+        # Rust run down the helm from its rivets and seams: streaks drawn out vertically.
+        masks["streak"] = lambda p: smooth01(0.35, 0.8, cook.noise_np(p * np.array([90.0, 90.0, 6.0], np.float32), 53, 1.0)
+                                             * 0.7 + cook.noise_np(p, 54, 30) * 0.3).astype(np.float32)
+    atlas.bake(groups, cages={"head": (0.006, 0.02)} if scan else {}, hide=[parts["shovel"]], masks=masks)
 
     # The colour, darkened by the occlusion and sooted: soot in every crease, the mud and wet of the ballast climbing the
     # boots and the coat's hem, the shoulders and cap dulled where the smoke settles on them.
-    face = atlas.masks["head"]
+    face = atlas.masks["head"] if scan else np.zeros((atlas.size, atlas.size), bool)
     soot = np.array([0.018, 0.016, 0.014], np.float32)
     base = atlas.base(soot=soot, gentle=face)
     z = atlas.height()
@@ -493,7 +630,9 @@ def build(name, style):
     sallow = (base * 0.55 + grey * 0.45) * tone
     sallow = sallow * (1 - 0.55 * smudge)[..., None] + soot * (0.55 * smudge)[..., None]
     base = np.where(face[..., None], sallow, base)
+    if not scan:
+        base = helm_grade(base, atlas)
     if style.grade is not None:
         base = style.grade(base, atlas, face)
-    atlas.finish(base, kit, arm, source_ids=["threejs-leeperrysmith"],
-                 made=make.provenance(name, style.what))
+    atlas.finish(base, kit, arm, source_ids=["threejs-leeperrysmith"] if scan else [],
+                 made=make.provenance(name, style.what), split={} if scan else {PAINT: "paint"})

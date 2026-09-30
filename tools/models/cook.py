@@ -524,6 +524,11 @@ def bake_layers(name, objs, grade=None, grime=0.0, family="model", source_ids=()
     # A material marked dt_library names one of the texture library's layers (brick_soot, stone_block...): it's drawn
     # with that layer and the part's own UVs (metres over the layer's tile), and not baked.
     mats = [m for m in mats if not m.get("dt_library")]
+    # A material marked dt_alias (the name of another here) draws that one's layer under a name of its own (<layer>.<its
+    # dt_suffix>): the same texture, but a material the engine can tell apart (the crew's paint, tinted per player).
+    aliases = [m for m in mats if m.get("dt_alias")]
+    mats = [m for m in mats if not m.get("dt_alias")]
+    renamed = {}
     for i, m in enumerate(mats):
         layer = f"{name}_{i}"
         source_name = m.name
@@ -601,6 +606,7 @@ def bake_layers(name, objs, grade=None, grime=0.0, family="model", source_ids=()
             _save(normal, os.path.join(TEXTURES, f"{layer}_n.png"))
         alpha_test = bool((alpha < 0.5).mean() > 0.01)
         mean = [float(x) for x in lin_to_srgb(diffuse.reshape(-1, 3).mean(0))]
+        renamed[m.name] = m
         m.name = layer
         if bsdf:
             bsdf.inputs["Base Color"].default_value = (*[c ** 2.2 for c in mean], 1)
@@ -619,6 +625,13 @@ def bake_layers(name, objs, grade=None, grime=0.0, family="model", source_ids=()
             "alphaTest": alpha_test,
             "sources": [manifest()[s] | {"files": None} for s in source_ids] + list(made),
         })
+    for a in aliases:
+        src = renamed[a["dt_alias"]]
+        a.name = f"{src.name}.{a['dt_suffix']}"
+        for k in ("dt_shine", "dt_emissive", "dt_glow"):
+            a[k] = src[k]
+        for k in ("dt_alias", "dt_suffix"):
+            del a[k]
     return layers
 
 

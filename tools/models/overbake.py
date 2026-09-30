@@ -250,7 +250,7 @@ class Atlas:
         scene.cycles.samples = samples
         scene.render.bake.use_selected_to_active = True
         scene.render.bake.margin = 3
-        all_highs = [h for _, hs in groups.values() for h in hs]
+        all_highs = list(dict.fromkeys(h for _, hs in groups.values() for h in hs))  # (a high may bake in two groups)
         self.maps = {"NORMAL": np.tile(np.array([0.5, 0.5, 1.0, 1.0], np.float32), (S, S, 1)),
                      "AO": np.ones((S, S, 4), np.float32), "DIFFUSE": np.full((S, S, 4), 0.2, np.float32),
                      "EMIT": np.full((S, S, 4), 0.5, np.float32)}
@@ -346,9 +346,11 @@ class Atlas:
     def height(self, scale=1.8):
         return self.maps["EMIT"][..., 0] * scale
 
-    def finish(self, base, kit, arm, source_ids=(), made=(), family="creature"):
+    def finish(self, base, kit, arm, source_ids=(), made=(), family="creature", split=None):
         """Writes the atlas (`base` linear HxWx3), splits the parts back out with
-        their names and extras, bakes the layers, and exports content/art/models/<name>.glb with the rig and clips."""
+        their names and extras, bakes the layers, and exports content/art/models/<name>.glb with the rig and clips.
+        `split` {kind: suffix}: those faces draw the atlas under a material of their own, <name>_0.<suffix> (the same
+        texture; the engine tells them apart by name: the crew's paint, tinted per player)."""
         S = self.size
         low = self.low
         bimg = bpy.data.images.new(f"{self.name}_base", S, S, alpha=True)
@@ -374,13 +376,23 @@ class Atlas:
         bsdf.inputs["Metallic"].default_value = 0.0
         # The joined mesh's slots: the atlas, then each kept material.
         kept = sorted(self.kept)
+        split = dict(split or {})
+        suffixes = sorted(set(split.values()))
         low.data.materials.clear()
         low.data.materials.append(final)
+        for sfx in suffixes:
+            a = final.copy()
+            a.name = f"{self.name}_final.{sfx}"
+            a["dt_alias"], a["dt_suffix"] = final.name, sfx
+            low.data.materials.append(a)
         for n in kept:
             m = self.kept[n]
             m["dt_library"] = True
             low.data.materials.append(m)
-        idx = [0 if not self.keep[i] else 1 + kept.index(self.slot_name[i]) for i in range(len(self.keep))]
+        base_slot = 1 + len(suffixes)
+        idx = [base_slot + kept.index(self.slot_name[i]) if self.keep[i]
+               else (1 + suffixes.index(split[self.kind_of[i]]) if self.kind_of[i] in split else 0)
+               for i in range(len(self.keep))]
         low.data.polygons.foreach_set("material_index", idx)
         for f in low.data.polygons:
             f.use_smooth = True

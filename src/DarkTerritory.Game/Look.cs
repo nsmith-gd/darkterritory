@@ -61,6 +61,16 @@ public sealed record LookTuning
     /// <summary>Every material layer's size in the GPU array (the library is authored at 512: ARCHITECTURE §8 note 57).</summary>
     public int LayerSize { get; init; } = 512;
     public float Baked { get; init; } = 0.35f;
+    /// <summary>The crew's paint by player id, in turn (the helm and the scarf: CreatureArt.Crewmate), as multipliers.</summary>
+    public float[][] CrewColours { get; init; } = [[1, 1, 1]];
+
+    /// <summary>A crewmate's paint colour.</summary>
+    public System.Numerics.Vector3 CrewColour(int id)
+    {
+        var c = CrewColours.Length > 0 ? CrewColours[(id % CrewColours.Length + CrewColours.Length) % CrewColours.Length] : [1, 1, 1];
+        return new System.Numerics.Vector3(c[0], c[1], c[2]);
+    }
+
     /// <summary>By <see cref="Palette"/> colour name.</summary>
     public Dictionary<string, MaterialTuning> Materials { get; init; } = new();
     public ColourGrade Grade { get; init; } = new();

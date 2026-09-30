@@ -116,7 +116,7 @@ public sealed unsafe class Swapchain : IDisposable
             };
             blit.srcOffsets[1] = new VkOffset3D(renderer.Width, renderer.Height, 1);
             blit.dstOffsets[1] = new VkOffset3D((int)extent.width, (int)extent.height, 1);
-            Api.vkCmdBlitImage(cmd, renderer.ColorImage, VkImageLayout.TransferSrcOptimal, image, VkImageLayout.TransferDstOptimal, 1, &blit, VkFilter.Nearest);
+            Api.vkCmdBlitImage(cmd, renderer.ColorImage, VkImageLayout.TransferSrcOptimal, image, VkImageLayout.TransferDstOptimal, 1, &blit, VkFilter.Linear);
             renderer.Transition(cmd, image, VkImageAspectFlags.Color, VkImageLayout.TransferDstOptimal, VkImageLayout.PresentSrcKHR);
         });
 

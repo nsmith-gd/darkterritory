@@ -161,8 +161,9 @@ public sealed class CreatureArt
         // Each crewmate breathes and steps on their own beat: a fixed offset by variant, not a random one.
         double offset = (variant & 7) * 0.41;
         string clip = ClipOf(pose);
+        var Paint = PaintOf(variant);
         if (left is null && right is null)
-            return Draw(mesh, "crew", clip, time + offset, pose != CrewPose.Dead, model, variant, seed: variant);
+            return Draw(mesh, "crew", clip, time + offset, pose != CrewPose.Dead, model, variant, seed: variant, adjust: Paint);
         if (!_models.TryGetValue("crew", out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
         _skinner.Evaluate(m.Model, c, time + offset, pose != CrewPose.Dead, m.Pose);
@@ -170,8 +171,18 @@ public sealed class CreatureArt
             Reach(m, "l", l, leftPole);
         if (right is { } r)
             Reach(m, "r", r, rightPole);
-        Emit(mesh, m, clip, model, variant, 1, variant);
+        Emit(mesh, m, clip, model, variant, 1, variant, Paint);
         return true;
+    }
+
+    /// <summary>
+    /// A crewmate's own colour (look.json crewColours, by player id): the helm's paint and the scarf, the model's ".paint"
+    /// material, tinted, so eight masked heads can be told apart.
+    /// </summary>
+    Func<ModelMaterial, MaterialLook, MaterialLook> PaintOf(int variant)
+    {
+        var colour = Look.Tuning.CrewColour(variant);
+        return (mm, l) => mm.Name.EndsWith(".paint", StringComparison.Ordinal) ? l with { Colour = l.Colour * colour } : l;
     }
 
     /// <summary>One arm of the posed model to a hand position (model space) by two-bone IK, the elbow toward the pole.</summary>
@@ -256,7 +267,7 @@ public sealed class CreatureArt
             if (b >= 0 && t >= 0)
                 Skinner.Aim(model, m.Pose, b, t, joints[joint]);
         }
-        Emit(mesh, m, "dead", Matrix4x4.Identity, variant, glow: 0.2f, seed: variant);
+        Emit(mesh, m, "dead", Matrix4x4.Identity, variant, glow: 0.2f, seed: variant, adjust: PaintOf(variant));
         return true;
 
         // Rows right, up, back: takes model +X, +Y, +Z onto them (right squared to up first).
