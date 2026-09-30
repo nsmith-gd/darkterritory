@@ -341,17 +341,77 @@ public sealed class HostSession
         foreach (var c in _crew)
         {
             var mine = Interest(records, c);
-            c.Sent[Tick] = mine;
-            c.Sent.Remove(Tick - HistoryTicks);
             // Delta against the newest snapshot the client has confirmed; full if that's gone from history.
             uint baseTick = c.AckedSnapshot;
             var baseline = baseTick > 0 ? c.Sent.GetValueOrDefault(baseTick) : null;
             if (baseline is null)
                 baseTick = 0;
             Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, mine, baseline);
+            if (_writer.Length > MaxSnapshotBytes)
+            {
+                mine = Budget(mine, baseline, c, baseTick);
+                SnapshotsBudgeted++;
+            }
+            c.Sent[Tick] = mine;
+            c.Sent.Remove(Tick - HistoryTicks);
             LastSnapshotBytes = _writer.Length;
+            MaxSnapshotBytesSent = Math.Max(MaxSnapshotBytesSent, _writer.Length);
             _transport.Send(c.Peer, _writer.Written, Delivery.Unreliable);
         }
+    }
+
+    /// <summary>
+    /// What one snapshot may take: a datagram (the transport never fragments, and refuses anything bigger). A world that
+    /// doesn't fit in one (a joiner's first, full snapshot of a long train with its bodies, stops and Holdouts) goes over a
+    /// few ticks instead (<see cref="Budget"/>).
+    /// </summary>
+    public int MaxSnapshotBytes { get; set; } = DatagramTransport<object>.MaxPayload;
+    /// <summary>Snapshots that didn't fit and went on a budget, and the largest sent: for the harness and tests.</summary>
+    public int SnapshotsBudgeted { get; private set; }
+    public int MaxSnapshotBytesSent { get; private set; }
+
+    /// <summary>
+    /// A snapshot that fits: what the client has and is unchanged costs nothing in a delta and stays; what's changed or new
+    /// goes in, most needed first (the players, this one's own first, then the train), while it fits. A changed record that
+    /// doesn't fit goes as the client's old copy (so it isn't a removal), a new one next time. What's returned is what the
+    /// client will hold, so the next delta is against exactly that. Leaves the snapshot written in <c>_writer</c>.
+    /// </summary>
+    List<WireRecord> Budget(List<WireRecord> mine, IReadOnlyList<WireRecord>? baseline, Crew c, uint baseTick)
+    {
+        var old = baseline?.ToDictionary(r => r.Key) ?? new Dictionary<uint, WireRecord>();
+        var sent = new SortedDictionary<uint, WireRecord>();
+        var pending = new List<WireRecord>();
+        foreach (var r in mine)
+        {
+            if (old.TryGetValue(r.Key, out var b))
+                sent[r.Key] = b;
+            if (!old.TryGetValue(r.Key, out b) || !r.SameAs(b))
+                pending.Add(r);
+        }
+        int Priority(WireRecord r) => r.Kind switch
+        {
+            RecordKind.Player => r.Id == c.Id ? 0 : 1,
+            RecordKind.Rake or RecordKind.Vehicle or RecordKind.Boiler or RecordKind.Controls => 2,
+            RecordKind.World or RecordKind.Run => 3,
+            _ => 4,
+        };
+        foreach (var r in pending.OrderBy(Priority).ThenBy(r => r.Key))
+        {
+            bool had = sent.TryGetValue(r.Key, out var was);
+            sent[r.Key] = r;
+            Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, [.. sent.Values], baseline);
+            if (_writer.Length <= MaxSnapshotBytes)
+                continue;
+            // That one didn't fit: back to what the client has, and the rest wait for the next snapshot.
+            if (had)
+                sent[r.Key] = was;
+            else
+                sent.Remove(r.Key);
+            break;
+        }
+        var list = sent.Values.ToList();
+        Messages.WriteSnapshot(_writer, Tick, c.LastApplied, baseTick, list, baseline);
+        return list;
     }
 
     readonly HashSet<uint> _far = new();

@@ -7,6 +7,11 @@
   // GDD §8: at dawn the main line reopens and dispatch can't guarantee it's clear. This long after,
   // traffic is on it: the run is lost.
   "dawnGraceSeconds": 120,
+  // Not in the GDD (the director's call after playtesting): a night starts with the engine's front this far short of the
+  // fortress's outer gate, ready to depart, rather than a train's length into the yard. The yard is all at yard speed
+  // (2.5 m/s), so the crawl to the gate was minutes of nothing; now the run begins as the train moves off. Short of the
+  // gate, not on it, so everyone joining boards at the fortress (GDD App. D.3) until it does.
+  "departShortOfGateM": 8,
 
   // Coaling tower (GDD §18, spec D.2 gravity chute): someone on the ground pulls the lever; it pours
   // whether you're ready or not; coal that misses the tender is lost, and overfilling damages the engine.
