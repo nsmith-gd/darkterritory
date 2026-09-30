@@ -1287,7 +1287,9 @@ public sealed class GreyboxScene
         var shape = frame.Shape;
         if (frame.Index == 0)
         {
-            CabMap(mesh, frame, draw);
+            // Only read from the footplate: from farther off it's a pale square, and not worth its dots in the frame budget.
+            if ((frame.Origin - eye).Length < 16)
+                CabMap(mesh, frame, draw);
             mesh.Emissive = 1;
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
                 draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.17), new Double3(0.3, 0.2, 0.02)), FireColour(0.15f + 0.85f * FireGlow));

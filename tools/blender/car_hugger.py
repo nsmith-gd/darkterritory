@@ -194,7 +194,7 @@ for c0, c1 in zip(CREASES, CREASES[1:]):
     ALONG += [c0, c0 - 0.055, (c0 + c1) / 2, c1 + 0.055]
 ALONG += [CREASES[-1], CREASES[-1] - 0.055] + [y for y in (-3.62, -3.7, -3.76) if y < CREASES[-1] - 0.1]
 FINE = [(y, *section_at(y)) for y in ALONG] + [SECS[-1]]
-body.sections(FINE, 32, HIDE, BODY, axis="y", cap1="point", shape=lumps)
+body.sections(FINE, 28, HIDE, BODY, axis="y", cap1="point", shape=lumps)
 # The spine standing through the hide down its back, a knuckle to each ring; humps where the arms come out of it; a
 # collar of slack flesh behind the mouth's rim.
 for k, (c0, c1) in enumerate(zip(CREASES, CREASES[1:])):
@@ -241,7 +241,7 @@ for k, (y, r, count, length) in enumerate(TEETH):
         base = MOUTH + Vector((0, y - MOUTH.y, 0)) + radial * r
         # Hooked in towards the throat, a little crooked each.
         tip = base - radial * length * 0.8 - Vector((0, length * 0.55, 0)) + Vector((0, 0, 0.01 * noise3(base, 61 + k, 9.0)))
-        mouth.tube([base + radial * 0.01, base.lerp(tip, 0.5), tip], [0.022 + 0.006 * (2 - k), 0.014, 0.004], 5, TOOTH,
+        mouth.tube([base + radial * 0.01, base.lerp(tip, 0.5), tip], [0.022 + 0.006 * (2 - k), 0.014, 0.004], 4, TOOTH,
                    f"teeth_{k + 1}", ref=(0, 1, 0), cap0=True, cap1="point")
 
 # ----------------------------------------------------------------------------------------------------------------

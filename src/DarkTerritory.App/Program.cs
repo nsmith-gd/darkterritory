@@ -554,7 +554,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             };
             if (locomotion is not null)
             {
-                locomotion.Follow(session.Player, Eyes.Heading(session.Player, session.Train.Frames));
+                locomotion.Follow(session.Viewpoint, Eyes.Heading(session.Viewpoint, session.Train.Frames));
                 var headset = locomotion.Intent(session.Player, vr!.Session.Controllers, session.PlayerTuning.LadderClimb);
                 intent.MoveX = Math.Clamp(intent.MoveX + headset.MoveX, -1, 1);
                 intent.MoveZ = Math.Clamp(intent.MoveZ + headset.MoveZ, -1, 1);
@@ -574,9 +574,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (campaign is not null && session is NetPlaySession played)
                 campaign = Autosave(saves, campaign, played);
             // The ears are where the eyes were last frame; audio follows the sim tick so no shot is missed.
-            bool exposed = !PlayerMotor.Indoors(session.Player, session.Train);
+            // Watching a crewmate (App. D.10), you hear what they hear: their shelter, their space.
+            var ears = session.Viewpoint;
+            bool exposed = !PlayerMotor.Indoors(ears, session.Train);
             sound.Update(session.World, session.Controls, Listener.At(camera.Position, camera.Yaw), exposed, SimConstants.TickSeconds,
-                PlayerMotor.Space(session.Player, session.Train));
+                PlayerMotor.Space(ears, session.Train));
             if (voice is not null && net is not null)
                 voice.Update(net.Client, session.Crew(session.InterpolatedFrames(1), 1), SimConstants.TickSeconds);
         }
@@ -604,6 +606,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         var frames = session.InterpolatedFrames(clock.Alpha);
         camera = chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
         scene.Crew = session.Crew(frames, clock.Alpha);
+        // Behind a crewmate's eyes (App. D.10), their own figure isn't drawn round the camera.
+        if (session.Watching >= 0 && !chase)
+            scene.Crew = [.. scene.Crew.Where(c => c.Id != session.Watching)];
         // What you carry is drawn at your hands as you see them this frame, not where the last tick left it (T92).
         var carry = session.World.Bodies.Hands;
         var eyeForward = new Double3(-Math.Sin(camera.Yaw), 0, -Math.Cos(camera.Yaw));
@@ -658,7 +663,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 vrOverlay.TextCentred(240, 248, campaign is not null ? "A: BACK TO THE FORTRESS" : "A: BACK", new Vector4(1, 0.7f, 0.3f, 1));
             onPanel = new VrPanelContent(vrHud!, vrOverlay, 480, 270);
         }
-        if (vr is not null && vr.Frame(mesh, locomotion!.Body(camera, Eyes.Heading(session.Player, frames)), lighting, lighting.FogColor, locomotion, onPanel) == XrFrameResult.Exiting)
+        if (vr is not null && vr.Frame(mesh, locomotion!.Body(camera, Eyes.Heading(session.Viewpoint, frames)), lighting, lighting.FogColor, locomotion, onPanel) == XrFrameResult.Exiting)
             break;
         if (vr is not null)
             Mirror();

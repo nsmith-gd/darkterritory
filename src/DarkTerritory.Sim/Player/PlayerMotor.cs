@@ -76,6 +76,11 @@ public struct PlayerIntent
     /// </summary>
     public byte Voice;
     /// <summary>
+    /// Dead or waiting to board: the living crewmate this player watches (GDD App. D.10), 0 for nobody. It moves no player
+    /// or train state; the host centres what it sends them (enemies, loose bodies) and what they hear on that player.
+    /// </summary>
+    public byte Watch;
+    /// <summary>
     /// With <see cref="PlayerButtons.Hand"/>: a VR player's reaching hand, in metres from their feet in the frame they face
     /// (x right, y up, z behind, so ahead is −Z as ever). Reach is tested from it instead of from the body (T29).
     /// </summary>

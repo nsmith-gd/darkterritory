@@ -302,7 +302,10 @@ public sealed class HostSession
         {
             if (listener == speaker)
                 continue;
-            var path = VoiceRouting.Route(speaker.State, listener.State, radio, Train, tunnel, World.Bodies.HasRadio(listener.Id), underground);
+            // A dead listener hears the living through whoever they watch (App. D.10: "exactly what the followed player
+            // hears"); the dead channel stays theirs.
+            var ears = speaker.State.Alive ? EarsOf(listener) : listener;
+            var path = VoiceRouting.Route(speaker.State, ears.State, radio, Train, tunnel, World.Bodies.HasRadio(ears.Id), underground);
             if (path == VoicePath.None)
                 continue;
             // What's holding the speaker changes how they sound (App. C.8): muffled under a hand, fading as they're drained.
@@ -419,18 +422,34 @@ public sealed class HostSession
 
     readonly HashSet<uint> _far = new();
 
+    /// <summary>
+    /// Whose eyes and ears a client has (GDD App. D.10): their own, or, dead or waiting to board, the living crewmate they
+    /// say they watch. Someone they can't watch (alive themselves, or the crewmate dead or gone) leaves them their own.
+    /// </summary>
+    Crew EarsOf(Crew c)
+    {
+        if (c.State.Alive || c.LastIntent.Watch == 0 || c.LastIntent.Watch == c.Id)
+            return c;
+        foreach (var other in _crew)
+            if (other.Id == c.LastIntent.Watch)
+                return other.State.Alive ? other : c;
+        return c;
+    }
+
     List<WireRecord> Interest(List<WireRecord> records, Crew c)
     {
         _far.Clear();
         // A Follower is never sent to whoever it's following (App. A.3: "visible ONLY to other players, never to the
         // carrier"): not drawn, not heard, not there at all on their machine. Nested in a car, it's off their back, and
-        // anyone's to see.
+        // anyone's to see. Watching the carrier, you see what they see: nothing on their back.
+        var eyes = EarsOf(c);
         foreach (var e in World.ActiveEnemies)
-            if (e is Enemies.Follower { Nested: false } f && f.Carrier == c.Id)
+            if (e is Enemies.Follower { Nested: false } f && (f.Carrier == c.Id || f.Carrier == eyes.Id))
                 _far.Add(WireRecord.MakeKey(RecordKind.Enemy, e.Id));
         if (InterestRadius <= 0)
             return _far.Count == 0 ? records : records.Where(r => !_far.Contains(r.Key)).ToList();
-        var at = PlayerMotor.WorldPosition(c.State, Train);
+        // Watching someone (App. D.10), a dead player is sent what's around them: they see it through their eyes.
+        var at = PlayerMotor.WorldPosition(eyes.State, Train);
         foreach (var e in World.ActiveEnemies)
             if (!e.Far && (e.WorldPosition(Train) - at).Length > InterestRadius)
                 _far.Add(WireRecord.MakeKey(RecordKind.Enemy, e.Id));
