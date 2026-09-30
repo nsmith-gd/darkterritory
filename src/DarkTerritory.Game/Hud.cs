@@ -48,7 +48,7 @@ public static class Hud
         if (s.Report is { } report)
             Report(o, width, height, s, report, dead, line);
         else if (DeadPhaseControls.Waiting(s))
-            Waiting(o, width, s, line);
+            Waiting(o, width, height, s, line);
         if (s.Report is null && Prompt(s) is { } written)
         {
             string prompt = Bound(written);
@@ -107,7 +107,7 @@ public static class Hud
     /// (D.7), let the next go first, the creature vote (D.11), a bookmark (D.12). Nothing on it is free-camera or replay.
     /// Narrow, so the centre's DEAD and its cause stay clear.
     /// </summary>
-    static void Waiting(Overlay o, int width, IPlaySession s, int line)
+    static void Waiting(Overlay o, int width, int height, IPlaySession s, int line)
     {
         var world = s.World;
         var rows = new List<(string Text, Vector4 Colour)>();
@@ -145,7 +145,9 @@ public static class Hud
         if (following >= 0)
             rows.Add(("[P] BOOKMARK", Dim));
         rows = [.. rows.Select(r => (Bound(r.Text), r.Colour))];
-        float w = rows.Max(r => o.Font.Measure(r.Text)) + 10, x = width - w - 2, y = 5 + 6 * line;
+        // Under the middle's DEAD (or LOBBIED), its cause and the rule, clear of all three; as many rows as fit.
+        float w = rows.Max(r => o.Font.Measure(r.Text)) + 10, x = width - w - 2, y = MathF.Round(height * 0.28f) + 5 * line + 4;
+        rows = [.. rows.Take(Math.Max(1, (int)((height - 6 - y) / line)))];
         o.Rect(x, y - 3, w, rows.Count * line + 5, Panel);
         foreach (var (text, colour) in rows)
         {
@@ -395,12 +397,23 @@ public static class Hud
     /// bound.
     /// </summary>
     public static string Bound(string prompt) => prompt
-        .Replace("[LMB/RMB]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Fire))}/{Controls.KeyLabel(Keys.KeyFor(Control.Throw))}]", StringComparison.Ordinal)
+        .Replace("[LMB/RMB]", $"[{Compact(Keys.KeyFor(Control.Fire))}/{Compact(Keys.KeyFor(Control.Throw))}]", StringComparison.Ordinal)
         .Replace("[E]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Use))}]", StringComparison.Ordinal)
         .Replace("[RMB]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Throw))}]", StringComparison.Ordinal)
         .Replace("[T]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Radio))}]", StringComparison.Ordinal)
         .Replace("[N]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.LetNextGo))}]", StringComparison.Ordinal)
         .Replace("[P]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Bookmark))}]", StringComparison.Ordinal);
+
+    /// <summary>A key's name short enough for a panel's row (the mouse's buttons as LMB, RMB...).</summary>
+    static string Compact(string key) => key switch
+    {
+        "MouseLeft" => "LMB",
+        "MouseRight" => "RMB",
+        "MouseMiddle" => "MMB",
+        "Mouse4" => "M4",
+        "Mouse5" => "M5",
+        _ => Controls.KeyLabel(key),
+    };
 
     /// <summary>What your hands can do right here, with the key that does it.</summary>
     public static string? Prompt(IPlaySession s)

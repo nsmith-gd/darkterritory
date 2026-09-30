@@ -115,7 +115,9 @@ public class VoteTests
             n.World.Vote(id++, n.Crew[id - 1], favourite);
         }
         int decisions = 0, votedIn = 0, seen = d.Log.Count;
-        for (int t = 0; t < 400 * SimConstants.TickRate; t++)
+        // Until the director's made enough decisions to say something (the v1.1 roster's comes every minute or so), or the
+        // line runs out.
+        for (int t = 0; t < 1500 * SimConstants.TickRate && (decisions < 8 || votedIn == 0) && n.Train.Dynamics.Distance < Deep.Length - 3000; t++)
         {
             n.Step(holdSpeed: 14);
             if (d.Log.Count == seen || d.LastOptions.Count == 0)

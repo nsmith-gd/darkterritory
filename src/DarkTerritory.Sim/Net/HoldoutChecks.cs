@@ -681,7 +681,9 @@ public static class HoldoutChecks
         // Every decision over a stretch of night: the same options, each want tag's share held, no gain past the cap.
         int decisions = 0, seen = d.Log.Count;
         double budget = d.Budget;
-        for (int t = 0; t < 400 * SimConstants.TickRate; t++)
+        // Until the director's made enough decisions to say something (the v1.1 roster's comes every minute or so), or the
+        // line runs out.
+        for (int t = 0; t < 1500 * SimConstants.TickRate && decisions < 10 && n.Train.Dynamics.Distance < route.Length - 3000; t++)
         {
             n.Step(holdSpeed: 14);
             if (d.Log.Count == seen || d.LastOptions.Count == 0)
@@ -711,7 +713,7 @@ public static class HoldoutChecks
             faults.Add("the Gaunt, once a run and already sent, could be voted for");
         if (decisions < 5)
             faults.Add($"only {decisions} director decisions: too few to test the shares");
-        return new HoldoutCheck("Vote bounds", "every creature on offer voted for, one past the cap; every director decision over 400 s compared with and without the votes; the gates, the once-a-run limit and the Soot Children's draw held to", faults)
+        return new HoldoutCheck("Vote bounds", "every creature on offer voted for, one past the cap; ten director decisions compared with and without the votes; the gates, the once-a-run limit and the Soot Children's draw held to", faults)
         {
             Measured = new Dictionary<string, double> { ["options"] = w.VoteOptions.Count, ["votes"] = w.VoteLog.Count, ["decisions"] = decisions },
         };

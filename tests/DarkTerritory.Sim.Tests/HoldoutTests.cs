@@ -354,10 +354,11 @@ public class HoldoutTests
         n.World.ApplyDamage(id => n.Crew[id], (id, s) => n.Crew[id] = s, [1]);
         Assert.True(n.Crew[1].Alive);
         Assert.Equal(P.Health, n.Crew[1].Health);
-        // Outside it, the same bite lands.
+        // Outside it, the same bite lands (GDD v1.1 App. A.1: a bite floors you; only a grab's end, or the train's own
+        // dangers, kill).
         n.Crew[1] = PlayerMotor.SpawnOnGround(h.Door + (h.Door - h.Centre).Normalized * 3, n.Train.Line, n.Train.Dynamics.Distance, P);
         n.World.ApplyDamage(id => n.Crew[id], (id, s) => n.Crew[id] = s, [1]);
-        Assert.False(n.Crew[1].Alive);
+        Assert.True(n.Crew[1].Health < P.Health);
     }
 
     [Fact]
