@@ -16,6 +16,7 @@ using DarkTerritory.Sim.Train;
 
 var baseContent = DataFile.FindContentRoot(Environment.CurrentDirectory);
 // Mods (T49) laid over the content like the game does (--no-mods for the base game). The editor edits the base content.
+args = Mods.TakeArgs(args);
 bool noMods = args.Contains("--no-mods");
 args = [.. args.Where(a => a != "--no-mods")];
 var content = args is ["edit", ..] or ["mods", ..] ? baseContent : Mods.Mount(baseContent, enabled: !noMods);
@@ -27,13 +28,10 @@ var sight = DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File));
 
 return args switch
 {
-    // dt mods: the mods found, in load order, and what each does to which file (T49).
-    ["mods", ..] => Print(new
-    {
-        folders = Mods.Folders(baseContent),
-        mods = ContentMods.Find(Mods.Folders(baseContent)).Select(m => new { m.Name, m.Version, m.Order, m.Description, m.Directory }),
-        files = ContentMods.Plan(baseContent, ContentMods.Find(Mods.Folders(baseContent))),
-    }),
+    // dt mods pack <package folder> [--out dir]: a Thunderstore-ready zip, or what the site would refuse (T78). Exit 1 if refused.
+    ["mods", "pack", var package, ..] => PrintPack(package, Str(args, "--out", "out/mods")),
+    // dt mods: the mods found, in load order, what can't be loaded and why, and what each does to which file (T49, T78).
+    ["mods", ..] => Print(ModsReport(baseContent)),
     ["train", "table"] => Print(TrainTable(train, player)),
     ["boiler", "table"] => Print(new[] { 3, 6, 10, 15, 20 }.Select(n => new
     {
@@ -182,6 +180,25 @@ BalanceReport RunBalance(string[] args)
         Console.Error.WriteLine($"{n.Tier}:{n.Seed} crew {n.Crew} cars {n.Cars}: {rows[i].End}, net {rows[i].Net}, lost {rows[i].CrewLost}");
     });
     return Balance.Judge(rows, targets);
+}
+
+static object ModsReport(string baseContent)
+{
+    var scan = ContentMods.Scan(Mods.Folders(baseContent));
+    return new
+    {
+        folders = Mods.Folders(baseContent),
+        mods = scan.Mods.Select(m => new { m.Id, m.Version, m.Thunderstore, m.Dependencies, m.Order, m.Description, m.Directory }),
+        problems = scan.Problems,
+        files = ContentMods.Plan(baseContent, scan.Mods),
+    };
+}
+
+static int PrintPack(string package, string outDir)
+{
+    var zip = ContentMods.Pack(package, outDir, out var problems);
+    Print(new { zip, problems });
+    return zip is null ? 1 : 0;
 }
 
 static int PrintBalance(BalanceReport report)

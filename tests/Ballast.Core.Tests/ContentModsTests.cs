@@ -104,4 +104,132 @@ public sealed class ContentModsTests : IDisposable
         Assert.Contains("orphan", e.Message);
         Assert.Contains("tuning/nothing.json", e.Message);
     }
+
+    /// <summary>A Thunderstore package as a mod manager installs it: a Namespace-Name folder with manifest, README, icon, content/.</summary>
+    string Package(string folder, string name, string version, string[] dependencies, params (string Rel, string Text)[] files)
+    {
+        var dir = Path.Combine(ModsDir, folder);
+        Write(dir, "manifest.json", $$"""
+            { "name": "{{name}}", "version_number": "{{version}}", "website_url": "", "description": "a test package",
+              "dependencies": [{{string.Join(", ", dependencies.Select(d => $"\"{d}\""))}}] }
+            """);
+        Write(dir, "README.md", "# " + name);
+        Png(Path.Combine(dir, "icon.png"), 256, 256);
+        foreach (var (rel, text) in files)
+            Write(Path.Combine(dir, "content"), rel, text);
+        return dir;
+    }
+
+    /// <summary>Enough of a PNG for its size to be read: the signature and the IHDR chunk.</summary>
+    static void Png(string path, int width, int height)
+    {
+        var b = new byte[33];
+        new byte[] { 0x89, (byte)'P', (byte)'N', (byte)'G', 13, 10, 26, 10, 0, 0, 0, 13, (byte)'I', (byte)'H', (byte)'D', (byte)'R' }.CopyTo(b, 0);
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(b.AsSpan(16), width);
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(b.AsSpan(20), height);
+        File.WriteAllBytes(path, b);
+    }
+
+    [Fact]
+    public void AThunderstorePackageIsLaidOverTheContentFromItsContentFolder()
+    {
+        Package("Ace-HardEdges", "HardEdges", "1.0.0", [], ("tuning/train.json", """{ "cars": 20 }"""));
+        var mod = Assert.Single(ContentMods.Find(ModsDir));
+        Assert.True(mod.Thunderstore);
+        Assert.Equal("Ace-HardEdges", mod.Id);
+        Assert.Equal("1.0.0", mod.Version);
+        var mounted = ContentMods.Mount(Content, [mod], Into);
+        Assert.Contains("20", File.ReadAllText(Path.Combine(mounted, "tuning/train.json")));
+        // The package's own files aren't content.
+        Assert.False(File.Exists(Path.Combine(mounted, "manifest.json")));
+        Assert.False(File.Exists(Path.Combine(mounted, "icon.png")));
+        Assert.Equal(["Ace-HardEdges 1.0.0"], ContentMods.MountedIn(mounted));
+    }
+
+    [Fact]
+    public void DependenciesLoadFirstWhateverTheOrderSays()
+    {
+        // Zed's package patches the file Ace's adds: Ace has to go first, though "order" and the name would put it last.
+        Package("Zed-Base", "Base", "1.2.0", [], ("tuning/new.json", """{ "a": 1 }"""));
+        Package("Ace-OnTop", "OnTop", "1.0.0", ["Zed-Base-1.1.0"], ("tuning/new.json", """{ "$patch": true, "b": 2 }"""));
+        var scan = ContentMods.Scan(ModsDir);
+        Assert.Empty(scan.Problems);
+        Assert.Equal(["Zed-Base", "Ace-OnTop"], scan.Mods.Select(m => m.Id));
+        var mounted = ContentMods.Mount(Content, scan.Mods, Into);
+        var merged = JsonNode.Parse(File.ReadAllText(Path.Combine(mounted, "tuning/new.json")))!;
+        Assert.Equal(1, (int)merged["a"]!);
+        Assert.Equal(2, (int)merged["b"]!);
+    }
+
+    [Fact]
+    public void AMissingOrTooOldDependencyOrACircleLeavesTheModOutAndSaysWhy()
+    {
+        Package("Ace-NeedsGhost", "NeedsGhost", "1.0.0", ["Nobody-Ghost-1.0.0"], ("a.json", "{}"));
+        Package("Ace-Old", "Old", "1.0.0", [], ("b.json", "{}"));
+        Package("Ace-NeedsNewer", "NeedsNewer", "1.0.0", ["Ace-Old-2.0.0"], ("c.json", "{}"));
+        Package("Ace-Chicken", "Chicken", "1.0.0", ["Ace-Egg-1.0.0"], ("d.json", "{}"));
+        Package("Ace-Egg", "Egg", "1.0.0", ["Ace-Chicken-1.0.0"], ("e.json", "{}"));
+        var scan = ContentMods.Scan(ModsDir);
+        Assert.Equal(["Ace-Old"], scan.Mods.Select(m => m.Id));
+        Assert.Contains(scan.Problems, p => p.Contains("Ace-NeedsGhost") && p.Contains("isn't installed"));
+        Assert.Contains(scan.Problems, p => p.Contains("Ace-NeedsNewer") && p.Contains("older"));
+        Assert.Contains(scan.Problems, p => p.Contains("Ace-Chicken") && p.Contains("circle"));
+    }
+
+    [Fact]
+    public void PackMakesAThunderstoreZipOrSaysWhatTheSiteWouldRefuse()
+    {
+        var good = Package("Ace-HardEdges", "HardEdges", "1.0.0", [], ("tuning/train.json", """{ "cars": 20 }"""));
+        var zip = ContentMods.Pack(good, Path.Combine(_root, "out"), out var problems);
+        Assert.Empty(problems);
+        Assert.Equal("HardEdges-1.0.0.zip", Path.GetFileName(zip));
+        using (var archive = System.IO.Compression.ZipFile.OpenRead(zip!))
+        {
+            var names = archive.Entries.Select(e => e.FullName).ToList();
+            Assert.Contains("manifest.json", names);
+            Assert.Contains("README.md", names);
+            Assert.Contains("icon.png", names);
+            Assert.Contains("content/tuning/train.json", names);
+        }
+
+        var bad = Package("Ace-Bad", "Bad Name!", "1.0", ["not a dependency"]);
+        File.Delete(Path.Combine(bad, "README.md"));
+        Png(Path.Combine(bad, "icon.png"), 128, 128);
+        Assert.Null(ContentMods.Pack(bad, Path.Combine(_root, "out"), out var refused));
+        Assert.Contains(refused, p => p.StartsWith("name"));
+        Assert.Contains(refused, p => p.StartsWith("version_number"));
+        Assert.Contains(refused, p => p.Contains("Namespace-Name-1.2.3"));
+        Assert.Contains(refused, p => p.Contains("README"));
+        Assert.Contains(refused, p => p.Contains("256x256"));
+        Assert.Contains(refused, p => p.Contains("content"));
+    }
+
+    [Fact]
+    public void AZipDroppedIntoTheModsFolderIsUnpackedAndLoaded()
+    {
+        var made = Package("Ace-HardEdges", "HardEdges", "1.0.0", [], ("tuning/train.json", """{ "cars": 20 }"""));
+        var zip = ContentMods.Pack(made, Path.Combine(_root, "downloads"), out _)!;
+        Directory.Delete(made, recursive: true);
+        // As downloaded from the site: Namespace-Name-version.zip.
+        File.Copy(zip, Path.Combine(ModsDir, "Ace-HardEdges-1.0.0.zip"));
+        var unpacked = Path.Combine(_root, "unpacked");
+        ContentMods.Unpack(ModsDir, unpacked);
+        var mod = Assert.Single(ContentMods.Find(ModsDir, unpacked));
+        Assert.Equal("Ace-HardEdges", mod.Id);
+        Assert.Contains("20", File.ReadAllText(Path.Combine(ContentMods.Mount(Content, [mod], Into), "tuning/train.json")));
+        // Its zip deleted (uninstalled), the unpacked copy goes too.
+        File.Delete(Path.Combine(ModsDir, "Ace-HardEdges-1.0.0.zip"));
+        ContentMods.Prune(unpacked, ContentMods.Unpack(ModsDir, unpacked));
+        Assert.Empty(ContentMods.Find(ModsDir, unpacked));
+    }
+
+    [Fact]
+    public void TheExampleModIsAPackageThunderstoreWouldTake()
+    {
+        var example = Path.Combine(Path.GetDirectoryName(DataFile.FindContentRoot())!, "tools", "mods", "example");
+        Assert.Empty(ContentMods.Validate(example));
+        // And it patches a file the game has.
+        var content = DataFile.FindContentRoot();
+        Assert.All(ContentMods.Plan(content, ContentMods.Find(Path.GetDirectoryName(example)!)), f => Assert.Equal(ModChange.Patched, f.Change));
+    }
 }

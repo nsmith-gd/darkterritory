@@ -1772,3 +1772,23 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Verified:** `IncidentTests.AWalkerTooHurtToStampThemOutLeavesTheCarItsWarmingInWhenTheGnawersGetOut`, which fails without the change.
       - The sweep (frontier and deadLines, seeds 1–2, crews 2 and 8) delivers all eight nights and passes every check: longest quiet 22.7 s, mean 9.9 s, 42 punishes a night at crew 8.
       - frontier:7 delivers (2447; it now skips its Foundry stop).
+90. **Mods ship through Thunderstore (T78, the director's call).** A Dark Territory mod is a Thunderstore package, and the loader (note 53's v1, `Ballast.ContentMods`) reads it as it is.
+    - **The package.** `manifest.json` (`name`, `version_number`, `website_url`, `description`, `dependencies`), `README.md`, a 256×256 `icon.png`, and a `content/` folder.
+      - `content/` is laid over the game's `content/` as v1 mods are: added, replaced, or `"$patch": true` merged key by key.
+      - A package without `content/` has its root laid over, bar its own files.
+      - v1 `mod.json` folders still load.
+    - **Identity and order.**
+      - A mod's id is the `Namespace-Name` folder the mod managers install it under, else its name. It's what the mounted copy records, so it's what the content hash and a joiner's mod check compare.
+      - Dependencies (`Namespace-Name-1.2.3`, read as "at least") load first. Otherwise mods load by `order`, then id.
+      - A mod with a dependency missing or too old, or in a circle, isn't loaded. `ContentMods.Scan` says why, and the game prints it; the rest still load.
+      - The same package twice (a profile and the mods folder): the newest.
+    - **Where they come from.**
+      - The `mods` folders as before.
+      - A mod manager's profile: r2modman and the Thunderstore Mod Manager launch the game with `--mods-dir <profile folder>`, or set `DARKTERRITORY_MODS`.
+      - Zips dropped straight into any of them, unpacked into the app data's `mods-unpacked` as the managers lay them out. They're unpacked again when the zip changes, and removed when it's gone.
+    - **Making one.** `dt mods pack <folder>` checks a package against the site's upload rules and writes `Name-1.0.0.zip`, or lists what it would refuse and exits 1:
+      - name characters, a `major.minor.patch` version, a description of 250 characters at most, dependency format;
+      - README present, icon size, and some content.
+      - `tools/mods/example` (LateDispatch) is a package the tests hold to those rules. Its README is the modder's guide.
+    - **Not yet.** The game's own Thunderstore community page and its install rules are set up on the site, not in the repo: packages install as `Namespace-Name` folders into the profile the manager hands the game.
+    - **Verified:** `ContentModsTests`: a package laid over from `content/`, dependencies ordering the load, missing, too-old and circular dependencies left out with the reason, a pack and a refused pack, a dropped zip loaded and then uninstalled, and the example package.

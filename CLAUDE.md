@@ -19,6 +19,7 @@ tools/blender/build.sh                                                # rebuild 
 python3 tools/models/fetch.py && tools/models/build.sh                # sourced CC0/CC-BY models, and the modelled-and-baked ones (props, the crew) -> content/art/models (needs blender)
 dotnet run --project src/DarkTerritory.Cli -- perf [--only pc|vr] [--views roof,cab]   # frame cost vs tuning/perf.json (90 fps PC, 72 fps VR): CPU phases, GPU passes, counts
 dotnet run --project src/DarkTerritory.Cli -- harness --bots 8 --seconds 300   # host + bots over lossy loopback; netcode report
+dotnet run --project src/DarkTerritory.Cli -- mods pack tools/mods/example      # mods are Thunderstore packages: check one and zip it; `dt mods` lists what's installed
 dotnet run --project src/DarkTerritory.Cli -- linegen generate --route frontier:7 --cars 6   # a night's line plan + map and profile PNGs; `linegen sweep` for pass rates; `linegen water` its lakes and shores
 XDG_RUNTIME_DIR=/tmp xvfb-run -a dotnet run --project src/DarkTerritory.App -- --throttle 1 --quit-after 10 --capture out/shots/app.png   # real window path, headless
 ```

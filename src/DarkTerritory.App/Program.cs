@@ -56,6 +56,8 @@ string Arg(string name, string fallback)
 }
 
 // Mods (T49) laid over the base content, unless --no-mods plays the base game.
+// A mod manager's profile (Thunderstore, T78) comes in as --mods-dir.
+args = Mods.TakeArgs(args);
 var content = Mods.Mount(DataFile.FindContentRoot(Environment.CurrentDirectory), enabled: !args.Contains("--no-mods"));
 // The art pass's surfaces (T39); --greybox draws flat colour instead.
 var look = args.Contains("--greybox") ? null : Look.Load(content);
