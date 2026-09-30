@@ -34,6 +34,15 @@ public sealed record GeometryTuning(
 {
     /// <summary>How far the guard van's rear platform stands out behind it (GDD §24 THE WEIGHT's "rear platform").</summary>
     public double PlatformDepth { get; init; } = 1.2;
+
+    /// <summary>
+    /// Where the coupler plate's centre line is across the car: in line with the end doors it bridges between, so you step
+    /// straight off it through a doorway. Solid greybox cars have no doors, and their plate stays on the centre line.
+    /// </summary>
+    public double PlateX => Interior?.DoorX ?? 0;
+
+    /// <summary>The end ladders' line: right of the plate, their stiles just clear of its edge (the ladder is 0.4 m across).</summary>
+    public double EndLadderX => PlateX + CouplerWidth / 2 + 0.3;
 }
 
 /// <summary>Walk-in cars (GDD §10, §26): a floor, walls, a roof you can still walk on, and a door at each end.</summary>
