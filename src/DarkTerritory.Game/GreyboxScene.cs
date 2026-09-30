@@ -62,6 +62,24 @@ public sealed class GreyboxScene
     /// <summary>The art pass's surfaces (T39, look.json). Unset, the greybox is flat colour.</summary>
     public Look? Look { get; set; }
 
+    /// <summary>
+    /// When set, what each part of <see cref="Build"/> cost (milliseconds, and the triangles it added to the frame's soup),
+    /// added up over the builds since it was set: `dt perf`'s breakdown of the main thread's frame.
+    /// </summary>
+    public Dictionary<string, (double Ms, int Triangles)>? Timings { get; set; }
+    readonly System.Diagnostics.Stopwatch _lap = new();
+    int _lapCount;
+
+    void Lap(MeshBuilder mesh, string part)
+    {
+        if (Timings is null)
+            return;
+        Timings.TryGetValue(part, out var sum);
+        Timings[part] = (sum.Ms + _lap.Elapsed.TotalMilliseconds, sum.Triangles + (mesh.Count - _lapCount) / 3);
+        _lapCount = mesh.Count;
+        _lap.Restart();
+    }
+
     /// <summary>Depth of the valley under a bridge.</summary>
     const double ValleyDepth = 18;
     /// <summary>How far past the draw distance the Ferryman's lantern still shows.</summary>
@@ -80,6 +98,8 @@ public sealed class GreyboxScene
         mesh.Clear();
         mesh.Style = Look?.Style;
         mesh.Seed = 0;
+        _lap.Restart();
+        _lapCount = 0;
         // Bare triangles (the ground, the ballast, the trees) take world texels, wrapped every few km so they fit a
         // float; the pattern jumps at a wrap, rarely and far off in the fog.
         const double Wrap = 4096;
@@ -92,7 +112,9 @@ public sealed class GreyboxScene
         foreach (var branch in line.Branches)
             if (branch.Toe < to && branch.End > from)
                 Branch(mesh, line, branch, eye);
+        Lap(mesh, "track");
         Lineside(mesh, line, eye, from, to);
+        Lap(mesh, "lineside");
         if (Route is not null)
         {
             Features(mesh, line, eye, from, to);
@@ -114,6 +136,7 @@ public sealed class GreyboxScene
             Fortress(mesh, line, eye, from, to, 0, yard, gateAt: yard);
             double home = Route.Plan?.Terminus.GateM ?? line.Length - terminus - 200;
             Fortress(mesh, line, eye, from, to, home, line.Length, gateAt: home, lit: Route.Plan?.Terminus.Silent != true);
+            Lap(mesh, "route");
         }
         // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox,
         // and any hand lamp lying about or being carried.
@@ -142,6 +165,7 @@ public sealed class GreyboxScene
         }
         foreach (var frame in frames)
             Car(mesh, frame, eye);
+        Lap(mesh, "cars");
         if (Look is not null)
         {
             // The art pass's effects (Art/Effects): smoke, steam, sparks, the lamp's beam, and fog banks along the line.
@@ -151,6 +175,7 @@ public sealed class GreyboxScene
             if (Route?.Weather is { Wet: true } weather)
                 Look.Art.Effects.Rain(mesh, eye, Time, (float)weather.Wind, fog);
         }
+        Lap(mesh, "effects");
         mesh.Seed = 0;
         if (Enemies is not null)
             foreach (var e in Enemies)
@@ -162,6 +187,7 @@ public sealed class GreyboxScene
                 }
                 else if (!e.Gone)
                     DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures);
+        Lap(mesh, "enemies");
         if (Bodies is not null)
         {
             // Heavy crates only come from a facility's site, so its size is there (facilities.json "heavy").
@@ -174,6 +200,7 @@ public sealed class GreyboxScene
             foreach (var c in Crew)
                 if (c.Alive && Look?.Art.Crewmate(mesh, c, eye, Time) != true) // the dead are drawn as their bodies
                     DrawCrewmate(mesh, c, eye);
+        Lap(mesh, "bodies and crew");
     }
 
     /// <summary>

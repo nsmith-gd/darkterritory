@@ -64,6 +64,9 @@ struct PostConstants
 /// </list>
 /// Without <see cref="Load"/>ed assets it draws the untextured greybox, as it always has.
 /// </summary>
+/// <summary>What the last frame drew: the scene pass (with the sky), and each shadow pass (zero while its light is off).</summary>
+public readonly record struct FrameStats(int Triangles, int Draws, int Lights, int LampTriangles, int LampDraws, int MoonTriangles, int MoonDraws);
+
 public sealed unsafe class GreyboxRenderer : IDisposable
 {
     readonly VkFormat _colorFormat;
@@ -145,6 +148,11 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
     readonly record struct Target(VkImage Image, VkDeviceMemory Memory, VkImageView View, int Width, int Height);
 
+    // GPU timing: a timestamp at each pass boundary of the last recorded frame (none where the queue can't time).
+    static readonly string[] PassNames = ["lampShadow", "moonShadow", "scene", "occlusion", "bloom", "composite", "final"];
+    readonly VkQueryPool _timestamps;
+    bool _timed;
+
     /// <param name="colorFormat">The frame's format: UNORM, holding display-ready (gamma-encoded) values. A headset renderer
     /// matches the channel order of its sRGB swapchain so the frame copies across bit for bit.</param>
     /// <param name="moonShadowSize">The moon's shadow map's size, texels square.</param>
@@ -191,6 +199,13 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         void* mapped;
         Check(Api.vkMapMemory(_frameMemory, 0, (ulong)sizeof(FrameData), 0, &mapped), "vkMapMemory");
         _frameMapped = (FrameData*)mapped;
+        if (gpu.TimestampPeriod > 0)
+        {
+            var info = new VkQueryPoolCreateInfo { queryType = VkQueryType.Timestamp, queryCount = (uint)PassNames.Length + 1 };
+            VkQueryPool queries;
+            Check(Api.vkCreateQueryPool(&info, null, &queries), "vkCreateQueryPool");
+            _timestamps = queries;
+        }
 
         _nearest = GpuTexture.CreateSampler(gpu, VkFilter.Nearest, VkFilter.Nearest, VkSamplerMipmapMode.Nearest, VkSamplerAddressMode.ClampToEdge, VkSamplerAddressMode.ClampToEdge);
         _linear = GpuTexture.CreateSampler(gpu, VkFilter.Linear, VkFilter.Linear, VkSamplerMipmapMode.Nearest, VkSamplerAddressMode.ClampToEdge, VkSamplerAddressMode.ClampToEdge);
@@ -272,7 +287,29 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     PostSettings _post = new();
 
     /// <summary>Counts from the last frame recorded, for budgets (pipeline "frame-level ceilings").</summary>
-    public (int Triangles, int Draws, int Lights) Stats { get; private set; }
+    public FrameStats Stats { get; private set; }
+
+    /// <summary>
+    /// How long each pass of the last frame took on the GPU, in milliseconds, once that frame has finished (every submit
+    /// here waits for it). Empty where the device can't time its queue.
+    /// </summary>
+    public IReadOnlyList<(string Pass, double Ms)> PassTimes()
+    {
+        if (!_timed)
+            return [];
+        var ticks = new ulong[PassNames.Length + 1];
+        fixed (ulong* t = ticks)
+            if (Api.vkGetQueryPoolResults(_timestamps, 0, (uint)ticks.Length, (nuint)(ticks.Length * sizeof(ulong)), t, sizeof(ulong),
+                    VkQueryResultFlags.Bit64 | VkQueryResultFlags.Wait) != VkResult.Success)
+                return [];
+        return [.. PassNames.Select((name, i) => (name, (ticks[i + 1] - ticks[i]) * _gpu.TimestampPeriod * 1e-6))];
+    }
+
+    void Mark(VkCommandBuffer cmd, int index)
+    {
+        if (_timestamps.IsNotNull)
+            Api.vkCmdWriteTimestamp2(cmd, VkPipelineStageFlags2.AllCommands, _timestamps, (uint)index);
+    }
 
     /// <summary>Uploads the materials, the backdrop and the grade, replacing what was there. Call outside command recording.</summary>
     public void Load(RenderAssets assets)
@@ -588,8 +625,12 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         var light = lighting;
         light.FogColor = clearColor;
         WriteFrame(camera, light, clearColor);
-        int triangles = _vertexCount / 3;
         _lampOn = lighting.LampRange > 1;
+        (int Triangles, int Draws) lampDrawn = default, moonDrawn = default;
+        if (_timestamps.IsNotNull)
+            Api.vkCmdResetQueryPool(cmd, _timestamps, 0, (uint)PassNames.Length + 1);
+        _timed = _timestamps.IsNotNull;
+        Mark(cmd, 0);
 
         // 0: the headlamp's shadow map (cleared to "nothing in the way" with the lamp dark).
         Transition(cmd, _shadow.Image, VkImageAspectFlags.Depth, VkImageLayout.Undefined, VkImageLayout.DepthAttachmentOptimal);
@@ -613,11 +654,12 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                 var set = _sceneSet;
                 Api.vkCmdBindDescriptorSets(cmd, VkPipelineBindPoint.Graphics, _sceneLayout, 0, 1, &set, 0, null);
                 Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _shadowPipeline);
-                DrawGeometry(cmd);
+                lampDrawn = DrawGeometry(cmd);
             }
             Api.vkCmdEndRendering(cmd);
         }
         Transition(cmd, _shadow.Image, VkImageAspectFlags.Depth, VkImageLayout.DepthAttachmentOptimal, VkImageLayout.ShaderReadOnlyOptimal);
+        Mark(cmd, 1);
 
         // 0b: the moon's.
         Transition(cmd, _moonShadow.Image, VkImageAspectFlags.Depth, VkImageLayout.Undefined, VkImageLayout.DepthAttachmentOptimal);
@@ -641,11 +683,12 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                 var set = _sceneSet;
                 Api.vkCmdBindDescriptorSets(cmd, VkPipelineBindPoint.Graphics, _sceneLayout, 0, 1, &set, 0, null);
                 Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _moonShadowPipeline);
-                DrawGeometry(cmd);
+                moonDrawn = DrawGeometry(cmd);
             }
             Api.vkCmdEndRendering(cmd);
         }
         Transition(cmd, _moonShadow.Image, VkImageAspectFlags.Depth, VkImageLayout.DepthAttachmentOptimal, VkImageLayout.ShaderReadOnlyOptimal);
+        Mark(cmd, 2);
 
         // 1-2: sky and scene into the float target.
         Transition(cmd, _scene.Image, VkImageAspectFlags.Color, VkImageLayout.Undefined, VkImageLayout.ColorAttachmentOptimal);
@@ -658,7 +701,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         Api.vkCmdPushConstants(cmd, _sceneLayout, VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment, 0, (uint)sizeof(DrawConstants), &identity);
         Api.vkCmdDraw(cmd, 3, 1, 0, 0);
         Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _scenePipeline);
-        triangles += DrawGeometry(cmd);
+        var sceneDrawn = DrawGeometry(cmd);
         if (_fxAlphaCount + _fxAddCount > 0)
         {
             var fb = _fxVertices;
@@ -682,7 +725,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         Api.vkCmdEndRendering(cmd);
         Transition(cmd, _scene.Image, VkImageAspectFlags.Color, VkImageLayout.ColorAttachmentOptimal, VkImageLayout.ShaderReadOnlyOptimal);
         Transition(cmd, _depth.Image, VkImageAspectFlags.Depth, VkImageLayout.DepthAttachmentOptimal, VkImageLayout.ShaderReadOnlyOptimal);
-        Stats = (triangles, _draws.Count + 2, _lights.Count);
+        Mark(cmd, 3);
+        Stats = new FrameStats(sceneDrawn.Triangles, sceneDrawn.Draws + 1, _lights.Count, lampDrawn.Triangles, lampDrawn.Draws, moonDrawn.Triangles, moonDrawn.Draws);
 
         // 2b: the occlusion from the depth, at half resolution.
         _projection = camera.Projection((float)Width / Height);
@@ -692,6 +736,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             B = new Vector4(Post.OcclusionRadius, Post.OcclusionIntensity, 1f / Width, 1f / Height),
             C = new Vector4(Post.OcclusionFar, 0, 0, 0),
         });
+        Mark(cmd, 4);
 
         // 3: bloom at half resolution.
         var bloomStep = new Vector2(1f / _bloomA.Width, 1f / _bloomA.Height);
@@ -704,6 +749,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         PostPass(cmd, _bloomC, _brightPipeline, _postLayout, _blurHSet, new PostConstants { A = Vector4.Zero });
         PostPass(cmd, _bloomD, _blurPipeline, _postLayout, _blurH2Set, new PostConstants { A = new Vector4(wideStep.X, 0, 0, 0) });
         PostPass(cmd, _bloomC, _blurPipeline, _postLayout, _blurV2Set, new PostConstants { A = new Vector4(0, wideStep.Y, 0, 0) });
+        Mark(cmd, 5);
 
         // 4: the composite (tonemapped, graded) into the LDR frame; FXAA and the overlay into the final one.
         var composite = new PostConstants
@@ -721,6 +767,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         Api.vkCmdDraw(cmd, 3, 1, 0, 0);
         Api.vkCmdEndRendering(cmd);
         Transition(cmd, _ldr.Image, VkImageAspectFlags.Color, VkImageLayout.ColorAttachmentOptimal, VkImageLayout.ShaderReadOnlyOptimal);
+        Mark(cmd, 6);
 
         Transition(cmd, _color.Image, VkImageAspectFlags.Color, VkImageLayout.Undefined, VkImageLayout.ColorAttachmentOptimal);
         BeginRendering(cmd, _color, withDepth: false);
@@ -742,12 +789,13 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         }
         Api.vkCmdEndRendering(cmd);
         Transition(cmd, _color.Image, VkImageAspectFlags.Color, VkImageLayout.ColorAttachmentOptimal, VkImageLayout.TransferSrcOptimal);
+        Mark(cmd, 7);
     }
 
-    /// <summary>The frame's soup and every kit instance, with whatever pipeline is bound. Returns the instances' triangles.</summary>
-    int DrawGeometry(VkCommandBuffer cmd)
+    /// <summary>The frame's soup and every kit instance, with whatever pipeline is bound. Returns what it drew.</summary>
+    (int Triangles, int Draws) DrawGeometry(VkCommandBuffer cmd)
     {
-        int triangles = 0;
+        int triangles = _vertexCount / 3, draws = _vertexCount > 0 ? 1 : 0;
         var identity = new DrawConstants { Model = Matrix4x4.Identity, Tint = Vector4.One };
         if (_vertexCount > 0)
         {
@@ -766,8 +814,9 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             Api.vkCmdBindVertexBuffers(cmd, 0, 1, &vb, &offset);
             Api.vkCmdDraw(cmd, (uint)mesh.Count, 1, 0, 0);
             triangles += mesh.Count / 3;
+            draws++;
         }
-        return triangles;
+        return (triangles, draws);
     }
 
     void PostPass(VkCommandBuffer cmd, Target into, VkPipeline pipeline, VkPipelineLayout layout, VkDescriptorSet set, PostConstants constants)
@@ -1140,6 +1189,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     public void Dispose()
     {
         Api.vkDeviceWaitIdle();
+        if (_timestamps.IsNotNull)
+            Api.vkDestroyQueryPool(_timestamps, null);
         if (_fxCapacity > 0)
         {
             Api.vkDestroyBuffer(_fxVertices, null);
