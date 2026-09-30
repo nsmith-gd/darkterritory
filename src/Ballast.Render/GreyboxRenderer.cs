@@ -30,6 +30,7 @@ unsafe struct FrameData
     public fixed float Lights[MaxLights * 8];
     public fixed float Rooms[MaxRooms * 12];
     public Vector4 Counts;
+    public Matrix4x4 MoonViewProj;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -79,6 +80,12 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     readonly Target _ao;
     const VkFormat LdrFormat = VkFormat.R8G8B8A8Unorm;
     const int ShadowSize = 1024;
+    // The moon's shadow: orthographic, over MoonShadowReach metres either way of a point ahead of the camera.
+    const int MoonShadowSize = 2048;
+    const float MoonShadowReach = 55;
+    readonly Target _moonShadow;
+    readonly VkPipeline _moonShadowPipeline;
+    bool _moonOn;
     readonly VkSampler _shadowSampler;
     readonly VkPipeline _shadowPipeline;
     bool _lampOn;
@@ -154,6 +161,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _bloomD = CreateTarget(SceneFormat, qw, qh, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color);
         _ldr = CreateTarget(LdrFormat, width, height, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color);
         _shadow = CreateTarget(DepthFormat, ShadowSize, ShadowSize, VkImageUsageFlags.DepthStencilAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Depth);
+        _moonShadow = CreateTarget(DepthFormat, MoonShadowSize, MoonShadowSize, VkImageUsageFlags.DepthStencilAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Depth);
         {
             var info = new VkSamplerCreateInfo
             {
@@ -187,7 +195,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _sceneSetLayout = SetLayout([(VkDescriptorType.UniformBuffer, VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment),
             (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
             (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
-            (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment)]);
+            (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment)]);
         _postSetLayout = SetLayout([(VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment)]);
         _compositeSetLayout = SetLayout([(VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
             (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
@@ -217,6 +225,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _skyPipeline = Pipeline(_sceneLayout, "fullscreen.vert", "sky.frag", SceneFormat, PipelineKind.Fullscreen, depth: true);
         _scenePipeline = Pipeline(_sceneLayout, "scene.vert", "scene.frag", SceneFormat, PipelineKind.Scene, depth: true);
         _shadowPipeline = Pipeline(_sceneLayout, "shadow.vert", "shadow.frag", VkFormat.Undefined, PipelineKind.Shadow, depth: true);
+        _moonShadowPipeline = Pipeline(_sceneLayout, "shadow_moon.vert", "shadow.frag", VkFormat.Undefined, PipelineKind.Shadow, depth: true);
         _fxAlphaPipeline = Pipeline(_sceneLayout, "fx.vert", "fx.frag", SceneFormat, PipelineKind.FxAlpha, depth: true);
         _fxAddPipeline = Pipeline(_sceneLayout, "fx.vert", "fx.frag", SceneFormat, PipelineKind.FxAdditive, depth: true);
         _brightPipeline = Pipeline(_postLayout, "fullscreen.vert", "bright.frag", SceneFormat, PipelineKind.Fullscreen, depth: false);
@@ -444,6 +453,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         f->ViewProj = viewProj;
         f->InvViewProj = inverse;
         f->LampViewProj = LampViewProjection(camera, lighting);
+        _moonOn = lighting.MoonStrength > 0.01f && lighting.MoonDirection.Y > 0.05f && !Post.Ps2;
+        f->MoonViewProj = MoonViewProjection(camera, lighting, (float)Width / Height);
         f->Fog = new Vector4(lighting.FogColor, lighting.FogDensity);
         f->FogHeight = new Vector4(fogBase, lighting.FogHeightFalloff, lighting.FogFloor, (float)(lighting.Time % 10000));
         f->Moon = new Vector4(lighting.MoonDirection, lighting.Ambient);
@@ -475,7 +486,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             (p[4], p[5], p[6], p[7]) = (r.Right.X, r.Right.Y, r.Right.Z, r.Half.Y);
             (p[8], p[9], p[10], p[11]) = (r.Back.X, r.Back.Y, r.Back.Z, r.Half.Z);
         }
-        f->Counts = new Vector4(_rooms.Count, 0, 0, 0);
+        f->Counts = new Vector4(_rooms.Count, _moonOn ? 1 : 0, 0, 0);
         _ = horizon;
     }
 
@@ -491,6 +502,32 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         var view = Matrix4x4.CreateLookAt(at, at + dir, up);
         float fov = Math.Clamp(lighting.LampConeDegrees * 2.6f, 10, 120) * MathF.PI / 180;
         var proj = Matrix4x4.CreatePerspectiveFieldOfView(fov, 1, 0.3f, MathF.Max(1, lighting.LampRange));
+        proj.M22 *= -1;
+        return view * proj;
+    }
+
+    /// <summary>
+    /// The moon's view for its shadow map: orthographic along the moonlight, over the ground round a point a little ahead of
+    /// the camera (where most of what's seen is), camera-relative. The box is snapped to its own texels in world space, so
+    /// its edges don't crawl as the train moves.
+    /// </summary>
+    static Matrix4x4 MoonViewProjection(in Camera camera, in FrameLighting lighting, float aspect)
+    {
+        var dir = Vector3.Normalize(lighting.MoonDirection);
+        var fwd = camera.Forward with { Y = 0 };
+        fwd = fwd.LengthSquared() > 1e-6f ? Vector3.Normalize(fwd) : -Vector3.UnitZ;
+        var centre = fwd * (MoonShadowReach * 0.55f);
+        var up = MathF.Abs(dir.Y) > 0.95f ? Vector3.UnitZ : Vector3.UnitY;
+        var right = Vector3.Normalize(Vector3.Cross(up, dir));
+        var top = Vector3.Cross(dir, right);
+        // Snap: the world position of the centre, in the light's axes, to a whole number of texels.
+        float texel = 2 * MoonShadowReach / MoonShadowSize;
+        var world = new Vector3((float)(camera.Position.X % 4096.0), (float)(camera.Position.Y % 4096.0), (float)(camera.Position.Z % 4096.0)) + centre;
+        float sx = Vector3.Dot(world, right), sy = Vector3.Dot(world, top);
+        centre -= right * (sx - MathF.Floor(sx / texel) * texel) + top * (sy - MathF.Floor(sy / texel) * texel);
+        const float Depth = 160;
+        var view = Matrix4x4.CreateLookAt(centre + dir * (Depth * 0.5f), centre, top);
+        var proj = Matrix4x4.CreateOrthographic(2 * MoonShadowReach, 2 * MoonShadowReach, 0.1f, Depth);
         proj.M22 *= -1;
         return view * proj;
     }
@@ -532,6 +569,34 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             Api.vkCmdEndRendering(cmd);
         }
         Transition(cmd, _shadow.Image, VkImageAspectFlags.Depth, VkImageLayout.DepthAttachmentOptimal, VkImageLayout.ShaderReadOnlyOptimal);
+
+        // 0b: the moon's.
+        Transition(cmd, _moonShadow.Image, VkImageAspectFlags.Depth, VkImageLayout.Undefined, VkImageLayout.DepthAttachmentOptimal);
+        {
+            var depthAttachment = new VkRenderingAttachmentInfo
+            {
+                imageView = _moonShadow.View,
+                imageLayout = VkImageLayout.DepthAttachmentOptimal,
+                loadOp = VkAttachmentLoadOp.Clear,
+                storeOp = VkAttachmentStoreOp.Store,
+                clearValue = new VkClearValue { depthStencil = new VkClearDepthStencilValue(1, 0) },
+            };
+            var rendering = new VkRenderingInfo { renderArea = new VkRect2D(0, 0, MoonShadowSize, MoonShadowSize), layerCount = 1, pDepthAttachment = &depthAttachment };
+            Api.vkCmdBeginRendering(cmd, &rendering);
+            if (_moonOn)
+            {
+                var viewport = new VkViewport(0, 0, MoonShadowSize, MoonShadowSize, 0, 1);
+                Api.vkCmdSetViewport(cmd, 0, 1, &viewport);
+                var scissor = new VkRect2D(0, 0, MoonShadowSize, MoonShadowSize);
+                Api.vkCmdSetScissor(cmd, 0, 1, &scissor);
+                var set = _sceneSet;
+                Api.vkCmdBindDescriptorSets(cmd, VkPipelineBindPoint.Graphics, _sceneLayout, 0, 1, &set, 0, null);
+                Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _moonShadowPipeline);
+                DrawGeometry(cmd);
+            }
+            Api.vkCmdEndRendering(cmd);
+        }
+        Transition(cmd, _moonShadow.Image, VkImageAspectFlags.Depth, VkImageLayout.DepthAttachmentOptimal, VkImageLayout.ShaderReadOnlyOptimal);
 
         // 1-2: sky and scene into the float target.
         Transition(cmd, _scene.Image, VkImageAspectFlags.Color, VkImageLayout.Undefined, VkImageLayout.ColorAttachmentOptimal);
@@ -786,7 +851,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
     void WriteSets()
     {
-        var images = stackalloc VkDescriptorImageInfo[18];
+        var images = stackalloc VkDescriptorImageInfo[20];
         images[0] = new VkDescriptorImageInfo { sampler = Post.Ps2 ? _crunchy : _diffuse.Sampler, imageView = _diffuse.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[1] = new VkDescriptorImageInfo { sampler = Post.Ps2 ? _crunchy : _spec.Sampler, imageView = _spec.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[2] = new VkDescriptorImageInfo { sampler = _backdrop.Sampler, imageView = _backdrop.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
@@ -804,7 +869,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         images[13] = new VkDescriptorImageInfo { sampler = Post.Ps2 ? _crunchy : _normal.Sampler, imageView = _normal.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[14] = new VkDescriptorImageInfo { sampler = _nearest, imageView = _depth.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[15] = new VkDescriptorImageInfo { sampler = _linear, imageView = _ao.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
-        var writes = stackalloc VkWriteDescriptorSet[18];
+        images[16] = new VkDescriptorImageInfo { sampler = _shadowSampler, imageView = _moonShadow.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
+        var writes = stackalloc VkWriteDescriptorSet[20];
         VkWriteDescriptorSet Image(VkDescriptorSet set, uint binding, int image) => new()
         {
             dstSet = set,
@@ -831,7 +897,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         writes[15] = Image(_sceneSet, 5, 13);
         writes[16] = Image(_aoSet, 0, 14);
         writes[17] = Image(_compositeSet, 4, 15);
-        Api.vkUpdateDescriptorSets(18, writes, 0, null);
+        writes[18] = Image(_sceneSet, 6, 16);
+        Api.vkUpdateDescriptorSets(19, writes, 0, null);
     }
 
     VkPipelineLayout PipelineLayout(VkDescriptorSetLayout? set, uint pushSize, VkShaderStageFlags pushStages)
@@ -1024,7 +1091,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             Api.vkFreeMemory(_fxMemory, null);
         }
         Api.vkDestroySampler(_shadowSampler, null);
-        foreach (var p in new[] { _shadowPipeline, _fxAlphaPipeline, _fxAddPipeline, _skyPipeline, _scenePipeline, _brightPipeline, _blurPipeline, _compositePipeline, _overlayPipeline, _fxaaPipeline, _aoPipeline })
+        foreach (var p in new[] { _shadowPipeline, _fxAlphaPipeline, _fxAddPipeline, _skyPipeline, _scenePipeline, _brightPipeline, _blurPipeline, _compositePipeline, _overlayPipeline, _fxaaPipeline, _aoPipeline, _moonShadowPipeline })
             Api.vkDestroyPipeline(p, null);
         foreach (var l in new[] { _sceneLayout, _postLayout, _compositeLayout, _overlayLayout })
             Api.vkDestroyPipelineLayout(l, null);
@@ -1059,7 +1126,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         Api.vkFreeMemory(_frameMemory, null);
         Api.vkDestroyBuffer(_readback, null);
         Api.vkFreeMemory(_readbackMemory, null);
-        foreach (var t in new[] { _color, _scene, _depth, _bloomA, _bloomB, _shadow, _bloomC, _bloomD, _ldr, _ao })
+        foreach (var t in new[] { _color, _scene, _depth, _bloomA, _bloomB, _shadow, _bloomC, _bloomD, _ldr, _ao, _moonShadow })
             DestroyTarget(t);
     }
 }
