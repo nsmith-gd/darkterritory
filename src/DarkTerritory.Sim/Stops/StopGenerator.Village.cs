@@ -38,99 +38,99 @@ public static partial class StopGenerator
                 Blocks(g, R, t, side, offset, entry, s0, s1, oneColumn, h => TryHouse(h, v.RoadReach), ends);
                 break;
             case VillageForm.Street:
-            {
-                var u = Outward(R, side, entry, reach, g.ZoneLength);
-                var n = u.Normal;
-                var st = v.Street;
-                double len = R.Range(st.Length), bend = R.Range(-st.Bend, st.Bend);
-                var pts = Plan.Bezier(entry, entry + u * (len * 0.35), entry + u * (len * 0.7) + n * (bend * 0.6), entry + u * len + n * bend, 24)
-                    .Select(p => g.Clamp(p, reach.SMin + 4, reach.SMax - 4)).ToList();
-                g.AddRoad(RoadKind.Street, pts);
-                HousesAlong(g, R, t, pts, st, 12, h => TryHouse(h, v.RoadReach));
-                ends.Add((pts[^1], (pts[^1] - pts[^2]).Unit));
-                if (R.Chance(st.LaneChance))
                 {
-                    var walk = new Plan.Walker(pts);
-                    var (p, tan) = walk.At(walk.Total * R.Range(0.35, 0.6));
-                    int sgn = R.Sign();
-                    var lane = new List<Pt> { p, g.Clamp(p + tan.Normal * (sgn * R.Range(st.Lane)), reach.SMin + 4, reach.SMax - 4) };
-                    if (g.Clear(lane, 2))
+                    var u = Outward(R, side, entry, reach, g.ZoneLength);
+                    var n = u.Normal;
+                    var st = v.Street;
+                    double len = R.Range(st.Length), bend = R.Range(-st.Bend, st.Bend);
+                    var pts = Plan.Bezier(entry, entry + u * (len * 0.35), entry + u * (len * 0.7) + n * (bend * 0.6), entry + u * len + n * bend, 24)
+                        .Select(p => g.Clamp(p, reach.SMin + 4, reach.SMax - 4)).ToList();
+                    g.AddRoad(RoadKind.Street, pts);
+                    HousesAlong(g, R, t, pts, st, 12, h => TryHouse(h, v.RoadReach));
+                    ends.Add((pts[^1], (pts[^1] - pts[^2]).Unit));
+                    if (R.Chance(st.LaneChance))
                     {
-                        g.AddRoad(RoadKind.Street, lane);
-                        HousesAlong(g, R, t, lane, st, 14, h => TryHouse(h, v.RoadReach));
-                        ends.Add((lane[1], (lane[1] - lane[0]).Unit));
-                    }
-                }
-                break;
-            }
-            case VillageForm.Crossroads:
-            {
-                var c = v.Crossroads;
-                var u = Outward(R, side, entry, reach, g.ZoneLength);
-                var n = u.Normal;
-                var centre = g.Clamp(entry + u * R.Range(c.Out), reach.SMin + 30, reach.SMax - 30);
-                var beyond = g.Clamp(centre + u * R.Range(c.Beyond), reach.SMin + 4, reach.SMax - 4);
-                var a0 = g.Clamp(centre - n * R.Range(c.Arm), reach.SMin + 4, reach.SMax - 4);
-                var a1 = g.Clamp(centre + n * R.Range(c.Arm), reach.SMin + 4, reach.SMax - 4);
-                g.AddRoad(RoadKind.Street, [entry, centre, beyond]);
-                g.AddRoad(RoadKind.Street, [a0, centre, a1]);
-                int want = R.Int(c.Houses);
-                double baseYaw = Math.Atan2(u.D, u.S);
-                for (int tries = 0, placed = 0; tries < 120 && placed < want; tries++)
-                {
-                    double ang = R.Range(0, Math.PI * 2), r = R.Range(c.Radius);
-                    var at = centre + new Pt(Math.Cos(ang), Math.Sin(ang)) * r;
-                    var h = House(R, t, at) with { Yaw = baseYaw + (R.Chance(0.5) ? 0 : Math.PI / 2) + R.Range(-v.YawJitter, v.YawJitter) };
-                    if (TryHouse(h, 14))
-                        placed++;
-                }
-                ends.Add((beyond, u));
-                ends.Add((a0, n * -1));
-                ends.Add((a1, n));
-                break;
-            }
-            default:
-            {
-                // Farmsteads: a winding track out, a few farms off it, each a house and a barn. Long walks, few houses.
-                var f = v.Farmsteads;
-                var u = Outward(R, side, entry, reach, g.ZoneLength);
-                var n = u.Normal;
-                double len = R.Range(f.Length);
-                var pts = Plan.Bezier(entry, entry + u * (len * 0.33) + n * R.Range(-f.Wiggle, f.Wiggle), entry + u * (len * 0.66) + n * R.Range(-f.Wiggle, f.Wiggle),
-                    entry + u * len + n * R.Range(-f.Wiggle, f.Wiggle), 30).Select(p => g.Clamp(p, reach.SMin + 4, reach.SMax - 4)).ToList();
-                g.AddRoad(RoadKind.Street, pts);
-                var walk = new Plan.Walker(pts);
-                int farms = R.Int(f.Farms);
-                int last = -1;
-                for (int k = 0; k < farms; k++)
-                {
-                    var (p, tan) = walk.At(walk.Total * (0.2 + 0.78 * k / Math.Max(1, farms - 1)));
-                    for (int tries = 0; tries < 8; tries++)
-                    {
+                        var walk = new Plan.Walker(pts);
+                        var (p, tan) = walk.At(walk.Total * R.Range(0.35, 0.6));
                         int sgn = R.Sign();
-                        var nn = tan.Normal * sgn;
-                        var end = p + nn * R.Range(f.Drive);
-                        var c = end + nn * 8;
-                        double yaw = Math.Atan2(tan.D, tan.S) + R.Range(-0.3, 0.3);
-                        var h = House(R, t, c) with { Yaw = yaw };
-                        var bc = end + nn * 6 + tan * (R.Range(14, 18) * R.Sign());
-                        var barn = new StopBuilding(BuildingKind.Barn, StopZone.Village, bc.S, bc.D, 14, 9, yaw + R.Range(-0.2, 0.2)) { Variant = R.Int(0, 3) };
-                        var drive = new List<Pt> { p, end };
-                        if (!g.Clear(drive, 2) || !g.Fits(h, fit) || !g.Fits(barn, fit with { Road = 2 }) || Plan.Overlap(h, barn, 3))
-                            continue;
-                        g.AddRoad(RoadKind.Lane, drive);
-                        houses.Add(last = g.Add(h));
-                        sheds.Add(g.Add(barn));
-                        break;
+                        var lane = new List<Pt> { p, g.Clamp(p + tan.Normal * (sgn * R.Range(st.Lane)), reach.SMin + 4, reach.SMax - 4) };
+                        if (g.Clear(lane, 2))
+                        {
+                            g.AddRoad(RoadKind.Street, lane);
+                            HousesAlong(g, R, t, lane, st, 14, h => TryHouse(h, v.RoadReach));
+                            ends.Add((lane[1], (lane[1] - lane[0]).Unit));
+                        }
                     }
+                    break;
                 }
-                if (last >= 0)
+            case VillageForm.Crossroads:
                 {
-                    g.Buildings[last] = g.Buildings[last] with { Outlier = true };
-                    outliers.Add(last);
+                    var c = v.Crossroads;
+                    var u = Outward(R, side, entry, reach, g.ZoneLength);
+                    var n = u.Normal;
+                    var centre = g.Clamp(entry + u * R.Range(c.Out), reach.SMin + 30, reach.SMax - 30);
+                    var beyond = g.Clamp(centre + u * R.Range(c.Beyond), reach.SMin + 4, reach.SMax - 4);
+                    var a0 = g.Clamp(centre - n * R.Range(c.Arm), reach.SMin + 4, reach.SMax - 4);
+                    var a1 = g.Clamp(centre + n * R.Range(c.Arm), reach.SMin + 4, reach.SMax - 4);
+                    g.AddRoad(RoadKind.Street, [entry, centre, beyond]);
+                    g.AddRoad(RoadKind.Street, [a0, centre, a1]);
+                    int want = R.Int(c.Houses);
+                    double baseYaw = Math.Atan2(u.D, u.S);
+                    for (int tries = 0, placed = 0; tries < 120 && placed < want; tries++)
+                    {
+                        double ang = R.Range(0, Math.PI * 2), r = R.Range(c.Radius);
+                        var at = centre + new Pt(Math.Cos(ang), Math.Sin(ang)) * r;
+                        var h = House(R, t, at) with { Yaw = baseYaw + (R.Chance(0.5) ? 0 : Math.PI / 2) + R.Range(-v.YawJitter, v.YawJitter) };
+                        if (TryHouse(h, 14))
+                            placed++;
+                    }
+                    ends.Add((beyond, u));
+                    ends.Add((a0, n * -1));
+                    ends.Add((a1, n));
+                    break;
                 }
-                break;
-            }
+            default:
+                {
+                    // Farmsteads: a winding track out, a few farms off it, each a house and a barn. Long walks, few houses.
+                    var f = v.Farmsteads;
+                    var u = Outward(R, side, entry, reach, g.ZoneLength);
+                    var n = u.Normal;
+                    double len = R.Range(f.Length);
+                    var pts = Plan.Bezier(entry, entry + u * (len * 0.33) + n * R.Range(-f.Wiggle, f.Wiggle), entry + u * (len * 0.66) + n * R.Range(-f.Wiggle, f.Wiggle),
+                        entry + u * len + n * R.Range(-f.Wiggle, f.Wiggle), 30).Select(p => g.Clamp(p, reach.SMin + 4, reach.SMax - 4)).ToList();
+                    g.AddRoad(RoadKind.Street, pts);
+                    var walk = new Plan.Walker(pts);
+                    int farms = R.Int(f.Farms);
+                    int last = -1;
+                    for (int k = 0; k < farms; k++)
+                    {
+                        var (p, tan) = walk.At(walk.Total * (0.2 + 0.78 * k / Math.Max(1, farms - 1)));
+                        for (int tries = 0; tries < 8; tries++)
+                        {
+                            int sgn = R.Sign();
+                            var nn = tan.Normal * sgn;
+                            var end = p + nn * R.Range(f.Drive);
+                            var c = end + nn * 8;
+                            double yaw = Math.Atan2(tan.D, tan.S) + R.Range(-0.3, 0.3);
+                            var h = House(R, t, c) with { Yaw = yaw };
+                            var bc = end + nn * 6 + tan * (R.Range(14, 18) * R.Sign());
+                            var barn = new StopBuilding(BuildingKind.Barn, StopZone.Village, bc.S, bc.D, 14, 9, yaw + R.Range(-0.2, 0.2)) { Variant = R.Int(0, 3) };
+                            var drive = new List<Pt> { p, end };
+                            if (!g.Clear(drive, 2) || !g.Fits(h, fit) || !g.Fits(barn, fit with { Road = 2 }) || Plan.Overlap(h, barn, 3))
+                                continue;
+                            g.AddRoad(RoadKind.Lane, drive);
+                            houses.Add(last = g.Add(h));
+                            sheds.Add(g.Add(barn));
+                            break;
+                        }
+                    }
+                    if (last >= 0)
+                    {
+                        g.Buildings[last] = g.Buildings[last] with { Outlier = true };
+                        outliers.Add(last);
+                    }
+                    break;
+                }
         }
 
         // Outliers at the ends of stub roads (P11).
@@ -335,13 +335,13 @@ public static partial class StopGenerator
                 parts = [new(0, 0, l, w * 0.42), new(0, 0, l * 0.42, w)];
                 break;
             case HouseShape.Pair:
-            {
-                l = R.Range(13, 16);
-                double hw = R.Range(6, 7.5);
-                w = hw + 1.2;
-                parts = [new(-l / 4, -0.6, l / 2 - 0.4, hw), new(l / 4, 0.6, l / 2 - 0.4, hw)];
-                break;
-            }
+                {
+                    l = R.Range(13, 16);
+                    double hw = R.Range(6, 7.5);
+                    w = hw + 1.2;
+                    parts = [new(-l / 4, -0.6, l / 2 - 0.4, hw), new(l / 4, 0.6, l / 2 - 0.4, hw)];
+                    break;
+                }
             case HouseShape.Square:
                 l = w = R.Range(8, 9.5);
                 parts = [new(0, 0, l, w)];

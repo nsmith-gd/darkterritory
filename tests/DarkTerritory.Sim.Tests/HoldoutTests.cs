@@ -52,8 +52,13 @@ public class HoldoutTests
         public int Add(bool alive, double diedAt = 100)
         {
             int id = Crew.Count;
-            var s = alive ? PlayerMotor.SpawnInCab(Train, P) : new PlayerState { Parent = PlayerState.World, Death = DeathCause.Mauled, LineHint = diedAt,
-                Position = Train.Line.Sample(diedAt).Position };
+            var s = alive ? PlayerMotor.SpawnInCab(Train, P) : new PlayerState
+            {
+                Parent = PlayerState.World,
+                Death = DeathCause.Mauled,
+                LineHint = diedAt,
+                Position = Train.Line.Sample(diedAt).Position
+            };
             Crew.Add((id, s));
             return id;
         }

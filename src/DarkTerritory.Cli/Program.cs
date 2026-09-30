@@ -590,8 +590,15 @@ static object ShowStop(string content, RouteTuning rt, StopTuning st, string[] a
         buildings = layout.Buildings.GroupBy(b => b.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
         containers = layout.Containers.GroupBy(c => c.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
         // Where a dead player waits to be freed (App. D.4), and where the outside creatures live (B.6, B.8).
-        holdouts = layout.Holdouts.Select(h => new { kind = h.Kind.ToString(), site = h.Site.ToString(), building = layout.Buildings[h.Building].Kind.ToString(),
-            at = layout.Buildings[h.Building].Centre, h.Second, walk = h.Walk }),
+        holdouts = layout.Holdouts.Select(h => new
+        {
+            kind = h.Kind.ToString(),
+            site = h.Site.ToString(),
+            building = layout.Buildings[h.Building].Kind.ToString(),
+            at = layout.Buildings[h.Building].Centre,
+            h.Second,
+            walk = h.Walk
+        }),
         lairs = layout.Lairs.GroupBy(x => x.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
         checks = layout.Checks.Where(c => c.Applies).Select(c => new { c.Name, c.Pass, c.Detail }),
         plan = Path.GetFullPath(plan),

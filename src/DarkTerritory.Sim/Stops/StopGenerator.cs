@@ -55,7 +55,8 @@ public static partial class StopGenerator
         for (int tries = 0; tries < 60; tries++)
         {
             var b = new StopBuilding(BuildingKind.Powerhouse, StopZone.Yard, toe + R.Range(p.Throat), side * R.Range(p.Offset), p.Size[0], p.Size[1],
-                R.Range(-0.1, 0.1)) { Variant = R.Int(0, 2) };
+                R.Range(-0.1, 0.1))
+            { Variant = R.Int(0, 2) };
             if (g.Fits(b, new Fit(Gap: 3, Rail: 4, Road: 2)))
                 return g.Add(b);
         }
