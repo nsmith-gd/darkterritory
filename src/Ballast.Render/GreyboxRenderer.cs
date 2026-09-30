@@ -131,7 +131,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     readonly ConditionalWeakTable<MeshAsset, GpuMesh> _meshes = new();
     readonly List<(WeakReference<MeshAsset> Asset, GpuMesh Mesh)> _allMeshes = new();
     int _prepares;
-    readonly List<(GpuMesh Mesh, DrawConstants Draw)> _draws = new();
+    // The kit's instances this frame, each with its bounding sphere placed (camera-relative) for culling.
+    readonly List<(GpuMesh Mesh, DrawConstants Draw, Vector4 Sphere)> _draws = new();
     readonly List<PointLight> _lights = new();
     readonly List<Room> _rooms = new();
 
@@ -331,6 +332,24 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     public FrameStats Stats { get; private set; }
 
     /// <summary>
+    /// Another renderer whose shadow maps this one samples instead of drawing its own (a headset's second eye: the lamp's
+    /// and the moon's views are the body's, not an eye's, so both eyes' maps would be the same). That one must record its
+    /// frame first. Set outside command recording.
+    /// </summary>
+    public GreyboxRenderer? ShadowsFrom
+    {
+        get => _shadowsFrom;
+        set
+        {
+            if (value == this)
+                throw new ArgumentException("a renderer can't take its shadows from itself");
+            _shadowsFrom = value;
+            WriteSets();
+        }
+    }
+    GreyboxRenderer? _shadowsFrom;
+
+    /// <summary>
     /// How long each pass of the last frame took on the GPU, in milliseconds, once that frame has finished (every submit
     /// here waits for it). Empty where the device can't time its queue.
     /// </summary>
@@ -519,7 +538,16 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                 Scar = new Vector4(instance.Scar, 0, 0),
                 Skin = new Vector4(instance.SurfaceOffset, instance.Bones),
             };
-            (instance.Bones >= 0 && gpuMesh.Skin.IsNotNull ? _skinDraws : _draws).Add((gpuMesh, draw));
+            if (instance.Bones >= 0 && gpuMesh.Skin.IsNotNull)
+                _skinDraws.Add((gpuMesh, draw));
+            else
+            {
+                var (centre, radius) = instance.Asset.Bounds;
+                var m = instance.Model;
+                float scale = MathF.Sqrt(MathF.Max(new Vector3(m.M11, m.M12, m.M13).LengthSquared(),
+                    MathF.Max(new Vector3(m.M21, m.M22, m.M23).LengthSquared(), new Vector3(m.M31, m.M32, m.M33).LengthSquared())));
+                _draws.Add((gpuMesh, draw, new Vector4(Vector3.Transform(centre, m), radius * scale)));
+            }
         }
         _lights.Clear();
         _lights.AddRange(mesh.PointLights);
@@ -595,6 +623,13 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         f->LampViewProj = LampViewProjection(camera, lighting);
         _moonOn = lighting.MoonStrength > 0.01f && lighting.MoonDirection.Y > 0.05f && !Post.Ps2;
         f->MoonViewProj = MoonViewProjection(camera, lighting, (float)Width / Height);
+        // Sampling another's shadow maps: its views, exactly as it drew them.
+        if (_shadowsFrom is { } from)
+        {
+            f->LampViewProj = from._frameMapped->LampViewProj;
+            f->MoonViewProj = from._frameMapped->MoonViewProj;
+            _moonOn = from._moonOn;
+        }
         for (int i = 0; i < 256; i++)
             f->HeroOf[i] = i < _heroSlot.Length ? _heroSlot[i] : -1;
         f->Fog = new Vector4(lighting.FogColor, lighting.FogDensity);
@@ -628,7 +663,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             (p[4], p[5], p[6], p[7]) = (r.Right.X, r.Right.Y, r.Right.Z, r.Half.Y);
             (p[8], p[9], p[10], p[11]) = (r.Back.X, r.Back.Y, r.Back.Z, r.Half.Z);
         }
-        f->Counts = new Vector4(_rooms.Count, _moonOn ? 1 : 0, 1f / MoonShadowSize, 0);
+        f->Counts = new Vector4(_rooms.Count, _moonOn ? 1 : 0, 1f / (_shadowsFrom ?? this).MoonShadowSize, 0);
         _ = horizon;
     }
 
@@ -688,63 +723,73 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _timed = _timestamps.IsNotNull;
         Mark(cmd, 0);
 
-        // 0: the headlamp's shadow map (cleared to "nothing in the way" with the lamp dark).
-        Transition(cmd, _shadow.Image, VkImageAspectFlags.Depth, VkImageLayout.Undefined, VkImageLayout.DepthAttachmentOptimal);
+        // 0, 0b: the shadow maps, unless they're another's (ShadowsFrom).
+        if (_shadowsFrom is null)
         {
-            var depthAttachment = new VkRenderingAttachmentInfo
+            // 0: the headlamp's shadow map (cleared to "nothing in the way" with the lamp dark).
+            Transition(cmd, _shadow.Image, VkImageAspectFlags.Depth, VkImageLayout.Undefined, VkImageLayout.DepthAttachmentOptimal);
             {
-                imageView = _shadow.View,
-                imageLayout = VkImageLayout.DepthAttachmentOptimal,
-                loadOp = VkAttachmentLoadOp.Clear,
-                storeOp = VkAttachmentStoreOp.Store,
-                clearValue = new VkClearValue { depthStencil = new VkClearDepthStencilValue(1, 0) },
-            };
-            var rendering = new VkRenderingInfo { renderArea = new VkRect2D(0, 0, ShadowSize, ShadowSize), layerCount = 1, pDepthAttachment = &depthAttachment };
-            Api.vkCmdBeginRendering(cmd, &rendering);
-            if (_lampOn)
-            {
-                var viewport = new VkViewport(0, 0, ShadowSize, ShadowSize, 0, 1);
-                Api.vkCmdSetViewport(cmd, 0, 1, &viewport);
-                var scissor = new VkRect2D(0, 0, ShadowSize, ShadowSize);
-                Api.vkCmdSetScissor(cmd, 0, 1, &scissor);
-                var set = _sceneSet;
-                Api.vkCmdBindDescriptorSets(cmd, VkPipelineBindPoint.Graphics, _sceneLayout, 0, 1, &set, 0, null);
-                Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _shadowPipeline);
-                lampDrawn = DrawGeometry(cmd, _shadowSkinPipeline);
+                var depthAttachment = new VkRenderingAttachmentInfo
+                {
+                    imageView = _shadow.View,
+                    imageLayout = VkImageLayout.DepthAttachmentOptimal,
+                    loadOp = VkAttachmentLoadOp.Clear,
+                    storeOp = VkAttachmentStoreOp.Store,
+                    clearValue = new VkClearValue { depthStencil = new VkClearDepthStencilValue(1, 0) },
+                };
+                var rendering = new VkRenderingInfo { renderArea = new VkRect2D(0, 0, ShadowSize, ShadowSize), layerCount = 1, pDepthAttachment = &depthAttachment };
+                Api.vkCmdBeginRendering(cmd, &rendering);
+                if (_lampOn)
+                {
+                    var viewport = new VkViewport(0, 0, ShadowSize, ShadowSize, 0, 1);
+                    Api.vkCmdSetViewport(cmd, 0, 1, &viewport);
+                    var scissor = new VkRect2D(0, 0, ShadowSize, ShadowSize);
+                    Api.vkCmdSetScissor(cmd, 0, 1, &scissor);
+                    var set = _sceneSet;
+                    Api.vkCmdBindDescriptorSets(cmd, VkPipelineBindPoint.Graphics, _sceneLayout, 0, 1, &set, 0, null);
+                    Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _shadowPipeline);
+                    lampDrawn = DrawGeometry(cmd, _shadowSkinPipeline, _frameMapped->LampViewProj);
+                }
+                Api.vkCmdEndRendering(cmd);
             }
-            Api.vkCmdEndRendering(cmd);
-        }
-        Transition(cmd, _shadow.Image, VkImageAspectFlags.Depth, VkImageLayout.DepthAttachmentOptimal, VkImageLayout.ShaderReadOnlyOptimal);
-        Mark(cmd, 1);
+            Transition(cmd, _shadow.Image, VkImageAspectFlags.Depth, VkImageLayout.DepthAttachmentOptimal, VkImageLayout.ShaderReadOnlyOptimal);
+            Mark(cmd, 1);
 
-        // 0b: the moon's.
-        Transition(cmd, _moonShadow.Image, VkImageAspectFlags.Depth, VkImageLayout.Undefined, VkImageLayout.DepthAttachmentOptimal);
-        {
-            var depthAttachment = new VkRenderingAttachmentInfo
+            // 0b: the moon's.
+            Transition(cmd, _moonShadow.Image, VkImageAspectFlags.Depth, VkImageLayout.Undefined, VkImageLayout.DepthAttachmentOptimal);
             {
-                imageView = _moonShadow.View,
-                imageLayout = VkImageLayout.DepthAttachmentOptimal,
-                loadOp = VkAttachmentLoadOp.Clear,
-                storeOp = VkAttachmentStoreOp.Store,
-                clearValue = new VkClearValue { depthStencil = new VkClearDepthStencilValue(1, 0) },
-            };
-            var rendering = new VkRenderingInfo { renderArea = new VkRect2D(0, 0, (uint)MoonShadowSize, (uint)MoonShadowSize), layerCount = 1, pDepthAttachment = &depthAttachment };
-            Api.vkCmdBeginRendering(cmd, &rendering);
-            if (_moonOn)
-            {
-                var viewport = new VkViewport(0, 0, MoonShadowSize, MoonShadowSize, 0, 1);
-                Api.vkCmdSetViewport(cmd, 0, 1, &viewport);
-                var scissor = new VkRect2D(0, 0, (uint)MoonShadowSize, (uint)MoonShadowSize);
-                Api.vkCmdSetScissor(cmd, 0, 1, &scissor);
-                var set = _sceneSet;
-                Api.vkCmdBindDescriptorSets(cmd, VkPipelineBindPoint.Graphics, _sceneLayout, 0, 1, &set, 0, null);
-                Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _moonShadowPipeline);
-                moonDrawn = DrawGeometry(cmd, _moonShadowSkinPipeline);
+                var depthAttachment = new VkRenderingAttachmentInfo
+                {
+                    imageView = _moonShadow.View,
+                    imageLayout = VkImageLayout.DepthAttachmentOptimal,
+                    loadOp = VkAttachmentLoadOp.Clear,
+                    storeOp = VkAttachmentStoreOp.Store,
+                    clearValue = new VkClearValue { depthStencil = new VkClearDepthStencilValue(1, 0) },
+                };
+                var rendering = new VkRenderingInfo { renderArea = new VkRect2D(0, 0, (uint)MoonShadowSize, (uint)MoonShadowSize), layerCount = 1, pDepthAttachment = &depthAttachment };
+                Api.vkCmdBeginRendering(cmd, &rendering);
+                if (_moonOn)
+                {
+                    var viewport = new VkViewport(0, 0, MoonShadowSize, MoonShadowSize, 0, 1);
+                    Api.vkCmdSetViewport(cmd, 0, 1, &viewport);
+                    var scissor = new VkRect2D(0, 0, (uint)MoonShadowSize, (uint)MoonShadowSize);
+                    Api.vkCmdSetScissor(cmd, 0, 1, &scissor);
+                    var set = _sceneSet;
+                    Api.vkCmdBindDescriptorSets(cmd, VkPipelineBindPoint.Graphics, _sceneLayout, 0, 1, &set, 0, null);
+                    Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _moonShadowPipeline);
+                    moonDrawn = DrawGeometry(cmd, _moonShadowSkinPipeline, _frameMapped->MoonViewProj);
+                }
+                Api.vkCmdEndRendering(cmd);
             }
-            Api.vkCmdEndRendering(cmd);
+            Transition(cmd, _moonShadow.Image, VkImageAspectFlags.Depth, VkImageLayout.DepthAttachmentOptimal, VkImageLayout.ShaderReadOnlyOptimal);
+            Mark(cmd, 2);
+
         }
-        Transition(cmd, _moonShadow.Image, VkImageAspectFlags.Depth, VkImageLayout.DepthAttachmentOptimal, VkImageLayout.ShaderReadOnlyOptimal);
-        Mark(cmd, 2);
+        else
+        {
+            Mark(cmd, 1);
+            Mark(cmd, 2);
+        }
 
         // 1-2: sky and scene into the float target.
         Transition(cmd, _scene.Image, VkImageAspectFlags.Color, VkImageLayout.Undefined, VkImageLayout.ColorAttachmentOptimal);
@@ -757,7 +802,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         Api.vkCmdPushConstants(cmd, _sceneLayout, VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment, 0, (uint)sizeof(DrawConstants), &identity);
         Api.vkCmdDraw(cmd, 3, 1, 0, 0);
         Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _scenePipeline);
-        var sceneDrawn = DrawGeometry(cmd, _sceneSkinPipeline);
+        var sceneDrawn = DrawGeometry(cmd, _sceneSkinPipeline, _frameMapped->ViewProj);
         if (_fxAlphaCount + _fxAddCount > 0)
         {
             var fb = _fxVertices;
@@ -852,8 +897,11 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// The frame's soup and every kit instance, with whatever pipeline is bound; then the skinned ones with
     /// <paramref name="skinned"/>, the same pass's skinning twin (it stays bound after). Returns what it drew.
     /// </summary>
-    (int Triangles, int Draws) DrawGeometry(VkCommandBuffer cmd, VkPipeline skinned)
+    /// <param name="viewProj">The pass's view: instances wholly outside it aren't drawn.</param>
+    (int Triangles, int Draws) DrawGeometry(VkCommandBuffer cmd, VkPipeline skinned, in Matrix4x4 viewProj)
     {
+        Span<Vector4> planes = stackalloc Vector4[6];
+        FrustumPlanes(viewProj, planes);
         int triangles = _vertexCount / 3, draws = _vertexCount > 0 ? 1 : 0;
         var identity = new DrawConstants { Model = Matrix4x4.Identity, Tint = Vector4.One };
         if (_vertexCount > 0)
@@ -864,8 +912,10 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             Api.vkCmdBindVertexBuffers(cmd, 0, 1, &vb, &offset);
             Api.vkCmdDraw(cmd, (uint)_vertexCount, 1, 0, 0);
         }
-        foreach (var (mesh, draw) in _draws)
+        foreach (var (mesh, draw, sphere) in _draws)
         {
+            if (!Visible(planes, sphere))
+                continue;
             var d = draw;
             Api.vkCmdPushConstants(cmd, _sceneLayout, VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment, 0, (uint)sizeof(DrawConstants), &d);
             var vb = mesh.Buffer;
@@ -890,6 +940,38 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             draws++;
         }
         return (triangles, draws);
+    }
+
+    /// <summary>
+    /// The six planes of a view (System.Numerics row vectors: clip = v × M; Vulkan's depth, 0 to 1), each (n, d) with n·p + d
+    /// ≥ 0 inside, n unit length.
+    /// </summary>
+    public static void FrustumPlanes(in Matrix4x4 m, Span<Vector4> planes)
+    {
+        var c1 = new Vector4(m.M11, m.M21, m.M31, m.M41);
+        var c2 = new Vector4(m.M12, m.M22, m.M32, m.M42);
+        var c3 = new Vector4(m.M13, m.M23, m.M33, m.M43);
+        var c4 = new Vector4(m.M14, m.M24, m.M34, m.M44);
+        planes[0] = c4 + c1;
+        planes[1] = c4 - c1;
+        planes[2] = c4 + c2;
+        planes[3] = c4 - c2;
+        planes[4] = c3;
+        planes[5] = c4 - c3;
+        for (int i = 0; i < 6; i++)
+        {
+            float len = new Vector3(planes[i].X, planes[i].Y, planes[i].Z).Length();
+            planes[i] = len > 0 ? planes[i] / len : new Vector4(0, 0, 0, 1);
+        }
+    }
+
+    /// <summary>Whether a sphere (xyz centre, w radius) is at least partly inside the planes.</summary>
+    public static bool Visible(ReadOnlySpan<Vector4> planes, Vector4 sphere)
+    {
+        foreach (var p in planes)
+            if (p.X * sphere.X + p.Y * sphere.Y + p.Z * sphere.Z + p.W < -sphere.W)
+                return false;
+        return true;
     }
 
     void PostPass(VkCommandBuffer cmd, Target into, VkPipeline pipeline, VkPipelineLayout layout, VkDescriptorSet set, PostConstants constants)
@@ -1032,7 +1114,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         images[6] = new VkDescriptorImageInfo { sampler = _nearest, imageView = _scene.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[7] = new VkDescriptorImageInfo { sampler = _linear, imageView = _bloomA.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[8] = new VkDescriptorImageInfo { sampler = _lut.Sampler, imageView = _lut.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
-        images[9] = new VkDescriptorImageInfo { sampler = _shadowSampler, imageView = _shadow.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
+        var shadows = _shadowsFrom ?? this;
+        images[9] = new VkDescriptorImageInfo { sampler = _shadowSampler, imageView = shadows._shadow.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         var buffer = new VkDescriptorBufferInfo { buffer = _frame, offset = 0, range = (ulong)sizeof(FrameData) };
         images[10] = new VkDescriptorImageInfo { sampler = _linear, imageView = _bloomC.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[11] = new VkDescriptorImageInfo { sampler = _linear, imageView = _bloomD.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
@@ -1040,7 +1123,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         images[13] = new VkDescriptorImageInfo { sampler = Post.Ps2 ? _crunchy : _normal.Sampler, imageView = _normal.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[14] = new VkDescriptorImageInfo { sampler = _nearest, imageView = _depth.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[15] = new VkDescriptorImageInfo { sampler = _linear, imageView = _ao.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
-        images[16] = new VkDescriptorImageInfo { sampler = _shadowSampler, imageView = _moonShadow.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
+        images[16] = new VkDescriptorImageInfo { sampler = _shadowSampler, imageView = shadows._moonShadow.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[17] = new VkDescriptorImageInfo { sampler = _heroDiffuse.Sampler, imageView = _heroDiffuse.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[18] = new VkDescriptorImageInfo { sampler = _heroSpec.Sampler, imageView = _heroSpec.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[19] = new VkDescriptorImageInfo { sampler = _heroNormal.Sampler, imageView = _heroNormal.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };

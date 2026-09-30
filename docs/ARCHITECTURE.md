@@ -1716,3 +1716,17 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - The frames match CPU skinning to within rounding (mean pixel difference 0.0002 on the roof and chase views with the threats).
       - Building a view went from about 23 ms to 1.5 ms. The CPU share is 2.2 ms flat and 3.1 ms in a headset, inside both budgets.
       - `MeshBuilder.Flattened` is skin.glsl's blend on the CPU, so the tests still ask where a posed hand or a ragdoll's limbs are.
+    - **3 is done: culling, shared shadows, and a mirror that's a blit.**
+      - Every kit instance has a bounding sphere (`MeshAsset.Bounds`). Each pass draws only those inside its own view: the camera's for the scene, the lamp's frustum and the moon's box for the shadows.
+      - What culling leaves out: a caster outside the lamp's frustum or the moon's box can't shadow anything inside it, so the maps are unchanged. The soup and skinned pieces are always drawn, since a pose can reach past its bind pose's sphere.
+      - A headset's right eye samples the left eye's shadow maps (`ShadowsFrom`): both eyes stand at the body's eye point, so the lamp's and the moon's views are the same.
+      - The desktop window in a headset session shows the left eye's middle (`VrView.Mirror`). It had drawn the whole flat view a third time.
+      - The mirror is verified only by the app running a night on the simulated headset (xvfb + Monado) without errors. The window's contents can't be read back here.
+      - Frames per view: a flat frame draws 0.66–0.78 M triangles (was about 1 M), and a headset frame 0.87–1.09 M (was 3.1 M).
+      - Lavapipe's headset frame took about 45% less GPU time.
+      - Pixels are the same as before on the roof view; the others differ in a few dozen pixels at most, from the skinning's rounding.
+      - `PerfBudgetTests` holds every view inside `maxFrameTriangles` and `maxPassDraws`, flat and in a headset. It also checks that the shared shadows draw what an eye's own would.
+    - **Left: 2 and 4.**
+      - 2: kit meshes are still in host-visible memory, which a discrete GPU reads over PCIe every pass.
+      - 4: every submit still waits for the GPU.
+      - Neither can be measured on lavapipe; both matter on a real card.

@@ -105,6 +105,29 @@ public sealed class MeshAsset(string name, Vertex[] vertices, SkinWeights[]? ski
         : throw new ArgumentException($"{name}: {skin.Length} skin weights for {vertices.Length} vertices");
     public int Triangles => Vertices.Length / 3;
 
+    /// <summary>A sphere round every vertex, in the asset's own space (the renderer culls each pass by it). A skinned
+    /// asset's is its bind pose's, which a pose can reach outside: those aren't culled.</summary>
+    public (Vector3 Centre, float Radius) Bounds => _bounds ??= Sphere(Vertices);
+    (Vector3, float)? _bounds;
+
+    static (Vector3, float) Sphere(Vertex[] vertices)
+    {
+        if (vertices.Length == 0)
+            return (Vector3.Zero, 0);
+        var min = new Vector3(float.MaxValue);
+        var max = new Vector3(float.MinValue);
+        foreach (var v in vertices)
+        {
+            min = Vector3.Min(min, v.Position);
+            max = Vector3.Max(max, v.Position);
+        }
+        var centre = (min + max) / 2;
+        float r2 = 0;
+        foreach (var v in vertices)
+            r2 = MathF.Max(r2, Vector3.DistanceSquared(v.Position, centre));
+        return (centre, MathF.Sqrt(r2));
+    }
+
     public static MeshAsset From(string name, MeshBuilder built) => new(name, built.Vertices.ToArray());
 }
 

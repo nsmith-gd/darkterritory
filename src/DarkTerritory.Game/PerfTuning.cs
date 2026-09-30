@@ -25,7 +25,7 @@ public sealed record PerfTarget
     public int Width { get; init; } = 1280;
     public int Height { get; init; } = 720;
     public int Eyes { get; init; } = 1;
-    /// <summary>Whether the desktop window mirrors the flat view as well (a headset session does).</summary>
+    /// <summary>Whether the desktop window mirrors it (a headset session's shows the left eye: VrView.Mirror).</summary>
     public bool Mirror { get; init; }
     public double FrameMs => 1000 / Fps;
 }
