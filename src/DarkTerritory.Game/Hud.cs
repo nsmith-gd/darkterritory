@@ -6,6 +6,7 @@ using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Stops;
 using DarkTerritory.Sim.Train;
@@ -41,6 +42,7 @@ public static class Hud
         int line = o.Font.LineHeight;
         var p = s.Player;
         Engine(o, s, line);
+        RouteStrip(o, width, s, line);
         if (s.Link is { } link)
             Link(o, width, link, line);
         Radio(o, width, s, line);
@@ -100,7 +102,11 @@ public static class Hud
         o.Text(x, y, $"{Math.Abs(d.Speed) * 3.6,3:0} KM/H", Ink);
         o.Text(x + 64, y, band.ToString().ToUpperInvariant(), band >= SpeedBand.Cruise ? Amber : Dim);
         y += line;
-        o.Text(x, y, $"REG {c.Throttle * 100,3:0}%  BRAKE {(c.Brake > 0 ? "ON " : "OFF")}  {(c.Reverser > 0 ? "FWD" : "REV")}", Dim);
+        // T97: with steam driving there's no regulator; what the pressure will make is the thing to read.
+        string drive = s.Train.BoilerTuning is { SteamDrive: true } steam
+            ? $"STEAM {s.Train.Boiler.SteamSpeed(steam, s.Train.Dynamics.Tuning.MaxSpeed) * 3.6,3:0} KM/H"
+            : $"REG {c.Throttle * 100,3:0}%";
+        o.Text(x, y, $"{drive}  BRAKE {(c.Brake > 0 ? "ON " : "OFF")}  {(c.Reverser > 0 ? "FWD" : "REV")}", Dim);
         y += line;
         var b = train.Boiler;
         if (train.BoilerTuning is not { } bt)
@@ -156,6 +162,35 @@ public static class Hud
         // Right mouse throws what's in your hands; with them empty, it sets the radio down to pass on.
         string wearing = Bound(bodies.CarriedBy(s.PlayerId) is null ? "RADIO [T]  [RMB] SET IT DOWN" : "RADIO [T]");
         o.TextRight(width - 6, 5 + 5 * line, bodies.HasRadio(s.PlayerId) ? wearing : "NO RADIO", bodies.HasRadio(s.PlayerId) ? Dim : Amber);
+    }
+
+    /// <summary>
+    /// The night's line across the top (T95 playtest): how far there's left to go, and where the stops are, facilities and
+    /// villages, ticked along it; the train's the bright mark. Stops behind it dim.
+    /// </summary>
+    static void RouteStrip(Overlay o, int width, IPlaySession s, int line)
+    {
+        if (s.Route is not { } route || route.Length <= 0)
+            return;
+        // Clear of the engine's panel top left and the link's top right.
+        float w = MathF.Round(width * 0.34f), x = MathF.Round(width * 0.41f), y = 6, h = 5;
+        double at = Math.Clamp(s.Train.Dynamics.Distance / route.Length, 0, 1);
+        o.Rect(x - 4, y - 3, w + 8, h + line + 8, Panel);
+        o.Rect(x, y, w, h, Track);
+        o.Rect(x, y, MathF.Round(w * (float)at), h, Dim);
+        foreach (var f in route.Features.Where(f => f.Kind is FeatureKind.Facility or FeatureKind.Village))
+        {
+            float fx = x + MathF.Round(w * (float)Math.Clamp(f.Start / route.Length, 0, 1));
+            bool passed = f.Start < s.Train.Dynamics.Distance;
+            var colour = passed ? Dim : f.Kind == FeatureKind.Facility ? Amber : Ink;
+            o.Rect(fx - 1, y - 2, 3, h + 4, colour);
+        }
+        o.Rect(x + MathF.Round(w * (float)at) - 2, y - 3, 5, h + 6, Green);
+        double left = Math.Max(0, route.Length - s.Train.Dynamics.Distance) / 1000;
+        var next = route.Features.Where(f => f.Kind is FeatureKind.Facility or FeatureKind.Village && f.Start > s.Train.Dynamics.Distance)
+            .OrderBy(f => f.Start).FirstOrDefault();
+        string ahead = next is null ? "NO MORE STOPS" : $"STOP IN {(next.Start - s.Train.Dynamics.Distance) / 1000:0.0}";
+        o.TextCentred(x + w / 2, y + h + 2, $"{left:0.0} KM LEFT  {ahead}", Ink);
     }
 
     static void Alerts(Overlay o, int width, int height, IPlaySession s, int line)
@@ -240,11 +275,18 @@ public static class Hud
     public static Settings Keys { get; set; } = new();
 
     /// <summary>A prompt written with the default keys ([E], [RMB], [T]) as the player has them bound.</summary>
-    public static string Bound(string prompt) => prompt
-        .Replace("[E]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Use))}]", StringComparison.Ordinal)
-        .Replace("[RMB]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Throw))}]", StringComparison.Ordinal)
-        .Replace("[T]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Radio))}]", StringComparison.Ordinal)
-        .Replace("[Z]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Uncouple))}]", StringComparison.Ordinal);
+    public static string Bound(string prompt) =>
+        // One pass, so a key bound where another default was isn't replaced twice (Use on F, the ladder's default).
+        System.Text.RegularExpressions.Regex.Replace(prompt, @"\[(E|RMB|T|Z|F|R|B)\]", m => $"[{Controls.KeyLabel(Keys.KeyFor(m.Groups[1].Value switch
+        {
+            "E" => Control.Use,
+            "RMB" => Control.Throw,
+            "T" => Control.Radio,
+            "Z" => Control.Uncouple,
+            "F" => Control.Ladder,
+            "R" => Control.RegulatorOpen,
+            _ => Control.Brake,
+        }))}]");
 
     /// <summary>What your hands can do right here, with the key that does it.</summary>
     public static string? Prompt(IPlaySession s)
@@ -282,6 +324,9 @@ public static class Hud
         // A headset player's prompts follow their reaching hand (T29), as the sim's reach does.
         var hand = world.Hand;
         var near = CrewActions.Nearest(p, train, hand);
+        // T94: a ladder in reach, and the key that takes you onto it.
+        if (PlayerMotor.LadderInReach(p, train, s.PlayerTuning))
+            return "[F] GRAB LADDER";
         // T91: the coupling is cut with its own key, held, looking down at it.
         if (p.Surface == Surface.Coupler && near != InteractableKind.Door)
             return p.Hand != default ? "REACH DOWN AND GRIP: CUT THE COUPLING"
@@ -290,12 +335,13 @@ public static class Hud
         switch (near)
         {
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train):
-                return p.Hand != default && !p.Has(PlayerFlags.Shovelful) ? "SHOVEL COAL: FILL IT AT THE TENDER FIRST" : "[E] HOLD: SHOVEL COAL";
+                return p.Hand != default && !p.Has(PlayerFlags.Shovelful) ? "SHOVEL COAL: FILL IT AT THE TENDER FIRST" : "[E] HOLD: SHOVEL COAL (FASTER)";
             // Only a reaching hand finds the coal face (T29).
             case InteractableKind.Coal when PlayerMotor.InCab(p, train):
                 return p.Has(PlayerFlags.Shovelful) ? "SHOVEL FULL: INTO THE FIREBOX" : "GRIP: COAL ON THE SHOVEL";
-            case InteractableKind.Vent when PlayerMotor.InCab(p, train):
-                return "[E] HOLD: VENT";
+            // T97: out by the smokebox, venting is how the train's slowed (steam sets its speed).
+            case InteractableKind.Vent when p.Parent == 0 && p.Surface == Surface.Deck:
+                return "[E] HOLD: VENT STEAM (SLOWER)";
             case InteractableKind.Handbrake when p.Surface == Surface.Roof:
                 return "[E] HOLD: HANDBRAKE";
             // Out on the running board (App. A.2): what the sand does is only worth it on greased rail.
@@ -357,9 +403,14 @@ public static class Hud
                 : p.Hand != default ? site.Turning ? "CRANK: OVER THE TOP, TOWARDS THE TRACK. KEEP TOGETHER" : "CRANK: OVER THE TOP, TOWARDS THE TRACK (IT NEEDS TWO)"
                 : site.Turning ? "[E] HOLD: CRANK. KEEP TOGETHER" : "[E] HOLD: CRANK (IT NEEDS TWO)";
         if (CabControls.CanDrive(p, train))
+        {
+            // T97: steam drives it. At a stand on the brake, R lets it off; otherwise B brakes (coal and the vent do the rest).
+            string drive = train.BoilerTuning?.SteamDrive != true ? "[R/F] REGULATOR   [B] BRAKE"
+                : s.Controls.Brake > 0 && train.Dynamics.Speed < CabControls.StandingBelow ? "[R] RELEASE BRAKE" : "[B] BRAKE";
             // The lamp switch too (T52): out, smashed (the glass is out a while), or lit.
-            return world.LampOutSeconds > 0 ? $"[R/F] REGULATOR   [B] BRAKE   [X] REVERSER   LAMP SMASHED ({world.LampOutSeconds:0}s)"
-                : $"[R/F] REGULATOR   [B] BRAKE   [X] REVERSER   [L] LAMP {(world.LampLit ? "OFF" : "ON")}";
+            return world.LampOutSeconds > 0 ? $"{drive}   [X] REVERSER   LAMP SMASHED ({world.LampOutSeconds:0}s)"
+                : $"{drive}   [X] REVERSER   [L] LAMP {(world.LampLit ? "OFF" : "ON")}";
+        }
         return null;
     }
 

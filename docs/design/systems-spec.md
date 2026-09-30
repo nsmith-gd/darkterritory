@@ -220,13 +220,13 @@ At 20 cars, crossing the train takes a minute and a half in each direction. That
 
 | Consist | Accel | Brake | 22→0 stop |
 |---|---|---|---|
-| 3 cars | 0.90 m/s² | 1.60 m/s² | 14s / 151m |
-| 6 cars | 0.62 m/s² | 1.05 m/s² | 21s / 230m |
-| 10 cars | 0.42 m/s² | 0.72 m/s² | 31s / 336m |
-| 15 cars | 0.27 m/s² | 0.48 m/s² | 46s / 504m |
-| **20 cars** | **0.18 m/s²** | **0.35 m/s²** | **63s / 690m** |
+| 3 cars | 0.90 m/s² | 3.20 m/s² | 7s / 76m |
+| 6 cars | 0.62 m/s² | 2.10 m/s² | 10.5s / 115m |
+| 10 cars | 0.42 m/s² | 1.44 m/s² | 15s / 168m |
+| 15 cars | 0.27 m/s² | 0.96 m/s² | 23s / 252m |
+| **20 cars** | **0.18 m/s²** | **0.70 m/s²** | **31s / 346m** |
 
-**At 20 cars you must begin braking 700m before a stop.** Stopping becomes an act of planning rather than reaction — exactly as specified.
+**T97 (playtest): the brakes are twice the first pass's** ("braking needs to reduce speed significantly faster"). The stop column is a stop with the steam off. With steam driving (B.6) the engine pulls against the brake until its pressure's down, so a stop on the brake alone takes longer, and the quickest stop is brake *and* vent: two people, the brake in the cab and the vent out by the smokebox. At 20 cars you begin braking 350–450 m before a stop.
 
 ### Grade
 
@@ -255,6 +255,10 @@ Descending, the same figure adds to your speed and your brakes fade at 8% per 10
 | Below 40 | Hollow spawn condition |
 | Tender capacity | 400 coal units |
 | Shovel action | 1.2s per unit |
+
+### Steam drives the train (T97, playtest)
+
+There's no regulator. **The pressure sets the speed the engine can make:** none at the power floor (20), the line's top speed (22 m/s) at the safety valve (95), in proportion between; the engine pulls at full effort until it's within 3 m/s of that. Coal raises the pressure (faster), the vent drops it (slower, 12 per second held), and too much pressure just runs you at top speed. The cylinders draw steam with the effort of pulling away or with speed, whichever is more, drawing full demand from 85% of top speed: running flat out is the "full throttle" of the tables below. A standing train with steam stands on its brake, and it stays on it until the driver lets it off. Cruise (14 m/s) is about 68 on the gauge; the working band 60–90 is 12–20 m/s.
 
 ### Burn rate by consist
 

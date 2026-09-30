@@ -43,6 +43,8 @@ public enum PlayerActions : byte
     /// which is also every door's and ladder's, so couplings came apart by accident.
     /// </summary>
     Uncouple = 8,
+    /// <summary>Take hold of the nearest ladder in reach, whichever way you face (T94 playtest): its own key.</summary>
+    Ladder = 16,
 }
 
 /// <summary>The forward lamp's switch in the cab (T52): set it on or off (a setting, not a toggle, so a held key or a resent intent is harmless).</summary>
@@ -412,11 +414,23 @@ public static class PlayerMotor
         // (T90 playtest: nobody found Use + forward).
         if (s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Heavy))
         {
-            if (intent.Has(PlayerButtons.Use) && (intent.MoveZ > 0.5 || s.Hand != default))
+            if (intent.Has(PlayerActions.Ladder))
+                TryGrabLadder(ref s, train, p, byHand: false);
+            else if (intent.Has(PlayerButtons.Use) && (intent.MoveZ > 0.5 || s.Hand != default))
                 TryGrabLadder(ref s, train, p, byHand: intent.MoveZ <= 0.5);
             else if (intent.MoveZ > 0.5 && s.Grounded)
                 TryGrabLadder(ref s, train, p, byHand: false, walkIn: true);
         }
+    }
+
+    /// <summary>Whether the ladder key would take hold of a ladder from here (T94: the HUD says so).</summary>
+    public static bool LadderInReach(in PlayerState s, TrainOnLine train, PlayerTuning p)
+    {
+        if (!s.Alive || s.Surface is Surface.Ladder or Surface.Air || s.Has(PlayerFlags.Heavy))
+            return false;
+        var probe = s;
+        TryGrabLadder(ref probe, train, p, byHand: false);
+        return probe.Surface == Surface.Ladder;
     }
 
     /// <summary>How close to a ladder's foot walking into it takes hold (tighter than Use's reach, so passing one doesn't).</summary>

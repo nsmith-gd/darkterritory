@@ -611,6 +611,80 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     /// and the cab roof's over it, so the one in the cab already is the crew's only other driver.
     /// </summary>
     public bool Fireman { get; init; }
+
+    /// <summary>Everyone else aboard (or not) as this bot's client sees them, set each tick (T96).</summary>
+    public IReadOnlyList<PlayerState>? Crewmates { get; set; }
+
+    double _waitedForBreach, _waitedForBoarder;
+    bool _backedUp;
+
+    /// <summary>How far behind the train's rear a crewmate on the ground has to be to count as left behind (m).</summary>
+    const double LeftBehind = 20;
+    /// <summary>How far the driver will set back for one, at most (m), and at what speed (m/s).</summary>
+    const double SetBackFor = 1500, SetBackSpeed = 2.5;
+
+    /// <summary>
+    /// T96 (playtest: "if I get off the train it never stops for me"): a crewmate left on the ground behind the train while
+    /// it's running. Stop, set back to them at yard speed, and wait there for them to climb on; then forward again. Null
+    /// when nobody's left behind.
+    /// </summary>
+    PlayerIntent? ForTheLeftBehind(World world)
+    {
+        var train = world.Train;
+        var d = train.Dynamics;
+        bool atAStop = Stops is { Doing: not StopDriver.Leg.Cruise };
+        var behind = atAStop || Crewmates is null ? null : Crewmates
+            .Where(c => c.Alive && c.Parent == PlayerState.World && d.RearDistance - c.LineHint > -10 && d.RearDistance - c.LineHint < SetBackFor)
+            .OrderBy(c => d.RearDistance - c.LineHint).Select(c => (PlayerState?)c).FirstOrDefault();
+        if (behind is not { } them || _waitedForBoarder > 120)
+        {
+            if (behind is null)
+                _waitedForBoarder = 0;
+            // Set back for someone, and they're on: forward again (the reverser at a stand).
+            if (_backedUp && world.Controls.Reverser < 0)
+                return StopDriver.Toward(world, d.Distance + 1000, +1, SetBackSpeed);
+            _backedUp = false;
+            return null;
+        }
+        double gap = d.RearDistance - them.LineHint;
+        if (gap > LeftBehind && (d.Velocity < -0.05 || Math.Abs(d.Velocity) < 0.05 || world.Controls.Reverser < 0))
+        {
+            _backedUp = true;
+            return StopDriver.Toward(world, them.LineHint + LeftBehind * 0.5, -1, SetBackSpeed, rear: true);
+        }
+        if (gap > LeftBehind)
+            return new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
+        // Alongside them: stand for them to get on.
+        _waitedForBoarder += SimConstants.TickSeconds;
+        return new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
+    }
+
+    /// <summary>
+    /// T96: a Holdout lit ahead (someone's come back to it, GDD App. D.5). Down to a stand with the train alongside it,
+    /// and stand there while a crewmate breaches it (or a while, if nobody does). Null when there's none to stop for.
+    /// </summary>
+    PlayerIntent? ForAHoldout(World world, ref double cruise)
+    {
+        var train = world.Train;
+        var d = train.Dynamics;
+        bool breaching = calls?.Breaching == true;
+        var lit = world.Holdouts?.All.Where(h => h.Lit).Select(h => h.LineHint + 20 - d.Distance).Where(a => a > -150 && a < 600)
+            .OrderBy(Math.Abs).Select(a => (double?)a).FirstOrDefault();
+        if (lit is not { } ahead && !breaching || _waitedForBreach > 180)
+        {
+            if (lit is null && !breaching)
+                _waitedForBreach = 0;
+            return null;
+        }
+        if (lit is { } a && a > 5 && !breaching)
+        {
+            cruise = Math.Min(cruise, Math.Max(0, Math.Sqrt(2 * DollBraking * Math.Max(0, a - 5))));
+            return null;
+        }
+        if (d.Speed < 0.05)
+            _waitedForBreach += SimConstants.TickSeconds;
+        return new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
+    }
     bool _driving, _sawDriver;
     /// <summary>At the controls: the driver, or a fireman who's had to take them.</summary>
     public bool Driving => !Fireman || _driving;
@@ -681,6 +755,14 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             if (_aloneHand.SetBackAlone(self, world, null) is { } back)
                 return back with { Lamp = lamp, Buttons = back.Buttons | PlayerButtons.Brake };
             _clubbed = false;
+        }
+        // T96: a crewmate left behind, or back in a lit Holdout: stop for them.
+        if (self.Alive && PlayerMotor.InCab(self, train))
+        {
+            if (ForTheLeftBehind(world) is { } setBack)
+                return Work(self, train, setBack) with { Lamp = lamp };
+            if (ForAHoldout(world, ref cruise) is { } standing)
+                return Work(self, train, standing) with { Lamp = lamp };
         }
         if (world.TrackPlan is { } plan)
             cruise = Math.Min(cruise, LineGen.LineAuthority.For(plan, train.Line).Allowed(train));
@@ -782,6 +864,10 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         }
         int at = _sandLeg < way.Length ? _sandLeg : 2 * way.Length - 1 - _sandLeg;
         var (step, there) = WarmUp.Steer(self, way[at], 0);
+        // With steam driving (T97) nobody's holding the train back while the driver's out on the board, and sanded drivers
+        // pull it up to whatever speed its steam makes: out with the brake held, so it's standing on it till the driver's back.
+        if (train.BoilerTuning is { SteamDrive: true } && PlayerMotor.InCab(self, train))
+            step.Buttons |= PlayerButtons.Brake;
         if (!there)
             return step;
         if (_sandLeg == way.Length - 1)
@@ -860,9 +946,15 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         // v1.1 App. A.5: a firebox door left open at a stop lets the Stoker in, and every shovelful opens it: at a stand, fire
         // only what keeps the fire from going low or the gauge from sinking (it's the low fire that brings it down the stack).
         bool standing = train.Dynamics.Speed < 0.5;
+        // With steam driving (T97) the pressure is the speed: fire to what makes a little over the cruise, no more (over it,
+        // the brake would be holding the train back from its own steam, and burning coal to do it).
+        double fireTo = train.BoilerTuning is { SteamDrive: true } sd ? Boiler.PressureFor(sd, _cruise + 1, train.Dynamics.Tuning.MaxSpeed)
+            : train.BoilerTuning is { } lb ? lb.WorkingBandMax - 2 : 0;
         if (train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && PlayerMotor.InCab(self, train)
-            && (!standing && train.Boiler.Pressure < bt.WorkingBandMax - 2 || standing && train.Boiler.Pressure < StandingPressure
-                || train.Boiler.FireFraction(bt) < bt.LowFireFraction * 2))
+            && (!standing && train.Boiler.Pressure < fireTo || standing && train.Boiler.Pressure < StandingPressure
+                // Never a low fire (the Stoker, App. A.5); with steam driving and the pressure well over what's wanted, only
+                // just clear of low, or the surplus is speed.
+                || train.Boiler.FireFraction(bt) < bt.LowFireFraction * (bt.SteamDrive && train.Boiler.Pressure > fireTo + 8 ? 1.15 : 2)))
         {
             // At its own side of the firebox door (the driver right, the fireman left: T75), clear of the vent's valve on the
             // left wall. Walking straight at the firebox from where it stood, the fireman fetched up at the vent, which was
@@ -880,12 +972,18 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     bool _holdingDown;
 
     /// <param name="over">How far over <paramref name="cruise"/> before holding it on the brake: a posted limit gets less slack.</param>
+    /// <summary>The speed the driver's holding to, which the fire's kept for (T97).</summary>
+    double _cruise = 14;
+
     PlayerIntent Drive(TrainOnLine train, uint tick, double cruise, double over)
     {
+        _cruise = cruise;
         var d = train.Dynamics;
         // To the end of the track it's on: the terminus, or a dead line's buffer stop.
         double remaining = train.Line.PathLength(d.Path) - d.Distance;
-        var brakeRate = d.MaxBrakeForce / d.Consist.MassTonnes;
+        // With steam driving (T97) the engine pulls against the brake until the steam's down: plan the stop on the difference.
+        var brakeRate = d.MaxBrakeForce / d.Consist.MassTonnes
+            - (train.BoilerTuning is { SteamDrive: true } ? d.MaxTractiveForce / d.Consist.MassTonnes : 0);
         double stopping = d.Speed * d.Speed / (2 * Math.Max(0.1, brakeRate)) + 150;
         var intent = new PlayerIntent();
         // A descent runs the train away with the regulator shut; hold it on the brake, with some
@@ -1225,6 +1323,34 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
 /// </summary>
 public static class Heed
 {
+    /// <summary>How far from a lit Holdout a crewmate will go to breach it, with the train standing (T96).</summary>
+    const double HoldoutRange = 180;
+
+    /// <summary>
+    /// A crewmate waiting in a lit Holdout (GDD App. D.5, T96): with the train standing, the nearest walker gets down and
+    /// breaches its door, and the driver waits (<see cref="CrewCalls.Breaching"/>). Then back aboard as from any stop.
+    /// </summary>
+    public static PlayerIntent Holdouts(PlayerIntent intent, in PlayerState self, World world, int selfId, CrewCalls? calls, StopHand? hand)
+    {
+        if (calls is null || hand is null)
+            return intent;
+        if (!self.Alive || world.Holdouts is not { } hs || world.Train.Dynamics.Speed > 0.1 || self.Has(PlayerFlags.Held))
+        {
+            calls.DropBreach(selfId);
+            return intent;
+        }
+        var at = PlayerMotor.WorldPosition(self, world.Train);
+        var lit = hs.All.Where(h => h.Lit).Select(h => (h, d: ((h.Door - at) with { Y = 0 }).Length)).Where(x => x.d <= HoldoutRange)
+            .OrderBy(x => x.d).FirstOrDefault();
+        if (lit.h is null || !calls.ClaimBreach(lit.h.Index, selfId, lit.d))
+        {
+            if (lit.h is null)
+                calls.DropBreach(selfId);
+            return intent;
+        }
+        return hand.Breach(self, world, lit.h) ?? intent;
+    }
+
     /// <summary>A bot's voice while it's working (a crew talks: its level in the intent), and how loud it gets near the Gaunt.</summary>
     const byte Chatter = 70, ToTheGaunt = 60;
 

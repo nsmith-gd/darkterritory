@@ -78,11 +78,13 @@
   // The sim turns these into tractive/brake force at loaded mass, so lighter trains
   // accelerate harder. Lengths between rows are interpolated linearly.
   "performance": [
-    { "cars": 3,  "accel": 0.90, "brake": 1.60 },
-    { "cars": 6,  "accel": 0.62, "brake": 1.05 },
-    { "cars": 10, "accel": 0.42, "brake": 0.72 },
-    { "cars": 15, "accel": 0.27, "brake": 0.48 },
-    { "cars": 20, "accel": 0.18, "brake": 0.35 }
+    // T97 playtest: brakes twice the spec's first pass ("braking needs to reduce speed significantly faster"). With steam
+    // driving the engine pulls against them, so venting as well is the quickest stop.
+    { "cars": 3,  "accel": 0.90, "brake": 3.20 },
+    { "cars": 6,  "accel": 0.62, "brake": 2.10 },
+    { "cars": 10, "accel": 0.42, "brake": 1.44 },
+    { "cars": 15, "accel": 0.27, "brake": 0.96 },
+    { "cars": 20, "accel": 0.18, "brake": 0.70 }
   ],
 
   "brakeFade": {

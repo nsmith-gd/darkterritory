@@ -352,7 +352,9 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         var interactables = new List<Interactable>
         {
             new(InteractableKind.Firebox, new Double3(0, deck, cabFront + 0.2), 1.1),
-            new(InteractableKind.Vent, new Double3(-w + 0.4, deck, cabFront + 0.9), 0.7),
+            // The blow-off cock out on the left running board by the smokebox (T97: venting slows the train, and it's far
+            // enough from the brake in the cab that the quickest stop takes two).
+            new(InteractableKind.Vent, new Double3(-w - board / 2, deck, -l + 1.2), 0.7),
             // The coal comes forward through the tender's front onto a shovelling plate at the back of the cab, near
             // enough the firebox that a fireman turning between them reaches both.
             new(InteractableKind.Coal, new Double3(0, deck, cabBack - 0.6), 1.0),

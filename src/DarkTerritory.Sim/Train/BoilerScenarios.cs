@@ -71,7 +71,8 @@ public static class BoilerScenarios
             // Keep the box topped up the way a fireman would while it rebuilds.
             if (train.Boiler.Firebox <= b.FireboxCapacity - 1)
                 train.Boiler.Shovel(b);
-            train.Step(SimConstants.TickSeconds, new TrainControls { Reverser = 1 });
+            // On its brake: with steam driving (T97), a standing engine with pressure would otherwise pull away.
+            train.Step(SimConstants.TickSeconds, new TrainControls { Reverser = 1, Brake = 1 });
             ticks++;
         }
         return ticks * SimConstants.TickSeconds;

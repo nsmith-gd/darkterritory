@@ -13,6 +13,8 @@ public enum Control
     Swing, Whistle, CarLamp,
     // T91: cutting a coupling is its own key, held while looking down at the coupler.
     Uncouple,
+    // T94: onto the nearest ladder.
+    Ladder,
 }
 
 /// <summary>The default key for each control, by the key's name (Ballast.Platform's <c>Key</c>), and how the menu says it.</summary>
@@ -30,7 +32,7 @@ public static class Controls
         [Control.Fire] = "MouseLeft",
         [Control.Throw] = "MouseRight",
         [Control.RegulatorOpen] = "R",
-        [Control.RegulatorClose] = "F",
+        [Control.RegulatorClose] = "Y",
         [Control.Brake] = "B",
         [Control.Reverser] = "X",
         [Control.Lamp] = "L",
@@ -43,6 +45,7 @@ public static class Controls
         [Control.Whistle] = "H",
         [Control.CarLamp] = "K",
         [Control.Uncouple] = "Z",
+        [Control.Ladder] = "F",
     };
 
     /// <summary>Keys nothing can be bound to: the menus' own.</summary>
@@ -50,8 +53,9 @@ public static class Controls
 
     public static string Label(Control c) => c switch
     {
-        Control.RegulatorOpen => "REGULATOR OPEN",
-        Control.RegulatorClose => "REGULATOR CLOSE",
+        // T97: steam drives the train; the regulator keys are the brake's release (and a throttle only a boiler-less test train has).
+        Control.RegulatorOpen => "RELEASE BRAKE (GO)",
+        Control.RegulatorClose => "REGULATOR CLOSE (NO BOILER)",
         Control.Roster => "CREW ROSTER",
         Control.RouteCard => "ROUTE CARD",
         Control.Chase => "CHASE VIEW",
@@ -60,6 +64,7 @@ public static class Controls
         Control.Whistle => "WHISTLE CORD",
         Control.CarLamp => "CAR LAMP",
         Control.Uncouple => "UNCOUPLE (HOLD, LOOKING DOWN)",
+        Control.Ladder => "GRAB LADDER",
         _ => c.ToString().ToUpperInvariant(),
     };
 
