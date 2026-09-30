@@ -410,6 +410,15 @@ public sealed class World
                 d.Charge(this, EnemyKind.Hollow, _enemies);
                 _enemies.Add(new Hollow(_nextEnemyId++));
             }
+            // The Drift (App. B.4): "a terrain region, not an entity". Over a marsh it's there, as the Hollow is when the fire's
+            // low: it comes up once a marsh, whatever the director would rather, and it's charged when it does.
+            if (Drift.Ground(this, t.Drift) is { } marsh && marsh.Start != _driftMarsh && Train.Dynamics.Consist.CarCount >= 1
+                && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Drift))
+            {
+                _driftMarsh = marsh.Start;
+                d.Charge(this, EnemyKind.Drift, _enemies);
+                Spawn(EnemyKind.Drift, d);
+            }
             // The Deadman (App. B.5): "not on Local routes; cab empty 30 s (20 s on Deep territory)". It starts its
             // approach that long less its telegraph, so it takes the cab at the spec's time; it's charged when it does.
             if (Route is { Tier: not RouteTier.Local } r && Train.Frames[0].Shape.Cab is not null
@@ -446,6 +455,8 @@ public sealed class World
     }
 
     readonly List<(uint Tick, Ballast.Double3 Muzzle)> _recentRounds = new();
+    /// <summary>The marsh (its start) the Drift last came up over: once a marsh.</summary>
+    double _driftMarsh = double.NaN;
 
     void Spawn(EnemyKind kind, Director d)
     {
@@ -533,6 +544,11 @@ public sealed class World
                 break;
             case EnemyKind.Gaunt when Gaunt.Perch(this) is { } perch:
                 _enemies.Add(Gaunt.OnRoof(_nextEnemyId++, Train, perch.Car, perch.Z));
+                break;
+            case EnemyKind.Drift when Train.Dynamics.Consist.CarCount >= 1:
+                // Over one of the cars (the ground's coming up alongside and over the whole train; it's centred somewhere).
+                var over = Train.Dynamics.Consist.Vehicles.Skip(1).Select(v => v.Id).ToList();
+                _enemies.Add(Drift.Over(_nextEnemyId++, Train, over[(int)d.NextRange(0, over.Count - 1e-9)], t.Drift));
                 break;
             case EnemyKind.Follower when Follower.Excursions(this) is { Count: > 0 } out_:
                 // On one of them, by scent: whose, the director's draw.

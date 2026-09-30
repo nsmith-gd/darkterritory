@@ -24,6 +24,23 @@ public sealed record EnemyTuning(
     public GauntTuning Gaunt { get; init; } = new();
     public PassengerTuning Passenger { get; init; } = new();
     public FollowerTuning Followers { get; init; } = new();
+    public DriftTuning Drift { get; init; } = new();
+}
+
+/// <summary>The Drift (App. A.4, B.4). Field docs live in enemies.json.</summary>
+public sealed record DriftTuning
+{
+    public double StartRadius { get; init; } = 4;
+    public double MaxRadius { get; init; } = 9;
+    public double SpreadSpeed { get; init; } = 0.15;
+    public double StillSpeed { get; init; } = 0.3;
+    public double SurgeSpeed { get; init; } = 2.2;
+    public double ContactReach { get; init; } = 1.2;
+    public int Damage { get; init; } = 6;
+    public double DamageSeconds { get; init; } = 1;
+    public double StillSeconds { get; init; } = 4;
+    public double ExitMargin { get; init; } = 60;
+    public double LingerSeconds { get; init; } = 600;
 }
 
 /// <summary>Followers (App. A.3, B.3). Field docs live in enemies.json.</summary>

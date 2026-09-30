@@ -345,6 +345,29 @@
     "interiorWeight": 2
   },
 
+  // App. A.4 THE DRIFT: "SPREAD a mass moving alongside and over the train, expanding toward motion. DETECT any player
+  // movement within radius → surges toward it (TELEGRAPH: visible creeping advance, audible rustle). CONSUME contact →
+  // damage over time, spreads onto the player. COUNTER complete stillness ~4s → loses the target, resumes drifting."
+  "drift": {
+    // It starts this wide (m) and spreads to this, this fast (m/s), toward whatever moved last.
+    "startRadius": 4,
+    "maxRadius": 9,
+    "spreadSpeed": 0.15,
+    // Ambiguity (ARCHITECTURE §8): "movement". Faster than this (m/s) in your own frame (walking, turning on the spot
+    // doesn't count) and not shut in a car: it's felt. It surges at this pace (m/s): a walk outpaces it, a stand doesn't.
+    "stillSpeed": 0.3,
+    "surgeSpeed": 2.2,
+    // Within this (m, across the ground) it's on them: this much every this many seconds while it stays.
+    "contactReach": 1.2,
+    "damage": 6,
+    "damageSeconds": 1,
+    // "Complete stillness ~4s": this long without moving and it loses them. Twice its radius away, it has already.
+    "stillSeconds": 4,
+    // Past the marsh's end by this (m), or about this long, and it's gone.
+    "exitMargin": 60,
+    "lingerSeconds": 600
+  },
+
   // App. A.3 FOLLOWERS: "STALK near facilities; tracks a disembarked player by scent. ATTACH moves into the carrier's blind
   // spot and matches their pace (TELEGRAPH: visible ONLY to other players, never to the carrier). BOARD carrier enters the
   // train → it enters with them. NEST moves to an unlit cargo car → becomes an interior threat. COUNTER an observer calls
@@ -530,7 +553,7 @@
     "maxConcurrentLargeCrew": 6,
     // Budget share spent before the first facility, across the middle, and in the final approach.
     "phaseShares": [0.15, 0.45, 0.40],
-    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3, "ferryman": 4, "longWhistle": 3, "climbers": 3, "weight": 3, "gaunt": 5, "passenger": 5, "followers": 3,
+    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3, "ferryman": 4, "longWhistle": 3, "climbers": 3, "weight": 3, "gaunt": 5, "passenger": 5, "followers": 3, "drift": 4,
       "carFire": 2, "looseLoad": 2, "gnawers": 2 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,

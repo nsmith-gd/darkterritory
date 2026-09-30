@@ -22,6 +22,8 @@ public enum FeatureKind
     Sleepers,
     /// <summary>Greased rail: no traction (App. A.2).</summary>
     Grease,
+    /// <summary>Marsh or contaminated ground under the line: where the Drift is (App. B.4 "terrain region").</summary>
+    Marsh,
 }
 
 /// <param name="Side">−1 left, +1 right of the direction of travel (facilities, junctions).</param>

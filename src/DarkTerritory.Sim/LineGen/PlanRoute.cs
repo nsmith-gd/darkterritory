@@ -53,6 +53,9 @@ public static class PlanRoutes
             features.Add(new RouteFeature(FeatureKind.Sleepers, z.S0, z.S1));
         foreach (var z in plan.Director.GreasePlaced.Where(z => z.Edge == "main"))
             features.Add(new RouteFeature(FeatureKind.Grease, z.S0, z.S1));
+        // The bog and the tar ponds the line crosses: the Drift's ground (App. B.4).
+        foreach (var bog in plan.Water.Where(b => b.Edge == "main" && b.Type is "marsh" or "contaminatedMarsh"))
+            features.Add(new RouteFeature(FeatureKind.Marsh, bog.S0, bog.S1));
         features.Sort((a, b) => a.Start != b.Start ? a.Start.CompareTo(b.Start) : a.Kind.CompareTo(b.Kind));
 
         var w = plan.Weather;

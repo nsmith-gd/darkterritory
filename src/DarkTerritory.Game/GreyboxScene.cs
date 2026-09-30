@@ -436,6 +436,14 @@ public sealed class GreyboxScene
                     mesh.Emissive = 0;
                     break;
                 }
+            case EnemyKind.Drift:
+                {
+                    // A dark spreading mat over the roof and down the sides, as wide as it's spread.
+                    double spread = Math.Clamp(e.Extra, 1, 12);
+                    Draw(0, 0.05, 0, spread * 0.7, 0.05, spread * 0.7, Palette.SootBlack);
+                    Draw(0, 0.15, 0, spread * 0.4, 0.1, spread * 0.4, Palette.Corrupted * 0.4f);
+                    break;
+                }
             case EnemyKind.Follower:
                 {
                     // Low and bent at someone's back, matching their step; nested, a heap in the car's dark corner.

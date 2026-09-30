@@ -77,6 +77,7 @@ public sealed class Director
         EnemyKind.Gaunt => "gaunt",
         EnemyKind.Passenger => "passenger",
         EnemyKind.Follower => "followers",
+        EnemyKind.Drift => "drift",
         _ => "sleepers",
     };
 
@@ -392,7 +393,7 @@ public sealed class Director
         var zone = kind switch
         {
             EnemyKind.CinderHound or EnemyKind.Weight or EnemyKind.Follower => PressureZone.Rear,
-            EnemyKind.Clinger or EnemyKind.Dragger or EnemyKind.Climber or EnemyKind.Gaunt => PressureZone.Flank,
+            EnemyKind.Clinger or EnemyKind.Dragger or EnemyKind.Climber or EnemyKind.Gaunt or EnemyKind.Drift => PressureZone.Flank,
             EnemyKind.Switchman or EnemyKind.Ferryman or EnemyKind.LongWhistle => PressureZone.Forward,
             EnemyKind.SootChildren or EnemyKind.Lamplighter => PressureZone.Structural,
             _ => PressureZone.Interior,

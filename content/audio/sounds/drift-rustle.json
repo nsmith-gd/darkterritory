@@ -1,0 +1,14 @@
+// Tell (tier 1), the Drift: "visible creeping advance, audible rustle" (App. A.4), 12-15 kHz, above everything else in
+// spec A.4's table. Dry reeds and sedge hissing as something moves through them toward you: a band of hiss that swells
+// and ebbs in slow uneven breaths (the creeping), with brittle ticks through it, nothing the bed or the wind ever makes.
+{
+  "tier": 1, "loop": true, "maxInstances": 1, "minDistance": 3, "maxDistance": 40, "gainDb": -4,
+  "layers": [
+    { "source": "noise", "gain": 1.0,
+      "filters": [{ "type": "bandPass", "frequency": 13400, "q": 2.2 }],
+      "tremolo": { "rate": 0.9, "depth": 0.8, "duty": 0.7, "jitter": 0.7 } },
+    { "source": "impulse", "gain": 0.7, "frequency": 26,
+      "filters": [{ "type": "bandPass", "frequency": 12800, "q": 3 }],
+      "tremolo": { "rate": 0.9, "depth": 1, "duty": 0.6, "jitter": 0.9 } }
+  ]
+}
