@@ -5,7 +5,11 @@ namespace DarkTerritory.Sim.Stops;
 /// <summary>What a stop's layout is fitted to: its level zone, and the route's switch points (route.json junctions).</summary>
 /// <param name="Facility">The facility the stop serves, if any: its Holdout's type depends on it (GDD App. D.4).</param>
 /// <param name="ExitGrade">The main line's grade (%, up) out of the stop, which the route lays (level-design D.2).</param>
-public readonly record struct StopContext(double ZoneLength, double PointsLength, double MaxLateral = 220, FacilityKind? Facility = null, double ExitGrade = 0);
+/// <param name="Side">The side (+1 right) the stop's yard, or a village halt's village, must be on: where the line generator put the
+/// facility or the platform. 0 lets the stop roll it.</param>
+/// <param name="HaltAt">Where along the zone a village's halt already stands (the line generator's platform), if it does.</param>
+public readonly record struct StopContext(double ZoneLength, double PointsLength, double MaxLateral = 220, FacilityKind? Facility = null, double ExitGrade = 0,
+    int Side = 0, double? HaltAt = null);
 
 /// <summary>
 /// Generates a stop's layout (level-design Parts D and Z): rail, then roads, then districts, then buildings, then
@@ -79,6 +83,8 @@ public static partial class StopGenerator
         var g = new StopDraft(cx.ZoneLength, cx.MaxLateral);
         bool hasYard = kind != StopKind.Village, hasVillage = kind != StopKind.Yard;
         int sY = R.Sign();
+        if (cx.Side != 0)
+            sY = Math.Sign(cx.Side);
         var form = hasYard ? R.Pick<YardForm>(tt.Forms) : (YardForm?)null;
         var arr = Arrangement.Single;
         if (hasYard && hasVillage)
@@ -161,6 +167,8 @@ public static partial class StopGenerator
             double f = RR.Range(tt.VillageOffset);
             double vs0 = RR.Range(zone * 0.15, zone * 0.45), vs1 = Math.Min(zone - 15, vs0 + RR.Range(t.Village.Extent));
             double sh = vs0 + RR.Range(15, 45);
+            if (cx.HaltAt is { } at)
+                sh = Math.Clamp(at, 20, zone - 20);
             halt = new Pt(sh, side * t.Village.Halt.Offset);
             Pt entry;
             if (RR.Chance(0.6))

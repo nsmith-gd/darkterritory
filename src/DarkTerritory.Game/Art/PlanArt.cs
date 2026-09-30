@@ -25,12 +25,17 @@ public sealed partial class WorldArt
             Terrain = ((PlanConditions)Line.Conditions!).Terrain;
             Main = Plan.Alignment.Select((a, i) => (a, i)).First(x => x.a.Role == EdgeRole.Main).i;
             Washouts = [.. Plan.Structures.Where(s => s.Type == StructureType.Washout && s.Edge == "main").Select(s => (s.S0, s.S1))];
+            Villages = [.. route.Of(FeatureKind.Village).Where(f => f.Stop is not null).Select(f => (f.Start, f.End))];
         }
 
         public LinePlan Plan { get; }
         public RailLine Line { get; }
         public TerrainField Terrain { get; }
         public (double S0, double S1)[] Washouts { get; }
+        /// <summary>The main-line spans the stop generator laid villages over (PlanStops): their houses and halts are its.</summary>
+        public (double S0, double S1)[] Villages { get; }
+
+        public bool InVillage(string edge, double s0, double s1) => edge == "main" && Villages.Any(v => v.S0 < s1 && s0 < v.S1);
         /// <summary>The main line's index among the terrain field's edges.</summary>
         public int Main { get; }
 
@@ -1019,11 +1024,12 @@ public sealed partial class WorldArt
 
     /// <summary>
     /// The plan's places (§11.3): a halt's platform, dark now, its name board the plan's; a dead town's houses round the
-    /// line where it runs through, a church or a windmill among them. Nothing lit: nobody's there.
+    /// line where it runs through, a church or a windmill among them. Nothing lit: nobody's there. Where the stop generator
+    /// laid a village over one (PlanStops), the village is drawn instead (WorldArt.Stops), its halt at the platform.
     /// </summary>
     void Places(MeshBuilder mesh, PlanScene p, Double3 eye, float drawDistance)
     {
-        foreach (var st in p.Plan.Structures.Where(s => s.Type == StructureType.Platform))
+        foreach (var st in p.Plan.Structures.Where(s => s.Type == StructureType.Platform && !p.InVillage(s.Edge, s.S0, s.S1)))
         {
             var line = p.EdgeLine(st.Edge);
             for (double s = Math.Floor(st.S0 / 8) * 8; s < st.S1; s += 8)
@@ -1036,7 +1042,7 @@ public sealed partial class WorldArt
                 mesh.Instances.Add(new MeshInstance(Piece($"platform-{v}", () => StructureKit.PlatformBay(_look, v)), Basis(t.Tangent, t.Position, eye, yaw)));
             }
         }
-        foreach (var town in p.Plan.Landmarks.Where(l => l.Type is "town" or "halt"))
+        foreach (var town in p.Plan.Landmarks.Where(l => l.Type is "town" or "halt" && !p.InVillage(l.Edge, l.S0, l.S1)))
         {
             var line = p.EdgeLine(town.Edge);
             double mid = (town.S0 + town.S1) / 2;

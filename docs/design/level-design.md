@@ -345,11 +345,12 @@ The layout says where; the director will say when, once the v1.1 roster is built
 
 # PART I — AS BUILT
 
-What the game does with these rules today (ARCHITECTURE §8 notes 92–94 have the engineering).
+What the game does with these rules today (ARCHITECTURE §8 notes 92–95 have the engineering).
 
 ## I.1 Where it lives
 - **Rules and numbers:** `content/tuning/stops.json`, with the Part D levers per tier, and `content/tuning/loot.json`, the economy's half of P14.
 - **The generator:** `src/DarkTerritory.Sim/Stops/`. It generates, measures (P15), validates (Z.5) and rerolls.
+- **On a generated line** (the default night): each facility on a spur has its yard laid from its own junction, on the straight, level stretch the line generator keeps there. Each halt and dead town is a village, with its halt at the plan's platform (`LineGen/PlanStops.cs`). Coaling towers and mine heads keep their plain track: the tower stands on the main line, and a mine head's spur runs into its portal.
 - **Looking at stops:**
   - `dt site --tier deadLines --seed 12 --kind yardAndVillage` draws a stop's plan to `out/stops/`.
   - `dt site --route frontier:7 --stop 4` draws a generated night's own stop.

@@ -1801,7 +1801,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Builds.** `tools/package.sh --demo` copies each build to `DarkTerritory-Demo-<rid>` and bakes the edition into its content (`dt edition bake demo`). `tools/upload.sh --demo` sends only those, checking that each is the demo, and the game's upload refuses a demo build. From the repo, `--edition demo` plays it (app or `dt`), mounted into the app data. A demo asked for a tier it hasn't got (`--route deadLines:3`) plays the Frontier. The content hash keeps demo and full crews apart.
     - **Verified:** `RosterTests` (nothing off the roster sent or saved for, nor the Deadman or Hollow on their conditions), `EditionTests` (the baked demo's roster, two facilities and no Grease on three seeds, and its front end), `linegen sweep` on the demo's Frontier (60 seeds, all passed, no fallbacks), and two harness nights on it: frontier:7 at 8 bots delivered, net 2643, longest quiet 20.2 s; frontier:3 at 2 delivered, net 46, longest quiet 18.6 s. CI packages the demo and starts it asking for a Dead Lines night.
 
-92. **Generated stops: yards, villages and their loot (level-design Part D, Part Z).** Every facility's zone, and a few village halts between them, holds a stop generated from `tuning/stops.json` (`Sim/Stops/`). Its loot comes from the run's economy (`tuning/loot.json`).
+92. **Generated stops: yards, villages and their loot (level-design Part D, Part Z).** Every facility's zone, and a few village halts between them, holds a stop (on a generated line, its facilities' and settlements', note 95) generated from `tuning/stops.json` (`Sim/Stops/`). Its loot comes from the run's economy (`tuning/loot.json`).
     - **Seeded by hash (Z.1):** a stop's seed is `hash(route seed, stop index, tier)`, and each attempt's is `hash(stop seed, attempt)` (`StopSeed`, SplitMix64). One stop never shifts another; the same night is the same stops on every machine.
     - **Generate, measure, validate, reroll:** up to `maxAttempts` (8). Each attempt is scored for manoeuvre difficulty (P15, `StopGenerator.Measure`) and checked against Z.5's invariants (`StopChecks`). The first attempt that passes everything and lands in the tier's band is kept, or else the closest one. A 60-seed sweep (`dt site sweep`) lands 98–100% in band, all valid.
     - **Yards are nested spurs off the main line.** `RailLine` branches only come off the main line and face up-line, so a ladder, fan or split is several spurs, each at its own switch. The first toe leads to the outermost track, so none cross. Each track is an S-curve turnout (radius `turnoutRadius`, 60 m) out to its offset, a straight loading face, and for a fan a curve away. `BranchDefinition` carries them as segments; `StopGeneratorTests` pins the branch's world path to the layout's to 0.3 m.
@@ -1856,3 +1856,20 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - The stop is told the grade (`StopContext.ExitGrade`), and its score counts a hard pull from 2%.
     - **Verified:** `PowerTests` (4): the cranes run on the yard's power, the restart and its noise, and deeper tiers having worse power and steeper pulls, as the route lays them.
     - **Not done:** trailing points and derelict cars. Both need the train sim to change: a switch that faces down the line, and rakes standing on branches at the start of a night (level-design I.4).
+
+95. **Stops on generated lines (level-design Part Z; linegen plan §11.1, §11.3).** The line generator is the default night, so its facilities and settlements get stops too (`LineGen/PlanStops.cs`, called from `PlanRoutes.ToRoute`).
+    - **A facility on a spur gets its yard at its own junction.** The zone is placed so the yard's first switch is the plan's junction. That track becomes the plan's spur branch, so every edge the plan names keeps its branch index; the yard's other tracks are added after the plan's branches.
+    - **Its ground is kept straight and level.** `LineBuilder` stretches a spur facility's departure lull (straight, level) to cover a stop's zone past the junction. The zone must then lie on straight, level main line, and the cut waiting before it on straight track, which may climb a little.
+    - **Ambiguity: a village along the line before the yard.** That arrangement shifts the yard 150 m down its zone, back past the level holding track (up to 0.2%). Such a stop is drawn again, up to 4 times, from `hash(stop seed, n)`. A facility that still doesn't fit goes without a yard, keeping the plan's plain spur. No night in the test set does.
+    - **Coaling towers and mine heads get no yard.** A coaling tower stands on the main line; a mine head's spur runs into its portal.
+    - **Halts and dead towns get villages.** Each settlement on the main line that's clear of a yard's zone (by 100 m) and is straight and level gets a village stop over its stretch. Its halt is at the plan's platform, on the platform's side, and it's seeded from `hash(route seed, halt, S)`. The plan's own platform bays and random houses aren't drawn there; the village is.
+    - **Flattened by pads.** Each stop adds a long pad (`stop:<S>`) to the route's copy of the plan, so the terrain on every machine is flat under it. A plan that already carries them (sent to a joiner, or saved) has them stripped and added again, so building its route twice gives the same stops.
+    - **Verified:** `PlanStopTests` (22) over four tiers checks:
+      - every spur facility's yard at its own junction, its tracks as branches;
+      - every stop on straight, level track;
+      - villages at their settlements with the halt at the platform;
+      - Holdouts on every tier;
+      - one pad a stop;
+      - a joiner's route from the plan matching the host's;
+      - determinism.
+
