@@ -1253,7 +1253,29 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - The variants: a welder's visor on brass pivots at the temples, flipped up over the cap (variants 0 and 2) or down over the face (1 and 3; then there are no eyes, only a slot of dark glass). 2 and 3 add the scarf.
         - The high copy adds what the game mesh is too coarse to carry, baked: the eyepieces' threads, the drum's knurling and grille bars, the hose's corrugations, the visor's rivets, the hood's moulding seam and chin wrinkles, the cap's quilting (`crewfigure.gas_mask_detail`). The coat is patched, and stitched round the patches.
       - Each player has their own colour. The cap's leather and the scarf are baked pale and neutral, scuffed. They're drawn as their own material on the same atlas (`crew_0.paint`: `overbake.Atlas.finish(split=...)`, `cook.bake_layers`' `dt_alias`), which `CreatureArt` tints by player id from `look.json` `crewColours`: eight colours, strong enough to hold under the amber lamps.
-      - From behind, a crewmate is a coloured cap; from in front, two dim eyes, or none. The crew are 4598 triangles, 1.86 m to the top of the cap.
+      - From behind, a crewmate is a coloured cap; from in front, two dim eyes, or none.
+      - The body under it was overhauled ("Player model is a bit low quality... a complete overhaul"). The kit's lofts had made a 22-sided coat, 12-sided sleeves and gloves of three boxes. `tools/blender/crewbody.py` now builds it as a character artist would:
+        1. Blocking: the clothed figure in overlapping solids in SK_Human's T-pose.
+           - The coat's body with its lapel and yoke.
+           - Sleeves with turned-back cuffs.
+           - Gloves: a gauntlet, a palm, four fingers and a thumb.
+           - Trousers, and boots with a shaft, a foot, a sole on the foot's outline and a heel.
+           - The belt with its buckle and three pouches, the bandolier and the satchel.
+        2. Union: voxel-remeshed at 3.5 mm into one watertight surface, relaxed. This is the high copy (about 290k faces), and the bake sculpts its folds.
+        3. Retopology: QuadriFlow to about 2300 quads, smooth-shaded (the `frame` part).
+        4. Weights by position: the rig's own region functions (the torso up the spine, the arms along them, the legs down them, the fingers and thumb), so the joins between solids bend as one.
+        - Each face takes the material of the solid it's nearest.
+        - The skirt and the stood-up collar are shells too thin to retopologise. They're clean two-sided lofts (the `coat` part), subdivided for their high copy.
+        - `crewfigure` bakes the body, frame and coat as one group, so the skirt shades the legs.
+        - The coat's shells sculpt both sides the outer side's way. Along each side's own normal, where a fold sank the outside, the lining came out through it and baked dark.
+        - The staged crew's raised arm (T47's headset reach) now points down the line: raised high it read as a salute.
+        - The mask's clipping is fixed.
+          - The scarf is thick wool wound round the new collar, lowered clear of the cheek filters, its end hanging on the left clear of the lamp.
+          - The hose runs out in front of the scarf.
+          - The collar is open at the throat past the cheek filters.
+          - The visor is raised 40° rather than flipped 62°: past that, its edges met over the crown in a crest.
+      - The crew are 8452 triangles at most (variant 3: visor and scarf), inside the brief's 9k, and 1.86 m to the top of the cap.
+      - The husk shares the body. Its scanned head is decimated to 2000 to fit: 8936 at most.
       - `tools/models/crewfigure.py` builds both figures. `Style(figure="helm")` is the crew; `figure="bare"` is the bare-headed figure in a cap or a steel helmet, with Lee Perry-Smith's scan for its face (`DT_CREW=bare` to `tools/blender/crew.py`), which the husk is built from.
       - The husk is the ninth (`recipes/husk.py`): the crew figure gone wrong, for the Climbers (App. A.4: "drawn out thin, soot-black") and the Deadman (A.5: "a crewman, or was"), with the crew's rig and clips. Its mask is torn off and hangs from the collar by a strap, the face bare: that's how you tell it was crew. The face is shrunk onto the skull (the cheeks and temples sunk, the eyes back in black sockets weeping tar, the nose rotted back, the jaw long). The clothes are burned through in ragged holes, meat in them and char at the edges, everything soot-black, and the chest lamp is dead. The masks it bakes (`overbake.bake(masks=...)`: vertex colours on the high, baked to maps) steer the grade. `CreatureArt` draws the Climber and the Deadman with it, and falls back to the darkened crew when it's missing.
       - The Weight is the tenth. It had been three of the Dragger's arms scaled up; it's now its own figure (`tools/blender/weight.py`, baked by `recipes/weight.py`). What comes up out of the marsh is a bog body, several gone into one: four torsos fused in a sodden heap on the ballast, their faces sunk in it looking up with black holes for eyes and mouths. Four arms hook over the coupler and the end beam's corners, and two more and a pair of legs trail behind, clawing at the stones. The high copy is tanned leather folded over itself, with the spines and ribs down each back and the shoulder blades standing. Peat is caked on everything low down. It's kept a shade lighter than the hound: nothing on it glows, and under the car's end the moon is all it gets. It has its own clips on a chain rig of 30 bones: grab (it has hold by 0.5 s), drag (uneven heaves) and release, which `CreatureArt` plays through the telegraph and the break-off. 3970 triangles; the Dragger's arms stay as the fallback.
