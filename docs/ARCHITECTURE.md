@@ -1693,3 +1693,14 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The Ferryman's straight.** With the night paced differently, frontier:7 got a Ferryman short of a stretch the line's authority slowed. The driver braked for it, as bound to; it boarded and took the conductor, and the Deadman ran the train back down the line.
       - "Do not slow down" has to be the crew's choice. `Ferryman.ClearAhead` also wants nothing posted, and no authority, under the train's speed over its approach (`LineAuthority.Lowest`).
       - `FerrymanTests` has a weak bridge's board, and the same line without it.
+86. **A fireman in the cab, and nobody under a Climber that's got into it (T75).** On frontier:1 at a crew of 8, a Climber got into the cab while every walker was warming inside a car. It went through occupied car 1 and came down where the driver stood. It killed the driver, the Deadman took the empty cab, and the train ran back down the line all night.
+    - **Nobody can reach the cab at speed.** The tender is full width and the cab roof is over its front edge, so a walker can't get over it. The only other driver a crew has at speed is someone already in the cab.
+    - **The fireman.** A harness crew of `FiremanFrom` (6) or more keeps its last hand in the cab as fireman: a `ConductorBot { Fireman = true }` posted beside the driver.
+      - While the driver lives, the fireman stands by, keeping the fire and keeping the cab from ever being empty. It says no stop job, so the stops don't wait on it.
+      - Once the driver's been heard driving and then isn't, the fireman takes the controls and says it's the driver.
+    - **A Climber in the cab.** It takes whoever comes within reach, and stays while anyone's in the cab; leaving it empty is the Deadman's. So nobody leaves.
+      - The driver and fireman keep to the cab's front corners, out of its reach (it comes down at the cab's middle, where the driver used to stand).
+      - They work the controls and the firebox from there; only where they stand changes.
+    - **Verified:** `FiremanTests`. The fireman stands by, then takes the controls when the driver dies. With a Climber in the cab, both stay in the cab, unhurt and out of its reach, for 20 s.
+      - The sweep (frontier, seeds 1–2, crews 2 and 8) delivers all four nights and passes every check. frontier:1 at crew 8 comes home (2376), frontier:2 at crew 8 makes 3515, 43 punishes a night.
+      - frontier:7 delivers (3791).

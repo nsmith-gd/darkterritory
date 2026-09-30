@@ -114,7 +114,9 @@ public static class Harness
         // shunter, the winch pair, then crates), and the gunner only if it takes them to make up the winch pair.
         var calls = o.Run is not null && o.Route is not null && o.Facilities is not null ? new CrewCalls() : null;
         bool gunner = o.Combat is not null;
-        var hands = Enumerable.Range(1, Math.Max(0, o.Bots - 1)).OrderBy(i => i == 1 && gunner ? 1 : 0).ToList();
+        // A crew big enough keeps a fireman in the cab with the driver (T75): the last of them.
+        int fireman = o.Bots >= FiremanFrom ? o.Bots - 1 : -1;
+        var hands = Enumerable.Range(1, Math.Max(0, o.Bots - 1)).Where(i => i != fireman).OrderBy(i => i == 1 && gunner ? 1 : 0).ToList();
         StopJob JobOf(int i) => hands.IndexOf(i) switch
         {
             0 => StopJob.Shunter,
@@ -128,6 +130,7 @@ public static class Harness
         {
             var transport = new CountingTransport(ClientTransport(i));
             IBot bot = i == 0 ? new ConductorBot(calls, i)
+                : i == fireman ? new ConductorBot(calls, i) { Fireman = true }
                 : i == 1 && o.Combat is { } c ? new GunnerBot(c.Guns, c.Choir, o.Seed * 1000 + i, playerTuning.Cold, Hand(i))
                 : new RoofWalkerBot(o.Seed * 1000 + i, playerTuning.Cold, Hand(i));
             var session = new ClientSession(transport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
@@ -194,7 +197,10 @@ public static class Harness
             choirPeak = Math.Max(choirPeak, host.World.Choir.Aggro);
             // Once everyone's in, the gunner goes to the guard gun (a host-side respawn at their post).
             if (t == 30)
+            {
                 PostGunner(host, clients.Select(c => (c.Session, c.Bot)).ToList());
+                PostFireman(host, clients.Select(c => (c.Session, c.Bot)).ToList());
+            }
             if (t == 60)
                 foreach (var c in clients)
                     c.Session.ResetStats();
@@ -285,12 +291,25 @@ public static class Harness
         string where = !s.Alive ? $"dead ({s.Death})" : s.Parent == PlayerState.World ? "ground" : $"{s.Surface} {s.Parent}";
         string doing = bot switch
         {
+            ConductorBot { Driving: false } => "firing",
             ConductorBot c => c.Sanding ? "sanding" : c.Stops?.Doing.ToString() ?? "",
             RoofWalkerBot r => r.WarmUpStep is { } w and not "Off" ? $"warm:{w}" : r.Job?.Doing ?? "",
             GunnerBot g => g.Job?.Doing ?? "",
             _ => "",
         };
         return doing.Length > 0 ? $"{bot.Name}[{doing}] {where}" : $"{bot.Name} {where}";
+    }
+
+    /// <summary>The crew size from which one of them rides in the cab as fireman (T75).</summary>
+    public const int FiremanFrom = 6;
+
+    /// <summary>The fireman into the cab beside the driver, on the left (a host-side respawn at their post, as the gunner's).</summary>
+    static void PostFireman(HostSession host, List<(ClientSession Session, IBot Bot)> clients)
+    {
+        var fireman = clients.FirstOrDefault(c => c.Bot is ConductorBot { Fireman: true });
+        if (fireman.Session?.PlayerId is not { } id)
+            return;
+        host.SetPlayerState(id, PlayerMotor.SpawnInCab(host.Train, host.PlayerTuning, -0.8));
     }
 
     static void PostGunner(HostSession host, List<(ClientSession Session, IBot Bot)> clients)
