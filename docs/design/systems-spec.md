@@ -63,30 +63,37 @@ Every enemy telegraph must be:
 
 ### Tell allocation — collision check
 
-Because four enemies use vibration triggers and three use sound, their audio signatures must not collide:
+*GDD v1.1 roster (T84-T88). The v1.0 table is superseded: the bands the retired enemies held (Clingers, Rattle, the Weight,
+the Long Whistle, the Hollow, the Deadman, the in-car incidents) are reused where they fit.* Each tier-1 tell keeps a band of
+its own among the tells that can sound together; `dt audio render` and `AudioTests` hold every one of them over the bed for
+whoever has to hear it.
 
-| Enemy | Signature | Band |
-|---|---|---|
-| Sleepers | Wet writhe, brief | 400Hz–2k |
-| Clingers | Rhythmic metallic drill | 3–6k |
-| Rattle | Dry bone rattle, fast | 2–5k |
-| The Weight | Deep drag scrape | 60–300Hz |
-| Long Whistle | Horn, wrong pitch, no doppler | 200–800Hz |
-| The Choir | Layered voices, multiplying | 300Hz–4k, wide |
-| Soot Children | Crew voice, **no distance falloff** | voice band |
-| Cinder Hounds | Distant howl, closing | 500Hz–3k |
-| Hollow | Fire guttering, soot fall | 100Hz–1k |
-| Stoker | Pressure rise, wrong glow hiss | 1–3k |
-| Lamplighters | Near-silent; eyeshine is visual | — |
-| The Gaunt | **Silent by design** | — |
-| Deadman | Controls clicking, lamp dim hum | 1–2k |
-| Draggers | Single scrape at the edge lip | 2–4k |
-| Car fire *(in-car incident)* | Crackle and pop through the boards | 6–9k |
-| Loose load *(in-car incident)* | Straps groaning in time with the joints | 1.4–2.2k, rhythmic |
-| Gnawers *(in-car incident)* | Skittering, chittering in the load | 9–12k |
-| The Drift | Dry reeds rustling, in slow creeping swells | 12–15k |
+| Enemy | Signature | Band | Sound |
+|---|---|---|---|
+| Track debris *(hazard, formerly the Sleepers)* | Wet writhe, brief | 400Hz–2k | sleepers-writhe |
+| Track Doll | A glassy giggle, in the car it haunts or the cab it's taken | 3–6k | doll-giggle |
+| Cinder Hounds | Distant howl, closing | 500Hz–3k | hound-howl |
+| Car Hugger | Heavy grinding at the rear, in heaves | 60–300Hz | hugger-grind |
+| Draggers | Scrape at the edge lip as the limb comes up | 2–4k | dragger-scrape |
+| Whistler | The train's own whistle with no hand on the cord | 200–800Hz | train-whistle |
+| Climbers | Scrabbling at the gap they're mounting | 2–5k | climber-scrabble |
+| Stoker | Soot fall, the fire hissing wrong | 1–3k | stoker-hiss |
+| Tippy Toesie | Faint tiptoeing, short range | 1–2k | tippy-tiptoe |
+| Fire Flies | Buzzing whine round a lamp | 9–12k | fireflies-buzz |
+| Ribbits | Throats swelling: a bubbling croak | 100Hz–1k | ribbit-swell |
+| The Gaunt | **Silent by design** (it listens for your silence) | — | — |
+| Followers | Silent: a lump on a back, seen by friends | — | — |
+| Soot Children | A child calling for help (tier 2; the eyes are the tell) | voice band | child-call |
+| The Passenger | **Silent by design** (it never speaks) | — | — |
+| The Switchman | Visual: the figure at the lever, the lamp wrong | — | — |
+| Grumbler | Gnawing on the crates | 1.4–2.2k | grumbler-gnaw |
+| The Choir | Layered voices, multiplying as it gathers | 300Hz–4k, wide | choir-voice |
+| Car fire *(App. C.5)* | Crackle and pop through the boards | 6–9k | car-fire |
+| Marsh *(hazard, formerly the Drift)* | Dry reeds rustling, in slow creeping swells | 12–15k | drift-rustle |
 
-Two enemies are deliberately silent. That absence is itself information once players learn the roster.
+Overlapping bands (Draggers and Climbers, Tippy Toesie and the Stoker) are either never staged together or are told apart by
+rhythm: the Dragger's scrape is one rasp, the Climbers' scrabble a clatter; the tiptoe ticks slowly, the hiss is continuous.
+Three enemies are silent on purpose, and the Gaunt and the Passenger make silence itself the thing to listen for.
 
 ## A.5 Proximity voice
 

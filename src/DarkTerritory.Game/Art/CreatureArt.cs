@@ -332,22 +332,20 @@ public sealed class CreatureArt
     /// would slide); boarded (punish) it crouches, lunges, crouches. Embers pulse hotter as it closes.</item>
     /// <item>Sleepers: six ties 2.6 m apart along −Z from the origin, dormant, writhing once telegraphed, lifting when the
     /// engine's on them.</item>
-    /// <item>Clinger: on the hull at the origin, bulging to +X (turn the basis for a clinger on the −X side);
-    /// <paramref name="extra"/> is drill progress 0..1: the drill works faster, and its tip heats, as it gets through.</item>
-    /// <item>Hollow: the origin is the cab's centre, so it stands 1.35 m below it on the deck. Telegraphing it hasn't come
-    /// down yet: soot falls from the stack. Hunting, it stands unnaturally still and reaches.</item>
     /// <item>Switchman: feet at the origin, lantern swinging while it waits; it flees when broken off.</item>
-    /// <item>Climber: feet at the origin; in the cab (punish, <paramref name="extra"/> below 0) the origin is the cab's centre.</item>
-    /// <item>Ferryman: feet at the origin, lantern swung hard while it waves; aboard (punish) the origin is the cab's centre.</item>
-    /// <item>Soot children: three huddled as GreyboxScene places them, facing the basis's −X (the car when they're on
-    /// its +X side; turn the basis for the other); they turn their heads up at the doors while they call.</item>
+    /// <item>Climber: feet at the origin; inside a car (<paramref name="extra"/> below 0) it crouches.</item>
+    /// <item>Soot child: one, feet at the origin; <paramref name="extra2"/> 1 is a Soot Child (black eyes), 0 a real child.</item>
+    /// <item>Gaunt, Follower, Grumbler: <paramref name="extra2"/> is the anger, the nest, and feral, as the sim keeps them.</item>
+    /// <item>Car Hugger, Track Doll, Whistler, Tippy Toesie, Ribbit, Choir ghost: feet (or heap) at the origin.</item>
+    /// <item>Fire Flies: the origin is the lamp they swarm.</item>
     /// </list>
     /// </summary>
-    public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, EnemyKind kind, SpinePhase phase, double phaseSeconds, double extra, double health = 1)
+    public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, EnemyKind kind, SpinePhase phase, double phaseSeconds, double extra, double health = 1,
+        bool aboard = false, double extra2 = 0)
     {
         double t = phaseSeconds;
         // The in-car incidents are effects, not creatures with a model (Art/IncidentArt).
-        if (kind is EnemyKind.CarFire or EnemyKind.LooseLoad or EnemyKind.Gnawers)
+        if (kind is EnemyKind.CarFire)
             return IncidentArt.Draw(mesh, model.Translation, Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, model)),
                 Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, model)), Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, model)),
                 kind, phase, t, extra, health);
@@ -359,7 +357,8 @@ public sealed class CreatureArt
                     // The heat they hunt by is what you see of them at night (greybox: embers along the flanks).
                     float glow = phase switch
                     {
-                        SpinePhase.Punish => 0.9f + 0.7f * pulse,
+                        SpinePhase.Grab or SpinePhase.Punish => 0.9f + 0.7f * pulse,
+                        SpinePhase.Commit when aboard => 1.1f + 0.3f * pulse,
                         SpinePhase.Commit => 1.25f + 0.25f * (float)Math.Sin(t * 5),
                         SpinePhase.Telegraph => 1.05f,
                         _ => 0.75f,
@@ -367,9 +366,9 @@ public sealed class CreatureArt
                     string clip;
                     double ct = t;
                     bool loop = true;
-                    if (phase == SpinePhase.Punish)
+                    if (aboard || phase is SpinePhase.Grab or SpinePhase.Punish)
                     {
-                        // Onto the roof in one leap, then the mauling: crouch (a held beat), lunge, crouch.
+                        // Onto the roof in one leap, then the pack fight: crouch (a held beat), lunge, crouch.
                         if (t < 0.6)
                             (clip, loop) = ("lunge", false);
                         else
@@ -402,42 +401,6 @@ public sealed class CreatureArt
                     }
                     return true;
                 }
-            case EnemyKind.Clinger:
-                {
-                    double drilled = Math.Clamp(extra, 0, 1);
-                    // The drill point heats the hull as it works through: the tell you see, as the scraping is the one you
-                    // hear (App. A.4).
-                    var hot = Palette.FurnaceOrange * (phase == SpinePhase.Punish ? 0.7f + 0.5f * pulse : 0.15f + 0.9f * (float)drilled);
-                    MaterialLook Heat(ModelMaterial mat, MaterialLook l) => mat.Texture == "hot" ? l with { Colour = hot, Layer = -1 } : l;
-                    return phase switch
-                    {
-                        SpinePhase.Dormant or SpinePhase.Alert or SpinePhase.BreakOff => Draw(mesh, "clinger", "cling", t, true, model, adjust: Heat),
-                        SpinePhase.Punish => Draw(mesh, "clinger", "punish", t, false, model, adjust: Heat),
-                        _ => Draw(mesh, "clinger", "drill", t * (phase == SpinePhase.Commit ? 3.0 : 0.7 + 1.3 * drilled), true, model, adjust: Heat),
-                    };
-                }
-            case EnemyKind.Hollow:
-                {
-                    if (!_models.ContainsKey("hollow"))
-                        return false;
-                    if (phase == SpinePhase.Telegraph)
-                    {
-                        // Not down yet: the fire gutters and soot falls into the cab from the stack.
-                        var (r, u, b) = (new Vector3(model.M11, model.M12, model.M13), new Vector3(model.M21, model.M22, model.M23), new Vector3(model.M31, model.M32, model.M33));
-                        for (int i = 0; i < 4; i++)
-                        {
-                            var p = model.Translation + r * (float)(0.3 * Math.Sin(i * 1.7)) + u * (float)(1.0 - (t * 2 + i * 0.4) % 1.6) + b * (float)(0.3 * Math.Cos(i * 2.3));
-                            mesh.Box(p, r, u, b, new Vector3(0.04f, 0.2f, 0.04f), Palette.SootBlack);
-                        }
-                        return true;
-                    }
-                    var at = Matrix4x4.CreateTranslation(0, -1.35f, 0) * model;
-                    // Still, still, still, then it reaches: every few seconds, too fast.
-                    double cyc = t % 3.4;
-                    return cyc < 2.3
-                        ? Draw(mesh, "hollow", "idle", t, true, at)
-                        : Draw(mesh, "hollow", "reach", cyc - 2.3, false, at);
-                }
             case EnemyKind.Switchman:
                 {
                     bool fleeing = phase == SpinePhase.BreakOff;
@@ -449,18 +412,18 @@ public sealed class CreatureArt
                 }
             case EnemyKind.SootChildren:
                 {
-                    if (!_models.ContainsKey("soot_child"))
+                    // One child in the dark, calling (GDD v1.1 A.6). A Soot Child's eyes are black and its hands and feet
+                    // blackened (extra2 = 1): the tell, readable from five metres. Pinning someone, it's turned, bent over them.
+                    bool soot = extra2 > 0.5;
+                    bool drinking = phase is SpinePhase.Grab or SpinePhase.Punish;
+                    var at = drinking ? Matrix4x4.CreateRotationX(-0.5f) * model : model;
+                    if (!Draw(mesh, "soot_child", drinking || extra > 0.5 ? "turn" : "huddle", t, !drinking, at, seed: soot ? 5 : 2,
+                            adjust: soot ? (_, l) => l with { Colour = l.Colour * 0.5f } : null))
                         return false;
-                    bool calling = phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish;
-                    for (int i = 0; i < 3; i++)
-                    {
-                        float x = (i - 1) * 0.45f, z = i % 2 * 0.35f;
-                        // Facing the car (−X), each a little off, the middle one turned furthest.
-                        float yaw = MathF.PI / 2 + (i - 1) * 0.28f + (i == 1 ? 0.1f : 0);
-                        var at = Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateTranslation(x, 0, z) * model;
-                        // They look up one after another, not together.
-                        Draw(mesh, "soot_child", calling ? "turn" : "huddle", calling ? Math.Max(0, t - i * 0.3) : t + i * 1.3, !calling, at, seed: i);
-                    }
+                    var head = BoneAt("soot_child", "head", at);
+                    var (rr, uu, bb) = Basis(model);
+                    foreach (float side in new[] { -1f, 1f })
+                        mesh.Box(head + rr * (side * 0.035f) - bb * 0.08f, rr, uu, bb, new Vector3(0.016f, 0.012f, 0.008f), soot ? Palette.SootBlack : Palette.BoardEnamel);
                     return true;
                 }
             case EnemyKind.Dragger:
@@ -469,7 +432,7 @@ public sealed class CreatureArt
                         return false;
                     // Under the lip until it reaches (App. A.4): nothing to see. Then one limb up over the eave and down
                     // on the roof; grabbing, two, further in and gripping, out of step.
-                    if (phase is not (SpinePhase.Telegraph or SpinePhase.Punish))
+                    if (phase is not (SpinePhase.Telegraph or SpinePhase.Grab or SpinePhase.Punish))
                         return true;
                     if (phase == SpinePhase.Telegraph)
                         return Draw(mesh, "dragger", "reach", t, false, model);
@@ -480,59 +443,6 @@ public sealed class CreatureArt
                     }
                     return true;
                 }
-            case EnemyKind.Lamplighter:
-                {
-                    // Tall, thin, blacker than the dark (App. A.6): the Hollow's figure drawn out taller still, standing
-                    // still out at the lineside, reaching once it's coming for the lamp. Nothing of it shows at night but
-                    // the eyes, and those only when they've caught the lamp: the tell.
-                    if (!_models.ContainsKey("hollow"))
-                        return false;
-                    bool eyes = phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish;
-                    var at = Matrix4x4.CreateScale(0.85f, 1.18f, 0.85f) * model;
-                    Draw(mesh, "hollow", eyes ? "reach" : "idle", t, !eyes, at, seed: 7);
-                    if (eyes)
-                    {
-                        var head = BoneAt("hollow", "head", at);
-                        var right = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, model));
-                        var up = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, model));
-                        var back = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, model));
-                        var shine = Palette.SignalGreen * 1.6f;
-                        mesh.Emissive = 1;
-                        foreach (float side in new[] { -1f, 1f })
-                            mesh.Box(head + right * (side * 0.045f) - back * 0.1f + up * 0.02f, right, up, back, new Vector3(0.022f, 0.016f, 0.01f), shine);
-                        mesh.Emissive = 0;
-                    }
-                    return true;
-                }
-            case EnemyKind.Deadman:
-                {
-                    // Outside, tracking the cab, it isn't seen: its tell is the cab (the lamp dims, the controls click).
-                    // At the controls it's a crewman, or was: stood at the backhead, still, one hand on the regulator. The
-                    // origin is the cab's centre, as the Hollow's is.
-                    if (phase is not (SpinePhase.Commit or SpinePhase.Punish))
-                        return true;
-                    var at = Matrix4x4.CreateTranslation(0.35f, -1.35f, -0.4f) * model;
-                    // The husk (tools/models/recipes/husk.py) is the crew figure gone wrong, graded dead already; without it,
-                    // the crew darkened.
-                    return Draw(mesh, "husk", "idle", t * 0.2, true, at, variant: 5, seed: 11)
-                        || Draw(mesh, "crew", "idle", t * 0.2, true, at, variant: 5, seed: 11, adjust: (_, l) => l with { Colour = l.Colour * 0.45f });
-                }
-            case EnemyKind.Ferryman:
-                {
-                    // A railwayman too tall for his coat, lantern raised (App. A.2): the Switchman's figure drawn out taller,
-                    // stood on the line swinging the lantern hard while it waves the train down, lowering it and walking
-                    // when it steps aside. Aboard (the origin is the cab's centre, as the Hollow's), stood on the deck.
-                    bool aboard = phase == SpinePhase.Punish;
-                    var at = Matrix4x4.CreateScale(1.08f, 1.16f, 1.08f) * (aboard ? Matrix4x4.CreateTranslation(0, -1.35f, 0) : Matrix4x4.Identity) * model;
-                    bool waving = phase is SpinePhase.Dormant or SpinePhase.Telegraph;
-                    bool lit = phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish;
-                    // The lantern burns brighter than the Switchman's: it's meant to be seen from far up the line.
-                    if (!Draw(mesh, "switchman", waving || aboard ? "wait" : "flee", waving ? t * 2.2 : t, true, at, glow: lit ? 2.2f : 0.3f, seed: 3))
-                        return false;
-                    if (lit)
-                        mesh.PointLights.Add(new PointLight(BoneAt("switchman", "lantern", at), Palette.LampAmber * 2.2f, 12f));
-                    return true;
-                }
             case EnemyKind.Stoker:
                 // In the firebox: never seen, only its work (the gauge, the wrong glow the scene gives the fire, the hiss).
                 return true;
@@ -541,14 +451,15 @@ public sealed class CreatureArt
                     // A crewman gone wrong (App. A.4): drawn out thin, soot-black, running bent double alongside; climbing at
                     // the gap (the scrabbling: fast, and facing into the train); walking the roofs; crouched in a car.
                     // Bent forward from the feet running and walking: nothing upright about it.
-                    float hunch = phase is SpinePhase.Telegraph or SpinePhase.Punish ? 0 : -0.42f;
-                    var at = Matrix4x4.CreateScale(0.86f, 1.08f, 0.86f) * Matrix4x4.CreateRotationX(hunch)
-                        * (phase == SpinePhase.Punish && extra < 0 ? Matrix4x4.CreateTranslation(0, -1.35f, 0) : Matrix4x4.Identity) * model;
+                    bool inside = extra < 0;
+                    float hunch = phase is SpinePhase.Telegraph || inside ? 0 : -0.42f;
+                    var at = Matrix4x4.CreateScale(0.86f, 1.08f, 0.86f) * Matrix4x4.CreateRotationX(hunch) * model;
                     var (clip, speed) = phase switch
                     {
                         SpinePhase.Telegraph => ("climb", 2.4),
+                        SpinePhase.Grab or SpinePhase.Punish => ("crouch_idle", 2.0),
+                        SpinePhase.Commit when inside => ("crouch_idle", 1.0),
                         SpinePhase.Commit => ("walk", 1.3),
-                        SpinePhase.Punish => ("crouch_idle", 1.0),
                         _ => ("run", 1.2),
                     };
                     return Draw(mesh, "husk", clip, t * speed, true, at, variant: 3, seed: 17, adjust: (_, l) => l with { Colour = l.Colour * 0.8f })
@@ -577,12 +488,13 @@ public sealed class CreatureArt
                 }
             case EnemyKind.Follower:
                 {
-                    // At someone's back, bent double and matching their step (App. A.3): the husk, crouched and walking. Nested
-                    // in a car, it's down in the corner and still.
-                    var at = Matrix4x4.CreateScale(0.9f, 0.8f, 0.9f) * model;
-                    var (clip, speed) = phase == SpinePhase.Punish ? ("crouch_idle", 0.6) : ("walk", 1.0);
-                    return Draw(mesh, "husk", clip, t * speed, true, at, variant: 6, seed: 23, adjust: (_, l) => l with { Colour = l.Colour * 0.6f })
-                        || Draw(mesh, "crew", clip, t * speed, true, at, variant: 6, seed: 23, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.22f, 0.2f, 0.2f) });
+                    // A hand-sized lump (GDD v1.1 A.6): on someone's back it twitches; off, it crawls; nesting, a heap of
+                    // husk grown over the loot, bigger as the nest builds (extra2).
+                    float size = phase == SpinePhase.Punish ? 0.3f + 0.4f * (float)Math.Clamp(extra2, 0, 1) : 0.18f;
+                    var at = Matrix4x4.CreateScale(size) * model;
+                    double speed = phase == SpinePhase.Telegraph ? 3.0 : 1.0;
+                    return Draw(mesh, "husk", "crouch_idle", t * speed, true, at, variant: 6, seed: 23, adjust: (_, l) => l with { Colour = l.Colour * 0.5f })
+                        || Draw(mesh, "crew", "crouch_idle", t * speed, true, at, variant: 6, seed: 23, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.22f, 0.2f, 0.2f) });
                 }
             case EnemyKind.Passenger:
                 // One of the crew (App. A.7 BLEND): the crew figure in the look of whoever it copies (extra), walking its loop.
@@ -590,55 +502,153 @@ public sealed class CreatureArt
                 return Crewmate(mesh, model, phase == SpinePhase.Telegraph ? CrewPose.Walk : CrewPose.Idle, t, (int)Math.Round(extra));
             case EnemyKind.Gaunt:
                 {
-                    // Too tall, too thin, standing on the roof (App. A.4): the Hollow's figure drawn out, and utterly still, a
-                    // pose held with no breath in it (one frame of its idle, never played). Striking, it reaches.
+                    // Spindly, too tall, the Hollow's figure drawn out (GDD v1.1 A.6). Asleep it's curled up (squashed low and
+                    // breathing slowly); woken it follows, and its anger (extra2, 0..1) leans it in; striking, it reaches.
                     if (!_models.ContainsKey("hollow"))
                         return false;
-                    var at = Matrix4x4.CreateScale(0.78f, 1.32f, 0.78f) * model;
-                    bool striking = phase is SpinePhase.Commit or SpinePhase.Punish;
-                    return Draw(mesh, "hollow", striking ? "reach" : "idle", striking ? t : 0.35, !striking, at, seed: 31,
+                    bool asleep = phase is SpinePhase.Dormant;
+                    float lean = (float)Math.Clamp(extra2, 0, 1) * 0.5f;
+                    var at = (asleep ? Matrix4x4.CreateScale(0.9f, 0.38f + 0.02f * (float)Math.Sin(t * 1.3), 0.9f) : Matrix4x4.CreateScale(0.78f, 1.32f, 0.78f))
+                        * Matrix4x4.CreateRotationX(-lean) * model;
+                    bool striking = phase is SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish;
+                    return Draw(mesh, "hollow", striking ? "reach" : "idle", striking ? t : t * 0.3, !striking, at, seed: 31,
                         adjust: (_, l) => l with { Colour = l.Colour * 0.55f });
                 }
-            case EnemyKind.Weight:
+            case EnemyKind.CarHugger:
                 {
-                    // Buried beside the track until the rear car passes: nothing to see. Then under the rear coupling, below
-                    // the gun's arc (App. A.3): a heap of limbs hooked over the coupler and the headstock, dragging.
-                    if (phase == SpinePhase.Dormant)
+                    // A heap of bog bodies (the weight model) low beside the line; latched on the rear car it grabs, then eats.
+                    if (phase is SpinePhase.Dormant)
                         return true;
-                    // Its own model (tools/blender/weight.py): a heap of bog bodies hooked on by four arms. It grabs as it
-                    // takes hold, then hauls; let go (beaten off, or the car cut), it slumps back on the stones.
+                    var at = phase is SpinePhase.Alert or SpinePhase.Telegraph ? Matrix4x4.CreateTranslation(0, -0.3f, 0) * model : model;
                     if (_models.TryGetValue("weight", out var w))
                     {
                         double grab = w.Model.Clips.TryGetValue("grab", out var g) ? g.Duration : 0;
-                        return phase == SpinePhase.BreakOff
-                            ? Draw(mesh, "weight", "release", t, false, model)
-                            : t < grab ? Draw(mesh, "weight", "grab", t, false, model) : Draw(mesh, "weight", "drag", t - grab, true, model);
+                        return phase switch
+                        {
+                            SpinePhase.BreakOff => Draw(mesh, "weight", "release", t, false, at),
+                            SpinePhase.Alert or SpinePhase.Telegraph => Draw(mesh, "weight", "drag", t * 0.4, true, at),
+                            _ when t < grab => Draw(mesh, "weight", "grab", t, false, at),
+                            _ => Draw(mesh, "weight", "drag", t - grab, true, at),
+                        };
                     }
-                    // Without it, the Dragger's limbs, bigger and more of them, pulled back the way the train isn't going.
                     if (!_models.ContainsKey("dragger"))
                         return false;
                     for (int i = 0; i < 3; i++)
                     {
                         var limb = Matrix4x4.CreateScale(1.7f) * Matrix4x4.CreateRotationZ((i - 1) * 0.5f) * Matrix4x4.CreateRotationY(MathF.PI / 2)
-                            * Matrix4x4.CreateTranslation((i - 1) * 0.35f, -0.2f, 0.2f) * model;
+                            * Matrix4x4.CreateTranslation((i - 1) * 0.35f, -0.2f, 0.2f) * at;
                         Draw(mesh, "dragger", "grip", t * 0.6 + i * 0.4, true, limb, seed: 20 + i);
                     }
                     return true;
                 }
-            case EnemyKind.LongWhistle:
-                // "Never visible; operates from ahead on the line" (App. A.2): the horn is all of it.
-                return true;
-            case EnemyKind.Rattle:
-                // "Pure audio tell" (App. A.5): in the coupling, never seen. Drawn, as nothing.
-                return true;
+            case EnemyKind.TrackDoll:
+                {
+                    // A large porcelain doll (GDD v1.1 A.2): the crew figure, too big and pale, stood stock still; the face is
+                    // what the lamp catches out to 200 m (a faint glow of its own, so the render shows it past the beam).
+                    var at = Matrix4x4.CreateScale(1.25f) * model;
+                    var white = new Vector3(0.86f, 0.84f, 0.8f);
+                    if (!Draw(mesh, "crew", phase == SpinePhase.Punish ? "walk" : "idle", phase == SpinePhase.Punish ? t * 0.6 : 0.1, true, at, variant: 1, seed: 3,
+                            adjust: (_, l) => l with { Colour = white }))
+                        return false;
+                    var head = BoneAt("crew", "head", at);
+                    var (r, u, b) = Basis(model);
+                    mesh.Emissive = 1;
+                    mesh.Box(head - b * 0.1f, r, u, b, new Vector3(0.1f, 0.12f, 0.02f), white * 0.9f);
+                    mesh.Emissive = 0;
+                    foreach (float side in new[] { -1f, 1f })
+                        mesh.Box(head + r * (side * 0.045f) - b * 0.125f + u * 0.02f, r, u, b, new Vector3(0.018f, 0.012f, 0.006f), Palette.SootBlack);
+                    return true;
+                }
+            case EnemyKind.Whistler:
+                {
+                    // Hidden in the gap it's crouched small; carrying someone off it runs, long and low (GDD v1.1 A.4).
+                    bool running = phase is SpinePhase.Grab or SpinePhase.Punish or SpinePhase.BreakOff;
+                    var at = Matrix4x4.CreateScale(0.8f, 1.15f, 0.8f) * Matrix4x4.CreateRotationX(running ? -0.6f : 0) * model;
+                    string clip = running ? "run" : "crouch_idle";
+                    return Draw(mesh, "husk", clip, t * (running ? 1.6 : 0.5), true, at, variant: 2, seed: 41, adjust: (_, l) => l with { Colour = l.Colour * 0.5f })
+                        || Draw(mesh, "crew", clip, t, true, at, variant: 2, seed: 41, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.25f, 0.24f, 0.24f) });
+                }
+            case EnemyKind.TippyToesie:
+                {
+                    // Small and thin, tiptoeing (GDD v1.1 A.5): the husk at child height, walking at a crawl, heels up. Its hand
+                    // over someone's mouth, it's stood tight behind them.
+                    var at = Matrix4x4.CreateScale(0.7f, 0.85f, 0.7f) * Matrix4x4.CreateTranslation(0, 0.08f, 0) * model;
+                    bool holding = phase is SpinePhase.Grab or SpinePhase.Punish;
+                    string clip = holding ? "idle" : phase == SpinePhase.BreakOff ? "run" : "walk";
+                    return Draw(mesh, "husk", clip, t * (clip == "walk" ? 0.35 : 1), true, at, variant: 4, seed: 51, adjust: (_, l) => l with { Colour = l.Colour * 0.7f })
+                        || Draw(mesh, "crew", clip, t, true, at, variant: 4, seed: 51, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.3f, 0.28f, 0.28f) });
+                }
+            case EnemyKind.FireFlies:
+                {
+                    // A swarm of sparks round a lamp (GDD v1.1 A.5), brighter and tighter the longer they linger.
+                    if (phase is SpinePhase.Dormant or SpinePhase.Gone)
+                        return true;
+                    var (r, u, b) = Basis(model);
+                    float spread = phase == SpinePhase.Alert ? 1.6f : 0.7f;
+                    mesh.Emissive = 1;
+                    for (int i = 0; i < 24; i++)
+                    {
+                        double a = i * 2.39996 + t * (1.5 + (i % 5) * 0.3);
+                        float rad = spread * (0.4f + 0.6f * (float)((i * 0.618) % 1));
+                        var p = model.Translation + r * (float)(Math.Cos(a) * rad) + u * (float)(Math.Sin(a * 1.3 + i) * rad * 0.5) + b * (float)(Math.Sin(a) * rad);
+                        mesh.Box(p, r, u, b, new Vector3(0.018f), Palette.FurnaceOrange * (1.2f + (float)Math.Sin(t * 11 + i)));
+                    }
+                    mesh.Emissive = 0;
+                    mesh.PointLights.Add(new PointLight(model.Translation, Palette.FurnaceOrange * 0.8f, 4f));
+                    return true;
+                }
+            case EnemyKind.Ribbit:
+                {
+                    // A giant toad-rabbit (GDD v1.1 A.6): the hound's body squat and wide, mottled olive. Lined up to strike it
+                    // crouches (the throats swell: the tell); tongues out, it lunges; otherwise it hops in bursts.
+                    var at = Matrix4x4.CreateScale(1.25f, 0.7f, 0.8f) * model;
+                    var (clip, loop, ct) = phase switch
+                    {
+                        SpinePhase.Telegraph => ("crouch", true, t),
+                        SpinePhase.Grab or SpinePhase.Punish => ("lunge", false, t % 1.2),
+                        _ => ((t % 1.1) < 0.5 ? "lunge" : "crouch", (t % 1.1) >= 0.5, t % 1.1 < 0.5 ? t % 1.1 : t % 1.1 - 0.5),
+                    };
+                    if (!Draw(mesh, "cinder_hound", clip, ct, loop, at, glow: 0.1f, seed: (float)extra,
+                            adjust: (_, l) => l with { Colour = Palette.MuddyOlive * 0.8f }))
+                        return false;
+                    if (phase == SpinePhase.Telegraph)
+                    {
+                        var (r, u, b) = Basis(model);
+                        float swell = 0.1f + 0.08f * (float)Math.Min(1, t);
+                        mesh.Box(model.Translation + u * 0.45f - b * 0.55f, r, u, b, new Vector3(swell, swell * 0.8f, swell), Palette.MuddyOlive * 1.3f);
+                    }
+                    return true;
+                }
+            case EnemyKind.Grumbler:
+                {
+                    // A labourer scuttling like a spider (GDD v1.1 A.8): the husk bent flat on all fours, gnawing; feral
+                    // (extra2), it runs.
+                    bool feral = extra2 > 0.5;
+                    var at = Matrix4x4.CreateScale(1.05f, 0.9f, 1.05f) * Matrix4x4.CreateRotationX(feral ? -0.9f : -1.1f) * model;
+                    string clip = feral ? "run" : "crouch_idle";
+                    return Draw(mesh, "husk", clip, t * (feral ? 1.5 : 2.5), true, at, variant: 7, seed: 61, adjust: (_, l) => l with { Colour = l.Colour * 0.65f })
+                        || Draw(mesh, "crew", clip, t, true, at, variant: 7, seed: 61, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.3f, 0.26f, 0.24f) });
+                }
+            case EnemyKind.Choir:
+                {
+                    // One of the Choir's small flying ghosts (GDD v1.1 A.7): the Hollow's figure, child-sized and pale, bobbing
+                    // in the air with a cold light of its own.
+                    if (!_models.ContainsKey("hollow"))
+                        return false;
+                    var at = Matrix4x4.CreateScale(0.45f, 0.55f, 0.45f) * Matrix4x4.CreateTranslation(0, (float)(0.15 * Math.Sin(t * 2.3 + extra)), 0) * model;
+                    var pale = Palette.BlueGrey * 1.6f;
+                    Draw(mesh, "hollow", phase is SpinePhase.Grab or SpinePhase.Commit ? "reach" : "idle", t, true, at, seed: 71, glow: 1.5f,
+                        adjust: (_, l) => l with { Colour = pale });
+                    mesh.PointLights.Add(new PointLight(model.Translation + new Vector3(0, 0.5f, 0), Palette.BlueGrey * 0.6f, 3f));
+                    return true;
+                }
         }
         return false;
     }
 
     /// <summary>
     /// <see cref="Enemy(MeshBuilder, in Matrix4x4, EnemyKind, SpinePhase, double, double)"/> for a live enemy, turning
-    /// the basis for which side of the car or the line it's on: a Clinger on a car's −X side bulges to −X, Soot children
-    /// face the car they're calling at, and the Switchman turns to face the train coming up the line.
+    /// the basis for which side of the car or the line it's on: a Dragger on a car's +X side reaches over that edge, and the Switchman turns to face the train coming up the line.
     /// </summary>
     public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, Enemy e)
     {
@@ -646,30 +656,20 @@ public sealed class CreatureArt
         switch (e.Kind)
         {
             case EnemyKind.Dragger when e.Local.X > 0:
-            case EnemyKind.Clinger when e.Local.X < 0:
-            case EnemyKind.SootChildren when e.Lateral < 0:
                 m = Matrix4x4.CreateRotationY(MathF.PI) * model;
-                break;
-            case EnemyKind.Gaunt:
-                // Facing whoever it's after (its car frame's yaw).
-                m = Matrix4x4.CreateRotationY((float)e.Extra2) * model;
                 break;
             case EnemyKind.Climber when e.Phase == SpinePhase.Telegraph:
                 // At the gap, facing in at the couplers.
                 m = Matrix4x4.CreateRotationY(e.Local.X > 0 ? MathF.PI / 2 : -MathF.PI / 2) * model;
-                break;
-            case EnemyKind.Climber when e.Phase == SpinePhase.Punish:
-                // In the cab (the origin is its centre, as the Hollow's): stood 1.35 m below it. Flagged through extra.
-                return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Attached == 0 ? -1 : 0);
-            case EnemyKind.Ferryman when !((Sim.Enemies.Ferryman)e).Aboard:
-                // Facing down the line at the train coming.
-                m = Matrix4x4.CreateRotationY(MathF.PI) * model;
                 break;
             case EnemyKind.Switchman:
                 // Face back down the line at the train, turned in towards the track.
                 m = Matrix4x4.CreateRotationY(MathF.PI - Math.Sign(e.Lateral) * 0.6f) * model;
                 break;
         }
-        return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health);
+        return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: e.Attached >= 0, extra2: e.Extra2);
     }
+
+    static (Vector3 Right, Vector3 Up, Vector3 Back) Basis(in Matrix4x4 m) =>
+        (Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, m)), Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, m)), Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, m)));
 }

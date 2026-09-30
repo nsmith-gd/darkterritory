@@ -17,6 +17,8 @@ public abstract record Launch
     public sealed record Night(string? Route, int Cars, bool Host) : Launch
     {
         public string Line { get; init; } = "test-loop";
+        /// <summary>Bot crewmates to take along (T89): the first drives, the rest crew the train with you.</summary>
+        public int Bots { get; init; }
         public string? RouteFile { get; init; }
     }
     /// <summary>Someone else's night, at an address (host[:port]).</summary>
@@ -54,6 +56,9 @@ public sealed class FrontEnd
     int _tier;
     ulong _seed = 7;
     int _cars = 6;
+    /// <summary>Bot crewmates for a quick night (T89): alone is a hard night, so a new player gets a crew by default.</summary>
+    int _bots = 3;
+    public const int MaxBots = 7;
     bool _host;
 
     /// <param name="newSeed">Where a new campaign's seed comes from (tests pin it).</param>
@@ -242,8 +247,11 @@ public sealed class FrontEnd
                 null, by => _tier = (_tier + by + _tiers.Length) % _tiers.Length),
             new(new($"SEED: {_seed}", "The same seed is the same line for everyone."), null, by => _seed = by > 0 ? _seed + 1 : Math.Max(1UL, _seed - 1)),
             new(new($"CARS: {_cars}"), null, by => _cars = Math.Clamp(_cars + by, 3, MaxCars)),
-            new(new("PLAY ALONE"), () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: false)),
-            new(new("HOST FOR FRIENDS", "They join by your address, or from your Steam lobby."), () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: true)),
+            new(new(_bots == 0 ? "CREW: JUST YOU" : $"CREW: YOU AND {_bots} BOT{(_bots == 1 ? "" : "S")}",
+                "Bots drive, stoke, man the rear gun and lend a hand. None, and it's all yours to do."), null, by => _bots = Math.Clamp(_bots + by, 0, MaxBots)),
+            new(new("PLAY"), () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: false) { Bots = _bots }),
+            new(new("HOST FOR FRIENDS", "They join by your address, or from your Steam lobby. Bots fill the crew until they do."),
+                () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: true) { Bots = _bots }),
             new(new("BACK"), Go(Screen.Title)),
         ],
         Screen.Join =>

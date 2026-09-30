@@ -43,7 +43,7 @@ public class AudioTests
         // enemy is sent to everyone wherever it is (Enemy.Far, T57).
         var bank = new SoundBank(Path.Combine(Content, "audio", "sounds"));
         var enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(Content, DarkTerritory.Sim.Enemies.EnemyTuning.File));
-        Assert.All(AudioBench.TellBands.Keys.Where(t => t is not ("choir-voice" or "long-whistle")),
+        Assert.All(AudioBench.TellBands.Keys.Where(t => t is not ("choir-voice" or "train-whistle")),
             t => Assert.True(bank.Get(t)!.MaxDistance <= enemies.InterestRadius, $"{t} carries {bank.Get(t)!.MaxDistance} m, past the {enemies.InterestRadius} m interest radius"));
     }
 

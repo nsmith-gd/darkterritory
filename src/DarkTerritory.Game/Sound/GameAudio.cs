@@ -64,6 +64,27 @@ public sealed class GameAudio
         Enemies(world);
         Choir(world, train);
         Actions(world);
+        Whistle(world, train);
+    }
+
+    SoundInstance? _whistle;
+
+    /// <summary>The train's whistle, from the engine's dome, for as long as it blows (the cord, or the Whistler at it).</summary>
+    void Whistle(World world, TrainOnLine train)
+    {
+        if (world.WhistleSeconds <= 0)
+        {
+            _whistle?.Stop();
+            _whistle = null;
+            return;
+        }
+        var engine = train.Frames[0];
+        _whistle ??= Mixer.Play("train-whistle", engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.6, -2)));
+        if (_whistle is not null)
+        {
+            _whistle.Position = engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.6, -2));
+            _whistle.Occlusion = Occlusion(PlayerMotor.Outside);
+        }
     }
 
     void Bed(TrainOnLine train, in TrainControls controls, Listener listener, bool exposed, double dt)
@@ -162,6 +183,17 @@ public sealed class GameAudio
                 _slack.RemoveAt(i);
             }
     }
+
+    void Loop(EnemySound s, string sound, Double3 at, float occlusion)
+    {
+        s.Loop ??= Mixer.Play(sound, at);
+        if (s.Loop is not null)
+        {
+            s.Loop.Position = at;
+            s.Loop.Occlusion = occlusion;
+        }
+    }
+
     static TrainDynamics? RakeOf(TrainOnLine train, int vehicle) => train.Rakes.FirstOrDefault(r => r.Consist.Vehicles.Any(v => v.Id == vehicle));
 
 
@@ -179,7 +211,7 @@ public sealed class GameAudio
             bool entered = s.Phase != e.Phase;
             s.Phase = e.Phase;
             var at = e.WorldPosition(train);
-            // A Clinger is heard inside the car it's drilling (App. A.4); the Hollow is in the cab with you.
+            // Something on a car is heard through that car's walls; something out on the line through the outside's.
             float occlusion = Occlusion(e.Attached >= 0 ? e.Attached : PlayerMotor.Outside);
             switch (e.Kind)
             {
@@ -191,7 +223,7 @@ public sealed class GameAudio
                         s.Next = _time + 1.6 + 2.2 * _rng.Next();
                     }
                     break;
-                case EnemyKind.CinderHound when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish:
+                case EnemyKind.CinderHound when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab:
                     // The pack howls, not each hound: whoever leads it, every few seconds.
                     int pack = (int)e.Extra;
                     if (!_packs.TryGetValue(pack, out double next) || _time >= next)
@@ -200,87 +232,53 @@ public sealed class GameAudio
                         _packs[pack] = _time + 3 + 2.5 * _rng.Next();
                     }
                     break;
-                case EnemyKind.Clinger when e.Phase is SpinePhase.Telegraph or SpinePhase.Punish:
-                    s.Loop ??= Mixer.Play("clinger-drill", at);
-                    if (s.Loop is not null)
-                    {
-                        s.Loop.Position = at;
-                        s.Loop.Occlusion = occlusion;
-                        s.Loop.Params.Set("progress", e.Phase == SpinePhase.Punish ? 1 : e.Extra);
-                    }
-                    break;
                 case EnemyKind.Dragger when e.Phase == SpinePhase.Telegraph:
                     // The scrape at the lip while the limb comes up (spec A.4): out on the roof, not muffled by a car.
-                    s.Loop ??= Mixer.Play("dragger-scrape", at);
-                    if (s.Loop is not null)
-                        s.Loop.Position = at;
+                    Loop(s, "dragger-scrape", at, 0);
                     break;
-                case EnemyKind.Deadman when e.Phase == SpinePhase.Telegraph:
                 case EnemyKind.Stoker when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish:
-                    // In the cab (App. A.5): the controls clicking on their own; the firebox hissing wrong.
-                    s.Loop ??= Mixer.Play(e.Kind == EnemyKind.Deadman ? "deadman-click" : "stoker-hiss", at);
-                    if (s.Loop is not null)
-                    {
-                        s.Loop.Position = at;
-                        s.Loop.Occlusion = occlusion;
-                    }
+                    // In the firebox (App. A.5): the soot fall and the fire hissing wrong.
+                    Loop(s, "stoker-hiss", at, occlusion);
                     break;
                 case EnemyKind.Drift when e.Phase is SpinePhase.Telegraph or SpinePhase.Punish:
-                    // The rustle of it coming through the reeds and over the roofs (App. A.4), from where it is.
-                    s.Loop ??= Mixer.Play("drift-rustle", at);
-                    if (s.Loop is not null)
-                    {
-                        s.Loop.Position = at;
-                        s.Loop.Occlusion = occlusion;
-                    }
+                    // The rustle of it coming through the reeds (GDD v1.1 §22), from where it is.
+                    Loop(s, "drift-rustle", at, occlusion);
                     break;
-                case EnemyKind.Weight when e.Phase == SpinePhase.Telegraph && e.Attached >= 0:
-                    // The drag scrape under the rear coupling (App. A.3), for as long as it holds on.
-                    s.Loop ??= Mixer.Play("weight-scrape", at);
-                    if (s.Loop is not null)
-                    {
-                        s.Loop.Position = at;
-                        s.Loop.Occlusion = occlusion;
-                    }
+                case EnemyKind.CarHugger when ((CarHugger)e).Latched || e.Phase == SpinePhase.Telegraph:
+                    // The grinding from the rear (App. A.3), for as long as it holds on.
+                    Loop(s, "hugger-grind", at, occlusion);
                     break;
-                case EnemyKind.Rattle when e.Phase == SpinePhase.Telegraph:
-                    // The rattle in the coupling (App. A.5): all the tell there is. Out in the gap, so a car between you and it
-                    // muffles it like anything else.
-                    s.Loop ??= Mixer.Play("rattle", at);
-                    if (s.Loop is not null)
-                    {
-                        s.Loop.Position = at;
-                        s.Loop.Occlusion = occlusion;
-                    }
+                case EnemyKind.Climber when e.Phase == SpinePhase.Telegraph:
+                    // Scrabbling at the gap it's mounting (App. A.4), out in the gap.
+                    Loop(s, "climber-scrabble", at, occlusion);
+                    break;
+                case EnemyKind.TrackDoll when e.Phase == SpinePhase.Punish:
+                    // Haunting: it giggles in the car it's in, or in the cab at the controls (App. A.2).
+                    Loop(s, "doll-giggle", at, occlusion);
+                    break;
+                case EnemyKind.TippyToesie when e.Phase == SpinePhase.Telegraph:
+                    Loop(s, "tippy-tiptoe", at, occlusion);
+                    break;
+                case EnemyKind.FireFlies when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit:
+                    Loop(s, "fireflies-buzz", at, occlusion);
+                    s.Loop?.Params.Set("progress", Math.Clamp(e.PhaseSeconds / 20, 0, 1));
+                    break;
+                case EnemyKind.Ribbit when e.Phase == SpinePhase.Telegraph:
+                    // The pack croaks, not each toad: only its leader's heard (the lowest id, App. A.6).
+                    if (((Ribbit)e).Pack == e.Id || !world.ActiveEnemies.Any(o => o is Ribbit r && r.Pack == ((Ribbit)e).Pack && r.Id < e.Id && !r.Gone))
+                        Loop(s, "ribbit-swell", at, occlusion);
+                    break;
+                case EnemyKind.Grumbler when e.Phase is SpinePhase.Telegraph or SpinePhase.Punish:
+                    Loop(s, "grumbler-gnaw", at, occlusion);
+                    break;
+                case EnemyKind.SootChildren when ((SootChildren)e).Extra > 0.5:
+                    // Calling for help (App. A.6): a real child and a Soot Child sound the same. The eyes are the tell.
+                    Loop(s, "child-call", at, occlusion);
                     break;
                 case EnemyKind.CarFire:
-                case EnemyKind.LooseLoad when e.Phase == SpinePhase.Telegraph:
-                case EnemyKind.Gnawers when e.Phase is SpinePhase.Telegraph or SpinePhase.Punish:
-                    // Trouble in a car, heard through its walls: the fire's crackle, the straps groaning, the chittering.
-                    s.Loop ??= Mixer.Play(e.Kind switch { EnemyKind.CarFire => "car-fire", EnemyKind.LooseLoad => "load-creak", _ => "gnawers" }, at);
-                    if (s.Loop is not null)
-                    {
-                        s.Loop.Position = at;
-                        s.Loop.Occlusion = occlusion;
-                        s.Loop.Params.Set("progress", e.Kind == EnemyKind.Gnawers ? e.Health : e.Extra);
-                    }
-                    break;
-                case EnemyKind.LongWhistle when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit:
-                    // A blast each time it sounds again (App. A.2's escalation), each louder than the last, from up the line
-                    // ahead. Out in the open: a car's walls muffle it like anything else outside.
-                    if (e.Extra > s.Next)
-                    {
-                        s.Next = e.Extra;
-                        Mixer.Play("long-whistle", at, (float)Math.Min(1, 0.6 + 0.2 * (e.Extra - 1)))?.Also(v => v.Occlusion = occlusion);
-                    }
-                    break;
-                case EnemyKind.Hollow when e.Phase is SpinePhase.Telegraph or SpinePhase.Punish:
-                    s.Loop ??= Mixer.Play("hollow-gutter", at);
-                    if (s.Loop is not null)
-                    {
-                        s.Loop.Position = at;
-                        s.Loop.Occlusion = occlusion;
-                    }
+                    // Heard through the car's walls: the fire's crackle, more of it the further it's gone.
+                    Loop(s, "car-fire", at, occlusion);
+                    s.Loop?.Params.Set("progress", e.Extra);
                     break;
                 default:
                     s.Loop?.Stop();
@@ -295,19 +293,16 @@ public sealed class GameAudio
         }
     }
 
-    /// <summary>The Choir is heard as voices around the train, more and closer as aggro climbs (App. A.6).</summary>
+    /// <summary>
+    /// The Choir is heard as voices around the train, more and closer as it gathers (GDD v1.1 App. A.7: the long rising
+    /// telegraph), all of them close once it's here.
+    /// </summary>
     void Choir(World world, TrainOnLine train)
     {
-        if (world.Combat is not { } combat)
+        if (world.Combat is null)
             return;
-        var t = combat.Choir;
-        double aggro = world.Choir.Aggro;
-        int voices = aggro <= 0.5 ? 0 : world.Choir.Phase(t) switch
-        {
-            ChoirPhase.Distant => 1,
-            ChoirPhase.Approach => 3 + (int)(3 * (aggro - t.ApproachThreshold) / Math.Max(1, t.SwarmThreshold - t.ApproachThreshold)),
-            _ => 8,
-        };
+        double build = world.Choir.Present ? 1 : world.Choir.Build;
+        int voices = world.Choir.Present ? 8 : build <= 0.02 ? 0 : 1 + (int)(5 * build);
         while (_choir.Count > voices)
         {
             _choir[^1].Stop();
@@ -320,7 +315,7 @@ public sealed class GameAudio
         }
         // They come in from every side (App. A.6): spread along the train, alternating sides, closing from
         // 300 m out when distant to 25 m in the swarm, and drifting so they never sit still.
-        double range = 300 - 275 * Math.Clamp(aggro / Math.Max(1, t.SwarmThreshold), 0, 1);
+        double range = 300 - 275 * build;
         for (int i = 0; i < _choir.Count; i++)
         {
             var frame = train.Frames[Math.Min(train.Frames.Count - 1, (int)((i + 0.5) / _choir.Count * train.Frames.Count))];

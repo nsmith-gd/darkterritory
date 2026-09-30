@@ -81,7 +81,7 @@ public class CampaignTests
         // Spec F.3 "boiler upgrade (-15% burn)": the same steam from 15% less coal.
         Assert.Equal(Tuning.Boiler.FireTimeConstant / 0.85, up.Boiler.FireTimeConstant, 6);
         Assert.Equal(Tuning.Boiler.SteamPerUnit / Tuning.Boiler.FireTimeConstant, up.Boiler.SteamPerUnit / up.Boiler.FireTimeConstant, 6);
-        Assert.Equal(300, up.Combat.Guns.Ammo);
+        Assert.Equal((int)(Tuning.Combat.Guns.Ammo * 1.5), up.Combat.Guns.Ammo);
         Assert.Equal(Tuning.Enemies.Sleepers.LampRevealDistance * 1.25, up.Enemies!.Sleepers.LampRevealDistance, 6);
         // Not modelled yet: bought, saved, and no effect.
         Assert.Equal(base_, Campaign.Campaign.Apply(C, ["roofHandrails"], base_));

@@ -187,11 +187,11 @@ public class PowerTests
         var stop = new FacilityTests.Stop(ModuleKind.Crane, Stops.PowerState.Dead);
         var door = Assert.NotNull(stop.Site.Powerhouse);
         stop.Crew.Add(stop.OnTheGround(door));
-        double aggro = stop.World.Choir.Aggro;
+        double loud = stop.World.Choir.Loudness;
         var hold = new PlayerIntent { Buttons = PlayerButtons.Use };
         stop.Step(W.RestartSeconds * 0.5, [hold]);
         Assert.Equal(Stops.PowerState.Dead, stop.Site.Power);
-        Assert.True(stop.World.Choir.Aggro > aggro);
+        Assert.True(stop.World.Choir.Loudness > loud);
         // Let go and it starts over.
         stop.Step(0.2, [default]);
         Assert.Equal(0, stop.Site.Restart);

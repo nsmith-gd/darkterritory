@@ -222,7 +222,7 @@ public class HoldoutTests
         n.Step(0.2);
         // Somebody living within reach of it (D.7), or there's nobody to shout to.
         n.Stand(living, n.Here.Single().Door);
-        double aggro = n.World.Choir.Aggro;
+        double loud = n.World.Choir.Loudness;
         n.Hold(a, PlayerButtons.Use);
         n.Hold(b, PlayerButtons.Use);
         n.Step(1.0 / SimConstants.TickRate);
@@ -233,7 +233,7 @@ public class HoldoutTests
         n.Hold(a, PlayerButtons.Use);
         n.Step(1.0 / SimConstants.TickRate);
         Assert.Single(n.Events, e => e.Kind == HoldoutEventKind.CalledOut);
-        Assert.Equal(aggro, n.World.Choir.Aggro);
+        Assert.Equal(loud, n.World.Choir.Loudness);
     }
 
     [Fact]
@@ -244,11 +244,11 @@ public class HoldoutTests
         n.Add(alive: false);
         n.Step(0.2);
         var h = n.Here.Single();
-        double aggro = n.World.Choir.Aggro;
+        double loud = n.World.Choir.Loudness;
         n.Stand(living, h.Door);
         n.Hold(living, PlayerButtons.Use);
         n.Step(h.Breach(H).Seconds * 0.5);
-        Assert.True(n.World.Choir.Aggro > aggro, $"aggro {aggro} → {n.World.Choir.Aggro}");
+        Assert.True(n.World.Choir.Loudness > loud, $"loudness {loud} → {n.World.Choir.Loudness}");
     }
 
     [Fact]

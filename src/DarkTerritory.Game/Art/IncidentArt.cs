@@ -45,28 +45,6 @@ public static class IncidentArt
                     mesh.PointLights.Add(new PointLight(L(-0.5, 0.9, 0), Palette.FurnaceOrange * (float)(1.4 + 2.0 * burn), (float)(4 + 5 * burn)));
                     return true;
                 }
-            case EnemyKind.Gnawers:
-                {
-                    // In the load, they're only heard; out of the crates, a boil of small dark backs over the stack and floor.
-                    if (phase != SpinePhase.Punish)
-                        return true;
-                    int count = 4 + (int)(10 * Math.Clamp(health, 0, 1));
-                    for (int i = 0; i < count; i++)
-                    {
-                        double a = t * (1.5 + i % 3) + i * 1.7;
-                        Box(-0.2 + 0.35 * Math.Sin(a), 0.06 + 0.4 * (i % 4) * 0.25, 0.9 * Math.Cos(a * 0.7 + i), 0.08, 0.05, 0.13, Palette.SootBlack);
-                    }
-                    mesh.Emissive = 1;
-                    for (int i = 0; i < count; i += 3)
-                    {
-                        double a = t * (1.5 + i % 3) + i * 1.7;
-                        Box(-0.2 + 0.35 * Math.Sin(a), 0.1 + 0.4 * (i % 4) * 0.25, 0.9 * Math.Cos(a * 0.7 + i) - 0.12, 0.02, 0.02, 0.01, Palette.SignalRed);
-                    }
-                    mesh.Emissive = 0;
-                    return true;
-                }
-            case EnemyKind.LooseLoad:
-                return true;
         }
         return false;
     }

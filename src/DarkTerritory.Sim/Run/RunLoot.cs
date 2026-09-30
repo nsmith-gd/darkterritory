@@ -117,9 +117,12 @@ public sealed partial class Run
                     Stock(world.Bodies, line, t, k);
             }
 
-        // A find put down inside a car, and lying still there, is stowed.
+        // A find put down inside a car, and lying still there, is stowed. (Only a stop's finds: other hand loot, the salvage
+        // the Gaunt and the Followers go for, stays a body.)
         foreach (var b in world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Loot).ToList())
         {
+            if (FindOf(b) is not { } find)
+                continue;
             bool aboard = b.Carrier < 0 && b.Parent > 0 && b.Parent < train.Vehicles.Count
                 && train.Frames[b.Parent].Shape.Interior is { } room && room.Contains(b.Pbd.Particles[0].Position);
             double still = aboard ? _lootSettling.GetValueOrDefault(b.Id) + dt : 0;
@@ -128,11 +131,8 @@ public sealed partial class Run
                 _lootSettling[b.Id] = still;
                 continue;
             }
-            if (FindOf(b) is { } find)
-            {
-                Scavenged += find.Value;
-                _stowed.Add(find);
-            }
+            Scavenged += find.Value;
+            _stowed.Add(find);
             world.Bodies.Remove(b);
             _lootSettling.Remove(b.Id);
         }

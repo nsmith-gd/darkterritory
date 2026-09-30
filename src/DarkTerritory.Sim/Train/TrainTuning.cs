@@ -23,6 +23,8 @@ public sealed record TrainTuning
 public sealed record KitTuning
 {
     public int Radios { get; init; }
+    /// <summary>Toys in the guard van (GDD v1.1 App. C.4): hand loot, what the Track Doll will leave for.</summary>
+    public int Toys { get; init; }
 }
 
 public sealed record GeometryTuning(

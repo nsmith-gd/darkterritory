@@ -21,6 +21,16 @@ public enum VoicePath : byte
     /// A.5's tell), from the frames the host kept. <see cref="VoiceFrame.Source"/> says which.
     /// </summary>
     Mimic = 16,
+    /// <summary>
+    /// The speaker's mouth covered (GDD v1.1 App. A.5, Tippy Toesie; App. C.8 "voice effects on the server"): the host says
+    /// so, the listener muffles it.
+    /// </summary>
+    Muffled = 32,
+    /// <summary>
+    /// The speaker's being drained (App. A.6, a Soot Child): their cries grow weaker and quieter. A gain byte follows
+    /// (<see cref="VoiceFrame.Gain"/>), the host's.
+    /// </summary>
+    Fading = 64,
 }
 
 /// <summary>

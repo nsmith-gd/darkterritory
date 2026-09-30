@@ -1,9 +1,11 @@
-// The demo's roster (GDD §21): one per pressure zone. Forward the Sleepers, rear the Cinder Hounds, flank the Clingers,
-// interior the Hollow; structural, the Choir, is always about (the guns bring it). And the trouble in the cars, which
-// isn't on the roster but is what the crew does between them.
+// The demo's roster (GDD v1.1 §21): five, one per pressure zone. Forward the Track Doll, rear the Car Hugger, flank the
+// Whistler, interior Tippy Toesie, outside the Ribbits; the Choir runs underneath as the ambient system (the meter always
+// draws it). Track debris and the marsh are level hazards, not the roster, and a car fire is what the crew does about a
+// dropped lamp. DESIGN-TODO: §21's "if the Foundry is one of the two demo facilities, the Grumbler replaces the Ribbits";
+// the demo's facilities (editions/demo/linegen/tiers.json) have no Foundry, so the Ribbits stay.
 {
   "$patch": true,
   "director": {
-    "roster": ["sleepers", "cinderHounds", "clingers", "hollow", "carFire", "looseLoad", "gnawers"]
+    "roster": ["trackDoll", "carHugger", "whistler", "tippyToesie", "ribbits", "sleepers", "drift", "carFire"]
   }
 }

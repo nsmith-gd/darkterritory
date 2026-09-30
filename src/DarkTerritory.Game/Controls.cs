@@ -9,6 +9,8 @@ public enum Control
     Forward, Back, Left, Right, Run, Jump, Use, Fire, Throw,
     RegulatorOpen, RegulatorClose, Brake, Reverser, Lamp,
     Talk, Radio, Roster, RouteCard, Chase,
+    // GDD v1.1: swing the tool you carry (App. C.2), the whistle cord (§12), the lamp in the car you're in (App. A.5).
+    Swing, Whistle, CarLamp,
 }
 
 /// <summary>The default key for each control, by the key's name (Ballast.Platform's <c>Key</c>), and how the menu says it.</summary>
@@ -35,6 +37,9 @@ public static class Controls
         [Control.Roster] = "Q",
         [Control.RouteCard] = "C",
         [Control.Chase] = "Tab",
+        [Control.Swing] = "G",
+        [Control.Whistle] = "H",
+        [Control.CarLamp] = "K",
     };
 
     /// <summary>Keys nothing can be bound to: the menus' own.</summary>
@@ -48,6 +53,9 @@ public static class Controls
         Control.RouteCard => "ROUTE CARD",
         Control.Chase => "CHASE VIEW",
         Control.Talk => "TALK (PUSH TO TALK)",
+        Control.Swing => "SWING TOOL",
+        Control.Whistle => "WHISTLE CORD",
+        Control.CarLamp => "CAR LAMP",
         _ => c.ToString().ToUpperInvariant(),
     };
 

@@ -39,6 +39,14 @@ public struct Boiler
     public double ExternalHeat;
     /// <summary>Deep cold multiplies boiler efficiency (GDD §22 hazards). 1 is a normal night.</summary>
     public double Efficiency;
+    /// <summary>
+    /// The firebox door (GDD v1.1 App. A.5 Stoker, "keep it hot, keep it shut"): shovelling opens it, and it swings shut a
+    /// few seconds after the last shovelful, so long as someone's in the cab to see to it. Left with the cab empty it
+    /// stays open, and at a stop that's how the Stoker gets in. DESIGN-TODO: the GDD doesn't say how it's shut.
+    /// </summary>
+    public bool FireDoorOpen;
+    /// <summary>Seconds since the last shovelful (the door's swing-shut clock).</summary>
+    public double SinceShovel;
 
     public static Boiler Fresh(BoilerTuning t) => new()
     {
@@ -67,6 +75,8 @@ public struct Boiler
     /// <summary>A shovelful into the firebox, if there's room and coal. Returns whether it happened.</summary>
     public bool Shovel(BoilerTuning t)
     {
+        FireDoorOpen = true;
+        SinceShovel = 0;
         if (Ruptured || Tender < 1 || Firebox > t.FireboxCapacity - 1)
             return false;
         Tender -= 1;

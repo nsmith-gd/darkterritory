@@ -65,7 +65,10 @@ sealed class Night
             Assert.Equal(SpinePhase.Telegraph, e.From);
             Assert.True(e.SecondsInFrom >= Tuning.Enemies.MinReactionSeconds - 1e-9, $"{e.Kind} {e.EnemyId} committed after {e.SecondsInFrom:0.00} s");
         }
-        Assert.DoesNotContain(Events, e => e.To == SpinePhase.Punish && e.From != SpinePhase.Commit);
+        // GDD v1.1 App. A.1: a grab comes only out of a commit, and a kill only out of a grab (or a commit, for what
+        // punishes the train rather than a player).
+        Assert.DoesNotContain(Events, e => e.To == SpinePhase.Grab && e.From != SpinePhase.Commit);
+        Assert.DoesNotContain(Events, e => e.To == SpinePhase.Punish && e.From is not (SpinePhase.Commit or SpinePhase.Grab));
     }
 }
 
@@ -184,11 +187,18 @@ public class EnemyTests
         gunner.Yaw = Math.PI;
         n.Crew[1] = gunner;
         var pack = Pack(n);
-        n.Run(60, id =>
+        n.Run(90, id =>
         {
-            var target = pack.Where(h => !h.Gone && h.Attached < 0).OrderByDescending(h => h.LineDistance).FirstOrDefault();
-            if (target is null)
+            // Held, they do nothing (a Use held would be a solo struggle).
+            if (n.Crew[id].Has(PlayerFlags.Held))
                 return default;
+            // GDD v1.1 App. C.3: powder, ball, ram between shots (Use held at the gun).
+            if (n.Train.Vehicles[guard].Gun.ReloadNeeded > 0)
+                return new PlayerIntent { Buttons = PlayerButtons.Use };
+            var target = pack.Where(h => !h.Gone && h.Attached < 0).OrderByDescending(h => h.LineDistance).FirstOrDefault();
+            // Nothing to shoot at: a gunner with no restraint fires anyway.
+            if (target is null)
+                return fireAtRange(double.PositiveInfinity) ? new PlayerIntent { Buttons = PlayerButtons.Fire } : default;
             var frame = n.Train.Frames[guard];
             var offset = target.WorldPosition(n.Train) - frame.ToWorld(mount.Position);
             var d = frame.DirToLocal(offset).Normalized;
@@ -204,23 +214,23 @@ public class EnemyTests
         var (n, pack, _) = GunnerVersusPack(range => range <= Tuning.Combat.Guns.Range);
         Assert.All(pack, h => Assert.True(h.Gone, $"hound {h.Id} {h.Phase}"));
         Assert.True(n.Crew[1].Alive);
-        Assert.True(n.World.Choir.Aggro > 0);
-        Assert.NotEqual(ChoirPhase.Swarm, n.World.Choir.Phase(Tuning.Combat.Choir));
+        Assert.True(n.World.Choir.Loudness > 0);
+        Assert.False(n.World.Choir.Present);
     }
 
     [Fact]
     public void AGunnerWhoSpraysFromTooFarBringsTheChoirDownOnHimself()
     {
-        // GDD §14: "The gunner's job is less about accuracy than restraint." Firing at 180 m, out of range,
-        // drives the Choir to a swarm, and the swarm kills the one person standing exposed on the roof.
-        var (n, _, _) = GunnerVersusPack(_ => true);
-        Assert.Equal(DeathCause.Choir, n.Crew[1].Death);
+        // GDD §14: "The gunner's job is less about accuracy than restraint." Firing at everything, out of range and in,
+        // loads the meter (App. C.7) until the Choir gathers (App. A.7), and it seizes the one exposed on the roof.
+        var (n, _, guard) = GunnerVersusPack(_ => true);
+        Assert.True(n.Crew[1].Death == DeathCause.Seized, $"{n.Crew[1].Death}: build {n.World.Choir.Build:0.00} present {n.World.Choir.Present} spent {n.World.Choir.Spent} loud {n.World.Choir.Loudness:0.00} ammo {n.Train.Vehicles[guard].Gun.Ammo} ghosts {n.World.ActiveEnemies.Count(e => e is ChoirGhost)}");
     }
 
     [Fact]
     public void SustainedFireInRangeDrivesThePackOffEvenWithoutKills()
     {
-        // App. A.3 break off: "sustained rear gun fire". Rounds over their heads still turn them.
+        // GDD v1.1 App. A.3 break off: "rear cannon hit". A round over their heads still turns them.
         var n = new Night(6, speed: 14);
         int guard = n.Train.Dynamics.Consist.Vehicles[^1].Id;
         var mount = n.Train.Frames[guard].Shape.Gun!.Value;
@@ -228,84 +238,51 @@ public class EnemyTests
         n.Crew[1] = gunner with { Yaw = Math.PI, Pitch = 0.6 };
         var pack = Pack(n);
         var muzzle = () => n.Train.Frames[guard].ToWorld(mount.Position);
-        n.Run(60, _ => pack.Any(h => !h.Gone && (h.WorldPosition(n.Train) - muzzle()).Length <= Tuning.Combat.Guns.Range)
+        n.Run(60, _ => n.Train.Vehicles[guard].Gun.ReloadNeeded > 0 ? new PlayerIntent { Buttons = PlayerButtons.Use }
+            : pack.Any(h => !h.Gone && (h.WorldPosition(n.Train) - muzzle()).Length <= Tuning.Combat.Guns.Range)
             ? new PlayerIntent { Buttons = PlayerButtons.Fire } : default);
         Assert.All(pack, h => Assert.True(h.Gone && h.Health == E.CinderHounds.Health, $"hound {h.Id} {h.Phase} hp {h.Health}"));
         Assert.Equal(pack.Count, n.Events.Count(e => e.Kind == EnemyKind.CinderHound && e.To == SpinePhase.BreakOff));
         // The pack never lands (the director's paced sends, a Climber say, are their own business).
-        Assert.DoesNotContain(n.Events, e => e.Kind == EnemyKind.CinderHound && e.To == SpinePhase.Punish);
+        Assert.DoesNotContain(n.Events, e => e.Kind == EnemyKind.CinderHound && e.To is SpinePhase.Grab or SpinePhase.Punish);
         n.AssertFair();
     }
 
-    [Fact]
-    public void AClingerDrillsThenBreachesAndTheCargoGoes()
-    {
-        var n = new Night(6, speed: 14);
-        var clinger = n.World.AddEnemy(id => new Clinger(id) { Attached = 2, Local = new Double3(1.65, 2, 0) });
-        n.Run(E.Clingers.DrillSeconds - 1);
-        Assert.Equal(SpinePhase.Telegraph, clinger.Phase);
-        Assert.Equal(1, n.Train.Vehicles[2].CargoIntegrity);
-        n.Run(21);
-        Assert.Equal(SpinePhase.Punish, clinger.Phase);
-        Assert.InRange(n.Train.Vehicles[2].CargoIntegrity, 1 - 20 * E.Clingers.BreachCargoLossPerSecond - 0.01, 1 - 19 * E.Clingers.BreachCargoLossPerSecond);
-        n.AssertFair();
-    }
+    /// <summary>The Choir gathered to its last tick: the next one brings the swarm.</summary>
+    static void Gathered(Night n) => n.World.Choir = new ChoirState { Build = 0.9999, Loudness = Tuning.Combat.Choir.MaxLoudness };
 
     [Fact]
-    public void GoingOutOnTheRoofAndPryingItOffWorks()
+    public void TheChoirSeizesOnlyWhoeverIsExposed()
     {
-        var n = new Night(6, speed: 14);
-        var clinger = n.World.AddEnemy(id => new Clinger(id) { Attached = 2, Local = new Double3(1.65, 2, 3) });
-        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, 2, 3, P, localX: 0.8);
-        n.Run(E.Clingers.PrySeconds + 0.2, _ => new PlayerIntent { Buttons = PlayerButtons.Use });
-        Assert.True(clinger.Gone);
-        Assert.Contains(n.Events, e => e.To == SpinePhase.BreakOff && e.Kind == EnemyKind.Clinger);
-    }
-
-    [Fact]
-    public void NeglectTheFireAndTheHollowComesDownTheStack()
-    {
-        var n = new Night(3, speed: 0, boiler: true);
-        n.Train.Boiler.Firebox = 0.3;
-        n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
-        n.Run(E.Hollow.LowFireSeconds + 2);
-        var hollow = Assert.Single(n.World.ActiveEnemies, e => e.Kind == EnemyKind.Hollow);
-        n.Run(E.Hollow.DescendSeconds + E.Hollow.BiteEverySeconds + 0.5);
-        Assert.Equal(SpinePhase.Punish, hollow.Phase);
-        Assert.True(n.Crew[1].Health < P.Health);
-
-        // Fire it back up and it leaves at once.
-        for (int i = 0; i < 3; i++)
-            n.Train.Boiler.Shovel(Tuning.Boiler);
-        n.Run(0.1);
-        Assert.True(hollow.Gone);
-        n.AssertFair();
-    }
-
-    [Fact]
-    public void TheSwarmingChoirHurtsOnlyWhoeverIsExposed()
-    {
+        // GDD v1.1 App. A.7: it seizes "anyone outside, on the roofs, or behind no closed door"; a seize is a grab, and
+        // nobody kills the one holding them, so it's a death.
         var n = new Night(6, speed: 10);
-        n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
-        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 3, 0, P);
-        n.World.Choir.Loud(Tuning.Combat.Choir, 1e6, 1); // straight to the swarm
-        n.Run(10.1);
+        var inside = new PlayerState { Parent = 3, Position = new Double3(-0.45, Tuning.Train.Geometry.Interior!.FloorHeight, 0), Surface = Surface.Deck, Health = P.Health };
+        n.Crew[1] = inside;
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 4, 0, P);
+        Gathered(n);
+        n.Run(0.2);
+        Assert.True(n.World.Choir.Present);
+        Assert.Equal(E.Choir.Ghosts, n.World.ActiveEnemies.Count(e => e is ChoirGhost));
+        n.Run(E.Choir.SeizeSeconds + 15);
         Assert.Equal(P.Health, n.Crew[1].Health);
-        Assert.Equal(P.Health - 5 * E.ChoirSwarm.ExposedDamage, n.Crew[2].Health);
+        Assert.Equal(DeathCause.Seized, n.Crew[2].Death);
+        // One taken and it's gone for the run.
+        Assert.True(n.World.Choir.Spent);
+        Assert.DoesNotContain(n.World.ActiveEnemies, e => e is ChoirGhost && !e.Gone);
     }
 
     [Fact]
-    public void AShutCarIsCoverFromTheChoirAndAnOpenDoorIsNot()
+    public void HushedAndShutInTheChoirDispersesHavingTakenNobody()
     {
         var n = new Night(6, speed: 10);
         var inside = new PlayerState { Parent = 3, Position = new Double3(-0.45, Tuning.Train.Geometry.Interior!.FloorHeight, 0), Surface = Surface.Deck, Health = P.Health };
         n.Crew[1] = inside;
-        n.Crew[2] = inside with { Parent = 4 };
-        n.Train.Vehicles[4].ToggleDoor(0);
-        n.World.Choir.Loud(Tuning.Combat.Choir, 1e6, 1); // straight to the swarm
-        n.Run(10.1);
-        Assert.Equal(P.Health, n.Crew[1].Health);
-        Assert.True(n.Crew[2].Health < P.Health);
+        Gathered(n);
+        n.Run(E.Choir.DisperseQuietSeconds + 8);
+        Assert.False(n.World.Choir.Present);
+        Assert.False(n.World.Choir.Spent);
+        Assert.True(n.Crew[1].Alive);
     }
 
     [Fact]
@@ -320,14 +297,14 @@ public class EnemyTests
             var d = n.World.Director!;
             Assert.NotEmpty(d.Log);
             // The condition-triggered ones (App. B.5) come whenever their condition holds, grace or no: here, nobody's
-            // minding the fire or the cab.
+            // minding the fire.
             // Paced spawns (quiet too long) come when they must, cooldown or not.
-            var spawns = d.Log.Where(l => l.Kind is not (EnemyKind.Hollow or EnemyKind.Deadman) && !l.Paced).ToList();
+            var spawns = d.Log.Where(l => l.Kind is not EnemyKind.Stoker && !l.Paced).ToList();
             Assert.All(spawns, l => Assert.True(l.Tick * SimConstants.TickSeconds >= E.Director.GraceSeconds, $"spawn at {l.Tick / 30} s"));
             for (int i = 1; i < spawns.Count; i++)
                 Assert.True((spawns[i].Tick - spawns[i - 1].Tick) * SimConstants.TickSeconds >= E.Director.CooldownSeconds[0] - 1);
             // The caps are on what's engaged; the condition-triggered ones aren't capped (App. B.5).
-            Assert.All(d.Log.Where(l => l.Kind is not (EnemyKind.Hollow or EnemyKind.Deadman)),
+            Assert.All(d.Log.Where(l => l.Kind is not EnemyKind.Stoker),
                 l => Assert.True(l.ActiveInZone <= E.Director.MaxConcurrentZone && l.ActiveTotal <= E.Director.MaxConcurrentSmallCrew, $"{l}"));
             Assert.All(d.Log, l => Assert.True(l.TrainDistance <= route.Length - 500));
             // The budget holds for what's spent on its curve; a paced spawn may overdraw it (a quiet night's worse).

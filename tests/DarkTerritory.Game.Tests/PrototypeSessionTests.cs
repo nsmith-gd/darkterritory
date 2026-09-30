@@ -39,13 +39,12 @@ public class PrototypeSessionTests
     }
 
     [Fact]
-    public void AClingerShowsItsDrillProgress()
+    public void TheChoirGatheringShowsOnTheThreatLine()
     {
         var session = Frontier();
-        var car = session.Train.Frames[1].Shape;
-        session.World.AddEnemy(id => new Clinger(id) { Attached = 1, Local = new Double3(car.HalfWidth + 0.15, 2, 0) });
-        for (int i = 0; i < SimConstants.TickRate * 10; i++)
-            session.Step(default);
-        Assert.Contains("drilling on car 1", session.Threats());
+        session.World.Choir = new Sim.Combat.ChoirState { Build = 0.5 };
+        Assert.Contains("gathering to the noise", session.Threats());
+        session.World.Choir = new Sim.Combat.ChoirState { Present = true, Build = 1 };
+        Assert.Contains("THE CHOIR IS HERE", session.Threats());
     }
 }

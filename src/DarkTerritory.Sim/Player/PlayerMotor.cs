@@ -24,6 +24,22 @@ public enum PlayerButtons : byte
     Hand = 128,
 }
 
+/// <summary>
+/// What else a player's hands do this tick (GDD v1.1): a second byte of buttons, the first being full. Everyone swings the
+/// tool they carry (App. C.2), pulls the whistle cord in the cab (§12), and switches a car's lamp (App. A.5, Fire Flies).
+/// </summary>
+[Flags]
+public enum PlayerActions : byte
+{
+    None = 0,
+    /// <summary>Swing your tool (App. C.2 melee): held, it swings as often as the tool recovers.</summary>
+    Swing = 1,
+    /// <summary>The whistle cord, from the cab (GDD §12, the conductor's whistle; it feeds the loudness meter).</summary>
+    Whistle = 2,
+    /// <summary>The lamp in the car you're in, on or off (a toggle on the press).</summary>
+    CarLamp = 4,
+}
+
 /// <summary>The forward lamp's switch in the cab (T52): set it on or off (a setting, not a toggle, so a held key or a resent intent is harmless).</summary>
 public enum LampSwitch : byte { None, On, Off }
 
@@ -44,6 +60,14 @@ public struct PlayerIntent
     public sbyte ThrottleNotch;
     /// <summary>The forward lamp switched on or off (T52, "lamps down" against the Lamplighters). Only honoured from the cab.</summary>
     public LampSwitch Lamp;
+    /// <summary>The second byte of buttons (<see cref="PlayerActions"/>).</summary>
+    public PlayerActions Actions;
+    /// <summary>
+    /// How loud this player's voice is this tick, 0..255 (App. C.7, the loudness meter; C.8, the Gaunt listens for silence).
+    /// It's what their microphone is sending, measured on their machine, so it's intent like any key (a bot "talks" by
+    /// setting it). It moves no player or train state, only what the host's enemies hear.
+    /// </summary>
+    public byte Voice;
     /// <summary>
     /// With <see cref="PlayerButtons.Hand"/>: a VR player's reaching hand, in metres from their feet in the frame they face
     /// (x right, y up, z behind, so ahead is −Z as ever). Reach is tested from it instead of from the body (T29).
@@ -57,6 +81,7 @@ public struct PlayerIntent
     public bool Other;
 
     public readonly bool Has(PlayerButtons b) => (Buttons & b) != 0;
+    public readonly bool Has(PlayerActions a) => (Actions & a) != 0;
 
     /// <summary>
     /// Reports a hand, on the centimetre grid the wire carries (<see cref="Net.Messages"/>), so a predicting client
@@ -92,7 +117,15 @@ public enum Surface : byte { Air, Ground, Roof, Coupler, Ladder, Deck }
 /// <summary><see cref="Burned"/>, <see cref="Gnawed"/>: in a car with a fire, or a nest of Gnawers (the in-car incidents).</summary>
 /// <summary><see cref="Waiting"/> isn't a death: a player who joined mid-run, spectating in the respawn queue until a Holdout frees them (GDD App. D.3).</summary>
 /// <summary><see cref="Struck"/>: stood on a roof into a tunnel's mouth; <see cref="Thrown"/>: off a roof on a curve taken over its board.</summary>
-public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged, Crushed, PulledUnder, Lamplighter, Deadman, Stoker, Ferryman, Climbed, TornOff, Gaunt, Struck, Thrown, Burned, Gnawed, Replaced, Nested, Drift, Waiting }
+public enum DeathCause : byte
+{
+    None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged, Crushed, PulledUnder, Lamplighter, Deadman, Stoker, Ferryman, Climbed, TornOff, Gaunt, Struck, Thrown, Burned, Gnawed, Replaced, Nested, Drift,
+    // GDD v1.1: swallowed by the Car Hugger; smothered by Tippy Toesie; eaten by Ribbits; drained by a Soot Child; carried off
+    // to the Whistler's nest; seized by the Choir; taken with the caboose by the Passenger.
+    Eaten, Suffocated, Devoured, Drained, Carried, Seized, Uncoupled,
+    // GDD v1.2 App. D.5: not dead, waiting in the queue for a Holdout (joined after the gate opened).
+    Waiting
+}
 
 /// <summary>Conditions a player carries.</summary>
 [Flags]
@@ -105,6 +138,11 @@ public enum PlayerFlags : byte
     Shovelful = 4,
     /// <summary>At a crane's controls (T48): the stick and Jump drive the crane, not you.</summary>
     Operating = 8,
+    /// <summary>
+    /// Held by something (GDD v1.1 App. A.1 GRAB): you can look, talk and struggle, and nothing else, until a friend frees
+    /// you or the window runs out. Set by the host each tick from what's holding whom.
+    /// </summary>
+    Held = 16,
 }
 
 /// <summary>
@@ -292,8 +330,9 @@ public static class PlayerMotor
 
     /// <summary>Advances one tick. Call after the train has stepped this tick.</summary>
     /// <param name="applyLook">False when look was already applied this tick (the world's crew step does it).</param>
-    public static void Step(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt, bool applyLook = true)
+    public static void Step(ref PlayerState s, in PlayerIntent input, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt, bool applyLook = true)
     {
+        var intent = input;
         if (!s.Alive)
             return;
 
@@ -303,6 +342,13 @@ public static class PlayerMotor
         StepCold(ref s, train, p, dt);
         if (!s.Alive)
             return;
+
+        // Held (App. A.1 GRAB): your feet are the thing's now. What moves you is what holds you.
+        if (s.Has(PlayerFlags.Held))
+        {
+            intent.MoveX = intent.MoveZ = 0;
+            intent.Buttons &= ~(PlayerButtons.Jump | PlayerButtons.Run);
+        }
 
         if (s.Surface == Surface.Ladder)
         {
