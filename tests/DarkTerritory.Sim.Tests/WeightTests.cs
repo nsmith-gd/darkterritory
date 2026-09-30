@@ -1,3 +1,5 @@
+using DarkTerritory.Sim.Bots;
+using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
@@ -21,6 +23,8 @@ public class WeightTests
         public readonly List<PlayerIntent> Intents = [];
         public readonly List<EnemyEvent> Events = [];
         public TrainControls Controls = new() { Reverser = 1, Throttle = 1 };
+        /// <summary>The crew move as well as act (for bots, which walk about).</summary>
+        public bool Walk;
 
         public Night(double speed, int cars = 5, EnemyTuning? enemies = null, Route.Route? route = null, double at = 2_000)
         {
@@ -63,6 +67,12 @@ public class WeightTests
                 World.Step(Controls);
                 Events.AddRange(World.EnemyEvents);
                 World.ApplyDamage(id => id <= Crew.Count ? Crew[id - 1] : null, (id, s) => Crew[id - 1] = s, Enumerable.Range(1, Crew.Count));
+                for (int c = 0; Walk && c < Crew.Count; c++)
+                {
+                    var s = Crew[c];
+                    PlayerMotor.Step(ref s, Intents[c], Train, Tuning.Player, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+                    Crew[c] = s;
+                }
             }
         }
     }
@@ -152,6 +162,58 @@ public class WeightTests
         }
         Assert.True(w.Gone);
         Assert.DoesNotContain(night.Events, e => e.EnemyId == w.Id && e.To == SpinePhase.Punish);
+    }
+
+    [Fact]
+    public void TheGuardVanLastHasARearPlatformOverTheCouplingItTakes()
+    {
+        var night = new Night(speed: 12);
+        var shape = night.Train.Frames[night.Rear].Shape;
+        var platform = Assert.NotNull(shape.Platform);
+        Assert.Equal(shape.HalfLength, platform.Min.Z, 6);
+        Assert.Equal(Tuning.Train.Geometry.PlatformDepth, platform.Max.Z - platform.Min.Z, 6);
+        // Where it holds is under the grating, in reach of someone standing on it; and there's a ladder down to it.
+        var w = night.Under();
+        night.Run(0.5);
+        Assert.True(w.Holding);
+        Assert.True((new Ballast.Double3(0.3, platform.Max.Y, w.Local.Z + 0.1) - w.Local).Length <= W.MeleeReach);
+        Assert.Contains(shape.Ladders, l => l.Foot.Y == platform.Max.Y && l.Foot.Z > shape.HalfLength);
+        // Nothing else in the train has one.
+        Assert.All(night.Train.Frames.Where(f => f.Index != night.Rear), f => Assert.Null(f.Shape.Platform));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ABotOnTheGuardVanGoesDownToThePlatformAndBeatsItOff(bool gunner)
+    {
+        var night = new Night(speed: 12) { Walk = true };
+        // A walker on the roof, or the gunner at the rear gun: it's no answer, and they're who's on the car.
+        var s = PlayerMotor.SpawnOnRoof(night.Train, night.Rear, gunner ? night.Train.Frames[night.Rear].Shape.Gun!.Value.Position.Z - 0.6 : 2, Tuning.Player);
+        night.Crew.Add(s);
+        night.Intents.Add(default);
+        IWorldBot walker = gunner ? new GunnerBot(Tuning.Combat.Guns) : new RoofWalkerBot(seed: 5);
+        if (gunner)
+        {
+            night.Run(0.5, () => night.Intents[0] = walker.Decide(night.Crew[0], night.World, night.World.Tick, out _));
+            Assert.NotNull(Guns.MannedGun(night.Crew[0], night.Train, Tuning.Combat.Guns));
+        }
+        var w = night.Under();
+        var surfaces = new HashSet<Surface>();
+        night.Run(30, () =>
+        {
+            night.Intents[0] = walker.Decide(night.Crew[0], night.World, night.World.Tick, out _);
+            surfaces.Add(night.Crew[0].Surface);
+        });
+        Assert.True(w.Gone);
+        Assert.True(w.Blows >= W.BlowsToRelease);
+        Assert.DoesNotContain(night.Events, e => e.EnemyId == w.Id && e.To == SpinePhase.Punish);
+        Assert.True(night.Train.Vehicles[night.Rear].Integrity > 0);
+        Assert.Contains(Surface.Ladder, surfaces);
+        Assert.Contains(Surface.Coupler, surfaces);
+        Assert.True(night.Crew[0].Alive);
+        // Then back up the ladder, as out of any gap, and walking the roofs again.
+        Assert.Equal(Surface.Roof, night.Crew[0].Surface);
     }
 
     [Fact]

@@ -149,6 +149,41 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void AGunnerLeftOnTheBallastClimbsBackAboardAndADeadOneIsNotWaitedFor()
+    {
+        // The 100-night rerun: a gunner down on the ballast after a stop only ever borrowed the walker's legs on a car, so it
+        // stood there (or on the engine's ladder, on and off it) while the driver waited out its give-ups and left it. And
+        // dead, it stopped saying so: the driver held at the next switch all night for it to get aboard.
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(4000)])), 600);
+        var world = new World(train, Tuning.Combat);
+        world.EnableBodies();
+        var calls = new CrewCalls();
+        var bot = new GunnerBot(Tuning.Combat.Guns, cold: P.Cold, job: new StopHand(StopJob.Winch0, calls, 1, P.Cold));
+        var shape = train.Frames[2].Shape;
+        var s = PlayerMotor.SpawnOnGround(train.Frames[2].ToWorld(new Ballast.Double3(shape.HalfWidth + 1.2, 0, 0)), train.Line, train.Cars[2].FrontDistance, P);
+        for (uint tick = 0; tick < 40 * SimConstants.TickRate && s.Parent == PlayerState.World; tick++)
+        {
+            world.BeginTick();
+            var intent = bot.Decide(s, world, tick, out _);
+            world.CrewAct(ref s, intent, 1);
+            world.Step(new TrainControls());
+            PlayerMotor.Step(ref s, intent, train, P, T, SimConstants.TickSeconds, applyLook: false);
+        }
+        Assert.NotEqual(PlayerState.World, s.Parent);
+        world.Tick++;
+        bot.Decide(s, world, 0, out _); // it says where it is as it decides (once a tick)
+        Assert.True(calls.AllAboard);
+
+        var down = PlayerMotor.SpawnOnGround(train.Frames[2].ToWorld(new Ballast.Double3(shape.HalfWidth + 1.2, 0, 0)), train.Line, train.Cars[2].FrontDistance, P);
+        world.Tick++;
+        bot.Decide(down, world, 0, out _);
+        Assert.False(calls.AllAboard);
+        world.Tick++;
+        bot.Decide(down with { Health = 0, Death = DeathCause.Mauled }, world, 1, out _);
+        Assert.True(calls.AllAboard);
+    }
+
+    [Fact]
     public void WithTheShunterDeadTheFirstHandLeftTakesItOver()
     {
         var calls = new CrewCalls();
@@ -167,6 +202,32 @@ public class StopCrewTests
         Assert.False(calls.StandIn(4, StopJob.Shunter));
         calls.Say(3, StopJob.Shunter, alive);
         Assert.False(calls.StandIn(4, StopJob.Shunter));
+        // And the part they left (the crane's operator): the first crate hand takes it, and nobody else.
+        Assert.True(calls.StandIn(4, StopJob.Winch0));
+        Assert.False(calls.StandIn(3, StopJob.Winch0));
+        Assert.False(calls.StandIn(4, StopJob.Winch1)); // nobody's ever had that
+        calls.Say(4, StopJob.Winch0, alive);
+        Assert.False(calls.StandIn(4, StopJob.Winch0));
+    }
+
+    [Fact]
+    public void AtAStopOnlyTheFirstTwoCrateHandsLeaveTheCratesForTrouble()
+    {
+        // T70: with Gnawers and loose loads one after another, every crate hand going to each loaded nothing all stop.
+        var calls = new CrewCalls();
+        var alive = new PlayerState { Health = 100, Parent = 3 };
+        calls.Say(1, StopJob.Winch0, alive);
+        for (int m = 2; m <= 5; m++)
+            calls.Say(m, StopJob.Crates, alive);
+        Assert.True(new StopHand(StopJob.Crates, calls, 2).TakesTrouble);
+        Assert.True(new StopHand(StopJob.Crates, calls, 3).TakesTrouble);
+        Assert.False(new StopHand(StopJob.Crates, calls, 4).TakesTrouble);
+        Assert.False(new StopHand(StopJob.Crates, calls, 5).TakesTrouble);
+        // The winch pair decide for themselves (a fire alight, a load loose), as before.
+        Assert.True(new StopHand(StopJob.Winch0, calls, 1).TakesTrouble);
+        // One of the two dies: the next hand takes their place at it.
+        calls.Say(2, StopJob.Crates, alive with { Health = 0, Death = DeathCause.Gnawed });
+        Assert.True(new StopHand(StopJob.Crates, calls, 4).TakesTrouble);
     }
 
     [Fact]
@@ -223,6 +284,30 @@ public class StopCrewTests
         Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
         var record = Assert.Single(night.Driver.Stops!.Log);
         Assert.Equal(F.Winch.Sleds, record.SledsHauled);
+    }
+
+    [Fact]
+    public void WithTheCarsAtTheWinchFullThePairDontCrankForNothing()
+    {
+        // T66: on a frontier:7 night the crane's castings filled the cars the sleds load, and the pair cranked until the
+        // loading leg gave up (540 s). A sled with nowhere to go isn't hauled: loading's done, and they come aboard.
+        var night = new Night(cars: 8);
+        var run = night.World.Run!;
+        double loading = 0;
+        night.Until(() => run.Departures > 0, 900, () =>
+        {
+            if (night.Driver.Stops!.Doing != StopDriver.Leg.Loading)
+                return;
+            // In to load, and the cars are full already (as the crane's castings left them).
+            if (loading == 0)
+                foreach (var v in night.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo))
+                    v.Load = 1;
+            loading += SimConstants.TickSeconds;
+        });
+        Assert.True(run.Departures > 0, $"never left the stop: driver {night.Driver.Stops!.Doing}");
+        Assert.True(loading < 60, $"{loading:0} s loading with nowhere for a sled to go");
+        Assert.Equal(0, Assert.Single(night.Driver.Stops!.Log).SledsHauled);
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}"));
     }
 
     [Fact]

@@ -31,7 +31,7 @@ public abstract record Launch
     public sealed record Quit : Launch;
 }
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings }
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls }
 
 /// <param name="Detail">A line about the selected item, under the list.</param>
 public sealed record MenuItem(string Label, string? Detail = null, bool Enabled = true);
@@ -49,14 +49,23 @@ public sealed class FrontEnd
     readonly SaveSlots _saves;
     readonly string _settingsPath;
     readonly Func<ulong> _newSeed;
-    int _tier = 1;
+    readonly EditionTuning _edition;
+    readonly RouteTier[] _tiers;
+    int _tier;
     ulong _seed = 7;
     int _cars = 6;
     bool _host;
 
     /// <param name="newSeed">Where a new campaign's seed comes from (tests pin it).</param>
-    public FrontEnd(CampaignTuning campaign, RunTuning run, SaveSlots saves, string settingsPath, Func<ulong>? newSeed = null)
+    /// <param name="edition">Which game this is (T79): the demo has a quick night on its own tiers, and no campaign.</param>
+    public FrontEnd(CampaignTuning campaign, RunTuning run, SaveSlots saves, string settingsPath, Func<ulong>? newSeed = null, EditionTuning? edition = null)
     {
+        _edition = edition ?? new();
+        _tiers = [.. Enum.GetValues<RouteTier>().Where(_edition.HasTier)];
+        if (_tiers.Length == 0)
+            _tiers = Enum.GetValues<RouteTier>();
+        // The Frontier to start with, where there is one: the first tier past the local lines.
+        _tier = Math.Max(0, Array.IndexOf(_tiers, RouteTier.Frontier));
         _campaign = campaign;
         _run = run;
         _saves = saves;
@@ -72,8 +81,28 @@ public sealed class FrontEnd
     /// <summary>The campaign open at the fortress.</summary>
     public CampaignState? Open { get; private set; }
     public Settings Settings { get; private set; }
+    public EditionTuning Edition => _edition;
     /// <summary>The address typed so far on the join screen.</summary>
     public string Address { get; private set; } = "127.0.0.1";
+    /// <summary>Waiting for the key to bind this control to (T80): the app hands the next one pressed to <see cref="Bind"/>.</summary>
+    public Control? Capturing { get; private set; }
+
+    /// <summary>The key pressed for the control being bound (a key's name); Escape (<see cref="Back"/>) keeps the old one.</summary>
+    public void Bind(string key)
+    {
+        if (Capturing is not { } c)
+            return;
+        Capturing = null;
+        if (Controls.Reserved.Contains(key))
+        {
+            Message = $"{Controls.KeyLabel(key)} is kept for the menus.";
+            return;
+        }
+        var was = Enum.GetValues<Control>().FirstOrDefault(o => o != c && Settings.KeyFor(o) == key, c);
+        Change(Settings.Bind(c, key));
+        Message = was != c ? $"{Controls.Label(was)} moved to {Controls.KeyLabel(Settings.KeyFor(was))}." : null;
+    }
+
     /// <summary>The join screen wants typed text (the app turns text input on).</summary>
     public bool WantsText => Screen == Screen.Join;
     /// <summary>Played in a headset (T36): the hints name the controllers' buttons, not the keys.</summary>
@@ -90,10 +119,17 @@ public sealed class FrontEnd
     /// <summary>Back a screen (from the title: nothing).</summary>
     public void Back()
     {
+        if (Capturing is not null)
+        {
+            Capturing = null;
+            Message = null;
+            return;
+        }
         Show(Screen switch
         {
             Screen.Upgrades => Screen.Fortress,
             Screen.Fortress => Screen.Slots,
+            Screen.Controls => Screen.Settings,
             Screen.Title => Screen.Title,
             _ => Screen.Title,
         });
@@ -135,6 +171,13 @@ public sealed class FrontEnd
         var entries = Entries();
         while (Selected < entries.Count - 1 && !entries[Selected].Item.Enabled)
             Selected++;
+    }
+
+    /// <summary>Back at the title after a quick night or a join, with the edition's word after a night (the demo's).</summary>
+    public void NightOver()
+    {
+        Show(Screen.Title);
+        Message = _edition.AfterNight is { Length: > 0 } after ? after : null;
     }
 
     /// <summary>Opens a slot at the fortress (after a night, with how it went).</summary>
@@ -180,14 +223,12 @@ public sealed class FrontEnd
 
     readonly record struct Entry(MenuItem Item, Func<Launch?>? Select = null, Action<int>? Adjust = null);
 
-    static readonly RouteTier[] Tiers = Enum.GetValues<RouteTier>();
-
     List<Entry> Entries() => Screen switch
     {
         Screen.Title =>
         [
-            new(new("CAMPAIGN", "Three slots. Take contracts, buy cars, go farther out."), () => { Show(Screen.Slots); return null; }),
-            new(new("QUICK NIGHT", "Any tier, any seed. Alone, or hosted for friends."), () => { Show(Screen.QuickNight); return null; }),
+            .. _edition.Campaign ? [new Entry(new("CAMPAIGN", "Three slots. Take contracts, buy cars, go farther out."), () => { Show(Screen.Slots); return null; })] : (Entry[])[],
+            new(new("QUICK NIGHT", _tiers.Length > 1 ? "Any tier, any seed. Alone, or hosted for friends." : "Any seed. Alone, or hosted for friends."), () => { Show(Screen.QuickNight); return null; }),
             new(new("JOIN A NIGHT", "By address. Steam invites join from the friends list."), () => { Show(Screen.Join); return null; }),
             new(new("SETTINGS"), () => { Show(Screen.Settings); return null; }),
             new(new("QUIT"), () => new Launch.Quit()),
@@ -197,11 +238,12 @@ public sealed class FrontEnd
         Screen.Upgrades => UpgradeEntries(),
         Screen.QuickNight =>
         [
-            new(new($"TIER: {Name(Tiers[_tier])}", "Local, frontier, the dead lines, the deep territory: farther is darker."), null, by => _tier = (_tier + by + Tiers.Length) % Tiers.Length),
+            new(new($"TIER: {Name(_tiers[_tier])}", _tiers.Length > 1 ? "Local, frontier, the dead lines, the deep territory: farther is darker." : "The full game goes farther out.", _tiers.Length > 1),
+                null, by => _tier = (_tier + by + _tiers.Length) % _tiers.Length),
             new(new($"SEED: {_seed}", "The same seed is the same line for everyone."), null, by => _seed = by > 0 ? _seed + 1 : Math.Max(1UL, _seed - 1)),
-            new(new($"CARS: {_cars}"), null, by => _cars = Math.Clamp(_cars + by, 3, _campaign.MaxCars)),
-            new(new("PLAY ALONE"), () => new Launch.Night(RouteSpec(Tiers[_tier], _seed), _cars, Host: false)),
-            new(new("HOST FOR FRIENDS", "They join by your address, or from your Steam lobby."), () => new Launch.Night(RouteSpec(Tiers[_tier], _seed), _cars, Host: true)),
+            new(new($"CARS: {_cars}"), null, by => _cars = Math.Clamp(_cars + by, 3, MaxCars)),
+            new(new("PLAY ALONE"), () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: false)),
+            new(new("HOST FOR FRIENDS", "They join by your address, or from your Steam lobby."), () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: true)),
             new(new("BACK"), Go(Screen.Title)),
         ],
         Screen.Join =>
@@ -213,16 +255,27 @@ public sealed class FrontEnd
         Screen.Settings =>
         [
             new(new($"SOUND: {(Settings.Mute ? "OFF" : "ON")}"), Toggle(s => s with { Mute = !s.Mute }), _ => Change(Settings with { Mute = !Settings.Mute })),
-            new(new($"VOICE: {(Settings.PushToTalk ? "PUSH TO TALK (HOLD V)" : "OPEN MIC")}"), Toggle(s => s with { PushToTalk = !s.PushToTalk }), _ => Change(Settings with { PushToTalk = !Settings.PushToTalk })),
+            new(new($"VOICE: {(Settings.PushToTalk ? $"PUSH TO TALK (HOLD {Controls.KeyLabel(Settings.KeyFor(Control.Talk))})" : "OPEN MIC")}"), Toggle(s => s with { PushToTalk = !s.PushToTalk }), _ => Change(Settings with { PushToTalk = !Settings.PushToTalk })),
             new(new($"HUD: {(Settings.Hud ? "ON" : "OFF")}", "F1 in the game as well."), Toggle(s => s with { Hud = !s.Hud }), _ => Change(Settings with { Hud = !Settings.Hud })),
             new(new($"VR TURNING: {(Settings.VrTurn == VrTurn.Snap ? "SNAP" : "SMOOTH")}"), Toggle(s => s with { VrTurn = s.VrTurn == VrTurn.Snap ? VrTurn.Smooth : VrTurn.Snap }),
                 _ => Change(Settings with { VrTurn = Settings.VrTurn == VrTurn.Snap ? VrTurn.Smooth : VrTurn.Snap })),
             new(new($"VR COMFORT VIGNETTE: {(Settings.VrVignette ? "ON" : "OFF")}"), Toggle(s => s with { VrVignette = !s.VrVignette }), _ => Change(Settings with { VrVignette = !Settings.VrVignette })),
             new(new($"MOUSE SPEED: {Settings.MouseSpeed:0.0}", "Left and right to change."), null, by => Change(Settings with { MouseSpeed = Math.Clamp(Math.Round(Settings.MouseSpeed + by * 0.1, 1), 0.2, 3) })),
+            new(new("CONTROLS", "Rebind the keys."), Go(Screen.Controls)),
             new(new("BACK"), Go(Screen.Title)),
+        ],
+        Screen.Controls =>
+        [
+            .. Enum.GetValues<Control>().Select(c => new Entry(
+                new($"{Controls.Label(c)}: {(Capturing == c ? "PRESS A KEY" : Controls.KeyLabel(Settings.KeyFor(c)))}", "Enter, then the key. Esc keeps it."),
+                () => { Capturing = c; Message = null; return null; })),
+            new(new("RESET TO DEFAULTS", null, Settings.Keys.Count > 0), () => { Change(Settings with { Keys = new() }); Message = "Keys reset."; return null; }),
+            new(new("BACK"), Go(Screen.Settings)),
         ],
         _ => [],
     };
+
+    int MaxCars => _edition.MaxCars > 0 ? Math.Min(_edition.MaxCars, _campaign.MaxCars) : _campaign.MaxCars;
 
     Func<Launch?> Go(Screen screen) => () => { Show(screen); return null; };
 
@@ -330,6 +383,8 @@ public sealed class FrontEnd
         o.Clear();
         float x = 20, y = 18;
         o.Text(x, y, "DARK TERRITORY", Amber, scale: 3);
+        if (_edition.Tag is { Length: > 0 } tag)
+            o.Text(x + o.Font.Measure("DARK TERRITORY", 3) + 8, y + 14, tag, Dim);
         y += 30;
         string? heading = Screen switch
         {
@@ -340,6 +395,7 @@ public sealed class FrontEnd
             Screen.QuickNight => "QUICK NIGHT",
             Screen.Join => "JOIN A NIGHT",
             Screen.Settings => "SETTINGS",
+            Screen.Controls => "CONTROLS",
             _ => "A CO-OP NIGHT ON THE LAST RAILWAY",
         };
         o.Text(x, y, heading!, Dim);
@@ -357,12 +413,17 @@ public sealed class FrontEnd
         y += 4;
         var items = Items;
         float widest = items.Select(i => o.Font.Measure(i.Label)).DefaultIfEmpty(0).Max() + 20;
-        o.Rect(x - 6, y - 4, Math.Min(width - x, widest + 8), items.Count * 10 + 6, Panel);
-        for (int i = 0; i < items.Count; i++)
+        // A list longer than the screen (the controls) scrolls to keep the selection in view.
+        int rows = Math.Max(1, (int)((height - y - 44) / 10));
+        int first = Math.Clamp(Selected - rows / 2, 0, Math.Max(0, items.Count - rows));
+        int shown = Math.Min(rows, items.Count - first);
+        o.Rect(x - 6, y - 4, Math.Min(width - x, widest + 8), shown * 10 + 6, Panel);
+        for (int i = first; i < first + shown; i++)
         {
             bool on = i == Selected;
             var colour = !items[i].Enabled ? Faint : on ? Amber : Ink;
-            o.Text(x, y, (on ? "> " : "  ") + items[i].Label, colour);
+            string more = i == first && first > 0 || i == first + shown - 1 && first + shown < items.Count ? "  ..." : "";
+            o.Text(x, y, (on ? "> " : "  ") + items[i].Label + more, colour);
             y += 10;
         }
         y += 6;
@@ -373,7 +434,8 @@ public sealed class FrontEnd
         }
         if (Message is { } m)
             o.Text(x, y, m.ToUpperInvariant(), Amber);
-        o.TextRight(width - 8, height - 12, WantsText ? "TYPE   ENTER JOIN   ESC BACK"
+        o.TextRight(width - 8, height - 12, Capturing is not null ? "PRESS THE KEY   ESC KEEP IT"
+            : WantsText ? "TYPE   ENTER JOIN   ESC BACK"
             : Headset ? "STICK UP/DOWN CHOOSE   TRIGGER   STICK LEFT/RIGHT CHANGE   B BACK"
             : "UP/DOWN CHOOSE   ENTER   LEFT/RIGHT CHANGE   ESC BACK", Faint);
     }

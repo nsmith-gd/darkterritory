@@ -18,7 +18,7 @@ public class FacilityTests
 
     /// <summary>A route with a facility that has the module, and that facility.</summary>
     /// <param name="power">The yard's power (level-design D.2): live unless a test is about it.</param>
-    static (Route.Route Route, RouteFeature Facility) With(ModuleKind module, Stops.PowerState power = Stops.PowerState.Live)
+    internal static (Route.Route Route, RouteFeature Facility) With(ModuleKind module, Stops.PowerState power = Stops.PowerState.Live)
     {
         foreach (var tier in new[] { RouteTier.Frontier, RouteTier.DeadLines, RouteTier.DeepTerritory, RouteTier.Local })
             for (ulong seed = 1; seed < 200; seed++)

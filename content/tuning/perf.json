@@ -1,0 +1,19 @@
+// Frame-rate targets (the director, 30 Sep: "the game must run 72fps in VR minimum and 90fps on PC"), and the budgets
+// that keep them. Not in the GDD or the spec. `dt perf` measures a frame against them; PerfBudgetTests holds the counts.
+{
+  // A flat screen: 720p internal (ARCHITECTURE §8 note 57), at 90 fps: 11.1 ms a frame.
+  "pc": { "fps": 90, "width": 1280, "height": 720 },
+  // A headset: two eyes at half the runtime's recommended size (VrView's render scale; a Quest 3's 2064x2208 halved),
+  // at 72 fps: 13.9 ms for both eyes. The desktop window mirrors the left eye (a blit, not a third view drawn).
+  "vr": { "fps": 72, "width": 1032, "height": 1104, "eyes": 2, "mirror": true },
+
+  // Of a frame, what the main thread's drawing may take (the scene built, uploaded, recorded). The rest is the sim's
+  // ticks, the mix, the net, and room for a busy moment.
+  "cpuShare": 0.6,
+
+  // Over every pass of a frame (both shadow maps and the scene, each eye, the mirror), at most. A GTX 1070-class card
+  // (the usual PCVR floor) draws several million a frame at 90 Hz; this keeps well inside that.
+  "maxFrameTriangles": 1500000,
+  // In any one pass. Each is a push constant and a vertex buffer bind; a few thousand is nothing to a desktop driver.
+  "maxPassDraws": 1500
+}

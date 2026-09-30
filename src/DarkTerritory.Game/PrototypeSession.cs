@@ -39,9 +39,10 @@ public sealed class PrototypeSession : IPlaySession
         var routeTuning = RouteTuning.Load(contentRoot);
         World.EnableSwitches(routeTuning.Junctions);
         World.EnableRun(DataFile.Load<RunTuning>(Path.Combine(contentRoot, RunTuning.File)), route,
-            routeTuning.YardLength, authority: true,
+            route.GateOr(routeTuning.YardLength), authority: true,
             DataFile.Load<FacilityTuning>(Path.Combine(contentRoot, FacilityTuning.File)),
             DataFile.Load<Sim.Stops.LootTuning>(Path.Combine(contentRoot, Sim.Stops.LootTuning.File)));
+        World.EnableLineside(DataFile.Load<SightTuning>(Path.Combine(contentRoot, SightTuning.File)), route);
     }
 
     PrototypeSession(string contentRoot, RailLine line, Route? route, int cars, double start)
@@ -80,6 +81,8 @@ public sealed class PrototypeSession : IPlaySession
     public TrainTuning TrainTuning => _trainTuning.Value;
     public PlayerTuning PlayerTuning => _playerTuning.Value;
 
+    double? _greaseCued;
+
     public void Step(in PlayerIntent intent)
     {
         ReloadTuning();
@@ -93,6 +96,16 @@ public sealed class PrototypeSession : IPlaySession
         foreach (var e in World.EnemyEvents)
             if (Cue(e) is { } cue)
                 _cues.Add((ElapsedSeconds, cue));
+        foreach (var sign in World.Lineside?.ReadThisTick ?? [])
+            _cues.Add((ElapsedSeconds, Board(sign)));
+        foreach (var drop in World.Lineside?.CaughtThisTick ?? [])
+            _cues.Add((ElapsedSeconds, Caught(drop)));
+        // Grease's telegraph (App. A.2): "lamp reflection off the slicked rail; a sharp chemical smell in the cab".
+        if (World.Lineside?.GreaseAhead(Train, World.LampShining) is { } grease && grease != _greaseCued)
+        {
+            _greaseCued = grease;
+            _cues.Add((ElapsedSeconds, "a sharp chemical smell in the cab, and the rail ahead shines: grease. sand it from the running boards"));
+        }
         _cues.RemoveAll(c => ElapsedSeconds - c.At > CueSeconds);
         PlayerMotor.Step(ref Player, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
         World.StepBodies([(1, Player)]);
@@ -175,6 +188,24 @@ public sealed class PrototypeSession : IPlaySession
     /// Stand-ins for the audio telegraphs until the mixer exists (spec §2: the tell is a sound). Each is
     /// what you'd hear or see at that transition, worded so it's clear what the answer is.
     /// </summary>
+    /// <summary>A board the lamp has found, as the driver would call it back down the train.</summary>
+    public static string Board(Sign sign) => sign.Kind switch
+    {
+        SignKind.SpeedLimit => $"board: {sign.LimitKmh} km/h ahead",
+        SignKind.Drop => $"board: a mail crane ahead on the {(sign.Drop!.Side > 0 ? "right" : "left")}: open that side door and hook it (left mouse)",
+        SignKind.Terminus => "board: the terminus ahead",
+        _ => "board: low clearance ahead, off the roofs",
+    };
+
+    /// <summary>A bag off a crane, as whoever hooked it would call it.</summary>
+    public static string Caught(Drop drop) => drop.Kind switch
+    {
+        DropKind.Mail => $"hooked the mail: {drop.Amount:0} scrip at the terminus",
+        DropKind.Coal => "hooked a sack of coal for the tender",
+        DropKind.Ammo => "hooked a case of rounds for the guns",
+        _ => "hooked a bag of spares: the worst car's patched up",
+    };
+
     static string? Cue(in EnemyEvent e) => (e.Kind, e.To) switch
     {
         (EnemyKind.Sleepers, SpinePhase.Telegraph) => "the lamp catches ties that move, ahead",
@@ -206,6 +237,20 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Stoker, SpinePhase.Telegraph) => "the pressure's climbing on its own and the fire's the wrong colour: vent it, or drive it out",
         (EnemyKind.Stoker, SpinePhase.Punish) => "the boiler's at its limit",
         (EnemyKind.Stoker, SpinePhase.BreakOff) => "driven out of the firebox",
+        // The Gaunt's telegraph is only that it's closer than it was: no cue for it here either (spec A.4: silent by design).
+        (EnemyKind.Drift, SpinePhase.Telegraph) => "a rustle, and the dark creeping toward someone: stand still",
+        (EnemyKind.Drift, SpinePhase.Punish) => "it's on them. stop moving",
+        (EnemyKind.Drift, SpinePhase.BreakOff) => "it's lost them",
+        // A Follower's telegraph is for everyone but the one it's on: they never get its record, so never this line either.
+        (EnemyKind.Follower, SpinePhase.Telegraph) => "something's walking right behind one of the crew, in their step. tell them. stand still",
+        (EnemyKind.Follower, SpinePhase.Commit) => "it got aboard with them",
+        (EnemyKind.Follower, SpinePhase.Punish) => "something's in the dark in one of the cargo cars. take a lamp in",
+        (EnemyKind.Follower, SpinePhase.BreakOff) => "it lets go and runs from the light",
+        // The Passenger's telegraph is silence (App. A.7): it says nothing, and neither does this, until it's done.
+        (EnemyKind.Passenger, SpinePhase.Punish) => "someone alone in a car is gone. who's the one who came back?",
+        (EnemyKind.Passenger, SpinePhase.BreakOff) => "called out, it drops the face and runs",
+        (EnemyKind.Gaunt, SpinePhase.Punish) => "someone on the roofs is gone",
+        (EnemyKind.Gaunt, SpinePhase.BreakOff) => "the thing on the roofs is gone",
         (EnemyKind.Weight, SpinePhase.Telegraph) => "the train lurches and a deep scraping starts at the rear: cut the rear car or beat it off from the platform",
         (EnemyKind.Weight, SpinePhase.Punish) => "the rear car's dragged off the rails",
         (EnemyKind.Weight, SpinePhase.BreakOff) => "the scraping at the rear stops",
@@ -221,6 +266,15 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Ferryman, SpinePhase.Commit) => "the lantern's coming down the line at you",
         (EnemyKind.Ferryman, SpinePhase.Punish) => "something's in the cab",
         (EnemyKind.Ferryman, SpinePhase.BreakOff) => "the lantern steps aside",
+        (EnemyKind.CarFire, SpinePhase.Telegraph) => "smoke and a crackle from a car: get in there and beat it out (Use)",
+        (EnemyKind.CarFire, SpinePhase.Punish) => "a car's alight: it'll take the next one",
+        (EnemyKind.CarFire, SpinePhase.BreakOff) => "the fire's out",
+        (EnemyKind.LooseLoad, SpinePhase.Telegraph) => "straps groaning in a car: a load's come loose, lash it (Use), and go easy on the brake",
+        (EnemyKind.LooseLoad, SpinePhase.Punish) => "a load's come down across the aisle",
+        (EnemyKind.LooseLoad, SpinePhase.BreakOff) => "the load's lashed",
+        (EnemyKind.Gnawers, SpinePhase.Telegraph) => "chittering in a car's load: something's nesting in it",
+        (EnemyKind.Gnawers, SpinePhase.Punish) => "they're out of the crates: stamp them out (Use)",
+        (EnemyKind.Gnawers, SpinePhase.BreakOff) => "the last of them stamped out",
         (EnemyKind.Lamplighter, SpinePhase.Telegraph) => "eyes out in the dark, catching the lamp: lamps down (L)",
         (EnemyKind.Lamplighter, SpinePhase.Punish) => "the lamp's smashed",
         (EnemyKind.Lamplighter, SpinePhase.BreakOff) => "the eyes go back out into the dark",
@@ -327,7 +381,11 @@ public sealed class PrototypeSession : IPlaySession
                     stop = $" | {zone.Facility.ToString()!.ToUpperInvariant()} IS DOWN THE SPUR: ENGINE + {fit} CARS FIT" +
                         (train.Dynamics.Consist.CarCount > fit ? ", CUT THE REST" : "");
                 }
-        string next = route.NextLandmark(s) is { } l
+        // On a generated line, the next place by its name, as the route card has it (linegen plan §13.3).
+        string next = route.Plan?.Landmarks.Where(p => p.Edge == "main" && p.S0 > s).MinBy(p => p.S0) is { } place
+            ? $"{place.Name} in {(place.S0 - s) / 1000:0.0} km"
+            : route.Plan is { } plan ? $"{plan.Terminus.Name} in {Math.Max(0, plan.Terminus.GateM - s) / 1000:0.0} km"
+            : route.NextLandmark(s) is { } l
             ? $"{(l.Kind == FeatureKind.Facility ? $"{l.Facility}" : $"{l.Kind}").ToLowerInvariant()} in {(l.Start - s) / 1000:0.0} km"
             : "terminus ahead";
         string tunnel = route.InTunnel(s) ? " | IN TUNNEL" : "";

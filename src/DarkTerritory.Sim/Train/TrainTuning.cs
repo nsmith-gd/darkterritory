@@ -28,7 +28,11 @@ public sealed record KitTuning
 public sealed record GeometryTuning(
     double CarLength, double CouplingGap, double EngineLength, double RoofWidth, double RoofSafeCentreline,
     double CarHeight, double EngineHeight, double CouplerHeight, double CouplerWidth, double LadderInset,
-    EngineLayout Engine, InteriorLayout? Interior = null);
+    EngineLayout Engine, InteriorLayout? Interior = null)
+{
+    /// <summary>How far the guard van's rear platform stands out behind it (GDD §24 THE WEIGHT's "rear platform").</summary>
+    public double PlatformDepth { get; init; } = 1.2;
+}
 
 /// <summary>Walk-in cars (GDD §10, §26): a floor, walls, a roof you can still walk on, and a door at each end.</summary>
 public sealed record InteriorLayout(double FloorHeight, double WallThickness, double RoofThickness, double DoorWidth, double DoorHeight, double DoorX,
@@ -42,7 +46,13 @@ public sealed record InteriorLayout(double FloorHeight, double WallThickness, do
 }
 
 /// <summary>Greybox layout of the 20 m engine + tender unit, front to back: boiler, cab, tender.</summary>
-public sealed record EngineLayout(double DeckHeight, double BoilerHalfWidth, double BoilerTop, double CabLength, double TenderLength, double TenderTop, double DoorWidth);
+public sealed record EngineLayout(double DeckHeight, double BoilerHalfWidth, double BoilerTop, double CabLength, double TenderLength, double TenderTop, double DoorWidth)
+{
+    /// <summary>The running boards: how far out past the cab side they stand (App. A.2 GREASE: "sanding from the running boards").</summary>
+    public double RunningBoardWidth { get; init; } = 0.6;
+    /// <summary>The sandboxes on the running boards: this far ahead of the cab front.</summary>
+    public double SandboxAhead { get; init; } = 2.5;
+}
 public sealed record MassTuning(double EngineTonnes, double EmptyCarTonnes, double LoadedCarTonnes);
 public sealed record PerformanceRow(int Cars, double Accel, double Brake);
 public sealed record BrakeFadeTuning(double FadePerSecond, double RecoverPerSecond, double MinEfficiency, bool OnlyOnDescent);

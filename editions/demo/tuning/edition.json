@@ -1,0 +1,10 @@
+// The demo (T79): a quick night on the Frontier, alone or with friends, and no campaign.
+{
+  "name": "demo",
+  "demo": true,
+  "tiers": ["frontier"],
+  "campaign": false,
+  "maxCars": 8,
+  "tag": "DEMO",
+  "afterNight": "The full line runs farther out. Wishlist Dark Territory on Steam."
+}

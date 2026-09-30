@@ -7,8 +7,11 @@ layout(set = 0, binding = 0) uniform sampler2D scene;
 layout(set = 0, binding = 1) uniform sampler2D bloom;
 layout(set = 0, binding = 2) uniform sampler3D grade;
 layout(set = 0, binding = 3) uniform sampler2D bloomWide;
+// The half-resolution ambient occlusion (ssao.frag), blurred here.
+layout(set = 0, binding = 4) uniform sampler2D occlusion;
 // a: x = bloom strength, y = vignette, z = grain, w = colour levels (PS2 mode).
-// b: x = frame seed, y = aspect, z = PS2 look, w = exposure. c: x = wide bloom share, y = lens fringe.
+// b: x = frame seed, y = aspect, z = PS2 look, w = exposure. c: x = wide bloom share, y = lens fringe, z = occlusion
+// strength, w = the occlusion target's texel (u; v by aspect).
 layout(push_constant) uniform Post { vec4 a; vec4 b; vec4 c; } post;
 layout(location = 0) in vec2 vUv;
 layout(location = 0) out vec4 outColor;
@@ -48,6 +51,13 @@ void main() {
         // Lens fringing: red and blue a hair apart toward the corners, as the era's cameras-in-games had it.
         vec2 shift = (vUv - 0.5) * post.c.y * edge;
         c = vec3(texture(scene, vUv + shift).r, texture(scene, vUv).g, texture(scene, vUv - shift).b);
+        // The occlusion, blurred over a few of its texels (four bilinear taps: a 4x4 box), darkening the scene, but not a
+        // light's core: a lamp burning in a corner is still a lamp.
+        vec2 ot = vec2(post.c.w, post.c.w * post.b.y);
+        float ao = 0.25 * (texture(occlusion, vUv + ot * vec2(-0.75, -0.75)).r + texture(occlusion, vUv + ot * vec2(0.75, -0.75)).r
+                         + texture(occlusion, vUv + ot * vec2(-0.75, 0.75)).r + texture(occlusion, vUv + ot * vec2(0.75, 0.75)).r);
+        float lit = clamp(dot(c, vec3(0.299, 0.587, 0.114)) - 0.8, 0.0, 1.0);
+        c *= mix(1.0, ao, post.c.z * (1.0 - lit));
         c += (texture(bloom, vUv).rgb * (1.0 - post.c.x) + texture(bloomWide, vUv).rgb * post.c.x) * post.a.x;
         c = toSrgb(filmic(max(c, 0.0) * post.b.w));
     }

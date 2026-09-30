@@ -170,7 +170,8 @@ public class EnemyTests
         n.Run(120);
         Assert.All(pack, h => Assert.True(h.Gone));
         Assert.Contains(n.Events, e => e.To == SpinePhase.BreakOff && e.Kind == EnemyKind.CinderHound);
-        Assert.DoesNotContain(n.Events, e => e.To == SpinePhase.Punish);
+        // (The director's own spawns, in 20 s of grace now, may punish; the pack never does.)
+        Assert.DoesNotContain(n.Events, e => e.To == SpinePhase.Punish && e.Kind == EnemyKind.CinderHound);
     }
 
     /// <summary>A gunner at the guard gun who aims at the nearest running hound, and fires only when told to.</summary>
@@ -231,7 +232,8 @@ public class EnemyTests
             ? new PlayerIntent { Buttons = PlayerButtons.Fire } : default);
         Assert.All(pack, h => Assert.True(h.Gone && h.Health == E.CinderHounds.Health, $"hound {h.Id} {h.Phase} hp {h.Health}"));
         Assert.Equal(pack.Count, n.Events.Count(e => e.Kind == EnemyKind.CinderHound && e.To == SpinePhase.BreakOff));
-        Assert.DoesNotContain(n.Events, e => e.To == SpinePhase.Punish);
+        // The pack never lands (the director's paced sends, a Climber say, are their own business).
+        Assert.DoesNotContain(n.Events, e => e.Kind == EnemyKind.CinderHound && e.To == SpinePhase.Punish);
         n.AssertFair();
     }
 
@@ -319,13 +321,17 @@ public class EnemyTests
             Assert.NotEmpty(d.Log);
             // The condition-triggered ones (App. B.5) come whenever their condition holds, grace or no: here, nobody's
             // minding the fire or the cab.
-            var spawns = d.Log.Where(l => l.Kind is not (EnemyKind.Hollow or EnemyKind.Deadman)).ToList();
+            // Paced spawns (quiet too long) come when they must, cooldown or not.
+            var spawns = d.Log.Where(l => l.Kind is not (EnemyKind.Hollow or EnemyKind.Deadman) && !l.Paced).ToList();
             Assert.All(spawns, l => Assert.True(l.Tick * SimConstants.TickSeconds >= E.Director.GraceSeconds, $"spawn at {l.Tick / 30} s"));
             for (int i = 1; i < spawns.Count; i++)
                 Assert.True((spawns[i].Tick - spawns[i - 1].Tick) * SimConstants.TickSeconds >= E.Director.CooldownSeconds[0] - 1);
-            Assert.All(d.Log, l => Assert.True(l.ActiveInZone <= E.Director.MaxConcurrentZone && l.ActiveTotal <= E.Director.MaxConcurrentSmallCrew));
+            // The caps are on what's engaged; the condition-triggered ones aren't capped (App. B.5).
+            Assert.All(d.Log.Where(l => l.Kind is not (EnemyKind.Hollow or EnemyKind.Deadman)),
+                l => Assert.True(l.ActiveInZone <= E.Director.MaxConcurrentZone && l.ActiveTotal <= E.Director.MaxConcurrentSmallCrew, $"{l}"));
             Assert.All(d.Log, l => Assert.True(l.TrainDistance <= route.Length - 500));
-            Assert.True(d.Spent <= d.Budget + 1e-9);
+            // The budget holds for what's spent on its curve; a paced spawn may overdraw it (a quiet night's worse).
+            Assert.True(d.Log.Where(l => !l.Paced).Sum(l => l.Cost) <= d.Budget + 1e-9);
             n.AssertFair();
         }
     }

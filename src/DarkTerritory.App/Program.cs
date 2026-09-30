@@ -13,6 +13,7 @@ using DarkTerritory.Game;
 using DarkTerritory.Game.Sound;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Campaign;
+using DarkTerritory.Sim.LineGen;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Train;
@@ -25,7 +26,7 @@ using DarkTerritory.Sim.Train;
 //   R/F throttle notch up/down · B brake (hold) · X reverser (stopped only)
 //   E at the firebox: shovel (hold) · E at the valve: vent (hold) · E on a coupler plate: cut (hold) · E at a switch stand: throw it (hold)
 //   Left mouse at a gun (engine cab roof, guard car roof): fire · E (press) near a crate, lamp or body: pick up / put down · Right mouse: throw it
-//   1–9 respawn on that car's roof · Backspace respawn in the cab · Tab chase camera
+//   1–9 respawn on that car's roof · Backspace respawn in the cab · Tab chase camera · Q (hold) the crew roster
 //   Esc frees the mouse; Esc again leaves the night (to the menu, or quits one started from the command line). When the
 //   night's over, Enter goes back.
 // F1 toggles the HUD (--no-hud to start without it).
@@ -55,6 +56,8 @@ string Arg(string name, string fallback)
 }
 
 // Mods (T49) laid over the base content, unless --no-mods plays the base game.
+// A mod manager's profile (Thunderstore, T78) comes in as --mods-dir.
+args = Mods.TakeArgs(args);
 var content = Mods.Mount(DataFile.FindContentRoot(Environment.CurrentDirectory), enabled: !args.Contains("--no-mods"));
 // The art pass's surfaces (T39); --greybox draws flat colour instead.
 var look = args.Contains("--greybox") ? null : Look.Load(content);
@@ -74,7 +77,7 @@ static SteamBackend? NoSteam(string? error)
 var campaignTuning = DataFile.Load<CampaignTuning>(Path.Combine(content, CampaignTuning.File));
 var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
 var saves = new SaveSlots(Arg("--saves", SaveSlots.DefaultDirectory), campaignTuning.SaveSlots);
-var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", Settings.DefaultPath));
+var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", Settings.DefaultPath), edition: EditionTuning.Load(content));
 
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
 Launch? LaunchFromArgs()
@@ -85,9 +88,16 @@ Launch? LaunchFromArgs()
         return new Launch.JoinLobby(lobby);
     if (args.Contains("--join"))
         return new Launch.Join(Arg("--join", "127.0.0.1"));
-    if (Arg("--campaign", "") is { Length: > 0 } slot)
+    var edition = EditionTuning.Load(content);
+    if (Arg("--campaign", "") is { Length: > 0 } slot && edition.Campaign)
         return new Launch.CampaignNight(int.Parse(slot), int.Parse(Arg("--contract", "0")), args.Contains("--resume"), port is not null);
     string? route = Arg("--route", "") is { Length: > 0 } r ? r : null;
+    // The demo's nights are on its own tiers (T79), whatever's asked for.
+    if (route is not null && edition.Tiers.Length > 0 && !edition.HasTier(DarkTerritory.Sim.Route.Route.ParseSpec(route).Tier))
+    {
+        Console.WriteLine($"edition {edition.Name}: no {route.Split(':')[0]} nights in it; {edition.Tiers[0]} instead");
+        route = edition.Tiers[0] + (route.Contains(':') ? route[route.IndexOf(':')..] : "");
+    }
     string? routeFile = Arg("--route-file", "") is { Length: > 0 } f ? f : null;
     bool host = port is not null || args.Contains("--steam") && steam is not null;
     if (host || route is not null || routeFile is not null || args.Contains("--line"))
@@ -97,7 +107,10 @@ Launch? LaunchFromArgs()
 var launch = LaunchFromArgs();
 bool fromCommandLine = launch is not null;
 
-var internalSize = Arg("--internal", "480x270").Split('x').Select(int.Parse).ToArray();
+// The frame renders at the window's 720p (the 2008-2012 target, ARCHITECTURE §8 note 57); the HUD and menus keep their
+// 480x270 canvas (their pixel font's), scaled up over it.
+var internalSize = Arg("--internal", "1280x720").Split('x').Select(int.Parse).ToArray();
+const int UiWidth = 480, UiHeight = 270;
 double quitAfter = double.Parse(Arg("--quit-after", "0"));
 string? capture = Arg("--capture", "") is { Length: > 0 } c ? c : null;
 
@@ -120,7 +133,7 @@ VrView? StartVr()
 }
 using var ownGpu = vr is null ? new GpuContext("Dark Territory", Window.VulkanInstanceExtensions(), window.CreateSurface) : null;
 var gpu = vr?.Gpu ?? ownGpu!;
-using var renderer = new GreyboxRenderer(gpu, internalSize[0], internalSize[1]);
+using var renderer = new GreyboxRenderer(gpu, internalSize[0], internalSize[1]) { OverlaySize = new Vector2(UiWidth, UiHeight) };
 if (look is not null)
 {
     look.Dress(renderer);
@@ -182,6 +195,22 @@ void Present(in Camera camera, in FrameLighting lighting)
     }
 }
 
+// In a headset the window shows the left eye (its middle), not the flat view drawn again (tuning/perf.json).
+void Mirror()
+{
+    if (window.Resized)
+    {
+        (w, h) = window.PixelSize;
+        swapchain.Recreate(w, h);
+        window.Resized = false;
+    }
+    if (!vr!.Mirror(swapchain))
+    {
+        (w, h) = window.PixelSize;
+        swapchain.Recreate(w, h);
+    }
+}
+
 // An invite accepted (or "Join Game" on a friend) while in the game or the menus.
 LobbyId? Invited(NetPlaySession? net)
 {
@@ -222,14 +251,27 @@ Launch? Menu()
         if (Invited(null) is { } lobby)
             return new Launch.JoinLobby(lobby);
         Launch? chosen = null;
-        if (input.Pressed(Key.Up) || input.Pressed(Key.W) && !frontEnd.WantsText) frontEnd.Up();
-        if (input.Pressed(Key.Down) || input.Pressed(Key.S) && !frontEnd.WantsText) frontEnd.Down();
-        if (input.Pressed(Key.Left) || input.Pressed(Key.A) && !frontEnd.WantsText) frontEnd.Left();
-        if (input.Pressed(Key.Right) || input.Pressed(Key.D) && !frontEnd.WantsText) frontEnd.Right();
-        if (input.Pressed(Key.Enter) || input.Pressed(Key.Space) && !frontEnd.WantsText) chosen = frontEnd.Select();
-        if (input.Pressed(Key.Escape)) frontEnd.Back();
-        if (input.Pressed(Key.Backspace)) frontEnd.Erase();
-        if (input.Text.Length > 0) frontEnd.Type(input.Text);
+        // Binding a control (T80): the next key or button pressed is the one, Escape keeps the old. The mouse is held
+        // meanwhile, so a click is a button pressed and not the window taking the mouse.
+        if (frontEnd.Capturing is not null)
+        {
+            window.MouseCaptured = true;
+            if (input.Pressed(Key.Escape)) frontEnd.Back();
+            else if (input.AnyPressed is { } bound) frontEnd.Bind(bound.ToString());
+            if (frontEnd.Capturing is null)
+                window.MouseCaptured = false;
+        }
+        else
+        {
+            if (input.Pressed(Key.Up) || input.Pressed(Key.W) && !frontEnd.WantsText) frontEnd.Up();
+            if (input.Pressed(Key.Down) || input.Pressed(Key.S) && !frontEnd.WantsText) frontEnd.Down();
+            if (input.Pressed(Key.Left) || input.Pressed(Key.A) && !frontEnd.WantsText) frontEnd.Left();
+            if (input.Pressed(Key.Right) || input.Pressed(Key.D) && !frontEnd.WantsText) frontEnd.Right();
+            if (input.Pressed(Key.Enter) || input.Pressed(Key.Space) && !frontEnd.WantsText) chosen = frontEnd.Select();
+            if (input.Pressed(Key.Escape)) frontEnd.Back();
+            if (input.Pressed(Key.Backspace)) frontEnd.Erase();
+            if (input.Text.Length > 0) frontEnd.Type(input.Text);
+        }
         if (vr is not null)
             chosen ??= VrMenuInput.Apply(vrKeys.Read(vr.Session.Controllers), frontEnd);
         if (chosen is not null)
@@ -241,11 +283,16 @@ Launch? Menu()
         }
         var camera = view;
         camera.Yaw += Math.Sin((timer.Elapsed.TotalSeconds - started) * 0.07) * 0.25;
-        frontEnd.Draw(overlay, renderer.Width, renderer.Height);
-        renderer.Prepare(mesh, overlay);
-        Present(camera, light);
-        if (vr is not null && vr.Frame(mesh, view, light, light.FogColor, panel: new VrPanelContent(vrMenu!, overlay, renderer.Width, renderer.Height)) == XrFrameResult.Exiting)
+        frontEnd.Draw(overlay, UiWidth, UiHeight);
+        if (vr is null)
+        {
+            renderer.Prepare(mesh, overlay);
+            Present(camera, light);
+        }
+        else if (vr.Frame(mesh, view, light, light.FogColor, panel: new VrPanelContent(vrMenu!, overlay, UiWidth, UiHeight)) == XrFrameResult.Exiting)
             return new Launch.Quit();
+        else
+            Mirror();
         FeedSpeaker();
         input.EndFrame();
         frameCount++;
@@ -309,9 +356,7 @@ Launch? Menu()
             }
         case Launch.Night { Route: { } spec } alone:
             {
-                var (tier, seed) = Route.ParseSpec(spec);
-                var routeTuning = RouteTuning.Load(content);
-                return (new PrototypeSession(content, RouteGenerator.Generate(routeTuning, tier, seed), alone.Cars, enemies), null);
+                return (new PrototypeSession(content, Routes.Generate(content, spec, alone.Cars), alone.Cars, enemies), null);
             }
         case Launch.Night alone:
             return (new PrototypeSession(content, alone.Line, alone.Cars), null);
@@ -339,7 +384,7 @@ while (!window.CloseRequested && !QuitNow())
         frontEnd.ShowFortress(night.Slot, campaign?.History.LastOrDefault() is { } log && campaign.Current is null
             ? $"{log.End}: {(log.Net >= 0 ? "+" : "")}{log.Net:0} scrip" : null);
     else
-        frontEnd.Show(Screen.Title);
+        frontEnd.NightOver();
 }
 
 Console.WriteLine($"frames {frameCount} ({frameCount / timer.Elapsed.TotalSeconds:0} fps)");
@@ -358,6 +403,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var settings = frontEnd.Settings;
     var proto = session as PrototypeSession;
     var net = session as NetPlaySession;
+    // A generated night has its own far horizon (Art.PlanSky); a hand-laid line keeps the look's.
+    if (look is not null)
+    {
+        look.Sky = DarkTerritory.Game.Art.PlanSky.For(session.Route);
+        look.Dress(renderer);
+        vr?.Dress(look);
+    }
     if (proto is not null)
         proto.Controls.Throttle = double.Parse(Arg("--throttle", "0"));
     var voice = net is null ? null : new VoiceChat(sound.Mixer) { PushToTalk = settings.PushToTalk || args.Contains("--push-to-talk") };
@@ -370,10 +422,18 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var vrHud = locomotion is null ? null : new VrPanel(locomotion.Tuning.Hud);
     var vrOverlay = new Overlay();
     bool showHud = settings.Hud && !args.Contains("--no-hud");
+    // The card's side showing (C turns it over, and puts it away after the last); -1 put away.
+    int cardPage = args.Contains("--card") ? 0 : -1, cardPages = 1;
+    bool showPlan = args.Contains("--overlay");
+    // --ride (linegen plan §20.2): the train drives itself by the line's authority, the camera outside, for looking a
+    // generated line over in minutes.
+    bool ride = args.Contains("--ride");
     var scene = new GreyboxScene
     {
         Look = look,
         Route = session.Route,
+        Signs = session.World.Lineside?.Signs,
+        SignRange = session.World.Lineside?.Tuning.LampSignRange ?? 350,
         Enemies = session.World.ActiveEnemies,
         Run = session.World.Run,
         Holdouts = session.World.Holdouts,
@@ -387,8 +447,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     int pendingNotch = 0;
     bool pendingReverser = false;
     var pendingLamp = LampSwitch.None;
-    bool chase = false;
+    bool chase = ride;
     double sensitivity = 0.0025 * settings.MouseSpeed;
+    // The player's keys (T80): each control's key, from the settings (a name the platform doesn't know: its default).
+    var keyOf = Enum.GetValues<Control>().ToDictionary(c => c, c => Enum.TryParse<Key>(settings.KeyFor(c), out var k) ? k : Enum.Parse<Key>(Controls.Defaults[c]));
+    Hud.Keys = settings;
+    bool Held(Control c) => input.Down(keyOf[c]);
+    bool Hit(Control c) => input.Pressed(keyOf[c]);
     Camera camera = default;
     FrameLighting lighting = default;
     window.MouseCaptured = true;
@@ -410,10 +475,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (session.World.Run?.Over == true && input.Pressed(Key.Enter))
             break;
         // The prototype drives from anywhere; networked, cab controls go through intent like everything else.
-        sbyte notch = (sbyte)((input.Pressed(Key.R) ? 1 : 0) - (input.Pressed(Key.F) ? 1 : 0));
-        bool reverser = input.Pressed(Key.X);
+        sbyte notch = (sbyte)((Hit(Control.RegulatorOpen) ? 1 : 0) - (Hit(Control.RegulatorClose) ? 1 : 0));
+        bool reverser = Hit(Control.Reverser);
         // The lamp switch (T52): a setting, the opposite of how the lamp is now, held until a tick sends it.
-        if (input.Pressed(Key.L))
+        if (Hit(Control.Lamp))
             pendingLamp = session.World.LampLit ? LampSwitch.Off : LampSwitch.On;
         // Held until a tick sends them: at a high frame rate a key press can land on a frame with no tick.
         pendingNotch += notch;
@@ -425,11 +490,16 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (input.Pressed(Key.Backspace)) proto.Respawn(0);
             for (var k = Key.D1; k <= Key.D9; k++)
                 if (input.Pressed(k)) proto.Respawn(k - Key.D1 + 1);
-            proto.Controls.Brake = input.Down(Key.B) ? 1 : 0;
+            proto.Controls.Brake = Held(Control.Brake) ? 1 : 0;
+            if (ride && session.Route?.Plan is { } ridden)
+                DarkTerritory.Game.LineGen.Ride.Drive(proto.Train, ridden, ref proto.Controls);
         }
-        if (input.Pressed(Key.Tab)) chase = !chase;
+        if (Hit(Control.Chase)) chase = !chase;
         if (input.Pressed(Key.F1)) showHud = !showHud;
         if (input.Pressed(Key.F2)) net?.ShowInviteDialog();
+        // A generated line's route card (C: the paper the crew is handed) and the designer's overlay (F3).
+        if (Hit(Control.RouteCard)) cardPage = cardPage + 1 >= cardPages ? -1 : cardPage + 1;
+        if (input.Pressed(Key.F3)) showPlan = !showPlan;
         // An invite accepted (or "Join Game" on a friend) while playing: leave this game for theirs.
         if (Invited(net) is { } invitedTo)
         {
@@ -450,20 +520,20 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         for (int i = 0; i < ticks; i++)
         {
             var buttons = PlayerButtons.None;
-            if (input.Down(Key.LeftShift)) buttons |= PlayerButtons.Run;
-            if (input.Down(Key.Space)) buttons |= PlayerButtons.Jump;
-            if (input.Down(Key.E)) buttons |= PlayerButtons.Use;
-            if (input.Down(Key.MouseLeft)) buttons |= PlayerButtons.Fire;
-            if (input.Down(Key.MouseRight)) buttons |= PlayerButtons.Throw;
+            if (Held(Control.Run)) buttons |= PlayerButtons.Run;
+            if (Held(Control.Jump)) buttons |= PlayerButtons.Jump;
+            if (Held(Control.Use)) buttons |= PlayerButtons.Use;
+            if (Held(Control.Fire)) buttons |= PlayerButtons.Fire;
+            if (Held(Control.Throw)) buttons |= PlayerButtons.Throw;
             if (proto is null)
             {
-                if (input.Down(Key.B)) buttons |= PlayerButtons.Brake;
+                if (Held(Control.Brake)) buttons |= PlayerButtons.Brake;
                 if (pendingReverser) buttons |= PlayerButtons.Reverser;
             }
             var intent = new PlayerIntent
             {
-                MoveX = (input.Down(Key.D) ? 1 : 0) - (input.Down(Key.A) ? 1 : 0),
-                MoveZ = (input.Down(Key.W) ? 1 : 0) - (input.Down(Key.S) ? 1 : 0),
+                MoveX = (Held(Control.Right) ? 1 : 0) - (Held(Control.Left) ? 1 : 0),
+                MoveZ = (Held(Control.Forward) ? 1 : 0) - (Held(Control.Back) ? 1 : 0),
                 LookYaw = (float)pendingYaw,
                 LookPitch = (float)pendingPitch,
                 Buttons = buttons,
@@ -499,9 +569,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         if (voice is not null && net is not null)
         {
-            voice.TalkHeld = input.Down(Key.V);
+            voice.TalkHeld = Held(Control.Talk);
             // Only with a radio on you (T41); the host checks too.
-            voice.RadioHeld = input.Down(Key.T) && session.World.Bodies.HasRadio(session.PlayerId);
+            voice.RadioHeld = Held(Control.Radio) && session.World.Bodies.HasRadio(session.PlayerId);
             for (int n; mic is not null && (n = mic.Read(micSamples)) > 0;)
                 voice.Capture(micSamples.AsSpan(0, n), net.Client);
         }
@@ -524,18 +594,32 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
         scene.Tick = session.Tick;
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
+        scene.LampLit = session.World.LampShining;
         scene.Controls = session.Controls;
         if (!session.World.LampShining)
             lighting.LampRange = 0.01f; // not 0: the shader divides by it
         scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
         if (showHud)
         {
-            Hud.Build(overlay, renderer.Width, renderer.Height, session);
+            Hud.Build(overlay, UiWidth, UiHeight, session);
+            // Q held: the crew roster (T69), with who's been heard.
+            if (Held(Control.Roster))
+                Hud.Roster(overlay, UiWidth, UiHeight, session.Roster(), voice is null ? null : voice.SinceHeard);
+            if (session.Route?.Plan is { } shown)
+            {
+                if (cardPage >= 0)
+                    cardPages = DarkTerritory.Game.LineGen.PlanHud.RouteCard(overlay, UiWidth, UiHeight, shown, cardPage);
+                if (showPlan)
+                    DarkTerritory.Game.LineGen.PlanHud.Overlay(overlay, UiWidth, UiHeight, session, shown);
+            }
             if (session.World.Run?.Over == true)
-                overlay.TextCentred(renderer.Width / 2f, renderer.Height - 22, campaign is not null ? "ENTER: BACK TO THE FORTRESS" : "ENTER: BACK", new Vector4(1, 0.7f, 0.3f, 1));
+                overlay.TextCentred(UiWidth / 2f, UiHeight - 22, campaign is not null ? "ENTER: BACK TO THE FORTRESS" : "ENTER: BACK", new Vector4(1, 0.7f, 0.3f, 1));
         }
-        renderer.Prepare(mesh, showHud ? overlay : null);
-        Present(camera, lighting);
+        if (vr is null)
+        {
+            renderer.Prepare(mesh, showHud ? overlay : null);
+            Present(camera, lighting);
+        }
         // The body is the flat camera's eye point, turned to where the room faces; the head does the looking.
         VrPanelContent? onPanel = null;
         if (vr is not null && showHud)
@@ -547,6 +631,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         if (vr is not null && vr.Frame(mesh, locomotion!.Body(camera, Eyes.Heading(session.Player, frames)), lighting, lighting.FogColor, locomotion, onPanel) == XrFrameResult.Exiting)
             break;
+        if (vr is not null)
+            Mirror();
         // The night's over: A goes back, as Enter does.
         if (vr is not null && session.World.Run?.Over == true && vr.Session.Controllers.Primary)
             break;
@@ -564,7 +650,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     if (capture is not null)
     {
         var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud ? overlay : null);
-        PngWriter.Write(capture, pixels, renderer.Width, renderer.Height, scale: 2);
+        PngWriter.Write(capture, pixels, renderer.Width, renderer.Height, scale: 1);
         Console.WriteLine($"captured {Path.GetFullPath(capture)}");
     }
     Console.WriteLine($"ticks {session.Tick}, {session.Status()}");

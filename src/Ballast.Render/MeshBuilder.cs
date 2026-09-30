@@ -76,17 +76,57 @@ public readonly record struct Room(Vector3 Centre, Vector3 Right, Vector3 Up, Ve
 /// 0..1; y a seed choosing where. The mask lies in the asset's own texel space, so one seed scars the same places
 /// every time: give each car its own, and a car keeps its scars.
 /// </param>
-public readonly record struct MeshInstance(MeshAsset Asset, Matrix4x4 Model, float Glow = 1, Vector3 Tint = default, Vector2 Scar = default);
+/// <param name="Bones">A skinned asset's pose: where its bone palette starts in <see cref="MeshBuilder.Bones"/> (−1: not skinned).</param>
+/// <param name="SurfaceOffset">Added to every vertex's <see cref="Vertex.Surface"/> (texels): moves the grime so two drawn
+/// from one asset don't wear alike.</param>
+public readonly record struct MeshInstance(MeshAsset Asset, Matrix4x4 Model, float Glow = 1, Vector3 Tint = default, Vector2 Scar = default,
+    int Bones = -1, Vector3 SurfaceOffset = default);
+
+/// <summary>A skinned vertex's bones (indices into its model's skeleton, as floats) and their weights.</summary>
+public struct SkinWeights(Vector4 joints, Vector4 weights)
+{
+    public Vector4 Joints = joints;
+    public Vector4 Weights = weights;
+
+    public const int Stride = 32;
+}
 
 /// <summary>
 /// Geometry built once (a car body, a tree, a creature's pose) and drawn many times by transform: the kit's pieces.
 /// Immutable once made; the renderer keeps a GPU copy for as long as the asset is alive.
 /// </summary>
-public sealed class MeshAsset(string name, Vertex[] vertices)
+/// <param name="skin">For a skinned model in its bind pose, each vertex's bones: drawn with a bone palette
+/// (<see cref="MeshBuilder.Skinned"/>), the GPU poses it (skinned.glsl).</param>
+public sealed class MeshAsset(string name, Vertex[] vertices, SkinWeights[]? skin = null)
 {
     public string Name { get; } = name;
     public Vertex[] Vertices { get; } = vertices;
+    public SkinWeights[]? Skin { get; } = skin is null || skin.Length == vertices.Length ? skin
+        : throw new ArgumentException($"{name}: {skin.Length} skin weights for {vertices.Length} vertices");
     public int Triangles => Vertices.Length / 3;
+
+    /// <summary>A sphere round every vertex, in the asset's own space (the renderer culls each pass by it). A skinned
+    /// asset's is its bind pose's, which a pose can reach outside: those aren't culled.</summary>
+    public (Vector3 Centre, float Radius) Bounds => _bounds ??= Sphere(Vertices);
+    (Vector3, float)? _bounds;
+
+    static (Vector3, float) Sphere(Vertex[] vertices)
+    {
+        if (vertices.Length == 0)
+            return (Vector3.Zero, 0);
+        var min = new Vector3(float.MaxValue);
+        var max = new Vector3(float.MinValue);
+        foreach (var v in vertices)
+        {
+            min = Vector3.Min(min, v.Position);
+            max = Vector3.Max(max, v.Position);
+        }
+        var centre = (min + max) / 2;
+        float r2 = 0;
+        foreach (var v in vertices)
+            r2 = MathF.Max(r2, Vector3.DistanceSquared(v.Position, centre));
+        return (centre, MathF.Sqrt(r2));
+    }
 
     public static MeshAsset From(string name, MeshBuilder built) => new(name, built.Vertices.ToArray());
 }
@@ -108,6 +148,54 @@ public sealed class MeshBuilder
 
     /// <summary>Cooked meshes to draw this frame. Cleared with the mesh.</summary>
     public List<MeshInstance> Instances { get; } = new();
+
+    /// <summary>The skinned instances' bone palettes this frame (each its model's skinning matrices, bone space to the
+    /// model's object space), one after another. Cleared with the mesh.</summary>
+    public List<Matrix4x4> Bones { get; } = new();
+
+    /// <summary>
+    /// Every triangle's corners as the frame draws them, camera-relative: the soup, then each instance placed by its model
+    /// matrix, a skinned one posed by its palette first (skin.glsl's linear blend, on the CPU). For tests and tools, which
+    /// ask where things are drawn without a GPU; nothing in the frame uses it.
+    /// </summary>
+    public Vertex[] Flattened()
+    {
+        var all = new List<Vertex>(_vertices);
+        foreach (var instance in Instances)
+        {
+            var asset = instance.Asset;
+            for (int i = 0; i < asset.Vertices.Length; i++)
+            {
+                var m = instance.Model;
+                if (instance.Bones >= 0 && asset.Skin is { } skin)
+                {
+                    var w = skin[i];
+                    int b = instance.Bones;
+                    var blend = Bones[b + (int)w.Joints.X] * w.Weights.X + Bones[b + (int)w.Joints.Y] * w.Weights.Y
+                        + Bones[b + (int)w.Joints.Z] * w.Weights.Z + Bones[b + (int)w.Joints.W] * w.Weights.W;
+                    m = blend * m;
+                }
+                var v = asset.Vertices[i];
+                var n = Vector3.TransformNormal(v.Normal, m);
+                v.Position = Vector3.Transform(v.Position, m);
+                v.Normal = n.LengthSquared() > 1e-24f ? Vector3.Normalize(n) : Vector3.UnitY;
+                v.Surface += instance.SurfaceOffset;
+                all.Add(v);
+            }
+        }
+        return [.. all];
+    }
+
+    /// <summary>A skinned asset posed by <paramref name="skin"/> (a matrix per bone, bind space to object space), placed by
+    /// <paramref name="model"/> (object to camera-relative).</summary>
+    public void Skinned(MeshAsset asset, in Matrix4x4 model, ReadOnlySpan<Matrix4x4> skin, float glow = 1, Vector3 surfaceOffset = default)
+    {
+        if (asset.Skin is null)
+            throw new ArgumentException($"{asset.Name} isn't skinned");
+        Instances.Add(new MeshInstance(asset, model, glow, Bones: Bones.Count, SurfaceOffset: surfaceOffset));
+        foreach (var m in skin)
+            Bones.Add(m);
+    }
 
     /// <summary>The effects this frame, in triangles: smoke and dust (alpha), fire, sparks and glows (additive).</summary>
     public List<FxVertex> AlphaFx { get; } = new();
@@ -176,6 +264,7 @@ public sealed class MeshBuilder
         _vertices.Clear();
         PointLights.Clear();
         Instances.Clear();
+        Bones.Clear();
         Rooms.Clear();
         AlphaFx.Clear();
         AdditiveFx.Clear();

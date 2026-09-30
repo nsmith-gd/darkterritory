@@ -36,6 +36,9 @@ public sealed unsafe class GpuContext : IDisposable
 
     public string DeviceName { get; }
 
+    /// <summary>Nanoseconds per GPU timestamp tick, or 0 when the graphics queue can't time its work.</summary>
+    public double TimestampPeriod { get; private set; }
+
     readonly VkPhysicalDeviceMemoryProperties _memory;
 
     /// <summary>Surface to present to, when created with a window; null when headless.</summary>
@@ -124,6 +127,14 @@ public sealed unsafe class GpuContext : IDisposable
             Device = device;
         }
         Api = GetApi(Instance, Device);
+
+        // GPU timing (the renderer's per-pass times, `dt perf`): where the queue keeps timestamps at all.
+        uint familyCount = 0;
+        InstanceApi.vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &familyCount, null);
+        var families = new VkQueueFamilyProperties[familyCount];
+        fixed (VkQueueFamilyProperties* f = families)
+            InstanceApi.vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &familyCount, f);
+        TimestampPeriod = families[QueueFamily].timestampValidBits > 0 ? props.limits.timestampPeriod : 0;
 
         VkQueue queue;
         Api.vkGetDeviceQueue(QueueFamily, 0, &queue);

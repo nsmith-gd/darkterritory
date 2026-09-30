@@ -45,6 +45,23 @@ public static class Staging
         ];
     }
 
+    /// <summary>
+    /// A roster for the screenshot (T69): you in the cab, three crewmates, and a Passenger wearing crewmate 2's face. Crew 1
+    /// is speaking, crew 2 was heard a while ago, crew 3 hasn't said anything yet; the Passenger never has.
+    /// </summary>
+    public static (IReadOnlyList<RosterLine> Lines, Func<byte, double?> Heard) Roster(TrainOnLine train, string content)
+    {
+        var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
+        var world = new Sim.World(train, null);
+        var p = new Passenger(48);
+        p.Restore(SpinePhase.Telegraph, 20, 1, Math.Min(3, train.Frames.Count - 1), default, 0, 0, 0, 2, 0);
+        world.MirrorEnemies([p]);
+        var cab = Sim.Player.PlayerMotor.SpawnInCab(train, player);
+        var roof = Sim.Player.PlayerMotor.SpawnOnRoof(train, Math.Min(2, train.Frames.Count - 1), 0, player);
+        var lines = NetPlaySession.RosterOf(4, cab, [(1, roof), (2, roof with { Parent = 1 }), (3, cab)], world);
+        return (lines, id => id switch { 1 => 0.5, 2 => 14, _ => null });
+    }
+
     /// <summary>One of each demo enemy mid-telegraph or mid-punish around the train.</summary>
     public static List<Enemy> Threats(TrainOnLine train)
     {
@@ -78,6 +95,19 @@ public static class Staging
         int middle = Math.Max(0, (train.Frames.Count - 1) / 2);
         rattle.Restore(SpinePhase.Telegraph, 1, 1, middle, Rattle.In(0, train, middle, train.Dynamics.Tuning.Geometry.CouplingGap).Local, 0, 0, 0, 0, 0);
         threats.Add(rattle);
+        // Trouble inside the cars: the first cargo car alight, and in the middle car a load gone loose and Gnawers out.
+        var fire = CarFire.In(24, train, cargo, 1.5, new CarFireTuning());
+        fire.Restore(SpinePhase.Punish, 5, 1, cargo, fire.Local, 0, 0, 0, 0.7, 0);
+        threats.Add(fire);
+        if (train.Vehicles[middle].Kind == VehicleKind.Cargo)
+        {
+            var load = LooseLoad.In(25, train, middle, -2);
+            load.Restore(SpinePhase.Telegraph, 4, 1, middle, load.Local, 0, 0, 0, 0, d.Speed);
+            threats.Add(load);
+            var gnawers = Gnawers.In(26, train, middle, 2.5, new GnawerTuning());
+            gnawers.Restore(SpinePhase.Punish, 3, 0.8, middle, gnawers.Local, 0, 0, 0, 0, 0);
+            threats.Add(gnawers);
+        }
         // Coming in for the lamp off the engine's right, its eyes catching the beam's spill.
         var lamplighter = new Lamplighter(23);
         lamplighter.Restore(SpinePhase.Telegraph, 3, 1, -1, default, d.Distance + 4, 3.2, 0, 0, 0);
@@ -92,6 +122,11 @@ public static class Staging
         var hollow = new Hollow(30);
         hollow.Restore(SpinePhase.Punish, 2, 1, 0, train.Frames[0].Shape.Cab!.Value.Centre, 0, 0, 0, 0, 0);
         threats.Add(hollow);
+        // Stood on the fourth car's roof, still, facing back along the train (T60).
+        int gauntCar = Math.Min(4, train.Frames.Count - 1);
+        var gaunt = new Gaunt(47);
+        gaunt.Restore(SpinePhase.Telegraph, 5, 1, gauntCar, new Double3(0.3, train.Frames[gauntCar].Shape.RoofHeight, -1), 0, 0, 0, 0, Math.PI);
+        threats.Add(gaunt);
         // Hung under the rear coupling, dragging (T59): below the guard van's gun, beside the boarded hound's car.
         var weight = new Weight(46);
         weight.Restore(SpinePhase.Telegraph, 2, 1, rear, new Double3(0, 0.35, rearShape.HalfLength + 0.4), 0, 0, 0, 0, 0);
@@ -123,6 +158,23 @@ public static class Staging
         var soot = new SootChildren(41);
         soot.Restore(SpinePhase.Telegraph, 4, 1, -1, default, train.Cars[beside].FrontDistance - train.Frames[beside].Shape.HalfLength, -(train.Frames[beside].Shape.HalfWidth + 6), 0, 1, beside);
         threats.Add(soot);
+        // Among the three on the second car's roof, a fourth (T61): crewmate 2 again, the same cap, the same coat. It lives in
+        // the cars' rooms, which no view looks into; staged up here so the art review sees it stand beside the one it copies.
+        var passenger = new Passenger(48);
+        passenger.Restore(SpinePhase.Telegraph, 20, 1, beside, new Double3(0.55, train.Frames[beside].Shape.RoofHeight, -7.0), 0, 0, 0, 2, Math.PI - 0.3);
+        threats.Add(passenger);
+        // At crewmate 1's back, bent and in their step (T62): stood free in the world, facing the way they face. In play
+        // it's on the grounds at a stop; here it rides the roof behind them, so the roof shot has it.
+        var follower = new Follower(49);
+        double heading = train.Frames[beside].Heading + Math.PI + 0.3;
+        var behind = train.Frames[beside].ToWorld(new Double3(-0.9, train.Frames[beside].Shape.RoofHeight, -5)) + new Double3(Math.Sin(heading), 0, Math.Cos(heading)) * 1.3;
+        follower.Restore(SpinePhase.Telegraph, 8, 1, Enemy.Loose, behind, 0, 0, 0, 1, heading);
+        threats.Add(follower);
+        // Over the first car, spread wide and surging at someone on its roof (T63): the dark coming up over the roof's edge.
+        int driftCar = Math.Min(1, train.Frames.Count - 1);
+        var drift = new Drift(50);
+        drift.Restore(SpinePhase.Telegraph, 2, 1, driftCar, new Double3(0.8, train.Frames[driftCar].Shape.RoofHeight, 2), 0, 0, 0, 6, 1);
+        threats.Add(drift);
         return threats;
     }
 }

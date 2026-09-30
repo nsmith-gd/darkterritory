@@ -9,8 +9,16 @@
   "texelsPerMetre": 128,
   // Each material map's size on the GPU: the library's 512 (the 2008-2012 target, ARCHITECTURE §8 note 57).
   "layerSize": 512,
+  // ...but the characters' and creatures' baked atlases, seen closest, keep up to this (in arrays of their own).
+  "heroLayerSize": 1024,
   // The bottoms of things are this much darker: the baked shadow, and the soot and wet that collect low.
   "baked": 0.35,
+  // Each crewmate's flying cap and scarf are dyed their own colour (by player id, in turn), so eight masked heads can still
+  // be told apart on a roof: multipliers over the cap's pale neutral leather (tools/models/crewfigure.py).
+  "crewColours": [
+    [1.35, 0.36, 0.26], [0.3, 0.55, 1.75], [1.35, 1.05, 0.3], [0.25, 1.1, 1.15],
+    [0.45, 1.15, 0.32], [1.1, 0.38, 1.35], [1.45, 0.62, 0.2], [1.05, 1.05, 1.05]
+  ],
   // §27's material families. The kit's own pieces (the train, the track, the world) name their textures directly; these
   // are for everything still drawn as coloured boxes.
   "materials": {
@@ -69,7 +77,13 @@
     // The filmic tonemap's exposure; the wide bloom's share of the glow; lens fringing toward the corners.
     "exposure": 1.0,
     "wideBloom": 0.5,
-    "lensFringe": 0.006
+    "lensFringe": 0.006,
+    // Screen-space ambient occlusion (the 2008-2012 benchmarks' contact shadow): how much it darkens, how far round each
+    // point it looks (m), its gain, and where it's faded out into the fog (m).
+    "occlusion": 1.0,
+    "occlusionRadius": 0.6,
+    "occlusionIntensity": 2.0,
+    "occlusionFar": 60
   },
   // The night's light and air (§28: "cool ambient night, deep shadow pockets, headlamp and lantern cones").
   "atmosphere": {

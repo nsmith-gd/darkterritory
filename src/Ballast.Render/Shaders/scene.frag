@@ -10,6 +10,16 @@ layout(set = 0, binding = 1) uniform sampler2DArray diffuseMaps;
 layout(set = 0, binding = 2) uniform sampler2DArray specMaps;
 layout(set = 0, binding = 4) uniform sampler2DShadow lampShadow;
 layout(set = 0, binding = 5) uniform sampler2DArray normalMaps;
+layout(set = 0, binding = 6) uniform sampler2DShadow moonShadow;
+// The hero layers (RenderAssets.HeroSize): the characters' and creatures' atlases at full size.
+layout(set = 0, binding = 7) uniform sampler2DArray heroDiffuse;
+layout(set = 0, binding = 8) uniform sampler2DArray heroSpec;
+layout(set = 0, binding = 9) uniform sampler2DArray heroNormal;
+
+float heroSlot(float layer) {
+    int l = int(layer + 0.5);
+    return l >= 0 && l < 256 ? frame.heroOf[l >> 2][l & 3] : -1.0;
+}
 
 layout(location = 0) in vec3 vPos;
 layout(location = 1) in vec3 vNormal;
@@ -30,6 +40,18 @@ layout(location = 0) out vec4 outColor;
 const vec3 GROUND_BOUNCE = vec3(0.55, 0.5, 0.45);
 const vec3 SKY_FILL = vec3(0.75, 0.85, 1.05);
 
+// The night as a surface sees it in reflection: no cubemap, the sky's own gradient (the haze at the horizon, the zenith
+// over it, the dark fogged ground under it). What the benchmarks' wet metal and glass shone with.
+vec3 envAt(vec3 r) {
+    vec3 horizon = frame.fog.rgb * frame.sky2.z;
+    vec3 c = mix(horizon, frame.sky.rgb, smoothstep(0.02, 0.6, r.y));
+    c = mix(c, frame.fog.rgb * 0.45, smoothstep(0.0, -0.25, r.y));
+    // (The moon itself is left to the direct specular: in a reflection, off a bumpy normal map, it scatters into sparkle.)
+    // What a reflection sees along the horizon and under it is mostly the world, not the sky: the other cars, the
+    // cab's own walls, trees. Without a probe to say so, it's darker there.
+    return c * mix(0.3, 1.0, smoothstep(-0.05, 0.45, r.y));
+}
+
 float hash(vec3 p) {
     p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419));
     p *= 17.0;
@@ -43,6 +65,26 @@ float noise(vec3 x) {
     f = f * f * (3.0 - 2.0 * f);
     return mix(mix(mix(hash(i), hash(i + vec3(1, 0, 0)), f.x), mix(hash(i + vec3(0, 1, 0)), hash(i + vec3(1, 1, 0)), f.x), f.y),
                mix(mix(hash(i + vec3(0, 0, 1)), hash(i + vec3(1, 0, 1)), f.x), mix(hash(i + vec3(0, 1, 1)), hash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+
+// Texture bombing for the terrain (after Quilez, "texture repetition", technique 3): a slow noise picks one of eight
+// offsets of the same tile, and neighbouring offsets cross-fade through its fractional part, weighted by where the
+// two samples differ so the seam follows the texture's own features. Offsets only translate, so the normal map's
+// tangent frame still holds. The same Tiling drives a layer's diffuse, spec and normal maps.
+struct Tiling { vec2 uv, a, b, dx, dy; float f; };
+
+Tiling tiling(vec2 uv) {
+    float l = noise(vec3(uv * 0.29, 0.5)) * 8.0 + noise(vec3(uv * 0.061, 3.5)) * 6.0;
+    float i = floor(l);
+    return Tiling(uv, sin(vec2(3.0, 7.0) * i), sin(vec2(3.0, 7.0) * (i + 1.0)), dFdx(uv), dFdy(uv), fract(l));
+}
+
+vec4 bombed(sampler2DArray m, inout Tiling t, float layer, bool weigh) {
+    vec4 a = textureGrad(m, vec3(t.uv + t.a, layer), t.dx, t.dy);
+    vec4 b = textureGrad(m, vec3(t.uv + t.b, layer), t.dx, t.dy);
+    if (weigh)
+        t.f = smoothstep(0.2, 0.8, t.f - 0.1 * dot(a.rgb - b.rgb, vec3(1.0)));
+    return mix(a, b, t.f);
 }
 
 // Grain, grime and staining in texel space (T39): what a hand-painted 128 px/m texture would carry. Over a real
@@ -131,6 +173,28 @@ float lampShadowAt(vec3 p, vec3 n) {
                  + texture(lampShadow, vec3(uv + vec2(-0.6, 0.6) * texel, z)) + texture(lampShadow, vec3(uv + vec2(0.6, 0.6) * texel, z)));
 }
 
+// The moon's shadow: an orthographic map over the ground round the camera, filtered over a few texels (moonlight through
+// cloud has a soft edge), fading out toward the map's edge so its end isn't a line across the ground.
+float moonShadowAt(vec3 p, vec3 n) {
+    if (frame.counts.y < 0.5)
+        return 1.0;
+    vec3 c = (frame.moonViewProj * vec4(p + n * 0.06, 1.0)).xyz;
+    vec2 uv = c.xy * 0.5 + 0.5;
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || c.z >= 1.0 || c.z <= 0.0)
+        return 1.0;
+    float texel = frame.counts.z;
+    float z = c.z - 0.0008;
+    float s = 0.0;
+    for (int i = 0; i < 8; i++) {
+        float a = float(i) * 2.3999632;
+        vec2 o = vec2(cos(a), sin(a)) * (0.8 + 1.2 * float(i) / 8.0) * texel;
+        s += texture(moonShadow, vec3(uv + o, z));
+    }
+    s /= 8.0;
+    vec2 edge = abs(uv - 0.5) * 2.0;
+    return mix(s, 1.0, smoothstep(0.85, 1.0, max(edge.x, edge.y)));
+}
+
 // 1 inside an enclosed space (a car's interior), fading to 0 over its last 15 cm, so a doorway isn't a hard line.
 float indoors(vec3 p) {
     float best = 0.0;
@@ -152,35 +216,50 @@ void main() {
     // A layer past what's loaded (a renderer not given the look's textures) draws as flat colour, not garbage.
     bool textured = vLayer >= 0.0 && vLayer < frame.params.w;
     bool ps2 = frame.params.y > 0.5;
+    bool terrain = textured && vLayer2 >= 0.0 && vLayer2 < frame.params.w;
 
     vec4 tex = vec4(1.0);
     vec3 specMap = vec3(vShine, 0.3, 0.0);
-    if (textured) {
-        tex = texture(diffuseMaps, vec3(vUv, vLayer));
-        if (tex.a < 0.5)
-            discard; // alpha test, never blend (pipeline: "alpha test at 0.5")
-        specMap = texture(specMaps, vec3(vUv, vLayer)).rgb;
-        if (vLayer2 >= 0.0 && vLayer2 < frame.params.w) {
-            // The terrain blend (pipeline shader set, "terrain layer blend"): the second layer shows through by the
-            // vertex weight, broken up by the first's own brightness and a blocky noise, so the edge is crunchy and
-            // follows the texture (grass fills the low spots of the mud first), not a smooth crossfade.
-            vec4 tex2 = texture(diffuseMaps, vec3(vUv, vLayer2));
-            float breakup = dot(tex.rgb, vec3(0.3, 0.59, 0.11)) * 1.4 + (noise(floor(vSurface / 3.0)) - 0.5) * 0.5;
-            float w = smoothstep(0.0, 0.18, vBlend * 1.4 - 0.2 - breakup * 0.6 + 0.3);
-            tex = mix(tex, tex2, w);
-            specMap = mix(specMap, texture(specMaps, vec3(vUv, vLayer2)).rgb, w);
-        }
+    if (textured && terrain) {
+        // The terrain blend (pipeline shader set, "terrain layer blend"): the second layer shows through by the
+        // vertex weight, broken up by the first's own brightness and a blocky noise, so the edge is crunchy and
+        // follows the texture (grass fills the low spots of the mud first), not a smooth crossfade.
+        // Each layer is bombed (Tiling), the second at an off-ratio scale so the two never line up, and both are
+        // modulated by a much larger copy of themselves (brightness over the layer's mean from its last mip), more
+        // so with distance, where a hillside of five-metre tiles would otherwise read as a quilt.
+        vec2 uv2 = vUv * 0.63;
+        Tiling t1 = tiling(vUv), t2 = tiling(uv2 + 13.7);
+        vec4 tex2;
+        tex = bombed(diffuseMaps, t1, vLayer, true);
+        tex2 = bombed(diffuseMaps, t2, vLayer2, true);
+        vec3 lw = vec3(0.3, 0.59, 0.11);
+        float far = smoothstep(8.0, 45.0, length(vPos));
+        float macro = dot(texture(diffuseMaps, vec3(vUv * 0.173 + 0.37, vLayer)).rgb, lw)
+            / max(dot(textureLod(diffuseMaps, vec3(0.5, 0.5, vLayer), 12.0).rgb, lw), 0.02);
+        float macro2 = dot(texture(diffuseMaps, vec3(vUv * 0.117 + 0.71, vLayer2)).rgb, lw)
+            / max(dot(textureLod(diffuseMaps, vec3(0.5, 0.5, vLayer2), 12.0).rgb, lw), 0.02);
+        tex.rgb *= mix(1.0, clamp(macro, 0.45, 1.7), 0.3 + 0.35 * far);
+        tex2.rgb *= mix(1.0, clamp(macro2, 0.45, 1.7), 0.3 + 0.35 * far);
+        float breakup = dot(tex.rgb, lw) * 1.4 + (noise(floor(vSurface / 3.0)) - 0.5) * 0.5;
+        float w = smoothstep(0.0, 0.18, vBlend * 1.4 - 0.2 - breakup * 0.6 + 0.3);
+        tex = mix(tex, tex2, w);
+        specMap = mix(bombed(specMaps, t1, vLayer, false).rgb, bombed(specMaps, t2, vLayer2, false).rgb, w);
         if (ps2)
             specMap = vec3(specMap.r * 0.5, 0.2, specMap.b);
         else {
-            vec3 mapped = texture(normalMaps, vec3(vUv, vLayer)).xyz * 2.0 - 1.0;
-            if (vLayer2 >= 0.0 && vLayer2 < frame.params.w) {
-                vec3 mapped2 = texture(normalMaps, vec3(vUv, vLayer2)).xyz * 2.0 - 1.0;
-                float w2 = smoothstep(0.0, 0.18, vBlend * 1.4 - 0.2 - (dot(tex.rgb, vec3(0.3, 0.59, 0.11)) * 1.4) * 0.6 + 0.3);
-                mapped = mix(mapped, mapped2, w2);
-            }
+            vec3 mapped = mix(bombed(normalMaps, t1, vLayer, false).xyz, bombed(normalMaps, t2, vLayer2, false).xyz, w) * 2.0 - 1.0;
             n = perturb(n, vPos, vUv, normalize(mapped));
         }
+    } else if (textured) {
+        float hero = ps2 ? -1.0 : heroSlot(vLayer);
+        tex = hero >= 0.0 ? texture(heroDiffuse, vec3(vUv, hero)) : texture(diffuseMaps, vec3(vUv, vLayer));
+        if (tex.a < 0.5)
+            discard; // alpha test, never blend (pipeline: "alpha test at 0.5")
+        specMap = (hero >= 0.0 ? texture(heroSpec, vec3(vUv, hero)) : texture(specMaps, vec3(vUv, vLayer))).rgb;
+        if (ps2)
+            specMap = vec3(specMap.r * 0.5, 0.2, specMap.b);
+        else
+            n = perturb(n, vPos, vUv, normalize((hero >= 0.0 ? texture(heroNormal, vec3(vUv, hero)) : texture(normalMaps, vec3(vUv, vLayer))).xyz * 2.0 - 1.0));
     }
     vec3 albedo = tex.rgb * vColor;
     if (vWear > 0.0)
@@ -205,7 +284,8 @@ void main() {
     vec3 moonDir = normalize(frame.moon.xyz);
     // Indoors the fill is low and warm (lamplight off the boards), and the moon doesn't get in.
     vec3 light = frame.moon.w * mix(mix(GROUND_BOUNCE, SKY_FILL, n.y * 0.5 + 0.5), vec3(0.55, 0.42, 0.3), inside);
-    light += frame.moonColour.rgb * frame.moonColour.a * max(dot(n, moonDir), 0.0) * night;
+    float moonLit = night * moonShadowAt(vPos, n);
+    light += frame.moonColour.rgb * frame.moonColour.a * max(dot(n, moonDir), 0.0) * moonLit;
 
     // Phong exponent from gloss: 4..128, clamped so nothing mirror-polishes (pipeline "Gloss").
     float shininess = textured ? mix(4.0, 128.0, specMap.g * specMap.g) : 40.0;
@@ -230,7 +310,7 @@ void main() {
     vec3 lampC = frame.lampColour.rgb * frame.lampColour.a;
     light += lampC * lampLit * max(dot(n, l), 0.0);
     spec += lampC * lampLit * pow(max(dot(n, normalize(l + v)), 0.0), shininess) * 0.75;
-    spec += frame.moonColour.rgb * pow(max(dot(n, normalize(moonDir + v)), 0.0), shininess * 0.6) * 0.08 * night;
+    spec += frame.moonColour.rgb * pow(max(dot(n, normalize(moonDir + v)), 0.0), shininess * 0.6) * 0.08 * moonLit;
 
     // Practical lights, per pixel and unshadowed: warm pools the crew work in.
     int count = int(frame.params.x);
@@ -249,6 +329,18 @@ void main() {
     }
 
     vec3 colour = albedo * light + spec * specStrength * (vWear > 0.0 ? 0.55 + 0.45 * noise(vSurface / 16.0) : 1.0);
+    // Reflection, by Schlick's Fresnel: every surface picks up the sky at a grazing angle, the glossy ones (brass, glass,
+    // wet steel, a puddle) head on too; the rough ones hardly at all. Indoors it's the lamplit room, warm and dim.
+    if (!ps2) {
+        float gloss = textured ? specMap.g : 0.45;
+        gloss = mix(gloss, 0.8, up);
+        float f0 = mix(0.02, 0.3, clamp(specStrength * 1.4, 0.0, 1.0)); // glass and water ~0.02-0.04, worn metal more
+        // (A face seen from behind, a card or a thin plate, reflects off the side that faces the eye.)
+        vec3 nf = dot(n, v) < 0.0 ? -n : n;
+        float fres = f0 + (1.0 - f0) * pow(1.0 - dot(nf, v), 5.0);
+        vec3 env = mix(envAt(reflect(-v, nf)), vec3(0.03, 0.022, 0.014), inside);
+        colour += env * fres * gloss * gloss * smoothstep(0.25, 0.7, gloss) * (1.0 - scar.w) * 1.6;
+    }
     float emissive = max(vEmissive, specMap.b);
     colour = mix(colour, albedo * 2.0 * vGlow, emissive);
 

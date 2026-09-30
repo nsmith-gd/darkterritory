@@ -18,6 +18,9 @@
     // The plate you can stand on in the coupling gap (Rattle's home, Climbers' mount point).
     "couplerHeight": 1.1,
     "couplerWidth": 0.8,
+    // The guard van's rear platform, when it's last: across the car's back end at plate height, this deep (GDD §24 THE
+    // WEIGHT: "melee from the rear platform"). Deep enough to land on and stand clear of the rear door's swing.
+    "platformDepth": 1.2,
     // Ladders sit on both sides at the rear end of every car.
     "ladderInset": 0.6,
     // Engine + tender unit: boiler forward, walkable cab, coal tender behind (heights above rail).
@@ -28,7 +31,11 @@
       "cabLength": 4.0,
       "tenderLength": 4.0,
       "tenderTop": 3.4,
-      "doorWidth": 0.9
+      "doorWidth": 0.9,
+      // The running boards out past the cab sides (App. A.2 GREASE: "sanding from the running boards"), this wide, and the
+      // sandbox on each this far ahead of the cab front.
+      "runningBoardWidth": 0.6,
+      "sandboxAhead": 2.5
     },
     // Cars are walk-in (GDD §10: "the back door"; §26: warm interior, hostile exterior). The floor is
     // level with the coupler plate, so you step from the gap through the end door. The roof slab keeps

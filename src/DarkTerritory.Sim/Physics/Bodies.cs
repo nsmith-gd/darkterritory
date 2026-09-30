@@ -451,7 +451,11 @@ public sealed class Bodies
             }
             return;
         }
-        if (b.Parent != PlayerState.World && ++b.Airborne > 3)
+        // Falling inside a car's walls (set down a hand's height over its floor) is still in the car: only off it altogether
+        // does a body take the world's frame. Otherwise it flickers out of the car for a tick as it drops, and whatever
+        // counts what's in a car (the crate hands' room, the loading) miscounts it.
+        if (b.Parent != PlayerState.World && ++b.Airborne > 3
+            && !(b.Parent < train.Frames.Count && train.Frames[b.Parent].Shape.Interior is { } room && room.Contains(b.Centre)))
             ToWorld(b, train, b.Parent);
     }
 

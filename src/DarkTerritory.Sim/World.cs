@@ -116,7 +116,7 @@ public sealed class World
         if (!authority)
             return;
         Director = new Director(tuning.Director, route, seed, Train.Dynamics.Consist.CarCount, crew);
-        if (route is not null)
+        if (route is not null && Director.Allows(EnemyKind.Sleepers))
             foreach (var f in route.Of(FeatureKind.Sleepers))
                 _enemies.Add(new Sleepers(_nextEnemyId++) { LineDistance = f.Start, Height = 0.2 });
     }
@@ -159,11 +159,25 @@ public sealed class World
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(-0.9, floor, room.Max.Z - 3.3 - 0.5 * i), Physics.BodyKind.Radio);
     }
 
+    /// <summary>The route's boards and the hazards they warn of (sight.json), when playing a route.</summary>
+    public Route.Lineside? Lineside { get; private set; }
+
+    /// <summary>Puts up the route's boards: every machine reads them the same way; the host runs their hazards.</summary>
+    public void EnableLineside(Route.SightTuning tuning, Route.Route route) => Lineside = new Route.Lineside(tuning, route);
+
+    /// <summary>The crew as they acted this tick, on the host, with or without enemies (the lineside's hazards).</summary>
+    readonly List<(int Id, PlayerState State, PlayerIntent Intent)> _actors = new();
+
     /// <summary>Tonight's run (departure, facilities, terminus, dawn), when playing a route.</summary>
     public Run.Run? Run { get; private set; }
 
     /// <summary>The headlamp is on.</summary>
     public bool LampShining => LampLit;
+
+    /// <summary>The generated line whose track rules the host holds the train to (curves, weak bridges, washouts); null for a hand-laid one.</summary>
+    public LineGen.LinePlan? TrackPlan { get; set; }
+    /// <summary>What derailed the train, when the track did it (the report and the HUD say so).</summary>
+    public string? DerailCause { get; private set; }
 
     /// <summary>Starts the run. The host steps it (<see cref="StepRun"/>); clients mirror it from records.</summary>
     /// <param name="facilities">The facilities' loading modules (spec D); null for none.</param>
@@ -171,6 +185,7 @@ public sealed class World
     public void EnableRun(Run.RunTuning tuning, Route.Route route, double yardLength, bool authority, Run.FacilityTuning? facilities = null,
         Stops.LootTuning? loot = null)
     {
+        TrackPlan ??= route.Plan;
         Run = new Run.Run(tuning, route) { YardLength = yardLength };
         if (facilities is not null)
             Run.EnableSites(facilities, Train.Line);
@@ -257,6 +272,8 @@ public sealed class World
         if (Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
             Shots.Add(shot);
         _context?.Crew.Add((new PlayerSnapshot((byte)playerId, s), intent));
+        if (Authority)
+            _actors.Add((playerId, s, intent));
     }
 
     /// <summary>Starts a tick: clears last tick's shots and events.</summary>
@@ -267,6 +284,8 @@ public sealed class World
         Calls.Clear();
         EnemyEvents.Clear();
         Damage.Clear();
+        _actors.Clear();
+        Beats.Clear();
         if (Authority && Enemies is { } t)
             _context = new EnemyContext { Tuning = t, World = this, RecentRounds = _recentRounds };
     }
@@ -282,23 +301,77 @@ public sealed class World
             applied.Throttle = 1;
             applied.Brake = 0;
         }
+        // The boards the lamp reaches, and the rail's grip where the engine is (both machines alike: it's prediction).
+        Lineside?.See(Train, LampShining);
         // The Weight holding the rear car (App. A.3): "constant negative force; speed decays continuously". On the clients
         // too, from their mirror of it, so prediction drags as the host does.
         var weight = _enemies.OfType<Weight>().FirstOrDefault(w => w.Holding);
         Train.DraggedVehicle = weight?.Attached ?? -1;
         Train.DragFactor = Enemies?.Weight.DragFactor ?? 0;
         Train.Step(SimConstants.TickSeconds, applied);
+        if (Authority && Lineside is { } lineside)
+            lineside.Hazards(this, _actors, Damage);
         LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
+        // A generated line's lethal checks: a curve too fast, a weak bridge overloaded, a washout (linegen plan §7.3).
+        if (Authority && TrackPlan is { } plan && LineGen.TrackRules.Step(this, plan, SimConstants.TickSeconds) is { } why)
+            DerailCause = why;
         if (Combat is { } c)
         {
             Guns.Step(Train);
+            // App. B.8: livestock aboard raises the Choir's floor (they're never quiet); the Choir's state replicates, floor and all.
+            if (Authority)
+                Choir.Floor = DarkTerritory.Sim.Enemies.Director.Aboard(this).Contains(DarkTerritory.Sim.Train.CargoKind.Livestock) ? c.Choir.LivestockFloor : 0;
             Choir.Step(c.Choir, SimConstants.TickSeconds);
         }
         if (Authority && _context is { } ctx)
             StepEnemies(ctx);
+        Pace();
         Tick++;
         if (Authority)
             RefreshTargets();
+    }
+
+    /// <summary>
+    /// What happened this tick that the crew would call a moment (the pacing log, after the playtest's "2.5 minutes of nothing
+    /// is unacceptable"): a threat showing itself or hitting home, a board read, a bag caught or gone by, a stop made or left.
+    /// </summary>
+    public List<string> Beats { get; } = new();
+    /// <summary>
+    /// Seconds out on the line with nothing happening: no beat, and nothing out there telegraphing, committing or punishing.
+    /// Counted from the gate (not in the yard, nor once the night's over). The director won't let it pass its pace.
+    /// </summary>
+    public double QuietSeconds { get; private set; }
+    DarkTerritory.Sim.Run.RunPhase _lastPhase;
+
+    void Pace()
+    {
+        foreach (var e in EnemyEvents)
+            if (e.To == SpinePhase.Telegraph && e.From is SpinePhase.Dormant or SpinePhase.Alert || e.To == SpinePhase.Punish)
+                Beats.Add($"{e.Kind}:{e.To}");
+        if (Lineside is { } lineside)
+        {
+            foreach (var s in lineside.ReadThisTick)
+                Beats.Add($"board:{s.Kind}");
+            foreach (var d in lineside.CaughtThisTick)
+                Beats.Add($"caught:{d.Kind}");
+            foreach (var d in lineside.MissedThisTick)
+                Beats.Add($"missed:{d.Kind}");
+        }
+        if (Run is { } run && run.Phase != _lastPhase)
+        {
+            Beats.Add($"run:{run.Phase}");
+            _lastPhase = run.Phase;
+        }
+        // Out on the line: not the yard, not home, and not the run in to the terminus either, where nothing's sent by design
+        // (the line's terminus_safe, the final approach): the quiet there is the night letting go (T74).
+        double front = Train.Dynamics.Distance;
+        bool home = Route is { } r && (front > r.Length - NoSpawnFinalApproach || r.Plan?.Director.TagsAt(front).Contains("terminus_safe") == true);
+        bool out_ = (Run is null || Run.Phase is DarkTerritory.Sim.Run.RunPhase.Underway or DarkTerritory.Sim.Run.RunPhase.AtFacility) && !home;
+        bool active = _enemies.Any(e => !e.Gone && e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish)
+            // The line at its hardest (linegen plan §15.4): the director sends nothing of its own there because the terrain's
+            // the problem, and a crew working a train over it isn't sitting through a quiet (T76).
+            || Route?.Plan?.Director is { } context && context.PressureAt(front) >= context.PressureCeiling;
+        QuietSeconds = !out_ || Beats.Count > 0 || active ? 0 : QuietSeconds + SimConstants.TickSeconds;
     }
 
     void StepEnemies(EnemyContext ctx)
@@ -319,15 +392,24 @@ public sealed class World
         {
             if (d.Decide(this, ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } kind)
                 Spawn(kind, d);
-            if (Train.BoilerTuning is not null && Train.Boiler.LowFireSeconds >= t.Hollow.LowFireSeconds
+            if (d.Allows(EnemyKind.Hollow) && Train.BoilerTuning is not null && Train.Boiler.LowFireSeconds >= t.Hollow.LowFireSeconds
                 && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Hollow))
             {
                 d.Charge(this, EnemyKind.Hollow, _enemies);
                 _enemies.Add(new Hollow(_nextEnemyId++));
             }
+            // The Drift (App. B.4): "a terrain region, not an entity". Over a marsh it's there, as the Hollow is when the fire's
+            // low: it comes up once a marsh, whatever the director would rather, and it's charged when it does.
+            if (d.Allows(EnemyKind.Drift) && Drift.Ground(this, t.Drift) is { } marsh && marsh.Start != _driftMarsh && Train.Dynamics.Consist.CarCount >= 1
+                && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Drift))
+            {
+                _driftMarsh = marsh.Start;
+                d.Charge(this, EnemyKind.Drift, _enemies);
+                Spawn(EnemyKind.Drift, d);
+            }
             // The Deadman (App. B.5): "not on Local routes; cab empty 30 s (20 s on Deep territory)". It starts its
             // approach that long less its telegraph, so it takes the cab at the spec's time; it's charged when it does.
-            if (Route is { Tier: not RouteTier.Local } r && Train.Frames[0].Shape.Cab is not null
+            if (d.Allows(EnemyKind.Deadman) && Route is { Tier: not RouteTier.Local } r && Train.Frames[0].Shape.Cab is not null
                 && CabEmptySeconds >= (r.Tier == RouteTier.DeepTerritory ? t.Deadman.EmptySecondsDeep : t.Deadman.EmptySeconds) - t.Deadman.TelegraphSeconds
                 && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Deadman))
                 _enemies.Add(Deadman.Watching(_nextEnemyId++, Train));
@@ -361,6 +443,8 @@ public sealed class World
     }
 
     readonly List<(uint Tick, Ballast.Double3 Muzzle)> _recentRounds = new();
+    /// <summary>The marsh (its start) the Drift last came up over: once a marsh.</summary>
+    double _driftMarsh = double.NaN;
 
     void Spawn(EnemyKind kind, Director d)
     {
@@ -426,8 +510,42 @@ public sealed class World
             case EnemyKind.Stoker:
                 _enemies.Add(Stoker.InFirebox(_nextEnemyId++, Train));
                 break;
+            case EnemyKind.CarFire or EnemyKind.LooseLoad or EnemyKind.Gnawers:
+                {
+                    double minLoad = kind == EnemyKind.LooseLoad ? t.LooseLoad.MinLoad : kind == EnemyKind.Gnawers ? t.Gnawers.MinLoad : 0;
+                    var holds = DarkTerritory.Sim.Enemies.Director.IncidentCars(this, kind, minLoad).ToList();
+                    if (holds.Count == 0)
+                        break;
+                    int hold = holds[(int)d.NextRange(0, holds.Count - 1e-9)];
+                    double half = Train.Frames[hold].Shape.HalfLength;
+                    double along = d.NextRange(-half + 2, half - 2);
+                    _enemies.Add(kind switch
+                    {
+                        EnemyKind.CarFire => CarFire.In(_nextEnemyId++, Train, hold, along, t.CarFire),
+                        EnemyKind.LooseLoad => LooseLoad.In(_nextEnemyId++, Train, hold, along),
+                        _ => Gnawers.In(_nextEnemyId++, Train, hold, along, t.Gnawers),
+                    });
+                    break;
+                }
             case EnemyKind.LongWhistle when LongWhistle.Spot(Train, t.LongWhistle) is { } spot:
                 _enemies.Add(LongWhistle.At(_nextEnemyId++, Train, spot));
+                break;
+            case EnemyKind.Gaunt when Gaunt.Perch(this) is { } perch:
+                _enemies.Add(Gaunt.OnRoof(_nextEnemyId++, Train, perch.Car, perch.Z));
+                break;
+            case EnemyKind.Drift when Train.Dynamics.Consist.CarCount >= 1:
+                // Over one of the cars (the ground's coming up alongside and over the whole train; it's centred somewhere).
+                var over = Train.Dynamics.Consist.Vehicles.Skip(1).Select(v => v.Id).ToList();
+                _enemies.Add(Drift.Over(_nextEnemyId++, Train, over[(int)d.NextRange(0, over.Count - 1e-9)], t.Drift));
+                break;
+            case EnemyKind.Follower when Follower.Excursions(this) is { Count: > 0 } out_:
+                // On one of them, by scent: whose, the director's draw.
+                int on = out_[(int)d.NextRange(0, out_.Count - 1e-9)];
+                _enemies.Add(Follower.Behind(_nextEnemyId++, Train, CrewThisTick.First(c => c.Id == on).State, on, t.Followers));
+                break;
+            case EnemyKind.Passenger when Passenger.Boards(this) is { } boards && CrewThisTick.Where(c => c.State.Alive).Select(c => (int)c.Id).ToList() is { Count: > 0 } faces:
+                // Wearing one of the crew's faces: whose, the director's draw.
+                _enemies.Add(Passenger.Aboard(_nextEnemyId++, Train, boards, faces[(int)d.NextRange(0, faces.Count - 1e-9)]));
                 break;
             case EnemyKind.Weight when Weight.Spot(this, t.Weight) is { } lies:
                 _enemies.Add(Weight.Buried(_nextEnemyId++, lies, d.NextRange(0, 1) < 0.5 ? -1 : 1));
@@ -482,7 +600,7 @@ public sealed class World
                 continue;
             if (d.Pull is { } outward)
             {
-                PlayerMotor.PullOff(ref s, Train, outward, Train.Dynamics.Tuning);
+                PlayerMotor.PullOff(ref s, Train, outward, Train.Dynamics.Tuning, d.Cause);
                 set(d.PlayerId, s);
                 continue;
             }

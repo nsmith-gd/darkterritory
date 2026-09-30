@@ -1,0 +1,244 @@
+// The line generator's tier table and rules (docs/design/linegen-plan.md, "the plan"). Every number is first pass and
+// tunable; the generator reads them all from here (plan §19.2). `dt linegen generate` shows what they produce.
+{
+  // Stored in every Line Plan and save (plan §5, §17.4).
+  "version": "linegen-1.0.0",
+  // Where the game's nights come from: "linegen" (this generator) or "legacy" (the prototype's RouteGenerator, whose
+  // tuning is content/tuning/route.json). Specs, saves and the network setup are the same either way.
+  "routes": "linegen",
+
+  // Plan §3.2. Each column is the start of a tier; a route's severity (0..1) lerps it toward the next column, and Deep
+  // territory toward "deepMax". Two-element arrays are [min, max] counts, lerped end by end and then rolled.
+  // momentumGrade 0: no momentum banks. tunnelGrade 0: "ruling", the main-line grade.
+  // junctions: main-line junctions to alternates and dead lines, counting both ends of an alternate (the reading that
+  // keeps the plan's own alternate and dead-line counts true, ARCHITECTURE §8).
+  // rainChance, cold and wind roll the night's weather (plan §14); sleeperDensity is App. B.2's ×1/×2/×3.5 (§22.3).
+  "columns": {
+    "local":         { "lengthKm": 18, "facilities": 3, "mainGrade": 1.5, "momentumGrade": 0,   "branchGrade": 2.0, "minRadius": 450, "minVerticalRadius": 4000, "maxTunnel": 300,  "tunnelGrade": 0.5, "curvedTunnels": false, "stackCap": 1, "stackOnceDeeper": false, "recoveryMin": 1500, "tellMargin": 1.5, "lineSpeed": 20, "redundancy": 3, "signageSurvival": 1.00, "junctions": [2, 3],  "alternates": [0, 1], "deadLines": [0, 0], "washouts": [0, 0], "weakBridges": [0, 0], "momentumBanks": [0, 0], "brassFields": [0, 0], "budgetPerKm": 0.6, "corruption": 0.10, "fog": [110, 120], "rainChance": 0.20, "cold": [0.0, 0.3], "wind": [0.0, 0.4], "sleeperDensity": 1.0 },
+    "frontier":      { "lengthKm": 23, "facilities": 3, "mainGrade": 2.0, "momentumGrade": 3.0, "branchGrade": 3.0, "minRadius": 300, "minVerticalRadius": 3000, "maxTunnel": 700,  "tunnelGrade": 1.0, "curvedTunnels": false, "stackCap": 2, "stackOnceDeeper": false, "recoveryMin": 1000, "tellMargin": 1.3, "lineSpeed": 18, "redundancy": 2, "signageSurvival": 0.85, "junctions": [3, 5],  "alternates": [1, 2], "deadLines": [0, 1], "washouts": [0, 1], "weakBridges": [0, 1], "momentumBanks": [0, 1], "brassFields": [1, 1], "budgetPerKm": 1.0, "corruption": 0.35, "fog": [90, 120],  "rainChance": 0.30, "cold": [0.1, 0.5], "wind": [0.1, 0.6], "sleeperDensity": 2.0 },
+    "deadLines":     { "lengthKm": 29, "facilities": 4, "mainGrade": 2.5, "momentumGrade": 4.0, "branchGrade": 4.0, "minRadius": 220, "minVerticalRadius": 2500, "maxTunnel": 1200, "tunnelGrade": 2.0, "curvedTunnels": true,  "stackCap": 2, "stackOnceDeeper": true,  "recoveryMin": 600,  "tellMargin": 1.2, "lineSpeed": 16, "redundancy": 2, "signageSurvival": 0.55, "junctions": [5, 7],  "alternates": [2, 2], "deadLines": [1, 2], "washouts": [1, 1], "weakBridges": [1, 1], "momentumBanks": [1, 1], "brassFields": [2, 3], "budgetPerKm": 1.5, "corruption": 0.60, "fog": [75, 110],  "rainChance": 0.35, "cold": [0.3, 0.7], "wind": [0.2, 0.8], "sleeperDensity": 3.5 },
+    "deepTerritory": { "lengthKm": 34, "facilities": 4, "mainGrade": 3.0, "momentumGrade": 5.0, "branchGrade": 5.0, "minRadius": 170, "minVerticalRadius": 2000, "maxTunnel": 1800, "tunnelGrade": 0,   "curvedTunnels": true,  "stackCap": 3, "stackOnceDeeper": false, "recoveryMin": 400,  "tellMargin": 1.1, "lineSpeed": 14, "redundancy": 1, "signageSurvival": 0.30, "junctions": [6, 9],  "alternates": [2, 3], "deadLines": [2, 3], "washouts": [1, 2], "weakBridges": [1, 2], "momentumBanks": [1, 2], "brassFields": [3, 4], "budgetPerKm": 2.1, "corruption": 0.85, "fog": [60, 100],  "rainChance": 0.40, "cold": [0.5, 1.0], "wind": [0.3, 1.0], "sleeperDensity": 3.5 },
+    "deepMax":       { "lengthKm": 40, "facilities": 5, "mainGrade": 3.5, "momentumGrade": 6.0, "branchGrade": 6.0, "minRadius": 150, "minVerticalRadius": 1500, "maxTunnel": 2200, "tunnelGrade": 0,   "curvedTunnels": true,  "stackCap": 3, "stackOnceDeeper": false, "recoveryMin": 300,  "tellMargin": 1.1, "lineSpeed": 14, "redundancy": 1, "signageSurvival": 0.20, "junctions": [8, 10], "alternates": [3, 3], "deadLines": [3, 4], "washouts": [2, 2], "weakBridges": [2, 2], "momentumBanks": [2, 2], "brassFields": [4, 6], "budgetPerKm": 2.6, "corruption": 1.00, "fog": [60, 90],   "rainChance": 0.45, "cold": [0.6, 1.0], "wind": [0.4, 1.0], "sleeperDensity": 3.5 }
+  },
+
+  // Plan §3.3: the terrain budget spent over chainage, mirroring the director's pressure shape (GDD B.1). Zones in
+  // metres from the outer gate; lulls around each facility junction; the final approach holds the terminal spike.
+  // recoveryShare: of each budgeted stretch, at least this much is recovery connector (§7.1's troughs).
+  "budget": {
+    "opening": 0.15, "middle": 0.45, "finalApproach": 0.40,
+    "graceM": 2000, "homeStraightM": 1500, "spikeWindowM": [4000, 1500],
+    "lullBeforeM": 1000, "lullAfterM": 500,
+    "recoveryShare": 0.3
+  },
+
+  // Plan §8.5: derails at sqrt(aDerail R), posted at floor(sqrt(aPost R)). §8.1: a clothoid of max(40 m, v^2 / (0.5 R)),
+  // clamped to what the track kit bends to.
+  "curves": { "aDerail": 1.0, "aPost": 0.7, "transitionMinM": 40, "transitionSpeedFactor": 0.5, "transitionMaxM": 240 },
+
+  // Plan §9.3 and §16.2: sighting, callout and application; the sloppy driver runs 10% over, slower to react, on the
+  // tiers where the margins are meant to carry new crews.
+  "reaction": { "tReactS": 4, "sloppySpeedFactor": 1.1, "sloppyTReactS": 6, "sloppyUpToTier": "frontier" },
+
+  // Plan §3.2 demo configuration: Local and Frontier only, no washouts or weak bridges. Off: the full game.
+  "demo": { "enabled": false, "maxTier": "frontier", "noWashouts": true, "noWeakBridges": true, "noMomentumBanks": false },
+
+  // Plan §3.4: the ruling grade is also held to this share of what the fully loaded departing consist can climb.
+  "consist": { "mainGradeShareOfClimbMax": 0.85, "maxCars": 20 },
+
+  // Plan §10. The yard is at negative chainage, ending at the outer gate (km post 0). The departure road takes the
+  // longest consist plus this; then the yard throat, then the inner gate this far before the outer one, towers from
+  // towersFromM (thinning to the gate), the kill zone, the last light, and the dressing coming in to the tier's level.
+  // The whole yard is at yard speed (spec B.3), so anyone can still catch the train. The threshold is straight or
+  // gently curved and nearly level.
+  "fortress": {
+    "departureRoadExtraM": 100, "throatM": 150, "innerGateBeforeM": 600, "towersFromM": -400, "killZoneM": 500, "lastLightM": 300,
+    "dressingTransitionM": [500, 2000], "yardSpeed": 2.5, "throatSwitches": [2, 3], "identities": ["coal", "farm", "foundry"],
+    "maxThresholdGrade": 0.5, "thresholdMinRadius": 1000
+  },
+
+  // Plan §11.4. Distances before the terminus's outer gate. Past the gate, an arrival yard with a stop road; it has to
+  // be longer than run.json's terminusZone so the train is home once stopped inside it. Silent settlements from
+  // silentFromTier (§22.4).
+  "terminus": {
+    "skyGlowM": 3000, "yardLimitBoardM": 1000, "spawnBanM": 500, "wallsResolveM": 300, "arrivalYardM": 450,
+    "yardLimitSpeed": 2.5, "silentFromTier": "deadLines", "homeStraightMinRadius": 1000
+  },
+
+  // Plan §6.3. A turnout on tangent, nearly level track; its lamp seen from 250 m; branches curve away to 300 m
+  // separation within 2 km; a level pad ±150 m where the corridors meet. Boards 2 km and 1 km out. Junctions no nearer
+  // each other than minSpacingM (a train's tail clears one before its front reaches the next). An alternate's or dead
+  // line's turnout: two curves of turnoutLength at turnoutRadius, out to 7.5 m between track centres. The radius posts
+  // no lower than the fastest line speed (floor(sqrt(aPost R)) >= 20 m/s) and derails above spec B.1's 22 m/s: the
+  // diverging route is taken at line speed, and a switch the Switchman threw costs the clock, never the train
+  // (App. A.7). Facility spurs are route.json's kit, taken at a crawl.
+  "junctions": {
+    "tangentClearM": 40, "maxGrade": 0.5, "lampVisibleM": 250, "separationM": 300, "separationWithinM": 2000, "padM": 150,
+    "minSpacingM": 600, "boardFarM": 2000, "boardNearM": 1000, "turnoutRadius": 650, "turnoutLength": 70
+  },
+
+  // Plan §6.2 step 4. Windows of main line an alternate bypasses; each differs from the main line in what it trades.
+  // lengthRatio: the alternate's length over the window's (held to at least lengthOverChordMin of the straight distance
+  // across the window, and bulging at least minBulgeM clear). pieces: what it must carry. The last closureReserveM
+  // of an alternate is kept for the connector that brings it back onto the main line.
+  "alternates": {
+    "windowKm": [3, 8],
+    "closureReserveM": 900,
+    "minBulgeM": 450,
+    "lengthOverChordMin": 1.04,
+    "tradeOffs": {
+      "highLine":       { "weight": 1.0, "lengthRatio": [0.75, 0.95], "pieces": ["climb", "trestle"], "level": false, "radioBlackout": false, "summary": "shorter, steeper", "minD": 0 },
+      "lowLine":        { "weight": 1.0, "lengthRatio": [1.08, 1.4],  "pieces": ["causeway", "riverCrossing"], "level": true, "radioBlackout": false, "summary": "longer, flatter", "minD": 0 },
+      "tunnelCutoff":   { "weight": 0.8, "lengthRatio": [0.75, 0.92], "pieces": ["tunnel"], "level": false, "radioBlackout": true, "summary": "shorter, one long tunnel, no radio", "minD": 0.5 },
+      "settlementLine": { "weight": 0.7, "lengthRatio": [0.95, 1.15], "pieces": ["deadSettlement"], "level": true, "radioBlackout": false, "summary": "through a dead town, level", "minD": 0 }
+    }
+  },
+
+  // Plan §6.2 step 7: dead lines off facing junctions, curving away (angleDeg off the main line's heading) to a buffer
+  // stop; some end at a wreck yard. Kept gentle (maxGrade) so a train misrouted onto one can always back out of it.
+  "deadLines": { "lengthKm": [2, 6], "wreckYardChance": 0.25, "angleDeg": [18, 35], "maxGrade": 1.0 },
+
+  // Plan §6.2 steps 5-6, §9.2, §9.6, §22.5. Weak bridges: a crossing speed, and on an alternate a car limit this many
+  // below the departing consist (on the main line it's always at least the consist). Washouts sit on one side of a
+  // fork, this far past its junction. Brass (GDD §22 "cut through slowly or ram it and pay"): above the cutting speed
+  // the engine takes (v - cut)^2 x damage and the growth drags at it.
+  "hazards": {
+    "weakBridgeSpeed": [6, 10], "weakBridgeCarsBelowPlan": [1, 4], "washoutLengthM": [30, 80], "washoutAfterJunctionM": 1200,
+    "brassCuttingSpeed": 6, "brassLengthM": [50, 200], "brassRampM": 300, "brassDamagePerSpeedSquared": 0.004, "brassDrag": 0.25
+  },
+
+  // Plan §8.1. Between pieces, wander of 2-8 degrees at 1500 m or more; the main line keeps within bandDeg of the
+  // route's bearing, following a slow guide heading (guideAmplitudeDeg over guideWavelengthKm). Track keeps
+  // separationM from itself except within junctionExemptM of a shared junction, checked on a gridM grid. Closure of an
+  // alternate to within closureTol, in closureIterations. Connectors curve at this multiple of the tier's minimum radius.
+  "alignment": {
+    "wanderDeg": [2, 8], "wanderMinRadius": 1500, "bandDeg": 100, "guideAmplitudeDeg": 35, "guideWavelengthKm": [8, 18],
+    "separationM": 400, "sameEdgeGapM": 1000, "junctionExemptM": 2000, "gridM": 50,
+    "closureTolM": 0.5, "closureTolDeg": 0.2, "closureIterations": 5, "connectorRadiusFactor": 2.5, "pieceRetries": 4
+  },
+
+  // Plan §8.3: a slow regional rise and fall the set pieces sit on; level (grade <= levelGrade) where the rules want it.
+  // padGrade at junctions (§6.3), approachGrade on a facility's approach and holdingGrade on its holding track (§11.1).
+  "profile": {
+    "driftAmplitudeM": 45, "driftWavelengthKm": [7, 15], "driftMaxGrade": 0.4, "levelGrade": 0.1, "padGrade": 0.5,
+    "holdingGrade": 0.2, "approachGrade": 0.3
+  },
+
+  // Plan §9. The lamp's reach on the track axis (§22.6) and the Sleepers' derail speed (§22.2) are enemies.json's
+  // "sleepers"; restricted speed brakes to the derail speed less sleeperSafeMargin. Sightline from the lamp
+  // (lampHeightM) to a target on the rail, every sightStepM. Restricted zones: this long, this many per km of line at
+  // Sleeper density 1, and this share of them never holding Sleepers (so crews can't learn to ignore the board). A
+  // board this far ahead of its tell point, resumes this far past the train's length, limits rounded down to whole m/s,
+  // boards no closer than minBoardGapM. Geometry blinder than blindSightM gets a restricted zone of its own.
+  "authority": {
+    "sleeperSafeMargin": 0.3, "lampHeightM": 2.8, "targetHeightM": 0.3,
+    "sightStepM": 20, "minRestrictedSpeed": 6, "restrictedLengthM": [700, 1800], "restrictedPerKm": 0.06, "restrictedEmptyShare": 0.3,
+    "boardBeforeM": 10, "resumeAfterExtraM": 20, "limitRoundTo": 1, "minBoardGapM": 25, "blindSightM": 70
+  },
+
+  // Plan §12. Terrain within corridorM of track, in tileM tiles at gridM. The formation (|d| <= formationM) and shoulder
+  // are where you stand beside the train: they stay at rail height, as the ground always has been, so every stand,
+  // lever and step works as before (ARCHITECTURE §8). Intents blend over blendM; noise of noiseAmplitudeM (times the
+  // biome's) at noiseWavelengthM. Past the corridor the land drops skirtDropM into the fog. Track is sampled every
+  // sampleM for the height field. Ledge and ravine drops walkable (slope <= walkableSlope) within walkableWithinM.
+  "terrain": {
+    "corridorM": 250, "tileM": 256, "gridM": 2, "formationM": 3.5, "shoulderM": 5, "blendM": 60,
+    "noiseAmplitudeM": 3, "noiseWavelengthM": [30, 120], "junctionPadM": 150, "skirtDropM": 30, "sampleM": 5,
+    "walkableSlope": 1.0, "walkableWithinM": 40, "tunnelCoverM": 18, "riverWidthM": 24,
+    // The land's own shape past the formation (§12.2 step 3's "biome noise" at landform scale): hills and ridges the line
+    // threads between, reliefM high at full (times the biome's noiseScale), starting reliefFromM out and full by
+    // reliefFullM; reliefRidged of it is ridged noise (crests, spurs), and reliefUp biases it upward (a line runs along
+    // valleys more than it runs along crests).
+    "reliefM": 32, "reliefWavelengthM": [120, 420], "reliefFromM": 10, "reliefFullM": 80, "reliefRidged": 0.5, "reliefUp": 0.5,
+    // The Maritimes' landforms (biomes.json "landform" mixes them): drumlins, the ice's whalebacks lying along its flow
+    // (NW-SE across Nova Scotia); knobs, the granite barrens' humps; the Cape Breton highland's plateau and its gorges.
+    // Heights are shares of reliefM.
+    "drumlins": { "wavelengthM": 150, "stretch": 2.8, "flowDeg": -35, "height": 1.6 },
+    "knobs": { "wavelengthM": 38, "height": 0.9 },
+    "plateau": { "wavelengthM": 520, "height": 1.8, "gorgeWavelengthM": 900, "gorgeWidth": 0.09, "gorgeDepth": 0.6 },
+    // The water the line runs past (docs/design/maritime-rules.md; biomes.json lakesPerKm, shore, shoreKind). Lakes:
+    // the Southern Upland is about 15% water, shallow dark lakes lying along the ice's flow; a crossed one is crossed on
+    // a fill across its narrows (the South Shore line's way). radiusM is the minor semi-axis, stretch the long one's
+    // share; offM from the track to the near shore in radii; the water levelBelowRailM under the lowest rail near it.
+    "lakes": { "radiusM": [35, 150], "stretch": [1.3, 2.6], "offM": [0.1, 0.9], "crossChance": 0.3, "crossRadiusM": [45, 110], "turnDeg": 25,
+      "depthM": 3.5, "levelBelowRailM": 2.2, "shoreSlope": 0.22, "wobble": 0.35, "clearM": 30, "fillSlope": 0.55 },
+    // A shore along the line: its edge nearM out plus coves up to coveM deeper every coveWavelengthM (the Atlantic's
+    // drowned coast); a beach up from the water, a cliff where the rail stands over cliffAboveM above it (Fundy's
+    // sandstone, 30 m at Joggins); Fundy's mudflats flatM wide at low water (a 12-16 m tide leaves kilometres); drowned
+    // drumlins for islands (islandShare of the sea floor humps up). Tidal rivers: the span and depth scaled.
+    "shore": { "levelBelowRailM": 4.5, "nearM": [30, 70], "coveM": [30, 140], "coveWavelengthM": [260, 650], "beachSlope": 0.16, "cliffAboveM": 11,
+      "cliffSlope": 1.7, "depthM": 8, "flatM": [50, 160], "taperM": 350, "minM": 900, "islandShare": 0.25, "islandWavelengthM": 170,
+      "tidalSpanFactor": 2.2, "tidalDepthFactor": 1.8,
+      // The Atlantic's own: its water seaBelowRailM under the lowest rail (the line on its bank just over the tide), its
+      // edge seaNearM out and its coves seaCoveM deeper; levelBelowRailM and nearM are Fundy's low water and the dykes'.
+      "seaBelowRailM": 2.0, "seaNearM": [12, 30], "seaCoveM": [15, 60] },
+    // Acadian dykeland: hay fields dead flat under the line (the Tantramar: 90% dyked; the railway grade itself holds
+    // back the tide in places), a dyke 1-2.5 m high outM from the track, salt marsh past it, then the red mud. A shore
+    // whose rail rises or falls more than maxRailRangeM along it is a mudflat shore instead.
+    // A river alongside the line up its valley (the ICR up the Wentworth, the DAR along the Gaspereau and the
+    // Annapolis, the St. John River line): tea-brown upland water over boulders, falling with the rail.
+    "rivers": { "bankM": [16, 40], "meanderM": [10, 45], "widthM": [18, 45], "belowRailM": 3.5, "depthM": 1.8, "farSlope": 0.45 },
+    // The country road (biomes.json "roads": the chance a region has one): a gravel road offsetM out from the line,
+    // wandering, crossing at grade every crossEveryM or so (swinging across over rampM either side); its bed follows
+    // the land under its centre, halfWidthM each side, banked at bankSlope; kept clearM from structures, cuttings and
+    // junctions, and no piece shorter than minM.
+    "roads": { "offsetM": [20, 38], "wanderM": [3, 9], "wanderWavelengthM": [300, 800], "crossEveryM": [1200, 3000], "rampM": 70, "halfWidthM": 3,
+      "bankSlope": 0.45, "minM": 600, "clearM": 80 },
+    "dykes": { "fieldsBelowRailM": 1.5, "heightM": 2.2, "crestM": 3, "sideSlope": 0.55, "outM": [40, 90], "marshAboveWaterM": 2.8, "landwardM": 160,
+      "maxRailRangeM": 8 }
+  },
+
+  // Plan §14: terrain's local change to the night's weather. Fog denser in low ground, thinner on crests; wind worse
+  // where exposed; cold a step per 150 m climbed and on exposed track; wet rail's adhesion, worse where wet-biased.
+  // The renderer's fog density is this over the fog distance.
+  "weather": {
+    "fogLowGround": 1.3, "fogCrest": 0.8, "windExposed": 1.5, "coldStepPerM": 150, "coldExposedStep": 1, "wetAdhesion": 0.85, "wetBiasAdhesion": 0.75,
+    "fogDensityPerInverseMetre": 1.6, "crestLengthM": 400
+  },
+
+  // Plan §15. The Long Whistle's pre-grade/pre-curve window; tunnel exits; near a facility; Grease doubled in wet or
+  // cold (App. B.2), this many zones per km; Sleeper candidate zones inside restricted zones. The quotas every run must
+  // meet (§15.3), each tier adding to the ones before. The terrain pressure curve every pressureStepM.
+  "director": {
+    "preGradeM": [400, 900], "tunnelExitM": 200, "nearFacilityM": 800, "greaseWetCold": 2, "greasePerKm": 0.12, "greaseLengthM": [40, 150],
+    "sleeperZonesPerKm": 0.15, "sleeperLengthM": 20, "pressureStepM": 50, "deadSettlementNearFacilityM": 2000,
+    // §15.1 read by the director: under a tag, each enemy's weight is multiplied by these (Cinder Hounds gain on grades,
+    // Clingers pair with a long climb, the Soot Children by dead towns and facilities, the Switchman at junctions); no
+    // spawns at all under spawnBans; and it holds its own spikes while the terrain pressure (§15.4, the stacked cost of
+    // the pieces at a point) is at or over pressureCeiling.
+    "affinity": {
+      "climb": { "cinderHound": 1.5 }, "climb_long": { "cinderHound": 2, "clinger": 2 }, "pre_grade": { "cinderHound": 1.3 },
+      "dead_settlement": { "sootChildren": 2 }, "near_facility": { "sootChildren": 1.5 }, "junction": { "switchman": 2 }
+    },
+    "spawnBans": ["grace", "terminus_safe"],
+    "pressureCeiling": 2.5,
+    "quotas": {
+      "local":         { "tags": { "straight_long": 1, "climb": 1, "forest_or_open": 1 }, "facingJunctions": 0, "deadLines": 0, "tunnels": 0, "deadSettlementNearFacility": 0 },
+      "frontier":      { "tags": { "climb_long": 1, "marsh_or_water": 1 }, "facingJunctions": 3, "deadLines": 0, "tunnels": 0, "deadSettlementNearFacility": 1 },
+      "deadLines":     { "tags": { "climb_long": 2 }, "facingJunctions": 3, "deadLines": 1, "tunnels": 1, "deadSettlementNearFacility": 1 },
+      "deepTerritory": { "tags": { "contaminated": 1 }, "facingJunctions": 3, "deadLines": 1, "tunnels": 2, "deadSettlementNearFacility": 1 }
+    }
+  },
+
+  // Plan §16. Attempts before a curated fallback seed; the brake effectiveness a descent may never go below; the
+  // minutes each facility slot adds to transit against dawn; a coaling tower when a night runs past this share of the
+  // tender (spec B.6); the most seconds a drive may take; the rollback zone past a consist's length at a momentum
+  // bank's foot; the driver's speed band, and how far over a limit its control may drift. dawnWithStopsHard: the
+  // dawn check holds transit plus every stop to the timer (§16.3); off, only the transit is held and the stops are
+  // reported, since by the spec's own formula the deeper tiers can't take every stop in time (§22.1, ARCHITECTURE §8).
+  // maxParallelDrives: how many validation drives run at once. The host generates while the fortress phase is
+  // rendering (§17.5), so generation mustn't take every core.
+  "validation": {
+    "attempts": 10, "minBrakeEfficiency": 0.6, "dawnMinutesPerFacility": 4, "coalingEnduranceShare": 0.8, "maxSeconds": 7200,
+    "stallRollbackExtraM": 200, "driverBandMs": 0.4, "dawnWithStopsHard": false, "overspeedTolerance": 0.8,
+    "maxParallelDrives": 2
+  },
+
+  // Plan §22: the defaults for conflicts in the source documents. Each is logged as a warning when it applies.
+  // 22.1 dawn from the spec's formula (route / 11 m/s + 18%) with slack against ideal transit reported; 22.4 a silent
+  // settlement's gate still safe; 22.5 a weak bridge over its limit collapses under the first car past it; 22.8 the
+  // proposals not in the GDD, all off.
+  "conflicts": {
+    "dawnFromSpecFormula": true, "dawnAverageSpeed": 11, "dawnSlack": 0.18, "silentGateSafe": true, "weakBridgeCollapses": true,
+    "waterStops": false, "haltScavenging": false, "rockfallsOnLedges": false, "couplerBreaksOnRollers": false
+  }
+}

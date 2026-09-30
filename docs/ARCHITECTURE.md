@@ -188,6 +188,12 @@ The module editor, the rail tool and "play from here" are still to come.
 - Bots are **in-engine agents that emit player intent**, never privileged sim access. So they exercise the same code paths as humans.
 - Sweeps (enemy pairs/triples × hazards × crew 2–8 × consist length) are parallel processes and produce JSON reports. Fairness invariants (telegraph precedes commit, caps, dependency spawns, pacing shape) are asserted per run.
 
+### 6.10 The procedural line (docs/design/linegen-plan.md)
+- **Where:** `DarkTerritory.Sim/LineGen` (engine-free: the plan's `LineGen.Core`, `.Validate` and `.Terrain` modules), `content/linegen/*.json` (every number; the plan's §19.2 files), `DarkTerritory.Game/Art/PlanArt.cs` and `SignKit.cs` (the plan's `LineGen.Build`), `dt linegen` (its tools).
+- **Pipeline:** run parameters → route graph → leg scripting (set pieces, budget curve, quotas) → alignment (clothoids, closed alternates) and profile (grade runs, vertical curves) → structures and terrain intents → stations and names → weather, tags, exposure → authority (limits, restricted zones from sightlines) → signage → director context → route card → validation on the real `TrainOnLine` (ideal and sloppy drivers) → retries → fallback seed. `LineGenerator.Generate` never throws if any attempt built.
+- **What the rest of the game sees:** a `Route` (`PlanRoutes.ToRoute`: its features, branches and weather, as the prototype generator made them), with the `LinePlan` riding along (`Route.Plan`). Everything that read a route still does; what reads the plan is new: the track's lethal rules (`TrackRules`), wet rail and brass (`PlanConditions`, the rail model's `ITrackConditions`), the terrain under players (`TerrainField`, via `PlayerMotor.GroundAt`), the bots' speed (`LineAuthority`), the director's context, the art.
+- **One call:** `Routes.Generate(content, spec, cars)` is every night's line, cached per process. `tiers.json` `"routes": "legacy"` hands nights back to `RouteGenerator`, which stays for its tests and tools (`dt route gen`).
+
 ### 6.9 Coordinates and units
 Metres, seconds, kilograms (tonnes and kN in the train sim, so the spec's numbers read directly), right-handed, **+Y up**, **−Z forward** (glTF convention). `double` for distance along the line and for world anchors, and `float` for everything local.
 
@@ -391,8 +397,8 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - a real headset run: Quest over Link and SteamVR, which needs a person with one.
 26. **Cold and the Vigil (T22, spec B.2 and C.2).**
     - **Cold** is `PlayerState.Cold`, stepped inside the motor, so a client predicts it exactly.
-      - It climbs outside and kills at 320 s (`DeathCause.Cold`).
-      - Near heat it falls at 320/45 per second, so even the nearly frozen are recovered within spec B.2's "45 s near heat". That's our reading of "resets in 45s".
+      - It climbs outside and kills at 1200 s (`DeathCause.Cold`); inside a car with a door open it climbs at a quarter of that rate.
+      - Near heat it falls at 1200/20 per second, so even the nearly frozen are recovered within spec B.2's "20 s near heat". That's our reading of "resets in 20s".
       - Heat is the cab while the fire burns, or a shut car while the boiler has steam to heat it. A Vigil's vent leaves the cars cold.
       - The spec gives onset no effect. Past onset you move at 0.8 of your speed (`player.json` → `cold.onsetSpeedScale`, ours), and the HUD says how long you have.
     - **The Vigil** (`Sim/Run/Vigil`, `tuning/vigil.json`), host-authoritative and mirrored by clients in a Vigil record.
@@ -408,7 +414,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - **Spawns.** "Every noise-triggered spawn weight doubles" is read as the director coming twice as often (its cooldown halved). Doubling every weight alike wouldn't change which enemy it picks.
       - **The guns** now need steam generally: they don't traverse below 20 pressure (`combat.json` → `guns.minPressure`, the same floor where the engine loses its pull). That's our reading of "turret traverse dead (no boiler pressure)". After a Vigil they come back as the pressure does.
       - **Breaking it.** Taking the body out of the engine breaks the Vigil; the pressure is gone either way.
-      - **The revived** come back in the cab with `PlayerFlags.Revived`: cold onset halved (spec's 100 s; death stays at 320), light things only (lamps), and no guns until the run reaches a stop other than the one they came back at, or the terminus.
+      - **The revived** come back in the cab with `PlayerFlags.Revived`: cold onset halved (spec's 300 s; death stays at 1200), light things only (lamps), and no guns until the run reaches a stop other than the one they came back at, or the terminus.
     - **Placements.** `PlayerState.Placed` counts the host's authoritative moves: respawns, revivals, the gunner's posting. A client adopts a changed one as a placement, not a misprediction, so the prediction statistics stay honest.
     - **Bots and cold.** At first the bots couldn't climb down and shut a door behind them, so the harness moved a chilled bot into the cab on the host and back once warm. Since T31 they do it themselves by intent (note 34), and the host-side move is gone. Bots don't hold Vigils yet.
     - **Tested** over the real netcode (`VigilTests`):
@@ -1105,6 +1111,19 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `look.json` `post`: `exposure` 1.0, `wideBloom`, `lensFringe`, `mipBias` 0.
       - `LookTests`' room-brightness ratio is widened to 2.2×, because the filmic toe darkens flat colour more than a lamp-lit texture. It gains an absolute washed-out ceiling.
     - **Next:** normal and spec maps on every surface at higher resolution; ambient occlusion, more shadowed lights and light shafts in the fog; then a geometry and material detail pass.
+    - **Resolution, occlusion and reflection (art direction: "graphic quality seems closer to Half Life 1 than Bioshock 2").** An audit found the biggest single cause: the game rendered at 480×270, and screenshots at 640×360, both scaled up by nearest neighbour. That's the "low-res by design" of the old PS2 target (GDD §32). The benchmarks ran native 720p.
+      - The game renders at 1280×720 (`--internal`), blitted to the window bilinear. `dt screenshot` renders at 1280×720, `--scale 1`, and the app's `--capture` writes at 1×.
+      - The HUD and menus keep their 480×270 canvas (`GreyboxRenderer.OverlaySize`), so their pixel font scales up with the frame instead of shrinking to a third.
+      - **Screen-space ambient occlusion** (`ssao.frag`), at half resolution, from the scene's depth, which is now stored and sampled. Each pixel's position and normal are rebuilt from the depth, and 12 points in the hemisphere are tested. The composite blurs it (four bilinear taps) and darkens the HDR scene by it, but not a light's core. The corners of the cab, round the gauges, under the eaves and where a crate meets the floor all go dark. `look.json` `post.occlusion*`: strength 1.0, radius 0.6 m (shrinking toward the camera), intensity 2.0, faded out by 60 m (the far field is fog, and noise there reads as dirt).
+      - **Reflection by Fresnel** (`scene.frag` `envAt`). There's no cubemap: the environment is the sky's own gradient (horizon haze, zenith, the fogged ground below) and a tight moon highlight. Along and under the horizon it's darkened to a third, because a reflection there mostly sees the world. Schlick's term with F0 from the spec map, weighted by gloss², and none on rough surfaces. So glass, brass, wet steel and puddles pick up the sky, and a grass field doesn't frost over. Indoors it's a dim warm room. A face seen from behind reflects off the side facing the eye.
+      - **The moon's shadow.** Only the headlamp cast shadows before. The moon now has an orthographic 2048² depth map (`shadow_moon.vert`), 110 m square, pushed ahead of the camera and snapped to its own texels in world space so its edges don't crawl as the train moves. Everything the scene draws casts into it, the cut-out cards by their shapes. It shadows the moon's diffuse and its highlight, over eight taps (moonlight through cloud has a soft edge), and fades out toward the map's edge. It's off when the moon is down, and in the PS2 comparison mode. A headset's eyes each draw their own shadow maps, so theirs is 1024 (`GreyboxRenderer(moonShadowSize:)`): filling two 2048 maps a frame put the simulated headset in CI under its 30-frames-in-30-seconds check.
+      - **The pines are modelled.** They were three crossed pictures of a whole tree, 24 triangles, the look of the late 1990s. Now `WorldKit.Pine` builds a spruce as the benchmarks built theirs, about 970 triangles:
+        - a tapered trunk carrying 14 whorls of boughs, nine to a whorl, from low on it to the leader;
+        - each bough a card of one spruce frond (`pine_bough`, `tools/art/texgen/mat_foliage.py`: dozens of needle-furred branchlets raked along a twig, gaps between them), bent in two, rising off the trunk and drooping to its tip, longest at the bottom;
+        - alternate boughs rolled either way about their length, so none is seen edge-on.
+      - The lineside uses them within 40 m of the line (`WorldArt.NearTrees`); further out, where a tree is a silhouette in the fog, the crossed cards stay (`WorldKit.PineCard`). The pine moves to the large-prop budget.
+      - **Hero layers.** Every material layer is 512 in the GPU's arrays, so the characters' and creatures' atlases, baked at 1024, were halved. Layers authored larger than `layerSize` now also go in three arrays of their own at up to `heroLayerSize` (1024: `look.json`, `RenderAssets.HeroSize`). A per-layer slot table in the frame's uniforms (`heroOf`) sends a textured surface to them; everything else, and the PS2 mode, draws from the 512s as before. They're only the baked model atlases (crew, husk, hound, weight), about 70 MB with their mips. `LookTests.TheBakedAtlasesKeepTheirResolution`.
+      - **Still to come:** terrain.
 58. **Sourced models, and model bashing (art direction: "a texture and model fidelity problem").** Procedural kits can't reach the benchmarks' prop density and detail on their own. So the art now also takes free CC0 and CC-BY models and bashes them into the game's own things.
     - **Where they come from.** Only GitHub is reachable from the build machines (the asset sites are blocked). The sources are public GitHub collections (the Khronos glTF sample assets, three.js's examples, gkjohnson's demo data), pinned to a commit in `tools/models/sources.json`. Licences are read from each model's own files, and the intake rule is `intake/README.md`'s.
     - **The cook** (`tools/models/cook.py`, Blender, headless, deterministic).
@@ -1192,6 +1211,52 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - soots the result: creases, mud climbing the boots and hem, smoke settled on the shoulders, and the face sallow and smudged, its occlusion softened.
       - A Cycles bake clears the whole image, and only the colour pass leaves alpha where it didn't write. So each group bakes into images of its own, and its colour coverage masks all four maps into the atlas.
       - The chest lamp's glass keeps crew_atlas's lit cell, and the shovel keeps its library layers. `tools/blender/build.sh` no longer builds the crew.
+      - `tools/models/overbake.py` holds the machinery the crew's recipe grew, for any tools/blender character. It runs the script with its export held, makes the dressed and sculpted high copy, and joins the parts into one atlas. It bakes each group from its own copy, grades with soot, splits the parts back out, and exports with the script's own rig and clips.
+      - The Cinder Hound (`recipes/cinder_hound.py`) is the second through it:
+        - the hide gone to matted, oily soot, clumped back along the body;
+        - the skin shrunk onto the frame: ribs as bars down the barrel, the spine's knuckles, the hips and shoulder blades up, tendons down the legs;
+        - old scars across the flanks, and the muzzle's skin wrinkled back off the teeth;
+        - the slag blistered and pitted like clinker.
+      - The ember cracks, their cores and the eyes keep their own layers, so the tell's glow is untouched.
+      - The cars are the sixth. Pieces TrainKit set as boxes are modelled once, baked, and set by the kit where the boxes were, with the boxes as the fallback:
+        - `recipes/car_gear.py` has three pieces:
+          - the arch-bar truck, with plate wheels, journal boxes with their lids, top, arch and tie bars through the columns, coil springs, the bolster, and brake beams with their shoes on the treads;
+          - the knuckle coupler, with its striker, knuckle and guard arm, the cut lever out to the car side, and the air hose with its angle cock and glad hand. It's turned for a car's rear and raised to the kit's height;
+          - the brake gear under the middle: the reservoir on straps, the cylinder, the triple valve, the levers and the push rods.
+        - `recipes/car_body.py` has modules laid to the car's tuned geometry:
+          - roof-walk bays of gapped, nailed boards, stretched to fit the walk end to end;
+          - the roof sheets' riveted seam caps between the bays, on a steel roof, scaled to the roof's width;
+          - side posts: riveted pressed ribs on the steel cars, and bolted timber posts with iron plates on the planked ones.
+        - A car goes from about 5k triangles to about 10k, inside its class's 15k.
+      - The engine is the seventh (`recipes/engine_parts.py`), with the kit's pieces as the fallback:
+        - the spoked drivers with their counterweights and crank bosses, each turned to its side's crank phase (the pins a quarter turn apart, as the rods are laid);
+        - the pilot wheels;
+        - the fluted coupling rod with its bushes and oil cups;
+        - each side's cylinder, with its steam chest, cover studs, drain cocks, guides and crosshead;
+        - the smokebox door, with its hinges, dart and clamps;
+        - the armoured headlamp box and its cage, stretched back to the boiler front. The kit's lens stays the light;
+        - the bolted domes;
+        - the riveted straps round the casing.
+      - The engine unit comes to about 15.7k triangles of its 45k.
+      - The gun car's gun is the eighth (`recipes/gun_mount.py`), to TrainKit.Gun's frame, so the muzzle flash still sits at its muzzle. It's a water-cooled heavy machine gun on a bolted pedestal and cradle, and replaces the kit's boxes (282 triangles). It has:
+        - a riveted receiver with its top cover and crank, the spade grips and the trigger;
+        - the corrugated jacket with its filler, drain and steam union, and the muzzle booster;
+        - the feed block, with the belt curling down into the ammunition box;
+        - the raked, rimmed, riveted and dented shield.
+      - It comes to 944 triangles of the mount's 4k.
+      - The crew wear a gas mask (art direction: masked, "so we don't need to worry about lip sync or eyes", then "more steampunk post apocalyptic... original looking... friendslop horror so we need to be masked but still have some fun to us", "different players have colour variations").
+        - Two passes were turned down: a leather respirator and goggles over the scan's face, then a smokebox helm ("Yikes I really don't like the helmet. Give me other options with more detailing").
+        - Four concepts followed, modelled at full detail on the bare figure (`tools/models/concepts/crew_headgear.py`, `render.sh`): a plague-beak hood, a boiler diver, a welder-gasman and a plate sallet. The director picked the welder-gasman.
+        - The hood: a black rubber gas hood over the whole head, down into the collar. Its two brass-ringed eyepieces have lenses lit dimly amber (`helm.glass`, a pure light: the one thing you see of a face).
+        - Hanging off it: a knurled filter drum at the chin with a brass grille, two small filters at the cheeks, and a corrugated hose down to a coupling on the chest.
+        - The cap: a quilted leather flying cap in the player's colour, with a fleece rim and earflaps buckled under the chin.
+        - The variants: a welder's visor on brass pivots at the temples, flipped up over the cap (variants 0 and 2) or down over the face (1 and 3; then there are no eyes, only a slot of dark glass). 2 and 3 add the scarf.
+        - The high copy adds what the game mesh is too coarse to carry, baked: the eyepieces' threads, the drum's knurling and grille bars, the hose's corrugations, the visor's rivets, the hood's moulding seam and chin wrinkles, the cap's quilting (`crewfigure.gas_mask_detail`). The coat is patched, and stitched round the patches.
+      - Each player has their own colour. The cap's leather and the scarf are baked pale and neutral, scuffed. They're drawn as their own material on the same atlas (`crew_0.paint`: `overbake.Atlas.finish(split=...)`, `cook.bake_layers`' `dt_alias`), which `CreatureArt` tints by player id from `look.json` `crewColours`: eight colours, strong enough to hold under the amber lamps.
+      - From behind, a crewmate is a coloured cap; from in front, two dim eyes, or none. The crew are 4598 triangles, 1.86 m to the top of the cap.
+      - `tools/models/crewfigure.py` builds both figures. `Style(figure="helm")` is the crew; `figure="bare"` is the bare-headed figure in a cap or a steel helmet, with Lee Perry-Smith's scan for its face (`DT_CREW=bare` to `tools/blender/crew.py`), which the husk is built from.
+      - The husk is the ninth (`recipes/husk.py`): the crew figure gone wrong, for the Climbers (App. A.4: "drawn out thin, soot-black") and the Deadman (A.5: "a crewman, or was"), with the crew's rig and clips. Its mask is torn off and hangs from the collar by a strap, the face bare: that's how you tell it was crew. The face is shrunk onto the skull (the cheeks and temples sunk, the eyes back in black sockets weeping tar, the nose rotted back, the jaw long). The clothes are burned through in ragged holes, meat in them and char at the edges, everything soot-black, and the chest lamp is dead. The masks it bakes (`overbake.bake(masks=...)`: vertex colours on the high, baked to maps) steer the grade. `CreatureArt` draws the Climber and the Deadman with it, and falls back to the darkened crew when it's missing.
+      - The Weight is the tenth. It had been three of the Dragger's arms scaled up; it's now its own figure (`tools/blender/weight.py`, baked by `recipes/weight.py`). What comes up out of the marsh is a bog body, several gone into one: four torsos fused in a sodden heap on the ballast, their faces sunk in it looking up with black holes for eyes and mouths. Four arms hook over the coupler and the end beam's corners, and two more and a pair of legs trail behind, clawing at the stones. The high copy is tanned leather folded over itself, with the spines and ribs down each back and the shoulder blades standing. Peat is caked on everything low down. It's kept a shade lighter than the hound: nothing on it glows, and under the car's end the moon is all it gets. It has its own clips on a chain rig of 30 bones: grab (it has hold by 0.5 s), drag (uneven heaves) and release, which `CreatureArt` plays through the telegraph and the break-off. 3970 triangles; the Dragger's arms stay as the fallback.
     - **First set.**
       - The Khronos Lantern, split into a lamp post and a hand lantern. The hand lantern replaces the kit's cage in the cars, on the platforms and as the dropped lamp.
       - The photoscanned skull.
@@ -1312,7 +1377,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - Without this, a first frontier:2 night lost seven bots to the cold, stranded on the torn-off guard van.
       - Tallies count lost *cargo* cars (`RunReport.CarsLost`), so a torn-off guard van shows as none lost. That's the existing accounting, left as it is.
     - **Fixed on the way:** backing off a dead line (App. A.7), the driver stops anywhere short of the points, but the hand setting the switch back only counted "standing" within 3 m of the hold. Backed further than that, nobody ever set it, and the train stood until dawn: a frontier:2 night where the Switchman got the train down a dead line. `SwitchPlan.StandingAt` now takes anywhere short of the points (`SwitchmanTests`).
-    - **Art:** three of the Dragger's limbs, scaled up, hooked over the rear coupling. Nothing is drawn while it's buried. The greybox has a dark mass. CI shot `threats-weight`.
+    - **Art:** its own model, a heap of bog bodies hooked over the rear coupling (note 58). Nothing is drawn while it's buried. The greybox has a dark mass. CI shot `threats-weight`.
     - **Verified:** `WeightTests` (8):
       - buried, it waits for the rear car, then takes hold;
       - it drags harder than the engine pulls;
@@ -1322,8 +1387,421 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - the guns can't take it;
       - the director lays it at a water crossing ahead and nowhere else;
       - a client drags as the host does.
+65. **The Gaunt (T60, App. A.4 and B.4; GDD: "the cost is a person. Whoever watches it can do nothing else, and the train still needs running").** `EnemyKind.Gaunt`, cost 5 (App. B.1), tuned in `enemies.json` `gaunt`.
+    - **Ambiguity: "inside ANY player's view cone".** Read as: a living player, not shut in a car (walls), within 60 m, with the Gaunt's chest inside 35° of where they're looking, from 1.6 m eye height. No occlusion beyond the walls; the roofs are open. It's worked out on the host each tick (`Gaunt.Seen`). Clients just see it not moving.
+    - **FROZEN** while seen, not so much as a pose change: the art holds one frame of the Hollow's idle, never played.
+    - **ADVANCE** when unseen: along the roofs at 5 m/s toward the nearest living crew member on a roof, crossing the gaps car by car. There's no audio at all (spec A.4: silent by design), and no HUD text cue for it either.
+    - **REACH:** within 1.3 m of them, unseen, and past App. A.1's window from its arrival, it takes them (100, `DeathCause.Gaunt`) and is gone: "the cost is a person".
+    - **RETREAT:** seen without a break for 60 s. Any gap in the watching starts the minute again.
+    - **Director gates** (B.4):
+      - Frontier and beyond, once per run, a crew of three or more;
+      - "during a stop" (the train below 0.5 m/s) or "on tunnel exit" (the engine within 150 m past a tunnel's mouth);
+      - ×2 weight once the whole living crew has been shut in somewhere for three minutes;
+      - it's put on the roof of the car furthest from the crew.
+    - **Bots:** a roof walker within range stops and keeps its eyes on it (look deltas, as a player turns). A warm-up in progress goes on: the cold's a life too.
+    - **Art:** the Hollow's figure drawn out taller still (0.78 × 1.32), dark, facing whoever it's after (its facing replicates). The greybox has a figure. CI shot `threats-gaunt`.
+    - **Verified:** `GauntTests` (9):
+      - watched, it doesn't move;
+      - unwatched, it comes and takes them (after the window);
+      - watched for a minute, it withdraws;
+      - a glance away restarts the minute;
+      - someone shut in a car can't watch it;
+      - the director sends it once, at a stop or a tunnel's mouth, to a crew of three, and not on a Local line;
+      - a roof walker bot keeps its eyes on it until it goes;
+      - a client sees where it stands and which way it faces.
+66. **The procedural line (docs/design/linegen-plan.md, roadmap M5 "procedural line v1").** The readings where the plan or the spec was ambiguous, and what's not done:
+    - **Junction count** (§3.2's "junctions" beside its own alternate and dead-line counts): both ends of an alternate count, so junctions = 2 × alternates + dead lines. It's the reading that keeps the table's three columns consistent. The quotas' "facing junctions" (§15.3) and the Switchman's network size (App. B.7) count the same way.
+    - **Dawn (§22.1):** the timer is the spec's formula over the gate-to-terminus distance. The validator holds the ideal transit to it and reports transit plus four minutes a stop as a warning (`validation.dawnWithStopsHard: false`): by the spec's own numbers the deeper tiers can't take every stop in time. Note 13 is the same conflict.
+    - **Descent grades** come from brake fade's equilibrium: a train braking on a descent a third of the time recovers as fast as it fades (`profile`), so the ruling descent is the steepest where that duty holds at the consist's brake. Approaches to a stop never descend.
+    - **Turnouts:** alternates and dead lines leave on 650 m, 70 m turnouts (`junctions.turnoutRadius`), so the points take line speed and the curve limit doesn't post a board at every junction. Spurs keep route.json's 150 m kit.
+    - **Speeds on the boards and the paper are km/h**, as the cab's speedometer reads, rounded down to the five below. The sim's limits stay m/s.
+    - **The coaling tower** is guaranteed when the tender won't last (spec B.6, §11.1), and can also be drawn like any facility, at most one of those.
+    - **A washed-out main line** starts the night with its junction set for the alternate (`BranchDefinition.StartsDiverging`); a crew that throws it back runs onto the washout.
+    - **Weak bridges (§22.5):** over its car limit, the span goes under the first car past the limit (`TrackRules`), telegraphed by its limit board and Form 19.
+    - **Ground:** beside the track, players still stand at rail height (the formation); beyond it the land is the terrain field. The art's cells take their heights from the same field (`WorldArt.Relief`), so what you see is what you walk on. The old ±100 m strip's own hills are gone on generated lines.
+    - **Tile checksums (§17.3):** host and joiner compare a terrain fingerprint (`TerrainField.Print`, heights at 256 points to the millimetre) and the plan's own fingerprint in the session setup, and a joiner that differs is refused by name. The plan's per-tile repair (a client fetching the host's heights) isn't built: the Welcome has to fit one packet, and on .NET's IEEE doubles a mismatch is a bug to fix, not to patch at runtime.
+    - **Saves (§17.4)** keep the plan compressed (`RunCheckpoint.Plan`, about 12-20 KB); a resumed night plays it rather than generating afresh.
+    - **Nearest track:** an alternate can loop out of sight of the main line, so `RailLine.Nearest` finds track near a point with a coarse grid index. Spurs and dead lines keep the old test (their points within their own length of here); `StopCrewTests` is sensitive to which track a player on the ground is placed on.
+    - **The land's own shape:** past the formation, the terrain adds hills and ridges at landform scale (`terrain.reliefM` 32 m, 120-420 m wavelengths, half ridged noise, biased up so the line runs along valleys), none within 10 m of the track and full by 80 m, times the biome's `noiseScale` (mountain 2.2, marsh 0.3). Intents shape it: a cutting's walls go on up into the hill, a marsh or river stays low, a ledge's drop side only falls. It's in the sim's terrain, so it's what players walk on and what sightlines see; pass rates didn't move.
+    - **Dressing by biome** (`WorldArt.PlanDressing`, `SettingKit`): trees at the biome's density and dead share (the black forest crowds the line from 7 m), boulders and crags where it's rough, reeds in the marsh, fences and farmhouses in the fields, ruined houses and walls in the dead-town belt, chimneys, tanks and walls in the ruin belt, headframes over the slag. The land takes its biome's ground texture and goes to bare rock where it's steep. `dt screenshot --survey` lights a scene flat and clear to look the shape over.
+    - **The country is Nova Scotia gone dark** (biomes.json names, flora, props). `NovaKit`: black spruce and balsam fir, bare white birch, grey ghost spruce, granite erratics and ledge, dry stone walls, clapboard saltbox houses in faded paints, gambrel barns, the white wooden church with its needle steeple, a burying ground of leaning slate, fish sheds on stilts with their lobster traps. Each biome's trees, rocks, verge and props (their chance, distance and count per 150 m) are in `biomes.json`; `WorldArt.PlanDressing` places them.
+    - **A far horizon for each night** (`Art.PlanSky`, `dt linegen sky`): the route's own 360° backdrop band, from its seed and tier, in place of the look's. The highland plateau with its scarps, drumlins nearer with a church steeple on one, a headland with its lighthouse over a gap of open sea and the fishing village under it, a colliery's headframe and smoking slag heap in the coal country, and the black spruce line with dead snags. Lights go out with depth: the lighthouse is dark past the Frontier, and the steeple has fallen in deep territory. The sky shader only lifts a band's value from the fog colour toward the horizon's haze, so this band keeps every layer low: the land stands as a dark mass against the paler sky. At night in the route's fog it's faint by design; the survey light shows it plainly.
+    - **Maritime ground at the 2008-2012 bar (note 57):** each biome mixes landforms (`biomes.json` `landform`, shapes in `tiers.json` `terrain.drumlins/knobs/plateau`): drumlin fields, long whalebacks stretched along the ice's flow; the barrens' granite knobs; the highland plateau, flat-topped with gorges cut along a noise's zero line. Rolling relief is the old shape. It's all sim terrain, so it's deterministic and walkable. The ground textures come from `tools/art/texgen/mat_maritime.py`: barrens heath and reindeer lichen, spruce needle duff, lichened granite, Fundy red clay, sphagnum bog and shore shingle. Each is built from the CC0 scans with normal maps like the rest of the library, and detiled, i.e. the tile's own half-tile light and dark is taken out. Biomes name these textures directly as their `ground` and `materials`. Repetition is broken three ways. The terrain projects per triangle (triplanar-lite: a steep face takes its UVs from the side, not the top) at a 5 m tile. The terrain shader bombs both layers (after Quilez's texture-repetition technique 3): slow noise picks one of eight offsets of the tile, and neighbouring offsets cross-fade where the two samples differ. Offsets only translate, so the normal maps' tangent frames hold, and the second layer samples at 0.63 of the first's scale. On a generated line the cess spills its ballast straight into the biome's ground, tinted the same way; the old strip of `ground_mud` lined its puddles up into a chain. The terrain shader (`scene.frag`, terrain layer blend) modulates both layers by their own brightness at 1/6-1/9 scale, over each layer's mean from the last mip, and more so with distance. The second layer shows on slopes past 0.65 (full by 1.3) and in field-sized world-space patches.
+    - **The Maritimes' water and line (docs/design/maritime-rules.md, from the research pass in docs/design/research/):** lakes, shores (Atlantic, Fundy mudflats, dyked marsh, a river up the valley), tidal-river trusses, and cove-hugging curvature (biomes.json `sweepChance`). Lakes and shores are plan data (`LinePlan.Lakes`, `LinePlan.Shores`), placed after the stations and before the sightlines authority, so authority sees the land they make. The readings made where the research left it open:
+      - A shore's sea stands under the lowest rail along it, so where the line climbs along a coast the shore becomes a cliff.
+      - A dykeland's fields follow the rail at a fixed depth under it, rather than lying at one level. Where the rail varies too much (`maxRailRangeM`) the shore is a mudflat shore instead.
+      - A crossed lake is always crossed on a fill: the formation holds at rail height and the land falls at `fillSlope` into the water.
+      - Shores stop short of tunnels and pads.
+      - The terrain uses no trigonometry for any of it (a lake's heading is a unit vector in the plan, and the drumlins' flow cosine is a series), so tile checksums still match across machines.
+      - Not yet: fog gathering on the shore (nothing reads the per-segment exposure's fog), and a trestle across a lake's neck.
+      - Second pass (maritime-rules.md §2b): the forest in hard-edged stands with spruce spires and treeline walls; the country road as plan data, whose bed is in the terrain (the land under its centre), with level crossings and homesteads; and the Atlantic at the water, 2 m under the rail with barachois ponds behind the bank. The road is laid where the ground is open, so a line through cuttings gets short pieces or none, and not along the Atlantic, where the barachois has the land.
+    - **Pass rates (§21 M3, `dt linegen sweep`, 50 seeds per tier at 3 and 20 cars):** within two attempts 96-100% on every tier (local 100%; 98-100% before the Maritime water and curvature pass), first attempt 80-100%; no fallbacks used, none left unpassed; 1-2 s a plan in Release (up to 16 s at the worst). An alternate that can't be laid leaves a dead line at its junction when the quota's junctions would otherwise be short; a short grade run shares its room between the vertical curves at its two ends as they need it.
+    - **Not yet:** tile builds are 50 ms, not §17.5's 4 ms (tiles are only checksummed; the art builds 100 m cells, not tiles); the industrial bed that should fade out on the gate markers (§10.2) doesn't exist yet, so the markers are emitted and unused; grease has no traction effect in the sim (it didn't before either); the per-biome ballast, the corrupted and brass vegetation variants and the searchlights (§18) are the kits' existing pieces or nothing (a silent terminus is the fortress kit with its lamps out).
+    - **Verified:** `LineGenTests` (M0 byte-identical, M1 a drive end to end, M2 ground to 250 m and a client's checksums, M3 six specs within two attempts, the derail, collapse and washout rules, prediction exact on a generated line), `LineGenConfigTests` (every config field is in the files), `AlternateTests` (clothoids, vertical curves, a loop run through, backed onto and coupled across), `dt linegen sweep` for pass rates, and the `lg-*` screenshots.
+67. **Contradiction seeding and saving up (T64, App. B.1).**
+    - **"The director draws pairs from a conflict table rather than spawning independently."** The table is in `enemies.json` `director.conflicts`, in the tuning's names plus three conditions:
+      - `choir`: coming, its aggro past the approach (App. A.6);
+      - `grade`: a climb or fall of 1.5 % or more within 600 m;
+      - `facilityLoading`: at a facility.
+      Sleepers count as about when they lie within 1500 m ahead.
+    - **Ambiguity: "draws pairs".** Read as seeding, not flooding: while the run is short of its pairs ("at least one pair per run on Frontier and above. Two on Deep Territory": `pairsPerRun`), a spawn that would complete one with what's there now weighs ×3, and past halfway another ×3. After that, spawns are independent again.
+      - The first cut weighted pairs all night, with the Choir counted as always present. Hounds and Lamplighters then took nearly every spawn, and the Climbers vanished from a frontier:7 night.
+      - The director logs each pair it makes (`Director.Pairs`), and the harness reports them.
+      - Pairs whose other half isn't in the game yet (the Drift, Followers) wait for it.
+    - **Saving up.** The director spends as soon as it can afford anything, so a cost-5 threat only came when nothing cheaper could. In four frontier nights the Gaunt came once.
+      - Now, from 20 % of the route in (`saveFrom`), cheaper threats leave enough budget for the rare, expensive ones the run can still have (`saveFor`: the Gaunt, on Frontier+ with a crew of three).
+      - Once it's been, the saving stops.
+    - **The flank was full all night.** A Dragger under a car nobody walked on stayed there for the rest of the run. Two of them held the flank's two places (App. B.1's cap), so neither Climbers, Clingers nor the Gaunt could come. Now a Dragger with nobody on its car's roof for 180 s lets go (`draggers.lingerSeconds`).
+    - **Freeing the flank brought Climbers (ten on a frontier:7 night), and two stop-crew faults with them.**
+      - At the Switchyard, the driver held for everyone with a part to ride the engine's rake. Four bots and the gunner were warming up in car 9, in the cut left on the main line, so the stop sat at `Held` until its give-up and the night missed the dawn.
+      - Now a hand that's gone in out of the cold says so (`CrewCalls.Warming`). `Riding` leaves it out: it stays in its cut, and the train comes back for that.
+      - `Held` also goes on without the missing after the loading leg's give-up, as that leg already did.
+    - **Verified:** `ConflictSeedingTests` (7):
+      - it saves up for the Gaunt over something cheaper;
+      - it doesn't save on a run that can't have one;
+      - a Lamplighter with Sleepers ahead is a pair and weighted up;
+      - hounds pair with the Choir only when it's coming;
+      - once the run has its pair, nothing's weighted;
+      - the table only names things there are;
+      - a Dragger nobody walks over lets go.
+68. **Ground far overhead doesn't lift anyone off the train (T66).** `PlayerMotor.UpdateSupport` has always treated the ground as a candidate surface whenever you're at or below it ("nobody falls through the earth").
+    - **The failure:** on the procedural line (note 66), the terrain field doesn't know about every cutting. On frontier:3's alternate line it stands 10 m over the rail. Everyone on the engine's deck was lifted onto the hillside at 12 m/s and left there. The train ran on driverless into the Deadman and the Hollow, and the crew froze.
+    - **The fix:** ground more than a step (or this tick's fall) plus 0.5 m above you now loses to a train surface underfoot. It still catches whoever has nothing else under them.
+    - The terrain should still carve that cutting. That's the line generator's to fix; this makes the player motor robust to it.
+    - Harness traces now print the train's distance, speed and path on every line, which is how this was found.
+    - **Verified:** `GroundOverheadTests` (3): the engine and roof cases fail without the fix. frontier:3 went from the whole crew lost to delivered (net 2645, one death, to the Gaunt).
+69. **A winch with nowhere for its sleds to go is done (T66).** At a frontier:7 Foundry on the procedural line, the crane's castings filled the cars within reach of the winch. The pair then cranked for nothing until the loading leg's give-up (540 s), and the night missed the dawn.
+    - `Run.SledHasRoom` asks whether a hauled sled could go anywhere: a cargo car with room in the rake standing at the winch.
+    - When it can't, the driver counts the winch as done, and the winch hands leave their handles and come aboard (or carry crates, where there are crates).
+    - **Verified:** `StopCrewTests.WithTheCarsAtTheWinchFullThePairDontCrankForNothing` (540 s of loading without the fix). frontier:7 went from the dawn missed (net -429) to delivered (net 4087), with loading down to 296 s.
+70. **The 100-night playtest's fixes, and cold's bite cut (spec B.2).** A hundred bot nights (crews of 2, 4, 5 and 8, campaigns played contract to contract) found softlocks and deaths that weren't the design's:
+    - **Two hands on one door undid each other.** Two walkers warming up in one car both pulled its open door the same tick; each toggle undid the other, every time. They froze indoors and the driver waited on them at the stop all night. A door now moves once a tick however many pull it (`Vehicle.ToggleDoor`, reset by the train's step).
+    - **The stop driver's holds had no give-up once the switch was set** (`Held`), or once it waited on a switch to be set back with the shunter dead (`SetBack`, `Clear`). `Held` now goes in after its give-ups; with no shunter alive the driver gets down and sets the switch itself (`StopDriver.SetBackAlone`, `StopHand.SetBackAlone`).
+    - **Walkers died jumping gaps** off-centre from the top of an end ladder, or chilled (a flat jump carries a fifth less). They now square up on the centreline first, wait out a curve, and turn back if chilled (`WarmUp.CanJumpGap`).
+    - **Crate hands stood at the foot of the steps**, arrived but a hand's width outside the lane, holding crates. The old 200 s cold onset had been breaking the deadlock by sending them in to warm up.
+    - **Cold was 73% of deaths, and it was attrition, not a decision.** The spec's numbers moved: 600 s to onset, 1200 s to death, 20 s to recover near heat, and a quarter the rate inside a car with a door open (`indoorsRate`). The onset slowdown is 0.9. `VigilTests` and `WarmUpTests` pin them.
+71. **Running dark costs sign sight as well as obstacle sight (sight.json; the user's call after the playtest).** The line has boards, worked out from the route the same everywhere (`Route/Lineside.cs`), so none are sent:
+    - a speed board before each curve too sharp for 15 m/s at 0.4 m/s² lateral (v = √(aR)), and before each weak bridge (7 m/s);
+    - a low-clearance board before each tunnel: its mouth takes anyone standing on a roof (`DeathCause.Struck`), except a gun's crew, down behind the shield.
+    - **Read in the lamp, lost in the dark.** A board is read once the headlamp is within 350 m of it (its reflective paint shines back up the line in the scene then too). Lamps down, the paint is nothing; what it warned of is made out only 10 m short. Once read, it stays known.
+    - **Over a posted speed:** by 1.5 m/s the cars strain and the cargo lurches (integrity and cargo integrity by the second); by 3.5 m/s whoever's on the roofs goes over the side (`DeathCause.Thrown`); at 1.55× the board, the train derails.
+    - **Ambiguity: Grease was level content that did nothing.** It now takes the rail's grip to 0.25 while the engine's on it (App. A.2 "can't climb, can't stop"), seen at 150 m in the lamp and 15 m without. Both machines set it before the train steps, so prediction holds.
+    - **Bots:** the driver brakes in time to a read board and holds it until the last car's through. Walkers get off the roofs and inside (the warm-up's way in, `WarmUp.Shelter`) for a posted tunnel within 40 s, and stay in until the train's through. The gunner stays at the gun.
+    - **Verified:** `LinesideTests` (7): the boards stand where they should on every tier; the lamp reads a board at 350 m and the dark only the mouth, close; a curve at, over and far over its board; a tunnel mouth takes the roof rider but not the gunner or someone inside; Grease; the driver takes a curve at its board lit and pays for it dark; walkers shelter for a posted tunnel.
+72. **Trouble inside the cars (after the 100-night playtest: "more problems players need to face in cars, and reasons not to roof walk the whole time; defeatable, but able to hurt or kill").** Three incidents, not in the GDD's roster, on the shared spine (`Enemies/Incidents.cs`), interior zone, tuned in `enemies.json`: `CarFire`, `LooseLoad` and `Gnawers`, cost 2 each.
+    - **Each takes a cargo car in the engine's rake** (one of a kind a car, `maxActive` each) and is answered from its floor: Use held at the cargo stack's face, within reach of the aisle. Cut the car loose and it goes with it. None can be shot.
+    - **Car fire:** it grows from smoke (the telegraph) to alight at 0.35. Then it burns cargo, car and whoever's within 4 m of it (10 × how far gone, every 2 s; beaters take a 4-point scorch above 0.6). Each beater takes 0.08/s off. At full blaze for 30 s it takes the next cargo car.
+    - **Loose load:** it telegraphs until the train's speed changes by 0.6 m/s² (a hard brake, the slack running in) or 90 s pass, then comes down across the aisle: 60 to anyone within 2.5 m, and 0.05 off the car's cargo. 5 s of lashing ends it. It binds with "watch the road": the brake that saves you from Sleepers drops the load.
+    - **Gnawers:** they eat cargo and breed. 6 s after they're heard they're out of the crates, biting anyone in the car (7 × their number every 2 s), stamper included. Each stamper takes 0.1/s off. At full numbers for 30 s they take the next car.
+    - **Tells:** 6–9 kHz crackle, a 1.4–2.2 kHz strap groan rhythmic with the joints, 9–12 kHz chittering. They're in spec A.4's collision table, and `AudioTests` holds them all ≥ +6 dB over the bed in chaos (they're at +24 to +36).
+    - **Ambiguity: the Draggers "never leave their car" (App. A.4), but the user wants every problem beatable.** Stamped on as it reaches (the one it's reaching for holds Use), or a grabbed crewmate pulled free, it's hurt by `stampDamage` (0.5). At none it lets go for good.
+    - **Bots:** walkers go into the troubled car by the warm-up's way in (`WarmUp.Into`), work it from the aisle (`WarmUp.Indoors`), and get out if hurt below 35. The gunner goes too, only while no hounds are out. Walkers stamp a Dragger reaching for them.
+    - **Verified:** `IncidentTests` (9): a fire left alone burns and spreads; a blazing car kills and a beater puts one out; a hard brake drops a loose load on whoever's beside it; lashing it; Gnawers eaten away at a cost; trouble goes with a car cut loose; a Dragger stamped twice lets go; the director sends all three into cargo cars; a walker goes in and puts out a fire.
+73. **The pacing rule, and the mail cranes (after the playtest: "a reward or a problem every 30 seconds at most, ideally 20").** Nights had stretches of 2½ to 6 minutes with nothing going on.
+    - **The measure:** `World.Beats` logs each tick's moments: a threat telegraphing or hitting home, a board read, a bag caught or gone by, a stop made or left. `World.QuietSeconds` counts time out on the line with no beat and nothing telegraphing, committing or punishing (not in the yard, not after the night's over). `dt harness` reports `pacing`: beats a minute, and the longest, 95th-percentile and mean quiet stretch, with where the longest ended.
+    - **The director:** at 18 s quiet (`paceSeconds`) it sends something, cooldown or not, overdrawing its curve by up to `pacedCost` (3). Such spawns are marked `Paced` in its log. Grace is 20 s, and budgets are about twice App. B.1's (GDD updated).
+    - **Ambiguity: "total concurrent active" (App. B.1).** Read as engaged: alert, telegraphing, committing or punishing. Dormant Draggers under a car all night, and Lamplighters lingering after losing the light, had been filling the caps and silencing the director.
+    - **Variety:** a kind among the last four spawns has its weight halved for each (Lamplighters were half of all spawns before). The in-car incidents weigh 0.5, and 0.4 of that at a stop.
+    - **Mail cranes** (`sight.json` drops; `Route/Lineside.cs`): every 350–600 m from the route's seed, clear of structures, each with a green board 400 m short saying which side. A bag's caught by someone in a cargo car's open side door on that side holding the hook out (Fire, off a gun) as the car passes. In it: pay (30–90 scrip, paid at the terminus with the cargo, `RunReport.Mail`), 8 coal, 40 rounds a gun, or spares (+0.25 on the worst car). Lamps down, the board goes unread and you don't know which side. An open door is exposure: the cold (at the indoors rate) and the Choir.
+    - **The terminus:** three boards (1400, 600 and 100 m out). Nothing spawns in the final 500 m, so these are the run-in's moments.
+    - **Ambiguity: the in-car trouble at a stop.** Crate hands leave the crates for it; the winch pair go only for a fire that's alight or a load that's loose. Otherwise a stop's fire burned the whole train while everyone loaded. A fire now spreads at most once, and burns out once its car's cargo is gone; Gnawers leave then too.
+    - **Not replicated:** which bags were caught (host only). A client's crane keeps its bag in view until the train's by.
+    - **Measured** (`dt harness`, one seed each, bots): local crews of 2 and 4, frontier 4 and 5, frontier 8 and dead lines 6. The longest quiet stretch was 21–26 s, none over 30; the mean stretch 12–16 s; 3.3–4.7 beats a minute.
+    - **Verified:** `DropAndPacingTests` (3): cranes stand clear of structures, each with a board, the same on every machine; a bag's caught from an open side door with the hook out, and not with the door shut or the hook in; a harnessed night is never quiet more than 30 s.
+74. **The 100-night rerun (after the balance passes in notes 70–73).** The same four campaigns (crews of 2, 4, 5 and 8, 25 nights each, the same seeds), played contract to contract by the bots, each night allowed to its route's dawn:
+    - **Endings:** 94 delivered (82 before), 3 crew lost, 2 dawn missed, 1 derailed. Seats lost 10% (16%); crew of 8 lost 4%, 4 and 5 lost 15–17%, 2 lost 2%.
+    - **Deaths:** 113 (119), and no longer mostly one thing: mauled 28, Gnawers 21, jumped at speed 14, crushed 13, burned 11, cold 8 (87 before), struck in a tunnel 6, dragged 4, derailed 4.
+    - **Pace:** the mean quiet stretch 12 s, 95th percentile 19 s, the longest 30.1 s (10 stretches in 100 nights, by a tick); 4.4–5.5 beats a minute.
+    - **The in-car trouble:** 1784 incidents; fires beaten out mostly while still smoke (490 of 715), loads lashed about half the time before they came down (288 of 570), Gnawers stamped out before they were out 42% of the time. Walkers spent 53% of the night inside cars and 17% on roofs (23% and 31% before).
+    - **Score:** mean net a night 803 (crew of 2), 497 (4), 482 (5), 783 (8); mail about a third of the gross. Cargo delivered 0.85–1.3 carloads a night (1.6–2 before): the trouble eats cargo.
+    - **Bugs it found, fixed:** a gunner left on the ballast after a stop never got back aboard (it only borrowed the walker's legs on a car); a dead gunner stopped reporting to the crew calls, so the driver held at the next switch all night for it; a walker on the last car with the car ahead troubled had no way in for a tunnel. `StopCrewTests.AGunnerLeftOnTheBallast…`, `LinesideTests.AWalkerOnTheLastCar…`.
+    - **Open:** a facility stop takes a bot crew 12–15 minutes (not counted in the pace, which is out on the line), and contract pay may want raising now the trouble eats cargo.
+75. **The Passenger (T61, App. A.7 and B.7; GDD: "the tell is silence on a voice channel, in a game entirely about talking").** `EnemyKind.Passenger`, cost 5 (tier 5, as the Gaunt), tuned in `enemies.json` `passenger`.
+    - **BOARD / BLEND:** into a car's room at a facility stop: the rearmost room of the engine's rake with nobody in it. It wears a living crewmate's face (the director's draw), replicated as `Extra`. Clients draw it through the crew's own path (`GreyboxScene.AsCrewmate`, `Crewmate.Looks`), the same cap, coat, mask and gait's beat as the one it copies.
+    - **IDLE (the telegraph):**
+      - It walks its car end to end at 1.3 m/s and stands 6 s at each end over a job it never finishes. After two rounds it goes on to the next room, bouncing at the rake's ends.
+      - It has no voice: nothing routes one for it, and `VoiceMemory` has nothing of it to replay. The crew figures have masks now (no lips to read), so voice is the only way to tell.
+      - **Ambiguity: "appears on the roster · crew count reads one too many".** There's no roster UI yet. The HUD's `N ABOARD` counts the figures (the connected crew plus any Passenger), so it reads one too many. A roster screen should list it under the face it wears.
+    - **ISOLATE / STRIKE:**
+      - **Ambiguity: "waits for a player alone in a car".** Read as: a living player in a car's room (not the cab), with nobody else living in there. After 30 s aboard (and 30 s after each strike), it walks car to car to the nearest such player.
+      - In their car, with them still alone for 4 s, and within 1.2 m, it takes them (100, `DeathCause.Replaced`) and wears their face from then on.
+      - Anyone else coming in resets the 4 s: two in a car is the counter's cheap half.
+      - It's gone when its car leaves the train, or after 1500 s about.
+    - **Ambiguity: the COUNTER's last step.** "Head count, and make everyone speak" is the crew's: it's how they find out which one it is. Once they know, someone in its car faces it (inside 25° of their look, within 2.5 m) and presses Use, and, called out, it runs (BreakOff, gone). Use on a real crewmate does nothing.
+    - **Director gates** (B.7):
+      - Dead lines and beyond, a crew of three or more, once per run;
+      - at a facility stop, with a room to get into;
+      - never with another corrupted human about: the Switchman's gate now also waits on the Passenger (B.7's "maximum one active at a time");
+      - ×2 when the living crew is spread over three or more places (the ground, the cab, each car's room): "separated across multiple facility tasks".
+      - `saveFor` keeps its price back from 20% in while a facility is still to come.
+      - The comet cargo's "gates relaxed by one tier" waits for cargo types in the director (as for the Gaunt).
+    - **Bots:** `Heed.Passengers` (applied to every harness bot, as `Heed.Rattles` is). A bot in a room with it, within reach, turns to face it and calls it out. Its world says what the Passenger is; that stands in for the head count.
+    - **Found on the way: clients had no enemy tuning.** Neither a joiner's world nor a harness client's ever called `EnableEnemies`: they mirrored the enemies without their tuning. So `world.Enemies` was null on every client. The bots' counters that read it (the roof walker watching the Gaunt, `Heed.Passengers`) never ran outside the unit tests. The Weight's drag factor was 0 in a client's prediction (T59's "on the clients too" held only in `WeightTests`, which enable it by hand). `SessionSetup.Build` and the harness now give client worlds the tuning, with authority off, so there's no director and nothing spawns.
+    - **Art:** the crew figure in the copied look. It's staged on car 2's roof among the three crewmates for the `--threats --crew` roof shot (in play it's only ever in the rooms, which no view looks into).
+    - **Verified:** `PassengerTests` (8):
+      - with nobody alone, it loops car to car and hurts nobody;
+      - someone alone is taken after the rest and the stalk, and it wears their face after;
+      - someone coming in first saves them;
+      - facing it and pressing Use calls it out (and looking away doesn't);
+      - a bot alone with it calls it out before it strikes;
+      - it has no voice;
+      - the director puts it aboard at a stop on the Dead lines to a crew of three, and not on the Frontier, to two, or between stops;
+      - a client sees whose face it wears and where it is.
+76. **Followers (T62, App. A.3 and B.3; GDD: "the asymmetry is the entire mechanic. The person in danger cannot see the danger").** `EnemyKind.Follower`, cost 3 (tier 3), tuned in `enemies.json` `followers`.
+    - **Visible only to the others:** `HostSession.Interest` never sends a Follower's record to the player it's on, whatever the interest radius. So their machine has nothing to draw, play or put on the HUD, and a modified client couldn't show it either. Once it's nested in a car it's off their back, and it goes to everyone.
+    - **Where it stands: `Enemy.Loose`.** On the ground a Follower is neither on a car nor at a distance along the line. `Attached = Loose` (−2) means `Local` is its world position. `Enemy.WorldPosition` and `GreyboxScene` read it as such; the record carries it as any other, and `Extra2` is its yaw.
+    - **STALK:** put down 14 m behind someone on the ground (`PlayerState.World`) at a facility stop, closing at 1.5 m/s to 1.3 m at their back.
+    - **ATTACH (the telegraph):** at their back, facing the way they face, every tick; it's placed from where they were as the tick began.
+    - **BOARD:** once they're back on the train, if it's past App. A.1's window, it's in with them (Commit). Still coming up when they get aboard, it's lost them.
+    - **NEST:** 4 s later, it's in the rearmost cargo car of their rake with a room and no lamp in it (Punish). With no dark car, it goes.
+      - Nested, anyone in its room takes 20 every 3 s they stay (`DeathCause.Nested`).
+      - A lamp body in the room, or held within 4 m of it, drives it out: "flees light".
+    - **Ambiguity: "an observer calls it out → carrier halts → it detaches".** The call is voice and is the crew's. In the sim, the carrier standing still (below 0.3 m/s) for 2 s while someone else has it in view (35°, 30 m, not shut in) makes it let go and run. "Refuse boarding until the carrier is visually checked" is the same thing at the train's side. Speed is measured from how far they moved since the last tick, because the motor zeroes a grounded player's velocity.
+    - **Director gates** (B.3):
+      - at a facility stop, onto someone on the ground with nothing on them yet ("requires an excursion"), any tier, two at most;
+      - weight 1 plus 1 for each more of the crew on the ground at once.
+      - The Food cargo ×1.5 waits for cargo types in the director, as the comet cargo does. The conflict table's `sootChildren+followers` pair now has both sides.
+    - **Bots:** `Heed.Followers`. A bot that sees one on someone else stops, keeps its eyes on it, and calls who it's on through `CrewCalls.Followed` (the radio's stand-in). The one it's on, called, stands still. The carrier's own bot never sees it; its world has no record of it.
+    - **Art:** the husk (the Climbers' figure) at 0.9 × 0.8, dark, walking in their step; nested, crouched in the corner. For the `--threats --crew` roof shot it's staged at crewmate 1's back.
+    - **Verified:** `FollowerTests` (11) and `NetcodeTests.AFollowerIsNeverSentToTheOneItsFollowing`:
+      - it comes up behind and keeps to the blind spot at their pace;
+      - stood still where someone can see it, it lets go (and not while they walk on, or with nobody looking);
+      - aboard, it goes with them and nests in a dark cargo car (after the window), and it's lost them if they board before it's up;
+      - nested, it bites whoever stays in its car, to death;
+      - a lamp drives it out, and it won't nest where there's one;
+      - bots call it and the carrier stands still;
+      - the director sends one onto someone on the ground at a stop, and none with everyone aboard;
+      - a client sees it where it stands.
+77. **frontier:7 delivers again: the crane's operator stood in for the shunter, and nobody stood in for them (T67).** On main after the playtest passes (notes 70–74), the nightly soak's night (`dt harness --route frontier:7 --enemies --bots 8`) missed the dawn at 2727 s (net −559). Its one stop, the Foundry, ran its loading to the 420 s give-up and loaded nothing.
+    - **Stand-ins for the winch pair.** The shunter died jumping at speed on the way. The winch pair's first hand, the crane's operator, stood in as shunter (`CrewCalls.StandIn`); the shunter rides the stop in the cab, so nobody went to the crane. `StandIn` now covers any part someone has had and nobody alive has now. The shunter's goes, as before, to the first of the rest with a part; a winch part goes to the first crate hand, between stops (never mid-part).
+    - **Into trouble at a stop by the side door.** The in-car trouble drew the crate hands (note 73) to Gnawers in the last car of the cut rake. The walker's way in is a car's rear door, down from its roof or the one behind, and there's none of that at a rake's end. The three stood about on its roof and the ballast for the whole loading. `StopHand.IntoTrouble` takes them in as a crate goes in: from the ground, up the car's steps, open up, and in, where the walker works it from the aisle (`Tend`).
+    - **Measured:** frontier:7 delivered (net 2638, the Foundry loaded 2 castings in 201 s, 2 deaths). frontier:3 (1885) and frontier:2 (2661) delivered too. deadLines:3 was still under way at 3600 s, with Gnawers the night's killer (5).
+    - **Verified:** `StopCrewTests.WithTheShunterDeadTheFirstHandLeftTakesItOver` now also covers the winch part left behind.
+    - **CI:** `vr check`'s wall-clock cap was 30 s for 30 frames. The simulated headset on lavapipe runs at about a frame a second since the renderer's native 720p (#71), and one runtime-skipped frame left a run a frame short. The cap is now 30 s + 3 s a frame.
+78. **The Drift (T63, App. A.4 and B.4; GDD: "compounds brutally with anything that demands movement — which is most of the roster").** `EnemyKind.Drift`, cost 4 (tier 4), tuned in `enemies.json` `drift`.
+    - **Where: `FeatureKind.Marsh`.** B.4 has it as "a terrain region, not an entity. Marsh and contaminated ground". A generated line's plan already has its bogs and tar ponds (`marsh` and `contaminatedMarsh` water, from the biomes), and `PlanRoute` now marks those on the main line as the route's Marsh.
+    - **Ambiguity: "terrain-gated" spawning.** Read as the Hollow is (App. B.5, "condition-triggered, not placed"): over a marsh it comes up, once a marsh, whatever the director would draw, and it's charged when it does. It's gone once the train's rear is 60 m past. Left in the director's draw, it never came in ~150 s over deadLines:3's tar ponds against a dozen other options: a region that's sometimes not there isn't terrain.
+    - **SPREAD:** it's over a car of the train, 4 m across at first, spreading to 9 at 0.15 m/s. It moves with the train, since that's where the movement is.
+    - **Ambiguity: "movement".** Read as faster than 0.3 m/s in your own frame, since standing on the moving train isn't moving; a change of frame counts too. Anyone shut in a car isn't felt. Turning on the spot isn't movement: it feels feet, not eyes.
+    - **DETECT (the telegraph):** the nearest mover within its radius. It surges at them at 2.2 m/s, so a walk outpaces it and standing doesn't. The tell is the rustle: dry reeds at 12–15 kHz, above everything in spec A.4's table (row added), swelling and ebbing as it creeps. It's gain −4 dB: at +8 it was the loudest stem in the chaos bench and drowned the Gnawers' band. It's now 31 dB over the bed from car 1.
+    - **CONSUME:** within 1.2 m of them (past App. A.1's window) it's on them: 6 a second for as long as it stays (`DeathCause.Drift`). It moves with them, so walking on keeps it on.
+    - **COUNTER:** "complete stillness ~4s". Stock still for 4 s, whether it's still coming or already on them, and it loses them and goes back to spreading. Twice its radius away and it's lost them too.
+    - **Bots:** `Heed.Drift`. A bot it's after (its target replicates) stands still, look free, until it's lost.
+    - **Not yet:** B.4's "×2 with chemical cargo aboard" waits for cargo types in the director, as the Followers' Food and the comet cargo do.
+    - **Art:** the Dragger's limbs, dark, in a disc as wide as it's spread over the car's roof. Past the car's sides they lie on the ground beside the train. Staged over car 1 for `--threats`.
+    - **Verified:** `DriftTests` (9):
+      - standing still in it, nobody draws it (and it spreads);
+      - moving in it, it surges and keeps eating while they move, to death (after the window);
+      - stock still for 4 s, it loses them and stops;
+      - shut in a car, nobody's felt;
+      - off the marsh, it's gone;
+      - a bot it's after stands still, and one it isn't walks on;
+      - over a marsh it comes up once, charged, and not off one or again on the way out;
+      - a generated line marks its bogs and tar ponds as Marsh;
+      - a client sees how far it's spread and who it's after.
+    - Also verified by `AudioTests`: the rustle ≥ 6 dB over the bed in chaos for whoever it's after.
+    - **Measured:** deadLines:3 (tar ponds at 7.3–9.1 km): it came up once, surged three times, and got onto one bot once, which stood still till it lost them; no deaths to it. frontier:7 (no marsh on its main line) is unchanged: delivered, net 2638.
+79. **Cargo types (T68, GDD §18–19, App. B.8: "cargo changes the run rather than just scoring it").** Until now a car's cargo was only how full it was; B.8's modifiers (and the Choir's `livestockFloor`, and `houndsLivestockWeight`) were read by nothing.
+    - **`Vehicle.Cargo` (`CargoKind`):** a night leaves with the fortress's goods in its loaded cars. What a facility loads (a sled, a casting, a crate) is its cargo (facilities.json `cargo`):
+      - grain elevator: food;
+      - slaughterhouse: livestock;
+      - chemical works: chemicals;
+      - military depot: ammunition;
+      - foundry: heavy;
+      - wreck yard: salvage;
+      - mine head: ore;
+      - switchyard: goods.
+      A car goes by what last went into it: `Run` marks every cargo car whose load went up that tick. Cargo replicates with the vehicle record and is kept in a night's checkpoint; an older save reads as none, and its cars keep their goods.
+    - **Aboard** is what's in the loaded cargo cars of the engine's rake (`Director.Aboard`); a car cut off on a spur isn't aboard.
+    - **B.8 in the director:**
+      - livestock: Hounds ×`houndsLivestockWeight` (2.5), and the Choir's floor is `livestockFloor` (3), since they're never quiet;
+      - food: Hounds ×2, Followers ×1.5;
+      - comet material: every weight ×1.4, and the Gaunt's and the Passenger's tier gates one tier lower (`cometRelaxesGates`), in the draw and in what's saved for.
+      The table is `cargoWeights` in enemies.json.
+    - **Ambiguity: "The Drift ×2 with chemicals".** The Drift isn't drawn (note 78: it's terrain), so read as spreading twice as fast (`drift.chemicalSpread`).
+    - **Not yet:**
+      - "Chemicals: gunfire indoors becomes lethal to the crew": there's no gun indoors (they're mounted on the roofs and the tender);
+      - ammunition's, coal's and timber's "every consequence is worse";
+      - where comet material comes from: no facility loads it; it wants a contract type;
+      - GDD open question 7, whether a car shows its cargo from outside.
+    - **Verified:** `CargoTests` (6): each facility's cargo; a crate stowed at a stop is that facility's cargo, and a client and a restored train see it; with livestock aboard the Hounds come first 11 nights in 16 (7 with goods); livestock holds the Choir at its floor; chemicals spread the Drift twice as fast; comet material brings the Gaunt to a Local line.
+    - **Measured:** frontier:7 (2638), frontier:3 (1885) and frontier:2 (2661) all delivered, unchanged. Their stops load heavy cargo and salvage, which B.8 doesn't weight.
+80. **A stop's trouble takes two hands, not all of them, and the loading watches the clock (T70).** frontier:11 (26 km, a 46.7 min dawn; its validator already puts its slack with stops at −0.9 min) missed the dawn. Its one stop, a Slaughterhouse, had Gnawers and loose loads one after another. Every crate hand left the crates for each, nothing was loaded in 420 s, and four died to the Gnawers.
+    - **Two crate hands to trouble** (`StopHand.TakesTrouble`, `TroubleHands`): of the crate hands, the first two alive go to a car's trouble at a stop, and the rest keep loading. The winch pair go as before, for a fire alight or a load loose. Gnawers deaths there went from four to one.
+    - **Aboard, counted from done.** The wait for everyone aboard (`AboardGiveUp`) was timed from the start of the loading, so a stop that finished early still waited out the whole give-up again. It's now timed from when the loading was done.
+    - **Late: the loading ends when the dawn won't wait.** The loading leg is done once what's left of the night is less than the run home plus 180 s of leaving.
+      - The run home is at the pace the night has kept: the main-line distance covered since it got under way, over the time spent moving, every stop off the clock.
+      - Measuring it turned up two slips. Down a spur the engine's distance is the spur's, so it's measured from the stop's hold on the main line. The driver's cruise setting is the spur's crawl while stopped, so the pace is capped by the fastest cruise the night's had.
+    - **frontier:11 still misses, by under a kilometre:** the line after its stop is slower than the line before it. At the pace kept so far it isn't late; at the pace it goes on to keep, it is. A driver cautious enough to skip that stop would skip frontier:7's Foundry as well (its spare at the decision is under 600 s by the same measure), and that's the soak night's only stop. It's left as a tight line, as its validator says.
+    - **Verified:** `StopCrewTests.AtAStopOnlyTheFirstTwoCrateHandsLeaveTheCratesForTrouble`. frontier:7 (2638) and frontier:3 (1885) delivered, unchanged.
+81. **The crew roster lists the Passenger under the face it wears, and never as heard (T69).** App. A.7's Passenger "appears on the roster". The roster (hold Q) lists everyone aboard by the figures: you, each crewmate, and each Passenger. A Passenger's line carries the id of the crewmate it copies, so it sits beside the real one.
+    - Each line says when that crewmate's voice last came in (`VoiceChat.SinceHeard`). Voices are keyed by player id, so the line would otherwise borrow the real crewmate's voice.
+    - A `RosterLine.Voiced` flag stops that: the Passenger's line always reads NOT HEARD. The tells are "one too many" and "never speaks", and the roster puts both on screen together.
+    - Its where reads as a crewmate's would inside a shut car ("inside car N, shut in"). It's a mimic, and the roster doesn't give it away by wording.
+    - **Verified:** `HudTests.TheRosterCountsThePassengerAsOneTooManyAndNeverHearsIt`; `dt screenshot --hud --roster`.
+82. **The guard van has a rear platform, and the bots beat the Weight off from it and hold the gaps against Climbers (T65).** GDD §24's Weight counter is "melee from the rear platform". The rear car had no platform: its back end was a wall at roof height, 3 m above the coupling. So the bots' only answer had been to let the Weight take the car.
+    - **The platform:** a guard van last in the train gets a grating across its back end at plate height, `train.json` `platformDepth` deep. The rear door opens onto it, and a short ladder runs up to the roof. It's a coupler-kind surface, so standing on it works as a plate does: the rear car has no coupling behind it, so a press there cuts nothing. Its ladder foot is at platform height, so climbing down steps off onto the grating rather than the ballast.
+    - **Beating the Weight off:** any bot on the held car (the gunner at the rear gun, a walker on the roof) climbs down the ladder, crosses to over the coupling (clear of the door's reach), and swings. Each swing is Use pressed for 0.35 s then released, and each counts as one blow. After the Weight lets go, the bot climbs back up as out of any gap. Bots on the other cars keep clear, as before. With no platform (a cargo car last), everyone still keeps clear.
+    - **Holding the gaps against Climbers:** App. A.4 says someone on a roof end within `holdReach` of a gap holds it. A walker on a car at either end of a gap stands over it when a Climber is scrabbling there, or running alongside within 20 m of it. When a held Climber tries another gap, that's often this car's other end, and the walker follows.
+      - Only the cars either side hold a gap; nobody runs the train's length. So one walker holds two of a Climber's three tries, and two adjacent walkers hold all three.
+    - **Verified:**
+      - `WeightTests.TheGuardVanLastHasARearPlatformOverTheCouplingItTakes` and `ABotOnTheGuardVanGoesDownToThePlatformAndBeatsItOff`, a walker and a gunner: the car survives, and the Weight never punishes.
+      - `ClimberTests.ARoofWalkerHoldsTheGapAtItsCarsEndAndItTriesAnother` and `TwoRoofWalkersEitherSideHoldEveryGapItTriesAndItGivesUp`.
+      - frontier:7 delivered, 2638 unchanged. `dt art show guard` shows the grating.
+83. **`dt balance` sweeps the procedural line (T71).** The sweep ran its nights on the old `RouteGenerator` routes; it now runs them on `LineGen.Routes`.
+    - Each line is planned for the night's train length, as a night in the game is.
+    - The yard length comes from the line's own gate (`GateOr`), as `dt harness --route` does.
+    - The first sweep: frontier, seeds 1–2, crews 2 and 8, 10 cars.
+      - Survivable at 2: both delivered (nets 2195 and 1912).
+      - Non-trivial at 8: 41 punishes a night.
+      - Fair: no commits without the reaction window.
+      - Mean quiet: 13.9 s.
+      - It fails "never quiet over 30 s", with a 32.8 s stretch on frontier:1 at crew 2.
+      - frontier:2 at crew 8 missed the dawn, though crew 2 delivered it.
+    - Both are T74's to chase: they're findings about the lines players get, which is what moving the sweep was for.
+84. **Grease's counter: sanding from the engine's running boards (T72).** Grease was already level content: the line generator lays it, and the lineside drops the grip to `greaseTraction` while the engine's on it. What was missing was its counter, App. A.2's "sanding from the running boards restores traction over ~8s".
+    - **The running boards.** The engine has a walkway each side, `runningBoardWidth` out past the cab side at deck height. It runs from the boiler's front to partway across the cab doorway, so you step out of the doorway and forward onto it.
+      - Each has a sandbox `sandboxAhead` ahead of the cab.
+      - The boards are only ever footing. Collision skips them, so crews on the ballast pass under them to the cab steps; six stop-crew tests caught the first version pushing them off the steps.
+    - **Ambiguity: "restores traction over ~8s".** It's read as a rate, not a one-off:
+      - Held at a sandbox, the grip climbs from `greaseTraction` back to dry over `sandSeconds`.
+      - Let go, and it falls back over `sandFadeSeconds` (sand is only under the wheels while it's going down).
+      - So whoever's out there stays out there to the end of the grease: the "sends someone onto the running boards at speed" cost.
+      - Both numbers are in `sight.json` beside `greaseTraction`.
+    - **Replication and prediction.** The sand level is train state. It's on the World record, and the lineside steps it on both machines, as it does the grip.
+    - **The driver bot.** On grease the controls do nothing ("cannot climb grade, cannot brake, cannot accelerate"). Once the grease is costing it way, more than 2 m/s under cruise (a climb), the driver leaves them. It goes out of the doorway, along the board to the sandbox, holds Use until the engine's off the grease, then comes back the same way.
+      - Steam stays on, so the sanded drivers pull.
+      - On the level it doesn't go. The first version sanded every stretch and shut steam off to do it. On frontier:7 that slowed the train from 13.9 to 11.3 m/s with Cinder Hounds behind; they gained, and five punishes against one cost most of the cargo (net 2638 fell to 679). The unsanded train had simply coasted through.
+    - **The tell.** A HUD cue when the grease ahead comes into sight in the lamp: the chemical smell and the shine on the rail. The prompt at a sandbox shows the grip.
+    - The guard van's rear-platform ladder (note 82) is now drawn too; the kit drew only ladders from the ground.
+    - **Verified:**
+      - `SandTests`: the boards and boxes, the grip coming back over 8 s and going over 3 s, Use in the cab doing nothing, the driver sanding a stretch through and back into the cab, and a client having the host's sand.
+      - `dt art show engine`.
+85. **Balance on the procedural line: the grace stretch, the terminus approach, and a stop's lateness (T74).** Note 83's first sweep failed "never quiet over 30 s" (32.8 s), and frontier:2 at a crew of 8 missed the dawn.
+    - **Quiet stretches.** The pacing report now lists every quiet over 30 s: how long, where it ended, what ended it, and why the director had sent nothing (`Director.HeldBecause`: grace, cooldown, at the cap, banned, nothing fits).
+      - All three on frontier:1 were in the line's opening grace stretch: "banned (grace)", ended by a mail board.
+      - Ambiguity: the plan's grace stretch is gate to 2 km, "covers the GDD 90 s grace period". Its spawn ban held for as long as the crew took over those 2 km, minutes at the bots' pace. The playtest's later rule is "out of the gate in 20 s", the director's `graceSeconds`.
+      - The later rule wins. `director.lineGraceSeconds` (20) lifts the line's grace ban that far into the run; -1 keeps the plan's reading.
+      - The stretch keeps its easy geometry, and still has no Sleepers or Grease on it.
+    - **The terminus approach.** Once frontier:2 delivered, it showed a 132 s quiet into the terminus, where nothing's sent by design (`terminus_safe`, the no-spawn final approach). That's the night letting go, not a lull, so it isn't counted as out on the line.
+    - **Lateness.** frontier:2's Wreck Yard loading gave up at 300 s, not counted late: 1791 s of night left against 1465 s home plus 180 s of leaving.
+      - Then everyone-aboard took its whole 120 s (hands kept climbing down to the Gnawers in car 4).
+      - The line after the stop ran at 12.2 m/s, not the 13.7 kept before it.
+      - So a stop's loading is now late with the aboard wait in hand too, the run home reckoned at 0.9 of the pace kept (`LatePace`).
+      - A stop is only planned if it wouldn't be late on arrival, reckoned the same way. frontier:7's Foundry stop had been made and then given up at once, loading nothing.
+    - **Sweep after** (frontier, seeds 1–2, crews 2 and 8): every check passes.
+      - Longest quiet 22.7 s, mean 10.5 s, 28.5 punishes a night at crew 8, fair.
+      - frontier:2 at crew 8 delivers (2114).
+      - frontier:1 at crew 8 now misses the dawn. A Climber got into the cab with every walker warming inside, killed the driver, and no bot takes over the cab (T75).
+      - frontier:7, the soak's night, delivers (2895).
+    - **The Ferryman's straight.** With the night paced differently, frontier:7 got a Ferryman short of a stretch the line's authority slowed. The driver braked for it, as bound to; it boarded and took the conductor, and the Deadman ran the train back down the line.
+      - "Do not slow down" has to be the crew's choice. `Ferryman.ClearAhead` also wants nothing posted, and no authority, under the train's speed over its approach (`LineAuthority.Lowest`).
+      - `FerrymanTests` has a weak bridge's board, and the same line without it.
+86. **The frame-rate targets (the director: "the game must run 72fps in VR minimum and 90fps on PC").** Not in the GDD or the spec. They and the budgets that keep them are in `tuning/perf.json`:
+    - **The targets.** A flat screen draws 720p at 90 fps, which is 11.1 ms a frame. A headset draws two eyes at half the runtime's recommended size (a Quest 3's 2064x2208 halved) at 72 fps, 13.9 ms. The desktop window mirrors the flat view as well.
+    - **The budgets.** The main thread's drawing work may take `cpuShare` (0.6) of a frame: the scene built, uploaded and recorded. At most `maxFrameTriangles` (1.5 M) are drawn over every pass, and at most `maxPassDraws` (1500) draws go in any one pass.
+    - **`dt perf` measures it.** It runs each standard view, with the crew on the roof and the threats about, for a run of frames, flat and as a headset draws it. It reports:
+      - the build, upload and record times, on the machine's CPU;
+      - each pass's GPU time, from timestamps (`GreyboxRenderer.PassTimes`);
+      - the triangles and draws in each pass (`FrameStats`);
+      - the build broken down by part (`GreyboxScene.Timings`).
+    - **What lavapipe can say.** Lavapipe's pass times are CPU rasterisation: they rank the passes, not a GPU's milliseconds. The counts and the CPU times hold anywhere, and the cloud's 2.1 GHz Xeon is slower than any desktop the game ships to.
+    - **Measured (30 Sep, before any fixes).** Neither target is met on the CPU side:
+      - **CPU.** Building a view takes about 23 ms against a 6.7 ms budget. 21 ms of it is skinning the enemies on the CPU (116k triangles into the frame's soup, remade every frame). Uploading the soup takes 5 ms per renderer, three times in a headset (two eyes and the mirror).
+      - **Triangles.** A flat frame draws about 1 M triangles: everything goes into both shadow maps as well as the scene, with no culling. A headset frame draws 3 M, twice the budget: each eye draws its own shadow maps.
+      - **Serial frames.** Every submit waits for the GPU to finish (`GpuContext.Submit`), so a frame costs its CPU time *plus* its GPU time, not the larger of the two.
+    - **The order of the fixes.**
+      1. Skinning on the GPU: bind poses uploaded once, bone palettes per frame.
+      2. Kit meshes in device-local memory.
+      3. The eyes sharing one set of shadow maps, and frustum culling for every pass.
+      4. Frames in flight, so the CPU builds the next frame while the GPU draws this one.
+    - **1 is done: skinning on the GPU.** Each model's bind pose, for a variant and a look, is cooked once into a skinned asset (`Skinner.Bind`; `SkinWeights` as a second vertex stream). A draw then adds only its pose's bone palette (`MeshBuilder.Skinned`) to the frame's bone buffer (scene set binding 10). The scene and both shadow passes have skinning twins of their pipelines (`skin.glsl`, `SKINNED`).
+      - A glow that pulses goes to the instance (the shader's `tint.a`) rather than into the look. Looks are keyed to 1/128th, so a hull heating as it's drilled doesn't make an asset a frame.
+      - The frames match CPU skinning to within rounding (mean pixel difference 0.0002 on the roof and chase views with the threats).
+      - Building a view went from about 23 ms to 1.5 ms. The CPU share is 2.2 ms flat and 3.1 ms in a headset, inside both budgets.
+      - `MeshBuilder.Flattened` is skin.glsl's blend on the CPU, so the tests still ask where a posed hand or a ragdoll's limbs are.
+    - **3 is done: culling, shared shadows, and a mirror that's a blit.**
+      - Every kit instance has a bounding sphere (`MeshAsset.Bounds`). Each pass draws only those inside its own view: the camera's for the scene, the lamp's frustum and the moon's box for the shadows.
+      - What culling leaves out: a caster outside the lamp's frustum or the moon's box can't shadow anything inside it, so the maps are unchanged. The soup and skinned pieces are always drawn, since a pose can reach past its bind pose's sphere.
+      - A headset's right eye samples the left eye's shadow maps (`ShadowsFrom`): both eyes stand at the body's eye point, so the lamp's and the moon's views are the same.
+      - The desktop window in a headset session shows the left eye's middle (`VrView.Mirror`). It had drawn the whole flat view a third time.
+      - The mirror is verified only by the app running a night on the simulated headset (xvfb + Monado) without errors. The window's contents can't be read back here.
+      - Frames per view: a flat frame draws 0.66–0.78 M triangles (was about 1 M), and a headset frame 0.87–1.09 M (was 3.1 M).
+      - Lavapipe's headset frame took about 45% less GPU time.
+      - Pixels are the same as before on the roof view; the others differ in a few dozen pixels at most, from the skinning's rounding.
+      - `PerfBudgetTests` holds every view inside `maxFrameTriangles` and `maxPassDraws`, flat and in a headset. It also checks that the shared shadows draw what an eye's own would.
+    - **2 is done: kit meshes in the GPU's own memory.** Each piece is written to a staging buffer and copied into a device-local one. A frame's new pieces go across in one submit (`GreyboxRenderer.Resident`, `CopyStaged`).
+      - The per-frame buffers stay host-visible: the soup, the bone palettes, the effects and the overlay.
+      - Pixels are identical. It can't be timed on lavapipe, where all memory is the same.
+    - **Left: 4.** Every submit still waits for the GPU. Frames in flight need per-frame copies of the frame's buffers and descriptor sets.
+87. **A fireman in the cab, and nobody under a Climber that's got into it (T75).** On frontier:1 at a crew of 8, a Climber got into the cab while every walker was warming inside a car. It went through occupied car 1 and came down where the driver stood. It killed the driver, the Deadman took the empty cab, and the train ran back down the line all night.
+    - **Nobody can reach the cab at speed.** The tender is full width and the cab roof is over its front edge, so a walker can't get over it. The only other driver a crew has at speed is someone already in the cab.
+    - **The fireman.** A harness crew of `FiremanFrom` (6) or more keeps its last hand in the cab as fireman: a `ConductorBot { Fireman = true }` posted beside the driver.
+      - While the driver lives, the fireman stands by, keeping the fire and keeping the cab from ever being empty. It says no stop job, so the stops don't wait on it.
+      - Once the driver's been heard driving and then isn't, the fireman takes the controls and says it's the driver.
+    - **A Climber in the cab.** It takes whoever comes within reach, and stays while anyone's in the cab; leaving it empty is the Deadman's. So nobody leaves.
+      - The driver and fireman keep to the cab's front corners, out of its reach (it comes down at the cab's middle, where the driver used to stand).
+      - They work the controls and the firebox from there; only where they stand changes.
+    - **Firing from its own side.** Firing, each keeps to its own side of the firebox door: the driver right, the fireman left, clear of the vent's valve on the left wall.
+      - Before, a bot walked straight fore and aft at the firebox from wherever it stood. The fireman fetched up by the vent, which was then the nearest thing to hand, and never shovelled.
+      - On deadLines:3 the fire went out with 301 units still in the tender. The Hollow came down the cold stack and took the four in the cab.
+    - **Verified:** `FiremanTests`. The fireman stands by, then takes the controls when the driver dies, and keeps a low fire up by itself. With a Climber in the cab, both stay in the cab, unhurt and out of its reach, for 20 s.
+      - The sweep (frontier, seeds 1–2, crews 2 and 8) delivers all four nights and passes every check. frontier:1 at crew 8 comes home (2376), frontier:2 at crew 8 makes 3515, 43 punishes a night.
+      - frontier:7 delivers (3791).
+      - deadLines:3, "still under way at 3600 s" since T66 (T73), now delivers (2612, all eight home) in a 5400 s window. The night was the dead fire and the window: a Dead Lines night with its yard runs past 3600 s of harness time.
+88. **The Dead Lines sweep: the cut-off rake counts as aboard, the driver calls all aboard, and the terrain at its ceiling isn't a quiet (T76).** The first sweep on the Dead Lines tier ran with a 5400 s window per night; a Dead Lines night with its yard runs past 3600 s. Crews of 2 delivered both nights. Crews of 8 missed the dawn on both, and one quiet ran 49.4 s.
+    - **Held for the cut-off rake.** On deadLines:2 the Held leg waited 360 s: its two give-ups.
+      - It wanted everyone with a part aboard the engine's rake. The gunner and two crate hands were on the car behind the cut, and nothing sent them across.
+      - That car stays on the main, and the engine comes back and couples up to it, as for anyone warming in it (T64). So a stop's waits count anyone on any car of the train as aboard.
+    - **All aboard.** Both nights then spent the aboard wait's full 120 s after the loading.
+      - The crate hands kept fetching crates after the driver had called the loading done or late.
+      - The driver now says so (`CrewCalls.Leaving`). Crate hands put nothing more in, shut up behind them and come aboard; the winch pair stop cranking and come aboard.
+    - **Terrain at its ceiling.** The 49.4 s quiet was "director: terrain at its ceiling": linegen plan §15.4's "none of its own while the terrain is already at its hardest there". The terrain's the problem there, so it isn't counted as a quiet.
+    - **After** (deadLines, seeds 1–2, crews 2 and 8, 5400 s): every check passes.
+      - Longest quiet 22.7 s, mean 10.0 s, 66.5 punishes a night at crew 8, fair.
+      - Crews of 2 deliver both nights.
+      - Crews of 8 still miss the dawn, losing 5–6 (T77).
+      - frontier:7 delivers (2984).
+89. **Out of a car the Gnawers get out in, and the run home reckoned by the line (T77).** After T76, crews of 8 still missed the Dead Lines dawn, losing 5–6 each.
+    - **Gnawers.** Five of deadLines:1's six were gnawed while warming in a car. Out of the crates, Gnawers bite everyone within reach in the car.
+      - A walker too hurt to stamp them out (`TooHurt`) sat through it; nothing sent it out.
+      - A warm-up now leaves a car whose trouble breaks out while it's in there and isn't its own to work, and warms somewhere else.
+    - **The run home.** Both nights made their facility stop and missed the dawn by under a kilometre. Before the stop the train had kept about 13 m/s; after it, 10.9 m/s: a Dead Lines route's back half is harder than its front.
+      - The pace kept so far flattered the rest of the line. `StopDriver.Home` now also reckons the run home by the line's own authority from here (`LineAuthority.SecondsTo`, capped at the driver's cruise), and takes the longer of the two, each with `LatePace`'s margin.
+      - It's used by both the stop decision and the loading's lateness. On the Dead Lines the crew of 8 now skip the facility stops they haven't the night for, and still coal.
+    - **Verified:** `IncidentTests.AWalkerTooHurtToStampThemOutLeavesTheCarItsWarmingInWhenTheGnawersGetOut`, which fails without the change.
+      - The sweep (frontier and deadLines, seeds 1–2, crews 2 and 8) delivers all eight nights and passes every check: longest quiet 22.7 s, mean 9.9 s, 42 punishes a night at crew 8.
+      - frontier:7 delivers (2447; it now skips its Foundry stop).
+90. **Mods ship through Thunderstore (T78, the director's call).** A Dark Territory mod is a Thunderstore package, and the loader (note 53's v1, `Ballast.ContentMods`) reads it as it is.
+    - **The package.** `manifest.json` (`name`, `version_number`, `website_url`, `description`, `dependencies`), `README.md`, a 256×256 `icon.png`, and a `content/` folder.
+      - `content/` is laid over the game's `content/` as v1 mods are: added, replaced, or `"$patch": true` merged key by key.
+      - A package without `content/` has its root laid over, bar its own files.
+      - v1 `mod.json` folders still load.
+    - **Identity and order.**
+      - A mod's id is the `Namespace-Name` folder the mod managers install it under, else its name. It's what the mounted copy records, so it's what the content hash and a joiner's mod check compare.
+      - Dependencies (`Namespace-Name-1.2.3`, read as "at least") load first. Otherwise mods load by `order`, then id.
+      - A mod with a dependency missing or too old, or in a circle, isn't loaded. `ContentMods.Scan` says why, and the game prints it; the rest still load.
+      - The same package twice (a profile and the mods folder): the newest.
+    - **Where they come from.**
+      - The `mods` folders as before.
+      - A mod manager's profile: r2modman and the Thunderstore Mod Manager launch the game with `--mods-dir <profile folder>`, or set `DARKTERRITORY_MODS`.
+      - Zips dropped straight into any of them, unpacked into the app data's `mods-unpacked` as the managers lay them out. They're unpacked again when the zip changes, and removed when it's gone.
+    - **Making one.** `dt mods pack <folder>` checks a package against the site's upload rules and writes `Name-1.0.0.zip`, or lists what it would refuse and exits 1:
+      - name characters, a `major.minor.patch` version, a description of 250 characters at most, dependency format;
+      - README present, icon size, and some content.
+      - `tools/mods/example` (LateDispatch) is a package the tests hold to those rules. Its README is the modder's guide.
+    - **Not yet.** The game's own Thunderstore community page and its install rules are set up on the site, not in the repo: packages install as `Namespace-Name` folders into the profile the manager hands the game.
+    - **Verified:** `ContentModsTests`: a package laid over from `content/`, dependencies ordering the load, missing, too-old and circular dependencies left out with the reason, a pack and a refused pack, a dropped zip loaded and then uninstalled, and the example package.
+91. **The demo is an edition: an overlay on the content, baked into its build (T79).** GDD §21 "demo ships with five: one per pressure zone", §35 "demo roster of five, gun arcs, two facilities". The demo is the game with less in it, so it's data, laid over the base content as a mod is (note 53), and never a second code path.
+    - **What's in it** (`editions/demo`, a v1 mod folder that loads before every mod):
+      - `enemies.json`'s new `director.roster`: the five are the Sleepers (forward), Cinder Hounds (rear), Clingers (flank), the Hollow (interior) and the Choir (structural, always about with the guns). The trouble in the cars (fire, loose load, Gnawers) isn't on the GDD's roster; it's in, because it's what the crew does between threats, and without it the pace rule has too little to send.
+      - The line generator's Frontier with two facilities, and no Grease (an enemy, not one of the five). A Frontier route's severity lerps toward the Dead Lines column, so that column says two as well; nothing else reads it in the demo.
+      - `tuning/edition.json`: the tiers a quick night can be on (the Frontier), no campaign, at most 8 cars, "DEMO" under the title, and a wishlist line after a night.
+    - **Ambiguity:** what "five" leaves out. Read as the director sending nothing off the roster and nothing condition-triggered off it coming up (the Deadman, the Drift), with no budget saved up for what the edition hasn't got (the Gaunt), which would otherwise starve it. `roster: []` is everything, the full game.
+    - **Builds.** `tools/package.sh --demo` copies each build to `DarkTerritory-Demo-<rid>` and bakes the edition into its content (`dt edition bake demo`). `tools/upload.sh --demo` sends only those, checking that each is the demo, and the game's upload refuses a demo build. From the repo, `--edition demo` plays it (app or `dt`), mounted into the app data. A demo asked for a tier it hasn't got (`--route deadLines:3`) plays the Frontier. The content hash keeps demo and full crews apart.
+    - **Verified:** `RosterTests` (nothing off the roster sent or saved for, nor the Deadman or Hollow on their conditions), `EditionTests` (the baked demo's roster, two facilities and no Grease on three seeds, and its front end), `linegen sweep` on the demo's Frontier (60 seeds, all passed, no fallbacks), and two harness nights on it: frontier:7 at 8 bots delivered, net 2643, longest quiet 20.2 s; frontier:3 at 2 delivered, net 46, longest quiet 18.6 s. CI packages the demo and starts it asking for a Dead Lines night.
 
-65. **Generated stops: yards, villages and their loot (level-design Part D, Part Z).** Every facility's zone, and a few village halts between them, holds a stop generated from `tuning/stops.json` (`Sim/Stops/`). Its loot comes from the run's economy (`tuning/loot.json`).
+92. **Generated stops: yards, villages and their loot (level-design Part D, Part Z).** Every facility's zone, and a few village halts between them, holds a stop generated from `tuning/stops.json` (`Sim/Stops/`). Its loot comes from the run's economy (`tuning/loot.json`).
     - **Seeded by hash (Z.1):** a stop's seed is `hash(route seed, stop index, tier)`, and each attempt's is `hash(stop seed, attempt)` (`StopSeed`, SplitMix64). One stop never shifts another; the same night is the same stops on every machine.
     - **Generate, measure, validate, reroll:** up to `maxAttempts` (8). Each attempt is scored for manoeuvre difficulty (P15, `StopGenerator.Measure`) and checked against Z.5's invariants (`StopChecks`). The first attempt that passes everything and lands in the tier's band is kept, or else the closest one. A 60-seed sweep (`dt site sweep`) lands 98–100% in band, all valid.
     - **Yards are nested spurs off the main line.** `RailLine` branches only come off the main line and face up-line, so a ladder, fan or split is several spurs, each at its own switch. The first toe leads to the outermost track, so none cross. Each track is an S-curve turnout (radius `turnoutRadius`, 60 m) out to its offset, a straight loading face, and for a fan a curve away. `BranchDefinition` carries them as segments; `StopGeneratorTests` pins the branch's world path to the layout's to 0.3 m.
@@ -1348,7 +1826,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `StopArtTests`: the ground under a stop is level, and every building is drawn in its cell.
       - Look at them with `dt site --route frontier:7 --stop 4` (the plan) and `dt screenshot --route frontier:7 --site --facility 2` (in game).
 
-66. **Death, Holdouts and return (GDD v1.2 Appendix D). The Vigil is cut.** Systems spec C.2 is superseded: `Vigil.cs`, `vigil.json`, its record, its HUD, the Revived flag and the revive-at-the-gate rule are gone. Once the gate has opened, a Holdout is the only way back into a run (`Run/Holdouts.cs`, `tuning/holdouts.json` with D.13's numbers).
+93. **Death, Holdouts and return (GDD v1.2 Appendix D). The Vigil is cut.** Systems spec C.2 is superseded: `Vigil.cs`, `vigil.json`, its record, its HUD, the Revived flag and the revive-at-the-gate rule are gone. Once the gate has opened, a Holdout is the only way back into a run (`Run/Holdouts.cs`, `tuning/holdouts.json` with D.13's numbers).
     - **Where they are** is level content, part of each stop's layout (level-design Part H, `stops.json` "holdouts").
     - **The queue (D.6).** The dead join it at the back as they die, and a mid-run joiner as *lobbied*: boarded with `DeathCause.Waiting`, so they spectate with no body. Defer only ever moves you down.
     - **States (D.5):**
@@ -1368,7 +1846,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `HoldoutTests` (12): assign, breach and free inside; a stopped breach starts over; eligibility; release and come back; the second Holdout's crew; defer; Call Out's cooldown and silence; smash noise; a lobbied joiner; two deaths, two bodies; no farming over random deaths and recoveries; drop-outs.
       - `HoldoutSiteTests` (6), and the stop checks in every `StopGeneratorTests` sweep.
 
-67. **A yard's power and the grade out of it (level-design D.2, spec D.1).** Two of Part D's deferred levers.
+94. **A yard's power and the grade out of it (level-design D.2, spec D.1).** Two of Part D's deferred levers.
     - **Power:**
       - Each yard rolls its power by tier (`stops.json` tiers "power": live at local, mostly dead in deep territory). A powerhouse is placed at its throat.
       - At low power the yard's cranes run at `lowSpeed` (0.5); dead, not at all. Holding Use at the powerhouse door for `restartSeconds` restarts it (`facilities.json` "power"), and it's machinery-loud.

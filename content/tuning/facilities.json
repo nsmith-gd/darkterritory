@@ -102,5 +102,17 @@
     "mineHead": ["winch", "crates"],
     "chemicalWorks": ["crates"],
     "militaryDepot": ["crates", "winch"]
+  },
+  // What each facility puts in a car (GDD §18-19; App. B.8's modifiers go by it). A car takes the cargo of the last one that
+  // loaded it. Not listed: goods.
+  "cargo": {
+    "grainElevator": "food",
+    "switchyard": "goods",
+    "foundry": "heavy",
+    "slaughterhouse": "livestock",
+    "wreckYard": "salvage",
+    "mineHead": "ore",
+    "chemicalWorks": "chemicals",
+    "militaryDepot": "ammunition"
   }
 }

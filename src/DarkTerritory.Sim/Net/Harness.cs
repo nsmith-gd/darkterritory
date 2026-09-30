@@ -32,6 +32,8 @@ public sealed record HarnessOptions
     public Run.FacilityTuning? Facilities { get; init; }
     /// <summary>With it (and a run), the dead come back through the route's Holdouts (GDD App. D); bots don't breach them yet.</summary>
     public Run.HoldoutTuning? Holdouts { get; init; }
+    /// <summary>With a route, the line's boards and what they warn of (sight.json): posted curves, tunnel mouths, Grease.</summary>
+    public Route.SightTuning? Sight { get; init; }
     /// <summary>Another network to run over (the CLI's fake Steam lobby), in place of the loopback or UDP.</summary>
     public IHarnessNetwork? Network { get; init; }
     /// <summary>
@@ -59,11 +61,29 @@ public sealed record ClientReport(byte Id, string Bot, double MaxCorrectionM, in
 public sealed record HarnessReport(int Ticks, double Seconds, string Link, double TrainDistance, double TrainSpeed, double BoilerPressure, double Tender,
     int SnapshotBytes, double DownKbpsPerClient, double UpKbpsPerClient, double MaxCorrectionM, int Deaths,
     IReadOnlyList<ClientReport> Clients, ThreatReport? Threats = null, Run.RunReport? Run = null, int WarmUps = 0,
-    IReadOnlyList<StopRecord>? Stops = null);
+    IReadOnlyList<StopRecord>? Stops = null, PacingReport? Pacing = null);
+
+/// <summary>
+/// How often something happened (after the playtest: "a reward or a problem every 30 s at most, ideally 20"): the moments
+/// the world logged (<see cref="World.Beats"/>), and the stretches out on the line with nothing going on
+/// (<see cref="World.QuietSeconds"/>). <paramref name="Kinds"/> counts the beats by what they were.
+/// </summary>
+public sealed record PacingReport(int Beats, double BeatsPerMinute, double LongestQuietSeconds, double P95QuietSeconds, double MeanQuietSeconds,
+    int QuietOver30, double QuietShare, IReadOnlyDictionary<string, int> Kinds)
+{
+    /// <summary>When the longest quiet stretch ended (seconds into the night), and what the run was doing (for finding it).</summary>
+    public string? LongestQuietEnded { get; init; }
+    /// <summary>Every stretch quiet over 30 s: how long, when it ended and where, by what, and why the director had sent nothing.</summary>
+    public IReadOnlyList<string> LongQuiets { get; init; } = [];
+}
 
 /// <summary>What the director and the enemies did (GDD §34 / App. B.9 audit).</summary>
 public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictionary<string, int> Spawned, IReadOnlyDictionary<string, int> Punishes,
-    IReadOnlyDictionary<string, int> DeathsByCause, int FairnessViolations, bool Derailed, double ChoirPeak, double MeanCargoIntegrity, int RoundsFired);
+    IReadOnlyDictionary<string, int> DeathsByCause, int FairnessViolations, bool Derailed, double ChoirPeak, double MeanCargoIntegrity, int RoundsFired)
+{
+    /// <summary>The conflict-table pairs the director put together (App. B.1).</summary>
+    public IReadOnlyList<string> Pairs { get; init; } = [];
+}
 
 /// <summary>
 /// Host plus N bot clients in one process over a <see cref="LoopbackNetwork"/> with simulated lag and loss,
@@ -87,12 +107,16 @@ public static class Harness
             host.World.EnableRun(rt, route, o.YardLength, authority: true, o.Facilities);
         if (o.Holdouts is { } ht && o.Run is not null && o.Route is { } hroute)
             host.World.EnableHoldouts(ht, hroute);
+        if (o.Sight is { } sight && o.Route is { } sightRoute)
+            host.World.EnableLineside(sight, sightRoute);
 
         // On a night with facilities, the crew call to each other at the stops, and each has a part: the walkers first (a
         // shunter, the winch pair, then crates), and the gunner only if it takes them to make up the winch pair.
         var calls = o.Run is not null && o.Route is not null && o.Facilities is not null ? new CrewCalls() : null;
         bool gunner = o.Combat is not null;
-        var hands = Enumerable.Range(1, Math.Max(0, o.Bots - 1)).OrderBy(i => i == 1 && gunner ? 1 : 0).ToList();
+        // A crew big enough keeps a fireman in the cab with the driver (T75): the last of them.
+        int fireman = o.Bots >= FiremanFrom ? o.Bots - 1 : -1;
+        var hands = Enumerable.Range(1, Math.Max(0, o.Bots - 1)).Where(i => i != fireman).OrderBy(i => i == 1 && gunner ? 1 : 0).ToList();
         StopJob JobOf(int i) => hands.IndexOf(i) switch
         {
             0 => StopJob.Shunter,
@@ -106,14 +130,21 @@ public static class Harness
         {
             var transport = new CountingTransport(ClientTransport(i));
             IBot bot = i == 0 ? new ConductorBot(calls, i)
+                : i == fireman ? new ConductorBot(calls, i) { Fireman = true }
                 : i == 1 && o.Combat is { } c ? new GunnerBot(c.Guns, c.Choir, o.Seed * 1000 + i, playerTuning.Cold, Hand(i))
                 : new RoofWalkerBot(o.Seed * 1000 + i, playerTuning.Cold, Hand(i));
             var session = new ClientSession(transport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
+            // The enemies' tuning, as a joiner loads it: prediction drags with the Weight as the host does (T59), and the bots
+            // read their counters from it (the Gaunt's view, the Passenger's reach).
+            if (o.Enemies is { } cet)
+                session.World.EnableEnemies(cet, o.Route, (ulong)o.Seed, o.Bots, authority: false);
             // Clients see the night as players do: the phase, and each site's winch (mirrored from the host).
             if (o.Run is { } crt && o.Route is { } croute)
                 session.World.EnableRun(crt, croute, o.YardLength, authority: false, o.Facilities);
             if (o.Holdouts is { } h && o.Run is not null && o.Route is { } hr)
                 session.World.EnableHoldouts(h, hr);
+            if (o.Sight is { } csight && o.Route is { } lroute)
+                session.World.EnableLineside(csight, lroute);
             clients.Add((session, bot, transport));
         }
 
@@ -122,6 +153,13 @@ public static class Harness
         var deaths = new Dictionary<string, int>();
         double choirPeak = 0;
         int rounds = 0;
+        var quiet = new List<double>();
+        var beatKinds = new Dictionary<string, int>();
+        int beats = 0, outTicks = 0, quietTicks = 0;
+        double lastQuiet = 0;
+        string? longestEnded = null;
+        var longQuiets = new List<string>();
+        string? heldAt20 = null;
         for (uint t = 0; t < ticks; t++)
         {
             if (host.World.Run is { Over: true })
@@ -134,10 +172,35 @@ public static class Harness
             host.Step();
             events.AddRange(host.World.EnemyEvents);
             rounds += host.World.Shots.Count;
+            beats += host.World.Beats.Count;
+            foreach (var b in host.World.Beats)
+                beatKinds[b] = beatKinds.GetValueOrDefault(b) + 1;
+            double q = host.World.QuietSeconds;
+            if (q < lastQuiet && lastQuiet > 0)
+            {
+                if (lastQuiet > quiet.DefaultIfEmpty(0).Max())
+                    longestEnded = $"{t * SimConstants.TickSeconds:0}s at {host.Train.Dynamics.Distance:0} m, {host.World.Run?.Phase}, by {string.Join(",", host.World.Beats)}";
+                if (lastQuiet > 30)
+                    longQuiets.Add($"{lastQuiet:0.0}s to {t * SimConstants.TickSeconds:0}s at {host.Train.Dynamics.Distance:0} m, {host.World.Run?.Phase}, by {string.Join(",", host.World.Beats)}; director: {heldAt20 ?? "sent something"}");
+                quiet.Add(lastQuiet);
+            }
+            if (host.World.Run is not { Phase: Sim.Run.RunPhase.Yard or Sim.Run.RunPhase.Arrived or Sim.Run.RunPhase.Failed })
+            {
+                outTicks++;
+                if (q > 0)
+                    quietTicks++;
+            }
+            // What the director was holding back for, once it's been quiet long enough that it should have sent something.
+            if (q >= 20 && lastQuiet < 20)
+                heldAt20 = host.World.Director?.HeldBecause;
+            lastQuiet = q;
             choirPeak = Math.Max(choirPeak, host.World.Choir.Aggro);
             // Once everyone's in, the gunner goes to the guard gun (a host-side respawn at their post).
             if (t == 30)
+            {
                 PostGunner(host, clients.Select(c => (c.Session, c.Bot)).ToList());
+                PostFireman(host, clients.Select(c => (c.Session, c.Bot)).ToList());
+            }
             if (t == 60)
                 foreach (var c in clients)
                     c.Session.ResetStats();
@@ -151,6 +214,9 @@ public static class Harness
                         part.PlayerId = session.PlayerId;
                     intent = bot is IWorldBot wb ? wb.Decide(session.Predicted, session.World, t, out _) : bot.Decide(session.Predicted, session.Train, t);
                     intent = Heed.Rattles(intent, session.Predicted, session.World, playerTuning);
+                    intent = Heed.Passengers(intent, session.Predicted, session.World);
+                    intent = Heed.Followers(intent, session.Predicted, session.World, session.PlayerId ?? 0, calls, (uint)t);
+                    intent = Heed.Drift(intent, session.Predicted, session.World, session.PlayerId ?? 0);
                 }
                 session.Step(intent);
             }
@@ -182,7 +248,8 @@ public static class Harness
                 d.Log.GroupBy(l => l.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()),
                 events.Where(e => e.To == SpinePhase.Punish).GroupBy(e => e.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()),
                 deaths, unfair, host.World.Derailed, Math.Round(choirPeak, 1),
-                Math.Round(host.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).DefaultIfEmpty().Average(v => v?.CargoIntegrity ?? 1), 3), rounds);
+                Math.Round(host.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).DefaultIfEmpty().Average(v => v?.CargoIntegrity ?? 1), 3), rounds)
+            { Pairs = [.. d.Pairs] };
         }
         if (o.Udp || o.Network is not null)
         {
@@ -191,6 +258,8 @@ public static class Harness
             hostTransport.Dispose();
         }
         string link = o.Network is { } n ? n.Name : o.Udp ? "udp localhost" : $"{o.Link.LatencySeconds * 1000:0}ms ±{o.Link.JitterSeconds * 1000:0} loss {o.Link.LossRate:P0}";
+        var pacing = Pace(quiet, lastQuiet, beats, outTicks, quietTicks, beatKinds);
+        pacing = pacing with { LongestQuietEnded = lastQuiet > 0 && lastQuiet >= quiet.DefaultIfEmpty(0).Max() ? $"{seconds:0}s, the night's end" : longestEnded, LongQuiets = longQuiets };
         return new HarnessReport(ticks, seconds, link,
             Math.Round(host.Train.Dynamics.Distance, 1), Math.Round(host.Train.Dynamics.Speed, 2),
             Math.Round(host.Train.Boiler.Pressure, 1), Math.Round(host.Train.Boiler.Tender), host.LastSnapshotBytes,
@@ -198,7 +267,22 @@ public static class Harness
             reports.Max(r => r.MaxCorrectionM), reports.Count(r => !r.Alive), reports, threats,
             host.World.Run is { } run ? run.Report ?? run.Tally(host.World, [.. host.Players.Select(p => p.State)]) : null,
             clients.Sum(c => c.Bot switch { RoofWalkerBot r => r.WarmUps, GunnerBot g => g.WarmUps, _ => 0 }),
-            clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Log);
+            clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Log,
+            pacing);
+    }
+
+    static PacingReport Pace(List<double> quiet, double last, int beats, int outTicks, int quietTicks, Dictionary<string, int> kinds)
+    {
+        if (last > 0)
+            quiet.Add(last);
+        var sorted = quiet.Order().ToList();
+        double minutes = Math.Max(1e-9, outTicks * SimConstants.TickSeconds / 60);
+        return new PacingReport(beats, Math.Round(beats / minutes, 1), Math.Round(sorted.DefaultIfEmpty(0).Max(), 1),
+            Math.Round(sorted.Count == 0 ? 0 : sorted[(int)Math.Min(sorted.Count - 1, Math.Floor(sorted.Count * 0.95))], 1),
+            Math.Round(sorted.DefaultIfEmpty(0).Average(), 1), sorted.Count(s => s > 30),
+            Math.Round(outTicks == 0 ? 0 : (double)quietTicks / outTicks, 3),
+            kinds.GroupBy(k => k.Key.Split(':')[0] == "board" || k.Key.StartsWith("caught") || k.Key.StartsWith("missed") || k.Key.StartsWith("run") ? k.Key : k.Key.Split(':')[0] + (k.Key.EndsWith("Punish") ? ":punish" : ""))
+                .OrderBy(g => g.Key).ToDictionary(g => g.Key, g => g.Sum(x => x.Value)));
     }
 
     /// <summary>A bot and what it's doing, in a few words (the harness trace).</summary>
@@ -207,12 +291,25 @@ public static class Harness
         string where = !s.Alive ? $"dead ({s.Death})" : s.Parent == PlayerState.World ? "ground" : $"{s.Surface} {s.Parent}";
         string doing = bot switch
         {
-            ConductorBot c => c.Stops?.Doing.ToString() ?? "",
+            ConductorBot { Driving: false } => "firing",
+            ConductorBot c => c.Sanding ? "sanding" : c.Stops?.Doing.ToString() ?? "",
             RoofWalkerBot r => r.WarmUpStep is { } w and not "Off" ? $"warm:{w}" : r.Job?.Doing ?? "",
             GunnerBot g => g.Job?.Doing ?? "",
             _ => "",
         };
         return doing.Length > 0 ? $"{bot.Name}[{doing}] {where}" : $"{bot.Name} {where}";
+    }
+
+    /// <summary>The crew size from which one of them rides in the cab as fireman (T75).</summary>
+    public const int FiremanFrom = 6;
+
+    /// <summary>The fireman into the cab beside the driver, on the left (a host-side respawn at their post, as the gunner's).</summary>
+    static void PostFireman(HostSession host, List<(ClientSession Session, IBot Bot)> clients)
+    {
+        var fireman = clients.FirstOrDefault(c => c.Bot is ConductorBot { Fireman: true });
+        if (fireman.Session?.PlayerId is not { } id)
+            return;
+        host.SetPlayerState(id, PlayerMotor.SpawnInCab(host.Train, host.PlayerTuning, -0.8));
     }
 
     static void PostGunner(HostSession host, List<(ClientSession Session, IBot Bot)> clients)

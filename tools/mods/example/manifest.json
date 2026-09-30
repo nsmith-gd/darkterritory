@@ -1,0 +1,7 @@
+{
+  "name": "LateDispatch",
+  "version_number": "1.0.0",
+  "website_url": "",
+  "description": "An example Dark Territory mod: dispatch holds the main line ten minutes past dawn. Copy this folder to start your own.",
+  "dependencies": []
+}

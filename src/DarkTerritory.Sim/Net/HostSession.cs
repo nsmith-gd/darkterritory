@@ -404,10 +404,16 @@ public sealed class HostSession
 
     List<WireRecord> Interest(List<WireRecord> records, Crew c)
     {
-        if (InterestRadius <= 0)
-            return records;
-        var at = PlayerMotor.WorldPosition(c.State, Train);
         _far.Clear();
+        // A Follower is never sent to whoever it's following (App. A.3: "visible ONLY to other players, never to the
+        // carrier"): not drawn, not heard, not there at all on their machine. Nested in a car, it's off their back, and
+        // anyone's to see.
+        foreach (var e in World.ActiveEnemies)
+            if (e is Enemies.Follower { Nested: false } f && f.Carrier == c.Id)
+                _far.Add(WireRecord.MakeKey(RecordKind.Enemy, e.Id));
+        if (InterestRadius <= 0)
+            return _far.Count == 0 ? records : records.Where(r => !_far.Contains(r.Key)).ToList();
+        var at = PlayerMotor.WorldPosition(c.State, Train);
         foreach (var e in World.ActiveEnemies)
             if (!e.Far && (e.WorldPosition(Train) - at).Length > InterestRadius)
                 _far.Add(WireRecord.MakeKey(RecordKind.Enemy, e.Id));

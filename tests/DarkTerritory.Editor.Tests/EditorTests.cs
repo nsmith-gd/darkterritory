@@ -59,7 +59,7 @@ public sealed class EditorTests : IDisposable
         var (status, _) = Call("POST", "/api/tuning/set", new { file = RouteTuning.File, path = "dawnSlack", value = 0.25 });
         Assert.Equal(200, status);
         string after = File.ReadAllText(file);
-        Assert.Equal(before.Replace("\"dawnSlack\": 0.18", "\"dawnSlack\": 0.25"), after);
+        Assert.Equal(before.Replace("\"dawnSlack\": 0.4", "\"dawnSlack\": 0.25"), after);
         Assert.Equal(0.25, DataFile.Load<RouteTuning>(file).DawnSlack);
     }
 
@@ -147,8 +147,10 @@ public sealed class EditorTests : IDisposable
         var catapult = route with { Features = [.. route.Features.Select(f => f == facility ? f with { Modules = ["catapult"] } : f)] };
         Assert.Equal(400, Call("POST", "/api/route/preview", catapult).Status);
         Assert.Equal(400, Call("POST", "/api/route/save", new { name = "catapult", route = catapult }).Status);
-        // A curve a metre tighter than any tier lays (route.json's least minRadius, which the page is told).
-        double tightest = RouteTuning.Load(_content).Tiers.TightestRadius();
+        // A curve a metre tighter than any tier lays (the least minRadius of route.json and the line generator's
+        // deepest column, which the page is told).
+        double tightest = Math.Min(DataFile.Load<RouteTuning>(Path.Combine(_content, RouteTuning.File)).Tiers.TightestRadius(),
+            DarkTerritory.Sim.LineGen.LineGenConfig.Load(_content).Tiers.Columns.DeepMax.MinRadius);
         Assert.Equal(tightest, described.GetProperty("tightestRadius").GetDouble());
         var hairpin = route with { Line = route.Line with { Segments = [.. route.Line.Segments.Select((t, i) => i == 1 ? t with { Radius = -(tightest - 1) } : t)] } };
         Assert.Equal(400, Call("POST", "/api/route/save", new { name = "hairpin", route = hairpin }).Status);

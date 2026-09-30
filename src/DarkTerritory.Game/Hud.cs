@@ -45,8 +45,9 @@ public static class Hud
             Link(o, width, link, line);
         Radio(o, width, s, line);
         Alerts(o, width, height, s, line);
-        if (Prompt(s) is { } prompt)
+        if (Prompt(s) is { } written)
         {
+            string prompt = Bound(written);
             float w = o.Font.Measure(prompt) + 8;
             o.Rect(MathF.Round((width - w) / 2), height - 44, w, line + 4, Panel);
             o.TextCentred(width / 2f, height - 42, prompt, Ink);
@@ -58,6 +59,33 @@ public static class Hud
             float cx = width / 2f, cy = height / 2f;
             o.Rect(cx - 2, cy, 5, 1, Ink with { W = 0.55f });
             o.Rect(cx, cy - 2, 1, 5, Ink with { W = 0.55f });
+        }
+    }
+
+    /// <summary>
+    /// The crew roster (T69, held Q): everyone aboard by the figures, where each is, and when each was last heard. A crew
+    /// counts heads and makes everyone speak by it (App. A.7): the Passenger is on it under the face it wears, one line too
+    /// many, and never heard. <paramref name="heard"/>: seconds since a crewmate's voice last came in, null for never.
+    /// </summary>
+    public static void Roster(Overlay o, int width, int height, IReadOnlyList<RosterLine> lines, Func<byte, double?>? heard)
+    {
+        int line = o.Font.LineHeight;
+        float w = 260, h = (lines.Count + 2) * line + 8;
+        float x = MathF.Round((width - w) / 2), y = MathF.Round(height * 0.2f);
+        o.Rect(x, y, w, h, Panel);
+        o.Text(x + 6, y + 4, $"{lines.Count} ABOARD", Ink);
+        y += 4 + 2 * line;
+        foreach (var l in lines)
+        {
+            o.Text(x + 6, y, l.Name, l.Alive ? Ink : Dim);
+            o.Text(x + 70, y, l.Where.ToUpperInvariant(), Dim);
+            var (said, colour) = l.You ? ("", Dim)
+                : !l.Alive ? ("", Dim)
+                : (l.Voiced ? heard?.Invoke(l.Id) : null) is not { } ago ? ("NOT HEARD", Amber)
+                : ago < 2 ? ("SPEAKING", Green)
+                : ($"HEARD {ago:0}S AGO", Dim);
+            o.TextRight(x + w - 6, y, said, colour);
+            y += line;
         }
     }
 
@@ -126,7 +154,7 @@ public static class Hud
         if (!bodies.RadiosCarried || !s.Player.Alive)
             return;
         // Right mouse throws what's in your hands; with them empty, it sets the radio down to pass on.
-        string wearing = bodies.CarriedBy(s.PlayerId) is null ? "RADIO [T]  [RMB] SET IT DOWN" : "RADIO [T]";
+        string wearing = Bound(bodies.CarriedBy(s.PlayerId) is null ? "RADIO [T]  [RMB] SET IT DOWN" : "RADIO [T]");
         o.TextRight(width - 6, 5 + 5 * line, bodies.HasRadio(s.PlayerId) ? wearing : "NO RADIO", bodies.HasRadio(s.PlayerId) ? Dim : Amber);
     }
 
@@ -180,8 +208,16 @@ public static class Hud
                 DeathCause.PulledUnder => "PULLED UNDER BETWEEN THE CARS",
                 DeathCause.Lamplighter => "TORN DOWN AT THE LAMP",
                 DeathCause.Deadman => "KILLED TAKING BACK THE CAB",
+                DeathCause.Gaunt => "NOBODY WAS WATCHING IT",
+                DeathCause.Replaced => "IT WASN'T ONE OF YOU. IT IS NOW",
+                DeathCause.Nested => "SOMETHING CAME ABOARD ON SOMEONE'S BACK",
+                DeathCause.Drift => "THE GROUND CAME UP. YOU KEPT MOVING",
                 DeathCause.TornOff => "WENT OFF THE RAILS WITH THE REAR CAR",
                 DeathCause.Climbed => "SOMETHING CAME IN OFF THE ROOF",
+                DeathCause.Struck => "STRUCK BY THE TUNNEL MOUTH",
+                DeathCause.Thrown => "THROWN OFF ON THE CURVE",
+                DeathCause.Burned => "BURNED IN A BLAZING CAR",
+                DeathCause.Gnawed => "EATEN BY THE GNAWERS",
                 DeathCause.Ferryman => "SLOWED FOR THE LANTERN",
                 DeathCause.Stoker => "BURNED DRIVING IT OUT OF THE FIREBOX",
                 DeathCause.Waiting => "WAITING TO BE PICKED UP",
@@ -199,6 +235,15 @@ public static class Hud
         if (world.Derailed)
             Big("DERAILED", Red);
     }
+
+    /// <summary>The player's keys (T80), for the prompts: the app sets them from the settings.</summary>
+    public static Settings Keys { get; set; } = new();
+
+    /// <summary>A prompt written with the default keys ([E], [RMB], [T]) as the player has them bound.</summary>
+    public static string Bound(string prompt) => prompt
+        .Replace("[E]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Use))}]", StringComparison.Ordinal)
+        .Replace("[RMB]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Throw))}]", StringComparison.Ordinal)
+        .Replace("[T]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Radio))}]", StringComparison.Ordinal);
 
     /// <summary>What your hands can do right here, with the key that does it.</summary>
     public static string? Prompt(IPlaySession s)
@@ -248,6 +293,9 @@ public static class Hud
                 return "[E] HOLD: VENT";
             case InteractableKind.Handbrake when p.Surface == Surface.Roof:
                 return "[E] HOLD: HANDBRAKE";
+            // Out on the running board (App. A.2): what the sand does is only worth it on greased rail.
+            case InteractableKind.Sandbox when p.Parent == 0 && p.Surface == Surface.Deck:
+                return train.Traction < 1 || train.Sand > 0 ? $"[E] HOLD: SAND THE RAIL ({train.Traction * 100:0}% GRIP)" : "[E] HOLD: SAND";
             case InteractableKind.Door:
                 return "[E] DOOR";
         }

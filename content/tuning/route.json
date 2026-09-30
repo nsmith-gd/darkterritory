@@ -1,8 +1,9 @@
 // Procedural line generation (GDD §22, spec B.8, App. B.2). First pass.
 {
-  // Spec B.8: dawn timer = route length / 11 m/s average, plus 18% slack.
+  // Spec B.8: dawn timer = route length / 11 m/s average, plus 40% slack (was 18%: after the playtest a stop, the posted
+  // curves and the trouble in the cars wouldn't fit in it, and missing dawn was a night's commonest failure).
   "dawnAverageSpeed": 11,
-  "dawnSlack": 0.18,
+  "dawnSlack": 0.4,
   // Flat straight track at each end: the fortress yard, and the terminus approach where nothing spawns (App. B.1).
   "yardLength": 600,
   "terminusApproach": 800,

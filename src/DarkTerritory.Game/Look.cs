@@ -60,7 +60,19 @@ public sealed record LookTuning
     public float TexelsPerMetre { get; init; } = 128;
     /// <summary>Every material layer's size in the GPU array (the library is authored at 512: ARCHITECTURE §8 note 57).</summary>
     public int LayerSize { get; init; } = 512;
+    /// <summary>The characters' and creatures' baked atlases (authored bigger than <see cref="LayerSize"/>) keep up to this.</summary>
+    public int HeroLayerSize { get; init; } = 1024;
     public float Baked { get; init; } = 0.35f;
+    /// <summary>The crew's paint by player id, in turn (the flying cap and the scarf: CreatureArt.Crewmate), as multipliers.</summary>
+    public float[][] CrewColours { get; init; } = [[1, 1, 1]];
+
+    /// <summary>A crewmate's paint colour.</summary>
+    public System.Numerics.Vector3 CrewColour(int id)
+    {
+        var c = CrewColours.Length > 0 ? CrewColours[(id % CrewColours.Length + CrewColours.Length) % CrewColours.Length] : [1, 1, 1];
+        return new System.Numerics.Vector3(c[0], c[1], c[2]);
+    }
+
     /// <summary>By <see cref="Palette"/> colour name.</summary>
     public Dictionary<string, MaterialTuning> Materials { get; init; } = new();
     public ColourGrade Grade { get; init; } = new();
@@ -164,7 +176,10 @@ public sealed class Look
     public Art.SceneArt Art => _art ??= new Art.SceneArt(this);
 
     /// <summary>Loads the look's textures, backdrop, grade and post settings into a renderer.</summary>
-    public void Dress(GreyboxRenderer renderer) => renderer.Load(_assets ??= Assets());
+    public void Dress(GreyboxRenderer renderer) => renderer.Load(Sky is { } sky ? (_assets ??= Assets()) with { Backdrop = sky } : _assets ??= Assets());
+
+    /// <summary>A night's own far horizon in place of the look's band (a generated line's, <see cref="Art.PlanSky"/>); null for the look's.</summary>
+    public Image? Sky { get; set; }
 
     /// <summary>Everything the renderer needs: the material maps, the backdrop, the grade and the post settings.</summary>
     public RenderAssets Assets()
@@ -192,7 +207,7 @@ public sealed class Look
                 if (t.Family == "sky")
                     backdrop = diffuse;
             }
-        return new RenderAssets { LayerSize = Tuning.LayerSize, Layers = layers, Backdrop = backdrop, Lut = Tuning.Grade.Bake(), Post = Tuning.Post };
+        return new RenderAssets { LayerSize = Tuning.LayerSize, HeroSize = Tuning.HeroLayerSize, Layers = layers, Backdrop = backdrop, Lut = Tuning.Grade.Bake(), Post = Tuning.Post };
     }
 
     /// <summary>The night's lighting with the look's atmosphere over it.</summary>

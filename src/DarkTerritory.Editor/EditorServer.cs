@@ -217,8 +217,8 @@ public sealed class EditorServer : IDisposable
     {
         if (!string.IsNullOrEmpty(file))
             return DataFile.Load<Route>(Path.Combine(_content, "lines", Path.GetFileName(file) + ".route.json"));
-        var (tier, seed) = Route.ParseSpec(string.IsNullOrEmpty(spec) ? "frontier:7" : spec);
-        return RouteGenerator.Generate(_routeTuning, tier, seed);
+        // The night the game would play for this spec, from the line generator (content/linegen), with the usual six cars.
+        return Sim.LineGen.Routes.Generate(_content, string.IsNullOrEmpty(spec) ? "frontier:7" : spec, 6);
     }
 
     static Route ParseRoute(string body) => JsonSerializer.Deserialize<Route>(body, DataFile.Options) ?? throw new InvalidDataException("no route");
@@ -245,7 +245,7 @@ public sealed class EditorServer : IDisposable
             length = Math.Round(line.Length, 1),
             plan,
             profile,
-            tightestRadius = _routeTuning.Tiers.TightestRadius(),
+            tightestRadius = TightestRadius(),
             modules = new
             {
                 names = Enum.GetNames<ModuleKind>().Select(n => char.ToLowerInvariant(n[0]) + n[1..]),
@@ -253,6 +253,12 @@ public sealed class EditorServer : IDisposable
             },
         };
     }
+
+    /// <summary>
+    /// The tightest curve any tier lays: the prototype generator's (route.json) or the line generator's deepest column
+    /// (linegen/tiers.json), whichever is tighter, since the editor opens nights from either.
+    /// </summary>
+    double TightestRadius() => Math.Min(_routeTuning.Tiers.TightestRadius(), Sim.LineGen.LineGenContent.Cached(_content).Config.Tiers.Columns.DeepMax.MinRadius);
 
     /// <summary>A route the game would refuse: modules that don't exist, on a facility.</summary>
     static string? Invalid(Route route)
@@ -277,9 +283,10 @@ public sealed class EditorServer : IDisposable
         route = route with { Name = name, Line = route.Line with { Name = name } };
         if (Invalid(route) is { } why)
             return (400, "text/plain", why);
-        double tightest = _routeTuning.Tiers.TightestRadius();
-        if (route.Line.Segments.Count == 0 || route.Line.Segments.Any(s => s.Length <= 0 || s.Radius != 0 && Math.Abs(s.Radius) < tightest))
-            return (400, "text/plain", $"every piece of track needs a length, and a curve no tighter than {tightest:0} m (route.json's tightest tier)");
+        double tightest = TightestRadius();
+        static bool Tight(double r, double min) => r != 0 && Math.Abs(r) < min - 0.5;
+        if (route.Line.Segments.Count == 0 || route.Line.Segments.Any(s => s.Length <= 0 || Tight(s.Radius, tightest) || Tight(s.EndRadius ?? 0, tightest)))
+            return (400, "text/plain", $"every piece of track needs a length, and a curve no tighter than {tightest:0} m (the tightest tier's)");
         route.Build(); // refuse a line that can't be built
         DataFile.Save(Path.Combine(_content, "lines", name + ".json"), route.Line);
         DataFile.Save(Path.Combine(_content, "lines", name + ".route.json"), route);

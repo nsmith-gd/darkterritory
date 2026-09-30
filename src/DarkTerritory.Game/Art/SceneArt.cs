@@ -56,7 +56,7 @@ public sealed partial class SceneArt(Look look)
             if (r != Arms.Hanging(1))
                 rightHand = ToF(r);
         }
-        return Creatures.Crewmate(mesh, m, pose, time, c.Id, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)));
+        return Creatures.Crewmate(mesh, m, pose, time, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)));
     }
 
     static Vector3 ToF(Double3 d) => new((float)d.X, (float)d.Y, (float)d.Z);

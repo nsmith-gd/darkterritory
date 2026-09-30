@@ -26,9 +26,10 @@ public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed }
 /// <param name="Scavenged">Scrip for village finds stowed aboard (level-design P12), paid with the cargo on delivery and in Gross.</param>
 /// <param name="Deaths">In-run deaths (GDD App. D.9), each charged <paramref name="CrewLossFees"/>' share; <paramref name="BodiesHome"/>
 /// of their bodies came home aboard, refunding <paramref name="BodyRefunds"/>. Net is after both.</param>
+/// <param name="Mail">Pay caught off the mail cranes (sight.json drops), paid with the cargo at the terminus and in the gross.</param>
 public sealed record RunReport(RunEnd End, double Seconds, double DistanceKm, int CarsDelivered, int CarsLost, double CargoDelivered,
     double Gross, double CoalCost, double AmmoCost, double RepairCost, double Net, int CrewHome, int CrewLost, double Scavenged = 0,
-    int Deaths = 0, int BodiesHome = 0, double CrewLossFees = 0, double BodyRefunds = 0);
+    int Deaths = 0, int BodiesHome = 0, double CrewLossFees = 0, double BodyRefunds = 0, double Mail = 0);
 
 /// <summary>
 /// One night's run, host-authoritative (clients mirror it for the HUD). The yard gate opens the run and
@@ -156,6 +157,10 @@ public sealed partial class Run
     public RunReport? Report { get; private set; }
 
     /// <summary>Advances the run after the world has stepped. <paramref name="crew"/> is everyone's authoritative state.</summary>
+    /// <summary>Pay in the mail bags caught so far tonight (sight.json drops): it pays at the terminus with the cargo.</summary>
+    public double Mail { get; private set; }
+    public void AddSalvage(double scrip) => Mail += scrip;
+
     public void Step(World world, IReadOnlyCollection<PlayerState> crew, double dt)
     {
         if (Over)
@@ -227,6 +232,24 @@ public sealed partial class Run
     {
         if (_facilityTuning is not { } t)
             return;
+        var train = world.Train;
+        StepLoading(world, t, dt);
+        // Whatever went into a car this tick (a sled, a casting, a crate) is this facility's cargo (App. B.8).
+        if (FacilityFeature?.Facility is { } kind)
+        {
+            var cargo = t.CargoOf(kind);
+            foreach (var v in train.Vehicles)
+                if (v.Kind == VehicleKind.Cargo && v.Load > _loadSeen.GetValueOrDefault(v.Id, v.Load) + 1e-9)
+                    v.Cargo = cargo;
+        }
+        foreach (var v in train.Vehicles)
+            _loadSeen[v.Id] = v.Load;
+    }
+
+    readonly Dictionary<int, double> _loadSeen = new();
+
+    void StepLoading(World world, FacilityTuning t, double dt)
+    {
         var train = world.Train;
         world.Bodies.HeavySpan = t.Crates.Heavy.Span;
         if (CurrentSite is { } site)
@@ -381,6 +404,13 @@ public sealed partial class Run
     }
 
     /// <summary>
+    /// Whether a sled hauled now would go anywhere (T66): a cargo car with room within reach of where the sleds come in. With
+    /// the cars there full (the crane's castings went on them, say), cranking on hauls nothing.
+    /// </summary>
+    public bool SledHasRoom(TrainOnLine train, Site site) =>
+        _facilityTuning is { } t && CargoCarNear(train, site.SledTo, t.Winch.CarReach) is not null;
+
+    /// <summary>
     /// Where a sled's load goes: into the cargo car with room nearest the sled, in the train standing by it (one of its
     /// vehicles within reach). The load's handed along the train to it: a train can't put its cars in a different order at
     /// a spur, so the cars nearest the winch fill at the first stop and the next winch loads the ones behind them.
@@ -528,7 +558,7 @@ public sealed partial class Run
         var home = cargo.Where(v => attached.Contains(v.Id)).ToList();
         bool delivered = End == RunEnd.Delivered;
         double cargoValue = home.Sum(v => v.Load * v.CargoIntegrity);
-        double gross = delivered ? perCar * cargoValue + Scavenged : 0;
+        double gross = delivered ? perCar * cargoValue + Scavenged + Mail : 0;
         double coal = Math.Max(0, _tenderAtDeparture + _coalLoaded - train.Boiler.Tender) * e.CoalPerUnit;
         double ammo = Math.Max(0, _ammoAtDeparture - train.Vehicles.Sum(v => v.Gun.Ammo)) * e.RoundsPerRound;
         double repairs = train.Vehicles.Where(v => attached.Contains(v.Id)).Sum(v => 1 - v.Integrity) * e.RepairPerIntegrity;
@@ -553,7 +583,7 @@ public sealed partial class Run
         return new RunReport(End, Math.Round(Seconds, 1), Math.Round(engine.Distance / 1000, 2), home.Count, cargo.Count - home.Count,
             Math.Round(cargoValue, 2), Math.Round(gross), Math.Round(coal), Math.Round(ammo), Math.Round(repairs),
             Math.Round(gross - coal - ammo - repairs - fees + refunds), crewHome, crew.Count - crewHome, delivered ? Math.Round(Scavenged) : 0,
-            deaths, bodiesHome, fees, refunds);
+            deaths, bodiesHome, fees, refunds, Math.Round(delivered ? Mail : 0));
     }
 
     /// <summary>

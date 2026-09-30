@@ -60,9 +60,9 @@ public static class WorldRecords
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Switch, i), [train.Diverging(i) ? 1 : 0]));
         foreach (var v in train.Vehicles)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Vehicle, v.Id),
-                [Q(v.Load, Fine), Q(v.Integrity, Fine), Q(v.CargoIntegrity, Fine), v.Gun.Ammo, v.Gun.Cooldown, v.Gun.Jammed ? 1 : 0, v.Gun.LastShotTick, v.DoorsOpen]));
+                [Q(v.Load, Fine), Q(v.Integrity, Fine), Q(v.CargoIntegrity, Fine), v.Gun.Ammo, v.Gun.Cooldown, v.Gun.Jammed ? 1 : 0, v.Gun.LastShotTick, v.DoorsOpen, (long)v.Cargo]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
-            [Q(world.Choir.Aggro, Fine), Q(world.Choir.SecondsSinceShot, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0, Q(world.LampOutSeconds, Fine)]));
+            [Q(world.Choir.Aggro, Fine), Q(world.Choir.SecondsSinceShot, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0, Q(world.LampOutSeconds, Fine), Q(train.Sand, Fine)]));
         foreach (var e in world.ActiveEnemies)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),
             [
@@ -182,13 +182,15 @@ public static class WorldRecords
                     break;
                 case RecordKind.Vehicle:
                     vehicles.Add(new VehicleState(r.Id, D(f[0], Fine), D(f[1], Fine), D(f[2], Fine),
-                        new GunState { Ammo = (int)f[3], Cooldown = (int)f[4], Jammed = f[5] != 0, LastShotTick = (uint)f[6] }, f.Length > 7 ? (byte)f[7] : (byte)0));
+                        new GunState { Ammo = (int)f[3], Cooldown = (int)f[4], Jammed = f[5] != 0, LastShotTick = (uint)f[6] }, f.Length > 7 ? (byte)f[7] : (byte)0,
+                        f.Length > 8 ? (CargoKind)f[8] : CargoKind.None));
                     break;
                 case RecordKind.World:
                     world.Choir = new ChoirState { Aggro = D(f[0], Fine), SecondsSinceShot = D(f[1], Fine), Floor = D(f[2], Fine) };
                     world.SetDerailed(f[3] != 0);
                     world.LampLit = f[4] != 0;
                     world.LampOutSeconds = f.Length > 5 ? D(f[5], Fine) : 0;
+                    world.Train.Sand = f.Length > 6 ? D(f[6], Fine) : 0;
                     break;
                 case RecordKind.Enemy:
                     if (!world.Authority)
@@ -287,10 +289,17 @@ public static class WorldRecords
             EnemyKind.Lamplighter => new Lamplighter(r.Id),
             EnemyKind.Deadman => new Deadman(r.Id),
             EnemyKind.Stoker => new Stoker(r.Id),
+            EnemyKind.CarFire => new CarFire(r.Id),
+            EnemyKind.LooseLoad => new LooseLoad(r.Id),
+            EnemyKind.Gnawers => new Gnawers(r.Id),
             EnemyKind.Ferryman => new Ferryman(r.Id),
             EnemyKind.LongWhistle => new LongWhistle(r.Id),
             EnemyKind.Climber => new Climber(r.Id),
             EnemyKind.Weight => new Weight(r.Id),
+            EnemyKind.Gaunt => new Gaunt(r.Id),
+            EnemyKind.Passenger => new Passenger(r.Id),
+            EnemyKind.Follower => new Follower(r.Id),
+            EnemyKind.Drift => new Drift(r.Id),
             _ => new Hollow(r.Id),
         };
         e.Restore((SpinePhase)f[1], D(f[2], 1e3), D(f[3], 1e3), (int)f[4], new Double3(D(f[5], Pos), D(f[6], Pos), D(f[7], Pos)),

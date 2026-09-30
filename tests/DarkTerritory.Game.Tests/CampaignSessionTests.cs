@@ -60,11 +60,13 @@ public class CampaignSessionTests
     {
         // The coaling tower stands over the main line (the rest are down spurs): stopped under it near the far end of
         // its zone, then away past the end of it.
-        var route = RouteGenerator.Generate(RouteTuning.Load(Content), RouteTier.Frontier, 7);
+        // frontier:10 at four cars is a night with one (the line generator draws it as any other kind, linegen plan §11.1).
+        const string spec = "frontier:10";
+        var route = Sim.LineGen.Routes.Generate(Content, spec, 4);
         var facilities = route.Of(FeatureKind.Facility).ToList();
         var facility = facilities.First(f => f.Facility == FacilityKind.CoalingTower);
         int index = facilities.IndexOf(facility);
-        var setup = new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false) { Start = facility.End - 20 };
+        var setup = new SessionSetup(Route: spec, Cars: 4, Enemies: false) { Start = facility.End - 20 };
         Sim.Campaign.RunCheckpoint saved;
         using (var night = NetPlaySession.HostGame(Content, setup, port: 0))
         {
@@ -89,14 +91,16 @@ public class CampaignSessionTests
             }
             Assert.Equal(1, night.Checkpoints);
             saved = night.Checkpoint!;
-            Assert.Equal("frontier:7", saved.Route);
+            Assert.Equal(spec, saved.Route);
             Assert.Equal(index, saved.Facility);
             Assert.True(saved.Front > facility.End);
             Assert.Equal(0.9, saved.Cars[1].Load, 6);
+            // The save keeps the line itself (linegen plan §17.4), not just its spec.
+            Assert.Equal(route.Plan!.Fingerprint(), Sim.LineGen.LinePlan.Decompress(saved.Plan!).Fingerprint());
         }
 
         // The session is lost; the night starts again from the save.
-        using var resumed = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: 0, resume: saved);
+        using var resumed = NetPlaySession.HostGame(Content, new SessionSetup(Route: spec, Cars: 4, Enemies: false), port: 0, resume: saved);
         var run = resumed.Host!.World.Run!;
         // Past the gates with the clock running, and on from where it left.
         Assert.NotEqual(RunPhase.Yard, run.Phase);
@@ -108,5 +112,7 @@ public class CampaignSessionTests
         Assert.Equal(0, run.ChuteLeft(index));
         // And a joiner arriving now builds the train where it is, not in the yard.
         Assert.Equal(saved.Front, resumed.Setup.Start);
+        // It plays the saved line, and tells joiners which line that is.
+        Assert.Equal(route.Plan!.Fingerprint(), resumed.Setup.PlanPrint);
     }
 }

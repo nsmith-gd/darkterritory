@@ -89,8 +89,10 @@ public enum Surface : byte { Air, Ground, Roof, Coupler, Ladder, Deck }
 /// <summary><see cref="PulledUnder"/>: into a coupling gap while the Rattle rattled (T51).</summary>
 /// <summary><see cref="Lamplighter"/>: nearest when a Lamplighter reached the lamp (T52).</summary>
 /// <summary><see cref="Deadman"/>, <see cref="Stoker"/>: fighting one out of the cab, or out of the firebox (T53).</summary>
-/// <remarks><see cref="Waiting"/> isn't a death: a player who joined mid-run, spectating in the respawn queue until a Holdout frees them (GDD App. D.3).</remarks>
-public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged, Crushed, PulledUnder, Lamplighter, Deadman, Stoker, Ferryman, Climbed, TornOff, Waiting }
+/// <summary><see cref="Burned"/>, <see cref="Gnawed"/>: in a car with a fire, or a nest of Gnawers (the in-car incidents).</summary>
+/// <summary><see cref="Waiting"/> isn't a death: a player who joined mid-run, spectating in the respawn queue until a Holdout frees them (GDD App. D.3).</summary>
+/// <summary><see cref="Struck"/>: stood on a roof into a tunnel's mouth; <see cref="Thrown"/>: off a roof on a curve taken over its board.</summary>
+public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged, Crushed, PulledUnder, Lamplighter, Deadman, Stoker, Ferryman, Climbed, TornOff, Gaunt, Struck, Thrown, Burned, Gnawed, Replaced, Nested, Drift, Waiting }
 
 /// <summary>Conditions a player carries.</summary>
 [Flags]
@@ -364,7 +366,8 @@ public static class PlayerMotor
             s.Cold = Math.Max(0, s.Cold - dt * c.DeathSeconds / c.RecoverSecondsNearHeat);
             return;
         }
-        s.Cold += dt;
+        // Out of the wind inside a car with a door open: it comes on, but slower (spec B.2).
+        s.Cold += Indoors(s, train) ? dt * c.IndoorsRate : dt;
         if (s.Cold >= c.DeathSeconds)
         {
             s.Health = 0;
@@ -409,10 +412,14 @@ public static class PlayerMotor
             if ((frame.Origin - world).Length > NearbyCar)
                 continue;
             var local = frame.ToLocal(world);
+            // The engine's running boards are only ever footing: a thin plate at deck height that whoever's down on the
+            // ballast beside the engine passes under (up to the cab steps, along to the points), and nobody bumps into.
             foreach (var solid in frame.Shape.Solids)
-                local = Ceiling(local, solid.Box, p, ref ceiling);
+                if (solid.Part != PartKind.RunningBoard)
+                    local = Ceiling(local, solid.Box, p, ref ceiling);
             foreach (var solid in frame.Shape.Solids)
-                local = PushOut(local, solid.Box, p);
+                if (solid.Part != PartKind.RunningBoard)
+                    local = PushOut(local, solid.Box, p);
             var vehicle = train.Vehicles[frame.Index];
             foreach (var door in frame.Shape.DoorList)
                 if (!vehicle.DoorOpen(door.Index))
@@ -461,6 +468,9 @@ public static class PlayerMotor
     }
 
     /// <summary>Finds what the player is standing on (if anything), re-parents, and applies landing rules.</summary>
+    /// <summary>How far above someone the ground can be and still be what they step up onto (beyond a step or a fall).</summary>
+    const double GroundLiftMargin = 0.5;
+
     static void UpdateSupport(ref PlayerState s, Double3 world, Double3 prevWorld, TrainOnLine train, PlayerTuning p, TrainTuning t)
     {
         bool wasGrounded = s.Grounded;
@@ -473,7 +483,12 @@ public static class PlayerMotor
         var probe = s with { Position = world };
         double groundY = GroundHeight(ref probe, train.Line);
         s.LineHint = probe.LineHint;
-        double bestTop = world.Y <= groundY + (wasGrounded ? p.StepUp : 0) ? groundY : double.NegativeInfinity;
+        bool underGround = world.Y <= groundY + (wasGrounded ? p.StepUp : 0);
+        // Ground a long way overhead is a bore or a cutting the terrain doesn't know about, not something to be lifted up
+        // onto: under a train's surface it loses, and only catches whoever has nothing else underfoot (T66: a crew on an
+        // alternate line's cutting stood up on the hill and was left behind).
+        bool groundFar = groundY - world.Y > below + GroundLiftMargin;
+        double bestTop = underGround && !groundFar ? groundY : double.NegativeInfinity;
         int bestParent = PlayerState.World;
         var bestSurface = Surface.Ground;
         Double3 bestLocal = default;
@@ -499,6 +514,8 @@ public static class PlayerMotor
             }
         }
 
+        if (double.IsNegativeInfinity(bestTop) && underGround)
+            bestTop = groundY; // nothing of the train underfoot either: the earth, however far up it is
         if (double.IsNegativeInfinity(bestTop))
         {
             // Nothing underfoot: fall, carrying whatever velocity the car gave us.
@@ -681,7 +698,7 @@ public static class PlayerMotor
     /// (the body goes over the side); slower, you land on the ballast and the train goes on without you. An authoritative
     /// move, so a predicting client adopts it (<see cref="PlayerState.Placed"/>).
     /// </summary>
-    public static void PullOff(ref PlayerState s, TrainOnLine train, Double3 outward, TrainTuning t)
+    public static void PullOff(ref PlayerState s, TrainOnLine train, Double3 outward, TrainTuning t, DeathCause cause = DeathCause.Dragged)
     {
         if (s.Parent == PlayerState.World || s.Parent >= train.Frames.Count)
             return;
@@ -695,7 +712,7 @@ public static class PlayerMotor
         if (SpeedBands.JumpOffIsLethal(t, Math.Sqrt(carVelocity.X * carVelocity.X + carVelocity.Z * carVelocity.Z)))
         {
             s.Health = 0;
-            s.Death = DeathCause.Dragged;
+            s.Death = cause;
         }
     }
 
@@ -707,13 +724,16 @@ public static class PlayerMotor
         s.Velocity = worldVelocity;
     }
 
-    /// <summary>Ground under a player off the train: flat terrain at rail height for now.</summary>
     /// <summary>Height of the ground near a world point, refining a hint along the line (bodies use this too).</summary>
-    /// <remarks>The ground is at the height of the nearest track: the main line, or a branch off it.</remarks>
+    /// <remarks>
+    /// Beside the track the ground is at the height of the nearest track: the main line, or a branch off it. On a
+    /// generated line the land beyond rises and falls with its terrain (linegen plan §12), which keeps the formation at
+    /// that same rail height.
+    /// </remarks>
     public static double GroundAt(Double3 world, RailLine line, ref double hint)
     {
         var (path, along) = line.Nearest(world, ref hint);
-        return line.Sample(path, along).Position.Y;
+        return line.Conditions is { } c ? c.Ground(world) : line.Sample(path, along).Position.Y;
     }
 
     static double GroundHeight(ref PlayerState s, RailLine line) => GroundAt(s.Position, line, ref s.LineHint);

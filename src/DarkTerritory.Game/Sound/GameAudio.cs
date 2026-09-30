@@ -225,6 +225,15 @@ public sealed class GameAudio
                         s.Loop.Occlusion = occlusion;
                     }
                     break;
+                case EnemyKind.Drift when e.Phase is SpinePhase.Telegraph or SpinePhase.Punish:
+                    // The rustle of it coming through the reeds and over the roofs (App. A.4), from where it is.
+                    s.Loop ??= Mixer.Play("drift-rustle", at);
+                    if (s.Loop is not null)
+                    {
+                        s.Loop.Position = at;
+                        s.Loop.Occlusion = occlusion;
+                    }
+                    break;
                 case EnemyKind.Weight when e.Phase == SpinePhase.Telegraph && e.Attached >= 0:
                     // The drag scrape under the rear coupling (App. A.3), for as long as it holds on.
                     s.Loop ??= Mixer.Play("weight-scrape", at);
@@ -242,6 +251,18 @@ public sealed class GameAudio
                     {
                         s.Loop.Position = at;
                         s.Loop.Occlusion = occlusion;
+                    }
+                    break;
+                case EnemyKind.CarFire:
+                case EnemyKind.LooseLoad when e.Phase == SpinePhase.Telegraph:
+                case EnemyKind.Gnawers when e.Phase is SpinePhase.Telegraph or SpinePhase.Punish:
+                    // Trouble in a car, heard through its walls: the fire's crackle, the straps groaning, the chittering.
+                    s.Loop ??= Mixer.Play(e.Kind switch { EnemyKind.CarFire => "car-fire", EnemyKind.LooseLoad => "load-creak", _ => "gnawers" }, at);
+                    if (s.Loop is not null)
+                    {
+                        s.Loop.Position = at;
+                        s.Loop.Occlusion = occlusion;
+                        s.Loop.Params.Set("progress", e.Kind == EnemyKind.Gnawers ? e.Health : e.Extra);
                     }
                     break;
                 case EnemyKind.LongWhistle when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit:

@@ -22,6 +22,7 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
 - **Boiler, walkable cab and resistance:** spec B.6 is pinned.
 - **Rakes:** cutting, coupling and collision damage.
 - **Procedural routes:** tiers, facilities, tunnels, bridges, and hazards as level content.
+- **Procedural line v1 (M5, docs/design/linegen-plan.md):** every night's line comes from the line generator: a route graph with alternates, dead lines and facility spurs, set pieces scripted to a budget curve, clothoid alignment and a vertical profile, a terrain field the players stand on, authority and its tells (boards, Form 19, the route card), director context, and validation by driving it on the real train sim. `dt linegen generate|sweep|debug|bench`; `C` shows the route card, `F3` the overlay, `--ride` rides a line. ARCHITECTURE §6.10 and §8 note 66.
 - **Generated stops (level-design Parts D and Z):**
   - Every facility has a yard of nested spurs, and many have a village nearby. Village halts sit between the facilities.
   - Each tier is harder than the last, by a measured difficulty band.
@@ -91,6 +92,11 @@ M3 is done but for a test with eight people.
 **Builds for players (M6):**
 - `tools/package.sh` makes self-contained Windows and Linux folders with their content, and CI keeps both as artifacts on every push, after starting the Linux one from elsewhere and playing it.
 - Crashes leave a report in the user's app data.
+- **The demo edition (T79, GDD §21, §35):**
+  - the demo roster of five (Sleepers, Cinder Hounds, Clingers, the Hollow, and the Choir), the trouble in the cars, and the Frontier with two facilities and no Grease;
+  - it's an overlay, `editions/demo`, laid over the content like a mod: `--edition demo` plays it from the repo, and `tools/package.sh --demo` bakes it into `DarkTerritory-Demo-<rid>` beside the game;
+  - its title says DEMO, its menu is a quick night on the Frontier (no campaign), and a night over ends on a wishlist line; asked for another tier, it plays the Frontier;
+  - `tools/upload.sh --demo` sends only a demo build, and the game's upload refuses one.
 - **Store uploads (T38):**
   - `tools/upload.sh steam|itch [--demo]` sends them through `steamcmd` or `butler`, and never sets Steam's default branch live;
   - CI dry-runs both on every push;
@@ -130,6 +136,23 @@ M3 is done but for a test with eight people.
   - reaching it, they smash the lamp (out for 45 s) and go for the cab;
   - lamps down (L in the cab) and they lose track, but then the Sleepers only show close: the driver bot slows down in the dark;
   - `dt screenshot --threats` shows one.
+- **Contradiction seeding (T64, App. B.1):** the director weighs up whatever would make a pair from the conflict table with what's about (Lamplighters with Sleepers ahead, Clingers before a grade, the Deadman at a facility), more so past halfway on a run short of its pair. It saves up for the Gaunt so that it comes at all. The harness reports each night's pairs.
+- **The Drift (T63, App. A.4):**
+  - over the line's bogs and tar ponds, a dark mass rides over and alongside the train, spreading;
+  - move in it and it comes for you, rustling like dry reeds; once it's on you it eats at you as long as you keep moving;
+  - stand stock still for four seconds and it loses you. Bots it's after stand still.
+- **Followers (T62, App. A.3):**
+  - at a stop, out on the grounds, something comes up behind one of the crew and keeps to their back, in their step: the others see it, and they never can (the host doesn't send it to them);
+  - back aboard with it, it goes to a dark cargo car and nests there, at anyone who comes in; take a lamp in and it runs;
+  - the counter is a call: stand still where someone can see it, and it lets go. Bots call it on each other.
+- **The Passenger (T61, App. A.7):**
+  - boards at a facility stop on the Dead lines and beyond, wearing a crewmate's face, and goes about the train like one of them: the same job over and over, and never a word;
+  - the HUD's ABOARD count reads one too many; whoever's alone in a car for long enough with it is taken, and it wears their face after;
+  - two in a car keeps it off; face it and press Use to call it out, and it runs. Bots call it out when they're in a car with it.
+- **The Gaunt (T60, App. A.4):**
+  - on the roofs at a stop or out of a tunnel: dead still while anyone's looking at it, and silent;
+  - unwatched it comes along the roofs and takes whoever's nearest; watched for a minute without a break, it goes;
+  - the roof-walking bots stop and watch it. `dt screenshot --threats` shows it.
 - **The Weight (T59, App. A.3):**
   - buried at a water crossing, it takes the rear coupling as the last car passes: the train lurches, and a deep scraping starts at the rear;
   - it drags harder than the engine can pull, and brought to a stand it pulls the car off the rails;
@@ -173,6 +196,7 @@ M3 is done but for a test with eight people.
 - Folders in `mods/` (or app data) laid over `content/`: they add files, replace them, or `$patch` a JSON file one key at a time.
 - The game reads the merged copy. The content hash keeps a crew on the same mods, and a refused joiner is told which mods differ.
 - `dt mods` shows what's loaded; `--no-mods` gives the base game.
+- **Through Thunderstore (T78):** a mod is a Thunderstore package (`manifest.json`, README, icon, `content/`), dependencies load first, mod managers hand the game their profile with `--mods-dir`, and `dt mods pack` checks one against the site's rules and zips it. `tools/mods/example` is the modder's guide.
 
 **Balance sweeps (T55, M7, GDD §34):**
 - `dt balance` runs harness nights over tiers, seeds, crew sizes and train lengths, side by side.
@@ -194,8 +218,28 @@ M3 is done but for a test with eight people.
 - A pixel-font HUD in the low-res frame: engine gauges, ping to host (spec E), the prompt for what your hands can do, and the night.
 - `dt screenshot --hud` captures it.
 
+**Pacing (after the 100-night playtest: "a reward or a problem every 30 s at most, ideally 20"):**
+- The world logs each moment (a threat showing itself, a board, a bag), and counts the quiet out on the line. `dt harness` reports it.
+- At 18 s of quiet the director sends something, cooldown or not. It prefers kinds it hasn't sent lately, and its caps count only threats that are engaged.
+- Mail cranes line the route with a board before each. Hook a bag from an open cargo side door as it passes: pay, coal, rounds or spares.
+- Nights measured in the harness: longest quiet 21–26 s, typical 12–16 s.
+
+**Trouble inside the cars (after the 100-night playtest):**
+- A car fire: smoke, then flames. It burns the cargo, the car, and whoever's inside, and spreads at full blaze. You beat it out from inside.
+- A loose load: straps groaning. On a hard brake, slack action, or after a minute and a half, it comes down across the aisle and crushes whoever's beside it. You lash it from inside.
+- Gnawers: a nest in the cargo that eats it, breeds, and bites anyone in the car. You stamp them out, taking bites.
+- Each has its own tell in a band nothing else uses. The director spends on them (interior zone) and they go with a car cut loose.
+- Walkers go in and deal with them; the gunner goes too while there's nothing at the back.
+- Draggers can be beaten now: stamp on the limb as it reaches, twice, and it lets go of the car.
+
+**The line's boards (sight.json, after the 100-night playtest):**
+- Speed boards before sharp curves and weak bridges, and low-clearance boards before tunnels, read in the headlamp at 350 m. Lamps down they're unread, and the curve or tunnel mouth is only made out 10 m short.
+- Over a board, the cars strain and the cargo lurches, roof riders are thrown, and far over the train derails. A tunnel mouth takes anyone standing on a roof.
+- Grease now takes the rail's grip.
+- The driver bot slows for boards it has read; walkers get inside for a posted tunnel.
+
 **Cold and the Vigil (spec B.2, C.2):**
-- Cold exposure is predicted like movement: 200 s to onset, 320 s to death, recovered near heat.
+- Cold exposure is predicted like movement: 600 s to onset, 1200 s to death, recovered in 20 s near heat, and a quarter as fast inside a car with a door open.
 - The Vigil revives a body laid in the engine at a dead stop, for 90/120/150 s of maximum exposure. Engine off, lights to emergency, guns dead (they need steam now), the Choir at maximum.
 - The revived come back cold.
 

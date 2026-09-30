@@ -60,7 +60,8 @@ public static class ArtCatalog
         for (int v = 0; v < 4; v++)
         {
             int variant = v;
-            list.Add(new($"pine-{v}", SmallProp, () => WorldKit.Pine(look, variant, 12)));
+            list.Add(new($"pine-{v}", LargeProp, () => WorldKit.Pine(look, variant, 12)));
+            list.Add(new($"pinecard-{v}", SmallProp, () => WorldKit.PineCard(look, variant, 12)));
         }
         list.Add(new("dead-tree", SmallProp, () => WorldKit.DeadTree(look, 0, 10)));
         list.Add(new("tuft", SmallProp, () => WorldKit.Tuft(look, 0, weed: false)));

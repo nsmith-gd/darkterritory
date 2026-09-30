@@ -24,6 +24,12 @@ public sealed class GreyboxScene
     static readonly System.Numerics.Vector3 EmergencyRed = new(0.5f, 0.06f, 0.04f);
     /// <summary>Tunnels, bridges, facilities and hazards to draw along the line, when it's a generated route.</summary>
     public Route? Route { get; set; }
+    /// <summary>The engine's lamp is lit (it's what makes the boards shine back, sight.json).</summary>
+    public bool LampLit { get; set; } = true;
+    /// <summary>How far ahead the lamp makes a board out (sight.json lampSignRange).</summary>
+    public double SignRange { get; set; } = new SightTuning().LampSignRange;
+    /// <summary>The line's boards (sight.json). Unset on a route, they're worked out from it with the default tuning.</summary>
+    public IReadOnlyList<Sign>? Signs { get; set; }
     /// <summary>Live enemies to draw. When set, the route's Sleepers come from here rather than its features.</summary>
     public IReadOnlyList<Enemy>? Enemies { get; set; }
 
@@ -58,6 +64,24 @@ public sealed class GreyboxScene
     /// <summary>The art pass's surfaces (T39, look.json). Unset, the greybox is flat colour.</summary>
     public Look? Look { get; set; }
 
+    /// <summary>
+    /// When set, what each part of <see cref="Build"/> cost (milliseconds, and the triangles it added to the frame's soup),
+    /// added up over the builds since it was set: `dt perf`'s breakdown of the main thread's frame.
+    /// </summary>
+    public Dictionary<string, (double Ms, int Triangles)>? Timings { get; set; }
+    readonly System.Diagnostics.Stopwatch _lap = new();
+    int _lapCount;
+
+    void Lap(MeshBuilder mesh, string part)
+    {
+        if (Timings is null)
+            return;
+        Timings.TryGetValue(part, out var sum);
+        Timings[part] = (sum.Ms + _lap.Elapsed.TotalMilliseconds, sum.Triangles + (mesh.Count - _lapCount) / 3);
+        _lapCount = mesh.Count;
+        _lap.Restart();
+    }
+
     /// <summary>Depth of the valley under a bridge.</summary>
     const double ValleyDepth = 18;
     /// <summary>How far past the draw distance the Ferryman's lantern still shows.</summary>
@@ -76,6 +100,8 @@ public sealed class GreyboxScene
         mesh.Clear();
         mesh.Style = Look?.Style;
         mesh.Seed = 0;
+        _lap.Restart();
+        _lapCount = 0;
         // Bare triangles (the ground, the ballast, the trees) take world texels, wrapped every few km so they fit a
         // float; the pattern jumps at a wrap, rarely and far off in the fog.
         const double Wrap = 4096;
@@ -88,10 +114,16 @@ public sealed class GreyboxScene
         foreach (var branch in line.Branches)
             if (branch.Toe < to && branch.End > from)
                 Branch(mesh, line, branch, eye);
+        Lap(mesh, "track");
         Lineside(mesh, line, eye, from, to);
+        Lap(mesh, "lineside");
         if (Route is not null)
         {
             Features(mesh, line, eye, from, to);
+            Boards(mesh, line, eye, from, to, hint);
+            // A generated line's own land, boards, hazards, water and places (Art/PlanArt, linegen plan §12-13).
+            if (Look is not null && Route.Plan is not null)
+                Look.Art.World.Plan(mesh, line, Route, eye, centre, DrawDistance, Time);
             if (Run is not null)
                 foreach (var site in Run.Sites)
                 {
@@ -130,7 +162,9 @@ public sealed class GreyboxScene
             // GDD §9: the fortress yard behind the gates, and the terminus: "lights, then walls, then gun towers".
             double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
             Fortress(mesh, line, eye, from, to, 0, yard, gateAt: yard);
-            Fortress(mesh, line, eye, from, to, line.Length - terminus - 200, line.Length, gateAt: line.Length - terminus - 200);
+            double home = Route.Plan?.Terminus.GateM ?? line.Length - terminus - 200;
+            Fortress(mesh, line, eye, from, to, home, line.Length, gateAt: home, lit: Route.Plan?.Terminus.Silent != true);
+            Lap(mesh, "route");
         }
         // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox,
         // and any hand lamp lying about or being carried.
@@ -159,6 +193,7 @@ public sealed class GreyboxScene
         }
         foreach (var frame in frames)
             Car(mesh, frame, eye);
+        Lap(mesh, "cars");
         if (Look is not null)
         {
             // The art pass's effects (Art/Effects): smoke, steam, sparks, the lamp's beam, and fog banks along the line.
@@ -168,11 +203,19 @@ public sealed class GreyboxScene
             if (Route?.Weather is { Wet: true } weather)
                 Look.Art.Effects.Rain(mesh, eye, Time, (float)weather.Wind, fog);
         }
+        Lap(mesh, "effects");
         mesh.Seed = 0;
         if (Enemies is not null)
             foreach (var e in Enemies)
-                if (!e.Gone)
+                if (e is Sim.Enemies.Passenger passenger)
+                {
+                    // One of the crew, to look at (App. A.7 BLEND): drawn exactly as they are, their face and all.
+                    if (!e.Gone && AsCrewmate(passenger, frames) is { } double_ && Look?.Art.Crewmate(mesh, double_, eye, Time) != true)
+                        DrawCrewmate(mesh, double_, eye);
+                }
+                else if (!e.Gone)
                     DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures);
+        Lap(mesh, "enemies");
         if (Bodies is not null)
         {
             // Heavy crates only come from a facility's site, so its size is there (facilities.json "heavy").
@@ -185,6 +228,20 @@ public sealed class GreyboxScene
             foreach (var c in Crew)
                 if (c.Alive && Look?.Art.Crewmate(mesh, c, eye, Time) != true) // the dead are drawn as their bodies
                     DrawCrewmate(mesh, c, eye);
+        Lap(mesh, "bodies and crew");
+    }
+
+    /// <summary>
+    /// The Passenger as the crewmate whose face it wears: their look, walking as they would. Its id is theirs offset by 200,
+    /// so the gait each figure is smoothed by is its own and not the one it copies.
+    /// </summary>
+    public static Crewmate? AsCrewmate(Sim.Enemies.Passenger p, IReadOnlyList<CarFrame> frames)
+    {
+        if (p.Attached < 0 || p.Attached >= frames.Count)
+            return null;
+        var frame = frames[p.Attached];
+        var forward = frame.DirToWorld(new Double3(-Math.Sin(p.Extra2), 0, -Math.Cos(p.Extra2)));
+        return new Crewmate((byte)(200 + p.Looks), frame.ToWorld(p.Local), Math.Atan2(-forward.X, -forward.Z), true, Looks: p.Looks);
     }
 
     static Double3? BodyWorld(Sim.Physics.Body b, IReadOnlyList<CarFrame> frames, Double3 local) =>
@@ -327,6 +384,13 @@ public sealed class GreyboxScene
             origin = f.ToWorld(e.Local);
             (right, up, back) = (f.Right, f.Up, f.Back);
         }
+        else if (e.Attached == Enemy.Loose)
+        {
+            // Stood free in the world (a Follower at someone's back), facing the way its yaw says.
+            origin = e.Local;
+            right = new Double3(Math.Cos(e.Extra2), 0, -Math.Sin(e.Extra2));
+            back = new Double3(Math.Sin(e.Extra2), 0, Math.Cos(e.Extra2));
+        }
         else
         {
             if (e.LineDistance < from || e.LineDistance > to)
@@ -359,6 +423,8 @@ public sealed class GreyboxScene
             mesh.Box(L(x, y, z), r, u, b, new Vector3((float)hx, (float)hy, (float)hz), colour);
         float pulse = (float)(0.5 + 0.5 * Math.Sin(e.PhaseSeconds * 9));
 
+        if (Art.IncidentArt.Draw(mesh, o, r, u, b, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health))
+            return;
         switch (e.Kind)
         {
             case EnemyKind.Sleepers:
@@ -431,6 +497,29 @@ public sealed class GreyboxScene
                     mesh.Emissive = 0;
                     break;
                 }
+            case EnemyKind.Drift:
+                {
+                    // A dark spreading mat over the roof and down the sides, as wide as it's spread.
+                    double spread = Math.Clamp(e.Extra, 1, 12);
+                    Draw(0, 0.05, 0, spread * 0.7, 0.05, spread * 0.7, Palette.SootBlack);
+                    Draw(0, 0.15, 0, spread * 0.4, 0.1, spread * 0.4, Palette.Corrupted * 0.4f);
+                    break;
+                }
+            case EnemyKind.Follower:
+                {
+                    // Low and bent at someone's back, matching their step; nested, a heap in the car's dark corner.
+                    double low = e.Phase == SpinePhase.Punish ? -0.3 : 0;
+                    Draw(0, low + 0.35, 0, 0.14, 0.35, 0.14, Palette.SootBlack);
+                    Draw(0, low + 0.85, -0.2, 0.2, 0.22, 0.26, Palette.SootBlack);
+                    Draw(0, low + 1.0, -0.45, 0.1, 0.1, 0.1, Palette.Corrupted * 0.6f);
+                    break;
+                }
+            case EnemyKind.Gaunt:
+                // Tall and thin on the roof, dead still.
+                Draw(0, 0.8, 0, 0.09, 0.8, 0.09, Palette.SootBlack);
+                Draw(0, 2.0, 0, 0.16, 0.45, 0.1, Palette.SootBlack);
+                Draw(0, 2.6, -0.05, 0.1, 0.13, 0.1, Palette.Corrupted * 0.5f);
+                break;
             case EnemyKind.Weight when e.Attached >= 0:
                 // A dark mass hung under the rear coupling, below the gun's arc, trailing on the ballast.
                 Draw(0, -0.1, 0.5, 0.55, 0.35, 0.7, Palette.SootBlack);
@@ -676,7 +765,8 @@ public sealed class GreyboxScene
 
         // The buffer stop: a timber-and-iron block across the rails, with a red lamp on it.
         var end = local.Sample(local.Length);
-        if ((end.Position - eye).Length < DrawDistance)
+        // An alternate has no end of its own: it runs back into the main line (linegen plan §6.2).
+        if (!branch.Rejoins && (end.Position - eye).Length < DrawDistance)
         {
             var right = Double3.Cross(end.Tangent, Double3.Up).Normalized;
             mesh.Box(V(end.Position + Double3.Up * 0.6, eye), ToF(right), Vector3.UnitY, ToF(end.Tangent * -1), new Vector3(1.3f, 0.6f, 0.4f), Palette.RustRed);
@@ -705,6 +795,88 @@ public sealed class GreyboxScene
 
     static readonly SwitchStands DefaultStands = new(new JunctionTuning());
 
+    IReadOnlyList<Sign>? _defaultSigns;
+
+    /// <summary>
+    /// A lineside mail crane (the playtest's rewards): a post a little out from the track on its side, an arm reaching in
+    /// over the cess, and the bag hung from it at a car's doorway height, where the hook out of a side door takes it. Its
+    /// colour says what's in it: mail sacks grey canvas, coal black, rounds olive, spares brass. Drawn until the train's by.
+    /// </summary>
+    void Crane(MeshBuilder mesh, RailLine line, Double3 eye, Drop drop)
+    {
+        var t = line.Sample(drop.At);
+        var right = Double3.Cross(t.Tangent, Double3.Up).Normalized * drop.Side;
+        var (x, y, z) = (ToF(right), Vector3.UnitY, ToF(t.Tangent * -1));
+        var foot = t.Position + right * 3.2;
+        mesh.Box(V(foot + Double3.Up * 1.9, eye), x, y, z, new Vector3(0.1f, 1.9f, 0.1f), Palette.DeepBrown);
+        mesh.Box(V(foot + Double3.Up * 3.5 - right * 0.45, eye), x, y, z, new Vector3(0.5f, 0.06f, 0.06f), Palette.IronGrey);
+        var bag = drop.Kind switch
+        {
+            DropKind.Coal => Palette.SootBlack,
+            DropKind.Ammo => Palette.MuddyOlive,
+            DropKind.Spares => Palette.TarnishedBrass,
+            _ => Palette.BlueGrey,
+        };
+        mesh.Box(V(foot + Double3.Up * 3.0 - right * 0.85, eye), x, y, z, new Vector3(0.02f, 0.45f, 0.02f), Palette.IronGrey);
+        mesh.Box(V(foot + Double3.Up * 2.35 - right * 0.85, eye), x, y, z, new Vector3(0.22f, 0.3f, 0.22f), bag);
+    }
+    Route? _signsFor;
+
+    /// <summary>
+    /// The line's boards (sight.json), on posts to the right of the line facing the oncoming train: a posted speed is a pale
+    /// enamel plate with the figure's bar across it, the clearance board yellow and black. Paint, not lamps: the headlamp
+    /// picks them out, and lamps down they're nothing (the point of them, after the playtest). Reflective paint sends the
+    /// lamp's light straight back up the line: a board shines out once it's within the lamp's reading range, exactly when
+    /// the sim says it's read (<see cref="SightTuning.LampSignRange"/>).
+    /// </summary>
+    void Boards(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double front)
+    {
+        if (Signs is null && !ReferenceEquals(_signsFor, Route))
+        {
+            _defaultSigns = [.. Sim.Route.Lineside.Boards(new SightTuning(), Route!)];
+            _signsFor = Route;
+        }
+        foreach (var sign in Signs ?? _defaultSigns ?? [])
+            if (sign.Drop is { } drop && drop.At >= from && drop.At <= to && drop.At > front - 30)
+                Crane(mesh, line, eye, drop);
+        foreach (var sign in Signs ?? _defaultSigns ?? [])
+        {
+            if (sign.Board < from || sign.Board > to)
+                continue;
+            var t = line.Sample(sign.Board);
+            var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+            var foot = t.Position + right * 3.4;
+            var (x, y, z) = (ToF(right), Vector3.UnitY, ToF(t.Tangent * -1));
+            mesh.Box(V(foot + Double3.Up * 1.8, eye), x, y, z, new Vector3(0.08f, 1.8f, 0.08f), Palette.IronGrey);
+            var plate = foot + Double3.Up * 3.6 - t.Tangent * 0.1;
+            double ahead = sign.Board - front;
+            mesh.Emissive = LampLit && ahead > 0 && ahead <= SignRange ? 0.7f : 0;
+            if (sign.Kind == SignKind.SpeedLimit)
+            {
+                mesh.Box(V(plate, eye), x, y, z, new Vector3(0.9f, 0.6f, 0.04f), Palette.BoardEnamel);
+                mesh.Box(V(plate - t.Tangent * 0.05, eye), x, y, z, new Vector3(0.6f, 0.14f, 0.01f), Palette.SootBlack);
+            }
+            else if (sign.Kind == SignKind.Drop && sign.Drop is { } drop)
+            {
+                // A mail crane ahead: green, and a bar at the side it's on.
+                mesh.Box(V(plate, eye), x, y, z, new Vector3(0.8f, 0.5f, 0.04f), Palette.SignalGreen);
+                mesh.Box(V(plate + right * (drop.Side * 0.45) - t.Tangent * 0.05, eye), x, y, z, new Vector3(0.18f, 0.35f, 0.01f), Palette.BoardEnamel);
+            }
+            else if (sign.Kind == SignKind.Terminus)
+            {
+                // The terminus: enamel and black in quarters.
+                for (int q = 0; q < 4; q++)
+                    mesh.Box(V(plate + right * ((q % 2 == 0 ? -1 : 1) * 0.4) + Double3.Up * ((q < 2 ? -1 : 1) * 0.3), eye), x, y, z,
+                        new Vector3(0.4f, 0.3f, 0.04f), (q == 0 || q == 3) ? Palette.BoardEnamel : Palette.SootBlack);
+            }
+            else
+                for (int band = 0; band < 5; band++)
+                    mesh.Box(V(plate + Double3.Up * (-0.52 + band * 0.26), eye), x, y, z, new Vector3(1.0f, 0.13f, 0.04f),
+                        band % 2 == 0 ? Palette.HazardYellow : Palette.SootBlack);
+            mesh.Emissive = 0;
+        }
+    }
+
     /// <summary>A box following the line: <paramref name="lateral"/> metres right of centre, base at <paramref name="y"/> above rail.</summary>
     static void Along(MeshBuilder mesh, RailLine line, Double3 eye, double s, double length, double lateral, double y, double halfWidth, double height, Vector3 color)
     {
@@ -724,7 +896,7 @@ public sealed class GreyboxScene
             // The art pass's structures (Art/StructureKit): viaducts and trestles, portals and bores.
             if (Look is not null && f.Kind == FeatureKind.Bridge)
             {
-                Look.Art.World.Bridge(mesh, line, f, eye, from, to, (float)ValleyDepth);
+                Look.Art.World.Bridge(mesh, line, f, eye, from, to, Art.WorldArt.SpanDepth(Route, f) ?? (float)ValleyDepth);
                 continue;
             }
             if (Look is not null && f.Kind == FeatureKind.Tunnel)
@@ -798,11 +970,11 @@ public sealed class GreyboxScene
     }
 
     /// <summary>Walls both sides, gun towers with lamps, and a gatehouse over the line.</summary>
-    void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt)
+    void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool lit = true)
     {
         if (Look is not null)
         {
-            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0);
+            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit);
             return;
         }
         double a = Math.Max(start, from), b = Math.Min(end, to);

@@ -126,4 +126,23 @@ public class HudTests
             Assert.Equal((0, 0, 0), At(32, 18));
         }
     }
+
+    [Fact]
+    public void TheRosterCountsThePassengerAsOneTooManyAndNeverHearsIt()
+    {
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        var (lines, heard) = Staging.Roster(s.Train, Content);
+        // You, three crew, and the thing wearing crew 2's face beside the real crew 2 (App. A.7).
+        Assert.Equal(5, lines.Count);
+        Assert.Equal([1, 2, 2, 3, 4], lines.Select(l => (int)l.Id));
+        var twos = lines.Where(l => l.Id == 2).ToList();
+        Assert.All(twos, l => Assert.Equal("CREW 2", l.Name));
+        Assert.Single(twos, l => !l.Voiced);
+        Assert.Single(lines, l => l.You);
+        // The voice heard under id 2 is the real crewmate's: the roster never puts it on the Passenger's line.
+        var o = new Overlay();
+        Hud.Roster(o, 480, 270, lines, heard);
+        Assert.True(o.Count > 0);
+        Assert.NotNull(heard(2));
+    }
 }

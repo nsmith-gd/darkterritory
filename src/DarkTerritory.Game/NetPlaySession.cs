@@ -23,6 +23,13 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     public IReadOnlyList<string> Upgrades { get; init; } = [];
     /// <summary>Where the engine's front starts, along the line; null for the fortress yard. A resumed night starts where it was saved.</summary>
     public double? Start { get; init; }
+    /// <summary>The host's only: a resumed night's own line, from its save (linegen plan §17.4), rather than generated afresh.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Sim.LineGen.LinePlan? Plan { get; init; }
+    /// <summary>The host's line's fingerprint: a joiner whose own generated line differs (another generator version) is refused.</summary>
+    public string? PlanPrint { get; init; }
+    /// <summary>The host's terrain's fingerprint (linegen plan §17.3): a joiner whose ground comes out differently is refused.</summary>
+    public string? TerrainPrint { get; init; }
 
     /// <summary>The night's tunings, with the upgrades applied.</summary>
     public Sim.Campaign.Loadout Loadout(string content)
@@ -37,8 +44,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     }
 
     /// <summary>
-    /// The host's tuning, file by file (content/tuning/*.json, line endings normalised). A joiner whose tuning
-    /// differs would predict a different game from the one the host runs, so it's refused by name.
+    /// The host's tuning, file by file (content/tuning/*.json), and the line generator's files together (content/linegen),
+    /// line endings normalised. A joiner whose content differs would predict (and generate) a different game from the
+    /// one the host runs, so it's refused by name.
     /// </summary>
     public Dictionary<string, string>? Content { get; init; }
 
@@ -47,13 +55,17 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
 
     public static Dictionary<string, string> HashContent(string content)
     {
+        static string Hash(string text) =>
+            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text.Replace("\r\n", "\n"))), 0, 8).ToLowerInvariant();
         var hashes = new Dictionary<string, string>();
         foreach (var file in Directory.EnumerateFiles(Path.Combine(content, "tuning"), "*.json").Order(StringComparer.Ordinal))
-        {
-            var text = File.ReadAllText(file).Replace("\r\n", "\n");
-            var hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text));
-            hashes["tuning/" + Path.GetFileName(file)] = Convert.ToHexString(hash, 0, 8).ToLowerInvariant();
-        }
+            hashes["tuning/" + Path.GetFileName(file)] = Hash(File.ReadAllText(file));
+        // The line generator's files, as one: every machine generates the night's line from them (linegen plan §17.3),
+        // and the Welcome that carries these has to fit one packet.
+        string linegen = Path.Combine(content, Sim.LineGen.LineGenConfig.Directory);
+        if (Directory.Exists(linegen))
+            hashes["linegen/*.json"] = Hash(string.Concat(Directory.EnumerateFiles(linegen, "*.json").Order(StringComparer.Ordinal)
+                .Select(f => Path.GetFileName(f) + "\n" + File.ReadAllText(f))));
         return hashes;
     }
 
@@ -91,8 +103,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         double start = 600;
         if (Route is { Length: > 0 } spec)
         {
-            var (tier, seed) = Sim.Route.Route.ParseSpec(spec);
-            route = RouteGenerator.Generate(RouteTuning.Load(content), tier, seed);
+            route = Plan is { } saved ? Sim.LineGen.Routes.FromPlan(content, saved) : Sim.LineGen.Routes.Generate(content, spec, Cars);
             line = route.Build();
             start = consist.LengthMetres + 150; // the fortress yard, as in the prototype
         }
@@ -107,12 +118,17 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         {
             var routeTuning = RouteTuning.Load(content);
             world.EnableSwitches(routeTuning.Junctions);
-            world.EnableRun(runTuning, route, routeTuning.YardLength, authority,
+            world.EnableRun(runTuning, route, route.GateOr(routeTuning.YardLength), authority,
                 DataFile.Load<Sim.Run.FacilityTuning>(Path.Combine(content, Sim.Run.FacilityTuning.File)),
                 DataFile.Load<Sim.Stops.LootTuning>(Path.Combine(content, Sim.Stops.LootTuning.File)));
+            world.EnableLineside(DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)), route);
             // GDD App. D: once the gate has opened, the dead come back only through the route's Holdouts.
             world.EnableHoldouts(DataFile.Load<Sim.Run.HoldoutTuning>(Path.Combine(content, Sim.Run.HoldoutTuning.File)), route);
         }
+        // A client mirrors the enemies, and needs their tuning for what it predicts from them (the Weight's drag, T59) and
+        // for bots reading them; the host's world gets its director from HostSession.EnableEnemies.
+        if (!authority && Enemies && route is not null && loadout.Enemies is { } enemies)
+            world.EnableEnemies(enemies, route, route.Seed, crew: 1, authority: false);
         return (world, route);
     }
 }
@@ -173,10 +189,17 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         Sim.Campaign.RunCheckpoint? resume = null)
     {
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
-        setup = setup with { Content = SessionSetup.HashContent(content), Mods = ContentMods.MountedIn(content), Start = resume?.Front ?? setup.Start };
+        setup = setup with
+        {
+            Content = SessionSetup.HashContent(content),
+            Mods = ContentMods.MountedIn(content),
+            Start = resume?.Front ?? setup.Start,
+            Plan = resume?.Plan is { } saved ? Sim.LineGen.LinePlan.Decompress(saved) : setup.Plan,
+        };
         var loadout = setup.Loadout(content);
         var trainTuning = loadout.Train;
         var (hostWorld, route) = setup.Build(content, authority: true);
+        setup = setup with { PlanPrint = route?.Plan?.Fingerprint(), TerrainPrint = TerrainOf(hostWorld)?.Print() };
         if (resume is not null)
             Restore(hostWorld, resume);
         var udp = port is { } p ? UdpTransport.Host(p) : UdpTransport.Host(0, bind: IPAddress.Loopback);
@@ -209,12 +232,15 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         return new NetPlaySession(host, hostTransport, port is null ? null : udp, client, clientTransport, setup, route, lobby);
     }
 
+    static Sim.LineGen.TerrainField? TerrainOf(World world) => (world.Train.Line.Conditions as Sim.LineGen.PlanConditions)?.Terrain;
+
     static Sim.Campaign.RunCheckpoint Capture(World world, string route, int facility)
     {
         var train = world.Train;
         return new Sim.Campaign.RunCheckpoint(route, facility, world.Run!.Seconds, train.Dynamics.Distance, train.Boiler.Tender,
-            [.. train.Vehicles.Select(v => new Sim.Campaign.CarState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun.Ammo))],
-            world.Holdouts?.Spent ?? []);
+            [.. train.Vehicles.Select(v => new Sim.Campaign.CarState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun.Ammo, v.Cargo))],
+            world.Holdouts?.Spent ?? [])
+        { Plan = world.TrackPlan?.Compress() };
     }
 
     /// <summary>Puts a night back as it was saved: the cars, the coal, the clock, and the stops already made.</summary>
@@ -229,6 +255,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 v.Integrity = car.Integrity;
                 v.CargoIntegrity = car.CargoIntegrity;
                 v.Gun = v.Gun with { Ammo = car.Ammo };
+                // An older save has no cargo types: its loaded cars keep the goods they were built with.
+                if (car.Cargo != CargoKind.None)
+                    v.Cargo = car.Cargo;
             }
         train.Boiler.Tender = c.Tender;
         world.Run?.Resume(c.Seconds, c.Facility, c.Tender, c.Cars.Sum(x => x.Ammo));
@@ -316,6 +345,16 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             throw new IOException(SessionSetup.Refusal(differ, setup.Mods, ContentMods.MountedIn(content)));
         }
         var (world, route) = setup.Build(content);
+        if (setup.PlanPrint is { } print && route?.Plan?.Fingerprint() != print)
+        {
+            transport.Dispose();
+            throw new IOException("the host's night is on a line this build of the game doesn't generate (it was saved by another version): update to the host's version to join");
+        }
+        if (setup.TerrainPrint is { } ground && TerrainOf(world)?.Print() != ground)
+        {
+            transport.Dispose();
+            throw new IOException("the host's land comes out differently on this machine (its terrain checksum differs): report it, it's a bug");
+        }
         var client = new ClientSession(new Replay(transport, early), world,
             setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)));
         return new NetPlaySession(null, null, null, client, transport, setup, route, lobby);
@@ -377,8 +416,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var d = Train.Dynamics;
         var p = Player;
         string link = Client.Waiting ? $"WAITING: {Client.WaitingReason}" : !Client.Connected ? "connecting…" : Lost ? "CONNECTION LOST"
-            : Host is not null ? $"{Client.RemoteIds.Count() + 1} aboard" // the host's own ping is to itself
-            : $"{Client.RemoteIds.Count() + 1} aboard, ping {_link.RoundTrip(PeerId.Host) * 1000:0} ms";
+            : Host is not null ? $"{Aboard} aboard" // the host's own ping is to itself
+            : $"{Aboard} aboard, ping {_link.RoundTrip(PeerId.Host) * 1000:0} ms";
         string where = PrototypeSession.Where(p, Train);
         string state = p.Alive ? $"{p.Surface} {where} hp {p.Health}{PrototypeSession.Condition(p, Client.PlayerTuning)}" : $"DEAD ({p.Death})";
         return $"{d.Speed,5:0.0} m/s | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} | P {Train.Boiler.Pressure,3:0} fire {Train.Boiler.Firebox:0.0} tender {Train.Boiler.Tender:0} | " +
@@ -402,10 +441,40 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         };
     }
 
+    public IReadOnlyList<RosterLine> Roster()
+    {
+        var remotes = new List<(byte, PlayerState)>();
+        foreach (byte id in Client.RemoteIds)
+            if (Client.TryGetRemote(id, 1, out var s))
+                remotes.Add((id, s));
+        return RosterOf((byte)(Client.PlayerId ?? 0), Player, remotes, World);
+    }
+
+    /// <summary>
+    /// The roster's lines: you, the rest of the crew, and (App. A.7 "appears on the roster") any Passenger under the face it
+    /// wears, where it is: one line too many, beside the real one. In player-id order.
+    /// </summary>
+    public static IReadOnlyList<RosterLine> RosterOf(byte me, in PlayerState mine, IEnumerable<(byte Id, PlayerState State)> crew, World world)
+    {
+        var train = world.Train;
+        var lines = new List<RosterLine> { new(me, "YOU", PrototypeSession.Where(mine, train), mine.Alive, You: true) };
+        foreach (var (id, s) in crew)
+            lines.Add(new RosterLine(id, $"CREW {id}", s.Alive ? PrototypeSession.Where(s, train) : "DEAD", s.Alive));
+        foreach (var p in world.ActiveEnemies.OfType<Sim.Enemies.Passenger>())
+            lines.Add(new RosterLine((byte)p.Looks, $"CREW {p.Looks}", $"inside car {p.Attached}, shut in", true, Voiced: false));
+        return [.. lines.OrderBy(l => l.Id)];
+    }
+
+    /// <summary>
+    /// Everyone aboard, by the figures: the crew, and anything wearing one of their faces (App. A.7's tell, "crew count reads
+    /// one too many").
+    /// </summary>
+    int Aboard => Client.RemoteIds.Count() + 1 + World.ActiveEnemies.Count(e => e is Sim.Enemies.Passenger);
+
     public PlayerTuning PlayerTuning => Client.PlayerTuning;
     public int PlayerId => Client.PlayerId ?? 0;
     public LinkInfo? Link => new(Role(), Host is null && Client.Connected ? _link.RoundTrip(PeerId.Host) * 1000 : null,
-        Client.RemoteIds.Count() + 1, Client.Waiting ? Client.WaitingReason : null, Lost);
+        Aboard, Client.Waiting ? Client.WaitingReason : null, Lost);
 
     /// <summary>Accepts a friend's invite that arrived while playing, if any, leaving it for the app to act on.</summary>
     public LobbyId? TakeJoinRequest() => Lobby?.TakeJoinRequest();

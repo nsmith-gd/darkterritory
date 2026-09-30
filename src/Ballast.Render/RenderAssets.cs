@@ -75,6 +75,14 @@ public sealed record PostSettings
     public float WideBloom { get; init; } = 0.5f;
     /// <summary>Red and blue pulled apart toward the frame's corners (a fraction of the frame).</summary>
     public float LensFringe { get; init; } = 0.006f;
+    /// <summary>How much the screen-space occlusion darkens the frame (0: off, 1: all of it).</summary>
+    public float Occlusion { get; init; } = 0.85f;
+    /// <summary>How far the occlusion looks round each point, in metres (near the camera it shrinks, down to a third).</summary>
+    public float OcclusionRadius { get; init; } = 0.6f;
+    /// <summary>How dark a fully enclosed point goes before the strength (the sampling's own gain).</summary>
+    public float OcclusionIntensity { get; init; } = 1.4f;
+    /// <summary>Beyond this distance (m) the occlusion has faded out: the far field is fog, and noise there reads as dirt.</summary>
+    public float OcclusionFar { get; init; } = 60f;
 }
 
 /// <summary>
@@ -85,6 +93,11 @@ public sealed record RenderAssets
 {
     /// <summary>Every layer is resized to this (power of two).</summary>
     public int LayerSize { get; init; } = 256;
+    /// <summary>
+    /// Layers authored larger than <see cref="LayerSize"/> (the characters' and creatures' baked atlases, seen closest)
+    /// are also kept at up to this size, in arrays of their own, and drawn from those.
+    /// </summary>
+    public int HeroSize { get; init; } = 1024;
     public IReadOnlyList<MaterialLayer> Layers { get; init; } = [];
     /// <summary>A 360° band of distant silhouettes (alpha = silhouette), horizon 85 % of the way down, 90° tall.</summary>
     public Image? Backdrop { get; init; }

@@ -97,6 +97,22 @@ public class LookTests
     }
 
     [Fact]
+    public void TheBakedAtlasesKeepTheirResolution()
+    {
+        // The characters' and creatures' atlases are baked at 1024 (tools/models overbake); the library's layers are 512,
+        // and every layer is 512 in the material arrays. The atlases go in the hero arrays too, at full size, since they're
+        // what's seen closest (ARCHITECTURE §8 note 57); nothing authored at 512 does.
+        using var gpu = Gpu();
+        using var renderer = new GreyboxRenderer(gpu, 64, 36);
+        Look.Dress(renderer);
+        var heroes = renderer.HeroLayers.ToList();
+        Assert.Contains("crew_0", heroes);
+        Assert.Contains("weight_0", heroes);
+        Assert.DoesNotContain("pine_bough", heroes);
+        Assert.DoesNotContain("iron_plate", heroes);
+    }
+
+    [Fact]
     public void TheGrimeRidesWithTheCar()
     {
         using var gpu = Gpu();

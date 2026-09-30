@@ -3,7 +3,11 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Enemies;
 
-public enum EnemyKind : byte { Sleepers = 1, CinderHound = 2, Clinger = 3, Hollow = 4, Switchman = 5, SootChildren = 6, Dragger = 7, Rattle = 8, Lamplighter = 9, Deadman = 10, Stoker = 11, Ferryman = 12, LongWhistle = 13, Climber = 14, Weight = 15 }
+public enum EnemyKind : byte
+{
+    Sleepers = 1, CinderHound = 2, Clinger = 3, Hollow = 4, Switchman = 5, SootChildren = 6, Dragger = 7, Rattle = 8, Lamplighter = 9, Deadman = 10, Stoker = 11, Ferryman = 12, LongWhistle = 13, Climber = 14, Weight = 15, Gaunt = 16,
+    CarFire = 17, LooseLoad = 18, Gnawers = 19, Passenger = 20, Follower = 21, Drift = 22
+}
 
 /// <summary>Where on the train a threat comes from (GDD §21), and so which answer applies.</summary>
 public enum PressureZone : byte { Forward, Rear, Flank, Interior, Structural }
@@ -36,8 +40,12 @@ public abstract class Enemy
     public double Health { get; set; } = 1;
     public bool Gone => Phase == SpinePhase.Gone;
 
-    /// <summary>Vehicle the enemy is on (car-local <see cref="Local"/>), or −1 if it's free on the line.</summary>
+    /// <summary>
+    /// Vehicle the enemy is on (car-local <see cref="Local"/>), −1 if it's free on the line, or <see cref="Loose"/>: stood
+    /// in the world at <see cref="Local"/> (Followers on the ground, at someone's back).
+    /// </summary>
     public int Attached { get; set; } = -1;
+    public const int Loose = -2;
     public Double3 Local { get; set; }
     /// <summary>Along-line position, lateral offset and height when free on the line.</summary>
     public double LineDistance { get; set; }
@@ -64,6 +72,8 @@ public abstract class Enemy
     {
         if (Attached >= 0)
             return train.Frames[Attached].ToWorld(Local);
+        if (Attached == Loose)
+            return Local;
         var t = OnMainLine ? train.Line.Sample(LineDistance) : train.Line.Sample(train.Dynamics.Path, LineDistance);
         var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
         return t.Position + right * Lateral + Double3.Up * Height;

@@ -9,7 +9,18 @@ namespace DarkTerritory.Game;
 /// <summary>Someone else on the train, where they are this frame.</summary>
 /// <param name="Hand">A VR crewmate's reaching hand (T47), from the feet in the frame they face (x right, y up, z behind); zero for none.</param>
 /// <param name="Other">Their other hand, the same way.</param>
-public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool Alive, Double3 Hand = default, Double3 Other = default);
+/// <param name="Looks">Whose look they have (cap, scarf, tint, gait's beat), if not their own id's: the Passenger wears a crewmate's (T61).</param>
+public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool Alive, Double3 Hand = default, Double3 Other = default, int? Looks = null)
+{
+    public int Variant => Looks ?? Id;
+}
+
+/// <summary>
+/// A line of the crew roster (T69): who, where, and whether they're alive. <paramref name="Id"/> is the player id the line
+/// is for; a Passenger's line has the id of the face it wears (App. A.7 "appears on the roster"), so it sits beside theirs,
+/// and it is not <paramref name="Voiced"/>: the voice heard under that id is the real crewmate's, never the thing's.
+/// </summary>
+public readonly record struct RosterLine(byte Id, string Name, string Where, bool Alive, bool You = false, bool Voiced = true);
 
 /// <summary>What the app plays: the single-player prototype, or a networked session (host or client).</summary>
 public interface IPlaySession
@@ -31,6 +42,8 @@ public interface IPlaySession
     int PlayerId => 1;
     /// <summary>The network, for the HUD; null playing alone.</summary>
     LinkInfo? Link => null;
+    /// <summary>The crew roster (T69), in player-id order: everyone aboard by the figures, a Passenger among them.</summary>
+    IReadOnlyList<RosterLine> Roster() => [new RosterLine((byte)PlayerId, "YOU", PrototypeSession.Where(Player, Train), Player.Alive, You: true)];
 }
 
 /// <summary>What the HUD shows about the connection (spec E: ping to host "shown prominently", non-optional).</summary>

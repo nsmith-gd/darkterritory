@@ -11,7 +11,8 @@ public enum CrewPose { Idle, Walk, Run, Climb, Shovel, Crouch, Dead }
 
 /// <summary>
 /// The crew and the creatures as skinned models (content/art/models/*.glb, built by tools/blender/build.sh), posed
-/// on the CPU and added to the frame's triangle soup where GreyboxScene drew its boxes. Each model occupies the place
+/// on the CPU (the bones: clips, IK, ragdolls) and skinned on the GPU (each model's bind pose an asset, drawn with the
+/// pose's palette: MeshBuilder.Skinned), where GreyboxScene drew its boxes. Each model occupies the place
 /// its greybox stand-in did (same origin, same footprint), so gameplay reads the same; what changes is that a thing is
 /// now recognisable by its outline in the fog (GDD §26.1, §29) and moves the way §31 asks: the crew heavy and a bit
 /// stiff, the monsters still, then abrupt.
@@ -24,8 +25,10 @@ public enum CrewPose { Idle, Walk, Run, Climb, Shovel, Crouch, Dead }
 public sealed class CreatureArt
 {
     public const string Folder = "art/models";
+    /// <summary>The Drift's mat, drawn from a car's roof: past this half-width (m) it's on the ground, this far down.</summary>
+    const float CarHalfWidth = 1.6f, RoofDrop = 3.6f;
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
-    public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger"];
+    public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight"];
 
     /// <summary>Wear shown over each model's textures (the shader's grime): crew middling, monsters by how they're made.</summary>
     static readonly Dictionary<string, float> WearOf = new()
@@ -38,6 +41,8 @@ public sealed class CreatureArt
         ["switchman"] = 0.55f,
         ["soot_child"] = 0.5f,
         ["dragger"] = 0.2f,
+        ["husk"] = 0.7f,
+        ["weight"] = 0.3f,
     };
 
     sealed class Entry(Model model, MaterialLook[] looks)
@@ -109,20 +114,59 @@ public sealed class CreatureArt
         return true;
     }
 
-    /// <summary>Draws a model in the pose it was last given.</summary>
+    /// <summary>
+    /// Draws a model in the pose it was last given: its bind pose, cooked once per variant and look (<see cref="Bound"/>),
+    /// posed on the GPU by the pose's palette. <paramref name="glow"/> goes to the instance (the shader scales the lights
+    /// by it), so a pulsing ember doesn't need an asset a frame.
+    /// </summary>
     void Emit(MeshBuilder mesh, Entry m, string? clip, in Matrix4x4 at, int variant, float glow, float seed,
         Func<ModelMaterial, MaterialLook, MaterialLook>? adjust = null)
     {
         var mats = m.Model.Materials;
         for (int i = 0; i < mats.Length; i++)
-        {
-            var l = m.Looks[i];
-            if (mats[i].Emissive > 0 || mats[i].Glow > 0)
-                l = l with { Colour = l.Colour * glow };
-            m.Scratch[i] = adjust is null ? l : adjust(mats[i], l);
-        }
+            m.Scratch[i] = adjust is null ? m.Looks[i] : adjust(mats[i], m.Looks[i]);
         var seedOffset = new Vector3(MathF.Sin(seed * 12.9898f), MathF.Sin(seed * 78.233f), MathF.Sin(seed * 37.719f)) * 97;
-        _skinner.Emit(mesh, m.Model, m.Pose, at, m.Scratch, new EmitSettings(variant % Math.Max(1, m.Model.VariantCount), clip, _texels, seedOffset));
+        var settings = new EmitSettings(variant % Math.Max(1, m.Model.VariantCount), clip, _texels, seedOffset);
+        mesh.Skinned(Bound(m, settings), at, m.Pose.Skin, glow, seedOffset * _texels);
+    }
+
+    // The bind-pose assets, by model, the parts drawn and the looks (keyed to 1/128th: a hull heating as it's drilled
+    // steps through its heat, it doesn't make an asset a frame). Cleared when it grows past a few hundred; the renderer
+    // frees what's dropped.
+    readonly Dictionary<(Model Model, ulong Parts, int Looks), (MaterialLook[] Looks, MeshAsset Asset)> _bound = new();
+    const int MaxBound = 384;
+
+    MeshAsset Bound(Entry m, in EmitSettings settings)
+    {
+        ulong parts = 0;
+        for (int i = 0; i < m.Model.Parts.Length; i++)
+            if (m.Model.Parts[i].DrawnFor(settings.Variant, settings.Clip))
+                parts |= 1ul << (i % 64);
+        var hash = new HashCode();
+        foreach (var l in m.Scratch)
+            hash.Add(Quantised(l));
+        var key = (m.Model, parts, hash.ToHashCode());
+        if (_bound.TryGetValue(key, out var hit) && Same(hit.Looks, m.Scratch))
+            return hit.Asset;
+        if (_bound.Count >= MaxBound)
+            _bound.Clear();
+        var asset = Skinner.Bind(m.Model, m.Scratch, settings, m.Model.Name);
+        _bound[key] = ([.. m.Scratch], asset);
+        return asset;
+    }
+
+    static bool Same(MaterialLook[] a, MaterialLook[] b)
+    {
+        for (int i = 0; i < a.Length; i++)
+            if (Quantised(a[i]) != Quantised(b[i]))
+                return false;
+        return true;
+    }
+
+    static MaterialLook Quantised(MaterialLook l)
+    {
+        static float Q(float v) => MathF.Round(v * 128) / 128;
+        return l with { Colour = new Vector3(Q(l.Colour.X), Q(l.Colour.Y), Q(l.Colour.Z)), Emissive = Q(l.Emissive), Shine = Q(l.Shine), Wear = Q(l.Wear) };
     }
 
     /// <summary>Where a bone of the model last drawn by name is, in camera-relative space (the Switchman's lantern).</summary>
@@ -159,8 +203,9 @@ public sealed class CreatureArt
         // Each crewmate breathes and steps on their own beat: a fixed offset by variant, not a random one.
         double offset = (variant & 7) * 0.41;
         string clip = ClipOf(pose);
+        var Paint = PaintOf(variant);
         if (left is null && right is null)
-            return Draw(mesh, "crew", clip, time + offset, pose != CrewPose.Dead, model, variant, seed: variant);
+            return Draw(mesh, "crew", clip, time + offset, pose != CrewPose.Dead, model, variant, seed: variant, adjust: Paint);
         if (!_models.TryGetValue("crew", out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
         _skinner.Evaluate(m.Model, c, time + offset, pose != CrewPose.Dead, m.Pose);
@@ -168,8 +213,18 @@ public sealed class CreatureArt
             Reach(m, "l", l, leftPole);
         if (right is { } r)
             Reach(m, "r", r, rightPole);
-        Emit(mesh, m, clip, model, variant, 1, variant);
+        Emit(mesh, m, clip, model, variant, 1, variant, Paint);
         return true;
+    }
+
+    /// <summary>
+    /// A crewmate's own colour (look.json crewColours, by player id): the flying cap's leather and the scarf, the model's
+    /// ".paint" material, tinted, so eight masked heads can be told apart.
+    /// </summary>
+    Func<ModelMaterial, MaterialLook, MaterialLook> PaintOf(int variant)
+    {
+        var colour = Look.Tuning.CrewColour(variant);
+        return (mm, l) => mm.Name.EndsWith(".paint", StringComparison.Ordinal) ? l with { Colour = l.Colour * colour } : l;
     }
 
     /// <summary>One arm of the posed model to a hand position (model space) by two-bone IK, the elbow toward the pole.</summary>
@@ -254,7 +309,7 @@ public sealed class CreatureArt
             if (b >= 0 && t >= 0)
                 Skinner.Aim(model, m.Pose, b, t, joints[joint]);
         }
-        Emit(mesh, m, "dead", Matrix4x4.Identity, variant, glow: 0.2f, seed: variant);
+        Emit(mesh, m, "dead", Matrix4x4.Identity, variant, glow: 0.2f, seed: variant, adjust: PaintOf(variant));
         return true;
 
         // Rows right, up, back: takes model +X, +Y, +Z onto them (right squared to up first).
@@ -288,9 +343,14 @@ public sealed class CreatureArt
     /// its +X side; turn the basis for the other); they turn their heads up at the doors while they call.</item>
     /// </list>
     /// </summary>
-    public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, EnemyKind kind, SpinePhase phase, double phaseSeconds, double extra)
+    public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, EnemyKind kind, SpinePhase phase, double phaseSeconds, double extra, double health = 1)
     {
         double t = phaseSeconds;
+        // The in-car incidents are effects, not creatures with a model (Art/IncidentArt).
+        if (kind is EnemyKind.CarFire or EnemyKind.LooseLoad or EnemyKind.Gnawers)
+            return IncidentArt.Draw(mesh, model.Translation, Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, model)),
+                Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, model)), Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, model)),
+                kind, phase, t, extra, health);
         float pulse = (float)(0.5 + 0.5 * Math.Sin(t * 9));
         switch (kind)
         {
@@ -452,7 +512,10 @@ public sealed class CreatureArt
                     if (phase is not (SpinePhase.Commit or SpinePhase.Punish))
                         return true;
                     var at = Matrix4x4.CreateTranslation(0.35f, -1.35f, -0.4f) * model;
-                    return Draw(mesh, "crew", "idle", t * 0.2, true, at, variant: 5, seed: 11, adjust: (_, l) => l with { Colour = l.Colour * 0.45f });
+                    // The husk (tools/models/recipes/husk.py) is the crew figure gone wrong, graded dead already; without it,
+                    // the crew darkened.
+                    return Draw(mesh, "husk", "idle", t * 0.2, true, at, variant: 5, seed: 11)
+                        || Draw(mesh, "crew", "idle", t * 0.2, true, at, variant: 5, seed: 11, adjust: (_, l) => l with { Colour = l.Colour * 0.45f });
                 }
             case EnemyKind.Ferryman:
                 {
@@ -488,15 +551,70 @@ public sealed class CreatureArt
                         SpinePhase.Punish => ("crouch_idle", 1.0),
                         _ => ("run", 1.2),
                     };
-                    return Draw(mesh, "crew", clip, t * speed, true, at, variant: 3, seed: 17, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.28f, 0.26f, 0.25f) });
+                    return Draw(mesh, "husk", clip, t * speed, true, at, variant: 3, seed: 17, adjust: (_, l) => l with { Colour = l.Colour * 0.8f })
+                        || Draw(mesh, "crew", clip, t * speed, true, at, variant: 3, seed: 17, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.28f, 0.26f, 0.25f) });
+                }
+            case EnemyKind.Drift:
+                {
+                    // Not a creature (App. A.4): the ground come up over the roof and down the sides, a mat of dark limbs spread
+                    // round where it's centred, as wide as it's spread (extra). Surging, they reach one way.
+                    if (!_models.ContainsKey("dragger"))
+                        return false;
+                    float r = (float)Math.Clamp(extra, 1, 12);
+                    int n = 5 + (int)(r * 1.5);
+                    for (int i = 0; i < n; i++)
+                    {
+                        float a = i * 2.39996f, d = r * MathF.Sqrt((i + 0.5f) / n);
+                        float x = MathF.Cos(a) * d, z = MathF.Sin(a) * d;
+                        // Past the car's sides it's down on the ballast beside the train, not hanging in the air at the roof.
+                        float y = MathF.Abs(x) > CarHalfWidth ? -RoofDrop : -0.1f;
+                        var limb = Matrix4x4.CreateScale(1.4f) * Matrix4x4.CreateRotationZ(MathF.PI / 2) * Matrix4x4.CreateRotationY(a)
+                            * Matrix4x4.CreateTranslation(x, y, z) * model;
+                        Draw(mesh, "dragger", "grip", t * (phase == SpinePhase.Dormant ? 0.2 : 0.9) + i * 0.37, true, limb, seed: 40 + i,
+                            adjust: (_, l) => l with { Colour = l.Colour * 0.35f });
+                    }
+                    return true;
+                }
+            case EnemyKind.Follower:
+                {
+                    // At someone's back, bent double and matching their step (App. A.3): the husk, crouched and walking. Nested
+                    // in a car, it's down in the corner and still.
+                    var at = Matrix4x4.CreateScale(0.9f, 0.8f, 0.9f) * model;
+                    var (clip, speed) = phase == SpinePhase.Punish ? ("crouch_idle", 0.6) : ("walk", 1.0);
+                    return Draw(mesh, "husk", clip, t * speed, true, at, variant: 6, seed: 23, adjust: (_, l) => l with { Colour = l.Colour * 0.6f })
+                        || Draw(mesh, "crew", clip, t * speed, true, at, variant: 6, seed: 23, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.22f, 0.2f, 0.2f) });
+                }
+            case EnemyKind.Passenger:
+                // One of the crew (App. A.7 BLEND): the crew figure in the look of whoever it copies (extra), walking its loop.
+                // In play it's drawn through the crew's own path (GreyboxScene.AsCrewmate), gait and all.
+                return Crewmate(mesh, model, phase == SpinePhase.Telegraph ? CrewPose.Walk : CrewPose.Idle, t, (int)Math.Round(extra));
+            case EnemyKind.Gaunt:
+                {
+                    // Too tall, too thin, standing on the roof (App. A.4): the Hollow's figure drawn out, and utterly still, a
+                    // pose held with no breath in it (one frame of its idle, never played). Striking, it reaches.
+                    if (!_models.ContainsKey("hollow"))
+                        return false;
+                    var at = Matrix4x4.CreateScale(0.78f, 1.32f, 0.78f) * model;
+                    bool striking = phase is SpinePhase.Commit or SpinePhase.Punish;
+                    return Draw(mesh, "hollow", striking ? "reach" : "idle", striking ? t : 0.35, !striking, at, seed: 31,
+                        adjust: (_, l) => l with { Colour = l.Colour * 0.55f });
                 }
             case EnemyKind.Weight:
                 {
                     // Buried beside the track until the rear car passes: nothing to see. Then under the rear coupling, below
-                    // the gun's arc (App. A.3): a heap of limbs hooked over the coupler and the headstock, dragging. The
-                    // Dragger's limbs, bigger and more of them, pulled back along −Z... the way the train isn't going.
+                    // the gun's arc (App. A.3): a heap of limbs hooked over the coupler and the headstock, dragging.
                     if (phase == SpinePhase.Dormant)
                         return true;
+                    // Its own model (tools/blender/weight.py): a heap of bog bodies hooked on by four arms. It grabs as it
+                    // takes hold, then hauls; let go (beaten off, or the car cut), it slumps back on the stones.
+                    if (_models.TryGetValue("weight", out var w))
+                    {
+                        double grab = w.Model.Clips.TryGetValue("grab", out var g) ? g.Duration : 0;
+                        return phase == SpinePhase.BreakOff
+                            ? Draw(mesh, "weight", "release", t, false, model)
+                            : t < grab ? Draw(mesh, "weight", "grab", t, false, model) : Draw(mesh, "weight", "drag", t - grab, true, model);
+                    }
+                    // Without it, the Dragger's limbs, bigger and more of them, pulled back the way the train isn't going.
                     if (!_models.ContainsKey("dragger"))
                         return false;
                     for (int i = 0; i < 3; i++)
@@ -532,6 +650,10 @@ public sealed class CreatureArt
             case EnemyKind.SootChildren when e.Lateral < 0:
                 m = Matrix4x4.CreateRotationY(MathF.PI) * model;
                 break;
+            case EnemyKind.Gaunt:
+                // Facing whoever it's after (its car frame's yaw).
+                m = Matrix4x4.CreateRotationY((float)e.Extra2) * model;
+                break;
             case EnemyKind.Climber when e.Phase == SpinePhase.Telegraph:
                 // At the gap, facing in at the couplers.
                 m = Matrix4x4.CreateRotationY(e.Local.X > 0 ? MathF.PI / 2 : -MathF.PI / 2) * model;
@@ -548,6 +670,6 @@ public sealed class CreatureArt
                 m = Matrix4x4.CreateRotationY(MathF.PI - Math.Sign(e.Lateral) * 0.6f) * model;
                 break;
         }
-        return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra);
+        return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health);
     }
 }

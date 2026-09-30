@@ -1,0 +1,35 @@
+// Lineside boards and posts (plan §9.5, the §18 signage kit). All reflective in the lamp. text: what it reads, with
+// {value} for a number and {name} for a name; heightM up its post, widthM across; visibleM: how far the lamp picks it
+// out (the fog caps it anyway).
+{
+  "boards": {
+    "kmPost":        { "text": "{value}",       "heightM": 1.4, "widthM": 0.45, "visibleM": 120, "reflective": true },
+    "minorPost":     { "text": "{value}",       "heightM": 1.0, "widthM": 0.3,  "visibleM": 80,  "reflective": true },
+    "speedBoard":    { "text": "{value}",       "heightM": 2.4, "widthM": 0.8,  "visibleM": 250, "reflective": true },
+    "resumeBoard":   { "text": "{value}",       "heightM": 2.4, "widthM": 0.8,  "visibleM": 250, "reflective": true },
+    "restricted":    { "text": "R",             "heightM": 2.4, "widthM": 0.8,  "visibleM": 250, "reflective": true },
+    "endRestricted": { "text": "END R",         "heightM": 2.4, "widthM": 1.0,  "visibleM": 250, "reflective": true },
+    "gradientPost":  { "text": "{value}",       "heightM": 1.8, "widthM": 1.2,  "visibleM": 150, "reflective": true },
+    "whistle":       { "text": "W",             "heightM": 1.8, "widthM": 0.6,  "visibleM": 200, "reflective": true },
+    "junction":      { "text": "{name} {value}", "heightM": 2.6, "widthM": 1.6, "visibleM": 250, "reflective": true },
+    "facility":      { "text": "{name} {value}", "heightM": 2.6, "widthM": 2.0, "visibleM": 250, "reflective": true },
+    "bridge":        { "text": "{name}",        "heightM": 2.2, "widthM": 1.6,  "visibleM": 200, "reflective": true },
+    "bridgeLimit":   { "text": "MAX {value} CARS", "heightM": 2.4, "widthM": 1.8, "visibleM": 250, "reflective": true },
+    "lineClosed":    { "text": "LINE CLOSED",   "heightM": 2.6, "widthM": 2.0,  "visibleM": 250, "reflective": true },
+    "yardLimit":     { "text": "YARD LIMIT",    "heightM": 2.4, "widthM": 1.8,  "visibleM": 250, "reflective": true },
+    "stationName":   { "text": "{name}",        "heightM": 2.2, "widthM": 2.4,  "visibleM": 150, "reflective": true },
+    "tunnelPlate":   { "text": "{name}",        "heightM": 6.8, "widthM": 3.0,  "visibleM": 150, "reflective": true },
+    "deadSignal":    { "text": "",              "heightM": 5.0, "widthM": 0.5,  "visibleM": 120, "reflective": false }
+  },
+  // Kilometre posts every 1 km (always required) and a minor post every 0.5 km (not). Boards this far out on the
+  // driver's side. Non-required signage survives by the tier's rate; what doesn't is fallen or missing by these weights.
+  // A repeat board this far before the first; whistle boards this far before tunnels and dead settlements; a gradient
+  // post where a climb comes within this share of g_main.
+  "kmPostEveryM": 1000,
+  "minorPostEveryM": 500,
+  "sideOffsetM": 3.2,
+  "stateWeights": { "fallen": 0.4, "missing": 0.6 },
+  "repeatBoardGapM": 400,
+  "whistleBeforeM": 400,
+  "gradientPostMinShare": 0.7
+}

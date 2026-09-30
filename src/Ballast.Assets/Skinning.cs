@@ -30,7 +30,9 @@ public readonly record struct MaterialLook(int Layer, Vector3 Colour, float Emis
 public readonly record struct EmitSettings(int Variant = 0, string? Clip = null, float TexelsPerMetre = 128, Vector3 Seed = default);
 
 /// <summary>
-/// CPU skinning (linear blend, ≤ 4 bones a vertex) into the renderer's triangle soup. One per drawing thread: it keeps
+/// Posing (<see cref="Evaluate"/>, <see cref="Aim"/>, <see cref="Place"/>) and skinning (linear blend, ≤ 4 bones a vertex):
+/// on the GPU from a <see cref="Bind"/> asset, as the game draws, or on the CPU into the triangle soup (<see cref="Emit"/>,
+/// for pieces cooked once). One per drawing thread: it keeps
 /// its scratch buffers between calls, so a frame of a dozen creatures allocates nothing. Deterministic: plain float math
 /// in a fixed order, nothing from the clock.
 /// </summary>
@@ -170,6 +172,47 @@ public sealed class Skinner
             }
         }
         return added;
+    }
+
+    /// <summary>
+    /// The model in its bind pose as a skinned asset, for the GPU to pose (<see cref="MeshBuilder.Skinned"/>, with a pose's
+    /// <see cref="Pose.Skin"/>): the same parts, looks and texel coordinates <see cref="Emit"/> would give, less the seed
+    /// (that's the instance's surface offset, <paramref name="settings"/>' Seed × texels, so one asset serves every seed).
+    /// </summary>
+    public static MeshAsset Bind(Model source, ReadOnlySpan<MaterialLook> looks, in EmitSettings settings, string name)
+    {
+        var vertices = new List<Vertex>();
+        var skin = new List<SkinWeights>();
+        foreach (var part in source.Parts)
+        {
+            if (!part.DrawnFor(settings.Variant, settings.Clip))
+                continue;
+            var look = looks[part.Material];
+            float wear = look.Emissive >= 1 ? 0 : look.Wear;
+            var idx = part.Indices;
+            for (int t = 0; t + 2 < idx.Length; t += 3)
+                for (int c = 0; c < 3; c++)
+                {
+                    int i = idx[t + c], k = i * 4;
+                    vertices.Add(new Vertex(part.Positions[i], part.Normals[i], look.Colour, look.Emissive)
+                    {
+                        Surface = part.Positions[i] * settings.TexelsPerMetre,
+                        Wear = wear,
+                        Shine = look.Shine,
+                        Uv = part.Uvs[i],
+                        Layer = look.Layer,
+                        Layer2 = -1,
+                        Blend = 0,
+                    });
+                    // Weights under 1 in 10⁴ are dropped, and the rest scaled back up to one (Emit's single-bone shortcut).
+                    var w = new Vector4(part.Weights[k], part.Weights[k + 1], part.Weights[k + 2], part.Weights[k + 3]);
+                    if (w.X >= 0.9999f)
+                        w = Vector4.UnitX;
+                    skin.Add(new SkinWeights(new Vector4(part.Joints[k], part.Joints[k + 1], part.Joints[k + 2], part.Joints[k + 3]),
+                        Vector4.Max(w, Vector4.Zero)));
+                }
+        }
+        return new MeshAsset(name, [.. vertices], [.. skin]);
     }
 
     /// <summary>A bone's model-space transform in a pose (a socket: where the hand holds a thing), placed by <paramref name="model"/>.</summary>

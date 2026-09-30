@@ -81,6 +81,10 @@ Because four enemies use vibration triggers and three use sound, their audio sig
 | The Gaunt | **Silent by design** | — |
 | Deadman | Controls clicking, lamp dim hum | 1–2k |
 | Draggers | Single scrape at the edge lip | 2–4k |
+| Car fire *(in-car incident)* | Crackle and pop through the boards | 6–9k |
+| Loose load *(in-car incident)* | Straps groaning in time with the joints | 1.4–2.2k, rhythmic |
+| Gnawers *(in-car incident)* | Skittering, chittering in the load | 9–12k |
+| The Drift | Dry reeds rustling, in slow creeping swells | 12–15k |
 
 Two enemies are deliberately silent. That absence is itself information once players learn the roster.
 
@@ -162,7 +166,7 @@ The alternative is Unity's built-in AudioMixer with hand-rolled ducking. It's vi
 | Carrying heavy cargo | 2.8 m/s | No climbing |
 | Jump gap | 2.2m max | Coupling gaps are 1.5m — jumpable, but not while it's rattling |
 | Health | 100 | Most attacks 35–60 |
-| Cold exposure | 200s to onset, 320s to death | Resets in 45s near heat |
+| Cold exposure | 600s to onset, 1200s to death | Resets in 20s near heat. Inside a car with a door open it builds at ¼ rate. (Was 200 / 320 / 45: cold was 73% of deaths in the 100-night playtest.) |
 
 ## B.3 Speed bands
 
@@ -276,7 +280,7 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 | POIs per run | 3–5 |
 | Time per POI | 4–8 min |
 | **Total run** | **28–45 min** |
-| Dawn timer | Route length ÷ 11 m/s average, +18% slack |
+| Dawn timer | Route length ÷ 11 m/s average, +40% slack (was +18%: after the 100-night playtest a stop, the posted boards and the in-car trouble didn't fit, and missing dawn was the commonest failure) |
 
 The dawn budget assumes an 11 m/s average, below the 14 m/s cruise. **The slack is what you spend on stopping** — every POI, every repair, every revival eats it.
 
@@ -324,7 +328,7 @@ Revival is possible, expensive, and genuinely capable of ending a run.
 
 ### The revived
 
-They come back **cold**: cold exposure onset halved (100s), carry capacity reduced to light only, and they cannot operate the guns until the next POI.
+They come back **cold**: cold exposure onset halved (300s), carry capacity reduced to light only, and they cannot operate the guns until the next POI.
 
 ### The alternative
 
