@@ -423,9 +423,9 @@ public sealed class StopDriver(CrewCalls calls)
                     return Toward(world, w.Hold, -1, 3);
                 }
             case Leg.SetBack:
-                // Until it's set back for the main line and everyone's aboard. Nobody to do it, nobody goes anywhere: over
-                // those points is the dead line again.
-                if (!train.Diverging(Switch!.Branch.Index) && calls.AllAboard)
+                // Until it's set back for the main line and everyone's aboard (or given the time to be, as at a stop). Nobody
+                // to do it, nobody goes anywhere: over those points is the dead line again.
+                if (!train.Diverging(Switch!.Branch.Index) && (calls.AllAboard || Waited > AboardGiveUp))
                     Begin(Leg.Forward);
                 return Hold(world);
             case Leg.Forward:

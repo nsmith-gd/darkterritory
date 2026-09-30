@@ -223,6 +223,21 @@ public class LinesideTests
         Assert.All(crew, c => Assert.True(c.Alive, $"died of {c.Death}"));
         Assert.True(wentIn);
     }
+
+    [Fact]
+    public void AWalkerOnTheLastCarWithTheCarAheadAlightStillGetsInForATunnel()
+    {
+        // The 100-night rerun: on the last car (no plate behind it) with a fire in the car ahead, the walker's only way in
+        // was a troubled car, so it stayed on the roof and the mouth took it. A fire's a chance; the roof isn't.
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), Tunnel().Build(), 400);
+        int last = train.Vehicles.Count - 1;
+        var self = PlayerMotor.SpawnOnRoof(train, last, 3, P);
+        var warm = new WarmUp(P.Cold) { Troubled = car => car == last - 1 };
+        Assert.Null(warm.Decide(self, train)); // warm, and nothing coming: stays up
+        warm.Shelter = true;
+        Assert.NotNull(warm.Decide(self, train));
+        Assert.True(warm.Active);
+    }
 }
 
 /// <summary>

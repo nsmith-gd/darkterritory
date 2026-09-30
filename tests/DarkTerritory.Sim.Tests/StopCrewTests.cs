@@ -149,6 +149,41 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void AGunnerLeftOnTheBallastClimbsBackAboardAndADeadOneIsNotWaitedFor()
+    {
+        // The 100-night rerun: a gunner down on the ballast after a stop only ever borrowed the walker's legs on a car, so it
+        // stood there (or on the engine's ladder, on and off it) while the driver waited out its give-ups and left it. And
+        // dead, it stopped saying so: the driver held at the next switch all night for it to get aboard.
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(4000)])), 600);
+        var world = new World(train, Tuning.Combat);
+        world.EnableBodies();
+        var calls = new CrewCalls();
+        var bot = new GunnerBot(Tuning.Combat.Guns, cold: P.Cold, job: new StopHand(StopJob.Winch0, calls, 1, P.Cold));
+        var shape = train.Frames[2].Shape;
+        var s = PlayerMotor.SpawnOnGround(train.Frames[2].ToWorld(new Ballast.Double3(shape.HalfWidth + 1.2, 0, 0)), train.Line, train.Cars[2].FrontDistance, P);
+        for (uint tick = 0; tick < 40 * SimConstants.TickRate && s.Parent == PlayerState.World; tick++)
+        {
+            world.BeginTick();
+            var intent = bot.Decide(s, world, tick, out _);
+            world.CrewAct(ref s, intent, 1);
+            world.Step(new TrainControls());
+            PlayerMotor.Step(ref s, intent, train, P, T, SimConstants.TickSeconds, applyLook: false);
+        }
+        Assert.NotEqual(PlayerState.World, s.Parent);
+        world.Tick++;
+        bot.Decide(s, world, 0, out _); // it says where it is as it decides (once a tick)
+        Assert.True(calls.AllAboard);
+
+        var down = PlayerMotor.SpawnOnGround(train.Frames[2].ToWorld(new Ballast.Double3(shape.HalfWidth + 1.2, 0, 0)), train.Line, train.Cars[2].FrontDistance, P);
+        world.Tick++;
+        bot.Decide(down, world, 0, out _);
+        Assert.False(calls.AllAboard);
+        world.Tick++;
+        bot.Decide(down with { Health = 0, Death = DeathCause.Mauled }, world, 1, out _);
+        Assert.True(calls.AllAboard);
+    }
+
+    [Fact]
     public void WithTheShunterDeadTheFirstHandLeftTakesItOver()
     {
         var calls = new CrewCalls();

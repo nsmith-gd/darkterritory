@@ -45,7 +45,10 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
     {
         aimed = self;
         if (!self.Alive)
+        {
+            _legs.Work(self, world); // the dead still say so, or the driver waits all night for them to get aboard
             return default;
+        }
         // A tunnel's mouth ahead: at the gun it's down behind the shield; anywhere else on the roofs, off them.
         // Trouble in a car: off the gun for it only while there's nothing at the back to shoot (hounds out).
         bool hounds = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && !e.Gone && e.Phase is SpinePhase.Commit or SpinePhase.Punish);
@@ -61,7 +64,9 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         {
             if (!houndsAboard)
                 _legs.Head(+1);
-            return self.Parent > 0 ? _legs.Decide(self, world, tick, out aimed) : default;
+            // On a car, on a ladder (the engine's too), or down on the ballast after a stop: the walker's way about, and
+            // aboard. Only in the cab does it stand and wait.
+            return self.Parent != 0 || self.Surface == Surface.Ladder ? _legs.Decide(self, world, tick, out aimed) : default;
         }
         // Hold fire once another burst would bring the swarm, and keep holding until they've dispersed
         // below the approach: firing again sooner resets the Choir's quiet clock and it never drops.
@@ -797,6 +802,13 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
         int behind = train.VehicleBehind(here), ahead = train.VehicleAhead(here);
         bool back = behind > 0 && Walkable(train, here) && Rattled?.Invoke(here) != true && (Into == here || Troubled?.Invoke(here) != true);
         bool front = ahead > 0 && Walkable(train, ahead) && Rattled?.Invoke(ahead) != true && (Into == ahead || Troubled?.Invoke(ahead) != true);
+        // A tunnel's mouth coming and the only ways in troubled (the rear car, the car ahead alight): in anyway. A fire's a
+        // chance; the roof under that mouth isn't.
+        if (Shelter && !back && !front)
+        {
+            back = behind > 0 && Walkable(train, here) && Rattled?.Invoke(here) != true;
+            front = ahead > 0 && Walkable(train, ahead) && Rattled?.Invoke(ahead) != true;
+        }
         // Sent into one car in particular: its own rear door, from its roof or the roof behind it.
         if (Into is { } into && !Shelter)
         {
