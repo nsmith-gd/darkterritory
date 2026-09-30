@@ -154,7 +154,13 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // for a fire that's alight or a load that's loose (the loading waits; the car doesn't).
         if (_trouble is { } trouble && (job.Job is StopJob.Crates or StopJob.None
                 || job.Job is StopJob.Winch0 or StopJob.Winch1 && (trouble.Kind == EnemyKind.LooseLoad || trouble is CarFire { Phase: SpinePhase.Punish })))
-            return null;
+        {
+            // In there: work it from the aisle. Short of it at a stop: in by its side door from the ground (the stop's
+            // hands are down there anyway); otherwise the walker's way, along the roofs.
+            if (self.Parent == trouble.Attached && PlayerMotor.Indoors(self, world.Train))
+                return Tend(self, trouble, world.Train);
+            return job.IntoTrouble(self, world, trouble.Attached);
+        }
         if (_workedTick != world.Tick)
         {
             _workedTick = world.Tick;

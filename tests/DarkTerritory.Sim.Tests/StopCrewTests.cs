@@ -202,6 +202,12 @@ public class StopCrewTests
         Assert.False(calls.StandIn(4, StopJob.Shunter));
         calls.Say(3, StopJob.Shunter, alive);
         Assert.False(calls.StandIn(4, StopJob.Shunter));
+        // And the part they left (the crane's operator): the first crate hand takes it, and nobody else.
+        Assert.True(calls.StandIn(4, StopJob.Winch0));
+        Assert.False(calls.StandIn(3, StopJob.Winch0));
+        Assert.False(calls.StandIn(4, StopJob.Winch1)); // nobody's ever had that
+        calls.Say(4, StopJob.Winch0, alive);
+        Assert.False(calls.StandIn(4, StopJob.Winch0));
     }
 
     [Fact]
