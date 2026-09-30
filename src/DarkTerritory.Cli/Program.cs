@@ -62,7 +62,7 @@ return args switch
     ["route", "gen", ..] => Print(GenerateRoute(routeTuning, content, args)),
     ["route", "sweep", ..] => Print(SweepRoutes(routeTuning, (int)Opt(args, "--seeds", 200))),
     ["site", "sweep", ..] => Print(SweepStops(routeTuning, LoadStops(content), (int)Opt(args, "--seeds", 60))),
-    ["site", ..] => Print(ShowStop(routeTuning, LoadStops(content), args)),
+    ["site", ..] => Print(ShowStop(content, routeTuning, LoadStops(content), args)),
     ["linegen", var verb, ..] => Print(LineGenCommands.Run(content, verb, args)),
     ["harness", ..] => Print(RunHarness(args)),
     ["balance", ..] => PrintBalance(RunBalance(args)),
@@ -541,7 +541,7 @@ static StopTuning LoadStops(string content) => DataFile.Load<StopTuning>(Path.Co
 static StopContext StopContextOf(RouteTuning t) => t.StopContext;
 
 // One stop's layout (level-design Parts D and Z): the summary, every check, and a top-down plan PNG.
-static object ShowStop(RouteTuning rt, StopTuning st, string[] args)
+static object ShowStop(string content, RouteTuning rt, StopTuning st, string[] args)
 {
     var tier = Enum.Parse<RouteTier>(Str(args, "--tier", "frontier"), ignoreCase: true);
     ulong seed = (ulong)Opt(args, "--seed", 1);
@@ -550,9 +550,9 @@ static object ShowStop(RouteTuning rt, StopTuning st, string[] args)
     double? start = null;
     if (Str(args, "--route", "") is { Length: > 0 } spec)
     {
-        // A stop as a generated night has it: the route's i-th stop (facilities' yards and village halts, in order).
-        var (rtier, rseed) = Route.ParseSpec(spec);
-        var stops = RouteGenerator.Generate(rt, rtier, rseed).Features.Where(f => f.Stop is not null).ToList();
+        // A stop as a generated night has it (the night the game plays, as `dt screenshot --route` does): the route's i-th
+        // stop (facilities' yards and village halts, in order).
+        var stops = DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, (int)Opt(args, "--cars", 6)).Features.Where(f => f.Stop is not null).ToList();
         int i = (int)Opt(args, "--stop", 0);
         if (i < 0 || i >= stops.Count)
             throw new ArgumentException($"{spec} has {stops.Count} stops (--stop 0..{stops.Count - 1})");

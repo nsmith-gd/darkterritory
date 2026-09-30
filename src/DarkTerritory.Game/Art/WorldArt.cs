@@ -400,10 +400,11 @@ public sealed partial class WorldArt(Look look)
             lastTops = tops;
         }
 
-        // A generated line is dressed by its biomes (PlanArt).
+        // A generated line is dressed by its biomes (PlanArt), round its stops.
         if (Scene(route) is { } plan)
         {
             PlanDressing(mesh, line, route!, plan, eye, from, to, seed, OnBranch);
+            Stops(mesh, line, route, eye, from, to, valleyDepth);
             return;
         }
         // The forest: stands of pines, thinner near the line, thick further out, gaps where the ground is open.

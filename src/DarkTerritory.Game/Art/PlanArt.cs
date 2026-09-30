@@ -5,6 +5,7 @@ using Ballast.Render;
 using DarkTerritory.Sim.LineGen;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
+using DarkTerritory.Sim.Stops;
 
 namespace DarkTerritory.Game.Art;
 
@@ -26,6 +27,23 @@ public sealed partial class WorldArt
             Main = Plan.Alignment.Select((a, i) => (a, i)).First(x => x.a.Role == EdgeRole.Main).i;
             Washouts = [.. Plan.Structures.Where(s => s.Type == StructureType.Washout && s.Edge == "main").Select(s => (s.S0, s.S1))];
             Villages = [.. route.Of(FeatureKind.Village).Where(f => f.Stop is not null).Select(f => (f.Start, f.End))];
+            Clearings = [.. route.Features.Where(f => f.Stop is not null).Select(f => Clearing(f.Start, f.End, f.Stop!))];
+        }
+
+        /// <summary>A stop's ground, cleared of the woods: its zone, out on each side past the last thing it built there.</summary>
+        static (double S0, double S1, double Left, double Right) Clearing(double s0, double s1, StopLayout stop)
+        {
+            double left = 12, right = 12;
+            foreach (var b in stop.Buildings)
+            {
+                double half = Math.Max(b.Length, b.Width) / 2 + 10;
+                right = Math.Max(right, b.D + half);
+                left = Math.Max(left, -b.D + half);
+            }
+            foreach (var t in stop.Tracks)
+                foreach (var q in t.Path)
+                    (right, left) = (Math.Max(right, q.D + 8), Math.Max(left, -q.D + 8));
+            return (s0, s1, left, right);
         }
 
         public LinePlan Plan { get; }
@@ -36,6 +54,11 @@ public sealed partial class WorldArt
         public (double S0, double S1)[] Villages { get; }
 
         public bool InVillage(string edge, double s0, double s1) => edge == "main" && Villages.Any(v => v.S0 < s1 && s0 < v.S1);
+
+        /// <summary>The stops' ground (PlanStops), where the plan's woods don't grow.</summary>
+        public (double S0, double S1, double Left, double Right)[] Clearings { get; }
+
+        public bool InClearing(double s, double lateral) => Clearings.Any(c => s >= c.S0 && s < c.S1 && lateral > -c.Left && lateral < c.Right);
         /// <summary>The main line's index among the terrain field's edges.</summary>
         public int Main { get; }
 
@@ -194,7 +217,7 @@ public sealed partial class WorldArt
             var m = new Matrix4x4(right.X, 0, right.Z, 0, 0, 1, 0, 0, -fwd.X, 0, -fwd.Z, 0, o.X, o.Y, o.Z, 1);
             return (Matrix4x4.CreateScale(stretch ?? Vector3.One * scale) * Matrix4x4.CreateRotationY(yaw) * m, slope);
         }
-        bool Free(double s, double lateral) => !onBranch(s, lateral) && PlanClear(route, line, s, lateral);
+        bool Free(double s, double lateral) => !onBranch(s, lateral) && !p.InClearing(s, lateral) && PlanClear(route, line, s, lateral);
         MeshAsset Tree(string kind, int v) => kind switch
         {
             "fir" => Piece($"fir-{v}", () => NovaKit.Conifer(_look, v, 12, 0.46f)),
