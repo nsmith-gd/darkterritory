@@ -38,6 +38,11 @@ public enum PlayerActions : byte
     Whistle = 2,
     /// <summary>The lamp in the car you're in, on or off (a toggle on the press).</summary>
     CarLamp = 4,
+    /// <summary>
+    /// Cut the coupling you're standing on (T91 playtest): its own key, held, looking down at the coupler. It used to be Use,
+    /// which is also every door's and ladder's, so couplings came apart by accident.
+    /// </summary>
+    Uncouple = 8,
 }
 
 /// <summary>The forward lamp's switch in the cab (T52): set it on or off (a setting, not a toggle, so a held key or a resent intent is harmless).</summary>
@@ -393,10 +398,19 @@ public static class PlayerMotor
         UpdateSupport(ref s, world, prevWorld, train, p, t);
 
         // Use while pushing towards it grabs a ladder; Use standing still is for working things (CrewActions). A hand on
-        // the ladder takes hold of it without pushing (T29).
-        if (intent.Has(PlayerButtons.Use) && (intent.MoveZ > 0.5 || s.Hand != default) && s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Heavy))
-            TryGrabLadder(ref s, train, p, byHand: intent.MoveZ <= 0.5);
+        // the ladder takes hold of it without pushing (T29). Walking straight into the foot of one takes hold of it too
+        // (T90 playtest: nobody found Use + forward).
+        if (s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Heavy))
+        {
+            if (intent.Has(PlayerButtons.Use) && (intent.MoveZ > 0.5 || s.Hand != default))
+                TryGrabLadder(ref s, train, p, byHand: intent.MoveZ <= 0.5);
+            else if (intent.MoveZ > 0.5 && s.Grounded)
+                TryGrabLadder(ref s, train, p, byHand: false, walkIn: true);
+        }
     }
+
+    /// <summary>How close to a ladder's foot walking into it takes hold (tighter than Use's reach, so passing one doesn't).</summary>
+    const double WalkInReach = 0.45;
 
     /// <summary>
     /// Spec B.2 cold: exposure climbs outside and kills at the death mark; near heat it falls fast enough that even the
@@ -589,23 +603,31 @@ public static class PlayerMotor
         s.Velocity = default;
     }
 
-    /// <summary>Spec B.3: one threshold for leaving the train. Faster than it kills; slower, you roll.</summary>
+    /// <summary>
+    /// Spec B.3 landings: faster over the ground than <see cref="LandingTuning.LethalAbove"/> kills; slower, it's a knock that
+    /// grows with the speed (T90: at the old 4 m/s threshold every step off a moving train was a death).
+    /// </summary>
     static void Land(ref PlayerState s, Double3 worldVelocity, PlayerTuning p, TrainTuning t)
     {
         double horizontal = Math.Sqrt(worldVelocity.X * worldVelocity.X + worldVelocity.Z * worldVelocity.Z);
-        if (SpeedBands.JumpOffIsLethal(t, horizontal))
+        var l = p.Landing;
+        double lethal = l.LethalAbove > 0 ? l.LethalAbove : t.SpeedBands.JumpOffLethal;
+        if (horizontal > lethal)
         {
             s.Health = 0;
             s.Death = DeathCause.JumpedAtSpeed;
         }
-        else if (horizontal > p.Landing.RollAbove)
+        else if (horizontal > l.RollAbove)
         {
-            s.Health = Math.Max(1, s.Health - p.Landing.RollDamage);
+            double k = Math.Clamp((horizontal - l.RollAbove) / Math.Max(1e-6, lethal - l.RollAbove), 0, 1);
+            int damage = (int)Math.Round(l.RollDamage + (Math.Max(l.DamageAtLethal, l.RollDamage) - l.RollDamage) * k);
+            s.Health = Math.Max(1, s.Health - damage);
         }
     }
 
     /// <param name="byHand">The reaching hand has to be on the ladder: from its foot to a grab iron over the top rung.</param>
-    static void TryGrabLadder(ref PlayerState s, TrainOnLine train, PlayerTuning p, bool byHand)
+    /// <param name="walkIn">Walking into it: close to its foot, facing up it, and not already at its top.</param>
+    static void TryGrabLadder(ref PlayerState s, TrainOnLine train, PlayerTuning p, bool byHand, bool walkIn = false)
     {
         var world = ToWorld(s, train, s.Position);
         var worldVelocity = WorldVelocity(s, train);
@@ -618,10 +640,22 @@ public static class PlayerMotor
             foreach (var ladder in frame.Shape.Ladders)
             {
                 double dx = local.X - ladder.Foot.X, dz = local.Z - ladder.Foot.Z;
-                if (dx * dx + dz * dz > p.Ladder.GrabRange * p.Ladder.GrabRange)
+                double reach = walkIn ? Math.Min(WalkInReach, p.Ladder.GrabRange) : p.Ladder.GrabRange;
+                if (dx * dx + dz * dz > reach * reach)
                     continue;
                 if (local.Y < ladder.Foot.Y - 0.5 || local.Y > ladder.Top + 0.1)
                     continue;
+                if (walkIn)
+                {
+                    // Not a hatch ladder indoors (the cab's, a car's): in there you walk past them all the time, working.
+                    if (local.Y > ladder.Top - 0.5 || frame.Shape.Cab is { } cab && cab.Contains(ladder.Foot + new Double3(0, 0.2, 0))
+                        || frame.Shape.Interior is { } room && room.Contains(ladder.Foot + new Double3(0, 0.2, 0)))
+                        continue;
+                    double yaw = WorldYaw(s, train);
+                    var facing = frame.DirToLocal(new Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw)));
+                    if (facing.X * ladder.Inward.X + facing.Z * ladder.Inward.Z < 0.7)
+                        continue;
+                }
                 if (hand is { } h && !OnLadder(frame.ToLocal(h), ladder, p.Hand.Grab))
                     continue;
                 var relative = frame.VelocityToLocal(worldVelocity);

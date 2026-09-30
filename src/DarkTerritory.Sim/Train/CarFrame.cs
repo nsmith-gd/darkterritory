@@ -285,7 +285,8 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             new(new Box(new Double3(-e.BoilerHalfWidth, deck, -l + 0.5), new Double3(e.BoilerHalfWidth, e.BoilerTop, cabFront)), SurfaceKind.Roof, PartKind.Boiler),
             new(new Box(new Double3(-0.35, e.BoilerTop, -l + 1.4), new Double3(0.35, e.BoilerTop + 1.0, -l + 2.1)), SurfaceKind.Roof, PartKind.Stack),
             new(new Box(new Double3(-w - 0.1, g.EngineHeight - 0.2, cabFront), new Double3(w + 0.1, g.EngineHeight, cabBack)), SurfaceKind.Roof, PartKind.CabRoof),
-            new(new Box(new Double3(-w, deck, cabBack), new Double3(w, e.TenderTop, l)), SurfaceKind.Roof, PartKind.Tender),
+            // The coal bunker, clear of the gangway down its left side.
+            new(new Box(new Double3(-w + e.TenderGangway, deck, cabBack), new Double3(w, e.TenderTop, l)), SurfaceKind.Roof, PartKind.Tender),
         };
         // Cab sides are waist-high with a doorway at the back of each side, and corner pillars hold the roof.
         double doorFront = cabBack - e.DoorWidth;
@@ -308,6 +309,11 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         }
         if (CouplerPlate(g, l, hasCarBehind) is { } plate)
             solids.Add(plate);
+        // A footplate off the coupler plate onto the tender's gangway (T90): the plate is narrower than the way round the
+        // coal, so without it the step from one to the other is off the edge.
+        if (hasCarBehind && e.TenderGangway > 0)
+            solids.Add(new(new Box(new Double3(-w, deck - 0.1, l - 0.01), new Double3(-g.CouplerWidth / 2 + 0.01, deck, l + g.CouplingGap * 0.45)),
+                SurfaceKind.Deck, PartKind.RunningBoard));
 
         double doorZ = doorFront + e.DoorWidth / 2;
         var ladders = new List<Ladder>
@@ -318,6 +324,8 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         };
         if (hasCarBehind)
             ladders.Add(new Ladder(new Double3(EndLadderX, 0, l + 0.1), e.TenderTop, new Double3(0, 0, -1)));
+        // Up the tender's front from the coal to the cab roof (T90): the forward gun from the top of the train.
+        ladders.Add(new Ladder(new Double3(EndLadderX, e.TenderTop, cabBack + 0.15), g.EngineHeight, new Double3(0, 0, -1)));
 
         var interactables = new List<Interactable>
         {

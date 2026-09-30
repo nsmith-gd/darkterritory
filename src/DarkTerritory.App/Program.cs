@@ -545,6 +545,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 ThrottleNotch = proto is null ? (sbyte)Math.Clamp(pendingNotch, -4, 4) : (sbyte)0,
                 Lamp = pendingLamp,
                 Actions = (Held(Control.Swing) ? PlayerActions.Swing : 0) | (Held(Control.Whistle) ? PlayerActions.Whistle : 0)
+                    | (Held(Control.Uncouple) ? PlayerActions.Uncouple : 0)
                     | (pendingCarLamp ? PlayerActions.CarLamp : 0),
                 // How loud you are (GDD v1.1 App. C.7, C.8): the mic while it sends; with no mic, holding Talk counts as
                 // speaking up, so a player without one can still talk the Gaunt down and answer a roll call.
@@ -602,6 +603,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         var frames = session.InterpolatedFrames(clock.Alpha);
         camera = chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
         scene.Crew = session.Crew(frames, clock.Alpha);
+        // What you carry is drawn at your hands as you see them this frame, not where the last tick left it (T92).
+        var carry = session.World.Bodies.Hands;
+        var eyeForward = new Double3(-Math.Sin(camera.Yaw), 0, -Math.Cos(camera.Yaw));
+        scene.HeldHere = chase || !session.Player.Alive ? null
+            : (session.PlayerId, camera.Position - Double3.Up * (Eyes.Height - carry.CarryHeight) + eyeForward * carry.CarryForward, camera.Yaw);
         scene.Time = now;
         lighting = Views.Lighting(frames[0], look);
         lighting.Time = now;

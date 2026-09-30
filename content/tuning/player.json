@@ -7,16 +7,22 @@
   "ladderClimb": 1.6,
   "carryHeavy": 2.8,
   "jumpGap": 2.2,
+  // How high a standing jump lifts your feet. Playtest (T90): the 0.48 m that a flat 2.2 m gap jump at roof run needs was
+  // too weak to feel like a jump at all; at this height a roof-run jump carries about 2.8 m, clearing the gap easily.
+  "jumpHeight": 0.8,
   "health": 100,
-  // Jump strength is derived from jumpGap: at roofRun speed a flat jump carries exactly jumpGap.
   "gravity": 9.81,
   "radius": 0.3,
   "height": 1.8,
   "stepUp": 0.35,
-  // Spec B.3: jump-off above train.speedBands.jumpOffLethal kills; slower than that you roll and take a knock.
+  // Spec B.3 landings (T90, playtest): hitting the ground moving over it faster than lethalAbove kills (three times run
+  // speed); slower than that it hurts, from rollDamage just above rollAbove rising to damageAtLethal at the lethal edge.
+  // Being pulled off (the Draggers) still goes by train.speedBands.jumpOffLethal.
   "landing": {
     "rollAbove": 1.5,
-    "rollDamage": 10
+    "rollDamage": 10,
+    "lethalAbove": 16.5,
+    "damageAtLethal": 80
   },
   "ladder": {
     "grabRange": 0.7,
