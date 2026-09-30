@@ -138,16 +138,30 @@ public static class PlanStops
         return true;
     }
 
-    /// <summary>The ground flattened to the stop: along the main line over its zone, out to what it has built.</summary>
+    /// <summary>
+    /// The ground flattened to the stop: a box along the main line over its zone, out on each side as far as the stop has
+    /// built there (a yard's side never flattens the sea on the other, WatersideTests).
+    /// </summary>
     static PlanPad PadOf(RailLine main, StopLayout stop, double start)
     {
         var mid = main.Sample(start + stop.ZoneLength / 2);
-        double reach = 30;
+        double right = 20, left = 20;
+        void Reach(double d, double half)
+        {
+            if (d + half > 0)
+                right = Math.Max(right, d + half + 12);
+            if (d - half < 0)
+                left = Math.Max(left, -(d - half) + 12);
+        }
         foreach (var b in stop.Buildings)
-            reach = Math.Max(reach, Math.Abs(b.D) + Math.Max(b.Length, b.Width) / 2 + 12);
+            Reach(b.D, Math.Max(b.Length, b.Width) / 2);
         foreach (var t in stop.Tracks)
-            reach = Math.Max(reach, t.Path.Max(p => Math.Abs(p.D)) + 12);
-        return new PlanPad($"{PadPrefix}{Math.Round(start)}", Math.Round(mid.Position.X, 3), Math.Round(mid.Position.Z, 3), Math.Round(mid.Position.Y, 3),
-            Math.Round(reach, 1), stop.ZoneLength / 2, Math.Round(Math.Atan2(-mid.Tangent.X, -mid.Tangent.Z) * 180 / Math.PI, 3));
+            foreach (var p in t.Path)
+                Reach(p.D, 3);
+        // Centred between its two edges, so one radius reaches both.
+        var across = Double3.Cross(mid.Tangent, Double3.Up).Normalized * ((right - left) / 2);
+        var at = mid.Position + across;
+        return new PlanPad($"{PadPrefix}{Math.Round(start)}", Math.Round(at.X, 3), Math.Round(at.Z, 3), Math.Round(mid.Position.Y, 3),
+            Math.Round((right + left) / 2, 1), stop.ZoneLength / 2, Math.Round(Math.Atan2(-mid.Tangent.X, -mid.Tangent.Z) * 180 / Math.PI, 3), Box: true);
     }
 }
