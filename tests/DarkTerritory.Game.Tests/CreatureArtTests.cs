@@ -45,6 +45,8 @@ public class CreatureArtTests
         ["weight"] = new(2500, 8000, 20, 40, ["drag"], ["grab", "release"]),
         // A jointed porcelain doll (App. A.2), a character's budget: SK_Human in a doll's proportions, rigid at the joints.
         ["track_doll"] = new(4000, 10000, 20, 60, ["stand", "admire", "giggle", "tamper", "cower"], ["hit"]),
+        // A large monster (GDD §27: 8-16k is the ceiling), on a chain: a spine of four, the mouth and its teeth rings, four arms.
+        ["car_hugger"] = new(4000, 14000, 20, 40, ["lurk", "feed", "swallow"], ["latch", "release", "hit"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -71,8 +73,9 @@ public class CreatureArtTests
             Assert.All(p.Indices, i => Assert.InRange(i, 0, p.Positions.Length - 1));
         }
         // Standing on the floor at the origin, facing −Z: the pivot's between the feet (the clinger's is on the hull, the
-        // dragger's at the car's edge, the rest of it hanging below; the weight's at the coupler, the heap on the stones).
-        if (name is not ("clinger" or "dragger" or "weight"))
+        // dragger's at the car's edge, the rest of it hanging below; the weight's at the coupler, the heap on the stones; the
+        // car hugger's at its mouth on the rear platform, its body down to the rail).
+        if (name is not ("clinger" or "dragger" or "weight" or "car_hugger"))
         {
             Assert.InRange(m.Min.Y, -0.02f, 0.05f);
             Assert.InRange((m.Min.X + m.Max.X) / 2, -0.25f, 0.25f);
@@ -187,10 +190,11 @@ public class CreatureArtTests
                     mesh.Clear();
                     Assert.True(Art.Enemy(mesh, Matrix4x4.CreateTranslation(0, 0, -5), kind, phase, t, 0.5), $"{kind} {phase}");
                     // A Dragger is out of sight under the car's edge until it reaches, as the greybox has it. The Stoker's in the
-                    // firebox: only its work is seen. A Car Hugger is under the bank until it stirs; Fire Flies are only a swarm.
+                    // firebox: only its work is seen. Fire Flies are only a swarm. (A lurking Car Hugger is seen: a muddied
+                    // mound sunk in the low ground by the line, App. A.3 LURK.)
                     bool hidden = kind == EnemyKind.Dragger && phase is not (SpinePhase.Telegraph or SpinePhase.Grab or SpinePhase.Punish)
                         || kind == EnemyKind.Stoker
-                        || kind is EnemyKind.CarHugger or EnemyKind.FireFlies && phase == SpinePhase.Dormant;
+                        || kind == EnemyKind.FireFlies && phase == SpinePhase.Dormant;
                     Assert.True(hidden ? mesh.Flattened().Length == 0 : mesh.Flattened().Length > 0, $"{kind} {phase} drew {mesh.Flattened().Length / 3} triangles");
                 }
         foreach (var pose in Enum.GetValues<CrewPose>())
@@ -410,6 +414,7 @@ public class CreatureArtTests
         "hollow" => (Vector3.Zero, 2.2f),
         "dragger" => (new Vector3(0.2f, 0.1f, 0), 1.4f),
         "weight" => (new Vector3(0, 0.42f, 0.9f), 2.6f),
+        "car_hugger" => (new Vector3(-0.2f, 0.4f, 1.5f), 3.6f),
         _ => (Vector3.Zero, 1.9f),
     };
 

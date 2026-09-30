@@ -29,10 +29,17 @@ public sealed class CreatureArt
     const float CarHalfWidth = 1.6f, RoofDrop = 3.6f;
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
-        "track_doll"];
+        "track_doll", "car_hugger"];
 
     /// <summary>A haunting Track Doll's turns aboard (App. A.2 HAUNT): this long over the cargo, then this long giggling.</summary>
     const double DollAdmires = 12, DollGiggles = 5;
+
+    /// <summary>
+    /// A lurking Car Hugger's lift (m): its origin is where its mouth will be on the car. Lying flat it's sunk to its
+    /// shoulders in the low ground by the line, and muddied (<see cref="HuggerLurkMud"/>): in the lamp it's a mound
+    /// that could be anything, not a thing on the ground (App. A.3 LURK: its tell is the grinding once it's on).
+    /// </summary>
+    const float HuggerLurkLift = -0.2f, HuggerLurkMud = 0.3f;
 
     static float SmoothStep(float a, float b, float x)
     {
@@ -54,6 +61,7 @@ public sealed class CreatureArt
         ["husk"] = 0.7f,
         ["weight"] = 0.3f,
         ["track_doll"] = 0.35f,
+        ["car_hugger"] = 0.3f,
     };
 
     sealed class Entry(Model model, MaterialLook[] looks)
@@ -527,30 +535,23 @@ public sealed class CreatureArt
                 }
             case EnemyKind.CarHugger:
                 {
-                    // A heap of bog bodies (the weight model) low beside the line; latched on the rear car it grabs, then eats.
-                    if (phase is SpinePhase.Dormant)
-                        return true;
-                    var at = phase is SpinePhase.Alert or SpinePhase.Telegraph ? Matrix4x4.CreateTranslation(0, -0.3f, 0) * model : model;
-                    if (_models.TryGetValue("weight", out var w))
-                    {
-                        double grab = w.Model.Clips.TryGetValue("grab", out var g) ? g.Duration : 0;
-                        return phase switch
-                        {
-                            SpinePhase.BreakOff => Draw(mesh, "weight", "release", t, false, at),
-                            SpinePhase.Alert or SpinePhase.Telegraph => Draw(mesh, "weight", "drag", t * 0.4, true, at),
-                            _ when t < grab => Draw(mesh, "weight", "grab", t, false, at),
-                            _ => Draw(mesh, "weight", "drag", t - grab, true, at),
-                        };
-                    }
-                    if (!_models.ContainsKey("dragger"))
+                    // The Car Hugger (GDD v1.2 §21, App. A.3; tools/blender/car_hugger.py), its origin its mouth. Lurking, it
+                    // lies sunk in the low ground by the line; latched on the rear car it comes up onto it and clamps on, its
+                    // mouth over the end door, then eats, the teeth grinding; with someone in front of its mouth it
+                    // swallows; cut loose, it lets go.
+                    if (!_models.TryGetValue("car_hugger", out var hugger))
                         return false;
-                    for (int i = 0; i < 3; i++)
+                    double latch = hugger.Model.Clips.TryGetValue("latch", out var l) ? l.Duration : 0;
+                    return phase switch
                     {
-                        var limb = Matrix4x4.CreateScale(1.7f) * Matrix4x4.CreateRotationZ((i - 1) * 0.5f) * Matrix4x4.CreateRotationY(MathF.PI / 2)
-                            * Matrix4x4.CreateTranslation((i - 1) * 0.35f, -0.2f, 0.2f) * at;
-                        Draw(mesh, "dragger", "grip", t * 0.6 + i * 0.4, true, limb, seed: 20 + i);
-                    }
-                    return true;
+                        SpinePhase.Dormant => Draw(mesh, "car_hugger", "lurk", t, true, Matrix4x4.CreateTranslation(0, HuggerLurkLift, 0) * model,
+                            adjust: (_, look) => look with { Colour = look.Colour * HuggerLurkMud }),
+                        SpinePhase.BreakOff => Draw(mesh, "car_hugger", "release", t, false, model),
+                        SpinePhase.Grab or SpinePhase.Punish => Draw(mesh, "car_hugger", "swallow", t, true, model),
+                        SpinePhase.Telegraph when t < latch => Draw(mesh, "car_hugger", "latch", t, false, model),
+                        SpinePhase.Telegraph => Draw(mesh, "car_hugger", "feed", t - latch, true, model),
+                        _ => Draw(mesh, "car_hugger", "feed", t, true, model),
+                    };
                 }
             case EnemyKind.TrackDoll:
                 {
