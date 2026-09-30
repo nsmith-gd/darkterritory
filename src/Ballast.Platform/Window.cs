@@ -12,6 +12,7 @@ public enum Key
     D1, D2, D3, D4, D5, D6, D7, D8, D9,
     MouseLeft, MouseRight,
     Up, Down, Left, Right, Enter,
+    G, M, N,
 }
 
 /// <summary>
@@ -185,6 +186,9 @@ public sealed unsafe class Window : IDisposable
         SDL_Scancode.SDL_SCANCODE_T => Key.T,
         SDL_Scancode.SDL_SCANCODE_V => Key.V,
         SDL_Scancode.SDL_SCANCODE_L => Key.L,
+        SDL_Scancode.SDL_SCANCODE_G => Key.G,
+        SDL_Scancode.SDL_SCANCODE_M => Key.M,
+        SDL_Scancode.SDL_SCANCODE_N => Key.N,
         SDL_Scancode.SDL_SCANCODE_SPACE => Key.Space,
         SDL_Scancode.SDL_SCANCODE_LSHIFT => Key.LeftShift,
         SDL_Scancode.SDL_SCANCODE_ESCAPE => Key.Escape,

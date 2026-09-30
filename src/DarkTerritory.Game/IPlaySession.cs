@@ -44,6 +44,19 @@ public interface IPlaySession
     LinkInfo? Link => null;
     /// <summary>The crew roster (T69), in player-id order: everyone aboard by the figures, a Passenger among them.</summary>
     IReadOnlyList<RosterLine> Roster() => [new RosterLine((byte)PlayerId, "YOU", PrototypeSession.Where(Player, Train), Player.Alive, You: true)];
+    /// <summary>
+    /// Whose eyes and ears this machine has (GDD App. D.10): the player's own or, dead or lobbied, the living crewmate
+    /// they're watching ("exactly what the followed player hears"). The listener's exposure and space come from it.
+    /// </summary>
+    PlayerState Viewpoint => Player;
+    /// <summary>Everyone in the session as this machine last saw them, this player first (the dead phase's choices).</summary>
+    IReadOnlyList<(int Id, PlayerState State)> Everyone() => [(PlayerId, Player)];
+    /// <summary>The living crewmate a dead or lobbied player is watching (D.10), or −1.</summary>
+    int Following => -1;
+    /// <summary>Asks the host for something from the dead phase or at the run's end (GDD App. D). Nothing, playing alone.</summary>
+    void Request(in Sim.Net.Request q) { }
+    /// <summary>The night's incident report, at its end (D.12). Null until then, and playing alone.</summary>
+    Sim.Run.IncidentReport? Report => null;
 }
 
 /// <summary>What the HUD shows about the connection (spec E: ping to host "shown prominently", non-optional).</summary>

@@ -384,15 +384,42 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         return _frames;
     }
 
-    public Camera EyeCamera(IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch) =>
-        Eyes.Operator(Player, World) ?? Eyes.From(Player, _previous, frames, alpha, pendingYaw, pendingPitch);
+    public Camera EyeCamera(IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch)
+    {
+        // GDD App. D.10: dead or lobbied, the view is locked to a living crewmate's: their eyes, looking where they look.
+        // No free camera, and the mouse doesn't turn it.
+        if (Following is >= 0 and <= byte.MaxValue && Client.TryGetRemote((byte)Following, alpha, out var s) && s.Alive)
+            return Eyes.Operator(s, World) ?? Eyes.From(s, s, frames, alpha, 0, 0);
+        return Eyes.Operator(Player, World) ?? Eyes.From(Player, _previous, frames, alpha, pendingYaw, pendingPitch);
+    }
+
+    public int Following => Player.Alive ? -1 : World.Dead.FollowedBy(PlayerId);
+
+    public PlayerState Viewpoint => Following is >= 0 and <= byte.MaxValue && Client.TryGetRemote((byte)Following, 1, out var s) && s.Alive ? s : Player;
+
+    public void Request(in Request q) => Client.Send(q);
+
+    public IReadOnlyList<(int Id, PlayerState State)> Everyone()
+    {
+        var all = new List<(int, PlayerState)> { (PlayerId, Player) };
+        foreach (byte id in Client.RemoteIds.Order())
+            if (Client.TryGetRemote(id, 1, out var s))
+                all.Add((id, s));
+        return all;
+    }
+
+    public Sim.Run.IncidentReport? Report => Client.Report;
 
     public IReadOnlyList<Crewmate> Crew(IReadOnlyList<CarFrame> frames, double alpha)
     {
         _crew.Clear();
+        int following = Following;
         foreach (byte id in Client.RemoteIds)
             if (Client.TryGetRemote(id, alpha, out var s))
             {
+                // Not drawn: a lobbied player isn't anywhere (App. D.3), and the one being watched is who the eyes are.
+                if (s.Has(PlayerFlags.Lobbied) || id == following)
+                    continue;
                 var (feet, yaw) = Eyes.World(s, frames);
                 _crew.Add(new Crewmate(id, feet, yaw, s.Alive, s.Hand, s.OtherHand));
             }

@@ -1,5 +1,6 @@
 using Ballast;
 using DarkTerritory.Sim.Enemies;
+using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game;
@@ -176,5 +177,82 @@ public static class Staging
         drift.Restore(SpinePhase.Telegraph, 2, 1, driftCar, new Double3(0.8, train.Frames[driftCar].Shape.RoofHeight, 2), 0, 0, 0, 6, 1);
         threats.Add(drift);
         return threats;
+    }
+
+    /// <summary>
+    /// A waiting player's screen (GDD App. D.10): player 2, dead, watching player 1 (the session's own, in the cab); first
+    /// in the respawn queue and assigned to the line's first Holdout, lamp lit; a dead player and a lobbied one behind;
+    /// three creatures to vote for. <paramref name="inner"/> must be on a generated line (it has the Holdouts).
+    /// </summary>
+    public static IPlaySession Waiting(PrototypeSession inner, string content)
+    {
+        var tuning = DataFile.Load<Sim.Run.HoldoutTuning>(Path.Combine(content, Sim.Run.HoldoutTuning.File));
+        var world = inner.World;
+        world.EnableHoldouts(tuning);
+        if (world.Holdouts is { } holdouts)
+        {
+            holdouts.All[0].Mirror(Sim.Run.HoldoutPhase.Occupied, -1, default, 0, 0, 0, 0, 0, false, 0, 0);
+            holdouts.MirrorQueue([(2, Sim.Run.QueueKind.Dead, 0, false), (4, Sim.Run.QueueKind.Dead, -1, false), (5, Sim.Run.QueueKind.Lobbied, -1, false)]);
+        }
+        world.MirrorVotes([EnemyKind.CinderHound, EnemyKind.Gaunt, EnemyKind.SootChildren], [4], [(EnemyKind.CinderHound, 1)]);
+        world.Dead.Mirror(2, 1);
+        var dead = inner.Player with { Health = 0, Death = Sim.Player.DeathCause.Mauled };
+        return new Staged(inner) { Me = dead, Id = 2, Watching = 1, All = [(2, dead), (1, inner.Player)] };
+    }
+
+    /// <summary>
+    /// The run-end screen (GDD App. D.12) for player 2 of four: two deaths, one rescue, a vote, a bookmark, one
+    /// commendation already given (to them), theirs still to give.
+    /// </summary>
+    public static IPlaySession RunEnd(PrototypeSession inner, string content)
+    {
+        inner.World.EnableHoldouts(DataFile.Load<Sim.Run.HoldoutTuning>(Path.Combine(content, Sim.Run.HoldoutTuning.File)));
+        var run = new Sim.Run.RunReport(Sim.Run.RunEnd.Delivered, 5400, 24.3, 5, 1, 4.6, 3200, 180, 60, 90, 2345, 3, 1)
+        {
+            CrewLossFees = 700,
+            BodyRefunds = 263,
+            BodiesDelivered = 1,
+            BodiesLost = 1,
+        };
+        var report = new Sim.Run.IncidentReport(run)
+        {
+            Deaths = [new(3, 1830, "Renwick Yard", Sim.Player.DeathCause.Mauled, false), new(2, 4102.5, "km 19.6", Sim.Player.DeathCause.Cold, false)],
+            Rescues = [new(3, 1, 2400, "Voss Yard")],
+            Votes = [new(2, EnemyKind.CinderHound)],
+            Bookmarks = [new(4150, 2, 1)],
+            Commendations = [new(1, 2, "Kept the Fire")],
+            Session = [1, 2, 3, 4],
+        };
+        return new Staged(inner) { Me = inner.Player, Id = 2, All = [(2, inner.Player)], Ended = report };
+    }
+
+    /// <summary>A session as another player would have it: whose it is, whom they watch, the report.</summary>
+    sealed class Staged(PrototypeSession inner) : IPlaySession
+    {
+        public PlayerState Me { get; init; }
+        public int Id { get; init; }
+        public int Watching { get; init; } = -1;
+        public IReadOnlyList<(int Id, PlayerState State)> All { get; init; } = [];
+        public Sim.Run.IncidentReport? Ended { get; init; }
+
+        public TrainOnLine Train => inner.Train;
+        public Sim.World World => inner.World;
+        public Sim.Route.Route? Route => inner.Route;
+        public PlayerState Player => Me;
+        public TrainControls Controls => inner.Controls;
+        public long Tick => inner.Tick;
+        public Sim.Player.PlayerTuning PlayerTuning => inner.PlayerTuning;
+        public int PlayerId => Id;
+        public int Following => Watching;
+        public PlayerState Viewpoint => Watching >= 0 ? inner.Player : Me;
+        public Sim.Run.IncidentReport? Report => Ended;
+        public LinkInfo? Link => new("joined", 48, 4, false);
+        public IReadOnlyList<(int Id, PlayerState State)> Everyone() => All;
+        public string Status() => inner.Status();
+        public void Step(in Sim.Player.PlayerIntent intent) => inner.Step(intent);
+        public IReadOnlyList<CarFrame> InterpolatedFrames(double alpha) => inner.InterpolatedFrames(alpha);
+        public Ballast.Render.Camera EyeCamera(IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch) =>
+            inner.EyeCamera(frames, alpha, pendingYaw, pendingPitch);
+        public IReadOnlyList<Crewmate> Crew(IReadOnlyList<CarFrame> frames, double alpha) => [];
     }
 }

@@ -38,6 +38,8 @@ public sealed class GreyboxScene
         ? Palette.SignalGreen * (0.5f + 0.8f * scale) : Palette.FurnaceOrange * scale;
     /// <summary>Tonight's run, for facility machinery (the coaling chute pouring).</summary>
     public Sim.Run.Run? Run { get; set; }
+    /// <summary>The night's Holdouts (GDD App. D.4), for their lamps: lit while one's Occupied or Breaching.</summary>
+    public Sim.Run.Holdouts? Holdouts { get; set; }
     /// <summary>Seconds, for animating things that move on their own.</summary>
     public double Time { get; set; }
     /// <summary>Vehicle state for doors (open or shut). Without it every door is drawn shut.</summary>
@@ -119,6 +121,8 @@ public sealed class GreyboxScene
             // A generated line's own land, boards, hazards, water and places (Art/PlanArt, linegen plan §12-13).
             if (Look is not null && Route.Plan is not null)
                 Look.Art.World.Plan(mesh, line, Route, eye, centre, DrawDistance, Time);
+            if (Route.Plan is { Holdouts.Count: > 0 } withHoldouts)
+                HoldoutsOf(mesh, withHoldouts, eye);
             if (Run is not null)
                 foreach (var site in Run.Sites)
                 {
@@ -992,6 +996,61 @@ public sealed class GreyboxScene
     /// A capstan winch (spec D.2): the drum by the track with its two handles, the rope out across the ground, and the
     /// sled of freight on it, as far along as the crew have hauled it.
     /// </summary>
+    readonly Dictionary<(Sim.Run.HoldoutType, int), MeshAsset> _holdoutPieces = new();
+    MeshAsset? _holdoutLamp;
+
+    /// <summary>
+    /// The Line Plan's Holdouts (GDD App. D.4) where they stand, and their lamps: lit while one's Occupied or Breaching (a
+    /// point light over it, and a glow to carry it through the fog to the approach board), dark otherwise.
+    /// </summary>
+    void HoldoutsOf(MeshBuilder mesh, Sim.LineGen.LinePlan plan, Double3 eye)
+    {
+        foreach (var h in plan.Holdouts)
+        {
+            var centre = new Double3(h.X, h.Y, h.Z);
+            double far = (centre - eye).Length;
+            var lamp = new Double3(h.Lamp[0], h.Lamp[1], h.Lamp[2]);
+            bool lit = Holdouts?.Of(h.Id)?.LampLit == true;
+            // The glow's seen from the board (1-2 km out); the Holdout itself only as near as the rest of the scene.
+            if (lit && far < 2500)
+            {
+                // Sized to stay a few pixels across out at the board: a point of light and its halo in the fog.
+                var o = V(lamp, eye);
+                mesh.Billboard(o, (float)Math.Max(3.5, far * 0.005), 0, new Vector4(Palette.LampAmber * 0.7f, 1), -1, FxBlend.Additive);
+                mesh.Billboard(o, (float)Math.Max(9, far * 0.02), 0, new Vector4(Palette.LampAmber * 0.14f, 1), -1, FxBlend.Additive);
+            }
+            if (far > DrawDistance)
+                continue;
+            // The piece has its door on +X; the plan's is on whichever side faces the track.
+            double heading = h.HeadingDeg * Math.PI / 180;
+            var across = new Double3(Math.Cos(heading), 0, -Math.Sin(heading));
+            bool flipped = Double3.Dot(new Double3(h.Door[0], h.Door[1], h.Door[2]) - centre, across) < 0;
+            float yaw = (float)(flipped ? heading + Math.PI : heading);
+            var size = new Vector3((float)h.Size[0], (float)h.Size[1], (float)h.Size[2]);
+            float lampHeight = (float)Math.Round(lamp.Y - h.Y);
+            var place = Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateTranslation(V(centre, eye));
+            if (Look is not null)
+            {
+                if (!_holdoutPieces.TryGetValue((h.Type, (int)lampHeight), out var piece))
+                    _holdoutPieces[(h.Type, (int)lampHeight)] = piece = Art.HoldoutKit.Piece(Look, h.Type, size, lampHeight);
+                mesh.Instances.Add(new MeshInstance(piece, place));
+            }
+            else
+            {
+                var right = Vector3.Transform(Vector3.UnitX, Matrix4x4.CreateRotationY(yaw));
+                var back = Vector3.Transform(Vector3.UnitZ, Matrix4x4.CreateRotationY(yaw));
+                mesh.Box(V(centre + Double3.Up * (size.Z / 2), eye), right, Vector3.UnitY, back, new Vector3(size.X, size.Z / 2, size.Y), Palette.RustRed);
+                mesh.Box(V(centre + Double3.Up * ((size.Z + lampHeight) / 2), eye), right, Vector3.UnitY, back, new Vector3(0.05f, (lampHeight - size.Z) / 2 + 0.2f, 0.05f), Palette.IronGrey);
+            }
+            if (lit)
+            {
+                _holdoutLamp ??= Art.HoldoutKit.LampGlass(Look);
+                mesh.Instances.Add(new MeshInstance(_holdoutLamp, Matrix4x4.CreateTranslation(V(lamp, eye))));
+                mesh.PointLights.Add(new PointLight(V(lamp, eye), Palette.LampAmber * 2.0f, 14f));
+            }
+        }
+    }
+
     static void Winch(MeshBuilder mesh, Sim.Run.Site site, Double3 eye)
     {
         if (!site.Has(Sim.Run.ModuleKind.Winch))

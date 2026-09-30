@@ -627,6 +627,22 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 [.. Enumerable.Repeat(0.0, run.FacilityCount)], [.. run.Sites.Select(x => new DarkTerritory.Sim.Run.SiteState(true, x == site ? 0.45 : 0, x?.SledsLeft ?? 0, x == site, false, x == site ? 0.7 : 0))]);
         }
     }
+    // --holdout i: the train stopped in the i-th Holdout's zone (GDD App. D.4), looking at it from out along its walk;
+    // [--lit] Occupied, its lamp on. [--board] from its approach board instead, at a driver's eye (is the lamp seen?).
+    DarkTerritory.Sim.Run.Holdouts? holdouts = null;
+    DarkTerritory.Sim.LineGen.PlanHoldout? shownHoldout = null;
+    if (Opt(args, "--holdout", -1) is var hi and >= 0 && generated?.Plan is { } holdoutPlan && hi < holdoutPlan.Holdouts.Count)
+    {
+        shownHoldout = holdoutPlan.Holdouts[(int)hi];
+        holdouts = new DarkTerritory.Sim.Run.Holdouts(DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)), holdoutPlan, line);
+        if (args.Contains("--lit"))
+        {
+            var shown = holdouts.Of(shownHoldout.Id)!;
+            shown.Mirror(DarkTerritory.Sim.Run.HoldoutPhase.Occupied, -1, default, 0, 0, 0, 0, 0, false, 0, 0);
+        }
+        if (shownHoldout.Zone.Edge == "main")
+            at = Math.Min(shownHoldout.Zone.S1, shownHoldout.Zone.S0 + 400);
+    }
     // --junction i: at a branch's points (T27), [--diverge] set for the branch, [--through] and the train run in onto it.
     int junction = (int)Opt(args, "--junction", -1);
     if (junction >= 0 && junction < line.Branches.Count)
@@ -675,6 +691,19 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var right = Double3.Cross(toe.Tangent, Double3.Up).Normalized;
         var ahead = line.Sample(b.Toe + 70);
         camera = Camera.LookAt(toe.Position - toe.Tangent * 18 + right * (b.Side * 7) + Double3.Up * 3.5, ahead.Position + right * (b.Side * 4), 70);
+    }
+    if (shownHoldout is { } sh && Str(args, "--cam", "") is not { Length: > 0 })
+    {
+        Double3 P(double[] a) => new(a[0], a[1], a[2]);
+        var centre = new Double3(sh.X, sh.Y, sh.Z);
+        var door = P(sh.Door);
+        var outward = (door - centre) with { Y = 0 };
+        var along = new Double3(-Math.Sin(sh.HeadingDeg * Math.PI / 180), 0, -Math.Cos(sh.HeadingDeg * Math.PI / 180));
+        camera = args.Contains("--board")
+            ? Camera.LookAt(P(sh.Board), P(sh.Lamp), 40)
+            // [--walk] out along the walk to it, as the crew come; otherwise before its door, on the apron the breach is worked from.
+            : args.Contains("--walk") ? Camera.LookAt(door + (P(sh.From) - door).Normalized * 13 + along * 3 + Double3.Up * 2.0, centre + Double3.Up * 2.0, 65)
+            : Camera.LookAt(door + outward.Normalized * 7.5 + along * 3 + Double3.Up * 1.7, door + Double3.Up * 1.6, 70);
     }
     List<DarkTerritory.Sim.Physics.Body>? cargo = null;
     if (site is not null)
@@ -749,6 +778,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Look = look,
         Route = route,
         Run = run,
+        Holdouts = holdouts,
         Time = 0.37,
         Enemies = args.Contains("--threats") ? Staging.Threats(train) : null,
         Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All : cargo,
@@ -963,7 +993,9 @@ static object HudShot(string content, string[] args)
         lighting.Wetness = r.Weather.Wet ? 1 : 0;
     }
     var hud = new Overlay();
-    Hud.Build(hud, width, height, session);
+    // --dead: a waiting player's screen (GDD App. D.10); --report: the run-end screen (D.12). On a generated line.
+    IPlaySession shown = args.Contains("--dead") ? Staging.Waiting(session, content) : args.Contains("--report") ? Staging.RunEnd(session, content) : session;
+    Hud.Build(hud, width, height, shown, dead: new DeadPhaseControls());
     // --roster: the crew roster (T69) as Q shows it, with a staged crew: two heard, one not yet, and a Passenger among them.
     if (args.Contains("--roster"))
     {

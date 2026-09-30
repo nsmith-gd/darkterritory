@@ -34,7 +34,8 @@ public static class Hud
 
     /// <param name="crosshair">The aiming cross at the middle. Not on a headset's panel (T36): it lags the head, which
     /// does the aiming, so a cross on it would point somewhere else.</param>
-    public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true)
+    /// <param name="dead">The dead phase's and the run end's choices (GDD App. D.10-D.12), for their panels.</param>
+    public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true, DeadPhaseControls? dead = null)
     {
         o.Clear();
         int line = o.Font.LineHeight;
@@ -44,14 +45,18 @@ public static class Hud
             Link(o, width, link, line);
         Radio(o, width, s, line);
         Alerts(o, width, height, s, line);
-        if (Prompt(s) is { } prompt)
+        if (s.Report is { } report)
+            Report(o, width, height, s, report, dead, line);
+        else if (DeadPhaseControls.Waiting(s))
+            Waiting(o, width, s, line);
+        if (s.Report is null && Prompt(s) is { } prompt)
         {
             float w = o.Font.Measure(prompt) + 8;
             o.Rect(MathF.Round((width - w) / 2), height - 44, w, line + 4, Panel);
             o.TextCentred(width / 2f, height - 42, prompt, Ink);
         }
         Night(o, height, s, line);
-        if (p.Alive && crosshair)
+        if (p.Alive && crosshair && s.Report is null)
         {
             // A small cross, for aiming and for "what am I looking at".
             float cx = width / 2f, cy = height / 2f;
@@ -84,6 +89,154 @@ public static class Hud
                 : ($"HEARD {ago:0}S AGO", Dim);
             o.TextRight(x + w - 6, y, said, colour);
             y += line;
+        }
+    }
+
+    static string Name(IPlaySession s, int id) => id == s.PlayerId ? "YOU" : $"CREW {id}";
+
+    /// <summary>A creature's name as the crew would say it (CinderHound: CINDER HOUND).</summary>
+    public static string Words(string name) =>
+        string.Concat(name.Select((c, i) => i > 0 && char.IsUpper(c) ? " " + c : c.ToString())).ToUpperInvariant();
+
+    static string Ordinal(int n) => n + (n % 100 is 11 or 12 or 13 ? "TH" : (n % 10) switch { 1 => "ST", 2 => "ND", 3 => "RD", _ => "TH" });
+
+    /// <summary>
+    /// The dead phase (GDD App. D.10), on the right under the link: whom you're watching, the respawn queue as the host
+    /// keeps it (D.6: only the dead and lobbied see it), your Holdout, and what you can do: Call Out and the Live Mic
+    /// (D.7), let the next go first, the creature vote (D.11), a bookmark (D.12). Nothing on it is free-camera or replay.
+    /// Narrow, so the centre's DEAD and its cause stay clear.
+    /// </summary>
+    static void Waiting(Overlay o, int width, IPlaySession s, int line)
+    {
+        var world = s.World;
+        var rows = new List<(string Text, Vector4 Colour)>();
+        int following = s.Following;
+        rows.Add((following >= 0 ? $"WATCHING {Name(s, following)}  [LMB/RMB]" : "NOBODY LEFT ALIVE", following >= 0 ? Ink : Red));
+        if (world.Holdouts is { } holdouts)
+        {
+            var queue = holdouts.Queue.Entries;
+            int at = holdouts.Queue.PositionOf(s.PlayerId);
+            if (at >= 0)
+                rows.Add(($"QUEUE {Ordinal(at + 1)} OF {queue.Count}" + (at + 1 < queue.Count ? "  [N] LET NEXT GO" : ""), Ink));
+            foreach (var (e, i) in queue.Select((e, i) => (e, i)).Take(5))
+            {
+                string where = e.Holdout is { } id && holdouts.Of(id) is { } h ? $" {Short(h.Site.Name)}" + (e.Locked ? " (BREACH)" : "") : "";
+                rows.Add(($" {i + 1} {Name(s, e.Player)}{(e.Kind == QueueKind.Lobbied ? " (JOINED)" : "")}{where}", e.Player == s.PlayerId ? Amber : Dim));
+            }
+            if (DeadPhaseControls.Assigned(s) is { } mine)
+            {
+                rows.Add(($"HOLDOUT: {Short(mine.Site.Name)}, LIT", Green));
+                rows.Add(($"[M] LIVE MIC {(mine.LiveMic ? "ON: HEARD AT ITS DOOR" : "OFF")}", mine.LiveMic ? Amber : Dim));
+            }
+            if (DeadPhaseControls.CallOutFrom(s) is { } from)
+                rows.Add(($"[G] CALL OUT: {Short(from.Site.Name)}", Ink));
+            else if (holdouts.All.Any(h => h.Phase is HoldoutPhase.Occupied or HoldoutPhase.Breaching))
+                rows.Add(("CALL OUT: NOBODY IN EARSHOT", Dim));
+        }
+        if (DeadPhaseControls.CanVote(s))
+        {
+            rows.Add(("VOTE, ONCE A RUN:", Ink));
+            foreach (var (k, i) in world.VoteOptions.Select((k, i) => (k, i)).Take(9))
+                rows.Add(($" [{i + 1}] {Words(k.ToString())}" + (world.Votes.GetValueOrDefault(k) is > 0 and var n ? $"  {n}" : ""), Dim));
+        }
+        else if (world.VoteLog.Any(v => v.Player == s.PlayerId))
+            rows.Add(("YOUR VOTE IS IN", Dim));
+        if (following >= 0)
+            rows.Add(("[B] BOOKMARK", Dim));
+        float w = rows.Max(r => o.Font.Measure(r.Text)) + 10, x = width - w - 2, y = 5 + 6 * line;
+        o.Rect(x, y - 3, w, rows.Count * line + 5, Panel);
+        foreach (var (text, colour) in rows)
+        {
+            o.Text(x + 5, y, text, colour);
+            y += line;
+        }
+    }
+
+    /// <summary>A place's name, short enough for a panel row.</summary>
+    static string Short(string name) => (name.Length > 18 ? name[..18] : name).ToUpperInvariant();
+
+    static string Died(DeathCause c) => c switch
+    {
+        DeathCause.Cold => "FROZE",
+        DeathCause.Mauled => "MAULED",
+        DeathCause.JumpedAtSpeed => "JUMPED",
+        DeathCause.Dragged => "DRAGGED OFF",
+        DeathCause.Crushed => "CRUSHED",
+        DeathCause.Burned => "BURNED",
+        DeathCause.Taken => "TAKEN",
+        _ => Words(c.ToString()),
+    };
+
+    /// <summary>
+    /// The run-end screen's incident report (GDD App. D.12), under the night's result: the deaths and where, the rescues,
+    /// the bodies and cars on the left; what the dead voted for, the bookmarks and the commendations on the right; and
+    /// across the bottom, the keys to give yours (one, never to yourself).
+    /// </summary>
+    static void Report(Overlay o, int width, int height, IPlaySession s, IncidentReport r, DeadPhaseControls? dead, int line)
+    {
+        static string Clock(double seconds) => $"{(int)(seconds / 60)}:{(int)seconds % 60:00}";
+        List<(string Text, Vector4 Colour)> Column(params (string Title, IReadOnlyList<string> Items)[] sections)
+        {
+            var rows = new List<(string, Vector4)>();
+            foreach (var (title, items) in sections)
+            {
+                if (items.Count == 0)
+                    continue;
+                rows.Add((title, Ink));
+                foreach (var item in items.Take(2))
+                    rows.Add(("  " + item, Dim));
+                if (items.Count > 2)
+                    rows.Add(($"  AND {items.Count - 2} MORE", Dim));
+            }
+            return rows;
+        }
+        var left = Column(
+            ("DEATHS", [.. r.Deaths.Select(d => $"{Name(s, d.Player)} {(d.DropOut ? "LEFT" : Died(d.Cause))}, {Short(d.Where)} {Clock(d.Seconds)}")]),
+            ("RESCUES", [.. r.Rescues.Select(x => $"{Name(s, x.Player)} FREED BY {Name(s, x.By)}, {Short(x.Site)}")]));
+        left.Add(($"BODIES HOME {r.BodiesDelivered}, LOST {r.BodiesLost}", Ink));
+        left.Add(($"CARS LOST {r.CarsLost}   FEES {r.Run.CrewLossFees:0} BACK {r.Run.BodyRefunds:0}", Dim));
+        var right = Column(
+            ("THE DEAD VOTED FOR", [.. r.Votes.Select(v => $"{Name(s, v.Player)}: {Words(v.Kind.ToString())}")]),
+            ("BOOKMARKS", [.. r.Bookmarks.Select(b => $"{Name(s, b.By)} ON {Name(s, b.Followed)} {Clock(b.Seconds)}" + (b.By == s.PlayerId && dead?.Stills.Count > 0 ? " (SAVED)" : ""))]),
+            ("COMMENDATIONS", [.. r.Commendations.Select(c => $"{Name(s, c.From)} TO {Name(s, c.To)}: {c.Award.ToUpperInvariant()}")]));
+        if (right.Count == 0)
+            right.Add(("NO VOTES, BOOKMARKS OR COMMENDATIONS", Dim));
+        var bottom = new List<(string Text, Vector4 Colour)>();
+        var others = DeadPhaseControls.Commendable(s);
+        if (dead is not null && others.Count > 0 && s.World.HoldoutTuning is { } t)
+        {
+            if (DeadPhaseControls.Commended(s))
+                bottom.Add(("YOUR COMMENDATION IS GIVEN", Dim));
+            else
+            {
+                int chosen = others[Math.Clamp(dead.CommendChoice, 0, others.Count - 1)];
+                bottom.Add(($"COMMEND {Name(s, chosen)}  [LMB/RMB] SOMEONE ELSE", Amber));
+                var awards = t.Commendations.Awards.Take(9).Select((a, i) => $"[{i + 1}] {a.ToUpperInvariant()}").ToList();
+                for (int i = 0; i < awards.Count; i += 3)
+                    bottom.Add(("  " + string.Join("  ", awards.Skip(i).Take(3)), Amber));
+            }
+        }
+        float y0 = MathF.Round(height * 0.28f) + 3 * line + 6, bottomEdge = height - 30;
+        int columnRows = Math.Max(left.Count, right.Count);
+        int fits = Math.Max(1, (int)((bottomEdge - y0) / line) - bottom.Count);
+        float half = MathF.Floor((width - 12) / 2f);
+        o.Rect(4, y0 - 3, width - 8, (Math.Min(columnRows, fits) + bottom.Count) * line + 5, Panel);
+        void Draw(List<(string Text, Vector4 Colour)> rows, float x)
+        {
+            float y = y0;
+            foreach (var (text, colour) in rows.Take(fits))
+            {
+                o.Text(x, y, text, colour);
+                y += line;
+            }
+        }
+        Draw(left, 9);
+        Draw(right, 9 + half);
+        float by = y0 + Math.Min(columnRows, fits) * line;
+        foreach (var (text, colour) in bottom)
+        {
+            o.Text(9, by, text, colour);
+            by += line;
         }
     }
 
@@ -188,7 +341,7 @@ public static class Hud
         {
             // GDD App. D.3: joined once the run had left the gate. A Holdout is the only way in.
             Big("LOBBIED", Amber);
-            Small("WATCHING THE CREW. A HOLDOUT IS THE ONLY WAY IN", Ink);
+            Small("A HOLDOUT IS THE WAY IN", Ink);
         }
         else if (!p.Alive)
         {
@@ -221,9 +374,10 @@ public static class Hud
                 DeathCause.Stoker => "BURNED DRIVING IT OUT OF THE FIREBOX",
                 _ => "",
             }, Ink);
-            // GDD App. D.1: once the run has left the gate, a Holdout is the only way back.
+            // GDD App. D.1: once the run has left the gate, a Holdout is the only way back (the panel on the right has
+            // the queue; this is the rule, short enough to leave it room).
             if (world.Holdouts is not null && world.Run is { Phase: not Sim.Run.RunPhase.Yard })
-                Small("WAIT FOR A HOLDOUT: THE CREW HAVE TO STOP AND GET YOU", Dim);
+                Small("A HOLDOUT IS THE WAY BACK", Dim);
         }
         if (p.Alive && PlayerMotor.Chilled(p, s.PlayerTuning))
             Small($"COLD: {Math.Max(0, s.PlayerTuning.Cold.DeathSeconds - p.Cold):0}S. GET INSIDE", p.Cold > s.PlayerTuning.Cold.DeathSeconds - 30 ? Red : Amber);
@@ -249,6 +403,26 @@ public static class Hud
                     if ((d.WorldPosition(train) - PlayerMotor.WorldPosition(p, train)).Length <= et.Draggers.FreeReach + 1)
                         return "[E] HOLD: PULL THEM FREE";
                 }
+        // GDD App. D.7: at a Holdout's door, lamp lit, with the tool for it in your hands (the tool's own put-down waits).
+        if (world.Holdouts is { } holdouts && holdouts.DoorInReach(p, train, world.Hand) is { } door)
+        {
+            static string Verb(BreachMethod m) => m switch
+            {
+                BreachMethod.Smash => "SMASH THE LOCK",
+                BreachMethod.Pry => "PRY THE BARRICADE",
+                _ => "OPEN THE LOCK",
+            };
+            if (door.Phase == HoldoutPhase.Breaching)
+                return door.Breacher == s.PlayerId ? $"{Verb(door.Method)} {100 * door.Progress / Math.Max(0.01, door.Needed):0}%  KEEP HOLDING"
+                    : $"SOMEONE'S BREAKING IT OPEN: {100 * door.Progress / Math.Max(0.01, door.Needed):0}%";
+            if (door.Phase == HoldoutPhase.Occupied)
+            {
+                if (holdouts.MethodFor(door, world.Bodies.CarriedBy(s.PlayerId)?.Kind) is { } method)
+                    return $"[E] HOLD: {Verb(method)}";
+                var ways = holdouts.Tuning.Methods[door.Type].Select(m => holdouts.Tuning.Step(m).Tool == BreachTool.RepairKit ? "THE REPAIR KIT" : "A SHOVEL, WRENCH OR CROWBAR").Distinct();
+                return $"SOMEONE'S INSIDE. IT NEEDS {string.Join(" OR ", ways)}";
+            }
+        }
         if (world.Bodies.CarriedBy(s.PlayerId) is { } carried)
             return carried.Kind switch
             {

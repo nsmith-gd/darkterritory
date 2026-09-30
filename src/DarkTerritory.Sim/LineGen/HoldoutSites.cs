@@ -271,6 +271,9 @@ public static class HoldoutSites
             var c = new Double3(h.X, h.Y, h.Z);
             if (!Sees(terrain, V(h.Board), V(h.Lamp)))
                 faults.Add($"{h.Id} at {h.Name}: its lamp can't be seen from the approach");
+            double lampHeight = h.Lamp[1] - h.Y;
+            if (lampHeight < Math.Max(p.LampHeightM[0], h.Size[2]) - 0.5 || lampHeight > p.LampHeightM[1] + 0.5)
+                faults.Add($"{h.Id} at {h.Name}: its lamp is {lampHeight:0.0} m up, not on a mast over its roof within {p.LampHeightM[0]:0}-{p.LampHeightM[1]:0} m");
             if (Walk(terrain, V(h.From), V(h.Door), p.WalkStepM) is { } why)
                 faults.Add($"{h.Id} at {h.Name} isn't reachable on foot: {why}");
             foreach (var corner in Footprint(h))

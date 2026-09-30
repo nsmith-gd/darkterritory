@@ -636,8 +636,24 @@ public sealed partial class WorldArt
             if (along >= road.S0 && along <= road.S1
                 && Math.Abs(offset - TerrainField.RoadLateral(road, p.Plan.Crossings, along, p.Plan.Rules.Terrain.Roads.RampM)) < p.Plan.Rules.Terrain.Roads.HalfWidthM + 2.5)
                 return false;
+        // Not on a Holdout or across the walk to its door, nor in the way of its lamp from the approach board (GDD App.
+        // D.4): the plan checks the land for those; the dressing mustn't undo it.
+        foreach (var h in p.Plan.Holdouts)
+        {
+            double dx = at.X - h.X, dz = at.Z - h.Z;
+            if (Math.Sqrt(dx * dx + dz * dz) < Math.Sqrt(h.Size[0] * h.Size[0] + h.Size[1] * h.Size[1]) + 3)
+                return false;
+            // An apron before the door, where the breach is worked.
+            double ax = at.X - h.Door[0], az = at.Z - h.Door[2];
+            if (Math.Sqrt(ax * ax + az * az) < 9)
+                return false;
+            if (HoldoutSites.SegmentDistance(V(h.From), V(h.Door), at) < 3 || HoldoutSites.SegmentDistance(V(h.Board), V(h.Lamp), at) < 4)
+                return false;
+        }
         return p.Terrain.WaterAt(at.X, at.Z) is null;
     }
+
+    static Double3 V(double[] a) => new(a[0], a[1], a[2]);
 
     readonly Dictionary<(int Branch, long Index), Cell> _branchCells = new();
     PlanScene? _branchScene;

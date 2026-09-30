@@ -1,0 +1,14 @@
+// Holdout Call Out (GDD App. D.7), a prisoner's low shout from inside: "over here", two syllables through the walls.
+// Tier 4 (a person's doing, not a tell: nothing about it may pass for one), and audible to callOut.audibleM (60 m,
+// holdouts.json). Adult throat, 120 Hz, formants low: D.7 "never a child", so it can't be taken for the Soot Children.
+{
+  "tier": 4, "duration": 1.25, "maxInstances": 2, "minDistance": 6, "maxDistance": 60, "rolloff": 0.8, "gainDb": 4,
+  "layers": [
+    { "source": "saw", "frequency": 120, "gain": 0.6,
+      "filters": [{ "type": "bandPass", "frequency": 650, "q": 2.5 }, { "type": "peak", "frequency": 1100, "q": 3, "gainDb": 7 }],
+      "vibrato": { "rate": 4.5, "depth": 0.015 }, "pitchEnvelope": [[0, 0.95], [0.25, 1.12], [0.5, 1.0], [0.62, 1.05], [1.1, 0.86]],
+      "envelope": [[0, 0], [0.06, 1], [0.42, 0.8], [0.5, 0.15], [0.6, 0.9], [1.0, 0.6], [1.25, 0]] },
+    { "source": "noise", "gain": 0.12, "filters": [{ "type": "bandPass", "frequency": 2400, "q": 2 }],
+      "envelope": [[0, 0], [0.05, 1], [0.45, 0.3], [0.6, 0.8], [1.25, 0]] }
+  ]
+}

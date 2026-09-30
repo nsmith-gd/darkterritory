@@ -83,6 +83,10 @@ public static class ArtCatalog
         list.Add(new("windmill", LargeProp, () => TownKit.Windmill(look)));
         list.Add(new("buffer-stop", MediumProp, () => StructureKit.BufferStop(look)));
         list.Add(new("switch-stand", MediumProp, () => StructureKit.SwitchStand(look)));
+        // The Holdouts (GDD App. D.4), at holdouts.json's sizes, their lamps on 6 m masts.
+        list.Add(new("holdout-prison-car", LargeProp, () => HoldoutKit.Piece(look, Sim.Run.HoldoutType.PrisonCar, new Vector3(1.5f, 6, 3.6f), 6)));
+        list.Add(new("holdout-shelter", MediumProp, () => HoldoutKit.Piece(look, Sim.Run.HoldoutType.BarricadedShelter, new Vector3(2, 2.5f, 3), 6)));
+        list.Add(new("holdout-lockup", MediumProp, () => HoldoutKit.Piece(look, Sim.Run.HoldoutType.HaltLockup, new Vector3(1.5f, 2, 2.6f), 6)));
         // The sourced props (tools/models): each budgeted as what it stands in for.
         if (look is not null)
         {

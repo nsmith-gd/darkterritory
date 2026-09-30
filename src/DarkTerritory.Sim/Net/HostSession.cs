@@ -122,6 +122,7 @@ public sealed class HostSession
         if (World.Run is not null)
             World.StepRun([.. _crew.Select(c => c.State)]);
         SpawnTheQueueAtTheFortress();
+        WatchSpawns();
         SendTheReport();
         Mimic();
         Tick++;
@@ -214,6 +215,8 @@ public sealed class HostSession
         {
             c.State = AtTheFortress(_crew.Count);
             World.GiveStandardKit(id, c.State);
+            if (World.Run is { Phase: not Run.RunPhase.Yard })
+                _sessionStart.Add(id);
         }
         _crew.Add(c);
     }
@@ -317,6 +320,32 @@ public sealed class HostSession
     /// <summary>The characters this session's players are now, by profile id: what the host's campaign save keeps (D.8).</summary>
     public IReadOnlyDictionary<string, Run.Character> CharactersByProfile() =>
         World.Characters.Where(c => Profiles.ContainsKey((byte)c.Key)).ToDictionary(c => Profiles[(byte)c.Key], c => c.Value);
+
+    /// <summary>
+    /// Every time a player came (back) to life, wherever it came from: the audit behind GDD App. D.14 "no open-world
+    /// spawns" (every mid-run spawn inside a Holdout volume). Recorded by watching states, not by trusting the paths that
+    /// make them.
+    /// </summary>
+    public List<SpawnRecord> Spawns { get; } = new();
+    readonly HashSet<byte> _alive = new();
+    readonly HashSet<byte> _sessionStart = new();
+
+    void WatchSpawns()
+    {
+        foreach (var c in _crew)
+        {
+            if (!c.State.Alive)
+            {
+                _alive.Remove(c.Id);
+                continue;
+            }
+            if (!_alive.Add(c.Id))
+                continue;
+            var at = PlayerMotor.WorldPosition(c.State, Train);
+            Spawns.Add(new SpawnRecord(Tick, c.Id, at, World.Run?.Phase, World.Holdouts?.All.FirstOrDefault(h => h.Inside(at))?.Id,
+                _sessionStart.Remove(c.Id)));
+        }
+    }
 
     /// <summary>The night's incident report (App. D.12), once the run's over: made then, and again with each commendation.</summary>
     public Run.IncidentReport? Report { get; private set; }
@@ -548,4 +577,13 @@ public sealed class HostSession
         RecordsSkipped += _far.Count;
         return records.Where(r => !_far.Contains(r.Key)).ToList();
     }
+}
+
+/// <summary>A player come (back) to life on the host (GDD App. D.14 "no open-world spawns").</summary>
+/// <param name="Phase">The run's phase then (null: a line with no run). Anything but the yard is mid-run.</param>
+/// <param name="Holdout">The Holdout whose volume it was inside, if any.</param>
+/// <param name="SessionStart">The first aboard a night started away from the fortress (a resumed save): its run start.</param>
+public sealed record SpawnRecord(uint Tick, byte Player, Ballast.Double3 At, Run.RunPhase? Phase, string? Holdout, bool SessionStart)
+{
+    public bool MidRun => Phase is not (null or Run.RunPhase.Yard);
 }

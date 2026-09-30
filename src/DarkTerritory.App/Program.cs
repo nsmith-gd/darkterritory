@@ -427,6 +427,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         SignRange = session.World.Lineside?.Tuning.LampSignRange ?? 350,
         Enemies = session.World.ActiveEnemies,
         Run = session.World.Run,
+        Holdouts = session.World.Holdouts,
         Vehicles = session.Train.Vehicles,
         Bodies = session.World.Bodies.All,
         Diverging = session.Train.Diverging,
@@ -438,6 +439,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     bool pendingReverser = false;
     var pendingLamp = LampSwitch.None;
     bool chase = ride;
+    // Dead or lobbied, what the keys ask the host for (GDD App. D.10); at the run's end, the commendations (D.12).
+    var dead = new DeadPhaseControls();
     double sensitivity = 0.0025 * settings.MouseSpeed;
     Camera camera = default;
     FrameLighting lighting = default;
@@ -485,6 +488,32 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // A generated line's route card (C: the paper the crew is handed) and the designer's overlay (F3).
         if (input.Pressed(Key.C)) cardPage = cardPage + 1 >= cardPages ? -1 : cardPage + 1;
         if (input.Pressed(Key.F3)) showPlan = !showPlan;
+        bool bookmark = false;
+        if (net is not null && session.Report is not null)
+        {
+            // D.12: choose a crewmate with the mouse, give them an award with its number. One, never to yourself.
+            if (input.Pressed(Key.MouseLeft)) dead.ChooseCommend(session, 1);
+            if (input.Pressed(Key.MouseRight)) dead.ChooseCommend(session, -1);
+            for (var k = Key.D1; k <= Key.D9; k++)
+                if (input.Pressed(k)) dead.Commend(session, k - Key.D1);
+            // What the crew gave you is your profile's, whoever hosted.
+            foreach (var award in dead.TakeCommendations(session))
+            {
+                profile = profile.Commended(award);
+                profile.Save(profilePath);
+            }
+        }
+        else if (net is not null && DeadPhaseControls.Waiting(session))
+        {
+            if (input.Pressed(Key.MouseLeft)) dead.Cycle(session, 1);
+            if (input.Pressed(Key.MouseRight)) dead.Cycle(session, -1);
+            if (input.Pressed(Key.G)) dead.CallOut(session);
+            if (input.Pressed(Key.M)) dead.ToggleLiveMic(session);
+            if (input.Pressed(Key.N)) dead.Defer(session);
+            for (var k = Key.D1; k <= Key.D9; k++)
+                if (input.Pressed(k)) dead.Vote(session, k - Key.D1);
+            bookmark = input.Pressed(Key.B) && dead.Bookmark(session);
+        }
         // An invite accepted (or "Join Game" on a friend) while playing: leave this game for theirs.
         if (Invited(net) is { } invitedTo)
         {
@@ -546,9 +575,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (campaign is not null && session is NetPlaySession played)
                 campaign = Autosave(saves, campaign, played);
             // The ears are where the eyes were last frame; audio follows the sim tick so no shot is missed.
-            bool exposed = !PlayerMotor.Indoors(session.Player, session.Train);
+            // Dead or lobbied, they're the followed crewmate's ears (GDD App. D.10): where they are, what walls they're behind.
+            var ears = session.Viewpoint;
+            bool exposed = !PlayerMotor.Indoors(ears, session.Train);
             sound.Update(session.World, session.Controls, Listener.At(camera.Position, camera.Yaw), exposed, SimConstants.TickSeconds,
-                PlayerMotor.Space(session.Player, session.Train));
+                PlayerMotor.Space(ears, session.Train));
             if (voice is not null && net is not null)
                 voice.Update(net.Client, session.Crew(session.InterpolatedFrames(1), 1), SimConstants.TickSeconds);
         }
@@ -586,7 +617,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
         if (showHud)
         {
-            Hud.Build(overlay, UiWidth, UiHeight, session);
+            Hud.Build(overlay, UiWidth, UiHeight, session, dead: dead);
             // Q held: the crew roster (T69), with who's been heard.
             if (input.Down(Key.Q))
                 Hud.Roster(overlay, UiWidth, UiHeight, session.Roster(), voice is null ? null : voice.SinceHeard);
@@ -605,11 +636,22 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             renderer.Prepare(mesh, showHud ? overlay : null);
             Present(camera, lighting);
         }
+        // GDD App. D.12 bookmark: a still of the view as it is (no replay, no clip), kept on this machine beside the
+        // profile; the report has the moment and whose view it was.
+        if (bookmark && vr is null)
+        {
+            var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, null);
+            string still = Path.Combine(Path.GetDirectoryName(profilePath)!, "bookmarks", $"{DateTime.Now:yyyyMMdd-HHmmss}-{session.World.Run?.Seconds ?? 0:0}.png");
+            Directory.CreateDirectory(Path.GetDirectoryName(still)!);
+            PngWriter.Write(still, pixels, renderer.Width, renderer.Height, scale: 1);
+            dead.Stills.Add(still);
+            Console.WriteLine($"bookmark: {still}");
+        }
         // The body is the flat camera's eye point, turned to where the room faces; the head does the looking.
         VrPanelContent? onPanel = null;
         if (vr is not null && showHud)
         {
-            Hud.Build(vrOverlay, 480, 270, session, crosshair: false);
+            Hud.Build(vrOverlay, 480, 270, session, crosshair: false, dead: dead);
             if (session.World.Run?.Over == true)
                 vrOverlay.TextCentred(240, 248, campaign is not null ? "A: BACK TO THE FORTRESS" : "A: BACK", new Vector4(1, 0.7f, 0.3f, 1));
             onPanel = new VrPanelContent(vrHud!, vrOverlay, 480, 270);

@@ -201,11 +201,12 @@ sealed partial class LineBuilder
         foreach (var m in modules)
             if (HoldoutSites.SegmentDistance(from, door, m) < p.RouteClearanceM)
                 return Reject("modules");
-        // The lowest lamp that's seen from the board: a candidate that the highest can't see is out at once.
+        // The lowest lamp that's seen from the board: a candidate that the highest can't see is out at once. On a mast over
+        // its roof, so never lower than the roof (a 3 m lamp on a 3.6 m car would be inside it).
         if (!HoldoutSites.Sees(terrain, board, centre + Double3.Up * p.LampHeightM[1], clear: 0.6))
             return Reject("lamp");
         double height = p.LampHeightM[1];
-        for (double h = p.LampHeightM[0]; h < p.LampHeightM[1]; h += 1)
+        for (double h = Math.Max(p.LampHeightM[0], Math.Ceiling(size[2] + 0.4)); h < p.LampHeightM[1]; h += 1)
             if (HoldoutSites.Sees(terrain, board, centre + Double3.Up * h, clear: 0.6))
             {
                 height = h;

@@ -54,7 +54,7 @@ public enum RequestKind : byte
     LiveMic = 4,
     /// <summary>The creature vote (A: the enemy kind).</summary>
     Vote = 5,
-    /// <summary>A bookmark of the followed view (A: the followed player). The still stays on the machine that took it.</summary>
+    /// <summary>A bookmark of the followed view (the host takes whom they're watching). The still stays on the machine that took it.</summary>
     Bookmark = 6,
     /// <summary>A commendation (A: the player, B: the award's index).</summary>
     Commend = 7,

@@ -1,0 +1,13 @@
+// Holdout Call Out (GDD App. D.7), a prisoner's rough shout: one long "hey", a rasp in it. Tier 4 to 60 m
+// (callOut.audibleM); an adult's 140 Hz throat, formants of an "ay".
+{
+  "tier": 4, "duration": 1.1, "maxInstances": 2, "minDistance": 6, "maxDistance": 60, "rolloff": 0.8, "gainDb": 4,
+  "layers": [
+    { "source": "saw", "frequency": 140, "gain": 0.55,
+      "filters": [{ "type": "bandPass", "frequency": 520, "q": 2.5 }, { "type": "peak", "frequency": 1850, "q": 3, "gainDb": 6 }],
+      "vibrato": { "rate": 6, "depth": 0.03 }, "pitchEnvelope": [[0, 0.9], [0.2, 1.1], [0.8, 1.02], [1.1, 0.8]],
+      "envelope": [[0, 0], [0.08, 1], [0.8, 0.85], [1.1, 0]] },
+    { "source": "noise", "gain": 0.3, "filters": [{ "type": "bandPass", "frequency": 900, "q": 1.5 }],
+      "tremolo": { "rate": 38, "depth": 0.6, "jitter": 0.3 }, "envelope": [[0, 0], [0.1, 1], [0.8, 0.7], [1.1, 0]] }
+  ]
+}

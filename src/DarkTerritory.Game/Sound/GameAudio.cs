@@ -64,6 +64,31 @@ public sealed class GameAudio
         Enemies(world);
         Choir(world, train);
         Actions(world);
+        CallOuts(world);
+    }
+
+    readonly Dictionary<int, int> _callOuts = new();
+
+    /// <summary>
+    /// GDD App. D.7 Call Out: a shout or a bout of banging from inside a Holdout, at its door, each time the host allows
+    /// one (the count in its record goes up). Heard to callOut.audibleM, the sounds' own maxDistance. A Holdout first seen
+    /// with call outs already made doesn't replay them.
+    /// </summary>
+    void CallOuts(World world)
+    {
+        if (world.Holdouts is not { } holdouts)
+            return;
+        var sets = holdouts.Tuning.Survivors.VoiceSets;
+        foreach (var h in holdouts.All)
+        {
+            int seen = _callOuts.GetValueOrDefault(h.Index, h.CallOuts);
+            _callOuts[h.Index] = h.CallOuts;
+            if (h.CallOuts <= seen || sets.Length == 0)
+                continue;
+            var sounds = sets[Math.Clamp(h.VoiceSet, 0, sets.Length - 1)].Sounds;
+            if (sounds.Length > 0)
+                Mixer.Play(sounds[Math.Clamp(h.CallOutSound, 0, sounds.Length - 1)], h.Door + Double3.Up * 1.4)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
+        }
     }
 
     void Bed(TrainOnLine train, in TrainControls controls, Listener listener, bool exposed, double dt)

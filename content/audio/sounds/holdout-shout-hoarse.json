@@ -1,0 +1,13 @@
+// Holdout Call Out (GDD App. D.7), a wildlander's hoarse shout: mostly breath, a voice worn through. Tier 4 to 60 m
+// (callOut.audibleM); what voice there is is an adult's, 160 Hz.
+{
+  "tier": 4, "duration": 1.2, "maxInstances": 2, "minDistance": 6, "maxDistance": 60, "rolloff": 0.8, "gainDb": 6,
+  "layers": [
+    { "source": "noise", "gain": 0.7,
+      "filters": [{ "type": "bandPass", "frequency": 700, "q": 3 }, { "type": "peak", "frequency": 1250, "q": 3, "gainDb": 6 }],
+      "envelope": [[0, 0], [0.07, 1], [0.35, 0.7], [0.45, 0.2], [0.55, 0.9], [1.2, 0]] },
+    { "source": "saw", "frequency": 160, "gain": 0.22, "filters": [{ "type": "bandPass", "frequency": 700, "q": 2 }],
+      "pitchEnvelope": [[0, 1.0], [0.3, 1.1], [0.55, 1.05], [1.2, 0.85]],
+      "envelope": [[0, 0], [0.1, 1], [0.4, 0.4], [0.55, 0.8], [1.2, 0]] }
+  ]
+}

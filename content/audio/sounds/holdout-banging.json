@@ -1,0 +1,12 @@
+// Holdout Call Out (GDD App. D.7): banging on the inside of the door, four blows of a fist on sheet iron. Tier 4 to
+// 60 m (callOut.audibleM). Low and dull: it mustn't read as the slack's clunk (a bed sound, 140-310 Hz) or a shot.
+{
+  "tier": 4, "duration": 1.3, "maxInstances": 2, "minDistance": 5, "maxDistance": 60, "rolloff": 0.8, "gainDb": 3,
+  "layers": [
+    { "source": "impulse", "frequency": 3.3, "gain": 1.4,
+      "filters": [{ "type": "bandPass", "frequency": 95, "q": 4 }, { "type": "bandPass", "frequency": 420, "q": 2 }],
+      "envelope": [[0, 1], [1.05, 0.9], [1.3, 0]] },
+    { "source": "noise", "gain": 0.2, "filters": [{ "type": "bandPass", "frequency": 1300, "q": 3 }],
+      "tremolo": { "rate": 3.3, "depth": 1, "jitter": 0.1 }, "envelope": [[0, 1], [1.05, 0.8], [1.3, 0]] }
+  ]
+}
