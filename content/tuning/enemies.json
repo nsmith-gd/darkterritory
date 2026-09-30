@@ -603,6 +603,21 @@
     "saveFrom": 0.2,
     // The kinds this edition has, by the names in "costs" above; empty is all of them. The demo edition (editions/demo,
     // T79) has GDD §21's five, one per pressure zone (the Choir, structural, is always about), and the trouble in the cars.
-    "roster": []
+    "roster": [],
+    // GDD v1.2 App. B.1 "want balance": the player want each enemy attacks (Kill 40%, Split 25%, Trust 20%, Cargo 15% of
+    // the budget, as targets). Only the v1.1 roster the game has is in B.1's table; the v1.0 kinds still here (Clingers,
+    // the Rattle, the Hollow, Lamplighters, the Deadman, the Ferryman, the Long Whistle, the Weight) and the trouble in the
+    // cars have no tag. App. D.11's creature vote weighs a creature up within its tag, so the tags' shares hold; an
+    // untagged creature can't be voted for.
+    "wantTags": {
+      "kill": ["cinderHounds", "draggers", "stoker"],
+      "split": ["climbers", "gaunt"],
+      "trust": ["followers", "sootChildren", "passenger"],
+      "cargo": ["switchman"]
+    },
+    // How each kind comes; anything not here is "weighted", drawn by the director's roll. App. D.11: only those can be
+    // voted for ("condition-triggered (the Stoker) and loudness-triggered (the Choir)" are out). v1.2 App. B.5 has the
+    // Stoker condition-triggered, so it's that here (though the director still weighs it in, as v1.0's A.5 had it).
+    "spawnModes": { "sleepers": "level", "hollow": "condition", "drift": "condition", "deadman": "condition", "stoker": "condition" }
   }
 }

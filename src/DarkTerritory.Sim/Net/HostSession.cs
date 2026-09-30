@@ -95,18 +95,15 @@ public sealed class HostSession
         crew.State = state;
     }
 
-    /// <summary>Every Vigil begun, broken or completed this session, oldest first.</summary>
-    public List<Run.VigilEvent> VigilEvents { get; } = new();
-
     public void Step()
     {
         Receive();
-        BoardWaiting();
 
         foreach (var c in _crew)
             c.ThisTick = NextIntent(c);
 
         World.BeginTick();
+        World.LivingCrew = _crew.Count(c => c.State.Alive);
         Controls.Brake = 0;
         foreach (var c in _crew)
         {
@@ -120,11 +117,12 @@ public sealed class HostSession
         foreach (var c in _crew)
             PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
         World.StepBodies([.. _crew.Select(c => ((int)c.Id, c.State))]);
-        if (World.StepVigil(id => _crew.FirstOrDefault(c => c.Id == id)?.State, (id, s) => _crew.First(c => c.Id == id).State = s,
-            _crew.Select(c => (int)c.Id), PlayerTuning) is { } vigil)
-            VigilEvents.Add(vigil);
+        World.StepHoldouts(id => _crew.FirstOrDefault(c => c.Id == id)?.State, (id, s) => _crew.First(c => c.Id == id).State = s,
+            _crew.Select(c => (int)c.Id), _crew.Count, PlayerTuning);
         if (World.Run is not null)
             World.StepRun([.. _crew.Select(c => c.State)]);
+        SpawnTheQueueAtTheFortress();
+        SendTheReport();
         Mimic();
         Tick++;
 
@@ -177,11 +175,10 @@ public sealed class HostSession
                     // Spec E: "Character remains as an inert body until recovered or the run ends."
                     foreach (var gone in _crew.Where(c => c.Peer == e.Peer).ToList())
                     {
-                        if (gone.State.Alive && !World.Bodies.HasRagdoll(gone.Id))
-                            World.Bodies.SpawnRagdoll(Train, gone.Id, gone.State);
+                        // App. D.2 "drop-out": an inert body with no fee; a waiting player leaves the queue (D.6).
+                        World.DroppedOut(gone.Id, gone.State);
                         _crew.Remove(gone);
                     }
-                    _waiting.RemoveAll(w => w.Peer == e.Peer);
                     break;
                 case TransportEventKind.Data when e.Payload is { Length: > 0 } payload:
                     OnData(e.Peer, payload);
@@ -191,49 +188,75 @@ public sealed class HostSession
     }
 
     /// <summary>
-    /// Spec E: drop-in "at POIs only". While this says no (the train is between stops), a joiner is welcomed,
-    /// builds the world and watches, but only boards when it says yes, at <see cref="BoardAt"/>. Null: board now.
+    /// GDD App. D.3. Before the gates open (or on a line with no run), a joiner is aboard at once, at the fortress. Once the
+    /// run has left the gate, a Holdout is the only way in: the joiner goes to the back of the respawn queue as a lobbied
+    /// player, with the Line Plan (the Welcome's session: every machine generates the same line) and the state (snapshots)
+    /// at once, so they can watch.
     /// </summary>
-    public Func<bool>? CanBoard { get; set; }
-    /// <summary>Where someone boarding mid-run appears (a figure waiting at the facility). Null: the usual spots.</summary>
-    public Func<int, PlayerState>? BoardAt { get; set; }
-    public string WaitReason { get; set; } = "the train is between stops: you'll board at the next one";
-    readonly List<(byte Id, PeerId Peer)> _waiting = new();
-    public int Waiting => _waiting.Count;
-
+    /// <remarks>
+    /// A night that starts away from the fortress (resumed from its autosave, spec E) has its run start where it is: with
+    /// nobody aboard there'd be nobody to free a Holdout, so a joiner with no crew aboard boards as at run start
+    /// (ARCHITECTURE §8 note 92).
+    /// </remarks>
     void Join(PeerId peer)
     {
         byte id = _nextId++;
         Messages.WriteWelcome(_writer, id, Tick, SessionInfo);
         _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
-        if (CanBoard is { } can && !can())
-        {
-            _waiting.Add((id, peer));
-            Messages.WriteWait(_writer, WaitReason);
-            _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
-            return;
-        }
-        Board(id, peer);
-    }
-
-    void Board(byte id, PeerId peer)
-    {
         var c = new Crew(id, peer);
-        // First aboard takes the cab; everyone else spreads down the train.
-        int car = 1 + (_crew.Count - 1) % Math.Max(1, Train.Frames.Count - 1);
-        c.State = BoardAt is { } at && _crew.Count > 0 ? at(_crew.Count)
-            : _crew.Count == 0 ? PlayerMotor.SpawnInCab(Train, PlayerTuning) : PlayerMotor.SpawnOnRoof(Train, car, 0, PlayerTuning);
+        bool crewAboard = _crew.Any(x => !x.State.Has(PlayerFlags.Lobbied));
+        if (World.Run is { Phase: not Run.RunPhase.Yard } run && crewAboard)
+        {
+            c.State = Lobbied(Train);
+            World.Holdouts?.Queue.Lobbied(id, run.Seconds);
+        }
+        else
+        {
+            c.State = AtTheFortress(_crew.Count);
+            World.GiveStandardKit(id, c.State);
+        }
         _crew.Add(c);
     }
 
-    /// <summary>Boards anyone waiting, once the train is somewhere they can board it.</summary>
-    void BoardWaiting()
+    /// <summary>
+    /// A lobbied player (D.3): not in the crew, not dead, no body; stood (for the record) where the engine is, since
+    /// nothing of theirs is simulated until a Holdout frees them.
+    /// </summary>
+    public static PlayerState Lobbied(TrainOnLine train) => new()
     {
-        if (_waiting.Count == 0 || CanBoard is { } can && !can())
+        Parent = PlayerState.World,
+        Position = train.Frames[0].Origin,
+        Surface = Surface.Ground,
+        LineHint = train.Dynamics.Distance,
+        Flags = PlayerFlags.Lobbied,
+    };
+
+    /// <summary>At the fortress (D.3 "run start"): first aboard takes the cab; everyone else spreads down the train.</summary>
+    PlayerState AtTheFortress(int n)
+    {
+        int car = 1 + (n - 1) % Math.Max(1, Train.Frames.Count - 1);
+        return n == 0 ? PlayerMotor.SpawnInCab(Train, PlayerTuning) : PlayerMotor.SpawnOnRoof(Train, car, 0, PlayerTuning);
+    }
+
+    /// <summary>
+    /// D.3 "run start: every player in the session, including everyone in the queue, spawns at the fortress. The queue is
+    /// empty when the gates open." In the yard, anyone waiting (dead in the yard, or joined) is back aboard at once.
+    /// </summary>
+    void SpawnTheQueueAtTheFortress()
+    {
+        if (World.Run is not { Phase: Run.RunPhase.Yard })
             return;
-        foreach (var (id, peer) in _waiting)
-            Board(id, peer);
-        _waiting.Clear();
+        for (int i = 0; i < _crew.Count; i++)
+        {
+            var c = _crew[i];
+            if (c.State.Alive)
+                continue;
+            var back = AtTheFortress(i);
+            back.Placed = (byte)(c.State.Placed + 1);
+            c.State = back;
+            World.Holdouts?.Queue.Remove(c.Id);
+            World.GiveStandardKit(c.Id, back);
+        }
     }
 
     void OnData(PeerId peer, byte[] payload)
@@ -248,6 +271,25 @@ public sealed class HostSession
             if (type == MessageType.Voice)
             {
                 ForwardVoice(c, ref r);
+                return;
+            }
+            if (type == MessageType.Hello)
+            {
+                // Who they are beyond this session: their character, if the campaign has one for them (App. D.8).
+                string profile = r.Str();
+                if (profile.Length is > 0 and <= 64 && !Profiles.ContainsValue(profile))
+                {
+                    Profiles[c.Id] = profile;
+                    if (CharacterOf?.Invoke(profile) is { } character)
+                        World.Characters[c.Id] = character;
+                }
+                return;
+            }
+            if (type == MessageType.Request)
+            {
+                // GDD App. D: the dead phase's asks. Checked against the rules; what's refused is simply not done.
+                var q = Messages.ReadRequest(ref r);
+                Requests.Add((c.Id, q, World.Request(c.Id, q, [.. _crew.Select(x => ((int)x.Id, x.State))])));
                 return;
             }
             if (type != MessageType.Input)
@@ -267,11 +309,69 @@ public sealed class HostSession
 
     readonly NetWriter _voiceWriter = new();
 
+    /// <summary>Each player's profile id, from their Hello (App. D.8).</summary>
+    public Dictionary<byte, string> Profiles { get; } = new();
+    /// <summary>The campaign's character for a profile, if it has one (the host's save, App. D.8). Null: none kept.</summary>
+    public Func<string, Run.Character?>? CharacterOf { get; set; }
+
+    /// <summary>The characters this session's players are now, by profile id: what the host's campaign save keeps (D.8).</summary>
+    public IReadOnlyDictionary<string, Run.Character> CharactersByProfile() =>
+        World.Characters.Where(c => Profiles.ContainsKey((byte)c.Key)).ToDictionary(c => Profiles[(byte)c.Key], c => c.Value);
+
+    /// <summary>The night's incident report (App. D.12), once the run's over: made then, and again with each commendation.</summary>
+    public Run.IncidentReport? Report { get; private set; }
+    ushort _reportRevision;
+
+    /// <summary>
+    /// At the run's end, the incident report to everyone (D.12), reliably; again whenever a commendation's given, so every
+    /// run-end screen shows them as they come, and whenever the session changes (a joiner gets it, and can give one too).
+    /// </summary>
+    void SendTheReport()
+    {
+        if (World.Run is not { Over: true, Report: not null })
+            return;
+        var session = _crew.Select(c => (int)c.Id).Order().ToList();
+        if (Report is not null && Report.Commendations.Count == World.Commendations.Count && Report.Session.SequenceEqual(session))
+            return;
+        Report = Run.IncidentReport.Of(World, session);
+        _reportRevision++;
+        var bytes = Report.Compress();
+        int parts = Math.Max(1, (bytes.Length + Messages.ReportPartBytes - 1) / Messages.ReportPartBytes);
+        if (parts > byte.MaxValue)
+            throw new InvalidOperationException($"an incident report of {bytes.Length} bytes is too big to send");
+        foreach (var c in _crew)
+            for (int i = 0; i < parts; i++)
+            {
+                int at = i * Messages.ReportPartBytes;
+                Messages.WriteReport(_writer, _reportRevision, i, parts, bytes.AsSpan(at, Math.Min(Messages.ReportPartBytes, bytes.Length - at)));
+                _transport.Send(c.Peer, _writer.Written, Delivery.ReliableOrdered);
+            }
+    }
+
+    /// <summary>Every request this session, and whether it was allowed (the harness and tests read it).</summary>
+    public List<(byte Player, Request Request, bool Allowed)> Requests { get; } = new();
+
+    /// <summary>
+    /// Where a listener hears from (GDD App. D.10): their own place, or, dead or lobbied, the living crewmate they watch
+    /// ("exactly what the followed player hears": their proximity mix, their radio if they have one).
+    /// </summary>
+    (PlayerState State, int Radio) Ears(Crew listener)
+    {
+        if (listener.State.Alive)
+            return (listener.State, listener.Id);
+        int target = World.Dead.FollowedBy(listener.Id);
+        return _crew.Find(x => x.Id == target) is { } followed ? (followed.State, followed.Id) : (listener.State, listener.Id);
+    }
+
     /// <summary>Route for tunnels (radio dies in them). Defaults to the world's.</summary>
     public Route.Route? Route { get; set; }
     public long VoiceFramesForwarded { get; private set; }
 
-    /// <summary>Forwards a voice frame to exactly the listeners it reaches (spec A.5, C.1). Never back to the speaker.</summary>
+    /// <summary>
+    /// Forwards a voice frame to exactly the listeners it reaches (spec A.5; GDD App. D.10). Never back to the speaker. The
+    /// dead and lobbied hear what the crewmate they watch hears, and each other on the dead channel, which the living never
+    /// get. A dead player on a Holdout's Live Mic (D.7) is heard from the Holdout on the proximity layer too.
+    /// </summary>
     void ForwardVoice(Crew speaker, ref NetReader r)
     {
         ushort seq = r.U16();
@@ -279,7 +379,8 @@ public sealed class HostSession
         var opus = r.Rest();
         if (opus.Length is 0 or > 400)
             return;
-        // Said aloud, it's heard outside: the Soot Children keep it (T40).
+        // Said aloud, it's heard outside: the Soot Children keep it (T40). The dead say nothing aloud (D.7: the Live Mic
+        // isn't talking to anything that listens for it).
         if (speaker.State.Alive)
             World.Voices.Hear(speaker.Id, opus, World.Tick);
         var route = Route ?? World.Route;
@@ -287,18 +388,31 @@ public sealed class HostSession
         Func<PlayerState, bool>? underground = World.Run is { } run ? s => run.Underground(s, Train) : null;
         // The radio's a thing (T41): no radio on you, nobody hears you on it, and you hear nobody.
         radio &= World.Bodies.HasRadio(speaker.Id);
+        var mic = speaker.State.Alive ? null : Run.DeadPhase.LiveMicOf(World, speaker.Id);
         foreach (var listener in _crew)
         {
             if (listener == speaker)
                 continue;
-            var path = VoiceRouting.Route(speaker.State, listener.State, radio, Train, tunnel, World.Bodies.HasRadio(listener.Id), underground);
+            var (ears, radioOf) = Ears(listener);
+            var path = speaker.State.Alive
+                ? VoiceRouting.Route(speaker.State, ears, radio, Train, tunnel, World.Bodies.HasRadio(radioOf), underground)
+                // The dead hear the dead on their own channel; the Live Mic is for the living at the door.
+                : listener.State.Alive ? mic is null ? VoicePath.None : VoiceRouting.FromHoldout(mic.Door, ears, Train) : VoiceRouting.Dead(listener.State);
             if (path == VoicePath.None)
                 continue;
-            Messages.WriteVoiceDown(_voiceWriter, speaker.Id, seq, path, opus);
+            Messages.WriteVoiceDown(_voiceWriter, speaker.Id, seq, path, opus, path.HasFlag(VoicePath.Holdout) ? mic!.Index : 0);
             _transport.Send(listener.Peer, _voiceWriter.Written, Delivery.Unreliable);
             VoiceFramesForwarded++;
+            if (!listener.State.Alive && path.HasFlag(VoicePath.Dead))
+                DeadFramesForwarded++;
+            if (listener.State.Alive && path.HasFlag(VoicePath.Dead))
+                DeadFramesToTheLiving++;
         }
     }
+
+    /// <summary>Dead-channel frames sent to the dead and lobbied, and (which must stay 0, D.14) to the living.</summary>
+    public long DeadFramesForwarded { get; private set; }
+    public long DeadFramesToTheLiving { get; private set; }
 
     // The Soot Children's calls being played (T40): whose voice, the frames, how far through, and a sequence of their own.
     readonly List<Call> _calls = new();
@@ -340,9 +454,11 @@ public sealed class HostSession
                 _mimicSequence++;
                 foreach (var listener in _crew)
                 {
-                    if (!listener.State.Alive || (PlayerMotor.WorldPosition(listener.State, Train) - at).Length > t.SootChildren.CallRadius)
+                    // The dead hear it if whoever they're watching does (D.10).
+                    var (ears, _) = Ears(listener);
+                    if (!ears.Alive || (PlayerMotor.WorldPosition(ears, Train) - at).Length > t.SootChildren.CallRadius)
                         continue;
-                    var path = VoicePath.Mimic | (PlayerMotor.Space(listener.State, Train) == PlayerMotor.Outside ? 0 : VoicePath.Occluded);
+                    var path = VoicePath.Mimic | (PlayerMotor.Space(ears, Train) == PlayerMotor.Outside ? 0 : VoicePath.Occluded);
                     Messages.WriteVoiceDown(_voiceWriter, call.Voice, _mimicSequence, path, opus, call.Enemy);
                     _transport.Send(listener.Peer, _voiceWriter.Written, Delivery.Unreliable);
                     MimicFramesSent++;
@@ -406,9 +522,21 @@ public sealed class HostSession
         foreach (var e in World.ActiveEnemies)
             if (e is Enemies.Follower { Nested: false } f && f.Carrier == c.Id)
                 _far.Add(WireRecord.MakeKey(RecordKind.Enemy, e.Id));
+        // GDD App. D.6 "the living see nothing; roll call stays verbal": the queue goes to the dead and lobbied only.
+        if (c.State.Alive)
+        {
+            _far.Add(WireRecord.MakeKey(RecordKind.Queue, 0));
+            // D.11: the vote's hidden from the living until the run-end screen.
+            _far.Add(WireRecord.MakeKey(RecordKind.Votes, 0));
+        }
+        // Whom each of the dead watches is theirs alone.
+        foreach (var other in _crew)
+            if (other != c)
+                _far.Add(WireRecord.MakeKey(RecordKind.Spectate, other.Id));
         if (InterestRadius <= 0)
             return _far.Count == 0 ? records : records.Where(r => !_far.Contains(r.Key)).ToList();
-        var at = PlayerMotor.WorldPosition(c.State, Train);
+        // The dead see what the one they watch sees.
+        var at = PlayerMotor.WorldPosition(Ears(c).State, Train);
         foreach (var e in World.ActiveEnemies)
             if (!e.Far && (e.WorldPosition(Train) - at).Length > InterestRadius)
                 _far.Add(WireRecord.MakeKey(RecordKind.Enemy, e.Id));

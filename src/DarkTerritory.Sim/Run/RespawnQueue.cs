@@ -155,6 +155,13 @@ public sealed class RespawnQueue
         return entry.Holdout;
     }
 
+    /// <summary>Client side: the host's queue, as it is (no history: the host audits its own).</summary>
+    public void Mirror(IEnumerable<QueueEntry> entries)
+    {
+        _entries.Clear();
+        _entries.AddRange(entries);
+    }
+
     /// <summary>Run start (D.3): everyone spawns at the fortress, and the queue is empty when the gates open.</summary>
     public void Clear()
     {

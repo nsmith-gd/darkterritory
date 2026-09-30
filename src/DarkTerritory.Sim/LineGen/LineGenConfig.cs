@@ -268,7 +268,7 @@ public sealed record FacilitiesFile(FacilitySlotRules Slots, Dictionary<string, 
 /// <summary>§6.2 step 3 and §11.1.</summary>
 public sealed record FacilitySlotRules(double FirstMinM, double FirstMinShare, double SpacingM, double LastBeforeEndM, double ApproachM,
     double ApproachMinRadius, double HoldingExtraM, double HoldingGrade, double DepartureM, double BoardFarM, double BoardNearM, double[] SpurLengthM,
-    double[] SpurGrade, double PickupFromTrackM);
+    double[] SpurGrade);
 
 /// <summary>A facility type (§11.1): the biomes it belongs in, its terrain intent, and whether it's on a spur.</summary>
 public sealed record FacilityDef(FacilityKind Kind, RouteTier FromTier, Dictionary<string, double> Biomes, string Intent, bool Spur, bool MinePortal,

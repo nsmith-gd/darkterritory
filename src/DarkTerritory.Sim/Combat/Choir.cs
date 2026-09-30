@@ -11,7 +11,7 @@ public struct ChoirState
 {
     public double Aggro;
     public double SecondsSinceShot;
-    /// <summary>Raised by livestock aboard (App. B.8) and during a Vigil.</summary>
+    /// <summary>Raised by livestock aboard (App. B.8).</summary>
     public double Floor;
 
     /// <summary>Seconds-since-shot saturates here so it stays replicable.</summary>
@@ -28,7 +28,14 @@ public struct ChoirState
         SecondsSinceShot = 0;
     }
 
-    /// <summary>App. C.2: the Vigil's vent is deafening. Aggro to maximum, instantly.</summary>
+    /// <summary>Loud work that isn't gunfire (the crew loudness meter, App. C.7): it raises the Choir, and the quiet starts again.</summary>
+    public void Noise(ChoirTuning t, double aggro)
+    {
+        Aggro = Math.Min(t.MaxAggro, Aggro + aggro);
+        SecondsSinceShot = 0;
+    }
+
+    /// <summary>Aggro to maximum, instantly (tests, the editor: a Choir at its worst).</summary>
     public void Deafening(ChoirTuning t)
     {
         Aggro = t.MaxAggro;

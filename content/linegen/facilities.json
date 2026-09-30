@@ -4,11 +4,11 @@
   // First slot at least firstMinM and firstMinShare of the line from the gate; slots spacingM apart; the last this far
   // before the terminus. The approach: a straight (or gently curved) nearly level kilometre, then the holding track
   // (level, the consist plus holdingExtraM) up to the facing junction, and a departure lull after. Boards 2 km and 1 km
-  // out. Spurs this long and graded (spec D.1: 0-4%); the pickup shelter (spec E drop-in) this far from the track.
+  // out. Spurs this long and graded (spec D.1: 0-4%). (No pickup shelter: GDD App. D replaced drop-in with Holdouts.)
   "slots": {
     "firstMinM": 3000, "firstMinShare": 0.15, "spacingM": 3000, "lastBeforeEndM": 5000, "approachM": 1000, "approachMinRadius": 800,
     "holdingExtraM": 50, "holdingGrade": 0.2, "departureM": 500, "boardFarM": 2000, "boardNearM": 1000,
-    "spurLengthM": [100, 100], "spurGrade": [0, 0], "pickupFromTrackM": 12
+    "spurLengthM": [100, 100], "spurGrade": [0, 0]
   },
   // Plan §11.1's table. biomes: where each belongs (a weight, 0 or missing: not there); intent: the terrain it wants
   // (§12.1); spur: on a spur (the coaling tower stands over the main line, as since T28); minePortal: its spur goes into

@@ -198,7 +198,7 @@ public sealed record PlanSign(string Type, string Edge, double S, int Side, stri
 
 /// <summary>A facility slot (§11.1) as handed to the POI generator.</summary>
 public sealed record PlanPoi(string Id, FacilityKind Type, string Name, string Junction, double S, int Side, PlanRange Approach, PlanRange Holding,
-    PlanPad Pad, string? SpurEdge, double SpurGrade, string SubSeed, double PowerBias, double[] Pickup, bool MinePortal);
+    PlanPad Pad, string? SpurEdge, double SpurGrade, string SubSeed, double PowerBias, bool MinePortal);
 public sealed record PlanRange(string Edge, double S0, double S1);
 
 /// <summary>

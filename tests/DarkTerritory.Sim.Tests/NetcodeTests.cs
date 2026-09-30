@@ -259,7 +259,7 @@ public class BodyNetcodeTests
     }
 }
 
-/// <summary>M2's remainder: interest management, inert bodies, drop-in at stops (spec E).</summary>
+/// <summary>M2's remainder: interest management and inert bodies (joining mid-run is GDD App. D.3's: HoldoutSessionTests).</summary>
 public class SessionRulesTests
 {
     static readonly TrainTuning T = Tuning.Train;
@@ -350,33 +350,5 @@ public class SessionRulesTests
         Assert.Equal(1, host.PlayerCount);
         var body = Assert.Single(clients[0].World.Bodies.All);
         Assert.Equal(leaver, body.Owner);
-    }
-
-    [Fact]
-    public void BetweenStopsAJoinerWaitsAndBoardsAtTheNext()
-    {
-        bool stopped = false;
-        var standHere = PlayerMotor.SpawnOnRoof(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), Line, 1500), 4, 2, P);
-        var (net, host, clients, _) = Session(1, configure: h =>
-        {
-            h.CanBoard = () => stopped;
-            h.BoardAt = _ => standHere;
-        });
-        // The first aboard (the host's own player, in a real session) is let on as the session is made.
-        stopped = true;
-        Run(net, host, clients, 10);
-        stopped = false;
-        clients.Add(Client(net.CreateClient()));
-        Run(net, host, clients, 20);
-        Assert.True(clients[1].Waiting);
-        Assert.Contains("next", clients[1].WaitingReason);
-        Assert.Equal(1, host.PlayerCount);
-
-        stopped = true;
-        Run(net, host, clients, 20);
-        Assert.False(clients[1].Waiting);
-        Assert.True(clients[1].Connected);
-        Assert.Equal(2, host.PlayerCount);
-        Assert.Equal(4, clients[1].Predicted.Parent);
     }
 }

@@ -25,7 +25,7 @@ public class CampaignSessionTests
             Assert.All(saves.List(), x => Assert.Null(x.State));
             var s = Campaign.New(C, 2, "Night Crew", 42) with { Scrip = 1234, Upgrades = ["tenderCapacity"] };
             s = Campaign.Settle(Campaign.Begin(s, new Contract(RouteTier.Local, 5, 450)), new RunReport(RunEnd.Delivered, 1500, 20, 2, 0, 2, 900, 30, 0, 20, 850, 4, 0));
-            s = s with { Checkpoint = new RunCheckpoint("local:5", 0, 600, 9000, 300, [new CarState(1, 0.75, 1, 1, 200)], 1) };
+            s = s with { Checkpoint = new RunCheckpoint("local:5", 0, 600, 9000, 300, [new CarState(1, 0.75, 1, 1, 200)]) };
             saves.Save(s);
             var back = saves.Load(2)!;
             Assert.Equal(s.Scrip, back.Scrip);

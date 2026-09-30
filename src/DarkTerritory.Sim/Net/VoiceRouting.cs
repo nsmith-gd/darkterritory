@@ -14,13 +14,18 @@ public enum VoicePath : byte
     Radio = 2,
     /// <summary>Through a car wall: −12 dB and a 900 Hz lowpass on the proximity path.</summary>
     Occluded = 4,
-    /// <summary>The dead channel (spec C.1): spectators to spectators only.</summary>
+    /// <summary>The dead channel (GDD App. D.10): mic chat between the dead and the lobbied. The living never receive it.</summary>
     Dead = 8,
     /// <summary>
     /// A Soot Child calling in a crewmate's voice (T40): played from where it is, at one loudness however far (spec
     /// A.5's tell), from the frames the host kept. <see cref="VoiceFrame.Source"/> says which.
     /// </summary>
     Mimic = 16,
+    /// <summary>
+    /// A dead player on a Holdout's Live Mic (App. D.7): proximity voice from the Holdout (with <see cref="Proximity"/>).
+    /// <see cref="VoiceFrame.Source"/> says which Holdout.
+    /// </summary>
+    Holdout = 32,
 }
 
 /// <summary>
@@ -56,6 +61,20 @@ public static class VoiceRouting
             && underground?.Invoke(speaker) != true && underground?.Invoke(listener) != true)
             path |= VoicePath.Radio;
         return path;
+    }
+
+    /// <summary>The dead channel (App. D.10): a dead or lobbied speaker reaches the dead and lobbied, and nobody else.</summary>
+    public static VoicePath Dead(in PlayerState listener) => listener.Alive ? VoicePath.None : VoicePath.Dead;
+
+    /// <summary>
+    /// App. D.7 Live Mic: the assigned player's voice from their Holdout's door on the proximity layer (8 m clear, 26 m cutoff),
+    /// to whoever is there to hear it (or watching someone who is); through a car's walls if they're shut in one.
+    /// </summary>
+    public static VoicePath FromHoldout(Ballast.Double3 door, in PlayerState ears, TrainOnLine train)
+    {
+        if (!ears.Alive || (PlayerMotor.WorldPosition(ears, train) - door).Length > ProximityCutoff + ForwardMargin)
+            return VoicePath.None;
+        return VoicePath.Proximity | VoicePath.Holdout | (PlayerMotor.Space(ears, train) == PlayerMotor.Outside ? VoicePath.None : VoicePath.Occluded);
     }
 
     /// <summary>Radio dies in tunnels (spec A.5): anyone whose nearest point on the line is under one.</summary>

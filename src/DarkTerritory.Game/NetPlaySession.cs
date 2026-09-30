@@ -114,7 +114,6 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         start = Start ?? start;
         var train = new TrainOnLine(new TrainDynamics(consist), line, start, boiler);
         var world = new World(train, combat);
-        world.EnableVigil(DataFile.Load<Sim.Run.VigilTuning>(Path.Combine(content, Sim.Run.VigilTuning.File)));
         if (route is not null)
         {
             var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File));
@@ -122,6 +121,8 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             world.EnableRun(runTuning, route, route.GateOr(routeTuning.YardLength), authority,
                 DataFile.Load<Sim.Run.FacilityTuning>(Path.Combine(content, Sim.Run.FacilityTuning.File)));
             world.EnableLineside(DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)), route);
+            // GDD App. D: the night's Holdouts, from its Line Plan, and the respawn queue they take from.
+            world.EnableHoldouts(DataFile.Load<Sim.Run.HoldoutTuning>(Path.Combine(content, Sim.Run.HoldoutTuning.File)).Validate());
         }
         // A client mirrors the enemies, and needs their tuning for what it predicts from them (the Weight's drag, T59) and
         // for bots reading them; the host's world gets its director from HostSession.EnableEnemies.
@@ -183,8 +184,10 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// own player then connects on a private localhost port.</param>
     /// <param name="online">A platform to host a friends-only lobby on as well (Steam).</param>
     /// <param name="resume">A night's autosave (spec E): start again from the facility it last left.</param>
+    /// <param name="characters">The campaign's characters by profile id (GDD App. D.8): each joiner is theirs again.</param>
+    /// <param name="profile">This player's profile id (the host's own player is a joiner like any other).</param>
     public static NetPlaySession HostGame(string content, SessionSetup setup, int? port = DefaultPort, int expectedCrew = 4, IOnlineBackend? online = null,
-        Sim.Campaign.RunCheckpoint? resume = null)
+        Sim.Campaign.RunCheckpoint? resume = null, IReadOnlyDictionary<string, Sim.Run.Character>? characters = null, string? profile = null)
     {
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
         setup = setup with
@@ -203,22 +206,19 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var udp = port is { } p ? UdpTransport.Host(p) : UdpTransport.Host(0, bind: IPAddress.Loopback);
         ITransport hostTransport = online is null ? udp : new HostGroup(udp, OnlineTransport.Host(online));
         var lobby = online is null ? null : Lobby.Host(online, Game, Protocol.Version, MaxCrew);
-        var host = new HostSession(hostTransport, hostWorld, trainTuning, playerTuning) { SessionInfo = setup.Encode() };
+        var host = new HostSession(hostTransport, hostWorld, trainTuning, playerTuning)
+        {
+            SessionInfo = setup.Encode(),
+            CharacterOf = id => characters?.GetValueOrDefault(id),
+        };
         hostWorld.EnableBodies();
         hostWorld.Stock();
-        // Spec E: drop-in at POIs only: in the yard, stopped at a facility, or home. Mid-run joiners wait by
-        // the train at the facility, "like a pickup".
-        if (hostWorld.Run is { } run)
-        {
-            host.CanBoard = () => run.Phase is Sim.Run.RunPhase.Yard or Sim.Run.RunPhase.AtFacility or Sim.Run.RunPhase.Arrived;
-            host.BoardAt = n => run.Phase == Sim.Run.RunPhase.Yard ? PlayerMotor.SpawnOnRoof(hostWorld.Train, 1 + (n - 1) % Math.Max(1, hostWorld.Train.Frames.Count - 1), 0, playerTuning)
-                : Beside(hostWorld.Train, n, playerTuning);
-        }
+        // GDD App. D.3: a joiner once the run's left the gate waits in the respawn queue as a lobbied player (HostSession).
         if (setup.Enemies && route is not null)
             host.EnableEnemies(loadout.Enemies!, route, route.Seed, expectedCrew);
         var (clientWorld, _) = setup.Build(content);
         var clientTransport = UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, udp.Port));
-        var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning);
+        var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning) { Profile = profile };
         // The host's own player comes aboard before anyone else can: first aboard takes the cab.
         var clock = System.Diagnostics.Stopwatch.StartNew();
         while (client.PlayerId is null && clock.Elapsed.TotalSeconds < 5)
@@ -236,8 +236,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         var train = world.Train;
         return new Sim.Campaign.RunCheckpoint(route, facility, world.Run!.Seconds, train.Dynamics.Distance, train.Boiler.Tender,
-            [.. train.Vehicles.Select(v => new Sim.Campaign.CarState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun.Ammo, v.Cargo))],
-            world.Vigil?.Revivals ?? 0)
+            [.. train.Vehicles.Select(v => new Sim.Campaign.CarState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun.Ammo, v.Cargo))])
         { Plan = world.TrackPlan?.Compress() };
     }
 
@@ -259,28 +258,19 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             }
         train.Boiler.Tender = c.Tender;
         world.Run?.Resume(c.Seconds, c.Facility, c.Tender, c.Cars.Sum(x => x.Ammo));
-        world.Vigil?.Mirror(false, 0, c.Revivals, -1, -1);
     }
 
     /// <summary>The UDP port direct joiners use, or 0 when the host took none.</summary>
     public int Port => _udp?.Port ?? 0;
 
-    /// <summary>On the ballast beside the engine, a few metres apart: where someone who was waiting at a stop is standing.</summary>
-    static PlayerState Beside(TrainOnLine train, int n, PlayerTuning p)
-    {
-        var engine = train.Frames[0];
-        double side = n % 2 == 0 ? 1 : -1;
-        var world = engine.ToWorld(new Ballast.Double3(side * (engine.Shape.HalfWidth + 2.5), 0, engine.Shape.HalfLength - 4 - 2 * (n / 2)));
-        return PlayerMotor.SpawnOnGround(world, train.Line, train.Dynamics.Distance - train.Dynamics.Tuning.Geometry.EngineLength / 2, p);
-    }
-
     /// <summary>Connects to a host over UDP and waits (up to the transport's connect timeout) for its Welcome.</summary>
     /// <param name="whileWaiting">Called each time round the wait (a test steps its in-process host here).</param>
-    public static NetPlaySession Join(string content, IPEndPoint address, Action? whileWaiting = null, DatagramOptions? options = null) =>
-        Connect(content, UdpTransport.Connect(address, options), address.ToString(), null, whileWaiting);
+    public static NetPlaySession Join(string content, IPEndPoint address, Action? whileWaiting = null, DatagramOptions? options = null, string? profile = null) =>
+        Connect(content, UdpTransport.Connect(address, options), address.ToString(), null, whileWaiting, profile);
 
     /// <summary>Joins a friend's lobby (an invite, "Join Game", <c>+connect_lobby</c>) and connects to its owner.</summary>
-    public static NetPlaySession JoinLobby(string content, IOnlineBackend online, LobbyId id, Action? whileWaiting = null, DatagramOptions? options = null)
+    public static NetPlaySession JoinLobby(string content, IOnlineBackend online, LobbyId id, Action? whileWaiting = null, DatagramOptions? options = null,
+        string? profile = null)
     {
         var lobby = Lobby.Join(online, id, Game, Protocol.Version);
         var clock = System.Diagnostics.Stopwatch.StartNew();
@@ -299,7 +289,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             throw new IOException($"couldn't join: {lobby.Error}");
         try
         {
-            return Connect(content, OnlineTransport.Connect(online, lobby.Owner, options), $"{online.NameOf(lobby.Owner)}'s game", lobby, whileWaiting);
+            return Connect(content, OnlineTransport.Connect(online, lobby.Owner, options), $"{online.NameOf(lobby.Owner)}'s game", lobby, whileWaiting, profile);
         }
         catch
         {
@@ -308,7 +298,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
     }
 
-    static NetPlaySession Connect(string content, ITransport transport, string describe, Lobby? lobby, Action? whileWaiting)
+    static NetPlaySession Connect(string content, ITransport transport, string describe, Lobby? lobby, Action? whileWaiting, string? profile = null)
     {
         var early = new List<TransportEvent>();
         string? session = null;
@@ -354,7 +344,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             throw new IOException("the host's land comes out differently on this machine (its terrain checksum differs): report it, it's a bug");
         }
         var client = new ClientSession(new Replay(transport, early), world,
-            setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)));
+            setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File))) { Profile = profile };
         return new NetPlaySession(null, null, null, client, transport, setup, route, lobby);
     }
 
@@ -413,11 +403,12 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         var d = Train.Dynamics;
         var p = Player;
-        string link = Client.Waiting ? $"WAITING: {Client.WaitingReason}" : !Client.Connected ? "connecting…" : Lost ? "CONNECTION LOST"
+        string link = !Client.Connected ? "connecting…" : Lost ? "CONNECTION LOST"
             : Host is not null ? $"{Aboard} aboard" // the host's own ping is to itself
             : $"{Aboard} aboard, ping {_link.RoundTrip(PeerId.Host) * 1000:0} ms";
         string where = PrototypeSession.Where(p, Train);
-        string state = p.Alive ? $"{p.Surface} {where} hp {p.Health}{PrototypeSession.Condition(p, Client.PlayerTuning)}" : $"DEAD ({p.Death})";
+        string state = p.Alive ? $"{p.Surface} {where} hp {p.Health}{PrototypeSession.Condition(p, Client.PlayerTuning)}"
+            : p.Has(PlayerFlags.Lobbied) ? "LOBBIED" : $"DEAD ({p.Death})";
         return $"{d.Speed,5:0.0} m/s | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} | P {Train.Boiler.Pressure,3:0} fire {Train.Boiler.Firebox:0.0} tender {Train.Boiler.Tender:0} | " +
                $"choir {World.Choir.Aggro:0} | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state} | {Role()} | {link}" +
                PrototypeSession.RouteStatus(Route, World, Train);
@@ -456,7 +447,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         var train = world.Train;
         var lines = new List<RosterLine> { new(me, "YOU", PrototypeSession.Where(mine, train), mine.Alive, You: true) };
-        foreach (var (id, s) in crew)
+        // A lobbied player (GDD App. D.3) isn't aboard: nobody's roster lists them until a Holdout frees them.
+        foreach (var (id, s) in crew.Where(c => !c.State.Has(PlayerFlags.Lobbied)))
             lines.Add(new RosterLine(id, $"CREW {id}", s.Alive ? PrototypeSession.Where(s, train) : "DEAD", s.Alive));
         foreach (var p in world.ActiveEnemies.OfType<Sim.Enemies.Passenger>())
             lines.Add(new RosterLine((byte)p.Looks, $"CREW {p.Looks}", $"inside car {p.Attached}, shut in", true, Voiced: false));
@@ -472,7 +464,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public PlayerTuning PlayerTuning => Client.PlayerTuning;
     public int PlayerId => Client.PlayerId ?? 0;
     public LinkInfo? Link => new(Role(), Host is null && Client.Connected ? _link.RoundTrip(PeerId.Host) * 1000 : null,
-        Aboard, Client.Waiting ? Client.WaitingReason : null, Lost);
+        Aboard, Lost);
 
     /// <summary>Accepts a friend's invite that arrived while playing, if any, leaving it for the app to act on.</summary>
     public LobbyId? TakeJoinRequest() => Lobby?.TakeJoinRequest();

@@ -8,7 +8,7 @@ namespace DarkTerritory.Sim.Net;
 /// <summary>Bump when any message's layout changes: a lobby on another protocol is refused before connecting.</summary>
 public static class Protocol
 {
-    public const int Version = 1;
+    public const int Version = 2;
 }
 
 public enum MessageType : byte
@@ -21,11 +21,46 @@ public enum MessageType : byte
     Welcome = 3,
     /// <summary>Voice frame. Client → host: sequence, radio flag, Opus. Host → client: speaker, sequence, path, Opus.</summary>
     Voice = 4,
-    /// <summary>Host → client, reliable: welcomed, but not aboard yet (spec E: drop-in at POIs only), and why.</summary>
-    Wait = 5,
+    /// <summary>
+    /// Client → host, reliable: something asked for from the dead phase or at the run's end (GDD App. D.6, D.7, D.10-D.12):
+    /// intent, never state. The host checks every one.
+    /// </summary>
+    Request = 5,
+    /// <summary>Host → client, reliable: the night's incident report, at its end (App. D.12).</summary>
+    Report = 6,
+    /// <summary>
+    /// Client → host, reliable, once after the Welcome: who this is beyond the session (their profile's id), so the host's
+    /// campaign keeps their character against it (App. D.8).
+    /// </summary>
+    Hello = 7,
 }
 
 public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent);
+
+/// <summary>
+/// What a player can ask the host for outside their movement (GDD App. D): whom to watch, their place in the queue, a
+/// Call Out, the Live Mic, the creature vote, a bookmark, a commendation. <see cref="Request.A"/> and
+/// <see cref="Request.B"/> are the arguments.
+/// </summary>
+public enum RequestKind : byte
+{
+    /// <summary>Watch a living crewmate (A: their id).</summary>
+    Follow = 1,
+    /// <summary>Move down the respawn queue (A: the position to move to).</summary>
+    Defer = 2,
+    /// <summary>Call Out from a Holdout (A: its index).</summary>
+    CallOut = 3,
+    /// <summary>The Live Mic on or off (A: 1 on, 0 off).</summary>
+    LiveMic = 4,
+    /// <summary>The creature vote (A: the enemy kind).</summary>
+    Vote = 5,
+    /// <summary>A bookmark of the followed view (A: the followed player). The still stays on the machine that took it.</summary>
+    Bookmark = 6,
+    /// <summary>A commendation (A: the player, B: the award's index).</summary>
+    Commend = 7,
+}
+
+public readonly record struct Request(RequestKind Kind, int A, int B = 0);
 
 public readonly record struct PlayerSnapshot(byte Id, PlayerState State);
 
@@ -137,7 +172,7 @@ public static class Messages
         w.Bytes(opus);
     }
 
-    /// <param name="source">For <see cref="VoicePath.Mimic"/>: the Soot Child it's coming from (T40).</param>
+    /// <param name="source">For <see cref="VoicePath.Mimic"/>: the Soot Child it's coming from (T40); for <see cref="VoicePath.Holdout"/>, the Holdout.</param>
     public static void WriteVoiceDown(NetWriter w, byte speaker, ushort sequence, VoicePath path, ReadOnlySpan<byte> opus, int source = 0)
     {
         w.Reset();
@@ -145,17 +180,51 @@ public static class Messages
         w.U8(speaker);
         w.U16(sequence);
         w.U8((byte)path);
-        if (path.HasFlag(VoicePath.Mimic))
+        if (path.HasFlag(VoicePath.Mimic) || path.HasFlag(VoicePath.Holdout))
             w.I32(source);
         w.Bytes(opus);
     }
 
-    public static void WriteWait(NetWriter w, string reason)
+    public static void WriteHello(NetWriter w, string profile)
     {
         w.Reset();
-        w.U8((byte)MessageType.Wait);
-        w.Str(reason);
+        w.U8((byte)MessageType.Hello);
+        w.Str(profile.Length > 64 ? profile[..64] : profile);
     }
+
+    public static void WriteRequest(NetWriter w, in Request q)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Request);
+        w.U8((byte)q.Kind);
+        w.I32(q.A);
+        w.I32(q.B);
+    }
+
+    /// <summary>The most of a report one datagram carries, leaving room for the header.</summary>
+    public const int ReportPartBytes = 1100;
+
+    /// <summary>
+    /// One part of a compressed incident report (App. D.12): its revision (a new one whenever a commendation's given), which
+    /// part of how many, and that part's bytes. The report can outgrow a datagram (eight players' deaths and rescues), and
+    /// nothing in the transport fragments.
+    /// </summary>
+    public static void WriteReport(NetWriter w, ushort revision, int part, int parts, ReadOnlySpan<byte> bytes)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Report);
+        w.U16(revision);
+        w.U8((byte)part);
+        w.U8((byte)parts);
+        w.Bytes(bytes);
+    }
+
+    /// <summary>Reads a report part after its type byte.</summary>
+    public static (ushort Revision, int Part, int Parts, byte[] Bytes) ReadReport(ref NetReader r) =>
+        (r.U16(), r.U8(), r.U8(), r.Rest().ToArray());
+
+    /// <summary>Reads a Request after its type byte.</summary>
+    public static Request ReadRequest(ref NetReader r) => new((RequestKind)r.U8(), r.I32(), r.I32());
 
     public static void WriteWelcome(NetWriter w, byte playerId, uint tick, string session = "")
     {

@@ -17,7 +17,7 @@ namespace DarkTerritory.Game;
 /// <list type="bullet">
 /// <item>top left: the engine (speed, regulator, the pressure gauge with its working band, fire and coal);</item>
 /// <item>top right: the link, ping to host first and big (spec E: "shown prominently", non-optional);</item>
-/// <item>centre: what's happening to you (dead, waiting, a Vigil, cold, the night's result);</item>
+/// <item>centre: what's happening to you (dead, lobbied, cold, the night's result);</item>
 /// <item>bottom centre: what your hands can do right here;</item>
 /// <item>bottom left: the night (dawn clock, next landmark, a stop).</item>
 /// </list>
@@ -171,11 +171,6 @@ public static class Hud
             o.TextCentred(width / 2f, y, text, colour);
             y += line;
         }
-        if (s.Link is { Waiting: { } waiting })
-        {
-            Big("WAITING", Amber);
-            Small(waiting, Ink);
-        }
         if (world.Run?.Report is { } r)
         {
             if (r.End == RunEnd.Delivered)
@@ -189,7 +184,13 @@ public static class Hud
                 Small(r.End switch { RunEnd.Derailed => "DERAILED", RunEnd.CrewLost => "THE WHOLE CREW IS DEAD", _ => "STILL OUT WHEN THE LINE WENT LIVE" }, Ink);
             }
         }
-        if (!p.Alive)
+        if (p.Has(PlayerFlags.Lobbied))
+        {
+            // GDD App. D.3: joined once the run had left the gate. A Holdout is the only way in.
+            Big("LOBBIED", Amber);
+            Small("WATCHING THE CREW. A HOLDOUT IS THE ONLY WAY IN", Ink);
+        }
+        else if (!p.Alive)
         {
             Big("DEAD", Red);
             Small(p.Death switch
@@ -220,18 +221,12 @@ public static class Hud
                 DeathCause.Stoker => "BURNED DRIVING IT OUT OF THE FIREBOX",
                 _ => "",
             }, Ink);
-            if (world.Vigil is { Permitted: true })
-                Small("A VIGIL COULD BRING YOU BACK: YOUR BODY IN THE ENGINE, THE TRAIN STOPPED", Dim);
-        }
-        if (world.Vigil is { Active: true } v)
-        {
-            Big($"VIGIL {v.Left:0}", Red);
-            Small("ENGINE OFF. LIGHTS OUT. GUNS DEAD. THE CHOIR IS COMING", Ink);
+            // GDD App. D.1: once the run has left the gate, a Holdout is the only way back.
+            if (world.Holdouts is not null && world.Run is { Phase: not Sim.Run.RunPhase.Yard })
+                Small("WAIT FOR A HOLDOUT: THE CREW HAVE TO STOP AND GET YOU", Dim);
         }
         if (p.Alive && PlayerMotor.Chilled(p, s.PlayerTuning))
             Small($"COLD: {Math.Max(0, s.PlayerTuning.Cold.DeathSeconds - p.Cold):0}S. GET INSIDE", p.Cold > s.PlayerTuning.Cold.DeathSeconds - 30 ? Red : Amber);
-        if (p.Alive && p.Has(PlayerFlags.Revived))
-            Small("REVIVED: COLD, LIGHT THINGS ONLY, NO GUNS UNTIL THE NEXT STOP", Dim);
         if (world.Derailed)
             Big("DERAILED", Red);
     }
@@ -264,9 +259,7 @@ public static class Hud
                 _ => "[E] PUT DOWN   [RMB] THROW",
             };
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is not null)
-            return p.Has(PlayerFlags.Revived) ? "NO GUNS UNTIL THE NEXT STOP"
-                : world.EmergencyLights || train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM FOR THE TURRET"
-                : "[LMB] FIRE";
+            return train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM FOR THE TURRET" : "[LMB] FIRE";
         // A headset player's prompts follow their reaching hand (T29), as the sim's reach does.
         var hand = world.Hand;
         var near = CrewActions.Nearest(p, train, hand);
@@ -280,11 +273,7 @@ public static class Hud
             case InteractableKind.Coal when PlayerMotor.InCab(p, train):
                 return p.Has(PlayerFlags.Shovelful) ? "SHOVEL FULL: INTO THE FIREBOX" : "GRIP: COAL ON THE SHOVEL";
             case InteractableKind.Vent when PlayerMotor.InCab(p, train):
-                // Everyone can see a body laid in the engine; whether its owner is dead, the host decides.
-                bool body = world.Bodies.All.Any(b => b.Kind == BodyKind.Ragdoll && b.Parent == 0 && b.Carrier < 0);
-                return world.Vigil is { Active: false, Permitted: true } v && body && v.Still(train)
-                    ? $"[E] HOLD: VENT AND BEGIN THE VIGIL ({v.NextSeconds:0}S)"
-                    : "[E] HOLD: VENT";
+                return "[E] HOLD: VENT";
             case InteractableKind.Handbrake when p.Surface == Surface.Roof:
                 return "[E] HOLD: HANDBRAKE";
             // Out on the running board (App. A.2): what the sand does is only worth it on greased rail.
@@ -341,8 +330,8 @@ public static class Hud
     {
         string status = PrototypeSession.RouteStatus(s.Route, s.World, s.Train);
         var parts = status.Split(" | ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            // The Vigil and the night's result have their own place in the middle.
-            .Where(t => !t.StartsWith("VIGIL", StringComparison.Ordinal) && !t.StartsWith("DELIVERED", StringComparison.Ordinal) && !t.StartsWith("RUN LOST", StringComparison.Ordinal))
+            // The night's result has its own place in the middle.
+            .Where(t => !t.StartsWith("DELIVERED", StringComparison.Ordinal) && !t.StartsWith("RUN LOST", StringComparison.Ordinal))
             .ToList();
         if (parts.Count == 0)
             return;

@@ -207,8 +207,8 @@ public sealed partial class SceneArt(Look look)
         }
     }
 
-    /// <summary>A car's two lanterns, hanging on their chains from the carlines where its lights are; red glass in a Vigil.</summary>
-    public void CarLamps(MeshBuilder mesh, in CarFrame frame, Double3 eye, bool emergency)
+    /// <summary>A car's two lanterns, hanging on their chains from the carlines where its lights are.</summary>
+    public void CarLamps(MeshBuilder mesh, in CarFrame frame, Double3 eye)
     {
         if (frame.Shape.Interior is not { } room || (frame.Origin - eye).Length > 80)
             return;
@@ -234,8 +234,8 @@ public sealed partial class SceneArt(Look look)
             }
             return k.Build("car-lamps");
         });
-        mesh.Instances.Add(new MeshInstance(lamps, m, 1, emergency ? new Vector3(0.6f, 0.08f, 0.05f) : default));
-        var glow = emergency ? new Vector3(0.35f, 0.04f, 0.03f) : Palette.LampAmber * 0.35f;
+        mesh.Instances.Add(new MeshInstance(lamps, m, 1, default));
+        var glow = Palette.LampAmber * 0.35f;
         foreach (var at in LampPositions(room))
             mesh.Billboard(Vector3.Transform(at, m), 0.6f, 0, new Vector4(glow, 1), -1, FxBlend.Additive);
     }
@@ -265,7 +265,7 @@ public sealed partial class SceneArt(Look look)
     /// A car: its body from the kit, its doors where the vehicle has them (shut in the doorway, or slid aside), and its gun
     /// turned the way it faces. Returns false when the kit can't draw this car (so the greybox does).
     /// </summary>
-    public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, bool emergency, long tick = -1)
+    public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, long tick = -1)
     {
         var shape = frame.Shape;
         var m = FrameMatrix(frame, eye);
@@ -282,8 +282,7 @@ public sealed partial class SceneArt(Look look)
         double integrity = vehicle?.Integrity ?? 1;
         int seed = vehicle?.Id ?? frame.Index;
         var scar = new Vector2(damage.ScarOf(integrity), seed * 0.618f % 1 * 97);
-        // In a Vigil the headlamp and tail lamp have no power (spec C.2).
-        mesh.Instances.Add(new MeshInstance(body, m, emergency ? 0.06f : 1, Scar: scar));
+        mesh.Instances.Add(new MeshInstance(body, m, 1, Scar: scar));
         int state = damage.StateOf(integrity);
         if (state > 0 && !engine)
             mesh.Instances.Add(new MeshInstance(Piece($"damage:{ShapeKey(shape)}:{state}:{seed}", () => DamageKit.Car(Look, shape, state, seed)), m));

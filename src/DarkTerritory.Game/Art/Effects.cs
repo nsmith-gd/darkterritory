@@ -24,7 +24,7 @@ public sealed class Effects(Look look)
     /// The engine's: smoke and cinders from the stack, steam from the cylinder cocks when she's working slow, sparks at
     /// the brake shoes under a hard brake, and the headlamp's beam and halo.
     /// </summary>
-    public void Train(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye, double time, TrainControls controls, float fire, bool emergency)
+    public void Train(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye, double time, TrainControls controls, float fire)
     {
         if (frames.Count == 0 || (frames[0].Origin - eye).Length > 400)
             return;
@@ -61,7 +61,7 @@ public sealed class Effects(Look look)
             mesh.Billboard(stackTop + drift, size, h * 6.28f + age * 0.3f, colour, _smoke, FxBlend.Alpha, (int)(t * 15.99f), 4);
         }
         // Cinders when she's worked hard: sparks up through the smoke, falling back.
-        if (work > 0.55f && !emergency)
+        if (work > 0.55f)
             for (int k = 0; k < 14; k++)
             {
                 float h = Hash(k * 7.13f);
@@ -111,8 +111,6 @@ public sealed class Effects(Look look)
             }
         }
 
-        if (emergency)
-            return;
         // The headlamp: a halo round the lens, and the beam through the fog (the one light that reaches out; §28's
         // "headlamp and lantern cones"). Additive and faint, strongest at the lamp.
         var lamp = Views.Lighting(engine, look);

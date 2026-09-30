@@ -8,7 +8,11 @@ namespace DarkTerritory.Sim.Physics;
 /// <summary>Crate and lamp are the train's own stores; cargo is freight from a facility (spec D.2 manual crates).</summary>
 /// <summary><see cref="Radio"/> is a walkie-talkie (T41, spec A.5): worn on the belt, not carried in the hands.</summary>
 /// <summary><see cref="Heavy"/> is freight that takes two to lift (spec D.2 "heavy items need two", T43).</summary>
-public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6 }
+/// <summary>
+/// <see cref="Shovel"/>, <see cref="Wrench"/> and <see cref="Crowbar"/> are the train's tools, its melee weapons (GDD App.
+/// C.2), and <see cref="RepairKit"/> the repair kit: what breaks a Holdout open, or opens it quietly (App. D.7).
+/// </summary>
+public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Shovel = 7, Wrench = 8, Crowbar = 9, RepairKit = 10 }
 
 /// <summary>
 /// A loose physical thing: cargo, a tool, a crewmate's body. It lives in a car's frame while it touches that
@@ -55,8 +59,8 @@ public sealed record HandsTuning(double Reach, double ThrowSpeed, double Ragdoll
 
 /// <summary>
 /// Host-simulated loose bodies (GDD §33: thrown objects, cargo, ragdolls, bodies). Clients mirror them from
-/// Body records. A dead player's body persists where they fell (spec C.1) and can be carried: the Vigil
-/// needs it in the engine, and a body carried to the terminus is revived at the gate (spec C.2).
+/// Body records. A dead player's body persists where they fell (GDD App. D.2) and can be carried: a body brought home
+/// refunds most of its death's crew-loss fee (D.9).
 /// </summary>
 public sealed class Bodies
 {
@@ -89,6 +93,15 @@ public sealed class Bodies
         double radius = kind == BodyKind.Crate ? 0.35 : 0.15;
         var pbd = new PbdBody([new Particle(local + Double3.Up * radius, 1, radius)]) { Friction = 0.2, Bounce = 0.1 };
         var b = new Body(_nextId++, kind, car, pbd) { LineHint = train.Cars[Math.Max(0, car)].FrontDistance };
+        _bodies.Add(b);
+        return b;
+    }
+
+    /// <summary>A small loose thing in the world frame (a tool, a radio): what a freed player comes out of a Holdout holding.</summary>
+    public Body SpawnLoose(Double3 world, double lineHint, BodyKind kind)
+    {
+        var pbd = new PbdBody([new Particle(world + Double3.Up * 0.15, 1, 0.15)]) { Friction = 0.2, Bounce = 0.1 };
+        var b = new Body(_nextId++, kind, PlayerState.World, pbd) { LineHint = lineHint };
         _bodies.Add(b);
         return b;
     }
@@ -147,12 +160,14 @@ public sealed class Bodies
 
     public bool HasRagdoll(int owner) => _bodies.Any(b => b.Kind == BodyKind.Ragdoll && b.Owner == owner);
 
-    /// <summary>Host: a body for everyone who died this tick.</summary>
-    public void OnDeaths(TrainOnLine train, IEnumerable<(int Id, PlayerState State)> crew)
+    /// <summary>
+    /// A Use (and Throw) something else took this tick (a Holdout's breach, App. D.7): noted as held, so letting go of it
+    /// later isn't read as a fresh press that drops what's in the hands.
+    /// </summary>
+    public void Seen(int playerId, in PlayerIntent intent)
     {
-        foreach (var (id, s) in crew)
-            if (!s.Alive && !HasRagdoll(id))
-                SpawnRagdoll(train, id, s);
+        _useWas[playerId] = intent.Has(PlayerButtons.Use);
+        _throwWas[playerId] = intent.Has(PlayerButtons.Throw);
     }
 
     /// <summary>
@@ -220,11 +235,9 @@ public sealed class Bodies
     /// <param name="playerId">Who's reaching: the far end of a heavy crate they hold isn't theirs to take again.</param>
     public Body? InReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null, bool wearingRadio = false, int playerId = -1)
     {
-        // Spec C.2: the revived can carry light things only.
-        bool lightOnly = s.Has(PlayerFlags.Revived);
         // A heavy crate with one on it is still free at its other end (T43).
         var free = _bodies.Where(b => (b.Carrier < 0 || b.Kind == BodyKind.Heavy && b.Second < 0 && b.Carrier != playerId)
-            && (!lightOnly || b.Kind is BodyKind.Lamp or BodyKind.Radio) && !(wearingRadio && b.Kind == BodyKind.Radio));
+            && !(wearingRadio && b.Kind == BodyKind.Radio));
         if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)
             return free.Select(b => (b, d: Surface(b, train, h))).Where(x => x.d <= hand.Grab).OrderBy(x => x.d).FirstOrDefault().b;
         var hands = HandsAt(s, train);

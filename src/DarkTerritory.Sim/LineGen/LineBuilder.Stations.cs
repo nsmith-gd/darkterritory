@@ -76,7 +76,6 @@ sealed partial class LineBuilder
         _routeName = $"{fortressName} to {terminusName}";
 
         // The facilities (§11.1), each handed to the POI generator: pad, junction, approach, holding, sub-seed.
-        var r = _c.Config.Facilities.Slots;
         foreach (var slot in _facilities)
         {
             slot.Name = Name("facility", ref rng, slot.Def.Type);
@@ -88,13 +87,12 @@ sealed partial class LineBuilder
             var centre = at.Position + right * (slot.Side * lateral) + at.Tangent * (slot.OnSpur ? slot.SpurLength * 0.5 : 0);
             var pad = new PlanPad($"poi{slot.Index + 1}", R(centre.X), R(centre.Z), R(z), slot.PadRadius);
             _pads.Add(pad);
-            var pickup = at.Position + right * (slot.Side * r.PickupFromTrackM) + at.Tangent * (slot.OnSpur ? 30 : 0);
             string node = $"fj{slot.Index + 1}";
             _pois.Add(new PlanPoi($"poi{slot.Index + 1}", slot.Kind, slot.Name, node, R(slot.S), slot.Side,
                 new PlanRange("main", R(slot.LullStart), R(slot.S - slot.Holding)), new PlanRange("main", R(slot.S - slot.Holding), R(slot.S)), pad,
                 slot.SpurEdge, slot.SpurGrade, $"0x{Streams.Mix(_seed, "poi", slot.Name, slot.Index):X16}",
                 _c.Config.Facilities.PowerBiasByTier[Math.Min((int)_p.Tier, _c.Config.Facilities.PowerBiasByTier.Length - 1)],
-                [R(pickup.X), R(z), R(pickup.Z)], slot.Def.MinePortal));
+                slot.Def.MinePortal));
             _landmarks.Add(new PlanLandmark("facility", slot.Name, "main", R(slot.S - slot.Holding), R(slot.LullEnd), slot.Side));
             if (slot.Def.MinePortal && slot.SpurEdge is not null)
                 _tags.Add(new PlanTag("mine_spur", slot.SpurEdge, 0, R(slot.SpurLength)));

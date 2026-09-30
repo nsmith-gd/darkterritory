@@ -35,3 +35,9 @@ public sealed record BodyRecord(int Body, int Owner, double Fee, double Refund, 
     /// <summary>What a loot-seeking enemy ranks this body at (D.9 "a body is valued at its refund").</summary>
     public double LootValue => Refund;
 }
+
+/// <summary>
+/// A player's character (App. D.8): the survivor they came out of a Holdout as, carried into later runs until they die and
+/// are freed again. Indices into holdouts.json's survivor pools.
+/// </summary>
+public sealed record Character(int Appearance, int VoiceSet);

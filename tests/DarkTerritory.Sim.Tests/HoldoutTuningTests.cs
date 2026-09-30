@@ -31,7 +31,9 @@ public class HoldoutTuningTests
         Assert.Equal(80, T.FreedHealth);
         Assert.Equal(0.5, T.FeeShare);
         Assert.Equal(0.75, T.RefundShare);
-        Assert.Equal(0.4, T.SoloClimb);
+        Assert.Equal(0.4, Tuning.Player.SoloCarryClimb);
+        Assert.InRange(Tuning.Player.SoloCarryClimb, 0.3, 0.6);
+        Assert.Equal(Tuning.Player.LadderClimb / 4, Tuning.Player.SoloCarryClimb, 9);
         Assert.Equal(1.2, T.Vote.PerVote);
         Assert.Equal(1.5, T.Vote.Cap);
         Assert.Equal(1, T.Vote.PerRun);
@@ -98,15 +100,13 @@ public class HoldoutTuningTests
     [InlineData("secondCrew")]
     [InlineData("releaseM")]
     [InlineData("callOut")]
-    [InlineData("soloClimb")]
     public void D13RangesAreHeld(string what)
     {
         var bad = what switch
         {
             "secondCrew" => T with { SecondCrew = 7 },
             "releaseM" => T with { ReleaseM = 100 },
-            "callOut" => T with { CallOut = T.CallOut with { CooldownSeconds = 2 } },
-            _ => T with { SoloClimb = 1.6 },
+            _ => T with { CallOut = T.CallOut with { CooldownSeconds = 2 } },
         };
         Assert.Throws<InvalidDataException>(() => bad.Validate());
     }

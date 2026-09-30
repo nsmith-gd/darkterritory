@@ -17,9 +17,9 @@
     "secondAtKinds": ["switchyard"],
     // Not in D: a second Holdout at least this far from the first, so the two are two places to go.
     "secondApartM": 30,
-    // Not in D: the closest a Holdout comes to any track (it isn't standing in the four-foot), and to the platform's
-    // edge at a halt (it's beside it, not on the rails).
-    "trackClearanceM": 6,
+    // Not in D: the closest a Holdout's side comes to the middle of any track (a platform's edge is 3.6 m out, so one can
+    // stand on a platform: D.4's halt lockup is "on or beside the platform").
+    "trackClearanceM": 4,
     // D.4 "must not share a walking route with the nearest loading module". Not in D, how that's measured: the straight
     // walk from the stopped consist to the Holdout keeps at least this far from every loading module, and it's on the
     // far side of the track from them (the modules stand on the spur's outside, spec D).
@@ -29,12 +29,15 @@
     // to a lamp mounted this high over the Holdout's ground (the lowest that sees the board is used).
     "boardEyeM": 3.2,
     "lampHeightM": [3, 9],
+    // Not in D: where the line comes round a hill into a halt, nothing there can be seen from its whistle board 400 m out.
+    // The board then comes in, 50 m at a time, until the lamp can be seen from it; but no nearer the station than this.
+    "whistleNearestM": 150,
     // Not in D: reachable on foot means every step of the straight walk to it is no steeper than the terrain's walkable
     // slope (linegen tiers.json terrain.walkableSlope) and never under water. Sampled this often.
     "walkStepM": 5,
     // Not in D: the line generator tries this many spots for each Holdout before it gives up on a site (and the plan
     // fails its "holdouts" check and is regenerated, plan §16.4).
-    "tries": 48,
+    "tries": 150,
     // D.4 "types": chosen from the site's sub-seed. Prison cars stand on "facilities with a spare siding", "preferred
     // at switchyards, wreck yards and military depots"; barricaded shelters at "any facility (always at mine heads: the
     // portal lamp room)" and at dead towns; halt lockups at halts. The line has one siding per facility, so which kinds
@@ -86,11 +89,9 @@
 
   // D.9 "bodies as loot". Crew-loss fee: this share of the tier's per-car value (run.json economy.perCar), charged for
   // every in-run death (D.13: 0.5). Body refund: this share of that death's fee for every body delivered (0.75; it must
-  // stay under 1.0 or death could be farmed). Solo remainer: exactly one living crew member climbs ladders carrying a
-  // body at this (0.4 m/s, 0.3-0.6).
+  // stay under 1.0 or death could be farmed). (The solo remainer's climb with a body is the player's: player.json.)
   "feeShare": 0.5,
   "refundShare": 0.75,
-  "soloClimb": 0.4,
 
   // D.11 creature vote: x1.2 spawn weight per vote, capped at x1.5 per creature, once per run per dead player.
   // Not in D: votes compound (1.2, 1.44, then the cap), rather than add (1.2, 1.4, 1.5).

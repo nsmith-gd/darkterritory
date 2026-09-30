@@ -186,6 +186,7 @@ sealed partial class LineBuilder
             Pois = _pois,
             Landmarks = _landmarks,
             Pads = _pads,
+            Holdouts = _holdouts,
             Biomes = [.. _biomes.Select(b => new PlanBiome("main", Math.Round(b.S0, 1), Math.Round(Math.Min(b.S1, line.Length), 1), b.Biome))],
             Exposure = _exposure,
             Director = new PlanDirector(_tags, _sleeperZones, _greaseZones, new PlanPressure(_t.Director.PressureStepM, _pressure), _sleepers, _grease)

@@ -4,6 +4,9 @@ namespace DarkTerritory.Sim.Combat;
 public sealed record CombatTuning(GunTuning Guns, ChoirTuning Choir)
 {
     public const string File = "tuning/combat.json";
+
+    /// <summary>The crew loudness meter's levels (GDD App. C.7).</summary>
+    public LoudnessTuning Loudness { get; init; } = new();
 }
 
 public sealed record GunTuning(double RoundsPerSecond, double Range, double TraverseDegrees, double DeadZoneDegrees,

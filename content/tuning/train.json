@@ -128,6 +128,13 @@
   // wearing one talks or hears on it, so a crew that loses them is shouting down the train (GDD §24 "radio breaks").
   // One rides in the cab, the rest in the guard van.
   "kit": {
-    "radios": 2
+    "radios": 2,
+    // GDD §10's guard car: "tool storage". The tools are the crew's melee weapons (App. C.2) and what breaks a Holdout open
+    // (App. D.7): any of the shovel, wrench or crowbar smashes a lock or pries a barricade; the repair kit opens a prison
+    // car's lock quietly. Not in the GDD: one of each.
+    "tools": { "shovel": 1, "wrench": 1, "crowbar": 1, "repairKit": 1 },
+    // App. D.8 "standard kit: the same loadout every player departs the fortress with". Nobody leaves with anything of
+    // their own yet (the radios and tools are the train's), so it's nothing; a freed player comes out with the same.
+    "standard": []
   }
 }

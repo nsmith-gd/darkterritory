@@ -9,13 +9,15 @@ public sealed record PlayerTuning(
 {
     public const string File = "tuning/player.json";
 
+    /// <summary>GDD App. D.9's solo remainer climbing a ladder with a body (D.13: 0.4 m/s, 0.3-0.6).</summary>
+    public double SoloCarryClimb { get; init; } = 0.4;
+
     /// <summary>Take-off speed such that a flat jump at roof-run speed spans exactly <see cref="JumpGap"/>.</summary>
     public double JumpVelocity => Gravity * JumpGap / (2 * RoofRun);
 }
 
 /// <param name="IndoorsRate">How fast the cold comes on inside a car's walls with a door open, against outside (spec B.2).</param>
-public sealed record ColdTuning(double OnsetSeconds, double DeathSeconds, double RecoverSecondsNearHeat, double OnsetSpeedScale, double RevivedOnsetScale,
-    double IndoorsRate = 1);
+public sealed record ColdTuning(double OnsetSeconds, double DeathSeconds, double RecoverSecondsNearHeat, double OnsetSpeedScale, double IndoorsRate = 1);
 public sealed record LandingTuning(double RollAbove, int RollDamage);
 public sealed record LadderTuning(double GrabRange, double GrabMaxRelativeSpeed);
 /// <summary>A VR player's reaching hand (T29). Field docs live in player.json.</summary>

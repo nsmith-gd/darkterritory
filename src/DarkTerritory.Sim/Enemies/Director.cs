@@ -22,11 +22,6 @@ public sealed class Director
     Pcg32 _rng;
     double _cooldown;
 
-    /// <summary>
-    /// How much more often the director comes. The Vigil sets it: spec C.2's "every noise-triggered spawn weight
-    /// doubles" read as spawn rate, because doubling every weight alike wouldn't change which one is picked.
-    /// </summary>
-    public double RateMultiplier { get; set; } = 1;
     double _spent;
     /// <summary>Seconds (the director's own, one a decision) the whole living crew has been shut in somewhere.</summary>
     double _allInside;
@@ -391,6 +386,10 @@ public sealed class Director
         // Variety: a kind sent lately comes on less (the Lamplighters were half of everything in the playtest).
         var recent = Log.TakeLast(_t.VarietyWindow).Select(l => l.Kind).ToList();
         options = [.. options.Select(o => (o.Kind, o.Weight / Math.Pow(2, recent.Count(k => k == o.Kind))))];
+        // App. D.11: the dead's votes, within each want tag and nowhere else.
+        LastOptionsBeforeVotes = options;
+        options = WithinTags(options);
+        LastOptions = options;
 
         double pick = _rng.NextDouble() * options.Sum(o => o.Weight);
         var kind = options[^1].Kind;
@@ -405,7 +404,7 @@ public sealed class Director
         }
         HeldBecause = null;
         Charge(world, kind, active, paced: due && _cooldown > 0);
-        _cooldown = _rng.Range(_t.CooldownSeconds[0], _t.CooldownSeconds[1]) / Math.Max(1e-6, RateMultiplier);
+        _cooldown = _rng.Range(_t.CooldownSeconds[0], _t.CooldownSeconds[1]);
         return kind;
     }
 
@@ -440,6 +439,89 @@ public sealed class Director
         };
         Log.Add(new DirectorSpawn(world.Tick, kind, Cost(kind), world.Train.Dynamics.Distance,
             active.Count(e => Engaged(e) && e.Zone == zone) + 1, active.Count(Engaged) + 1, paced));
+    }
+
+    /// <summary>App. B.1: the player want a kind attacks (its tag), or null for one B.1's table doesn't have.</summary>
+    public string? WantTag(EnemyKind kind) => _t.WantTags.FirstOrDefault(t => t.Value.Contains(Key(kind))).Key;
+
+    /// <summary>How a kind comes: "weighted" (the roll), "condition", "loudness", "level".</summary>
+    public string SpawnMode(EnemyKind kind) => _t.SpawnModes.GetValueOrDefault(Key(kind), "weighted");
+
+    // App. D.11: each voted creature's weight multiplier (×1.2 a vote, capped at ×1.5), applied only within its want tag.
+    readonly Dictionary<EnemyKind, double> _votes = new();
+    public IReadOnlyDictionary<EnemyKind, double> VoteMultipliers => _votes;
+
+    /// <summary>The dead's votes so far (App. D.11): each creature's count, as its capped multiplier.</summary>
+    public void SetVotes(IReadOnlyDictionary<EnemyKind, int> counts, Run.VoteTuning t)
+    {
+        _votes.Clear();
+        foreach (var (kind, n) in counts)
+            if (n > 0 && WantTag(kind) is not null)
+                _votes[kind] = t.Multiplier(n);
+    }
+
+    /// <summary>
+    /// App. D.11 "options": the creatures the director selects by weighted roll that are eligible now for this route, tier,
+    /// crew and consist: weighted in spawn mode, with a want tag (the vote's effect is within it), this edition's, and not
+    /// gated out (a tier, crew, consist or route gate, or a once-a-run creature already sent).
+    /// </summary>
+    public IReadOnlyList<EnemyKind> Voteable(World world) =>
+        [.. Enum.GetValues<EnemyKind>().Where(k => SpawnMode(k) == "weighted" && WantTag(k) is not null && Allows(k) && Gated(k, world))];
+
+    /// <summary>A kind's standing gates (App. B's tables), as Decide holds them: not the moment's (where the train is).</summary>
+    bool Gated(EnemyKind kind, World world)
+    {
+        var train = world.Train;
+        var et = world.Enemies;
+        int cars = train.Dynamics.Consist.CarCount;
+        var tier = _route?.Tier ?? RouteTier.Frontier;
+        return kind switch
+        {
+            EnemyKind.CinderHound => cars >= 1,
+            EnemyKind.Dragger => et is not null && cars >= et.Draggers.MinCars,
+            EnemyKind.Climber => et is not null && Climber.Gaps(train).Count >= et.Climbers.MinGaps,
+            EnemyKind.Gaunt => et is not null && tier >= Gate(world, RouteTier.Frontier) && Crew >= et.Gaunt.MinCrew && cars >= 1 && !Log.Any(l => l.Kind == EnemyKind.Gaunt),
+            EnemyKind.SootChildren => et is not null && Crew >= et.SootChildren.MinCrew,
+            EnemyKind.Passenger => et is not null && tier >= Gate(world, RouteTier.DeadLines) && Crew >= et.Passenger.MinCrew && !Log.Any(l => l.Kind == EnemyKind.Passenger),
+            EnemyKind.Switchman => et is not null && _route is { } r && r.Tier >= RouteTier.Frontier
+                && r.Branches.Sum(b => b.Kind switch { Rail.BranchKind.DeadLine => 1, Rail.BranchKind.Alternate => 2, _ => 0 }) >= et.Switchman.MinJunctions,
+            _ => true,
+        };
+    }
+
+    /// <summary>
+    /// The last decision's options, as weighed before the dead's votes and after (App. D.11): the harness and the tests hold
+    /// the votes to their bounds with these.
+    /// </summary>
+    public IReadOnlyList<(EnemyKind Kind, double Weight)> LastOptionsBeforeVotes { get; private set; } = [];
+    public IReadOnlyList<(EnemyKind Kind, double Weight)> LastOptions { get; private set; } = [];
+
+    /// <summary>
+    /// App. D.11 "the multiplier applies within the creature's want tag, so the Kill / Split / Trust / Cargo target shares
+    /// still hold": each tag's options keep the weight they had between them, and the voted-for take more of it. Nothing
+    /// else changes: what's an option (the gates, the caps, the once-a-run limits), what it costs, when the director comes.
+    /// </summary>
+    List<(EnemyKind Kind, double Weight)> WithinTags(List<(EnemyKind Kind, double Weight)> options)
+    {
+        if (_votes.Count == 0)
+            return options;
+        var result = new List<(EnemyKind Kind, double Weight)>(options);
+        foreach (var tag in options.Select(o => WantTag(o.Kind)).Where(t => t is not null).Distinct())
+        {
+            double total = 0, voted = 0;
+            foreach (var o in options)
+                if (WantTag(o.Kind) == tag)
+                {
+                    total += o.Weight;
+                    voted += o.Weight * _votes.GetValueOrDefault(o.Kind, 1);
+                }
+            if (voted <= 0 || total <= 0)
+                continue;
+            for (int i = 0; i < result.Count; i++)
+                if (WantTag(result[i].Kind) == tag)
+                    result[i] = (result[i].Kind, result[i].Weight * _votes.GetValueOrDefault(result[i].Kind, 1) * total / voted);
+        }
+        return result;
     }
 
     /// <summary>This edition has the kind (<see cref="DirectorTuning.Roster"/>, empty for every kind).</summary>

@@ -32,8 +32,8 @@ public sealed record HarnessOptions
     public Run.FacilityTuning? Facilities { get; init; }
     /// <summary>With a route, the line's boards and what they warn of (sight.json): posted curves, tunnel mouths, Grease.</summary>
     public Route.SightTuning? Sight { get; init; }
-    /// <summary>With it, the crew can revive the dead (spec C.2); bots don't hold Vigils yet.</summary>
-    public Run.VigilTuning? Vigil { get; init; }
+    /// <summary>With it (and a generated route), the night has its Holdouts and the respawn queue (GDD App. D).</summary>
+    public Run.HoldoutTuning? Holdouts { get; init; }
     /// <summary>Another network to run over (the CLI's fake Steam lobby), in place of the loopback or UDP.</summary>
     public IHarnessNetwork? Network { get; init; }
     /// <summary>
@@ -105,10 +105,10 @@ public static class Harness
         host.World.Stock();
         if (o.Run is { } rt && o.Route is { } route)
             host.World.EnableRun(rt, route, o.YardLength, authority: true, o.Facilities);
-        if (o.Vigil is { } vt)
-            host.World.EnableVigil(vt);
         if (o.Sight is { } sight && o.Route is { } sightRoute)
             host.World.EnableLineside(sight, sightRoute);
+        if (o.Holdouts is { } ht)
+            host.World.EnableHoldouts(ht);
 
         // On a night with facilities, the crew call to each other at the stops, and each has a part: the walkers first (a
         // shunter, the winch pair, then crates), and the gunner only if it takes them to make up the winch pair.
@@ -134,8 +134,6 @@ public static class Harness
                 : i == 1 && o.Combat is { } c ? new GunnerBot(c.Guns, c.Choir, o.Seed * 1000 + i, playerTuning.Cold, Hand(i))
                 : new RoofWalkerBot(o.Seed * 1000 + i, playerTuning.Cold, Hand(i));
             var session = new ClientSession(transport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
-            if (o.Vigil is { } v)
-                session.World.EnableVigil(v);
             // The enemies' tuning, as a joiner loads it: prediction drags with the Weight as the host does (T59), and the bots
             // read their counters from it (the Gaunt's view, the Passenger's reach).
             if (o.Enemies is { } cet)
@@ -145,6 +143,8 @@ public static class Harness
                 session.World.EnableRun(crt, croute, o.YardLength, authority: false, o.Facilities);
             if (o.Sight is { } csight && o.Route is { } lroute)
                 session.World.EnableLineside(csight, lroute);
+            if (o.Holdouts is { } cht)
+                session.World.EnableHoldouts(cht);
             clients.Add((session, bot, transport));
         }
 

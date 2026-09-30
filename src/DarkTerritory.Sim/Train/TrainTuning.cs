@@ -23,6 +23,10 @@ public sealed record TrainTuning
 public sealed record KitTuning
 {
     public int Radios { get; init; }
+    /// <summary>The train's tools in the guard van (GDD §10 "tool storage", App. C.2), by kind: the shovel, wrench and crowbar, and the repair kit.</summary>
+    public Dictionary<Physics.BodyKind, int> Tools { get; init; } = new();
+    /// <summary>What each player departs the fortress with (App. D.8 "standard kit"): what a freed player comes out with too.</summary>
+    public Physics.BodyKind[] Standard { get; init; } = [];
 }
 
 public sealed record GeometryTuning(

@@ -27,5 +27,13 @@
     "maxAggro": 60,
     // App. B.8: livestock raises the floor by 25% of the approach threshold.
     "livestockFloor": 3
+  },
+  // GDD App. C.7, the crew loudness meter: combined loudness, "measured over a few seconds so single shouts don't count",
+  // and what drives the Choir. Each level is Choir aggro a second while it's going on. "cannon" is the guns' own rate
+  // (3 rounds a second at 1.5 aggro a round); "machinery" isn't in the GDD, and is a third of it here. App. D.7's breach
+  // counts at these levels: smashing a lock at cannon level, prying a barricade at machinery level.
+  "loudness": {
+    "levels": { "cannon": 4.5, "machinery": 1.5 },
+    "windowSeconds": 3
   }
 }

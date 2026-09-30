@@ -98,14 +98,22 @@ public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, C
 public enum PlayerFlags : byte
 {
     None = 0,
-    /// <summary>Spec C.2 "the revived": back from a Vigil cold. Onset comes sooner, light things only, no guns until the next POI.</summary>
-    Revived = 1,
-    /// <summary>Carrying freight (spec B.2 "carrying heavy cargo: 2.8 m/s, no climbing").</summary>
+    /// <summary>Carrying freight or a body (spec B.2 "carrying heavy cargo: 2.8 m/s, no climbing"; GDD App. D.9).</summary>
     Heavy = 2,
     /// <summary>A hand has coal on the shovel from the tender, on its way to the firebox (T29).</summary>
     Shovelful = 4,
     /// <summary>At a crane's controls (T48): the stick and Jump drive the crane, not you.</summary>
     Operating = 8,
+    /// <summary>
+    /// In the session but not yet in this run's crew (GDD App. D.3 "mid-run join"): waiting in the respawn queue, watching
+    /// and on the dead channel. Not alive, and never dead: there's no body.
+    /// </summary>
+    Lobbied = 16,
+    /// <summary>
+    /// App. D.9 "solo remainer": carrying a body as the one living crew member left, who can climb ladders with it after all,
+    /// at a quarter of the climb (player.json <c>soloCarryClimb</c>).
+    /// </summary>
+    SoloCarry = 32,
 }
 
 /// <summary>
@@ -148,7 +156,7 @@ public struct PlayerState
     /// </summary>
     public byte Placed;
 
-    public readonly bool Alive => Death == DeathCause.None;
+    public readonly bool Alive => Death == DeathCause.None && (Flags & PlayerFlags.Lobbied) == 0;
     public readonly bool Has(PlayerFlags flag) => (Flags & flag) != 0;
     public readonly bool Grounded => Surface is Surface.Ground or Surface.Roof or Surface.Coupler or Surface.Deck;
 }
@@ -350,7 +358,8 @@ public static class PlayerMotor
 
         // Use while pushing towards it grabs a ladder; Use standing still is for working things (CrewActions). A hand on
         // the ladder takes hold of it without pushing (T29).
-        if (intent.Has(PlayerButtons.Use) && (intent.MoveZ > 0.5 || s.Hand != default) && s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Heavy))
+        if (intent.Has(PlayerButtons.Use) && (intent.MoveZ > 0.5 || s.Hand != default) && s.Surface != Surface.Ladder
+            && (!s.Has(PlayerFlags.Heavy) || s.Has(PlayerFlags.SoloCarry)))
             TryGrabLadder(ref s, train, p, byHand: intent.MoveZ <= 0.5);
     }
 
@@ -389,7 +398,7 @@ public static class PlayerMotor
 
     /// <summary>Past the onset of cold: slower, and the HUD says so. The revived reach it sooner (spec C.2).</summary>
     public static bool Chilled(in PlayerState s, PlayerTuning p) =>
-        s.Cold >= p.Cold.OnsetSeconds * (s.Has(PlayerFlags.Revived) ? p.Cold.RevivedOnsetScale : 1);
+        s.Cold >= p.Cold.OnsetSeconds;
 
     static Double3 WishDirection(double yaw, in PlayerIntent intent)
     {
@@ -609,7 +618,7 @@ public static class PlayerMotor
         }
 
         double top = ladder.Top;
-        double y = s.Position.Y + Math.Clamp(intent.MoveZ, -1, 1) * p.LadderClimb * dt;
+        double y = s.Position.Y + Math.Clamp(intent.MoveZ, -1, 1) * (s.Has(PlayerFlags.SoloCarry) ? p.SoloCarryClimb : p.LadderClimb) * dt;
         if (y >= top)
         {
             // Over the top onto whatever the ladder serves, just inside the edge: the highest footing at the top rung, not

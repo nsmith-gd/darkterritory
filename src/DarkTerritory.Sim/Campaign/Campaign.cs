@@ -36,7 +36,7 @@ public sealed record CarState(int Id, double Load, double Integrity, double Carg
 /// Spec E "autosave per POI, on successful departure": enough of a night to start it again from the facility the
 /// train last left, if the session is lost.
 /// </summary>
-public sealed record RunCheckpoint(string Route, int Facility, double Seconds, double Front, double Tender, CarState[] Cars, int Revivals)
+public sealed record RunCheckpoint(string Route, int Facility, double Seconds, double Front, double Tender, CarState[] Cars)
 {
     /// <summary>
     /// The night's line itself, its plan compressed (linegen plan §17.4: the save keeps the plan and the generator's
@@ -60,6 +60,11 @@ public sealed record CampaignState
     /// <summary>The contract under way, if a night has begun and not been settled.</summary>
     public Contract? Current { get; init; }
     public RunCheckpoint? Checkpoint { get; init; }
+    /// <summary>
+    /// GDD App. D.8: each player's character, by their profile id: the survivor they came out of a Holdout as, carried into
+    /// later nights until they die and are freed again. The host keeps them.
+    /// </summary>
+    public IReadOnlyDictionary<string, Run.Character> Characters { get; init; } = new Dictionary<string, Run.Character>();
 }
 
 /// <summary>What a purchase came to: the new state, or why not.</summary>
@@ -135,12 +140,16 @@ public static class Campaign
     /// GDD §9 arrival: "everything still attached to the locomotive counts". The night's net goes to (or comes out of)
     /// the scrip, and cars left behind are gone from the consist.
     /// </summary>
-    public static CampaignState Settle(CampaignState s, RunReport report)
+    /// <param name="characters">The night's freed players' characters by profile id (App. D.8), kept over the old ones.</param>
+    public static CampaignState Settle(CampaignState s, RunReport report, IReadOnlyDictionary<string, Run.Character>? characters = null)
     {
         int cars = Math.Max(2, s.Cars - report.CarsLost);
         double scrip = s.Scrip + report.Net;
         var log = new RunLog(s.Runs + 1, s.Current?.Route ?? "?", report.End, report.Net, report.CarsLost, scrip);
-        return s with { Cars = cars, Scrip = scrip, Runs = s.Runs + 1, History = [.. s.History, log], Current = null, Checkpoint = null };
+        var kept = new SortedDictionary<string, Run.Character>(s.Characters.ToDictionary(), StringComparer.Ordinal);
+        foreach (var (profile, c) in characters ?? new Dictionary<string, Run.Character>())
+            kept[profile] = c;
+        return s with { Cars = cars, Scrip = scrip, Runs = s.Runs + 1, History = [.. s.History, log], Current = null, Checkpoint = null, Characters = kept };
     }
 
     /// <summary>The night's tunings after the crew's upgrades. Upgrades with no modelled effect change nothing.</summary>

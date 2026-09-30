@@ -26,7 +26,6 @@ public sealed record HoldoutTuning
     public int FreedHealth { get; init; }
     public double FeeShare { get; init; }
     public double RefundShare { get; init; }
-    public double SoloClimb { get; init; }
     public required VoteTuning Vote { get; init; }
     public required CommendationTuning Commendations { get; init; }
     public required SurvivorPools Survivors { get; init; }
@@ -62,7 +61,6 @@ public sealed record HoldoutTuning
         Range("callOut.activeRadiusM", CallOut.ActiveRadiusM, 150, 300);
         Range("callOut.audibleM", CallOut.AudibleM, 40, 80);
         Range("callOut.cooldownSeconds", CallOut.CooldownSeconds, 5, 10);
-        Range("soloClimb", SoloClimb, 0.3, 0.6);
         Range("freedHealth", FreedHealth, 1, 100);
         Range("feeShare", FeeShare, 0, double.MaxValue);
         // D.13 "body refund: must stay < 1.0".
@@ -109,6 +107,7 @@ public sealed record HoldoutPlacement
     public double RouteClearanceM { get; init; }
     public double BoardEyeM { get; init; }
     public double[] LampHeightM { get; init; } = [];
+    public double WhistleNearestM { get; init; }
     public double WalkStepM { get; init; }
     public int Tries { get; init; }
     public string[] SpareSidingAt { get; init; } = [];

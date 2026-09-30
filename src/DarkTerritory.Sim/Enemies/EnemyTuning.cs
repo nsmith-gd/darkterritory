@@ -384,4 +384,11 @@ public sealed record DirectorTuning(
     /// pressure zone (T79); nothing outside it is sent, and nothing condition-triggered outside it comes up either.
     /// </summary>
     public string[] Roster { get; init; } = [];
+    /// <summary>GDD App. B.1 "want balance": each tag's enemies (tuning names), the player want they go after.</summary>
+    public Dictionary<string, string[]> WantTags { get; init; } = new();
+    /// <summary>
+    /// How each kind comes, by tuning name: "weighted" (the director's roll; the default), "condition", "loudness" or
+    /// "level" (content). App. D.11's creature vote is over the weighted ones.
+    /// </summary>
+    public Dictionary<string, string> SpawnModes { get; init; } = new();
 }

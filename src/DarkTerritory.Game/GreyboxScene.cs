@@ -19,9 +19,6 @@ public sealed class GreyboxScene
     public int Seed { get; init; } = 7;
     /// <summary>How hot the firebox is, 0..1: the glow in the cab is how the Boiler reads the fire.</summary>
     public float FireGlow { get; set; } = 0.7f;
-    /// <summary>Spec C.2 "lights drop to emergency only": the cars' lamps go to a dim red during a Vigil.</summary>
-    public bool Emergency { get; set; }
-    static readonly System.Numerics.Vector3 EmergencyRed = new(0.5f, 0.06f, 0.04f);
     /// <summary>Tunnels, bridges, facilities and hazards to draw along the line, when it's a generated route.</summary>
     public Route? Route { get; set; }
     /// <summary>The engine's lamp is lit (it's what makes the boards shine back, sight.json).</summary>
@@ -156,9 +153,7 @@ public sealed class GreyboxScene
                 {
                     // With the art pass the lamps are flames, and flicker (Art.SceneArt.Flicker); the greybox's are steady.
                     float flicker = Look is null ? 1 : Art.SceneArt.Flicker(Time, frame.Index * 2 + (z < 0 ? 0 : 1));
-                    mesh.PointLights.Add(Emergency
-                        ? new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), EmergencyRed, 4f)
-                        : new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), Palette.LampAmber * 1.6f * flicker, 7.5f));
+                    mesh.PointLights.Add(new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), Palette.LampAmber * 1.6f * flicker, 7.5f));
                 }
             foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
                 mesh.PointLights.Add(new PointLight(V(frame.ToWorld(i.Position + new Double3(0, 0.7, 0.3)), eye), FireColour(0.6f + 1.6f * FireGlow), 5f));
@@ -169,7 +164,7 @@ public sealed class GreyboxScene
         if (Look is not null)
         {
             // The art pass's effects (Art/Effects): smoke, steam, sparks, the lamp's beam, and fog banks along the line.
-            Look.Art.Effects.Train(mesh, frames, eye, Time, Controls, FireGlow, Emergency);
+            Look.Art.Effects.Train(mesh, frames, eye, Time, Controls, FireGlow);
             var fog = Look.Apply(FrameLighting.Night).FogColor;
             Look.Art.Effects.Fog(mesh, line, eye, centre, Time, fog, (float)(Route?.Weather.FogDensity ?? 0.016));
             if (Route?.Weather is { Wet: true } weather)
@@ -1150,7 +1145,7 @@ public sealed class GreyboxScene
         mesh.Seed = frame.Index + 1;
         var vehicle = Vehicles is { } vs && frame.Index < vs.Count ? vs[frame.Index] : null;
         // The art pass's kit (TrainKit): the body, doors and gun as cooked pieces; what's left here is what glows and moves.
-        if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick))
+        if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Tick))
         {
             CarWorkings(mesh, frame, eye, Draw);
             if (engine)
@@ -1185,9 +1180,9 @@ public sealed class GreyboxScene
         double half = shape.HalfLength;
         if (engine)
         {
-            // The headlamp: dark with no power in a Vigil.
+            // The headlamp.
             mesh.Emissive = 1;
-            Draw(Box.FromCentre(new Double3(0, 2.8, -half - 0.05), new Double3(0.35, 0.35, 0.1)), Emergency ? Palette.LampAmber * 0.08f : Palette.LampAmber);
+            Draw(Box.FromCentre(new Double3(0, 2.8, -half - 0.05), new Double3(0.35, 0.35, 0.1)), Palette.LampAmber);
             mesh.Emissive = 0;
         }
         CarWorkings(mesh, frame, eye, Draw);
@@ -1268,13 +1263,13 @@ public sealed class GreyboxScene
         if (shape.Interior is not null && Look is not null)
         {
             // Lanterns hanging where the car's lights are (the art pass's).
-            Look.Art.CarLamps(mesh, frame, eye, Emergency);
+            Look.Art.CarLamps(mesh, frame, eye);
         }
         else if (shape.Interior is { } room)
         {
             // A lamp in every car: the warm interior against the hostile exterior (GDD §26).
             mesh.Emissive = 1;
-            draw(Box.FromCentre(new Double3(0, room.Max.Y - 0.08, 0), new Double3(0.12, 0.06, 0.12)), Emergency ? EmergencyRed : Palette.LampAmber);
+            draw(Box.FromCentre(new Double3(0, room.Max.Y - 0.08, 0), new Double3(0.12, 0.06, 0.12)), Palette.LampAmber);
             mesh.Emissive = 0;
         }
     }

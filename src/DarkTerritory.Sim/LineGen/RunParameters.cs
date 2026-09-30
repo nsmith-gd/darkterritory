@@ -42,12 +42,23 @@ public sealed record RunParameters(RouteTier Tier, ulong Seed, double Severity, 
 /// <summary>What the generator needs from content beyond its own files: the train it plans for, and the kit it lays.</summary>
 public sealed record LineGenContent(LineGenConfig Config, TrainTuning Train, BoilerTuning Boiler, RouteTuning Route, EnemyTuning Enemies)
 {
+    /// <summary>
+    /// App. D.4's placement (tuning/holdouts.json), and where the loading modules stand (tuning/facilities.json), which a
+    /// Holdout keeps its walk clear of. Without them, a line has no Holdouts.
+    /// </summary>
+    public Run.HoldoutTuning? Holdouts { get; init; }
+    public Run.FacilityTuning? Facilities { get; init; }
+
     public static LineGenContent Load(string content) => new(
         LineGenConfig.Load(content),
         DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File)),
         DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)),
         DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File)),
-        DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)));
+        DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)))
+    {
+        Holdouts = File.Exists(Path.Combine(content, Run.HoldoutTuning.File)) ? DataFile.Load<Run.HoldoutTuning>(Path.Combine(content, Run.HoldoutTuning.File)).Validate() : null,
+        Facilities = File.Exists(Path.Combine(content, Run.FacilityTuning.File)) ? DataFile.Load<Run.FacilityTuning>(Path.Combine(content, Run.FacilityTuning.File)) : null,
+    };
 
     static readonly Dictionary<string, (DateTime Stamp, LineGenContent Content)> Cache = new();
 
@@ -55,7 +66,8 @@ public sealed record LineGenContent(LineGenConfig Config, TrainTuning Train, Boi
     public static LineGenContent Cached(string content)
     {
         var stamp = LineGenConfig.Files.Select(f => File.GetLastWriteTimeUtc(Path.Combine(content, LineGenConfig.Directory, f)))
-            .Concat(new[] { TrainTuning.File, BoilerTuning.File, RouteTuning.File, EnemyTuning.File }.Select(f => File.GetLastWriteTimeUtc(Path.Combine(content, f)))).Max();
+            .Concat(new[] { TrainTuning.File, BoilerTuning.File, RouteTuning.File, EnemyTuning.File, Run.HoldoutTuning.File, Run.FacilityTuning.File }
+                .Select(f => File.GetLastWriteTimeUtc(Path.Combine(content, f)))).Max();
         lock (Cache)
         {
             if (Cache.TryGetValue(content, out var hit) && hit.Stamp == stamp)

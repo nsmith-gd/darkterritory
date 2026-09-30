@@ -145,9 +145,9 @@ public class RunTests
     }
 
     [Fact]
-    public void ABodyBroughtHomeIsRevivedAtTheGate()
+    public void ABodyBroughtHomeIsNobodyRevivedAtTheGate()
     {
-        // Spec C.2: "A body carried to the terminus is revived free at the gate."
+        // GDD App. D (v1.2) cuts the gate revive: a body brought home is a body (its refund is settlement's, D.9).
         var n = new Night(front: Frontier.Length - 150);
         var dead = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P) with { Health = 0, Death = DeathCause.Mauled };
         n.World.EnableBodies();
@@ -157,9 +157,8 @@ public class RunTests
         n.World.Step(n.Controls);
         n.World.StepRun([n.Player, dead]);
         var report = n.Run.Report!;
-        Assert.Equal(1, report.RevivedAtGate);
-        Assert.Equal(2, report.CrewHome);
-        Assert.Equal(0, report.CrewLost);
+        Assert.Equal(1, report.CrewHome);
+        Assert.Equal(1, report.CrewLost);
     }
 
     [Fact]

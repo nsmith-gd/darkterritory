@@ -48,7 +48,7 @@ public interface IPlaySession
 
 /// <summary>What the HUD shows about the connection (spec E: ping to host "shown prominently", non-optional).</summary>
 /// <param name="PingMs">Round trip to the host; null for the host itself.</param>
-public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, string? Waiting, bool Lost);
+public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, bool Lost);
 
 /// <summary>First-person eye from a player's state, interpolated in their own frame so riding a car at speed is smooth.</summary>
 public static class Eyes

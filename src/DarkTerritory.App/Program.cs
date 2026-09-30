@@ -77,6 +77,9 @@ static SteamBackend? NoSteam(string? error)
 var campaignTuning = DataFile.Load<CampaignTuning>(Path.Combine(content, CampaignTuning.File));
 var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
 var saves = new SaveSlots(Arg("--saves", SaveSlots.DefaultDirectory), campaignTuning.SaveSlots);
+// Who this player is across sessions (GDD App. D.8, D.12): a host's campaign keeps their character against its id.
+string profilePath = Arg("--profile", PlayerProfile.DefaultPath);
+var profile = PlayerProfile.Load(profilePath);
 var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", Settings.DefaultPath), edition: EditionTuning.Load(content));
 
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
@@ -295,7 +298,7 @@ Launch? Menu()
     {
         case Launch.JoinLobby lobby when steam is not null:
             Console.WriteLine($"joining lobby {lobby.Lobby} on Steam…");
-            return (NetPlaySession.JoinLobby(content, steam, lobby.Lobby), null);
+            return (NetPlaySession.JoinLobby(content, steam, lobby.Lobby, profile: profile.Id), null);
         case Launch.Join join:
             {
                 string target = join.Address;
@@ -305,7 +308,7 @@ Launch? Menu()
                 if (endpoint.Port == 0)
                     endpoint.Port = NetPlaySession.DefaultPort;
                 Console.WriteLine($"joining {endpoint}…");
-                return (NetPlaySession.Join(content, endpoint), null);
+                return (NetPlaySession.Join(content, endpoint, profile: profile.Id), null);
             }
         case Launch.CampaignNight night:
             {
@@ -320,7 +323,8 @@ Launch? Menu()
                 int? port = night.Host ? NetPlaySession.DefaultPort : null;
                 var setup = new SessionSetup(Route: contract.Route, Cars: campaign.Cars, Enemies: enemies) { Upgrades = campaign.Upgrades };
                 Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
-                return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume), campaign);
+                return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume, characters: campaign.Characters,
+                    profile: profile.Id), campaign);
             }
         case Launch.Night { Host: true } hosted:
             {
@@ -328,7 +332,7 @@ Launch? Menu()
                 int? port = args.Contains("--host") ? int.TryParse(Arg("--host", ""), out var p) ? p : NetPlaySession.DefaultPort
                     : fromCommandLine ? null : NetPlaySession.DefaultPort;
                 var setup = new SessionSetup(Route: hosted.Route, Line: hosted.Line, Cars: hosted.Cars, Enemies: enemies);
-                var session = NetPlaySession.HostGame(content, setup, port, online: steam);
+                var session = NetPlaySession.HostGame(content, setup, port, online: steam, profile: profile.Id);
                 if (port is not null)
                     Console.WriteLine($"hosting on UDP port {session.Port}: others join with --join <this machine's address>:{session.Port}");
                 if (steam is not null)
@@ -564,7 +568,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Time = now;
         lighting = Views.Lighting(frames[0], look);
         lighting.Time = now;
-        // Lamps down (T52), smashed, or no power in a Vigil: no beam.
+        // Lamps down (T52), or smashed: no beam.
         if (!session.World.LampShining)
             lighting.LampIntensity = 0;
         if (session.Route is { } r)
@@ -575,8 +579,6 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
         scene.Tick = session.Tick;
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
-        // A Vigil: emergency lighting, and no power to the headlamp.
-        scene.Emergency = session.World.EmergencyLights;
         scene.LampLit = session.World.LampShining;
         scene.Controls = session.Controls;
         if (!session.World.LampShining)
@@ -646,9 +648,10 @@ static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySe
 {
     if (campaign.Current is null)
         return campaign;
-    if (session.World.Run?.Report is { } report)
+    // The host's own night: its run's report, and the characters its freed players are now (GDD App. D.8).
+    if ((session.Host?.World ?? session.World).Run?.Report is { } report)
     {
-        var settled = Campaign.Settle(campaign, report);
+        var settled = Campaign.Settle(campaign, report, session.Host?.CharactersByProfile());
         saves.Save(settled);
         Console.WriteLine($"campaign: {report.End}, net {report.Net:0} scrip; now {settled.Cars} cars and {settled.Scrip:0} scrip after {settled.Runs} nights");
         return settled;

@@ -7,7 +7,13 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Vigil = 10, Switch = 11, Crane = 12 }
+/// <summary>
+/// <see cref="Holdout"/>: a Holdout's state (GDD App. D.5), everyone's. <see cref="Queue"/>: the respawn queue (D.6), only
+/// ever sent to the dead and lobbied ("the living see nothing"). <see cref="Character"/>: a freed player's survivor (D.8).
+/// <see cref="Spectate"/>: whom a dead or lobbied player watches (D.10), sent to them alone. <see cref="Votes"/>: the creature
+/// vote (D.11), for the dead and lobbied only ("hidden from the living until the run-end screen").
+/// </summary>
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Queue = 13, Character = 14, Spectate = 15, Votes = 16 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -107,8 +113,43 @@ public static class WorldRecords
                         f.AddRange([(long)c.State, c.Car, Q(c.At.X, Pos), Q(c.At.Y, Pos), Q(c.At.Z, Pos)]);
                     list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Crane, site.Index), [.. f]));
                 }
-        if (world.Vigil is { } vigil)
-            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Vigil, 0), [vigil.Active ? 1 : 0, Q(vigil.Left, Fine), vigil.Revivals, vigil.Body, vigil.For]));
+        if (world.Holdouts is { } holdouts)
+        {
+            foreach (var h in holdouts.All)
+                list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Holdout, h.Index),
+                    [(long)h.Phase, h.Breacher, (long)h.Method, Q(h.Progress, Fine), Q(h.Needed, Fine), Q(h.CallOutCooldown, Fine), h.CallOuts, h.CallOutSound,
+                        h.LiveMic ? 1 : 0, h.Appearance, h.VoiceSet]));
+            // Who's waiting, in order, and which Holdout each is in: the host's interest keeps it from the living.
+            var q = holdouts.Queue.Entries;
+            var f = new long[1 + q.Count * 4];
+            f[0] = q.Count;
+            for (int i = 0; i < q.Count; i++)
+            {
+                f[1 + i * 4] = q[i].Player;
+                f[2 + i * 4] = (long)q[i].Kind;
+                f[3 + i * 4] = q[i].Holdout is { } id && holdouts.Of(id) is { } h ? h.Index : -1;
+                f[4 + i * 4] = q[i].Locked ? 1 : 0;
+            }
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Queue, 0), f));
+        }
+        if (world.Holdouts is not null && world.Authority)
+        {
+            var options = world.VoteOptions;
+            var voted = world.VoteLog.Select(v => v.Player).Distinct().Order().ToList();
+            var counts = world.Votes.OrderBy(v => v.Key).ToList();
+            var f = new List<long> { options.Count };
+            f.AddRange(options.Select(o => (long)o));
+            f.Add(voted.Count);
+            f.AddRange(voted.Select(v => (long)v));
+            f.Add(counts.Count);
+            foreach (var (k, n) in counts)
+                f.AddRange([(long)k, n]);
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Votes, 0), [.. f]));
+        }
+        foreach (var (player, target) in world.Dead.Following.OrderBy(f => f.Key))
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Spectate, player), [target]));
+        foreach (var (player, c) in world.Characters.OrderBy(c => c.Key))
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Character, player), [c.Appearance, c.VoiceSet]));
         foreach (var body in world.Bodies.All)
         {
             var ps = body.Pbd.Particles;
@@ -156,6 +197,7 @@ public static class WorldRecords
         var boiler = train.Boiler;
         var enemies = new List<Enemy>();
         var bodies = new List<Physics.Body>();
+        bool sawQueue = false;
         foreach (var r in records)
         {
             var f = r.Fields;
@@ -217,8 +259,34 @@ public static class WorldRecords
                     crane.Mirror(D(f[0], Pos), D(f[1], Pos), D(f[2], Pos), D(f[3], Fine), [.. Enumerable.Range(0, castings).Select(i =>
                         ((Run.CastingState)f[5 + i * 5], (int)f[6 + i * 5], new Ballast.Double3(D(f[7 + i * 5], Pos), D(f[8 + i * 5], Pos), D(f[9 + i * 5], Pos))))]);
                     break;
-                case RecordKind.Vigil when !world.Authority && world.Vigil is { } vigil:
-                    vigil.Mirror(f[0] != 0, D(f[1], Fine), (int)f[2], (int)f[3], (int)f[4]);
+                case RecordKind.Holdout when !world.Authority && world.Holdouts is { } holdouts && r.Id < holdouts.All.Count:
+                    holdouts.All[r.Id].Mirror((Run.HoldoutPhase)f[0], (int)f[1], (Run.BreachMethod)f[2], D(f[3], Fine), D(f[4], Fine), D(f[5], Fine), (int)f[6],
+                        (int)f[7], f[8] != 0, (int)f[9], (int)f[10]);
+                    break;
+                case RecordKind.Queue when !world.Authority && world.Holdouts is { } queued:
+                    int count = (int)f[0];
+                    queued.MirrorQueue([.. Enumerable.Range(0, count).Select(i => ((int)f[1 + i * 4], (Run.QueueKind)f[2 + i * 4], (int)f[3 + i * 4], f[4 + i * 4] != 0))]);
+                    sawQueue = true;
+                    break;
+                case RecordKind.Votes when !world.Authority:
+                    {
+                        int at = 0;
+                        int no = (int)f[at++];
+                        var options = Enumerable.Range(0, no).Select(i => (EnemyKind)f[at + i]).ToList();
+                        at += no;
+                        int nv = (int)f[at++];
+                        var voted = Enumerable.Range(0, nv).Select(i => (int)f[at + i]).ToList();
+                        at += nv;
+                        int nc = (int)f[at++];
+                        var counts = Enumerable.Range(0, nc).Select(i => ((EnemyKind)f[at + 2 * i], (int)f[at + 2 * i + 1])).ToList();
+                        world.MirrorVotes(options, voted, counts);
+                        break;
+                    }
+                case RecordKind.Spectate when !world.Authority:
+                    world.Dead.Mirror(r.Id, (int)f[0]);
+                    break;
+                case RecordKind.Character when !world.Authority:
+                    world.Characters[r.Id] = new Run.Character((int)f[0], (int)f[1]);
                     break;
                 case RecordKind.Run when !world.Authority && world.Run is { } run:
                     const int Each = 5;
@@ -231,6 +299,9 @@ public static class WorldRecords
             }
         }
         train.Restore(new TrainState([.. rakes], [.. vehicles], boiler));
+        // Not sent the queue (the living aren't): nobody's known to be in any Holdout.
+        if (!world.Authority && !sawQueue)
+            world.Holdouts?.MirrorQueue([]);
         // The host owns its enemies' full state; only clients rebuild them from the wire.
         if (!world.Authority)
         {

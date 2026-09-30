@@ -22,11 +22,23 @@ public enum RunPhase : byte { Yard, Underway, AtFacility, Arrived, Failed }
 public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed }
 
 /// <summary>What a night came to (spec F.1): everything still attached to the locomotive counts.</summary>
-/// <param name="RevivedAtGate">Bodies brought home aboard: revived free at the gate (spec C.2), and counted in CrewHome.</param>
 /// <param name="Mail">Pay caught off the mail cranes (sight.json drops), paid with the cargo at the terminus and in the gross.</param>
+/// <remarks>
+/// GDD App. D.9's settlement: <c>wallet += delivered cargo − running costs − Σ crew-loss fees + Σ body refunds</c>, so
+/// <see cref="Net"/> has the fees and refunds in it.
+/// </remarks>
 public sealed record RunReport(RunEnd End, double Seconds, double DistanceKm, int CarsDelivered, int CarsLost, double CargoDelivered,
-    double Gross, double CoalCost, double AmmoCost, double RepairCost, double Net, int CrewHome, int CrewLost, int RevivedAtGate = 0,
-    double Mail = 0);
+    double Gross, double CoalCost, double AmmoCost, double RepairCost, double Net, int CrewHome, int CrewLost, double Mail = 0)
+{
+    /// <summary>D.9: a fee for every in-run death (a drop-out's is none).</summary>
+    public double CrewLossFees { get; init; }
+    /// <summary>D.9: for every body delivered, most of its death's fee back.</summary>
+    public double BodyRefunds { get; init; }
+    public int BodiesDelivered { get; init; }
+    public int BodiesLost { get; init; }
+    /// <summary>What the delivered bodies were carrying, back to stores (D.9), by kind.</summary>
+    public IReadOnlyDictionary<Physics.BodyKind, int> KitReturned { get; init; } = new Dictionary<Physics.BodyKind, int>();
+}
 
 /// <summary>
 /// One night's run, host-authoritative (clients mirror it for the HUD). The yard gate opens the run and
@@ -381,9 +393,15 @@ public sealed class Run
     public (double SpoutAlong, Double3 Lever) ChuteAt(RouteFeature f, RailLine line)
     {
         double mid = (f.Start + f.End) / 2;
+        return (mid, ChuteLever(mid, f.Side, line));
+    }
+
+    /// <summary>The chute's lever for a spout at <paramref name="mid"/> (the line generator's Holdouts keep their walk clear of it).</summary>
+    public static Double3 ChuteLever(double mid, int side, RailLine line)
+    {
         var t = line.Sample(mid + 6);
         var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
-        return (mid, t.Position + right * (f.Side * 3.2) + Double3.Up * 0.9);
+        return t.Position + right * (side * 3.2) + Double3.Up * 0.9;
     }
 
     /// <summary>
@@ -498,8 +516,7 @@ public sealed class Run
         var engine = EngineRake(train);
         var attached = engine.Consist.Vehicles.Select(v => v.Id).ToHashSet();
         var e = Tuning.Economy;
-        string tier = char.ToLowerInvariant(_route.Tier.ToString()[0]) + _route.Tier.ToString()[1..];
-        double perCar = e.PerCar.GetValueOrDefault(tier, 700);
+        double perCar = PerCar;
         var cargo = train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).ToList();
         var home = cargo.Where(v => attached.Contains(v.Id)).ToList();
         bool delivered = End == RunEnd.Delivered;
@@ -513,13 +530,50 @@ public sealed class Run
         const double WithTheTrain = 40;
         int crewHome = crew.Count(c => c.Alive && (c.Parent != PlayerState.World && attached.Contains(c.Parent)
             || attached.Any(id => (train.Frames[id].Origin - PlayerMotor.WorldPosition(c, train)).Length < WithTheTrain)));
-        // Spec C.2 "the alternative": a body carried to the terminus is revived free at the gate.
-        int revived = delivered ? world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.Ragdoll
-            && (attached.Contains(b.Parent) || b.Carrier >= 0)) : 0;
-        revived = Math.Min(revived, crew.Count(c => !c.Alive));
+        // App. D.9, bodies as loot: every in-run death's fee, and for each body delivered (stowed in a car still on the
+        // engine, or in the hands of someone home with the train), most of it back and its kit to stores.
+        var (fees, refunds, bodiesHome, bodiesLost, kit) = Bodies(world, attached, delivered, WithTheTrain);
         return new RunReport(End, Math.Round(Seconds, 1), Math.Round(engine.Distance / 1000, 2), home.Count, cargo.Count - home.Count,
             Math.Round(cargoValue, 2), Math.Round(gross), Math.Round(coal), Math.Round(ammo), Math.Round(repairs),
-            Math.Round(gross - coal - ammo - repairs), crewHome + revived, crew.Count - crewHome - revived, revived, Math.Round(delivered ? Mail : 0));
+            Math.Round(gross - coal - ammo - repairs - fees + refunds), crewHome, crew.Count - crewHome, Math.Round(delivered ? Mail : 0))
+        {
+            CrewLossFees = fees,
+            BodyRefunds = refunds,
+            BodiesDelivered = bodiesHome,
+            BodiesLost = bodiesLost,
+            KitReturned = kit,
+        };
+    }
+
+    /// <summary>
+    /// D.9 "delivered means stowed in a car attached to the locomotive at arrival, or carried by a crew member aboard.
+    /// Decouple the car and the body goes with it." A drop-out's body is kit only: no fee, no refund.
+    /// </summary>
+    static (double Fees, double Refunds, int Home, int Lost, IReadOnlyDictionary<Physics.BodyKind, int> Kit) Bodies(World world, HashSet<int> attached,
+        bool arrived, double withTheTrain)
+    {
+        var train = world.Train;
+        double fees = world.BodyRecords.Values.Sum(r => r.Fee), refunds = 0;
+        int home = 0, lost = 0;
+        var kit = new SortedDictionary<Physics.BodyKind, int>();
+        foreach (var record in world.BodyRecords.Values)
+        {
+            var b = world.Bodies.All.FirstOrDefault(x => x.Id == record.Body);
+            bool stowed = b is not null && attached.Contains(b.Parent) && b.Parent < train.Frames.Count && train.Frames[b.Parent].Shape is var shape
+                && (shape.Interior?.Contains(b.Centre) == true || shape.Cab?.Contains(b.Centre) == true);
+            bool carried = b is not null && b.Carrier >= 0
+                && attached.Any(id => (train.Frames[id].Origin - Physics.Bodies.WorldCentre(b, train)).Length < withTheTrain);
+            if (arrived && (stowed || carried))
+            {
+                home++;
+                refunds += record.Refund;
+                foreach (var k in record.Kit)
+                    kit[k] = kit.GetValueOrDefault(k) + 1;
+            }
+            else if (!record.DropOut)
+                lost++;
+        }
+        return (fees, refunds, home, lost, kit);
     }
 
     /// <summary>
@@ -543,6 +597,9 @@ public sealed class Run
         Departed = departedFacility;
     }
 
+    /// <summary>Client side: the host's settlement, from its incident report (App. D.12), so this machine's run has it too.</summary>
+    public void Adopt(RunReport report) => Report = report;
+
     /// <summary>Client side: adopts the host's run state.</summary>
     public void Mirror(RunPhase phase, RunEnd end, double seconds, int facility, bool chuteOpen, double[] chuteLeft,
         IReadOnlyList<SiteState>? sites = null)
@@ -560,4 +617,7 @@ public sealed class Run
     }
 
     public int FacilityCount => _facilities.Count;
+
+    /// <summary>Spec F.1: what this tier's contracts pay a delivered car (App. D.9's crew-loss fee is a share of it).</summary>
+    public double PerCar => Tuning.Economy.PerCar.GetValueOrDefault(char.ToLowerInvariant(_route.Tier.ToString()[0]) + _route.Tier.ToString()[1..], 700);
 }

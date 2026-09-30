@@ -85,6 +85,10 @@ sealed partial class LineBuilder
         foreach (var w in _alts.Where(w => w.WashoutOnMain))
             _alternateDrives[w.Edge] = _ideal!;
         _sloppyTransit = sloppy?.TransitSeconds ?? 0;
+        // App. D.4: the Holdouts, once the boards they're seen from are where they'll stay.
+        var holdoutClock = System.Diagnostics.Stopwatch.StartNew();
+        LayHoldouts();
+        _timings["holdouts"] = holdoutClock.Elapsed.TotalMilliseconds;
         RunChecks(sloppy);
     }
 
@@ -288,6 +292,14 @@ sealed partial class LineBuilder
             }
         }
         Check("walkability", steep.Count == 0, string.Join("; ", steep.Take(3)));
+
+        // App. D.4: every site's Holdouts, each where it should be, in sight and in reach.
+        if (_c.Holdouts is { } ht)
+        {
+            var faults = HoldoutSites.Check(Freeze(), _line!, _terrain!, ht, _c.Facilities, _c.Train);
+            Check("holdouts", faults.Count == 0, string.Join("; ", faults.Take(3)));
+            _metrics["holdouts"] = _holdouts.Count;
+        }
         Metrics(planned, deepest);
     }
 

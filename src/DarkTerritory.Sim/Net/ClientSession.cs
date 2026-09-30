@@ -79,9 +79,20 @@ public sealed class ClientSession
         _transport.Send(PeerId.Host, _voiceWriter.Written, Delivery.Unreliable);
     }
     public string SessionInfo { get; private set; } = "";
-    /// <summary>Set while welcomed but not yet aboard (spec E: drop-in at POIs), with the host's reason.</summary>
-    public string? WaitingReason { get; private set; }
-    public bool Waiting => WaitingReason is not null && !Connected;
+
+    readonly NetWriter _requestWriter = new();
+
+    /// <summary>This player's profile id (App. D.8: the host keeps their character against it). Sent once, after the Welcome.</summary>
+    public string? Profile { get; set; }
+
+    /// <summary>Asks the host for something (GDD App. D's dead phase and run end). Reliable; the host decides.</summary>
+    public void Send(in Request request)
+    {
+        if (PlayerId is null)
+            return;
+        Messages.WriteRequest(_requestWriter, request);
+        _transport.Send(PeerId.Host, _requestWriter.Written, Delivery.ReliableOrdered);
+    }
     public bool Connected => PlayerId is not null && _haveState;
     /// <summary>This player as predicted locally: what the local camera shows.</summary>
     public PlayerState Predicted;
@@ -172,14 +183,19 @@ public sealed class ClientSession
                     byte speaker = r.U8();
                     ushort vseq = r.U16();
                     var path = (VoicePath)r.U8();
-                    int source = path.HasFlag(VoicePath.Mimic) ? r.I32() : 0;
+                    int source = path.HasFlag(VoicePath.Mimic) || path.HasFlag(VoicePath.Holdout) ? r.I32() : 0;
                     VoiceFrames.Enqueue(new VoiceFrame(speaker, vseq, path, r.Rest().ToArray(), source));
-                    break;
-                case MessageType.Wait:
-                    WaitingReason = r.Str();
                     break;
                 case MessageType.Welcome:
                     (PlayerId, _, SessionInfo) = Messages.ReadWelcome(ref r);
+                    if (Profile is { Length: > 0 } profile)
+                    {
+                        Messages.WriteHello(_requestWriter, profile);
+                        _transport.Send(PeerId.Host, _requestWriter.Written, Delivery.ReliableOrdered);
+                    }
+                    break;
+                case MessageType.Report:
+                    TakeReportPart(ref r);
                     break;
                 case MessageType.Snapshot:
                     uint tick = r.U32(), acked = r.U32(), baseTick = r.U32();
@@ -205,6 +221,48 @@ public sealed class ClientSession
         }
         if (newest is not null)
             Reconcile(newest, newestAcked);
+    }
+
+    /// <summary>The night's incident report (App. D.12), as the host last sent it: from the run's end, with its commendations.</summary>
+    public Run.IncidentReport? Report { get; private set; }
+    // The revision being put together (or last put together), and its parts.
+    ushort _reportRevision;
+    bool _reportDone;
+    byte[]?[] _reportParts = [];
+
+    /// <summary>
+    /// A part of the host's report. Parts of a newer revision start it afresh (a commendation's been given); when every part
+    /// is in, it's the report, and the run's settlement is this machine's too (the run-end screen, the campaign's books).
+    /// </summary>
+    void TakeReportPart(ref NetReader r)
+    {
+        var (revision, part, parts, bytes) = Messages.ReadReport(ref r);
+        if (parts == 0 || part >= parts)
+            return;
+        if (revision != _reportRevision)
+        {
+            if ((short)(revision - _reportRevision) < 0)
+                return;
+            _reportRevision = revision;
+            _reportParts = new byte[]?[parts];
+            _reportDone = false;
+        }
+        if (_reportDone || _reportParts.Length != parts)
+            return;
+        _reportParts[part] = bytes;
+        if (_reportParts.Any(p => p is null))
+            return;
+        _reportDone = true;
+        try
+        {
+            var report = Run.IncidentReport.Decompress([.. _reportParts.SelectMany(p => p!)]);
+            Report = report;
+            World.Run?.Adopt(report.Run);
+        }
+        catch (Exception e) when (e is InvalidDataException or System.Text.Json.JsonException)
+        {
+            // A report that doesn't read is no report; the next revision may.
+        }
     }
 
     void Buffer(uint tick, List<WireRecord> records)

@@ -50,7 +50,7 @@ public sealed class World
     public TrainOnLine Train { get; }
     /// <summary>
     /// Where the cab's controls were set for the last step: what its gauges and levers show anyone in the cab (a
-    /// driver notches the throttle and flips the reverser from where they are). The Vigil's engine-off isn't in it.
+    /// driver notches the throttle and flips the reverser from where they are).
     /// </summary>
     public TrainControls Controls { get; private set; } = new() { Reverser = 1 };
     public CombatTuning? Combat { get; set; }
@@ -67,6 +67,10 @@ public sealed class World
     /// </summary>
     public HandTuning? Hand { get; set; }
     public ChoirState Choir;
+    /// <summary>Host, set each tick before the crew act: how many of the crew are alive (App. D.9's solo remainer).</summary>
+    public int LivingCrew { get; set; }
+    /// <summary>Host: the crew loudness meter (App. C.7).</summary>
+    public Combat.CrewLoudness Loudness { get; } = new();
     /// <summary>Hit volumes for this tick (from the enemies).</summary>
     public List<HitTarget> Targets { get; } = new();
     /// <summary>Rounds fired this tick.</summary>
@@ -127,14 +131,194 @@ public sealed class World
     /// <summary>This world simulates loose bodies itself (the host, or the single-player prototype).</summary>
     public void EnableBodies() => Authority = true;
 
-    /// <summary>Host: after everyone has moved, bodies for anyone who died, then a physics step.</summary>
+    /// <summary>
+    /// Host: after everyone has moved, a body for each death this tick (App. D.2: one body per death, so a player who dies
+    /// twice leaves two), then a physics step.
+    /// </summary>
     public void StepBodies(IReadOnlyCollection<(int Id, PlayerState State)> crew)
     {
         if (!Authority)
             return;
-        Bodies.OnDeaths(Train, crew);
+        foreach (var (id, s) in crew)
+        {
+            if (s.Alive)
+                _bodied.Remove(id);
+            else if (s.Death != DeathCause.None && _bodied.Add(id))
+                Died(id, s, Bodies.SpawnRagdoll(Train, id, s), dropOut: false);
+        }
         Bodies.Step(Train, Train.Dynamics.Tuning, id => crew.FirstOrDefault(c => c.Id == id) is { State: var s } pair && pair.Id == id ? s : null);
     }
+
+    // The players whose current death has already left its body.
+    readonly HashSet<int> _bodied = new();
+
+    /// <summary>Every death this run, and every drop-out's inert body (App. D.2), oldest first: the report's and settlement's.</summary>
+    public List<Run.DeathRecord> Deaths { get; } = new();
+    /// <summary>Each body as loot (App. D.9), by body id: its fee, its refund, and the kit it kept.</summary>
+    public Dictionary<int, Run.BodyRecord> BodyRecords { get; } = new();
+
+    /// <summary>
+    /// Host: a player has left a body (App. D.2): recorded where it fell, charged its fee (a drop-out's isn't), and the
+    /// player into the respawn queue, ineligible at the site whose zone it happened in (D.5).
+    /// </summary>
+    void Died(int id, in PlayerState s, Physics.Body body, bool dropOut)
+    {
+        // Before the gates open it isn't the run's (App. D.3: everyone in the yard is back aboard at the fortress).
+        if (Run is { Phase: global::DarkTerritory.Sim.Run.RunPhase.Yard })
+            return;
+        // App. D.2 "it keeps everything the player was carrying": the train's things in their hands and on their belt go with
+        // the body, and back to stores when it's delivered (D.9). Freight they had hold of, and another body, fall.
+        var kit = new List<Physics.BodyKind>();
+        foreach (var b in Bodies.All.Where(b => b.HeldBy(id) && b.Kind is not (Physics.BodyKind.Cargo or Physics.BodyKind.Heavy or Physics.BodyKind.Ragdoll)).ToList())
+        {
+            kit.Add(b.Kind);
+            Bodies.Remove(b);
+        }
+        var at = PlayerMotor.WorldPosition(s, Train);
+        double hint = s.LineHint;
+        var (path, distance) = Train.Line.Nearest(at, ref hint);
+        var zones = Holdouts?.ZonesAt(path, distance) ?? [];
+        double seconds = Run?.Seconds ?? ElapsedSeconds;
+        Deaths.Add(new Run.DeathRecord(id, body.Id, Math.Round(seconds, 2), Math.Round(hint, 1), dropOut ? DeathCause.None : s.Death, zones.FirstOrDefault(), dropOut));
+        if (HoldoutTuning is { } ht && Run is { } run)
+            BodyRecords[body.Id] = global::DarkTerritory.Sim.Run.BodyRecord.For(ht, run.PerCar, body.Id, id, dropOut, kit);
+        if (!dropOut)
+            Holdouts?.Queue.Died(id, seconds, zones);
+    }
+
+    /// <summary>
+    /// Host: a player has left the session (App. D.2 "drop-out"): a living one leaves an inert body, kit and all, with no fee;
+    /// a waiting one leaves the queue (D.6), and any Holdout they had reassigns.
+    /// </summary>
+    public void DroppedOut(int id, in PlayerState s)
+    {
+        if (s.Alive && !Bodies.HasRagdoll(id))
+        {
+            _bodied.Add(id);
+            Died(id, s, Bodies.SpawnRagdoll(Train, id, s), dropOut: true);
+        }
+        Holdouts?.Queue.Remove(id);
+        _bodied.Remove(id);
+    }
+
+    /// <summary>
+    /// App. D.9: what a loose thing is worth to anything that ranks loot: a body, its refund. Nothing in this build's roster
+    /// ranks loot yet (v1.1's Gaunt, Followers and Car Hugger will): this is what they're to rank bodies by.
+    /// </summary>
+    public double LootValue(Physics.Body b) =>
+        b.Kind == Physics.BodyKind.Ragdoll && BodyRecords.TryGetValue(b.Id, out var r) ? r.LootValue : 0;
+
+    /// <summary>App. D.13, when the night has Holdouts: holdouts.json.</summary>
+    public Run.HoldoutTuning? HoldoutTuning { get; private set; }
+    /// <summary>The night's Holdouts and the respawn queue (App. D.5, D.6), on a generated line that has them.</summary>
+    public Run.Holdouts? Holdouts { get; private set; }
+
+    /// <summary>The Holdouts from the night's Line Plan. Host and clients alike (clients mirror their state).</summary>
+    public void EnableHoldouts(Run.HoldoutTuning tuning)
+    {
+        HoldoutTuning = tuning;
+        if (TrackPlan is { Holdouts.Count: > 0 } plan)
+            Holdouts = new Run.Holdouts(tuning, plan, Train.Line);
+    }
+
+    /// <summary>
+    /// Host, after bodies: the Holdouts' step (App. D.5), and whoever it frees stood up inside theirs (D.8).
+    /// </summary>
+    /// <param name="sessionCrew">Everyone in the session, for the second facility Holdout's gate.</param>
+    public void StepHoldouts(Func<int, PlayerState?> get, Action<int, PlayerState> set, IEnumerable<int> crew, int sessionCrew, PlayerTuning p)
+    {
+        if (!Authority)
+            return;
+        var ids = crew.ToList();
+        List<(int, PlayerState)> Everyone() => [.. ids.Select(id => (id, get(id))).Where(x => x.Item2 is not null).Select(x => (x.id, x.Item2!.Value))];
+        if (Holdouts is { } holdouts)
+        {
+            var damaged = Damage.Select(d => d.PlayerId).ToHashSet();
+            holdouts.Step(Train, Everyone(), damaged, sessionCrew, Run?.Seconds ?? ElapsedSeconds, SimConstants.TickSeconds);
+            foreach (var e in holdouts.Events)
+                if (e.Outcome == global::DarkTerritory.Sim.Run.HoldoutOutcome.Freed && get(e.Player) is { } was)
+                {
+                    var h = holdouts.All[e.Holdout];
+                    var back = holdouts.FreedState(h, Train, p);
+                    back.Placed = (byte)(was.Placed + 1);
+                    set(e.Player, back);
+                    GiveStandardKit(e.Player, back);
+                    Characters[e.Player] = new global::DarkTerritory.Sim.Run.Character(h.Appearance, h.VoiceSet);
+                }
+        }
+        // Whom the dead watch, once the freed are back among the living.
+        Dead.Step(Everyone());
+    }
+
+    /// <summary>The dead phase (App. D.10): whom the dead watch, and what they've asked for.</summary>
+    public Run.DeadPhase Dead { get; } = new();
+
+    /// <summary>Host: a player's request (App. D). Returns whether it was allowed.</summary>
+    public bool Request(int player, in Net.Request q, IReadOnlyCollection<(int Id, PlayerState State)> crew) =>
+        crew.FirstOrDefault(c => c.Id == player) is { } me && me.Id == player && Dead.Handle(this, player, me.State, q, crew);
+
+    /// <summary>App. D.11: each creature's votes this run, and who's voted (once a run each).</summary>
+    public Dictionary<EnemyKind, int> Votes { get; } = new();
+    public List<(int Player, EnemyKind Kind, double Seconds)> VoteLog { get; } = new();
+
+    /// <summary>
+    /// App. D.11, the creature vote: dead players only (a lobbied player votes once they've been in the crew and died), once
+    /// a run each, locked on submit (an unused vote waits for a later death), for a creature the director could draw now.
+    /// Its only effect is a weight inside the director's roll, within the creature's want tag.
+    /// </summary>
+    public bool Vote(int player, in PlayerState state, EnemyKind kind)
+    {
+        if (state.Alive || state.Death == DeathCause.None || state.Has(PlayerFlags.Lobbied) || HoldoutTuning is not { } t || Director is not { } d)
+            return false;
+        if (VoteLog.Count(v => v.Player == player) >= t.Vote.PerRun || !d.Voteable(this).Contains(kind))
+            return false;
+        Votes[kind] = Votes.GetValueOrDefault(kind) + 1;
+        VoteLog.Add((player, kind, Math.Round(Run?.Seconds ?? ElapsedSeconds, 1)));
+        d.SetVotes(Votes, t.Vote);
+        return true;
+    }
+
+    /// <summary>What the dead can vote for now (App. D.11): the director's, host side; mirrored to the dead, and only them.</summary>
+    public IReadOnlyList<EnemyKind> VoteOptions => Director?.Voteable(this) ?? _voteOptions;
+    List<EnemyKind> _voteOptions = [];
+
+    /// <summary>Client side: the vote as the host sent it to the dead (the options, who's voted, the counts).</summary>
+    public void MirrorVotes(IEnumerable<EnemyKind> options, IEnumerable<int> voted, IEnumerable<(EnemyKind Kind, int Count)> counts)
+    {
+        _voteOptions = [.. options];
+        VoteLog.Clear();
+        foreach (int p in voted)
+            VoteLog.Add((p, EnemyKind.Sleepers, 0));
+        Votes.Clear();
+        foreach (var (k, n) in counts)
+            Votes[k] = n;
+    }
+
+    /// <summary>App. D.12: the commendations given on the run-end screen, in the order they were given.</summary>
+    public List<Run.Commendation> Commendations { get; } = new();
+
+    /// <summary>
+    /// App. D.12, a commendation: once the run's over, anyone in the session (the living, the dead, the lobbied) gives up to
+    /// <c>commendations.perPlayer</c> (one) to someone else in it, never themselves, from the award list. There are no
+    /// demerits. The receiver's profile keeps it (the game side, from the report).
+    /// </summary>
+    public bool Commend(int player, int to, int award, IReadOnlyCollection<(int Id, PlayerState State)> crew)
+    {
+        if (Run is not { Over: true } || HoldoutTuning is not { } t)
+            return false;
+        if (to == player || !crew.Any(c => c.Id == to) || award < 0 || award >= t.Commendations.Awards.Length)
+            return false;
+        if (Commendations.Count(c => c.From == player) >= t.Commendations.PerPlayer)
+            return false;
+        Commendations.Add(new Run.Commendation(player, to, t.Commendations.Awards[award]));
+        return true;
+    }
+
+    /// <summary>
+    /// App. D.8: a freed player's survivor, by player: who they are from then on. The host's campaign save keeps them against
+    /// the player's id; the art draws them.
+    /// </summary>
+    public Dictionary<int, Run.Character> Characters { get; } = new();
 
     /// <summary>Host: what the train leaves the yard with that isn't cargo: crates and a lamp in the guard van (GDD §10 tool storage).</summary>
     public void Stock()
@@ -157,6 +341,31 @@ public sealed class World
         Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(-0.9, floor, room.Max.Z - 2.5), Physics.BodyKind.Lamp);
         for (int i = 0; i < radios; i++)
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(-0.9, floor, room.Max.Z - 3.3 - 0.5 * i), Physics.BodyKind.Radio);
+        // The tools (App. C.2, D.7), along the other wall at the front end, clear of the crates and the rear door.
+        int n = 0;
+        foreach (var (kind, count) in Train.Dynamics.Tuning.Kit.Tools.OrderBy(t => t.Key))
+            for (int i = 0; i < count; i++, n++)
+                Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(-0.9, floor, room.Min.Z + 1.2 + 0.5 * n), kind);
+    }
+
+    /// <summary>
+    /// App. D.8: the standard kit (train.json <c>kit.standard</c>) into a player's hands: what everyone departs the fortress
+    /// with, and what a freed player comes out of the Holdout with. A radio goes on the belt; one thing in the hands.
+    /// </summary>
+    public void GiveStandardKit(int player, in PlayerState s)
+    {
+        if (!Authority)
+            return;
+        foreach (var kind in Train.Dynamics.Tuning.Kit.Standard)
+        {
+            if (kind != Physics.BodyKind.Radio && Bodies.CarriedBy(player) is not null)
+                continue;
+            var at = PlayerMotor.WorldPosition(s, Train);
+            var item = Bodies.SpawnLoose(at + Ballast.Double3.Up, s.LineHint, kind);
+            item.Carrier = player;
+            if (kind == Physics.BodyKind.Radio)
+                Bodies.RadiosCarried = true;
+        }
     }
 
     /// <summary>The route's boards and the hazards they warn of (sight.json), when playing a route.</summary>
@@ -171,35 +380,8 @@ public sealed class World
     /// <summary>Tonight's run (departure, facilities, terminus, dawn), when playing a route.</summary>
     public Run.Run? Run { get; private set; }
 
-    /// <summary>Spec C.2 revival. Networked sessions only: the host runs it, clients mirror it.</summary>
-    public Run.Vigil? Vigil { get; private set; }
-    public void EnableVigil(Run.VigilTuning tuning) => Vigil = new Run.Vigil(tuning);
-    /// <summary>A Vigil under way: engine off, lights to emergency only, guns dead, the vent roaring.</summary>
-    public bool EmergencyLights => Vigil is { Active: true };
-    /// <summary>The headlamp is on and has power (it doesn't in a Vigil).</summary>
-    public bool LampShining => LampLit && !EmergencyLights;
-
-    /// <summary>
-    /// Host, after bodies: runs the Vigil and brings back whoever it revives, in the cab, cold (spec C.2 "the revived").
-    /// Also lifts "the revived" off anyone who has reached the next stop.
-    /// </summary>
-    public Run.VigilEvent? StepVigil(Func<int, PlayerState?> get, Action<int, PlayerState> set, IEnumerable<int> crew, PlayerTuning p)
-    {
-        if (!Authority || Vigil is not { } v)
-            return null;
-        foreach (int id in crew)
-            if (get(id) is { } s && s.Has(PlayerFlags.Revived) && v.RecoveredAt(id, Run))
-                set(id, s with { Flags = s.Flags & ~PlayerFlags.Revived });
-        var e = v.Step(this, get, SimConstants.TickSeconds);
-        if (e is { Outcome: global::DarkTerritory.Sim.Run.VigilOutcome.Revived } r && get(r.PlayerId) is { } dead)
-        {
-            var back = PlayerMotor.SpawnInCab(Train, p);
-            back.Flags = dead.Flags | PlayerFlags.Revived;
-            back.Placed = (byte)(dead.Placed + 1);
-            set(r.PlayerId, back);
-        }
-        return e;
-    }
+    /// <summary>The headlamp is on (the cab's lamp switch, T52, and not smashed out).</summary>
+    public bool LampShining => LampLit;
 
     /// <summary>The generated line whose track rules the host holds the train to (curves, weak bridges, washouts); null for a hand-laid one.</summary>
     public LineGen.LinePlan? TrackPlan { get; set; }
@@ -260,27 +442,37 @@ public sealed class World
         }
         if (Authority && Switches?.CrewAct(s, intent, playerId, Train, Hand) is { } thrown)
             SwitchThrows.Add(thrown);
-        if (Authority)
-            Vigil?.CrewAct(s, intent, playerId, Train, Hand);
-        // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever.
-        bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand);
+        // A Holdout's door first (App. D.7): holding Use there with a tool is the breach, not putting the tool down.
+        bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, Bodies, Hand) == true;
+        if (breaching)
+            Bodies.Seen(playerId, intent);
+        // Hands next: a Use press that picks something up (or puts it down) isn't also working a lever.
+        bool handsTookIt = breaching || Authority && Bodies.Handle(s, intent, playerId, Train, Hand);
         // At the crane's controls, the stick drives the crane, not your feet (T48). Worked out the same everywhere, so a
         // client predicts standing still at the stand.
         bool operating = Run?.CurrentSite?.Crane is { } crane && crane.AtControls(s, intent, Train);
         s.Flags = operating ? s.Flags | PlayerFlags.Operating : s.Flags & ~PlayerFlags.Operating;
         if (Authority)
         {
-            // Freight in your arms slows you and keeps you off ladders (spec B.2); the motor reads the flag.
-            bool heavy = Bodies.All.Any(b => b.HeldBy(playerId) && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy);
+            // Freight in your arms slows you and keeps you off ladders (spec B.2), and so does a body (App. D.9: hand-carried
+            // loot, 2.8 m/s and no climbing), unless you're the last of the crew alive (the solo remainer's slow climb).
+            // The motor reads the flags.
+            bool heavy = Bodies.All.Any(b => b.HeldBy(playerId) && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy or Physics.BodyKind.Ragdoll);
+            bool solo = heavy && LivingCrew == 1 && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll };
             s.Flags = heavy ? s.Flags | PlayerFlags.Heavy : s.Flags & ~PlayerFlags.Heavy;
+            s.Flags = solo ? s.Flags | PlayerFlags.SoloCarry : s.Flags & ~PlayerFlags.SoloCarry;
         }
         if (!handsTookIt)
             CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand);
         var targets = viewTick is { } vt && _targetHistory.TryGetValue(vt, out var then) ? then : Targets;
-        // Spec C.2: no guns during a Vigil (no steam to traverse them), nor for the revived until the next POI.
-        if (Combat is { } c && !EmergencyLights && !s.Has(PlayerFlags.Revived)
+        if (Combat is { } c
             && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
+        {
             Shots.Add(shot);
+            // The guns' own Choir aggro is by the round (RoundFired): the meter counts them, and doesn't feed them twice.
+            if (Authority)
+                Loudness.Add("gun", "cannon", c.Loudness, counted: true);
+        }
         _context?.Crew.Add((new PlayerSnapshot((byte)playerId, s), intent));
         if (Authority)
             _actors.Add((playerId, s, intent));
@@ -305,13 +497,6 @@ public sealed class World
     {
         Controls = controls;
         var applied = controls;
-        if (EmergencyLights)
-        {
-            // Spec C.2 "during the Vigil": engine off, no movement, and the boiler venting to nothing.
-            applied.Throttle = 0;
-            applied.Brake = 1;
-            Train.Boiler.Venting = true;
-        }
         // The Deadman at the controls (App. A.5): "throttle locks, brake unresponsive, train accelerates".
         if (_enemies.Any(e => e is Deadman { Holding: true }))
         {
@@ -338,13 +523,15 @@ public sealed class World
             // App. B.8: livestock aboard raises the Choir's floor (they're never quiet); the Choir's state replicates, floor and all.
             if (Authority)
                 Choir.Floor = DarkTerritory.Sim.Enemies.Director.Aboard(this).Contains(DarkTerritory.Sim.Train.CargoKind.Livestock) ? c.Choir.LivestockFloor : 0;
+            // App. C.7: what the living are doing that's loud (a breach, App. D.7) goes on the meter, and the meter to the Choir.
+            if (Authority)
+            {
+                foreach (var level in Holdouts?.Noise() ?? [])
+                    Loudness.Add("breach", level, c.Loudness);
+                Loudness.Step(ref Choir, c.Choir, c.Loudness, SimConstants.TickSeconds);
+            }
             Choir.Step(c.Choir, SimConstants.TickSeconds);
-            // "The vent is deafening. Choir aggro spikes to maximum instantly", and stays there while it roars.
-            if (EmergencyLights)
-                Choir.Deafening(c.Choir);
         }
-        if (Authority && Director is { } director)
-            director.RateMultiplier = EmergencyLights && Vigil is { } v ? v.Tuning.NoiseSpawnMultiplier : 1;
         if (Authority && _context is { } ctx)
             StepEnemies(ctx);
         Pace();
@@ -619,6 +806,9 @@ public sealed class World
         foreach (var d in Damage)
         {
             if (get(d.PlayerId) is not { Alive: true } s)
+                continue;
+            // App. D.4: nothing deals damage inside a sealed Holdout.
+            if (Holdouts?.InSealed(PlayerMotor.WorldPosition(s, Train)) == true)
                 continue;
             if (d.Pull is { } outward)
             {

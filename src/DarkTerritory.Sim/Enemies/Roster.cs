@@ -1409,7 +1409,7 @@ public sealed class Climber(int id) : Enemy(id)
         var shape = train.Frames[car].Shape;
         double z = Local.Z - t.TraverseSpeed * SimConstants.TickSeconds;
         // Over the middle of a car with a room in it and nobody inside (or every lamp out): in it goes.
-        if (Local.Z > 0 && z <= 0 && shape.Interior is { } room && (ctx.World.EmergencyLights || !Occupied(ctx, car)))
+        if (Local.Z > 0 && z <= 0 && shape.Interior is { } room && !Occupied(ctx, car))
         {
             Local = room.Centre with { Y = room.Min.Y };
             Enter(ctx, SpinePhase.Punish);
