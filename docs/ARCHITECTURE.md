@@ -1749,3 +1749,16 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - The sweep (frontier, seeds 1–2, crews 2 and 8) delivers all four nights and passes every check. frontier:1 at crew 8 comes home (2376), frontier:2 at crew 8 makes 3515, 43 punishes a night.
       - frontier:7 delivers (3791).
       - deadLines:3, "still under way at 3600 s" since T66 (T73), now delivers (2612, all eight home) in a 5400 s window. The night was the dead fire and the window: a Dead Lines night with its yard runs past 3600 s of harness time.
+88. **The Dead Lines sweep: the cut-off rake counts as aboard, the driver calls all aboard, and the terrain at its ceiling isn't a quiet (T76).** The first sweep on the Dead Lines tier ran with a 5400 s window per night; a Dead Lines night with its yard runs past 3600 s. Crews of 2 delivered both nights. Crews of 8 missed the dawn on both, and one quiet ran 49.4 s.
+    - **Held for the cut-off rake.** On deadLines:2 the Held leg waited 360 s: its two give-ups.
+      - It wanted everyone with a part aboard the engine's rake. The gunner and two crate hands were on the car behind the cut, and nothing sent them across.
+      - That car stays on the main, and the engine comes back and couples up to it, as for anyone warming in it (T64). So a stop's waits count anyone on any car of the train as aboard.
+    - **All aboard.** Both nights then spent the aboard wait's full 120 s after the loading.
+      - The crate hands kept fetching crates after the driver had called the loading done or late.
+      - The driver now says so (`CrewCalls.Leaving`). Crate hands put nothing more in, shut up behind them and come aboard; the winch pair stop cranking and come aboard.
+    - **Terrain at its ceiling.** The 49.4 s quiet was "director: terrain at its ceiling": linegen plan §15.4's "none of its own while the terrain is already at its hardest there". The terrain's the problem there, so it isn't counted as a quiet.
+    - **After** (deadLines, seeds 1–2, crews 2 and 8, 5400 s): every check passes.
+      - Longest quiet 22.7 s, mean 10.0 s, 66.5 punishes a night at crew 8, fair.
+      - Crews of 2 deliver both nights.
+      - Crews of 8 still miss the dawn, losing 5–6 (T77).
+      - frontier:7 delivers (2984).

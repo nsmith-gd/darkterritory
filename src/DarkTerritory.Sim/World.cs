@@ -389,7 +389,10 @@ public sealed class World
         double front = Train.Dynamics.Distance;
         bool home = Route is { } r && (front > r.Length - NoSpawnFinalApproach || r.Plan?.Director.TagsAt(front).Contains("terminus_safe") == true);
         bool out_ = (Run is null || Run.Phase is DarkTerritory.Sim.Run.RunPhase.Underway or DarkTerritory.Sim.Run.RunPhase.AtFacility) && !home;
-        bool active = _enemies.Any(e => !e.Gone && e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish);
+        bool active = _enemies.Any(e => !e.Gone && e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish)
+            // The line at its hardest (linegen plan §15.4): the director sends nothing of its own there because the terrain's
+            // the problem, and a crew working a train over it isn't sitting through a quiet (T76).
+            || Route?.Plan?.Director is { } context && context.PressureAt(front) >= context.PressureCeiling;
         QuietSeconds = !out_ || Beats.Count > 0 || active ? 0 : QuietSeconds + SimConstants.TickSeconds;
     }
 
