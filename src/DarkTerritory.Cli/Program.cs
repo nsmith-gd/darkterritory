@@ -56,6 +56,7 @@ return args switch
     ["screenshot", ..] => Print(Screenshot(train, content, args)),
     ["route", "gen", ..] => Print(GenerateRoute(routeTuning, content, args)),
     ["route", "sweep", ..] => Print(SweepRoutes(routeTuning, (int)Opt(args, "--seeds", 200))),
+    ["linegen", var verb, ..] => Print(LineGenCommands.Run(content, verb, args)),
     ["harness", ..] => Print(RunHarness(args)),
     ["balance", ..] => PrintBalance(RunBalance(args)),
     ["online", "check"] => Print(OnlineCheck()),
@@ -89,7 +90,7 @@ static object TrainTable(TrainTuning t, PlayerTuning p) => t.Performance.Select(
 
 object RunHarness(string[] args)
 {
-    Route? route = Str(args, "--route", "") is { Length: > 0 } spec ? RouteGenerator.Generate(routeTuning, Route.ParseSpec(spec).Tier, Route.ParseSpec(spec).Seed) : null;
+    Route? route = Str(args, "--route", "") is { Length: > 0 } spec ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, (int)Opt(args, "--cars", 10)) : null;
     var line = route?.Build() ?? LoadLine(Str(args, "--line", "test-loop"));
     var combat = DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File));
     var enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File));
@@ -124,7 +125,7 @@ object RunHarness(string[] args)
         Sight = sight,
         Run = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)),
         Facilities = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
-        YardLength = routeTuning.YardLength,
+        YardLength = route?.GateOr(routeTuning.YardLength) ?? routeTuning.YardLength,
     }, args.Contains("--no-boiler") ? null : boiler);
 }
 
@@ -298,8 +299,8 @@ static object VrCheck(TrainTuning t, string content, string[] args)
 // set the switch back, and go. Prints when each step began and how the train came out of it.
 static object FacilityDrill(TrainTuning t, string content, RouteTuning rt, string[] args)
 {
-    var (tier, seed) = Route.ParseSpec(Str(args, "--route", "frontier:7"));
-    var route = RouteGenerator.Generate(rt, tier, seed);
+    int cars = (int)Opt(args, "--cars", 7);
+    var route = DarkTerritory.Sim.LineGen.Routes.Generate(content, Str(args, "--route", "frontier:7"), cars);
     var facilities = route.Of(FeatureKind.Facility).ToList();
     var run = new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), route);
     int facility = (int)Opt(args, "--facility", Enumerable.Range(0, facilities.Count).FirstOrDefault(i => run.SpurOf(i) >= 0, -1));
@@ -307,11 +308,10 @@ static object FacilityDrill(TrainTuning t, string content, RouteTuning rt, strin
         return new { error = $"{route.Name} has no facility with a spur{(facility >= 0 ? $" at {facility}" : "")}" };
     var line = route.Build();
     var spur = line.Branches[run.SpurOf(facility)];
-    int cars = (int)Opt(args, "--cars", 7);
     var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, cars, 0.5)), line, spur.Toe - 120);
     var world = new World(train);
     world.EnableSwitches(rt.Junctions);
-    world.EnableRun(run.Tuning, route, rt.YardLength, authority: true);
+    world.EnableRun(run.Tuning, route, route.GateOr(rt.YardLength), authority: true);
     var drill = new DarkTerritory.Sim.Run.SpurDrill(world, facility);
     double loadFor = Opt(args, "--load-seconds", 0), loading = 0;
     var order = train.Dynamics.Consist.Vehicles.Select(v => v.Id).ToArray();
@@ -407,7 +407,7 @@ object CampaignCommand(string content, string verb, string[] args)
                 var s = Load();
                 var contract = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s)[(int)Opt(args, "--contract", 0)];
                 s = DarkTerritory.Sim.Campaign.Campaign.Begin(s, contract);
-                var route = RouteGenerator.Generate(routeTuning, contract.Tier, contract.Seed);
+                var route = DarkTerritory.Sim.LineGen.Routes.Generate(content, contract.Tier, contract.Seed, s.Cars);
                 var loadout = DarkTerritory.Sim.Campaign.Campaign.Apply(t, s.Upgrades, new DarkTerritory.Sim.Campaign.Loadout(train, boiler,
                     DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)),
                     DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File))));
@@ -422,7 +422,7 @@ object CampaignCommand(string content, string verb, string[] args)
                     Enemies = args.Contains("--no-enemies") ? null : loadout.Enemies,
                     Route = route,
                     Run = runTuning,
-                    YardLength = routeTuning.YardLength,
+                    YardLength = route.GateOr(routeTuning.YardLength),
                     Facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
                     Vigil = DataFile.Load<DarkTerritory.Sim.Run.VigilTuning>(Path.Combine(content, DarkTerritory.Sim.Run.VigilTuning.File)),
                     Sight = sight,
@@ -555,7 +555,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
 
     // --route tier:seed generates the night in memory; --coaling stops the train at its coaling tower, chute pouring.
     Route? generated = Str(args, "--route", "") is { Length: > 0 } spec
-        ? RouteGenerator.Generate(DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File)), Route.ParseSpec(spec).Tier, Route.ParseSpec(spec).Seed)
+        ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
         : null;
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
     var consist = Consist.Uniform(t, cars, 1);
@@ -576,7 +576,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         run = new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
         run.EnableSites(DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)), line);
         // --crane: the first facility with a gantry crane (T48) instead, its first casting on the hook.
-        site = args.Contains("--crane") ? run.Sites.FirstOrDefault(x => x?.Crane is not null)
+        // --facility i: that facility's site, whatever it has (to look at a kind's buildings).
+        int pick = (int)Opt(args, "--facility", -1);
+        site = pick >= 0 && pick < run.Sites.Count ? run.Sites[pick]
+            : args.Contains("--crane") ? run.Sites.FirstOrDefault(x => x?.Crane is not null)
             : run.Sites.FirstOrDefault(x => x is not null && x.Has(DarkTerritory.Sim.Run.ModuleKind.Winch)) ?? run.Sites.FirstOrDefault(x => x is not null);
         if (site?.Crane is { } shownCrane)
         {
@@ -652,7 +655,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         cargo = [.. shelf.All];
         if (Str(args, "--cam", "") is not { Length: > 0 })
         {
-            if (site.Crane is { } crane)
+            // (--crank closes on the winch's cranks even at a facility that also has a crane.)
+            if (site.Crane is { } crane && !args.Contains("--crank"))
             {
                 // High on the near side of the track, past the gantry's end, looking down across the train at the hook and castings.
                 var outward = (crane.Corner(0, 1) - crane.Corner(0, 0)) with { Y = 0 };
@@ -688,6 +692,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     using var renderer = new GreyboxRenderer(gpu, width, height);
     var mesh = new MeshBuilder();
     var look = Looked(content, args);
+    if (look is not null)
+        look.Sky = DarkTerritory.Game.Art.PlanSky.For(route);
     look?.Dress(renderer);
     // --ps2: the pipeline's debug era mode, for art direction to compare against (no spec maps, harder banding, no bloom).
     if (args.Contains("--ps2"))
@@ -705,6 +711,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     var scene = new GreyboxScene
     {
+        // --draw m: how far along the line to build it (an aerial view of a stretch wants more than the cab's 400).
+        DrawDistance = (float)Opt(args, "--draw", 400),
         Tick = args.Contains("--muzzle") ? 101 : -1,
         Look = look,
         Route = route,
@@ -733,6 +741,21 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     {
         lighting.FogDensity = (float)route.Weather.FogDensity;
         lighting.Wetness = route.Weather.Wet ? 1 : 0;
+    }
+    // --fog d: a thinner (or thicker) night than the route's, to look the lie of the land over.
+    if (args.Contains("--fog"))
+        lighting.FogDensity = (float)Opt(args, "--fog", lighting.FogDensity);
+    // --survey: a flat, bright, clear light for reading the land's shape (the curves, the grades, the cuttings): a
+    // designer's view of a generated line, not the game's night.
+    if (args.Contains("--survey"))
+    {
+        lighting.MoonDirection = System.Numerics.Vector3.Normalize(new System.Numerics.Vector3(0.4f, 0.8f, 0.3f));
+        lighting.MoonColour = new System.Numerics.Vector3(1, 0.97f, 0.9f);
+        lighting.MoonStrength = 2.2f;
+        lighting.Ambient = 0.55f;
+        lighting.FogColor = new System.Numerics.Vector3(0.62f, 0.64f, 0.66f);
+        lighting.FogDensity = args.Contains("--fog") ? lighting.FogDensity : 0.0012f;
+        lighting.Wetness = 0;
     }
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor);
     PngWriter.Write(output, pixels, width, height, scale);
@@ -887,7 +910,7 @@ static object HudShot(string content, string[] args)
 {
     int cars = (int)Opt(args, "--cars", 6);
     Route? generated = Str(args, "--route", "") is { Length: > 0 } spec
-        ? RouteGenerator.Generate(DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File)), Route.ParseSpec(spec).Tier, Route.ParseSpec(spec).Seed)
+        ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
         : null;
     var session = generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
     session.Controls.Throttle = Opt(args, "--throttle", 0.6);
@@ -912,6 +935,14 @@ static object HudShot(string content, string[] args)
     }
     var hud = new Overlay();
     Hud.Build(hud, width, height, session);
+    // --card: the generated line's route card over it; --overlay: the designer's overlay (linegen plan §9.7, §20.2).
+    if (session.Route?.Plan is { } plan)
+    {
+        if (args.Contains("--card"))
+            DarkTerritory.Game.LineGen.PlanHud.RouteCard(hud, width, height, plan, (int)Opt(args, "--page", 0));
+        if (args.Contains("--overlay"))
+            DarkTerritory.Game.LineGen.PlanHud.Overlay(hud, width, height, session, plan);
+    }
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, hud);
     PngWriter.Write(output, pixels, width, height, scale);
     return new { path = Path.GetFullPath(output), prompt = Hud.Prompt(session), quads = hud.Count / 6, status = session.Status() };
@@ -996,7 +1027,7 @@ static int Usage()
                      [--vigil]    emergency lighting, as during a Vigil (spec C.2)
                      [--ps2]      the era comparison mode   [--muzzle] the guns just fired   [--builds n] time n warm builds
                      [--integrity a,b,..] each car's condition, front to back (scars and damage states)
-                     [--route tier:seed --site [--crank | --crane]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook
+                     [--route tier:seed --site [--crank | --crane | --facility i]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --facility: the route's i-th
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
@@ -1007,6 +1038,10 @@ static int Usage()
           route gen [--tier local|frontier|deadLines|deepTerritory] [--seed n] [--name generated] [--map file.png]
                      writes content/lines/<name>.json (+ .route.json) and a map; try `screenshot --line generated`
           route sweep [--seeds n]                  generate n routes per tier and report ranges
+          linegen generate [--tier t] [--severity 0..1] [--cars n] [--seed n] [--out plan.json] [--map map.png] [--profile p.png]
+                     the procedural line generator (docs/design/linegen-plan.md): a Line Plan, its map and profile
+          linegen sweep [--tier all|t] [--cars 3,10,20] [--seeds n] [--report sweep.csv] [--fallbacks]
+                     generation, validation and metrics over many seeds (plan §16.5, §20.2)
           harness [--bots n] [--cars n] [--seconds t] [--seed s] [--latency s] [--jitter s] [--loss 0..1] [--line name | --route tier:seed]
                      [--enemies] [--no-combat] [--no-boiler] [--udp | --online] [--trace file]   --udp: real sockets on localhost instead of the simulated link;
                      --online: every bot joins a lobby on the fake Steam and plays over relayed P2P

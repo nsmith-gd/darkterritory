@@ -77,7 +77,11 @@ public sealed record PacingReport(int Beats, double BeatsPerMinute, double Longe
 
 /// <summary>What the director and the enemies did (GDD §34 / App. B.9 audit).</summary>
 public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictionary<string, int> Spawned, IReadOnlyDictionary<string, int> Punishes,
-    IReadOnlyDictionary<string, int> DeathsByCause, int FairnessViolations, bool Derailed, double ChoirPeak, double MeanCargoIntegrity, int RoundsFired);
+    IReadOnlyDictionary<string, int> DeathsByCause, int FairnessViolations, bool Derailed, double ChoirPeak, double MeanCargoIntegrity, int RoundsFired)
+{
+    /// <summary>The conflict-table pairs the director put together (App. B.1).</summary>
+    public IReadOnlyList<string> Pairs { get; init; } = [];
+}
 
 /// <summary>
 /// Host plus N bot clients in one process over a <see cref="LoopbackNetwork"/> with simulated lag and loss,
@@ -222,7 +226,8 @@ public static class Harness
                 d.Log.GroupBy(l => l.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()),
                 events.Where(e => e.To == SpinePhase.Punish).GroupBy(e => e.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()),
                 deaths, unfair, host.World.Derailed, Math.Round(choirPeak, 1),
-                Math.Round(host.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).DefaultIfEmpty().Average(v => v?.CargoIntegrity ?? 1), 3), rounds);
+                Math.Round(host.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).DefaultIfEmpty().Average(v => v?.CargoIntegrity ?? 1), 3), rounds)
+            { Pairs = [.. d.Pairs] };
         }
         if (o.Udp || o.Network is not null)
         {

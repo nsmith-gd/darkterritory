@@ -10,7 +10,7 @@ namespace DarkTerritory.Game.Art;
 /// the gun's facing, the lamps' glow) placed from the sim's state. One per <see cref="Look"/>; pieces are cooked the
 /// first time they're wanted and kept.
 /// </summary>
-public sealed class SceneArt(Look look)
+public sealed partial class SceneArt(Look look)
 {
     readonly Dictionary<string, MeshAsset> _pieces = new();
 
@@ -75,6 +75,39 @@ public sealed class SceneArt(Look look)
     /// <summary>Every piece cooked so far (for budgets: `dt art check`).</summary>
     public IReadOnlyDictionary<string, MeshAsset> Pieces => _pieces;
 
+    /// <summary>Pivot to handle of the brake valve's handle and of the reverser (tools/models cab_levers): each swings
+    /// about its pivot, below its handle, so the handle travels where the sim's does (CabLevers), near enough.</summary>
+    const float BrakeLever = 0.25f, ReverserLever = 0.9f;
+
+    /// <summary>
+    /// The driver's controls, modelled (tools/models cab_levers), where the sim has them (T29): the regulator's handle
+    /// slid back along its rack as it opens, the brake valve's handle and the reverser swung about their pivots, and
+    /// the blow-off valve on the cab wall at the vent. False where the models aren't built (the greybox draws them).
+    /// </summary>
+    public bool CabControls(MeshBuilder mesh, in CarFrame frame, Double3 eye, TrainControls controls)
+    {
+        var props = PropArt.Of(Look);
+        if (frame.Shape.Levers is not { } levers || props.Get("lever_regulator") is not { } regulator)
+            return false;
+        var m = FrameMatrix(frame, eye);
+        mesh.Append(regulator, Matrix4x4.CreateTranslation(ToF(levers.RegulatorAt(controls.Throttle))) * m);
+        void Swung(string lever, string stand, Double3 rest, Double3 now, float length)
+        {
+            var pivot = ToF(rest) - new Vector3(0, length, 0);
+            float angle = MathF.Asin(Math.Clamp((float)(now.Z - rest.Z) / length, -1, 1));
+            if (props.Get(stand) is { } s)
+                mesh.Append(s, Matrix4x4.CreateTranslation(pivot) * m);
+            if (props.Get(lever) is { } l)
+                mesh.Append(l, Matrix4x4.CreateRotationX(angle) * Matrix4x4.CreateTranslation(pivot) * m);
+        }
+        Swung("lever_brake", "brake_stand", levers.Brake, levers.BrakeAt(controls.Brake), BrakeLever);
+        Swung("lever_reverser", "reverser_quadrant", levers.Reverser, levers.ReverserAt(controls.Reverser), ReverserLever);
+        if (props.Get("vent_valve") is { } vent)
+            foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
+                mesh.Append(vent, Matrix4x4.CreateTranslation(ToF(i.Position) + new Vector3(0, 1.1f, 0)) * m);
+        return true;
+    }
+
     /// <summary>A car frame's transform to camera-relative space: its axes as rows, its origin relative to the eye.</summary>
     public static Matrix4x4 FrameMatrix(in CarFrame frame, Double3 eye)
     {
@@ -93,6 +126,12 @@ public sealed class SceneArt(Look look)
     /// A loose body that isn't a ragdoll (crates, freight, a lamp, a radio) as its prop, turned by its yaw in its parent's
     /// frame. A lamp lights its surroundings and glows. Returns false for what the kit doesn't draw (the dead).
     /// </summary>
+    /// <summary>Facility freight comes in a few kinds of case (machine parts, ammunition, sacks of grain, medical
+    /// stores); a body keeps its kind by its id.</summary>
+    static readonly string[] FreightKinds = ["freight_parts", "freight_ammo", "freight_sacks", "freight_medical"];
+
+    static string Freight(int id) => FreightKinds[(int)((uint)id * 2654435761u % (uint)FreightKinds.Length)];
+
     public bool Body(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, double heavyHalf, double time)
     {
         bool onCar = b.Parent != Sim.Player.PlayerState.World && b.Parent < frames.Count;
@@ -111,12 +150,15 @@ public sealed class SceneArt(Look look)
         var back = Vector3.Cross(right, u);
         var o = at.RelativeTo(eye);
         var m = new Matrix4x4(right.X, right.Y, right.Z, 0, u.X, u.Y, u.Z, 0, back.X, back.Y, back.Z, 0, o.X, o.Y, o.Z, 1);
+        // What the crew carry: the modelled props (tools/models make: stores_crate, freight_*, heavy_crate,
+        // field_radio) where they're built, centred on the body like the kit's; the kit's pieces where not.
+        var props = PropArt.Of(Look);
         var piece = b.Kind switch
         {
-            Sim.Physics.BodyKind.Cargo => Piece("prop-cargo", () => PropKit.Cargo(Look)),
-            Sim.Physics.BodyKind.Heavy => Piece($"prop-heavy-{heavyHalf:0.00}", () => PropKit.Heavy(Look, (float)heavyHalf)),
-            Sim.Physics.BodyKind.Crate => Piece("prop-crate", () => PropKit.Crate(Look)),
-            Sim.Physics.BodyKind.Radio => Piece("prop-radio", () => PropKit.Radio(Look)),
+            Sim.Physics.BodyKind.Cargo => props.Get(Freight(b.Id)) ?? Piece("prop-cargo", () => PropKit.Cargo(Look)),
+            Sim.Physics.BodyKind.Heavy => props.Get("heavy_crate") ?? Piece($"prop-heavy-{heavyHalf:0.00}", () => PropKit.Heavy(Look, (float)heavyHalf)),
+            Sim.Physics.BodyKind.Crate => props.Get("stores_crate") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
+            Sim.Physics.BodyKind.Radio => props.Get("field_radio") ?? Piece("prop-radio", () => PropKit.Radio(Look)),
             // The hand lamp: the sourced lantern (tools/models hand_lantern) where it's built.
             _ => PropArt.Of(Look).Get("hand_lantern") ?? Piece("prop-lantern", () => PropKit.Lantern(Look)),
         };

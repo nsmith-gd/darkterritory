@@ -13,6 +13,9 @@ Motion (§31): "unnaturally still when observed, disturbing changes in pace, abr
 corrections": holds and CONSTANT-key pops, the head snapping round a beat before the body.
 
     blender -b --python tools/blender/cinder_hound.py -- content/art/models/cinder_hound.glb
+
+This is the hound's game mesh, rig and clips. The game's cinder_hound.glb is tools/models/recipes/cinder_hound.py's,
+which runs this script, models a high-resolution hide over it and bakes that down onto this mesh.
 """
 import math
 import os

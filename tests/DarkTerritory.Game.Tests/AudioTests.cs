@@ -39,10 +39,11 @@ public class AudioTests
     public void EveryEnemyTellIsSentAsFarAsItCanBeHeard()
     {
         // An enemy past the interest radius isn't on your machine, so its tell can't play there. The Choir's
-        // voice is the exception: it comes from the world record, which always goes.
+        // voice is the exception: it comes from the world record, which always goes. So is the Long Whistle's horn: the
+        // enemy is sent to everyone wherever it is (Enemy.Far, T57).
         var bank = new SoundBank(Path.Combine(Content, "audio", "sounds"));
         var enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(Content, DarkTerritory.Sim.Enemies.EnemyTuning.File));
-        Assert.All(AudioBench.TellBands.Keys.Where(t => t != "choir-voice"),
+        Assert.All(AudioBench.TellBands.Keys.Where(t => t is not ("choir-voice" or "long-whistle")),
             t => Assert.True(bank.Get(t)!.MaxDistance <= enemies.InterestRadius, $"{t} carries {bank.Get(t)!.MaxDistance} m, past the {enemies.InterestRadius} m interest radius"));
     }
 

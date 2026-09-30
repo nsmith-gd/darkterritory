@@ -97,18 +97,23 @@ public sealed class GreyboxScene
         {
             Features(mesh, line, eye, from, to);
             Boards(mesh, line, eye, from, to, hint);
+            // A generated line's own land, boards, hazards, water and places (Art/PlanArt, linegen plan §12-13).
+            if (Look is not null && Route.Plan is not null)
+                Look.Art.World.Plan(mesh, line, Route, eye, centre, DrawDistance, Time);
             if (Run is not null)
                 foreach (var site in Run.Sites)
                 {
-                    if (site is not null && (site.Capstan - eye).Length < DrawDistance)
+                    // The modules modelled by the art pass where it has them (SceneArt.Depots), boxes where not.
+                    if (site is not null && (site.Capstan - eye).Length < DrawDistance && Look?.Art.Winch(mesh, site, eye) != true)
                         Winch(mesh, site, eye);
-                    if (site?.Crane is { } crane && (crane.HookAt - eye).Length < DrawDistance)
+                    if (site?.Crane is { } crane && (crane.HookAt - eye).Length < DrawDistance && Look?.Art.Crane(mesh, crane, frames, eye) != true)
                         Crane(mesh, crane, frames, eye);
                 }
             // GDD §9: the fortress yard behind the gates, and the terminus: "lights, then walls, then gun towers".
             double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
             Fortress(mesh, line, eye, from, to, 0, yard, gateAt: yard);
-            Fortress(mesh, line, eye, from, to, line.Length - terminus - 200, line.Length, gateAt: line.Length - terminus - 200);
+            double home = Route.Plan?.Terminus.GateM ?? line.Length - terminus - 200;
+            Fortress(mesh, line, eye, from, to, home, line.Length, gateAt: home, lit: Route.Plan?.Terminus.Silent != true);
         }
         // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox,
         // and any hand lamp lying about or being carried.
@@ -405,6 +410,27 @@ public sealed class GreyboxScene
                     mesh.Emissive = 0;
                     break;
                 }
+            case EnemyKind.Gaunt:
+                // Tall and thin on the roof, dead still.
+                Draw(0, 0.8, 0, 0.09, 0.8, 0.09, Palette.SootBlack);
+                Draw(0, 2.0, 0, 0.16, 0.45, 0.1, Palette.SootBlack);
+                Draw(0, 2.6, -0.05, 0.1, 0.13, 0.1, Palette.Corrupted * 0.5f);
+                break;
+            case EnemyKind.Weight when e.Attached >= 0:
+                // A dark mass hung under the rear coupling, below the gun's arc, trailing on the ballast.
+                Draw(0, -0.1, 0.5, 0.55, 0.35, 0.7, Palette.SootBlack);
+                Draw(0, 0.25, 0.05, 0.2, 0.12, 0.3, Palette.Corrupted * 0.5f);
+                break;
+            case EnemyKind.Climber:
+                {
+                    // Thin, soot-black, bent over; in the cab it stands on the deck (the origin is the cab's centre).
+                    double y0 = e.Phase == SpinePhase.Punish && e.Attached == 0 ? -1.35 : 0;
+                    double lean = e.Phase == SpinePhase.Telegraph ? 0.25 * Math.Sin(e.PhaseSeconds * 14) : 0;
+                    Draw(0, y0 + 0.45, 0, 0.1, 0.45, 0.1, Palette.SootBlack);
+                    Draw(0, y0 + 1.15, -0.15 + lean, 0.18, 0.32, 0.12, Palette.SootBlack);
+                    Draw(0, y0 + 1.45, -0.35 + lean, 0.1, 0.1, 0.1, Palette.Corrupted * 0.6f);
+                    break;
+                }
             case EnemyKind.Ferryman:
                 {
                     // Tall, in a railwayman's coat, on the line with a lantern raised and swinging (App. A.2). Aboard, it's
@@ -635,7 +661,8 @@ public sealed class GreyboxScene
 
         // The buffer stop: a timber-and-iron block across the rails, with a red lamp on it.
         var end = local.Sample(local.Length);
-        if ((end.Position - eye).Length < DrawDistance)
+        // An alternate has no end of its own: it runs back into the main line (linegen plan §6.2).
+        if (!branch.Rejoins && (end.Position - eye).Length < DrawDistance)
         {
             var right = Double3.Cross(end.Tangent, Double3.Up).Normalized;
             mesh.Box(V(end.Position + Double3.Up * 0.6, eye), ToF(right), Vector3.UnitY, ToF(end.Tangent * -1), new Vector3(1.3f, 0.6f, 0.4f), Palette.RustRed);
@@ -765,7 +792,7 @@ public sealed class GreyboxScene
             // The art pass's structures (Art/StructureKit): viaducts and trestles, portals and bores.
             if (Look is not null && f.Kind == FeatureKind.Bridge)
             {
-                Look.Art.World.Bridge(mesh, line, f, eye, from, to, (float)ValleyDepth);
+                Look.Art.World.Bridge(mesh, line, f, eye, from, to, Art.WorldArt.SpanDepth(Route, f) ?? (float)ValleyDepth);
                 continue;
             }
             if (Look is not null && f.Kind == FeatureKind.Tunnel)
@@ -839,11 +866,11 @@ public sealed class GreyboxScene
     }
 
     /// <summary>Walls both sides, gun towers with lamps, and a gatehouse over the line.</summary>
-    void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt)
+    void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool lit = true)
     {
         if (Look is not null)
         {
-            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0);
+            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit);
             return;
         }
         double a = Math.Max(start, from), b = Math.Min(end, to);
@@ -877,10 +904,13 @@ public sealed class GreyboxScene
         var (spout, lever) = run.ChuteAt(f, line);
         var t = line.Sample(spout);
         var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
-        mesh.Box(V(lever - Double3.Up * 0.45, eye), ToF(right), Vector3.UnitY, ToF(t.Tangent * -1), new Vector3(0.06f, 0.45f, 0.06f), Palette.IronGrey);
         bool open = run.ChuteOpen && run.FacilityFeature == f;
-        // The handle: down when pouring, up when shut.
-        mesh.Box(V(lever + Double3.Up * (open ? -0.1 : 0.25) + right * (f.Side * 0.15), eye), ToF(right), Vector3.UnitY, ToF(t.Tangent * -1), new Vector3(0.2f, 0.04f, 0.04f), Palette.TarnishedBrass);
+        if (Look?.Art.ChuteLever(mesh, lever, t.Tangent, f.Side, open, eye) != true)
+        {
+            mesh.Box(V(lever - Double3.Up * 0.45, eye), ToF(right), Vector3.UnitY, ToF(t.Tangent * -1), new Vector3(0.06f, 0.45f, 0.06f), Palette.IronGrey);
+            // The handle: down when pouring, up when shut.
+            mesh.Box(V(lever + Double3.Up * (open ? -0.1 : 0.25) + right * (f.Side * 0.15), eye), ToF(right), Vector3.UnitY, ToF(t.Tangent * -1), new Vector3(0.2f, 0.04f, 0.04f), Palette.TarnishedBrass);
+        }
         if (!open)
             return;
         // A curtain of coal from the spout onto whatever's under it, and dust lit by the tower's lamp.
@@ -1147,11 +1177,13 @@ public sealed class GreyboxScene
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
                 draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.17), new Double3(0.3, 0.2, 0.02)), FireColour(0.15f + 0.85f * FireGlow));
             mesh.Emissive = 0;
-            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
+            // The vent valve and the driver's levers: modelled by the art pass where it has them (SceneArt.CabControls).
+            bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls) == true;
+            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent && !modelled))
                 draw(Box.FromCentre(i.Position + new Double3(0, 1.1, 0), new Double3(0.12, 0.12, 0.04)), Palette.TarnishedBrass);
             // The driver's levers, their handles where the controls have them (T29): a headset player takes hold of
             // these. The regulator comes back as it opens, the brake handle as it goes on, the reverser forward for ahead.
-            if (shape.Levers is { } levers)
+            if (shape.Levers is { } levers && !modelled)
             {
                 void Lever(Double3 handle, double rod)
                 {

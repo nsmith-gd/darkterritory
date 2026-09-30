@@ -18,6 +18,11 @@ public struct TrackConditions
     public double GradePercent;
     /// <summary>1 is dry rail. Grease drops it to ~0.2 (GDD A.2).</summary>
     public double Traction;
+    /// <summary>
+    /// Something holding the train back (m/s²): the Weight (App. A.3). It opposes motion like the brakes, and like them
+    /// can't push the train backwards.
+    /// </summary>
+    public double Drag;
 
     public static TrackConditions Flat => new() { GradePercent = 0, Traction = 1 };
 }
@@ -87,7 +92,7 @@ public sealed class TrainDynamics
         // only shows on its own when coasting, which is when it matters (GDD §23: boiler dies).
         double resistance = Tuning.Resistance.Rolling + Tuning.Resistance.Air * Velocity * Velocity;
         double drive = reverser * throttle * (MaxTractiveForce * traction / mass + resistance);
-        double brakeAccel = brake * Math.Max(MaxBrakeForce * BrakeEfficiency * traction / mass - resistance, 0) + resistance;
+        double brakeAccel = brake * Math.Max(MaxBrakeForce * BrakeEfficiency * traction / mass - resistance, 0) + resistance + Math.Max(0, track.Drag);
 
         double a = drive + gravityAccel;
         double v = Velocity;

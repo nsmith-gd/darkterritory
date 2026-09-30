@@ -13,7 +13,10 @@ out="$root/content/art/models"
 blender="${BLENDER:-blender}"
 models=("$@")
 if [ ${#models[@]} -eq 0 ]; then
-  models=(crew cinder_hound dragger)  # the Hollow, the Switchman, the Sleepers, the Clinger and the Soot children are sourced scans: tools/models/recipes
+  # The crew and the Cinder Hound are built from crew.py and cinder_hound.py by tools/models/recipes (their high copies
+  # baked onto these game meshes, tools/models/overbake.py); the Hollow, the Switchman, the Sleepers, the Clinger and
+  # the Soot children are sourced scans: tools/models/recipes.
+  models=(dragger)
 fi
 mkdir -p "$out"
 for m in "${models[@]}"; do

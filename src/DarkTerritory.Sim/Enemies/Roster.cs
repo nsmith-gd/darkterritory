@@ -549,7 +549,12 @@ public sealed class Dragger(int id) : Enemy(id)
                 var walkers = ctx.Crew.Where(c => c.Player.State is { Alive: true, Surface: Surface.Roof } s && s.Parent == Attached
                     && Math.Sign(s.Position.X + 1e-9) == Side).ToList();
                 if (walkers.Count == 0)
+                {
+                    // Nobody up there for long enough: it lets go of the car.
+                    if (PhaseSeconds >= t.LingerSeconds)
+                        Enter(ctx, SpinePhase.Gone);
                     return;
+                }
                 var near = walkers.MinBy(c => Math.Abs(c.Player.State.Position.Z - Local.Z));
                 Creep(near.Player.State.Position.Z, t, shape);
                 if (Reaches(near.Player.State, train, t))
@@ -1013,6 +1018,8 @@ public sealed class Ferryman(int id) : Enemy(id)
     /// <summary>Waving the train down: the lantern swings while it lures.</summary>
     public bool Waving => Phase == SpinePhase.Telegraph;
     public bool Aboard => Attached == 0;
+    /// <summary>The lantern's seen from very far out: past the interest radius.</summary>
+    public override bool Far => Lantern;
     int Side => Extra2 < 0 ? -1 : 1;
 
     /// <summary>Up the line ahead of the engine at the lineside, on one side.</summary>
@@ -1105,5 +1112,632 @@ public sealed class Ferryman(int id) : Enemy(id)
                 Enter(ctx, SpinePhase.Gone);
                 break;
         }
+    }
+}
+
+/// <summary>
+/// THE LONG WHISTLE · sound · forward (App. A.2). "Sounds a horn on the line ahead. There is no train ahead." Hidden, never
+/// seen, from a point up the line just short of a grade or a curve, it sounds an authentic locomotive horn, again and
+/// louder (the telegraph: the horn doesn't doppler and its pitch is flawed). A crew that brakes hard for it has lost: "the
+/// stop itself is the punishment", on the worst stretch to stop on, with whatever else is about. Ignored, it escalates
+/// twice and abandons. It has no punish of its own and never comes alone (App. A.8). Rule: don't trust the horn.
+/// </summary>
+/// <remarks>
+/// Free on the line along the engine's path, at a fixed point. <see cref="Enemy.Extra"/> counts the blasts sounded (the
+/// audio plays one each time it goes up), <see cref="Enemy.Extra2"/> is the fastest the train has come at it.
+/// </remarks>
+public sealed class LongWhistle(int id) : Enemy(id)
+{
+    public override EnemyKind Kind => EnemyKind.LongWhistle;
+    public override PressureZone Zone => PressureZone.Forward;
+    public override Sense Sense => Sense.Sound;
+
+    public int Blasts => (int)Extra;
+    /// <summary>The horn carries far past the interest radius.</summary>
+    public override bool Far => true;
+
+    /// <summary>At a point up the line ahead.</summary>
+    public static LongWhistle At(int id, TrainOnLine train, double along) => new(id)
+    {
+        LineDistance = along,
+        Height = 3,
+        Extra2 = train.Dynamics.Speed,
+    };
+
+    /// <summary>
+    /// Where it sounds from (App. B.2): 400-900 m ahead, "immediately before a grade or curve so braking is worst". The
+    /// first place in that window where the line starts to curve or climb or fall, just short of it; null if there's none.
+    /// </summary>
+    public static double? Spot(TrainOnLine train, LongWhistleTuning t)
+    {
+        double front = train.Dynamics.Distance;
+        double end = Math.Min(front + t.AheadMax, train.Line.PathLength(train.Dynamics.Path) - t.ShortOf);
+        for (double s = front + t.AheadMin + t.ShortOf; s <= end; s += 10)
+        {
+            var at = train.Line.Sample(train.Dynamics.Path, s);
+            if (Math.Abs(at.Curvature) > 1 / t.CurveRadius || Math.Abs(at.GradePercent) >= t.GradePercent)
+                return s - t.ShortOf;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// App. B.2: "requires ≥1 other active lineside threat in region". Anything but Sleepers (level content) and other
+    /// Long Whistles that's out on the line or the train within the region of the engine: whatever does the killing.
+    /// </summary>
+    public static bool Company(World world, LongWhistleTuning t) =>
+        world.ActiveEnemies.Any(e => !e.Gone && e.Kind is not (EnemyKind.Sleepers or EnemyKind.LongWhistle)
+            && (e.WorldPosition(world.Train) - world.Train.Frames[0].Origin).Length <= t.Region);
+
+    protected override void Tick(EnemyContext ctx)
+    {
+        var t = ctx.Tuning.LongWhistle;
+        var train = ctx.Train;
+        double speed = train.Dynamics.Speed;
+        // The train's reached it (or gone by down another line): nothing ahead to sound from.
+        if (LineDistance <= train.Dynamics.Distance && Phase is SpinePhase.Dormant or SpinePhase.Telegraph)
+        {
+            Enter(ctx, SpinePhase.BreakOff);
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        switch (Phase)
+        {
+            case SpinePhase.Dormant:
+                Enter(ctx, SpinePhase.Telegraph);
+                Extra = 1; // the first blast
+                break;
+            case SpinePhase.Telegraph:
+                Extra2 = Math.Max(Extra2, speed);
+                if (Extra2 - speed >= t.HardBrake && Enter(ctx, SpinePhase.Commit))
+                {
+                    // The crew's braking for a train that isn't there: the false positive the Ferryman feeds on (App. B.2).
+                    ctx.World.BrakedForFalseAlarm = true;
+                    break;
+                }
+                // Ignored: louder, twice, then it abandons.
+                if (PhaseSeconds >= Blasts * t.BlastEvery)
+                {
+                    if (Blasts > t.Escalations)
+                    {
+                        Enter(ctx, SpinePhase.BreakOff);
+                        Enter(ctx, SpinePhase.Gone);
+                    }
+                    else
+                        Extra = Blasts + 1;
+                }
+                break;
+            case SpinePhase.Commit:
+                // The stop is the punishment. Picked up again short of a stand, it's had what it wanted all the same.
+                if (speed <= t.StoppedBelow)
+                    Enter(ctx, SpinePhase.Punish);
+                else if (PhaseSeconds >= t.CommitSeconds)
+                {
+                    Enter(ctx, SpinePhase.BreakOff);
+                    Enter(ctx, SpinePhase.Gone);
+                }
+                break;
+            default:
+                Enter(ctx, SpinePhase.Gone);
+                break;
+        }
+    }
+}
+
+/// <summary>
+/// CLIMBERS · movement · flank (App. A.4). They run alongside at track level, matching the train, and mount only at a
+/// coupling gap: a brief scrabbling there (the telegraph, "visible from adjacent roofs"), then up between the cars and along
+/// the roofs toward the engine, and into the first car nobody's in (any car, lights out), where it's an interior threat.
+/// At the engine, the cab. Someone standing in the gap blocks that mount point: it drops back and tries another. On the
+/// roofs it can be shot. "Scales directly with train length": every gap is a way on, held by the same crew.
+/// </summary>
+/// <remarks>
+/// <see cref="Enemy.Extra"/> is the vehicle ahead of the gap it's making for (pacing and mounting), <see cref="Enemy.Extra2"/>
+/// its side (−1 or +1). Pacing it's free on the line; from the gap on it's on a vehicle.
+/// </remarks>
+public sealed class Climber(int id) : Enemy(id)
+{
+    double _bored, _bite;
+    int _tries;
+    readonly List<int> _tried = [];
+
+    public override EnemyKind Kind => EnemyKind.Climber;
+    public override PressureZone Zone => PressureZone.Flank;
+    public override Sense Sense => Sense.Movement;
+    /// <summary>Out on the roofs (or scrabbling at the gap), it's in the open: the guns can take it.</summary>
+    public override double HitRadius => Phase is SpinePhase.Telegraph or SpinePhase.Commit ? 0.55 : 0;
+
+    public int Gap => (int)Extra;
+    public int Side => Extra2 < 0 ? -1 : 1;
+    /// <summary>Scrabbling at the gap: the telegraph.</summary>
+    public bool Scrabbling => Phase == SpinePhase.Telegraph;
+    /// <summary>In a car (or the cab): the interior threat.</summary>
+    public bool Inside => Phase == SpinePhase.Punish;
+
+    /// <summary>Alongside the gap behind <paramref name="car"/>, out from the train on one side.</summary>
+    public static Climber Pacing(int id, TrainOnLine train, int car, int side, ClimberTuning t)
+    {
+        var c = new Climber(id) { Extra = car, Extra2 = side, Health = t.Health };
+        c.LineDistance = GapAlong(train, car);
+        c.Lateral = side * (train.Frames[car].Shape.HalfWidth + t.PaceOut);
+        return c;
+    }
+
+    /// <summary>Along-line distance of the gap behind a vehicle.</summary>
+    static double GapAlong(TrainOnLine train, int car) =>
+        train.Cars[car].FrontDistance - train.Cars[car].Length - train.Dynamics.Tuning.Geometry.CouplingGap * 0.5;
+
+    /// <summary>
+    /// The gaps it can mount at, as the vehicle ahead of each: every coupling in the engine's rake behind a car (not the
+    /// engine's own: that's the cab, and the fireman's). App. B.4: "weight scales directly with gap count".
+    /// </summary>
+    public static List<int> Gaps(TrainOnLine train)
+    {
+        var rake = train.Dynamics.Consist.Vehicles;
+        var gaps = new List<int>();
+        for (int i = 1; i + 1 < rake.Count; i++)
+            gaps.Add(rake[i].Id);
+        return gaps;
+    }
+
+    /// <summary>Someone's in the gap behind that vehicle, below the roofs or stood on a roof end over it: it's held.</summary>
+    public static bool Held(EnemyContext ctx, int car, ClimberTuning t)
+    {
+        var train = ctx.Train;
+        var probe = Rattle.In(0, train, car, train.Dynamics.Tuning.Geometry.CouplingGap);
+        var gap = probe.WorldPosition(train);
+        return ctx.LivingCrew().Any(c => probe.InGap(c.World, train) || ((c.World - gap) with { Y = 0 }).Length <= t.HoldReach);
+    }
+
+    /// <summary>Someone living is inside that car (standing in it, doors shut or not).</summary>
+    static bool Occupied(EnemyContext ctx, int car) =>
+        ctx.Crew.Any(c => c.Player.State is { Alive: true, Surface: Surface.Deck } s && s.Parent == car
+            && ctx.Train.Frames[car].Shape.Interior is { } room && room.Contains(s.Position));
+
+    protected override void Tick(EnemyContext ctx)
+    {
+        var t = ctx.Tuning.Climbers;
+        var train = ctx.Train;
+        double dt = SimConstants.TickSeconds;
+        // The car it's on or making for has gone (cut off and left behind): so has it.
+        if (Gap >= train.Frames.Count || Attached >= train.Frames.Count)
+        {
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        switch (Phase)
+        {
+            case SpinePhase.Dormant:
+                {
+                    // PACE: alongside, making for its gap, as fast as it can run.
+                    if (train.VehicleBehind(Gap) < 0)
+                    {
+                        Retry(ctx, t);
+                        break;
+                    }
+                    double want = GapAlong(train, Gap);
+                    double speed = Math.Clamp(train.Dynamics.Velocity + (want - LineDistance) * t.Catch, -t.MaxSpeed, t.MaxSpeed);
+                    LineDistance += speed * dt;
+                    if (LineDistance < train.Dynamics.RearDistance - t.LoseBehind)
+                    {
+                        Enter(ctx, SpinePhase.Gone);
+                        break;
+                    }
+                    if (PhaseSeconds >= t.PaceSeconds && Math.Abs(want - LineDistance) <= 1.5)
+                    {
+                        if (Held(ctx, Gap, t))
+                        {
+                            Retry(ctx, t);
+                            break;
+                        }
+                        // At the gap: the scrabbling, in at the couplers from the side.
+                        var shape = train.Frames[Gap].Shape;
+                        Attached = Gap;
+                        Local = new Double3(Side * (shape.HalfWidth - 0.2), 1.0, shape.HalfLength + train.Dynamics.Tuning.Geometry.CouplingGap * 0.5);
+                        Enter(ctx, SpinePhase.Telegraph);
+                    }
+                    break;
+                }
+            case SpinePhase.Telegraph:
+                // Someone gets into the gap as it scrabbles: blocked, it drops back and tries another.
+                if (Held(ctx, Gap, t))
+                {
+                    Retry(ctx, t);
+                    break;
+                }
+                if (PhaseSeconds >= t.ScrabbleSeconds && Enter(ctx, SpinePhase.Commit))
+                {
+                    // MOUNT: up between the cars, onto the roof of the one ahead, at its back end.
+                    var shape = train.Frames[Gap].Shape;
+                    Local = new Double3(0, shape.RoofHeight, shape.HalfLength - 0.4);
+                }
+                break;
+            case SpinePhase.Commit:
+                Traverse(ctx, t);
+                break;
+            case SpinePhase.Punish:
+                Nest(ctx, t);
+                break;
+            default:
+                Enter(ctx, SpinePhase.Gone);
+                break;
+        }
+    }
+
+    /// <summary>Blocked or lost its gap: drop back off the train and make for another it hasn't tried, or give up.</summary>
+    void Retry(EnemyContext ctx, ClimberTuning t)
+    {
+        var train = ctx.Train;
+        _tried.Add(Gap);
+        _tries++;
+        var left = Gaps(train).Where(g => !_tried.Contains(g)).ToList();
+        if (_tries >= t.MaxTries || left.Count == 0)
+        {
+            Enter(ctx, SpinePhase.BreakOff);
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        // The nearest untried gap: it doesn't run the train's length to find one.
+        int next = left.OrderBy(g => Math.Abs(g - Gap)).First();
+        if (Attached >= 0)
+        {
+            LineDistance = GapAlong(train, Gap);
+            Lateral = Side * (train.Frames[Gap].Shape.HalfWidth + t.PaceOut);
+            Attached = -1;
+        }
+        Extra = next;
+        Enter(ctx, SpinePhase.BreakOff);
+        Enter(ctx, SpinePhase.Dormant);
+    }
+
+    /// <summary>TRAVERSE: along the roofs toward the engine, into the first car nobody's in; at the engine, the cab.</summary>
+    void Traverse(EnemyContext ctx, ClimberTuning t)
+    {
+        var train = ctx.Train;
+        int car = Attached;
+        var shape = train.Frames[car].Shape;
+        double z = Local.Z - t.TraverseSpeed * SimConstants.TickSeconds;
+        // Over the middle of a car with a room in it and nobody inside (or every lamp out): in it goes.
+        if (Local.Z > 0 && z <= 0 && shape.Interior is { } room && (ctx.World.EmergencyLights || !Occupied(ctx, car)))
+        {
+            Local = room.Centre with { Y = room.Min.Y };
+            Enter(ctx, SpinePhase.Punish);
+            return;
+        }
+        if (z > -shape.HalfLength + 0.3)
+        {
+            Local = Local with { Z = z };
+            return;
+        }
+        // Over the gap onto the next roof ahead.
+        int ahead = train.VehicleAhead(car);
+        if (ahead < 0)
+        {
+            Enter(ctx, SpinePhase.BreakOff);
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        if (ahead == 0)
+        {
+            // The engine: down into the cab.
+            Attached = 0;
+            Local = train.Frames[0].Shape.Cab!.Value.Centre;
+            Enter(ctx, SpinePhase.Punish);
+            return;
+        }
+        var next = train.Frames[ahead].Shape;
+        Attached = ahead;
+        Local = new Double3(0, next.RoofHeight, next.HalfLength - 0.3);
+    }
+
+    /// <summary>In a car (or the cab): it goes for whoever's in there with it. Left alone long enough, it leaves.</summary>
+    void Nest(EnemyContext ctx, ClimberTuning t)
+    {
+        var train = ctx.Train;
+        var at = WorldPosition(train);
+        var near = ctx.LivingCrew().Where(c => (c.World - at).Length <= t.Reach).OrderBy(c => (c.World - at).Length).Select(c => (int?)c.Player.Id).FirstOrDefault();
+        bool company = Attached == 0 ? ctx.Crew.Any(c => c.Player.State.Alive && PlayerMotor.InCab(c.Player.State, train)) : Occupied(ctx, Attached);
+        if (!company && near is null)
+        {
+            _bored += SimConstants.TickSeconds;
+            if (_bored >= t.BoredSeconds)
+                Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        _bored = 0;
+        _bite += SimConstants.TickSeconds;
+        if (near is { } victim && _bite >= t.BiteEvery)
+        {
+            _bite = 0;
+            ctx.Bite(victim, t.BiteDamage, DeathCause.Climbed);
+        }
+    }
+}
+
+/// <summary>
+/// THE WEIGHT · vibration · rear (App. A.3). Buried beside the track on low ground (a water crossing), it feels the train
+/// come and, as the rear car passes, takes hold of its coupling from underneath: the telegraph is the abrupt loss of speed
+/// and the heavy scraping from the rear. Then it drags, harder than the engine can pull, and the train's speed decays.
+/// Brought to a stand, it pulls the car off the rails. Counters: cut the rear car loose (it takes the car and goes), or
+/// get down on the rear platform and beat it off (about five blows). "Deliberately below the rear gun's arc": it can't be
+/// shot. "Forces either a sacrifice or a trip outside."
+/// </summary>
+/// <remarks><see cref="Enemy.Extra"/> counts the blows it's taken.</remarks>
+public sealed class Weight(int id) : Enemy(id)
+{
+    readonly HashSet<int> _swinging = [];
+
+    public override EnemyKind Kind => EnemyKind.Weight;
+    public override PressureZone Zone => PressureZone.Rear;
+    public override Sense Sense => Sense.Vibration;
+
+    /// <summary>Holding the rear car and dragging: the world puts its drag on that car's rake while it does.</summary>
+    public bool Holding => Phase == SpinePhase.Telegraph && Attached >= 0;
+    public int Blows => (int)Extra;
+
+    /// <summary>Buried beside the track at <paramref name="along"/>, on one side.</summary>
+    public static Weight Buried(int id, double along, int side) => new(id) { LineDistance = along, Lateral = side * 2.4, Height = -0.4 };
+
+    /// <summary>
+    /// Where it lies (App. B.3): "marsh, water crossings, low ground only", read as the next bridge this far ahead, and
+    /// "cannot spawn on grades": level there. Null if there's none.
+    /// </summary>
+    public static double? Spot(World world, WeightTuning t)
+    {
+        if (world.Route is not { } route)
+            return null;
+        var train = world.Train;
+        double front = train.Dynamics.Distance;
+        foreach (var f in route.Of(Route.FeatureKind.Bridge))
+        {
+            double at = f.Start + t.IntoCrossing;
+            if (at < front + t.AheadMin || at > front + t.AheadMax)
+                continue;
+            if (Math.Abs(train.Line.Sample(train.Dynamics.Path, at).GradePercent) <= t.MaxGradePercent)
+                return at;
+        }
+        return null;
+    }
+
+    protected override void Tick(EnemyContext ctx)
+    {
+        var t = ctx.Tuning.Weight;
+        var train = ctx.Train;
+        var rake = train.Dynamics.Consist.Vehicles;
+        switch (Phase)
+        {
+            case SpinePhase.Dormant:
+                {
+                    // The rear car passes over it: it takes hold.
+                    if (PhaseSeconds >= t.LingerSeconds || train.Dynamics.RearDistance > LineDistance + t.LingerPast)
+                    {
+                        Enter(ctx, SpinePhase.Gone);
+                        break;
+                    }
+                    if (rake.Count >= 2 && train.Dynamics.RearDistance <= LineDistance && train.Dynamics.Distance > LineDistance)
+                    {
+                        int rear = rake[^1].Id;
+                        Attached = rear;
+                        Local = new Double3(0, 0.35, train.Frames[rear].Shape.HalfLength + 0.4);
+                        Enter(ctx, SpinePhase.Telegraph); // the lurch and the scrape
+                    }
+                    break;
+                }
+            case SpinePhase.Telegraph:
+                {
+                    // Cut loose: it takes the car and goes.
+                    if (Attached < 0 || Attached >= train.Frames.Count || rake.Count == 0 || rake[^1].Id != Attached)
+                    {
+                        if (Attached >= 0 && Attached < train.Vehicles.Count)
+                            train.Vehicles[Attached].CargoIntegrity = 0;
+                        Enter(ctx, SpinePhase.BreakOff);
+                        Enter(ctx, SpinePhase.Gone);
+                        break;
+                    }
+                    // Beaten at from the rear platform: a blow for each swing (Use pressed within reach, once per press).
+                    var at = WorldPosition(train);
+                    foreach (var (player, intent) in ctx.Crew)
+                    {
+                        bool swinging = player.State.Alive && intent.Has(PlayerButtons.Use)
+                            && (PlayerMotor.WorldPosition(player.State, train) - at).Length <= t.MeleeReach;
+                        if (swinging && _swinging.Add(player.Id))
+                            Extra += 1;
+                        else if (!swinging)
+                            _swinging.Remove(player.Id);
+                    }
+                    if (Blows >= t.BlowsToRelease)
+                    {
+                        Enter(ctx, SpinePhase.BreakOff);
+                        Enter(ctx, SpinePhase.Gone);
+                        break;
+                    }
+                    // Dragged to a stand: it pulls the car off the rails.
+                    if (train.Dynamics.Speed <= t.StoppedBelow && Enter(ctx, SpinePhase.Commit) && Enter(ctx, SpinePhase.Punish))
+                        TearOff(ctx, t);
+                    break;
+                }
+            default:
+                Enter(ctx, SpinePhase.Gone);
+                break;
+        }
+    }
+
+    /// <summary>Off the rails with the car: cut away, wrecked, and anyone on it or in it hurt.</summary>
+    void TearOff(EnemyContext ctx, WeightTuning t)
+    {
+        var train = ctx.Train;
+        int car = Attached;
+        int ahead = train.VehicleAhead(car);
+        if (ahead >= 0)
+            train.Uncouple(ahead);
+        train.Vehicles[car].Integrity = 0;
+        train.Vehicles[car].CargoIntegrity = 0;
+        foreach (var (player, _) in ctx.Crew)
+            if (player.State.Alive && player.State.Parent == car)
+                ctx.Bite(player.Id, t.TearOffDamage, DeathCause.TornOff);
+        Enter(ctx, SpinePhase.Gone);
+    }
+}
+
+/// <summary>
+/// THE GAUNT · sight · flank (App. A.4). On the roofs. Perfectly still while it's inside anyone's view; unobserved, it
+/// moves, fast and silent, toward whoever's nearest out on the roofs. The telegraph is only that it's closer than it was:
+/// no sound at all (spec A.4: silent by design). Beside someone and unobserved, it takes them. Watched without a break
+/// for a minute, it withdraws. "The cost is a person": whoever watches it can do nothing else, and the train still needs
+/// running. Once a run.
+/// </summary>
+/// <remarks><see cref="Enemy.Extra"/> is how long it's been watched without a break; <see cref="Enemy.Extra2"/> its facing
+/// (yaw in its car's frame), toward whoever it's after.</remarks>
+public sealed class Gaunt(int id) : Enemy(id)
+{
+    public override EnemyKind Kind => EnemyKind.Gaunt;
+    public override PressureZone Zone => PressureZone.Flank;
+    public override Sense Sense => Sense.Sight;
+
+    /// <summary>Held still by someone's eyes on it (the host works it out; clients see it not move).</summary>
+    public bool Observed { get; private set; }
+
+    /// <summary>On the roof of a car, standing at a point along it.</summary>
+    public static Gaunt OnRoof(int id, TrainOnLine train, int car, double z) =>
+        new(id) { Attached = car, Local = new Double3(0, train.Frames[car].Shape.RoofHeight, z) };
+
+    /// <summary>
+    /// Whether anyone can see a point: alive, not shut in a car (walls), within range, and the point inside the cone
+    /// about where they're looking.
+    /// </summary>
+    public static bool Seen(EnemyContext ctx, Double3 at, GauntTuning t)
+    {
+        var train = ctx.Train;
+        double cos = Math.Cos(t.ViewHalfAngleDegrees * Math.PI / 180);
+        foreach (var (player, _) in ctx.Crew)
+        {
+            var s = player.State;
+            if (!s.Alive || PlayerMotor.Space(s, train) > 0)
+                continue;
+            var eye = PlayerMotor.WorldPosition(s, train) + Double3.Up * t.EyeHeight;
+            var to = at + Double3.Up * 1.2 - eye;
+            double d = to.Length;
+            if (d > t.ViewRange)
+                continue;
+            if (d < 1e-6)
+                return true;
+            var look = Combat.Guns.AimLocal(s);
+            var world = s.Parent >= 0 && s.Parent < train.Frames.Count ? train.Frames[s.Parent].DirToWorld(look) : look;
+            if (Double3.Dot(world.Normalized, to * (1 / d)) >= cos)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// The car to put it on (App. B.4 "roof, during a stop or on tunnel exit"): a car's roof as far from the crew as the
+    /// train allows, so it starts out of reach and has to come.
+    /// </summary>
+    public static (int Car, double Z)? Perch(World world)
+    {
+        var train = world.Train;
+        var rake = train.Dynamics.Consist.Vehicles;
+        var crew = world.CrewThisTick.Where(c => c.State.Alive).Select(c => PlayerMotor.WorldPosition(c.State, train)).ToList();
+        (int Car, double Far)? best = null;
+        for (int i = 1; i < rake.Count; i++)
+        {
+            var frame = train.Frames[rake[i].Id];
+            double far = crew.Count == 0 ? 0 : crew.Min(c => (c - frame.Origin).Length);
+            if (best is null || far > best.Value.Far)
+                best = (rake[i].Id, far);
+        }
+        return best is { } b ? (b.Car, 0) : null;
+    }
+
+    protected override void Tick(EnemyContext ctx)
+    {
+        var t = ctx.Tuning.Gaunt;
+        var train = ctx.Train;
+        double dt = SimConstants.TickSeconds;
+        if (Attached < 0 || Attached >= train.Frames.Count || train.Dynamics.Consist.IndexOf(Attached) < 0)
+        {
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        switch (Phase)
+        {
+            case SpinePhase.Dormant:
+                Enter(ctx, SpinePhase.Telegraph); // it's there
+                break;
+            case SpinePhase.Telegraph:
+                {
+                    var at = WorldPosition(train);
+                    Observed = Seen(ctx, at, t);
+                    if (Observed)
+                    {
+                        // Frozen. Watched for long enough without a break, it goes.
+                        Extra += dt;
+                        if (Extra >= t.RetreatSeconds)
+                        {
+                            Enter(ctx, SpinePhase.BreakOff);
+                            Enter(ctx, SpinePhase.Gone);
+                        }
+                        break;
+                    }
+                    Extra = 0;
+                    if (PhaseSeconds >= t.LingerSeconds)
+                    {
+                        Enter(ctx, SpinePhase.Gone);
+                        break;
+                    }
+                    // Whoever's nearest out on the roofs.
+                    var roofs = ctx.Crew.Where(c => c.Player.State is { Alive: true, Surface: Surface.Roof } s && s.Parent > 0 && s.Parent < train.Frames.Count
+                            && train.Dynamics.Consist.IndexOf(s.Parent) >= 0)
+                        .Select(c => (c.Player, World: PlayerMotor.WorldPosition(c.Player.State, train))).ToList();
+                    if (roofs.Count == 0)
+                        break;
+                    var prey = roofs.MinBy(c => (c.World - at).Length);
+                    if ((prey.World - at).Length <= t.Reach)
+                    {
+                        // Beside them, and nobody's looking.
+                        if (Enter(ctx, SpinePhase.Commit) && Enter(ctx, SpinePhase.Punish))
+                        {
+                            ctx.Bite(prey.Player.Id, t.StrikeDamage, DeathCause.Gaunt);
+                            Enter(ctx, SpinePhase.BreakOff);
+                            Enter(ctx, SpinePhase.Gone);
+                        }
+                        break;
+                    }
+                    Advance(train, prey.Player.State, t.AdvanceSpeed * dt);
+                    break;
+                }
+            default:
+                Enter(ctx, SpinePhase.Gone);
+                break;
+        }
+    }
+
+    /// <summary>Along the roofs toward someone: across the car it's on to their car, then to them.</summary>
+    void Advance(TrainOnLine train, in PlayerState prey, double step)
+    {
+        var consist = train.Dynamics.Consist;
+        int mine = consist.IndexOf(Attached), theirs = consist.IndexOf(prey.Parent);
+        var shape = train.Frames[Attached].Shape;
+        Double3 goal;
+        if (theirs == mine)
+            goal = new Double3(prey.Position.X, shape.RoofHeight, prey.Position.Z);
+        else
+        {
+            // To the end toward them, then over the gap onto the next roof.
+            double end = theirs < mine ? -shape.HalfLength + 0.3 : shape.HalfLength - 0.3;
+            goal = new Double3(0, shape.RoofHeight, end);
+            if (Math.Abs(Local.Z - end) <= step)
+            {
+                int next = consist.Vehicles[mine + (theirs < mine ? -1 : 1)].Id;
+                var nextShape = train.Frames[next].Shape;
+                Attached = next;
+                Local = new Double3(0, nextShape.RoofHeight, theirs < mine ? nextShape.HalfLength - 0.3 : -nextShape.HalfLength + 0.3);
+                return;
+            }
+        }
+        var to = goal - Local;
+        double d = to.Length;
+        Extra2 = Math.Atan2(-to.X, -to.Z);
+        Local = d <= step ? goal : Local + to * (step / d);
     }
 }

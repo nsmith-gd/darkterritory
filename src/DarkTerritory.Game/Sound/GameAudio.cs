@@ -228,6 +228,15 @@ public sealed class GameAudio
                         s.Loop.Occlusion = occlusion;
                     }
                     break;
+                case EnemyKind.Weight when e.Phase == SpinePhase.Telegraph && e.Attached >= 0:
+                    // The drag scrape under the rear coupling (App. A.3), for as long as it holds on.
+                    s.Loop ??= Mixer.Play("weight-scrape", at);
+                    if (s.Loop is not null)
+                    {
+                        s.Loop.Position = at;
+                        s.Loop.Occlusion = occlusion;
+                    }
+                    break;
                 case EnemyKind.Rattle when e.Phase == SpinePhase.Telegraph:
                     // The rattle in the coupling (App. A.5): all the tell there is. Out in the gap, so a car between you and it
                     // muffles it like anything else.
@@ -248,6 +257,15 @@ public sealed class GameAudio
                         s.Loop.Position = at;
                         s.Loop.Occlusion = occlusion;
                         s.Loop.Params.Set("progress", e.Kind == EnemyKind.Gnawers ? e.Health : e.Extra);
+                    }
+                    break;
+                case EnemyKind.LongWhistle when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit:
+                    // A blast each time it sounds again (App. A.2's escalation), each louder than the last, from up the line
+                    // ahead. Out in the open: a car's walls muffle it like anything else outside.
+                    if (e.Extra > s.Next)
+                    {
+                        s.Next = e.Extra;
+                        Mixer.Play("long-whistle", at, (float)Math.Min(1, 0.6 + 0.2 * (e.Extra - 1)))?.Also(v => v.Occlusion = occlusion);
                     }
                     break;
                 case EnemyKind.Hollow when e.Phase is SpinePhase.Telegraph or SpinePhase.Punish:

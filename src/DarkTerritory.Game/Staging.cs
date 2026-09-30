@@ -105,6 +105,29 @@ public static class Staging
         var hollow = new Hollow(30);
         hollow.Restore(SpinePhase.Punish, 2, 1, 0, train.Frames[0].Shape.Cab!.Value.Centre, 0, 0, 0, 0, 0);
         threats.Add(hollow);
+        // Stood on the fourth car's roof, still, facing back along the train (T60).
+        int gauntCar = Math.Min(4, train.Frames.Count - 1);
+        var gaunt = new Gaunt(47);
+        gaunt.Restore(SpinePhase.Telegraph, 5, 1, gauntCar, new Double3(0.3, train.Frames[gauntCar].Shape.RoofHeight, -1), 0, 0, 0, 0, Math.PI);
+        threats.Add(gaunt);
+        // Hung under the rear coupling, dragging (T59): below the guard van's gun, beside the boarded hound's car.
+        var weight = new Weight(46);
+        weight.Restore(SpinePhase.Telegraph, 2, 1, rear, new Double3(0, 0.35, rearShape.HalfLength + 0.4), 0, 0, 0, 0, 0);
+        threats.Add(weight);
+        // Scrabbling up the gap behind the second car on its right, and one already walking the third car's roof (T58).
+        int gapCar = Math.Min(2, train.Frames.Count - 2);
+        var gapShape = train.Frames[gapCar].Shape;
+        var climbing = new Climber(44);
+        climbing.Restore(SpinePhase.Telegraph, 1.2, 1, gapCar, new Double3(gapShape.HalfWidth - 0.2, 1.0, gapShape.HalfLength + train.Dynamics.Tuning.Geometry.CouplingGap * 0.5), 0, 0, 0, gapCar, 1);
+        threats.Add(climbing);
+        int roofCar = Math.Min(3, train.Frames.Count - 1);
+        var walking = new Climber(45);
+        walking.Restore(SpinePhase.Commit, 3, 1, roofCar, new Double3(0, train.Frames[roofCar].Shape.RoofHeight, 2), 0, 0, 0, roofCar, -1);
+        threats.Add(walking);
+        // Up the line out of sight, its first blast sounding (T57): never seen, only heard.
+        var whistle = new LongWhistle(43);
+        whistle.Restore(SpinePhase.Telegraph, 1, 1, -1, default, d.Distance + 450, 0, 3, 1, 14);
+        threats.Add(whistle);
         // On the line further up, lantern raised and swinging, waving the train down (T56).
         var ferryman = new Ferryman(42);
         ferryman.Restore(SpinePhase.Telegraph, 2, 1, -1, default, d.Distance + 90, 0.3, 0, 14, 1);

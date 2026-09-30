@@ -1,0 +1,31 @@
+// Facilities as the line generator places them (plan §6.2 step 3, §11.1). The loading modules inside are tuning/
+// facilities.json; this is the land, the junction and the approach.
+{
+  // First slot at least firstMinM and firstMinShare of the line from the gate; slots spacingM apart; the last this far
+  // before the terminus. The approach: a straight (or gently curved) nearly level kilometre, then the holding track
+  // (level, the consist plus holdingExtraM) up to the facing junction, and a departure lull after. Boards 2 km and 1 km
+  // out. Spurs this long and graded (spec D.1: 0-4%); the pickup shelter (spec E drop-in) this far from the track.
+  "slots": {
+    "firstMinM": 3000, "firstMinShare": 0.15, "spacingM": 3000, "lastBeforeEndM": 5000, "approachM": 1000, "approachMinRadius": 800,
+    "holdingExtraM": 50, "holdingGrade": 0.2, "departureM": 500, "boardFarM": 2000, "boardNearM": 1000,
+    "spurLengthM": [100, 100], "spurGrade": [0, 0], "pickupFromTrackM": 12
+  },
+  // Plan §11.1's table. biomes: where each belongs (a weight, 0 or missing: not there); intent: the terrain it wants
+  // (§12.1); spur: on a spur (the coaling tower stands over the main line, as since T28); minePortal: its spur goes into
+  // the hill (GDD §17: radio blackout in and out). owners/type make its name (§13.3: "Voss Foundry").
+  "types": {
+    "coalingTower":   { "kind": "coalingTower",   "fromTier": "local",         "biomes": { "*": 0.5 }, "intent": "pad", "spur": false, "minePortal": false, "owners": [], "type": "Coaling Stage" },
+    "grainElevator":  { "kind": "grainElevator",  "fromTier": "local",         "biomes": { "farmland": 3, "plains": 3, "forestEdge": 1, "hills": 1, "marsh": 0.5, "dykeland": 2 }, "intent": "pad", "spur": true, "minePortal": false, "owners": [], "type": "Grain Elevator" },
+    "switchyard":     { "kind": "switchyard",     "fromTier": "local",         "biomes": { "*": 1, "industrialRuin": 2, "deadTown": 2 }, "intent": "pad", "spur": true, "minePortal": false, "owners": [], "type": "Yard" },
+    "foundry":        { "kind": "foundry",        "fromTier": "frontier",      "biomes": { "industrialRuin": 3, "slag": 3, "hills": 1, "deadTown": 1, "blackForest": 0.5 }, "intent": "pad", "spur": true, "minePortal": false, "owners": [], "type": "Foundry" },
+    "slaughterhouse": { "kind": "slaughterhouse", "fromTier": "frontier",      "biomes": { "farmland": 2, "plains": 2, "marsh": 1, "forestEdge": 1, "blackForest": 0.5, "dykeland": 1 }, "intent": "pad", "spur": true, "minePortal": false, "owners": [], "type": "Abattoir" },
+    "wreckYard":      { "kind": "wreckYard",      "fromTier": "frontier",      "biomes": { "*": 1 }, "intent": "pad", "spur": true, "minePortal": false, "owners": [], "type": "Wreck Yard" },
+    "mineHead":       { "kind": "mineHead",       "fromTier": "deadLines",     "biomes": { "mountain": 3, "slag": 3, "hills": 1 }, "intent": "pad", "spur": true, "minePortal": true, "owners": [], "type": "Colliery" },
+    "chemicalWorks":  { "kind": "chemicalWorks",  "fromTier": "deadLines",     "biomes": { "marsh": 2, "contaminatedMarsh": 3, "industrialRuin": 2 }, "intent": "pad", "spur": true, "minePortal": false, "owners": [], "type": "Chemical Works" },
+    "militaryDepot":  { "kind": "militaryDepot",  "fromTier": "deepTerritory", "biomes": { "*": 1 }, "intent": "pad", "spur": true, "minePortal": false, "owners": [], "type": "Depot" }
+  },
+  // Spec D.1 scale: pad radius from compact to sprawling; how the spur scales with it.
+  "scale": { "padRadiusM": [60, 400], "spurScale": [1, 1] },
+  // A dead (unpowered) facility is likelier the deeper the tier (spec D.1 power state), by tier.
+  "powerBiasByTier": [0.2, 0.4, 0.6, 0.8]
+}

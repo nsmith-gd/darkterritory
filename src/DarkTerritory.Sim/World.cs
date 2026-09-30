@@ -93,6 +93,8 @@ public sealed class World
     }
     /// <summary>GDD §23: derailment kills the entire crew at once.</summary>
     public bool Derailed { get; private set; }
+    /// <summary>Host: the crew has braked hard for a Long Whistle's horn, a train that wasn't there (App. B.2's "false positive").</summary>
+    public bool BrakedForFalseAlarm { get; set; }
     /// <summary>Host: how long nobody alive has been in the engine's cab (T53, the Deadman and the Stoker).</summary>
     public double CabEmptySeconds { get; private set; }
 
@@ -199,10 +201,16 @@ public sealed class World
         return e;
     }
 
+    /// <summary>The generated line whose track rules the host holds the train to (curves, weak bridges, washouts); null for a hand-laid one.</summary>
+    public LineGen.LinePlan? TrackPlan { get; set; }
+    /// <summary>What derailed the train, when the track did it (the report and the HUD say so).</summary>
+    public string? DerailCause { get; private set; }
+
     /// <summary>Starts the run. The host steps it (<see cref="StepRun"/>); clients mirror it from records.</summary>
     /// <param name="facilities">The facilities' loading modules (spec D); null for none.</param>
     public void EnableRun(Run.RunTuning tuning, Route.Route route, double yardLength, bool authority, Run.FacilityTuning? facilities = null)
     {
+        TrackPlan ??= route.Plan;
         Run = new Run.Run(tuning, route) { YardLength = yardLength };
         if (facilities is not null)
             Run.EnableSites(facilities, Train.Line);
@@ -312,10 +320,18 @@ public sealed class World
         }
         // The boards the lamp reaches, and the rail's grip where the engine is (both machines alike: it's prediction).
         Lineside?.See(Train, LampShining);
+        // The Weight holding the rear car (App. A.3): "constant negative force; speed decays continuously". On the clients
+        // too, from their mirror of it, so prediction drags as the host does.
+        var weight = _enemies.OfType<Weight>().FirstOrDefault(w => w.Holding);
+        Train.DraggedVehicle = weight?.Attached ?? -1;
+        Train.DragFactor = Enemies?.Weight.DragFactor ?? 0;
         Train.Step(SimConstants.TickSeconds, applied);
         if (Authority && Lineside is { } lineside)
             lineside.Hazards(this, _actors, Damage);
         LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
+        // A generated line's lethal checks: a curve too fast, a weak bridge overloaded, a washout (linegen plan §7.3).
+        if (Authority && TrackPlan is { } plan && LineGen.TrackRules.Step(this, plan, SimConstants.TickSeconds) is { } why)
+            DerailCause = why;
         if (Combat is { } c)
         {
             Guns.Step(Train);
@@ -512,6 +528,18 @@ public sealed class World
                     });
                     break;
                 }
+            case EnemyKind.LongWhistle when LongWhistle.Spot(Train, t.LongWhistle) is { } spot:
+                _enemies.Add(LongWhistle.At(_nextEnemyId++, Train, spot));
+                break;
+            case EnemyKind.Gaunt when Gaunt.Perch(this) is { } perch:
+                _enemies.Add(Gaunt.OnRoof(_nextEnemyId++, Train, perch.Car, perch.Z));
+                break;
+            case EnemyKind.Weight when Weight.Spot(this, t.Weight) is { } lies:
+                _enemies.Add(Weight.Buried(_nextEnemyId++, lies, d.NextRange(0, 1) < 0.5 ? -1 : 1));
+                break;
+            case EnemyKind.Climber when Climber.Gaps(Train) is { Count: > 0 } gaps:
+                _enemies.Add(Climber.Pacing(_nextEnemyId++, Train, gaps[(int)d.NextRange(0, gaps.Count - 1e-9)], d.NextRange(0, 1) < 0.5 ? -1 : 1, t.Climbers));
+                break;
             case EnemyKind.Ferryman:
                 _enemies.Add(Ferryman.Ahead(_nextEnemyId++, Train, d.NextRange(0, 1) < 0.5 ? -1 : 1, t.Ferryman));
                 break;

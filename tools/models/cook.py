@@ -315,17 +315,22 @@ def delete(objs):
 # ----------------------------------------------------------------------------------------------------------------
 # Baking a scan down (the 2008 way: a game mesh wearing the million-triangle original as maps)
 
-def bake_down(objs, name, target, colour=None, size=1024, masks=None, paint=None):
+def bake_down(objs, name, target, colour=None, size=1024, masks=None, paint=None, cage=0.012, reach=0.03, low=None):
     """Replaces a high-resolution (untextured) scan with a `target`-triangle copy UV-unwrapped and wearing the
     original's detail: a tangent-space normal map and ambient occlusion baked in Cycles from the full mesh, and a
     base colour of `colour` (linear RGB) darkened by that occlusion. `grime(ao, pos_z01) -> multiplier` may stain it
-    (tar weeping down, soot in the folds). Returns [low]; the high mesh is deleted."""
+    (tar weeping down, soot in the folds). `low`, when given, is the game mesh to bake onto (modelled alongside the
+    high one) instead of a decimated copy. Returns [low]; the high mesh is deleted."""
     high = join(objs, name + "_high")
     lo, hi = bounds([high])
     extent = (hi - lo).length
-    low = duplicate([high])[0]
-    low.name = name
-    decimate([low], target)
+    if low:
+        # A game mesh modelled with it (tools/models make: the same boards without their bevels), not decimated.
+        low = join(low, name)
+    else:
+        low = duplicate([high])[0]
+        low.name = name
+        decimate([low], target)
     bpy.context.view_layer.objects.active = low
     bpy.ops.object.select_all(action="DESELECT")
     low.select_set(True)
@@ -353,13 +358,19 @@ def bake_down(objs, name, target, colour=None, size=1024, masks=None, paint=None
     scene.cycles.use_denoising = False
     scene.cycles.samples = 16
     scene.render.bake.use_selected_to_active = True
-    scene.render.bake.cage_extrusion = extent * 0.012
-    scene.render.bake.max_ray_distance = extent * 0.03
+    # How far out the rays start and how far they look, as a fraction of its size: a scan's game mesh wanders a
+    # centimetre or two off the original; a modelled prop's lies almost on it, round boards a couple of cm thick.
+    scene.render.bake.cage_extrusion = extent * cage
+    scene.render.bake.max_ray_distance = extent * reach
     scene.render.bake.margin = 6
     bpy.ops.object.select_all(action="DESELECT")
     high.select_set(True)
     low.select_set(True)
     bpy.context.view_layer.objects.active = low
+    # The low mesh is only where the bake lands: invisible to the occlusion's rays, or wherever it lies on the high
+    # one (a modelled prop's flat faces, exactly) it shadows it black.
+    for flag in ("visible_diffuse", "visible_glossy", "visible_shadow", "visible_transmission", "visible_volume_scatter"):
+        setattr(low, flag, False)
     cimg = None
     bakes = [(nimg, "NORMAL"), (aoimg, "AO")]
     if colour is None:
@@ -404,6 +415,9 @@ def bake_down(objs, name, target, colour=None, size=1024, masks=None, paint=None
         bpy.ops.object.bake(type="EMIT")
         baked[mname] = _image_array(mimg, size)[..., 0]
     delete([high])
+    if os.environ.get("DT_BAKE_DEBUG"):
+        for img in [nimg, aoimg] + ([cimg] if cimg is not None else []):
+            _save(_image_array(img, size), os.path.join(ROOT, "out", "review", f"bake-{img.name}.png"))
     # The low mesh's material: colour x occlusion (and grime), the baked normal through a normal map node.
     ao = _image_array(aoimg, size)[..., 0]
     if cimg is not None:
@@ -494,10 +508,12 @@ def _save(arr, path):
     bpy.data.images.remove(img)
 
 
-def bake_layers(name, objs, grade=None, grime=0.0, family="model", source_ids=()):
+def bake_layers(name, objs, grade=None, grime=0.0, family="model", source_ids=(), made=(), size=None):
     """Every material on `objs` becomes a layer <name>_<i> (its maps written to content/art/textures/models/), and is
     renamed to it, carrying the engine's extras. `grade(diffuse_linear, mask_info) -> diffuse` may push the palette
-    (the hand pass); `grime` darkens toward soot in the crevices (occlusion) and low down."""
+    (the hand pass); `grime` darkens toward soot in the crevices (occlusion) and low down. `size` overrides the layers'
+    resolution (SIZE): a character seen close wears 1024."""
+    SIZE = size or globals()["SIZE"]
     os.makedirs(TEXTURES, exist_ok=True)
     mats = []
     for o in objs:
@@ -524,7 +540,7 @@ def bake_layers(name, objs, grade=None, grime=0.0, family="model", source_ids=()
             if nm is not None:
                 spec_gloss_normal, _ = _linked_image(nm.inputs["Color"])
         if base_img is not None:
-            base = _image_array(base_img)
+            base = _image_array(base_img, SIZE)
             albedo = srgb_to_lin(base[..., :3])
             alpha = base[..., 3]
         else:
@@ -536,27 +552,27 @@ def bake_layers(name, objs, grade=None, grime=0.0, family="model", source_ids=()
         if bsdf:
             img, ch = _linked_image(bsdf.inputs["Roughness"])
             if img is not None:
-                rough = _image_array(img)[..., ch if isinstance(ch, int) else 1]
+                rough = _image_array(img, SIZE)[..., ch if isinstance(ch, int) else 1]
             img, ch = _linked_image(bsdf.inputs["Metallic"])
             if img is not None:
-                metal = _image_array(img)[..., ch if isinstance(ch, int) else 2]
+                metal = _image_array(img, SIZE)[..., ch if isinstance(ch, int) else 2]
         ao = np.ones((SIZE, SIZE), np.float32)
         img, ch = _occlusion(m)
         if img is not None:
-            ao = _image_array(img)[..., ch if isinstance(ch, int) else 0]
+            ao = _image_array(img, SIZE)[..., ch if isinstance(ch, int) else 0]
         emissive = np.zeros((SIZE, SIZE), np.float32)
         flame = None
         if bsdf and "Emission Color" in bsdf.inputs:
             img, _ = _linked_image(bsdf.inputs["Emission Color"])
             if img is not None:
-                e = _image_array(img)[..., :3]
+                e = _image_array(img, SIZE)[..., :3]
                 emissive = np.clip(e.max(-1) * 1.5, 0, 1)
                 flame = srgb_to_lin(e)
         normal = None
         if bsdf or spec_gloss_normal is not None:
             img = spec_gloss_normal if bsdf is None else _linked_image(bsdf.inputs["Normal"])[0]
             if img is not None:
-                n = _image_array(img)[..., :3].copy()
+                n = _image_array(img, SIZE)[..., :3].copy()
                 n[..., 1] = 1 - n[..., 1]  # glTF's +Y (up the image) to tools/art's y-down
                 normal = n
         # The legacy conversion (as tools/art/texgen/convert.pbr_to_legacy): occlusion into the diffuse, metals
@@ -601,7 +617,7 @@ def bake_layers(name, objs, grade=None, grime=0.0, family="model", source_ids=()
             "tiling": False,
             "family": family,
             "alphaTest": alpha_test,
-            "sources": [manifest()[s] | {"files": None} for s in source_ids],
+            "sources": [manifest()[s] | {"files": None} for s in source_ids] + list(made),
         })
     return layers
 
@@ -720,21 +736,22 @@ def share_materials(objs):
                 seen[key] = m
 
 
-def finish(name, objs, budget, grade=None, grime=0.0, family="model", sockets=None):
-    """Decimate, bake the layers, index them, rig and export. Prints the one [dt] line build.sh keeps."""
+def finish(name, objs, budget, grade=None, grime=0.0, family="model", sockets=None, made=()):
+    """Decimate, bake the layers, index them, rig and export. Prints the one [dt] line build.sh keeps. `made` is the
+    provenance of what was modelled here rather than sourced (tools/models/make.provenance)."""
     share_materials(objs)
     decimate(objs, budget)
     for o in objs:
         for f in o.data.polygons:
             f.use_smooth = True
     sources = sorted({o.get("dt_source") for o in objs if o.get("dt_source")})
-    layers = bake_layers(name, objs, grade=grade, grime=grime, family=family, source_ids=sources)
+    layers = bake_layers(name, objs, grade=grade, grime=grime, family=family, source_ids=sources, made=made)
     _merge_index(name, layers)
     lo, hi = bounds(objs)
     path = rig_and_export(name, objs, sockets)
     size = hi - lo
     print(f"[dt] {name}: {tris(objs)} tris, {len(layers)} layers, {size.x:.2f} x {size.y:.2f} x {size.z:.2f} m, "
-          f"from {', '.join(sources)} -> {os.path.relpath(path, ROOT)}")
+          f"from {', '.join(sources) or 'tools/models/make'} -> {os.path.relpath(path, ROOT)}")
 
 
 def weathered(d):

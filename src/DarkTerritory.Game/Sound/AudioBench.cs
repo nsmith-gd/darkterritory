@@ -43,6 +43,8 @@ public static class AudioBench
         ["car-fire"] = (6000, 9000),
         ["gnawers"] = (9000, 12000),
         ["load-creak"] = (1400, 2200),
+        ["long-whistle"] = (200, 800),
+        ["weight-scrape"] = (60, 300),
     };
 
     /// <summary>
@@ -56,7 +58,9 @@ public static class AudioBench
         "sleepers-writhe" or "hollow-gutter" => listenerCar == 0,
         // The engine's business: whoever's nearest the cab, which in the bench is the cab (T53).
         "deadman-click" or "stoker-hiss" => listenerCar == 0,
-        "hound-howl" => listenerCar == cars - 1,
+        "hound-howl" or "weight-scrape" => listenerCar == cars - 1,
+        // Everyone hears it; the driver's the one it's for (the brake's in the cab).
+        "long-whistle" => listenerCar == 0,
         // Trouble in a car: whoever's on it. Staging puts the fire in the first cargo car and the rest in the middle one.
         "car-fire" => listenerCar == 1,
         "load-creak" or "gnawers" => listenerCar == cars / 2,

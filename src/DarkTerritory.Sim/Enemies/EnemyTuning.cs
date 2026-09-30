@@ -18,6 +18,10 @@ public sealed record EnemyTuning(
     public CarFireTuning CarFire { get; init; } = new();
     public LooseLoadTuning LooseLoad { get; init; } = new();
     public GnawerTuning Gnawers { get; init; } = new();
+    public LongWhistleTuning LongWhistle { get; init; } = new();
+    public ClimberTuning Climbers { get; init; } = new();
+    public WeightTuning Weight { get; init; } = new();
+    public GauntTuning Gaunt { get; init; } = new();
 }
 
 /// <summary>A car fire (the in-car incidents). Field docs live in enemies.json.</summary>
@@ -70,6 +74,83 @@ public sealed record GnawerTuning
     public int MaxActive { get; init; } = 1;
 }
 
+/// <summary>The Gaunt (App. A.4, B.4). Field docs live in enemies.json.</summary>
+public sealed record GauntTuning
+{
+    public double ViewHalfAngleDegrees { get; init; } = 35;
+    public double ViewRange { get; init; } = 60;
+    public double EyeHeight { get; init; } = 1.6;
+    public double AdvanceSpeed { get; init; } = 5;
+    public double Reach { get; init; } = 1.3;
+    public int StrikeDamage { get; init; } = 100;
+    public double RetreatSeconds { get; init; } = 60;
+    public double LingerSeconds { get; init; } = 300;
+    public int MinCrew { get; init; } = 3;
+    public double TunnelExitWithin { get; init; } = 150;
+    public double StoppedBelow { get; init; } = 0.5;
+    public double InteriorSeconds { get; init; } = 180;
+    public double InteriorWeight { get; init; } = 2;
+}
+
+/// <summary>The Weight (App. A.3, B.3). Field docs live in enemies.json.</summary>
+public sealed record WeightTuning
+{
+    public double AheadMin { get; init; } = 200;
+    public double AheadMax { get; init; } = 1200;
+    public double IntoCrossing { get; init; } = 8;
+    public double MaxGradePercent { get; init; } = 1;
+    public double DragFactor { get; init; } = 1.25;
+    public double StoppedBelow { get; init; } = 0.3;
+    public double MeleeReach { get; init; } = 2.2;
+    public int BlowsToRelease { get; init; } = 5;
+    public int TearOffDamage { get; init; } = 60;
+    public double LingerSeconds { get; init; } = 300;
+    public double LingerPast { get; init; } = 50;
+    public int MinCars { get; init; } = 2;
+    public double LowSpeed { get; init; } = 10;
+    public double LowSpeedWeight { get; init; } = 2;
+}
+
+/// <summary>Climbers (App. A.4, B.4). Field docs live in enemies.json.</summary>
+public sealed record ClimberTuning
+{
+    public double PaceOut { get; init; } = 2.5;
+    public double PaceSeconds { get; init; } = 6;
+    public double Catch { get; init; } = 1.2;
+    public double MaxSpeed { get; init; } = 18;
+    public double LoseBehind { get; init; } = 60;
+    public double ScrabbleSeconds { get; init; } = 2.5;
+    public double HoldReach { get; init; } = 2;
+    public int MaxTries { get; init; } = 3;
+    public double TraverseSpeed { get; init; } = 2.2;
+    public double Reach { get; init; } = 1.8;
+    public int BiteDamage { get; init; } = 25;
+    public double BiteEvery { get; init; } = 1.5;
+    public double BoredSeconds { get; init; } = 120;
+    public double Health { get; init; } = 40;
+    public int MinGaps { get; init; } = 2;
+    public double MinSpeed { get; init; } = 5;
+    public double PerGapWeight { get; init; } = 0.5;
+}
+
+/// <summary>The Long Whistle (App. A.2, B.2). Field docs live in enemies.json.</summary>
+public sealed record LongWhistleTuning
+{
+    public double AheadMin { get; init; } = 400;
+    public double AheadMax { get; init; } = 900;
+    public double ShortOf { get; init; } = 60;
+    public double CurveRadius { get; init; } = 1200;
+    public double GradePercent { get; init; } = 1;
+    public double BlastEvery { get; init; } = 9;
+    public int Escalations { get; init; } = 2;
+    public double HardBrake { get; init; } = 4;
+    public double StoppedBelow { get; init; } = 0.5;
+    public double CommitSeconds { get; init; } = 45;
+    public double Region { get; init; } = 1500;
+    public double FogFrom { get; init; } = 0.02;
+    public double FogWeight { get; init; } = 2;
+}
+
 /// <summary>The Ferryman (App. A.2, B.2). Field docs live in enemies.json.</summary>
 public sealed record FerrymanTuning
 {
@@ -92,6 +173,7 @@ public sealed record FerrymanTuning
     public double MaxGradePercent { get; init; } = 1;
     public double ClearPast { get; init; } = 100;
     public double StopMargin { get; init; } = 600;
+    public double FalsePositiveWeight { get; init; } = 2;
 }
 
 /// <summary>The Deadman (App. A.5, B.5). Field docs live in enemies.json.</summary>
@@ -161,6 +243,7 @@ public sealed record DraggerTuning
     public double PullSpeed { get; init; } = 3;
     public double RearmSeconds { get; init; } = 8;
     public double StampDamage { get; init; } = 0.5;
+    public double LingerSeconds { get; init; } = 180;
     public int MinCars { get; init; } = 2;
     public int MaxAttached { get; init; } = 2;
 
@@ -221,4 +304,13 @@ public sealed record DirectorTuning(
     public double IncidentWeight { get; init; } = 0.5;
     /// <summary>Crew (less the driver) at which the incidents come at their full weight; fewer, proportionally less.</summary>
     public double IncidentFullCrew { get; init; } = 3;
+    public string[][] Conflicts { get; init; } = [];
+    public double PairWeight { get; init; } = 3;
+    public double BehindPairWeight { get; init; } = 3;
+    public Dictionary<string, int> PairsPerRun { get; init; } = new();
+    public double SleepersAhead { get; init; } = 1500;
+    public double GradeAhead { get; init; } = 600;
+    public double GradePercent { get; init; } = 1.5;
+    public string[] SaveFor { get; init; } = [];
+    public double SaveFrom { get; init; } = 0.2;
 }

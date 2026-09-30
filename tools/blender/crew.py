@@ -10,6 +10,9 @@ Variants (CreatureArt `variant % 4`): 0 cap, 1 helmet, 2 cap + scarf, 3 helmet +
 Clips (30 fps): idle, walk (1.4 m/s, in place), run (4 m/s), climb, shovel (with the shovel prop), crouch_idle, dead.
 
     blender -b --python tools/blender/crew.py -- content/art/models/crew.glb
+
+This is the crew's game mesh, rig and clips. The game's crew.glb is tools/models/recipes/crew.py's, which runs this
+script, models a high-resolution copy over it and bakes that down onto this mesh (tools/models/build.sh crew).
 """
 import math
 import os

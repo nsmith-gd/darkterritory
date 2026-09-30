@@ -91,7 +91,7 @@ public enum Surface : byte { Air, Ground, Roof, Coupler, Ladder, Deck }
 /// <summary><see cref="Deadman"/>, <see cref="Stoker"/>: fighting one out of the cab, or out of the firebox (T53).</summary>
 /// <summary><see cref="Burned"/>, <see cref="Gnawed"/>: in a car with a fire, or a nest of Gnawers (the in-car incidents).</summary>
 /// <summary><see cref="Struck"/>: stood on a roof into a tunnel's mouth; <see cref="Thrown"/>: off a roof on a curve taken over its board.</summary>
-public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged, Crushed, PulledUnder, Lamplighter, Deadman, Stoker, Ferryman, Struck, Thrown, Burned, Gnawed }
+public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged, Crushed, PulledUnder, Lamplighter, Deadman, Stoker, Ferryman, Climbed, TornOff, Gaunt, Struck, Thrown, Burned, Gnawed }
 
 /// <summary>Conditions a player carries.</summary>
 [Flags]
@@ -711,13 +711,16 @@ public static class PlayerMotor
         s.Velocity = worldVelocity;
     }
 
-    /// <summary>Ground under a player off the train: flat terrain at rail height for now.</summary>
     /// <summary>Height of the ground near a world point, refining a hint along the line (bodies use this too).</summary>
-    /// <remarks>The ground is at the height of the nearest track: the main line, or a branch off it.</remarks>
+    /// <remarks>
+    /// Beside the track the ground is at the height of the nearest track: the main line, or a branch off it. On a
+    /// generated line the land beyond rises and falls with its terrain (linegen plan §12), which keeps the formation at
+    /// that same rail height.
+    /// </remarks>
     public static double GroundAt(Double3 world, RailLine line, ref double hint)
     {
         var (path, along) = line.Nearest(world, ref hint);
-        return line.Sample(path, along).Position.Y;
+        return line.Conditions is { } c ? c.Ground(world) : line.Sample(path, along).Position.Y;
     }
 
     static double GroundHeight(ref PlayerState s, RailLine line) => GroundAt(s.Position, line, ref s.LineHint);

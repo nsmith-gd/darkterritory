@@ -39,7 +39,7 @@ public sealed class PrototypeSession : IPlaySession
         var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(contentRoot, RouteTuning.File));
         World.EnableSwitches(routeTuning.Junctions);
         World.EnableRun(DataFile.Load<RunTuning>(Path.Combine(contentRoot, RunTuning.File)), route,
-            routeTuning.YardLength, authority: true,
+            route.GateOr(routeTuning.YardLength), authority: true,
             DataFile.Load<FacilityTuning>(Path.Combine(contentRoot, FacilityTuning.File)));
         World.EnableLineside(DataFile.Load<SightTuning>(Path.Combine(contentRoot, SightTuning.File)), route);
     }
@@ -228,6 +228,20 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Stoker, SpinePhase.Telegraph) => "the pressure's climbing on its own and the fire's the wrong colour: vent it, or drive it out",
         (EnemyKind.Stoker, SpinePhase.Punish) => "the boiler's at its limit",
         (EnemyKind.Stoker, SpinePhase.BreakOff) => "driven out of the firebox",
+        // The Gaunt's telegraph is only that it's closer than it was: no cue for it here either (spec A.4: silent by design).
+        (EnemyKind.Gaunt, SpinePhase.Punish) => "someone on the roofs is gone",
+        (EnemyKind.Gaunt, SpinePhase.BreakOff) => "the thing on the roofs is gone",
+        (EnemyKind.Weight, SpinePhase.Telegraph) => "the train lurches and a deep scraping starts at the rear: cut the rear car or beat it off from the platform",
+        (EnemyKind.Weight, SpinePhase.Punish) => "the rear car's dragged off the rails",
+        (EnemyKind.Weight, SpinePhase.BreakOff) => "the scraping at the rear stops",
+        (EnemyKind.Climber, SpinePhase.Telegraph) => "scrabbling at a coupling gap: something's climbing on, get in the gap",
+        (EnemyKind.Climber, SpinePhase.Commit) => "something's up on the roofs, heading for the engine",
+        (EnemyKind.Climber, SpinePhase.Punish) => "it's got into a car",
+        (EnemyKind.Climber, SpinePhase.BreakOff) => "it drops back off the train",
+        (EnemyKind.LongWhistle, SpinePhase.Telegraph) => "a horn on the line ahead, but it doesn't bend as you close: don't trust the horn",
+        (EnemyKind.LongWhistle, SpinePhase.Commit) => "braking for a train that isn't there",
+        (EnemyKind.LongWhistle, SpinePhase.Punish) => "stopped where the horn wanted you",
+        (EnemyKind.LongWhistle, SpinePhase.BreakOff) => "the horn ahead gives up",
         (EnemyKind.Ferryman, SpinePhase.Telegraph) => "a lantern on the line ahead, waving you down: don't slow down",
         (EnemyKind.Ferryman, SpinePhase.Commit) => "the lantern's coming down the line at you",
         (EnemyKind.Ferryman, SpinePhase.Punish) => "something's in the cab",
@@ -344,7 +358,11 @@ public sealed class PrototypeSession : IPlaySession
                     stop = $" | {zone.Facility.ToString()!.ToUpperInvariant()} IS DOWN THE SPUR: ENGINE + {fit} CARS FIT" +
                         (train.Dynamics.Consist.CarCount > fit ? ", CUT THE REST" : "");
                 }
-        string next = route.NextLandmark(s) is { } l
+        // On a generated line, the next place by its name, as the route card has it (linegen plan §13.3).
+        string next = route.Plan?.Landmarks.Where(p => p.Edge == "main" && p.S0 > s).MinBy(p => p.S0) is { } place
+            ? $"{place.Name} in {(place.S0 - s) / 1000:0.0} km"
+            : route.Plan is { } plan ? $"{plan.Terminus.Name} in {Math.Max(0, plan.Terminus.GateM - s) / 1000:0.0} km"
+            : route.NextLandmark(s) is { } l
             ? $"{(l.Kind == FeatureKind.Facility ? $"{l.Facility}" : $"{l.Kind}").ToLowerInvariant()} in {(l.Start - s) / 1000:0.0} km"
             : "terminus ahead";
         string tunnel = route.InTunnel(s) ? " | IN TUNNEL" : "";

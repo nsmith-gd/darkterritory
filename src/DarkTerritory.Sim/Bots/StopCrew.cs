@@ -94,9 +94,23 @@ public sealed class CrewCalls
         && (site.Has(ModuleKind.Winch) && site.SledsLeft > 0 && CanWorkWinch || site.Has(ModuleKind.Crates) && site.CrateCount > 0 && CrateHands > 0
             || site.Crane is { Left: > 0 } && CanWorkWinch);
 
-    /// <summary>Everyone alive with a part at the stop is on one of these vehicles.</summary>
+    /// <summary>
+    /// Everyone alive with a part at the stop is on one of these vehicles, bar anyone gone in out of the cold ("I'm getting
+    /// warm in car nine"): they stay where they are, and the train comes back for the cut they're in (T64).
+    /// </summary>
     public bool Riding(IReadOnlyCollection<int> vehicles) =>
-        _crew.Values.Where(c => c.Alive && c.Job is not (StopJob.None or StopJob.Driver)).All(c => vehicles.Contains(c.Vehicle));
+        _crew.Where(c => c.Value.Alive && c.Value.Job is not (StopJob.None or StopJob.Driver) && !(_warming.Contains(c.Key) && c.Value.Vehicle != PlayerState.World))
+            .All(c => vehicles.Contains(c.Value.Vehicle));
+
+    readonly HashSet<int> _warming = [];
+    /// <summary>A member says it's going in to get warm, or that it's back out.</summary>
+    public void Warming(int member, bool on)
+    {
+        if (on)
+            _warming.Add(member);
+        else
+            _warming.Remove(member);
+    }
 
     /// <summary>Nobody alive is on the ground.</summary>
     public bool AllAboard => _crew.Values.All(c => !c.Alive || c.Vehicle != PlayerState.World);
@@ -238,9 +252,12 @@ public sealed record SwitchPlan(Branch Branch, double Hold)
         return new SwitchPlan(b, b.Toe - (world.Switches?.Tuning.PointsLength ?? 12) - 2);
     }
 
-    /// <summary>The whole train's standing short of the points on the main line.</summary>
+    /// <summary>
+    /// The whole train's standing short of the points on the main line: at the hold, or further back (backed off a dead
+    /// line, the driver stops wherever the train's clear of them, which can be well short of the hold).
+    /// </summary>
     public bool StandingAt(TrainOnLine train) =>
-        train.OnMain && train.Rakes.Count == 1 && Math.Abs(train.Dynamics.Velocity) < 0.05 && Math.Abs(train.Dynamics.Distance - Hold) < 3;
+        train.OnMain && train.Rakes.Count == 1 && Math.Abs(train.Dynamics.Velocity) < 0.05 && train.Dynamics.Distance - Hold < 3;
 }
 
 /// <summary>
@@ -475,8 +492,8 @@ public sealed class StopDriver(CrewCalls calls)
                         Begin(train.Rakes.Count > 1 ? Leg.BackOut : Leg.Clear);
                         return Hold(world);
                     }
-                    // Everyone who's coming in aboard, or long enough waited for whoever isn't (stuck, or warming up somewhere):
-                    // the ones left with the waiting cars are picked up on the way back out.
+                    // Everyone with a part aboard the engine's rake, or long enough waiting that someone isn't coming (kept off
+                    // it by something in a car, say: T64's Climbers): in without them, as the loading leg goes on without them.
                     if (set && cut && (calls.Riding(EngineRake(train)) || Waited > HeldGiveUp + AboardGiveUp))
                         Begin(Leg.SpurIn);
                     return Hold(world);
@@ -643,6 +660,14 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
     public string Doing { get; private set; } = "";
     /// <summary>Stops it has done its part at.</summary>
     public int Worked { get; private set; }
+
+    /// <summary>It's gone in to get warm (and says where it is), or come out again.</summary>
+    public void Warming(in PlayerState self, bool on)
+    {
+        calls.Warming(member, on);
+        if (on)
+            calls.Say(member, job, self);
+    }
 
     /// <summary>This tick's intent for its part in a stop; null when there's nothing for it to do (walk as usual).</summary>
     public PlayerIntent? Decide(in PlayerState self, World world)

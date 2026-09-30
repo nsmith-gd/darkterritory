@@ -232,7 +232,8 @@ public class EnemyTests
             ? new PlayerIntent { Buttons = PlayerButtons.Fire } : default);
         Assert.All(pack, h => Assert.True(h.Gone && h.Health == E.CinderHounds.Health, $"hound {h.Id} {h.Phase} hp {h.Health}"));
         Assert.Equal(pack.Count, n.Events.Count(e => e.Kind == EnemyKind.CinderHound && e.To == SpinePhase.BreakOff));
-        Assert.DoesNotContain(n.Events, e => e.To == SpinePhase.Punish);
+        // The pack never lands (the director's paced sends, a Climber say, are their own business).
+        Assert.DoesNotContain(n.Events, e => e.Kind == EnemyKind.CinderHound && e.To == SpinePhase.Punish);
         n.AssertFair();
     }
 

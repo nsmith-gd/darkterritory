@@ -134,7 +134,11 @@ public class UdpTransportTests
         using var _ = host.T;
         using var __ = client.T;
         var clock = Stopwatch.StartNew();
-        Until(() => clock.Elapsed.TotalSeconds > 0.3, host, client);
+        // At least 0.3 s of keepalives, and on until the smoothed round trip has settled (up to 3 s): a loopback ping is
+        // well under a millisecond, but on a CI box whose cores the other test assemblies hold at startup the first few
+        // can take tens, and the estimate carries them for a while.
+        bool Settled() => client.T.RoundTrip(PeerId.Host) < 0.05 && host.T.RoundTrip(client.T.LocalId) < 0.05;
+        Until(() => clock.Elapsed.TotalSeconds > 0.3 && (Settled() || clock.Elapsed.TotalSeconds > 3), host, client);
         Assert.InRange(client.T.RoundTrip(PeerId.Host), 0, 0.05);
         Assert.InRange(host.T.RoundTrip(client.T.LocalId), 0, 0.05);
     }

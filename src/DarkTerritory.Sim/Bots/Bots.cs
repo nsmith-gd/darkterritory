@@ -60,9 +60,14 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // Hounds that got aboard can't be shot from the gun they're standing next to: get clear (they drop
         // off once nobody's near), then walk back to the guard car and take the gun again.
         bool houndsAboard = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && e.Attached >= 0);
-        if (houndsAboard || Guns.MannedGun(self, world.Train, guns) is not { } gun)
+        // The Weight on the rear car (App. A.3): the gun's no answer to it (it's below the arc), and the car may be about to
+        // go. The bots' answer is the sacrifice: off it, up the train, and let it take the car.
+        bool rearHeld = world.ActiveEnemies.Any(e => e is Weight { Holding: true } w && w.Attached == world.Train.Dynamics.Consist.Vehicles[^1].Id);
+        if (houndsAboard || rearHeld || Guns.MannedGun(self, world.Train, guns) is not { } gun)
         {
-            if (!houndsAboard)
+            if (rearHeld)
+                _legs.Head(-1);
+            else if (!houndsAboard)
                 _legs.Head(+1);
             // On a car, on a ladder (the engine's too), or down on the ballast after a stop: the walker's way about, and
             // aboard. Only in the cab does it stand and wait.
@@ -142,6 +147,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             job.Decide(self, world);
             return null;
         }
+        job?.Warming(self, _warm is { Active: true });
         if (job is null || _warm is { Active: true })
             return null;
         // Trouble in a car beats carrying crates: a crate hand (or one with no part) goes to it, and so does the winch pair
@@ -262,10 +268,12 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
         aimed = self;
-        // Warming up means a coupler plate, so it keeps to the gaps no Rattle's in (App. A.5): its client can see them.
+        // Warming up means a coupler plate, so it keeps to the gaps no Rattle's in (App. A.5), and out of a car a Climber's
+        // got into (App. A.4): its client can see both.
         if (_warm is not null)
         {
-            _warm.Rattled = car => world.ActiveEnemies.Any(e => e is Rattle r && r.Attached == car);
+            _warm.Barred = car => world.ActiveEnemies.Any(e => e is Rattle r && r.Attached == car || e is Climber { Inside: true } c && c.Attached == car
+                || e is Weight { Holding: true } w && w.Attached == car);
             _warm.Troubled = car => world.ActiveEnemies.Any(e => !e.Gone && e.Attached == car && e is CarFire { Phase: SpinePhase.Punish } or Gnawers { Phase: SpinePhase.Punish });
         }
         if (!_looked)
@@ -274,6 +282,19 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         if (Work(self, world) is { } working)
             return working;
         var train = world.Train;
+        // The Gaunt (App. A.4): eyes on it, and kept there. It can't move while anyone's watching; that's the counter, and
+        // what it costs is whatever the watcher was doing. (Not through the cold: that's a life too.)
+        if (self.Alive && self.Surface == Surface.Roof && self.Parent >= 0 && self.Parent < train.Frames.Count && _warm is not { Active: true }
+            && world.Enemies is { } et && world.ActiveEnemies.OfType<Gaunt>().FirstOrDefault(g => g.Phase == SpinePhase.Telegraph) is { } gaunt)
+        {
+            var to = gaunt.WorldPosition(train) + Ballast.Double3.Up * 1.2 - (PlayerMotor.WorldPosition(self, train) + Ballast.Double3.Up * et.Gaunt.EyeHeight);
+            if (to.Length <= et.Gaunt.ViewRange * 0.9)
+            {
+                var d = train.Frames[self.Parent].DirToLocal(to).Normalized;
+                double yaw = Math.Atan2(-d.X, -d.Z), pitch = Math.Asin(Math.Clamp(d.Y, -1, 1));
+                return new PlayerIntent { LookYaw = (float)Wrap(yaw - self.Yaw), LookPitch = (float)(pitch - self.Pitch) };
+            }
+        }
         if (self.Alive && self.Parent > 0 && self.Parent < train.Frames.Count)
         {
             int parent = self.Parent;
@@ -294,9 +315,15 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             // Hounds aboard: nobody goes near them, and anyone close walks away (they drop off when bored).
             if (world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && e.Attached >= 0 && e.Attached >= parent - 1))
                 _direction = -1;
+            // The Weight holding a car (App. A.3): off that car and the one ahead of it, toward the engine. It may take the car.
+            int mine = train.Dynamics.Consist.IndexOf(parent);
+            if (mine >= 0 && world.ActiveEnemies.Any(e => e is Weight { Holding: true } w && train.Dynamics.Consist.IndexOf(w.Attached) is var held && held >= 0 && mine >= held - 1))
+                _direction = -1;
         }
         return Decide(self, train, tick);
     }
+
+    static double Wrap(double a) => Math.IEEERemainder(a, 2 * Math.PI);
 
     /// <summary>Walk to the roof edge over it, then stand and hold Use until it lets go.</summary>
     static PlayerIntent Pry(in PlayerState self, Enemy clinger)
@@ -481,7 +508,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     /// <summary>With a crew to call to, it stops to work the facilities they can (T32, GDD §17).</summary>
     public StopDriver? Stops { get; } = calls is null ? null : new StopDriver(calls);
 
-    public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => Work(self, train, Drive(train, tick, CruiseSpeed));
+    public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => Work(self, train, Drive(train, tick, CruiseSpeed, 1.5));
 
     /// <summary>Lamps down while eyes are out there, and for a while after; up again once they've been gone a while.</summary>
     LampSwitch Lamp(World world, uint tick)
@@ -500,6 +527,16 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         var train = world.Train;
         calls?.Say(member, StopJob.Driver, self);
         var lamp = Lamp(world, tick);
+        // On a generated line, no faster than its authority allows here (linegen plan §9, §16.1): what the boards say.
+        double cruise = world.LampShining ? CruiseSpeed : DarkCruiseSpeed;
+        // A lantern on the line ahead, waving us down (App. A.2): do not slow down. Hold the fastest we've come at it, lamp
+        // or no lamp (the Lamplighters + Ferryman bind: the lantern is its own light); the boards still cap it.
+        if (world.ActiveEnemies.OfType<Ferryman>().FirstOrDefault(f => f.Waving) is { } ferryman)
+            cruise = Math.Max(cruise, ferryman.Extra);
+        if (world.TrackPlan is { } plan)
+            cruise = Math.Min(cruise, LineGen.LineAuthority.For(plan, train.Line).Allowed(train));
+        // The boards it's read (sight.json): down to a posted speed in time, and held there till the last car's through.
+        cruise = Math.Min(cruise, Posted(world));
         if (Stops is { } stops)
         {
             // Nobody left to set a switch back but the driver: down it gets, and back up (the train stands on its brake).
@@ -515,18 +552,11 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
                 }
                 _alone = null;
             }
-            stops.CruiseSpeed = CruiseSpeed;
+            stops.CruiseSpeed = cruise;
             if (stops.Decide(self, world) is { } stopping)
                 return Work(self, train, stopping) with { Lamp = lamp };
         }
-        // A lantern on the line ahead, waving us down (App. A.2): do not slow down. Hold the fastest we've come at it, lamp
-        // or no lamp (the Lamplighters + Ferryman bind: the lantern is its own light).
-        double cruise = world.LampShining ? CruiseSpeed : DarkCruiseSpeed;
-        if (world.ActiveEnemies.OfType<Ferryman>().FirstOrDefault(f => f.Waving) is { } ferryman)
-            cruise = Math.Max(cruise, ferryman.Extra);
-        // The boards it's read (sight.json): down to a posted speed in time, and held there till the last car's through.
-        cruise = Math.Min(cruise, Posted(world));
-        var intent = Drive(train, tick, cruise);
+        var intent = Drive(train, tick, cruise, world.TrackPlan is null ? 1.5 : 0.5);
         intent.Lamp = lamp;
         // Watch the road: something showing on the line ahead means get below derailing speed.
         bool somethingAhead = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.Sleepers && e.Phase == SpinePhase.Telegraph
@@ -584,7 +614,8 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 
     bool _holdingDown;
 
-    PlayerIntent Drive(TrainOnLine train, uint tick, double cruise)
+    /// <param name="over">How far over <paramref name="cruise"/> before holding it on the brake: a posted limit gets less slack.</param>
+    PlayerIntent Drive(TrainOnLine train, uint tick, double cruise, double over)
     {
         var d = train.Dynamics;
         // To the end of the track it's on: the terminus, or a dead line's buffer stop.
@@ -594,7 +625,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         var intent = new PlayerIntent();
         // A descent runs the train away with the regulator shut; hold it on the brake, with some
         // hysteresis so it isn't hammered every tick (fade only builds while it's applied).
-        if (d.Speed > cruise + 1.5)
+        if (d.Speed > cruise + over)
             _holdingDown = true;
         else if (d.Speed <= cruise)
             _holdingDown = false;
@@ -791,8 +822,11 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     /// Which plate to drop onto: the one behind this car (this car's own), or in front (the car ahead's), whichever is
     /// nearer and has a car on it; in through that plate's car's rear door. Never the engine's: its cab is the fireman's.
     /// </summary>
-    /// <summary>Whether a Rattle's in the gap behind a vehicle (T54): that end's no way in. Set by the bot, which sees the world.</summary>
-    public Func<int, bool>? Rattled { get; set; }
+    /// <summary>
+    /// Whether that way in is barred: a Rattle in the gap behind the vehicle (T54), or a Climber in the car (T58). Set by the
+    /// bot, which sees the world.
+    /// </summary>
+    public Func<int, bool>? Barred { get; set; }
     /// <summary>A car with trouble in it (alight, or Gnawers out): nowhere to go and get warm, unless it's the trouble we're going in for.</summary>
     public Func<int, bool>? Troubled { get; set; }
 
@@ -800,14 +834,14 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     {
         int here = s.Parent;
         int behind = train.VehicleBehind(here), ahead = train.VehicleAhead(here);
-        bool back = behind > 0 && Walkable(train, here) && Rattled?.Invoke(here) != true && (Into == here || Troubled?.Invoke(here) != true);
-        bool front = ahead > 0 && Walkable(train, ahead) && Rattled?.Invoke(ahead) != true && (Into == ahead || Troubled?.Invoke(ahead) != true);
+        bool back = behind > 0 && Walkable(train, here) && Barred?.Invoke(here) != true && (Into == here || Troubled?.Invoke(here) != true);
+        bool front = ahead > 0 && Walkable(train, ahead) && Barred?.Invoke(ahead) != true && (Into == ahead || Troubled?.Invoke(ahead) != true);
         // A tunnel's mouth coming and the only ways in troubled (the rear car, the car ahead alight): in anyway. A fire's a
         // chance; the roof under that mouth isn't.
         if (Shelter && !back && !front)
         {
-            back = behind > 0 && Walkable(train, here) && Rattled?.Invoke(here) != true;
-            front = ahead > 0 && Walkable(train, ahead) && Rattled?.Invoke(ahead) != true;
+            back = behind > 0 && Walkable(train, here) && Barred?.Invoke(here) != true;
+            front = ahead > 0 && Walkable(train, ahead) && Barred?.Invoke(ahead) != true;
         }
         // Sent into one car in particular: its own rear door, from its roof or the roof behind it.
         if (Into is { } into && !Shelter)

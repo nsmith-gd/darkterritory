@@ -22,6 +22,7 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
 - **Boiler, walkable cab and resistance:** spec B.6 is pinned.
 - **Rakes:** cutting, coupling and collision damage.
 - **Procedural routes:** tiers, facilities, tunnels, bridges, and hazards as level content.
+- **Procedural line v1 (M5, docs/design/linegen-plan.md):** every night's line comes from the line generator: a route graph with alternates, dead lines and facility spurs, set pieces scripted to a budget curve, clothoid alignment and a vertical profile, a terrain field the players stand on, authority and its tells (boards, Form 19, the route card), director context, and validation by driving it on the real train sim. `dt linegen generate|sweep|debug|bench`; `C` shows the route card, `F3` the overlay, `--ride` rides a line. ARCHITECTURE §6.10 and §8 note 66.
 - **Play a night:** `DarkTerritory -- --route frontier:7` runs one, enemies and all (`--no-enemies` for a quiet line). The HUD prints text cues for the telegraphs until there's audio.
 - **Guns and the Choir:** two mounted guns with real arcs, and the Choir's global aggro.
 - **Demo roster and director (M5's "5 demo enemies"):**
@@ -125,6 +126,23 @@ M3 is done but for a test with eight people.
   - reaching it, they smash the lamp (out for 45 s) and go for the cab;
   - lamps down (L in the cab) and they lose track, but then the Sleepers only show close: the driver bot slows down in the dark;
   - `dt screenshot --threats` shows one.
+- **Contradiction seeding (T64, App. B.1):** the director weighs up whatever would make a pair from the conflict table with what's about (Lamplighters with Sleepers ahead, Clingers before a grade, the Deadman at a facility), more so past halfway on a run short of its pair. It saves up for the Gaunt so that it comes at all. The harness reports each night's pairs.
+- **The Gaunt (T60, App. A.4):**
+  - on the roofs at a stop or out of a tunnel: dead still while anyone's looking at it, and silent;
+  - unwatched it comes along the roofs and takes whoever's nearest; watched for a minute without a break, it goes;
+  - the roof-walking bots stop and watch it. `dt screenshot --threats` shows it.
+- **The Weight (T59, App. A.3):**
+  - buried at a water crossing, it takes the rear coupling as the last car passes: the train lurches, and a deep scraping starts at the rear;
+  - it drags harder than the engine can pull, and brought to a stand it pulls the car off the rails;
+  - cut the rear car loose, or get down to it and beat it off (five blows); it can't be shot.
+- **Climbers (T58, App. A.4):**
+  - they run alongside and mount only at a coupling gap, scrabbling there first; stand in the gap and they try another;
+  - up and along the roofs toward the engine, then into the first car nobody's in (the guns can take them on the roofs);
+  - the more cars, the more gaps: the director weighs them by gap count. `dt screenshot --threats` shows two.
+- **The Long Whistle (T57, App. A.2):**
+  - a horn on the line ahead, just short of a bend or a grade, and no train: the horn is out of tune and doesn't bend as you close;
+  - brake hard for it and the stop is the punishment; ignored, it sounds twice more and gives up;
+  - never alone (the director only sends it with another threat about), and a crew that braked for it draws the Ferryman.
 - **The Ferryman (T56, App. A.2):**
   - a lantern on a long straight ahead, waving the train down, seen from far out;
   - slow for it and it comes down the line, boards and kills whoever's driving; hold your speed and it steps aside for good;
