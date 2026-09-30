@@ -229,7 +229,9 @@ public sealed class CarHugger(int id) : Enemy(id)
         Health = Math.Min(t.Health, Health + t.RegenPerSecond * SimConstants.TickSeconds);
         // FEED: shell and loot, steadily.
         var car = train.Vehicles[Attached];
-        car.Integrity = Math.Max(0, car.Integrity - t.ShellPerSecond * SimConstants.TickSeconds);
+        double bite = Math.Min(car.Integrity, t.ShellPerSecond * SimConstants.TickSeconds);
+        car.Integrity -= bite;
+        car.Eaten += bite;
         car.CargoIntegrity = Math.Max(0, car.CargoIntegrity - t.LootPerSecond * SimConstants.TickSeconds);
         if (car.Integrity <= 0)
         {

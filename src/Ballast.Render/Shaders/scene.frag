@@ -5,6 +5,7 @@
 // lies in the valleys. Textures carry the colour, the grime and the baked light ("texture does the lighting"); the
 // shader's own grime breaks up their tiling, and stands in for a texture on anything untextured.
 #include "frame.glsl"
+#include "bite.glsl"
 
 layout(set = 0, binding = 1) uniform sampler2DArray diffuseMaps;
 layout(set = 0, binding = 2) uniform sampler2DArray specMaps;
@@ -34,6 +35,9 @@ layout(location = 9) flat in float vGlow;
 layout(location = 10) flat in float vLayer2;
 layout(location = 11) in float vBlend;
 layout(location = 12) flat in vec2 vScar;
+layout(location = 13) in vec3 vObj;
+layout(location = 14) flat in vec4 vBite;
+layout(location = 15) flat in float vBiteFloor;
 
 layout(location = 0) out vec4 outColor;
 
@@ -210,6 +214,10 @@ float indoors(vec3 p) {
 }
 
 void main() {
+    // Eaten away (bite.glsl): gone behind the frontier, and gnawed along it.
+    float bitten = vBite.y > 0.0 ? biteInto(vObj, vBite, vBiteFloor, vScar.y) : -1e3;
+    if (bitten > 0.0)
+        discard;
     vec3 n = normalize(vNormal);
     if (!gl_FrontFacing)
         n = -n; // two-sided cards (pine boughs, grass) light from whichever side you see
@@ -273,6 +281,16 @@ void main() {
         albedo = mix(albedo, max(albedo, vec3(0.075, 0.075, 0.08)), scar.z);
         albedo = mix(albedo, vec3(0.003), scar.w);
     }
+    // Gnawed along the frontier: the torn edge raw and dark, wet with what it slavers, scored by the teeth in grooves
+    // that run back from the edge; scraped pale in the grooves where it bit into plate.
+    float gnawed = 0.0;
+    if (bitten > -0.6) {
+        gnawed = smoothstep(-0.6, -0.02, bitten);
+        float grooves = step(0.72, fract(vObj.y * 11.0 + 0.35 * sin(vObj.x * 9.0 + vObj.z * 3.0))) * smoothstep(-0.45, -0.1, bitten);
+        albedo = mix(albedo, albedo * vec3(0.3, 0.2, 0.18) + vec3(0.03, 0.006, 0.005), gnawed * 0.85);
+        albedo = mix(albedo, vec3(0.012, 0.004, 0.003), smoothstep(-0.07, -0.01, bitten));
+        albedo = mix(albedo, max(albedo, vec3(0.06, 0.05, 0.045)), grooves * (1.0 - gnawed * 0.5));
+    }
 
     // Rain: darker surfaces, and a sheen on everything that faces the sky (ballast, roofs, puddles in the mud).
     float inside = frame.counts.x > 0.0 ? indoors(vPos) : 0.0;
@@ -296,6 +314,9 @@ void main() {
     // Torn edges catch the light; scorch doesn't; a hole throws nothing back.
     specStrength = mix(mix(specStrength, specStrength * 0.3, scar.x), 0.4, scar.z) * (1.0 - scar.w);
     shininess = mix(shininess, 56.0, scar.z);
+    // (The slaver on a gnawed edge shines like a wet mouth.)
+    specStrength = mix(specStrength, 0.5, gnawed * 0.8);
+    shininess = mix(shininess, 70.0, gnawed);
     vec3 spec = vec3(0.0);
 
     // The headlamp: the one light that reaches out into the dark.

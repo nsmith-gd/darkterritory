@@ -79,8 +79,14 @@ public readonly record struct Room(Vector3 Centre, Vector3 Right, Vector3 Up, Ve
 /// <param name="Bones">A skinned asset's pose: where its bone palette starts in <see cref="MeshBuilder.Bones"/> (−1: not skinned).</param>
 /// <param name="SurfaceOffset">Added to every vertex's <see cref="Vertex.Surface"/> (texels): moves the grime so two drawn
 /// from one asset don't wear alike.</param>
+/// <param name="Bite">
+/// The piece eaten away from its back end (Shaders/bite.glsl): x the back end's z in the piece's own space, y how deep it's
+/// eaten down the middle (0: not at all), z how deep at the sides, w the half width. Behind the ragged frontier it isn't
+/// drawn or shadowed, and along it it's gnawed. Its ragged edge is seeded by <see cref="Scar"/>.y.
+/// </param>
+/// <param name="BiteFloor">Below this height (the piece's own y) nothing is eaten.</param>
 public readonly record struct MeshInstance(MeshAsset Asset, Matrix4x4 Model, float Glow = 1, Vector3 Tint = default, Vector2 Scar = default,
-    int Bones = -1, Vector3 SurfaceOffset = default);
+    int Bones = -1, Vector3 SurfaceOffset = default, Vector4 Bite = default, float BiteFloor = 0);
 
 /// <summary>A skinned vertex's bones (indices into its model's skeleton, as floats) and their weights.</summary>
 public struct SkinWeights(Vector4 joints, Vector4 weights)

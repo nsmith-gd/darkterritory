@@ -24,7 +24,9 @@ public sealed class Effects(Look look)
     /// The engine's: smoke and cinders from the stack, steam from the cylinder cocks when she's working slow, sparks at
     /// the brake shoes under a hard brake, and the headlamp's beam and halo.
     /// </summary>
-    public void Train(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye, double time, TrainControls controls, float fire, bool emergency)
+    /// <param name="tailBite">What a Car Hugger's eaten of the last car (Art/BiteKit): its tail lamp goes with its corner.</param>
+    public void Train(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye, double time, TrainControls controls, float fire, bool emergency,
+        Bite tailBite = default)
     {
         if (frames.Count == 0 || (frames[0].Origin - eye).Length > 400)
             return;
@@ -124,7 +126,10 @@ public sealed class Effects(Look look)
         Beam(mesh, at0, lamp.LampDirection, lamp.LampConeDegrees * 0.8f, 40, lamp.LampColour * 0.07f);
         // The tail lamp's glow at the back of the train.
         var last = frames[^1];
-        var tail = last.ToWorld(new Double3(-last.Shape.HalfWidth + 0.25, last.Shape.RoofHeight - 0.3, last.Shape.HalfLength + 0.15)).RelativeTo(eye);
+        var corner = new Double3(-last.Shape.HalfWidth + 0.25, last.Shape.RoofHeight - 0.3, last.Shape.HalfLength + 0.15);
+        if (tailBite.Eats(new Vector3((float)corner.X, (float)corner.Y, (float)corner.Z - 0.2f)))
+            return;
+        var tail = last.ToWorld(corner).RelativeTo(eye);
         mesh.Billboard(tail, 1.0f, 0, new Vector4(0.6f, 0.08f, 0.05f, 1), -1, FxBlend.Additive);
     }
 

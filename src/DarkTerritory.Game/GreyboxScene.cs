@@ -182,9 +182,13 @@ public sealed class GreyboxScene
             // Its interior as an enclosed space: the night stays outside it (Room).
             if (Look is not null && frame.Shape.Interior is { } inside)
                 mesh.Rooms.Add(new Room(V(frame.ToWorld(inside.Centre), eye), ToF(frame.Right), ToF(frame.Up), ToF(frame.Back), ToF(inside.HalfSize)));
+            // (A lamp in what a Car Hugger's eaten of the car has gone with its ceiling: Art/BiteKit.)
+            var eatenBy = Look is null ? default : Art.Bite.For(Look.Tuning.Bite, frame.Shape, Vehicles is { } fleet && frame.Index < fleet.Count ? fleet[frame.Index] : null, frame.Index);
             if (frame.Shape.Interior is { } room)
                 foreach (double z in new[] { -room.HalfSize.Z * 0.5, room.HalfSize.Z * 0.5 })
                 {
+                    if (eatenBy.Eats(new Vector3(0, (float)room.Max.Y - 0.05f, (float)(room.Centre.Z + z))))
+                        continue;
                     // With the art pass the lamps are flames, and flicker (Art.SceneArt.Flicker); the greybox's are steady.
                     float flicker = Look is null ? 1 : Art.SceneArt.Flicker(Time, frame.Index * 2 + (z < 0 ? 0 : 1));
                     mesh.PointLights.Add(Emergency
@@ -200,7 +204,8 @@ public sealed class GreyboxScene
         if (Look is not null)
         {
             // The art pass's effects (Art/Effects): smoke, steam, sparks, the lamp's beam, and fog banks along the line.
-            Look.Art.Effects.Train(mesh, frames, eye, Time, Controls, FireGlow, Emergency);
+            Look.Art.Effects.Train(mesh, frames, eye, Time, Controls, FireGlow, Emergency,
+                frames.Count == 0 ? default : Art.Bite.For(Look.Tuning.Bite, frames[^1].Shape, Vehicles is { } fleet && frames[^1].Index < fleet.Count ? fleet[frames[^1].Index] : null, frames[^1].Index));
             var fog = Look.Apply(FrameLighting.Night).FogColor;
             Look.Art.Effects.Fog(mesh, line, eye, centre, Time, fog, (float)(Route?.Weather.FogDensity ?? 0.016));
             if (Route?.Weather is { Wet: true } weather)
@@ -217,7 +222,13 @@ public sealed class GreyboxScene
                         DrawCrewmate(mesh, double_, eye);
                 }
                 else if (!e.Gone)
-                    DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures);
+                {
+                    // A Car Hugger's head goes in as far as it's eaten into its car (Art/BiteKit).
+                    var bite = e.Kind == EnemyKind.CarHugger && e.Attached >= 0 && e.Attached < frames.Count && Look is { } look
+                        ? Art.Bite.For(look.Tuning.Bite, frames[e.Attached].Shape, Vehicles is { } vs && e.Attached < vs.Count ? vs[e.Attached] : null, e.Attached)
+                        : default;
+                    DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite);
+                }
         Lap(mesh, "enemies");
         if (Bodies is not null)
         {
@@ -392,7 +403,8 @@ public sealed class GreyboxScene
     /// Greybox stand-ins, each readable by silhouette and by its telegraph (App. A.1: the tell must be
     /// perceivable). The real creatures come with the art pass; these exist to make pacing watchable.
     /// </summary>
-    static void DrawEnemy(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Enemy e, Double3 eye, double from, double to, Art.CreatureArt? creatures = null)
+    static void DrawEnemy(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Enemy e, Double3 eye, double from, double to, Art.CreatureArt? creatures = null,
+        Art.Bite bite = default)
     {
         // A basis for the enemy: its car's, or the line's at its distance.
         Double3 origin, right, up = Double3.Up, back;
@@ -428,7 +440,7 @@ public sealed class GreyboxScene
         var o = V(origin, eye);
         var (r, u, b) = (ToF(right), ToF(up), ToF(back));
         // The art pass's creature, where it has one (Art/CreatureArt): the same place, the thing itself.
-        if (creatures is not null && creatures.Enemy(mesh, Art.CreatureArt.Basis(o, r, u, b), e))
+        if (creatures is not null && creatures.Enemy(mesh, Art.CreatureArt.Basis(o, r, u, b), e, bite))
             return;
         Vector3 L(double x, double y, double z) => o + r * (float)x + u * (float)y + b * (float)z;
         void Draw(double x, double y, double z, double hx, double hy, double hz, Vector3 colour) =>
@@ -1250,7 +1262,8 @@ public sealed class GreyboxScene
         if (shape.Interior is not null && Look is not null)
         {
             // Lanterns hanging where the car's lights are (the art pass's).
-            Look.Art.CarLamps(mesh, frame, eye, Emergency);
+            Look.Art.CarLamps(mesh, frame, eye, Emergency,
+                Art.Bite.For(Look.Tuning.Bite, frame.Shape, Vehicles is { } lampsOf && frame.Index < lampsOf.Count ? lampsOf[frame.Index] : null, frame.Index));
         }
         else if (shape.Interior is { } room)
         {

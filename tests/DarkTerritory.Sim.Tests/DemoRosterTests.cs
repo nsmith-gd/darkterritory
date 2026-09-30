@@ -1,5 +1,6 @@
 using Ballast;
 using DarkTerritory.Sim.Enemies;
+using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Train;
 
@@ -94,7 +95,24 @@ public class DemoRosterTests
         n.Run(10);
         Assert.True(n.Train.Vehicles[rear].Integrity < shell);
         Assert.True(n.Train.Vehicles[rear].CargoIntegrity < loot);
+        // What it ate is remembered as eaten, out of the integrity (the car's drawn gnawed away, not battered): a sound car
+        // it alone has fed on is still whole, counting what it ate.
+        Assert.True(n.Train.Vehicles[rear].Eaten > 0);
+        Assert.Equal(1, n.Train.Vehicles[rear].Integrity + n.Train.Vehicles[rear].Eaten, 9);
         n.AssertFair();
+    }
+
+    [Fact]
+    public void AClientSeesHowMuchOfTheCarItsEaten()
+    {
+        var (n, _, rear) = Latched();
+        n.Run(20);
+        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 4, 1)),
+            new Rail.RailLine(new Rail.LineDefinition("t", [new Rail.TrackSegment(40_000)])), 2_000), Tuning.Combat);
+        var controls = new TrainControls();
+        WorldRecords.Apply(WorldRecords.Capture(n.World, controls, []), client, ref controls, []);
+        Assert.Equal(n.Train.Vehicles[rear].Eaten, client.Train.Vehicles[rear].Eaten, 3);
+        Assert.True(client.Train.Vehicles[rear].Eaten > 0);
     }
 
     [Fact]

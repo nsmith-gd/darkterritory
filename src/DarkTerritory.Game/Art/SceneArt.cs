@@ -208,8 +208,11 @@ public sealed partial class SceneArt(Look look)
         }
     }
 
-    /// <summary>A car's two lanterns, hanging on their chains from the carlines where its lights are; red glass under emergency lighting.</summary>
-    public void CarLamps(MeshBuilder mesh, in CarFrame frame, Double3 eye, bool emergency)
+    /// <summary>
+    /// A car's two lanterns, hanging on their chains from the carlines where its lights are; red glass under emergency
+    /// lighting. One whose ceiling a Car Hugger's eaten (<paramref name="bite"/>) has gone with it.
+    /// </summary>
+    public void CarLamps(MeshBuilder mesh, in CarFrame frame, Double3 eye, bool emergency, Bite bite = default)
     {
         if (frame.Shape.Interior is not { } room || (frame.Origin - eye).Length > 80)
             return;
@@ -235,10 +238,13 @@ public sealed partial class SceneArt(Look look)
             }
             return k.Build("car-lamps");
         });
-        mesh.Instances.Add(new MeshInstance(lamps, m, 1, emergency ? new Vector3(0.6f, 0.08f, 0.05f) : default));
+        var (cut, floor) = bite.Any ? (bite.Shader, bite.Floor) : (Vector4.Zero, 0f);
+        mesh.Instances.Add(new MeshInstance(lamps, m, 1, emergency ? new Vector3(0.6f, 0.08f, 0.05f) : default,
+            Scar: new Vector2(0, bite.Seed), Bite: cut, BiteFloor: floor));
         var glow = emergency ? new Vector3(0.35f, 0.04f, 0.03f) : Palette.LampAmber * 0.35f;
         foreach (var at in LampPositions(room))
-            mesh.Billboard(Vector3.Transform(at, m), 0.6f, 0, new Vector4(glow, 1), -1, FxBlend.Additive);
+            if (!bite.Eats(at with { Y = (float)room.Max.Y - 0.05f }))
+                mesh.Billboard(Vector3.Transform(at, m), 0.6f, 0, new Vector4(glow, 1), -1, FxBlend.Additive);
     }
 
     static IEnumerable<Vector3> LampPositions(Box room)
@@ -279,20 +285,31 @@ public sealed partial class SceneArt(Look look)
         var body = Piece(key, () => engine ? TrainKit.Engine(Look, shape, 0) : TrainKit.Car(Look, shape, livery, variant));
         // Wear and tear off the car's integrity (look.json "damage"): the scar mask over the body and doors, seeded by
         // the car so its scars stay where they are, and past the first state the torn plate the mask can't draw.
+        // What a Car Hugger ate of it (App. A.3 FEED) is gone, not battered: the scars and torn plate are the rest of the loss.
         var damage = Look.Tuning.Damage;
-        double integrity = vehicle?.Integrity ?? 1;
+        double eaten = engine ? 0 : vehicle?.Eaten ?? 0;
+        double integrity = Math.Min(1, (vehicle?.Integrity ?? 1) + eaten);
         int seed = vehicle?.Id ?? frame.Index;
-        var scar = new Vector2(damage.ScarOf(integrity), seed * 0.618f % 1 * 97);
+        var scar = new Vector2(damage.ScarOf(integrity), Bite.ScarSeed(seed));
+        var bite = Bite.For(Look.Tuning.Bite, shape, vehicle, frame.Index);
+        var (cut, floor) = bite.Any ? (bite.Shader, bite.Floor) : (Vector4.Zero, 0f);
         // Under emergency lighting the headlamp and tail lamp have no power.
-        mesh.Instances.Add(new MeshInstance(body, m, emergency ? 0.06f : 1, Scar: scar));
+        mesh.Instances.Add(new MeshInstance(body, m, emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
         int state = damage.StateOf(integrity);
         if (state > 0 && !engine)
-            mesh.Instances.Add(new MeshInstance(Piece($"damage:{ShapeKey(shape)}:{state}:{seed}", () => DamageKit.Car(Look, shape, state, seed)), m));
+            mesh.Instances.Add(new MeshInstance(Piece($"damage:{ShapeKey(shape)}:{state}:{seed}", () => DamageKit.Car(Look, shape, state, seed)), m,
+                Scar: scar, Bite: cut, BiteFloor: floor));
+        if (bite.Any)
+            mesh.Instances.Add(new MeshInstance(Piece($"bite:{ShapeKey(shape)}:{livery}:{seed}:{bite.Centre:0.00}:{bite.Side:0.00}",
+                () => bite.Edge(Look, shape, livery, seed)), m, Scar: scar));
 
         foreach (var door in shape.DoorList)
         {
             bool open = vehicle?.DoorOpen(door.Index) ?? false;
             var box = door.Box;
+            // An end door it's eaten past is gone with its wall.
+            if (bite.Eats(new Vector3((float)box.Centre.X, (float)box.Centre.Y, (float)box.Centre.Z)))
+                continue;
             bool side = box.Max.Z - box.Min.Z > box.Max.X - box.Min.X;
             if (open)
             {
@@ -308,12 +325,16 @@ public sealed partial class SceneArt(Look look)
         }
         // The gun rail along the roof (T93), and the gun wherever it's been pushed along it.
         if (shape.RoofRail is { } rail)
-            mesh.Instances.Add(new MeshInstance(Piece($"rail:{ShapeKey(shape)}", () => TrainKit.RoofRail(Look, shape, rail)), m));
+            mesh.Instances.Add(new MeshInstance(Piece($"rail:{ShapeKey(shape)}", () => TrainKit.RoofRail(Look, shape, rail)), m, Scar: scar, Bite: cut, BiteFloor: floor));
         if ((vehicle is null ? shape.Gun : vehicle.HasGun ? Sim.Combat.Guns.Mount(shape, vehicle.Gun) : null) is { } gun)
         {
             float yaw = MathF.Atan2(-(float)gun.Facing.X, -(float)gun.Facing.Z);
             var at = gun.Position;
             var gunM = Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateTranslation((float)at.X, (float)at.Y, (float)at.Z) * m;
+            // The roof eaten out from under it, it's fallen in: down on the floor, nose up against the wall's torn edge.
+            if (bite.Eats(new Vector3((float)at.X, (float)at.Y - 0.3f, (float)at.Z)) && shape.Interior is { } room)
+                gunM = Matrix4x4.CreateRotationX(0.45f) * Matrix4x4.CreateRotationZ(0.2f) * Matrix4x4.CreateRotationY(yaw)
+                    * Matrix4x4.CreateTranslation((float)at.X, (float)room.Min.Y + 0.45f, (float)at.Z) * m;
             mesh.Instances.Add(new MeshInstance(Piece("gun", () => TrainKit.Gun(Look)), gunM));
             // The muzzle flash, for the two ticks after a round (pipeline VFX: "muzzle flash", additive): a hot star
             // at the muzzle and a burst of light over the roof and whatever it's aimed at.

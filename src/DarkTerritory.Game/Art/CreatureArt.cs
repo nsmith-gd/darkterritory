@@ -33,6 +33,15 @@ public sealed class CreatureArt
 
     /// <summary>A haunting Track Doll's turns aboard (App. A.2 HAUNT): this long over the cargo, then this long giggling.</summary>
     const double DollAdmires = 12, DollGiggles = 5;
+    /// <summary>
+    /// The Track Doll's head turns to whoever's looking, in clicks of this much (degrees): a porcelain head on its socket,
+    /// round as far as it takes, behind it included (GDD §31: still when watched, then too-fast corrections).
+    /// </summary>
+    const float DollHeadClick = 30;
+    /// <summary>On the rail it beckons the train in once it's this close (m, from the eye).</summary>
+    const float DollBeckons = 40;
+    /// <summary>Aboard, bent over the cargo, it looks round at you when you're this close (m).</summary>
+    const float DollNotices = 8;
 
     /// <summary>
     /// A lurking Car Hugger's lift (m): its origin is where its mouth will be on the car. Lying flat it's sunk to its
@@ -40,6 +49,11 @@ public sealed class CreatureArt
     /// that could be anything, not a thing on the ground (App. A.3 LURK: its tell is the grinding once it's on).
     /// </summary>
     const float HuggerLurkLift = -0.2f, HuggerLurkMud = 0.3f;
+
+    // How far forward of where they took hold a Car Hugger's hands have gone, following its car's eaten edge (Art/BiteKit):
+    // set by Enemy(e, bite) for the one draw it makes.
+    float _biteGrip;
+    static readonly string[] HuggerArms = ["a", "b", "c", "d"];
 
     static float SmoothStep(float a, float b, float x)
     {
@@ -124,11 +138,17 @@ public sealed class CreatureArt
     /// moves its grime so two of the same thing don't wear alike. Returns false when the model or clip isn't there.
     /// </summary>
     public bool Draw(MeshBuilder mesh, string name, string clip, double time, bool loop, in Matrix4x4 at, int variant = 0,
+        float glow = 1, float seed = 0, Func<ModelMaterial, MaterialLook, MaterialLook>? adjust = null) =>
+        Draw(mesh, name, clip, time, loop, at, null, variant, glow, seed, adjust);
+
+    /// <summary><see cref="Draw(MeshBuilder, string, string, double, bool, in Matrix4x4, int, float, float, Func{ModelMaterial, MaterialLook, MaterialLook}?)"/>, with the clip's pose worked on before it's drawn (a reach, a look).</summary>
+    bool Draw(MeshBuilder mesh, string name, string clip, double time, bool loop, in Matrix4x4 at, Action<Entry>? posed, int variant = 0,
         float glow = 1, float seed = 0, Func<ModelMaterial, MaterialLook, MaterialLook>? adjust = null)
     {
         if (!_models.TryGetValue(name, out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
         _skinner.Evaluate(m.Model, c, time, loop, m.Pose);
+        posed?.Invoke(m);
         Emit(mesh, m, clip, at, variant, glow, seed, adjust);
         return true;
     }
@@ -246,11 +266,45 @@ public sealed class CreatureArt
         return (mm, l) => mm.Name.EndsWith(".paint", StringComparison.Ordinal) ? l with { Colour = l.Colour * colour } : l;
     }
 
-    /// <summary>One arm of the posed model to a hand position (model space) by two-bone IK, the elbow toward the pole.</summary>
-    static void Reach(Entry m, string side, Vector3 target, Vector3 pole)
+    /// <summary>
+    /// The doll's head turned on its neck to face <paramref name="eye"/> (model space), the turn stepped in clicks of
+    /// <see cref="DollHeadClick"/> (so it jumps round as you move, and holds between): about the model's up, from the
+    /// way the clip has it facing (the model faces −Z).
+    /// </summary>
+    static void WatchWithHead(Entry m, Vector3 eye)
     {
         var sk = m.Model.Skeleton;
-        int upper = sk.IndexOf("upperarm_" + side), lower = sk.IndexOf("lowerarm_" + side), hand = sk.IndexOf("hand_" + side);
+        int head = sk.IndexOf("head");
+        if (head < 0)
+            return;
+        var pivot = m.Pose.World[head].Translation;
+        var to = eye - pivot;
+        if (to.X * to.X + to.Z * to.Z < 1e-4f)
+            return;
+        float yaw = MathF.Atan2(-to.X, -to.Z);
+        float click = DollHeadClick * MathF.PI / 180;
+        yaw = MathF.Round(yaw / click) * click;
+        if (MathF.Abs(yaw) < 1e-4f)
+            return;
+        var turn = Matrix4x4.CreateTranslation(-pivot) * Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateTranslation(pivot);
+        for (int b = 0; b < sk.Count; b++)
+            for (int p = b; p >= 0; p = sk.Parents[p])
+                if (p == head)
+                {
+                    m.Pose.World[b] *= turn;
+                    m.Pose.Skin[b] = sk.InverseBind[b] * m.Pose.World[b];
+                    break;
+                }
+    }
+
+    /// <summary>One arm of the posed model to a hand position (model space) by two-bone IK, the elbow toward the pole.</summary>
+    static void Reach(Entry m, string side, Vector3 target, Vector3 pole) => Reach(m, "upperarm_" + side, "lowerarm_" + side, "hand_" + side, target, pole);
+
+    /// <summary>A two-bone chain (upper, lower, and the bone at its end) to a target, the middle joint toward the pole.</summary>
+    static void Reach(Entry m, string upperBone, string lowerBone, string handBone, Vector3 target, Vector3 pole)
+    {
+        var sk = m.Model.Skeleton;
+        int upper = sk.IndexOf(upperBone), lower = sk.IndexOf(lowerBone), hand = sk.IndexOf(handBone);
         if (upper < 0 || lower < 0 || hand < 0)
             return;
         var shoulder = m.Pose.World[upper].Translation;
@@ -542,15 +596,32 @@ public sealed class CreatureArt
                     if (!_models.TryGetValue("car_hugger", out var hugger))
                         return false;
                     double latch = hugger.Model.Clips.TryGetValue("latch", out var l) ? l.Duration : 0;
+                    // Eaten into its car, its hands have gone forward with the side walls' torn edge: each arm reaches
+                    // on to where its hand held, that much further along the car (the clip still works the fingers).
+                    float grip = _biteGrip;
+                    _biteGrip = 0;
+                    Action<Entry>? regrip = grip <= 0 ? null : e =>
+                    {
+                        var sk = e.Model.Skeleton;
+                        foreach (var n in HuggerArms)
+                        {
+                            int lower = sk.IndexOf($"arm_{n}_02"), hand = sk.IndexOf($"hand_{n}"), upper = sk.IndexOf($"arm_{n}_01");
+                            if (lower < 0 || hand < 0 || upper < 0)
+                                continue;
+                            var wrist = e.Pose.World[hand].Translation;
+                            var pole = e.Pose.World[lower].Translation - (e.Pose.World[upper].Translation + wrist) * 0.5f;
+                            Reach(e, $"arm_{n}_01", $"arm_{n}_02", $"hand_{n}", wrist - Vector3.UnitZ * grip, pole);
+                        }
+                    };
                     return phase switch
                     {
                         SpinePhase.Dormant => Draw(mesh, "car_hugger", "lurk", t, true, Matrix4x4.CreateTranslation(0, HuggerLurkLift, 0) * model,
                             adjust: (_, look) => look with { Colour = look.Colour * HuggerLurkMud }),
                         SpinePhase.BreakOff => Draw(mesh, "car_hugger", "release", t, false, model),
-                        SpinePhase.Grab or SpinePhase.Punish => Draw(mesh, "car_hugger", "swallow", t, true, model),
+                        SpinePhase.Grab or SpinePhase.Punish => Draw(mesh, "car_hugger", "swallow", t, true, model, regrip),
                         SpinePhase.Telegraph when t < latch => Draw(mesh, "car_hugger", "latch", t, false, model),
-                        SpinePhase.Telegraph => Draw(mesh, "car_hugger", "feed", t - latch, true, model),
-                        _ => Draw(mesh, "car_hugger", "feed", t, true, model),
+                        SpinePhase.Telegraph => Draw(mesh, "car_hugger", "feed", t - latch, true, model, regrip),
+                        _ => Draw(mesh, "car_hugger", "feed", t, true, model, regrip),
                     };
                 }
             case EnemyKind.TrackDoll:
@@ -560,14 +631,20 @@ public sealed class CreatureArt
                     // controls (extra2) it tampers; cornered (extra) it cowers. Its face and glass eyes draw under a material of
                     // their own, lit a little from within, so the white face reads in the lamp out to 200 m through the fog
                     // (§21); aboard, close to, it's barely there.
-                    string clip = "stand";
+                    // Whatever it's doing, its head turns to the one looking at it (the eye: the model's translation is from
+                    // it), in clicks; bent over the cargo, only once they're close; at the controls, now and then, a
+                    // glance back; cowering, never.
+                    float dist = model.Translation.Length();
+                    string clip = !aboard && dist < DollBeckons ? "beckon" : "stand";
                     double ct = t;
+                    bool watch = true;
                     if (phase == SpinePhase.Punish)
                     {
                         double turn = t % (DollAdmires + DollGiggles);
                         (clip, ct) = extra > 0.5 ? ("cower", t)
                             : extra2 > 0.5 ? ("tamper", t)
                             : turn < DollAdmires ? ("admire", turn) : ("giggle", turn - DollAdmires);
+                        watch = clip switch { "cower" => false, "admire" => dist < DollNotices, "tamper" => t % 5 < 1.2, _ => true };
                     }
                     // TELEGRAPH is the lamp catching the glaze (the sim enters it with the lamp on, within 200 m): the face
                     // shines out of the fog far off and eases to a sheen as the train closes on it (the model's translation is
@@ -576,8 +653,15 @@ public sealed class CreatureArt
                     float glow = phase == SpinePhase.Telegraph ? 0.15f + 0.75f * far : 0.05f;
                     // On the rail it faces the train coming at it (a thing on the line faces down it, the way the train goes).
                     var at = aboard ? model : Matrix4x4.CreateRotationY(MathF.PI) * model;
-                    return Draw(mesh, "track_doll", clip, ct, true, at, seed: 3,
-                        adjust: (mm, l) => mm.Name.EndsWith(".face", StringComparison.Ordinal) ? l with { Emissive = MathF.Max(l.Emissive, glow) } : l);
+                    Action<Entry>? look = null;
+                    if (watch && Matrix4x4.Invert(at, out var toModel))
+                    {
+                        var eye = Vector3.Transform(Vector3.Zero, toModel);
+                        look = e => WatchWithHead(e, eye);
+                    }
+                    return Draw(mesh, "track_doll", clip, ct, true, at, look, seed: 3,
+                        adjust: (mm, l) => mm.Name.EndsWith(".face", StringComparison.Ordinal) ? l with { Emissive = MathF.Max(l.Emissive, glow) } : l)
+                        || Draw(mesh, "track_doll", "stand", ct, true, at, look, seed: 3);
                 }
             case EnemyKind.Whistler:
                 {
@@ -670,11 +754,16 @@ public sealed class CreatureArt
     /// <see cref="Enemy(MeshBuilder, in Matrix4x4, EnemyKind, SpinePhase, double, double)"/> for a live enemy, turning
     /// the basis for which side of the car or the line it's on: a Dragger on a car's +X side reaches over that edge, and the Switchman turns to face the train coming up the line.
     /// </summary>
-    public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, Enemy e)
+    /// <param name="bite">A Car Hugger's car's (Art/BiteKit): its head goes in as far as it's eaten.</param>
+    public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite = default)
     {
         var m = model;
         switch (e.Kind)
         {
+            case EnemyKind.CarHugger when bite.Any:
+                m = Matrix4x4.CreateTranslation(0, 0, -bite.Advance) * model;
+                _biteGrip = bite.Grip;
+                break;
             case EnemyKind.Dragger when e.Local.X > 0:
                 m = Matrix4x4.CreateRotationY(MathF.PI) * model;
                 break;

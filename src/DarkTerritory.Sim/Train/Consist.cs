@@ -56,6 +56,12 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     public CargoKind Cargo { get; set; } = load > 0 && kind == VehicleKind.Cargo ? CargoKind.Goods : CargoKind.None;
     /// <summary>Structural condition, 1 sound to 0 wrecked.</summary>
     public double Integrity { get; set; } = 1;
+    /// <summary>
+    /// How much of its shell a Car Hugger has eaten (GDD v1.2 App. A.3 FEED), counted out of <see cref="Integrity"/>: the
+    /// same loss, remembered as eaten rather than battered, so the car is drawn gnawed away from its rear end (and stays
+    /// so once the thing is killed) rather than dented.
+    /// </summary>
+    public double Eaten { get; set; }
     /// <summary>Fraction of the cargo that would still pay on delivery (spec F.1).</summary>
     public double CargoIntegrity { get; set; } = 1;
     /// <summary>One bit per door in <see cref="CarShape.Doors"/>: set is open. Doors start shut.</summary>

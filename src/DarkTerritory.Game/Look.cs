@@ -33,6 +33,28 @@ public sealed record AtmosphereTuning
     public float? LampIntensity { get; init; }
 }
 
+/// <summary>
+/// A car eaten from its rear end by a Car Hugger (GDD v1.2 App. A.3 FEED; Art/BiteKit, Shaders/bite.glsl), read off how
+/// much of what was left of it has been eaten: <see cref="DarkTerritory.Sim.Train.Vehicle.Eaten"/> over eaten plus
+/// integrity, so it's eaten through, the whole way, just as the sim drops it.
+/// </summary>
+public sealed record BiteTuning
+{
+    /// <summary>How far down the car's body it's eaten by the end, as a fraction of its length.</summary>
+    public float Depth { get; init; } = 0.45f;
+    /// <summary>How far its head pushes in through the end as it eats (m): past that it's reaching in and tearing.</summary>
+    public float Advance { get; init; } = 1.4f;
+    /// <summary>The side walls, which its hands hold, go this far ahead of its head at most (m).</summary>
+    public float SideLead { get; init; } = 1.0f;
+    /// <summary>Below this height (m over the rail) nothing is eaten: the underframe and the trucks, so it rolls on.</summary>
+    public float Floor { get; init; } = 0.95f;
+    /// <summary>The first bites take the rear platform, over this fraction of the eating.</summary>
+    public float Platform { get; init; } = 0.08f;
+
+    /// <summary>0 whole to 1 eaten through.</summary>
+    public static float Fraction(double eaten, double integrity) => eaten <= 0 ? 0 : (float)Math.Clamp(eaten / Math.Max(1e-6, eaten + integrity), 0, 1);
+}
+
 /// <summary>Mirror of content/tuning/look.json: the art pass's surfaces, the grade and the post stack (GDD §25-28).</summary>
 /// <summary>
 /// The consist's wear and tear (pipeline plan, consist kit: "3 damage states per car; scars persist between runs as
@@ -79,6 +101,7 @@ public sealed record LookTuning
     public PostSettings Post { get; init; } = new();
     public AtmosphereTuning Atmosphere { get; init; } = new();
     public DamageTuning Damage { get; init; } = new();
+    public BiteTuning Bite { get; init; } = new();
 }
 
 /// <summary>One entry of content/art/textures/index.json (written by tools/art/textures.py).</summary>
