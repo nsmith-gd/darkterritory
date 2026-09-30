@@ -511,6 +511,7 @@ static object ShowStop(RouteTuning rt, StopTuning st, string[] args)
     ulong seed = (ulong)Opt(args, "--seed", 1);
     var kind = Enum.Parse<StopKind>(Str(args, "--kind", "yardAndVillage"), ignoreCase: true);
     StopLayout layout;
+    double? start = null;
     if (Str(args, "--route", "") is { Length: > 0 } spec)
     {
         // A stop as a generated night has it: the route's i-th stop (facilities' yards and village halts, in order).
@@ -520,6 +521,7 @@ static object ShowStop(RouteTuning rt, StopTuning st, string[] args)
         if (i < 0 || i >= stops.Count)
             throw new ArgumentException($"{spec} has {stops.Count} stops (--stop 0..{stops.Count - 1})");
         layout = stops[i].Stop!;
+        start = stops[i].Start;
         (tier, seed, kind) = (layout.Tier, layout.Seed, layout.Kind);
     }
     else
@@ -535,6 +537,12 @@ static object ShowStop(RouteTuning rt, StopTuning st, string[] args)
         form = layout.Form?.ToString(),
         village = layout.VillageForm?.ToString(),
         arrangement = layout.Arrangement.ToString(),
+        // Where it is on the night's line (for `dt screenshot --route ... --cam`), and which side its yard and village are.
+        start,
+        yardSide = layout.YardSide,
+        villageSide = layout.VillageSide,
+        villageOffset = layout.VillageOffset,
+        halt = layout.Halt,
         attempt = layout.Attempt + 1,
         layout.InBand,
         band = StopGenerator.Band(st, layout),
@@ -655,7 +663,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (args.Contains("--site") && generated is not null)
     {
         run = new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
-        run.EnableSites(DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)), line);
+        var facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File));
+        run.EnableSites(facilities, line);
+        // The yard's own gantries and loot (level-design P14, P18), out as if the train had just stopped.
+        run.EnableLoot(DataFile.Load<LootTuning>(Path.Combine(content, LootTuning.File)), line, facilities);
         // --crane: the first facility with a gantry crane (T48) instead, its first casting on the hook.
         // --facility i: that facility's site, whatever it has (to look at a kind's buildings).
         int pick = (int)Opt(args, "--facility", -1);
@@ -733,6 +744,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             shelf.SpawnCargo(crate - Double3.Up * 0.15, site.CrateLineHint);
         foreach (var crate in site.HeavyStack)
             shelf.SpawnCargo(crate, site.CrateLineHint, site.HeavyRadius);
+        run!.Stock(shelf, run.Stops.ToList().IndexOf(site.Feature));
         cargo = [.. shelf.All];
         if (Str(args, "--cam", "") is not { Length: > 0 })
         {
@@ -826,6 +838,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         path = Path.GetFullPath(output),
         view,
         trainAt = Math.Round(at, 1),
+        // --site: where its cranes' hooks hang (the facility's own and the yard's), by line distance and offset.
+        cranes = site?.Cranes.Select(c => new { line = Math.Round(GreyboxScene.NearestDistance(line, c.HookAt, site.Feature.Start + 300), 1), castings = c.Castings.Length }),
         device = gpu.DeviceName,
         triangles = renderer.Stats.Triangles,
         draws = renderer.Stats.Draws,

@@ -226,6 +226,8 @@ public static class Hud
                 BodyKind.Heavy when !carried.Lifted => "HOLDING AN END: IT NEEDS TWO   [E] LET GO",
                 BodyKind.Heavy => "TOGETHER, INTO A CAR: [E] PUT IT DOWN",
                 BodyKind.Cargo => "INTO A CAR TO LOAD IT: [E] PUT DOWN   [RMB] THROW",
+                // A village find (level-design P12): it pays once it's put down aboard, in any car.
+                BodyKind.Loot => $"{world.Run?.FindName(carried)?.ToUpperInvariant() ?? "A FIND"}: INTO ANY CAR TO KEEP IT   [E] PUT DOWN   [RMB] THROW",
                 _ => "[E] PUT DOWN   [RMB] THROW",
             };
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is not null)
@@ -261,6 +263,7 @@ public static class Hud
             {
                 BodyKind.Ragdoll => "[E] PICK UP THE BODY",
                 BodyKind.Radio => "[E] TAKE THE RADIO",
+                BodyKind.Loot => $"[E] TAKE {world.Run?.FindName(thing)?.ToUpperInvariant() ?? "IT"}",
                 // A reaching hand takes its end with both hands on it (T43).
                 BodyKind.Heavy when thing.Carrier >= 0 => p.Hand != default ? "BOTH HANDS ON IT: TAKE THE OTHER END" : "[E] TAKE THE OTHER END",
                 BodyKind.Heavy => p.Hand != default ? "HEAVY: BOTH HANDS ON AN END (IT NEEDS TWO)" : "[E] TAKE AN END (IT NEEDS TWO)",
@@ -277,7 +280,7 @@ public static class Hud
                 : $"[E] HOLD: THROW THE SWITCH TO {to}";
         }
         // The crane (T48): at its controls, or at its hook on the ground.
-        if (world.Run?.CurrentSite?.Crane is { } crane)
+        if (world.Run?.CurrentSite?.CraneNear(PlayerMotor.WorldPosition(p, train)) is { } crane)
         {
             if (p.Has(PlayerFlags.Operating))
                 return crane.Hooked is null ? "CRANE: WASD BRIDGE AND TROLLEY   SPACE/B HOOK   LET GO OF E TO STEP DOWN"

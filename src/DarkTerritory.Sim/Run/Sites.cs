@@ -157,6 +157,10 @@ public sealed class Site
     /// <summary>Every crane here: the facility's own first.</summary>
     public IReadOnlyList<Crane> Cranes => Crane is null ? YardCranes : [Crane, .. YardCranes];
 
+    /// <summary>The crane someone at <paramref name="at"/> is working: the one whose controls or hook are nearest (for the HUD and the cab's view).</summary>
+    public Crane? CraneNear(Double3 at) => Cranes.Count == 0 ? null
+        : Cranes.MinBy(c => Math.Min(((c.Controls - at) with { Y = 0 }).Length, ((c.HookAt - at) with { Y = 0 }).Length));
+
     public int Index { get; }
     public RouteFeature Feature { get; }
     /// <summary>The branch the facility's track is (a spur), or <see cref="RailLine.MainPath"/>.</summary>

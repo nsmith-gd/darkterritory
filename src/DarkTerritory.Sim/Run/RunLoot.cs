@@ -114,7 +114,7 @@ public sealed partial class Run
             {
                 var f = _stopLoot[k].Feature;
                 if (!_stocked[k] && engine.Distance >= f.Start && engine.Distance <= f.End + 100)
-                    Stock(world, line, t, k);
+                    Stock(world.Bodies, line, t, k);
             }
 
         // A find put down inside a car, and lying still there, is stowed.
@@ -138,8 +138,18 @@ public sealed partial class Run
         }
     }
 
+    /// <summary>
+    /// Puts stop <paramref name="stop"/>'s loot out into <paramref name="bodies"/> now, as the host does when the train
+    /// first stops there (for tools: `dt screenshot --site`). Does nothing before <see cref="EnableLoot"/>.
+    /// </summary>
+    public void Stock(Physics.Bodies bodies, int stop)
+    {
+        if (_loot is { } t && _lootLine is { } line && stop >= 0 && stop < _stopLoot.Count)
+            Stock(bodies, line, t, stop);
+    }
+
     /// <summary>A stop's loot comes out: the yard's crate stacks and strongroom, the village's finds.</summary>
-    void Stock(World world, RailLine line, LootTuning t, int k)
+    void Stock(Physics.Bodies bodies, RailLine line, LootTuning t, int k)
     {
         _stocked[k] = true;
         var (f, index, stop, finds) = _stopLoot[k];
@@ -152,17 +162,17 @@ public sealed partial class Run
                 case ContainerKind.CrateStack:
                     int n = StopLoot.CratesIn(t, stop, _route.Seed, index, c);
                     for (int i = 0; i < n; i++)
-                        world.Bodies.SpawnCargo(StopWorld(line, f, c.At + new Pt(0, (i - (n - 1) * 0.5) * 1.1)), hint);
+                        bodies.SpawnCargo(StopWorld(line, f, c.At + new Pt(0, (i - (n - 1) * 0.5) * 1.1)), hint);
                     break;
                 case ContainerKind.Strongroom:
                     for (int i = 0; i < t.Yard.Strongroom.Heavy; i++)
-                        world.Bodies.SpawnCargo(StopWorld(line, f, c.At + new Pt(i * 1.6, 0)), hint, heavy);
+                        bodies.SpawnCargo(StopWorld(line, f, c.At + new Pt(i * 1.6, 0)), hint, heavy);
                     break;
                 case ContainerKind.CraneBay:
                     break;
                 default:
                     if (finds.Any(x => x.Container == c.Index))
-                        world.Bodies.SpawnLoot(StopWorld(line, f, c.At), hint, LootOwner(k, c.Index), t.Radius);
+                        bodies.SpawnLoot(StopWorld(line, f, c.At), hint, LootOwner(k, c.Index), t.Radius);
                     break;
             }
         }

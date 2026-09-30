@@ -51,6 +51,23 @@ public static class PropKit
         return k.Build($"heavy-{half:0.00}");
     }
 
+    /// <summary>
+    /// A village find (level-design P12): a small bundle tied up in sacking, the size of its body (loot.json radius),
+    /// with a strap to carry it by; what's in it the HUD says.
+    /// </summary>
+    public static MeshAsset Loot(Look? look, float radius)
+    {
+        var k = new Kit(look, 1130);
+        k.Use("leather", Palette.DeepBrown, 0.9f, 0, tile: 0.4f);
+        k.Box(new Vector3(-radius * 1.2f, -radius, -radius * 0.9f), new Vector3(radius * 1.2f, radius * 0.7f, radius * 0.9f));
+        k.Use("rust_heavy", Palette.TarnishedBrass, 0.6f, 0.5f);
+        k.Box(new Vector3(-radius * 1.22f, radius * 0.1f, -radius * 0.92f), new Vector3(radius * 1.22f, radius * 0.25f, radius * 0.92f), Kit.Faces.Sides);
+        k.Use("leather", Palette.SootBlack, 0.8f, 0, tile: 0.4f);
+        k.Rod(new Vector3(-radius * 0.6f, radius * 0.7f, 0), new Vector3(0, radius * 1.3f, 0), 0.015f, 5);
+        k.Rod(new Vector3(0, radius * 1.3f, 0), new Vector3(radius * 0.6f, radius * 0.7f, 0), 0.015f, 5);
+        return k.Build($"loot-{radius:0.00}");
+    }
+
     /// <summary>A hand lantern: a tin base, glass all round with the flame's glow in it, wire guards, a hoop to carry it by.</summary>
     public static MeshAsset Lantern(Look? look)
     {

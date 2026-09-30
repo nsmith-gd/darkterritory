@@ -96,8 +96,10 @@ public sealed class GreyboxScene
                     // The modules modelled by the art pass where it has them (SceneArt.Depots), boxes where not.
                     if (site is not null && (site.Capstan - eye).Length < DrawDistance && Look?.Art.Winch(mesh, site, eye) != true)
                         Winch(mesh, site, eye);
-                    if (site?.Crane is { } crane && (crane.HookAt - eye).Length < DrawDistance && Look?.Art.Crane(mesh, crane, frames, eye) != true)
-                        Crane(mesh, crane, frames, eye);
+                    // Its own gantry and the yard's (level-design P18: one over each craned loading face).
+                    foreach (var crane in site?.Cranes ?? [])
+                        if ((crane.HookAt - eye).Length < DrawDistance && Look?.Art.Crane(mesh, crane, frames, eye) != true)
+                            Crane(mesh, crane, frames, eye);
                 }
             // GDD §9: the fortress yard behind the gates, and the terminus: "lights, then walls, then gun towers".
             double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
@@ -200,7 +202,13 @@ public sealed class GreyboxScene
                 mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.34f, 0.34f, 0.34f), Palette.TarnishedBrass * 0.8f);
                 mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.35f, 0.06f, 0.35f), Palette.DeepBrown);
             }
-            else if (b.Kind == Sim.Physics.BodyKind.Radio)
+            else if (b.Kind == Sim.Physics.BodyKind.Loot)
+            {
+                // A village find (level-design P12): a small bundle in sacking with a brass-buckled strap.
+                mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.18f, 0.13f, 0.14f), Palette.DeepBrown);
+                mesh.Box(V(at, eye) + ToF(up) * 0.03f, right, ToF(up), back, new Vector3(0.185f, 0.02f, 0.145f), Palette.TarnishedBrass);
+            }
+                        else if (b.Kind == Sim.Physics.BodyKind.Radio)
             {
                 // A walkie-talkie (T41): an iron brick with its aerial up and a pinprick of a lamp, so a dropped one's found.
                 mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.07f, 0.12f, 0.04f), Palette.IronGrey);

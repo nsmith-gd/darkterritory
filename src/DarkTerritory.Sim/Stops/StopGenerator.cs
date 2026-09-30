@@ -190,6 +190,7 @@ public static partial class StopGenerator
             Containers = [.. g.Containers],
             Crossing = crossing,
             Halt = halt,
+            HaltLength = halt is null ? 0 : t.Village.Halt.Length,
             CutFront = cutFront,
             CutLength = hasYard ? cutLength : 0,
             Moves = new StopMoves(),

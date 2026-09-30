@@ -167,6 +167,7 @@ public sealed record StopLayout
     public Pt? Crossing { get; init; }
     /// <summary>A village halt's platform beside the main line (village-only stops).</summary>
     public Pt? Halt { get; init; }
+    public double HaltLength { get; init; }
     /// <summary>Where the loaded cars wait on the main line, front and length (GDD §17).</summary>
     public double CutFront { get; init; }
     public double CutLength { get; init; }

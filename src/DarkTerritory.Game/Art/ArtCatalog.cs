@@ -82,6 +82,10 @@ public static class ArtCatalog
         list.Add(new("windmill", LargeProp, () => TownKit.Windmill(look)));
         list.Add(new("buffer-stop", MediumProp, () => StructureKit.BufferStop(look)));
         list.Add(new("switch-stand", MediumProp, () => StructureKit.SwitchStand(look)));
+        // A stop's pieces (level-design P5, P7, P12): a yard shed, the hero's brick hall, a village find.
+        list.Add(new("stop-shed", LargeProp, () => { var k = new Kit(look, 1400); StructureKit.Shed(k, 12, 30, 7, "wood_grey", 1); return k.Build("stop-shed"); }));
+        list.Add(new("stop-hero", LargeProp, () => { var k = new Kit(look, 1401); StructureKit.Shed(k, 12, 22, 11, "brick_soot", 1); return k.Build("stop-hero"); }));
+        list.Add(new("loot", SmallProp, () => PropKit.Loot(look, 0.15f)));
         // The sourced props (tools/models): each budgeted as what it stands in for.
         if (look is not null)
         {

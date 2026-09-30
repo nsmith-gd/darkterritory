@@ -290,8 +290,14 @@ public sealed class PrototypeSession : IPlaySession
         var parts = new List<string>();
         if (site.Has(ModuleKind.Crates))
             parts.Add(site.HeavyStack.Length > 0 ? "crates on the platform: carry them into the cars (the big ones take two)" : "crates on the platform: carry them into the cars");
-        if (site.Crane is { } crane)
-            parts.Add(crane.Left == 0 ? "the castings are loaded" : crane.Hooked is not null ? "crane: a casting on the hook" : $"crane: {crane.Left} castings to rig and lift (one in the cab, one on the ground)");
+        if (site.Cranes.Count > 0)
+        {
+            // Every gantry here (level-design P18): the facility's own and the yard's.
+            int left = site.Cranes.Sum(c => c.Left);
+            string gantries = site.Cranes.Count > 1 ? $"{site.Cranes.Count} cranes" : "crane";
+            parts.Add(left == 0 ? "the castings are loaded" : site.Cranes.Any(c => c.Hooked is not null) ? $"{gantries}: a casting on the hook"
+                : $"{gantries}: {left} castings to rig and lift (one in the cab, one on the ground)");
+        }
         if (site.Has(ModuleKind.Winch))
             parts.Add(site.SledsLeft == 0 ? "the winch is done" : site.Turning ? $"winch HAULING {site.Progress * 100:0}%" : site.OutOfRhythm ? "winch STALLED: out of rhythm" : $"winch: two on the capstan ({site.SledsLeft} sleds)");
         return " — " + string.Join(", ", parts);
