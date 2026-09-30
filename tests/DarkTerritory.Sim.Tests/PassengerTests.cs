@@ -167,6 +167,26 @@ public class PassengerTests
     }
 
     [Fact]
+    public void ABotAloneWithItCallsItOutBeforeItStrikes()
+    {
+        var night = new Night();
+        var rooms = night.Rooms;
+        // Alone in the car, looking the other way; it comes in to them.
+        int bot = night.InRoom(rooms[0], z: -1, yaw: 0);
+        var p = night.Aboard(rooms[0]);
+        night.Run(P.RestSeconds + P.StalkSeconds + 10, () =>
+        {
+            var intent = Bots.Heed.Passengers(default, night.Crew[bot - 1], night.World);
+            night.Intents[bot - 1] = intent;
+            // The look, as the motor turns it.
+            night.Crew[bot - 1] = night.Crew[bot - 1] with { Yaw = night.Crew[bot - 1].Yaw + intent.LookYaw, Pitch = night.Crew[bot - 1].Pitch + intent.LookPitch };
+        });
+        Assert.True(p.Gone);
+        Assert.True(night.Crew[bot - 1].Alive);
+        Assert.DoesNotContain(night.Events, e => e.EnemyId == p.Id && e.To == SpinePhase.Commit);
+    }
+
+    [Fact]
     public void ItHasNoVoiceToSpeakWith()
     {
         // The tell is silence (App. A.7): the voice paths are between players, and it isn't one.

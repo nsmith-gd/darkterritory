@@ -715,6 +715,35 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
 /// </summary>
 public static class Heed
 {
+    /// <summary>
+    /// The Passenger (App. A.7): in a car's room with it, turn to face it and call it out. A human crew gets there by a head
+    /// count and making everyone speak; a bot's stand-in for that is knowing (its world says what it is), so what's exercised
+    /// is the counter's last step and the host's check of it, through intent like anything else.
+    /// </summary>
+    public static PlayerIntent Passengers(PlayerIntent intent, in PlayerState self, World world)
+    {
+        var train = world.Train;
+        if (!self.Alive || world.Enemies is not { } et || self.Parent < 0 || self.Parent >= train.Frames.Count || !PlayerMotor.Indoors(self, train))
+            return intent;
+        int car = self.Parent;
+        var eye = PlayerMotor.WorldPosition(self, train) + Double3.Up * et.Gaunt.EyeHeight;
+        if (world.ActiveEnemies.OfType<Passenger>().FirstOrDefault(p => !p.Gone && p.Attached == car) is not { } passenger)
+            return intent;
+        var to = passenger.WorldPosition(train) + Double3.Up * 1.2 - eye;
+        if (to.Length > et.Passenger.ChallengeReach * 0.9)
+            return intent;
+        var d = train.Frames[car].DirToLocal(to).Normalized;
+        double yaw = Math.Atan2(-d.X, -d.Z), pitch = Math.Asin(Math.Clamp(d.Y, -1, 1));
+        double off = Math.Abs(Math.IEEERemainder(yaw - self.Yaw, 2 * Math.PI));
+        // Turned to it first, then Use: pressed while facing it, it counts.
+        return new PlayerIntent
+        {
+            LookYaw = (float)Math.IEEERemainder(yaw - self.Yaw, 2 * Math.PI),
+            LookPitch = (float)(pitch - self.Pitch),
+            Buttons = off < et.Passenger.ChallengeHalfAngleDegrees * 0.5 * Math.PI / 180 ? PlayerButtons.Use : PlayerButtons.None,
+        };
+    }
+
     public static PlayerIntent Rattles(PlayerIntent intent, in PlayerState self, World world, PlayerTuning player)
     {
         if (!self.Alive)
