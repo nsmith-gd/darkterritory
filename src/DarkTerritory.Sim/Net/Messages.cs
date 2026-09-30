@@ -67,10 +67,13 @@ public static class Messages
         w.F32(i.LookPitch);
         w.U8((byte)i.Buttons);
         // The notch (−4..4) in the low five bits, the lamp switch (T52) in the two above: no extra byte on every intent.
-        w.U8((byte)((i.ThrottleNotch & 0x1F) | ((byte)i.Lamp & 3) << 5));
+        // The top bit says a watched crewmate follows (App. D.10), so only the dead pay for it.
+        w.U8((byte)((i.ThrottleNotch & 0x1F) | ((byte)i.Lamp & 3) << 5 | (i.Watch != 0 ? 0x80 : 0)));
         // v1.1's second byte of buttons, and the voice level the loudness meter hears (App. C.7).
         w.U8((byte)i.Actions);
         w.U8(i.Voice);
+        if (i.Watch != 0)
+            w.U8(i.Watch);
         // A reaching hand (T29) in centimetres, only when there is one: keyboards and bots send nothing more.
         if (i.Has(PlayerButtons.Hand))
         {
@@ -105,6 +108,8 @@ public static class Messages
         i.Lamp = (LampSwitch)((notch >> 5) & 3);
         i.Actions = (PlayerActions)r.U8();
         i.Voice = r.U8();
+        if ((notch & 0x80) != 0)
+            i.Watch = r.U8();
         if (i.Has(PlayerButtons.Hand))
         {
             i.HandX = r.I16() / 100f;

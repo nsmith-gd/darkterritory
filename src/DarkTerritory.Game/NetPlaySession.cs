@@ -414,7 +414,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             }
         }
         _previous = Client.Predicted;
-        Client.Step(intent);
+        Client.Step(Spectate(intent));
         Tick++;
         if (!_link.IsConnected && Client.Connected)
             Lost = true;
@@ -427,7 +427,45 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     }
 
     public Camera EyeCamera(IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch) =>
-        Eyes.Operator(Player, World) ?? Eyes.From(Player, _previous, frames, alpha, pendingYaw, pendingPitch);
+        Watching >= 0 && Client.TryGetRemote((byte)Watching, alpha, out var s)
+            ? Eyes.Operator(s, World) ?? Eyes.From(s, s, frames, alpha, 0, 0)
+            : Eyes.Operator(Player, World) ?? Eyes.From(Player, _previous, frames, alpha, pendingYaw, pendingPitch);
+
+    /// <summary>
+    /// Dead, or waiting to board, you watch the living crew through their eyes (GDD App. D.10): whoever's first when you
+    /// die, and on to the next when they die. Fire or a step right goes to the next, a step left back; living crew only, no
+    /// free camera. The host's told whom (<see cref="PlayerIntent.Watch"/>), so it sends what's around them.
+    /// </summary>
+    PlayerIntent Spectate(PlayerIntent intent)
+    {
+        var last = _lastIntent;
+        _lastIntent = intent;
+        if (Player.Alive || World.Run is { Over: true })
+        {
+            _watching = -1;
+            return intent;
+        }
+        var living = new List<int>();
+        foreach (byte id in Client.RemoteIds)
+            if (Client.TryGetRemote(id, 1, out var s) && s.Alive)
+                living.Add(id);
+        living.Sort();
+        int step = (intent.Has(PlayerButtons.Fire) && !last.Has(PlayerButtons.Fire)) || (intent.MoveX > 0.5f && last.MoveX <= 0.5f) ? 1
+            : intent.MoveX < -0.5f && last.MoveX >= -0.5f ? -1 : 0;
+        int at = living.IndexOf(_watching);
+        _watching = living.Count == 0 ? -1
+            : at < 0 ? living[0]
+            : living[((at + step) % living.Count + living.Count) % living.Count];
+        intent.Watch = (byte)Math.Max(0, _watching);
+        return intent;
+    }
+
+    int _watching = -1;
+    PlayerIntent _lastIntent;
+
+    public int Watching => _watching;
+
+    public PlayerState Viewpoint => Watching >= 0 && Client.TryGetRemote((byte)Watching, 1, out var s) ? s : Player;
 
     public IReadOnlyList<Crewmate> Crew(IReadOnlyList<CarFrame> frames, double alpha)
     {

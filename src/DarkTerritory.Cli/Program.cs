@@ -1066,10 +1066,20 @@ static object HudShot(string content, string[] args)
     Route? generated = Str(args, "--route", "") is { Length: > 0 } spec
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
         : null;
-    var session = generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
-    session.Controls.Throttle = Opt(args, "--throttle", 0.6);
-    for (int i = 0; i < Opt(args, "--seconds", 6) * SimConstants.TickRate; i++)
-        session.Step(new PlayerIntent { LookPitch = i == 0 ? (float)Opt(args, "--pitch", 0) : 0, LookYaw = i == 0 ? (float)Opt(args, "--yaw", 0) : 0 });
+    // --spectating (GDD App. D.10): a hosted night with a joiner who's died, seen as the joiner sees it: through the
+    // host's eyes in the cab, whom they watch, with their HUD.
+    using var spectated = args.Contains("--spectating") ? Spectating(content, Str(args, "--route", "frontier:7"), cars) : null;
+    IPlaySession session;
+    if (spectated is { } pair)
+        session = pair.Watcher;
+    else
+    {
+        var solo = generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
+        solo.Controls.Throttle = Opt(args, "--throttle", 0.6);
+        for (int i = 0; i < Opt(args, "--seconds", 6) * SimConstants.TickRate; i++)
+            solo.Step(new PlayerIntent { LookPitch = i == 0 ? (float)Opt(args, "--pitch", 0) : 0, LookYaw = i == 0 ? (float)Opt(args, "--yaw", 0) : 0 });
+        session = solo;
+    }
     int width = (int)Opt(args, "--width", 480), height = (int)Opt(args, "--height", 270), scale = (int)Opt(args, "--scale", 2);
     string output = Str(args, "--out", "out/shots/hud.png");
     var frames = session.InterpolatedFrames(1);
@@ -1079,8 +1089,18 @@ static object HudShot(string content, string[] args)
     var mesh = new MeshBuilder();
     var look = Looked(content, args);
     look?.Dress(renderer);
-    new GreyboxScene { Route = session.Route, Run = session.World.Run, Holdouts = session.World.Holdouts, Vehicles = session.Train.Vehicles, Bodies = session.World.Bodies.All, Time = 0.37, Look = look }
-        .Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
+    new GreyboxScene
+    {
+        Route = session.Route,
+        Run = session.World.Run,
+        Holdouts = session.World.Holdouts,
+        Vehicles = session.Train.Vehicles,
+        Bodies = session.World.Bodies.All,
+        Time = 0.37,
+        Look = look,
+        // The rest of the crew, but not the one whose eyes these are (as the app draws it).
+        Crew = [.. session.Crew(frames, 1).Where(c => c.Id != session.Watching)],
+    }.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
     var lighting = Views.Lighting(frames[0], look);
     if (session.Route is { } r)
     {
@@ -1105,7 +1125,27 @@ static object HudShot(string content, string[] args)
     }
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, hud);
     PngWriter.Write(output, pixels, width, height, scale);
-    return new { path = Path.GetFullPath(output), prompt = Hud.Prompt(session), quads = hud.Count / 6, status = session.Status() };
+    return new { path = Path.GetFullPath(output), prompt = Hud.Prompt(session), quads = hud.Count / 6, status = session.Status(), watching = session.Watching };
+}
+
+// A hosted night over loopback with one joiner, who dies once aboard and watches the host (App. D.10).
+static SpectatedNight Spectating(string content, string route, int cars)
+{
+    var host = NetPlaySession.HostGame(content, new SessionSetup(Route: route, Cars: cars, Enemies: false), port: 0);
+    var watcher = NetPlaySession.Join(content, new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port), () => host.Step(default));
+    void Step(int ticks)
+    {
+        for (int t = 0; t < ticks; t++)
+        {
+            host.Step(default);
+            watcher.Step(default);
+            Thread.Sleep(1);
+        }
+    }
+    Step(SimConstants.TickRate);
+    host.Host!.SetPlayerState((byte)watcher.PlayerId, watcher.Player with { Health = 0, Death = DeathCause.Mauled });
+    Step(SimConstants.TickRate);
+    return new SpectatedNight(host, watcher);
 }
 
 // The designer's editor: tuning and routes in a local web page (T18). --screenshot captures both pages headless.
@@ -1231,4 +1271,14 @@ static int Usage()
                      one speaker to a listener on car 3 through host routing, Opus and the mixer (spec A.5)
         """);
     return 2;
+}
+
+/// <summary>A hosted night and the dead joiner watching it (<c>dt screenshot --hud --spectating</c>).</summary>
+sealed record SpectatedNight(NetPlaySession Host, NetPlaySession Watcher) : IDisposable
+{
+    public void Dispose()
+    {
+        Watcher.Dispose();
+        Host.Dispose();
+    }
 }
