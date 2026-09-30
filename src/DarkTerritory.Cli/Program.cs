@@ -550,7 +550,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     string view = Str(args, "--view", "trackside");
     string lineName = Str(args, "--line", "test-loop");
     int cars = (int)Opt(args, "--cars", 6);
-    int width = (int)Opt(args, "--width", 640), height = (int)Opt(args, "--height", 360), scale = (int)Opt(args, "--scale", 2);
+    int width = (int)Opt(args, "--width", 1280), height = (int)Opt(args, "--height", 720), scale = (int)Opt(args, "--scale", 1);
     string output = Str(args, "--out", $"out/shots/{view}.png");
 
     // --route tier:seed generates the night in memory; --coaling stops the train at its coaling tower, chute pouring.

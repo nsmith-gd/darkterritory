@@ -50,13 +50,19 @@ public struct Camera
         var view = Orientation is { } q
             ? Matrix4x4.CreateTranslation(-EyeOffset) * Matrix4x4.CreateFromQuaternion(Quaternion.Conjugate(q))
             : Matrix4x4.CreateLookAt(EyeOffset, EyeOffset + Forward, Vector3.UnitY);
+        return view * Projection(aspect);
+    }
+
+    /// <summary>The projection alone, in Vulkan's clip space (the screen-space passes rebuild view positions from depth by it).</summary>
+    public readonly Matrix4x4 Projection(float aspect)
+    {
         var proj = Fov is { } f
             ? Matrix4x4.CreatePerspectiveOffCenter(Near * MathF.Tan(f.Left), Near * MathF.Tan(f.Right), Near * MathF.Tan(f.Down), Near * MathF.Tan(f.Up), Near, Far)
             : Matrix4x4.CreatePerspectiveFieldOfView(FovYDegrees * MathF.PI / 180, aspect, Near, Far);
         // Vulkan's clip-space Y points down: flip every term that feeds it (only M22 when the frustum is centred).
         proj.M22 *= -1;
         proj.M32 *= -1;
-        return view * proj;
+        return proj;
     }
 }
 
