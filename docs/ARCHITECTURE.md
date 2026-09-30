@@ -1347,3 +1347,34 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `StopGeneratorTests` (29): invariants over 30 seeds a tier, deeper tiers harder, determinism, the route's branches matching the layout, halts on level straight track, finds within their kind and budget, a stowed find paying, and gantries over their faces.
       - `StopArtTests`: the ground under a stop is level, and every building is drawn in its cell.
       - Look at them with `dt site --route frontier:7 --stop 4` (the plan) and `dt screenshot --route frontier:7 --site --facility 2` (in game).
+
+66. **Death, Holdouts and return (GDD v1.2 Appendix D). The Vigil is cut.** Systems spec C.2 is superseded: `Vigil.cs`, `vigil.json`, its record, its HUD, the Revived flag and the revive-at-the-gate rule are gone. Once the gate has opened, a Holdout is the only way back into a run (`Run/Holdouts.cs`, `tuning/holdouts.json` with D.13's numbers).
+    - **Where they are** is level content, part of each stop's layout (level-design Part H, `stops.json` "holdouts").
+    - **The queue (D.6).** The dead join it at the back as they die, and a mid-run joiner as *lobbied*: boarded with `DeathCause.Waiting`, so they spectate with no body. Defer only ever moves you down.
+    - **States (D.5):**
+      - **Assign.** From the approach board, the first eligible entry takes each Holdout at the site. You're never eligible where you last died, but you keep your place. A facility's second Holdout needs a session of five or more.
+      - **Breach.** A living crew member holds Use at the door. Any interruption resets it to zero.
+      - **Freed.** The player comes back inside the Holdout (at its middle: D.14 "no open-world spawns") on 80 health.
+      - **Release.** The consist has left the zone moving away, with nobody living within 400 m. The player goes back to their place, and the Holdout can assign again if the train comes back.
+    - **Ambiguity: the approach boards.** The Line Plan isn't in this repo. The 2 km and 1 km boards are distances before the zone; the whistle board is taken as 400 m (`assignHalt`, and `approach.halt` in stops.json).
+    - **Ambiguity: a village-only stop is both "a halt" and "a dead town".** It gets one Holdout: the halt's lockup at `villageLockup` chance, else a shelter within the village's 80 m.
+    - **Ambiguity: breach noise.** There's no v1.1 loudness meter yet. Smash and pry feed the Choir as a fraction of a cannon round a second (`rounds`). Call Out never touches it.
+    - **The repair kit's silent breach isn't built.** The train carries no repair kit yet (App. C tools), so every breach is loud.
+    - **Controls.** A dead player's Use is Call Out (a shared 7 s cooldown per Holdout, only with someone living within 200 m) and their Throw is Defer. Live Mic, the spectator camera, the creature vote and commendations (D.7, D.10–D.12) aren't built.
+    - **Bodies as loot (D.9).** `Bodies` makes one body per death (die twice, leave two), and counts deaths. A drop-out's body is marked, and carries no fee and no refund. `RunReport` gains Deaths, BodiesHome, CrewLossFees and BodyRefunds, and Net is after both. Fees are charged whenever Holdouts are on. A checkpoint keeps the spent Holdouts where it used to keep revivals.
+    - **On the wire:** one Holdout record per Holdout (state, occupant, breach). A frontier night's snapshot grew from about 110 to 142 bytes, about 31 kbit/s down per client.
+    - **In the world:** a prison car on its derelict siding, a signal box or water tower model with its door barricaded, a brick lamp room, or an iron cage behind a platform. Each lamp is on the corner the train sees first, and burns while the Holdout is occupied (`dt screenshot --lit` lights them all).
+    - **Verified:**
+      - `HoldoutTests` (12): assign, breach and free inside; a stopped breach starts over; eligibility; release and come back; the second Holdout's crew; defer; Call Out's cooldown and silence; smash noise; a lobbied joiner; two deaths, two bodies; no farming over random deaths and recoveries; drop-outs.
+      - `HoldoutSiteTests` (6), and the stop checks in every `StopGeneratorTests` sweep.
+
+67. **A yard's power and the grade out of it (level-design D.2, spec D.1).** Two of Part D's deferred levers.
+    - **Power:**
+      - Each yard rolls its power by tier (`stops.json` tiers "power": live at local, mostly dead in deep territory). A powerhouse is placed at its throat.
+      - At low power the yard's cranes run at `lowSpeed` (0.5); dead, not at all. Holding Use at the powerhouse door for `restartSeconds` restarts it (`facilities.json` "power"), and it's machinery-loud.
+      - The power replicates with the site (the Run record's per-facility fields grew from 5 to 7). The crane itself is only driven on the host.
+    - **Grade:**
+      - The route lays each facility's exit grade (by tier, up to 4%, from its own seed) on the first stretch past its zone, keeping at least 400 m of climb. Every other draw is left as it was, so only that stretch changes.
+      - The stop is told the grade (`StopContext.ExitGrade`), and its score counts a hard pull from 2%.
+    - **Verified:** `PowerTests` (4): the cranes run on the yard's power, the restart and its noise, and deeper tiers having worse power and steeper pulls, as the route lays them.
+    - **Not done:** trailing points and derelict cars. Both need the train sim to change: a switch that faces down the line, and rakes standing on branches at the start of a night (level-design I.4).

@@ -309,9 +309,43 @@ Per CLAUDE.md ("make it verifiable headless") the implementation gets `dt site -
 
 ---
 
+# PART H — HOLDOUTS AND THE OUTSIDE CREATURES
+
+GDD v1.2 makes two more things level content, generated with every stop: where the dead come back (Appendix D), and where the creatures that live off the train are (B.6, B.8). Both are placed last, from their own seeds, so they never move anything else in a stop.
+
+## H.1 Holdouts
+A Holdout is the only way back into a run. What goes where:
+
+| Site | Holdouts | Types | Where |
+|---|---|---|---|
+| **Facility yard** | 1, plus a second on a pad 200 m or longer, and at every switchyard | Prison car on a spare siding (commonest at switchyards, wreck yards and military depots); a barricaded signal box, lamp room or water tower; always the lamp room at a mine head | 60–200 m from where the consist stops, clear of the loading |
+| **Village halt** | 1 | The halt's lockup, or a shelter in the village | The lockup is behind the platform, within 40 m of the line. A shelter is within 80 m |
+
+A Holdout is *searched for*, not laid out. Candidates are drawn where its type stands (a signal box or water tower by a track, a lockup behind the platform, anything else round the site), and the first one that meets every rule is kept:
+
+1. It fits: clear of buildings, track and roads.
+2. It's at D.4's distance from the consist, or from the line.
+3. **It doesn't share the walk to the loading.** It's 30 m clear of every loading container, and at least 45° off the direction of the nearest one, seen from the consist. Rescue competes with loading for people.
+4. **It can be walked to** from the stopped consist, round the buildings (D.14 "recoverability").
+5. **Its lamp is seen from the approach**: the 1 km board at a facility, the whistle board at a halt, past every building.
+
+The stop's checks verify all five again on the finished layout. A stop where none can be placed is rerolled.
+
+## H.2 Where the outside creatures live
+- **Ribbits' warrens (B.6 "yards and villages"):** on open ground in the yard and in the village, clear of buildings and track, 40 m from the train and 20 m from the main line. There are more at deeper tiers (1 at local, up to 4 in deep territory).
+- **The Gaunt's roost (B.6 "asleep in villages and yards"):** the building furthest from the train on foot, a village house before a yard shed. You go to it; it follows you home.
+- **Followers' ground (B.6 "facility grounds"):** up to three circles round the yard's loading, spread out, starting with the loading nearest the consist.
+- **A Soot Child's call (B.6 "near facilities and dead settlements"):** in the open beyond the stop's built edge, where the consist, or the cars waiting on the main line, can see it.
+- **The Grumbler's perch (B.8 "facility cranes"):** every yard gantry.
+- **The Whistler's nest (A.4 "carries its victim off to a nest"):** out on the side of the stop with the least built on it.
+
+The layout says where; the director will say when, once the v1.1 roster is built (the sim still runs the v1.0 one).
+
+---
+
 # PART I — AS BUILT
 
-What the game does with these rules today (ARCHITECTURE §8 note 65 has the engineering).
+What the game does with these rules today (ARCHITECTURE §8 notes 65–67 have the engineering).
 
 ## I.1 Where it lives
 - **Rules and numbers:** `content/tuning/stops.json`, with the Part D levers per tier, and `content/tuning/loot.json`, the economy's half of P14.
@@ -320,7 +354,7 @@ What the game does with these rules today (ARCHITECTURE §8 note 65 has the engi
   - `dt site --tier deadLines --seed 12 --kind yardAndVillage` draws a stop's plan to `out/stops/`.
   - `dt site --route frontier:7 --stop 4` draws a generated night's own stop.
   - `dt site sweep --seeds 60` prints each tier's difficulty spread and which checks fail.
-- **Seeing one in game:** `dt screenshot --route frontier:7 --site --facility 2`.
+- **Seeing one in game:** `dt screenshot --route frontier:7 --site --facility 2`. Add `--lit` to light every Holdout's lamp, as if someone were waiting in each.
 
 ## I.2 How it reads the principles
 - **P1, the stop kinds:** yard only; yard and village (opposite, set back, or along the line); or a village on its own halt. Tiers weight the arrangements.
@@ -329,19 +363,22 @@ What the game does with these rules today (ARCHITECTURE §8 note 65 has the engi
 - **P14, the loot:** the layout places containers, and the run's economy fills them when the train first stops there.
 - **P15, the score:** the planner is *supply-limited*. Each trip goes to the track with the most loadable loot left, and costs throws, couplings, reversals, blind moves, re-spots, hand cars, carrying, the switchman's walk and a blocked crossing. The village adds its walk and the odds of finding things.
 - **P16, a siding's size:** the cars that fit on its shared loading face, engine included.
+- **D.2's power and grade:** each yard rolls its power by tier and has a powerhouse at its throat. The route lays a grade out of each yard, and the score counts both (a hard pull from 2%).
 
 ## I.3 Tier bands in the sim
 The artifact's scores illustrate the rules. The sim is calibrated to its own measure, so its numbers differ. Median scores over 60 seeds:
 
 | Tier | Yard only | Yard + village | Band (yard / village) |
 |---|---|---|---|
-| Local | 11 | 19 | 4–20 / 10–18 |
-| Frontier | 23 | 32 | 14–36 / 14–22 |
-| Dead Lines | 36 | 47 | 28–56 / 18–28 |
-| Deep Territory | 53 | 66 | 34–100 / 22–36 |
+| Local | 11 | 18 | 4–20 / 10–18 |
+| Frontier | 24 | 29 | 14–36 / 14–22 |
+| Dead Lines | 38 | 47 | 28–56 / 18–28 |
+| Deep Territory | 58 | 72 | 34–100 / 22–36 |
+
+(With power in the score, and the sweep's own stops laid on level track, so without a hard pull.)
 
 ## I.4 Not yet
-- Trailing points and loops (a north lead), since the engine only branches facing off the main line.
-- Power, derelict cars and grade as levers.
-- Bots don't scavenge villages.
-- Buildings have no collision, and their interiors aren't modelled: finds lie where their container is.
+- **Trailing points and loops (a north lead).** The train sim measures every position as a distance along the main line up to the points, then along a branch that leaves facing up-line. A switch facing the other way breaks that model for the train, couplings, bots and loading alike, so it's an engine change of its own.
+- **Derelict cars on the sidings.** They need the train to start the night with uncoupled rakes already standing on branches. That's the same kind of change, and it's deferred with it.
+- **Bots don't scavenge villages or breach Holdouts yet.** Their stop crew works a facility's modules only.
+- **Buildings have no collision, and their interiors aren't modelled.** Finds lie where their container is; a Holdout's occupant comes back at its middle.
