@@ -406,8 +406,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var d = Train.Dynamics;
         var p = Player;
         string link = Client.Waiting ? $"WAITING: {Client.WaitingReason}" : !Client.Connected ? "connecting…" : Lost ? "CONNECTION LOST"
-            : Host is not null ? $"{Client.RemoteIds.Count() + 1} aboard" // the host's own ping is to itself
-            : $"{Client.RemoteIds.Count() + 1} aboard, ping {_link.RoundTrip(PeerId.Host) * 1000:0} ms";
+            : Host is not null ? $"{Aboard} aboard" // the host's own ping is to itself
+            : $"{Aboard} aboard, ping {_link.RoundTrip(PeerId.Host) * 1000:0} ms";
         string where = PrototypeSession.Where(p, Train);
         string state = p.Alive ? $"{p.Surface} {where} hp {p.Health}{PrototypeSession.Condition(p, Client.PlayerTuning)}" : $"DEAD ({p.Death})";
         return $"{d.Speed,5:0.0} m/s | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} | P {Train.Boiler.Pressure,3:0} fire {Train.Boiler.Firebox:0.0} tender {Train.Boiler.Tender:0} | " +
@@ -431,10 +431,16 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         };
     }
 
+    /// <summary>
+    /// Everyone aboard, by the figures: the crew, and anything wearing one of their faces (App. A.7's tell, "crew count reads
+    /// one too many").
+    /// </summary>
+    int Aboard => Client.RemoteIds.Count() + 1 + World.ActiveEnemies.Count(e => e is Sim.Enemies.Passenger);
+
     public PlayerTuning PlayerTuning => Client.PlayerTuning;
     public int PlayerId => Client.PlayerId ?? 0;
     public LinkInfo? Link => new(Role(), Host is null && Client.Connected ? _link.RoundTrip(PeerId.Host) * 1000 : null,
-        Client.RemoteIds.Count() + 1, Client.Waiting ? Client.WaitingReason : null, Lost);
+        Aboard, Client.Waiting ? Client.WaitingReason : null, Lost);
 
     /// <summary>Accepts a friend's invite that arrived while playing, if any, leaving it for the app to act on.</summary>
     public LobbyId? TakeJoinRequest() => Lobby?.TakeJoinRequest();

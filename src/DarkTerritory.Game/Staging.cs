@@ -128,6 +128,11 @@ public static class Staging
         var soot = new SootChildren(41);
         soot.Restore(SpinePhase.Telegraph, 4, 1, -1, default, train.Cars[beside].FrontDistance - train.Frames[beside].Shape.HalfLength, -(train.Frames[beside].Shape.HalfWidth + 6), 0, 1, beside);
         threats.Add(soot);
+        // Among the three on the second car's roof, a fourth (T61): crewmate 2 again, the same cap, the same coat. It lives in
+        // the cars' rooms, which no view looks into; staged up here so the art review sees it stand beside the one it copies.
+        var passenger = new Passenger(48);
+        passenger.Restore(SpinePhase.Telegraph, 20, 1, beside, new Double3(0.55, train.Frames[beside].Shape.RoofHeight, -7.0), 0, 0, 0, 2, Math.PI - 0.3);
+        threats.Add(passenger);
         return threats;
     }
 }

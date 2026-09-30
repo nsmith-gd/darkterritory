@@ -180,6 +180,7 @@ public static class Hud
                 DeathCause.Lamplighter => "TORN DOWN AT THE LAMP",
                 DeathCause.Deadman => "KILLED TAKING BACK THE CAB",
                 DeathCause.Gaunt => "NOBODY WAS WATCHING IT",
+                DeathCause.Replaced => "IT WASN'T ONE OF YOU. IT IS NOW",
                 DeathCause.TornOff => "WENT OFF THE RAILS WITH THE REAR CAR",
                 DeathCause.Climbed => "SOMETHING CAME IN OFF THE ROOF",
                 DeathCause.Ferryman => "SLOWED FOR THE LANTERN",

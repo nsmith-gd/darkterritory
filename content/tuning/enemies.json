@@ -342,6 +342,36 @@
     "interiorWeight": 2
   },
 
+  // App. A.7 THE PASSENGER: "BOARD enters during a facility stop, unnoticed. BLEND takes crew appearance; appears on the
+  // roster. IDLE behaves plausibly — moves between cars, performs half-finished tasks (TELEGRAPH: never speaks on
+  // proximity voice · repeats a task loop · crew count reads one too many). ISOLATE waits for a player alone in a car.
+  // STRIKE kills and replaces them. COUNTER head count, and make everyone speak."
+  "passenger": {
+    // The task loop: it walks the car at this pace (m/s), stops at each end this long over a job it never finishes, and
+    // after this many rounds moves on to the next car with a room in it.
+    "walkSpeed": 1.3,
+    "taskSeconds": 6,
+    "loopsPerCar": 2,
+    // Aboard (or just done), it keeps up the act this long before it goes looking for someone alone.
+    "restSeconds": 30,
+    // Ambiguity (ARCHITECTURE §8): "waits for a player alone in a car". In their car, with them still alone, this long
+    // (the victim's window: a crewmate walked in and hasn't said a word), then within this reach (m) it takes them.
+    "stalkSeconds": 4,
+    "reach": 1.2,
+    "strikeDamage": 100,
+    // Ambiguity (ARCHITECTURE §8): the counter's end. Once the crew know which one it is, somebody faces it (inside this
+    // half-angle of where they look, within this reach, m, in its car) and presses Use: called out, it runs.
+    "challengeReach": 2.5,
+    "challengeHalfAngleDegrees": 25,
+    "lingerSeconds": 1500,
+    // App. B.7 gates: Dead lines and beyond, crew of at least this many ("needs a crowd to hide in"), once a run, at a
+    // facility stop. "Weight up if crew were separated across multiple facility tasks": the crew spread over at least this
+    // many places (the ground, the cab, each car's room), by this much.
+    "minCrew": 3,
+    "splitPlaces": 3,
+    "splitWeight": 2
+  },
+
   "lamplighters": {
     // Where it paces: this far out from the track, this far back from the engine's front (beside the cab).
     "paceLateral": 14,
@@ -391,7 +421,7 @@
     "maxConcurrentLargeCrew": 6,
     // Budget share spent before the first facility, across the middle, and in the final approach.
     "phaseShares": [0.15, 0.45, 0.40],
-    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3, "ferryman": 4, "longWhistle": 3, "climbers": 3, "weight": 3, "gaunt": 5 },
+    "costs": { "sleepers": 1, "clingers": 2, "cinderHounds": 3, "hollow": 3, "switchman": 2, "sootChildren": 4, "draggers": 2, "rattle": 1, "lamplighters": 2, "deadman": 4, "stoker": 3, "ferryman": 4, "longWhistle": 3, "climbers": 3, "weight": 3, "gaunt": 5, "passenger": 5 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5,
@@ -421,7 +451,7 @@
     "gradePercent": 1.5,
     // Saving up (ARCHITECTURE §8): from this share of the route in, cheaper threats leave enough budget for these rare,
     // expensive ones while the run can still have them, so they come at all.
-    "saveFor": ["gaunt"],
+    "saveFor": ["gaunt", "passenger"],
     "saveFrom": 0.2
   }
 }

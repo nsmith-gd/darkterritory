@@ -19,6 +19,25 @@ public sealed record EnemyTuning(
     public ClimberTuning Climbers { get; init; } = new();
     public WeightTuning Weight { get; init; } = new();
     public GauntTuning Gaunt { get; init; } = new();
+    public PassengerTuning Passenger { get; init; } = new();
+}
+
+/// <summary>The Passenger (App. A.7, B.7). Field docs live in enemies.json.</summary>
+public sealed record PassengerTuning
+{
+    public double WalkSpeed { get; init; } = 1.3;
+    public double TaskSeconds { get; init; } = 6;
+    public int LoopsPerCar { get; init; } = 2;
+    public double RestSeconds { get; init; } = 30;
+    public double StalkSeconds { get; init; } = 4;
+    public double Reach { get; init; } = 1.2;
+    public int StrikeDamage { get; init; } = 100;
+    public double ChallengeReach { get; init; } = 2.5;
+    public double ChallengeHalfAngleDegrees { get; init; } = 25;
+    public double LingerSeconds { get; init; } = 1500;
+    public int MinCrew { get; init; } = 3;
+    public int SplitPlaces { get; init; } = 3;
+    public double SplitWeight { get; init; } = 2;
 }
 
 /// <summary>The Gaunt (App. A.4, B.4). Field docs live in enemies.json.</summary>
