@@ -232,7 +232,9 @@ static object VrCheck(TrainTuning t, string content, string[] args)
             panel = new DarkTerritory.Game.VrPanelContent(new DarkTerritory.Game.VrPanel(comfort.Tuning.Hud), hud, 480, 270);
         }
         void Count(Ballast.Xr.XrFrameResult r) => outcomes[r.ToString()] = outcomes.GetValueOrDefault(r.ToString()) + 1;
-        while (vr.Session.FramesRendered < frames && clock.Elapsed.TotalSeconds < 30)
+        // The frames asked for, with room for a software renderer: a simulated headset on lavapipe runs at about a frame a
+        // second, and the runtime skips one now and then (shouldRender false). A 30 s cap came up one short in CI.
+        while (vr.Session.FramesRendered < frames && clock.Elapsed.TotalSeconds < 30 + 3 * frames)
         {
             var r = vr.Frame(mesh, body, lighting, lighting.FogColor, comfort, panel);
             Count(r);
