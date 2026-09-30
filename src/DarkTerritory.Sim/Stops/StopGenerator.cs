@@ -3,7 +3,8 @@ using DarkTerritory.Sim.Route;
 namespace DarkTerritory.Sim.Stops;
 
 /// <summary>What a stop's layout is fitted to: its level zone, and the route's switch points (route.json junctions).</summary>
-public readonly record struct StopContext(double ZoneLength, double PointsLength, double MaxLateral = 220);
+/// <param name="Facility">The facility the stop serves, if any: its Holdout's type depends on it (GDD App. D.4).</param>
+public readonly record struct StopContext(double ZoneLength, double PointsLength, double MaxLateral = 220, FacilityKind? Facility = null);
 
 /// <summary>
 /// Generates a stop's layout (level-design Parts D and Z): rail, then roads, then districts, then buildings, then
@@ -171,6 +172,12 @@ public static partial class StopGenerator
             g.AddRoad(RoadKind.Through, [new Pt(RR.Range(150, 320), -sY * edge), new Pt(RR.Range(60, 120), -sY * RR.Range(50, 90)), new Pt(-12, -sY * RR.Range(30, 60))]);
         }
 
+        // Last, from their own seeds: the Holdouts (App. D.4) and where the outside creatures live (B.6, B.8).
+        var stopPoint = StopPointOf(g, halt, zone);
+        var walk = new StopWalk(g.Buildings, zone, cx.MaxLateral, t.Holdouts.WalkCell).From(stopPoint);
+        var holdouts = PlaceHoldouts(g, new Dice(StopSeed.Of(s, StopSeed.Holdout)), t, cx, stopPoint, halt, walk);
+        var lairs = PlaceLairs(g, new Dice(StopSeed.Of(s, StopSeed.Lair)), t, tt, stopPoint, walk);
+
         var layout = new StopLayout
         {
             Seed = seed,
@@ -191,6 +198,9 @@ public static partial class StopGenerator
             Crossing = crossing,
             Halt = halt,
             HaltLength = halt is null ? 0 : t.Village.Halt.Length,
+            StopPoint = stopPoint,
+            Holdouts = holdouts,
+            Lairs = lairs,
             CutFront = cutFront,
             CutLength = hasYard ? cutLength : 0,
             Moves = new StopMoves(),

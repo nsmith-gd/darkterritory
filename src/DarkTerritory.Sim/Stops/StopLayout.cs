@@ -21,7 +21,16 @@ public enum Arrangement : byte { Single, Opposite, Setback, Along }
 
 public enum StopZone : byte { Yard, Village }
 
-public enum BuildingKind : byte { Shed, Hero, House, Outbuilding, Barn, Well }
+public enum BuildingKind : byte { Shed, Hero, House, Outbuilding, Barn, Well, PrisonCar, SignalBox, LampRoom, WaterTower, Lockup }
+
+/// <summary>A Holdout's type (GDD App. D.4): how it's freed, and what it looks like.</summary>
+public enum HoldoutKind : byte { PrisonCar, Shelter, Lockup }
+
+/// <summary>Which of D.4's sites a Holdout serves: a facility's pad, a halt, or a dead town.</summary>
+public enum HoldoutSite : byte { Facility, Halt, Village }
+
+/// <summary>Where an outside creature lives (GDD B.6, B.8): the director spawns it there.</summary>
+public enum LairKind : byte { Warren, GauntRoost, FollowerGround, SootCall, GrumblerPerch, WhistlerNest }
 
 public enum HouseShape : byte { Rect, L, Cross, Pair, Square }
 
@@ -106,6 +115,23 @@ public sealed record CraneRunway(double From, double To, double Reach, int Bays)
 
 public sealed record StopRoad(RoadKind Kind, IReadOnlyList<Pt> Points);
 
+/// <summary>
+/// A Holdout (GDD App. D.4): a sealed building where a dead player waits for the crew. <see cref="Building"/> is its
+/// footprint in <see cref="StopLayout.Buildings"/>; the crew breaches it at <see cref="Door"/>; its lamp at
+/// <see cref="Lamp"/> is seen from the approach. <see cref="Second"/> is a facility's second, live only with a crew of five
+/// or more (holdouts.json).
+/// </summary>
+public sealed record StopHoldout(int Index, HoldoutKind Kind, HoldoutSite Site, int Building, Pt Door, Pt Lamp, bool Second = false)
+{
+    /// <summary>A prison car's spare siding: derelict rails under it, their points long since lifted (not part of the line).</summary>
+    public IReadOnlyList<Pt> Siding { get; init; } = [];
+    /// <summary>How far a crew walks to it from the stopped consist, round buildings (D.14 "recoverability").</summary>
+    public double Walk { get; init; }
+}
+
+/// <summary>An outside creature's place in a stop (GDD B.6, B.8): a spot and its reach, and a building or track if it's in one.</summary>
+public sealed record StopLair(LairKind Kind, StopZone Zone, Pt At, double Radius, int Building = -1, int Track = -1);
+
 /// <summary>Where loot can be (P14): a kind, a place, and which building it's in (−1 for none).</summary>
 /// <param name="Band">P2's portability band: 0 under a crane, 1 crates, 2 pocketable off the line.</param>
 /// <param name="Track">For a crane bay, the track whose crane reaches it (−1 otherwise).</param>
@@ -168,6 +194,10 @@ public sealed record StopLayout
     /// <summary>A village halt's platform beside the main line (village-only stops).</summary>
     public Pt? Halt { get; init; }
     public double HaltLength { get; init; }
+    /// <summary>Where the consist stops to work the stop (a yard's first loading face, or the halt): what D.4 measures from.</summary>
+    public Pt StopPoint { get; init; }
+    public IReadOnlyList<StopHoldout> Holdouts { get; init; } = [];
+    public IReadOnlyList<StopLair> Lairs { get; init; } = [];
     /// <summary>Where the loaded cars wait on the main line, front and length (GDD §17).</summary>
     public double CutFront { get; init; }
     public double CutLength { get; init; }

@@ -166,11 +166,11 @@ public class StopGeneratorTests
     [Fact]
     public void AStopInARouteIsTheStopItsSeedMakes()
     {
-        // Z.1: a stop hangs off its own hash, so regenerating it alone gives the same layout as the whole route did.
+        // Z.1: a stop hangs off its own hash (and its facility), so regenerating it alone gives the layout the whole route did.
         var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, 5);
         foreach (var f in route.Features.Where(f => f.Stop is not null))
         {
-            var again = StopGenerator.Generate(S, route.Tier, f.Stop!.Seed, f.Stop.Kind, Cx);
+            var again = StopGenerator.Generate(S, route.Tier, f.Stop!.Seed, f.Stop.Kind, Cx with { Facility = f.Kind == FeatureKind.Facility ? f.Facility : null });
             Assert.Equal(System.Text.Json.JsonSerializer.Serialize(f.Stop, DataFile.Options), System.Text.Json.JsonSerializer.Serialize(again, DataFile.Options));
         }
     }

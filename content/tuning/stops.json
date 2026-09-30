@@ -59,6 +59,57 @@
     "halt": { "length": 34, "offset": 4.6 }
   },
 
+  // Holdouts (GDD App. D.4, D.13; level-design H.1): a sealed place where a dead player waits to be freed, the only way
+  // back into a run. Placement only; what happens there is holdouts.json.
+  "holdouts": {
+    // A facility's: this far from the consist's stopping position on the pad (the middle of its first track's loading
+    // face). A second on a pad at least `secondPadScale` long along the line, and at every switchyard.
+    "facilityDistance": [60, 200],
+    "secondPadScale": 200,
+    // A halt's lockup, and a dead town's shelter: at most this far from the main line.
+    "haltDistance": 40,
+    "villageDistance": 80,
+    // A village stop's Holdout is the halt's lockup at this chance, else a shelter in the village (ARCHITECTURE §8).
+    "villageLockup": 0.5,
+    // Its lamp is seen from the approach: the 1 km board at a facility, the whistle board at a halt or village (the Line
+    // Plan's; not in this repo, so its distance is ours, ARCHITECTURE §8).
+    "approach": { "facility": 1000, "halt": 400 },
+    // "Must not share a walking route with the nearest loading module": at least this far from any loading container,
+    // and at least this angle (degrees) between the walk to it and the walk to the nearest one, from the consist.
+    "loadingClear": 30,
+    "loadingAngle": 45,
+    // Types (D.4): a prison car on a spare siding, at `prisonCar` chance at a facility (`preferred` where the kind
+    // prefers one), else a barricaded shelter; a mine head's is always the portal lamp room.
+    "prisonCar": 0.35,
+    "preferred": 0.8,
+    "prefers": ["switchyard", "wreckYard", "militaryDepot"],
+    "shelters": [["signalBox", 0.4], ["lampRoom", 0.35], ["waterTower", 0.25]],
+    // Footprints [length along, width across], and the prison car's spare siding (derelict track, its points lifted).
+    "sizes": { "prisonCar": [14, 3.2], "signalBox": [6, 4], "lampRoom": [4.5, 4], "waterTower": [5, 5], "lockup": [6, 4] },
+    "siding": 26,
+    // A signal box or water tower stands this far from a track (main or yard): it was built to watch or water one.
+    "byTrack": [5, 12],
+    // A halt's lockup stands this far behind the platform's back edge.
+    "lockupBehind": [2, 8],
+    // Placement tries this many candidates, and walks the ground in cells this big (D.14 "recoverability").
+    "candidates": 220,
+    "walkCell": 3
+  },
+
+  // Where the outside creatures live (GDD B.6, B.8; level-design H.2). The layout says where; the director says when.
+  "lairs": {
+    // Ribbits' warrens: open ground in a yard or a village, clear of buildings and track, away from the train. The
+    // count per zone is the tier's `warrens`.
+    "warren": { "radius": 6, "clear": 6, "fromTrain": 40, "fromMain": 20 },
+    // The Gaunt sleeps in the building furthest from the train (a village house before a yard shed).
+    // Followers ride the facility's grounds: circles round its loading, at most this many.
+    "followers": { "radius": 14, "most": 3 },
+    // A child calls from the open this far beyond the stop's built edge, where the train can see it.
+    "sootCall": [25, 60],
+    // The Whistler carries its victim off to a nest this far out from the main line, away from the stop.
+    "whistlerNest": [40, 90]
+  },
+
   // Measuring a stop (P15, level-design D.1): what the crew has to do to fill the empties it brought, weighted.
   "score": {
     "throw": 1, "coupling": 0.5, "reversal": 1.5, "blindMove": 2.5, "respot": 0.6, "handCar": 2.5,
@@ -84,7 +135,7 @@
   // shed: thinly beside each track in a big yard, which means more trips and more carrying). Weighted choices are [name, weight] pairs.
   "tiers": {
     "local": {
-      "empties": 2, "villageChance": 0.6, "halts": [2, 3],
+      "warrens": [1, 1], "empties": 2, "villageChance": 0.6, "halts": [2, 3],
       "forms": [["spur", 0.55], ["ladder", 0.30], ["fan", 0.15]],
       "sidings": [1, 2], "faceCars": [5, 7], "crane": 1.0, "runway": [45, 60], "stock": [1.3, 1.6],
       "villages": [["street", 0.4], ["blocks", 0.35], ["crossroads", 0.25]],
@@ -93,7 +144,7 @@
       "band": { "yard": [4, 20], "village": [10, 18] }
     },
     "frontier": {
-      "empties": 4, "villageChance": 0.5, "halts": [1, 3],
+      "warrens": [1, 2], "empties": 4, "villageChance": 0.5, "halts": [1, 3],
       "forms": [["spur", 0.15], ["ladder", 0.45], ["fan", 0.40]],
       "sidings": [2, 3], "faceCars": [3, 5], "crane": 0.75, "runway": [35, 50], "stock": [1.2, 1.5],
       "villages": [["blocks", 0.35], ["street", 0.25], ["crossroads", 0.25], ["farmsteads", 0.15]],
@@ -102,7 +153,7 @@
       "band": { "yard": [14, 36], "village": [14, 22] }
     },
     "deadLines": {
-      "empties": 8, "villageChance": 0.45, "halts": [1, 2],
+      "warrens": [2, 3], "empties": 8, "villageChance": 0.45, "halts": [1, 2],
       "forms": [["ladder", 0.40], ["fan", 0.40], ["split", 0.20]],
       "sidings": [2, 4], "faceCars": [3, 5], "crane": 0.55, "runway": [28, 42], "stock": [1.1, 1.4],
       "villages": [["blocks", 0.25], ["crossroads", 0.25], ["farmsteads", 0.3], ["street", 0.2]],
@@ -111,7 +162,7 @@
       "band": { "yard": [28, 56], "village": [18, 28] }
     },
     "deepTerritory": {
-      "empties": 10, "villageChance": 0.4, "halts": [1, 2],
+      "warrens": [2, 4], "empties": 10, "villageChance": 0.4, "halts": [1, 2],
       "forms": [["ladder", 0.30], ["fan", 0.35], ["split", 0.35]],
       "sidings": [3, 5], "faceCars": [2, 4], "crane": 0.3, "runway": [18, 28], "stock": [1.0, 1.3],
       "villages": [["farmsteads", 0.45], ["crossroads", 0.3], ["blocks", 0.25]],

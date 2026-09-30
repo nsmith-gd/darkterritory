@@ -204,7 +204,7 @@ public static class RouteGenerator
                 continue;
             ulong stopSeed = StopSeed.Of(seed, StopSeed.Stop, (ulong)i * 4 + (ulong)tier);
             var kind = new Pcg32(stopSeed).Chance(st.Tiers[tier].VillageChance) ? StopKind.YardAndVillage : StopKind.Yard;
-            var stop = StopGenerator.Generate(st, tier, stopSeed, kind, cx);
+            var stop = StopGenerator.Generate(st, tier, stopSeed, kind, cx with { Facility = f.Facility });
             features[i] = f with { Side = stop.YardSide, Stop = stop };
         }
         for (int h = 0; h < halts.Count; h++)

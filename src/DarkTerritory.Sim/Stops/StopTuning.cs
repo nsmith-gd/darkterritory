@@ -16,6 +16,8 @@ public sealed record StopTuning
     public required HeroTuning Hero { get; init; }
     public required YardCraneTuning Crane { get; init; }
     public required VillageTuning Village { get; init; }
+    public required HoldoutPlacementTuning Holdouts { get; init; }
+    public required LairTuning Lairs { get; init; }
     public required ScoreTuning Score { get; init; }
     public required int MaxAttempts { get; init; }
     public required StopTierTable Tiers { get; init; }
@@ -32,6 +34,47 @@ public sealed record TrackLayoutTuning
     public required double[] FanAngle { get; init; }
     public required double[] SplitToe { get; init; }
 }
+
+/// <summary>Where Holdouts go (GDD App. D.4, D.13). Field docs in stops.json.</summary>
+public sealed record HoldoutPlacementTuning
+{
+    public required double[] FacilityDistance { get; init; }
+    public required double SecondPadScale { get; init; }
+    public required double HaltDistance { get; init; }
+    public required double VillageDistance { get; init; }
+    public required double VillageLockup { get; init; }
+    public required HoldoutApproach Approach { get; init; }
+    public required double LoadingClear { get; init; }
+    public required double LoadingAngle { get; init; }
+    public required double PrisonCar { get; init; }
+    public required double Preferred { get; init; }
+    public required string[] Prefers { get; init; }
+    public required IReadOnlyList<Choice> Shelters { get; init; }
+    /// <summary>[length, width] by <see cref="BuildingKind"/> in stops.json's camelCase (looked up, never iterated).</summary>
+    public required Dictionary<string, double[]> Sizes { get; init; }
+    public required double Siding { get; init; }
+    public required double[] ByTrack { get; init; }
+    public required double[] LockupBehind { get; init; }
+    public required int Candidates { get; init; }
+    public required double WalkCell { get; init; }
+
+    public double[] Size(BuildingKind kind) =>
+        Sizes.TryGetValue(char.ToLowerInvariant(kind.ToString()[0]) + kind.ToString()[1..], out var v) ? v : throw new KeyNotFoundException($"stops.json holdouts.sizes has no {kind}");
+}
+
+public sealed record HoldoutApproach(double Facility, double Halt);
+
+/// <summary>Where the outside creatures live (GDD B.6, B.8). Field docs in stops.json.</summary>
+public sealed record LairTuning
+{
+    public required WarrenTuning Warren { get; init; }
+    public required FollowerGroundTuning Followers { get; init; }
+    public required double[] SootCall { get; init; }
+    public required double[] WhistlerNest { get; init; }
+}
+
+public sealed record WarrenTuning(double Radius, double Clear, double FromTrain, double FromMain);
+public sealed record FollowerGroundTuning(double Radius, int Most);
 
 public sealed record ShedTuning
 {
@@ -157,6 +200,8 @@ public sealed record StopTierTable(StopTier Local, StopTier Frontier, StopTier D
 /// <summary>One tier's difficulty levers (level-design D.2).</summary>
 public sealed record StopTier
 {
+    /// <summary>Ribbit warrens per yard or village (GDD B.6).</summary>
+    public required int[] Warrens { get; init; }
     public required int Empties { get; init; }
     public required double VillageChance { get; init; }
     public required int[] Halts { get; init; }

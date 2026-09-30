@@ -14,7 +14,7 @@ public static class StopMap
         var px = new byte[size * size * 4];
         Fill(px, size, 24, 28, 24);
         // Fitted to what's there (the track, the buildings, the roads inside the zone), with a margin: s runs up the image.
-        var pts = l.Buildings.Select(b => b.Centre).Concat(l.Tracks.SelectMany(t => t.Path)).Concat(l.Roads.SelectMany(r => r.Points))
+        var pts = l.Buildings.Select(b => b.Centre).Concat(l.Tracks.SelectMany(t => t.Path)).Concat(l.Roads.SelectMany(r => r.Points)).Concat(l.Lairs.Select(x => x.At))
             .Where(p => p.S >= -40 && p.S <= l.ZoneLength + 40).Append(new Pt(0, 0)).ToList();
         double sMin = pts.Min(p => p.S), sMax = pts.Max(p => p.S), dMin = pts.Min(p => p.D), dMax = pts.Max(p => p.D);
         double span = Math.Max(sMax - sMin, dMax - dMin) + 60, k = size / span;
@@ -36,10 +36,18 @@ public static class StopMap
                 foreach (double e in new[] { -rw.Reach, rw.Reach })
                     Line(px, size, [new Pt(rw.From, d + e), new Pt(rw.To, d + e)], At, 0.5 * k, 200, 196, 182);
             }
+        // A prison car's spare siding, under it.
+        foreach (var ho in l.Holdouts)
+            if (ho.Siding.Count > 1)
+                Dashed(px, size, ho.Siding, At, 0.9 * k, 2, 2, 150, 146, 136);
         foreach (var b in l.Buildings)
         {
             var (r, g, bl) = b.Kind switch
             {
+                // The Holdouts (App. D.4): iron and soot, where everything else is timber and plaster.
+                BuildingKind.PrisonCar => (92, 104, 96),
+                BuildingKind.Lockup => (104, 108, 116),
+                BuildingKind.SignalBox or BuildingKind.LampRoom or BuildingKind.WaterTower => (70, 66, 72),
                 BuildingKind.Shed => (139, 94, 58),
                 BuildingKind.Hero => (176, 120, 64),
                 BuildingKind.Outbuilding => (122, 88, 58),
@@ -62,6 +70,34 @@ public static class StopMap
         {
             var (r, g, b) = c.Zone == StopZone.Yard ? (226, 168, 75) : (240, 200, 110);
             Disc(px, size, At(c.At), Math.Max(1.5, (c.Kind is ContainerKind.CraneBay or ContainerKind.Strongroom ? 1.6 : 1.1) * k), (byte)r, (byte)g, (byte)b);
+        }
+        // Where the outside creatures live (B.6, B.8): rings, by who.
+        foreach (var lair in l.Lairs)
+        {
+            var (r, g, b) = lair.Kind switch
+            {
+                LairKind.Warren => (120, 190, 90),
+                LairKind.GauntRoost => (180, 120, 220),
+                LairKind.FollowerGround => (80, 190, 190),
+                LairKind.SootCall => (230, 90, 80),
+                LairKind.GrumblerPerch => (240, 150, 60),
+                _ => (110, 130, 230),
+            };
+            Ring(px, size, At(lair.At), Math.Max(3, lair.Radius * k), (byte)r, (byte)g, (byte)b);
+            Disc(px, size, At(lair.At), 1.5, (byte)r, (byte)g, (byte)b);
+        }
+        // The Holdouts' lamps and doors, and where the consist stops (what D.4 measures from).
+        foreach (var ho in l.Holdouts)
+        {
+            Ring(px, size, At(l.Buildings[ho.Building].Centre), 9 * k, 250, 235, 170);
+            Disc(px, size, At(ho.Lamp), Math.Max(2, 1.2 * k), 255, 240, 160);
+            Disc(px, size, At(ho.Door), Math.Max(1.5, 0.8 * k), 240, 240, 240);
+        }
+        var sp = At(l.StopPoint);
+        for (int i = -5; i <= 5; i++)
+        {
+            Put(px, size, (int)sp.X + i, (int)sp.Y, 250, 250, 250);
+            Put(px, size, (int)sp.X, (int)sp.Y + i, 250, 250, 250);
         }
         if (l.Crossing is { } x)
             Ring(px, size, At(x), 5 * k, 208, 87, 74);
