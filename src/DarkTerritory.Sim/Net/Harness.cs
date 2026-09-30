@@ -236,6 +236,8 @@ public static class Harness
             hostTransport.Dispose();
         }
         string link = o.Network is { } n ? n.Name : o.Udp ? "udp localhost" : $"{o.Link.LatencySeconds * 1000:0}ms ±{o.Link.JitterSeconds * 1000:0} loss {o.Link.LossRate:P0}";
+        var pacing = Pace(quiet, lastQuiet, beats, outTicks, quietTicks, beatKinds);
+        pacing = pacing with { LongestQuietEnded = lastQuiet > 0 && lastQuiet >= quiet.DefaultIfEmpty(0).Max() ? $"{seconds:0}s, the night's end" : longestEnded };
         return new HarnessReport(ticks, seconds, link,
             Math.Round(host.Train.Dynamics.Distance, 1), Math.Round(host.Train.Dynamics.Speed, 2),
             Math.Round(host.Train.Boiler.Pressure, 1), Math.Round(host.Train.Boiler.Tender), host.LastSnapshotBytes,
@@ -244,8 +246,7 @@ public static class Harness
             host.World.Run is { } run ? run.Report ?? run.Tally(host.World, [.. host.Players.Select(p => p.State)]) : null,
             clients.Sum(c => c.Bot switch { RoofWalkerBot r => r.WarmUps, GunnerBot g => g.WarmUps, _ => 0 }),
             clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Log,
-            Pace(quiet, lastQuiet, beats, outTicks, quietTicks, beatKinds)
-                with { LongestQuietEnded = lastQuiet > 0 && lastQuiet >= quiet.DefaultIfEmpty(0).Max() ? $"{seconds:0}s, the night's end" : longestEnded });
+            pacing);
     }
 
     static PacingReport Pace(List<double> quiet, double last, int beats, int outTicks, int quietTicks, Dictionary<string, int> kinds)

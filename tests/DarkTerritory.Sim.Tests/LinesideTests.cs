@@ -316,9 +316,19 @@ public class DropAndPacingTests
         var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Local, 3);
         var report = Net.Harness.Run(route.Build(), T, P, new Net.HarnessOptions
         {
-            Bots = 3, Cars = 4, Seconds = 600, Seed = 2, Link = Ballast.Net.LinkConditions.Perfect, StartDistance = 400,
-            Combat = Tuning.Combat, Enemies = Tuning.Enemies, Route = route, Run = Tuning.Run, YardLength = Tuning.Route.YardLength,
-            Sight = S, Vigil = Tuning.Vigil,
+            Bots = 3,
+            Cars = 4,
+            Seconds = 600,
+            Seed = 2,
+            Link = Ballast.Net.LinkConditions.Perfect,
+            StartDistance = 400,
+            Combat = Tuning.Combat,
+            Enemies = Tuning.Enemies,
+            Route = route,
+            Run = Tuning.Run,
+            YardLength = Tuning.Route.YardLength,
+            Sight = S,
+            Vigil = Tuning.Vigil,
         }, Tuning.Boiler);
         var pace = report.Pacing!;
         Assert.True(pace.LongestQuietSeconds <= 30, $"quiet for {pace.LongestQuietSeconds} s ({string.Join(", ", pace.Kinds.Select(k => $"{k.Key} {k.Value}"))})");

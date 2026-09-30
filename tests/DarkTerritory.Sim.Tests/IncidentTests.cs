@@ -41,8 +41,11 @@ public class IncidentTests
             var layout = Tuning.Train.Geometry.Interior!;
             Crew.Add(new PlayerState
             {
-                Parent = Car, Position = new Double3(layout.DoorX, layout.FloorHeight, z), Surface = Surface.Deck,
-                Health = Tuning.Player.Health, LineHint = Train.Cars[Car].FrontDistance,
+                Parent = Car,
+                Position = new Double3(layout.DoorX, layout.FloorHeight, z),
+                Surface = Surface.Deck,
+                Health = Tuning.Player.Health,
+                LineHint = Train.Cars[Car].FrontDistance,
             });
             Intents.Add(use ? new PlayerIntent { Buttons = PlayerButtons.Use } : default);
             return Crew.Count;
