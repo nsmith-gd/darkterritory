@@ -152,7 +152,8 @@ BalanceReport RunBalance(string[] args)
     var vigil = DataFile.Load<DarkTerritory.Sim.Run.VigilTuning>(Path.Combine(content, DarkTerritory.Sim.Run.VigilTuning.File));
     var run = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
     var facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File));
-    double seconds = Opt(args, "--seconds", 3600);
+    // Long enough for a Dead Lines night and its yard (T76: they run past 3600 s); a night stops when its run's over.
+    double seconds = Opt(args, "--seconds", 5400);
     var rows = new BalanceRow[grid.Count];
     // Each night is its own host and bots over their own loopback; nothing's shared, so they run side by side.
     Parallel.For(0, grid.Count, new ParallelOptions { MaxDegreeOfParallelism = (int)Opt(args, "--parallel", Environment.ProcessorCount) }, i =>

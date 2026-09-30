@@ -90,6 +90,14 @@ public sealed class CrewCalls
     readonly Dictionary<int, int> _shutting = new();
 
     /// <summary>
+    /// The driver's called the loading done ("that's it, all aboard"): done, given up or late for the dawn (T76). The crate
+    /// hands put nothing more in, shut up behind them and come aboard; deadLines:2's two kept fetching crates through the
+    /// whole aboard wait.
+    /// </summary>
+    public bool Leaving { get; private set; }
+    public void Leave(bool leaving) => Leaving = leaving;
+
+    /// <summary>
     /// Which door a hand shuts once the crates are in (T50): the one it has claimed while that's still open, else the
     /// nearest open one nobody else alive has claimed (two hands at one door undo each other). Null when there's none left
     /// for it. Claims go with the door: a hand that's gone aboard, or away to warm, holds none, so no door waits on it.
@@ -401,6 +409,9 @@ public sealed class StopDriver(CrewCalls calls)
     void Begin(Leg leg)
     {
         _loadedAt = -1;
+        // Called all aboard for the loading until the next stop's (backing out and clearing, they're coming aboard).
+        if (leg == Leg.Approach)
+            calls.Leave(false);
         if (Doing != Leg.Cruise)
             _legs[Doing.ToString()] = Math.Round(_legs.GetValueOrDefault(Doing.ToString()) + Waited, 1);
         Doing = leg;
@@ -547,7 +558,7 @@ public sealed class StopDriver(CrewCalls calls)
                     }
                     // Everyone with a part aboard the engine's rake, or long enough waiting that someone isn't coming (kept off
                     // it by something in a car, say: T64's Climbers): in without them, as the loading leg goes on without them.
-                    if (set && cut && (calls.Riding(EngineRake(train)) || Waited > HeldGiveUp + AboardGiveUp))
+                    if (set && cut && (calls.Riding(OnTheTrain(train)) || Waited > HeldGiveUp + AboardGiveUp))
                         Begin(Leg.SpurIn);
                     return Hold(world);
                 }
@@ -585,7 +596,8 @@ public sealed class StopDriver(CrewCalls calls)
                     // given up for the dawn waited out the whole give-up again for a hand still out, T70).
                     if (loaded && _loadedAt < 0)
                         _loadedAt = Waited;
-                    if (loaded && (calls.Riding(EngineRake(train)) || Waited - _loadedAt > AboardGiveUp))
+                    calls.Leave(loaded);
+                    if (loaded && (calls.Riding(OnTheTrain(train)) || Waited - _loadedAt > AboardGiveUp))
                         Begin(Leg.BackOut);
                     return Hold(world);
                 }
@@ -658,7 +670,13 @@ public sealed class StopDriver(CrewCalls calls)
         Plan = null;
     }
 
-    static IReadOnlyCollection<int> EngineRake(TrainOnLine train) => [.. train.Dynamics.Consist.Vehicles.Select(v => v.Id)];
+    /// <summary>
+    /// Aboard, for a stop's waits: on any car of the train, the ones cut off on the main as much as the engine's rake (T76).
+    /// The engine comes back for the cut and couples up to it, as it does for anyone warming in it (T64). deadLines:2's
+    /// gunner and two crate hands were on the car behind the cut, which nothing sent them across, and the driver waited
+    /// out both give-ups for them.
+    /// </summary>
+    static IReadOnlyCollection<int> OnTheTrain(TrainOnLine train) => [.. train.Vehicles.Select(v => v.Id)];
 
     static double BrakeRate(TrainDynamics engine) => Math.Max(0.1, engine.MaxBrakeForce / engine.Consist.MassTonnes * 0.5);
     static double StoppingDistance(TrainDynamics engine) => engine.Speed * engine.Speed / (2 * BrakeRate(engine));
@@ -1084,8 +1102,8 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         bool atEnd = p.AtTheEnd(train);
         if (!_reachedEnd)
             return Ride(self, train, p);
-        // Nothing to haul, or nowhere for a sled to go (T66): aboard.
-        if (!atEnd || p.Site.SledsLeft == 0 || world.Run is { } r && !r.SledHasRoom(train, p.Site))
+        // Nothing to haul, nowhere for a sled to go (T66), or the driver's called all aboard (T76): aboard.
+        if (!atEnd || p.Site.SledsLeft == 0 || calls.Leaving || world.Run is { } r && !r.SledHasRoom(train, p.Site))
             return Aboard(self, p);
         if (self.Parent != PlayerState.World)
             return GetDown(self, train, p.Spur.Side);
@@ -1256,7 +1274,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         else if (mine is null && PlayerId is not null && Wanting(world, p) is { } wanting)
             return LendAHand(self, world, wanting);
         // Nothing more to carry: the doors shut behind us (an open car is a cold one), and aboard.
-        if (!heavy && !p.CratesToLoad(world, calls.HeavyHands))
+        if (!heavy && (!p.CratesToLoad(world, calls.HeavyHands) || calls.Leaving))
         {
             calls.CarryingTo(member, -1);
             return OpenSideDoor(world, p, calls, member, self) is { } car ? ShutUp(self, world, p, car) : Aboard(self, p);
