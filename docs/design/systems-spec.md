@@ -279,7 +279,7 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 | POIs per run | 3–5 |
 | Time per POI | 4–8 min |
 | **Total run** | **28–45 min** |
-| Dawn timer | Route length ÷ 11 m/s average, +18% slack |
+| Dawn timer | Route length ÷ 11 m/s average, +40% slack (was +18%: after the 100-night playtest a stop, the posted boards and the in-car trouble didn't fit, and missing dawn was the commonest failure) |
 
 The dawn budget assumes an 11 m/s average, below the 14 m/s cruise. **The slack is what you spend on stopping** — every POI, every repair, every revival eats it.
 

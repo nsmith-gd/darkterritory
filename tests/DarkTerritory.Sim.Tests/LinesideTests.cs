@@ -53,7 +53,7 @@ public class LinesideTests
     public void TheLampReadsABoardFarOffAndTheDarkOnlyWhatItWarnsOf()
     {
         var route = Tunnel();
-        var sign = Lineside.Boards(S, route).Single();
+        var sign = Lineside.Boards(S, route).Single(s => s.Kind == SignKind.LowClearance);
         bool ReadAt(double front, bool lamp)
         {
             var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 3, 1)), route.Build(), front);
@@ -95,7 +95,7 @@ public class LinesideTests
     public void ACurveTakenOverItsBoardThrowsTheRoofRidersAndShakesTheCargo()
     {
         var route = Curve(300);
-        double limit = Lineside.Boards(S, route).Single().Limit;
+        double limit = Lineside.Boards(S, route).Single(s => s.Kind == SignKind.SpeedLimit).Limit;
         double Cargo(World w) => w.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).Min(v => v.CargoIntegrity);
         PlayerState[] Rider(TrainOnLine train) => [PlayerMotor.SpawnOnRoof(train, 2, 0, P)];
 
@@ -158,7 +158,7 @@ public class LinesideTests
         world.EnableBodies();
         world.EnableLineside(S, route);
         world.LampLit = lamp;
-        var sign = world.Lineside!.Signs.Single();
+        var sign = world.Lineside!.Signs.Single(s => s.Kind == SignKind.SpeedLimit);
         var bot = new ConductorBot { DarkCruiseSpeed = 10.5 };
         var s = PlayerMotor.SpawnInCab(train, P);
         var controls = new TrainControls { Reverser = 1 };
@@ -181,7 +181,7 @@ public class LinesideTests
     public void TheDriverTakesAPostedCurveAtItsBoardAndRunningDarkCostsIt()
     {
         var route = Curve(150);
-        double limit = Lineside.Boards(S, route).Single().Limit;
+        double limit = Lineside.Boards(S, route).Single(s => s.Kind == SignKind.SpeedLimit).Limit;
         var (lit, litSound) = Drive(route, lamp: true);
         Assert.True(lit <= limit + 0.2, $"took it at {lit:0.0} m/s, posted {limit:0.0}");
         Assert.Equal(1, litSound, 9);
@@ -222,5 +222,91 @@ public class LinesideTests
         }
         Assert.All(crew, c => Assert.True(c.Alive, $"died of {c.Death}"));
         Assert.True(wentIn);
+    }
+}
+
+/// <summary>
+/// The mail cranes (the playtest's rewards) and the night's pace ("a reward or a problem every 30 s at most, ideally 20").
+/// </summary>
+public class DropAndPacingTests
+{
+    static readonly TrainTuning T = Tuning.Train;
+    static readonly PlayerTuning P = Tuning.Player;
+    static readonly SightTuning S = DataFile.Load<SightTuning>(Path.Combine(DataFile.FindContentRoot(), SightTuning.File));
+
+    [Fact]
+    public void CranesStandAlongTheLineClearOfItsStructuresEachWithABoard()
+    {
+        var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, 7);
+        var drops = Lineside.Drops(S, route).ToList();
+        Assert.True(drops.Count >= route.Length / S.DropSpacing[1] * 0.6, $"{drops.Count} cranes on {route.Length:0} m");
+        for (int i = 1; i < drops.Count; i++)
+            Assert.True(drops[i].At - drops[i - 1].At >= S.DropSpacing[0] - 1e-6);
+        Assert.All(drops, d => Assert.DoesNotContain(route.Features, f => f.Kind is FeatureKind.Tunnel or FeatureKind.Bridge or FeatureKind.Facility && f.Contains(d.At)));
+        var boards = Lineside.Boards(S, route).Where(s => s.Kind == SignKind.Drop).ToList();
+        Assert.Equal(drops.Count, boards.Count);
+        Assert.Equal(3, Lineside.Boards(S, route).Count(s => s.Kind == SignKind.Terminus));
+        // Every machine has the same cranes.
+        Assert.Equal(drops, Lineside.Drops(S, route).ToList());
+    }
+
+    /// <summary>A train at speed past a crane with someone in car 2's side door on its side, door open or not, hook out or not.</summary>
+    static (Lineside Lineside, World World) Past(bool open, bool hook, DropKind kind = DropKind.Mail)
+    {
+        var route = new Route.Route("t", RouteTier.Frontier, 1, new LineDefinition("t", [new TrackSegment(3000)]), [], new RouteWeather(0.01, false, 0, 0), 3600);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 0.5)), route.Build(), 600, Tuning.Boiler);
+        var world = new World(train, Tuning.Combat);
+        world.EnableBodies();
+        world.EnableRun(Tuning.Run, route, Tuning.Route.YardLength, authority: true);
+        world.EnableLineside(S, route);
+        var lineside = world.Lineside!;
+        var drop = lineside.AllDrops.First();
+        var shape = train.Frames[2].Shape;
+        int door = StopHand.SideDoor(shape, drop.Side)!.Value;
+        if (open)
+            train.Vehicles[2].ToggleDoor(door);
+        var (at, yaw) = WarmUp.Inside(shape, door);
+        var s = new PlayerState { Parent = 2, Position = at with { Y = T.Geometry.Interior!.FloorHeight }, Yaw = yaw, Surface = Surface.Deck, Health = P.Health, LineHint = train.Cars[2].FrontDistance };
+        var intent = hook ? new PlayerIntent { Buttons = PlayerButtons.Fire } : default;
+        while (train.Dynamics.RearDistance < drop.At + 5)
+        {
+            train.Dynamics.Velocity = 13;
+            world.BeginTick();
+            world.CrewAct(ref s, intent, 1);
+            world.Step(new TrainControls { Reverser = 1 });
+            PlayerMotor.Step(ref s, intent, train, P, T, SimConstants.TickSeconds, applyLook: false);
+        }
+        return (lineside, world);
+    }
+
+    [Fact]
+    public void ABagIsCaughtFromAnOpenSideDoorWithTheHookOut()
+    {
+        var (caught, world) = Past(open: true, hook: true);
+        var drop = caught.AllDrops.First();
+        Assert.True(caught.Caught(drop.Id));
+        if (drop.Kind == DropKind.Mail)
+            Assert.Equal(drop.Amount, world.Run!.Mail);
+        // Door shut, or nobody with the hook out: it goes by.
+        var (shut, _) = Past(open: false, hook: true);
+        Assert.True(shut.Passed(drop.Id) && !shut.Caught(drop.Id));
+        var (idle, _) = Past(open: true, hook: false);
+        Assert.True(idle.Passed(drop.Id) && !idle.Caught(drop.Id));
+    }
+
+    [Fact]
+    public void ANightOutOnTheLineIsNeverQuietForMoreThanThirtySeconds()
+    {
+        var content = DataFile.FindContentRoot();
+        var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Local, 3);
+        var report = Net.Harness.Run(route.Build(), T, P, new Net.HarnessOptions
+        {
+            Bots = 3, Cars = 4, Seconds = 600, Seed = 2, Link = Ballast.Net.LinkConditions.Perfect, StartDistance = 400,
+            Combat = Tuning.Combat, Enemies = Tuning.Enemies, Route = route, Run = Tuning.Run, YardLength = Tuning.Route.YardLength,
+            Sight = S, Vigil = Tuning.Vigil,
+        }, Tuning.Boiler);
+        var pace = report.Pacing!;
+        Assert.True(pace.LongestQuietSeconds <= 30, $"quiet for {pace.LongestQuietSeconds} s ({string.Join(", ", pace.Kinds.Select(k => $"{k.Key} {k.Value}"))})");
+        Assert.True(pace.BeatsPerMinute >= 2, $"{pace.BeatsPerMinute} a minute");
     }
 }

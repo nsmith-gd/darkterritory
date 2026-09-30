@@ -23,8 +23,10 @@ public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed }
 
 /// <summary>What a night came to (spec F.1): everything still attached to the locomotive counts.</summary>
 /// <param name="RevivedAtGate">Bodies brought home aboard: revived free at the gate (spec C.2), and counted in CrewHome.</param>
+/// <param name="Mail">Pay caught off the mail cranes (sight.json drops), paid with the cargo at the terminus and in the gross.</param>
 public sealed record RunReport(RunEnd End, double Seconds, double DistanceKm, int CarsDelivered, int CarsLost, double CargoDelivered,
-    double Gross, double CoalCost, double AmmoCost, double RepairCost, double Net, int CrewHome, int CrewLost, int RevivedAtGate = 0);
+    double Gross, double CoalCost, double AmmoCost, double RepairCost, double Net, int CrewHome, int CrewLost, int RevivedAtGate = 0,
+    double Mail = 0);
 
 /// <summary>
 /// One night's run, host-authoritative (clients mirror it for the HUD). The yard gate opens the run and
@@ -140,6 +142,10 @@ public sealed class Run
     public RunReport? Report { get; private set; }
 
     /// <summary>Advances the run after the world has stepped. <paramref name="crew"/> is everyone's authoritative state.</summary>
+    /// <summary>Pay in the mail bags caught so far tonight (sight.json drops): it pays at the terminus with the cargo.</summary>
+    public double Mail { get; private set; }
+    public void AddSalvage(double scrip) => Mail += scrip;
+
     public void Step(World world, IReadOnlyCollection<PlayerState> crew, double dt)
     {
         if (Over)
@@ -473,7 +479,7 @@ public sealed class Run
         var home = cargo.Where(v => attached.Contains(v.Id)).ToList();
         bool delivered = End == RunEnd.Delivered;
         double cargoValue = home.Sum(v => v.Load * v.CargoIntegrity);
-        double gross = delivered ? perCar * cargoValue : 0;
+        double gross = delivered ? perCar * cargoValue + Mail : 0;
         double coal = Math.Max(0, _tenderAtDeparture + _coalLoaded - train.Boiler.Tender) * e.CoalPerUnit;
         double ammo = Math.Max(0, _ammoAtDeparture - train.Vehicles.Sum(v => v.Gun.Ammo)) * e.RoundsPerRound;
         double repairs = train.Vehicles.Where(v => attached.Contains(v.Id)).Sum(v => 1 - v.Integrity) * e.RepairPerIntegrity;
@@ -488,7 +494,7 @@ public sealed class Run
         revived = Math.Min(revived, crew.Count(c => !c.Alive));
         return new RunReport(End, Math.Round(Seconds, 1), Math.Round(engine.Distance / 1000, 2), home.Count, cargo.Count - home.Count,
             Math.Round(cargoValue, 2), Math.Round(gross), Math.Round(coal), Math.Round(ammo), Math.Round(repairs),
-            Math.Round(gross - coal - ammo - repairs), crewHome + revived, crew.Count - crewHome - revived, revived);
+            Math.Round(gross - coal - ammo - repairs), crewHome + revived, crew.Count - crewHome - revived, revived, Math.Round(delivered ? Mail : 0));
     }
 
     /// <summary>

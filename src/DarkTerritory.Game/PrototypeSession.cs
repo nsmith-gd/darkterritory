@@ -95,6 +95,8 @@ public sealed class PrototypeSession : IPlaySession
                 _cues.Add((ElapsedSeconds, cue));
         foreach (var sign in World.Lineside?.ReadThisTick ?? [])
             _cues.Add((ElapsedSeconds, Board(sign)));
+        foreach (var drop in World.Lineside?.CaughtThisTick ?? [])
+            _cues.Add((ElapsedSeconds, Caught(drop)));
         _cues.RemoveAll(c => ElapsedSeconds - c.At > CueSeconds);
         PlayerMotor.Step(ref Player, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
         World.StepBodies([(1, Player)]);
@@ -181,7 +183,18 @@ public sealed class PrototypeSession : IPlaySession
     public static string Board(Sign sign) => sign.Kind switch
     {
         SignKind.SpeedLimit => $"board: {sign.LimitKmh} km/h ahead",
+        SignKind.Drop => $"board: a mail crane ahead on the {(sign.Drop!.Side > 0 ? "right" : "left")}: open that side door and hook it (left mouse)",
+        SignKind.Terminus => "board: the terminus ahead",
         _ => "board: low clearance ahead, off the roofs",
+    };
+
+    /// <summary>A bag off a crane, as whoever hooked it would call it.</summary>
+    public static string Caught(Drop drop) => drop.Kind switch
+    {
+        DropKind.Mail => $"hooked the mail: {drop.Amount:0} scrip at the terminus",
+        DropKind.Coal => "hooked a sack of coal for the tender",
+        DropKind.Ammo => "hooked a case of rounds for the guns",
+        _ => "hooked a bag of spares: the worst car's patched up",
     };
 
     static string? Cue(in EnemyEvent e) => (e.Kind, e.To) switch

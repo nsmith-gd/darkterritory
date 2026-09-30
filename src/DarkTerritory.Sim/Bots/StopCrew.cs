@@ -291,7 +291,7 @@ public sealed class StopDriver(CrewCalls calls)
     public enum Leg : byte { Cruise, Approach, Held, SpurIn, Loading, BackOut, Clear, Depart, ToCoal, Coaling, ToSwitch, OffDeadLine, SetBack, Forward }
 
     // Long enough for a crew to do their part at walking pace; past it, the stop is given up rather than the night.
-    const double HeldGiveUp = 240, LoadingGiveUp = 420, AboardGiveUp = 120, CoalGiveUp = 150;
+    const double HeldGiveUp = 240, LoadingGiveUp = 300, AboardGiveUp = 120, CoalGiveUp = 150;
     /// <summary>Seconds a facility stop (or a coaling stop) takes a crew, to leave spare before the dawn.</summary>
     const double StopAllowance = 600, CoalAllowance = 120;
 

@@ -164,7 +164,7 @@ public sealed class World
     public void EnableLineside(Route.SightTuning tuning, Route.Route route) => Lineside = new Route.Lineside(tuning, route);
 
     /// <summary>The crew as they acted this tick, on the host, with or without enemies (the lineside's hazards).</summary>
-    readonly List<(int Id, PlayerState State)> _actors = new();
+    readonly List<(int Id, PlayerState State, PlayerIntent Intent)> _actors = new();
 
     /// <summary>Tonight's run (departure, facilities, terminus, dawn), when playing a route.</summary>
     public Run.Run? Run { get; private set; }
@@ -275,7 +275,7 @@ public sealed class World
             Shots.Add(shot);
         _context?.Crew.Add((new PlayerSnapshot((byte)playerId, s), intent));
         if (Authority)
-            _actors.Add((playerId, s));
+            _actors.Add((playerId, s, intent));
     }
 
     /// <summary>Starts a tick: clears last tick's shots and events.</summary>
@@ -287,6 +287,7 @@ public sealed class World
         EnemyEvents.Clear();
         Damage.Clear();
         _actors.Clear();
+        Beats.Clear();
         if (Authority && Enemies is { } t)
             _context = new EnemyContext { Tuning = t, World = this, RecentRounds = _recentRounds };
     }
@@ -327,9 +328,46 @@ public sealed class World
             director.RateMultiplier = EmergencyLights && Vigil is { } v ? v.Tuning.NoiseSpawnMultiplier : 1;
         if (Authority && _context is { } ctx)
             StepEnemies(ctx);
+        Pace();
         Tick++;
         if (Authority)
             RefreshTargets();
+    }
+
+    /// <summary>
+    /// What happened this tick that the crew would call a moment (the pacing log, after the playtest's "2.5 minutes of nothing
+    /// is unacceptable"): a threat showing itself or hitting home, a board read, a bag caught or gone by, a stop made or left.
+    /// </summary>
+    public List<string> Beats { get; } = new();
+    /// <summary>
+    /// Seconds out on the line with nothing happening: no beat, and nothing out there telegraphing, committing or punishing.
+    /// Counted from the gate (not in the yard, nor once the night's over). The director won't let it pass its pace.
+    /// </summary>
+    public double QuietSeconds { get; private set; }
+    DarkTerritory.Sim.Run.RunPhase _lastPhase;
+
+    void Pace()
+    {
+        foreach (var e in EnemyEvents)
+            if (e.To == SpinePhase.Telegraph && e.From is SpinePhase.Dormant or SpinePhase.Alert || e.To == SpinePhase.Punish)
+                Beats.Add($"{e.Kind}:{e.To}");
+        if (Lineside is { } lineside)
+        {
+            foreach (var s in lineside.ReadThisTick)
+                Beats.Add($"board:{s.Kind}");
+            foreach (var d in lineside.CaughtThisTick)
+                Beats.Add($"caught:{d.Kind}");
+            foreach (var d in lineside.MissedThisTick)
+                Beats.Add($"missed:{d.Kind}");
+        }
+        if (Run is { } run && run.Phase != _lastPhase)
+        {
+            Beats.Add($"run:{run.Phase}");
+            _lastPhase = run.Phase;
+        }
+        bool out_ = Run is null || Run.Phase is DarkTerritory.Sim.Run.RunPhase.Underway or DarkTerritory.Sim.Run.RunPhase.AtFacility;
+        bool active = _enemies.Any(e => !e.Gone && e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish);
+        QuietSeconds = !out_ || Beats.Count > 0 || active ? 0 : QuietSeconds + SimConstants.TickSeconds;
     }
 
     void StepEnemies(EnemyContext ctx)

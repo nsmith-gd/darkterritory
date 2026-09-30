@@ -43,10 +43,15 @@ public abstract class Incident(int id) : Enemy(id)
     protected bool Aboard(EnemyContext ctx) =>
         Attached > 0 && Attached < ctx.Train.Frames.Count && ctx.Train.Dynamics.Consist.Vehicles.Any(v => v.Id == Attached);
 
-    /// <summary>The cargo car either side of this one without one of these in it already, if there is one.</summary>
-    protected int? Neighbour(EnemyContext ctx)
+    /// <summary>
+    /// The cargo car either side of this one without one of these in it already, if there is one, and if there's room for
+    /// another of its kind (<paramref name="max"/> about at once: one left to itself doesn't take the whole train).
+    /// </summary>
+    protected int? Neighbour(EnemyContext ctx, int max)
     {
         var train = ctx.Train;
+        if (ctx.World.ActiveEnemies.Count(e => !e.Gone && e.Kind == Kind) >= max)
+            return null;
         foreach (int car in new[] { train.VehicleBehind(Attached), train.VehicleAhead(Attached) })
             if (car > 0 && train.Vehicles[car].Kind == VehicleKind.Cargo && !ctx.World.ActiveEnemies.Any(e => !e.Gone && e.Kind == Kind && e.Attached == car))
                 return car;
@@ -70,6 +75,7 @@ public abstract class Incident(int id) : Enemy(id)
 public sealed class CarFire(int id) : Incident(id)
 {
     double _burnTimer, _blaze;
+    bool _spread;
 
     public override EnemyKind Kind => EnemyKind.CarFire;
     public override Sense Sense => Sense.Heat;
@@ -90,7 +96,9 @@ public sealed class CarFire(int id) : Incident(id)
             Enter(ctx, SpinePhase.Telegraph); // smoke through the boards, and the crackle
         var crew = Inside(ctx, t.BeatReach).ToList();
         int beating = crew.Count(c => c.Working);
-        Extra = Math.Clamp(Extra + (t.GrowPerSecond - t.BeatPerSecond * beating) * dt, 0, 1);
+        // Nothing left in the car to burn: it dies down on its own.
+        double grow = ctx.Train.Vehicles[Attached].CargoIntegrity <= 0.02 ? -t.BurnOutPerSecond : t.GrowPerSecond;
+        Extra = Math.Clamp(Extra + (grow - t.BeatPerSecond * beating) * dt, 0, 1);
         if (Extra <= 0)
         {
             Out(ctx);
@@ -109,7 +117,11 @@ public sealed class CarFire(int id) : Incident(id)
             _burnTimer = 0;
             foreach (var (p, working) in crew)
             {
-                // Beating it back you're at its edge; standing about in the car, you're in the smoke and the heat.
+                // Beating it back you're at its edge; standing about near it, you're in the smoke and the heat. Down the far end
+                // of the car you're clear of it.
+                double dz = p.State.Position.Z - Local.Z;
+                if (!working && Math.Abs(dz) > t.BurnReach)
+                    continue;
                 int amount = working ? (Extra >= t.ScorchAbove ? t.ScorchDamage : 0) : (int)Math.Round(t.BurnDamage * Extra);
                 if (amount > 0)
                     ctx.Bite(p.Id, amount, DeathCause.Burned);
@@ -117,9 +129,9 @@ public sealed class CarFire(int id) : Incident(id)
         }
         _blaze = Extra >= 1 ? _blaze + dt : 0;
         Extra2 = _blaze;
-        if (_blaze >= t.SpreadSeconds && Neighbour(ctx) is { } next)
+        if (!_spread && _blaze >= t.SpreadSeconds && Neighbour(ctx, t.MaxActive) is { } next)
         {
-            _blaze = 0;
+            _spread = true;
             ctx.World.AddEnemy(i => In(i, ctx.Train, next, Local.Z, t));
         }
     }
@@ -186,6 +198,7 @@ public sealed class LooseLoad(int id) : Incident(id)
 public sealed class Gnawers(int id) : Incident(id)
 {
     double _biteTimer, _full;
+    bool _spread;
 
     public override EnemyKind Kind => EnemyKind.Gnawers;
     public override Sense Sense => Sense.Scent;
@@ -206,7 +219,9 @@ public sealed class Gnawers(int id) : Incident(id)
             Enter(ctx, SpinePhase.Telegraph); // the chittering in the load
         var crew = Inside(ctx, t.Reach).ToList();
         int stamping = crew.Count(c => c.Working);
-        Health = Math.Clamp(Health + (t.BreedPerSecond - t.StampPerSecond * stamping) * dt, 0, 1);
+        // Nothing left to eat: they go looking elsewhere (out through the floor).
+        double breed = ctx.Train.Vehicles[Attached].CargoIntegrity <= 0.02 ? -t.StampPerSecond : t.BreedPerSecond;
+        Health = Math.Clamp(Health + (breed - t.StampPerSecond * stamping) * dt, 0, 1);
         if (Health <= 0)
         {
             Out(ctx);
@@ -228,9 +243,9 @@ public sealed class Gnawers(int id) : Incident(id)
             }
         }
         _full = Health >= 1 ? _full + dt : 0;
-        if (_full >= t.SpreadSeconds && Neighbour(ctx) is { } next)
+        if (!_spread && _full >= t.SpreadSeconds && Neighbour(ctx, t.MaxActive) is { } next)
         {
-            _full = 0;
+            _spread = true;
             ctx.World.AddEnemy(i => In(i, ctx.Train, next, Local.Z, t));
         }
     }

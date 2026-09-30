@@ -61,7 +61,19 @@ public sealed record ClientReport(byte Id, string Bot, double MaxCorrectionM, in
 public sealed record HarnessReport(int Ticks, double Seconds, string Link, double TrainDistance, double TrainSpeed, double BoilerPressure, double Tender,
     int SnapshotBytes, double DownKbpsPerClient, double UpKbpsPerClient, double MaxCorrectionM, int Deaths,
     IReadOnlyList<ClientReport> Clients, ThreatReport? Threats = null, Run.RunReport? Run = null, int WarmUps = 0,
-    IReadOnlyList<StopRecord>? Stops = null);
+    IReadOnlyList<StopRecord>? Stops = null, PacingReport? Pacing = null);
+
+/// <summary>
+/// How often something happened (after the playtest: "a reward or a problem every 30 s at most, ideally 20"): the moments
+/// the world logged (<see cref="World.Beats"/>), and the stretches out on the line with nothing going on
+/// (<see cref="World.QuietSeconds"/>). <paramref name="Kinds"/> counts the beats by what they were.
+/// </summary>
+public sealed record PacingReport(int Beats, double BeatsPerMinute, double LongestQuietSeconds, double P95QuietSeconds, double MeanQuietSeconds,
+    int QuietOver30, double QuietShare, IReadOnlyDictionary<string, int> Kinds)
+{
+    /// <summary>When the longest quiet stretch ended (seconds into the night), and what the run was doing (for finding it).</summary>
+    public string? LongestQuietEnded { get; init; }
+}
 
 /// <summary>What the director and the enemies did (GDD §34 / App. B.9 audit).</summary>
 public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictionary<string, int> Spawned, IReadOnlyDictionary<string, int> Punishes,
@@ -128,6 +140,11 @@ public static class Harness
         var deaths = new Dictionary<string, int>();
         double choirPeak = 0;
         int rounds = 0;
+        var quiet = new List<double>();
+        var beatKinds = new Dictionary<string, int>();
+        int beats = 0, outTicks = 0, quietTicks = 0;
+        double lastQuiet = 0;
+        string? longestEnded = null;
         for (uint t = 0; t < ticks; t++)
         {
             if (host.World.Run is { Over: true })
@@ -140,6 +157,23 @@ public static class Harness
             host.Step();
             events.AddRange(host.World.EnemyEvents);
             rounds += host.World.Shots.Count;
+            beats += host.World.Beats.Count;
+            foreach (var b in host.World.Beats)
+                beatKinds[b] = beatKinds.GetValueOrDefault(b) + 1;
+            double q = host.World.QuietSeconds;
+            if (q < lastQuiet && lastQuiet > 0)
+            {
+                if (lastQuiet > quiet.DefaultIfEmpty(0).Max())
+                    longestEnded = $"{t * SimConstants.TickSeconds:0}s at {host.Train.Dynamics.Distance:0} m, {host.World.Run?.Phase}, by {string.Join(",", host.World.Beats)}";
+                quiet.Add(lastQuiet);
+            }
+            if (host.World.Run is not { Phase: Sim.Run.RunPhase.Yard or Sim.Run.RunPhase.Arrived or Sim.Run.RunPhase.Failed })
+            {
+                outTicks++;
+                if (q > 0)
+                    quietTicks++;
+            }
+            lastQuiet = q;
             choirPeak = Math.Max(choirPeak, host.World.Choir.Aggro);
             // Once everyone's in, the gunner goes to the guard gun (a host-side respawn at their post).
             if (t == 30)
@@ -204,7 +238,23 @@ public static class Harness
             reports.Max(r => r.MaxCorrectionM), reports.Count(r => !r.Alive), reports, threats,
             host.World.Run is { } run ? run.Report ?? run.Tally(host.World, [.. host.Players.Select(p => p.State)]) : null,
             clients.Sum(c => c.Bot switch { RoofWalkerBot r => r.WarmUps, GunnerBot g => g.WarmUps, _ => 0 }),
-            clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Log);
+            clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Log,
+            Pace(quiet, lastQuiet, beats, outTicks, quietTicks, beatKinds)
+                with { LongestQuietEnded = lastQuiet > 0 && lastQuiet >= quiet.DefaultIfEmpty(0).Max() ? $"{seconds:0}s, the night's end" : longestEnded });
+    }
+
+    static PacingReport Pace(List<double> quiet, double last, int beats, int outTicks, int quietTicks, Dictionary<string, int> kinds)
+    {
+        if (last > 0)
+            quiet.Add(last);
+        var sorted = quiet.Order().ToList();
+        double minutes = Math.Max(1e-9, outTicks * SimConstants.TickSeconds / 60);
+        return new PacingReport(beats, Math.Round(beats / minutes, 1), Math.Round(sorted.DefaultIfEmpty(0).Max(), 1),
+            Math.Round(sorted.Count == 0 ? 0 : sorted[(int)Math.Min(sorted.Count - 1, Math.Floor(sorted.Count * 0.95))], 1),
+            Math.Round(sorted.DefaultIfEmpty(0).Average(), 1), sorted.Count(s => s > 30),
+            Math.Round(outTicks == 0 ? 0 : (double)quietTicks / outTicks, 3),
+            kinds.GroupBy(k => k.Key.Split(':')[0] == "board" || k.Key.StartsWith("caught") || k.Key.StartsWith("missed") || k.Key.StartsWith("run") ? k.Key : k.Key.Split(':')[0] + (k.Key.EndsWith("Punish") ? ":punish" : ""))
+                .OrderBy(g => g.Key).ToDictionary(g => g.Key, g => g.Sum(x => x.Value)));
     }
 
     /// <summary>A bot and what it's doing, in a few words (the harness trace).</summary>

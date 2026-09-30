@@ -30,11 +30,13 @@ public sealed record CarFireTuning
     public double BeatPerSecond { get; init; } = 0.08;
     public double ScorchAbove { get; init; } = 0.6;
     public int ScorchDamage { get; init; } = 4;
-    public int BurnDamage { get; init; } = 12;
+    public int BurnDamage { get; init; } = 10;
+    public double BurnReach { get; init; } = 4;
     public double BurnEverySeconds { get; init; } = 2;
     public double CargoPerSecond { get; init; } = 0.012;
     public double IntegrityPerSecond { get; init; } = 0.004;
-    public double SpreadSeconds { get; init; } = 20;
+    public double SpreadSeconds { get; init; } = 30;
+    public double BurnOutPerSecond { get; init; } = 0.05;
     public int MaxActive { get; init; } = 2;
 }
 
@@ -207,4 +209,14 @@ public sealed record DirectorTuning(
     Dictionary<string, double> BaseBudget, double LengthPerCarBeyondThird, double CrewBase, double CrewPerPlayer, double CrewCap,
     double GraceSeconds, double FacilityLullSeconds, double[] CooldownSeconds, int MaxConcurrentZone,
     int MaxConcurrentSmallCrew, int MaxConcurrentLargeCrew, double[] PhaseShares, Dictionary<string, double> Costs,
-    double HoundsLivestockWeight, double HoundsHotBoilerWeight);
+    double HoundsLivestockWeight, double HoundsHotBoilerWeight)
+{
+    /// <summary>Quiet this long (nothing showing itself, no board, no bag) and the director sends something, cooldown or not.</summary>
+    public double PaceSeconds { get; init; } = 20;
+    /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>
+    public int VarietyWindow { get; init; } = 4;
+    /// <summary>A paced spawn may overdraw the budget's curve by up to this much: enough for a threat of this cost.</summary>
+    public double PacedCost { get; init; } = 3;
+    /// <summary>The in-car incidents' weight, each, against the other threats' 1.</summary>
+    public double IncidentWeight { get; init; } = 0.5;
+}

@@ -177,6 +177,12 @@ M3 is done but for a test with eight people.
 - A pixel-font HUD in the low-res frame: engine gauges, ping to host (spec E), the prompt for what your hands can do, and the night.
 - `dt screenshot --hud` captures it.
 
+**Pacing (after the 100-night playtest: "a reward or a problem every 30 s at most, ideally 20"):**
+- The world logs each moment (a threat showing itself, a board, a bag), and counts the quiet out on the line. `dt harness` reports it.
+- At 20 s of quiet the director sends something, cooldown or not. It prefers kinds it hasn't sent lately, and its caps count only threats that are engaged.
+- Mail cranes line the route with a board before each. Hook a bag from an open cargo side door as it passes: pay, coal, rounds or spares.
+- Nights measured in the harness: longest quiet 21–26 s, typical 12–16 s.
+
 **Trouble inside the cars (after the 100-night playtest):**
 - A car fire: smoke, then flames. It burns the cargo, the car, and whoever's inside, and spreads at full blaze. You beat it out from inside.
 - A loose load: straps groaning. On a hard brake, slack action, or after a minute, it comes down across the aisle and crushes whoever's beside it. You lash it from inside.

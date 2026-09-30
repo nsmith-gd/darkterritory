@@ -6,7 +6,8 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Enemies;
 
 /// <summary>A decision the director made, for the harness's pacing and cap audit (App. B.9).</summary>
-public readonly record struct DirectorSpawn(uint Tick, EnemyKind Kind, double Cost, double TrainDistance, int ActiveInZone, int ActiveTotal);
+/// <param name="Paced">Sent because it had been quiet too long (<see cref="DirectorTuning.PaceSeconds"/>), not on the budget's curve.</param>
+public readonly record struct DirectorSpawn(uint Tick, EnemyKind Kind, double Cost, double TrainDistance, int ActiveInZone, int ActiveTotal, bool Paced = false);
 
 /// <summary>
 /// The pressure director (GDD App. B.1). Enemies aren't rolled independently: a budget is spent across the
@@ -93,18 +94,21 @@ public sealed class Director
         _cooldown -= 1;
         var train = world.Train;
         double s = train.Dynamics.Distance;
-        if (elapsed < _t.GraceSeconds || _cooldown > 0)
+        // Quiet too long (after the playtest: a reward or a problem every 30 s at most, 20 s ideally): something now, the
+        // cooldown and the budget's curve notwithstanding. The caps and each kind's gates still hold.
+        bool due = world.QuietSeconds >= _t.PaceSeconds;
+        if (elapsed < _t.GraceSeconds || _cooldown > 0 && !due)
             return null;
         if (_route is not null && s > _route.Length - noSpawnFinal)
             return null;
-        int total = active.Count(e => !e.Gone && e.Kind != EnemyKind.Sleepers);
+        int total = active.Count(Engaged);
         if (total >= MaxConcurrent)
             return null;
         double available = Allowance(s) - _spent;
 
         var options = new List<(EnemyKind Kind, double Weight)>();
         int cargoCars = train.Dynamics.Consist.Vehicles.Count(v => v.Kind == VehicleKind.Cargo);
-        int Zone(PressureZone z) => active.Count(e => !e.Gone && e.Zone == z && e.Kind != EnemyKind.Sleepers);
+        int Zone(PressureZone z) => active.Count(e => Engaged(e) && e.Zone == z);
         // App. B.4: Clingers need a middle (length >= 3).
         if (cargoCars >= 1 && train.Dynamics.Consist.CarCount >= 3 && Zone(PressureZone.Flank) < _t.MaxConcurrentZone)
             options.Add((EnemyKind.Clinger, 1));
@@ -163,18 +167,25 @@ public sealed class Director
         // each about, and one of a kind a car. Fires come on more with the boiler hot and throwing cinders.
         if (world.Enemies is { } it && Zone(PressureZone.Interior) < _t.MaxConcurrentZone)
         {
+            // Less often at a stop: the crew's all hands on the loading, and it's the facility's own threats' turn.
+            double atStop = (world.Run is { Phase: Run.RunPhase.AtFacility } ? 0.4 : 1) * _t.IncidentWeight;
             bool Room(EnemyKind kind, int max, double minLoad) => active.Count(e => !e.Gone && e.Kind == kind) < max
                 && IncidentCars(world, kind, minLoad).Any();
             if (Room(EnemyKind.CarFire, it.CarFire.MaxActive, 0))
-                options.Add((EnemyKind.CarFire, train.BoilerTuning is { } fb && train.Boiler.Pressure > fb.WorkingBandMax ? 1.5 : 1));
+                options.Add((EnemyKind.CarFire, atStop * (train.BoilerTuning is { } fb && train.Boiler.Pressure > fb.WorkingBandMax ? 1.5 : 1)));
             if (Room(EnemyKind.LooseLoad, it.LooseLoad.MaxActive, it.LooseLoad.MinLoad))
-                options.Add((EnemyKind.LooseLoad, 1));
+                options.Add((EnemyKind.LooseLoad, atStop));
             if (Room(EnemyKind.Gnawers, it.Gnawers.MaxActive, it.Gnawers.MinLoad))
-                options.Add((EnemyKind.Gnawers, 1));
+                options.Add((EnemyKind.Gnawers, atStop));
         }
+        if (due && options.Count > 0)
+            available = Math.Max(available, _t.PacedCost);
         options.RemoveAll(o => Cost(o.Kind) > available);
         if (options.Count == 0)
             return null;
+        // Variety: a kind sent lately comes on less (the Lamplighters were half of everything in the playtest).
+        var recent = Log.TakeLast(_t.VarietyWindow).Select(l => l.Kind).ToList();
+        options = [.. options.Select(o => (o.Kind, o.Weight / Math.Pow(2, recent.Count(k => k == o.Kind))))];
 
         double pick = _rng.NextDouble() * options.Sum(o => o.Weight);
         var kind = options[^1].Kind;
@@ -187,10 +198,18 @@ public sealed class Director
             }
             pick -= o.Weight;
         }
-        Charge(world, kind, active);
+        Charge(world, kind, active, paced: due && _cooldown > 0);
         _cooldown = _rng.Range(_t.CooldownSeconds[0], _t.CooldownSeconds[1]) / Math.Max(1e-6, RateMultiplier);
         return kind;
     }
+
+    /// <summary>
+    /// App. B.1's caps are on what's active: a Dragger lying dormant under a car's edge all night, a Rattle waiting in its
+    /// gap, or a Lamplighter that's lost the light and only lingers, isn't pressure (the playtest found them holding the
+    /// caps full, and the night went quiet).
+    /// </summary>
+    static bool Engaged(Enemy e) => !e.Gone && e.Kind != EnemyKind.Sleepers
+        && e.Phase is SpinePhase.Alert or SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish;
 
     /// <summary>Cargo cars in the engine's rake an incident of this kind could take: loaded enough, and without one already.</summary>
     public static IEnumerable<int> IncidentCars(World world, EnemyKind kind, double minLoad) =>
@@ -198,7 +217,7 @@ public sealed class Director
             && !world.ActiveEnemies.Any(e => !e.Gone && e.Kind == kind && e.Attached == v.Id)).Select(v => v.Id);
 
     /// <summary>Condition-triggered enemies (the Hollow) cost budget only when they actually fire (App. B.5).</summary>
-    public void Charge(World world, EnemyKind kind, IReadOnlyList<Enemy> active)
+    public void Charge(World world, EnemyKind kind, IReadOnlyList<Enemy> active, bool paced = false)
     {
         _spent += Cost(kind);
         var zone = kind switch
@@ -210,8 +229,7 @@ public sealed class Director
             _ => PressureZone.Interior,
         };
         Log.Add(new DirectorSpawn(world.Tick, kind, Cost(kind), world.Train.Dynamics.Distance,
-            active.Count(e => !e.Gone && e.Zone == zone && e.Kind != EnemyKind.Sleepers) + 1,
-            active.Count(e => !e.Gone && e.Kind != EnemyKind.Sleepers) + 1));
+            active.Count(e => Engaged(e) && e.Zone == zone) + 1, active.Count(Engaged) + 1, paced));
     }
 
     public Pcg32 Rng => _rng;

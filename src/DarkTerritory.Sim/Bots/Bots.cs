@@ -48,8 +48,8 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
             return default;
         // A tunnel's mouth ahead: at the gun it's down behind the shield; anywhere else on the roofs, off them.
         // Trouble in a car: off the gun for it only while there's nothing at the back to shoot (hounds out).
-        bool hounds = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && !e.Gone);
-        _legs.Looked(world, safe: Guns.MannedGun(self, world.Train, guns) is not null, tend: !hounds);
+        bool hounds = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && !e.Gone && e.Phase is SpinePhase.Commit or SpinePhase.Punish);
+        _legs.Looked(world, self, safe: Guns.MannedGun(self, world.Train, guns) is not null, tend: !hounds);
         // Nobody holds a gun through the cold (spec B.2): off it and indoors until warm, then back. Nor through a stop
         // they have a part in.
         if (_legs.Warming(self) || _legs.Work(self, world) is not null)
@@ -121,16 +121,28 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     bool _looked;
 
     /// <summary>The gunner has read the line for its legs this tick already (it knows whether it's at the gun).</summary>
-    internal void Looked(World world, bool safe, bool tend = true)
+    internal void Looked(World world, in PlayerState self, bool safe, bool tend = true)
     {
-        Look(world, safe, tend);
+        Look(world, self, safe, tend);
         _looked = true;
     }
 
     /// <summary>This tick's intent for its part in a stop, if it has one to do now (worked out once a tick).</summary>
     public PlayerIntent? Work(in PlayerState self, World world)
     {
+        // The dead still say so (their part's up for someone else): a walker who died mid warm-up would otherwise go on
+        // holding the shunter's part, and the driver wait at the switch all night for it.
+        if (job is not null && !self.Alive)
+        {
+            job.Decide(self, world);
+            return null;
+        }
         if (job is null || _warm is { Active: true })
+            return null;
+        // Trouble in a car beats carrying crates: a crate hand (or one with no part) goes to it, and so does the winch pair
+        // for a fire that's alight or a load that's loose (the loading waits; the car doesn't).
+        if (_trouble is { } trouble && (job.Job is StopJob.Crates or StopJob.None
+                || job.Job is StopJob.Winch0 or StopJob.Winch1 && (trouble.Kind == EnemyKind.LooseLoad || trouble is CarFire { Phase: SpinePhase.Punish })))
             return null;
         if (_workedTick != world.Tick)
         {
@@ -145,20 +157,74 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// off the roofs and indoors (sight.json: the mouth takes anyone standing up there). <paramref name="safe"/>: where it
     /// stands is clear anyway (a gun's crew are down behind its shield).
     /// </summary>
-    public void Look(World world, bool safe = false, bool tend = true)
+    public void Look(World world, in PlayerState self, bool safe = false, bool tend = true)
     {
         if (_warm is null)
             return;
         _warm.Shelter = !safe && TunnelNear(world);
         // Trouble inside a car: in to it, and work it from the aisle, unless it's too much for us (hurt, get out).
-        _trouble = tend ? world.ActiveEnemies.OfType<Incident>().Where(e => !e.Gone && e.Attached > 0)
-            .OrderBy(e => e.Kind == EnemyKind.LooseLoad ? 0 : 1).ThenBy(e => e.Id).FirstOrDefault() : null;
-        _warm.Into = _trouble?.Attached;
+        // The nearest to us, so a crew splits up over them; a fire first (it spreads), then a load (it's on a clock).
+        int here = self.Parent;
+        // Too hurt to take it on (health doesn't come back out here): leave it to someone else.
+        tend &= self.Health >= TooHurt;
+        // A car that's all but gone up isn't one to walk into: let it burn out.
+        _trouble = tend ? world.ActiveEnemies.OfType<Incident>().Where(e => !e.Gone && e.Attached > 0 && !(e is CarFire && e.Extra > 0.85 && e.Attached != here))
+            .OrderBy(e => Math.Abs(e.Attached - here)).ThenBy(e => e.Kind switch { EnemyKind.CarFire => 0, EnemyKind.LooseLoad => 1, _ => 2 })
+            .ThenBy(e => e.Id).FirstOrDefault() : null;
         var train = world.Train;
-        _warm.Indoors = _trouble is { } trouble ? s => Tend(s, trouble, train) : null;
+        // Otherwise a bag on a crane ahead, its board read: into a car with a side door that side, and the hook out.
+        _drop = tend && _trouble is null ? NextDrop(world) : null;
+        _catchCar = _drop is { } d ? CatchCar(train, d, self.Parent) : null;
+        _warm.Into = _trouble?.Attached ?? _catchCar;
+        if (_trouble is { } trouble)
+            _warm.Indoors = s => Tend(s, trouble, train);
+        else if (_drop is { } drop && _catchCar is { } car && world.Lineside is { } lineside)
+            _warm.Indoors = s => CatchAt(s, drop, car, train, lineside);
+        else
+            _warm.Indoors = null;
     }
 
     Incident? _trouble;
+    Sim.Route.Drop? _drop;
+    int? _catchCar;
+
+    /// <summary>Seconds ahead of a crane a walker goes in for its bag.</summary>
+    const double CatchAhead = 45;
+
+    /// <summary>The next crane ahead whose board has been read and that's near enough to go in for.</summary>
+    static Sim.Route.Drop? NextDrop(World world)
+    {
+        if (world.Lineside is not { } lineside)
+            return null;
+        var d = world.Train.Dynamics;
+        double reach = Math.Max(d.Speed, 3) * CatchAhead;
+        return lineside.Signs.Where(s => s.Kind == Sim.Route.SignKind.Drop && lineside.Read(s.Id) && s.Drop is { } drop
+                && !lineside.Passed(drop.Id) && drop.At > d.RearDistance && drop.At - d.Distance <= reach)
+            .Select(s => s.Drop).FirstOrDefault();
+    }
+
+    /// <summary>The cargo car nearest to where we are with a side door on the crane's side.</summary>
+    static int? CatchCar(TrainOnLine train, Sim.Route.Drop drop, int from) =>
+        train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && StopHand.SideDoor(train.Frames[v.Id].Shape, drop.Side) is not null)
+            .OrderBy(v => Math.Abs(v.Id - Math.Max(from, 1))).Select(v => (int?)v.Id).FirstOrDefault();
+
+    /// <summary>At the side door on the crane's side: open it, stand in it facing out, and hook the bag as the car goes by.</summary>
+    static PlayerIntent? CatchAt(in PlayerState self, Sim.Route.Drop drop, int car, TrainOnLine train, Sim.Route.Lineside lineside)
+    {
+        if (lineside.Passed(drop.Id) || drop.At < train.Dynamics.RearDistance - 2 || self.Parent != car)
+            return null;
+        var shape = train.Frames[car].Shape;
+        if (StopHand.SideDoor(shape, drop.Side) is not { } door)
+            return null;
+        var (at, yaw) = WarmUp.Inside(shape, door);
+        var (step, there) = WarmUp.Steer(self, at, yaw);
+        if (!there)
+            return step;
+        if (!train.Vehicles[car].DoorOpen(door))
+            return new PlayerIntent { Buttons = PlayerButtons.Use };
+        double doorAt = train.Cars[car].FrontDistance - shape.HalfLength;
+        return Math.Abs(doorAt - drop.At) < 40 ? new PlayerIntent { Buttons = PlayerButtons.Fire } : new PlayerIntent();
+    }
 
     /// <summary>Hurt this badly, a walker leaves the trouble to someone else and gets out.</summary>
     const int TooHurt = 35;
@@ -193,9 +259,12 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         aimed = self;
         // Warming up means a coupler plate, so it keeps to the gaps no Rattle's in (App. A.5): its client can see them.
         if (_warm is not null)
+        {
             _warm.Rattled = car => world.ActiveEnemies.Any(e => e is Rattle r && r.Attached == car);
+            _warm.Troubled = car => world.ActiveEnemies.Any(e => !e.Gone && e.Attached == car && e is CarFire { Phase: SpinePhase.Punish } or Gnawers { Phase: SpinePhase.Punish });
+        }
         if (!_looked)
-            Look(world);
+            Look(world, self);
         _looked = false;
         if (Work(self, world) is { } working)
             return working;
@@ -208,9 +277,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             if (self.Surface == Surface.Roof && world.ActiveEnemies.OfType<Dragger>().Any(d => d.Phase == SpinePhase.Telegraph && d.Attached == parent
                     && Math.Sign(at.X + 1e-9) == d.Side && Math.Abs(at.Z - d.Local.Z) < 2))
                 return new PlayerIntent { Buttons = PlayerButtons.Use };
-            // Trouble in another car: head along the roofs for it (in through its door when we're there).
-            if (_trouble is { } trouble && trouble.Attached != parent && _warm is { Active: false } && self.Surface == Surface.Roof)
-                _direction = trouble.Attached < parent ? -1 : 1;
+            // Trouble (or a bag to catch) in another car: head along the roofs for it (in through its door when we're there).
+            if ((_trouble?.Attached ?? _catchCar) is { } goal && goal != parent && _warm is { Active: false } && self.Surface == Surface.Roof)
+                _direction = goal < parent ? -1 : 1;
             var clinger = world.ActiveEnemies.Where(e => e.Kind == EnemyKind.Clinger && !e.Gone)
                 .OrderBy(e => Math.Abs(e.Attached - parent)).FirstOrDefault();
             if (clinger is not null && clinger.Attached == self.Parent && self.Grounded && self.Surface == Surface.Roof)
@@ -719,15 +788,17 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     /// </summary>
     /// <summary>Whether a Rattle's in the gap behind a vehicle (T54): that end's no way in. Set by the bot, which sees the world.</summary>
     public Func<int, bool>? Rattled { get; set; }
+    /// <summary>A car with trouble in it (alight, or Gnawers out): nowhere to go and get warm, unless it's the trouble we're going in for.</summary>
+    public Func<int, bool>? Troubled { get; set; }
 
     bool Plan(in PlayerState s, TrainOnLine train)
     {
         int here = s.Parent;
         int behind = train.VehicleBehind(here), ahead = train.VehicleAhead(here);
-        bool back = behind > 0 && Walkable(train, here) && Rattled?.Invoke(here) != true;
-        bool front = ahead > 0 && Walkable(train, ahead) && Rattled?.Invoke(ahead) != true;
+        bool back = behind > 0 && Walkable(train, here) && Rattled?.Invoke(here) != true && (Into == here || Troubled?.Invoke(here) != true);
+        bool front = ahead > 0 && Walkable(train, ahead) && Rattled?.Invoke(ahead) != true && (Into == ahead || Troubled?.Invoke(ahead) != true);
         // Sent into one car in particular: its own rear door, from its roof or the roof behind it.
-        if (Into is { } into)
+        if (Into is { } into && !Shelter)
         {
             back &= here == into;
             front &= ahead == into;

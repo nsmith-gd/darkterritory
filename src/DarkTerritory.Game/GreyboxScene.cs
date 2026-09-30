@@ -665,6 +665,30 @@ public sealed class GreyboxScene
     static readonly SwitchStands DefaultStands = new(new JunctionTuning());
 
     IReadOnlyList<Sign>? _defaultSigns;
+
+    /// <summary>
+    /// A lineside mail crane (the playtest's rewards): a post a little out from the track on its side, an arm reaching in
+    /// over the cess, and the bag hung from it at a car's doorway height, where the hook out of a side door takes it. Its
+    /// colour says what's in it: mail sacks grey canvas, coal black, rounds olive, spares brass. Drawn until the train's by.
+    /// </summary>
+    void Crane(MeshBuilder mesh, RailLine line, Double3 eye, Drop drop)
+    {
+        var t = line.Sample(drop.At);
+        var right = Double3.Cross(t.Tangent, Double3.Up).Normalized * drop.Side;
+        var (x, y, z) = (ToF(right), Vector3.UnitY, ToF(t.Tangent * -1));
+        var foot = t.Position + right * 3.2;
+        mesh.Box(V(foot + Double3.Up * 1.9, eye), x, y, z, new Vector3(0.1f, 1.9f, 0.1f), Palette.DeepBrown);
+        mesh.Box(V(foot + Double3.Up * 3.5 - right * 0.45, eye), x, y, z, new Vector3(0.5f, 0.06f, 0.06f), Palette.IronGrey);
+        var bag = drop.Kind switch
+        {
+            DropKind.Coal => Palette.SootBlack,
+            DropKind.Ammo => Palette.MuddyOlive,
+            DropKind.Spares => Palette.TarnishedBrass,
+            _ => Palette.BlueGrey,
+        };
+        mesh.Box(V(foot + Double3.Up * 3.0 - right * 0.85, eye), x, y, z, new Vector3(0.02f, 0.45f, 0.02f), Palette.IronGrey);
+        mesh.Box(V(foot + Double3.Up * 2.35 - right * 0.85, eye), x, y, z, new Vector3(0.22f, 0.3f, 0.22f), bag);
+    }
     Route? _signsFor;
 
     /// <summary>
@@ -682,6 +706,9 @@ public sealed class GreyboxScene
             _signsFor = Route;
         }
         foreach (var sign in Signs ?? _defaultSigns ?? [])
+            if (sign.Drop is { } drop && drop.At >= from && drop.At <= to && drop.At > front - 30)
+                Crane(mesh, line, eye, drop);
+        foreach (var sign in Signs ?? _defaultSigns ?? [])
         {
             if (sign.Board < from || sign.Board > to)
                 continue;
@@ -697,6 +724,19 @@ public sealed class GreyboxScene
             {
                 mesh.Box(V(plate, eye), x, y, z, new Vector3(0.9f, 0.6f, 0.04f), Palette.BoardEnamel);
                 mesh.Box(V(plate - t.Tangent * 0.05, eye), x, y, z, new Vector3(0.6f, 0.14f, 0.01f), Palette.SootBlack);
+            }
+            else if (sign.Kind == SignKind.Drop && sign.Drop is { } drop)
+            {
+                // A mail crane ahead: green, and a bar at the side it's on.
+                mesh.Box(V(plate, eye), x, y, z, new Vector3(0.8f, 0.5f, 0.04f), Palette.SignalGreen);
+                mesh.Box(V(plate + right * (drop.Side * 0.45) - t.Tangent * 0.05, eye), x, y, z, new Vector3(0.18f, 0.35f, 0.01f), Palette.BoardEnamel);
+            }
+            else if (sign.Kind == SignKind.Terminus)
+            {
+                // The terminus: enamel and black in quarters.
+                for (int q = 0; q < 4; q++)
+                    mesh.Box(V(plate + right * ((q % 2 == 0 ? -1 : 1) * 0.4) + Double3.Up * ((q < 2 ? -1 : 1) * 0.3), eye), x, y, z,
+                        new Vector3(0.4f, 0.3f, 0.04f), (q == 0 || q == 3) ? Palette.BoardEnamel : Palette.SootBlack);
             }
             else
                 for (int band = 0; band < 5; band++)

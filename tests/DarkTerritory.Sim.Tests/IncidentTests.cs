@@ -24,11 +24,11 @@ public class IncidentTests
         public readonly List<PlayerIntent> Intents = [];
         public double Speed = 10;
 
-        public Night()
+        public Night(EnemyTuning? tuning = null)
         {
             var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 5, 1)), Line, 2_000);
             World = new World(train, Tuning.Combat);
-            var quiet = E with { Director = E.Director with { GraceSeconds = 1e9 } };
+            var quiet = (tuning ?? E) with { Director = E.Director with { GraceSeconds = 1e9, PaceSeconds = 1e9 } };
             World.EnableEnemies(quiet, route: null, 1, crew: 2, authority: true);
         }
 
@@ -77,11 +77,12 @@ public class IncidentTests
     [Fact]
     public void AFireLeftAloneBurnsTheCargoAndTakesTheNextCar()
     {
-        var n = new Night();
+        // Room for a second fire (the tuning allows one at a time; a left-alone fire spreads into any room there is).
+        var n = new Night(E with { CarFire = E.CarFire with { MaxActive = 2 } });
         var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, Car, 0, E.CarFire));
         n.Run(1);
         Assert.Equal(SpinePhase.Telegraph, fire.Phase);
-        n.Run(90);
+        n.Run(150);
         Assert.Equal(SpinePhase.Punish, fire.Phase);
         Assert.True(n.Cargo.CargoIntegrity < 0.9, $"cargo {n.Cargo.CargoIntegrity:0.00}");
         Assert.True(n.Cargo.Integrity < 1);
