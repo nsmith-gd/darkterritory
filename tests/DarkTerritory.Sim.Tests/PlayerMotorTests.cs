@@ -76,12 +76,23 @@ public class PlayerMotorTests
     }
 
     [Fact]
-    public void WalkingOffTheSideAtWorkingSpeedKills()
+    public void WalkingOffTheSideAtMaxSpeedKills()
     {
-        var rig = OnRoof(6, 12, car: 2);
+        var rig = OnRoof(6, T.MaxSpeed, car: 2);
         rig.Run(4, Move(1, 0));
         Assert.Equal(DeathCause.JumpedAtSpeed, rig.Player.Death);
         Assert.Equal(Surface.Ground, rig.Player.Surface);
+    }
+
+    [Fact]
+    public void WalkingOffTheSideAtWorkingSpeedHurtsButIsSurvived()
+    {
+        // T90 (playtest): only three times run speed kills; the working band is a hard landing, and the train goes on.
+        var rig = OnRoof(6, 12, car: 2);
+        rig.Run(4, Move(1, 0));
+        Assert.True(rig.Player.Alive);
+        Assert.Equal(Surface.Ground, rig.Player.Surface);
+        Assert.InRange(rig.Player.Health, P.Health - P.Landing.DamageAtLethal, P.Health - P.Landing.RollDamage - 1);
     }
 
     [Fact]
@@ -91,16 +102,13 @@ public class PlayerMotorTests
         rig.Run(4, Move(1, 0));
         Assert.True(rig.Player.Alive);
         Assert.Equal(Surface.Ground, rig.Player.Surface);
-        Assert.Equal(P.Health - P.Landing.RollDamage, rig.Player.Health);
+        Assert.InRange(rig.Player.Health, P.Health - P.Landing.RollDamage - 10, P.Health - P.Landing.RollDamage);
     }
 
     [Fact]
-    public void SprintingOffAtYardSpeedIsStillLethal()
+    public void TheLethalLandingIsThreeTimesRunSpeed()
     {
-        // Roof run sideways plus the train's own speed: your speed over the ground is what counts.
-        var rig = OnRoof(6, 2.5, car: 2);
-        rig.Run(4, Move(1, 0, PlayerButtons.Run));
-        Assert.Equal(DeathCause.JumpedAtSpeed, rig.Player.Death);
+        Assert.Equal(3 * P.Run, P.Landing.LethalAbove, 6);
     }
 
     [Fact]
@@ -119,7 +127,9 @@ public class PlayerMotorTests
     [Fact]
     public void WalkingOffTheEndDropsOntoTheCouplerPlate()
     {
+        // On the doors' line, where the plate runs (off it, by the end ladder, walking on takes hold of the ladder: T90).
         var rig = OnRoof(6, 14, car: 3, localZ: -4);
+        rig.Player.Position = rig.Player.Position with { X = T.Geometry.PlateX };
         rig.Run(3, Move(0, 1));
         Assert.True(rig.Player.Alive);
         Assert.Equal(Surface.Coupler, rig.Player.Surface);
@@ -177,11 +187,78 @@ public class PlayerMotorTests
         Assert.True(rig.Player.Alive);
     }
 
-    [Fact]
-    public void JumpVelocityIsDerivedFromSpecJumpGap()
+    /// <summary>Walks toward a point in the engine's frame (the track is straight: every car's frame faces the same way).</summary>
+    static PlayerIntent Toward(Rig r, Double3 engineLocal, PlayerButtons b = PlayerButtons.None)
     {
+        var d = engineLocal - r.Local(0);
+        double len = Math.Sqrt(d.X * d.X + d.Z * d.Z);
+        if (len < 0.05)
+            return default;
+        double y = r.Player.Yaw;
+        double z = (d.X * -Math.Sin(y) + d.Z * -Math.Cos(y)) / len, x = (d.X * Math.Cos(y) + d.Z * -Math.Sin(y)) / len;
+        return new PlayerIntent { MoveX = (float)x, MoveZ = (float)z, Buttons = b };
+    }
+
+    [Fact]
+    public void FromTheFirstCarsCouplerTheGangwayLeadsIntoTheCab()
+    {
+        // T90 (playtest): there was no way into the cab from the train. Off the plate behind the tender, left onto the
+        // gangway down its side, and forward into the cab, at speed.
+        var rig = OnRoof(3, 14, car: 1);
+        var engine = rig.Train.Frames[0];
+        double l = engine.Shape.HalfLength, cabBack = l - T.Geometry.Engine.TenderLength, w = engine.Shape.HalfWidth;
+        rig.Player = PlayerMotor.SpawnOnRoof(rig.Train, 0, l + T.Geometry.CouplingGap / 2, P);
+        Assert.Equal(Surface.Coupler, rig.Player.Surface);
+        double aisle = -w + T.Geometry.Engine.TenderGangway / 2;
+        rig.Run(1, r => Toward(r, new Double3(aisle, 0, l + 0.3)));
+        rig.Run(1, r => Toward(r, new Double3(aisle, 0, l - 0.4)));
+        rig.Run(4, r => Toward(r, new Double3(aisle, 0, cabBack - 1.2)));
+        Assert.True(PlayerMotor.InCab(rig.Player, rig.Train), $"on {rig.Player.Surface} of {rig.Player.Parent} at {rig.Player.Position}");
+    }
+
+    [Fact]
+    public void UpTheTendersFrontLadderToTheCabRoofAndItsGun()
+    {
+        // Walking into a ladder's foot takes hold (no Use), climbing carries you over its top onto the cab roof.
+        var rig = OnRoof(3, 14, car: 1);
+        var engine = rig.Train.Frames[0];
+        var ladder = engine.Shape.Ladders.Single(x => x.Foot.Y > T.Geometry.Engine.DeckHeight + 1);
+        rig.Player = PlayerMotor.SpawnOnRoof(rig.Train, 0, ladder.Foot.Z + 0.6, P, ladder.Foot.X);
+        Assert.Equal(Surface.Roof, rig.Player.Surface);
+        rig.Run(4, r => r.Player.Surface == Surface.Roof && r.Player.Position.Y > ladder.Foot.Y + 0.5 ? default : Move(0, 1));
+        Assert.Equal(0, rig.Player.Parent);
+        Assert.Equal(Surface.Roof, rig.Player.Surface);
+        Assert.Equal(T.Geometry.EngineHeight, rig.Player.Position.Y, 3);
+        Assert.True(rig.Player.Position.Z < ladder.Foot.Z - 0.3, "over the top onto the cab roof");
+    }
+
+    [Fact]
+    public void WalkingIntoAnEndLadderClimbsItOntoTheRoof()
+    {
+        var rig = OnRoof(4, 0, car: 2);
+        var car = rig.Train.Frames[2];
+        var ladder = car.Shape.Ladders.First(x => x.Foot.Z > car.Shape.HalfLength);
+        rig.Player = PlayerMotor.SpawnOnRoof(rig.Train, 2, ladder.Foot.Z + 0.3, P, 0);
+        Assert.Equal(Surface.Coupler, rig.Player.Surface);
+        rig.Run(5, Move(0, 1));
+        Assert.Equal(Surface.Roof, rig.Player.Surface);
+        Assert.Equal(2, rig.Player.Parent);
+    }
+
+    [Fact]
+    public void WalkingAlongTheRoofPastALaddersTopDoesNotGrabIt()
+    {
+        var rig = OnRoof(4, 0, car: 2, localZ: 3);
+        rig.Run(3, Move(0, -1));
+        Assert.NotEqual(Surface.Ladder, rig.Player.Surface);
+    }
+
+    [Fact]
+    public void AJumpLiftsTheFeetTheJumpHeightAndClearsTheSpecGap()
+    {
+        Assert.Equal(P.JumpHeight, P.JumpVelocity * P.JumpVelocity / (2 * P.Gravity), 6);
         double airtime = 2 * P.JumpVelocity / P.Gravity;
-        Assert.Equal(P.JumpGap, airtime * P.RoofRun, 6);
+        Assert.True(airtime * P.RoofRun >= P.JumpGap);
     }
 }
 

@@ -206,13 +206,13 @@ def gas_mask_detail(make, g):
         off = Vector(((k - 2) * 0.011, 0, 0))
         body.append(make.cyl(f1 + off + Vector((0, 0.002, 0.026)), f1 + off + Vector((0, 0.002, -0.026)), 0.002, brass, n=6,
                              bevel=0, name="grille_bar", low=0))
-    hose = g["HOSE"]
+    hose = [f1 + Vector((0, 0.005, -0.02)), Vector((0, 0.2, 1.54)), Vector((0.03, 0.2, 1.45)), Vector((0.06, 0.18, 1.36))]
     for i in range(len(hose) - 1):
         for t in np.linspace(0.08, 0.92, 7):
             body.append(make.torus(hose[i].lerp(hose[i + 1], t), hose[i + 1] - hose[i], 0.0185, 0.0035, rubber, n=20, m=6,
                                    name="corrugation", low=None))
     pivot = g["PIVOT"]
-    up = Matrix.Translation(pivot) @ Matrix.Rotation(math.radians(g["VISOR_UP"]), 4, "X") @ Matrix.Translation(-pivot)
+    up = Matrix.Translation(pivot) @ Matrix.Rotation(math.radians(62), 4, "X") @ Matrix.Translation(-pivot)
     for part, xform in (("visor_up", up), ("visor_down", Matrix.Identity(4))):
         for k in range(9):
             a = -0.8 + 1.6 * k / 8
@@ -309,7 +309,7 @@ def build(name, style):
 
         # The game mesh's head: the scan decimated, on the head bone, blending into the neck under the collar.
         head_low = cook.duplicate(head)
-        cook.decimate(head_low, 2000)
+        cook.decimate(head_low, 2600)
         for o in head_low:
             co = np.array([v.co for v in o.data.vertices], np.float32)
             # The whole face rides the head (a chin on the neck bone shears off it when the clips tip the two apart); only the
@@ -431,7 +431,7 @@ def build(name, style):
         ax, y = np.abs(p[:, 0]), p[:, 1]
         fingers = smooth01(0.82, 0.835, ax)
         d = np.zeros(len(p), np.float32)
-        for gy in (0.021, 0.001, -0.019):   # between crewbody's four fingers
+        for gy in (-0.022, 0.0, 0.022):
             d -= 0.0045 * bell((y - gy) / 0.004) * fingers
         d += 0.002 * bell((ax - 0.815) / 0.004)
         return d + fine(p, 0.0008, 110)
@@ -498,20 +498,10 @@ def build(name, style):
         SHAPE["crew_atlas.sleeve"] = (lambda base: lambda p, n: base(p, n) + patched(p, n))(SHAPE["crew_atlas.sleeve"])
 
     # Which highs bake onto which game part (a cap never shadows the helmet it isn't worn with).
-    # (The frame, crewbody's modelled body, bakes from its own dense union; the coat's shells from their subdivision.)
-    BAKED = ["body", "frame", "coat"] + (["hat_cap", "hat_helmet", "scarf"] if scan else ["visor_up", "visor_down", "scarf"])
+    BAKED = ["body", "hat_cap", "hat_helmet", "scarf"] if scan else ["body", "visor_up", "visor_down", "scarf"]
     for k, fn in style.shapes.items():
         SHAPE[k] = (lambda f, base: (lambda p, n: base(p, n) + f(p, n)) if base else f)(fn, SHAPE.get(k))
-    # The coat's shells are two-sided: each side sculpted the outer side's way (along its normal the lining would move
-    # against it, and where a fold sinks the outside the lining would come out through it).
-    def shell(fn):
-        def signed(p, n):
-            out = np.sign(n[:, 0] * p[:, 0] + n[:, 1] * p[:, 1])
-            return fn(p, n) * np.where(out == 0, 1.0, out)
-        return signed
-    SHELL = {k: shell(f) for k, f in SHAPE.items()}
-    highs = {part: overbake.high_of(parts[part], dress, SHELL if part == "coat" else SHAPE) for part in BAKED if part != "frame"}
-    highs["frame"] = overbake.high_of(g["FRAME_HIGH"], dress, SHAPE, dense=True)
+    highs = {part: overbake.high_of(parts[part], dress, SHAPE) for part in BAKED}
     # The respirator and goggles (Style.mask), modelled on the scan's landmarks, their game mesh on the head bone.
     if style.mask and scan:
         mask_high, mask_low = respirator(style.mask, TIP, make)
@@ -540,13 +530,13 @@ def build(name, style):
 
     from mathutils.bvhtree import BVHTree  # noqa: E402
 
-    trees = [BVHTree.FromObject(h, bpy.context.evaluated_depsgraph_get()) for part in ("frame", "coat") for h in highs[part]
-             if h["dt_kind"].startswith("crew_atlas.coat")]
+    coat_high = next(h for h in highs["body"] if h["dt_kind"].startswith("crew_atlas.coat"))
+    tree = BVHTree.FromObject(coat_high, bpy.context.evaluated_depsgraph_get())
     BUTTON = make.lib("paint_black", 8.0, (0.6, 0.55, 0.5), 0.4)
     for z in (0.8, 0.9, 1.13, 1.23, 1.33, 1.43):
-        hits = [hit for hit in (t.ray_cast(Vector((0.07, 0.5, z)), Vector((0, -1, 0))) for t in trees) if hit[0] is not None]
-        if hits:
-            at, nrm = min(hits, key=lambda hit: hit[3])[:2]
+        hit = tree.ray_cast(Vector((0.07, 0.5, z)), Vector((0, -1, 0)))
+        if hit[0] is not None:
+            at, nrm = hit[0], hit[1]
             highs["body"].append(make.cyl(at - nrm * 0.002, at + nrm * 0.005, 0.011, BUTTON, n=12, bevel=0.002, name="button",
                                           r1=0.009, low=0))
     # Laces up the front of each boot, crossing between eyelets.
@@ -594,8 +584,7 @@ def build(name, style):
             o.hide_render = True
         for part, hs in highs.items():
             for h in hs:
-                shown = BAKED[4] if variant in ("helmet", "tall", "down") else BAKED[3]
-                h.hide_render = part not in ("body", "frame", "coat", shown) or variant == "none" and part not in ("body", "frame", "coat")
+                h.hide_render = part not in ("body", BAKED[2] if variant in ("helmet", "tall", "down") else BAKED[1]) or variant == "none" and part != "body"
         for view, d, c, dist in style.views or (("front", (0.2, 1, 0.1), (0, 0, 0.95), 4.2), ("back", (-0.3, -1, 0.1), (0, 0, 0.95), 4.2),
                                  ("head", (0.4, 1, 0.15), (0, 0.02, 1.68 if not scan else 1.62), 1.0 if scan else 1.2), ("hand", (0.2, 0.6, 1), (0.75, 0, 1.44), 0.7),
                                  ("profile", (1, 0.12, 0.08), (0, 0.03, 1.66), 1.0), ("nape", (-0.5, -1, 0.25), (0, 0.0, 1.66), 1.0),
@@ -645,10 +634,6 @@ def build(name, style):
     highs["body"] = [h for h in highs["body"] if h not in head]
     groups = {part: ((atlas.part_of == pi) & (atlas.kind_of != FACE) & (atlas.kind_of != MASK) & (atlas.kind_of != PAINT),
                      highs[part]) for pi, part in enumerate(BAKED)}
-    # The body, its frame and the coat bake as one: the skirt shades the legs, the arms the flanks.
-    together = ("body", "frame", "coat")
-    groups["body"] = (groups["body"][0] | groups["frame"][0] | groups["coat"][0], [h for part in together for h in highs[part]])
-    del groups["frame"], groups["coat"]
     if scan:
         groups["head"] = ((atlas.kind_of == FACE) | (atlas.kind_of == MASK), highs["head"])
     else:

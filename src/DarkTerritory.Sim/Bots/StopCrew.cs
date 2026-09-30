@@ -1585,7 +1585,10 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         return null;
     }
 
-    /// <summary>Down into the gap behind the cut car along the roofs, and on the coupler plate, hold Use to cut it.</summary>
+    /// <summary>Down into the gap behind the cut car along the roofs, and on the coupler plate, look down and hold Uncouple.</summary>
+    /// <summary>How far a bot looks down to cut: past the tuning's least (couplings.uncoupleLookDownDegrees), at the plate.</summary>
+    const double CutPitch = -1.3;
+
     PlayerIntent? Cut(in PlayerState self, TrainOnLine train, StopPlan p)
     {
         int car = p.CutBehind;
@@ -1596,7 +1599,8 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             if (!Aligned(self, yaw))
                 return new PlayerIntent { LookYaw = Turn(self, yaw) };
             Doing = "cutting";
-            return new PlayerIntent { Buttons = PlayerButtons.Use };
+            // Looking down at the coupler, as anyone has to (T91).
+            return new PlayerIntent { Actions = PlayerActions.Uncouple, LookPitch = (float)(CutPitch - self.Pitch) };
         }
         // On the ground or in the wrong gap, the walker gets back up onto the roofs.
         if (self.Surface != Surface.Roof || self.Parent <= 0)

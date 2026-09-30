@@ -243,7 +243,8 @@ public static class Hud
     public static string Bound(string prompt) => prompt
         .Replace("[E]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Use))}]", StringComparison.Ordinal)
         .Replace("[RMB]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Throw))}]", StringComparison.Ordinal)
-        .Replace("[T]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Radio))}]", StringComparison.Ordinal);
+        .Replace("[T]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Radio))}]", StringComparison.Ordinal)
+        .Replace("[Z]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Uncouple))}]", StringComparison.Ordinal);
 
     /// <summary>What your hands can do right here, with the key that does it.</summary>
     public static string? Prompt(IPlaySession s)
@@ -280,8 +281,11 @@ public static class Hud
         // A headset player's prompts follow their reaching hand (T29), as the sim's reach does.
         var hand = world.Hand;
         var near = CrewActions.Nearest(p, train, hand);
+        // T91: the coupling is cut with its own key, held, looking down at it.
         if (p.Surface == Surface.Coupler && near != InteractableKind.Door)
-            return "[E] HOLD: CUT THE COUPLING";
+            return p.Hand != default ? "REACH DOWN AND GRIP: CUT THE COUPLING"
+                : p.Pitch <= -train.Dynamics.Tuning.Couplings.UncoupleLookDownDegrees * Math.PI / 180 ? "[Z] HOLD: CUT THE COUPLING"
+                : "LOOK DOWN AT THE COUPLER TO CUT IT";
         switch (near)
         {
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train):
