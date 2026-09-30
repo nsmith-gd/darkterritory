@@ -860,6 +860,11 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         foreach (var h in holdouts.All)
             holdouts.Mirror(h.Index, DarkTerritory.Sim.Run.HoldoutState.Occupied, 1, 0);
     }
+    // --doors-open: every door on the train open (looking through an end door onto its coupling, or out of the guard
+    // van's rear door into the Car Hugger's mouth).
+    if (args.Contains("--doors-open"))
+        foreach (var v in train.Dynamics.Consist.Vehicles)
+            v.DoorsOpen = 0xFF;
     var scene = new GreyboxScene
     {
         // --draw m: how far along the line to build it (an aerial view of a stretch wants more than the cab's 400).
@@ -870,7 +875,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Run = run,
         Holdouts = holdouts,
         Time = 0.37,
-        Enemies = args.Contains("--threats") ? Staging.Threats(train, Opt(args, "--doll-at", 22)) : null,
+        Enemies = args.Contains("--threats") ? Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null) : null,
         Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All : cargo,
         // --crew: three on car 2's roof, one reaching up, one holding out both hands, one with a keyboard (T47's arms).
         Crew = args.Contains("--crew") ? Staging.Crew(train, content) : null,
@@ -1183,6 +1188,8 @@ static int Usage()
                      [--cam s,lateral,height --target s,lateral,height --fov deg]   camera by line coordinates
                      [--width w] [--height h] [--scale k] [--out file.png] [--threats]   --threats stages one of each enemy
                      [--doll-at m]   with --threats: the Track Doll this far up the line (App. A.2: the lamp shows it at 200)
+                     [--lurk-at m]   with --threats: a Car Hugger lurking beside the line this far ahead (App. A.3 LURK)
+                     [--doors-open]   every door on the train open
                      [--route tier:seed [--coaling]]   a generated night; --coaling stops at its coaling tower, chute pouring
                      [--bodies]   crates, a lamp and a crewmate's body on the roofs, settled by the physics
                      [--emergency]  emergency lighting: the cars' lamps a dim red, no headlamp

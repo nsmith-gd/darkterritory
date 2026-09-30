@@ -13,8 +13,8 @@ out="$root/content/art/models"
 blender="${BLENDER:-blender}"
 models=("$@")
 if [ ${#models[@]} -eq 0 ]; then
-  # The crew, the Cinder Hound, the Weight and the Track Doll are built from crew.py, cinder_hound.py, weight.py and track_doll.py by
-  # tools/models/recipes (their high copies
+  # The crew, the Cinder Hound, the Weight, the Track Doll and the Car Hugger are built from crew.py, cinder_hound.py,
+  # weight.py, track_doll.py and car_hugger.py by tools/models/recipes (their high copies
   # baked onto these game meshes, tools/models/overbake.py); the Hollow, the Switchman, the Sleepers, the Clinger and
   # the Soot children are sourced scans: tools/models/recipes.
   models=(dragger)
