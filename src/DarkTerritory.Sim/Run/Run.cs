@@ -336,6 +336,13 @@ public sealed class Run
     }
 
     /// <summary>
+    /// Whether a sled hauled now would go anywhere (T66): a cargo car with room within reach of where the sleds come in. With
+    /// the cars there full (the crane's castings went on them, say), cranking on hauls nothing.
+    /// </summary>
+    public bool SledHasRoom(TrainOnLine train, Site site) =>
+        _facilityTuning is { } t && CargoCarNear(train, site.SledTo, t.Winch.CarReach) is not null;
+
+    /// <summary>
     /// Where a sled's load goes: into the cargo car with room nearest the sled, in the train standing by it (one of its
     /// vehicles within reach). The load's handed along the train to it: a train can't put its cars in a different order at
     /// a spur, so the cars nearest the winch fill at the first stop and the next winch loads the ones behind them.
