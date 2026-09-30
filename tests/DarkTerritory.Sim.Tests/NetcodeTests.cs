@@ -171,6 +171,27 @@ public class NetcodeTests
     static void HostTeleport(HostSession host, byte id, PlayerState state) => host.SetPlayerState(id, state);
 
     [Fact]
+    public void AWorldBiggerThanADatagramReachesAJoinerOverAFewSnapshots()
+    {
+        // The transport never fragments and refuses a datagram over its limit (the app crashed hosting a 6-car night with its
+        // stops' loot aboard). A first, full snapshot that big goes over a few ticks: the players and the train first.
+        var net = new LoopbackNetwork();
+        TrainOnLine NewTrain() => new(new TrainDynamics(Consist.Uniform(T, 6, 1)), TestLoop, 600);
+        var host = new HostSession(net.CreateHost(), NewTrain(), T, P);
+        host.World.EnableBodies();
+        for (int i = 0; i < 150; i++)
+            host.World.Bodies.SpawnCrate(host.Train, 1 + i % 5, new Double3(0.5 * (i % 3) - 0.5, 3.2, 0.4 * (i / 15) - 2));
+        var client = new ClientSession(net.CreateClient(), NewTrain(), T, P);
+        Run(net, host, [client], 60, _ => default);
+        Assert.True(host.SnapshotsBudgeted > 0, "the world should have been too big for one snapshot");
+        Assert.InRange(host.MaxSnapshotBytesSent, 1, Ballast.Net.DatagramTransport<object>.MaxPayload);
+        // Everything arrived, and the client is playing: its own state first, then the train and the rest.
+        Assert.Equal(host.World.Bodies.All.Count, client.World.Bodies.All.Count);
+        Assert.True(client.PlayerId is not null && client.SnapshotsReceived > 30);
+        Assert.Equal(host.Train.Dynamics.Distance, client.Train.Dynamics.Distance, 3);
+    }
+
+    [Fact]
     public void GarbageFromAClientCannotCrashTheHost()
     {
         var net = new LoopbackNetwork();
