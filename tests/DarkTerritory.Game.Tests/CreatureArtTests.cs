@@ -43,6 +43,8 @@ public class CreatureArtTests
         ["dragger"] = new(300, 3000, 8, 20, ["grip"], ["reach"]),
         // A heap of bodies, not a body (App. A.3): the heap, its heads and six arms on a chain rig.
         ["weight"] = new(2500, 8000, 20, 40, ["drag"], ["grab", "release"]),
+        // A jointed porcelain doll (App. A.2), a character's budget: SK_Human in a doll's proportions, rigid at the joints.
+        ["track_doll"] = new(4000, 10000, 20, 60, ["stand", "admire", "giggle", "tamper", "cower"], ["hit"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
