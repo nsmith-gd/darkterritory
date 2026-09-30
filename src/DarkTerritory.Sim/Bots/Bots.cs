@@ -152,7 +152,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             return null;
         // Trouble in a car beats carrying crates: a crate hand (or one with no part) goes to it, and so does the winch pair
         // for a fire that's alight or a load that's loose (the loading waits; the car doesn't).
-        if (_trouble is { } trouble && (job.Job is StopJob.Crates or StopJob.None
+        if (_trouble is { } trouble && (job.Job is StopJob.Crates or StopJob.None && job.TakesTrouble
                 || job.Job is StopJob.Winch0 or StopJob.Winch1 && (trouble.Kind == EnemyKind.LooseLoad || trouble is CarFire { Phase: SpinePhase.Punish })))
         {
             // In there: work it from the aisle. Short of it at a stop: in by its side door from the ground (the stop's

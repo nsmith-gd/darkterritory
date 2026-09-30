@@ -74,6 +74,9 @@ public sealed class CrewCalls
                 ? c.Value.Job == StopJob.Crates : c.Value.Job is not (StopJob.None or StopJob.Driver)))
             .Select(c => c.Key).DefaultIfEmpty(-1).Min() == member;
     public bool Has(StopJob job) => _crew.Values.Any(c => c.Alive && c.Job == job);
+    /// <summary>Whether this member is among the first <paramref name="n"/> alive with that part (by member number).</summary>
+    public bool AmongFirst(int member, StopJob job, int n) =>
+        _crew.Where(c => c.Value.Alive && c.Value.Job == job).Select(c => c.Key).Take(n).Contains(member);
     /// <summary>A shunter and two for the winch, alive: the crew a winch stop needs.</summary>
     public bool CanWorkWinch => Has(StopJob.Shunter) && Has(StopJob.Winch0) && Has(StopJob.Winch1);
     /// <summary>Hands for the crates: everyone with a part but the shunter (the winch pair carry where there's no winch).</summary>
@@ -328,6 +331,27 @@ public sealed class StopDriver(CrewCalls calls)
     const double HeldGiveUp = 240, LoadingGiveUp = 300, AboardGiveUp = 120, CoalGiveUp = 150;
     /// <summary>Seconds a facility stop (or a coaling stop) takes a crew, to leave spare before the dawn.</summary>
     const double StopAllowance = 600, CoalAllowance = 120;
+    /// <summary>Seconds a stop's leaving takes (backing out, clearing, the crew aboard): a stop's loading is late past this.</summary>
+    const double LateSpare = 180;
+
+    double _cruiseTop;
+
+    /// <summary>Where and when the night got under way, to measure its pace by.</summary>
+    (double Distance, double Seconds)? _underway;
+
+    /// <summary>
+    /// The pace the night's kept (m/s): how far along the main line (<paramref name="at"/>) it's come since it got under way,
+    /// over the time it's spent moving (every stop so far, and this one, off the clock). Cruise until there's a minute of it.
+    /// </summary>
+    double Pace(Run.Run run, double at)
+    {
+        _underway ??= (at, run.Seconds);
+        double stopped = _log.Sum(r => r.Seconds) + Seconds(_ticks - _stopStart);
+        double moving = run.Seconds - _underway.Value.Seconds - stopped;
+        // Cruise is whatever it's set to now (down a spur, a crawl): the fastest it's been set is the line's.
+        _cruiseTop = Math.Max(_cruiseTop, CruiseSpeed);
+        return moving < 60 ? _cruiseTop : Math.Clamp((at - _underway.Value.Distance) / moving, 3, Math.Max(_cruiseTop, 3));
+    }
 
     readonly HashSet<int> _done = [];
     readonly List<StopRecord> _log = [];
@@ -369,8 +393,12 @@ public sealed class StopDriver(CrewCalls calls)
     double Seconds(int ticks) => ticks * SimConstants.TickSeconds;
     double Waited => Seconds(_ticks - _legStart);
 
+    /// <summary>When (on the leg's clock) the loading was done, or −1 before it is.</summary>
+    double _loadedAt = -1;
+
     void Begin(Leg leg)
     {
+        _loadedAt = -1;
         if (Doing != Leg.Cruise)
             _legs[Doing.ToString()] = Math.Round(_legs.GetValueOrDefault(Doing.ToString()) + Waited, 1);
         Doing = leg;
@@ -407,6 +435,9 @@ public sealed class StopDriver(CrewCalls calls)
                     }
                     // Every stop is optional (GDD §18): only one there's time for before the dawn, after the run to the end of
                     // the line. The tender's the exception once it's low: without coal there's no getting there at all.
+                    if (run.Seconds > 0)
+                        _underway ??= (engine.Distance, run.Seconds);
+                    _cruiseTop = Math.Max(_cruiseTop, CruiseSpeed);
                     double spare = run.DawnIn - (run.Route.Length - engine.Distance) / CruiseSpeed;
                     var plan = spare > StopAllowance ? StopPlan.Ahead(world, engine.Distance, _done, calls) : null;
                     bool low = train.BoilerTuning is { } bt && train.Boiler.Tender < bt.TenderCapacity * 0.2;
@@ -536,8 +567,17 @@ public sealed class StopDriver(CrewCalls calls)
                     bool craned = p.Site.Crane is not { } crane || !calls.CanWorkWinch || StopHand.CraneTarget(crane, train) is null;
                     // Crates in, and the doors they went in by shut again: nobody moves a train with its doors open.
                     bool crated = calls.CrateHands == 0 || !p.CratesToLoad(world, calls.HeavyHands) && !p.OpenSideDoors(train).Any();
-                    bool loaded = winched && crated && craned || Waited > LoadingGiveUp;
-                    if (loaded && (calls.Riding(EngineRake(train)) || Waited > LoadingGiveUp + AboardGiveUp))
+                    // Late: the dawn won't wait for the rest (T70). What's left of the night against the run home at the pace
+                    // the night's actually kept (its curves and grades and what's been on the line; cruise is flattery), and
+                    // the leaving.
+                    // Measured from where the train left the main line: down the spur, the engine's distance is the spur's.
+                    bool late = world.Run is { } lr && lr.DawnIn < (lr.Route.Length - p.Hold) / Pace(lr, p.Hold) + LateSpare;
+                    bool loaded = winched && crated && craned || Waited > LoadingGiveUp || late;
+                    // Everyone aboard, or long enough waited for them since the loading was done (not since it began: a stop
+                    // given up for the dawn waited out the whole give-up again for a hand still out, T70).
+                    if (loaded && _loadedAt < 0)
+                        _loadedAt = Waited;
+                    if (loaded && (calls.Riding(EngineRake(train)) || Waited - _loadedAt > AboardGiveUp))
                         Begin(Leg.BackOut);
                     return Hold(world);
                 }
@@ -688,6 +728,16 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         if (on)
             calls.Say(member, job, self);
     }
+
+    /// <summary>
+    /// Whether this hand is one to leave the loading for trouble in a car: anyone but a crate hand, and of the crate hands
+    /// the first <see cref="TroubleHands"/>. A frontier:11 Slaughterhouse had Gnawers and loose loads one after another the
+    /// whole stop; with every crate hand going to each, nothing was loaded in 420 s and four died of it.
+    /// </summary>
+    public bool TakesTrouble => job != StopJob.Crates || calls.AmongFirst(member, StopJob.Crates, TroubleHands);
+
+    /// <summary>Crate hands to a stop's trouble in a car at most: enough to beat it, and the rest keep loading.</summary>
+    public const int TroubleHands = 2;
 
     /// <summary>
     /// At a stop, trouble in a car (a fire, a loose load, Gnawers): in by its side door, as a crate goes in, from the
