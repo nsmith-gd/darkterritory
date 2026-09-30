@@ -1644,3 +1644,14 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `WeightTests.TheGuardVanLastHasARearPlatformOverTheCouplingItTakes` and `ABotOnTheGuardVanGoesDownToThePlatformAndBeatsItOff`, a walker and a gunner: the car survives, and the Weight never punishes.
       - `ClimberTests.ARoofWalkerHoldsTheGapAtItsCarsEndAndItTriesAnother` and `TwoRoofWalkersEitherSideHoldEveryGapItTriesAndItGivesUp`.
       - frontier:7 delivered, 2638 unchanged. `dt art show guard` shows the grating.
+83. **`dt balance` sweeps the procedural line (T71).** The sweep ran its nights on the old `RouteGenerator` routes; it now runs them on `LineGen.Routes`.
+    - Each line is planned for the night's train length, as a night in the game is.
+    - The yard length comes from the line's own gate (`GateOr`), as `dt harness --route` does.
+    - The first sweep: frontier, seeds 1–2, crews 2 and 8, 10 cars.
+      - Survivable at 2: both delivered (nets 2195 and 1912).
+      - Non-trivial at 8: 41 punishes a night.
+      - Fair: no commits without the reaction window.
+      - Mean quiet: 13.9 s.
+      - It fails "never quiet over 30 s", with a 32.8 s stretch on frontier:1 at crew 2.
+      - frontier:2 at crew 8 missed the dawn, though crew 2 delivered it.
+    - Both are T74's to chase: they're findings about the lines players get, which is what moving the sweep was for.
