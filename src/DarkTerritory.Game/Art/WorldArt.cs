@@ -83,6 +83,8 @@ public sealed partial class WorldArt(Look look)
     /// the heath's 2 m would read as a quilt across a hillside. 512 maps at 5 m are ~100 px a metre, a 2008 terrain's.
     /// </summary>
     const float TerrainTile = 5f;
+    /// <summary>Trees nearer the line than this (m) are the modelled spruce; further out, the crossed cards.</summary>
+    const double NearTrees = 40;
 
     /// <summary>The terrain's cross-section: lateral offsets (m) out from the centre line, and heights at them.</summary>
     static readonly float[] Lateral = [0, 1.55f, 2.35f, 2.95f, 3.7f, 5.5f, 8, 12, 17, 24, 33, 45, 60, 78, 100];
@@ -424,8 +426,10 @@ public sealed partial class WorldArt(Look look)
                 float g = Gorge(route, along);
                 if (g > 0.3f && Math.Abs(offset) < 45)
                     continue;
+                // Near the line, the modelled spruce; out in the fog, where it's a silhouette, the crossed cards.
                 var piece = dead ? Piece($"dead-{variant % 2}", () => WorldKit.DeadTree(_look, variant % 2, 10))
-                    : Piece($"pine-{variant}", () => WorldKit.Pine(_look, variant, 12));
+                    : Math.Abs(offset) < NearTrees ? Piece($"pine-{variant}", () => WorldKit.Pine(_look, variant, 12))
+                    : Piece($"pinecard-{variant}", () => WorldKit.PineCard(_look, variant, 12));
                 mesh.Append(piece, Place(along, offset, yaw, (dead ? 0.8f : 1) * height / (dead ? 10 : 12), 0.15f), new Vector3(0.85f + 0.3f * (float)rng.NextDouble()));
             }
         }

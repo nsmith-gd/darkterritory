@@ -43,7 +43,7 @@ ALBEDO = {
     # masonry
     "stone_block": 0.11, "brick_soot": 0.075, "concrete_stain": 0.13, "plaster_ruin": 0.13, "roof_slate": 0.06,
     # foliage
-    "pine_card": 0.04, "dead_tree_card": 0.07, "grass_card": 0.08, "brass_weed_card": 0.08,
+    "pine_card": 0.04, "pine_bough": 0.04, "dead_tree_card": 0.07, "grass_card": 0.08, "brass_weed_card": 0.08,
     # cloth and crew
     "coat_oilskin": 0.07, "leather": 0.08, "wool": 0.06, "skin": 0.14, "crew_atlas": 0.09,
     # corruption (flesh/skin already sit right; sac comes down)

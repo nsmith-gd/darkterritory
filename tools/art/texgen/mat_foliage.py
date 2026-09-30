@@ -128,6 +128,70 @@ def pine_card(ctx):
     return card_out(ctx, d, alpha, s, g, "tier skirts, ragged needle fringe, holes, shade and rim")
 
 
+@texture("pine_bough", "foliage", tile=None)
+def pine_bough(ctx):
+    """One spruce bough seen from above, for the modelled pines' whorls (WorldKit.Pine: 512x256; the trunk end at the
+    left, the tip at the right, laid flat and bent in the mesh so it droops). A frond, not a leaf: a twig with dozens of
+    branchlets raked toward the tip, longest a third of the way out, each furred with needles both sides; gaps between
+    them where the fog shows through. Darker at the base and deep in, lit toward the tips."""
+    H, W = 512, 1024
+    rng = ctx.rng("bough")
+    x0, x1, cy = 24, W - 16, H / 2
+    lines, widths, vals = [], [], []
+
+    def twig_y(t):
+        return cy + 14 * np.sin(t * np.pi * 0.8) + 8 * t
+
+    # The branchlets, both sides, raked forward, each with its needles; drawn inner (dark) to outer (lit).
+    for k in range(34):
+        t = 0.04 + 0.92 * (k + rng.uniform(-0.3, 0.3)) / 34
+        bx, by = x0 + t * (x1 - x0), twig_y(t)
+        reach = (H * 0.46) * max(0.0, np.sin(np.pi * t ** 0.7)) ** 0.7 * rng.uniform(0.75, 1.0)
+        for side in (-1, 1):
+            ang = side * rng.uniform(0.75, 1.0)            # off the twig, raked forward
+            pts = [(bx, by)]
+            x, y, a = bx, by, ang
+            steps = 6
+            for _ in range(steps):
+                a += rng.normal(0, 0.08) - side * 0.04     # curling a little toward the tip
+                x += np.cos(a) * reach / steps
+                y += np.sin(a) * reach / steps
+                pts.append((x, y))
+            lines.append(pts)
+            widths.append(4.0)
+            vals.append(0.1)
+            # Needles along it, both sides, angled forward.
+            for j in range(1, len(pts)):
+                (xa, ya), (xb, yb) = pts[j - 1], pts[j]
+                da = np.arctan2(yb - ya, xb - xa)
+                seg = np.hypot(xb - xa, yb - ya)
+                for q in np.arange(0, seg, 4.5):
+                    px, py = xa + np.cos(da) * q, ya + np.sin(da) * q
+                    near = j / len(pts)
+                    for ns in (-1, 1):
+                        na = da + ns * rng.uniform(0.6, 1.0)
+                        ln = rng.uniform(9, 17) * (1.1 - 0.4 * near)
+                        lines.append([(px, py), (px + np.cos(na) * ln, py + np.sin(na) * ln)])
+                        widths.append(rng.uniform(2.5, 4.0))
+                        vals.append(saturate(0.2 + 0.35 * t + 0.3 * near + rng.normal(0, 0.08)))
+    lines.append([(x0 - 20, cy)] + [(x0 + t * (x1 - x0), twig_y(t)) for t in np.linspace(0.1, 1.0, 8)])
+    widths.append(12)
+    vals.append(0.06)
+    alpha = saturate(draw.strokes((H, W), lines, widths, None, wrap=False))
+    val = draw.strokes((H, W), lines, widths, vals, wrap=False)
+    clumps = noise.fbm01(ctx.rng("clump"), (H, W), 5, octaves=3)
+    t = saturate(val + 0.25 * (clumps - 0.5) + 0.12 * (noise.white(ctx.rng("n"), (H, W)) - 0.5))
+    d = core.apply_ramp(t, "pine")
+    d = d * self_shadow(alpha, 6, 0.3)[..., None]
+    twig = (val > 0.03) & (val < 0.12)
+    d = lerp(d, hexc("#1a130d"), twig * 0.85)
+    r = rim(alpha, 2.0)
+    d = lerp(d, hexc("#34404A"), r * 0.3)
+    s = np.full((H, W), 0.04, np.float32)
+    g = np.full((H, W), 0.15, np.float32)
+    return card_out(ctx, d, alpha, s, g, "a frond: branchlets raked along a twig, furred with needles, gaps between")
+
+
 def branch(rng, x, y, ang, length, width, depth, lines, widths):
     """Recursive gnarled branching for the dead tree."""
     pts = [(x, y)]
