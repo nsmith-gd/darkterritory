@@ -11,6 +11,15 @@ layout(set = 0, binding = 2) uniform sampler2DArray specMaps;
 layout(set = 0, binding = 4) uniform sampler2DShadow lampShadow;
 layout(set = 0, binding = 5) uniform sampler2DArray normalMaps;
 layout(set = 0, binding = 6) uniform sampler2DShadow moonShadow;
+// The hero layers (RenderAssets.HeroSize): the characters' and creatures' atlases at full size.
+layout(set = 0, binding = 7) uniform sampler2DArray heroDiffuse;
+layout(set = 0, binding = 8) uniform sampler2DArray heroSpec;
+layout(set = 0, binding = 9) uniform sampler2DArray heroNormal;
+
+float heroSlot(float layer) {
+    int l = int(layer + 0.5);
+    return l >= 0 && l < 256 ? frame.heroOf[l >> 2][l & 3] : -1.0;
+}
 
 layout(location = 0) in vec3 vPos;
 layout(location = 1) in vec3 vNormal;
@@ -242,14 +251,15 @@ void main() {
             n = perturb(n, vPos, vUv, normalize(mapped));
         }
     } else if (textured) {
-        tex = texture(diffuseMaps, vec3(vUv, vLayer));
+        float hero = ps2 ? -1.0 : heroSlot(vLayer);
+        tex = hero >= 0.0 ? texture(heroDiffuse, vec3(vUv, hero)) : texture(diffuseMaps, vec3(vUv, vLayer));
         if (tex.a < 0.5)
             discard; // alpha test, never blend (pipeline: "alpha test at 0.5")
-        specMap = texture(specMaps, vec3(vUv, vLayer)).rgb;
+        specMap = (hero >= 0.0 ? texture(heroSpec, vec3(vUv, hero)) : texture(specMaps, vec3(vUv, vLayer))).rgb;
         if (ps2)
             specMap = vec3(specMap.r * 0.5, 0.2, specMap.b);
         else
-            n = perturb(n, vPos, vUv, normalize(texture(normalMaps, vec3(vUv, vLayer)).xyz * 2.0 - 1.0));
+            n = perturb(n, vPos, vUv, normalize((hero >= 0.0 ? texture(heroNormal, vec3(vUv, hero)) : texture(normalMaps, vec3(vUv, vLayer))).xyz * 2.0 - 1.0));
     }
     vec3 albedo = tex.rgb * vColor;
     if (vWear > 0.0)

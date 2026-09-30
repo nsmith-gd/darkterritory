@@ -17,4 +17,5 @@ layout(set = 0, binding = 0) uniform Frame {
     vec4 rooms[48];    // triples: centre + half x, right axis + half y, back axis + half z (up = back x right)
     vec4 counts;       // x = rooms, y = 1 when the moon casts a shadow
     mat4 moonViewProj; // camera-relative to the moon's shadow map (orthographic)
+    vec4 heroOf[64];   // per layer (4 a vec4): its slot in the hero arrays, or -1
 } frame;

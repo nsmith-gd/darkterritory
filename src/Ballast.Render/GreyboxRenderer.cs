@@ -31,6 +31,7 @@ unsafe struct FrameData
     public fixed float Rooms[MaxRooms * 12];
     public Vector4 Counts;
     public Matrix4x4 MoonViewProj;
+    public fixed float HeroOf[256];
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -110,6 +111,9 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     readonly VkSampler _nearest, _linear;
 
     GpuTexture _diffuse, _spec, _backdrop, _lut, _normal;
+    // The hero layers at full size, and which slot each layer has in them (-1: none).
+    GpuTexture _heroDiffuse, _heroSpec, _heroNormal;
+    int[] _heroSlot = [];
     RenderAssets? _assets;
 
     VkBuffer _vertices;
@@ -195,7 +199,9 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _sceneSetLayout = SetLayout([(VkDescriptorType.UniformBuffer, VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment),
             (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
             (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
-            (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment)]);
+            (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
+            (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
+            (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment)]);
         _postSetLayout = SetLayout([(VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment)]);
         _compositeSetLayout = SetLayout([(VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
             (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment), (VkDescriptorType.CombinedImageSampler, VkShaderStageFlags.Fragment),
@@ -238,6 +244,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         // Until there are assets: one plain white layer (the greybox's flat colour), no backdrop, no grade.
         (_diffuse, _spec, _backdrop, _lut) = Upload(new RenderAssets());
         _normal = UploadNormals(new RenderAssets());
+        (_heroDiffuse, _heroSpec, _heroNormal) = UploadHeroes(new RenderAssets());
         WriteSets();
     }
 
@@ -273,12 +280,19 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _backdrop.Dispose();
         _lut.Dispose();
         _normal.Dispose();
+        _heroDiffuse.Dispose();
+        _heroSpec.Dispose();
+        _heroNormal.Dispose();
         (_diffuse, _spec, _backdrop, _lut) = Upload(assets);
         _normal = UploadNormals(assets);
+        (_heroDiffuse, _heroSpec, _heroNormal) = UploadHeroes(assets);
         _assets = assets;
         Post = assets.Post;
         WriteSets();
     }
+
+    /// <summary>The loaded material layers kept at full size in the hero arrays (<see cref="RenderAssets.HeroSize"/>).</summary>
+    public IEnumerable<string> HeroLayers => _assets is null ? [] : _heroSlot.Select((s, i) => (s, i)).Where(x => x.s >= 0).Select(x => _assets.Layers[x.i].Name);
 
     /// <summary>The loaded material layer called <paramref name="name"/>, or −1.</summary>
     public int LayerOf(string name) => _assets?.IndexOf(name) ?? -1;
@@ -302,6 +316,36 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         var lut = new GpuTexture(_gpu, GpuTexture.Kind.Volume, VkFormat.R8G8B8A8Unorm, ColourGrade.Size, ColourGrade.Size, [[assets.Lut ?? ColourGrade.Identity()]],
             VkFilter.Linear, VkSamplerAddressMode.ClampToEdge, VkSamplerAddressMode.ClampToEdge, depth: ColourGrade.Size);
         return (d, s, b, lut);
+    }
+
+    /// <summary>
+    /// The hero layers (authored larger than the arrays' size: the baked atlases of what's seen closest) again at up to
+    /// <see cref="RenderAssets.HeroSize"/>, in arrays of their own; <see cref="_heroSlot"/> says which layer is where. With
+    /// none, one flat layer each, so the bindings are always there.
+    /// </summary>
+    (GpuTexture, GpuTexture, GpuTexture) UploadHeroes(RenderAssets assets)
+    {
+        int size = Math.Max(assets.LayerSize, assets.HeroSize);
+        var heroes = new List<MaterialLayer>();
+        _heroSlot = new int[assets.Layers.Count];
+        for (int i = 0; i < assets.Layers.Count; i++)
+        {
+            var l = assets.Layers[i];
+            _heroSlot[i] = -1;
+            if (l.Diffuse.Width > assets.LayerSize && i < 256)
+            {
+                _heroSlot[i] = heroes.Count;
+                heroes.Add(l);
+            }
+        }
+        if (heroes.Count == 0)
+            size = 4;
+        var flat = Image.Solid(size, 128, 128, 255);
+        var list = heroes.Count > 0 ? heroes : [new MaterialLayer("none", Image.Solid(size, 255, 255, 255), Image.Solid(size, 0, 0, 0))];
+        GpuTexture Array(Func<MaterialLayer, Image> map, VkFormat format) => new(_gpu, GpuTexture.Kind.Array2D, format, size, size,
+            list.Select(l => (IReadOnlyList<byte[]>)GpuTexture.MipChain(map(l).Resized(size, size))).ToList(), VkFilter.Linear,
+            VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, assets.Post.MipBias, anisotropy: _gpu.MaxAnisotropy);
+        return (Array(l => l.Diffuse, VkFormat.R8G8B8A8Srgb), Array(l => l.Spec, VkFormat.R8G8B8A8Unorm), Array(l => l.Normal ?? flat, VkFormat.R8G8B8A8Unorm));
     }
 
     /// <summary>Every layer's normal map (flat where a layer has none), filtered like the diffuse, linear (not sRGB).</summary>
@@ -455,6 +499,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         f->LampViewProj = LampViewProjection(camera, lighting);
         _moonOn = lighting.MoonStrength > 0.01f && lighting.MoonDirection.Y > 0.05f && !Post.Ps2;
         f->MoonViewProj = MoonViewProjection(camera, lighting, (float)Width / Height);
+        for (int i = 0; i < 256; i++)
+            f->HeroOf[i] = i < _heroSlot.Length ? _heroSlot[i] : -1;
         f->Fog = new Vector4(lighting.FogColor, lighting.FogDensity);
         f->FogHeight = new Vector4(fogBase, lighting.FogHeightFalloff, lighting.FogFloor, (float)(lighting.Time % 10000));
         f->Moon = new Vector4(lighting.MoonDirection, lighting.Ambient);
@@ -851,7 +897,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
     void WriteSets()
     {
-        var images = stackalloc VkDescriptorImageInfo[20];
+        var images = stackalloc VkDescriptorImageInfo[24];
         images[0] = new VkDescriptorImageInfo { sampler = Post.Ps2 ? _crunchy : _diffuse.Sampler, imageView = _diffuse.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[1] = new VkDescriptorImageInfo { sampler = Post.Ps2 ? _crunchy : _spec.Sampler, imageView = _spec.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[2] = new VkDescriptorImageInfo { sampler = _backdrop.Sampler, imageView = _backdrop.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
@@ -870,7 +916,10 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         images[14] = new VkDescriptorImageInfo { sampler = _nearest, imageView = _depth.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[15] = new VkDescriptorImageInfo { sampler = _linear, imageView = _ao.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
         images[16] = new VkDescriptorImageInfo { sampler = _shadowSampler, imageView = _moonShadow.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
-        var writes = stackalloc VkWriteDescriptorSet[20];
+        images[17] = new VkDescriptorImageInfo { sampler = _heroDiffuse.Sampler, imageView = _heroDiffuse.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
+        images[18] = new VkDescriptorImageInfo { sampler = _heroSpec.Sampler, imageView = _heroSpec.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
+        images[19] = new VkDescriptorImageInfo { sampler = _heroNormal.Sampler, imageView = _heroNormal.View, imageLayout = VkImageLayout.ShaderReadOnlyOptimal };
+        var writes = stackalloc VkWriteDescriptorSet[24];
         VkWriteDescriptorSet Image(VkDescriptorSet set, uint binding, int image) => new()
         {
             dstSet = set,
@@ -898,7 +947,10 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         writes[16] = Image(_aoSet, 0, 14);
         writes[17] = Image(_compositeSet, 4, 15);
         writes[18] = Image(_sceneSet, 6, 16);
-        Api.vkUpdateDescriptorSets(19, writes, 0, null);
+        writes[19] = Image(_sceneSet, 7, 17);
+        writes[20] = Image(_sceneSet, 8, 18);
+        writes[21] = Image(_sceneSet, 9, 19);
+        Api.vkUpdateDescriptorSets(22, writes, 0, null);
     }
 
     VkPipelineLayout PipelineLayout(VkDescriptorSetLayout? set, uint pushSize, VkShaderStageFlags pushStages)
@@ -1100,6 +1152,9 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             Api.vkDestroyDescriptorSetLayout(l, null);
         _diffuse.Dispose();
         _normal.Dispose();
+        _heroDiffuse.Dispose();
+        _heroSpec.Dispose();
+        _heroNormal.Dispose();
         _spec.Dispose();
         _backdrop.Dispose();
         _lut.Dispose();

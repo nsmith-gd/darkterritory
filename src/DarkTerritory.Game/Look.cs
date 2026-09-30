@@ -60,6 +60,8 @@ public sealed record LookTuning
     public float TexelsPerMetre { get; init; } = 128;
     /// <summary>Every material layer's size in the GPU array (the library is authored at 512: ARCHITECTURE §8 note 57).</summary>
     public int LayerSize { get; init; } = 512;
+    /// <summary>The characters' and creatures' baked atlases (authored bigger than <see cref="LayerSize"/>) keep up to this.</summary>
+    public int HeroLayerSize { get; init; } = 1024;
     public float Baked { get; init; } = 0.35f;
     /// <summary>The crew's paint by player id, in turn (the helm and the scarf: CreatureArt.Crewmate), as multipliers.</summary>
     public float[][] CrewColours { get; init; } = [[1, 1, 1]];
@@ -205,7 +207,7 @@ public sealed class Look
                 if (t.Family == "sky")
                     backdrop = diffuse;
             }
-        return new RenderAssets { LayerSize = Tuning.LayerSize, Layers = layers, Backdrop = backdrop, Lut = Tuning.Grade.Bake(), Post = Tuning.Post };
+        return new RenderAssets { LayerSize = Tuning.LayerSize, HeroSize = Tuning.HeroLayerSize, Layers = layers, Backdrop = backdrop, Lut = Tuning.Grade.Bake(), Post = Tuning.Post };
     }
 
     /// <summary>The night's lighting with the look's atmosphere over it.</summary>
