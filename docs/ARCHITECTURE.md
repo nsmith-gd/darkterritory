@@ -1673,3 +1673,23 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Verified:**
       - `SandTests`: the boards and boxes, the grip coming back over 8 s and going over 3 s, Use in the cab doing nothing, the driver sanding a stretch through and back into the cab, and a client having the host's sand.
       - `dt art show engine`.
+85. **Balance on the procedural line: the grace stretch, the terminus approach, and a stop's lateness (T74).** Note 83's first sweep failed "never quiet over 30 s" (32.8 s), and frontier:2 at a crew of 8 missed the dawn.
+    - **Quiet stretches.** The pacing report now lists every quiet over 30 s: how long, where it ended, what ended it, and why the director had sent nothing (`Director.HeldBecause`: grace, cooldown, at the cap, banned, nothing fits).
+      - All three on frontier:1 were in the line's opening grace stretch: "banned (grace)", ended by a mail board.
+      - Ambiguity: the plan's grace stretch is gate to 2 km, "covers the GDD 90 s grace period". Its spawn ban held for as long as the crew took over those 2 km, minutes at the bots' pace. The playtest's later rule is "out of the gate in 20 s", the director's `graceSeconds`.
+      - The later rule wins. `director.lineGraceSeconds` (20) lifts the line's grace ban that far into the run; -1 keeps the plan's reading.
+      - The stretch keeps its easy geometry, and still has no Sleepers or Grease on it.
+    - **The terminus approach.** Once frontier:2 delivered, it showed a 132 s quiet into the terminus, where nothing's sent by design (`terminus_safe`, the no-spawn final approach). That's the night letting go, not a lull, so it isn't counted as out on the line.
+    - **Lateness.** frontier:2's Wreck Yard loading gave up at 300 s, not counted late: 1791 s of night left against 1465 s home plus 180 s of leaving.
+      - Then everyone-aboard took its whole 120 s (hands kept climbing down to the Gnawers in car 4).
+      - The line after the stop ran at 12.2 m/s, not the 13.7 kept before it.
+      - So a stop's loading is now late with the aboard wait in hand too, the run home reckoned at 0.9 of the pace kept (`LatePace`).
+      - A stop is only planned if it wouldn't be late on arrival, reckoned the same way. frontier:7's Foundry stop had been made and then given up at once, loading nothing.
+    - **Sweep after** (frontier, seeds 1–2, crews 2 and 8): every check passes.
+      - Longest quiet 22.7 s, mean 10.5 s, 28.5 punishes a night at crew 8, fair.
+      - frontier:2 at crew 8 delivers (2114).
+      - frontier:1 at crew 8 now misses the dawn. A Climber got into the cab with every walker warming inside, killed the driver, and no bot takes over the cab (T75).
+      - frontier:7, the soak's night, delivers (2895).
+    - **The Ferryman's straight.** With the night paced differently, frontier:7 got a Ferryman short of a stretch the line's authority slowed. The driver braked for it, as bound to; it boarded and took the conductor, and the Deadman ran the train back down the line.
+      - "Do not slow down" has to be the crew's choice. `Ferryman.ClearAhead` also wants nothing posted, and no authority, under the train's speed over its approach (`LineAuthority.Lowest`).
+      - `FerrymanTests` has a weak bridge's board, and the same line without it.

@@ -1049,9 +1049,20 @@ public sealed class Ferryman(int id) : Enemy(id)
             if (Math.Abs(sample.Curvature) > 1 / t.StraightRadius || Math.Abs(sample.GradePercent) > t.MaxGradePercent)
                 return false;
         }
-        return world.Route is not { } r || !r.Features.Any(f => f.Kind is FeatureKind.Sleepers or FeatureKind.Grease or FeatureKind.Tunnel or FeatureKind.Facility
-            && f.End >= from && f.Start <= to + t.StopMargin);
+        if (world.Route is { } r && r.Features.Any(f => f.Kind is FeatureKind.Sleepers or FeatureKind.Grease or FeatureKind.Tunnel or FeatureKind.Facility
+            && f.End >= from && f.Start <= to + t.StopMargin))
+            return false;
+        // Nothing ahead the crew must slow for either (T74): a board posting a lower speed, or a generated line's authority
+        // dropping below the train's. "Do not slow down" has to be a choice the crew can make, not one the line takes away:
+        // frontier:7's Ferryman stood short of a slack the driver was bound to brake for, and took the cab.
+        double holding = train.Dynamics.Speed - SlowAheadMargin;
+        if (world.Lineside is { } ls && ls.Signs.Any(s => s.Kind == SignKind.SpeedLimit && s.Limit < holding && s.End >= from && s.Start <= to + t.StopMargin))
+            return false;
+        return world.TrackPlan is not { } plan || LineGen.LineAuthority.For(plan, train.Line).Lowest(train, to + t.StopMargin - from) >= holding;
     }
+
+    /// <summary>A limit this far (m/s) under the train's speed is one the crew has to slow for.</summary>
+    const double SlowAheadMargin = 1;
 
     protected override void Tick(EnemyContext ctx)
     {
