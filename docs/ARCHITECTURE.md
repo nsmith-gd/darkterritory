@@ -1655,3 +1655,21 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - It fails "never quiet over 30 s", with a 32.8 s stretch on frontier:1 at crew 2.
       - frontier:2 at crew 8 missed the dawn, though crew 2 delivered it.
     - Both are T74's to chase: they're findings about the lines players get, which is what moving the sweep was for.
+84. **Grease's counter: sanding from the engine's running boards (T72).** Grease was already level content: the line generator lays it, and the lineside drops the grip to `greaseTraction` while the engine's on it. What was missing was its counter, App. A.2's "sanding from the running boards restores traction over ~8s".
+    - **The running boards.** The engine has a walkway each side, `runningBoardWidth` out past the cab side at deck height. It runs from the boiler's front to partway across the cab doorway, so you step out of the doorway and forward onto it.
+      - Each has a sandbox `sandboxAhead` ahead of the cab.
+      - The boards are only ever footing. Collision skips them, so crews on the ballast pass under them to the cab steps; six stop-crew tests caught the first version pushing them off the steps.
+    - **Ambiguity: "restores traction over ~8s".** It's read as a rate, not a one-off:
+      - Held at a sandbox, the grip climbs from `greaseTraction` back to dry over `sandSeconds`.
+      - Let go, and it falls back over `sandFadeSeconds` (sand is only under the wheels while it's going down).
+      - So whoever's out there stays out there to the end of the grease: the "sends someone onto the running boards at speed" cost.
+      - Both numbers are in `sight.json` beside `greaseTraction`.
+    - **Replication and prediction.** The sand level is train state. It's on the World record, and the lineside steps it on both machines, as it does the grip.
+    - **The driver bot.** On grease the controls do nothing ("cannot climb grade, cannot brake, cannot accelerate"). Once the grease is costing it way, more than 2 m/s under cruise (a climb), the driver leaves them. It goes out of the doorway, along the board to the sandbox, holds Use until the engine's off the grease, then comes back the same way.
+      - Steam stays on, so the sanded drivers pull.
+      - On the level it doesn't go. The first version sanded every stretch and shut steam off to do it. On frontier:7 that slowed the train from 13.9 to 11.3 m/s with Cinder Hounds behind; they gained, and five punishes against one cost most of the cargo (net 2638 fell to 679). The unsanded train had simply coasted through.
+    - **The tell.** A HUD cue when the grease ahead comes into sight in the lamp: the chemical smell and the shine on the rail. The prompt at a sandbox shows the grip.
+    - The guard van's rear-platform ladder (note 82) is now drawn too; the kit drew only ladders from the ground.
+    - **Verified:**
+      - `SandTests`: the boards and boxes, the grip coming back over 8 s and going over 3 s, Use in the cab doing nothing, the driver sanding a stretch through and back into the cab, and a client having the host's sand.
+      - `dt art show engine`.

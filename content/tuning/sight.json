@@ -27,6 +27,11 @@
   "derailRatio": 1.55,
   // GDD App. A.2 GREASE: "slicks the rail. No traction — can't climb, can't stop." The rail's grip while the engine's on it.
   "greaseTraction": 0.25,
+  // Its counter: "sanding from the running boards restores traction over ~8s". Held at a sandbox, the grip comes back to
+  // dry over sandSeconds; let go, and it's back to greaseTraction over sandFadeSeconds (the sand's under the wheels only
+  // while it's going down: whoever's out there stays out there to the end of it).
+  "sandSeconds": 8,
+  "sandFadeSeconds": 3,
   // A tunnel's mouth, to anyone standing on a roof going into it.
   "struckDamage": 200,
 

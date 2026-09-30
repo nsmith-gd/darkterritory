@@ -276,7 +276,7 @@ public static class Harness
         string where = !s.Alive ? $"dead ({s.Death})" : s.Parent == PlayerState.World ? "ground" : $"{s.Surface} {s.Parent}";
         string doing = bot switch
         {
-            ConductorBot c => c.Stops?.Doing.ToString() ?? "",
+            ConductorBot c => c.Sanding ? "sanding" : c.Stops?.Doing.ToString() ?? "",
             RoofWalkerBot r => r.WarmUpStep is { } w and not "Off" ? $"warm:{w}" : r.Job?.Doing ?? "",
             GunnerBot g => g.Job?.Doing ?? "",
             _ => "",
