@@ -214,6 +214,20 @@ public class FerrymanTests
         smashed.Run(10);
         Assert.DoesNotContain(smashed.World.Director!.Log, l => l.Kind == EnemyKind.Ferryman);
 
+        // A weak bridge up the line, posted well under the train's speed (T74): the driver has to slow for the board, so it's
+        // no place for a lantern that punishes slowing.
+        var sight = Ballast.DataFile.Load<SightTuning>(Path.Combine(Ballast.DataFile.FindContentRoot(), SightTuning.File));
+        var posted = Frontier(new RouteFeature(FeatureKind.Bridge, 40_600, 40_650, MaxCars: 3));
+        var bridge = new Night(speed: 14, at: 40_000, Only(), posted);
+        bridge.World.EnableLineside(sight, posted);
+        bridge.Run(10);
+        Assert.DoesNotContain(bridge.World.Director!.Log, l => l.Kind == EnemyKind.Ferryman);
+        // (The same line without the bridge, boards and all: it comes.)
+        var clear = new Night(speed: 14, at: 40_000, Only(), Frontier());
+        clear.World.EnableLineside(sight, Frontier());
+        clear.Run(10);
+        Assert.Contains(clear.World.Director!.Log, l => l.Kind == EnemyKind.Ferryman);
+
         var crawling = new Night(speed: F.MinSpeed - 2, at: 40_000, Only(), Frontier());
         crawling.Run(10);
         Assert.DoesNotContain(crawling.World.Director!.Log, l => l.Kind == EnemyKind.Ferryman);

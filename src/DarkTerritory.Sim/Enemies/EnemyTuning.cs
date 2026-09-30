@@ -374,4 +374,9 @@ public sealed record DirectorTuning(
     public double GradePercent { get; init; } = 1.5;
     public string[] SaveFor { get; init; } = [];
     public double SaveFrom { get; init; } = 0.2;
+    /// <summary>
+    /// A generated line's grace stretch (linegen plan §4) bans spawns only this far into the run; after, the director's own
+    /// grace (after the playtest, "out of the gate in 20 s") is the rule. Negative: the whole stretch, as the plan has it.
+    /// </summary>
+    public double LineGraceSeconds { get; init; } = 20;
 }

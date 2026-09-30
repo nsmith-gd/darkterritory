@@ -542,6 +542,9 @@
     // budget's curve by up to pacedCost. Budgets are about twice App. B.1's to pay for it. A kind among the last
     // varietyWindow spawns has its weight halved for each.
     "graceSeconds": 20,
+    // A generated line's grace stretch (linegen plan §4: gate to 2 km, "covers the GDD 90 s grace period") bans spawns only
+    // this far into the run (s); after that, graceSeconds above is the rule. -1 keeps the ban for the whole stretch.
+    "lineGraceSeconds": 20,
     "paceSeconds": 18,
     "pacedCost": 3,
     "varietyWindow": 4,

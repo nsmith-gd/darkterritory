@@ -40,6 +40,22 @@ public sealed class LineAuthority
     /// <summary>The authority for a plan's built line (one per line: every session on it shares it).</summary>
     public static LineAuthority For(LinePlan plan, RailLine line) => ByLine.GetValue(line, l => new LineAuthority(plan, l));
 
+    /// <summary>
+    /// The least the authority allows over the main line from here to <paramref name="ahead"/> metres on (every 25 m), for
+    /// the engine's rake on the main; off it, what it allows now. What a lantern on the line has to fit inside (T74).
+    /// </summary>
+    public double Lowest(TrainOnLine train, double ahead)
+    {
+        var rake = train.Dynamics;
+        var (edge, s) = _mainWay.Locate(rake.Path, rake.Distance);
+        if (edge != "main")
+            return Allowed(train);
+        double v = double.MaxValue;
+        for (double d = 0; d <= ahead; d += 25)
+            v = Math.Min(v, _main.Target(s + d));
+        return v;
+    }
+
     /// <summary>The speed to hold now: the least the profile allows over the next second's run, for the engine's rake.</summary>
     public double Allowed(TrainOnLine train)
     {
