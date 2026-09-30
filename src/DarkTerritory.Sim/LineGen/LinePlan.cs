@@ -45,6 +45,8 @@ public sealed record LinePlan
     public IReadOnlyList<PlanPoi> Pois { get; init; } = [];
     public IReadOnlyList<PlanLandmark> Landmarks { get; init; } = [];
     public IReadOnlyList<PlanPad> Pads { get; init; } = [];
+    /// <summary>GDD App. D.4: the Holdouts, the only way back into a run once it's left the gate.</summary>
+    public IReadOnlyList<PlanHoldout> Holdouts { get; init; } = [];
     public IReadOnlyList<PlanBiome> Biomes { get; init; } = [];
     public IReadOnlyList<PlanExposure> Exposure { get; init; } = [];
     public required PlanDirector Director { get; init; }
@@ -198,6 +200,24 @@ public sealed record PlanSign(string Type, string Edge, double S, int Side, stri
 public sealed record PlanPoi(string Id, FacilityKind Type, string Name, string Junction, double S, int Side, PlanRange Approach, PlanRange Holding,
     PlanPad Pad, string? SpurEdge, double SpurGrade, string SubSeed, double PowerBias, double[] Pickup, bool MinePortal);
 public sealed record PlanRange(string Edge, double S0, double S1);
+
+/// <summary>
+/// A Holdout (GDD App. D.4): somewhere a dead player waits, sealed, for the crew to stop and get them. Generated with the
+/// line from its site's sub-seed, so every machine has the same ones.
+/// </summary>
+/// <param name="Site">The place it's at: a facility's id ("poi2"), or a halt's or dead town's ("stn3").</param>
+/// <param name="X">Its ground centre, world metres (with <paramref name="Y"/> and <paramref name="Z"/>).</param>
+/// <param name="HeadingDeg">Which way its long side runs (0 along −Z); its door is on the side facing the track.</param>
+/// <param name="Size">Half-width, half-length and height: its interior, the sealed safe volume.</param>
+/// <param name="Door">Where the door is (world): what a breach is worked at.</param>
+/// <param name="Lamp">The Holdout lamp (world): lit while it's Occupied or Breaching, seen from <paramref name="Board"/>.</param>
+/// <param name="Board">The approach board it's seen from (world, at a driver's eye): the 1 km board, or the whistle board.</param>
+/// <param name="Zone">The site's zone on the main line (D.5): from the approach board (2 km board, whistle board) to its far end.</param>
+/// <param name="Spur">A facility's spur: standing on it is in the zone too.</param>
+/// <param name="From">Where the walk to it starts: the nearest point of the consist stopped at the site.</param>
+/// <param name="Second">A facility's second Holdout (D.4): dormant dressing unless the session crew is big enough.</param>
+public sealed record PlanHoldout(string Id, string Site, string Name, Run.HoldoutSiteKind SiteKind, Run.HoldoutType Type, double X, double Y, double Z,
+    double HeadingDeg, double[] Size, double[] Door, double[] Lamp, double[] Board, PlanRange Zone, string? Spur, double[] From, bool Second, string SubSeed);
 
 /// <summary>Flattened ground (§12.1 "pad"): a facility's, the fortress's, a settlement's.</summary>
 public sealed record PlanPad(string Id, double X, double Z, double ElevM, double RadiusM, double HalfLengthM = 0, double HeadingDeg = 0);

@@ -1,0 +1,122 @@
+// Death, Holdouts and Return (GDD v1.2 Appendix D, the single source of truth for death, respawning and body recovery).
+// Every number in D.13 is here, with D.13's range beside it where it gives one. What D is silent on is this build's
+// reading, marked "not in D", each one noted in ARCHITECTURE §8 note 92. `HoldoutTuning.Validate` holds the ranges.
+{
+  // D.4 "where they are". The line generator reads this section (the sites are part of the night's Line Plan), so a
+  // change here is a different line: every machine must have the same file (it's in the joiner's content check).
+  "placement": {
+    // D.13: "facility Holdout distance from consist: 60-200 m", measured from the nearest point of the consist stopped
+    // on the pad (its spur, the engine at the buffer stop; the main line through the zone for the coaling tower).
+    "facilityFromConsistM": [60, 200],
+    // D.13: "halt Holdout distance from main line: <= 40 m" (on or beside the platform).
+    "haltFromMainM": 40,
+    // D.13: "dead-town Holdout distance from main line: <= 80 m" (within the station footprint).
+    "townFromMainM": 80,
+    // D.13: "second facility Holdout: pad scale >= 200 m", and D.4: "and on every switchyard".
+    "secondPadScaleM": 200,
+    "secondAtKinds": ["switchyard"],
+    // Not in D: a second Holdout at least this far from the first, so the two are two places to go.
+    "secondApartM": 30,
+    // Not in D: the closest a Holdout comes to any track (it isn't standing in the four-foot), and to the platform's
+    // edge at a halt (it's beside it, not on the rails).
+    "trackClearanceM": 6,
+    // D.4 "must not share a walking route with the nearest loading module". Not in D, how that's measured: the straight
+    // walk from the stopped consist to the Holdout keeps at least this far from every loading module, and it's on the
+    // far side of the track from them (the modules stand on the spur's outside, spec D).
+    "routeClearanceM": 15,
+    // D.4 "every Holdout lamp needs line of sight to the site's approach: from the 1 km board at facilities, and from the
+    // whistle board at halts and dead towns". Not in D: seen from a driver's eye this high over the rail at the board,
+    // to a lamp mounted this high over the Holdout's ground (the lowest that sees the board is used).
+    "boardEyeM": 3.2,
+    "lampHeightM": [3, 9],
+    // Not in D: reachable on foot means every step of the straight walk to it is no steeper than the terrain's walkable
+    // slope (linegen tiers.json terrain.walkableSlope) and never under water. Sampled this often.
+    "walkStepM": 5,
+    // Not in D: the line generator tries this many spots for each Holdout before it gives up on a site (and the plan
+    // fails its "holdouts" check and is regenerated, plan §16.4).
+    "tries": 48,
+    // D.4 "types": chosen from the site's sub-seed. Prison cars stand on "facilities with a spare siding", "preferred
+    // at switchyards, wreck yards and military depots"; barricaded shelters at "any facility (always at mine heads: the
+    // portal lamp room)" and at dead towns; halt lockups at halts. The line has one siding per facility, so which kinds
+    // have a spare one is this list (not in D, which doesn't say; the preferred kinds).
+    "spareSidingAt": ["switchyard", "wreckYard", "militaryDepot"],
+    "prisonCarPreferredAt": ["switchyard", "wreckYard", "militaryDepot"],
+    "shelterAlwaysAt": ["mineHead"],
+    // Not in D: with a spare siding, the chance a facility's Holdout is a prison car (preferred kinds, and elsewhere).
+    "prisonCarChance": { "preferred": 0.75, "other": 0.5 },
+    // Not in D: each type's footprint (half-width across, half-length along, height), which is also its interior: the
+    // sealed safe volume (D.4) and where a freed player stands up (D.8).
+    "size": {
+      "prisonCar": [1.5, 6, 3.6],
+      "barricadedShelter": [2, 2.5, 3],
+      "haltLockup": [1.5, 2, 2.6]
+    }
+  },
+
+  // D.4 "the second facility Holdout only activates when the session crew is 5 or more at assignment time". D.13: 4-6.
+  "secondCrew": 5,
+  // D.5 "release": the consist has left the site zone moving away and no living crew member is within this of the
+  // Holdout. D.13: 400 m, 250-600.
+  "releaseM": 400,
+
+  // D.7 Call Out: "any dead or lobbied player", while the Holdout is Occupied or Breaching and any living crew member is
+  // within the active radius (D.13: 200 m, 150-300); audible to this range with normal falloff and occlusion (60 m,
+  // 40-80); one cooldown shared by the Holdout's callers (7 s, 5-10).
+  "callOut": { "activeRadiusM": 200, "audibleM": 60, "cooldownSeconds": 7 },
+
+  // D.7 "breach": hold-to-interact by a living crew member. D.13's durations and loudness levels: smash 3 s at cannon
+  // level, pry 6 s at machinery level, the repair kit 6 s and silent. The levels are combat.json's crew loudness meter.
+  "breach": {
+    "smash": { "tool": "melee", "seconds": 3, "loudness": "cannon" },
+    "pry": { "tool": "melee", "seconds": 6, "loudness": "machinery" },
+    "open": { "tool": "repairKit", "seconds": 6, "loudness": "none" },
+    // Not in D: at the door means your hands within this of its middle (a headset's reaching hand, the same).
+    "reachM": 1.6
+  },
+  // D.4 types: how each is freed.
+  "methods": {
+    "prisonCar": ["smash", "open"],
+    "barricadedShelter": ["pry"],
+    "haltLockup": ["smash"]
+  },
+
+  // D.8 "the freed player": health (D.13: 80 of 100). Their kit is the standard kit every player departs the fortress
+  // with (train.json kit.standard).
+  "freedHealth": 80,
+
+  // D.9 "bodies as loot". Crew-loss fee: this share of the tier's per-car value (run.json economy.perCar), charged for
+  // every in-run death (D.13: 0.5). Body refund: this share of that death's fee for every body delivered (0.75; it must
+  // stay under 1.0 or death could be farmed). Solo remainer: exactly one living crew member climbs ladders carrying a
+  // body at this (0.4 m/s, 0.3-0.6).
+  "feeShare": 0.5,
+  "refundShare": 0.75,
+  "soloClimb": 0.4,
+
+  // D.11 creature vote: x1.2 spawn weight per vote, capped at x1.5 per creature, once per run per dead player.
+  // Not in D: votes compound (1.2, 1.44, then the cap), rather than add (1.2, 1.4, 1.5).
+  "vote": { "perVote": 1.2, "cap": 1.5, "perRun": 1 },
+
+  // D.12 commendations: one award per player per run, never to yourself, the starter set.
+  "commendations": {
+    "perPlayer": 1,
+    "awards": ["Came Back For Me", "Held the Switch", "Kept the Fire", "Brought Them Home", "Last One Standing"]
+  },
+
+  // D.4 "occupants are drawn from a survivor appearance pool: prisoners in penal greys with shackle scars, and wildlanders
+  // in patched furs and soot"; D.7 "holdout occupants are always adults. Every occupant voice set is an adult prisoner or
+  // wildlander, never a child". `HoldoutTuning.Validate` refuses a set that isn't marked adult. Each set's Call Out
+  // plays one of its sounds (content/audio/sounds): a shout, or a bout of banging.
+  "survivors": {
+    "appearances": [
+      { "id": "penalGreys", "kind": "prisoner" },
+      { "id": "shackleScars", "kind": "prisoner" },
+      { "id": "patchedFurs", "kind": "wildlander" },
+      { "id": "sootAndHides", "kind": "wildlander" }
+    ],
+    "voiceSets": [
+      { "id": "prisonerLow", "kind": "prisoner", "adult": true, "sounds": ["holdout-shout-low", "holdout-banging"] },
+      { "id": "prisonerRough", "kind": "prisoner", "adult": true, "sounds": ["holdout-shout-rough", "holdout-banging"] },
+      { "id": "wildlanderHoarse", "kind": "wildlander", "adult": true, "sounds": ["holdout-shout-hoarse", "holdout-banging"] }
+    ]
+  }
+}
