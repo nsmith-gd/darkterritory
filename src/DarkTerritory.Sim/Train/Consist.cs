@@ -13,6 +13,10 @@ public struct GunState
     public bool Jammed;
     /// <summary>Tick of the last round fired (for muzzle flash and sound on clients), 0 if never.</summary>
     public uint LastShotTick;
+    /// <summary>Reload steps still to do before it can fire (GDD v1.1 App. C.3: powder, ball, ram); 0 is loaded.</summary>
+    public int ReloadNeeded;
+    /// <summary>Seconds into the current reload step.</summary>
+    public double ReloadProgress;
 }
 
 /// <summary>
@@ -47,6 +51,11 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     public double CargoIntegrity { get; set; } = 1;
     /// <summary>One bit per door in <see cref="CarShape.Doors"/>: set is open. Doors start shut.</summary>
     public byte DoorsOpen { get; set; }
+    /// <summary>
+    /// The lamp inside the car (GDD v1.1 App. A.5): lit, the crew can see in there, and it's what the Fire Flies swarm to;
+    /// out, it's dark, and the Climbers and Followers like it that way. Lit at departure.
+    /// </summary>
+    public bool LampLit { get; set; } = true;
     public bool DoorOpen(int index) => (DoorsOpen & (1 << index)) != 0;
 
     /// <summary>

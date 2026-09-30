@@ -1620,6 +1620,28 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
     }
 
     /// <summary>
+    /// A derailing Switchman gripping its lever ahead (v1.1 App. A.8: "stop and club it"): down off the train, along the
+    /// ballast to it, and clubbed. Null once it's gone.
+    /// </summary>
+    public PlayerIntent? Club(in PlayerState self, World world, Enemies.Switchman sw)
+    {
+        var train = world.Train;
+        if (sw.Gone || sw.Branch < 0 || sw.Branch >= train.Line.Branches.Count)
+            return null;
+        if (self.Surface == Surface.Air)
+            return new PlayerIntent();
+        var branch = train.Line.Branches[sw.Branch];
+        if (self.Parent != PlayerState.World)
+            return GetDown(self, train, branch.Side);
+        Doing = "at the Switchman";
+        var at = sw.WorldPosition(train);
+        if ((at - PlayerMotor.WorldPosition(self, train)).Length <= 1.6)
+            return Heed.Strike(self, train, at, 1.6);
+        var stand = TrackPoint(train.Line, RailLine.MainPath, branch.Toe, branch.Side * StandOff);
+        return WalkTo(self, train.Line, RailLine.MainPath, stand, null).Step;
+    }
+
+    /// <summary>
     /// The driver on its own (<see cref="StopDriver.SetBackAlone"/>): down out of the cab, the switch set back, and back up
     /// into the cab. Null once it's back at the controls with the switch right.
     /// </summary>

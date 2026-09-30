@@ -66,7 +66,7 @@ public static class Guns
             return null;
         var vehicle = train.Vehicles[gunVehicle];
         ref var gun = ref vehicle.Gun;
-        if (gun.Jammed || gun.Ammo <= 0 || gun.Cooldown > 0)
+        if (gun.Jammed || gun.Ammo <= 0 || gun.Cooldown > 0 || gun.ReloadNeeded > 0)
             return null;
         if (train.BoilerTuning is not null && train.Boiler.Pressure < t.MinPressure)
             return null;
@@ -79,6 +79,9 @@ public static class Guns
         gun.Ammo--;
         gun.Cooldown = t.TicksPerRound;
         gun.LastShotTick = tick;
+        // The cannon's full manual reload before the next (GDD v1.1 App. C.3): powder, ball, ram.
+        gun.ReloadNeeded = gun.Ammo > 0 ? t.ReloadSteps : 0;
+        gun.ReloadProgress = 0;
         choir.RoundFired(ct);
 
         var muzzle = frame.ToWorld(mount.Position);
@@ -95,6 +98,31 @@ public static class Guns
             }
         }
         return new GunShot(gunVehicle, shooterId, muzzle, dir, best, hit, hit < 0 && blocked <= t.Range);
+    }
+
+    /// <summary>
+    /// The reload (GDD v1.1 App. C.3 "powder, ball, ram, fire"): Use held at a gun that's been fired works it, a step at a
+    /// time, each <see cref="GunTuning.ReloadStepSeconds"/>. Let go and the step starts again. Whoever's at the gun does it;
+    /// DESIGN-TODO (Part Eleven Q1): whether a reload needs two players, or is only slower alone.
+    /// </summary>
+    public static void Reload(in PlayerState s, in PlayerIntent intent, TrainOnLine train, GunTuning t, double dt)
+    {
+        if (MannedGun(s, train, t) is not { } gunVehicle)
+            return;
+        ref var gun = ref train.Vehicles[gunVehicle].Gun;
+        if (gun.ReloadNeeded <= 0)
+            return;
+        if (!intent.Has(PlayerButtons.Use))
+        {
+            gun.ReloadProgress = 0;
+            return;
+        }
+        gun.ReloadProgress += dt;
+        if (gun.ReloadProgress >= t.ReloadStepSeconds)
+        {
+            gun.ReloadProgress = 0;
+            gun.ReloadNeeded--;
+        }
     }
 
     /// <summary>Counts down every gun's cooldown. Once per tick.</summary>

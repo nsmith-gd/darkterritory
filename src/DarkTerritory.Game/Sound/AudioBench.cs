@@ -30,56 +30,47 @@ public static class AudioBench
     /// <summary>Each tell's band from spec A.4's collision table.</summary>
     public static readonly IReadOnlyDictionary<string, (double Low, double High)> TellBands = new Dictionary<string, (double, double)>
     {
+        // The v1.1 roster's tells (GDD v1.1 §21; systems spec A.4's allocation): each in a band of its own among the tells
+        // that can sound together, the bands the v1.0 roster freed reused where they fit.
         ["sleepers-writhe"] = (400, 2000),
         ["hound-howl"] = (500, 3000),
-        ["clinger-drill"] = (3000, 6000),
         ["dragger-scrape"] = (2000, 4000),
-        ["rattle"] = (2000, 5000),
-        ["deadman-click"] = (1000, 2000),
+        ["climber-scrabble"] = (2000, 5000),
+        ["tippy-tiptoe"] = (1000, 2000),
         ["stoker-hiss"] = (1000, 3000),
-        ["hollow-gutter"] = (100, 1000),
+        ["doll-giggle"] = (3000, 6000),
+        ["ribbit-swell"] = (100, 1000),
+        ["grumbler-gnaw"] = (1400, 2200),
         ["choir-voice"] = (300, 4000),
-        // The in-car incidents (after the playtest), up where nothing else is, or rhythmic where the bed isn't.
         ["car-fire"] = (6000, 9000),
-        ["gnawers"] = (9000, 12000),
-        ["load-creak"] = (1400, 2200),
-        ["long-whistle"] = (200, 800),
-        ["weight-scrape"] = (60, 300),
-        // The Drift (T63): above the Gnawers, the highest there is. A hiss the wind doesn't make, and a rhythm it doesn't have.
+        ["fireflies-buzz"] = (9000, 12000),
+        ["train-whistle"] = (200, 800),
+        ["hugger-grind"] = (60, 300),
+        // The marsh (the Drift, T63): the highest there is. A hiss the wind doesn't make, and a rhythm it doesn't have.
         ["drift-rustle"] = (12000, 15000),
     };
 
     /// <summary>
-    /// Who has to hear each tell for its counter to be possible: the cab brakes for Sleepers and feeds the fire
-    /// against the Hollow, the rear gun answers hounds, whoever's on that car prises off a Clinger, and the
-    /// Choir is everybody's business. <see cref="Staging.Threats"/> puts the Clinger on car 1, a Dragger under its other edge,
-    /// and the Rattle in the gap behind the middle car.
+    /// Who has to hear each tell for its counter to be possible, where <see cref="Staging.Threats"/> puts it: the cab brakes
+    /// for debris, fights the Stoker, and keeps the Track Doll off the controls; the rear answers hounds and the Car Hugger;
+    /// car 1 has the Dragger, the fire and the Grumbler on the ground beside it; car 2's roof has Tippy Toesie behind them,
+    /// Climbers at the gap behind it and Ribbits on the ground; the middle car has the Fire Flies. The whistle and the Choir
+    /// are everybody's business.
     /// </summary>
     public static bool MustHear(string sound, int listenerCar, int cars) => sound switch
     {
-        "sleepers-writhe" or "hollow-gutter" => listenerCar == 0,
-        // The engine's business: whoever's nearest the cab, which in the bench is the cab (T53).
-        "deadman-click" or "stoker-hiss" => listenerCar == 0,
-        "hound-howl" or "weight-scrape" => listenerCar == cars - 1,
-        // Whoever it's surging at: Staging has it coming for someone on car 1's roof.
-        "drift-rustle" => listenerCar == 1,
-        // Everyone hears it; the driver's the one it's for (the brake's in the cab).
-        "long-whistle" => listenerCar == 0,
-        // Trouble in a car: whoever's on it. Staging puts the fire in the first cargo car and the rest in the middle one.
-        "car-fire" => listenerCar == 1,
-        "load-creak" or "gnawers" => listenerCar == cars / 2,
-        "clinger-drill" => listenerCar == 1,
-        // The one it's reaching for is on that car's roof: they're who has to hear it.
-        "dragger-scrape" => listenerCar == 1,
-        // Whoever's about to cross that gap: the Rattle sits behind the middle car.
-        "rattle" => listenerCar == cars / 2,
+        "sleepers-writhe" or "stoker-hiss" or "doll-giggle" => listenerCar == 0,
+        "hound-howl" or "hugger-grind" => listenerCar == cars - 1,
+        "drift-rustle" or "car-fire" or "dragger-scrape" or "grumbler-gnaw" => listenerCar == 1,
+        "tippy-tiptoe" or "climber-scrabble" or "ribbit-swell" => listenerCar == 2,
+        "fireflies-buzz" => listenerCar == cars / 2,
         _ => true,
     };
 
     /// <summary>Renders the scenario from every listener that matters and reports each tell's worst case.</summary>
     public static AudioSweep Sweep(string content, string scenario = "chaos", int cars = 20, double speed = 22, double seconds = 6)
     {
-        int[] listeners = [0, 1, cars / 2, cars - 1];
+        int[] listeners = [0, 1, 2, cars / 2, cars - 1];
         var reports = listeners.Select(l => Render(content, scenario, cars, speed, l, seconds).Report).ToList();
         var audit = new List<TellAudit>();
         foreach (var sound in TellBands.Keys)
@@ -134,7 +125,8 @@ public static class AudioBench
                 }
                 if (tells)
                 {
-                    world.Choir = new ChoirState { Aggro = chaos ? combat.Choir.SwarmThreshold + 10 : combat.Choir.ApproachThreshold + 4, Floor = 0 };
+                    world.Choir = chaos ? new ChoirState { Present = true, Build = 1, Loudness = combat.Choir.MaxLoudness } : new ChoirState { Build = 0.6, Loudness = combat.Choir.Threshold };
+                    world.Whistled(1); // the Whistler at the cord (App. A.4), or someone on it
                     world.MirrorEnemies(Staging.Threats(train));
                 }
                 world.Step(controls);

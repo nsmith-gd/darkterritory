@@ -289,7 +289,7 @@ public sealed class Lineside
                         // Where along the line they stand: a car's −Z is its front.
                         double along = carFront - (s.Position.Z + train.Frames[v.Id].Shape.HalfLength);
                         if (along >= sign.Start && along <= sign.End)
-                            damage.Add(new DamageEvent(id, Tuning.StruckDamage, DeathCause.Struck));
+                            damage.Add(new DamageEvent(id, Tuning.StruckDamage, DeathCause.Struck, Lethal: true)); // the line itself, not an enemy (App. A.1)
                     }
                     else if (_thrown.Add((sign.Id, id)))
                     {

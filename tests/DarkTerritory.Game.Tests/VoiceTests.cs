@@ -50,18 +50,4 @@ public class VoiceTests
         Assert.True(rough.FramesHeard < rough.FramesSent);
         Assert.InRange(clean.NearDb - rough.NearDb, -1.5, 1.5);
     }
-
-    [Fact]
-    public void TheSootChildrensCallIsAsLoudFarAsNear()
-    {
-        // Spec A.5: their voice "plays at constant volume with no distance attenuation". A real voice 5 m off and 25 m
-        // off is tens of dB apart (above); theirs isn't.
-        var near = VoiceBench.Mimic(Content, distance: 5);
-        var far = VoiceBench.Mimic(Content, distance: 30);
-        Assert.True(near.Frames > 50, $"heard {near.Frames} frames");
-        Assert.True(near.MimicDb > -40, $"call at {near.MimicDb} dB");
-        Assert.InRange(far.MimicDb - near.MimicDb, -1.5, 1.5);
-        // And it isn't the crewmate's own voice arriving: they're out of earshot at the far end.
-        Assert.Equal(-180, near.NearDb);
-    }
 }

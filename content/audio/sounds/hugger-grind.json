@@ -1,6 +1,7 @@
-// Tell (tier 1), the Weight: "deep drag scrape", 60-300 Hz (spec A.4). Something heavy dragging along the ballast under
-// the rear coupling, grinding in slow uneven heaves the wheels never make: a low groaning rasp with a sub-bass tearing under
-// it, from the back of the train. Low, like the bed, so it's the heave and the tearing that tell it apart.
+// Tell (tier 1), the Car Hugger: "a heavy grinding from the rear" (GDD v1.1 App. A.3), 60-300 Hz (the band the Weight
+// held). Something clamped on the rear car and chewing its shell, in slow uneven heaves the wheels never make: a low
+// groaning rasp with a sub-bass tearing under it, from the back of the train. Low, like the bed, so it's the heave and the
+// tearing that tell it apart.
 {
   "tier": 1, "loop": true, "maxInstances": 1, "minDistance": 4, "maxDistance": 120, "gainDb": 10,
   "layers": [

@@ -41,8 +41,8 @@ public sealed class EditionTests : IDisposable
         Assert.True(edition.HasTier(RouteTier.Frontier));
         Assert.False(edition.HasTier(RouteTier.DeadLines));
         var roster = DataFile.Load<EnemyTuning>(Path.Combine(demo, EnemyTuning.File)).Director.Roster;
-        // One per pressure zone (the Choir, structural, is always about) and the trouble in the cars.
-        Assert.Equal(["sleepers", "cinderHounds", "clingers", "hollow", "carFire", "looseLoad", "gnawers"], roster);
+        // GDD v1.1 §21's five (the Choir runs underneath), and the hazards and fire.
+        Assert.Equal(["trackDoll", "carHugger", "whistler", "tippyToesie", "ribbits", "sleepers", "drift", "carFire"], roster);
         // The rest of enemies.json is the base game's, patched, not replaced.
         Assert.Equal(DataFile.Load<EnemyTuning>(Path.Combine(Content, EnemyTuning.File)).Director.PaceSeconds,
             DataFile.Load<EnemyTuning>(Path.Combine(demo, EnemyTuning.File)).Director.PaceSeconds);
@@ -75,7 +75,7 @@ public sealed class EditionTests : IDisposable
         for (int i = 0; i < 30; i++)
             m.Right();
         Assert.Contains(m.Items, i => i.Label == "CARS: 8");
-        int alone = m.Items.ToList().FindIndex(i => i.Label == "PLAY ALONE");
+        int alone = m.Items.ToList().FindIndex(i => i.Label == "PLAY");
         while (m.Selected != alone)
             m.Down();
         var night = Assert.IsType<Launch.Night>(m.Select());
