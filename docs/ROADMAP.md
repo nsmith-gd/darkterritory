@@ -127,6 +127,10 @@ M3 is done but for a test with eight people.
   - lamps down (L in the cab) and they lose track, but then the Sleepers only show close: the driver bot slows down in the dark;
   - `dt screenshot --threats` shows one.
 - **Contradiction seeding (T64, App. B.1):** the director weighs up whatever would make a pair from the conflict table with what's about (Lamplighters with Sleepers ahead, Clingers before a grade, the Deadman at a facility), more so past halfway on a run short of its pair. It saves up for the Gaunt so that it comes at all. The harness reports each night's pairs.
+- **The Passenger (T61, App. A.7):**
+  - boards at a facility stop on the Dead lines and beyond, wearing a crewmate's face, and goes about the train like one of them: the same job over and over, and never a word;
+  - the HUD's ABOARD count reads one too many; whoever's alone in a car for long enough with it is taken, and it wears their face after;
+  - two in a car keeps it off; face it and press Use to call it out, and it runs. Bots call it out when they're in a car with it.
 - **The Gaunt (T60, App. A.4):**
   - on the roofs at a stop or out of a tunnel: dead still while anyone's looking at it, and silent;
   - unwatched it comes along the roofs and takes whoever's nearest; watched for a minute without a break, it goes;

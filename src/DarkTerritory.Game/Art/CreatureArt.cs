@@ -512,6 +512,10 @@ public sealed class CreatureArt
                     return Draw(mesh, "husk", clip, t * speed, true, at, variant: 3, seed: 17, adjust: (_, l) => l with { Colour = l.Colour * 0.8f })
                         || Draw(mesh, "crew", clip, t * speed, true, at, variant: 3, seed: 17, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.28f, 0.26f, 0.25f) });
                 }
+            case EnemyKind.Passenger:
+                // One of the crew (App. A.7 BLEND): the crew figure in the look of whoever it copies (extra), walking its loop.
+                // In play it's drawn through the crew's own path (GreyboxScene.AsCrewmate), gait and all.
+                return Crewmate(mesh, model, phase == SpinePhase.Telegraph ? CrewPose.Walk : CrewPose.Idle, t, (int)Math.Round(extra));
             case EnemyKind.Gaunt:
                 {
                     // Too tall, too thin, standing on the roof (App. A.4): the Hollow's figure drawn out, and utterly still, a

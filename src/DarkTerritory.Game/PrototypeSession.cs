@@ -229,6 +229,9 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Stoker, SpinePhase.Punish) => "the boiler's at its limit",
         (EnemyKind.Stoker, SpinePhase.BreakOff) => "driven out of the firebox",
         // The Gaunt's telegraph is only that it's closer than it was: no cue for it here either (spec A.4: silent by design).
+        // The Passenger's telegraph is silence (App. A.7): it says nothing, and neither does this, until it's done.
+        (EnemyKind.Passenger, SpinePhase.Punish) => "someone alone in a car is gone. who's the one who came back?",
+        (EnemyKind.Passenger, SpinePhase.BreakOff) => "called out, it drops the face and runs",
         (EnemyKind.Gaunt, SpinePhase.Punish) => "someone on the roofs is gone",
         (EnemyKind.Gaunt, SpinePhase.BreakOff) => "the thing on the roofs is gone",
         (EnemyKind.Weight, SpinePhase.Telegraph) => "the train lurches and a deep scraping starts at the rear: cut the rear car or beat it off from the platform",

@@ -534,6 +534,10 @@ public sealed class World
             case EnemyKind.Gaunt when Gaunt.Perch(this) is { } perch:
                 _enemies.Add(Gaunt.OnRoof(_nextEnemyId++, Train, perch.Car, perch.Z));
                 break;
+            case EnemyKind.Passenger when Passenger.Boards(this) is { } boards && CrewThisTick.Where(c => c.State.Alive).Select(c => (int)c.Id).ToList() is { Count: > 0 } faces:
+                // Wearing one of the crew's faces: whose, the director's draw.
+                _enemies.Add(Passenger.Aboard(_nextEnemyId++, Train, boards, faces[(int)d.NextRange(0, faces.Count - 1e-9)]));
+                break;
             case EnemyKind.Weight when Weight.Spot(this, t.Weight) is { } lies:
                 _enemies.Add(Weight.Buried(_nextEnemyId++, lies, d.NextRange(0, 1) < 0.5 ? -1 : 1));
                 break;

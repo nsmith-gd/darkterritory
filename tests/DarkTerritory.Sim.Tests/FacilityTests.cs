@@ -17,7 +17,7 @@ public class FacilityTests
     internal static readonly FacilityTuning F = DataFile.Load<FacilityTuning>(Path.Combine(DataFile.FindContentRoot(), FacilityTuning.File));
 
     /// <summary>A route with a facility that has the module, and that facility.</summary>
-    static (Route.Route Route, RouteFeature Facility) With(ModuleKind module)
+    internal static (Route.Route Route, RouteFeature Facility) With(ModuleKind module)
     {
         foreach (var tier in new[] { RouteTier.Frontier, RouteTier.DeadLines, RouteTier.DeepTerritory, RouteTier.Local })
             for (ulong seed = 1; seed < 200; seed++)

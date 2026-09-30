@@ -1741,3 +1741,235 @@ public sealed class Gaunt(int id) : Enemy(id)
         Local = d <= step ? goal : Local + to * (step / d);
     }
 }
+
+/// <summary>
+/// THE PASSENGER · sight · corrupted human (App. A.7). Boards during a facility stop into a car's room, wearing a crewmate's
+/// face, and goes about the train like one of them: walking a car, stopping at the end over a job it never finishes, then
+/// the same again, then on to the next car. The telegraph is everything it doesn't do: it never speaks (it has no voice on
+/// any channel: nothing routes one for it), it repeats its loop, and there's one more of the crew than there should be.
+/// Someone alone in a car, it comes in, and after a few seconds with them still alone it takes them and wears their face
+/// instead. The counter is the crew's: a head count, and make everyone speak; once they know which it is, one of them faces
+/// it and calls it out (Use), and it runs. Once a run.
+/// </summary>
+/// <remarks><see cref="Enemy.Extra"/> is whose face it wears (a player id); <see cref="Enemy.Extra2"/> its facing (yaw in
+/// its car's frame). <see cref="Enemy.Local"/> is its feet, on the floor of the car's room.</remarks>
+public sealed class Passenger(int id) : Enemy(id)
+{
+    public override EnemyKind Kind => EnemyKind.Passenger;
+    public override PressureZone Zone => PressureZone.Interior;
+    public override Sense Sense => Sense.Sight;
+
+    /// <summary>The crewmate it looks like.</summary>
+    public int Looks => (int)Math.Round(Extra);
+
+    double _age, _rest, _stalk, _pause;
+    int _loops, _heading = 1, _victim = -1;
+    readonly HashSet<int> _calling = new();
+
+    /// <summary>In a car's room, looking like <paramref name="looks"/>.</summary>
+    public static Passenger Aboard(int id, TrainOnLine train, int car, int looks)
+    {
+        var room = train.Frames[car].Shape.Interior!.Value;
+        return new Passenger(id) { Attached = car, Local = room.Centre with { Y = room.Min.Y }, Extra = looks };
+    }
+
+    /// <summary>
+    /// The car it gets into (App. A.7 "unnoticed"): the rearmost car of the engine's rake with a room and nobody in it, or
+    /// failing that the rearmost with a room at all.
+    /// </summary>
+    public static int? Boards(World world)
+    {
+        var train = world.Train;
+        var rake = train.Dynamics.Consist.Vehicles;
+        int? any = null;
+        for (int i = rake.Count - 1; i >= 1; i--)
+        {
+            int car = rake[i].Id;
+            if (train.Frames[car].Shape.Interior is null)
+                continue;
+            any ??= car;
+            if (!world.CrewThisTick.Any(c => c.State.Alive && c.State.Parent == car && PlayerMotor.Indoors(c.State, train)))
+                return car;
+        }
+        return any;
+    }
+
+    /// <summary>Whoever's alone in a car's room (not the cab), and which car: nobody else living in there with them.</summary>
+    static List<(int Player, int Car)> Alone(EnemyContext ctx)
+    {
+        var train = ctx.Train;
+        int engine = train.Dynamics.Consist.Vehicles[0].Id;
+        var inside = ctx.Crew.Where(c => c.Player.State.Alive && c.Player.State.Parent != engine && c.Player.State.Parent < train.Frames.Count
+                && PlayerMotor.Indoors(c.Player.State, train) && !PlayerMotor.InCab(c.Player.State, train))
+            .Select(c => (Player: (int)c.Player.Id, Car: c.Player.State.Parent)).ToList();
+        return inside.Where(p => inside.Count(o => o.Car == p.Car) == 1).ToList();
+    }
+
+    /// <summary>The cars with a room in them along its rake, in order.</summary>
+    static List<int> Rooms(TrainOnLine train, int car) =>
+        train.RakeOf(car).Consist.Vehicles.Where(v => v.Id != train.Dynamics.Consist.Vehicles[0].Id && train.Frames[v.Id].Shape.Interior is not null)
+            .Select(v => v.Id).ToList();
+
+    protected override void Tick(EnemyContext ctx)
+    {
+        var t = ctx.Tuning.Passenger;
+        var train = ctx.Train;
+        double dt = SimConstants.TickSeconds;
+        _age += dt;
+        // Its car wrecked or gone from the train (cut and left behind), or it's been about long enough: it's gone.
+        if (Attached < 0 || Attached >= train.Frames.Count || !train.Rakes.Any(r => r.Consist.IndexOf(Attached) >= 0) || _age >= t.LingerSeconds)
+        {
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        switch (Phase)
+        {
+            case SpinePhase.Dormant:
+                Enter(ctx, SpinePhase.Telegraph); // aboard, and one too many
+                break;
+            case SpinePhase.Telegraph:
+                {
+                    if (CalledOut(ctx, t))
+                    {
+                        Enter(ctx, SpinePhase.BreakOff);
+                        Enter(ctx, SpinePhase.Gone);
+                        break;
+                    }
+                    _rest += dt;
+                    var alone = _rest >= t.RestSeconds ? Alone(ctx) : [];
+                    // Someone alone: the one it's after already if they still are, else whoever's nearest along the rake.
+                    var rooms = Rooms(train, Attached);
+                    int mine = rooms.IndexOf(Attached);
+                    var reachable = alone.Where(a => rooms.Contains(a.Car)).ToList();
+                    if (reachable.Count == 0)
+                    {
+                        _victim = -1;
+                        _stalk = 0;
+                        Loop(train, t, rooms, dt);
+                        break;
+                    }
+                    var prey = reachable.FirstOrDefault(a => a.Player == _victim);
+                    if (prey == default)
+                    {
+                        prey = reachable.OrderBy(a => Math.Abs(rooms.IndexOf(a.Car) - mine)).ThenBy(a => a.Player).First();
+                        _stalk = 0;
+                    }
+                    _victim = prey.Player;
+                    var victim = ctx.Crew.First(c => c.Player.Id == prey.Player).Player.State;
+                    if (prey.Car != Attached)
+                    {
+                        _stalk = 0;
+                        Walk(train, t, rooms, rooms.IndexOf(prey.Car) > mine ? 1 : -1, dt);
+                        break;
+                    }
+                    // In with them. Unhurried: a crewmate come to help.
+                    _stalk += dt;
+                    var to = victim.Position with { Y = Local.Y } - Local;
+                    if (to.Length > t.Reach * 0.8)
+                        Step(to, t.WalkSpeed * dt);
+                    else if (_stalk >= t.StalkSeconds && Enter(ctx, SpinePhase.Commit) && Enter(ctx, SpinePhase.Punish))
+                    {
+                        // It takes them, and it's them now.
+                        ctx.Bite(prey.Player, t.StrikeDamage, DeathCause.Replaced);
+                        Extra = prey.Player;
+                        _rest = 0;
+                        _stalk = 0;
+                        _victim = -1;
+                        Enter(ctx, SpinePhase.Dormant);
+                    }
+                    break;
+                }
+            default:
+                Enter(ctx, SpinePhase.Gone);
+                break;
+        }
+    }
+
+    /// <summary>Faced and called out: someone in its car, close, looking right at it, pressing Use (once a press).</summary>
+    bool CalledOut(EnemyContext ctx, PassengerTuning t)
+    {
+        var train = ctx.Train;
+        var at = WorldPosition(train) + Double3.Up * 1.2;
+        double cos = Math.Cos(t.ChallengeHalfAngleDegrees * Math.PI / 180);
+        bool called = false;
+        foreach (var (player, intent) in ctx.Crew)
+        {
+            var s = player.State;
+            bool facing = false;
+            if (s.Alive && s.Parent == Attached && intent.Has(PlayerButtons.Use))
+            {
+                var eye = PlayerMotor.WorldPosition(s, train) + Double3.Up * ctx.Tuning.Gaunt.EyeHeight;
+                var to = at - eye;
+                double d = to.Length;
+                var look = train.Frames[s.Parent].DirToWorld(Combat.Guns.AimLocal(s));
+                facing = d <= t.ChallengeReach && (d < 1e-6 || Double3.Dot(look.Normalized, to * (1 / d)) >= cos);
+            }
+            if (facing && _calling.Add(player.Id))
+                called = true;
+            else if (!facing)
+                _calling.Remove(player.Id);
+        }
+        return called;
+    }
+
+    /// <summary>The task loop: end to end of the car, a stop at each end, and after a few rounds the next car.</summary>
+    void Loop(TrainOnLine train, PassengerTuning t, List<int> rooms, double dt)
+    {
+        if (_pause > 0)
+        {
+            _pause -= dt;
+            return;
+        }
+        var room = train.Frames[Attached].Shape.Interior!.Value;
+        double end = _heading > 0 ? room.Max.Z - 0.6 : room.Min.Z + 0.6;
+        var goal = new Double3(room.Centre.X, room.Min.Y, end);
+        var to = goal - Local;
+        if (to.Length > 1e-3)
+        {
+            Step(to, t.WalkSpeed * dt);
+            return;
+        }
+        // At the end: a job it starts and never finishes, then back the other way. Every so many rounds, on to the next car.
+        _pause = t.TaskSeconds;
+        _heading = -_heading;
+        if (_heading > 0 && ++_loops >= t.LoopsPerCar && rooms.Count > 1)
+        {
+            _loops = 0;
+            int i = rooms.IndexOf(Attached);
+            int next = i + 1 < rooms.Count ? i + 1 : i - 1;
+            Move(train, rooms[next], toward: next > i ? 1 : -1);
+        }
+    }
+
+    /// <summary>Along the rake toward someone: to the end of its car nearest them, then into the next room.</summary>
+    void Walk(TrainOnLine train, PassengerTuning t, List<int> rooms, int direction, double dt)
+    {
+        _pause = 0;
+        // Along the consist, a car further on (higher index) is behind: its car's +Z end.
+        var room = train.Frames[Attached].Shape.Interior!.Value;
+        double end = direction > 0 ? room.Max.Z - 0.3 : room.Min.Z + 0.3;
+        var to = new Double3(room.Centre.X, room.Min.Y, end) - Local;
+        if (to.Length > t.WalkSpeed * dt)
+        {
+            Step(to, t.WalkSpeed * dt);
+            return;
+        }
+        int i = rooms.IndexOf(Attached) + direction;
+        if (i >= 0 && i < rooms.Count)
+            Move(train, rooms[i], direction);
+    }
+
+    void Move(TrainOnLine train, int car, int toward)
+    {
+        var room = train.Frames[car].Shape.Interior!.Value;
+        Attached = car;
+        Local = new Double3(room.Centre.X, room.Min.Y, toward > 0 ? room.Min.Z + 0.3 : room.Max.Z - 0.3);
+    }
+
+    void Step(Double3 to, double step)
+    {
+        double d = to.Length;
+        Extra2 = Math.Atan2(-to.X, -to.Z);
+        Local = d <= step ? Local + to : Local + to * (step / d);
+    }
+}

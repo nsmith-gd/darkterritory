@@ -1506,3 +1506,34 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Score:** mean net a night 803 (crew of 2), 497 (4), 482 (5), 783 (8); mail about a third of the gross. Cargo delivered 0.85–1.3 carloads a night (1.6–2 before): the trouble eats cargo.
     - **Bugs it found, fixed:** a gunner left on the ballast after a stop never got back aboard (it only borrowed the walker's legs on a car); a dead gunner stopped reporting to the crew calls, so the driver held at the next switch all night for it; a walker on the last car with the car ahead troubled had no way in for a tunnel. `StopCrewTests.AGunnerLeftOnTheBallast…`, `LinesideTests.AWalkerOnTheLastCar…`.
     - **Open:** a facility stop takes a bot crew 12–15 minutes (not counted in the pace, which is out on the line), and contract pay may want raising now the trouble eats cargo.
+75. **The Passenger (T61, App. A.7 and B.7; GDD: "the tell is silence on a voice channel, in a game entirely about talking").** `EnemyKind.Passenger`, cost 5 (tier 5, as the Gaunt), tuned in `enemies.json` `passenger`.
+    - **BOARD / BLEND:** into a car's room at a facility stop: the rearmost room of the engine's rake with nobody in it. It wears a living crewmate's face (the director's draw), replicated as `Extra`. Clients draw it through the crew's own path (`GreyboxScene.AsCrewmate`, `Crewmate.Looks`), the same cap, coat, mask and gait's beat as the one it copies.
+    - **IDLE (the telegraph):**
+      - It walks its car end to end at 1.3 m/s and stands 6 s at each end over a job it never finishes. After two rounds it goes on to the next room, bouncing at the rake's ends.
+      - It has no voice: nothing routes one for it, and `VoiceMemory` has nothing of it to replay. The crew figures have masks now (no lips to read), so voice is the only way to tell.
+      - **Ambiguity: "appears on the roster · crew count reads one too many".** There's no roster UI yet. The HUD's `N ABOARD` counts the figures (the connected crew plus any Passenger), so it reads one too many. A roster screen should list it under the face it wears.
+    - **ISOLATE / STRIKE:**
+      - **Ambiguity: "waits for a player alone in a car".** Read as: a living player in a car's room (not the cab), with nobody else living in there. After 30 s aboard (and 30 s after each strike), it walks car to car to the nearest such player.
+      - In their car, with them still alone for 4 s, and within 1.2 m, it takes them (100, `DeathCause.Replaced`) and wears their face from then on.
+      - Anyone else coming in resets the 4 s: two in a car is the counter's cheap half.
+      - It's gone when its car leaves the train, or after 1500 s about.
+    - **Ambiguity: the COUNTER's last step.** "Head count, and make everyone speak" is the crew's: it's how they find out which one it is. Once they know, someone in its car faces it (inside 25° of their look, within 2.5 m) and presses Use, and, called out, it runs (BreakOff, gone). Use on a real crewmate does nothing.
+    - **Director gates** (B.7):
+      - Dead lines and beyond, a crew of three or more, once per run;
+      - at a facility stop, with a room to get into;
+      - never with another corrupted human about: the Switchman's gate now also waits on the Passenger (B.7's "maximum one active at a time");
+      - ×2 when the living crew is spread over three or more places (the ground, the cab, each car's room): "separated across multiple facility tasks".
+      - `saveFor` keeps its price back from 20% in while a facility is still to come.
+      - The comet cargo's "gates relaxed by one tier" waits for cargo types in the director (as for the Gaunt).
+    - **Bots:** `Heed.Passengers` (applied to every harness bot, as `Heed.Rattles` is). A bot in a room with it, within reach, turns to face it and calls it out. Its world says what the Passenger is; that stands in for the head count.
+    - **Found on the way: clients had no enemy tuning.** Neither a joiner's world nor a harness client's ever called `EnableEnemies`: they mirrored the enemies without their tuning. So `world.Enemies` was null on every client. The bots' counters that read it (the roof walker watching the Gaunt, `Heed.Passengers`) never ran outside the unit tests. The Weight's drag factor was 0 in a client's prediction (T59's "on the clients too" held only in `WeightTests`, which enable it by hand). `SessionSetup.Build` and the harness now give client worlds the tuning, with authority off, so there's no director and nothing spawns.
+    - **Art:** the crew figure in the copied look. It's staged on car 2's roof among the three crewmates for the `--threats --crew` roof shot (in play it's only ever in the rooms, which no view looks into).
+    - **Verified:** `PassengerTests` (8):
+      - with nobody alone, it loops car to car and hurts nobody;
+      - someone alone is taken after the rest and the stalk, and it wears their face after;
+      - someone coming in first saves them;
+      - facing it and pressing Use calls it out (and looking away doesn't);
+      - a bot alone with it calls it out before it strikes;
+      - it has no voice;
+      - the director puts it aboard at a stop on the Dead lines to a crew of three, and not on the Frontier, to two, or between stops;
+      - a client sees whose face it wears and where it is.

@@ -154,7 +154,13 @@ public sealed class GreyboxScene
         mesh.Seed = 0;
         if (Enemies is not null)
             foreach (var e in Enemies)
-                if (!e.Gone)
+                if (e is Sim.Enemies.Passenger passenger)
+                {
+                    // One of the crew, to look at (App. A.7 BLEND): drawn exactly as they are, their face and all.
+                    if (!e.Gone && AsCrewmate(passenger, frames) is { } double_ && Look?.Art.Crewmate(mesh, double_, eye, Time) != true)
+                        DrawCrewmate(mesh, double_, eye);
+                }
+                else if (!e.Gone)
                     DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures);
         if (Bodies is not null)
         {
@@ -168,6 +174,19 @@ public sealed class GreyboxScene
             foreach (var c in Crew)
                 if (c.Alive && Look?.Art.Crewmate(mesh, c, eye, Time) != true) // the dead are drawn as their bodies
                     DrawCrewmate(mesh, c, eye);
+    }
+
+    /// <summary>
+    /// The Passenger as the crewmate whose face it wears: their look, walking as they would. Its id is theirs offset by 200,
+    /// so the gait each figure is smoothed by is its own and not the one it copies.
+    /// </summary>
+    public static Crewmate? AsCrewmate(Sim.Enemies.Passenger p, IReadOnlyList<CarFrame> frames)
+    {
+        if (p.Attached < 0 || p.Attached >= frames.Count)
+            return null;
+        var frame = frames[p.Attached];
+        var forward = frame.DirToWorld(new Double3(-Math.Sin(p.Extra2), 0, -Math.Cos(p.Extra2)));
+        return new Crewmate((byte)(200 + p.Looks), frame.ToWorld(p.Local), Math.Atan2(-forward.X, -forward.Z), true, Looks: p.Looks);
     }
 
     static Double3? BodyWorld(Sim.Physics.Body b, IReadOnlyList<CarFrame> frames, Double3 local) =>

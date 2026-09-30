@@ -131,6 +131,10 @@ public static class Harness
             var session = new ClientSession(transport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
             if (o.Vigil is { } v)
                 session.World.EnableVigil(v);
+            // The enemies' tuning, as a joiner loads it: prediction drags with the Weight as the host does (T59), and the bots
+            // read their counters from it (the Gaunt's view, the Passenger's reach).
+            if (o.Enemies is { } cet)
+                session.World.EnableEnemies(cet, o.Route, (ulong)o.Seed, o.Bots, authority: false);
             // Clients see the night as players do: the phase, and each site's winch (mirrored from the host).
             if (o.Run is { } crt && o.Route is { } croute)
                 session.World.EnableRun(crt, croute, o.YardLength, authority: false, o.Facilities);
@@ -195,6 +199,7 @@ public static class Harness
                         part.PlayerId = session.PlayerId;
                     intent = bot is IWorldBot wb ? wb.Decide(session.Predicted, session.World, t, out _) : bot.Decide(session.Predicted, session.Train, t);
                     intent = Heed.Rattles(intent, session.Predicted, session.World, playerTuning);
+                    intent = Heed.Passengers(intent, session.Predicted, session.World);
                 }
                 session.Step(intent);
             }

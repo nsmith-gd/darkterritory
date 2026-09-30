@@ -75,6 +75,7 @@ public sealed class Director
         EnemyKind.Climber => "climbers",
         EnemyKind.Weight => "weight",
         EnemyKind.Gaunt => "gaunt",
+        EnemyKind.Passenger => "passenger",
         _ => "sleepers",
     };
 
@@ -140,6 +141,9 @@ public sealed class Director
             bool possible = name switch
             {
                 "gaunt" => _route.Tier >= RouteTier.Frontier && Crew >= et.Gaunt.MinCrew,
+                // Only at a stop: while there's a facility still to come.
+                "passenger" => _route.Tier >= RouteTier.DeadLines && Crew >= et.Passenger.MinCrew
+                    && _route.Of(FeatureKind.Facility).Any(f => f.End >= distance),
                 _ => false,
             };
             if (possible)
@@ -216,7 +220,7 @@ public sealed class Director
         // An alternate is two junctions of the network, where it leaves and where it rejoins (linegen plan §3.2's count).
         if (_route is { } r && r.Tier >= RouteTier.Frontier && world.Enemies is { } et
             && r.Branches.Sum(b => b.Kind switch { Rail.BranchKind.DeadLine => 1, Rail.BranchKind.Alternate => 2, _ => 0 }) >= et.Switchman.MinJunctions
-            && !active.Any(e => !e.Gone && e.Kind == EnemyKind.Switchman) && Zone(PressureZone.Forward) < _t.MaxConcurrentZone
+            && !active.Any(e => !e.Gone && e.Kind is EnemyKind.Switchman or EnemyKind.Passenger) && Zone(PressureZone.Forward) < _t.MaxConcurrentZone
             && Switchman.Junction(world, et.Switchman) is not null)
             options.Add((EnemyKind.Switchman, 1));
         // App. B.6: Soot Children near facilities, never for a solo player, and only after someone's spoken lately (there
@@ -238,6 +242,18 @@ public sealed class Director
             && Zone(PressureZone.Flank) < _t.MaxConcurrentZone && !Log.Any(l => l.Kind == EnemyKind.Gaunt) && train.Dynamics.Consist.CarCount >= 1
             && (train.Dynamics.Speed < at.Gaunt.StoppedBelow || gr.Of(FeatureKind.Tunnel).Any(f => s >= f.End && s <= f.End + at.Gaunt.TunnelExitWithin)))
             options.Add((EnemyKind.Gaunt, _allInside >= at.Gaunt.InteriorSeconds ? at.Gaunt.InteriorWeight : 1));
+        // App. B.7: the Passenger boards during a facility stop, Dead lines and beyond, crew of three or more ("needs a crowd
+        // to hide in"), once a run, into a car with a room; never with another corrupted human about. Weight up when the
+        // crew's split up over the stop's work.
+        if (_route is { } qr && qr.Tier >= RouteTier.DeadLines && world.Enemies is { } qt && Crew >= qt.Passenger.MinCrew
+            && world.Run is { Phase: Run.RunPhase.AtFacility } && !Log.Any(l => l.Kind == EnemyKind.Passenger)
+            && !active.Any(e => !e.Gone && e.Kind is EnemyKind.Switchman or EnemyKind.Passenger) && Zone(PressureZone.Interior) < _t.MaxConcurrentZone
+            && world.CrewThisTick.Any(c => c.State.Alive) && Passenger.Boards(world) is not null)
+        {
+            int places = world.CrewThisTick.Where(c => c.State.Alive).Select(c => PlayerMotor.Indoors(c.State, train) ? c.State.Parent : PlayerMotor.Outside)
+                .Distinct().Count();
+            options.Add((EnemyKind.Passenger, places >= qt.Passenger.SplitPlaces ? qt.Passenger.SplitWeight : 1));
+        }
         // App. B.4: Draggers under a train of two or more, woken by someone on the roofs. Weight up per roof walker.
         int onRoofs = world.CrewThisTick.Count(c => c.State is { Alive: true, Surface: Surface.Roof } r && r.Parent > 0);
         if (world.Enemies is { } dt && onRoofs > 0 && train.Dynamics.Consist.CarCount >= dt.Draggers.MinCars && Zone(PressureZone.Flank) < _t.MaxConcurrentZone
