@@ -1693,3 +1693,21 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The Ferryman's straight.** With the night paced differently, frontier:7 got a Ferryman short of a stretch the line's authority slowed. The driver braked for it, as bound to; it boarded and took the conductor, and the Deadman ran the train back down the line.
       - "Do not slow down" has to be the crew's choice. `Ferryman.ClearAhead` also wants nothing posted, and no authority, under the train's speed over its approach (`LineAuthority.Lowest`).
       - `FerrymanTests` has a weak bridge's board, and the same line without it.
+86. **The frame-rate targets (the director: "the game must run 72fps in VR minimum and 90fps on PC").** Not in the GDD or the spec. They and the budgets that keep them are in `tuning/perf.json`:
+    - **The targets.** A flat screen draws 720p at 90 fps, which is 11.1 ms a frame. A headset draws two eyes at half the runtime's recommended size (a Quest 3's 2064x2208 halved) at 72 fps, 13.9 ms. The desktop window mirrors the flat view as well.
+    - **The budgets.** The main thread's drawing work may take `cpuShare` (0.6) of a frame: the scene built, uploaded and recorded. At most `maxFrameTriangles` (1.5 M) are drawn over every pass, and at most `maxPassDraws` (1500) draws go in any one pass.
+    - **`dt perf` measures it.** It runs each standard view, with the crew on the roof and the threats about, for a run of frames, flat and as a headset draws it. It reports:
+      - the build, upload and record times, on the machine's CPU;
+      - each pass's GPU time, from timestamps (`GreyboxRenderer.PassTimes`);
+      - the triangles and draws in each pass (`FrameStats`);
+      - the build broken down by part (`GreyboxScene.Timings`).
+    - **What lavapipe can say.** Lavapipe's pass times are CPU rasterisation: they rank the passes, not a GPU's milliseconds. The counts and the CPU times hold anywhere, and the cloud's 2.1 GHz Xeon is slower than any desktop the game ships to.
+    - **Measured (30 Sep, before any fixes).** Neither target is met on the CPU side:
+      - **CPU.** Building a view takes about 23 ms against a 6.7 ms budget. 21 ms of it is skinning the enemies on the CPU (116k triangles into the frame's soup, remade every frame). Uploading the soup takes 5 ms per renderer, three times in a headset (two eyes and the mirror).
+      - **Triangles.** A flat frame draws about 1 M triangles: everything goes into both shadow maps as well as the scene, with no culling. A headset frame draws 3 M, twice the budget: each eye draws its own shadow maps.
+      - **Serial frames.** Every submit waits for the GPU to finish (`GpuContext.Submit`), so a frame costs its CPU time *plus* its GPU time, not the larger of the two.
+    - **The order of the fixes.**
+      1. Skinning on the GPU: bind poses uploaded once, bone palettes per frame.
+      2. Kit meshes in device-local memory.
+      3. The eyes sharing one set of shadow maps, and frustum culling for every pass.
+      4. Frames in flight, so the CPU builds the next frame while the GPU draws this one.

@@ -51,6 +51,8 @@ return args switch
     ["line", "drive", var name, ..] => Print(Drive(train, LoadLine(name), (int)Opt(args, "--cars", 3), Opt(args, "--start", -1), Opt(args, "--from", 0), Opt(args, "--throttle", 1), (int)Opt(args, "--seconds", 120))),
     ["art", "check", ..] => ArtCheck(train, content, args),
     ["art", "show", var piece, ..] => Print(ArtShow(train, content, piece, args)),
+    // dt perf: a frame's cost against the frame-rate targets (tuning/perf.json), flat and in a headset.
+    ["perf", ..] => Print(PerfCommands.Run(train, content, args)),
     ["screenshot", ..] when args.Contains("--hud") => Print(HudShot(content, args)),
     ["screenshot", ..] when args.Contains("--menu") => Print(MenuShot(train, content, args)),
     ["screenshot", ..] => Print(Screenshot(train, content, args)),
