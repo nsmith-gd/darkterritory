@@ -439,6 +439,30 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         };
     }
 
+    public IReadOnlyList<RosterLine> Roster()
+    {
+        var remotes = new List<(byte, PlayerState)>();
+        foreach (byte id in Client.RemoteIds)
+            if (Client.TryGetRemote(id, 1, out var s))
+                remotes.Add((id, s));
+        return RosterOf((byte)(Client.PlayerId ?? 0), Player, remotes, World);
+    }
+
+    /// <summary>
+    /// The roster's lines: you, the rest of the crew, and (App. A.7 "appears on the roster") any Passenger under the face it
+    /// wears, where it is: one line too many, beside the real one. In player-id order.
+    /// </summary>
+    public static IReadOnlyList<RosterLine> RosterOf(byte me, in PlayerState mine, IEnumerable<(byte Id, PlayerState State)> crew, World world)
+    {
+        var train = world.Train;
+        var lines = new List<RosterLine> { new(me, "YOU", PrototypeSession.Where(mine, train), mine.Alive, You: true) };
+        foreach (var (id, s) in crew)
+            lines.Add(new RosterLine(id, $"CREW {id}", s.Alive ? PrototypeSession.Where(s, train) : "DEAD", s.Alive));
+        foreach (var p in world.ActiveEnemies.OfType<Sim.Enemies.Passenger>())
+            lines.Add(new RosterLine((byte)p.Looks, $"CREW {p.Looks}", $"inside car {p.Attached}, shut in", true, Voiced: false));
+        return [.. lines.OrderBy(l => l.Id)];
+    }
+
     /// <summary>
     /// Everyone aboard, by the figures: the crew, and anything wearing one of their faces (App. A.7's tell, "crew count reads
     /// one too many").

@@ -60,6 +60,33 @@ public static class Hud
         }
     }
 
+    /// <summary>
+    /// The crew roster (T69, held Q): everyone aboard by the figures, where each is, and when each was last heard. A crew
+    /// counts heads and makes everyone speak by it (App. A.7): the Passenger is on it under the face it wears, one line too
+    /// many, and never heard. <paramref name="heard"/>: seconds since a crewmate's voice last came in, null for never.
+    /// </summary>
+    public static void Roster(Overlay o, int width, int height, IReadOnlyList<RosterLine> lines, Func<byte, double?>? heard)
+    {
+        int line = o.Font.LineHeight;
+        float w = 260, h = (lines.Count + 2) * line + 8;
+        float x = MathF.Round((width - w) / 2), y = MathF.Round(height * 0.2f);
+        o.Rect(x, y, w, h, Panel);
+        o.Text(x + 6, y + 4, $"{lines.Count} ABOARD", Ink);
+        y += 4 + 2 * line;
+        foreach (var l in lines)
+        {
+            o.Text(x + 6, y, l.Name, l.Alive ? Ink : Dim);
+            o.Text(x + 70, y, l.Where.ToUpperInvariant(), Dim);
+            var (said, colour) = l.You ? ("", Dim)
+                : !l.Alive ? ("", Dim)
+                : (l.Voiced ? heard?.Invoke(l.Id) : null) is not { } ago ? ("NOT HEARD", Amber)
+                : ago < 2 ? ("SPEAKING", Green)
+                : ($"HEARD {ago:0}S AGO", Dim);
+            o.TextRight(x + w - 6, y, said, colour);
+            y += line;
+        }
+    }
+
     static void Engine(Overlay o, IPlaySession s, int line)
     {
         var train = s.Train;

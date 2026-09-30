@@ -48,9 +48,17 @@ public sealed class VoiceChat
         public readonly StreamBuffer Near = new(), Radio = new(), Dead = new(), Mimic = new();
         public SoundInstance? NearVoice, RadioVoice, DeadVoice, MimicVoice;
         public double RadioKeyed;
+        public double LastHeard = double.NegativeInfinity;
     }
 
     public IEnumerable<byte> Speakers => _speakers.Keys;
+
+    /// <summary>
+    /// Seconds since a crewmate was last heard (near or on the radio), or null if never: the roster's speaking marks, which
+    /// is how a crew makes everyone speak and sees who didn't (App. A.7).
+    /// </summary>
+    public double? SinceHeard(byte speaker) =>
+        _speakers.TryGetValue(speaker, out var s) && !double.IsNegativeInfinity(s.LastHeard) ? _clock - s.LastHeard : null;
     public int Underruns(byte speaker) => _speakers.TryGetValue(speaker, out var s) ? s.Near.Underruns : 0;
 
     /// <summary>Microphone samples (mono, 48 kHz), any amount; sends whole frames as they fill.</summary>
@@ -93,6 +101,7 @@ public sealed class VoiceChat
             if (!_speakers.TryGetValue(f.Speaker, out var s))
                 _speakers[f.Speaker] = s = new Speaker(f.Speaker);
             s.Order.Push(f.Sequence, f, _clock);
+            s.LastHeard = _clock;
         }
         foreach (var s in _speakers.Values)
             s.Order.Drain(_clock, (_, f) => Decode(s, f));
