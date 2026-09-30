@@ -26,7 +26,7 @@ using DarkTerritory.Sim.Train;
 //   R/F throttle notch up/down · B brake (hold) · X reverser (stopped only)
 //   E at the firebox: shovel (hold) · E at the valve: vent (hold) · E on a coupler plate: cut (hold) · E at a switch stand: throw it (hold)
 //   Left mouse at a gun (engine cab roof, guard car roof): fire · E (press) near a crate, lamp or body: pick up / put down · Right mouse: throw it
-//   1–9 respawn on that car's roof · Backspace respawn in the cab · Tab chase camera
+//   1–9 respawn on that car's roof · Backspace respawn in the cab · Tab chase camera · Q (hold) the crew roster
 //   Esc frees the mouse; Esc again leaves the night (to the menu, or quits one started from the command line). When the
 //   night's over, Enter goes back.
 // F1 toggles the HUD (--no-hud to start without it).
@@ -555,6 +555,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (showHud)
         {
             Hud.Build(overlay, UiWidth, UiHeight, session);
+            // Q held: the crew roster (T69), with who's been heard.
+            if (input.Down(Key.Q))
+                Hud.Roster(overlay, UiWidth, UiHeight, session.Roster(), voice is null ? null : voice.SinceHeard);
             if (session.Route?.Plan is { } shown)
             {
                 if (cardPage >= 0)

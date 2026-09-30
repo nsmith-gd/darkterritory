@@ -15,6 +15,13 @@ public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool A
     public int Variant => Looks ?? Id;
 }
 
+/// <summary>
+/// A line of the crew roster (T69): who, where, and whether they're alive. <paramref name="Id"/> is the player id the line
+/// is for; a Passenger's line has the id of the face it wears (App. A.7 "appears on the roster"), so it sits beside theirs,
+/// and it is not <paramref name="Voiced"/>: the voice heard under that id is the real crewmate's, never the thing's.
+/// </summary>
+public readonly record struct RosterLine(byte Id, string Name, string Where, bool Alive, bool You = false, bool Voiced = true);
+
 /// <summary>What the app plays: the single-player prototype, or a networked session (host or client).</summary>
 public interface IPlaySession
 {
@@ -35,6 +42,8 @@ public interface IPlaySession
     int PlayerId => 1;
     /// <summary>The network, for the HUD; null playing alone.</summary>
     LinkInfo? Link => null;
+    /// <summary>The crew roster (T69), in player-id order: everyone aboard by the figures, a Passenger among them.</summary>
+    IReadOnlyList<RosterLine> Roster() => [new RosterLine((byte)PlayerId, "YOU", PrototypeSession.Where(Player, Train), Player.Alive, You: true)];
 }
 
 /// <summary>What the HUD shows about the connection (spec E: ping to host "shown prominently", non-optional).</summary>

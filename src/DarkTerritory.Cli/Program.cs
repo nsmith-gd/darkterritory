@@ -937,6 +937,12 @@ static object HudShot(string content, string[] args)
     }
     var hud = new Overlay();
     Hud.Build(hud, width, height, session);
+    // --roster: the crew roster (T69) as Q shows it, with a staged crew: two heard, one not yet, and a Passenger among them.
+    if (args.Contains("--roster"))
+    {
+        var (lines, heard) = Staging.Roster(session.Train, content);
+        Hud.Roster(hud, width, height, lines, heard);
+    }
     // --card: the generated line's route card over it; --overlay: the designer's overlay (linegen plan §9.7, §20.2).
     if (session.Route?.Plan is { } plan)
     {

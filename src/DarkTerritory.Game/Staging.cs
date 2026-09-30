@@ -45,6 +45,23 @@ public static class Staging
         ];
     }
 
+    /// <summary>
+    /// A roster for the screenshot (T69): you in the cab, three crewmates, and a Passenger wearing crewmate 2's face. Crew 1
+    /// is speaking, crew 2 was heard a while ago, crew 3 hasn't said anything yet; the Passenger never has.
+    /// </summary>
+    public static (IReadOnlyList<RosterLine> Lines, Func<byte, double?> Heard) Roster(TrainOnLine train, string content)
+    {
+        var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
+        var world = new Sim.World(train, null);
+        var p = new Passenger(48);
+        p.Restore(SpinePhase.Telegraph, 20, 1, Math.Min(3, train.Frames.Count - 1), default, 0, 0, 0, 2, 0);
+        world.MirrorEnemies([p]);
+        var cab = Sim.Player.PlayerMotor.SpawnInCab(train, player);
+        var roof = Sim.Player.PlayerMotor.SpawnOnRoof(train, Math.Min(2, train.Frames.Count - 1), 0, player);
+        var lines = NetPlaySession.RosterOf(4, cab, [(1, roof), (2, roof with { Parent = 1 }), (3, cab)], world);
+        return (lines, id => id switch { 1 => 0.5, 2 => 14, _ => null });
+    }
+
     /// <summary>One of each demo enemy mid-telegraph or mid-punish around the train.</summary>
     public static List<Enemy> Threats(TrainOnLine train)
     {
