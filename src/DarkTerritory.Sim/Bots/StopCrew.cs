@@ -52,16 +52,27 @@ public sealed class CrewCalls
     public int BoundFor(int car, int except) => _carryingTo.Count(c => c.Key != except && c.Value == car);
 
     /// <summary>A crew member says where they are: a vehicle id, or <see cref="PlayerState.World"/> on the ground.</summary>
-    public void Say(int member, StopJob job, in PlayerState s) => _crew[member] = new(job, s.Alive ? s.Parent : PlayerState.World, s.Alive);
+    public void Say(int member, StopJob job, in PlayerState s)
+    {
+        _crew[member] = new(job, s.Alive ? s.Parent : PlayerState.World, s.Alive);
+        _held.Add(job);
+    }
+
+    /// <summary>Every part anyone has said they have: one nobody alive has now was left, by a death or a stand-in.</summary>
+    readonly HashSet<StopJob> _held = [];
 
     public IEnumerable<Call> Crew => _crew.Values;
 
     /// <summary>
-    /// Whether this member should take over a part whoever had it has died with (the shunter mauled, say): the first of the rest of the
-    /// crew alive with a part of their own does, as a crew would sort it out on the radio.
+    /// Whether this member should take over a part nobody alive has any more (the shunter mauled, say, or the winch hand who
+    /// stood in for them): as a crew would sort it out on the radio. The shunter's goes to the first of the rest alive with a
+    /// part of their own; a winch part to the first crate hand (a frontier:7 night lost its shunter on the way, the crane's
+    /// operator stood in, and with nobody at the crane the Foundry loaded nothing).
     /// </summary>
     public bool StandIn(int member, StopJob part) =>
-        !Has(part) && _crew.Values.Any(c => !c.Alive && c.Job == part) && _crew.Where(c => c.Value.Alive && c.Value.Job is not (StopJob.None or StopJob.Driver)).Select(c => c.Key).DefaultIfEmpty(-1).Min() == member;
+        !Has(part) && _held.Contains(part) && _crew.Where(c => c.Value.Alive && (part is StopJob.Winch0 or StopJob.Winch1
+                ? c.Value.Job == StopJob.Crates : c.Value.Job is not (StopJob.None or StopJob.Driver)))
+            .Select(c => c.Key).DefaultIfEmpty(-1).Min() == member;
     public bool Has(StopJob job) => _crew.Values.Any(c => c.Alive && c.Job == job);
     /// <summary>A shunter and two for the winch, alive: the crew a winch stop needs.</summary>
     public bool CanWorkWinch => Has(StopJob.Shunter) && Has(StopJob.Winch0) && Has(StopJob.Winch1);
@@ -678,6 +689,61 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             calls.Say(member, job, self);
     }
 
+    /// <summary>
+    /// At a stop, trouble in a car (a fire, a loose load, Gnawers): in by its side door, as a crate goes in, from the
+    /// ground, up its steps, open up and inside. The walker's own way in (a car's rear door, down from its roof or the one
+    /// behind) has nothing to go by at the end of a cut rake, where the stop's cars stand, and the hands stood about on
+    /// its roof for the whole of the loading (the 100-night rerun's frontier:7 Foundry). Null when that's not the way:
+    /// between stops, in the car already (the walker works it from the aisle), or the car has no door this side.
+    /// </summary>
+    public PlayerIntent? IntoTrouble(in PlayerState self, World world, int car)
+    {
+        var train = world.Train;
+        if (_plan is not { } p || !_reachedEnd || !p.AtTheEnd(train) || car <= 0 || car >= train.Frames.Count || !self.Alive)
+            return null;
+        int side = p.Site.Side;
+        var frame = train.Frames[car];
+        var shape = frame.Shape;
+        var layout = train.Dynamics.Tuning.Geometry.Interior;
+        if (layout is null || SideDoor(shape, side) is not { } door || self.Surface is Surface.Air or Surface.Ladder)
+            return null;
+        bool open = train.Vehicles[car].DoorOpen(door);
+        double w = shape.Bounds.Max.X, sd = layout.SideDoorWidth / 2;
+        var landing = new Double3(side * (w + layout.StepWidth / 2), layout.FloorHeight, 0);
+        double facingIn = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+        bool onThisCar = self.Parent == car && self.Surface == Surface.Deck;
+        if (onThisCar && Math.Abs(self.Position.X) < w - layout.WallThickness)
+            return null;
+        if (onThisCar)
+        {
+            if (!open)
+            {
+                if (!Near(self, landing, 0.25) || !Aligned(self, facingIn))
+                    return Walk(self, landing, facingIn, "up to the trouble");
+                Doing = "opening up for the trouble";
+                return new PlayerIntent { Buttons = PlayerButtons.Use };
+            }
+            return Walk(self, new Double3(0, layout.FloorHeight, 0), facingIn, "in to the trouble");
+        }
+        if (self.Parent != PlayerState.World)
+            return GetDown(self, train, side);
+        var (_, across) = TrackCoords(train.Line, p.Spur.Index, self.Position, self.LineHint);
+        if (Math.Sign(across) != side && Math.Abs(across) > 1.2)
+        {
+            Doing = "over the train";
+            return null;
+        }
+        var local = frame.ToLocal(PlayerMotor.WorldPosition(self, train));
+        double outward = side * local.X - w;
+        bool inLane = outward > 0.1 && outward < layout.StepWidth - 0.1 && local.Z > -sd - 4 * layout.StepDepth - 1.2 && local.Z < -sd - 0.3;
+        if (inLane)
+            return Head(self, frame.ToWorld(landing with { Y = 0, Z = local.Z + 1.5 }), "up the steps to the trouble");
+        Doing = "to the trouble";
+        var foot = frame.ToWorld(landing with { Y = 0, Z = -sd - 4 * layout.StepDepth - 0.4 });
+        var (walk, atFoot) = WalkTo(self, train.Line, p.Spur.Index, foot, null);
+        return atFoot ? Head(self, frame.ToWorld(landing with { Y = 0, Z = local.Z + 1.5 }), "up the steps to the trouble") : walk;
+    }
+
     /// <summary>This tick's intent for its part in a stop; null when there's nothing for it to do (walk as usual).</summary>
     public PlayerIntent? Decide(in PlayerState self, World world)
     {
@@ -686,6 +752,10 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         if (job is not (StopJob.None or StopJob.Driver or StopJob.Shunter) && self.Alive && _plan is null && _coal is null && _switch is null
             && calls.StandIn(member, StopJob.Shunter))
             job = StopJob.Shunter;
+        // And the winch pair, where one's died or gone to shunt: a crate hand takes the part (never mid-part).
+        foreach (var winch in new[] { StopJob.Winch0, StopJob.Winch1 })
+            if (job == StopJob.Crates && self.Alive && _plan is null && _coal is null && _switch is null && calls.StandIn(member, winch))
+                job = winch;
         calls.Say(member, job, self);
         if (PlayerId is { } id)
         {
