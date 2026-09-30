@@ -148,6 +148,8 @@ public enum PlayerFlags : byte
     /// you or the window runs out. Set by the host each tick from what's holding whom.
     /// </summary>
     Held = 16,
+    /// <summary>Pushing the gun they're at along its roof rail (T93): walking pace at most, and it goes where they go.</summary>
+    Pushing = 32,
 }
 
 /// <summary>
@@ -370,6 +372,8 @@ public static class PlayerMotor
                 speed *= p.Cold.OnsetSpeedScale;
             if (s.Has(PlayerFlags.Heavy))
                 speed = Math.Min(speed, p.CarryHeavy);
+            if (s.Has(PlayerFlags.Pushing))
+                speed = Math.Min(speed, p.PushGun);
             if (s.Has(PlayerFlags.Operating))
                 speed = 0;
             var wish = WishDirection(s.Yaw, intent) * speed;
@@ -390,6 +394,8 @@ public static class PlayerMotor
 
         // Integrate in the parent frame: a car parent carries the player with it for free.
         var prevWorld = ToWorld(s, train, s.Position);
+        int pushedOn = s.Has(PlayerFlags.Pushing) && s.Grounded ? s.Parent : PlayerState.World;
+        double pushedFrom = s.Position.Z;
         s.Position += s.Velocity * dt;
         var world = ToWorld(s, train, s.Position);
 
@@ -397,6 +403,9 @@ public static class PlayerMotor
         if (ceiling && s.Velocity.Y > 0)
             s.Velocity = s.Velocity with { Y = 0 };
         UpdateSupport(ref s, world, prevWorld, train, p, t);
+        // The gun you're pushing goes along its rail as far as you went along the car (T93).
+        if (pushedOn != PlayerState.World && s.Parent == pushedOn)
+            Combat.Guns.Slide(train, pushedOn, s.Position.Z - pushedFrom);
 
         // Use while pushing towards it grabs a ladder; Use standing still is for working things (CrewActions). A hand on
         // the ladder takes hold of it without pushing (T29). Walking straight into the foot of one takes hold of it too

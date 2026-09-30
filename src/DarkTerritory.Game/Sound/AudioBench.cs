@@ -140,7 +140,7 @@ public static class AudioBench
                 if (chaos && (int)(simClock * 3) != (int)((simClock - SimConstants.TickSeconds) * 3))
                 {
                     int guard = train.Dynamics.Consist.Vehicles[^1].Id;
-                    audio.Play("gunshot", train.Frames[guard].ToWorld(train.Frames[guard].Shape.Gun!.Value.Position));
+                    audio.Play("gunshot", train.Frames[guard].ToWorld(Sim.Combat.Guns.Mount(train, guard)!.Value.Position));
                 }
             }
             audio.Mixer.Render(mix.AsSpan(b * Audio.Block * 2, Audio.Block * 2));

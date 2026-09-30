@@ -21,16 +21,79 @@ public enum AimResult : byte { Ok, OutOfTraverse, DeadZone, PitchLimit }
 /// </summary>
 public static class Guns
 {
-    /// <summary>The gun this player is standing at, if any: a vehicle with a mount, within reach.</summary>
+    /// <summary>
+    /// Where a vehicle's gun is now, in its frame (T93): on its roof rail at the gun's Z, standing on whatever roof is
+    /// there, facing the way it was mounted. Null for a vehicle without one.
+    /// </summary>
+    public static GunMount? Mount(TrainOnLine train, int vehicle)
+    {
+        if (vehicle < 0 || vehicle >= train.Vehicles.Count || !train.Vehicles[vehicle].HasGun)
+            return null;
+        return Mount(train.Frames[vehicle].Shape, train.Vehicles[vehicle].Gun);
+    }
+
+    /// <summary>Where a gun in this state stands on a car of this shape (null if it isn't mounted).</summary>
+    public static GunMount? Mount(CarShape shape, in GunState g)
+    {
+        if (!g.Mounted)
+            return null;
+        double top = shape.TopAt(0, g.Z)?.Top ?? shape.RoofHeight;
+        return new GunMount(new Double3(0, top + PivotHeight, g.Z), new Double3(0, 0, g.Facing < 0 ? -1 : 1));
+    }
+
+    /// <summary>The pivot's height over the roof it stands on.</summary>
+    const double PivotHeight = 0.9;
+
+    /// <summary>The gun this player is standing at, if any: the gun on their car, within reach.</summary>
     public static int? MannedGun(in PlayerState s, TrainOnLine train, GunTuning t)
     {
         if (!s.Alive || s.Parent == PlayerState.World || !s.Grounded)
             return null;
-        var shape = train.Frames[s.Parent].Shape;
-        if (shape.Gun is not { } mount)
+        if (Mount(train, s.Parent) is not { } mount)
             return null;
         double dx = s.Position.X - mount.Position.X, dz = s.Position.Z - mount.Position.Z;
-        return dx * dx + dz * dz <= t.Reach * t.Reach && Math.Abs(s.Position.Y - (mount.Position.Y - 0.9)) < 0.6 ? s.Parent : null;
+        return dx * dx + dz * dz <= t.Reach * t.Reach && Math.Abs(s.Position.Y - (mount.Position.Y - PivotHeight)) < 0.6 ? s.Parent : null;
+    }
+
+    /// <summary>
+    /// Pushing the gun you're at along its rail (T93): Use held at it while you walk, and it isn't waiting on a reload (then
+    /// Use works the reload). The motor moves it with you (<see cref="Slide"/>).
+    /// </summary>
+    public static bool Pushing(in PlayerState s, in PlayerIntent intent, TrainOnLine train, GunTuning t) =>
+        intent.Has(PlayerButtons.Use) && (Math.Abs(intent.MoveX) > 0.5 || Math.Abs(intent.MoveZ) > 0.5) && !s.Has(PlayerFlags.Held)
+        && MannedGun(s, train, t) is { } g && train.Vehicles[g].Gun.ReloadNeeded <= 0;
+
+    /// <summary>
+    /// Moves a vehicle's gun along its roof rail by <paramref name="dz"/> (T93). Past the rail's end it goes over the
+    /// coupling onto the next car's rail if the two are coupled and that car has no gun; otherwise it stops at the end.
+    /// </summary>
+    public static void Slide(TrainOnLine train, int vehicle, double dz)
+    {
+        if (dz == 0 || vehicle < 0 || vehicle >= train.Vehicles.Count || !train.Vehicles[vehicle].HasGun
+            || train.Frames[vehicle].Shape.RoofRail is not { } rail)
+            return;
+        var v = train.Vehicles[vehicle];
+        double z = v.Gun.Z + dz;
+        if (z >= rail.Front && z <= rail.Back)
+        {
+            v.Gun.Z = z;
+            return;
+        }
+        // Over the end: the neighbour that way along the rake, coupled, with a rail and room on it.
+        var rake = train.RakeOf(vehicle).Consist.Vehicles;
+        int at = -1;
+        for (int i = 0; i < rake.Count; i++)
+            if (rake[i].Id == vehicle)
+                at = i;
+        int next = z > rail.Back ? at + 1 : at - 1;
+        if (next >= 0 && next < rake.Count && rake[next] is { HasGun: false } to && train.Frames[to.Id].Shape.RoofRail is { } onto)
+        {
+            to.Gun = v.Gun;
+            to.Gun.Z = z > rail.Back ? onto.Front : onto.Back;
+            v.Gun = default;
+            return;
+        }
+        v.Gun.Z = Math.Clamp(z, rail.Front, rail.Back);
     }
 
     /// <summary>The player's view direction in their car's frame.</summary>
@@ -71,7 +134,7 @@ public static class Guns
         if (train.BoilerTuning is not null && train.Boiler.Pressure < t.MinPressure)
             return null;
         var frame = train.Frames[gunVehicle];
-        var mount = frame.Shape.Gun!.Value;
+        var mount = Mount(train, gunVehicle)!.Value;
         var aimLocal = AimLocal(s);
         if (CheckAim(mount, aimLocal, t) != AimResult.Ok)
             return null;
@@ -112,7 +175,8 @@ public static class Guns
         ref var gun = ref train.Vehicles[gunVehicle].Gun;
         if (gun.ReloadNeeded <= 0)
             return;
-        if (!intent.Has(PlayerButtons.Use))
+        // Walking with Use held is pushing the gun, not reloading it (T93); but a gun waiting on a reload won't be pushed.
+        if (!intent.Has(PlayerButtons.Use) || Math.Abs(intent.MoveX) > 0.5 || Math.Abs(intent.MoveZ) > 0.5)
         {
             gun.ReloadProgress = 0;
             return;
@@ -138,7 +202,7 @@ public static class Guns
     {
         foreach (var v in train.Vehicles)
             if (v.HasGun)
-                v.Gun = new GunState { Ammo = t.Ammo };
+                v.Gun = new GunState { Mounted = true, Z = v.Gun.Z, Facing = v.Gun.Facing, Ammo = t.Ammo };
     }
 
     /// <summary>Distance along the ray to the first solid of any car, or +∞.</summary>

@@ -324,6 +324,9 @@ public sealed class World
             Shots.Add(shot);
         if (Combat is { } cr)
             Guns.Reload(s, intent, Train, cr.Guns, SimConstants.TickSeconds);
+        // Pushing the gun along its roof rail (T93), worked out alike everywhere so a client predicts it: the motor moves it.
+        bool pushing = Combat is { } cp && Guns.Pushing(s, intent, Train, cp.Guns);
+        s.Flags = pushing ? s.Flags | PlayerFlags.Pushing : s.Flags & ~PlayerFlags.Pushing;
         // The whistle cord, in the cab (GDD §12): a blast, loud, and every client hears it.
         if (intent.Has(PlayerActions.Whistle) && Net.CabControls.CanDrive(s, Train))
             Whistled(1.0);
