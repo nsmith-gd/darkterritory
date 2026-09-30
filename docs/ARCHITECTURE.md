@@ -1414,3 +1414,29 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Pass rates (§21 M3, `dt linegen sweep`, 50 seeds per tier at 3 and 20 cars):** within two attempts 96-100% on every tier (local 100%; 98-100% before the Maritime water and curvature pass), first attempt 80-100%; no fallbacks used, none left unpassed; 1-2 s a plan in Release (up to 16 s at the worst). An alternate that can't be laid leaves a dead line at its junction when the quota's junctions would otherwise be short; a short grade run shares its room between the vertical curves at its two ends as they need it.
     - **Not yet:** tile builds are 50 ms, not §17.5's 4 ms (tiles are only checksummed; the art builds 100 m cells, not tiles); the industrial bed that should fade out on the gate markers (§10.2) doesn't exist yet, so the markers are emitted and unused; grease has no traction effect in the sim (it didn't before either); the per-biome ballast, the corrupted and brass vegetation variants and the searchlights (§18) are the kits' existing pieces or nothing (a silent terminus is the fortress kit with its lamps out).
     - **Verified:** `LineGenTests` (M0 byte-identical, M1 a drive end to end, M2 ground to 250 m and a client's checksums, M3 six specs within two attempts, the derail, collapse and washout rules, prediction exact on a generated line), `LineGenConfigTests` (every config field is in the files), `AlternateTests` (clothoids, vertical curves, a loop run through, backed onto and coupled across), `dt linegen sweep` for pass rates, and the `lg-*` screenshots.
+67. **Contradiction seeding and saving up (T64, App. B.1).**
+    - **"The director draws pairs from a conflict table rather than spawning independently."** The table is in `enemies.json` `director.conflicts`, in the tuning's names plus three conditions:
+      - `choir`: coming, its aggro past the approach (App. A.6);
+      - `grade`: a climb or fall of 1.5 % or more within 600 m;
+      - `facilityLoading`: at a facility.
+      Sleepers count as about when they lie within 1500 m ahead.
+    - **Ambiguity: "draws pairs".** Read as seeding, not flooding: while the run is short of its pairs ("at least one pair per run on Frontier and above. Two on Deep Territory": `pairsPerRun`), a spawn that would complete one with what's there now weighs ×3, and past halfway another ×3. After that, spawns are independent again.
+      - The first cut weighted pairs all night, with the Choir counted as always present. Hounds and Lamplighters then took nearly every spawn, and the Climbers vanished from a frontier:7 night.
+      - The director logs each pair it makes (`Director.Pairs`), and the harness reports them.
+      - Pairs whose other half isn't in the game yet (the Drift, Followers) wait for it.
+    - **Saving up.** The director spends as soon as it can afford anything, so a cost-5 threat only came when nothing cheaper could. In four frontier nights the Gaunt came once.
+      - Now, from 20 % of the route in (`saveFrom`), cheaper threats leave enough budget for the rare, expensive ones the run can still have (`saveFor`: the Gaunt, on Frontier+ with a crew of three).
+      - Once it's been, the saving stops.
+    - **The flank was full all night.** A Dragger under a car nobody walked on stayed there for the rest of the run. Two of them held the flank's two places (App. B.1's cap), so neither Climbers, Clingers nor the Gaunt could come. Now a Dragger with nobody on its car's roof for 180 s lets go (`draggers.lingerSeconds`).
+    - **Freeing the flank brought Climbers (ten on a frontier:7 night), and two stop-crew faults with them.**
+      - At the Switchyard, the driver held for everyone with a part to ride the engine's rake. Four bots and the gunner were warming up in car 9, in the cut left on the main line, so the stop sat at `Held` until its give-up and the night missed the dawn.
+      - Now a hand that's gone in out of the cold says so (`CrewCalls.Warming`). `Riding` leaves it out: it stays in its cut, and the train comes back for that.
+      - `Held` also goes on without the missing after the loading leg's give-up, as that leg already did.
+    - **Verified:** `ConflictSeedingTests` (7):
+      - it saves up for the Gaunt over something cheaper;
+      - it doesn't save on a run that can't have one;
+      - a Lamplighter with Sleepers ahead is a pair and weighted up;
+      - hounds pair with the Choir only when it's coming;
+      - once the run has its pair, nothing's weighted;
+      - the table only names things there are;
+      - a Dragger nobody walks over lets go.

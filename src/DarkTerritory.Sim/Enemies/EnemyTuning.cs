@@ -189,6 +189,7 @@ public sealed record DraggerTuning
     public double AloneSeconds { get; init; } = 0.4;
     public double PullSpeed { get; init; } = 3;
     public double RearmSeconds { get; init; } = 8;
+    public double LingerSeconds { get; init; } = 180;
     public int MinCars { get; init; } = 2;
     public int MaxAttached { get; init; } = 2;
 
@@ -237,4 +238,15 @@ public sealed record DirectorTuning(
     Dictionary<string, double> BaseBudget, double LengthPerCarBeyondThird, double CrewBase, double CrewPerPlayer, double CrewCap,
     double GraceSeconds, double FacilityLullSeconds, double[] CooldownSeconds, int MaxConcurrentZone,
     int MaxConcurrentSmallCrew, int MaxConcurrentLargeCrew, double[] PhaseShares, Dictionary<string, double> Costs,
-    double HoundsLivestockWeight, double HoundsHotBoilerWeight);
+    double HoundsLivestockWeight, double HoundsHotBoilerWeight)
+{
+    public string[][] Conflicts { get; init; } = [];
+    public double PairWeight { get; init; } = 3;
+    public double BehindPairWeight { get; init; } = 3;
+    public Dictionary<string, int> PairsPerRun { get; init; } = new();
+    public double SleepersAhead { get; init; } = 1500;
+    public double GradeAhead { get; init; } = 600;
+    public double GradePercent { get; init; } = 1.5;
+    public string[] SaveFor { get; init; } = [];
+    public double SaveFrom { get; init; } = 0.2;
+}
