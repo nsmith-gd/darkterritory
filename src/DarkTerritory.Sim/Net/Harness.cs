@@ -110,29 +110,13 @@ public static class Harness
         if (o.Sight is { } sight && o.Route is { } sightRoute)
             host.World.EnableLineside(sight, sightRoute);
 
-        // On a night with facilities, the crew call to each other at the stops, and each has a part: the walkers first (a
-        // shunter, the winch pair, then crates), and the gunner only if it takes them to make up the winch pair.
+        // On a night with facilities, the crew call to each other at the stops, and each has a part (BotCrew.Make).
         var calls = o.Run is not null && o.Route is not null && o.Facilities is not null ? new CrewCalls() : null;
-        bool gunner = o.Combat is not null;
-        // A crew big enough keeps a fireman in the cab with the driver (T75): the last of them.
-        int fireman = o.Bots >= FiremanFrom ? o.Bots - 1 : -1;
-        var hands = Enumerable.Range(1, Math.Max(0, o.Bots - 1)).Where(i => i != fireman).OrderBy(i => i == 1 && gunner ? 1 : 0).ToList();
-        StopJob JobOf(int i) => hands.IndexOf(i) switch
-        {
-            0 => StopJob.Shunter,
-            1 => StopJob.Winch0,
-            2 => StopJob.Winch1,
-            _ => i == 1 && gunner ? StopJob.None : StopJob.Crates,
-        };
-        StopHand? Hand(int i) => calls is null ? null : new StopHand(JobOf(i), calls, i, playerTuning.Cold);
         var clients = new List<(ClientSession Session, IBot Bot, CountingTransport Transport)>();
         for (int i = 0; i < o.Bots; i++)
         {
             var transport = new CountingTransport(ClientTransport(i));
-            IBot bot = i == 0 ? new ConductorBot(calls, i)
-                : i == fireman ? new ConductorBot(calls, i) { Fireman = true }
-                : i == 1 && o.Combat is { } c ? new GunnerBot(c.Guns, c.Choir, o.Seed * 1000 + i, playerTuning.Cold, Hand(i))
-                : new RoofWalkerBot(o.Seed * 1000 + i, playerTuning.Cold, Hand(i));
+            IBot bot = BotCrew.Make(i, o.Bots, calls, o.Combat, playerTuning, o.Seed);
             var session = new ClientSession(transport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
             if (o.Vigil is { } v)
                 session.World.EnableVigil(v);
@@ -206,26 +190,7 @@ public static class Harness
                     c.Session.ResetStats();
             foreach (var (session, bot, _) in clients)
             {
-                PlayerIntent intent = default;
-                if (session.Connected)
-                {
-                    // Its part at a stop needs its own id for the heavy crates (T45).
-                    if (((bot as GunnerBot)?.Job ?? (bot as RoofWalkerBot)?.Job) is { } part)
-                        part.PlayerId = session.PlayerId;
-                    if (bot is RoofWalkerBot rw)
-                        rw.Me = session.PlayerId ?? -1;
-                    else if (bot is GunnerBot gb)
-                        gb.Me = session.PlayerId ?? -1;
-                    intent = bot is IWorldBot wb ? wb.Decide(session.Predicted, session.World, t, out _) : bot.Decide(session.Predicted, session.Train, t);
-
-                    intent = Heed.Rescue(intent, session.Predicted, session.World, session.PlayerId ?? 0);
-                    intent = Heed.Backs(intent, session.Predicted, session.World, session.PlayerId ?? 0, (uint)t);
-                    intent = Heed.Voice(intent, session.Predicted, session.World, session.PlayerId ?? 0, (uint)t);
-                    intent = Heed.Gaps(intent, session.Predicted, session.World, session.PlayerId ?? 0);
-                    intent = Heed.Flies(intent, session.Predicted, session.World, (uint)t);
-                    intent = Heed.Followers(intent, session.Predicted, session.World, session.PlayerId ?? 0, calls, (uint)t);
-                    intent = Heed.Drift(intent, session.Predicted, session.World, session.PlayerId ?? 0);
-                }
+                var intent = session.Connected ? BotCrew.Think(session, bot, (uint)t, calls) : default;
                 session.Step(intent);
             }
             if (o.Observe is { } observe)

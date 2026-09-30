@@ -135,7 +135,13 @@ public sealed class FrontEndTests : IDisposable
         Pick(m, "CARS");
         m.Right();
         m.Right();
-        Assert.Equal(new Launch.Night("deadLines:9", 8, Host: false), Choose(m, "PLAY ALONE"));
+        // A crew of bots by default (T89); down to none, and it's just you.
+        Assert.Equal(new Launch.Night("deadLines:9", 8, Host: false) { Bots = 3 }, Choose(m, "PLAY"));
+        Pick(m, "CREW");
+        for (int i = 0; i < 5; i++)
+            m.Left();
+        Assert.Contains(m.Items, i => i.Label == "CREW: JUST YOU");
+        Assert.Equal(new Launch.Night("deadLines:9", 8, Host: false), Choose(m, "PLAY"));
         Assert.Equal(new Launch.Night("deadLines:9", 8, Host: true), Choose(m, "HOST FOR FRIENDS"));
         m.Back();
         Assert.Equal(Screen.Title, m.Screen);

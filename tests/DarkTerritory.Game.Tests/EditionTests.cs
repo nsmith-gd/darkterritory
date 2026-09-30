@@ -75,7 +75,7 @@ public sealed class EditionTests : IDisposable
         for (int i = 0; i < 30; i++)
             m.Right();
         Assert.Contains(m.Items, i => i.Label == "CARS: 8");
-        int alone = m.Items.ToList().FindIndex(i => i.Label == "PLAY ALONE");
+        int alone = m.Items.ToList().FindIndex(i => i.Label == "PLAY");
         while (m.Selected != alone)
             m.Down();
         var night = Assert.IsType<Launch.Night>(m.Select());

@@ -5,6 +5,7 @@ using Ballast.Net;
 using Ballast.Online;
 using Ballast.Render;
 using DarkTerritory.Sim;
+using DarkTerritory.Sim.Bots;
 using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Net;
@@ -183,8 +184,10 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// own player then connects on a private localhost port.</param>
     /// <param name="online">A platform to host a friends-only lobby on as well (Steam).</param>
     /// <param name="resume">A night's autosave (spec E): start again from the facility it last left.</param>
+    /// <param name="bots">Bot crewmates to play with (T89: a night alone, with a crew). Each is a client of this host over
+    /// localhost like anyone else; the first drives (first aboard takes the cab), so the human can go where the trouble is.</param>
     public static NetPlaySession HostGame(string content, SessionSetup setup, int? port = DefaultPort, int expectedCrew = 4, IOnlineBackend? online = null,
-        Sim.Campaign.RunCheckpoint? resume = null)
+        Sim.Campaign.RunCheckpoint? resume = null, int bots = 0)
     {
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
         setup = setup with
@@ -215,7 +218,29 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 : Beside(hostWorld.Train, n, playerTuning);
         }
         if (setup.Enemies && route is not null)
-            host.EnableEnemies(loadout.Enemies!, route, route.Seed, expectedCrew);
+            host.EnableEnemies(loadout.Enemies!, route, route.Seed, bots > 0 ? bots + 1 : expectedCrew);
+        // The bot crew aboard first, so one of them has the cab. Their clients take the host's plan, not a fresh generation.
+        BotCrew? crew = null;
+        if (bots > 0)
+        {
+            crew = new BotCrew(hostWorld.Run is not null ? new CrewCalls() : null);
+            var botSetup = setup with { Plan = route?.Plan ?? setup.Plan };
+            for (int i = 0; i < bots; i++)
+            {
+                var (botWorld, _) = botSetup.Build(content);
+                var botTransport = UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, udp.Port));
+                var session = new ClientSession(botTransport, botWorld, trainTuning, playerTuning);
+                crew.Add(session, BotCrew.Make(i, bots, crew.Calls, loadout.Combat, playerTuning, (int)(route?.Seed ?? 1)), botTransport);
+                var joining = System.Diagnostics.Stopwatch.StartNew();
+                while (session.PlayerId is null && joining.Elapsed.TotalSeconds < 5)
+                {
+                    host.Step();
+                    foreach (var (s, _) in crew.Bots)
+                        s.Step(default);
+                    Thread.Sleep(1);
+                }
+            }
+        }
         var (clientWorld, _) = setup.Build(content);
         var clientTransport = UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, udp.Port));
         var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning);
@@ -227,8 +252,11 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             client.Step(default);
             Thread.Sleep(1);
         }
-        return new NetPlaySession(host, hostTransport, port is null ? null : udp, client, clientTransport, setup, route, lobby);
+        return new NetPlaySession(host, hostTransport, port is null ? null : udp, client, clientTransport, setup, route, lobby) { BotCrew = crew };
     }
+
+    /// <summary>The bot crewmates this host is running, if any (T89).</summary>
+    public BotCrew? BotCrew { get; private init; }
 
     static Sim.LineGen.TerrainField? TerrainOf(World world) => (world.Train.Line.Conditions as Sim.LineGen.PlanConditions)?.Terrain;
 
@@ -370,6 +398,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         Lobby?.Poll();
         Host?.Step();
+        BotCrew?.Step();
         // Spec E: the night autosaves on leaving a POI: the engine out past the end of its zone, whatever shunting it
         // took there (GDD §17), so the save is the train going on.
         if (Host?.World.Run is { } run && run.Departures != _departures)
@@ -481,6 +510,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
 
     public void Dispose()
     {
+        BotCrew?.Dispose();
         _clientTransport.Dispose();
         _hostTransport?.Dispose();
         Lobby?.Dispose();

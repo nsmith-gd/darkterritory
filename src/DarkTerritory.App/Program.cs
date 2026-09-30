@@ -101,7 +101,7 @@ Launch? LaunchFromArgs()
     string? routeFile = Arg("--route-file", "") is { Length: > 0 } f ? f : null;
     bool host = port is not null || args.Contains("--steam") && steam is not null;
     if (host || route is not null || routeFile is not null || args.Contains("--line"))
-        return new Launch.Night(route, cars, host) { Line = Arg("--line", "test-loop"), RouteFile = routeFile };
+        return new Launch.Night(route, cars, host) { Line = Arg("--line", "test-loop"), RouteFile = routeFile, Bots = int.TryParse(Arg("--bots", "0"), out var b) ? b : 0 };
     return null;
 }
 var launch = LaunchFromArgs();
@@ -335,13 +335,16 @@ Launch? Menu()
                 Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
                 return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume), campaign);
             }
-        case Launch.Night { Host: true } hosted:
+        case Launch.Night hosted when hosted.Host || hosted.Bots > 0:
             {
-                // From the menu, friends join on the usual port; `--steam` alone takes no UDP port (the lobby's enough).
-                int? port = args.Contains("--host") ? int.TryParse(Arg("--host", ""), out var p) ? p : NetPlaySession.DefaultPort
+                // From the menu, friends join on the usual port; `--steam` alone takes no UDP port (the lobby's enough). A night
+                // with bots and no friends (T89) is hosted privately: the bots are clients on localhost.
+                int? port = !hosted.Host ? null : args.Contains("--host") ? int.TryParse(Arg("--host", ""), out var p) ? p : NetPlaySession.DefaultPort
                     : fromCommandLine ? null : NetPlaySession.DefaultPort;
                 var setup = new SessionSetup(Route: hosted.Route, Line: hosted.Line, Cars: hosted.Cars, Enemies: enemies);
-                var session = NetPlaySession.HostGame(content, setup, port, online: steam);
+                var session = NetPlaySession.HostGame(content, setup, port, online: hosted.Host ? steam : null, bots: hosted.Bots);
+                if (hosted.Bots > 0)
+                    Console.WriteLine($"a crew of {hosted.Bots} bot{(hosted.Bots == 1 ? "" : "s")} aboard");
                 if (port is not null)
                     Console.WriteLine($"hosting on UDP port {session.Port}: others join with --join <this machine's address>:{session.Port}");
                 if (steam is not null)

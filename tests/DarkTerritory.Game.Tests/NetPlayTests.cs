@@ -12,6 +12,30 @@ public class NetPlayTests
     static readonly string Content = DataFile.FindContentRoot();
 
     [Fact]
+    public void ANightAloneComesWithABotCrewThatDrives()
+    {
+        // T89: someone playing alone to see what the fuss is about gets a crew. Three bots, each a client over localhost:
+        // one has the cab (first aboard), and the train gets going with nobody human at the controls.
+        using var night = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: true), port: null, bots: 3);
+        var crew = Assert.IsType<Sim.Bots.BotCrew>(night.BotCrew);
+        Assert.Equal(3, crew.Bots.Count);
+        Assert.All(crew.Bots, b => Assert.NotNull(b.Session.PlayerId));
+        Assert.IsType<Sim.Bots.ConductorBot>(crew.Bots[0].Bot);
+        double start = night.Host!.Train.Dynamics.Distance;
+        for (int t = 0; t < SimConstants.TickRate * 40; t++)
+        {
+            night.Step(default);
+            Thread.Sleep(1);
+        }
+        var driver = night.Host.Players.First(p => p.Id == crew.Bots[0].Session.PlayerId).State;
+        Assert.True(PlayerMotor.InCab(driver, night.Host.Train), $"the driver bot is at {driver.Parent}");
+        Assert.False(PlayerMotor.InCab(night.Player, night.Train) && night.Player.Parent == 0 && driver.Parent != 0);
+        Assert.True(night.Host.Train.Dynamics.Distance > start + 20, $"the train went {night.Host.Train.Dynamics.Distance - start:0} m");
+        // The human sees all three.
+        Assert.Equal(3, night.Crew(night.InterpolatedFrames(1), 1).Count);
+    }
+
+    [Fact]
     public void AJoinerBuildsTheHostsWorldAndTheyPlayTogether()
     {
         using var host = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: true), port: 0);
