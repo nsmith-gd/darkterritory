@@ -226,6 +226,30 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void WithTheCarsAtTheWinchFullThePairDontCrankForNothing()
+    {
+        // T66: on a frontier:7 night the crane's castings filled the cars the sleds load, and the pair cranked until the
+        // loading leg gave up (540 s). A sled with nowhere to go isn't hauled: loading's done, and they come aboard.
+        var night = new Night(cars: 8);
+        var run = night.World.Run!;
+        double loading = 0;
+        night.Until(() => run.Departures > 0, 900, () =>
+        {
+            if (night.Driver.Stops!.Doing != StopDriver.Leg.Loading)
+                return;
+            // In to load, and the cars are full already (as the crane's castings left them).
+            if (loading == 0)
+                foreach (var v in night.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo))
+                    v.Load = 1;
+            loading += SimConstants.TickSeconds;
+        });
+        Assert.True(run.Departures > 0, $"never left the stop: driver {night.Driver.Stops!.Doing}");
+        Assert.True(loading < 60, $"{loading:0} s loading with nowhere for a sled to go");
+        Assert.Equal(0, Assert.Single(night.Driver.Stops!.Log).SledsHauled);
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}"));
+    }
+
+    [Fact]
     public void ACrewWithoutTheWinchPairRunsStraightPast()
     {
         // The winch needs two (spec D.2): without them there's nothing to stop for, so the driver doesn't.

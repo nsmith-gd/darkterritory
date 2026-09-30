@@ -492,7 +492,10 @@ public sealed class StopDriver(CrewCalls calls)
             case Leg.Loading:
                 {
                     var p = Plan!;
-                    bool winched = !p.Site.Has(ModuleKind.Winch) || p.Site.SledsLeft == 0 || !calls.CanWorkWinch;
+                    // Winched: nothing left to haul, nobody to haul it, or nowhere for it to go (T66: the cars the sleds load
+                    // full already, with the crane's castings, and cranking on hauls nothing).
+                    bool winched = !p.Site.Has(ModuleKind.Winch) || p.Site.SledsLeft == 0 || !calls.CanWorkWinch
+                        || world.Run is { } wr && !wr.SledHasRoom(train, p.Site);
                     // The castings on (T54): the pair on the crane, until there's none left or no room under the gantry.
                     bool craned = p.Site.Crane is not { } crane || !calls.CanWorkWinch || StopHand.CraneTarget(crane, train) is null;
                     // Crates in, and the doors they went in by shut again: nobody moves a train with its doors open.
@@ -692,7 +695,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             return null;
         }
         // Mid-air, nothing to do; on a ladder or inside a car, the walker knows the way out (unless it's in there to load).
-        var part = Part(p);
+        var part = Part(p, world);
         if (self.Surface == Surface.Air)
             return new PlayerIntent();
         if (self.Surface == Surface.Ladder || self.Surface == Surface.Deck && self.Parent > 0 && !(part == StopJob.Crates && _reachedEnd))
@@ -900,7 +903,8 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         TrackCoords(train.Line, p.Spur.Index, world, hint).Across >= 0 ? 1 : -1;
 
     /// <summary>The part this stop: the winch pair carry crates where there's no winch, or once its sleds are in.</summary>
-    StopJob Part(StopPlan p) => job is StopJob.Winch0 or StopJob.Winch1 && (!p.Site.Has(ModuleKind.Winch) || p.Site.SledsLeft == 0)
+    StopJob Part(StopPlan p, World world) => job is StopJob.Winch0 or StopJob.Winch1
+        && (!p.Site.Has(ModuleKind.Winch) || p.Site.SledsLeft == 0 || world.Run is { } r && !r.SledHasRoom(world.Train, p.Site))
         && p.Site.Has(ModuleKind.Crates) ? StopJob.Crates : job;
 
     PlayerIntent? Shunt(in PlayerState self, World world, StopPlan p)
@@ -927,7 +931,8 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         bool atEnd = p.AtTheEnd(train);
         if (!_reachedEnd)
             return Ride(self, train, p);
-        if (!atEnd || p.Site.SledsLeft == 0)
+        // Nothing to haul, or nowhere for a sled to go (T66): aboard.
+        if (!atEnd || p.Site.SledsLeft == 0 || world.Run is { } r && !r.SledHasRoom(train, p.Site))
             return Aboard(self, p);
         if (self.Parent != PlayerState.World)
             return GetDown(self, train, p.Spur.Side);
