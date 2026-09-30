@@ -1,0 +1,7 @@
+// The demo's line (GDD §35 "two facilities"): the Frontier with two facility stops, and no Grease (it's an enemy, and
+// not one of the demo's five). A Frontier route's severity lerps it toward the Dead Lines' column, so that says two too.
+{
+  "$patch": true,
+  "columns": { "frontier": { "facilities": 2 }, "deadLines": { "facilities": 2 } },
+  "director": { "greasePerKm": 0 }
+}

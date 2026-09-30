@@ -1,0 +1,10 @@
+// The December demo (T79, GDD §21 "demo ships with five: one per pressure zone", §35 "demo roster of five, gun arcs, two
+// facilities"). Laid over the base content like a mod, first, before any mod: `--edition demo` plays it from the repo, and
+// `tools/package.sh --demo` bakes it into the demo build's content (dt edition bake demo).
+{
+  "id": "edition-demo",
+  "name": "Demo edition",
+  "version": "1.0.0",
+  "description": "The demo's scope: five enemies, the Frontier, two facilities.",
+  "order": -1000
+}

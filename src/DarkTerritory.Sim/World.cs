@@ -116,7 +116,7 @@ public sealed class World
         if (!authority)
             return;
         Director = new Director(tuning.Director, route, seed, Train.Dynamics.Consist.CarCount, crew);
-        if (route is not null)
+        if (route is not null && Director.Allows(EnemyKind.Sleepers))
             foreach (var f in route.Of(FeatureKind.Sleepers))
                 _enemies.Add(new Sleepers(_nextEnemyId++) { LineDistance = f.Start, Height = 0.2 });
     }
@@ -414,7 +414,7 @@ public sealed class World
         {
             if (d.Decide(this, ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } kind)
                 Spawn(kind, d);
-            if (Train.BoilerTuning is not null && Train.Boiler.LowFireSeconds >= t.Hollow.LowFireSeconds
+            if (d.Allows(EnemyKind.Hollow) && Train.BoilerTuning is not null && Train.Boiler.LowFireSeconds >= t.Hollow.LowFireSeconds
                 && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Hollow))
             {
                 d.Charge(this, EnemyKind.Hollow, _enemies);
@@ -422,7 +422,7 @@ public sealed class World
             }
             // The Drift (App. B.4): "a terrain region, not an entity". Over a marsh it's there, as the Hollow is when the fire's
             // low: it comes up once a marsh, whatever the director would rather, and it's charged when it does.
-            if (Drift.Ground(this, t.Drift) is { } marsh && marsh.Start != _driftMarsh && Train.Dynamics.Consist.CarCount >= 1
+            if (d.Allows(EnemyKind.Drift) && Drift.Ground(this, t.Drift) is { } marsh && marsh.Start != _driftMarsh && Train.Dynamics.Consist.CarCount >= 1
                 && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Drift))
             {
                 _driftMarsh = marsh.Start;
@@ -431,7 +431,7 @@ public sealed class World
             }
             // The Deadman (App. B.5): "not on Local routes; cab empty 30 s (20 s on Deep territory)". It starts its
             // approach that long less its telegraph, so it takes the cab at the spec's time; it's charged when it does.
-            if (Route is { Tier: not RouteTier.Local } r && Train.Frames[0].Shape.Cab is not null
+            if (d.Allows(EnemyKind.Deadman) && Route is { Tier: not RouteTier.Local } r && Train.Frames[0].Shape.Cab is not null
                 && CabEmptySeconds >= (r.Tier == RouteTier.DeepTerritory ? t.Deadman.EmptySecondsDeep : t.Deadman.EmptySeconds) - t.Deadman.TelegraphSeconds
                 && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Deadman))
                 _enemies.Add(Deadman.Watching(_nextEnemyId++, Train));

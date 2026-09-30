@@ -600,6 +600,9 @@
     // Saving up (ARCHITECTURE §8): from this share of the route in, cheaper threats leave enough budget for these rare,
     // expensive ones while the run can still have them, so they come at all.
     "saveFor": ["gaunt", "passenger"],
-    "saveFrom": 0.2
+    "saveFrom": 0.2,
+    // The kinds this edition has, by the names in "costs" above; empty is all of them. The demo edition (editions/demo,
+    // T79) has GDD §21's five, one per pressure zone (the Choir, structural, is always about), and the trouble in the cars.
+    "roster": []
   }
 }

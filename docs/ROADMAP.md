@@ -87,6 +87,11 @@ M3 is done but for a test with eight people.
 **Builds for players (M6):**
 - `tools/package.sh` makes self-contained Windows and Linux folders with their content, and CI keeps both as artifacts on every push, after starting the Linux one from elsewhere and playing it.
 - Crashes leave a report in the user's app data.
+- **The demo edition (T79, GDD §21, §35):**
+  - the demo roster of five (Sleepers, Cinder Hounds, Clingers, the Hollow, and the Choir), the trouble in the cars, and the Frontier with two facilities and no Grease;
+  - it's an overlay, `editions/demo`, laid over the content like a mod: `--edition demo` plays it from the repo, and `tools/package.sh --demo` bakes it into `DarkTerritory-Demo-<rid>` beside the game;
+  - its title says DEMO, its menu is a quick night on the Frontier (no campaign), and a night over ends on a wishlist line; asked for another tier, it plays the Frontier;
+  - `tools/upload.sh --demo` sends only a demo build, and the game's upload refuses one.
 - **Store uploads (T38):**
   - `tools/upload.sh steam|itch [--demo]` sends them through `steamcmd` or `butler`, and never sets Steam's default branch live;
   - CI dry-runs both on every push;
@@ -186,6 +191,7 @@ M3 is done but for a test with eight people.
 - Folders in `mods/` (or app data) laid over `content/`: they add files, replace them, or `$patch` a JSON file one key at a time.
 - The game reads the merged copy. The content hash keeps a crew on the same mods, and a refused joiner is told which mods differ.
 - `dt mods` shows what's loaded; `--no-mods` gives the base game.
+- **Through Thunderstore (T78):** a mod is a Thunderstore package (`manifest.json`, README, icon, `content/`), dependencies load first, mod managers hand the game their profile with `--mods-dir`, and `dt mods pack` checks one against the site's rules and zips it. `tools/mods/example` is the modder's guide.
 
 **Balance sweeps (T55, M7, GDD §34):**
 - `dt balance` runs harness nights over tiers, seeds, crew sizes and train lengths, side by side.

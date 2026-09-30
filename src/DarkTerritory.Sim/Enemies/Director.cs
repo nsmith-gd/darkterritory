@@ -138,7 +138,8 @@ public sealed class Director
         double reserve = 0;
         foreach (var name in _t.SaveFor)
         {
-            if (Key(forKind) == name || Log.Any(l => Key(l.Kind) == name))
+            // Nothing kept back for what this edition hasn't got (the demo has no Gaunt).
+            if (Key(forKind) == name || Log.Any(l => Key(l.Kind) == name) || _t.Roster.Length > 0 && !_t.Roster.Contains(name))
                 continue;
             bool possible = name switch
             {
@@ -349,6 +350,7 @@ public sealed class Director
                         w *= table.GetValueOrDefault(Key(options[i].Kind), 1) * table.GetValueOrDefault("*", 1);
                 options[i] = (options[i].Kind, w);
             }
+        options.RemoveAll(o => !Allows(o.Kind));
         options.RemoveAll(o => Cost(o.Kind) > (due ? Math.Max(available - Reserve(world, s, o.Kind), _t.PacedCost) : available - Reserve(world, s, o.Kind)));
         // Sent because it's been quiet: something that shows itself at once. A Dragger under a car's edge, or a Rattle in its
         // gap, lies silent until someone comes near: that's no answer to a quiet night, if there's anything else to send.
@@ -439,6 +441,9 @@ public sealed class Director
         Log.Add(new DirectorSpawn(world.Tick, kind, Cost(kind), world.Train.Dynamics.Distance,
             active.Count(e => Engaged(e) && e.Zone == zone) + 1, active.Count(Engaged) + 1, paced));
     }
+
+    /// <summary>This edition has the kind (<see cref="DirectorTuning.Roster"/>, empty for every kind).</summary>
+    public bool Allows(EnemyKind kind) => _t.Roster.Length == 0 || _t.Roster.Contains(Key(kind));
 
     public Pcg32 Rng => _rng;
     public double NextRange(double min, double max) => _rng.Range(min, max);

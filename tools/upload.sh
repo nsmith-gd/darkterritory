@@ -38,15 +38,19 @@ out="$PWD/out/store/$store"
 rm -rf "$out"; mkdir -p "$out"
 
 # The builds: the folders package.sh leaves, each a game that runs on its own (its executable, its content, how to play).
+# The demo's are package.sh --demo's, with the demo edition baked in (T79); the game's must not be.
+build=DarkTerritory; [ "$demo" = 1 ] && build=DarkTerritory-Demo
 rids=(win-x64 linux-x64)
 declare -A exe=([win-x64]=DarkTerritory.exe [linux-x64]=DarkTerritory)
 declare -A steamlib=([win-x64]=steam_api64.dll [linux-x64]=libsteam_api.so)
 for rid in "${rids[@]}"; do
-  dir="out/dist/DarkTerritory-$rid"
-  [ -d "$dir" ] || fail "no $dir: run tools/package.sh first"
+  dir="out/dist/$build-$rid"
+  [ -d "$dir" ] || fail "no $dir: run tools/package.sh$([ "$demo" = 1 ] && echo ' --demo') first"
   [ -f "$dir/${exe[$rid]}" ] || fail "$dir has no ${exe[$rid]}"
   [ "$rid" = linux-x64 ] && { [ -x "$dir/${exe[$rid]}" ] || fail "$dir/${exe[$rid]} isn't executable"; }
   [ -f "$dir/content/tuning/train.json" ] || fail "$dir has no content"
+  if [ "$demo" = 1 ]; then grep -q '"demo": true' "$dir/content/tuning/edition.json" || fail "$dir isn't the demo edition: run tools/package.sh --demo"
+  elif grep -q '"demo": true' "$dir/content/tuning/edition.json" 2>/dev/null; then fail "$dir is the demo edition"; fi
   [ -f "$dir/PLAYING.txt" ] || fail "$dir has no PLAYING.txt"
   # Steam players need Valve's library beside the game for lobbies and invites (external/steam/README.md). The Windows
   # one is required to ship on Steam; Linux players can still host and join by address without theirs.
@@ -80,14 +84,14 @@ if [ "$store" = steam ]; then
     printf '\t"Depots"\n\t{\n'
     for rid in "${rids[@]}"; do
       printf '\t\t"%s"\n\t\t{\n' "${depot[$rid]}"
-      printf '\t\t\t"ContentRoot" "%s/"\n' "$PWD/out/dist/DarkTerritory-$rid"
+      printf '\t\t\t"ContentRoot" "%s/"\n' "$PWD/out/dist/$build-$rid"
       printf '\t\t\t"FileMapping"\n\t\t\t{\n\t\t\t\t"LocalPath" "*"\n\t\t\t\t"DepotPath" "."\n\t\t\t\t"recursive" "1"\n\t\t\t}\n'
       # Steam gives the game its app id when it launches it; a stray steam_appid.txt would pin the dev one.
       printf '\t\t\t"FileExclusion" "steam_appid.txt"\n'
       printf '\t\t\t"FileExclusion" "*.pdb"\n'
       printf '\t\t}\n'
-      uploads+=("$(jq -n --arg rid "$rid" --arg depot "${depot[$rid]}" --arg dir "out/dist/DarkTerritory-$rid" \
-        --argjson files "$(files "out/dist/DarkTerritory-$rid")" --argjson bytes "$(bytes "out/dist/DarkTerritory-$rid")" \
+      uploads+=("$(jq -n --arg rid "$rid" --arg depot "${depot[$rid]}" --arg dir "out/dist/$build-$rid" \
+        --argjson files "$(files "out/dist/$build-$rid")" --argjson bytes "$(bytes "out/dist/$build-$rid")" \
         '{rid: $rid, depot: ($depot | tonumber), dir: $dir, files: $files, bytes: $bytes}')")
     done
     printf '\t}\n}\n'
@@ -109,7 +113,7 @@ else
   suffix=""; [ "$demo" = 1 ] && suffix=-demo
   declare -A channel=([win-x64]=$ITCH_CHANNEL_WIN$suffix [linux-x64]=$ITCH_CHANNEL_LINUX$suffix)
   for rid in "${rids[@]}"; do
-    dir="out/dist/DarkTerritory-$rid"
+    dir="out/dist/$build-$rid"
     # --if-changed: pushing the same build twice is a no-op, so a re-run release job is harmless.
     cmd=("${BUTLER:-butler}" push "$dir" "${target:-<user/game>}:${channel[$rid]}" --userversion "$version" --if-changed)
     echo "${cmd[*]}"

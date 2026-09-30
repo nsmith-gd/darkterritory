@@ -379,4 +379,9 @@ public sealed record DirectorTuning(
     /// grace (after the playtest, "out of the gate in 20 s") is the rule. Negative: the whole stretch, as the plan has it.
     /// </summary>
     public double LineGraceSeconds { get; init; } = 20;
+    /// <summary>
+    /// The kinds this edition has (their tuning names), or empty for all of them. The demo has GDD §21's five, one per
+    /// pressure zone (T79); nothing outside it is sent, and nothing condition-triggered outside it comes up either.
+    /// </summary>
+    public string[] Roster { get; init; } = [];
 }

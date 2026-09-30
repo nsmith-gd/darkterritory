@@ -9,7 +9,8 @@ dotnet build Ballast.slnx                          # warnings are errors
 dotnet test --solution Ballast.slnx                # all tests (Microsoft.Testing.Platform runner)
 dotnet test --project tests/DarkTerritory.Sim.Tests  # one project
 dotnet run --project src/DarkTerritory.Cli -- train table   # `dt`: headless inspection tool, JSON out
-tools/package.sh [win-x64] [linux-x64]             # builds for players: self-contained, zipped, in out/dist/
+tools/package.sh [--demo] [win-x64] [linux-x64]    # builds for players: self-contained, zipped, in out/dist/ (--demo: the demo edition beside it)
+dotnet run --project src/DarkTerritory.Cli -- --edition demo harness --route frontier:7 --bots 8 --enemies   # any dt command (or the app) on the demo edition (editions/demo)
 tools/xr-sim.sh && XDG_RUNTIME_DIR=/tmp/xr dotnet run --project src/DarkTerritory.Cli -- vr check   # VR end to end on a simulated headset
 dotnet run --project src/DarkTerritory.Cli -- audio render --listener all   # spec A.3 tell audit; one listener → WAV + spectrogram PNG
 dotnet run --project src/DarkTerritory.Cli -- screenshot --view roof   # 1280x720 PNG to out/shots/; then Read it to look

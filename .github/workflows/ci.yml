@@ -111,16 +111,21 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      - run: tools/package.sh win-x64 linux-x64
+      - run: tools/package.sh --demo win-x64 linux-x64
       - name: The packaged game starts from anywhere and plays
         run: |
           cd "$RUNNER_TEMP"
           xvfb-run -a -s "-screen 0 1280x720x24" "$GITHUB_WORKSPACE/out/dist/DarkTerritory-linux-x64/DarkTerritory" --route frontier:7 --throttle 1 --quit-after 6 --mute --no-steam --capture "$GITHUB_WORKSPACE/out/dist/packaged.png"
           test -f "$GITHUB_WORKSPACE/out/dist/packaged.png"
+          # The demo (T79) too, asked for a night it doesn't have: it plays the Frontier instead.
+          xvfb-run -a -s "-screen 0 1280x720x24" "$GITHUB_WORKSPACE/out/dist/DarkTerritory-Demo-linux-x64/DarkTerritory" --route deadLines:3 --throttle 1 --quit-after 6 --mute --no-steam --capture "$GITHUB_WORKSPACE/out/dist/packaged-demo.png" | tee demo.log
+          grep -q "no deadLines nights in it" demo.log
+          test -f "$GITHUB_WORKSPACE/out/dist/packaged-demo.png"
       - name: Store uploads, dry run (tools/store/README.md; the Release workflow sends them)
         run: |
           tools/upload.sh steam --dry-run --demo --branch beta
           grep -q '"SetLive" "beta"' out/store/steam/app_build_*.vdf
+          grep -q 'DarkTerritory-Demo-win-x64' out/store/steam/app_build_*.vdf
           tools/upload.sh steam --dry-run
           jq -e '.dryRun and (.uploads | length == 2) and all(.uploads[]; .files > 100)' out/store/steam.json
           tools/upload.sh itch --dry-run
@@ -133,3 +138,11 @@ jobs:
         with:
           name: DarkTerritory-linux-x64
           path: out/dist/DarkTerritory-linux-x64/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DarkTerritory-Demo-win-x64
+          path: out/dist/DarkTerritory-Demo-win-x64/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DarkTerritory-Demo-linux-x64
+          path: out/dist/DarkTerritory-Demo-linux-x64/
