@@ -25,7 +25,7 @@ public sealed class CreatureArt
 {
     public const string Folder = "art/models";
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
-    public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk"];
+    public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight"];
 
     /// <summary>Wear shown over each model's textures (the shader's grime): crew middling, monsters by how they're made.</summary>
     static readonly Dictionary<string, float> WearOf = new()
@@ -39,6 +39,7 @@ public sealed class CreatureArt
         ["soot_child"] = 0.5f,
         ["dragger"] = 0.2f,
         ["husk"] = 0.7f,
+        ["weight"] = 0.3f,
     };
 
     sealed class Entry(Model model, MaterialLook[] looks)
@@ -289,9 +290,14 @@ public sealed class CreatureArt
     /// its +X side; turn the basis for the other); they turn their heads up at the doors while they call.</item>
     /// </list>
     /// </summary>
-    public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, EnemyKind kind, SpinePhase phase, double phaseSeconds, double extra)
+    public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, EnemyKind kind, SpinePhase phase, double phaseSeconds, double extra, double health = 1)
     {
         double t = phaseSeconds;
+        // The in-car incidents are effects, not creatures with a model (Art/IncidentArt).
+        if (kind is EnemyKind.CarFire or EnemyKind.LooseLoad or EnemyKind.Gnawers)
+            return IncidentArt.Draw(mesh, model.Translation, Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, model)),
+                Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, model)), Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, model)),
+                kind, phase, t, extra, health);
         float pulse = (float)(0.5 + 0.5 * Math.Sin(t * 9));
         switch (kind)
         {
@@ -513,10 +519,19 @@ public sealed class CreatureArt
             case EnemyKind.Weight:
                 {
                     // Buried beside the track until the rear car passes: nothing to see. Then under the rear coupling, below
-                    // the gun's arc (App. A.3): a heap of limbs hooked over the coupler and the headstock, dragging. The
-                    // Dragger's limbs, bigger and more of them, pulled back along −Z... the way the train isn't going.
+                    // the gun's arc (App. A.3): a heap of limbs hooked over the coupler and the headstock, dragging.
                     if (phase == SpinePhase.Dormant)
                         return true;
+                    // Its own model (tools/blender/weight.py): a heap of bog bodies hooked on by four arms. It grabs as it
+                    // takes hold, then hauls; let go (beaten off, or the car cut), it slumps back on the stones.
+                    if (_models.TryGetValue("weight", out var w))
+                    {
+                        double grab = w.Model.Clips.TryGetValue("grab", out var g) ? g.Duration : 0;
+                        return phase == SpinePhase.BreakOff
+                            ? Draw(mesh, "weight", "release", t, false, model)
+                            : t < grab ? Draw(mesh, "weight", "grab", t, false, model) : Draw(mesh, "weight", "drag", t - grab, true, model);
+                    }
+                    // Without it, the Dragger's limbs, bigger and more of them, pulled back the way the train isn't going.
                     if (!_models.ContainsKey("dragger"))
                         return false;
                     for (int i = 0; i < 3; i++)
@@ -572,6 +587,6 @@ public sealed class CreatureArt
                 m = Matrix4x4.CreateRotationY(MathF.PI - Math.Sign(e.Lateral) * 0.6f) * model;
                 break;
         }
-        return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra);
+        return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health);
     }
 }

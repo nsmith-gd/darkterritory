@@ -41,6 +41,7 @@ public sealed class PrototypeSession : IPlaySession
         World.EnableRun(DataFile.Load<RunTuning>(Path.Combine(contentRoot, RunTuning.File)), route,
             route.GateOr(routeTuning.YardLength), authority: true,
             DataFile.Load<FacilityTuning>(Path.Combine(contentRoot, FacilityTuning.File)));
+        World.EnableLineside(DataFile.Load<SightTuning>(Path.Combine(contentRoot, SightTuning.File)), route);
     }
 
     PrototypeSession(string contentRoot, RailLine line, Route? route, int cars, double start)
@@ -92,6 +93,10 @@ public sealed class PrototypeSession : IPlaySession
         foreach (var e in World.EnemyEvents)
             if (Cue(e) is { } cue)
                 _cues.Add((ElapsedSeconds, cue));
+        foreach (var sign in World.Lineside?.ReadThisTick ?? [])
+            _cues.Add((ElapsedSeconds, Board(sign)));
+        foreach (var drop in World.Lineside?.CaughtThisTick ?? [])
+            _cues.Add((ElapsedSeconds, Caught(drop)));
         _cues.RemoveAll(c => ElapsedSeconds - c.At > CueSeconds);
         PlayerMotor.Step(ref Player, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
         World.StepBodies([(1, Player)]);
@@ -174,6 +179,24 @@ public sealed class PrototypeSession : IPlaySession
     /// Stand-ins for the audio telegraphs until the mixer exists (spec §2: the tell is a sound). Each is
     /// what you'd hear or see at that transition, worded so it's clear what the answer is.
     /// </summary>
+    /// <summary>A board the lamp has found, as the driver would call it back down the train.</summary>
+    public static string Board(Sign sign) => sign.Kind switch
+    {
+        SignKind.SpeedLimit => $"board: {sign.LimitKmh} km/h ahead",
+        SignKind.Drop => $"board: a mail crane ahead on the {(sign.Drop!.Side > 0 ? "right" : "left")}: open that side door and hook it (left mouse)",
+        SignKind.Terminus => "board: the terminus ahead",
+        _ => "board: low clearance ahead, off the roofs",
+    };
+
+    /// <summary>A bag off a crane, as whoever hooked it would call it.</summary>
+    public static string Caught(Drop drop) => drop.Kind switch
+    {
+        DropKind.Mail => $"hooked the mail: {drop.Amount:0} scrip at the terminus",
+        DropKind.Coal => "hooked a sack of coal for the tender",
+        DropKind.Ammo => "hooked a case of rounds for the guns",
+        _ => "hooked a bag of spares: the worst car's patched up",
+    };
+
     static string? Cue(in EnemyEvent e) => (e.Kind, e.To) switch
     {
         (EnemyKind.Sleepers, SpinePhase.Telegraph) => "the lamp catches ties that move, ahead",
@@ -226,6 +249,15 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Ferryman, SpinePhase.Commit) => "the lantern's coming down the line at you",
         (EnemyKind.Ferryman, SpinePhase.Punish) => "something's in the cab",
         (EnemyKind.Ferryman, SpinePhase.BreakOff) => "the lantern steps aside",
+        (EnemyKind.CarFire, SpinePhase.Telegraph) => "smoke and a crackle from a car: get in there and beat it out (Use)",
+        (EnemyKind.CarFire, SpinePhase.Punish) => "a car's alight: it'll take the next one",
+        (EnemyKind.CarFire, SpinePhase.BreakOff) => "the fire's out",
+        (EnemyKind.LooseLoad, SpinePhase.Telegraph) => "straps groaning in a car: a load's come loose, lash it (Use), and go easy on the brake",
+        (EnemyKind.LooseLoad, SpinePhase.Punish) => "a load's come down across the aisle",
+        (EnemyKind.LooseLoad, SpinePhase.BreakOff) => "the load's lashed",
+        (EnemyKind.Gnawers, SpinePhase.Telegraph) => "chittering in a car's load: something's nesting in it",
+        (EnemyKind.Gnawers, SpinePhase.Punish) => "they're out of the crates: stamp them out (Use)",
+        (EnemyKind.Gnawers, SpinePhase.BreakOff) => "the last of them stamped out",
         (EnemyKind.Lamplighter, SpinePhase.Telegraph) => "eyes out in the dark, catching the lamp: lamps down (L)",
         (EnemyKind.Lamplighter, SpinePhase.Punish) => "the lamp's smashed",
         (EnemyKind.Lamplighter, SpinePhase.BreakOff) => "the eyes go back out into the dark",

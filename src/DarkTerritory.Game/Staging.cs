@@ -78,6 +78,19 @@ public static class Staging
         int middle = Math.Max(0, (train.Frames.Count - 1) / 2);
         rattle.Restore(SpinePhase.Telegraph, 1, 1, middle, Rattle.In(0, train, middle, train.Dynamics.Tuning.Geometry.CouplingGap).Local, 0, 0, 0, 0, 0);
         threats.Add(rattle);
+        // Trouble inside the cars: the first cargo car alight, and in the middle car a load gone loose and Gnawers out.
+        var fire = CarFire.In(24, train, cargo, 1.5, new CarFireTuning());
+        fire.Restore(SpinePhase.Punish, 5, 1, cargo, fire.Local, 0, 0, 0, 0.7, 0);
+        threats.Add(fire);
+        if (train.Vehicles[middle].Kind == VehicleKind.Cargo)
+        {
+            var load = LooseLoad.In(25, train, middle, -2);
+            load.Restore(SpinePhase.Telegraph, 4, 1, middle, load.Local, 0, 0, 0, 0, d.Speed);
+            threats.Add(load);
+            var gnawers = Gnawers.In(26, train, middle, 2.5, new GnawerTuning());
+            gnawers.Restore(SpinePhase.Punish, 3, 0.8, middle, gnawers.Local, 0, 0, 0, 0, 0);
+            threats.Add(gnawers);
+        }
         // Coming in for the lamp off the engine's right, its eyes catching the beam's spill.
         var lamplighter = new Lamplighter(23);
         lamplighter.Restore(SpinePhase.Telegraph, 3, 1, -1, default, d.Distance + 4, 3.2, 0, 0, 0);

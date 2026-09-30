@@ -23,6 +23,7 @@ var train = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
 var player = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
 var boiler = DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File));
 var routeTuning = DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File));
+var sight = DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File));
 
 return args switch
 {
@@ -121,6 +122,7 @@ object RunHarness(string[] args)
         Udp = args.Contains("--udp"),
         Network = online,
         Vigil = DataFile.Load<DarkTerritory.Sim.Run.VigilTuning>(Path.Combine(content, DarkTerritory.Sim.Run.VigilTuning.File)),
+        Sight = sight,
         Run = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)),
         Facilities = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
         YardLength = route?.GateOr(routeTuning.YardLength) ?? routeTuning.YardLength,
@@ -162,6 +164,7 @@ BalanceReport RunBalance(string[] args)
             Enemies = enemies,
             Route = route,
             Vigil = vigil,
+            Sight = sight,
             Run = run,
             Facilities = facilities,
             YardLength = routeTuning.YardLength,
@@ -422,6 +425,7 @@ object CampaignCommand(string content, string verb, string[] args)
                     YardLength = route.GateOr(routeTuning.YardLength),
                     Facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
                     Vigil = DataFile.Load<DarkTerritory.Sim.Run.VigilTuning>(Path.Combine(content, DarkTerritory.Sim.Run.VigilTuning.File)),
+                    Sight = sight,
                 }, loadout.Boiler);
                 if (report.Run is not { } night)
                     return new { error = "the night didn't run" };

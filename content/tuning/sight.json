@@ -1,0 +1,54 @@
+// What the headlamp shows, and the line's boards (GDD §22 hazards, App. A.2 and A.6: "lamps down" contradicts everything
+// that needs forward visibility). Added after the 100-night playtest: running dark has to cost obstacle sight (the
+// Sleepers, enemies.json, and the Grease here) and sign sight (the boards). First pass, not in the spec.
+{
+  // A board is read once the headlamp reaches it; lamps down, only once it's almost alongside.
+  "lampSignRange": 350,
+  "darkSignRange": 10,
+  // Grease's sheen on the rail: seen this far out in the lamp, and this far without it.
+  "lampGreaseRange": 150,
+  "darkGreaseRange": 15,
+  // Boards stand this far short of what they warn of.
+  "boardAhead": 450,
+  // A curve is posted at the speed that gives this lateral pull (m/s², v = sqrt(a R)), if that's under postBelow (m/s).
+  "curveLateral": 0.4,
+  "postBelow": 15,
+  // A weak bridge (route.json weakBridgeChance) is posted at this.
+  "weakBridgeLimit": 7,
+  // Over a posted speed by this much (m/s), the cars strain (integrity lost per second per m/s over: strainPerSecond) and
+  // the cargo lurches about (cargo integrity, cargoDamagePerSecond); by
+  // throwOver, whoever's up on the roofs goes over the side at throwSpeed outward (at speed, that's death); at derailRatio
+  // times the board, the train's off the rails.
+  "lurchOver": 1.5,
+  "throwOver": 3.5,
+  "cargoDamagePerSecond": 0.01,
+  "strainPerSecond": 0.004,
+  "throwSpeed": 3,
+  "derailRatio": 1.55,
+  // GDD App. A.2 GREASE: "slicks the rail. No traction — can't climb, can't stop." The rail's grip while the engine's on it.
+  "greaseTraction": 0.25,
+  // A tunnel's mouth, to anyone standing on a roof going into it.
+  "struckDamage": 200,
+
+  // The mail cranes (the playtest's rewards: something to reach for between the threats). One every dropSpacing (m) from
+  // dropFrom to the terminus's board, clear of tunnels, bridges, facilities and junctions by dropClear, each with a board
+  // dropBoardAhead short of it saying which side. Caught by someone in a cargo car's open side door on that side, within
+  // catchReach of the car's side, holding the hook out (Fire) as it goes by. In the bag, by weight: pay (mailScrip, paid
+  // at the terminus with the cargo), coal for the tender (coalUnits), rounds for both guns (ammoRounds), or spares for
+  // the worst-off car (sparesIntegrity).
+  "dropSpacing": [350, 600],
+  "dropFrom": 900,
+  "dropClear": 80,
+  "dropBoardAhead": 400,
+  "catchReach": 1.1,
+  "dropWeights": { "mail": 0.45, "coal": 0.2, "ammo": 0.2, "spares": 0.15 },
+  "mailScrip": [20, 60],
+  "coalUnits": 8,
+  "ammoRounds": 40,
+  "sparesIntegrity": 0.25,
+  // The terminus's distant board, its home signal and the platform's board: nothing spawns on the last run in (App. B.1),
+  // so these are its moments.
+  "terminusBoard": 1400,
+  "homeSignal": 600,
+  "platformBoard": 100
+}

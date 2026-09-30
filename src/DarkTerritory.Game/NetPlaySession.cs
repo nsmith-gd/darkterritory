@@ -121,6 +121,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             world.EnableSwitches(routeTuning.Junctions);
             world.EnableRun(runTuning, route, route.GateOr(routeTuning.YardLength), authority,
                 DataFile.Load<Sim.Run.FacilityTuning>(Path.Combine(content, Sim.Run.FacilityTuning.File)));
+            world.EnableLineside(DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)), route);
         }
         // A client mirrors the enemies, and needs their tuning for what it predicts from them (the Weight's drag, T59) and
         // for bots reading them; the host's world gets its director from HostSession.EnableEnemies.
