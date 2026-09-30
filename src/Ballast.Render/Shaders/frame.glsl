@@ -15,6 +15,7 @@ layout(set = 0, binding = 0) uniform Frame {
     vec4 sky2;         // x = the backdrop band's height in radians, y = fog curve exponent, z = horizon haze over the fog, w = wetness
     vec4 lights[64];   // pairs: xyz position (camera-relative) + range, rgb colour
     vec4 rooms[48];    // triples: centre + half x, right axis + half y, back axis + half z (up = back x right)
-    vec4 counts;       // x = rooms, y = 1 when the moon casts a shadow
+    vec4 counts;       // x = rooms, y = 1 when the moon casts a shadow, z = one texel of its map
     mat4 moonViewProj; // camera-relative to the moon's shadow map (orthographic)
+    vec4 heroOf[64];   // per layer (4 a vec4): its slot in the hero arrays, or -1
 } frame;

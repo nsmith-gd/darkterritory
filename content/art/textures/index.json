@@ -1340,6 +1340,30 @@
     "license": "CC0-1.0"
   },
   {
+    "name": "pine_bough",
+    "diffuse": "pine_bough.png",
+    "spec": "pine_bough_s.png",
+    "normal": "pine_bough_n.png",
+    "size": [
+      512,
+      256
+    ],
+    "tileMetres": null,
+    "tiling": false,
+    "family": "foliage",
+    "alphaTest": true,
+    "albedoTarget": 0.04,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "a frond: branchlets raked along a twig, furred with needles, gaps between",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
     "name": "dead_tree_card",
     "diffuse": "dead_tree_card.png",
     "spec": "dead_tree_card_s.png",
