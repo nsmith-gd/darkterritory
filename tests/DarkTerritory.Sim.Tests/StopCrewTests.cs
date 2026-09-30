@@ -211,6 +211,26 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void AtAStopOnlyTheFirstTwoCrateHandsLeaveTheCratesForTrouble()
+    {
+        // T70: with Gnawers and loose loads one after another, every crate hand going to each loaded nothing all stop.
+        var calls = new CrewCalls();
+        var alive = new PlayerState { Health = 100, Parent = 3 };
+        calls.Say(1, StopJob.Winch0, alive);
+        for (int m = 2; m <= 5; m++)
+            calls.Say(m, StopJob.Crates, alive);
+        Assert.True(new StopHand(StopJob.Crates, calls, 2).TakesTrouble);
+        Assert.True(new StopHand(StopJob.Crates, calls, 3).TakesTrouble);
+        Assert.False(new StopHand(StopJob.Crates, calls, 4).TakesTrouble);
+        Assert.False(new StopHand(StopJob.Crates, calls, 5).TakesTrouble);
+        // The winch pair decide for themselves (a fire alight, a load loose), as before.
+        Assert.True(new StopHand(StopJob.Winch0, calls, 1).TakesTrouble);
+        // One of the two dies: the next hand takes their place at it.
+        calls.Say(2, StopJob.Crates, alive with { Health = 0, Death = DeathCause.Gnawed });
+        Assert.True(new StopHand(StopJob.Crates, calls, 4).TakesTrouble);
+    }
+
+    [Fact]
     public void AtTheFoundryThePairRunTheCraneAndTheCastingsGoOnTheRoofs()
     {
         // The foundry: a winch, crates and the gantry crane (spec D.2). The pair take the crane first, one up at the controls
