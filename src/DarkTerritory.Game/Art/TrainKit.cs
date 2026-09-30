@@ -348,7 +348,7 @@ public static class TrainKit
         Cab(k, shape, w, deck, cabFront, cabBack, bw, top, roofLow, roofTop);
         RunningBoards(k, shape);
         CouplerPlates(k, shape);
-        Tender(k, shape, w, l, deck, (float)tender.Max.Y, cabBack);
+        Tender(k, shape, w, l, deck, (float)tender.Max.Y, cabBack, (float)tender.Min.X);
         return k.Build($"engine-{variant}");
     }
 
@@ -496,37 +496,39 @@ public static class TrainKit
     /// The tender: tank sides, a flared coal board round the heap, the coal itself heaped where you walk, the coal gate at
     /// the front onto the shovelling plate, a ladder and a tail lamp at the back.
     /// </summary>
-    static void Tender(Kit k, CarShape shape, float w, float l, float deck, float top, float front)
+    static void Tender(Kit k, CarShape shape, float w, float l, float deck, float top, float front, float left)
     {
+        // The bunker's left side stands in from the tender's edge by the gangway (T90), which is floored by the frame below.
+        float Side(int side) => side < 0 ? left : w;
         k.Use("paint_black", Palette.SootBlack, 0.9f, 0.3f, tile: 1.5f);
         float sides = top - 0.28f;
-        k.Box(new Vector3(-w, deck, front + 0.05f), new Vector3(w, sides, l), Kit.Faces.Sides);
+        k.Box(new Vector3(left, deck, front + 0.05f), new Vector3(w, sides, l), Kit.Faces.Sides);
         // Straps and rivet lines down the tank.
         k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
         for (float z = front + 0.9f; z < l - 0.2f; z += 1.2f)
             foreach (int side in new[] { -1, 1 })
-                k.Box(new Vector3(side * w - 0.02f, deck + 0.1f, z - 0.05f), new Vector3(side * w + 0.02f, sides, z + 0.05f));
+                k.Box(new Vector3(Side(side) - 0.02f, deck + 0.1f, z - 0.05f), new Vector3(Side(side) + 0.02f, sides, z + 0.05f));
         // The flared coal board.
         k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.35f);
         foreach (int side in new[] { -1, 1 })
         {
-            var a = new Vector3(side * w, sides, front + 0.05f);
-            var b = new Vector3(side * w, sides, l);
-            var c = new Vector3(side * (w + 0.1f), top + 0.06f, l);
-            var d = new Vector3(side * (w + 0.1f), top + 0.06f, front + 0.05f);
+            var a = new Vector3(Side(side), sides, front + 0.05f);
+            var b = new Vector3(Side(side), sides, l);
+            var c = new Vector3(Side(side) + side * 0.1f, top + 0.06f, l);
+            var d = new Vector3(Side(side) + side * 0.1f, top + 0.06f, front + 0.05f);
             if (side > 0)
                 k.Quad(d, c, b, a, twoSided: true);
             else
                 k.Quad(c, d, a, b, twoSided: true);
         }
-        k.Box(new Vector3(-w, sides, l - 0.08f), new Vector3(w, top + 0.06f, l));
+        k.Box(new Vector3(left, sides, l - 0.08f), new Vector3(w, top + 0.06f, l));
         // The coal, heaped to the walking height, lumpy.
         k.Use("coal", Palette.SootBlack, 0.4f, 0.5f, tile: 1.2f);
         const int nx = 6, nz = 8;
         float zc0 = front + 0.05f, zc1 = l - 0.08f;
         Vector3 Coal(int i, int j)
         {
-            float x = -w + 2 * w * i / nx, z = zc0 + (zc1 - zc0) * j / nz;
+            float x = left + (w - left) * i / nx, z = zc0 + (zc1 - zc0) * j / nz;
             float bump = MathF.Sin(i * 2.3f + j * 1.7f) * 0.05f + MathF.Sin(i * 5.1f - j * 3.3f) * 0.03f;
             float edge = (i == 0 || i == nx) ? -0.12f : 0;
             return new Vector3(x, top + bump + edge, z);
@@ -537,13 +539,23 @@ public static class TrainKit
         // The front: plate either side of the coal gate, the gate's coal face, and the shovelling plate.
         k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.35f);
         float gate = 0.55f, gateTop = deck + 0.95f;
-        k.Box(new Vector3(-w, deck, front), new Vector3(-gate, top, front + 0.06f), Kit.Faces.NegZ | Kit.Faces.PosY);
+        k.Box(new Vector3(left, deck, front), new Vector3(-gate, top, front + 0.06f), Kit.Faces.NegZ | Kit.Faces.PosY);
         k.Box(new Vector3(gate, deck, front), new Vector3(w, top, front + 0.06f), Kit.Faces.NegZ | Kit.Faces.PosY);
         k.Box(new Vector3(-gate, gateTop, front), new Vector3(gate, top, front + 0.06f), Kit.Faces.NegZ | Kit.Faces.NegY);
         k.Use("coal", Palette.SootBlack, 0.4f, 0.5f, tile: 1.2f);
         k.Quad(new Vector3(gate, gateTop, front + 0.2f), new Vector3(-gate, gateTop, front + 0.2f), new Vector3(-gate, deck + 0.05f, front - 0.15f), new Vector3(gate, deck + 0.05f, front - 0.15f));
         k.Use("iron_plate", Palette.IronGrey, 0.8f, 0.4f);
         k.Box(new Vector3(-gate - 0.1f, deck, front - 0.7f), new Vector3(gate + 0.1f, deck + 0.02f, front), Kit.Faces.PosY);
+        // The gangway beside the bunker (T90): a grated walk at deck height, and a grab rail along its outer edge.
+        if (left > -w + 0.05f)
+        {
+            k.Use("steel_grate", Palette.IronGrey, 0.8f, 0.4f, tile: 0.8f);
+            k.Box(new Vector3(-w, deck - 0.03f, front), new Vector3(left, deck + 0.01f, l), Kit.Faces.All);
+            k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
+            k.Rod(new Vector3(-w + 0.04f, deck + 1.0f, front + 0.2f), new Vector3(-w + 0.04f, deck + 1.0f, l - 0.1f), 0.022f, 6);
+            for (float z = front + 0.2f; z < l; z += 1.3f)
+                k.Rod(new Vector3(-w + 0.04f, deck, z), new Vector3(-w + 0.04f, deck + 1.0f, z), 0.02f, 5);
+        }
         // The frame under it, the rear beam, the coupler, the rear ladder and the tail lamp.
         k.Use("paint_oxide", Palette.RustRed, 0.9f, 0.1f);
         k.Box(new Vector3(-w, 0.75f, l - 0.25f), new Vector3(w, deck, l));
@@ -551,9 +563,9 @@ public static class TrainKit
         k.Box(new Vector3(-w, deck - 0.25f, front), new Vector3(w, deck, l - 0.25f));
         Coupler(k, l, 1, 0.9f);
         foreach (var ladder in shape.Ladders.Where(x => x.Foot.Z > front && Math.Abs(x.Inward.Z) > 0))
-            RungLadder(k, F(ladder.Foot) + new Vector3(0, 0, -0.04f), (float)ladder.Top, F(ladder.Inward), from: 0.5f);
+            RungLadder(k, F(ladder.Foot) + new Vector3(0, 0, -0.04f), (float)(ladder.Top - ladder.Foot.Y), F(ladder.Inward), from: ladder.Foot.Y > 0 ? 0 : 0.5f);
         k.Use("paint_black", Palette.SootBlack, 0.7f, 0.3f);
-        var tail = new Vector3(-w + 0.25f, top + 0.25f, l + 0.05f);
+        var tail = new Vector3(left + 0.25f, top + 0.25f, l + 0.05f);
         k.BoxAt(tail, new Vector3(0.12f, 0.14f, 0.1f));
         k.Use("lamp_lens", Palette.SignalRed, 0, 0, tile: 0.2f);
         k.Emissive = 1;

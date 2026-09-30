@@ -63,13 +63,19 @@ public sealed record EngineLayout(double DeckHeight, double BoilerHalfWidth, dou
     public double RunningBoardWidth { get; init; } = 0.6;
     /// <summary>The sandboxes on the running boards: this far ahead of the cab front.</summary>
     public double SandboxAhead { get; init; } = 2.5;
+    /// <summary>
+    /// The gangway down the tender's left side, this wide at deck height, from its rear coupler into the back of the cab
+    /// (T90: the crew had no way into the cab from the train). Zero is the old full-width tender.
+    /// </summary>
+    public double TenderGangway { get; init; }
 }
 public sealed record MassTuning(double EngineTonnes, double EmptyCarTonnes, double LoadedCarTonnes);
 public sealed record PerformanceRow(int Cars, double Accel, double Brake);
 public sealed record BrakeFadeTuning(double FadePerSecond, double RecoverPerSecond, double MinEfficiency, bool OnlyOnDescent);
 /// <summary>Coupling, cutting and collision between rakes. Field docs live in train.json.</summary>
 public sealed record CouplingTuning(double CoupleMaxSpeed, double SafeContactSpeed, double DamagePerSpeedSquared, double CargoDamageShare,
-    double UncoupleSeconds, double UncoupleUnderLoadSeconds, double HandbrakeDecel, double ParkBelowSpeed, double HandbrakeSeconds);
+    double UncoupleSeconds, double UncoupleUnderLoadSeconds, double HandbrakeDecel, double ParkBelowSpeed, double HandbrakeSeconds,
+    double UncoupleLookDownDegrees = 0);
 
 /// <summary>Deceleration from rolling (m/s²) and air (per (m/s)²) resistance.</summary>
 public sealed record ResistanceTuning(double Rolling, double Air);

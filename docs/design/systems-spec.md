@@ -172,6 +172,7 @@ The alternative is Unity's built-in AudioMixer with hand-rolled ducking. It's vi
 | Ladder climb | 1.6 m/s | |
 | Carrying heavy cargo | 2.8 m/s | No climbing |
 | Jump gap | 2.2m max | Coupling gaps are 1.5m — jumpable, but not while it's rattling |
+| Jump height | 0.8m | Playtest (T90): the 0.48 m a flat 2.2 m gap needs felt like no jump at all. A roof-run jump now carries ~2.8 m |
 | Health | 100 | Most attacks 35–60 |
 | Cold exposure | 600s to onset, 1200s to death | Resets in 20s near heat. Inside a car with a door open it builds at ¼ rate. (Was 200 / 320 / 45: cold was 73% of deaths in the 100-night playtest.) |
 
@@ -182,14 +183,14 @@ The bands fall out of the 4:1 ratio, and they define what's possible at each spe
 | Band | Speed | Consequence |
 |---|---|---|
 | **Yard** | 2.5 m/s | **Below player run speed.** You can chase the train down and board it. This is what makes the decoupled-engine loading sequence work. |
-| **Jump-off survivable** | <4.0 m/s | Roll on landing, minor damage |
-| **Jump-off lethal** | >4.0 m/s | Death |
+| **Jump-off survivable** | <16.5 m/s | A knock on landing: 10 just above 1.5 m/s, rising to 80 at the lethal edge (T90 playtest) |
+| **Jump-off lethal** | >16.5 m/s (3× run) | Death. Was 4.0 m/s, which made every step off a moving train fatal. Being *pulled* off (Draggers) still kills above 4.0 m/s |
 | **Slow** | 6 m/s | Roof work comfortable |
 | **Working** | 10–14 m/s | Standard transit |
 | **Cruise** | 14 m/s | Target efficiency |
 | **Max** | 22 m/s | Roof traversal dangerous, Draggers +50% grab range |
 
-> **If you could catch it, you can leave it.** One threshold governs both boarding and jumping, which makes it learnable in a single sentence.
+> **If you could catch it, you can leave it.** Boarding still needs the train under 3.5 m/s past you (a ladder you can catch). Since T90 leaving is more forgiving than boarding: you can survive a jump off at working speed, but the train goes on without you.
 
 ## B.4 Consist geometry
 

@@ -49,6 +49,11 @@ public sealed class GreyboxScene
     public IReadOnlyList<Vehicle>? Vehicles { get; set; }
     /// <summary>Loose bodies: crates, lamps, the dead.</summary>
     public IReadOnlyList<Sim.Physics.Body>? Bodies { get; set; }
+    /// <summary>
+    /// This player's own hands, where the eye is drawn from this frame: what they carry is drawn there rather than where the
+    /// last snapshot put it (T92 playtest: a carried crate trailed the view and stepped at the snapshot rate).
+    /// </summary>
+    public (int Player, Double3 Hands, double Yaw)? HeldHere { get; set; }
     /// <summary>Other players, drawn as greybox figures.</summary>
     public IReadOnlyList<Crewmate>? Crew { get; set; }
     /// <summary>How each branch's switch is set (true: for the branch), for its stand's lamp. Unset, all read main.</summary>
@@ -219,8 +224,25 @@ public sealed class GreyboxScene
             // Heavy crates only come from a facility's site, so its size is there (facilities.json "heavy").
             double heavyHalf = Run?.Sites.FirstOrDefault(x => x is not null)?.HeavyRadius ?? 0.5;
             foreach (var b in Bodies)
+            {
+                // In your own hands, drawn at them for the frame (the mirror's own pose is back before anything reads it).
+                bool held = HeldHere is { } h && b.Carrier == h.Player && b.Kind is not (Sim.Physics.BodyKind.Heavy or Sim.Physics.BodyKind.Ragdoll or Sim.Physics.BodyKind.Radio);
+                var (parent, at, yaw) = (b.Parent, b.Pbd.Particles[0].Position, b.Yaw);
+                if (held)
+                {
+                    b.Parent = Sim.Player.PlayerState.World;
+                    b.Pbd.Particles[0].Position = HeldHere!.Value.Hands;
+                    b.Yaw = HeldHere.Value.Yaw;
+                }
                 if (Look?.Art.Body(mesh, frames, b, eye, heavyHalf, Time) != true)
                     DrawBody(mesh, frames, b, eye, heavyHalf);
+                if (held)
+                {
+                    b.Parent = parent;
+                    b.Pbd.Particles[0].Position = at;
+                    b.Yaw = yaw;
+                }
+            }
         }
         if (Crew is not null)
             foreach (var c in Crew)
@@ -1184,8 +1206,9 @@ public sealed class GreyboxScene
         {
             // Rails run up the face the ladder is fixed to: thin across it, a hand-width wide along it.
             bool side = Math.Abs(ladder.Inward.X) > 0;
-            var h = new Double3(side ? 0.05 : 0.25, ladder.Top / 2, side ? 0.25 : 0.05);
-            Draw(Box.FromCentre(ladder.Foot + new Double3(0, ladder.Top / 2, 0), h), Palette.IronGrey);
+            double rise = ladder.Top - ladder.Foot.Y;
+            var h = new Double3(side ? 0.05 : 0.25, rise / 2, side ? 0.25 : 0.05);
+            Draw(Box.FromCentre(ladder.Foot + new Double3(0, rise / 2, 0), h), Palette.IronGrey);
         }
         // Wheel sets under both ends.
         foreach (double z in new[] { -half * 0.6, half * 0.6 })

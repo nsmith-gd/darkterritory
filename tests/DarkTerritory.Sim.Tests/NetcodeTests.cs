@@ -93,7 +93,7 @@ public class NetcodeTests
     public void AClientCutsTheTrainAndPredictsItExactly()
     {
         var (net, host, clients) = Session(2);
-        // Warm up, then put client 1 on the coupler plate behind car 3 and hold Use.
+        // Warm up, then put client 1 on the coupler plate behind car 3, looking down at it, and hold Uncouple (T91).
         Run(net, host, clients, 10, _ => default);
         var cutter = clients[1];
         var plate = new PlayerState
@@ -104,12 +104,13 @@ public class NetcodeTests
             // Facing across the gap at the coupling: facing along the plate, the door it leads to comes first.
             Yaw = Math.PI / 2,
             Health = 100,
+            Pitch = -1.3,
         };
         HostTeleport(host, cutter.PlayerId!.Value, plate);
         Run(net, host, clients, 5, _ => default);
         foreach (var c in clients)
             c.ResetStats();
-        Run(net, host, clients, 90, i => i == 1 ? new PlayerIntent { Buttons = PlayerButtons.Use } : default);
+        Run(net, host, clients, 130, i => i == 1 ? new PlayerIntent { Actions = PlayerActions.Uncouple } : default);
 
         Assert.Equal(2, host.Train.Rakes.Count);
         Assert.All(clients, c => Assert.Equal(2, c.Train.Rakes.Count));

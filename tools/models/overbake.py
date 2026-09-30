@@ -53,12 +53,10 @@ def mat_slots(o, prefix):
 # ----------------------------------------------------------------------------------------------------------------
 # The high copy
 
-def high_of(o, dress, shapes=None, dense=False):
+def high_of(o, dress, shapes=None):
     """The part's high copy, split by material. `dress(material) -> (library material, subdiv) | None` (None: not in the
     high copy); subdiv > 0 is Catmull-Clark that many levels (cloth, hide over a form), 0 keeps the edges bevelled (a
-    buckle, a claw). `shapes` {kit material prefix: fn(positions, normals) -> metres along the normal} sculpts each.
-    `dense`: `o` is already a high copy (a modelled union, tools/blender/crewbody.py): it's split and sculpted, not
-    subdivided."""
+    buckle, a claw). `shapes` {kit material prefix: fn(positions, normals) -> metres along the normal} sculpts each."""
     out = []
     used = {f.material_index for f in o.data.polygons}
     for mi, m in enumerate(o.data.materials):
@@ -83,9 +81,7 @@ def high_of(o, dress, shapes=None, dense=False):
         me.materials.clear()
         me.materials.append(mat)
         bpy.context.view_layer.objects.active = h
-        if dense:
-            pass
-        elif subdiv:
+        if subdiv:
             mod = h.modifiers.new("sub", "SUBSURF")
             mod.levels = mod.render_levels = subdiv
             bpy.ops.object.modifier_apply(modifier=mod.name)

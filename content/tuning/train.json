@@ -36,7 +36,11 @@
       // The running boards out past the cab sides (App. A.2 GREASE: "sanding from the running boards"), this wide, and the
       // sandbox on each this far ahead of the cab front.
       "runningBoardWidth": 0.6,
-      "sandboxAhead": 2.5
+      "sandboxAhead": 2.5,
+      // A walkway this wide down the tender's left side at deck height, from the coupler behind it into the back of the
+      // cab (T90 playtest: there was no way into the cab from the train). A short ladder up the tender's front, beside the
+      // coal, reaches the cab roof and its gun.
+      "tenderGangway": 0.9
     },
     // Cars are walk-in (GDD §10: "the back door"; §26: warm interior, hostile exterior). The floor is
     // level with the coupler plate, so you step from the gap through the end door. The roof slab keeps
@@ -108,9 +112,11 @@
     "damagePerSpeedSquared": 0.06,
     // Fraction of structural damage that also spoils cargo in every vehicle of both rakes.
     "cargoDamageShare": 0.5,
-    // Hold Use on the coupler plate this long to cut. Longer while the train is working (under load).
-    "uncoupleSeconds": 1.5,
-    "uncoupleUnderLoadSeconds": 4.0,
+    // Hold Uncouple on the coupler plate, looking down at it (at least uncoupleLookDownDegrees below level), this long to
+    // cut. Longer while the train is working (under load). T91 playtest: a deliberate act, not a press of Use.
+    "uncoupleSeconds": 3.0,
+    "uncoupleUnderLoadSeconds": 6.0,
+    "uncoupleLookDownDegrees": 55,
     // Deceleration handbrakes give a parked rake, and the speed below which a cut rake is parked for you.
     "handbrakeDecel": 0.3,
     "parkBelowSpeed": 0.5,
