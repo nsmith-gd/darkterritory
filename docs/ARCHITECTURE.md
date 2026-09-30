@@ -1920,3 +1920,12 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - Everyone joining before it moves boards at the fortress (App. D.3). The run begins as it moves off.
     - The threshold is nearly level by construction (`fortress.maxThresholdGrade`), and a standing train doesn't creep through the gate: `DepartureTests` holds three seeds there for 90 s.
     - A resumed night still starts where it was saved. The harness keeps its own start (`StartDistance`), so its baselines don't move.
+98. **A snapshot bigger than a datagram goes over a few ticks.** The transport never fragments, and it throws on anything over 1,200 bytes. With #96's stops and Holdouts, a joiner's first, full snapshot of a 6-car night outgrew that. So every hosted night, a solo one with a bot crew included, crashed as the crew joined. The tests' 4-car nights, on the loopback network (which doesn't enforce the limit), never saw it.
+    - `HostSession.Budget` sends such a snapshot on a budget:
+      - What the client already has, unchanged, costs nothing in a delta, and stays.
+      - Changed and new records go in by priority (the players, the client's own first, then the train, then the rest) while they fit.
+      - A changed record that doesn't fit goes as the client's old copy, so it isn't a removal. A new one waits for the next snapshot.
+      - What's recorded as sent is exactly what the client holds, so the next delta is against that.
+    - No protocol change. A frontier:7 6-car night with 3 bots budgets its first snapshot (1,192 bytes) and nothing after.
+    - `NetcodeTests.AWorldBiggerThanADatagramReachesAJoinerOverAFewSnapshots` checks it: 150 crates aboard, every snapshot within a datagram, and the joiner ends with every one.
+    - **Watch:** bots are UDP clients of their own host, stepped by the game's loop. A stall of more than the transport's 8 s timeout drops them (as a software renderer's first frame does; `--greybox` doesn't).
