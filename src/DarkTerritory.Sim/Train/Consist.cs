@@ -19,6 +19,12 @@ public struct GunState
 /// One piece of rolling stock. The id is stable for the whole run: players, enemies and snapshots
 /// refer to vehicles by id, so cutting and re-coupling never changes who is standing on what.
 /// </summary>
+/// <summary>
+/// What a car's carrying (GDD §19, App. B.8): it changes the run, not just the score. <see cref="Goods"/> is the fortress's
+/// own freight a night leaves with; the rest are what the facilities load (facilities.json <c>cargo</c>).
+/// </summary>
+public enum CargoKind : byte { None, Goods, Grain, Heavy, Salvage, Livestock, Food, Chemicals, Ore, Ammunition, Comet }
+
 public sealed class Vehicle(int id, VehicleKind kind, double load)
 {
     public Vehicle(int id, bool isEngine, double load) : this(id, isEngine ? VehicleKind.Engine : VehicleKind.Cargo, load)
@@ -33,6 +39,8 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     public bool HasGun => Kind is VehicleKind.Engine or VehicleKind.Guard;
     /// <summary>0 empty to 1 full.</summary>
     public double Load { get; set; } = Math.Clamp(load, 0, 1);
+    /// <summary>What's in it: the departure's goods, or what the last facility that loaded it put in (a mixed car goes by the last).</summary>
+    public CargoKind Cargo { get; set; } = load > 0 && kind == VehicleKind.Cargo ? CargoKind.Goods : CargoKind.None;
     /// <summary>Structural condition, 1 sound to 0 wrecked.</summary>
     public double Integrity { get; set; } = 1;
     /// <summary>Fraction of the cargo that would still pay on delivery (spec F.1).</summary>

@@ -29,7 +29,8 @@ public sealed record Contract(RouteTier Tier, ulong Seed, double PerCar)
 public sealed record RunLog(int Run, string Route, RunEnd End, double Net, int CarsLost, double ScripAfter);
 
 /// <summary>One car's condition, to put it back as it was.</summary>
-public sealed record CarState(int Id, double Load, double Integrity, double CargoIntegrity, int Ammo);
+/// <param name="Cargo">What it's carrying (T68): a save from before cargo types reads as none.</param>
+public sealed record CarState(int Id, double Load, double Integrity, double CargoIntegrity, int Ammo, CargoKind Cargo = CargoKind.None);
 
 /// <summary>
 /// Spec E "autosave per POI, on successful departure": enough of a night to start it again from the facility the

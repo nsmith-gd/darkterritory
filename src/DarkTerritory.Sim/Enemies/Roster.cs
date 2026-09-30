@@ -2246,7 +2246,8 @@ public sealed class Drift(int id) : Enemy(id)
             case SpinePhase.Dormant:
                 {
                     // SPREAD, and DETECT: whoever's nearest of those moving within it, and not shut in a car.
-                    Extra = Math.Min(t.MaxRadius, Extra + t.SpreadSpeed * dt);
+                    double spread = t.SpreadSpeed * (Director.Aboard(ctx.World).Contains(CargoKind.Chemicals) ? t.ChemicalSpread : 1);
+                    Extra = Math.Min(t.MaxRadius, Extra + spread * dt);
                     var felt = ctx.LivingCrew().Where(c => moving.Contains(c.Player.Id) && PlayerMotor.Space(c.Player.State, train) <= 0
                             && ((c.World - centre) with { Y = 0 }).Length <= Radius)
                         .OrderBy(c => ((c.World - centre) with { Y = 0 }).Length).ThenBy(c => c.Player.Id).FirstOrDefault();

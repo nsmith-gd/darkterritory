@@ -142,9 +142,9 @@ public sealed class Director
                 continue;
             bool possible = name switch
             {
-                "gaunt" => _route.Tier >= RouteTier.Frontier && Crew >= et.Gaunt.MinCrew,
+                "gaunt" => _route.Tier >= Gate(world, RouteTier.Frontier) && Crew >= et.Gaunt.MinCrew,
                 // Only at a stop: while there's a facility still to come.
-                "passenger" => _route.Tier >= RouteTier.DeadLines && Crew >= et.Passenger.MinCrew
+                "passenger" => _route.Tier >= Gate(world, RouteTier.DeadLines) && Crew >= et.Passenger.MinCrew
                     && _route.Of(FeatureKind.Facility).Any(f => f.End >= distance),
                 _ => false,
             };
@@ -153,6 +153,15 @@ public sealed class Director
         }
         return reserve;
     }
+
+    /// <summary>The cargo aboard: what's in the loaded cargo cars of the engine's rake (a cut car on a spur isn't aboard).</summary>
+    public static HashSet<CargoKind> Aboard(World world) =>
+        world.Train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Load > 0.01 && v.Cargo != CargoKind.None)
+            .Select(v => v.Cargo).ToHashSet();
+
+    /// <summary>A tier gate, relaxed by one with comet-derived material aboard (App. B.8).</summary>
+    RouteTier Gate(World world, RouteTier tier) =>
+        _t.CometRelaxesGates && tier > RouteTier.Local && Aboard(world).Contains(CargoKind.Comet) ? tier - 1 : tier;
 
     /// <summary>An enemy's name as a generated line's affinity table has it (linegen/tiers.json): its kind, camel-cased.</summary>
     static string Name(EnemyKind kind) => kind.ToString() is var n ? char.ToLowerInvariant(n[0]) + n[1..] : "";
@@ -240,7 +249,7 @@ public sealed class Director
         // three or more. Weight up if the crew has been fully interior for over three minutes.
         int outside = world.CrewThisTick.Count(c => c.State.Alive && PlayerMotor.Space(c.State, train) == PlayerMotor.Outside);
         _allInside = outside == 0 && world.CrewThisTick.Any(c => c.State.Alive) ? _allInside + 1 : 0;
-        if (_route is { } gr && gr.Tier >= RouteTier.Frontier && world.Enemies is { } at && Crew >= at.Gaunt.MinCrew
+        if (_route is { } gr && gr.Tier >= Gate(world, RouteTier.Frontier) && world.Enemies is { } at && Crew >= at.Gaunt.MinCrew
             && Zone(PressureZone.Flank) < _t.MaxConcurrentZone && !Log.Any(l => l.Kind == EnemyKind.Gaunt) && train.Dynamics.Consist.CarCount >= 1
             && (train.Dynamics.Speed < at.Gaunt.StoppedBelow || gr.Of(FeatureKind.Tunnel).Any(f => s >= f.End && s <= f.End + at.Gaunt.TunnelExitWithin)))
             options.Add((EnemyKind.Gaunt, _allInside >= at.Gaunt.InteriorSeconds ? at.Gaunt.InteriorWeight : 1));
@@ -255,7 +264,7 @@ public sealed class Director
         // App. B.7: the Passenger boards during a facility stop, Dead lines and beyond, crew of three or more ("needs a crowd
         // to hide in"), once a run, into a car with a room; never with another corrupted human about. Weight up when the
         // crew's split up over the stop's work.
-        if (_route is { } qr && qr.Tier >= RouteTier.DeadLines && world.Enemies is { } qt && Crew >= qt.Passenger.MinCrew
+        if (_route is { } qr && qr.Tier >= Gate(world, RouteTier.DeadLines) && world.Enemies is { } qt && Crew >= qt.Passenger.MinCrew
             && world.Run is { Phase: Run.RunPhase.AtFacility } && !Log.Any(l => l.Kind == EnemyKind.Passenger)
             && !active.Any(e => !e.Gone && e.Kind is EnemyKind.Switchman or EnemyKind.Passenger) && Zone(PressureZone.Interior) < _t.MaxConcurrentZone
             && world.CrewThisTick.Any(c => c.State.Alive) && Passenger.Boards(world) is not null)
@@ -318,6 +327,19 @@ public sealed class Director
         }
         // The budget saved up for what's still to come (the Gaunt) holds, except that a paced spawn (it's been quiet too
         // long) may always spend what a paced spawn may: the pace rule beats saving up.
+        // App. B.8: "cargo changes the run rather than just scoring it". What's aboard weighs its threats up.
+        var aboard = Aboard(world);
+        if (aboard.Count > 0)
+            for (int i = 0; i < options.Count; i++)
+            {
+                double w = options[i].Weight;
+                if (aboard.Contains(CargoKind.Livestock) && options[i].Kind == EnemyKind.CinderHound)
+                    w *= _t.HoundsLivestockWeight;
+                foreach (var cargo in aboard)
+                    if (_t.CargoWeights.GetValueOrDefault(char.ToLowerInvariant(cargo.ToString()[0]) + cargo.ToString()[1..]) is { } table)
+                        w *= table.GetValueOrDefault(Key(options[i].Kind), 1) * table.GetValueOrDefault("*", 1);
+                options[i] = (options[i].Kind, w);
+            }
         options.RemoveAll(o => Cost(o.Kind) > (due ? Math.Max(available - Reserve(world, s, o.Kind), _t.PacedCost) : available - Reserve(world, s, o.Kind)));
         // Sent because it's been quiet: something that shows itself at once. A Dragger under a car's edge, or a Rattle in its
         // gap, lies silent until someone comes near: that's no answer to a quiet night, if there's anything else to send.

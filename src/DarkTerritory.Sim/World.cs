@@ -335,6 +335,9 @@ public sealed class World
         if (Combat is { } c)
         {
             Guns.Step(Train);
+            // App. B.8: livestock aboard raises the Choir's floor (they're never quiet); the Choir's state replicates, floor and all.
+            if (Authority)
+                Choir.Floor = DarkTerritory.Sim.Enemies.Director.Aboard(this).Contains(DarkTerritory.Sim.Train.CargoKind.Livestock) ? c.Choir.LivestockFloor : 0;
             Choir.Step(c.Choir, SimConstants.TickSeconds);
             // "The vent is deafening. Choir aggro spikes to maximum instantly", and stays there while it roars.
             if (EmergencyLights)

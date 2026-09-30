@@ -41,6 +41,7 @@ public sealed record DriftTuning
     public double StillSeconds { get; init; } = 4;
     public double ExitMargin { get; init; } = 60;
     public double LingerSeconds { get; init; } = 600;
+    public double ChemicalSpread { get; init; } = 2;
 }
 
 /// <summary>Followers (App. A.3, B.3). Field docs live in enemies.json.</summary>
@@ -351,6 +352,9 @@ public sealed record DirectorTuning(
     int MaxConcurrentSmallCrew, int MaxConcurrentLargeCrew, double[] PhaseShares, Dictionary<string, double> Costs,
     double HoundsLivestockWeight, double HoundsHotBoilerWeight)
 {
+    /// <summary>App. B.8: cargo name → (tuning name or "*") → weight.</summary>
+    public Dictionary<string, Dictionary<string, double>> CargoWeights { get; init; } = new();
+    public bool CometRelaxesGates { get; init; } = true;
     /// <summary>Quiet this long (nothing showing itself, no board, no bag) and the director sends something, cooldown or not.</summary>
     public double PaceSeconds { get; init; } = 18;
     /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>
