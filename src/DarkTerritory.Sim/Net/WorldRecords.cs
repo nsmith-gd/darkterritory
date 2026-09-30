@@ -60,7 +60,7 @@ public static class WorldRecords
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Vehicle, v.Id),
                 [Q(v.Load, Fine), Q(v.Integrity, Fine), Q(v.CargoIntegrity, Fine), v.Gun.Ammo, v.Gun.Cooldown, v.Gun.Jammed ? 1 : 0, v.Gun.LastShotTick, v.DoorsOpen, (long)v.Cargo]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
-            [Q(world.Choir.Aggro, Fine), Q(world.Choir.SecondsSinceShot, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0, Q(world.LampOutSeconds, Fine)]));
+            [Q(world.Choir.Aggro, Fine), Q(world.Choir.SecondsSinceShot, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0, Q(world.LampOutSeconds, Fine), Q(train.Sand, Fine)]));
         foreach (var e in world.ActiveEnemies)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),
             [
@@ -182,6 +182,7 @@ public static class WorldRecords
                     world.SetDerailed(f[3] != 0);
                     world.LampLit = f[4] != 0;
                     world.LampOutSeconds = f.Length > 5 ? D(f[5], Fine) : 0;
+                    world.Train.Sand = f.Length > 6 ? D(f[6], Fine) : 0;
                     break;
                 case RecordKind.Enemy:
                     if (!world.Authority)

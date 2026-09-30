@@ -346,6 +346,7 @@ public static class TrainKit
             k.Rod(new Vector3(side * (bw * 0.6f), top - 0.25f, boilerFront + (cabFront - boilerFront) * 0.72f), new Vector3(side * (HalfGauge + 0.1f), 0.25f, drivers[0] - 0.8f), 0.02f, 5);
 
         Cab(k, shape, w, deck, cabFront, cabBack, bw, top, roofLow, roofTop);
+        RunningBoards(k, shape);
         CouplerPlates(k, shape);
         Tender(k, shape, w, l, deck, (float)tender.Max.Y, cabBack);
         return k.Build($"engine-{variant}");
@@ -722,6 +723,9 @@ public static class TrainKit
         foreach (var ladder in shape.Ladders)
             if (ladder.Foot.Y < 0.2)
                 RungLadder(k, F(ladder.Foot), (float)ladder.Top, F(ladder.Inward), from: 0.35f);
+            // The guard van's short one up from its rear platform (T65).
+            else if (ladder.Foot.Z > shape.HalfLength)
+                RungLadder(k, F(ladder.Foot), (float)(ladder.Top - ladder.Foot.Y), F(ladder.Inward), from: 0.05f);
 
         // Side-door steps: timber, stepped as the collision is.
         k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0);
@@ -772,6 +776,38 @@ public static class TrainKit
             k.Lathe(new Vector3(w - 0.35f, h + 0.7f, -l + 2.6f), [new(0.16f, 0), new(0.16f, 0.08f), new(0.02f, 0.2f)], 8, smooth: false);
         }
         return k.Build($"car-{livery}-{(guard ? "guard" : "cargo")}-{variant}");
+    }
+
+    /// <summary>
+    /// The engine's running boards out past the cab sides (App. A.2 GREASE: "sanding from the running boards"): a chequer-plate
+    /// walk on brackets, a grab rail along the boiler, and a lidded sandbox on the outer lip of each where the sand's let down.
+    /// </summary>
+    static void RunningBoards(Kit k, CarShape shape)
+    {
+        foreach (var solid in shape.Solids.Where(s => s.Part == PartKind.RunningBoard))
+        {
+            var (min, max) = (F(solid.Box.Min), F(solid.Box.Max));
+            float side = MathF.Sign(min.X + max.X);
+            k.Use("steel_grate", Palette.IronGrey, 0.8f, 0.4f, tile: 0.8f);
+            k.Box(min, max, Kit.Faces.All);
+            // Brackets under it back to the frame.
+            k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
+            float inner = side > 0 ? min.X : max.X, outer = side > 0 ? max.X : min.X;
+            for (float z = min.Z + 0.4f; z < max.Z; z += 2.2f)
+                k.Rod(new Vector3(outer - side * 0.05f, min.Y, z), new Vector3(inner, min.Y - 0.45f, z), 0.025f, 5);
+        }
+        foreach (var box in shape.Interactables.Where(i => i.Kind == InteractableKind.Sandbox))
+        {
+            var at = F(box.Position);
+            float side = MathF.Sign(at.X), lip = at.X + side * 0.22f;
+            k.Use("iron_smokebox", Palette.SootBlack, 0.9f, 0.3f);
+            var lo = new Vector3(Math.Min(lip, lip + side * 0.16f), at.Y, at.Z - 0.3f);
+            var hi = new Vector3(Math.Max(lip, lip + side * 0.16f), at.Y + 0.4f, at.Z + 0.3f);
+            k.Box(lo, hi, Kit.Faces.All & ~Kit.Faces.NegY);
+            k.Use("copper_pipe", Palette.TarnishedBrass, 0.7f, 0.5f);
+            k.Rod(new Vector3((lo.X + hi.X) / 2, hi.Y, at.Z), new Vector3((lo.X + hi.X) / 2, hi.Y + 0.35f, at.Z), 0.02f, 5); // the lever
+            k.Rod(new Vector3((lo.X + hi.X) / 2, at.Y, at.Z), new Vector3((lo.X + hi.X) / 2, 0.25f, at.Z - 0.6f), 0.02f, 5); // the pipe down
+        }
     }
 
     /// <summary>The plate over the coupling gap you cross on (spec B.4): an open grating, the ballast rushing under it.</summary>
