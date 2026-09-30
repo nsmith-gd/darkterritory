@@ -1711,3 +1711,18 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       2. Kit meshes in device-local memory.
       3. The eyes sharing one set of shadow maps, and frustum culling for every pass.
       4. Frames in flight, so the CPU builds the next frame while the GPU draws this one.
+87. **A fireman in the cab, and nobody under a Climber that's got into it (T75).** On frontier:1 at a crew of 8, a Climber got into the cab while every walker was warming inside a car. It went through occupied car 1 and came down where the driver stood. It killed the driver, the Deadman took the empty cab, and the train ran back down the line all night.
+    - **Nobody can reach the cab at speed.** The tender is full width and the cab roof is over its front edge, so a walker can't get over it. The only other driver a crew has at speed is someone already in the cab.
+    - **The fireman.** A harness crew of `FiremanFrom` (6) or more keeps its last hand in the cab as fireman: a `ConductorBot { Fireman = true }` posted beside the driver.
+      - While the driver lives, the fireman stands by, keeping the fire and keeping the cab from ever being empty. It says no stop job, so the stops don't wait on it.
+      - Once the driver's been heard driving and then isn't, the fireman takes the controls and says it's the driver.
+    - **A Climber in the cab.** It takes whoever comes within reach, and stays while anyone's in the cab; leaving it empty is the Deadman's. So nobody leaves.
+      - The driver and fireman keep to the cab's front corners, out of its reach (it comes down at the cab's middle, where the driver used to stand).
+      - They work the controls and the firebox from there; only where they stand changes.
+    - **Firing from its own side.** Firing, each keeps to its own side of the firebox door: the driver right, the fireman left, clear of the vent's valve on the left wall.
+      - Before, a bot walked straight fore and aft at the firebox from wherever it stood. The fireman fetched up by the vent, which was then the nearest thing to hand, and never shovelled.
+      - On deadLines:3 the fire went out with 301 units still in the tender. The Hollow came down the cold stack and took the four in the cab.
+    - **Verified:** `FiremanTests`. The fireman stands by, then takes the controls when the driver dies, and keeps a low fire up by itself. With a Climber in the cab, both stay in the cab, unhurt and out of its reach, for 20 s.
+      - The sweep (frontier, seeds 1–2, crews 2 and 8) delivers all four nights and passes every check. frontier:1 at crew 8 comes home (2376), frontier:2 at crew 8 makes 3515, 43 punishes a night.
+      - frontier:7 delivers (3791).
+      - deadLines:3, "still under way at 3600 s" since T66 (T73), now delivers (2612, all eight home) in a 5400 s window. The night was the dead fire and the window: a Dead Lines night with its yard runs past 3600 s of harness time.

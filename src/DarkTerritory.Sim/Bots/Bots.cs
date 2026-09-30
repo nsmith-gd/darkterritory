@@ -583,7 +583,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
 /// </summary>
 public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWorldBot
 {
-    public string Name => "conductor";
+    public string Name => Fireman ? "fireman" : "conductor";
     public double CruiseSpeed { get; init; } = 14;
     /// <summary>Cruise with the lamp out: just under the Sleepers' derailing speed (enemies.json, 11.1 m/s: 40 km/h).</summary>
     public double DarkCruiseSpeed { get; init; } = 10.5;
@@ -608,10 +608,32 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         return world.LampLit ? LampSwitch.None : LampSwitch.On;
     }
 
+    /// <summary>
+    /// The fireman (T75): rides in the cab with the driver, keeping the fire and the cab from ever being empty (App. A.5's
+    /// Deadman), and takes the controls if the driver dies. Nobody else can get to the cab at speed: the tender's full width
+    /// and the cab roof's over it, so the one in the cab already is the crew's only other driver.
+    /// </summary>
+    public bool Fireman { get; init; }
+    bool _driving, _sawDriver;
+    /// <summary>At the controls: the driver, or a fireman who's had to take them.</summary>
+    public bool Driving => !Fireman || _driving;
+
     public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
         aimed = self;
         var train = world.Train;
+        if (Fireman && !_driving)
+        {
+            // Standing by: the fire, and out of the way of anything that's got into the cab. The driver's dead (it's said so,
+            // having been heard driving): the controls are ours from here.
+            _sawDriver |= calls?.Has(StopJob.Driver) == true;
+            if (calls is null || !_sawDriver || calls.Has(StopJob.Driver) || !self.Alive)
+            {
+                calls?.Say(member, StopJob.None, self);
+                return self.Alive && PlayerMotor.InCab(self, train) ? KeepClear(self, world, Work(self, train, default), -1) : default;
+            }
+            _driving = true;
+        }
         calls?.Say(member, StopJob.Driver, self);
         var lamp = Lamp(world, tick);
         // On a generated line, no faster than its authority allows here (linegen plan §9, §16.1): what the boards say.
@@ -641,7 +663,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             }
             stops.CruiseSpeed = cruise;
             if (stops.Decide(self, world) is { } stopping)
-                return Work(self, train, stopping) with { Lamp = lamp };
+                return KeepClear(self, world, Work(self, train, stopping), +1) with { Lamp = lamp };
         }
         // Greased rail (App. A.2): the controls do nothing on it, so out to the sandbox and sand it, and back after.
         if (Sand(self, world, cruise) is { } sanding)
@@ -656,7 +678,24 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             intent.Buttons |= PlayerButtons.Brake;
             intent.ThrottleNotch = -4;
         }
-        return Work(self, train, intent);
+        return KeepClear(self, world, Work(self, train, intent), +1);
+    }
+
+    /// <summary>
+    /// A Climber got into the cab (App. A.4): it takes whoever comes within its reach, and stays while anyone's in the cab
+    /// (the Deadman's there for an empty one). So nobody leaves: the driver and fireman keep to the cab's front corners
+    /// (<paramref name="side"/>: +1 the driver's right), out of its reach, working the controls and the firebox from there.
+    /// The controls and the fire as the intent had them; only where it stands changes.
+    /// </summary>
+    static PlayerIntent KeepClear(in PlayerState self, World world, PlayerIntent intent, int side)
+    {
+        var train = world.Train;
+        if (!self.Alive || !PlayerMotor.InCab(self, train) || !world.ActiveEnemies.Any(e => e is Climber { Inside: true } c && c.Attached == 0))
+            return intent;
+        var cab = train.Frames[0].Shape.Cab!.Value;
+        var corner = new Double3(side * (cab.Max.X - 0.45), 0, cab.Min.Z + 0.45);
+        var (step, _) = WarmUp.Steer(self, corner, 0);
+        return intent with { MoveX = step.MoveX, MoveZ = step.MoveZ, LookYaw = step.LookYaw };
     }
 
     /// <summary>Under a posted speed by this much (m/s): the driver's cruise wobbles either side of what it's holding.</summary>
@@ -750,6 +789,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         return allowed;
     }
 
+    /// <summary>Where it stands to fire (engine frame): this far to its side of the firebox door, and this far back from it.</summary>
+    const double FiringSide = 0.35, FiringBack = 0.5;
+
     PlayerIntent Work(in PlayerState self, TrainOnLine train, PlayerIntent intent)
     {
         // Fire it for pressure, and at a stand (where pressure holds up on its own while the fire burns down) keep the fire
@@ -757,14 +799,15 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         if (train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && PlayerMotor.InCab(self, train)
             && (train.Boiler.Pressure < bt.WorkingBandMax - 2 || train.Boiler.FireFraction(bt) < bt.LowFireFraction * 2))
         {
+            // At its own side of the firebox door (the driver right, the fireman left: T75), clear of the vent's valve on the
+            // left wall. Walking straight at the firebox from where it stood, the fireman fetched up at the vent, which was
+            // then the nearest thing to hand, and never shovelled: deadLines:3's fire went out with the tender full.
+            var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
+            var (step, there) = WarmUp.Steer(self, new Double3((Fireman ? -1 : 1) * FiringSide, 0, firebox.Z + FiringBack), 0);
             if (CrewActions.Nearest(self, train) == InteractableKind.Firebox)
                 intent.Buttons |= PlayerButtons.Use;
-            else
-            {
-                var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
-                intent.MoveZ = self.Position.Z > firebox.Z + 0.5 ? 1 : -1;
-                intent.LookYaw = (float)(-self.Yaw * 0.3);
-            }
+            if (!there)
+                intent = intent with { MoveX = step.MoveX, MoveZ = step.MoveZ, LookYaw = step.LookYaw };
         }
         return intent;
     }
