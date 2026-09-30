@@ -25,7 +25,7 @@ public sealed class CreatureArt
 {
     public const string Folder = "art/models";
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
-    public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger"];
+    public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk"];
 
     /// <summary>Wear shown over each model's textures (the shader's grime): crew middling, monsters by how they're made.</summary>
     static readonly Dictionary<string, float> WearOf = new()
@@ -38,6 +38,7 @@ public sealed class CreatureArt
         ["switchman"] = 0.55f,
         ["soot_child"] = 0.5f,
         ["dragger"] = 0.2f,
+        ["husk"] = 0.7f,
     };
 
     sealed class Entry(Model model, MaterialLook[] looks)
@@ -452,7 +453,10 @@ public sealed class CreatureArt
                     if (phase is not (SpinePhase.Commit or SpinePhase.Punish))
                         return true;
                     var at = Matrix4x4.CreateTranslation(0.35f, -1.35f, -0.4f) * model;
-                    return Draw(mesh, "crew", "idle", t * 0.2, true, at, variant: 5, seed: 11, adjust: (_, l) => l with { Colour = l.Colour * 0.45f });
+                    // The husk (tools/models/recipes/husk.py) is the crew figure gone wrong, graded dead already; without it,
+                    // the crew darkened.
+                    return Draw(mesh, "husk", "idle", t * 0.2, true, at, variant: 5, seed: 11)
+                        || Draw(mesh, "crew", "idle", t * 0.2, true, at, variant: 5, seed: 11, adjust: (_, l) => l with { Colour = l.Colour * 0.45f });
                 }
             case EnemyKind.Ferryman:
                 {
@@ -488,7 +492,8 @@ public sealed class CreatureArt
                         SpinePhase.Punish => ("crouch_idle", 1.0),
                         _ => ("run", 1.2),
                     };
-                    return Draw(mesh, "crew", clip, t * speed, true, at, variant: 3, seed: 17, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.28f, 0.26f, 0.25f) });
+                    return Draw(mesh, "husk", clip, t * speed, true, at, variant: 3, seed: 17, adjust: (_, l) => l with { Colour = l.Colour * 0.8f })
+                        || Draw(mesh, "crew", clip, t * speed, true, at, variant: 3, seed: 17, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.28f, 0.26f, 0.25f) });
                 }
             case EnemyKind.Gaunt:
                 {
