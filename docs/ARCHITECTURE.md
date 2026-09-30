@@ -1726,7 +1726,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - Lavapipe's headset frame took about 45% less GPU time.
       - Pixels are the same as before on the roof view; the others differ in a few dozen pixels at most, from the skinning's rounding.
       - `PerfBudgetTests` holds every view inside `maxFrameTriangles` and `maxPassDraws`, flat and in a headset. It also checks that the shared shadows draw what an eye's own would.
-    - **Left: 2 and 4.**
-      - 2: kit meshes are still in host-visible memory, which a discrete GPU reads over PCIe every pass.
-      - 4: every submit still waits for the GPU.
-      - Neither can be measured on lavapipe; both matter on a real card.
+    - **2 is done: kit meshes in the GPU's own memory.** Each piece is written to a staging buffer and copied into a device-local one. A frame's new pieces go across in one submit (`GreyboxRenderer.Resident`, `CopyStaged`).
+      - The per-frame buffers stay host-visible: the soup, the bone palettes, the effects and the overlay.
+      - Pixels are identical. It can't be timed on lavapipe, where all memory is the same.
+    - **Left: 4.** Every submit still waits for the GPU. Frames in flight need per-frame copies of the frame's buffers and descriptor sets.

@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The frame-rate targets' budgets (tuning/perf.json; ARCHITECTURE §8 note 85) where they hold on any machine: what a
+/// The frame-rate targets' budgets (tuning/perf.json; ARCHITECTURE §8 note 86) where they hold on any machine: what a
 /// frame draws. Every standard view, with the crew on the roof and the threats about, flat and in a headset, stays inside
 /// the triangles and draws allowed; the culling keeps what's on screen; the eyes' shared shadows change nothing. The
 /// times are `dt perf`'s, on real hardware.

@@ -28,7 +28,7 @@ public sealed class VrView : IDisposable
         Gpu = gpu;
         Session = session;
         // The left eye draws the shadow maps and the right samples them (the lamp's and the moon's views are the body's, so
-        // they're the same for both: tuning/perf.json's budget, ARCHITECTURE §8 note 85). At an eye's resolution the moon's
+        // they're the same for both: tuning/perf.json's budget, ARCHITECTURE §8 note 86). At an eye's resolution the moon's
         // needs no more than 1024, a quarter of the flat view's 2048 to fill.
         _eyes = [new(gpu, session.EyeWidth, session.EyeHeight, session.EyeFormat, moonShadowSize: 1024),
             new(gpu, session.EyeWidth, session.EyeHeight, session.EyeFormat, moonShadowSize: 1024)];

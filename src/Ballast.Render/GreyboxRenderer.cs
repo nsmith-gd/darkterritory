@@ -517,16 +517,10 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                 continue;
             if (!_meshes.TryGetValue(instance.Asset, out var gpuMesh))
             {
-                ulong capacity = 0;
-                VkBuffer buffer = default;
-                VkDeviceMemory memory = default;
-                Upload<Vertex>(instance.Asset.Vertices, (uint)Vertex.Stride, ref buffer, ref memory, ref capacity);
+                var (buffer, memory) = Resident<Vertex>(instance.Asset.Vertices);
                 gpuMesh = new GpuMesh(buffer, memory, instance.Asset.Vertices.Length);
                 if (instance.Asset.Skin is { } skin)
-                {
-                    ulong skinCapacity = 0;
-                    Upload<SkinWeights>(skin, SkinWeights.Stride, ref gpuMesh.Skin, ref gpuMesh.SkinMemory, ref skinCapacity);
-                }
+                    (gpuMesh.Skin, gpuMesh.SkinMemory) = Resident<SkinWeights>(skin);
                 _meshes.Add(instance.Asset, gpuMesh);
                 _allMeshes.Add((new WeakReference<MeshAsset>(instance.Asset), gpuMesh));
             }
@@ -549,6 +543,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                 _draws.Add((gpuMesh, draw, new Vector4(Vector3.Transform(centre, m), radius * scale)));
             }
         }
+        CopyStaged();
         _lights.Clear();
         _lights.AddRange(mesh.PointLights);
         if (_lights.Count > FrameData.MaxLights)
@@ -589,6 +584,53 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _overlayCount = overlay?.Count ?? 0;
         if (overlay is { Count: > 0 })
             Upload(CollectionsMarshal.AsSpan(overlay.Vertices), OverlayVertex.Stride, ref _overlayVertices, ref _overlayMemory, ref _overlayCapacity);
+    }
+
+    // Kit meshes live in the GPU's own memory (a discrete card reads host-visible memory over the bus, every pass): each
+    // is written to a staging buffer, and a frame's new ones are copied across in one submit (CopyStaged).
+    readonly List<(VkBuffer Staging, VkDeviceMemory StagingMemory, VkBuffer Into, ulong Size)> _staged = new();
+
+    (VkBuffer, VkDeviceMemory) Resident<T>(ReadOnlySpan<T> data) where T : unmanaged
+    {
+        ulong size = (ulong)Math.Max(1, data.Length) * (ulong)sizeof(T);
+        var (staging, stagingMemory) = CreateBuffer(size, VkBufferUsageFlags.TransferSrc, VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent);
+        void* mapped;
+        Check(Api.vkMapMemory(stagingMemory, 0, size, 0, &mapped), "vkMapMemory");
+        MemoryMarshal.AsBytes(data).CopyTo(new Span<byte>(mapped, (int)size));
+        Api.vkUnmapMemory(stagingMemory);
+        var (buffer, memory) = CreateBuffer(size, VkBufferUsageFlags.VertexBuffer | VkBufferUsageFlags.TransferDst, VkMemoryPropertyFlags.DeviceLocal);
+        _staged.Add((staging, stagingMemory, buffer, size));
+        return (buffer, memory);
+    }
+
+    void CopyStaged()
+    {
+        if (_staged.Count == 0)
+            return;
+        _gpu.Submit(cmd =>
+        {
+            foreach (var (staging, _, into, size) in _staged)
+            {
+                var region = new VkBufferCopy { size = size };
+                Api.vkCmdCopyBuffer(cmd, staging, into, 1, &region);
+            }
+            // The copies land before any later pass reads them as vertices.
+            var barrier = new VkMemoryBarrier2
+            {
+                srcStageMask = VkPipelineStageFlags2.Transfer,
+                srcAccessMask = VkAccessFlags2.TransferWrite,
+                dstStageMask = VkPipelineStageFlags2.VertexAttributeInput,
+                dstAccessMask = VkAccessFlags2.VertexAttributeRead,
+            };
+            var dependency = new VkDependencyInfo { memoryBarrierCount = 1, pMemoryBarriers = &barrier };
+            Api.vkCmdPipelineBarrier2(cmd, &dependency);
+        });
+        foreach (var (staging, stagingMemory, _, _) in _staged)
+        {
+            Api.vkDestroyBuffer(staging, null);
+            Api.vkFreeMemory(stagingMemory, null);
+        }
+        _staged.Clear();
     }
 
     void Upload<T>(ReadOnlySpan<T> data, uint stride, ref VkBuffer buffer, ref VkDeviceMemory memory, ref ulong capacity) where T : unmanaged
