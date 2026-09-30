@@ -1446,3 +1446,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - The terrain should still carve that cutting. That's the line generator's to fix; this makes the player motor robust to it.
     - Harness traces now print the train's distance, speed and path on every line, which is how this was found.
     - **Verified:** `GroundOverheadTests` (3): the engine and roof cases fail without the fix. frontier:3 went from the whole crew lost to delivered (net 2645, one death, to the Gaunt).
+69. **A winch with nowhere for its sleds to go is done (T66).** At a frontier:7 Foundry on the procedural line, the crane's castings filled the cars within reach of the winch. The pair then cranked for nothing until the loading leg's give-up (540 s), and the night missed the dawn.
+    - `Run.SledHasRoom` asks whether a hauled sled could go anywhere: a cargo car with room in the rake standing at the winch.
+    - When it can't, the driver counts the winch as done, and the winch hands leave their handles and come aboard (or carry crates, where there are crates).
+    - **Verified:** `StopCrewTests.WithTheCarsAtTheWinchFullThePairDontCrankForNothing` (540 s of loading without the fix). frontier:7 went from the dawn missed (net -429) to delivered (net 4087), with loading down to 296 s.
