@@ -27,13 +27,13 @@ public sealed record SightTuning
     public double ThrowSpeed { get; init; } = 3;
     public double GreaseTraction { get; init; } = 0.25;
     public int StruckDamage { get; init; } = 200;
-    public double[] DropSpacing { get; init; } = [500, 900];
+    public double[] DropSpacing { get; init; } = [350, 600];
     public double DropFrom { get; init; } = 900;
     public double DropClear { get; init; } = 80;
     public double DropBoardAhead { get; init; } = 400;
     public double CatchReach { get; init; } = 1.1;
     public Dictionary<string, double> DropWeights { get; init; } = new() { ["mail"] = 0.45, ["coal"] = 0.2, ["ammo"] = 0.2, ["spares"] = 0.15 };
-    public double[] MailScrip { get; init; } = [30, 90];
+    public double[] MailScrip { get; init; } = [20, 60];
     public double CoalUnits { get; init; } = 8;
     public double AmmoRounds { get; init; } = 40;
     public double SparesIntegrity { get; init; } = 0.25;

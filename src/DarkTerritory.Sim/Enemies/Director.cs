@@ -168,7 +168,9 @@ public sealed class Director
         if (world.Enemies is { } it && Zone(PressureZone.Interior) < _t.MaxConcurrentZone)
         {
             // Less often at a stop: the crew's all hands on the loading, and it's the facility's own threats' turn.
-            double atStop = (world.Run is { Phase: Run.RunPhase.AtFacility } ? 0.4 : 1) * _t.IncidentWeight;
+            // And less for a small crew, who've fewer hands to spare from the roofs and the gun (a crew of two is one hand).
+            double hands = Math.Clamp((Crew - 1) / _t.IncidentFullCrew, 0.2, 1);
+            double atStop = (world.Run is { Phase: Run.RunPhase.AtFacility } ? 0.4 : 1) * _t.IncidentWeight * hands;
             bool Room(EnemyKind kind, int max, double minLoad) => active.Count(e => !e.Gone && e.Kind == kind) < max
                 && IncidentCars(world, kind, minLoad).Any();
             if (Room(EnemyKind.CarFire, it.CarFire.MaxActive, 0))
@@ -181,6 +183,10 @@ public sealed class Director
         if (due && options.Count > 0)
             available = Math.Max(available, _t.PacedCost);
         options.RemoveAll(o => Cost(o.Kind) > available);
+        // Sent because it's been quiet: something that shows itself at once. A Dragger under a car's edge, or a Rattle in its
+        // gap, lies silent until someone comes near: that's no answer to a quiet night, if there's anything else to send.
+        if (due && options.Any(o => o.Kind is not (EnemyKind.Dragger or EnemyKind.Rattle)))
+            options.RemoveAll(o => o.Kind is EnemyKind.Dragger or EnemyKind.Rattle);
         if (options.Count == 0)
             return null;
         // Variety: a kind sent lately comes on less (the Lamplighters were half of everything in the playtest).

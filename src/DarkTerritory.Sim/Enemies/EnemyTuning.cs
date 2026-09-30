@@ -24,7 +24,7 @@ public sealed record EnemyTuning(
 public sealed record CarFireTuning
 {
     public double StartIntensity { get; init; } = 0.1;
-    public double GrowPerSecond { get; init; } = 0.02;
+    public double GrowPerSecond { get; init; } = 0.01;
     public double BurnFrom { get; init; } = 0.35;
     public double BeatReach { get; init; } = 1.6;
     public double BeatPerSecond { get; init; } = 0.08;
@@ -33,11 +33,11 @@ public sealed record CarFireTuning
     public int BurnDamage { get; init; } = 10;
     public double BurnReach { get; init; } = 4;
     public double BurnEverySeconds { get; init; } = 2;
-    public double CargoPerSecond { get; init; } = 0.012;
-    public double IntegrityPerSecond { get; init; } = 0.004;
+    public double CargoPerSecond { get; init; } = 0.003;
+    public double IntegrityPerSecond { get; init; } = 0.0015;
     public double SpreadSeconds { get; init; } = 30;
     public double BurnOutPerSecond { get; init; } = 0.05;
-    public int MaxActive { get; init; } = 2;
+    public int MaxActive { get; init; } = 1;
 }
 
 /// <summary>A loose load (the in-car incidents). Field docs live in enemies.json.</summary>
@@ -45,29 +45,29 @@ public sealed record LooseLoadTuning
 {
     public double LashReach { get; init; } = 1.6;
     public double LashSeconds { get; init; } = 5;
-    public double LurchAccel { get; init; } = 0.45;
-    public double SnapSeconds { get; init; } = 60;
+    public double LurchAccel { get; init; } = 0.6;
+    public double SnapSeconds { get; init; } = 90;
     public double SlideReach { get; init; } = 2.5;
-    public int CrushDamage { get; init; } = 80;
-    public double Breakage { get; init; } = 0.2;
+    public int CrushDamage { get; init; } = 60;
+    public double Breakage { get; init; } = 0.05;
     public double MinLoad { get; init; } = 0.3;
-    public int MaxActive { get; init; } = 2;
+    public int MaxActive { get; init; } = 1;
 }
 
 /// <summary>Gnawers (the in-car incidents). Field docs live in enemies.json.</summary>
 public sealed record GnawerTuning
 {
     public double StartSwarm { get; init; } = 0.3;
-    public double BreedPerSecond { get; init; } = 0.01;
+    public double BreedPerSecond { get; init; } = 0.008;
     public double Reach { get; init; } = 1.8;
     public double StampPerSecond { get; init; } = 0.1;
     public double OutAfterSeconds { get; init; } = 6;
-    public int BiteDamage { get; init; } = 10;
+    public int BiteDamage { get; init; } = 7;
     public double BiteEverySeconds { get; init; } = 2;
-    public double EatPerSecond { get; init; } = 0.004;
+    public double EatPerSecond { get; init; } = 0.001;
     public double SpreadSeconds { get; init; } = 30;
     public double MinLoad { get; init; } = 0.2;
-    public int MaxActive { get; init; } = 2;
+    public int MaxActive { get; init; } = 1;
 }
 
 /// <summary>The Ferryman (App. A.2, B.2). Field docs live in enemies.json.</summary>
@@ -212,11 +212,13 @@ public sealed record DirectorTuning(
     double HoundsLivestockWeight, double HoundsHotBoilerWeight)
 {
     /// <summary>Quiet this long (nothing showing itself, no board, no bag) and the director sends something, cooldown or not.</summary>
-    public double PaceSeconds { get; init; } = 20;
+    public double PaceSeconds { get; init; } = 18;
     /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>
     public int VarietyWindow { get; init; } = 4;
     /// <summary>A paced spawn may overdraw the budget's curve by up to this much: enough for a threat of this cost.</summary>
     public double PacedCost { get; init; } = 3;
     /// <summary>The in-car incidents' weight, each, against the other threats' 1.</summary>
     public double IncidentWeight { get; init; } = 0.5;
+    /// <summary>Crew (less the driver) at which the incidents come at their full weight; fewer, proportionally less.</summary>
+    public double IncidentFullCrew { get; init; } = 3;
 }

@@ -47,7 +47,7 @@
     "drillSeconds": 90,
     "prySeconds": 6,
     "pryReach": 2.0,
-    "breachCargoLossPerSecond": 0.01
+    "breachCargoLossPerSecond": 0.004
   },
 
   "hollow": {
@@ -295,7 +295,7 @@
     "snapSeconds": 90,
     "slideReach": 2.5,
     "crushDamage": 60,
-    "breakage": 0.1,
+    "breakage": 0.05,
     "minLoad": 0.3,
     "maxActive": 1
   },
@@ -311,9 +311,9 @@
     "reach": 1.8,
     "stampPerSecond": 0.1,
     "outAfterSeconds": 6,
-    "biteDamage": 10,
+    "biteDamage": 7,
     "biteEverySeconds": 2,
-    "eatPerSecond": 0.0015,
+    "eatPerSecond": 0.001,
     "spreadSeconds": 30,
     "minLoad": 0.2,
     "maxActive": 1
@@ -337,11 +337,13 @@
     // budget's curve by up to pacedCost. Budgets are about twice App. B.1's to pay for it. A kind among the last
     // varietyWindow spawns has its weight halved for each.
     "graceSeconds": 20,
-    "paceSeconds": 20,
+    "paceSeconds": 18,
     "pacedCost": 3,
     "varietyWindow": 4,
     // The in-car incidents' weight each (the others weigh 1): trouble in the cars is some of the night, not most of it.
     "incidentWeight": 0.5,
+    // ...at full weight with this many hands besides the driver, proportionally less with fewer (a crew of two: a third).
+    "incidentFullCrew": 3,
     "facilityLullSeconds": 20,
     "cooldownSeconds": [30, 60],
     "maxConcurrentZone": 2,

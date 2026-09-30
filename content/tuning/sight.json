@@ -36,13 +36,13 @@
   // catchReach of the car's side, holding the hook out (Fire) as it goes by. In the bag, by weight: pay (mailScrip, paid
   // at the terminus with the cargo), coal for the tender (coalUnits), rounds for both guns (ammoRounds), or spares for
   // the worst-off car (sparesIntegrity).
-  "dropSpacing": [500, 900],
+  "dropSpacing": [350, 600],
   "dropFrom": 900,
   "dropClear": 80,
   "dropBoardAhead": 400,
   "catchReach": 1.1,
   "dropWeights": { "mail": 0.45, "coal": 0.2, "ammo": 0.2, "spares": 0.15 },
-  "mailScrip": [30, 90],
+  "mailScrip": [20, 60],
   "coalUnits": 8,
   "ammoRounds": 40,
   "sparesIntegrity": 0.25,
