@@ -16,7 +16,7 @@ The systems spec was written against Unity; where it names Unity or FMOD, this d
 | First-person 3D, late-PS2/early-PS3 look | GDD §25–31, art sheet | Small forward renderer; fog, practical lights and post-processing matter more than fidelity |
 | **VR** (Quest via PC, SteamVR, other OpenXR headsets) | Director | OpenXR from day one; input is *actions*, not keys; stereo rendering path |
 | **8+ players**, host-authoritative P2P, 30 Hz | GDD §33, spec E | Snapshot replication with delta compression and interest management; host is also a player |
-| Sync ragdolls, thrown objects, movement, *as much as possible* | Director | Host-simulated physics replicated to clients; bodies are gameplay objects (the Vigil) |
+| Sync ragdolls, thrown objects, movement, *as much as possible* | Director | Host-simulated physics replicated to clients; bodies are gameplay objects (loot, GDD App. D.9) |
 | Proximity voice + radio/walkie-talkie, dead channel, Soot Children mimicry | GDD §21, spec A.5 | Voice is an engine system with DSP; host routes and can sample voice |
 | Audio tells as a fairness system | Spec A.1–A.4 | Custom mixer with tiered ducking, measurable offline |
 | Steam **and** itch.io | Director | Transport and platform services behind interfaces |
@@ -395,7 +395,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - comfort options (snap turn, vignette);
       - multiview (one pass for both eyes);
       - a real headset run: Quest over Link and SteamVR, which needs a person with one.
-26. **Cold and the Vigil (T22, spec B.2 and C.2).**
+26. **Cold and the Vigil (T22, spec B.2 and C.2).** *(The Vigil is gone: GDD v1.2 App. D cut it. Note 92.)*
     - **Cold** is `PlayerState.Cold`, stepped inside the motor, so a client predicts it exactly.
       - It climbs outside and kills at 1200 s (`DeathCause.Cold`); inside a car with a door open it climbs at a quarter of that rate.
       - Near heat it falls at 1200/20 per second, so even the nearly frozen are recovered within spec B.2's "20 s near heat". That's our reading of "resets in 20s".
@@ -1800,3 +1800,66 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Ambiguity:** what "five" leaves out. Read as the director sending nothing off the roster and nothing condition-triggered off it coming up (the Deadman, the Drift), with no budget saved up for what the edition hasn't got (the Gaunt), which would otherwise starve it. `roster: []` is everything, the full game.
     - **Builds.** `tools/package.sh --demo` copies each build to `DarkTerritory-Demo-<rid>` and bakes the edition into its content (`dt edition bake demo`). `tools/upload.sh --demo` sends only those, checking that each is the demo, and the game's upload refuses a demo build. From the repo, `--edition demo` plays it (app or `dt`), mounted into the app data. A demo asked for a tier it hasn't got (`--route deadLines:3`) plays the Frontier. The content hash keeps demo and full crews apart.
     - **Verified:** `RosterTests` (nothing off the roster sent or saved for, nor the Deadman or Hollow on their conditions), `EditionTests` (the baked demo's roster, two facilities and no Grease on three seeds, and its front end), `linegen sweep` on the demo's Frontier (60 seeds, all passed, no fallbacks), and two harness nights on it: frontier:7 at 8 bots delivered, net 2643, longest quiet 20.2 s; frontier:3 at 2 delivered, net 46, longest quiet 18.6 s. CI packages the demo and starts it asking for a Dead Lines night.
+92. **Death, Holdouts and return (GDD v1.2 App. D, `docs/design/gdd-appendix-d.md`).** App. D replaces the spec's Part C (death, the Vigil), Part E's drop-in and drop-out rows, and the Line Plan's pickup points (§11.2, §11.3, §17.3's late-join note). The Vigil (`Run/Vigil`, `vigil.json`, `VigilTests`), the revive at the gate and the pickup points are gone. Every D.13 number is in `tuning/holdouts.json`, which cites its section; `HoldoutTuning.Validate` refuses content outside D.13's ranges, a body refund of 1.0 or more, and a child's voice set.
+    - **Where they are (D.4)** (`LineGen/LineBuilder.Holdouts`, `LineGen/HoldoutSites`). A stage after the line is built, from each site's sub-seed.
+      - Every facility gets one Holdout 60–200 m from its stopped consist. A pad of 200 m radius or more, or a switchyard, gets a second.
+      - Every halt (on its platform or within 40 m of the main line) and dead town (within 80 m) gets one.
+      - Types are drawn from the sub-seed: prison cars only where there's a spare siding, a shelter always at a mine head, a lockup at halts, a shelter at towns.
+      - A new validator check, `holdouts`, holds them to D.4:
+        - distances from the consist and the line;
+        - lamps in sight of the approach board;
+        - the walk to the door clear of the loading modules and walkable all the way;
+        - types;
+        - the lamp on a mast above its own roof (3–9 m).
+      - Placement is tuned to fit first time: the 192-plan sweep places every Holdout on its first attempt. So existing seeds keep their lines; a failing Holdout would regenerate the plan.
+    - **The runtime (D.5–D.8)** (`Run/Holdouts`, `Run/RespawnQueue`, `Run/DeadPhase`). Host-authoritative; clients mirror it from `Holdout`, `Queue` and `Votes` records. The host's interest keeps the queue and the votes from the living.
+      - A Dormant Holdout takes the first eligible entry when the engine is in its site's zone (on the main line from the approach board to the far end, or down its spur).
+      - A breach is a tool in the hands and Use held at the door (`breach.reachM`):
+        - smash, 3 s, with any of the train's melee tools (`train.json` kit: shovel, wrench, crowbar);
+        - pry, 6 s, with the same;
+        - open, 6 s, with the repair kit.
+      - The freed stand up on its floor at 80 HP with the standard kit, as the occupant's survivor (appearance and voice from the pools). The campaign keeps it against their profile id, which the client sends in a `Hello`.
+      - `HostSession.Spawns` watches states, not code paths: every time anyone comes to life it records where, in what phase, and inside which Holdout.
+    - **Readings where D is silent** (each marked "not in D" in the tuning file):
+      - "Distance from the consist" is from the nearest point of the consist stopped at the site, and the walk starts there.
+      - "Must not share a walking route" is the straight walk passing within `routeClearanceM` (15 m) of a module.
+      - "Lamp visible from the board" is terrain line of sight from a driver's eye (3.2 m over the rail). The generator uses a 0.6 m margin and the validator 0.25 m, so rounding never fails a plan. The lamp is the lowest that's seen, never below its roof.
+      - A halt round a hill from its whistle board: the board comes in 50 m at a time, to no nearer than 150 m, until the lamp is seen.
+      - Deaths in the yard aren't the run's: back aboard at the fortress, no fee, no queue.
+      - A night started away from the fortress (a resumed autosave) has its run start there: a joiner with nobody aboard boards the train, marked `SessionStart` in the spawn audit. Everyone after them is lobbied as D.3 says. See the questions below.
+      - Released means outside the zone and not heading back into it, with no living crew within `releaseM` of the Holdout.
+      - An interrupted breach starts again from nothing. A player whose breach has started can't defer (the assignment is locked). A disconnect mid-breach interrupts it and reassigns.
+      - Queue integrity allows exactly one reordering: the deferrer moving back.
+      - Votes compound (×1.2, ×1.44, then the ×1.5 cap) and are applied after the director's variety rule, within the want tag, renormalised so each tag's share holds. Without votes the weighting is the identity.
+      - What can be voted for is the director's weighted, tagged creatures that its gates allow now. Condition-triggered ones (the Stoker) and the untagged v1.0 roster are left out.
+      - "Delivered" means inside an attached car's interior or cab, or carried by someone beside an attached car, at arrival.
+      - Fees are charged on failed runs too.
+      - A body keeps the train's things its player had (lamps, radios, tools; not freight), and they go back to stores when it's delivered. The crew is without them till then.
+      - The solo remainer's climb (0.4 m/s) is in `player.json`, beside the other climbs.
+      - The lobbied aren't on anyone's roster.
+      - The dead watch through their followed crewmate's eyes and hear with their ears: the voice routing, the listener's exposure, space and occlusion. The mouse doesn't turn it.
+    - **Deviations from D.**
+      - The crew loudness meter didn't exist. `Combat/CrewLoudness` is a small one: guns and the smash and pry feed the Choir through it, voices don't. It's what "never feeds the loudness meter" is held to.
+      - The Gaunt's "silence check" is `VoiceMemory` (who has spoken, when). The dead never register in it.
+      - B.6's 50/50 real-child roll isn't in this build (its Soot Children are v1.0's). The vote check holds their own draw unchanged instead.
+      - A dead-channel frame still in flight when its listener is freed is dropped by the client (`ClientSession.DeadFramesDropped`). "Channel isolation" counts by each client's own view of itself; the host's routing counter (`DeadFramesToTheLiving`) is zero either way.
+    - **The run's end (D.12).**
+      - The host sends the incident report (`Run/IncidentReport`), Brotli-compressed in datagram-sized parts, when the run's over. It resends on each commendation and whenever the session changes.
+      - Clients adopt its settlement (`Run.Adopt`). Before this, a client's run never had a report, so its DELIVERED screen and campaign settlement never showed.
+      - One commendation each, from anyone in the session, never to yourself. The receiver's `PlayerProfile` keeps it.
+      - Bookmarks are the moment and whose view it was. The still is a PNG beside the profile.
+    - **Stubs, for the real thing later:**
+      - Holdouts aren't collidable, and enemies don't path to them. Their volume is simply a place no damage lands.
+      - Nothing ranks loot yet: `World.LootValue` is what the v1.1 Gaunt, Followers and Car Hugger will rank bodies by.
+      - Want tags and spawn modes are data in `enemies.json`.
+      - The standard kit is empty (`train.json` `kit.standard`), and the tools are one of each in the guard van.
+      - The breach has no sound of its own (it's on the meter, not in the mix).
+      - Bots don't stop for Holdouts or breach them.
+      - The dead phase has flat-screen keys only. In a headset it shows but can't be worked.
+      - The Holdout art is a first pass (`Art/HoldoutKit`).
+    - **The retired roster.** The v1.0 roster the v1.1 GDD replaced (the Ferryman, Clingers, Rattle, Long Whistle, the Weight, the Deadman, Lamplighters, the Hollow) is still in the code. Nothing here is built against it: none of it has a want tag, so none of it can be voted for.
+    - **Verified:**
+      - `dt holdouts check` runs every row of D.14 headless. Its networked night plays over `LinkConditions.Rough` (a crew from the yard, a joiner once the gates are open, deaths before each site, rescues worked by intent, a site left and come back to, the dead talking throughout). The other rows run on host-only nights.
+      - The default run passes all eight rows: 3 rescues, all inside Holdouts; 63 Holdouts and 1,539 body positions reachable on 7 lines; 4,000 queue operations; 24 nights and 103 deaths, never above the clean night; 8 director decisions with votes in; 2,221 dead frames, none to the living. `HoldoutHarnessTests` runs a smaller one.
+      - Tests: `HoldoutTuningTests`, `RespawnQueueTests`, `HoldoutSiteTests`, `HoldoutTests`, `HoldoutSessionTests`, `DeadSilenceTests`, `BodyLootTests`, `VoteTests`, `IncidentReportTests`, and the game's `DeadPhaseTests`.
+      - Looked at: `dt screenshot --holdout i --lit [--board]` and `dt screenshot --hud --dead|--report`.

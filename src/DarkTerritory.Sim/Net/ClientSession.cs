@@ -184,7 +184,7 @@ public sealed class ClientSession
                     ushort vseq = r.U16();
                     var path = (VoicePath)r.U8();
                     int source = path.HasFlag(VoicePath.Mimic) || path.HasFlag(VoicePath.Holdout) ? r.I32() : 0;
-                    VoiceFrames.Enqueue(new VoiceFrame(speaker, vseq, path, r.Rest().ToArray(), source));
+                    _voiceIn.Add(new VoiceFrame(speaker, vseq, path, r.Rest().ToArray(), source));
                     break;
                 case MessageType.Welcome:
                     (PlayerId, _, SessionInfo) = Messages.ReadWelcome(ref r);
@@ -221,7 +221,19 @@ public sealed class ClientSession
         }
         if (newest is not null)
             Reconcile(newest, newestAcked);
+        // GDD App. D.10/D.14 "channel isolation": the host sends the dead channel only to the waiting; a frame still in
+        // flight when this player's back among the living (freed in this very batch, say) isn't theirs to hear.
+        foreach (var f in _voiceIn)
+            if (f.Path.HasFlag(VoicePath.Dead) && Predicted.Alive)
+                DeadFramesDropped++;
+            else
+                VoiceFrames.Enqueue(f);
+        _voiceIn.Clear();
     }
+
+    readonly List<VoiceFrame> _voiceIn = new();
+    /// <summary>Dead-channel frames that arrived after this player was alive again, and were dropped.</summary>
+    public int DeadFramesDropped { get; private set; }
 
     /// <summary>The night's incident report (App. D.12), as the host last sent it: from the run's end, with its commendations.</summary>
     public Run.IncidentReport? Report { get; private set; }

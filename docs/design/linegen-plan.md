@@ -496,9 +496,13 @@ The line generator passes the POI generator: pad pose and bounds, pad elevation,
 
 ## 11.2 Drop-in pickup points
 
+> **Superseded by GDD v1.2 App. D** ([`gdd-appendix-d.md`](gdd-appendix-d.md)): pickup points are replaced by Holdouts (D.4), which the generator places at facilities, halts and dead towns (`LineBuilder.Holdouts`, the `holdouts` check). Kept for the record.
+
 Drop-in joins happen only at facilities (Systems Spec Part E). Every facility pad includes a **pickup point**: a lit shelter or platform where a joining player spawns, visible from the consist.
 
 ## 11.3 Abandoned halts and dead settlements
+
+> **Amended by GDD v1.2 App. D.4:** every halt and dead town now carries a Holdout (a halt's lockup, a town's barricaded shelter), whose lamp is seen from its whistle board, so they become optional stops.
 
 Every 4–8 km of main line (and on settlement-line alternates), place a **Dead Settlement** piece. These are landmarks and spawn contexts, not stops.
 
@@ -778,7 +782,7 @@ Track is built in **20 m cells** by chainage (matching the art pipeline's track 
 
 The GDD's model is host-authoritative with a shared simulation module (§33).
 
-- **The host generates the Line Plan** during the fortress phase and replicates it to clients compressed. Late joiners receive it at facility drop-in along with the current state.
+- **The host generates the Line Plan** during the fortress phase and replicates it to clients compressed. Late joiners receive it at facility drop-in along with the current state. *(Superseded by GDD v1.2 App. D.3: a late joiner receives it on joining, with the state, and waits lobbied for a Holdout.)*
 - **The train simulation runs on Line Plan data only** (chainage, grade, curvature), so every machine's train physics is identical without depending on mesh generation.
 - **Terrain heights must match** for player movement prediction on the ground. Implement the height function with integer-hash noise and strict floating-point settings (no fast-math, no platform-dependent intrinsics). As a safety net, the host broadcasts a checksum for each tile it builds; a client whose tile checksum differs requests that tile's heights from the host (about 30 KB compressed) and uses those.
 

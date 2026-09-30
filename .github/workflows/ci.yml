@@ -26,6 +26,8 @@ jobs:
       - run: dotnet test --solution Ballast.slnx -c Release --no-build
       - run: dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- train table
       - run: dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- art check
+      # GDD App. D.14: every row of what the harness verifies about death, Holdouts and return.
+      - run: dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- holdouts check
       - name: Screenshots
         if: runner.os == 'Linux'
         run: |
@@ -45,6 +47,11 @@ jobs:
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --view roof --crew --out out/shots/crew-arms.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --cars 4 --cam 1122,-0.4,2.8 --target 1130,0.4,2.0 --fov 75 --out out/shots/inside-guard.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --hud --route frontier:7 --out out/shots/hud.png
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --hud --dead --route frontier:7 --out out/shots/hud-dead.png
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --hud --report --route frontier:7 --out out/shots/hud-report.png
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --holdout 4 --lit --out out/shots/holdout-prison.png
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --holdout 0 --lit --out out/shots/holdout-shelter.png
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route frontier:7 --holdout 6 --lit --out out/shots/holdout-lockup.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route deadLines:8 --site --out out/shots/site-winch.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route deadLines:8 --site --crank --out out/shots/site-crank.png
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route deadLines:8 --site --crane --out out/shots/site-crane.png

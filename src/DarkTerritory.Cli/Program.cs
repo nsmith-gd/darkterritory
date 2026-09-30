@@ -62,6 +62,9 @@ return args switch
     ["route", "sweep", ..] => Print(SweepRoutes(routeTuning, (int)Opt(args, "--seeds", 200))),
     ["linegen", var verb, ..] => Print(LineGenCommands.Run(content, verb, args)),
     ["harness", ..] => Print(RunHarness(args)),
+    // GDD App. D.14: every row of "what the harness verifies", headless. --route (the networked night), --lines n (more
+    // lines for recoverability), --rescues n, --nights n, --seed n. Exit 1 on any failing row.
+    ["holdouts", "check", ..] => HoldoutsCheck(args),
     ["balance", ..] => PrintBalance(RunBalance(args)),
     ["online", "check"] => Print(OnlineCheck()),
     ["campaign", var verb, ..] => Print(CampaignCommand(content, verb, args)),
@@ -91,6 +94,41 @@ static object TrainTable(TrainTuning t, PlayerTuning p) => t.Performance.Select(
         maxGradePct = Math.Round(dyn.MaxClimbableGradePercent(), 2),
     };
 }).ToList();
+
+int HoldoutsCheck(string[] args)
+{
+    string spec = Str(args, "--route", "frontier:7");
+    int cars = (int)Opt(args, "--cars", 6);
+    var tiers = new[] { "local", "frontier", "deadLines" };
+    var lines = Enumerable.Range(0, (int)Opt(args, "--lines", 6))
+        .Select(i => DarkTerritory.Sim.LineGen.Routes.Generate(content, $"{tiers[i % 3]}:{100 + i}", cars)).ToList();
+    var clock = Stopwatch.StartNew();
+    var checks = DarkTerritory.Sim.Net.HoldoutChecks.Run(new DarkTerritory.Sim.Net.HoldoutCheckOptions
+    {
+        Route = DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars),
+        VoteRoute = DarkTerritory.Sim.LineGen.Routes.Generate(content, Str(args, "--vote-route", "deadLines:3"), 10),
+        Lines = lines,
+        Train = train,
+        Player = player,
+        Boiler = boiler,
+        Combat = DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)),
+        Enemies = DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)),
+        Run = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)),
+        Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)).Validate(),
+        Facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
+        Cars = cars,
+        Seed = (int)Opt(args, "--seed", 1),
+        Rescues = (int)Opt(args, "--rescues", 3),
+        Nights = (int)Opt(args, "--nights", 24),
+    });
+    Print(new
+    {
+        passed = checks.All(c => c.Passed),
+        seconds = Math.Round(clock.Elapsed.TotalSeconds, 1),
+        checks = checks.Select(c => new { c.Name, c.Passed, c.Method, c.Measured, faults = c.Faults.Take(20), more = Math.Max(0, c.Faults.Count - 20) }),
+    });
+    return checks.All(c => c.Passed) ? 0 : 1;
+}
 
 object RunHarness(string[] args)
 {

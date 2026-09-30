@@ -344,7 +344,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             throw new IOException("the host's land comes out differently on this machine (its terrain checksum differs): report it, it's a bug");
         }
         var client = new ClientSession(new Replay(transport, early), world,
-            setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File))) { Profile = profile };
+            setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)))
+        { Profile = profile };
         return new NetPlaySession(null, null, null, client, transport, setup, route, lobby);
     }
 

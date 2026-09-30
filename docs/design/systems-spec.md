@@ -288,6 +288,8 @@ The dawn budget assumes an 11 m/s average, below the 14 m/s cruise. **The slack 
 
 # PART C — DEATH AND REVIVAL
 
+> **Superseded by GDD v1.2 Appendix D** ([`gdd-appendix-d.md`](gdd-appendix-d.md)): the Vigil is cut. The dead wait in a respawn queue for a Holdout the crew stops to break open, and a body is loot (a fee at settlement, most of it back if it's brought home). The text below is kept as it was, for the record: nothing in the build implements it, and its tests (`VigilTests`, the revive at the gate) are gone with it. How App. D is built: `docs/ARCHITECTURE.md` §8 note 92.
+
 ## C.1 Death
 
 A dead player becomes a spectator and **their body persists at the death location.** Bodies do not despawn.
@@ -394,14 +396,14 @@ The generator should favour combinations that split the crew across incompatible
 | **Host migration** | **Not supported.** Host disconnect ends the session. |
 | **Lobby visibility** | Host's choice: public or friends-only |
 | **Ping display** | **Ping to host shown prominently** in browser and lobby — non-optional UI |
-| **Drop-in** | **At POIs only.** Joining player arrives at the facility, like a pickup. |
-| **Drop-out** | Any time. Character remains as an inert body until recovered or the run ends. |
+| **Drop-in** | ~~At POIs only.~~ **Superseded by GDD App. D.3:** in the yard, aboard at the fortress; once the gates are open, lobbied (watching, at the back of the respawn queue) until a Holdout frees them. |
+| **Drop-out** | Any time. Character remains as an inert body until recovered or the run ends. **App. D.2, D.9:** the body carries no fee; a waiting player leaves the queue. |
 | **Campaign ownership** | Host owns it entirely |
 | **Save slots** | **3 per host.** Slot must be selected when hosting. |
 | **Autosave** | **Per POI**, on successful departure |
 | **Crash** | Session lost. Campaign rolls back to last POI autosave. |
 
-**The POI-only drop-in is a design win, not a limitation.** It gives joining a diegetic moment — a figure waiting at the facility — and it prevents mid-transit spawning, which would break the "getting left behind is fatal" logic that everything else depends on.
+*(Superseded by App. D.3, with the rows above; kept for the record.)* **The POI-only drop-in is a design win, not a limitation.** It gives joining a diegetic moment — a figure waiting at the facility — and it prevents mid-transit spawning, which would break the "getting left behind is fatal" logic that everything else depends on.
 
 **Ping visibility is load-bearing.** Without host migration, a bad host connection loses everyone's run. Players must be able to see that before committing 40 minutes.
 
@@ -484,7 +486,7 @@ Armoured car conversion · second guard car (a **third gun**, but it costs a car
 
 1. **Does the 4:1 speed ratio feel right?** Everything derives from it. If the train feels too fast or the player too slow, every table above shifts. **Test this first, before anything else is built.**
 2. **Is 94s to traverse a 20-car train fun or tedious?** It's the single riskiest number here. If tedious, the answer is probably a roof-running mechanic rather than a shorter train.
-3. **Is one Vigil per run enough?** Three feels generous given the cost. Might want a hard cap of two.
+3. *(Moot: the Vigil is cut, GDD App. D.)* **Is one Vigil per run enough?** Three feels generous given the cost. Might want a hard cap of two.
 4. **Should the third gun exist at all?** It relieves the flank pressure that the whole difficulty curve depends on.
 5. **Do POIs need a guaranteed manual fallback** when a facility is dead and the crew can't restart it?
 
