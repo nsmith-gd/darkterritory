@@ -65,7 +65,8 @@ public static class Staging
 
     /// <summary>One of each enemy (GDD v1.1 §21) mid-telegraph or mid-commit around the train, where a view can see it.</summary>
     /// <param name="dollAhead">How far up the line the Track Doll stands (App. A.2's reveal is 200 m in the lamp).</param>
-    public static List<Enemy> Threats(TrainOnLine train, double dollAhead = 22)
+    /// <param name="lurkAhead">If given, a second Car Hugger lurking beside the line this far ahead (App. A.3 LURK).</param>
+    public static List<Enemy> Threats(TrainOnLine train, double dollAhead = 22, double? lurkAhead = null)
     {
         var d = train.Dynamics;
         int rear = d.Consist.Vehicles[^1].Id;
@@ -83,9 +84,9 @@ public static class Staging
         var boarded = new CinderHound(13, 10);
         boarded.Restore(SpinePhase.Punish, 0.4, 60, rear, new Double3(0.6, rearShape.RoofHeight, rearShape.HalfLength - 2.5), 0, 0, 0, 10, 0);
         threats.Add(boarded);
-        // Latched on the guard van's rear end, grinding (GDD v1.1 A.3): its mouth over the rear platform.
+        // Latched on the guard van's rear end, grinding (GDD v1.1 A.3): its head on the rear platform, its mouth on the door.
         var hugger = new CarHugger(46);
-        hugger.Restore(SpinePhase.Commit, 4, 12, rear, new Double3(0, 0.5, rearShape.HalfLength + 0.5), 0, 0, 0, 0, 0);
+        hugger.Restore(SpinePhase.Commit, 4, 12, rear, new Double3(0, 1.0, rearShape.HalfLength + 0.4), 0, 0, 0, 0, 0);
         threats.Add(hugger);
         int cargo = d.Consist.Vehicles.First(v => v.Kind == VehicleKind.Cargo).Id;
         var cargoShape = train.Frames[cargo].Shape;
@@ -183,6 +184,13 @@ public static class Staging
         var drift = new Drift(50);
         drift.Restore(SpinePhase.Telegraph, 2, 1, driftCar, new Double3(0.8, train.Frames[driftCar].Shape.RoofHeight, 2), 0, 0, 0, 6, 1);
         threats.Add(drift);
+        if (lurkAhead is { } lurk)
+        {
+            // Where CarHugger.Lurking puts one: down on the low ground by the line, waiting for the rear car.
+            var lurker = new CarHugger(51);
+            lurker.Restore(SpinePhase.Dormant, 3, 16, -1, default, d.Distance + lurk, 2.6, -0.3, 0, 0);
+            threats.Add(lurker);
+        }
         return threats;
     }
 }
