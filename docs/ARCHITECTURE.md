@@ -1918,3 +1918,17 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **No mount solid.** The gun used to stand on a fixed pedestal solid. A gun that moves can't be part of its car's static collision, so it has none: you walk past it on the roof.
     - **Drawn** from the vehicle's state (`SceneArt.Car`, the greybox too), with the rail itself as a pair of iron flats on tie plates (`TrainKit.RoofRail`); `dt screenshot --view gun` looks at the guard van's.
     - **Bots** find the gun through `Guns.Mount` and don't push it yet.
+
+100. **A night starts at the gate (the director's call, after playtesting).** The fortress yard is all at yard speed (2.5 m/s, plan §10, spec B.3). With the engine a train's length into it, the crawl to the gate took minutes before the run began. Now `PrototypeSession` and `SessionSetup.Build` stand the engine's front `departShortOfGateM` (8 m, `run.json`) short of the outer gate, the whole train still in the yard.
+    - Everyone joining before it moves boards at the fortress (App. D.3). The run begins as it moves off.
+    - The threshold is nearly level by construction (`fortress.maxThresholdGrade`), and a standing train doesn't creep through the gate: `DepartureTests` holds three seeds there for 90 s.
+    - A resumed night still starts where it was saved. The harness keeps its own start (`StartDistance`), so its baselines don't move.
+101. **A snapshot bigger than a datagram goes over a few ticks.** The transport never fragments, and it throws on anything over 1,200 bytes. With #96's stops and Holdouts, a joiner's first, full snapshot of a 6-car night outgrew that. So every hosted night, a solo one with a bot crew included, crashed as the crew joined. The tests' 4-car nights, on the loopback network (which doesn't enforce the limit), never saw it.
+    - `HostSession.Budget` sends such a snapshot on a budget:
+      - What the client already has, unchanged, costs nothing in a delta, and stays.
+      - Changed and new records go in by priority (the players, the client's own first, then the train, then the rest) while they fit.
+      - A changed record that doesn't fit goes as the client's old copy, so it isn't a removal. A new one waits for the next snapshot.
+      - What's recorded as sent is exactly what the client holds, so the next delta is against that.
+    - No protocol change. A frontier:7 6-car night with 3 bots budgets its first snapshot (1,192 bytes) and nothing after.
+    - `NetcodeTests.AWorldBiggerThanADatagramReachesAJoinerOverAFewSnapshots` checks it: 150 crates aboard, every snapshot within a datagram, and the joiner ends with every one.
+    - **Watch:** bots are UDP clients of their own host, stepped by the game's loop. A stall of more than the transport's 8 s timeout drops them (as a software renderer's first frame does; `--greybox` doesn't).
