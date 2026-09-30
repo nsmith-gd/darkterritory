@@ -6,6 +6,8 @@
   "roofWalkSafe": 1.8,
   "ladderClimb": 1.6,
   "carryHeavy": 2.8,
+  // Pushing a gun along its roof rail (T93): the gun goes where you go, no faster than this.
+  "pushGun": 1.2,
   "jumpGap": 2.2,
   // How high a standing jump lifts your feet. Playtest (T90): the 0.48 m that a flat 2.2 m gap jump at roof run needs was
   // too weak to feel like a jump at all; at this height a roof-run jump carries about 2.8 m, clearing the gap easily.

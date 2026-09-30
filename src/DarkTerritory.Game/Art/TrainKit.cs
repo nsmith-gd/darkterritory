@@ -913,6 +913,37 @@ public static class TrainKit
     /// A mounted gun on its pedestal (GDD §26: "mounted weapon silhouette, firing arc implied"): water-jacketed barrel,
     /// a shield plate with a sighting slot, the ammunition box, the spade grips. It faces −Z; the scene turns it.
     /// </summary>
+    /// <summary>
+    /// The gun rail along a roof's centreline (T93): a pair of iron flats on tie plates, over whatever roof is there (the
+    /// engine's steps down from the cab roof to the tender), for the gun to be pushed along.
+    /// </summary>
+    public static MeshAsset RoofRail(Look? look, CarShape shape, (double Front, double Back) rail)
+    {
+        var k = new Kit(look, 61);
+        const float gauge = 0.16f, flat = 0.025f, height = 0.05f;
+        // Runs of level roof: a new run wherever the roof under the centreline steps.
+        var runs = new List<(float From, float To, float Top)>();
+        const double step = 0.1;
+        for (double z = rail.Front; z < rail.Back - 1e-6; z += step)
+        {
+            float top = (float)(shape.TopAt(0, z + step / 2)?.Top ?? shape.RoofHeight), to = (float)Math.Min(z + step, rail.Back);
+            if (runs.Count > 0 && Math.Abs(runs[^1].Top - top) < 1e-3)
+                runs[^1] = (runs[^1].From, to, top);
+            else
+                runs.Add(((float)z, to, top));
+        }
+        foreach (var (from, to, top) in runs)
+        {
+            k.Use("rust_heavy", Palette.IronGrey, 0.6f, 0.6f);
+            foreach (int s in new[] { -1, 1 })
+                k.Box(new Vector3(s * gauge - flat, top, from), new Vector3(s * gauge + flat, top + height, to));
+            k.Use("iron_plate", Palette.SootBlack, 0.9f, 0.3f);
+            for (float z = from + 0.3f; z < to; z += 1.2f)
+                k.Box(new Vector3(-gauge - 0.08f, top, z - 0.05f), new Vector3(gauge + 0.08f, top + 0.015f, z + 0.05f));
+        }
+        return k.Build("roof-rail");
+    }
+
     public static MeshAsset Gun(Look? look)
     {
         // The modelled gun (tools/models gun_mount) to this frame: pivot at the origin, muzzle 1.5 m out along -Z.
