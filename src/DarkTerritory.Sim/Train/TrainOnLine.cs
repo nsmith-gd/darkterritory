@@ -68,6 +68,11 @@ public sealed class TrainOnLine
         if (boiler is not null)
             Boiler = Boiler.Fresh(boiler);
         UpdatePoses();
+        // The guns start where their cars' shapes stand them (the engine's forward, the guard van's back): from here they're
+        // the vehicles' own, and ride the roof rails wherever they're pushed (T93).
+        foreach (var f in _frames)
+            if (f.Shape?.Gun is { } home && !_vehicles[f.Index].Gun.Mounted)
+                _vehicles[f.Index].Gun = new GunState { Mounted = true, Z = home.Position.Z, Facing = (sbyte)(home.Facing.Z < 0 ? -1 : 1) };
     }
 
     public BoilerTuning? BoilerTuning { get; set; }

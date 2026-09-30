@@ -277,7 +277,8 @@ public static class Hud
             };
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is not null)
             return train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM FOR THE TURRET"
-                : "[LMB] FIRE";
+                : train.Vehicles[Guns.MannedGun(p, train, combat.Guns)!.Value].Gun.ReloadNeeded > 0 ? "[E] HOLD: RELOAD"
+                : "[LMB] FIRE   [E] + WALK: PUSH IT ALONG THE RAIL";
         // A headset player's prompts follow their reaching hand (T29), as the sim's reach does.
         var hand = world.Hand;
         var near = CrewActions.Nearest(p, train, hand);

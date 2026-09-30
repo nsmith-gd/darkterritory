@@ -11,7 +11,7 @@ namespace DarkTerritory.Game;
 /// </summary>
 public static class Views
 {
-    public static readonly string[] Names = ["trackside", "roof", "cab", "chase", "ahead", "gap", "gangway"];
+    public static readonly string[] Names = ["trackside", "roof", "cab", "chase", "ahead", "gap", "gangway", "gun"];
 
     public static Camera Get(string name, TrainOnLine train, int car = 2)
     {
@@ -27,6 +27,8 @@ public static class Views
             "chase" => ChaseCamera(train),
             "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
             "gap" => GapCamera(train, car),
+            // Over the last car's roof, looking back at its gun on its rail (T93).
+            "gun" => GunCamera(train),
             // On the plate behind the tender, looking up its gangway into the cab and at the ladder to the cab roof (T90).
             "gangway" => Camera.LookAt(engine.ToWorld(new Double3(-0.2, 2.9, engineHalf + 1.4)), engine.ToWorld(new Double3(-0.9, 0.6, engineHalf - 8)), 75),
             _ => throw new ArgumentException($"unknown view '{name}' (known: {string.Join(", ", Names)})"),
@@ -50,6 +52,13 @@ public static class Views
         var ahead = train.Frames[Math.Clamp(car, 0, train.Frames.Count - 2)];
         double l = ahead.Shape.HalfLength;
         return Camera.LookAt(ahead.ToWorld(new Double3(0.35, 2.75, l + 1.3)), ahead.ToWorld(new Double3(-0.4, 1.4, l)), 80);
+    }
+
+    static Camera GunCamera(TrainOnLine train)
+    {
+        var last = train.Frames[^1];
+        double roof = last.Shape.RoofHeight;
+        return Camera.LookAt(last.ToWorld(new Double3(1.6, roof + 2.2, -2)), last.ToWorld(new Double3(0, roof + 0.4, last.Shape.HalfLength - 2.5)), 60);
     }
 
     static Camera ChaseCamera(TrainOnLine train)

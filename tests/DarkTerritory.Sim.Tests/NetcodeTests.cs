@@ -143,6 +143,31 @@ public class NetcodeTests
         Assert.All(clients, c => Assert.Equal(0, c.MaxCorrection));
     }
 
+    [Fact]
+    public void AClientPushingAGunAlongTheRoofIsPredictedExactly()
+    {
+        // T93: the gun slides with its pusher on the host and in the pusher's prediction alike.
+        var net = new LoopbackNetwork();
+        var combat = Tuning.Combat;
+        TrainOnLine NewTrain() => new(new TrainDynamics(Consist.Uniform(T, 6, 1)), TestLoop, 600);
+        var host = new HostSession(net.CreateHost(), NewTrain(), T, P, combat);
+        var clients = new[] { new ClientSession(net.CreateClient(), NewTrain(), T, P, combat), new ClientSession(net.CreateClient(), NewTrain(), T, P, combat) };
+        Run(net, host, clients, 10, _ => default);
+        int guard = host.Train.Vehicles.First(v => v.Kind == VehicleKind.Guard).Id;
+        double z0 = host.Train.Vehicles[guard].Gun.Z;
+        var pusher = PlayerMotor.SpawnOnRoof(host.Train, guard, z0 + 0.7, P);
+        HostTeleport(host, clients[1].PlayerId!.Value, pusher);
+        Run(net, host, clients, 5, _ => default);
+        foreach (var c in clients)
+            c.ResetStats();
+
+        Run(net, host, clients, 60, i => i == 1 ? new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use } : default);
+        Run(net, host, clients, 3, _ => default);
+        Assert.True(z0 - host.Train.Vehicles[guard].Gun.Z > 1.5);
+        Assert.All(clients, c => Assert.Equal(host.Train.Vehicles[guard].Gun.Z, c.Train.Vehicles[guard].Gun.Z, 6));
+        Assert.All(clients, c => Assert.Equal(0, c.MaxCorrection));
+    }
+
     static void HostTeleport(HostSession host, byte id, PlayerState state) => host.SetPlayerState(id, state);
 
     [Fact]

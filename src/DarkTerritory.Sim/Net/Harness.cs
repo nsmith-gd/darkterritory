@@ -296,7 +296,7 @@ public static class Harness
         if (gunner.Session?.PlayerId is not { } id)
             return;
         var guard = host.Train.Dynamics.Consist.Vehicles.LastOrDefault(v => v.Kind == VehicleKind.Guard);
-        if (guard is null || host.Train.Frames[guard.Id].Shape.Gun is not { } mount)
+        if (guard is null || Guns.Mount(host.Train, guard.Id) is not { } mount)
             return;
         var post = PlayerMotor.SpawnOnRoof(host.Train, guard.Id, mount.Position.Z - mount.Facing.Z * 0.7, host.PlayerTuning);
         post.Yaw = Math.PI;

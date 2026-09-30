@@ -47,6 +47,10 @@ public enum SurfaceKind : byte { Roof, Deck, Coupler }
 public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps, RunningBoard }
 
 /// <summary>Where a gun is bolted on, and which way it faces in the car's frame (−Z forward, +Z back).</summary>
+/// <summary>
+/// Where a gun is and which way it faces, in its car's frame: <see cref="CarShape.Gun"/> is where it stands at departure;
+/// where it is now is the vehicle's (<see cref="Combat.Guns.Mount"/>, T93).
+/// </summary>
 public readonly record struct GunMount(Double3 Position, Double3 Facing);
 
 public readonly record struct Solid(Box Box, SurfaceKind Top, PartKind Part);
@@ -92,6 +96,12 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     public IReadOnlyList<Door> DoorList => Doors ?? [];
     /// <summary>The guard van's rear platform, when it's last in the train (its top is the footing); null on anything else.</summary>
     public Box? Platform { get; init; }
+    /// <summary>
+    /// The gun rail along the roof's centreline (T93): from its front end to its back, in local Z. A gun slides along it,
+    /// and over the coupling onto the next car's while the two are coupled.
+    /// </summary>
+    public (double Front, double Back)? RoofRail { get; init; }
+
     public double HalfLength => Bounds.Max.Z;
     public double HalfWidth => Bounds.Max.X;
     /// <summary>Height of the highest walkable roof.</summary>
@@ -110,10 +120,17 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
 
     public static CarShape Build(GeometryTuning g, VehicleKind kind, bool hasCarBehind) => kind switch
     {
-        VehicleKind.Engine => Engine(g, hasCarBehind),
-        VehicleKind.Guard => Guard(g, hasCarBehind),
-        _ => Car(g, hasCarBehind),
+        // The engine's rail runs from over the cab's front, where its gun stands, back over the tender (T93).
+        VehicleKind.Engine => Engine(g, hasCarBehind) with
+        {
+            RoofRail = (g.EngineLength / 2 - g.Engine.TenderLength - g.Engine.CabLength + RailEnd, g.EngineLength / 2 - RailEnd),
+        },
+        VehicleKind.Guard => Guard(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
+        _ => Car(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
     };
+
+    /// <summary>How far in from a roof's end its gun rail stops.</summary>
+    const double RailEnd = 0.4;
 
     public static CarShape Build(GeometryTuning g, bool isEngine, bool hasCarBehind) =>
         Build(g, isEngine ? VehicleKind.Engine : VehicleKind.Cargo, hasCarBehind);
@@ -124,7 +141,8 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         var car = g.Interior is { } layout ? Shell(g, layout, hasCarBehind, cargo: false) : SolidCar(g, hasCarBehind);
         double l = g.CarLength / 2, h = g.CarHeight;
         var mount = new Double3(0, h, l - 1.6);
-        var solids = car.Solids.Append(new Solid(Box.FromCentre(mount + new Double3(0, 0.25, 0), new Double3(0.35, 0.25, 0.35)), SurfaceKind.Roof, PartKind.GunMount)).ToList();
+        // No mount solid: the gun slides on its rail (T93), so it isn't part of the car's collision.
+        var solids = car.Solids.ToList();
         // The brake wheel moves to the front end so it isn't under the gun.
         var interactables = car.Interactables.Where(i => i.Kind != InteractableKind.Handbrake)
             .Append(new Interactable(InteractableKind.Handbrake, new Double3(BrakeWheelX(g), h, -l + 0.5), 0.8)).ToList();
@@ -347,7 +365,6 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
 
         // Forward gun on the cab roof, reached by a hatch ladder up from the cab floor.
         var mount = new Double3(0, g.EngineHeight, cabFront + 0.8);
-        solids.Add(new Solid(Box.FromCentre(mount + new Double3(0, 0.25, 0), new Double3(0.35, 0.25, 0.35)), SurfaceKind.Roof, PartKind.GunMount));
         ladders.Add(new Ladder(new Double3(-w + 0.45, deck, cabBack - 0.35), g.EngineHeight, new Double3(0, 0, -1)));
         // The driver's side is the right, where the cab view stands: regulator on the backhead right of the firebox,
         // brake valve on the cab side ahead of the driver, and the reverser standing from the floor beside them.
