@@ -10,6 +10,15 @@ namespace DarkTerritory.Sim.Run;
 public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, double DawnGraceSeconds, ChuteTuning Chute, EconomyTuning Economy, double DepartureLoad)
 {
     public const string File = "tuning/run.json";
+
+    /// <summary>How far short of the outer gate a night's engine starts (run.json <c>departShortOfGateM</c>).</summary>
+    public double DepartShortOfGateM { get; init; } = 8;
+
+    /// <summary>
+    /// Where a night's engine starts: its front just short of the gate, ready to depart (the whole train still in the yard,
+    /// so the run begins as it moves off), or as far back as the consist needs to fit on the line.
+    /// </summary>
+    public double DepartFrom(double gate, double consistLength) => Math.Max(consistLength + 5, gate - DepartShortOfGateM);
 }
 
 public sealed record ChuteTuning(double LeverReach, double LeverSeconds, double SpoutTolerance, double PourPerSecond, double Capacity, double OverfillDamagePerUnit);

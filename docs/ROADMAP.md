@@ -80,7 +80,7 @@ M3 is done but for a test with eight people.
 - Bodies persist and can be carried. Since GDD App. D they're loot: a fee each at settlement, most of it back if brought home (no revival).
 
 **The run:**
-- A night is a game: through the gates, a stop at the coaling tower (a working gravity chute), the terminus, and pay by spec F.1.
+- A night is a game: through the gates, a stop at the coaling tower (a working gravity chute), the terminus, and pay by spec F.1. It starts with the engine at the gate, ready to depart (ARCHITECTURE §8 note 93).
 - Dawn, derailment or losing the crew ends it.
 - The harness reports the outcome and the payout.
 

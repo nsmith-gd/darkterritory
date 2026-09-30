@@ -52,10 +52,11 @@ public sealed class PrototypeSession : IPlaySession
         _boilerTuning = new HotData<BoilerTuning>(Path.Combine(contentRoot, BoilerTuning.File));
         _combatTuning = new HotData<CombatTuning>(Path.Combine(contentRoot, CombatTuning.File));
         // A night leaves the fortress part loaded; the facilities fill the rest (GDD §17-18).
-        var consist = Consist.Uniform(_trainTuning.Value, cars, route is null ? 1 : DataFile.Load<RunTuning>(Path.Combine(contentRoot, RunTuning.File)).DepartureLoad);
-        // On a route, start in the fortress yard with the whole train on the level.
+        var runTuning = DataFile.Load<RunTuning>(Path.Combine(contentRoot, RunTuning.File));
+        var consist = Consist.Uniform(_trainTuning.Value, cars, route is null ? 1 : runTuning.DepartureLoad);
+        // On a route, start at the fortress's gate, ready to depart (run.json departShortOfGateM), the train in the yard.
         if (route is not null)
-            start = consist.LengthMetres + 150;
+            start = runTuning.DepartFrom(route.GateOr(DataFile.Load<RouteTuning>(Path.Combine(contentRoot, RouteTuning.File)).YardLength), consist.LengthMetres);
         Train = new TrainOnLine(new TrainDynamics(consist), line, start, _boilerTuning.Value);
         World = new World(Train, _combatTuning.Value);
         World.EnableBodies();
