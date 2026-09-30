@@ -109,6 +109,10 @@ public sealed class TrainOnLine
 
     /// <summary>Traction multiplier for the whole train this tick (Grease sets it; 1 is dry rail).</summary>
     public double Traction { get; set; } = 1;
+    /// <summary>Someone's at a sandbox on the running boards this tick, sanding (set by crew actions, used by the lineside).</summary>
+    public bool Sanding { get; set; }
+    /// <summary>How much of the grip sanding has brought back on greased rail, 0 to 1 (App. A.2).</summary>
+    public double Sand { get; set; }
     /// <summary>
     /// A vehicle something is dragging on this tick (the Weight, App. A.3), or −1; its rake is held back by
     /// <see cref="DragFactor"/> times the engine's full tractive force: more than the engine can pull against.

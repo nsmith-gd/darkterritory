@@ -80,6 +80,8 @@ public sealed class PrototypeSession : IPlaySession
     public TrainTuning TrainTuning => _trainTuning.Value;
     public PlayerTuning PlayerTuning => _playerTuning.Value;
 
+    double? _greaseCued;
+
     public void Step(in PlayerIntent intent)
     {
         ReloadTuning();
@@ -97,6 +99,12 @@ public sealed class PrototypeSession : IPlaySession
             _cues.Add((ElapsedSeconds, Board(sign)));
         foreach (var drop in World.Lineside?.CaughtThisTick ?? [])
             _cues.Add((ElapsedSeconds, Caught(drop)));
+        // Grease's telegraph (App. A.2): "lamp reflection off the slicked rail; a sharp chemical smell in the cab".
+        if (World.Lineside?.GreaseAhead(Train, World.LampShining) is { } grease && grease != _greaseCued)
+        {
+            _greaseCued = grease;
+            _cues.Add((ElapsedSeconds, "a sharp chemical smell in the cab, and the rail ahead shines: grease. sand it from the running boards"));
+        }
         _cues.RemoveAll(c => ElapsedSeconds - c.At > CueSeconds);
         PlayerMotor.Step(ref Player, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
         World.StepBodies([(1, Player)]);

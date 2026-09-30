@@ -413,10 +413,14 @@ public static class PlayerMotor
             if ((frame.Origin - world).Length > NearbyCar)
                 continue;
             var local = frame.ToLocal(world);
+            // The engine's running boards are only ever footing: a thin plate at deck height that whoever's down on the
+            // ballast beside the engine passes under (up to the cab steps, along to the points), and nobody bumps into.
             foreach (var solid in frame.Shape.Solids)
-                local = Ceiling(local, solid.Box, p, ref ceiling);
+                if (solid.Part != PartKind.RunningBoard)
+                    local = Ceiling(local, solid.Box, p, ref ceiling);
             foreach (var solid in frame.Shape.Solids)
-                local = PushOut(local, solid.Box, p);
+                if (solid.Part != PartKind.RunningBoard)
+                    local = PushOut(local, solid.Box, p);
             var vehicle = train.Vehicles[frame.Index];
             foreach (var door in frame.Shape.DoorList)
                 if (!vehicle.DoorOpen(door.Index))

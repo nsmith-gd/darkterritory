@@ -10,7 +10,8 @@ namespace DarkTerritory.Sim.Train;
 /// <item>at the firebox, shovel coal: one unit per 1.2 s (spec B.6);</item>
 /// <item>at the vent valve, hold it open;</item>
 /// <item>on a coupler plate, cut the coupling behind that car (GDD §17, §24);</item>
-/// <item>at a car's brake wheel, wind its rake's handbrakes on or off.</item>
+/// <item>at a car's brake wheel, wind its rake's handbrakes on or off;</item>
+/// <item>at a sandbox on the engine's running boards, sand the rail (Grease's counter, App. A.2).</item>
 /// </list>
 /// A VR player's reaching hand (T29) picks what's worked by where it is, not where they stand, and shovels by the
 /// stroke: coal onto the shovel at the tender, then into the firebox (<see cref="ShovelByHand"/>).
@@ -64,6 +65,11 @@ public static class CrewActions
                     train.Boiler.Shovel(bt);
                     s.ActionProgress -= bt.ShovelSeconds;
                 }
+                break;
+            // Out on the running boards at a sandbox: sand going down under the drivers while it's held (App. A.2).
+            case InteractableKind.Sandbox when s.Parent == 0 && s.Surface == Surface.Deck:
+                train.Sanding = true;
+                s.ActionProgress = 0;
                 break;
             case InteractableKind.Vent when PlayerMotor.InCab(s, train):
                 train.Boiler.Venting = true;

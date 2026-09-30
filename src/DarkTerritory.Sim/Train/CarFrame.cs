@@ -44,7 +44,7 @@ public readonly record struct Box(Double3 Min, Double3 Max)
 public enum SurfaceKind : byte { Roof, Deck, Coupler }
 
 /// <summary>What a solid is, so presentation can draw and colour it. Collision ignores this.</summary>
-public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps }
+public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps, RunningBoard }
 
 /// <summary>Where a gun is bolted on, and which way it faces in the car's frame (−Z forward, +Z back).</summary>
 public readonly record struct GunMount(Double3 Position, Double3 Facing);
@@ -55,7 +55,7 @@ public readonly record struct Solid(Box Box, SurfaceKind Top, PartKind Part);
 public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward);
 
 /// <summary><see cref="Coal"/> is the tender's coal face, where a hand fills the shovel (T29).</summary>
-public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal }
+public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox }
 
 /// <summary>A thing a player uses by standing near it and holding Use. <see cref="Index"/> says which door.</summary>
 public readonly record struct Interactable(InteractableKind Kind, Double3 Position, double Radius, int Index = 0);
@@ -297,6 +297,15 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             solids.Add(new(new Box(new Double3(x0, deck, cabFront), new Double3(x1, g.EngineHeight - 0.2, cabFront + 0.15)), SurfaceKind.Deck, PartKind.CabWall));
             solids.Add(new(new Box(new Double3(x0, deck, cabBack - 0.15), new Double3(x1, g.EngineHeight - 0.2, cabBack)), SurfaceKind.Deck, PartKind.CabWall));
         }
+        // The running boards (App. A.2 GREASE: "sends someone onto the running boards at speed"): a walkway each side at
+        // deck height, out past the cab side from the front of the boiler to partway across the cab's doorway: out of the
+        // doorway and forward onto it. It stops short of the doorway's back, where the cab steps come up from the ground.
+        double board = e.RunningBoardWidth, boardBack = cabBack - e.DoorWidth + e.DoorWidth * 0.4;
+        foreach (int side in new[] { -1, 1 })
+        {
+            var (x0, x1) = side < 0 ? (-w - board, -w) : (w, w + board);
+            solids.Add(new(new Box(new Double3(x0, deck - 0.1, -l + 0.5), new Double3(x1, deck, boardBack)), SurfaceKind.Deck, PartKind.RunningBoard));
+        }
         if (CouplerPlate(g, l, hasCarBehind) is { } plate)
             solids.Add(plate);
 
@@ -317,6 +326,9 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             // The coal comes forward through the tender's front onto a shovelling plate at the back of the cab, near
             // enough the firebox that a fireman turning between them reaches both.
             new(InteractableKind.Coal, new Double3(0, deck, cabBack - 0.6), 1.0),
+            // A sandbox on each running board ahead of the cab: out there, Use sands the rail (App. A.2's counter to Grease).
+            new(InteractableKind.Sandbox, new Double3(w + board / 2, deck, cabFront - e.SandboxAhead), 0.8),
+            new(InteractableKind.Sandbox, new Double3(-w - board / 2, deck, cabFront - e.SandboxAhead), 0.8),
         };
         var cab = new Box(new Double3(-w + 0.1, deck - 0.1, cabFront), new Double3(w - 0.1, g.EngineHeight - 0.2, cabBack));
         var bounds = new Box(new Double3(-w, 0, -l), new Double3(w, g.EngineHeight, l));

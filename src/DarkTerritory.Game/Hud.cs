@@ -287,6 +287,9 @@ public static class Hud
                     : "[E] HOLD: VENT";
             case InteractableKind.Handbrake when p.Surface == Surface.Roof:
                 return "[E] HOLD: HANDBRAKE";
+            // Out on the running board (App. A.2): what the sand does is only worth it on greased rail.
+            case InteractableKind.Sandbox when p.Parent == 0 && p.Surface == Surface.Deck:
+                return train.Traction < 1 || train.Sand > 0 ? $"[E] HOLD: SAND THE RAIL ({train.Traction * 100:0}% GRIP)" : "[E] HOLD: SAND";
             case InteractableKind.Door:
                 return "[E] DOOR";
         }

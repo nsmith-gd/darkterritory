@@ -643,6 +643,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             if (stops.Decide(self, world) is { } stopping)
                 return Work(self, train, stopping) with { Lamp = lamp };
         }
+        // Greased rail (App. A.2): the controls do nothing on it, so out to the sandbox and sand it, and back after.
+        if (Sand(self, world, cruise) is { } sanding)
+            return sanding with { Lamp = lamp };
         var intent = Drive(train, tick, cruise, world.TrackPlan is null ? 1.5 : 0.5);
         intent.Lamp = lamp;
         // Watch the road: something showing on the line ahead means get below derailing speed.
@@ -658,6 +661,73 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 
     /// <summary>Under a posted speed by this much (m/s): the driver's cruise wobbles either side of what it's holding.</summary>
     const double PostedMargin = 1;
+
+    int _sandLeg = -1;
+    /// <summary>Slowed this far under its cruise on grease (m/s), it goes out to sand.</summary>
+    const double SandBelowCruise = 2;
+    /// <summary>Out on the running board to sand, or on the way there or back (for the harness's trace).</summary>
+    public bool Sanding => _sandLeg >= 0;
+
+    /// <summary>
+    /// Grease (App. A.2): "cannot climb grade · cannot brake · cannot accelerate", so the controls can wait. Out of the cab's
+    /// doorway on the driver's side, forward along the running board to the sandbox, and hold Use there until the engine's
+    /// off it; then back the way it came. Only once the grease is costing it way (slowed well under cruise: a climb), as on the
+    /// level the train coasts through it. Null in the cab with nothing to sand for.
+    /// </summary>
+    PlayerIntent? Sand(in PlayerState self, World world, double cruise)
+    {
+        var train = world.Train;
+        if (!self.Alive || self.Parent != 0 || world.Lineside is not { } lineside)
+        {
+            _sandLeg = -1;
+            return null;
+        }
+        bool greased = lineside.OnGrease(train);
+        var way = SandWay(train);
+        if (_sandLeg < 0)
+        {
+            // Only when the grease is costing way: on the level the train coasts through it at speed, and whatever's behind
+            // (the hounds gain on every slowing, App. A.3) is better left behind than stopped for. On a climb it can't hold
+            // speed ("cannot climb grade"): out it goes, steam left on, so the sanded drivers pull.
+            if (!greased || !PlayerMotor.InCab(self, train) || train.Dynamics.Speed >= cruise - SandBelowCruise)
+                return null;
+            _sandLeg = 0;
+        }
+        // Out: doorway, board, along it, the sandbox. Back: the same, the other way, and done at the doorway.
+        if (!greased && _sandLeg < way.Length)
+            _sandLeg = 2 * way.Length - 1 - _sandLeg;
+        if (_sandLeg >= 2 * way.Length)
+        {
+            _sandLeg = -1;
+            return null;
+        }
+        int at = _sandLeg < way.Length ? _sandLeg : 2 * way.Length - 1 - _sandLeg;
+        var (step, there) = WarmUp.Steer(self, way[at], 0);
+        if (!there)
+            return step;
+        if (_sandLeg == way.Length - 1)
+            return greased && CrewActions.Nearest(self, train) == InteractableKind.Sandbox ? new PlayerIntent { Buttons = PlayerButtons.Use } : new PlayerIntent();
+        _sandLeg++;
+        return new PlayerIntent();
+    }
+
+    /// <summary>The way to the right-hand sandbox, in the engine's frame: in the doorway, out onto the board, along it, at the box.</summary>
+    static Double3[] SandWay(TrainOnLine train)
+    {
+        var g = train.Dynamics.Tuning.Geometry;
+        var e = g.Engine;
+        double w = g.RoofWidth / 2, l = g.EngineLength / 2;
+        double cabBack = l - e.TenderLength, cabFront = cabBack - e.CabLength, doorFront = cabBack - e.DoorWidth;
+        double outside = w + Math.Min(0.32, e.RunningBoardWidth / 2);
+        var box = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Sandbox && i.Position.X > 0).Position;
+        return
+        [
+            new(w - 0.35, e.DeckHeight, doorFront + 0.3),
+            new(outside, e.DeckHeight, doorFront + 0.3),
+            new(outside, e.DeckHeight, cabFront - 0.3),
+            new(outside, e.DeckHeight, box.Z),
+        ];
+    }
 
     /// <summary>
     /// The fastest the boards read so far allow here: a posted stretch's speed on it, until the last car's through, and

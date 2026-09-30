@@ -26,6 +26,8 @@ public sealed record SightTuning
     public double StrainPerSecond { get; init; } = 0.004;
     public double ThrowSpeed { get; init; } = 3;
     public double GreaseTraction { get; init; } = 0.25;
+    public double SandSeconds { get; init; } = 8;
+    public double SandFadeSeconds { get; init; } = 3;
     public int StruckDamage { get; init; } = 200;
     public double[] DropSpacing { get; init; } = [350, 600];
     public double DropFrom { get; init; } = 900;
@@ -220,8 +222,18 @@ public sealed class Lineside
                 _read[i] = true;
                 ReadThisTick.Add(_signs[i]);
             }
-        train.Traction = main && _route.Features.Any(f => f.Kind == FeatureKind.Grease && f.Contains(front)) ? Tuning.GreaseTraction : 1;
+        // Sanding from the running boards (App. A.2: "restores traction over ~8s"): the grip comes back while sand's going
+        // down, and goes again once it stops (the wheels roll on off what's been laid).
+        double dt = SimConstants.TickSeconds;
+        train.Sand = train.Sanding ? Math.Min(1, train.Sand + dt / Tuning.SandSeconds) : Math.Max(0, train.Sand - dt / Tuning.SandFadeSeconds);
+        train.Sanding = false;
+        bool greased = main && _route.Features.Any(f => f.Kind == FeatureKind.Grease && f.Contains(front));
+        train.Traction = greased ? Tuning.GreaseTraction + (1 - Tuning.GreaseTraction) * train.Sand : 1;
     }
+
+    /// <summary>The engine's on greased rail now (what the drivers feel: they slip).</summary>
+    public bool OnGrease(TrainOnLine train) =>
+        train.Dynamics.Path == RailLine.MainPath && _route.Features.Any(f => f.Kind == FeatureKind.Grease && f.Contains(train.Dynamics.Distance));
 
     /// <summary>Grease on the rail ahead that the lamp (or the eye, lamps down) can make out: its start, if any.</summary>
     public double? GreaseAhead(TrainOnLine train, bool lamp)
