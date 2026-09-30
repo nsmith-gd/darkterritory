@@ -139,7 +139,9 @@ public class CouplingTests
         {
             Parent = 3,
             Surface = Surface.Coupler,
-            Position = new Double3(0, T.Geometry.CouplerHeight, T.Geometry.CarLength / 2 + 0.7),
+            Position = new Double3(T.Geometry.PlateX, T.Geometry.CouplerHeight, T.Geometry.CarLength / 2 + 0.7),
+            // Facing across the gap at the coupling: facing along the plate, the door it leads to comes first.
+            Yaw = Math.PI / 2,
             Health = 100,
         };
         var use = new PlayerIntent { Buttons = PlayerButtons.Use };

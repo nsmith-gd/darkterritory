@@ -15,9 +15,10 @@
     // Greybox body heights above the rail. Not in the spec yet; tune by feel.
     "carHeight": 4.0,
     "engineHeight": 4.4,
-    // The plate you can stand on in the coupling gap (Rattle's home, Climbers' mount point).
+    // The plate you can stand on in the coupling gap (Rattle's home, Climbers' mount point). It bridges end door to end
+    // door, so it lies on the doors' line (interior.doorX) and is a hand wider than the doorway.
     "couplerHeight": 1.1,
-    "couplerWidth": 0.8,
+    "couplerWidth": 1.0,
     // The guard van's rear platform, when it's last: across the car's back end at plate height, this deep (GDD §24 THE
     // WEIGHT: "melee from the rear platform"). Deep enough to land on and stand clear of the rear door's swing.
     "platformDepth": 1.2,
@@ -46,7 +47,7 @@
       "roofThickness": 0.15,
       "doorWidth": 0.9,
       "doorHeight": 2.1,
-      // End doors sit left of centre; the end ladders are right of the coupler.
+      // End doors sit left of centre, the coupler plates in line with them, and the end ladders right of the plates.
       "doorX": -0.45,
       // Holding Use at a door this long opens or shuts it.
       "doorSeconds": 0.4,

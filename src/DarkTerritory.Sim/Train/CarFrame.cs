@@ -92,9 +92,6 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     public IReadOnlyList<Door> DoorList => Doors ?? [];
     /// <summary>The guard van's rear platform, when it's last in the train (its top is the footing); null on anything else.</summary>
     public Box? Platform { get; init; }
-    /// <summary>End ladders sit to the right of the coupler so they don't collide with the plate.</summary>
-    public const double EndLadderX = 0.55;
-
     public double HalfLength => Bounds.Max.Z;
     public double HalfWidth => Bounds.Max.X;
     /// <summary>Height of the highest walkable roof.</summary>
@@ -130,7 +127,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         var solids = car.Solids.Append(new Solid(Box.FromCentre(mount + new Double3(0, 0.25, 0), new Double3(0.35, 0.25, 0.35)), SurfaceKind.Roof, PartKind.GunMount)).ToList();
         // The brake wheel moves to the front end so it isn't under the gun.
         var interactables = car.Interactables.Where(i => i.Kind != InteractableKind.Handbrake)
-            .Append(new Interactable(InteractableKind.Handbrake, new Double3(0, h, -l + 0.5), 0.8)).ToList();
+            .Append(new Interactable(InteractableKind.Handbrake, new Double3(BrakeWheelX(g), h, -l + 0.5), 0.8)).ToList();
         var ladders = car.Ladders.ToList();
         Box? platform = null;
         if (!hasCarBehind)
@@ -140,7 +137,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             // it is the coupling the Weight takes hold of.
             var box = new Box(new Double3(-g.RoofWidth / 2, g.CouplerHeight - 0.1, l), new Double3(g.RoofWidth / 2, g.CouplerHeight, l + g.PlatformDepth));
             solids.Add(new Solid(box, SurfaceKind.Coupler, PartKind.Coupler));
-            ladders.Add(new Ladder(new Double3(EndLadderX, g.CouplerHeight, l + 0.1), h, new Double3(0, 0, -1)));
+            ladders.Add(new Ladder(new Double3(g.EndLadderX, g.CouplerHeight, l + 0.1), h, new Double3(0, 0, -1)));
             platform = box;
         }
         if (g.Interior is { } i)
@@ -153,8 +150,15 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         return car with { Solids = solids, Interactables = interactables, Ladders = ladders, Gun = new GunMount(mount + new Double3(0, 0.9, 0), new Double3(0, 0, 1)), Platform = platform };
     }
 
+    /// <summary>
+    /// The roof's brake wheel stands inboard of the end ladder's top: a reaching hand works it from the ladder (T29), and
+    /// standing on the ladder you're just out of reach of it.
+    /// </summary>
+    static double BrakeWheelX(GeometryTuning g) => g.EndLadderX - 0.55;
+
+    /// <summary>The plate across the gap behind a car, from its end to the next car's, on the end doors' line (<see cref="GeometryTuning.PlateX"/>).</summary>
     static Solid? CouplerPlate(GeometryTuning g, double halfLength, bool hasCarBehind) => hasCarBehind
-        ? new Solid(new Box(new Double3(-g.CouplerWidth / 2, g.CouplerHeight - 0.1, halfLength), new Double3(g.CouplerWidth / 2, g.CouplerHeight, halfLength + g.CouplingGap)),
+        ? new Solid(new Box(new Double3(g.PlateX - g.CouplerWidth / 2, g.CouplerHeight - 0.1, halfLength), new Double3(g.PlateX + g.CouplerWidth / 2, g.CouplerHeight, halfLength + g.CouplingGap)),
             SurfaceKind.Coupler, PartKind.Coupler)
         : null;
 
@@ -237,11 +241,11 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         {
             new(new Double3(w + 0.15, 0, ladderZ), h, new Double3(-1, 0, 0)),
             new(new Double3(-w - 0.15, 0, ladderZ), h, new Double3(1, 0, 0)),
-            new(new Double3(EndLadderX, 0, -l - 0.1), h, new Double3(0, 0, 1)),
+            new(new Double3(g.EndLadderX, 0, -l - 0.1), h, new Double3(0, 0, 1)),
         };
         if (hasCarBehind)
-            ladders.Add(new Ladder(new Double3(EndLadderX, 0, l + 0.1), h, new Double3(0, 0, -1)));
-        interactables.Add(new Interactable(InteractableKind.Handbrake, new Double3(0, h, l - 0.5), 0.8));
+            ladders.Add(new Ladder(new Double3(g.EndLadderX, 0, l + 0.1), h, new Double3(0, 0, -1)));
+        interactables.Add(new Interactable(InteractableKind.Handbrake, new Double3(BrakeWheelX(g), h, l - 0.5), 0.8));
         var interior = new Box(new Double3(-w + t, floor - 0.1, -l + t), new Double3(w - t, ceiling, l - t));
         return new CarShape(new Box(new Double3(-w, 0, -l), new Double3(w, h, l)), solids, ladders, interactables, null, Interior: interior, Doors: doors);
     }
@@ -259,12 +263,12 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         {
             new(new Double3(w + 0.15, 0, ladderZ), h, new Double3(-1, 0, 0)),
             new(new Double3(-w - 0.15, 0, ladderZ), h, new Double3(1, 0, 0)),
-            new(new Double3(EndLadderX, 0, -l - 0.1), h, new Double3(0, 0, 1)),
+            new(new Double3(g.EndLadderX, 0, -l - 0.1), h, new Double3(0, 0, 1)),
         };
         if (hasCarBehind)
-            ladders.Add(new Ladder(new Double3(EndLadderX, 0, l + 0.1), h, new Double3(0, 0, -1)));
+            ladders.Add(new Ladder(new Double3(g.EndLadderX, 0, l + 0.1), h, new Double3(0, 0, -1)));
         // Brake wheel on the roof at the rear end, above the end ladder.
-        var interactables = new[] { new Interactable(InteractableKind.Handbrake, new Double3(0, h, l - 0.5), 0.8) };
+        var interactables = new[] { new Interactable(InteractableKind.Handbrake, new Double3(BrakeWheelX(g), h, l - 0.5), 0.8) };
         return new CarShape(new Box(new Double3(-w, 0, -l), new Double3(w, h, l)), solids, ladders, interactables, null);
     }
 
@@ -317,7 +321,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             new(new Double3(-w - 0.15, 0, doorZ), deck, new Double3(1, 0, 0)),
         };
         if (hasCarBehind)
-            ladders.Add(new Ladder(new Double3(EndLadderX, 0, l + 0.1), e.TenderTop, new Double3(0, 0, -1)));
+            ladders.Add(new Ladder(new Double3(g.EndLadderX, 0, l + 0.1), e.TenderTop, new Double3(0, 0, -1)));
 
         var interactables = new List<Interactable>
         {

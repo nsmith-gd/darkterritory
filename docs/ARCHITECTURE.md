@@ -287,6 +287,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Walk-in cars.** Every car behind the engine is a shell:
       - a floor level with the coupler plate (1.1 m), walls, and a roof slab whose top is the same 4.0 m walkway, so spec B.4's roof traverse is unchanged;
       - a door in each end wall, left of centre, with the end ladders on the right;
+      - the coupler plate across each gap bridges end door to end door: it lies on the doors' line (`interior.doorX`) and is a hand wider than the doorway (1.0 m to the door's 0.9 m), so stepping off it is stepping through a door. The end ladders stand just clear of its right edge (`GeometryTuning.EndLadderX`), and the roof's brake wheel keeps its place inboard of the ladder's top (a hand reaches it from the ladder; the feet don't). Until this the plate was centred on the car and the doorway overhung its left edge;
       - cargo stacked down the right-hand side of cargo cars.
     - **The guard car** (GDD §10: "rear gun, tool storage, the back door") has a tool locker and a hatch ladder up to the rear gun from inside.
     - **Doors are state.** They're a replicated bitmask on each vehicle and start shut. You open or shut one by holding Use while facing it, from inside or from the coupler plate outside.
@@ -585,7 +586,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       5. Leaves by the nearer door and climbs the end ladder.
     - All of it is intent through the same path as a player's.
     - **What made it hard:**
-      - **The plate is 0.8 m wide.** The doorway is left of centre and the end ladder just off the plate's right edge. Any sideways step on the plate at speed is off it and a death. So the bot crosses between door and plate on one line that's in both, steps straight in and out, and stands in reach of the ladder rather than at it.
+      - **The plate is a metre wide.** The doorway is in line with it and the end ladder just off its right edge. Any sideways step on the plate at speed is off it and a death. So the bot crosses between door and plate on the doors' line, steps straight in and out, and stands in reach of the ladder rather than at it.
       - **Use on the plate cuts the coupling unless you're facing a door.** So the bot only presses it when `CrewActions.Nearest`, the sim's own rule, says a door is in reach.
       - **Two hands on one door toggle it twice.** The bots go in at their own point in the onset (seeded, 45–70% of it), so a crew that started together doesn't queue at one door. A door shut in its face sends it back to opening.
       - **Harness bots decide from their client's predicted state.** Corrections up to a third of a metre are why the margins above matter, and why the isolated test passed long before the harness did.
