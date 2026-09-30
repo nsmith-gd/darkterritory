@@ -392,6 +392,60 @@ public class SessionRulesTests
     }
 
     [Fact]
+    public void ADeadPlayerIsSentWhatsAroundTheCrewmateTheyWatch()
+    {
+        // GDD App. D.10: the dead watch the living through their eyes, so the host sends them what's around that player.
+        var (net, host, clients, _) = Session(2, cars: 20);
+        host.EnableEnemies(Tuning.Enemies, null, 1, 2);
+        host.InterestRadius = 220;
+        Run(net, host, clients, 10);
+        byte dead = clients[0].PlayerId!.Value, watched = clients[1].PlayerId!.Value;
+        int guard = host.Train.Dynamics.Consist.Vehicles[^1].Id;
+        host.SetPlayerState(watched, PlayerMotor.SpawnOnRoof(host.Train, guard, 0, P));
+        host.SetPlayerState(dead, host.Players.Single(p => p.Id == dead).State with { Health = 0, Death = DeathCause.Mauled });
+        var shape = host.Train.Frames[guard].Shape;
+        host.World.AddEnemy(id => new DarkTerritory.Sim.Enemies.Dragger(id) { Attached = guard, Local = new Double3(shape.HalfWidth + 0.1, shape.RoofHeight - 0.35, 0), Extra = -1 });
+        void Watching(byte who, int ticks)
+        {
+            for (int t = 0; t < ticks; t++)
+            {
+                net.Advance(SimConstants.TickSeconds);
+                host.Step();
+                clients[0].Step(new PlayerIntent { Watch = who });
+                clients[1].Step(default);
+            }
+        }
+        // Dead in the cab and watching nobody, the Dragger 300 m back at the guard car is out of their interest.
+        Watching(0, 20);
+        Assert.Empty(clients[0].World.ActiveEnemies);
+        // Watching the crewmate on the guard car's roof, it's theirs to see.
+        Watching(watched, 20);
+        Assert.Single(clients[0].World.ActiveEnemies);
+        // The watched one dead too: back to their own.
+        host.SetPlayerState(watched, host.Players.Single(p => p.Id == watched).State with { Health = 0, Death = DeathCause.Mauled });
+        Watching(watched, 20);
+        Assert.Empty(clients[0].World.ActiveEnemies);
+    }
+
+    [Fact]
+    public void WhomTheDeadWatchCostsTheLivingNothingOnTheWire()
+    {
+        var w = new NetWriter();
+        var alive = new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Run, ThrottleNotch = -3, Lamp = LampSwitch.On };
+        Messages.WriteInput(w, [new InputFrame(9, alive)], 4);
+        int living = w.Length;
+        var watching = new PlayerIntent { Buttons = PlayerButtons.Fire, ThrottleNotch = -3, Lamp = LampSwitch.On, Watch = 5 };
+        Messages.WriteInput(w, [new InputFrame(9, watching)], 4);
+        // One byte, and only for the dead: the flag rides in the notch byte's spare bit.
+        Assert.Equal(living + 1, w.Length);
+        var r = new NetReader(w.Written);
+        r.U8();
+        var read = new List<InputFrame>();
+        Messages.ReadInput(ref r, read, out _);
+        Assert.Equal(watching, read[0].Intent);
+    }
+
+    [Fact]
     public void AFollowerIsNeverSentToTheOneItsFollowing()
     {
         // GDD v1.1 App. A.6: "its host can't see it; their friends can, if they look".

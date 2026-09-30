@@ -223,6 +223,12 @@ public static class Hud
                 DeathCause.Waiting => "WAITING TO BE PICKED UP",
                 _ => "",
             }, Ink);
+            // App. D.10: the dead watch the living, through their eyes. Networked only: alone, there's nobody.
+            if (s.Watching >= 0)
+                Small($"WATCHING CREW {s.Watching}   [{Controls.KeyLabel(Keys.KeyFor(Control.Fire))}] OR [{Controls.KeyLabel(Keys.KeyFor(Control.Right))}] NEXT   " +
+                    $"[{Controls.KeyLabel(Keys.KeyFor(Control.Left))}] BACK", Ink);
+            else if (s.Link is not null && world.Run is not { Over: true })
+                Small("NOBODY LEFT ALIVE TO WATCH", Dim);
             // GDD App. D: the way back is a Holdout at the next halt or yard, if the crew stops for you.
             if (world.Holdouts is { } holdouts)
                 Small(holdouts.All.FirstOrDefault(h => h.Occupant == s.PlayerId && h.Lit) is { } mine
