@@ -26,6 +26,7 @@ public class PrototypeSessionTests
         double s = session.Train.Dynamics.Distance;
         session.World.AddEnemy(id => new Sleepers(id) { LineDistance = s + 150, Height = 0.2 });
         session.Train.Dynamics.Velocity = 15; // above the derail threshold, and nobody touches the brake
+        session.Controls.Brake = 0; // (the night stands at the gate on it: T97)
         string? cue = null;
         for (int i = 0; i < SimConstants.TickRate * 15 && session.Player.Alive; i++)
         {

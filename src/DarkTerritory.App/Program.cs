@@ -496,7 +496,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (input.Pressed(Key.Backspace)) proto.Respawn(0);
             for (var k = Key.D1; k <= Key.D9; k++)
                 if (input.Pressed(k)) proto.Respawn(k - Key.D1 + 1);
-            proto.Controls.Brake = Held(Control.Brake) ? 1 : 0;
+            proto.BrakeHeld(Held(Control.Brake));
             if (ride && session.Route?.Plan is { } ridden)
                 DarkTerritory.Game.LineGen.Ride.Drive(proto.Train, ridden, ref proto.Controls);
         }
@@ -546,7 +546,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 ThrottleNotch = proto is null ? (sbyte)Math.Clamp(pendingNotch, -4, 4) : (sbyte)0,
                 Lamp = pendingLamp,
                 Actions = (Held(Control.Swing) ? PlayerActions.Swing : 0) | (Held(Control.Whistle) ? PlayerActions.Whistle : 0)
-                    | (Held(Control.Uncouple) ? PlayerActions.Uncouple : 0)
+                    | (Held(Control.Uncouple) ? PlayerActions.Uncouple : 0) | (Held(Control.Ladder) ? PlayerActions.Ladder : 0)
                     | (pendingCarLamp ? PlayerActions.CarLamp : 0),
                 // How loud you are (GDD v1.1 App. C.7, C.8): the mic while it sends; with no mic, holding Talk counts as
                 // speaking up, so a player without one can still talk the Gaunt down and answer a roll call.

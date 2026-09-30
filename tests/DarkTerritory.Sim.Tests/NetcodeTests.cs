@@ -184,10 +184,29 @@ public class NetcodeTests
         HostTeleport(host, driver.PlayerId!.Value, PlayerMotor.SpawnOnRoof(host.Train, 2, 0, P));
         Run(net, host, clients, 30, _ => default);
         Assert.Equal(1, host.Controls.Brake);
-        // Back at the controls and not holding it: off.
+        // Back at the controls and not holding it (a boiler-less train, with its regulator): off.
         HostTeleport(host, driver.PlayerId!.Value, PlayerMotor.SpawnInCab(host.Train, P));
         Run(net, host, clients, 5, _ => default);
         Assert.Equal(0, host.Controls.Brake);
+    }
+
+    [Fact]
+    public void WithSteamDrivingAStandingTrainStaysOnItsBrakeUntilLetOff()
+    {
+        // T97: no regulator, so a standing engine off its brake pulls away. It stands on the brake it stopped on; the
+        // driver lets it off with a notch up. Moving, the brake is held as ever.
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 3, 1)), TestLoop, 600, Tuning.Boiler);
+        Assert.True(Tuning.Boiler.SteamDrive);
+        var controls = new TrainControls { Reverser = 1, Brake = 1 };
+        Assert.False(CabControls.Clears(controls, train, released: false));
+        Assert.True(CabControls.Clears(controls, train, released: true));
+        train.Dynamics.Velocity = 5;
+        Assert.True(CabControls.Clears(controls, train, released: false));
+        // And off it, it pulls away on its steam alone.
+        train.Dynamics.Velocity = 0;
+        for (int i = 0; i < SimConstants.TickRate * 5; i++)
+            train.Step(SimConstants.TickSeconds, new TrainControls { Reverser = 1 });
+        Assert.True(train.Dynamics.Speed > 2);
     }
 
     static void HostTeleport(HostSession host, byte id, PlayerState state) => host.SetPlayerState(id, state);

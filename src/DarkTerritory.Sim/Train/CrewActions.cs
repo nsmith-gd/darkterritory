@@ -78,7 +78,8 @@ public static class CrewActions
                 train.Sanding = true;
                 s.ActionProgress = 0;
                 break;
-            case InteractableKind.Vent when PlayerMotor.InCab(s, train):
+            // Out on the running board by the smokebox (T97).
+            case InteractableKind.Vent when s.Parent == 0 && s.Surface == Surface.Deck:
                 train.Boiler.Venting = true;
                 s.ActionProgress = 0;
                 break;

@@ -53,7 +53,8 @@ public sealed class HostSession
 
         TrainTuning = trainTuning;
         PlayerTuning = playerTuning;
-        Controls = new TrainControls { Reverser = 1 };
+        // With steam driving (T97), a night's train stands at the gate on its brake.
+        Controls = new TrainControls { Reverser = 1, Brake = world.Train.BoilerTuning?.SteamDrive == true ? 1 : 0 };
     }
 
     public World World { get; }
@@ -110,7 +111,9 @@ public sealed class HostSession
         // The brake is held, so it's cleared each tick and re-applied by whoever's holding it; with nobody at the controls
         // it stays where it was left (a driver who gets down with it on leaves the train standing on it), as the throttle
         // does and as a predicting client assumes.
-        if (_crew.Any(c => CabControls.CanDrive(c.State, Train)))
+        // A train that stops on it stands on it (T97: with steam driving, off the brake a standing engine pulls away) until
+        // the driver lets it off (a notch up: CabControls.ReleasesBrake).
+        if (_crew.Any(c => CabControls.CanDrive(c.State, Train)) && CabControls.Clears(Controls, Train, _crew.Any(c => CabControls.ReleasesBrake(c.ThisTick, c.State, Train))))
             Controls.Brake = 0;
         foreach (var c in _crew)
         {

@@ -85,7 +85,8 @@ public class FiremanTests
         double tender = b.Tender;
         cab.Run(30);
         Assert.False(cab.Fireman.Driving);
-        Assert.True(cab.Train.Boiler.Tender < tender - 5, $"shovelled {tender - cab.Train.Boiler.Tender:0}");
+        // (With steam driving, T97, and the pressure up, only as much as keeps the fire off low: the rest would be speed.)
+        Assert.True(cab.Train.Boiler.Tender < tender - 2, $"shovelled {tender - cab.Train.Boiler.Tender:0}");
         Assert.False(cab.Train.Boiler.LowFire(bt));
     }
 

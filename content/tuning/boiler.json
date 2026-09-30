@@ -31,8 +31,16 @@
   "heatingPerCar": 0.0675,
   "fullThrottleDemand": 0.5,
 
-  // Holding the vent valve open dumps pressure at this rate (the Stoker counter).
-  "ventRate": 6,
+  // Holding the vent valve open dumps pressure at this rate. T97: it's how the crew slows the train (steam sets the
+  // speed), out on the engine's left running board by the smokebox, far from the brake in the cab.
+  "ventRate": 12,
+  // T97 playtest: no regulator. Pressure sets the speed the engine can make: none at powerFloor, the line's top speed at
+  // safetyValveLift. Coal for more speed, the vent (or the brake) for less. The engine pulls at full effort until it's
+  // within driveSpeedBand m/s of that speed. Its cylinders draw with the effort of pulling away or with speed, whichever
+  // is more, drawing fullThrottleDemand from fullDemandAt of top speed: running flat out is the spec's "full throttle".
+  "steamDrive": true,
+  "driveSpeedBand": 3,
+  "fullDemandAt": 0.85,
   // Firebox below this fraction of capacity counts as a low fire (Hollow's trigger, GDD App. A.5).
   "lowFireFraction": 0.2,
   "startPressure": 75,

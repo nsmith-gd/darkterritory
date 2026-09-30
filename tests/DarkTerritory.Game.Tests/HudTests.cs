@@ -53,11 +53,11 @@ public class HudTests
             return p;
         }
         s.Player = At(InteractableKind.Firebox);
-        Assert.Equal("[E] HOLD: SHOVEL COAL", Hud.Prompt(s));
+        Assert.Equal("[E] HOLD: SHOVEL COAL (FASTER)", Hud.Prompt(s));
         s.Player = At(InteractableKind.Vent);
-        Assert.Equal("[E] HOLD: VENT", Hud.Prompt(s));
+        Assert.Equal("[E] HOLD: VENT STEAM (SLOWER)", Hud.Prompt(s));
         s.Player = PlayerMotor.SpawnInCab(train, s.PlayerTuning);
-        Assert.StartsWith("[R/F] REGULATOR", Hud.Prompt(s));
+        Assert.StartsWith(s.Train.BoilerTuning?.SteamDrive == true ? "[R] RELEASE BRAKE" : "[R/F] REGULATOR", Hud.Prompt(s));
         s.Player = s.Player with { Health = 0, Death = DeathCause.Cold };
         Assert.Null(Hud.Prompt(s));
     }

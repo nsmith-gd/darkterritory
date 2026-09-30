@@ -49,7 +49,7 @@ public sealed class ClientSession
 
         TrainTuning = trainTuning;
         PlayerTuning = playerTuning;
-        Controls = new TrainControls { Reverser = 1 };
+        Controls = new TrainControls { Reverser = 1, Brake = world.Train.BoilerTuning?.SteamDrive == true ? 1 : 0 };
     }
 
     public World World { get; }
@@ -119,7 +119,7 @@ public sealed class ClientSession
         World.BeginTick();
         // The host clears the brake every tick and re-applies whoever is holding it. If we're the one in
         // the cab it's almost certainly us, so do the same; otherwise assume whoever was braking still is.
-        if (CabControls.CanDrive(Predicted, Train))
+        if (CabControls.CanDrive(Predicted, Train) && CabControls.Clears(Controls, Train, CabControls.ReleasesBrake(intent, Predicted, Train)))
             Controls.Brake = 0;
         CabControls.Apply(ref Controls, intent, Predicted, Train);
         World.CrewAct(ref Predicted, intent, PlayerId ?? 0);

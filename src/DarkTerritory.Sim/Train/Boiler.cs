@@ -9,6 +9,19 @@ public sealed record BoilerTuning(
     double VentRate, double LowFireFraction, double StartPressure, double StartFirebox)
 {
     public const string File = "tuning/boiler.json";
+
+    /// <summary>
+    /// Steam drives the train (T97 playtest): no regulator. The pressure sets the speed the engine can make, from none at
+    /// <see cref="PowerFloor"/> to the line's top speed at <see cref="SafetyValveLift"/>; coal raises it, the vent drops it.
+    /// </summary>
+    public bool SteamDrive { get; init; }
+    /// <summary>How far under the speed its steam can make the engine is before it pulls at full effort (m/s).</summary>
+    public double DriveSpeedBand { get; init; } = 3;
+    /// <summary>
+    /// With steam driving, the fraction of top speed from which the cylinders draw their full steam: below it they draw
+    /// with speed, or with the effort of pulling away, whichever is more.
+    /// </summary>
+    public double FullDemandAt { get; init; } = 0.85;
 }
 
 /// <summary>
@@ -68,9 +81,26 @@ public struct Boiler
     public readonly double BurnRate(BoilerTuning t, double throttle) =>
         Ruptured ? 0 : Firebox / t.FireTimeConstant * (t.IdleDraft + (1 - t.IdleDraft) * Math.Clamp(throttle, 0, 1));
 
-    /// <summary>Steam drawn per second: cylinders at this throttle, auxiliaries, and heating every car.</summary>
-    public readonly double SteamDemand(BoilerTuning t, double throttle, int cars) =>
-        t.AuxiliaryDrain + t.HeatingPerCar * cars + t.FullThrottleDemand * Math.Clamp(throttle, 0, 1) * PowerFactor(t);
+    /// <summary>
+    /// Steam drawn per second: cylinders at this throttle, auxiliaries, and heating every car. With steam driving (T97)
+    /// the cylinders draw with speed as well as effort, so a hot fire's pressure is spent in going fast.
+    /// </summary>
+    /// <param name="speedFraction">Speed over the line's top speed.</param>
+    public readonly double SteamDemand(BoilerTuning t, double throttle, int cars, double speedFraction = 0)
+    {
+        double work = Math.Clamp(throttle, 0, 1);
+        if (t.SteamDrive)
+            work = Math.Max(work, Math.Clamp(speedFraction / t.FullDemandAt, 0, 1));
+        return t.AuxiliaryDrain + t.HeatingPerCar * cars + t.FullThrottleDemand * work * PowerFactor(t);
+    }
+
+    /// <summary>With steam driving (T97): the speed this pressure lets the engine make, 0 at the power floor to top speed at the valve.</summary>
+    public readonly double SteamSpeed(BoilerTuning t, double topSpeed) =>
+        Ruptured ? 0 : topSpeed * Math.Clamp((Pressure - t.PowerFloor) / (t.SafetyValveLift - t.PowerFloor), 0, 1);
+
+    /// <summary>With steam driving: the pressure at which the engine makes <paramref name="speed"/> (the bots fire to it).</summary>
+    public static double PressureFor(BoilerTuning t, double speed, double topSpeed) =>
+        t.PowerFloor + (t.SafetyValveLift - t.PowerFloor) * Math.Clamp(speed / topSpeed, 0, 1);
 
     /// <summary>A shovelful into the firebox, if there's room and coal. Returns whether it happened.</summary>
     public bool Shovel(BoilerTuning t)
@@ -85,7 +115,8 @@ public struct Boiler
     }
 
     /// <returns>True on the tick the boiler ruptures.</returns>
-    public bool Step(BoilerTuning t, double dt, double throttle, int cars)
+    /// <param name="speedFraction">The engine's speed over top speed (steam driving draws with it).</param>
+    public bool Step(BoilerTuning t, double dt, double throttle, int cars, double speedFraction = 0)
     {
         if (Ruptured)
         {
@@ -93,10 +124,12 @@ public struct Boiler
             return false;
         }
 
-        double burn = Math.Min(BurnRate(t, throttle) * dt, Firebox);
+        // With steam driving (T97) the exhaust draws the fire as hard as the cylinders are working: with effort, or speed.
+        double draw = t.SteamDrive ? Math.Max(Math.Clamp(throttle, 0, 1), Math.Clamp(speedFraction / t.FullDemandAt, 0, 1)) : throttle;
+        double burn = Math.Min(BurnRate(t, draw) * dt, Firebox);
         Firebox -= burn;
         double gain = burn * t.SteamPerUnit * Efficiency + ExternalHeat * dt;
-        double loss = SteamDemand(t, throttle, cars) * dt + (Venting ? t.VentRate * dt : 0);
+        double loss = SteamDemand(t, throttle, cars, speedFraction) * dt + (Venting ? t.VentRate * dt : 0);
         double next = Pressure + gain - loss;
         double shed = SafetyValveJammed ? 0 : Math.Clamp(next - t.SafetyValveLift, 0, t.SafetyValveCapacity * dt);
         SafetyValveLifting = shed > 0;
