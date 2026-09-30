@@ -217,6 +217,24 @@ public sealed class Run
         if (_facilityTuning is not { } t)
             return;
         var train = world.Train;
+        StepLoading(world, t, dt);
+        // Whatever went into a car this tick (a sled, a casting, a crate) is this facility's cargo (App. B.8).
+        if (FacilityFeature?.Facility is { } kind)
+        {
+            var cargo = t.CargoOf(kind);
+            foreach (var v in train.Vehicles)
+                if (v.Kind == VehicleKind.Cargo && v.Load > _loadSeen.GetValueOrDefault(v.Id, v.Load) + 1e-9)
+                    v.Cargo = cargo;
+        }
+        foreach (var v in train.Vehicles)
+            _loadSeen[v.Id] = v.Load;
+    }
+
+    readonly Dictionary<int, double> _loadSeen = new();
+
+    void StepLoading(World world, FacilityTuning t, double dt)
+    {
+        var train = world.Train;
         world.Bodies.HeavySpan = t.Crates.Heavy.Span;
         if (CurrentSite is { } site)
         {

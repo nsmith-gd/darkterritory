@@ -1597,3 +1597,28 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - a client sees how far it's spread and who it's after.
     - Also verified by `AudioTests`: the rustle ≥ 6 dB over the bed in chaos for whoever it's after.
     - **Measured:** deadLines:3 (tar ponds at 7.3–9.1 km): it came up once, surged three times, and got onto one bot once, which stood still till it lost them; no deaths to it. frontier:7 (no marsh on its main line) is unchanged: delivered, net 2638.
+79. **Cargo types (T68, GDD §18–19, App. B.8: "cargo changes the run rather than just scoring it").** Until now a car's cargo was only how full it was; B.8's modifiers (and the Choir's `livestockFloor`, and `houndsLivestockWeight`) were read by nothing.
+    - **`Vehicle.Cargo` (`CargoKind`):** a night leaves with the fortress's goods in its loaded cars. What a facility loads (a sled, a casting, a crate) is its cargo (facilities.json `cargo`):
+      - grain elevator: food;
+      - slaughterhouse: livestock;
+      - chemical works: chemicals;
+      - military depot: ammunition;
+      - foundry: heavy;
+      - wreck yard: salvage;
+      - mine head: ore;
+      - switchyard: goods.
+      A car goes by what last went into it: `Run` marks every cargo car whose load went up that tick. Cargo replicates with the vehicle record and is kept in a night's checkpoint; an older save reads as none, and its cars keep their goods.
+    - **Aboard** is what's in the loaded cargo cars of the engine's rake (`Director.Aboard`); a car cut off on a spur isn't aboard.
+    - **B.8 in the director:**
+      - livestock: Hounds ×`houndsLivestockWeight` (2.5), and the Choir's floor is `livestockFloor` (3), since they're never quiet;
+      - food: Hounds ×2, Followers ×1.5;
+      - comet material: every weight ×1.4, and the Gaunt's and the Passenger's tier gates one tier lower (`cometRelaxesGates`), in the draw and in what's saved for.
+      The table is `cargoWeights` in enemies.json.
+    - **Ambiguity: "The Drift ×2 with chemicals".** The Drift isn't drawn (note 78: it's terrain), so read as spreading twice as fast (`drift.chemicalSpread`).
+    - **Not yet:**
+      - "Chemicals: gunfire indoors becomes lethal to the crew": there's no gun indoors (they're mounted on the roofs and the tender);
+      - ammunition's, coal's and timber's "every consequence is worse";
+      - where comet material comes from: no facility loads it; it wants a contract type;
+      - GDD open question 7, whether a car shows its cargo from outside.
+    - **Verified:** `CargoTests` (6): each facility's cargo; a crate stowed at a stop is that facility's cargo, and a client and a restored train see it; with livestock aboard the Hounds come first 11 nights in 16 (7 with goods); livestock holds the Choir at its floor; chemicals spread the Drift twice as fast; comet material brings the Gaunt to a Local line.
+    - **Measured:** frontier:7 (2638), frontier:3 (1885) and frontier:2 (2661) all delivered, unchanged. Their stops load heavy cargo and salvage, which B.8 doesn't weight.

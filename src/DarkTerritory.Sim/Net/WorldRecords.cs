@@ -58,7 +58,7 @@ public static class WorldRecords
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Switch, i), [train.Diverging(i) ? 1 : 0]));
         foreach (var v in train.Vehicles)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Vehicle, v.Id),
-                [Q(v.Load, Fine), Q(v.Integrity, Fine), Q(v.CargoIntegrity, Fine), v.Gun.Ammo, v.Gun.Cooldown, v.Gun.Jammed ? 1 : 0, v.Gun.LastShotTick, v.DoorsOpen]));
+                [Q(v.Load, Fine), Q(v.Integrity, Fine), Q(v.CargoIntegrity, Fine), v.Gun.Ammo, v.Gun.Cooldown, v.Gun.Jammed ? 1 : 0, v.Gun.LastShotTick, v.DoorsOpen, (long)v.Cargo]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
             [Q(world.Choir.Aggro, Fine), Q(world.Choir.SecondsSinceShot, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0, Q(world.LampOutSeconds, Fine)]));
         foreach (var e in world.ActiveEnemies)
@@ -174,7 +174,8 @@ public static class WorldRecords
                     break;
                 case RecordKind.Vehicle:
                     vehicles.Add(new VehicleState(r.Id, D(f[0], Fine), D(f[1], Fine), D(f[2], Fine),
-                        new GunState { Ammo = (int)f[3], Cooldown = (int)f[4], Jammed = f[5] != 0, LastShotTick = (uint)f[6] }, f.Length > 7 ? (byte)f[7] : (byte)0));
+                        new GunState { Ammo = (int)f[3], Cooldown = (int)f[4], Jammed = f[5] != 0, LastShotTick = (uint)f[6] }, f.Length > 7 ? (byte)f[7] : (byte)0,
+                        f.Length > 8 ? (CargoKind)f[8] : CargoKind.None));
                     break;
                 case RecordKind.World:
                     world.Choir = new ChoirState { Aggro = D(f[0], Fine), SecondsSinceShot = D(f[1], Fine), Floor = D(f[2], Fine) };

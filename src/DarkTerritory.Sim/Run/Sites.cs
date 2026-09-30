@@ -19,6 +19,13 @@ public sealed record FacilityTuning(CrateTuning Crates, WinchTuning Winch, Dicti
         facility.Modules is { } own ? [.. own.Select(n => Enum.Parse<ModuleKind>(n, ignoreCase: true))]
         : facility.Facility is { } kind ? ModulesOf(kind) : [];
 
+    /// <summary>What a facility of this kind loads: its <c>cargo</c> entry, or goods.</summary>
+    public Dictionary<string, string> Cargo { get; init; } = new();
+
+    public Train.CargoKind CargoOf(FacilityKind kind) =>
+        Cargo.TryGetValue(char.ToLowerInvariant(kind.ToString()[0]) + kind.ToString()[1..], out var name)
+            && Enum.TryParse<Train.CargoKind>(name, ignoreCase: true, out var cargo) ? cargo : Train.CargoKind.Goods;
+
     public IReadOnlyList<ModuleKind> ModulesOf(FacilityKind kind)
     {
         string key = char.ToLowerInvariant(kind.ToString()[0]) + kind.ToString()[1..];

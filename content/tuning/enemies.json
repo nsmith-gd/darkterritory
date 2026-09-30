@@ -365,7 +365,10 @@
     "stillSeconds": 4,
     // Past the marsh's end by this (m), or about this long, and it's gone.
     "exitMargin": 60,
-    "lingerSeconds": 600
+    "lingerSeconds": 600,
+    // App. B.8 "The Drift ×2 with chemicals aboard". Ambiguity (ARCHITECTURE §8): it isn't drawn (it's terrain), so read as
+    // spreading this much faster.
+    "chemicalSpread": 2
   },
 
   // App. A.3 FOLLOWERS: "STALK near facilities; tracks a disembarked player by scent. ATTACH moves into the carrier's blind
@@ -558,6 +561,15 @@
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5,
+    // App. B.8, the rest of the table: with this cargo aboard (a loaded car of it in the engine's rake), these weigh this
+    // much more; "*" is everything. Livestock's Hounds are houndsLivestockWeight's; chemicals' Drift is the drift's own
+    // chemicalSpread (it isn't drawn, it's terrain). The comet cargo also relaxes the
+    // Gaunt's and the Passenger's tier gates by one (cometRelaxesGates).
+    "cargoWeights": {
+      "food": { "cinderHounds": 2, "followers": 1.5 },
+      "comet": { "*": 1.4 }
+    },
+    "cometRelaxesGates": true,
     // App. B.1 "contradiction seeding": the conflict table, as the tuning's names (and three conditions: "choir", always
     // about; "grade", a climb or fall just ahead; "facilityLoading", at a facility). Ambiguity (ARCHITECTURE §8): "draws
     // pairs from a conflict table": read as a spawn that would complete a pair with what's there now weighing this much

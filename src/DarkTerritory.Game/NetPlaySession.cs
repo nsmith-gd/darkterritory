@@ -236,7 +236,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         var train = world.Train;
         return new Sim.Campaign.RunCheckpoint(route, facility, world.Run!.Seconds, train.Dynamics.Distance, train.Boiler.Tender,
-            [.. train.Vehicles.Select(v => new Sim.Campaign.CarState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun.Ammo))],
+            [.. train.Vehicles.Select(v => new Sim.Campaign.CarState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun.Ammo, v.Cargo))],
             world.Vigil?.Revivals ?? 0)
         { Plan = world.TrackPlan?.Compress() };
     }
@@ -253,6 +253,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 v.Integrity = car.Integrity;
                 v.CargoIntegrity = car.CargoIntegrity;
                 v.Gun = v.Gun with { Ammo = car.Ammo };
+                // An older save has no cargo types: its loaded cars keep the goods they were built with.
+                if (car.Cargo != CargoKind.None)
+                    v.Cargo = car.Cargo;
             }
         train.Boiler.Tender = c.Tender;
         world.Run?.Resume(c.Seconds, c.Facility, c.Tender, c.Cars.Sum(x => x.Ammo));
