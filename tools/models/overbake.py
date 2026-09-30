@@ -218,11 +218,13 @@ class Atlas:
         low.data.uv_layers.remove(low.data.uv_layers["UVMap"])
         low.data.uv_layers["baked"].name = "UVMap"
 
-    def bake(self, groups, cages=None, samples=24, height=1.8, hide=()):
+    def bake(self, groups, cages=None, samples=24, height=1.8, hide=(), masks=None):
         """Bakes each group {name: (face mask over the joined mesh, highs)} from its own high copy only: colour, normal,
         occlusion and a height mask (z / `height`, emitted). A Cycles bake clears the whole image and only the colour
         pass leaves alpha where it didn't write, so each group bakes into images of its own, and its colour coverage
-        masks all four into the atlas. Sets self.maps {DIFFUSE, NORMAL, AO, EMIT: HxWx4} and self.masks {group: HxW}."""
+        masks all four into the atlas. `masks` {name: fn(positions Nx3) -> 0..1} are painted on the high copy and baked
+        across too (where a recipe's grade goes: eye pits, rot, tar). Sets self.maps {DIFFUSE, NORMAL, AO, EMIT: HxWx4,
+        and each mask: HxW} and self.masks {group: HxW}."""
         S = self.size
         low = self.low
         bake_mat = bpy.data.materials.new(f"{self.name}_bake")
@@ -252,6 +254,9 @@ class Atlas:
         self.maps = {"NORMAL": np.tile(np.array([0.5, 0.5, 1.0, 1.0], np.float32), (S, S, 1)),
                      "AO": np.ones((S, S, 4), np.float32), "DIFFUSE": np.full((S, S, 4), 0.2, np.float32),
                      "EMIT": np.full((S, S, 4), 0.5, np.float32)}
+        for mname in (masks or {}):
+            self.maps[mname] = np.zeros((S, S), np.float32)
+        mask_mat = _attribute_material("dt_mask")
         self.masks = {}
         for name, (faces, highs) in groups.items():
             low.data.polygons.foreach_set("material_index", np.where(faces & ~self.keep, 0, 1).astype(np.int32))
@@ -290,12 +295,40 @@ class Atlas:
                     wrote = px[..., 3] > 0.5
                 self.maps[kind][wrote] = px[wrote]
                 bpy.data.images.remove(img)
+            for mname, fn in sorted((masks or {}).items()):
+                for h in highs:
+                    co = np.empty(len(h.data.vertices) * 3, np.float32)
+                    h.data.vertices.foreach_get("co", co)
+                    v = np.clip(np.asarray(fn(co.reshape(-1, 3)), np.float32), 0, 1)
+                    if "dt_mask" in h.data.color_attributes:
+                        h.data.color_attributes.remove(h.data.color_attributes["dt_mask"])
+                    attr = h.data.color_attributes.new("dt_mask", "FLOAT_COLOR", "POINT")
+                    rgba = np.ones((len(v), 4), np.float32)
+                    rgba[:, :3] = v[:, None]
+                    attr.data.foreach_set("color", rgba.ravel())
+                    h.data.materials.clear()
+                    h.data.materials.append(mask_mat)
+                img = bpy.data.images.new(f"{self.name}_{mname}_{name}", S, S, alpha=True)
+                img.colorspace_settings.name = "Non-Color"
+                bake_tex.image = img
+                bake_mat.node_tree.nodes.active = bake_tex
+                bpy.ops.object.select_all(action="DESELECT")
+                for h in highs:
+                    h.select_set(True)
+                low.select_set(True)
+                bpy.context.view_layer.objects.active = low
+                bpy.ops.object.bake(type="EMIT")
+                px = cook._image_array(img, S)
+                self.maps[mname][wrote] = px[wrote][..., 0]
+                bpy.data.images.remove(img)
             self.masks[name] = wrote
         cook.delete(all_highs)
         for o in hide:
             o.hide_render = False
         if os.environ.get("DT_BAKE_DEBUG"):
             for kind, arr in self.maps.items():
+                if arr.ndim == 2:
+                    arr = np.dstack([arr, arr, arr, np.ones_like(arr)])
                 cook._save(arr, os.path.join(cook.ROOT, "out", "review", f"bake-{self.name}_{kind.lower()}.png"))
 
     def base(self, soot=(0.018, 0.016, 0.014), crease=0.45, ao_floor=0.35, gentle=None):
@@ -388,6 +421,20 @@ class Atlas:
             bpy.data.objects.remove(o, do_unlink=True)
         arm.data.pose_position = "POSE"
         rig.export(os.path.join(cook.ROOT, "content", "art", "models", f"{self.name}.glb"), kit)
+
+
+def _attribute_material(name):
+    """Emits a colour attribute of the surface (a mask painted on the high copy)."""
+    m = bpy.data.materials.new(f"overbake_{name}")
+    m.use_nodes = True
+    nt = m.node_tree
+    nt.nodes.remove(nt.nodes["Principled BSDF"])
+    attr = nt.nodes.new("ShaderNodeVertexColor")
+    attr.layer_name = name
+    emit = nt.nodes.new("ShaderNodeEmission")
+    nt.links.new(attr.outputs["Color"], emit.inputs["Color"])
+    nt.links.new(emit.outputs["Emission"], nt.nodes["Material Output"].inputs["Surface"])
+    return m
 
 
 def _height_material(height):

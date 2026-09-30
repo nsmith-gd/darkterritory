@@ -29,6 +29,8 @@ public class CreatureArtTests
     {
         // Characters (GDD §27: 4-10k; the crew brief: at most 9k, aim for chunky 3-5k). SK_Human: at most 60 bones.
         ["crew"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle"], ["dead"]),
+        // The crew figure gone wrong (the Climbers and the Deadman): the crew's own rig and clips.
+        ["husk"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle"], ["dead"]),
         ["switchman"] = new(2000, 9000, 20, 60, ["wait", "flee"], []),
         ["hollow"] = new(1500, 5000, 20, 60, ["idle"], ["reach"]),
         ["soot_child"] = new(800, 5000, 20, 60, ["huddle"], ["turn"]),
