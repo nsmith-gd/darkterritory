@@ -90,6 +90,8 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     GunMount? Gun = null, Box? Interior = null, IReadOnlyList<Door>? Doors = null, CabLevers? Levers = null)
 {
     public IReadOnlyList<Door> DoorList => Doors ?? [];
+    /// <summary>The guard van's rear platform, when it's last in the train (its top is the footing); null on anything else.</summary>
+    public Box? Platform { get; init; }
     /// <summary>End ladders sit to the right of the coupler so they don't collide with the plate.</summary>
     public const double EndLadderX = 0.55;
 
@@ -130,6 +132,17 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         var interactables = car.Interactables.Where(i => i.Kind != InteractableKind.Handbrake)
             .Append(new Interactable(InteractableKind.Handbrake, new Double3(0, h, -l + 0.5), 0.8)).ToList();
         var ladders = car.Ladders.ToList();
+        Box? platform = null;
+        if (!hasCarBehind)
+        {
+            // Last in the train, the rear platform (GDD §24 THE WEIGHT: "melee from the rear platform"): a grating across
+            // the car's back end at plate height, the rear door onto it, and a short ladder up from it to the roof. Under
+            // it is the coupling the Weight takes hold of.
+            var box = new Box(new Double3(-g.RoofWidth / 2, g.CouplerHeight - 0.1, l), new Double3(g.RoofWidth / 2, g.CouplerHeight, l + g.PlatformDepth));
+            solids.Add(new Solid(box, SurfaceKind.Coupler, PartKind.Coupler));
+            ladders.Add(new Ladder(new Double3(EndLadderX, g.CouplerHeight, l + 0.1), h, new Double3(0, 0, -1)));
+            platform = box;
+        }
         if (g.Interior is { } i)
         {
             // Tool storage along the left wall (GDD §10), and a hatch ladder up to the gun from inside.
@@ -137,7 +150,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             solids.Add(new Solid(new Box(new Double3(-w + i.WallThickness, i.FloorHeight, -l + 1.5), new Double3(-w + i.WallThickness + 0.5, i.FloorHeight + 1.8, -l + 3.5)), SurfaceKind.Deck, PartKind.Locker));
             ladders.Add(new Ladder(new Double3(0.6, i.FloorHeight, l - 2.4), h, new Double3(0, 0, -1)));
         }
-        return car with { Solids = solids, Interactables = interactables, Ladders = ladders, Gun = new GunMount(mount + new Double3(0, 0.9, 0), new Double3(0, 0, 1)) };
+        return car with { Solids = solids, Interactables = interactables, Ladders = ladders, Gun = new GunMount(mount + new Double3(0, 0.9, 0), new Double3(0, 0, 1)), Platform = platform };
     }
 
     static Solid? CouplerPlate(GeometryTuning g, double halfLength, bool hasCarBehind) => hasCarBehind

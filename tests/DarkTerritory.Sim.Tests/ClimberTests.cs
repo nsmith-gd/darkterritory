@@ -1,3 +1,4 @@
+using DarkTerritory.Sim.Bots;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
@@ -19,6 +20,8 @@ public class ClimberTests
         public readonly List<PlayerIntent> Intents = [];
         public readonly List<EnemyEvent> Events = [];
         public double Speed;
+        /// <summary>The crew move as well as act (for bots, which walk about).</summary>
+        public bool Walk;
 
         public Night(double speed, int cars = 5, EnemyTuning? enemies = null)
         {
@@ -78,6 +81,12 @@ public class ClimberTests
                 World.Step(new TrainControls { Reverser = 1 });
                 Events.AddRange(World.EnemyEvents);
                 World.ApplyDamage(id => id <= Crew.Count ? Crew[id - 1] : null, (id, s) => Crew[id - 1] = s, Enumerable.Range(1, Crew.Count));
+                for (int c = 0; Walk && c < Crew.Count; c++)
+                {
+                    var s = Crew[c];
+                    PlayerMotor.Step(ref s, Intents[c], Train, Tuning.Player, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+                    Crew[c] = s;
+                }
             }
         }
     }
@@ -179,6 +188,59 @@ public class ClimberTests
         night.Run((C.PaceSeconds + 2) * C.MaxTries + 5);
         Assert.True(c.Gone);
         Assert.DoesNotContain(night.Events, e => e.EnemyId == c.Id && e.To == SpinePhase.Commit);
+    }
+
+    /// <summary>Roof walker bots on these cars' roofs, deciding and walking each tick of <paramref name="seconds"/>.</summary>
+    static List<RoofWalkerBot> Walkers(Night night, double seconds, params int[] cars)
+    {
+        var bots = new List<RoofWalkerBot>();
+        foreach (int car in cars)
+        {
+            night.Add(PlayerMotor.SpawnOnRoof(night.Train, car, 0, Tuning.Player));
+            bots.Add(new RoofWalkerBot(seed: 20 + car));
+        }
+        night.Run(seconds, () =>
+        {
+            for (int i = 0; i < bots.Count; i++)
+                night.Intents[i] = bots[i].Decide(night.Crew[i], night.World, night.World.Tick, out _);
+        });
+        return bots;
+    }
+
+    [Fact]
+    public void ARoofWalkerHoldsTheGapAtItsCarsEndAndItTriesAnother()
+    {
+        var night = new Night(speed: 12) { Walk = true };
+        var c = night.At(car: 3);
+        var bot = Walkers(night, 0.1, 3)[0];
+        PlayerState? held = null;
+        night.Run(C.PaceSeconds + C.ScrabbleSeconds + 1, () =>
+        {
+            night.Intents[0] = bot.Decide(night.Crew[0], night.World, night.World.Tick, out _);
+            if (held is null && c.Gap != 3)
+                held = night.Crew[0];
+        });
+        // Along to the back end of car 3, over the gap it was making for, when it gave that one up: it never got up there.
+        var s = Assert.NotNull(held);
+        Assert.DoesNotContain(night.Events, e => e.EnemyId == c.Id && e.To == SpinePhase.Commit);
+        Assert.Equal(3, s.Parent);
+        Assert.Equal(Surface.Roof, s.Surface);
+        Assert.True(s.Position.Z > night.Train.Frames[3].Shape.HalfLength - 1.5);
+        // The next it tries is the gap at this car's other end: the walker's on its way there.
+        Assert.Equal(2, c.Gap);
+        Assert.True(night.Crew[0].Position.Z < s.Position.Z);
+    }
+
+    [Fact]
+    public void TwoRoofWalkersEitherSideHoldEveryGapItTriesAndItGivesUp()
+    {
+        // Car 3's walker holds its gaps (behind 3, behind 2); car 4's, the one behind 4 it tries last.
+        var night = new Night(speed: 12) { Walk = true };
+        var c = night.At(car: 3);
+        Walkers(night, (C.PaceSeconds + C.ScrabbleSeconds + 2) * C.MaxTries + 10, 3, 4);
+        Assert.True(c.Gone);
+        Assert.DoesNotContain(night.Events, e => e.EnemyId == c.Id && e.To == SpinePhase.Commit);
+        Assert.All(night.Crew, s => Assert.True(s.Alive && s.Surface == Surface.Roof));
     }
 
     [Fact]
