@@ -4,7 +4,7 @@
   // A flat screen: 720p internal (ARCHITECTURE §8 note 57), at 90 fps: 11.1 ms a frame.
   "pc": { "fps": 90, "width": 1280, "height": 720 },
   // A headset: two eyes at half the runtime's recommended size (VrView's render scale; a Quest 3's 2064x2208 halved),
-  // at 72 fps: 13.9 ms for both eyes, and the desktop window's mirror of the flat view as well.
+  // at 72 fps: 13.9 ms for both eyes. The desktop window mirrors the left eye (a blit, not a third view drawn).
   "vr": { "fps": 72, "width": 1032, "height": 1104, "eyes": 2, "mirror": true },
 
   // Of a frame, what the main thread's drawing may take (the scene built, uploaded, recorded). The rest is the sim's

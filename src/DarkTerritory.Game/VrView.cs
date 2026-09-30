@@ -27,10 +27,12 @@ public sealed class VrView : IDisposable
         Headset = headset;
         Gpu = gpu;
         Session = session;
-        // Each eye draws its own shadow maps; at an eye's resolution the moon's needs no more than 1024 (a quarter of the
-        // flat view's 2048 to fill, twice a frame).
+        // The left eye draws the shadow maps and the right samples them (the lamp's and the moon's views are the body's, so
+        // they're the same for both: tuning/perf.json's budget, ARCHITECTURE §8 note 86). At an eye's resolution the moon's
+        // needs no more than 1024, a quarter of the flat view's 2048 to fill.
         _eyes = [new(gpu, session.EyeWidth, session.EyeHeight, session.EyeFormat, moonShadowSize: 1024),
             new(gpu, session.EyeWidth, session.EyeHeight, session.EyeFormat, moonShadowSize: 1024)];
+        _eyes[1].ShadowsFrom = _eyes[0];
     }
 
     public XrHeadset Headset { get; }
@@ -100,6 +102,23 @@ public sealed class VrView : IDisposable
             _lastFrame = now;
         }
         return result;
+    }
+
+    /// <summary>
+    /// Shows the left eye's last frame in the desktop window (its middle, cropped to the window's shape), in place of drawing
+    /// the flat view a third time a frame. Returns false if the swapchain needs recreating, as <see cref="Swapchain.Present"/>.
+    /// </summary>
+    public bool Mirror(Swapchain swapchain)
+    {
+        if (Session.FramesRendered == 0)
+            return true;
+        var eye = _eyes[0];
+        var extent = swapchain.Extent;
+        double aspect = extent.height > 0 ? (double)extent.width / extent.height : 16.0 / 9;
+        int w = eye.Width, h = (int)Math.Round(w / aspect);
+        if (h > eye.Height)
+            (w, h) = ((int)Math.Round(eye.Height * aspect), eye.Height);
+        return swapchain.Present(eye, _ => { }, ((eye.Width - w) / 2, (eye.Height - h) / 2, w, h));
     }
 
     /// <summary>The comfort vignette for an eye, centred where it looks straight ahead (towards the nose, not mid-image).</summary>

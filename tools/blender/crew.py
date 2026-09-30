@@ -4,12 +4,12 @@ fun to it, and each player in their own colour.
 
 Heavy knee-length oilskin coat, patched; gloves, boots for wet metal and ballast, a belt with a lantern hook, a satchel on
 a strap, and the chest lamp the greybox had: the thing you find each other by in the dark (GreyboxScene.DrawCrewmate).
-The head is the helm: a smokebox for a head, a riveted drum painted the player's colour and closed by a smokebox door
-with two portholes for eyes, the dart's knob for a nose and a speaking grille for a mouth; a gauge on its side, a
-chimney stack on top. A copper air tank on the back feeds it by a hose over the shoulder. 1.8 m to the shoulders' coat,
-SK_Human, the helm big for its body: at forty metres in the fog a crewmate is a lamp and a round head.
+The head is the gas mask (the director's pick of the headgear concepts): a black rubber hood with brass eyepieces lit
+dimly amber, a filter drum at the chin and a corrugated hose to the chest, under a quilted flying cap in the player's
+colour with a fleece rim and earflaps, and a welder's visor on pivots at the temples. SK_Human, 1.8 m: at forty metres
+in the fog a crewmate is a lamp, two dim eyes and a coloured cap.
 
-Variants (CreatureArt `variant % 4`): 0 short stack, 1 tall stack and whistle, 2 short + scarf, 3 tall + scarf.
+Variants (CreatureArt `variant % 4`): 0 visor up, 1 visor down, 2 up + scarf, 3 down + scarf.
 DT_CREW=bare builds the figure bare-headed instead, the cap or the steel helmet for the stacks (the husk's source).
 Clips (30 fps): idle, walk (1.4 m/s, in place), run (4 m/s), climb, shovel (with the shovel prop), crouch_idle, dead.
 
@@ -97,104 +97,123 @@ LEGW = sided(LEG)
 # --- head ----------------------------------------------------------------------------------------------------
 HEAD_C = Vector((0, 0.02, 1.675))
 
-# The crew's own heads are the helm (ART DIRECTION, ARCHITECTURE §8 note 58: masked, so nothing to lip-sync and no eyes
-# to animate, and with some fun to it): DT_CREW=bare builds the bare-headed figure in a cap or a helmet instead, for
-# what the crew become (tools/models/recipes/husk.py).
+# The crew's own heads are the gas mask (ART DIRECTION, ARCHITECTURE §8 note 58; the director's pick of the headgear
+# concepts, tools/models/concepts/crew_headgear.py "welder"): masked, so nothing to lip-sync and no eyes to animate, and
+# with some fun to it. DT_CREW=bare builds the bare-headed figure in a cap or a helmet instead, for what the crew become
+# (tools/models/recipes/husk.py).
 HELM = os.environ.get("DT_CREW", "helm") != "bare"
-HC = Vector((0, 0.03, 1.73))    # the helm's drum, round the head
-PAINT = Mat("helm.paint", hexc("#8a3a2a"), shine=0.3)          # the player's colour (CreatureArt tints it)
-DOOR = Mat("helm.door", hexc("#7a3428"), shine=0.3)            # painted too: the face is the player's colour
+MASK_C = Vector((0, 0.014, 1.674))     # the gas hood, round the head
+CAP_C = Vector((0, 0.004, 1.698))      # the flying cap over it
+PIVOT = Vector((0, 0.012, 1.702))      # the welder's visor turns about its own centre, on its temple pivots
+PAINT = Mat("helm.paint", hexc("#8a3a2a"), shine=0.2)          # the cap's dyed leather: the player's colour (CreatureArt tints it)
 BRASS = Mat("helm.brass", hexc("#a08040"), shine=0.6)
-PORT = Mat("helm.glass", hexc("#5a3414"), emissive=1.0)         # lit dimly from inside, by the wearer's own lamp
-RUBBER = Mat("helm.rubber", hexc("#18161a"), shine=0.2)
-COPPER = Mat("tank.copper", hexc("#8a5030"), shine=0.55)
-STACK = Mat("helm.stack", hexc("#1e1c1a"), shine=0.3)
-HARNESS = Mat("leather.harness", hexc("#3a2818"))
+PORT = Mat("helm.glass", hexc("#5a3414"), emissive=1.0)         # the lenses, lit dimly from inside by the wearer's own lamp
+RUBBER = Mat("helm.rubber", hexc("#18161a"), shine=0.25)
+TIN = Mat("helm.tin", hexc("#4e5040"), shine=0.35)
+VISOR = Mat("helm.iron", hexc("#2a2826"), shine=0.4)
+SMOKED = Mat("helm.smoked", hexc("#0c0d0e"), shine=0.8)          # the visor's dark glass: not lit, a slot of nothing
+FLEECE = Mat("helm.wool", hexc("#8a8070"))
 
 
-def ring_loop(centre, axis, r, thick, mat, bones, n=16):
-    """A torus-ish band (a rim, a strap round a tank): a closed tube round `axis` through `centre`."""
+def ring_loop(centre, axis, r, thick, mat, bones, n=16, part=None, stretch=(1.0, 1.0)):
+    """A torus-ish band (a rim, a fleece edge): a closed tube round `axis` through `centre`, `stretch`ed across it."""
     c, ax = Vector(centre), Vector(axis).normalized()
     u = ax.orthogonal().normalized()
     v = ax.cross(u)
-    pts = [c + (u * math.cos(2 * math.pi * k / n) + v * math.sin(2 * math.pi * k / n)) * r for k in range(n)]
-    body.tube(pts, [thick] * n, 5, mat, bones, ref=[tuple(ax)] * n, loop=True)
+    if abs(u.x) < abs(v.x):
+        u, v = v, u
+    pts = [c + u * (math.cos(2 * math.pi * k / n) * r * stretch[0]) + v * (math.sin(2 * math.pi * k / n) * r * stretch[1])
+           for k in range(n)]
+    (part or body).tube(pts, [thick] * n, 5, mat, bones, ref=[tuple(ax)] * n, loop=True)
 
 
-def helm_head():
-    """A smokebox for a head: a riveted drum lying fore and aft round the skull, painted the wearer's colour, closed at
-    the front by a smokebox door, painted too (the loco's face: two portholes for eyes, lit dimly by the wearer's lamp, the dart's knob for a nose, a speaking grille
-    for a mouth, its hinges across one side), a pressure gauge on the right, sealed onto the coat's collar by a rubber
-    ring. Bigger than a head needs to be: at forty metres in the fog, a crewmate is a lamp and a round head."""
-    zc = HC.z
-    secs = [(-0.182, 0.035, zc + 0.03, zc - 0.03, 1.0), (-0.172, 0.095, zc + 0.09, zc - 0.085, 1.0),
-            (-0.152, 0.132, zc + 0.125, zc - 0.12, 1.0), (-0.12, 0.148, zc + 0.14, zc - 0.135, 1.0),
-            (0.0, 0.15, zc + 0.142, zc - 0.137, 1.0), (0.1, 0.15, zc + 0.142, zc - 0.137, 1.0),
-            (0.132, 0.152, zc + 0.144, zc - 0.139, 1.0)]
-    body.sections([(y + HC.y, hw, t, b_, e) for y, hw, t, b_, e in secs], 20, PAINT, "head", axis="y", cap0=True, cap1=True)
-    y0 = HC.y + 0.132
-    # The door: a shallow dish over the drum's open front, and the brass rim it closes on.
-    body.blob((0, y0, zc), (0.138, 0.13, 0.034), 18, 5, DOOR, "head", rot=rig.Matrix.Rotation(math.radians(-90), 4, "X"), z0=0.0)
-    ring_loop((0, y0 + 0.002, zc), (0, 1, 0), 0.146, 0.011, BRASS, "head", n=20)
-    for y in (HC.y - 0.118, HC.y + 0.098):
-        ring_loop((0, y, zc), (0, 1, 0), 0.153, 0.009, STACK, "head", n=20)
-    # The eyes: two portholes, brass-rimmed, smoked glass.
+def facing(axis):
+    """The rotation taking a blob's +Z onto `axis` (a lens, a disc facing out)."""
+    return Vector(axis).normalized().to_track_quat("Z", "Y").to_matrix().to_4x4()
+
+
+def shell(part, centre, radii, around, heights, mat, bones, thick=0.005, xform=None, steps=(10, 5)):
+    """A patch of an ellipsoid's front with a thickness (the visor, its glass): azimuths `around` (radians from +Y, x to
+    the right), heights `heights` (z, absolute), lofted across as closed rings so it reads from both sides."""
+    c = Vector(centre)
+    rx, ry, rz = radii
+    rings = []
+    for i in range(steps[0] + 1):
+        a = around[0] + (around[1] - around[0]) * i / steps[0]
+        outer, inner = [], []
+        for k in range(steps[1] + 1):
+            z = heights[0] + (heights[1] - heights[0]) * k / steps[1]
+            h = max(0.0, 1 - ((z - c.z) / rz) ** 2) ** 0.5
+            for lst, grow in ((outer, 0.0), (inner, -thick)):
+                p = c + Vector((math.sin(a) * (rx * h + grow), math.cos(a) * (ry * h + grow), z - c.z))
+                lst.append(xform @ p if xform is not None else p)
+        rings.append(outer + inner[::-1])
+    part.loft(rings, mat, bones, cap0=True, cap1=True)
+
+
+def hood_w(p):
+    # The hood rides the head; its skirt, down in the coat's collar, the neck.
+    return {"head": 1.0} if p.z > 1.6 else ({"neck": 1.0} if p.z < 1.56 else {"head": 0.5, "neck": 0.5})
+
+
+def gas_mask():
+    """The gas hood, the flying cap and what hangs off them (the visor is a variant: welder_visor). A black rubber hood
+    over the whole head and down into the collar, two brass-ringed eyepieces with their lenses lit dimly amber (the one
+    thing you see of a face), a filter drum at the chin and two small ones at the cheeks, and a corrugated hose from the
+    drum down to a coupling on the chest. Over the hood, a quilted flying cap in the player's colour, fleece at its rim,
+    earflaps buckled under the chin. At forty metres in the fog a crewmate is a lamp, two dim eyes and a coloured cap."""
+    body.blob(MASK_C, (0.106, 0.138, 0.158), 16, 10, RUBBER, hood_w)
     for sx in (-1, 1):
-        e = Vector((sx * 0.058, y0 + 0.029, zc + 0.03))
-        ring_loop(e, (0, 1, 0), 0.036, 0.01, BRASS, "head", n=12)
-        body.blob(e - Vector((0, 0.002, 0)), (0.031, 0.031, 0.008), 10, 3, PORT, "head",
-                  rot=rig.Matrix.Rotation(math.radians(-90), 4, "X"))
-    # The nose: the door's dart, a knob on a boss, and its crossbar; the mouth, a speaking grille.
-    body.tube([(0, y0 + 0.03, zc - 0.012), (0, y0 + 0.052, zc - 0.012), (0, y0 + 0.058, zc - 0.012)], [0.014, 0.012, 0.016],
-              8, BRASS, "head", ref=(0, 0, 1), cap1=True)
-    body.box((0, y0 + 0.024, zc - 0.072), (0.052, 0.01, 0.02), BRASS, "head")
-    # The hinges: two straps across the door from the left.
-    for dz in (0.09, -0.09):
-        body.box((-0.06, y0 + 0.014, zc + dz), (0.038, 0.005, 0.01), STACK, "head")   # (inside the rim: it's 0.11 wide there)
-    # The gauge on the right, and the seal on the collar.
-    body.tube([(0.148, HC.y - 0.02, zc + 0.03), (0.172, HC.y - 0.02, zc + 0.03)], [0.034, 0.034], 12, BRASS, "head",
-              ref=(0, 0, 1), cap1=True)
-    ring_loop((0, 0.008, 1.612), (0, 0, 1), 0.106, 0.02, RUBBER, "neck", n=16)
-
-
-def helm_tops():
-    """What stands up out of the helm (variants): a short capped stack, or a tall one with a spark arrester and a whistle
-    beside it. The two heads you can tell apart on a roof in the dark."""
-    top = HC.z + 0.13
-    short = kit.part("stack_short", variants=(0, 2))
-    short.tube([(0, HC.y + 0.03, top - 0.02), (0, HC.y + 0.03, top + 0.05), (0, HC.y + 0.03, top + 0.062),
-                (0, HC.y + 0.03, top + 0.07)], [0.034, 0.03, 0.046, 0.04], 12, STACK, "head", ref=(0, 1, 0), cap1=True)
-    tall = kit.part("stack_tall", variants=(1, 3))
-    tall.tube([(0, HC.y + 0.03, top - 0.02), (0, HC.y + 0.03, top + 0.12), (0, HC.y + 0.03, top + 0.15),
-               (0, HC.y + 0.03, top + 0.2), (0, HC.y + 0.03, top + 0.215)], [0.03, 0.027, 0.05, 0.05, 0.03], 12, STACK,
-              "head", ref=(0, 1, 0), cap1=True)
-    tall.tube([(0.085, HC.y - 0.06, top - 0.03), (0.085, HC.y - 0.06, top + 0.04), (0.085, HC.y - 0.06, top + 0.07)],
-              [0.011, 0.011, 0.017], 8, BRASS, "head", ref=(0, 1, 0), cap1=True)
-
-
-def tank():
-    """The air: a copper tank on the back, banded in brass, a valve on top and a hose over the shoulder into the helm
-    (what the dark out here does to the air is why nobody takes the helm off)."""
-    x, y = 0.0, -0.222
-    body.tube([(x, y, 1.03), (x, y, 1.05), (x, y, 1.08), (x, y, 1.36), (x, y, 1.39), (x, y, 1.41)],
-              [0.04, 0.066, 0.078, 0.078, 0.066, 0.04], 14, COPPER, TORSO, ref=(0, 1, 0), cap0=True, cap1=True)
-    for z in (1.12, 1.32):
-        ring_loop((x, y, z), (0, 0, 1), 0.081, 0.008, BRASS, TORSO, n=14)
-    body.tube([(x, y, 1.41), (x, y, 1.44)], [0.018, 0.022], 8, BRASS, TORSO, ref=(0, 1, 0), cap1=True)
-
-    # The tank's harness: two straps over the shoulders and down the chest to the belt, brass buckles at the breast.
+        e = Vector((sx * 0.042, 0.138, 1.702))
+        ax = Vector((sx * 0.35, 1, 0.05)).normalized()
+        body.tube([e - ax * 0.012, e + ax * 0.012, e + ax * 0.011], [0.03, 0.03, 0.024], 12, BRASS, "head", ref=(0, 0, 1))
+        body.blob(e + ax * 0.007, (0.025, 0.025, 0.004), 10, 3, PORT, "head", rot=facing(ax))
+    # The chin's filter drum, its brass grille at the front; the cheek filters angled back.
+    f0 = Vector((0, 0.141, 1.614))
+    f1 = f0 + Vector((0, 0.06, -0.03))
+    body.tube([f0, f1], [0.038, 0.038], 14, TIN, "head", ref=(1, 0, 0))
+    body.blob(f1, (0.034, 0.034, 0.004), 12, 2, BRASS, "head", rot=facing(f1 - f0))
+    ring_loop(f1, f1 - f0, 0.035, 0.005, BRASS, "head", n=14)
     for sx in (-1, 1):
-        pts = [(sx * 0.09, -0.2, 1.36), (sx * 0.11, -0.13, 1.47), (sx * 0.12, 0.0, 1.5), (sx * 0.115, 0.12, 1.45),
-               (sx * 0.1, 0.165, 1.3), (sx * 0.1, 0.17, 1.15), (sx * 0.1, 0.165, 1.03)]
-        body.tube(pts, [(0.022, 0.006)] * len(pts), 4, HARNESS, coat_weights,
-                  ref=[Vector((0, 0, 1)), Vector((0, 0.3, 1)), Vector((0, 0, 1)), Vector((0, 1, 0.4)), Vector((0, 1, 0)),
-                       Vector((0, 1, 0)), Vector((0, 1, 0))])
-        body.box((sx * 0.1, 0.176, 1.22), (0.026, 0.006, 0.02), BRASS, TORSO)
+        c0 = Vector((sx * 0.075, 0.095, 1.612))
+        c1 = c0 + Vector((sx * 0.035, 0.0, -0.02))
+        body.tube([c0, c1], [0.02, 0.02], 10, TIN, "head", ref=(0, 1, 0), cap1=True)
+        ring_loop(c1, c1 - c0, 0.018, 0.004, BRASS, "head", n=10)
 
+    # The hose, down from the drum to its coupling on the chest.
     def hose_w(p):
-        return {"head": 1.0} if p.z > 1.64 else ({"neck": 1.0} if p.z > 1.55 else TORSO(p))
-    body.tube([(0.03, y, 1.43), (0.075, y + 0.02, 1.5), (0.09, -0.15, 1.58), (0.075, -0.11, 1.64), (0.05, -0.09, 1.67)],
-              [0.018, 0.019, 0.019, 0.019, 0.018], 7, RUBBER, hose_w, ref=(0, 0, 1))
+        return {"head": 1.0} if p.z > 1.6 else ({"neck": 1.0} if p.z > 1.52 else TORSO(p))
+    hose = [f1 + Vector((0, 0.005, -0.02)), Vector((0, 0.2, 1.54)), Vector((0.03, 0.2, 1.45)), Vector((0.06, 0.18, 1.36))]
+    body.tube(hose, [0.018] * len(hose), 8, RUBBER, hose_w, ref=(1, 0, 0))
+    body.tube([Vector((0.06, 0.18, 1.365)), Vector((0.062, 0.176, 1.34))], [0.024, 0.022], 10, BRASS, TORSO, ref=(1, 0, 0),
+              cap1=True)
+
+    # The cap: an ellipsoid over the hood cut on a slant (low at the nape, up off the eyepieces at the brow), its fleece
+    # rim, the earflaps, the chinstrap and its buckles.
+    tilt = rig.Matrix.Rotation(math.radians(11), 4, "X")
+    body.blob(CAP_C, (0.114, 0.144, 0.15), 16, 6, PAINT, "head", rot=tilt, z0=0.1)
+    rim = CAP_C + tilt.to_3x3() @ Vector((0, 0, 0.015))
+    ring_loop(rim, tilt.to_3x3() @ Vector((0, 0, 1)), 0.117, 0.014, FLEECE, "head", n=20, stretch=(1.0, 1.25))
+    for sx in (-1, 1):
+        body.blob((sx * 0.108, 0.008, 1.655), (0.013, 0.048, 0.06), 8, 4, PAINT, "head")
+        body.tube([(sx * 0.106, 0.03, 1.603), (sx * 0.085, 0.075, 1.585), (sx * 0.06, 0.112, 1.572)], [(0.008, 0.003)] * 3, 4,
+                  STRAP, "head", ref=(1, 0, 0))
+        body.box((sx * 0.108, 0.03, 1.606), (0.005, 0.012, 0.01), BRASS, "head")
+        # The visor's pivots, on the cap either side at the temples (both variants: the visor's there, up or down).
+        body.tube([(sx * 0.126, PIVOT.y, PIVOT.z), (sx * 0.142, PIVOT.y, PIVOT.z)], [0.012, 0.012], 10, BRASS, "head",
+                  ref=(0, 0, 1), cap1=True)
+
+
+def welder_visor():
+    """The welder's visor, the variants' tell (you can tell two heads apart on a roof in the dark): a riveted steel shield
+    on the temple pivots, a slot of dark glass across it. Flipped up over the cap (variants 0, 2), or down over the face
+    (1, 3): then there are no eyes at all, only the slot."""
+    up = rig.Matrix.Translation(PIVOT) @ rig.Matrix.Rotation(math.radians(62), 4, "X") @ rig.Matrix.Translation(-PIVOT)
+    for name, variants, xform in (("visor_up", (0, 2), up), ("visor_down", (1, 3), rig.Matrix.Identity(4))):
+        part = kit.part(name, variants=variants)
+        shell(part, PIVOT, (0.13, 0.158, 0.16), (-0.93, 0.93), (1.635, 1.8), VISOR, "head", xform=xform)
+        shell(part, PIVOT, (0.132, 0.16, 0.16), (-0.38, 0.38), (1.69, 1.716), SMOKED, "head", thick=0.003, xform=xform,
+              steps=(6, 1))
 
 
 def head_shape(i, j, a, th, p):
@@ -240,7 +259,7 @@ if not HELM:
     # Neck.
     body.tube([(0, 0.0, 1.49), (0, 0.01, 1.57), (0, 0.015, 1.61)], [0.056, 0.052, 0.05], 8, NECK, "neck")
 else:
-    helm_head()
+    gas_mask()
 
 
 # --- coat ----------------------------------------------------------------------------------------------------
@@ -311,9 +330,6 @@ strap = [(0.21, 0.11, 0.96), (0.13, 0.158, 1.13), (0.03, 0.17, 1.27), (-0.08, 0.
 refs = [Vector((p[0] * 0.6, p[1], 0.0 if p[2] < 1.44 else 1.0)).normalized() for p in strap]
 body.tube(strap, [(0.024, 0.006)] * len(strap), 4, STRAP, TORSO, ref=refs)
 
-if HELM:
-    tank()
-
 # The chest lamp, clipped to the strap: iron box, amber lens. It's emissive: the one warm point on a crewmate.
 body.box((-0.04, 0.178, 1.315), (0.038, 0.026, 0.048), IRON, "spine_02")
 body.box((-0.04, 0.203, 1.315), (0.03, 0.004, 0.036), LAMP, "spine_02",
@@ -380,7 +396,7 @@ if not HELM:
     helmet.tube([(0, 0.006, 1.733), (0, 0.006, 1.722), (0, 0.006, 1.712)], [(0.12, 0.132), (0.142, 0.156), (0.146, 0.16)],
                 12, HELMET, "head", uv=lambda i, j, uf, vf, p: in_cell("helmet", uf, 0.84 + vf * 0.12))
 else:
-    helm_tops()
+    welder_visor()
 
 scarf = kit.part("scarf", variants=(2, 3))
 ring = [(math.sin(a) * 0.098, 0.004 + math.cos(a) * 0.095, 1.535 + 0.012 * math.cos(a))

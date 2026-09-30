@@ -63,7 +63,7 @@ public sealed record LookTuning
     /// <summary>The characters' and creatures' baked atlases (authored bigger than <see cref="LayerSize"/>) keep up to this.</summary>
     public int HeroLayerSize { get; init; } = 1024;
     public float Baked { get; init; } = 0.35f;
-    /// <summary>The crew's paint by player id, in turn (the helm and the scarf: CreatureArt.Crewmate), as multipliers.</summary>
+    /// <summary>The crew's paint by player id, in turn (the flying cap and the scarf: CreatureArt.Crewmate), as multipliers.</summary>
     public float[][] CrewColours { get; init; } = [[1, 1, 1]];
 
     /// <summary>A crewmate's paint colour.</summary>

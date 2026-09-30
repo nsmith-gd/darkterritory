@@ -36,12 +36,13 @@ static class PerfCommands
         var mesh = new MeshBuilder();
         object Measure(string name, PerfTarget target)
         {
-            // The eyes as VrView makes them (each its own shadow maps; the moon's at 1024), and the flat view's renderer
-            // for the mirror.
+            // The eyes as VrView makes them: the moon's map at 1024, drawn by the left eye and sampled by the right. (The
+            // desktop's mirror is the left eye's image blitted, VrView.Mirror: nothing to draw.)
             var eyes = Enumerable.Range(0, target.Eyes)
                 .Select(_ => new GreyboxRenderer(gpu, target.Width, target.Height, moonShadowSize: target.Eyes > 1 ? 1024 : 2048)).ToList();
-            var mirror = target.Mirror ? new GreyboxRenderer(gpu, tuning.Pc.Width, tuning.Pc.Height) : null;
-            var all = mirror is null ? eyes : [.. eyes, mirror];
+            for (int e = 1; e < eyes.Count; e++)
+                eyes[e].ShadowsFrom = eyes[0];
+            var all = eyes;
             foreach (var r in all)
                 look?.Dress(r);
             try
@@ -72,7 +73,7 @@ static class PerfCommands
                             var r = all[e];
                             // Each eye a few centimetres to its side of the body's eye point, as a headset's are.
                             var eye = camera;
-                            if (e < eyes.Count && eyes.Count > 1)
+                            if (eyes.Count > 1)
                                 eye.EyeOffset = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(camera.Forward, System.Numerics.Vector3.UnitY)) * (e == 0 ? -0.032f : 0.032f);
                             clock.Restart();
                             r.Prepare(mesh);
@@ -137,7 +138,7 @@ static class PerfCommands
                     target = name,
                     fps = target.Fps,
                     frameMs = Math.Round(target.FrameMs, 2),
-                    resolution = $"{target.Width}x{target.Height}" + (target.Eyes > 1 ? $" x{target.Eyes} eyes" : "") + (mirror is not null ? $" + {tuning.Pc.Width}x{tuning.Pc.Height} mirror" : ""),
+                    resolution = $"{target.Width}x{target.Height}" + (target.Eyes > 1 ? $" x{target.Eyes} eyes" : "") + (target.Mirror ? " (mirrored: the left eye)" : ""),
                     cpuBudgetMs = Math.Round(cpuBudget, 2),
                     worstCpuMs = rows.Max(r => r.cpuMs),
                     cpuWithin = rows.All(r => r.cpuMs <= cpuBudget),
