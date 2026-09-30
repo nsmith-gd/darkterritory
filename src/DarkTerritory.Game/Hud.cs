@@ -44,8 +44,9 @@ public static class Hud
             Link(o, width, link, line);
         Radio(o, width, s, line);
         Alerts(o, width, height, s, line);
-        if (Prompt(s) is { } prompt)
+        if (Prompt(s) is { } written)
         {
+            string prompt = Bound(written);
             float w = o.Font.Measure(prompt) + 8;
             o.Rect(MathF.Round((width - w) / 2), height - 44, w, line + 4, Panel);
             o.TextCentred(width / 2f, height - 42, prompt, Ink);
@@ -152,7 +153,7 @@ public static class Hud
         if (!bodies.RadiosCarried || !s.Player.Alive)
             return;
         // Right mouse throws what's in your hands; with them empty, it sets the radio down to pass on.
-        string wearing = bodies.CarriedBy(s.PlayerId) is null ? "RADIO [T]  [RMB] SET IT DOWN" : "RADIO [T]";
+        string wearing = Bound(bodies.CarriedBy(s.PlayerId) is null ? "RADIO [T]  [RMB] SET IT DOWN" : "RADIO [T]");
         o.TextRight(width - 6, 5 + 5 * line, bodies.HasRadio(s.PlayerId) ? wearing : "NO RADIO", bodies.HasRadio(s.PlayerId) ? Dim : Amber);
     }
 
@@ -235,6 +236,15 @@ public static class Hud
         if (world.Derailed)
             Big("DERAILED", Red);
     }
+
+    /// <summary>The player's keys (T80), for the prompts: the app sets them from the settings.</summary>
+    public static Settings Keys { get; set; } = new();
+
+    /// <summary>A prompt written with the default keys ([E], [RMB], [T]) as the player has them bound.</summary>
+    public static string Bound(string prompt) => prompt
+        .Replace("[E]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Use))}]", StringComparison.Ordinal)
+        .Replace("[RMB]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Throw))}]", StringComparison.Ordinal)
+        .Replace("[T]", $"[{Controls.KeyLabel(Keys.KeyFor(Control.Radio))}]", StringComparison.Ordinal);
 
     /// <summary>What your hands can do right here, with the key that does it.</summary>
     public static string? Prompt(IPlaySession s)

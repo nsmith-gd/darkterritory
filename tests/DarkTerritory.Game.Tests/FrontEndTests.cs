@@ -201,4 +201,54 @@ public sealed class FrontEndTests : IDisposable
             Assert.All(o.Vertices, v => Assert.InRange(v.Position.Y, -2, 272));
         }
     }
+
+    [Fact]
+    public void AControlRebindsToTheNextKeyAndATakenKeySwapsOver()
+    {
+        var m = Menu();
+        m.Show(Screen.Settings);
+        Assert.Null(Choose(m, "CONTROLS"));
+        Assert.Equal(Screen.Controls, m.Screen);
+        Assert.Equal(Enum.GetValues<Control>().Length + 2, m.Items.Count);
+        // Use, from E to F: F was the regulator's close, which takes E.
+        Choose(m, "USE: E");
+        Assert.Equal(Control.Use, m.Capturing);
+        Assert.Contains(m.Items, i => i.Label == "USE: PRESS A KEY");
+        m.Bind("F");
+        Assert.Null(m.Capturing);
+        Assert.Equal("F", m.Settings.KeyFor(Control.Use));
+        Assert.Equal("E", m.Settings.KeyFor(Control.RegulatorClose));
+        Assert.Contains("REGULATOR CLOSE", m.Message);
+        // Kept: only what differs from the defaults, and read back the same.
+        Assert.Equal(2, m.Settings.Keys.Count);
+        Assert.Equal(m.Settings, Settings.Load(SettingsPath));
+        // Escape while waiting keeps the old key; a menu key can't be taken.
+        Choose(m, "JUMP");
+        m.Back();
+        Assert.Null(m.Capturing);
+        Assert.Equal(Screen.Controls, m.Screen);
+        Choose(m, "JUMP");
+        m.Bind("Escape");
+        Assert.Equal("Space", m.Settings.KeyFor(Control.Jump));
+        // A mouse button will do, and the prompts say it.
+        Choose(m, "FIRE");
+        m.Bind("Mouse4");
+        Assert.Contains(m.Items, i => i.Label == "FIRE: MOUSE 4");
+        Hud.Keys = m.Settings;
+        Assert.Equal("[F] HOLD: SAND", Hud.Bound("[E] HOLD: SAND"));
+        Hud.Keys = new();
+        // And back to the defaults.
+        Choose(m, "RESET TO DEFAULTS");
+        Assert.Empty(m.Settings.Keys);
+        Assert.Equal("E", m.Settings.KeyFor(Control.Use));
+    }
+
+    [Fact]
+    public void EveryControlHasADefaultKeyTheGameKnowsAndNoTwoShareOne()
+    {
+        Assert.Equal(Enum.GetValues<Control>().Length, Controls.Defaults.Count);
+        Assert.Equal(Controls.Defaults.Count, Controls.Defaults.Values.Distinct().Count());
+        Assert.All(Controls.Defaults.Values, k => Assert.True(Enum.TryParse<Ballast.Platform.Key>(k, out _), k));
+        Assert.DoesNotContain(Controls.Defaults.Values, Controls.Reserved.Contains);
+    }
 }
