@@ -27,7 +27,8 @@ from overbake import bell, fine, smooth01
 
 class Style:
     def __init__(self, head=None, dress=None, shapes=None, masks=None, grade=None, preview="CREW_PREVIEW",
-                 what="the crew's clothes and kit, modelled over tools/blender/crew.py", lamp=True, mask=None, figure="helm"):
+                 what="the crew's clothes and kit, modelled over tools/blender/crew.py", lamp=True, mask=None, figure="helm",
+                 gear=None, views=None):
         self.head, self.dress, self.shapes = head, dress or {}, shapes or {}
         self.masks, self.grade, self.preview, self.what = masks or {}, grade, preview, what
         # The chest lamp lit (crew_atlas's glass, kept as a pure light), or dead and baked with the rest (a dress entry
@@ -39,6 +40,10 @@ class Style:
         # "helm": the crew as they play (tools/blender/crew.py's smokebox helm, the tank on the back, the paint in the
         # player's colour); "bare": the figure bare-headed in a cap or a helmet, Lee Perry-Smith's scan for its face.
         self.figure = figure
+        # Concept headgear (tools/models/concepts): gear(tip, head_centre, make) -> high parts, previewed on the figure.
+        self.gear = gear
+        # The preview's views, [(name, direction, target, distance)], in place of the default five.
+        self.views = views
 
 
 def _shell(centre, radii, keep, material, segments, rings, name):
@@ -485,6 +490,8 @@ def build(name, style):
         body.select_set(True)
         bpy.context.view_layer.objects.active = body
         bpy.ops.object.join()
+    if style.gear is not None:
+        head += style.gear(TIP, HEAD_C, make)
     # The scan's own head, full resolution, in the body's group.
     highs["body"] += head
 
@@ -544,8 +551,8 @@ def build(name, style):
             o.hide_render = True
         for part, hs in highs.items():
             for h in hs:
-                h.hide_render = part not in ("body", BAKED[2] if variant in ("helmet", "tall") else BAKED[1])
-        for view, d, c, dist in (("front", (0.2, 1, 0.1), (0, 0, 0.95), 4.2), ("back", (-0.3, -1, 0.1), (0, 0, 0.95), 4.2),
+                h.hide_render = part not in ("body", BAKED[2] if variant in ("helmet", "tall") else BAKED[1]) or variant == "none" and part != "body"
+        for view, d, c, dist in style.views or (("front", (0.2, 1, 0.1), (0, 0, 0.95), 4.2), ("back", (-0.3, -1, 0.1), (0, 0, 0.95), 4.2),
                                  ("head", (0.4, 1, 0.15), (0, 0.02, 1.68 if not scan else 1.62), 1.0 if scan else 1.2), ("hand", (0.2, 0.6, 1), (0.75, 0, 1.44), 0.7),
                                  ("boot", (0.5, 1, 0.3), (0.1, 0.05, 0.15), 0.9)):
             cam.location = Vector(c) + Vector(d).normalized() * dist
