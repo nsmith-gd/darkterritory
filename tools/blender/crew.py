@@ -149,8 +149,8 @@ def helm_head():
               8, BRASS, "head", ref=(0, 0, 1), cap1=True)
     body.box((0, y0 + 0.024, zc - 0.072), (0.052, 0.01, 0.02), BRASS, "head")
     # The hinges: two straps across the door from the left.
-    for dz in (0.094, -0.094):
-        body.box((-0.07, y0 + 0.014, zc + dz), (0.05, 0.005, 0.01), STACK, "head")
+    for dz in (0.09, -0.09):
+        body.box((-0.06, y0 + 0.014, zc + dz), (0.038, 0.005, 0.01), STACK, "head")   # (inside the rim: it's 0.11 wide there)
     # The gauge on the right, and the seal on the collar.
     body.tube([(0.148, HC.y - 0.02, zc + 0.03), (0.172, HC.y - 0.02, zc + 0.03)], [0.034, 0.034], 12, BRASS, "head",
               ref=(0, 0, 1), cap1=True)

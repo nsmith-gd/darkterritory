@@ -93,6 +93,11 @@ public sealed record RenderAssets
 {
     /// <summary>Every layer is resized to this (power of two).</summary>
     public int LayerSize { get; init; } = 256;
+    /// <summary>
+    /// Layers authored larger than <see cref="LayerSize"/> (the characters' and creatures' baked atlases, seen closest)
+    /// are also kept at up to this size, in arrays of their own, and drawn from those.
+    /// </summary>
+    public int HeroSize { get; init; } = 1024;
     public IReadOnlyList<MaterialLayer> Layers { get; init; } = [];
     /// <summary>A 360° band of distant silhouettes (alpha = silhouette), horizon 85 % of the way down, 90° tall.</summary>
     public Image? Backdrop { get; init; }
