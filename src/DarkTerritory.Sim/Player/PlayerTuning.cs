@@ -5,7 +5,7 @@ public sealed record PlayerTuning(
     double Run, double Walk, double RoofRun, double RoofWalkSafe, double LadderClimb,
     double CarryHeavy, double JumpGap, int Health, ColdTuning Cold,
     double Gravity, double Radius, double Height, double StepUp,
-    LandingTuning Landing, LadderTuning Ladder, HandTuning Hand, double JumpHeight = 0)
+    LandingTuning Landing, LadderTuning Ladder, HandTuning Hand, double JumpHeight = 0, double PushGun = 1.2)
 {
     public const string File = "tuning/player.json";
 

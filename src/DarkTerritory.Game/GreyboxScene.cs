@@ -1196,7 +1196,8 @@ public sealed class GreyboxScene
                 : new Double3(open ? box.Min.X + 0.1 : box.Max.X - 0.12, box.Min.Y + 1.0, box.Centre.Z);
             Draw(Box.FromCentre(handle, side ? new Double3(0.08, 0.04, 0.04) : new Double3(0.04, 0.04, 0.08)), Palette.TarnishedBrass);
         }
-        if (shape.Gun is { } gun)
+        var vehicleNow = Vehicles is { } fleet && frame.Index < fleet.Count ? fleet[frame.Index] : null;
+        if ((vehicleNow is null ? shape.Gun : vehicleNow.HasGun ? Sim.Combat.Guns.Mount(shape, vehicleNow.Gun) : null) is { } gun)
         {
             // Barrel along the gun's facing: its arc is readable from its silhouette (GDD §26).
             Draw(Box.FromCentre(gun.Position + gun.Facing * 0.9, new Double3(0.08, 0.08, 0.9)), Palette.SootBlack);

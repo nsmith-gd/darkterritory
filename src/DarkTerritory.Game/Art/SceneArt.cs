@@ -306,7 +306,10 @@ public sealed partial class SceneArt(Look look)
             var c = box.Centre;
             mesh.Instances.Add(new MeshInstance(leaf, Matrix4x4.CreateTranslation((float)c.X, (float)c.Y, (float)c.Z) * m, Scar: scar));
         }
-        if (shape.Gun is { } gun)
+        // The gun rail along the roof (T93), and the gun wherever it's been pushed along it.
+        if (shape.RoofRail is { } rail)
+            mesh.Instances.Add(new MeshInstance(Piece($"rail:{ShapeKey(shape)}", () => TrainKit.RoofRail(Look, shape, rail)), m));
+        if ((vehicle is null ? shape.Gun : vehicle.HasGun ? Sim.Combat.Guns.Mount(shape, vehicle.Gun) : null) is { } gun)
         {
             float yaw = MathF.Atan2(-(float)gun.Facing.X, -(float)gun.Facing.Z);
             var at = gun.Position;

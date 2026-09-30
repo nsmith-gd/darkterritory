@@ -3,9 +3,18 @@ namespace DarkTerritory.Sim.Train;
 /// <summary>What a vehicle is for (GDD §10): engine at the front, guard car with the rear gun at the back.</summary>
 public enum VehicleKind : byte { Engine, Cargo, Guard }
 
-/// <summary>A mounted gun's state (spec B.7). Lives on the vehicle it's bolted to.</summary>
+/// <summary>
+/// A mounted gun's state (spec B.7). Lives on the vehicle whose roof rail it's on (T93): a gun slides along the rail and
+/// over the coupling onto the next car's, so which car has it, and where along it, is state like its ammunition.
+/// </summary>
 public struct GunState
 {
+    /// <summary>There's a gun on this vehicle's rail.</summary>
+    public bool Mounted;
+    /// <summary>Where along the vehicle's roof rail (its local Z) the gun's pivot stands.</summary>
+    public double Z;
+    /// <summary>Which way it faces along the train: −1 forward (the engine's), +1 back (the guard van's).</summary>
+    public sbyte Facing;
     public int Ammo;
     /// <summary>Ticks until it can fire again.</summary>
     public int Cooldown;
@@ -38,9 +47,9 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     public int Id { get; } = id;
     public VehicleKind Kind { get; set; } = kind;
     public bool IsEngine => Kind == VehicleKind.Engine;
-    /// <summary>The mounted gun's state, if this vehicle carries one (engine and guard cars).</summary>
+    /// <summary>The mounted gun's state, if this vehicle carries one (the engine's and guard van's to begin with; T93).</summary>
     public GunState Gun;
-    public bool HasGun => Kind is VehicleKind.Engine or VehicleKind.Guard;
+    public bool HasGun => Gun.Mounted;
     /// <summary>0 empty to 1 full.</summary>
     public double Load { get; set; } = Math.Clamp(load, 0, 1);
     /// <summary>What's in it: the departure's goods, or what the last facility that loaded it put in (a mixed car goes by the last).</summary>
