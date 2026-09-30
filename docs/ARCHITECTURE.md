@@ -1916,4 +1916,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - one pad a stop;
       - a joiner's route from the plan matching the host's;
       - determinism.
-
+97. **A night starts at the gate (the director's call, after playtesting).** The fortress yard is all at yard speed (2.5 m/s, plan §10, spec B.3). With the engine a train's length into it, the crawl to the gate took minutes before the run began. Now `PrototypeSession` and `SessionSetup.Build` stand the engine's front `departShortOfGateM` (8 m, `run.json`) short of the outer gate, the whole train still in the yard.
+    - Everyone joining before it moves boards at the fortress (App. D.3). The run begins as it moves off.
+    - The threshold is nearly level by construction (`fortress.maxThresholdGrade`), and a standing train doesn't creep through the gate: `DepartureTests` holds three seeds there for 90 s.
+    - A resumed night still starts where it was saved. The harness keeps its own start (`StartDistance`), so its baselines don't move.

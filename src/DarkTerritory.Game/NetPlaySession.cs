@@ -106,7 +106,8 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         {
             route = Plan is { } saved ? Sim.LineGen.Routes.FromPlan(content, saved) : Sim.LineGen.Routes.Generate(content, spec, Cars);
             line = route.Build();
-            start = consist.LengthMetres + 150; // the fortress yard, as in the prototype
+            // At the fortress's gate, ready to depart (run.json departShortOfGateM), as in the prototype.
+            start = runTuning.DepartFrom(route.GateOr(DataFile.Load<RouteTuning>(Path.Combine(content, RouteTuning.File)).YardLength), consist.LengthMetres);
         }
         else
         {
