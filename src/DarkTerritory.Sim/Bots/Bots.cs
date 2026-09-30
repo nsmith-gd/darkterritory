@@ -61,7 +61,8 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // off once nobody's near), then walk back to the guard car and take the gun again.
         bool houndsAboard = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && e.Attached >= 0);
         // The Weight on the rear car (App. A.3): the gun's no answer to it (it's below the arc), and the car may be about to
-        // go. The bots' answer is the sacrifice: off it, up the train, and let it take the car.
+        // go. Off the gun: down to the guard van's rear platform to beat it off (the legs do that, T65), or with no platform
+        // to get at it from, the sacrifice: up the train, and let it take the car.
         bool rearHeld = world.ActiveEnemies.Any(e => e is Weight { Holding: true } w && w.Attached == world.Train.Dynamics.Consist.Vehicles[^1].Id);
         if (houndsAboard || rearHeld || Guns.MannedGun(self, world.Train, guns) is not { } gun)
         {
@@ -301,6 +302,11 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
                 return new PlayerIntent { LookYaw = (float)Wrap(yaw - self.Yaw), LookPitch = (float)(pitch - self.Pitch) };
             }
         }
+        // The Weight holding the car we're on, and it has a platform to get at it from (App. A.3, GDD §24): down and beat it off.
+        int on = self.Parent;
+        if (self.Alive && on > 0 && on < train.Frames.Count && _warm is not { Active: true } && train.Frames[on].Shape.Platform is { } platform
+            && world.ActiveEnemies.Any(e => e is Weight { Holding: true } w && w.Attached == on))
+            return Beat(self, train, platform, tick);
         if (self.Alive && self.Parent > 0 && self.Parent < train.Frames.Count)
         {
             int parent = self.Parent;
@@ -309,6 +315,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             if (self.Surface == Surface.Roof && world.ActiveEnemies.OfType<Dragger>().Any(d => d.Phase == SpinePhase.Telegraph && d.Attached == parent
                     && Math.Sign(at.X + 1e-9) == d.Side && Math.Abs(at.Z - d.Local.Z) < 2))
                 return new PlayerIntent { Buttons = PlayerButtons.Use };
+            // A Climber making for a gap at either end of this car (App. A.4): hold it (T65).
+            if (self.Surface == Surface.Roof && _warm is not { Active: true } && Hold(self, world) is { } holding)
+                return holding;
             // Trouble (or a bag to catch) in another car: head along the roofs for it (in through its door when we're there).
             if ((_trouble?.Attached ?? _catchCar) is { } goal && goal != parent && _warm is { Active: false } && self.Surface == Surface.Roof)
                 _direction = goal < parent ? -1 : 1;
@@ -321,7 +330,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             // Hounds aboard: nobody goes near them, and anyone close walks away (they drop off when bored).
             if (world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && e.Attached >= 0 && e.Attached >= parent - 1))
                 _direction = -1;
-            // The Weight holding a car (App. A.3): off that car and the one ahead of it, toward the engine. It may take the car.
+            // The Weight holding a car with no platform to beat it from (App. A.3): off that car and the one ahead of it, toward
+            // the engine. It may take the car. (With a platform, whoever's on the car goes down to it, above; the rest keep
+            // clear, as the car may still go.)
             int mine = train.Dynamics.Consist.IndexOf(parent);
             if (mine >= 0 && world.ActiveEnemies.Any(e => e is Weight { Holding: true } w && train.Dynamics.Consist.IndexOf(w.Attached) is var held && held >= 0 && mine >= held - 1))
                 _direction = -1;
@@ -330,6 +341,76 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     }
 
     static double Wrap(double a) => Math.IEEERemainder(a, 2 * Math.PI);
+
+    /// <summary>A Climber running alongside this far (m) from a gap is plainly making for it.</summary>
+    const double ClimberMakingFor = 20;
+
+    /// <summary>
+    /// Climbers (App. A.4): one running alongside for a gap at an end of the car we're on, or scrabbling at it ("visible
+    /// from adjacent roofs"): to that roof end, over the gap, and stand there. Someone on a roof end within reach holds the
+    /// mount point: it drops back and tries another, which is often this car's other end, and the walker goes there too.
+    /// Whoever's on the cars either side holds it; nobody runs the train's length to (the guns take it on the roofs).
+    /// </summary>
+    static PlayerIntent? Hold(in PlayerState self, World world)
+    {
+        var train = world.Train;
+        int car = self.Parent;
+        double l = train.Frames[car].Shape.HalfLength;
+        double? best = null;
+        foreach (var c in world.ActiveEnemies.OfType<Climber>())
+        {
+            if (c.Gone || c.Gap <= 0 || c.Gap >= train.Frames.Count)
+                continue;
+            bool coming = c.Phase == SpinePhase.Telegraph
+                || c.Phase == SpinePhase.Dormant && Math.Abs(c.LineDistance - Climber.GapAlong(train, c.Gap)) <= ClimberMakingFor;
+            if (!coming)
+                continue;
+            // This car's back end (the gap behind it), or its front end (the gap behind the car ahead).
+            double? end = c.Gap == car ? l - 0.6 : train.VehicleBehind(c.Gap) == car ? -l + 0.6 : null;
+            if (end is { } z && (best is null || Math.Abs(z - self.Position.Z) < Math.Abs(best.Value - self.Position.Z)))
+                best = z;
+        }
+        if (best is not { } at)
+            return null;
+        double facing = at > 0 ? Math.PI : 0;
+        var (step, there) = WarmUp.Steer(self, new Double3(0, 0, at), facing);
+        return there ? new PlayerIntent() : step;
+    }
+
+    /// <summary>Seconds a swing takes: Use down this long, then up as long (each press is one blow, App. A.3's "~5 hits").</summary>
+    const double SwingSeconds = 0.35;
+
+    /// <summary>
+    /// Off the roof's back end by the platform's ladder (down, no hands: Use with a pull is letting go), across the grating
+    /// to over the coupling it's hanging on, and swing at it, press by press, until it lets go. Then up the ladder, as out
+    /// of any gap.
+    /// </summary>
+    static PlayerIntent Beat(in PlayerState self, TrainOnLine train, Box platform, uint tick)
+    {
+        double l = platform.Min.Z;
+        switch (self.Surface)
+        {
+            case Surface.Ladder:
+                return new PlayerIntent { MoveZ = -1 };
+            case Surface.Roof:
+                {
+                    // To just short of the edge over the ladder, facing back down the line, then push on and take hold.
+                    var (step, there) = WarmUp.Steer(self, new Double3(CarShape.EndLadderX, 0, l - 0.35), Math.PI);
+                    return there ? new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use } : step;
+                }
+            case Surface.Coupler:
+                {
+                    // Over the coupling, clear of the rear door's reach (a press there would work the door) and off the ladder's foot.
+                    var (step, there) = WarmUp.Steer(self, new Double3(0.3, 0, l + 0.5), Math.PI);
+                    if (!there)
+                        return step;
+                    bool down = tick % (2 * (uint)(SwingSeconds * SimConstants.TickRate)) < SwingSeconds * SimConstants.TickRate;
+                    return new PlayerIntent { Buttons = down ? PlayerButtons.Use : PlayerButtons.None };
+                }
+            default:
+                return default;
+        }
+    }
 
     /// <summary>Walk to the roof edge over it, then stand and hold Use until it lets go.</summary>
     static PlayerIntent Pry(in PlayerState self, Enemy clinger)

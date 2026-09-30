@@ -18,6 +18,9 @@
     // The plate you can stand on in the coupling gap (Rattle's home, Climbers' mount point).
     "couplerHeight": 1.1,
     "couplerWidth": 0.8,
+    // The guard van's rear platform, when it's last: across the car's back end at plate height, this deep (GDD §24 THE
+    // WEIGHT: "melee from the rear platform"). Deep enough to land on and stand clear of the rear door's swing.
+    "platformDepth": 1.2,
     // Ladders sit on both sides at the rear end of every car.
     "ladderInset": 0.6,
     // Engine + tender unit: boiler forward, walkable cab, coal tender behind (heights above rail).

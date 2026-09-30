@@ -1264,7 +1264,7 @@ public sealed class Climber(int id) : Enemy(id)
     }
 
     /// <summary>Along-line distance of the gap behind a vehicle.</summary>
-    static double GapAlong(TrainOnLine train, int car) =>
+    public static double GapAlong(TrainOnLine train, int car) =>
         train.Cars[car].FrontDistance - train.Cars[car].Length - train.Dynamics.Tuning.Geometry.CouplingGap * 0.5;
 
     /// <summary>

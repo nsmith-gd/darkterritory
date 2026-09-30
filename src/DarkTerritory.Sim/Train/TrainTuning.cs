@@ -28,7 +28,11 @@ public sealed record KitTuning
 public sealed record GeometryTuning(
     double CarLength, double CouplingGap, double EngineLength, double RoofWidth, double RoofSafeCentreline,
     double CarHeight, double EngineHeight, double CouplerHeight, double CouplerWidth, double LadderInset,
-    EngineLayout Engine, InteriorLayout? Interior = null);
+    EngineLayout Engine, InteriorLayout? Interior = null)
+{
+    /// <summary>How far the guard van's rear platform stands out behind it (GDD §24 THE WEIGHT's "rear platform").</summary>
+    public double PlatformDepth { get; init; } = 1.2;
+}
 
 /// <summary>Walk-in cars (GDD §10, §26): a floor, walls, a roof you can still walk on, and a door at each end.</summary>
 public sealed record InteriorLayout(double FloorHeight, double WallThickness, double RoofThickness, double DoorWidth, double DoorHeight, double DoorX,
