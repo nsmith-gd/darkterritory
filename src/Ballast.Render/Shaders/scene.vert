@@ -7,7 +7,9 @@ layout(push_constant) uniform Draw {
     mat4 model;
     vec4 tint;    // rgb multiplies the albedo, a = glow (scales emissive surfaces: a lamp dimmed in a Vigil)
     vec4 scar;    // x how scarred 0..1, y the pattern's seed (MeshInstance.Scar)
+    vec4 skin;    // xyz added to the surface's texel coordinates (MeshInstance.SurfaceOffset), w the bone palette's base
 } draw;
+#include "skin.glsl"
 
 layout(location = 0) in vec3 inPos;
 layout(location = 1) in vec3 inNormal;
@@ -36,12 +38,16 @@ layout(location = 11) out float vBlend;
 layout(location = 12) flat out vec2 vScar;
 
 void main() {
-    vec4 p = draw.model * vec4(inPos, 1.0);
+    mat4 model = draw.model;
+#ifdef SKINNED
+    model = model * skinOf(draw.skin.w);
+#endif
+    vec4 p = model * vec4(inPos, 1.0);
     vPos = p.xyz;
-    vNormal = mat3(draw.model) * inNormal;
+    vNormal = mat3(model) * inNormal;
     vColor = inColor * draw.tint.rgb;
     vEmissive = inEmissive;
-    vSurface = inSurface;
+    vSurface = inSurface + draw.skin.xyz;
     vWear = inWear;
     vShine = inShine;
     vUv = inUv;

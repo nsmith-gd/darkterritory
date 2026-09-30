@@ -91,7 +91,8 @@ public sealed unsafe class Swapchain : IDisposable
     /// Records the frame via <paramref name="render"/>, blits the renderer's image to the window and presents.
     /// Returns false if the swapchain is out of date and must be recreated at the new window size.
     /// </summary>
-    public bool Present(GreyboxRenderer renderer, Action<VkCommandBuffer> render)
+    /// <param name="source">The part of the renderer's image to show (x, y, width, height); all of it by default.</param>
+    public bool Present(GreyboxRenderer renderer, Action<VkCommandBuffer> render, (int X, int Y, int Width, int Height)? source = null)
     {
         uint index;
         var result = Api.vkAcquireNextImageKHR(_swapchain, ulong.MaxValue, VkSemaphore.Null, _acquired, &index);
@@ -114,7 +115,9 @@ public sealed unsafe class Swapchain : IDisposable
                 srcSubresource = new VkImageSubresourceLayers(VkImageAspectFlags.Color, 0, 0, 1),
                 dstSubresource = new VkImageSubresourceLayers(VkImageAspectFlags.Color, 0, 0, 1),
             };
-            blit.srcOffsets[1] = new VkOffset3D(renderer.Width, renderer.Height, 1);
+            var (sx, sy, sw, sh) = source ?? (0, 0, renderer.Width, renderer.Height);
+            blit.srcOffsets[0] = new VkOffset3D(sx, sy, 0);
+            blit.srcOffsets[1] = new VkOffset3D(sx + sw, sy + sh, 1);
             blit.dstOffsets[1] = new VkOffset3D((int)extent.width, (int)extent.height, 1);
             Api.vkCmdBlitImage(cmd, renderer.ColorImage, VkImageLayout.TransferSrcOptimal, image, VkImageLayout.TransferDstOptimal, 1, &blit, VkFilter.Linear);
             renderer.Transition(cmd, image, VkImageAspectFlags.Color, VkImageLayout.TransferDstOptimal, VkImageLayout.PresentSrcKHR);

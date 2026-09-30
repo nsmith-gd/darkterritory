@@ -11,7 +11,8 @@ public enum CrewPose { Idle, Walk, Run, Climb, Shovel, Crouch, Dead }
 
 /// <summary>
 /// The crew and the creatures as skinned models (content/art/models/*.glb, built by tools/blender/build.sh), posed
-/// on the CPU and added to the frame's triangle soup where GreyboxScene drew its boxes. Each model occupies the place
+/// on the CPU (the bones: clips, IK, ragdolls) and skinned on the GPU (each model's bind pose an asset, drawn with the
+/// pose's palette: MeshBuilder.Skinned), where GreyboxScene drew its boxes. Each model occupies the place
 /// its greybox stand-in did (same origin, same footprint), so gameplay reads the same; what changes is that a thing is
 /// now recognisable by its outline in the fog (GDD §26.1, §29) and moves the way §31 asks: the crew heavy and a bit
 /// stiff, the monsters still, then abrupt.
@@ -113,20 +114,59 @@ public sealed class CreatureArt
         return true;
     }
 
-    /// <summary>Draws a model in the pose it was last given.</summary>
+    /// <summary>
+    /// Draws a model in the pose it was last given: its bind pose, cooked once per variant and look (<see cref="Bound"/>),
+    /// posed on the GPU by the pose's palette. <paramref name="glow"/> goes to the instance (the shader scales the lights
+    /// by it), so a pulsing ember doesn't need an asset a frame.
+    /// </summary>
     void Emit(MeshBuilder mesh, Entry m, string? clip, in Matrix4x4 at, int variant, float glow, float seed,
         Func<ModelMaterial, MaterialLook, MaterialLook>? adjust = null)
     {
         var mats = m.Model.Materials;
         for (int i = 0; i < mats.Length; i++)
-        {
-            var l = m.Looks[i];
-            if (mats[i].Emissive > 0 || mats[i].Glow > 0)
-                l = l with { Colour = l.Colour * glow };
-            m.Scratch[i] = adjust is null ? l : adjust(mats[i], l);
-        }
+            m.Scratch[i] = adjust is null ? m.Looks[i] : adjust(mats[i], m.Looks[i]);
         var seedOffset = new Vector3(MathF.Sin(seed * 12.9898f), MathF.Sin(seed * 78.233f), MathF.Sin(seed * 37.719f)) * 97;
-        _skinner.Emit(mesh, m.Model, m.Pose, at, m.Scratch, new EmitSettings(variant % Math.Max(1, m.Model.VariantCount), clip, _texels, seedOffset));
+        var settings = new EmitSettings(variant % Math.Max(1, m.Model.VariantCount), clip, _texels, seedOffset);
+        mesh.Skinned(Bound(m, settings), at, m.Pose.Skin, glow, seedOffset * _texels);
+    }
+
+    // The bind-pose assets, by model, the parts drawn and the looks (keyed to 1/128th: a hull heating as it's drilled
+    // steps through its heat, it doesn't make an asset a frame). Cleared when it grows past a few hundred; the renderer
+    // frees what's dropped.
+    readonly Dictionary<(Model Model, ulong Parts, int Looks), (MaterialLook[] Looks, MeshAsset Asset)> _bound = new();
+    const int MaxBound = 384;
+
+    MeshAsset Bound(Entry m, in EmitSettings settings)
+    {
+        ulong parts = 0;
+        for (int i = 0; i < m.Model.Parts.Length; i++)
+            if (m.Model.Parts[i].DrawnFor(settings.Variant, settings.Clip))
+                parts |= 1ul << (i % 64);
+        var hash = new HashCode();
+        foreach (var l in m.Scratch)
+            hash.Add(Quantised(l));
+        var key = (m.Model, parts, hash.ToHashCode());
+        if (_bound.TryGetValue(key, out var hit) && Same(hit.Looks, m.Scratch))
+            return hit.Asset;
+        if (_bound.Count >= MaxBound)
+            _bound.Clear();
+        var asset = Skinner.Bind(m.Model, m.Scratch, settings, m.Model.Name);
+        _bound[key] = ([.. m.Scratch], asset);
+        return asset;
+    }
+
+    static bool Same(MaterialLook[] a, MaterialLook[] b)
+    {
+        for (int i = 0; i < a.Length; i++)
+            if (Quantised(a[i]) != Quantised(b[i]))
+                return false;
+        return true;
+    }
+
+    static MaterialLook Quantised(MaterialLook l)
+    {
+        static float Q(float v) => MathF.Round(v * 128) / 128;
+        return l with { Colour = new Vector3(Q(l.Colour.X), Q(l.Colour.Y), Q(l.Colour.Z)), Emissive = Q(l.Emissive), Shine = Q(l.Shine), Wear = Q(l.Wear) };
     }
 
     /// <summary>Where a bone of the model last drawn by name is, in camera-relative space (the Switchman's lantern).</summary>
@@ -178,8 +218,8 @@ public sealed class CreatureArt
     }
 
     /// <summary>
-    /// A crewmate's own colour (look.json crewColours, by player id): the helm's paint and the scarf, the model's ".paint"
-    /// material, tinted, so eight masked heads can be told apart.
+    /// A crewmate's own colour (look.json crewColours, by player id): the flying cap's leather and the scarf, the model's
+    /// ".paint" material, tinted, so eight masked heads can be told apart.
     /// </summary>
     Func<ModelMaterial, MaterialLook, MaterialLook> PaintOf(int variant)
     {

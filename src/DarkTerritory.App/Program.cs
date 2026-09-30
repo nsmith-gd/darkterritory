@@ -186,6 +186,22 @@ void Present(in Camera camera, in FrameLighting lighting)
     }
 }
 
+// In a headset the window shows the left eye (its middle), not the flat view drawn again (tuning/perf.json).
+void Mirror()
+{
+    if (window.Resized)
+    {
+        (w, h) = window.PixelSize;
+        swapchain.Recreate(w, h);
+        window.Resized = false;
+    }
+    if (!vr!.Mirror(swapchain))
+    {
+        (w, h) = window.PixelSize;
+        swapchain.Recreate(w, h);
+    }
+}
+
 // An invite accepted (or "Join Game" on a friend) while in the game or the menus.
 LobbyId? Invited(NetPlaySession? net)
 {
@@ -246,10 +262,15 @@ Launch? Menu()
         var camera = view;
         camera.Yaw += Math.Sin((timer.Elapsed.TotalSeconds - started) * 0.07) * 0.25;
         frontEnd.Draw(overlay, UiWidth, UiHeight);
-        renderer.Prepare(mesh, overlay);
-        Present(camera, light);
-        if (vr is not null && vr.Frame(mesh, view, light, light.FogColor, panel: new VrPanelContent(vrMenu!, overlay, UiWidth, UiHeight)) == XrFrameResult.Exiting)
+        if (vr is null)
+        {
+            renderer.Prepare(mesh, overlay);
+            Present(camera, light);
+        }
+        else if (vr.Frame(mesh, view, light, light.FogColor, panel: new VrPanelContent(vrMenu!, overlay, UiWidth, UiHeight)) == XrFrameResult.Exiting)
             return new Launch.Quit();
+        else
+            Mirror();
         FeedSpeaker();
         input.EndFrame();
         frameCount++;
@@ -568,8 +589,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (session.World.Run?.Over == true)
                 overlay.TextCentred(UiWidth / 2f, UiHeight - 22, campaign is not null ? "ENTER: BACK TO THE FORTRESS" : "ENTER: BACK", new Vector4(1, 0.7f, 0.3f, 1));
         }
-        renderer.Prepare(mesh, showHud ? overlay : null);
-        Present(camera, lighting);
+        if (vr is null)
+        {
+            renderer.Prepare(mesh, showHud ? overlay : null);
+            Present(camera, lighting);
+        }
         // The body is the flat camera's eye point, turned to where the room faces; the head does the looking.
         VrPanelContent? onPanel = null;
         if (vr is not null && showHud)
@@ -581,6 +605,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         if (vr is not null && vr.Frame(mesh, locomotion!.Body(camera, Eyes.Heading(session.Player, frames)), lighting, lighting.FogColor, locomotion, onPanel) == XrFrameResult.Exiting)
             break;
+        if (vr is not null)
+            Mirror();
         // The night's over: A goes back, as Enter does.
         if (vr is not null && session.World.Run?.Over == true && vr.Session.Controllers.Primary)
             break;
