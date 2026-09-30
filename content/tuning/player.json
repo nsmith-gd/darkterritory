@@ -31,15 +31,19 @@
     "overhead": 2.3,
     "grab": 0.3
   },
-  // Spec B.2: 200 s outside to onset, 320 s to death, reset in 45 s near heat (from any point short of death).
+  // Spec B.2: 600 s outside to onset, 1200 s to death, reset in 20 s near heat (from any point short of death). Cut from
+  // 200 / 320 / 45 after the 100-night playtest, where cold was 73% of all deaths: it was attrition, not a decision.
   // Heat is the cab while the fire burns, or a shut car while the boiler has steam to heat it.
   "cold": {
-    "onsetSeconds": 200,
-    "deathSeconds": 320,
-    "recoverSecondsNearHeat": 45,
+    "onsetSeconds": 600,
+    "deathSeconds": 1200,
+    "recoverSecondsNearHeat": 20,
     // Not in the spec, which gives onset no effect: past it you move at this fraction of your speed.
-    "onsetSpeedScale": 0.8,
-    // Spec C.2: the revived come back cold, "cold exposure onset halved (100s)".
-    "revivedOnsetScale": 0.5
+    "onsetSpeedScale": 0.9,
+    // Spec C.2: the revived come back cold, "cold exposure onset halved" (300 s).
+    "revivedOnsetScale": 0.5,
+    // Spec B.2: inside a car's walls with a door open (working a side door, say), out of the wind but not warm, the cold
+    // comes on at this fraction of the rate outside.
+    "indoorsRate": 0.25
   }
 }

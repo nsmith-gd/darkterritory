@@ -1099,10 +1099,12 @@ RUN BUDGET = base(route tier) × length multiplier × crew multiplier
 
 | Route tier | Base budget |
 |---|---|
-| Local | 40 |
-| Frontier | 70 |
-| Dead lines | 110 |
-| Deep territory | 160 |
+| Local | 90 |
+| Frontier | 150 |
+| Dead lines | 230 |
+| Deep territory | 330 |
+
+*(Raised from 40 / 70 / 110 / 160 after the 100-night playtest, to pay for the pacing rule below.)*
 
 **Length multiplier:** `1.0 + (0.15 × cars beyond the third)`
 **Crew multiplier:** `0.7 + (0.12 × crew)` — capped at 1.6
@@ -1133,13 +1135,15 @@ Enforced regardless of budget:
 
 ### Pacing rules
 
-**Grace period.** No threats for the first 90 seconds past the gate. The tonal transition needs room, and the crew needs to settle into stations.
+**The pacing rule (after the 100-night playtest: "2.5 minutes of nothing is unacceptable").** A reward or a problem at least every 30 seconds, ideally every 20. Twenty seconds out on the line with nothing happening (no threat showing itself or hitting home, no board read, no mail crane) and the director sends something now, whatever its cooldown, overdrawing its budget's curve if it must. The caps still hold, and they count only what's engaged, not what lies dormant. The line itself supplies the rest: boards and mail cranes (§22).
+
+**Grace period.** No threats for the first 20 seconds past the gate (was 90). The tonal transition needs room, and the crew needs to settle into stations.
 
 **Facility lull.** ~20 seconds of calm on arrival before facility threats activate. Lets the crew commit to a plan before it falls apart.
 
-**Post-event cooldown.** After any punish resolves, a 30–60s trough. Sustained pressure reads as noise; pressure with troughs reads as rhythm.
+**Post-event cooldown.** After any punish resolves, a 30–60s trough. Sustained pressure reads as noise; pressure with troughs reads as rhythm. The pacing rule cuts a trough short at 20 seconds of nothing. A kind the director sent lately comes on less (variety).
 
-**Terminus approach.** One deliberate spike, then a hard stop 500m out. Nothing may spawn inside the final approach — the last stretch is for surviving what's already aboard.
+**Terminus approach.** One deliberate spike, then a hard stop 500m out. Nothing may spawn inside the final approach — the last stretch is for surviving what's already aboard. The terminus's boards (distant, home signal, platform) are its moments.
 
 ### Contradiction seeding
 

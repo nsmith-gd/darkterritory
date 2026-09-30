@@ -247,6 +247,18 @@ public sealed class GameAudio
                         s.Loop.Occlusion = occlusion;
                     }
                     break;
+                case EnemyKind.CarFire:
+                case EnemyKind.LooseLoad when e.Phase == SpinePhase.Telegraph:
+                case EnemyKind.Gnawers when e.Phase is SpinePhase.Telegraph or SpinePhase.Punish:
+                    // Trouble in a car, heard through its walls: the fire's crackle, the straps groaning, the chittering.
+                    s.Loop ??= Mixer.Play(e.Kind switch { EnemyKind.CarFire => "car-fire", EnemyKind.LooseLoad => "load-creak", _ => "gnawers" }, at);
+                    if (s.Loop is not null)
+                    {
+                        s.Loop.Position = at;
+                        s.Loop.Occlusion = occlusion;
+                        s.Loop.Params.Set("progress", e.Kind == EnemyKind.Gnawers ? e.Health : e.Extra);
+                    }
+                    break;
                 case EnemyKind.LongWhistle when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit:
                     // A blast each time it sounds again (App. A.2's escalation), each louder than the last, from up the line
                     // ahead. Out in the open: a car's walls muffle it like anything else outside.

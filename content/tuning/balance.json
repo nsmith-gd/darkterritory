@@ -7,5 +7,9 @@
   "survivableDelivered": 0.5,
   // "...non-trivial at 8": an eight-crew's night sees at least this many punishes (a threat landing) on average.
   "nonTrivialCrew": 8,
-  "nonTrivialPunishes": 5
+  "nonTrivialPunishes": 5,
+  // The pace (after the 100-night playtest: "a reward or a problem every 30 s at most, ideally 20"): no night quiet out on
+  // the line longer than this, and quiet stretches no longer than this on average.
+  "maxQuietSeconds": 30,
+  "meanQuietSeconds": 20
 }

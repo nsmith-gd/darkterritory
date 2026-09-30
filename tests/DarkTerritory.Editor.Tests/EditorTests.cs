@@ -59,7 +59,7 @@ public sealed class EditorTests : IDisposable
         var (status, _) = Call("POST", "/api/tuning/set", new { file = RouteTuning.File, path = "dawnSlack", value = 0.25 });
         Assert.Equal(200, status);
         string after = File.ReadAllText(file);
-        Assert.Equal(before.Replace("\"dawnSlack\": 0.18", "\"dawnSlack\": 0.25"), after);
+        Assert.Equal(before.Replace("\"dawnSlack\": 0.4", "\"dawnSlack\": 0.25"), after);
         Assert.Equal(0.25, DataFile.Load<RouteTuning>(file).DawnSlack);
     }
 

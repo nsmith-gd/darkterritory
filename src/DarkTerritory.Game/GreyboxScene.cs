@@ -24,6 +24,12 @@ public sealed class GreyboxScene
     static readonly System.Numerics.Vector3 EmergencyRed = new(0.5f, 0.06f, 0.04f);
     /// <summary>Tunnels, bridges, facilities and hazards to draw along the line, when it's a generated route.</summary>
     public Route? Route { get; set; }
+    /// <summary>The engine's lamp is lit (it's what makes the boards shine back, sight.json).</summary>
+    public bool LampLit { get; set; } = true;
+    /// <summary>How far ahead the lamp makes a board out (sight.json lampSignRange).</summary>
+    public double SignRange { get; set; } = new SightTuning().LampSignRange;
+    /// <summary>The line's boards (sight.json). Unset on a route, they're worked out from it with the default tuning.</summary>
+    public IReadOnlyList<Sign>? Signs { get; set; }
     /// <summary>Live enemies to draw. When set, the route's Sleepers come from here rather than its features.</summary>
     public IReadOnlyList<Enemy>? Enemies { get; set; }
 
@@ -90,6 +96,7 @@ public sealed class GreyboxScene
         if (Route is not null)
         {
             Features(mesh, line, eye, from, to);
+            Boards(mesh, line, eye, from, to, hint);
             // A generated line's own land, boards, hazards, water and places (Art/PlanArt, linegen plan §12-13).
             if (Look is not null && Route.Plan is not null)
                 Look.Art.World.Plan(mesh, line, Route, eye, centre, DrawDistance, Time);
@@ -329,6 +336,8 @@ public sealed class GreyboxScene
             mesh.Box(L(x, y, z), r, u, b, new Vector3((float)hx, (float)hy, (float)hz), colour);
         float pulse = (float)(0.5 + 0.5 * Math.Sin(e.PhaseSeconds * 9));
 
+        if (Art.IncidentArt.Draw(mesh, o, r, u, b, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health))
+            return;
         switch (e.Kind)
         {
             case EnemyKind.Sleepers:
@@ -681,6 +690,88 @@ public sealed class GreyboxScene
     }
 
     static readonly SwitchStands DefaultStands = new(new JunctionTuning());
+
+    IReadOnlyList<Sign>? _defaultSigns;
+
+    /// <summary>
+    /// A lineside mail crane (the playtest's rewards): a post a little out from the track on its side, an arm reaching in
+    /// over the cess, and the bag hung from it at a car's doorway height, where the hook out of a side door takes it. Its
+    /// colour says what's in it: mail sacks grey canvas, coal black, rounds olive, spares brass. Drawn until the train's by.
+    /// </summary>
+    void Crane(MeshBuilder mesh, RailLine line, Double3 eye, Drop drop)
+    {
+        var t = line.Sample(drop.At);
+        var right = Double3.Cross(t.Tangent, Double3.Up).Normalized * drop.Side;
+        var (x, y, z) = (ToF(right), Vector3.UnitY, ToF(t.Tangent * -1));
+        var foot = t.Position + right * 3.2;
+        mesh.Box(V(foot + Double3.Up * 1.9, eye), x, y, z, new Vector3(0.1f, 1.9f, 0.1f), Palette.DeepBrown);
+        mesh.Box(V(foot + Double3.Up * 3.5 - right * 0.45, eye), x, y, z, new Vector3(0.5f, 0.06f, 0.06f), Palette.IronGrey);
+        var bag = drop.Kind switch
+        {
+            DropKind.Coal => Palette.SootBlack,
+            DropKind.Ammo => Palette.MuddyOlive,
+            DropKind.Spares => Palette.TarnishedBrass,
+            _ => Palette.BlueGrey,
+        };
+        mesh.Box(V(foot + Double3.Up * 3.0 - right * 0.85, eye), x, y, z, new Vector3(0.02f, 0.45f, 0.02f), Palette.IronGrey);
+        mesh.Box(V(foot + Double3.Up * 2.35 - right * 0.85, eye), x, y, z, new Vector3(0.22f, 0.3f, 0.22f), bag);
+    }
+    Route? _signsFor;
+
+    /// <summary>
+    /// The line's boards (sight.json), on posts to the right of the line facing the oncoming train: a posted speed is a pale
+    /// enamel plate with the figure's bar across it, the clearance board yellow and black. Paint, not lamps: the headlamp
+    /// picks them out, and lamps down they're nothing (the point of them, after the playtest). Reflective paint sends the
+    /// lamp's light straight back up the line: a board shines out once it's within the lamp's reading range, exactly when
+    /// the sim says it's read (<see cref="SightTuning.LampSignRange"/>).
+    /// </summary>
+    void Boards(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double front)
+    {
+        if (Signs is null && !ReferenceEquals(_signsFor, Route))
+        {
+            _defaultSigns = [.. Sim.Route.Lineside.Boards(new SightTuning(), Route!)];
+            _signsFor = Route;
+        }
+        foreach (var sign in Signs ?? _defaultSigns ?? [])
+            if (sign.Drop is { } drop && drop.At >= from && drop.At <= to && drop.At > front - 30)
+                Crane(mesh, line, eye, drop);
+        foreach (var sign in Signs ?? _defaultSigns ?? [])
+        {
+            if (sign.Board < from || sign.Board > to)
+                continue;
+            var t = line.Sample(sign.Board);
+            var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+            var foot = t.Position + right * 3.4;
+            var (x, y, z) = (ToF(right), Vector3.UnitY, ToF(t.Tangent * -1));
+            mesh.Box(V(foot + Double3.Up * 1.8, eye), x, y, z, new Vector3(0.08f, 1.8f, 0.08f), Palette.IronGrey);
+            var plate = foot + Double3.Up * 3.6 - t.Tangent * 0.1;
+            double ahead = sign.Board - front;
+            mesh.Emissive = LampLit && ahead > 0 && ahead <= SignRange ? 0.7f : 0;
+            if (sign.Kind == SignKind.SpeedLimit)
+            {
+                mesh.Box(V(plate, eye), x, y, z, new Vector3(0.9f, 0.6f, 0.04f), Palette.BoardEnamel);
+                mesh.Box(V(plate - t.Tangent * 0.05, eye), x, y, z, new Vector3(0.6f, 0.14f, 0.01f), Palette.SootBlack);
+            }
+            else if (sign.Kind == SignKind.Drop && sign.Drop is { } drop)
+            {
+                // A mail crane ahead: green, and a bar at the side it's on.
+                mesh.Box(V(plate, eye), x, y, z, new Vector3(0.8f, 0.5f, 0.04f), Palette.SignalGreen);
+                mesh.Box(V(plate + right * (drop.Side * 0.45) - t.Tangent * 0.05, eye), x, y, z, new Vector3(0.18f, 0.35f, 0.01f), Palette.BoardEnamel);
+            }
+            else if (sign.Kind == SignKind.Terminus)
+            {
+                // The terminus: enamel and black in quarters.
+                for (int q = 0; q < 4; q++)
+                    mesh.Box(V(plate + right * ((q % 2 == 0 ? -1 : 1) * 0.4) + Double3.Up * ((q < 2 ? -1 : 1) * 0.3), eye), x, y, z,
+                        new Vector3(0.4f, 0.3f, 0.04f), (q == 0 || q == 3) ? Palette.BoardEnamel : Palette.SootBlack);
+            }
+            else
+                for (int band = 0; band < 5; band++)
+                    mesh.Box(V(plate + Double3.Up * (-0.52 + band * 0.26), eye), x, y, z, new Vector3(1.0f, 0.13f, 0.04f),
+                        band % 2 == 0 ? Palette.HazardYellow : Palette.SootBlack);
+            mesh.Emissive = 0;
+        }
+    }
 
     /// <summary>A box following the line: <paramref name="lateral"/> metres right of centre, base at <paramref name="y"/> above rail.</summary>
     static void Along(MeshBuilder mesh, RailLine line, Double3 eye, double s, double length, double lateral, double y, double halfWidth, double height, Vector3 color)

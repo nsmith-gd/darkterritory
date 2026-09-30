@@ -3,7 +3,8 @@ using DarkTerritory.Sim.Route;
 namespace DarkTerritory.Sim.Net;
 
 /// <summary>Mirror of content/tuning/balance.json: GDD §34's sweep targets. Field docs live in that file.</summary>
-public sealed record BalanceTuning(int SurvivableCrew, double SurvivableDelivered, int NonTrivialCrew, double NonTrivialPunishes)
+public sealed record BalanceTuning(int SurvivableCrew, double SurvivableDelivered, int NonTrivialCrew, double NonTrivialPunishes,
+    double MaxQuietSeconds = 30, double MeanQuietSeconds = 20)
 {
     public const string File = "tuning/balance.json";
 }
@@ -13,7 +14,8 @@ public sealed record BalanceNight(RouteTier Tier, ulong Seed, int Crew, int Cars
 
 /// <summary>How a night went, in the terms the sweep is judged by.</summary>
 public sealed record BalanceRow(RouteTier Tier, ulong Seed, int Crew, int Cars, string End, bool Delivered, double Net, int CrewLost,
-    IReadOnlyDictionary<string, int> DeathsByCause, int Punishes, int FairnessViolations, double Seconds, double DistanceKm);
+    IReadOnlyDictionary<string, int> DeathsByCause, int Punishes, int FairnessViolations, double Seconds, double DistanceKm,
+    double LongestQuietSeconds = 0, double MeanQuietSeconds = 0);
 
 /// <summary>The nights with one crew size (or train length) together.</summary>
 public sealed record BalanceGroup(int Value, int Nights, double DeliveredRate, double MeanNet, double MeanCrewLost, double MeanPunishes);
@@ -40,7 +42,8 @@ public static class Balance
         var threats = r.Threats;
         return new BalanceRow(n.Tier, n.Seed, n.Crew, n.Cars, run?.End.ToString() ?? "none", run?.End == Run.RunEnd.Delivered,
             run?.Net ?? 0, run?.CrewLost ?? r.Deaths, threats?.DeathsByCause ?? new Dictionary<string, int>(),
-            threats?.Punishes.Values.Sum() ?? 0, threats?.FairnessViolations ?? 0, r.Seconds, run?.DistanceKm ?? r.TrainDistance / 1000);
+            threats?.Punishes.Values.Sum() ?? 0, threats?.FairnessViolations ?? 0, r.Seconds, run?.DistanceKm ?? r.TrainDistance / 1000,
+            r.Pacing?.LongestQuietSeconds ?? 0, r.Pacing?.MeanQuietSeconds ?? 0);
     }
 
     public static BalanceReport Judge(IReadOnlyList<BalanceRow> rows, BalanceTuning t)
@@ -58,6 +61,15 @@ public static class Balance
         if (byCrew.FirstOrDefault(g => g.Value == t.NonTrivialCrew) is { } large)
             checks.Add(new BalanceCheck($"non-trivial at {t.NonTrivialCrew}", large.MeanPunishes >= t.NonTrivialPunishes,
                 $"{large.MeanPunishes} punishes a night (at least {t.NonTrivialPunishes})"));
+        // The pace (after the playtest): never quiet longer than MaxQuietSeconds, and quiet stretches MeanQuietSeconds on average.
+        if (rows.Count > 0)
+        {
+            var slowest = rows.MaxBy(r => r.LongestQuietSeconds)!;
+            checks.Add(new BalanceCheck($"never quiet over {t.MaxQuietSeconds:0} s", slowest.LongestQuietSeconds <= t.MaxQuietSeconds,
+                $"longest {slowest.LongestQuietSeconds} s ({slowest.Tier}:{slowest.Seed}, crew {slowest.Crew})"));
+            double mean = rows.Average(r => r.MeanQuietSeconds);
+            checks.Add(new BalanceCheck($"quiet {t.MeanQuietSeconds:0} s at a time, or less", mean <= t.MeanQuietSeconds, $"{mean:0.0} s on average"));
+        }
         int unfair = rows.Sum(r => r.FairnessViolations);
         checks.Add(new BalanceCheck("fair (App. A.1)", unfair == 0, $"{unfair} commits without the reaction window"));
         return new BalanceReport(rows, byCrew, byCars, checks, checks.All(c => c.Pass));

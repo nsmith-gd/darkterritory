@@ -89,7 +89,9 @@ public enum Surface : byte { Air, Ground, Roof, Coupler, Ladder, Deck }
 /// <summary><see cref="PulledUnder"/>: into a coupling gap while the Rattle rattled (T51).</summary>
 /// <summary><see cref="Lamplighter"/>: nearest when a Lamplighter reached the lamp (T52).</summary>
 /// <summary><see cref="Deadman"/>, <see cref="Stoker"/>: fighting one out of the cab, or out of the firebox (T53).</summary>
-public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged, Crushed, PulledUnder, Lamplighter, Deadman, Stoker, Ferryman, Climbed, TornOff, Gaunt }
+/// <summary><see cref="Burned"/>, <see cref="Gnawed"/>: in a car with a fire, or a nest of Gnawers (the in-car incidents).</summary>
+/// <summary><see cref="Struck"/>: stood on a roof into a tunnel's mouth; <see cref="Thrown"/>: off a roof on a curve taken over its board.</summary>
+public enum DeathCause : byte { None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged, Crushed, PulledUnder, Lamplighter, Deadman, Stoker, Ferryman, Climbed, TornOff, Gaunt, Struck, Thrown, Burned, Gnawed }
 
 /// <summary>Conditions a player carries.</summary>
 [Flags]
@@ -365,7 +367,8 @@ public static class PlayerMotor
             s.Cold = Math.Max(0, s.Cold - dt * c.DeathSeconds / c.RecoverSecondsNearHeat);
             return;
         }
-        s.Cold += dt;
+        // Out of the wind inside a car with a door open: it comes on, but slower (spec B.2).
+        s.Cold += Indoors(s, train) ? dt * c.IndoorsRate : dt;
         if (s.Cold >= c.DeathSeconds)
         {
             s.Health = 0;
@@ -692,7 +695,7 @@ public static class PlayerMotor
     /// (the body goes over the side); slower, you land on the ballast and the train goes on without you. An authoritative
     /// move, so a predicting client adopts it (<see cref="PlayerState.Placed"/>).
     /// </summary>
-    public static void PullOff(ref PlayerState s, TrainOnLine train, Double3 outward, TrainTuning t)
+    public static void PullOff(ref PlayerState s, TrainOnLine train, Double3 outward, TrainTuning t, DeathCause cause = DeathCause.Dragged)
     {
         if (s.Parent == PlayerState.World || s.Parent >= train.Frames.Count)
             return;
@@ -706,7 +709,7 @@ public static class PlayerMotor
         if (SpeedBands.JumpOffIsLethal(t, Math.Sqrt(carVelocity.X * carVelocity.X + carVelocity.Z * carVelocity.Z)))
         {
             s.Health = 0;
-            s.Death = DeathCause.Dragged;
+            s.Death = cause;
         }
     }
 

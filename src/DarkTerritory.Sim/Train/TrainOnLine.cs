@@ -252,6 +252,8 @@ public sealed class TrainOnLine
         RupturedThisTick = false;
         LastControls = controls;
         _contacts.Clear();
+        foreach (var v in _vehicles)
+            v?.EndTick();
         foreach (var rake in _rakes)
             rake.PreviousDistance = rake.Distance;
 

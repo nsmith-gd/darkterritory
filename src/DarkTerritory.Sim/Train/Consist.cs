@@ -40,7 +40,24 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     /// <summary>One bit per door in <see cref="CarShape.Doors"/>: set is open. Doors start shut.</summary>
     public byte DoorsOpen { get; set; }
     public bool DoorOpen(int index) => (DoorsOpen & (1 << index)) != 0;
-    public void ToggleDoor(int index) => DoorsOpen ^= (byte)(1 << index);
+
+    /// <summary>
+    /// Opens a shut door or shuts an open one. Two hands on one door the same tick move it once: two crew pulling it shut
+    /// together shut it, rather than each undoing the other (the pair warming up in one car never got it shut, and froze).
+    /// </summary>
+    public void ToggleDoor(int index)
+    {
+        byte bit = (byte)(1 << index);
+        if ((_movedThisTick & bit) != 0)
+            return;
+        _movedThisTick |= bit;
+        DoorsOpen ^= bit;
+    }
+
+    byte _movedThisTick;
+
+    /// <summary>The train's step: doors worked this tick can be worked again next tick.</summary>
+    internal void EndTick() => _movedThisTick = 0;
 
     public double MassTonnes(TrainTuning t) =>
         IsEngine ? t.Mass.EngineTonnes : t.Mass.EmptyCarTonnes + Load * (t.Mass.LoadedCarTonnes - t.Mass.EmptyCarTonnes);

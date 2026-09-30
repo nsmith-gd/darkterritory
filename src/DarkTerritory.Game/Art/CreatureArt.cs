@@ -289,9 +289,14 @@ public sealed class CreatureArt
     /// its +X side; turn the basis for the other); they turn their heads up at the doors while they call.</item>
     /// </list>
     /// </summary>
-    public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, EnemyKind kind, SpinePhase phase, double phaseSeconds, double extra)
+    public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, EnemyKind kind, SpinePhase phase, double phaseSeconds, double extra, double health = 1)
     {
         double t = phaseSeconds;
+        // The in-car incidents are effects, not creatures with a model (Art/IncidentArt).
+        if (kind is EnemyKind.CarFire or EnemyKind.LooseLoad or EnemyKind.Gnawers)
+            return IncidentArt.Draw(mesh, model.Translation, Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, model)),
+                Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, model)), Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, model)),
+                kind, phase, t, extra, health);
         float pulse = (float)(0.5 + 0.5 * Math.Sin(t * 9));
         switch (kind)
         {
@@ -568,6 +573,6 @@ public sealed class CreatureArt
                 m = Matrix4x4.CreateRotationY(MathF.PI - Math.Sign(e.Lateral) * 0.6f) * model;
                 break;
         }
-        return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra);
+        return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health);
     }
 }
