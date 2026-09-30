@@ -56,6 +56,22 @@ public sealed class LineAuthority
         return v;
     }
 
+    /// <summary>
+    /// Seconds to run the main line from <paramref name="from"/> to <paramref name="to"/> at what the authority allows, no
+    /// faster than <paramref name="cap"/> (the driver's cruise): the rest of a night reckoned by the line, not by what's gone
+    /// before it (T77: a Dead Lines route's back half is slower than its front).
+    /// </summary>
+    public double SecondsTo(double from, double to, double cap)
+    {
+        var (edge, s) = _mainWay.Locate(RailLine.MainPath, from);
+        if (edge != "main")
+            s = from;
+        double seconds = 0;
+        for (double d = s; d < to; d += 25)
+            seconds += Math.Min(25, to - d) / Math.Max(1, Math.Min(cap, _main.Target(d)));
+        return seconds;
+    }
+
     /// <summary>The speed to hold now: the least the profile allows over the next second's run, for the engine's rake.</summary>
     public double Allowed(TrainOnLine train)
     {

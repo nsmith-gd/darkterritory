@@ -353,6 +353,19 @@ public sealed class StopDriver(CrewCalls calls)
     /// The pace the night's kept (m/s): how far along the main line (<paramref name="at"/>) it's come since it got under way,
     /// over the time it's spent moving (every stop so far, and this one, off the clock). Cruise until there's a minute of it.
     /// </summary>
+    /// <summary>
+    /// Seconds home from <paramref name="at"/> on the main line: at the pace kept so far, or at what the line allows from
+    /// here, whichever's the longer, each with <see cref="LatePace"/>'s margin. The pace alone flattered a Dead Lines route,
+    /// whose back half is slower than its front: both deadLines crews of eight made their stop and missed the dawn (T77).
+    /// </summary>
+    double Home(World world, Run.Run run, double at)
+    {
+        double home = (run.Route.Length - at) / (Pace(run, at) * LatePace);
+        if (world.TrackPlan is { } plan)
+            home = Math.Max(home, LineGen.LineAuthority.For(plan, world.Train.Line).SecondsTo(at, run.Route.Length, _cruiseTop) / LatePace);
+        return home;
+    }
+
     double Pace(Run.Run run, double at)
     {
         _underway ??= (at, run.Seconds);
@@ -454,7 +467,7 @@ public sealed class StopDriver(CrewCalls calls)
                     double spare = run.DawnIn - (run.Route.Length - engine.Distance) / CruiseSpeed;
                     // A stop's worth making only with its loading's time in hand, reckoned as the loading's own lateness is
                     // (T74): at the pace the night's kept, a stop that would be late the moment it starts loading isn't one.
-                    double spareAtPace = run.DawnIn - (run.Route.Length - engine.Distance) / (Pace(run, engine.Distance) * LatePace);
+                    double spareAtPace = run.DawnIn - Home(world, run, engine.Distance);
                     var plan = Math.Min(spare, spareAtPace) > StopAllowance ? StopPlan.Ahead(world, engine.Distance, _done, calls) : null;
                     bool low = train.BoilerTuning is { } bt && train.Boiler.Tender < bt.TenderCapacity * 0.2;
                     var coal = spare > CoalAllowance || low ? CoalPlan.Ahead(world, engine.Distance, _coaled, calls) : null;
@@ -590,7 +603,7 @@ public sealed class StopDriver(CrewCalls calls)
                     // And the wait for everyone aboard after it, which can run to its give-up (T74: hands down off the cars
                     // for trouble in them kept frontier:2's crew of eight waiting the whole of it), on a line that needn't be
                     // as quick after the stop as before it.
-                    bool late = world.Run is { } lr && lr.DawnIn < (lr.Route.Length - p.Hold) / (Pace(lr, p.Hold) * LatePace) + LateSpare + AboardGiveUp;
+                    bool late = world.Run is { } lr && lr.DawnIn < Home(world, lr, p.Hold) + LateSpare + AboardGiveUp;
                     bool loaded = winched && crated && craned || Waited > LoadingGiveUp || late;
                     // Everyone aboard, or long enough waited for them since the loading was done (not since it began: a stop
                     // given up for the dawn waited out the whole give-up again for a hand still out, T70).

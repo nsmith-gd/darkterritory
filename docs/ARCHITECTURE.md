@@ -1762,3 +1762,13 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - Crews of 2 deliver both nights.
       - Crews of 8 still miss the dawn, losing 5–6 (T77).
       - frontier:7 delivers (2984).
+89. **Out of a car the Gnawers get out in, and the run home reckoned by the line (T77).** After T76, crews of 8 still missed the Dead Lines dawn, losing 5–6 each.
+    - **Gnawers.** Five of deadLines:1's six were gnawed while warming in a car. Out of the crates, Gnawers bite everyone within reach in the car.
+      - A walker too hurt to stamp them out (`TooHurt`) sat through it; nothing sent it out.
+      - A warm-up now leaves a car whose trouble breaks out while it's in there and isn't its own to work, and warms somewhere else.
+    - **The run home.** Both nights made their facility stop and missed the dawn by under a kilometre. Before the stop the train had kept about 13 m/s; after it, 10.9 m/s: a Dead Lines route's back half is harder than its front.
+      - The pace kept so far flattered the rest of the line. `StopDriver.Home` now also reckons the run home by the line's own authority from here (`LineAuthority.SecondsTo`, capped at the driver's cruise), and takes the longer of the two, each with `LatePace`'s margin.
+      - It's used by both the stop decision and the loading's lateness. On the Dead Lines the crew of 8 now skip the facility stops they haven't the night for, and still coal.
+    - **Verified:** `IncidentTests.AWalkerTooHurtToStampThemOutLeavesTheCarItsWarmingInWhenTheGnawersGetOut`, which fails without the change.
+      - The sweep (frontier and deadLines, seeds 1–2, crews 2 and 8) delivers all eight nights and passes every check: longest quiet 22.7 s, mean 9.9 s, 42 punishes a night at crew 8.
+      - frontier:7 delivers (2447; it now skips its Foundry stop).

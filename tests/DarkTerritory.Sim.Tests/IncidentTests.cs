@@ -219,4 +219,30 @@ public class IncidentTests
         Assert.True(fire.Gone, $"the walker's {n.Crew[0].Surface} on {n.Crew[0].Parent} ({bot.WarmUpStep}); fire at {fire.Extra:0.00}");
         Assert.True(n.Crew[0].Alive);
     }
+    [Fact]
+    public void AWalkerTooHurtToStampThemOutLeavesTheCarItsWarmingInWhenTheGnawersGetOut()
+    {
+        // deadLines:1 (T77): walkers warming in a car sat through the Gnawers coming out of its load, and were gnawed to death.
+        var n = new Night();
+        var bot = new RoofWalkerBot(4, Tuning.Player.Cold);
+        var s = PlayerMotor.SpawnOnRoof(n.Train, Car, 0, Tuning.Player);
+        n.Crew.Add(s with { Cold = Tuning.Player.Cold.OnsetSeconds, Health = 30 });
+        n.Intents.Add(default);
+        void Walk(double seconds, Func<bool>? until = null)
+        {
+            for (int i = 0; i < seconds * SimConstants.TickRate && until?.Invoke() != true; i++)
+            {
+                n.Intents[0] = bot.Decide(n.Crew[0], n.World, n.World.Tick, out _);
+                n.Run(0);
+            }
+        }
+        Walk(60, () => bot.WarmUpStep == "Warm");
+        Assert.Equal("Warm", bot.WarmUpStep);
+        int warmingIn = n.Crew[0].Parent;
+        var gnawers = n.World.AddEnemy(id => Gnawers.In(id, n.Train, warmingIn, 0, E.Gnawers));
+        gnawers.Restore(SpinePhase.Punish, 0, 1, warmingIn, gnawers.Local, 0, 0, 0, 0, 0);
+        Walk(15);
+        Assert.True(n.Crew[0].Alive);
+        Assert.False(n.Crew[0].Parent == warmingIn && PlayerMotor.Indoors(n.Crew[0], n.Train), $"still in car {warmingIn} ({bot.WarmUpStep})");
+    }
 }

@@ -954,6 +954,14 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                 _ticks = 0; // waiting's not being stuck
                 if (Indoors?.Invoke(self) is { } busy)
                     return busy;
+                // Trouble broken out in here that isn't ours to work (Gnawers out of the crates bite everyone in the car, a
+                // fire burns them): out, and warm somewhere else. deadLines:1's walkers sat through it and were gnawed to death,
+                // too hurt to stamp them out and with nothing telling them to go (T77).
+                if (Troubled?.Invoke(_car) == true)
+                {
+                    _outEnd = WayOut(self, train);
+                    return Next(Step.Reopen);
+                }
                 // Someone came or went and left a door open: shut it again.
                 if (train.Vehicles[_car].DoorsOpen != 0)
                     return Next(Step.Shut);
