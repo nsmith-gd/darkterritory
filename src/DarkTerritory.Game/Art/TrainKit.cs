@@ -667,11 +667,18 @@ public static class TrainKit
         }
 
         // The roof: the slab's underside lined, carlines under it, an arched corrugated top with eaves, and the roof walk.
+        // A cargo car's roof hatch (T99) leaves an opening between the walls, framed by a coaming; its lid is drawn by the
+        // scene, where the car's state says it is (HatchLid).
+        float hz0 = shape.Hatch is { } hb ? (float)hb.Min.Z : l + 1, hz1 = shape.Hatch is { } hb1 ? (float)hb1.Max.Z : l + 1;
+        bool InHatch(float z0, float z1) => z1 > hz0 && z0 < hz1;
+        var spans = shape.Hatch is null ? new[] { (-l, l) } : new[] { (-l, hz0), (hz1, l) };
         Lining();
-        k.Box(new Vector3(-w, ceiling, -l), new Vector3(w, ceiling + 0.01f, l), Kit.Faces.NegY);
+        foreach (var (z0, z1) in spans)
+            k.Box(new Vector3(-w, ceiling, z0), new Vector3(w, ceiling + 0.01f, z1), Kit.Faces.NegY);
         k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0);
         for (float z = -l + 1; z < l - 0.5f; z += 1.1f)
-            k.Box(new Vector3(-w + t, ceiling - 0.08f, z - 0.05f), new Vector3(w - t, ceiling, z + 0.05f), Kit.Faces.All & ~Kit.Faces.PosY);
+            if (!InHatch(z - 0.05f, z + 0.05f))
+                k.Box(new Vector3(-w + t, ceiling - 0.08f, z - 0.05f), new Vector3(w - t, ceiling, z + 0.05f), Kit.Faces.All & ~Kit.Faces.PosY);
         k.Use(livery == Livery.Planked ? "corrugated_iron" : "iron_plate", Palette.IronGrey, 0.9f, 0.3f, tile: 1.2f);
         {
             var profile = new List<Vector2> { new(w + 0.07f, ceiling - 0.02f), new(w + 0.07f, ceiling + 0.04f) };
@@ -683,7 +690,20 @@ public static class TrainKit
             }
             profile.Add(new Vector2(-w - 0.07f, ceiling + 0.04f));
             profile.Add(new Vector2(-w - 0.07f, ceiling - 0.02f));
-            k.Prism(profile, -l - 0.06f, l + 0.06f, caps: true, smooth: false);
+            foreach (var (z0, z1) in spans)
+                k.Prism(profile, z0 == -l ? -l - 0.06f : z0, z1 == l ? l + 0.06f : z1, caps: true, smooth: false);
+        }
+        if (shape.Hatch is { } hatch)
+        {
+            // The eaves along the opening, over the wall tops, and the coaming round it.
+            float hx = (float)hatch.Max.X;
+            foreach (int side in new[] { -1, 1 })
+                k.Box(new Vector3(side < 0 ? -w - 0.07f : hx, ceiling - 0.02f, hz0), new Vector3(side < 0 ? -hx : w + 0.07f, h - 0.03f, hz1));
+            k.Use("paint_black", Palette.SootBlack, 0.9f, 0.3f);
+            foreach (int side in new[] { -1, 1 })
+                k.Box(new Vector3(side < 0 ? -hx - 0.06f : hx, h - 0.03f, hz0 - 0.06f), new Vector3(side < 0 ? -hx : hx + 0.06f, h + 0.05f, hz1 + 0.06f));
+            k.Box(new Vector3(-hx, h - 0.03f, hz0 - 0.06f), new Vector3(hx, h + 0.05f, hz0));
+            k.Box(new Vector3(-hx, h - 0.03f, hz1), new Vector3(hx, h + 0.05f, hz1 + 0.06f));
         }
         // Roof walk: boards on saddles down the safe centreline, gapped: modelled bays laid end to end (tools/models
         // car_body, 1.1 m each, stretched to fit), with the roof sheets' seam caps between them on a steel roof.
@@ -692,12 +712,14 @@ public static class TrainKit
         float bay = run / bays;
         bool modelled = true;
         for (int i = 0; i < bays && modelled; i++)
-            modelled = Prop(k, "roof_walk_bay", Matrix4x4.CreateScale(1, 1, bay / 1.1f) * Kit.At(0, h, -l + 0.2f + bay * (i + 0.5f)));
+            if (!InHatch(-l + 0.2f + bay * i, -l + 0.2f + bay * (i + 1)))
+                modelled = Prop(k, "roof_walk_bay", Matrix4x4.CreateScale(1, 1, bay / 1.1f) * Kit.At(0, h, -l + 0.2f + bay * (i + 0.5f)));
         if (!modelled)
         {
             k.Use("wood_grey", Palette.TarnishedBrass, 0.9f, 0, 1f);
-            for (int i = -2; i <= 2; i++)
-                k.Box(new Vector3(i * 0.14f - 0.06f, h, -l + 0.2f), new Vector3(i * 0.14f + 0.06f, h + 0.04f, l - 0.2f), Kit.Faces.All & ~Kit.Faces.NegY);
+            foreach (var (z0, z1) in spans)
+                for (int i = -2; i <= 2; i++)
+                    k.Box(new Vector3(i * 0.14f - 0.06f, h, Math.Max(z0, -l + 0.2f)), new Vector3(i * 0.14f + 0.06f, h + 0.04f, Math.Min(z1, l - 0.2f)), Kit.Faces.All & ~Kit.Faces.NegY);
         }
         else if (livery != Livery.Planked)
             for (int i = 1; i < bays; i++)
@@ -874,6 +896,31 @@ public static class TrainKit
                     k.Tint = Vector3.One * (0.8f + 0.2f * MathF.Abs(jitter));
                     k.Box(c0, c1, Kit.Faces.All & ~Kit.Faces.NegY);
                 }
+    }
+
+    /// <summary>
+    /// One leaf of a cargo car's roof hatch (T99), <paramref name="size"/> (centred, its top face up): an iron plate, its
+    /// hinges along its +X edge, and along its −X edge (the roof's centreline, where the two leaves meet) its half of the
+    /// roof walk and a grab handle at its front.
+    /// </summary>
+    public static MeshAsset HatchLid(Look? look, Vector3 size)
+    {
+        var k = new Kit(look, 41);
+        var half = size / 2;
+        k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.3f, tile: 1.2f);
+        k.Box(-half, half);
+        k.Use("wood_grey", Palette.TarnishedBrass, 0.9f, 0, 1f);
+        for (int i = 0; i < 3; i++)
+        {
+            float x = -half.X + 0.01f + i * 0.14f;
+            k.Box(new Vector3(x, half.Y, -half.Z + 0.05f), new Vector3(x + 0.12f, half.Y + 0.04f, half.Z - 0.05f), Kit.Faces.All & ~Kit.Faces.NegY);
+        }
+        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
+        foreach (float z in new[] { -half.Z + 0.35f, half.Z - 0.35f })
+            k.Box(new Vector3(half.X - 0.45f, half.Y, z - 0.05f), new Vector3(half.X + 0.03f, half.Y + 0.02f, z + 0.05f));
+        k.Use("brass", Palette.TarnishedBrass, 0.5f, 0.8f);
+        k.Rod(new Vector3(-half.X + 0.5f, half.Y + 0.03f, -half.Z + 0.12f), new Vector3(-half.X + 0.85f, half.Y + 0.03f, -half.Z + 0.12f), 0.025f);
+        return k.Build("hatch-lid");
     }
 
     /// <summary>A door leaf of <paramref name="size"/> (centred): planks with iron straps, an end door with a small window.</summary>

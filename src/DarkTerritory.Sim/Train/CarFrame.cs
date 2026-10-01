@@ -43,8 +43,8 @@ public readonly record struct Box(Double3 Min, Double3 Max)
 /// <summary>What standing on top of a solid means: roof speeds and wind (spec B.2), or ordinary footing.</summary>
 public enum SurfaceKind : byte { Roof, Deck, Coupler }
 
-/// <summary>What a solid is, so presentation can draw and colour it. Collision ignores this.</summary>
-public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps, RunningBoard }
+/// <summary>What a solid is, so presentation can draw and colour it. Collision ignores this, but for an open roof hatch (T99).</summary>
+public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps, RunningBoard, Hatch }
 
 /// <summary>Where a gun is bolted on, and which way it faces in the car's frame (−Z forward, +Z back).</summary>
 /// <summary>
@@ -53,13 +53,17 @@ public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Te
 /// </summary>
 public readonly record struct GunMount(Double3 Position, Double3 Facing);
 
-public readonly record struct Solid(Box Box, SurfaceKind Top, PartKind Part);
+public readonly record struct Solid(Box Box, SurfaceKind Top, PartKind Part)
+{
+    /// <summary>There to stand on and bump into on this vehicle now: everything but an open roof hatch's lid (T99).</summary>
+    public bool Present(Vehicle v) => Part != PartKind.Hatch || !v.DoorOpen(CarShape.HatchBit);
+}
 
 /// <summary>A ladder fixed to a face: its foot, how high it goes, and which way is "onto" what it serves.</summary>
 public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward);
 
 /// <summary><see cref="Coal"/> is the tender's coal face, where a hand fills the shovel (T29).</summary>
-public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox }
+public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch }
 
 /// <summary>A thing a player uses by standing near it and holding Use. <see cref="Index"/> says which door.</summary>
 public readonly record struct Interactable(InteractableKind Kind, Double3 Position, double Radius, int Index = 0);
@@ -101,6 +105,13 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     /// and over the coupling onto the next car's while the two are coupled.
     /// </summary>
     public (double Front, double Back)? RoofRail { get; init; }
+    /// <summary>
+    /// A cargo car's roof hatch (T99): the opening in the roof its lid (the <see cref="PartKind.Hatch"/> solid) shuts, from
+    /// the roof's underside to its top. Open is bit <see cref="HatchBit"/> of <see cref="Vehicle.DoorsOpen"/>.
+    /// </summary>
+    public Box? Hatch { get; init; }
+    /// <summary>The hatch's bit in <see cref="Vehicle.DoorsOpen"/>: after the four doors.</summary>
+    public const int HatchBit = 4;
 
     public double HalfLength => Bounds.Max.Z;
     public double HalfWidth => Bounds.Max.X;
@@ -197,8 +208,22 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         var solids = new List<Solid>
         {
             new(new Box(new Double3(-w, 0, -l), new Double3(w, floor, l)), SurfaceKind.Deck, PartKind.Chassis),
-            new(new Box(new Double3(-w, ceiling, -l), new Double3(w, h, l)), SurfaceKind.Roof, PartKind.Body),
         };
+        // The roof slab; on a cargo car, with its hatch between the walls (T99): the slab either side of it, the wall tops
+        // along it, and the lid.
+        Box? hatch = null;
+        if (cargo && i.HatchLength > 0)
+        {
+            double z0 = i.HatchZ - i.HatchLength / 2, z1 = i.HatchZ + i.HatchLength / 2;
+            solids.Add(new(new Box(new Double3(-w, ceiling, -l), new Double3(w, h, z0)), SurfaceKind.Roof, PartKind.Body));
+            solids.Add(new(new Box(new Double3(-w, ceiling, z1), new Double3(w, h, l)), SurfaceKind.Roof, PartKind.Body));
+            solids.Add(new(new Box(new Double3(-w, ceiling, z0), new Double3(-w + t, h, z1)), SurfaceKind.Roof, PartKind.Body));
+            solids.Add(new(new Box(new Double3(w - t, ceiling, z0), new Double3(w, h, z1)), SurfaceKind.Roof, PartKind.Body));
+            hatch = new Box(new Double3(-w + t, ceiling, z0), new Double3(w - t, h, z1));
+            solids.Add(new(hatch.Value, SurfaceKind.Roof, PartKind.Hatch));
+        }
+        else
+            solids.Add(new(new Box(new Double3(-w, ceiling, -l), new Double3(w, h, l)), SurfaceKind.Roof, PartKind.Body));
         foreach (int side in new[] { -1, 1 })
         {
             double x0 = side < 0 ? -w : w - t, x1 = side < 0 ? -w + t : w;
@@ -264,8 +289,14 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         if (hasCarBehind)
             ladders.Add(new Ladder(new Double3(g.EndLadderX, 0, l + 0.1), h, new Double3(0, 0, -1)));
         interactables.Add(new Interactable(InteractableKind.Handbrake, new Double3(BrakeWheelX(g), h, l - 0.5), 0.8));
+        // The hatch's handle: on the roof at its front edge, left of the gun rail, worked from the roof walk.
+        if (hatch is { } hb)
+            interactables.Add(new Interactable(InteractableKind.Hatch, new Double3(-0.6, h, hb.Min.Z - 0.35), 0.8, HatchBit));
         var interior = new Box(new Double3(-w + t, floor - 0.1, -l + t), new Double3(w - t, ceiling, l - t));
-        return new CarShape(new Box(new Double3(-w, 0, -l), new Double3(w, h, l)), solids, ladders, interactables, null, Interior: interior, Doors: doors);
+        return new CarShape(new Box(new Double3(-w, 0, -l), new Double3(w, h, l)), solids, ladders, interactables, null, Interior: interior, Doors: doors)
+        {
+            Hatch = hatch,
+        };
     }
 
     static CarShape SolidCar(GeometryTuning g, bool hasCarBehind)

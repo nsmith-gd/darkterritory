@@ -571,7 +571,10 @@ public sealed class GreyboxScene
     {
         if (Look is not null)
         {
-            // The art pass's line (WorldArt): the ground, the track and the lineside, cooked in cells.
+            // The art pass's line (WorldArt): the ground, the track and the lineside, cooked in cells. Nothing wild grows
+            // inside the fortresses' walls (T100): they're told where those are before a cell's built.
+            if (Route is not null)
+                Look.Art.World.Walls = (Run?.YardLength ?? 600, Route.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400) - 200);
             Look.Art.World.Cells(mesh, line, Route, eye, from, to, Seed, (float)ValleyDepth);
             return;
         }
@@ -923,6 +926,17 @@ public sealed class GreyboxScene
         if (Look is not null)
         {
             Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit);
+            // Its people (T100): a few about at night, in their own drab, idling on their own beat. A dark town has none.
+            if (lit)
+                foreach (var (feet, facing, variant) in Art.WorldArt.FortFolk(line, eye, Math.Max(start, from - 20), Math.Min(end, to + 20), gateAt, start == 0))
+                {
+                    var back = -ToF(facing);
+                    var right = Vector3.Cross(Vector3.UnitY, back);
+                    var m = Art.CreatureArt.Basis(V(feet, eye), right, Vector3.UnitY, back);
+                    float drab = 0.45f + variant % 3 * 0.05f;
+                    Look.Art.Creatures.Draw(mesh, "crew", "idle", Time + variant * 0.73, true, m, variant, seed: variant * 13,
+                        adjust: (_, l) => l with { Colour = l.Colour * new Vector3(drab, drab * 0.95f, drab * 0.9f) });
+                }
             return;
         }
         double a = Math.Max(start, from), b = Math.Min(end, to);
@@ -1148,6 +1162,15 @@ public sealed class GreyboxScene
         // surfaces go down in 2 m slices so the per-vertex lamp light has vertices to land on.
         foreach (var solid in shape.Solids)
         {
+            if (vehicle is not null && !solid.Present(vehicle))
+            {
+                // An open roof hatch's two leaves (T99), swung up on their hinges at the sides.
+                var lid = solid.Box;
+                double across = (lid.Max.X - lid.Min.X) / 2, thick = lid.Max.Y - lid.Min.Y;
+                Draw(new Box(new Double3(lid.Max.X, lid.Max.Y, lid.Min.Z), new Double3(lid.Max.X + thick, lid.Max.Y + across, lid.Max.Z)), Palette.IronGrey);
+                Draw(new Box(new Double3(lid.Min.X - thick, lid.Max.Y, lid.Min.Z), new Double3(lid.Min.X, lid.Max.Y + across, lid.Max.Z)), Palette.IronGrey);
+                continue;
+            }
             var colour = PartColour(solid.Part, frame.Index);
             var b = solid.Box;
             double length = b.Max.Z - b.Min.Z;
@@ -1175,8 +1198,14 @@ public sealed class GreyboxScene
         CarWorkings(mesh, frame, eye, Draw);
         if (!engine)
         {
-            // Roof walkway plank down the safe centreline.
-            Draw(new Box(new Double3(-0.35, shape.RoofHeight, -half + 0.2), new Double3(0.35, shape.RoofHeight + 0.04, half - 0.2)), Palette.TarnishedBrass);
+            // Roof walkway plank down the safe centreline (across a shut roof hatch, T99, and not an open one).
+            if (shape.Hatch is { } hatch && vehicle?.DoorOpen(CarShape.HatchBit) == true)
+            {
+                Draw(new Box(new Double3(-0.35, shape.RoofHeight, -half + 0.2), new Double3(0.35, shape.RoofHeight + 0.04, hatch.Min.Z)), Palette.TarnishedBrass);
+                Draw(new Box(new Double3(-0.35, shape.RoofHeight, hatch.Max.Z), new Double3(0.35, shape.RoofHeight + 0.04, half - 0.2)), Palette.TarnishedBrass);
+            }
+            else
+                Draw(new Box(new Double3(-0.35, shape.RoofHeight, -half + 0.2), new Double3(0.35, shape.RoofHeight + 0.04, half - 0.2)), Palette.TarnishedBrass);
         }
         // Doors: shut in the doorway, or slid aside when open: an end door along the end wall inside, a side door back
         // along the outside of the car (a boxcar's sliding door).

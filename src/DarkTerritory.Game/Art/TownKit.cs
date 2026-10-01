@@ -24,6 +24,34 @@ public static class TownKit
     }
 
     /// <summary>
+    /// A lived-in house inside a fortress's walls (T100 playtest: "fort villages should look like protected villages"):
+    /// whole, its size by <paramref name="variant"/>, no deeper than <see cref="LivedDepth"/> so it stands between the
+    /// line and the wall, and a lamp burning behind one or two of its front windows. Front faces −Z.
+    /// </summary>
+    public static MeshAsset LivedHouse(Look? look, int variant)
+    {
+        var k = new Kit(look, 1500 + variant);
+        var rng = new Random(7001 + variant);
+        float w = 5 + (float)rng.NextDouble() * 3, d = 4.5f + (float)rng.NextDouble() * (LivedDepth - 4.5f);
+        House(k, rng, w, d, 0);
+        // Lamplight behind the ground-floor glass: the windows House cut, one or two of them.
+        k.Use("window_lit", Palette.LampAmber, 0.1f, 0.3f, tile: 1);
+        k.Emissive = 1;
+        int lit = 0;
+        for (float x = -w / 2 + 1.2f; x < w / 2 - 0.8f && lit < 1 + variant % 2; x += 1.8f)
+            if (MathF.Abs(x) >= 0.7f)
+            {
+                k.Panel(new Vector3(x, 1.3f, -d / 2 - 0.02f), -Vector3.UnitZ, Vector3.UnitY, 0.7f, 1.0f, Vector2.Zero, Vector2.One);
+                lit++;
+            }
+        k.Emissive = 0;
+        return k.Build($"lived-house-{variant}");
+    }
+
+    /// <summary>The deepest a lived-in house is (front to back), so it fits inside a fortress's walls.</summary>
+    public const float LivedDepth = 6;
+
+    /// <summary>
     /// A house <paramref name="w"/> across (X) by <paramref name="d"/> deep (Z), centred on the kit's origin, front to −Z:
     /// a stop's village house, one per part of its footprint (level-design P9). <paramref name="rng"/> picks the rest.
     /// </summary>

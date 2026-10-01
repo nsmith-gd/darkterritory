@@ -45,6 +45,7 @@ public static class ArtCatalog
             list.Add(new($"car-{livery.ToString().ToLowerInvariant()}", Car, () => TrainKit.Car(look, cargo, livery, 0)));
         list.Add(new("guard", Car, () => TrainKit.Car(look, guard, TrainKit.Livery.Armoured, 0)));
         // A car's damage rides on its body (the car class's budget, what the body leaves of it: the kit's are 9-11k).
+        list.Add(new("hatch-lid", SmallProp, () => TrainKit.HatchLid(look, new System.Numerics.Vector3(1.4f, 0.15f, 2.4f))));
         list.Add(new("damage-1", MediumProp, () => DamageKit.Car(look, cargo, 1, 3)));
         list.Add(new("damage-2", MediumProp, () => DamageKit.Car(look, cargo, 2, 3)));
         list.Add(new("car-wrecked", Car, () =>
@@ -79,6 +80,7 @@ public static class ArtCatalog
         list.Add(new("gatehouse", LargeProp, () => StructureKit.Gatehouse(look)));
         list.Add(new("platform", StructureBay, () => StructureKit.PlatformBay(look, 1)));
         list.Add(new("house", LargeProp, () => TownKit.House(look, 1)));
+        list.Add(new("lived-house", LargeProp, () => TownKit.LivedHouse(look, 1)));
         list.Add(new("church", LargeProp, () => TownKit.Church(look)));
         list.Add(new("windmill", LargeProp, () => TownKit.Windmill(look)));
         list.Add(new("buffer-stop", MediumProp, () => StructureKit.BufferStop(look)));

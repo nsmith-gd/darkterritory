@@ -27,6 +27,8 @@ public static class Views
             "chase" => ChaseCamera(train),
             "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
             "gap" => GapCamera(train, car),
+            // From over the car behind, down at a cargo car's roof hatch (T99): its lid, shut, or open down the side.
+            "hatch" => Camera.LookAt(target.ToWorld(new Double3(4.2, roof + 2.2, 9.5)), target.ToWorld(new Double3(0.6, roof - 1.4, 3.2)), 70),
             // Over the last car's roof, looking back at its gun on its rail (T93).
             "gun" => GunCamera(train),
             // On the plate behind the tender, looking up its gangway into the cab and at the ladder to the cab roof (T90).

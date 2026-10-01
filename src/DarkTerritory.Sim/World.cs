@@ -24,6 +24,8 @@ public sealed class World
     {
         Train = train;
         Combat = combat;
+        // A roof hatch isn't shut down onto a casting the crane has hanging in it (T99).
+        train.HatchBlocked = car => Run?.CurrentSite?.Cranes.Any(c => c.InHatch(train, car)) == true;
         Choir = ChoirState.Quiet;
         if (combat is not null)
             Guns.Arm(train, combat.Guns);
