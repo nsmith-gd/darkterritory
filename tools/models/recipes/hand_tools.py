@@ -4,8 +4,8 @@ crewmate's fist: the origin is where the fist closes on it, the haft along +Y th
 
   * tool_crowbar: a 0.8 m hex bar of forged iron, rust under old black paint worn off where it's held; the goose-neck
     and its split claw at the far end, a chisel at the near, past the fist;
-  * tool_shovel: the fireman's coal scoop, crew.py's (its blade up from where the fist holds the ash haft, the D-grip at
-    the near end for the other hand), the blade's lip worn bright;
+  * tool_shovel: the fireman's coal scoop, crew.py's (the ash haft, the D-grip at the near end, the blade at the far),
+    carried one-handed up near the grip, the blade's lip worn bright;
   * tool_wrench: the engineering kit's spanner (T109), a long flat iron handle and an open jaw, its hex nut-end at the
     near end; the same tool TrainKit hangs on the cab's rack.
 
@@ -18,7 +18,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import cook  # noqa: E402
 import make  # noqa: E402
-from mathutils import Vector  # noqa: E402
+from mathutils import Matrix, Vector  # noqa: E402
 
 
 def materials():
@@ -30,13 +30,16 @@ def materials():
     }
 
 
-def build(name, fn, what, budget=900):
+def build(name, fn, what, budget=900, grip=0.0):
+    """`grip`: where along the haft the fist holds it one-handed, if not at the modelled origin (m along +Y)."""
     cook.reset()
     make.LOW.clear()
     make.USED.clear()
     make._mats.clear()
     m = materials()
     parts = fn(m)
+    for o in parts + list(make.LOW):
+        o.data.transform(Matrix.Translation((0, -grip, 0)))
     low = cook.bake_down(parts, name + "_low", 600, colour=None, size=512, cage=0.003, reach=0.01, low=list(make.LOW))[0]
     cook.finish(name, [low], budget=budget, grime=0.5, made=make.provenance("hand_tools", what))
 
@@ -91,5 +94,6 @@ def wrench(m):
 
 
 build("tool_crowbar", crowbar, "the crowbar")
-build("tool_shovel", shovel, "the fireman's shovel")
+# Carried one-handed up by the D-grip, the blade trailing low (two-handed at the firebox, it's crew.py's own shovel).
+build("tool_shovel", shovel, "the fireman's shovel", grip=-0.5)
 build("tool_wrench", wrench, "the engineering kit's wrench")

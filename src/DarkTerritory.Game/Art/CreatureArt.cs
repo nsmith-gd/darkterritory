@@ -450,8 +450,15 @@ public sealed class CreatureArt
     static bool OneHanded(CrewPose pose) =>
         pose is CrewPose.Idle or CrewPose.Walk or CrewPose.Run or CrewPose.Crouch or CrewPose.Fall or CrewPose.Swing or CrewPose.Mend or CrewPose.Door;
 
-    /// <summary>A hand tool's axes (its haft along −Z through the fist, up +Y) onto the hand_r_weapon socket's.</summary>
-    static readonly Matrix4x4 ToolGrip = Matrix4x4.Identity;
+    /// <summary>
+    /// A hand tool's axes (tools/models hand_tools: its haft along −Z through the fist, its face up +Y) onto the
+    /// hand_r_weapon socket's (its +Y out of the fist's thumb side, along the haft the crew's shovel takes; its −X the
+    /// back of the hand), tipped down by <see cref="ToolDroop"/> the way a wrist lets a bar hang.
+    /// </summary>
+    static readonly Matrix4x4 ToolGrip = Matrix4x4.CreateRotationX(ToolDroop) * new Matrix4x4(0, 0, 1, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 1);
+
+    /// <summary>How far a held tool's head drops from square to the fist (rad).</summary>
+    const float ToolDroop = -0.6f;
 
     /// <summary>
     /// A crewmate's own colour (look.json crewColours, by player id): the flying cap's leather and the scarf, the model's

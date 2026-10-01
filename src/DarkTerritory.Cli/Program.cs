@@ -1062,8 +1062,14 @@ static object ArtClip(string content, string name, string clip, string[] args)
         mesh.PointLights.Add(new PointLight(anchor + (-right * (float)(dist * 0.6) + new System.Numerics.Vector3(0, 2f, 0)) * near, new System.Numerics.Vector3(0.25f, 0.3f, 0.4f), (float)dist * 2.5f));
         // (--lift: the model raised off the floor, for one whose origin isn't at its feet: the Stoker's is the firebox door.)
         // (--variant n: one of the model's variants, a Soot Child's black eyes (1) or a real child's (0).)
-        art.Draw(mesh, name, clip, time, loop, System.Numerics.Matrix4x4.CreateTranslation(new System.Numerics.Vector3(0, (float)Opt(args, "--lift", 0), 0) - e),
-            (int)Opt(args, "--variant", 0));
+        var placed = System.Numerics.Matrix4x4.CreateTranslation(new System.Numerics.Vector3(0, (float)Opt(args, "--lift", 0), 0) - e);
+        // (--tool tool_crowbar: the crew with a hand tool in their fist, as SceneArt hangs it, for the clip's pose by its name.)
+        if (Str(args, "--tool", "") is { Length: > 0 } tool && name == "crew"
+            && Enum.TryParse<DarkTerritory.Game.Art.CrewPose>(clip.Replace("_idle", "").Replace("_", ""), true, out var pose))
+            art.Crewmate(mesh, placed, pose, time - ((int)Opt(args, "--variant", 0) & 7) * 0.41, (int)Opt(args, "--variant", 0),
+                inHand: DarkTerritory.Game.Art.PropArt.Of(look).Get(tool));
+        else
+            art.Draw(mesh, name, clip, time, loop, placed, (int)Opt(args, "--variant", 0));
         var light = look.Apply(FrameLighting.Night);
         light.FogDensity = 0.004f;
         light.LampRange = 0.01f;
