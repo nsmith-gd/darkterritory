@@ -29,7 +29,7 @@ public sealed class CreatureArt
     const float CarHalfWidth = 1.6f, RoofDrop = 3.6f;
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
-        "track_doll", "car_hugger", "tippy_toesie"];
+        "track_doll", "car_hugger", "tippy_toesie", "whistler"];
 
     /// <summary>A haunting Track Doll's turns aboard (App. A.2 HAUNT): this long over the cargo, then this long giggling.</summary>
     const double DollAdmires = 12, DollGiggles = 5;
@@ -144,6 +144,7 @@ public sealed class CreatureArt
         ["track_doll"] = 0.35f,
         ["car_hugger"] = 0.3f,
         ["tippy_toesie"] = 0.1f,   // (its dirt is baked: the grime's rust would warm the plaster)
+        ["whistler"] = 0.3f,
     };
 
     sealed class Entry(Model model, MaterialLook[] looks)
@@ -731,9 +732,25 @@ public sealed class CreatureArt
                         adjust: (mm, l) => mm.Name.EndsWith(".face", StringComparison.Ordinal) ? l with { Emissive = MathF.Max(l.Emissive, glow) } : l)
                         || Draw(mesh, "track_doll", "stand", ct, true, at, look, seed: 3);
                 }
+            case EnemyKind.Whistler when _models.ContainsKey("whistler"):
+                {
+                    // The gap-dweller (GDD v1.2 §21, App. A.4; tools/blender/whistler.py), its feet on the rail between the
+                    // cars (Enemy(e) drops it from the sim's gap point). Hidden, it's folded small under the bridge plate,
+                    // breathing: there to be found by whoever looks down into the gap. Whistling (extra), the long arm
+                    // shoots up out of the gap and yanks the cord; then it watches the gap's mouth, the head turning in
+                    // jerks. Carrying someone off, it runs on all fours.
+                    string clip = phase switch
+                    {
+                        SpinePhase.Dormant => "fold",
+                        SpinePhase.Telegraph when extra > 0.5 => "whistle",
+                        SpinePhase.Grab or SpinePhase.Punish or SpinePhase.BreakOff => "run",
+                        _ => "watch",
+                    };
+                    return Draw(mesh, "whistler", clip, t, true, model, seed: 41);
+                }
             case EnemyKind.Whistler:
                 {
-                    // Hidden in the gap it's crouched small; carrying someone off it runs, long and low (GDD v1.1 A.4).
+                    // (No model: the husk crouched small, running long and low.)
                     bool running = phase is SpinePhase.Grab or SpinePhase.Punish or SpinePhase.BreakOff;
                     var at = Matrix4x4.CreateScale(0.8f, 1.15f, 0.8f) * Matrix4x4.CreateRotationX(running ? -0.6f : 0) * model;
                     string clip = running ? "run" : "crouch_idle";
@@ -867,6 +884,25 @@ public sealed class CreatureArt
         var m = model;
         switch (e.Kind)
         {
+            case EnemyKind.Whistler when _models.ContainsKey("whistler"):
+                {
+                    // In its gap its origin is the sim's gap point, over the rail: its feet go on the rail, and it faces
+                    // whoever's looking (the eye: the model's translation is from it), so the one who checks the gap finds
+                    // its face turned up to them. Carrying someone, it runs away from the train (the loose basis faces it).
+                    if (e.Attached < 0)
+                    {
+                        m = Matrix4x4.CreateRotationY(MathF.PI) * model;
+                        break;
+                    }
+                    m = Matrix4x4.CreateTranslation(0, -(float)e.Local.Y, 0) * model;
+                    if (Matrix4x4.Invert(model, out var toModel))
+                    {
+                        var eye = Vector3.Transform(Vector3.Zero, toModel);
+                        if (eye.X * eye.X + eye.Z * eye.Z > 1e-6f)
+                            m = Matrix4x4.CreateRotationY(MathF.Atan2(-eye.X, -eye.Z)) * m;
+                    }
+                    break;
+                }
             case EnemyKind.TippyToesie when _models.ContainsKey("tippy_toesie"):
                 {
                     // Hidden between tries (the sim's Dormant): nowhere, but for the moment it's seen scuttling off from

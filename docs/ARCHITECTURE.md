@@ -2049,3 +2049,22 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `crew`, `crewside`, `inside` and `door` are views left out of `Views.Names`, so the perf budgets don't walk them.
       - `dt art clip tippy_toesie <clip>` renders each clip as a contact sheet.
       - `CreatureArtTests` pins its budget and clips. `TippyToesieTests` pins its fit, its room reading, that it's hidden while dormant, and where it stands on its victim.
+111. **The Whistler's model (GDD v1.2 §21, App. A.4).** It was the husk crouched small. Now it's its own (`tools/blender/whistler.py`, baked by `tools/models/recipes/whistler.py`, 4,240 triangles, 27 bones).
+    - **The design.** A long thing folded small. Stood up it's over two metres, all limb, but it lives crammed under the bridge plate in a coupling gap, soot-black and slick with the couplers' grease.
+      - **Its face** is the one pale thing on it: a mask of grey-white skin over the whole long skull. The eyes are grown over, healed in puckered rings like stitching, and the mouth is drawn out into a creased tube, pursed for ever to whistle.
+      - **Its right forearm** is a third as long again, for the cord.
+      - **A loop of rusted coupling chain** has grown into its waist, the skin sore round it.
+    - **Clips.**
+      - **fold:** squatting as low as it goes, arms round its shins, its chin on its knees and the face looking out over them; it breathes.
+      - **whistle:** up out of the gap on its toes, all its length, the long arm hooked over the cord 3 m up, yanking twice.
+      - **watch:** a crouch at the gap's mouth on toes and knuckles, the head turning in jerks.
+      - **run:** on all fours, too fast.
+      - **hit**.
+    - **In the engine.**
+      - It stands on the rail: the sim's gap point is 0.6 m over it, so the draw drops it by its `Local.Y`.
+      - **In its gap it faces whoever's looking** (the eye, as the Track Doll's head does): the one who checks the gap finds the pale face turned up to them. The brief asks that it be spottable by a player who checks. The stand-in faced down the gap and was a dark lump.
+      - Carrying someone (GRAB), it runs away from the train.
+    - **The foot planter moves the body after the IK.** `rig.bake`'s planter drops the whole body to the floor once a pose is made, so a hand IK'd to an absolute height (on a shin, on the ground) ended up 0.7 m under the floor. The Whistler's targets are taken from the pose instead: `knee(pose)`, `ground(pose)`. That applies to any crouching creature.
+    - **Headless.**
+      - `dt screenshot --threats --whistler fold|whistle|watch --view gapside --car 3`. `gapside` is a view from the ballast beside a gap, looking in under the plate; like `crew`, it's left off `Views.Names`.
+      - `WhistlerTests`: folded it fits under the plate, whistling it rises over the head of anyone on it, its feet are on the rail, and it faces the eye.
