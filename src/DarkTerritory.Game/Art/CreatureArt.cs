@@ -29,7 +29,7 @@ public sealed class CreatureArt
     const float CarHalfWidth = 1.6f, RoofDrop = 3.6f;
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
-        "track_doll", "car_hugger", "tippy_toesie", "whistler"];
+        "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit"];
 
     /// <summary>A haunting Track Doll's turns aboard (App. A.2 HAUNT): this long over the cargo, then this long giggling.</summary>
     const double DollAdmires = 12, DollGiggles = 5;
@@ -68,6 +68,34 @@ public sealed class CreatureArt
 
     // Set by Enemy(e, prey) for the one draw it makes, as _biteGrip.
     Prey? _prey;
+
+    // A Ribbit's tongue goes to its catch's chest (a crewmate's 1.8 m, tools/blender/crew.py), this high, this thick at the
+    // root (m), sagging this much of its length.
+    const float RibbitTongueAt = 1.15f, RibbitTongueThick = 0.035f, RibbitTongueSag = 0.06f;
+
+    // "Giant toad-rabbits" (GDD §21): the model's a big dog's size, drawn this much bigger (its head at a crewmate's waist).
+    const float RibbitScale = 1.4f;
+
+    /// <summary>
+    /// The tongue, out from the mouth <paramref name="a"/> to its catch at <paramref name="b"/> (camera-relative): wet,
+    /// dark red, thinning to its tip, sagging a little, and twitching taut as it reels (GDD App. A.6 TONGUE).
+    /// </summary>
+    void Tongue(MeshBuilder mesh, Vector3 a, Vector3 b, float t)
+    {
+        var k = new Kit(Look, mesh);
+        k.Use("flesh", new Vector3(0.22f, 0.05f, 0.05f), 0.2f, 0.85f);
+        const int n = 8;
+        float len = Vector3.Distance(a, b);
+        float sag = RibbitTongueSag * len * (0.7f + 0.3f * MathF.Sin(t * 9));
+        Vector3 At(float u) => Vector3.Lerp(a, b, u) - Vector3.UnitY * (sag * 4 * u * (1 - u));
+        for (int i = 0; i < n; i++)
+        {
+            float u0 = i / (float)n, u1 = (i + 1) / (float)n;
+            k.Cylinder(At(u0), At(u1), RibbitTongueThick * (1 - 0.55f * u0), 8, caps: false, radiusB: RibbitTongueThick * (1 - 0.55f * u1));
+        }
+        // Its tip spread over them, a pad.
+        k.Cylinder(b - Vector3.Normalize(b - a) * 0.02f, b + Vector3.Normalize(b - a) * 0.02f, RibbitTongueThick * 1.4f, 8);
+    }
     Room _room;
 
     /// <summary>
@@ -145,6 +173,7 @@ public sealed class CreatureArt
         ["car_hugger"] = 0.3f,
         ["tippy_toesie"] = 0.1f,   // (its dirt is baked: the grime's rust would warm the plaster)
         ["whistler"] = 0.3f,
+        ["ribbit"] = 0.25f,
     };
 
     sealed class Entry(Model model, MaterialLook[] looks)
@@ -825,9 +854,40 @@ public sealed class CreatureArt
                     mesh.PointLights.Add(new PointLight(model.Translation, Palette.FurnaceOrange * 0.8f, 4f));
                     return true;
                 }
+            case EnemyKind.Ribbit when _models.ContainsKey("ribbit"):
+                {
+                    // The toad-rabbit (GDD v1.2 §21, App. A.6; tools/blender/ribbit.py). Nobody to go for, it sits, dead
+                    // still but for its throat; after someone, it hops in the sim's bursts (Enemy(e) phases the clip to its
+                    // id); lined up to strike (TELEGRAPH), it sits up tall and its sac swells; on them, mouth gaping, its
+                    // tongue's out to them (drawn here, from its mouth to their chest) and it reels.
+                    var prey = _prey;
+                    _prey = null;
+                    bool hunting = extra >= 0;
+                    switch (phase)
+                    {
+                        case SpinePhase.Telegraph:
+                            return Draw(mesh, "ribbit", "swell", t, true, model, seed: (float)extra2);
+                        case SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish:
+                            {
+                                Vector3? mouth = null;
+                                var at = model;
+                                bool drawn = Draw(mesh, "ribbit", "tongue", t, true, at, e =>
+                                {
+                                    int jaw = e.Model.Skeleton.IndexOf("tongue_02");
+                                    if (jaw >= 0)
+                                        mouth = Vector3.Transform(e.Pose.World[jaw].Translation, at);
+                                }, seed: (float)extra2);
+                                if (drawn && mouth is { } a && prey is { } p)
+                                    Tongue(mesh, a, p.Feet + Vector3.UnitY * RibbitTongueAt, (float)t);
+                                return drawn;
+                            }
+                        default:
+                            return Draw(mesh, "ribbit", hunting && phase == SpinePhase.Dormant ? "hop" : "sit", t, true, model, seed: (float)extra2);
+                    }
+                }
             case EnemyKind.Ribbit:
                 {
-                    // A giant toad-rabbit (GDD v1.1 A.6): the hound's body squat and wide, mottled olive. Lined up to strike it
+                    // (No model: the hound's body squat and wide, mottled olive.) Lined up to strike it
                     // crouches (the throats swell: the tell); tongues out, it lunges; otherwise it hops in bursts.
                     var at = Matrix4x4.CreateScale(1.25f, 0.7f, 0.8f) * model;
                     var (clip, loop, ct) = phase switch
@@ -884,6 +944,26 @@ public sealed class CreatureArt
         var m = model;
         switch (e.Kind)
         {
+            case EnemyKind.Ribbit when _models.ContainsKey("ribbit"):
+                {
+                    // It faces who the pack's after; hopping, its leap is in step with the sim's (Ribbit.Hop: a leap on
+                    // the half seconds its id puts it on).
+                    if (prey is { } p)
+                    {
+                        var (r, _, b) = Basis(model);
+                        var to = p.Feet - model.Translation;
+                        float x = Vector3.Dot(to, r), z = Vector3.Dot(to, b);
+                        if (x * x + z * z > 1e-6f)
+                        {
+                            var at = model.Translation;
+                            m = Matrix4x4.CreateRotationY(MathF.Atan2(-x, -z)) * model;
+                            m.Translation = at;
+                        }
+                        _prey = p;
+                    }
+                    return Enemy(mesh, Matrix4x4.CreateScale(RibbitScale) * m, e.Kind, e.Phase, e.PhaseSeconds + (e.Id & 1) * 0.5, e.Extra, e.Health,
+                        aboard: false, extra2: e.Id);
+                }
             case EnemyKind.Whistler when _models.ContainsKey("whistler"):
                 {
                     // In its gap its origin is the sim's gap point, over the rail: its feet go on the rail, and it faces

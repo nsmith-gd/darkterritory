@@ -51,6 +51,8 @@ public class CreatureArtTests
         ["tippy_toesie"] = new(3000, 9000, 20, 60, ["stalk", "wait", "flee", "smother", "stoop", "stalk_stoop", "duck"], ["hit"]),
         // A character (App. A.4), SK_Human stretched, its right forearm long for the cord: it folds up to fit a coupling gap.
         ["whistler"] = new(3000, 9000, 20, 60, ["fold", "whistle", "watch", "run"], ["hit"]),
+        // A beast's (App. A.6), on its own rig (SK_Ribbit): a throat sac to swell, a jaw, a tongue, long ears.
+        ["ribbit"] = new(2000, 8000, 20, 40, ["sit", "hop", "swell", "tongue"], ["hit"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -421,6 +423,7 @@ public class CreatureArtTests
         "car_hugger" => (new Vector3(-0.2f, 0.4f, 1.5f), 3.6f),
         "tippy_toesie" => (Vector3.Zero, 2.5f),
         "whistler" => (Vector3.Zero, 2.3f),
+        "ribbit" => (Vector3.Zero, 1.1f),
         _ => (Vector3.Zero, 1.9f),
     };
 

@@ -47,6 +47,38 @@ public static class Staging
     }
 
     /// <summary>
+    /// The staged Ribbit pack as it goes (<c>dt screenshot --ribbits</c>): <c>hop</c> after crewmate 4 (alone on the ground
+    /// off the train's left, <see cref="Lone"/>), <c>swell</c> lined up on them (App. A.6 TELEGRAPH), <c>tongue</c> on them
+    /// (GRAB). Without a mode, they're as <see cref="Threats"/> has them.
+    /// </summary>
+    public static List<Enemy> Ribbits(List<Enemy> threats, string mode)
+    {
+        if (mode.Length == 0)
+            return threats;
+        var phase = mode switch
+        {
+            "hop" => SpinePhase.Dormant,
+            "swell" => SpinePhase.Telegraph,
+            "tongue" => SpinePhase.Grab,
+            _ => throw new ArgumentException($"--ribbits {mode}: hop, swell or tongue"),
+        };
+        foreach (var r in threats.OfType<Ribbit>())
+            r.Restore(phase, 0.3 + 0.21 * (r.Id - 60), r.Health, r.Attached, r.Local, 0, 0, 0, LoneId, 0);
+        return threats;
+    }
+
+    /// <summary>Crewmate 4, alone on the ground off the second car's left, facing the Ribbits there (they're after them).</summary>
+    public static Crewmate Lone(TrainOnLine train)
+    {
+        var side = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+        var at = side.ToWorld(new Double3(-(side.Shape.HalfWidth + 2.2), 0, -1.5));
+        var toward = side.ToWorld(new Double3(-(side.Shape.HalfWidth + 5), 0, -1.5)) - at;
+        return new Crewmate(LoneId, at, Math.Atan2(-toward.X, -toward.Z), true, default, default);
+    }
+
+    public const byte LoneId = 4;
+
+    /// <summary>
     /// The staged Whistler as it goes (<c>dt screenshot --whistler</c>): <c>fold</c> hidden in its gap (App. A.4 HIDE),
     /// <c>whistle</c> pulling the cord, <c>watch</c> watching the gap's mouth after (WAIT). The <c>gapside</c> view looks in.
     /// </summary>
