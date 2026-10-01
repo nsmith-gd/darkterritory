@@ -18,6 +18,8 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   fall                in the air: arms up, legs gathered
   swing               an overhead blow with whatever's in the right hand (App. C.2)
   mend                down at the firebox with the wrench, ratcheting (T109's engineering kit)
+  fp_hold, fp_walk    first person (X3): the tool held up in view, the eye at EYE (CreatureArt.OwnArms puts it at the camera)
+  fp_swing            first person: the blow, as long as the melee's recovery (enemies.json melee.swingSeconds, 0.8 s)
 In place, 30 fps, like crew.py's; the root never travels (the sim moves the crewmate).
 
     blender -b --python tools/blender/crew_clips.py -- content/art/models/crew_clips.glb
@@ -316,6 +318,42 @@ for f, a in ((0, 0.0), (7, 1.0), (10, 1.0), (18, 0.0)):
     mend.key(f, arm_to(arm_to(over(MEND, spine_02=(-10 - 3 * a, 0, -2 * a)), "r", r), "l", BRACE, grip=20), "LINEAR" if f == 7 else "BEZIER")
 mend.close(24)
 clips.append(mend)
+
+# --- first person: only the forearms and hands are drawn (CreatureArt.OwnArms), from the eye --------------------
+# The eye: over the head bone's root, a little forward (the mask's eyepieces). Hands placed from it: the right low and
+# out to the right with the tool up in view, the left lower, at the edge of it.
+EYE = Vector((0.0, 0.1, 1.68))
+FP_R, FP_L = tuple(EYE + Vector((0.19, 0.44, -0.2))), tuple(EYE + Vector((-0.22, 0.42, -0.27)))
+
+
+def fp(r, l, wrist=(65, 0, 90)):
+    """Both hands placed, the right wrist turned so what it holds stands up out of the fist and leans in across the view
+    (the socket's haft, hand_r_weapon's +Y, is forward at rest; `wrist` is its world turn from there: rig.hang)."""
+    p = hands(STAND, r, l)
+    p["hand_r"] = rig.hang(sk, p, "hand_r", *wrist)
+    return p
+
+
+fp_hold = Clip("fp_hold")
+fp_hold.key(0, fp(FP_R, FP_L))
+fp_hold.key(30, fp(at(FP_R, dz=-0.008, dx=0.003), at(FP_L, dz=-0.01)))
+fp_hold.key(50, fp(at(FP_R, dz=0.004), at(FP_L, dz=0.002, dx=-0.004)))
+fp_hold.close(72)
+clips.append(fp_hold)
+fp_walk = Clip("fp_walk")
+for f, (dx, dz) in ((0, (0.0, -0.02)), (8, (0.012, 0.0)), (15, (0.0, -0.02)), (23, (-0.012, 0.0))):
+    fp_walk.key(f, fp(at(FP_R, dx=dx, dz=dz), at(FP_L, dx=dx * 0.6, dz=dz * 1.2)))
+fp_walk.close(30)
+clips.append(fp_walk)
+# The blow: drawn back up by the right ear, the bar laid back over the shoulder; brought down hard across and through, to
+# low left; back up. (The wrist cocks back as it rises and snaps over as it comes down.)
+fp_swing = Clip("fp_swing", loop=False)
+fp_swing.key(0, fp(FP_R, FP_L))
+fp_swing.key(7, fp(tuple(EYE + Vector((0.3, 0.12, 0.02))), at(FP_L, dz=0.04, dx=0.06), wrist=(150, 0, 90)))
+fp_swing.key(11, fp(tuple(EYE + Vector((0.0, 0.5, -0.32))), at(FP_L, dz=-0.04, dx=-0.04), wrist=(20, 0, 70)), "LINEAR")
+fp_swing.key(14, fp(tuple(EYE + Vector((-0.1, 0.46, -0.46))), at(FP_L, dz=-0.05, dx=-0.05), wrist=(0, 0, 60)))
+fp_swing.key(24, fp(FP_R, FP_L))
+clips.append(fp_swing)
 
 kit.build()
 rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"carry", "carry_walk", "drag", "door", "handbrake", "hatch",

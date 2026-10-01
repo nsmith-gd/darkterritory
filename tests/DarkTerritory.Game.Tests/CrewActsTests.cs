@@ -78,4 +78,41 @@ public class CrewActsTests
         // The pan, the clip's sat height over those feet: the cannon's seat 0.42 under the pivot.
         Assert.Equal(mount.Position.Y + TrainKit.CannonSeat.Y, seat.Position.Y + CrewActs.GunnerPan, 3);
     }
+
+    [Fact]
+    public void YourOwnArmsAreTheCrewsForearmsAndGlovesInView()
+    {
+        var look = Look.Load(Content);
+        var art = new CreatureArt(look, Content);
+        var bar = PropArt.Of(look).Get("tool_crowbar");
+        Assert.NotNull(bar);
+        // Empty hands at your sides: nothing of you is in view.
+        var mesh = new Ballast.Render.MeshBuilder();
+        Assert.True(art.OwnArms(mesh, 0, 0, null, false, -1, 0, 1));
+        Assert.Empty(mesh.Instances);
+        // A tool in hand: the arms (a cut of the crew mesh, only forearms and gloves) and the tool, in front of the eye.
+        Assert.True(art.OwnArms(mesh, 0, 0, null, false, -1, 0, 1, bar));
+        var arms = mesh.Instances.Single(i => i.Asset.Skin is not null);
+        int whole = art.Get("crew")!.Parts.Sum(p => p.Indices.Length / 3);
+        Assert.InRange(arms.Asset.Triangles, 100, whole / 3);
+        // The tool's appended to the mesh: in front of the eye (the mesh's origin), up from the right fist and leaning in
+        // across the view, so its middle is about the middle.
+        var at = Middle(mesh);
+        Assert.True(at.Z < -0.2f, $"the tool at {at}");
+        Assert.InRange(at.Y, -0.45f, 0.2f);
+        Assert.InRange(at.X, -0.1f, 0.4f);
+        // Turned to look behind you, it turns with you.
+        mesh.Clear();
+        art.OwnArms(mesh, MathF.PI, 0, null, false, -1, 0, 1, bar);
+        Assert.True(Middle(mesh).Z > 0.2f);
+    }
+
+    static System.Numerics.Vector3 Middle(Ballast.Render.MeshBuilder mesh)
+    {
+        Assert.True(mesh.Count > 0);
+        var sum = System.Numerics.Vector3.Zero;
+        foreach (var v in mesh.Vertices)
+            sum += v.Position;
+        return sum / mesh.Count;
+    }
 }

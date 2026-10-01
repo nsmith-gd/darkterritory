@@ -58,6 +58,9 @@ public sealed class GreyboxScene
     /// last snapshot put it (T92 playtest: a carried crate trailed the view and stepped at the snapshot rate).
     /// </summary>
     public (int Player, Double3 Hands, double Yaw)? HeldHere { get; set; }
+    /// <summary>You as your own eyes see you (X3): your forearms and hands, and the tool in them; null for none (a chase
+    /// camera, a headset's own hands, the dead).</summary>
+    public OwnView? Own { get; set; }
     /// <summary>Other players, drawn as greybox figures.</summary>
     public IReadOnlyList<Crewmate>? Crew { get; set; }
     /// <summary>For a still frame (<c>dt screenshot</c>), how fast staged enemies are going (m/s, by id): one frame can't measure it (Pace).</summary>
@@ -300,6 +303,8 @@ public sealed class GreyboxScene
             foreach (var c in Crew)
                 if (c.Alive && Look?.Art.Crewmate(mesh, c, eye, Time) != true) // the dead are drawn as their bodies
                     DrawCrewmate(mesh, c, eye);
+        if (Own is { } own)
+            Look?.Art.OwnArms(mesh, own, Time);
         Lap(mesh, "bodies and crew");
     }
 

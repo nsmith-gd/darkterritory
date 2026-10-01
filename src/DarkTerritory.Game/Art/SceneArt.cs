@@ -61,16 +61,21 @@ public sealed partial class SceneArt(Look look)
             if (r != Arms.Hanging(1))
                 rightHand = ToF(r);
         }
-        var tool = c.Holding switch
-        {
-            Sim.Player.Tool.Crowbar => "tool_crowbar",
-            Sim.Player.Tool.Shovel => "tool_shovel",
-            Sim.Player.Tool.Wrench => "tool_wrench",
-            _ => null,
-        };
-        return Creatures.Crewmate(mesh, m, pose, time, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)),
-            tool is null ? null : PropArt.Of(Look).Get(tool));
+        return Creatures.Crewmate(mesh, m, pose, time, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), ToolProp(c.Holding));
     }
+
+    /// <summary>Your own forearms and hands in view, with the tool in them (X3). False without the crew model.</summary>
+    public bool OwnArms(MeshBuilder mesh, in OwnView own, double time) =>
+        Creatures.OwnArms(mesh, own.Yaw, own.Pitch, own.Act, own.Moving, own.Swing, time, own.Variant, ToolProp(own.Holding));
+
+    /// <summary>A hotbar tool's model (tools/models hand_tools), or null for none.</summary>
+    MeshAsset? ToolProp(Sim.Player.Tool tool) => tool switch
+    {
+        Sim.Player.Tool.Crowbar => PropArt.Of(Look).Get("tool_crowbar"),
+        Sim.Player.Tool.Shovel => PropArt.Of(Look).Get("tool_shovel"),
+        Sim.Player.Tool.Wrench => PropArt.Of(Look).Get("tool_wrench"),
+        _ => null,
+    };
 
     static Vector3 ToF(Double3 d) => new((float)d.X, (float)d.Y, (float)d.Z);
 

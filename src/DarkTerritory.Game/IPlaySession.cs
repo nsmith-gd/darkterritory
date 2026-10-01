@@ -19,6 +19,11 @@ public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool A
     public int Variant => Looks ?? Id;
 }
 
+/// <summary>You, for your own arms in view (X3, <see cref="CreatureArt.OwnArms"/>): which way you face and look, what you're
+/// doing (<see cref="CrewActs.Of"/>), whether you're walking, how far into a swing you are (negative: not swinging), whose
+/// look is yours, the tool in your hand.</summary>
+public readonly record struct OwnView(float Yaw, float Pitch, CrewPose? Act, bool Moving, double Swing, int Variant, Tool Holding);
+
 /// <summary>
 /// A line of the crew roster (T69): who, where, and whether they're alive. <paramref name="Id"/> is the player id the line
 /// is for; a Passenger's line has the id of the face it wears (App. A.7 "appears on the roster"), so it sits beside theirs,
