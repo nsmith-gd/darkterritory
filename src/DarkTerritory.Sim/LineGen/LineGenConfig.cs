@@ -106,7 +106,11 @@ public sealed record BudgetCurve(double Opening, double Middle, double FinalAppr
     double LullBeforeM, double LullAfterM, double RecoveryShare);
 
 /// <summary>§8.5 curve limits and §8.1 transition lengths.</summary>
-public sealed record CurveRules(double ADerail, double APost, double TransitionMinM, double TransitionSpeedFactor, double TransitionMaxM);
+public sealed record CurveRules(double ADerail, double APost, double TransitionMinM, double TransitionSpeedFactor, double TransitionMaxM)
+{
+    /// <summary>T111: a curve that derails below this (m/s, the engine's top speed on full steam) is boarded whatever the line speed.</summary>
+    public double BoardDerailBelow { get; init; } = 22;
+}
 
 /// <summary>§9.3 and §16.2.</summary>
 public sealed record ReactionRules(double TReactS, double SloppySpeedFactor, double SloppyTReactS, RouteTier SloppyUpToTier);
