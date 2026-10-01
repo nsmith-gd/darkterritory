@@ -57,6 +57,11 @@ public sealed class Body
     public double Charge { get; set; } = 1;
     /// <summary>An extinguisher's car: its mount is there (the car it hangs in), or −1.</summary>
     public int Home { get; set; } = -1;
+    /// <summary>
+    /// Facility freight's cargo (App. B.8: the facility's, facilities.json "cargo"), so its crate shows what's in it (GDD §19
+    /// "physically aboard and readable"); <see cref="CargoKind.None"/> for a stop's loot crates and everything else.
+    /// </summary>
+    public CargoKind Cargo { get; set; }
     internal int Airborne;
     internal double LineHint;
     public Double3 Centre => Pbd.Centre;
@@ -125,12 +130,12 @@ public sealed class Bodies
         return b;
     }
 
-    /// <summary>A crate of freight on the ground at a facility, in the world frame; given a <paramref name="heavy"/> radius, one that takes two.</summary>
-    public Body SpawnCargo(Double3 world, double lineHint, double? heavy = null)
+    /// <summary>A crate of freight on the ground at a facility, in the world frame; given a <paramref name="heavy"/> radius, one that takes two; holding <paramref name="cargo"/>.</summary>
+    public Body SpawnCargo(Double3 world, double lineHint, double? heavy = null, CargoKind cargo = CargoKind.None)
     {
         double radius = heavy ?? 0.45;
         var pbd = new PbdBody([new Particle(world + Double3.Up * radius, 1, radius)]) { Friction = 0.35, Bounce = 0.05 };
-        var b = new Body(_nextId++, heavy is null ? BodyKind.Cargo : BodyKind.Heavy, PlayerState.World, pbd) { LineHint = lineHint };
+        var b = new Body(_nextId++, heavy is null ? BodyKind.Cargo : BodyKind.Heavy, PlayerState.World, pbd) { LineHint = lineHint, Cargo = cargo };
         _bodies.Add(b);
         return b;
     }

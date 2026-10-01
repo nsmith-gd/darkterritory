@@ -295,3 +295,47 @@ def paper_form(ctx):
     ctx.src.used += font_sources()
     return ctx.out(d, s, g, tiling=False, factor=K, procedural="form stock, typed order, pencil, creases, stains",
                    grain=0.035, quant=64)
+
+
+# --- car numbers ------------------------------------------------------------------------------
+
+@texture("stencil_numerals", "paper", tile=None)
+def stencil_numerals(ctx):
+    """The cars' stencilled numbers (GDD §32: something players can say out loud, "car four"): the digits 0-9 in a
+    5 x 2 atlas (each cell 0.2 x 0.5 of it, digit k at column k % 5, row k // 5), stencil-cut white paint, the bridges
+    left in the counters, chipped and dirtied, the rest cut away (alpha test) so a digit lies on any car's side."""
+    K = 2
+    H, W = 512 * K, 1024 * K
+    cw, ch = W // 5, H // 2
+    mask = Image.new("L", (W, H), 0)
+    dr = ImageDraw.Draw(mask)
+    f = font("sans_bold", int(ch * 0.86))
+    for k in range(10):
+        cx, cy = (k % 5) * cw + cw / 2, (k // 5) * ch + ch / 2
+        box = dr.textbbox((0, 0), str(k), font=f)
+        dr.text((cx - (box[0] + box[2]) / 2, cy - (box[1] + box[3]) / 2), str(k), fill=255, font=f)
+    m = np.asarray(mask, np.float32) / 255
+    xs, ys = noise.grid(H, W)
+    # The stencil's bridges: a narrow band across each digit at a third and two thirds of its height, where the
+    # cut sheet held its counters (so a 0 or an 8 is two pieces of paint, as painted through a plate).
+    yc = (ys % ch) / ch
+    for b in (0.36, 0.64):
+        m = m * (1 - np.exp(-((yc - b) / 0.012) ** 6))
+    # Overspray soft round the edges, then worn: chips where the paint's gone, thin where it was dabbed.
+    wear = noise.fbm01(ctx.rng("wear"), (H, W), 6 * K, octaves=4)
+    chips = smoothstep(0.72, 0.8, noise.fbm01(ctx.rng("chip"), (H, W), 3 * K, octaves=3))
+    m = noise.blur(m, 1.2 * K)
+    alpha = saturate((m - 0.5) * 6 + 0.5) * (1 - chips)
+    alpha = saturate((alpha - 0.25 * wear) * 2.2)
+    paint = core.apply_ramp(saturate(0.55 + 0.35 * wear), ["#6E6A60", "#9C968A", "#BDB6A6", "#CFC8B6"])
+    # Soot and rust run down off the top of each stroke.
+    runs = noise.fbm01(ctx.rng("runs"), (H, W), 2 * K, octaves=3, stretch=(0.15, 4))
+    d = lerp(paint, paint * 0.55 + hexc("#4A3424") * 0.45, smoothstep(0.6, 0.8, runs) * 0.6)
+    a = alpha[..., None]
+    bleed = noise.blur(d * a, 6) / np.maximum(noise.blur(alpha, 6)[..., None], 1e-3)
+    d = d * a + bleed * (1 - a)
+    s = np.full((H, W), 0.06, np.float32)
+    g = np.full((H, W), 0.2, np.float32)
+    ctx.src.used += font_sources()
+    return ctx.out(d, s, g, alpha=alpha, tiling=False, alpha_test=True, factor=K,
+                   procedural="stencilled digits (DejaVu Sans Bold), bridges, overspray, chips, soot runs")

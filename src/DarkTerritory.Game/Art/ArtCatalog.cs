@@ -106,6 +106,9 @@ public static class ArtCatalog
                     "hand_lantern" or "skull" => MediumProp,
                     // What the crew carry (the physics bodies' models, tools/models make): picked up and seen close.
                     "stores_crate" or "heavy_crate" or "field_radio" => MediumProp,
+                    // The train's stores (train_stores): the toys, the extinguisher and its board, the kit, the powder.
+                    _ when n.StartsWith("toy_", StringComparison.Ordinal) => MediumProp,
+                    "extinguisher" or "extinguisher_mount" or "repair_kit" or "shot_locker" or "powder_bag" => MediumProp,
                     _ when n.StartsWith("freight_", StringComparison.Ordinal) => MediumProp,
                     "boy_room" or "wake_room" or "portrait_room" => Interior,
                     _ => LargeProp,
