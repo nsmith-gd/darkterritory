@@ -85,7 +85,8 @@ public static class AudioBench
         return new AudioSweep(scenario, cars, speed, audit, reports);
     }
 
-    /// <param name="scenario">"bed" (train only), "tells" (quiet train, every demo tell) or "chaos" (everything at once).</param>
+    /// <param name="scenario">"bed" (train only), "tells" (quiet train, every demo tell), "chaos" (everything at once) or
+    /// "wreck" (the train derails, heard from beside the line).</param>
     /// <param name="listenerCar">0 = in the cab; otherwise on that car's roof.</param>
     public static (AudioBenchReport Report, float[] Mix) Render(string content, string scenario = "chaos", int cars = 20, double speed = 22,
         int listenerCar = 5, double seconds = 6)
@@ -97,9 +98,12 @@ public static class AudioBench
         var line = RailLine.Load(Path.Combine(content, "lines", "test-loop.json"));
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(trainTuning, cars, 1)), line, cars * 16.0 + 200, boilerTuning);
         train.Dynamics.Velocity = speed;
-        var world = new World(train, combat);
+        var world = new World(train, combat) { WreckTuning = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File)) };
         var audio = new GameAudio(content);
         bool chaos = scenario == "chaos", tells = chaos || scenario == "tells";
+        // "wreck" (T117): the train comes off half a second in, heard from beside the line where the engine left it.
+        bool wreck = scenario == "wreck";
+        Double3? trackside = null;
         var controls = new TrainControls { Throttle = chaos ? 1 : 0.5, Reverser = 1 };
         listenerCar = Math.Clamp(listenerCar, 0, train.Frames.Count - 1);
 
@@ -129,14 +133,20 @@ public static class AudioBench
                     world.Whistled(1); // the Whistler at the cord (App. A.4), or someone on it
                     world.MirrorEnemies(Staging.Threats(train));
                 }
+                if (wreck && train.Wreck is null && simClock >= 0.5)
+                {
+                    world.Derail("dt audio render wreck");
+                    trackside = train.Frames[0].ToWorld(new Double3(14, 1.7, 30));
+                }
                 world.Step(controls);
-                train.Dynamics.Velocity = speed; // hold the moment still in speed
+                if (train.Wreck is null)
+                    train.Dynamics.Velocity = speed; // hold the moment still in speed
                 if (chaos)
                     train.Boiler.SafetyValveLifting = true;
                 var player = listenerCar == 0 ? PlayerMotor.SpawnInCab(train, playerTuning) : PlayerMotor.SpawnOnRoof(train, listenerCar, 0, playerTuning);
                 var frame = train.Frames[player.Parent];
-                var ear = frame.ToWorld(player.Position + Double3.Up * 1.65);
-                audio.Update(world, controls, Listener.At(ear, frame.Heading + player.Yaw), exposed: listenerCar != 0, SimConstants.TickSeconds);
+                var ear = trackside ?? frame.ToWorld(player.Position + Double3.Up * 1.65);
+                audio.Update(world, controls, Listener.At(ear, frame.Heading + player.Yaw), exposed: listenerCar != 0 || trackside is not null, SimConstants.TickSeconds);
                 if (chaos && (int)(simClock * 3) != (int)((simClock - SimConstants.TickSeconds) * 3))
                 {
                     int guard = train.Dynamics.Consist.Vehicles[^1].Id;

@@ -115,7 +115,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         }
         start = Start ?? start;
         var train = new TrainOnLine(new TrainDynamics(consist), line, start, boiler);
-        var world = new World(train, combat);
+        var world = new World(train, combat) { WreckTuning = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File)) };
         if (route is not null)
         {
             var routeTuning = RouteTuning.Load(content);
@@ -176,6 +176,10 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public SessionSetup Setup { get; }
     public Route? Route { get; }
     public TrainOnLine Train => Client.Train;
+    /// <summary>Seconds since this client first saw the train come off (T117), host or not: the wreck's own clock is the host's.</summary>
+    public double WreckSeconds { get; private set; }
+    /// <summary>The derailment's cinematic: the camera off the eye and on the wreck, the run's end held back till it's over.</summary>
+    public bool WreckCinematic => Train.Wreck is not null && WreckSeconds < World.WreckTuning.CinematicSeconds;
     public World World => Client.World;
     public PlayerState Player => Client.Predicted;
     public TrainControls Controls => Client.Controls;
@@ -431,6 +435,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         _previous = Client.Predicted;
         Client.Step(Spectate(intent));
+        WreckSeconds = Train.Wreck is null ? 0 : WreckSeconds + SimConstants.TickSeconds;
         Tick++;
         if (!_link.IsConnected && Client.Connected)
             Lost = true;

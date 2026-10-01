@@ -36,6 +36,10 @@ public interface IPlaySession
 {
     TrainOnLine Train { get; }
     World World { get; }
+    /// <summary>The derailment's cinematic is playing (T117): the HUD holds the run's end back.</summary>
+    bool WreckCinematic => false;
+    /// <summary>Seconds since the train came off, as this client saw it.</summary>
+    double WreckSeconds => 0;
     Sim.Route.Route? Route { get; }
     PlayerState Player { get; }
     TrainControls Controls { get; }

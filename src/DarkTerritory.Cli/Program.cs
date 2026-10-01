@@ -1396,7 +1396,7 @@ static int Usage()
           campaign new|show|slots|buy car|buy <upgrade>|sim|play [--slot 1..3] [--saves dir] [--contract i] [--seed n]
                      the campaign between nights (spec E, F): the board, purchases, F.4's progression check, a bot night settled
           online check                             is Steam reachable from here (signed-in user, or what's missing)
-          audio render [--scenario bed|tells|chaos] [--cars n] [--speed v] [--listener car (0 = cab) | all] [--seconds t] [--out file.wav]
+          audio render [--scenario bed|tells|chaos|wreck] [--cars n] [--speed v] [--listener car (0 = cab) | all] [--seconds t] [--out file.wav]
                      renders through the mixer to a WAV and a spectrogram PNG, and reports each tell's margin over the bed (spec A.3)
           edit [--port p] [--screenshot file.png]   the designer's editor (tuning + routes) at http://127.0.0.1:<port>/
           voice bench [--car n (0 = cab)] [--z m] [--radio] [--latency s --jitter s --loss 0..1]

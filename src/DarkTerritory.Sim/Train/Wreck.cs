@@ -27,6 +27,7 @@ public sealed record WreckTuning
     public double SettleSpeed { get; init; } = 0.25;
     public double SettleHold { get; init; } = 1.5;
     public double MaxSeconds { get; init; } = 30;
+    public double CinematicSeconds { get; init; } = 12;
 }
 
 /// <summary>

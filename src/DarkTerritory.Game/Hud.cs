@@ -293,6 +293,9 @@ public static class Hud
             Big("WAITING", Amber);
             Small(waiting, Ink);
         }
+        // The derailment's cinematic plays out first (T117): no run's end or death screen over it.
+        if (s.WreckCinematic)
+            return;
         if (world.Run?.Report is { } r)
         {
             if (r.End == RunEnd.Delivered)

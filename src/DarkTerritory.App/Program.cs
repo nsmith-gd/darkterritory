@@ -727,9 +727,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         FeedSpeaker();
 
         var frames = session.InterpolatedFrames(clock.Alpha);
-        camera = chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
+        // Off the rails (T117): the camera leaves your eyes for the wreck while it's fresh.
+        bool cinematic = session.WreckCinematic && session.Train.Wreck is not null;
+        camera = cinematic ? Views.Wreck(session.Train.Wreck!, session.WreckSeconds)
+            : chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
         // On the engine with the boiler in the red, it shakes you (T109).
-        if (!chase)
+        if (!chase && !cinematic)
             camera.Position += BoilerShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds);
         scene.Crew = session.Crew(frames, clock.Alpha);
         // Behind a crewmate's eyes (App. D.10), their own figure isn't drawn round the camera.

@@ -38,5 +38,7 @@
   // Done when every car's under this (m/s and rad/s) for settleHold seconds, or after maxSeconds whatever.
   "settleSpeed": 0.25,
   "settleHold": 1.5,
-  "maxSeconds": 30
+  "maxSeconds": 30,
+  // Presentation: the camera leaves your eyes for the wreck this long (real seconds), and the run's end waits for it.
+  "cinematicSeconds": 12
 }

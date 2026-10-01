@@ -24,6 +24,9 @@ public sealed class GameAudio
     readonly Pcg32Ish _rng = new(20260929);
     SoundInstance? _roar, _chuff, _brake, _wind, _valve, _strain, _vent;
     bool _wasRuptured;
+    // The derailment (T117): the grind while it slides, and each car's last velocity and when it last crashed.
+    SoundInstance? _grind;
+    readonly Dictionary<int, (Double3 Velocity, double Crashed)> _wreckCars = [];
     double _time, _lastAccel;
     int _space = PlayerMotor.Outside;
 
@@ -217,6 +220,53 @@ public sealed class GameAudio
                 Mixer.Play("slack-clunk", _slack[i].Position, _slack[i].Volume);
                 _slack.RemoveAt(i);
             }
+        Wreck(train.Wreck);
+    }
+
+    /// <summary>
+    /// The derailment (T117): a crash wherever a car's velocity jumps (it hit the ground or another car), and the grind of
+    /// steel through earth at the fastest car still sliding. Read off the poses, so a client hears what the host simulates.
+    /// </summary>
+    void Wreck(Wreck? wreck)
+    {
+        if (wreck is null)
+        {
+            _wreckCars.Clear();
+            _grind?.Stop();
+            _grind = null;
+            return;
+        }
+        WreckBody? fastest = null;
+        foreach (var b in wreck.Bodies)
+        {
+            if (_wreckCars.TryGetValue(b.Vehicle, out var last))
+            {
+                double jump = (b.Velocity - last.Velocity).Length;
+                if (jump > 3.5 && _time - last.Crashed > 0.6)
+                {
+                    Mixer.Play("wreck-crash", b.Centre, (float)Math.Clamp(jump / 9, 0.35, 1));
+                    last.Crashed = _time;
+                }
+            }
+            _wreckCars[b.Vehicle] = (b.Velocity, last.Crashed);
+            if (fastest is null || b.Velocity.Length > fastest.Velocity.Length)
+                fastest = b;
+        }
+        double speed = fastest?.Velocity.Length ?? 0;
+        if (!wreck.Settled && speed > 0.6)
+        {
+            _grind ??= Mixer.Play("wreck-grind");
+            if (_grind is not null)
+            {
+                _grind.Position = fastest!.Centre;
+                _grind.Volume = (float)Math.Clamp(speed / 12, 0.15, 1);
+            }
+        }
+        else if (_grind is not null)
+        {
+            _grind.Stop();
+            _grind = null;
+        }
     }
 
     void Loop(EnemySound s, string sound, Double3 at, float occlusion)
