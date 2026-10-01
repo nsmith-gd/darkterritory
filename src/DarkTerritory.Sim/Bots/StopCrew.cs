@@ -428,11 +428,15 @@ public sealed class StopDriver(CrewCalls calls)
             Leg.Clear => Plan?.Spur,
             _ => null,
         };
-        return branch is { } b && train.Diverging(b.Index) && !calls.Has(StopJob.Shunter) && Waited > AloneAfter ? b : null;
+        // Or a shunter's alive and hasn't come (on the guard van's roof, a deepTerritory:1 crew of two stood at a switch from
+        // 1914 s till dawn): the driver waits so long and no longer, and does it itself.
+        return branch is { } b && train.Diverging(b.Index) && (!calls.Has(StopJob.Shunter) && Waited > AloneAfter || Waited > ShunterGiveUp) ? b : null;
     }
 
     /// <summary>Seconds the driver waits for someone else to take a dead shunter's part before it gets down itself.</summary>
     const double AloneAfter = 15;
+    /// <summary>Seconds it waits for a live shunter who hasn't come: the set-backs that work take well under (46 to 93 s).</summary>
+    const double ShunterGiveUp = 150;
     public StopPlan? Plan { get; private set; }
     /// <summary>The coaling stop it's making, if that's what it's doing.</summary>
     public CoalPlan? Coal { get; private set; }
@@ -1743,6 +1747,9 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
     PlayerIntent? IntoCab(in PlayerState self, TrainOnLine train, int side)
     {
         Doing = "to the cab";
+        // On the cab's steps: on up (with nothing held, a hand lets go, and it was back on the ballast to try again, all night).
+        if (self.Parent == 0 && self.Surface == Surface.Ladder)
+            return new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use };
         var engine = train.Frames[0];
         var foot = engine.ToWorld(new Double3(side * (engine.Shape.Bounds.Max.X + 0.5), 0, CabDoorZ(train)));
         var inward = engine.DirToWorld(new Double3(-side, 0, 0));

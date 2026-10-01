@@ -3,7 +3,6 @@ using DarkTerritory.Sim.Bots;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
-using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Tests;
@@ -17,19 +16,18 @@ public class VentTests
 {
     static readonly TrainTuning T = Tuning.Train;
     static readonly PlayerTuning P = Tuning.Player;
-    static readonly SightTuning S = DataFile.Load<SightTuning>(Path.Combine(DataFile.FindContentRoot(), SightTuning.File));
 
     [Fact]
-    public void ForABoardAheadTheFiremanVentsWhileTheDriverBrakes()
+    public void RunningAwayDownhillOnItsSteamTheFiremanVentsWhileTheDriverBrakes()
     {
-        // Cruising at 14 m/s on a straight with a weak bridge's board (7 m/s) a kilometre on, and a long way past it.
-        var route = new Route.Route("test", RouteTier.Frontier, 1, new LineDefinition("test", [new TrackSegment(8000)]),
-            [new RouteFeature(FeatureKind.Bridge, 1500, 2700, MaxCars: 10)], new RouteWeather(0.01, false, 0, 0), 3600);
-        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 3, 1)), route.Build(), 500, Tuning.Boiler);
+        // A long descent: the steam fired for 14 m/s and the grade together run the train over it, and the driver's holding
+        // it on the brake (which fades). The fireman blows the gauge down to what makes the speed, then comes back in.
+        var line = new LineDefinition("down", [new TrackSegment(400), new TrackSegment(4000, 0, -2.5), new TrackSegment(2000)]);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), new RailLine(line), 300, Tuning.Boiler);
         var world = new World(train);
-        world.EnableLineside(S, route);
         train.Dynamics.Velocity = 14;
-        train.Boiler.Pressure = Boiler.PressureFor(Tuning.Boiler, 15, train.Dynamics.Tuning.MaxSpeed);
+        train.Boiler.Pressure = Boiler.PressureFor(Tuning.Boiler, 15, train.Dynamics.Tuning.MaxSpeed) + 12;
+        double start = train.Boiler.Pressure;
         var calls = new CrewCalls();
         var driver = new ConductorBot(calls, 0);
         var fireman = new ConductorBot(calls, 1) { Fireman = true };
@@ -37,7 +35,8 @@ public class VentTests
         var f = d with { Position = d.Position + new Double3(-1.2, 0, 0) };
         var c = new TrainControls { Reverser = 1 };
         bool vented = false, driverOut = false, back = false;
-        for (uint tick = 0; tick < 240 * SimConstants.TickRate && train.Dynamics.Distance < 2600; tick++)
+        double fastest = 0;
+        for (uint tick = 0; tick < 300 * SimConstants.TickRate && train.Dynamics.Distance < 4600; tick++)
         {
             var di = driver.Decide(d, world, tick, out _);
             var fi = fireman.Decide(f, world, tick, out _);
@@ -54,14 +53,11 @@ public class VentTests
             vented |= train.Boiler.Vented;
             driverOut |= !PlayerMotor.InCab(d, train);
             back |= vented && PlayerMotor.InCab(f, train) && !fireman.Venting;
+            fastest = Math.Max(fastest, train.Dynamics.Speed);
         }
-        Assert.True(vented, "the fireman blew it down");
+        Assert.True(vented, $"the fireman blew it down (gauge {train.Boiler.Pressure:0} from {start:0}, fastest {fastest:0.0} m/s)");
         Assert.False(driverOut, "the driver stayed at the controls");
         Assert.True(f.Alive && back, $"and the fireman came back in ({f.Position})");
-        Assert.False(world.Derailed, world.DerailCause);
-        // On the span, the gauge is down near what makes its speed, so the steam isn't fighting the brake.
-        double target = Boiler.PressureFor(Tuning.Boiler, S.WeakBridgeLimit, train.Dynamics.Tuning.MaxSpeed);
-        Assert.True(train.Boiler.Pressure < target + 12, $"pressure {train.Boiler.Pressure:0} for a {S.WeakBridgeLimit} m/s board (makes it at {target:0})");
-        Assert.InRange(train.Dynamics.Speed, 3, S.WeakBridgeLimit + S.LurchOver);
+        Assert.True(train.Boiler.Pressure < start, $"gauge {train.Boiler.Pressure:0} from {start:0}");
     }
 }

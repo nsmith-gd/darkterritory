@@ -969,8 +969,12 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             _ventLeg = -1;
             return null;
         }
-        double target = Boiler.PressureFor(bt, MindingCruise(world) + 1, train.Dynamics.Tuning.MaxSpeed);
-        bool over = train.Boiler.Pressure > target + (_ventLeg >= 0 ? 2 : VentOver) && train.Dynamics.Speed > 1 && calls?.Sanding != true;
+        double allowed = MindingCruise(world), target = Boiler.PressureFor(bt, allowed + 1, train.Dynamics.Tuning.MaxSpeed);
+        // Only while the steam is running the train over what's allowed (the driver's on the brake against it): a gauge high
+        // for a board that's still coming the brake deals with, and every pound vented is coal. Venting whenever the gauge
+        // read over the mark, frontier:11's fireman spent 1,412 s of the night out there and the train ran out of steam.
+        bool over = train.Boiler.Pressure > target + (_ventLeg >= 0 ? 2 : VentOver) && train.Dynamics.Speed > allowed + (_ventLeg >= 0 ? 0 : 1)
+            && calls?.Sanding != true;
         var way = VentWay(train);
         if (_ventLeg < 0)
         {
