@@ -56,6 +56,10 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // From the first howl (the telegraph): back to the gun, it's a long walk from the front cars and the pack's closing.
         bool hounds = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && !e.Gone && e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish);
         _legs.Looked(world, self, safe: Guns.MannedGun(self, world.Train, guns) is not null, tend: !hounds);
+        // T103 (T93 playtest: "so a cannon can be saved before decoupling a car"): a car the Car Hugger has hold of is a car
+        // lost, cut loose or eaten through, and its gun with it: first, the gun pushed up the rail onto the car ahead.
+        if (SaveGun(self, world) is { } saving)
+            return saving;
         // Nobody holds a gun through the cold (spec B.2): off it and indoors until warm, then back. Nor through a stop
         // they have a part in.
         if (_legs.Warming(self) || _legs.Work(self, world) is not null)
@@ -114,6 +118,40 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         while (a > Math.PI) a -= 2 * Math.PI;
         while (a < -Math.PI) a += 2 * Math.PI;
         return a;
+    }
+
+    /// <summary>Pushing the gun off a held car (T103), and where that's got to (for the harness's trace).</summary>
+    public bool Saving { get; private set; }
+
+    /// <summary>
+    /// On the roof of the rear car while the Car Hugger's latched on it, with the gun still on it and room on the car ahead's
+    /// rail: behind the gun, facing up the train, and push it along (Use held, walking) until it's over the coupling.
+    /// </summary>
+    PlayerIntent? SaveGun(in PlayerState self, World world)
+    {
+        var train = world.Train;
+        int rear = train.Dynamics.Consist.Vehicles[^1].Id;
+        Saving = false;
+        if (!self.Alive || self.Parent != rear || self.Surface != Surface.Roof || !train.Vehicles[rear].HasGun
+            || !world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && h.Attached == rear))
+            return null;
+        int ahead = train.VehicleAhead(rear);
+        if (ahead < 0 || train.Vehicles[ahead].HasGun || train.Frames[ahead].Shape.RoofRail is null || Guns.Mount(train, rear) is not { } mount)
+            return null;
+        Saving = true;
+        // Facing up the train (−Z): pushing it forward, from behind it.
+        const double yaw = 0;
+        double turn = Wrap(yaw - self.Yaw);
+        if (Math.Abs(turn) > 0.1)
+            return new PlayerIntent { LookYaw = (float)Math.Clamp(turn, -0.3, 0.3) };
+        if (Guns.MannedGun(self, train, guns) != rear)
+            return WarmUp.Steer(self, mount.Position with { Z = mount.Position.Z + 0.7, Y = self.Position.Y }, yaw).Step;
+        return new PlayerIntent
+        {
+            MoveZ = 1,
+            MoveX = (float)Math.Clamp((self.Position.X - mount.Position.X) * -0.8, -1, 1),
+            Buttons = PlayerButtons.Use,
+        };
     }
 }
 
@@ -686,6 +724,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         return new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
     }
     bool _driving, _sawDriver;
+    double _boardWait;
+    /// <summary>How long the driver waits at the gate for the crew to climb aboard (T102) before it goes anyway.</summary>
+    const double AllAboardSeconds = 120;
     /// <summary>At the controls: the driver, or a fireman who's had to take them.</summary>
     public bool Driving => !Fireman || _driving;
 
@@ -693,6 +734,21 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     {
         aimed = self;
         var train = world.Train;
+        // T102: the night starts with the crew on the ballast at the gate (the harness walks them aboard): driver and fireman
+        // up the cab steps on foot. Only before departure: at a stop, the driver's down there working.
+        if (self.Alive && world.Run is { Phase: Run.RunPhase.Yard } && train.Dynamics.Speed < 0.05 && calls is not null)
+        {
+            // On the steps: on up (with nothing held, a hand lets go).
+            if (self.Parent == 0 && self.Surface == Surface.Ladder)
+                return new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use };
+        }
+        if (self.Alive && self.Parent == PlayerState.World && self.Surface == Surface.Ground && world.Run is { Phase: Run.RunPhase.Yard }
+            && train.Dynamics.Speed < 0.05 && calls is not null)
+        {
+            _aloneHand ??= new StopHand(StopJob.None, calls, member);
+            if (_aloneHand.SetBackAlone(self, world, null) is { } up)
+                return up;
+        }
         if (Fireman && !_driving)
         {
             // Standing by: the fire, and out of the way of anything that's got into the cab. The driver's dead (it's said so,
@@ -709,6 +765,14 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         }
         calls?.Say(member, StopJob.Driver, self);
         var lamp = Lamp(world);
+        // All aboard (T102): standing at the gate, the driver waits on the brake for whoever's still down beside the train, or
+        // still on a ladder, to climb on, for so long.
+        if (world.Run is { Phase: Run.RunPhase.Yard } && PlayerMotor.InCab(self, train) && train.Dynamics.Speed < 0.1
+            && _boardWait < AllAboardSeconds && Crewmates?.Any(c => c.Alive && (c.Parent == PlayerState.World || c.Surface == Surface.Ladder)) == true)
+        {
+            _boardWait += SimConstants.TickSeconds;
+            return new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4, Lamp = lamp };
+        }
         // The Stoker in the firebox (v1.1 App. A.5): at the firebox door and club it out, brake on, whatever else is going on
         // (every blow burns: it's done while there's health to spare for it, and the brake holds the runaway meanwhile).
         if (FightStoker(self, world) is { } fighting)

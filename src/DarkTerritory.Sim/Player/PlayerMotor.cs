@@ -416,14 +416,17 @@ public static class PlayerMotor
 
         // Use while pushing towards it grabs a ladder; Use standing still is for working things (CrewActions). A hand on
         // the ladder takes hold of it without pushing (T29). Walking straight into the foot of one takes hold of it too
-        // (T90 playtest: nobody found Use + forward).
+        // (T90 playtest: nobody found Use + forward). Not while pushing a gun along (Use and walking is that too, T103: the
+        // guard van's hatch ladder comes up through the roof on the gun's way, and took whoever pushed it down inside); the
+        // ladder key still does.
         if (s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Heavy))
         {
+            bool pushing = s.Has(PlayerFlags.Pushing);
             if (intent.Has(PlayerActions.Ladder))
                 TryGrabLadder(ref s, train, p, byHand: false);
-            else if (intent.Has(PlayerButtons.Use) && (intent.MoveZ > 0.5 || s.Hand != default))
+            else if (!pushing && intent.Has(PlayerButtons.Use) && (intent.MoveZ > 0.5 || s.Hand != default))
                 TryGrabLadder(ref s, train, p, byHand: intent.MoveZ <= 0.5);
-            else if (intent.MoveZ > 0.5 && s.Grounded)
+            else if (!pushing && intent.MoveZ > 0.5 && s.Grounded)
                 TryGrabLadder(ref s, train, p, byHand: false, walkIn: true);
         }
     }

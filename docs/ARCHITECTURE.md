@@ -1992,3 +1992,16 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - The blow-off stands on a standpipe on the left running board with a red handwheel and a marker lamp, so the fireman's side sees it.
     - **Steam you can see.** Venting now shows: the boiler's `Vented` (the vent open on the last step) replicates in the boiler record's flags. It and the safety valve lifting each blow steam (`Effects.Train`).
     - **Checks.** `CabSightTests` casts the sightlines against the engine's solids and the window openings. `dt screenshot --view cab|fireman [--venting]`.
+
+109. **The crew walk aboard (T102).** The first playtest asked "how are bots doing test runs if they cannot traverse into all the car positions they need". The harness used to put the gunner on the guard gun and the fireman in the cab half a second in.
+    - **Boarding on foot.** On a night, everyone but the first to join now boards standing on the ballast beside the train at the gate (`HarnessOptions.WalkAboard`, on by default; `HostSession.BoardAt`), and walks and climbs to their post:
+        - roof walkers up a car's ladder;
+        - the gunner along the roofs to the guard gun;
+        - the driver and fireman up the cab steps (`ConductorBot`, using the stop crew's `SetBackAlone`, and on up the steps once on them).
+    - **All aboard.** The driver waits on the brake at the gate while anyone's still on the ballast or a ladder, up to 120 s.
+    - **The report.** The harness gives each bot's seconds to its post (`HarnessReport.Posts`, −1 for never). On frontier:7 with eight bots: walkers 5 s, fireman 26 s, gunner 55 s.
+    - **What it caught.** The fireman fell off the cab steps: once it was on the ladder nothing kept it climbing. `WalkAboardTests`.
+
+110. **Saving the gun (T103).** T93's playtest asked for guns "moveable along top rails ... so a cannon can be saved before decoupling a car".
+    - **The gunner saves it.** A car the Car Hugger holds is a car lost (App. A.3: cut loose or eaten through, it goes with it). So the gunner, on that car's roof with the gun still on it, pushes the gun up the rail onto the car ahead (`GunnerBot.SaveGun`). Then it goes on as before.
+    - **What it caught.** Pushing a gun is Use held while walking, which is also how you grab a ladder. The guard van's hatch ladder comes up through the roof on the gun's rail, so pushing past it took the pusher down inside the van, player or bot. While pushing, the motor no longer takes ladders by Use or by walking into them; the ladder key still does. `GunSaveTests`.
