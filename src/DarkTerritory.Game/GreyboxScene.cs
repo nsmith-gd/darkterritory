@@ -474,7 +474,15 @@ public sealed class GreyboxScene
             if (e.Attached >= frames.Count)
                 return;
             var f = frames[e.Attached];
-            origin = f.ToWorld(e.Local);
+            var local = e.Local;
+            // Fire Flies are on a lamp: the sim has them at the car's (one lamp each, Vehicle.LampLit); drawn, they're on
+            // the nearer of its two lanterns (Art/SceneArt), round its flame.
+            if (e.Kind == EnemyKind.FireFlies && creatures is not null && f.Shape.Interior is { } lit)
+            {
+                var near = Art.SceneArt.LampPositions(lit).MinBy(p => Math.Abs(p.Z - local.Z));
+                local = new Double3(near.X, near.Y, near.Z);
+            }
+            origin = f.ToWorld(local);
             (right, up, back) = (f.Right, f.Up, f.Back);
         }
         else if (e.Attached == Enemy.Loose)

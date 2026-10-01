@@ -65,6 +65,8 @@ public class CreatureArtTests
         ["follower"] = new(600, 3000, 15, 25, ["cling", "crawl", "nest"], ["hit"]),
         // A character's (App. A.4), SK_Human drawn out: one of the crew, the gas mask grown into its face.
         ["climber"] = new(2000, 9000, 20, 60, ["run", "scrabble", "walk", "crouch", "grab"], ["hit"]),
+        // A swarm's (App. A.5): a moth, up to a couple of dozen of them at a lamp, so light; on its own rig (SK_FireFly).
+        ["fire_fly"] = new(600, 1500, 10, 20, ["flutter", "settle"], []),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -93,8 +95,9 @@ public class CreatureArtTests
         // Standing on the floor at the origin, facing −Z: the pivot's between the feet (the clinger's is on the hull, the
         // dragger's at the car's edge, the rest of it hanging below; the weight's at the coupler, the heap on the stones; the
         // car hugger's at its mouth on the rear platform, its body down to the rail; a Choir ghost flies, its strips hanging
-        // below where it is; the Stoker's is the firebox door, its body in the fire behind and below it).
-        if (name is not ("clinger" or "dragger" or "weight" or "car_hugger" or "choir" or "stoker"))
+        // below where it is; the Stoker's is the firebox door, its body in the fire behind and below it; a Fire Fly's is its
+        // body's middle, its legs under it, for the glass it settles on).
+        if (name is not ("clinger" or "dragger" or "weight" or "car_hugger" or "choir" or "stoker" or "fire_fly"))
         {
             Assert.InRange(m.Min.Y, -0.02f, 0.05f);
             Assert.InRange((m.Min.X + m.Max.X) / 2, -0.25f, 0.25f);
@@ -443,6 +446,7 @@ public class CreatureArtTests
         "stoker" => (new Vector3(0, -0.4f, 0.3f), 1.3f),
         "follower" => (Vector3.Zero, 0.3f),
         "climber" => (Vector3.Zero, 1.9f),
+        "fire_fly" => (Vector3.Zero, 0.16f),
         _ => (Vector3.Zero, 1.9f),
     };
 
