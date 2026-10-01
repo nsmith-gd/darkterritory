@@ -130,6 +130,10 @@ public sealed class CreatureArt
     // walk); dragging, it's this far ahead of the one it drags (m: they're at its feet in the sim).
     const float PassengerWalkPace = 1.4f, PassengerDragPace = 1.3f, PassengerStride = 0.8f;
 
+    // A Soot Child gets onto the one it's taken in this long (s: its pin clip), then drinks; clinging, it's this far in
+    // front of their feet (m).
+    const float SootPinSeconds = 0.6f, SootCling = 0.3f;
+
     const int FireFlyMost = 22;
     const float FireFlySwarmFills = 20, FireFlyGlass = 0.085f, FireFlyGlassBelow = 0.07f, FireFlyGlassAbove = 0.08f, FireFlyOrbit = 0.45f;
 
@@ -661,19 +665,17 @@ public sealed class CreatureArt
                 }
             case EnemyKind.SootChildren:
                 {
-                    // One child in the dark, calling (GDD v1.1 A.6). A Soot Child's eyes are black and its hands and feet
-                    // blackened (extra2 = 1): the tell, readable from five metres. Pinning someone, it's turned, bent over them.
+                    // A child in the dark, calling (GDD v1.2 §21, App. A.6; tools/blender/soot_child.py): squatted in the ash
+                    // with its arms round its knees, rocking, and when it calls (extra) its head comes up to the train and a
+                    // hand out. A Soot Child (extra2 = 1) is the model's variant 1: its eyes black, its hands and feet black
+                    // (the tell, from five metres). On someone (GRAB), it's up onto them, locked round them (Enemy(e) puts it
+                    // at them), its jaw dropped, drinking.
                     bool soot = extra2 > 0.5;
-                    bool drinking = phase is SpinePhase.Grab or SpinePhase.Punish;
-                    var at = drinking ? Matrix4x4.CreateRotationX(-0.5f) * model : model;
-                    if (!Draw(mesh, "soot_child", drinking || extra > 0.5 ? "turn" : "huddle", t, !drinking, at, seed: soot ? 5 : 2,
-                            adjust: soot ? (_, l) => l with { Colour = l.Colour * 0.5f } : null))
-                        return false;
-                    var head = BoneAt("soot_child", "head", at);
-                    var (rr, uu, bb) = Basis(model);
-                    foreach (float side in new[] { -1f, 1f })
-                        mesh.Box(head + rr * (side * 0.035f) - bb * 0.08f, rr, uu, bb, new Vector3(0.016f, 0.012f, 0.008f), soot ? Palette.SootBlack : Palette.BoardEnamel);
-                    return true;
+                    int variant = soot ? 1 : 0;
+                    if (phase is SpinePhase.Grab or SpinePhase.Punish)
+                        return t < SootPinSeconds ? Draw(mesh, "soot_child", "pin", t, false, model, variant, seed: 5)
+                            : Draw(mesh, "soot_child", "drink", t - SootPinSeconds, true, model, variant, seed: 5);
+                    return Draw(mesh, "soot_child", extra > 0.5 ? "call" : "huddle", t, true, model, variant, seed: soot ? 5 : 2);
                 }
             case EnemyKind.Dragger:
                 {
@@ -1246,6 +1248,16 @@ public sealed class CreatureArt
                 m = Matrix4x4.CreateRotationY((float)e.Extra2) * model;
                 _pace = pace;
                 break;
+            case EnemyKind.SootChildren when prey is { } held && e.Phase is SpinePhase.Grab or SpinePhase.Punish:
+                {
+                    // On them: in front of them, facing them, a little way off their chest (the clip lifts it to them and
+                    // locks it round them: tools/blender/soot_child.py); the sim has it at their feet.
+                    var at = held.Feet + held.Forward * SootCling;
+                    var placed = model;
+                    placed.Translation = at;
+                    m = Facing(placed, held.Feet);
+                    break;
+                }
             case EnemyKind.FireFlies:
                 // Each swarm its own way round its lamp (by its id).
                 return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: true, extra2: e.Id);

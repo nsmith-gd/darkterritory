@@ -33,7 +33,7 @@ public class CreatureArtTests
         ["husk"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle"], ["dead"]),
         ["switchman"] = new(2000, 9000, 20, 60, ["wait", "flee"], []),
         ["hollow"] = new(1500, 5000, 20, 60, ["idle"], ["reach"]),
-        ["soot_child"] = new(800, 5000, 20, 60, ["huddle"], ["turn"]),
+        ["soot_child"] = new(3000, 9000, 20, 60, ["huddle", "call", "drink"], ["pin"]),
         // SK_Quad: 40-55 bones.
         ["cinder_hound"] = new(4000, 8000, 40, 55, ["prowl", "run", "crouch"], ["lunge", "hit"]),
         // A chain of 8-12, plus a root.
@@ -234,7 +234,8 @@ public class CreatureArtTests
         Assert.Equal(6 * Get("sleeper").Triangles(), mesh.Flattened().Length / 3);
         mesh.Clear();
         Art.Enemy(mesh, Matrix4x4.Identity, EnemyKind.SootChildren, SpinePhase.Dormant, 0, 0);
-        Assert.True(mesh.Flattened().Length / 3 >= Get("soot_child").Triangles());
+        // (One of its two variants, the real child or the Soot Child: most of the model, not its other eyes and hands.)
+        Assert.True(mesh.Flattened().Length / 3 >= Get("soot_child").Triangles() * 3 / 4);
     }
 
     [Fact]
