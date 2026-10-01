@@ -1596,6 +1596,17 @@ public static class Heed
             calls.DropBreach(selfId);
             return intent;
         }
+        // T115 playtest ("none of the bots are coming to save me when I call out from a Halt Lockup. They're just standing at
+        // a door"): only one who can get off the train now takes it. The nearest used to, from inside a car where it was
+        // warming up, and couldn't get down from there (StopHand.GetDown has no way out of a car): it stood at the car's door,
+        // and the claim was its, so nobody else went.
+        bool free = self.Parent == PlayerState.World || self.Parent == 0 && self.Surface == Surface.Deck
+            || self.Parent >= 0 && self.Surface is Surface.Roof or Surface.Coupler;
+        if (!free)
+        {
+            calls.DropBreach(selfId);
+            return intent;
+        }
         var at = PlayerMotor.WorldPosition(self, world.Train);
         var lit = hs.All.Where(h => h.Lit).Select(h => (h, d: ((h.Door - at) with { Y = 0 }).Length)).Where(x => x.d <= HoldoutRange)
             .OrderBy(x => x.d).FirstOrDefault();
