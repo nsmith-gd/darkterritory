@@ -826,10 +826,10 @@ public sealed class CreatureArt
                 }
             case EnemyKind.Follower when _models.ContainsKey("follower"):
                 {
-                    // The Followers (GDD v1.2 §21, App. A.6; tools/blender/follower.py): a hand gone wrong, a mouth on its
-                    // back. On someone's back (Enemy(e) laid it flat between their shoulder blades) it clings, and twitches;
-                    // off it, it scuttles on its fingertips; at its car it spreads over the loot and swells as its nest
-                    // builds (extra2), kneading it, eating.
+                    // The Followers (GDD v1.2 §21, App. A.6; tools/blender/follower.py; note 133): a bloated tick, ten legs,
+                    // its eyes bunched on its shield. On someone's back (Enemy(e) laid it flat between their shoulder
+                    // blades) it clings, and twitches; off it, it scuttles; at its car it spreads over the loot and swells
+                    // as its nest builds (extra2), pulsing, kneading it, feeding.
                     bool nesting = phase == SpinePhase.Punish || phase == SpinePhase.Commit && extra2 > 0;
                     float swell = phase == SpinePhase.Punish ? 1 : (float)Math.Clamp(extra2, 0, 1);
                     var at = nesting ? Matrix4x4.CreateScale(1 + FollowerSwell * swell) * model : model;
@@ -1331,8 +1331,8 @@ public sealed class CreatureArt
                 break;
             case EnemyKind.Follower when _models.ContainsKey("follower") && prey is { } carrier && e.Phase is SpinePhase.Dormant or SpinePhase.Telegraph:
                 {
-                    // Riding: flat between its carrier's shoulder blades, its palm to them and its fingers up (the model's
-                    // −Y into their back, its −Z, the fingers' way, up), where their friends can see it and they can't.
+                    // Riding: flat between its carrier's shoulder blades, its belly to them and its head up (the model's −Y
+                    // into their back, its −Z, the way it faces, up), where their friends can see it and they can't.
                     var r = carrier.Right;
                     var f = carrier.Forward;
                     var o = carrier.At(0, FollowerUp, FollowerBack);

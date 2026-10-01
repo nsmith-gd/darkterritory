@@ -2367,3 +2367,11 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The pulse.** It's the bell's scale (contracted: narrower and taller) and the rim flaps curling in about their tangents.
     - **The tendrils and curtains are aimed bone by bone along a curve** (`aim_along`): each bone points at the curve where it's a bone's length on, never back up it. So they can trail, stream, lash and wind round a head without IK.
     - **The bell rides higher** (its middle 1.15 m over the origin), so the tendrils hang clear of whatever it's over.
+
+133. **The Followers are no longer hands (GDD v1.2 §21, App. A.6).** Note 121's Follower was a hand gone wrong. Now it's a tick grown to a hand's size and bloated (`tools/blender/follower.py`, baked by `tools/models/recipes/follower.py`, 2,708 triangles, 24 bones, SK_Follower, inside the 25-bone budget).
+    - **The body.** A swollen sac of grey-white leather, blue where it's stretched thinnest, ridged across with the folds it hasn't filled. At its front is a hard shield the red-brown of dried blood, with twelve small wet black eyes bunched on it like roe, and a barbed beak between two palps under it. It has ten jointed legs, hooked at the tips.
+    - **The clips keep their names and their jobs.**
+      - `cling` lies flat on a back with every leg splayed and dug in, and the sac pulses. The twitch is every leg clenching at once and letting go, the sac jerking.
+      - `crawl` scuttles on alternating sets of legs.
+      - `nest` spreads it flat, the sac swelling and easing, the legs kneading pair after pair, the beak working.
+    - **The engine side is unchanged:** the riding matrix, `FollowerSwell`. Only the comments say tick where they said hand. `FollowerTests` pass as they were.
