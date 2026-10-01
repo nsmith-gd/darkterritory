@@ -332,12 +332,18 @@ public sealed class GameAudio
     /// The Choir is heard as voices around the train, more and closer as it gathers (GDD v1.1 App. A.7: the long rising
     /// telegraph), all of them close once it's here.
     /// </summary>
+    // A minor chord with its ninth, voice by voice (pitch 1 = A3): each new voice takes the next tone, barely detuned, so
+    // the gathering swells as harmony.
+    static readonly double[] ChoirChord = [1.0, 1.498, 1.189, 2.0, 0.749, 2.245, 1.335, 2.997];
+
     void Choir(World world, TrainOnLine train)
     {
         if (world.Combat is null)
             return;
         double build = world.Choir.Present ? 1 : world.Choir.Build;
-        int voices = world.Choir.Present ? 8 : build <= 0.02 ? 0 : 1 + (int)(5 * build);
+        // T113 playtest ("annoying, too frequent"): a brief bit of noise isn't heard as it gathering; the HUD's meter shows
+        // that. Past a sixth of the way the voices come in, and they're a sung chord, not a cluster.
+        int voices = world.Choir.Present ? 8 : build <= 0.15 ? 0 : 1 + (int)(5 * build);
         while (_choir.Count > voices)
         {
             _choir[^1].Stop();
@@ -345,7 +351,7 @@ public sealed class GameAudio
         }
         while (_choir.Count < voices && Mixer.Play("choir-voice") is { } v)
         {
-            v.Params.Set("pitch", 0.75 + 0.5 * _rng.Next());
+            v.Params.Set("pitch", ChoirChord[_choir.Count % ChoirChord.Length] * (1 + 0.006 * (_rng.Next() - 0.5)));
             _choir.Add(v);
         }
         // They come in from every side (App. A.6): spread along the train, alternating sides, closing from

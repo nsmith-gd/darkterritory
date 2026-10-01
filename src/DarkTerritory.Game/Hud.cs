@@ -56,7 +56,10 @@ public static class Hud
         }
         Night(o, height, s, line);
         if (p.Alive)
+        {
             Hotbar(o, width, height, p, line);
+            Noise(o, width, height, s.World, line);
+        }
         if (p.Alive && crosshair)
         {
             // A small cross, for aiming and for "what am I looking at".
@@ -85,6 +88,28 @@ public static class Hud
             o.Rect(x, y, w, line + 4, held ? Amber with { W = 0.35f } : Panel);
             o.Text(x + 4, y + 2, label, held ? Ink : Dim);
         }
+    }
+
+    /// <summary>
+    /// The crew's loudness meter (T113 playtest: "no counterplay" for the Choir), above the hotbar: how loud the crew's been
+    /// over the meter's window against the Choir's threshold (the tick), and how far it's gathered. Seeing it climb is the
+    /// counterplay: go quiet before it fills.
+    /// </summary>
+    static void Noise(Overlay o, int width, int height, World world, int line)
+    {
+        if (world.Combat is not { } c || world.Choir.Spent)
+            return;
+        var ch = world.Choir;
+        float w = 120, h = 5, x = width - 4 - w, y = height - 2 * line - 20;
+        double loud = Math.Clamp(ch.Loudness / (c.Choir.Threshold * 2), 0, 1);
+        bool over = ch.Loudness >= c.Choir.Threshold;
+        o.TextRight(width - 4, y - line - 1, ch.Present ? "THE CHOIR IS HERE: SILENCE"
+            : ch.Rest > 0 ? "NOISE  (THE CHOIR'S DRIVEN OFF)" : over ? "NOISE: TOO LOUD" : "NOISE", ch.Present || over ? Amber : Dim);
+        o.Rect(x, y, w, h, Dim with { W = 0.35f });
+        o.Rect(x, y, (float)(w * loud), h, over ? Amber : Ink with { W = 0.6f });
+        o.Rect(x + w / 2, y - 1, 1, h + 2, Ink); // the threshold
+        if (ch.Build > 0 && !ch.Present)
+            o.Rect(x, y + h + 1, (float)(w * ch.Build), 2, Red);
     }
 
     /// <summary>
@@ -314,6 +339,9 @@ public static class Hud
             else if (b.Pressure >= bt.Redline)
                 Small("PRESSURE IN THE RED: VENT, OR LET THE FIRE BURN DOWN", flash ? Red : Amber);
         }
+        // T113: the Choir's long telegraph, said plainly once it's well along, and what to do about it.
+        if (p.Alive && world.Combat is not null && !world.Choir.Present && world.Choir.Build > 0.25)
+            Small("THE CHOIR IS GATHERING: GO QUIET", world.Tick / 15 % 2 == 0 ? Red : Amber);
     }
 
     /// <summary>The player's keys (T80), for the prompts: the app sets them from the settings.</summary>

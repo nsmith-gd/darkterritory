@@ -218,10 +218,10 @@ public class GunTests
     [Fact]
     public void SustainedFireBringsTheSwarm()
     {
-        // Fire as fast as the reload allows, for a minute: the meter held loud gathers the Choir (App. A.7, C.7).
+        // Fire as fast as the reload allows, for a minute or two (T113: it takes buildSeconds held loud): the meter held loud gathers the Choir (App. A.7, C.7).
         var w = World();
         var s = AtGun(w, 0);
-        for (int i = 0; i < 14 && !w.Choir.Present; i++)
+        for (int i = 0; i < 30 && !w.Choir.Present; i++)
         {
             Hold(w, ref s, Fire, 0.2);
             Hold(w, ref s, Reload, ReloadSeconds);

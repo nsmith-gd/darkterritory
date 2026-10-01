@@ -261,6 +261,12 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <summary>The bot crewmates this host is running, if any (T89).</summary>
     public BotCrew? BotCrew { get; private init; }
 
+    /// <summary>
+    /// The only human here (the host, and no one but bots, T113): nobody to talk to, so an open mic is only the room (the
+    /// game's own sound through the speakers, most of all) and doesn't go into the loudness meter.
+    /// </summary>
+    public bool Alone => Host is { } h && h.Players.Count() - (BotCrew?.Bots.Count ?? 0) <= 1;
+
     static Sim.LineGen.TerrainField? TerrainOf(World world) => (world.Train.Line.Conditions as Sim.LineGen.PlanConditions)?.Terrain;
 
     static Sim.Campaign.RunCheckpoint Capture(World world, string route, int facility)

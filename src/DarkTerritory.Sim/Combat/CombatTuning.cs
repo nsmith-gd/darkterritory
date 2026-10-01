@@ -29,8 +29,10 @@ public sealed record ChoirTuning
     public double WhistleLoudness { get; init; } = 0.9;
     public double MachineryLoudness { get; init; } = 0.35;
     public double Threshold { get; init; } = 0.6;
-    public double BuildSeconds { get; init; } = 25;
+    public double BuildSeconds { get; init; } = 40;
     public double QuietDecayPerSecond { get; init; } = 0.06;
     public double MaxLoudness { get; init; } = 3;
     public double LivestockFloor { get; init; } = 0.3;
+    /// <summary>T113: seconds after it disperses (driven off quiet) before it can begin to gather again.</summary>
+    public double RestSeconds { get; init; } = 300;
 }

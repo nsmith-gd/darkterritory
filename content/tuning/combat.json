@@ -38,8 +38,11 @@
     // Held above this, it gathers: buildSeconds of loudness and the swarm comes (App. A.7's long rising telegraph). Quiet,
     // what's gathered drains at quietDecayPerSecond. DESIGN-TODO: the GDD gives no numbers for the meter; these are a
     // first pass that three players talking normally doesn't trip and three shouting (or cannon fire every few seconds) does.
+    // T113 playtest ("they show up WAY TOO OFTEN"): 40 s held loud to gather (was 25), and driven off by quiet it rests
+    // restSeconds before it can begin again. (Alone, an open mic no longer counts: it was the train through the speakers.)
     "threshold": 0.6,
-    "buildSeconds": 25,
+    "buildSeconds": 40,
+    "restSeconds": 300,
     "quietDecayPerSecond": 0.06,
     "maxLoudness": 3,
     // App. B.9: livestock aboard is never quiet: a floor under the meter.

@@ -651,7 +651,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 loud = Math.Max(loud, Math.Sqrt(sum / n));
             }
             // Speech RMS sits around 0.05-0.2; a shout nearer 0.3 and up.
-            voiceLevel = mic is null ? (Held(Control.Talk) ? 0.5 : 0) : voice.Transmitting ? Math.Clamp(loud * 3.5, 0, 1) : 0;
+            // T113 playtest (the Choir "WAY TOO OFTEN", gone when the train slowed): alone, an open mic hears the game's own
+            // train through the speakers, so it's only Talk held that makes you loud; with someone to hear you, your voice.
+            bool speaking = voice.Transmitting && (!(net?.Alone ?? false) || Held(Control.Talk));
+            voiceLevel = mic is null ? (Held(Control.Talk) ? 0.5 : 0) : speaking ? Math.Clamp(loud * 3.5, 0, 1) : 0;
         }
         else
             voiceLevel = Held(Control.Talk) ? 0.5 : 0;

@@ -68,7 +68,7 @@ public static class WorldRecords
                     Q(v.Eaten, Fine)]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
             [Q(world.Choir.Loudness, Fine), Q(world.Choir.Build, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0, Q(world.LampOutSeconds, Fine), Q(train.Sand, Fine),
-                (world.Choir.Present ? 1 : 0) | (world.Choir.Spent ? 2 : 0), Q(world.Choir.QuietSeconds, Fine), Q(world.WhistleSeconds, Fine)]));
+                (world.Choir.Present ? 1 : 0) | (world.Choir.Spent ? 2 : 0), Q(world.Choir.QuietSeconds, Fine), Q(world.WhistleSeconds, Fine), Q(world.Choir.Rest, Fine)]));
         foreach (var e in world.ActiveEnemies)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),
             [
@@ -216,6 +216,7 @@ public static class WorldRecords
                         Present = f.Length > 7 && (f[7] & 1) != 0,
                         Spent = f.Length > 7 && (f[7] & 2) != 0,
                         QuietSeconds = f.Length > 8 ? D(f[8], Fine) : 0,
+                        Rest = f.Length > 10 ? D(f[10], Fine) : 0,
                     };
                     world.WhistleSeconds = f.Length > 9 ? D(f[9], Fine) : 0;
                     world.SetDerailed(f[3] != 0);

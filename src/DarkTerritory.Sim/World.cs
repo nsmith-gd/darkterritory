@@ -456,7 +456,7 @@ public sealed class World
                 // Its one taken (even by a ghost still holding on after the rest dispersed), it's spent for the run.
                 if (Enemies is { } dt && (_choirTook || Choir.Present && Choir.QuietSeconds >= dt.Choir.DisperseQuietSeconds))
                 {
-                    Choir.Disperse(_choirTook);
+                    Choir.Disperse(_choirTook, c.Choir.RestSeconds);
                     _choirTook = false;
                     foreach (var ghost in _enemies.Where(e => e.Kind == EnemyKind.Choir && e.Phase != SpinePhase.Grab))
                         ghost.Dismiss();

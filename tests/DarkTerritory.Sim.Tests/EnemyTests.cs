@@ -286,6 +286,25 @@ public class EnemyTests
     }
 
     [Fact]
+    public void DrivenOffTheChoirRestsBeforeItCanGatherAgain()
+    {
+        // T113 playtest ("too frequent, no counterplay"): hushing it off buys the crew a long stretch where noise is free.
+        var t = Tuning.Combat.Choir;
+        var choir = new ChoirState { Present = true, Build = 1 };
+        choir.Disperse(took: false, t.RestSeconds);
+        double dt = SimConstants.TickSeconds;
+        for (double s = 0; s < t.RestSeconds - 1; s += dt)
+            Assert.False(choir.Step(t, t.MaxLoudness, dt));
+        Assert.Equal(0, choir.Build);
+        // Rested, the same din gathers it again, over the build's long telegraph and no sooner.
+        double gathered = 0;
+        for (double s = 0; s < t.BuildSeconds * 3 && gathered == 0; s += dt)
+            if (choir.Step(t, t.MaxLoudness, dt))
+                gathered = s;
+        Assert.InRange(gathered, t.BuildSeconds * 0.9, t.BuildSeconds * 1.5);
+    }
+
+    [Fact]
     public void TheDirectorKeepsItsPacingRules()
     {
         // App. B.9: grace period, troughs, caps and terminus silence, over whole generated nights.
