@@ -47,6 +47,25 @@ public static class Staging
     }
 
     /// <summary>
+    /// The staged Whistler as it goes (<c>dt screenshot --whistler</c>): <c>fold</c> hidden in its gap (App. A.4 HIDE),
+    /// <c>whistle</c> pulling the cord, <c>watch</c> watching the gap's mouth after (WAIT). The <c>gapside</c> view looks in.
+    /// </summary>
+    public static List<Enemy> Whistler(List<Enemy> threats, string mode)
+    {
+        if (mode.Length == 0 || threats.OfType<Whistler>().FirstOrDefault() is not { } w)
+            return threats;
+        var (phase, extra) = mode switch
+        {
+            "fold" => (SpinePhase.Dormant, 0.0),
+            "whistle" => (SpinePhase.Telegraph, 1.0),
+            "watch" => (SpinePhase.Commit, 0.0),
+            _ => throw new ArgumentException($"--whistler {mode}: fold, whistle or watch"),
+        };
+        w.Restore(phase, 0.4, w.Health, w.Attached, w.Local, 0, 0, 0, extra, 0);
+        return threats;
+    }
+
+    /// <summary>
     /// The staged Tippy Toesie elsewhere (<c>dt screenshot --tippy</c>): <c>behind</c> crewmate 1, over their shoulder
     /// from the <c>crew</c> view (Crew: they face back down the roof, at its camera); <c>grab</c> on them, its hand over
     /// their mouth (App. A.5 GRAB); <c>in</c> stalking down car 2's aisle, stooped under its roof (the <c>inside</c> view);
