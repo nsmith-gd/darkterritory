@@ -29,7 +29,8 @@ public sealed unsafe class Swapchain : IDisposable
         Recreate(width, height);
     }
 
-    public bool VSync { get; }
+    /// <summary>Waits for the monitor's refresh (FIFO) or not; a change takes at the next <see cref="Recreate"/>.</summary>
+    public bool VSync { get; set; }
     public VkExtent2D Extent { get; private set; }
     public VkFormat Format { get; private set; }
 

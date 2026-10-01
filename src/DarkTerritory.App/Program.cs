@@ -109,12 +109,18 @@ bool fromCommandLine = launch is not null;
 
 // The frame renders at the window's 720p (the 2008-2012 target, ARCHITECTURE §8 note 57); the HUD and menus keep their
 // 480x270 canvas (their pixel font's), scaled up over it.
+// --internal pins it (captures, perf); otherwise it's the player's resolution at their render scale (T83, Settings).
+bool pinnedInternal = args.Contains("--internal");
 var internalSize = Arg("--internal", "1280x720").Split('x').Select(int.Parse).ToArray();
 const int UiWidth = 480, UiHeight = 270;
 double quitAfter = double.Parse(Arg("--quit-after", "0"));
 string? capture = Arg("--capture", "") is { Length: > 0 } c ? c : null;
 
-using var window = new Window("Dark Territory", 1280, 720);
+var startSettings = frontEnd.Settings;
+if (!pinnedInternal)
+    internalSize = [startSettings.InternalSize.Width, startSettings.InternalSize.Height];
+using var window = new Window("Dark Territory", startSettings.WindowSize.Width, startSettings.WindowSize.Height);
+window.Fullscreen = startSettings.Fullscreen;
 // --vr: the headset makes the GPU (it has to pick the device and the extensions), and the window mirrors the flat view.
 using var vr = args.Contains("--vr") ? StartVr() : null;
 VrView? StartVr()
@@ -133,7 +139,8 @@ VrView? StartVr()
 }
 using var ownGpu = vr is null ? new GpuContext("Dark Territory", Window.VulkanInstanceExtensions(), window.CreateSurface) : null;
 var gpu = vr?.Gpu ?? ownGpu!;
-using var renderer = new GreyboxRenderer(gpu, internalSize[0], internalSize[1]) { OverlaySize = new Vector2(UiWidth, UiHeight) };
+var renderer = new GreyboxRenderer(gpu, internalSize[0], internalSize[1]) { OverlaySize = new Vector2(UiWidth, UiHeight) };
+using var rendererOwner = new Owner(() => renderer.Dispose());
 if (look is not null)
 {
     look.Dress(renderer);
@@ -141,7 +148,36 @@ if (look is not null)
 }
 var (w, h) = window.PixelSize;
 // In VR the headset sets the pace; the mirror shouldn't wait for the monitor as well.
-using var swapchain = new Swapchain(gpu, w, h, vsync: vr is null);
+using var swapchain = new Swapchain(gpu, w, h, vsync: vr is null && startSettings.VSync);
+var shownSettings = startSettings;
+
+// T83: a display setting changed in the menus takes now. The window (fullscreen, its size), the swapchain (vsync), and the
+// renderer itself when the size it draws at changes (made again at the new size and dressed again). In a headset the
+// headset sets all of this.
+void ApplyDisplay()
+{
+    var now = frontEnd.Settings;
+    if (vr is not null || now.Fullscreen == shownSettings.Fullscreen && now.Resolution == shownSettings.Resolution
+        && now.RenderScale == shownSettings.RenderScale && now.VSync == shownSettings.VSync)
+        return;
+    window.Fullscreen = now.Fullscreen;
+    if (!now.Fullscreen && (now.Resolution != shownSettings.Resolution || now.Fullscreen != shownSettings.Fullscreen))
+        window.SetSize(now.WindowSize.Width, now.WindowSize.Height);
+    if (now.VSync != swapchain.VSync)
+    {
+        swapchain.VSync = now.VSync;
+        window.Resized = true;
+    }
+    if (!pinnedInternal && now.InternalSize != (renderer.Width, renderer.Height))
+    {
+        gpu.WaitIdle();
+        renderer.Dispose();
+        renderer = new GreyboxRenderer(gpu, now.InternalSize.Width, now.InternalSize.Height) { OverlaySize = new Vector2(UiWidth, UiHeight) };
+        look?.Dress(renderer);
+        Console.WriteLine($"display: drawing at {renderer.Width}x{renderer.Height}");
+    }
+    shownSettings = now;
+}
 Console.WriteLine($"GPU: {gpu.DeviceName}, window {w}x{h}, internal {renderer.Width}x{renderer.Height}");
 
 var sound = new GameAudio(content);
@@ -180,6 +216,7 @@ LobbyId? relaunch = null;
 
 void Present(in Camera camera, in FrameLighting lighting)
 {
+    ApplyDisplay();
     if (window.Resized)
     {
         (w, h) = window.PixelSize;
@@ -712,4 +749,10 @@ static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySe
         saves.Save(campaign);
     }
     return campaign;
+}
+
+/// <summary>Disposes what it's given when it is (the renderer's remade when the display settings change, T83).</summary>
+sealed class Owner(Action dispose) : IDisposable
+{
+    public void Dispose() => dispose();
 }

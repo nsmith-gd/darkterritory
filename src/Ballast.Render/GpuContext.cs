@@ -246,6 +246,9 @@ public sealed unsafe class GpuContext : IDisposable
             throw new InvalidOperationException($"{what} failed: {result}");
     }
 
+    /// <summary>Waits for the GPU to finish everything it's been given (before freeing what it might still be using).</summary>
+    public void WaitIdle() => Api.vkDeviceWaitIdle();
+
     public void Dispose()
     {
         Api.vkDeviceWaitIdle();
