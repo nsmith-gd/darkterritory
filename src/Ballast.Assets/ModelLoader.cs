@@ -236,6 +236,53 @@ public static class ModelLoader
         };
     }
 
+    /// <summary>
+    /// <paramref name="model"/> with the clips of <paramref name="extra"/> added (a companion <c>name_clips.glb</c>: clips
+    /// authored on the same skeleton without re-baking the model's mesh). Bones are matched by name; a bone the extra
+    /// file doesn't have holds the model's rest. A clip already in the model keeps the model's.
+    /// </summary>
+    public static Model WithClips(Model model, Model extra)
+    {
+        var target = model.Skeleton;
+        int bones = target.Count;
+        var from = new int[bones];
+        for (int b = 0; b < bones; b++)
+            from[b] = extra.Skeleton.IndexOf(target.Names[b]);
+        var clips = new Dictionary<string, AnimationClip>(model.Clips);
+        var names = new List<string>(model.ClipNames);
+        foreach (var name in extra.ClipNames)
+        {
+            if (clips.ContainsKey(name))
+                continue;
+            var c = extra.Clips[name];
+            var T = new Vector3[c.Frames * bones];
+            var R = new Quaternion[c.Frames * bones];
+            var S = new Vector3[c.Frames * bones];
+            for (int f = 0; f < c.Frames; f++)
+                for (int b = 0; b < bones; b++)
+                {
+                    int at = f * bones + b, src = from[b];
+                    (T[at], R[at], S[at]) = src < 0
+                        ? (target.RestTranslation[b], target.RestRotation[b], target.RestScale[b])
+                        : (c.Translation[f * c.Bones + src], c.Rotation[f * c.Bones + src], c.Scale[f * c.Bones + src]);
+                }
+            clips[name] = new AnimationClip { Name = name, Frames = c.Frames, Fps = c.Fps, Bones = bones, Translation = T, Rotation = R, Scale = S };
+            names.Add(name);
+        }
+        return new Model
+        {
+            Name = model.Name,
+            Parts = model.Parts,
+            Materials = model.Materials,
+            Skeleton = model.Skeleton,
+            Clips = clips,
+            ClipNames = [.. names],
+            VariantCount = model.VariantCount,
+            Min = model.Min,
+            Max = model.Max,
+        };
+    }
+
     static (Matrix4x4, (Vector3, Quaternion, Vector3)) NodeTransform(JsonElement node)
     {
         if (node.TryGetProperty("matrix", out var m))

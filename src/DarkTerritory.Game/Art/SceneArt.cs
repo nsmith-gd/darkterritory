@@ -41,7 +41,12 @@ public sealed partial class SceneArt(Look look)
             speed = float.Lerp(last.Speed, now, 0.35f);
         }
         _crewMotion[c.Id] = (c.Feet, time, speed);
-        var pose = speed < 0.4f ? CrewPose.Idle : speed < 2.6f ? CrewPose.Walk : CrewPose.Run;
+        var pose = c.Act switch
+        {
+            CrewPose.Carry => speed < 0.4f ? CrewPose.Carry : CrewPose.CarryWalk,
+            { } act => act,
+            null => speed < 0.4f ? CrewPose.Idle : speed < 2.6f ? CrewPose.Walk : CrewPose.Run,
+        };
         var right = new Vector3((float)Math.Cos(c.Yaw), 0, (float)-Math.Sin(c.Yaw));
         var back = new Vector3((float)Math.Sin(c.Yaw), 0, (float)Math.Cos(c.Yaw));
         var m = CreatureArt.Basis(c.Feet.RelativeTo(eye), right, Vector3.UnitY, back);
@@ -56,7 +61,15 @@ public sealed partial class SceneArt(Look look)
             if (r != Arms.Hanging(1))
                 rightHand = ToF(r);
         }
-        return Creatures.Crewmate(mesh, m, pose, time, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)));
+        var tool = c.Holding switch
+        {
+            Sim.Player.Tool.Crowbar => "tool_crowbar",
+            Sim.Player.Tool.Shovel => "tool_shovel",
+            Sim.Player.Tool.Wrench => "tool_wrench",
+            _ => null,
+        };
+        return Creatures.Crewmate(mesh, m, pose, time, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)),
+            tool is null ? null : PropArt.Of(Look).Get(tool));
     }
 
     static Vector3 ToF(Double3 d) => new((float)d.X, (float)d.Y, (float)d.Z);

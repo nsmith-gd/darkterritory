@@ -6,8 +6,8 @@ using DarkTerritory.Sim.Enemies;
 
 namespace DarkTerritory.Game.Art;
 
-/// <summary>What a crewmate is doing, for which clip their model plays.</summary>
-public enum CrewPose { Idle, Walk, Run, Climb, Shovel, Crouch, Dead }
+/// <summary>What a crewmate is doing, for which clip their model plays (the actions: tools/blender/crew_clips.py, note 145).</summary>
+public enum CrewPose { Idle, Walk, Run, Climb, Shovel, Crouch, Dead, Carry, CarryWalk, Drag, Door, Handbrake, Hatch, Uncouple, Vent, Lever, Push, Held, Gunner, Fall, Swing, Mend }
 
 /// <summary>
 /// The crew and the creatures as skinned models (content/art/models/*.glb, built by tools/blender/build.sh), posed
@@ -257,6 +257,10 @@ public sealed class CreatureArt
             if (!File.Exists(path))
                 continue;
             var model = ModelLoader.Load(path);
+            // Clips authored apart from the baked mesh (tools/blender/crew_clips.py: the crew's actions), on the same skeleton.
+            var extra = Path.Combine(ContentRoot, Folder, name + "_clips.glb");
+            if (File.Exists(extra))
+                model = ModelLoader.WithClips(model, ModelLoader.Load(extra));
             _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, WearOf.GetValueOrDefault(name, 0.5f)))]);
         }
     }
@@ -391,6 +395,21 @@ public sealed class CreatureArt
         CrewPose.Shovel => "shovel",
         CrewPose.Crouch => "crouch_idle",
         CrewPose.Dead => "dead",
+        CrewPose.Carry => "carry",
+        CrewPose.CarryWalk => "carry_walk",
+        CrewPose.Drag => "drag",
+        CrewPose.Door => "door",
+        CrewPose.Handbrake => "handbrake",
+        CrewPose.Hatch => "hatch",
+        CrewPose.Uncouple => "uncouple",
+        CrewPose.Vent => "vent",
+        CrewPose.Lever => "lever",
+        CrewPose.Push => "push",
+        CrewPose.Held => "held",
+        CrewPose.Gunner => "gunner",
+        CrewPose.Fall => "fall",
+        CrewPose.Swing => "swing",
+        CrewPose.Mend => "mend",
         _ => "idle",
     };
 
@@ -402,25 +421,37 @@ public sealed class CreatureArt
     /// <param name="left">A headset player's left hand (T47), in the model's space (from the feet: x right, y up, z behind),
     /// or null to leave the arm to the clip; likewise <paramref name="right"/>. The arm reaches it by two-bone IK on the
     /// model's own shoulder and arm lengths, the elbow bent toward <paramref name="leftPole"/>/<paramref name="rightPole"/>.</param>
+    /// <param name="inHand">The tool in their right fist (T108's hotbar; tools/models hand_tools), or null for empty hands.
+    /// Put away for the two-handed work (it would be through the crate, the wheel, the gun).</param>
     public bool Crewmate(MeshBuilder mesh, in Matrix4x4 model, CrewPose pose, double time, int variant,
-        Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default)
+        Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default, MeshAsset? inHand = null)
     {
         // Each crewmate breathes and steps on their own beat: a fixed offset by variant, not a random one.
         double offset = (variant & 7) * 0.41;
         string clip = ClipOf(pose);
+        // A build without crew_clips.glb (or an older one, short of a clip) stands them idle rather than in the greybox.
+        if (_models.TryGetValue("crew", out var has) && !has.Model.Clips.ContainsKey(clip))
+            clip = "idle";
         var Paint = PaintOf(variant);
-        if (left is null && right is null)
-            return Draw(mesh, "crew", clip, time + offset, pose != CrewPose.Dead, model, variant, seed: variant, adjust: Paint);
         if (!_models.TryGetValue("crew", out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
-        _skinner.Evaluate(m.Model, c, time + offset, pose != CrewPose.Dead, m.Pose);
+        _skinner.Evaluate(m.Model, c, time + offset, pose is not (CrewPose.Dead or CrewPose.Swing), m.Pose);
         if (left is { } l)
             Reach(m, "l", l, leftPole);
         if (right is { } r)
             Reach(m, "r", r, rightPole);
         Emit(mesh, m, clip, model, variant, 1, variant, Paint);
+        if (inHand is not null && OneHanded(pose))
+            mesh.Append(inHand, ToolGrip * Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model));
         return true;
     }
+
+    /// <summary>What a crewmate can do with a tool still in their fist: get about, crouch, fall, swing it, mend with it.</summary>
+    static bool OneHanded(CrewPose pose) =>
+        pose is CrewPose.Idle or CrewPose.Walk or CrewPose.Run or CrewPose.Crouch or CrewPose.Fall or CrewPose.Swing or CrewPose.Mend or CrewPose.Door;
+
+    /// <summary>A hand tool's axes (its haft along −Z through the fist, up +Y) onto the hand_r_weapon socket's.</summary>
+    static readonly Matrix4x4 ToolGrip = Matrix4x4.Identity;
 
     /// <summary>
     /// A crewmate's own colour (look.json crewColours, by player id): the flying cap's leather and the scarf, the model's

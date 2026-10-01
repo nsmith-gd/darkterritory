@@ -1,5 +1,6 @@
 using Ballast;
 using Ballast.Render;
+using DarkTerritory.Game.Art;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Train;
@@ -10,7 +11,10 @@ namespace DarkTerritory.Game;
 /// <param name="Hand">A VR crewmate's reaching hand (T47), from the feet in the frame they face (x right, y up, z behind); zero for none.</param>
 /// <param name="Other">Their other hand, the same way.</param>
 /// <param name="Looks">Whose look they have (cap, scarf, tint, gait's beat), if not their own id's: the Passenger wears a crewmate's (T61).</param>
-public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool Alive, Double3 Hand = default, Double3 Other = default, int? Looks = null)
+/// <param name="Act">What they're doing with their hands (<see cref="CrewActs"/>), or null: standing, walking or running, by how they move.</param>
+/// <param name="Holding">The tool in their hand (T108's hotbar, <see cref="Kit.Held"/>).</param>
+public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool Alive, Double3 Hand = default, Double3 Other = default, int? Looks = null,
+    CrewPose? Act = null, Tool Holding = Tool.None)
 {
     public int Variant => Looks ?? Id;
 }
