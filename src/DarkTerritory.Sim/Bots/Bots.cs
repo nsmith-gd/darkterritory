@@ -493,6 +493,16 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             return warming;
         if (self.Parent == PlayerState.World)
             return default;
+        // T81: a posted tunnel's mouth near (or the train in it), and off the roofs already: stay off them. On a plate, in a
+        // car, or on the way down, it's clear; it's the roof the mouth takes. deepTerritory:2's three walkers, turned away from
+        // a car a Climber had, climbed straight back up the ladder from the plate into it.
+        if (_warm is { Shelter: true } && self.Parent > 0)
+        {
+            if (self.Surface == Surface.Ladder)
+                return new PlayerIntent { MoveZ = -1 };
+            if (self.Surface is Surface.Coupler or Surface.Deck)
+                return new PlayerIntent();
+        }
         // On a car's floor (in from the cold, or knocked in): out through the nearer door, then up the end ladder.
         if (self.Surface == Surface.Deck && self.Parent > 0 && _warm is not null && _warm.Leave(self, train) is { } leaving)
             return leaving;
