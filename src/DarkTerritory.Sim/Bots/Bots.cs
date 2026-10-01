@@ -671,9 +671,16 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         var train = world.Train;
         var d = train.Dynamics;
         bool atAStop = Stops is { Doing: not StopDriver.Leg.Cruise };
+        // T81: where they are along the train's own path (a LineHint is along the main line, and on an alternate that's
+        // another count altogether: deepTerritory:1's driver set back for crew a couple of hundred metres "behind" who were
+        // on his own roofs). Only someone stood on the ground: in the air is a hop between roofs. And anywhere from behind
+        // the rear up to the engine: walking beside the rear car at the train's pace, two of that crew were out of the old
+        // window (10 m past the rear) as often as in it, and walked 2.5 km at 2 m/s till one died of the cold.
         var behind = atAStop || Crewmates is null ? null : Crewmates
-            .Where(c => c.Alive && c.Parent == PlayerState.World && d.RearDistance - c.LineHint > -10 && d.RearDistance - c.LineHint < SetBackFor)
-            .OrderBy(c => d.RearDistance - c.LineHint).Select(c => (PlayerState?)c).FirstOrDefault();
+            .Where(c => c.Alive && c.Parent == PlayerState.World && c.Surface == Surface.Ground)
+            .Select(c => (c, along: AlongTheTrain(train, c.Position)))
+            .Where(x => x.along < d.Distance + 5 && d.RearDistance - x.along < SetBackFor)
+            .OrderBy(x => d.RearDistance - x.along).Select(x => ((PlayerState c, double along)?)x).FirstOrDefault();
         if (behind is not { } them || _waitedForBoarder > 120)
         {
             if (behind is null)
@@ -684,17 +691,30 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             _backedUp = false;
             return null;
         }
-        double gap = d.RearDistance - them.LineHint;
+        double gap = d.RearDistance - them.along;
         if (gap > LeftBehind && (d.Velocity < -0.05 || Math.Abs(d.Velocity) < 0.05 || world.Controls.Reverser < 0))
         {
             _backedUp = true;
-            return StopDriver.Toward(world, them.LineHint + LeftBehind * 0.5, -1, SetBackSpeed, rear: true);
+            return StopDriver.Toward(world, them.along + LeftBehind * 0.5, -1, SetBackSpeed, rear: true);
         }
         if (gap > LeftBehind)
             return new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
         // Alongside them: stand for them to get on.
         _waitedForBoarder += SimConstants.TickSeconds;
         return new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
+    }
+
+    /// <summary>How far along the train's own path a point on the ground beside it is (from its rear, a few projections).</summary>
+    public static double AlongTheTrain(TrainOnLine train, Double3 at)
+    {
+        var d = train.Dynamics;
+        double along = d.RearDistance;
+        for (int i = 0; i < 4; i++)
+        {
+            var sample = train.Line.Sample(d.Path, along);
+            along = Math.Clamp(along + Double3.Dot(at - sample.Position, sample.Tangent), 0, train.Line.PathLength(d.Path));
+        }
+        return along;
     }
 
     /// <summary>
