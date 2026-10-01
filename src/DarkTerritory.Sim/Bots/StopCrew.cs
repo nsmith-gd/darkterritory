@@ -556,7 +556,7 @@ public sealed class StopDriver(CrewCalls calls)
                         Begin(Leg.SetBack);
                         return Hold(world);
                     }
-                    return Toward(world, w.Hold, -1, 3);
+                    return Toward(world, w.Hold, -1, SetBackTop);
                 }
             case Leg.SetBack:
                 // Until it's set back for the main line and everyone's aboard (or given the time to be, as at a stop). Nobody
@@ -566,7 +566,7 @@ public sealed class StopDriver(CrewCalls calls)
                 return Hold(world);
             case Leg.Forward:
                 if (world.Controls.Reverser < 0)
-                    return Toward(world, Switch!.Hold + 50, +1, 3); // flips it at a stand
+                    return Toward(world, Switch!.Hold + 50, +1, SetBackTop); // flips it at a stand
                 FinishSwitch();
                 return null;
             case Leg.ToCoal:
@@ -625,7 +625,7 @@ public sealed class StopDriver(CrewCalls calls)
                         Begin(Leg.Loading);
                         return Hold(world);
                     }
-                    return Toward(world, p.Spur.End - 1, +1, 3);
+                    return Toward(world, p.Spur.End - 1, +1, SetBackTop);
                 }
             case Leg.Loading:
                 {
@@ -675,7 +675,7 @@ public sealed class StopDriver(CrewCalls calls)
                     // (deepTerritory:1's mine head: at a metre a second, with the engine creeping after them at 0.8 for 1,010 s
                     // and a kilometre, and a hand left on the ballast).
                     double crawl = 0.8 + (left is { Velocity: < 0 } ? -left.Velocity : 0);
-                    return Toward(world, target, -1, close ? crawl : 3, rear: !together);
+                    return Toward(world, target, -1, close ? crawl : SetBackTop, rear: !together);
                 }
             case Leg.Clear:
                 if (!train.Diverging(Plan!.Spur.Index) && (calls.AllAboard || Waited > AboardGiveUp))
@@ -683,7 +683,7 @@ public sealed class StopDriver(CrewCalls calls)
                 return Hold(world);
             case Leg.Depart:
                 if (world.Controls.Reverser < 0)
-                    return Toward(world, (Plan?.Hold ?? Coal!.Hold) + 50, +1, 3); // brakes and flips the reverser at a stand
+                    return Toward(world, (Plan?.Hold ?? Coal!.Hold) + 50, +1, SetBackTop); // brakes and flips the reverser at a stand
                 if (Coal is not null)
                     FinishCoaling(train);
                 else
@@ -751,6 +751,13 @@ public sealed class StopDriver(CrewCalls calls)
     /// <paramref name="top"/> m/s and gently at the end, on the regulator and the brake handle like someone watching the
     /// ground: the reverser first, which only moves at a stand.
     /// </summary>
+    /// <summary>
+    /// The top speed of a shunting move: back to a switch, onto a cut, along a spur, back for a crewmate (m/s). T110
+    /// playtest: at 3 m/s ("agonizingly slow") a set-back of a few hundred metres took a minute and more; the moves brake to
+    /// their mark by <see cref="Toward"/>'s own curve, so the top is only the open stretch between.
+    /// </summary>
+    public const double SetBackTop = 6;
+
     internal static PlayerIntent Toward(World world, double target, int direction, double top, bool rear = false)
     {
         var engine = world.Train.Dynamics;

@@ -56,8 +56,11 @@ public sealed class FrontEnd
     int _tier;
     ulong _seed = 7;
     int _cars = 6;
-    /// <summary>Bot crewmates for a quick night (T89): alone is a hard night, so a new player gets a crew by default.</summary>
-    int _bots = 3;
+    /// <summary>
+    /// Bot crewmates for a quick night (T89). None by default (T110 playtest: with a human playing, the bots get in the way
+    /// more than they help); a crew is a press away.
+    /// </summary>
+    int _bots = 0;
     public const int MaxBots = 7;
     bool _host;
 

@@ -33,9 +33,10 @@
     // Engine + tender unit: boiler forward, walkable cab, coal tender behind (heights above rail).
     "engine": {
       "deckHeight": 1.4,
-      // A 1.6 m boiler (T101: at 1.9 m it hid the line from the driver; past it from the cab window, the near rail's in
-      // sight from 30 m and the middle of the track from 40 m).
-      "boilerHalfWidth": 0.8,
+      // A 1.4 m boiler (T101: at 1.9 m it hid the line from the driver; past it from the cab window, the near rail's in
+      // sight from 30 m and the middle of the track from 40 m). T110 playtest ("have both sides be a gap we can get
+      // through"): at 1.6 m the way past it out of the cab's front was 0.6 m, a player's width exactly; at 1.4 it's 0.7.
+      "boilerHalfWidth": 0.7,
       "boilerTop": 3.6,
       "cabLength": 4.0,
       "tenderLength": 4.0,

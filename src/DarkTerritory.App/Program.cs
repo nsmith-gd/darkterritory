@@ -372,7 +372,9 @@ Launch? Menu()
                 Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
                 return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume), campaign);
             }
-        case Launch.Night hosted when hosted.Host || hosted.Bots > 0:
+        // From the menu always the real night (T110: with no bots too, it's the same game alone); the bare prototype is the
+        // command line's, for a route or line on its own.
+        case Launch.Night hosted when hosted.Host || hosted.Bots > 0 || !fromCommandLine:
             {
                 // From the menu, friends join on the usual port; `--steam` alone takes no UDP port (the lobby's enough). A night
                 // with bots and no friends (T89) is hosted privately: the bots are clients on localhost.

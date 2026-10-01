@@ -669,7 +669,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     /// <summary>How far behind the train's rear a crewmate on the ground has to be to count as left behind (m).</summary>
     const double LeftBehind = 20;
     /// <summary>How far the driver will set back for one, at most (m), and at what speed (m/s).</summary>
-    const double SetBackFor = 1500, SetBackSpeed = 2.5;
+    const double SetBackFor = 1500, SetBackSpeed = StopDriver.SetBackTop;
 
     /// <summary>
     /// T96 (playtest: "if I get off the train it never stops for me"): a crewmate left on the ground behind the train while

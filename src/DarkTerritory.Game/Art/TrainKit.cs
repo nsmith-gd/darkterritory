@@ -500,8 +500,8 @@ public static class TrainKit
     }
 
     /// <summary>
-    /// The open window in the spectacle plate on one side of the boiler (T101), in the engine's frame: across from the
-    /// boiler's flank to the cab side's pillar, up from a little under a standing eye almost to the roof.
+    /// The opening in the spectacle plate on one side of the boiler (T101), in the engine's frame: across from the boiler's
+    /// flank to the cab side's pillar, from the floor almost to the roof (T110: a way through, not only a window).
     /// </summary>
     public static (float X0, float X1, float Y0, float Y1) SpectacleWindow(CarShape shape, int side)
     {
@@ -509,7 +509,8 @@ public static class TrainKit
         var roof = shape.Solids.First(s => s.Part == PartKind.CabRoof).Box;
         float bw = (float)boiler.Max.X, inner = (float)shape.HalfWidth - 0.1f, deck = (float)boiler.Min.Y;
         float a = side * (bw + 0.04f), b = side * (inner - 0.03f);
-        return (MathF.Min(a, b), MathF.Max(a, b), deck + 1.05f, (float)roof.Min.Y - 0.12f);
+        // T110 playtest: open to the floor, a way through on both sides of the boiler to the front of the engine.
+        return (MathF.Min(a, b), MathF.Max(a, b), deck, (float)roof.Min.Y - 0.12f);
     }
 
     /// <summary>The run map's chart on the plate over the boiler (T101), in the engine's frame: its lower left corner and size.</summary>
