@@ -1547,6 +1547,26 @@
     ]
   },
   {
+    "name": "climber_0",
+    "diffuse": "models/climber_0.png",
+    "spec": "models/climber_0_s.png",
+    "normal": "models/climber_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/climber.py",
+        "what": "the Climber, modelled over tools/blender/climber.py",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "clinger_0",
     "diffuse": "models/clinger_0.png",
     "spec": "models/clinger_0_s.png",
@@ -2798,6 +2818,26 @@
         "path": "mini_texture/textures/Metal063_displacement.jpg",
         "license": "CC0-1.0",
         "attribution": "ambientCG (CC0-1.0), via the library's iron_plate"
+      }
+    ]
+  },
+  {
+    "name": "follower_0",
+    "diffuse": "models/follower_0.png",
+    "spec": "models/follower_0_s.png",
+    "normal": "models/follower_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/follower.py",
+        "what": "the Follower, modelled over tools/blender/follower.py",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
       }
     ]
   },

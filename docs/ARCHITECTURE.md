@@ -2203,3 +2203,44 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `dt screenshot --threats --stoker peer|reach --view firebox`: the door's opened by `--stoker` (or `--firedoor` alone), and the view is crouched at the door.
       - `dt art clip stoker peer --lift 0.75`: lifts a model whose origin isn't at its feet off the clip rig's floor.
       - `StokerTests`: drawn only with the door open, its head out of the door into the cab, its hands on the floor and not under it.
+
+121. **The Followers' model (GDD v1.2 §21, App. A.6).** They were the husk shrunk to a lump. Now each is its own (`tools/blender/follower.py`, baked by `tools/models/recipes/follower.py`, 1,551 triangles), on a rig of its own: SK_Follower, a palm, the wrist's stump, a thumb and four fingers of three bones each, and a mouth (19 bones).
+    - **The design.** A hand: an infant's grown to a man's and gone wrong.
+      - **Skin:** pale and soft, faintly translucent, the veins blue-grey under it, wrinkled and grimed at too many knuckles.
+      - **The wrist:** no arm, only a raw stump trailing threads of nerve.
+      - **The mouth:** on the back of the hand, a puckered lamprey ring with three rings of teeth.
+    - **Clips.**
+      - **cling** (riding): flat, the fingertips dug in, the mouth working; then the twitch, every finger clenching at once and the threads drawing in.
+      - **crawl:** up on its fingertips like a spider, the fingers in two sets thrown forward in turn.
+      - **nest:** spread flat over the loot, the fingers kneading, the mouth wide.
+      - **hit.**
+    - **On a back.** Riding (DORMANT, TELEGRAPH), `Enemy.Extra` is its carrier, so `GreyboxScene` passes them as `Prey`. `CreatureArt` lays it flat between their shoulder blades, 1.35 m up and 0.15 m behind their middle (`FollowerUp`, `FollowerBack`). Its palm is to them and its fingers point up, so whoever's behind them sees the hand and its mouth, and they can't.
+    - **Off it.** In COMMIT it crawls. Once it's in its car with a nest building (`Extra2` > 0), and in PUNISH, it nests, swelling as the nest builds to 2.5× its size (`FollowerSwell`).
+    - **First cut.** Up close it was a cartoon glove: a fat smooth disc of a palm, the fingers floating off its edge, a target for a mouth. A ridge of knuckles now joins the fingers on, the palm is flatter, and the mouth is bigger and puckered. At its real size, on a back, it read from the first.
+    - **Headless.**
+      - `dt screenshot --threats --crew --follower back --view follower`: the new `follower` view is close behind crewmate 4 (`Staging.Lone`).
+      - `--follower crawl`, and `--follower nest --view inside` (car 2's aisle).
+      - `FollowerTests`:
+        - riding, it's on its carrier's back, flat to it;
+        - off them, it's low;
+        - its nest swells it.
+
+122. **The Climbers' model (GDD v1.2 §21, App. A.4).** They were the husk drawn out thin and tipped forward. Now each is its own (`tools/blender/climber.py`, baked by `tools/models/recipes/climber.py`, 2,902 triangles, 27 bones, SK_Human drawn out).
+    - **The design.** One of the crew gone wrong. It still wears the same coveralls and the same gas mask the crew do (`tools/blender/crew.py`).
+      - **Body:** drawn out long and thin, the coveralls burnt into the skin and torn open down the back and the limbs, soot-black where it shows.
+      - **Face:** the mask has grown into it. The perished rubber is the skin now, the two round glass eyes in rusted rims are cracked and black, and the filter's canister is a snout with the hose torn off and hanging.
+      - **Hands and feet:** the hands long and hooked; the boots split open, the long toes out of them.
+    - **Clips.**
+      - **run** (pacing): bent double on all fours, the hands thrown out ahead, the head level and still.
+      - **scrabble** (TELEGRAPH, in the gap): the hands going one over the other up the buffers, the feet kicking, too fast.
+      - **walk** (COMMIT, on the roofs): crouched low, the hands touching the roof, the masked head snapping round.
+      - **crouch** (COMMIT inside an unlit car, `Extra` −1): folded in a corner, the head cocked, a finger drumming once.
+      - **grab:** on its victim, both hands on their head, the snout in their face.
+      - **hit.**
+    - **Running along, not at, the train.** Pacing, it's loose, and the loose basis faces the nearest car. So `Enemy(e)` turns it a quarter round to run along the line, by the side it's on (`Extra2`).
+    - **The limbs that land go by IK** (`reach_from`): the hands on the ground or the buffers, from a spread of starts, as the Stoker's are (note 120). The first gallop stood half upright on straightened legs, the arms propping it like stilts. Folding the legs deeper and laying the body level made it the crouch-run of the description.
+    - **Headless.**
+      - `dt screenshot --threats --climber run|scrabble|walk|crouch` stages it at car 2: `scrabble` with `--view gapside`, `walk` with `--view roof`, `crouch` with `--view inside`.
+      - `ClimberTests`:
+        - pacing, it runs low and along the line;
+        - in a dark car it waits low, and on a roof it's crouched.
