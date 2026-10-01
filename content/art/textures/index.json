@@ -2153,6 +2153,53 @@
     "license": "CC0-1.0"
   },
   {
+    "name": "stencil_numerals",
+    "diffuse": "stencil_numerals.png",
+    "spec": "stencil_numerals_s.png",
+    "size": [
+      1024,
+      512
+    ],
+    "tileMetres": null,
+    "tiling": false,
+    "family": "paper",
+    "alphaTest": true,
+    "sources": [
+      {
+        "font": "DejaVuSansCondensed-Bold.ttf",
+        "license": "Bitstream Vera / DejaVu (free) or GNU FreeFont (GPL+font exception)",
+        "note": "rendered glyphs only; no font file is redistributed"
+      },
+      {
+        "font": "DejaVuSerifCondensed-Bold.ttf",
+        "license": "Bitstream Vera / DejaVu (free) or GNU FreeFont (GPL+font exception)",
+        "note": "rendered glyphs only; no font file is redistributed"
+      },
+      {
+        "font": "DejaVuSerifCondensed.ttf",
+        "license": "Bitstream Vera / DejaVu (free) or GNU FreeFont (GPL+font exception)",
+        "note": "rendered glyphs only; no font file is redistributed"
+      },
+      {
+        "font": "DejaVuSansMono.ttf",
+        "license": "Bitstream Vera / DejaVu (free) or GNU FreeFont (GPL+font exception)",
+        "note": "rendered glyphs only; no font file is redistributed"
+      },
+      {
+        "font": "FreeSansOblique.ttf",
+        "license": "Bitstream Vera / DejaVu (free) or GNU FreeFont (GPL+font exception)",
+        "note": "rendered glyphs only; no font file is redistributed"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "stencilled digits (DejaVu Sans Bold), bridges, overspray, chips, soot runs",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
     "name": "sky_backdrop",
     "diffuse": "sky_backdrop.png",
     "spec": "sky_backdrop_s.png",

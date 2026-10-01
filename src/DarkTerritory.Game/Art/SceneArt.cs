@@ -172,11 +172,26 @@ public sealed partial class SceneArt(Look look)
     /// A loose body that isn't a ragdoll (crates, freight, a lamp, a radio) as its prop, turned by its yaw in its parent's
     /// frame. A lamp lights its surroundings and glows. Returns false for what the kit doesn't draw (the dead).
     /// </summary>
-    /// <summary>Facility freight comes in a few kinds of case (machine parts, ammunition, sacks of grain, medical
-    /// stores); a body keeps its kind by its id.</summary>
+    /// <summary>
+    /// Facility freight comes in a few kinds of case (machine parts, ammunition, sacks of grain, medical stores): the one
+    /// its cargo comes in (GDD §19 "physically aboard and readable", the facility's, Body.Cargo); a stop's loot crates,
+    /// and the cargo with no case of its own yet, keep one by their id.
+    /// </summary>
     static readonly string[] FreightKinds = ["freight_parts", "freight_ammo", "freight_sacks", "freight_medical"];
 
-    static string Freight(int id) => FreightKinds[(int)((uint)id * 2654435761u % (uint)FreightKinds.Length)];
+    static string Freight(Sim.Physics.Body b) => b.Cargo switch
+    {
+        CargoKind.Food or CargoKind.Grain => "freight_sacks",
+        CargoKind.Ammunition => "freight_ammo",
+        CargoKind.Heavy or CargoKind.Salvage or CargoKind.Ore => "freight_parts",
+        _ => FreightKinds[(int)((uint)b.Id * 2654435761u % (uint)FreightKinds.Length)],
+    };
+
+    /// <summary>The toys (App. C.4), one each by its id: the rag bear, the pull-along horse, the porcelain doll.</summary>
+    static readonly string[] Toys = ["toy_bear", "toy_horse", "toy_doll"];
+
+    /// <summary>How far an extinguisher's model stands up off its body's middle: its foot on the floor, its 0.15 m body.</summary>
+    const float ExtinguisherLift = 0.15f;
 
     public bool Body(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, double heavyHalf, double time)
     {
@@ -196,12 +211,30 @@ public sealed partial class SceneArt(Look look)
         var back = Vector3.Cross(right, u);
         var o = at.RelativeTo(eye);
         var m = new Matrix4x4(right.X, right.Y, right.Z, 0, u.X, u.Y, u.Z, 0, back.X, back.Y, back.Z, 0, o.X, o.Y, o.Z, 1);
-        // What the crew carry: the modelled props (tools/models make: stores_crate, freight_*, heavy_crate,
-        // field_radio) where they're built, centred on the body like the kit's; the kit's pieces where not.
         var props = PropArt.Of(Look);
+        if (b.Kind == Sim.Physics.BodyKind.Extinguisher && props.Get("extinguisher") is { } extinguisher)
+        {
+            // Stood up on its foot; back on its mount (lying where the sim stands it, in its car), stood in the cradle
+            // with its glass to the room, the way it hangs there (World.ExtinguisherMount, on the floor: its middle 0.3 m up).
+            var stood = Matrix4x4.CreateTranslation(0, ExtinguisherLift, 0) * m;
+            if (onCar && b.Carrier < 0 && frames[b.Parent].Shape.Interior is { } room)
+            {
+                var mount = Sim.World.ExtinguisherMount(frames[b.Parent].Shape, room);
+                if (Math.Abs(local.X - mount.X) < 0.35 && Math.Abs(local.Z - mount.Z) < 0.35)
+                    stood = Matrix4x4.CreateRotationY(MathF.PI / 2) * Matrix4x4.CreateTranslation(ToF(mount) + new Vector3(0, ExtinguisherLift * 2, 0))
+                        * FrameMatrix(frames[b.Parent], eye);
+            }
+            mesh.Append(extinguisher, stood);
+            Charge(mesh, props, b.Charge, stood);
+            return true;
+        }
+        // What the crew carry: the modelled props (tools/models make: stores_crate, freight_*, heavy_crate,
+        // field_radio, train_stores' toys) where they're built, centred on the body like the kit's; the kit's pieces where not.
         var piece = b.Kind switch
         {
-            Sim.Physics.BodyKind.Cargo => props.Get(Freight(b.Id)) ?? Piece("prop-cargo", () => PropKit.Cargo(Look)),
+            Sim.Physics.BodyKind.Cargo => props.Get(Freight(b)) ?? Piece("prop-cargo", () => PropKit.Cargo(Look)),
+            Sim.Physics.BodyKind.Toy => props.Get(Toys[(int)((uint)b.Id * 2654435761u % (uint)Toys.Length)]) ?? PropArt.Of(Look).Get("hand_lantern")
+                ?? Piece("prop-lantern", () => PropKit.Lantern(Look)),
             Sim.Physics.BodyKind.Heavy => props.Get("heavy_crate") ?? Piece($"prop-heavy-{heavyHalf:0.00}", () => PropKit.Heavy(Look, (float)heavyHalf)),
             Sim.Physics.BodyKind.Crate => props.Get("stores_crate") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
             Sim.Physics.BodyKind.Radio => props.Get("field_radio") ?? Piece("prop-radio", () => PropKit.Radio(Look)),
@@ -217,6 +250,59 @@ public sealed partial class SceneArt(Look look)
             mesh.Billboard(o, 0.7f * flicker, 0, new Vector4(Palette.LampAmber * 0.55f * flicker, 1), -1, FxBlend.Additive);
         }
         return true;
+    }
+
+    /// <summary>
+    /// An extinguisher's charge (App. C.5 "limited"; Body.Charge, to the percent) in its sight glass, readable at a glance:
+    /// the water standing that high between the glass's glands, a red float on it, nothing in it when it's spent.
+    /// </summary>
+    void Charge(MeshBuilder mesh, PropArt props, double charge, Matrix4x4 at)
+    {
+        if (props.Socket("extinguisher", "glass_lo") is not { } lo || props.Socket("extinguisher", "glass_hi") is not { } hi || charge <= 0.005)
+            return;
+        float h = (hi.Y - lo.Y) * (float)Math.Clamp(charge, 0, 1);
+        var column = Piece("charge-column", () => TrainKit.SightWater(Look));
+        mesh.Append(column, Matrix4x4.CreateScale(1, h, 1) * Matrix4x4.CreateTranslation(lo) * at);
+        var bob = Piece("charge-float", () => TrainKit.SightFloat(Look));
+        mesh.Append(bob, Matrix4x4.CreateTranslation(lo + new Vector3(0, h, 0)) * at);
+    }
+
+    int? _fullStock;
+
+    /// <summary>
+    /// A car's fittings that aren't its body (GDD §12 "where powder and shot are stored, where tools and fire extinguishers
+    /// hang"): the extinguisher's board and cradle in every car with a room (World.ExtinguisherMount), and in a gun car the
+    /// powder and shot locker, holding what's left of the gun's stock (Gun.Ammo of combat.json's guns "ammo": a ball's well and a
+    /// bag's place emptied as it goes). One whose floor a Car Hugger's eaten (<paramref name="bite"/>) has gone with it.
+    /// </summary>
+    public void Fittings(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, Bite bite = default)
+    {
+        if (frame.Shape.Interior is not { } room || (frame.Origin - eye).Length > 60)
+            return;
+        var props = PropArt.Of(Look);
+        var m = FrameMatrix(frame, eye);
+        var spot = ToF(Sim.World.ExtinguisherMount(frame.Shape, room));
+        if (props.Get("extinguisher_mount") is { } board && !bite.Eats(spot + new Vector3(0, 0.6f, 0)))
+            mesh.Instances.Add(new MeshInstance(board, Matrix4x4.CreateTranslation(spot) * m));
+        if (!(vehicle?.HasGun ?? frame.Shape.Gun is not null) || props.Get("shot_locker") is not { } locker)
+            return;
+        // Along the left wall in the front corner, ahead of the guard van's tool lockers and clear of the end door and the
+        // stores, out from the wall as far as its lid leans back past its hinges (0.4 m), so the lid rests against it.
+        var at = Matrix4x4.CreateTranslation((float)room.Min.X + 0.42f, (float)room.Min.Y + 0.1f, (float)room.Min.Z + 0.55f);
+        if (bite.Eats(at.Translation + new Vector3(0, 0.3f, 0)))
+            return;
+        mesh.Instances.Add(new MeshInstance(locker, at * m));
+        _fullStock ??= Math.Max(1, DataFile.Load<Sim.Combat.CombatTuning>(Path.Combine(props.ContentRoot, Sim.Combat.CombatTuning.File)).Guns.Ammo);
+        double left = vehicle is null ? 1 : Math.Clamp((double)vehicle.Gun.Ammo / _fullStock.Value, 0, 1);
+        int balls = (int)Math.Ceiling(left * 12), bags = (int)Math.Ceiling(left * 6);
+        if (props.Get("cannon_ball") is { } ball)
+            for (int k = 0; k < balls; k++)
+                if (props.Socket("shot_locker", $"ball_{k}") is { } c)
+                    mesh.Append(ball, Matrix4x4.CreateTranslation(c) * at * m);
+        if (props.Get("powder_bag") is { } bag)
+            for (int k = 0; k < bags; k++)
+                if (props.Socket("shot_locker", $"bag_{k}") is { } c)
+                    mesh.Append(bag, Matrix4x4.CreateRotationY(k * 1.3f) * Matrix4x4.CreateTranslation(c) * at * m);
     }
 
     readonly Vector3[] _joints = new Vector3[CreatureArt.RagdollJoints];
@@ -349,6 +435,12 @@ public sealed partial class SceneArt(Look look)
         var (cut, floor) = bite.Any ? (bite.Shader, bite.Floor) : (Vector4.Zero, 0f);
         // Under emergency lighting the headlamp and tail lamp have no power.
         mesh.Instances.Add(new MeshInstance(body, m, emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
+        // Its number, the vehicle's id (the cars counted back from the engine as they left; a car keeps its number when
+        // the ones ahead of it are cut away), worn and eaten with the body.
+        int number = frame.Index;
+        if (!engine && Look.Layer("stencil_numerals") >= 0)
+            mesh.Instances.Add(new MeshInstance(Piece($"number:{ShapeKey(shape)}:{number}", () => TrainKit.CarNumber(Look, shape, number)), m,
+                emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
         int state = damage.StateOf(integrity);
         if (state > 0 && !engine)
             mesh.Instances.Add(new MeshInstance(Piece($"damage:{ShapeKey(shape)}:{state}:{seed}", () => DamageKit.Car(Look, shape, state, seed)), m,

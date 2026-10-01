@@ -271,10 +271,11 @@ public sealed partial class Run
             if (!site.Stocked && Phase == RunPhase.AtFacility)
             {
                 site.Stocked = true;
+                var cargo = FacilityFeature?.Facility is { } facility ? t.CargoOf(facility) : CargoKind.None;
                 foreach (var at in site.CrateStack)
-                    world.Bodies.SpawnCargo(at, site.CrateLineHint);
+                    world.Bodies.SpawnCargo(at, site.CrateLineHint, cargo: cargo);
                 foreach (var at in site.HeavyStack)
-                    world.Bodies.SpawnCargo(at, site.CrateLineHint, t.Crates.Heavy.Radius);
+                    world.Bodies.SpawnCargo(at, site.CrateLineHint, t.Crates.Heavy.Radius, cargo);
             }
             Crank(site, t.Winch, dt);
             Restart(world, site, t.Power, dt);

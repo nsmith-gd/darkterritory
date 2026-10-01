@@ -615,6 +615,60 @@ public static class TrainKit
         return k.Build("needle");
     }
 
+    /// <summary>
+    /// A car's number (GDD §32 "something players can say out loud": "car four"), stencilled on in the shops' white
+    /// (tools/art stencil_numerals): big on both sides at its front end, where a crewman on the ballast or the next roof
+    /// reads it, and on the roof at each end beside the walk, the right way up for someone walking onto it.
+    /// </summary>
+    public static MeshAsset CarNumber(Look? look, CarShape shape, int number)
+    {
+        var k = new Kit(look, 63);
+        k.Use("stencil_numerals", new Vector3(0.75f, 0.72f, 0.66f), 0.6f, 0, tile: 1);
+        string digits = number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        float w = (float)shape.HalfWidth, l = (float)shape.HalfLength, h = (float)shape.RoofHeight;
+        void Paint(Vector3 centre, Vector3 normal, Vector3 up, float size)
+        {
+            var right = Vector3.Normalize(Vector3.Cross(up, normal));
+            float cw = size * 0.8f;
+            for (int i = 0; i < digits.Length; i++)
+            {
+                int d = digits[i] - '0';
+                var uv0 = new Vector2(d % 5 / 5f, d / 5 / 2f);
+                k.Panel(centre + right * ((i - (digits.Length - 1) / 2f) * cw * 0.9f), normal, up, cw, size, uv0, uv0 + new Vector2(0.2f, 0.5f));
+            }
+        }
+        foreach (int side in new[] { -1, 1 })
+            Paint(new Vector3(side * (w + 0.02f), h * 0.58f, -l + 1.3f), new Vector3(side, 0, 0), Vector3.UnitY, 0.75f);
+        // On the roof, off the walk, to read walking in from either end: up the car at the front, down it at the back.
+        Paint(new Vector3(0.68f, h + 0.012f, -l + 0.9f), Vector3.UnitY, -Vector3.UnitZ, 0.6f);
+        Paint(new Vector3(-0.68f, h + 0.012f, l - 0.9f), Vector3.UnitY, Vector3.UnitZ, 0.6f);
+        return k.Build($"car-number-{number}");
+    }
+
+    /// <summary>
+    /// The water in an extinguisher's sight glass (SceneArt.Charge): a column a metre high from its foot, scaled to the
+    /// charge, a little lit so it reads in a dark car (the glass catches the lamp). A hair wider than the glass (train_stores'
+    /// 14 mm), which is opaque: what you see of the glass is the water in it, and the dark glass above.
+    /// </summary>
+    public static MeshAsset SightWater(Look? look)
+    {
+        var k = new Kit(look, 61);
+        k.Use("glass_dirty", new Vector3(0.45f, 0.72f, 0.68f), 0.1f, 0, tile: 0.1f);
+        k.Emissive = 0.6f;
+        k.Cylinder(new Vector3(0, 0, 0), new Vector3(0, 1, 0), 0.0148f, 8);
+        return k.Build("sight-water");
+    }
+
+    /// <summary>The red float riding on the water in the sight glass.</summary>
+    public static MeshAsset SightFloat(Look? look)
+    {
+        var k = new Kit(look, 62);
+        k.Use("paint_oxide", Palette.SignalRed, 0.3f, 0, tile: 0.1f);
+        k.Emissive = 0.5f;
+        k.Cylinder(new Vector3(0, -0.01f, 0), new Vector3(0, 0.01f, 0), 0.016f, 8);
+        return k.Build("sight-float");
+    }
+
     /// <summary>Where on the gauge atlas a dial is, in texture coordinates: the four quarters, left to right, top to bottom.</summary>
     public static (Vector2 Centre, float Radius) GaugeCell(string gauge) => gauge switch
     {

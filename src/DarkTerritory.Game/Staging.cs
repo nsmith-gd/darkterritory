@@ -25,6 +25,25 @@ public static class Staging
     }
 
     /// <summary>
+    /// The train as it leaves (World.Stock, Guns.Arm): the guard van's stores, lamp, radios and toys, every car's
+    /// extinguisher on its mount, each at <paramref name="charge"/> (its sight glass, App. C.5), settled where they lie, and
+    /// the guns' full stock of powder and shot.
+    /// </summary>
+    public static Sim.Physics.Bodies Stocked(TrainOnLine train, string content, double charge = 1)
+    {
+        var tuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
+        var world = new Sim.World(train);
+        world.Stock();
+        Sim.Combat.Guns.Arm(train, DataFile.Load<Sim.Combat.CombatTuning>(Path.Combine(content, Sim.Combat.CombatTuning.File)).Guns);
+        foreach (var b in world.Bodies.All)
+            if (b.Kind == Sim.Physics.BodyKind.Extinguisher)
+                b.Charge = charge;
+        for (int i = 0; i < 90; i++)
+            world.Bodies.Step(train, tuning, _ => null);
+        return world.Bodies;
+    }
+
+    /// <summary>
     /// Three crewmates on car 2's roof (T47): a keyboard player, arms at their sides; a headset player pointing down the line
     /// ahead with one hand; and one holding something out in front with both.
     /// </summary>
