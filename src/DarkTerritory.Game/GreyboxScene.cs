@@ -232,7 +232,15 @@ public sealed class GreyboxScene
                     var bite = e.Kind == EnemyKind.CarHugger && e.Attached >= 0 && e.Attached < frames.Count && Look is { } look
                         ? Art.Bite.For(look.Tuning.Bite, frames[e.Attached].Shape, Vehicles is { } vs && e.Attached < vs.Count ? vs[e.Attached] : null, e.Attached)
                         : default;
-                    DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite);
+                    // A Tippy Toesie faces who it's after (its Extra), and smothering them stands to them (Art/CreatureArt).
+                    Art.CreatureArt.Prey? prey = e.Kind == EnemyKind.TippyToesie && e.Extra >= 0 && Crew?.FirstOrDefault(c => c.Id == (int)e.Extra) is { } victim
+                        ? new(V(victim.Feet, eye), new Vector3((float)-Math.Sin(victim.Yaw), 0, (float)-Math.Cos(victim.Yaw)))
+                        : null;
+                    // And stoops under a roof, ducks through a door (note 110).
+                    Art.CreatureArt.Room? room = e.Kind == EnemyKind.TippyToesie && e.Attached >= 0 && e.Attached < frames.Count
+                        ? Art.CreatureArt.Room.Of(frames[e.Attached].Shape, e.Local)
+                        : null;
+                    DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room);
                 }
         Lap(mesh, "enemies");
         if (Bodies is not null)
@@ -409,7 +417,7 @@ public sealed class GreyboxScene
     /// perceivable). The real creatures come with the art pass; these exist to make pacing watchable.
     /// </summary>
     static void DrawEnemy(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Enemy e, Double3 eye, double from, double to, Art.CreatureArt? creatures = null,
-        Art.Bite bite = default)
+        Art.Bite bite = default, Art.CreatureArt.Prey? prey = null, Art.CreatureArt.Room? room = null)
     {
         // A basis for the enemy: its car's, or the line's at its distance.
         Double3 origin, right, up = Double3.Up, back;
@@ -445,7 +453,7 @@ public sealed class GreyboxScene
         var o = V(origin, eye);
         var (r, u, b) = (ToF(right), ToF(up), ToF(back));
         // The art pass's creature, where it has one (Art/CreatureArt): the same place, the thing itself.
-        if (creatures is not null && creatures.Enemy(mesh, Art.CreatureArt.Basis(o, r, u, b), e, bite))
+        if (creatures is not null && creatures.Enemy(mesh, Art.CreatureArt.Basis(o, r, u, b), e, bite, prey, room))
             return;
         Vector3 L(double x, double y, double z) => o + r * (float)x + u * (float)y + b * (float)z;
         void Draw(double x, double y, double z, double hx, double hy, double hz, Vector3 colour) =>

@@ -91,6 +91,38 @@ public class InteriorTests
     /// The plate across a coupling gap bridges end door to end door: it spans both doorways, and the end ladders stand
     /// clear of its edge, so stepping off it is stepping through a door.
     /// </summary>
+    /// <summary>
+    /// One doorway (train.json doorway, ARCHITECTURE §8 note 110): every door on the train, end and side, on every kind of
+    /// car, and the cab's doorways, are the one height over their floor, with a crewmate's head well under it.
+    /// </summary>
+    [Fact]
+    public void EveryDoorwayIsTheStandardDoorway()
+    {
+        var g = T.Geometry;
+        double h = g.Doorway.Height;
+        Assert.True(h >= P.Height + 0.2, "a crewmate walks through upright");
+        foreach (var kind in new[] { VehicleKind.Cargo, VehicleKind.Guard })
+            foreach (bool behind in new[] { true, false })
+            {
+                var shape = CarShape.Build(g, kind, behind);
+                Assert.NotEmpty(shape.DoorList);
+                foreach (var door in shape.DoorList)
+                {
+                    Assert.Equal(h, door.Box.Max.Y - door.Box.Min.Y, 6);
+                    Assert.Equal(I.FloorHeight, door.Box.Min.Y, 6);
+                    // The end doors are the standard's width; the side doors are wider, for crates.
+                    double width = Math.Max(door.Box.Max.X - door.Box.Min.X, door.Box.Max.Z - door.Box.Min.Z);
+                    Assert.True(Math.Abs(width - g.Doorway.Width) < 1e-6 || Math.Abs(width - I.SideDoorWidth) < 1e-6, $"{kind} door {door.Index}: {width} m");
+                }
+            }
+        // The cab's doorways: open, but under the same lintel, and the cab roof well over it.
+        var engine = CarShape.Build(g, VehicleKind.Engine, true);
+        var lintels = engine.Solids.Where(s => s.Part == PartKind.CabWall && s.Box.Min.Y > g.Engine.DeckHeight + 1.5).ToList();
+        Assert.Equal(2, lintels.Count);
+        Assert.All(lintels, l => Assert.Equal(g.Engine.DeckHeight + h, l.Box.Min.Y, 6));
+        Assert.All(lintels, l => Assert.Equal(g.Doorway.Width - 0.15, l.Box.Max.Z - l.Box.Min.Z, 6));
+    }
+
     [Fact]
     public void CouplerPlatesLineUpWithTheEndDoors()
     {

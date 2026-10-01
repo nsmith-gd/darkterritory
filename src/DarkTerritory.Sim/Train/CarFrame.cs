@@ -203,7 +203,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     {
         double w = g.RoofWidth / 2, l = g.CarLength / 2, h = g.CarHeight;
         double floor = i.FloorHeight, t = i.WallThickness, ceiling = h - i.RoofThickness;
-        double d0 = i.DoorX - i.DoorWidth / 2, d1 = i.DoorX + i.DoorWidth / 2, lintel = floor + i.DoorHeight;
+        double d0 = i.DoorX - g.Doorway.Width / 2, d1 = i.DoorX + g.Doorway.Width / 2, lintel = floor + g.Doorway.Height;
         double sd = i.SideDoorWidth / 2;
         var solids = new List<Solid>
         {
@@ -341,8 +341,9 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             // The coal bunker, clear of the gangway down its left side.
             new(new Box(new Double3(-w + e.TenderGangway, deck, cabBack), new Double3(w, e.TenderTop, l)), SurfaceKind.Roof, PartKind.Tender),
         };
-        // Cab sides are waist-high with a doorway at the back of each side, and corner pillars hold the roof.
-        double doorFront = cabBack - e.DoorWidth;
+        // Cab sides are waist-high with a doorway at the back of each side, and corner pillars hold the roof. Over each
+        // doorway, the standard lintel (train.json doorway): the cab roof is higher, but a door is a door (note 110).
+        double doorFront = cabBack - g.Doorway.Width;
         foreach (int side in new[] { -1, 1 })
         {
             double inner = side * (w - 0.1), outer = side * w;
@@ -350,11 +351,12 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             solids.Add(new(new Box(new Double3(x0, deck, cabFront), new Double3(x1, deck + 1.1, doorFront)), SurfaceKind.Deck, PartKind.CabWall));
             solids.Add(new(new Box(new Double3(x0, deck, cabFront), new Double3(x1, g.EngineHeight - 0.2, cabFront + 0.15)), SurfaceKind.Deck, PartKind.CabWall));
             solids.Add(new(new Box(new Double3(x0, deck, cabBack - 0.15), new Double3(x1, g.EngineHeight - 0.2, cabBack)), SurfaceKind.Deck, PartKind.CabWall));
+            solids.Add(new(new Box(new Double3(x0, deck + g.Doorway.Height, doorFront), new Double3(x1, g.EngineHeight - 0.2, cabBack - 0.15)), SurfaceKind.Deck, PartKind.CabWall));
         }
         // The running boards (App. A.2 GREASE: "sends someone onto the running boards at speed"): a walkway each side at
         // deck height, out past the cab side from the front of the boiler to partway across the cab's doorway: out of the
         // doorway and forward onto it. It stops short of the doorway's back, where the cab steps come up from the ground.
-        double board = e.RunningBoardWidth, boardBack = cabBack - e.DoorWidth + e.DoorWidth * 0.4;
+        double board = e.RunningBoardWidth, boardBack = cabBack - g.Doorway.Width + g.Doorway.Width * 0.4;
         foreach (int side in new[] { -1, 1 })
         {
             var (x0, x1) = side < 0 ? (-w - board, -w) : (w, w + board);
@@ -368,7 +370,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             solids.Add(new(new Box(new Double3(-w, deck - 0.1, l - 0.01), new Double3(g.PlateX - g.CouplerWidth / 2 + 0.01, deck, l + g.CouplingGap * 0.45)),
                 SurfaceKind.Deck, PartKind.RunningBoard));
 
-        double doorZ = doorFront + e.DoorWidth / 2;
+        double doorZ = doorFront + g.Doorway.Width / 2;
         var ladders = new List<Ladder>
         {
             // Cab steps up from the ballast on both sides, at the doorways.

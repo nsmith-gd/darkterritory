@@ -883,7 +883,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Run = run,
         Holdouts = holdouts,
         Time = 0.37,
-        Enemies = args.Contains("--threats") ? Later(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Opt(args, "--later", 0)) : null,
+        Enemies = args.Contains("--threats") ? Later(Staging.Tippy(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), train, Str(args, "--tippy", "")), Opt(args, "--later", 0)) : null,
         Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All : cargo,
         // --crew: three on car 2's roof, one reaching up, one holding out both hands, one with a keyboard (T47's arms).
         Crew = args.Contains("--crew") ? Staging.Crew(train, content) : null,
@@ -1260,6 +1260,7 @@ static string Str(string[] args, string name, string fallback)
 }
 
 // Every enemy that much further into its phase (dt screenshot --later: a frame of its animation further on).
+// --later s: every staged threat that much further on in its phase.
 static List<DarkTerritory.Sim.Enemies.Enemy> Later(List<DarkTerritory.Sim.Enemies.Enemy> enemies, double seconds)
 {
     if (seconds != 0)

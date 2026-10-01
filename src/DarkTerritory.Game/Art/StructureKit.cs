@@ -562,9 +562,10 @@ public static class StructureKit
                         k.Tri(new Vector3(a, 9, z), new Vector3(b, 9, z), new Vector3(mid, 12.4f, z), new(a, -9), new(b, -9), new(mid, -12.4f));
                     // A black doorway facing the line, and a door leaf hanging off it.
                     k.Shade(0.08f);
-                    k.Panel(new Vector3(s > 0 ? a - 0.01f : b + 0.01f, 3.5f, -8), new Vector3(-s, 0, 0), Vector3.UnitY, 5, 5, twoSided: false);
+                    k.Doorway(new Vector3(s > 0 ? a - 0.01f : b + 0.01f, 1, -8), new Vector3(-s, 0, 0), 5, bay: true);
                     k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
-                    k.With(Matrix4x4.CreateRotationY(0.9f * s) * Kit.At(s > 0 ? a : b, 1, -5.5f), () => k.Box(new Vector3(-0.08f, 0, -2.5f), new Vector3(0.08f, 5, 0)));
+                    float leaf = k.DoorHeight(bay: true);
+                    k.With(Matrix4x4.CreateRotationY(0.9f * s) * Kit.At(s > 0 ? a : b, 1, -5.5f), () => k.Box(new Vector3(-0.08f, 0, -2.5f), new Vector3(0.08f, leaf, 0)));
                     break;
                 }
         }
@@ -606,7 +607,10 @@ public static class StructureKit
         k.Quad(new Vector3(mid, height + width * 0.3f, z1 + 0.4f), new Vector3(mid, height + width * 0.3f, z0 - 0.4f), new Vector3(b + 0.4f, height - 0.1f, z0 - 0.4f), new Vector3(b + 0.4f, height - 0.1f, z1 + 0.4f), twoSided: true);
         k.Shade(0.08f);
         bool right = door == 0 ? x > 0 : door < 0;
-        k.Panel(new Vector3(right ? a - 0.01f : b + 0.01f, 2.5f, z), new Vector3(right ? -1 : 1, 0, 0), Vector3.UnitY, 4, 3.5f, twoSided: false);
+        // The standard doorway (note 110): a big door where the walls stand tall enough over the sill for one and its
+        // header, else a person's.
+        bool bay = height - 0.8f >= k.DoorHeight(bay: true) + 0.6f;
+        k.Doorway(new Vector3(right ? a - 0.01f : b + 0.01f, 0.8f, z), new Vector3(right ? -1 : 1, 0, 0), bay ? 4 : 1.1f, bay);
     }
 
     /// <summary>A stripped carbody for a wreck yard's heaps: its floor and sides, the roof half gone, rusted through.</summary>

@@ -367,7 +367,8 @@ public static class TrainKit
     static void Cab(Kit k, CarShape shape, float w, float deck, float cabFront, float cabBack, float bw, float top, float roofLow, float roofTop)
     {
         float waist = deck + 1.1f;
-        var doorFront = cabBack - 0.9f;
+        // Where the doorway starts: under its lintel (the sim's, the standard doorway: note 110).
+        var doorFront = shape.Solids.Where(s => s.Part == PartKind.CabWall && s.Box.Min.Y > deck + 1.5).Select(s => (float)s.Box.Min.Z).DefaultIfEmpty(cabBack - 0.9f).Min();
         foreach (var solid in shape.Solids.Where(s => s.Part == PartKind.CabWall))
         {
             var b = solid.Box;

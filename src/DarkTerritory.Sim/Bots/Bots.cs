@@ -882,7 +882,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         var g = train.Dynamics.Tuning.Geometry;
         var e = g.Engine;
         double w = g.RoofWidth / 2, l = g.EngineLength / 2;
-        double cabBack = l - e.TenderLength, cabFront = cabBack - e.CabLength, doorFront = cabBack - e.DoorWidth;
+        double cabBack = l - e.TenderLength, cabFront = cabBack - e.CabLength, doorFront = cabBack - g.Doorway.Width;
         double outside = w + Math.Min(0.32, e.RunningBoardWidth / 2);
         var box = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Sandbox && i.Position.X > 0).Position;
         return

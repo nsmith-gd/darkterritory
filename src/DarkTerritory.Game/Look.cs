@@ -4,6 +4,8 @@ using System.Text.Json;
 using Ballast;
 using Ballast.Render;
 
+using DarkTerritory.Sim.Train;
+
 namespace DarkTerritory.Game;
 
 /// <summary>A material as look.json writes it: its wear and shine, and the texture it wears, if any.</summary>
@@ -150,6 +152,11 @@ public sealed class Look
     public SurfaceStyle Style { get; }
     /// <summary>The folder the textures were read from, when they were.</summary>
     public string? TextureRoot { get; init; }
+    /// <summary>
+    /// The one doorway (train.json <c>doorway</c>, ARCHITECTURE §8 note 110): the train's doors are built to it, and every
+    /// door the art draws, on the train or off it, is this tall (<see cref="Art.Kit.Doorway"/>).
+    /// </summary>
+    public DoorwayTuning Doorway { get; init; } = new();
 
     static Dictionary<string, Vector3> PaletteColours() =>
         typeof(Palette).GetFields(BindingFlags.Public | BindingFlags.Static).Where(f => f.FieldType == typeof(Vector3))
@@ -166,10 +173,12 @@ public sealed class Look
     public static Look Load(string content)
     {
         var tuning = DataFile.Load<LookTuning>(Path.Combine(content, LookTuning.File));
+        string trainFile = Path.Combine(content, TrainTuning.File);
+        var doorway = System.IO.File.Exists(trainFile) ? DataFile.Load<TrainTuning>(trainFile).Geometry.Doorway : new DoorwayTuning();
         string root = Path.Combine(content, "art", "textures");
         string index = Path.Combine(root, "index.json");
         if (!System.IO.File.Exists(index))
-            return new Look(tuning);
+            return new Look(tuning) { Doorway = doorway };
         var entries = JsonSerializer.Deserialize<List<TextureEntry>>(System.IO.File.ReadAllText(index), DataFile.Options) ?? [];
         // The sourced props' own layers (tools/models writes them beside the library, index.models.json), after it.
         string models = Path.Combine(root, "index.models.json");
@@ -178,7 +187,7 @@ public sealed class Look
         // A texture named in the index but not on disk is skipped (and so is its material's texture): the look degrades
         // to flat colour rather than failing to start.
         entries = [.. entries.Where(e => System.IO.File.Exists(Path.Combine(root, e.Diffuse)))];
-        return new Look(tuning, entries) { TextureRoot = root };
+        return new Look(tuning, entries) { TextureRoot = root, Doorway = doorway };
     }
 
     /// <summary>The texture layer called <paramref name="name"/>, or −1 when it isn't there.</summary>
