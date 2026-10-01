@@ -134,6 +134,10 @@ public sealed class CreatureArt
     // front of their feet (m).
     const float SootPinSeconds = 0.6f, SootCling = 0.3f;
 
+    // The Switchman's lever turns on its stand's pivot here (m, in the model's space: by its right foot, at the top of the
+    // stand's short post).
+    static readonly Vector3 SwitchLeverPivot = new(0.34f, 0.32f, -0.3f);
+
     const int FireFlyMost = 22;
     const float FireFlySwarmFills = 20, FireFlyGlass = 0.085f, FireFlyGlassBelow = 0.07f, FireFlyGlassAbove = 0.08f, FireFlyOrbit = 0.45f;
 
@@ -354,6 +358,19 @@ public sealed class CreatureArt
     }
 
     /// <summary>Where a bone of the model last drawn by name is, in camera-relative space (the Switchman's lantern).</summary>
+    /// <summary>A square iron bar from <paramref name="a"/> to <paramref name="b"/>, <paramref name="half"/> thick (a lever, a post).</summary>
+    static void Bar(MeshBuilder mesh, Vector3 a, Vector3 b, float half, Vector3 colour)
+    {
+        var along = b - a;
+        float length = along.Length();
+        if (length < 1e-4f)
+            return;
+        var up = along / length;
+        var side = Vector3.Normalize(Vector3.Cross(up, MathF.Abs(up.Y) < 0.9f ? Vector3.UnitY : Vector3.UnitX));
+        var back = Vector3.Cross(side, up);
+        mesh.Box((a + b) / 2, side, up, back, new Vector3(half, length / 2, half), colour);
+    }
+
     Vector3 BoneAt(string name, string bone, in Matrix4x4 at) =>
         _models.TryGetValue(name, out var m) && m.Model.Skeleton.IndexOf(bone) >= 0
             ? Skinner.Socket(m.Model, m.Pose, bone, at).Translation
@@ -619,7 +636,10 @@ public sealed class CreatureArt
                     string clip;
                     double ct = t;
                     bool loop = true;
-                    if (aboard || phase is SpinePhase.Grab or SpinePhase.Punish)
+                    if (phase is SpinePhase.Grab or SpinePhase.Punish)
+                        // On someone: the leap, then the jaws clamped on them and the head wrenching (the pack fight's bite).
+                        (clip, ct, loop) = t < 0.6 ? ("lunge", t, false) : ("bite", t - 0.6, true);
+                    else if (aboard)
                     {
                         // Onto the roof in one leap, then the pack fight: crouch (a held beat), lunge, crouch.
                         if (t < 0.6)
@@ -656,9 +676,27 @@ public sealed class CreatureArt
                 }
             case EnemyKind.Switchman:
                 {
-                    bool fleeing = phase == SpinePhase.BreakOff;
-                    if (!Draw(mesh, "switchman", fleeing ? "flee" : "wait", t, true, model))
+                    // At the lever (App. A.7): waiting by it; the derailer's hand on it, gripping, till the train's over the
+                    // points (COMMIT, the tell); then it's thrown, heaved over, and the Switchman stands dead still by it,
+                    // watching what it's done (PUNISH); called off, it flees.
+                    var (clip, loop) = phase switch
+                    {
+                        SpinePhase.BreakOff => ("flee", true),
+                        SpinePhase.Commit => ("grip", true),
+                        SpinePhase.Punish => ("throw", false),
+                        _ => ("wait", true),
+                    };
+                    if (!Draw(mesh, "switchman", clip, t, loop, model) && !Draw(mesh, "switchman", phase == SpinePhase.BreakOff ? "flee" : "wait", t, true, model))
                         return false;
+                    if (clip is "grip" or "throw")
+                    {
+                        // The lever, from its stand's pivot by its right foot up into its hand (the stand's post under it).
+                        var hand = BoneAt("switchman", "fingers_r", model);
+                        var pivot = Vector3.Transform(SwitchLeverPivot, model);
+                        var (_, up, _) = Basis(model);
+                        Bar(mesh, pivot, hand + Vector3.Normalize(hand - pivot) * 0.12f, 0.018f, Palette.IronGrey);
+                        Bar(mesh, pivot - up * SwitchLeverPivot.Y, pivot, 0.05f, Palette.SootBlack);
+                    }
                     // Its lantern is the only light on it (App. A.7's "distant figure at the switch").
                     mesh.PointLights.Add(new PointLight(BoneAt("switchman", "lantern", model), Palette.LampAmber * 1.1f, 6f));
                     return true;

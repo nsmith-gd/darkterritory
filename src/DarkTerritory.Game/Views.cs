@@ -71,6 +71,8 @@ public static class Views
             // The fireman's side (T101): out of the left window down the running board to the blow-off by the smokebox.
             "fireman" => CabCamera(engine, -1),
             "chase" => ChaseCamera(train),
+            // On the line 47 m ahead of the engine, at the staged Switchman by its lever 8 m on (Staging.Threats).
+            "switchman" => Camera.LookAt(engine.ToWorld(new Double3(1.6, 1.8, -engineHalf - 50.5)), engine.ToWorld(new Double3(3.8, 1.1, -engineHalf - 55)), 50),
             "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
             "gap" => GapCamera(train, car),
             // From over the car behind, down at a cargo car's roof hatch (T99): its lid, shut, or open down the side.

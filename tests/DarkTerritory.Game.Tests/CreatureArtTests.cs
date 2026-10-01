@@ -31,11 +31,11 @@ public class CreatureArtTests
         ["crew"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle"], ["dead"]),
         // The crew figure gone wrong (the Climbers and the Deadman): the crew's own rig and clips.
         ["husk"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle"], ["dead"]),
-        ["switchman"] = new(2000, 9000, 20, 60, ["wait", "flee"], []),
+        ["switchman"] = new(2000, 9000, 20, 60, ["wait", "flee", "grip"], ["throw"]),
         ["hollow"] = new(1500, 5000, 20, 60, ["idle"], ["reach"]),
         ["soot_child"] = new(3000, 9000, 20, 60, ["huddle", "call", "drink"], ["pin"]),
         // SK_Quad: 40-55 bones.
-        ["cinder_hound"] = new(4000, 8000, 40, 55, ["prowl", "run", "crouch"], ["lunge", "hit"]),
+        ["cinder_hound"] = new(4000, 8000, 40, 55, ["prowl", "run", "crouch", "bite"], ["lunge", "hit"]),
         // A chain of 8-12, plus a root.
         ["sleeper"] = new(400, 3000, 8, 13, ["dormant", "writhe"], ["lift"]),
         ["clinger"] = new(1500, 6000, 10, 45, ["cling", "drill"], ["punish"]),

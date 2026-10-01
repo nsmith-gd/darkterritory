@@ -348,6 +348,26 @@ public static class Staging
     // How far off the second car's side the staged Soot Child is (m): in front of crewmate 4, a few metres out.
     const double SootOut = 4.6;
 
+    /// <summary>
+    /// The staged Switchman (<c>dt screenshot --switchman</c>), at its lever 55 m up the line (App. A.7): <c>wait</c> by it
+    /// (TELEGRAPH), <c>grip</c> its hand on it, waiting to throw it under the train (COMMIT, the derailer's tell),
+    /// <c>throw</c> it thrown (PUNISH). The <c>switchman</c> view is on the line short of it.
+    /// </summary>
+    public static List<Enemy> Switchman(List<Enemy> threats, string mode)
+    {
+        if (mode.Length == 0 || threats.OfType<Sim.Enemies.Switchman>().FirstOrDefault() is not { } s)
+            return threats;
+        var (phase, derail) = mode switch
+        {
+            "wait" => (SpinePhase.Telegraph, 0.0),
+            "grip" => (SpinePhase.Commit, 1.0),
+            "throw" => (SpinePhase.Punish, 1.0),
+            _ => throw new ArgumentException($"--switchman {mode}: wait, grip or throw"),
+        };
+        s.Restore(phase, 0.4, s.Health, s.Attached, s.Local, s.LineDistance, s.Lateral, s.Height, s.Extra, derail);
+        return threats;
+    }
+
     // How far off the second car's side the staged Grumbler is (m): in front of crewmate 4, a lunge from them.
     const double GrumblerOut = 3.3;
 

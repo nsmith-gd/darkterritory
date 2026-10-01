@@ -2313,3 +2313,13 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - the variants are the same child with their own eyes, hands and feet;
         - calling, the head comes up;
         - on someone, it's up at their chest, its feet off the ground.
+
+126. **The Switchman at its lever (GDD v1.2 §21, App. A.7).** It had only `wait` and `flee`. It now has the clips for what the brief has it do with the lever (`tools/models/recipes/switchman.py`, on the scan's own rig).
+    - **grip** (COMMIT, the derailer's tell): its right hand down on the lever at its side, leant to it, the hand trembling on it in pops, the head once snapped round to the coming train.
+    - **throw** (PUNISH, once): the lever heaved over and across in front of it, the body twisting into the pull. Then it's dead still, its hand still on the lever, the head cocked, watching what it's done.
+    - **The lever.** No switch stand sits where the Switchman is staged, so `CreatureArt` draws one with it while it grips and throws: an iron lever from a stub post's pivot by its right foot (`SwitchLeverPivot`) up into its hand. It turns as the hand does.
+    - **Headless.**
+      - `dt screenshot --threats --switchman wait|grip|throw --view switchman`: the new `switchman` view is on the line short of it.
+      - `SwitchmanArtTests`: gripping and throwing, the lever is drawn; thrown, it's gone over.
+
+127. **The Cinder Hounds' bite (GDD v1.2 §21, App. A.3).** On someone (GRAB), a hound used to go round the roof fight's crouch-and-lunge as if it had nobody. Now, after the leap, it bites (`tools/blender/cinder_hound.py` `bite`): braced low, the forelegs planted wide and the hind legs dug in hauling back, the jaws clamped, the head wrenching side to side in hard pops, held, and wrenched again; the tail lashing. Aboard with nobody in its jaws it keeps the crouch-and-lunge.
