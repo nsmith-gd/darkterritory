@@ -32,8 +32,8 @@ public class DepartureTests
             session.Step(default);
         Assert.Equal(RunPhase.Yard, session.World.Run.Phase);
         Assert.True(session.Train.Dynamics.Distance < gate, $"crept to {session.Train.Dynamics.Distance:0.0} of {gate:0.0}");
-        // Regulator open: through the gate and under way within seconds, not minutes.
-        session.Controls.Throttle = 0.6;
+        // Off the brake (T97: steam drives it): through the gate and under way within seconds, not minutes.
+        session.Notch(1);
         int ticks = 0;
         for (; ticks < 30 * SimConstants.TickRate && session.World.Run.Phase == RunPhase.Yard; ticks++)
             session.Step(default);

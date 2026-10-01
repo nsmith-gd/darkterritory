@@ -11,11 +11,12 @@ public class SpecTableTests
     static readonly TrainTuning T = Tuning.Train;
 
     [Theory]
-    [InlineData(3, 14, 151)]
-    [InlineData(6, 21, 230)]
-    [InlineData(10, 31, 336)]
-    [InlineData(15, 46, 504)]
-    [InlineData(20, 63, 690)]
+    // T97 playtest: brakes twice the first pass's.
+    [InlineData(3, 7, 76)]
+    [InlineData(6, 10.5, 115)]
+    [InlineData(10, 15, 168)]
+    [InlineData(15, 23, 252)]
+    [InlineData(20, 31, 346)]
     public void StopFromMaxSpeedMatchesSpecB5(int cars, double seconds, double metres)
     {
         var r = TrainScenarios.StopFrom(T, cars, T.MaxSpeed);

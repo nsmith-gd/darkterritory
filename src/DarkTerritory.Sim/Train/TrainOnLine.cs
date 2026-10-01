@@ -278,8 +278,18 @@ public sealed class TrainOnLine
                 if (BoilerTuning is { } bt)
                 {
                     // Tractive effort comes from the pressure there is now; then the fire and the cylinders move it.
-                    effective.Throttle *= Boiler.PowerFactor(bt);
-                    RupturedThisTick = Boiler.Step(bt, dt, controls.Throttle, rake.Consist.CarCount);
+                    if (bt.SteamDrive)
+                    {
+                        // No regulator (T97): the engine pulls as hard as it takes to make the speed its steam allows.
+                        effective.Throttle = Math.Clamp((Boiler.SteamSpeed(bt, rake.Tuning.MaxSpeed) - rake.Speed) / bt.DriveSpeedBand, 0, 1);
+                        // Held on its brake, it isn't working: no exhaust beats to draw the fire, no steam through the cylinders.
+                        RupturedThisTick = Boiler.Step(bt, dt, rake.Speed < 0.05 ? 0 : effective.Throttle, rake.Consist.CarCount, rake.Speed / rake.Tuning.MaxSpeed);
+                    }
+                    else
+                    {
+                        effective.Throttle *= Boiler.PowerFactor(bt);
+                        RupturedThisTick = Boiler.Step(bt, dt, controls.Throttle, rake.Consist.CarCount);
+                    }
                 }
                 rake.Step(dt, effective, Conditions(rake));
             }

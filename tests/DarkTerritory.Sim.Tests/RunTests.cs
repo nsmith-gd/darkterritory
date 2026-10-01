@@ -23,7 +23,8 @@ public class RunTests
         public readonly World World;
         public readonly RunState Run;
         public PlayerState Player;
-        public TrainControls Controls = new() { Reverser = 1 };
+        // Standing on its brake unless a test drives it: with steam driving (T97) an unbraked engine pulls away.
+        public TrainControls Controls = new() { Reverser = 1, Brake = 1 };
 
         public Night(double front, int cars = 6, Route.Route? route = null, double yard = 600)
         {

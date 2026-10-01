@@ -142,6 +142,27 @@ public sealed class CrewCalls
 
     /// <summary>Nobody alive is on the ground.</summary>
     public bool AllAboard => _crew.Values.All(c => !c.Alive || c.Vehicle != PlayerState.World);
+
+    // T96: who's going to breach which lit Holdout (GDD App. D.5), the nearest of those wanting to.
+    readonly Dictionary<int, (int Member, double Distance)> _breach = new();
+
+    /// <summary>A crewmate wanting to breach this Holdout from this far: true if it's theirs (the nearest takes it).</summary>
+    public bool ClaimBreach(int holdout, int member, double distance)
+    {
+        if (!_breach.TryGetValue(holdout, out var c) || c.Member == member || distance < c.Distance - 3)
+            _breach[holdout] = (member, distance);
+        return _breach[holdout].Member == member;
+    }
+
+    /// <summary>This crewmate isn't going to any Holdout (any more).</summary>
+    public void DropBreach(int member)
+    {
+        foreach (var h in _breach.Where(b => b.Value.Member == member).Select(b => b.Key).ToList())
+            _breach.Remove(h);
+    }
+
+    /// <summary>Someone's on their way to (or at) a Holdout's door: the driver waits for them (T96).</summary>
+    public bool Breaching => _breach.Count > 0;
 }
 
 /// <summary>
@@ -704,7 +725,7 @@ public sealed class StopDriver(CrewCalls calls)
     /// <paramref name="top"/> m/s and gently at the end, on the regulator and the brake handle like someone watching the
     /// ground: the reverser first, which only moves at a stand.
     /// </summary>
-    static PlayerIntent Toward(World world, double target, int direction, double top, bool rear = false)
+    internal static PlayerIntent Toward(World world, double target, int direction, double top, bool rear = false)
     {
         var engine = world.Train.Dynamics;
         var controls = world.Controls;
@@ -1643,6 +1664,26 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             return Heed.Strike(self, train, at, 1.6);
         var stand = TrackPoint(train.Line, RailLine.MainPath, branch.Toe, branch.Side * StandOff);
         return WalkTo(self, train.Line, RailLine.MainPath, stand, null).Step;
+    }
+
+    /// <summary>
+    /// A crewmate waiting in a lit Holdout (GDD App. D.5, T96): down off the standing train on its side, along to its door,
+    /// and hold Use there until it's breached. Null once it isn't lit.
+    /// </summary>
+    public PlayerIntent? Breach(in PlayerState self, World world, Run.Holdout h)
+    {
+        var train = world.Train;
+        if (!h.Lit || world.Holdouts is not { } hs)
+            return null;
+        if (self.Surface == Surface.Air)
+            return new PlayerIntent();
+        if (self.Parent != PlayerState.World)
+            return GetDown(self, train, Side(train, h.Door, h.LineHint));
+        Doing = "at the Holdout";
+        var at = PlayerMotor.WorldPosition(self, train);
+        if (((h.Door - at) with { Y = 0 }).Length <= hs.Tuning.BreachReach * 0.8)
+            return new PlayerIntent { Buttons = PlayerButtons.Use };
+        return WalkTo(self, train.Line, RailLine.MainPath, h.Door, null).Step;
     }
 
     /// <summary>

@@ -110,7 +110,7 @@
     "scarsFrom": 0.95,
     "scarsFull": 0.1
   },
-  // A car eaten from its rear end by a Car Hugger (GDD v1.2 App. A.3 FEED; ARCHITECTURE §8 note 105), by how much of
+  // A car eaten from its rear end by a Car Hugger (GDD v1.2 App. A.3 FEED; ARCHITECTURE §8 note 106), by how much of
   // what was left of it has been eaten (Vehicle.Eaten over eaten plus integrity: 1 is eaten through, when it's dropped).
   "bite": {
     // Eaten through, this fraction of the car's body is gone from the rear; below "floor" (m) nothing is, so it rolls.

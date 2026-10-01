@@ -202,7 +202,10 @@ public class LineGenTests
     {
         // deadLines:1 planned for six cars has a main-line trestle rated for six (§7.3, §22.5), and a washout on the main
         // line with the switch set around it.
-        var route = Routes.Generate(Content, "deadLines:1", 6);
+        // The first Dead Lines night with both on its main line (which seed that is moves with the tuning the planner reads).
+        var route = Enumerable.Range(1, 40).Select(seed => Routes.Generate(Content, $"deadLines:{seed}", 6))
+            .First(r => r.Plan!.Structures.Any(s => s.Edge == "main" && s.Weak is not null)
+                && r.Plan.Structures.Any(s => s.Type == StructureType.Washout && s.Edge == "main"));
         var plan = route.Plan!;
         var bridge = plan.Structures.First(s => s.Edge == "main" && s.Weak is not null);
         int limit = bridge.Weak!.MaxCars;

@@ -103,6 +103,8 @@ public sealed class GreyboxScene
         mesh.Clear();
         mesh.Style = Look?.Style;
         mesh.Seed = 0;
+        _line = line;
+        _hint = hint;
         _lap.Restart();
         _lapCount = 0;
         // Bare triangles (the ground, the ballast, the trees) take world texels, wrapped every few km so they fit a
@@ -1232,11 +1234,74 @@ public sealed class GreyboxScene
     /// What glows and moves on a car, with or without the kit: the firebox's glow, the vent valve, the driver's levers
     /// where the controls have them, and the lamp in every car.
     /// </summary>
+    RailLine? _line, _mapLine;
+    double _hint;
+    readonly List<(double X, double Z)> _mapDots = [];
+    (double X0, double Z0, double Scale) _mapFit;
+
+    static readonly Vector3 MapPaper = new(0.34f, 0.28f, 0.19f), MapInk = new(0.10f, 0.07f, 0.04f);
+
+    /// <summary>
+    /// The night's run map, pinned to the cab's front wall left of the firebox (T98 playtest): the line as an inked dotted
+    /// track on a lamp-lit chart, north up, its stops marked (facilities amber, villages pale), and where the train is now
+    /// in red, moving along it.
+    /// </summary>
+    void CabMap(MeshBuilder mesh, CarFrame frame, Action<Box, Vector3> draw)
+    {
+        if (_line is not { } line || frame.Shape.Cab is not { } cab)
+            return;
+        double length = line.PathLength(RailLine.MainPath);
+        if (length <= 0)
+            return;
+        const double W = 0.54, H = 0.40;
+        double x0 = cab.Min.X + 0.05, y0 = cab.Min.Y + 1.22, z = cab.Min.Z + 0.17;
+        if (!ReferenceEquals(_mapLine, line))
+        {
+            _mapLine = line;
+            _mapDots.Clear();
+            int n = 180;
+            for (int i = 0; i <= n; i++)
+            {
+                var p = line.Sample(RailLine.MainPath, length * i / n).Position;
+                _mapDots.Add((p.X, p.Z));
+            }
+            double minX = _mapDots.Min(d => d.X), maxX = _mapDots.Max(d => d.X), minZ = _mapDots.Min(d => d.Z), maxZ = _mapDots.Max(d => d.Z);
+            double scale = Math.Min((W - 0.06) / Math.Max(1, maxX - minX), (H - 0.06) / Math.Max(1, maxZ - minZ));
+            // Centred on the chart.
+            _mapFit = ((minX + maxX) / 2, (minZ + maxZ) / 2, scale);
+        }
+        // A point of the world on the chart (north, −Z, is up), in the cab's frame.
+        Double3 On(double wx, double wz, double lift) => new(x0 + W / 2 + (wx - _mapFit.X0) * _mapFit.Scale, y0 + H / 2 - (wz - _mapFit.Z0) * _mapFit.Scale, z + lift);
+        // Flat ink on paper: no surface treatment (it'd take the paper's colour for stone).
+        var style = mesh.Style;
+        mesh.Style = null;
+        mesh.Emissive = 0.15f;
+        draw(new Box(new Double3(x0, y0, z), new Double3(x0 + W, y0 + H, z + 0.008)), MapPaper);
+        draw(new Box(new Double3(x0 - 0.015, y0 - 0.015, z - 0.002), new Double3(x0 + W + 0.015, y0 + H + 0.015, z + 0.004)), Palette.DeepBrown);
+        foreach (var (dx, dz) in _mapDots)
+            draw(Box.FromCentre(On(dx, dz, 0.01), new Double3(0.005, 0.005, 0.002)), MapInk);
+        if (Route is { } route)
+            foreach (var f in route.Features.Where(f => f.Kind is FeatureKind.Facility or FeatureKind.Village))
+            {
+                var p = line.Sample(RailLine.MainPath, Math.Clamp(f.Start, 0, length)).Position;
+                draw(Box.FromCentre(On(p.X, p.Z, 0.012), new Double3(0.009, 0.009, 0.003)), f.Kind == FeatureKind.Facility ? Palette.LampAmber : Palette.BoardEnamel);
+            }
+        mesh.Emissive = 1;
+        var at = line.Sample(RailLine.MainPath, Math.Clamp(_hint, 0, length)).Position;
+        float pulse = 0.7f + 0.3f * MathF.Sin((float)Time * 4);
+        draw(Box.FromCentre(On(at.X, at.Z, 0.014), new Double3(0.013, 0.013, 0.003)), Palette.SignalRed * pulse);
+        mesh.Emissive = 0;
+        mesh.Style = style;
+    }
+
     void CarWorkings(MeshBuilder mesh, CarFrame frame, Double3 eye, Action<Box, Vector3> draw)
     {
         var shape = frame.Shape;
         if (frame.Index == 0)
         {
+            // Only read from the footplate: from farther off it's a pale square, and not worth its dots in the frame budget.
+            if ((frame.Origin - eye).Length < 16)
+                CabMap(mesh, frame, draw);
             mesh.Emissive = 1;
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
                 draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.17), new Double3(0.3, 0.2, 0.02)), FireColour(0.15f + 0.85f * FireGlow));

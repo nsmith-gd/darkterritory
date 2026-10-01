@@ -216,15 +216,15 @@ public sealed class FrontEndTests : IDisposable
         Assert.Null(Choose(m, "CONTROLS"));
         Assert.Equal(Screen.Controls, m.Screen);
         Assert.Equal(Enum.GetValues<Control>().Length + 2, m.Items.Count);
-        // Use, from E to F: F was the regulator's close, which takes E.
+        // Use, from E to F: F is the ladder's (T94), which takes E.
         Choose(m, "USE: E");
         Assert.Equal(Control.Use, m.Capturing);
         Assert.Contains(m.Items, i => i.Label == "USE: PRESS A KEY");
         m.Bind("F");
         Assert.Null(m.Capturing);
         Assert.Equal("F", m.Settings.KeyFor(Control.Use));
-        Assert.Equal("E", m.Settings.KeyFor(Control.RegulatorClose));
-        Assert.Contains("REGULATOR CLOSE", m.Message);
+        Assert.Equal("E", m.Settings.KeyFor(Control.Ladder));
+        Assert.Contains("GRAB LADDER", m.Message);
         // Kept: only what differs from the defaults, and read back the same.
         Assert.Equal(2, m.Settings.Keys.Count);
         Assert.Equal(m.Settings, Settings.Load(SettingsPath));

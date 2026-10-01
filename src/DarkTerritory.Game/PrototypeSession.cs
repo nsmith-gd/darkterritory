@@ -62,7 +62,8 @@ public sealed class PrototypeSession : IPlaySession
         World = new World(Train, _combatTuning.Value);
         World.EnableBodies();
         World.Stock();
-        Controls = new TrainControls { Reverser = 1 };
+        // With steam driving (T97), the train stands at the gate on its brake.
+        Controls = new TrainControls { Reverser = 1, Brake = Train.BoilerTuning?.SteamDrive == true ? 1 : 0 };
         Respawn(0);
     }
 
@@ -137,7 +138,22 @@ public sealed class PrototypeSession : IPlaySession
     }
 
     /// <summary>Regulator in quarter notches, like a real throttle quadrant.</summary>
-    public void Notch(int delta) => Controls.Throttle = Math.Clamp(Math.Round(Controls.Throttle * 4 + delta) / 4, 0, 1);
+    public void Notch(int delta)
+    {
+        Controls.Throttle = Math.Clamp(Math.Round(Controls.Throttle * 4 + delta) / 4, 0, 1);
+        // T97: with steam driving there's no regulator; a notch up lets the brake off.
+        if (delta > 0)
+            Controls.Brake = 0;
+    }
+
+    /// <summary>The brake key this frame: held, it's on; let go, it comes off while moving, and stays on at a stand (T97).</summary>
+    public void BrakeHeld(bool held)
+    {
+        if (held)
+            Controls.Brake = 1;
+        else if (Sim.Net.CabControls.Clears(Controls, Train, released: false))
+            Controls.Brake = 0;
+    }
 
     /// <summary>The reverser only moves with the train stopped.</summary>
     public void FlipReverser()
