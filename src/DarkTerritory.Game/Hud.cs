@@ -47,6 +47,8 @@ public static class Hud
             Link(o, width, link, line);
         Radio(o, width, s, line);
         Alerts(o, width, height, s, line);
+        if (s.Link is { } lobby && s.World.Run is { Phase: Sim.Run.RunPhase.Yard })
+            Lobby(o, height, s, lobby, line);
         if (Prompt(s) is { } written)
         {
             string prompt = Bound(written);
@@ -87,6 +89,34 @@ public static class Hud
             bool held = i == p.HeldSlot;
             o.Rect(x, y, w, line + 4, held ? Amber with { W = 0.35f } : Panel);
             o.Text(x + 4, y + 2, label, held ? Ink : Dim);
+        }
+    }
+
+    /// <summary>
+    /// The lobby (T116, the co-op games' way: Lethal Company's ship, PEAK's airport): while the train's in the yard, who's
+    /// aboard, how friends get in, and how the night starts. Drop-in is open here; once the train's out the gate, only at a
+    /// facility (spec E).
+    /// </summary>
+    static void Lobby(Overlay o, int height, IPlaySession s, LinkInfo link, int line)
+    {
+        var crew = s.Roster();
+        float x = 6, y = MathF.Round(height * 0.22f), w = 250;
+        var lines = new List<(string Text, Vector4 Colour)> { ($"THE LOBBY: {crew.Count} ABOARD", Amber) };
+        lines.AddRange(crew.Select(c => ($"  {c.Name}{(c.You && c.Name != "YOU" ? " (YOU)" : "")}", c.You ? Ink : Dim)));
+        if (link.JoinAt is { } at)
+        {
+            lines.Add(("FRIENDS: JOIN A NIGHT, YOUR GAME'S LISTED", Dim));
+            lines.Add(($"  (OR THEY TYPE {at})", Dim));
+        }
+        else if (link.PingMs is null)
+            lines.Add(("A PRIVATE NIGHT: NOBODY ELSE CAN JOIN", Dim));
+        lines.Add(("EVERYONE IN? DRIVE OUT OF THE YARD", Ink));
+        w = lines.Max(l => o.Font.Measure(l.Text)) + 10;
+        o.Rect(x - 2, y - 3, w, lines.Count * line + 6, Panel);
+        foreach (var (text, colour) in lines)
+        {
+            o.Text(x + 2, y, text, colour);
+            y += line;
         }
     }
 

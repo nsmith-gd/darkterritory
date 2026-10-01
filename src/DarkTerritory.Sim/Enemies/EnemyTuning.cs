@@ -395,7 +395,7 @@ public sealed record DirectorTuning(
     /// goes (T114 playtest: "where are all the monsters": a Climber settled in a car nobody went into held the caps full).
     /// </summary>
     public double LingerSeconds { get; init; } = 120;
-    public double LingerRadius { get; init; } = 30;
+    public double LingerRadius { get; init; } = 12;
     /// <summary>Quiet this long (nothing showing itself, no board, no bag) and the director sends something, cooldown or not.</summary>
     public double PaceSeconds { get; init; } = 18;
     /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>

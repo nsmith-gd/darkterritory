@@ -278,11 +278,29 @@ public sealed class World
     public void Derail(string? why = null)
     {
         if (!Derailed)
+        {
             DerailCause = why;
+            // T117: off the rails, every car carries on as itself, into the ground and into each other. The host's; the
+            // clients are sent the poses. Thrown outward off the curve it was on, if it was on one.
+            if (Train.Wreck is null)
+            {
+                double k = Train.Line.Sample(Train.Dynamics.Distance).Curvature;
+                ulong seed = (ulong)Tick * 0x9E3779B97F4A7C15UL ^ (Route?.Seed ?? 0);
+                Train.Wreck = Wreck.Begin(WreckTuning, Train, Ground, seed, first: Train.Dynamics.Consist.Vehicles[0].Id, outward: k > 1e-6 ? -1 : k < -1e-6 ? 1 : 0);
+            }
+        }
         Derailed = true;
         foreach (var rake in Train.Rakes)
             rake.Velocity = 0;
     }
+
+    /// <summary>The wreck's numbers (wreck.json): the default until the session loads them.</summary>
+    public WreckTuning WreckTuning { get; set; } = new();
+
+    double _groundHint;
+
+    /// <summary>The land's height under a point (the line's terrain, or the ballast by a hand-laid line).</summary>
+    double Ground(double x, double z) => PlayerMotor.GroundAt(new Ballast.Double3(x, 0, z), Train.Line, ref _groundHint);
 
     /// <summary>
     /// One player's hands this tick: crew actions at interactables, and firing a gun they're manning.
@@ -437,6 +455,12 @@ public sealed class World
         Train.DraggedVehicle = drag?.Drags ?? -1;
         Train.DragFactor = drag is { } d && Train.Dynamics.Speed > d.DragAbove ? d.DragFactor : 0;
         Train.Step(SimConstants.TickSeconds, applied);
+        // The wreck (T117), on the host: a tick of it, and the cars' frames where it's put them.
+        if (Train.Wreck is { Puppet: false } wreck)
+        {
+            wreck.Step(SimConstants.TickSeconds);
+            Train.RefreshFrames();
+        }
         if (Authority && Lineside is { } lineside)
             lineside.Hazards(this, _actors, Damage);
         LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
@@ -563,7 +587,8 @@ public sealed class World
         foreach (var e in _enemies)
         {
             // What lies in wait (a Dragger under a car's edge) doesn't count against the caps, so it may wait all night.
-            if (!DarkTerritory.Sim.Enemies.Director.Engaged(e) || e.Phase is SpinePhase.Grab or SpinePhase.Punish)
+            // Only what has someone in its grip is spared; a car fire's "punish" is the car burning, with nobody in it.
+            if (!DarkTerritory.Sim.Enemies.Director.Engaged(e) || e.Holding >= 0)
             {
                 _unmet.Remove(e.Id);
                 continue;
@@ -572,7 +597,10 @@ public sealed class World
             bool met = crew.Any(p => (p - at).Length <= t.LingerRadius);
             double seconds = met ? 0 : _unmet.GetValueOrDefault(e.Id) + 1;
             _unmet[e.Id] = seconds;
-            if (seconds >= t.LingerSeconds)
+            // Or stuck: telegraphing or committing far longer than any threat's telegraph runs, and nobody in its grip (a
+            // Climber scrabbling at the cab's gap all night, never getting in).
+            bool stuck = e.Phase is SpinePhase.Telegraph or SpinePhase.Commit && e.PhaseSeconds >= t.LingerSeconds * 1.5;
+            if (seconds >= t.LingerSeconds || stuck)
             {
                 e.Dismiss();
                 _unmet.Remove(e.Id);

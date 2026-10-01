@@ -33,7 +33,7 @@ public abstract record Launch
     public sealed record Quit : Launch;
 }
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls }
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host }
 
 /// <param name="Detail">A line about the selected item, under the list.</param>
 public sealed record MenuItem(string Label, string? Detail = null, bool Enabled = true);
@@ -90,8 +90,12 @@ public sealed class FrontEnd
     public CampaignState? Open { get; private set; }
     public Settings Settings { get; private set; }
     public EditionTuning Edition => _edition;
+    /// <summary>The games heard on the local network (T116), for the join screen: the app's browser sets them each frame.</summary>
+    public IReadOnlyList<Ballast.Net.LanGame> LanGames { get; set; } = [];
+    /// <summary>The wire protocol this build speaks: a game on another can't be joined.</summary>
+    public int Protocol { get; init; }
     /// <summary>The address typed so far on the join screen.</summary>
-    public string Address { get; private set; } = "127.0.0.1";
+    public string Address { get; private set; } = "";
     /// <summary>Waiting for the key to bind this control to (T80): the app hands the next one pressed to <see cref="Bind"/>.</summary>
     public Control? Capturing { get; private set; }
 
@@ -181,6 +185,13 @@ public sealed class FrontEnd
             Selected++;
     }
 
+    /// <summary>A night that couldn't start (a join nobody answered, a host's line this build won't make): back where it was chosen, saying why.</summary>
+    public void Failed(Screen from, string why)
+    {
+        Show(from);
+        Message = why.ToUpperInvariant();
+    }
+
     /// <summary>Back at the title after a quick night or a join, with the edition's word after a night (the demo's).</summary>
     public void NightOver()
     {
@@ -229,6 +240,17 @@ public sealed class FrontEnd
         settings.Save(_settingsPath);
     }
 
+    /// <summary>A night's tier, seed, cars and bots: the quick night's and the host's.</summary>
+    List<Entry> NightOptions() =>
+    [
+            new(new($"TIER: {Name(_tiers[_tier])}", _tiers.Length > 1 ? "Local, frontier, the dead lines, the deep territory: farther is darker." : "The full game goes farther out.", _tiers.Length > 1),
+                null, by => _tier = (_tier + by + _tiers.Length) % _tiers.Length),
+            new(new($"SEED: {_seed}", "The same seed is the same line for everyone."), null, by => _seed = by > 0 ? _seed + 1 : Math.Max(1UL, _seed - 1)),
+            new(new($"CARS: {_cars}"), null, by => _cars = Math.Clamp(_cars + by, 3, MaxCars)),
+            new(new(_bots == 0 ? "CREW: JUST YOU" : $"CREW: YOU AND {_bots} BOT{(_bots == 1 ? "" : "S")}",
+                "Bots drive, stoke, man the rear gun and lend a hand. None, and it's all yours to do."), null, by => _bots = Math.Clamp(_bots + by, 0, MaxBots)),
+    ];
+
     readonly record struct Entry(MenuItem Item, Func<Launch?>? Select = null, Action<int>? Adjust = null);
 
     List<Entry> Entries() => Screen switch
@@ -236,8 +258,11 @@ public sealed class FrontEnd
         Screen.Title =>
         [
             .. _edition.Campaign ? [new Entry(new("CAMPAIGN", "Three slots. Take contracts, buy cars, go farther out."), () => { Show(Screen.Slots); return null; })] : (Entry[])[],
-            new(new("QUICK NIGHT", _tiers.Length > 1 ? "Any tier, any seed. Alone, or hosted for friends." : "Any seed. Alone, or hosted for friends."), () => { Show(Screen.QuickNight); return null; }),
-            new(new("JOIN A NIGHT", "By address. Steam invites join from the friends list."), () => { Show(Screen.Join); return null; }),
+            new(new("QUICK NIGHT", _tiers.Length > 1 ? "Any tier, any seed, alone or with bots." : "Any seed, alone or with bots."), () => { Show(Screen.QuickNight); return null; }),
+            // T116 (the co-op games' way, Lethal Company's ship): the host opens a lobby, the yard, and waits there; friends
+            // join it from the list, by invite or by address; the host drives out of the yard when everyone's in.
+            new(new("HOST A NIGHT", "Open a lobby in the yard. Friends join; you drive out when everyone's in."), () => { Show(Screen.Host); return null; }),
+            new(new("JOIN A NIGHT", "Games on your network, a Steam invite, or an address."), () => { Show(Screen.Join); return null; }),
             new(new("SETTINGS"), () => { Show(Screen.Settings); return null; }),
             new(new("QUIT"), () => new Launch.Quit()),
         ],
@@ -246,19 +271,23 @@ public sealed class FrontEnd
         Screen.Upgrades => UpgradeEntries(),
         Screen.QuickNight =>
         [
-            new(new($"TIER: {Name(_tiers[_tier])}", _tiers.Length > 1 ? "Local, frontier, the dead lines, the deep territory: farther is darker." : "The full game goes farther out.", _tiers.Length > 1),
-                null, by => _tier = (_tier + by + _tiers.Length) % _tiers.Length),
-            new(new($"SEED: {_seed}", "The same seed is the same line for everyone."), null, by => _seed = by > 0 ? _seed + 1 : Math.Max(1UL, _seed - 1)),
-            new(new($"CARS: {_cars}"), null, by => _cars = Math.Clamp(_cars + by, 3, MaxCars)),
-            new(new(_bots == 0 ? "CREW: JUST YOU" : $"CREW: YOU AND {_bots} BOT{(_bots == 1 ? "" : "S")}",
-                "Bots drive, stoke, man the rear gun and lend a hand. None, and it's all yours to do."), null, by => _bots = Math.Clamp(_bots + by, 0, MaxBots)),
+            .. NightOptions(),
             new(new("PLAY"), () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: false) { Bots = _bots }),
-            new(new("HOST FOR FRIENDS", "They join by your address, or from your Steam lobby. Bots fill the crew until they do."),
+            new(new("BACK"), Go(Screen.Title)),
+        ],
+        Screen.Host =>
+        [
+            .. NightOptions(),
+            new(new("OPEN THE LOBBY", "You wait in the yard; it's on your network and, with Steam, open to your friends."),
                 () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: true) { Bots = _bots }),
             new(new("BACK"), Go(Screen.Title)),
         ],
         Screen.Join =>
         [
+            .. LanGames.Select(g => new Entry(new($"{g.Host.ToUpperInvariant()}'S NIGHT, {g.Aboard} ABOARD",
+                    g.Protocol == Protocol ? $"{g.Night} ({g.Address})" : "Another version of the game: update to the same one to join.", g.Protocol == Protocol),
+                () => new Launch.Join(g.Address.ToString()))),
+            .. LanGames.Count == 0 ? [new Entry(new("NO GAMES ON YOUR NETWORK YET", "When someone opens a lobby on your network, it shows here.", false))] : (Entry[])[],
             new(new($"ADDRESS: {Address}_", "Type it; the host's port if it isn't the usual one (host:port)."), () => Address.Length > 0 ? new Launch.Join(Address) : null),
             new(new("JOIN", null, Address.Length > 0), () => new Launch.Join(Address)),
             new(new("BACK"), Go(Screen.Title)),
@@ -412,6 +441,7 @@ public sealed class FrontEnd
             Screen.Upgrades => "UPGRADES",
             Screen.QuickNight => "QUICK NIGHT",
             Screen.Join => "JOIN A NIGHT",
+            Screen.Host => "HOST A NIGHT",
             Screen.Settings => "SETTINGS",
             Screen.Controls => "CONTROLS",
             _ => "A CO-OP NIGHT ON THE LAST RAILWAY",

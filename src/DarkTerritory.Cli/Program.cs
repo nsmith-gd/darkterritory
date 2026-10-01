@@ -66,6 +66,7 @@ return args switch
     ["site", ..] => Print(ShowStop(content, routeTuning, LoadStops(content), args)),
     ["linegen", var verb, ..] => Print(LineGenCommands.Run(content, verb, args)),
     ["harness", ..] => Print(RunHarness(args)),
+    ["wreck", ..] => Print(WreckCommands.Run(content, args)),
     ["balance", ..] => PrintBalance(RunBalance(args)),
     ["online", "check"] => Print(OnlineCheck()),
     ["campaign", var verb, ..] => Print(CampaignCommand(content, verb, args)),
@@ -765,7 +766,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         for (int i = 0; i < SimConstants.TickRate * 12; i++)
             train.Step(SimConstants.TickSeconds, new TrainControls { Throttle = i < SimConstants.TickRate * 6 ? 1 : 0, Brake = i < SimConstants.TickRate * 6 ? 0 : 1, Reverser = 1 });
     }
-    var camera = Views.Get(view, train, (int)Opt(args, "--car", 2));
+    // --wreck s: off the rails at --speed (22) and that many seconds into the wreck (T117), seen by the cinematic camera.
+    if (Opt(args, "--wreck", -1) is var wreckAt and >= 0)
+    {
+        train.Dynamics.Velocity = Opt(args, "--speed", 22);
+        train.RefreshFrames();
+        var wrecking = new World(train) { WreckTuning = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File)) };
+        wrecking.Derail("dt screenshot --wreck");
+        for (int i = 0; i < wreckAt * SimConstants.TickRate; i++)
+            wrecking.Step(default);
+    }
+    var camera = train.Wreck is { } shown && !args.Contains("--view") ? Views.Wreck(shown, shown.RealSeconds) : Views.Get(view, train, (int)Opt(args, "--car", 2));
     // --cam s,lateral,height --target s,lateral,height: place the camera anywhere by line coordinates.
     if (Str(args, "--cam", "") is { Length: > 0 } cam)
     {
@@ -915,6 +926,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 own == "none" ? Tool.None : Enum.Parse<Tool>(own, true))
             : null,
     };
+    scene.Wreck = train.Wreck;
     scene.Build(mesh, train, camera.Position);
     // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
     var buildClock = Stopwatch.StartNew();

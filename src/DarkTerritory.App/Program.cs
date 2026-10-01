@@ -78,7 +78,10 @@ static SteamBackend? NoSteam(string? error)
 var campaignTuning = DataFile.Load<CampaignTuning>(Path.Combine(content, CampaignTuning.File));
 var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
 var saves = new SaveSlots(Arg("--saves", SaveSlots.DefaultDirectory), campaignTuning.SaveSlots);
-var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", Settings.DefaultPath), edition: EditionTuning.Load(content));
+var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", Settings.DefaultPath), edition: EditionTuning.Load(content))
+{
+    Protocol = DarkTerritory.Sim.Net.Protocol.Version,
+};
 
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
 Launch? LaunchFromArgs()
@@ -211,6 +214,8 @@ var input = window.Input;
 var timer = Stopwatch.StartNew();
 var mesh = new MeshBuilder();
 var overlay = new Overlay();
+Camera menuView = default;
+FrameLighting menuLight = default;
 long frameCount = 0;
 var steamEvents = new List<OnlineEvent>();
 LobbyId? relaunch = null;
@@ -274,6 +279,7 @@ Launch? Menu()
     var backdrop = new GreyboxScene { Time = 0.37, Look = look };
     backdrop.Build(mesh, standing, view.Position);
     var light = Views.Lighting(standing, look);
+    (menuView, menuLight) = (view, light);
     double started = timer.Elapsed.TotalSeconds;
     // In a headset the menus float ahead, over the yard (T36), and the controllers work them.
     var vrMenu = vr is null ? null : new VrPanel(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Menu);
@@ -282,9 +288,13 @@ Launch? Menu()
     // Whatever's held coming in (the A that ended the night) isn't a press here.
     if (vr is not null)
         vrKeys.Read(vr.Session.Controllers);
+    // The games hosted on the local network (T116), for the join screen.
+    using var lan = new Ballast.Net.LanBrowser();
     while (!window.CloseRequested && !QuitNow())
     {
         window.PumpEvents();
+        lan.Poll(timer.Elapsed.TotalSeconds);
+        frontEnd.LanGames = lan.Games.Where(g => g.Game == NetPlaySession.Game).ToList();
         window.TextInput = frontEnd.WantsText;
         if (Invited(null) is { } lobby)
             return new Launch.JoinLobby(lobby);
@@ -413,7 +423,17 @@ while (!window.CloseRequested && !QuitNow())
     launch ??= Menu();
     if (launch is null or Launch.Quit || launch is Launch.JoinLobby && steam is null)
         break;
-    var (session, campaign) = Start(launch);
+    // T116 playtest ("the linux build crashed ... keeps getting a 'not responding' message"): connecting and building the
+    // night's line take seconds, and ran on the window's thread with nothing pumping it, and a join nobody answered threw
+    // out of the game. Now they run behind a loading screen, and a failure is said on the menu.
+    if (Starting(launch) is not { } begun)
+    {
+        if (fromCommandLine)
+            break;
+        launch = null;
+        continue;
+    }
+    var (session, campaign) = begun;
     var leaving = launch;
     launch = null;
     campaign = Play(session, campaign);
@@ -439,6 +459,42 @@ if (relaunch is { } next)
     Process.Start(Environment.ProcessPath!, ["+connect_lobby", next.ToString()]);
 }
 return 0;
+
+// Starts what was chosen off the window's thread, drawing what it's doing meanwhile; null (the menu says why) if it failed.
+(IPlaySession Session, CampaignState? Campaign)? Starting(Launch chosen)
+{
+    var task = Task.Run(() => Start(chosen));
+    string doing = chosen is Launch.Join or Launch.JoinLobby ? "JOINING" : "BUILDING THE NIGHT";
+    double began = timer.Elapsed.TotalSeconds;
+    while (!task.IsCompleted)
+    {
+        window.PumpEvents();
+        if (window.CloseRequested)
+            break;
+        overlay.Clear();
+        string dots = new('.', 1 + (int)((timer.Elapsed.TotalSeconds - began) * 2) % 3);
+        overlay.TextCentred(UiWidth / 2f, UiHeight / 2f - 10, doing + dots, new Vector4(0.95f, 0.7f, 0.3f, 1), scale: 2);
+        overlay.TextCentred(UiWidth / 2f, UiHeight / 2f + 14, chosen is Launch.Join j ? j.Address.ToUpperInvariant() : "THE LINE, THE LAND, THE CREW", new Vector4(0.6f, 0.6f, 0.6f, 1));
+        // From the command line there's no menu yard behind it (no camera yet): the window's only kept answering.
+        if (vr is null && menuView.FovYDegrees > 0)
+        {
+            renderer.Prepare(mesh, overlay);
+            Present(menuView, menuLight);
+        }
+        input.EndFrame();
+        Thread.Sleep(15);
+    }
+    if (!task.IsCompleted)
+        return null;
+    if (task.Exception?.GetBaseException() is { } failed)
+    {
+        Console.WriteLine($"couldn't start {chosen}: {failed}");
+        frontEnd.Failed(chosen is Launch.Join or Launch.JoinLobby ? Screen.Join : Screen.Title,
+            failed is IOException or System.Net.Sockets.SocketException ? failed.Message : $"couldn't start: {failed.Message}");
+        return null;
+    }
+    return task.Result;
+}
 
 // One night, until it's left, the window closes, or an invite takes us elsewhere. Returns the campaign as it stands.
 CampaignState? Play(IPlaySession session, CampaignState? campaign)
@@ -711,6 +767,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
         scene.WrenchRacked = !session.Train.Boiler.WrenchOut;
+        scene.Wreck = session.Train.Wreck;
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
         scene.Tick = session.Tick;
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);

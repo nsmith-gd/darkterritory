@@ -146,9 +146,31 @@ public sealed class FrontEndTests : IDisposable
         for (int i = 0; i < 5; i++)
             m.Left();
         Assert.Equal(new Launch.Night("deadLines:9", 8, Host: false), Choose(m, "PLAY"));
-        Assert.Equal(new Launch.Night("deadLines:9", 8, Host: true), Choose(m, "HOST FOR FRIENDS"));
         m.Back();
         Assert.Equal(Screen.Title, m.Screen);
+    }
+
+    [Fact]
+    public void HostingOpensALobbyOnTheNightChosen()
+    {
+        // T116: the co-op games' way: the host opens a lobby (the yard) on the night they pick.
+        var m = Menu();
+        Choose(m, "HOST A NIGHT");
+        Pick(m, "SEED");
+        m.Right();
+        Assert.Equal(new Launch.Night("frontier:8", 6, Host: true), Choose(m, "OPEN THE LOBBY"));
+    }
+
+    [Fact]
+    public void TheJoinScreenListsTheGamesOnTheNetwork()
+    {
+        // T116 playtest ("how is she supposed to join if we're on the same wifi?"): what the network beacons say is out there.
+        var m = Menu();
+        m.LanGames = [new Ballast.Net.LanGame(new System.Net.IPEndPoint(System.Net.IPAddress.Parse("192.168.1.20"), 27450), "nick", "FRONTIER-7, 6 CARS", 1, m.Protocol, "darkterritory"),
+            new Ballast.Net.LanGame(new System.Net.IPEndPoint(System.Net.IPAddress.Parse("192.168.1.30"), 27450), "old", "FRONTIER-2", 1, m.Protocol + 1, "darkterritory")];
+        Choose(m, "JOIN A NIGHT");
+        Assert.Equal(new Launch.Join("192.168.1.20:27450"), Choose(m, "NICK'S NIGHT"));
+        Assert.False(m.Items.Single(i => i.Label.StartsWith("OLD'S NIGHT", StringComparison.Ordinal)).Enabled);
     }
 
     [Fact]

@@ -1,0 +1,42 @@
+// The derailment (T117 playtest: "a derailment needs to be a full on dramatic cinematic derailment ... the full physics
+// carnage"): the moment a train comes off the rails every car is a rigid box on its own, carrying what it had (GDD §23
+// "loud, spectacular, run-changing"). They plough into the ground, drag and snap their couplings, jackknife and roll, and
+// pile into each other, until they lie still. Host-simulated; clients are sent the poses. Numbers are a first pass, tuned
+// by eye on `dt screenshot --wreck` and `dt wreck`.
+{
+  // Steps of the wreck per sim tick (contacts at 30 Hz are too coarse for a car digging in).
+  "substeps": 6,
+  "gravity": 9.81,
+  // Ground contact: bounce, and friction (steel dragged through ballast and earth; a car on its side slides less far).
+  "restitution": 0.12,
+  "friction": 0.8,
+  // ... but a car still upright dragged sideways digs its bogies in, and trips over them (this, not the kick, rolls a car
+  // that came off on the straight).
+  "digIn": 1.0,
+  // Car against car.
+  "carRestitution": 0.08,
+  "carFriction": 0.35,
+  // A coupling holds this much slack, then pulls; it snaps once a single pull takes more than this (tonne-metres per second,
+  // the impulse). High, so the leading cars drag the rest round before they part.
+  "couplingSlack": 0.4,
+  "couplingBreak": 320,
+  // The car that comes off first is thrown off its curve: sideways at this share of its speed, slewing and rolling outward.
+  "kickLateral": 0.3,
+  "kickYaw": 0.9,
+  "kickRoll": 1.6,
+  // The rest come off one after another down the train, this many seconds apart: until then each rolls on, held to the
+  // rails (with this rolling friction), and shoves into the cars ploughing ahead of it. That's what buckles the train.
+  "dropInterval": 0.3,
+  "rollingFriction": 0.03,
+  // As its wheels drop each car jostles: a little sideways each way.
+  "jostle": 0.35,
+  // ... and slew (rad/s), so the cars behind, still pushing, fold the train about them: it buckles.
+  "jostleYaw": 1.5,
+  // The first seconds play slowed (the cinematic beat), then real time.
+  "slowSeconds": 2.5,
+  "slowRate": 0.35,
+  // Done when every car's under this (m/s and rad/s) for settleHold seconds, or after maxSeconds whatever.
+  "settleSpeed": 0.25,
+  "settleHold": 1.5,
+  "maxSeconds": 30
+}

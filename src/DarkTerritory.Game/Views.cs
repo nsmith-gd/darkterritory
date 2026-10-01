@@ -188,6 +188,25 @@ public static class Views
             : Camera.LookAt(f.ToWorld(eye), f.ToWorld(new Double3(p.X, p.Y + 0.1, p.Z + dir * 12)), 65);
     }
 
+    /// <summary>
+    /// The derailment's camera (T117): pulled out and up over the wreck, turning slowly round it, close at first and drawing
+    /// back as it spreads, looking at the middle of the pile with the engine in it.
+    /// </summary>
+    public static Camera Wreck(Sim.Train.Wreck wreck, double seconds)
+    {
+        var centre = Double3.Zero;
+        foreach (var b in wreck.Bodies)
+            centre += b.Centre;
+        centre *= 1.0 / Math.Max(1, wreck.Bodies.Count);
+        double spread = wreck.Bodies.Max(b => (b.Centre - centre).Length);
+        var engine = wreck.Bodies[0].Centre;
+        // Close in on the engine end, where it's worst; through the fog a wide shot of the whole train reads as nothing.
+        var look = Double3.Lerp(centre, engine, 0.55);
+        double angle = 0.9 + seconds * 0.11, distance = 12 + spread * 0.4 + Math.Min(seconds, 8) * 0.8;
+        var eye = look + new Double3(Math.Sin(angle) * distance, 5 + spread * 0.1 + Math.Min(seconds, 6) * 0.5, Math.Cos(angle) * distance);
+        return Camera.LookAt(eye, look, 55);
+    }
+
     static Camera ChaseCamera(TrainOnLine train)
     {
         var last = train.Frames[^1];

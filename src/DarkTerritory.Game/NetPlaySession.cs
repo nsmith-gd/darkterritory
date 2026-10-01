@@ -146,7 +146,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public const int DefaultPort = 27450;
     /// <summary>Lobby size: GDD §3, "2–8+" players.</summary>
     public const int MaxCrew = 12;
-    const string Game = "darkterritory";
+    public const string Game = "darkterritory";
     readonly ITransport? _hostTransport;
     readonly UdpTransport? _udp;
     readonly ITransport _clientTransport;
@@ -409,6 +409,14 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         Lobby?.Poll();
         Host?.Step();
+        // Hosting for friends on the network: it says where it is on the local network (T116), so the join screen lists it.
+        if (Host is not null && _udp is { LocalLoopbackOnly: false } udp)
+        {
+            _beacon ??= new LanBeacon();
+            _beacon.Tick(_clock.Elapsed.TotalSeconds, Game, Protocol.Version, udp.Port, HostName,
+                $"{(Setup.Route ?? Setup.Line).ToUpperInvariant()}, {Setup.Cars} CARS{(World.Run is { Phase: Sim.Run.RunPhase.Yard } ? ", IN THE YARD" : ", UNDER WAY")}",
+                Aboard - (BotCrew?.Bots.Count ?? 0));
+        }
         BotCrew?.Step();
         // Spec E: the night autosaves on leaving a POI: the engine out past the end of its zone, whatever shunting it
         // took there (GDD §17), so the save is the train going on.
@@ -582,8 +590,15 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
 
     public void ShowInviteDialog() => Lobby?.ShowInviteDialog();
 
+    LanBeacon? _beacon;
+    readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
+
+    /// <summary>Whose game it is, for the join list: the Steam name hosting through Steam, else the computer's user.</summary>
+    string HostName => Lobby is { } l ? l.Online.NameOf(l.Online.Me) : Environment.UserName;
+
     public void Dispose()
     {
+        _beacon?.Dispose();
         BotCrew?.Dispose();
         _clientTransport.Dispose();
         _hostTransport?.Dispose();

@@ -288,8 +288,17 @@ public sealed class GameAudio
                     Loop(s, "climber-scrabble", at, occlusion);
                     break;
                 case EnemyKind.TrackDoll when e.Phase == SpinePhase.Punish:
-                    // Haunting: it giggles in the car it's in, or in the cab at the controls (App. A.2).
-                    Loop(s, "doll-giggle", at, occlusion);
+                    // Haunting: it giggles in the car it's in, or in the cab at the controls (App. A.2). T118: now and then, a
+                    // little demon boy's giggle, never twice alike in pitch or spacing.
+                    if (entered || _time >= s.Next)
+                    {
+                        Mixer.Play("doll-giggle", at)?.Also(v =>
+                        {
+                            v.Occlusion = occlusion;
+                            v.Params.Set("pitch", 0.92 + 0.18 * _rng.Next());
+                        });
+                        s.Next = _time + 7 + 9 * _rng.Next();
+                    }
                     break;
                 case EnemyKind.TippyToesie when e.Phase == SpinePhase.Telegraph:
                     Loop(s, "tippy-tiptoe", at, occlusion);
