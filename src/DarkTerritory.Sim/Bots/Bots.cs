@@ -714,15 +714,25 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
                 _waitedForBreach = 0;
             return null;
         }
-        if (lit is { } a && a > 5 && !breaching)
+        if (lit is { } a && !breaching && !AlongsideTheHoldout(a, d.Speed))
         {
-            cruise = Math.Min(cruise, Math.Max(0, Math.Sqrt(2 * DollBraking * Math.Max(0, a - 5))));
+            cruise = Math.Min(cruise, Math.Max(0, Math.Sqrt(2 * DollBraking * Math.Max(0, a - HoldoutStandAt))));
             return null;
         }
         if (d.Speed < 0.05)
             _waitedForBreach += SimConstants.TickSeconds;
         return new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
     }
+    /// <summary>Where the driver stands for a lit Holdout: this far short of it (m), and how far short a stand still counts.</summary>
+    const double HoldoutStandAt = 5, HoldoutShortBy = 10;
+
+    /// <summary>
+    /// At the Holdout to stand for it: there, or come to a stand just short of it. T81: a train braking in on it stood a hair
+    /// over 5 m short, its allowed speed there all but nothing and the wait not started (that's only counted alongside), and
+    /// stayed there till the dawn (deepTerritory:1, a crew of two).
+    /// </summary>
+    public static bool AlongsideTheHoldout(double ahead, double speed) =>
+        ahead <= HoldoutStandAt || speed < 0.05 && ahead <= HoldoutStandAt + HoldoutShortBy;
     bool _driving, _sawDriver;
     double _boardWait;
     /// <summary>How long the driver waits at the gate for the crew to climb aboard (T102) before it goes anyway.</summary>
