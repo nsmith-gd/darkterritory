@@ -4,6 +4,8 @@ using System.Text.Json;
 using Ballast;
 using Ballast.Render;
 
+using DarkTerritory.Sim.Train;
+
 namespace DarkTerritory.Game;
 
 /// <summary>A material as look.json writes it: its wear and shine, and the texture it wears, if any.</summary>
@@ -31,6 +33,28 @@ public sealed record AtmosphereTuning
     public float? Ambient { get; init; }
     public Vector3? LampColour { get; init; }
     public float? LampIntensity { get; init; }
+}
+
+/// <summary>
+/// A car eaten from its rear end by a Car Hugger (GDD v1.2 App. A.3 FEED; Art/BiteKit, Shaders/bite.glsl), read off how
+/// much of what was left of it has been eaten: <see cref="DarkTerritory.Sim.Train.Vehicle.Eaten"/> over eaten plus
+/// integrity, so it's eaten through, the whole way, just as the sim drops it.
+/// </summary>
+public sealed record BiteTuning
+{
+    /// <summary>How far down the car's body it's eaten by the end, as a fraction of its length.</summary>
+    public float Depth { get; init; } = 0.45f;
+    /// <summary>How far its head pushes in through the end as it eats (m): past that it's reaching in and tearing.</summary>
+    public float Advance { get; init; } = 1.4f;
+    /// <summary>The side walls, which its hands hold, go this far ahead of its head at most (m).</summary>
+    public float SideLead { get; init; } = 1.0f;
+    /// <summary>Below this height (m over the rail) nothing is eaten: the underframe and the trucks, so it rolls on.</summary>
+    public float Floor { get; init; } = 0.95f;
+    /// <summary>The first bites take the rear platform, over this fraction of the eating.</summary>
+    public float Platform { get; init; } = 0.08f;
+
+    /// <summary>0 whole to 1 eaten through.</summary>
+    public static float Fraction(double eaten, double integrity) => eaten <= 0 ? 0 : (float)Math.Clamp(eaten / Math.Max(1e-6, eaten + integrity), 0, 1);
 }
 
 /// <summary>Mirror of content/tuning/look.json: the art pass's surfaces, the grade and the post stack (GDD §25-28).</summary>
@@ -79,6 +103,7 @@ public sealed record LookTuning
     public PostSettings Post { get; init; } = new();
     public AtmosphereTuning Atmosphere { get; init; } = new();
     public DamageTuning Damage { get; init; } = new();
+    public BiteTuning Bite { get; init; } = new();
 }
 
 /// <summary>One entry of content/art/textures/index.json (written by tools/art/textures.py).</summary>
@@ -127,6 +152,11 @@ public sealed class Look
     public SurfaceStyle Style { get; }
     /// <summary>The folder the textures were read from, when they were.</summary>
     public string? TextureRoot { get; init; }
+    /// <summary>
+    /// The one doorway (train.json <c>doorway</c>, ARCHITECTURE §8 note 110): the train's doors are built to it, and every
+    /// door the art draws, on the train or off it, is this tall (<see cref="Art.Kit.Doorway"/>).
+    /// </summary>
+    public DoorwayTuning Doorway { get; init; } = new();
 
     static Dictionary<string, Vector3> PaletteColours() =>
         typeof(Palette).GetFields(BindingFlags.Public | BindingFlags.Static).Where(f => f.FieldType == typeof(Vector3))
@@ -143,10 +173,12 @@ public sealed class Look
     public static Look Load(string content)
     {
         var tuning = DataFile.Load<LookTuning>(Path.Combine(content, LookTuning.File));
+        string trainFile = Path.Combine(content, TrainTuning.File);
+        var doorway = System.IO.File.Exists(trainFile) ? DataFile.Load<TrainTuning>(trainFile).Geometry.Doorway : new DoorwayTuning();
         string root = Path.Combine(content, "art", "textures");
         string index = Path.Combine(root, "index.json");
         if (!System.IO.File.Exists(index))
-            return new Look(tuning);
+            return new Look(tuning) { Doorway = doorway };
         var entries = JsonSerializer.Deserialize<List<TextureEntry>>(System.IO.File.ReadAllText(index), DataFile.Options) ?? [];
         // The sourced props' own layers (tools/models writes them beside the library, index.models.json), after it.
         string models = Path.Combine(root, "index.models.json");
@@ -155,7 +187,7 @@ public sealed class Look
         // A texture named in the index but not on disk is skipped (and so is its material's texture): the look degrades
         // to flat colour rather than failing to start.
         entries = [.. entries.Where(e => System.IO.File.Exists(Path.Combine(root, e.Diffuse)))];
-        return new Look(tuning, entries) { TextureRoot = root };
+        return new Look(tuning, entries) { TextureRoot = root, Doorway = doorway };
     }
 
     /// <summary>The texture layer called <paramref name="name"/>, or −1 when it isn't there.</summary>

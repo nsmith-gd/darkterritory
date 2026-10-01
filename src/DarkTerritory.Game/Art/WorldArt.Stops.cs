@@ -193,7 +193,8 @@ public sealed partial class WorldArt
                 k.With(frame, () => StructureKit.Shed(k, width, length, 6.5f, "wood_grey", b.Variant % 2 == 0 ? 1 : -1));
                 break;
             case BuildingKind.Outbuilding:
-                k.With(frame, () => StructureKit.Shed(k, width, length, 2.8f, b.Variant == 1 ? "rust_heavy" : "wood_grey", b.Variant % 2 == 0 ? 1 : -1));
+                // (Its walls stand the standard doorway and a header over its sill: 2.8 m put the door through the eaves.)
+                k.With(frame, () => StructureKit.Shed(k, width, length, 0.8f + k.DoorHeight() + 0.4f, b.Variant == 1 ? "rust_heavy" : "wood_grey", b.Variant % 2 == 0 ? 1 : -1));
                 break;
             case BuildingKind.Well:
                 k.With(frame, () => Well(k));

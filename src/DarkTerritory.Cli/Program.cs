@@ -54,6 +54,7 @@ return args switch
     ["line", "drive", var name, ..] => Print(Drive(train, LoadLine(name), (int)Opt(args, "--cars", 3), Opt(args, "--start", -1), Opt(args, "--from", 0), Opt(args, "--throttle", 1), (int)Opt(args, "--seconds", 120))),
     ["art", "check", ..] => ArtCheck(train, content, args),
     ["art", "show", var piece, ..] => Print(ArtShow(train, content, piece, args)),
+    ["art", "clip", var creature, var clip, ..] => Print(ArtClip(content, creature, clip, args)),
     // dt perf: a frame's cost against the frame-rate targets (tuning/perf.json), flat and in a headset.
     ["perf", ..] => Print(PerfCommands.Run(train, content, args)),
     ["screenshot", ..] when args.Contains("--hud") => Print(HudShot(content, args)),
@@ -865,6 +866,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (args.Contains("--doors-open"))
         foreach (var v in train.Dynamics.Consist.Vehicles)
             v.DoorsOpen = 0xFF;
+    // --eaten f: the rear car that much eaten by a Car Hugger (App. A.3 FEED; 1 is eaten through), as if from sound.
+    if (args.Contains("--eaten"))
+    {
+        var rear = train.Dynamics.Consist.Vehicles[^1];
+        double eaten = Math.Clamp(Opt(args, "--eaten", 0.5), 0, 1);
+        (rear.Eaten, rear.Integrity) = (eaten, 1 - eaten);
+    }
     var scene = new GreyboxScene
     {
         // --draw m: how far along the line to build it (an aerial view of a stretch wants more than the cab's 400).
@@ -875,7 +883,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Run = run,
         Holdouts = holdouts,
         Time = 0.37,
-        Enemies = args.Contains("--threats") ? Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null) : null,
+        Enemies = args.Contains("--threats") ? Later(Staging.Whistler(Staging.Tippy(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), train, Str(args, "--tippy", "")), Str(args, "--whistler", "")), Opt(args, "--later", 0)) : null,
         Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All : cargo,
         // --crew: three on car 2's roof, one reaching up, one holding out both hands, one with a keyboard (T47's arms).
         Crew = args.Contains("--crew") ? Staging.Crew(train, content) : null,
@@ -1009,6 +1017,54 @@ static object ArtShow(TrainTuning t, string content, string name, string[] args)
         @class = entry.Class.Name,
         size = new[] { Math.Round(max.X - min.X, 2), Math.Round(max.Y - min.Y, 2), Math.Round(max.Z - min.Z, 2) }
     };
+}
+
+// A creature's clip as a contact sheet: --frames stills evenly through it (the last one short of the loop's end, which
+// is its first again), lantern-lit from one side, to look at its motion headless (GDD §31: the pops, the eases).
+static object ArtClip(string content, string name, string clip, string[] args)
+{
+    var look = DarkTerritory.Game.Look.Load(content);
+    var art = look.Art.Creatures;
+    var model = art.Get(name) ?? throw new ArgumentException($"no creature '{name}' (known: {string.Join(", ", DarkTerritory.Game.Art.CreatureArt.Names)})");
+    var c = model.Clip(clip) ?? throw new ArgumentException($"{name} has no clip '{clip}' (it has: {string.Join(", ", model.Clips.Keys)})");
+    int frames = (int)Opt(args, "--frames", 8), cols = Math.Min(frames, 4), rows = (frames + cols - 1) / cols;
+    int w = (int)Opt(args, "--width", 480), h = (int)Opt(args, "--height", 270);
+    // Where to look (model space; the model faces -Z), from how far and which way round.
+    var at = Str(args, "--at", "0,0.9,0").Split(',').Select(double.Parse).ToArray();
+    var target = new Double3(at[0], at[1], at[2]);
+    double dist = Opt(args, "--dist", 4), yaw = Opt(args, "--yaw", 60) * Math.PI / 180, pitch = Opt(args, "--pitch", 15) * Math.PI / 180;
+    var eye = target + new Double3(Math.Sin(yaw) * Math.Cos(pitch), Math.Sin(pitch), -Math.Cos(yaw) * Math.Cos(pitch)) * dist;
+    var camera = Camera.LookAt(eye, target, (float)Opt(args, "--fov", 50));
+    var e = new System.Numerics.Vector3((float)eye.X, (float)eye.Y, (float)eye.Z);
+    using var gpu = new GpuContext("dt art clip");
+    using var renderer = new GreyboxRenderer(gpu, w, h);
+    look.Dress(renderer);
+    var sheet = new byte[w * cols * h * rows * 4];
+    double duration = c.Duration;
+    bool loop = !args.Contains("--once");
+    for (int i = 0; i < frames; i++)
+    {
+        double time = loop ? duration * i / frames : duration * i / Math.Max(1, frames - 1);
+        var mesh = new MeshBuilder { Style = look.Style };
+        mesh.SurfaceOrigin = e;
+        float f = 40;
+        mesh.Quad(new System.Numerics.Vector3(-f, 0, f) - e, new System.Numerics.Vector3(f, 0, f) - e, new System.Numerics.Vector3(f, 0, -f) - e, new System.Numerics.Vector3(-f, 0, -f) - e, DarkTerritory.Game.Palette.Charcoal * 0.5f);
+        var right = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(camera.Forward, System.Numerics.Vector3.UnitY));
+        mesh.PointLights.Add(new PointLight(right * (float)(dist * 0.4) + new System.Numerics.Vector3(0, 1.2f, 0), DarkTerritory.Game.Palette.LampAmber * 2.2f, (float)dist * 2.5f));
+        mesh.PointLights.Add(new PointLight(-right * (float)(dist * 0.6) + new System.Numerics.Vector3(0, 2f, 0), new System.Numerics.Vector3(0.25f, 0.3f, 0.4f), (float)dist * 2.5f));
+        art.Draw(mesh, name, clip, time, loop, System.Numerics.Matrix4x4.CreateTranslation(-e));
+        var light = look.Apply(FrameLighting.Night);
+        light.FogDensity = 0.004f;
+        light.LampRange = 0.01f;
+        light.Time = 0.37;
+        var px = renderer.Render(mesh, camera, light, light.FogColor);
+        int ox = i % cols * w, oy = i / cols * h;
+        for (int y = 0; y < h; y++)
+            px.AsSpan(y * w * 4, w * 4).CopyTo(sheet.AsSpan(((oy + y) * w * cols + ox) * 4));
+    }
+    string output = Str(args, "--out", $"out/shots/clips/{name}-{clip}.png");
+    PngWriter.Write(output, sheet, w * cols, h * rows, 1);
+    return new { path = Path.GetFullPath(output), creature = name, clip, seconds = Math.Round(duration, 2), frames };
 }
 
 // The art pass's surfaces (T39, look.json), unless --greybox asks for flat colour to compare against.
@@ -1203,6 +1259,17 @@ static string Str(string[] args, string name, string fallback)
     return i >= 0 && i + 1 < args.Length ? args[i + 1] : fallback;
 }
 
+// Every enemy that much further into its phase (dt screenshot --later: a frame of its animation further on).
+// --later s: every staged threat that much further on in its phase.
+static List<DarkTerritory.Sim.Enemies.Enemy> Later(List<DarkTerritory.Sim.Enemies.Enemy> enemies, double seconds)
+{
+    if (seconds != 0)
+        foreach (var e in enemies)
+            e.Restore(e.Phase, e.PhaseSeconds + seconds, e.Health, e.Attached, e.Local, e.LineDistance, e.Lateral, e.Height, e.Extra, e.Extra2,
+                e.Holding, e.GrabWindow);
+    return enemies;
+}
+
 static double Opt(string[] args, string name, double fallback)
 {
     int i = Array.IndexOf(args, name);
@@ -1227,12 +1294,15 @@ static int Usage()
           boiler run <cars> [--seconds t] [--throttle 0..1] [--fire-at p | --no-fireman] [--pressure p] [--firebox u] [--vent]
           line info <name> [--every m]             position/grade profile of content/lines/<name>.json
           line drive <name> [--cars n] [--start s] [--from v] [--throttle 0..1] [--seconds t]
+          art clip <creature> <clip> [--frames n] [--at x,y,z --dist m --yaw deg --pitch deg] [--once]   a clip as a lit contact sheet
           screenshot [--view trackside|roof|cab|chase|ahead] [--line name] [--cars n] [--at s] [--car i] [--cut n]
                      [--cam s,lateral,height --target s,lateral,height --fov deg]   camera by line coordinates
                      [--width w] [--height h] [--scale k] [--out file.png] [--threats]   --threats stages one of each enemy
                      [--doll-at m]   with --threats: the Track Doll this far up the line (App. A.2: the lamp shows it at 200)
                      [--lurk-at m]   with --threats: a Car Hugger lurking beside the line this far ahead (App. A.3 LURK)
                      [--doors-open]   every door on the train open   [--venting] the blow-off and safety valve blowing
+                     [--eaten f]   the rear car this much eaten by a Car Hugger (0..1; 1 eaten through)
+                     [--later s]   with --threats: every staged enemy s seconds further into what it's doing (frames of its animation)
                      [--route tier:seed [--coaling]]   a generated night; --coaling stops at its coaling tower, chute pouring
                      [--bodies]   crates, a lamp and a crewmate's body on the roofs, settled by the physics
                      [--emergency]  emergency lighting: the cars' lamps a dim red, no headlamp

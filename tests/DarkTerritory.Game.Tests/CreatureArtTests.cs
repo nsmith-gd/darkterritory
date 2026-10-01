@@ -44,9 +44,13 @@ public class CreatureArtTests
         // A heap of bodies, not a body (App. A.3): the heap, its heads and six arms on a chain rig.
         ["weight"] = new(2500, 8000, 20, 40, ["drag"], ["grab", "release"]),
         // A jointed porcelain doll (App. A.2), a character's budget: SK_Human in a doll's proportions, rigid at the joints.
-        ["track_doll"] = new(4000, 10000, 20, 60, ["stand", "admire", "giggle", "tamper", "cower"], ["hit"]),
+        ["track_doll"] = new(4000, 10000, 20, 60, ["stand", "beckon", "admire", "giggle", "tamper", "cower"], ["hit"]),
         // A large monster (GDD §27: 8-16k is the ceiling), on a chain: a spine of four, the mouth and its teeth rings, four arms.
         ["car_hugger"] = new(4000, 14000, 20, 40, ["lurk", "feed", "swallow"], ["latch", "release", "hit"]),
+        // A character (App. A.5), SK_Human stretched: over two metres on its points, so it stoops indoors and ducks through doors.
+        ["tippy_toesie"] = new(3000, 9000, 20, 60, ["stalk", "wait", "flee", "smother", "stoop", "stalk_stoop", "duck"], ["hit"]),
+        // A character (App. A.4), SK_Human stretched, its right forearm long for the cord: it folds up to fit a coupling gap.
+        ["whistler"] = new(3000, 9000, 20, 60, ["fold", "whistle", "watch", "run"], ["hit"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -415,6 +419,8 @@ public class CreatureArtTests
         "dragger" => (new Vector3(0.2f, 0.1f, 0), 1.4f),
         "weight" => (new Vector3(0, 0.42f, 0.9f), 2.6f),
         "car_hugger" => (new Vector3(-0.2f, 0.4f, 1.5f), 3.6f),
+        "tippy_toesie" => (Vector3.Zero, 2.5f),
+        "whistler" => (Vector3.Zero, 2.3f),
         _ => (Vector3.Zero, 1.9f),
     };
 

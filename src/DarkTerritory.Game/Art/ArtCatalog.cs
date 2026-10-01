@@ -56,8 +56,11 @@ public static class ArtCatalog
             k.Append(DamageKit.Car(look, cargo, 2, 3), Matrix4x4.Identity);
             return k.Build("car-wrecked");
         }));
-        list.Add(new("door-end", SmallProp, () => TrainKit.Door(look, new Vector3(0.9f, 2.1f, 0.1f), side: false)));
-        list.Add(new("door-side", SmallProp, () => TrainKit.Door(look, new Vector3(0.1f, 2.1f, 1.8f), side: true)));
+        // The standard doorway (train.json doorway, note 110).
+        var doorway = train.Geometry.Doorway;
+        float doorH = (float)doorway.Height, sideW = (float)(train.Geometry.Interior?.SideDoorWidth ?? 1.8);
+        list.Add(new("door-end", SmallProp, () => TrainKit.Door(look, new Vector3((float)doorway.Width, doorH, 0.1f), side: false)));
+        list.Add(new("door-side", SmallProp, () => TrainKit.Door(look, new Vector3(0.1f, doorH, sideW), side: true)));
         for (int v = 0; v < 4; v++)
         {
             int variant = v;

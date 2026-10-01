@@ -23,6 +23,15 @@ public static class Views
         {
             "trackside" => Camera.LookAt(engine.ToWorld(new Double3(9, 1.7, -engineHalf - 25)), target.ToWorld(new Double3(0, 2.5, 0)), 60),
             "roof" => Camera.LookAt(target.ToWorld(new Double3(0.2, roof + 1.65, 3)), target.ToWorld(new Double3(0, roof + 1.2, -40)), 75),
+            // (Not one of Names, which the perf budgets walk.) Close on the roof crew (Staging.Crew), and what's behind them.
+            "crew" => Camera.LookAt(target.ToWorld(new Double3(0.6, roof + 1.75, -1.6)), target.ToWorld(new Double3(-0.6, roof + 1.45, -6.2)), 50),
+            // Inside the car, at its front end, looking back down the aisle past the cargo.
+            "inside" => Camera.LookAt(target.ToWorld(new Double3(-0.5, Floor(train) + 1.65, -target.Shape.HalfLength + 0.6)), target.ToWorld(new Double3(0, Floor(train) + 1.3, 2)), 70),
+            // From inside the car behind, through both open end doors at this car's rear doorway (note 110: who comes through).
+            "door" => DoorCamera(train, car),
+            // On the ballast beside the gap behind this car, looking in under the plate (what checks a gap: the Whistler's).
+            "gapside" => GapSideCamera(train, car),
+            "crewside" => Camera.LookAt(target.ToWorld(new Double3(2.6, roof + 1.9, -4.2)), target.ToWorld(new Double3(-0.8, roof + 1.45, -5.6)), 45),
             "cab" => CabCamera(engine),
             // The fireman's side (T101): out of the left window down the running board to the blow-off by the smokebox.
             "fireman" => CabCamera(engine, -1),
@@ -67,6 +76,23 @@ public static class Views
         var ahead = train.Frames[Math.Clamp(car, 0, train.Frames.Count - 2)];
         double l = ahead.Shape.HalfLength;
         return Camera.LookAt(ahead.ToWorld(new Double3(0.35, 2.75, l + 1.3)), ahead.ToWorld(new Double3(-0.4, 1.4, l)), 80);
+    }
+
+    static Camera GapSideCamera(TrainOnLine train, int car)
+    {
+        var at = train.Frames[Math.Clamp(car, 0, train.Frames.Count - 2)];
+        double z = at.Shape.HalfLength + train.Dynamics.Tuning.Geometry.CouplingGap / 2, w = at.Shape.HalfWidth;
+        return Camera.LookAt(at.ToWorld(new Double3(w + 2.6, 1.7, z + 0.6)), at.ToWorld(new Double3(0, 1.0, z)), 55);
+    }
+
+    static double Floor(TrainOnLine train) => train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 1.1;
+
+    static Camera DoorCamera(TrainOnLine train, int car)
+    {
+        var at = train.Frames[Math.Clamp(car, 0, train.Frames.Count - 2)];
+        double l = at.Shape.HalfLength, floor = Floor(train), x = train.Dynamics.Tuning.Geometry.PlateX;
+        double gap = train.Dynamics.Tuning.Geometry.CouplingGap;
+        return Camera.LookAt(at.ToWorld(new Double3(x + 0.1, floor + 1.6, l + gap + 1.6)), at.ToWorld(new Double3(x, floor + 1.15, l - 0.4)), 60);
     }
 
     static Camera GunCamera(TrainOnLine train)

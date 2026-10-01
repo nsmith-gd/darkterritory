@@ -35,6 +35,9 @@ public sealed record GeometryTuning(
     /// <summary>How far the guard van's rear platform stands out behind it (GDD §24 THE WEIGHT's "rear platform").</summary>
     public double PlatformDepth { get; init; } = 1.2;
 
+    /// <summary>The one doorway, on the train and off it (train.json <c>doorway</c>).</summary>
+    public DoorwayTuning Doorway { get; init; } = new();
+
     /// <summary>
     /// Where the coupler plate's centre line is across the car: in line with the end doors it bridges between, so you step
     /// straight off it through a doorway. Solid greybox cars have no doors, and their plate stays on the centre line.
@@ -45,8 +48,20 @@ public sealed record GeometryTuning(
     public double EndLadderX => PlateX + CouplerWidth / 2 + 0.3;
 }
 
+/// <summary>
+/// The standard doorway (ARCHITECTURE §8 note 110): every door a person walks through is <see cref="Height"/> tall,
+/// floor to lintel; on the train, <see cref="Width"/> wide (a cargo car's sliding doors are wider, for crates). Big doors
+/// (sheds, barns, churches: drawn only) are all <see cref="BayHeight"/>.
+/// </summary>
+public sealed record DoorwayTuning
+{
+    public double Height { get; init; } = 2.1;
+    public double Width { get; init; } = 0.9;
+    public double BayHeight { get; init; } = 3.5;
+}
+
 /// <summary>Walk-in cars (GDD §10, §26): a floor, walls, a roof you can still walk on, and a door at each end.</summary>
-public sealed record InteriorLayout(double FloorHeight, double WallThickness, double RoofThickness, double DoorWidth, double DoorHeight, double DoorX,
+public sealed record InteriorLayout(double FloorHeight, double WallThickness, double RoofThickness, double DoorX,
     double DoorSeconds, double CargoDepth, double CargoHeight)
 {
     /// <summary>A cargo car's sliding side doors (one each side, in the middle), for loading from the ground (spec D.2).</summary>
@@ -63,7 +78,7 @@ public sealed record InteriorLayout(double FloorHeight, double WallThickness, do
 }
 
 /// <summary>Greybox layout of the 20 m engine + tender unit, front to back: boiler, cab, tender.</summary>
-public sealed record EngineLayout(double DeckHeight, double BoilerHalfWidth, double BoilerTop, double CabLength, double TenderLength, double TenderTop, double DoorWidth)
+public sealed record EngineLayout(double DeckHeight, double BoilerHalfWidth, double BoilerTop, double CabLength, double TenderLength, double TenderTop)
 {
     /// <summary>The running boards: how far out past the cab side they stand (App. A.2 GREASE: "sanding from the running boards").</summary>
     public double RunningBoardWidth { get; init; } = 0.6;

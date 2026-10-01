@@ -109,5 +109,17 @@
     // The scar mask shows from here, and is at its worst by the second.
     "scarsFrom": 0.95,
     "scarsFull": 0.1
+  },
+  // A car eaten from its rear end by a Car Hugger (GDD v1.2 App. A.3 FEED; ARCHITECTURE §8 note 109), by how much of
+  // what was left of it has been eaten (Vehicle.Eaten over eaten plus integrity: 1 is eaten through, when it's dropped).
+  "bite": {
+    // Eaten through, this fraction of the car's body is gone from the rear; below "floor" (m) nothing is, so it rolls.
+    "depth": 0.45,
+    "floor": 0.95,
+    // Its head pushes in through the end this far (m) as it eats; the side walls its hands hold go at most "sideLead"
+    // ahead of it. The rear platform goes over the first "platform" of the eating.
+    "advance": 1.4,
+    "sideLead": 1.0,
+    "platform": 0.08
   }
 }

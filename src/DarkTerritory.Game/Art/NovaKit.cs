@@ -153,7 +153,7 @@ public static class NovaKit
         foreach (float y in new[] { 1.5f, 4.0f })
             foreach (float x in new[] { -w * 0.3f, w * 0.3f })
                 k.Panel(new Vector3(x, y, -d / 2 - 0.02f), -Vector3.UnitZ, Vector3.UnitY, 0.9f, 1.3f, Vector2.Zero, Vector2.One);
-        k.Panel(new Vector3(0, 1.0f, -d / 2 - 0.02f), -Vector3.UnitZ, Vector3.UnitY, 1.0f, 2.1f, Vector2.Zero, Vector2.One);
+        k.Doorway(new Vector3(0, -0.05f, -d / 2 - 0.02f), -Vector3.UnitZ, 1.0f);
         return k.Build($"saltbox-{variant}");
     }
 
@@ -187,7 +187,7 @@ public static class NovaKit
         }
         k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0.05f, tile: 1.5f);
         k.Shade(0.5f);
-        k.Panel(new Vector3(0, 1.7f, -d / 2 - 0.03f), -Vector3.UnitZ, Vector3.UnitY, 3.6f, 3.4f, Vector2.Zero, Vector2.One);
+        k.Doorway(new Vector3(0, 0, -d / 2 - 0.03f), -Vector3.UnitZ, 3.6f, bay: true);
         k.Panel(new Vector3(0, wall + 1.6f, -d / 2 - 0.03f), -Vector3.UnitZ, Vector3.UnitY, 1.4f, 1.4f, Vector2.Zero, Vector2.One);
         return k.Build($"barn-{variant}");
     }
@@ -221,7 +221,7 @@ public static class NovaKit
         for (float z = -4; z < 11; z += 3)
             foreach (int side in new[] { -1, 1 })
                 k.Panel(new Vector3(side * 5.01f, 3.8f, z), new Vector3(side, 0, 0), Vector3.UnitY, 1.0f, 3.0f, Vector2.Zero, Vector2.One);
-        k.Panel(new Vector3(0, 1.8f, -10.42f), -Vector3.UnitZ, Vector3.UnitY, 1.6f, 3.0f, Vector2.Zero, Vector2.One);
+        k.Doorway(new Vector3(0, 0.3f, -10.42f), -Vector3.UnitZ, 1.6f, bay: true);
         k.Panel(new Vector3(0, 16.5f, -9.82f), -Vector3.UnitZ, Vector3.UnitY, 1.0f, 1.4f, Vector2.Zero, Vector2.One);
         return k.Build("nova-church");
     }
@@ -282,7 +282,7 @@ public static class NovaKit
         k.Quad(new Vector3(0, top + 0.05f, -d / 2 - 0.3f), new Vector3(0, top + 0.05f, d / 2 + 0.3f), new Vector3(w / 2 + 0.3f, lift + wall - 0.1f, d / 2 + 0.3f), new Vector3(w / 2 + 0.3f, lift + wall - 0.1f, -d / 2 - 0.3f), twoSided: true);
         k.Use("glass_dirty", Palette.SootBlack, 0.4f, 0.4f, tile: 1);
         k.Shade(0.2f);
-        k.Panel(new Vector3(0, lift + 1.1f, -d / 2 - 0.02f), -Vector3.UnitZ, Vector3.UnitY, 1.0f, 2.0f, Vector2.Zero, Vector2.One);
+        k.Doorway(new Vector3(0, lift + 0.1f, -d / 2 - 0.02f), -Vector3.UnitZ, 1.0f);
         // The traps: slatted boxes stacked by the door, a few fallen.
         k.Use("wood_crate", Palette.DeepBrown, 0.9f, 0.05f, tile: 0.8f);
         for (int i = 0; i < 9; i++)
@@ -355,7 +355,7 @@ public static class NovaKit
         k.Cylinder(new Vector3(0, h + 0.5f, 0), new Vector3(0, h + 1.9f, 0), 1.08f, 8, caps: false);
         // A door at the foot, and a window a storey up.
         k.Shade(0.2f);
-        k.Panel(new Vector3(0, 1.0f, -b - 0.02f), -Vector3.UnitZ, Vector3.UnitY, 0.9f, 2.0f, Vector2.Zero, Vector2.One);
+        k.Doorway(new Vector3(0, 0, -b - 0.02f), -Vector3.UnitZ, 0.9f);
         k.Panel(new Vector3(0, h * 0.55f, -(b + (t - b) * 0.55f) - 0.05f), -Vector3.UnitZ, Vector3.UnitY, 0.6f, 0.9f, Vector2.Zero, Vector2.One);
         return k.Build($"lighthouse-{variant}");
     }

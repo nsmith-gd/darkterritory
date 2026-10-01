@@ -43,6 +43,8 @@ struct DrawConstants
     public Vector4 Scar;
     /// <summary>xyz added to the surface's texel coordinates (<see cref="MeshInstance.SurfaceOffset"/>), w the bone palette's base.</summary>
     public Vector4 Skin;
+    /// <summary><see cref="MeshInstance.Bite"/> (Shaders/bite.glsl); its floor rides in <see cref="Scar"/>.z. 128 bytes in all: the push constant size every device has.</summary>
+    public Vector4 Bite;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -529,8 +531,9 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             {
                 Model = instance.Model,
                 Tint = new Vector4(tint, instance.Glow),
-                Scar = new Vector4(instance.Scar, 0, 0),
+                Scar = new Vector4(instance.Scar, instance.BiteFloor, 0),
                 Skin = new Vector4(instance.SurfaceOffset, instance.Bones),
+                Bite = instance.Bite,
             };
             if (instance.Bones >= 0 && gpuMesh.Skin.IsNotNull)
                 _skinDraws.Add((gpuMesh, draw));

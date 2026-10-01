@@ -1744,7 +1744,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
     {
         var g = train.Dynamics.Tuning.Geometry;
         double cabBack = g.EngineLength / 2 - g.Engine.TenderLength;
-        return (cabBack - g.Engine.DoorWidth + cabBack - 0.15) / 2;
+        return (cabBack - g.Doorway.Width + cabBack - 0.15) / 2;
     }
 
     /// <summary>

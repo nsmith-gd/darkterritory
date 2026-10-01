@@ -13,7 +13,9 @@ little down and out. tools/models/recipes/track_doll.py models its high copy, pa
 It's jointed, not skinned: every piece is rigid on one bone (the dress's skirt alone follows the thighs a little), so it
 moves as a doll moves, at the joints, and holds its poses. GDD §31: unnaturally still when watched, then too-fast
 corrections. SK_Human (rig.human) in a doll's proportions.
-Clips: stand (on the rail: nothing moves), admire (bent over the cargo to its right, the head snapping between tilts),
+Clips: stand (on the rail: nothing moves, but for a head cocked once in a long while), beckon (on the rail with the
+train close: a hand up, the fingers curling in), admire (bent over the cargo to its right, stroking it, the head snapping
+between tilts),
 giggle (hands over its mouth, shaking), tamper (at the controls, pushing and pulling), cower (cornered: arms over its
 face, trembling), hit (struck, once).
 
@@ -377,10 +379,27 @@ def face_point(pose, forward=0.1, down=0.12):
     return base + (tip - base) * 0.4 + q @ Vector((0, forward + HR.y, 0)) - Vector((0, 0, down))
 
 
-# Stand: on the rail. Nothing moves at all.
+# Stand (8 s, loop): on the rail. Nothing moves at all, for so long you stop watching it: then the head cocks, all at
+# once, and holds, and snaps back; later a finger of the left hand lifts and lies down again. (Its head also turns to
+# whoever's looking at it, in clicks: CreatureArt.)
 stand = Clip("stand")
 stand.key(0, DOLL, "CONSTANT")
-stand.close(60)
+stand.key(150, over(DOLL, head=(4, 7, -24)), "CONSTANT")
+stand.key(176, DOLL, "CONSTANT")
+stand.key(206, DOLL | {"fingers_l": (0, -34, 0)}, "CONSTANT")
+stand.key(212, DOLL, "CONSTANT")
+stand.close(240)
+
+# Beckon (4 s, loop): on the rail with the train close: the right hand comes up in front of it, chest high, palm up,
+# and the fingers curl in, again and again, each time with a pop; the head tipped, as if asking. Come here.
+B = over(DOLL, head=(-4, 7, 14), spine_03=(-2, 0, 4))
+B = arm_to(B, "r", (0.26, 0.42, 1.3), fist=0.0)
+beckon = Clip("beckon")
+for f, curl in ((0, 0.0), (24, 0.85), (30, 0.0), (54, 0.85), (60, 0.0), (84, 0.9), (92, 0.0)):
+    pose = dict(B)
+    pose["fingers_r"] = (0, 10 + 80 * curl, 0)
+    beckon.key(f, pose, "CONSTANT")
+beckon.close(120)
 
 # Admire: bent at the waist over the load to its right, one hand out towards it, the other at its chest; the head
 # snaps from one tilt to the next, holds, lurches in closer.
@@ -389,8 +408,12 @@ A = arm_to(A, "r", (0.62, 0.42, 1.12), fist=0.1)
 A = arm_to(A, "l", (0.02, 0.3, 1.45), fist=0.5)
 A2 = over(A, head=(-16, -14, -30), neck=(-4, 0, -8))
 A3 = arm_to(over(A, spine_02=(-16, 0, -14), spine_03=(-12, 0, -10), head=(-8, 24, -14)), "r", (0.7, 0.5, 1.02), fist=0.0)
+# (Stroking it: the reaching hand moved along the load in little pops, the only thing about it that's gentle.)
+STROKE = [arm_to(dict(A), "r", (0.62 - 0.05 * i, 0.42 + 0.03 * i, 1.12 - 0.01 * i), fist=0.1) for i in range(4)]
 admire = Clip("admire")
 admire.key(0, A, "CONSTANT")
+for i, f in enumerate((10, 18, 26, 34)):
+    admire.key(f, STROKE[i], "CONSTANT")
 admire.key(44, A, "CONSTANT")
 admire.key(45, A2, "CONSTANT")
 admire.key(84, A2, "CONSTANT")
@@ -452,7 +475,7 @@ hit.key(7, over(C, spine_03=(-8, 0, 4), head=(-10, -8, 6)), "LINEAR")
 hit.key(14, C, "BEZIER")
 
 kit.build()
-rig.bake(sk, [stand, admire, giggle, tamper, cower, hit],
+rig.bake(sk, [stand, beckon, admire, giggle, tamper, cower, hit],
          plant=rig.feet_planter(sk, clips=["cower", "hit"], lowest=H("ball_r").z))
 print("[dt] track_doll", {p.name: p.tris() for p in kit.parts}, "total", kit.tris(), "bones", len(sk.bones))
 rig.export(rig.args()[0] if rig.args() else "track_doll.glb", kit)

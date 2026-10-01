@@ -162,6 +162,24 @@ public sealed class Kit(Look? look, float seed = 0)
     /// A flat rectangle facing <paramref name="normal"/>, <paramref name="up"/> its up: lenses, windows, gauge faces, signs.
     /// Texture across (0..width) and down (0..height) in metres, or <paramref name="uv0"/>..<paramref name="uv1"/> when given.
     /// </summary>
+    /// <summary>The standard doorway's height (<see cref="Look.Doorway"/>): a person's door, or a big door's (<paramref name="bay"/>).</summary>
+    public float DoorHeight(bool bay = false)
+    {
+        var d = Look?.Doorway ?? new Sim.Train.DoorwayTuning();
+        return (float)(bay ? d.BayHeight : d.Height);
+    }
+
+    /// <summary>
+    /// A doorway as the art draws one on a wall: its opening, a panel <paramref name="width"/> wide and the standard
+    /// height (<see cref="DoorHeight"/>) up from <paramref name="sill"/> (the middle of its threshold), facing out along
+    /// <paramref name="normal"/>. Every building's doors go through here, so they all stand the one height (note 110).
+    /// </summary>
+    public void Doorway(Vector3 sill, Vector3 normal, float width, bool bay = false, bool twoSided = false)
+    {
+        float h = DoorHeight(bay);
+        Panel(sill + Vector3.UnitY * (h / 2), normal, Vector3.UnitY, width, h, Vector2.Zero, Vector2.One, twoSided);
+    }
+
     public void Panel(Vector3 centre, Vector3 normal, Vector3 up, float width, float height, Vector2? uv0 = null, Vector2? uv1 = null, bool twoSided = false)
     {
         var n = Vector3.Normalize(normal);

@@ -47,6 +47,56 @@ public static class Staging
     }
 
     /// <summary>
+    /// The staged Whistler as it goes (<c>dt screenshot --whistler</c>): <c>fold</c> hidden in its gap (App. A.4 HIDE),
+    /// <c>whistle</c> pulling the cord, <c>watch</c> watching the gap's mouth after (WAIT). The <c>gapside</c> view looks in.
+    /// </summary>
+    public static List<Enemy> Whistler(List<Enemy> threats, string mode)
+    {
+        if (mode.Length == 0 || threats.OfType<Whistler>().FirstOrDefault() is not { } w)
+            return threats;
+        var (phase, extra) = mode switch
+        {
+            "fold" => (SpinePhase.Dormant, 0.0),
+            "whistle" => (SpinePhase.Telegraph, 1.0),
+            "watch" => (SpinePhase.Commit, 0.0),
+            _ => throw new ArgumentException($"--whistler {mode}: fold, whistle or watch"),
+        };
+        w.Restore(phase, 0.4, w.Health, w.Attached, w.Local, 0, 0, 0, extra, 0);
+        return threats;
+    }
+
+    /// <summary>
+    /// The staged Tippy Toesie elsewhere (<c>dt screenshot --tippy</c>): <c>behind</c> crewmate 1, over their shoulder
+    /// from the <c>crew</c> view (Crew: they face back down the roof, at its camera); <c>grab</c> on them, its hand over
+    /// their mouth (App. A.5 GRAB); <c>in</c> stalking down car 2's aisle, stooped under its roof (the <c>inside</c> view);
+    /// <c>door</c> ducking out through car 2's rear end door onto the plate (the <c>door</c> view: note 110).
+    /// </summary>
+    public static List<Enemy> Tippy(List<Enemy> threats, TrainOnLine train, string mode)
+    {
+        if (mode.Length == 0 || threats.OfType<TippyToesie>().FirstOrDefault() is not { } tippy)
+            return threats;
+        int car = Math.Min(2, train.Frames.Count - 1);
+        var shape = train.Frames[car].Shape;
+        double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0, x = train.Dynamics.Tuning.Geometry.PlateX;
+        switch (mode)
+        {
+            case "behind" or "grab":
+                tippy.Restore(mode == "grab" ? SpinePhase.Grab : SpinePhase.Telegraph, tippy.PhaseSeconds, tippy.Health, tippy.Attached,
+                    tippy.Local with { X = -0.7, Z = -6.7 }, 0, 0, 0, tippy.Extra, tippy.Extra2);
+                break;
+            case "in":
+                tippy.Restore(SpinePhase.Telegraph, 5, 3, car, new Double3(-0.35, floor, -3.6), 0, 0, 0, -1, 0);
+                break;
+            case "door":
+                tippy.Restore(SpinePhase.Telegraph, 5, 3, car, new Double3(x, floor, shape.HalfLength - 0.3), 0, 0, 0, -1, 0);
+                break;
+            default:
+                throw new ArgumentException($"--tippy {mode}: behind, grab, in or door");
+        }
+        return threats;
+    }
+
+    /// <summary>
     /// A roster for the screenshot (T69): you in the cab, three crewmates, and a Passenger wearing crewmate 2's face. Crew 1
     /// is speaking, crew 2 was heard a while ago, crew 3 hasn't said anything yet; the Passenger never has.
     /// </summary>
@@ -125,7 +175,8 @@ public static class Staging
         var stoker = Stoker.InFirebox(32, train, false, new StokerTuning());
         stoker.Restore(SpinePhase.Commit, 6, 1, 0, stoker.Local, 0, 0, 0, 0, 0);
         threats.Add(stoker);
-        // Tiptoeing up behind crewmate 1 on the second car's roof (A.5).
+        // Tiptoeing up on crewmate 1 on the second car's roof (A.5). (AudioTests hears its tiptoeing from here: Tippy moves
+        // it for the camera.)
         int beside = Math.Min(2, train.Frames.Count - 1);
         double roof = train.Frames[beside].Shape.RoofHeight;
         var tippy = new TippyToesie(30);

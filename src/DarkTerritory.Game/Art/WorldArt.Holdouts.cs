@@ -40,14 +40,14 @@ public sealed partial class WorldArt
                 break;
             case BuildingKind.SignalBox when _props.Get("signal_box") is { } box:
                 k.Append(box, Matrix4x4.CreateRotationY(yaw) * Kit.At(0, -0.2f, 0));
-                Barricade(k, facing * (width / 2 + 0.05f) + new Vector3(0, 1.1f, 0), facing, 1.1f, 2.1f);
+                Barricade(k, facing * (width / 2 + 0.05f) + Doorway(k), facing, 1.1f, k.DoorHeight());
                 break;
             case BuildingKind.WaterTower when _props.Get("water_tower") is { } tower:
                 k.Append(tower, Matrix4x4.CreateRotationY(yaw) * Kit.At(0, -0.2f, 0));
                 // Someone's boarded themselves into the pump house under the tank.
                 k.Use("brick_soot", Palette.RustRed, 0.9f, 0.1f, tile: 1.2f);
                 k.Box(new Vector3(-1.4f, -0.3f, -1.4f), new Vector3(1.4f, 2.4f, 1.4f), Kit.Faces.All & ~Kit.Faces.NegY);
-                Barricade(k, facing * 1.45f + new Vector3(0, 1.0f, 0), facing, 1.0f, 1.9f);
+                Barricade(k, facing * 1.45f + Doorway(k), facing, 1.0f, k.DoorHeight());
                 break;
             case BuildingKind.Lockup:
                 Lockup(k, length, width);
@@ -60,7 +60,7 @@ public sealed partial class WorldArt
                 k.Use("roof_slate", Palette.Charcoal, 0.9f, 0.15f, tile: 1.5f);
                 k.Box(new Vector3(-width / 2 - 0.3f, 2.8f, -length / 2 - 0.3f), new Vector3(width / 2 + 0.3f, 3.1f, length / 2 + 0.3f), Kit.Faces.All);
                 float half = MathF.Abs(facing.X) > 0 ? width / 2 : length / 2;
-                Barricade(k, facing * (half + 0.05f) + new Vector3(0, 1.0f, 0), facing, 1.0f, 1.9f);
+                Barricade(k, facing * (half + 0.05f) + Doorway(k), facing, 1.0f, k.DoorHeight());
                 break;
         }
     }
@@ -98,7 +98,7 @@ public sealed partial class WorldArt
                 for (float bz = -0.35f; bz <= 0.36f; bz += 0.175f)
                     k.Rod(new Vector3(side * (w + 0.03f), 2.72f, z + bz), new Vector3(side * (w + 0.03f), 3.08f, z + bz), 0.015f);
         // The door on the crew's side: a heavy leaf with a hasp and padlock.
-        k.Box(new Vector3(door * (w + 0.02f) - 0.04f, floor + 0.1f, -1.0f), new Vector3(door * (w + 0.02f) + 0.04f, top - 0.3f, 1.0f));
+        k.Box(new Vector3(door * (w + 0.02f) - 0.04f, floor + 0.1f, -1.0f), new Vector3(door * (w + 0.02f) + 0.04f, floor + 0.1f + k.DoorHeight(), 1.0f));
         k.Use("brass", Palette.TarnishedBrass, 0.7f, 0.5f);
         k.BoxAt(new Vector3(door * (w + 0.1f), 2.0f, 0.9f), new Vector3(0.05f, 0.12f, 0.09f));
     }
@@ -129,6 +129,9 @@ public sealed partial class WorldArt
     }
 
     /// <summary>Planks nailed across a doorway, from inside: whoever's in there did it.</summary>
+    /// <summary>A ground-floor doorway's middle (its sill a hand over the ground), the standard door's height up (note 110).</summary>
+    static Vector3 Doorway(Kit k) => Vector3.UnitY * (0.05f + k.DoorHeight() / 2);
+
     static void Barricade(Kit k, Vector3 centre, Vector3 outward, float halfWidth, float height)
     {
         var across = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, outward));

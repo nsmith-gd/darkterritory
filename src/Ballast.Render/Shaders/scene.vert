@@ -8,6 +8,7 @@ layout(push_constant) uniform Draw {
     vec4 tint;    // rgb multiplies the albedo, a = glow (scales emissive surfaces: a lamp dimmed in a Vigil)
     vec4 scar;    // x how scarred 0..1, y the pattern's seed (MeshInstance.Scar)
     vec4 skin;    // xyz added to the surface's texel coordinates (MeshInstance.SurfaceOffset), w the bone palette's base
+    vec4 bite;    // MeshInstance.Bite (bite.glsl): the piece eaten away from its back end; scar.z its floor
 } draw;
 #include "skin.glsl"
 
@@ -36,6 +37,9 @@ layout(location = 9) flat out float vGlow;
 layout(location = 10) flat out float vLayer2;
 layout(location = 11) out float vBlend;
 layout(location = 12) flat out vec2 vScar;
+layout(location = 13) out vec3 vObj;
+layout(location = 14) flat out vec4 vBite;
+layout(location = 15) flat out float vBiteFloor;
 
 void main() {
     mat4 model = draw.model;
@@ -56,5 +60,8 @@ void main() {
     vLayer2 = inLayer2;
     vBlend = inBlend;
     vScar = draw.scar.xy;
+    vObj = inPos;
+    vBite = draw.bite;
+    vBiteFloor = draw.scar.z;
     gl_Position = frame.viewProj * p;
 }

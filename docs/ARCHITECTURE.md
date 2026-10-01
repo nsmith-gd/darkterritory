@@ -1992,8 +1992,84 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - The blow-off stands on a standpipe on the left running board with a red handwheel and a marker lamp, so the fireman's side sees it.
     - **Steam you can see.** Venting now shows: the boiler's `Vented` (the vent open on the last step) replicates in the boiler record's flags. It and the safety valve lifting each blow steam (`Effects.Train`).
     - **Checks.** `CabSightTests` casts the sightlines against the engine's solids and the window openings. `dt screenshot --view cab|fireman [--venting]`.
+109. **The car eaten away, and the Car Hugger's and the Track Doll's motion (GDD v1.2 App. A.2, A.3; §31).**
+    - **What's eaten is remembered.** App. A.3's FEED took the car's `Integrity` and forgot it: a half-eaten car looked like a dented one, and once the thing was killed nothing showed it had been there. Now the same loss is also counted in `Vehicle.Eaten`, replicated with the car (its vehicle record's 16th field) and restored with the train state. So a car's eaten fraction is `Eaten / (Eaten + Integrity)`: 1 exactly when the sim drops it. Its scars and torn plate (`DamageKit`, `look.json` "damage") read the rest of the loss only (`Integrity + Eaten`).
+    - **The bite** (`look.json` "bite", `Art/BiteKit`, `Shaders/bite.glsl`). A ragged frontier across the car's own space moves forward from its rear end as it eats. Behind it the car isn't drawn and casts no shadow: a per-instance `MeshInstance.Bite`, cut in the fragment shaders (the push constants grow to 128 bytes, the size every device has). Along it the car is gnawed: raw and dark, wet, scored with tooth grooves.
+      - **Its shape.** Deepest down the middle, where the mouth works; least at the side walls its hands hold (at most `sideLead` ahead of its head); never below `floor`, so the underframe and trucks stay and the car rolls until it's dropped. Eaten through, the rear `depth` (45%) of the body is gone, and the rear platform goes over the first `platform` of the eating.
+      - **It moves in bites of 12 cm** (`Bite.Step`). Each bite is a mesh of torn edge laid along the same frontier: the frontier is sines, not noise, so C# and GLSL agree. The edge is boards snapped off in jags (plate torn back and curling, on a steel car), roof sheets bent up or hanging into the hole, broken floorboard ends, posts left standing and gnawed down, strings of slaver from the roof's edge. At the sim's rate it's a bite every five seconds or so.
+      - **What goes with the wall.** An end door it's eaten past is gone, a lamp whose ceiling it's eaten goes out, and so does the tail lamp. The gun whose roof it's eaten falls in: it's drawn on the floor, nose up, and the sim still has it.
+      - **Collision isn't eaten (a known gap).** The car's walls and floor are its `CarShape`, static per kind, so the crew can't walk out through the hole; its head fills most of it.
+    - **It goes in as it eats.** Its head pushes in through the end as far as it's eaten, up to `advance` (1.4 m): its model moves forward in its car's frame. Its hands follow the side walls' torn edge: each arm reaches on (two-bone IK on the posed clip, `CreatureArt`) to where it held, that much further along the car.
+    - **The Hugger's rings move.** It has a ring bone for each of its eight segments, leaf bones off the spine carrying the hide's weights (33 bones now). So swells run along it:
+      - **feed** (3.2 s): six uneven chews that pop and ease, each sending a gulp down it ring by ring, with slow breathing the other way, and two hands in turn letting go and slapping back on;
+      - **swallow**: the lump of whoever it has, running from head to tail;
+      - **latch**: the rings clench as it hauls itself up;
+      - **hit**: a flinch that pinches down it;
+      - **lurk**: breathing.
+      The motion was doubled after the first look, because at game distance it didn't read.
+    - **The doll's head watches you.**
+      - On its socket it turns to whoever's looking, in 30° clicks: it holds, then jumps round as you move, as far as it takes. From behind it you meet its face.
+      - This is the viewer's own eye, drawn per client, not sim state. Each player sees it looking at them.
+      - It watches standing and giggling. Bent over the cargo, it looks round only when you're within 8 m. At the controls it glances back now and then. Cowering, never.
+      - On the rail with the train within 40 m it beckons: a hand out in front, the fingers curling in, a pop at a time.
+      - Standing, it cocks its head once in eight seconds and a finger lifts. Admiring, it strokes the load.
+    - **Verifiable headless.**
+      - `dt screenshot --eaten f` (the rear car that much eaten) and `--later s` (every staged enemy further into its clip).
+      - `dt art clip <creature> <clip>`: a lit contact sheet of a clip's frames.
+      - `BiteTests` pins the frontier. `DemoRosterTests` pins that what's eaten is counted and reaches a client.
+110. **Tippy Toesie, and the one doorway (GDD v1.2 §21, App. A.5; §26.5).** It was the husk shrunk to child height. Now it's a thing of its own (`tools/blender/tippy_toesie.py`, baked by `tools/models/recipes/tippy_toesie.py`, 4,404 triangles, 27 bones), and the doorway it has to duck through is now one standard across the game.
+    - **The design.** A starved thing over two metres tall, on the points of its toes, as a dancer stands en pointe. Its feet have grown into bony spikes with black tips, and its heels never come down, so all it makes is App. A.5's faint tiptoeing. It was a child once (§26.5): a child's slip hangs on it, off one shoulder, filthy at the hem.
+    - **The face.** It has no mouth. The skin has grown over where the mouth was, a seam puckered in and drawn up in creases all round like a purse string pulled tight. Its eyes are small, black and wet, deep in bruised sockets. Its hands are the worst of it: broad palms and fingers 0.3 m long, made for covering a mouth from behind.
+    - **The skin.** Grey-white as old plaster and thin as paper, with veins showing through and the ribs, collarbones and knuckles standing under it. The colour is all painted in the bake, over a flat ground: the library's flesh is a living thing's pink. Its engine wear is 0.1, since the shader's rust grime warmed the plaster to tan.
+    - **One skin per limb.** Each arm and leg is one tube over both of its bones, blended across the joint. The first cut had separate pieces with a blob at each joint, and it read as a jointed wooden mannequin.
+    - **Clips.** In each, it moves, then it's still: too still (§31).
+      - **stalk:** a high step placed with the point, then a long hold. One finger is to where its mouth should be; the other hand drifts out towards the victim.
+      - **wait:** dead still, but the head tips over all at once, and once the fingers ripple.
+      - **flee:** low and fast on its points.
+      - **smother:** bent double over the victim, its head laid beside theirs, rocking them slowly as you'd rock a child to sleep.
+      - **hit.**
+    - **In the engine** (`CreatureArt`, its target passed in from `GreyboxScene` as `CreatureArt.Prey`):
+      - **Facing.** It faces whoever it's after: the crewmate whose id is its `Extra`.
+      - **On them (GRAB).** It's drawn 0.42 m behind their heels, facing the way they face. Its right hand reaches their mouth by two-bone IK, and its left reaches their shoulder.
+      - **Hidden.** The sim's DORMANT draws nothing.
+    - **Seen (ambiguity, §8).** The sim's `Flee` goes through BREAK OFF to DORMANT in the same tick, so it's simply gone, and the flee clip never had a phase to play in. App. A.5 says "runs if you see it coming", so the client shows it scuttling off from where it stood for 0.5 s at 4 m/s, then nothing. This is presentation only; the sim is unchanged. A Tippy that's never been placed (`Local` default) shows nothing.
+    - **It's taller than the train was built for.** It stands 2.45 m on its points and 2.34 m stalking. The doorway is 2.1 m (below), and a car is 2.75 m from floor to roof.
+      - **Indoors** (a car's interior or the cab, `CreatureArt.Room`) it stoops. `stoop` (it waits bowed, head laid over on its side as if listening to the roof) and `stalk_stoop` (the stalk bowed lower, knees bent through every step) are 2.26 m and 2.19 m.
+      - **Under a lintel** it ducks. `duck` folds it double, 1.83 m: knees deep, back flat, head turned on its side to go under first, hands spread on the jambs either side, drawing it through.
+      - **Lintels are found from the car's own solids**: something thin with its underside 1.5–2.6 m over the feet, within a stride. So every door on the train counts, the cab's included, without a list. With nobody to face, it faces out through the door.
+      - `TippyToesieTests` holds each clip's skinned height to the room it's drawn in.
+    - **One doorway (the standard).** `train.json` `geometry.doorway`: 2.1 m tall (0.3 m over a 1.8 m crewmate), 0.9 m wide. Big doors (sheds, barns, churches) are all `bayHeight` 3.5 m.
+      - **The train is built to it.** The cars' end doors and side doors (the side doors stay 1.8 m wide, for crates), the guard van's rear door, and now the cab's two doorways. Those were open to the cab roof (2.8 m) and drawn 2.48 m under the visor; they now have the lintel, in collision and in the art.
+      - **Every door the art draws reads it** (`Look.Doorway`, `Kit.Doorway`, `Kit.DoorHeight`). Buildings were 1.9 to 2.2 m (people) and 3.0 to 5.0 m (big doors): the stop sheds and works houses, the facility shed and its leaf, the holdouts' barricades and the prison car's door, the towns' house, church and windmill, and the Nova Scotia saltbox, barn, church, fish shed and lighthouse.
+      - A works house too low for a big door gets a person's door. The outbuilding's walls were 2.8 m with a 4.25 m door through the eaves; they now stand the doorway and a header over the sill.
+      - Building doors are still drawn only. Only the train's doors have collision.
+      - `InteriorTests.EveryDoorwayIsTheStandardDoorway` pins the train. Widths are unchanged: a cab doorway's clear width is still 0.75 m, the standard's 0.9 less its rear pillar.
+    - **Headless.**
+      - `dt screenshot --view crew --threats --crew --tippy behind` puts it behind crewmate 1 on car 2's roof (the plain `--threats` spot is AudioTests' and stays). `--tippy grab` stages the smother; `--tippy in --view inside` has it stalking down car 2's aisle; `--tippy door --view door --doors-open` has it ducking out of car 2's rear door, seen from the car behind.
+      - `crew`, `crewside`, `inside` and `door` are views left out of `Views.Names`, so the perf budgets don't walk them.
+      - `dt art clip tippy_toesie <clip>` renders each clip as a contact sheet.
+      - `CreatureArtTests` pins its budget and clips. `TippyToesieTests` pins its fit, its room reading, that it's hidden while dormant, and where it stands on its victim.
+111. **The Whistler's model (GDD v1.2 §21, App. A.4).** It was the husk crouched small. Now it's its own (`tools/blender/whistler.py`, baked by `tools/models/recipes/whistler.py`, 4,240 triangles, 27 bones).
+    - **The design.** A long thing folded small. Stood up it's over two metres, all limb, but it lives crammed under the bridge plate in a coupling gap, soot-black and slick with the couplers' grease.
+      - **Its face** is the one pale thing on it: a mask of grey-white skin over the whole long skull. The eyes are grown over, healed in puckered rings like stitching, and the mouth is drawn out into a creased tube, pursed for ever to whistle.
+      - **Its right forearm** is a third as long again, for the cord.
+      - **A loop of rusted coupling chain** has grown into its waist, the skin sore round it.
+    - **Clips.**
+      - **fold:** squatting as low as it goes, arms round its shins, its chin on its knees and the face looking out over them; it breathes.
+      - **whistle:** up out of the gap on its toes, all its length, the long arm hooked over the cord 3 m up, yanking twice.
+      - **watch:** a crouch at the gap's mouth on toes and knuckles, the head turning in jerks.
+      - **run:** on all fours, too fast.
+      - **hit**.
+    - **In the engine.**
+      - It stands on the rail: the sim's gap point is 0.6 m over it, so the draw drops it by its `Local.Y`.
+      - **In its gap it faces whoever's looking** (the eye, as the Track Doll's head does): the one who checks the gap finds the pale face turned up to them. The brief asks that it be spottable by a player who checks. The stand-in faced down the gap and was a dark lump.
+      - Carrying someone (GRAB), it runs away from the train.
+    - **The foot planter moves the body after the IK.** `rig.bake`'s planter drops the whole body to the floor once a pose is made, so a hand IK'd to an absolute height (on a shin, on the ground) ended up 0.7 m under the floor. The Whistler's targets are taken from the pose instead: `knee(pose)`, `ground(pose)`. That applies to any crouching creature.
+    - **Headless.**
+      - `dt screenshot --threats --whistler fold|whistle|watch --view gapside --car 3`. `gapside` is a view from the ballast beside a gap, looking in under the plate; like `crew`, it's left off `Views.Names`.
+      - `WhistlerTests`: folded it fits under the plate, whistling it rises over the head of anyone on it, its feet are on the rail, and it faces the eye.
 
-109. **The crew walk aboard (T102).** The first playtest asked "how are bots doing test runs if they cannot traverse into all the car positions they need". The harness used to put the gunner on the guard gun and the fireman in the cab half a second in.
+112. **The crew walk aboard (T102).** The first playtest asked "how are bots doing test runs if they cannot traverse into all the car positions they need". The harness used to put the gunner on the guard gun and the fireman in the cab half a second in.
     - **Boarding on foot.** On a night, everyone but the first to join now boards standing on the ballast beside the train at the gate (`HarnessOptions.WalkAboard`, on by default; `HostSession.BoardAt`), and walks and climbs to their post:
         - roof walkers up a car's ladder;
         - the gunner along the roofs to the guard gun;
@@ -2002,6 +2078,6 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The report.** The harness gives each bot's seconds to its post (`HarnessReport.Posts`, −1 for never). On frontier:7 with eight bots: walkers 5 s, fireman 26 s, gunner 55 s.
     - **What it caught.** The fireman fell off the cab steps: once it was on the ladder nothing kept it climbing. `WalkAboardTests`.
 
-110. **Saving the gun (T103).** T93's playtest asked for guns "moveable along top rails ... so a cannon can be saved before decoupling a car".
+113. **Saving the gun (T103).** T93's playtest asked for guns "moveable along top rails ... so a cannon can be saved before decoupling a car".
     - **The gunner saves it.** A car the Car Hugger holds is a car lost (App. A.3: cut loose or eaten through, it goes with it). So the gunner, on that car's roof with the gun still on it, pushes the gun up the rail onto the car ahead (`GunnerBot.SaveGun`). Then it goes on as before.
     - **What it caught.** Pushing a gun is Use held while walking, which is also how you grab a ladder. The guard van's hatch ladder comes up through the roof on the gun's rail, so pushing past it took the pusher down inside the van, player or bot. While pushing, the motor no longer takes ladders by Use or by walking into them; the ladder key still does. `GunSaveTests`.
