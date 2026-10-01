@@ -245,6 +245,10 @@
     "incidentFullCrew": 3,
     "facilityLullSeconds": 20,
     "cooldownSeconds": [30, 60],
+    // T114 playtest ("where are all the monsters"): a threat that goes lingerSeconds with nobody alive within lingerRadius m
+    // of it (and has nobody in its grip) gives up and goes, so what nobody's answering doesn't hold the caps below full.
+    "lingerSeconds": 120,
+    "lingerRadius": 30,
     "maxConcurrentZone": 2,
     "maxConcurrentSmallCrew": 4,
     "maxConcurrentLargeCrew": 6,

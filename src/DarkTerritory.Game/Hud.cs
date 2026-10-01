@@ -199,6 +199,8 @@ public static class Hud
         o.TextRight(right, 5 + 3 * line, link.Role, Dim);
         if (link.Lost)
             o.TextRight(right, 5 + 4 * line, "CONNECTION LOST", Red);
+        else if (link.JoinAt is { } at)
+            o.TextRight(right, 5 + 4 * line, $"FRIENDS JOIN AT {at}", Dim);
     }
 
     /// <summary>Whether you've a radio on you (T41), under the link: without one, T does nothing and nobody's on it for you.</summary>

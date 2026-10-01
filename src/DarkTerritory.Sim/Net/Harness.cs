@@ -99,6 +99,8 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public string? DerailCause { get; init; }
     /// <summary>The conflict-table pairs the director put together (App. B.1).</summary>
     public IReadOnlyList<string> Pairs { get; init; } = [];
+    /// <summary>Seconds out on the line by what the director did each second: sent something, or why it held back (T114).</summary>
+    public IReadOnlyDictionary<string, int> Director { get; init; } = new Dictionary<string, int>();
 }
 
 /// <summary>
@@ -165,6 +167,7 @@ public static class Harness
         var events = new List<EnemyEvent>();
         var deaths = new Dictionary<string, int>();
         double choirPeak = 0;
+        var held = new SortedDictionary<string, int>(StringComparer.Ordinal);
         int rounds = 0;
         var quiet = new List<double>();
         var beatKinds = new Dictionary<string, int>();
@@ -208,6 +211,12 @@ public static class Harness
                 heldAt20 = host.World.Director?.HeldBecause;
             lastQuiet = q;
             choirPeak = Math.Max(choirPeak, host.World.Choir.Build);
+            // T114 ("where are all the monsters"): what the director did with each second out on the line.
+            if (t % SimConstants.TickRate == 1 && host.World.Director is { } dir && host.World.Run is { Phase: not (Sim.Run.RunPhase.Yard or Sim.Run.RunPhase.Arrived or Sim.Run.RunPhase.Failed) })
+            {
+                string what = host.World.Derailed ? "derailed" : dir.HeldBecause ?? "sent";
+                held[what] = held.GetValueOrDefault(what) + 1;
+            }
             // Once everyone's in, the gunner goes to the guard gun (a host-side respawn at their post), unless they walk to it.
             if (t == 30 && !walk)
             {
@@ -256,7 +265,7 @@ public static class Harness
                 events.Where(e => e.To == SpinePhase.Punish).GroupBy(e => e.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()),
                 deaths, unfair, host.World.Derailed, Math.Round(choirPeak, 1),
                 Math.Round(host.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).DefaultIfEmpty().Average(v => v?.CargoIntegrity ?? 1), 3), rounds)
-            { Pairs = [.. d.Pairs], DerailCause = host.World.DerailCause };
+            { Pairs = [.. d.Pairs], DerailCause = host.World.DerailCause, Director = held };
         }
         if (o.Udp || o.Network is not null)
         {

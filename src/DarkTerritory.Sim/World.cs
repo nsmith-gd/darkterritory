@@ -550,6 +550,36 @@ public sealed class World
         return voices + whistle + machinery;
     }
 
+    readonly Dictionary<int, double> _unmet = [];
+
+    /// <summary>
+    /// Once a second: what's gone <see cref="DirectorTuning.LingerSeconds"/> with nobody near it, holding nobody, goes (T114).
+    /// Alone, a Climber settled in a car nobody walked into, or hounds trailing a train nobody shot from, held the caps full
+    /// and the director had room for nothing new all night.
+    /// </summary>
+    void Unmet(EnemyContext ctx, DirectorTuning t)
+    {
+        var crew = ctx.LivingCrew().Select(c => c.World).ToList();
+        foreach (var e in _enemies)
+        {
+            // What lies in wait (a Dragger under a car's edge) doesn't count against the caps, so it may wait all night.
+            if (!DarkTerritory.Sim.Enemies.Director.Engaged(e) || e.Phase is SpinePhase.Grab or SpinePhase.Punish)
+            {
+                _unmet.Remove(e.Id);
+                continue;
+            }
+            var at = e.WorldPosition(Train);
+            bool met = crew.Any(p => (p - at).Length <= t.LingerRadius);
+            double seconds = met ? 0 : _unmet.GetValueOrDefault(e.Id) + 1;
+            _unmet[e.Id] = seconds;
+            if (seconds >= t.LingerSeconds)
+            {
+                e.Dismiss();
+                _unmet.Remove(e.Id);
+            }
+        }
+    }
+
     void StepEnemies(EnemyContext ctx)
     {
         var t = ctx.Tuning;
@@ -577,6 +607,7 @@ public sealed class World
         if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed)
         {
             d.Present(_context?.Crew.Count ?? 0);
+            Unmet(ctx, t.Director);
             if (d.Decide(this, ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } kind && Spawns.For(kind) is { } rule)
                 rule.Spawn(new SpawnContext(this, t, d));
             // App. B.5: the door left open at a stop this long (it swings shut by itself with someone in the cab to see to it).

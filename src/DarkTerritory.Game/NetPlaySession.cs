@@ -547,7 +547,35 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public PlayerTuning PlayerTuning => Client.PlayerTuning;
     public int PlayerId => Client.PlayerId ?? 0;
     public LinkInfo? Link => new(Role(), Host is null && Client.Connected ? _link.RoundTrip(PeerId.Host) * 1000 : null,
-        Aboard, Client.Waiting ? Client.WaitingReason : null, Lost);
+        Aboard, Client.Waiting ? Client.WaitingReason : null, Lost, JoinAt);
+
+    /// <summary>This machine's address on the local network and the port, for friends to type in; null unless hosting for them.</summary>
+    string? JoinAt => _joinAt ??= Host is not null && _udp is { Port: > 0, LocalLoopbackOnly: false } u ? LanAddress() is { } ip ? $"{ip}:{u.Port}" : null : null;
+    string? _joinAt;
+
+    /// <summary>The first IPv4 address of an interface that's up and has a gateway (the wifi or the cable), not a loopback or a VPN's.</summary>
+    static string? LanAddress()
+    {
+        try
+        {
+            foreach (var nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (nic.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up
+                    || nic.NetworkInterfaceType is System.Net.NetworkInformation.NetworkInterfaceType.Loopback or System.Net.NetworkInformation.NetworkInterfaceType.Tunnel)
+                    continue;
+                var props = nic.GetIPProperties();
+                if (props.GatewayAddresses.Count == 0)
+                    continue;
+                foreach (var a in props.UnicastAddresses)
+                    if (a.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && !IPAddress.IsLoopback(a.Address))
+                        return a.Address.ToString();
+            }
+        }
+        catch (System.Net.NetworkInformation.NetworkInformationException)
+        {
+        }
+        return null;
+    }
 
     /// <summary>Accepts a friend's invite that arrived while playing, if any, leaving it for the app to act on.</summary>
     public LobbyId? TakeJoinRequest() => Lobby?.TakeJoinRequest();
