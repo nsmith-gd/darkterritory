@@ -364,8 +364,9 @@ public sealed class TrainOnLine
     {
         GradePercent = AverageGrade(rake),
         Traction = Traction * (Line.Conditions?.Adhesion(rake.Path, rake.Distance) ?? 1),
-        // The Weight's drag on the rake it holds (App. A.3).
-        Drag = DragOn(rake),
+        // The Weight's drag on the rake it holds (App. A.3); and a ruptured engine's seized cylinders (T109) on its own, hard
+        // down to a coast.
+        Drag = DragOn(rake) + (rake == _engineRake && Boiler.Ruptured && BoilerTuning is { } bt && rake.Speed > bt.RuptureCoastBelow ? bt.RuptureDecel : 0),
     };
 
     /// <summary>A rake's front running forward through a branch's points goes where the switch is set.</summary>

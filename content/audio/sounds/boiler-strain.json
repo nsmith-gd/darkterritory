@@ -1,0 +1,15 @@
+// Critical train state (tier 3, T109 playtest: "feedback ... in multiple ways that pressure is too high and building to a
+// rupture point"): the boiler straining in the red. A tight metallic shriek that climbs in pitch and loudness with the
+// strain (0 at the redline, 1 at the rupture), with a rattling hiss under it. Over the valve's hiss, not under it.
+{
+  "tier": 3, "loop": true, "maxInstances": 1, "minDistance": 4, "maxDistance": 300,
+  "layers": [
+    { "source": "saw", "frequency": { "param": "strain", "points": [[0, 520], [1, 1250]] },
+      "gain": { "param": "strain", "points": [[0, 0.04], [0.5, 0.16], [1, 0.38]] },
+      "filters": [{ "type": "bandPass", "frequency": { "param": "strain", "points": [[0, 900], [1, 2100]] }, "q": 3 }],
+      "vibrato": { "rate": 6.5, "depth": 0.012 } },
+    { "source": "noise", "gain": { "param": "strain", "points": [[0, 0.03], [1, 0.14]] },
+      "filters": [{ "type": "bandPass", "frequency": 1600, "q": 1.5 }],
+      "tremolo": { "rate": 9, "depth": 0.5, "jitter": 0.5 } }
+  ]
+}

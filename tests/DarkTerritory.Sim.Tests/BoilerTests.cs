@@ -80,18 +80,59 @@ public class BoilerTests
     }
 
     [Fact]
-    public void OverfiringLiftsTheSafetyValveButDoesNotRupture()
+    public void OverfiredPastTheSafetyValveTheBoilerRuptures()
     {
+        // T109 playtest ("if I red line for too long the boiler should rupture"): the valve lifts in the red and is heard,
+        // but a fire kept full beats it, up to 100, and the spec's 20 s there ruptures it.
         var train = Train(3);
         train.Boiler.Pressure = 90;
-        for (int i = 0; i < SimConstants.TickRate * 120; i++)
+        bool lifted = false;
+        int ticks = 0;
+        for (; ticks < SimConstants.TickRate * 180 && !train.Boiler.Ruptured; ticks++)
         {
             train.Boiler.Shovel(B);
             train.Step(SimConstants.TickSeconds, new TrainControls { Reverser = 1 });
+            lifted |= train.Boiler.SafetyValveLifting;
+        }
+        Assert.True(lifted);
+        Assert.True(train.Boiler.Ruptured);
+        // Long enough in the red to answer it (vent, or stop firing): more than the 20 s at 100.
+        Assert.True(ticks * SimConstants.TickSeconds > B.RuptureHoldSeconds + 5, $"ruptured {ticks * SimConstants.TickSeconds:0} s in");
+    }
+
+    [Fact]
+    public void VentedInTheRedTheBoilerHolds()
+    {
+        var train = Train(3);
+        train.Boiler.Pressure = 90;
+        for (int i = 0; i < SimConstants.TickRate * 180; i++)
+        {
+            train.Boiler.Shovel(B);
+            if (train.Boiler.Pressure > B.Redline)
+                train.Boiler.Venting = true;
+            train.Step(SimConstants.TickSeconds, new TrainControls { Reverser = 1 });
         }
         Assert.False(train.Boiler.Ruptured);
-        Assert.True(train.Boiler.SafetyValveLifting);
-        Assert.InRange(train.Boiler.Pressure, B.SafetyValveLift - 1, B.SafetyValveLift + 0.01);
+    }
+
+    [Fact]
+    public void RupturedTheTrainSheddsItsSpeedHardThenCoasts()
+    {
+        // T109: "speed should drop drastically and quickly and I should coast to a stop (unless I apply a brake)".
+        var train = Train(3);
+        train.Dynamics.Velocity = 18;
+        train.Boiler.Ruptured = true;
+        double t = 0;
+        while (train.Dynamics.Speed > B.RuptureCoastBelow + 0.5)
+        {
+            train.Step(SimConstants.TickSeconds, new TrainControls { Reverser = 1 });
+            t += SimConstants.TickSeconds;
+        }
+        Assert.InRange(t, 0.8 * (18 - B.RuptureCoastBelow) / B.RuptureDecel, 1.3 * (18 - B.RuptureCoastBelow) / B.RuptureDecel);
+        // Below it, a coast: still rolling a good while later.
+        for (int i = 0; i < SimConstants.TickRate * 10; i++)
+            train.Step(SimConstants.TickSeconds, new TrainControls { Reverser = 1 });
+        Assert.True(train.Dynamics.Speed > 1, $"stopped dead at {train.Dynamics.Speed:0.0} m/s");
     }
 
     [Fact]

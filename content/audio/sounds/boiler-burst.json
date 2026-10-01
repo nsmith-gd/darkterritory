@@ -1,0 +1,12 @@
+// Critical train state (tier 3, T109; GDD §23 "loud, spectacular, run-changing"): the boiler ruptures. A deep bang, and
+// the steam going out of it all at once, dying away over a few seconds.
+{
+  "tier": 3, "duration": 4, "maxInstances": 1, "minDistance": 8, "maxDistance": 1500, "rolloff": 0.5,
+  "layers": [
+    { "source": "impulse", "frequency": 1, "gain": 2.2,
+      "filters": [{ "type": "lowPass", "frequency": 160, "q": 0.8 }],
+      "envelope": [[0, 1], [0.6, 0]] },
+    { "source": "noise", "gain": 0.6, "filters": [{ "type": "bandPass", "frequency": 900, "q": 0.5 }],
+      "envelope": [[0, 1], [0.4, 0.7], [4, 0]] }
+  ]
+}

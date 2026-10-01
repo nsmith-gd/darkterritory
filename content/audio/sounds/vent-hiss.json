@@ -1,0 +1,9 @@
+// Train bed (tier 5, T109): the vent held open in the cab, a roar of steam out of the blow-off. Loud but broad and low in
+// the band, so the tells sit over it.
+{
+  "tier": 5, "loop": true, "maxInstances": 1, "minDistance": 4, "maxDistance": 200,
+  "layers": [
+    { "source": "noise", "gain": 0.3, "filters": [{ "type": "bandPass", "frequency": 1200, "q": 0.6 }, { "type": "lowPass", "frequency": 3200 }],
+      "envelope": [[0, 0], [0.3, 1]] }
+  ]
+}

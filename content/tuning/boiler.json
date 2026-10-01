@@ -11,11 +11,12 @@
   "redline": 95,
   // Spec B.6: rupture at 100 held for 20 s.
   "ruptureHoldSeconds": 20,
-  // Not in the spec: a safety valve lifts at the redline and sheds up to this much pressure per second.
-  // Without it an ordinary overfired short train ruptures; with it, only something the valve can't
-  // keep up with (the Stoker, a jammed valve) can reach 100. The lifting valve is itself a loud tell.
+  // Not in the spec: a safety valve lifts at the redline and sheds up to this much pressure per second, and the lifting
+  // valve is itself a loud tell. T109 playtest ("if I red line for too long the boiler should rupture"): at 2.5 it shed
+  // whatever any fire could make, and nothing but the Stoker ever reached 100. At 0.6 a hot fire beats it: in the red,
+  // vent (or let the fire burn down), or the gauge climbs to 100 and the spec's 20 s there ruptures it.
   "safetyValveLift": 95,
-  "safetyValveCapacity": 2.5,
+  "safetyValveCapacity": 0.6,
   // Tractive effort fades out below workingBandMin and is gone at this pressure.
   "powerFloor": 20,
 
@@ -32,8 +33,14 @@
   "fullThrottleDemand": 0.5,
 
   // Holding the vent valve open dumps pressure at this rate. T97: it's how the crew slows the train (steam sets the
-  // speed), out on the engine's left running board by the smokebox, far from the brake in the cab.
+  // speed). T109 playtest: in the cab, on its left side, so one player can drive it all from the footplate.
   "ventRate": 12,
+  // T109: a rupture (spec B.6, GDD §23) seizes the cylinders: the train sheds speed at ruptureDecel (m/s²) down to
+  // ruptureCoastBelow (m/s), then coasts, to a stop unless braked. The engineering kit (a wrench, racked in the cab)
+  // held at the firebox for repairSeconds makes the boiler good again, cold and empty: fire it back up from nothing.
+  "ruptureDecel": 1.5,
+  "ruptureCoastBelow": 4,
+  "repairSeconds": 25,
   // T97 playtest: no regulator. Pressure sets the speed the engine can make: none at powerFloor, the line's top speed at
   // safetyValveLift. Coal for more speed, the vent (or the brake) for less. The engine pulls at full effort until it's
   // within driveSpeedBand m/s of that speed. Its cylinders draw with the effort of pulling away or with speed, whichever

@@ -63,7 +63,7 @@ public readonly record struct Solid(Box Box, SurfaceKind Top, PartKind Part)
 public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward);
 
 /// <summary><see cref="Coal"/> is the tender's coal face, where a hand fills the shovel (T29).</summary>
-public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch }
+public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack }
 
 /// <summary>A thing a player uses by standing near it and holding Use. <see cref="Index"/> says which door.</summary>
 public readonly record struct Interactable(InteractableKind Kind, Double3 Position, double Radius, int Index = 0);
@@ -385,9 +385,11 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         var interactables = new List<Interactable>
         {
             new(InteractableKind.Firebox, new Double3(0, deck, cabFront + 0.2), 1.1),
-            // The blow-off cock out on the left running board by the smokebox (T97: venting slows the train, and it's far
-            // enough from the brake in the cab that the quickest stop takes two).
-            new(InteractableKind.Vent, new Double3(-w - board / 2, deck, -l + 1.2), 0.7),
+            // The blow-off cock (T97: venting slows the train). T109 playtest: in the cab on its left side, so one player
+            // works it all from the footplate; clear of where the firebox is worked from.
+            new(InteractableKind.Vent, new Double3(-w + 0.3, deck, cabFront + 1.2), 0.6),
+            // The engineering kit's rack on the right side, the driver's (T109): the wrench that mends a ruptured boiler.
+            new(InteractableKind.ToolRack, new Double3(w - 0.3, deck, cabFront + 2.0), 0.6),
             // The coal comes forward through the tender's front onto a shovelling plate at the back of the cab, near
             // enough the firebox that a fireman turning between them reaches both.
             new(InteractableKind.Coal, new Double3(0, deck, cabBack - 0.6), 1.0),

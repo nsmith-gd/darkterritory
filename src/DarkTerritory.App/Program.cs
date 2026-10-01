@@ -657,6 +657,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
 
         var frames = session.InterpolatedFrames(clock.Alpha);
         camera = chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
+        // On the engine with the boiler in the red, it shakes you (T109).
+        if (!chase)
+            camera.Position += BoilerShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds);
         scene.Crew = session.Crew(frames, clock.Alpha);
         // Behind a crewmate's eyes (App. D.10), their own figure isn't drawn round the camera.
         if (session.Watching >= 0 && !chase)
@@ -678,6 +681,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             lighting.Wetness = r.Weather.Wet ? 1 : 0;
         }
         scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
+        scene.WrenchRacked = !session.Train.Boiler.WrenchOut;
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
         scene.Tick = session.Tick;
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);

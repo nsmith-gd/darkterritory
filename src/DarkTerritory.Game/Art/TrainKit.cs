@@ -546,7 +546,8 @@ public static class TrainKit
     /// The blow-off's standpipe (T101), up from the running board to the valve <paramref name="height"/> over it: the pipe
     /// off the boiler, a red handwheel on its side, and the lamp bracket over it.
     /// </summary>
-    public static MeshAsset VentStand(Look? look, float height)
+    /// <param name="lamp">The marker lamp over it, to find it in the dark from the cab: not for a valve in the cab (T109).</param>
+    public static MeshAsset VentStand(Look? look, float height, bool lamp = true)
     {
         var k = new Kit(look, 63);
         k.Use("copper_pipe", Palette.TarnishedBrass, 0.6f, 0.6f);
@@ -561,6 +562,8 @@ public static class TrainKit
             k.Rod(wheel + new Vector3(MathF.Cos(a0), MathF.Sin(a0), 0) * 0.16f, wheel + new Vector3(MathF.Cos(a1), MathF.Sin(a1), 0) * 0.16f, 0.02f, 4);
         }
         k.Rod(wheel - new Vector3(0.16f, 0, 0), wheel + new Vector3(0.16f, 0, 0), 0.012f, 3);
+        if (!lamp)
+            return k.Build("vent-stand-cab");
         k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.3f);
         k.Rod(new Vector3(0, height, 0), new Vector3(0, height + 0.5f, 0), 0.015f, 4);
         k.Use("lamp_lens", new Vector3(1.0f, 0.35f, 0.15f), 0, 0, tile: 0.25f);
@@ -568,6 +571,35 @@ public static class TrainKit
         k.BoxAt(new Vector3(0, height + 0.45f, 0), new Vector3(0.05f, 0.07f, 0.05f));
         k.Emissive = 0;
         return k.Build("vent-stand");
+    }
+
+    /// <summary>
+    /// The engineering kit's rack (T109) on the cab side: a board on the wall, two pegs, and an amber band painted on so
+    /// it's found in the glow of the firebox. Drawn at the rack's interactable, the wall at +X.
+    /// </summary>
+    public static MeshAsset ToolRack(Look? look)
+    {
+        var k = new Kit(look, 64);
+        k.Use("wood_floor", Palette.DeepBrown, 0.9f, 0.1f, tile: 0.5f);
+        k.Box(new Vector3(0.16f, 0.45f, -0.4f), new Vector3(0.2f, 1.02f, 0.4f));
+        k.Use("paint_oxide", Palette.LampAmber, 0.6f, 0.1f, tile: 0.2f);
+        k.Box(new Vector3(0.15f, 0.93f, -0.38f), new Vector3(0.16f, 0.99f, 0.38f), Kit.Faces.NegX);
+        k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.3f);
+        k.Rod(new Vector3(0.16f, 0.7f, -0.25f), new Vector3(0.06f, 0.7f, -0.25f), 0.018f, 4);
+        k.Rod(new Vector3(0.16f, 0.7f, 0.2f), new Vector3(0.06f, 0.7f, 0.2f), 0.018f, 4);
+        return k.Build("tool-rack");
+    }
+
+    /// <summary>The wrench (T109) hung on its rack's pegs: a long bright iron handle and an open jaw at one end.</summary>
+    public static MeshAsset Wrench(Look? look)
+    {
+        var k = new Kit(look, 65);
+        k.Use("steel_grate", new Vector3(0.62f, 0.62f, 0.6f), 0.4f, 0.9f);
+        k.Box(new Vector3(0.07f, 0.71f, -0.34f), new Vector3(0.13f, 0.77f, 0.24f));
+        k.Box(new Vector3(0.06f, 0.64f, 0.24f), new Vector3(0.14f, 0.86f, 0.32f));
+        k.Box(new Vector3(0.06f, 0.81f, 0.32f), new Vector3(0.14f, 0.86f, 0.44f));
+        k.Box(new Vector3(0.06f, 0.64f, 0.32f), new Vector3(0.14f, 0.69f, 0.44f));
+        return k.Build("wrench");
     }
 
     /// <summary>A gauge's needle: pointing up (+Y) from its pivot, dark with a red tip, on a brass boss.</summary>

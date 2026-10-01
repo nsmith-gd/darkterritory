@@ -70,6 +70,10 @@ public static class Views
             "firebox" => FireboxCamera(engine),
             // The fireman's side (T101): out of the left window down the running board to the blow-off by the smokebox.
             "fireman" => CabCamera(engine, -1),
+            // T109: across the cab from the driver's place to the vent on its left side, and from the fireman's to the
+            // engineering kit's rack on the right.
+            "vent" => SideCamera(engine, InteractableKind.Vent, 1),
+            "rack" => SideCamera(engine, InteractableKind.ToolRack, -1),
             "chase" => ChaseCamera(train),
             // On the line 47 m ahead of the engine, at the staged Switchman by its lever 8 m on (Staging.Threats).
             "switchman" => Camera.LookAt(engine.ToWorld(new Double3(1.6, 1.8, -engineHalf - 50.5)), engine.ToWorld(new Double3(3.8, 1.1, -engineHalf - 55)), 50),
@@ -101,6 +105,14 @@ public static class Views
         var door = Art.TrainKit.FireDoor(engine.Shape);
         var at = new Double3(door.X, door.Y, door.Z);
         return Camera.LookAt(engine.ToWorld(at + new Double3(0.12, 0.22, 0.8)), engine.ToWorld(at), 60);
+    }
+
+    /// <summary>From one side of the cab at a standing eye, across at an interactable on the other side.</summary>
+    static Camera SideCamera(in CarFrame engine, InteractableKind kind, int from)
+    {
+        var at = engine.Shape.Interactables.First(i => i.Kind == kind).Position;
+        var eye = CabEye(engine.Shape, from) with { Z = at.Z + 0.6 };
+        return Camera.LookAt(engine.ToWorld(eye), engine.ToWorld(at + new Double3(0, 1.1, 0)), 70);
     }
 
     static Camera CabCamera(in CarFrame engine, int side = 1)

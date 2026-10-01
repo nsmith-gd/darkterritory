@@ -98,7 +98,8 @@ public sealed class Effects(Look look)
         if (vent)
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
             {
-                var at = engine.ToWorld(i.Position + new Double3(0, 1.1, 0)).RelativeTo(eye);
+                // T109: the valve's in the cab now; its blow-off pipe goes up through the cab roof, and the steam out of it.
+                var at = engine.ToWorld(i.Position with { Y = shape.Bounds.Max.Y + 0.15 }).RelativeTo(eye);
                 float outward = Math.Sign((float)i.Position.X);
                 for (int k = 0; k < 26; k++)
                 {

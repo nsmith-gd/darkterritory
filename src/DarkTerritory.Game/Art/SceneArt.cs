@@ -84,7 +84,7 @@ public sealed partial class SceneArt(Look look)
     /// slid back along its rack as it opens, the brake valve's handle and the reverser swung about their pivots, and
     /// the blow-off valve on the cab wall at the vent. False where the models aren't built (the greybox draws them).
     /// </summary>
-    public bool CabControls(MeshBuilder mesh, in CarFrame frame, Double3 eye, TrainControls controls)
+    public bool CabControls(MeshBuilder mesh, in CarFrame frame, Double3 eye, TrainControls controls, bool wrenchRacked = true)
     {
         var props = PropArt.Of(Look);
         if (frame.Shape.Levers is not { } levers || props.Get("lever_regulator") is not { } regulator)
@@ -107,15 +107,28 @@ public sealed partial class SceneArt(Look look)
         bool near = (frame.Origin - eye).Length < 30;
         if (near)
             mesh.Append(Piece("brake-grip", () => TrainKit.Grip(Look, Palette.SignalRed)), Matrix4x4.CreateTranslation(ToF(levers.BrakeAt(controls.Brake))) * m);
+        // The engineering kit's rack (T109), and the wrench on it while it's there.
+        foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.ToolRack && near))
+        {
+            var at = Matrix4x4.CreateTranslation(ToF(i.Position)) * m;
+            mesh.Append(Piece("tool-rack", () => TrainKit.ToolRack(Look)), at);
+            if (wrenchRacked)
+                mesh.Append(Piece("wrench", () => TrainKit.Wrench(Look)), at);
+        }
         foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
         {
             // The blow-off on its standpipe up from the running board, a red wheel on it, and a marker lamp over it so
             // it's found in the dark from the cab's window (T101): the lamp from anywhere.
             var at = ToF(i.Position);
+            // T109: in the cab, where the firebox lights it, it needs no lamp.
+            bool inCab = frame.Shape.Cab is { } cabBox && cabBox.Contains(i.Position + new Double3(0, 0.2, 0));
             if (near)
-                mesh.Append(Piece("vent-stand", () => TrainKit.VentStand(Look, 1.1f)), Matrix4x4.CreateTranslation(at) * m);
+                mesh.Append(inCab ? Piece("vent-stand-cab", () => TrainKit.VentStand(Look, 1.1f, lamp: false)) : Piece("vent-stand", () => TrainKit.VentStand(Look, 1.1f)),
+                    Matrix4x4.CreateTranslation(at) * m);
             if (props.Get("vent_valve") is { } vent)
                 mesh.Append(vent, Matrix4x4.CreateTranslation(at + new Vector3(0, 1.1f, 0)) * m);
+            if (inCab)
+                continue;
             var lamp = Vector3.Transform(at + new Vector3(0, 1.55f, 0), m);
             mesh.PointLights.Add(new PointLight(lamp, new Vector3(1.0f, 0.35f, 0.15f) * 0.8f, 3.5f));
             mesh.Billboard(lamp, 0.22f, 0, new Vector4(1.0f, 0.35f, 0.15f, 1), -1, FxBlend.Additive);
