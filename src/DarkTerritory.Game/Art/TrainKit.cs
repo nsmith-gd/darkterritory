@@ -437,12 +437,22 @@ public static class TrainKit
         // Inside: the floor, and the backhead.
         k.Use("wood_floor", Palette.DeepBrown, 0.9f, 0);
         k.Box(new Vector3(-w + 0.1f, deck - 0.02f, cabFront), new Vector3(w - 0.1f, deck + 0.005f, cabBack), Kit.Faces.PosY);
-        float face = cabFront + 0.085f;
+        float face = cabFront + BackheadDepth;
+        float fy = FireDoor(shape).Y;
+        // The backhead's plate, round the firebox door's opening (it's a hole: through it the fire, drawn with the fire's
+        // glow by the scene, and a Stoker if one's in there).
         k.Use("iron_smokebox", Palette.SootBlack, 0.8f, 0.3f);
-        k.Box(new Vector3(-bw, deck, cabFront), new Vector3(bw, top, face), Kit.Faces.PosZ);
+        float ox = FireDoorHalfWidth, oy = FireDoorHalfHeight;
+        k.Box(new Vector3(-bw, deck, cabFront), new Vector3(-ox, top, face), Kit.Faces.PosZ);
+        k.Box(new Vector3(ox, deck, cabFront), new Vector3(bw, top, face), Kit.Faces.PosZ);
+        k.Box(new Vector3(-ox, deck, cabFront), new Vector3(ox, fy - oy, face), Kit.Faces.PosZ);
+        k.Box(new Vector3(-ox, fy + oy, cabFront), new Vector3(ox, top, face), Kit.Faces.PosZ);
+        // The firehole's sides, back to the fire.
+        k.Box(new Vector3(-ox - 0.02f, fy - oy, cabFront - 0.1f), new Vector3(-ox, fy + oy, face), Kit.Faces.PosX);
+        k.Box(new Vector3(ox, fy - oy, cabFront - 0.1f), new Vector3(ox + 0.02f, fy + oy, face), Kit.Faces.NegX);
+        k.Box(new Vector3(-ox, fy - oy - 0.02f, cabFront - 0.1f), new Vector3(ox, fy - oy, face), Kit.Faces.PosY);
+        k.Box(new Vector3(-ox, fy + oy, cabFront - 0.1f), new Vector3(ox, fy + oy + 0.02f, face), Kit.Faces.NegY);
         // The firebox door's frame (the glow itself is drawn with the fire).
-        var fire = shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
-        float fy = (float)fire.Y + 0.7f;
         k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.4f);
         k.Box(new Vector3(-0.42f, fy - 0.3f, face), new Vector3(0.42f, fy - 0.22f, face + 0.08f));
         k.Box(new Vector3(-0.42f, fy + 0.22f, face), new Vector3(0.42f, fy + 0.3f, face + 0.08f));
@@ -470,6 +480,23 @@ public static class TrainKit
         // valves, the injectors, the whistle, the damper), set on the face at the firebox door's centre.
         if (k.Look is { } look && PropArt.Of(look).Get("cab_backhead") is { } fittings)
             k.Append(fittings, Matrix4x4.CreateTranslation(0, fy, face));
+    }
+
+    // The backhead's face stands this far into the cab from its front wall (m); the firebox door's centre is this far
+    // over the firebox's place on the deck.
+    const float BackheadDepth = 0.085f, FireDoorUp = 0.7f;
+
+    /// <summary>The firebox door's opening, half its width and half its height (m), inside its frame.</summary>
+    public const float FireDoorHalfWidth = 0.32f, FireDoorHalfHeight = 0.22f;
+
+    /// <summary>
+    /// The firebox door's centre on the backhead's face, in the engine's frame: where its frame's drawn, and where a
+    /// Stoker shows in it when it's open (CreatureArt).
+    /// </summary>
+    public static Vector3 FireDoor(CarShape shape)
+    {
+        var fire = shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
+        return new Vector3((float)fire.X, (float)fire.Y + FireDoorUp, (float)shape.Cab!.Value.Min.Z + BackheadDepth);
     }
 
     /// <summary>

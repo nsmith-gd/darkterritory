@@ -19,6 +19,8 @@ public sealed class GreyboxScene
     public int Seed { get; init; } = 7;
     /// <summary>How hot the firebox is, 0..1: the glow in the cab is how the Boiler reads the fire.</summary>
     public float FireGlow { get; set; } = 0.7f;
+    /// <summary>The firebox door's open (the boiler's FireDoorOpen): a Stoker in the fire is seen through it.</summary>
+    public bool FireDoorOpen { get; set; }
     /// <summary>Emergency lighting (`dt screenshot --emergency`): the cars' lamps go to a dim red, the headlamp dark.</summary>
     public bool Emergency { get; set; }
     static readonly System.Numerics.Vector3 EmergencyRed = new(0.5f, 0.06f, 0.04f);
@@ -218,6 +220,11 @@ public sealed class GreyboxScene
         }
         Lap(mesh, "effects");
         mesh.Seed = 0;
+        // The firebox door, open or shut, for a Stoker in the fire (Art/CreatureArt.FireDoorOpen).
+        if (Look?.Art.Creatures is { } creatures && frames.Count > 0 && frames[0].Shape.Cab is not null)
+            creatures.FireDoorOpen = FireDoorOpen
+                ? Art.TrainKit.FireDoor(frames[0].Shape) - ToF(frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position)
+                : null;
         if (Enemies is not null)
             foreach (var e in Enemies)
                 if (e is Sim.Enemies.Passenger passenger)
@@ -1403,8 +1410,13 @@ public sealed class GreyboxScene
             if ((frame.Origin - eye).Length < 16)
                 CabMap(mesh, frame, draw);
             mesh.Emissive = 1;
+            // The fire, through the firehole: the back of the firebox dull with its light, and the bed of coals along the
+            // bottom bright (the firehole's sides frame it, Art/TrainKit).
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
-                draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.17), new Double3(0.3, 0.2, 0.02)), FireColour(0.15f + 0.85f * FireGlow));
+            {
+                draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.29), new Double3(0.32, 0.22, 0.02)), FireColour(0.03f + 0.18f * FireGlow) * 0.35f);
+                draw(Box.FromCentre(i.Position + new Double3(0, 0.55, -0.27), new Double3(0.32, 0.07, 0.02)), FireColour(0.1f + 0.5f * FireGlow) * 0.7f);
+            }
             mesh.Emissive = 0;
             // The vent valve and the driver's levers: modelled by the art pass where it has them (SceneArt.CabControls).
             bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls) == true;

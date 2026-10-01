@@ -663,6 +663,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             lighting.Wetness = r.Weather.Wet ? 1 : 0;
         }
         scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
+        scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
         scene.Tick = session.Tick;
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
         scene.LampLit = session.World.LampShining;

@@ -1,8 +1,8 @@
 """The engine's backhead dressed: what the fireman and driver face all night. The kit's backhead is the plate, the
 firebox door's frame, the four gauges and the water glass (TrainKit.Cab); this is everything on it:
 
-  * the firebox doors, a pair of riveted butterfly leaves standing ajar on their hinges (the fire's glow shows
-    between them), their handles, the firehole ring;
+  * the firebox doors, a pair of riveted butterfly leaves swung wide on their hinges (the fire's glow, and whatever
+    else is in there, shows through them), their handles, the firehole ring;
   * the steam turret across the top, its valves' handwheels, the siphon pipes down to each gauge;
   * the injectors' steam valves either side and their copper feed pipes going down to the floor;
   * the blower valve, the lubricator with its sight glasses, the whistle's lever and pull, the damper's notched
@@ -41,11 +41,12 @@ def group(name):
 
 
 # ----------------------------------------------------------------------------------------------------------------
-# The firebox doors: two leaves hinged at the opening's sides, standing 30 degrees open.
+# The firebox doors: two leaves hinged at the opening's sides, swung 70 degrees open (wide enough to see into the fire,
+# and what's in it: the Stoker, CreatureArt).
 doors = group("doors")
 for sx in (-1, 1):
     hinge = Vector((sx * 0.33, -0.09, 0))
-    rot = Matrix.Translation(hinge) @ Matrix.Rotation(sx * math.radians(30), 4, "Z") @ Matrix.Translation(-hinge)
+    rot = Matrix.Translation(hinge) @ Matrix.Rotation(sx * math.radians(70), 4, "Z") @ Matrix.Translation(-hinge)
     start = len(make.LOW)
     leaf_c = Vector((sx * 0.17, -0.105, 0))
     leaf = [make.box(leaf_c, (0.155, 0.014, 0.215), plate, bevel=0.006, name="leaf")]

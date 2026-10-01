@@ -5367,6 +5367,26 @@
     ]
   },
   {
+    "name": "stoker_0",
+    "diffuse": "models/stoker_0.png",
+    "spec": "models/stoker_0_s.png",
+    "normal": "models/stoker_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/stoker.py",
+        "what": "the Stoker, modelled over tools/blender/stoker.py",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "stores_crate_0",
     "diffuse": "models/stores_crate_0.png",
     "spec": "models/stores_crate_0_s.png",
