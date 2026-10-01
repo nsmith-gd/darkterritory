@@ -629,6 +629,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Tick = session.Tick;
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
         scene.LampLit = session.World.LampShining;
+        scene.Venting = session.Train.Boiler.Vented;
+        scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;
         scene.Controls = session.Controls;
         if (!session.World.LampShining)
             lighting.LampRange = 0.01f; // not 0: the shader divides by it

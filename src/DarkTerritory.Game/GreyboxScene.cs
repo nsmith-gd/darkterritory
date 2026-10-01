@@ -66,6 +66,9 @@ public sealed class GreyboxScene
     public long Tick { get; set; } = -1;
     /// <summary>The boiler's pressure as a fraction of its maximum, for the cab's gauge (the sim's; unset, a working pressure).</summary>
     public float Pressure { get; set; } = 0.78f;
+    /// <summary>The blow-off's open (the boiler's <c>Vented</c>), and the safety valve's lifting: their steam (T101).</summary>
+    public bool Venting { get; set; }
+    public bool SafetyValve { get; set; }
     /// <summary>The art pass's surfaces (T39, look.json). Unset, the greybox is flat colour.</summary>
     public Look? Look { get; set; }
 
@@ -202,7 +205,7 @@ public sealed class GreyboxScene
         if (Look is not null)
         {
             // The art pass's effects (Art/Effects): smoke, steam, sparks, the lamp's beam, and fog banks along the line.
-            Look.Art.Effects.Train(mesh, frames, eye, Time, Controls, FireGlow, Emergency);
+            Look.Art.Effects.Train(mesh, frames, eye, Time, Controls, FireGlow, Emergency, Venting, SafetyValve);
             var fog = Look.Apply(FrameLighting.Night).FogColor;
             Look.Art.Effects.Fog(mesh, line, eye, centre, Time, fog, (float)(Route?.Weather.FogDensity ?? 0.016));
             if (Route?.Weather is { Wet: true } weather)
@@ -1254,9 +1257,16 @@ public sealed class GreyboxScene
     RailLine? _line, _mapLine;
     double _hint;
     readonly List<(double X, double Z)> _mapDots = [];
-    (double X0, double Z0, double Scale) _mapFit;
+    (double U0, double V0, double Scale, double Ax, double Ay) _mapFit;
 
-    static readonly Vector3 MapPaper = new(0.34f, 0.28f, 0.19f), MapInk = new(0.10f, 0.07f, 0.04f);
+    /// <summary>A world point (X, Z) in the run map's turned chart coordinates: along the night's start-to-end, and across it.</summary>
+    (double U, double V) Chart(double wx, double wz)
+    {
+        double qx = wx, qy = -wz;
+        return (qx * _mapFit.Ax + qy * _mapFit.Ay, _mapFit.Ax * qy - _mapFit.Ay * qx);
+    }
+
+    static readonly Vector3 MapPaper = new(0.24f, 0.20f, 0.14f), MapInk = new(0.10f, 0.07f, 0.04f);
 
     /// <summary>
     /// The night's run map, pinned to the cab's front wall left of the firebox (T98 playtest): the line as an inked dotted
@@ -1270,8 +1280,10 @@ public sealed class GreyboxScene
         double length = line.PathLength(RailLine.MainPath);
         if (length <= 0)
             return;
-        const double W = 0.54, H = 0.40;
-        double x0 = cab.Min.X + 0.05, y0 = cab.Min.Y + 1.22, z = cab.Min.Z + 0.17;
+        // On the plate over the boiler, between the windows (T101): in plain sight of the driver looking ahead.
+        var plate = Art.TrainKit.MapPlate(frame.Shape);
+        double W = plate.Width, H = plate.Height;
+        double x0 = plate.Corner.X, y0 = plate.Corner.Y, z = plate.Corner.Z;
         if (!ReferenceEquals(_mapLine, line))
         {
             _mapLine = line;
@@ -1282,17 +1294,28 @@ public sealed class GreyboxScene
                 var p = line.Sample(RailLine.MainPath, length * i / n).Position;
                 _mapDots.Add((p.X, p.Z));
             }
-            double minX = _mapDots.Min(d => d.X), maxX = _mapDots.Max(d => d.X), minZ = _mapDots.Min(d => d.Z), maxZ = _mapDots.Max(d => d.Z);
-            double scale = Math.Min((W - 0.06) / Math.Max(1, maxX - minX), (H - 0.06) / Math.Max(1, maxZ - minZ));
+            // Turned so the night runs left to right along the plate, start to end (T101: the plate is long and low), as a
+            // view from above: a turn, never a mirror.
+            var (first, last) = (_mapDots[0], _mapDots[^1]);
+            double ax = last.X - first.X, ay = -(last.Z - first.Z), al = Math.Sqrt(ax * ax + ay * ay);
+            (ax, ay) = al > 1 ? (ax / al, ay / al) : (1, 0);
+            _mapFit = (0, 0, 1, ax, ay);
+            var chart = _mapDots.Select(d => Chart(d.X, d.Z)).ToList();
+            double minU = chart.Min(c => c.U), maxU = chart.Max(c => c.U), minV = chart.Min(c => c.V), maxV = chart.Max(c => c.V);
+            double scale = Math.Min((W - 0.06) / Math.Max(1, maxU - minU), (H - 0.06) / Math.Max(1, maxV - minV));
             // Centred on the chart.
-            _mapFit = ((minX + maxX) / 2, (minZ + maxZ) / 2, scale);
+            _mapFit = ((minU + maxU) / 2, (minV + maxV) / 2, scale, ax, ay);
         }
-        // A point of the world on the chart (north, −Z, is up), in the cab's frame.
-        Double3 On(double wx, double wz, double lift) => new(x0 + W / 2 + (wx - _mapFit.X0) * _mapFit.Scale, y0 + H / 2 - (wz - _mapFit.Z0) * _mapFit.Scale, z + lift);
+        // A point of the world on the chart, in the cab's frame.
+        Double3 On(double wx, double wz, double lift)
+        {
+            var (u, v) = Chart(wx, wz);
+            return new(x0 + W / 2 + (u - _mapFit.U0) * _mapFit.Scale, y0 + H / 2 + (v - _mapFit.V0) * _mapFit.Scale, z + lift);
+        }
         // Flat ink on paper: no surface treatment (it'd take the paper's colour for stone).
         var style = mesh.Style;
         mesh.Style = null;
-        mesh.Emissive = 0.15f;
+        mesh.Emissive = 0.08f;
         draw(new Box(new Double3(x0, y0, z), new Double3(x0 + W, y0 + H, z + 0.008)), MapPaper);
         draw(new Box(new Double3(x0 - 0.015, y0 - 0.015, z - 0.002), new Double3(x0 + W + 0.015, y0 + H + 0.015, z + 0.004)), Palette.DeepBrown);
         foreach (var (dx, dz) in _mapDots)

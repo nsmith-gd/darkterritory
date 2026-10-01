@@ -390,20 +390,29 @@ public static class TrainKit
             k.Rod(new Vector3(xo + side * 0.24f, deck - 1.03f, doorFront + 0.12f), new Vector3(xo + side * 0.02f, deck, doorFront + 0.12f), 0.015f);
             k.Rod(new Vector3(xo + side * 0.24f, deck - 1.03f, cabBack - 0.12f), new Vector3(xo + side * 0.02f, deck, cabBack - 0.12f), 0.015f);
         }
-        // The spectacle plate: either side of the boiler, and over it, with a window in each side part.
+        // The spectacle plate (T101 playtest: the driver couldn't see the line ahead): either side of the boiler a tall open
+        // window from the waist almost to the roof, its frame thin, so from the footplate you look past the boiler's
+        // flank down the running board to the front of the engine and the track ahead. Over the boiler, the plate the
+        // run map hangs on.
         k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.35f);
         float z0 = cabFront, z1 = cabFront + 0.08f;
-        float winY0 = top - 0.45f, winY1 = top + 0.12f;
         foreach (int side in new[] { -1, 1 })
         {
+            var win = SpectacleWindow(shape, side);
             float xa = side * bw, xb = side * (w - 0.1f);
             var (x0, x1) = (MathF.Min(xa, xb), MathF.Max(xa, xb));
-            k.Box(new Vector3(x0, deck, z0), new Vector3(x1, winY0, z1));
-            k.Box(new Vector3(x0, winY1, z0), new Vector3(x1, roofLow, z1));
-            k.Box(new Vector3(x0, winY0, z0), new Vector3(x0 + 0.08f, winY1, z1));
-            k.Box(new Vector3(x1 - 0.08f, winY0, z0), new Vector3(x1, winY1, z1));
-            k.Use("glass_dirty", Palette.BlueGrey, 0.3f, 0.8f, tile: 0.5f);
-            k.Panel(new Vector3((x0 + x1) / 2, (winY0 + winY1) / 2, z0 + 0.04f), Vector3.UnitZ, Vector3.UnitY, x1 - x0 - 0.16f, winY1 - winY0, twoSided: true);
+            k.Box(new Vector3(x0, deck, z0), new Vector3(x1, win.Y0, z1));
+            k.Box(new Vector3(x0, win.Y1, z0), new Vector3(x1, roofLow, z1));
+            k.Box(new Vector3(x0, win.Y0, z0), new Vector3(win.X0, win.Y1, z1));
+            k.Box(new Vector3(win.X1, win.Y0, z0), new Vector3(x1, win.Y1, z1));
+            // A brass-rimmed frame round the opening, and one glazing bar across it high up, above the eye.
+            k.Use("brass", Palette.TarnishedBrass, 0.5f, 0.7f);
+            // (Its cab-facing faces only: it's seen from the footplate, and the headset's frame has no triangles to spare.)
+            var faces = Kit.Faces.PosZ;
+            k.Box(new Vector3(win.X0, win.Y0 - 0.03f, z1), new Vector3(win.X1, win.Y0, z1 + 0.03f), faces | Kit.Faces.PosY);
+            k.Box(new Vector3(win.X0, win.Y1, z1), new Vector3(win.X1, win.Y1 + 0.03f, z1 + 0.03f), faces | Kit.Faces.NegY);
+            k.Box(new Vector3(win.X0 - 0.02f, win.Y0, z1), new Vector3(win.X0, win.Y1, z1 + 0.03f), faces | Kit.Faces.PosX);
+            k.Box(new Vector3(win.X1, win.Y0, z1), new Vector3(win.X1 + 0.02f, win.Y1, z1 + 0.03f), faces | Kit.Faces.NegX);
             k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.35f);
         }
         k.Box(new Vector3(-bw, top, z0), new Vector3(bw, roofLow, z1));
@@ -444,10 +453,10 @@ public static class TrainKit
         {
             var c = GaugeCentre(shape, i) - new Vector3(0, 0, 0.012f);
             k.Use("brass", Palette.TarnishedBrass, 0.5f, 0.7f);
-            k.Cylinder(c - new Vector3(0, 0, 0.05f), c + new Vector3(0, 0, 0.01f), 0.13f, 12);
+            k.Cylinder(c - new Vector3(0, 0, 0.05f), c + new Vector3(0, 0, 0.01f), GaugeRadius + 0.025f, 12);
             k.Use("gauge_face", Palette.TarnishedBrass * 1.6f, 0.2f, 0.3f, tile: 1);
             var cell = GaugeCell(order[i]);
-            k.Disc(c + new Vector3(0, 0, 0.012f), Vector3.UnitZ, 0.11f, 16, cell.Centre, cell.Radius);
+            k.Disc(c + new Vector3(0, 0, 0.012f), Vector3.UnitZ, GaugeRadius, 16, cell.Centre, cell.Radius);
         }
         // The water glass, right of the door, and pipes.
         k.Use("glass_dirty", Palette.BlueGrey, 0.2f, 0.9f, tile: 0.3f);
@@ -462,12 +471,74 @@ public static class TrainKit
             k.Append(fittings, Matrix4x4.CreateTranslation(0, fy, face));
     }
 
+    /// <summary>
+    /// The open window in the spectacle plate on one side of the boiler (T101), in the engine's frame: across from the
+    /// boiler's flank to the cab side's pillar, up from a little under a standing eye almost to the roof.
+    /// </summary>
+    public static (float X0, float X1, float Y0, float Y1) SpectacleWindow(CarShape shape, int side)
+    {
+        var boiler = shape.Solids.First(s => s.Part == PartKind.Boiler).Box;
+        var roof = shape.Solids.First(s => s.Part == PartKind.CabRoof).Box;
+        float bw = (float)boiler.Max.X, inner = (float)shape.HalfWidth - 0.1f, deck = (float)boiler.Min.Y;
+        float a = side * (bw + 0.04f), b = side * (inner - 0.03f);
+        return (MathF.Min(a, b), MathF.Max(a, b), deck + 1.05f, (float)roof.Min.Y - 0.12f);
+    }
+
+    /// <summary>The run map's chart on the plate over the boiler (T101), in the engine's frame: its lower left corner and size.</summary>
+    public static (Vector3 Corner, float Width, float Height) MapPlate(CarShape shape)
+    {
+        var boiler = shape.Solids.First(s => s.Part == PartKind.Boiler).Box;
+        var roof = shape.Solids.First(s => s.Part == PartKind.CabRoof).Box;
+        float bw = (float)boiler.Max.X - 0.08f, top = (float)boiler.Max.Y + 0.04f, height = MathF.Min(0.46f, (float)roof.Min.Y - 0.06f - top);
+        return (new Vector3(-bw, top, (float)shape.Cab!.Value.Min.Z + 0.1f), 2 * bw, height);
+    }
+
+    /// <summary>A dial's face radius on the backhead (T101: big enough to read from anywhere on the footplate).</summary>
+    public const float GaugeRadius = 0.15f;
+
     /// <summary>The centre of dial <paramref name="index"/>'s face on the backhead (pressure, heat, water, speed), in the engine's frame.</summary>
     public static Vector3 GaugeCentre(CarShape shape, int index)
     {
         var boiler = shape.Solids.First(s => s.Part == PartKind.Boiler).Box;
         float face = (float)shape.Cab!.Value.Min.Z + 0.085f;
-        return new Vector3(-0.54f + index * 0.36f, (float)boiler.Min.Y + 1.85f + index % 2 * 0.06f, face + 0.072f);
+        return new Vector3(-0.6f + index * 0.4f, (float)boiler.Min.Y + 1.85f + index % 2 * 0.06f, face + 0.072f);
+    }
+
+    /// <summary>A painted grip over a lever's handle, centred on it (T101: the brake's red, found at a glance).</summary>
+    public static MeshAsset Grip(Look? look, Vector3 colour)
+    {
+        var k = new Kit(look, 62);
+        k.Use("paint_oxide", colour, 0.5f, 0.2f, tile: 0.2f);
+        k.Box(new Vector3(-0.09f, -0.035f, -0.035f), new Vector3(0.09f, 0.035f, 0.035f));
+        return k.Build("grip");
+    }
+
+    /// <summary>
+    /// The blow-off's standpipe (T101), up from the running board to the valve <paramref name="height"/> over it: the pipe
+    /// off the boiler, a red handwheel on its side, and the lamp bracket over it.
+    /// </summary>
+    public static MeshAsset VentStand(Look? look, float height)
+    {
+        var k = new Kit(look, 63);
+        k.Use("copper_pipe", Palette.TarnishedBrass, 0.6f, 0.6f);
+        k.Rod(Vector3.Zero, new Vector3(0, height, 0), 0.05f, 6);
+        k.Rod(new Vector3(0, height * 0.75f, 0), new Vector3(0.75f, height * 0.75f, 0), 0.04f, 6);
+        // The handwheel: a red rim of six, and its cross.
+        k.Use("paint_oxide", Palette.SignalRed, 0.5f, 0.2f, tile: 0.2f);
+        var wheel = new Vector3(0, height - 0.15f, 0.12f);
+        for (int i = 0; i < 6; i++)
+        {
+            float a0 = i * MathF.PI / 3, a1 = (i + 1) * MathF.PI / 3;
+            k.Rod(wheel + new Vector3(MathF.Cos(a0), MathF.Sin(a0), 0) * 0.16f, wheel + new Vector3(MathF.Cos(a1), MathF.Sin(a1), 0) * 0.16f, 0.02f, 4);
+        }
+        k.Rod(wheel - new Vector3(0.16f, 0, 0), wheel + new Vector3(0.16f, 0, 0), 0.012f, 3);
+        k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.3f);
+        k.Rod(new Vector3(0, height, 0), new Vector3(0, height + 0.5f, 0), 0.015f, 4);
+        k.Use("lamp_lens", new Vector3(1.0f, 0.35f, 0.15f), 0, 0, tile: 0.25f);
+        k.Emissive = 1;
+        k.BoxAt(new Vector3(0, height + 0.45f, 0), new Vector3(0.05f, 0.07f, 0.05f));
+        k.Emissive = 0;
+        return k.Build("vent-stand");
     }
 
     /// <summary>A gauge's needle: pointing up (+Y) from its pivot, dark with a red tip, on a brass boss.</summary>

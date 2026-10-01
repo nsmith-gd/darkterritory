@@ -11,7 +11,7 @@ namespace DarkTerritory.Game;
 /// </summary>
 public static class Views
 {
-    public static readonly string[] Names = ["trackside", "roof", "cab", "chase", "ahead", "gap", "gangway", "gun"];
+    public static readonly string[] Names = ["trackside", "roof", "cab", "fireman", "chase", "ahead", "gap", "gangway", "gun"];
 
     public static Camera Get(string name, TrainOnLine train, int car = 2)
     {
@@ -24,6 +24,8 @@ public static class Views
             "trackside" => Camera.LookAt(engine.ToWorld(new Double3(9, 1.7, -engineHalf - 25)), target.ToWorld(new Double3(0, 2.5, 0)), 60),
             "roof" => Camera.LookAt(target.ToWorld(new Double3(0.2, roof + 1.65, 3)), target.ToWorld(new Double3(0, roof + 1.2, -40)), 75),
             "cab" => CabCamera(engine),
+            // The fireman's side (T101): out of the left window down the running board to the blow-off by the smokebox.
+            "fireman" => CabCamera(engine, -1),
             "chase" => ChaseCamera(train),
             "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
             "gap" => GapCamera(train, car),
@@ -38,11 +40,22 @@ public static class Views
     }
 
     /// <summary>Standing in the cab beside the boiler, looking past it down the line.</summary>
-    static Camera CabCamera(in CarFrame engine)
+    static Camera CabCamera(in CarFrame engine, int side = 1)
     {
-        var cab = engine.Shape.Cab!.Value;
-        var eye = new Double3(cab.Max.X - 0.35, cab.Min.Y + 1.75, cab.Centre.Z + 0.6);
-        return Camera.LookAt(engine.ToWorld(eye), engine.ToWorld(eye + new Double3(0.1, -0.4, -60)), 75);
+        var eye = CabEye(engine.Shape, side);
+        return Camera.LookAt(engine.ToWorld(eye), engine.ToWorld(eye + new Double3(-side * 3, -2.5, -60)), 75);
+    }
+
+    /// <summary>
+    /// A standing eye at the driver's place (T101), in the engine's frame: by the brake and the reverser on the right
+    /// (<paramref name="side"/> 1), in line with the window beside the boiler; −1 is the fireman's, across the cab.
+    /// </summary>
+    public static Double3 CabEye(CarShape engine, int side = 1)
+    {
+        var cab = engine.Cab!.Value;
+        var levers = engine.Levers!.Value;
+        // As far out as a player stands: against the cab side (its wall 0.1 thick, a player 0.3 round).
+        return new Double3(side * (engine.HalfWidth - 0.4), cab.Min.Y + 1.75, levers.Reverser.Z + 0.55);
     }
 
     /// <summary>
