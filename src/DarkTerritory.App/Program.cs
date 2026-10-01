@@ -488,6 +488,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     bool pendingReverser = false;
     var pendingLamp = LampSwitch.None;
     bool pendingCarLamp = false;
+    byte pendingSelect = 0;
+    float pendingCycle = 0;
     double voiceLevel = 0;
     bool chase = ride;
     double sensitivity = 0.0025 * settings.MouseSpeed;
@@ -523,6 +525,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (Hit(Control.Lamp))
             pendingLamp = session.World.LampLit ? LampSwitch.Off : LampSwitch.On;
         pendingCarLamp |= Hit(Control.CarLamp);
+        // The hotbar (T108): a number key picks its slot, the wheel steps through the tools.
+        for (var k = Key.D1; k < Key.D1 + Kit.Slots; k++)
+            if (input.Pressed(k))
+                pendingSelect = (byte)(k - Key.D1 + 1);
+        pendingCycle += input.Wheel;
         // Held until a tick sends them: at a high frame rate a key press can land on a frame with no tick.
         pendingNotch += notch;
         pendingReverser |= reverser;
@@ -531,8 +538,6 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (notch != 0) proto.Notch(notch);
             if (reverser) proto.FlipReverser();
             if (input.Pressed(Key.Backspace)) proto.Respawn(0);
-            for (var k = Key.D1; k <= Key.D9; k++)
-                if (input.Pressed(k)) proto.Respawn(k - Key.D1 + 1);
             proto.BrakeHeld(Held(Control.Brake));
             if (ride && session.Route?.Plan is { } ridden)
                 DarkTerritory.Game.LineGen.Ride.Drive(proto.Train, ridden, ref proto.Controls);
@@ -582,13 +587,21 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 Buttons = buttons,
                 ThrottleNotch = proto is null ? (sbyte)Math.Clamp(pendingNotch, -4, 4) : (sbyte)0,
                 Lamp = pendingLamp,
-                Actions = (Held(Control.Swing) ? PlayerActions.Swing : 0) | (Held(Control.Whistle) ? PlayerActions.Whistle : 0)
+                // T108: the left button swings what's in hand too (the host ignores a swing from someone at a gun, whose
+                // left button fires it).
+                Actions = (Held(Control.Swing) || Held(Control.Fire) ? PlayerActions.Swing : 0) | (Held(Control.Whistle) ? PlayerActions.Whistle : 0)
                     | (Held(Control.Uncouple) ? PlayerActions.Uncouple : 0) | (Held(Control.Ladder) ? PlayerActions.Ladder : 0)
                     | (pendingCarLamp ? PlayerActions.CarLamp : 0),
                 // How loud you are (GDD v1.1 App. C.7, C.8): the mic while it sends; with no mic, holding Talk counts as
                 // speaking up, so a player without one can still talk the Gaunt down and answer a roll call.
                 Voice = (byte)Math.Clamp(voiceLevel * 255, 0, 255),
+                Select = pendingSelect,
+                // Scrolled up is the previous slot, down the next, as in most games.
+                Cycle = (sbyte)(pendingCycle >= 1 ? -1 : pendingCycle <= -1 ? 1 : 0),
             };
+            pendingSelect = 0;
+            if (Math.Abs(pendingCycle) >= 1)
+                pendingCycle -= Math.Sign(pendingCycle);
             if (locomotion is not null)
             {
                 locomotion.Follow(session.Viewpoint, Eyes.Heading(session.Viewpoint, session.Train.Frames));

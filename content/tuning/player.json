@@ -13,6 +13,9 @@
   // too weak to feel like a jump at all; at this height a roof-run jump carries about 2.8 m, clearing the gap easily.
   "jumpHeight": 0.8,
   "health": 100,
+  // T108 (GDD §1322: the tools on the train are the weapons): what every crewmate carries from the start of the night, and
+  // after every respawn, slot by slot from 1. Tools: crowbar, shovel, wrench.
+  "kit": ["crowbar"],
   "gravity": 9.81,
   "radius": 0.3,
   "height": 1.8,

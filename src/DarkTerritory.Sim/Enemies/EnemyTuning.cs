@@ -36,6 +36,11 @@ public sealed record MeleeTuning
     public double ConeDegrees { get; init; } = 70;
     public double SwingSeconds { get; init; } = 0.8;
     public double Damage { get; init; } = 1;
+    /// <summary>T108: a blow with nothing in hand (enemies.json).</summary>
+    public double Barehanded { get; init; } = 0.25;
+
+    /// <summary>A blow with this in hand: any tool a full one, nothing a fraction.</summary>
+    public double Blow(Player.Tool held) => held == Player.Tool.None ? Barehanded : Damage;
 }
 
 /// <summary>The Track Doll (v1.1 App. A.2, B.2). Field docs live in enemies.json.</summary>

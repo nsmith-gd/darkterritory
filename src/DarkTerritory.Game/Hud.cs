@@ -55,12 +55,35 @@ public static class Hud
             o.TextCentred(width / 2f, height - 42, prompt, Ink);
         }
         Night(o, height, s, line);
+        if (p.Alive)
+            Hotbar(o, width, height, p, line);
         if (p.Alive && crosshair)
         {
             // A small cross, for aiming and for "what am I looking at".
             float cx = width / 2f, cy = height / 2f;
             o.Rect(cx - 2, cy, 5, 1, Ink with { W = 0.55f });
             o.Rect(cx, cy - 2, 1, 5, Ink with { W = 0.55f });
+        }
+    }
+
+    /// <summary>
+    /// The hotbar (T108), bottom right: each slot with a tool in it, by its number key, the one in hand lit; an empty slot
+    /// picked shows as hands. The wheel steps through the tools.
+    /// </summary>
+    static void Hotbar(Overlay o, int width, int height, PlayerState p, int line)
+    {
+        var slots = Enumerable.Range(0, Kit.Slots).Where(i => Kit.At(p.Kit, i) != Tool.None || i == p.HeldSlot).ToList();
+        float x = width - 4, y = height - line - 8;
+        for (int k = slots.Count - 1; k >= 0; k--)
+        {
+            int i = slots[k];
+            var tool = Kit.At(p.Kit, i);
+            string label = $"{i + 1} {(tool == Tool.None ? "HANDS" : tool.ToString().ToUpperInvariant())}";
+            float w = o.Font.Measure(label) + 8;
+            x -= w + 2;
+            bool held = i == p.HeldSlot;
+            o.Rect(x, y, w, line + 4, held ? Amber with { W = 0.35f } : Panel);
+            o.Text(x + 4, y + 2, label, held ? Ink : Dim);
         }
     }
 

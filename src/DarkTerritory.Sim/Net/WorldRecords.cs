@@ -157,6 +157,8 @@ public static class WorldRecords
                 Q(s.Cold, Fine), (long)s.Flags, s.Placed,
                 // A VR player's hands, on the centimetre grid they came in on (T47): the rest of the crew see their arms.
                 Q(s.Hand.X, Cm), Q(s.Hand.Y, Cm), Q(s.Hand.Z, Cm), Q(s.OtherHand.X, Cm), Q(s.OtherHand.Y, Cm), Q(s.OtherHand.Z, Cm),
+                // The hotbar (T108): what they carry, and which is in hand.
+                (long)s.Kit, s.HeldSlot,
             ]));
         }
         list.Sort((a, c) => a.Key.CompareTo(c.Key));
@@ -440,6 +442,8 @@ public static class WorldRecords
             Placed = (byte)f[16],
             Hand = f.Length > 22 ? new Double3(D(f[17], Cm), D(f[18], Cm), D(f[19], Cm)) : default,
             OtherHand = f.Length > 22 ? new Double3(D(f[20], Cm), D(f[21], Cm), D(f[22], Cm)) : default,
+            Kit = f.Length > 24 ? (ulong)f[23] : 0,
+            HeldSlot = f.Length > 24 ? (byte)f[24] : (byte)0,
         });
     }
 

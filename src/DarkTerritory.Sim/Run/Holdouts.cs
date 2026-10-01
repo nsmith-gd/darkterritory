@@ -309,6 +309,9 @@ public sealed class Holdouts
             LineHint = h.LineHint,
             Yaw = was.Yaw,
             Placed = (byte)(was.Placed + 1),
+            // What they carried, back with them (T108: nobody comes out of a Holdout empty-handed).
+            Kit = was.Kit,
+            HeldSlot = was.HeldSlot,
         };
         _health[id] = back.Health;
         set(id, back);
