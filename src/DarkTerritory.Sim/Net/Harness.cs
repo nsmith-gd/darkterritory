@@ -1,3 +1,4 @@
+using Ballast;
 using Ballast.Net;
 using DarkTerritory.Sim.Bots;
 using DarkTerritory.Sim.Combat;
@@ -34,6 +35,12 @@ public sealed record HarnessOptions
     public Run.HoldoutTuning? Holdouts { get; init; }
     /// <summary>With a route, the line's boards and what they warn of (sight.json): posted curves, tunnel mouths, Grease.</summary>
     public Route.SightTuning? Sight { get; init; }
+    /// <summary>
+    /// On a night (a run), the crew board on foot (T102, playtest: "I dont understand how Bots are doing test runs if they
+    /// cannot traverse into all the car positions they need"): all but the first join standing on the ballast beside the
+    /// train at the gate, and walk and climb to their posts. False: they're put there, as before.
+    /// </summary>
+    public bool WalkAboard { get; init; } = true;
     /// <summary>Another network to run over (the CLI's fake Steam lobby), in place of the loopback or UDP.</summary>
     public IHarnessNetwork? Network { get; init; }
     /// <summary>
@@ -61,7 +68,14 @@ public sealed record ClientReport(byte Id, string Bot, double MaxCorrectionM, in
 public sealed record HarnessReport(int Ticks, double Seconds, string Link, double TrainDistance, double TrainSpeed, double BoilerPressure, double Tender,
     int SnapshotBytes, double DownKbpsPerClient, double UpKbpsPerClient, double MaxCorrectionM, int Deaths,
     IReadOnlyList<ClientReport> Clients, ThreatReport? Threats = null, Run.RunReport? Run = null, int WarmUps = 0,
-    IReadOnlyList<StopRecord>? Stops = null, PacingReport? Pacing = null);
+    IReadOnlyList<StopRecord>? Stops = null, PacingReport? Pacing = null)
+{
+    /// <summary>
+    /// Seconds from boarding until each bot first reached its post (T102): the driver and fireman in the cab, the gunner on
+    /// the guard gun, a walker up on the train; −1 for never. Keyed "bot#id".
+    /// </summary>
+    public IReadOnlyDictionary<string, double>? Posts { get; init; }
+}
 
 /// <summary>
 /// How often something happened (after the playtest: "a reward or a problem every 30 s at most, ideally 20"): the moments
@@ -109,6 +123,18 @@ public static class Harness
             host.World.EnableHoldouts(ht, hroute);
         if (o.Sight is { } sight && o.Route is { } sightRoute)
             host.World.EnableLineside(sight, sightRoute);
+        bool walk = o.WalkAboard && o.Run is not null && o.Route is not null;
+        if (walk)
+            // On the ballast on the right, beside the cars in turn (the platform's side at the home fortress).
+            host.BoardAt = n =>
+            {
+                var train = host.Train;
+                int car = n % train.Frames.Count;
+                var frame = train.Frames[car];
+                var at = frame.ToWorld(new Double3(frame.Shape.HalfWidth + 2.2, 0, (n / train.Frames.Count % 3 - 1) * 3.0));
+                double along = train.Cars[car].FrontDistance - frame.Shape.HalfLength;
+                return PlayerMotor.SpawnOnGround(at, train.Line, along, host.PlayerTuning);
+            };
 
         // On a night with facilities, the crew call to each other at the stops, and each has a part (BotCrew.Make).
         var calls = o.Run is not null && o.Route is not null && o.Facilities is not null ? new CrewCalls() : null;
@@ -133,6 +159,7 @@ public static class Harness
         }
 
         int ticks = (int)(o.Seconds * SimConstants.TickRate);
+        var posted = new Dictionary<byte, double>();
         var events = new List<EnemyEvent>();
         var deaths = new Dictionary<string, int>();
         double choirPeak = 0;
@@ -179,8 +206,8 @@ public static class Harness
                 heldAt20 = host.World.Director?.HeldBecause;
             lastQuiet = q;
             choirPeak = Math.Max(choirPeak, host.World.Choir.Build);
-            // Once everyone's in, the gunner goes to the guard gun (a host-side respawn at their post).
-            if (t == 30)
+            // Once everyone's in, the gunner goes to the guard gun (a host-side respawn at their post), unless they walk to it.
+            if (t == 30 && !walk)
             {
                 PostGunner(host, clients.Select(c => (c.Session, c.Bot)).ToList());
                 PostFireman(host, clients.Select(c => (c.Session, c.Bot)).ToList());
@@ -193,6 +220,11 @@ public static class Harness
                 var intent = session.Connected ? BotCrew.Think(session, bot, (uint)t, calls) : default;
                 session.Step(intent);
             }
+            // Who's got to their post, and when (T102).
+            foreach (var (session, bot, _) in clients)
+                if (session.PlayerId is { } pid && !posted.ContainsKey(pid) && host.Players.FirstOrDefault(p => p.Id == pid) is { } hp && hp.State.Alive
+                    && AtPost(bot, hp.State, host.World))
+                    posted[pid] = t * SimConstants.TickSeconds;
             if (o.Observe is { } observe)
             {
                 var states = host.Players.ToDictionary(p => p.Id, p => p.State);
@@ -241,8 +273,20 @@ public static class Harness
             host.World.Run is { } run ? run.Report ?? run.Tally(host.World, [.. host.Players.Select(p => p.State)]) : null,
             clients.Sum(c => c.Bot switch { RoofWalkerBot r => r.WarmUps, GunnerBot g => g.WarmUps, _ => 0 }),
             clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Log,
-            pacing);
+            pacing)
+        {
+            Posts = clients.Where(c => c.Session.PlayerId is not null).ToDictionary(c => $"{c.Bot.Name}#{c.Session.PlayerId}",
+                c => Math.Round(posted.TryGetValue(c.Session.PlayerId!.Value, out var at) ? at : -1, 1)),
+        };
     }
+
+    /// <summary>A bot at its post (T102): in the cab at the controls or the fire, at the guard gun, or up on the train.</summary>
+    static bool AtPost(IBot bot, in PlayerState s, World world) => bot switch
+    {
+        ConductorBot => PlayerMotor.InCab(s, world.Train),
+        GunnerBot => world.Combat is { } c && Guns.MannedGun(s, world.Train, c.Guns) is not null,
+        _ => s.Parent != PlayerState.World && s.Surface != Surface.Ladder,
+    };
 
     static PacingReport Pace(List<double> quiet, double last, int beats, int outTicks, int quietTicks, Dictionary<string, int> kinds)
     {
@@ -272,7 +316,7 @@ public static class Harness
             ConductorBot { Driving: false } => "firing",
             ConductorBot c => c.Sanding ? "sanding" : c.Stops?.Doing.ToString() ?? "",
             RoofWalkerBot r => r.WarmUpStep is { } w and not "Off" ? $"warm:{w}" : r.Job?.Doing ?? "",
-            GunnerBot g => g.Job?.Doing ?? "",
+            GunnerBot g => g.Saving ? "saving the gun" : g.Job?.Doing ?? "",
             _ => "",
         };
         return doing.Length > 0 ? $"{bot.Name}[{doing}] {where}" : $"{bot.Name} {where}";
