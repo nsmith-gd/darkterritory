@@ -500,8 +500,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     FrameLighting lighting = default;
     window.MouseCaptured = true;
     window.TextInput = false;
+    int frames0 = 0;
 
-    while (!window.CloseRequested && !QuitNow())
+    // (At least one frame, whatever --quit-after says: a slow load can outlast it, and --capture draws the last frame.)
+    while (!window.CloseRequested && (frames0++ == 0 || !QuitNow()))
     {
         window.PumpEvents();
         double now = timer.Elapsed.TotalSeconds;

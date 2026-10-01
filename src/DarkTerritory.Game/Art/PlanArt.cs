@@ -682,6 +682,7 @@ public sealed partial class WorldArt
         Signs(mesh, p, eye, drawDistance);
         Hazards(mesh, p, eye, drawDistance, time);
         Water(mesh, p, eye, drawDistance);
+        FarLand(mesh, p, line, eye, centre, drawDistance);
         Places(mesh, p, eye, drawDistance);
         Glow(mesh, p, line, eye, centre);
     }
@@ -949,8 +950,9 @@ public sealed partial class WorldArt
                 continue;
             k.Tint = w.Type == "tidal" ? mud : w.Type == "river" ? peat : new Vector3(0.9f, 0.95f, 0.9f);
             bool river = w.Type is "river" or "tidal";
-            // A river runs across under the span, out to the corridor's edge either way; a marsh lies beside the bed.
-            double reach = river ? 160 : 90, inner = river ? -160 : 5;
+            // A river runs across under the span and on down its valley either way into the far land (note 138); a marsh
+            // lies beside the bed.
+            double reach = river ? 1200 : 90, inner = river ? -1200 : 5;
             for (double s = w.S0; s < w.S1; s += 10)
             {
                 double s1 = Math.Min(s + 10, w.S1);
@@ -1037,6 +1039,76 @@ public sealed partial class WorldArt
                     var q1 = P(a, ra, l1);
                     var q2 = P(b, rb, l1);
                     var q3 = P(b, rb, l0);
+                    k.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
+                }
+            }
+        }
+    }
+
+    // Far land (note 138): past the corridor's ground (WorldArt.PlanLateral's 300 m), low hills on to the horizon, and
+    // across a bay or a tidal river its far shore, so the water has a far side and the sky's band of distant highland
+    // stands on land, not on haze. Laterals out from the line, and the hills' heights over the plan's own land there (m:
+    // the first tucked under the corridor ground's edge); the far shore's distance for each kind of water (null: the
+    // open sea, no far side), and its heights over the water.
+    static readonly double[] FarLateral = [292, 340, 420, 560, 800, 1150, 1700];
+    static readonly double[] FarRise = [-0.6, 3, 8, 16, 26, 38, 50];
+    static double? FarShore(ShoreKind kind) => kind switch { ShoreKind.Fundy => 1100, ShoreKind.Dyke => 520, _ => null };
+    static readonly double[] ShoreLateral = [-30, 0, 40, 140, 380, 900];
+    static readonly double[] ShoreRise = [-2, 1.2, 4, 14, 32, 46];
+
+    void FarLand(MeshBuilder mesh, PlanScene p, RailLine line, Double3 eye, double centre, float drawDistance)
+    {
+        var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
+        k.Use(_look?.Layer("ground_forest") >= 0 ? "ground_forest" : "tar", Palette.MuddyOlive, 0.95f, 0.02f, tile: 40);
+        k.Tint = new Vector3(0.55f, 0.55f, 0.5f);
+        var terrain = p.Terrain;
+        double corridor = p.Plan.Rules.Terrain.CorridorM, taper = p.Plan.Rules.Terrain.Shore.TaperM;
+        const double step = 40, reach = 900;
+        double from = Math.Max(0, centre - drawDistance - reach), to = Math.Min(line.Length, centre + drawDistance + reach);
+        // The shore (not a river: that has its banks in the corridor) on a side at s, if any.
+        PlanShore? ShoreAt(double s, int side) => p.Plan.Shores.FirstOrDefault(sh => sh.Kind != ShoreKind.River && sh.Side == side
+            && p.EdgeLine(sh.Edge) == line && s >= sh.S0 - taper && s <= sh.S1 + taper);
+        // A point of the far land: on the hills' profile, but never over another corridor's own ground (a branch out there
+        // keeps its land, and its track on it), where it tucks under that land instead.
+        Vector3 Point(TrackSample t, Double3 r, int side, double lateral, double? level, double rise)
+        {
+            var at = t.Position + r * (side * lateral);
+            double h = (level ?? terrain.Height(at.X, at.Z)) + rise;
+            var near = terrain.Nearby(at.X, at.Z, corridor + 40);
+            if (near.Any(n => Math.Abs(n.Lateral) < corridor + 30))
+                h = Math.Min(h, terrain.Height(at.X, at.Z) - 2);
+            return new Double3(at.X, h, at.Z).RelativeTo(eye);
+        }
+        for (double s = from; s < to; s += step)
+        {
+            double s1 = Math.Min(s + step, to);
+            var a = line.Sample(s);
+            var b = line.Sample(s1);
+            var ra = Double3.Cross(a.Tangent, Double3.Up).Normalized;
+            var rb = Double3.Cross(b.Tangent, Double3.Up).Normalized;
+            foreach (int side in new[] { -1, 1 })
+            {
+                // How high the hills run here: slowly up and down along the line, each side its own.
+                float Hills(double at) => 0.55f + 0.9f * Noise((float)(at * 0.0011) + side * 31.7f, side * 5.3f);
+                double[] lats = FarLateral, rises = FarRise;
+                double? levelA = null, levelB = null;
+                if (ShoreAt(s, side) is { } sh)
+                {
+                    if (FarShore(sh.Kind) is not { } far)
+                        continue;
+                    // Across the water: its far shore, its heights over the water's level, not the rail's.
+                    lats = [.. ShoreLateral.Select(l => far + l)];
+                    rises = ShoreRise;
+                    levelA = levelB = sh.LevelM;
+                }
+                for (int c = 0; c + 1 < lats.Length; c++)
+                {
+                    // Over the land (or the water), the hills coming and going along the line; a far shore's beach level.
+                    double RiseAt(int i, double at, double? level) => level is not null && i < 2 ? rises[i] : rises[i] * Hills(at);
+                    var q0 = Point(a, ra, side, lats[c], levelA, RiseAt(c, s, levelA));
+                    var q1 = Point(a, ra, side, lats[c + 1], levelA, RiseAt(c + 1, s, levelA));
+                    var q2 = Point(b, rb, side, lats[c + 1], levelB, RiseAt(c + 1, s1, levelB));
+                    var q3 = Point(b, rb, side, lats[c], levelB, RiseAt(c, s1, levelB));
                     k.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
                 }
             }

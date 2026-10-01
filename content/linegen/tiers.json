@@ -138,11 +138,12 @@
   // Plan §12. Terrain within corridorM of track, in tileM tiles at gridM. The formation (|d| <= formationM) and shoulder
   // are where you stand beside the train: they stay at rail height, as the ground always has been, so every stand,
   // lever and step works as before (ARCHITECTURE §8). Intents blend over blendM; noise of noiseAmplitudeM (times the
-  // biome's) at noiseWavelengthM. Past the corridor the land drops skirtDropM into the fog. Track is sampled every
+  // biome's) at noiseWavelengthM. Past the corridor the land drops skirtDropM (0: the far land carries it on to the horizon, ARCHITECTURE §8 note 138; it
+  // used to drop 30 m into the fog, and a lake near the corridor's edge lost its rim). Track is sampled every
   // sampleM for the height field. Ledge and ravine drops walkable (slope <= walkableSlope) within walkableWithinM.
   "terrain": {
     "corridorM": 250, "tileM": 256, "gridM": 2, "formationM": 3.5, "shoulderM": 5, "blendM": 60,
-    "noiseAmplitudeM": 3, "noiseWavelengthM": [30, 120], "junctionPadM": 150, "skirtDropM": 30, "sampleM": 5,
+    "noiseAmplitudeM": 3, "noiseWavelengthM": [30, 120], "junctionPadM": 150, "skirtDropM": 0, "sampleM": 5,
     "walkableSlope": 1.0, "walkableWithinM": 40, "tunnelCoverM": 18, "riverWidthM": 24,
     // The land's own shape past the formation (§12.2 step 3's "biome noise" at landform scale): hills and ridges the line
     // threads between, reliefM high at full (times the biome's noiseScale), starting reliefFromM out and full by
