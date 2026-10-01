@@ -2091,3 +2091,22 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Why that left the train unheld.** Sanding is "out with the brake held". But a moving train's brake is cleared every tick and holds only while someone in the cab holds it (`CabControls.Clears`, T97). So once the driver stepped out, the brake was off, sanded wheels gripped, and steam pulled the train up to whatever speed it made. Nobody was watching the road: it went onto the Sleepers at 11.2 m/s, just over their 11.1.
     - **The fix.** The fireman minds the controls while the driver's out (`CrewCalls.Sanding`). It holds the train no faster than the lamp's cruise, the line's authority and the boards ahead (`MindingCruise`). It brakes for the Sleepers in the lamp as the driver does (`WatchTheRoad`). Stopping the train before stepping out doesn't work: stood on grease, it never leaves the grease. `SandTests.WhileTheDriversOutSandingTheFiremanHoldsTheTrainToTheBoardsAndWatchesTheRoad`: without the fix, 15.8 m/s over a 7 m/s board, and onto the Sleepers at 20.4 m/s.
     - **Derails say why.** Every derail now records its cause in `World.DerailCause`: a curve or bridge (track rules), a board run too fast, the Sleepers, or the Switchman. The harness reports it as `threats.derailCause`. Before, only the track rules set it, and nothing read it.
+
+116. **The Ribbits' model (GDD v1.2 §21, App. A.6).** They were the Cinder Hound squashed and coloured olive. Now they're their own (`tools/blender/ribbit.py`, baked by `tools/models/recipes/ribbit.py`, 3,662 triangles, 28 bones), on a rig of their own (SK_Ribbit: a throat-sac bone to scale, a jaw, two tongue bones, two-bone ears, rabbit hind legs).
+    - **The design.** A toad sat up on a rabbit's haunches, the size of a big dog in the model, drawn at 1.4× ("giant": its head at a crewmate's waist). It's hairless, its skin a pallid pinkish grey and wrinkled like a hairless rat's, with small warts down a bony back and a slack belly.
+      - **Ears:** long rabbit's ears with no fur, veined, hanging limp down its sides.
+      - **Eyes:** milky, with no pupils, under heavy lids.
+      - **Mouth:** right across its head, with a crooked, gapped row of flat human teeth always showing.
+      - **Throat:** the sac under the jaw is the tell.
+    - **Clips.**
+      - **sit:** dead still but for the throat's slow pulse; an ear twitches.
+      - **hop:** half a second of leap and half a second sat, matching the sim. `Ribbit.Hop` leaps on the half seconds where `PhaseSeconds * 2 + Id` is even, so the draw offsets the clip by half a second for odd ids.
+      - **swell** (the telegraph): up tall, the head raised, the sac blown up pale and pulsing under it.
+      - **tongue:** the mouth gaping, braced, reeling.
+      - **hit**.
+      - Scaling the sac grows it from its bone's head, so that sits at the top of the sac, under the jaw. First placed at its middle, it swelled up over the whole head.
+    - **The tongue is the engine's.** On its catch (COMMIT, GRAB, PUNISH) `CreatureArt.Tongue` draws it from the mouth (the `tongue_02` bone, posed) to the catch's chest, 1.15 m up. It's dark red and wet, thins to its tip, sags and twitches taut as the pack reels. Each Ribbit faces who its pack is after: `GreyboxScene` passes the crewmate whose id is its `Extra`, as for Tippy Toesie.
+    - **First cut.** It read as a cartoon toad: cream with spots, googly eyes, red lips. The pallid wrinkled skin, the milky lidded eyes and the always-bared teeth are what made it unpleasant.
+    - **Headless.**
+      - `dt screenshot --threats --crew --ribbits hop|swell|tongue --view pack`. The mode puts the staged pack on crewmate 4 (`Staging.Lone`, alone on the ground). `pack` looks over that crewmate's shoulder; it's left off `Views.Names`.
+      - `RibbitTests`: the hop leaps when the sim moves it and sits when it doesn't, nothing goes under the ground, and the tongue reaches its catch's chest.

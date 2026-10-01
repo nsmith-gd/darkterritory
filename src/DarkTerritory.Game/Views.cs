@@ -31,6 +31,9 @@ public static class Views
             "door" => DoorCamera(train, car),
             // On the ballast beside the gap behind this car, looking in under the plate (what checks a gap: the Whistler's).
             "gapside" => GapSideCamera(train, car),
+            // Off the second car's left, over the shoulder of crewmate 4 (Staging.Lone) at the Ribbit pack beyond them.
+            "pack" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 0.4), 2.1, 1.2)),
+                train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 5.2), 0.4, -1.6)), 55),
             "crewside" => Camera.LookAt(target.ToWorld(new Double3(2.6, roof + 1.9, -4.2)), target.ToWorld(new Double3(-0.8, roof + 1.45, -5.6)), 45),
             "cab" => CabCamera(engine),
             // The fireman's side (T101): out of the left window down the running board to the blow-off by the smokebox.

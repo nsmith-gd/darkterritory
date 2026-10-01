@@ -232,8 +232,9 @@ public sealed class GreyboxScene
                     var bite = e.Kind == EnemyKind.CarHugger && e.Attached >= 0 && e.Attached < frames.Count && Look is { } look
                         ? Art.Bite.For(look.Tuning.Bite, frames[e.Attached].Shape, Vehicles is { } vs && e.Attached < vs.Count ? vs[e.Attached] : null, e.Attached)
                         : default;
-                    // A Tippy Toesie faces who it's after (its Extra), and smothering them stands to them (Art/CreatureArt).
-                    Art.CreatureArt.Prey? prey = e.Kind == EnemyKind.TippyToesie && e.Extra >= 0 && Crew?.FirstOrDefault(c => c.Id == (int)e.Extra) is { } victim
+                    // A Tippy Toesie faces who it's after (its Extra), and smothering them stands to them; a Ribbit faces
+                    // its pack's mark, and its tongue goes to them (Art/CreatureArt).
+                    Art.CreatureArt.Prey? prey = e.Kind is EnemyKind.TippyToesie or EnemyKind.Ribbit && e.Extra >= 0 && Crew?.FirstOrDefault(c => c.Id == (int)e.Extra) is { } victim
                         ? new(V(victim.Feet, eye), new Vector3((float)-Math.Sin(victim.Yaw), 0, (float)-Math.Cos(victim.Yaw)))
                         : null;
                     // And stoops under a roof, ducks through a door (note 110).
