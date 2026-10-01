@@ -1139,6 +1139,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     /// <summary>The speed the driver's holding to, which the fire's kept for (T97).</summary>
     double _cruise = 14;
 
+    /// <summary>Going backwards faster than this (m/s) when it's meant to be going on, it's rolling back.</summary>
+    const double RollingBack = 0.2;
+
     PlayerIntent Drive(TrainOnLine train, uint tick, double cruise, double over)
     {
         _cruise = cruise;
@@ -1156,7 +1159,10 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             _holdingDown = true;
         else if (d.Speed <= cruise)
             _holdingDown = false;
-        if (remaining < stopping || _holdingDown)
+        // T107: running on, a train rolling back is one that's lost the hill (stalled on a climb, or stopped there and let go):
+        // brake it to a stand. Cruising, nothing here ever braked one going backwards, and deepTerritory:1 ran back 9.5 km,
+        // down the climb it had just come up, to the gate at 22 m/s.
+        if (remaining < stopping || _holdingDown || d.Velocity < -RollingBack)
         {
             intent.Buttons |= PlayerButtons.Brake;
             intent.ThrottleNotch = -4;
