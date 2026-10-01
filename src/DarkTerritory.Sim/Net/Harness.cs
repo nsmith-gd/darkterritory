@@ -315,7 +315,7 @@ public static class Harness
             where += " HELD";
         string doing = bot switch
         {
-            ConductorBot { Driving: false } => "firing",
+            ConductorBot { Driving: false } f => f.Venting ? "venting" : "firing",
             ConductorBot c => c.Sanding ? "sanding" : c.Stops?.Doing.ToString() ?? "",
             RoofWalkerBot r => r.WarmUpStep is { } w and not "Off" ? $"warm:{w}" : r.Job?.Doing ?? "",
             GunnerBot g => g.Saving ? "saving the gun" : g.Job?.Doing ?? "",

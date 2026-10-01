@@ -99,6 +99,9 @@ public sealed class CrewCalls
     /// <summary>The driver's out of the cab on the running board, sanding (T104): the fireman minds the controls.</summary>
     public bool Sanding { get; private set; }
     public void Sand(bool sanding) => Sanding = sanding;
+    /// <summary>The fireman's out of the cab at the blow-off (T106): the driver doesn't leave the controls meanwhile.</summary>
+    public bool Venting { get; private set; }
+    public void Vent(bool venting) => Venting = venting;
 
     /// <summary>
     /// Which door a hand shuts once the crates are in (T50): the one it has claimed while that's still open, else the
