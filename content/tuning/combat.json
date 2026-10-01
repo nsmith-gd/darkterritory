@@ -22,7 +22,15 @@
     // App. C.3: "a full manual reload (powder, ball, ram, fire)": after each shot, this many steps of Use held at the gun,
     // each this long. Fire is the trigger.
     "reloadSteps": 3,
-    "reloadStepSeconds": 1.5
+    "reloadStepSeconds": 1.5,
+    // T112 playtest ("a gun seat with its own controls"): Use at a loaded gun sits you in its seat, this far behind the
+    // pivot; seated, the mouse lays it and the gun follows at these rates (a heavy carriage on a turntable), the left
+    // button fires where the barrel points, Use held loads it, Jump gets up. Only a seated gunner fires it.
+    "seatBehind": 0.75,
+    "traverseDegreesPerSecond": 70,
+    "elevateDegreesPerSecond": 35,
+    // Bots fire once the barrel's within this of the mark.
+    "laidDegrees": 2.5
   },
   "choir": {
     // App. C.7: the meter is the crew's combined loudness "measured over a few seconds so single shouts don't count": an

@@ -61,6 +61,7 @@ public static class Guns
     /// </summary>
     public static bool Pushing(in PlayerState s, in PlayerIntent intent, TrainOnLine train, GunTuning t) =>
         intent.Has(PlayerButtons.Use) && (Math.Abs(intent.MoveX) > 0.5 || Math.Abs(intent.MoveZ) > 0.5) && !s.Has(PlayerFlags.Held)
+        && !s.Has(PlayerFlags.Seated)
         && MannedGun(s, train, t) is { } g && train.Vehicles[g].Gun.ReloadNeeded <= 0;
 
     /// <summary>
@@ -96,6 +97,67 @@ public static class Guns
         v.Gun.Z = Math.Clamp(z, rail.Front, rail.Back);
     }
 
+    /// <summary>The yaw (the player's convention, car frame) of a gun's facing: 0 forward along −Z, π back.</summary>
+    public static double FacingYaw(GunMount mount) => mount.Facing.Z < 0 ? 0 : Math.PI;
+
+    /// <summary>Which way the barrel points now, in its car's frame: its facing, turned by the traverse, lifted by the elevation.</summary>
+    public static Double3 BarrelAim(GunMount mount, in GunState g) => Aim(FacingYaw(mount) + g.Traverse, g.Elevation);
+
+    static Double3 Aim(double yaw, double pitch) =>
+        new(-Math.Sin(yaw) * Math.Cos(pitch), Math.Sin(pitch), -Math.Cos(yaw) * Math.Cos(pitch));
+
+    /// <summary>Where the gunner sits (feet, car frame): behind the breech, on the carriage, so it turns with the gun.</summary>
+    public static Double3 SeatAt(GunMount mount, in GunState g, GunTuning t, double floor)
+    {
+        double yaw = FacingYaw(mount) + g.Traverse;
+        return new Double3(mount.Position.X + Math.Sin(yaw) * t.SeatBehind, floor, mount.Position.Z + Math.Cos(yaw) * t.SeatBehind);
+    }
+
+    /// <summary>
+    /// The gun's seat (T112 playtest: "a gun seat with its own controls"), each tick before the gun fires. The Seat press at
+    /// a gun sits you in it, or gets you up; so does the gun going (pushed away, its car cut, you seized). Seated, your
+    /// view is held inside the gun's arc and the gun is laid after it, no faster than its carriage turns and its barrel
+    /// lifts, and your feet stay on the seat as the carriage turns. Worked alike on host and client, so a client predicts it.
+    /// </summary>
+    public static void Sit(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, GunTuning t, double dt)
+    {
+        bool seated = s.Has(PlayerFlags.Seated);
+        var gunVehicle = MannedGun(s, train, t);
+        bool canSit = gunVehicle is not null && s.Alive && !s.Has(PlayerFlags.Held) && !s.Has(PlayerFlags.Heavy);
+        if (seated && (!canSit || intent.Has(PlayerActions.Seat)))
+        {
+            s.Flags &= ~PlayerFlags.Seated;
+            return;
+        }
+        if (!seated && !(canSit && intent.Has(PlayerActions.Seat)))
+            return;
+        s.Flags |= PlayerFlags.Seated;
+        ref var gun = ref train.Vehicles[gunVehicle!.Value].Gun;
+        var mount = Mount(train, gunVehicle.Value)!.Value;
+        // The view stays inside what the gun can be laid on: its traverse either side of its facing, its pitch limits.
+        double half = t.TraverseDegrees / 2 * Math.PI / 180, face = FacingYaw(mount);
+        double off = Math.Clamp(Wrap(s.Yaw - face), -half, half);
+        s.Yaw = face + off;
+        s.Pitch = Math.Clamp(s.Pitch, t.MinPitchDegrees * Math.PI / 180, t.MaxPitchDegrees * Math.PI / 180);
+        // The gun after it, at its pace.
+        double turn = t.TraverseDegreesPerSecond * Math.PI / 180 * dt, lift = t.ElevateDegreesPerSecond * Math.PI / 180 * dt;
+        gun.Traverse += Math.Clamp(off - gun.Traverse, -turn, turn);
+        gun.Elevation += Math.Clamp(s.Pitch - gun.Elevation, -lift, lift);
+        var seat = SeatAt(mount, gun, t, s.Position.Y);
+        s.Position = seat;
+        s.Velocity = default;
+    }
+
+    /// <summary>Whether a gun's barrel is laid on <paramref name="aim"/> (car frame), within the tuning's tolerance (bots fire on it).</summary>
+    public static bool Laid(GunMount mount, in GunState g, Double3 aim, GunTuning t) =>
+        Math.Acos(Math.Clamp(Double3.Dot(BarrelAim(mount, g), aim.Normalized), -1, 1)) * 180 / Math.PI <= t.LaidDegrees;
+
+    static double Wrap(double a)
+    {
+        a %= 2 * Math.PI;
+        return a > Math.PI ? a - 2 * Math.PI : a < -Math.PI ? a + 2 * Math.PI : a;
+    }
+
     /// <summary>The player's view direction in their car's frame.</summary>
     public static Double3 AimLocal(in PlayerState s) =>
         new(-Math.Sin(s.Yaw) * Math.Cos(s.Pitch), Math.Sin(s.Pitch), -Math.Cos(s.Yaw) * Math.Cos(s.Pitch));
@@ -119,13 +181,14 @@ public static class Guns
     }
 
     /// <summary>
-    /// Fires the gun this player is manning, if they're holding Fire and it's ready. Hits the nearest target
-    /// along the aim within range, unless the train's own body is in the way first.
+    /// Fires the gun this player is manning, if they're seated at it (T112), holding Fire, and it's ready: where the barrel
+    /// points, which the gunner's view leads. Hits the nearest target along it within range, unless the train's own body
+    /// is in the way first.
     /// </summary>
     public static GunShot? TryFire(in PlayerState s, in PlayerIntent intent, TrainOnLine train, GunTuning t, ref ChoirState choir, ChoirTuning ct,
         IReadOnlyList<HitTarget> targets, uint tick, int shooterId)
     {
-        if (!intent.Has(PlayerButtons.Fire) || MannedGun(s, train, t) is not { } gunVehicle)
+        if (!intent.Has(PlayerButtons.Fire) || !s.Has(PlayerFlags.Seated) || MannedGun(s, train, t) is not { } gunVehicle)
             return null;
         var vehicle = train.Vehicles[gunVehicle];
         ref var gun = ref vehicle.Gun;
@@ -135,7 +198,7 @@ public static class Guns
             return null;
         var frame = train.Frames[gunVehicle];
         var mount = Mount(train, gunVehicle)!.Value;
-        var aimLocal = AimLocal(s);
+        var aimLocal = BarrelAim(mount, gun);
         if (CheckAim(mount, aimLocal, t) != AimResult.Ok)
             return null;
 

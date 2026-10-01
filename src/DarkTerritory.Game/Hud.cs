@@ -344,6 +344,10 @@ public static class Hud
             Small("THE CHOIR IS GATHERING: GO QUIET", world.Tick / 15 % 2 == 0 ? Red : Amber);
     }
 
+    /// <summary>The reload's step under way (GDD v1.1 App. C.3: powder, ball, ram), for the prompt.</summary>
+    static string LoadStep(in GunState gun, GunTuning t) =>
+        (t.ReloadSteps - gun.ReloadNeeded) switch { 0 => "POWDER", 1 => "BALL", _ => "RAM" };
+
     /// <summary>The player's keys (T80), for the prompts: the app sets them from the settings.</summary>
     public static Settings Keys { get; set; } = new();
 
@@ -390,10 +394,18 @@ public static class Hud
                 BodyKind.Loot => $"{world.Run?.FindName(carried)?.ToUpperInvariant() ?? "A FIND"}: INTO ANY CAR TO KEEP IT   [E] PUT DOWN   [RMB] THROW",
                 _ => "[E] PUT DOWN   [RMB] THROW",
             };
-        if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is not null)
-            return train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM FOR THE TURRET"
-                : train.Vehicles[Guns.MannedGun(p, train, combat.Guns)!.Value].Gun.ReloadNeeded > 0 ? "[E] HOLD: RELOAD"
-                : "[LMB] FIRE   [E] + WALK: PUSH IT ALONG THE RAIL";
+        // T112: the gun's seat and its own controls.
+        if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is { } manned)
+        {
+            var gun = train.Vehicles[manned].Gun;
+            bool seated = p.Has(PlayerFlags.Seated);
+            string up = seated ? "   [SPACE] GET UP" : "";
+            return gun.ReloadNeeded > 0 ? $"[E] HOLD: LOAD IT ({LoadStep(gun, combat.Guns)}){up}"
+                : gun.Ammo <= 0 ? $"NO SHOT LEFT{up}"
+                : train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? $"NO STEAM TO TURN THE GUN{up}"
+                : seated ? $"[LMB] FIRE   AIM WITH THE MOUSE{up}"
+                : "[E] SIT AT THE GUN   [E] + WALK: PUSH IT ALONG THE RAIL";
+        }
         // A headset player's prompts follow their reaching hand (T29), as the sim's reach does.
         var hand = world.Hand;
         var near = CrewActions.Nearest(p, train, hand);

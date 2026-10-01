@@ -491,6 +491,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var pendingLamp = LampSwitch.None;
     bool pendingCarLamp = false;
     byte pendingSelect = 0;
+    bool pendingSeat = false;
     float pendingCycle = 0;
     double voiceLevel = 0;
     bool chase = ride;
@@ -529,6 +530,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (Hit(Control.Lamp))
             pendingLamp = session.World.LampLit ? LampSwitch.Off : LampSwitch.On;
         pendingCarLamp |= Hit(Control.CarLamp);
+        // The gun's seat (T112): Use pressed standing still at a loaded gun sits you in it (Use held at one waiting on its
+        // reload loads it, walking with it pushes it). Seated, Jump gets you up.
+        if (Hit(Control.Use) && !session.Player.Has(PlayerFlags.Seated) && session.World.Combat is { } gc
+            && DarkTerritory.Sim.Combat.Guns.MannedGun(session.Player, session.Train, gc.Guns) is { } atGun && session.Train.Vehicles[atGun].Gun.ReloadNeeded <= 0
+            && !Held(Control.Forward) && !Held(Control.Back) && !Held(Control.Left) && !Held(Control.Right))
+            pendingSeat = true;
         // The hotbar (T108): a number key picks its slot, the wheel steps through the tools.
         for (var k = Key.D1; k < Key.D1 + Kit.Slots; k++)
             if (input.Pressed(k))
@@ -595,7 +602,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 // left button fires it).
                 Actions = (Held(Control.Swing) || Held(Control.Fire) ? PlayerActions.Swing : 0) | (Held(Control.Whistle) ? PlayerActions.Whistle : 0)
                     | (Held(Control.Uncouple) ? PlayerActions.Uncouple : 0) | (Held(Control.Ladder) ? PlayerActions.Ladder : 0)
-                    | (pendingCarLamp ? PlayerActions.CarLamp : 0),
+                    | (pendingCarLamp ? PlayerActions.CarLamp : 0) | (pendingSeat ? PlayerActions.Seat : 0),
                 // How loud you are (GDD v1.1 App. C.7, C.8): the mic while it sends; with no mic, holding Talk counts as
                 // speaking up, so a player without one can still talk the Gaunt down and answer a roll call.
                 Voice = (byte)Math.Clamp(voiceLevel * 255, 0, 255),
@@ -622,6 +629,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             pendingNotch = 0;
             pendingLamp = LampSwitch.None;
             pendingCarLamp = false;
+            pendingSeat = false;
             pendingReverser = false;
             pendingYaw = pendingPitch = 0;
             session.Step(intent);

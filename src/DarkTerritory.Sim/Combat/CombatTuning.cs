@@ -18,6 +18,13 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     public int ReloadSteps { get; init; } = 3;
     /// <summary>Seconds of Use held at the gun per step.</summary>
     public double ReloadStepSeconds { get; init; } = 1.5;
+    /// <summary>How far behind the pivot the gunner's seat is (T112).</summary>
+    public double SeatBehind { get; init; } = 0.75;
+    /// <summary>How fast the seated gunner can turn the carriage, and lift or drop the barrel (T112).</summary>
+    public double TraverseDegreesPerSecond { get; init; } = 70;
+    public double ElevateDegreesPerSecond { get; init; } = 35;
+    /// <summary>A bot fires once the barrel's within this of its mark.</summary>
+    public double LaidDegrees { get; init; } = 2.5;
 }
 
 /// <summary>The loudness meter and the Choir it draws (GDD v1.1 App. A.7, C.7). Field docs live in combat.json.</summary>

@@ -861,6 +861,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         foreach (var h in holdouts.All)
             holdouts.Mirror(h.Index, DarkTerritory.Sim.Run.HoldoutState.Occupied, 1, 0);
     }
+    // --gun-laid yaw,pitch (degrees): every gun turned and elevated so, as a seated gunner lays it (T112).
+    if (Str(args, "--gun-laid", "") is { Length: > 0 } laid)
+    {
+        var yp = laid.Split(',').Select(x => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture) * Math.PI / 180).ToArray();
+        foreach (var v in train.Dynamics.Consist.Vehicles.Where(v => v.HasGun))
+            (v.Gun.Traverse, v.Gun.Elevation) = (yp[0], yp.Length > 1 ? yp[1] : 0);
+    }
     // --doors-open: every door on the train open (looking through an end door onto its coupling, or out of the guard
     // van's rear door into the Car Hugger's mouth).
     if (args.Contains("--doors-open"))

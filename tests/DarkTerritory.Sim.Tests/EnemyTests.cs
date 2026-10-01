@@ -185,6 +185,7 @@ public class EnemyTests
         var mount = n.Train.Frames[guard].Shape.Gun!.Value;
         var gunner = PlayerMotor.SpawnOnRoof(n.Train, guard, mount.Position.Z - 0.7, P);
         gunner.Yaw = Math.PI;
+        gunner.Flags |= PlayerFlags.Seated; // T112: in the gun's seat
         n.Crew[1] = gunner;
         var pack = Pack(n);
         n.Run(90, id =>
@@ -203,7 +204,9 @@ public class EnemyTests
             var offset = target.WorldPosition(n.Train) - frame.ToWorld(mount.Position);
             var d = frame.DirToLocal(offset).Normalized;
             n.Crew[id] = n.Crew[id] with { Yaw = Math.Atan2(-d.X, -d.Z), Pitch = Math.Asin(d.Y) };
-            return fireAtRange(offset.Length) ? new PlayerIntent { Buttons = PlayerButtons.Fire } : default;
+            // The gun follows the view at its own pace (T112): fire once it's laid on the mark.
+            bool laid = Guns.Laid(Guns.Mount(n.Train, guard)!.Value, n.Train.Vehicles[guard].Gun, d, Tuning.Combat.Guns);
+            return laid && fireAtRange(offset.Length) ? new PlayerIntent { Buttons = PlayerButtons.Fire } : default;
         });
         return (n, pack, guard);
     }
@@ -235,7 +238,7 @@ public class EnemyTests
         int guard = n.Train.Dynamics.Consist.Vehicles[^1].Id;
         var mount = n.Train.Frames[guard].Shape.Gun!.Value;
         var gunner = PlayerMotor.SpawnOnRoof(n.Train, guard, mount.Position.Z - 0.7, P);
-        n.Crew[1] = gunner with { Yaw = Math.PI, Pitch = 0.6 };
+        n.Crew[1] = gunner with { Yaw = Math.PI, Pitch = 0.6, Flags = gunner.Flags | PlayerFlags.Seated };
         var pack = Pack(n);
         var muzzle = () => n.Train.Frames[guard].ToWorld(mount.Position);
         n.Run(60, _ => n.Train.Vehicles[guard].Gun.ReloadNeeded > 0 ? new PlayerIntent { Buttons = PlayerButtons.Use }

@@ -45,7 +45,19 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
 
     public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
+        var intent = Gun(self, world, tick, out aimed);
+        // Off the gun for anything else, it gets up out of the seat first (T112: Jump, seated, is getting up).
+        if (self.Has(PlayerFlags.Seated) && !_atGun)
+            intent.Buttons |= PlayerButtons.Jump;
+        return intent;
+    }
+
+    bool _atGun;
+
+    PlayerIntent Gun(in PlayerState self, World world, uint tick, out PlayerState aimed)
+    {
         aimed = self;
+        _atGun = false;
         if (!self.Alive)
         {
             _legs.Work(self, world); // the dead still say so, or the driver waits all night for them to get aboard
@@ -92,8 +104,11 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         else if (choir is null || world.Choir.Build <= 0.1 && !world.Choir.Present)
             _holding = false;
         // GDD v1.1 App. C.3: powder, ball, ram after every shot, before anything else (Use held at the gun).
+        _atGun = true;
         if (world.Train.Vehicles[gun].Gun is { ReloadNeeded: > 0, Ammo: > 0 })
             return new PlayerIntent { Buttons = PlayerButtons.Use };
+        // T112: only from the seat. Sat, it stays (a press again would get it up).
+        var seat = self.Has(PlayerFlags.Seated) ? PlayerActions.None : PlayerActions.Seat;
         bool holdFire = _holding;
         var frame = world.Train.Frames[gun];
         var muzzle = frame.ToWorld(Guns.Mount(world.Train, gun)!.Value.Position);
@@ -102,13 +117,13 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
             .Where(x => x.offset.Length <= guns.Range)
             .OrderBy(x => x.offset.Length).FirstOrDefault();
         if (target.e is null)
-            return default;
+            return new PlayerIntent { Actions = seat };
         var d = frame.DirToLocal(target.offset).Normalized;
         double yaw = Math.Atan2(-d.X, -d.Z), pitch = Math.Asin(d.Y);
-        // Turn by look deltas, the way a player would.
-        var intent = new PlayerIntent { LookYaw = (float)Wrap(yaw - self.Yaw), LookPitch = (float)(pitch - self.Pitch) };
+        // Turn by look deltas, the way a player would; the gun follows at its own pace, and it fires once it's laid.
+        var intent = new PlayerIntent { LookYaw = (float)Wrap(yaw - self.Yaw), LookPitch = (float)(pitch - self.Pitch), Actions = seat };
         aimed = self with { Yaw = self.Yaw + intent.LookYaw, Pitch = self.Pitch + intent.LookPitch };
-        if (!holdFire)
+        if (!holdFire && self.Has(PlayerFlags.Seated) && Guns.Laid(Guns.Mount(world.Train, gun)!.Value, world.Train.Vehicles[gun].Gun, d, guns))
             intent.Buttons = PlayerButtons.Fire;
         return intent;
     }

@@ -26,6 +26,10 @@ public struct GunState
     public int ReloadNeeded;
     /// <summary>Seconds into the current reload step.</summary>
     public double ReloadProgress;
+    /// <summary>How far the carriage is turned off its facing, radians (T112: the seated gunner lays it), left positive.</summary>
+    public double Traverse;
+    /// <summary>The barrel's elevation, radians, up positive.</summary>
+    public double Elevation;
 }
 
 /// <summary>

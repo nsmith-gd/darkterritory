@@ -323,6 +323,9 @@ public sealed class World
         }
         if (!handsTookIt)
             CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand);
+        // The gun's seat (T112): sat in or got up from, the view held to the gun's arc and the gun laid after it, before it fires.
+        if (Combat is { } cs)
+            Guns.Sit(ref s, intent, Train, cs.Guns, SimConstants.TickSeconds);
         var targets = viewTick is { } vt && _targetHistory.TryGetValue(vt, out var then) ? then : Targets;
         if (Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
             Shots.Add(shot);
