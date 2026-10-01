@@ -51,6 +51,8 @@ public static class Views
             // Off the last car's side, looking up at what's over its roof (the staged Choir besieging the guard van).
             "choir" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(4.6, train.Frames[^1].Shape.RoofHeight + 0.6, 4.5)),
                 train.Frames[^1].ToWorld(new Double3(0, train.Frames[^1].Shape.RoofHeight + 2.0, 0)), 55),
+            // In the middle car, under its forward lantern, up at what's round it (the staged Fire Flies).
+            "flies" => FliesCamera(train),
             "crewside" => Camera.LookAt(target.ToWorld(new Double3(2.6, roof + 1.9, -4.2)), target.ToWorld(new Double3(-0.8, roof + 1.45, -5.6)), 45),
             "cab" => CabCamera(engine),
             // Crouched where the fireman shovels, at the firebox door (what's seen when it's open: the staged Stoker).
@@ -71,6 +73,16 @@ public static class Views
     }
 
     /// <summary>Standing in the cab beside the boiler, looking past it down the line.</summary>
+    static Camera FliesCamera(TrainOnLine train)
+    {
+        var car = train.Frames[Math.Max(0, (train.Frames.Count - 1) / 2)];
+        if (car.Shape.Interior is not { } room)
+            return Camera.LookAt(car.ToWorld(new Double3(0, 2, 0)), car.ToWorld(new Double3(0, 2, -5)), 60);
+        var lamp = Art.SceneArt.LampPositions(room).First();
+        var at = new Double3(lamp.X, lamp.Y, lamp.Z);
+        return Camera.LookAt(car.ToWorld(at + new Double3(0.8, -0.55, 0.75)), car.ToWorld(at + new Double3(0, -0.04, 0)), 45);
+    }
+
     static Camera FireboxCamera(in CarFrame engine)
     {
         var door = Art.TrainKit.FireDoor(engine.Shape);

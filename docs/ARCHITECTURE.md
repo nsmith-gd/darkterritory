@@ -2245,7 +2245,27 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - pacing, it runs low and along the line;
         - in a dark car it waits low, and on a roof it's crouched.
 
-123. **The brake and the vent as a pair (T106).** With steam driving (T97) pressure is speed, so a board ahead wants the gauge down, not just the brake on. A held brake fades, and the steam fights it.
+123. **The Fire Flies' model (GDD v1.2 §21, App. A.5).** They were 24 orange boxes circling a point. Now they're moths (`tools/blender/fire_fly.py`, baked by `tools/models/recipes/fire_fly.py` into a 512 atlas, 1,218 triangles), on a rig of their own: SK_FireFly, the thorax, the head, the abdomen's two bones, four wings and six legs (15 bones).
+    - **The design.** Big moths, a hand across, come in out of the dark to a lamp.
+      - **Body:** furred the grey of ash; the abdomen a fat grub of black plates, alight between them, with a coal at its tail.
+      - **Wings:** charred paper, mottled and tattered, scorched to the tips, their edges still smouldering.
+      - **The eyes:** on each forewing, painted in the bake, a human eye, the white gone yellow and the upper lid towards the head. Folded, the wings put the two side by side, so each moth settled on the glass is a pair of eyes looking back, and a lamp they've found is a cluster of them.
+    - **Clips.**
+      - **flutter:** the slow heavy beat of a big moth, the hindwings a frame behind, the abdomen pumping.
+      - **settle:** on the glass, the wings folded back flat in a roof over it. It throbs, crawls a leg at a time and lurches, shivers its wings, then snaps them half open on the eyes, holds, and shuts.
+    - **The swarm** (`CreatureArt.FireFlies`). They grow from 5 moths to 22 over the linger, and the share settled on the glass grows faster still. They fill by 20 s (`FireFlySwarmFills`), the sim's ignite time.
+      - **On the glass:** settled ones sit on a cylinder round the flame, 0.085 m out (the lantern's 0.074 m and a body), at their own angle and height, heads up.
+      - **In the air:** the rest fly loops of their own, now and then dashing in at the glass.
+      - **The light:** the lamp's light through them grows redder and stronger as they fill.
+    - **Which lamp.** The sim has one lamp per car (`Vehicle.LampLit`) and puts the swarm at the room's middle. The art pass draws two lanterns (`SceneArt.LampPositions`), so `GreyboxScene` draws the swarm on the nearer one. The sim is untouched.
+    - **Headless.**
+      - `dt screenshot --threats --view flies`: the new `flies` view is under the middle car's forward lantern. Add `--later 15` for the full swarm.
+      - `dt art clip fire_fly settle --dist 0.15 --at 0,0.03,0 --lift 0.024`: the clip-sheet lights now close in with the camera when it's under 2 m out, for a model this small.
+      - `FireFlyTests`:
+        - the swarm thickens round the lamp as it lingers;
+        - lingering, most of it is on the glass.
+
+124. **The brake and the vent as a pair (T106).** With steam driving (T97) pressure is speed, so a board ahead wants the gauge down, not just the brake on. A held brake fades, and the steam fights it.
     - **The fireman fired for the wrong speed.** It fired to the pressure for its own cruise, which only changes when it drives, so it stayed at the open line's 14 m/s. Under a board the driver braked away steam the fireman had just made. Now it fires for what the line allows here (`MindingCruise`: lamp, authority, boards).
     - **And vents when the steam runs the train away.** When the train is running over the allowed speed with the gauge ten over its mark, the fireman walks out of the left doorway, along the left running board to the blow-off, and holds it open until the gauge is down to the mark. Then it comes back in. The driver holds the train on the brake meanwhile. Only one of them leaves the cab at a time (`CrewCalls.Venting`, `CrewCalls.Sanding`).
     - **Not for a board still ahead.** Venting whenever the gauge read high, frontier:11's fireman spent 1,412 s of the night at the blow-off, and the train ran out of steam and missed the dawn. The driver brakes down for a board in good time; venting throws away coal. So it vents only once the train is actually running over what's allowed: on a descent, where the steam and the grade together beat the brake.
