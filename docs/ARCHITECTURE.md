@@ -2347,3 +2347,57 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Out on the board with the door open.** A driver alone (no fireman) went out to sand within seconds of a shovelful. Only someone in the cab shuts the fire door, so it stayed open at a stand, and the Stoker came in and put the fire out (App. A.5) while the driver sanded on at a standing train till the cold took him. Now the driver waits in the cab for the door, comes back in to a Stoker (it's fought from the cab), and doesn't go out, or stay out, with no steam to pull on the sand.
     - **Back up into the tunnel's mouth.** Three walkers on deepTerritory:2, turned away from a car a Climber had got into, climbed straight back up the ladder from the plate under a posted tunnel's mouth and were struck together (four of the crew of eight gone by 1,500 s). Off the roofs already, with a tunnel near, a walker now stays off them: on the plate, inside, or back down the ladder (`LinesideTests.AWalkerDownOnAPlateForAPostedTunnelStaysOffTheRoofs`).
     - **Frontier, crew of 8, seeds 1–4:** 3 delivered against main's 2. The Deep sweep passes its checks; deepTerritory:1 delivers with a crew of 2, and deepTerritory:2 still stands at 24.5 km (next).
+
+132. **The Gaunt is no longer a man (GDD v1.2 §21, App. A.6).** Note 118's Gaunt was SK_Human stretched: stood up, it had the same silhouette as Tippy Toesie, a tall thin person. It's been redone as a thing on stilts (`tools/blender/gaunt.py`, baked by `tools/models/recipes/gaunt.py`, 4,278 triangles, 24 bones, SK_Gaunt).
+    - **The body.** Four legs, each jointed three times and longer than a man is tall, the knees standing higher than its back like a harvestman's. Between them a starved, ribbed body is slung two metres up. A long neck runs up and out from it to an eyeless horse's skull with a puckered, needle-toothed mouth at its tip. On the skull sit two bat's ears, each bigger than the head, ribbed and veined. The legs and body are grey bark, so asleep, with the legs laid out round it, it's a heap of dead branches.
+    - **The clips keep their names and their jobs.**
+      - `listen` stands over you, the head hung above yours and the ears cupped at you.
+      - `follow` stalks in slow diagonal pairs.
+      - `attack` (now a loop) rears up on the hind legs and stabs the forelegs down.
+      - Aboard, `crawl`, `squat` and `smash` fold the legs. The knees go up under the roof and the cannons slant out along the floor fore and aft, so it's packed into the car like a spider in a box.
+    - **The ears are held level.** They're set in armature space (`rig.hang`), whatever the skull does. A listening thing holds its ears on the sound, not on its head.
+    - **Anger lets the neck down** (`CreatureArt.LeanIn`), no longer bending the back. The forelegs hang from the shoulders, so bending the back lifted them off the ground. The neck bends down from the shoulders and is straightened again at the top, so the head stays out over you. The skull rolls about its own length. `GauntLean` is now 0.32 rad, so at full anger the head comes down to the helmet, not into it.
+    - **The `gaunt` and `gauntface` views** look higher, at where its body and head now are.
+    - **`GauntTests`** measure the head as the front of it above chest height, no longer as its top: stood up, its top is its knees. Facing is now checked by where the mesh's middle goes: its head and ears are half its vertices.
+
+133. **The Whistler is no longer a man (GDD v1.2 §21, App. A.4).** It was SK_Human stretched, with one long arm. Now it's a pale thing four metres long, segmented like a centipede and thick as a thigh (`tools/blender/whistler.py`, baked by `tools/models/recipes/whistler.py`, 5,216 triangles, 57 bones, SK_Whistler).
+    - **The body.** Ten segments, twenty thin legs and a pair of long hooked forelegs. Ivory plates down its back, grub-white flesh where they part, all of it streaked with the couplers' grease.
+    - **The head.** No eyes and no face, only a blunt wedge with two feelers. Out of the wedge comes a siphon with a puckered lip and stops along its top like a flute's, and the siphon is what whistles.
+    - **The clips keep their names and their jobs.**
+      - `fold` coils it round the drawgear under the plate, the front laid up over the coil looking out. A ripple runs down its legs once.
+      - `whistle` rears it straight up out of the gap, over three metres. The forelegs hook the cord and yank it. The siphon swells, and the legs down its upright length stir out of step.
+      - `watch` lifts its front at the gap's mouth and turns it in jerks.
+      - `run` snakes it away with its legs in waves.
+    - **No leg IK.** The legs are posed relative to their segment, so a coiled or reared body carries them with it.
+    - **`centred` and `grounded`.** Each pose is set over the gap's middle and onto the rail (`root@loc`), so the old origin contract still holds. `WhistlerTests` keep their measures unchanged: folded under the 1.1 m plate, whistling over a crewmate's head on it, its front turned to the eye.
+
+134. **The Choir are no longer children (GDD v1.2 §21, App. A.7).** Each ghost was a choir child in a surplice: SK_Human at a child's size. Now each is a bell of membrane the size of a child's chest, drifting the way a jellyfish drifts (`tools/blender/choir.py`, baked by `tools/models/recipes/choir.py`, 2,570 triangles, 54 bones, SK_Choir).
+    - **The bell.** A dead blue-grey hood, the veins dark in it, with a ruffled skirt round its rim. Three frilled curtains hang under it, and six tendrils over a metre long. It has no eyes and one mouth, a child's, on its front. The grey lips are held open in a singing O round small milk teeth and a black throat. That is the voice.
+    - **The clips keep their names and their jobs.**
+      - `drift` pulses slowly, two beats; it rises on each squeeze, the tendrils trailing in waves. Once it snaps round to face you.
+      - `swoop` tips mouth-first into the flight, pulsing fast, its tendrils streamed back.
+      - `seize` settles on its catch's head like a cap, the tendrils wound round the skull and down the neck, its mouth turned to their ear. The sim has it 1.4 m over their feet, so the bell drops 0.5 m to sit on their head.
+      - `besiege` presses it to a shut door, its tendrils thrown at it and slapping down it in bursts.
+    - **The pulse.** It's the bell's scale (contracted: narrower and taller) and the rim flaps curling in about their tangents.
+    - **The tendrils and curtains are aimed bone by bone along a curve** (`aim_along`): each bone points at the curve where it's a bone's length on, never back up it. So they can trail, stream, lash and wind round a head without IK.
+    - **The bell rides higher** (its middle 1.15 m over the origin), so the tendrils hang clear of whatever it's over.
+
+135. **The Followers are no longer hands (GDD v1.2 §21, App. A.6).** Note 121's Follower was a hand gone wrong. Now it's a tick grown to a hand's size and bloated (`tools/blender/follower.py`, baked by `tools/models/recipes/follower.py`, 2,708 triangles, 24 bones, SK_Follower, inside the 25-bone budget).
+    - **The body.** A swollen sac of grey-white leather, blue where it's stretched thinnest, ridged across with the folds it hasn't filled. At its front is a hard shield the red-brown of dried blood, with twelve small wet black eyes bunched on it like roe, and a barbed beak between two palps under it. It has ten jointed legs, hooked at the tips.
+    - **The clips keep their names and their jobs.**
+      - `cling` lies flat on a back with every leg splayed and dug in, and the sac pulses. The twitch is every leg clenching at once and letting go, the sac jerking.
+      - `crawl` scuttles on alternating sets of legs.
+      - `nest` spreads it flat, the sac swelling and easing, the legs kneading pair after pair, the beak working.
+    - **The engine side is unchanged:** the riding matrix, `FollowerSwell`. Only the comments say tick where they said hand. `FollowerTests` pass as they were.
+
+136. **The Climbers are no longer men (GDD v1.2 §21, App. A.4).** Note 122's Climber was a crewman gone wrong, its gas mask grown into its face: SK_Human drawn out. Now it's a long, low, soot-black thing with six limbs (`tools/blender/climber.py`, baked by `tools/models/recipes/climber.py`, 3,652 triangles, 36 bones, SK_Climber).
+    - **The body.** The limbs are splayed out from its sides like a gecko's: the elbows out and up at the body's height, the forearms coming down from them, each hand three hooked fingers made for steel. Its skin is wet-looking rubber, paler grey under the belly, with a row of short spines down its back to a whip of a tail.
+    - **The head.** An eyeless blunt wedge. Under its front is a lamprey's sucker, ringed with three rows of hooked yellow teeth.
+    - **The clips keep their names and their jobs.**
+      - `run` snakes along low with the limbs in alternating threes.
+      - `scrabble` stands it up the gap like a lizard on a wall, the hooks snatching up the car ends, the buffers and the coupler.
+      - `walk` creeps flattened, one limb at a time, its head swinging as if it could smell its way.
+      - `crouch` folds it in a corner, its head cocked; once it snaps to the other side.
+      - `grab` rears it over its victim, the forehooks over their head and the sucker opened on their face.
+    - **Limb IK.** The limbs go by `rig.reach` from a spread of starts. The elbow is kept out at its own side and, on the ground, up at the body's height. That's what keeps the sprawl from collapsing into a stick insect's legs.
+    - **`ClimberTests` keep their measures.** It runs under 1.2 m, crouches under 1.3 m and walks the roofs under 1.7 m.

@@ -7,8 +7,8 @@ using DarkTerritory.Sim.Enemies;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The Climbers (GDD v1.2 §21, App. A.4; tools/blender/climber.py; ARCHITECTURE §8 note 122): pacing the train it runs
-/// bent double on all fours along the line, not at the train; on the roofs it walks crouched; in a dark car it waits low.
+/// The Climbers (GDD v1.2 §21, App. A.4; tools/blender/climber.py; ARCHITECTURE §8 notes 122, 136): pacing the train it
+/// runs low on its six limbs along the line, not at the train; on the roofs it creeps flattened; in a dark car it waits low.
 /// </summary>
 public class ClimberTests
 {
@@ -33,7 +33,7 @@ public class ClimberTests
     public void PacingItRunsLowAlongTheLineNotAtTheTrain()
     {
         var running = Drawn(SpinePhase.Dormant, Enemy.Loose, 2, 1);
-        Assert.True(Top(running) < 1.2f, $"bent double, {Top(running)} high");
+        Assert.True(Top(running) < 1.2f, $"low, {Top(running)} high");
         // The basis here faces −Z (at the train); running, it's turned a quarter round, so it's longer across (x) than deep.
         float across = running.Max(p => p.Position.X) - running.Min(p => p.Position.X);
         float deep = running.Max(p => p.Position.Z) - running.Min(p => p.Position.Z);

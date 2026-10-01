@@ -1,13 +1,13 @@
-"""THE FOLLOWERS (GDD v1.2 §21 facility grounds, App. A.6): the hand of tools/blender/follower.py, taken to the fidelity
-target (ARCHITECTURE §8 note 58, tools/models overbake).
+"""THE FOLLOWERS (GDD v1.2 §21 facility grounds, App. A.6): the tick of tools/blender/follower.py, taken to the fidelity
+target (ARCHITECTURE §8 note 58, tools/models overbake; the non-human redo, note 135).
 
 tools/blender/follower.py stays its source: the rig, the clips and the game mesh. This recipe runs it, models a
 high-resolution copy and bakes it into one 1024 atlas:
-  * the skin an infant's, soft, pale and faintly translucent, the veins showing blue-grey through it, wrinkled at every
-    knuckle and grimed in the creases;
-  * the stump raw and wet, its threads darker;
-  * the mouth's lips red and wet, the teeth yellowed, the nails dirty and split.
-Skin 0.45; the stump, the mouth and its teeth wet (0.15).
+  * the sac's leather grey-white, blue-grey where it's stretched thinnest over the top, mottled darker, the folds across
+    it creased dark, a sheen on it;
+  * the shield and the palps a hard red-brown, pitted, glossy;
+  * the eyes black glass, wet; the beak dark red;
+  * the legs red-brown, banded paler at the joints.
 
     tools/models/build.sh follower
 """
@@ -30,12 +30,11 @@ make._mats.clear()
 make.LOW.clear()
 
 DRESS = {
-    "skin.follower_stump": (lambda: make.flat("follower_stump", (0.2, 0.07, 0.06), rough=0.15), 2),
-    "skin.follower_mouth": (lambda: make.flat("follower_mouth", (0.18, 0.04, 0.04), rough=0.15), 2),
-    "skin.follower_teeth": (lambda: make.flat("follower_teeth", (0.45, 0.4, 0.3), rough=0.3), 0),
-    "skin.follower": (lambda: make.flat("follower_skin", (0.3, 0.26, 0.24), rough=0.45), 2),
-    "tar.follower_core": (lambda: make.flat("follower_core", (0.01, 0.003, 0.003), rough=0.2), 0),
-    "tar.follower_nail": (lambda: make.flat("follower_nail", (0.12, 0.1, 0.075), rough=0.5), 1),
+    "skin.follower_shield": (lambda: make.flat("follower_shield", (0.07, 0.03, 0.022), rough=0.25), 2),
+    "skin.follower_leg": (lambda: make.flat("follower_leg", (0.055, 0.03, 0.022), rough=0.35), 1),
+    "skin.follower": (lambda: make.flat("follower_sac", (0.34, 0.34, 0.33), rough=0.3), 2),
+    "tar.follower_eye": (lambda: make.flat("follower_eye", (0.004, 0.004, 0.005), rough=0.03), 1),
+    "tar.follower_mouth": (lambda: make.flat("follower_mouth", (0.05, 0.012, 0.01), rough=0.2), 1),
 }
 
 
@@ -51,34 +50,62 @@ def ridged(p, seed, scale):
     return 1 - np.abs(cook.noise_np(p, seed, scale))
 
 
-def skin(p, n):
-    # Fine wrinkles across the fingers (along y the creases run across), a soft lumpiness.
-    return 0.00012 * np.sin(p[:, 1] * 900) ** 8 + 0.0002 * cook.noise_np(p, 1601, 120.0) + fine(p, 0.00005, 2000, 1602)
+SAC = np.array(g["SAC"], np.float32)
+SR = np.array(g["SR"], np.float32)
 
 
-SHAPE = {"skin.follower_stump": lambda p, n: 0.0004 * cook.noise_np(p, 1603, 300.0), "skin.follower_mouth": lambda p, n: fine(p, 0.00006, 1500, 1604),
-         "skin.follower_teeth": lambda p, n: 0 * p[:, 0], "skin.follower": skin, "tar.follower": lambda p, n: 0 * p[:, 0]}
-BAKED = ["hand"]
+def sac_shape(p, n):
+    # Leather: fine wrinkles, pores.
+    return 0.00025 * smooth01(0.85, 0.97, ridged(p, 1601, 500.0)) - 0.0002 * smooth01(0.9, 0.99, ridged(p, 1602, 900.0)) + fine(p, 0.00002, 3000, 1603)
+
+
+def shield_shape(p, n):
+    # Pitted.
+    return -0.00025 * smooth01(0.6, 0.9, cook.noise_np(p, 1604, 900.0)) + fine(p, 0.00002, 3000, 1605)
+
+
+SHAPE = {"skin.follower_shield": shield_shape, "skin.follower_leg": lambda p, n: fine(p, 0.00002, 3000, 1606), "skin.follower": sac_shape,
+         "tar.follower": lambda p, n: 0 * p[:, 0]}
+BAKED = sorted(parts)
 highs = {name: overbake.high_of(parts[name], dress, SHAPE) for name in BAKED}
 print("[dt] follower highs", {k: sum(len(h.data.polygons) for h in v) for k, v in highs.items()})
 
 
 def marks(p, kind):
-    """R: the veins under the skin; G: grime in the creases."""
+    """R: mottling and the folds' creases; G: the stretched blue-grey over the top; B: the legs' pale bands."""
     out = np.zeros((len(p), 3), np.float32)
-    if kind.startswith("skin.follower") and not kind.startswith("skin.follower_"):
-        out[:, 0] = np.clip(smooth01(0.9, 0.97, ridged(p, 1611, 90.0)), 0, 1)
-        out[:, 1] = np.clip(np.sin(p[:, 1] * 900) ** 8 * 0.6 + 0.3 * smooth01(0.2, 0.8, cook.noise_np(p, 1612, 40.0)), 0, 1)
+    if kind == "skin.follower" or kind.startswith("skin.follower."):
+        d = (p - SAC) / SR
+        # (The folds are tools/blender/follower.py's: sin(y * 140) over the sac's middle; their troughs creased.)
+        crease = smooth01(0.85, 1.0, np.abs(np.cos(d[:, 1] * SR[1] * 140))) * smooth01(-0.2, 0.4, d[:, 2])
+        out[:, 0] = np.maximum(0.6 * smooth01(0.2, 0.8, cook.noise_np(p, 1611, 80.0)), 0.7 * crease)
+        out[:, 1] = smooth01(0.2, 0.9, d[:, 2])
+    if kind.startswith("skin.follower_leg"):
+        out[:, 2] = smooth01(0.7, 0.95, np.abs(np.sin(np.linalg.norm(p[:, :2], axis=1) * 90)))
     return out
 
 
-atlas = overbake.Atlas("follower", parts, BAKED, lambda m: 0)
-atlas.unwrap()
+def gloss(p, kind):
+    out = np.zeros((len(p), 3), np.float32)
+    out[:, 0] = (0.03 if kind.startswith("tar.follower_eye") else 0.25 if kind.startswith("skin.follower_shield") else
+                 0.35 if kind.startswith("skin.follower_leg") else 0.2 if kind.startswith("tar.follower_mouth") else 0.3)
+    return out
+
+
+FACE = 1
+
+
+def kind_of(m):
+    return FACE if m.name.startswith(("skin.follower_shield", "tar.follower_eye", "tar.follower_mouth")) else 0
+
+
+atlas = overbake.Atlas("follower", parts, BAKED, kind_of)
+atlas.unwrap(boosts={FACE: 1.8})
 groups = {name: (atlas.part_of == pi, highs[name]) for pi, name in enumerate(BAKED)}
-atlas.bake(groups, cages={"hand": (0.002, 0.006)}, height=0.1, masks={"marks": marks})
+atlas.bake(groups, cages={name: (0.0008, 0.003) for name in BAKED}, height=0.12, masks={"marks": marks, "gloss": gloss})
 
 mk = atlas.maps["marks"]
-base = atlas.base(soot=(0.05, 0.04, 0.035), crease=0.45, ao_floor=0.45)
+base = atlas.base(soot=(0.012, 0.011, 0.01), crease=0.55, ao_floor=0.4)
 
 
 def paint(base, colour, k):
@@ -86,6 +113,8 @@ def paint(base, colour, k):
     return base * (1 - k) + np.array(colour, np.float32) * k
 
 
-base = paint(base, (0.2, 0.22, 0.27), mk[..., 0] * 0.5)    # veins, blue-grey under the skin
-base = paint(base, (0.12, 0.1, 0.08), mk[..., 1] * 0.5)    # grime in the creases
-atlas.finish(base, kit, arm, made=make.provenance("follower", "the Follower, modelled over tools/blender/follower.py"))
+base = paint(base, (0.22, 0.25, 0.3), mk[..., 1] * 0.45)      # stretched thin and blue over the top
+base = paint(base, (0.08, 0.07, 0.07), mk[..., 0] * 0.6)      # mottling, the creases
+base = paint(base, (0.16, 0.11, 0.08), mk[..., 2] * 0.6)      # the legs' bands
+rough = atlas.maps["gloss"][..., 0]
+atlas.finish(base, kit, arm, made=make.provenance("follower", "the Follower, modelled over tools/blender/follower.py"), rough=rough)

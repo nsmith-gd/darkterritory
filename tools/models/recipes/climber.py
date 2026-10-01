@@ -1,12 +1,12 @@
-"""THE CLIMBERS (GDD v1.2 §21 the flank, App. A.4): the crewman gone wrong of tools/blender/climber.py, taken to the
-fidelity target (ARCHITECTURE §8 note 58, tools/models overbake).
+"""THE CLIMBERS (GDD v1.2 §21 the flank, App. A.4): the six-limbed crawler of tools/blender/climber.py, taken to the
+fidelity target (ARCHITECTURE §8 note 58, tools/models overbake; the non-human redo, note 136).
 
 tools/blender/climber.py stays its source: the rig, the clips and the game mesh. This recipe runs it, models a
 high-resolution copy and bakes it into one 1024 atlas:
-  * the skin soot-black and oily where the coveralls are torn off it, wet in the creases;
-  * the coveralls the crew's, worn to rags, scorched and burnt into the skin at the edges of every rent;
-  * the mask's rubber cracked and perished, grown seamless into the face; the eyepieces' rims and the canister rusted.
-Skin 0.45, cloth 0.9, the rubber 0.6, the glass black and wet (0.05).
+  * the skin soot-black and smooth as wet rubber, a sheen on it, finely wrinkled at the joints, scuffed grey where it's
+    dragged along steel;
+  * the belly and the folds at the joints a paler ash-grey;
+  * the sucker's gums dark red and wet, the teeth yellowed horn; the hooks and the spines black, polished.
 
     tools/models/build.sh climber
 """
@@ -29,13 +29,11 @@ make._mats.clear()
 make.LOW.clear()
 
 DRESS = {
-    "tar.climber_nail": (lambda: make.flat("climber_nail", (0.01, 0.009, 0.008), rough=0.4), 1),
-    "tar.climber": (lambda: make.flat("climber_skin", (0.02, 0.018, 0.015), rough=0.45), 2),
-    "wool.climber_coverall": (lambda: make.flat("climber_coverall", (0.05, 0.047, 0.04), rough=0.9), 2),
-    "leather.climber_mask": (lambda: make.flat("climber_mask", (0.03, 0.028, 0.025), rough=0.6), 2),
-    "glass_dirty.climber_eye": (lambda: make.flat("climber_eye", (0.004, 0.004, 0.004), rough=0.05), 1),
-    "rust_heavy.climber_rim": (lambda: make.flat("climber_rim", (0.1, 0.07, 0.045), rough=0.5), 1),
-    "rust_heavy.climber_canister": (lambda: make.flat("climber_canister", (0.08, 0.06, 0.04), rough=0.55), 1),
+    "skin.climber_belly": (lambda: make.flat("climber_belly", (0.06, 0.056, 0.052), rough=0.4), 2),
+    "skin.climber_teeth": (lambda: make.flat("climber_teeth", (0.3, 0.26, 0.17), rough=0.4), 1),
+    "skin.climber": (lambda: make.flat("climber_skin", (0.016, 0.015, 0.014), rough=0.25), 2),
+    "tar.climber_mouth": (lambda: make.flat("climber_mouth", (0.09, 0.015, 0.012), rough=0.12), 1),
+    "tar.climber_nail": (lambda: make.flat("climber_nail", (0.008, 0.007, 0.006), rough=0.2), 1),
 }
 
 
@@ -51,40 +49,34 @@ def ridged(p, seed, scale):
     return 1 - np.abs(cook.noise_np(p, seed, scale))
 
 
-def skin(p, n):
-    return 0.0006 * cook.noise_np(p, 1701, 40.0) + fine(p, 0.00015, 500, 1702)
+def skin_shape(p, n):
+    # Rubber: smooth, but wrinkled finely in places, the wrinkles crossing.
+    w = smooth01(0.4, 0.8, cook.noise_np(p, 1701, 6.0))
+    return -0.0003 * w * smooth01(0.85, 0.97, ridged(p, 1702, 160.0)) + fine(p, 0.00004, 1200, 1703)
 
 
-def cloth(p, n):
-    d = 0.0016 * (ridged(p * np.array([1.0, 1.0, 0.4], np.float32), 1711, 14.0) ** 2 - 0.3)
-    d += 0.0002 * (np.sin(p[:, 2] * 2400) + np.sin((p[:, 0] + p[:, 1]) * 2400))
-    return d + fine(p, 0.00025, 420, 1712)
-
-
-def rubber(p, n):
-    crack = smooth01(0.92, 0.98, ridged(p, 1721, 70.0))
-    return -0.0005 * crack + fine(p, 0.0001, 600, 1722)
-
-
-def rust(p, n):
-    return 0.0006 * np.maximum(0, cook.noise_np(p, 1731, 60.0)) ** 2 + fine(p, 0.0001, 600, 1732)
-
-
-SHAPE = {"tar.climber_nail": lambda p, n: 0 * p[:, 0], "tar.climber": skin, "wool.climber": cloth, "leather.climber": rubber,
-         "glass_dirty.climber": lambda p, n: 0 * p[:, 0], "rust_heavy.climber": rust}
-BAKED = ["head", "body", "limbs"]
+SHAPE = {"skin.climber_belly": skin_shape, "skin.climber_teeth": lambda p, n: fine(p, 0.00003, 1200, 1704), "skin.climber": skin_shape,
+         "tar.climber": lambda p, n: fine(p, 0.00003, 1200, 1705)}
+BAKED = sorted(parts)
 highs = {name: overbake.high_of(parts[name], dress, SHAPE) for name in BAKED}
 print("[dt] climber highs", {k: sum(len(h.data.polygons) for h in v) for k, v in highs.items()})
 
 
 def marks(p, kind):
-    """R: soot and scorch on the cloth; G: the rubber's cracks pale; B: the glass's wet."""
+    """R: scuffed grey where it's dragged along steel (its underside, its forearms, its hooks' roots); G: sheen
+    blotches (wetter)."""
     out = np.zeros((len(p), 3), np.float32)
-    if kind.startswith("wool.climber"):
-        out[:, 0] = np.clip(smooth01(0.1, 0.8, cook.noise_np(p, 1741, 7.0)), 0, 1)
-    if kind.startswith("leather.climber"):
-        out[:, 1] = np.clip(smooth01(0.92, 0.98, ridged(p, 1721, 70.0)), 0, 1)
-    out[:, 2] = kind.startswith("glass_dirty.climber")
+    if kind.startswith("skin.climber") and not kind.startswith("skin.climber_teeth"):
+        low = smooth01(0.35, 0.05, p[:, 2])
+        out[:, 0] = np.clip(low * smooth01(0.1, 0.8, cook.noise_np(p * np.array([1, 0.3, 1], np.float32), 1711, 25.0)), 0, 1)
+        out[:, 1] = smooth01(0.2, 0.8, cook.noise_np(p, 1712, 4.0))
+    return out
+
+
+def gloss(p, kind):
+    out = np.zeros((len(p), 3), np.float32)
+    out[:, 0] = (0.12 if kind.startswith("tar.climber_mouth") else 0.4 if kind.startswith("skin.climber_teeth") else
+                 0.2 if kind.startswith("tar.climber_nail") else 0.4 if kind.startswith("skin.climber_belly") else 0.25)
     return out
 
 
@@ -92,16 +84,16 @@ FACE = 1
 
 
 def kind_of(m):
-    return FACE if m.name.startswith(("leather.climber_mask", "glass_dirty.climber", "rust_heavy.climber")) else 0
+    return FACE if m.name.startswith(("tar.climber_mouth", "skin.climber_teeth")) else 0
 
 
 atlas = overbake.Atlas("climber", parts, BAKED, kind_of)
 atlas.unwrap(boosts={FACE: 2.0})
 groups = {name: (atlas.part_of == pi, highs[name]) for pi, name in enumerate(BAKED)}
-atlas.bake(groups, cages={"head": (0.006, 0.02), "body": (0.01, 0.025), "limbs": (0.008, 0.02)}, height=1.9, masks={"marks": marks})
+atlas.bake(groups, cages={name: (0.003, 0.012) for name in BAKED}, height=1.0, masks={"marks": marks, "gloss": gloss})
 
 mk = atlas.maps["marks"]
-base = atlas.base(soot=(0.012, 0.011, 0.01), crease=0.5, ao_floor=0.4)
+base = atlas.base(soot=(0.01, 0.009, 0.009), crease=0.5, ao_floor=0.45)
 
 
 def paint(base, colour, k):
@@ -109,8 +101,6 @@ def paint(base, colour, k):
     return base * (1 - k) + np.array(colour, np.float32) * k
 
 
-base = paint(base, (0.02, 0.016, 0.012), mk[..., 0] * 0.6)    # soot and scorch
-base = paint(base, (0.07, 0.065, 0.06), mk[..., 1] * 0.5)     # the perished rubber's cracks
-rough = np.full(base.shape[:2], 0.7, np.float32)
-rough = np.where(mk[..., 2] > 0.5, 0.05, rough)
+base = paint(base, (0.07, 0.066, 0.062), mk[..., 0] * 0.55)    # scuffed grey
+rough = np.clip(atlas.maps["gloss"][..., 0] - 0.1 * mk[..., 1] + 0.25 * mk[..., 0], 0.05, 1)
 atlas.finish(base, kit, arm, made=make.provenance("climber", "the Climber, modelled over tools/blender/climber.py"), rough=rough)
