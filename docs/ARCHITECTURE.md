@@ -2375,3 +2375,15 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `crawl` scuttles on alternating sets of legs.
       - `nest` spreads it flat, the sac swelling and easing, the legs kneading pair after pair, the beak working.
     - **The engine side is unchanged:** the riding matrix, `FollowerSwell`. Only the comments say tick where they said hand. `FollowerTests` pass as they were.
+
+134. **The Climbers are no longer men (GDD v1.2 §21, App. A.4).** Note 122's Climber was a crewman gone wrong, its gas mask grown into its face: SK_Human drawn out. Now it's a long, low, soot-black thing with six limbs (`tools/blender/climber.py`, baked by `tools/models/recipes/climber.py`, 3,652 triangles, 36 bones, SK_Climber).
+    - **The body.** The limbs are splayed out from its sides like a gecko's: the elbows out and up at the body's height, the forearms coming down from them, each hand three hooked fingers made for steel. Its skin is wet-looking rubber, paler grey under the belly, with a row of short spines down its back to a whip of a tail.
+    - **The head.** An eyeless blunt wedge. Under its front is a lamprey's sucker, ringed with three rows of hooked yellow teeth.
+    - **The clips keep their names and their jobs.**
+      - `run` snakes along low with the limbs in alternating threes.
+      - `scrabble` stands it up the gap like a lizard on a wall, the hooks snatching up the car ends, the buffers and the coupler.
+      - `walk` creeps flattened, one limb at a time, its head swinging as if it could smell its way.
+      - `crouch` folds it in a corner, its head cocked; once it snaps to the other side.
+      - `grab` rears it over its victim, the forehooks over their head and the sucker opened on their face.
+    - **Limb IK.** The limbs go by `rig.reach` from a spread of starts. The elbow is kept out at its own side and, on the ground, up at the body's height. That's what keeps the sprawl from collapsing into a stick insect's legs.
+    - **`ClimberTests` keep their measures.** It runs under 1.2 m, crouches under 1.3 m and walks the roofs under 1.7 m.

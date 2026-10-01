@@ -769,10 +769,11 @@ public sealed class CreatureArt
                 }
             case EnemyKind.Climber when _models.ContainsKey("climber"):
                 {
-                    // The Climbers (GDD v1.2 §21, App. A.4; tools/blender/climber.py): one of the crew gone wrong, the gas
-                    // mask grown into its face. Pacing the train it runs bent double on all fours; at a gap it scrabbles
-                    // up between the cars, facing in (Enemy(e) turns it); on the roofs it walks crouched for the engine;
-                    // inside an unlit car (extra −1) it waits folded in a corner; on a lone player it grabs.
+                    // The Climbers (GDD v1.2 §21, App. A.4; tools/blender/climber.py; note 134): long, low, soot-black, six
+                    // limbs splayed like a gecko's, hooked hands, an eyeless wedge of a head with a lamprey's sucker under
+                    // it. Pacing the train it runs low, snaking; at a gap it goes up between the cars, facing in (Enemy(e)
+                    // turns it); on the roofs it creeps flattened for the engine; inside an unlit car (extra −1) it waits
+                    // folded in a corner; on a lone player it rears over them, the sucker on their face.
                     bool inside = extra < 0;
                     string clip = phase switch
                     {
