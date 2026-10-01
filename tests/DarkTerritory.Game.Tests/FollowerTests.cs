@@ -7,8 +7,8 @@ using DarkTerritory.Sim.Enemies;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The Followers (GDD v1.2 §21, App. A.6; tools/blender/follower.py; ARCHITECTURE §8 note 121): riding, a hand flat on its
-/// carrier's back where their friends can see it; off them it scuttles; nesting, it swells as the nest builds.
+/// The Followers (GDD v1.2 §21, App. A.6; tools/blender/follower.py; ARCHITECTURE §8 notes 121, 135): riding, a tick flat
+/// on its carrier's back where their friends can see it; off them it scuttles; nesting, it swells as the nest builds.
 /// </summary>
 public class FollowerTests
 {
@@ -48,7 +48,7 @@ public class FollowerTests
     public void OffItsCarrierItsSmallOnTheGroundAndItsNestSwellsIt()
     {
         var crawling = Drawn(SpinePhase.Commit, -1, 0);
-        Assert.True(crawling.Max(p => p.Position.Y) < 0.15f, "it's down on its fingertips");
+        Assert.True(crawling.Max(p => p.Position.Y) < 0.15f, "it's down on its legs");
         static float Span(Vertex[] v) => v.Max(p => p.Position.Z) - v.Min(p => p.Position.Z);
         float building = Span(Drawn(SpinePhase.Commit, -1, 0.5)), built = Span(Drawn(SpinePhase.Punish, -1, 1));
         Assert.True(building > Span(crawling) * 1.3f && built > building * 1.2f, $"crawling {Span(crawling)}, half a nest {building}, a nest {built}");

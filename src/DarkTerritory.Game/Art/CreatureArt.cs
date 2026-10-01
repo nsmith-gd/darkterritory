@@ -116,7 +116,7 @@ public sealed class CreatureArt
 
     // A Gaunt or a Grumbler goes (lopes, crawls, scuttles) above this pace (m/s), and stands (listens, squats, bites) below
     // it. At each point of its anger a Gaunt leans in this much more of the way (all of it at the sim's default threshold,
-    // enemies.json gaunt.attackAt), its back bent forward this far (radians) and its head tipped over this far at the most.
+    // enemies.json gaunt.attackAt), its neck let down this far (radians) and its head tipped over this far at the most.
     // A riding Follower is this high on its carrier and this far behind their middle (m: a crewmate's back, tools/blender/
     // crew.py); its nest swells it this much (the full nest, 1 + this times its size).
     const float FollowerUp = 1.35f, FollowerBack = 0.15f, FollowerSwell = 1.5f;
@@ -124,7 +124,7 @@ public sealed class CreatureArt
     // The Stoker's own fire, in its mouth and its splits: the sick green of a fire with it in (GreyboxScene.FireColour).
     static readonly Vector3 StokerFire = new(0.35f, 0.6f, 0.22f);
 
-    const float Going = 0.4f, GauntLeanPerAnger = 0.25f, GauntLean = 0.45f, GauntTilt = 0.6f;
+    const float Going = 0.4f, GauntLeanPerAnger = 0.25f, GauntLean = 0.32f, GauntTilt = 0.6f;
 
     // Fire Flies round a car's lantern (tools/blender/fire_fly.py; the lantern's tools/models hand_lantern, its flame at the
     // model's origin): at most this many of them, the swarm filling as they linger (all of it by FireFlySwarmFills
@@ -466,13 +466,20 @@ public sealed class CreatureArt
     }
 
     /// <summary>
-    /// A listening Gaunt leant in over who it's listening to, <paramref name="anger"/> (0..1) of the way: its back bent
-    /// forward from the chest (the model faces −Z) and its head tipped over on its side (App. A.6 LISTEN's telegraph).
+    /// A listening Gaunt leant in over who it's listening to, <paramref name="anger"/> (0..1) of the way: its neck let
+    /// down from the shoulders (the model faces −Z), the top of it straightened again so the head still reaches out over
+    /// them, and its head tipped over on its side (App. A.6 LISTEN's telegraph). Not its back: its forelegs hang from it
+    /// (note 132).
     /// </summary>
     static void LeanIn(Entry m, float anger)
     {
-        Bend(m, "spine_03", Matrix4x4.CreateRotationX(-GauntLean * anger));
-        Bend(m, "head", Matrix4x4.CreateRotationZ(GauntTilt * anger));
+        Bend(m, "neck_01", Matrix4x4.CreateRotationX(-GauntLean * anger));
+        Bend(m, "neck_03", Matrix4x4.CreateRotationX(0.5f * GauntLean * anger));
+        // (Rolled about the skull's own length, the way it's pointing: the jaw's hinge from its nape.)
+        var sk = m.Model.Skeleton;
+        int head = sk.IndexOf("head"), jaw = sk.IndexOf("jaw");
+        var along = head >= 0 && jaw >= 0 ? m.Pose.World[jaw].Translation - m.Pose.World[head].Translation : Vector3.UnitZ;
+        Bend(m, "head", Matrix4x4.CreateFromAxisAngle(along.LengthSquared() > 1e-8f ? Vector3.Normalize(along) : Vector3.UnitZ, -GauntTilt * anger));
     }
 
     /// <summary>
@@ -762,10 +769,11 @@ public sealed class CreatureArt
                 }
             case EnemyKind.Climber when _models.ContainsKey("climber"):
                 {
-                    // The Climbers (GDD v1.2 §21, App. A.4; tools/blender/climber.py): one of the crew gone wrong, the gas
-                    // mask grown into its face. Pacing the train it runs bent double on all fours; at a gap it scrabbles
-                    // up between the cars, facing in (Enemy(e) turns it); on the roofs it walks crouched for the engine;
-                    // inside an unlit car (extra −1) it waits folded in a corner; on a lone player it grabs.
+                    // The Climbers (GDD v1.2 §21, App. A.4; tools/blender/climber.py; note 136): long, low, soot-black, six
+                    // limbs splayed like a gecko's, hooked hands, an eyeless wedge of a head with a lamprey's sucker under
+                    // it. Pacing the train it runs low, snaking; at a gap it goes up between the cars, facing in (Enemy(e)
+                    // turns it); on the roofs it creeps flattened for the engine; inside an unlit car (extra −1) it waits
+                    // folded in a corner; on a lone player it rears over them, the sucker on their face.
                     bool inside = extra < 0;
                     string clip = phase switch
                     {
@@ -819,10 +827,10 @@ public sealed class CreatureArt
                 }
             case EnemyKind.Follower when _models.ContainsKey("follower"):
                 {
-                    // The Followers (GDD v1.2 §21, App. A.6; tools/blender/follower.py): a hand gone wrong, a mouth on its
-                    // back. On someone's back (Enemy(e) laid it flat between their shoulder blades) it clings, and twitches;
-                    // off it, it scuttles on its fingertips; at its car it spreads over the loot and swells as its nest
-                    // builds (extra2), kneading it, eating.
+                    // The Followers (GDD v1.2 §21, App. A.6; tools/blender/follower.py; note 135): a bloated tick, ten legs,
+                    // its eyes bunched on its shield. On someone's back (Enemy(e) laid it flat between their shoulder
+                    // blades) it clings, and twitches; off it, it scuttles; at its car it spreads over the loot and swells
+                    // as its nest builds (extra2), pulsing, kneading it, feeding.
                     bool nesting = phase == SpinePhase.Punish || phase == SpinePhase.Commit && extra2 > 0;
                     float swell = phase == SpinePhase.Punish ? 1 : (float)Math.Clamp(extra2, 0, 1);
                     var at = nesting ? Matrix4x4.CreateScale(1 + FollowerSwell * swell) * model : model;
@@ -865,11 +873,12 @@ public sealed class CreatureArt
                 return Crewmate(mesh, model, phase == SpinePhase.Telegraph ? CrewPose.Walk : CrewPose.Idle, t, (int)Math.Round(extra));
             case EnemyKind.Gaunt when _models.ContainsKey("gaunt"):
                 {
-                    // The Gaunt (GDD v1.2 §21, App. A.6; tools/blender/gaunt.py). Asleep, the heap breathing; stirring, its
-                    // head up out of it to look. Woken, it lopes after its waker while they go and stands over them
-                    // listening when they stop, leant in further and its head tipped over further at every point of
-                    // anger (extra2); at its threshold the fists come down. The cars weren't built for it (note 118): aboard
-                    // it drags itself along on its arms, squats to listen, and smashes from the squat.
+                    // The Gaunt (GDD v1.2 §21, App. A.6; tools/blender/gaunt.py; a thing on stilts, note 132). Asleep, the
+                    // heap of branches breathing; stirring, its head up out of it to listen. Woken, it stalks after its
+                    // waker while they go and stands over them listening when they stop, its neck let down further and its
+                    // head tipped over further at every point of anger (extra2); at its threshold it rears and the forelegs
+                    // come down. The cars weren't built for it (note 118): aboard it creeps with its legs folded, squats
+                    // to listen, and stabs from the squat.
                     var room = _room;
                     float pace = _pace;
                     _room = Room.Open;
@@ -980,11 +989,12 @@ public sealed class CreatureArt
                 }
             case EnemyKind.Whistler when _models.ContainsKey("whistler"):
                 {
-                    // The gap-dweller (GDD v1.2 §21, App. A.4; tools/blender/whistler.py), its feet on the rail between the
-                    // cars (Enemy(e) drops it from the sim's gap point). Hidden, it's folded small under the bridge plate,
-                    // breathing: there to be found by whoever looks down into the gap. Whistling (extra), the long arm
-                    // shoots up out of the gap and yanks the cord; then it watches the gap's mouth, the head turning in
-                    // jerks. Carrying someone off, it runs on all fours.
+                    // The gap-dweller (GDD v1.2 §21, App. A.4; tools/blender/whistler.py; a pale many-legged coil, note
+                    // 133), on the rail between the cars (Enemy(e) drops it from the sim's gap point). Hidden, it's coiled
+                    // under the bridge plate round the drawgear, breathing: there to be found by whoever looks down into
+                    // the gap. Whistling (extra), it rears straight up out of the gap, hooks the cord with its forelegs
+                    // and yanks it, the siphon blowing; then it watches the gap's mouth, its front lifted, turning in
+                    // jerks. Carrying someone off, it runs, snaking, its legs in waves.
                     string clip = phase switch
                     {
                         SpinePhase.Dormant => "fold",
@@ -1162,11 +1172,12 @@ public sealed class CreatureArt
                 }
             case EnemyKind.Choir when _models.ContainsKey("choir"):
                 {
-                    // One of the Choir's ghosts (GDD v1.2 §21, App. A.7; tools/blender/choir.py): a choir child in a filthy
-                    // surplice, legless, its strips streaming, its jaw dropped in a silent O. The voices arriving (TELEGRAPH)
-                    // it drifts, circling, singing; after someone (COMMIT, extra its target) it swoops at them, and with
-                    // nobody to take it beats on the shut doors; seizing (GRAB) it's wrapped round its catch's head. It
-                    // bobs; the faint cold about it is all the light it has (§26: not neon).
+                    // One of the Choir's ghosts (GDD v1.2 §21, App. A.7; tools/blender/choir.py; note 134): a bell of veined
+                    // membrane drifting like a jellyfish, one child's mouth on its front held open singing, its tendrils
+                    // trailing. The voices arriving (TELEGRAPH) it drifts, pulsing, singing; after someone (COMMIT, extra
+                    // its target) it swoops at them, and with nobody to take it presses to the shut doors lashing at them;
+                    // seizing (GRAB) it's capped on its catch's head, the tendrils wound round it. It bobs; the faint cold
+                    // about it is all the light it has (§26: not neon).
                     _prey = null;
                     var at = Matrix4x4.CreateTranslation(0, (float)(0.12 * Math.Sin(t * 2.3 + extra2)), 0) * model;
                     string clip = phase switch
@@ -1321,8 +1332,8 @@ public sealed class CreatureArt
                 break;
             case EnemyKind.Follower when _models.ContainsKey("follower") && prey is { } carrier && e.Phase is SpinePhase.Dormant or SpinePhase.Telegraph:
                 {
-                    // Riding: flat between its carrier's shoulder blades, its palm to them and its fingers up (the model's
-                    // −Y into their back, its −Z, the fingers' way, up), where their friends can see it and they can't.
+                    // Riding: flat between its carrier's shoulder blades, its belly to them and its head up (the model's −Y
+                    // into their back, its −Z, the way it faces, up), where their friends can see it and they can't.
                     var r = carrier.Right;
                     var f = carrier.Forward;
                     var o = carrier.At(0, FollowerUp, FollowerBack);
