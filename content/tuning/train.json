@@ -27,7 +27,9 @@
     // Engine + tender unit: boiler forward, walkable cab, coal tender behind (heights above rail).
     "engine": {
       "deckHeight": 1.4,
-      "boilerHalfWidth": 0.95,
+      // A 1.6 m boiler (T101: at 1.9 m it hid the line from the driver; past it from the cab window, the near rail's in
+      // sight from 30 m and the middle of the track from 40 m).
+      "boilerHalfWidth": 0.8,
       "boilerTop": 3.6,
       "cabLength": 4.0,
       "tenderLength": 4.0,
@@ -64,7 +66,13 @@
       // tread is this long; the rise is the floor height in steps you can walk up (player.json stepUp).
       "sideDoorWidth": 1.8,
       "stepWidth": 0.6,
-      "stepDepth": 0.4
+      "stepDepth": 0.4,
+      // A cargo car's roof hatch (T99, spec D.2 crane): a lid across the roof between the walls, centred this far back
+      // (over the aisle and the load behind the side doors) and this long. Opened from the roof by holding Use at its
+      // edge; the crane lowers a casting in through it. Long enough for a casting (facilities.json castingSize) whichever
+      // way it hangs.
+      "hatchZ": 3.2,
+      "hatchLength": 2.4
     }
   },
 

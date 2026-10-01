@@ -24,9 +24,12 @@ public sealed class Effects(Look look)
     /// The engine's: smoke and cinders from the stack, steam from the cylinder cocks when she's working slow, sparks at
     /// the brake shoes under a hard brake, and the headlamp's beam and halo.
     /// </summary>
+    /// <param name="vent">Someone's holding the blow-off open on the running board (T101): a roaring white jet out sideways,
+    /// seen from the cab.</param>
+    /// <param name="safety">The safety valve's lifting: a column of steam straight up off the boiler.</param>
     /// <param name="tailBite">What a Car Hugger's eaten of the last car (Art/BiteKit): its tail lamp goes with its corner.</param>
     public void Train(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye, double time, TrainControls controls, float fire, bool emergency,
-        Bite tailBite = default)
+        bool vent = false, bool safety = false, Bite tailBite = default)
     {
         if (frames.Count == 0 || (frames[0].Origin - eye).Length > 400)
             return;
@@ -88,6 +91,38 @@ public sealed class Effects(Look look)
                 var p = front + right * side * (1.2f + age * 2.5f) + up * (age * 0.8f) + back * ((h - 0.5f) * 0.8f) - velocity * age;
                 float t = age / period;
                 mesh.Billboard(p, 0.6f + t * 2.2f, h * 6.28f, new Vector4(0.34f, 0.35f, 0.37f, 0.45f * amount * (1 - t)), _steam, FxBlend.Alpha, (int)(t * 15.99f), 4);
+            }
+        }
+
+        // The blow-off (T101): out sideways from the valve on the running board, fast and white, rising as it slows.
+        if (vent)
+            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
+            {
+                var at = engine.ToWorld(i.Position + new Double3(0, 1.1, 0)).RelativeTo(eye);
+                float outward = Math.Sign((float)i.Position.X);
+                for (int k = 0; k < 26; k++)
+                {
+                    float h = Hash(k * 5.31f);
+                    float period = 0.7f + h * 0.5f;
+                    float age = (float)((time * 1.3 + h * 7) % period);
+                    float t = age / period;
+                    var p = at + right * outward * (0.3f + age * 6f) + up * (age * age * 3f) + back * ((h - 0.5f) * 0.6f) - velocity * age;
+                    mesh.Billboard(p, 0.35f + t * 2.6f, h * 6.28f, new Vector4(0.62f, 0.63f, 0.66f, 0.7f * (1 - t)), _steam, FxBlend.Alpha, (int)(t * 15.99f), 4);
+                }
+            }
+        // The safety valve lifting: straight up off the boiler ahead of the cab.
+        if (safety && shape.Cab is { } cab)
+        {
+            var boiler = shape.Solids.First(s => s.Part == PartKind.Boiler).Box;
+            var at = engine.ToWorld(new Double3(0, boiler.Max.Y + 0.35, cab.Min.Z - 1.2)).RelativeTo(eye);
+            for (int k = 0; k < 18; k++)
+            {
+                float h = Hash(k * 2.17f);
+                float period = 1.0f + h * 0.6f;
+                float age = (float)((time + h * 5) % period);
+                float t = age / period;
+                var p = at + up * (age * 5f) + (right * (h - 0.5f) + back * (Hash(k + 0.7f) - 0.5f)) * age - velocity * age;
+                mesh.Billboard(p, 0.3f + t * 2.0f, h * 6.28f, new Vector4(0.6f, 0.61f, 0.64f, 0.6f * (1 - t)), _steam, FxBlend.Alpha, (int)(t * 15.99f), 4);
             }
         }
 

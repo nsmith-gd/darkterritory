@@ -102,9 +102,24 @@ public sealed partial class SceneArt(Look look)
         }
         Swung("lever_brake", "brake_stand", levers.Brake, levers.BrakeAt(controls.Brake), BrakeLever);
         Swung("lever_reverser", "reverser_quadrant", levers.Reverser, levers.ReverserAt(controls.Reverser), ReverserLever);
-        if (props.Get("vent_valve") is { } vent)
-            foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
-                mesh.Append(vent, Matrix4x4.CreateTranslation(ToF(i.Position) + new Vector3(0, 1.1f, 0)) * m);
+        // T101: the brake reads at a glance, a red-painted handle on its lever. (These are for whoever's on the engine:
+        // farther off they're a few pixels, and the headset's frame budget has no room for them.)
+        bool near = (frame.Origin - eye).Length < 30;
+        if (near)
+            mesh.Append(Piece("brake-grip", () => TrainKit.Grip(Look, Palette.SignalRed)), Matrix4x4.CreateTranslation(ToF(levers.BrakeAt(controls.Brake))) * m);
+        foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
+        {
+            // The blow-off on its standpipe up from the running board, a red wheel on it, and a marker lamp over it so
+            // it's found in the dark from the cab's window (T101): the lamp from anywhere.
+            var at = ToF(i.Position);
+            if (near)
+                mesh.Append(Piece("vent-stand", () => TrainKit.VentStand(Look, 1.1f)), Matrix4x4.CreateTranslation(at) * m);
+            if (props.Get("vent_valve") is { } vent)
+                mesh.Append(vent, Matrix4x4.CreateTranslation(at + new Vector3(0, 1.1f, 0)) * m);
+            var lamp = Vector3.Transform(at + new Vector3(0, 1.55f, 0), m);
+            mesh.PointLights.Add(new PointLight(lamp, new Vector3(1.0f, 0.35f, 0.15f) * 0.8f, 3.5f));
+            mesh.Billboard(lamp, 0.22f, 0, new Vector4(1.0f, 0.35f, 0.15f, 1), -1, FxBlend.Additive);
+        }
         return true;
     }
 
@@ -198,13 +213,17 @@ public sealed partial class SceneArt(Look look)
         if (engine.Shape.Cab is null || (engine.Origin - eye).Length > 30)
             return;
         var m = FrameMatrix(engine, eye);
+        // The gauge lamp under the cab roof (T101): the backhead, its dials and the map over it lit enough to read whatever
+        // the fire's doing.
+        var cab = engine.Shape.Cab!.Value;
+        mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0.3f, (float)cab.Max.Y - 0.3f, (float)cab.Min.Z + 0.9f), m), new Vector3(1.0f, 0.78f, 0.5f) * 0.55f, 3.2f));
         var needle = Piece("needle", () => TrainKit.Needle(Look));
         for (int i = 0; i < 4 && i < fractions.Length; i++)
         {
             // From 7:30 round to 4:30, clockwise as you face it: the dial faces +Z (back into the cab).
             float angle = (0.75f - 1.5f * Math.Clamp(fractions[i], 0, 1)) * MathF.PI;
             var c = TrainKit.GaugeCentre(engine.Shape, i);
-            mesh.Append(needle, Matrix4x4.CreateRotationZ(angle) * Matrix4x4.CreateTranslation(c) * m);
+            mesh.Append(needle, Matrix4x4.CreateScale(TrainKit.GaugeRadius / 0.11f) * Matrix4x4.CreateRotationZ(angle) * Matrix4x4.CreateTranslation(c) * m);
         }
     }
 
@@ -272,6 +291,9 @@ public sealed partial class SceneArt(Look look)
     /// A car: its body from the kit, its doors where the vehicle has them (shut in the doorway, or slid aside), and its gun
     /// turned the way it faces. Returns false when the kit can't draw this car (so the greybox does).
     /// </summary>
+    /// <summary>How far an open roof hatch's lid is swung over on its hinges (T99): a little past upright.</summary>
+    const float OpenHatch = MathF.PI * 100 / 180;
+
     public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, bool emergency, long tick = -1)
     {
         var shape = frame.Shape;
@@ -322,6 +344,30 @@ public sealed partial class SceneArt(Look look)
             var leaf = Piece($"door:{side}:{size.X:0.##}x{size.Y:0.##}x{size.Z:0.##}", () => TrainKit.Door(Look, size, side));
             var c = box.Centre;
             mesh.Instances.Add(new MeshInstance(leaf, Matrix4x4.CreateTranslation((float)c.X, (float)c.Y, (float)c.Z) * m, Scar: scar));
+        }
+        // A cargo car's roof hatch (T99): two leaves meeting on the centreline, shut in the opening, or open, each swung up
+        // on its hinges at its side a little past upright, so from the roof or the crane's cab you can see it's open.
+        if (shape.Hatch is { } hatch)
+        {
+            var size = new Vector3((float)(hatch.Max.X - hatch.Min.X) / 2, (float)(hatch.Max.Y - hatch.Min.Y), (float)(hatch.Max.Z - hatch.Min.Z));
+            var lid = Piece($"hatch:{size.X:0.##}x{size.Y:0.##}x{size.Z:0.##}", () => TrainKit.HatchLid(Look, size));
+            var c = hatch.Centre;
+            bool open = vehicle?.DoorOpen(CarShape.HatchBit) == true;
+            foreach (int side in new[] { -1, 1 })
+            {
+                // The leaf's hinges are on its +X: the left leaf is the right one turned about.
+                var turn = side < 0 ? Matrix4x4.CreateRotationY(MathF.PI) : Matrix4x4.Identity;
+                Matrix4x4 at;
+                if (open)
+                {
+                    var swing = Matrix4x4.CreateRotationZ(-OpenHatch);
+                    var hinge = new Vector3(size.X, (float)hatch.Max.Y, 0);
+                    at = swing * Matrix4x4.CreateTranslation(hinge - Vector3.Transform((size / 2) with { Z = 0 }, swing)) * turn;
+                }
+                else
+                    at = Matrix4x4.CreateTranslation(size.X / 2, (float)c.Y, 0) * turn;
+                mesh.Instances.Add(new MeshInstance(lid, at * Matrix4x4.CreateTranslation((float)c.X, 0, (float)c.Z) * m, Scar: scar));
+            }
         }
         // The gun rail along the roof (T93), and the gun wherever it's been pushed along it.
         if (shape.RoofRail is { } rail)

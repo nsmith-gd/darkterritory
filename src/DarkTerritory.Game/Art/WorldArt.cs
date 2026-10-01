@@ -351,13 +351,24 @@ public sealed partial class WorldArt(Look look)
     /// Everything with its start in [<paramref name="from"/>, <paramref name="to"/>), so neighbouring cells (<see cref="Cells"/>)
     /// share nothing and miss nothing.
     /// </remarks>
+    /// <summary>
+    /// Where the fortresses' walls are along the line (T100): the home fortress's gate at the end of its yard, and the
+    /// terminus's. The lineside keeps its trees and rocks out from between them. Null when there's no route.
+    /// </summary>
+    public (double YardEnd, double HomeGate)? Walls { get; set; }
+
+    /// <summary>Inside a fortress's walls (<see cref="Walls"/>, which stand 14.8 m out), with a little room.</summary>
+    bool InsideWalls(double along, double offset) =>
+        Walls is { } w && Math.Abs(offset) < 16.5 && (along < w.YardEnd + 2 || along > w.HomeGate - 2);
+
     public void Lineside(MeshBuilder mesh, RailLine line, Route? route, Double3 eye, double from, double to, int seed, float valleyDepth)
     {
         // Clear of bridges, and of tunnels and their cuttings (the hill's approaches).
         bool Clear(double s) => route is null || (!route.InTunnel(s) && !route.InTunnel(s + 30) && !route.InTunnel(s - 30) && route.BridgeAt(s) is null);
         // (And off a stop's ground: its buildings, roads and tracks, OnStop.)
         bool OnBranch(double along, double offset) => line.Branches.Any(b => along > b.Toe - 20 && along < b.End + 20 && Math.Sign(offset) == b.Side
-            && Math.Abs(offset) < (b.Kind == BranchKind.Spur ? 60 : 16)) || OnStop(route, along, offset) || !PlanClear(route, line, along, offset);
+            && Math.Abs(offset) < (b.Kind == BranchKind.Spur ? 60 : 16)) || OnStop(route, along, offset) || InsideWalls(along, offset)
+            || !PlanClear(route, line, along, offset);
         Matrix4x4 Place(double s, double lateral, float yaw, float scale, float sink = 0)
         {
             var t = line.Sample(s);

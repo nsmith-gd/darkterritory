@@ -164,6 +164,8 @@ public sealed partial class WorldArt
                 mesh.Billboard(lamp, 2.2f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
             }
         }
+        if (lit)
+            FortVillage(mesh, line, eye, a, b, start, end, gateAt, platform);
         if (gateAt >= from && gateAt <= to)
         {
             var t = line.Sample(gateAt);
@@ -213,6 +215,88 @@ public sealed partial class WorldArt
             var lantern = Vector3.Transform(StructureKit.Lantern, m);
             mesh.PointLights.Add(new PointLight(lantern, Palette.LampAmber * 1.5f, 9));
             mesh.Billboard(lantern, 0.9f, 0, new Vector4(Palette.LampAmber * 0.7f, 1), -1, FxBlend.Additive);
+        }
+    }
+
+    /// <summary>How far apart the houses inside a fortress's walls stand along it, and how far out from the line.</summary>
+    const double HouseEvery = 15, HouseOut = 10.9;
+
+    /// <summary>Along a fortress's line, clear of its gate: where its houses stand.</summary>
+    static bool InTheVillage(double s, double start, double end, double gateAt) =>
+        s > start + 25 && s < end - 25 && Math.Abs(s - gateAt) > 30;
+
+    /// <summary>The home fortress's platform, right of the line behind its gate (<see cref="Fortress"/>), which no house stands on.</summary>
+    static bool OnThePlatform(double s, int side, double start, double gateAt, bool platform) =>
+        platform && side > 0 && s > start + 50 && s < gateAt - 20;
+
+    /// <summary>
+    /// The village the walls keep (T100 playtest: "fort villages should look like protected villages btw with people
+    /// around"): whole houses down both sides between the line and the walls, fronts to the line, a lamp in a window here
+    /// and there and the odd one lighting the ground in front, gaps between them. Laid out from where they stand, so it
+    /// doesn't change as you pass.
+    /// </summary>
+    void FortVillage(MeshBuilder mesh, RailLine line, Double3 eye, double a, double b, double start, double end, double gateAt, bool platform)
+    {
+        for (double s = Math.Ceiling(a / HouseEvery) * HouseEvery; s < b; s += HouseEvery)
+        {
+            if (!InTheVillage(s, start, end, gateAt))
+                continue;
+            var t = line.Sample(s);
+            if ((t.Position - eye).Length > 320)
+                continue;
+            var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+            foreach (int side in new[] { -1, 1 })
+            {
+                int h = (int)(s / HouseEvery) * 7 + (side > 0 ? 3 : 0);
+                if (h % 5 == 0 || OnThePlatform(s, side, start, gateAt, platform))
+                    continue;
+                int v = h % 6;
+                var at = t.Position + r * (side * HouseOut);
+                mesh.Instances.Add(new MeshInstance(Piece($"lived-house-{v}", () => TownKit.LivedHouse(_look, v)), Basis(t.Tangent, at, eye, side * MathF.PI / 2)));
+                if (h % 3 != 0)
+                    continue;
+                var glow = (at - r * (side * (TownKit.LivedDepth / 2 + 0.8)) + Double3.Up * 1.4).RelativeTo(eye);
+                mesh.PointLights.Add(new PointLight(glow, Palette.LampAmber * 0.9f, 7));
+            }
+        }
+    }
+
+    /// <summary>
+    /// The few about in a fortress at night (T100: "not a ton because its night"): a watchman either side of the gate, and
+    /// here and there someone standing in front of their house facing the line, the train that's leaving or come in. Where
+    /// each stands (feet, world) and which way they face (world, level), within <paramref name="reach"/> of the eye.
+    /// </summary>
+    public static IEnumerable<(Double3 Feet, Double3 Facing, int Variant)> FortFolk(RailLine line, Double3 eye, double start, double end, double gateAt, bool platform, double reach = 160)
+    {
+        if (gateAt >= 0 && gateAt <= line.Length)
+        {
+            var g = line.Sample(gateAt);
+            var gr = Double3.Cross(g.Tangent, Double3.Up).Normalized;
+            // Inside the gate, back from the skull lanterns, facing across the line at each other. (A sample's tangent
+            // points back down the line, as the kit's frames have it: +Z is behind.)
+            foreach (int side in new[] { -1, 1 })
+            {
+                var feet = g.Position + gr * (side * 5.4) + g.Tangent * (start == 0 ? 9 : -9);
+                if ((feet - eye).Length < reach)
+                    yield return (feet, gr * -side, side > 0 ? 1 : 2);
+            }
+        }
+        for (double s = Math.Ceiling(start / HouseEvery) * HouseEvery; s < end; s += HouseEvery)
+        {
+            if (!InTheVillage(s, start, end, gateAt))
+                continue;
+            int n = (int)(s / HouseEvery);
+            // One house in four or so has someone out in front of it.
+            if (n * 37 % 11 > 2)
+                continue;
+            int side = n % 2 == 0 ? -1 : 1;
+            if (OnThePlatform(s, side, start, gateAt, platform) || (n * 7 + (side > 0 ? 3 : 0)) % 5 == 0)
+                continue;
+            var t = line.Sample(s);
+            var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+            var feet = t.Position + r * (side * (HouseOut - TownKit.LivedDepth / 2 - 1.3)) + t.Tangent * (n % 3 - 1);
+            if ((feet - eye).Length < reach)
+                yield return (feet, r * -side, 3 + n % 5);
         }
     }
 

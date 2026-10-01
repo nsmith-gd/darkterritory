@@ -48,6 +48,8 @@ public struct Boiler
 
     /// <summary>Set by the crew each tick: someone is holding the vent valve open.</summary>
     public bool Venting;
+    /// <summary>The vent was open on the last step (T101): what the blow-off's steam and roar show, on every machine.</summary>
+    public bool Vented;
     /// <summary>Extra pressure per second from outside the model: the Stoker (GDD App. A.5).</summary>
     public double ExternalHeat;
     /// <summary>Deep cold multiplies boiler efficiency (GDD §22 hazards). 1 is a normal night.</summary>
@@ -120,7 +122,7 @@ public struct Boiler
     {
         if (Ruptured)
         {
-            Venting = false;
+            Venting = Vented = false;
             return false;
         }
 
@@ -137,6 +139,7 @@ public struct Boiler
 
         AtMaxSeconds = Pressure >= t.PressureMax ? AtMaxSeconds + dt : 0;
         LowFireSeconds = LowFire(t) ? LowFireSeconds + dt : 0;
+        Vented = Venting;
         Venting = false;
 
         if (AtMaxSeconds >= t.RuptureHoldSeconds)

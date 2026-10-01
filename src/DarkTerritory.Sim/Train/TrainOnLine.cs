@@ -116,6 +116,11 @@ public sealed class TrainOnLine
     public double Traction { get; set; } = 1;
     /// <summary>Someone's at a sandbox on the running boards this tick, sanding (set by crew actions, used by the lineside).</summary>
     public bool Sanding { get; set; }
+    /// <summary>
+    /// Whether a car's open roof hatch can't be shut now (T99: something the crane has in it, set by whoever owns the
+    /// cranes). Asked the same on host and client, from replicated state.
+    /// </summary>
+    public Func<int, bool>? HatchBlocked { get; set; }
     /// <summary>How much of the grip sanding has brought back on greased rail, 0 to 1 (App. A.2).</summary>
     public double Sand { get; set; }
     /// <summary>

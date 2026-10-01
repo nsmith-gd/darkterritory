@@ -888,6 +888,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --crew: three on car 2's roof, one reaching up, one holding out both hands, one with a keyboard (T47's arms).
         Crew = args.Contains("--crew") ? Staging.Crew(train, content) : null,
         Emergency = args.Contains("--emergency"),
+        // --venting: the blow-off held open and the safety valve lifting (T101), their steam.
+        Venting = args.Contains("--venting"),
+        SafetyValve = args.Contains("--venting"),
         Diverging = train.Diverging,
         // --throttle x: the regulator's handle drawn that far open (T29's cab levers).
         Controls = new TrainControls { Throttle = Math.Clamp(Opt(args, "--throttle", 0), 0, 1), Reverser = 1 },
@@ -1296,7 +1299,7 @@ static int Usage()
                      [--width w] [--height h] [--scale k] [--out file.png] [--threats]   --threats stages one of each enemy
                      [--doll-at m]   with --threats: the Track Doll this far up the line (App. A.2: the lamp shows it at 200)
                      [--lurk-at m]   with --threats: a Car Hugger lurking beside the line this far ahead (App. A.3 LURK)
-                     [--doors-open]   every door on the train open
+                     [--doors-open]   every door on the train open   [--venting] the blow-off and safety valve blowing
                      [--eaten f]   the rear car this much eaten by a Car Hugger (0..1; 1 eaten through)
                      [--later s]   with --threats: every staged enemy s seconds further into what it's doing (frames of its animation)
                      [--route tier:seed [--coaling]]   a generated night; --coaling stops at its coaling tower, chute pouring
