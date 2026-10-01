@@ -23,7 +23,12 @@ vec2 project(vec3 p) {
     return vec2(p.x * post.a.z / -p.z, p.y * post.a.w / -p.z) * 0.5 + 0.5;
 }
 
-float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+// (Without sin: exact at a screen's pixel coordinates and a long night's clock on any GPU; note 140.)
+float hash(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
 
 void main() {
     float d = texture(depthTex, vUv).r;

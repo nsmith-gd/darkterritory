@@ -83,6 +83,10 @@ public static class Views
             "hatch" => Camera.LookAt(target.ToWorld(new Double3(4.2, roof + 2.2, 9.5)), target.ToWorld(new Double3(0.6, roof - 1.4, 3.2)), 70),
             // Over the last car's roof, looking back at its gun on its rail (T93).
             "gun" => GunCamera(train),
+            // (Not one of Names.) Sat in the cannon's seat (note 137), the gunner's eye over the breech, along the barrel;
+            // and off its side, close, the whole of it.
+            "cannon" => CannonCamera(train, side: false),
+            "cannonside" => CannonCamera(train, side: true),
             // On the plate behind the tender, looking up its gangway into the cab and at the ladder to the cab roof (T90).
             "gangway" => Camera.LookAt(engine.ToWorld(new Double3(-0.2, 2.9, engineHalf + 1.4)), engine.ToWorld(new Double3(-0.9, 0.6, engineHalf - 8)), 75),
             _ => throw new ArgumentException($"unknown view '{name}' (known: {string.Join(", ", Names)})"),
@@ -166,6 +170,22 @@ public static class Views
         var last = train.Frames[^1];
         double roof = last.Shape.RoofHeight;
         return Camera.LookAt(last.ToWorld(new Double3(1.6, roof + 2.2, -2)), last.ToWorld(new Double3(0, roof + 0.4, last.Shape.HalfLength - 2.5)), 60);
+    }
+
+    static Camera CannonCamera(TrainOnLine train, bool side)
+    {
+        int v = Enumerable.Range(0, train.Vehicles.Count).LastOrDefault(i => train.Vehicles[i].HasGun, -1);
+        if (v < 0 || Sim.Combat.Guns.Mount(train, v) is not { } mount)
+            return GunCamera(train);
+        var f = train.Frames[v];
+        var p = mount.Position;
+        double dir = mount.Facing.Z;             // the barrel's way along the car (−1: towards the engine)
+        var seat = Art.TrainKit.CannonSeat;
+        // The seat is behind the breech: back along the car from the pivot, its height under it.
+        var eye = new Double3(p.X, p.Y + seat.Y + 0.78, p.Z - dir * seat.Z);
+        return side
+            ? Camera.LookAt(f.ToWorld(new Double3(p.X + 2.2, p.Y + 0.6, p.Z + dir * 0.4)), f.ToWorld(new Double3(p.X, p.Y - 0.25, p.Z + dir * 0.1)), 50)
+            : Camera.LookAt(f.ToWorld(eye), f.ToWorld(new Double3(p.X, p.Y + 0.1, p.Z + dir * 12)), 65);
     }
 
     static Camera ChaseCamera(TrainOnLine train)

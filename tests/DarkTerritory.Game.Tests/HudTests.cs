@@ -122,8 +122,9 @@ public class HudTests
             var (r, g, b) = At(60, 32);
             Assert.InRange(r, 120, 135);
             Assert.True(g < 5 && b < 5);
-            // And nothing elsewhere.
-            Assert.Equal((0, 0, 0), At(32, 18));
+            // And nothing elsewhere (but the grain and the dither's step: a level or two).
+            var (er, eg, eb) = At(32, 18);
+            Assert.True(er <= 3 && eg <= 3 && eb <= 3, $"({er}, {eg}, {eb})");
         }
     }
 
