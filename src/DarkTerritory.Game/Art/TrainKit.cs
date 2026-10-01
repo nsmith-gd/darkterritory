@@ -1090,9 +1090,47 @@ public static class TrainKit
         return k.Build("roof-rail");
     }
 
+    /// <summary>
+    /// The cannon's pieces (tools/models/recipes/cannon.py, note 137), each in the gun's frame: the pivot (traverse and
+    /// trunnions) at the origin, 0.9 m over the roof, the barrel out along −Z. The mount stays on the roof; the carriage
+    /// (the seat, the tiller and handwheel, the shield) turns about Y; the barrel elevates about X on the carriage; a
+    /// powder chamber sits in the breech at <see cref="CannonChamber"/> when it's loaded. Null without the look's props.
+    /// </summary>
+    public static (MeshAsset Mount, MeshAsset Carriage, MeshAsset Barrel, MeshAsset Chamber)? Cannon(Look? look)
+    {
+        if (look is null)
+            return null;
+        var props = PropArt.Of(look);
+        return props.Get("cannon_mount") is { } m && props.Get("cannon_carriage") is { } c && props.Get("cannon_barrel") is { } b
+            && props.Get("cannon_chamber") is { } ch ? (m, c, b, ch) : null;
+    }
+
+    /// <summary>
+    /// Where the gunner sits on the cannon's carriage (its seat pan's top, the hips; the carriage's frame): behind the
+    /// breech, the tiller under the left hand and the elevating handwheel under the right.
+    /// </summary>
+    public static readonly Vector3 CannonSeat = new(0, -0.42f, 0.75f);
+
+    /// <summary>A loaded powder chamber's base in the breech (the barrel's frame; its mouth 0.2 m on, at the bore).</summary>
+    public static readonly Vector3 CannonChamber = new(0, 0, 0.44f);
+
+    /// <summary>The muzzle (the barrel's frame).</summary>
+    public static readonly Vector3 CannonMuzzle = new(0, 0, -1.5f);
+
     public static MeshAsset Gun(Look? look)
     {
-        // The modelled gun (tools/models gun_mount) to this frame: pivot at the origin, muzzle 1.5 m out along -Z.
+        // The cannon assembled at rest, loaded (for the catalog and `dt art show gun`); the scene draws its pieces.
+        if (Cannon(look) is { } cannon)
+        {
+            var a = new Kit(look, 53);
+            a.Append(cannon.Mount, Matrix4x4.Identity);
+            a.Append(cannon.Carriage, Matrix4x4.Identity);
+            a.Append(cannon.Barrel, Matrix4x4.Identity);
+            a.Append(cannon.Chamber, Matrix4x4.CreateTranslation(CannonChamber));
+            return a.Build("gun");
+        }
+        // The modelled machine gun it replaced (tools/models gun_mount) to this frame: pivot at the origin, muzzle 1.5 m
+        // out along -Z.
         if (look is not null && PropArt.Of(look).Get("gun_mount") is { } modelled)
             return modelled;
         var k = new Kit(look, 53);

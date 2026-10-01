@@ -382,12 +382,28 @@ public sealed partial class SceneArt(Look look)
             if (bite.Eats(new Vector3((float)at.X, (float)at.Y - 0.3f, (float)at.Z)) && shape.Interior is { } room)
                 gunM = Matrix4x4.CreateRotationX(0.45f) * Matrix4x4.CreateRotationZ(0.2f) * Matrix4x4.CreateRotationY(yaw)
                     * Matrix4x4.CreateTranslation((float)at.X, (float)room.Min.Y + 0.45f, (float)at.Z) * m;
-            mesh.Instances.Add(new MeshInstance(Piece("gun", () => TrainKit.Gun(Look)), gunM));
+            // The cannon (note 137) in its pieces: the mount on the roof, the carriage turned to its aim, the barrel
+            // elevated on it, a powder chamber in the breech while it's loaded. (The aim is level and straight along its
+            // facing until the gunner's controls give the gun one to keep.)
+            var barrelM = gunM;
+            if (TrainKit.Cannon(Look) is { } cannon)
+            {
+                const float traverse = 0, elevation = 0;
+                var carriageM = Matrix4x4.CreateRotationY(traverse) * gunM;
+                barrelM = Matrix4x4.CreateRotationX(elevation) * carriageM;
+                mesh.Instances.Add(new MeshInstance(cannon.Mount, gunM));
+                mesh.Instances.Add(new MeshInstance(cannon.Carriage, carriageM));
+                mesh.Instances.Add(new MeshInstance(cannon.Barrel, barrelM));
+                if (vehicle is null || vehicle.Gun.ReloadNeeded <= 0)
+                    mesh.Instances.Add(new MeshInstance(cannon.Chamber, Matrix4x4.CreateTranslation(TrainKit.CannonChamber) * barrelM));
+            }
+            else
+                mesh.Instances.Add(new MeshInstance(Piece("gun", () => TrainKit.Gun(Look)), gunM));
             // The muzzle flash, for the two ticks after a round (pipeline VFX: "muzzle flash", additive): a hot star
             // at the muzzle and a burst of light over the roof and whatever it's aimed at.
             if (vehicle is { Gun.LastShotTick: > 0 } v && tick >= v.Gun.LastShotTick && tick - v.Gun.LastShotTick <= 2)
             {
-                var muzzle = Vector3.Transform(new Vector3(0, -0.02f, -1.5f), gunM);
+                var muzzle = Vector3.Transform(TrainKit.CannonMuzzle, barrelM);
                 float fade = 1 - (tick - v.Gun.LastShotTick) / 3f;
                 int shot = (int)(v.Gun.LastShotTick % 4);
                 mesh.Billboard(muzzle, 0.9f * fade, shot * 0.8f, new Vector4(1.0f, 0.75f, 0.4f, fade), -1, FxBlend.Additive);

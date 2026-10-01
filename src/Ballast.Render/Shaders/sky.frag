@@ -10,7 +10,13 @@ layout(location = 0) out vec4 outColor;
 
 const float PI = 3.14159265;
 
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+// (No sin: a GPU's sin loses its precision at the arguments a long night's drift reaches, and the cloud turned to hard
+// blocks in a playtest; ARCHITECTURE §8 note 140. Dave Hoskins' hash without sine, exact at any p.)
+float hash(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
 float noise(vec2 p) {
     vec2 i = floor(p), f = fract(p);
     f = f * f * (3.0 - 2.0 * f);
@@ -27,7 +33,8 @@ void main() {
     vec3 colour = mix(horizon, frame.sky.rgb, smoothstep(0.0, 0.55, up));
 
     // Cloud banks: broad and slow, a little lighter where the moon is behind them.
-    vec2 cp = dir.xz / max(dir.y + 0.12, 0.05) * 1.2 + vec2(frame.fogHeight.w * 0.004, 0.0);
+    // (The drift kept small: it wraps after 256 of the noise's cells, some 18 hours of night.)
+    vec2 cp = dir.xz / max(dir.y + 0.12, 0.05) * 1.2 + vec2(mod(frame.fogHeight.w * 0.004, 256.0), 0.0);
     float cloud = smoothstep(0.35, 0.8, noise(cp) * 0.65 + noise(cp * 2.7) * 0.35);
     vec3 moonDir = normalize(frame.moon.xyz);
     float toMoon = max(dot(dir, moonDir), 0.0);

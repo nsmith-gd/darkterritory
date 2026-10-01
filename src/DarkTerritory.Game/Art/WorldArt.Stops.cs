@@ -233,7 +233,11 @@ public sealed partial class WorldArt
                         var local = (alongAxis ? Matrix4x4.Identity : Matrix4x4.CreateRotationY(MathF.PI / 2))
                             * Matrix4x4.CreateTranslation((float)p.Y, 0, (float)-p.X);
                         float w = (float)(alongAxis ? p.Width : p.Length), d = (float)(alongAxis ? p.Length : p.Width);
-                        k.With(local * frame, () => TownKit.House(k, rng, w, d, b.Variant + i));
+                        k.With(local * frame, () =>
+                        {
+                            if (!TownKit.HouseProp(k, _look, w, d, b.Variant + i))
+                                TownKit.House(k, rng, w, d, b.Variant + i);
+                        });
                     }
                     break;
                 }

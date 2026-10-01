@@ -16,6 +16,10 @@ public static class TownKit
     /// </summary>
     public static MeshAsset House(Look? look, int variant)
     {
+        // The modelled frontier houses (tools/models/recipes/town_houses.py, note 139): weatherboard and trim that read
+        // through the fog, front to −Z as this kit's. Without the look's props, the kit's boxes.
+        if (look is not null && PropArt.Of(look).Get($"house_{((variant % Houses) + Houses) % Houses}") is { } modelled)
+            return modelled;
         var k = new Kit(look, 1200 + variant);
         var rng = new Random(9001 + variant);
         float w = 5 + (float)rng.NextDouble() * 3, d = 6 + (float)rng.NextDouble() * 3;
@@ -46,6 +50,26 @@ public static class TownKit
             }
         k.Emissive = 0;
         return k.Build($"lived-house-{variant}");
+    }
+
+    /// <summary>How many modelled houses there are (house_0 ..), and each one's walls' width and depth (m).</summary>
+    const int Houses = 4;
+    static readonly (float W, float D)[] HouseSizes = [(6.6f, 7.2f), (5.4f, 6.2f), (6.2f, 7.0f), (5.6f, 6.6f)];
+
+    /// <summary>
+    /// A stop's village house (level-design P9) as the modelled one (note 139), fitted to a footprint part <paramref
+    /// name="w"/> across by <paramref name="d"/> deep: scaled to it, its height kept in proportion. False without the
+    /// look's props (the kit's <see cref="House(Kit, Random, float, float, int)"/> then).
+    /// </summary>
+    public static bool HouseProp(Kit k, Look? look, float w, float d, int variant)
+    {
+        int i = ((variant % Houses) + Houses) % Houses;
+        if (look is null || PropArt.Of(look).Get($"house_{i}") is not { } modelled)
+            return false;
+        var (pw, pd) = HouseSizes[i];
+        float sx = w / pw, sz = d / pd, sy = Math.Clamp((sx + sz) / 2, 0.85f, 1.2f);
+        k.Append(modelled, Matrix4x4.CreateScale(sx, sy, sz));
+        return true;
     }
 
     /// <summary>The deepest a lived-in house is (front to back), so it fits inside a fortress's walls.</summary>

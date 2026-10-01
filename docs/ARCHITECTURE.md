@@ -2401,3 +2401,43 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `grab` rears it over its victim, the forehooks over their head and the sucker opened on their face.
     - **Limb IK.** The limbs go by `rig.reach` from a spread of starts. The elbow is kept out at its own side and, on the ground, up at the body's height. That's what keeps the sprawl from collapsing into a stick insect's legs.
     - **`ClimberTests` keep their measures.** It runs under 1.2 m, crouches under 1.3 m and walks the roofs under 1.7 m.
+
+137. **The gun is a cannon, in pieces the game can work (GDD v1.2 §19 "crude cannons with a manual reload", App. C.3 powder, ball, ram).** The gun car carried a water-cooled machine gun; the HUD still called it a turret. Now it's a crude breech-loading swivel cannon (`tools/models/recipes/cannon.py`).
+    - **Five props, all in the gun's frame** (the pivot 0.9 m over the roof, the barrel along −Z):
+      - `cannon_mount`: the trolley on the roof rail and the pedestal. It stays on the roof.
+      - `cannon_carriage`: the turntable, the yoke, the gunner's iron seat behind the breech, the traverse tiller under the left hand and the elevating handwheel under the right. Also the boiler-plate shield with its aiming slot at a seated eye's height, the rack of three spare powder chambers and the shot box. It turns about Y.
+      - `cannon_barrel`: the cast barrel and its rings, the trunnions, the breech's open trough, the locking wedge, the sights and the friction-tube lanyard. It elevates about X. The muzzle is 1.5 m out.
+      - `cannon_chamber`: one powder chamber.
+      - `cannon_ball`: a round of shot.
+    - **The reload maps onto it.** The ball goes into the bore's open back, a powder chamber is dropped in behind it, and the wedge is driven down to lock it (the ram).
+    - **Scene and view constants.**
+      - `SceneArt` draws the pieces chained: the mount, then the carriage turned, then the barrel elevated on it, with a chamber in the breech while it's loaded (`ReloadNeeded` 0).
+      - `TrainKit.CannonSeat`, `CannonChamber` and `CannonMuzzle` give the seat (for sitting the gunner), the breech and the muzzle (for the flash).
+      - The traverse and elevation are zero until the gunner's controls give the gun an aim to keep. Sitting, aiming, firing and reloading are another change's.
+    - **Views.** `cannon` is the seated gunner's view through the slot; `cannonside` is the whole gun from beside it.
+
+138. **Far land, and water with a far side (playtest: "the water falls below the mountain in the distance, no coastline").** Two things made it.
+    - **The causes.**
+      - A generated line's land stops 300 m out (`WorldArt.PlanLateral`), and the plan's terrain dropped `skirtDropM` 30 m past its 250 m corridor, "into the fog".
+      - Shore water (`PlanArt.Water`) runs 1,500 m out with nothing across it.
+      - From a deck, the water's fogged edge then sat under the sky's backdrop band (`PlanSky`) with a strip of haze between them. A lake near the corridor's edge lost its rim to the drop.
+    - **`PlanArt.FarLand` carries the land on to the horizon.** Past the corridor's ground, low hills come and go along the line, from the plan's own land at 292 m up to about 50 m over it at 1.7 km. On a Fundy or dyke shore there's a far shore across the water instead: a beach at 1.1 km for the bay, 520 m for the tidal river, and hills behind. The open sea keeps its open horizon.
+    - **Far land never stands over another corridor's ground.** Inside one it tucks under that corridor's land, so a branch out there keeps its track.
+    - **`skirtDropM` is now 0** (`content/linegen/tiers.json`). The far land covers the corridor's edge, so the drop isn't needed to hide it, and it was what took the lakes' rims.
+    - **Rivers.** A river's water under its bridge runs on 1.2 km down its valley either way, not stopping at 160 m.
+    - **Headless.** `dt screenshot --route frontier:7 --at 8170 --cam 8170,0,12 --target 8170,-400,6` (the tidal crossing), `--at 7835 --cam 7835,-30,6 --target 7835,-250,2` (a lake).
+
+139. **The dead towns' houses, modelled (playtest: "meshes missing textures, the house doesn't look good").** The houses were kit boxes, plaster or brick with flat black window panels. In the fog at night they read as untextured silhouettes. Now there are four modelled frontier houses (`tools/models/recipes/town_houses.py`, `house_0` to `house_3`), weatherboarded so the board courses, the white trim round the windows and the raw boards nailed across them read through the fog.
+    - **The four houses.**
+      - `house_0`: two storeys, faded white, with a sagging porch.
+      - `house_1`: a red cottage with a lean-to and a stove pipe.
+      - `house_2`: two storeys of brick, a slate roof and a porch.
+      - `house_3`: fallen in, half its roof down inside it.
+    - **Where they're used.** `TownKit.House` returns one by variant. A stop's village (`WorldArt.Stops`) fits one to each footprint part (`TownKit.HouseProp`: scaled to the part, its height in proportion). Both fall back to the kit's boxes without the look's props.
+
+140. **Hard blocks in the sky (playtest), and the headless app capture.**
+    - **The sky.** The sky's cloud noise, the SSAO's rotation and the film grain hashed with `fract(sin(dot(p, k)) * 43758.5)`.
+      - The cloud's drift grows with the night's clock (`FrameLighting.Time`, wrapped at 10,000 s), so late in a night the sine's argument runs to around ten thousand. There a GPU's `sin` has lost its precision, and the cloud banks broke into hard dark blocks.
+      - Screenshots pin the time at 0.37 s, and lavapipe's `sin` is exact, so no headless view showed it.
+      - All three now use Dave Hoskins' hash without sine, which is exact at any input. The cloud's drift also wraps after 256 of the noise's cells.
+    - **The app capture.** The app's `--quit-after` counted from launch. A load that outlasted it never ran the play loop, so `--capture` drew a default camera with a zero field of view and threw. The play loop now always runs one frame first.
