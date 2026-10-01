@@ -2345,3 +2345,14 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Anger lets the neck down** (`CreatureArt.LeanIn`), no longer bending the back. The forelegs hang from the shoulders, so bending the back lifted them off the ground. The neck bends down from the shoulders and is straightened again at the top, so the head stays out over you. The skull rolls about its own length. `GauntLean` is now 0.32 rad, so at full anger the head comes down to the helmet, not into it.
     - **The `gaunt` and `gauntface` views** look higher, at where its body and head now are.
     - **`GauntTests`** measure the head as the front of it above chest height, no longer as its top: stood up, its top is its knees. Facing is now checked by where the mesh's middle goes: its head and ears are half its vertices.
+
+131. **The Whistler is no longer a man (GDD v1.2 §21, App. A.4).** It was SK_Human stretched, with one long arm. Now it's a pale thing four metres long, segmented like a centipede and thick as a thigh (`tools/blender/whistler.py`, baked by `tools/models/recipes/whistler.py`, 5,216 triangles, 57 bones, SK_Whistler).
+    - **The body.** Ten segments, twenty thin legs and a pair of long hooked forelegs. Ivory plates down its back, grub-white flesh where they part, all of it streaked with the couplers' grease.
+    - **The head.** No eyes and no face, only a blunt wedge with two feelers. Out of the wedge comes a siphon with a puckered lip and stops along its top like a flute's, and the siphon is what whistles.
+    - **The clips keep their names and their jobs.**
+      - `fold` coils it round the drawgear under the plate, the front laid up over the coil looking out. A ripple runs down its legs once.
+      - `whistle` rears it straight up out of the gap, over three metres. The forelegs hook the cord and yank it. The siphon swells, and the legs down its upright length stir out of step.
+      - `watch` lifts its front at the gap's mouth and turns it in jerks.
+      - `run` snakes it away with its legs in waves.
+    - **No leg IK.** The legs are posed relative to their segment, so a coiled or reared body carries them with it.
+    - **`centred` and `grounded`.** Each pose is set over the gap's middle and onto the rail (`root@loc`), so the old origin contract still holds. `WhistlerTests` keep their measures unchanged: folded under the 1.1 m plate, whistling over a crewmate's head on it, its front turned to the eye.

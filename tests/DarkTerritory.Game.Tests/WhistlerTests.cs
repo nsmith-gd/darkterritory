@@ -9,8 +9,9 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The Whistler (GDD v1.2 §21, App. A.4; tools/blender/whistler.py): folded small enough to hide under the bridge plate in
-/// a coupling gap, its feet on the rail; up out of it to the cord when it whistles; and turned to whoever looks.
+/// The Whistler (GDD v1.2 §21, App. A.4; tools/blender/whistler.py; ARCHITECTURE §8 note 131): coiled small enough to hide
+/// under the bridge plate in a coupling gap, on the rail; reared up out of it to the cord when it whistles; and its front
+/// turned to whoever looks.
 /// </summary>
 public class WhistlerTests
 {
@@ -69,7 +70,7 @@ public class WhistlerTests
         var v = mesh.Flattened();
         Assert.NotEmpty(v);
         Assert.InRange(v.Min(p => p.Position.Y), -0.06f, 0.1f);
-        // Facing the eye (towards +X): its head, over its knees, is on the eye's side of it.
+        // Facing the eye (towards +X): its front, laid up over its coil, is on the eye's side of it.
         float mid = v.Average(p => p.Position.X), head = v.Where(p => p.Position.Y > 0.75f).Average(p => p.Position.X);
         Assert.True(head > mid + 0.05f, $"head at x {head}, middle {mid}");
     }

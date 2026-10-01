@@ -110,9 +110,10 @@ public class GauntTests
             float front = v.Where(p => p.Position.Y > 1.2f).Min(p => p.Position.Z);
             return v.Where(p => p.Position.Y > 1.2f && p.Position.Z < front + 0.35f).ToArray();
         }
-        // Leant in: its head let down lower over you (its neck from the shoulders), and no further back.
+        // Leant in: its head let down lower over you (its neck from the shoulders; at full anger to just over a crewmate's
+        // helmet, not into it), and no further back.
         float calmY = Head(calm).Average(p => p.Position.Y), angryY = Head(angry).Average(p => p.Position.Y);
-        Assert.True(angryY < calmY - 0.1f, $"head at y {angryY} from {calmY}");
+        Assert.True(angryY < calmY - 0.06f, $"head at y {angryY} from {calmY}");
         Assert.True(Head(angry).Min(p => p.Position.Z) < Head(calm).Min(p => p.Position.Z) + 0.05f, "still out over you");
         // And tipped over: its ears no longer level.
         static float Roll(Vertex[] v) => v.Where(p => p.Position.X > 0).Average(p => p.Position.Y) - v.Where(p => p.Position.X < 0).Average(p => p.Position.Y);

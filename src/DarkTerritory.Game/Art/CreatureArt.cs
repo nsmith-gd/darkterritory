@@ -988,11 +988,12 @@ public sealed class CreatureArt
                 }
             case EnemyKind.Whistler when _models.ContainsKey("whistler"):
                 {
-                    // The gap-dweller (GDD v1.2 §21, App. A.4; tools/blender/whistler.py), its feet on the rail between the
-                    // cars (Enemy(e) drops it from the sim's gap point). Hidden, it's folded small under the bridge plate,
-                    // breathing: there to be found by whoever looks down into the gap. Whistling (extra), the long arm
-                    // shoots up out of the gap and yanks the cord; then it watches the gap's mouth, the head turning in
-                    // jerks. Carrying someone off, it runs on all fours.
+                    // The gap-dweller (GDD v1.2 §21, App. A.4; tools/blender/whistler.py; a pale many-legged coil, note
+                    // 131), on the rail between the cars (Enemy(e) drops it from the sim's gap point). Hidden, it's coiled
+                    // under the bridge plate round the drawgear, breathing: there to be found by whoever looks down into
+                    // the gap. Whistling (extra), it rears straight up out of the gap, hooks the cord with its forelegs
+                    // and yanks it, the siphon blowing; then it watches the gap's mouth, its front lifted, turning in
+                    // jerks. Carrying someone off, it runs, snaking, its legs in waves.
                     string clip = phase switch
                     {
                         SpinePhase.Dormant => "fold",
