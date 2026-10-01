@@ -10,7 +10,7 @@ and the game mesh. This recipe runs it, models a high-resolution copy and bakes 
   * a Soot Child's hands and feet black and wet as tar (their own parts: the variant), its eyes the same black; the real
     child's eyes a child's, the iris brown.
 Before this the Soot Children were a sourced scan (the Boy Room's boy, CC BY 4.0; tools/models/figures.py), posed into
-the huddle and rigged on it, which could rock and lift its head but never get up: note 125.
+the huddle and rigged on it, which could rock and lift its head but never get up: note 126.
 
     tools/models/build.sh soot_child
 """

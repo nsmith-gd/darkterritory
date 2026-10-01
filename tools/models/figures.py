@@ -3,7 +3,7 @@
 A figure is loaded with its joint table and a skeleton placed on those joints; `pose` skins its mesh to that skeleton
 (linear blend, each vertex to its nearest bones) and moves it into a pose given in tools/blender/rig's terms (joint
 rotations in the armature's axes). The mesh is then baked down and rigged again on the pose it was left in, so the
-game rig never has to make the big fold itself (the Soot Children were made so before note 125; the bedroom boy still is).
+game rig never has to make the big fold itself (the Soot Children were made so before note 126; the bedroom boy still is).
 """
 import os
 import sys

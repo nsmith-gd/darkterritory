@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Enemies;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The Soot Children's model (GDD v1.2 §21, App. A.6; tools/blender/soot_child.py; ARCHITECTURE §8 note 125): one child,
+/// The Soot Children's model (GDD v1.2 §21, App. A.6; tools/blender/soot_child.py; ARCHITECTURE §8 note 126): one child,
 /// two ways; squatted in the ash, its head comes up when it calls; on someone, it's up on them, clinging to their chest.
 /// </summary>
 public class SootChildTests

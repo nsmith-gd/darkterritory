@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Enemies;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The Switchman at its lever (GDD v1.2 §21, App. A.7; tools/models/recipes/switchman.py; ARCHITECTURE §8 note 126): its
+/// The Switchman at its lever (GDD v1.2 §21, App. A.7; tools/models/recipes/switchman.py; ARCHITECTURE §8 note 127): its
 /// hand on the lever while it waits to throw it under the train, then the lever thrown across it.
 /// </summary>
 public class SwitchmanArtTests

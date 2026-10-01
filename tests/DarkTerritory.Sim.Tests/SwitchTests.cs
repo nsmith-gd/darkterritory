@@ -291,4 +291,22 @@ public class SwitchTests
             }
         Assert.True(seen > 40, $"only {seen} junctions in 24 routes");
     }
+
+    [Fact]
+    public void AStandingTrainWithACarCutLooseBehindIsStillStandingAtTheSwitch()
+    {
+        // T106: frontier:7 stood at a dead line's switch till dawn. A car had been cut loose miles back and run on buffered up
+        // behind, so the train was two rakes, and the shunter waited for it to stand there as one.
+        var train = Train(Line(), front: Toe - Tuning.Route.Junctions.PointsLength - 2);
+        var world = new World(train);
+        world.SetSwitch(0, true);
+        Assert.True(train.Uncouple(train.Dynamics.Consist.Vehicles[^2].Id));
+        Assert.Equal(2, train.Rakes.Count);
+        var plan = Bots.SwitchPlan.Ahead(world);
+        Assert.NotNull(plan);
+        Assert.True(plan.StandingAt(train));
+        // But not with the cut-off car rolling.
+        train.Rakes[1].Velocity = -0.5;
+        Assert.False(plan.StandingAt(train));
+    }
 }

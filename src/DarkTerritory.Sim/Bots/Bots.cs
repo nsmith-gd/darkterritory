@@ -765,6 +765,14 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
                     return KeepClear(self, world, Work(self, train, WatchTheRoad(world, Drive(train, tick, MindingCruise(world), 0.5))), -1);
                 if (FightStoker(self, world) is { } fightingToo)
                     return fightingToo with { Buttons = fightingToo.Buttons & ~PlayerButtons.Brake, ThrottleNotch = 0 };
+                // T106: fired for the speed the line allows here, not the open-line cruise: under a board, steam fired for 14 m/s
+                // is steam the driver brakes away. And with too much on the gauge for it (a board come up), out to the
+                // blow-off to vent it down while the driver holds the train on the brake: the brake and the vent as a pair.
+                _cruise = MindingCruise(world);
+                var venting = Vent(self, world);
+                calls?.Vent(venting is not null && !PlayerMotor.InCab(self, train));
+                if (venting is { } blowing)
+                    return blowing;
                 return self.Alive && PlayerMotor.InCab(self, train) ? KeepClear(self, world, Work(self, train, default), -1) : default;
             }
             _driving = true;
@@ -916,7 +924,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             // Only when the grease is costing way: on the level the train coasts through it at speed, and whatever's behind
             // (the hounds gain on every slowing, App. A.3) is better left behind than stopped for. On a climb it can't hold
             // speed ("cannot climb grade"): out it goes, steam left on, so the sanded drivers pull.
-            if (!greased || !PlayerMotor.InCab(self, train) || train.Dynamics.Speed >= cruise - SandBelowCruise)
+            if (!greased || !PlayerMotor.InCab(self, train) || train.Dynamics.Speed >= cruise - SandBelowCruise || calls?.Venting == true)
                 return null;
             _sandLeg = 0;
         }
@@ -940,6 +948,73 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             return greased && CrewActions.Nearest(self, train) == InteractableKind.Sandbox ? new PlayerIntent { Buttons = PlayerButtons.Use } : new PlayerIntent();
         _sandLeg++;
         return new PlayerIntent();
+    }
+
+    int _ventLeg = -1;
+    /// <summary>Over the pressure that makes the speed the line allows by this much, the fireman goes out and vents (T106).</summary>
+    const double VentOver = 10;
+    /// <summary>Out on the running board at the blow-off, or on the way there or back (for the harness's trace).</summary>
+    public bool Venting => _ventLeg >= 0;
+
+    /// <summary>
+    /// T97: steam sets the speed, so a board ahead wants the gauge down, not just the brake on (held, the brake fades). Out of
+    /// the cab's left doorway, along the left running board to the blow-off by the smokebox, and hold Use there until the
+    /// gauge is down to what the line allows; then back. Not while the driver's out sanding: someone minds the controls.
+    /// </summary>
+    PlayerIntent? Vent(in PlayerState self, World world)
+    {
+        var train = world.Train;
+        if (!self.Alive || self.Parent != 0 || train.BoilerTuning is not { SteamDrive: true } bt)
+        {
+            _ventLeg = -1;
+            return null;
+        }
+        double allowed = MindingCruise(world), target = Boiler.PressureFor(bt, allowed + 1, train.Dynamics.Tuning.MaxSpeed);
+        // Only while the steam is running the train over what's allowed (the driver's on the brake against it): a gauge high
+        // for a board that's still coming the brake deals with, and every pound vented is coal. Venting whenever the gauge
+        // read over the mark, frontier:11's fireman spent 1,412 s of the night out there and the train ran out of steam.
+        bool over = train.Boiler.Pressure > target + (_ventLeg >= 0 ? 2 : VentOver) && train.Dynamics.Speed > allowed + (_ventLeg >= 0 ? 0 : 1)
+            && calls?.Sanding != true;
+        var way = VentWay(train);
+        if (_ventLeg < 0)
+        {
+            if (!over || !PlayerMotor.InCab(self, train))
+                return null;
+            _ventLeg = 0;
+        }
+        if (!over && _ventLeg < way.Length)
+            _ventLeg = 2 * way.Length - 1 - _ventLeg;
+        if (_ventLeg >= 2 * way.Length)
+        {
+            _ventLeg = -1;
+            return null;
+        }
+        int at = _ventLeg < way.Length ? _ventLeg : 2 * way.Length - 1 - _ventLeg;
+        var (step, there) = WarmUp.Steer(self, way[at], 0);
+        if (!there)
+            return step;
+        if (_ventLeg == way.Length - 1)
+            return over && CrewActions.Nearest(self, train) == InteractableKind.Vent ? new PlayerIntent { Buttons = PlayerButtons.Use } : new PlayerIntent();
+        _ventLeg++;
+        return new PlayerIntent();
+    }
+
+    /// <summary>The way to the blow-off, in the engine's frame: in the left doorway, out onto the board, along it, at the cock.</summary>
+    static Double3[] VentWay(TrainOnLine train)
+    {
+        var g = train.Dynamics.Tuning.Geometry;
+        var e = g.Engine;
+        double w = g.RoofWidth / 2, l = g.EngineLength / 2;
+        double cabBack = l - e.TenderLength, cabFront = cabBack - e.CabLength, doorFront = cabBack - g.Doorway.Width;
+        double outside = w + Math.Min(0.32, e.RunningBoardWidth / 2);
+        var vent = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Vent).Position;
+        return
+        [
+            new(-(w - 0.35), e.DeckHeight, doorFront + 0.3),
+            new(-outside, e.DeckHeight, doorFront + 0.3),
+            new(-outside, e.DeckHeight, cabFront - 0.3),
+            new(-outside, e.DeckHeight, vent.Z),
+        ];
     }
 
     /// <summary>The way to the right-hand sandbox, in the engine's frame: in the doorway, out onto the board, along it, at the box.</summary>
