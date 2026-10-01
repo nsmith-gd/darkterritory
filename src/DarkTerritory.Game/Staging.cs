@@ -275,6 +275,49 @@ public static class Staging
         return threats;
     }
 
+    /// <summary>
+    /// The staged Passenger (<c>dt screenshot --passenger</c>), in car 2's aisle facing the <c>inside</c> view (App. A.8):
+    /// <c>stand</c> hanging about passing for crew (BLEND), <c>walk</c> going down the car, <c>drag</c> hauling someone
+    /// (GRAB; <see cref="Dragged"/> is them), <c>pin</c> stopped at the coupling heaving at the pin (UNCOUPLE). Its paces
+    /// (<see cref="PassengerPace"/>) are what a still frame can't measure.
+    /// </summary>
+    public static List<Enemy> Passenger(List<Enemy> threats, TrainOnLine train, string mode)
+    {
+        var p = threats.OfType<Sim.Enemies.Passenger>().FirstOrDefault();
+        if (mode.Length == 0 || p is null)
+            return threats;
+        int car = Math.Min(2, train.Frames.Count - 2);
+        double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
+        var at = PassengerAt(train);
+        var phase = mode switch
+        {
+            "stand" or "walk" => SpinePhase.Telegraph,
+            "drag" or "pin" => SpinePhase.Grab,
+            _ => throw new ArgumentException($"--passenger {mode}: stand, walk, drag or pin"),
+        };
+        p.Restore(phase, 2.4, p.Health, car, at with { Y = floor }, 0, 0, 0, p.Extra, 0);
+        return threats;
+    }
+
+    /// <summary>How fast the staged Passenger is going (m/s) for <paramref name="mode"/>: walking and dragging at the sim's paces.</summary>
+    public static float PassengerPace(string mode) => mode switch
+    {
+        "walk" => (float)new PassengerTuning().WalkSpeed,
+        "drag" => (float)new PassengerTuning().DragSpeed,
+        _ => 0,
+    };
+
+    /// <summary>The one the staged Passenger is dragging (<c>--passenger drag</c>): down on the floor at its feet, where the sim has them.</summary>
+    public static Crewmate Dragged(TrainOnLine train)
+    {
+        int car = Math.Min(2, train.Frames.Count - 2);
+        double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
+        return new Crewmate(LoneId, train.Frames[car].ToWorld(PassengerAt(train) with { Y = floor }), Math.PI * 0.5, false);
+    }
+
+    static Double3 PassengerAt(TrainOnLine train) =>
+        new(-0.35, 0, -train.Frames[Math.Min(2, train.Frames.Count - 2)].Shape.HalfLength + 5.6);
+
     // How far off the second car's side the staged Grumbler is (m): in front of crewmate 4, a lunge from them.
     const double GrumblerOut = 3.3;
 
