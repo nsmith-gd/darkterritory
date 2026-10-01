@@ -1,5 +1,5 @@
 """THE CLIMBERS (GDD v1.2 §21 the flank, App. A.4): the six-limbed crawler of tools/blender/climber.py, taken to the
-fidelity target (ARCHITECTURE §8 note 58, tools/models overbake; the non-human redo, note 135).
+fidelity target (ARCHITECTURE §8 note 58, tools/models overbake; the non-human redo, note 136).
 
 tools/blender/climber.py stays its source: the rig, the clips and the game mesh. This recipe runs it, models a
 high-resolution copy and bakes it into one 1024 atlas:

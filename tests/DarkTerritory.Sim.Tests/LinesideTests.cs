@@ -225,6 +225,38 @@ public class LinesideTests
     }
 
     [Fact]
+    public void AWalkerDownOnAPlateForAPostedTunnelStaysOffTheRoofs()
+    {
+        // T81 (deepTerritory:2): three walkers turned away from a car a Climber had climbed straight back up the ladder from
+        // the plate, into the mouth. Off the roofs already, they stay off them till it's by.
+        var route = Tunnel();
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), route.Build(), 1300);
+        var world = new World(train);
+        world.EnableBodies();
+        world.EnableLineside(S, route);
+        var bot = new RoofWalkerBot(5, P.Cold);
+        var s = PlayerMotor.SpawnOnRoof(train, 3, 0, P);
+        s.Position = Enemies.CrewSense.GapLocal(train, 3) with { Y = 0.9 };
+        s.Surface = Surface.Coupler;
+        bool roofed = false, sawItPosted = false;
+        for (uint tick = 0; train.Dynamics.RearDistance < 1720; tick++)
+        {
+            train.Dynamics.Velocity = 10;
+            world.BeginTick();
+            var intent = bot.Decide(s, world, tick, out _);
+            world.CrewAct(ref s, intent, 1);
+            world.Step(new TrainControls { Reverser = 1 });
+            world.ApplyDamage(_ => s, (_, v) => s = v, [1]);
+            PlayerMotor.Step(ref s, intent, train, P, T, SimConstants.TickSeconds, applyLook: false);
+            roofed |= s.Surface == Surface.Roof && RoofWalkerBot.TunnelNear(world);
+            sawItPosted |= tick < 30 && RoofWalkerBot.TunnelNear(world);
+        }
+        Assert.True(s.Alive, $"died of {s.Death}");
+        Assert.False(roofed, "up on a roof with the tunnel's mouth near");
+        Assert.True(sawItPosted, "the tunnel was posted from the plate");
+    }
+
+    [Fact]
     public void AWalkerOnTheLastCarWithTheCarAheadAlightStillGetsInForATunnel()
     {
         // The 100-night rerun: on the last car (no plate behind it) with a fire in the car ahead, the walker's only way in

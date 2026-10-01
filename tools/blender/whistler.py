@@ -1,7 +1,7 @@
 """THE WHISTLER (GDD v1.2 §21 between the cars, App. A.4 · absence): "Blows your own whistle, then hides in a coupling
 gap. Only strikes when the train is stopped. It carries its victim off to a nest."
 
-Not a man (note 132). A long pale thing, four metres of it, segmented like a centipede and thick as a thigh, with twenty
+Not a man (note 133). A long pale thing, four metres of it, segmented like a centipede and thick as a thigh, with twenty
 thin legs down its length and a pair of long hooked forelegs at its front. It lives coiled round the drawgear under the
 bridge plate between two cars, grub-white where the plates part, the plates the yellowed grey of old ivory, all of it
 streaked with the couplers' black grease. It has no eyes and no face. Its front is a smooth blunt wedge, two feelers
