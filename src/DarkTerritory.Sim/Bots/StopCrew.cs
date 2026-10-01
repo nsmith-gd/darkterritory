@@ -311,8 +311,13 @@ public sealed record SwitchPlan(Branch Branch, double Hold)
     /// The whole train's standing short of the points on the main line: at the hold, or further back (backed off a dead
     /// line, the driver stops wherever the train's clear of them, which can be well short of the hold).
     /// </summary>
+    /// <summary>
+    /// The whole train standing on the main line short of the points: every rake of it. A car cut loose and left buffered
+    /// up behind is still the train; frontier:7 stood at a dead line's switch till dawn with one, nobody setting it back.
+    /// </summary>
     public bool StandingAt(TrainOnLine train) =>
-        train.OnMain && train.Rakes.Count == 1 && Math.Abs(train.Dynamics.Velocity) < 0.05 && train.Dynamics.Distance - Hold < 3;
+        train.OnMain && Math.Abs(train.Dynamics.Velocity) < 0.05 && train.Dynamics.Distance - Hold < 3
+        && train.Rakes.All(r => train.Line.OnMain(r.Path, r.Distance) && Math.Abs(r.Velocity) < 0.05 && r.Distance - Hold < 3);
 }
 
 /// <summary>

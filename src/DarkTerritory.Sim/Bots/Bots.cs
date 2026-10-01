@@ -969,7 +969,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             _ventLeg = -1;
             return null;
         }
-        double target = Boiler.PressureFor(bt, _cruise + 1, train.Dynamics.Tuning.MaxSpeed);
+        double target = Boiler.PressureFor(bt, MindingCruise(world) + 1, train.Dynamics.Tuning.MaxSpeed);
         bool over = train.Boiler.Pressure > target + (_ventLeg >= 0 ? 2 : VentOver) && train.Dynamics.Speed > 1 && calls?.Sanding != true;
         var way = VentWay(train);
         if (_ventLeg < 0)
