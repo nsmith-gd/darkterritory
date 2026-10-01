@@ -123,12 +123,16 @@ public class StopCrewTests
             for (int t = 0; t < seconds * SimConstants.TickRate && !done(); t++)
             {
                 World.BeginTick();
-                _controls.Brake = 0;
+                // As the host clears the brake (T97): a standing train stays on it till the driver lets it off.
+                if (Crew.Any(c => CabControls.CanDrive(c, Train)) && CabControls.Clears(_controls, Train, false))
+                    _controls.Brake = 0;
                 var intents = new PlayerIntent[Crew.Count];
                 for (int i = 0; i < Crew.Count; i++)
                 {
                     intents[i] = Bots[i].Decide(Crew[i], World, _tick, out _);
                     var s = Crew[i];
+                    if (CabControls.ReleasesBrake(intents[i], s, Train))
+                        _controls.Brake = 0;
                     CabControls.Apply(ref _controls, intents[i], s, Train);
                     World.CrewAct(ref s, intents[i], i + 1);
                     Crew[i] = s;
@@ -537,5 +541,32 @@ public class StopCrewTests
         Assert.All(night.Crew, c => Assert.True(c.Alive));
         Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
     }
-}
 
+    /// <summary>A shunter who says it's the shunter and never comes (on the guard van's roof).</summary>
+    sealed class Idle(IWorldBot bot) : IWorldBot
+    {
+        public string Name => bot.Name;
+        public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => default;
+        public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
+        {
+            bot.Decide(self, world, tick, out aimed);
+            return default;
+        }
+    }
+
+    [Fact]
+    public void WithAShunterWhoNeverComesTheDriverSetsTheSwitchBackItself()
+    {
+        // T106: a deepTerritory:1 crew of two stood at a switch from 1914 s till dawn, the shunter alive on the guard van's roof.
+        // Down to set it back itself, the driver took hold of the cab's steps to climb back and let go again, all night.
+        var night = new Night(cars: 8, deadLine: true);
+        night.Bots[1] = new Idle(night.Bots[1]);
+        var train = night.Train;
+        var toe = train.Line.Branches[night.Branch].Toe;
+        night.World.SetSwitch(night.Branch, true);
+        night.Until(() => train.OnMain && train.Dynamics.Distance > toe + 150, 900);
+        Assert.True(train.OnMain && train.Dynamics.Distance > toe + 150, $"stuck: driver {night.Driver.Stops!.Doing} at {train.Dynamics.Distance:0} on {train.Dynamics.Path}, the driver {night.Crew[0].Surface} on {night.Crew[0].Parent}");
+        Assert.False(train.Diverging(night.Branch));
+        Assert.True(PlayerMotor.InCab(night.Crew[0], train), "and the driver's back at the controls");
+    }
+}
