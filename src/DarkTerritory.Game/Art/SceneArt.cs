@@ -266,7 +266,8 @@ public sealed partial class SceneArt(Look look)
                 mesh.Billboard(Vector3.Transform(at, m), 0.6f, 0, new Vector4(glow, 1), -1, FxBlend.Additive);
     }
 
-    static IEnumerable<Vector3> LampPositions(Box room)
+    /// <summary>Where a car's lanterns' flames are, in its frame: the Fire Flies gather on the nearer (GreyboxScene).</summary>
+    public static IEnumerable<Vector3> LampPositions(Box room)
     {
         foreach (double z in new[] { -room.HalfSize.Z * 0.5, room.HalfSize.Z * 0.5 })
             yield return new Vector3(0, (float)room.Max.Y - 0.42f, (float)(room.Centre.Z + z));

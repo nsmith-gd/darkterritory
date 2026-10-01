@@ -29,7 +29,7 @@ public sealed class CreatureArt
     const float CarHalfWidth = 1.6f, RoofDrop = 3.6f;
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
-        "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber"];
+        "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly"];
 
     /// <summary>A haunting Track Doll's turns aboard (App. A.2 HAUNT): this long over the cargo, then this long giggling.</summary>
     const double DollAdmires = 12, DollGiggles = 5;
@@ -122,6 +122,13 @@ public sealed class CreatureArt
 
     const float Going = 0.4f, GauntLeanPerAnger = 0.25f, GauntLean = 0.45f, GauntTilt = 0.6f;
 
+    // Fire Flies round a car's lantern (tools/blender/fire_fly.py; the lantern's tools/models hand_lantern, its flame at the
+    // model's origin): at most this many of them, the swarm filling as they linger (all of it by FireFlySwarmFills
+    // seconds: the sim's ignite time, enemies.json fireFlies, as the GDD's ~20 s); the settled ones on the glass, a
+    // cylinder this wide (m, to their bodies) and this far below and above the flame; the flying ones this far out.
+    const int FireFlyMost = 22;
+    const float FireFlySwarmFills = 20, FireFlyGlass = 0.085f, FireFlyGlassBelow = 0.07f, FireFlyGlassAbove = 0.08f, FireFlyOrbit = 0.45f;
+
     /// <summary>
     /// The room a creature stands in, in its car (GreyboxScene, for a Tippy Toesie: it's taller than the train was built
     /// for, note 110): under a roof (a car's interior, the cab) it stoops; under a lintel it ducks, facing
@@ -204,6 +211,7 @@ public sealed class CreatureArt
         ["stoker"] = 0.2f,
         ["follower"] = 0.2f,
         ["climber"] = 0.3f,
+        ["fire_fly"] = 0.1f,
     };
 
     sealed class Entry(Model model, MaterialLook[] looks)
@@ -967,6 +975,13 @@ public sealed class CreatureArt
                     return Draw(mesh, "husk", clip, t * (clip == "walk" ? 0.35 : 1), true, at, variant: 4, seed: 51, adjust: (_, l) => l with { Colour = l.Colour * 0.7f })
                         || Draw(mesh, "crew", clip, t, true, at, variant: 4, seed: 51, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.3f, 0.28f, 0.28f) });
                 }
+            case EnemyKind.FireFlies when _models.ContainsKey("fire_fly"):
+                {
+                    if (phase is SpinePhase.Dormant or SpinePhase.Gone)
+                        return true;
+                    FireFlies(mesh, model, t, extra2);
+                    return true;
+                }
             case EnemyKind.FireFlies:
                 {
                     // A swarm of sparks round a lamp (GDD v1.1 A.5), brighter and tighter the longer they linger.
@@ -1112,6 +1127,73 @@ public sealed class CreatureArt
     /// <param name="bite">A Car Hugger's car's (Art/BiteKit): its head goes in as far as it's eaten.</param>
     /// <param name="pace">How fast it's been going (m/s; GreyboxScene eases it from frame to frame): a Gaunt lopes after
     /// its waker while it's going and stands over them while it's not.</param>
+    /// <summary>
+    /// The Fire Flies at a lit lamp (GDD v1.2 §21, App. A.5 SWARM): moths, come in out of the dark to it. At first a few,
+    /// beating round it in loops, blundering into the glass; the longer they linger the more of them, and more of those
+    /// settle on the glass, wings folded (the eyes on them looking out), crawling, till the lamp's a cluster of them and
+    /// its light comes through them orange: the TELEGRAPH's glow. Each its own way round and at its own beat (by its
+    /// index and the swarm's seed), so no two keep time. <paramref name="lamp"/>: the flame, in its car's basis.
+    /// </summary>
+    void FireFlies(MeshBuilder mesh, in Matrix4x4 lamp, double t, double seed)
+    {
+        var (r, u, b) = Basis(lamp);
+        var o = lamp.Translation;
+        float fill = Math.Clamp((float)t / FireFlySwarmFills, 0, 1);
+        int count = (int)MathF.Round(5 + (FireFlyMost - 5) * fill);
+        // The settled share grows faster than the swarm: by the time it's full, most are on the glass.
+        int settled = (int)MathF.Round(count * (0.15f + 0.6f * MathF.Sqrt(fill)));
+        for (int i = 0; i < count; i++)
+        {
+            float k = (float)((i * 0.6180339 + seed * 0.37) % 1);
+            float k2 = (float)((i * 0.7548777 + seed * 0.11) % 1);
+            float size = 0.85f + 0.3f * k2;
+            Vector3 at, up, fwd;
+            string clip;
+            if (i < settled)
+            {
+                // On the glass: round it at its own angle and height, its back out, its head up and to one side; it
+                // creeps (a little way round every so often, as its settle clip lurches).
+                double creep = Math.Floor((t + k * 3.2) / 3.2) * 0.12 * (k2 - 0.5);
+                double a = k * Math.PI * 2 + creep;
+                float h = -FireFlyGlassBelow + (FireFlyGlassBelow + FireFlyGlassAbove) * k2;
+                var radial = r * (float)Math.Cos(a) + b * (float)Math.Sin(a);
+                var round = Vector3.Cross(u, radial);
+                float tilt = (k - 0.5f) * 1.4f;
+                at = o + radial * FireFlyGlass + u * h;
+                up = radial;
+                fwd = Vector3.Normalize(u * MathF.Cos(tilt) + round * MathF.Sin(tilt));
+                clip = "settle";
+            }
+            else
+            {
+                // On the wing: a loop round the lamp, in and out and up and down at its own rates, now and then dashing
+                // in at the glass; facing the way it's going.
+                double w = (0.9 + 0.8 * k) * (k2 < 0.5 ? 1 : -1);
+                Vector3 Where(double s)
+                {
+                    double a = k * Math.PI * 2 + s * w;
+                    double bash = Math.Pow(Math.Max(0, Math.Sin(s * (1.3 + k2) + k * 9)), 8);
+                    float rad = FireFlyGlass + 0.03f + (FireFlyOrbit * (0.4f + 0.6f * k2) - 0.03f) * (float)(0.7 + 0.3 * Math.Sin(s * 2.1 + k * 5)) * (float)(1 - 0.9 * bash);
+                    float h = (float)(0.12 * Math.Sin(s * 1.7 + k * 4) + 0.06 * Math.Sin(s * 4.3 + k2 * 7));
+                    return o + (r * (float)Math.Cos(a) + b * (float)Math.Sin(a)) * rad + u * h;
+                }
+                at = Where(t);
+                var v = Where(t + 0.05) - at;
+                fwd = v.LengthSquared() > 1e-10f ? Vector3.Normalize(v) : r;
+                up = Vector3.Normalize(u - fwd * Vector3.Dot(u, fwd));
+                clip = "flutter";
+            }
+            // The model faces -Z with its back +Y: its rows are where X, Y and Z go.
+            var z = -fwd;
+            var x = Vector3.Cross(up, z);
+            var m = new Matrix4x4(x.X, x.Y, x.Z, 0, up.X, up.Y, up.Z, 0, z.X, z.Y, z.Z, 0, at.X, at.Y, at.Z, 1);
+            Draw(mesh, "fire_fly", clip, t + k * 7.3, true, Matrix4x4.CreateScale(size) * m, seed: i + (float)seed);
+        }
+        // The lamp's light through them: brighter, and redder, the more there are.
+        float flick = 0.85f + 0.15f * MathF.Sin((float)t * 13 + 1.7f) * MathF.Sin((float)t * 5.3f);
+        mesh.PointLights.Add(new PointLight(o, Palette.FurnaceOrange * (0.25f + 0.9f * fill) * flick, 2.5f + 2.5f * fill));
+    }
+
     public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite = default, Prey? prey = null, Room? room = null, float pace = 0)
     {
         var m = model;
@@ -1134,6 +1216,9 @@ public sealed class CreatureArt
                     }
                     return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: false, extra2: e.Id);
                 }
+            case EnemyKind.FireFlies:
+                // Each swarm its own way round its lamp (by its id).
+                return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: true, extra2: e.Id);
             case EnemyKind.Stoker when _models.ContainsKey("stoker") && FireDoorOpen is { } door:
                 // At the open door, looking out of it into the cab (the model faces −Z: turned to the engine's +Z, back).
                 m = Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateTranslation(door) * model;

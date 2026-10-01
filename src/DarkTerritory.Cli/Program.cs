@@ -1051,8 +1051,11 @@ static object ArtClip(string content, string name, string clip, string[] args)
         float f = 40;
         mesh.Quad(new System.Numerics.Vector3(-f, 0, f) - e, new System.Numerics.Vector3(f, 0, f) - e, new System.Numerics.Vector3(f, 0, -f) - e, new System.Numerics.Vector3(-f, 0, -f) - e, DarkTerritory.Game.Palette.Charcoal * 0.5f);
         var right = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(camera.Forward, System.Numerics.Vector3.UnitY));
-        mesh.PointLights.Add(new PointLight(right * (float)(dist * 0.4) + new System.Numerics.Vector3(0, 1.2f, 0), DarkTerritory.Game.Palette.LampAmber * 2.2f, (float)dist * 2.5f));
-        mesh.PointLights.Add(new PointLight(-right * (float)(dist * 0.6) + new System.Numerics.Vector3(0, 2f, 0), new System.Numerics.Vector3(0.25f, 0.3f, 0.4f), (float)dist * 2.5f));
+        // (Close in on something small, a moth, the lights come in with the camera: scaled to the distance, round the target.)
+        float near = (float)Math.Min(1, dist / 2);
+        var anchor = near < 1 ? new System.Numerics.Vector3((float)target.X, (float)target.Y, (float)target.Z) - e : default;
+        mesh.PointLights.Add(new PointLight(anchor + (right * (float)(dist * 0.4) + new System.Numerics.Vector3(0, 1.2f, 0)) * near, DarkTerritory.Game.Palette.LampAmber * 2.2f, (float)dist * 2.5f));
+        mesh.PointLights.Add(new PointLight(anchor + (-right * (float)(dist * 0.6) + new System.Numerics.Vector3(0, 2f, 0)) * near, new System.Numerics.Vector3(0.25f, 0.3f, 0.4f), (float)dist * 2.5f));
         // (--lift: the model raised off the floor, for one whose origin isn't at its feet: the Stoker's is the firebox door.)
         art.Draw(mesh, name, clip, time, loop, System.Numerics.Matrix4x4.CreateTranslation(new System.Numerics.Vector3(0, (float)Opt(args, "--lift", 0), 0) - e));
         var light = look.Apply(FrameLighting.Night);
