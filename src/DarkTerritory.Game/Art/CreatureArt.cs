@@ -29,7 +29,7 @@ public sealed class CreatureArt
     const float CarHalfWidth = 1.6f, RoofDrop = 3.6f;
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
-        "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly"];
+        "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger"];
 
     /// <summary>A haunting Track Doll's turns aboard (App. A.2 HAUNT): this long over the cargo, then this long giggling.</summary>
     const double DollAdmires = 12, DollGiggles = 5;
@@ -126,6 +126,10 @@ public sealed class CreatureArt
     // model's origin): at most this many of them, the swarm filling as they linger (all of it by FireFlySwarmFills
     // seconds: the sim's ignite time, enemies.json fireFlies, as the GDD's ~20 s); the settled ones on the glass, a
     // cylinder this wide (m, to their bodies) and this far below and above the flame; the flying ones this far out.
+    // The Passenger's walk and drag clips cover the ground at these paces (m/s: tools/blender/passenger.py's, the crew's
+    // walk); dragging, it's this far ahead of the one it drags (m: they're at its feet in the sim).
+    const float PassengerWalkPace = 1.4f, PassengerDragPace = 1.3f, PassengerStride = 0.8f;
+
     const int FireFlyMost = 22;
     const float FireFlySwarmFills = 20, FireFlyGlass = 0.085f, FireFlyGlassBelow = 0.07f, FireFlyGlassAbove = 0.08f, FireFlyOrbit = 0.45f;
 
@@ -212,6 +216,7 @@ public sealed class CreatureArt
         ["follower"] = 0.2f,
         ["climber"] = 0.3f,
         ["fire_fly"] = 0.1f,
+        ["passenger"] = 0.35f,
     };
 
     sealed class Entry(Model model, MaterialLook[] looks)
@@ -782,6 +787,26 @@ public sealed class CreatureArt
                     return Draw(mesh, "husk", "crouch_idle", t * speed, true, at, variant: 6, seed: 23, adjust: (_, l) => l with { Colour = l.Colour * 0.5f })
                         || Draw(mesh, "crew", "crouch_idle", t * speed, true, at, variant: 6, seed: 23, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.22f, 0.2f, 0.2f) });
                 }
+            case EnemyKind.Passenger when _models.ContainsKey("passenger"):
+                {
+                    // The Passenger (GDD v1.2 §21, App. A.8; tools/blender/passenger.py): a conductor off a train lost long
+                    // ago, its scarf dyed the colour of the crewmate it copies (extra), as theirs is. Hanging about it's dead
+                    // still, or it walks the crew's walk as fast as it's been going (Enemy(e)'s pace); with someone (GRAB)
+                    // it hauls them by the collar a stride ahead of them (the sim has them at its feet), and stopped at the
+                    // caboose's coupling it heaves at the pin.
+                    float pace = _pace;
+                    _pace = 0;
+                    var paint = PaintOf((int)Math.Round(extra));
+                    bool going = pace > Going;
+                    if (phase is SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish)
+                    {
+                        var ahead = Matrix4x4.CreateTranslation(0, 0, -PassengerStride) * model;
+                        return going ? Draw(mesh, "passenger", "drag", t * Math.Max(1, pace / PassengerDragPace), true, ahead, adjust: paint)
+                            : Draw(mesh, "passenger", "pin", t, true, ahead, adjust: paint);
+                    }
+                    return going ? Draw(mesh, "passenger", "walk", t * pace / PassengerWalkPace, true, model, adjust: paint)
+                        : Draw(mesh, "passenger", "stand", t, true, model, adjust: paint);
+                }
             case EnemyKind.Passenger:
                 // One of the crew (App. A.7 BLEND): the crew figure in the look of whoever it copies (extra), walking its loop.
                 // In play it's drawn through the crew's own path (GreyboxScene.AsCrewmate), gait and all.
@@ -1216,6 +1241,11 @@ public sealed class CreatureArt
                     }
                     return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: false, extra2: e.Id);
                 }
+            case EnemyKind.Passenger when _models.ContainsKey("passenger"):
+                // Facing as it goes (Extra2, in its car's frame: the crew's own reading, GreyboxScene.AsCrewmate).
+                m = Matrix4x4.CreateRotationY((float)e.Extra2) * model;
+                _pace = pace;
+                break;
             case EnemyKind.FireFlies:
                 // Each swarm its own way round its lamp (by its id).
                 return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: true, extra2: e.Id);

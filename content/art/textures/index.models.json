@@ -3957,6 +3957,26 @@
     ]
   },
   {
+    "name": "passenger_0",
+    "diffuse": "models/passenger_0.png",
+    "spec": "models/passenger_0_s.png",
+    "normal": "models/passenger_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/passenger.py",
+        "what": "the Passenger, modelled over tools/blender/passenger.py",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "pilot_wheel_0",
     "diffuse": "models/pilot_wheel_0.png",
     "spec": "models/pilot_wheel_0_s.png",

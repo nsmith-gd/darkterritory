@@ -51,6 +51,10 @@ public static class Views
             // Off the last car's side, looking up at what's over its roof (the staged Choir besieging the guard van).
             "choir" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(4.6, train.Frames[^1].Shape.RoofHeight + 0.6, 4.5)),
                 train.Frames[^1].ToWorld(new Double3(0, train.Frames[^1].Shape.RoofHeight + 2.0, 0)), 55),
+            // In car 2's aisle, close in front of what's stood in it (the staged Passenger, Staging.Passenger), a little off
+            // to one side to see what it's dragging behind it.
+            "passenger" => Camera.LookAt(target.ToWorld(new Double3(0.2, Floor(train) + 1.6, -target.Shape.HalfLength + 3.3)),
+                target.ToWorld(new Double3(-0.35, Floor(train) + 1.25, -target.Shape.HalfLength + 5.9)), 55),
             // In the middle car, under its forward lantern, up at what's round it (the staged Fire Flies).
             "flies" => FliesCamera(train),
             "crewside" => Camera.LookAt(target.ToWorld(new Double3(2.6, roof + 1.9, -4.2)), target.ToWorld(new Double3(-0.8, roof + 1.45, -5.6)), 45),
