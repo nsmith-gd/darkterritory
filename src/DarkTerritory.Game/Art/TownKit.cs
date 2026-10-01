@@ -86,7 +86,7 @@ public static class TownKit
                 k.Panel(new Vector3(-x, 1.3f + s * 2.6f, d / 2 + 0.01f), Vector3.UnitZ, Vector3.UnitY, 0.8f, 1.1f, Vector2.Zero, Vector2.One);
             }
         k.Shade(0.4f);
-        k.Panel(new Vector3(0.2f, 0.9f, -d / 2 - 0.01f), -Vector3.UnitZ, Vector3.UnitY, 1.0f, 2.0f, Vector2.Zero, Vector2.One);
+        k.Doorway(new Vector3(0.2f, -0.1f, -d / 2 - 0.01f), -Vector3.UnitZ, 1.0f);
         // The roof: two slopes of slate, overhanging, broken open by the state.
         k.Use("roof_slate", Palette.Charcoal, 0.9f, 0.15f, tile: 1.5f);
         float over = 0.4f, z0 = -d / 2 - over, z1 = state == 1 ? 0.5f : d / 2 + over;
@@ -147,7 +147,7 @@ public static class TownKit
         for (float z = -4; z < 11; z += 3)
             foreach (int side in new[] { -1, 1 })
                 k.Panel(new Vector3(side * 4.01f, 3.6f, z), new Vector3(side, 0, 0), Vector3.UnitY, 1.0f, 3.2f, Vector2.Zero, Vector2.One);
-        k.Panel(new Vector3(0, 2.2f, -11.21f), -Vector3.UnitZ, Vector3.UnitY, 1.6f, 3.4f, Vector2.Zero, Vector2.One);
+        k.Doorway(new Vector3(0, 0.5f, -11.21f), -Vector3.UnitZ, 1.6f, bay: true);
         return k.Build("church");
     }
 
@@ -180,7 +180,7 @@ public static class TownKit
         }
         k.Use("glass_dirty", Palette.SootBlack, 0.4f, 0.4f, tile: 1);
         k.Shade(0.2f);
-        k.Panel(new Vector3(0, 1.1f, -3.36f), -Vector3.UnitZ, Vector3.UnitY, 1.1f, 2.2f, Vector2.Zero, Vector2.One);
+        k.Doorway(new Vector3(0, 0, -3.36f), -Vector3.UnitZ, 1.1f);
         return k.Build("windmill");
     }
 }

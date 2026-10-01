@@ -218,6 +218,10 @@ In a sweep of 40 runs per tier, first-attempt medians came out at 14, 22, 51 and
 
 **Why:** jittering numbers inside one form only changes how a stop looks. A new form changes how the crew plays it.
 
+### P21 — One doorway
+**Rule:** every door a person goes through, on the train or off it, is the standard doorway: 2.1 m tall (`train.json` `geometry.doorway`). Every big door (sheds, barns, churches) is the bay height, 3.5 m. A building whose walls can't stand a door and its header doesn't get a smaller door. Its walls go up.
+**Why:** the crew reads a door at a glance, and the things that hunt them are built against it. A Tippy Toesie, taller than any doorway, has to duck through every one (ARCHITECTURE §8 note 110). One height everywhere keeps that true wherever the next building goes up.
+
 ---
 
 # PART Z — RULES FOR GENERATING AT ANY SCALE

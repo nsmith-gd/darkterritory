@@ -22,6 +22,12 @@
     // The guard van's rear platform, when it's last: across the car's back end at plate height, this deep (GDD §24 THE
     // WEIGHT: "melee from the rear platform"). Deep enough to land on and stand clear of the rear door's swing.
     "platformDepth": 1.2,
+    // THE doorway (ARCHITECTURE §8 note 110): every door a person goes through, on the train and off it, is this tall and
+    // (on the train) this wide: the cars' end and side doors (the side doors are wider, for crates: interior.sideDoorWidth),
+    // the cab's doorways, and the doors the art draws on every building. Big doors (sheds, barns, churches) are all
+    // bayHeight. A crewmate is 1.8 m (player.json height): 0.3 m over their head. A Tippy Toesie, 2.45 m on its points,
+    // ducks (Art/CreatureArt).
+    "doorway": { "height": 2.1, "width": 0.9, "bayHeight": 3.5 },
     // Ladders sit on both sides at the rear end of every car.
     "ladderInset": 0.6,
     // Engine + tender unit: boiler forward, walkable cab, coal tender behind (heights above rail).
@@ -34,7 +40,6 @@
       "cabLength": 4.0,
       "tenderLength": 4.0,
       "tenderTop": 3.4,
-      "doorWidth": 0.9,
       // The running boards out past the cab sides (App. A.2 GREASE: "sanding from the running boards"), this wide, and the
       // sandbox on each this far ahead of the cab front.
       "runningBoardWidth": 0.6,
@@ -51,8 +56,6 @@
       "floorHeight": 1.1,
       "wallThickness": 0.1,
       "roofThickness": 0.15,
-      "doorWidth": 0.9,
-      "doorHeight": 2.1,
       // End doors sit left of centre, the coupler plates in line with them, and the end ladders right of the plates.
       "doorX": -0.45,
       // Holding Use at a door this long opens or shuts it.

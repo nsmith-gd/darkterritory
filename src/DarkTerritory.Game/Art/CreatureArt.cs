@@ -29,7 +29,7 @@ public sealed class CreatureArt
     const float CarHalfWidth = 1.6f, RoofDrop = 3.6f;
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
-        "track_doll", "car_hugger"];
+        "track_doll", "car_hugger", "tippy_toesie"];
 
     /// <summary>A haunting Track Doll's turns aboard (App. A.2 HAUNT): this long over the cargo, then this long giggling.</summary>
     const double DollAdmires = 12, DollGiggles = 5;
@@ -55,6 +55,73 @@ public sealed class CreatureArt
     float _biteGrip;
     static readonly string[] HuggerArms = ["a", "b", "c", "d"];
 
+    /// <summary>
+    /// Who a Tippy Toesie is after (GreyboxScene, for its target: the crewmate whose id is its Extra), camera-relative:
+    /// their feet and the way they face. It faces them; on them, it's stood tight behind with a hand over their mouth.
+    /// </summary>
+    public readonly record struct Prey(Vector3 Feet, Vector3 Forward)
+    {
+        public Vector3 Right => Vector3.Normalize(Vector3.Cross(Forward, Vector3.UnitY));
+        /// <summary>A point in their frame (x right, y up, z back), camera-relative.</summary>
+        public Vector3 At(float x, float y, float z) => Feet + Right * x + Vector3.UnitY * y - Forward * z;
+    }
+
+    // Set by Enemy(e, prey) for the one draw it makes, as _biteGrip.
+    Prey? _prey;
+    Room _room;
+
+    /// <summary>
+    /// The room a creature stands in, in its car (GreyboxScene, for a Tippy Toesie: it's taller than the train was built
+    /// for, note 110): under a roof (a car's interior, the cab) it stoops; under a lintel it ducks, facing
+    /// <see cref="Through"/> (out through the door, along the car frame's x or z) when it has nobody to face.
+    /// </summary>
+    public readonly record struct Room(bool Indoors, bool Doorway, float Headroom, Vector3 Through)
+    {
+        /// <summary>Out in the open: nothing over it.</summary>
+        public static readonly Room Open = new(false, false, float.PositiveInfinity, default);
+
+        /// <summary>Where <paramref name="local"/> (feet, in the car's frame) is in <paramref name="shape"/>.</summary>
+        public static Room Of(Sim.Train.CarShape shape, Double3 local)
+        {
+            float headroom = float.PositiveInfinity;
+            bool indoors = false;
+            foreach (var room in new[] { shape.Interior, shape.Cab })
+                if (room is { } r && local.X > r.Min.X - 0.05 && local.X < r.Max.X + 0.05 && local.Z > r.Min.Z - 0.05 && local.Z < r.Max.Z + 0.05
+                    && local.Y >= r.Min.Y - 0.3 && local.Y < r.Max.Y)
+                {
+                    indoors = true;
+                    headroom = MathF.Min(headroom, (float)(r.Max.Y - local.Y));
+                }
+            // A lintel: something thin across one way, its underside a door's height or so over the feet, and the feet
+            // within a stride of it (the car's end and side doors, the cab's doorways: the standard doorway).
+            bool doorway = false;
+            Vector3 through = default;
+            foreach (var solid in shape.Solids)
+            {
+                var b = solid.Box;
+                double under = b.Min.Y - local.Y, dx = b.Max.X - b.Min.X, dz = b.Max.Z - b.Min.Z;
+                if (under < 1.5 || under > 2.6 || Math.Min(dx, dz) > 0.3)
+                    continue;
+                bool acrossX = dx < dz; // the wall it's in runs along z (a side door); else across the car (an end door)
+                double off = acrossX ? local.X - b.Centre.X : local.Z - b.Centre.Z;
+                double along = acrossX ? local.Z : local.X, lo = acrossX ? b.Min.Z : b.Min.X, hi = acrossX ? b.Max.Z : b.Max.X;
+                if (Math.Abs(off) > 0.6 || along < lo - 0.15 || along > hi + 0.15)
+                    continue;
+                doorway = true;
+                headroom = MathF.Min(headroom, (float)under);
+                // Out: away from the middle of the car.
+                double outward = acrossX ? Math.Sign(b.Centre.X) : Math.Sign(b.Centre.Z);
+                through = acrossX ? new Vector3((float)outward, 0, 0) : new Vector3(0, 0, (float)outward);
+            }
+            return new Room(indoors, doorway, headroom, through);
+        }
+    }
+
+    // Seen, Tippy Toesie's off (the sim has it hidden at once, Interior.cs): it's seen scuttling off for this long (s), at
+    // this speed (m/s), before it's gone. Smothering, it stands this far behind its victim's heels (m), its hand over
+    // their mouth: a crewmate's, 1.8 m tall (tools/blender/crew.py), at this height, this far in front of their middle.
+    const float TippyFleeShow = 0.5f, TippyFleeSpeed = 4f, TippyBehind = 0.42f, PreyMouthY = 1.6f, PreyMouthFore = 0.12f;
+
     static float SmoothStep(float a, float b, float x)
     {
         float t = Math.Clamp((x - a) / (b - a), 0, 1);
@@ -76,6 +143,7 @@ public sealed class CreatureArt
         ["weight"] = 0.3f,
         ["track_doll"] = 0.35f,
         ["car_hugger"] = 0.3f,
+        ["tippy_toesie"] = 0.1f,   // (its dirt is baked: the grime's rust would warm the plaster)
     };
 
     sealed class Entry(Model model, MaterialLook[] looks)
@@ -672,10 +740,49 @@ public sealed class CreatureArt
                     return Draw(mesh, "husk", clip, t * (running ? 1.6 : 0.5), true, at, variant: 2, seed: 41, adjust: (_, l) => l with { Colour = l.Colour * 0.5f })
                         || Draw(mesh, "crew", clip, t, true, at, variant: 2, seed: 41, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.25f, 0.24f, 0.24f) });
                 }
+            case EnemyKind.TippyToesie when _models.ContainsKey("tippy_toesie"):
+                {
+                    // The starved thing on its points (GDD v1.2 §21, App. A.5; tools/blender/tippy_toesie.py). Stalking it
+                    // tiptoes, a step and a long hold, a finger to where its mouth should be; on its victim it's bent over
+                    // them from behind, its right hand over their mouth and its left on their shoulder, rocking them (the
+                    // hands reach where they are: Enemy(e) set the prey); seen, it scuttles off and is gone. It's taller
+                    // than the train was built for (2.45 m on its points; the doorway is 2.1, a car 2.75 under its roof):
+                    // indoors it stoops, and through a door it folds right down and ducks (Room; note 110).
+                    var prey = _prey;
+                    var room = _room;
+                    _prey = null;
+                    _room = Room.Open;
+                    switch (phase)
+                    {
+                        case SpinePhase.Dormant or SpinePhase.BreakOff:
+                            return Draw(mesh, "tippy_toesie", "flee", t, true, Matrix4x4.CreateTranslation(0, 0, TippyFleeSpeed * (float)t) * model);
+                        case SpinePhase.Grab or SpinePhase.Punish:
+                            {
+                                Action<Entry>? smother = null;
+                                if (prey is { } p && Matrix4x4.Invert(model, out var toModel))
+                                {
+                                    var mouth = Vector3.Transform(p.At(0, PreyMouthY, -PreyMouthFore), toModel);
+                                    var shoulder = Vector3.Transform(p.At(-0.2f, PreyMouthY - 0.18f, 0), toModel);
+                                    smother = e =>
+                                    {
+                                        // The right arm round the side of their head, the elbow down and out; the left's too.
+                                        Reach(e, "r", mouth, new Vector3(0.7f, -0.4f, 0.2f));
+                                        Reach(e, "l", shoulder, new Vector3(-0.7f, -0.5f, 0.2f));
+                                    };
+                                }
+                                return Draw(mesh, "tippy_toesie", "smother", t, true, model, smother);
+                            }
+                        case SpinePhase.Telegraph or SpinePhase.Commit:
+                            return Draw(mesh, "tippy_toesie", room.Doorway ? "duck" : room.Indoors ? "stalk_stoop" : "stalk", t, true, model)
+                                || Draw(mesh, "tippy_toesie", "stalk", t, true, model);
+                        default:
+                            return Draw(mesh, "tippy_toesie", room.Doorway ? "duck" : room.Indoors ? "stoop" : "wait", t, true, model)
+                                || Draw(mesh, "tippy_toesie", "wait", t, true, model);
+                    }
+                }
             case EnemyKind.TippyToesie:
                 {
-                    // Small and thin, tiptoeing (GDD v1.1 A.5): the husk at child height, walking at a crawl, heels up. Its hand
-                    // over someone's mouth, it's stood tight behind them.
+                    // (No model: the husk at child height, walking at a crawl, heels up.)
                     var at = Matrix4x4.CreateScale(0.7f, 0.85f, 0.7f) * Matrix4x4.CreateTranslation(0, 0.08f, 0) * model;
                     bool holding = phase is SpinePhase.Grab or SpinePhase.Punish;
                     string clip = holding ? "idle" : phase == SpinePhase.BreakOff ? "run" : "walk";
@@ -755,11 +862,39 @@ public sealed class CreatureArt
     /// the basis for which side of the car or the line it's on: a Dragger on a car's +X side reaches over that edge, and the Switchman turns to face the train coming up the line.
     /// </summary>
     /// <param name="bite">A Car Hugger's car's (Art/BiteKit): its head goes in as far as it's eaten.</param>
-    public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite = default)
+    public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite = default, Prey? prey = null, Room? room = null)
     {
         var m = model;
         switch (e.Kind)
         {
+            case EnemyKind.TippyToesie when _models.ContainsKey("tippy_toesie"):
+                {
+                    // Hidden between tries (the sim's Dormant): nowhere, but for the moment it's seen scuttling off from
+                    // where it was (never placed yet: never seen).
+                    if (e.Phase == SpinePhase.Dormant && (e.Local == default || e.PhaseSeconds >= TippyFleeShow))
+                        return true;
+                    _room = room ?? Room.Open;
+                    var (r, _, b) = Basis(model);
+                    if (prey is not { } p)
+                    {
+                        // Nobody to face, in a doorway: out through it, the way it's going.
+                        if (_room.Doorway && _room.Through != default)
+                            m = Matrix4x4.CreateRotationY(MathF.Atan2(-_room.Through.X, -_room.Through.Z)) * model;
+                        break;
+                    }
+                    // On them: tight behind, facing the way they face. Else: facing them, wherever they are.
+                    bool on = e.Phase is SpinePhase.Grab or SpinePhase.Punish;
+                    var origin = on ? p.Feet - p.Forward * TippyBehind : model.Translation;
+                    var to = on ? p.Forward : p.Feet - origin;
+                    float x = Vector3.Dot(to, r), z = Vector3.Dot(to, b);
+                    if (x * x + z * z < 1e-6f)
+                        break;
+                    // (CreateRotationY(a) takes the model's forward, -Z, to (-sin a, -cos a) in its basis.)
+                    m = Matrix4x4.CreateRotationY(MathF.Atan2(-x, -z)) * model;
+                    m.Translation = origin;
+                    _prey = p;
+                    break;
+                }
             case EnemyKind.CarHugger when bite.Any:
                 m = Matrix4x4.CreateTranslation(0, 0, -bite.Advance) * model;
                 _biteGrip = bite.Grip;
