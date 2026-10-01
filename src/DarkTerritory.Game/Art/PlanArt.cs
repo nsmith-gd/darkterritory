@@ -80,6 +80,9 @@ public sealed partial class WorldArt
 
     static PlanScene? Scene(Route? route) => route?.Plan is null ? null : Scenes.GetValue(route, r => new PlanScene(r));
 
+    /// <summary>A generated line's biome at a main-line distance (linegen plan §13.1), or null for a hand-laid one.</summary>
+    public static string? BiomeAt(Route? route, double s) => Scene(route)?.BiomeAt(s);
+
     static float SmoothStep(float a, float b, float x)
     {
         float t = Math.Clamp((x - a) / (b - a), 0, 1);

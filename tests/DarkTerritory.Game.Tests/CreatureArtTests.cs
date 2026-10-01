@@ -221,7 +221,11 @@ public class CreatureArtTests
                     bool hidden = kind == EnemyKind.Dragger && phase is not (SpinePhase.Telegraph or SpinePhase.Grab or SpinePhase.Punish)
                         || kind == EnemyKind.Stoker
                         || kind == EnemyKind.FireFlies && phase == SpinePhase.Dormant;
-                    Assert.True(hidden ? mesh.Flattened().Length == 0 : mesh.Flattened().Length > 0, $"{kind} {phase} drew {mesh.Flattened().Length / 3} triangles");
+                    // A car fire is an effect (Effects.CarFire): smoke and flame billboards, no triangles of its own.
+                    if (kind == EnemyKind.CarFire)
+                        Assert.True(mesh.AlphaFx.Count + mesh.AdditiveFx.Count > 0, $"{kind} {phase} drew no smoke or flame");
+                    else
+                        Assert.True(hidden ? mesh.Flattened().Length == 0 : mesh.Flattened().Length > 0, $"{kind} {phase} drew {mesh.Flattened().Length / 3} triangles");
                 }
         foreach (var pose in Enum.GetValues<CrewPose>())
             for (int variant = 0; variant < 4; variant++)

@@ -162,3 +162,82 @@ def fx_fog(ctx):
     d = lerp(hexc("#3A4450"), hexc("#6A7480"), n2)
     return ctx.out(d, np.zeros_like(a), np.zeros_like(a), alpha=posterise(a * 0.8, 16), tiling=False, factor=2,
                    procedural="stretched fractal wisps, edge fade", grain=0.02, chroma_block=1)
+
+
+@texture("fx_flame", "fx", tile=None)
+def fx_flame(ctx):
+    """Flames (additive; alpha = intensity), 4x4 frames that loop: a broad licking tongue with two smaller ones beside
+    it, eaten into from the edges by noise scrolling up through them, hot white-yellow at the root, deep red at the
+    ragged tips. For a car fire, the furnace at the firehole, a muzzle's lick of flame. The noise is periodic and the
+    scroll goes once round it in 16 frames, so the loop has no seam."""
+    rng = ctx.rng("flame")
+    C, n = 128, 16
+    xs, ys = noise.grid(C, C)
+    x = xs / C
+    v = 1 - ys / C                      # 0 at the root (the frame's foot), 1 at the top
+    lick = noise.fbm01(rng, (C, C), 9, octaves=4, stretch=(0.6, 1.4))
+    sway = noise.fbm01(rng, (C, C), 22, octaves=2)
+    frames = []
+    for f in range(n):
+        t = f / n
+        sh = int(round(t * C))
+        nl = np.roll(lick, sh, axis=0)          # scrolls upward through the flame, once round in the loop
+        ns = np.roll(sway, sh // 2, axis=0)
+        I = np.zeros((C, C), np.float32)
+        for cx, h0, w0, ph in ((0.5, 1.05, 0.36, 0.0), (0.27, 0.72, 0.19, 0.37), (0.73, 0.78, 0.2, 0.71)):
+            h = h0 * (0.86 + 0.14 * np.sin(2 * np.pi * (t * 2 + ph)))
+            vv = v / h
+            # A tongue: round at its root, widest a quarter up, drawn out to a point; the sway bends it more the higher
+            # it goes, so the tips lick about while the root stays put.
+            half = w0 * saturate(1 - vv) ** 1.1 * (0.55 + 0.45 * smoothstep(0.0, 0.28, vv)) + 0.006
+            dx = x - cx - 0.2 * (ns - 0.5) * vv ** 1.3
+            across = saturate(1 - (np.abs(dx) / half) ** 1.6)
+            body = across * smoothstep(0.0, 0.07, v) * saturate(1.1 - vv) * (1 - 0.55 * vv)
+            I = np.maximum(I, body)
+        # Eaten from the edges and the top by the rising noise: the tips break into separate licks; the inside is uneven.
+        I = saturate((I - (0.04 + 0.42 * v) * nl) * 1.5) * (0.75 + 0.35 * np.roll(nl, C // 3, axis=1))
+        frames.append(I)
+
+    def colour(i):
+        c = core.apply_ramp(saturate(i), ["#1A0300", "#7A1606", "#C8420E", "#F08A24", "#FFD27A", "#FFF6DC"])
+        return c, posterise(i, 14), i
+    D, A, E = sheet(frames, 4, C, colour)
+    return ctx.out(D, np.zeros_like(A), np.zeros_like(A), emissive=E, alpha=A, tiling=False, factor=2,
+                   frames=[4, 4], blend="additive", procedural="noise-eaten flame tongues, scrolled once round a loop",
+                   grain=0.0, chroma_block=1)
+
+
+@texture("fx_flash", "fx", tile=None)
+def fx_flash(ctx):
+    """A black-powder muzzle flash (additive), 2x2 variants: a ragged star of flame jets round a white-hot core, the jets
+    of uneven length, a few sparks flung past them. Seen end on or from the side, it's a burst; stretched, a jet."""
+    rng = ctx.rng("flash")
+    C = 128
+    xs, ys = noise.grid(C, C)
+    dx, dy = (xs - 64) / 64, (ys - 64) / 64
+    r = np.sqrt(dx * dx + dy * dy) + 1e-6
+    a = np.arctan2(dy, dx)
+    frames = []
+    for k in range(4):
+        jets = rng.integers(5, 9)
+        rays = np.zeros((C, C), np.float32)
+        for _ in range(jets):
+            a0 = rng.uniform(-np.pi, np.pi)
+            L = rng.uniform(0.6, 1.0)
+            w = rng.uniform(0.18, 0.34)
+            da = np.angle(np.exp(1j * (a - a0)))
+            rays = np.maximum(rays, saturate(1 - np.abs(da) / (w * (1.1 - r / L))) * saturate(1 - r / L))
+        breakup = noise.fbm01(rng, (C, C), 6, octaves=3)
+        core_ = np.exp(-(r / 0.14) ** 2)
+        I = saturate(rays * (0.55 + 0.6 * breakup) + core_ * 1.3 + np.exp(-(r / 0.45) ** 2) * 0.25)
+        for _ in range(5):
+            sa, sr = rng.uniform(-np.pi, np.pi), rng.uniform(0.5, 0.9)
+            I = np.maximum(I, glow(xs, ys, 64 + np.cos(sa) * sr * 60, 64 + np.sin(sa) * sr * 60, 2.5) * 0.9)
+        frames.append(I)
+
+    def colour(i):
+        c = core.apply_ramp(saturate(i), ["#200500", "#A03010", "#E87828", "#FFC060", "#FFF8E8"])
+        return c, posterise(i, 12), i
+    D, A, E = sheet(frames, 2, C, colour)
+    return ctx.out(D, np.zeros_like(A), np.zeros_like(A), emissive=E, alpha=A, tiling=False, factor=2,
+                   frames=[2, 2], blend="additive", procedural="ragged jet star round a hot core", grain=0.0, chroma_block=1)

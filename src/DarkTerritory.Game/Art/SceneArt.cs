@@ -430,16 +430,24 @@ public sealed partial class SceneArt(Look look)
             }
             else
                 mesh.Instances.Add(new MeshInstance(Piece("gun", () => TrainKit.Gun(Look)), gunM));
-            // The muzzle flash, for the two ticks after a round (pipeline VFX: "muzzle flash", additive): a hot star
-            // at the muzzle and a burst of light over the roof and whatever it's aimed at.
-            if (vehicle is { Gun.LastShotTick: > 0 } v && tick >= v.Gun.LastShotTick && tick - v.Gun.LastShotTick <= 2)
+            // The shot (pipeline VFX: "muzzle flash", additive): with the art's flipbooks, the flash, its light, the wad
+            // and the powder smoke the gun car runs out of (Effects.CannonShot); without them, a hot star and its light.
+            if (vehicle is { Gun.LastShotTick: > 0 } v && tick >= v.Gun.LastShotTick)
             {
                 var muzzle = Vector3.Transform(TrainKit.CannonMuzzle, barrelM);
-                float fade = 1 - (tick - v.Gun.LastShotTick) / 3f;
-                int shot = (int)(v.Gun.LastShotTick % 4);
-                mesh.Billboard(muzzle, 0.9f * fade, shot * 0.8f, new Vector4(1.0f, 0.75f, 0.4f, fade), -1, FxBlend.Additive);
-                mesh.Billboard(muzzle, 0.35f, shot * 1.3f, new Vector4(1.2f, 1.0f, 0.8f, fade), -1, FxBlend.Additive, stretch: 2.5f);
-                mesh.PointLights.Add(new PointLight(muzzle, new Vector3(1.6f, 1.1f, 0.6f) * fade, 12));
+                double age = (tick - v.Gun.LastShotTick) * Sim.SimConstants.TickSeconds;
+                if (Effects.HasFlames)
+                    Effects.CannonShot(mesh, muzzle, Vector3.Normalize(Vector3.TransformNormal(-Vector3.UnitZ, barrelM)),
+                        Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, m)), Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, m)),
+                        (float)frame.Velocity.Length, age, v.Gun.LastShotTick);
+                else if (tick - v.Gun.LastShotTick <= 2)
+                {
+                    float fade = 1 - (tick - v.Gun.LastShotTick) / 3f;
+                    int shot = (int)(v.Gun.LastShotTick % 4);
+                    mesh.Billboard(muzzle, 0.9f * fade, shot * 0.8f, new Vector4(1.0f, 0.75f, 0.4f, fade), -1, FxBlend.Additive);
+                    mesh.Billboard(muzzle, 0.35f, shot * 1.3f, new Vector4(1.2f, 1.0f, 0.8f, fade), -1, FxBlend.Additive, stretch: 2.5f);
+                    mesh.PointLights.Add(new PointLight(muzzle, new Vector3(1.6f, 1.1f, 0.6f) * fade, 12));
+                }
             }
         }
         return true;

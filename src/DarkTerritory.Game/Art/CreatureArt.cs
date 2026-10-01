@@ -241,12 +241,15 @@ public sealed class CreatureArt
 
     readonly Dictionary<string, Entry> _models = new();
     readonly Skinner _skinner = new();
+    // The flipbook effects some of what's drawn here is made of (a car fire: Effects.CarFire).
+    readonly Effects _fx;
     readonly float _texels;
 
     /// <param name="contentRoot">The content folder; by default the one <paramref name="look"/>'s textures came from.</param>
     public CreatureArt(Look look, string? contentRoot = null)
     {
         Look = look;
+        _fx = new Effects(look);
         _texels = look.Tuning.TexelsPerMetre;
         contentRoot ??= look.TextureRoot is { } t ? Path.GetDirectoryName(Path.GetDirectoryName(t)) : null;
         contentRoot ??= DataFile.FindContentRoot();
@@ -737,7 +740,7 @@ public sealed class CreatureArt
         if (kind is EnemyKind.CarFire)
             return IncidentArt.Draw(mesh, model.Translation, Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, model)),
                 Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, model)), Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, model)),
-                kind, phase, t, extra, health);
+                kind, phase, t, extra, health, _fx);
         float pulse = (float)(0.5 + 0.5 * Math.Sin(t * 9));
         switch (kind)
         {
@@ -1297,7 +1300,11 @@ public sealed class CreatureArt
                     };
                     bool drawn = Draw(mesh, "choir", clip, t, true, at, seed: 71 + (float)extra2);
                     if (drawn)
+                    {
                         mesh.PointLights.Add(new PointLight(model.Translation + new Vector3(0, 0.8f, 0), Palette.BlueGrey * ChoirCold, 2.5f));
+                        if (_fx.HasFlames)
+                            _fx.ChoirCold(mesh, Vector3.Transform(new Vector3(0, 1.15f, 0), at), t, clip == "swoop", 71 + (float)extra2 * 13);
+                    }
                     return drawn;
                 }
             case EnemyKind.Choir:
