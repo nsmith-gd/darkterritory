@@ -96,9 +96,15 @@ public sealed class CrewCalls
     /// </summary>
     public bool Leaving { get; private set; }
     public void Leave(bool leaving) => Leaving = leaving;
-    /// <summary>The driver's out of the cab on the running board, sanding (T104): the fireman minds the controls.</summary>
-    public bool Sanding { get; private set; }
-    public void Sand(bool sanding) => Sanding = sanding;
+    /// <summary>
+    /// The driver's away from the controls (T105: out on the running board sanding; T107: down on the ballast, or pulled off
+    /// by something): the fireman minds them.
+    /// </summary>
+    public bool DriverAway { get; private set; }
+    public void Away(bool away) => DriverAway = away;
+    /// <summary>The fireman's in the cab to mind the controls if the driver goes out (T107).</summary>
+    public bool FiremanMinding { get; private set; }
+    public void Mind(bool minding) => FiremanMinding = minding;
     /// <summary>The fireman's out of the cab at the blow-off (T106): the driver doesn't leave the controls meanwhile.</summary>
     public bool Venting { get; private set; }
     public void Vent(bool venting) => Venting = venting;
@@ -662,9 +668,14 @@ public sealed class StopDriver(CrewCalls calls)
                     // Onto the cars left waiting: aim a little into them so the rakes touch (at a crawl, so they couple) rather
                     // than stop just short; then the whole train back clear of the points.
                     var g = engine.Tuning.Geometry;
-                    double target = together ? p.Hold : train.Rakes.First(r => r != engine).Distance + g.CouplingGap - 0.5;
-                    bool close = !together && engine.RearDistance - target < 15;
-                    return Toward(world, target, -1, close ? 0.8 : 3, rear: !together);
+                    var left = together ? null : train.Rakes.First(r => r != engine);
+                    double target = left is null ? p.Hold : left.Distance + g.CouplingGap - 0.5;
+                    bool close = left is not null && engine.RearDistance - target < 15;
+                    // Closing on them at a crawl, over whatever they're doing themselves: cars left on a grade roll away down it
+                    // (deepTerritory:1's mine head: at a metre a second, with the engine creeping after them at 0.8 for 1,010 s
+                    // and a kilometre, and a hand left on the ballast).
+                    double crawl = 0.8 + (left is { Velocity: < 0 } ? -left.Velocity : 0);
+                    return Toward(world, target, -1, close ? crawl : 3, rear: !together);
                 }
             case Leg.Clear:
                 if (!train.Diverging(Plan!.Spur.Index) && (calls.AllAboard || Waited > AboardGiveUp))

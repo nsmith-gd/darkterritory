@@ -155,18 +155,20 @@ public sealed class TerrainField
             if (near.Count == 0)
                 return Noise(x, z) * 4 - _r.SkirtDropM;
         }
-        double sum = 0, weights = 0, formation = double.NaN, formationW = 0;
+        double sum = 0, weights = 0, formation = double.NaN, formationW = 0, formationA = double.PositiveInfinity;
         foreach (var n in near)
         {
             var e = _edges[n.Edge];
             double h = EdgeHeight(e, n, x, z);
             double a = Math.Abs(n.Lateral);
-            // Inside an edge's formation that edge wins outright, blended over 2 m (§12.2 step 4).
+            // Inside an edge's formation that edge wins outright, blended over 2 m (§12.2 step 4). Inside two at once (an
+            // alternate climbing up alongside main to rejoin it), the nearer rail's: the first edge's won before, and on
+            // frontier:3 main's formation stood 2.8 m over the alternate's rail beside it (T107).
             if (a < _r.ShoulderM + 2 && !Disabled(e, n.S))
             {
                 double w = a <= _r.ShoulderM ? 1 : 1 - (a - _r.ShoulderM) / 2;
-                if (w > formationW)
-                    (formation, formationW) = (h, w);
+                if (w > formationW || w == formationW && a < formationA)
+                    (formation, formationW, formationA) = (h, w, a);
             }
             double weight = e.Priority / ((a + 15) * (a + 15));
             sum += h * weight;
