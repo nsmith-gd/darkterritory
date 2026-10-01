@@ -19,6 +19,8 @@ public sealed class GreyboxScene
     public int Seed { get; init; } = 7;
     /// <summary>How hot the firebox is, 0..1: the glow in the cab is how the Boiler reads the fire.</summary>
     public float FireGlow { get; set; } = 0.7f;
+    /// <summary>The firebox door's open (the boiler's FireDoorOpen): a Stoker in the fire is seen through it.</summary>
+    public bool FireDoorOpen { get; set; }
     /// <summary>Emergency lighting (`dt screenshot --emergency`): the cars' lamps go to a dim red, the headlamp dark.</summary>
     public bool Emergency { get; set; }
     static readonly System.Numerics.Vector3 EmergencyRed = new(0.5f, 0.06f, 0.04f);
@@ -218,6 +220,11 @@ public sealed class GreyboxScene
         }
         Lap(mesh, "effects");
         mesh.Seed = 0;
+        // The firebox door, open or shut, for a Stoker in the fire (Art/CreatureArt.FireDoorOpen).
+        if (Look?.Art.Creatures is { } creatures && frames.Count > 0 && frames[0].Shape.Cab is not null)
+            creatures.FireDoorOpen = FireDoorOpen
+                ? Art.TrainKit.FireDoor(frames[0].Shape) - ToF(frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position)
+                : null;
         if (Enemies is not null)
             foreach (var e in Enemies)
                 if (e is Sim.Enemies.Passenger passenger)
@@ -232,15 +239,23 @@ public sealed class GreyboxScene
                     var bite = e.Kind == EnemyKind.CarHugger && e.Attached >= 0 && e.Attached < frames.Count && Look is { } look
                         ? Art.Bite.For(look.Tuning.Bite, frames[e.Attached].Shape, Vehicles is { } vs && e.Attached < vs.Count ? vs[e.Attached] : null, e.Attached)
                         : default;
-                    // A Tippy Toesie faces who it's after (its Extra), and smothering them stands to them (Art/CreatureArt).
-                    Art.CreatureArt.Prey? prey = e.Kind == EnemyKind.TippyToesie && e.Extra >= 0 && Crew?.FirstOrDefault(c => c.Id == (int)e.Extra) is { } victim
+                    // A Tippy Toesie faces who it's after (its Extra), and smothering them stands to them; a Ribbit faces
+                    // its pack's mark, and its tongue goes to them; a Gaunt faces its waker; a Follower rides its carrier's
+                    // back (Art/CreatureArt).
+                    // A feral Grumbler, who it's after: the nearest of them (who hit it is the host's alone).
+                    var after = e.Kind is EnemyKind.TippyToesie or EnemyKind.Ribbit or EnemyKind.Choir or EnemyKind.Gaunt or EnemyKind.Follower && e.Extra >= 0
+                        ? Crew?.FirstOrDefault(c => c.Id == (int)e.Extra)
+                        : e.Kind == EnemyKind.Grumbler && e.Phase >= SpinePhase.Commit && Crew is { } crew && crew.Any(c => c.Alive)
+                            ? crew.Where(c => c.Alive).MinBy(c => (c.Feet - EnemyWorld(e, frames)).Length)
+                            : null;
+                    Art.CreatureArt.Prey? prey = after is { } victim
                         ? new(V(victim.Feet, eye), new Vector3((float)-Math.Sin(victim.Yaw), 0, (float)-Math.Cos(victim.Yaw)))
                         : null;
-                    // And stoops under a roof, ducks through a door (note 110).
-                    Art.CreatureArt.Room? room = e.Kind == EnemyKind.TippyToesie && e.Attached >= 0 && e.Attached < frames.Count
+                    // And stoops under a roof, ducks through a door (note 110); a Gaunt gets down (note 118).
+                    Art.CreatureArt.Room? room = e.Kind is EnemyKind.TippyToesie or EnemyKind.Gaunt && e.Attached >= 0 && e.Attached < frames.Count
                         ? Art.CreatureArt.Room.Of(frames[e.Attached].Shape, e.Local)
                         : null;
-                    DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room);
+                    DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room, e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler ? Pace(e) : 0);
                 }
         Lap(mesh, "enemies");
         if (Bodies is not null)
@@ -412,12 +427,45 @@ public sealed class GreyboxScene
         mesh.Emissive = 0;
     }
 
+    /// <summary>Where <paramref name="e"/> stands in the world: in its car's frame aboard, as it is loose.</summary>
+    static Double3 EnemyWorld(Enemy e, IReadOnlyList<CarFrame> frames) =>
+        e.Attached >= 0 && e.Attached < frames.Count ? frames[e.Attached].ToWorld(e.Local) : e.Local;
+
+    // Where each Gaunt and Grumbler was last drawn (its car's frame aboard, the world off it), when, and how fast it's been going.
+    readonly Dictionary<int, (int Attached, Double3 Local, double Time, float Pace)> _paces = new();
+
+    /// <summary>
+    /// How fast <paramref name="e"/> has been going (m/s, across the ground, eased over a fraction of a second): a Gaunt
+    /// lopes after its waker while they go and stands over them listening when they stop; a Grumbler scuttles, or bites
+    /// (Art/CreatureArt). Drawn twice in
+    /// one frame (both eyes), it's the pace it had.
+    /// </summary>
+    float Pace(Enemy e)
+    {
+        if (!_paces.TryGetValue(e.Id, out var was) || was.Attached != e.Attached || Time < was.Time)
+        {
+            _paces[e.Id] = (e.Attached, e.Local, Time, 0);
+            return 0;
+        }
+        double dt = Time - was.Time;
+        if (dt <= 0)
+            return was.Pace;
+        var d = e.Local - was.Local;
+        float now = (float)(Math.Sqrt(d.X * d.X + d.Z * d.Z) / dt);
+        float pace = was.Pace + (now - was.Pace) * (float)(1 - Math.Exp(-dt / PaceEasing));
+        _paces[e.Id] = (e.Attached, e.Local, Time, pace);
+        return pace;
+    }
+
+    // Seconds a pace takes to come round to a new speed (the sim moves things in tick steps; this smooths them out).
+    const double PaceEasing = 0.25;
+
     /// <summary>
     /// Greybox stand-ins, each readable by silhouette and by its telegraph (App. A.1: the tell must be
     /// perceivable). The real creatures come with the art pass; these exist to make pacing watchable.
     /// </summary>
     static void DrawEnemy(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Enemy e, Double3 eye, double from, double to, Art.CreatureArt? creatures = null,
-        Art.Bite bite = default, Art.CreatureArt.Prey? prey = null, Art.CreatureArt.Room? room = null)
+        Art.Bite bite = default, Art.CreatureArt.Prey? prey = null, Art.CreatureArt.Room? room = null, float pace = 0)
     {
         // A basis for the enemy: its car's, or the line's at its distance.
         Double3 origin, right, up = Double3.Up, back;
@@ -453,7 +501,7 @@ public sealed class GreyboxScene
         var o = V(origin, eye);
         var (r, u, b) = (ToF(right), ToF(up), ToF(back));
         // The art pass's creature, where it has one (Art/CreatureArt): the same place, the thing itself.
-        if (creatures is not null && creatures.Enemy(mesh, Art.CreatureArt.Basis(o, r, u, b), e, bite, prey, room))
+        if (creatures is not null && creatures.Enemy(mesh, Art.CreatureArt.Basis(o, r, u, b), e, bite, prey, room, pace))
             return;
         Vector3 L(double x, double y, double z) => o + r * (float)x + u * (float)y + b * (float)z;
         void Draw(double x, double y, double z, double hx, double hy, double hz, Vector3 colour) =>
@@ -1363,8 +1411,13 @@ public sealed class GreyboxScene
             if ((frame.Origin - eye).Length < 16)
                 CabMap(mesh, frame, draw);
             mesh.Emissive = 1;
+            // The fire, through the firehole: the back of the firebox dull with its light, and the bed of coals along the
+            // bottom bright (the firehole's sides frame it, Art/TrainKit).
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
-                draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.17), new Double3(0.3, 0.2, 0.02)), FireColour(0.15f + 0.85f * FireGlow));
+            {
+                draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.29), new Double3(0.32, 0.22, 0.02)), FireColour(0.03f + 0.18f * FireGlow) * 0.35f);
+                draw(Box.FromCentre(i.Position + new Double3(0, 0.55, -0.27), new Double3(0.32, 0.07, 0.02)), FireColour(0.1f + 0.5f * FireGlow) * 0.7f);
+            }
             mesh.Emissive = 0;
             // The vent valve and the driver's levers: modelled by the art pass where it has them (SceneArt.CabControls).
             bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls) == true;

@@ -2092,7 +2092,160 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The fix.** The fireman minds the controls while the driver's out (`CrewCalls.Sanding`). It holds the train no faster than the lamp's cruise, the line's authority and the boards ahead (`MindingCruise`). It brakes for the Sleepers in the lamp as the driver does (`WatchTheRoad`). Stopping the train before stepping out doesn't work: stood on grease, it never leaves the grease. `SandTests.WhileTheDriversOutSandingTheFiremanHoldsTheTrainToTheBoardsAndWatchesTheRoad`: without the fix, 15.8 m/s over a 7 m/s board, and onto the Sleepers at 20.4 m/s.
     - **Derails say why.** Every derail now records its cause in `World.DerailCause`: a curve or bridge (track rules), a board run too fast, the Sleepers, or the Switchman. The harness reports it as `threats.derailCause`. Before, only the track rules set it, and nothing read it.
 
-116. **The brake and the vent as a pair (T106).** With steam driving (T97) pressure is speed, so a board ahead wants the gauge down, not just the brake on. A held brake fades, and the steam fights it.
+116. **The Ribbits' model (GDD v1.2 §21, App. A.6).** They were the Cinder Hound squashed and coloured olive. Now they're their own (`tools/blender/ribbit.py`, baked by `tools/models/recipes/ribbit.py`, 3,662 triangles, 28 bones), on a rig of their own (SK_Ribbit: a throat-sac bone to scale, a jaw, two tongue bones, two-bone ears, rabbit hind legs).
+    - **The design.** A toad sat up on a rabbit's haunches, the size of a big dog in the model, drawn at 1.4× ("giant": its head at a crewmate's waist). It's hairless, its skin a pallid pinkish grey and wrinkled like a hairless rat's, with small warts down a bony back and a slack belly.
+      - **Ears:** long rabbit's ears with no fur, veined, hanging limp down its sides.
+      - **Eyes:** milky, with no pupils, under heavy lids.
+      - **Mouth:** right across its head, with a crooked, gapped row of flat human teeth always showing.
+      - **Throat:** the sac under the jaw is the tell.
+    - **Clips.**
+      - **sit:** dead still but for the throat's slow pulse; an ear twitches.
+      - **hop:** half a second of leap and half a second sat, matching the sim. `Ribbit.Hop` leaps on the half seconds where `PhaseSeconds * 2 + Id` is even, so the draw offsets the clip by half a second for odd ids.
+      - **swell** (the telegraph): up tall, the head raised, the sac blown up pale and pulsing under it.
+      - **tongue:** the mouth gaping, braced, reeling.
+      - **hit**.
+      - Scaling the sac grows it from its bone's head, so that sits at the top of the sac, under the jaw. First placed at its middle, it swelled up over the whole head.
+    - **The tongue is the engine's.** On its catch (COMMIT, GRAB, PUNISH) `CreatureArt.Tongue` draws it from the mouth (the `tongue_02` bone, posed) to the catch's chest, 1.15 m up. It's dark red and wet, thins to its tip, sags and twitches taut as the pack reels. Each Ribbit faces who its pack is after: `GreyboxScene` passes the crewmate whose id is its `Extra`, as for Tippy Toesie.
+    - **First cut.** It read as a cartoon toad: cream with spots, googly eyes, red lips. The pallid wrinkled skin, the milky lidded eyes and the always-bared teeth are what made it unpleasant.
+    - **Headless.**
+      - `dt screenshot --threats --crew --ribbits hop|swell|tongue --view pack`. The mode puts the staged pack on crewmate 4 (`Staging.Lone`, alone on the ground). `pack` looks over that crewmate's shoulder; it's left off `Views.Names`.
+      - `RibbitTests`: the hop leaps when the sim moves it and sits when it doesn't, nothing goes under the ground, and the tongue reaches its catch's chest.
+
+117. **The Choir's model (GDD v1.2 §21, App. A.7).** Its ghosts were the retired Hollow shrunk pale. Now they're choir children gone wrong (`tools/blender/choir.py`, baked by `tools/models/recipes/choir.py`, 1,588 triangles, 27 bones: light, because several fly at once).
+    - **The design.** Child-sized, in what's left of a chorister's surplice: grey-black with filth, a ruff gone limp at the throat, and below the waist no legs, only the surplice hanging in long ragged strips. The legs are inside them and swing them, so the strips stream behind as it flies.
+      - **Skin:** a dead blue-grey, veined dark.
+      - **Face:** the eyes black hollows weeping tar, and the jaw dropped far wider than a jaw can go, in a child's singing O, held.
+      - **Hands:** long thin fingers.
+      - **No light of its own** but a faint cold point light the colour of its skin (`ChoirCold` 0.25), so it's seen at night without glowing (§26: corruption palette, not neon). The stand-in carried a bright glow.
+    - **Clips.**
+      - **drift:** circling slow and bobbing, the head tipped back singing.
+      - **swoop:** leant into the flight, reaching, the strips streaming.
+      - **seize:** over its catch's head, arms wrapped round it, the mouth at their ear, shuddering.
+      - **besiege:** at a shut door with nobody to take, fists hammering in uneven bursts.
+      - **hit**.
+      - The draw picks swoop or besiege from its target (COMMIT with `Extra` ≥ 0, or not). Swooping or seizing, it faces its target; `GreyboxScene` passes them, as for the Ribbits.
+    - **First cut.** A tan surplice with stiff boxy sleeves, and the strips clean white candles. The surplice is now dark and filthy, the sleeves hang, and the strips are stained black from the hem down.
+    - **Headless.**
+      - `dt screenshot --threats --view choir`: the two staged ghosts over the guard van, from off its side, against the sky. Like the other close views, `choir` is left off `Views.Names`.
+      - `CreatureArtTests` pins its budget and clips. It flies, so it's exempt from the feet-on-the-floor pivot check: its strips hang below its origin.
+
+118. **The Gaunt's model (GDD v1.2 §21, App. A.6).** It was the retired Hollow stretched and darkened. Now it's its own (`tools/blender/gaunt.py`, baked by `tools/models/recipes/gaunt.py`, 5,494 triangles, 27 bones, SK_Human stretched).
+    - **The design.** The bones of a starved giant, near three metres stood up (it never stands up), in a skin far too big for them.
+      - **Body:** legs and arms like poles, the knees and elbows knots on them, the ribs a cage, the waist gone to nothing.
+      - **Skin:** ash-grey, dry and cracked, with mould in the cracks. It hangs off it: an empty sack of belly over its hips, webs under its arms, creases slumped across its back, folds round its knees and ankles like fallen stockings.
+      - **Face:** long, mournful and too human, its skin slid down. Heavy upper lids droop to the outer corners over big wet black eyes. The lower lids are dragged down, so a red crescent shows under each eye. The jowls hang either side of a small round open mouth, pursed as if to say "oh".
+      - **Hands:** huge, the fingers as long as a forearm, the nails horn.
+    - **Clips.**
+      - **sleep** (Dormant): the heap. Squatted on its heels, its face in its knees, its arms wrapped over its head, its back rising and falling; once, the fingers of a hand open on its skull.
+      - **stir** (Alert): the head comes up out of the heap, slowly, to look over its knees, and tips over on its side. It plays once and holds.
+      - **follow:** a stalking lope on bent knees, the head carried low out ahead, the hands swinging past its knees, the head turning to you every other step.
+      - **listen:** stooped over you, the neck out and bent down, the head on one side; now and then the fingers of a hand ripple.
+      - **attack:** the fists up, too slowly, then down, too fast; it stays bent over what it hit.
+      - **hit.**
+    - **The engine chooses.** `CreatureArt` picks the clip by phase. Woken (Telegraph), it lopes while it's going and listens while it's stood, so the pace matters. The sim has no velocity for it, so `GreyboxScene.Pace` eases one from where each Gaunt was last drawn (in its car's frame aboard, the world off it); above `GauntGoing` (0.4 m/s) it's going. It faces its waker (`Extra`, passed as `Prey` like Tippy's).
+    - **Anger is the telegraph.** App. A.6 LISTEN: "it leans in closer and tilts its head as aggro climbs". At each point of anger (`Extra2`) `LeanIn` bends the posed spine forward from the chest and tips the head over on its side, a quarter of the way each time. That's all the way at the default threshold (`enemies.json` gaunt.attackAt 4), and it stops there if the threshold's raised. The quarter is the art's (`GauntLeanPerAnger`), not a design number. `Bend` is the bone turn behind it, which the Track Doll's head now uses too.
+    - **Aboard (note 110's standard doorway).** It boards with its waker, but stood it's taller than a door (2.1 m) and nearly a car's roof (2.75 m). Under a roof or a lintel (`Room`, as Tippy's) it gets down:
+      - **crawl** (going): its legs folded under it, it drags itself along on its arms; 1.11 m high.
+      - **squat** (stood): folded up small on its heels, the head out over its knees towards you; 1.22 m high.
+      - **smash** (attacking): from the squat, fists no higher than the roof lets them; 2.03 m high.
+      - Each clip's height is printed by the build, and `GauntTests` checks it against the car.
+    - **First cut.** A full mantle of skin from the shoulders to the knees made a "spindly thing" a cardboard tube. The skull was a small ball. Bones in a skin too big for them is what reads, and the sagging face is what's unpleasant up close. The rims first painted the under-eye faces red, which read as a clown's cheeks; now each is a thin crescent of its own.
+    - **Headless.**
+      - `dt screenshot --threats --crew --gaunt sleep|stir|listen|angry|attack --view gaunt|gauntface`. Off the train's left it's stood in front of crewmate 4 (`Staging.Lone`; the Ribbits are put away), and the views look over their shoulder or up at it from the side.
+      - `--gaunt in --view inside`: squatted in car 2's aisle.
+      - `GauntTests`:
+        - the clips fit a car;
+        - it's drawn low indoors and stood up outside, going or not;
+        - its anger leans it in and saturates;
+        - woken, it faces its waker.
+
+119. **The Grumbler's model (GDD v1.2 §21, App. A.8).** It was the husk tipped over on all fours. Now it's its own (`tools/blender/grumbler.py`, baked by `tools/models/recipes/grumbler.py`, 5,482 triangles, 34 bones: SK_Human plus a jaw and a second pair of arms).
+    - **The design.** A dock labourer, still in what he worked in, gone wrong all the way through.
+      - **Body:** face-down like a spider, the long arms and legs folded up over the back so the elbows and knees stand higher than it does, the hands and bare feet splayed flat. A second, thinner pair of arms has come out through its ribs, through holes torn in the waistcoat. It holds what it eats with them.
+      - **Clothes:** a shirt with the sleeves rolled to the elbow, an open waistcoat and trousers torn off at the shins. Grease, coal dust and sweat stain all of it. The spine has pushed up through the back of the shirt, and the flat cap is still on.
+      - **Face:** the eyes rolled up white under half-shut lids, the nose broken flat. The face is split from ear to ear, the edges raw and red, so the jaw drops a long way, and two crowded rows of yellow teeth fill the split.
+    - **Clips.**
+      - **gnaw** (on the crates, and aboard eating the cargo): head down in one, the jaw going hard, the rib arms tearing at it; once, a leg twitches out.
+      - **scuttle:** very low and fast, the limbs in diagonal pairs, the head up and level, the jaw hanging.
+      - **bite:** reared up on its back legs, all four arms out and grabbing, the head lunging in with the jaw dropped.
+      - **maul:** over its victim, every hand down on them, the head going down into them.
+      - **hit.**
+    - **The crouch is IK.** `crouch()` sets it with `rig.reach` from where the hands and feet go, and its `avoid` pushes the elbows and knees up. From the T-pose the descent stuck with the feet up behind the tipped-over pelvis, so it starts from a rough crouch. The first targets couldn't be met: with the hips at 0.62 m, a knee kept over 0.9 m can't put a 0.62 m calf's foot on the ground. The hips came down to 0.4 m and the arms got longer.
+    - **The engine chooses.**
+      - **Gnawing:** on the crates, and when it's not feral.
+      - **Rearing:** hit and feral, in TELEGRAPH, before it commits; it's the bite clip, its warning.
+      - **Hunting:** in COMMIT it scuttles or bites by its pace (`GreyboxScene.Pace`, as the Gaunt's; note 118) and faces who it's after.
+      - **Mauling:** GRAB and PUNISH.
+      - **Who it's after is a guess.** It's whoever hit it last, but `LastHitBy` isn't sent to clients, so the draw faces the nearest crewmate, the same on every machine. (Note 118's `GauntGoing` is now `Going`, for both.)
+    - **First cut.** The face was a potato's: two bulging eyes and a zip for a mouth. Three fixes made it unpleasant:
+      - the sockets sunk deep, and the lids half down over a sliver of white;
+      - bigger teeth in a wider split;
+      - the jaw opening at all: −X drops it, so every opening had been closing it into the skull.
+    - **Headless.** `dt screenshot --threats --crew --grumbler gnaw|rear|bite|maul --view grumbler` stages it in front of crewmate 4 (as the Gaunt is; the Ribbits and the Gaunt are put away), over their shoulder. `GrumblerTests`: low gnawing, rears up when hit, bites stood and scuttles going, faces who it's after.
+
+120. **The Stoker's model (GDD v1.2 §21, App. A.5).** It was never drawn: only its work showed (the gauge, the wrong-coloured glow, the hiss). Now it's seen at the firebox door when it's open (`tools/blender/stoker.py`, baked by `tools/models/recipes/stoker.py`, 2,308 triangles, 28 bones: SK_Human shrunk, with a jaw).
+    - **The design.** A fireman burnt right through to charcoal and still alive in it.
+      - **Skin:** black, blistered and crazed like burnt wood. Where it's split, the fire shows through: the splits, its eyes and the fire in its mouth keep their own glowing layer, as the Cinder Hound's cracks do.
+      - **Face:** no hair, no ears, no lips; the teeth are bare in a grin the heat drew back.
+      - **Fingers:** long and black as burnt twigs.
+      - **Its own light:** its fire lights its face a flickering sick green (`StokerFire`, the colour `GreyboxScene.FireColour` gives a fire with a Stoker in it).
+    - **Where it's drawn.** `CreatureArt.FireDoorOpen` holds the door's centre while the door's open, and null while it's shut. `GreyboxScene.FireDoorOpen` sets it each frame, and the app sets that from `Boiler.FireDoorOpen`. Its origin is the door's centre on the backhead's face (`TrainKit.FireDoor`, which the door's frame uses too). In TELEGRAPH or COMMIT with the door open:
+      - **peer** (TELEGRAPH): its head is out of the door into the cab, tipped back to look up at whoever's stood over it, and its arms are out over the lip, the hands flat on the cab's floor. Now and then the head tips over, and the jaw comes open on the fire.
+      - **reach** (COMMIT, feeding): an arm up off the floor, groping out for whoever's opened the door.
+      - **hit.**
+    - **The firebox got a hole.** The backhead was drawn as one solid plate with the door's frame on it, and the backhead prop's leaves stood 30° ajar over it, so there was nothing to see into.
+      - The plate is now drawn round the opening (`TrainKit.FireDoorHalfWidth`/`FireDoorHalfHeight`), with the firehole's sides going back to the fire.
+      - The scene's fire is a dull back wall with a bright bed of coals along the bottom, set at the back of the firehole and toned down. It was a flat emissive panel.
+      - The prop's leaves swing 70° open (`tools/models/recipes/cab_backhead.py`).
+      - So the cab now shows the fire through the door, orange as it was and green with a Stoker in it.
+    - **The crouch.** The hands on the floor are `rig.reach` targets. From one start the descent stuck with the arms thrown back, so `arm_to` tries a spread of starts with the elbow kept down by the shoulder and keeps the best. Each hand is laid flat with `rig.hang`; until then the fingers ran on under the floor.
+    - **Headless.**
+      - `dt screenshot --threats --stoker peer|reach --view firebox`: the door's opened by `--stoker` (or `--firedoor` alone), and the view is crouched at the door.
+      - `dt art clip stoker peer --lift 0.75`: lifts a model whose origin isn't at its feet off the clip rig's floor.
+      - `StokerTests`: drawn only with the door open, its head out of the door into the cab, its hands on the floor and not under it.
+
+121. **The Followers' model (GDD v1.2 §21, App. A.6).** They were the husk shrunk to a lump. Now each is its own (`tools/blender/follower.py`, baked by `tools/models/recipes/follower.py`, 1,551 triangles), on a rig of its own: SK_Follower, a palm, the wrist's stump, a thumb and four fingers of three bones each, and a mouth (19 bones).
+    - **The design.** A hand: an infant's grown to a man's and gone wrong.
+      - **Skin:** pale and soft, faintly translucent, the veins blue-grey under it, wrinkled and grimed at too many knuckles.
+      - **The wrist:** no arm, only a raw stump trailing threads of nerve.
+      - **The mouth:** on the back of the hand, a puckered lamprey ring with three rings of teeth.
+    - **Clips.**
+      - **cling** (riding): flat, the fingertips dug in, the mouth working; then the twitch, every finger clenching at once and the threads drawing in.
+      - **crawl:** up on its fingertips like a spider, the fingers in two sets thrown forward in turn.
+      - **nest:** spread flat over the loot, the fingers kneading, the mouth wide.
+      - **hit.**
+    - **On a back.** Riding (DORMANT, TELEGRAPH), `Enemy.Extra` is its carrier, so `GreyboxScene` passes them as `Prey`. `CreatureArt` lays it flat between their shoulder blades, 1.35 m up and 0.15 m behind their middle (`FollowerUp`, `FollowerBack`). Its palm is to them and its fingers point up, so whoever's behind them sees the hand and its mouth, and they can't.
+    - **Off it.** In COMMIT it crawls. Once it's in its car with a nest building (`Extra2` > 0), and in PUNISH, it nests, swelling as the nest builds to 2.5× its size (`FollowerSwell`).
+    - **First cut.** Up close it was a cartoon glove: a fat smooth disc of a palm, the fingers floating off its edge, a target for a mouth. A ridge of knuckles now joins the fingers on, the palm is flatter, and the mouth is bigger and puckered. At its real size, on a back, it read from the first.
+    - **Headless.**
+      - `dt screenshot --threats --crew --follower back --view follower`: the new `follower` view is close behind crewmate 4 (`Staging.Lone`).
+      - `--follower crawl`, and `--follower nest --view inside` (car 2's aisle).
+      - `FollowerTests`:
+        - riding, it's on its carrier's back, flat to it;
+        - off them, it's low;
+        - its nest swells it.
+
+122. **The Climbers' model (GDD v1.2 §21, App. A.4).** They were the husk drawn out thin and tipped forward. Now each is its own (`tools/blender/climber.py`, baked by `tools/models/recipes/climber.py`, 2,902 triangles, 27 bones, SK_Human drawn out).
+    - **The design.** One of the crew gone wrong. It still wears the same coveralls and the same gas mask the crew do (`tools/blender/crew.py`).
+      - **Body:** drawn out long and thin, the coveralls burnt into the skin and torn open down the back and the limbs, soot-black where it shows.
+      - **Face:** the mask has grown into it. The perished rubber is the skin now, the two round glass eyes in rusted rims are cracked and black, and the filter's canister is a snout with the hose torn off and hanging.
+      - **Hands and feet:** the hands long and hooked; the boots split open, the long toes out of them.
+    - **Clips.**
+      - **run** (pacing): bent double on all fours, the hands thrown out ahead, the head level and still.
+      - **scrabble** (TELEGRAPH, in the gap): the hands going one over the other up the buffers, the feet kicking, too fast.
+      - **walk** (COMMIT, on the roofs): crouched low, the hands touching the roof, the masked head snapping round.
+      - **crouch** (COMMIT inside an unlit car, `Extra` −1): folded in a corner, the head cocked, a finger drumming once.
+      - **grab:** on its victim, both hands on their head, the snout in their face.
+      - **hit.**
+    - **Running along, not at, the train.** Pacing, it's loose, and the loose basis faces the nearest car. So `Enemy(e)` turns it a quarter round to run along the line, by the side it's on (`Extra2`).
+    - **The limbs that land go by IK** (`reach_from`): the hands on the ground or the buffers, from a spread of starts, as the Stoker's are (note 120). The first gallop stood half upright on straightened legs, the arms propping it like stilts. Folding the legs deeper and laying the body level made it the crouch-run of the description.
+    - **Headless.**
+      - `dt screenshot --threats --climber run|scrabble|walk|crouch` stages it at car 2: `scrabble` with `--view gapside`, `walk` with `--view roof`, `crouch` with `--view inside`.
+      - `ClimberTests`:
+        - pacing, it runs low and along the line;
+        - in a dark car it waits low, and on a roof it's crouched.
+
+123. **The brake and the vent as a pair (T106).** With steam driving (T97) pressure is speed, so a board ahead wants the gauge down, not just the brake on. A held brake fades, and the steam fights it.
     - **The fireman fired for the wrong speed.** It fired to the pressure for its own cruise, which only changes when it drives, so it stayed at the open line's 14 m/s. Under a board the driver braked away steam the fireman had just made. Now it fires for what the line allows here (`MindingCruise`: lamp, authority, boards).
     - **And vents when the steam runs the train away.** When the train is running over the allowed speed with the gauge ten over its mark, the fireman walks out of the left doorway, along the left running board to the blow-off, and holds it open until the gauge is down to the mark. Then it comes back in. The driver holds the train on the brake meanwhile. Only one of them leaves the cab at a time (`CrewCalls.Venting`, `CrewCalls.Sanding`).
     - **Not for a board still ahead.** Venting whenever the gauge read high, frontier:11's fireman spent 1,412 s of the night at the blow-off, and the train ran out of steam and missed the dawn. The driver brakes down for a board in good time; venting throws away coal. So it vents only once the train is actually running over what's allowed: on a descent, where the steam and the grade together beat the brake.

@@ -29,7 +29,7 @@ public sealed class CreatureArt
     const float CarHalfWidth = 1.6f, RoofDrop = 3.6f;
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
-        "track_doll", "car_hugger", "tippy_toesie", "whistler"];
+        "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber"];
 
     /// <summary>A haunting Track Doll's turns aboard (App. A.2 HAUNT): this long over the cargo, then this long giggling.</summary>
     const double DollAdmires = 12, DollGiggles = 5;
@@ -68,7 +68,59 @@ public sealed class CreatureArt
 
     // Set by Enemy(e, prey) for the one draw it makes, as _biteGrip.
     Prey? _prey;
+
+    // A Ribbit's tongue goes to its catch's chest (a crewmate's 1.8 m, tools/blender/crew.py), this high, this thick at the
+    // root (m), sagging this much of its length.
+    const float RibbitTongueAt = 1.15f, RibbitTongueThick = 0.035f, RibbitTongueSag = 0.06f;
+
+    // The cold about a Choir ghost: a faint light, the colour of its skin, so they're seen at night but never glow (§26).
+    const float ChoirCold = 0.25f;
+
+    // "Giant toad-rabbits" (GDD §21): the model's a big dog's size, drawn this much bigger (its head at a crewmate's waist).
+    const float RibbitScale = 1.4f;
+
+    /// <summary>
+    /// The tongue, out from the mouth <paramref name="a"/> to its catch at <paramref name="b"/> (camera-relative): wet,
+    /// dark red, thinning to its tip, sagging a little, and twitching taut as it reels (GDD App. A.6 TONGUE).
+    /// </summary>
+    void Tongue(MeshBuilder mesh, Vector3 a, Vector3 b, float t)
+    {
+        var k = new Kit(Look, mesh);
+        k.Use("flesh", new Vector3(0.22f, 0.05f, 0.05f), 0.2f, 0.85f);
+        const int n = 8;
+        float len = Vector3.Distance(a, b);
+        float sag = RibbitTongueSag * len * (0.7f + 0.3f * MathF.Sin(t * 9));
+        Vector3 At(float u) => Vector3.Lerp(a, b, u) - Vector3.UnitY * (sag * 4 * u * (1 - u));
+        for (int i = 0; i < n; i++)
+        {
+            float u0 = i / (float)n, u1 = (i + 1) / (float)n;
+            k.Cylinder(At(u0), At(u1), RibbitTongueThick * (1 - 0.55f * u0), 8, caps: false, radiusB: RibbitTongueThick * (1 - 0.55f * u1));
+        }
+        // Its tip spread over them, a pad.
+        k.Cylinder(b - Vector3.Normalize(b - a) * 0.02f, b + Vector3.Normalize(b - a) * 0.02f, RibbitTongueThick * 1.4f, 8);
+    }
     Room _room;
+
+    /// <summary>
+    /// The firebox door, when it's open: its centre from the firebox's place (the engine's frame; Art/TrainKit.FireDoor),
+    /// or null when it's shut. GreyboxScene sets it from the boiler each frame; a Stoker shows only through it.
+    /// </summary>
+    public Vector3? FireDoorOpen { get; set; }
+
+    // Set by Enemy(e, pace) for the one draw it makes, as _room.
+    float _pace;
+
+    // A Gaunt or a Grumbler goes (lopes, crawls, scuttles) above this pace (m/s), and stands (listens, squats, bites) below
+    // it. At each point of its anger a Gaunt leans in this much more of the way (all of it at the sim's default threshold,
+    // enemies.json gaunt.attackAt), its back bent forward this far (radians) and its head tipped over this far at the most.
+    // A riding Follower is this high on its carrier and this far behind their middle (m: a crewmate's back, tools/blender/
+    // crew.py); its nest swells it this much (the full nest, 1 + this times its size).
+    const float FollowerUp = 1.35f, FollowerBack = 0.15f, FollowerSwell = 1.5f;
+
+    // The Stoker's own fire, in its mouth and its splits: the sick green of a fire with it in (GreyboxScene.FireColour).
+    static readonly Vector3 StokerFire = new(0.35f, 0.6f, 0.22f);
+
+    const float Going = 0.4f, GauntLeanPerAnger = 0.25f, GauntLean = 0.45f, GauntTilt = 0.6f;
 
     /// <summary>
     /// The room a creature stands in, in its car (GreyboxScene, for a Tippy Toesie: it's taller than the train was built
@@ -145,6 +197,13 @@ public sealed class CreatureArt
         ["car_hugger"] = 0.3f,
         ["tippy_toesie"] = 0.1f,   // (its dirt is baked: the grime's rust would warm the plaster)
         ["whistler"] = 0.3f,
+        ["ribbit"] = 0.25f,
+        ["choir"] = 0.3f,
+        ["gaunt"] = 0.4f,
+        ["grumbler"] = 0.5f,
+        ["stoker"] = 0.2f,
+        ["follower"] = 0.2f,
+        ["climber"] = 0.3f,
     };
 
     sealed class Entry(Model model, MaterialLook[] looks)
@@ -335,6 +394,49 @@ public sealed class CreatureArt
         return (mm, l) => mm.Name.EndsWith(".paint", StringComparison.Ordinal) ? l with { Colour = l.Colour * colour } : l;
     }
 
+    /// <summary>The model turned about its own up to face <paramref name="target"/> (camera-relative, as its translation is).</summary>
+    static Matrix4x4 Facing(in Matrix4x4 model, Vector3 target)
+    {
+        var (r, _, b) = Basis(model);
+        var to = target - model.Translation;
+        float x = Vector3.Dot(to, r), z = Vector3.Dot(to, b);
+        if (x * x + z * z < 1e-6f)
+            return model;
+        // (CreateRotationY(a) takes the model's forward, -Z, to (-sin a, -cos a) in its basis.)
+        var m = Matrix4x4.CreateRotationY(MathF.Atan2(-x, -z)) * model;
+        m.Translation = model.Translation;
+        return m;
+    }
+
+    /// <summary>A posed bone and everything hung off it turned by <paramref name="rotation"/> (model space) about the bone's head.</summary>
+    static void Bend(Entry m, string bone, in Matrix4x4 rotation)
+    {
+        var sk = m.Model.Skeleton;
+        int at = sk.IndexOf(bone);
+        if (at < 0)
+            return;
+        var pivot = m.Pose.World[at].Translation;
+        var turn = Matrix4x4.CreateTranslation(-pivot) * rotation * Matrix4x4.CreateTranslation(pivot);
+        for (int b = 0; b < sk.Count; b++)
+            for (int p = b; p >= 0; p = sk.Parents[p])
+                if (p == at)
+                {
+                    m.Pose.World[b] *= turn;
+                    m.Pose.Skin[b] = sk.InverseBind[b] * m.Pose.World[b];
+                    break;
+                }
+    }
+
+    /// <summary>
+    /// A listening Gaunt leant in over who it's listening to, <paramref name="anger"/> (0..1) of the way: its back bent
+    /// forward from the chest (the model faces −Z) and its head tipped over on its side (App. A.6 LISTEN's telegraph).
+    /// </summary>
+    static void LeanIn(Entry m, float anger)
+    {
+        Bend(m, "spine_03", Matrix4x4.CreateRotationX(-GauntLean * anger));
+        Bend(m, "head", Matrix4x4.CreateRotationZ(GauntTilt * anger));
+    }
+
     /// <summary>
     /// The doll's head turned on its neck to face <paramref name="eye"/> (model space), the turn stepped in clicks of
     /// <see cref="DollHeadClick"/> (so it jumps round as you move, and holds between): about the model's up, from the
@@ -355,15 +457,7 @@ public sealed class CreatureArt
         yaw = MathF.Round(yaw / click) * click;
         if (MathF.Abs(yaw) < 1e-4f)
             return;
-        var turn = Matrix4x4.CreateTranslation(-pivot) * Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateTranslation(pivot);
-        for (int b = 0; b < sk.Count; b++)
-            for (int p = b; p >= 0; p = sk.Parents[p])
-                if (p == head)
-                {
-                    m.Pose.World[b] *= turn;
-                    m.Pose.Skin[b] = sk.InverseBind[b] * m.Pose.World[b];
-                    break;
-                }
+        Bend(m, "head", Matrix4x4.CreateRotationY(yaw));
     }
 
     /// <summary>One arm of the posed model to a hand position (model space) by two-bone IK, the elbow toward the pole.</summary>
@@ -586,8 +680,38 @@ public sealed class CreatureArt
                     return true;
                 }
             case EnemyKind.Stoker:
-                // In the firebox: never seen, only its work (the gauge, the wrong glow the scene gives the fire, the hiss).
-                return true;
+                {
+                    // In the firebox (GDD v1.2 §21, App. A.5; tools/blender/stoker.py): seen only through the door, when it's
+                    // open (FireDoorOpen; Enemy(e) put the model at the door). Else it's only its work: the gauge, the
+                    // wrong glow the scene gives the fire, the hiss. In the fire it watches out of the door, its fingers
+                    // over the lip; feeding (COMMIT), an arm comes out over the lip, groping for whoever's opened it.
+                    if (FireDoorOpen is null || phase is not (SpinePhase.Telegraph or SpinePhase.Commit))
+                        return true;
+                    if (Draw(mesh, "stoker", phase == SpinePhase.Commit ? "reach" : "peer", t, true, model, seed: 13))
+                    {
+                        // The fire in its mouth and its splits lights its own face, the wrong colour, flickering.
+                        float flicker = 0.8f + 0.2f * (float)Math.Sin(t * 17.0 + Math.Sin(t * 5.3) * 2);
+                        mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, -0.05f, -0.12f), model), StokerFire * flicker, 0.9f));
+                    }
+                    return true;
+                }
+            case EnemyKind.Climber when _models.ContainsKey("climber"):
+                {
+                    // The Climbers (GDD v1.2 §21, App. A.4; tools/blender/climber.py): one of the crew gone wrong, the gas
+                    // mask grown into its face. Pacing the train it runs bent double on all fours; at a gap it scrabbles
+                    // up between the cars, facing in (Enemy(e) turns it); on the roofs it walks crouched for the engine;
+                    // inside an unlit car (extra −1) it waits folded in a corner; on a lone player it grabs.
+                    bool inside = extra < 0;
+                    string clip = phase switch
+                    {
+                        SpinePhase.Telegraph => "scrabble",
+                        SpinePhase.Grab or SpinePhase.Punish => "grab",
+                        SpinePhase.Commit when inside => "crouch",
+                        SpinePhase.Commit => "walk",
+                        _ => "run",
+                    };
+                    return Draw(mesh, "climber", clip, t, true, model, seed: 17);
+                }
             case EnemyKind.Climber:
                 {
                     // A crewman gone wrong (App. A.4): drawn out thin, soot-black, running bent double alongside; climbing at
@@ -628,6 +752,18 @@ public sealed class CreatureArt
                     }
                     return true;
                 }
+            case EnemyKind.Follower when _models.ContainsKey("follower"):
+                {
+                    // The Followers (GDD v1.2 §21, App. A.6; tools/blender/follower.py): a hand gone wrong, a mouth on its
+                    // back. On someone's back (Enemy(e) laid it flat between their shoulder blades) it clings, and twitches;
+                    // off it, it scuttles on its fingertips; at its car it spreads over the loot and swells as its nest
+                    // builds (extra2), kneading it, eating.
+                    bool nesting = phase == SpinePhase.Punish || phase == SpinePhase.Commit && extra2 > 0;
+                    float swell = phase == SpinePhase.Punish ? 1 : (float)Math.Clamp(extra2, 0, 1);
+                    var at = nesting ? Matrix4x4.CreateScale(1 + FollowerSwell * swell) * model : model;
+                    string clip = nesting ? "nest" : phase == SpinePhase.Commit ? "crawl" : "cling";
+                    return Draw(mesh, "follower", clip, t, true, at, seed: 29);
+                }
             case EnemyKind.Follower:
                 {
                     // A hand-sized lump (GDD v1.1 A.6): on someone's back it twitches; off, it crawls; nesting, a heap of
@@ -642,14 +778,39 @@ public sealed class CreatureArt
                 // One of the crew (App. A.7 BLEND): the crew figure in the look of whoever it copies (extra), walking its loop.
                 // In play it's drawn through the crew's own path (GreyboxScene.AsCrewmate), gait and all.
                 return Crewmate(mesh, model, phase == SpinePhase.Telegraph ? CrewPose.Walk : CrewPose.Idle, t, (int)Math.Round(extra));
+            case EnemyKind.Gaunt when _models.ContainsKey("gaunt"):
+                {
+                    // The Gaunt (GDD v1.2 §21, App. A.6; tools/blender/gaunt.py). Asleep, the heap breathing; stirring, its
+                    // head up out of it to look. Woken, it lopes after its waker while they go and stands over them
+                    // listening when they stop, leant in further and its head tipped over further at every point of
+                    // anger (extra2); at its threshold the fists come down. The cars weren't built for it (note 118): aboard
+                    // it drags itself along on its arms, squats to listen, and smashes from the squat.
+                    var room = _room;
+                    float pace = _pace;
+                    _room = Room.Open;
+                    _pace = 0;
+                    bool low = room.Indoors || room.Doorway;
+                    float anger = Math.Clamp((float)extra2 * GauntLeanPerAnger, 0, 1);
+                    string clip = phase switch
+                    {
+                        SpinePhase.Dormant => "sleep",
+                        SpinePhase.Alert => "stir",
+                        SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish => low ? "smash" : "attack",
+                        _ when pace > Going => low ? "crawl" : "follow",
+                        _ => low ? "squat" : "listen",
+                    };
+                    Action<Entry>? lean = anger > 0 && clip is "listen" or "squat" ? m => LeanIn(m, anger) : null;
+                    // (Stirring it comes up once and stays up, watching.)
+                    return Draw(mesh, "gaunt", clip, t, clip != "stir", model, lean, seed: 47);
+                }
             case EnemyKind.Gaunt:
                 {
-                    // Spindly, too tall, the Hollow's figure drawn out (GDD v1.1 A.6). Asleep it's curled up (squashed low and
-                    // breathing slowly); woken it follows, and its anger (extra2, 0..1) leans it in; striking, it reaches.
+                    // (No model: the Hollow drawn out, spindly. Asleep it's curled up, squashed low and breathing slowly;
+                    // woken it follows, leant in as it angers; striking, it reaches.)
                     if (!_models.ContainsKey("hollow"))
                         return false;
                     bool asleep = phase is SpinePhase.Dormant;
-                    float lean = (float)Math.Clamp(extra2, 0, 1) * 0.5f;
+                    float lean = Math.Clamp((float)extra2 * GauntLeanPerAnger, 0, 1) * 0.5f;
                     var at = (asleep ? Matrix4x4.CreateScale(0.9f, 0.38f + 0.02f * (float)Math.Sin(t * 1.3), 0.9f) : Matrix4x4.CreateScale(0.78f, 1.32f, 0.78f))
                         * Matrix4x4.CreateRotationX(-lean) * model;
                     bool striking = phase is SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish;
@@ -825,9 +986,40 @@ public sealed class CreatureArt
                     mesh.PointLights.Add(new PointLight(model.Translation, Palette.FurnaceOrange * 0.8f, 4f));
                     return true;
                 }
+            case EnemyKind.Ribbit when _models.ContainsKey("ribbit"):
+                {
+                    // The toad-rabbit (GDD v1.2 §21, App. A.6; tools/blender/ribbit.py). Nobody to go for, it sits, dead
+                    // still but for its throat; after someone, it hops in the sim's bursts (Enemy(e) phases the clip to its
+                    // id); lined up to strike (TELEGRAPH), it sits up tall and its sac swells; on them, mouth gaping, its
+                    // tongue's out to them (drawn here, from its mouth to their chest) and it reels.
+                    var prey = _prey;
+                    _prey = null;
+                    bool hunting = extra >= 0;
+                    switch (phase)
+                    {
+                        case SpinePhase.Telegraph:
+                            return Draw(mesh, "ribbit", "swell", t, true, model, seed: (float)extra2);
+                        case SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish:
+                            {
+                                Vector3? mouth = null;
+                                var at = model;
+                                bool drawn = Draw(mesh, "ribbit", "tongue", t, true, at, e =>
+                                {
+                                    int jaw = e.Model.Skeleton.IndexOf("tongue_02");
+                                    if (jaw >= 0)
+                                        mouth = Vector3.Transform(e.Pose.World[jaw].Translation, at);
+                                }, seed: (float)extra2);
+                                if (drawn && mouth is { } a && prey is { } p)
+                                    Tongue(mesh, a, p.Feet + Vector3.UnitY * RibbitTongueAt, (float)t);
+                                return drawn;
+                            }
+                        default:
+                            return Draw(mesh, "ribbit", hunting && phase == SpinePhase.Dormant ? "hop" : "sit", t, true, model, seed: (float)extra2);
+                    }
+                }
             case EnemyKind.Ribbit:
                 {
-                    // A giant toad-rabbit (GDD v1.1 A.6): the hound's body squat and wide, mottled olive. Lined up to strike it
+                    // (No model: the hound's body squat and wide, mottled olive.) Lined up to strike it
                     // crouches (the throats swell: the tell); tongues out, it lunges; otherwise it hops in bursts.
                     var at = Matrix4x4.CreateScale(1.25f, 0.7f, 0.8f) * model;
                     var (clip, loop, ct) = phase switch
@@ -847,6 +1039,25 @@ public sealed class CreatureArt
                     }
                     return true;
                 }
+            case EnemyKind.Grumbler when _models.ContainsKey("grumbler"):
+                {
+                    // The Grumbler (GDD v1.2 §21, App. A.8; tools/blender/grumbler.py): a dock labourer gone face-down like a
+                    // spider, the elbows and knees up over its back, a second pair of arms out through its ribs. On the
+                    // crates (and aboard, eating the cargo) it gnaws, its head down in one. Hit, it's feral (extra2): it
+                    // rears up (the telegraph), then scuttles after them and bites when it's on them, and on one it's beaten
+                    // down it mauls.
+                    float pace = _pace;
+                    _pace = 0;
+                    bool feral = extra2 > 0.5;
+                    string clip = phase switch
+                    {
+                        SpinePhase.Grab or SpinePhase.Punish => "maul",
+                        SpinePhase.Commit => pace > Going ? "scuttle" : "bite",
+                        SpinePhase.BreakOff => "scuttle",
+                        _ => feral ? "bite" : "gnaw",
+                    };
+                    return Draw(mesh, "grumbler", clip, t, true, model, seed: 61);
+                }
             case EnemyKind.Grumbler:
                 {
                     // A labourer scuttling like a spider (GDD v1.1 A.8): the husk bent flat on all fours, gnawing; feral
@@ -857,10 +1068,30 @@ public sealed class CreatureArt
                     return Draw(mesh, "husk", clip, t * (feral ? 1.5 : 2.5), true, at, variant: 7, seed: 61, adjust: (_, l) => l with { Colour = l.Colour * 0.65f })
                         || Draw(mesh, "crew", clip, t, true, at, variant: 7, seed: 61, adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.3f, 0.26f, 0.24f) });
                 }
+            case EnemyKind.Choir when _models.ContainsKey("choir"):
+                {
+                    // One of the Choir's ghosts (GDD v1.2 §21, App. A.7; tools/blender/choir.py): a choir child in a filthy
+                    // surplice, legless, its strips streaming, its jaw dropped in a silent O. The voices arriving (TELEGRAPH)
+                    // it drifts, circling, singing; after someone (COMMIT, extra its target) it swoops at them, and with
+                    // nobody to take it beats on the shut doors; seizing (GRAB) it's wrapped round its catch's head. It
+                    // bobs; the faint cold about it is all the light it has (§26: not neon).
+                    _prey = null;
+                    var at = Matrix4x4.CreateTranslation(0, (float)(0.12 * Math.Sin(t * 2.3 + extra2)), 0) * model;
+                    string clip = phase switch
+                    {
+                        SpinePhase.Commit when extra >= 0 => "swoop",
+                        SpinePhase.Commit => "besiege",
+                        SpinePhase.Grab or SpinePhase.Punish => "seize",
+                        _ => "drift",
+                    };
+                    bool drawn = Draw(mesh, "choir", clip, t, true, at, seed: 71 + (float)extra2);
+                    if (drawn)
+                        mesh.PointLights.Add(new PointLight(model.Translation + new Vector3(0, 0.8f, 0), Palette.BlueGrey * ChoirCold, 2.5f));
+                    return drawn;
+                }
             case EnemyKind.Choir:
                 {
-                    // One of the Choir's small flying ghosts (GDD v1.1 A.7): the Hollow's figure, child-sized and pale, bobbing
-                    // in the air with a cold light of its own.
+                    // (No model: the Hollow's figure, child-sized and pale, bobbing in the air with a cold light of its own.)
                     if (!_models.ContainsKey("hollow"))
                         return false;
                     var at = Matrix4x4.CreateScale(0.45f, 0.55f, 0.45f) * Matrix4x4.CreateTranslation(0, (float)(0.15 * Math.Sin(t * 2.3 + extra)), 0) * model;
@@ -879,11 +1110,83 @@ public sealed class CreatureArt
     /// the basis for which side of the car or the line it's on: a Dragger on a car's +X side reaches over that edge, and the Switchman turns to face the train coming up the line.
     /// </summary>
     /// <param name="bite">A Car Hugger's car's (Art/BiteKit): its head goes in as far as it's eaten.</param>
-    public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite = default, Prey? prey = null, Room? room = null)
+    /// <param name="pace">How fast it's been going (m/s; GreyboxScene eases it from frame to frame): a Gaunt lopes after
+    /// its waker while it's going and stands over them while it's not.</param>
+    public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite = default, Prey? prey = null, Room? room = null, float pace = 0)
     {
         var m = model;
         switch (e.Kind)
         {
+            case EnemyKind.Choir when _models.ContainsKey("choir"):
+                {
+                    // Swooping, it faces who it's after (the loose basis faces the train: at the doors, it faces them).
+                    if (prey is { } p && e.Phase is SpinePhase.Commit or SpinePhase.Grab)
+                    {
+                        var (r, _, b) = Basis(model);
+                        var to = p.Feet - model.Translation;
+                        float x = Vector3.Dot(to, r), z = Vector3.Dot(to, b);
+                        if (x * x + z * z > 1e-6f)
+                        {
+                            var at = model.Translation;
+                            m = Matrix4x4.CreateRotationY(MathF.Atan2(-x, -z)) * model;
+                            m.Translation = at;
+                        }
+                    }
+                    return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: false, extra2: e.Id);
+                }
+            case EnemyKind.Stoker when _models.ContainsKey("stoker") && FireDoorOpen is { } door:
+                // At the open door, looking out of it into the cab (the model faces −Z: turned to the engine's +Z, back).
+                m = Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateTranslation(door) * model;
+                break;
+            case EnemyKind.Follower when _models.ContainsKey("follower") && prey is { } carrier && e.Phase is SpinePhase.Dormant or SpinePhase.Telegraph:
+                {
+                    // Riding: flat between its carrier's shoulder blades, its palm to them and its fingers up (the model's
+                    // −Y into their back, its −Z, the fingers' way, up), where their friends can see it and they can't.
+                    var r = carrier.Right;
+                    var f = carrier.Forward;
+                    var o = carrier.At(0, FollowerUp, FollowerBack);
+                    m = new Matrix4x4(r.X, r.Y, r.Z, 0, -f.X, -f.Y, -f.Z, 0, 0, -1, 0, 0, o.X, o.Y, o.Z, 1);
+                    break;
+                }
+            case EnemyKind.Grumbler when _models.ContainsKey("grumbler"):
+                {
+                    // Feral, it faces who it's after (the nearest of the crew: who hit it isn't sent to clients), and it
+                    // scuttles or bites as fast as it's been going (GreyboxScene's pace).
+                    if (prey is { } p && e.Phase is SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish)
+                        m = Facing(model, p.Feet);
+                    _pace = pace;
+                    break;
+                }
+            case EnemyKind.Gaunt when _models.ContainsKey("gaunt"):
+                {
+                    // Woken, it faces its waker (the loose basis faces the train); aboard, it goes as the room lets it (note
+                    // 118); and it goes as fast as it's been going (GreyboxScene's pace).
+                    if (prey is { } p && e.Phase is not (SpinePhase.Dormant or SpinePhase.Alert))
+                        m = Facing(model, p.Feet);
+                    _room = room ?? Room.Open;
+                    _pace = pace;
+                    break;
+                }
+            case EnemyKind.Ribbit when _models.ContainsKey("ribbit"):
+                {
+                    // It faces who the pack's after; hopping, its leap is in step with the sim's (Ribbit.Hop: a leap on
+                    // the half seconds its id puts it on).
+                    if (prey is { } p)
+                    {
+                        var (r, _, b) = Basis(model);
+                        var to = p.Feet - model.Translation;
+                        float x = Vector3.Dot(to, r), z = Vector3.Dot(to, b);
+                        if (x * x + z * z > 1e-6f)
+                        {
+                            var at = model.Translation;
+                            m = Matrix4x4.CreateRotationY(MathF.Atan2(-x, -z)) * model;
+                            m.Translation = at;
+                        }
+                        _prey = p;
+                    }
+                    return Enemy(mesh, Matrix4x4.CreateScale(RibbitScale) * m, e.Kind, e.Phase, e.PhaseSeconds + (e.Id & 1) * 0.5, e.Extra, e.Health,
+                        aboard: false, extra2: e.Id);
+                }
             case EnemyKind.Whistler when _models.ContainsKey("whistler"):
                 {
                     // In its gap its origin is the sim's gap point, over the rail: its feet go on the rail, and it faces
@@ -941,6 +1244,11 @@ public sealed class CreatureArt
             case EnemyKind.Climber when e.Phase == SpinePhase.Telegraph:
                 // At the gap, facing in at the couplers.
                 m = Matrix4x4.CreateRotationY(e.Local.X > 0 ? MathF.PI / 2 : -MathF.PI / 2) * model;
+                break;
+            case EnemyKind.Climber when e.Attached == Sim.Enemies.Enemy.Loose && e.Phase is SpinePhase.Dormant or SpinePhase.Alert or SpinePhase.BreakOff:
+                // Pacing the train on its side of the line (extra2, −1 or +1): running along it, not at it (the loose basis
+                // faces the train; its right is the train's way, ahead, on the +1 side).
+                m = Matrix4x4.CreateRotationY(-MathF.Sign((float)e.Extra2 == 0 ? 1 : (float)e.Extra2) * MathF.PI / 2) * model;
                 break;
             case EnemyKind.Switchman:
                 // Face back down the line at the train, turned in towards the track.

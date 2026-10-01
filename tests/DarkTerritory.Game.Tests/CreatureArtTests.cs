@@ -51,6 +51,20 @@ public class CreatureArtTests
         ["tippy_toesie"] = new(3000, 9000, 20, 60, ["stalk", "wait", "flee", "smother", "stoop", "stalk_stoop", "duck"], ["hit"]),
         // A character (App. A.4), SK_Human stretched, its right forearm long for the cord: it folds up to fit a coupling gap.
         ["whistler"] = new(3000, 9000, 20, 60, ["fold", "whistle", "watch", "run"], ["hit"]),
+        // A beast's (App. A.6), on its own rig (SK_Ribbit): a throat sac to swell, a jaw, a tongue, long ears.
+        ["ribbit"] = new(2000, 8000, 20, 40, ["sit", "hop", "swell", "tongue"], ["hit"]),
+        // A swarm's (App. A.7): several at once, so light; SK_Human at a child's size, the legs hidden in its strips.
+        ["choir"] = new(1000, 3000, 20, 60, ["drift", "swoop", "seize", "besiege"], ["hit"]),
+        // A character (App. A.6), SK_Human stretched to near three metres: down on its arms and squatted aboard (note 118).
+        ["gaunt"] = new(3000, 9000, 20, 60, ["sleep", "follow", "listen", "attack", "crawl", "squat", "smash"], ["stir", "hit"]),
+        // A character's (App. A.8), SK_Human with a jaw and a second pair of arms out of its ribs: down like a spider.
+        ["grumbler"] = new(3000, 9000, 30, 60, ["gnaw", "scuttle", "bite", "maul"], ["hit"]),
+        // A character's (App. A.5), SK_Human shrunk with a jaw: only ever seen at the firebox door, so light.
+        ["stoker"] = new(1500, 5000, 20, 40, ["peer", "reach"], ["hit"]),
+        // A hand's (App. A.6), on its own rig (SK_Follower: a palm, a stump, five three-boned fingers, a mouth): hand-sized.
+        ["follower"] = new(600, 3000, 15, 25, ["cling", "crawl", "nest"], ["hit"]),
+        // A character's (App. A.4), SK_Human drawn out: one of the crew, the gas mask grown into its face.
+        ["climber"] = new(2000, 9000, 20, 60, ["run", "scrabble", "walk", "crouch", "grab"], ["hit"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -78,8 +92,9 @@ public class CreatureArtTests
         }
         // Standing on the floor at the origin, facing −Z: the pivot's between the feet (the clinger's is on the hull, the
         // dragger's at the car's edge, the rest of it hanging below; the weight's at the coupler, the heap on the stones; the
-        // car hugger's at its mouth on the rear platform, its body down to the rail).
-        if (name is not ("clinger" or "dragger" or "weight" or "car_hugger"))
+        // car hugger's at its mouth on the rear platform, its body down to the rail; a Choir ghost flies, its strips hanging
+        // below where it is; the Stoker's is the firebox door, its body in the fire behind and below it).
+        if (name is not ("clinger" or "dragger" or "weight" or "car_hugger" or "choir" or "stoker"))
         {
             Assert.InRange(m.Min.Y, -0.02f, 0.05f);
             Assert.InRange((m.Min.X + m.Max.X) / 2, -0.25f, 0.25f);
@@ -421,6 +436,13 @@ public class CreatureArtTests
         "car_hugger" => (new Vector3(-0.2f, 0.4f, 1.5f), 3.6f),
         "tippy_toesie" => (Vector3.Zero, 2.5f),
         "whistler" => (Vector3.Zero, 2.3f),
+        "ribbit" => (Vector3.Zero, 1.1f),
+        "choir" => (Vector3.Zero, 1.3f),
+        "gaunt" => (Vector3.Zero, 2.6f),
+        "grumbler" => (Vector3.Zero, 1.9f),
+        "stoker" => (new Vector3(0, -0.4f, 0.3f), 1.3f),
+        "follower" => (Vector3.Zero, 0.3f),
+        "climber" => (Vector3.Zero, 1.9f),
         _ => (Vector3.Zero, 1.9f),
     };
 

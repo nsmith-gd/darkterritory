@@ -47,6 +47,38 @@ public static class Staging
     }
 
     /// <summary>
+    /// The staged Ribbit pack as it goes (<c>dt screenshot --ribbits</c>): <c>hop</c> after crewmate 4 (alone on the ground
+    /// off the train's left, <see cref="Lone"/>), <c>swell</c> lined up on them (App. A.6 TELEGRAPH), <c>tongue</c> on them
+    /// (GRAB). Without a mode, they're as <see cref="Threats"/> has them.
+    /// </summary>
+    public static List<Enemy> Ribbits(List<Enemy> threats, string mode)
+    {
+        if (mode.Length == 0)
+            return threats;
+        var phase = mode switch
+        {
+            "hop" => SpinePhase.Dormant,
+            "swell" => SpinePhase.Telegraph,
+            "tongue" => SpinePhase.Grab,
+            _ => throw new ArgumentException($"--ribbits {mode}: hop, swell or tongue"),
+        };
+        foreach (var r in threats.OfType<Ribbit>())
+            r.Restore(phase, 0.3 + 0.21 * (r.Id - 60), r.Health, r.Attached, r.Local, 0, 0, 0, LoneId, 0);
+        return threats;
+    }
+
+    /// <summary>Crewmate 4, alone on the ground off the second car's left, facing the Ribbits there (they're after them).</summary>
+    public static Crewmate Lone(TrainOnLine train)
+    {
+        var side = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+        var at = side.ToWorld(new Double3(-(side.Shape.HalfWidth + 2.2), 0, -1.5));
+        var toward = side.ToWorld(new Double3(-(side.Shape.HalfWidth + 5), 0, -1.5)) - at;
+        return new Crewmate(LoneId, at, Math.Atan2(-toward.X, -toward.Z), true, default, default);
+    }
+
+    public const byte LoneId = 4;
+
+    /// <summary>
     /// The staged Whistler as it goes (<c>dt screenshot --whistler</c>): <c>fold</c> hidden in its gap (App. A.4 HIDE),
     /// <c>whistle</c> pulling the cord, <c>watch</c> watching the gap's mouth after (WAIT). The <c>gapside</c> view looks in.
     /// </summary>
@@ -95,6 +127,159 @@ public static class Staging
         }
         return threats;
     }
+
+    /// <summary>
+    /// The staged Gaunt as it goes (<c>dt screenshot --gaunt</c>), on crewmate 4 (alone off the train's left,
+    /// <see cref="Lone"/>; the Ribbits put away): <c>sleep</c> heaped up in front of them (App. A.6 ASLEEP), <c>stir</c>
+    /// waking as they near it, <c>listen</c> woken and stood over them, <c>angry</c> leant right in (three points of anger),
+    /// <c>attack</c> striking at them; <c>in</c> squatted in car 2's aisle, listening (the <c>inside</c> view: note 118). The
+    /// <c>gaunt</c> view looks over crewmate 4's shoulder up at it.
+    /// </summary>
+    public static List<Enemy> Gaunt(List<Enemy> threats, TrainOnLine train, string mode)
+    {
+        if (mode.Length == 0 || threats.OfType<Gaunt>().FirstOrDefault() is not { } gaunt)
+            return threats;
+        threats.RemoveAll(e => e is Ribbit);
+        var side = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+        var before = side.ToWorld(new Double3(-(side.Shape.HalfWidth + GauntOut), 0, -1.5));
+        switch (mode)
+        {
+            case "sleep" or "stir" or "listen" or "angry" or "attack":
+                var (phase, extra, anger) = mode switch
+                {
+                    "sleep" => (SpinePhase.Dormant, -1, 0),
+                    "stir" => (SpinePhase.Alert, -1, 0),
+                    "listen" => (SpinePhase.Telegraph, LoneId, 0),
+                    "angry" => (SpinePhase.Telegraph, LoneId, 3),
+                    _ => (SpinePhase.Commit, LoneId, 4),
+                };
+                gaunt.Restore(phase, 2.2, gaunt.Health, Enemy.Loose, before, 0, 0, 0, extra, anger);
+                break;
+            case "in":
+                int car = Math.Min(2, train.Frames.Count - 1);
+                double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
+                gaunt.Restore(SpinePhase.Telegraph, 2.2, gaunt.Health, car, new Double3(-0.45, floor, -train.Frames[car].Shape.HalfLength + 4.2), 0, 0, 0, -1, 1);
+                break;
+            default:
+                throw new ArgumentException($"--gaunt {mode}: sleep, stir, listen, angry, attack or in");
+        }
+        return threats;
+    }
+
+    /// <summary>
+    /// The staged Grumbler (<c>dt screenshot --grumbler</c>), in front of crewmate 4 off the train's left (the Ribbits and
+    /// the Gaunt put away): <c>gnaw</c> at a crate (App. A.8 TELEGRAPH), <c>rear</c> hit and feral, reared up at them,
+    /// <c>bite</c> on them, <c>maul</c> on them beaten down (GRAB). The <c>grumbler</c> view looks over their shoulder down
+    /// at it.
+    /// </summary>
+    public static List<Enemy> Grumbler(List<Enemy> threats, TrainOnLine train, string mode)
+    {
+        if (mode.Length == 0 || threats.OfType<Grumbler>().FirstOrDefault() is not { } g)
+            return threats;
+        threats.RemoveAll(e => e is Ribbit or Sim.Enemies.Gaunt);
+        var side = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+        var before = side.ToWorld(new Double3(-(side.Shape.HalfWidth + GrumblerOut), 0, -1.5));
+        var (phase, feral) = mode switch
+        {
+            "gnaw" => (SpinePhase.Telegraph, 0),
+            "rear" => (SpinePhase.Telegraph, 1),
+            "bite" => (SpinePhase.Commit, 1),
+            "maul" => (SpinePhase.Grab, 1),
+            _ => throw new ArgumentException($"--grumbler {mode}: gnaw, rear, bite or maul"),
+        };
+        g.Restore(phase, 0.6, g.Health, Enemy.Loose, before, 0, 0, 0, -1, feral);
+        return threats;
+    }
+
+    /// <summary>
+    /// The staged Stoker (<c>dt screenshot --stoker</c>, which opens the firebox door): <c>peer</c> watching out of the door
+    /// (App. A.5, the soot falling), <c>reach</c> feeding, an arm out after whoever opened it. The <c>firebox</c> view looks
+    /// at the door.
+    /// </summary>
+    public static List<Enemy> Stoker(List<Enemy> threats, string mode)
+    {
+        if (mode.Length == 0 || threats.OfType<Sim.Enemies.Stoker>().FirstOrDefault() is not { } s)
+            return threats;
+        var phase = mode switch
+        {
+            "peer" => SpinePhase.Telegraph,
+            "reach" => SpinePhase.Commit,
+            _ => throw new ArgumentException($"--stoker {mode}: peer or reach"),
+        };
+        s.Restore(phase, 1.2, s.Health, s.Attached, s.Local, 0, 0, 0, s.Extra, 0);
+        return threats;
+    }
+
+    /// <summary>
+    /// The staged Follower (<c>dt screenshot --follower</c>): <c>back</c> on crewmate 4's back (App. A.6 RIDE; <see cref="Lone"/>,
+    /// whose shoulder the <c>pack</c> view looks over), <c>crawl</c> off them on the ground making for the train, <c>nest</c>
+    /// built in car 2's aisle (the <c>inside</c> view). The Ribbits are put away.
+    /// </summary>
+    public static List<Enemy> Follower(List<Enemy> threats, TrainOnLine train, string mode)
+    {
+        if (mode.Length == 0 || threats.OfType<Sim.Enemies.Follower>().FirstOrDefault() is not { } f)
+            return threats;
+        threats.RemoveAll(e => e is Ribbit);
+        int car = Math.Min(2, train.Frames.Count - 1);
+        var side = train.Frames[car];
+        switch (mode)
+        {
+            case "back":
+                f.Restore(SpinePhase.Telegraph, 2, f.Health, Enemy.Loose, side.ToWorld(new Double3(-(side.Shape.HalfWidth + 2.2), 1.35, -1.5)), 0, 0, 0, LoneId, 0);
+                break;
+            case "crawl":
+                f.Restore(SpinePhase.Commit, 2, f.Health, Enemy.Loose, side.ToWorld(new Double3(-(side.Shape.HalfWidth + 1.6), 0, -0.9)), 0, 0, 0, -1, 0);
+                break;
+            case "nest":
+                double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
+                f.Restore(SpinePhase.Punish, 30, f.Health, car, new Double3(-0.45, floor, -side.Shape.HalfLength + 3.0), 0, 0, 0, -1, 1);
+                break;
+            default:
+                throw new ArgumentException($"--follower {mode}: back, crawl or nest");
+        }
+        return threats;
+    }
+
+    /// <summary>
+    /// The staged Climber (<c>dt screenshot --climber</c>), at car 2: <c>run</c> pacing the train beside it (App. A.4),
+    /// <c>scrabble</c> up in the gap behind it (MOUNT; the <c>gapside</c> view), <c>walk</c> on its roof for the engine,
+    /// <c>crouch</c> waiting in its aisle (the <c>inside</c> view).
+    /// </summary>
+    public static List<Enemy> Climber(List<Enemy> threats, TrainOnLine train, string mode)
+    {
+        var c = threats.OfType<Sim.Enemies.Climber>().FirstOrDefault();
+        if (mode.Length == 0 || c is null)
+            return threats;
+        threats.RemoveAll(e => e is Sim.Enemies.Climber && e != c);
+        int car = Math.Min(2, train.Frames.Count - 2);
+        var at = train.Frames[car];
+        var shape = at.Shape;
+        double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0, gap = train.Dynamics.Tuning.Geometry.CouplingGap;
+        switch (mode)
+        {
+            case "run":
+                c.Restore(SpinePhase.Dormant, 1, c.Health, Enemy.Loose, at.ToWorld(new Double3(shape.HalfWidth + 1.3, 0, shape.HalfLength - 1.5)), 0, 0, 0, car, 1);
+                break;
+            case "scrabble":
+                c.Restore(SpinePhase.Telegraph, 1, c.Health, car, new Double3(shape.HalfWidth - 0.2, 1.0, shape.HalfLength + gap * 0.5), 0, 0, 0, car, 1);
+                break;
+            case "walk":
+                c.Restore(SpinePhase.Commit, 1, c.Health, car, new Double3(0, shape.RoofHeight, -2), 0, 0, 0, car, 1);
+                break;
+            case "crouch":
+                c.Restore(SpinePhase.Commit, 1, c.Health, car, new Double3(-0.45, floor, -shape.HalfLength + 3.0), 0, 0, 0, -1, 1);
+                break;
+            default:
+                throw new ArgumentException($"--climber {mode}: run, scrabble, walk or crouch");
+        }
+        return threats;
+    }
+
+    // How far off the second car's side the staged Grumbler is (m): in front of crewmate 4, a lunge from them.
+    const double GrumblerOut = 3.3;
+
+    // How far off the second car's side the staged Gaunt stands (m): in front of crewmate 4, at its arm's length from them.
+    const double GauntOut = 3.4;
 
     /// <summary>
     /// A roster for the screenshot (T69): you in the cab, three crewmates, and a Passenger wearing crewmate 2's face. Crew 1
@@ -172,7 +357,7 @@ public static class Staging
         grumbler.Restore(SpinePhase.Telegraph, 2, 8, Enemy.Loose, train.Frames[cargo].ToWorld(new Double3(cargoShape.HalfWidth + 3, 0, -2)), 0, 0, 0, -1, 0);
         threats.Add(grumbler);
         // In the firebox, fed (A.5).
-        var stoker = Stoker.InFirebox(32, train, false, new StokerTuning());
+        var stoker = Sim.Enemies.Stoker.InFirebox(32, train, false, new StokerTuning());
         stoker.Restore(SpinePhase.Commit, 6, 1, 0, stoker.Local, 0, 0, 0, 0, 0);
         threats.Add(stoker);
         // Tiptoeing up on crewmate 1 on the second car's roof (A.5). (AudioTests hears its tiptoeing from here: Tippy moves
