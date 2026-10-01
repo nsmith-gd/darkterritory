@@ -9,9 +9,9 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The Gaunt (GDD v1.2 §21, App. A.6; tools/blender/gaunt.py; ARCHITECTURE §8 note 118): far too tall for the train, so
-/// aboard it drags itself along on its arms and squats to listen; woken, it faces its waker, lopes after them while they
-/// go and stands over them when they stop, leant in further at every point of its anger.
+/// The Gaunt (GDD v1.2 §21, App. A.6; tools/blender/gaunt.py; ARCHITECTURE §8 notes 118, 130): a thing on stilts, far
+/// too tall for the train, so aboard it creeps with its legs folded and squats to listen; woken, it faces its waker,
+/// stalks after them while they go and stands over them when they stop, leant in further at every point of its anger.
 /// </summary>
 public class GauntTests
 {
@@ -103,25 +103,33 @@ public class GauntTests
     {
         var calm = Drawn(Woken());
         var angry = Drawn(Woken(anger: 4));
-        // Leant in: lower (its head was out ahead of its chest already: the bend brings it down more than on), and further
-        // out in front of it (the model faces −Z).
-        Assert.True(angry.Max(p => p.Position.Y) < calm.Max(p => p.Position.Y) - 0.1f, $"top {angry.Max(p => p.Position.Y)} from {calm.Max(p => p.Position.Y)}");
-        // (Its front over the height its hands hang to: its face.)
-        static float Head(Vertex[] v) => v.Where(p => p.Position.Y > 1.4f).Min(p => p.Position.Z);
-        Assert.True(Head(angry) < Head(calm) - 0.05f, $"head at z {Head(angry)} from {Head(calm)}");
+        // (Its head and ears: the front of it, out ahead of its forelegs (the model faces −Z), over the height of a man's
+        // chest.)
+        static Vertex[] Head(Vertex[] v)
+        {
+            float front = v.Where(p => p.Position.Y > 1.2f).Min(p => p.Position.Z);
+            return v.Where(p => p.Position.Y > 1.2f && p.Position.Z < front + 0.35f).ToArray();
+        }
+        // Leant in: its head let down lower over you (its neck from the shoulders), and no further back.
+        float calmY = Head(calm).Average(p => p.Position.Y), angryY = Head(angry).Average(p => p.Position.Y);
+        Assert.True(angryY < calmY - 0.1f, $"head at y {angryY} from {calmY}");
+        Assert.True(Head(angry).Min(p => p.Position.Z) < Head(calm).Min(p => p.Position.Z) + 0.05f, "still out over you");
+        // And tipped over: its ears no longer level.
+        static float Roll(Vertex[] v) => v.Where(p => p.Position.X > 0).Average(p => p.Position.Y) - v.Where(p => p.Position.X < 0).Average(p => p.Position.Y);
+        Assert.True(MathF.Abs(Roll(Head(angry)) - Roll(Head(calm))) > 0.05f, $"roll {Roll(Head(angry))} from {Roll(Head(calm))}");
         // (And no more than that at the threshold: its anger saturates.)
-        Assert.Equal(Drawn(Woken(anger: 4)).Max(p => p.Position.Y), Drawn(Woken(anger: 9)).Max(p => p.Position.Y), 3);
+        Assert.Equal(Head(Drawn(Woken(anger: 4))).Average(p => p.Position.Y), Head(Drawn(Woken(anger: 9))).Average(p => p.Position.Y), 3);
     }
 
     [Fact]
     public void WokenItFacesItsWaker()
     {
-        // Its waker off to its +X: its head's out over them, to that side of its feet.
+        // Its waker off to its +X: its head's out over them, to that side of its feet. (Its head and ears are half of it:
+        // the mesh's middle goes with them.)
         var prey = new CreatureArt.Prey(new Vector3(3, 0, -4), -Vector3.UnitX);
         var v = Drawn(Woken(), prey: prey);
-        float top = v.Max(p => p.Position.Y);
-        float head = v.Where(p => p.Position.Y > top - 0.3f).Average(p => p.Position.X);
-        Assert.True(head > 0.15f, $"head at x {head}");
+        float head = v.Average(p => p.Position.X);
+        Assert.True(head > 0.15f, $"middle at x {head}");
         // Asleep it faces nobody.
         var asleep = new Gaunt(1);
         asleep.Restore(SpinePhase.Dormant, 1, 8, Enemy.Loose, default, 0, 0, 0, -1, 0);

@@ -116,7 +116,7 @@ public sealed class CreatureArt
 
     // A Gaunt or a Grumbler goes (lopes, crawls, scuttles) above this pace (m/s), and stands (listens, squats, bites) below
     // it. At each point of its anger a Gaunt leans in this much more of the way (all of it at the sim's default threshold,
-    // enemies.json gaunt.attackAt), its back bent forward this far (radians) and its head tipped over this far at the most.
+    // enemies.json gaunt.attackAt), its neck let down this far (radians) and its head tipped over this far at the most.
     // A riding Follower is this high on its carrier and this far behind their middle (m: a crewmate's back, tools/blender/
     // crew.py); its nest swells it this much (the full nest, 1 + this times its size).
     const float FollowerUp = 1.35f, FollowerBack = 0.15f, FollowerSwell = 1.5f;
@@ -124,7 +124,7 @@ public sealed class CreatureArt
     // The Stoker's own fire, in its mouth and its splits: the sick green of a fire with it in (GreyboxScene.FireColour).
     static readonly Vector3 StokerFire = new(0.35f, 0.6f, 0.22f);
 
-    const float Going = 0.4f, GauntLeanPerAnger = 0.25f, GauntLean = 0.45f, GauntTilt = 0.6f;
+    const float Going = 0.4f, GauntLeanPerAnger = 0.25f, GauntLean = 0.32f, GauntTilt = 0.6f;
 
     // Fire Flies round a car's lantern (tools/blender/fire_fly.py; the lantern's tools/models hand_lantern, its flame at the
     // model's origin): at most this many of them, the swarm filling as they linger (all of it by FireFlySwarmFills
@@ -466,13 +466,20 @@ public sealed class CreatureArt
     }
 
     /// <summary>
-    /// A listening Gaunt leant in over who it's listening to, <paramref name="anger"/> (0..1) of the way: its back bent
-    /// forward from the chest (the model faces −Z) and its head tipped over on its side (App. A.6 LISTEN's telegraph).
+    /// A listening Gaunt leant in over who it's listening to, <paramref name="anger"/> (0..1) of the way: its neck let
+    /// down from the shoulders (the model faces −Z), the top of it straightened again so the head still reaches out over
+    /// them, and its head tipped over on its side (App. A.6 LISTEN's telegraph). Not its back: its forelegs hang from it
+    /// (note 130).
     /// </summary>
     static void LeanIn(Entry m, float anger)
     {
-        Bend(m, "spine_03", Matrix4x4.CreateRotationX(-GauntLean * anger));
-        Bend(m, "head", Matrix4x4.CreateRotationZ(GauntTilt * anger));
+        Bend(m, "neck_01", Matrix4x4.CreateRotationX(-GauntLean * anger));
+        Bend(m, "neck_03", Matrix4x4.CreateRotationX(0.5f * GauntLean * anger));
+        // (Rolled about the skull's own length, the way it's pointing: the jaw's hinge from its nape.)
+        var sk = m.Model.Skeleton;
+        int head = sk.IndexOf("head"), jaw = sk.IndexOf("jaw");
+        var along = head >= 0 && jaw >= 0 ? m.Pose.World[jaw].Translation - m.Pose.World[head].Translation : Vector3.UnitZ;
+        Bend(m, "head", Matrix4x4.CreateFromAxisAngle(along.LengthSquared() > 1e-8f ? Vector3.Normalize(along) : Vector3.UnitZ, -GauntTilt * anger));
     }
 
     /// <summary>
@@ -865,11 +872,12 @@ public sealed class CreatureArt
                 return Crewmate(mesh, model, phase == SpinePhase.Telegraph ? CrewPose.Walk : CrewPose.Idle, t, (int)Math.Round(extra));
             case EnemyKind.Gaunt when _models.ContainsKey("gaunt"):
                 {
-                    // The Gaunt (GDD v1.2 §21, App. A.6; tools/blender/gaunt.py). Asleep, the heap breathing; stirring, its
-                    // head up out of it to look. Woken, it lopes after its waker while they go and stands over them
-                    // listening when they stop, leant in further and its head tipped over further at every point of
-                    // anger (extra2); at its threshold the fists come down. The cars weren't built for it (note 118): aboard
-                    // it drags itself along on its arms, squats to listen, and smashes from the squat.
+                    // The Gaunt (GDD v1.2 §21, App. A.6; tools/blender/gaunt.py; a thing on stilts, note 130). Asleep, the
+                    // heap of branches breathing; stirring, its head up out of it to listen. Woken, it stalks after its
+                    // waker while they go and stands over them listening when they stop, its neck let down further and its
+                    // head tipped over further at every point of anger (extra2); at its threshold it rears and the forelegs
+                    // come down. The cars weren't built for it (note 118): aboard it creeps with its legs folded, squats
+                    // to listen, and stabs from the squat.
                     var room = _room;
                     float pace = _pace;
                     _room = Room.Open;
