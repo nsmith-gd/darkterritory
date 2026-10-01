@@ -96,6 +96,9 @@ public sealed class CrewCalls
     /// </summary>
     public bool Leaving { get; private set; }
     public void Leave(bool leaving) => Leaving = leaving;
+    /// <summary>The driver's out of the cab on the running board, sanding (T104): the fireman minds the controls.</summary>
+    public bool Sanding { get; private set; }
+    public void Sand(bool sanding) => Sanding = sanding;
 
     /// <summary>
     /// Which door a hand shuts once the crates are in (T50): the one it has claimed while that's still open, else the

@@ -256,7 +256,7 @@ public sealed class Switchman(int id) : Enemy(id)
                 if (engine.Path == Rail.RailLine.MainPath && engine.Distance > branch.Toe + 2 && engine.RearDistance < branch.Toe - 2)
                 {
                     ctx.World.SetSwitch(Branch, true);
-                    ctx.World.Derail();
+                    ctx.World.Derail("the Switchman threw the points under it");
                     Enter(ctx, SpinePhase.Punish);
                     return;
                 }

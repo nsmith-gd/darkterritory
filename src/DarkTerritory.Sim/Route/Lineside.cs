@@ -269,7 +269,7 @@ public sealed class Lineside
                 {
                     double over = rake.Speed - sign.Limit;
                     if (rake.Speed >= sign.Limit * Tuning.DerailRatio && !world.Derailed)
-                        world.Derail();
+                        world.Derail($"over the {sign.Limit:0} m/s board at {rake.Speed:0.0} m/s");
                     if (over > Tuning.LurchOver)
                     {
                         // The frames strain (repairs, spec F.1) and the loads shift about.

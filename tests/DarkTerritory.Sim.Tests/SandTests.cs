@@ -124,6 +124,58 @@ public class SandTests
         Assert.True(PlayerMotor.InCab(s, train));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void WhileTheDriversOutSandingTheFiremanHoldsTheTrainToTheBoardsAndWatchesTheRoad(bool sleepers)
+    {
+        // T105: the brake holds only while someone in the cab holds it, so with the driver out on the board steam pulled the
+        // train on unchecked (frontier:11 ran on so onto the Sleepers, and derailed). Just past the grease, a weak bridge's
+        // board, or the Sleepers across the rail.
+        var route = new Route.Route("test", RouteTier.Frontier, 1, new LineDefinition("test", [new TrackSegment(6000)]),
+            [new RouteFeature(FeatureKind.Grease, 400, sleepers ? 820 : 700), sleepers ? new RouteFeature(FeatureKind.Sleepers, 830, 830) : new RouteFeature(FeatureKind.Bridge, 800, 860, MaxCars: 10)],
+            new RouteWeather(0.01, false, 0, 0), 3600);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 3, 1)), route.Build(), 420, Tuning.Boiler);
+        var world = new World(train);
+        world.EnableLineside(S, route);
+        // The host's enemies: the route's Sleepers, laid where it puts them.
+        if (sleepers)
+            world.EnableEnemies(Tuning.Enemies, route, 1, 2, authority: true);
+        train.Dynamics.Velocity = 8;
+        var calls = new CrewCalls();
+        var driver = new ConductorBot(calls, 0);
+        var fireman = new ConductorBot(calls, 1) { Fireman = true };
+        var d = PlayerMotor.SpawnInCab(train, P);
+        var f = PlayerMotor.SpawnInCab(train, P) with { Position = PlayerMotor.SpawnInCab(train, P).Position + new Double3(-1.2, 0, 0) };
+        var c = new TrainControls { Reverser = 1 };
+        bool outside = false;
+        double overBridge = 0;
+        for (uint tick = 0; tick < 150 * SimConstants.TickRate && train.Dynamics.RearDistance < 870; tick++)
+        {
+            var di = driver.Decide(d, world, tick, out _);
+            var fi = fireman.Decide(f, world, tick, out _);
+            if (CabControls.Clears(c, train, CabControls.ReleasesBrake(di, d, train) || CabControls.ReleasesBrake(fi, f, train)))
+                c.Brake = 0;
+            CabControls.Apply(ref c, di, d, train);
+            CabControls.Apply(ref c, fi, f, train);
+            world.BeginTick();
+            world.CrewAct(ref d, di, 1);
+            world.CrewAct(ref f, fi, 2);
+            world.Step(c);
+            PlayerMotor.Step(ref d, di, train, P, T, SimConstants.TickSeconds, applyLook: false);
+            PlayerMotor.Step(ref f, fi, train, P, T, SimConstants.TickSeconds, applyLook: false);
+            outside |= d.Parent == 0 && !PlayerMotor.InCab(d, train);
+            // On the span; or the engine at the Sleepers.
+            if (sleepers ? Math.Abs(train.Dynamics.Distance - 830) < 1 : train.Dynamics.Distance > 800 && train.Dynamics.RearDistance < 860)
+                overBridge = Math.Max(overBridge, train.Dynamics.Speed);
+        }
+        Assert.True(outside, "the driver went out to sand");
+        Assert.False(world.Derailed, world.DerailCause);
+        // Under the board, as the driver holds it (Posted: the strain starts lurchOver past it); or under the Sleepers'
+        // derailing speed.
+        Assert.InRange(overBridge, 0, sleepers ? Tuning.Enemies.Sleepers.DerailAbove : S.WeakBridgeLimit + S.LurchOver);
+    }
+
     [Fact]
     public void AClientHasTheHostsSand()
     {
