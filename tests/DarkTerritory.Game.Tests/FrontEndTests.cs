@@ -189,6 +189,37 @@ public sealed class FrontEndTests : IDisposable
     }
 
     [Fact]
+    public void TheDisplaySettingsAreSavedAndSayWhatTheGameDrawsAt()
+    {
+        // T83: fullscreen, the resolution, the render scale, vsync.
+        var m = Menu();
+        Choose(m, "SETTINGS");
+        Assert.Equal((1280, 720), m.Settings.InternalSize);
+        Choose(m, "DISPLAY");
+        Pick(m, "RESOLUTION");
+        m.Right();
+        m.Right();
+        Pick(m, "RENDER SCALE");
+        m.Left();
+        Choose(m, "VSYNC");
+        Assert.True(m.Settings.Fullscreen);
+        Assert.Equal("1920x1080", m.Settings.Resolution);
+        Assert.Equal(0.75, m.Settings.RenderScale, 6);
+        Assert.False(m.Settings.VSync);
+        // Drawn at three quarters of 1080p, and a window the resolution's size.
+        Assert.Equal((1440, 810), m.Settings.InternalSize);
+        Assert.Equal((1920, 1080), m.Settings.WindowSize);
+        Assert.Equal(m.Settings, Settings.Load(SettingsPath));
+        // Round from the last back to the first.
+        Pick(m, "RESOLUTION");
+        m.Right();
+        m.Right();
+        Assert.Equal(Settings.Resolutions[0], m.Settings.Resolution);
+        // A resolution it doesn't know draws at 720p rather than failing.
+        Assert.Equal((640, 360), new Settings { Resolution = "nonsense", RenderScale = 0.5 }.InternalSize);
+    }
+
+    [Fact]
     public void EveryScreenDrawsItsItemsWithTheSelectedOneLit()
     {
         var m = Menu();

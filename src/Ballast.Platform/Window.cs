@@ -93,6 +93,27 @@ public sealed unsafe class Window : IDisposable
         }
     }
 
+    /// <summary>The whole screen, borderless at the desktop's own mode, or a window (T83).</summary>
+    public bool Fullscreen
+    {
+        get => (SDL_GetWindowFlags(_window) & SDL_WindowFlags.SDL_WINDOW_FULLSCREEN) != 0;
+        set
+        {
+            if (value != Fullscreen)
+            {
+                SDL_SetWindowFullscreen(_window, value);
+                Resized = true;
+            }
+        }
+    }
+
+    /// <summary>Sets the window's size, in points (windowed).</summary>
+    public void SetSize(int width, int height)
+    {
+        SDL_SetWindowSize(_window, width, height);
+        Resized = true;
+    }
+
     public string Title
     {
         set => SDL_SetWindowTitle(_window, value);
