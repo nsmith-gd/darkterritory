@@ -2182,3 +2182,24 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - bigger teeth in a wider split;
       - the jaw opening at all: −X drops it, so every opening had been closing it into the skull.
     - **Headless.** `dt screenshot --threats --crew --grumbler gnaw|rear|bite|maul --view grumbler` stages it in front of crewmate 4 (as the Gaunt is; the Ribbits and the Gaunt are put away), over their shoulder. `GrumblerTests`: low gnawing, rears up when hit, bites stood and scuttles going, faces who it's after.
+
+120. **The Stoker's model (GDD v1.2 §21, App. A.5).** It was never drawn: only its work showed (the gauge, the wrong-coloured glow, the hiss). Now it's seen at the firebox door when it's open (`tools/blender/stoker.py`, baked by `tools/models/recipes/stoker.py`, 2,308 triangles, 28 bones: SK_Human shrunk, with a jaw).
+    - **The design.** A fireman burnt right through to charcoal and still alive in it.
+      - **Skin:** black, blistered and crazed like burnt wood. Where it's split, the fire shows through: the splits, its eyes and the fire in its mouth keep their own glowing layer, as the Cinder Hound's cracks do.
+      - **Face:** no hair, no ears, no lips; the teeth are bare in a grin the heat drew back.
+      - **Fingers:** long and black as burnt twigs.
+      - **Its own light:** its fire lights its face a flickering sick green (`StokerFire`, the colour `GreyboxScene.FireColour` gives a fire with a Stoker in it).
+    - **Where it's drawn.** `CreatureArt.FireDoorOpen` holds the door's centre while the door's open, and null while it's shut. `GreyboxScene.FireDoorOpen` sets it each frame, and the app sets that from `Boiler.FireDoorOpen`. Its origin is the door's centre on the backhead's face (`TrainKit.FireDoor`, which the door's frame uses too). In TELEGRAPH or COMMIT with the door open:
+      - **peer** (TELEGRAPH): its head is out of the door into the cab, tipped back to look up at whoever's stood over it, and its arms are out over the lip, the hands flat on the cab's floor. Now and then the head tips over, and the jaw comes open on the fire.
+      - **reach** (COMMIT, feeding): an arm up off the floor, groping out for whoever's opened the door.
+      - **hit.**
+    - **The firebox got a hole.** The backhead was drawn as one solid plate with the door's frame on it, and the backhead prop's leaves stood 30° ajar over it, so there was nothing to see into.
+      - The plate is now drawn round the opening (`TrainKit.FireDoorHalfWidth`/`FireDoorHalfHeight`), with the firehole's sides going back to the fire.
+      - The scene's fire is a dull back wall with a bright bed of coals along the bottom, set at the back of the firehole and toned down. It was a flat emissive panel.
+      - The prop's leaves swing 70° open (`tools/models/recipes/cab_backhead.py`).
+      - So the cab now shows the fire through the door, orange as it was and green with a Stoker in it.
+    - **The crouch.** The hands on the floor are `rig.reach` targets. From one start the descent stuck with the arms thrown back, so `arm_to` tries a spread of starts with the elbow kept down by the shoulder and keeps the best. Each hand is laid flat with `rig.hang`; until then the fingers ran on under the floor.
+    - **Headless.**
+      - `dt screenshot --threats --stoker peer|reach --view firebox`: the door's opened by `--stoker` (or `--firedoor` alone), and the view is crouched at the door.
+      - `dt art clip stoker peer --lift 0.75`: lifts a model whose origin isn't at its feet off the clip rig's floor.
+      - `StokerTests`: drawn only with the door open, its head out of the door into the cab, its hands on the floor and not under it.

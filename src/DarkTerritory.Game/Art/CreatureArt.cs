@@ -29,7 +29,7 @@ public sealed class CreatureArt
     const float CarHalfWidth = 1.6f, RoofDrop = 3.6f;
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
-        "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler"];
+        "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker"];
 
     /// <summary>A haunting Track Doll's turns aboard (App. A.2 HAUNT): this long over the cargo, then this long giggling.</summary>
     const double DollAdmires = 12, DollGiggles = 5;
@@ -100,12 +100,22 @@ public sealed class CreatureArt
         k.Cylinder(b - Vector3.Normalize(b - a) * 0.02f, b + Vector3.Normalize(b - a) * 0.02f, RibbitTongueThick * 1.4f, 8);
     }
     Room _room;
+
+    /// <summary>
+    /// The firebox door, when it's open: its centre from the firebox's place (the engine's frame; Art/TrainKit.FireDoor),
+    /// or null when it's shut. GreyboxScene sets it from the boiler each frame; a Stoker shows only through it.
+    /// </summary>
+    public Vector3? FireDoorOpen { get; set; }
+
     // Set by Enemy(e, pace) for the one draw it makes, as _room.
     float _pace;
 
     // A Gaunt or a Grumbler goes (lopes, crawls, scuttles) above this pace (m/s), and stands (listens, squats, bites) below
     // it. At each point of its anger a Gaunt leans in this much more of the way (all of it at the sim's default threshold,
     // enemies.json gaunt.attackAt), its back bent forward this far (radians) and its head tipped over this far at the most.
+    // The Stoker's own fire, in its mouth and its splits: the sick green of a fire with it in (GreyboxScene.FireColour).
+    static readonly Vector3 StokerFire = new(0.35f, 0.6f, 0.22f);
+
     const float Going = 0.4f, GauntLeanPerAnger = 0.25f, GauntLean = 0.45f, GauntTilt = 0.6f;
 
     /// <summary>
@@ -187,6 +197,7 @@ public sealed class CreatureArt
         ["choir"] = 0.3f,
         ["gaunt"] = 0.4f,
         ["grumbler"] = 0.5f,
+        ["stoker"] = 0.2f,
     };
 
     sealed class Entry(Model model, MaterialLook[] looks)
@@ -663,8 +674,21 @@ public sealed class CreatureArt
                     return true;
                 }
             case EnemyKind.Stoker:
-                // In the firebox: never seen, only its work (the gauge, the wrong glow the scene gives the fire, the hiss).
-                return true;
+                {
+                    // In the firebox (GDD v1.2 §21, App. A.5; tools/blender/stoker.py): seen only through the door, when it's
+                    // open (FireDoorOpen; Enemy(e) put the model at the door). Else it's only its work: the gauge, the
+                    // wrong glow the scene gives the fire, the hiss. In the fire it watches out of the door, its fingers
+                    // over the lip; feeding (COMMIT), an arm comes out over the lip, groping for whoever's opened it.
+                    if (FireDoorOpen is null || phase is not (SpinePhase.Telegraph or SpinePhase.Commit))
+                        return true;
+                    if (Draw(mesh, "stoker", phase == SpinePhase.Commit ? "reach" : "peer", t, true, model, seed: 13))
+                    {
+                        // The fire in its mouth and its splits lights its own face, the wrong colour, flickering.
+                        float flicker = 0.8f + 0.2f * (float)Math.Sin(t * 17.0 + Math.Sin(t * 5.3) * 2);
+                        mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, -0.05f, -0.12f), model), StokerFire * flicker, 0.9f));
+                    }
+                    return true;
+                }
             case EnemyKind.Climber:
                 {
                     // A crewman gone wrong (App. A.4): drawn out thin, soot-black, running bent double alongside; climbing at
@@ -1075,6 +1099,10 @@ public sealed class CreatureArt
                     }
                     return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: false, extra2: e.Id);
                 }
+            case EnemyKind.Stoker when _models.ContainsKey("stoker") && FireDoorOpen is { } door:
+                // At the open door, looking out of it into the cab (the model faces −Z: turned to the engine's +Z, back).
+                m = Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateTranslation(door) * model;
+                break;
             case EnemyKind.Grumbler when _models.ContainsKey("grumbler"):
                 {
                     // Feral, it faces who it's after (the nearest of the crew: who hit it isn't sent to clients), and it

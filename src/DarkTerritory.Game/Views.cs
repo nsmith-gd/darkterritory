@@ -49,6 +49,8 @@ public static class Views
                 train.Frames[^1].ToWorld(new Double3(0, train.Frames[^1].Shape.RoofHeight + 2.0, 0)), 55),
             "crewside" => Camera.LookAt(target.ToWorld(new Double3(2.6, roof + 1.9, -4.2)), target.ToWorld(new Double3(-0.8, roof + 1.45, -5.6)), 45),
             "cab" => CabCamera(engine),
+            // Crouched where the fireman shovels, at the firebox door (what's seen when it's open: the staged Stoker).
+            "firebox" => FireboxCamera(engine),
             // The fireman's side (T101): out of the left window down the running board to the blow-off by the smokebox.
             "fireman" => CabCamera(engine, -1),
             "chase" => ChaseCamera(train),
@@ -65,6 +67,13 @@ public static class Views
     }
 
     /// <summary>Standing in the cab beside the boiler, looking past it down the line.</summary>
+    static Camera FireboxCamera(in CarFrame engine)
+    {
+        var door = Art.TrainKit.FireDoor(engine.Shape);
+        var at = new Double3(door.X, door.Y, door.Z);
+        return Camera.LookAt(engine.ToWorld(at + new Double3(0.12, 0.22, 0.8)), engine.ToWorld(at), 60);
+    }
+
     static Camera CabCamera(in CarFrame engine, int side = 1)
     {
         var eye = CabEye(engine.Shape, side);

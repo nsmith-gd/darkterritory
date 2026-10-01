@@ -59,6 +59,8 @@ public class CreatureArtTests
         ["gaunt"] = new(3000, 9000, 20, 60, ["sleep", "follow", "listen", "attack", "crawl", "squat", "smash"], ["stir", "hit"]),
         // A character's (App. A.8), SK_Human with a jaw and a second pair of arms out of its ribs: down like a spider.
         ["grumbler"] = new(3000, 9000, 30, 60, ["gnaw", "scuttle", "bite", "maul"], ["hit"]),
+        // A character's (App. A.5), SK_Human shrunk with a jaw: only ever seen at the firebox door, so light.
+        ["stoker"] = new(1500, 5000, 20, 40, ["peer", "reach"], ["hit"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -87,8 +89,8 @@ public class CreatureArtTests
         // Standing on the floor at the origin, facing −Z: the pivot's between the feet (the clinger's is on the hull, the
         // dragger's at the car's edge, the rest of it hanging below; the weight's at the coupler, the heap on the stones; the
         // car hugger's at its mouth on the rear platform, its body down to the rail; a Choir ghost flies, its strips hanging
-        // below where it is).
-        if (name is not ("clinger" or "dragger" or "weight" or "car_hugger" or "choir"))
+        // below where it is; the Stoker's is the firebox door, its body in the fire behind and below it).
+        if (name is not ("clinger" or "dragger" or "weight" or "car_hugger" or "choir" or "stoker"))
         {
             Assert.InRange(m.Min.Y, -0.02f, 0.05f);
             Assert.InRange((m.Min.X + m.Max.X) / 2, -0.25f, 0.25f);
@@ -434,6 +436,7 @@ public class CreatureArtTests
         "choir" => (Vector3.Zero, 1.3f),
         "gaunt" => (Vector3.Zero, 2.6f),
         "grumbler" => (Vector3.Zero, 1.9f),
+        "stoker" => (new Vector3(0, -0.4f, 0.3f), 1.3f),
         _ => (Vector3.Zero, 1.9f),
     };
 

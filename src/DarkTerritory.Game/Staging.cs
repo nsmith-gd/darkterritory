@@ -191,6 +191,25 @@ public static class Staging
         return threats;
     }
 
+    /// <summary>
+    /// The staged Stoker (<c>dt screenshot --stoker</c>, which opens the firebox door): <c>peer</c> watching out of the door
+    /// (App. A.5, the soot falling), <c>reach</c> feeding, an arm out after whoever opened it. The <c>firebox</c> view looks
+    /// at the door.
+    /// </summary>
+    public static List<Enemy> Stoker(List<Enemy> threats, string mode)
+    {
+        if (mode.Length == 0 || threats.OfType<Sim.Enemies.Stoker>().FirstOrDefault() is not { } s)
+            return threats;
+        var phase = mode switch
+        {
+            "peer" => SpinePhase.Telegraph,
+            "reach" => SpinePhase.Commit,
+            _ => throw new ArgumentException($"--stoker {mode}: peer or reach"),
+        };
+        s.Restore(phase, 1.2, s.Health, s.Attached, s.Local, 0, 0, 0, s.Extra, 0);
+        return threats;
+    }
+
     // How far off the second car's side the staged Grumbler is (m): in front of crewmate 4, a lunge from them.
     const double GrumblerOut = 3.3;
 
@@ -273,7 +292,7 @@ public static class Staging
         grumbler.Restore(SpinePhase.Telegraph, 2, 8, Enemy.Loose, train.Frames[cargo].ToWorld(new Double3(cargoShape.HalfWidth + 3, 0, -2)), 0, 0, 0, -1, 0);
         threats.Add(grumbler);
         // In the firebox, fed (A.5).
-        var stoker = Stoker.InFirebox(32, train, false, new StokerTuning());
+        var stoker = Sim.Enemies.Stoker.InFirebox(32, train, false, new StokerTuning());
         stoker.Restore(SpinePhase.Commit, 6, 1, 0, stoker.Local, 0, 0, 0, 0, 0);
         threats.Add(stoker);
         // Tiptoeing up on crewmate 1 on the second car's roof (A.5). (AudioTests hears its tiptoeing from here: Tippy moves

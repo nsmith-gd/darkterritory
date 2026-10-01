@@ -883,11 +883,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Run = run,
         Holdouts = holdouts,
         Time = 0.37,
-        Enemies = args.Contains("--threats") ? Later(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), train, Str(args, "--tippy", "")), Str(args, "--whistler", "")), Str(args, "--ribbits", "")), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Opt(args, "--later", 0)) : null,
+        Enemies = args.Contains("--threats") ? Later(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), train, Str(args, "--tippy", "")), Str(args, "--whistler", "")), Str(args, "--ribbits", "")), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), Opt(args, "--later", 0)) : null,
         Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All : cargo,
         // --crew: three on car 2's roof, one reaching up, one holding out both hands, one with a keyboard (T47's arms).
         Crew = args.Contains("--crew") ? [.. Staging.Crew(train, content), .. args.Contains("--ribbits") || args.Contains("--gaunt") || args.Contains("--grumbler") ? [Staging.Lone(train)] : Array.Empty<Crewmate>()] : null,
         Emergency = args.Contains("--emergency"),
+        FireDoorOpen = args.Contains("--firedoor") || args.Contains("--stoker"),
         // --venting: the blow-off held open and the safety valve lifting (T101), their steam.
         Venting = args.Contains("--venting"),
         SafetyValve = args.Contains("--venting"),
@@ -1052,7 +1053,8 @@ static object ArtClip(string content, string name, string clip, string[] args)
         var right = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(camera.Forward, System.Numerics.Vector3.UnitY));
         mesh.PointLights.Add(new PointLight(right * (float)(dist * 0.4) + new System.Numerics.Vector3(0, 1.2f, 0), DarkTerritory.Game.Palette.LampAmber * 2.2f, (float)dist * 2.5f));
         mesh.PointLights.Add(new PointLight(-right * (float)(dist * 0.6) + new System.Numerics.Vector3(0, 2f, 0), new System.Numerics.Vector3(0.25f, 0.3f, 0.4f), (float)dist * 2.5f));
-        art.Draw(mesh, name, clip, time, loop, System.Numerics.Matrix4x4.CreateTranslation(-e));
+        // (--lift: the model raised off the floor, for one whose origin isn't at its feet: the Stoker's is the firebox door.)
+        art.Draw(mesh, name, clip, time, loop, System.Numerics.Matrix4x4.CreateTranslation(new System.Numerics.Vector3(0, (float)Opt(args, "--lift", 0), 0) - e));
         var light = look.Apply(FrameLighting.Night);
         light.FogDensity = 0.004f;
         light.LampRange = 0.01f;
@@ -1294,7 +1296,7 @@ static int Usage()
           boiler run <cars> [--seconds t] [--throttle 0..1] [--fire-at p | --no-fireman] [--pressure p] [--firebox u] [--vent]
           line info <name> [--every m]             position/grade profile of content/lines/<name>.json
           line drive <name> [--cars n] [--start s] [--from v] [--throttle 0..1] [--seconds t]
-          art clip <creature> <clip> [--frames n] [--at x,y,z --dist m --yaw deg --pitch deg] [--once]   a clip as a lit contact sheet
+          art clip <creature> <clip> [--frames n] [--at x,y,z --dist m --yaw deg --pitch deg] [--lift m] [--once]   a clip as a lit contact sheet
           screenshot [--view trackside|roof|cab|chase|ahead] [--line name] [--cars n] [--at s] [--car i] [--cut n]
                      [--cam s,lateral,height --target s,lateral,height --fov deg]   camera by line coordinates
                      [--width w] [--height h] [--scale k] [--out file.png] [--threats]   --threats stages one of each enemy
