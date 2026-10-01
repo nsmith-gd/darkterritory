@@ -246,9 +246,11 @@ def pipe(points, r, material, name="pipe", n=10, low=6):
     for a, b in zip(pts, pts[1:]):
         out.append(cyl(a, b, r, material, n=n, bevel=0, name=name, low=low))
     for p in pts[1:-1]:
-        bpy.ops.mesh.primitive_uv_sphere_add(radius=r * 1.25, segments=n, ring_count=max(4, n // 2), location=p)
+        # Made at the origin and its mesh moved, like every other part here. (Adding it at `p` and then zeroing its
+        # location left matrix_world holding `p` until the next depsgraph update, so the last joint read as twice
+        # as far out to cook.bounds: centre_on_origin then mis-centred the model on it.)
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=r * 1.25, segments=n, ring_count=max(4, n // 2))
         o = bpy.context.view_layer.objects.active
-        o.data.transform(Matrix.Translation(o.location))
-        o.location = (0, 0, 0)
+        o.data.transform(Matrix.Translation(p))
         out.append(_finish(o, material, 0, 1, name + "_joint"))
     return out
