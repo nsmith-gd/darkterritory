@@ -29,7 +29,7 @@ public sealed class CreatureArt
     const float CarHalfWidth = 1.6f, RoofDrop = 3.6f;
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
-        "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker"];
+        "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber"];
 
     /// <summary>A haunting Track Doll's turns aboard (App. A.2 HAUNT): this long over the cargo, then this long giggling.</summary>
     const double DollAdmires = 12, DollGiggles = 5;
@@ -113,6 +113,10 @@ public sealed class CreatureArt
     // A Gaunt or a Grumbler goes (lopes, crawls, scuttles) above this pace (m/s), and stands (listens, squats, bites) below
     // it. At each point of its anger a Gaunt leans in this much more of the way (all of it at the sim's default threshold,
     // enemies.json gaunt.attackAt), its back bent forward this far (radians) and its head tipped over this far at the most.
+    // A riding Follower is this high on its carrier and this far behind their middle (m: a crewmate's back, tools/blender/
+    // crew.py); its nest swells it this much (the full nest, 1 + this times its size).
+    const float FollowerUp = 1.35f, FollowerBack = 0.15f, FollowerSwell = 1.5f;
+
     // The Stoker's own fire, in its mouth and its splits: the sick green of a fire with it in (GreyboxScene.FireColour).
     static readonly Vector3 StokerFire = new(0.35f, 0.6f, 0.22f);
 
@@ -198,6 +202,8 @@ public sealed class CreatureArt
         ["gaunt"] = 0.4f,
         ["grumbler"] = 0.5f,
         ["stoker"] = 0.2f,
+        ["follower"] = 0.2f,
+        ["climber"] = 0.3f,
     };
 
     sealed class Entry(Model model, MaterialLook[] looks)
@@ -689,6 +695,23 @@ public sealed class CreatureArt
                     }
                     return true;
                 }
+            case EnemyKind.Climber when _models.ContainsKey("climber"):
+                {
+                    // The Climbers (GDD v1.2 §21, App. A.4; tools/blender/climber.py): one of the crew gone wrong, the gas
+                    // mask grown into its face. Pacing the train it runs bent double on all fours; at a gap it scrabbles
+                    // up between the cars, facing in (Enemy(e) turns it); on the roofs it walks crouched for the engine;
+                    // inside an unlit car (extra −1) it waits folded in a corner; on a lone player it grabs.
+                    bool inside = extra < 0;
+                    string clip = phase switch
+                    {
+                        SpinePhase.Telegraph => "scrabble",
+                        SpinePhase.Grab or SpinePhase.Punish => "grab",
+                        SpinePhase.Commit when inside => "crouch",
+                        SpinePhase.Commit => "walk",
+                        _ => "run",
+                    };
+                    return Draw(mesh, "climber", clip, t, true, model, seed: 17);
+                }
             case EnemyKind.Climber:
                 {
                     // A crewman gone wrong (App. A.4): drawn out thin, soot-black, running bent double alongside; climbing at
@@ -728,6 +751,18 @@ public sealed class CreatureArt
                             adjust: (_, l) => l with { Colour = l.Colour * 0.35f });
                     }
                     return true;
+                }
+            case EnemyKind.Follower when _models.ContainsKey("follower"):
+                {
+                    // The Followers (GDD v1.2 §21, App. A.6; tools/blender/follower.py): a hand gone wrong, a mouth on its
+                    // back. On someone's back (Enemy(e) laid it flat between their shoulder blades) it clings, and twitches;
+                    // off it, it scuttles on its fingertips; at its car it spreads over the loot and swells as its nest
+                    // builds (extra2), kneading it, eating.
+                    bool nesting = phase == SpinePhase.Punish || phase == SpinePhase.Commit && extra2 > 0;
+                    float swell = phase == SpinePhase.Punish ? 1 : (float)Math.Clamp(extra2, 0, 1);
+                    var at = nesting ? Matrix4x4.CreateScale(1 + FollowerSwell * swell) * model : model;
+                    string clip = nesting ? "nest" : phase == SpinePhase.Commit ? "crawl" : "cling";
+                    return Draw(mesh, "follower", clip, t, true, at, seed: 29);
                 }
             case EnemyKind.Follower:
                 {
@@ -1103,6 +1138,16 @@ public sealed class CreatureArt
                 // At the open door, looking out of it into the cab (the model faces −Z: turned to the engine's +Z, back).
                 m = Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateTranslation(door) * model;
                 break;
+            case EnemyKind.Follower when _models.ContainsKey("follower") && prey is { } carrier && e.Phase is SpinePhase.Dormant or SpinePhase.Telegraph:
+                {
+                    // Riding: flat between its carrier's shoulder blades, its palm to them and its fingers up (the model's
+                    // −Y into their back, its −Z, the fingers' way, up), where their friends can see it and they can't.
+                    var r = carrier.Right;
+                    var f = carrier.Forward;
+                    var o = carrier.At(0, FollowerUp, FollowerBack);
+                    m = new Matrix4x4(r.X, r.Y, r.Z, 0, -f.X, -f.Y, -f.Z, 0, 0, -1, 0, 0, o.X, o.Y, o.Z, 1);
+                    break;
+                }
             case EnemyKind.Grumbler when _models.ContainsKey("grumbler"):
                 {
                     // Feral, it faces who it's after (the nearest of the crew: who hit it isn't sent to clients), and it
@@ -1199,6 +1244,11 @@ public sealed class CreatureArt
             case EnemyKind.Climber when e.Phase == SpinePhase.Telegraph:
                 // At the gap, facing in at the couplers.
                 m = Matrix4x4.CreateRotationY(e.Local.X > 0 ? MathF.PI / 2 : -MathF.PI / 2) * model;
+                break;
+            case EnemyKind.Climber when e.Attached == Sim.Enemies.Enemy.Loose && e.Phase is SpinePhase.Dormant or SpinePhase.Alert or SpinePhase.BreakOff:
+                // Pacing the train on its side of the line (extra2, −1 or +1): running along it, not at it (the loose basis
+                // faces the train; its right is the train's way, ahead, on the +1 side).
+                m = Matrix4x4.CreateRotationY(-MathF.Sign((float)e.Extra2 == 0 ? 1 : (float)e.Extra2) * MathF.PI / 2) * model;
                 break;
             case EnemyKind.Switchman:
                 // Face back down the line at the train, turned in towards the track.

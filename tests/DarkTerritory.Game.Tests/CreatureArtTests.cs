@@ -61,6 +61,10 @@ public class CreatureArtTests
         ["grumbler"] = new(3000, 9000, 30, 60, ["gnaw", "scuttle", "bite", "maul"], ["hit"]),
         // A character's (App. A.5), SK_Human shrunk with a jaw: only ever seen at the firebox door, so light.
         ["stoker"] = new(1500, 5000, 20, 40, ["peer", "reach"], ["hit"]),
+        // A hand's (App. A.6), on its own rig (SK_Follower: a palm, a stump, five three-boned fingers, a mouth): hand-sized.
+        ["follower"] = new(600, 3000, 15, 25, ["cling", "crawl", "nest"], ["hit"]),
+        // A character's (App. A.4), SK_Human drawn out: one of the crew, the gas mask grown into its face.
+        ["climber"] = new(2000, 9000, 20, 60, ["run", "scrabble", "walk", "crouch", "grab"], ["hit"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -437,6 +441,8 @@ public class CreatureArtTests
         "gaunt" => (Vector3.Zero, 2.6f),
         "grumbler" => (Vector3.Zero, 1.9f),
         "stoker" => (new Vector3(0, -0.4f, 0.3f), 1.3f),
+        "follower" => (Vector3.Zero, 0.3f),
+        "climber" => (Vector3.Zero, 1.9f),
         _ => (Vector3.Zero, 1.9f),
     };
 

@@ -240,9 +240,10 @@ public sealed class GreyboxScene
                         ? Art.Bite.For(look.Tuning.Bite, frames[e.Attached].Shape, Vehicles is { } vs && e.Attached < vs.Count ? vs[e.Attached] : null, e.Attached)
                         : default;
                     // A Tippy Toesie faces who it's after (its Extra), and smothering them stands to them; a Ribbit faces
-                    // its pack's mark, and its tongue goes to them; a Gaunt faces its waker (Art/CreatureArt).
+                    // its pack's mark, and its tongue goes to them; a Gaunt faces its waker; a Follower rides its carrier's
+                    // back (Art/CreatureArt).
                     // A feral Grumbler, who it's after: the nearest of them (who hit it is the host's alone).
-                    var after = e.Kind is EnemyKind.TippyToesie or EnemyKind.Ribbit or EnemyKind.Choir or EnemyKind.Gaunt && e.Extra >= 0
+                    var after = e.Kind is EnemyKind.TippyToesie or EnemyKind.Ribbit or EnemyKind.Choir or EnemyKind.Gaunt or EnemyKind.Follower && e.Extra >= 0
                         ? Crew?.FirstOrDefault(c => c.Id == (int)e.Extra)
                         : e.Kind == EnemyKind.Grumbler && e.Phase >= SpinePhase.Commit && Crew is { } crew && crew.Any(c => c.Alive)
                             ? crew.Where(c => c.Alive).MinBy(c => (c.Feet - EnemyWorld(e, frames)).Length)

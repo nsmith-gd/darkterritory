@@ -210,6 +210,71 @@ public static class Staging
         return threats;
     }
 
+    /// <summary>
+    /// The staged Follower (<c>dt screenshot --follower</c>): <c>back</c> on crewmate 4's back (App. A.6 RIDE; <see cref="Lone"/>,
+    /// whose shoulder the <c>pack</c> view looks over), <c>crawl</c> off them on the ground making for the train, <c>nest</c>
+    /// built in car 2's aisle (the <c>inside</c> view). The Ribbits are put away.
+    /// </summary>
+    public static List<Enemy> Follower(List<Enemy> threats, TrainOnLine train, string mode)
+    {
+        if (mode.Length == 0 || threats.OfType<Sim.Enemies.Follower>().FirstOrDefault() is not { } f)
+            return threats;
+        threats.RemoveAll(e => e is Ribbit);
+        int car = Math.Min(2, train.Frames.Count - 1);
+        var side = train.Frames[car];
+        switch (mode)
+        {
+            case "back":
+                f.Restore(SpinePhase.Telegraph, 2, f.Health, Enemy.Loose, side.ToWorld(new Double3(-(side.Shape.HalfWidth + 2.2), 1.35, -1.5)), 0, 0, 0, LoneId, 0);
+                break;
+            case "crawl":
+                f.Restore(SpinePhase.Commit, 2, f.Health, Enemy.Loose, side.ToWorld(new Double3(-(side.Shape.HalfWidth + 1.6), 0, -0.9)), 0, 0, 0, -1, 0);
+                break;
+            case "nest":
+                double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
+                f.Restore(SpinePhase.Punish, 30, f.Health, car, new Double3(-0.45, floor, -side.Shape.HalfLength + 3.0), 0, 0, 0, -1, 1);
+                break;
+            default:
+                throw new ArgumentException($"--follower {mode}: back, crawl or nest");
+        }
+        return threats;
+    }
+
+    /// <summary>
+    /// The staged Climber (<c>dt screenshot --climber</c>), at car 2: <c>run</c> pacing the train beside it (App. A.4),
+    /// <c>scrabble</c> up in the gap behind it (MOUNT; the <c>gapside</c> view), <c>walk</c> on its roof for the engine,
+    /// <c>crouch</c> waiting in its aisle (the <c>inside</c> view).
+    /// </summary>
+    public static List<Enemy> Climber(List<Enemy> threats, TrainOnLine train, string mode)
+    {
+        var c = threats.OfType<Sim.Enemies.Climber>().FirstOrDefault();
+        if (mode.Length == 0 || c is null)
+            return threats;
+        threats.RemoveAll(e => e is Sim.Enemies.Climber && e != c);
+        int car = Math.Min(2, train.Frames.Count - 2);
+        var at = train.Frames[car];
+        var shape = at.Shape;
+        double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0, gap = train.Dynamics.Tuning.Geometry.CouplingGap;
+        switch (mode)
+        {
+            case "run":
+                c.Restore(SpinePhase.Dormant, 1, c.Health, Enemy.Loose, at.ToWorld(new Double3(shape.HalfWidth + 1.3, 0, shape.HalfLength - 1.5)), 0, 0, 0, car, 1);
+                break;
+            case "scrabble":
+                c.Restore(SpinePhase.Telegraph, 1, c.Health, car, new Double3(shape.HalfWidth - 0.2, 1.0, shape.HalfLength + gap * 0.5), 0, 0, 0, car, 1);
+                break;
+            case "walk":
+                c.Restore(SpinePhase.Commit, 1, c.Health, car, new Double3(0, shape.RoofHeight, -2), 0, 0, 0, car, 1);
+                break;
+            case "crouch":
+                c.Restore(SpinePhase.Commit, 1, c.Health, car, new Double3(-0.45, floor, -shape.HalfLength + 3.0), 0, 0, 0, -1, 1);
+                break;
+            default:
+                throw new ArgumentException($"--climber {mode}: run, scrabble, walk or crouch");
+        }
+        return threats;
+    }
+
     // How far off the second car's side the staged Grumbler is (m): in front of crewmate 4, a lunge from them.
     const double GrumblerOut = 3.3;
 
