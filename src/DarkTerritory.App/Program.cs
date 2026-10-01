@@ -17,6 +17,7 @@ using DarkTerritory.Sim.LineGen;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Train;
+using CrewActs = DarkTerritory.Game.Art.CrewActs;
 
 // Dark Territory. Plain `DarkTerritory` opens the front end (T30): the campaign's three slots and the fortress between
 // nights, a quick night on any tier, joining by address, and the settings (saved in the user's app data). The flags
@@ -506,6 +507,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     window.MouseCaptured = true;
     window.TextInput = false;
     int frames0 = 0;
+    double swingFrom = -1; // when your swing in view began (X3), or -1
 
     // (At least one frame, whatever --quit-after says: a slow load can outlast it, and --capture draws the last frame.)
     while (!window.CloseRequested && (frames0++ == 0 || !QuitNow()))
@@ -682,6 +684,20 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         var eyeForward = new Double3(-Math.Sin(camera.Yaw), 0, -Math.Cos(camera.Yaw));
         scene.HeldHere = chase || !session.Player.Alive ? null
             : (session.PlayerId, camera.Position - Double3.Up * (Eyes.Height - carry.CarryHeight) + eyeForward * carry.CarryForward, camera.Yaw);
+        // Your own arms in view (X3), and the swing you've started: a blow lasts the melee's recovery, and held, they follow
+        // one another (World.Swing's cadence). A headset draws its own hands; behind a crewmate's eyes, theirs aren't yours.
+        var me = session.Player;
+        var act = CrewActs.Of(me, session.PlayerId, session.World);
+        bool swinging = act is null && (Held(Control.Swing) || Held(Control.Fire));
+        double swingSeconds = session.World.Enemies?.Melee.SwingSeconds ?? 0.8;
+        if (swinging && (swingFrom < 0 || now - swingFrom >= swingSeconds))
+            swingFrom = now;
+        double swing = swingFrom >= 0 && now - swingFrom < swingSeconds ? now - swingFrom : -1;
+        if (swing < 0)
+            swingFrom = -1;
+        scene.Own = chase || vr is not null || !me.Alive || session.Watching >= 0 ? null
+            : new OwnView((float)camera.Yaw, (float)camera.Pitch, act, me.Velocity.X * me.Velocity.X + me.Velocity.Z * me.Velocity.Z > 0.16,
+                swing, session.PlayerId, Kit.Held(me));
         scene.Time = now;
         lighting = Views.Lighting(frames[0], look);
         lighting.Time = now;
