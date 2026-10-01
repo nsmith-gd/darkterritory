@@ -213,6 +213,54 @@ public class SandTests
         Assert.True(fastestOut < 8, $"out on the board at {fastestOut:0.0} m/s");
     }
 
+    /// <summary>A driver alone, standing up a greased climb with steam driving, the fire door as given.</summary>
+    static (World world, ConductorBot driver, PlayerState d) StandingAlone(bool doorOpen, double pressure)
+    {
+        var route = new Route.Route("test", RouteTier.Frontier, 1, new LineDefinition("test", [new TrackSegment(300), new TrackSegment(2500, 0, 1.5), new TrackSegment(2000)]),
+            [new RouteFeature(FeatureKind.Grease, 350, 2600)], new RouteWeather(0.01, false, 0, 0), 3600);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), route.Build(), 400, Tuning.Boiler);
+        var world = new World(train);
+        world.EnableLineside(S, route);
+        train.Boiler.FireDoorOpen = doorOpen;
+        train.Boiler.Pressure = pressure;
+        return (world, new ConductorBot(new CrewCalls(), 0), PlayerMotor.SpawnInCab(train, P));
+    }
+
+    /// <summary>Ticks of the driver deciding and moving; true if it was ever out of the cab.</summary>
+    static bool Out(World world, ConductorBot driver, ref PlayerState d, double seconds)
+    {
+        var train = world.Train;
+        var c = new TrainControls { Reverser = 1, Brake = 1 };
+        bool outside = false;
+        for (uint tick = 0; tick < seconds * SimConstants.TickRate; tick++)
+        {
+            var di = driver.Decide(d, world, tick, out _);
+            CabControls.Apply(ref c, di, d, train);
+            train.Dynamics.Velocity = 0;
+            PlayerMotor.Step(ref d, di, train, P, T, SimConstants.TickSeconds, applyLook: false);
+            outside |= d.Parent == 0 && !PlayerMotor.InCab(d, train);
+        }
+        return outside;
+    }
+
+    [Fact]
+    public void AloneTheDriverShutsTheFireDoorBeforeGoingOutToSand()
+    {
+        // T81 (deepTerritory:2, a crew of two): only someone in the cab shuts the door after a shovelful, and an open door at
+        // a stand lets the Stoker in (App. A.5). Out to sand with it open, the driver sanded on while the fire was put out.
+        var (world, driver, d) = StandingAlone(doorOpen: true, pressure: 80);
+        Assert.False(Out(world, driver, ref d, 10), "out of the cab with the fire door open");
+        world.Train.Boiler.FireDoorOpen = false;
+        Assert.True(Out(world, driver, ref d, 10), "out to sand once it's shut");
+    }
+
+    [Fact]
+    public void WithNoSteamToPullOnTheSandTheDriverStaysInToFireIt()
+    {
+        var (world, driver, d) = StandingAlone(doorOpen: false, pressure: Tuning.Boiler.PowerFloor);
+        Assert.False(Out(world, driver, ref d, 10), "out to sand with the gauge under the power floor");
+    }
+
     [Fact]
     public void AClientHasTheHostsSand()
     {

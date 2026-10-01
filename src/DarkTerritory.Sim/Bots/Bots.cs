@@ -493,6 +493,16 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             return warming;
         if (self.Parent == PlayerState.World)
             return default;
+        // T81: a posted tunnel's mouth near (or the train in it), and off the roofs already: stay off them. On a plate, in a
+        // car, or on the way down, it's clear; it's the roof the mouth takes. deepTerritory:2's three walkers, turned away from
+        // a car a Climber had, climbed straight back up the ladder from the plate into it.
+        if (_warm is { Shelter: true } && self.Parent > 0)
+        {
+            if (self.Surface == Surface.Ladder)
+                return new PlayerIntent { MoveZ = -1 };
+            if (self.Surface is Surface.Coupler or Surface.Deck)
+                return new PlayerIntent();
+        }
         // On a car's floor (in from the cold, or knocked in): out through the nearer door, then up the end ladder.
         if (self.Surface == Surface.Deck && self.Parent > 0 && _warm is not null && _warm.Leave(self, train) is { } leaving)
             return leaving;
@@ -671,9 +681,16 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         var train = world.Train;
         var d = train.Dynamics;
         bool atAStop = Stops is { Doing: not StopDriver.Leg.Cruise };
+        // T81: where they are along the train's own path (a LineHint is along the main line, and on an alternate that's
+        // another count altogether: deepTerritory:1's driver set back for crew a couple of hundred metres "behind" who were
+        // on his own roofs). Only someone stood on the ground: in the air is a hop between roofs. And anywhere from behind
+        // the rear up to the engine: walking beside the rear car at the train's pace, two of that crew were out of the old
+        // window (10 m past the rear) as often as in it, and walked 2.5 km at 2 m/s till one died of the cold.
         var behind = atAStop || Crewmates is null ? null : Crewmates
-            .Where(c => c.Alive && c.Parent == PlayerState.World && d.RearDistance - c.LineHint > -10 && d.RearDistance - c.LineHint < SetBackFor)
-            .OrderBy(c => d.RearDistance - c.LineHint).Select(c => (PlayerState?)c).FirstOrDefault();
+            .Where(c => c.Alive && c.Parent == PlayerState.World && c.Surface == Surface.Ground)
+            .Select(c => (c, along: AlongTheTrain(train, c.Position)))
+            .Where(x => x.along < d.Distance + 5 && d.RearDistance - x.along < SetBackFor)
+            .OrderBy(x => d.RearDistance - x.along).Select(x => ((PlayerState c, double along)?)x).FirstOrDefault();
         if (behind is not { } them || _waitedForBoarder > 120)
         {
             if (behind is null)
@@ -684,17 +701,30 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             _backedUp = false;
             return null;
         }
-        double gap = d.RearDistance - them.LineHint;
+        double gap = d.RearDistance - them.along;
         if (gap > LeftBehind && (d.Velocity < -0.05 || Math.Abs(d.Velocity) < 0.05 || world.Controls.Reverser < 0))
         {
             _backedUp = true;
-            return StopDriver.Toward(world, them.LineHint + LeftBehind * 0.5, -1, SetBackSpeed, rear: true);
+            return StopDriver.Toward(world, them.along + LeftBehind * 0.5, -1, SetBackSpeed, rear: true);
         }
         if (gap > LeftBehind)
             return new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
         // Alongside them: stand for them to get on.
         _waitedForBoarder += SimConstants.TickSeconds;
         return new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
+    }
+
+    /// <summary>How far along the train's own path a point on the ground beside it is (from its rear, a few projections).</summary>
+    public static double AlongTheTrain(TrainOnLine train, Double3 at)
+    {
+        var d = train.Dynamics;
+        double along = d.RearDistance;
+        for (int i = 0; i < 4; i++)
+        {
+            var sample = train.Line.Sample(d.Path, along);
+            along = Math.Clamp(along + Double3.Dot(at - sample.Position, sample.Tangent), 0, train.Line.PathLength(d.Path));
+        }
+        return along;
     }
 
     /// <summary>
@@ -714,15 +744,25 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
                 _waitedForBreach = 0;
             return null;
         }
-        if (lit is { } a && a > 5 && !breaching)
+        if (lit is { } a && !breaching && !AlongsideTheHoldout(a, d.Speed))
         {
-            cruise = Math.Min(cruise, Math.Max(0, Math.Sqrt(2 * DollBraking * Math.Max(0, a - 5))));
+            cruise = Math.Min(cruise, Math.Max(0, Math.Sqrt(2 * DollBraking * Math.Max(0, a - HoldoutStandAt))));
             return null;
         }
         if (d.Speed < 0.05)
             _waitedForBreach += SimConstants.TickSeconds;
         return new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
     }
+    /// <summary>Where the driver stands for a lit Holdout: this far short of it (m), and how far short a stand still counts.</summary>
+    const double HoldoutStandAt = 5, HoldoutShortBy = 10;
+
+    /// <summary>
+    /// At the Holdout to stand for it: there, or come to a stand just short of it. T81: a train braking in on it stood a hair
+    /// over 5 m short, its allowed speed there all but nothing and the wait not started (that's only counted alongside), and
+    /// stayed there till the dawn (deepTerritory:1, a crew of two).
+    /// </summary>
+    public static bool AlongsideTheHoldout(double ahead, double speed) =>
+        ahead <= HoldoutStandAt || speed < 0.05 && ahead <= HoldoutStandAt + HoldoutShortBy;
     bool _driving, _sawDriver;
     double _boardWait;
     /// <summary>How long the driver waits at the gate for the crew to climb aboard (T102) before it goes anyway.</summary>
@@ -938,13 +978,24 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             // Only when the grease is costing way: on the level the train coasts through it at speed, and whatever's behind
             // (the hounds gain on every slowing, App. A.3) is better left behind than stopped for. On a climb it can't hold
             // speed ("cannot climb grade"): out it goes, steam left on, so the sanded drivers pull.
-            if (!greased || !PlayerMotor.InCab(self, train) || train.Dynamics.Speed >= cruise - SandBelowCruise || calls?.Venting == true)
+            if (!greased || !PlayerMotor.InCab(self, train) || train.Dynamics.Speed >= cruise - SandBelowCruise || calls?.Venting == true
+                || train.BoilerTuning is { SteamDrive: true } sd && train.Boiler.Pressure <= sd.PowerFloor + 1)
                 return null;
             _sandLeg = 0;
         }
-        // Out: doorway, board, along it, the sandbox. Back: the same, the other way, and done at the doorway.
-        if (!greased && _sandLeg < way.Length)
+        // Out: doorway, board, along it, the sandbox. Back: the same, the other way, and done at the doorway. T81: and back in
+        // to the Stoker (App. A.5): it's fought from the cab, and out on the board the driver of a crew of two sanded on while
+        // it put the fire out (deepTerritory:2), and the night ended there.
+        bool stoker = world.ActiveEnemies.OfType<Stoker>().Any(st => !st.Gone && st.Phase is SpinePhase.Telegraph or SpinePhase.Commit);
+        // Nor any use out there with no steam to pull on the sanded rail: back in to fire it (that driver stood at the sandbox
+        // with the fire out till the cold took him).
+        bool noSteam = train.BoilerTuning is { SteamDrive: true } st && train.Boiler.Pressure <= st.PowerFloor + 1;
+        if ((!greased || stoker || noSteam) && _sandLeg < way.Length)
             _sandLeg = 2 * way.Length - 1 - _sandLeg;
+        // Not out of the cab with the firebox door still open from the last shovelful: only someone in the cab shuts it, and
+        // an open door at a stand lets the Stoker in (App. A.5; the Switchman's club waits the same).
+        if (_sandLeg == 0 && PlayerMotor.InCab(self, train) && train.Boiler.FireDoorOpen)
+            return new PlayerIntent { Buttons = train.BoilerTuning is { SteamDrive: true } ? PlayerButtons.Brake : PlayerButtons.None };
         if (_sandLeg >= 2 * way.Length)
         {
             _sandLeg = -1;
