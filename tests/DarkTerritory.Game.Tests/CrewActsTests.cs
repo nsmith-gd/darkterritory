@@ -36,6 +36,7 @@ public class CrewActsTests
             {
                 CrewPose.Crouch => "crouch_idle",
                 CrewPose.CarryWalk => "carry_walk",
+                CrewPose.LanternWalk => "lantern_walk",
                 _ => pose.ToString().ToLowerInvariant(),
             };
             Assert.True(crew!.Clip(clip) is not null, $"{pose}: the crew has no '{clip}' clip");
@@ -57,6 +58,27 @@ public class CrewActsTests
         Assert.Equal(CrewPose.Fall, CrewActs.Of(s with { Surface = Surface.Air, Velocity = new Double3(0, -6, 0) }, 1, w));
         // Dead, they're drawn as their body.
         Assert.Null(CrewActs.Of(s with { Death = DeathCause.Struck, Flags = PlayerFlags.Held }, 1, w));
+    }
+
+    [Fact]
+    public void TheLampTheExtinguisherTheGapAndAFriendHeld()
+    {
+        var w = World();
+        var s = PlayerMotor.SpawnOnRoof(w.Train, 2, 0, P);
+        // What's in their hands: the hand lamp held out, the extinguisher on the hip (L0a).
+        var lamp = w.Bodies.SpawnCrate(w.Train, 2, new Double3(0, w.Train.Frames[2].Shape.RoofHeight, 0), Sim.Physics.BodyKind.Lamp);
+        lamp.Carrier = 1;
+        Assert.Equal(CrewPose.Lantern, CrewActs.Of(s, 1, w));
+        lamp.Carrier = -1;
+        var ext = w.Bodies.SpawnCrate(w.Train, 2, new Double3(0, w.Train.Frames[2].Shape.RoofHeight, 0), Sim.Physics.BodyKind.Extinguisher);
+        ext.Carrier = 1;
+        Assert.Equal(CrewPose.Extinguish, CrewActs.Of(s, 1, w));
+        ext.Carrier = -1;
+        // On the coupling plate, balancing over the gap; beside a friend something's holding, hauling at them.
+        Assert.Equal(CrewPose.Gap, CrewActs.Of(s with { Surface = Surface.Coupler }, 1, w));
+        var friend = s with { Position = s.Position + new Double3(0.8, 0, 0), Flags = PlayerFlags.Held };
+        Assert.Equal(CrewPose.Haul, CrewActs.Of(s, 1, w, [s, friend]));
+        Assert.Null(CrewActs.Of(s, 1, w, [s, friend with { Position = s.Position + new Double3(4, 0, 0) }]));
     }
 
     [Fact]

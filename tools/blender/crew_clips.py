@@ -18,6 +18,10 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   fall                in the air: arms up, legs gathered
   swing               an overhead blow with whatever's in the right hand (App. C.2)
   mend                down at the firebox with the wrench, ratcheting (T109's engineering kit)
+  gap                 on the coupling plate between cars, feet wide, arms out for balance (GDD §32)
+  extinguish          the extinguisher on the hip, its nozzle aimed at the fire's foot (App. C.5)
+  lantern, _walk      the hand lamp held out low, swinging with the step
+  haul                down on a knee, both hands on a friend's collar, hauling them free (App. A.1's rescue)
   fp_hold, fp_walk    first person (X3): the tool held up in view, the eye at EYE (CreatureArt.OwnArms puts it at the camera)
   fp_swing            first person: the blow, as long as the melee's recovery (enemies.json melee.swingSeconds, 0.8 s)
 In place, 30 fps, like crew.py's; the root never travels (the sim moves the crewmate).
@@ -319,6 +323,60 @@ for f, a in ((0, 0.0), (7, 1.0), (10, 1.0), (18, 0.0)):
 mend.close(24)
 clips.append(mend)
 
+# --- gap: on the coupling plate between two cars, feet wide, arms out for the sway (GDD §32: the gap's the danger) -----
+GAP = over(STAND, pelvis__loc=(0, 0, -0.06), pelvis=(-6, 0, 0), spine_01=(-6, 0, 0), spine_02=(-4, 0, 0), neck=(16, 0, 0),
+           head=(10, 0, 0), thigh_r=(-18, -12, 0), calf_r=(-20, 0, 0), foot_r=(12, 0, -10),
+           thigh_l=(26, 12, 0), calf_l=(-26, 0, 0), foot_l=(-4, 0, 10))
+gap = Clip("gap")
+for f, lean in ((0, 0), (12, 5), (24, 0), (36, -5)):
+    gap.key(f, hands(over(GAP, spine_02=(-4, 0, lean), spine_03=(-2, 0, lean * 0.6), head=(10, 0, -lean)),
+                     (0.5, 0.22, 0.98 - lean * 0.01), (-0.5, 0.24, 0.98 + lean * 0.01), fist=False))
+gap.close(48)
+clips.append(gap)
+
+# --- extinguish: the extinguisher braced on the hip, knob struck, the hose's nozzle aimed down at the fire's foot -----
+# (Carried, the body rides 1.1 m up, 0.4 out, Bodies.Carry, drawn there unlifted: the left hand on its handle on top, the right
+# on the nozzle.)
+EXT_BODY = over(STAND, pelvis=(-4, 0, 6), spine_01=(-6, 0, 4), spine_02=(-6, 0, 0), spine_03=(-4, 0, 0), neck=(14, 0, 0),
+                head=(8, 0, 0), thigh_r=(16, 0, 0), calf_r=(-12, 0, 0), thigh_l=(-8, 0, 0), calf_l=(-6, 0, 0))
+EXT_HANDLE, EXT_NOZZLE = (-0.04, 0.42, 1.34), (0.26, 0.62, 0.9)
+extinguish = Clip("extinguish")
+for f, (dx, dz) in ((0, (0.0, 0.0)), (8, (0.06, -0.03)), (16, (0.0, -0.05)), (24, (-0.06, -0.02))):
+    extinguish.key(f, hands(EXT_BODY, at(EXT_NOZZLE, dx=dx, dz=dz), EXT_HANDLE, grip=70))
+extinguish.close(32)
+clips.append(extinguish)
+
+# --- lantern: the hand lamp held out low in the right hand, swinging with the step, the left arm free --------------
+LAMP_AT = (0.2, 0.34, 0.98)
+
+
+def lantern_upper(f, side):
+    swing = 0.05 if side == "r" else -0.05
+    p = arm_to(STAND, "r", at(LAMP_AT, dy=swing, dz=-abs(swing) * 0.4), grip=90)
+    p["upperarm_l"] = (-6 if side == "r" else 18, -72, -4)
+    return p
+
+
+clips.append(walking("lantern_walk", lantern_upper, cycle=30))
+lantern = Clip("lantern")
+lantern.key(0, arm_to(STAND, "r", LAMP_AT, grip=90))
+lantern.key(30, arm_to(over(STAND, head=(-3, 0, 6)), "r", at(LAMP_AT, dz=0.02, dx=0.02), grip=90))
+lantern.close(60)
+clips.append(lantern)
+
+# --- haul: down on a knee, both hands on a friend's coat collar, hauling them back (the rescue, App. A.1) -------------
+HAUL = over(STAND, pelvis__loc=(0, -0.12, 0), pelvis=(-18, 0, 0), spine_01=(-14, 0, 0), spine_02=(-8, 0, 0),
+            spine_03=(-4, 0, 0), neck=(18, 0, 0), head=(6, 0, 0),
+            thigh_r=(80, -4, 0), calf_r=(-90, 0, 0), foot_r=(10, 0, -6), thigh_l=(-14, 6, 0), calf_l=(-100, 0, 0), foot_l=(-40, 0, 6))
+haul = Clip("haul")
+for f, pull in ((0, 0.0), (10, 0.16), (14, 0.16), (24, 0.0)):
+    lean = -12 * pull / 0.16
+    haul.key(f, hands(over(HAUL, spine_01=(-14 - lean, 0, 0), spine_02=(-8 - lean * 0.6, 0, 0)),
+                      (0.14, 0.62 - pull, 0.62 + pull * 0.6), (-0.14, 0.62 - pull, 0.62 + pull * 0.6), grip=90),
+             "LINEAR" if f == 10 else "BEZIER")
+haul.close(32)
+clips.append(haul)
+
 # --- first person: only the forearms and hands are drawn (CreatureArt.OwnArms), from the eye --------------------
 # The eye: over the head bone's root, a little forward (the mask's eyepieces). Hands placed from it: the right low and
 # out to the right with the tool up in view, the left lower, at the edge of it.
@@ -357,6 +415,7 @@ clips.append(fp_swing)
 
 kit.build()
 rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"carry", "carry_walk", "drag", "door", "handbrake", "hatch",
-                                                        "uncouple", "vent", "lever", "push", "swing", "mend"}))
+                                                        "uncouple", "vent", "lever", "push", "swing", "mend",
+                                                        "gap", "extinguish", "lantern", "lantern_walk", "haul"}))
 rig.export(rig.args()[0] if rig.args() else "crew_clips.glb", kit)
 print(f"[dt] crew clips {[c.name + ':' + str(c.length) for c in clips]}")

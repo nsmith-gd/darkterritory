@@ -99,7 +99,17 @@
     "moonStrength": 0.7,
     "ambient": 0.1,
     "lampColour": [1.0, 0.74, 0.42],
-    "lampIntensity": 3.2
+    "lampIntensity": 3.2,
+    // The dawn (GDD §21, the run's race to it): over the last leadSeconds of the dawn clock the night goes over to a low
+    // grey light coming up in the east, the fog paling, the dark pockets filling. The fog stays (it's the line's).
+    "dawn": {
+      "leadSeconds": 300,
+      "fogColour": [0.24, 0.255, 0.3],
+      "sunDirection": [0.85, 0.12, -0.3],
+      "sunColour": [0.95, 0.68, 0.52],
+      "sunStrength": 0.9,
+      "ambient": 0.3
+    }
   },
   // The consist's wear and tear (pipeline plan, consist kit: "3 damage states per car; scars persist between runs").
   // Read off each car's integrity, which the campaign keeps, so a car comes back scarred where it was (ARCHITECTURE §8).
