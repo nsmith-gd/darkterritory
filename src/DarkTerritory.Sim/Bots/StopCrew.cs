@@ -102,6 +102,9 @@ public sealed class CrewCalls
     /// </summary>
     public bool DriverAway { get; private set; }
     public void Away(bool away) => DriverAway = away;
+    /// <summary>The fireman's in the cab to mind the controls if the driver goes out (T107).</summary>
+    public bool FiremanMinding { get; private set; }
+    public void Mind(bool minding) => FiremanMinding = minding;
     /// <summary>The fireman's out of the cab at the blow-off (T106): the driver doesn't leave the controls meanwhile.</summary>
     public bool Venting { get; private set; }
     public void Vent(bool venting) => Venting = venting;

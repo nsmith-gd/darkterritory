@@ -777,6 +777,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
                 _cruise = MindingCruise(world);
                 var venting = Vent(self, world);
                 calls?.Vent(venting is not null && !PlayerMotor.InCab(self, train));
+                calls?.Mind(venting is null && self.Alive && PlayerMotor.InCab(self, train));
                 if (venting is { } blowing)
                     return blowing;
                 return self.Alive && PlayerMotor.InCab(self, train) ? KeepClear(self, world, Work(self, train, default), -1) : default;
@@ -901,6 +902,8 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     const double PostedMargin = 1;
 
     int _sandLeg = -1;
+    /// <summary>With nobody minding the controls, the driver's out on the board sanding only while the train's this slow (m/s).</summary>
+    const double AloneSandingTop = 6;
     /// <summary>Slowed this far under its cruise on grease (m/s), it goes out to sand.</summary>
     const double SandBelowCruise = 2;
     /// <summary>Out on the running board to sand, or on the way there or back (for the harness's trace).</summary>
@@ -922,8 +925,16 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         }
         bool greased = lineside.OnGrease(train);
         var way = SandWay(train);
+        // T107: with steam driving, nobody minding the controls (no fireman in the cab) and the sanded drivers taking hold,
+        // the train runs on up to whatever its steam makes with the driver out on the board: deepTerritory:1's ran onto the
+        // Sleepers at 11.8 m/s so. Alone, the driver goes out only while it's slow, and comes back in once it isn't.
+        bool alone = train.BoilerTuning is { SteamDrive: true } && calls?.FiremanMinding != true;
+        if (alone && train.Dynamics.Speed > AloneSandingTop && _sandLeg >= 0 && _sandLeg < way.Length)
+            _sandLeg = 2 * way.Length - 1 - _sandLeg;
         if (_sandLeg < 0)
         {
+            if (alone && train.Dynamics.Speed > AloneSandingTop)
+                return null;
             // Only when the grease is costing way: on the level the train coasts through it at speed, and whatever's behind
             // (the hounds gain on every slowing, App. A.3) is better left behind than stopped for. On a climb it can't hold
             // speed ("cannot climb grade"): out it goes, steam left on, so the sanded drivers pull.

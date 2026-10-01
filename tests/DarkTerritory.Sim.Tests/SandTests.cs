@@ -177,6 +177,43 @@ public class SandTests
     }
 
     [Fact]
+    public void AloneWithSteamDrivingTheDriverIsOutOnTheBoardOnlyWhileTheTrainIsSlow()
+    {
+        // T107: nobody to mind the controls, and sanded wheels let steam run the train on up to its speed with the driver out
+        // on the board (deepTerritory:1 ran onto the Sleepers at 11.8 m/s so). Up a greased climb, slow, it goes out and sands;
+        // once the train's going it comes back in.
+        var route = new Route.Route("test", RouteTier.Frontier, 1, new LineDefinition("test", [new TrackSegment(300), new TrackSegment(2500, 0, 1.5), new TrackSegment(2000)]),
+            [new RouteFeature(FeatureKind.Grease, 350, 2600)], new RouteWeather(0.01, false, 0, 0), 3600);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), route.Build(), 400, Tuning.Boiler);
+        var world = new World(train);
+        world.EnableLineside(S, route);
+        train.Dynamics.Velocity = 4;
+        var driver = new ConductorBot(new CrewCalls(), 0);
+        var d = PlayerMotor.SpawnInCab(train, P);
+        var c = new TrainControls { Reverser = 1 };
+        bool outside = false;
+        double fastestOut = 0;
+        for (uint tick = 0; tick < 180 * SimConstants.TickRate && train.Dynamics.Distance < 2600; tick++)
+        {
+            var di = driver.Decide(d, world, tick, out _);
+            if (CabControls.Clears(c, train, CabControls.ReleasesBrake(di, d, train)))
+                c.Brake = 0;
+            CabControls.Apply(ref c, di, d, train);
+            world.BeginTick();
+            world.CrewAct(ref d, di, 1);
+            world.Step(c);
+            PlayerMotor.Step(ref d, di, train, P, T, SimConstants.TickSeconds, applyLook: false);
+            if (d.Parent == 0 && !PlayerMotor.InCab(d, train))
+            {
+                outside = true;
+                fastestOut = Math.Max(fastestOut, train.Dynamics.Speed);
+            }
+        }
+        Assert.True(outside, "it went out to sand");
+        Assert.True(fastestOut < 8, $"out on the board at {fastestOut:0.0} m/s");
+    }
+
+    [Fact]
     public void AClientHasTheHostsSand()
     {
         var host = Greased(front: 600);
