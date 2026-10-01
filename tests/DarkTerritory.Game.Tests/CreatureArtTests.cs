@@ -44,7 +44,7 @@ public class CreatureArtTests
         // A heap of bodies, not a body (App. A.3): the heap, its heads and six arms on a chain rig.
         ["weight"] = new(2500, 8000, 20, 40, ["drag"], ["grab", "release"]),
         // A jointed porcelain doll (App. A.2), a character's budget: SK_Human in a doll's proportions, rigid at the joints.
-        ["track_doll"] = new(4000, 10000, 20, 60, ["stand", "admire", "giggle", "tamper", "cower"], ["hit"]),
+        ["track_doll"] = new(4000, 10000, 20, 60, ["stand", "beckon", "admire", "giggle", "tamper", "cower"], ["hit"]),
         // A large monster (GDD §27: 8-16k is the ceiling), on a chain: a spine of four, the mouth and its teeth rings, four arms.
         ["car_hugger"] = new(4000, 14000, 20, 40, ["lurk", "feed", "swallow"], ["latch", "release", "hit"]),
     };

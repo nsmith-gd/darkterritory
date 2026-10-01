@@ -63,7 +63,9 @@ public static class WorldRecords
                 [Q(v.Load, Fine), Q(v.Integrity, Fine), Q(v.CargoIntegrity, Fine), v.Gun.Ammo, v.Gun.Cooldown, v.Gun.Jammed ? 1 : 0, v.Gun.LastShotTick, v.DoorsOpen, (long)v.Cargo,
                     v.LampLit ? 1 : 0, v.Gun.ReloadNeeded, Q(v.Gun.ReloadProgress, Fine),
                     // Where its gun is on its roof rail, if it has one (T93: guns are pushed from car to car).
-                    v.Gun.Mounted ? 1 : 0, Q(v.Gun.Z, Fine), v.Gun.Facing]));
+                    v.Gun.Mounted ? 1 : 0, Q(v.Gun.Z, Fine), v.Gun.Facing,
+                    // How much of it a Car Hugger has eaten (App. A.3 FEED: it's drawn gnawed away).
+                    Q(v.Eaten, Fine)]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
             [Q(world.Choir.Loudness, Fine), Q(world.Choir.Build, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0, Q(world.LampOutSeconds, Fine), Q(train.Sand, Fine),
                 (world.Choir.Present ? 1 : 0) | (world.Choir.Spent ? 2 : 0), Q(world.Choir.QuietSeconds, Fine), Q(world.WhistleSeconds, Fine)]));
@@ -201,7 +203,7 @@ public static class WorldRecords
                             Z = f.Length > 13 ? D(f[13], Fine) : 0,
                             Facing = f.Length > 14 ? (sbyte)f[14] : (sbyte)0,
                         }, f.Length > 7 ? (byte)f[7] : (byte)0,
-                        f.Length > 8 ? (CargoKind)f[8] : CargoKind.None, f.Length <= 9 || f[9] != 0));
+                        f.Length > 8 ? (CargoKind)f[8] : CargoKind.None, f.Length <= 9 || f[9] != 0, f.Length > 15 ? D(f[15], Fine) : 0));
                     break;
                 case RecordKind.World:
                     world.Choir = new ChoirState

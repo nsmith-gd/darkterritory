@@ -1992,3 +1992,28 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - The blow-off stands on a standpipe on the left running board with a red handwheel and a marker lamp, so the fireman's side sees it.
     - **Steam you can see.** Venting now shows: the boiler's `Vented` (the vent open on the last step) replicates in the boiler record's flags. It and the safety valve lifting each blow steam (`Effects.Train`).
     - **Checks.** `CabSightTests` casts the sightlines against the engine's solids and the window openings. `dt screenshot --view cab|fireman [--venting]`.
+109. **The car eaten away, and the Car Hugger's and the Track Doll's motion (GDD v1.2 App. A.2, A.3; §31).**
+    - **What's eaten is remembered.** App. A.3's FEED took the car's `Integrity` and forgot it: a half-eaten car looked like a dented one, and once the thing was killed nothing showed it had been there. Now the same loss is also counted in `Vehicle.Eaten`, replicated with the car (its vehicle record's 16th field) and restored with the train state. So a car's eaten fraction is `Eaten / (Eaten + Integrity)`: 1 exactly when the sim drops it. Its scars and torn plate (`DamageKit`, `look.json` "damage") read the rest of the loss only (`Integrity + Eaten`).
+    - **The bite** (`look.json` "bite", `Art/BiteKit`, `Shaders/bite.glsl`). A ragged frontier across the car's own space moves forward from its rear end as it eats. Behind it the car isn't drawn and casts no shadow: a per-instance `MeshInstance.Bite`, cut in the fragment shaders (the push constants grow to 128 bytes, the size every device has). Along it the car is gnawed: raw and dark, wet, scored with tooth grooves.
+      - **Its shape.** Deepest down the middle, where the mouth works; least at the side walls its hands hold (at most `sideLead` ahead of its head); never below `floor`, so the underframe and trucks stay and the car rolls until it's dropped. Eaten through, the rear `depth` (45%) of the body is gone, and the rear platform goes over the first `platform` of the eating.
+      - **It moves in bites of 12 cm** (`Bite.Step`). Each bite is a mesh of torn edge laid along the same frontier: the frontier is sines, not noise, so C# and GLSL agree. The edge is boards snapped off in jags (plate torn back and curling, on a steel car), roof sheets bent up or hanging into the hole, broken floorboard ends, posts left standing and gnawed down, strings of slaver from the roof's edge. At the sim's rate it's a bite every five seconds or so.
+      - **What goes with the wall.** An end door it's eaten past is gone, a lamp whose ceiling it's eaten goes out, and so does the tail lamp. The gun whose roof it's eaten falls in: it's drawn on the floor, nose up, and the sim still has it.
+      - **Collision isn't eaten (a known gap).** The car's walls and floor are its `CarShape`, static per kind, so the crew can't walk out through the hole; its head fills most of it.
+    - **It goes in as it eats.** Its head pushes in through the end as far as it's eaten, up to `advance` (1.4 m): its model moves forward in its car's frame. Its hands follow the side walls' torn edge: each arm reaches on (two-bone IK on the posed clip, `CreatureArt`) to where it held, that much further along the car.
+    - **The Hugger's rings move.** It has a ring bone for each of its eight segments, leaf bones off the spine carrying the hide's weights (33 bones now). So swells run along it:
+      - **feed** (3.2 s): six uneven chews that pop and ease, each sending a gulp down it ring by ring, with slow breathing the other way, and two hands in turn letting go and slapping back on;
+      - **swallow**: the lump of whoever it has, running from head to tail;
+      - **latch**: the rings clench as it hauls itself up;
+      - **hit**: a flinch that pinches down it;
+      - **lurk**: breathing.
+      The motion was doubled after the first look, because at game distance it didn't read.
+    - **The doll's head watches you.**
+      - On its socket it turns to whoever's looking, in 30° clicks: it holds, then jumps round as you move, as far as it takes. From behind it you meet its face.
+      - This is the viewer's own eye, drawn per client, not sim state. Each player sees it looking at them.
+      - It watches standing and giggling. Bent over the cargo, it looks round only when you're within 8 m. At the controls it glances back now and then. Cowering, never.
+      - On the rail with the train within 40 m it beckons: a hand out in front, the fingers curling in, a pop at a time.
+      - Standing, it cocks its head once in eight seconds and a finger lifts. Admiring, it strokes the load.
+    - **Verifiable headless.**
+      - `dt screenshot --eaten f` (the rear car that much eaten) and `--later s` (every staged enemy further into its clip).
+      - `dt art clip <creature> <clip>`: a lit contact sheet of a clip's frames.
+      - `BiteTests` pins the frontier. `DemoRosterTests` pins that what's eaten is counted and reaches a client.
