@@ -434,7 +434,8 @@ public sealed class Bodies
             var local = g.ToLocal(world);
             var vehicle = train.Vehicles[g.Index];
             foreach (var solid in g.Shape.Solids)
-                Consider(Collide.SphereBox(local, r, solid.Box.Min, solid.Box.Max), g, local, ref best, ref bestDepth, ref touchedCar);
+                if (solid.Present(vehicle))
+                    Consider(Collide.SphereBox(local, r, solid.Box.Min, solid.Box.Max), g, local, ref best, ref bestDepth, ref touchedCar);
             foreach (var door in g.Shape.DoorList)
                 if (!vehicle.DoorOpen(door.Index))
                     Consider(Collide.SphereBox(local, r, door.Box.Min, door.Box.Max), g, local, ref best, ref bestDepth, ref touchedCar);

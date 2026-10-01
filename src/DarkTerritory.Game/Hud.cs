@@ -350,6 +350,11 @@ public static class Hud
                 return "[E] HOLD: VENT STEAM (SLOWER)";
             case InteractableKind.Handbrake when p.Surface == Surface.Roof:
                 return "[E] HOLD: HANDBRAKE";
+            // T99: a cargo car's roof hatch, for the crane to lower a casting in through.
+            case InteractableKind.Hatch when p.Surface == Surface.Roof:
+                return train.Vehicles[p.Parent].DoorOpen(CarShape.HatchBit)
+                    ? train.HatchBlocked?.Invoke(p.Parent) == true ? "THE CASTING'S IN THE HATCH" : "[E] HOLD: SHUT THE HATCH"
+                    : "[E] HOLD: OPEN THE HATCH (CRANE LOADING)";
             // Out on the running board (App. A.2): what the sand does is only worth it on greased rail.
             case InteractableKind.Sandbox when p.Parent == 0 && p.Surface == Surface.Deck:
                 return train.Traction < 1 || train.Sand > 0 ? $"[E] HOLD: SAND THE RAIL ({train.Traction * 100:0}% GRIP)" : "[E] HOLD: SAND";

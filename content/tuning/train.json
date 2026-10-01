@@ -64,7 +64,13 @@
       // tread is this long; the rise is the floor height in steps you can walk up (player.json stepUp).
       "sideDoorWidth": 1.8,
       "stepWidth": 0.6,
-      "stepDepth": 0.4
+      "stepDepth": 0.4,
+      // A cargo car's roof hatch (T99, spec D.2 crane): a lid across the roof between the walls, centred this far back
+      // (over the aisle and the load behind the side doors) and this long. Opened from the roof by holding Use at its
+      // edge; the crane lowers a casting in through it. Long enough for a casting (facilities.json castingSize) whichever
+      // way it hangs.
+      "hatchZ": 3.2,
+      "hatchLength": 2.4
     }
   },
 

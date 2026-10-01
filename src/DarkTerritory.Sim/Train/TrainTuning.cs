@@ -54,6 +54,12 @@ public sealed record InteriorLayout(double FloorHeight, double WallThickness, do
     /// <summary>The steps up to each side door: how far out from the car side, and how long each tread is.</summary>
     public double StepWidth { get; init; } = 0.6;
     public double StepDepth { get; init; } = 0.4;
+    /// <summary>
+    /// A cargo car's roof hatch (T99 playtest: "a way to open the roofs of cars up so we can use the crane to lower crates
+    /// in"): a lid across the roof between the walls, centred this far back and this long. Zero length is no hatch.
+    /// </summary>
+    public double HatchZ { get; init; } = 3.2;
+    public double HatchLength { get; init; }
 }
 
 /// <summary>Greybox layout of the 20 m engine + tender unit, front to back: boiler, cab, tender.</summary>

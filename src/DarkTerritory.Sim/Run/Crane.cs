@@ -81,7 +81,10 @@ public sealed class Crane
         s.Alive && s.Parent == PlayerState.World && intent.Has(PlayerButtons.Use)
         && ((PlayerMotor.WorldPosition(s, train) - Controls) with { Y = 0 }).Length <= _t.ControlsReach;
 
-    /// <summary>What's under the hook: a car it's over (and that car's roof height), or the ground.</summary>
+    /// <summary>
+    /// What's under the hook: a car it's over (and that car's roof height, or, down through its open roof hatch, what's
+    /// under the hatch inside: T99), or the ground.
+    /// </summary>
     public (int Car, double Y) Under(TrainOnLine train)
     {
         var hook = HookAt;
@@ -89,9 +92,66 @@ public sealed class Crane
         {
             var local = frame.ToLocal(hook);
             if (Math.Abs(local.X) <= frame.Shape.HalfWidth && Math.Abs(local.Z) <= frame.Shape.HalfLength)
-                return (frame.Index, frame.ToWorld(new Double3(local.X, frame.Shape.RoofHeight, local.Z)).Y);
+            {
+                double top = Hatch(train, frame.Index, local) is { Fits: true } h ? h.Floor : frame.Shape.RoofHeight;
+                return (frame.Index, frame.ToWorld(new Double3(local.X, top, local.Z)).Y);
+            }
         }
         return (-1, _at(Bridge, Trolley, 0).Y);
+    }
+
+    /// <summary>
+    /// A casting hung over a car's open roof hatch at <paramref name="local"/> (the hook, in the car's frame): whether it goes
+    /// in through the opening and comes to rest under the roof line, and on what (the floor, the load, or the castings
+    /// already in). One that won't clear the opening, or would stand up through it when set down, doesn't go in (T99
+    /// playtest: "crates cannot be lowered to a point where they block the roof from closing"), so the hook stops over the
+    /// roof. Null when it isn't over an open hatch at all.
+    /// </summary>
+    public (bool Fits, double Floor)? Hatch(TrainOnLine train, int car, Double3 local)
+    {
+        var shape = train.Frames[car].Shape;
+        if (shape.Hatch is not { } hatch || !train.Vehicles[car].DoorOpen(CarShape.HatchBit))
+            return null;
+        var (hx, hz) = Footprint(train.Frames[car]);
+        bool over = Math.Abs(local.X - hatch.Centre.X) < hatch.HalfSize.X + hx && Math.Abs(local.Z - hatch.Centre.Z) < hatch.HalfSize.Z + hz;
+        if (!over)
+            return null;
+        bool clears = local.X - hx >= hatch.Min.X && local.X + hx <= hatch.Max.X && local.Z - hz >= hatch.Min.Z && local.Z + hz <= hatch.Max.Z;
+        if (!clears)
+            return (false, 0);
+        // What it comes down on: the highest thing under its footprint below the roof, a casting already in included.
+        double floor = 0;
+        foreach (var (x, z) in new[] { (0.0, 0.0), (-hx, -hz), (hx, -hz), (-hx, hz), (hx, hz) })
+            floor = Math.Max(floor, shape.TopAt(local.X + x, local.Z + z, hatch.Min.Y - 0.01)?.Top ?? 0);
+        foreach (var c in Castings)
+            if (c.State == CastingState.Loaded && c.Car == car && c.At.Y < hatch.Min.Y
+                && Math.Abs(c.At.X - local.X) < 2 * hx && Math.Abs(c.At.Z - local.Z) < 2 * hz)
+                floor = Math.Max(floor, c.At.Y + 2 * CastingHalf);
+        return (floor + 2 * CastingHalf <= hatch.Min.Y, floor);
+    }
+
+    /// <summary>A casting's half-extents across and along a car (it hangs square to the world, the car's on a curve).</summary>
+    (double X, double Z) Footprint(CarFrame frame)
+    {
+        var x = frame.DirToLocal(new Double3(1, 0, 0));
+        double c = Math.Abs(x.X), s = Math.Abs(x.Z), a = _t.CastingSize[0] / 2, b = _t.CastingSize[2] / 2;
+        return (c * a + s * b, s * a + c * b);
+    }
+
+    /// <summary>
+    /// The casting on the hook is down in a car's hatch opening (T99): its top below the roof's top and its base below the
+    /// roof's underside, so the lid can't come down on it.
+    /// </summary>
+    public bool InHatch(TrainOnLine train, int car)
+    {
+        if (Hooked is null || car < 0 || car >= train.Frames.Count || train.Frames[car].Shape.Hatch is not { } hatch)
+            return false;
+        var frame = train.Frames[car];
+        var local = frame.ToLocal(HookAt);
+        var (hx, hz) = Footprint(frame);
+        bool over = Math.Abs(local.X - hatch.Centre.X) < hatch.HalfSize.X + hx && Math.Abs(local.Z - hatch.Centre.Z) < hatch.HalfSize.Z + hz;
+        double bottom = local.Y - 2 * CastingHalf;
+        return over && bottom < hatch.Max.Y;
     }
 
     /// <summary>
@@ -161,6 +221,10 @@ public sealed class Crane
         if (Hooked is not { } c)
             return null;
         var (car, floor) = Under(train);
+        // Hung over an open hatch it won't go in through, it's kept on the hook: set down there, it would stand in the
+        // opening (T99).
+        if (car >= 0 && Hatch(train, car, train.Frames[car].ToLocal(HookAt)) is { Fits: false })
+            return null;
         var bottom = HookedBase;
         double above = bottom.Y - floor;
         var landed = bottom with { Y = floor };

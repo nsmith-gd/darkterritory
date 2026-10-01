@@ -266,6 +266,9 @@ public sealed partial class SceneArt(Look look)
     /// A car: its body from the kit, its doors where the vehicle has them (shut in the doorway, or slid aside), and its gun
     /// turned the way it faces. Returns false when the kit can't draw this car (so the greybox does).
     /// </summary>
+    /// <summary>How far an open roof hatch's lid is swung over on its hinges (T99): a little past upright.</summary>
+    const float OpenHatch = MathF.PI * 100 / 180;
+
     public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, bool emergency, long tick = -1)
     {
         var shape = frame.Shape;
@@ -305,6 +308,30 @@ public sealed partial class SceneArt(Look look)
             var leaf = Piece($"door:{side}:{size.X:0.##}x{size.Y:0.##}x{size.Z:0.##}", () => TrainKit.Door(Look, size, side));
             var c = box.Centre;
             mesh.Instances.Add(new MeshInstance(leaf, Matrix4x4.CreateTranslation((float)c.X, (float)c.Y, (float)c.Z) * m, Scar: scar));
+        }
+        // A cargo car's roof hatch (T99): two leaves meeting on the centreline, shut in the opening, or open, each swung up
+        // on its hinges at its side a little past upright, so from the roof or the crane's cab you can see it's open.
+        if (shape.Hatch is { } hatch)
+        {
+            var size = new Vector3((float)(hatch.Max.X - hatch.Min.X) / 2, (float)(hatch.Max.Y - hatch.Min.Y), (float)(hatch.Max.Z - hatch.Min.Z));
+            var lid = Piece($"hatch:{size.X:0.##}x{size.Y:0.##}x{size.Z:0.##}", () => TrainKit.HatchLid(Look, size));
+            var c = hatch.Centre;
+            bool open = vehicle?.DoorOpen(CarShape.HatchBit) == true;
+            foreach (int side in new[] { -1, 1 })
+            {
+                // The leaf's hinges are on its +X: the left leaf is the right one turned about.
+                var turn = side < 0 ? Matrix4x4.CreateRotationY(MathF.PI) : Matrix4x4.Identity;
+                Matrix4x4 at;
+                if (open)
+                {
+                    var swing = Matrix4x4.CreateRotationZ(-OpenHatch);
+                    var hinge = new Vector3(size.X, (float)hatch.Max.Y, 0);
+                    at = swing * Matrix4x4.CreateTranslation(hinge - Vector3.Transform((size / 2) with { Z = 0 }, swing)) * turn;
+                }
+                else
+                    at = Matrix4x4.CreateTranslation(size.X / 2, (float)c.Y, 0) * turn;
+                mesh.Instances.Add(new MeshInstance(lid, at * Matrix4x4.CreateTranslation((float)c.X, 0, (float)c.Z) * m, Scar: scar));
+            }
         }
         // The gun rail along the roof (T93), and the gun wherever it's been pushed along it.
         if (shape.RoofRail is { } rail)

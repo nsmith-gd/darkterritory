@@ -1125,8 +1125,8 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                     _outEnd = WayOut(self, train);
                     return Next(Step.Reopen);
                 }
-                // Someone came or went and left a door open: shut it again.
-                if (train.Vehicles[_car].DoorsOpen != 0)
+                // Someone came or went and left a door open: shut it again (a roof hatch is the crane's, T99, worked from the roof).
+                if ((train.Vehicles[_car].DoorsOpen & ~(1 << CarShape.HatchBit)) != 0)
                     return Next(Step.Shut);
                 if (self.Cold > WarmEnough || Shelter)
                     return new PlayerIntent();

@@ -216,7 +216,7 @@ public static class Guns
             var o = frame.ToLocal(origin);
             var d = frame.DirToLocal(dir);
             foreach (var solid in frame.Shape.Solids)
-                if (solid.Part != PartKind.GunMount && RayBox(o, d, solid.Box) is { } t && t < best)
+                if (solid.Part != PartKind.GunMount && solid.Present(train.Vehicles[frame.Index]) && RayBox(o, d, solid.Box) is { } t && t < best)
                     best = t;
         }
         return best;

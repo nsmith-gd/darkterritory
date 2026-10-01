@@ -11,6 +11,7 @@ namespace DarkTerritory.Sim.Train;
 /// <item>at the vent valve, hold it open;</item>
 /// <item>on a coupler plate, nothing but the doors: the coupling is cut by <see cref="Uncoupling"/> (T91);</item>
 /// <item>at a car's brake wheel, wind its rake's handbrakes on or off;</item>
+/// <item>at a cargo car's roof hatch, open or shut it (T99);</item>
 /// <item>at a sandbox on the engine's running boards, sand the rail (Grease's counter, App. A.2).</item>
 /// </list>
 /// A VR player's reaching hand (T29) picks what's worked by where it is, not where they stand, and shovels by the
@@ -82,6 +83,16 @@ public static class CrewActions
             case InteractableKind.Vent when s.Parent == 0 && s.Surface == Surface.Deck:
                 train.Boiler.Venting = true;
                 s.ActionProgress = 0;
+                break;
+            // A cargo car's roof hatch (T99), from the roof: opened or shut like a door, but not shut down onto a casting the
+            // crane has hanging in it.
+            case InteractableKind.Hatch when s.Surface == Surface.Roof || Hand(s, hand):
+                double hatchSeconds = train.Dynamics.Tuning.Geometry.Interior?.DoorSeconds ?? 0.4;
+                s.ActionProgress += dt;
+                var hv = train.Vehicles[near.Value.Vehicle];
+                if (before < hatchSeconds && s.ActionProgress >= hatchSeconds
+                    && !(hv.DoorOpen(CarShape.HatchBit) && train.HatchBlocked?.Invoke(near.Value.Vehicle) == true))
+                    hv.ToggleDoor(CarShape.HatchBit);
                 break;
             // A hand reaches the wheel from the top of the end ladder, too.
             case InteractableKind.Handbrake when s.Surface == Surface.Roof || Hand(s, hand):
