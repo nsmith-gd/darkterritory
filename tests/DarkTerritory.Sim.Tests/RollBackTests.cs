@@ -43,4 +43,40 @@ public class RollBackTests
         Assert.True(fastest < 3, $"it ran back at {fastest:0.0} m/s");
         Assert.True(start - train.Dynamics.Distance < 30, $"and {start - train.Dynamics.Distance:0} m back down the hill");
     }
+
+    [Fact]
+    public void WithTheDriverOffTheEngineTheFiremanBrakesItRollingBack()
+    {
+        // As deepTerritory:1 had it: the driver pulled off onto the ballast by Climbers, the fireman in the cab, and the train
+        // rolling back down the climb.
+        var line = new LineDefinition("climb", [new TrackSegment(400), new TrackSegment(3000, 0, 3.2), new TrackSegment(400)]);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 10, 1)), new RailLine(line), 1500, Tuning.Boiler);
+        var world = new World(train);
+        train.Boiler.Pressure = Tuning.Boiler.PowerFloor;
+        train.Dynamics.Velocity = -1;
+        var calls = new CrewCalls();
+        var driver = new ConductorBot(calls, 0);
+        var fireman = new ConductorBot(calls, 1) { Fireman = true };
+        var cab = PlayerMotor.SpawnInCab(train, P);
+        var frame = train.Frames[0];
+        var d = PlayerMotor.SpawnOnGround(frame.ToWorld(new Ballast.Double3(frame.Shape.HalfWidth + 3, 0, 0)), train.Line, train.Dynamics.Distance, P);
+        var f = cab with { Position = cab.Position + new Ballast.Double3(-1.2, 0, 0) };
+        var c = new TrainControls { Reverser = 1 };
+        double start = train.Dynamics.Distance, fastest = 0;
+        for (uint tick = 0; tick < 60 * SimConstants.TickRate; tick++)
+        {
+            var di = driver.Decide(d, world, tick, out _);
+            var fi = fireman.Decide(f, world, tick, out _);
+            if (CabControls.Clears(c, train, CabControls.ReleasesBrake(fi, f, train)))
+                c.Brake = 0;
+            CabControls.Apply(ref c, fi, f, train);
+            world.BeginTick();
+            world.CrewAct(ref f, fi, 2);
+            world.Step(c);
+            PlayerMotor.Step(ref f, fi, train, P, T, SimConstants.TickSeconds, applyLook: false);
+            fastest = Math.Max(fastest, -train.Dynamics.Velocity);
+        }
+        Assert.True(fastest < 3, $"it ran back at {fastest:0.0} m/s");
+        Assert.True(start - train.Dynamics.Distance < 30, $"and {start - train.Dynamics.Distance:0} m back down the hill");
+    }
 }
