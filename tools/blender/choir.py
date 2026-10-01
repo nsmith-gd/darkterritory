@@ -1,7 +1,7 @@
 """THE CHOIR (GDD v1.2 §21 drawn by noise, App. A.7 · sound): "Small flying ghosts that come for a loud crew. Long
 warning, then the swarm. Takes anyone outside, on the roofs, or behind no door. Killable, barely."
 
-Not children (note 132). Each is a bell of membrane the size of a child's chest, drifting in the air the way a jellyfish
+Not children (note 133). Each is a bell of membrane the size of a child's chest, drifting in the air the way a jellyfish
 drifts in water: a hood of thin grey-blue skin, veined, pulsing, with a frilled skirt round its rim. It has no eyes. On
 the front of the hood, where a face would be, it has one mouth, a child's mouth, the lips soft and grey and the small
 blunt milk teeth inside, held open in the round O of singing; that's the voice. Under the bell hang three ruffled

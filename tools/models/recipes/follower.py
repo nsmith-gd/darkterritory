@@ -1,5 +1,5 @@
 """THE FOLLOWERS (GDD v1.2 §21 facility grounds, App. A.6): the tick of tools/blender/follower.py, taken to the fidelity
-target (ARCHITECTURE §8 note 58, tools/models overbake; the non-human redo, note 133).
+target (ARCHITECTURE §8 note 58, tools/models overbake; the non-human redo, note 134).
 
 tools/blender/follower.py stays its source: the rig, the clips and the game mesh. This recipe runs it, models a
 high-resolution copy and bakes it into one 1024 atlas:

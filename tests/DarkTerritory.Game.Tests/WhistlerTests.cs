@@ -9,7 +9,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The Whistler (GDD v1.2 §21, App. A.4; tools/blender/whistler.py; ARCHITECTURE §8 note 131): coiled small enough to hide
+/// The Whistler (GDD v1.2 §21, App. A.4; tools/blender/whistler.py; ARCHITECTURE §8 note 132): coiled small enough to hide
 /// under the bridge plate in a coupling gap, on the rail; reared up out of it to the cord when it whistles; and its front
 /// turned to whoever looks.
 /// </summary>

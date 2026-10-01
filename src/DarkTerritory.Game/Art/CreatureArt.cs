@@ -469,7 +469,7 @@ public sealed class CreatureArt
     /// A listening Gaunt leant in over who it's listening to, <paramref name="anger"/> (0..1) of the way: its neck let
     /// down from the shoulders (the model faces −Z), the top of it straightened again so the head still reaches out over
     /// them, and its head tipped over on its side (App. A.6 LISTEN's telegraph). Not its back: its forelegs hang from it
-    /// (note 130).
+    /// (note 131).
     /// </summary>
     static void LeanIn(Entry m, float anger)
     {
@@ -769,7 +769,7 @@ public sealed class CreatureArt
                 }
             case EnemyKind.Climber when _models.ContainsKey("climber"):
                 {
-                    // The Climbers (GDD v1.2 §21, App. A.4; tools/blender/climber.py; note 134): long, low, soot-black, six
+                    // The Climbers (GDD v1.2 §21, App. A.4; tools/blender/climber.py; note 135): long, low, soot-black, six
                     // limbs splayed like a gecko's, hooked hands, an eyeless wedge of a head with a lamprey's sucker under
                     // it. Pacing the train it runs low, snaking; at a gap it goes up between the cars, facing in (Enemy(e)
                     // turns it); on the roofs it creeps flattened for the engine; inside an unlit car (extra −1) it waits
@@ -827,7 +827,7 @@ public sealed class CreatureArt
                 }
             case EnemyKind.Follower when _models.ContainsKey("follower"):
                 {
-                    // The Followers (GDD v1.2 §21, App. A.6; tools/blender/follower.py; note 133): a bloated tick, ten legs,
+                    // The Followers (GDD v1.2 §21, App. A.6; tools/blender/follower.py; note 134): a bloated tick, ten legs,
                     // its eyes bunched on its shield. On someone's back (Enemy(e) laid it flat between their shoulder
                     // blades) it clings, and twitches; off it, it scuttles; at its car it spreads over the loot and swells
                     // as its nest builds (extra2), pulsing, kneading it, feeding.
@@ -873,7 +873,7 @@ public sealed class CreatureArt
                 return Crewmate(mesh, model, phase == SpinePhase.Telegraph ? CrewPose.Walk : CrewPose.Idle, t, (int)Math.Round(extra));
             case EnemyKind.Gaunt when _models.ContainsKey("gaunt"):
                 {
-                    // The Gaunt (GDD v1.2 §21, App. A.6; tools/blender/gaunt.py; a thing on stilts, note 130). Asleep, the
+                    // The Gaunt (GDD v1.2 §21, App. A.6; tools/blender/gaunt.py; a thing on stilts, note 131). Asleep, the
                     // heap of branches breathing; stirring, its head up out of it to listen. Woken, it stalks after its
                     // waker while they go and stands over them listening when they stop, its neck let down further and its
                     // head tipped over further at every point of anger (extra2); at its threshold it rears and the forelegs
@@ -990,7 +990,7 @@ public sealed class CreatureArt
             case EnemyKind.Whistler when _models.ContainsKey("whistler"):
                 {
                     // The gap-dweller (GDD v1.2 §21, App. A.4; tools/blender/whistler.py; a pale many-legged coil, note
-                    // 131), on the rail between the cars (Enemy(e) drops it from the sim's gap point). Hidden, it's coiled
+                    // 132), on the rail between the cars (Enemy(e) drops it from the sim's gap point). Hidden, it's coiled
                     // under the bridge plate round the drawgear, breathing: there to be found by whoever looks down into
                     // the gap. Whistling (extra), it rears straight up out of the gap, hooks the cord with its forelegs
                     // and yanks it, the siphon blowing; then it watches the gap's mouth, its front lifted, turning in
@@ -1172,7 +1172,7 @@ public sealed class CreatureArt
                 }
             case EnemyKind.Choir when _models.ContainsKey("choir"):
                 {
-                    // One of the Choir's ghosts (GDD v1.2 §21, App. A.7; tools/blender/choir.py; note 132): a bell of veined
+                    // One of the Choir's ghosts (GDD v1.2 §21, App. A.7; tools/blender/choir.py; note 133): a bell of veined
                     // membrane drifting like a jellyfish, one child's mouth on its front held open singing, its tendrils
                     // trailing. The voices arriving (TELEGRAPH) it drifts, pulsing, singing; after someone (COMMIT, extra
                     // its target) it swoops at them, and with nobody to take it presses to the shut doors lashing at them;

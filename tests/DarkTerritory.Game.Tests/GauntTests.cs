@@ -9,7 +9,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The Gaunt (GDD v1.2 §21, App. A.6; tools/blender/gaunt.py; ARCHITECTURE §8 notes 118, 130): a thing on stilts, far
+/// The Gaunt (GDD v1.2 §21, App. A.6; tools/blender/gaunt.py; ARCHITECTURE §8 notes 118, 131): a thing on stilts, far
 /// too tall for the train, so aboard it creeps with its legs folded and squats to listen; woken, it faces its waker,
 /// stalks after them while they go and stands over them when they stop, leant in further at every point of its anger.
 /// </summary>

@@ -1,5 +1,5 @@
 """THE CHOIR (GDD v1.2 §21 drawn by noise, App. A.7): the singing bell of tools/blender/choir.py, taken to the fidelity
-target (ARCHITECTURE §8 note 58, tools/models overbake; the non-human redo, note 132).
+target (ARCHITECTURE §8 note 58, tools/models overbake; the non-human redo, note 133).
 
 tools/blender/choir.py stays its source: the rig, the clips and the game mesh. This recipe runs it, models a
 high-resolution copy and bakes it into one 1024 atlas:

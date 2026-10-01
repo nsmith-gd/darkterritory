@@ -1,5 +1,5 @@
 """THE WHISTLER (GDD v1.2 §21 between the cars, App. A.4): the coiled thing of tools/blender/whistler.py, taken to the
-fidelity target (ARCHITECTURE §8 note 58, tools/models overbake; the non-human redo, note 131).
+fidelity target (ARCHITECTURE §8 note 58, tools/models overbake; the non-human redo, note 132).
 
 tools/blender/whistler.py stays its source: the rig, the clips and the game mesh. This recipe runs it, models a
 high-resolution copy and bakes it into one 1024 atlas:

@@ -1,7 +1,7 @@
 """THE FOLLOWERS (GDD v1.2 §21 facility grounds, App. A.6 · scent): "A hand-sized parasite that rides on your back. You
 can't see it; your friends can, if they look. It drops off aboard and nests in your best loot car."
 
-Not a hand (note 133). A tick, grown to the size of one and bloated: the body a swollen leathery sac, grey-white and
+Not a hand (note 134). A tick, grown to the size of one and bloated: the body a swollen leathery sac, grey-white and
 blue where it's stretched, mottled, ridged across with the folds it hasn't filled yet; at its front a hard shield the
 red-brown of dried blood, and on the shield a cluster of eyes, too many, small and black and wet, bunched like roe. Under
 the shield its mouthparts, barbed, working. Ten legs, too many, thin and jointed and red-brown, hooked at the tips. On

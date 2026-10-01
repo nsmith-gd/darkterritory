@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Enemies;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The Followers (GDD v1.2 §21, App. A.6; tools/blender/follower.py; ARCHITECTURE §8 notes 121, 133): riding, a tick flat
+/// The Followers (GDD v1.2 §21, App. A.6; tools/blender/follower.py; ARCHITECTURE §8 notes 121, 134): riding, a tick flat
 /// on its carrier's back where their friends can see it; off them it scuttles; nesting, it swells as the nest builds.
 /// </summary>
 public class FollowerTests

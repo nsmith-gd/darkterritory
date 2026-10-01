@@ -579,7 +579,11 @@ public static class PlayerMotor
         // onto: under a train's surface it loses, and only catches whoever has nothing else underfoot (T66: a crew on an
         // alternate line's cutting stood up on the hill and was left behind).
         bool groundFar = groundY - world.Y > below + GroundLiftMargin;
-        double bestTop = underGround && !groundFar ? groundY : double.NegativeInfinity;
+        // T107: and riding the train, it's the train underfoot while any of it is: the land beside an alternate's climb read
+        // a hand's breadth over the cab floor on deepTerritory:1, and the driver and fireman were set down on it at 13 m/s.
+        // Off every surface of the train (stepped off its side), the earth catches them as before.
+        bool riding = s.Parent != PlayerState.World;
+        double bestTop = underGround && !groundFar && !riding ? groundY : double.NegativeInfinity;
         int bestParent = PlayerState.World;
         var bestSurface = Surface.Ground;
         Double3 bestLocal = default;

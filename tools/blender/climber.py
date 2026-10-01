@@ -1,7 +1,7 @@
 """THE CLIMBERS (GDD v1.2 §21 the flank, App. A.4 · movement): "A pack runs alongside the train and mounts any coupling
 gap held by fewer players than there are Climbers."
 
-Not men (note 134). Long, low, soot-black things with six limbs, splayed out from their sides like a gecko's so the
+Not men (note 135). Long, low, soot-black things with six limbs, splayed out from their sides like a gecko's so the
 belly runs a hand off the ground: the forelimbs and the middle pair long and ending in hands of three hooked fingers
 each, made for gripping steel; the hind pair shorter, heavier, the same hooks. The skin is smooth and wet-looking as
 rubber, black, paler grey along the belly and in the folds at the joints; a row of short spines stands down the spine

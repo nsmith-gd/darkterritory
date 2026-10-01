@@ -757,12 +757,18 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             if (calls is null || !_sawDriver || calls.Has(StopJob.Driver) || !self.Alive)
             {
                 calls?.Say(member, StopJob.None, self);
-                // T104: the driver's out on the running board sanding. The brake holds only while someone in the cab holds it
-                // (CabControls.Clears), so with nobody at the controls steam pulled the train on unchecked, over whatever board
-                // or curve came next (frontier:11 derailed so). The fireman minds them meanwhile: no faster than the boards and
-                // the line allow.
-                if (calls?.Sanding == true && self.Alive && PlayerMotor.InCab(self, train))
-                    return KeepClear(self, world, Work(self, train, WatchTheRoad(world, Drive(train, tick, MindingCruise(world), 0.5))), -1);
+                // T105: the driver's away from the controls. The brake holds only while someone in the cab holds it
+                // (CabControls.Clears), so with nobody at them steam pulled the train on unchecked, over whatever board or curve
+                // came next (frontier:11, the driver out sanding, derailed so). T107: or back down the hill it had stalled on
+                // (deepTerritory:1, the driver pulled off the engine by Climbers, ran back 9.5 km). The fireman minds them
+                // meanwhile: moving, no faster than the boards and the line allow, and braked if it's rolling back; standing,
+                // on the brake (it never drives off without the driver).
+                if (calls?.DriverAway == true && self.Alive && PlayerMotor.InCab(self, train))
+                {
+                    var minding = train.Dynamics.Speed < Net.CabControls.StandingBelow ? new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 }
+                        : WatchTheRoad(world, Drive(train, tick, MindingCruise(world), 0.5));
+                    return KeepClear(self, world, Work(self, train, minding), -1);
+                }
                 if (FightStoker(self, world) is { } fightingToo)
                     return fightingToo with { Buttons = fightingToo.Buttons & ~PlayerButtons.Brake, ThrottleNotch = 0 };
                 // T106: fired for the speed the line allows here, not the open-line cruise: under a board, steam fired for 14 m/s
@@ -771,6 +777,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
                 _cruise = MindingCruise(world);
                 var venting = Vent(self, world);
                 calls?.Vent(venting is not null && !PlayerMotor.InCab(self, train));
+                calls?.Mind(venting is null && self.Alive && PlayerMotor.InCab(self, train));
                 if (venting is { } blowing)
                     return blowing;
                 return self.Alive && PlayerMotor.InCab(self, train) ? KeepClear(self, world, Work(self, train, default), -1) : default;
@@ -778,7 +785,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             _driving = true;
         }
         calls?.Say(member, StopJob.Driver, self);
-        calls?.Sand(false);
+        calls?.Away(self.Alive && !PlayerMotor.InCab(self, train));
         var lamp = Lamp(world);
         // All aboard (T102): standing at the gate, the driver waits on the brake for whoever's still down beside the train, or
         // still on a ladder, to climb on, for so long.
@@ -868,10 +875,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         }
         // Greased rail (App. A.2): the controls do nothing on it, so out to the sandbox and sand it, and back after.
         if (Sand(self, world, cruise) is { } sanding)
-        {
-            calls?.Sand(!PlayerMotor.InCab(self, train));
             return sanding with { Lamp = lamp };
-        }
         var intent = Drive(train, tick, cruise, world.TrackPlan is null ? 1.5 : 0.5);
         intent.Lamp = lamp;
         return KeepClear(self, world, Work(self, train, WatchTheRoad(world, intent)), +1);
@@ -898,6 +902,8 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     const double PostedMargin = 1;
 
     int _sandLeg = -1;
+    /// <summary>With nobody minding the controls, the driver's out on the board sanding only while the train's this slow (m/s).</summary>
+    const double AloneSandingTop = 6;
     /// <summary>Slowed this far under its cruise on grease (m/s), it goes out to sand.</summary>
     const double SandBelowCruise = 2;
     /// <summary>Out on the running board to sand, or on the way there or back (for the harness's trace).</summary>
@@ -919,8 +925,16 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         }
         bool greased = lineside.OnGrease(train);
         var way = SandWay(train);
+        // T107: with steam driving, nobody minding the controls (no fireman in the cab) and the sanded drivers taking hold,
+        // the train runs on up to whatever its steam makes with the driver out on the board: deepTerritory:1's ran onto the
+        // Sleepers at 11.8 m/s so. Alone, the driver goes out only while it's slow, and comes back in once it isn't.
+        bool alone = train.BoilerTuning is { SteamDrive: true } && calls?.FiremanMinding != true;
+        if (alone && train.Dynamics.Speed > AloneSandingTop && _sandLeg >= 0 && _sandLeg < way.Length)
+            _sandLeg = 2 * way.Length - 1 - _sandLeg;
         if (_sandLeg < 0)
         {
+            if (alone && train.Dynamics.Speed > AloneSandingTop)
+                return null;
             // Only when the grease is costing way: on the level the train coasts through it at speed, and whatever's behind
             // (the hounds gain on every slowing, App. A.3) is better left behind than stopped for. On a climb it can't hold
             // speed ("cannot climb grade"): out it goes, steam left on, so the sanded drivers pull.
@@ -974,7 +988,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         // for a board that's still coming the brake deals with, and every pound vented is coal. Venting whenever the gauge
         // read over the mark, frontier:11's fireman spent 1,412 s of the night out there and the train ran out of steam.
         bool over = train.Boiler.Pressure > target + (_ventLeg >= 0 ? 2 : VentOver) && train.Dynamics.Speed > allowed + (_ventLeg >= 0 ? 0 : 1)
-            && calls?.Sanding != true;
+            && calls?.DriverAway != true;
         var way = VentWay(train);
         if (_ventLeg < 0)
         {
@@ -1139,6 +1153,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     /// <summary>The speed the driver's holding to, which the fire's kept for (T97).</summary>
     double _cruise = 14;
 
+    /// <summary>Going backwards faster than this (m/s) when it's meant to be going on, it's rolling back.</summary>
+    const double RollingBack = 0.2;
+
     PlayerIntent Drive(TrainOnLine train, uint tick, double cruise, double over)
     {
         _cruise = cruise;
@@ -1156,7 +1173,10 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             _holdingDown = true;
         else if (d.Speed <= cruise)
             _holdingDown = false;
-        if (remaining < stopping || _holdingDown)
+        // T107: running on, a train rolling back is one that's lost the hill (stalled on a climb, or stopped there and let go):
+        // brake it to a stand. Cruising, nothing here ever braked one going backwards, and deepTerritory:1 ran back 9.5 km,
+        // down the climb it had just come up, to the gate at 22 m/s.
+        if (remaining < stopping || _holdingDown || d.Velocity < -RollingBack)
         {
             intent.Buttons |= PlayerButtons.Brake;
             intent.ThrottleNotch = -4;
