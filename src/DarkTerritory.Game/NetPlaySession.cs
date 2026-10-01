@@ -54,18 +54,22 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// <summary>The mods the host plays with, in order ("name version", T49): named to a joiner whose content differs.</summary>
     public IReadOnlyList<string> Mods { get; init; } = [];
 
+    // Keyed short (a tuning file by its name, the line generator's files as one) with a 4-byte hash, so the Welcome that
+    // carries them fits one packet with room for more files: enough to tell content apart, it's not a security check.
+    const string LineGenKey = "linegen";
+
     public static Dictionary<string, string> HashContent(string content)
     {
         static string Hash(string text) =>
-            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text.Replace("\r\n", "\n"))), 0, 8).ToLowerInvariant();
+            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text.Replace("\r\n", "\n"))), 0, 4).ToLowerInvariant();
         var hashes = new Dictionary<string, string>();
         foreach (var file in Directory.EnumerateFiles(Path.Combine(content, "tuning"), "*.json").Order(StringComparer.Ordinal))
-            hashes["tuning/" + Path.GetFileName(file)] = Hash(File.ReadAllText(file));
+            hashes[Path.GetFileNameWithoutExtension(file)] = Hash(File.ReadAllText(file));
         // The line generator's files, as one: every machine generates the night's line from them (linegen plan §17.3),
         // and the Welcome that carries these has to fit one packet.
         string linegen = Path.Combine(content, Sim.LineGen.LineGenConfig.Directory);
         if (Directory.Exists(linegen))
-            hashes["linegen/*.json"] = Hash(string.Concat(Directory.EnumerateFiles(linegen, "*.json").Order(StringComparer.Ordinal)
+            hashes[LineGenKey] = Hash(string.Concat(Directory.EnumerateFiles(linegen, "*.json").Order(StringComparer.Ordinal)
                 .Select(f => Path.GetFileName(f) + "\n" + File.ReadAllText(f))));
         return hashes;
     }
@@ -76,7 +80,8 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         if (Content is null)
             return [];
         var mine = HashContent(content);
-        return [.. Content.Keys.Union(mine.Keys).Where(k => Content.GetValueOrDefault(k) != mine.GetValueOrDefault(k)).Order()];
+        return [.. Content.Keys.Union(mine.Keys).Where(k => Content.GetValueOrDefault(k) != mine.GetValueOrDefault(k)).Order()
+            .Select(k => k == LineGenKey ? "linegen/*.json" : $"tuning/{k}.json")];
     }
 
     /// <summary>Why a joiner's refused: the files that differ, and the mods on each side when they're not the same.</summary>
@@ -87,7 +92,10 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         return hostMods.SequenceEqual(mine) ? text : $"{text} (the host's mods: {List(hostMods)}; yours: {List(mine)})";
     }
 
-    public string Encode() => JsonSerializer.Serialize(this, DataFile.Options);
+    /// <summary>Compact: the Welcome carrying it has to fit one datagram (1200 bytes), and indented, on Windows every line
+    /// break is two bytes (a Windows host's Welcome went over once the tuning files numbered 19).</summary>
+    public string Encode() => JsonSerializer.Serialize(this, Compact);
+    static readonly JsonSerializerOptions Compact = new(DataFile.Options) { WriteIndented = false };
     public static SessionSetup Decode(string json) => JsonSerializer.Deserialize<SessionSetup>(json, DataFile.Options) ?? new SessionSetup();
 
     /// <summary>The world this setup describes, identically on every machine.</summary>
