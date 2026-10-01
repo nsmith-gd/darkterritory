@@ -2265,7 +2265,36 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - the swarm thickens round the lamp as it lingers;
         - lingering, most of it is on the glass.
 
-124. **The brake and the vent as a pair (T106).** With steam driving (T97) pressure is speed, so a board ahead wants the gauge down, not just the brake on. A held brake fades, and the steam fights it.
+124. **The Passenger's model (GDD v1.2 §21, App. A.8).** It was the crew figure in the look of the crewmate it copies (note 75). Now it's its own (`tools/blender/passenger.py`, baked by `tools/models/recipes/passenger.py`, 4,014 triangles, 27 bones, SK_Human at a man's height).
+    - **The reading.** The v1.2 brief is "old coat and cap; passes for crew in the dark", and the checklist's need adds "wrong up close". The crew-copy draw was v1.1's. The new model keeps what made the copy work, the colour of the one it copies, and gives up the rest.
+      - **Its scarf** is dyed their colour (`look.json` `crewColours`, the crew's own `.paint` tint), so across a car it's theirs.
+      - **Its silhouette** is a man in a heavy coat and a cap.
+      - **Up close** it's wrong.
+      - The roster (note 81) and the silence tell are unchanged. Without the model, the crew-copy draw (`GreyboxScene.AsCrewmate`) still stands in.
+    - **The design.** A conductor off a train that went into the Territory a lifetime ago.
+      - **Coat:** a double-breasted greatcoat to below the knee, felted and mould-bloomed, salt-white at the shoulders, its brass gone green and its hem rotted ragged.
+      - **Cap:** a peaked conductor's cap gone soft, its badge black.
+      - **Face:** grey, the cheeks fallen in, the eyes open and filmed white in dark sockets. The lips are wired shut with seven rusted stitches: that's why it never speaks.
+      - **The watch:** in its left hand, always, a pocket watch that stopped when its train did.
+    - **Clips.**
+      - **stand:** hanging about like crew, but dead still with no breath in it. The head turns slowly and snaps back; the watch comes up to the face, is looked at a long time, and goes down.
+      - **walk:** the crew's own gait, but the head never moves and the arms never swing.
+      - **drag** (GRAB): leant into the haul, a hand back in someone's collar.
+      - **pin** (UNCOUPLE): bent at the coupling, heaving at the lever in jerks.
+      - **hit.**
+    - **Drawn** (`CreatureArt`).
+      - **Facing:** it faces as it goes (`Extra2`, the crew-copy's reading).
+      - **Walking or still:** it walks at the pace it's been going (`GreyboxScene.Pace`), or stands.
+      - **With its victim:** in GRAB, the sim carries the victim at its feet, so it's drawn a stride (`PassengerStride`, 0.8 m) ahead of them, dragging when it moves and heaving at the pin when it's stopped at the caboose.
+    - **Headless.**
+      - `dt screenshot --threats --passenger stand|walk|drag|pin --view passenger`: the new `passenger` view is in car 2's aisle. `drag` lays the one it's dragging on the floor behind it (`Staging.Dragged`).
+      - A still frame can't measure a pace, so `GreyboxScene.StagedPaces` gives the staged one its pace (`Staging.PassengerPace`).
+      - `PassengerArtTests`:
+        - it's a man's height in its cap;
+        - the scarf, and only the scarf, takes the copied crewmate's colour;
+        - dragging, it's a stride ahead.
+
+125. **The brake and the vent as a pair (T106).** With steam driving (T97) pressure is speed, so a board ahead wants the gauge down, not just the brake on. A held brake fades, and the steam fights it.
     - **The fireman fired for the wrong speed.** It fired to the pressure for its own cruise, which only changes when it drives, so it stayed at the open line's 14 m/s. Under a board the driver braked away steam the fireman had just made. Now it fires for what the line allows here (`MindingCruise`: lamp, authority, boards).
     - **And vents when the steam runs the train away.** When the train is running over the allowed speed with the gauge ten over its mark, the fireman walks out of the left doorway, along the left running board to the blow-off, and holds it open until the gauge is down to the mark. Then it comes back in. The driver holds the train on the brake meanwhile. Only one of them leaves the cab at a time (`CrewCalls.Venting`, `CrewCalls.Sanding`).
     - **Not for a board still ahead.** Venting whenever the gauge read high, frontier:11's fireman spent 1,412 s of the night at the blow-off, and the train ran out of steam and missed the dawn. The driver brakes down for a board in good time; venting throws away coal. So it vents only once the train is actually running over what's allowed: on a descent, where the steam and the grade together beat the brake.

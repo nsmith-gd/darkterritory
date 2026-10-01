@@ -58,6 +58,8 @@ public sealed class GreyboxScene
     public (int Player, Double3 Hands, double Yaw)? HeldHere { get; set; }
     /// <summary>Other players, drawn as greybox figures.</summary>
     public IReadOnlyList<Crewmate>? Crew { get; set; }
+    /// <summary>For a still frame (<c>dt screenshot</c>), how fast staged enemies are going (m/s, by id): one frame can't measure it (Pace).</summary>
+    public IReadOnlyDictionary<int, float>? StagedPaces { get; set; }
     /// <summary>How each branch's switch is set (true: for the branch), for its stand's lamp. Unset, all read main.</summary>
     public Func<int, bool>? Diverging { get; set; }
     /// <summary>The switch stands, for where their levers are. Unset, they stand where the default tuning puts them.</summary>
@@ -227,7 +229,14 @@ public sealed class GreyboxScene
                 : null;
         if (Enemies is not null)
             foreach (var e in Enemies)
-                if (e is Sim.Enemies.Passenger passenger)
+                if (e.Kind == EnemyKind.Passenger && Look?.Art.Creatures is { } passengers && passengers.Get("passenger") is not null)
+                {
+                    // The art pass's own (Art/CreatureArt, note 124): a conductor off a lost train, in the colour of the
+                    // crewmate it copies; it walks as fast as it's been going (GreyboxScene's pace).
+                    if (!e.Gone)
+                        DrawEnemy(mesh, line, frames, e, eye, from, to, passengers, default, null, null, Pace(e));
+                }
+                else if (e is Sim.Enemies.Passenger passenger)
                 {
                     // One of the crew, to look at (App. A.7 BLEND): drawn exactly as they are, their face and all.
                     if (!e.Gone && AsCrewmate(passenger, frames) is { } double_ && Look?.Art.Crewmate(mesh, double_, eye, Time) != true)
@@ -442,6 +451,8 @@ public sealed class GreyboxScene
     /// </summary>
     float Pace(Enemy e)
     {
+        if (StagedPaces is { } staged && staged.TryGetValue(e.Id, out float given))
+            return given;
         if (!_paces.TryGetValue(e.Id, out var was) || was.Attached != e.Attached || Time < was.Time)
         {
             _paces[e.Id] = (e.Attached, e.Local, Time, 0);

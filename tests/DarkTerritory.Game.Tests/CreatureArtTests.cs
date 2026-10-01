@@ -67,6 +67,8 @@ public class CreatureArtTests
         ["climber"] = new(2000, 9000, 20, 60, ["run", "scrabble", "walk", "crouch", "grab"], ["hit"]),
         // A swarm's (App. A.5): a moth, up to a couple of dozen of them at a lamp, so light; on its own rig (SK_FireFly).
         ["fire_fly"] = new(600, 1500, 10, 20, ["flutter", "settle"], []),
+        // A character's (App. A.8), SK_Human at a man's height: it passes for crew, so it's dressed as one.
+        ["passenger"] = new(3000, 9000, 20, 60, ["stand", "walk", "drag", "pin"], ["hit"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
