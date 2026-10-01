@@ -35,4 +35,23 @@ public class CabRideTests
         }
         Assert.Equal(alt, train.Dynamics.Path);
     }
+
+    /// <summary>
+    /// T107: where frontier:3's alternate climbs up beside main to rejoin it, both rails' formations cover the alternate's
+    /// rail, and the first edge's (main, 2.8 m higher) won it: the crew jumping the roof gaps there came down on that and
+    /// were left behind, and the driver stood for them again and again till the dawn. The nearer rail's formation wins.
+    /// </summary>
+    [Fact]
+    public void WhereAnAlternateClimbsBesideMainItsRailIsOnItsOwnFormation()
+    {
+        var line = LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:3", 10).Build();
+        int alt = Enumerable.Range(0, line.Branches.Count).Single(i => Math.Abs(line.Branches[i].Toe - 18040) < 1);
+        Assert.Equal(Rail.BranchKind.Alternate, line.Branches[alt].Kind);
+        for (double d = 21100; d <= 21300; d += 5)
+        {
+            var rail = line.Sample(alt, d).Position;
+            double hint = 0;
+            Assert.True(Math.Abs(PlayerMotor.GroundAt(rail, line, ref hint) - rail.Y) < 0.05, $"ground over the rail at {d}");
+        }
+    }
 }
