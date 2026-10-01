@@ -757,6 +757,12 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             if (calls is null || !_sawDriver || calls.Has(StopJob.Driver) || !self.Alive)
             {
                 calls?.Say(member, StopJob.None, self);
+                // T104: the driver's out on the running board sanding. The brake holds only while someone in the cab holds it
+                // (CabControls.Clears), so with nobody at the controls steam pulled the train on unchecked, over whatever board
+                // or curve came next (frontier:11 derailed so). The fireman minds them meanwhile: no faster than the boards and
+                // the line allow.
+                if (calls?.Sanding == true && self.Alive && PlayerMotor.InCab(self, train))
+                    return KeepClear(self, world, Work(self, train, WatchTheRoad(world, Drive(train, tick, MindingCruise(world), 0.5))), -1);
                 if (FightStoker(self, world) is { } fightingToo)
                     return fightingToo with { Buttons = fightingToo.Buttons & ~PlayerButtons.Brake, ThrottleNotch = 0 };
                 return self.Alive && PlayerMotor.InCab(self, train) ? KeepClear(self, world, Work(self, train, default), -1) : default;
@@ -764,6 +770,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             _driving = true;
         }
         calls?.Say(member, StopJob.Driver, self);
+        calls?.Sand(false);
         var lamp = Lamp(world);
         // All aboard (T102): standing at the gate, the driver waits on the brake for whoever's still down beside the train, or
         // still on a ladder, to climb on, for so long.
@@ -853,18 +860,13 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         }
         // Greased rail (App. A.2): the controls do nothing on it, so out to the sandbox and sand it, and back after.
         if (Sand(self, world, cruise) is { } sanding)
+        {
+            calls?.Sand(!PlayerMotor.InCab(self, train));
             return sanding with { Lamp = lamp };
+        }
         var intent = Drive(train, tick, cruise, world.TrackPlan is null ? 1.5 : 0.5);
         intent.Lamp = lamp;
-        // Watch the road: something showing on the line ahead means get below derailing speed.
-        bool somethingAhead = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.Sleepers && e.Phase == SpinePhase.Telegraph
-            && e.LineDistance > train.Dynamics.Distance && e.LineDistance - train.Dynamics.Distance < 200);
-        if (somethingAhead && train.Dynamics.Speed > 4)
-        {
-            intent.Buttons |= PlayerButtons.Brake;
-            intent.ThrottleNotch = -4;
-        }
-        return KeepClear(self, world, Work(self, train, intent), +1);
+        return KeepClear(self, world, Work(self, train, WatchTheRoad(world, intent)), +1);
     }
 
     /// <summary>
@@ -962,6 +964,29 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     /// The fastest the boards read so far allow here: a posted stretch's speed on it, until the last car's through, and
     /// short of it no faster than a gentle brake gets down to that by the time it's there.
     /// </summary>
+    /// <summary>Watch the road: the Sleepers showing on the line ahead means get below their derailing speed, on the brake.</summary>
+    static PlayerIntent WatchTheRoad(World world, PlayerIntent intent)
+    {
+        var train = world.Train;
+        bool somethingAhead = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.Sleepers && e.Phase == SpinePhase.Telegraph
+            && e.LineDistance > train.Dynamics.Distance && e.LineDistance - train.Dynamics.Distance < 200);
+        if (somethingAhead && train.Dynamics.Speed > 4)
+        {
+            intent.Buttons |= PlayerButtons.Brake;
+            intent.ThrottleNotch = -4;
+        }
+        return intent;
+    }
+
+    /// <summary>What the fireman holds the train to while the driver's out of the cab: the lamp's cruise, the line's, the boards'.</summary>
+    double MindingCruise(World world)
+    {
+        double cruise = world.LampShining ? CruiseSpeed : DarkCruiseSpeed;
+        if (world.TrackPlan is { } plan)
+            cruise = Math.Min(cruise, LineGen.LineAuthority.For(plan, world.Train.Line).Allowed(world.Train));
+        return Math.Min(cruise, Posted(world));
+    }
+
     static double Posted(World world)
     {
         if (world.Lineside is not { } lineside)

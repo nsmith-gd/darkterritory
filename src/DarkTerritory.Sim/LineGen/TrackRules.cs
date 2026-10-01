@@ -56,7 +56,7 @@ public static class TrackRules
 
     static string Derail(World world, string why)
     {
-        world.Derail();
+        world.Derail(why);
         return why;
     }
 

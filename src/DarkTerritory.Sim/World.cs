@@ -229,7 +229,7 @@ public sealed class World
 
     /// <summary>The generated line whose track rules the host holds the train to (curves, weak bridges, washouts); null for a hand-laid one.</summary>
     public LineGen.LinePlan? TrackPlan { get; set; }
-    /// <summary>What derailed the train, when the track did it (the report and the HUD say so).</summary>
+    /// <summary>What derailed the train (the report and the HUD say so): the track, a board run too fast, the Sleepers, the Switchman.</summary>
     public string? DerailCause { get; private set; }
 
     /// <summary>Starts the run. The host steps it (<see cref="StepRun"/>); clients mirror it from records.</summary>
@@ -274,8 +274,10 @@ public sealed class World
         return e;
     }
 
-    public void Derail()
+    public void Derail(string? why = null)
     {
+        if (!Derailed)
+            DerailCause = why;
         Derailed = true;
         foreach (var rake in Train.Rakes)
             rake.Velocity = 0;
@@ -431,8 +433,8 @@ public sealed class World
             lineside.Hazards(this, _actors, Damage);
         LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
         // A generated line's lethal checks: a curve too fast, a weak bridge overloaded, a washout (linegen plan §7.3).
-        if (Authority && TrackPlan is { } plan && LineGen.TrackRules.Step(this, plan, SimConstants.TickSeconds) is { } why)
-            DerailCause = why;
+        if (Authority && TrackPlan is { } plan)
+            LineGen.TrackRules.Step(this, plan, SimConstants.TickSeconds);
         WhistleSeconds = Math.Max(0, WhistleSeconds - SimConstants.TickSeconds);
         if (Combat is { } c)
         {
