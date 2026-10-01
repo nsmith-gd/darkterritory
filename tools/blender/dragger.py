@@ -10,7 +10,7 @@ Pivot at the attach point (GreyboxScene: 0.35 m under the roof's top, just outsi
 further out, hooking toward +X (the model is turned for the car's other side). Chain rig: root, arm_01 (rising
 out from under), arm_02 (over the lip), arm_03 (down onto the roof), hand, and four two-bone fingers.
 Clips: reach (the telegraph: up over the lip in stepped pops, then down flat on the roof, once), grip (the grab:
-fingers clenched, pulling, loop).
+fingers clenched, pulling, loop), drag (the end of the grab: yanked back across the roof and whipped down under, once).
 
     blender -b --python tools/blender/dragger.py -- content/art/models/dragger.glb
 """
@@ -127,6 +127,15 @@ for f, (dz, dx, tw) in enumerate(((0, 0, 0), (-0.03, -0.02, 2), (-0.03, -0.02, -
     grip.key(f * 6, pose, "CONSTANT" if f % 2 else "LINEAR")
 grip.close(36)
 
+# Drag (0.8 s, once; the end of the grab, PUNISH: over the side and under): from the clench on the roof, a yank, the
+# hand dragged back across the sheet to the lip, the fingers scoring it, then the whole limb whipped down out of sight.
+drag = Clip("drag", loop=False)
+drag.key(0, clench | {"arm_02": (0, 4, 0), "arm_03": (0, 6, 0), "hand": (0, 8, 0)}, "CONSTANT")
+drag.key(3, clench | {"root@loc": (-0.12, 0, -0.04), "arm_02": (0, 18, 0), "arm_03": (0, 22, 0), "hand": (0, 20, 0)}, "LINEAR")
+drag.key(8, fingers(55, 0) | {"root@loc": (-0.2, 0, -0.18), "arm_02": (0, 48, 0), "arm_03": (0, 50, 0), "hand": (0, 30, 0)}, "LINEAR")
+drag.key(13, fingers(60, 0) | {"root@loc": (-0.2, 0, -0.9), "arm_02": (0, 50, 0), "arm_03": (0, 55, 0)}, "LINEAR")
+drag.key(24, fingers(60, 0) | {"root@loc": (-0.2, 0, -1.2), "arm_02": (0, 50, 0), "arm_03": (0, 55, 0)}, "CONSTANT")
+
 kit.build()
-rig.bake(sk, [reach, grip])
+rig.bake(sk, [reach, grip, drag])
 rig.export(rig.args()[0] if rig.args() else "dragger.glb", kit)

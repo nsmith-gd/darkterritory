@@ -318,6 +318,56 @@ public static class Staging
     static Double3 PassengerAt(TrainOnLine train) =>
         new(-0.35, 0, -train.Frames[Math.Min(2, train.Frames.Count - 2)].Shape.HalfLength + 5.6);
 
+    /// <summary>
+    /// The staged Soot Child (<c>dt screenshot --soot</c>), off car 2's left in front of crewmate 4 (<see cref="Lone"/>; the
+    /// Ribbits put away): <c>huddle</c> squatted in the ash, <c>call</c> calling to them (App. A.6 CALL; black eyes, black
+    /// hands), <c>real</c> the same, a real child (ROLL), <c>drink</c> on them (GRAB). The <c>soot</c> view looks over their
+    /// shoulder at it.
+    /// </summary>
+    public static List<Enemy> Soot(List<Enemy> threats, TrainOnLine train, string mode)
+    {
+        if (mode.Length == 0 || threats.OfType<SootChildren>().FirstOrDefault() is not { } c)
+            return threats;
+        threats.RemoveAll(e => e is Ribbit);
+        var side = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+        var before = side.ToWorld(new Double3(-(side.Shape.HalfWidth + SootOut), 0, -1.5));
+        switch (mode)
+        {
+            case "huddle" or "call" or "real":
+                c.Restore(SpinePhase.Telegraph, 1.1, c.Health, Enemy.Loose, before, 0, 0, 0, mode == "huddle" ? 0 : 1, mode == "real" ? 0 : 1);
+                break;
+            case "drink":
+                c.Restore(SpinePhase.Grab, 2.5, c.Health, Enemy.Loose, Lone(train).Feet, 0, 0, 0, 0, 1);
+                break;
+            default:
+                throw new ArgumentException($"--soot {mode}: huddle, call, real or drink");
+        }
+        return threats;
+    }
+
+    // How far off the second car's side the staged Soot Child is (m): in front of crewmate 4, a few metres out.
+    const double SootOut = 4.6;
+
+    /// <summary>
+    /// The staged Switchman (<c>dt screenshot --switchman</c>), at its lever 55 m up the line (App. A.7): <c>wait</c> by it
+    /// (TELEGRAPH), <c>grip</c> its hand on it, waiting to throw it under the train (COMMIT, the derailer's tell),
+    /// <c>throw</c> it thrown (PUNISH). The <c>switchman</c> view is on the line short of it.
+    /// </summary>
+    public static List<Enemy> Switchman(List<Enemy> threats, string mode)
+    {
+        if (mode.Length == 0 || threats.OfType<Sim.Enemies.Switchman>().FirstOrDefault() is not { } s)
+            return threats;
+        var (phase, derail) = mode switch
+        {
+            "wait" => (SpinePhase.Telegraph, 0.0),
+            "grip" => (SpinePhase.Commit, 1.0),
+            "throw" => (SpinePhase.Punish, 1.0),
+            _ => throw new ArgumentException($"--switchman {mode}: wait, grip or throw"),
+        };
+        s.Restore(phase, 0.4, s.Health, s.Attached, s.Local, s.LineDistance, s.Lateral, s.Height, s.Extra, derail);
+        return threats;
+    }
+
     // How far off the second car's side the staged Grumbler is (m): in front of crewmate 4, a lunge from them.
     const double GrumblerOut = 3.3;
 

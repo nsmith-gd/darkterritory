@@ -2301,3 +2301,35 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **What its nights found: a split train stood at a switch till dawn.** On frontier:7 a Switchman set a dead line's switch, the train took it, and it backed off onto the main line. A car had been cut loose miles back and ran on buffered up behind, so the train was two rakes. The shunter only sets a switch back once the train stands short of the points, and that check (`SwitchPlan.StandingAt`) wanted one rake. Now it wants every rake standing on the main line short of the points. `SwitchTests.AStandingTrainWithACarCutLooseBehindIsStillStandingAtTheSwitch`.
     - **The driver let go of the cab's steps.** Down to set a switch back itself, the driver took hold of the cab's steps to climb back, then let go, because nothing said climb (T102 did only at the gate). It was back on the ballast to try again, all night. Now walking into the cab climbs whatever steps it's on (`StopHand.IntoCab`). And a driver waiting on a live shunter who never comes (a deepTerritory:1 crew of two, the shunter on the guard van's roof from 1914 s till dawn) gives up after 150 s and does it itself. `StopCrewTests.WithAShunterWhoNeverComesTheDriverSetsTheSwitchBackItself`. That test's night also now clears the brake as the host does: a standing train stays on it.
     - `VentTests`: 6 cars down a 4 km descent at 2.5 %, with the gauge high. The fireman vents and comes back in, the driver stays at the controls, and the gauge comes down. Without the vent it climbs from 83 to 95, and the train runs to 20 m/s.
+
+126. **The Soot Children's model (GDD v1.2 §21, App. A.6).** They were a sourced scan: the Boy Room's boy, posed into the huddle at full resolution and rigged on it (`tools/models/figures.py`). That rig could rock and lift its head but never get up, and its eyes, the whole tell, were two boxes drawn over it. Now the child is its own (`tools/blender/soot_child.py`, baked by `tools/models/recipes/soot_child.py`, 4,540 triangles, 28 bones: SK_Human at a child's height and proportions, with a jaw), so it can do what the brief asks of it.
+    - **One child, two ways** (the lure): the model's variants.
+      - **Variant 0, the real child:** a child's eyes, the whites and brown irises; the hands and feet only dirty.
+      - **Variant 1, a Soot Child:** the eyes black, wet and filling the sockets, and the hands and feet black as tar to the wrists and the ankles. That's the tell from five metres; `Extra2` picks it. Only this variant has teeth: rings of them, set back in the mouth.
+      - **Both:** a waxy-pale face with soot run down it from the eyes and the hairline, matted hair hanging at the sides (the eyes left clear), and an adult's shirt gone to rag-grey, tied with string.
+    - **Clips.**
+      - **huddle:** squatted on its heels, its arms round its knees, rocking.
+      - **call** (`Extra` 1): the head up to the train, the mouth open, a hand out.
+      - **pin** (once, the first 0.6 s of GRAB, `SootPinSeconds`): up off the ground and onto them, the jaw dropping.
+      - **drink:** locked round them, arms round the neck and legs round the waist, its face in their throat, pumping. Now and then the head comes up and round to look over its shoulder at whoever's watching, and goes back down.
+    - **On them, standing.** The brief says "pins you". The crew have no pinned-down pose yet (the checklist's `crew-grabbed`), and the sim leaves its victim standing. So it clings to them: in front of them and facing them, 0.3 m off their feet (`SootCling`), the clip lifting it to their chest. The victim is the nearest living crewmate (`GreyboxScene`, as the Grumbler's), since who it holds isn't sent to clients. LUNGE never shows (COMMIT goes straight to GRAB in the same tick), so the pin is the leap.
+    - **What's lost:** the link to the bedroom boy. The villages' Boy Room scene keeps the scan.
+    - **Headless.**
+      - `dt screenshot --threats --crew --soot huddle|call|real|drink`, staged in front of crewmate 4 (`Staging.Lone`). The new `soot` view is over their shoulder; `sootside` is from the side, at them and what's on them.
+      - `dt art clip ... --variant n` draws one of a model's variants.
+      - `SootChildTests`:
+        - the variants are the same child with their own eyes, hands and feet;
+        - calling, the head comes up;
+        - on someone, it's up at their chest, its feet off the ground.
+
+127. **The Switchman at its lever (GDD v1.2 §21, App. A.7).** It had only `wait` and `flee`. It now has the clips for what the brief has it do with the lever (`tools/models/recipes/switchman.py`, on the scan's own rig).
+    - **grip** (COMMIT, the derailer's tell): its right hand down on the lever at its side, leant to it, the hand trembling on it in pops, the head once snapped round to the coming train.
+    - **throw** (PUNISH, once): the lever heaved over and across in front of it, the body twisting into the pull. Then it's dead still, its hand still on the lever, the head cocked, watching what it's done.
+    - **The lever.** No switch stand sits where the Switchman is staged, so `CreatureArt` draws one with it while it grips and throws: an iron lever from a stub post's pivot by its right foot (`SwitchLeverPivot`) up into its hand. It turns as the hand does.
+    - **Headless.**
+      - `dt screenshot --threats --switchman wait|grip|throw --view switchman`: the new `switchman` view is on the line short of it.
+      - `SwitchmanArtTests`: gripping and throwing, the lever is drawn; thrown, it's gone over.
+
+128. **The Cinder Hounds' bite (GDD v1.2 §21, App. A.3).** On someone (GRAB), a hound used to go round the roof fight's crouch-and-lunge as if it had nobody. Now, after the leap, it bites (`tools/blender/cinder_hound.py` `bite`): braced low, the forelegs planted wide and the hind legs dug in hauling back, the jaws clamped, the head wrenching side to side in hard pops, held, and wrenched again; the tail lashing. Aboard with nobody in its jaws it keeps the crouch-and-lunge.
+
+129. **The Draggers drag them under (GDD v1.2 §21, App. A.4).** The grab ended with the limbs still gripping the roof, and then nothing: the catch was gone. Now, over the last 0.8 s of the grab's window (`DraggerDragSeconds`; `Enemy.GrabWindow`, replicated), both limbs play `drag` (`tools/blender/dragger.py`, once). It's a yank, the hands dragged back across the sheet to the lip with the fingers scoring it, then the limbs whipped down out of sight. Holding a hanging player is still to come: the crew have no hanging pose to hold (the checklist's `crew-grabbed`). `DraggerArtTests`.

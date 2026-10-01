@@ -1,7 +1,7 @@
 """CINDER HOUND (GDD §21 rear, App. A.3): the starved lurcher of tools/blender/cinder_hound.py, taken to the fidelity
 target (ARCHITECTURE §8 note 58, tools/models overbake).
 
-tools/blender/cinder_hound.py stays its source: SK_Quad, the weights, the clips (prowl, run, crouch, lunge, hit) and
+tools/blender/cinder_hound.py stays its source: SK_Quad, the weights, the clips (prowl, run, crouch, lunge, hit, bite) and
 the game mesh. This recipe runs it and models a high-resolution copy over the hide and the slag:
   * the hide gone to oily soot (the library's tar), matted into clumps that lie back along the body, the skin shrunk
     onto the frame: every rib a bar down the barrel, the spine a ridge of knuckles, sinew and tendon standing out down

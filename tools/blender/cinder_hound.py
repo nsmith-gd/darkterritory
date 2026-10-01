@@ -406,8 +406,22 @@ hit.key(5, over(HIT, crest_02=(0, -15, 0), chest=(0, 6, -8)), "LINEAR")
 hit.key(9, over(STAND, head=(-6, 0, -10)), "CONSTANT")
 hit.key(12, STAND, "CONSTANT")
 
+# Bite (1.1 s, loop; GRAB, the pack fight on someone): braced low, the forelegs planted wide and the hind legs dug in
+# hauling back, the jaws clamped on them; the head wrenching side to side in hard pops, held, wrenched again; the crest
+# flat, the tail lashing.
+BITE = over(CROUCH, root__loc=(0, -0.04, -0.1), pelvis=(-14, 0, 0), chest=(-4, 0, 0), neck_01=(-14, 0, 0), neck_02=(-12, 0, 0),
+            head=(10, 0, 0), jaw=(-8, 0, 0), ear_r=(-60, 0, 0), ear_l=(-60, 0, 0), tail_01=(-12, 0, 0))
+BITE.update(mirror({"upperarm_r": (30, 0, -10), "lowerarm_r": (-20, 0, 0), "hand_r": (40, 0, 0), "thigh_r": (40, 0, 0), "calf_r": (-60, 0, 0),
+                    "foot_r": (40, 0, 0)}))
+bite = Clip("bite")
+for f, (w, back, interp) in enumerate(((0, 0.0, "CONSTANT"), (28, 0.03, "CONSTANT"), (-30, 0.05, "CONSTANT"), (24, 0.02, "LINEAR"),
+                                       (0, 0.0, "CONSTANT"), (-26, 0.04, "CONSTANT"), (32, 0.05, "CONSTANT"), (0, 0.01, "LINEAR"))):
+    bite.key(f * 4, over(BITE, neck_01=(-14, 0, w * 0.5), neck_02=(-12, 0, w * 0.5), head=(10, w * 0.4, w * 0.3),
+                         root__loc=(0, -0.04 - back, -0.1), tail_01=(-12, 0, -w), spine_02=(4, 0, -w * 0.2)), interp)
+bite.close(32)
+
 kit.build()
-rig.bake(sk, [prowl, run, crouch, lunge, hit],
+rig.bake(sk, [prowl, run, crouch, lunge, hit, bite],
          plant=rig.feet_planter(sk, bones=("hand_l", "hand_r", "foot_l", "foot_r", "finger_l", "finger_r", "toe_l", "toe_r"),
-                                clips={"prowl", "crouch"}, lowest=0.014))
+                                clips={"prowl", "crouch", "bite"}, lowest=0.014))
 rig.export(rig.args()[0] if rig.args() else "cinder_hound.glb", kit)

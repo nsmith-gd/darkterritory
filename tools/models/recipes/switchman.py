@@ -11,7 +11,8 @@ A kitbash of three scans and the game's own lamp:
 
 2.0 m, as the statue stands. Rigged on its own pose (cook.rig_creature); the lantern on its own bone under the left hand
 so it hangs plumb and swings. Clips: wait (still as a statue but for the lantern swinging, and the head snapping round
-now and then, loop), flee (a lurching, dragging run, the hem swinging, loop). Replaces tools/blender's procedural one.
+now and then, loop), flee (a lurching, dragging run, the hem swinging, loop), grip (its hand on the lever, waiting to
+throw it under the train: the derail tell, loop), throw (the lever heaved over, and then dead still, watching, once). Replaces tools/blender's procedural one.
 
     python3 tools/models/fetch.py gk-hosmer threejs-leeperrysmith khronos-flighthelmet && tools/models/build.sh switchman
     SWITCH_PREVIEW=1 tools/models/build.sh switchman   # renders the assembled figure to out/review/switch-pose-*.png
@@ -273,6 +274,33 @@ flee.key(10, lurch[1], "LINEAR")
 flee.key(15, over(lurch[1], root__loc=(0, 0, 0.045)), "LINEAR")
 flee.close(20)
 
+# Grip (1.6 s, loop; the derailer's tell, COMMIT): its right hand down on the lever at its side and gripping, leant to
+# it, the arm locked; the hand trembling on it in pops, waiting for the train to be over the points; the head turned
+# a little to watch it come, and once, snapped round to it.
+GRIP = {"spine_02": (-8, 8, -8), "spine_03": (-4, 6, -6), "upperarm_r": (30, -24, 0), "lowerarm_r": (30, 0, 0), "hand_r": (10, 0, 0),
+        "head": (-6, 0, -10), "lantern": (4, 1, 0)}
+grip = Clip("grip")
+grip.key(0, GRIP, "CONSTANT")
+for f, k in ((6, 1), (8, -1), (10, 1), (14, 0), (26, 1), (27, -1), (28, 0)):
+    grip.key(f, over(GRIP, lowerarm_r=(36 + 2 * k, 0, 0), hand_r=(10 - 3 * k, 0, 0), spine_03=(-4, 4, -6 + k)), "CONSTANT")
+grip.key(36, over(GRIP, head=(-4, 0, -34)), "CONSTANT")
+grip.key(44, over(GRIP, head=(-4, 0, -34)), "CONSTANT")
+grip.key(45, GRIP, "CONSTANT")
+grip.close(48)
+
+# Throw (1 s, once; PUNISH, the points thrown: the train down the wrong road, or off the rails): the lever heaved over
+# from its side and across in front of it, the body twisting with it and leaning back into the pull; then dead still,
+# its hand still on it, the head cocked, watching what it's done.
+THROWN = {"spine_01": (2, -4, 10), "spine_02": (4, -6, 16), "spine_03": (6, -4, 14), "upperarm_r": (52, 18, 10), "lowerarm_r": (40, 0, 0),
+          "hand_r": (-10, 0, 0), "head": (-10, -14, -6), "neck": (0, 0, -8), "lantern": (-14, -4, 0)}
+throw = Clip("throw", loop=False)
+throw.key(0, GRIP, "CONSTANT")
+throw.key(4, over(GRIP, spine_02=(-12, 8, -14), upperarm_r=(18, -18, 0), lowerarm_r=(44, 0, 0)), "LINEAR")
+throw.key(9, THROWN, "LINEAR")
+throw.key(12, over(THROWN, spine_02=(6, -6, 18), lantern=(-22, -6, 0)), "BEZIER")
+throw.key(18, over(THROWN, lantern=(8, 2, 0)), "BEZIER")
+throw.key(30, THROWN, "BEZIER")
+
 rigid = {o: "lantern" for o in lantern + flame + links[-2:]}
 rigid.update({o: "hand_l" for o in links[:-2]})
-cook.rig_creature("switchman", parts, chain, [wait, flee], rigid=rigid)
+cook.rig_creature("switchman", parts, chain, [wait, flee, grip, throw], rigid=rigid)

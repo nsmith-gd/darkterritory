@@ -251,10 +251,12 @@ public sealed class GreyboxScene
                     // A Tippy Toesie faces who it's after (its Extra), and smothering them stands to them; a Ribbit faces
                     // its pack's mark, and its tongue goes to them; a Gaunt faces its waker; a Follower rides its carrier's
                     // back (Art/CreatureArt).
-                    // A feral Grumbler, who it's after: the nearest of them (who hit it is the host's alone).
+                    // A feral Grumbler, who it's after: the nearest of them (who hit it is the host's alone); a Soot Child's, the
+                    // one it's on (the nearest: it's at their feet).
                     var after = e.Kind is EnemyKind.TippyToesie or EnemyKind.Ribbit or EnemyKind.Choir or EnemyKind.Gaunt or EnemyKind.Follower && e.Extra >= 0
                         ? Crew?.FirstOrDefault(c => c.Id == (int)e.Extra)
-                        : e.Kind == EnemyKind.Grumbler && e.Phase >= SpinePhase.Commit && Crew is { } crew && crew.Any(c => c.Alive)
+                        : (e.Kind == EnemyKind.Grumbler && e.Phase >= SpinePhase.Commit || e.Kind == EnemyKind.SootChildren && e.Phase is SpinePhase.Grab or SpinePhase.Punish)
+                            && Crew is { } crew && crew.Any(c => c.Alive)
                             ? crew.Where(c => c.Alive).MinBy(c => (c.Feet - EnemyWorld(e, frames)).Length)
                             : null;
                     Art.CreatureArt.Prey? prey = after is { } victim
