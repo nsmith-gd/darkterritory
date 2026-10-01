@@ -895,7 +895,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     {
         // --draw m: how far along the line to build it (an aerial view of a stretch wants more than the cab's 400).
         DrawDistance = (float)Opt(args, "--draw", 400),
-        Tick = args.Contains("--muzzle") ? 101 : -1,
+        // (--shot-age s: that long after the guns fired, for the powder smoke rolling off, Effects.CannonShot.)
+        Tick = args.Contains("--muzzle") ? 100 + (long)Math.Round(Opt(args, "--shot-age", 1.0 / 30) * 30) : -1,
         Look = look,
         Route = route,
         Run = run,
@@ -911,6 +912,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             : Str(args, "--passenger", "") == "drag" ? [Staging.Dragged(train)] : null,
         Emergency = args.Contains("--emergency"),
         FireDoorOpen = args.Contains("--firedoor") || args.Contains("--stoker"),
+        // --spray: an extinguisher on every car fire, from the aisle (with --threats, the staged one: --view fire).
+        StagedSpray = args.Contains("--spray"),
+        // --derailed s: off the rails s seconds ago (its sparks, dust and boiler burst).
+        Derailed = args.Contains("--derailed"),
+        // --air ash|spores: a corrupted stretch's air, whatever the biome.
+        StagedAir = Str(args, "--air", "") is { Length: > 0 } air ? Enum.Parse<DarkTerritory.Game.Art.Effects.Air>(air, true) : null,
+        StagedDerailSeconds = Opt(args, "--derailed", 0.6),
         // --venting: the blow-off held open and the safety valve lifting (T101), their steam.
         Venting = args.Contains("--venting"),
         SafetyValve = args.Contains("--venting"),

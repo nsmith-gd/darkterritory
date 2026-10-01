@@ -87,6 +87,12 @@ public static class Views
             // and off its side, close, the whole of it.
             "cannon" => CannonCamera(train, side: false),
             "cannonside" => CannonCamera(train, side: true),
+            // (Not one of Names.) Down the aisle of the first cargo car at the face of its load, where the staged fire
+            // burns (dt screenshot --threats --view fire: Staging.Threats' car fire, Effects.CarFire).
+            "fire" => FireCamera(train),
+            // (Not one of Names.) Off the engine's side, up at the tender under a coaling tower's spout (dt screenshot
+            // --route tier:seed --coaling --view coaling: the chute pouring, Effects.CoalPour).
+            "coaling" => Camera.LookAt(engine.ToWorld(new Double3(9, 3.5, engineHalf - 1)), engine.ToWorld(new Double3(0, 5.5, engineHalf - 3)), 60),
             // On the plate behind the tender, looking up its gangway into the cab and at the ladder to the cab roof (T90).
             "gangway" => Camera.LookAt(engine.ToWorld(new Double3(-0.2, 2.9, engineHalf + 1.4)), engine.ToWorld(new Double3(-0.9, 0.6, engineHalf - 8)), 75),
             _ => throw new ArgumentException($"unknown view '{name}' (known: {string.Join(", ", Names)})"),
@@ -170,6 +176,14 @@ public static class Views
         var last = train.Frames[^1];
         double roof = last.Shape.RoofHeight;
         return Camera.LookAt(last.ToWorld(new Double3(1.6, roof + 2.2, -2)), last.ToWorld(new Double3(0, roof + 0.4, last.Shape.HalfLength - 2.5)), 60);
+    }
+
+    static Camera FireCamera(TrainOnLine train)
+    {
+        int v = Enumerable.Range(0, train.Vehicles.Count).FirstOrDefault(i => train.Vehicles[i].Kind == Sim.Train.VehicleKind.Cargo, 1);
+        var f = train.Frames[v];
+        double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 1.1;
+        return Camera.LookAt(f.ToWorld(new Double3(-0.55, floor + 1.6, 5.2)), f.ToWorld(new Double3(0.5, floor + 0.9, 1.5)), 70);
     }
 
     static Camera CannonCamera(TrainOnLine train, bool side)

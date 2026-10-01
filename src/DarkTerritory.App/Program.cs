@@ -773,6 +773,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
         scene.LampLit = session.World.LampShining;
         scene.Venting = session.Train.Boiler.Vented;
+        scene.Derailed = session.World.Derailed;
         scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;
         scene.Controls = session.Controls;
         if (!session.World.LampShining)

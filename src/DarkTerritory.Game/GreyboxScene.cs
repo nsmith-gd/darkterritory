@@ -222,6 +222,14 @@ public sealed class GreyboxScene
             // The art pass's effects (Art/Effects): smoke, steam, sparks, the lamp's beam, and fog banks along the line.
             Look.Art.Effects.Train(mesh, frames, eye, Time, Controls, FireGlow, Emergency, Venting, SafetyValve,
                 frames.Count == 0 ? default : Art.Bite.For(Look.Tuning.Bite, frames[^1].Shape, Vehicles is { } fleet && frames[^1].Index < fleet.Count ? fleet[frames[^1].Index] : null, frames[^1].Index));
+            // Derailed (GDD §14): timed from the frame the scene first saw it (presentation only; the sim just stops the train).
+            if (Derailed)
+            {
+                _derailedAt ??= Time - StagedDerailSeconds;
+                Look.Art.Effects.Derailment(mesh, frames, eye, Time - _derailedAt.Value);
+            }
+            else
+                _derailedAt = null;
             // The derailment's (T117): sparks, dust and the engine's steam.
             if (Wreck is { } wreck)
             {
@@ -232,6 +240,8 @@ public sealed class GreyboxScene
             Look.Art.Effects.Fog(mesh, line, eye, centre, Time, fog, (float)(Route?.Weather.FogDensity ?? 0.016));
             if (Route?.Weather is { Wet: true } weather)
                 Look.Art.Effects.Rain(mesh, eye, Time, (float)weather.Wind, fog);
+            // The air of a corrupted stretch: ash, spores (GDD §30).
+            Look.Art.Effects.Corruption(mesh, eye, Time, StagedAir ?? Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre)));
         }
         Lap(mesh, "effects");
         mesh.Seed = 0;
@@ -307,6 +317,7 @@ public sealed class GreyboxScene
                 }
             }
         }
+        Extinguishing(mesh, frames, eye);
         if (Crew is not null)
             foreach (var c in Crew)
                 if (c.Alive && Look?.Art.Crewmate(mesh, c, eye, Time) != true) // the dead are drawn as their bodies
@@ -314,6 +325,54 @@ public sealed class GreyboxScene
         if (Own is { } own)
             Look?.Art.OwnArms(mesh, own, Time);
         Lap(mesh, "bodies and crew");
+    }
+
+    /// <summary>Staged: the air to draw whatever the biome (dt screenshot --air ash|spores).</summary>
+    public Art.Effects.Air? StagedAir { get; set; }
+
+    /// <summary>The train's come off the rails (World.Derailed): its sparks, dust and burst boiler (Art/Effects.Derailment).</summary>
+    public bool Derailed { get; set; }
+
+    /// <summary>Staged: how long ago it derailed, when the scene is first built derailed (dt screenshot --derailed s).</summary>
+    public double StagedDerailSeconds { get; set; }
+
+    double? _derailedAt;
+
+    /// <summary>Staged: a spray onto every car fire, from the aisle (dt screenshot --spray), whoever's holding it.</summary>
+    public bool StagedSpray { get; set; }
+
+    // Each fire's intensity and when it last fell: an extinguisher's charge isn't replicated, but a fire going down with
+    // an extinguisher held near it is being sprayed (presentation only, held a moment so it doesn't blink between ticks).
+    readonly Dictionary<int, (double Extra, double Fell)> _fires = new();
+
+    /// <summary>Extinguishers at work (App. C.5), from what's replicated: a fire going down, an extinguisher carried within reach of it.</summary>
+    void Extinguishing(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye)
+    {
+        if (Look?.Art.Effects is not { HasFlames: true } fx || Enemies is null)
+            return;
+        foreach (var e in Enemies)
+        {
+            if (e.Kind != EnemyKind.CarFire || e.Gone || e.Attached < 0 || e.Attached >= frames.Count)
+                continue;
+            double fell = _fires.TryGetValue(e.Id, out var was) ? (e.Extra < was.Extra - 1e-9 ? Time : was.Fell) : double.NegativeInfinity;
+            _fires[e.Id] = (e.Extra, fell);
+            var car = frames[e.Attached];
+            var foot = car.ToWorld(e.Local + new Double3(-0.2, 0.5, 0)).RelativeTo(eye);
+            if (StagedSpray)
+                fx.Spray(mesh, car.ToWorld(e.Local + new Double3(-1.0, 1.0, 1.7)).RelativeTo(eye), foot, Time);
+            if (Time - fell > 0.4 || Bodies is null)
+                continue;
+            foreach (var b in Bodies)
+            {
+                if (b.Kind != Sim.Physics.BodyKind.Extinguisher || b.Carrier < 0)
+                    continue;
+                var held = HeldHere is { } h && b.Carrier == h.Player ? h.Hands
+                    : b.Parent >= 0 && b.Parent < frames.Count ? frames[b.Parent].ToWorld(b.Pbd.Particles[0].Position) : b.Pbd.Particles[0].Position;
+                var nozzle = held.RelativeTo(eye);
+                if ((nozzle - foot).Length() < 3.2f)
+                    fx.Spray(mesh, nozzle, foot, Time);
+            }
+        }
     }
 
     /// <summary>
@@ -1088,6 +1147,11 @@ public sealed class GreyboxScene
             return;
         // A curtain of coal from the spout onto whatever's under it, and dust lit by the tower's lamp.
         var top = t.Position + right * (f.Side * 0.4) + Double3.Up * 8.8;
+        if (Look?.Art.Effects is { HasFlames: true } fx)
+        {
+            fx.CoalPour(mesh, V(top, eye), ToF(right), ToF(t.Tangent), 5.4f, Time);
+            return;
+        }
         for (int i = 0; i < 24; i++)
         {
             double fall = (Time * 7 + i * 0.37) % 5.4;
@@ -1455,6 +1519,13 @@ public sealed class GreyboxScene
                 draw(Box.FromCentre(i.Position + new Double3(0, 0.55, -0.27), new Double3(0.32, 0.07, 0.02)), FireColour(0.1f + 0.5f * FireGlow) * 0.7f);
             }
             mesh.Emissive = 0;
+            // The door open, the art pass's fire: flames off the bed, cinders out of the hole, its light into the cab.
+            if (FireDoorOpen && Look?.Art.Effects is { HasFlames: true } fx)
+                foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
+                {
+                    var bed = frame.ToWorld(i.Position + new Double3(0, 0.6, -0.17)).RelativeTo(eye);
+                    fx.Furnace(mesh, bed, frame.Right.RelativeTo(default), frame.Up.RelativeTo(default), frame.Back.RelativeTo(default), FireGlow, FireColour(1), Time);
+                }
             // The vent valve and the driver's levers: modelled by the art pass where it has them (SceneArt.CabControls).
             bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls, WrenchRacked) == true;
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent && !modelled))
