@@ -47,6 +47,36 @@ public static class Staging
     }
 
     /// <summary>
+    /// The crew at work (X1, <c>dt screenshot --working</c>; their acts are <see cref="Art.CrewActs"/>' and the clips
+    /// crew_clips.py's): on car 2's roof one carrying a crate, one heaving at a hatch, one winding the brake wheel at its
+    /// end, one standing by with a crowbar; and on the last gun car, a gunner sat in the cannon's seat.
+    /// </summary>
+    public static List<Crewmate> Working(TrainOnLine train, string content)
+    {
+        var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
+        Crewmate At(byte id, int car, double x, double z, double yaw, Art.CrewPose? act, Sim.Player.Tool tool = Sim.Player.Tool.None)
+        {
+            var s = Sim.Player.PlayerMotor.SpawnOnRoof(train, car, z, player, x) with { Yaw = yaw };
+            return new Crewmate(id, Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true, Act: act, Holding: tool);
+        }
+        var crew = new List<Crewmate>
+        {
+            At(5, 2, -0.8, -5.2, Math.PI + 0.4, Art.CrewPose.Carry),
+            At(6, 2, 0.5, -6.6, Math.PI - 0.6, Art.CrewPose.Hatch),
+            At(7, 2, 0.2, -train.Frames[2].Shape.HalfLength + 0.6, 0.3, Art.CrewPose.Handbrake),
+            // Standing by with the crowbar (T108's hotbar), the tool in their fist.
+            At(9, 2, -0.3, -3.6, Math.PI - 0.2, null, Sim.Player.Tool.Crowbar),
+        };
+        int gun = Enumerable.Range(0, train.Vehicles.Count).LastOrDefault(i => train.Vehicles[i].HasGun, -1);
+        if (gun >= 0 && Sim.Combat.Guns.Mount(train, gun) is { } mount)
+        {
+            var s = Art.CrewActs.Seated(Sim.Player.PlayerMotor.SpawnOnRoof(train, gun, mount.Position.Z, player), mount);
+            crew.Add(new Crewmate(8, Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true, Act: Art.CrewPose.Gunner));
+        }
+        return crew;
+    }
+
+    /// <summary>
     /// The staged Ribbit pack as it goes (<c>dt screenshot --ribbits</c>): <c>hop</c> after crewmate 4 (alone on the ground
     /// off the train's left, <see cref="Lone"/>), <c>swell</c> lined up on them (App. A.6 TELEGRAPH), <c>tongue</c> on them
     /// (GRAB). Without a mode, they're as <see cref="Threats"/> has them.

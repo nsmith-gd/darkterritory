@@ -6,8 +6,8 @@ using DarkTerritory.Sim.Enemies;
 
 namespace DarkTerritory.Game.Art;
 
-/// <summary>What a crewmate is doing, for which clip their model plays.</summary>
-public enum CrewPose { Idle, Walk, Run, Climb, Shovel, Crouch, Dead }
+/// <summary>What a crewmate is doing, for which clip their model plays (the actions: tools/blender/crew_clips.py, note 145).</summary>
+public enum CrewPose { Idle, Walk, Run, Climb, Shovel, Crouch, Dead, Carry, CarryWalk, Drag, Door, Handbrake, Hatch, Uncouple, Vent, Lever, Push, Held, Gunner, Fall, Swing, Mend }
 
 /// <summary>
 /// The crew and the creatures as skinned models (content/art/models/*.glb, built by tools/blender/build.sh), posed
@@ -257,6 +257,10 @@ public sealed class CreatureArt
             if (!File.Exists(path))
                 continue;
             var model = ModelLoader.Load(path);
+            // Clips authored apart from the baked mesh (tools/blender/crew_clips.py: the crew's actions), on the same skeleton.
+            var extra = Path.Combine(ContentRoot, Folder, name + "_clips.glb");
+            if (File.Exists(extra))
+                model = ModelLoader.WithClips(model, ModelLoader.Load(extra));
             _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, WearOf.GetValueOrDefault(name, 0.5f)))]);
         }
     }
@@ -312,14 +316,14 @@ public sealed class CreatureArt
     /// by it), so a pulsing ember doesn't need an asset a frame.
     /// </summary>
     void Emit(MeshBuilder mesh, Entry m, string? clip, in Matrix4x4 at, int variant, float glow, float seed,
-        Func<ModelMaterial, MaterialLook, MaterialLook>? adjust = null)
+        Func<ModelMaterial, MaterialLook, MaterialLook>? adjust = null, bool arms = false)
     {
         var mats = m.Model.Materials;
         for (int i = 0; i < mats.Length; i++)
             m.Scratch[i] = adjust is null ? m.Looks[i] : adjust(mats[i], m.Looks[i]);
         var seedOffset = new Vector3(MathF.Sin(seed * 12.9898f), MathF.Sin(seed * 78.233f), MathF.Sin(seed * 37.719f)) * 97;
         var settings = new EmitSettings(variant % Math.Max(1, m.Model.VariantCount), clip, _texels, seedOffset);
-        mesh.Skinned(Bound(m, settings), at, m.Pose.Skin, glow, seedOffset * _texels);
+        mesh.Skinned(Bound(m, settings, arms), at, m.Pose.Skin, glow, seedOffset * _texels);
     }
 
     // The bind-pose assets, by model, the parts drawn and the looks (keyed to 1/128th: a hull heating as it's drilled
@@ -328,7 +332,7 @@ public sealed class CreatureArt
     readonly Dictionary<(Model Model, ulong Parts, int Looks), (MaterialLook[] Looks, MeshAsset Asset)> _bound = new();
     const int MaxBound = 384;
 
-    MeshAsset Bound(Entry m, in EmitSettings settings)
+    MeshAsset Bound(Entry m, in EmitSettings settings, bool arms = false)
     {
         ulong parts = 0;
         for (int i = 0; i < m.Model.Parts.Length; i++)
@@ -337,12 +341,15 @@ public sealed class CreatureArt
         var hash = new HashCode();
         foreach (var l in m.Scratch)
             hash.Add(Quantised(l));
+        hash.Add(arms);
         var key = (m.Model, parts, hash.ToHashCode());
         if (_bound.TryGetValue(key, out var hit) && Same(hit.Looks, m.Scratch))
             return hit.Asset;
         if (_bound.Count >= MaxBound)
             _bound.Clear();
         var asset = Skinner.Bind(m.Model, m.Scratch, settings, m.Model.Name);
+        if (arms)
+            asset = ArmsOf(m.Model, asset);
         _bound[key] = ([.. m.Scratch], asset);
         return asset;
     }
@@ -391,6 +398,21 @@ public sealed class CreatureArt
         CrewPose.Shovel => "shovel",
         CrewPose.Crouch => "crouch_idle",
         CrewPose.Dead => "dead",
+        CrewPose.Carry => "carry",
+        CrewPose.CarryWalk => "carry_walk",
+        CrewPose.Drag => "drag",
+        CrewPose.Door => "door",
+        CrewPose.Handbrake => "handbrake",
+        CrewPose.Hatch => "hatch",
+        CrewPose.Uncouple => "uncouple",
+        CrewPose.Vent => "vent",
+        CrewPose.Lever => "lever",
+        CrewPose.Push => "push",
+        CrewPose.Held => "held",
+        CrewPose.Gunner => "gunner",
+        CrewPose.Fall => "fall",
+        CrewPose.Swing => "swing",
+        CrewPose.Mend => "mend",
         _ => "idle",
     };
 
@@ -402,23 +424,109 @@ public sealed class CreatureArt
     /// <param name="left">A headset player's left hand (T47), in the model's space (from the feet: x right, y up, z behind),
     /// or null to leave the arm to the clip; likewise <paramref name="right"/>. The arm reaches it by two-bone IK on the
     /// model's own shoulder and arm lengths, the elbow bent toward <paramref name="leftPole"/>/<paramref name="rightPole"/>.</param>
+    /// <param name="inHand">The tool in their right fist (T108's hotbar; tools/models hand_tools), or null for empty hands.
+    /// Put away for the two-handed work (it would be through the crate, the wheel, the gun).</param>
     public bool Crewmate(MeshBuilder mesh, in Matrix4x4 model, CrewPose pose, double time, int variant,
-        Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default)
+        Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default, MeshAsset? inHand = null)
     {
         // Each crewmate breathes and steps on their own beat: a fixed offset by variant, not a random one.
         double offset = (variant & 7) * 0.41;
         string clip = ClipOf(pose);
+        // A build without crew_clips.glb (or an older one, short of a clip) stands them idle rather than in the greybox.
+        if (_models.TryGetValue("crew", out var has) && !has.Model.Clips.ContainsKey(clip))
+            clip = "idle";
         var Paint = PaintOf(variant);
-        if (left is null && right is null)
-            return Draw(mesh, "crew", clip, time + offset, pose != CrewPose.Dead, model, variant, seed: variant, adjust: Paint);
         if (!_models.TryGetValue("crew", out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
-        _skinner.Evaluate(m.Model, c, time + offset, pose != CrewPose.Dead, m.Pose);
+        _skinner.Evaluate(m.Model, c, time + offset, pose is not (CrewPose.Dead or CrewPose.Swing), m.Pose);
         if (left is { } l)
             Reach(m, "l", l, leftPole);
         if (right is { } r)
             Reach(m, "r", r, rightPole);
         Emit(mesh, m, clip, model, variant, 1, variant, Paint);
+        if (inHand is not null && OneHanded(pose))
+            mesh.Append(inHand, ToolGrip * Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model));
+        return true;
+    }
+
+    /// <summary>What a crewmate can do with a tool still in their fist: get about, crouch, fall, swing it, mend with it.</summary>
+    static bool OneHanded(CrewPose pose) =>
+        pose is CrewPose.Idle or CrewPose.Walk or CrewPose.Run or CrewPose.Crouch or CrewPose.Fall or CrewPose.Swing or CrewPose.Mend or CrewPose.Door;
+
+    /// <summary>
+    /// A hand tool's axes (tools/models hand_tools: its haft along −Z through the fist, its face up +Y) onto the
+    /// hand_r_weapon socket's (its +Y out of the fist's thumb side, along the haft the crew's shovel takes; its −X the
+    /// back of the hand), tipped down by <see cref="ToolDroop"/> the way a wrist lets a bar hang.
+    /// </summary>
+    static readonly Matrix4x4 ToolGrip = Matrix4x4.CreateRotationX(ToolDroop) * new Matrix4x4(0, 0, 1, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 1);
+
+    /// <summary>How far a held tool's head drops from square to the fist (rad).</summary>
+    const float ToolDroop = -0.6f;
+
+    // ----------------------------------------------------------------------------------------------------------------
+    // Your own arms (X3)
+
+    /// <summary>The bones whose skin is drawn as your own arms: the coat's cuffs down, the gloves.</summary>
+    static readonly string[] ArmBones = ["lowerarm_l", "lowerarm_r", "hand_l", "hand_r", "fingers_l", "fingers_r", "thumb_l", "thumb_r"];
+
+    /// <summary>The eye over the head bone's root (m, model space: the mask's eyepieces, crew_clips.py's EYE).</summary>
+    static readonly Vector3 EyeOverHead = new(0, 0.1f, -0.09f);
+
+    /// <summary>
+    /// The crew mesh cut down to its forearms and hands (each triangle whose corners all hang mostly from an arm bone), so
+    /// the first-person arms are the crew's own sleeves and gloves and nothing of the body round the eye gets in the way.
+    /// </summary>
+    static MeshAsset ArmsOf(Model model, MeshAsset whole)
+    {
+        var keep = new HashSet<int>(ArmBones.Select(model.Skeleton.IndexOf).Where(b => b >= 0));
+        var skin = whole.Skin!;
+        static int Main(in SkinWeights w) =>
+            (int)(w.Weights.X >= w.Weights.Y && w.Weights.X >= w.Weights.Z && w.Weights.X >= w.Weights.W ? w.Joints.X
+                : w.Weights.Y >= w.Weights.Z && w.Weights.Y >= w.Weights.W ? w.Joints.Y
+                : w.Weights.Z >= w.Weights.W ? w.Joints.Z : w.Joints.W);
+        var v = new List<Vertex>();
+        var k = new List<SkinWeights>();
+        for (int t = 0; t + 2 < whole.Vertices.Length; t += 3)
+            if (keep.Contains(Main(skin[t])) && keep.Contains(Main(skin[t + 1])) && keep.Contains(Main(skin[t + 2])))
+                for (int c = 0; c < 3; c++)
+                {
+                    v.Add(whole.Vertices[t + c]);
+                    k.Add(skin[t + c]);
+                }
+        return new MeshAsset(whole.Name + ".arms", [.. v], [.. k]);
+    }
+
+    /// <summary>
+    /// Your own forearms and hands as you see them (X3), drawn round the eye at the mesh's origin: the crew's own sleeves
+    /// and gloves (<see cref="ArmsOf"/>), so what you see of yourself is what the others see of you. At work (an
+    /// <paramref name="act"/>: shovelling, carrying, a wheel) the arms do what that act's clip has them do, in the world;
+    /// with a tool in hand they hold it up in view and follow your look (crew_clips.py's fp_hold and fp_walk), and a
+    /// <paramref name="swing"/> (seconds into one, or negative) is its blow (fp_swing). Hands empty at your sides, nothing
+    /// is in view, so nothing's drawn. False without the model.
+    /// </summary>
+    /// <param name="yaw">The body's facing (rad; 0 looks along −Z).</param>
+    /// <param name="pitch">The look's (rad; up positive): the held tool follows it, the work doesn't.</param>
+    public bool OwnArms(MeshBuilder mesh, float yaw, float pitch, CrewPose? act, bool moving, double swing, double time, int variant,
+        MeshAsset? inHand = null)
+    {
+        if (!_models.TryGetValue("crew", out var m))
+            return false;
+        bool working = act is { } a && a is not (CrewPose.Idle or CrewPose.Walk or CrewPose.Run or CrewPose.Crouch);
+        (string clip, double t, bool loop, bool follow) = swing >= 0 ? ("fp_swing", swing, false, true)
+            : working ? (ClipOf(act!.Value), time, act != CrewPose.Swing, false)
+            : inHand is not null ? (moving ? "fp_walk" : "fp_hold", time, true, true)
+            : ("", 0, true, false);
+        if (clip.Length == 0)
+            return true;
+        if (!m.Model.Clips.TryGetValue(clip, out var c))
+            return false;
+        _skinner.Evaluate(m.Model, c, t, loop, m.Pose);
+        int head = m.Model.Skeleton.IndexOf("head");
+        var eye = (head >= 0 ? m.Pose.World[head].Translation : new Vector3(0, 1.58f, -0.01f)) + EyeOverHead;
+        var at = Matrix4x4.CreateTranslation(-eye) * (follow ? Matrix4x4.CreateRotationX(pitch) : Matrix4x4.Identity) * Matrix4x4.CreateRotationY(yaw);
+        Emit(mesh, m, clip, at, variant, 1, variant, PaintOf(variant), arms: true);
+        if (inHand is not null && (follow || act is { } held && OneHanded(held)))
+            mesh.Append(inHand, ToolGrip * Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", at));
         return true;
     }
 
