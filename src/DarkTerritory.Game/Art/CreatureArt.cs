@@ -1171,11 +1171,12 @@ public sealed class CreatureArt
                 }
             case EnemyKind.Choir when _models.ContainsKey("choir"):
                 {
-                    // One of the Choir's ghosts (GDD v1.2 §21, App. A.7; tools/blender/choir.py): a choir child in a filthy
-                    // surplice, legless, its strips streaming, its jaw dropped in a silent O. The voices arriving (TELEGRAPH)
-                    // it drifts, circling, singing; after someone (COMMIT, extra its target) it swoops at them, and with
-                    // nobody to take it beats on the shut doors; seizing (GRAB) it's wrapped round its catch's head. It
-                    // bobs; the faint cold about it is all the light it has (§26: not neon).
+                    // One of the Choir's ghosts (GDD v1.2 §21, App. A.7; tools/blender/choir.py; note 132): a bell of veined
+                    // membrane drifting like a jellyfish, one child's mouth on its front held open singing, its tendrils
+                    // trailing. The voices arriving (TELEGRAPH) it drifts, pulsing, singing; after someone (COMMIT, extra
+                    // its target) it swoops at them, and with nobody to take it presses to the shut doors lashing at them;
+                    // seizing (GRAB) it's capped on its catch's head, the tendrils wound round it. It bobs; the faint cold
+                    // about it is all the light it has (§26: not neon).
                     _prey = null;
                     var at = Matrix4x4.CreateTranslation(0, (float)(0.12 * Math.Sin(t * 2.3 + extra2)), 0) * model;
                     string clip = phase switch

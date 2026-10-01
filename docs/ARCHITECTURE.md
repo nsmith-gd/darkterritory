@@ -2356,3 +2356,14 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `run` snakes it away with its legs in waves.
     - **No leg IK.** The legs are posed relative to their segment, so a coiled or reared body carries them with it.
     - **`centred` and `grounded`.** Each pose is set over the gap's middle and onto the rail (`root@loc`), so the old origin contract still holds. `WhistlerTests` keep their measures unchanged: folded under the 1.1 m plate, whistling over a crewmate's head on it, its front turned to the eye.
+
+132. **The Choir are no longer children (GDD v1.2 §21, App. A.7).** Each ghost was a choir child in a surplice: SK_Human at a child's size. Now each is a bell of membrane the size of a child's chest, drifting the way a jellyfish drifts (`tools/blender/choir.py`, baked by `tools/models/recipes/choir.py`, 2,570 triangles, 54 bones, SK_Choir).
+    - **The bell.** A dead blue-grey hood, the veins dark in it, with a ruffled skirt round its rim. Three frilled curtains hang under it, and six tendrils over a metre long. It has no eyes and one mouth, a child's, on its front. The grey lips are held open in a singing O round small milk teeth and a black throat. That is the voice.
+    - **The clips keep their names and their jobs.**
+      - `drift` pulses slowly, two beats; it rises on each squeeze, the tendrils trailing in waves. Once it snaps round to face you.
+      - `swoop` tips mouth-first into the flight, pulsing fast, its tendrils streamed back.
+      - `seize` settles on its catch's head like a cap, the tendrils wound round the skull and down the neck, its mouth turned to their ear. The sim has it 1.4 m over their feet, so the bell drops 0.5 m to sit on their head.
+      - `besiege` presses it to a shut door, its tendrils thrown at it and slapping down it in bursts.
+    - **The pulse.** It's the bell's scale (contracted: narrower and taller) and the rim flaps curling in about their tangents.
+    - **The tendrils and curtains are aimed bone by bone along a curve** (`aim_along`): each bone points at the curve where it's a bone's length on, never back up it. So they can trail, stream, lash and wind round a head without IK.
+    - **The bell rides higher** (its middle 1.15 m over the origin), so the tendrils hang clear of whatever it's over.
