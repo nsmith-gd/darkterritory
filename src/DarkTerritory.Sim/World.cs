@@ -394,7 +394,8 @@ public sealed class World
                 best = e;
             }
         }
-        best?.Struck(ctx, playerId, t.Damage);
+        // With a tool a blow; empty-handed (a slot picked with nothing in it) a fraction of one (T108).
+        best?.Struck(ctx, playerId, t.Blow(Player.Kit.Held(s)));
     }
 
     /// <summary>Starts a tick: clears last tick's shots and events.</summary>

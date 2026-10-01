@@ -22,7 +22,8 @@ public sealed class GameAudio
     readonly List<(double At, Double3 Position, float Volume)> _slack = new();
     readonly List<SoundInstance> _choir = new();
     readonly Pcg32Ish _rng = new(20260929);
-    SoundInstance? _roar, _chuff, _brake, _wind, _valve;
+    SoundInstance? _roar, _chuff, _brake, _wind, _valve, _strain, _vent;
+    bool _wasRuptured;
     double _time, _lastAccel;
     int _space = PlayerMotor.Outside;
 
@@ -160,6 +161,40 @@ public sealed class GameAudio
             _valve.Stop();
             _valve = null;
         }
+
+        // T109: the boiler in the red, straining louder and higher towards the rupture; the vent's roar while it's held; and
+        // the rupture itself, once.
+        var boiler = train.Boiler;
+        double strain = bt is null || boiler.Ruptured || boiler.Pressure < bt.Redline ? 0
+            : 0.6 * Math.Clamp((boiler.Pressure - bt.Redline) / Math.Max(1, bt.PressureMax - bt.Redline), 0, 1) + 0.4 * Math.Clamp(boiler.AtMaxSeconds / bt.RuptureHoldSeconds, 0, 1);
+        if (strain > 0)
+        {
+            _strain ??= Mixer.Play("boiler-strain");
+            if (_strain is not null)
+            {
+                _strain.Position = engine.ToWorld(new Double3(0, 3.2, -engine.Shape.HalfLength * 0.3));
+                _strain.Params.Set("strain", strain);
+            }
+        }
+        else if (_strain is not null)
+        {
+            _strain.Stop();
+            _strain = null;
+        }
+        if (boiler.Vented && !boiler.Ruptured)
+        {
+            _vent ??= Mixer.Play("vent-hiss");
+            if (_vent is not null)
+                _vent.Position = engine.ToWorld(new Double3(0, 4.0, -engine.Shape.HalfLength * 0.6));
+        }
+        else if (_vent is not null)
+        {
+            _vent.Stop();
+            _vent = null;
+        }
+        if (boiler.Ruptured && !_wasRuptured && Mixer.Play("boiler-burst") is { } burst)
+            burst.Position = engine.ToWorld(new Double3(0, 2.6, -engine.Shape.HalfLength * 0.4));
+        _wasRuptured = boiler.Ruptured;
 
         // Slack action: a change in pull runs down the consist as one clunk per coupling (spec A.2, A.7).
         double accel = d.Acceleration;

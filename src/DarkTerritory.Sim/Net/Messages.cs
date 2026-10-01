@@ -8,7 +8,7 @@ namespace DarkTerritory.Sim.Net;
 /// <summary>Bump when any message's layout changes: a lobby on another protocol is refused before connecting.</summary>
 public static class Protocol
 {
-    public const int Version = 1;
+    public const int Version = 2;
 }
 
 public enum MessageType : byte
@@ -70,10 +70,14 @@ public static class Messages
         // The top bit says a watched crewmate follows (App. D.10), so only the dead pay for it.
         w.U8((byte)((i.ThrottleNotch & 0x1F) | ((byte)i.Lamp & 3) << 5 | (i.Watch != 0 ? 0x80 : 0)));
         // v1.1's second byte of buttons, and the voice level the loudness meter hears (App. C.7).
-        w.U8((byte)i.Actions);
+        bool tool = i.Select != 0 || i.Cycle != 0;
+        w.U8((byte)(tool ? i.Actions | PlayerActions.Tool : i.Actions & ~PlayerActions.Tool));
         w.U8(i.Voice);
         if (i.Watch != 0)
             w.U8(i.Watch);
+        // A hotbar choice (T108), only on the tick it's made: the slot in the low nibble, the wheel's step in the high.
+        if (tool)
+            w.U8((byte)((i.Select & 0x0F) | (i.Cycle > 0 ? 0x10 : i.Cycle < 0 ? 0x20 : 0)));
         // A reaching hand (T29) in centimetres, only when there is one: keyboards and bots send nothing more.
         if (i.Has(PlayerButtons.Hand))
         {
@@ -110,6 +114,13 @@ public static class Messages
         i.Voice = r.U8();
         if ((notch & 0x80) != 0)
             i.Watch = r.U8();
+        if (i.Has(PlayerActions.Tool))
+        {
+            byte t = r.U8();
+            i.Select = (byte)(t & 0x0F);
+            i.Cycle = (sbyte)((t & 0x10) != 0 ? 1 : (t & 0x20) != 0 ? -1 : 0);
+            i.Actions &= ~PlayerActions.Tool;
+        }
         if (i.Has(PlayerButtons.Hand))
         {
             i.HandX = r.I16() / 100f;

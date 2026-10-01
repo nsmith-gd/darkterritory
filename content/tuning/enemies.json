@@ -52,7 +52,9 @@
   "grab": { "pullReach": 1.6, "soloStruggleOn": true, "soloStruggle": 6 },
 
   // App. C.2 melee with train tools: any tool (shovel, bar, lamp) swings; a blow is 1 health. Enemy health below is in blows.
-  "melee": { "reach": 2.2, "coneDegrees": 70, "swingSeconds": 0.8, "damage": 1 },
+  // T108: the tools are the shovel, wrench and crowbar (GDD §1322), carried on the hotbar; with nothing in hand, a fist does
+  // barehanded of a blow.
+  "melee": { "reach": 2.2, "coneDegrees": 70, "swingSeconds": 0.8, "damage": 1, "barehanded": 0.25 },
 
   // TRACK DOLL · sight · forward (App. A.2, B.2). Revealed in the lamp at lampRevealDistance, or in the dark only this close.
   // Stopped (below stoppedBelow m/s) short of it: gone for the run. Hit: it haunts. Cornered (players within cornerWithin at

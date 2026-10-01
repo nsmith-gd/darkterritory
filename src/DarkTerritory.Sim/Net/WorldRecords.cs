@@ -81,7 +81,7 @@ public static class WorldRecords
         [
             Q(b.Pressure, Fine), Q(b.Firebox, Fine), Q(b.Tender, Fine), Q(b.AtMaxSeconds, Fine), Q(b.LowFireSeconds, Fine),
             Q(b.ExternalHeat, Fine), Q(b.Efficiency, Fine),
-            (b.Ruptured ? 1 : 0) | (b.SafetyValveLifting ? 2 : 0) | (b.SafetyValveJammed ? 4 : 0) | (b.FireDoorOpen ? 8 : 0) | (b.Vented ? 16 : 0),
+            (b.Ruptured ? 1 : 0) | (b.SafetyValveLifting ? 2 : 0) | (b.SafetyValveJammed ? 4 : 0) | (b.FireDoorOpen ? 8 : 0) | (b.Vented ? 16 : 0) | (b.WrenchOut ? 32 : 0),
             // The door's swing-shut clock: without it the host's own snap back onto the grid zeroed it every tick, and the
             // door never shut.
             Q(Math.Min(b.SinceShovel, 60), Fine),
@@ -157,6 +157,8 @@ public static class WorldRecords
                 Q(s.Cold, Fine), (long)s.Flags, s.Placed,
                 // A VR player's hands, on the centimetre grid they came in on (T47): the rest of the crew see their arms.
                 Q(s.Hand.X, Cm), Q(s.Hand.Y, Cm), Q(s.Hand.Z, Cm), Q(s.OtherHand.X, Cm), Q(s.OtherHand.Y, Cm), Q(s.OtherHand.Z, Cm),
+                // The hotbar (T108): what they carry, and which is in hand.
+                (long)s.Kit, s.HeldSlot,
             ]));
         }
         list.Sort((a, c) => a.Key.CompareTo(c.Key));
@@ -239,6 +241,7 @@ public static class WorldRecords
                         SafetyValveLifting = (f[7] & 2) != 0,
                         SafetyValveJammed = (f[7] & 4) != 0,
                         FireDoorOpen = (f[7] & 8) != 0,
+                        WrenchOut = (f[7] & 32) != 0,
                         Vented = (f[7] & 16) != 0,
                         SinceShovel = f.Length > 8 ? D(f[8], Fine) : 0,
                     };
@@ -440,6 +443,8 @@ public static class WorldRecords
             Placed = (byte)f[16],
             Hand = f.Length > 22 ? new Double3(D(f[17], Cm), D(f[18], Cm), D(f[19], Cm)) : default,
             OtherHand = f.Length > 22 ? new Double3(D(f[20], Cm), D(f[21], Cm), D(f[22], Cm)) : default,
+            Kit = f.Length > 24 ? (ulong)f[23] : 0,
+            HeldSlot = f.Length > 24 ? (byte)f[24] : (byte)0,
         });
     }
 

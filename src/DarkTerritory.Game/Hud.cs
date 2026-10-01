@@ -55,12 +55,35 @@ public static class Hud
             o.TextCentred(width / 2f, height - 42, prompt, Ink);
         }
         Night(o, height, s, line);
+        if (p.Alive)
+            Hotbar(o, width, height, p, line);
         if (p.Alive && crosshair)
         {
             // A small cross, for aiming and for "what am I looking at".
             float cx = width / 2f, cy = height / 2f;
             o.Rect(cx - 2, cy, 5, 1, Ink with { W = 0.55f });
             o.Rect(cx, cy - 2, 1, 5, Ink with { W = 0.55f });
+        }
+    }
+
+    /// <summary>
+    /// The hotbar (T108), bottom right: each slot with a tool in it, by its number key, the one in hand lit; an empty slot
+    /// picked shows as hands. The wheel steps through the tools.
+    /// </summary>
+    static void Hotbar(Overlay o, int width, int height, PlayerState p, int line)
+    {
+        var slots = Enumerable.Range(0, Kit.Slots).Where(i => Kit.At(p.Kit, i) != Tool.None || i == p.HeldSlot).ToList();
+        float x = width - 4, y = height - line - 8;
+        for (int k = slots.Count - 1; k >= 0; k--)
+        {
+            int i = slots[k];
+            var tool = Kit.At(p.Kit, i);
+            string label = $"{i + 1} {(tool == Tool.None ? "HANDS" : tool.ToString().ToUpperInvariant())}";
+            float w = o.Font.Measure(label) + 8;
+            x -= w + 2;
+            bool held = i == p.HeldSlot;
+            o.Rect(x, y, w, line + 4, held ? Amber with { W = 0.35f } : Panel);
+            o.Text(x + 4, y + 2, label, held ? Ink : Dim);
         }
     }
 
@@ -275,6 +298,22 @@ public static class Hud
             Small($"COLD: {Math.Max(0, s.PlayerTuning.Cold.DeathSeconds - p.Cold):0}S. GET INSIDE", p.Cold > s.PlayerTuning.Cold.DeathSeconds - 30 ? Red : Amber);
         if (world.Derailed)
             Big("DERAILED", Red);
+        // T109 playtest ("feedback for the player to understand in multiple ways that pressure is too high"): the boiler in
+        // the red, pinned at the top (the spec's 20 s to a rupture, counting), and ruptured.
+        if (p.Alive && world.Train.BoilerTuning is { } bt)
+        {
+            var b = world.Train.Boiler;
+            bool flash = world.Tick / 10 % 2 == 0;
+            if (b.Ruptured)
+            {
+                Big("BOILER RUPTURED", Red);
+                Small(b.WrenchOut ? "MEND IT AT THE FIREBOX WITH THE WRENCH" : "THE WRENCH IN THE CAB RACK MENDS IT, AT THE FIREBOX", Ink);
+            }
+            else if (b.AtMaxSeconds > 0)
+                Big($"VENT! RUPTURE IN {Math.Max(0, bt.RuptureHoldSeconds - b.AtMaxSeconds):0}S", flash ? Red : Amber);
+            else if (b.Pressure >= bt.Redline)
+                Small("PRESSURE IN THE RED: VENT, OR LET THE FIRE BURN DOWN", flash ? Red : Amber);
+        }
     }
 
     /// <summary>The player's keys (T80), for the prompts: the app sets them from the settings.</summary>
@@ -340,14 +379,23 @@ public static class Hud
                 : "LOOK DOWN AT THE COUPLER TO CUT IT";
         switch (near)
         {
+            // A ruptured boiler (T109): mended here with the wrench in hand, and only so.
+            case InteractableKind.Firebox when PlayerMotor.InCab(p, train) && train.Boiler.Ruptured && train.BoilerTuning is { } rt:
+                return Kit.Held(p) == Tool.Wrench ? $"[E] HOLD: MEND THE BOILER ({p.ActionProgress / rt.RepairSeconds * 100:0}%)"
+                    : Kit.Has(p.Kit, Tool.Wrench) ? "BOILER RUPTURED: THE WRENCH IN HAND TO MEND IT"
+                    : "BOILER RUPTURED: THE WRENCH IS IN ITS RACK, RIGHT SIDE OF THE CAB";
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train):
                 return p.Hand != default && !p.Has(PlayerFlags.Shovelful) ? "SHOVEL COAL: FILL IT AT THE TENDER FIRST" : "[E] HOLD: SHOVEL COAL (FASTER)";
             // Only a reaching hand finds the coal face (T29).
             case InteractableKind.Coal when PlayerMotor.InCab(p, train):
                 return p.Has(PlayerFlags.Shovelful) ? "SHOVEL FULL: INTO THE FIREBOX" : "GRIP: COAL ON THE SHOVEL";
-            // T97: out by the smokebox, venting is how the train's slowed (steam sets its speed).
-            case InteractableKind.Vent when p.Parent == 0 && p.Surface == Surface.Deck:
+            // T97: venting is how the train's slowed (steam sets its speed); T109, in the cab.
+            case InteractableKind.Vent when PlayerMotor.InCab(p, train):
                 return "[E] HOLD: VENT STEAM (SLOWER)";
+            // T109: the engineering kit's rack.
+            case InteractableKind.ToolRack when PlayerMotor.InCab(p, train):
+                return Kit.Held(p) == Tool.Wrench ? "[E] PUT THE WRENCH BACK" : train.Boiler.WrenchOut ? "THE WRENCH IS OUT"
+                    : "[E] TAKE THE WRENCH (MENDS THE BOILER)";
             case InteractableKind.Handbrake when p.Surface == Surface.Roof:
                 return "[E] HOLD: HANDBRAKE";
             // T99: a cargo car's roof hatch, for the crane to lower a casting in through.

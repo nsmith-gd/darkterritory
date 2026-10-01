@@ -669,7 +669,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     /// <summary>How far behind the train's rear a crewmate on the ground has to be to count as left behind (m).</summary>
     const double LeftBehind = 20;
     /// <summary>How far the driver will set back for one, at most (m), and at what speed (m/s).</summary>
-    const double SetBackFor = 1500, SetBackSpeed = 2.5;
+    const double SetBackFor = 1500, SetBackSpeed = StopDriver.SetBackTop;
 
     /// <summary>
     /// T96 (playtest: "if I get off the train it never stops for me"): a crewmate left on the ground behind the train while
@@ -809,6 +809,8 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
                         : WatchTheRoad(world, Drive(train, tick, MindingCruise(world), 0.5));
                     return KeepClear(self, world, Work(self, train, minding), -1);
                 }
+                if (Mend(self, world) is { } mendingToo)
+                    return mendingToo;
                 if (FightStoker(self, world) is { } fightingToo)
                     return fightingToo with { Buttons = fightingToo.Buttons & ~PlayerButtons.Brake, ThrottleNotch = 0 };
                 // T106: fired for the speed the line allows here, not the open-line cruise: under a board, steam fired for 14 m/s
@@ -839,6 +841,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         // (every blow burns: it's done while there's health to spare for it, and the brake holds the runaway meanwhile).
         if (FightStoker(self, world) is { } fighting)
             return fighting with { Lamp = lamp };
+        // A ruptured boiler (T109): the wrench from its rack, and mended at the firebox; the train coasts meanwhile.
+        if (Mend(self, world) is { } mending)
+            return mending with { Lamp = lamp };
         // On a generated line, no faster than its authority allows here (linegen plan §9, §16.1): what the boards say.
         double cruise = world.LampShining ? CruiseSpeed : DarkCruiseSpeed;
         // The Track Doll on the rail ahead in the lamp (v1.1 App. A.2): stop before you hit the doll. Braking to a stand
@@ -1067,19 +1072,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     /// <summary>The way to the blow-off, in the engine's frame: in the left doorway, out onto the board, along it, at the cock.</summary>
     static Double3[] VentWay(TrainOnLine train)
     {
-        var g = train.Dynamics.Tuning.Geometry;
-        var e = g.Engine;
-        double w = g.RoofWidth / 2, l = g.EngineLength / 2;
-        double cabBack = l - e.TenderLength, cabFront = cabBack - e.CabLength, doorFront = cabBack - g.Doorway.Width;
-        double outside = w + Math.Min(0.32, e.RunningBoardWidth / 2);
         var vent = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Vent).Position;
-        return
-        [
-            new(-(w - 0.35), e.DeckHeight, doorFront + 0.3),
-            new(-outside, e.DeckHeight, doorFront + 0.3),
-            new(-outside, e.DeckHeight, cabFront - 0.3),
-            new(-outside, e.DeckHeight, vent.Z),
-        ];
+        // T109: the vent's in the cab, on its left side: a step across to it.
+        return [vent with { X = vent.X + 0.25 }];
     }
 
     /// <summary>The way to the right-hand sandbox, in the engine's frame: in the doorway, out onto the board, along it, at the box.</summary>
@@ -1154,6 +1149,33 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     const int StokerHealth = 40;
 
     /// <summary>At its own side of the firebox door, facing it, swinging, with the brake held: null if there's no Stoker to fight.</summary>
+    /// <summary>
+    /// T109: the boiler's ruptured. In the cab, take the engineering kit (the wrench) from its rack, have it in hand, and hold
+    /// it at the firebox till it's mended. There's one wrench: whoever of the driver and fireman has it does it, and the
+    /// other goes on as before. Null when there's nothing to mend, or it's someone else's to.
+    /// </summary>
+    PlayerIntent? Mend(in PlayerState self, World world)
+    {
+        var train = world.Train;
+        if (!train.Boiler.Ruptured || !self.Alive || !PlayerMotor.InCab(self, train))
+            return null;
+        var shape = train.Frames[0].Shape;
+        if (Kit.Held(self) == Tool.Wrench)
+        {
+            var firebox = shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
+            var (step, there) = WarmUp.Steer(self, new Double3((Fireman ? -1 : 1) * FiringSide, 0, firebox.Z + FiringBack), 0);
+            return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
+        }
+        for (int i = 0; i < Kit.Slots; i++)
+            if (Kit.At(self.Kit, i) == Tool.Wrench)
+                return new PlayerIntent { Select = (byte)(i + 1) };
+        if (train.Boiler.WrenchOut)
+            return null;
+        var rack = shape.Interactables.First(i => i.Kind == InteractableKind.ToolRack).Position;
+        var (toRack, atRack) = WarmUp.Steer(self, rack with { X = rack.X - 0.25 }, -Math.PI / 2);
+        return atRack ? new PlayerIntent { Buttons = PlayerButtons.Use } : toRack;
+    }
+
     PlayerIntent? FightStoker(in PlayerState self, World world)
     {
         var train = world.Train;

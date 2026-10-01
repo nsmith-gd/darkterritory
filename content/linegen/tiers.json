@@ -33,7 +33,10 @@
 
   // Plan §8.5: derails at sqrt(aDerail R), posted at floor(sqrt(aPost R)). §8.1: a clothoid of max(40 m, v^2 / (0.5 R)),
   // clamped to what the track kit bends to.
-  "curves": { "aDerail": 1.0, "aPost": 0.7, "transitionMinM": 40, "transitionSpeedFactor": 0.5, "transitionMaxM": 240 },
+  // T111 playtest ("curves should have signs that label their top speed before they derail"): the line speed isn't a
+  // governor (steam drives the speed, T97, up to train.json's 22 m/s), so a curve that derails under boardDerailBelow is
+  // boarded at its posted speed even where that's over the line speed; always standing, whatever the tier's signage.
+  "curves": { "aDerail": 1.0, "aPost": 0.7, "transitionMinM": 40, "transitionSpeedFactor": 0.5, "transitionMaxM": 240, "boardDerailBelow": 22 },
 
   // Plan §9.3 and §16.2: sighting, callout and application; the sloppy driver runs 10% over, slower to react, on the
   // tiers where the margins are meant to carry new crews.

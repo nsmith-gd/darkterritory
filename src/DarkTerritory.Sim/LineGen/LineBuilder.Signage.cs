@@ -52,6 +52,34 @@ sealed partial class LineBuilder
 
         // Each demand's tells, as the tier's redundancy has them (§9.5): 3 = board + repeat + Form 19; 2 = board +
         // Form 19; 1 = exactly one (a board, or for Sleeper country the paper alone).
+        // T111 playtest: every curve that would derail the engine on full steam has its board, at its posted speed, even where
+        // that's over the line speed (so no demand made one): the line speed's a rule, not a governor (T97). Always standing.
+        foreach (var e in Routable())
+        {
+            var line = LineOf(e);
+            var c = _t.Curves;
+            double start = -1, minR = double.MaxValue;
+            for (double s = 0; s <= line.Length + 5; s += 5)
+            {
+                double k = s <= line.Length ? Math.Abs(line.Sample(s).Curvature) : 0;
+                if (k > 1e-9 && Math.Sqrt(c.ADerail / k) < c.BoardDerailBelow)
+                {
+                    if (start < 0)
+                        start = s;
+                    minR = Math.Min(minR, 1 / k);
+                    continue;
+                }
+                if (start < 0)
+                    continue;
+                double posted = Math.Floor(Math.Sqrt(c.APost * minR));
+                // A lower limit already over it has its own board (a demand's).
+                if (!_limits.Any(l => l.Edge == e.Id && l.Source == LimitSource.Curve && l.S0 <= start + 5 && l.S1 >= start && l.VMs <= posted + 1e-6))
+                    Sign("speedBoard", e.Id, start - _t.Authority.BoardBeforeM, Kmh(posted), true, posted, null, ref rng);
+                start = -1;
+                minR = double.MaxValue;
+            }
+        }
+
         foreach (var d in _demands)
         {
             double board = d.TellAt - _t.Authority.BoardBeforeM;

@@ -82,12 +82,14 @@ public class CabSightTests
     }
 
     [Fact]
-    public void FromTheFiremansSideTheBlowOffIsInSight()
+    public void FromTheDriversPlaceTheVentIsInTheCabAFewStepsAcross()
     {
-        var eye = Views.CabEye(Engine, -1);
-        var vent = Engine.Interactables.Single(i => i.Kind == InteractableKind.Vent).Position + new Double3(0, 1.1, 0);
-        Assert.True(ThroughWindow(eye, vent, -1));
-        Assert.True(Clear(eye, vent));
+        // T109 playtest: the vent in the cab, so one player works it all from the footplate; seen from the driver's place.
+        var eye = Views.CabEye(Engine);
+        var valve = Engine.Interactables.Single(i => i.Kind == InteractableKind.Vent).Position;
+        Assert.True(Engine.Cab!.Value.Contains(valve + new Double3(0, 0.2, 0)));
+        Assert.True(((valve - eye) with { Y = 0 }).Length < 3.5);
+        Assert.True(Clear(eye, valve + new Double3(0, 1.1, 0)));
     }
 
     [Fact]

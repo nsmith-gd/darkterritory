@@ -45,6 +45,8 @@ public enum PlayerActions : byte
     Uncouple = 8,
     /// <summary>Take hold of the nearest ladder in reach, whichever way you face (T94 playtest): its own key.</summary>
     Ladder = 16,
+    /// <summary>On the wire only: this intent carries a hotbar choice (<see cref="PlayerIntent.Select"/>, <see cref="PlayerIntent.Cycle"/>).</summary>
+    Tool = 32,
 }
 
 /// <summary>The forward lamp's switch in the cab (T52): set it on or off (a setting, not a toggle, so a held key or a resent intent is harmless).</summary>
@@ -80,6 +82,10 @@ public struct PlayerIntent
     /// or train state; the host centres what it sends them (enemies, loose bodies) and what they hear on that player.
     /// </summary>
     public byte Watch;
+    /// <summary>T108: a hotbar slot picked this tick (a number key), 1..<see cref="Kit.Slots"/>; 0 for none.</summary>
+    public byte Select;
+    /// <summary>T108: the wheel, a step to the next (+1) or previous (−1) slot with a tool in it; 0 for none.</summary>
+    public sbyte Cycle;
     /// <summary>
     /// With <see cref="PlayerButtons.Hand"/>: a VR player's reaching hand, in metres from their feet in the frame they face
     /// (x right, y up, z behind, so ahead is −Z as ever). Reach is tested from it instead of from the body (T29).
@@ -198,6 +204,10 @@ public struct PlayerState
     /// adopts the new state as a placement, not as a misprediction to correct.
     /// </summary>
     public byte Placed;
+    /// <summary>T108: the tools carried, a byte a slot (<see cref="Player.Kit"/>).</summary>
+    public ulong Kit;
+    /// <summary>The hotbar slot in hand, 0..<see cref="Player.Kit.Slots"/> − 1.</summary>
+    public byte HeldSlot;
 
     public readonly bool Alive => Death == DeathCause.None;
     public readonly bool Has(PlayerFlags flag) => (Flags & flag) != 0;
@@ -227,6 +237,7 @@ public static class PlayerMotor
             Surface = ToSurface(top.Kind),
             Health = p.Health,
             LineHint = train.Cars[car].FrontDistance,
+            Kit = p.StartingKit,
         };
     }
 
@@ -241,6 +252,7 @@ public static class PlayerMotor
             Surface = Surface.Deck,
             Health = p.Health,
             LineHint = train.Cars[0].FrontDistance,
+            Kit = p.StartingKit,
         };
     }
 
@@ -281,7 +293,7 @@ public static class PlayerMotor
 
     public static PlayerState SpawnOnGround(Double3 world, RailLine line, double lineHint, PlayerTuning p)
     {
-        var s = new PlayerState { Parent = PlayerState.World, Position = world, Surface = Surface.Ground, Health = p.Health, LineHint = lineHint };
+        var s = new PlayerState { Parent = PlayerState.World, Position = world, Surface = Surface.Ground, Health = p.Health, LineHint = lineHint, Kit = p.StartingKit };
         s.Position = world with { Y = GroundHeight(ref s, line) };
         return s;
     }
@@ -349,6 +361,7 @@ public static class PlayerMotor
         var intent = input;
         if (!s.Alive)
             return;
+        Player.Kit.Select(ref s, intent);
 
         if (applyLook)
             Look(ref s, intent);

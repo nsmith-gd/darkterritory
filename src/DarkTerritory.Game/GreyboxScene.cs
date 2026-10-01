@@ -19,6 +19,8 @@ public sealed class GreyboxScene
     public int Seed { get; init; } = 7;
     /// <summary>How hot the firebox is, 0..1: the glow in the cab is how the Boiler reads the fire.</summary>
     public float FireGlow { get; set; } = 0.7f;
+    /// <summary>T109: the wrench is on its rack in the cab (the boiler's WrenchOut, the other way about).</summary>
+    public bool WrenchRacked { get; set; } = true;
     /// <summary>The firebox door's open (the boiler's FireDoorOpen): a Stoker in the fire is seen through it.</summary>
     public bool FireDoorOpen { get; set; }
     /// <summary>Emergency lighting (`dt screenshot --emergency`): the cars' lamps go to a dim red, the headlamp dark.</summary>
@@ -1441,7 +1443,7 @@ public sealed class GreyboxScene
             }
             mesh.Emissive = 0;
             // The vent valve and the driver's levers: modelled by the art pass where it has them (SceneArt.CabControls).
-            bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls) == true;
+            bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls, WrenchRacked) == true;
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent && !modelled))
                 draw(Box.FromCentre(i.Position + new Double3(0, 1.1, 0), new Double3(0.12, 0.12, 0.04)), Palette.TarnishedBrass);
             // The driver's levers, their handles where the controls have them (T29): a headset player takes hold of

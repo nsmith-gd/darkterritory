@@ -66,6 +66,15 @@ public static class CrewActions
                 if (before < doorSeconds && s.ActionProgress >= doorSeconds)
                     train.Vehicles[near.Value.Vehicle].ToggleDoor(near.Value.Thing.Index);
                 break;
+            // A ruptured boiler, the wrench in hand (T109): held there, it's mended.
+            case InteractableKind.Firebox when train.BoilerTuning is { } rt && train.Boiler.Ruptured && Kit.Held(s) == Tool.Wrench && PlayerMotor.InCab(s, train):
+                s.ActionProgress += dt;
+                if (s.ActionProgress >= rt.RepairSeconds)
+                {
+                    train.Boiler.Repair();
+                    s.ActionProgress = 0;
+                }
+                break;
             case InteractableKind.Firebox when train.BoilerTuning is { } bt && PlayerMotor.InCab(s, train):
                 s.ActionProgress += dt;
                 if (s.ActionProgress >= bt.ShovelSeconds)
@@ -79,10 +88,17 @@ public static class CrewActions
                 train.Sanding = true;
                 s.ActionProgress = 0;
                 break;
-            // Out on the running board by the smokebox (T97).
-            case InteractableKind.Vent when s.Parent == 0 && s.Surface == Surface.Deck:
+            // The vent, in the cab (T97, T109).
+            case InteractableKind.Vent when PlayerMotor.InCab(s, train):
                 train.Boiler.Venting = true;
                 s.ActionProgress = 0;
+                break;
+            // The engineering kit's rack (T109): a press takes the wrench, into the first free slot and into hand; with it
+            // in hand, a press puts it back.
+            case InteractableKind.ToolRack when PlayerMotor.InCab(s, train):
+                s.ActionProgress += dt;
+                if (before < RackSeconds && s.ActionProgress >= RackSeconds)
+                    Rack(ref s, train);
                 break;
             // A cargo car's roof hatch (T99), from the roof: opened or shut like a door, but not shut down onto a casting the
             // crane has hanging in it.
@@ -126,6 +142,30 @@ public static class CrewActions
     }
 
     static bool Hand(in PlayerState s, HandTuning? hand) => hand is not null && s.Hand != default;
+
+    /// <summary>How long Use is held at the rack to take the wrench or put it back.</summary>
+    const double RackSeconds = 0.4;
+
+    /// <summary>The wrench out of its rack into hand, or back into it (T109). There's the one.</summary>
+    static void Rack(ref PlayerState s, TrainOnLine train)
+    {
+        if (Kit.Held(s) == Tool.Wrench)
+        {
+            s.Kit = Kit.With(s.Kit, s.HeldSlot, Tool.None);
+            train.Boiler.WrenchOut = false;
+            return;
+        }
+        if (train.Boiler.WrenchOut || Kit.Has(s.Kit, Tool.Wrench))
+            return;
+        for (int i = 0; i < Kit.Slots; i++)
+            if (Kit.At(s.Kit, i) == Tool.None)
+            {
+                s.Kit = Kit.With(s.Kit, i, Tool.Wrench);
+                s.HeldSlot = (byte)i;
+                train.Boiler.WrenchOut = true;
+                return;
+            }
+    }
 
     /// <summary>
     /// Working the coupling you stand on (T91 playtest): Uncouple held, standing still, looking down at the coupler (well

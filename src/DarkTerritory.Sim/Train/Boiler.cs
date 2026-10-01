@@ -22,6 +22,11 @@ public sealed record BoilerTuning(
     /// with speed, or with the effort of pulling away, whichever is more.
     /// </summary>
     public double FullDemandAt { get; init; } = 0.85;
+    /// <summary>T109: how hard a ruptured engine's seized cylinders drag the train down (m/s²), and to what speed (m/s).</summary>
+    public double RuptureDecel { get; init; } = 1.5;
+    public double RuptureCoastBelow { get; init; } = 4;
+    /// <summary>T109: seconds of the wrench held at the firebox to repair a ruptured boiler.</summary>
+    public double RepairSeconds { get; init; } = 25;
 }
 
 /// <summary>
@@ -62,6 +67,17 @@ public struct Boiler
     public bool FireDoorOpen;
     /// <summary>Seconds since the last shovelful (the door's swing-shut clock).</summary>
     public double SinceShovel;
+    /// <summary>T109: the engineering kit (the wrench) is out of its rack in the cab, in someone's hands.</summary>
+    public bool WrenchOut;
+
+    /// <summary>T109: made good with the wrench after a rupture: whole again, but cold and empty.</summary>
+    public void Repair()
+    {
+        Ruptured = false;
+        Pressure = 0;
+        Firebox = 0;
+        AtMaxSeconds = 0;
+    }
 
     public static Boiler Fresh(BoilerTuning t) => new()
     {

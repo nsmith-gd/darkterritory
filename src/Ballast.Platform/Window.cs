@@ -33,6 +33,8 @@ public sealed class InputState
     public Key? AnyPressed => _pressed.Count == 0 ? null : _pressed.Min();
     public float MouseDX { get; internal set; }
     public float MouseDY { get; internal set; }
+    /// <summary>Wheel notches this frame, positive away from the player (scrolled up).</summary>
+    public float Wheel { get; internal set; }
     /// <summary>Characters typed since the last <see cref="EndFrame"/>, while the window takes text (<see cref="Window.TextInput"/>).</summary>
     public string Text => _text.ToString();
     readonly System.Text.StringBuilder _text = new();
@@ -51,7 +53,7 @@ public sealed class InputState
     {
         _pressed.Clear();
         _text.Clear();
-        MouseDX = MouseDY = 0;
+        MouseDX = MouseDY = Wheel = 0;
     }
 }
 
@@ -177,6 +179,10 @@ public sealed unsafe class Window : IDisposable
                         Input.MouseDX += e.motion.xrel;
                         Input.MouseDY += e.motion.yrel;
                     }
+                    break;
+                case SDL_EventType.SDL_EVENT_MOUSE_WHEEL:
+                    if (MouseCaptured)
+                        Input.Wheel += e.wheel.direction == SDL_MouseWheelDirection.SDL_MOUSEWHEEL_FLIPPED ? -e.wheel.y : e.wheel.y;
                     break;
                 case SDL_EventType.SDL_EVENT_MOUSE_BUTTON_DOWN:
                 case SDL_EventType.SDL_EVENT_MOUSE_BUTTON_UP:
