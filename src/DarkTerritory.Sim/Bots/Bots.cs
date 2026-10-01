@@ -968,13 +968,24 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             // Only when the grease is costing way: on the level the train coasts through it at speed, and whatever's behind
             // (the hounds gain on every slowing, App. A.3) is better left behind than stopped for. On a climb it can't hold
             // speed ("cannot climb grade"): out it goes, steam left on, so the sanded drivers pull.
-            if (!greased || !PlayerMotor.InCab(self, train) || train.Dynamics.Speed >= cruise - SandBelowCruise || calls?.Venting == true)
+            if (!greased || !PlayerMotor.InCab(self, train) || train.Dynamics.Speed >= cruise - SandBelowCruise || calls?.Venting == true
+                || train.BoilerTuning is { SteamDrive: true } sd && train.Boiler.Pressure <= sd.PowerFloor + 1)
                 return null;
             _sandLeg = 0;
         }
-        // Out: doorway, board, along it, the sandbox. Back: the same, the other way, and done at the doorway.
-        if (!greased && _sandLeg < way.Length)
+        // Out: doorway, board, along it, the sandbox. Back: the same, the other way, and done at the doorway. T81: and back in
+        // to the Stoker (App. A.5): it's fought from the cab, and out on the board the driver of a crew of two sanded on while
+        // it put the fire out (deepTerritory:2), and the night ended there.
+        bool stoker = world.ActiveEnemies.OfType<Stoker>().Any(st => !st.Gone && st.Phase is SpinePhase.Telegraph or SpinePhase.Commit);
+        // Nor any use out there with no steam to pull on the sanded rail: back in to fire it (that driver stood at the sandbox
+        // with the fire out till the cold took him).
+        bool noSteam = train.BoilerTuning is { SteamDrive: true } st && train.Boiler.Pressure <= st.PowerFloor + 1;
+        if ((!greased || stoker || noSteam) && _sandLeg < way.Length)
             _sandLeg = 2 * way.Length - 1 - _sandLeg;
+        // Not out of the cab with the firebox door still open from the last shovelful: only someone in the cab shuts it, and
+        // an open door at a stand lets the Stoker in (App. A.5; the Switchman's club waits the same).
+        if (_sandLeg == 0 && PlayerMotor.InCab(self, train) && train.Boiler.FireDoorOpen)
+            return new PlayerIntent { Buttons = train.BoilerTuning is { SteamDrive: true } ? PlayerButtons.Brake : PlayerButtons.None };
         if (_sandLeg >= 2 * way.Length)
         {
             _sandLeg = -1;
