@@ -2269,6 +2269,54 @@
     "license": "CC0-1.0"
   },
   {
+    "name": "fx_flame",
+    "diffuse": "fx_flame.png",
+    "spec": "fx_flame_s.png",
+    "size": 256,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "fx",
+    "alphaTest": false,
+    "frames": [
+      4,
+      4
+    ],
+    "blend": "additive",
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "noise-eaten flame tongues, scrolled once round a loop",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "fx_flash",
+    "diffuse": "fx_flash.png",
+    "spec": "fx_flash_s.png",
+    "size": 128,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "fx",
+    "alphaTest": false,
+    "frames": [
+      2,
+      2
+    ],
+    "blend": "additive",
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "ragged jet star round a hot core",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
     "name": "ground_heath",
     "diffuse": "ground_heath.png",
     "spec": "ground_heath_s.png",

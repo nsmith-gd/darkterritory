@@ -12,13 +12,19 @@ namespace DarkTerritory.Game.Art;
 public static class IncidentArt
 {
     /// <summary>Draws it; false for a kind that isn't an incident.</summary>
-    public static bool Draw(MeshBuilder mesh, Vector3 o, Vector3 r, Vector3 u, Vector3 b, EnemyKind kind, SpinePhase phase, double t, double extra, double health)
+    /// <param name="fx">The art pass's effects: with their flipbooks, a fire is smoke, flames and cinders (Effects.CarFire)
+    /// rather than the greybox's boxes.</param>
+    public static bool Draw(MeshBuilder mesh, Vector3 o, Vector3 r, Vector3 u, Vector3 b, EnemyKind kind, SpinePhase phase, double t, double extra, double health,
+        Effects? fx = null)
     {
         Vector3 L(double x, double y, double z) => o + r * (float)x + u * (float)y + b * (float)z;
         void Box(double x, double y, double z, double hx, double hy, double hz, Vector3 colour) =>
             mesh.Box(L(x, y, z), r, u, b, new Vector3((float)hx, (float)hy, (float)hz), colour);
         switch (kind)
         {
+            case EnemyKind.CarFire when fx is { HasFlames: true }:
+                fx.CarFire(mesh, o, r, u, b, phase is SpinePhase.Commit or SpinePhase.Punish, extra, t);
+                return true;
             case EnemyKind.CarFire:
                 {
                     double burn = Math.Clamp(extra, 0.05, 1);

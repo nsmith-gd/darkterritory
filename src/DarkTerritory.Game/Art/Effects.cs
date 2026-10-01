@@ -11,9 +11,13 @@ namespace DarkTerritory.Game.Art;
 /// state, not simulated: puff <c>i</c> left the stack at a known time and has drifted since, so a screenshot is
 /// repeatable, a client draws what the host would, and nothing needs replicating.
 /// </summary>
-public sealed class Effects(Look look)
+public sealed partial class Effects(Look look)
 {
-    readonly int _smoke = look.Layer("fx_smoke"), _steam = look.Layer("fx_steam"), _spark = look.Layer("fx_spark"), _fog = look.Layer("fx_fog");
+    readonly int _smoke = look.Layer("fx_smoke"), _steam = look.Layer("fx_steam"), _spark = look.Layer("fx_spark"), _fog = look.Layer("fx_fog"),
+        _flame = look.Layer("fx_flame"), _flash = look.Layer("fx_flash");
+
+    /// <summary>Whether the look has the flipbooks the art pass draws its fire with (the greybox draws boxes without).</summary>
+    public bool HasFlames => _flame >= 0 && _smoke >= 0;
 
     static float Hash(float x) => Frac(MathF.Sin(x * 12.9898f) * 43758.5453f);
     static float Frac(float x) => x - MathF.Floor(x);
