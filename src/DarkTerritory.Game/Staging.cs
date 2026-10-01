@@ -129,6 +129,75 @@ public static class Staging
     }
 
     /// <summary>
+    /// The staged Gaunt as it goes (<c>dt screenshot --gaunt</c>), on crewmate 4 (alone off the train's left,
+    /// <see cref="Lone"/>; the Ribbits put away): <c>sleep</c> heaped up in front of them (App. A.6 ASLEEP), <c>stir</c>
+    /// waking as they near it, <c>listen</c> woken and stood over them, <c>angry</c> leant right in (three points of anger),
+    /// <c>attack</c> striking at them; <c>in</c> squatted in car 2's aisle, listening (the <c>inside</c> view: note 118). The
+    /// <c>gaunt</c> view looks over crewmate 4's shoulder up at it.
+    /// </summary>
+    public static List<Enemy> Gaunt(List<Enemy> threats, TrainOnLine train, string mode)
+    {
+        if (mode.Length == 0 || threats.OfType<Gaunt>().FirstOrDefault() is not { } gaunt)
+            return threats;
+        threats.RemoveAll(e => e is Ribbit);
+        var side = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+        var before = side.ToWorld(new Double3(-(side.Shape.HalfWidth + GauntOut), 0, -1.5));
+        switch (mode)
+        {
+            case "sleep" or "stir" or "listen" or "angry" or "attack":
+                var (phase, extra, anger) = mode switch
+                {
+                    "sleep" => (SpinePhase.Dormant, -1, 0),
+                    "stir" => (SpinePhase.Alert, -1, 0),
+                    "listen" => (SpinePhase.Telegraph, LoneId, 0),
+                    "angry" => (SpinePhase.Telegraph, LoneId, 3),
+                    _ => (SpinePhase.Commit, LoneId, 4),
+                };
+                gaunt.Restore(phase, 2.2, gaunt.Health, Enemy.Loose, before, 0, 0, 0, extra, anger);
+                break;
+            case "in":
+                int car = Math.Min(2, train.Frames.Count - 1);
+                double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
+                gaunt.Restore(SpinePhase.Telegraph, 2.2, gaunt.Health, car, new Double3(-0.45, floor, -train.Frames[car].Shape.HalfLength + 4.2), 0, 0, 0, -1, 1);
+                break;
+            default:
+                throw new ArgumentException($"--gaunt {mode}: sleep, stir, listen, angry, attack or in");
+        }
+        return threats;
+    }
+
+    /// <summary>
+    /// The staged Grumbler (<c>dt screenshot --grumbler</c>), in front of crewmate 4 off the train's left (the Ribbits and
+    /// the Gaunt put away): <c>gnaw</c> at a crate (App. A.8 TELEGRAPH), <c>rear</c> hit and feral, reared up at them,
+    /// <c>bite</c> on them, <c>maul</c> on them beaten down (GRAB). The <c>grumbler</c> view looks over their shoulder down
+    /// at it.
+    /// </summary>
+    public static List<Enemy> Grumbler(List<Enemy> threats, TrainOnLine train, string mode)
+    {
+        if (mode.Length == 0 || threats.OfType<Grumbler>().FirstOrDefault() is not { } g)
+            return threats;
+        threats.RemoveAll(e => e is Ribbit or Sim.Enemies.Gaunt);
+        var side = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+        var before = side.ToWorld(new Double3(-(side.Shape.HalfWidth + GrumblerOut), 0, -1.5));
+        var (phase, feral) = mode switch
+        {
+            "gnaw" => (SpinePhase.Telegraph, 0),
+            "rear" => (SpinePhase.Telegraph, 1),
+            "bite" => (SpinePhase.Commit, 1),
+            "maul" => (SpinePhase.Grab, 1),
+            _ => throw new ArgumentException($"--grumbler {mode}: gnaw, rear, bite or maul"),
+        };
+        g.Restore(phase, 0.6, g.Health, Enemy.Loose, before, 0, 0, 0, -1, feral);
+        return threats;
+    }
+
+    // How far off the second car's side the staged Grumbler is (m): in front of crewmate 4, a lunge from them.
+    const double GrumblerOut = 3.3;
+
+    // How far off the second car's side the staged Gaunt stands (m): in front of crewmate 4, at its arm's length from them.
+    const double GauntOut = 3.4;
+
+    /// <summary>
     /// A roster for the screenshot (T69): you in the cab, three crewmates, and a Passenger wearing crewmate 2's face. Crew 1
     /// is speaking, crew 2 was heard a while ago, crew 3 hasn't said anything yet; the Passenger never has.
     /// </summary>

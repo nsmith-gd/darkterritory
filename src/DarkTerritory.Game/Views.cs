@@ -34,6 +34,19 @@ public static class Views
             // Off the second car's left, over the shoulder of crewmate 4 (Staging.Lone) at the Ribbit pack beyond them.
             "pack" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 0.4), 2.1, 1.2)),
                 train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 5.2), 0.4, -1.6)), 55),
+            // Off the second car's left, over crewmate 4's shoulder, up at what's stood in front of them (the staged Gaunt).
+            "gaunt" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 1.2), 1.75, 0.2)),
+                train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 3.4), 1.45, -1.5)), 55),
+            // The same, from in front of it, close, up at its face.
+            "gauntface" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 2.0), 1.6, -3.0)),
+                train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 3.1), 2.05, -1.5)), 50),
+            // Off the second car's left, over crewmate 4's shoulder, down at what's low on the ground in front of them (the
+            // staged Grumbler).
+            "grumbler" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 1.3), 1.35, 0.1)),
+                train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 3.4), 0.4, -1.6)), 55),
+            // Off the last car's side, looking up at what's over its roof (the staged Choir besieging the guard van).
+            "choir" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(4.6, train.Frames[^1].Shape.RoofHeight + 0.6, 4.5)),
+                train.Frames[^1].ToWorld(new Double3(0, train.Frames[^1].Shape.RoofHeight + 2.0, 0)), 55),
             "crewside" => Camera.LookAt(target.ToWorld(new Double3(2.6, roof + 1.9, -4.2)), target.ToWorld(new Double3(-0.8, roof + 1.45, -5.6)), 45),
             "cab" => CabCamera(engine),
             // The fireman's side (T101): out of the left window down the running board to the blow-off by the smokebox.

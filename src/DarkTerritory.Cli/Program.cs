@@ -883,10 +883,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Run = run,
         Holdouts = holdouts,
         Time = 0.37,
-        Enemies = args.Contains("--threats") ? Later(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), train, Str(args, "--tippy", "")), Str(args, "--whistler", "")), Str(args, "--ribbits", "")), Opt(args, "--later", 0)) : null,
+        Enemies = args.Contains("--threats") ? Later(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), train, Str(args, "--tippy", "")), Str(args, "--whistler", "")), Str(args, "--ribbits", "")), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Opt(args, "--later", 0)) : null,
         Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All : cargo,
         // --crew: three on car 2's roof, one reaching up, one holding out both hands, one with a keyboard (T47's arms).
-        Crew = args.Contains("--crew") ? [.. Staging.Crew(train, content), .. args.Contains("--ribbits") ? [Staging.Lone(train)] : Array.Empty<Crewmate>()] : null,
+        Crew = args.Contains("--crew") ? [.. Staging.Crew(train, content), .. args.Contains("--ribbits") || args.Contains("--gaunt") || args.Contains("--grumbler") ? [Staging.Lone(train)] : Array.Empty<Crewmate>()] : null,
         Emergency = args.Contains("--emergency"),
         // --venting: the blow-off held open and the safety valve lifting (T101), their steam.
         Venting = args.Contains("--venting"),

@@ -1285,6 +1285,26 @@
     ]
   },
   {
+    "name": "choir_0",
+    "diffuse": "models/choir_0.png",
+    "spec": "models/choir_0_s.png",
+    "normal": "models/choir_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/choir.py",
+        "what": "the Choir, modelled over tools/blender/choir.py",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "chute_handle_0",
     "diffuse": "models/chute_handle_0.png",
     "spec": "models/chute_handle_0_s.png",
@@ -3040,6 +3060,46 @@
         "path": "mini_texture/textures/fabric_canvas_diffuse.jpg",
         "license": "CC0-1.0",
         "attribution": "Mini Texture (CC0-1.0), via the library's wool"
+      }
+    ]
+  },
+  {
+    "name": "gaunt_0",
+    "diffuse": "models/gaunt_0.png",
+    "spec": "models/gaunt_0_s.png",
+    "normal": "models/gaunt_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/gaunt.py",
+        "what": "the Gaunt, modelled over tools/blender/gaunt.py",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
+    "name": "grumbler_0",
+    "diffuse": "models/grumbler_0.png",
+    "spec": "models/grumbler_0_s.png",
+    "normal": "models/grumbler_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/grumbler.py",
+        "what": "the Grumbler, modelled over tools/blender/grumbler.py",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
       }
     ]
   },

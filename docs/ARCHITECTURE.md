@@ -2110,3 +2110,75 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Headless.**
       - `dt screenshot --threats --crew --ribbits hop|swell|tongue --view pack`. The mode puts the staged pack on crewmate 4 (`Staging.Lone`, alone on the ground). `pack` looks over that crewmate's shoulder; it's left off `Views.Names`.
       - `RibbitTests`: the hop leaps when the sim moves it and sits when it doesn't, nothing goes under the ground, and the tongue reaches its catch's chest.
+
+117. **The Choir's model (GDD v1.2 §21, App. A.7).** Its ghosts were the retired Hollow shrunk pale. Now they're choir children gone wrong (`tools/blender/choir.py`, baked by `tools/models/recipes/choir.py`, 1,588 triangles, 27 bones: light, because several fly at once).
+    - **The design.** Child-sized, in what's left of a chorister's surplice: grey-black with filth, a ruff gone limp at the throat, and below the waist no legs, only the surplice hanging in long ragged strips. The legs are inside them and swing them, so the strips stream behind as it flies.
+      - **Skin:** a dead blue-grey, veined dark.
+      - **Face:** the eyes black hollows weeping tar, and the jaw dropped far wider than a jaw can go, in a child's singing O, held.
+      - **Hands:** long thin fingers.
+      - **No light of its own** but a faint cold point light the colour of its skin (`ChoirCold` 0.25), so it's seen at night without glowing (§26: corruption palette, not neon). The stand-in carried a bright glow.
+    - **Clips.**
+      - **drift:** circling slow and bobbing, the head tipped back singing.
+      - **swoop:** leant into the flight, reaching, the strips streaming.
+      - **seize:** over its catch's head, arms wrapped round it, the mouth at their ear, shuddering.
+      - **besiege:** at a shut door with nobody to take, fists hammering in uneven bursts.
+      - **hit**.
+      - The draw picks swoop or besiege from its target (COMMIT with `Extra` ≥ 0, or not). Swooping or seizing, it faces its target; `GreyboxScene` passes them, as for the Ribbits.
+    - **First cut.** A tan surplice with stiff boxy sleeves, and the strips clean white candles. The surplice is now dark and filthy, the sleeves hang, and the strips are stained black from the hem down.
+    - **Headless.**
+      - `dt screenshot --threats --view choir`: the two staged ghosts over the guard van, from off its side, against the sky. Like the other close views, `choir` is left off `Views.Names`.
+      - `CreatureArtTests` pins its budget and clips. It flies, so it's exempt from the feet-on-the-floor pivot check: its strips hang below its origin.
+
+118. **The Gaunt's model (GDD v1.2 §21, App. A.6).** It was the retired Hollow stretched and darkened. Now it's its own (`tools/blender/gaunt.py`, baked by `tools/models/recipes/gaunt.py`, 5,494 triangles, 27 bones, SK_Human stretched).
+    - **The design.** The bones of a starved giant, near three metres stood up (it never stands up), in a skin far too big for them.
+      - **Body:** legs and arms like poles, the knees and elbows knots on them, the ribs a cage, the waist gone to nothing.
+      - **Skin:** ash-grey, dry and cracked, with mould in the cracks. It hangs off it: an empty sack of belly over its hips, webs under its arms, creases slumped across its back, folds round its knees and ankles like fallen stockings.
+      - **Face:** long, mournful and too human, its skin slid down. Heavy upper lids droop to the outer corners over big wet black eyes. The lower lids are dragged down, so a red crescent shows under each eye. The jowls hang either side of a small round open mouth, pursed as if to say "oh".
+      - **Hands:** huge, the fingers as long as a forearm, the nails horn.
+    - **Clips.**
+      - **sleep** (Dormant): the heap. Squatted on its heels, its face in its knees, its arms wrapped over its head, its back rising and falling; once, the fingers of a hand open on its skull.
+      - **stir** (Alert): the head comes up out of the heap, slowly, to look over its knees, and tips over on its side. It plays once and holds.
+      - **follow:** a stalking lope on bent knees, the head carried low out ahead, the hands swinging past its knees, the head turning to you every other step.
+      - **listen:** stooped over you, the neck out and bent down, the head on one side; now and then the fingers of a hand ripple.
+      - **attack:** the fists up, too slowly, then down, too fast; it stays bent over what it hit.
+      - **hit.**
+    - **The engine chooses.** `CreatureArt` picks the clip by phase. Woken (Telegraph), it lopes while it's going and listens while it's stood, so the pace matters. The sim has no velocity for it, so `GreyboxScene.Pace` eases one from where each Gaunt was last drawn (in its car's frame aboard, the world off it); above `GauntGoing` (0.4 m/s) it's going. It faces its waker (`Extra`, passed as `Prey` like Tippy's).
+    - **Anger is the telegraph.** App. A.6 LISTEN: "it leans in closer and tilts its head as aggro climbs". At each point of anger (`Extra2`) `LeanIn` bends the posed spine forward from the chest and tips the head over on its side, a quarter of the way each time. That's all the way at the default threshold (`enemies.json` gaunt.attackAt 4), and it stops there if the threshold's raised. The quarter is the art's (`GauntLeanPerAnger`), not a design number. `Bend` is the bone turn behind it, which the Track Doll's head now uses too.
+    - **Aboard (note 110's standard doorway).** It boards with its waker, but stood it's taller than a door (2.1 m) and nearly a car's roof (2.75 m). Under a roof or a lintel (`Room`, as Tippy's) it gets down:
+      - **crawl** (going): its legs folded under it, it drags itself along on its arms; 1.11 m high.
+      - **squat** (stood): folded up small on its heels, the head out over its knees towards you; 1.22 m high.
+      - **smash** (attacking): from the squat, fists no higher than the roof lets them; 2.03 m high.
+      - Each clip's height is printed by the build, and `GauntTests` checks it against the car.
+    - **First cut.** A full mantle of skin from the shoulders to the knees made a "spindly thing" a cardboard tube. The skull was a small ball. Bones in a skin too big for them is what reads, and the sagging face is what's unpleasant up close. The rims first painted the under-eye faces red, which read as a clown's cheeks; now each is a thin crescent of its own.
+    - **Headless.**
+      - `dt screenshot --threats --crew --gaunt sleep|stir|listen|angry|attack --view gaunt|gauntface`. Off the train's left it's stood in front of crewmate 4 (`Staging.Lone`; the Ribbits are put away), and the views look over their shoulder or up at it from the side.
+      - `--gaunt in --view inside`: squatted in car 2's aisle.
+      - `GauntTests`:
+        - the clips fit a car;
+        - it's drawn low indoors and stood up outside, going or not;
+        - its anger leans it in and saturates;
+        - woken, it faces its waker.
+
+119. **The Grumbler's model (GDD v1.2 §21, App. A.8).** It was the husk tipped over on all fours. Now it's its own (`tools/blender/grumbler.py`, baked by `tools/models/recipes/grumbler.py`, 5,482 triangles, 34 bones: SK_Human plus a jaw and a second pair of arms).
+    - **The design.** A dock labourer, still in what he worked in, gone wrong all the way through.
+      - **Body:** face-down like a spider, the long arms and legs folded up over the back so the elbows and knees stand higher than it does, the hands and bare feet splayed flat. A second, thinner pair of arms has come out through its ribs, through holes torn in the waistcoat. It holds what it eats with them.
+      - **Clothes:** a shirt with the sleeves rolled to the elbow, an open waistcoat and trousers torn off at the shins. Grease, coal dust and sweat stain all of it. The spine has pushed up through the back of the shirt, and the flat cap is still on.
+      - **Face:** the eyes rolled up white under half-shut lids, the nose broken flat. The face is split from ear to ear, the edges raw and red, so the jaw drops a long way, and two crowded rows of yellow teeth fill the split.
+    - **Clips.**
+      - **gnaw** (on the crates, and aboard eating the cargo): head down in one, the jaw going hard, the rib arms tearing at it; once, a leg twitches out.
+      - **scuttle:** very low and fast, the limbs in diagonal pairs, the head up and level, the jaw hanging.
+      - **bite:** reared up on its back legs, all four arms out and grabbing, the head lunging in with the jaw dropped.
+      - **maul:** over its victim, every hand down on them, the head going down into them.
+      - **hit.**
+    - **The crouch is IK.** `crouch()` sets it with `rig.reach` from where the hands and feet go, and its `avoid` pushes the elbows and knees up. From the T-pose the descent stuck with the feet up behind the tipped-over pelvis, so it starts from a rough crouch. The first targets couldn't be met: with the hips at 0.62 m, a knee kept over 0.9 m can't put a 0.62 m calf's foot on the ground. The hips came down to 0.4 m and the arms got longer.
+    - **The engine chooses.**
+      - **Gnawing:** on the crates, and when it's not feral.
+      - **Rearing:** hit and feral, in TELEGRAPH, before it commits; it's the bite clip, its warning.
+      - **Hunting:** in COMMIT it scuttles or bites by its pace (`GreyboxScene.Pace`, as the Gaunt's; note 118) and faces who it's after.
+      - **Mauling:** GRAB and PUNISH.
+      - **Who it's after is a guess.** It's whoever hit it last, but `LastHitBy` isn't sent to clients, so the draw faces the nearest crewmate, the same on every machine. (Note 118's `GauntGoing` is now `Going`, for both.)
+    - **First cut.** The face was a potato's: two bulging eyes and a zip for a mouth. Three fixes made it unpleasant:
+      - the sockets sunk deep, and the lids half down over a sliver of white;
+      - bigger teeth in a wider split;
+      - the jaw opening at all: −X drops it, so every opening had been closing it into the skull.
+    - **Headless.** `dt screenshot --threats --crew --grumbler gnaw|rear|bite|maul --view grumbler` stages it in front of crewmate 4 (as the Gaunt is; the Ribbits and the Gaunt are put away), over their shoulder. `GrumblerTests`: low gnawing, rears up when hit, bites stood and scuttles going, faces who it's after.
