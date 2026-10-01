@@ -543,6 +543,14 @@ public static class PlayerMotor
                     local = PushOut(local, door.Box, p);
             world = frame.ToWorld(local);
         }
+        // The stops' buildings (T114): pushed out of each wall in its own frame.
+        if (train.Walls is { } walls)
+            foreach (var w in walls.Near(world))
+            {
+                var local = w.ToLocal(world);
+                var box = new Box(new Double3(-w.HalfLength, w.Bottom, -w.HalfWidth), new Double3(w.HalfLength, w.Top, w.HalfWidth));
+                world = w.ToWorld(PushOut(local, box, p));
+            }
         return world;
     }
 

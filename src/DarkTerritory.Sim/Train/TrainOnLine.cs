@@ -39,6 +39,9 @@ public sealed record TrainState(RakeState[] Rakes, VehicleState[] Vehicles, Boil
 /// </summary>
 public sealed class TrainOnLine
 {
+    /// <summary>The stops' buildings, for whoever walks among them (T114); set with the run, alike on every machine.</summary>
+    public Run.StopWalls? Walls { get; set; }
+
     readonly List<TrainDynamics> _rakes = new();
     readonly Vehicle[] _vehicles;
     readonly CarPose[] _poses;

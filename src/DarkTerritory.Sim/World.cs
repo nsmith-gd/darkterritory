@@ -240,6 +240,7 @@ public sealed class World
     {
         TrackPlan ??= route.Plan;
         Run = new Run.Run(tuning, route) { YardLength = yardLength };
+        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line);
         if (facilities is not null)
             Run.EnableSites(facilities, Train.Line);
         if (loot is not null)
@@ -349,7 +350,10 @@ public sealed class World
                 Swing(ec, s, playerId);
             // Standing idle (Tippy Toesie's mark): still, and not working anything.
             double moving = s.Velocity.Length;
-            bool idle = moving < ec.Tuning.TippyToesie.IdleBelow && intent.MoveX == 0 && intent.MoveZ == 0 && intent.Buttons == PlayerButtons.None && intent.Actions == PlayerActions.None;
+            // Driving a moving train is working it (T115 playtest: the driver, watching the line, was Tippy Toesie's mark).
+            bool driving = Net.CabControls.CanDrive(s, Train) && Math.Abs(Train.Dynamics.Speed) > 1;
+            bool idle = moving < ec.Tuning.TippyToesie.IdleBelow && intent.MoveX == 0 && intent.MoveZ == 0 && intent.Buttons == PlayerButtons.None
+                && intent.Actions == PlayerActions.None && !driving;
             IdleSeconds[playerId] = idle ? IdleSeconds.GetValueOrDefault(playerId) + SimConstants.TickSeconds : 0;
             // Alone, there's no friend to act: at a crew of one the held can struggle free (the solo rule, T89).
             if (s.Has(PlayerFlags.Held) && intent.Has(PlayerButtons.Use) && ec.Tuning.Grab.SoloStruggleOn && _context.Crew.Count(x => x.Player.State.Alive) <= 1)
@@ -572,6 +576,7 @@ public sealed class World
         // The director thinks once a second; the Stoker comes whenever its condition holds, charged when it does (App. B.5).
         if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed)
         {
+            d.Present(_context?.Crew.Count ?? 0);
             if (d.Decide(this, ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } kind && Spawns.For(kind) is { } rule)
                 rule.Spawn(new SpawnContext(this, t, d));
             // App. B.5: the door left open at a stop this long (it swings shut by itself with someone in the cab to see to it).

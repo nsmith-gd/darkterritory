@@ -40,7 +40,19 @@ public sealed class Director
 
     public double Budget { get; }
     public double Spent => _spent;
-    public int Crew { get; }
+    /// <summary>
+    /// The crew its gates go by (the crew-size threats' <c>minCrew</c>): the expected crew at the start, then whoever's
+    /// actually in the night (T115 playtest: a solo host was planned for four, and Tippy Toesie, which needs a friend to
+    /// pull it off, came for them alone in the cab).
+    /// </summary>
+    public int Crew { get; private set; }
+
+    /// <summary>The players in the night this tick (host); none seen leaves it as it was.</summary>
+    public void Present(int crew)
+    {
+        if (crew > 0)
+            Crew = crew;
+    }
     public List<DirectorSpawn> Log { get; } = new();
     /// <summary>The conflict-table pairs this run has put together (App. B.1 "contradiction seeding"), as "a+b".</summary>
     public List<string> Pairs { get; } = new();

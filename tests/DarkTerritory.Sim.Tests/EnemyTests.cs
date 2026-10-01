@@ -289,6 +289,19 @@ public class EnemyTests
     }
 
     [Fact]
+    public void ADirectorPlannedForFourGoesByWhoIsActuallyThere()
+    {
+        // T115 playtest ("I'll be in the cab piloting the train and suddenly I can't move, and a few seconds later I die"): a
+        // solo host was planned for four, and Tippy Toesie (minCrew 2: it needs a friend to pull it off) came for them.
+        var n = new Night(6, speed: 14);
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        Assert.Equal(4, n.World.Director!.Crew);
+        n.Run(2);
+        Assert.Equal(1, n.World.Director.Crew);
+        Assert.True(n.World.Director.Crew < Tuning.Enemies.TippyToesie.MinCrew);
+    }
+
+    [Fact]
     public void DrivenOffTheChoirRestsBeforeItCanGatherAgain()
     {
         // T113 playtest ("too frequent, no counterplay"): hushing it off buys the crew a long stretch where noise is free.

@@ -171,8 +171,11 @@ public sealed partial class Run
                 case ContainerKind.CraneBay:
                     break;
                 default:
+                    // A find in a shut house is put out on its step (T114: the houses are walls now, with no way in).
+                    var put = c.Building >= 0 && c.Building < stop.Buildings.Count && StopWalls.Walled(stop, c.Building)
+                        ? StopWalls.Doorstep(stop.Buildings[c.Building], c.Index) : c.At;
                     if (finds.Any(x => x.Container == c.Index))
-                        bodies.SpawnLoot(StopWorld(line, f, c.At), hint, LootOwner(k, c.Index), t.Radius);
+                        bodies.SpawnLoot(StopWorld(line, f, put), f.Start + put.S, LootOwner(k, c.Index), t.Radius);
                     break;
             }
         }

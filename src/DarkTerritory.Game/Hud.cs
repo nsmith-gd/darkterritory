@@ -277,35 +277,7 @@ public static class Hud
         if (!p.Alive)
         {
             Big("DEAD", Red);
-            Small(p.Death switch
-            {
-                DeathCause.Cold => "FROZE",
-                DeathCause.JumpedAtSpeed => "JUMPED AT SPEED",
-                DeathCause.Derailed => "DERAILED",
-                DeathCause.Mauled => "MAULED",
-                DeathCause.Hollow => "THE HOLLOW",
-                DeathCause.Choir => "THE CHOIR",
-                DeathCause.Taken => "TAKEN. IT WASN'T THEM OUTSIDE",
-                DeathCause.Dragged => "DRAGGED OFF THE EDGE",
-                DeathCause.Crushed => "CRUSHED UNDER A DROPPED LOAD",
-                DeathCause.PulledUnder => "PULLED UNDER BETWEEN THE CARS",
-                DeathCause.Lamplighter => "TORN DOWN AT THE LAMP",
-                DeathCause.Deadman => "KILLED TAKING BACK THE CAB",
-                DeathCause.Gaunt => "NOBODY WAS WATCHING IT",
-                DeathCause.Replaced => "IT WASN'T ONE OF YOU. IT IS NOW",
-                DeathCause.Nested => "SOMETHING CAME ABOARD ON SOMEONE'S BACK",
-                DeathCause.Drift => "THE GROUND CAME UP. YOU KEPT MOVING",
-                DeathCause.TornOff => "WENT OFF THE RAILS WITH THE REAR CAR",
-                DeathCause.Climbed => "SOMETHING CAME IN OFF THE ROOF",
-                DeathCause.Struck => "STRUCK BY THE TUNNEL MOUTH",
-                DeathCause.Thrown => "THROWN OFF ON THE CURVE",
-                DeathCause.Burned => "BURNED IN A BLAZING CAR",
-                DeathCause.Gnawed => "EATEN BY THE GNAWERS",
-                DeathCause.Ferryman => "SLOWED FOR THE LANTERN",
-                DeathCause.Stoker => "BURNED DRIVING IT OUT OF THE FIREBOX",
-                DeathCause.Waiting => "WAITING TO BE PICKED UP",
-                _ => "",
-            }, Ink);
+            Small(DeathLine(p.Death), Ink);
             // App. D.10: the dead watch the living, through their eyes. Networked only: alone, there's nobody.
             if (s.Watching >= 0)
                 Small($"WATCHING CREW {s.Watching}   [{Controls.KeyLabel(Keys.KeyFor(Control.Fire))}] OR [{Controls.KeyLabel(Keys.KeyFor(Control.Right))}] NEXT   " +
@@ -339,6 +311,14 @@ public static class Hud
             else if (b.Pressure >= bt.Redline)
                 Small("PRESSURE IN THE RED: VENT, OR LET THE FIRE BURN DOWN", flash ? Red : Amber);
         }
+        // T115 playtest ("suddenly I can't move and then a few seconds later I die"): held, say so, and what to do. Alone
+        // (the solo rule) Use held struggles free; with a crew, a friend has to pull it off or hit it.
+        if (p.Alive && p.Has(PlayerFlags.Held))
+        {
+            Big("SOMETHING HAS YOU", world.Tick / 10 % 2 == 0 ? Red : Amber);
+            bool alone = s.Roster().Count(l => l.Alive) <= 1;
+            Small(alone ? Bound("HOLD [E] TO STRUGGLE FREE") : "SHOUT FOR HELP: A CREWMATE CAN PULL IT OFF, OR HIT IT", Ink);
+        }
         // T113: the Choir's long telegraph, said plainly once it's well along, and what to do about it.
         if (p.Alive && world.Combat is not null && !world.Choir.Present && world.Choir.Build > 0.25)
             Small("THE CHOIR IS GATHERING: GO QUIET", world.Tick / 15 % 2 == 0 ? Red : Amber);
@@ -347,6 +327,48 @@ public static class Hud
     /// <summary>The reload's step under way (GDD v1.1 App. C.3: powder, ball, ram), for the prompt.</summary>
     static string LoadStep(in GunState gun, GunTuning t) =>
         (t.ReloadSteps - gun.ReloadNeeded) switch { 0 => "POWDER", 1 => "BALL", _ => "RAM" };
+
+    /// <summary>
+    /// What the death screen says killed you. Every cause has its line (T115 playtest: "the death screen doesn't show me
+    /// anything": the v1.1 creatures' causes had none); an unknown one says its name.
+    /// </summary>
+    public static string DeathLine(DeathCause cause) => cause switch
+    {
+        DeathCause.Cold => "FROZE",
+        DeathCause.JumpedAtSpeed => "JUMPED AT SPEED",
+        DeathCause.Derailed => "THE TRAIN LEFT THE RAILS",
+        DeathCause.Mauled => "MAULED. SOMETHING GOT HOLD OF YOU AND NOBODY PULLED IT OFF",
+        DeathCause.Hollow => "THE HOLLOW",
+        DeathCause.Choir => "THE CHOIR",
+        DeathCause.Taken => "TAKEN. IT WASN'T THEM OUTSIDE",
+        DeathCause.Dragged => "DRAGGED OFF THE EDGE",
+        DeathCause.Crushed => "CRUSHED UNDER A DROPPED LOAD",
+        DeathCause.PulledUnder => "PULLED UNDER BETWEEN THE CARS",
+        DeathCause.Lamplighter => "TORN DOWN AT THE LAMP",
+        DeathCause.Deadman => "KILLED TAKING BACK THE CAB",
+        DeathCause.Gaunt => "NOBODY WAS WATCHING IT",
+        DeathCause.Replaced => "IT WASN'T ONE OF YOU. IT IS NOW",
+        DeathCause.Nested => "SOMETHING CAME ABOARD ON SOMEONE'S BACK",
+        DeathCause.Drift => "THE GROUND CAME UP. YOU KEPT MOVING",
+        DeathCause.TornOff => "WENT OFF THE RAILS WITH THE REAR CAR",
+        DeathCause.Climbed => "SOMETHING CAME IN OFF THE ROOF",
+        DeathCause.Struck => "STRUCK BY THE TUNNEL MOUTH",
+        DeathCause.Thrown => "THROWN OFF ON THE CURVE",
+        DeathCause.Burned => "BURNED IN A BLAZING CAR",
+        DeathCause.Gnawed => "EATEN BY THE GNAWERS",
+        DeathCause.Ferryman => "SLOWED FOR THE LANTERN",
+        DeathCause.Stoker => "BURNED DRIVING IT OUT OF THE FIREBOX",
+        DeathCause.Waiting => "WAITING TO BE PICKED UP",
+        DeathCause.Eaten => "SWALLOWED BY THE CAR HUGGER",
+        DeathCause.Suffocated => "SMOTHERED. TIPPY TOESIE WAS IN THE CAR",
+        DeathCause.Devoured => "EATEN BY THE RIBBITS, DOWN ON THE GROUND",
+        DeathCause.Drained => "DRAINED BY A SOOT CHILD",
+        DeathCause.Carried => "CARRIED OFF TO THE WHISTLER'S NEST",
+        DeathCause.Seized => "SEIZED BY THE CHOIR. YOU WERE OUTSIDE, AND IT WAS LOUD",
+        DeathCause.Uncoupled => "TAKEN WITH THE CABOOSE. THE PASSENGER CUT IT LOOSE",
+        DeathCause.None => "",
+        _ => cause.ToString().ToUpperInvariant(),
+    };
 
     /// <summary>The player's keys (T80), for the prompts: the app sets them from the settings.</summary>
     public static Settings Keys { get; set; } = new();

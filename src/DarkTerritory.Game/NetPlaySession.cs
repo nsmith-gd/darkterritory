@@ -221,7 +221,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 : Beside(hostWorld.Train, n, playerTuning);
         }
         if (setup.Enemies && route is not null)
-            host.EnableEnemies(loadout.Enemies!, route, route.Seed, bots > 0 ? bots + 1 : expectedCrew);
+            // Planned for who'll be there: alone with bots, them and you; hosted online, the friends expected too (T115: a
+            // local night alone was planned for four).
+            host.EnableEnemies(loadout.Enemies!, route, route.Seed, online is null ? bots + 1 : Math.Max(bots + 1, expectedCrew));
         // The bot crew aboard first, so one of them has the cab. Their clients take the host's plan, not a fresh generation.
         BotCrew? crew = null;
         if (bots > 0)
