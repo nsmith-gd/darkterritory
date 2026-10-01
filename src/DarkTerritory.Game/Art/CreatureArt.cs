@@ -109,6 +109,10 @@ public sealed class CreatureArt
 
     // Set by Enemy(e, pace) for the one draw it makes, as _room.
     float _pace;
+    // Set by Enemy(e) for a Dragger in its grab's last moment: how far into dragging them under it is (s), or -1.
+    double _draggedUnder = -1;
+    // A Dragger drags its catch under over its grab's last this long (s: its drag clip).
+    const double DraggerDragSeconds = 0.8;
 
     // A Gaunt or a Grumbler goes (lopes, crawls, scuttles) above this pace (m/s), and stands (listens, squats, bites) below
     // it. At each point of its anger a Gaunt leans in this much more of the way (all of it at the sim's default threshold,
@@ -129,6 +133,14 @@ public sealed class CreatureArt
     // The Passenger's walk and drag clips cover the ground at these paces (m/s: tools/blender/passenger.py's, the crew's
     // walk); dragging, it's this far ahead of the one it drags (m: they're at its feet in the sim).
     const float PassengerWalkPace = 1.4f, PassengerDragPace = 1.3f, PassengerStride = 0.8f;
+
+    // A Soot Child gets onto the one it's taken in this long (s: its pin clip), then drinks; clinging, it's this far in
+    // front of their feet (m).
+    const float SootPinSeconds = 0.6f, SootCling = 0.3f;
+
+    // The Switchman's lever turns on its stand's pivot here (m, in the model's space: by its right foot, at the top of the
+    // stand's short post).
+    static readonly Vector3 SwitchLeverPivot = new(0.34f, 0.32f, -0.3f);
 
     const int FireFlyMost = 22;
     const float FireFlySwarmFills = 20, FireFlyGlass = 0.085f, FireFlyGlassBelow = 0.07f, FireFlyGlassAbove = 0.08f, FireFlyOrbit = 0.45f;
@@ -350,6 +362,19 @@ public sealed class CreatureArt
     }
 
     /// <summary>Where a bone of the model last drawn by name is, in camera-relative space (the Switchman's lantern).</summary>
+    /// <summary>A square iron bar from <paramref name="a"/> to <paramref name="b"/>, <paramref name="half"/> thick (a lever, a post).</summary>
+    static void Bar(MeshBuilder mesh, Vector3 a, Vector3 b, float half, Vector3 colour)
+    {
+        var along = b - a;
+        float length = along.Length();
+        if (length < 1e-4f)
+            return;
+        var up = along / length;
+        var side = Vector3.Normalize(Vector3.Cross(up, MathF.Abs(up.Y) < 0.9f ? Vector3.UnitY : Vector3.UnitX));
+        var back = Vector3.Cross(side, up);
+        mesh.Box((a + b) / 2, side, up, back, new Vector3(half, length / 2, half), colour);
+    }
+
     Vector3 BoneAt(string name, string bone, in Matrix4x4 at) =>
         _models.TryGetValue(name, out var m) && m.Model.Skeleton.IndexOf(bone) >= 0
             ? Skinner.Socket(m.Model, m.Pose, bone, at).Translation
@@ -615,7 +640,10 @@ public sealed class CreatureArt
                     string clip;
                     double ct = t;
                     bool loop = true;
-                    if (aboard || phase is SpinePhase.Grab or SpinePhase.Punish)
+                    if (phase is SpinePhase.Grab or SpinePhase.Punish)
+                        // On someone: the leap, then the jaws clamped on them and the head wrenching (the pack fight's bite).
+                        (clip, ct, loop) = t < 0.6 ? ("lunge", t, false) : ("bite", t - 0.6, true);
+                    else if (aboard)
                     {
                         // Onto the roof in one leap, then the pack fight: crouch (a held beat), lunge, crouch.
                         if (t < 0.6)
@@ -652,28 +680,44 @@ public sealed class CreatureArt
                 }
             case EnemyKind.Switchman:
                 {
-                    bool fleeing = phase == SpinePhase.BreakOff;
-                    if (!Draw(mesh, "switchman", fleeing ? "flee" : "wait", t, true, model))
+                    // At the lever (App. A.7): waiting by it; the derailer's hand on it, gripping, till the train's over the
+                    // points (COMMIT, the tell); then it's thrown, heaved over, and the Switchman stands dead still by it,
+                    // watching what it's done (PUNISH); called off, it flees.
+                    var (clip, loop) = phase switch
+                    {
+                        SpinePhase.BreakOff => ("flee", true),
+                        SpinePhase.Commit => ("grip", true),
+                        SpinePhase.Punish => ("throw", false),
+                        _ => ("wait", true),
+                    };
+                    if (!Draw(mesh, "switchman", clip, t, loop, model) && !Draw(mesh, "switchman", phase == SpinePhase.BreakOff ? "flee" : "wait", t, true, model))
                         return false;
+                    if (clip is "grip" or "throw")
+                    {
+                        // The lever, from its stand's pivot by its right foot up into its hand (the stand's post under it).
+                        var hand = BoneAt("switchman", "fingers_r", model);
+                        var pivot = Vector3.Transform(SwitchLeverPivot, model);
+                        var (_, up, _) = Basis(model);
+                        Bar(mesh, pivot, hand + Vector3.Normalize(hand - pivot) * 0.12f, 0.018f, Palette.IronGrey);
+                        Bar(mesh, pivot - up * SwitchLeverPivot.Y, pivot, 0.05f, Palette.SootBlack);
+                    }
                     // Its lantern is the only light on it (App. A.7's "distant figure at the switch").
                     mesh.PointLights.Add(new PointLight(BoneAt("switchman", "lantern", model), Palette.LampAmber * 1.1f, 6f));
                     return true;
                 }
             case EnemyKind.SootChildren:
                 {
-                    // One child in the dark, calling (GDD v1.1 A.6). A Soot Child's eyes are black and its hands and feet
-                    // blackened (extra2 = 1): the tell, readable from five metres. Pinning someone, it's turned, bent over them.
+                    // A child in the dark, calling (GDD v1.2 §21, App. A.6; tools/blender/soot_child.py): squatted in the ash
+                    // with its arms round its knees, rocking, and when it calls (extra) its head comes up to the train and a
+                    // hand out. A Soot Child (extra2 = 1) is the model's variant 1: its eyes black, its hands and feet black
+                    // (the tell, from five metres). On someone (GRAB), it's up onto them, locked round them (Enemy(e) puts it
+                    // at them), its jaw dropped, drinking.
                     bool soot = extra2 > 0.5;
-                    bool drinking = phase is SpinePhase.Grab or SpinePhase.Punish;
-                    var at = drinking ? Matrix4x4.CreateRotationX(-0.5f) * model : model;
-                    if (!Draw(mesh, "soot_child", drinking || extra > 0.5 ? "turn" : "huddle", t, !drinking, at, seed: soot ? 5 : 2,
-                            adjust: soot ? (_, l) => l with { Colour = l.Colour * 0.5f } : null))
-                        return false;
-                    var head = BoneAt("soot_child", "head", at);
-                    var (rr, uu, bb) = Basis(model);
-                    foreach (float side in new[] { -1f, 1f })
-                        mesh.Box(head + rr * (side * 0.035f) - bb * 0.08f, rr, uu, bb, new Vector3(0.016f, 0.012f, 0.008f), soot ? Palette.SootBlack : Palette.BoardEnamel);
-                    return true;
+                    int variant = soot ? 1 : 0;
+                    if (phase is SpinePhase.Grab or SpinePhase.Punish)
+                        return t < SootPinSeconds ? Draw(mesh, "soot_child", "pin", t, false, model, variant, seed: 5)
+                            : Draw(mesh, "soot_child", "drink", t - SootPinSeconds, true, model, variant, seed: 5);
+                    return Draw(mesh, "soot_child", extra > 0.5 ? "call" : "huddle", t, true, model, variant, seed: soot ? 5 : 2);
                 }
             case EnemyKind.Dragger:
                 {
@@ -685,10 +729,18 @@ public sealed class CreatureArt
                         return true;
                     if (phase == SpinePhase.Telegraph)
                         return Draw(mesh, "dragger", "reach", t, false, model);
+                    // The grab's last moment (Enemy(e): its window nearly out), or PUNISH: dragged under, both limbs
+                    // yanked back across the roof and whipped down out of sight.
+                    double under = _draggedUnder;
+                    _draggedUnder = -1;
+                    bool dragging = under >= 0 || phase == SpinePhase.Punish;
                     for (int i = 0; i < 2; i++)
                     {
                         var at = Matrix4x4.CreateTranslation(0.12f, 0, (i - 0.5f) * 0.45f) * model;
-                        Draw(mesh, "dragger", "grip", t + i * 0.37, true, at, seed: i);
+                        if (dragging)
+                            Draw(mesh, "dragger", "drag", Math.Max(0, under) + i * 0.05, false, at, seed: i);
+                        else
+                            Draw(mesh, "dragger", "grip", t + i * 0.37, true, at, seed: i);
                     }
                     return true;
                 }
@@ -1245,6 +1297,20 @@ public sealed class CreatureArt
                 // Facing as it goes (Extra2, in its car's frame: the crew's own reading, GreyboxScene.AsCrewmate).
                 m = Matrix4x4.CreateRotationY((float)e.Extra2) * model;
                 _pace = pace;
+                break;
+            case EnemyKind.SootChildren when prey is { } held && e.Phase is SpinePhase.Grab or SpinePhase.Punish:
+                {
+                    // On them: in front of them, facing them, a little way off their chest (the clip lifts it to them and
+                    // locks it round them: tools/blender/soot_child.py); the sim has it at their feet.
+                    var at = held.Feet + held.Forward * SootCling;
+                    var placed = model;
+                    placed.Translation = at;
+                    m = Facing(placed, held.Feet);
+                    break;
+                }
+            case EnemyKind.Dragger when e.Phase == SpinePhase.Grab && e.GrabWindow - e.PhaseSeconds < DraggerDragSeconds:
+                // How far into its drag under it is (its last DraggerDragSeconds of the grab's window).
+                _draggedUnder = DraggerDragSeconds - (e.GrabWindow - e.PhaseSeconds);
                 break;
             case EnemyKind.FireFlies:
                 // Each swarm its own way round its lamp (by its id).

@@ -1,172 +1,140 @@
-"""SOOT CHILDREN (GDD §21 structural, App. A.6 · sound): "outside in the dark, calling for help in your crewmates'
-voices."
+"""SOOT CHILDREN (GDD v1.2 §21 outside, App. A.6): the child of tools/blender/soot_child.py, taken to the fidelity target
+(ARCHITECTURE §8 note 58, tools/models overbake).
 
-Three together at the edge of the lamplight, huddled with their arms round their knees: at a glance, children
-sheltering by the line, which is the lure. It is the same child each time, and the same child as the one standing in
-the ruined bedroom in the villages (tools/models/recipes/boy_room.py): the boy from Iman Aliakbar's "Boy Room"
-(CC BY 4.0), taken out of his room, sat down in the ash and sooted. Waxy pale where the skin shows, soot and oil
-run down him, the clothes gone to rag-grey, eyes that are just dark. They don't move while looked at; when they call,
-the heads come up towards the doors one after another.
+tools/blender/soot_child.py stays its source: the rig, the clips, the two variants (the real child and the Soot Child)
+and the game mesh. This recipe runs it, models a high-resolution copy and bakes it into one 1024 atlas:
+  * the skin waxy-pale, grimed, soot run down it in streaks from the hair and the eyes, the knees and the shins black
+    with ash where it's knelt;
+  * the shirt an adult's gone to rag-grey, stained darker down the front and along the hem;
+  * the hair matted with ash and grease;
+  * a Soot Child's hands and feet black and wet as tar (their own parts: the variant), its eyes the same black; the real
+    child's eyes a child's, the iris brown.
+Before this the Soot Children were a sourced scan (the Boy Room's boy, CC BY 4.0; tools/models/figures.py), posed into
+the huddle and rigged on it, which could rock and lift its head but never get up: note 126.
 
-The figure is posed into the huddle at full resolution (a skin of its own, weighted to a skeleton placed on the boy's
-joints), then baked down to a game mesh, and rigged again on the huddle: so what the game bends is only the small
-movement it has (the head snap, the heads coming up), never the big fold from standing to crouched.
-
-    python3 tools/models/fetch.py gk-boyroom && tools/models/build.sh soot_child
-    SOOT_PREVIEW=1 tools/models/build.sh soot_child   # renders the posed figure to out/review/soot-pose-*.png, no bake
+    tools/models/build.sh soot_child
 """
-import math
 import os
 import sys
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
-sys.path.insert(0, os.path.join(os.path.dirname(HERE), "blender"))
-import bpy  # noqa: E402
 import numpy as np  # noqa: E402
-from mathutils import Vector  # noqa: E402
 
 import cook  # noqa: E402
-import figures  # noqa: E402
-import rig  # noqa: E402
-from rig import Clip, over  # noqa: E402
+import make  # noqa: E402
+import overbake  # noqa: E402
+from overbake import fine, smooth01  # noqa: E402
 
-cook.reset()
-boy, stand = figures.boy()
+kit, g, arm, parts = overbake.hold("soot_child.py")
+print("[dt] soot_child parts", {n: len(o.data.polygons) for n, o in sorted(parts.items())})
+make.USED.clear()
+make._mats.clear()
+make.LOW.clear()
 
-
-# ----------------------------------------------------------------------------------------------------------------
-# The huddle, from his standing pose: sat down in the ash, knees drawn up to the chest, the back curled over them,
-# the head down on the knees and a little to one side, the arms round the shins.
-HUDDLE = {
-    "pelvis": (12, 0, 0), "spine_01": (-22, 0, 0), "spine_02": (-24, 0, 0), "spine_03": (-16, 0, 0),
-    "neck": (-30, 0, 0), "head": (-52, 8, 10),
-    "thigh_l": (116, -4, 0), "calf_l": (-150, 0, 0), "foot_l": (34, 0, 0),
-    "thigh_r": (110, 6, 0), "calf_r": (-146, 0, 0), "foot_r": (30, 0, 0),
+DRESS = {
+    "flesh.soot_child_lips": (lambda: make.flat("soot_child_lips", (0.16, 0.1, 0.1), rough=0.45), 2),
+    "flesh.soot_child_teeth": (lambda: make.flat("soot_child_teeth", (0.36, 0.32, 0.22), rough=0.4), 0),
+    "flesh.soot_child_eye": (lambda: make.flat("soot_child_eye_white", (0.5, 0.47, 0.42), rough=0.1), 2),
+    "flesh.soot_child": (lambda: make.flat("soot_child_skin", (0.24, 0.215, 0.195), rough=0.55), 2),
+    "wool.soot_child_shirt": (lambda: make.flat("soot_child_shirt", (0.085, 0.08, 0.072), rough=0.95), 2),
+    "rope.soot_child_string": (lambda: make.flat("soot_child_string", (0.05, 0.036, 0.022), rough=0.9), 0),
+    "tar.soot_child_hair": (lambda: make.flat("soot_child_hair", (0.008, 0.007, 0.006), rough=0.5), 1),
+    "tar.soot_child_mouth": (lambda: make.flat("soot_child_mouth", (0.006, 0.002, 0.002), rough=0.3), 0),
+    "tar.soot_child_iris": (lambda: make.flat("soot_child_iris", (0.05, 0.025, 0.012), rough=0.1), 1),
+    "tar.soot_child_eye": (lambda: make.flat("soot_child_eye_black", (0.002, 0.002, 0.002), rough=0.03), 2),
+    "tar.soot_child_soot": (lambda: make.flat("soot_child_soot", (0.006, 0.005, 0.005), rough=0.15), 2),
 }
 
 
-def shin_target(pose, s, lift, inward):
-    k, a = rig.pose_points(stand, pose, [(f"calf_{s}", "head"), (f"calf_{s}", "tail")])
-    p = k + (a - k) * lift
-    return p + Vector((-inward if s == "r" else inward, 0.07, 0))
+def dress(m):
+    key = next((k for k in sorted(DRESS, key=len, reverse=True) if m.name.startswith(k)), None)
+    if key is None:
+        raise KeyError(f"soot_child: no dress for {m.name}")
+    fn, subdiv = DRESS[key]
+    return fn(), subdiv
 
 
-for s in ("l", "r"):
-    target = shin_target(HUDDLE, s, 0.45, 0.05)
-    elbow_out = Vector((-1 if s == "l" else 1, 0, 0))
-
-    def avoid(e, s=s):
-        # Elbows out to the side of the knees, not through them.
-        k = rig.pose_points(stand, HUDDLE, [(f"calf_{s}", "head")])[0]
-        return 0.5 * max(0.0, 0.07 - (e - k).dot(elbow_out))
-    HUDDLE = rig.reach(stand, HUDDLE, f"upperarm_{s}", f"lowerarm_{s}", target, elbow_axis=0, bend=1, avoid=avoid)
-    HUDDLE[f"hand_{s}"] = (20, 0, (1 if s == "l" else -1) * 30)
-
-# Posed at full resolution; the joints where the huddle left them are the game rig's bind pose.
-P, world, floor = figures.pose(boy, stand, HUDDLE)
-posed = figures.verts(boy)
-
-if os.environ.get("SOOT_PREVIEW"):
-    out = os.path.join(cook.ROOT, "out", "review")
-    os.makedirs(out, exist_ok=True)
-    scene = bpy.context.scene
-    scene.render.engine = "CYCLES"
-    scene.cycles.device = "CPU"
-    scene.cycles.samples = 12
-    scene.cycles.use_denoising = False
-    sun = bpy.data.objects.new("sun", bpy.data.lights.new("sun", "SUN"))
-    sun.rotation_euler = (0.7, 0.3, 0.6)
-    scene.collection.objects.link(sun)
-    scene.world = bpy.data.worlds.new("w")
-    scene.world.use_nodes = True
-    scene.world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.6
-    scene.render.resolution_x = scene.render.resolution_y = 512
-    cam = bpy.data.objects.new("cam", bpy.data.cameras.new("cam"))
-    scene.collection.objects.link(cam)
-    scene.camera = cam
-    lo, hi = cook.bounds([boy])
-    c = (lo + hi) / 2
-    for view, d in (("front", Vector((0, 1, 0.25))), ("side", Vector((1, 0, 0.2))), ("three", Vector((0.7, 0.7, 0.4)))):
-        cam.location = c + d.normalized() * 2.2
-        cam.rotation_euler = (c - cam.location).to_track_quat("-Z", "Y").to_euler()
-        scene.render.filepath = os.path.join(out, f"soot-pose-{view}.png")
-        bpy.ops.render.render(write_still=True)
-    print("[dt] soot_child preview -> out/review/soot-pose-*.png")
-    sys.exit(0)
+def ridged(p, seed, scale):
+    return 1 - np.abs(cook.noise_np(p, seed, scale))
 
 
-# ----------------------------------------------------------------------------------------------------------------
-# Baked down, and sooted: skin drained to a waxy ivory, the clothes to rag-grey, soot and oil run down him from the
-# head, thick on the hands and feet where he sat in it.
-def streaks(p):
-    n = cook.noise_np(p * np.array([34, 34, 2.5]), 41) * 0.7 + cook.noise_np(p * np.array([90, 90, 6]), 42) * 0.3
-    return np.clip((n + 0.05) * 3, 0, 1)
+def skin(p, n):
+    return 0.00012 * cook.noise_np(p, 1901, 200.0) + fine(p, 0.00004, 2500, 1902)
 
 
-def low(p):
-    return np.clip((0.16 - p[:, 2]) / 0.12, 0, 1)
+def cloth(p, n):
+    # Rag: the weave, the wear-holes' lips, slack folds.
+    return 0.0008 * cook.noise_np(p * np.array([1, 1, 0.4], np.float32), 1903, 25.0) + fine(p, 0.00015, 600, 1904)
 
 
-# Eyes that are just dark: two pits of soot where the face's eyes were. The face looks the way the head bone does
-# (it was tipped 15 degrees up at the drawing); the eyes sit on the front of the skull, either side.
-R_head = world["head"][0]
-face = (R_head @ Vector((0, math.cos(math.radians(15)), math.sin(math.radians(15))))).normalized()
-side = (R_head @ Vector((1, 0, 0))).normalized()
-up = face.cross(side).normalized() * -1
-hc = (P["head"][0] + P["head"][1]) / 2
-near = posed[np.linalg.norm(posed - np.array(hc, np.float32), axis=1) < 0.2]
-along = (near - np.array(hc, np.float32)) @ np.array(face, np.float32)
-front = hc + face * float(along.max())
-EYES = [np.array(front - face * 0.02 + side * (sx * 0.034) + up * 0.005, np.float32) for sx in (-1, 1)]
+def hair(p, n):
+    # Matted: clumped, stringy down its length.
+    return 0.0015 * smooth01(0.6, 0.95, ridged(p * np.array([1, 1, 0.3], np.float32), 1905, 90.0)) + fine(p, 0.0002, 900, 1906)
 
 
-def eyes(p):
-    return np.clip(sum(np.exp(-np.sum((p - e) ** 2, axis=1) / (2 * 0.017 ** 2)) for e in EYES) * 1.6, 0, 1)
+def soot(p, n):
+    # Tar-thick, lumped and run.
+    return 0.0006 * np.maximum(0, cook.noise_np(p, 1907, 120.0)) + fine(p, 0.00005, 2000, 1908)
 
 
-def paint(base, ao, m):
-    lum = base.mean(-1, keepdims=True)
-    skin = np.clip((base[..., 0:1] - base[..., 2:3]) * 8 - 0.2, 0, 1) * np.clip(lum * 6, 0, 1)
-    wax = (0.35 + 0.5 * lum) * np.array([0.52, 0.53, 0.5], np.float32)
-    rag = lum * 0.35 * np.array([0.9, 0.87, 0.82], np.float32)
-    c = wax * skin + rag * (1 - skin)
-    s = np.clip(m["streaks"] * 0.8 + m["low"], 0, 1)[..., None]
-    c = c * (0.3 + 0.7 * ao ** 2)[..., None]
-    c = c * (1 - 0.85 * s) + np.array([0.006, 0.005, 0.0045], np.float32) * s
-    e = m["eyes"][..., None]
-    return c * (1 - e) + np.array([0.002, 0.0018, 0.0016], np.float32) * e
+SHAPE = {"flesh.soot_child_lips": skin, "flesh.soot_child_teeth": lambda p, n: 0 * p[:, 0], "flesh.soot_child_eye": lambda p, n: 0 * p[:, 0],
+         "flesh.soot_child": skin, "wool.soot_child": cloth, "rope.soot_child": lambda p, n: fine(p, 0.0003, 800, 1909), "tar.soot_child_hair": hair,
+         "tar.soot_child_mouth": lambda p, n: 0 * p[:, 0], "tar.soot_child_iris": lambda p, n: 0 * p[:, 0], "tar.soot_child_eye": lambda p, n: 0 * p[:, 0],
+         "tar.soot_child_soot": soot}
+BAKED = sorted(parts)
+highs = {name: overbake.high_of(parts[name], dress, SHAPE) for name in BAKED}
+print("[dt] soot_child highs", {k: sum(len(h.data.polygons) for h in v) for k, v in highs.items()})
+
+# Where tools/blender/soot_child.py has the head and eyes at rest (its HC, HR, EYE_U, EYE_W).
+HC = np.array([0.0, 0.012, 1.075], np.float32)
+HR = np.array([0.079, 0.086, 0.09], np.float32)
 
 
-body = cook.bake_down([boy], "soot_child", 4400, colour=None, masks={"streaks": streaks, "low": low, "eyes": eyes}, paint=paint)[0]
-layers = cook.bake_layers("soot_child", [body], family="creature", source_ids=["gk-boyroom"])
-cook._merge_index("soot_child", layers)
+def marks(p, kind):
+    """R: soot streaked down the skin (from the hair and the eyes, and the knees and shins ashed); G: the shirt stained
+    (down the front, along the hem); B: grime in the skin."""
+    out = np.zeros((len(p), 3), np.float32)
+    if kind.startswith("flesh.soot_child") and not kind.startswith(("flesh.soot_child_eye", "flesh.soot_child_teeth")):
+        u, w = (p[:, 0] - HC[0]) / HR[0], (p[:, 2] - HC[2]) / HR[2]
+        front = p[:, 1] > HC[1]
+        # Runs down from under the eyes and from the hairline, in streaks.
+        streak = smooth01(0.55, 0.95, np.abs(np.sin(p[:, 0] * 260 + 0.7 * cook.noise_np(p, 1911, 10.0))))
+        under_eyes = sum(smooth01(0.22, 0.05, np.abs(u - eu)) for eu in (-0.4, 0.4)) * smooth01(0.1, -0.15, w) * smooth01(-0.9, -0.3, w) * front
+        hairline = smooth01(0.35, 0.65, w) * front
+        out[:, 0] = np.clip(streak * (under_eyes * 0.9 + hairline * 0.6), 0, 1)
+        knees = smooth01(0.42, 0.3, np.abs(p[:, 2] - 0.3)) * smooth01(0.0, 0.03, p[:, 1])
+        out[:, 0] = np.maximum(out[:, 0], np.clip(knees * smooth01(-0.2, 0.6, cook.noise_np(p, 1912, 20.0)), 0, 1))
+        out[:, 2] = np.clip(0.6 * smooth01(0.1, 0.8, cook.noise_np(p, 1913, 30.0)), 0, 1)
+    if kind.startswith("wool.soot_child"):
+        front = smooth01(0.0, 0.06, p[:, 1])
+        out[:, 1] = np.clip(0.5 * front * smooth01(0.0, 0.7, cook.noise_np(p, 1914, 9.0)) + 0.6 * smooth01(0.48, 0.36, p[:, 2]) +
+                            0.3 * smooth01(0.2, 0.9, cook.noise_np(p, 1915, 30.0)), 0, 1)
+    return out
 
-# ----------------------------------------------------------------------------------------------------------------
-# The rig, on the huddle. Rotations from it, in the armature's axes: about X, + tips a head back (up).
-bones = [(n, stand[n].parent, P[n][0], P[n][1]) for n in (b.name for b in stand.bones)]
-bones[0] = ("root", None, (0, 0, 0), (0, 0.15, 0))
 
-STILL = {}
-huddle = Clip("huddle")
-huddle.key(0, STILL, "CONSTANT")
-huddle.key(50, STILL, "CONSTANT")
-snap = {"neck": (4, 0, 12), "head": (6, -4, 26)}
-huddle.key(52, snap, "CONSTANT")  # a snap to one side...
-huddle.key(58, snap, "CONSTANT")
-huddle.key(60, STILL, "CONSTANT")  # ...and back, as if it never moved
-huddle.key(80, STILL, "CONSTANT")
-huddle.key(81, {"hand_l": (-12, 0, 0)}, "CONSTANT")
-huddle.key(83, STILL, "CONSTANT")
-huddle.close(96)
+FACE = 1
 
-# The call: the back straightens a little and the head comes up off the knees to the doors, too fast, and holds.
-LOOK = {"spine_02": (10, 0, 0), "spine_03": (10, 0, 0), "neck": (30, 0, 0), "head": (34, -6, -4)}
-turn = Clip("turn", loop=False)
-turn.key(0, STILL, "CONSTANT")
-turn.key(3, rig.blend(STILL, LOOK, 0.7), "LINEAR")
-turn.key(5, over(LOOK, head=(40, -6, -4)), "LINEAR")
-turn.key(9, LOOK, "CONSTANT")
-turn.key(20, LOOK, "CONSTANT")
 
-cook.rig_creature("soot_child", [body], bones, [huddle, turn])
+def kind_of(m):
+    return FACE if m.name.startswith(("flesh.soot_child", "tar.soot_child_eye", "tar.soot_child_iris", "tar.soot_child_mouth")) else 0
+
+
+atlas = overbake.Atlas("soot_child", parts, BAKED, kind_of)
+atlas.unwrap(boosts={FACE: 2.2})
+groups = {name: (atlas.part_of == pi, highs[name]) for pi, name in enumerate(BAKED)}
+atlas.bake(groups, cages={name: (0.002, 0.008) for name in BAKED}, height=1.2, masks={"marks": marks})
+
+mk = atlas.maps["marks"]
+base = atlas.base(soot=(0.012, 0.011, 0.01), crease=0.45, ao_floor=0.45)
+
+
+def paint(base, colour, k):
+    k = np.clip(k, 0, 1)[..., None]
+    return base * (1 - k) + np.array(colour, np.float32) * k
+
+
+base = paint(base, (0.08, 0.075, 0.07), mk[..., 2] * 0.35)     # grime
+base = paint(base, (0.012, 0.011, 0.01), mk[..., 0] * 0.85)    # soot, run down it
+base = paint(base, (0.035, 0.03, 0.025), mk[..., 1] * 0.55)    # the shirt's stains
+atlas.finish(base, kit, arm, made=make.provenance("soot_child", "the Soot Child, modelled over tools/blender/soot_child.py"))

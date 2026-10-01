@@ -44,6 +44,13 @@ public static class Views
             // staged Grumbler).
             "grumbler" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 1.3), 1.35, 0.1)),
                 train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 3.4), 0.4, -1.6)), 55),
+            // Off the second car's left, over crewmate 4's shoulder, at what's squatted in the ash out there (the staged Soot
+            // Child), or on them.
+            "soot" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 1.0), 1.55, 0.3)),
+                train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 3.6), 0.6, -1.5)), 50),
+            // From the side, at crewmate 4 and what's on them (the staged Soot Child drinking).
+            "sootside" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 3.4), 1.45, 0.4)),
+                train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 2.45), 1.2, -1.5)), 45),
             // Close behind crewmate 4 (Staging.Lone), at their back: what their friends see there and they can't (the
             // staged Follower).
             "follower" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 1.1), 1.6, -1.25)),
@@ -64,6 +71,8 @@ public static class Views
             // The fireman's side (T101): out of the left window down the running board to the blow-off by the smokebox.
             "fireman" => CabCamera(engine, -1),
             "chase" => ChaseCamera(train),
+            // On the line 47 m ahead of the engine, at the staged Switchman by its lever 8 m on (Staging.Threats).
+            "switchman" => Camera.LookAt(engine.ToWorld(new Double3(1.6, 1.8, -engineHalf - 50.5)), engine.ToWorld(new Double3(3.8, 1.1, -engineHalf - 55)), 50),
             "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
             "gap" => GapCamera(train, car),
             // From over the car behind, down at a cargo car's roof hatch (T99): its lid, shut, or open down the side.
