@@ -47,7 +47,7 @@ public enum PlayerActions : byte
     Ladder = 16,
     /// <summary>On the wire only: this intent carries a hotbar choice (<see cref="PlayerIntent.Select"/>, <see cref="PlayerIntent.Cycle"/>).</summary>
     Tool = 32,
-    /// <summary>Sit at the gun you're at, or get up from it (T112): sent on the press.</summary>
+    /// <summary>Sit at the gun you're at (T112): sent on the press. Sitting only, so a repeated intent is harmless; Jump gets up.</summary>
     Seat = 64,
 }
 

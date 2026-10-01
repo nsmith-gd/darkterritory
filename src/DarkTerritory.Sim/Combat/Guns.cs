@@ -115,7 +115,8 @@ public static class Guns
 
     /// <summary>
     /// The gun's seat (T112 playtest: "a gun seat with its own controls"), each tick before the gun fires. The Seat press at
-    /// a gun sits you in it, or gets you up; so does the gun going (pushed away, its car cut, you seized). Seated, your
+    /// a gun sits you in it (only that: a host repeating a lost intent mustn't stand you back up); Jump gets you up (the
+    /// motor), and so does the gun going (pushed away, its car cut, you seized). Seated, your
     /// view is held inside the gun's arc and the gun is laid after it, no faster than its carriage turns and its barrel
     /// lifts, and your feet stay on the seat as the carriage turns. Worked alike on host and client, so a client predicts it.
     /// </summary>
@@ -124,7 +125,7 @@ public static class Guns
         bool seated = s.Has(PlayerFlags.Seated);
         var gunVehicle = MannedGun(s, train, t);
         bool canSit = gunVehicle is not null && s.Alive && !s.Has(PlayerFlags.Held) && !s.Has(PlayerFlags.Heavy);
-        if (seated && (!canSit || intent.Has(PlayerActions.Seat)))
+        if (seated && !canSit)
         {
             s.Flags &= ~PlayerFlags.Seated;
             return;

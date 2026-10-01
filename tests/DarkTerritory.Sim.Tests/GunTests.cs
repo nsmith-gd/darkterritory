@@ -178,7 +178,8 @@ public class GunTests
         var w = World();
         var s = StandingAtGun(w, 0);
         Assert.Empty(Hold(w, ref s, Fire, 0.5));
-        Hold(w, ref s, new PlayerIntent { Actions = PlayerActions.Seat }, 1.0 / SimConstants.TickRate);
+        // Held for a few ticks (a host repeats a lost intent): sat, and still sat.
+        Hold(w, ref s, new PlayerIntent { Actions = PlayerActions.Seat }, 3.0 / SimConstants.TickRate);
         Assert.True(s.Has(PlayerFlags.Seated));
         Assert.NotEmpty(Hold(w, ref s, Fire, 0.2));
         // Up out of the seat on Jump, without leaving the roof.

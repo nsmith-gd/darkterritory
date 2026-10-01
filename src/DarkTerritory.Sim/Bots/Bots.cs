@@ -107,7 +107,7 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         _atGun = true;
         if (world.Train.Vehicles[gun].Gun is { ReloadNeeded: > 0, Ammo: > 0 })
             return new PlayerIntent { Buttons = PlayerButtons.Use };
-        // T112: only from the seat. Sat, it stays (a press again would get it up).
+        // T112: only from the seat.
         var seat = self.Has(PlayerFlags.Seated) ? PlayerActions.None : PlayerActions.Seat;
         bool holdFire = _holding;
         var frame = world.Train.Frames[gun];
