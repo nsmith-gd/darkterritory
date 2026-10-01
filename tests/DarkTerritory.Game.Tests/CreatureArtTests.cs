@@ -40,7 +40,7 @@ public class CreatureArtTests
         ["sleeper"] = new(400, 3000, 8, 13, ["dormant", "writhe"], ["lift"]),
         ["clinger"] = new(1500, 6000, 10, 45, ["cling", "drill"], ["punish"]),
         // A limb, not a body (App. A.4: all you see of one): a chain of arm, hand and two-bone fingers.
-        ["dragger"] = new(300, 3000, 8, 20, ["grip"], ["reach"]),
+        ["dragger"] = new(300, 3000, 8, 20, ["grip"], ["reach", "drag"]),
         // A heap of bodies, not a body (App. A.3): the heap, its heads and six arms on a chain rig.
         ["weight"] = new(2500, 8000, 20, 40, ["drag"], ["grab", "release"]),
         // A jointed porcelain doll (App. A.2), a character's budget: SK_Human in a doll's proportions, rigid at the joints.

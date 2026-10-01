@@ -109,6 +109,10 @@ public sealed class CreatureArt
 
     // Set by Enemy(e, pace) for the one draw it makes, as _room.
     float _pace;
+    // Set by Enemy(e) for a Dragger in its grab's last moment: how far into dragging them under it is (s), or -1.
+    double _draggedUnder = -1;
+    // A Dragger drags its catch under over its grab's last this long (s: its drag clip).
+    const double DraggerDragSeconds = 0.8;
 
     // A Gaunt or a Grumbler goes (lopes, crawls, scuttles) above this pace (m/s), and stands (listens, squats, bites) below
     // it. At each point of its anger a Gaunt leans in this much more of the way (all of it at the sim's default threshold,
@@ -725,10 +729,18 @@ public sealed class CreatureArt
                         return true;
                     if (phase == SpinePhase.Telegraph)
                         return Draw(mesh, "dragger", "reach", t, false, model);
+                    // The grab's last moment (Enemy(e): its window nearly out), or PUNISH: dragged under, both limbs
+                    // yanked back across the roof and whipped down out of sight.
+                    double under = _draggedUnder;
+                    _draggedUnder = -1;
+                    bool dragging = under >= 0 || phase == SpinePhase.Punish;
                     for (int i = 0; i < 2; i++)
                     {
                         var at = Matrix4x4.CreateTranslation(0.12f, 0, (i - 0.5f) * 0.45f) * model;
-                        Draw(mesh, "dragger", "grip", t + i * 0.37, true, at, seed: i);
+                        if (dragging)
+                            Draw(mesh, "dragger", "drag", Math.Max(0, under) + i * 0.05, false, at, seed: i);
+                        else
+                            Draw(mesh, "dragger", "grip", t + i * 0.37, true, at, seed: i);
                     }
                     return true;
                 }
@@ -1296,6 +1308,10 @@ public sealed class CreatureArt
                     m = Facing(placed, held.Feet);
                     break;
                 }
+            case EnemyKind.Dragger when e.Phase == SpinePhase.Grab && e.GrabWindow - e.PhaseSeconds < DraggerDragSeconds:
+                // How far into its drag under it is (its last DraggerDragSeconds of the grab's window).
+                _draggedUnder = DraggerDragSeconds - (e.GrabWindow - e.PhaseSeconds);
+                break;
             case EnemyKind.FireFlies:
                 // Each swarm its own way round its lamp (by its id).
                 return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: true, extra2: e.Id);
