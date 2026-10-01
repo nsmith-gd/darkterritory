@@ -95,6 +95,8 @@ public sealed record PacingReport(int Beats, double BeatsPerMinute, double Longe
 public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictionary<string, int> Spawned, IReadOnlyDictionary<string, int> Punishes,
     IReadOnlyDictionary<string, int> DeathsByCause, int FairnessViolations, bool Derailed, double ChoirPeak, double MeanCargoIntegrity, int RoundsFired)
 {
+    /// <summary>What derailed the train, if it was (<see cref="World.DerailCause"/>).</summary>
+    public string? DerailCause { get; init; }
     /// <summary>The conflict-table pairs the director put together (App. B.1).</summary>
     public IReadOnlyList<string> Pairs { get; init; } = [];
 }
@@ -254,7 +256,7 @@ public static class Harness
                 events.Where(e => e.To == SpinePhase.Punish).GroupBy(e => e.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()),
                 deaths, unfair, host.World.Derailed, Math.Round(choirPeak, 1),
                 Math.Round(host.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).DefaultIfEmpty().Average(v => v?.CargoIntegrity ?? 1), 3), rounds)
-            { Pairs = [.. d.Pairs] };
+            { Pairs = [.. d.Pairs], DerailCause = host.World.DerailCause };
         }
         if (o.Udp || o.Network is not null)
         {
