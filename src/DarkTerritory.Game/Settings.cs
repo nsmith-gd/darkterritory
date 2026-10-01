@@ -4,7 +4,7 @@ using Ballast;
 namespace DarkTerritory.Game;
 
 /// <summary>
-/// A player's settings (roadmap M6 "settings"): sound, voice, the HUD, VR comfort and the mouse. One small text
+/// A player's settings (roadmap M6 "settings"): sound, voice, the HUD, VR comfort, the mouse, and the display (T83). One small text
 /// file in the user's app data, beside the save slots; the front end's settings screen writes it as you change things.
 /// </summary>
 public sealed record Settings
@@ -19,8 +19,49 @@ public sealed record Settings
     public bool VrVignette { get; init; } = true;
     /// <summary>A multiplier on mouse look.</summary>
     public double MouseSpeed { get; init; } = 1;
+    /// <summary>T83: the whole screen (borderless, the desktop's own mode) rather than a window.</summary>
+    public bool Fullscreen { get; init; }
+    /// <summary>T83: wait for the monitor between frames (no tearing); off, frames go out as soon as they're drawn.</summary>
+    public bool VSync { get; init; } = true;
+    /// <summary>T83: the resolution the game draws at (and the window's size, windowed), one of <see cref="Resolutions"/>.</summary>
+    public string Resolution { get; init; } = "1280x720";
+    /// <summary>T83: a fraction of <see cref="Resolution"/> the scene's drawn at and scaled up from (a slower GPU's friend).</summary>
+    public double RenderScale { get; init; } = 1;
     /// <summary>The player's own key for a control (T80), by control name; the rest are <see cref="Controls.Defaults"/>.</summary>
     public Dictionary<string, string> Keys { get; init; } = new();
+
+    /// <summary>The resolutions on offer (16:9, the HUD's own shape: ARCHITECTURE §8 note 57's 720p is the least).</summary>
+    public static readonly string[] Resolutions = ["1280x720", "1600x900", "1920x1080", "2560x1440"];
+    /// <summary>The render scales on offer.</summary>
+    public static readonly double[] RenderScales = [0.5, 0.75, 1];
+
+    /// <summary>The window's size for <see cref="Resolution"/> (720p if it isn't one it knows).</summary>
+    public (int Width, int Height) WindowSize
+    {
+        get
+        {
+            var parts = (Resolutions.Contains(Resolution) ? Resolution : Resolutions[0]).Split('x');
+            return (int.Parse(parts[0]), int.Parse(parts[1]));
+        }
+    }
+
+    /// <summary>The size the scene's drawn at: the resolution at the render scale, kept even (the post passes halve it).</summary>
+    public (int Width, int Height) InternalSize
+    {
+        get
+        {
+            var (w, h) = WindowSize;
+            double k = RenderScales.Contains(RenderScale) ? RenderScale : 1;
+            return ((int)Math.Round(w * k / 2) * 2, (int)Math.Round(h * k / 2) * 2);
+        }
+    }
+
+    /// <summary>The next (or previous, <paramref name="by"/> −1) choice along a list, wrapping round.</summary>
+    public static T Cycle<T>(T[] list, T now, int by)
+    {
+        int i = Array.IndexOf(list, now);
+        return list[((i < 0 ? 0 : i) + by + list.Length) % list.Length];
+    }
 
     /// <summary>The key a control is on.</summary>
     public string KeyFor(Control c) => Keys.GetValueOrDefault(c.ToString()) ?? Controls.Defaults[c];
@@ -70,9 +111,10 @@ public sealed record Settings
     /// <summary>Settings are the same when every choice is, the keys by what's in them (a record compares a dictionary by reference).</summary>
     public bool Equals(Settings? other) => other is not null && Mute == other.Mute && PushToTalk == other.PushToTalk && Hud == other.Hud
         && VrTurn == other.VrTurn && VrVignette == other.VrVignette && MouseSpeed == other.MouseSpeed
+        && Fullscreen == other.Fullscreen && VSync == other.VSync && Resolution == other.Resolution && RenderScale == other.RenderScale
         && Keys.Count == other.Keys.Count && Keys.All(k => other.Keys.GetValueOrDefault(k.Key) == k.Value);
 
-    public override int GetHashCode() => HashCode.Combine(Mute, PushToTalk, Hud, VrTurn, VrVignette, MouseSpeed, Keys.Count);
+    public override int GetHashCode() => HashCode.Combine(Mute, PushToTalk, Hud, VrTurn, VrVignette, MouseSpeed, Keys.Count, HashCode.Combine(Fullscreen, VSync, Resolution, RenderScale));
 
     /// <summary>The comfort defaults from content, with the player's choices over them.</summary>
     public VrTuning Apply(VrTuning t) => t with { Turn = VrTurn, Vignette = t.Vignette with { Enabled = VrVignette } };
