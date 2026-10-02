@@ -73,6 +73,7 @@ return args switch
     ["online", "check"] => Print(OnlineCheck()),
     ["campaign", var verb, ..] => Print(CampaignCommand(content, verb, args)),
     ["vr", "check", ..] => Print(VrCheck(train, content, args)),
+    ["facility", "drill", var kind, ..] when Enum.TryParse<FacilityKind>(kind, ignoreCase: true, out var fk) => Print(FacilityWorkDrill(fk, args)),
     ["facility", "drill", ..] => Print(FacilityDrill(train, content, routeTuning, args)),
     ["audio", "render", ..] => Print(RenderAudio(content, args)),
     ["audio", "opera", ..] => Print(OperaCommands.Run(content, args)),
@@ -338,6 +339,52 @@ static object VrCheck(TrainTuning t, string content, string[] args)
 // GDD §17's facility set piece, scripted end to end on a generated night (T28): stop short of the spur's points, cut
 // what won't fit, run the empties in, load (instantly, or --load-seconds), back out onto the waiting cars and couple,
 // set the switch back, and go. Prints when each step began and how the train came out of it.
+// GDD §18's facility set pieces (note 185): a bot crew works a facility of this kind, through intent, from a standing start short
+// of its spur until the train's left it. --route tier:seed (a generated night with one), else the first hand-tuned route
+// that has one; --cars n, --hands n crate hands, --seconds s.
+object FacilityWorkDrill(FacilityKind kind, string[] args)
+{
+    var run = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
+    var facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File));
+    int cars = (int)Opt(args, "--cars", 8);
+    (Route Route, int Facility)? found;
+    if (Str(args, "--route", "") is { Length: > 0 } spec)
+    {
+        var generated = DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars);
+        var features = generated.Of(FeatureKind.Facility).ToList();
+        int i = features.FindIndex(f => f.Facility == kind && generated.Branches.Any(b => b.Kind == BranchKind.Spur && f.Contains(b.Toe)));
+        found = i >= 0 ? (generated, i) : null;
+    }
+    else
+        found = DarkTerritory.Sim.Bots.FacilityWork.Find(routeTuning, kind);
+    if (found is not { } at)
+        return new { error = $"no route with a {kind} down a spur" };
+    var r = DarkTerritory.Sim.Bots.FacilityWork.Run(at.Route, at.Facility, train, player, boiler, run, facilities, routeTuning.Junctions, cars,
+        (int)Opt(args, "--hands", 2), Opt(args, "--seconds", 1500), at.Route.GateOr(routeTuning.YardLength));
+    return new
+    {
+        route = at.Route.Name,
+        facility = r.Facility,
+        modules = facilities.ModulesOf(kind).Select(m => m.ToString()),
+        departed = r.Departed,
+        seconds = r.Seconds,
+        legs = r.Legs,
+        doing = r.Doing,
+        loadedBefore = r.LoadedBefore,
+        loadedAfter = r.LoadedAfter,
+        cars = r.Loads.Select(l => new { load = l.Load, cargo = l.Cargo.ToString(), cargoIntegrity = l.CargoIntegrity, integrity = l.Integrity }),
+        bin = r.Bin,
+        head = r.Head,
+        hoseOn = r.HoseCar >= 0,
+        leaking = r.Leaking,
+        rakes = r.Rakes,
+        switchBack = r.SwitchBack,
+        alive = $"{r.Alive}/{r.Crew}",
+        deaths = r.Deaths,
+        stop = r.Record,
+    };
+}
+
 static object FacilityDrill(TrainTuning t, string content, RouteTuning rt, string[] args)
 {
     int cars = (int)Opt(args, "--cars", 7);
@@ -739,8 +786,15 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         run.EnableLoot(DataFile.Load<LootTuning>(Path.Combine(content, LootTuning.File)), line, facilities);
         // --crane: the first facility with a gantry crane (T48) instead, its first casting on the hook.
         // --facility i: that facility's site, whatever it has (to look at a kind's buildings).
-        int pick = (int)Opt(args, "--facility", -1);
-        site = pick >= 0 && pick < run.Sites.Count ? run.Sites[pick]
+        // --facility kind: the route's first facility of that kind (GDD §18's set pieces, note 185: grainElevator, slaughterhouse,
+        // chemicalWorks, militaryDepot...), working: the spout pouring into a car under it, the herd going up, the hose on.
+        string facilityArg = Str(args, "--facility", "");
+        FacilityKind? kindPick = facilityArg.Length > 0 && !char.IsDigit(facilityArg[0]) ? Enum.Parse<FacilityKind>(facilityArg, ignoreCase: true) : null;
+        int pick = kindPick is null ? (int)Opt(args, "--facility", -1) : -1;
+        if (kindPick is { } wantKind && run.Sites.FirstOrDefault(x => x?.Feature.Facility == wantKind) is null)
+            return Print(new { error = $"{Str(args, "--route", "")} has no {wantKind}", has = run.Sites.Where(x => x is not null).Select(x => x!.Feature.Facility.ToString()) });
+        site = kindPick is { } k ? run.Sites.First(x => x?.Feature.Facility == k)
+            : pick >= 0 && pick < run.Sites.Count ? run.Sites[pick]
             : args.Contains("--crane") ? run.Sites.FirstOrDefault(x => x?.Crane is not null)
             : run.Sites.FirstOrDefault(x => x is not null && x.Has(DarkTerritory.Sim.Run.ModuleKind.Winch)) ?? run.Sites.FirstOrDefault(x => x is not null);
         if (site?.Crane is { } shownCrane)
@@ -753,8 +807,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         {
             // Down its spur, the engine up at the buffer stop (T28); on the main line for one without.
             at = site.Spur >= 0 ? line.Branches[site.Spur].End - 0.5 : (site.Feature.Start + site.Feature.End) / 2 + 45;
+            // At the grain elevator, its first car under the spout (the engine short of the buffer stop).
+            if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Spout) && site.Spur >= 0)
+                at = line.Branches[site.Spur].Toe + site.SpoutAlong + consist.OffsetOf(1) + t.Geometry.CarLength / 2;
+            bool leak = args.Contains("--leak");
             run.Mirror(DarkTerritory.Sim.Run.RunPhase.AtFacility, DarkTerritory.Sim.Run.RunEnd.None, 900, site.Index, false,
-                [.. Enumerable.Repeat(0.0, run.FacilityCount)], [.. run.Sites.Select(x => new DarkTerritory.Sim.Run.SiteState(true, x == site ? 0.45 : 0, x?.SledsLeft ?? 0, x == site, false, x == site ? 0.7 : 0))]);
+                [.. Enumerable.Repeat(0.0, run.FacilityCount)], [.. run.Sites.Select(x => new DarkTerritory.Sim.Run.SiteState(true, x == site ? 0.45 : 0, x?.SledsLeft ?? 0, x == site, false, x == site ? 0.7 : 0)
+                {
+                    Bin = x?.Bin ?? 0, Head = x?.Head ?? 0, Pouring = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Spout),
+                    Herding = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Ramp), Herd = x == site ? 0.5 : 0,
+                    Pressure = x == site ? leak ? 1 : 0.6 : 0, Leak = x == site && leak ? 10 : 0,
+                })]);
         }
     }
     // --junction i: at a branch's points (T27), [--diverge] set for the branch, [--through] and the train run in onto it.
@@ -781,6 +844,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var state = train.Capture();
         train.Restore(state with { Rakes = [state.Rakes[0] with { Path = site.Spur }] });
     }
+    // The works' hose on the car by its stand (note 185).
+    if (site is not null && site.Has(DarkTerritory.Sim.Run.ModuleKind.Hose)
+        && train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).MinBy(v => (train.Frames[v.Id].Origin - site.HoseStand).Length) is { } hosed)
+        site.Mirror(site.State with { HoseCar = hosed.Id });
     if (junction >= 0 && junction < line.Branches.Count)
     {
         var branch = line.Branches[junction];
@@ -866,23 +933,41 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (site is not null)
     {
         var shelf = new DarkTerritory.Sim.Physics.Bodies();
+        // In the facility's own cases (the depot's are its powder kegs, note 185).
+        var freight = site.Feature.Facility is { } fk ? DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)).CargoOf(fk) : CargoKind.None;
         foreach (var crate in site.CrateStack)
-            shelf.SpawnCargo(crate - Double3.Up * 0.15, site.CrateLineHint);
+            shelf.SpawnCargo(crate - Double3.Up * 0.15, site.CrateLineHint, cargo: freight);
         foreach (var crate in site.HeavyStack)
-            shelf.SpawnCargo(crate, site.CrateLineHint, site.HeavyRadius);
+            shelf.SpawnCargo(crate, site.CrateLineHint, site.HeavyRadius, freight);
         run!.Stock(shelf, run.Stops.ToList().IndexOf(site.Feature));
         cargo = [.. shelf.All];
         if (Str(args, "--cam", "") is not { Length: > 0 })
         {
             // (--crank closes on the winch's cranks even at a facility that also has a crane.)
-            if (site.Crane is { } crane && !args.Contains("--crank"))
+            // GDD §18's set pieces (note 185), each from out beyond it on its side, along the line a way, looking back at it.
+            Double3 Out(Double3 from) => ((from - line.Sample(site.Spur, site.Spur >= 0 ? line.Branches[site.Spur].Toe + site.Mid : site.Mid).Position) with { Y = 0 }).Normalized;
+            Double3 Along() => site.Track.Sample(site.Mid).Tangent;
+            if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Spout))
+            {
+                var side = ((site.SpoutLever - site.Spout) with { Y = 0 }).Normalized;
+                camera = Camera.LookAt(site.Spout + side * 10 + Along() * 8 + Double3.Up * 3.5, site.Spout - Double3.Up * 1.5, 62);
+            }
+            else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Ramp))
+                camera = Camera.LookAt(site.Pen + Out(site.Pen) * 6 - Along() * 14 + Double3.Up * 6, (site.Pen + site.RampTop) * 0.5, 65);
+            else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Hose))
+            {
+                var side = (site.HoseCar >= 0 && site.HoseCar < train.Frames.Count ? (site.HoseStand - train.Frames[site.HoseCar].Origin) with { Y = 0 } : Out(site.HoseStand)).Normalized;
+                camera = Camera.LookAt(site.HoseStand + side * 8 + Along() * 7 + Double3.Up * 5, site.HoseStand + Double3.Up * 2.5 - side * 2.5, 62);
+            }
+            else if (site.Crane is { } crane && !args.Contains("--crank"))
             {
                 // High on the near side of the track, past the gantry's end, looking down across the train at the hook and castings.
                 var outward = (crane.Corner(0, 1) - crane.Corner(0, 0)) with { Y = 0 };
                 var along = (crane.Corner(1, 0) - crane.Corner(0, 0)).Normalized;
                 camera = Camera.LookAt(crane.Corner(1, 0) - outward.Normalized * 5 + along * 6 + Double3.Up * 11, crane.HookAt - Double3.Up * 2.5, 65);
             }
-            else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Winch))
+            // (The depot's powder kegs are the thing to see there, note 185: the crate stack's view.)
+            else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Winch) && (site.Feature.Facility != FacilityKind.MilitaryDepot || args.Contains("--crank")))
             {
                 // Out beyond the sled, a little along the line, looking back at the capstan and the train.
                 var outward = (site.SledFrom - site.SledTo).Normalized;
@@ -1677,7 +1762,7 @@ static int Usage()
                      [--burnt car,s]   that car gutted by a fire out s seconds ago: charred, smouldering
                      [--route tier:seed --structure girder|truss|trestle|viaduct|causeway|retainingwall]   the night's first of the plan's structures of that type, the train on it, from off its side
                      [--route tier:seed --mail s]   at the night's first mail crane, car 2's door by it; s > 0: the bag caught s seconds ago (its snatch, the arms falling)
-                     [--route tier:seed --site [--crank | --crane | --facility i]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --facility: the route's i-th
+                     [--route tier:seed --site [--crank | --crane | --facility i|kind [--leak]]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --facility: the route's i-th
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
@@ -1708,6 +1793,7 @@ static int Usage()
                      GDD §34's sweep: harness nights at each crew size and train length, side by side, judged against
                      tuning/balance.json (survivable at 2, non-trivial at 8, fair throughout); exit 1 if a check fails
           facility drill [--route tier:seed] [--facility i] [--cars n] [--load-seconds s]
+          facility drill <kind> [--route tier:seed] [--cars n] [--hands n] [--seconds s]   a bot crew works a facility of that kind (GDD §18 set pieces)
                      GDD §17's set piece scripted: cut, spur in, load, back out, recouple, switch back, go; the timeline
           vr check [--frames n] [--view roof|cab|…] [--scale 0.5] [--out out/shots/vr.png]
                      an OpenXR session end to end (Monado's simulated headset works headless) and both eyes as a PNG

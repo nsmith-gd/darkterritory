@@ -214,6 +214,10 @@ public sealed class GreyboxScene
                     // The modules modelled by the art pass where it has them (SceneArt.Depots), boxes where not.
                     if (site is not null && (site.Capstan - eye).Length < DrawDistance && Look?.Art.Winch(mesh, site, eye) != true)
                         Winch(mesh, site, eye);
+                    // GDD §18's set pieces (note 185): the elevator's spout, the slaughterhouse's pen and ramp, the works' hose.
+                    if (site is not null && (site.Has(Sim.Run.ModuleKind.Spout) || site.Has(Sim.Run.ModuleKind.Ramp) || site.Has(Sim.Run.ModuleKind.Hose))
+                        && (site.Track.Sample(site.Mid).Position - eye).Length < DrawDistance + 120)
+                        SetPieces(mesh, site, frames, eye, Time);
                     // Its own gantry and the yard's (level-design P18: one over each craned loading face).
                     foreach (var crane in site?.Cranes ?? [])
                         if ((crane.HookAt - eye).Length < DrawDistance && Look?.Art.Crane(mesh, crane, frames, eye) != true)
@@ -1461,6 +1465,145 @@ public sealed class GreyboxScene
     }
 
     /// <summary>
+    /// GDD §18's set pieces (note 185), drawn from the sim's state: the grain elevator's bin on its legs astride the track,
+    /// its spout down over the cars and grain falling while the lever's held; the slaughterhouse's pen, its herd (one going up
+    /// the ramp as far as it's been driven) and the ramp to the car; the chemical works' hose stand, its gauge reading the
+    /// pressure, the hose to the car it's on, and the leak's cloud.
+    /// </summary>
+    static void SetPieces(MeshBuilder mesh, Sim.Run.Site site, IReadOnlyList<CarFrame> frames, Double3 eye, double time)
+    {
+        static (Vector3 Along, Vector3 Across) Axes(Double3 from, Double3 to)
+        {
+            var d = (to - from) with { Y = 0 };
+            var across = ToF(d.Length > 1e-6 ? d.Normalized : new Double3(1, 0, 0));
+            return (Vector3.Cross(Vector3.UnitY, across), across);
+        }
+        void Rod(Double3 a, Double3 b, float r, Vector3 colour)
+        {
+            var d = b - a;
+            if (d.Length < 1e-6)
+                return;
+            var dir = ToF(d.Normalized);
+            var side = Vector3.Normalize(Vector3.Cross(dir, MathF.Abs(dir.Y) > 0.9f ? Vector3.UnitX : Vector3.UnitY));
+            mesh.Box(V((a + b) * 0.5, eye), dir, Vector3.Cross(side, dir), side, new Vector3((float)d.Length * 0.5f, r, r), colour);
+        }
+        var grain = new Vector3(0.72f, 0.6f, 0.36f);
+        if (site.Has(Sim.Run.ModuleKind.Spout))
+        {
+            // The bin up on four legs astride the track, the spout's pipe down to just over a car's roof.
+            var mouth = site.Spout;
+            var ground = mouth with { Y = mouth.Y - 5.2 };
+            var (along, across) = Axes(mouth, site.SpoutLever);
+            var a = ToD(along);
+            var x = ToD(across);
+            foreach (int i in new[] { -1, 1 })
+                foreach (int j in new[] { -1, 1 })
+                    Rod(ground + a * (i * 2.4) + x * (j * 2.8) - Double3.Up * 0.3, mouth + Double3.Up * 3.2 + a * (i * 1.8) + x * (j * 2.2), 0.12f, Palette.DeepBrown);
+            mesh.Box(V(mouth + Double3.Up * 4.6, eye), along, Vector3.UnitY, across, new Vector3(2.2f, 1.5f, 2.6f), Palette.IronGrey);
+            mesh.Box(V(mouth + Double3.Up * 6.2, eye), along, Vector3.UnitY, across, new Vector3(2.5f, 0.12f, 2.9f), Palette.RustRed);
+            Rod(mouth + Double3.Up * 3.1, mouth, 0.28f, Palette.TarnishedBrass);
+            // Grain left in the bin, its level in a sight glass on the bin's track side.
+            float level = (float)Math.Clamp(site.Bin / 3.0, 0, 1);
+            mesh.Box(V(mouth + Double3.Up * (3.2 + 1.4 * level) + x * 2.62, eye), along, Vector3.UnitY, across, new Vector3(0.3f, 1.4f * level + 0.02f, 0.02f), grain);
+            // The lever: a post, its handle down while it's held.
+            var lever = site.SpoutLever;
+            Rod(lever - Double3.Up * 0.9, lever, 0.06f, Palette.IronGrey);
+            Rod(lever, lever + Double3.Up * (site.Pouring ? -0.15 : 0.35) + x * 0.45, 0.04f, Palette.HazardYellow);
+            if (site.Pouring)
+                for (int i = 0; i < 18; i++)
+                {
+                    double fall = (time * 6 + i * 0.31) % 2.6;
+                    var p = mouth - Double3.Up * fall + a * (0.18 * Math.Sin(i * 2.3)) + x * (0.18 * Math.Cos(i * 1.7));
+                    mesh.Box(V(p, eye), along, Vector3.UnitY, across, new Vector3(0.12f, 0.2f, 0.12f), grain * (i % 2 == 0 ? 1f : 0.8f));
+                }
+        }
+        if (site.Has(Sim.Run.ModuleKind.Ramp))
+        {
+            // The pen's rails round the herd, the ramp up from it to a car's doorway, the head still penned.
+            var pen = site.Pen;
+            var (along, across) = Axes(site.RampTop, pen);
+            var a = ToD(along);
+            var x = ToD(across);
+            double r = site.PenRadius;
+            for (int i = 0; i < 16; i++)
+            {
+                double t0 = i * Math.PI / 8, t1 = (i + 1) * Math.PI / 8;
+                var p0 = pen + a * (r * Math.Cos(t0)) + x * (r * Math.Sin(t0));
+                var p1 = pen + a * (r * Math.Cos(t1)) + x * (r * Math.Sin(t1));
+                // A gap where the ramp leaves the pen, towards the track.
+                if (Math.Sin((t0 + t1) / 2) < -0.92)
+                    continue;
+                Rod(p0, p0 + Double3.Up * 1.3, 0.07f, Palette.DeepBrown);
+                foreach (double h in new[] { 0.55, 1.15 })
+                    Rod(p0 + Double3.Up * h, p1 + Double3.Up * h, 0.04f, Palette.DeepBrown);
+            }
+            var foot = pen - x * r;
+            var top = site.RampTop;
+            var rise = top - foot;
+            var dir = ToF(rise.Normalized);
+            var side = Vector3.Normalize(Vector3.Cross(dir, Vector3.UnitY));
+            mesh.Box(V((foot + top) * 0.5 - Double3.Up * 0.1, eye), dir, Vector3.Cross(side, dir), side, new Vector3((float)rise.Length * 0.5f, 0.08f, 0.9f), Palette.DeepBrown);
+            foreach (int k in new[] { -1, 1 })
+                Rod(foot + ToD(side) * (k * 0.95) + Double3.Up * 1.0, top + ToD(side) * (k * 0.95) + Double3.Up * 1.0, 0.04f, Palette.DeepBrown);
+            Vector3 hide(int i) => i % 3 == 0 ? new Vector3(0.82f, 0.78f, 0.7f) : i % 3 == 1 ? Palette.DeepBrown * 1.3f : Palette.Charcoal * 1.6f;
+            void Beast(Double3 at, double yaw, int i)
+            {
+                var f = new Vector3(MathF.Sin((float)yaw), 0, MathF.Cos((float)yaw));
+                var sd = Vector3.Cross(Vector3.UnitY, f);
+                mesh.Box(V(at + Double3.Up * 0.85, eye), sd, Vector3.UnitY, f, new Vector3(0.38f, 0.38f, 0.85f), hide(i));
+                mesh.Box(V(at + Double3.Up * 1.05 + ToD(f) * 1.0, eye), sd, Vector3.UnitY, f, new Vector3(0.2f, 0.22f, 0.3f), hide(i) * 0.85f);
+                foreach (int u in new[] { -1, 1 })
+                    foreach (int w in new[] { -1, 1 })
+                        mesh.Box(V(at + ToD(sd) * (u * 0.25) + ToD(f) * (w * 0.6) + Double3.Up * 0.25, eye), sd, Vector3.UnitY, f, new Vector3(0.06f, 0.25f, 0.06f), hide(i) * 0.7f);
+            }
+            int penned = site.Herding || site.Herd > 0 ? site.Head - 1 : site.Head;
+            for (int i = 0; i < Math.Max(0, penned); i++)
+            {
+                double ang = i * 2.4 + 0.6, rad = r * (0.25 + 0.5 * ((i * 37) % 10) / 10.0);
+                var at = pen + a * (rad * Math.Cos(ang)) + x * (rad * Math.Sin(ang));
+                Beast(at, ang + time * 0.2 * (i % 2 == 0 ? 1 : -1) + (site.Stirred ? Math.Sin(time * 3 + i) * 0.4 : 0), i);
+            }
+            if (site.Head > 0 && (site.Herding || site.Herd > 0))
+            {
+                var on = foot + rise * Math.Clamp(site.Herd, 0, 1) - Double3.Up * 0.1;
+                var d = rise with { Y = 0 };
+                Beast(on, DMath.Atan2(d.X, d.Z), site.Head);
+            }
+        }
+        if (site.Has(Sim.Run.ModuleKind.Hose))
+        {
+            // The stand: a post and its valve wheel, a gauge going from green to red with the pressure, the hose.
+            var stand = site.HoseStand;
+            Rod(stand - Double3.Up * 0.2, stand + Double3.Up * 1.6, 0.1f, Palette.IronGrey);
+            Rod(stand + Double3.Up * 1.6, stand + Double3.Up * 3.6, 0.07f, Palette.RustRed);
+            mesh.Box(V(stand + Double3.Up * 1.2, eye), Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, new Vector3(0.25f, 0.25f, 0.04f), Palette.TarnishedBrass);
+            float pr = (float)Math.Clamp(site.Pressure, 0, 1);
+            var gauge = Vector3.Lerp(Palette.SignalGreen, Palette.SignalRed, pr) * (site.Leaking ? 1.6f : 1f);
+            mesh.Box(V(stand + Double3.Up * 1.75, eye), Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, new Vector3(0.12f, 0.12f, 0.12f), gauge);
+            var outlet = stand + Double3.Up * 3.4;
+            if (site.HoseCar >= 0 && site.HoseCar < frames.Count)
+            {
+                // Over the car's roof to its filler, sagging in the middle.
+                var frame = frames[site.HoseCar];
+                var filler = frame.ToWorld(new Double3(0, frame.Shape.RoofHeight + 0.2, 0));
+                var mid = (outlet + filler) * 0.5 - Double3.Up * 0.8;
+                // Canvas-wrapped and tarred, banded so it reads against a car's side in the dark.
+                Rod(outlet, mid, 0.12f, Palette.HazardYellow * 0.55f);
+                Rod(mid, filler, 0.12f, Palette.HazardYellow * 0.55f);
+            }
+            else
+                Rod(outlet, outlet - Double3.Up * 3.2 + new Double3(0.3, 0, 0.3), 0.12f, Palette.HazardYellow * 0.55f);
+            if (site.Leaking)
+                for (int i = 0; i < 6; i++)
+                {
+                    double t = (time * 0.4 + i / 6.0) % 1;
+                    var p = outlet + new Double3(Math.Sin(i * 1.9) * 2.5 * t, -1.5 + 2.5 * t, Math.Cos(i * 1.3) * 2.5 * t);
+                    mesh.Billboard(V(p, eye), 1.5f + 3f * (float)t, (float)(i + time * 0.3), new Vector4(0.55f, 0.65f, 0.25f, 0.5f * (1 - (float)t)), -1, FxBlend.Alpha);
+                }
+        }
+    }
+
+    /// <summary>
     /// A capstan winch (spec D.2): the drum by the track with its two handles, the rope out across the ground, and the
     /// sled of freight on it, as far along as the crew have hauled it.
     /// </summary>
@@ -1995,4 +2138,5 @@ public sealed class GreyboxScene
     };
 
     static Vector3 ToF(Double3 d) => new((float)d.X, (float)d.Y, (float)d.Z);
+    static Double3 ToD(Vector3 v) => new(v.X, v.Y, v.Z);
 }

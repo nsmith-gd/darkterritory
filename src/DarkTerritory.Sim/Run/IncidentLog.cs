@@ -121,6 +121,8 @@ public static class IncidentLog
         DeathCause.Burned => "Burned in a blazing car",
         DeathCause.Exploded => "Killed when a powder car went up",
         DeathCause.Poisoned => "Gassed by the chemicals a cannon was fired beside",
+        DeathCause.Keg => "Killed when a powder keg went up",
+        DeathCause.Leak => "Gassed by a leaking chemical hose",
         DeathCause.Gnawed => "Eaten by the gnawers",
         DeathCause.Replaced => "Replaced",
         DeathCause.Nested => "Killed by Followers nested aboard",
@@ -174,6 +176,14 @@ public static class IncidentLog
             case DeathCause.Poisoned:
                 actor = a.Gasser;
                 action = actor >= 0 ? "Cannon fired by {actor}." : "Nobody fired it.";
+                break;
+            case DeathCause.Keg:
+                actor = world.Run?.KegBy ?? -1;
+                action = actor >= 0 ? "Last carried by {actor}." : "Nobody had carried it.";
+                break;
+            case DeathCause.Leak:
+                actor = world.Run?.HoseHand ?? -1;
+                action = actor >= 0 ? "Hose put on by {actor}." : "Nobody put it on.";
                 break;
             case DeathCause.Seized:
                 {
