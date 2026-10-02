@@ -35,8 +35,13 @@ public static class Hud
 
     /// <param name="crosshair">The aiming cross at the middle. Not on a headset's panel (T36): it lags the head, which
     /// does the aiming, so a cross on it would point somewhere else.</param>
-    public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true)
+    /// <param name="commendations">The awards given at the run's end (GDD App. D.12), shown under its report: to whom, what,
+    /// and from whom. Awarding isn't in the game yet (it needs the run-end screen's input and the profile's tally), so only
+    /// a still frame passes them (<c>dt screenshot --hud --report ... --commend</c>).</param>
+    public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true,
+        IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null)
     {
+        _commendations = commendations;
         o.Clear();
         int line = o.Font.LineHeight;
         var p = s.Player;
@@ -358,8 +363,12 @@ public static class Hud
                 Big("RUN LOST", Red);
                 Small(r.End switch { RunEnd.Derailed => "DERAILED", RunEnd.CrewLost => "THE WHOLE CREW IS DEAD", _ => "STILL OUT WHEN THE LINE WENT LIVE" }, Ink);
             }
-            // GDD v1.4 App. D.12: the incident report, every line in the clerk's voice, under the result.
-            IncidentReport(o, width, height, y + line, r, line);
+            // GDD v1.4 App. D.12: the incident report, every line in the clerk's voice, under the result; the night's
+            // commendations under it.
+            bool awards = _commendations is { Count: > 0 };
+            IncidentReport(o, width, awards ? height - (int)Commendations(o, width, height, _commendations!, draw: false) : height, y + line, r, line);
+            if (awards)
+                Commendations(o, width, height, _commendations!);
             return;
         }
         if (!p.Alive)
@@ -453,6 +462,35 @@ public static class Hud
             UiStyle.Keyed(o, MathF.Round((width - UiStyle.MeasureKeyed(o, text)) / 2), y, text, colour);
             y += rowH;
         }
+    }
+
+    [ThreadStatic] static IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? _commendations;
+
+    /// <summary>
+    /// The night's commendations (App. D.12) on a plate above the foot of the run-end screen, two to a row: each a badge,
+    /// whose, and from whom. Returns the height it takes (for the report above to leave room).
+    /// </summary>
+    static float Commendations(Overlay o, int width, int height, IReadOnlyList<(string To, UiStyle.Commendation What, string From)> list, bool draw = true)
+    {
+        var cells = list.Select(c => (c, Text: $"{c.To.ToUpperInvariant()}: {UiStyle.Name(c.What)}", From: $"FROM {c.From.ToUpperInvariant()}")).ToList();
+        const int perRow = 2, cellH = 20;
+        float each = cells.Max(c => Math.Max(o.Font.Measure(c.Text), o.Font.Measure(c.From))) + 26;
+        int rows = (cells.Count + perRow - 1) / perRow;
+        float w = Math.Min(cells.Count, perRow) * each + 8, h = rows * cellH + 8;
+        float x0 = MathF.Round((width - w) / 2), y0 = height - 24 - h;
+        if (!draw)
+            return h + 36;
+        UiStyle.Plate(o, x0, y0, w, h);
+        o.Text(x0 + 4, y0 - 9, "COMMENDATIONS", Amber);
+        for (int i = 0; i < cells.Count; i++)
+        {
+            var (c, text, from) = cells[i];
+            float x = x0 + 4 + i % perRow * each, y = y0 + 4 + i / perRow * cellH;
+            UiStyle.Badge(o, x, y, c.What);
+            o.Text(x + 19, y + 1, text, Ink);
+            o.Text(x + 19, y + 10, from, Dim);
+        }
+        return h + 36;
     }
 
     public static void IncidentReport(Overlay o, int width, int height, float top, RunReport r, int line)

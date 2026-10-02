@@ -97,6 +97,63 @@ public static class UiStyle
         }
     }
 
+    /// <summary>The five commendations (GDD App. D.12's starter set), each a badge on the run-end screen.</summary>
+    public enum Commendation : byte { CameBackForMe, HeldTheSwitch, KeptTheFire, BroughtThemHome, LastOneStanding }
+
+    public static string Name(Commendation c) => c switch
+    {
+        Commendation.CameBackForMe => "CAME BACK FOR ME",
+        Commendation.HeldTheSwitch => "HELD THE SWITCH",
+        Commendation.KeptTheFire => "KEPT THE FIRE",
+        Commendation.BroughtThemHome => "BROUGHT THEM HOME",
+        _ => "LAST ONE STANDING",
+    };
+
+    // Each badge's pictogram, 11 by 11: '#' the enamel's ink, '.' the field. A hand reached down to another; a point lever
+    // thrown; a flame in the firebox door; the engine's front with its lamp lit; one figure standing.
+    static readonly string[][] Pictograms =
+    [
+        ["...........", "..##.......", "..###......", "...###.....", "....###....", ".....####..", "......#.#..", "...#..#.#..", "..####.....", ".#####.....", "..###......"],
+        ["........##.", ".......###.", "......###..", ".....###...", "....###....", "...###.....", "..###......", ".###.......", "#########..", "#.......#..", "#########.."],
+        ["...........", ".....#.....", "....##.....", "....###....", "...####....", "...#####...", "..###.###..", "..##...##..", "..##...##..", "...#####...", "..........."],
+        ["....###....", "...#...#...", "...#.#.#...", "...#...#...", "..#######..", ".#.......#.", ".#.#####.#.", ".#.......#.", ".#########.", "..#.....#..", "..........."],
+        ["....###....", "....###....", ".....#.....", "...#####...", "..#.###.#..", "....###....", "....#.#....", "....#.#....", "...##.##...", "...........", "#########.."],
+    ];
+
+    /// <summary>
+    /// A commendation's badge, its top-left at (x, y), <paramref name="scale"/> pixels to the pictogram's pixel: a cream
+    /// enamel roundel (an octagon in pixels), brass-rimmed, its pictogram in dark ink, a ribbon of the crew's colour under
+    /// it. Returns its width.
+    /// </summary>
+    public static float Badge(Overlay o, float x, float y, Commendation c, int scale = 1, Vector4? ribbon = null)
+    {
+        int n = 11, pad = 2, size = (n + pad * 2) * scale;
+        x = MathF.Round(x);
+        y = MathF.Round(y);
+        // The ribbon, two tails down from behind it.
+        var r = ribbon ?? new Vector4(0.55f, 0.16f, 0.12f, 1);
+        o.Rect(x + size * 0.2f, y + size * 0.6f, size * 0.22f, size * 0.62f, r);
+        o.Rect(x + size * 0.58f, y + size * 0.6f, size * 0.22f, size * 0.62f, r * new Vector4(0.8f, 0.8f, 0.8f, 1));
+        // The roundel: an octagon of rows, brass rim then enamel.
+        void Octagon(float inset, Vector4 colour)
+        {
+            float s0 = size - 2 * inset, cut = MathF.Round(s0 * 0.29f);
+            for (int row = 0; row < s0; row++)
+            {
+                float d = row < cut ? cut - row : row >= s0 - cut ? row - (s0 - cut - 1) : 0;
+                o.Rect(x + inset + d, y + inset + row, s0 - 2 * d, 1, colour);
+            }
+        }
+        Octagon(0, Rivet);
+        Octagon(scale, Enamel);
+        var pic = Pictograms[(int)c];
+        for (int row = 0; row < n; row++)
+            for (int col = 0; col < n; col++)
+                if (pic[row][col] == '#')
+                    o.Rect(x + (pad + col) * scale, y + (pad + row) * scale, scale, scale, EnamelInk);
+        return size;
+    }
+
     /// <summary>
     /// A title as a station's nameboard (the art sheet's enamel signage): the lettering cream on a dark enamel board, a
     /// cream line round it inside a dark border, bolted at its ends. Returns the board's height.
