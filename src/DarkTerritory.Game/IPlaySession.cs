@@ -57,6 +57,11 @@ public interface IPlaySession
     int Watching => -1;
     /// <summary>Whose eyes and ears this machine has: the player's own or, watching, the crewmate's (their space, their shelter).</summary>
     PlayerState Viewpoint => Player;
+    /// <summary>
+    /// Everyone aboard as their states (your own as predicted, the rest as drawn, <paramref name="alpha"/> into the tick),
+    /// for what's heard of them: footsteps, hands at work (GameAudio.CrewStates).
+    /// </summary>
+    IReadOnlyList<(int Id, PlayerState State)> CrewStates(double alpha) => [(PlayerId, Player)];
 }
 
 /// <summary>What the HUD shows about the connection (spec E: ping to host "shown prominently", non-optional).</summary>

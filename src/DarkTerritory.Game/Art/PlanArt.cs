@@ -65,15 +65,18 @@ public sealed partial class WorldArt
         public RailLine EdgeLine(string edge) => edge == "main" ? Line : Line.Branches[Plan.Edge(edge).Branch].Local;
 
         /// <summary>The biome at a main-line distance (§13.1).</summary>
-        public string BiomeAt(double s)
-        {
-            foreach (var b in Plan.Biomes)
-                if (b.Edge == "main" && s >= b.S0 && s < b.S1)
-                    return b.Biome;
-            return Plan.Biomes.Count > 0 ? Plan.Biomes[^1].Biome : "farmland";
-        }
+        public string BiomeAt(double s) => BiomeOf(Plan, s);
 
         public BiomeDef? Biome(double s) => Plan.Rules.Biomes.GetValueOrDefault(BiomeAt(s));
+    }
+
+    /// <summary>A plan's biome at a main-line distance (§13.1).</summary>
+    static string BiomeOf(LinePlan plan, double s)
+    {
+        foreach (var b in plan.Biomes)
+            if (b.Edge == "main" && s >= b.S0 && s < b.S1)
+                return b.Biome;
+        return plan.Biomes.Count > 0 ? plan.Biomes[^1].Biome : "farmland";
     }
 
     static readonly ConditionalWeakTable<Route, PlanScene> Scenes = new();
@@ -117,22 +120,25 @@ public sealed partial class WorldArt
     /// </summary>
     (int Ground, int Rock) BiomeGround(PlanScene p, double s)
     {
-        // biomes.json names the textures (the Maritime ground, tools/art/texgen/mat_maritime.py); an older plan's names
-        // are the splat families they stood for.
-        string Texture(string? name) => name switch
-        {
-            null => "ground_grass",
-            "deadGrass" => "ground_grass",
-            "soil" => "ground_forest",
-            "mud" => "ground_mud",
-            "rock" => "rock_cliff",
-            "cinder" => "slag",
-            _ => name,
-        };
         var def = p.Biome(s);
-        int ground = _look.Layer(Texture(def?.Ground)), second = _look.Layer(Texture(def?.Materials.FirstOrDefault() ?? "rock"));
+        int ground = _look.Layer(BiomeTexture(def?.Ground)), second = _look.Layer(BiomeTexture(def?.Materials.FirstOrDefault() ?? "rock"));
         return (ground >= 0 ? ground : _look.Layer("ground_grass"), second >= 0 ? second : _look.Layer("rock_cliff"));
     }
+
+    /// <summary>
+    /// A biome's texture by its biomes.json name (the Maritime ground, tools/art/texgen/mat_maritime.py); an older plan's
+    /// names are the splat families they stood for.
+    /// </summary>
+    static string BiomeTexture(string? name) => name switch
+    {
+        null => "ground_grass",
+        "deadGrass" => "ground_grass",
+        "soil" => "ground_forest",
+        "mud" => "ground_mud",
+        "rock" => "rock_cliff",
+        "cinder" => "slag",
+        _ => name,
+    };
 
     /// <summary>
     /// How far the land gives way to its biome's second ground at a world point: on the steep (the slope), and in
