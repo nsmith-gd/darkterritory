@@ -31,7 +31,6 @@ public static class Hud
     static readonly Vector4 Amber = new(1.00f, 0.70f, 0.30f, 1);
     static readonly Vector4 Red = new(0.95f, 0.26f, 0.18f, 1);
     static readonly Vector4 Green = new(0.55f, 0.82f, 0.45f, 1);
-    static readonly Vector4 Panel = new(0.02f, 0.02f, 0.03f, 0.55f);
     static readonly Vector4 Track = new(0.25f, 0.24f, 0.22f, 0.9f);
 
     /// <param name="crosshair">The aiming cross at the middle. Not on a headset's panel (T36): it lags the head, which
@@ -52,9 +51,10 @@ public static class Hud
         if (Prompt(s) is { } written)
         {
             string prompt = Bound(written);
-            float w = o.Font.Measure(prompt) + 8;
-            o.Rect(MathF.Round((width - w) / 2), height - 44, w, line + 4, Panel);
-            o.TextCentred(width / 2f, height - 42, prompt, Ink);
+            float w = UiStyle.MeasureKeyed(o, prompt) + 10;
+            float px = MathF.Round((width - w) / 2);
+            UiStyle.Plate(o, px, height - 46, w, line + 8);
+            UiStyle.Keyed(o, px + 5, height - 42, prompt, Ink);
         }
         Night(o, height, s, line);
         if (p.Alive)
@@ -87,8 +87,10 @@ public static class Hud
             float w = o.Font.Measure(label) + 8;
             x -= w + 2;
             bool held = i == p.HeldSlot;
-            o.Rect(x, y, w, line + 4, held ? Amber with { W = 0.35f } : Panel);
-            o.Text(x + 4, y + 2, label, held ? Ink : Dim);
+            UiStyle.Plate(o, x, y - 2, w, line + 6, held ? UiStyle.Lit : null);
+            if (held)
+                o.Rect(x + 3, y + line + 1, w - 6, 1, UiStyle.Lit);
+            o.Text(x + 4, y + 1, label, held ? Amber : Dim);
         }
     }
 
@@ -112,7 +114,7 @@ public static class Hud
             lines.Add(("A PRIVATE NIGHT: NOBODY ELSE CAN JOIN", Dim));
         lines.Add(("EVERYONE IN? DRIVE OUT OF THE YARD", Ink));
         w = lines.Max(l => o.Font.Measure(l.Text)) + 10;
-        o.Rect(x - 2, y - 3, w, lines.Count * line + 6, Panel);
+        UiStyle.Plate(o, x - 2, y - 3, w, lines.Count * line + 6);
         foreach (var (text, colour) in lines)
         {
             o.Text(x + 2, y, text, colour);
@@ -152,7 +154,7 @@ public static class Hud
         int line = o.Font.LineHeight;
         float w = 260, h = (lines.Count + 2) * line + 8;
         float x = MathF.Round((width - w) / 2), y = MathF.Round(height * 0.2f);
-        o.Rect(x, y, w, h, Panel);
+        UiStyle.Plate(o, x, y, w, h);
         o.Text(x + 6, y + 4, "THE CREW. ROLL CALL IS SHOUTED", Ink);
         y += 4 + 2 * line;
         foreach (var l in lines)
@@ -169,7 +171,7 @@ public static class Hud
         var train = s.Train;
         var d = train.Dynamics;
         var c = s.Controls;
-        o.Rect(2, 2, 150, 4 * line + 6, Panel);
+        UiStyle.Plate(o, 2, 2, 150, 4 * line + 6);
         float x = 6, y = 5;
         var band = SpeedBands.Classify(d.Tuning, d.Speed);
         o.Text(x, y, $"{Math.Abs(d.Speed) * 3.6,3:0} KM/H", Ink);
@@ -287,7 +289,7 @@ public static class Hud
         // Clear of the engine's panel top left and the link's top right.
         float w = MathF.Round(width * 0.34f), x = MathF.Round(width * 0.41f), y = 6, h = 5;
         double at = Math.Clamp(s.Train.Dynamics.Distance / route.Length, 0, 1);
-        o.Rect(x - 4, y - 3, w + 8, h + line + 8, Panel);
+        UiStyle.Plate(o, x - 4, y - 3, w + 8, h + line + 8);
         o.Rect(x, y, w, h, Track);
         o.Rect(x, y, MathF.Round(w * (float)at), h, Dim);
         foreach (var f in route.Features.Where(f => f.Kind is FeatureKind.Facility or FeatureKind.Village))
@@ -450,7 +452,7 @@ public static class Hud
             int more = rows.Count - room + 1;
             rows = [.. rows.Take(room - 2), ($"... and {more} more lines", Dim), rows[^1]];
         }
-        o.Rect(x - 4, top - 4, w + 8, rows.Count * line + 8, Panel);
+        UiStyle.Plate(o, x - 4, top - 4, w + 8, rows.Count * line + 8);
         float y = top;
         foreach (var (text, colour) in rows)
         {
@@ -708,7 +710,7 @@ public static class Hud
         if (parts.Count == 0)
             return;
         float y = height - 4 - parts.Count * line;
-        o.Rect(2, y - 3, parts.Max(t => o.Font.Measure(t)) + 8, parts.Count * line + 4, Panel);
+        UiStyle.Plate(o, 2, y - 3, parts.Max(t => o.Font.Measure(t)) + 8, parts.Count * line + 4);
         foreach (var t in parts)
         {
             o.Text(6, y, t, t.Contains("DAWN", StringComparison.Ordinal) || t.StartsWith("STOPPED", StringComparison.Ordinal) ? Amber : Dim);
