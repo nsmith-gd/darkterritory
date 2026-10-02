@@ -96,6 +96,9 @@ public static class Views
             // (Not one of Names.) In the gun car (the guard van) at its front end: the powder and shot locker in the corner
             // ahead of the tool lockers on the left (SceneArt.Fittings).
             "locker" => LockerCamera(train),
+            // (Not one of Names.) In car 1, down at its repair kit on the floor just inside the front door
+            // (World.RepairKitStowage; dt screenshot --stocked).
+            "kit" => KitCamera(train),
             // (Not one of Names.) In this car, across the aisle at its extinguisher stood on its board (World.ExtinguisherMount;
             // with dt screenshot --stocked, its charge in the glass).
             "mount" => Camera.LookAt(target.ToWorld(new Double3(-0.05, Floor(train) + 1.3, -target.Shape.HalfLength + 2.95)),
@@ -204,6 +207,16 @@ public static class Views
         return Camera.LookAt(f.ToWorld(new Double3(-0.2, floor + 1.55, l - 0.5)), f.ToWorld(new Double3(0.2, floor + 0.2, l - 2.6)), 75);
     }
 
+    static Camera KitCamera(TrainOnLine train)
+    {
+        if (Sim.World.RepairKitCar(train) is not { } v || train.Frames[v].Shape.Interior is not { } room)
+            return LockerCamera(train);
+        var f = train.Frames[v];
+        var kit = Sim.World.RepairKitStowage(f.Shape, room);
+        // From the aisle at the load's front end, looking across and down at it in its corner by the door.
+        return Camera.LookAt(f.ToWorld(kit + new Double3(-1.45, 1.35, 0.5)), f.ToWorld(kit + new Double3(0, 0.1, -0.05)), 60);
+    }
+
     static Camera LockerCamera(TrainOnLine train)
     {
         int v = Enumerable.Range(1, train.Vehicles.Count - 1).FirstOrDefault(i => train.Vehicles[i].HasGun && train.Frames[i].Shape.Interior is not null, train.Vehicles.Count - 1);
@@ -235,12 +248,15 @@ public static class Views
         return Camera.LookAt(last.ToWorld(new Double3(-12, 14, last.Shape.HalfLength + 30)), mid.ToWorld(new Double3(0, 2, 0)), 60);
     }
 
-    public static FrameLighting Lighting(TrainOnLine train, Look? look = null) => Lighting(train.Frames[0], look);
+    public static FrameLighting Lighting(TrainOnLine train, Look? look = null, float dawn = 0) => Lighting(train.Frames[0], look, dawn);
 
     /// <param name="look">The art pass's atmosphere (look.json) over the night's defaults, when there is one.</param>
-    public static FrameLighting Lighting(in CarFrame engine, Look? look = null)
+    /// <param name="dawn">How far the dawn's come up (0..1, <see cref="Look.DawnOf"/>).</param>
+    public static FrameLighting Lighting(in CarFrame engine, Look? look = null, float dawn = 0)
     {
         var light = look?.Apply(FrameLighting.Night) ?? FrameLighting.Night;
+        if (look is not null)
+            light = look.Dawn(light, dawn);
         light.LampPosition = Sim.World.LampPosition(engine);
         var fwd = engine.Back * -1;
         light.LampDirection = Vector3.Normalize(new Vector3((float)fwd.X, (float)fwd.Y - 0.04f, (float)fwd.Z));

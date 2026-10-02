@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Enemies;
 namespace DarkTerritory.Game.Art;
 
 /// <summary>What a crewmate is doing, for which clip their model plays (the actions: tools/blender/crew_clips.py, note 145).</summary>
-public enum CrewPose { Idle, Walk, Run, Climb, Shovel, Crouch, Dead, Carry, CarryWalk, Drag, Door, Handbrake, Hatch, Uncouple, Vent, Lever, Push, Held, Gunner, Fall, Swing, Mend }
+public enum CrewPose { Idle, Walk, Run, Climb, Shovel, Crouch, Dead, Carry, CarryWalk, Drag, Door, Handbrake, Hatch, Uncouple, Vent, Lever, Push, Held, Gunner, Fall, Swing, Mend, Gap, Extinguish, Lantern, LanternWalk, Haul }
 
 /// <summary>
 /// The crew and the creatures as skinned models (content/art/models/*.glb, built by tools/blender/build.sh), posed
@@ -271,6 +271,8 @@ public sealed class CreatureArt
     public Look Look { get; }
     public string ContentRoot { get; }
 
+    Sim.Enemies.WhistlerTuning? _whistler;
+
     /// <summary>True when every model is there.</summary>
     public bool Loaded => Names.All(_models.ContainsKey);
 
@@ -416,6 +418,11 @@ public sealed class CreatureArt
         CrewPose.Fall => "fall",
         CrewPose.Swing => "swing",
         CrewPose.Mend => "mend",
+        CrewPose.Gap => "gap",
+        CrewPose.Extinguish => "extinguish",
+        CrewPose.Lantern => "lantern",
+        CrewPose.LanternWalk => "lantern_walk",
+        CrewPose.Haul => "haul",
         _ => "idle",
     };
 
@@ -1502,6 +1509,12 @@ public sealed class CreatureArt
                     if (e.Attached < 0)
                     {
                         m = Matrix4x4.CreateRotationY(MathF.PI) * model;
+                        // There with its victim (the run to it done: enemies.json whistler nestDistance at runSpeed), its
+                        // nest under it (tools/models whistler_nest: the hollow, the sleepers, the bones, the strands).
+                        _whistler ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).Whistler;
+                        if (e.Phase is SpinePhase.Grab or SpinePhase.Punish && e.PhaseSeconds >= _whistler.NestDistance / _whistler.RunSpeed
+                            && PropArt.Of(Look).Get("whistler_nest") is { } nest)
+                            mesh.Instances.Add(new MeshInstance(nest, Matrix4x4.CreateTranslation(0, -(float)e.Local.Y, 0) * model));
                         break;
                     }
                     m = Matrix4x4.CreateTranslation(0, -(float)e.Local.Y, 0) * model;

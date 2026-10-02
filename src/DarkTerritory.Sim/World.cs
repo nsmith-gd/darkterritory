@@ -183,6 +183,7 @@ public sealed class World
             Bodies.SpawnCrate(Train, 0, new Ballast.Double3(cab.Max.X - 0.4, cab.Min.Y + 0.2, cab.Max.Z - 0.5), Physics.BodyKind.Radio);
             radios--;
         }
+        StowRepairKits();
         var guard = Train.Dynamics.Consist.Vehicles.LastOrDefault(v => v.Kind == VehicleKind.Guard);
         if (guard is null || Train.Frames[guard.Id].Shape.Interior is not { } room)
             return;
@@ -196,6 +197,43 @@ public sealed class World
         // Hand-carried loot (GDD v1.1 App. C.4): toys, for the Track Doll to steal.
         for (int i = 0; i < Train.Dynamics.Tuning.Kit.Toys; i++)
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.6, floor, room.Max.Z - 1.2 - 0.5 * i), Physics.BodyKind.Toy);
+    }
+
+    /// <summary>
+    /// The repair kit (GDD §12): on the floor just inside the front door of its car (train.json kit.repairKitCar), where the
+    /// crew learn to look for it: the first car back from the engine, a walk from the footplate.
+    /// </summary>
+    void StowRepairKits()
+    {
+        if (RepairKitCar(Train) is not { } car)
+            return;
+        var shape = Train.Frames[car].Shape;
+        for (int i = 0; i < Train.Dynamics.Tuning.Kit.RepairKits; i++)
+            Bodies.SpawnCrate(Train, car, RepairKitStowage(shape, shape.Interior!.Value, i), Physics.BodyKind.RepairKit);
+    }
+
+    /// <summary>The car the repair kit rides in: train.json's, or the nearest walk-in car to the engine before it; null with none.</summary>
+    public static int? RepairKitCar(TrainOnLine train)
+    {
+        var cars = train.Dynamics.Consist.Vehicles.Where(v => !v.IsEngine && train.Frames[v.Id].Shape.Interior is not null).Select(v => v.Id).ToList();
+        if (cars.Count == 0)
+            return null;
+        int want = train.Dynamics.Tuning.Kit.RepairKitCar;
+        return cars.Contains(want) ? want : cars.Where(c => c < want).DefaultIfEmpty(cars[0]).Max();
+    }
+
+    /// <summary>
+    /// Where a car's repair kit stands (car frame, on the floor): just inside its front door, in the corner on the right of
+    /// the aisle, ahead of the load (the cargo stands down the right side from 1.2 m in); in front of the tool lockers in a
+    /// car that has them. The <paramref name="index"/>th of them half a metre further back.
+    /// </summary>
+    public static Ballast.Double3 RepairKitStowage(CarShape shape, Train.Box room, int index = 0)
+    {
+        var at = new Ballast.Double3(room.Max.X - 0.35, room.Min.Y + 0.1, room.Min.Z + 0.45 + 0.5 * index);
+        foreach (var s in shape.Solids)
+            if (s.Part == PartKind.Locker)
+                at = new Ballast.Double3(s.Box.Max.X + 0.3, room.Min.Y + 0.1, (s.Box.Min.Z + s.Box.Max.Z) / 2 + 0.5 * index);
+        return at;
     }
 
     /// <summary>
@@ -317,10 +355,12 @@ public sealed class World
         }
         if (Authority && Switches?.CrewAct(s, intent, playerId, Train, Hand) is { } thrown)
             SwitchThrows.Add(thrown);
-        if (Authority)
-            Holdouts?.CrewAct(s, intent, playerId, Train);
+        // The repair kit in hand at a Holdout's door is opening it (GDD App. D.7), and at a ruptured boiler's firebox mending
+        // it (T109): not being put down.
+        bool kit = Authority && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.RepairKit };
+        bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, kit) == true;
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever.
-        bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand);
+        bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand, keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)));
         // At the crane's controls, the stick drives the crane, not your feet (T48). Worked out the same everywhere, so a
         // client predicts standing still at the stand.
         bool operating = false;
@@ -333,6 +373,8 @@ public sealed class World
             // Freight in your arms slows you and keeps you off ladders (spec B.2); the motor reads the flag.
             bool heavy = Bodies.All.Any(b => b.HeldBy(playerId) && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy);
             s.Flags = heavy ? s.Flags | PlayerFlags.Heavy : s.Flags & ~PlayerFlags.Heavy;
+            bool repairKit = Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.RepairKit };
+            s.Flags = repairKit ? s.Flags | PlayerFlags.RepairKit : s.Flags & ~PlayerFlags.RepairKit;
         }
         if (!handsTookIt)
             CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand);

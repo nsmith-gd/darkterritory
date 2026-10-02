@@ -1150,30 +1150,20 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 
     /// <summary>At its own side of the firebox door, facing it, swinging, with the brake held: null if there's no Stoker to fight.</summary>
     /// <summary>
-    /// T109: the boiler's ruptured. In the cab, take the engineering kit (the wrench) from its rack, have it in hand, and hold
-    /// it at the firebox till it's mended. There's one wrench: whoever of the driver and fireman has it does it, and the
-    /// other goes on as before. Null when there's nothing to mend, or it's someone else's to.
+    /// T109: the boiler's ruptured, and the repair kit mends it (GDD §12: the engineer is whoever has it). It rides in car 1:
+    /// out of the cab, down the tender's gangway, across the plate and in at its front door for it, then back to the firebox
+    /// and held there till it's mended (<see cref="KitRun"/>). The fireman goes; the driver only with nobody else in the cab
+    /// to. Null when there's nothing to mend, or someone else has the kit.
     /// </summary>
     PlayerIntent? Mend(in PlayerState self, World world)
     {
         var train = world.Train;
-        if (!train.Boiler.Ruptured || !self.Alive || !PlayerMotor.InCab(self, train))
+        if (!train.Boiler.Ruptured || !self.Alive)
             return null;
-        var shape = train.Frames[0].Shape;
-        if (Kit.Held(self) == Tool.Wrench)
-        {
-            var firebox = shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
-            var (step, there) = WarmUp.Steer(self, new Double3((Fireman ? -1 : 1) * FiringSide, 0, firebox.Z + FiringBack), 0);
-            return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
-        }
-        for (int i = 0; i < Kit.Slots; i++)
-            if (Kit.At(self.Kit, i) == Tool.Wrench)
-                return new PlayerIntent { Select = (byte)(i + 1) };
-        if (train.Boiler.WrenchOut)
+        if (!Fireman && !self.Has(PlayerFlags.RepairKit) && Crewmates?.Any(c => c.Alive && PlayerMotor.InCab(c, train)) == true)
             return null;
-        var rack = shape.Interactables.First(i => i.Kind == InteractableKind.ToolRack).Position;
-        var (toRack, atRack) = WarmUp.Steer(self, rack with { X = rack.X - 0.25 }, -Math.PI / 2);
-        return atRack ? new PlayerIntent { Buttons = PlayerButtons.Use } : toRack;
+        var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
+        return KitRun.Decide(self, world, new Double3((Fireman ? -1 : 1) * FiringSide, 0, firebox.Z + FiringBack));
     }
 
     PlayerIntent? FightStoker(in PlayerState self, World world)
@@ -1268,6 +1258,96 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 /// only ever pressed facing a door that's in reach: on the coupler plate, Use anywhere else cuts the coupling.
 /// </summary>
 /// <param name="goInAt">How far into the onset to go in (0.6: at 120 s of the 200).</param>
+/// <summary>
+/// The repair kit fetched to the firebox (T109, GDD §12), by a bot in the cab: out of the cab's back on the left, down the
+/// tender's gangway, onto the footplate and the coupler plate, through car 1's front door to the kit (World.RepairKitStowage),
+/// and the same way back. Worked out afresh each tick from where it stands and whether it has the kit, so it never waits
+/// on a step it's no longer at. Only the kit in the engine or the first car is fetched: further back, it's a crewmate's to
+/// bring.
+/// </summary>
+public static class KitRun
+{
+    /// <summary>This tick's intent, or null when it isn't the bot's to fetch (someone else has it, or it's out of reach).</summary>
+    public static PlayerIntent? Decide(in PlayerState self, World world, Double3 firing)
+    {
+        var train = world.Train;
+        if (!self.Alive || self.Parent == PlayerState.World || self.Surface is Surface.Air or Surface.Ladder)
+            return null;
+        bool carrying = self.Has(PlayerFlags.RepairKit);
+        var kit = world.Bodies.All.FirstOrDefault(b => b.Kind == Physics.BodyKind.RepairKit);
+        var vehicles = train.Dynamics.Consist.Vehicles;
+        int car = vehicles.Count > 1 && vehicles[0].IsEngine ? vehicles[1].Id : -1;
+        if (!carrying && (kit is null || kit.Carrier >= 0 || kit.Parent != 0 && kit.Parent != car))
+            return null;
+        if (self.Parent != 0 && self.Parent != car)
+            return null;
+        var g = train.Dynamics.Tuning.Geometry;
+        double l = train.Frames[0].Shape.HalfLength, w = g.RoofWidth / 2, cabBack = l - g.Engine.TenderLength;
+        // Out: the cab's back on the gangway's line; the gangway's end; the footplate off it; the plate at car 1's door.
+        Double3[] route =
+        [
+            new(-w + g.Engine.TenderGangway / 2, 0, cabBack - 0.4),
+            new(-w + g.Engine.TenderGangway / 2, 0, l - 0.3),
+            new((-w + g.PlateX - g.CouplerWidth / 2) / 2, 0, l + g.CouplingGap * 0.25),
+            new(g.PlateX, 0, l + g.CouplingGap - 0.45),
+        ];
+        if (carrying)
+        {
+            if (self.Parent == 0 && PlayerMotor.InCab(self, train))
+            {
+                var (step, there) = WarmUp.Steer(self, firing, 0);
+                return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
+            }
+            if (self.Parent == car)
+            {
+                // To the front door from inside, and out through it onto the plate.
+                double front = -train.Frames[car].Shape.HalfLength;
+                var door = new Double3(g.PlateX, 0, front + 0.5);
+                if (self.Position.Z > door.Z + 0.15)
+                    return WarmUp.Steer(self, door, 0).Step;
+                if (!train.Vehicles[car].DoorOpen(0))
+                    return new PlayerIntent { Buttons = PlayerButtons.Use }; // drops it to open the door; picked up again after
+                return WarmUp.Steer(self, Into(train, 0, route[3], car), 0).Step;
+            }
+            // Back along the route to the cab: the next point nearer the front than here.
+            for (int i = route.Length - 1; i >= 0; i--)
+                if (route[i].Z < self.Position.Z - 0.15)
+                    return WarmUp.Steer(self, route[i], 0).Step;
+            return WarmUp.Steer(self, firing, 0).Step;
+        }
+        if (kit!.Parent == self.Parent)
+        {
+            // Beside it on the aisle side, facing it, looking down at it: a press every other tick takes it (the press is the
+            // edge the host counts).
+            var at = kit.Centre;
+            var stand = new Double3(at.X - (at.X >= g.PlateX ? 0.6 : -0.6), 0, at.Z);
+            double yaw = at.X > stand.X ? -Math.PI / 2 : Math.PI / 2;
+            var (step, there) = WarmUp.Steer(self, stand, yaw);
+            return there ? new PlayerIntent { Buttons = world.Tick % 2 == 0 ? PlayerButtons.Use : PlayerButtons.None, LookPitch = (float)(-0.7 - self.Pitch) } : step;
+        }
+        if (self.Parent != 0)
+            return null; // in car 1, and the kit's been taken forward: nothing to fetch
+        // In the engine, out to car 1: the next point further back than here; at the plate, its door opened, and in.
+        bool inCab = PlayerMotor.InCab(self, train);
+        if (inCab && Math.Abs(self.Position.X - route[0].X) > 0.2)
+            return WarmUp.Steer(self, route[0], Math.PI).Step;
+        foreach (var p in route)
+            if (p.Z > self.Position.Z + 0.15)
+                return WarmUp.Steer(self, p, Math.PI).Step;
+        if (!train.Vehicles[car].DoorOpen(0))
+        {
+            var (step, there) = WarmUp.Steer(self, route[3], Math.PI);
+            return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
+        }
+        double carFront = -train.Frames[car].Shape.HalfLength;
+        return WarmUp.Steer(self, Into(train, car, new Double3(g.PlateX, 0, carFront + 0.9), 0), Math.PI).Step;
+    }
+
+    /// <summary>A point on car <paramref name="from"/>'s floor, in car <paramref name="to"/>'s frame (flat: the steering's).</summary>
+    static Double3 Into(TrainOnLine train, int from, Double3 local, int to) =>
+        train.Frames[to].ToLocal(train.Frames[from].ToWorld(local));
+}
+
 public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
 {
     enum Step : byte { Off, ToEnd, Drop, ToDoor, Open, In, Shut, Warm, Reopen, Out }

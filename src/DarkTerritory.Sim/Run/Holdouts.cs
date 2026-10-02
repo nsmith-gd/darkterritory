@@ -21,6 +21,7 @@ public sealed record HoldoutTuning
     public required double CallOutCooldown { get; init; }
     public required BreachTuning Smash { get; init; }
     public required BreachTuning Pry { get; init; }
+    public required BreachTuning Open { get; init; }
     public required double BreachReach { get; init; }
     public required int FreedHealth { get; init; }
     public required double CrewLossFee { get; init; }
@@ -52,14 +53,22 @@ public sealed class Holdout
     public HoldoutState State { get; internal set; }
     /// <summary>Who's waiting in it (−1 for nobody).</summary>
     public int Occupant { get; internal set; } = -1;
-    /// <summary>Seconds of breach done, of <see cref="BreachSeconds"/>.</summary>
+    /// <summary>Seconds of breach done, of <see cref="Breach"/>'s.</summary>
     public double Progress { get; internal set; }
+    /// <summary>The breach under way is the repair kit opening the lock: silent, and slower (D.7).</summary>
+    public bool Quiet { get; internal set; }
     internal int Breacher = -1;
     internal double CallCooldown;
 
     public bool Lit => State is HoldoutState.Occupied or HoldoutState.Breaching;
-    /// <summary>A lock is smashed (a prison car, a halt's lockup); a shelter's barricade is pried (D.7).</summary>
-    public BreachTuning Breach(HoldoutTuning t) => Layout.Kind == HoldoutKind.Shelter ? t.Pry : t.Smash;
+    /// <summary>
+    /// A lock is smashed (a prison car, a halt's lockup), or opened with the repair kit; a shelter's barricade is pried
+    /// (D.7).
+    /// </summary>
+    public BreachTuning Breach(HoldoutTuning t) => Layout.Kind == HoldoutKind.Shelter ? t.Pry : Quiet ? t.Open : t.Smash;
+
+    /// <summary>Whether the repair kit opens it: a lock does, a barricade doesn't (D.7 "open lock").</summary>
+    public bool Lockable => Layout.Kind != HoldoutKind.Shelter;
 }
 
 /// <summary>
@@ -76,6 +85,8 @@ public sealed class Holdouts
     // Each player's buttons last tick (a dead player's presses are edges), and who's holding a breach where.
     readonly Dictionary<int, PlayerButtons> _last = new();
     readonly Dictionary<int, int> _holding = new();
+    // Who's holding a breach with the repair kit in their hands.
+    readonly HashSet<int> _withKit = [];
     readonly Dictionary<int, int> _health = new();
     readonly List<(int Player, int Holdout)> _callOuts = [];
 
@@ -113,8 +124,12 @@ public sealed class Holdouts
         }
     }
 
-    /// <summary>A player's hands this tick (host): holding Use at an occupied Holdout's door is breaching it; a dead player's Use calls out, Throw defers.</summary>
-    public void CrewAct(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train)
+    /// <summary>
+    /// A player's hands this tick (host): holding Use at an occupied Holdout's door is breaching it; a dead player's Use
+    /// calls out, Throw defers. True while they're breaching.
+    /// </summary>
+    /// <param name="kit">They've the repair kit in their hands: a lock opens to it, quietly (D.7).</param>
+    public bool CrewAct(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, bool kit = false)
     {
         var last = _last.GetValueOrDefault(playerId);
         var now = intent.Buttons;
@@ -130,18 +145,22 @@ public sealed class Holdouts
                         _callOuts.Add((playerId, h.Index));
             if (pressed(PlayerButtons.Throw))
                 Defer(playerId);
-            return;
+            return false;
         }
         var at = PlayerMotor.WorldPosition(s, train);
         _holding.Remove(playerId);
+        _withKit.Remove(playerId);
         if (!intent.Has(PlayerButtons.Use))
-            return;
+            return false;
         foreach (var h in _holdouts)
             if (h.Lit && ((h.Door - at) with { Y = 0 }).Length <= Tuning.BreachReach)
             {
                 _holding[playerId] = h.Index;
-                return;
+                if (kit)
+                    _withKit.Add(playerId);
+                return true;
             }
+        return false;
     }
 
     /// <summary>D.6 defer: one place further back, never forward.</summary>
@@ -219,12 +238,18 @@ public sealed class Holdouts
             int breacher = _holding.Where(x => x.Value == h.Index).Select(x => x.Key).DefaultIfEmpty(-1).Min();
             if (breacher >= 0 && (h.Breacher < 0 || h.Breacher == breacher))
             {
+                // The repair kit at a lock opens it (D.7). Put down part way, and it's a smash from the start: the lock's
+                // half picked is no help to a crowbar.
+                bool quiet = h.Lockable && _withKit.Contains(breacher);
+                if (h.State == HoldoutState.Breaching && quiet != h.Quiet)
+                    h.Progress = 0;
+                h.Quiet = quiet;
                 var b = h.Breach(Tuning);
                 h.State = HoldoutState.Breaching;
                 h.Breacher = breacher;
                 h.Progress += dt;
-                // Its noise is the living's: it counts toward loudness (D.7). Call Out never does.
-                if (world.Combat is { } c)
+                // Its noise is the living's: it counts toward loudness (D.7), unless it's the kit's. Call Out never does.
+                if (world.Combat is { } c && b.Rounds > 0)
                     world.Choir.Loud(c.Choir, b.Rounds, dt);
                 if (h.Progress >= b.Seconds)
                 {
@@ -238,6 +263,7 @@ public sealed class Holdouts
                 h.State = HoldoutState.Occupied;
                 h.Progress = 0;
                 h.Breacher = -1;
+                h.Quiet = false;
             }
 
             // D.5 release: the consist has left the zone moving away, and nobody living is near.
@@ -288,6 +314,7 @@ public sealed class Holdouts
         h.Occupant = -1;
         h.Progress = 0;
         h.Breacher = -1;
+        h.Quiet = false;
     }
 
     /// <summary>D.8: they come back inside the Holdout, on 80 health with the standard kit; it's spent for the run.</summary>
@@ -329,7 +356,7 @@ public sealed class Holdouts
     }
 
     /// <summary>Client side: adopts the host's Holdouts.</summary>
-    public void Mirror(int index, HoldoutState state, int occupant, double progress)
+    public void Mirror(int index, HoldoutState state, int occupant, double progress, bool quiet = false)
     {
         if (index < 0 || index >= _holdouts.Count)
             return;
@@ -337,5 +364,6 @@ public sealed class Holdouts
         h.State = state;
         h.Occupant = occupant;
         h.Progress = progress;
+        h.Quiet = quiet;
     }
 }

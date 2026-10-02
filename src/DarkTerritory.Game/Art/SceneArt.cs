@@ -44,6 +44,7 @@ public sealed partial class SceneArt(Look look)
         var pose = c.Act switch
         {
             CrewPose.Carry => speed < 0.4f ? CrewPose.Carry : CrewPose.CarryWalk,
+            CrewPose.Lantern => speed < 0.4f ? CrewPose.Lantern : CrewPose.LanternWalk,
             { } act => act,
             null => speed < 0.4f ? CrewPose.Idle : speed < 2.6f ? CrewPose.Walk : CrewPose.Run,
         };
@@ -214,9 +215,9 @@ public sealed partial class SceneArt(Look look)
         var props = PropArt.Of(Look);
         if (b.Kind == Sim.Physics.BodyKind.Extinguisher && props.Get("extinguisher") is { } extinguisher)
         {
-            // Stood up on its foot; back on its mount (lying where the sim stands it, in its car), stood in the cradle
+            // Stood up on its foot (carried, where the hands have it: crew_clips' extinguish); back on its mount (lying where the sim stands it, in its car), stood in the cradle
             // with its glass to the room, the way it hangs there (World.ExtinguisherMount, on the floor: its middle 0.3 m up).
-            var stood = Matrix4x4.CreateTranslation(0, ExtinguisherLift, 0) * m;
+            var stood = b.Carrier >= 0 ? m : Matrix4x4.CreateTranslation(0, ExtinguisherLift, 0) * m;
             if (onCar && b.Carrier < 0 && frames[b.Parent].Shape.Interior is { } room)
             {
                 var mount = Sim.World.ExtinguisherMount(frames[b.Parent].Shape, room);
@@ -229,7 +230,8 @@ public sealed partial class SceneArt(Look look)
             return true;
         }
         // What the crew carry: the modelled props (tools/models make: stores_crate, freight_*, heavy_crate,
-        // field_radio, train_stores' toys) where they're built, centred on the body like the kit's; the kit's pieces where not.
+        // field_radio, train_stores' toys and repair kit) where they're built, centred on the body like the kit's; the
+        // kit's pieces where not.
         var piece = b.Kind switch
         {
             Sim.Physics.BodyKind.Cargo => props.Get(Freight(b)) ?? Piece("prop-cargo", () => PropKit.Cargo(Look)),
@@ -238,6 +240,8 @@ public sealed partial class SceneArt(Look look)
             Sim.Physics.BodyKind.Heavy => props.Get("heavy_crate") ?? Piece($"prop-heavy-{heavyHalf:0.00}", () => PropKit.Heavy(Look, (float)heavyHalf)),
             Sim.Physics.BodyKind.Crate => props.Get("stores_crate") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
             Sim.Physics.BodyKind.Radio => props.Get("field_radio") ?? Piece("prop-radio", () => PropKit.Radio(Look)),
+            // The engineer's toolbox (train_stores' repair_kit, GDD §12), lying where it was put down or dropped.
+            Sim.Physics.BodyKind.RepairKit => props.Get("repair_kit") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
             Sim.Physics.BodyKind.Loot => Piece("prop-loot", () => PropKit.Loot(Look, 0.15f)),
             // The hand lamp: the sourced lantern (tools/models hand_lantern) where it's built.
             _ => PropArt.Of(Look).Get("hand_lantern") ?? Piece("prop-lantern", () => PropKit.Lantern(Look)),
@@ -303,6 +307,57 @@ public sealed partial class SceneArt(Look look)
             for (int k = 0; k < bags; k++)
                 if (props.Socket("shot_locker", $"bag_{k}") is { } c)
                     mesh.Append(bag, Matrix4x4.CreateRotationY(k * 1.3f) * Matrix4x4.CreateTranslation(c) * at * m);
+    }
+
+    /// <summary>
+    /// A lineside board (sight.json; GDD §22, the line's own warnings) as the plan's boards are drawn (SignKit): a posted
+    /// speed in its figures, the tunnel's yellow LOW board, the mail crane's MAIL and an arrow to its side, the terminus's
+    /// END. Paint that sends the lamp back when <paramref name="lit"/> (it's within the lamp's reading range, exactly when the
+    /// sim reads it). <paramref name="foot"/> is the post's foot (camera-relative), <paramref name="right"/> across the line
+    /// and <paramref name="toward"/> the way it faces (back at the oncoming train).
+    /// </summary>
+    public bool LinesideBoard(MeshBuilder mesh, Sim.Route.Sign sign, Vector3 foot, Vector3 right, Vector3 toward, bool lit)
+    {
+        var (type, text) = sign.Kind switch
+        {
+            Sim.Route.SignKind.SpeedLimit => ("speedBoard", sign.LimitKmh.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            Sim.Route.SignKind.LowClearance => ("restricted", "LOW"),
+            Sim.Route.SignKind.Drop => ("mailDrop", sign.Drop is { Side: < 0 } ? "< MAIL" : "MAIL >"),
+            Sim.Route.SignKind.Terminus => ("lineClosed", "END"),
+            _ => ("restricted", "?"),
+        };
+        var board = Piece($"board-{type}-{text}", () => SignKit.Board(Look, type, text, 1.0f, 3.9f));
+        var up = Vector3.UnitY;
+        mesh.Instances.Add(new MeshInstance(board, new Matrix4x4(right.X, right.Y, right.Z, 0, up.X, up.Y, up.Z, 0, toward.X, toward.Y, toward.Z, 0,
+            foot.X, foot.Y, foot.Z, 1), lit ? 7 : 1));
+        return true;
+    }
+
+    /// <summary>
+    /// A mail crane (tools/models mail_crane) at <paramref name="foot"/>, its arms reaching <paramref name="inward"/> (toward
+    /// the line), and the bag hung in their clamps, tinted by what's in it: mail canvas, coal black, rounds olive, spares
+    /// brass. False without the models.
+    /// </summary>
+    public bool MailCrane(MeshBuilder mesh, Vector3 foot, Vector3 inward, Sim.Route.DropKind kind)
+    {
+        var props = PropArt.Of(Look);
+        if (props.Get("mail_crane") is not { } crane || props.Get("mail_bag") is not { } bag)
+            return false;
+        var up = Vector3.UnitY;
+        var side = Vector3.Cross(inward, up);
+        var m = new Matrix4x4(inward.X, inward.Y, inward.Z, 0, up.X, up.Y, up.Z, 0, side.X, side.Y, side.Z, 0, foot.X, foot.Y, foot.Z, 1);
+        mesh.Instances.Add(new MeshInstance(crane, m));
+        var top = props.Socket("mail_crane", "bag_top") ?? new Vector3(0.85f, 2.65f, 0);
+        var low = props.Socket("mail_crane", "bag_foot") ?? new Vector3(0.85f, 2.05f, 0);
+        var tint = kind switch
+        {
+            Sim.Route.DropKind.Coal => new Vector3(0.32f, 0.3f, 0.29f),
+            Sim.Route.DropKind.Ammo => new Vector3(0.62f, 0.68f, 0.45f),
+            Sim.Route.DropKind.Spares => new Vector3(0.95f, 0.75f, 0.45f),
+            _ => new Vector3(0.9f, 0.9f, 0.88f),
+        };
+        mesh.Instances.Add(new MeshInstance(bag, Matrix4x4.CreateTranslation((top + low) / 2) * m, Tint: tint));
+        return true;
     }
 
     readonly Vector3[] _joints = new Vector3[CreatureArt.RagdollJoints];
@@ -422,7 +477,9 @@ public sealed partial class SceneArt(Look look)
         var livery = TrainKit.LiveryOf(frame.Index);
         int variant = frame.Index % 2;
         string key = engine ? $"engine:{ShapeKey(shape)}" : $"car:{ShapeKey(shape)}:{livery}:{variant}:{shape.Gun is not null}";
-        var body = Piece(key, () => engine ? TrainKit.Engine(Look, shape, 0) : TrainKit.Car(Look, shape, livery, variant));
+        // The load's drawn apart from the body (TrainKit.Load), in its cargo's cases, when the scene knows the cargo.
+        bool loadApart = !engine && vehicle is not null;
+        var body = Piece(loadApart ? key + ":empty" : key, () => engine ? TrainKit.Engine(Look, shape, 0) : TrainKit.Car(Look, shape, livery, variant, load: !loadApart));
         // Wear and tear off the car's integrity (look.json "damage"): the scar mask over the body and doors, seeded by
         // the car so its scars stay where they are, and past the first state the torn plate the mask can't draw.
         // What a Car Hugger ate of it (App. A.3 FEED) is gone, not battered: the scars and torn plate are the rest of the loss.
@@ -437,6 +494,12 @@ public sealed partial class SceneArt(Look look)
         mesh.Instances.Add(new MeshInstance(body, m, emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
         // Its number, the vehicle's id (the cars counted back from the engine as they left; a car keeps its number when
         // the ones ahead of it are cut away), worn and eaten with the body.
+        if (loadApart)
+        {
+            var cargo = vehicle!.Cargo;
+            mesh.Instances.Add(new MeshInstance(Piece($"load:{ShapeKey(shape)}:{cargo}:{variant}", () => TrainKit.Load(Look, shape, cargo, variant)), m,
+                emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
+        }
         int number = frame.Index;
         if (!engine && Look.Layer("stencil_numerals") >= 0)
             mesh.Instances.Add(new MeshInstance(Piece($"number:{ShapeKey(shape)}:{number}", () => TrainKit.CarNumber(Look, shape, number)), m,
