@@ -644,15 +644,18 @@ public sealed partial class SceneArt(Look look)
     /// blackened toward soot, the scars of the burn the mask draws.</param>
     /// <param name="openLockers">Crew lockers drawn open whatever their doors are doing (the Stranded outro's empty locker).</param>
     /// <param name="utility">A utility car (GDD §10): its crew fit-out in place of a load (<see cref="TrainKit.UtilityFit"/>).</param>
+    /// <param name="handrails">The train has roof handrails (spec F.3, note 184): drawn along a car's roof edges.</param>
     public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, bool emergency, long tick = -1, int cutEnds = 0,
-        float charred = 0, bool utility = false, uint openLockers = 0)
+        float charred = 0, bool utility = false, uint openLockers = 0, bool handrails = false)
     {
         var shape = frame.Shape;
         var m = FrameMatrix(frame, eye);
         bool engine = shape.Cab is not null;
         if (!engine && shape.Interior is null)
             return false;
-        var livery = TrainKit.LiveryOf(frame.Index);
+        // An armoured car (note 184) wears the armoured livery under its plate, whatever its place in the train.
+        bool armoured = !engine && vehicle is { Armoured: true };
+        var livery = armoured ? TrainKit.Livery.Armoured : TrainKit.LiveryOf(frame.Index);
         int variant = frame.Index % 2;
         string key = engine ? $"engine:{ShapeKey(shape)}" : $"car:{ShapeKey(shape)}:{livery}:{variant}:{shape.Gun is not null}";
         // The load's drawn apart from the body (TrainKit.Load), in its cargo's cases, when the scene knows the cargo.
@@ -707,6 +710,13 @@ public sealed partial class SceneArt(Look look)
                 }
             }
         }
+        // The plate over it (TrainKit.ArmourPlate), and the roof handrails (TrainKit.RoofHandrails): note 184.
+        if (armoured)
+            mesh.Instances.Add(new MeshInstance(Piece($"armour:{ShapeKey(shape)}", () => TrainKit.ArmourPlate(Look, shape)), m,
+                emergency ? 0.06f : 1, Tint: soot, Scar: scar, Bite: cut, BiteFloor: floor));
+        if (handrails && !engine && (frame.Origin - eye).Length < 200)
+            mesh.Instances.Add(new MeshInstance(Piece($"handrails:{ShapeKey(shape)}", () => TrainKit.RoofHandrails(Look, shape)), m,
+                emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
         int number = frame.Index;
         if (!engine && Look.Layer("stencil_numerals") >= 0)
             mesh.Instances.Add(new MeshInstance(Piece($"number:{ShapeKey(shape)}:{number}", () => TrainKit.CarNumber(Look, shape, number)), m,

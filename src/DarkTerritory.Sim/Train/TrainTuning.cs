@@ -17,9 +17,49 @@ public sealed record TrainTuning
     public KitTuning Kit { get; init; } = new();
     /// <summary>Line Plan §12.6, never an unrecoverable body or kit (train.json <c>recovery</c>; note 181).</summary>
     public RecoveryTuning Recovery { get; init; } = new();
+    /// <summary>What the consist's made of past engine, cargo and guard van, and what its fittings do (train.json <c>composition</c>; note 184).</summary>
+    public CompositionTuning Composition { get; init; } = new();
 
     public const string File = "tuning/train.json";
 }
+
+/// <summary>
+/// The consist's make-up and fittings (GDD §10, §26, spec F.3; train.json <c>composition</c>, ARCHITECTURE §8 note 184). The
+/// counts and the flag are what the fortress sells (campaign.json's upgrades add to them); the rest is what each does.
+/// </summary>
+public sealed record CompositionTuning
+{
+    /// <summary>Guard cars, each with its gun: the van at the back, and any more in the middle of the cargo (spec F.3's third gun).</summary>
+    public int GuardCars { get; init; } = 1;
+    /// <summary>Crew cars (GDD §10 "utility cars"): stores and a stove, right behind the engine.</summary>
+    public int UtilityCars { get; init; }
+    /// <summary>Cars converted to armour (GDD §26 "reinforced plating, heavier mass"), from the rear forward.</summary>
+    public int ArmouredCars { get; init; }
+    /// <summary>Cars that stay cargo whatever's bought: a conversion that would leave fewer isn't made.</summary>
+    public int MinCargoCars { get; init; } = 1;
+    /// <summary>What an armoured car's plate weighs on top of the car.</summary>
+    public double ArmourTonnes { get; init; } = 10;
+    /// <summary>How much of a blow to its shell an armoured car takes (the plate turns the rest).</summary>
+    public double ArmourDamage { get; init; } = 0.5;
+    /// <summary>A crew car's stove warms this far round it with a door open; shut in, the whole car's warm.</summary>
+    public double StoveReach { get; init; } = 2.5;
+    /// <summary>How fast the cold comes on in an unheated car, against player.json <c>cold.indoorsRate</c> (spec F.3 car insulation).</summary>
+    public double Insulation { get; init; } = 1;
+    /// <summary>Handrails along every roof's edges (spec F.3 roof handrails).</summary>
+    public bool Handrails { get; init; }
+    /// <summary>What holding them does.</summary>
+    public HandrailTuning Rails { get; init; } = new();
+}
+
+/// <summary>
+/// Roof handrails (spec F.3 "Dragger resistance"; note 184). A hand on the rail: a Dragger has to reach further in for you,
+/// holds you over the side longer before it has you (friends' time to haul you back), and a bend taken too fast has to
+/// be taken faster still to throw you off.
+/// </summary>
+/// <param name="DraggerGrab">The Draggers' grab range, times this.</param>
+/// <param name="DraggerHang">How long one hangs on to you before it has you, times this.</param>
+/// <param name="ThrowOver">How far over a bend's limit throws you off the roof (sight.json <c>throwOver</c>), times this.</param>
+public sealed record HandrailTuning(double DraggerGrab = 0.6, double DraggerHang = 1.5, double ThrowOver = 1.5);
 
 /// <summary>The train's kit from the fortress (train.json <c>kit</c>).</summary>
 public sealed record KitTuning

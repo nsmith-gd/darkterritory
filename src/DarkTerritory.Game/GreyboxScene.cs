@@ -120,10 +120,13 @@ public sealed class GreyboxScene
     /// </summary>
     public Func<int, bool>? DropCaught { get; set; }
     /// <summary>
-    /// Which cars are utility cars (GDD §10), by vehicle index: drawn fitted out for the crew in place of a load. The sim
-    /// has no utility kind yet (the consist's engine, cargo and guard), so only a still frame sets it (<c>--utility i</c>).
+    /// Cars drawn as utility cars (GDD §10) beside the crew cars the train has (<see cref="VehicleKind.Utility"/>, note 184),
+    /// by vehicle index: fitted out for the crew in place of a load. A still frame sets it (<c>--utility i</c>) to see the
+    /// fit-out in a cargo car's shell.
     /// </summary>
     public Func<int, bool>? Utility { get; set; }
+    /// <summary>The train has roof handrails (spec F.3, train.json <c>composition.handrails</c>; note 184).</summary>
+    public bool Handrails { get; set; }
     /// <summary>How cold the night is (0..1): the route weather's, or a still frame's (<c>dt screenshot --cold c</c>).</summary>
     public double Cold => StagedCold ?? Route?.Weather.Cold ?? 0;
     public double? StagedCold { get; set; }
@@ -168,6 +171,7 @@ public sealed class GreyboxScene
     {
         Vehicles ??= train.Vehicles;
         Cut = Art.SceneArt.Cuts(train);
+        Handrails = train.Dynamics.Tuning.Composition.Handrails;
         Build(mesh, train.Line, train.Frames, train.Dynamics.Distance, eye);
     }
 
@@ -1625,7 +1629,7 @@ public sealed class GreyboxScene
             ? 1u << kitBay.Index : 0;
         if (Look is not null && burnt is { } fire)
             Look.Art.Effects.CarSmoke(mesh, o, right, up, back, shape, fire, (float)_speed, Time, frame.Index);
-        bool utility = Utility?.Invoke(frame.Index) == true;
+        bool utility = Utility?.Invoke(frame.Index) == true || vehicle is { Kind: VehicleKind.Utility };
         // A lived-in car's stove smoking through its pipe: a utility car's, and the guard van's (TrainKit).
         if (Look is not null && frame.Shape.Interior is { } inside && frame.Shape.Cab is null && (utility || frame.Shape.Gun is not null))
         {
@@ -1634,7 +1638,7 @@ public sealed class GreyboxScene
                 : new Vector3((float)frame.Shape.HalfWidth - 0.35f, (float)frame.Shape.RoofHeight + 0.9f, -(float)frame.Shape.HalfLength + 2.6f);
             Look.Art.Effects.StoveSmoke(mesh, o + right * pipe.X + up * pipe.Y + back * pipe.Z, up, back, (float)_speed, Time, frame.Index);
         }
-        if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick, CutEnds(frame.Index), burnt?.Char ?? 0, utility, openLockers))
+        if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick, CutEnds(frame.Index), burnt?.Char ?? 0, utility, openLockers, Handrails))
         {
             CarWorkings(mesh, frame, eye, Draw);
             if (engine)

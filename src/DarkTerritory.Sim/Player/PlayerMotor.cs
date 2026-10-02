@@ -494,8 +494,8 @@ public static class PlayerMotor
 
     /// <summary>
     /// Spec B.2 cold: exposure climbs outside and kills at the death mark; near heat it falls fast enough that even the
-    /// nearly frozen are recovered within the reset time. Heat is the cab while the fire's lit, or a shut car while the
-    /// boiler has steam to heat it.
+    /// nearly frozen are recovered within the reset time. Heat is the cab while the fire's lit, a shut car while the
+    /// boiler has steam to heat it, or a crew car's stove (note 184).
     /// </summary>
     static void StepCold(ref PlayerState s, TrainOnLine train, PlayerTuning p, double dt)
     {
@@ -505,10 +505,11 @@ public static class PlayerMotor
             s.Cold = Math.Max(0, s.Cold - dt * c.DeathSeconds / c.RecoverSecondsNearHeat);
             return;
         }
-        // Out of the wind inside a car with a door open: it comes on, but slower (spec B.2). GDD §22 deep cold (note 183): faster
+        // Out of the wind inside a car with a door open: it comes on, but slower (spec B.2), and slower still in insulated cars
+        // (spec F.3 car insulation, note 184: a car with the steam gone cold as well). GDD §22 deep cold (note 183): faster
         // the colder it is where they are (the night's cold, high ground, exposed track).
         double deep = 1 + c.PerColdStep * Math.Max(0, train.Line.Conditions?.ColdStep(RailLine.MainPath, s.LineHint) ?? 0);
-        s.Cold += (Indoors(s, train) ? dt * c.IndoorsRate : dt) * deep;
+        s.Cold += (Indoors(s, train) ? dt * c.IndoorsRate * train.Dynamics.Tuning.Composition.Insulation : dt) * deep;
         if (s.Cold >= c.DeathSeconds)
         {
             s.Health = 0;
@@ -519,12 +520,29 @@ public static class PlayerMotor
     /// <summary>Warm enough to recover: see <see cref="StepCold"/>.</summary>
     public static bool NearHeat(in PlayerState s, TrainOnLine train)
     {
+        if (BesideStove(s, train))
+            return true;
         int space = Space(s, train);
         if (space == Outside)
             return false;
         if (train.BoilerTuning is null)
             return true;
         return space == 0 ? train.Boiler.Firebox > 0 || train.Boiler.Pressure > 0 : train.Boiler.Pressure > 0;
+    }
+
+    /// <summary>
+    /// In a crew car's walls with its stove (note 184): its own heat, steam or none. Shut in, the whole car's warm; with a door
+    /// open, only near the stove (train.json <c>composition.stoveReach</c>), like standing at the cab's firebox.
+    /// </summary>
+    public static bool BesideStove(in PlayerState s, TrainOnLine train)
+    {
+        if (s.Parent == PlayerState.World || s.Parent >= train.Frames.Count || train.Frames[s.Parent].Shape.Stove is not { } stove || !Indoors(s, train))
+            return false;
+        if (train.Vehicles[s.Parent].DoorsOpen == 0)
+            return true;
+        double dx = s.Position.X - Math.Clamp(s.Position.X, stove.Min.X, stove.Max.X), dz = s.Position.Z - Math.Clamp(s.Position.Z, stove.Min.Z, stove.Max.Z);
+        double reach = train.Dynamics.Tuning.Composition.StoveReach;
+        return dx * dx + dz * dz <= reach * reach;
     }
 
     /// <summary>Past the onset of cold: slower, and the HUD says so. The revived reach it sooner (spec C.2).</summary>

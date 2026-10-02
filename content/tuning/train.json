@@ -152,6 +152,31 @@
   // Line Plan §12.6 (note 181): a body or a repair kit at rest further than corridorM from the track, or more than dropM below
   // the rails (off a bridge, into a ravine), is put back on the formation's edge, edgeM out, the side it went off.
   "recovery": { "corridorM": 40, "dropM": 15, "edgeM": 3.5 },
+  // The consist's make-up and fittings (GDD §10, §26, spec F.3; ARCHITECTURE §8 note 184). The counts and the handrails are
+  // what the fortress sells: campaign.json's upgrades add to them, and every machine builds the same train. Converted cars
+  // come out of the cargo cars, never leaving fewer than minCargoCars: extra guard cars first (each with a gun, in the
+  // middle of the cargo), then crew cars (right behind the engine: the first is the kit's car, its lockers its stores).
+  // Armour goes on from the rear forward, the guard van first.
+  "composition": {
+    "guardCars": 1,
+    "utilityCars": 0,
+    "armouredCars": 0,
+    "minCargoCars": 1,
+    // An armoured car's plate: this much heavier (a quarter of a loaded car; the train's slower for it), and it takes this
+    // much of what's done to its shell (a Car Hugger eats it half as fast; a hard knock at the couplers does half).
+    "armourTonnes": 10,
+    "armourDamage": 0.5,
+    // A crew car's stove: shut in, the whole car is warm, steam or none (spec B.2's recovery); with a door open, within
+    // this of the stove.
+    "stoveReach": 2.5,
+    // How fast the cold comes on in a car without heat (player.json cold.indoorsRate, times this): car insulation halves it.
+    "insulation": 1,
+    // Roof handrails (F.3 "Dragger resistance"): fitted, a Dragger's grab range is draggerGrab of what it was (0.6 m off the
+    // edge at a crawl, not 1), it hangs on draggerHang times as long before it has you (12 s, not 8: friends' time), and
+    // a bend has to be taken throwOver times as far over its limit to throw you off the roof (5.25 m/s, not 3.5).
+    "handrails": false,
+    "rails": { "draggerGrab": 0.6, "draggerHang": 1.5, "throwOver": 1.5 }
+  },
   "kit": {
     "radios": 2,
     // GDD v1.1 App. C.4 hand loot: toys in the guard van, for the Track Doll (it steals one and leaves for the run).

@@ -277,7 +277,9 @@ public sealed class Lineside
                         if (v.Kind == VehicleKind.Cargo)
                             v.CargoIntegrity = Math.Max(0, v.CargoIntegrity - Tuning.CargoDamagePerSecond * over * dt);
                     }
-                    if (over <= Tuning.ThrowOver)
+                    // Roof handrails (spec F.3, note 184): there's something to hold, so it takes a harder lean to throw you.
+                    var fit = train.Dynamics.Tuning.Composition;
+                    if (over <= Tuning.ThrowOver * (fit.Handrails ? fit.Rails.ThrowOver : 1))
                         continue;
                 }
                 foreach (var (id, s, _) in crew)

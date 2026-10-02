@@ -572,6 +572,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Run = session.World.Run,
         Holdouts = session.World.Holdouts,
         Vehicles = session.Train.Vehicles,
+        Handrails = session.Train.Dynamics.Tuning.Composition.Handrails,
         Bodies = session.World.Bodies.All,
         Diverging = session.Train.Diverging,
         // Only where this machine runs the catch (solo): a client's world has no word of it (Lineside.Caught is the host's).
