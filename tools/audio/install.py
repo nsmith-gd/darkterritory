@@ -44,6 +44,7 @@ AREA = {
     "Train state & alarms": (3, 4, 300, 0.8, 6),
     "Crew actions & foley": (4, 1, 40, 1.0, 2),
     "Voice & comms": (4, 1, 30, 1.0, 2),
+    "Music & UI": (4, 1, 30, 1.0, 0),
     "World & hazards": (6, 10, 600, 0.6, 2),
     "Facilities & places": (6, 8, 300, 0.7, 2),
 }
@@ -149,14 +150,28 @@ def pick(cands, mat, line_level):
     return ok[:1], "first"
 
 
-def sound_def(item, cue, folder):
+# Lines whose sounds aren't the game's (the trailer's cut goes to the store tools, not content/).
+NOT_IN_GAME = {"store-trailer"}
+# A prisoner calling from a Holdout (D.7): heard to 60 m with normal falloff and occlusion, on the voice tier.
+VOICE_LINES = {"voice-prisoner-sets", "voice-callout"}
+
+
+def sound_def(item, cue, folder, line):
     tier, lo, hi, roll, g = AREA.get(item.get("area"), (4, 1, 40, 1.0, 2))
     if isinstance(item.get("tier"), int):
         tier = item["tier"]
+    flat = line.startswith("ui-")
+    if line == "ui-music":
+        tier = 7            # music's own bottom tier, under the ambient world (decided 1 Oct)
+    elif flat:
+        tier = 4
+    if line in VOICE_LINES:
+        tier, lo, hi, roll = 2, 2, 60, 1.0
     d = {"tier": tier, "loop": cue["kind"] == "loop", "maxInstances": 8 if cue["kind"] == "loop" else 12,
-         "minDistance": lo, "maxDistance": hi, "rolloff": roll, "gainDb": g,
+         "minDistance": lo, "maxDistance": hi, "rolloff": roll, "gainDb": g, "flat": flat,
          "layers": [{"source": "sample", "sample": folder, "gain": 1,
-                     "pitchJitter": 0 if cue["kind"] == "loop" else 0.4, "gainJitter": 0 if cue["kind"] == "loop" else 1.0}]}
+                     "pitchJitter": 0 if cue["kind"] == "loop" or flat else 0.4,
+                     "gainJitter": 0 if cue["kind"] == "loop" or flat else 1.0}]}
     return d
 
 
@@ -176,7 +191,7 @@ def main():
             continue
         item = json.load(open(p))
         item = item.get("data", item)
-        if item.get("status") == "cut":
+        if item.get("status") == "cut" or line in NOT_IN_GAME:
             continue
         stored = {c["id"]: c for c in item.get("cues") or []}
         for cue in cues:
@@ -204,7 +219,7 @@ def main():
                 with open(os.path.join(SOUNDS, name + ".json"), "w") as f:
                     f.write(f"// {item['name']}: {cue['event']}" + (f" ({C.MATERIALS[mat]})" if mat else "") +
                             f". Written by tools/audio/install.py from the audio checklist ({why}); edit the cue, not this.\n")
-                    json.dump(sound_def(item, cue, rel), f, indent=1)
+                    json.dump(sound_def(item, cue, rel, line), f, indent=1)
                     f.write("\n")
                 index[rel] = {"cue": f"{line}.{cue['id']}", "surface": mat, "picked": why,
                               "candidates": [{"label": k.get("label"), "key": k.get("key") or k.get("libkey") or k["src"],
