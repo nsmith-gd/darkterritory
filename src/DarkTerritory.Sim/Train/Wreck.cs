@@ -6,7 +6,8 @@ namespace DarkTerritory.Sim.Train;
 /// <param name="RackSeconds">E.9 "the rack": on the empty engineering-kit rack, in the cab.</param>
 /// <param name="PullBackSeconds">E.9 "the pull-back": up and back over the stopped consist to a high wide, the lamps going out from the last car forward, the engine last.</param>
 /// <param name="HeightM">How high the wide ends, and <paramref name="BackM"/> how far out behind and beside the train's middle.</param>
-public sealed record StrandedOutroTuning(double RackSeconds = 1.5, double PullBackSeconds = 6, double HeightM = 42, double BackM = 55)
+/// <param name="SkipAfterSeconds">E.10's stranded skip delay: a majority (or the host) can skip it from here.</param>
+public sealed record StrandedOutroTuning(double RackSeconds = 1.5, double PullBackSeconds = 6, double HeightM = 42, double BackM = 55, double SkipAfterSeconds = 3)
 {
     public double Seconds => RackSeconds + PullBackSeconds;
 }
@@ -18,6 +19,8 @@ public sealed record WreckTuning
     public StrandedOutroTuning Stranded { get; init; } = new();
     /// <summary>GDD v1.4 App. E.6, the derailment's opera: the draw's speed weighting and the fade at the end.</summary>
     public Music.MusicTuning Music { get; init; } = new();
+    /// <summary>GDD v1.4 App. E: the derailment film's physics and shots.</summary>
+    public FilmTuning Film { get; init; } = new();
     public int Substeps { get; init; } = 6;
     public double Gravity { get; init; } = 9.81;
     public double Restitution { get; init; } = 0.12;
@@ -42,6 +45,11 @@ public sealed record WreckTuning
     public double CinematicSeconds { get; init; } = 12;
     /// <summary>T121 playtest ("let people experience it first hand, then replay the moment from the third person train view"): seconds in your own eyes, riding the wreck.</summary>
     public double FirstPersonSeconds { get; init; } = 4;
+    /// <summary>
+    /// GDD v1.4 App. D.12, E.5: how far into the first-person beat each crew member's derailment bookmark is taken (every
+    /// client takes them all, from each one's eye in the car they rode). The build's per-player beat is that one.
+    /// </summary>
+    public double BookmarkSeconds { get; init; } = 2;
     /// <summary>Then the replay from the chase view, this long, starting this far before the train came off.</summary>
     public double ReplaySeconds { get; init; } = 9;
     public double ReplayLeadSeconds { get; init; } = 3;
@@ -126,7 +134,30 @@ public sealed class Wreck
         Bodies = bodies;
         _ground = ground;
         _rng = new Pcg32(seed, 0x57EC);
+        Seed = seed;
     }
+
+    /// <summary>
+    /// A wreck from a film's start (GDD v1.4 App. E.2): the bodies and couplings exactly as recorded at the derail tick,
+    /// run at real time (the film does its own slow motion), so every machine that has the start shoots the same film.
+    /// </summary>
+    public static Wreck FromStart(WreckTuning t, IReadOnlyList<WreckBody> bodies, IEnumerable<(int A, int B, double Length)> links,
+        Func<double, double, double> ground, ulong seed)
+    {
+        var w = new Wreck(t, bodies, ground, seed) { SlowMotion = false };
+        foreach (var (a, b, length) in links)
+            w._links.Add((a, b, true, length));
+        return w;
+    }
+
+    /// <summary>Its couplings as made at the start, for a film's start (E.2).</summary>
+    public IEnumerable<(int A, int B, double Length)> Links => _links.Select(l => (l.A, l.B, l.Length));
+
+    /// <summary>The first seconds play slowed (the live wreck's beat); a film's wreck runs in real time.</summary>
+    public bool SlowMotion { get; private init; } = true;
+
+    /// <summary>The seed its jostles draw from.</summary>
+    public ulong Seed { get; private init; }
 
     /// <summary>A wreck that's only drawn: the poses come from the host (<see cref="Pose"/>).</summary>
     public static Wreck PuppetOf(WreckTuning t, IReadOnlyList<WreckBody> bodies) => new(t, bodies, (_, _) => double.NegativeInfinity, 0) { Puppet = true };
@@ -215,7 +246,7 @@ public sealed class Wreck
             (b.PrevOrigin, b.PrevRight, b.PrevUp, b.PrevBack) = (b.Origin, b.Right, b.Up, b.Back);
         if (Settled)
             return;
-        double rate = RealSeconds < _t.SlowSeconds ? _t.SlowRate : 1;
+        double rate = SlowMotion && RealSeconds < _t.SlowSeconds ? _t.SlowRate : 1;
         RealSeconds += dt;
         double h = dt * rate / _t.Substeps;
         for (int s = 0; s < _t.Substeps; s++)

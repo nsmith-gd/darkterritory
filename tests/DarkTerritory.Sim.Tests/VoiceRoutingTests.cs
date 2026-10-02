@@ -24,6 +24,17 @@ public class VoiceRoutingTests
     }
 
     [Fact]
+    public void ALiveMicIsHeardOnlyByTheLivingNearItsHoldout()
+    {
+        // GDD v1.4 App. D.7 (note 179): proximity voice from the Holdout, 26 m cutoff; never to the dead (they have the dead
+        // channel already).
+        var holdout = PlayerMotor.WorldPosition(Roof(5), Train);
+        Assert.True(VoiceRouting.HearsLiveMic(Roof(5, 6), holdout, Train));
+        Assert.False(VoiceRouting.HearsLiveMic(Roof(12), holdout, Train));
+        Assert.False(VoiceRouting.HearsLiveMic(Roof(5, 6) with { Health = 0, Death = DeathCause.Mauled }, holdout, Train));
+    }
+
+    [Fact]
     public void TheRadioReachesTheWholeTrainButNotIntoATunnel()
     {
         Assert.Equal(VoicePath.Radio, VoiceRouting.Route(Roof(2), Roof(19), radio: true, Train));

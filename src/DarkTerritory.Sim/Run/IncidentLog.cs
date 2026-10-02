@@ -6,7 +6,15 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Run;
 
 /// <summary>A line of the incident report (GDD v1.4 App. D.12): who, and what the clerk says, with a death's fee and refund.</summary>
-public sealed record ReportLine(IncidentKind Kind, string Who, string Text, double Fee = 0, double Refund = 0);
+public sealed record ReportLine(IncidentKind Kind, string Who, string Text, double Fee = 0, double Refund = 0)
+{
+    /// <summary>When it happened (run seconds), or −1 for a line read at the end (cars lost).</summary>
+    public double Seconds { get; init; } = -1;
+    /// <summary>Whom it's about, or −1.</summary>
+    public int Victim { get; init; } = -1;
+    /// <summary>The bookmarks shown beside it (GDD v1.4 App. D.12), by <see cref="Bookmark.Id"/>.</summary>
+    public IReadOnlyList<int> Marks { get; init; } = [];
+}
 
 /// <summary>
 /// Writing the failure-attribution log (App. C.9) and reading it out as the incident report (D.12), in the settlement
@@ -27,10 +35,13 @@ public static class IncidentLog
     static string Kmh(double metresPerSecond) => $"{Math.Abs(metresPerSecond) * 3.6:0} km/h";
 
     /// <summary>Where a crewmate is, as the clerk would put it: "on the roof of car 3 at km 4", "in the cab at Hollin Halt".</summary>
-    public static string Where(World world, in PlayerState s)
+    public static string Where(World world, in PlayerState s) => $"{Place(world, s)} {At(world, PlayerMotor.WorldPosition(s, world.Train), s.LineHint)}";
+
+    /// <summary>Where on the train a crewmate is, without the mile: "on the roof of car 3", "in the cab".</summary>
+    public static string Place(World world, in PlayerState s)
     {
         var train = world.Train;
-        string place = s.Parent switch
+        return s.Parent switch
         {
             PlayerState.World => "on the line",
             0 when PlayerMotor.InCab(s, train) => "in the cab",
@@ -39,7 +50,33 @@ public static class IncidentLog
             var car when car > 0 && car < train.Frames.Count && s.Position.Y >= train.Frames[car].Shape.RoofHeight - 0.2 => $"on the roof of car {car}",
             var car => $"on car {car}",
         };
-        return $"{place} {At(world, PlayerMotor.WorldPosition(s, train), s.LineHint)}";
+    }
+
+    /// <summary>
+    /// What a crewmate was doing, for the derailment film's name card (GDD v1.4 App. E.5 "the role taken from where they
+    /// stood", §12): on the throttle, at the firebox, on the gun, else where they were.
+    /// </summary>
+    public static string Role(World world, in PlayerState s, int player)
+    {
+        var train = world.Train;
+        if (PlayerMotor.InCab(s, train))
+            return Net.CabControls.CanDrive(s, train) && world.Attribution.Driver == player ? "on the throttle" : "at the firebox";
+        if (s.Has(PlayerFlags.Seated))
+            return "on the gun";
+        return Place(world, s);
+    }
+
+    /// <summary>
+    /// The derailment film's cause card (GDD v1.4 App. E.5), the clerk reading the derail's attribution line (C.9): "Consist
+    /// derailed at km 14, 68 km/h. Took the 45 km/h bend at 68 km/h, 23 km/h too fast. Throttle: Dave. Recovery not scheduled."
+    /// </summary>
+    public static string CauseCard(World world)
+    {
+        var train = world.Train;
+        string at = At(world, train.Frames[0].Origin, train.Dynamics.Distance);
+        string cause = world.DerailCause is { Length: > 0 } c ? char.ToUpperInvariant(c[0]) + c[1..].TrimEnd('.') + ". " : "";
+        string driver = world.DerailDriver >= 0 ? $"Throttle: {NameOf(world, world.DerailDriver)}. " : "Nobody on the throttle. ";
+        return $"Consist derailed {at}, {Kmh(world.DerailSpeed)}. {cause}{driver}Recovery not scheduled.";
     }
 
     /// <summary>"at Hollin Halt" near a named stop on the plan, else "at km 12".</summary>
@@ -181,10 +218,10 @@ public static class IncidentLog
             {
                 bool recovered = i.Body >= 0 && home(i.Body);
                 string settle = fee > 0 ? recovered ? $" Fee {fee:0}. Body recovered. Refund {refund:0}." : $" Fee {fee:0}. Body not recovered." : "";
-                lines.Add(new ReportLine(i.Kind, who, $"{i.What} {i.Where}. {action}{settle}".Trim(), fee, recovered ? refund : 0));
+                lines.Add(new ReportLine(i.Kind, who, $"{i.What} {i.Where}. {action}{settle}".Trim(), fee, recovered ? refund : 0) { Seconds = i.Seconds, Victim = i.Victim });
             }
             else
-                lines.Add(new ReportLine(i.Kind, who, $"{i.What} {i.Where}. {action}".Trim()));
+                lines.Add(new ReportLine(i.Kind, who, $"{i.What} {i.Where}. {action}".Trim()) { Seconds = i.Seconds, Victim = i.Victim });
         }
         return lines;
     }

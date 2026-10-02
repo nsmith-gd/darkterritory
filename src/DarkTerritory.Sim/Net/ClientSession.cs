@@ -46,6 +46,8 @@ public sealed class ClientSession
 
     readonly Dictionary<int, byte[]> _reportChunks = [];
     int _reportCount;
+    readonly Dictionary<int, byte[]> _filmChunks = [];
+    int _filmCount;
 
     public ClientSession(ITransport transport, World world, TrainTuning trainTuning, PlayerTuning playerTuning)
     {
@@ -197,6 +199,10 @@ public sealed class ClientSession
                 case MessageType.Names:
                     Messages.ReadNames(ref r, World.Names);
                     break;
+                case MessageType.Bookmark:
+                    if (Messages.ReadBookmark(ref r) is { } bookmark)
+                        World.Bookmarks.Mirror(bookmark);
+                    break;
                 case MessageType.Report:
                     {
                         int index = r.U8();
@@ -204,6 +210,15 @@ public sealed class ClientSession
                         _reportChunks[index] = r.Rest().ToArray();
                         if (Messages.ReadReport(_reportChunks, _reportCount) is { } report)
                             World.Run?.MirrorReport(report);
+                        break;
+                    }
+                case MessageType.Film:
+                    {
+                        int index = r.U8();
+                        _filmCount = r.U8();
+                        _filmChunks[index] = r.Rest().ToArray();
+                        if (World.Film is null && Messages.ReadFilm(_filmChunks, _filmCount) is { } film)
+                            World.Film = film;
                         break;
                     }
                 case MessageType.Snapshot:

@@ -546,9 +546,22 @@ public static class Staging
     }
 
     /// <summary>
-    /// A night's incident report for the screenshot (GDD v1.4 App. D.12), written the way the host writes it: a crew, a
-    /// rescue, deaths by the train, a creature and the cold, a rupture and a lost car, through the real attribution log
-    /// and the clerk's lines.
+    /// The staged night's crew for <see cref="Report"/>: Dave and Dunmore in the cab, Okafor on car 3's roof, Priya on the line
+    /// 180 m behind.
+    /// </summary>
+    public static List<(int Id, Sim.Player.PlayerState State)> ReportCrew(TrainOnLine train)
+    {
+        var cab = Sim.Player.PlayerMotor.SpawnInCab(train, DefaultPlayer);
+        var beside = Sim.Player.PlayerMotor.SpawnInCab(train, DefaultPlayer, 0.6) with { Yaw = 0.9 };
+        var roof = Sim.Player.PlayerMotor.SpawnOnRoof(train, Math.Min(3, train.Frames.Count - 1), 0, DefaultPlayer) with { Yaw = Math.PI, Pitch = -0.25 };
+        var line = Sim.Player.PlayerMotor.SpawnOnGround(train.Line.Sample(train.Dynamics.RearDistance - 180).Position, train.Line, train.Dynamics.RearDistance - 180, DefaultPlayer);
+        return [(0, cab with { Yaw = -0.5, Pitch = -0.1 }), (1, beside), (2, roof), (3, line)];
+    }
+
+    /// <summary>
+    /// A night's incident report (GDD v1.4 App. D.12) staged through the real log, formatter and bookmarks: a grab and its
+    /// punish beside the death they ended in, a grab somebody got away from, the derailment's crew stills (derailed), and two
+    /// of the dead's own bookmarks. The clock is moved between them (<see cref="Sim.Run.Run.Resume"/>) so each has its time.
     /// </summary>
     public static Sim.Run.RunReport Report(Sim.World world, Sim.Run.RunEnd end)
     {
@@ -556,22 +569,43 @@ public static class Staging
             world.Names[id] = name;
         var train = world.Train;
         var log = world.Attribution;
+        var marks = world.Bookmarks;
+        var run = world.Run!;
+        void At(double seconds) => run.Resume(seconds, -1, train.Boiler.Tender, 0);
         log.Drove(0);
         log.Fired(1, 100);
-        var cab = Sim.Player.PlayerMotor.SpawnInCab(train, DefaultPlayer);
-        var roof = Sim.Player.PlayerMotor.SpawnOnRoof(train, Math.Min(3, train.Frames.Count - 1), 0, DefaultPlayer);
-        var line = Sim.Player.PlayerMotor.SpawnOnGround(train.Line.Sample(train.Dynamics.RearDistance - 180).Position, train.Line, train.Dynamics.RearDistance - 180, DefaultPlayer);
-        var crew = new List<(int, Sim.Player.PlayerState)> { (0, cab), (1, cab), (2, roof), (3, line) };
+        var crew = ReportCrew(train);
+        var (cab, beside, roof, line) = (crew[0].State, crew[1].State, crew[2].State, crew[3].State);
+        At(312);
+        log.Add(Sim.Run.IncidentLog.Grab(world, 1, beside, "Grabbed by the Dragger"));
+        marks.Grab(world, 1, "Grabbed by the Dragger", crew);
+        At(604);
+        log.Add(Sim.Run.IncidentLog.Grab(world, 2, roof, "Grabbed by the Car Hugger"));
+        marks.Grab(world, 2, "Grabbed by the Car Hugger", crew);
+        At(610);
+        marks.Punish(world, 46, "CarHugger", 2, Sim.Player.PlayerMotor.WorldPosition(roof, train), crew);
         log.Add(Sim.Run.IncidentLog.Death(world, 2, roof with { Death = Sim.Player.DeathCause.Eaten }, null, crew));
         log.Add(new Sim.Run.Incident(Sim.Run.IncidentKind.Rescue, 900, 2, "Freed from the Holdout", "at Hollin Halt", 0, "Broken out by {actor}."));
+        At(1012);
         log.Add(Sim.Run.IncidentLog.Death(world, 3, line with { Death = Sim.Player.DeathCause.Cold }, null, crew));
+        At(1104);
+        marks.Manual(world, 3, 0, cab);
+        At(1290);
+        marks.Manual(world, 3, 1, beside);
         log.Add(new Sim.Run.Incident(Sim.Run.IncidentKind.Rupture, 1300, -1, "Boiler ruptured", "at km 14", 1, "Last fired: {actor}. At 100 for 20 s."));
-        log.Add(Sim.Run.IncidentLog.Death(world, 1, cab with { Death = Sim.Player.DeathCause.Seized }, null, crew));
+        At(1500);
+        log.Add(Sim.Run.IncidentLog.Death(world, 1, beside with { Death = Sim.Player.DeathCause.Seized }, null, crew));
         var lines = Sim.Run.IncidentLog.Lines(world, 350, 263, body => false);
         lines.Add(new Sim.Run.ReportLine(Sim.Run.IncidentKind.CarLost, "", "Car 5 finished by the Car Hugger at km 9. Inside: freight, 0.6 car-loads, the body of Okafor."));
+        At(1720);
         if (end == Sim.Run.RunEnd.Derailed)
-            lines.Add(new Sim.Run.ReportLine(Sim.Run.IncidentKind.Derailed, "", "Consist derailed, 68 km/h at km 17. Took the 50 km/h bend at 68 km/h, 18 km/h too fast. Throttle: Dave."));
-        return new Sim.Run.RunReport(end, 1720, 17.2, 4, 1, 2.1, 0, 120, 6, 40, -1416, 1, 3, Deaths: 3, CrewLossFees: 1050) { Lines = lines };
+        {
+            lines.Add(new Sim.Run.ReportLine(Sim.Run.IncidentKind.Derailed, "", "Consist derailed, 68 km/h at km 17. Took the 50 km/h bend at 68 km/h, 18 km/h too fast. Throttle: Dave.") { Seconds = 1720 });
+            // Only Dave's still aboard by then: the derailment's stills are of whoever it took.
+            marks.End(world, end, [crew[0], crew[1] with { State = beside with { Death = Sim.Player.DeathCause.Seized } }]);
+        }
+        var (marked, shown) = Sim.Run.Run.MarkBookmarks(world, lines);
+        return new Sim.Run.RunReport(end, 1720, 17.2, 4, 1, 2.1, 0, 120, 6, 40, -1416, 1, 3, Deaths: 3, CrewLossFees: 1050) { Lines = marked, Bookmarks = shown };
     }
 
     static readonly Sim.Player.PlayerTuning DefaultPlayer = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(DataFile.FindContentRoot(), Sim.Player.PlayerTuning.File));
