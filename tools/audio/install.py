@@ -152,6 +152,26 @@ def pick(cands, mat, line_level):
 
 # Lines whose sounds aren't the game's (the trailer's cut goes to the store tools, not content/).
 NOT_IN_GAME = {"store-trailer"}
+# A tell the game already plays under a name of its own (GameAudio.Enemies, Choir): once the director keeps takes for it,
+# that sound becomes them, keeping its tuned tier, range and level (spec A.4's audit numbers live there). The synth
+# definition it replaces is saved in tools/audio/synth-defs/ and comes back if nothing is kept any more.
+# Line -> (sound, [(cue, layer extras)]): extras such as a gain curve on the param the game drives.
+TELL_SOUNDS = {
+    "tell-choir": ("choir-voice", [("voices", {"rate": {"param": "pitch", "points": [[0.75, 0.985], [1.25, 1.015]]}})]),
+    "tell-car-fire": ("car-fire", [("smoulder", {"gain": {"param": "progress", "points": [[0, 1], [0.5, 0.7], [1, 0]]}}),
+                                   ("alight", {"gain": {"param": "progress", "points": [[0, 0], [0.4, 0.25], [1, 1]]}})]),
+    "tell-track-doll": ("doll-giggle", [("giggle", {})]),
+    "tell-car-hugger": ("hugger-grind", [("grind", {})]),
+    "tell-ribbits": ("ribbit-swell", [("swell", {})]),
+    "tell-hounds": ("hound-howl", [("howl-far", {})]),
+    "tell-draggers": ("dragger-scrape", [("rasp", {})]),
+    "tell-stoker": ("stoker-hiss", [("hiss-wrong", {})]),
+    "tell-fireflies": ("fireflies-buzz", [("buzz", {})]),
+}
+# The Dragger's rasp is one scrape before the grab (spec A.4), not a loop: played once and held till the phase ends.
+ONCE = {"dragger-scrape"}
+SYNTH_DEFS = os.path.join(HERE, "synth-defs")
+
 # Lines whose candidates are alternatives the game uses all of, one per instance (a prisoner's whole voice).
 SETS_LINES = {"voice-prisoner-sets"}
 # A prisoner calling from a Holdout (D.7): heard to 60 m with normal falloff and occlusion, on the voice tier.
@@ -177,6 +197,47 @@ def sound_def(item, cue, folder, line):
     return d
 
 
+def _read_def(path):
+    """A content JSON file (comments allowed) -> (leading comment lines, dict)."""
+    lines = open(path).read().splitlines()
+    head = [l for l in lines if l.strip().startswith("//")]
+    body = "\n".join(l for l in lines if not l.strip().startswith("//"))
+    return head, json.loads(body)
+
+
+def tell_sounds(store, kept_folders):
+    """Swap each tell's game sound to its kept takes, or back to its synth definition when none are kept."""
+    os.makedirs(SYNTH_DEFS, exist_ok=True)
+    for line, (sound, cues) in TELL_SOUNDS.items():
+        path = os.path.join(SOUNDS, sound + ".json")
+        backup = os.path.join(SYNTH_DEFS, sound + ".json")
+        if not os.path.exists(backup):
+            head, d = _read_def(path)
+            if any(l.get("source") == "sample" for l in d["layers"]):
+                continue
+            shutil.copy(path, backup)
+        folders = [(f"{line}/{cue}", extra) for cue, extra in cues if f"{line}/{cue}" in kept_folders]
+        if len(folders) < len(cues):
+            shutil.copy(backup, path)      # not (all) kept: the tuned synth sound stays
+            continue
+        head, d = _read_def(backup)
+        layers = []
+        for folder, extra in folders:
+            layer = {"source": "sample", "sample": folder, "gain": 1}
+            layer.update(extra)
+            layers.append(layer)
+        d["layers"] = layers
+        if sound in ONCE:
+            d["loop"] = False
+        with open(path, "w") as f:
+            f.write(f"// The tell's kept takes from the audio checklist ({', '.join(fo for fo, _ in folders)}), in place of its\n"
+                    f"// synth definition (tools/audio/synth-defs/{sound}.json), keeping its tier, range and level. Written by\n"
+                    f"// tools/audio/install.py; edit the cue or that file, not this one.\n")
+            json.dump(d, f, indent=1)
+            f.write("\n")
+        print(f"{sound}: now the kept takes of {', '.join(fo for fo, _ in folders)}")
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     store = sys.argv[sys.argv.index("--from") + 1]
@@ -192,6 +253,7 @@ def main():
     index_path = os.path.join(SAMPLES, "index.json")
     index = json.load(open(index_path)) if os.path.exists(index_path) else {}
     n_cues = n_files = 0
+    kept_folders = set()
     for line, cues in C.CUES.items():
         if args and line not in args:
             continue
@@ -236,6 +298,8 @@ def main():
                             f". Written by tools/audio/install.py from the audio checklist ({why}); edit the cue, not this.\n")
                     json.dump(sound_def(item, cue, rel, line), f, indent=1)
                     f.write("\n")
+                if why == "kept":
+                    kept_folders.add(rel)
                 index[rel] = {"cue": f"{line}.{cue['id']}", "surface": mat, "picked": why,
                               "candidates": [{"label": k.get("label"), "key": k.get("key") or k.get("libkey") or k["src"],
                                               "sources": k.get("sources") or ([k["libkey"]] if k.get("libkey") else []),
@@ -244,6 +308,7 @@ def main():
                               "sha": hashlib.sha256(b"".join(open(os.path.join(folder, f), "rb").read()
                                                              for f in sorted(os.listdir(folder)))).hexdigest()[:16]}
     if not dry:
+        tell_sounds(store, kept_folders)
         os.makedirs(SAMPLES, exist_ok=True)
         json.dump(dict(sorted(index.items())), open(index_path, "w"), indent=1)
     print(f"{n_cues} cue folders, {n_files} takes")
