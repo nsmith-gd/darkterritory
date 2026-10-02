@@ -220,13 +220,13 @@ At 20 cars, crossing the train takes a minute and a half in each direction. That
 
 | Consist | Accel | Brake | 22→0 stop |
 |---|---|---|---|
-| 3 cars | 0.90 m/s² | 3.20 m/s² | 7s / 76m |
-| 6 cars | 0.62 m/s² | 2.10 m/s² | 10.5s / 115m |
-| 10 cars | 0.42 m/s² | 1.44 m/s² | 15s / 168m |
-| 15 cars | 0.27 m/s² | 0.96 m/s² | 23s / 252m |
-| **20 cars** | **0.18 m/s²** | **0.70 m/s²** | **31s / 346m** |
+| 3 cars | 0.90 m/s² | 2.24 m/s² | 10s / 108m |
+| 6 cars | 0.62 m/s² | 1.47 m/s² | 15s / 164m |
+| 10 cars | 0.42 m/s² | 1.01 m/s² | 22s / 239m |
+| 15 cars | 0.27 m/s² | 0.67 m/s² | 33s / 361m |
+| **20 cars** | **0.18 m/s²** | **0.49 m/s²** | **45s / 494m** |
 
-**T97 (playtest): the brakes are twice the first pass's** ("braking needs to reduce speed significantly faster"). The stop column is a stop with the steam off. With steam driving (B.6) the engine pulls against the brake until its pressure's down, so a stop on the brake alone takes longer, and the quickest stop is brake *and* vent: two people, the brake in the cab and the vent out by the smokebox. At 20 cars you begin braking 350–450 m before a stop.
+**T97 (playtest): the brakes were doubled from the first pass** ("braking needs to reduce speed significantly faster"); **T121 (playtest): then cut to 0.7 of that** ("brakes are maybe a bit too strong, lets reduce their efficiency by 30%"). The stop column is a stop with the steam off. With steam driving (B.6) the engine pulls against the brake until its pressure's down, so a stop on the brake alone takes longer, and the quickest stop is brake *and* vent: two people, the brake in the cab and the vent out by the smokebox. At 20 cars you begin braking 500–600 m before a stop.
 
 ### Grade
 

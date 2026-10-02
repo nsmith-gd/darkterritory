@@ -187,7 +187,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <summary>Seconds since this client first saw the train come off (T117), host or not: the wreck's own clock is the host's.</summary>
     public double WreckSeconds { get; private set; }
     /// <summary>The derailment's cinematic: the camera off the eye and on the wreck, the run's end held back till it's over.</summary>
-    public bool WreckCinematic => Train.Wreck is not null && WreckSeconds < World.WreckTuning.CinematicSeconds;
+    public bool WreckCinematic => Train.Wreck is not null && WreckSeconds < World.WreckTuning.SequenceSeconds;
     public double OutroSeconds { get; private set; }
     public bool StrandedOutro => World.Run?.End == Sim.Run.RunEnd.Stranded && OutroSeconds < World.WreckTuning.Stranded.Seconds;
     public World World => Client.World;

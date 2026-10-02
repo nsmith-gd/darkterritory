@@ -365,6 +365,13 @@ public sealed record SwitchmanTuning
     public double GripAt { get; init; } = 250;
     public double Health { get; init; } = 3;
     public double LingerSeconds { get; init; } = 20;
+    /// <summary>
+    /// T121 playtest ("we appear to have derailed at a very low speed"): points thrown under a train crawling over them
+    /// split, they don't throw it off. At or under this (m/s) the train runs through them: the engine takes
+    /// <see cref="RunThroughDamage"/> and the clock takes the stop. Over it, it's off the rails.
+    /// </summary>
+    public double DerailAbove { get; init; } = 6.9;
+    public double RunThroughDamage { get; init; } = 0.25;
     public int MinJunctions { get; init; } = 3;
     public double DeadLineWeight { get; init; } = 1.5;
 }

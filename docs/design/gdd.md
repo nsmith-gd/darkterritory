@@ -1498,7 +1498,7 @@ Once a run has left the gate, **a Holdout is the only way back into it.** A dead
 
 | Site | Holdouts | Placement |
 |---|---|---|
-| **Facility pad** | 1, plus a second on pads of scale ≥200 m and on every switchyard | 60–200 m from the consist's stopping position on the pad. Must not share a walking route with the nearest loading module, so rescue competes with loading for people. |
+| **Facility pad** | 2: the second at every facility, active only with a big crew (D.15 question 2) | 60–200 m from the consist's stopping position on the pad. Must not share a walking route with the nearest loading module, so rescue competes with loading for people. |
 | **Halt** (Line Plan §11.3) | 1 | On or beside the platform, ≤40 m from the main line |
 | **Dead town / village** (Line Plan §11.3) | 1 | Within the station footprint, ≤80 m from the main line |
 
@@ -1720,7 +1720,7 @@ Every number in this appendix lives in data, not code.
 | Facility Holdout distance from consist | 60–200 m | — |
 | Halt Holdout distance from main line | ≤40 m | — |
 | Dead-town Holdout distance from main line | ≤80 m | — |
-| Second facility Holdout: pad scale | ≥200 m | — |
+| Second facility Holdout: pad scale | Every pad (0 m) | — |
 | Second facility Holdout: crew | ≥5 | 4–6 |
 | Release distance | 400 m | 250–600 m |
 | Call Out active radius | 200 m | 150–300 m |
@@ -1756,8 +1756,8 @@ Every number in this appendix lives in data, not code.
 
 ## D.15 Open questions
 
-1. **Drop-out fee.** Drop-outs currently carry no fee, so a crew isn't punished for someone's connection. This could be abused by quitting instead of dying. Watch for it.
-2. **The second Holdout threshold.** Is crew ≥5 right, or should big crews get one at every facility?
+1. ~~**Drop-out fee.**~~ **Answered: no fee.** Drop-outs carry no fee, so a crew isn't punished for someone's connection. Quitting instead of dying has no purpose: nothing (no XP, no levelling) is tied to wins, and a run goes better with more people, so dropping out only punishes your friends. Still watched for in playtests.
+2. ~~**The second Holdout threshold.**~~ **Answered: big crews get one at every facility.** The goal of Holdouts is to get everyone back and cut downtime in a balanced way, so every facility has a second Holdout, active when the session crew is 5 or more (D.4).
 3. **Halt stop cost.** Is a main-line stop at a halt dangerous enough, with no facility lull, or does it need a dedicated director response?
 4. **Live Mic and the Passenger.** A spectator who noticed a silent crew member could name it over Live Mic to a rescuer at the door. The living have the same tell, and the 26 m range limits it to one listener mid-rescue, so it's accepted for now. Watch for it in playtests.
 5. **Commendation reel.** Bookmarks are stills, now including automatic captures at every GRAB and PUNISH. If they turn out to be the best part of the run-end screen, short clips may be worth the tech later.

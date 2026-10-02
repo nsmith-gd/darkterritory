@@ -33,7 +33,7 @@ using CrewActs = DarkTerritory.Game.Art.CrewActs;
 // F1 toggles the HUD (--no-hud to start without it).
 // Campaign: --campaign <slot> [--contract i] [--resume] [--saves dir] plays tonight's contract with the slot's cars and
 //   upgrades, autosaves leaving each facility, and settles at the end (spec E, F). `dt campaign` runs the fortress headless.
-// Options: --route tier:seed | --route-file name (saved from dt edit) [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png --mute --greybox (flat colour, no art pass)
+// Options: --route tier:seed | --route-file name (saved from dt edit) [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png --derail-at seconds --mute --greybox (flat colour, no art pass)
 // Multiplayer (UDP, direct IP / LAN): --host [port] hosts the same options for others to join; --join address[:port] joins one.
 // Steam: --steam hosts a friends-only lobby as well (F2 opens the invite dialog; friends can also "Join Game" from the
 //   friends list). Accepting an invite starts the game with +connect_lobby <id>, or --join-lobby <id> by hand.
@@ -118,6 +118,7 @@ bool pinnedInternal = args.Contains("--internal");
 var internalSize = Arg("--internal", "1280x720").Split('x').Select(int.Parse).ToArray();
 const int UiWidth = 480, UiHeight = 270;
 double quitAfter = double.Parse(Arg("--quit-after", "0"));
+double derailAt = double.Parse(Arg("--derail-at", "0"), System.Globalization.CultureInfo.InvariantCulture);
 string? capture = Arg("--capture", "") is { Length: > 0 } c ? c : null;
 
 var startSettings = frontEnd.Settings;
@@ -566,6 +567,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     bool Held(Control c) => input.Down(keyOf[c]);
     bool Hit(Control c) => input.Pressed(keyOf[c]);
     Camera camera = default;
+    // T121: the derailment first-hand, then replayed from the chase view, then the orbit (DerailSequence).
+    var derailSequence = new DerailSequence();
     FrameLighting lighting = default;
     window.MouseCaptured = true;
     window.TextInput = false;
@@ -588,6 +591,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // The night's over: Enter goes back (to the fortress, for a campaign night).
         if (session.World.Run?.Over == true && input.Pressed(Key.Enter))
             break;
+        // --derail-at s (a host, headless checks of the derailment's beats with --capture): off the rails at s seconds.
+        if (derailAt > 0 && now >= derailAt && session is NetPlaySession { Host.World: { Derailed: false } hostWorld })
+            hostWorld.Derail("--derail-at");
         // The prototype drives from anywhere; networked, cab controls go through intent like everything else.
         sbyte notch = (sbyte)((Hit(Control.RegulatorOpen) ? 1 : 0) - (Hit(Control.RegulatorClose) ? 1 : 0));
         bool reverser = Hit(Control.Reverser);
@@ -734,12 +740,23 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         FeedSpeaker();
 
         var frames = session.InterpolatedFrames(clock.Alpha);
-        // Off the rails (T117): the camera leaves your eyes for the wreck while it's fresh.
+        // Off the rails (T117, T121): first in your own eyes riding it, then the chase view replaying it from a few seconds
+        // before, then the camera circling the wreck. What was drawn is kept for the replay (DerailSequence).
         bool outro = session.StrandedOutro;
-        bool cinematic = session.WreckCinematic && session.Train.Wreck is not null || outro;
-        var outroTuning = session.World.WreckTuning.Stranded;
+        var wreckTuning = session.World.WreckTuning;
+        bool wrecking = session.WreckCinematic && session.Train.Wreck is not null;
+        var beat = wrecking ? DerailSequence.Beat(wreckTuning, session.WreckSeconds) : DerailBeat.None;
+        derailSequence.Record((session.Tick + clock.Alpha) * DarkTerritory.Sim.SimConstants.TickSeconds, frames, scene.Crew, session.World.Derailed, camera,
+            session.Player.Parent >= 0 ? session.Player.Parent : -1, wreckTuning);
+        var replay = beat == DerailBeat.Replay ? derailSequence.ReplayAt(session.WreckSeconds, wreckTuning) : null;
+        if (replay is { } replaying)
+            frames = replaying.Frames;
+        bool cinematic = wrecking || outro;
+        var outroTuning = wreckTuning.Stranded;
         camera = outro ? Views.Stranded(session.Train, outroTuning, session.OutroSeconds)
-            : cinematic ? Views.Wreck(session.Train.Wreck!, session.WreckSeconds)
+            : beat == DerailBeat.FirstPerson && vr is null ? derailSequence.FirstPerson(frames)
+            : replay is { } shot ? derailSequence.ReplayCamera(shot.Frames)
+            : cinematic ? Views.Wreck(session.Train.Wreck!, DerailSequence.OrbitSeconds(wreckTuning, session.WreckSeconds))
             : chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
         // E.9: the lamps go out down the train as the camera pulls back, and stay lit (or not) as far as it can see.
         scene.LampsOut = outro || session.World.Run?.End == DarkTerritory.Sim.Run.RunEnd.Stranded ? Views.StrandedLampsOut(session.Train.Frames.Count, outroTuning, session.OutroSeconds) : 0;
@@ -748,7 +765,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // On the engine with the boiler in the red, it shakes you (T109).
         if (!chase && !cinematic)
             camera.Position += BoilerShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds);
-        scene.Crew = session.Crew(frames, clock.Alpha);
+        scene.Crew = replay is { } replayed ? replayed.Crew : session.Crew(frames, clock.Alpha);
         // Behind a crewmate's eyes (App. D.10), their own figure isn't drawn round the camera.
         if (session.Watching >= 0 && !chase)
             scene.Crew = [.. scene.Crew.Where(c => c.Id != session.Watching)];
@@ -784,15 +801,16 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         if (session.StrandedOutro)
             Views.CinematicFog(ref lighting, Views.StrandedDistance(session.Train, session.World.WreckTuning.Stranded, session.OutroSeconds));
-        scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
+        scene.FireGlow = session.Train.BoilerTuning is { } bt ? GreyboxScene.FireLook(session.Train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
         scene.WrenchRacked = !session.Train.Boiler.WrenchOut;
-        scene.Wreck = session.Train.Wreck;
+        // Replaying the run-in, the train's still on the rails: no wreck yet, no sparks.
+        scene.Wreck = replay is { Off: false } ? null : session.Train.Wreck;
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
         scene.Tick = session.Tick;
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
         scene.LampLit = session.World.LampShining && scene.LampsOut < session.Train.Frames.Count;
         scene.Venting = session.Train.Boiler.Vented;
-        scene.Derailed = session.World.Derailed;
+        scene.Derailed = replay is { } rerun ? rerun.Off : session.World.Derailed;
         scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;
         scene.Controls = session.Controls;
         if (!session.World.LampShining)

@@ -310,10 +310,13 @@ public static class Views
     public static int StrandedLampsOut(int cars, Sim.Train.StrandedOutroTuning t, double seconds) =>
         seconds <= t.RackSeconds ? 0 : (int)Math.Floor(Math.Clamp((seconds - t.RackSeconds) / t.PullBackSeconds, 0, 1) * (cars + 0.999));
 
-    static Camera ChaseCamera(TrainOnLine train)
+    static Camera ChaseCamera(TrainOnLine train) => Chase([.. train.Frames]);
+
+    /// <summary>The chase view over these frames: up and back off the last car, on the middle of the train.</summary>
+    public static Camera Chase(IReadOnlyList<CarFrame> frames)
     {
-        var last = train.Frames[^1];
-        var mid = train.Frames[train.Frames.Count / 2];
+        var last = frames[^1];
+        var mid = frames[frames.Count / 2];
         return Camera.LookAt(last.ToWorld(new Double3(-12, 14, last.Shape.HalfLength + 30)), mid.ToWorld(new Double3(0, 2, 0)), 60);
     }
 

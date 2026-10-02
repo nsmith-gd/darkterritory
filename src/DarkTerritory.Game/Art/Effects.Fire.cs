@@ -109,10 +109,20 @@ public sealed partial class Effects
     /// <param name="colour">Its colour (orange, or the Stoker's sick green).</param>
     public void Furnace(MeshBuilder mesh, Vector3 bed, Vector3 right, Vector3 up, Vector3 back, float heat, Vector3 colour, double t)
     {
-        float hot = Math.Clamp(heat, 0.05f, 1);
         var tint = Vector3.Normalize(colour + new Vector3(1e-3f)) * 1.25f;
+        // Out (GreyboxScene.FireLook: no coal at all): a dead grate, the faintest heat left in the ash, no flames, no light.
+        if (heat <= 0)
+        {
+            mesh.Billboard(bed + up * 0.02f, 0.7f, 0, new Vector4(tint * 0.04f, 1), -1, FxBlend.Additive, stretch: 0.3f);
+            return;
+        }
+        float hot = Math.Clamp(heat, 0.05f, 1);
+        // The fire's levels as it builds (T121): a few tongues off a low bed, the whole grate alight at capacity.
+        int tongues = Math.Clamp((int)MathF.Round(1 + 8 * (hot - 0.3f) / 0.7f), 1, 9);
         for (int i = 0; i < 9; i++)
         {
+            if ((i * 5 + 2) % 9 >= tongues)
+                continue;
             float h = Hash(i * 2.37f + 0.9f);
             float x = (i / 8f - 0.5f) * 0.56f + (h - 0.5f) * 0.05f;
             float tall = (0.12f + 0.32f * hot) * (0.7f + 0.6f * h);

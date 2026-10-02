@@ -39,8 +39,13 @@
   "settleSpeed": 0.25,
   "settleHold": 1.5,
   "maxSeconds": 30,
-  // Presentation: the camera leaves your eyes for the wreck this long (real seconds), and the run's end waits for it.
-  "cinematicSeconds": 12,
+  // Presentation (T121 playtest: "let people experience it first hand, then replay the moment from the third person train
+  // view"): firstPersonSeconds in your own eyes riding the wreck; then replaySeconds of the chase view replaying it from
+  // replayLeadSeconds before it came off; then cinematicSeconds of the camera circling the wreck. The run's end waits.
+  "firstPersonSeconds": 4,
+  "replaySeconds": 9,
+  "replayLeadSeconds": 3,
+  "cinematicSeconds": 8,
   // GDD v1.4 App. E.9, the Stranded outro (nobody died, so no opera): 1.5 s on the empty engineering-kit rack, then 6 s pulling
   // up and back over the stopped train to a high wide as its lamps go out one by one, the last car first and the engine last,
   // with the clerk on the radio. heightM and backM: where the wide ends, over and out from the middle of the train.

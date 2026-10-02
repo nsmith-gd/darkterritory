@@ -4,7 +4,10 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game.Tests;
 
-/// <summary>T117: the derailment reaches a client as poses, and the cinematic holds the run's end back while it plays.</summary>
+/// <summary>
+/// T117: the derailment reaches a client as poses, and the cinematic holds the run's end back while it plays. T121: the
+/// sequence is first person, then the replay, then the orbit, and the run's end waits for all three.
+/// </summary>
 public class WreckSessionTests
 {
     static readonly string Content = DataFile.FindContentRoot();
@@ -23,8 +26,11 @@ public class WreckSessionTests
         Assert.NotNull(night.Train.Wreck);
         Assert.True(night.WreckCinematic);
         var tuning = DataFile.Load<WreckTuning>(Path.Combine(Content, WreckTuning.File));
-        Assert.Equal(tuning.CinematicSeconds, night.World.WreckTuning.CinematicSeconds);
-        for (int i = 0; i < tuning.CinematicSeconds * SimConstants.TickRate; i++)
+        Assert.Equal(tuning.SequenceSeconds, night.World.WreckTuning.SequenceSeconds);
+        Assert.Equal(DerailBeat.FirstPerson, DerailSequence.Beat(tuning, night.WreckSeconds));
+        Assert.Equal(DerailBeat.Replay, DerailSequence.Beat(tuning, tuning.FirstPersonSeconds + 0.1));
+        Assert.Equal(DerailBeat.Orbit, DerailSequence.Beat(tuning, tuning.FirstPersonSeconds + tuning.ReplaySeconds + 0.1));
+        for (int i = 0; i < tuning.SequenceSeconds * SimConstants.TickRate; i++)
             night.Step(default);
         Assert.False(night.WreckCinematic);
     }

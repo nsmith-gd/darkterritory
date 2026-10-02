@@ -2,6 +2,7 @@ using System.Numerics;
 using Ballast;
 using Ballast.Render;
 using DarkTerritory.Sim.Enemies;
+using DarkTerritory.Sim.LineGen;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Train;
@@ -19,6 +20,15 @@ public sealed class GreyboxScene
     public int Seed { get; init; } = 7;
     /// <summary>How hot the firebox is, 0..1: the glow in the cab is how the Boiler reads the fire.</summary>
     public float FireGlow { get; set; } = 0.7f;
+
+    /// <summary>
+    /// How the fire looks for the coal on it (T121 playtest: "firebox seems to go out even when there's fire in the UI ...
+    /// Firebox should only go out once the number is at 0"): any coal at all is a fire you can see, a low one a bed of
+    /// coals with short flames, building up through the furnace's flame heights to a roaring box at capacity. Square-root,
+    /// so the first coal on a dying fire shows at once. Out, dark, only with the HUD's FIRE at 0.0.
+    /// </summary>
+    public static float FireLook(double firebox, double capacity) =>
+        firebox < 0.05 ? 0 : (float)(0.3 + 0.7 * Math.Sqrt(Math.Clamp(firebox / Math.Max(1e-6, capacity), 0, 1)));
     /// <summary>T109: the wrench is on its rack in the cab (the boiler's WrenchOut, the other way about).</summary>
     public bool WrenchRacked { get; set; } = true;
     /// <summary>The train off the rails (T117): its effects (sparks, dust, the engine's steam) are drawn from it.</summary>
@@ -223,7 +233,7 @@ public sealed class GreyboxScene
                         ? new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), EmergencyRed, 4f)
                         : new PointLight(V(frame.ToWorld(new Double3(0, room.Max.Y - 0.2, room.Centre.Z + z)), eye), Palette.LampAmber * 1.6f * flicker, 7.5f));
                 }
-            foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
+            foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox && FireGlow > 0))
                 mesh.PointLights.Add(new PointLight(V(frame.ToWorld(i.Position + new Double3(0, 0.7, 0.3)), eye), FireColour(0.6f + 1.6f * FireGlow), 5f));
         }
         foreach (var frame in frames)
@@ -954,6 +964,21 @@ public sealed class GreyboxScene
     }
     Route? _signsFor;
 
+    /// <summary>The line's boards: the session's, or (a screenshot, the editor) the route's own at the default sight tuning.</summary>
+    IReadOnlyList<Sign> BoardList()
+    {
+        if (Signs is not null)
+            return Signs;
+        if (Route is null)
+            return [];
+        if (!ReferenceEquals(_signsFor, Route))
+        {
+            _defaultSigns = [.. Sim.Route.Lineside.Boards(new SightTuning(), Route)];
+            _signsFor = Route;
+        }
+        return _defaultSigns ?? [];
+    }
+
     /// <summary>
     /// The line's boards (sight.json), on posts to the right of the line facing the oncoming train: a posted speed is a pale
     /// enamel plate with the figure's bar across it, the clearance board yellow and black. Paint, not lamps: the headlamp
@@ -963,15 +988,10 @@ public sealed class GreyboxScene
     /// </summary>
     void Boards(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double front)
     {
-        if (Signs is null && !ReferenceEquals(_signsFor, Route))
-        {
-            _defaultSigns = [.. Sim.Route.Lineside.Boards(new SightTuning(), Route!)];
-            _signsFor = Route;
-        }
-        foreach (var sign in Signs ?? _defaultSigns ?? [])
+        foreach (var sign in BoardList())
             if (sign.Drop is { } drop && drop.At >= from && drop.At <= to && drop.At > front - 30)
                 Crane(mesh, line, eye, drop);
-        foreach (var sign in Signs ?? _defaultSigns ?? [])
+        foreach (var sign in BoardList())
         {
             if (sign.Board < from || sign.Board > to)
                 continue;
@@ -1453,7 +1473,7 @@ public sealed class GreyboxScene
         return (qx * _mapFit.Ax + qy * _mapFit.Ay, _mapFit.Ax * qy - _mapFit.Ay * qx);
     }
 
-    static readonly Vector3 MapPaper = new(0.24f, 0.20f, 0.14f), MapInk = new(0.10f, 0.07f, 0.04f);
+    static readonly Vector3 MapPaper = new(0.24f, 0.20f, 0.14f), MapInk = new(0.10f, 0.07f, 0.04f), MapLimit = new(0.42f, 0.06f, 0.03f);
 
     /// <summary>
     /// The night's run map, pinned to the cab's front wall left of the firebox (T98 playtest): the line as an inked dotted
@@ -1513,12 +1533,114 @@ public sealed class GreyboxScene
                 var p = line.Sample(RailLine.MainPath, Math.Clamp(f.Start, 0, length)).Position;
                 draw(Box.FromCentre(On(p.X, p.Z, 0.012), new Double3(0.009, 0.009, 0.003)), f.Kind == FeatureKind.Facility ? Palette.LampAmber : Palette.BoardEnamel);
             }
+        // T121 playtest ("on bends on the map put a number there that shows the top speed the bend can be taken"): each
+        // posted stretch inked over in red, and its board's figure in km/h beside it, on the outside of the bend. Where two
+        // would print over each other the slower one wins: it's the one that derails you.
+        var labelled = new List<(double X, double Y)>();
+        foreach (var (s0, s1, kmh) in PostedBends(line, length).OrderBy(b => b.Kmh))
+        {
+            int steps = Math.Max(2, (int)((s1 - s0) / (length / 180)));
+            for (int i = 0; i <= steps; i++)
+            {
+                var q = line.Sample(RailLine.MainPath, s0 + (s1 - s0) * i / steps).Position;
+                draw(Box.FromCentre(On(q.X, q.Z, 0.011), new Double3(0.006, 0.006, 0.002)), MapLimit);
+            }
+            var a = line.Sample(RailLine.MainPath, s0).Position;
+            var b = line.Sample(RailLine.MainPath, s1).Position;
+            var m = line.Sample(RailLine.MainPath, (s0 + s1) / 2).Position;
+            var mid = On(m.X, m.Z, 0);
+            // Out from the bend: from its chord's middle through the arc's; a straight stretch (a bridge) puts it above.
+            var chord = (On(a.X, a.Z, 0) + On(b.X, b.Z, 0)) * 0.5;
+            var outward = new Double3(mid.X - chord.X, mid.Y - chord.Y, 0);
+            outward = outward.Length > 0.004 ? outward.Normalized : new Double3(0, 1, 0);
+            string figure = kmh.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var font = BitmapFont.Default;
+            const double px = 0.0045;
+            double w = font.Measure(figure) * px, h = font.Height * px;
+            double cx = mid.X + outward.X * (0.012 + w / 2), cy = mid.Y + outward.Y * (0.012 + h / 2);
+            cx = Math.Clamp(cx, x0 + w / 2 + 0.005, x0 + W - w / 2 - 0.005);
+            cy = Math.Clamp(cy, y0 + h / 2 + 0.005, y0 + H - h / 2 - 0.005);
+            if (labelled.Any(l => Math.Abs(l.X - cx) < w + 0.01 && Math.Abs(l.Y - cy) < h + 0.008))
+                continue;
+            labelled.Add((cx, cy));
+            MapFigure(draw, figure, cx - w / 2, cy + h / 2, z + 0.013, px);
+        }
         mesh.Emissive = 1;
         var at = line.Sample(RailLine.MainPath, Math.Clamp(_hint, 0, length)).Position;
         float pulse = 0.7f + 0.3f * MathF.Sin((float)Time * 4);
         draw(Box.FromCentre(On(at.X, at.Z, 0.014), new Double3(0.013, 0.013, 0.003)), Palette.SignalRed * pulse);
         mesh.Emissive = 0;
         mesh.Style = style;
+    }
+
+    LinePlan? _bendsFor;
+    Route? _bendsForRoute;
+    List<(double S0, double S1, int Kmh)> _bends = [];
+
+    /// <summary>
+    /// The main line's posted stretches, for the run map: a generated line's speed boards (LineBuilder.Signage: every bend
+    /// that would derail the engine at full steam, and each demand's), its figure and the bend it stands before; a
+    /// prototype route's own boards (Lineside) where there's no plan.
+    /// </summary>
+    List<(double S0, double S1, int Kmh)> PostedBends(RailLine line, double length)
+    {
+        if (ReferenceEquals(_bendsForRoute, Route) && ReferenceEquals(_bendsFor, Route?.Plan))
+            return _bends;
+        _bendsForRoute = Route;
+        _bendsFor = Route?.Plan;
+        _bends = [];
+        if (Route?.Plan is { } plan)
+        {
+            foreach (var b in plan.Signage.Where(b => b is { Type: "speedBoard", Edge: "main", Required: true, Value: > 0 }))
+            {
+                // The bend it stands before: the sharpest curve in the next 600 m, and as far either side as it's nearly as sharp.
+                double kMax = 0, sMax = b.S;
+                for (double s = b.S; s <= Math.Min(length, b.S + 600); s += 5)
+                {
+                    double k = Math.Abs(line.Sample(RailLine.MainPath, s).Curvature);
+                    if (k > kMax)
+                        (kMax, sMax) = (k, s);
+                }
+                if (kMax < 1e-6)
+                    continue;
+                double s0 = sMax, s1 = sMax;
+                while (s0 > b.S && Math.Abs(line.Sample(RailLine.MainPath, s0 - 5).Curvature) > kMax * 0.6)
+                    s0 -= 5;
+                while (s1 < length && s1 < b.S + 900 && Math.Abs(line.Sample(RailLine.MainPath, s1 + 5).Curvature) > kMax * 0.6)
+                    s1 += 5;
+                // The board's own figure (rounded down to the 5 the boards are painted in), so the map and the board agree.
+                int kmh = int.TryParse(b.Text, System.Globalization.CultureInfo.InvariantCulture, out int painted) ? painted : (int)(b.Value!.Value * 3.6);
+                _bends.Add((s0, Math.Max(s1, s0 + 10), kmh));
+            }
+        }
+        else
+            foreach (var sign in BoardList().Where(b => b.Kind == SignKind.SpeedLimit && b.Limit > 0))
+                if (Math.Clamp(sign.End, 0, length) > Math.Clamp(sign.Start, 0, length))
+                    _bends.Add((Math.Clamp(sign.Start, 0, length), Math.Clamp(sign.End, 0, length), sign.LimitKmh));
+        return _bends;
+    }
+
+    /// <summary>A figure inked on the run map in the 5×7 font, from its top left; each row's runs of pixels one box.</summary>
+    static void MapFigure(Action<Box, Vector3> draw, string text, double left, double top, double z, double px)
+    {
+        var font = BitmapFont.Default;
+        double x = left;
+        foreach (char ch in text)
+        {
+            var g = font.Glyph(ch);
+            for (int gy = 0; gy < g.GetLength(0); gy++)
+                for (int gx = 0; gx < g.GetLength(1); gx++)
+                {
+                    if (!g[gy, gx] || gx > 0 && g[gy, gx - 1])
+                        continue;
+                    int run = 1;
+                    while (gx + run < g.GetLength(1) && g[gy, gx + run])
+                        run++;
+                    double y = top - gy * px;
+                    draw(new Box(new Double3(x + gx * px, y - px, z), new Double3(x + (gx + run) * px, y, z + 0.002)), MapLimit);
+                }
+            x += font.Advance * px;
+        }
     }
 
     void CarWorkings(MeshBuilder mesh, CarFrame frame, Double3 eye, Action<Box, Vector3> draw)
@@ -1532,7 +1654,7 @@ public sealed class GreyboxScene
             mesh.Emissive = 1;
             // The fire, through the firehole: the back of the firebox dull with its light, and the bed of coals along the
             // bottom bright (the firehole's sides frame it, Art/TrainKit).
-            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
+            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox && FireGlow > 0))
             {
                 draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.29), new Double3(0.32, 0.22, 0.02)), FireColour(0.03f + 0.18f * FireGlow) * 0.35f);
                 draw(Box.FromCentre(i.Position + new Double3(0, 0.55, -0.27), new Double3(0.32, 0.07, 0.02)), FireColour(0.1f + 0.5f * FireGlow) * 0.7f);

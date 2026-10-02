@@ -130,7 +130,10 @@
   // or three blows kills it. B.8: minJunctions on the route, deadLineWeight more with dead lines about.
   "switchman": {
     "ahead": [500, 1200], "standBeside": 1.2, "revealAt": 300, "derailChance": 0.3, "gripAt": 250, "health": 3,
-    "lingerSeconds": 20, "minJunctions": 3, "deadLineWeight": 1.5
+    "lingerSeconds": 20, "minJunctions": 3, "deadLineWeight": 1.5,
+    // T121 playtest (derailed "at a very low speed"): points thrown under a train at or under derailAbove (m/s, 25 km/h)
+    // split under it instead: the engine takes runThroughDamage and stops hard. Over it, the Switchman derails it.
+    "derailAbove": 6.9, "runThroughDamage": 0.25
   },
 
   // SOOT CHILDREN · sound · outside (App. A.6, B.6). Calling from callOut m every callEvery s. realChance of a real

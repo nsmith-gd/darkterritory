@@ -929,6 +929,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         LampRange = strandedAt >= 0 ? 400 : 60,
         RoofGlow = strandedAt >= 0,
         FireDoorOpen = args.Contains("--firedoor") || args.Contains("--stoker"),
+        // --coal u: that much on the fire, as the HUD's FIRE reads it (T121: the firebox's look follows it, out only at 0).
+        FireGlow = args.Contains("--coal") ? GreyboxScene.FireLook(Opt(args, "--coal", 4), DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)).FireboxCapacity) : 0.7f,
         // --spray: an extinguisher on every car fire, from the aisle (with --threats, the staged one: --view fire).
         StagedSpray = args.Contains("--spray"),
         // --derailed s: off the rails s seconds ago (its sparks, dust and boiler burst).
@@ -1378,7 +1380,7 @@ static int Usage()
                      [--width w] [--height h] [--scale k] [--out file.png] [--threats]   --threats stages one of each enemy
                      [--doll-at m]   with --threats: the Track Doll this far up the line (App. A.2: the lamp shows it at 200)
                      [--lurk-at m]   with --threats: a Car Hugger lurking beside the line this far ahead (App. A.3 LURK)
-                     [--doors-open]   every door on the train open   [--venting] the blow-off and safety valve blowing
+                     [--doors-open]   every door on the train open   [--coal u] fire on the grate   [--venting] the blow-off and safety valve blowing
                      [--eaten f]   the rear car this much eaten by a Car Hugger (0..1; 1 eaten through)
                      [--later s]   with --threats: every staged enemy s seconds further into what it's doing (frames of its animation)
                      [--route tier:seed [--coaling]]   a generated night; --coaling stops at its coaling tower, chute pouring

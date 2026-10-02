@@ -325,9 +325,18 @@ public static class Hud
             Big("WAITING", Amber);
             Small(waiting, Ink);
         }
-        // The derailment's cinematic plays out first (T117): no run's end or death screen over it.
+        // The derailment's cinematic plays out first (T117): no run's end or death screen over it. Over the replay (T121),
+        // what did it: "TOOK THE 45 KM/H BEND AT 68 KM/H, 23 KM/H TOO FAST".
         if (s.WreckCinematic)
+        {
+            if (DerailSequence.Beat(world.WreckTuning, s.WreckSeconds) == DerailBeat.Replay)
+            {
+                Big("REPLAY", Ink);
+                if (world.DerailCause is { Length: > 0 } why)
+                    Small(why.ToUpperInvariant(), Amber);
+            }
             return;
+        }
         // GDD v1.4 App. E.9: the clerk on the radio over the pull-back; the end screen after it.
         if (s.StrandedOutro)
         {
