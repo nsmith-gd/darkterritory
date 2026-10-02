@@ -39,6 +39,18 @@ public sealed record TrainState(RakeState[] Rakes, VehicleState[] Vehicles, Boil
 /// </summary>
 public sealed class TrainOnLine
 {
+    /// <summary>
+    /// Off the rails (T117): the cars as the wreck has them, tumbling and then lying where they came to rest. While there's a
+    /// wreck its bodies are the cars' frames, so everyone aboard goes where their car goes.
+    /// </summary>
+    public Wreck? Wreck { get; set; }
+
+    /// <summary>Lays the frames out again (after the wreck's moved them).</summary>
+    public void RefreshFrames() => UpdatePoses();
+
+    /// <summary>The stops' buildings, for whoever walks among them (T114); set with the run, alike on every machine.</summary>
+    public Run.StopWalls? Walls { get; set; }
+
     readonly List<TrainDynamics> _rakes = new();
     readonly Vehicle[] _vehicles;
     readonly CarPose[] _poses;
@@ -601,6 +613,17 @@ public sealed class TrainOnLine
                 front -= length + g.CouplingGap;
             }
         }
+        if (Wreck is { } wreck)
+            foreach (var b in wreck.Bodies)
+                if (b.Vehicle >= 0 && b.Vehicle < frames.Length)
+                {
+                    var f = frames[b.Vehicle];
+                    Double3 L(Double3 p, Double3 c) => p + (c - p) * alpha;
+                    var back = L(b.PrevBack, b.Back).Normalized;
+                    var up = L(b.PrevUp, b.Up).Normalized;
+                    var right = Double3.Cross(up, back).Normalized;
+                    frames[b.Vehicle] = new CarFrame(f.Index, L(b.PrevOrigin, b.Origin), right, Double3.Cross(back, right).Normalized, back, b.Velocity, f.Shape);
+                }
     }
 
     readonly Dictionary<(VehicleKind, bool), CarShape> _shapes = new();

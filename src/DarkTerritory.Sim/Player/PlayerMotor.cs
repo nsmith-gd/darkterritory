@@ -47,6 +47,8 @@ public enum PlayerActions : byte
     Ladder = 16,
     /// <summary>On the wire only: this intent carries a hotbar choice (<see cref="PlayerIntent.Select"/>, <see cref="PlayerIntent.Cycle"/>).</summary>
     Tool = 32,
+    /// <summary>Sit at the gun you're at (T112): sent on the press. Sitting only, so a repeated intent is harmless; Jump gets up.</summary>
+    Seat = 64,
 }
 
 /// <summary>The forward lamp's switch in the cab (T52): set it on or off (a setting, not a toggle, so a held key or a resent intent is harmless).</summary>
@@ -164,10 +166,15 @@ public enum PlayerFlags : byte
     /// <summary>Pushing the gun they're at along its roof rail (T93): walking pace at most, and it goes where they go.</summary>
     Pushing = 32,
     /// <summary>
+    /// In the gun's seat (T112): the mouse lays the gun (it follows at its own pace), the left button fires it, Use held
+    /// loads it, Jump gets up. Your feet are the seat's, on the carriage as it turns.
+    /// </summary>
+    Seated = 64,
+    /// <summary>
     /// The repair kit in their hands (GDD §12): what mends a ruptured boiler (T109). Set by the host each tick from what
     /// they carry, so a predicting client mends as the host does.
     /// </summary>
-    RepairKit = 64,
+    RepairKit = 128,
 }
 
 /// <summary>
@@ -345,7 +352,7 @@ public static class PlayerMotor
         var hand = other ? s.OtherHand : s.Hand;
         if (hand == default)
             return null;
-        double c = Math.Cos(s.Yaw), n = Math.Sin(s.Yaw);
+        double c = DMath.Cos(s.Yaw), n = DMath.Sin(s.Yaw);
         return s.Position + new Double3(hand.X * c + hand.Z * n, hand.Y, -hand.X * n + hand.Z * c);
     }
 
@@ -399,11 +406,17 @@ public static class PlayerMotor
                 speed = Math.Min(speed, p.CarryHeavy);
             if (s.Has(PlayerFlags.Pushing))
                 speed = Math.Min(speed, p.PushGun);
-            if (s.Has(PlayerFlags.Operating))
+            if (s.Has(PlayerFlags.Operating) || s.Has(PlayerFlags.Seated))
                 speed = 0;
             var wish = WishDirection(s.Yaw, intent) * speed;
             s.Velocity = new Double3(wish.X, 0, wish.Z);
-            if (intent.Has(PlayerButtons.Jump) && !s.Has(PlayerFlags.Heavy) && !s.Has(PlayerFlags.Operating))
+            // Jump in the gun's seat is getting up out of it (T112), not a leap off the carriage.
+            if (s.Has(PlayerFlags.Seated))
+            {
+                if (intent.Has(PlayerButtons.Jump))
+                    s.Flags &= ~PlayerFlags.Seated;
+            }
+            else if (intent.Has(PlayerButtons.Jump) && !s.Has(PlayerFlags.Heavy) && !s.Has(PlayerFlags.Operating))
             {
                 // Take off in the car's frame and integrate this tick there. The car has already moved
                 // this tick; switching to world first would count its motion twice (0.73 m at 22 m/s).
@@ -437,7 +450,7 @@ public static class PlayerMotor
         // (T90 playtest: nobody found Use + forward). Not while pushing a gun along (Use and walking is that too, T103: the
         // guard van's hatch ladder comes up through the roof on the gun's way, and took whoever pushed it down inside); the
         // ladder key still does.
-        if (s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Heavy))
+        if (s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Heavy) && !s.Has(PlayerFlags.Seated))
         {
             bool pushing = s.Has(PlayerFlags.Pushing);
             if (intent.Has(PlayerActions.Ladder))
@@ -504,8 +517,8 @@ public static class PlayerMotor
         double x = Math.Clamp(intent.MoveX, -1, 1), z = Math.Clamp(intent.MoveZ, -1, 1);
         double len = Math.Sqrt(x * x + z * z);
         if (len > 1) { x /= len; z /= len; }
-        var forward = new Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw));
-        var right = new Double3(Math.Cos(yaw), 0, -Math.Sin(yaw));
+        var forward = new Double3(-DMath.Sin(yaw), 0, -DMath.Cos(yaw));
+        var right = new Double3(DMath.Cos(yaw), 0, -DMath.Sin(yaw));
         return right * x + forward * z;
     }
 
@@ -535,6 +548,14 @@ public static class PlayerMotor
                     local = PushOut(local, door.Box, p);
             world = frame.ToWorld(local);
         }
+        // The stops' buildings (T114): pushed out of each wall in its own frame.
+        if (train.Walls is { } walls)
+            foreach (var w in walls.Near(world))
+            {
+                var local = w.ToLocal(world);
+                var box = new Box(new Double3(-w.HalfLength, w.Bottom, -w.HalfWidth), new Double3(w.HalfLength, w.Top, w.HalfWidth));
+                world = w.ToWorld(PushOut(local, box, p));
+            }
         return world;
     }
 
@@ -709,7 +730,7 @@ public static class PlayerMotor
                         || frame.Shape.Interior is { } room && room.Contains(ladder.Foot + new Double3(0, 0.2, 0)))
                         continue;
                     double yaw = WorldYaw(s, train);
-                    var facing = frame.DirToLocal(new Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw)));
+                    var facing = frame.DirToLocal(new Double3(-DMath.Sin(yaw), 0, -DMath.Cos(yaw)));
                     if (facing.X * ladder.Inward.X + facing.Z * ladder.Inward.Z < 0.7)
                         continue;
                 }

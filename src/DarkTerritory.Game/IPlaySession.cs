@@ -36,6 +36,10 @@ public interface IPlaySession
 {
     TrainOnLine Train { get; }
     World World { get; }
+    /// <summary>The derailment's cinematic is playing (T117): the HUD holds the run's end back.</summary>
+    bool WreckCinematic => false;
+    /// <summary>Seconds since the train came off, as this client saw it.</summary>
+    double WreckSeconds => 0;
     Sim.Route.Route? Route { get; }
     PlayerState Player { get; }
     TrainControls Controls { get; }
@@ -61,13 +65,17 @@ public interface IPlaySession
 
 /// <summary>What the HUD shows about the connection (spec E: ping to host "shown prominently", non-optional).</summary>
 /// <param name="PingMs">Round trip to the host; null for the host itself.</param>
-public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, string? Waiting, bool Lost);
+/// <param name="JoinAt">Hosting for friends on the network: the address they type to join (T114 playtest: "how is she supposed to join if we're on the same wifi?").</param>
+public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, string? Waiting, bool Lost, string? JoinAt = null);
 
 /// <summary>First-person eye from a player's state, interpolated in their own frame so riding a car at speed is smooth.</summary>
 public static class Eyes
 {
     /// <summary>How far over the feet the eyes are, alive. A headset's tracking space hangs from here (<see cref="VrLocomotion"/>).</summary>
     public const double Height = 1.65;
+
+    /// <summary>In the gun's seat (T112): the eyes at the shield's aiming slot (the seat 0.48 m over the roof, note 137).</summary>
+    public const double Seated = 1.26;
 
     /// <summary>
     /// Up in the crane's cab while at its controls (T48): looking along the gantry at the bridge and trolley, not down at the
@@ -84,7 +92,7 @@ public static class Eyes
     public static Camera From(in PlayerState cur, in PlayerState prev, IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch)
     {
         var local = prev.Parent == cur.Parent ? Double3.Lerp(prev.Position, cur.Position, alpha) : cur.Position;
-        var eyeLocal = local + Double3.Up * (cur.Alive ? Height : 0.3);
+        var eyeLocal = local + Double3.Up * (!cur.Alive ? 0.3 : cur.Has(PlayerFlags.Seated) ? Seated : Height);
         bool onCar = cur.Parent != PlayerState.World && cur.Parent < frames.Count;
         var eye = onCar ? frames[cur.Parent].ToWorld(eyeLocal) : eyeLocal;
         double heading = onCar ? frames[cur.Parent].Heading : 0;

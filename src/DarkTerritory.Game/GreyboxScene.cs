@@ -21,6 +21,8 @@ public sealed class GreyboxScene
     public float FireGlow { get; set; } = 0.7f;
     /// <summary>T109: the wrench is on its rack in the cab (the boiler's WrenchOut, the other way about).</summary>
     public bool WrenchRacked { get; set; } = true;
+    /// <summary>The train off the rails (T117): its effects (sparks, dust, the engine's steam) are drawn from it.</summary>
+    public Sim.Train.Wreck? Wreck { get; set; }
     /// <summary>The firebox door's open (the boiler's FireDoorOpen): a Stoker in the fire is seen through it.</summary>
     public bool FireDoorOpen { get; set; }
     /// <summary>Emergency lighting (`dt screenshot --emergency`): the cars' lamps go to a dim red, the headlamp dark.</summary>
@@ -228,6 +230,12 @@ public sealed class GreyboxScene
             }
             else
                 _derailedAt = null;
+            // The derailment's (T117): sparks, dust and the engine's steam.
+            if (Wreck is { } wreck)
+            {
+                double wreckHint = 0;
+                Look.Art.Effects.Wreck(mesh, wreck, frames, eye, Time, (x, z) => Sim.Player.PlayerMotor.GroundAt(new Double3(x, 0, z), line, ref wreckHint));
+            }
             var fog = Look.Apply(FrameLighting.Night).FogColor;
             Look.Art.Effects.Fog(mesh, line, eye, centre, Time, fog, (float)(Route?.Weather.FogDensity ?? 0.016));
             if (Route?.Weather is { Wet: true } weather)

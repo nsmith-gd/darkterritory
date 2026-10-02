@@ -40,7 +40,19 @@ public sealed class Director
 
     public double Budget { get; }
     public double Spent => _spent;
-    public int Crew { get; }
+    /// <summary>
+    /// The crew its gates go by (the crew-size threats' <c>minCrew</c>): the expected crew at the start, then whoever's
+    /// actually in the night (T115 playtest: a solo host was planned for four, and Tippy Toesie, which needs a friend to
+    /// pull it off, came for them alone in the cab).
+    /// </summary>
+    public int Crew { get; private set; }
+
+    /// <summary>The players in the night this tick (host); none seen leaves it as it was.</summary>
+    public void Present(int crew)
+    {
+        if (crew > 0)
+            Crew = crew;
+    }
     public List<DirectorSpawn> Log { get; } = new();
     /// <summary>The conflict-table pairs this run has put together (App. B.1 "contradiction seeding"), as "a+b".</summary>
     public List<string> Pairs { get; } = new();
@@ -269,7 +281,7 @@ public sealed class Director
         }
         // Variety: a kind sent lately comes on less (the Lamplighters were half of everything in the playtest).
         var recent = Log.TakeLast(_t.VarietyWindow).Select(l => l.Kind).ToList();
-        options = [.. options.Select(o => (o.Kind, o.Weight / Math.Pow(2, recent.Count(k => k == o.Kind))))];
+        options = [.. options.Select(o => (o.Kind, o.Weight / DMath.Pow(2, recent.Count(k => k == o.Kind))))];
 
         double pick = _rng.NextDouble() * options.Sum(o => o.Weight);
         var kind = options[^1].Kind;

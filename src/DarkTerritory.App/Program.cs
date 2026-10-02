@@ -78,7 +78,10 @@ static SteamBackend? NoSteam(string? error)
 var campaignTuning = DataFile.Load<CampaignTuning>(Path.Combine(content, CampaignTuning.File));
 var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
 var saves = new SaveSlots(Arg("--saves", SaveSlots.DefaultDirectory), campaignTuning.SaveSlots);
-var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", Settings.DefaultPath), edition: EditionTuning.Load(content));
+var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", Settings.DefaultPath), edition: EditionTuning.Load(content))
+{
+    Protocol = DarkTerritory.Sim.Net.Protocol.Version,
+};
 
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
 Launch? LaunchFromArgs()
@@ -217,6 +220,8 @@ var input = window.Input;
 var timer = Stopwatch.StartNew();
 var mesh = new MeshBuilder();
 var overlay = new Overlay();
+Camera menuView = default;
+FrameLighting menuLight = default;
 long frameCount = 0;
 var steamEvents = new List<OnlineEvent>();
 LobbyId? relaunch = null;
@@ -280,6 +285,7 @@ Launch? Menu()
     var backdrop = new GreyboxScene { Time = 0.37, Look = look };
     backdrop.Build(mesh, standing, view.Position);
     var light = Views.Lighting(standing, look);
+    (menuView, menuLight) = (view, light);
     double started = timer.Elapsed.TotalSeconds;
     // In a headset the menus float ahead, over the yard (T36), and the controllers work them.
     var vrMenu = vr is null ? null : new VrPanel(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Menu);
@@ -288,9 +294,13 @@ Launch? Menu()
     // Whatever's held coming in (the A that ended the night) isn't a press here.
     if (vr is not null)
         vrKeys.Read(vr.Session.Controllers);
+    // The games hosted on the local network (T116), for the join screen.
+    using var lan = new Ballast.Net.LanBrowser();
     while (!window.CloseRequested && !QuitNow())
     {
         window.PumpEvents();
+        lan.Poll(timer.Elapsed.TotalSeconds);
+        frontEnd.LanGames = lan.Games.Where(g => g.Game == NetPlaySession.Game).ToList();
         window.TextInput = frontEnd.WantsText;
         if (Invited(null) is { } lobby)
             return new Launch.JoinLobby(lobby);
@@ -419,7 +429,17 @@ while (!window.CloseRequested && !QuitNow())
     launch ??= Menu();
     if (launch is null or Launch.Quit || launch is Launch.JoinLobby && steam is null)
         break;
-    var (session, campaign) = Start(launch);
+    // T116 playtest ("the linux build crashed ... keeps getting a 'not responding' message"): connecting and building the
+    // night's line take seconds, and ran on the window's thread with nothing pumping it, and a join nobody answered threw
+    // out of the game. Now they run behind a loading screen, and a failure is said on the menu.
+    if (Starting(launch) is not { } begun)
+    {
+        if (fromCommandLine)
+            break;
+        launch = null;
+        continue;
+    }
+    var (session, campaign) = begun;
     var leaving = launch;
     launch = null;
     campaign = Play(session, campaign);
@@ -445,6 +465,42 @@ if (relaunch is { } next)
     Process.Start(Environment.ProcessPath!, ["+connect_lobby", next.ToString()]);
 }
 return 0;
+
+// Starts what was chosen off the window's thread, drawing what it's doing meanwhile; null (the menu says why) if it failed.
+(IPlaySession Session, CampaignState? Campaign)? Starting(Launch chosen)
+{
+    var task = Task.Run(() => Start(chosen));
+    string doing = chosen is Launch.Join or Launch.JoinLobby ? "JOINING" : "BUILDING THE NIGHT";
+    double began = timer.Elapsed.TotalSeconds;
+    while (!task.IsCompleted)
+    {
+        window.PumpEvents();
+        if (window.CloseRequested)
+            break;
+        overlay.Clear();
+        string dots = new('.', 1 + (int)((timer.Elapsed.TotalSeconds - began) * 2) % 3);
+        overlay.TextCentred(UiWidth / 2f, UiHeight / 2f - 10, doing + dots, new Vector4(0.95f, 0.7f, 0.3f, 1), scale: 2);
+        overlay.TextCentred(UiWidth / 2f, UiHeight / 2f + 14, chosen is Launch.Join j ? j.Address.ToUpperInvariant() : "THE LINE, THE LAND, THE CREW", new Vector4(0.6f, 0.6f, 0.6f, 1));
+        // From the command line there's no menu yard behind it (no camera yet): the window's only kept answering.
+        if (vr is null && menuView.FovYDegrees > 0)
+        {
+            renderer.Prepare(mesh, overlay);
+            Present(menuView, menuLight);
+        }
+        input.EndFrame();
+        Thread.Sleep(15);
+    }
+    if (!task.IsCompleted)
+        return null;
+    if (task.Exception?.GetBaseException() is { } failed)
+    {
+        Console.WriteLine($"couldn't start {chosen}: {failed}");
+        frontEnd.Failed(chosen is Launch.Join or Launch.JoinLobby ? Screen.Join : Screen.Title,
+            failed is IOException or System.Net.Sockets.SocketException ? failed.Message : $"couldn't start: {failed.Message}");
+        return null;
+    }
+    return task.Result;
+}
 
 // One night, until it's left, the window closes, or an invite takes us elsewhere. Returns the campaign as it stands.
 CampaignState? Play(IPlaySession session, CampaignState? campaign)
@@ -498,6 +554,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var pendingLamp = LampSwitch.None;
     bool pendingCarLamp = false;
     byte pendingSelect = 0;
+    bool pendingSeat = false;
     float pendingCycle = 0;
     double voiceLevel = 0;
     bool chase = ride;
@@ -537,6 +594,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (Hit(Control.Lamp))
             pendingLamp = session.World.LampLit ? LampSwitch.Off : LampSwitch.On;
         pendingCarLamp |= Hit(Control.CarLamp);
+        // The gun's seat (T112): Use pressed standing still at a loaded gun sits you in it (Use held at one waiting on its
+        // reload loads it, walking with it pushes it). Seated, Jump gets you up.
+        if (Hit(Control.Use) && !session.Player.Has(PlayerFlags.Seated) && session.World.Combat is { } gc
+            && DarkTerritory.Sim.Combat.Guns.MannedGun(session.Player, session.Train, gc.Guns) is { } atGun && session.Train.Vehicles[atGun].Gun.ReloadNeeded <= 0
+            && !Held(Control.Forward) && !Held(Control.Back) && !Held(Control.Left) && !Held(Control.Right))
+            pendingSeat = true;
         // The hotbar (T108): a number key picks its slot, the wheel steps through the tools.
         for (var k = Key.D1; k < Key.D1 + Kit.Slots; k++)
             if (input.Pressed(k))
@@ -603,7 +666,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 // left button fires it).
                 Actions = (Held(Control.Swing) || Held(Control.Fire) ? PlayerActions.Swing : 0) | (Held(Control.Whistle) ? PlayerActions.Whistle : 0)
                     | (Held(Control.Uncouple) ? PlayerActions.Uncouple : 0) | (Held(Control.Ladder) ? PlayerActions.Ladder : 0)
-                    | (pendingCarLamp ? PlayerActions.CarLamp : 0),
+                    | (pendingCarLamp ? PlayerActions.CarLamp : 0) | (pendingSeat ? PlayerActions.Seat : 0),
                 // How loud you are (GDD v1.1 App. C.7, C.8): the mic while it sends; with no mic, holding Talk counts as
                 // speaking up, so a player without one can still talk the Gaunt down and answer a roll call.
                 Voice = (byte)Math.Clamp(voiceLevel * 255, 0, 255),
@@ -630,6 +693,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             pendingNotch = 0;
             pendingLamp = LampSwitch.None;
             pendingCarLamp = false;
+            pendingSeat = false;
             pendingReverser = false;
             pendingYaw = pendingPitch = 0;
             session.Step(intent);
@@ -659,16 +723,22 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 loud = Math.Max(loud, Math.Sqrt(sum / n));
             }
             // Speech RMS sits around 0.05-0.2; a shout nearer 0.3 and up.
-            voiceLevel = mic is null ? (Held(Control.Talk) ? 0.5 : 0) : voice.Transmitting ? Math.Clamp(loud * 3.5, 0, 1) : 0;
+            // T113 playtest (the Choir "WAY TOO OFTEN", gone when the train slowed): alone, an open mic hears the game's own
+            // train through the speakers, so it's only Talk held that makes you loud; with someone to hear you, your voice.
+            bool speaking = voice.Transmitting && (!(net?.Alone ?? false) || Held(Control.Talk));
+            voiceLevel = mic is null ? (Held(Control.Talk) ? 0.5 : 0) : speaking ? Math.Clamp(loud * 3.5, 0, 1) : 0;
         }
         else
             voiceLevel = Held(Control.Talk) ? 0.5 : 0;
         FeedSpeaker();
 
         var frames = session.InterpolatedFrames(clock.Alpha);
-        camera = chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
+        // Off the rails (T117): the camera leaves your eyes for the wreck while it's fresh.
+        bool cinematic = session.WreckCinematic && session.Train.Wreck is not null;
+        camera = cinematic ? Views.Wreck(session.Train.Wreck!, session.WreckSeconds)
+            : chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
         // On the engine with the boiler in the red, it shakes you (T109).
-        if (!chase)
+        if (!chase && !cinematic)
             camera.Position += BoilerShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds);
         scene.Crew = session.Crew(frames, clock.Alpha);
         // Behind a crewmate's eyes (App. D.10), their own figure isn't drawn round the camera.
@@ -706,6 +776,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
         scene.WrenchRacked = !session.Train.Boiler.WrenchOut;
+        scene.Wreck = session.Train.Wreck;
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
         scene.Tick = session.Tick;
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);

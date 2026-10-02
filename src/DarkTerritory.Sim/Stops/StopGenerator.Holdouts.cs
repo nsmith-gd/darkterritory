@@ -1,3 +1,4 @@
+using Ballast;
 using DarkTerritory.Sim.Route;
 
 namespace DarkTerritory.Sim.Stops;
@@ -95,7 +96,7 @@ public static partial class StopGenerator
                         {
                             var (p, tan) = tracks[which].At(R.Range(0, tracks[which].Total));
                             c = p + tan.Normal * (R.Sign() * off);
-                            yaw = Math.Atan2(tan.D, tan.S);
+                            yaw = DMath.Atan2(tan.D, tan.S);
                         }
                         break;
                     }
@@ -106,7 +107,7 @@ public static partial class StopGenerator
                         if (site == HoldoutSite.Facility)
                         {
                             double r = R.Range(h.FacilityDistance), a = R.Range(0, 2 * Math.PI);
-                            c = stopPoint + new Pt(Math.Cos(a), Math.Sin(a)) * r;
+                            c = stopPoint + new Pt(DMath.Cos(a), DMath.Sin(a)) * r;
                         }
                         else
                             c = new Pt((halt?.S ?? g.ZoneLength / 2) + R.Range(-120, 120), haltSide * R.Range(12, h.VillageDistance - width));
@@ -176,7 +177,7 @@ public static partial class StopGenerator
             return false;
         var a = (n - stopPoint).Unit;
         var b = (at - stopPoint).Unit;
-        double angle = Math.Acos(Math.Clamp(a.S * b.S + a.D * b.D, -1, 1)) * 180 / Math.PI;
+        double angle = DMath.Acos(Math.Clamp(a.S * b.S + a.D * b.D, -1, 1)) * 180 / Math.PI;
         return angle >= h.LoadingAngle;
     }
 
@@ -263,7 +264,7 @@ public static partial class StopGenerator
             for (int tries = 0; tries < 80; tries++)
             {
                 double a = R.Range(0, 2 * Math.PI);
-                var dir = new Pt(Math.Cos(a), Math.Sin(a));
+                var dir = new Pt(DMath.Cos(a), DMath.Sin(a));
                 double edge = built.Max(b => (b.Centre - mid).S * dir.S + (b.Centre - mid).D * dir.D) + 8;
                 var p = mid + dir * (edge + R.Range(lt.SootCall));
                 if (Math.Abs(p.D) < t.Village.Halt.Offset + 6 || !Open(p, 4) || !(StopWalk.Seen(stopPoint, p, g.Buildings, -1, g.ZoneLength) || StopWalk.Seen(new Pt(Math.Clamp(p.S, 0, g.ZoneLength), 0), p, g.Buildings, -1, g.ZoneLength)))

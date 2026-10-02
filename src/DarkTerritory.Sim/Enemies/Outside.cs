@@ -235,14 +235,14 @@ public sealed class Gaunt(int id) : Enemy(id)
     void Follow(EnemyContext ctx, in PlayerState w, GauntTuning t)
     {
         var train = ctx.Train;
-        var behind = new Double3(Math.Sin(w.Yaw), 0, Math.Cos(w.Yaw)) * t.FollowAt;
+        var behind = new Double3(DMath.Sin(w.Yaw), 0, DMath.Cos(w.Yaw)) * t.FollowAt;
         if (w.Parent >= 0)
         {
             Attached = w.Parent;
             Local = w.Position + behind;
             return;
         }
-        var want = PlayerMotor.WorldPosition(w, train) + new Double3(Math.Sin(PlayerMotor.WorldYaw(w, train)), 0, Math.Cos(PlayerMotor.WorldYaw(w, train))) * t.FollowAt;
+        var want = PlayerMotor.WorldPosition(w, train) + new Double3(DMath.Sin(PlayerMotor.WorldYaw(w, train)), 0, DMath.Cos(PlayerMotor.WorldYaw(w, train))) * t.FollowAt;
         var from = WorldPosition(train);
         Attached = Loose;
         var to = want - from;
@@ -345,7 +345,7 @@ public sealed class Follower(int id) : Enemy(id)
 
     void Ride(TrainOnLine train, in PlayerState s)
     {
-        var back = new Double3(Math.Sin(s.Yaw), 0, Math.Cos(s.Yaw)) * 0.2 + Double3.Up * 1.35;
+        var back = new Double3(DMath.Sin(s.Yaw), 0, DMath.Cos(s.Yaw)) * 0.2 + Double3.Up * 1.35;
         if (s.Parent >= 0)
         {
             Attached = s.Parent;
@@ -355,7 +355,7 @@ public sealed class Follower(int id) : Enemy(id)
         {
             Attached = Loose;
             double yaw = PlayerMotor.WorldYaw(s, train);
-            Local = PlayerMotor.WorldPosition(s, train) + new Double3(Math.Sin(yaw), 0, Math.Cos(yaw)) * 0.2 + Double3.Up * 1.35;
+            Local = PlayerMotor.WorldPosition(s, train) + new Double3(DMath.Sin(yaw), 0, DMath.Cos(yaw)) * 0.2 + Double3.Up * 1.35;
         }
     }
 

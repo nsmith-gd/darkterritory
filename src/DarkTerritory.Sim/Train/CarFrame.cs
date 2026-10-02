@@ -27,7 +27,7 @@ public readonly record struct CarFrame(int Index, Double3 Origin, Double3 Right,
     public Double3 VelocityToLocal(Double3 world) => DirToLocal(world - Velocity);
 
     /// <summary>Heading of the car's front in radians; 0 faces world −Z, positive turns left.</summary>
-    public double Heading => Math.Atan2(Back.X, Back.Z);
+    public double Heading => DMath.Atan2(Back.X, Back.Z);
 }
 
 public readonly record struct Box(Double3 Min, Double3 Max)

@@ -66,6 +66,7 @@ return args switch
     ["site", ..] => Print(ShowStop(content, routeTuning, LoadStops(content), args)),
     ["linegen", var verb, ..] => Print(LineGenCommands.Run(content, verb, args)),
     ["harness", ..] => Print(RunHarness(args)),
+    ["wreck", ..] => Print(WreckCommands.Run(content, args)),
     ["balance", ..] => PrintBalance(RunBalance(args)),
     ["online", "check"] => Print(OnlineCheck()),
     ["campaign", var verb, ..] => Print(CampaignCommand(content, verb, args)),
@@ -765,7 +766,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         for (int i = 0; i < SimConstants.TickRate * 12; i++)
             train.Step(SimConstants.TickSeconds, new TrainControls { Throttle = i < SimConstants.TickRate * 6 ? 1 : 0, Brake = i < SimConstants.TickRate * 6 ? 0 : 1, Reverser = 1 });
     }
-    var camera = Views.Get(view, train, (int)Opt(args, "--car", 2));
+    // --wreck s: off the rails at --speed (22) and that many seconds into the wreck (T117), seen by the cinematic camera.
+    if (Opt(args, "--wreck", -1) is var wreckAt and >= 0)
+    {
+        train.Dynamics.Velocity = Opt(args, "--speed", 22);
+        train.RefreshFrames();
+        var wrecking = new World(train) { WreckTuning = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File)) };
+        wrecking.Derail("dt screenshot --wreck");
+        for (int i = 0; i < wreckAt * SimConstants.TickRate; i++)
+            wrecking.Step(default);
+    }
+    var camera = train.Wreck is { } shown && !args.Contains("--view") ? Views.Wreck(shown, shown.RealSeconds) : Views.Get(view, train, (int)Opt(args, "--car", 2));
     // --cam s,lateral,height --target s,lateral,height: place the camera anywhere by line coordinates.
     if (Str(args, "--cam", "") is { Length: > 0 } cam)
     {
@@ -869,6 +880,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         foreach (var h in holdouts.All)
             holdouts.Mirror(h.Index, DarkTerritory.Sim.Run.HoldoutState.Occupied, 1, 0);
     }
+    // --gun-laid yaw,pitch (degrees): every gun turned and elevated so, as a seated gunner lays it (T112).
+    if (Str(args, "--gun-laid", "") is { Length: > 0 } laid)
+    {
+        var yp = laid.Split(',').Select(x => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture) * Math.PI / 180).ToArray();
+        foreach (var v in train.Dynamics.Consist.Vehicles.Where(v => v.HasGun))
+            (v.Gun.Traverse, v.Gun.Elevation) = (yp[0], yp.Length > 1 ? yp[1] : 0);
+    }
     // --doors-open: every door on the train open (looking through an end door onto its coupling, or out of the guard
     // van's rear door into the Car Hugger's mouth).
     if (args.Contains("--doors-open"))
@@ -926,6 +944,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 own == "none" ? Tool.None : Enum.Parse<Tool>(own, true))
             : null,
     };
+    scene.Wreck = train.Wreck;
     scene.Build(mesh, train, camera.Position);
     // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
     var buildClock = Stopwatch.StartNew();
@@ -1391,7 +1410,7 @@ static int Usage()
           campaign new|show|slots|buy car|buy <upgrade>|sim|play [--slot 1..3] [--saves dir] [--contract i] [--seed n]
                      the campaign between nights (spec E, F): the board, purchases, F.4's progression check, a bot night settled
           online check                             is Steam reachable from here (signed-in user, or what's missing)
-          audio render [--scenario bed|tells|chaos] [--cars n] [--speed v] [--listener car (0 = cab) | all] [--seconds t] [--out file.wav]
+          audio render [--scenario bed|tells|chaos|wreck] [--cars n] [--speed v] [--listener car (0 = cab) | all] [--seconds t] [--out file.wav]
                      renders through the mixer to a WAV and a spectrogram PNG, and reports each tell's margin over the bed (spec A.3)
           edit [--port p] [--screenshot file.png]   the designer's editor (tuning + routes) at http://127.0.0.1:<port>/
           voice bench [--car n (0 = cab)] [--z m] [--radio] [--latency s --jitter s --loss 0..1]

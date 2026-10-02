@@ -1,3 +1,4 @@
+using Ballast;
 using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Route;
@@ -78,7 +79,7 @@ public static class Campaign
         new() { Slot = slot, Name = name, Seed = seed, Cars = t.StartingCars, Scrip = t.StartingScrip };
 
     /// <summary>Spec F.2: what the Nth car costs.</summary>
-    public static double CarCost(CampaignTuning t, int n) => Math.Round(t.CarCost.Base * Math.Pow(t.CarCost.Growth, n - t.CarCost.FromCar));
+    public static double CarCost(CampaignTuning t, int n) => Math.Round(t.CarCost.Base * DMath.Pow(t.CarCost.Growth, n - t.CarCost.FromCar));
 
     public static double NextCarCost(CampaignTuning t, CampaignState s) => CarCost(t, s.Cars + 1);
 

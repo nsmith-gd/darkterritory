@@ -286,7 +286,7 @@ sealed partial class LineBuilder
         for (double x = Math.Max(0, s - guess); x <= s; x += 20, k++)
             g += line.Sample(x).GradePercent;
         g = k > 0 ? g / k : 0;
-        double down = g < 0 ? _c.Train.Gravity * Math.Sin(Math.Atan(-g / 100)) : 0;
+        double down = g < 0 ? _c.Train.Gravity * DMath.Sin(DMath.Atan(-g / 100)) : 0;
         double net = brake - down;
         if (net <= 0.02)
             return double.PositiveInfinity;

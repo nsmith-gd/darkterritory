@@ -1,3 +1,4 @@
+using Ballast;
 using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Net;
@@ -291,6 +292,7 @@ public sealed class World
     {
         TrackPlan ??= route.Plan;
         Run = new Run.Run(tuning, route) { YardLength = yardLength };
+        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line);
         if (facilities is not null)
             Run.EnableSites(facilities, Train.Line);
         if (loot is not null)
@@ -328,11 +330,29 @@ public sealed class World
     public void Derail(string? why = null)
     {
         if (!Derailed)
+        {
             DerailCause = why;
+            // T117: off the rails, every car carries on as itself, into the ground and into each other. The host's; the
+            // clients are sent the poses. Thrown outward off the curve it was on, if it was on one.
+            if (Train.Wreck is null)
+            {
+                double k = Train.Line.Sample(Train.Dynamics.Distance).Curvature;
+                ulong seed = (ulong)Tick * 0x9E3779B97F4A7C15UL ^ (Route?.Seed ?? 0);
+                Train.Wreck = Wreck.Begin(WreckTuning, Train, Ground, seed, first: Train.Dynamics.Consist.Vehicles[0].Id, outward: k > 1e-6 ? -1 : k < -1e-6 ? 1 : 0);
+            }
+        }
         Derailed = true;
         foreach (var rake in Train.Rakes)
             rake.Velocity = 0;
     }
+
+    /// <summary>The wreck's numbers (wreck.json): the default until the session loads them.</summary>
+    public WreckTuning WreckTuning { get; set; } = new();
+
+    double _groundHint;
+
+    /// <summary>The land's height under a point (the line's terrain, or the ballast by a hand-laid line).</summary>
+    double Ground(double x, double z) => PlayerMotor.GroundAt(new Ballast.Double3(x, 0, z), Train.Line, ref _groundHint);
 
     /// <summary>
     /// One player's hands this tick: crew actions at interactables, and firing a gun they're manning.
@@ -378,6 +398,9 @@ public sealed class World
         }
         if (!handsTookIt)
             CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand);
+        // The gun's seat (T112): sat in or got up from, the view held to the gun's arc and the gun laid after it, before it fires.
+        if (Combat is { } cs)
+            Guns.Sit(ref s, intent, Train, cs.Guns, SimConstants.TickSeconds);
         var targets = viewTick is { } vt && _targetHistory.TryGetValue(vt, out var then) ? then : Targets;
         if (Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
             Shots.Add(shot);
@@ -401,7 +424,10 @@ public sealed class World
                 Swing(ec, s, playerId);
             // Standing idle (Tippy Toesie's mark): still, and not working anything.
             double moving = s.Velocity.Length;
-            bool idle = moving < ec.Tuning.TippyToesie.IdleBelow && intent.MoveX == 0 && intent.MoveZ == 0 && intent.Buttons == PlayerButtons.None && intent.Actions == PlayerActions.None;
+            // Driving a moving train is working it (T115 playtest: the driver, watching the line, was Tippy Toesie's mark).
+            bool driving = Net.CabControls.CanDrive(s, Train) && Math.Abs(Train.Dynamics.Speed) > 1;
+            bool idle = moving < ec.Tuning.TippyToesie.IdleBelow && intent.MoveX == 0 && intent.MoveZ == 0 && intent.Buttons == PlayerButtons.None
+                && intent.Actions == PlayerActions.None && !driving;
             IdleSeconds[playerId] = idle ? IdleSeconds.GetValueOrDefault(playerId) + SimConstants.TickSeconds : 0;
             // Alone, there's no friend to act: at a crew of one the held can struggle free (the solo rule, T89).
             if (s.Has(PlayerFlags.Held) && intent.Has(PlayerButtons.Use) && ec.Tuning.Grab.SoloStruggleOn && _context.Crew.Count(x => x.Player.State.Alive) <= 1)
@@ -428,8 +454,8 @@ public sealed class World
         _swingReady[playerId] = Tick + (uint)Math.Round(t.SwingSeconds * SimConstants.TickRate);
         var eye = PlayerMotor.WorldPosition(s, Train) + Ballast.Double3.Up * 1.3;
         double yaw = PlayerMotor.WorldYaw(s, Train);
-        var facing = new Ballast.Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw));
-        double cos = Math.Cos(t.ConeDegrees * Math.PI / 180);
+        var facing = new Ballast.Double3(-DMath.Sin(yaw), 0, -DMath.Cos(yaw));
+        double cos = DMath.Cos(t.ConeDegrees * Math.PI / 180);
         Enemy? best = null;
         double bestD = double.MaxValue;
         foreach (var e in _enemies)
@@ -485,6 +511,12 @@ public sealed class World
         Train.DraggedVehicle = drag?.Drags ?? -1;
         Train.DragFactor = drag is { } d && Train.Dynamics.Speed > d.DragAbove ? d.DragFactor : 0;
         Train.Step(SimConstants.TickSeconds, applied);
+        // The wreck (T117), on the host: a tick of it, and the cars' frames where it's put them.
+        if (Train.Wreck is { Puppet: false } wreck)
+        {
+            wreck.Step(SimConstants.TickSeconds);
+            Train.RefreshFrames();
+        }
         if (Authority && Lineside is { } lineside)
             lineside.Hazards(this, _actors, Damage);
         LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
@@ -505,13 +537,13 @@ public sealed class World
                     for (int i = 0; i < et.Choir.Ghosts; i++)
                     {
                         double a = i * 2 * Math.PI / et.Choir.Ghosts;
-                        var at = Train.Frames[0].Origin + new Ballast.Double3(Math.Cos(a) * 40, 12, Math.Sin(a) * 40);
+                        var at = Train.Frames[0].Origin + new Ballast.Double3(DMath.Cos(a) * 40, 12, DMath.Sin(a) * 40);
                         AddEnemy(id => ChoirGhost.Around(id, at, et.Choir));
                     }
                 // Its one taken (even by a ghost still holding on after the rest dispersed), it's spent for the run.
                 if (Enemies is { } dt && (_choirTook || Choir.Present && Choir.QuietSeconds >= dt.Choir.DisperseQuietSeconds))
                 {
-                    Choir.Disperse(_choirTook);
+                    Choir.Disperse(_choirTook, c.Choir.RestSeconds);
                     _choirTook = false;
                     foreach (var ghost in _enemies.Where(e => e.Kind == EnemyKind.Choir && e.Phase != SpinePhase.Grab))
                         ghost.Dismiss();
@@ -598,6 +630,40 @@ public sealed class World
         return voices + whistle + machinery;
     }
 
+    readonly Dictionary<int, double> _unmet = [];
+
+    /// <summary>
+    /// Once a second: what's gone <see cref="DirectorTuning.LingerSeconds"/> with nobody near it, holding nobody, goes (T114).
+    /// Alone, a Climber settled in a car nobody walked into, or hounds trailing a train nobody shot from, held the caps full
+    /// and the director had room for nothing new all night.
+    /// </summary>
+    void Unmet(EnemyContext ctx, DirectorTuning t)
+    {
+        var crew = ctx.LivingCrew().Select(c => c.World).ToList();
+        foreach (var e in _enemies)
+        {
+            // What lies in wait (a Dragger under a car's edge) doesn't count against the caps, so it may wait all night.
+            // Only what has someone in its grip is spared; a car fire's "punish" is the car burning, with nobody in it.
+            if (!DarkTerritory.Sim.Enemies.Director.Engaged(e) || e.Holding >= 0)
+            {
+                _unmet.Remove(e.Id);
+                continue;
+            }
+            var at = e.WorldPosition(Train);
+            bool met = crew.Any(p => (p - at).Length <= t.LingerRadius);
+            double seconds = met ? 0 : _unmet.GetValueOrDefault(e.Id) + 1;
+            _unmet[e.Id] = seconds;
+            // Or stuck: telegraphing or committing far longer than any threat's telegraph runs, and nobody in its grip (a
+            // Climber scrabbling at the cab's gap all night, never getting in).
+            bool stuck = e.Phase is SpinePhase.Telegraph or SpinePhase.Commit && e.PhaseSeconds >= t.LingerSeconds * 1.5;
+            if (seconds >= t.LingerSeconds || stuck)
+            {
+                e.Dismiss();
+                _unmet.Remove(e.Id);
+            }
+        }
+    }
+
     void StepEnemies(EnemyContext ctx)
     {
         var t = ctx.Tuning;
@@ -624,6 +690,8 @@ public sealed class World
         // The director thinks once a second; the Stoker comes whenever its condition holds, charged when it does (App. B.5).
         if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed)
         {
+            d.Present(_context?.Crew.Count ?? 0);
+            Unmet(ctx, t.Director);
             if (d.Decide(this, ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } kind && Spawns.For(kind) is { } rule)
                 rule.Spawn(new SpawnContext(this, t, d));
             // App. B.5: the door left open at a stop this long (it swings shut by itself with someone in the cab to see to it).

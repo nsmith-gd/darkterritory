@@ -103,6 +103,33 @@ public class HoldoutTests
     static bool AHalt(RouteFeature f) => f.Kind == FeatureKind.Village && f.Stop!.Holdouts.Count == 1;
 
     [Fact]
+    public void ABotWarmingInACarLeavesTheBreachToOneThatCanGetDown()
+    {
+        // T115 playtest: "none of the bots are coming to save me when I call out from a Halt Lockup. They're just standing at a
+        // door". The nearest took it from inside a car, where it can't get down from, and so nobody went.
+        var n = new Night(AHalt, engineFrom: 270);
+        n.Add(alive: true);
+        n.Add(alive: false);
+        n.Step(0.2);
+        var h = Assert.Single(n.Here);
+        Assert.True(h.Lit);
+        var calls = new Bots.CrewCalls();
+        int car = n.Train.Frames.OrderBy(f => ((f.Origin - h.Door) with { Y = 0 }).Length).First(f => f.Index > 0 && f.Shape.Interior is not null).Index;
+        var room = n.Train.Frames[car].Shape.Interior!.Value;
+        var inside = PlayerMotor.SpawnOnRoof(n.Train, car, 0, P) with { Position = room.Centre with { Y = room.Min.Y }, Surface = Surface.Deck };
+        // On the same car's roof: as near the door.
+        var onRoof = PlayerMotor.SpawnOnRoof(n.Train, car, 0, P);
+        double toDoor = ((PlayerMotor.WorldPosition(onRoof, n.Train) - h.Door) with { Y = 0 }).Length;
+        Assert.True(toDoor < 180, $"{toDoor:0} m to the door; site {n.Site.Start:0}-{n.Site.End:0}, engine {n.Train.Dynamics.Distance:0}, door hint {h.LineHint:0}");
+        var warming = Bots.Heed.Holdouts(default, inside, n.World, 5, calls, new Bots.StopHand(Bots.StopJob.None, calls, 5));
+        Assert.Equal(default, warming);
+        Assert.False(calls.Breaching);
+        var going = Bots.Heed.Holdouts(default, onRoof, n.World, 6, calls, new Bots.StopHand(Bots.StopJob.None, calls, 6));
+        Assert.True(calls.Breaching);
+        Assert.NotEqual(default, going);
+    }
+
+    [Fact]
     public void TheDeadWaitAtTheNextSiteAndComeBackInsideItWhenTheCrewBreaksThemOut()
     {
         var n = new Night(AHalt, engineFrom: -300);

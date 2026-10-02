@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -68,10 +68,12 @@ public static class WorldRecords
                     // Where its gun is on its roof rail, if it has one (T93: guns are pushed from car to car).
                     v.Gun.Mounted ? 1 : 0, Q(v.Gun.Z, Fine), v.Gun.Facing,
                     // How much of it a Car Hugger has eaten (App. A.3 FEED: it's drawn gnawed away).
-                    Q(v.Eaten, Fine)]));
+                    Q(v.Eaten, Fine),
+                    // How the seated gunner has it laid (T112).
+                    Q(v.Gun.Traverse, Fine), Q(v.Gun.Elevation, Fine)]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
             [Q(world.Choir.Loudness, Fine), Q(world.Choir.Build, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0, Q(world.LampOutSeconds, Fine), Q(train.Sand, Fine),
-                (world.Choir.Present ? 1 : 0) | (world.Choir.Spent ? 2 : 0), Q(world.Choir.QuietSeconds, Fine), Q(world.WhistleSeconds, Fine)]));
+                (world.Choir.Present ? 1 : 0) | (world.Choir.Spent ? 2 : 0), Q(world.Choir.QuietSeconds, Fine), Q(world.WhistleSeconds, Fine), Q(world.Choir.Rest, Fine)]));
         foreach (var e in world.ActiveEnemies)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),
             [
@@ -79,6 +81,15 @@ public static class WorldRecords
                 Q(e.Local.X, Pos), Q(e.Local.Y, Pos), Q(e.Local.Z, Pos), Q(e.LineDistance, Pos), Q(e.Lateral, Pos), Q(e.Height, Pos),
                 Q(e.Extra, 1e3), Q(e.Extra2, 1e3), e.Holding, Q(e.GrabWindow, 1e3),
             ]));
+        // The wreck (T117): each car where it's tumbled to, and how it lies (right and up; back is their cross).
+        if (train.Wreck is { } wreck)
+            foreach (var w in wreck.Bodies)
+                list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Wreck, w.Vehicle),
+                [
+                    Q(w.Origin.X, Pos), Q(w.Origin.Y, Pos), Q(w.Origin.Z, Pos),
+                    Q(w.Right.X, Fine), Q(w.Right.Y, Fine), Q(w.Right.Z, Fine), Q(w.Up.X, Fine), Q(w.Up.Y, Fine), Q(w.Up.Z, Fine),
+                    Q(w.Velocity.X, Pos), Q(w.Velocity.Y, Pos), Q(w.Velocity.Z, Pos),
+                ]));
         var b = train.Boiler;
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Boiler, 0),
         [
@@ -180,6 +191,7 @@ public static class WorldRecords
         var boiler = train.Boiler;
         var enemies = new List<Enemy>();
         var bodies = new List<Physics.Body>();
+        var wrecked = new List<(int Vehicle, Ballast.Double3 Origin, Ballast.Double3 Right, Ballast.Double3 Up, Ballast.Double3 Velocity)>();
         foreach (var r in records)
         {
             var f = r.Fields;
@@ -196,6 +208,11 @@ public static class WorldRecords
                 case RecordKind.Switch:
                     train.MirrorSwitch(r.Id, f[0] != 0);
                     break;
+                case RecordKind.Wreck when !world.Authority:
+                    wrecked.Add((r.Id, new Ballast.Double3(D(f[0], Pos), D(f[1], Pos), D(f[2], Pos)),
+                        new Ballast.Double3(D(f[3], Fine), D(f[4], Fine), D(f[5], Fine)), new Ballast.Double3(D(f[6], Fine), D(f[7], Fine), D(f[8], Fine)),
+                        new Ballast.Double3(D(f[9], Pos), D(f[10], Pos), D(f[11], Pos))));
+                    break;
                 case RecordKind.Vehicle:
                     vehicles.Add(new VehicleState(r.Id, D(f[0], Fine), D(f[1], Fine), D(f[2], Fine),
                         new GunState
@@ -209,6 +226,8 @@ public static class WorldRecords
                             Mounted = f.Length > 12 && f[12] != 0,
                             Z = f.Length > 13 ? D(f[13], Fine) : 0,
                             Facing = f.Length > 14 ? (sbyte)f[14] : (sbyte)0,
+                            Traverse = f.Length > 16 ? D(f[16], Fine) : 0,
+                            Elevation = f.Length > 17 ? D(f[17], Fine) : 0,
                         }, f.Length > 7 ? (byte)f[7] : (byte)0,
                         f.Length > 8 ? (CargoKind)f[8] : CargoKind.None, f.Length <= 9 || f[9] != 0, f.Length > 15 ? D(f[15], Fine) : 0));
                     break;
@@ -221,6 +240,7 @@ public static class WorldRecords
                         Present = f.Length > 7 && (f[7] & 1) != 0,
                         Spent = f.Length > 7 && (f[7] & 2) != 0,
                         QuietSeconds = f.Length > 8 ? D(f[8], Fine) : 0,
+                        Rest = f.Length > 10 ? D(f[10], Fine) : 0,
                     };
                     world.WhistleSeconds = f.Length > 9 ? D(f[9], Fine) : 0;
                     world.SetDerailed(f[3] != 0);
@@ -280,6 +300,22 @@ public static class WorldRecords
                             (Stops.PowerState)f[Head + 5 + i * Each], D(f[Head + 6 + i * Each], Fine)))], D(f[5], Fine));
                     break;
             }
+        }
+        // The host's wreck, drawn here (T117): a puppet of its poses, made from the cars' own shapes the first time.
+        if (wrecked.Count > 0)
+        {
+            train.Wreck ??= Wreck.PuppetOf(world.WreckTuning, [.. wrecked.Where(x => x.Vehicle < train.Frames.Count).Select(x =>
+            {
+                var shape = train.Frames[x.Vehicle].Shape;
+                return new WreckBody
+                {
+                    Vehicle = x.Vehicle, Origin = x.Origin, Right = x.Right, Up = x.Up, Back = Ballast.Double3.Cross(x.Right, x.Up),
+                    PrevOrigin = x.Origin, PrevRight = x.Right, PrevUp = x.Up, PrevBack = Ballast.Double3.Cross(x.Right, x.Up),
+                    Mass = 1, HalfWidth = shape.HalfWidth, Height = shape.RoofHeight, HalfLength = shape.HalfLength,
+                };
+            })]);
+            foreach (var x in wrecked)
+                train.Wreck.Pose(x.Vehicle, x.Origin, x.Right.Normalized, x.Up.Normalized, Ballast.Double3.Cross(x.Right, x.Up).Normalized, x.Velocity);
         }
         train.Restore(new TrainState([.. rakes], [.. vehicles], boiler));
         // The host owns its enemies' full state; only clients rebuild them from the wire.

@@ -258,7 +258,7 @@ sealed partial class LineBuilder
         {
             pose = Geometry.Advance(pose, i.Prims);
             var at = _line?.Sample(i.S1);
-            string built = at is { } a ? $" built {a.Position.X:0.0},{a.Position.Z:0.0} h {Math.Atan2(-a.Tangent.X, -a.Tangent.Z) * 180 / Math.PI:0.0}" : "";
+            string built = at is { } a ? $" built {a.Position.X:0.0},{a.Position.Z:0.0} h {DMath.Atan2(-a.Tangent.X, -a.Tangent.Z) * 180 / Math.PI:0.0}" : "";
             yield return $"{i.Type,-14} {i.H,-8} {i.S0,8:0}-{i.S1,8:0}  heading {pose.Heading * 180 / Math.PI,7:0.0}  guide {Guide(i.S1) * 180 / Math.PI,7:0.0}  prims {i.Prims.Count} len {i.Prims.Sum(p => p.Length):0.0} defl {i.Prims.Sum(p => p.Deflection) * 180 / Math.PI:0.0} at {pose.X:0.0},{pose.Z:0.0}{built}";
         }
         if (_line is null)

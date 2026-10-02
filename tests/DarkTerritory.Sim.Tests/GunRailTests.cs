@@ -135,6 +135,7 @@ public class GunRailTests
         var s = PlayerMotor.SpawnOnRoof(w.Train, ahead, mount.Position.Z - 0.7, P);
         s.Yaw = Math.PI;
         s.Pitch = 0.2;
+        s.Flags |= PlayerFlags.Seated; // T112: fired from its seat
         Assert.Equal(ahead, Guns.MannedGun(s, w.Train, C.Guns));
         w.BeginTick();
         w.CrewAct(ref s, new PlayerIntent { Buttons = PlayerButtons.Fire }, 1);

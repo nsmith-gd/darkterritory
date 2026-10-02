@@ -8,7 +8,9 @@ namespace DarkTerritory.Sim.Net;
 /// <summary>Bump when any message's layout changes: a lobby on another protocol is refused before connecting.</summary>
 public static class Protocol
 {
-    public const int Version = 2;
+    // 3: the wreck's poses (RecordKind.Wreck) and the Welcome's compact content hashes (T116, T117).
+    // 4: the sim's trigonometry is DMath's, the same bits on every OS, so a 3 generates different lines from one seed.
+    public const int Version = 4;
 }
 
 public enum MessageType : byte

@@ -43,6 +43,23 @@ public class CampaignSessionTests
     }
 
     [Fact]
+    public void TheSetupAJoinerIsSentFitsOnePacketWithRoomToGrow()
+    {
+        // The Welcome is one datagram (1200 bytes) and carries the setup: upgrades, mods, and a hash of every tuning file.
+        // Indented, on Windows (two-byte line breaks), it went over at 19 tuning files.
+        var setup = new SessionSetup(Route: "frontier:7", Cars: 8, Enemies: true)
+        {
+            Upgrades = ["tenderCapacity", "improvedBrakes", "roofGuns"],
+            Content = SessionSetup.HashContent(Content),
+            Mods = ["SomeoneElse-ALongishModName 1.2.3"],
+        };
+        string encoded = setup.Encode();
+        Assert.DoesNotContain('\n', encoded);
+        Assert.True(System.Text.Encoding.UTF8.GetByteCount(encoded) < 900, $"{encoded.Length} bytes");
+        Assert.Equal(setup.Upgrades, SessionSetup.Decode(encoded).Upgrades);
+    }
+
+    [Fact]
     public void TheHostsUpgradesAreEveryonesUpgrades()
     {
         var setup = new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false) { Upgrades = ["tenderCapacity", "improvedBrakes"] };

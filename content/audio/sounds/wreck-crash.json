@@ -1,0 +1,18 @@
+// Critical train state (tier 3, T117; GDD §23 "loud, spectacular, run-changing"): a car in the wreck hitting the ground or
+// another car. A deep thud through the ground, a short shriek of torn steel, and a clang of something big ringing. Played
+// at the car, louder the harder the hit.
+{
+  "tier": 3, "duration": 2.5, "maxInstances": 6, "minDistance": 8, "maxDistance": 900, "rolloff": 0.6,
+  "layers": [
+    { "source": "impulse", "frequency": 1, "gain": 2.4,
+      "filters": [{ "type": "lowPass", "frequency": 200, "q": 0.8 }],
+      "envelope": [[0, 1], [0.5, 0]] },
+    { "source": "noise", "gain": 0.9,
+      "filters": [{ "type": "bandPass", "frequency": 1900, "q": 1.1 }, { "type": "peak", "frequency": 3200, "q": 4, "gainDb": 6 }],
+      "envelope": [[0, 1], [0.12, 0.6], [0.9, 0]] },
+    { "source": "saw", "frequency": 118, "gain": 0.5,
+      "filters": [{ "type": "peak", "frequency": 1150, "q": 6, "gainDb": 14 }, { "type": "lowPass", "frequency": 2400, "q": 0.7 }],
+      "vibrato": { "rate": 5.5, "depth": 0.02 },
+      "envelope": [[0, 1], [0.15, 0.4], [0.9, 0]] }
+  ]
+}

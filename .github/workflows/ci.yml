@@ -100,6 +100,31 @@ jobs:
         with:
           name: audio
           path: out/audio/
+      # Cross-play (T116): a joiner builds the host's night itself and is refused if its line or land comes out different, so
+      # each OS writes the checksums for some nights and the crossplay job below compares them.
+      - name: Line and land checksums
+        shell: bash
+        run: |
+          mkdir -p out/prints
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- linegen prints > out/prints/${{ runner.os }}.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prints-${{ runner.os }}
+          path: out/prints/
+  # Windows and Linux build the same night from the same seed, or they can't play together.
+  crossplay:
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: prints-*
+          merge-multiple: true
+          path: prints
+      - name: Windows and Linux make the same lines and land
+        run: |
+          cat prints/Linux.json
+          diff <(tr -d '\r' < prints/Linux.json) <(tr -d '\r' < prints/Windows.json) && echo "cross-play: the same nights on both"
   # Builds for players (roadmap M6): self-contained Windows and Linux folders with their content, zipped. The Linux one
   # is started from somewhere else and plays a few seconds, so a build that can't find its content never ships.
   package:

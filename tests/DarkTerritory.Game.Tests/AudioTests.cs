@@ -26,6 +26,17 @@ public class AudioTests
     }
 
     [Fact]
+    public void AWreckIsHeardCrashingAndGrinding()
+    {
+        // T117: "loud, spectacular" (GDD §23). The train comes off half a second in; beside the line you hear the cars
+        // hit (wreck-crash) and the steel dragged through the earth (wreck-grind), each well over the train's own sounds.
+        var (report, _) = AudioBench.Render(Content, "wreck", cars: 8, speed: 22, listenerCar: 3, seconds: 6);
+        Assert.True(report.StemsDb.GetValueOrDefault("wreck-crash", double.NegativeInfinity) > -30, $"crash at {report.StemsDb.GetValueOrDefault("wreck-crash")} dB");
+        Assert.True(report.StemsDb.GetValueOrDefault("wreck-grind", double.NegativeInfinity) > -30, $"grind at {report.StemsDb.GetValueOrDefault("wreck-grind")} dB");
+        Assert.True(report.StemsDb["wreck-grind"] > report.StemsDb.GetValueOrDefault("wheel-rail", double.NegativeInfinity) + 10);
+    }
+
+    [Fact]
     public void EverySoundFileLoads()
     {
         var bank = new SoundBank(Path.Combine(Content, "audio", "sounds"));

@@ -47,6 +47,8 @@ public static class Hud
             Link(o, width, link, line);
         Radio(o, width, s, line);
         Alerts(o, width, height, s, line);
+        if (s.Link is { } lobby && s.World.Run is { Phase: Sim.Run.RunPhase.Yard })
+            Lobby(o, height, s, lobby, line);
         if (Prompt(s) is { } written)
         {
             string prompt = Bound(written);
@@ -56,7 +58,10 @@ public static class Hud
         }
         Night(o, height, s, line);
         if (p.Alive)
+        {
             Hotbar(o, width, height, p, line);
+            Noise(o, width, height, s.World, line);
+        }
         if (p.Alive && crosshair)
         {
             // A small cross, for aiming and for "what am I looking at".
@@ -85,6 +90,56 @@ public static class Hud
             o.Rect(x, y, w, line + 4, held ? Amber with { W = 0.35f } : Panel);
             o.Text(x + 4, y + 2, label, held ? Ink : Dim);
         }
+    }
+
+    /// <summary>
+    /// The lobby (T116, the co-op games' way: Lethal Company's ship, PEAK's airport): while the train's in the yard, who's
+    /// aboard, how friends get in, and how the night starts. Drop-in is open here; once the train's out the gate, only at a
+    /// facility (spec E).
+    /// </summary>
+    static void Lobby(Overlay o, int height, IPlaySession s, LinkInfo link, int line)
+    {
+        var crew = s.Roster();
+        float x = 6, y = MathF.Round(height * 0.22f), w = 250;
+        var lines = new List<(string Text, Vector4 Colour)> { ($"THE LOBBY: {crew.Count} ABOARD", Amber) };
+        lines.AddRange(crew.Select(c => ($"  {c.Name}{(c.You && c.Name != "YOU" ? " (YOU)" : "")}", c.You ? Ink : Dim)));
+        if (link.JoinAt is { } at)
+        {
+            lines.Add(("FRIENDS: JOIN A NIGHT, YOUR GAME'S LISTED", Dim));
+            lines.Add(($"  (OR THEY TYPE {at})", Dim));
+        }
+        else if (link.PingMs is null)
+            lines.Add(("A PRIVATE NIGHT: NOBODY ELSE CAN JOIN", Dim));
+        lines.Add(("EVERYONE IN? DRIVE OUT OF THE YARD", Ink));
+        w = lines.Max(l => o.Font.Measure(l.Text)) + 10;
+        o.Rect(x - 2, y - 3, w, lines.Count * line + 6, Panel);
+        foreach (var (text, colour) in lines)
+        {
+            o.Text(x + 2, y, text, colour);
+            y += line;
+        }
+    }
+
+    /// <summary>
+    /// The crew's loudness meter (T113 playtest: "no counterplay" for the Choir), above the hotbar: how loud the crew's been
+    /// over the meter's window against the Choir's threshold (the tick), and how far it's gathered. Seeing it climb is the
+    /// counterplay: go quiet before it fills.
+    /// </summary>
+    static void Noise(Overlay o, int width, int height, World world, int line)
+    {
+        if (world.Combat is not { } c || world.Choir.Spent)
+            return;
+        var ch = world.Choir;
+        float w = 120, h = 5, x = width - 4 - w, y = height - 2 * line - 20;
+        double loud = Math.Clamp(ch.Loudness / (c.Choir.Threshold * 2), 0, 1);
+        bool over = ch.Loudness >= c.Choir.Threshold;
+        o.TextRight(width - 4, y - line - 1, ch.Present ? "THE CHOIR IS HERE: SILENCE"
+            : ch.Rest > 0 ? "NOISE  (THE CHOIR'S DRIVEN OFF)" : over ? "NOISE: TOO LOUD" : "NOISE", ch.Present || over ? Amber : Dim);
+        o.Rect(x, y, w, h, Dim with { W = 0.35f });
+        o.Rect(x, y, (float)(w * loud), h, over ? Amber : Ink with { W = 0.6f });
+        o.Rect(x + w / 2, y - 1, 1, h + 2, Ink); // the threshold
+        if (ch.Build > 0 && !ch.Present)
+            o.Rect(x, y + h + 1, (float)(w * ch.Build), 2, Red);
     }
 
     /// <summary>
@@ -174,6 +229,8 @@ public static class Hud
         o.TextRight(right, 5 + 3 * line, link.Role, Dim);
         if (link.Lost)
             o.TextRight(right, 5 + 4 * line, "CONNECTION LOST", Red);
+        else if (link.JoinAt is { } at)
+            o.TextRight(right, 5 + 4 * line, $"FRIENDS JOIN AT {at}", Dim);
     }
 
     /// <summary>Whether you've a radio on you (T41), under the link: without one, T does nothing and nobody's on it for you.</summary>
@@ -273,6 +330,9 @@ public static class Hud
             Big("WAITING", Amber);
             Small(waiting, Ink);
         }
+        // The derailment's cinematic plays out first (T117): no run's end or death screen over it.
+        if (s.WreckCinematic)
+            return;
         if (world.Run?.Report is { } r)
         {
             if (r.End == RunEnd.Delivered)
@@ -289,35 +349,7 @@ public static class Hud
         if (!p.Alive)
         {
             Big("DEAD", Red);
-            Small(p.Death switch
-            {
-                DeathCause.Cold => "FROZE",
-                DeathCause.JumpedAtSpeed => "JUMPED AT SPEED",
-                DeathCause.Derailed => "DERAILED",
-                DeathCause.Mauled => "MAULED",
-                DeathCause.Hollow => "THE HOLLOW",
-                DeathCause.Choir => "THE CHOIR",
-                DeathCause.Taken => "TAKEN. IT WASN'T THEM OUTSIDE",
-                DeathCause.Dragged => "DRAGGED OFF THE EDGE",
-                DeathCause.Crushed => "CRUSHED UNDER A DROPPED LOAD",
-                DeathCause.PulledUnder => "PULLED UNDER BETWEEN THE CARS",
-                DeathCause.Lamplighter => "TORN DOWN AT THE LAMP",
-                DeathCause.Deadman => "KILLED TAKING BACK THE CAB",
-                DeathCause.Gaunt => "NOBODY WAS WATCHING IT",
-                DeathCause.Replaced => "IT WASN'T ONE OF YOU. IT IS NOW",
-                DeathCause.Nested => "SOMETHING CAME ABOARD ON SOMEONE'S BACK",
-                DeathCause.Drift => "THE GROUND CAME UP. YOU KEPT MOVING",
-                DeathCause.TornOff => "WENT OFF THE RAILS WITH THE REAR CAR",
-                DeathCause.Climbed => "SOMETHING CAME IN OFF THE ROOF",
-                DeathCause.Struck => "STRUCK BY THE TUNNEL MOUTH",
-                DeathCause.Thrown => "THROWN OFF ON THE CURVE",
-                DeathCause.Burned => "BURNED IN A BLAZING CAR",
-                DeathCause.Gnawed => "EATEN BY THE GNAWERS",
-                DeathCause.Ferryman => "SLOWED FOR THE LANTERN",
-                DeathCause.Stoker => "BURNED DRIVING IT OUT OF THE FIREBOX",
-                DeathCause.Waiting => "WAITING TO BE PICKED UP",
-                _ => "",
-            }, Ink);
+            Small(DeathLine(p.Death), Ink);
             // App. D.10: the dead watch the living, through their eyes. Networked only: alone, there's nobody.
             if (s.Watching >= 0)
                 Small($"WATCHING CREW {s.Watching}   [{Controls.KeyLabel(Keys.KeyFor(Control.Fire))}] OR [{Controls.KeyLabel(Keys.KeyFor(Control.Right))}] NEXT   " +
@@ -351,7 +383,64 @@ public static class Hud
             else if (b.Pressure >= bt.Redline)
                 Small("PRESSURE IN THE RED: VENT, OR LET THE FIRE BURN DOWN", flash ? Red : Amber);
         }
+        // T115 playtest ("suddenly I can't move and then a few seconds later I die"): held, say so, and what to do. Alone
+        // (the solo rule) Use held struggles free; with a crew, a friend has to pull it off or hit it.
+        if (p.Alive && p.Has(PlayerFlags.Held))
+        {
+            Big("SOMETHING HAS YOU", world.Tick / 10 % 2 == 0 ? Red : Amber);
+            bool alone = s.Roster().Count(l => l.Alive) <= 1;
+            Small(alone ? Bound("HOLD [E] TO STRUGGLE FREE") : "SHOUT FOR HELP: A CREWMATE CAN PULL IT OFF, OR HIT IT", Ink);
+        }
+        // T113: the Choir's long telegraph, said plainly once it's well along, and what to do about it.
+        if (p.Alive && world.Combat is not null && !world.Choir.Present && world.Choir.Build > 0.25)
+            Small("THE CHOIR IS GATHERING: GO QUIET", world.Tick / 15 % 2 == 0 ? Red : Amber);
     }
+
+    /// <summary>The reload's step under way (GDD v1.1 App. C.3: powder, ball, ram), for the prompt.</summary>
+    static string LoadStep(in GunState gun, GunTuning t) =>
+        (t.ReloadSteps - gun.ReloadNeeded) switch { 0 => "POWDER", 1 => "BALL", _ => "RAM" };
+
+    /// <summary>
+    /// What the death screen says killed you. Every cause has its line (T115 playtest: "the death screen doesn't show me
+    /// anything": the v1.1 creatures' causes had none); an unknown one says its name.
+    /// </summary>
+    public static string DeathLine(DeathCause cause) => cause switch
+    {
+        DeathCause.Cold => "FROZE",
+        DeathCause.JumpedAtSpeed => "JUMPED AT SPEED",
+        DeathCause.Derailed => "THE TRAIN LEFT THE RAILS",
+        DeathCause.Mauled => "MAULED. SOMETHING GOT HOLD OF YOU AND NOBODY PULLED IT OFF",
+        DeathCause.Hollow => "THE HOLLOW",
+        DeathCause.Choir => "THE CHOIR",
+        DeathCause.Taken => "TAKEN. IT WASN'T THEM OUTSIDE",
+        DeathCause.Dragged => "DRAGGED OFF THE EDGE",
+        DeathCause.Crushed => "CRUSHED UNDER A DROPPED LOAD",
+        DeathCause.PulledUnder => "PULLED UNDER BETWEEN THE CARS",
+        DeathCause.Lamplighter => "TORN DOWN AT THE LAMP",
+        DeathCause.Deadman => "KILLED TAKING BACK THE CAB",
+        DeathCause.Gaunt => "NOBODY WAS WATCHING IT",
+        DeathCause.Replaced => "IT WASN'T ONE OF YOU. IT IS NOW",
+        DeathCause.Nested => "SOMETHING CAME ABOARD ON SOMEONE'S BACK",
+        DeathCause.Drift => "THE GROUND CAME UP. YOU KEPT MOVING",
+        DeathCause.TornOff => "WENT OFF THE RAILS WITH THE REAR CAR",
+        DeathCause.Climbed => "SOMETHING CAME IN OFF THE ROOF",
+        DeathCause.Struck => "STRUCK BY THE TUNNEL MOUTH",
+        DeathCause.Thrown => "THROWN OFF ON THE CURVE",
+        DeathCause.Burned => "BURNED IN A BLAZING CAR",
+        DeathCause.Gnawed => "EATEN BY THE GNAWERS",
+        DeathCause.Ferryman => "SLOWED FOR THE LANTERN",
+        DeathCause.Stoker => "BURNED DRIVING IT OUT OF THE FIREBOX",
+        DeathCause.Waiting => "WAITING TO BE PICKED UP",
+        DeathCause.Eaten => "SWALLOWED BY THE CAR HUGGER",
+        DeathCause.Suffocated => "SMOTHERED. TIPPY TOESIE WAS IN THE CAR",
+        DeathCause.Devoured => "EATEN BY THE RIBBITS, DOWN ON THE GROUND",
+        DeathCause.Drained => "DRAINED BY A SOOT CHILD",
+        DeathCause.Carried => "CARRIED OFF TO THE WHISTLER'S NEST",
+        DeathCause.Seized => "SEIZED BY THE CHOIR. YOU WERE OUTSIDE, AND IT WAS LOUD",
+        DeathCause.Uncoupled => "TAKEN WITH THE CABOOSE. THE PASSENGER CUT IT LOOSE",
+        DeathCause.None => "",
+        _ => cause.ToString().ToUpperInvariant(),
+    };
 
     /// <summary>The player's keys (T80), for the prompts: the app sets them from the settings.</summary>
     public static Settings Keys { get; set; } = new();
@@ -410,10 +499,18 @@ public static class Hud
                     : "THE REPAIR KIT: IT MENDS THE BOILER, AND OPENS A LOCK QUIETLY   [E] PUT DOWN   [RMB] THROW",
                 _ => "[E] PUT DOWN   [RMB] THROW",
             };
-        if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is not null)
-            return train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM FOR THE TURRET"
-                : train.Vehicles[Guns.MannedGun(p, train, combat.Guns)!.Value].Gun.ReloadNeeded > 0 ? "[E] HOLD: RELOAD"
-                : "[LMB] FIRE   [E] + WALK: PUSH IT ALONG THE RAIL";
+        // T112: the gun's seat and its own controls.
+        if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is { } manned)
+        {
+            var gun = train.Vehicles[manned].Gun;
+            bool seated = p.Has(PlayerFlags.Seated);
+            string up = seated ? "   [SPACE] GET UP" : "";
+            return gun.ReloadNeeded > 0 ? $"[E] HOLD: LOAD IT ({LoadStep(gun, combat.Guns)}){up}"
+                : gun.Ammo <= 0 ? $"NO SHOT LEFT{up}"
+                : train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? $"NO STEAM TO TURN THE GUN{up}"
+                : seated ? $"[LMB] FIRE   AIM WITH THE MOUSE{up}"
+                : "[E] SIT AT THE GUN   [E] + WALK: PUSH IT ALONG THE RAIL";
+        }
         // A headset player's prompts follow their reaching hand (T29), as the sim's reach does.
         var hand = world.Hand;
         var near = CrewActions.Nearest(p, train, hand);
