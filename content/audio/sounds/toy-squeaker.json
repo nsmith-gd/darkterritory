@@ -1,6 +1,6 @@
 // Player action (tier 4), a squeaker toy in someone's hands (GDD v1.4 §19, App. C item 4): squeezed as they walk, two
 // rubbery squeals a cycle, the second higher. Loud enough to hear down the car, and it feeds the Choir's meter in the
-// carrier's name (combat.json choir.toys; ARCHITECTURE §8 note 172).
+// carrier's name (combat.json choir.toys; ARCHITECTURE §8 note 174).
 {
   "tier": 4, "loop": true, "cycleSeconds": 1.3, "maxInstances": 4, "minDistance": 2, "maxDistance": 35, "gainDb": -1,
   "layers": [

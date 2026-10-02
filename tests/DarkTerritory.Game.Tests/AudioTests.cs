@@ -83,7 +83,7 @@ public class AudioTests
     [Fact]
     public void ANoisyToyPlaysWhileItsCarriedAndStopsWhenPutDown()
     {
-        // GDD v1.4 App. C item 4 (note 172): a squeaker, a music box, a wind-up drummer, heard while carried; a quiet toy isn't.
+        // GDD v1.4 App. C item 4 (note 174): a squeaker, a music box, a wind-up drummer, heard while carried; a quiet toy isn't.
         var tuning = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
         var line = RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(tuning, 4, 1)), line, 1200);
@@ -118,7 +118,7 @@ public class AudioTests
     [Fact]
     public void TheNoisyToysAreHeardOverTheRoofsWindAndNoneDrownsTheOthers()
     {
-        // Note 172: carried on the roof at 15 m/s, each toy is over the wind and the rails (you hear who has it), and the three
+        // Note 174: carried on the roof at 15 m/s, each toy is over the wind and the rails (you hear who has it), and the three
         // sit within a few dB of each other (the drummer is the loudest by the meter, not by the speakers).
         var (report, _) = AudioBench.Render(Content, "toys", cars: 6, speed: 15, listenerCar: 3, seconds: 4);
         string[] toys = ["toy-squeaker", "toy-musicbox", "toy-drummer"];

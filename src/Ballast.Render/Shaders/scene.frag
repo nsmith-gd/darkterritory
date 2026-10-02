@@ -297,6 +297,11 @@ void main() {
     float night = 1.0 - inside;
     float wet = frame.sky2.w * (vWear > 0.0 || textured ? 1.0 : 0.0) * night;
     albedo *= 1.0 - 0.3 * wet;
+    // Frost: a pale rime over what's out in the night, thick on what faces the sky (roofs, ballast, the tops of
+    // things), thin on the walls, broken up by the surface's own grain so it lies in the texture's hollows and edges.
+    float frost = frame.counts.w * night * (textured ? 1.0 : 0.6);
+    float rime = frost * (0.22 + 0.6 * smoothstep(0.2, 0.9, n.y)) * (0.55 + 0.45 * smoothstep(0.02, 0.2, dot(albedo, vec3(0.33))));
+    albedo = mix(albedo, vec3(0.5, 0.54, 0.6), clamp(rime, 0.0, 0.8));
 
     vec3 v = normalize(-vPos);
     vec3 moonDir = normalize(frame.moon.xyz);
@@ -311,6 +316,9 @@ void main() {
     float up = smoothstep(0.5, 0.95, n.y) * wet;
     specStrength = max(specStrength, 0.16 * up);
     shininess = mix(shininess, 70.0, up);
+    // Its crystals glint.
+    specStrength = max(specStrength, 0.22 * rime);
+    shininess = mix(shininess, 90.0, rime);
     // Torn edges catch the light; scorch doesn't; a hole throws nothing back.
     specStrength = mix(mix(specStrength, specStrength * 0.3, scar.x), 0.4, scar.z) * (1.0 - scar.w);
     shininess = mix(shininess, 56.0, scar.z);

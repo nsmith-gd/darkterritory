@@ -1,4 +1,8 @@
 using System.Numerics;
+using Ballast;
+using Ballast.Render;
+using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Stops;
 
 namespace DarkTerritory.Game.Art;
@@ -40,14 +44,12 @@ public sealed partial class WorldArt
                 break;
             case BuildingKind.SignalBox when _props.Get("signal_box") is { } box:
                 k.Append(box, Matrix4x4.CreateRotationY(yaw) * Kit.At(0, -0.2f, 0));
-                Barricade(k, facing * (width / 2 + 0.05f) + Doorway(k), facing, 1.1f, k.DoorHeight());
                 break;
             case BuildingKind.WaterTower when _props.Get("water_tower") is { } tower:
                 k.Append(tower, Matrix4x4.CreateRotationY(yaw) * Kit.At(0, -0.2f, 0));
                 // Someone's boarded themselves into the pump house under the tank.
                 k.Use("brick_soot", Palette.RustRed, 0.9f, 0.1f, tile: 1.2f);
                 k.Box(new Vector3(-1.4f, -0.3f, -1.4f), new Vector3(1.4f, 2.4f, 1.4f), Kit.Faces.All & ~Kit.Faces.NegY);
-                Barricade(k, facing * 1.45f + Doorway(k), facing, 1.0f, k.DoorHeight());
                 break;
             case BuildingKind.Lockup:
                 Lockup(k, length, width);
@@ -59,9 +61,137 @@ public sealed partial class WorldArt
                 k.Box(new Vector3(-width / 2, -0.3f, -length / 2), new Vector3(width / 2, 2.8f, length / 2), Kit.Faces.All & ~Kit.Faces.NegY);
                 k.Use("roof_slate", Palette.Charcoal, 0.9f, 0.15f, tile: 1.5f);
                 k.Box(new Vector3(-width / 2 - 0.3f, 2.8f, -length / 2 - 0.3f), new Vector3(width / 2 + 0.3f, 3.1f, length / 2 + 0.3f), Kit.Faces.All);
-                float half = MathF.Abs(facing.X) > 0 ? width / 2 : length / 2;
-                Barricade(k, facing * (half + 0.05f) + Doorway(k), facing, 1.0f, k.DoorHeight());
                 break;
+        }
+    }
+
+    /// <summary>
+    /// A Holdout's way in (App. D.7), drawn by its state each frame (<see cref="Entrances"/>): the prison car's door leaf and
+    /// padlock, a shelter's barricade, a lockup's gate. Shut while anyone's in there or nobody is; freed, broken open: the
+    /// car's door swung wide, its padlock smashed off into the ballast (or hanging open on the hasp, picked with the repair
+    /// kit); the barricade's boards pried off, two hanging, the rest on the ground, the doorway dark; the cage's gate open.
+    /// </summary>
+    void Entrance(Kit k, StopBuilding b, Vector3 facing, bool open, bool picked)
+    {
+        float length = (float)b.Length, width = (float)b.Width;
+        switch (b.Kind)
+        {
+            case BuildingKind.PrisonCar:
+                {
+                    int door = facing.X >= 0 ? 1 : -1;
+                    const float w = 1.5f, floor = 1.1f;
+                    float x = door * (w + 0.02f), h = k.DoorHeight();
+                    k.Use("paint_oxide", Palette.BlueGrey * 0.7f, 0.95f, 0.2f, tile: 1.5f);
+                    // The leaf hangs on its hinges at the van's −Z edge of the doorway: swung out wide, it stands off the side.
+                    var hinge = Matrix4x4.CreateRotationY(open ? door * 1.75f : 0) * Matrix4x4.CreateTranslation(x, 0, -1.0f);
+                    k.With(hinge, () => k.Box(new Vector3(-0.04f, floor + 0.1f, 0), new Vector3(0.04f, floor + 0.1f + h, 2.0f)));
+                    if (open)
+                    {
+                        // The doorway dark behind it.
+                        k.Use("paint_black", Palette.SootBlack, 0.95f, 0);
+                        k.Shade(0.3f);
+                        k.Panel(new Vector3(door * (w + 0.005f), floor + 0.1f + h / 2, 0), new Vector3(door, 0, 0), Vector3.UnitY, 2.0f, h);
+                    }
+                    k.Use("brass", Palette.TarnishedBrass, 0.7f, 0.5f);
+                    if (!open)
+                        k.BoxAt(new Vector3(door * (w + 0.1f), 2.0f, 0.9f), new Vector3(0.05f, 0.12f, 0.09f));
+                    else if (picked)
+                        // Opened with the kit: the padlock hanging open from the staple, its shackle up.
+                        k.BoxAt(new Vector3(door * (w + 0.1f), 1.85f, -0.95f), new Vector3(0.05f, 0.08f, 0.09f));
+                    else
+                        // Smashed off: lying in the ballast under the door, the hasp twisted with it.
+                        k.With(Matrix4x4.CreateRotationZ(1.2f) * Matrix4x4.CreateTranslation(door * (w + 0.7f), 0.08f, 0.6f),
+                            () => k.BoxAt(Vector3.Zero, new Vector3(0.05f, 0.12f, 0.09f)));
+                    break;
+                }
+            case BuildingKind.Lockup:
+                {
+                    // The gate: an iron frame of bars across the cage's end (or side) the crew comes to, padlocked shut.
+                    bool end = MathF.Abs(facing.Z) > 0;
+                    float halfSpan = 0.5f, at = end ? length / 2 + 0.03f : width / 2 + 0.03f;
+                    var place = end ? Matrix4x4.CreateRotationY(facing.Z > 0 ? 0 : MathF.PI) : Matrix4x4.CreateRotationY(facing.X > 0 ? MathF.PI / 2 : -MathF.PI / 2);
+                    k.With(place, () =>
+                    {
+                        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.4f);
+                        var swing = Matrix4x4.CreateRotationY(open ? 1.6f : 0) * Matrix4x4.CreateTranslation(-halfSpan, 0, at);
+                        k.With(swing, () =>
+                        {
+                            for (float gx = 0; gx <= 2 * halfSpan + 0.01f; gx += 0.2f)
+                                k.Rod(new Vector3(gx, 0.25f, 0.02f), new Vector3(gx, 2.4f, 0.02f), 0.014f);
+                            foreach (float y in new[] { 0.35f, 1.3f, 2.35f })
+                                k.Rod(new Vector3(0, y, 0.02f), new Vector3(2 * halfSpan, y, 0.02f), 0.025f);
+                        });
+                        k.Use("brass", Palette.TarnishedBrass, 0.7f, 0.5f);
+                        if (!open)
+                            k.BoxAt(new Vector3(halfSpan - 0.05f, 1.3f, at + 0.06f), new Vector3(0.05f, 0.08f, 0.04f));
+                        else if (!picked)
+                            k.BoxAt(new Vector3(halfSpan + 0.3f, 0.3f, at + 0.4f), new Vector3(0.05f, 0.04f, 0.08f));
+                    });
+                    break;
+                }
+            default:
+                {
+                    // A shelter: the barricade across its doorway, where the building's own model has the door.
+                    var (centre, half) = b.Kind switch
+                    {
+                        BuildingKind.SignalBox => (facing * (width / 2 + 0.05f), 1.1f),
+                        BuildingKind.WaterTower => (facing * 1.45f, 1.0f),
+                        _ => (facing * ((MathF.Abs(facing.X) > 0 ? width / 2 : length / 2) + 0.05f), 1.0f),
+                    };
+                    if (!open)
+                        Barricade(k, centre + Doorway(k), facing, half, k.DoorHeight());
+                    else
+                        PriedOff(k, centre, facing, half, k.DoorHeight());
+                    break;
+                }
+        }
+    }
+
+    /// <summary>A barricade pried off (D.7): two boards hanging by a nail at one end, the rest down on the ground before the doorway, which stands open and dark.</summary>
+    static void PriedOff(Kit k, Vector3 sill, Vector3 outward, float halfWidth, float height)
+    {
+        var across = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, outward));
+        k.Use("paint_black", Palette.SootBlack, 0.95f, 0);
+        k.Shade(0.3f);
+        k.Panel(sill + outward * 0.02f + Vector3.UnitY * (0.05f + height / 2), outward, Vector3.UnitY, 0.9f, height);
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+        foreach (int i in new[] { 0, 3 })
+        {
+            // Hanging off the left jamb's nail, swung down.
+            var nail = sill + across * -halfWidth + Vector3.UnitY * (0.25f + i * (height - 0.4f) / 4 + 0.2f) + outward * 0.08f;
+            k.Rod(nail, nail + across * 0.6f - Vector3.UnitY * (1.0f + i * 0.08f) + outward * 0.05f, 0.07f);
+        }
+        for (int i = 0; i < 3; i++)
+        {
+            var a = sill + outward * (0.5f + i * 0.35f) + across * (-halfWidth * 0.9f + i * 0.2f) + Vector3.UnitY * 0.07f;
+            k.Rod(a, a + across * (2 * halfWidth * 0.85f) + outward * ((i - 1) * 0.3f), 0.07f);
+        }
+    }
+
+    /// <summary>
+    /// Each Holdout's way in near <paramref name="eye"/>, by its state (<see cref="Entrance"/>): placed as the stop's own
+    /// building is (<see cref="Building"/>), so it sits where the baked building expects it.
+    /// </summary>
+    public void Entrances(MeshBuilder mesh, RailLine line, Route? route, Sim.Run.Holdouts holdouts, Double3 eye, float valleyDepth)
+    {
+        if (route is null)
+            return;
+        var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)) };
+        foreach (var h in holdouts.All)
+        {
+            if (h.Site.Stop is not { } stop || (h.Door - eye).Length > 160)
+                continue;
+            var b = stop.Buildings[h.Layout.Building];
+            var f = h.Site;
+            double along = f.Start + b.S;
+            var t = line.Sample(Math.Clamp(along, 0, line.Length));
+            var at = Sim.Run.Run.StopWorld(line, f, b.Centre, Ground(route, along, (float)b.D, valleyDepth) - 0.15);
+            var frame = Basis(t.Tangent, at, eye, (float)-b.Yaw);
+            var (dx, dy) = Local(b, h.Layout.Door);
+            var facing = Math.Abs(dx) / b.Length > Math.Abs(dy) / b.Width ? new Vector3(0, 0, (float)-Math.Sign(dx)) : new Vector3((float)Math.Sign(dy), 0, 0);
+            bool open = h.State == Sim.Run.HoldoutState.Freed;
+            k.Reseed(b.Variant * 7.1f + (float)(b.S * 0.13));
+            k.With(frame, () => Entrance(k, b, facing, open, open && h.Quiet));
         }
     }
 
@@ -97,10 +227,7 @@ public sealed partial class WorldArt
             foreach (int side in new[] { -1, 1 })
                 for (float bz = -0.35f; bz <= 0.36f; bz += 0.175f)
                     k.Rod(new Vector3(side * (w + 0.03f), 2.72f, z + bz), new Vector3(side * (w + 0.03f), 3.08f, z + bz), 0.015f);
-        // The door on the crew's side: a heavy leaf with a hasp and padlock.
-        k.Box(new Vector3(door * (w + 0.02f) - 0.04f, floor + 0.1f, -1.0f), new Vector3(door * (w + 0.02f) + 0.04f, floor + 0.1f + k.DoorHeight(), 1.0f));
-        k.Use("brass", Palette.TarnishedBrass, 0.7f, 0.5f);
-        k.BoxAt(new Vector3(door * (w + 0.1f), 2.0f, 0.9f), new Vector3(0.05f, 0.12f, 0.09f));
+        // (The door on the crew's side, its leaf and padlock, are drawn by its state: Entrance.)
     }
 
     /// <summary>A halt's lockup (D.4): a parcel cage of iron bars on a plinth, a tin roof, a padlocked gate.</summary>

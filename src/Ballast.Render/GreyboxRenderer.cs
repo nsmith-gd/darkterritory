@@ -708,7 +708,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             (p[4], p[5], p[6], p[7]) = (r.Right.X, r.Right.Y, r.Right.Z, r.Half.Y);
             (p[8], p[9], p[10], p[11]) = (r.Back.X, r.Back.Y, r.Back.Z, r.Half.Z);
         }
-        f->Counts = new Vector4(_rooms.Count, _moonOn ? 1 : 0, 1f / (_shadowsFrom ?? this).MoonShadowSize, 0);
+        f->Counts = new Vector4(_rooms.Count, _moonOn ? 1 : 0, 1f / (_shadowsFrom ?? this).MoonShadowSize, lighting.Frost);
         _ = horizon;
     }
 

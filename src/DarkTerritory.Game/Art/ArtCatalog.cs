@@ -56,7 +56,7 @@ public static class ArtCatalog
             k.Append(DamageKit.Car(look, cargo, 2, 3), Matrix4x4.Identity);
             return k.Build("car-wrecked");
         }));
-        // The crew lockers in the kit's car (note 170): the row's cabinets, and its longest-named door.
+        // The crew lockers in the kit's car (note 172): the row's cabinets, and its longest-named door.
         if (train.Kit.Lockers is { Names.Count: > 0 } lockerTuning)
         {
             var kitCar = CarShape.Build(g, VehicleKind.Cargo, hasCarBehind: true, lockerTuning);
@@ -81,11 +81,16 @@ public static class ArtCatalog
         list.Add(new("tuft", SmallProp, () => WorldKit.Tuft(look, 0, weed: false)));
         list.Add(new("brass-weed", SmallProp, () => WorldKit.Tuft(look, 0, weed: true)));
         list.Add(new("rock", SmallProp, () => WorldKit.Rock(look, 0, 1)));
+        list.Add(new("debris-tree", LargeProp, () => DebrisKit.Of(look, 0)));
+        list.Add(new("debris-rocks", LargeProp, () => DebrisKit.Of(look, 1)));
+        list.Add(new("debris-tangle", LargeProp, () => DebrisKit.Of(look, 2)));
         list.Add(new("pole", MediumProp, () => WorldKit.Pole(look, 0)));
         list.Add(new("signal", MediumProp, () => WorldKit.Signal(look, lit: true)));
         list.Add(new("fence-post", SmallProp, () => WorldKit.FencePost(look, 0)));
         list.Add(new("viaduct-bay", StructureBay, () => StructureKit.ViaductBay(look, 18, lastPier: false)));
         list.Add(new("trestle-bent", StructureBay, () => StructureKit.TrestleBent(look, 18)));
+        list.Add(new("girder-bay", StructureBay, () => StructureKit.GirderBay(look, 18, lastPier: false)));
+        list.Add(new("truss-span", StructureBay, () => StructureKit.TrussSpan(look, 18, lastPier: false)));
         list.Add(new("tunnel-lining", StructureBay, () => StructureKit.TunnelLining(look, 10)));
         list.Add(new("portal", LargeProp, () => StructureKit.Portal(look)));
         list.Add(new("wall", StructureBay, () => StructureKit.Wall(look, 1)));

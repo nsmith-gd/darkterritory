@@ -38,7 +38,7 @@ public sealed record StrandedTuning(double KitLostBeyond = 400, double RecoveryF
 
 /// <summary>
 /// The repair kit, as §23.2 reads it: lost only when the Territory has taken it. A kit lying on the line, or in a reachable
-/// car (on its floor or in its locker, note 170), is never lost, however far back it is. Somebody walks. With more than one
+/// car (on its floor or in its locker, note 172), is never lost, however far back it is. Somebody walks. With more than one
 /// kit (a spare from the fortress, one found at a stop: E.12 question 4), it takes losing every one of them. A kit found at
 /// a stop counts once the crew have picked it up; one lying unfound in a village they've left isn't theirs to walk back for.
 /// </summary>

@@ -17,7 +17,7 @@ if [ ${#models[@]} -eq 0 ]; then
   # weight.py, track_doll.py and car_hugger.py by tools/models/recipes (their high copies
   # baked onto these game meshes, tools/models/overbake.py); the Hollow, the Switchman, the Sleepers, the Clinger and
   # the Soot children are sourced scans: tools/models/recipes. crew_clips is the crew's actions, merged into crew.glb on load.
-  models=(dragger crew_clips)
+  models=(dragger crew_clips sheep)
 fi
 mkdir -p "$out"
 for m in "${models[@]}"; do

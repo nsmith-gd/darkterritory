@@ -563,6 +563,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Vehicles = session.Train.Vehicles,
         Bodies = session.World.Bodies.All,
         Diverging = session.Train.Diverging,
+        // Only where this machine runs the catch (solo): a client's world has no word of it (Lineside.Caught is the host's).
+        DropCaught = session is PrototypeSession && session.World.Lineside is { } lineside ? lineside.Caught : null,
         Stands = session.World.Switches,
     };
     double last = timer.Elapsed.TotalSeconds, titleAt = 0;
@@ -778,7 +780,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             : cinematic ? Views.Wreck(session.Train.Wreck!, DerailSequence.OrbitSeconds(wreckTuning, session.WreckSeconds))
             : chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
         // E.9: the lamps go out down the train as the camera pulls back, and stay lit (or not) as far as it can see.
-        // E.9: the outro opens on the repair kit's locker standing open and empty (note 170).
+        // E.9: the outro opens on the repair kit's locker standing open and empty (note 172).
         scene.KitLockerOpen = outro;
         scene.LampsOut = outro || session.World.Run?.End == DarkTerritory.Sim.Run.RunEnd.Stranded ? Views.StrandedLampsOut(session.Train.Frames.Count, outroTuning, session.OutroSeconds) : 0;
         scene.LampRange = outro ? 400 : 60;
@@ -819,11 +821,14 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         {
             lighting.FogDensity = (float)r.Weather.FogDensity;
             lighting.Wetness = r.Weather.Wet ? 1 : 0;
+            lighting.Frost = look?.Tuning.Atmosphere.Cold.Frost(r.Weather.Cold) ?? 0;
         }
         if (session.StrandedOutro)
             Views.CinematicFog(ref lighting, Views.StrandedDistance(session.Train, session.World.WreckTuning.Stranded, session.OutroSeconds));
         scene.FireGlow = session.Train.BoilerTuning is { } bt ? GreyboxScene.FireLook(session.Train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
         scene.WrenchRacked = !session.Train.Boiler.WrenchOut;
+        scene.CordPulled = DarkTerritory.Game.Art.CrewActs.CrewWhistling(session.World);
+        scene.Cut = DarkTerritory.Game.Art.SceneArt.Cuts(session.Train);
         // Replaying the run-in, the train's still on the rails: no wreck yet, no sparks.
         scene.Wreck = replay is { Off: false } ? null : session.Train.Wreck;
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;

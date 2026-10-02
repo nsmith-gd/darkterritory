@@ -5,7 +5,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Art;
 
 /// <summary>
-/// The crew lockers (ARCHITECTURE §8 note 170): a row of tall iron lockers along the kit car's left wall, painted the guard
+/// The crew lockers (ARCHITECTURE §8 note 172): a row of tall iron lockers along the kit car's left wall, painted the guard
 /// van's olive, each with its grade on an enamel plate on its door in the HUD's own pixel font (as the lineside boards
 /// have theirs, <see cref="SignKit"/>). The row's cabinets are one piece in the car's frame, open-fronted, with their shelves;
 /// each door is its own piece, hung on its hinge at the cabinet's front edge, shut across it or swung out into the aisle.
@@ -97,13 +97,17 @@ public static class LockerKit
             foreach (char ch in name)
             {
                 var g = font.Glyph(ch);
+                // Each row's run of lit pixels is one quad, not one per pixel: the door is a small prop (800 triangles).
                 for (int gy = 0; gy < g.GetLength(0); gy++)
                     for (int gx = 0; gx < g.GetLength(1); gx++)
-                        if (g[gy, gx])
-                        {
-                            float z0 = z - gx * px, y0 = y - gy * px;
-                            k.Quad(new Vector3(x, y0, z0), new Vector3(x, y0, z0 - px), new Vector3(x, y0 - px, z0 - px), new Vector3(x, y0 - px, z0));
-                        }
+                    {
+                        if (!g[gy, gx]) continue;
+                        int run = gx;
+                        while (run + 1 < g.GetLength(1) && g[gy, run + 1]) run++;
+                        float z0 = z - gx * px, z1 = z - (run + 1) * px, y0 = y - gy * px;
+                        k.Quad(new Vector3(x, y0, z0), new Vector3(x, y0, z1), new Vector3(x, y0 - px, z1), new Vector3(x, y0 - px, z0));
+                        gx = run;
+                    }
                 z -= font.Advance * px;
             }
         }

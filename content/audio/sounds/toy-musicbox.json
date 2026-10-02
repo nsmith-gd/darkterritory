@@ -1,5 +1,5 @@
 // Player action (tier 4), a music box in someone's hands (GDD v1.4 §19, App. C item 4): a little steel comb plucked through
-// a lullaby's six notes, over and over, thin and bright. It feeds the Choir's meter in the carrier's name (note 172).
+// a lullaby's six notes, over and over, thin and bright. It feeds the Choir's meter in the carrier's name (note 174).
 {
   "tier": 4, "loop": true, "cycleSeconds": 2.4, "maxInstances": 4, "minDistance": 2, "maxDistance": 30, "gainDb": -13,
   "layers": [

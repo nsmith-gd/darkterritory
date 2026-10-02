@@ -56,7 +56,7 @@ public static class Staging
 
     static Double3 GreyboxPosition(Enemy e, TrainOnLine train) =>
         e.Attached >= train.Frames.Count ? e.Local : e.WorldPosition(train);
-    /// <summary>Crates and a lamp on car 2's roof and a body on car 3's, dropped and left to settle.</summary>
+    /// <summary>Crates, a lamp and a rescued child on car 2's roof and a body on car 3's, dropped and left to settle.</summary>
     public static Sim.Physics.Bodies Bodies(TrainOnLine train, string content)
     {
         var tuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
@@ -66,6 +66,8 @@ public static class Staging
         bodies.SpawnCrate(train, 2, new Double3(0.5, roof + 0.3, 1.0)).Yaw = 0.4;
         bodies.SpawnCrate(train, 2, new Double3(-0.4, roof + 0.6, 2.2)).Yaw = -0.3;
         bodies.SpawnCrate(train, 2, new Double3(0.1, roof + 0.2, -1.5), Sim.Physics.BodyKind.Lamp);
+        // A rescued child (GDD §19), set down on the roof by the lamp.
+        bodies.SpawnCrate(train, 2, new Double3(-0.6, roof + 0.4, -0.4), Sim.Physics.BodyKind.Child);
         var dead = Sim.Player.PlayerMotor.SpawnOnRoof(train, 3, -2, player) with { Health = 0, Yaw = 1.2 };
         bodies.SpawnRagdoll(train, 9, dead);
         for (int i = 0; i < 90; i++)
@@ -119,13 +121,37 @@ public static class Staging
     /// crew_clips.py's): on car 2's roof one carrying a crate, one heaving at a hatch, one winding the brake wheel at its
     /// end, one standing by with a crowbar; and on the last gun car, a gunner sat in the cannon's seat.
     /// </summary>
+    /// <summary>
+    /// A row of the crew down car 2's roof, each at one of <paramref name="acts"/> (CrewPose names, dt screenshot --act
+    /// smash,pry,...: the roof view looks at them), facing the camera; the smash and pry with a crowbar in hand, the lantern
+    /// with the hand lamp hung from the fist.
+    /// </summary>
+    /// <param name="survivor">Who they all are (dt screenshot --survivor prisoner|wildlander): freed survivors' figures (App. D.8).</param>
+    public static List<Crewmate> Acts(TrainOnLine train, string content, IEnumerable<string> acts, Art.Survivor survivor = Art.Survivor.None)
+    {
+        var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
+        var crew = new List<Crewmate>();
+        int i = 0;
+        foreach (var name in acts)
+        {
+            var act = Enum.Parse<Art.CrewPose>(name.Replace("_", ""), ignoreCase: true);
+            var s = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, -6 + 1.5 * i, player, i % 2 == 0 ? -0.5 : 0.5) with { Yaw = Math.PI + (i % 2 == 0 ? 0.5 : -0.5) };
+            var tool = act is Art.CrewPose.Smash or Art.CrewPose.Pry ? Sim.Player.Tool.Crowbar : Sim.Player.Tool.None;
+            crew.Add(new Crewmate((byte)(20 + i), Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true,
+                Act: act, Holding: tool, Lamp: act is Art.CrewPose.Lantern or Art.CrewPose.LanternWalk, Survivor: survivor));
+            i++;
+        }
+        return crew;
+    }
+
     public static List<Crewmate> Working(TrainOnLine train, string content)
     {
         var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
         Crewmate At(byte id, int car, double x, double z, double yaw, Art.CrewPose? act, Sim.Player.Tool tool = Sim.Player.Tool.None)
         {
             var s = Sim.Player.PlayerMotor.SpawnOnRoof(train, car, z, player, x) with { Yaw = yaw };
-            return new Crewmate(id, Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true, Act: act, Holding: tool);
+            return new Crewmate(id, Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true, Act: act, Holding: tool,
+                Lamp: act == Art.CrewPose.Lantern);
         }
         var crew = new List<Crewmate>
         {
@@ -180,6 +206,22 @@ public static class Staging
     public const byte LoneId = 4;
 
     /// <summary>
+    /// The staged track debris as the kind its id makes it (<c>dt screenshot --threats --debris k</c>, Art/DebrisKit: 0 a
+    /// fallen pine, 1 a rockfall, 2 a heap of old ties and a rail), where it lies 40 m up the line in the lamp.
+    /// </summary>
+    public static List<Enemy> Debris(List<Enemy> threats, string kind)
+    {
+        if (kind.Length == 0 || threats.OfType<Sleepers>().FirstOrDefault() is not { } was)
+            return threats;
+        var debris = new Sleepers(int.Parse(kind));
+        debris.Restore(was.Phase, was.PhaseSeconds, was.Health, was.Attached, was.Local, was.LineDistance, was.Lateral, was.Height, was.Extra, was.Extra2);
+        threats[threats.IndexOf(was)] = debris;
+        return threats;
+    }
+    /// <summary>How far out from its gap the staged Whistler's nest is (a camera on the trail: <c>--whistler nest --view trail</c>).</summary>
+    public const double NestOut = 24;
+
+    /// <summary>
     /// The staged Whistler as it goes (<c>dt screenshot --whistler</c>): <c>fold</c> hidden in its gap (App. A.4 HIDE),
     /// <c>whistle</c> pulling the cord, <c>watch</c> watching the gap's mouth after (WAIT). The <c>gapside</c> view looks in.
     /// </summary>
@@ -189,10 +231,11 @@ public static class Staging
             return threats;
         if (mode == "nest" && train is not null && w.Attached >= 0)
         {
-            // At its nest with its catch (App. A.4): loose, off the train's left a dozen metres out from its gap, on the ground.
+            // At its nest with its catch (App. A.4): loose, off the train's left, the run out from its gap done (GreyboxScene
+            // sets it on the land, its trail behind it).
             var f = train.Frames[w.Attached];
-            var at = f.ToWorld(w.Local + new Double3(-12, 0, 2)) with { Y = f.ToWorld(Double3.Zero).Y };
-            w.Restore(SpinePhase.Grab, 18, w.Health, -1, at, 0, 0, 0, 0, 0);
+            var at = f.ToWorld(w.Local + new Double3(-NestOut, 0, 0)) with { Y = f.ToWorld(Double3.Zero).Y };
+            w.Restore(SpinePhase.Grab, 18, w.Health, Enemy.Loose, at, 0, 0, 0, 0, 0);
             return threats;
         }
         var (phase, extra) = mode switch

@@ -280,7 +280,7 @@ public static class Hud
         if (kit.Carrier >= 0)
             return "A CREWMATE HAS THE REPAIR KIT: IT MENDS IT, AT THE FIREBOX";
         int car = consist.IndexOf(kit.Parent);
-        // In its locker (note 170): the crew learn which.
+        // In its locker (note 172): the crew learn which.
         if (car > 0 && kit.Stowed && kit.Locker < world.Train.Frames[kit.Parent].Shape.Lockers.Count)
             return $"THE REPAIR KIT MENDS IT. IT'S IN THE {world.Train.Frames[kit.Parent].Shape.Lockers[kit.Locker].Name}'S LOCKER, CAR {car}";
         return car > 0 ? $"THE REPAIR KIT MENDS IT. IT'S IN CAR {car}" : car == 0 ? "THE REPAIR KIT MENDS IT. IT'S HERE ON THE ENGINE"
@@ -306,7 +306,7 @@ public static class Hud
     };
 
     /// <summary>
-    /// At a crew locker's door (note 170): held, Use opens or shuts it; tapped, it takes the top thing off its shelves or
+    /// At a crew locker's door (note 172): held, Use opens or shuts it; tapped, it takes the top thing off its shelves or
     /// puts what's in your hands on one. Null away from one, or with something in your hands that doesn't go in.
     /// </summary>
     static string? LockerPrompt(Sim.World world, in PlayerState p, int playerId)
@@ -661,7 +661,7 @@ public static class Hud
             if (CrewActions.AtTheRupture(p, train, world.Hand) && train.BoilerTuning is { } rt)
                 return $"[E] HOLD: MEND THE BOILER WITH THE KIT ({p.ActionProgress / rt.RepairSeconds * 100:0}%)";
         }
-        // A crew locker in front of you (note 170): its door, and its shelves.
+        // A crew locker in front of you (note 172): its door, and its shelves.
         if (LockerPrompt(world, p, s.PlayerId) is { } locker)
             return locker;
         if (world.Bodies.CarriedBy(s.PlayerId) is { } carried)

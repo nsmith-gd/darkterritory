@@ -103,7 +103,7 @@ public static class AudioBench
         bool chaos = scenario == "chaos", tells = chaos || scenario == "tells";
         // "wreck" (T117): the train comes off half a second in, heard from beside the line where the engine left it.
         bool wreck = scenario == "wreck";
-        // "toys" (note 172): the squeaker, the music box and the wind-up drummer, each in a crewmate's hands on the listener's
+        // "toys" (note 174): the squeaker, the music box and the wind-up drummer, each in a crewmate's hands on the listener's
         // roof, a few metres apart: what the meter's being fed, heard over the train.
         if (scenario == "toys")
         {
