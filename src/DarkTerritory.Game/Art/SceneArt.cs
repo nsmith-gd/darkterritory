@@ -642,8 +642,9 @@ public sealed partial class SceneArt(Look look)
     /// and the hose parted.</param>
     /// <param name="charred">How charred it is by a fire (0..1, <see cref="Effects.Burning.Char"/>): the body's paint and boards
     /// blackened toward soot, the scars of the burn the mask draws.</param>
+    /// <param name="utility">A utility car (GDD §10): its crew fit-out in place of a load (<see cref="TrainKit.UtilityFit"/>).</param>
     public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, bool emergency, long tick = -1, int cutEnds = 0,
-        float charred = 0)
+        float charred = 0, bool utility = false)
     {
         var shape = frame.Shape;
         var m = FrameMatrix(frame, eye);
@@ -680,7 +681,11 @@ public sealed partial class SceneArt(Look look)
         }
         // Its number, the vehicle's id (the cars counted back from the engine as they left; a car keeps its number when
         // the ones ahead of it are cut away), worn and eaten with the body.
-        if (loadApart)
+        // A utility car (GDD §10): fitted out for the crew where a load would go (TrainKit.UtilityFit).
+        if (utility && !engine)
+            mesh.Instances.Add(new MeshInstance(Piece($"utility:{ShapeKey(shape)}", () => TrainKit.UtilityFit(Look, shape)), m,
+                emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
+        else if (loadApart)
         {
             var cargo = vehicle!.Cargo;
             mesh.Instances.Add(new MeshInstance(Piece($"load:{ShapeKey(shape)}:{cargo}:{variant}", () => TrainKit.Load(Look, shape, cargo, variant)), m,

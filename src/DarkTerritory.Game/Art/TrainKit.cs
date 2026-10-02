@@ -1129,6 +1129,74 @@ public static class TrainKit
     /// a crate's body, scaled a little to the cell, turned a touch either way so the face isn't one plane. The plain crate
     /// stack when the cargo has no case of its own (<see cref="LoadProp"/>) or it isn't built.
     /// </summary>
+    /// <summary>
+    /// A utility car's fit-out (GDD §10: "experienced crews run engine, armour, cannons, utility cars"; §4's read: "crew /
+    /// utility car: cramped, lamp-lit, human-scale"), in the cargo car's body where its load would be: bunks two high down
+    /// one side, a pot-bellied stove at the rear end with its pipe up through the roof, a table and benches, lockers and
+    /// a coat rail, the floor worn; and outside, its lit windows and the stovepipe smoking, so it reads from the roofs as
+    /// where the crew lives. <see cref="StovePipe"/> is where the pipe comes out.
+    /// </summary>
+    public static MeshAsset UtilityFit(Look? look, CarShape shape)
+    {
+        var k = new Kit(look, 990);
+        var room = shape.Interior!.Value;
+        float w = (float)shape.HalfWidth, l = (float)shape.HalfLength, h = (float)shape.RoofHeight;
+        float floor = (float)room.Min.Y + 0.1f, xIn = (float)room.Max.X, zMin = (float)room.Min.Z + 0.3f, zMax = (float)room.Max.Z - 0.3f;
+        // The bunks: down the right side, a lower and an upper berth each with its blanket, end boards between.
+        foreach (float y in new[] { floor + 0.45f, floor + 1.35f })
+        {
+            k.Use("wood_grey", Palette.DeepBrown, 0.8f, 0, tile: 1);
+            k.Box(new Vector3(xIn - 0.75f, y - 0.06f, zMin + 1.2f), new Vector3(xIn, y, zMax - 0.4f));
+            k.Use("wool", Palette.BlueGrey, 0.9f, 0, tile: 1.4f);
+            k.Box(new Vector3(xIn - 0.72f, y, zMin + 1.25f), new Vector3(xIn - 0.04f, y + 0.12f, zMax - 0.45f), Kit.Faces.All & ~Kit.Faces.NegY);
+        }
+        k.Use("wood_grey", Palette.DeepBrown, 0.8f, 0, tile: 1);
+        for (float z = zMin + 1.2f; z <= zMax - 0.35f; z += (zMax - zMin - 1.6f) / 3)
+            k.Box(new Vector3(xIn - 0.78f, floor, z - 0.03f), new Vector3(xIn, floor + 1.75f, z + 0.03f));
+        // The stove at the rear end on the left, on its iron plate, its door to the car and its pipe up through the roof.
+        var stove = StoveAt(shape);
+        k.Use("iron_plate", Palette.IronGrey, 0.8f, 0.3f);
+        k.Box(new Vector3(stove.X - 0.45f, floor - 0.02f, stove.Z - 0.45f), new Vector3(stove.X + 0.45f, floor + 0.02f, stove.Z + 0.45f));
+        k.Use("iron_smokebox", Palette.SootBlack, 0.9f, 0.3f);
+        k.Cylinder(new Vector3(stove.X, floor, stove.Z), new Vector3(stove.X, floor + 0.75f, stove.Z), 0.26f, 10, radiusB: 0.22f);
+        k.Cylinder(new Vector3(stove.X, floor + 0.75f, stove.Z), new Vector3(stove.X, h + 0.7f, stove.Z), 0.07f, 8);
+        k.Lathe(new Vector3(stove.X, h + 0.7f, stove.Z), [new(0.15f, 0), new(0.15f, 0.08f), new(0.02f, 0.2f)], 8, smooth: false);
+        // Its door's glow.
+        k.Use("ember_crack", Palette.FurnaceOrange, 0.2f, 0);
+        k.Panel(new Vector3(stove.X, floor + 0.32f, stove.Z - 0.25f), -Vector3.UnitZ, Vector3.UnitY, 0.18f, 0.14f);
+        // A table and its two benches mid-car on the left, a coat rail on the end wall, lockers by the door.
+        k.Use("wood_crate", Palette.DeepBrown, 0.85f, 0, tile: 1);
+        float tx = -xIn + 0.55f, tz = 0.4f;
+        k.Box(new Vector3(tx - 0.4f, floor + 0.72f, tz - 0.6f), new Vector3(tx + 0.4f, floor + 0.78f, tz + 0.6f));
+        k.Box(new Vector3(tx - 0.05f, floor, tz - 0.05f), new Vector3(tx + 0.05f, floor + 0.72f, tz + 0.05f));
+        foreach (float bz in new[] { tz - 0.95f, tz + 0.95f })
+            k.Box(new Vector3(tx - 0.38f, floor + 0.4f, bz - 0.17f), new Vector3(tx + 0.38f, floor + 0.46f, bz + 0.17f));
+        k.Use("paint_olive", Palette.MuddyOlive, 0.9f, 0.2f);
+        k.Box(new Vector3(-xIn, floor, zMin + 0.2f), new Vector3(-xIn + 0.45f, floor + 1.8f, zMin + 1.4f));
+        k.Use("coat_oilskin", Palette.MuddyOlive, 0.9f, 0.2f, tile: 1);
+        for (int i = 0; i < 3; i++)
+            k.Box(new Vector3(-xIn + 0.05f, floor + 0.9f, zMax - 2.6f + i * 0.45f), new Vector3(-xIn + 0.2f, floor + 1.6f, zMax - 2.25f + i * 0.45f));
+        // Outside: its windows lit, along both sides, and a stencilled band to say what it is.
+        k.Use("window_lit", Palette.LampAmber, 0.2f, 0.4f, tile: 0.5f);
+        foreach (int side in new[] { -1, 1 })
+            for (float z = -l + 2.0f; z < l - 1.6f; z += (2 * l - 3.6f) / 3)
+            {
+                float x = side * (w + 0.012f);
+                k.Panel(new Vector3(x, floor + 1.65f, z), new Vector3(side, 0, 0), Vector3.UnitY, 0.55f, 0.42f);
+                k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.3f);
+                k.Box(new Vector3(x - 0.03f, floor + 1.9f, z - 0.36f), new Vector3(x + 0.03f, floor + 1.97f, z + 0.36f));
+                k.Use("window_lit", Palette.LampAmber, 0.2f, 0.4f, tile: 0.5f);
+            }
+        return k.Build("utility-fit");
+    }
+
+    /// <summary>Where a utility car's stove stands (its rear end, on the left), so its pipe's smoke comes out over it.</summary>
+    public static Vector3 StoveAt(CarShape shape)
+    {
+        var room = shape.Interior!.Value;
+        return new Vector3((float)room.Min.X + 0.55f, (float)room.Min.Y + 0.1f, (float)room.Max.Z - 0.75f);
+    }
+
     public static MeshAsset Load(Look? look, CarShape shape, CargoKind cargo, int variant)
     {
         var k = new Kit(look, 64 + (int)cargo);

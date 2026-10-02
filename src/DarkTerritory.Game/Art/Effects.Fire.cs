@@ -6,6 +6,25 @@ namespace DarkTerritory.Game.Art;
 public sealed partial class Effects
 {
     /// <summary>
+    /// A stove's smoke out of its pipe on a car's roof (the crew's car, the guard van): a thin grey thread rising, the
+    /// train's wind laying it back over the roof behind.
+    /// </summary>
+    public void StoveSmoke(MeshBuilder mesh, Vector3 top, Vector3 u, Vector3 b, float speed, double t, int seed)
+    {
+        if (_smoke < 0)
+            return;
+        for (int k = 0; k < 10; k++)
+        {
+            float h = Hash(k * 2.13f + seed * 3.7f), period = 4.0f + h * 1.5f;
+            float age = (float)((t * (0.9 + 0.2 * h) + h * 11) % period), s = age / period;
+            var p = top + u * (age * 0.55f / (1 + MathF.Abs(speed) * 0.1f)) + b * (MathF.Abs(speed) * age * 0.6f)
+                + new Vector3(MathF.Sin(age * 1.3f + h * 6) * 0.1f, 0, MathF.Cos(age * 0.9f + h * 4) * 0.1f) * s;
+            float a = 0.38f * MathF.Sin(MathF.PI * MathF.Min(1, s * 1.2f + 0.05f));
+            mesh.Billboard(p, 0.18f + s * 0.9f, h * 6.28f + age * 0.2f, new Vector4(new Vector3(0.22f, 0.21f, 0.2f), a), _smoke, FxBlend.Alpha, (int)(s * 15.99f), 4);
+        }
+    }
+
+    /// <summary>
     /// A breath in the cold (GDD §26): every few seconds (quicker when they're working) a puff out of the mouth, out the
     /// way they face, spreading and rising and gone. <paramref name="amount"/> how much it shows (the night's cold).
     /// </summary>

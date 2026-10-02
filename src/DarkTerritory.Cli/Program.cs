@@ -969,6 +969,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         DropCaught = mail is not null ? id => id == mail.Id && Opt(args, "--mail", 0) > 0 : null,
         StagedCatch = Opt(args, "--mail", 0),
         StagedCold = args.Contains("--cold") ? Opt(args, "--cold", 0) : null,
+        // --utility i[,j]: those cars drawn as utility cars, fitted out for the crew (the sim has no utility kind yet).
+        Utility = Str(args, "--utility", "") is { Length: > 0 } utilities && utilities.Split(',').Select(int.Parse).ToHashSet() is var utilitySet
+            ? i => utilitySet.Contains(i) : null,
         // --burnt car,s: that car gutted by a fire that went out s seconds ago (its char, its smoulder).
         StagedBurnt = Str(args, "--burnt", "") is { Length: > 0 } burnt && burnt.Split(',') is var bp
             ? (int.Parse(bp[0]), bp.Length > 1 ? double.Parse(bp[1]) : 30) : null,
@@ -1453,6 +1456,7 @@ static int Usage()
                      [--lit]      every Holdout occupied, its lamp burning (GDD App. D)
                      [--ps2]      the era comparison mode   [--muzzle] the guns just fired   [--builds n] time n warm builds
                      [--integrity a,b,..] each car's condition, front to back (scars and damage states)
+                     [--utility i,j]   those cars as utility cars, fitted out for the crew (bunks, stove, table)
                      [--cold c]   a night that cold (0..1): frost on what's outdoors, breath from every mouth
                      [--burnt car,s]   that car gutted by a fire out s seconds ago: charred, smouldering
                      [--route tier:seed --structure girder|truss|trestle|viaduct|causeway|retainingwall]   the night's first of the plan's structures of that type, the train on it, from off its side
