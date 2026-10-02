@@ -74,7 +74,8 @@ public class HitConfirmTests
         {
             n.Crew[1] = LaidOn(n, n.Crew[1], doll.HitCentre(n.Train));
             var muzzle = n.Train.Frames[0].ToWorld(Guns.Mount(n.Train, 0)!.Value.Position);
-            bool inRange = (doll.HitCentre(n.Train) - muzzle).Length < G.Range - 2;
+            // (A few ticks in: the world's targets are last tick's, and she's only just been put there.)
+            bool inRange = (doll.HitCentre(n.Train) - muzzle).Length < G.Range - 2 && i >= 3;
             n.Run(1.0 / SimConstants.TickRate, id => id == 1 && inRange ? Fire : default);
             fired |= n.Shots.Count > 0;
         }

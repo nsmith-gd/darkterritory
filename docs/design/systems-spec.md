@@ -275,7 +275,7 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 | Parameter | Value |
 |---|---|
 | Fire rate | 3/s |
-| Effective range | 80m |
+| Effective range | 220m (T121: the forward gun covers the Track Doll from the 200 m it shows in the lamp; the stack masks the rail closer than ~60 m) |
 | Traverse | 200° |
 | **Dead zone** | **20° each side along the train's own body** |
 | Ammunition | 200 rounds/gun, resupply at POI |
