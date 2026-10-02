@@ -383,7 +383,6 @@ def drip(rng, into="water", size=1.0):
 def rain(n, rng, rate, surface="ground", loop=True):
     """Rain: thousands of drop impacts a second, each tiny, a few big (a power law), Poisson in time (`rate` drops/s).
     On tin each drop rings the roof's panel modes; on the ground each is a soft splat; on water a bubble."""
-    events = []
     L = n / SR
     m = int(rate * L)
     ts = np.sort(rng.uniform(0, L, m))

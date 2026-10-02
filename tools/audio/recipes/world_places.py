@@ -13,7 +13,7 @@ import numpy as np
 import dsp
 import synth
 from build import recipe
-from dsp import samples, lp, hp, bp, env, mix, fit
+from dsp import samples, lp, bp, env, mix
 from recipes import world_kit as W
 from recipes.world_kit import norm, seamless, slow, pnoise, cfilter, croom
 from recipes.world_bed import exhaust, outdoors, circ_outdoors, frame_body, src_loop
@@ -61,7 +61,6 @@ def pea_whistle(rng, blasts=2):
     for i in range(blasts):
         L = rng.uniform(0.25, 0.7)
         n = samples(L)
-        tt = np.arange(n) / SR
         f = 3050 * rng.uniform(0.95, 1.05) * (1 + 0.01 * slow(n, 30, rng))
         trill = 0.55 + 0.45 * np.sin(2 * np.pi * np.cumsum(28 + 6 * slow(n, 5, rng)) / SR)
         x = np.sin(2 * np.pi * np.cumsum(f) / SR) * trill + 0.15 * bp(rng.standard_normal(n).astype(np.float32), 2000, 6000)

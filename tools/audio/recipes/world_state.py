@@ -14,7 +14,7 @@ import numpy as np
 import dsp
 import synth
 from build import recipe
-from dsp import samples, lp, hp, bp, env, mix, fit
+from dsp import samples, lp, hp, env, mix, fit
 from recipes import world_kit as W
 from recipes.world_kit import norm, seamless, slow, pnoise, cfilter, croom
 from recipes.world_bed import WHEEL, outdoors, circ_outdoors, rolling
@@ -195,7 +195,6 @@ def _strain_to_burst(takes, rng):
         sources=W.PIECES["iron"], takes=2, lufs=-24)
 def rupture_burst(rng, k):
     L = 6.0
-    n = samples(L)
     b = dsp.Bus(L)
     bang = W.boom(rng, 2.0, f=(30, 38)[k], T=(0.025, 0.018)[k], crack=0.8)
     b.at(0, norm(bang) * 1.4)
@@ -258,7 +257,6 @@ def rupture_steam(rng, k):
         a crew can hear coming: grip turning into a slide. 10 s exact cycle.""", loop=True, takes=1, lufs=-20)
 def brake_fade(rng, k):
     n = samples(10.0)
-    t = np.arange(n) / SR
     g = W.friction(n, rng, WHEEL, rough=0.5, grit=1.0, q=30, loop=True)
     g = cfilter(g, lambda f: (f / 600) ** 2 / (1 + (f / 600) ** 2) / (1 + (f / 9000) ** 2))
     # grab and slip: short surges of bite at uneven intervals

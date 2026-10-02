@@ -327,6 +327,10 @@ CUES = {
         O("impact", "A car hitting the ground", vars=3, mats=["ground"]),
         L("grind", "A wreck grinding along the ballast"),
         O("settle", "Wreckage settling", vars=4),
+        # The director (2 Oct): a derailment is many sounds the physics triggers, not one; these three complete the set.
+        O("collide", "One car slamming into another as the train piles up", vars=4),
+        L("rail-scrape", "Steel dragged along a rail head (a car body or a truck sliding on the rail)"),
+        O("tear", "Metal and wood ripping apart under force (a car body or frame torn open)", vars=4),
     ],
     "state-breach": [
         O("breach", "A car's shell giving way: iron wrenched open", vars=3),

@@ -12,7 +12,7 @@ import numpy as np
 import dsp
 import synth
 from build import recipe
-from dsp import samples, lp, hp, bp, env, mix, fit
+from dsp import samples, lp, bp, env, mix
 from recipes import world_kit as W
 from recipes.world_kit import norm, seamless, slow, pnoise, cfilter
 
@@ -23,7 +23,8 @@ RADIO = (300, 3000)
 def speaker(x):
     """Through the set's little speaker: 300 Hz-3 kHz, a cone resonance, a touch of grit."""
     y = dsp.peak(bp(x, *RADIO, order=3), 1400, 2.0, 4.0)
-    return dsp.saturate(y / (np.max(np.abs(y)) + 1e-9), 4)
+    y = dsp.saturate(y / (np.max(np.abs(y)) + 1e-9), 4)
+    return bp(y, *RADIO, order=3)                     # the grit's own harmonics are cut by the same little speaker
 
 
 def burst(rng, L, cut=0.008):
@@ -92,11 +93,10 @@ def squelch(rng, k):
         loop=True, takes=1, lufs=-26)
 def static(rng, k):
     n = samples(10.0)
-    t = np.arange(n) / SR
     fade = np.clip(0.6 + 0.35 * slow(n, 0.35, rng) + 0.1 * slow(n, 3, rng), 0.15, None)
     hiss = pnoise(n, rng) * fade
     cr = W.place(n, [(tt, W.body(rng, rng.uniform(800, 2500), W.PLATE, decay=0.002, length=0.01, count=4),
-                      min(1.0, 0.05 * rng.pareto(1.5) + 0.05) * 6) for tt in W.poisson(10.0, 25, rng)])
+                      min(1.0, 0.05 * rng.pareto(1.5) + 0.05) * 3) for tt in W.poisson(10.0, 25, rng)])
     f = 1100 + 250 * slow(n, 0.1, rng)
     cyc = np.sum(f) / SR
     f *= round(cyc) / cyc

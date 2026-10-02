@@ -13,7 +13,7 @@ import numpy as np
 import dsp
 import synth
 from build import recipe
-from dsp import samples, lp, hp, bp, env, mix, fit
+from dsp import samples, lp, hp, bp, env, mix
 from recipes import world_kit as W
 from recipes.world_kit import norm, seamless, slow, pnoise, cfilter, croom
 from recipes.world_bed import rolling, exhaust, coupling, outdoors, circ_outdoors, frame_body

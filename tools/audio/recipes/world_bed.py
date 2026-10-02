@@ -12,7 +12,7 @@ import numpy as np
 import dsp
 import synth
 from build import recipe
-from dsp import samples, lp, hp, bp, env, mix, fit
+from dsp import samples, lp, hp, env, mix, fit
 from recipes import world_kit as W
 from recipes.world_kit import norm, seamless, slow, pnoise, cfilter, croom
 
@@ -20,10 +20,6 @@ SR = dsp.SR
 # A 0.9 m car wheel's axial modes and a 12 m rail's ring (pinned between sleepers); the stuff a train is made of.
 WHEEL = [380, 1050, 1880, 2750, 3640, 4550, 5450]
 CHIMNEY = [62, 195, 420, 655]   # smokebox and chimney as a Helmholtz resonator, then the chimney's pipe modes in hot gas
-
-
-def loop_cycle(seconds):
-    return samples(seconds)
 
 
 def outdoors(y, rng, wet=0.12):
@@ -75,7 +71,7 @@ def vent_open(rng, k):
         so it lives like real steam instead of sitting still like noise. A few spits of water ride in it. Built as an
         exact 10 s cycle (noise, wander and reverb all periodic), so the loop has no seam.""", loop=True, takes=1, lufs=-18)
 def vent_blow(rng, k):
-    n = loop_cycle(10.0)
+    n = samples(10.0)
     y = W.jet(10.0, rng, n=n, **VENT)
     spits = [(t, W.sputter(0.12, rng, rate=40, size=0.8), 1.0) for t in W.poisson(10.0, 0.7, rng)]
     y = y + W.place(n, spits) * np.std(y) * 1.2
@@ -133,7 +129,7 @@ def boiler(rng, n, heat):
         the shell's own low hum, and a faint gland leak. At low pressure the roar is slow and soft. 12 s exact cycle.""",
         loop=True, takes=1, lufs=-20)
 def roar_low(rng, k):
-    n = loop_cycle(12.0)
+    n = samples(12.0)
     return seamless(croom(boiler(rng, n, 0.2), "cab", 0.25, rng))
 
 
@@ -144,7 +140,7 @@ def roar_low(rng, k):
         and goes) as a warning before they lift. Same parts at the same distance as roar-low, so the code's crossfade by
         pressure is one boiler getting angrier. 12 s exact cycle.""", loop=True, takes=1, lufs=-20)
 def roar_high(rng, k):
-    n = loop_cycle(12.0)
+    n = samples(12.0)
     return seamless(croom(boiler(rng, n, 0.9), "cab", 0.25, rng))
 
 
@@ -214,6 +210,12 @@ def rod_clank(rng, k):
 
 # ---- Wheel on rail ----------------------------------------------------------------------------------------------------------
 
+JOINT_CLANGS = ["impactMetal_heavy_000", "impactMetal_heavy_001", "impactMetal_heavy_002", "impactMetal_heavy_003",
+                "impactMetal_heavy_004", "impactMetal_medium_001"]
+JOINT_PLATES = ["impactPlate_heavy_004", "impactPlate_heavy_002", "impactPlate_heavy_000", "impactPlate_heavy_001",
+                "impactPlate_heavy_003", "impactPlate_medium_003"]
+
+
 def joint(rng, k):
     """One axle over a rail joint: the wheel drops off the battered end and hits the next rail (a hard contact that rings
     the rail and the wheel), with the truck's weight thumping into the sleepers and the car's frame."""
@@ -221,9 +223,10 @@ def joint(rng, k):
     rail = W.body(rng, rng.uniform(380, 460), W.BAR, decay=rng.uniform(0.04, 0.07), contact=0.00035, length=L)
     wheel = W.body(rng, WHEEL[0] * rng.uniform(0.95, 1.05), [f / WHEEL[0] for f in WHEEL], decay=0.03, damp=0.3,
                    contact=0.0003, length=L)
-    clang = W.rec(f"kenney_impact-sounds:impactMetal_heavy_00{(0, 2, 4, 3, 0, 2)[k]}", semis=-rng.uniform(3, 6), hi=4500,
-                  tau=0.05)
-    plate = W.rec(f"kenney_impact-sounds:impactPlate_heavy_00{(4, 2, 0, 1, 3, 4)[k]}", semis=-rng.uniform(0, 2), hi=2500)
+    # a different real clang and plate under every take, each plate at its own pitch (some of Kenney's plate takes are
+    # the same plate struck twice)
+    clang = W.rec("kenney_impact-sounds:" + JOINT_CLANGS[k], semis=-rng.uniform(3, 6), hi=4500, tau=0.05)
+    plate = W.rec("kenney_impact-sounds:" + JOINT_PLATES[k], semis=(0.0, -1.2, -2.4, -0.6, -1.8, -3.0)[k], hi=2500)
     y = mix(norm(rail) * 0.5, norm(wheel) * 0.35, norm(clang) * 0.45, norm(plate) * 0.6, W.knock(rng, 70, 0.2) * 0.55)
     if rng.random() < 0.6:
         # the drop: a lighter tick as the wheel leaves the near rail end, a few ms before the hit
@@ -238,8 +241,7 @@ def joint(rng, k):
         ring (a steel bar's modes, the rail pinned between sleepers) and a wheel's damped ring, over the thump of the
         truck's weight into the sleepers. Most takes have the small tick of the wheel leaving the near rail end a few ms
         before the hit. Fired per axle, two axles a truck, it's the click-clack.""",
-        sources=[f"kenney_impact-sounds:impactMetal_heavy_00{i}" for i in (0, 2, 3, 4)]
-        + [f"kenney_impact-sounds:impactPlate_heavy_00{i}" for i in range(5)], takes=6, lufs=-29,
+        sources=["kenney_impact-sounds:" + k for k in JOINT_CLANGS + JOINT_PLATES], takes=6, lufs=-29,
         preview=lambda takes, rng: _clickclack(takes, rng))
 def wheel_joint(rng, k):
     return joint(rng, k)
@@ -264,7 +266,7 @@ def _clickclack(takes, rng):
         the slip catches and lets go, sometimes jumping to the other mode. Under it the flange grinds on the rail head
         (rubbing noise rung through the wheel's modes). 10 s exact cycle.""", loop=True, takes=1, lufs=-22)
 def flange(rng, k):
-    n = loop_cycle(10.0)
+    n = samples(10.0)
     on1 = np.clip(1.6 * slow(n, 0.6, rng) + 0.5, 0, 1)
     on2 = np.clip(1.6 * slow(n, 0.5, rng) - 0.3, 0, 1) * (1 - on1 * 0.7)
     sq = W.squeal(n, rng, [2310], on1, wander=0.005) + W.squeal(n, rng, [3620], on2, wander=0.006) * 0.8
@@ -318,7 +320,7 @@ def src_loop(key, n, semis, rng):
         from a tyre worn out of round (1.8 turns a second at 5 m/s), the roar of the rail band, and loose gear ticking
         now and then.""", sources=["sfx_100_v2:loop_ambient_04"], loop=True, takes=1, lufs=-22)
 def roll_slow(rng, k):
-    return seamless(rolling(rng, loop_cycle(10.0), 5.0, -4))
+    return seamless(rolling(rng, samples(10.0), 5.0, -4))
 
 
 @recipe("bed-wheel-rail", "roll-fast", "worn",
@@ -327,7 +329,7 @@ def roll_slow(rng, k):
         seven a second (a flutter in the roar), the rail band louder and brighter, and the loose gear rattling more.""",
         sources=["sfx_100_v2:loop_ambient_04"], loop=True, takes=1, lufs=-22)
 def roll_fast(rng, k):
-    return seamless(rolling(rng, loop_cycle(10.0), 20.0, 2))
+    return seamless(rolling(rng, samples(10.0), 20.0, 2))
 
 
 # ---- Slack action -----------------------------------------------------------------------------------------------------------
@@ -408,7 +410,7 @@ def brake_drag(rng, n, hot, loop=True):
         axial modes, with a low hum of the block vibrating in its hanger. It swells once a wheel turn (a tyre worn out of
         round), and a faint squeal catches and lets go. 10 s exact cycle.""", loop=True, takes=1, lufs=-22)
 def brake_drag_cold(rng, k):
-    n = loop_cycle(10.0)
+    n = samples(10.0)
     return seamless(circ_outdoors(brake_drag(rng, n, 0.0), rng, 0.1))
 
 
@@ -418,7 +420,7 @@ def brake_drag_cold(rng, k):
         harder, the once-a-turn pulse deepened into a judder, and the squeal coming in long bursts. Same distance and
         parts as the cold drag so the code can crossfade them by heat. 10 s exact cycle.""", loop=True, takes=1, lufs=-22)
 def brake_drag_hot(rng, k):
-    n = loop_cycle(10.0)
+    n = samples(10.0)
     return seamless(circ_outdoors(brake_drag(rng, n, 1.0), rng, 0.1))
 
 
@@ -476,7 +478,7 @@ def brake_release(rng, k):
         ladder rungs, lamp brackets, wire) each at 0.2 x speed / diameter, so they slide up and down together with every
         gust. 12 s exact cycle.""", loop=True, takes=1, lufs=-24)
 def wind_slow(rng, k):
-    n = loop_cycle(12.0)
+    n = samples(12.0)
     y, _ = W.wind(n, rng, 8.0, gust=0.14, gust_rate=0.2, buffet=0.3, whistle=0.3, hiss=0.6)
     return seamless(y)
 
@@ -487,7 +489,7 @@ def wind_slow(rng, k):
         fittings' aeolian whistles higher and stronger (gliding with each gust), and loose cloth flapping in the
         peaks. 12 s exact cycle.""", loop=True, takes=1, lufs=-20)
 def wind_fast(rng, k):
-    n = loop_cycle(12.0)
+    n = samples(12.0)
     y, _ = W.wind(n, rng, 22.0, gust=0.13, gust_rate=0.25, buffet=0.7, whistle=0.35, flap=0.6)
     return seamless(W.cyclic(lambda z: dsp.compress(z, -14, 2.5, 0.02, 0.3), norm(y)))
 
@@ -522,7 +524,7 @@ def frame_body(rng, scale, iron=True):
         with the pull. Over it single timber creaks and, now and then, the faint ting of a drawbar under tension; under it
         the low rumble of the weight. 12 s exact cycle.""", loop=True, takes=1, lufs=-22)
 def groan(rng, k):
-    n = loop_cycle(12.0)
+    n = samples(12.0)
     L = n / SR
     ev = []
     for i in range(5):
@@ -544,7 +546,7 @@ def groan(rng, k):
 
 
 @recipe("bed-groan", "creak", "frame",
-        "A single frame creak: a loaded wooden car frame slipping at a joint, low and woody, iron in some",
+        "A single frame creak: a loaded wooden car frame slipping at a joint, low, dry and woody",
         """Modelled stick-slip through a car frame's modes (wood sills, a little iron truss rod): a run of slips that
         catches and speeds up and lets go, a third to one second long, each take a different joint (size, speed). Low and
         dry so it sits in the train's own body rather than sounding like a door.""",
