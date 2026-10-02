@@ -80,4 +80,50 @@ public class CarFireTests
         Assert.False(n.Train.Vehicles[3].LampLit);
         Assert.DoesNotContain(n.World.ActiveEnemies, e => e is CarFire && !e.Gone);
     }
+    [Fact]
+    public void APowderCarAtFullBlazeGoesUpAndKillsWhoeversNearIt()
+    {
+        // GDD §19 "gunpowder and shot: explodes", B.9 "every fire is worse" (note 182). Car 3 full of powder, alight and left:
+        // at full blaze it goes up. Whoever's inside it is killed, the car and its cargo are gone, the cars either side catch,
+        // and every client sees a blast there. A crewmate three cars off is untouched; a rescued child in it is unharmed.
+        var t = Tuning.Enemies.CarFire;
+        var n = new Night(6, speed: 8);
+        int car = 3;
+        n.Train.Vehicles[car].Cargo = CargoKind.Ammunition;
+        var room = n.Train.Frames[car].Shape.Interior!.Value;
+        var child = n.World.Bodies.SpawnCrate(n.Train, car, new Double3(room.Centre.X, room.Min.Y + 0.1, room.Max.Z - 1), BodyKind.Child);
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, t));
+        n.Crew[1] = new PlayerState { Parent = car, Position = new Double3(room.Centre.X, room.Min.Y, fire.Local.Z + 1), Surface = Surface.Deck, Health = P.Health };
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, car + 3 > 6 ? 0 : car + 3, 0, P);
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, car + 1, -4, P);
+        fire.Extra = 0.97;
+        for (int s = 0; s < 60 && n.Train.Vehicles[car].Integrity > 0; s++)
+            n.Run(1);
+        Assert.Equal(0, n.Train.Vehicles[car].Integrity);
+        Assert.Equal(0, n.Train.Vehicles[car].CargoIntegrity);
+        Assert.False(n.Crew[1].Alive);
+        Assert.Equal(DeathCause.Exploded, n.Crew[1].Death);
+        Assert.Equal(P.Health, n.Crew[2].Health);
+        // On the next car's roof, a car's length off: inside the blast's reach, hurt by it (or killed, near its end).
+        Assert.True(n.Crew[3].Health < P.Health);
+        Assert.Contains(n.World.ActiveEnemies, e => e is CarFire && !e.Gone && e.Attached == car - 1);
+        Assert.Contains(n.World.ActiveEnemies, e => e is CarFire && !e.Gone && e.Attached == car + 1);
+        Assert.Contains(n.World.Impacts, i => i.Shooter == -1 && i.Surface == Combat.ImpactSurface.Train);
+        Assert.Contains(child, n.World.Bodies.All);
+        // Within explodeRadius of the blast and no further.
+        var at = n.World.Impacts.First(i => i.Shooter == -1).At;
+        Assert.True((PlayerMotor.WorldPosition(n.Crew[2], n.Train) - at).Length > t.ExplodeRadius);
+        Assert.True((PlayerMotor.WorldPosition(n.Crew[3], n.Train) - at).Length < t.ExplodeRadius);
+    }
+
+    [Fact]
+    public void AFireInACarOfGoodsNeverExplodes()
+    {
+        var n = new Night(6, speed: 8);
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 3, 2, Tuning.Enemies.CarFire));
+        fire.Extra = 0.97;
+        n.Run(20);
+        Assert.True(n.Train.Vehicles[3].Integrity > 0);
+        Assert.DoesNotContain(n.World.Impacts, i => i.Shooter == -1);
+    }
 }

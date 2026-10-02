@@ -153,7 +153,9 @@ public enum DeathCause : byte
     // to the Whistler's nest; seized by the Choir; taken with the caboose by the Passenger.
     Eaten, Suffocated, Devoured, Drained, Carried, Seized, Uncoupled,
     // GDD v1.2 App. D.5: not dead, waiting in the queue for a Holdout (joined after the gate opened).
-    Waiting
+    Waiting,
+    // GDD §19, App. B.9 (note 182): a powder car going up; a cannon fired by the chemicals.
+    Exploded, Poisoned
 }
 
 /// <summary>Conditions a player carries.</summary>

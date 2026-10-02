@@ -262,8 +262,9 @@ public sealed class Gaunt(int id) : Enemy(id)
         int car = w.Parent;
         var vehicle = train.Vehicles[car];
         // What's in a shut crew locker it doesn't get at (note 173); an open one's as good as the floor.
-        var loot = ctx.World.Bodies.All.Where(b => b.Parent == car && b.Carrier < 0 && Bodies.Value(b) > 0 && (!b.Stowed || vehicle.LockerOpen(b.Locker)))
-            .MaxBy(b => Bodies.Value(b));
+        // Never the rescued child (A.6: "cannot be harmed"; note 182): it passes over them for the next best thing.
+        var loot = ctx.World.Bodies.All.Where(b => b.Parent == car && b.Carrier < 0 && Bodies.Prey(b) > 0 && (!b.Stowed || vehicle.LockerOpen(b.Locker)))
+            .MaxBy(b => Bodies.Prey(b));
         if (loot is null && (vehicle.Load <= 0.01 || vehicle.CargoIntegrity <= 0.01))
             return false;
         if (loot is not null)
@@ -419,7 +420,7 @@ public sealed class Follower(int id) : Enemy(id)
     {
         var train = ctx.Train;
         return train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && train.Frames[v.Id].Shape.Interior is not null)
-            .Select(v => (v.Id, Worth: v.Load * v.CargoIntegrity + ctx.World.Bodies.All.Where(b => b.Parent == v.Id).Sum(b => Bodies.Value(b))))
+            .Select(v => (v.Id, Worth: v.Load * v.CargoIntegrity + ctx.World.Bodies.All.Where(b => b.Parent == v.Id).Sum(b => Bodies.Prey(b))))
             .Where(x => x.Worth > 0.01).OrderByDescending(x => x.Worth).ThenBy(x => x.Id).Select(x => (int?)x.Id).FirstOrDefault();
     }
 

@@ -20,7 +20,9 @@ public static class Protocol
     // 12: bookmarks (Bookmark) and the report's bookmarks beside its lines (GDD v1.4 App. D.12, note 176).
     // 13: the dead's creature vote (Ballot, VoteCue) and commendations (Commend, Commendations) (GDD v1.4 App. D.11, D.12; note 180).
     // 14: who everyone is (Looks), a freed survivor carried from an earlier night (GDD v1.4 App. D.8; note 181).
-    public const int Version = 14;
+    // 15: contracts' freight (cargo kinds Medicine, Timber, Coal; the Welcome's cargo and stores), the powder car's blast and
+    //     the chemicals' gas (death causes Exploded, Poisoned), the report's rescued children (GDD v1.4 §9, §19, B.9; note 182).
+    public const int Version = 15;
 }
 
 public enum MessageType : byte

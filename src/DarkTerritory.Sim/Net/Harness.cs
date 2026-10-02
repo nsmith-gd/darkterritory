@@ -26,6 +26,8 @@ public sealed record HarnessOptions
     /// <summary>With a route: run the night as a game (departure, facilities, terminus, dawn) and report the result.</summary>
     public Run.RunTuning? Run { get; init; }
     public double YardLength { get; init; } = 600;
+    /// <summary>The contract's freight the cars leave with (GDD §9, §19; note 182). Goods without one.</summary>
+    public CargoKind Cargo { get; init; } = CargoKind.Goods;
     /// <summary>
     /// The facilities' loading modules. With a crew for it (a driver, a shunter and two for the winch: five bots, or four
     /// with the gunner lending a hand), the bots stop at the winch facilities and load (T32).
@@ -366,7 +368,7 @@ public static class Harness
 
     /// <summary>On a night the cars leave the fortress as they do in the game, part loaded (run.json departureLoad).</summary>
     static TrainOnLine NewTrain(RailLine line, TrainTuning t, HarnessOptions o, BoilerTuning? boiler) =>
-        new(new TrainDynamics(Consist.Uniform(t, o.Cars, o.Run is { } r && o.Route is not null ? r.DepartureLoad : 1)), line, o.StartDistance, boiler);
+        new(new TrainDynamics(Consist.Uniform(t, o.Cars, o.Run is { } r && o.Route is not null ? r.DepartureLoad : 1).Carrying(o.Cargo)), line, o.StartDistance, boiler);
 
     /// <summary>Counts payload bytes both ways for bandwidth reporting.</summary>
     sealed class CountingTransport(ITransport inner) : ITransport

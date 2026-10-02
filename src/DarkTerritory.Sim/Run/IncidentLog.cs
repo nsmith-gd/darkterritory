@@ -119,6 +119,8 @@ public static class IncidentLog
         DeathCause.Struck => "Struck by a tunnel mouth",
         DeathCause.Thrown => "Thrown off on a curve",
         DeathCause.Burned => "Burned in a blazing car",
+        DeathCause.Exploded => "Killed when a powder car went up",
+        DeathCause.Poisoned => "Gassed by the chemicals a cannon was fired beside",
         DeathCause.Gnawed => "Eaten by the gnawers",
         DeathCause.Replaced => "Replaced",
         DeathCause.Nested => "Killed by Followers nested aboard",
@@ -165,9 +167,13 @@ public static class IncidentLog
                 actor = a.CraneOperator;
                 action = "Crane: {actor}.";
                 break;
-            case DeathCause.Burned:
+            case DeathCause.Burned or DeathCause.Exploded:
                 actor = s.Parent > 0 ? a.LampLitBy(s.Parent) : -1;
                 action = actor >= 0 ? "Lamp lit by {actor}." : "Nobody lit that lamp.";
+                break;
+            case DeathCause.Poisoned:
+                actor = a.Gasser;
+                action = actor >= 0 ? "Cannon fired by {actor}." : "Nobody fired it.";
                 break;
             case DeathCause.Seized:
                 {

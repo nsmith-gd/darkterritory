@@ -152,6 +152,13 @@
   // Line Plan §12.6 (note 181): a body or a repair kit at rest further than corridorM from the track, or more than dropM below
   // the rails (off a bridge, into a ravine), is put back on the formation's edge, edgeM out, the side it went off.
   "recovery": { "corridorM": 40, "dropM": 15, "edgeM": 3.5 },
+  // GDD §19 "medicine: fragile, high value" (note 182). A car of medicine takes the knocks the rest of the train shrugs off:
+  // any contact (coupling, a collision, a buffer stop) closing faster than safeContactSpeed spoils it by
+  // (closing - safeContactSpeed)^2 x couplings.damagePerSpeedSquared x couplings.cargoDamageShare x shockShare (where the
+  // other cars only feel it over couplings.safeContactSpeed); and braking harder than brakeShockDecel m/s^2 spoils it
+  // brakeShockPerSecond a second for every m/s^2 over. Not in the GDD's numbers: a gentle coupling (under 1.5 m/s) costs a
+  // few percent, a full brake on a short train (2.2 m/s^2) about a fifth of the load from line speed to a stand.
+  "fragile": { "safeContactSpeed": 0.3, "shockShare": 3, "brakeShockDecel": 1.2, "brakeShockPerSecond": 0.02 },
   "kit": {
     "radios": 2,
     // GDD v1.1 App. C.4 hand loot: toys in the guard van, for the Track Doll (it steals one and leaves for the run).

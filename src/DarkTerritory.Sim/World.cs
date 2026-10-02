@@ -115,6 +115,11 @@ public sealed class World
     public bool InSettlement => Route?.Plan?.Director.TagsAt(Train.Dynamics.Distance).Contains("dead_settlement") == true;
     /// <summary>The next child's call is a real child whatever the dice say (App. B.6: a host's first-ever is). The host sets it.</summary>
     public bool NextChildReal { get; set; }
+    /// <summary>
+    /// Host: a child's call has come this night (App. B.6). The Game keeps it in the host's profile, so the host's first-ever
+    /// call is the only one <see cref="NextChildReal"/> forces (note 182); the Sim never touches a file.
+    /// </summary>
+    public bool ChildCalled { get; set; }
     /// <summary>The id the next enemy added will get.</summary>
     public int NextEnemyId => _nextEnemyId;
     /// <summary>
@@ -241,7 +246,8 @@ public sealed class World
         var t = Train.Dynamics.Tuning.Recovery;
         foreach (var b in Bodies.All)
         {
-            if (b.Kind is not (Physics.BodyKind.Ragdoll or Physics.BodyKind.RepairKit) || b.Parent != PlayerState.World || b.Carrier >= 0
+            // The rescued child too (A.6 "cannot be harmed"; note 182): dropped off a bridge, it's found on the bank.
+            if (b.Kind is not (Physics.BodyKind.Ragdoll or Physics.BodyKind.RepairKit or Physics.BodyKind.Child) || b.Parent != PlayerState.World || b.Carrier >= 0
                 || b.Stowed || !b.Pbd.Asleep)
                 continue;
             var at = b.Pbd.Centre;
@@ -289,8 +295,14 @@ public sealed class World
         Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(-0.9, floor, room.Max.Z - 2.5), Physics.BodyKind.Lamp);
         for (int i = 0; i < radios; i++)
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(-0.9, floor, room.Max.Z - 3.3 - 0.5 * i), Physics.BodyKind.Radio);
-        // Hand-carried loot (GDD v1.1 App. C.4): toys, for the Track Doll to steal.
         var kit = Train.Dynamics.Tuning.Kit;
+        // The departure's stores (GDD §9; note 182): spare lamps along from the van's own, spare extinguishers across from them
+        // (loose, with no bracket of their own to recharge on).
+        for (int i = 0; i < kit.SpareLamps; i++)
+            Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(-0.5, floor, room.Max.Z - 2.5 - 0.4 * (i + 1)), Physics.BodyKind.Lamp);
+        for (int i = 0; i < kit.SpareExtinguishers; i++)
+            Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(-0.2, floor, room.Min.Z + 1.2 + 0.4 * i), Physics.BodyKind.Extinguisher);
+        // Hand-carried loot (GDD v1.1 App. C.4): toys, for the Track Doll to steal.
         for (int i = 0; i < kit.Toys; i++)
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.6, floor, room.Max.Z - 1.2 - 0.5 * i), Physics.BodyKind.Toy).Noise =
                 i < kit.ToyNoises.Count ? kit.ToyNoises[i] : Physics.ToyNoise.None;
@@ -658,6 +670,9 @@ public sealed class World
             // The round's burst, in the gunner's name: it lifts the meter by roundLoudness, which the window takes to fall away.
             if (Authority)
                 CreditChoir(playerId, c.Choir.RoundLoudness * c.Choir.WindowSeconds);
+            // B.9: the fumes, once everyone's moved this tick (note 182).
+            if (Authority && c.Fumes is not null)
+                _fumes.Add(shot);
         }
         if (Combat is { } cr)
             Guns.Reload(s, intent, Train, cr.Guns, SimConstants.TickSeconds);
@@ -699,6 +714,43 @@ public sealed class World
     }
 
     static readonly GunTuning DefaultGun = new(1, 0, 0, 0, 0, 0, 0, 1.0, 0, 0);
+    /// <summary>Host: this tick's shots, for the chemicals' fumes once the whole crew has acted (App. B.9; note 182).</summary>
+    readonly List<GunShot> _fumes = new();
+
+    /// <summary>
+    /// A cannon fired beside a chemicals car (App. B.9: "lethal to the crew"; note 182): the fumes go up from every loaded
+    /// chemicals car in the gun's rake within <see cref="FumesTuning.Cars"/> couplings of the gun's car, and the gunner and
+    /// everyone within <see cref="FumesTuning.GasM"/> of such a car is gassed. Host only; the crew's places are last tick's.
+    /// </summary>
+    void Fumes(GunShot shot, FumesTuning f)
+    {
+        int gunner = shot.Shooter;
+        var rake = Train.RakeOf(shot.GunVehicle).Consist.Vehicles;
+        int at = rake.ToList().FindIndex(v => v.Id == shot.GunVehicle);
+        if (at < 0)
+            return;
+        var cars = rake.Where((v, i) => Math.Abs(i - at) <= f.Cars && v.Kind == VehicleKind.Cargo && v.Cargo == CargoKind.Chemicals && v.Load > 0.01
+            && v.CargoIntegrity > 0.01).Select(v => v.Id).ToList();
+        if (cars.Count == 0)
+            return;
+        Attribution.Gassed(gunner);
+        var victims = new SortedSet<int>();
+        foreach (var (id, st, _) in _actors)
+            if (st.Alive && (id == gunner || cars.Any(car => FromCar(car, PlayerMotor.WorldPosition(st, Train) + Ballast.Double3.Up) <= f.GasM)))
+                victims.Add(id);
+        foreach (int id in victims)
+            Damage.Add(new DamageEvent(id, f.Damage, DeathCause.Poisoned, Lethal: true));
+    }
+
+    /// <summary>How far a world point is from a car's body (0 inside it).</summary>
+    double FromCar(int car, Ballast.Double3 world)
+    {
+        var frame = Train.Frames[car];
+        var local = frame.ToLocal(world);
+        var b = frame.Shape.Bounds;
+        var near = new Ballast.Double3(Math.Clamp(local.X, b.Min.X, b.Max.X), Math.Clamp(local.Y, b.Min.Y, b.Max.Y), Math.Clamp(local.Z, b.Min.Z, b.Max.Z));
+        return (local - near).Length;
+    }
     readonly HashSet<int> _lampWas = new();
 
     /// <summary>
@@ -743,6 +795,16 @@ public sealed class World
         Confirm(best, playerId, HitSource.Melee, at, (at - eye).Length > 1e-6 ? (at - eye).Normalized : facing);
     }
 
+    /// <summary>
+    /// Host: a blast where nothing was fired (a powder car going up, note 182): an impact on the train's own body, the same
+    /// explosion and sound every client already makes of a cannonball's, nobody's shot.
+    /// </summary>
+    public void Blast(Ballast.Double3 at)
+    {
+        Impacts.Add(new CannonImpact(_nextFx, Tick, at, Ballast.Double3.Up, ImpactSurface.Train, -1));
+        _nextFx = _nextFx % 0xFFFFFF + 1;
+    }
+
     /// <summary>A blow or a ball landed on <paramref name="e"/> (T121): the record every client's flinch, thud and marker come from.</summary>
     void Confirm(Enemy e, int by, HitSource source, Ballast.Double3 at, Ballast.Double3 from)
     {
@@ -765,6 +827,7 @@ public sealed class World
         EnemyEvents.Clear();
         Damage.Clear();
         _actors.Clear();
+        _fumes.Clear();
         Beats.Clear();
         if (Authority && Enemies is { } t)
             _context = new EnemyContext { Tuning = t, World = this, RecentRounds = _recentRounds };
@@ -797,6 +860,9 @@ public sealed class World
         }
         if (Authority && Lineside is { } lineside)
             lineside.Hazards(this, _actors, Damage);
+        if (Authority && Combat?.Fumes is { } fumes)
+            foreach (var shot in _fumes)
+                Fumes(shot, fumes);
         LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
         // A generated line's lethal checks: a curve too fast, a weak bridge overloaded, a washout (linegen plan §7.3).
         if (Authority && TrackPlan is { } plan)

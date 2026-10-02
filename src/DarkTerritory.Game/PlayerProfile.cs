@@ -14,6 +14,11 @@ public sealed class PlayerProfile(string path)
     {
         /// <summary>Times given each of D.12's starter set, by its name.</summary>
         public Dictionary<string, int> Commendations { get; init; } = [];
+        /// <summary>
+        /// This player has hosted a night with a child's call in it (GDD App. B.6, A.6: "the first one a host player ever meets is
+        /// always real"; note 182). Until then, the first call on a night they host is a real child.
+        /// </summary>
+        public bool ChildCalled { get; init; }
     }
 
     public string Path { get; } = path;
@@ -43,10 +48,29 @@ public sealed class PlayerProfile(string path)
                 string name = Sim.Run.Commendations.StarterSet[which];
                 data.Commendations[name] = data.Commendations.GetValueOrDefault(name) + 1;
             }
+        Save(data);
+        return data;
+    }
+
+    /// <summary>A host's first-ever child call is real (B.6): true until a night they host has had one.</summary>
+    public bool FirstChildReal => !Load().ChildCalled;
+
+    /// <summary>A night this player hosted had a child's call in it: every call after is the dice's (B.6). Saves it.</summary>
+    public Data MarkChildCalled()
+    {
+        var data = Load();
+        if (data.ChildCalled)
+            return data;
+        data = data with { ChildCalled = true };
+        Save(data);
+        return data;
+    }
+
+    void Save(Data data)
+    {
         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Path))!);
         var temp = Path + ".tmp";
         File.WriteAllText(temp, JsonSerializer.Serialize(data, DataFile.Options) + "\n");
         File.Move(temp, Path, overwrite: true);
-        return data;
     }
 }
