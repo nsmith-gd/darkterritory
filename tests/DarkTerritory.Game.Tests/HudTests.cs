@@ -129,22 +129,20 @@ public class HudTests
     }
 
     [Fact]
-    public void TheRosterCountsThePassengerAsOneTooManyAndNeverHearsIt()
+    public void TheRosterNamesTheCrewAndGivesNothingAway()
     {
+        // GDD v1.4 open question 2: roll call is verbal. The roster is the session's crew by name and who's speaking: no
+        // locations, nobody marked dead, and the Passenger aboard wearing crew 2's face isn't on it (its tell is silence).
         var s = new PrototypeSession(Content, "test-loop", 4);
         var (lines, heard) = Staging.Roster(s.Train, Content);
-        // You, three crew, and the thing wearing crew 2's face beside the real crew 2 (App. A.7).
-        Assert.Equal(5, lines.Count);
-        Assert.Equal([1, 2, 2, 3, 4], lines.Select(l => (int)l.Id));
-        var twos = lines.Where(l => l.Id == 2).ToList();
-        Assert.All(twos, l => Assert.Equal("CREW 2", l.Name));
-        Assert.Single(twos, l => !l.Voiced);
+        Assert.Equal([1, 2, 3, 4], lines.Select(l => (int)l.Id));
+        Assert.Equal(["DUNMORE", "OKAFOR", "REYES", "DAVE"], lines.Select(l => l.Name));
+        Assert.All(lines, l => Assert.Equal("", l.Where));
+        Assert.All(lines, l => Assert.True(l.Alive));
         Assert.Single(lines, l => l.You);
-        // The voice heard under id 2 is the real crewmate's: the roster never puts it on the Passenger's line.
         var o = new Overlay();
         Hud.Roster(o, 480, 270, lines, heard);
         Assert.True(o.Count > 0);
-        Assert.NotNull(heard(2));
     }
 
     [Fact]

@@ -17,6 +17,8 @@ public sealed record Settings
     public bool Hud { get; init; } = true;
     public VrTurn VrTurn { get; init; } = VrTurn.Snap;
     public bool VrVignette { get; init; } = true;
+    /// <summary>The name the crew and the incident report know you by (GDD v1.4 App. D.12); empty, your online or system name.</summary>
+    public string PlayerName { get; init; } = "";
     /// <summary>A multiplier on mouse look.</summary>
     public double MouseSpeed { get; init; } = 1;
     /// <summary>T83: the whole screen (borderless, the desktop's own mode) rather than a window.</summary>

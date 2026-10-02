@@ -183,6 +183,9 @@ public abstract class Enemy
         _struggle = 0;
         Enter(ctx, SpinePhase.Grab);
         ctx.Hold(victim);
+        // App. A.9: every GRAB start writes an attribution record (and, with D.12's bookmarks, a still).
+        if (ctx.World.Run is not null && ctx.Crew.FirstOrDefault(c => c.Player.Id == victim) is { Player.State: var held })
+            ctx.World.Attribution.Add(Run.IncidentLog.Grab(ctx.World, victim, held, $"Grabbed by the {Run.IncidentLog.Spoken(Kind.ToString())}"));
         return true;
     }
 

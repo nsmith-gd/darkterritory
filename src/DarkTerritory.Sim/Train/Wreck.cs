@@ -3,9 +3,19 @@ using Ballast;
 namespace DarkTerritory.Sim.Train;
 
 /// <summary>Mirror of content/tuning/wreck.json. Field docs live in that file.</summary>
+/// <param name="RackSeconds">E.9 "the rack": on the empty engineering-kit rack, in the cab.</param>
+/// <param name="PullBackSeconds">E.9 "the pull-back": up and back over the stopped consist to a high wide, the lamps going out from the last car forward, the engine last.</param>
+/// <param name="HeightM">How high the wide ends, and <paramref name="BackM"/> how far out behind and beside the train's middle.</param>
+public sealed record StrandedOutroTuning(double RackSeconds = 1.5, double PullBackSeconds = 6, double HeightM = 42, double BackM = 55)
+{
+    public double Seconds => RackSeconds + PullBackSeconds;
+}
+
 public sealed record WreckTuning
 {
     public const string File = "tuning/wreck.json";
+    /// <summary>GDD v1.4 App. E.9, the Stranded outro: on the empty rack, then the pull-back as the lamps go out.</summary>
+    public StrandedOutroTuning Stranded { get; init; } = new();
     public int Substeps { get; init; } = 6;
     public double Gravity { get; init; } = 9.81;
     public double Restitution { get; init; } = 0.12;

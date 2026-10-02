@@ -12,6 +12,11 @@ public sealed record PlayerTuning(
 
     public const string File = "tuning/player.json";
 
+    /// <summary>What the bots are called, in order (the roster and the incident report name them); past the list, "Crew n".</summary>
+    public IReadOnlyList<string> BotNames { get; init; } = [];
+
+    public string BotName(int i) => i < BotNames.Count ? BotNames[i] : $"Crew {i + 1}";
+
     /// <summary>
     /// Take-off speed that lifts the feet <see cref="JumpHeight"/>; without one, the old derivation (a flat jump at roof-run
     /// speed spans exactly <see cref="JumpGap"/>), which is also the least it may be.

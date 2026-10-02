@@ -32,6 +32,15 @@ public sealed class GreyboxScene
     public Route? Route { get; set; }
     /// <summary>The engine's lamp is lit (it's what makes the boards shine back, sight.json).</summary>
     public bool LampLit { get; set; } = true;
+    /// <summary>GDD v1.4 App. E.9: this many of the cars' lamps are out, from the last car forward (all of them: the engine's too).</summary>
+    public int LampsOut { get; set; }
+    /// <summary>How far from the eye the cars' lamps are lit (a high wide shot sees the whole train's).</summary>
+    public double LampRange { get; set; } = 60;
+    /// <summary>
+    /// Each lit car's lamp spilling out of its roof hatches and doors, so a high wide shot sees the train as lights (E.9's
+    /// "small glowing machine in an enormous black world, going dark").
+    /// </summary>
+    public bool RoofGlow { get; set; }
     /// <summary>How far ahead the lamp makes a board out (sight.json lampSignRange).</summary>
     public double SignRange { get; set; } = new SightTuning().LampSignRange;
     /// <summary>The line's boards (sight.json). Unset on a route, they're worked out from it with the default tuning.</summary>
@@ -193,14 +202,17 @@ public sealed class GreyboxScene
                     mesh.PointLights.Add(new PointLight(V(at, eye), Palette.LampAmber * 1.8f, 7f));
         foreach (var frame in frames)
         {
-            if ((frame.Origin - eye).Length > 60)
+            if ((frame.Origin - eye).Length > LampRange)
                 continue;
+            bool dark = frame.Index >= frames.Count - LampsOut;
             // Its interior as an enclosed space: the night stays outside it (Room).
             if (Look is not null && frame.Shape.Interior is { } inside)
                 mesh.Rooms.Add(new Room(V(frame.ToWorld(inside.Centre), eye), ToF(frame.Right), ToF(frame.Up), ToF(frame.Back), ToF(inside.HalfSize)));
             // (A lamp in what a Car Hugger's eaten of the car has gone with its ceiling: Art/BiteKit.)
             var eatenBy = Look is null ? default : Art.Bite.For(Look.Tuning.Bite, frame.Shape, Vehicles is { } fleet && frame.Index < fleet.Count ? fleet[frame.Index] : null, frame.Index);
-            if (frame.Shape.Interior is { } room)
+            if (RoofGlow && !dark && frame.Shape.Interior is { } lit)
+                mesh.PointLights.Add(new PointLight(V(frame.ToWorld(new Double3(0, lit.Max.Y + 0.6, lit.Centre.Z)), eye), Palette.LampAmber * 1.4f, 9f));
+            if (frame.Shape.Interior is { } room && !dark)
                 foreach (double z in new[] { -room.HalfSize.Z * 0.5, room.HalfSize.Z * 0.5 })
                 {
                     if (eatenBy.Eats(new Vector3(0, (float)room.Max.Y - 0.05f, (float)(room.Centre.Z + z))))

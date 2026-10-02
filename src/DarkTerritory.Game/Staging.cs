@@ -435,8 +435,8 @@ public static class Staging
     const double GauntOut = 3.4;
 
     /// <summary>
-    /// A roster for the screenshot (T69): you in the cab, three crewmates, and a Passenger wearing crewmate 2's face. Crew 1
-    /// is speaking, crew 2 was heard a while ago, crew 3 hasn't said anything yet; the Passenger never has.
+    /// A roster for the screenshot (T69): you in the cab and three crewmates, named; crew 1 is speaking. A Passenger is aboard
+    /// wearing crewmate 2's face, and (GDD v1.4: roll call is verbal) the roster doesn't give it away.
     /// </summary>
     public static (IReadOnlyList<RosterLine> Lines, Func<byte, double?> Heard) Roster(TrainOnLine train, string content)
     {
@@ -445,11 +445,44 @@ public static class Staging
         var p = new Passenger(48);
         p.Restore(SpinePhase.Telegraph, 20, 1, Math.Min(3, train.Frames.Count - 1), default, 0, 0, 0, 2, 0);
         world.MirrorEnemies([p]);
+        foreach (var (id, name) in new[] { (1, "Dunmore"), (2, "Okafor"), (3, "Reyes"), (4, "Dave") })
+            world.Names[id] = name;
         var cab = Sim.Player.PlayerMotor.SpawnInCab(train, player);
         var roof = Sim.Player.PlayerMotor.SpawnOnRoof(train, Math.Min(2, train.Frames.Count - 1), 0, player);
         var lines = NetPlaySession.RosterOf(4, cab, [(1, roof), (2, roof with { Parent = 1 }), (3, cab)], world);
         return (lines, id => id switch { 1 => 0.5, 2 => 14, _ => null });
     }
+
+    /// <summary>
+    /// A night's incident report for the screenshot (GDD v1.4 App. D.12), written the way the host writes it: a crew, a
+    /// rescue, deaths by the train, a creature and the cold, a rupture and a lost car, through the real attribution log
+    /// and the clerk's lines.
+    /// </summary>
+    public static Sim.Run.RunReport Report(Sim.World world, Sim.Run.RunEnd end)
+    {
+        foreach (var (id, name) in new[] { (0, "Dave"), (1, "Dunmore"), (2, "Okafor"), (3, "Priya") })
+            world.Names[id] = name;
+        var train = world.Train;
+        var log = world.Attribution;
+        log.Drove(0);
+        log.Fired(1, 100);
+        var cab = Sim.Player.PlayerMotor.SpawnInCab(train, DefaultPlayer);
+        var roof = Sim.Player.PlayerMotor.SpawnOnRoof(train, Math.Min(3, train.Frames.Count - 1), 0, DefaultPlayer);
+        var line = Sim.Player.PlayerMotor.SpawnOnGround(train.Line.Sample(train.Dynamics.RearDistance - 180).Position, train.Line, train.Dynamics.RearDistance - 180, DefaultPlayer);
+        var crew = new List<(int, Sim.Player.PlayerState)> { (0, cab), (1, cab), (2, roof), (3, line) };
+        log.Add(Sim.Run.IncidentLog.Death(world, 2, roof with { Death = Sim.Player.DeathCause.Eaten }, null, crew));
+        log.Add(new Sim.Run.Incident(Sim.Run.IncidentKind.Rescue, 900, 2, "Freed from the Holdout", "at Hollin Halt", 0, "Broken out by {actor}."));
+        log.Add(Sim.Run.IncidentLog.Death(world, 3, line with { Death = Sim.Player.DeathCause.Cold }, null, crew));
+        log.Add(new Sim.Run.Incident(Sim.Run.IncidentKind.Rupture, 1300, -1, "Boiler ruptured", "at km 14", 1, "Last fired: {actor}. At 100 for 20 s."));
+        log.Add(Sim.Run.IncidentLog.Death(world, 1, cab with { Death = Sim.Player.DeathCause.Seized }, null, crew));
+        var lines = Sim.Run.IncidentLog.Lines(world, 350, 263, body => false);
+        lines.Add(new Sim.Run.ReportLine(Sim.Run.IncidentKind.CarLost, "", "Car 5 finished by the Car Hugger at km 9. Inside: freight, 0.6 car-loads, the body of Okafor."));
+        if (end == Sim.Run.RunEnd.Derailed)
+            lines.Add(new Sim.Run.ReportLine(Sim.Run.IncidentKind.Derailed, "", "Consist derailed, 68 km/h at km 17. Over the 12 m/s board at 18.9 m/s. Throttle: Dave."));
+        return new Sim.Run.RunReport(end, 1720, 17.2, 4, 1, 2.1, 0, 120, 6, 40, -1416, 1, 3, Deaths: 3, CrewLossFees: 1050) { Lines = lines };
+    }
+
+    static readonly Sim.Player.PlayerTuning DefaultPlayer = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(DataFile.FindContentRoot(), Sim.Player.PlayerTuning.File));
 
     /// <summary>One of each enemy (GDD v1.1 §21) mid-telegraph or mid-commit around the train, where a view can see it.</summary>
     /// <param name="dollAhead">How far up the line the Track Doll stands (App. A.2's reveal is 200 m in the lamp).</param>

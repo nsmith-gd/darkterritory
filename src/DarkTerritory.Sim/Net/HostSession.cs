@@ -117,6 +117,10 @@ public sealed class HostSession
             Controls.Brake = 0;
         foreach (var c in _crew)
         {
+            // App. C.9 "who was on the throttle": whoever's working the cab's controls, or failing that anyone at them.
+            if (CabControls.CanDrive(c.State, Train) && (c.ThisTick.ThrottleNotch != 0 || c.ThisTick.Has(PlayerButtons.Brake) || World.Attribution.Driver < 0
+                || !_crew.Any(o => o.Id == World.Attribution.Driver && CabControls.CanDrive(o.State, Train))))
+                World.Attribution.Drove(c.Id);
             CabControls.Apply(ref Controls, c.ThisTick, c.State, Train);
             // Lag compensation: check this player's shots against where targets were on their screen.
             uint? view = c.AckedSnapshot > ClientSession.InterpolationTicks ? c.AckedSnapshot - ClientSession.InterpolationTicks : null;
@@ -127,10 +131,13 @@ public sealed class HostSession
         foreach (var c in _crew)
             PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
         World.StepBodies([.. _crew.Select(c => ((int)c.Id, c.State))]);
+        if (World.Holdouts is { } holdouts)
+            holdouts.StartingKit = PlayerTuning.StartingKit;
         HoldoutEvents.AddRange(World.StepHoldouts([.. _crew.Select(c => ((int)c.Id, c.State))], (id, st) => _crew.First(c => c.Id == id).State = st));
         if (World.Run is not null)
             World.StepRun([.. _crew.Select(c => c.State)]);
         Tick++;
+        SendNamesAndReport();
 
         // Snap the world onto the replication grid and keep simulating from exactly that.
         _snapshotScratch.Clear();
@@ -210,6 +217,7 @@ public sealed class HostSession
         byte id = _nextId++;
         Messages.WriteWelcome(_writer, id, Tick, SessionInfo);
         _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
+        _namesChanged |= World.Names.Count > 0;
         // GDD App. D.3: with Holdouts, a mid-run joiner goes straight into the respawn queue; otherwise they wait for a stop.
         if (!Lobbying && CanBoard is { } can && !can())
         {
@@ -247,8 +255,53 @@ public sealed class HostSession
         _waiting.Clear();
     }
 
+    bool _namesChanged;
+    bool _reportSent;
+
+    /// <summary>
+    /// Names to everyone when they change (and to whoever's just joined), and the night's report once it's over (GDD v1.4
+    /// App. D.12): the report is only the host's to write, so clients are sent it, in chunks, reliably.
+    /// </summary>
+    void SendNamesAndReport()
+    {
+        var peers = _crew.Select(c => c.Peer).Concat(_waiting.Select(w => w.Peer)).Distinct().ToList();
+        if (_namesChanged)
+        {
+            _namesChanged = false;
+            Messages.WriteNames(_writer, World.Names);
+            foreach (var p in peers)
+                _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
+        }
+        if (!_reportSent && World.Run?.Report is { } report)
+        {
+            _reportSent = true;
+            foreach (var m in Messages.ReportMessages(report))
+                foreach (var p in peers)
+                    _transport.Send(p, m, Delivery.ReliableOrdered);
+        }
+    }
+
     void OnData(PeerId peer, byte[] payload)
     {
+        // A name can come from someone still waiting to board.
+        if (payload.Length > 0 && payload[0] == (byte)MessageType.Hello)
+        {
+            int id = _crew.Find(x => x.Peer == peer)?.Id ?? _waiting.Where(w => w.Peer == peer).Select(w => (int)w.Id).DefaultIfEmpty(-1).First();
+            try
+            {
+                var hr = new NetReader(payload);
+                hr.U8();
+                if (id >= 0 && Messages.CleanName(hr.Str()) is { Length: > 0 } name)
+                {
+                    World.Names[id] = name;
+                    _namesChanged = true;
+                }
+            }
+            catch (Exception ex) when (ex is EndOfStreamException or InvalidDataException)
+            {
+            }
+            return;
+        }
         var c = _crew.Find(x => x.Peer == peer);
         if (c is null)
             return;

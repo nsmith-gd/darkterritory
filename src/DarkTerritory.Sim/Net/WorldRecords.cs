@@ -153,7 +153,13 @@ public static class WorldRecords
             f[5] = Q(body.Yaw, Ang);
             f[6] = ps.Length;
             f[7] = body.Second;
-            f[8] = body.Kind == Physics.BodyKind.Extinguisher ? Q(body.Charge, Hint) : (long)body.Cargo;
+            // The ninth: an extinguisher's charge, a body's tools (GDD v1.4 D.2: it keeps the engineering kit), or a crate's cargo.
+            f[8] = body.Kind switch
+            {
+                Physics.BodyKind.Extinguisher => Q(body.Charge, Hint),
+                Physics.BodyKind.Ragdoll => (long)body.Tools,
+                _ => (long)body.Cargo,
+            };
             for (int i = 0; i < ps.Length; i++)
             {
                 f[BodyParticles + i * 3] = Q(ps[i].Position.X, Pos);
@@ -348,7 +354,8 @@ public static class WorldRecords
             Owner = (int)f[3],
             Yaw = D(f[5], Ang),
             Charge = (Physics.BodyKind)f[0] == Physics.BodyKind.Extinguisher ? D(f[8], Hint) : 1,
-            Cargo = (Physics.BodyKind)f[0] == Physics.BodyKind.Extinguisher ? CargoKind.None : (CargoKind)f[8],
+            Tools = (Physics.BodyKind)f[0] == Physics.BodyKind.Ragdoll ? (ulong)f[8] : 0,
+            Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll ? CargoKind.None : (CargoKind)f[8],
         };
     }
 

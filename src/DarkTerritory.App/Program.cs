@@ -562,6 +562,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // The player's keys (T80): each control's key, from the settings (a name the platform doesn't know: its default).
     var keyOf = Enum.GetValues<Control>().ToDictionary(c => c, c => Enum.TryParse<Key>(settings.KeyFor(c), out var k) ? k : Enum.Parse<Key>(Controls.Defaults[c]));
     Hud.Keys = settings;
+    NetPlaySession.PlayerName = settings.PlayerName;
     bool Held(Control c) => input.Down(keyOf[c]);
     bool Hit(Control c) => input.Pressed(keyOf[c]);
     Camera camera = default;
@@ -734,9 +735,16 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
 
         var frames = session.InterpolatedFrames(clock.Alpha);
         // Off the rails (T117): the camera leaves your eyes for the wreck while it's fresh.
-        bool cinematic = session.WreckCinematic && session.Train.Wreck is not null;
-        camera = cinematic ? Views.Wreck(session.Train.Wreck!, session.WreckSeconds)
+        bool outro = session.StrandedOutro;
+        bool cinematic = session.WreckCinematic && session.Train.Wreck is not null || outro;
+        var outroTuning = session.World.WreckTuning.Stranded;
+        camera = outro ? Views.Stranded(session.Train, outroTuning, session.OutroSeconds)
+            : cinematic ? Views.Wreck(session.Train.Wreck!, session.WreckSeconds)
             : chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
+        // E.9: the lamps go out down the train as the camera pulls back, and stay lit (or not) as far as it can see.
+        scene.LampsOut = outro || session.World.Run?.End == DarkTerritory.Sim.Run.RunEnd.Stranded ? Views.StrandedLampsOut(session.Train.Frames.Count, outroTuning, session.OutroSeconds) : 0;
+        scene.LampRange = outro ? 400 : 60;
+        scene.RoofGlow = outro;
         // On the engine with the boiler in the red, it shakes you (T109).
         if (!chase && !cinematic)
             camera.Position += BoilerShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds);
@@ -774,13 +782,15 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             lighting.FogDensity = (float)r.Weather.FogDensity;
             lighting.Wetness = r.Weather.Wet ? 1 : 0;
         }
+        if (session.StrandedOutro)
+            Views.CinematicFog(ref lighting, Views.StrandedDistance(session.Train, session.World.WreckTuning.Stranded, session.OutroSeconds));
         scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
         scene.WrenchRacked = !session.Train.Boiler.WrenchOut;
         scene.Wreck = session.Train.Wreck;
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
         scene.Tick = session.Tick;
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
-        scene.LampLit = session.World.LampShining;
+        scene.LampLit = session.World.LampShining && scene.LampsOut < session.Train.Frames.Count;
         scene.Venting = session.Train.Boiler.Vented;
         scene.Derailed = session.World.Derailed;
         scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;

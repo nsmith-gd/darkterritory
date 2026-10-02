@@ -41,6 +41,12 @@ public sealed class ClientSession
     {
     }
 
+    /// <summary>The name this player goes by, sent to the host once welcomed (the roster, the report).</summary>
+    public string Name { get; set; } = "";
+
+    readonly Dictionary<int, byte[]> _reportChunks = [];
+    int _reportCount;
+
     public ClientSession(ITransport transport, World world, TrainTuning trainTuning, PlayerTuning playerTuning)
     {
         World = world;
@@ -182,7 +188,24 @@ public sealed class ClientSession
                     break;
                 case MessageType.Welcome:
                     (PlayerId, _, SessionInfo) = Messages.ReadWelcome(ref r);
+                    if (Name.Length > 0)
+                    {
+                        Messages.WriteHello(_writer, Name);
+                        _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
+                    }
                     break;
+                case MessageType.Names:
+                    Messages.ReadNames(ref r, World.Names);
+                    break;
+                case MessageType.Report:
+                    {
+                        int index = r.U8();
+                        _reportCount = r.U8();
+                        _reportChunks[index] = r.Rest().ToArray();
+                        if (Messages.ReadReport(_reportChunks, _reportCount) is { } report)
+                            World.Run?.MirrorReport(report);
+                        break;
+                    }
                 case MessageType.Snapshot:
                     uint tick = r.U32(), acked = r.U32(), baseTick = r.U32();
                     if (tick <= _newestSnapshotTick || _decoded.ContainsKey(tick))

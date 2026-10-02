@@ -36,7 +36,8 @@ public enum HoldoutState : byte { Dormant, Occupied, Breaching, Freed }
 public enum HoldoutEventKind : byte { Assigned, Released, Freed, CalledOut }
 
 /// <summary>What a Holdout did this tick, for the host to act on (a shout to play) and for the harness to count.</summary>
-public readonly record struct HoldoutEvent(HoldoutEventKind Kind, int Holdout, int PlayerId);
+/// <param name="By">For <see cref="HoldoutEventKind.Freed"/>, who broke them out (D.12 "who freed whom").</param>
+public readonly record struct HoldoutEvent(HoldoutEventKind Kind, int Holdout, int PlayerId, int By = -1);
 
 /// <summary>One Holdout in the world: where it stands, and (host-authoritative, mirrored) who's in it.</summary>
 public sealed class Holdout
@@ -99,6 +100,9 @@ public sealed class Holdouts
     public IReadOnlyList<QueueEntry> Queue => _queue;
     /// <summary>Players freed this run, in order (host only).</summary>
     public List<int> Freed { get; } = [];
+
+    /// <summary>What a freed player comes out with: the night's starting kit (player.json "kit"), set by the host.</summary>
+    public ulong StartingKit { get; set; } = Kit.Of([Tool.Crowbar]);
 
     public Holdouts(HoldoutTuning t, Route.Route route, RailLine line)
     {
@@ -254,7 +258,7 @@ public sealed class Holdouts
                 if (h.Progress >= b.Seconds)
                 {
                     Free(h, crew, set);
-                    events.Add(new HoldoutEvent(HoldoutEventKind.Freed, h.Index, h.Occupant));
+                    events.Add(new HoldoutEvent(HoldoutEventKind.Freed, h.Index, h.Occupant, breacher));
                 }
                 continue;
             }
@@ -336,9 +340,9 @@ public sealed class Holdouts
             LineHint = h.LineHint,
             Yaw = was.Yaw,
             Placed = (byte)(was.Placed + 1),
-            // What they carried, back with them (T108: nobody comes out of a Holdout empty-handed).
-            Kit = was.Kit,
-            HeldSlot = was.HeldSlot,
+            // What they carried stayed on their body (GDD v1.4 App. D.2, the engineering kit too); they come out with the
+            // night's starting kit (T108: nobody comes out of a Holdout empty-handed).
+            Kit = StartingKit,
         };
         _health[id] = back.Health;
         set(id, back);
