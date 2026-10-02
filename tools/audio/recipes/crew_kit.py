@@ -12,10 +12,23 @@ grinding under weight, friction.
 import numpy as np
 from scipy import signal
 
+import build
 import dsp
 import src
 import synth
 from dsp import SR, samples, lp, hp, bp, env, mix, fit, Bus
+
+
+def recipe(*args, **kw):
+    """build.recipe, with every take high-passed at 25 Hz on the way out: the weight in these sounds is built from low
+    thumps and lowpassed noise, and no take may carry DC or sub-sonic drift into the game."""
+    def wrap(fn):
+        def take(rng, k):
+            return hp(np.asarray(fn(rng, k), np.float32), 25, 2)
+        take.__name__, take.__module__, take.__doc__ = fn.__name__, fn.__module__, fn.__doc__
+        build.recipe(*args, **kw)(take)
+        return fn
+    return wrap
 
 # ---- Recordings -----------------------------------------------------------------------------------------------------------
 
@@ -136,11 +149,12 @@ def match(x, target, amount=0.8, limit=8.0):
     """Matching EQ: pull a clip's octave balance `amount` of the way to `target` (a set's average profile), so takes cut
     from different recordings sound like one object in one place."""
     d = np.clip((np.asarray(target) - profile(x)) * amount, -limit, limit)
-    n = max(len(x), 4096)
+    # padded well past the clip so the EQ's own ringing (long, at the bottom) can't wrap round onto the clip's tail
+    n = int(2 ** np.ceil(np.log2(len(x) + SR // 2)))
     f = np.fft.rfftfreq(n, 1 / SR)
     g = 10 ** (np.interp(np.log2(np.maximum(f, 20)), np.log2(OCTAVES), d) / 20)
-    y = np.fft.irfft(np.fft.rfft(x, n=n) * g, n=n)[:len(x)]
-    return y.astype(np.float32)
+    y = np.fft.irfft(np.fft.rfft(x, n=n) * g, n=n)
+    return dsp.fade(y[:len(x)].astype(np.float32), 0.0, 0.01)
 
 
 def matched(clips, amount=0.8):

@@ -15,10 +15,9 @@ import numpy as np
 
 import dsp
 import synth
-from build import recipe
 from dsp import samples, lp, hp, bp, env, mix
 from recipes import crew_kit as ck
-from recipes.crew_kit import R, S, K
+from recipes.crew_kit import recipe, R, S, K
 from recipes.crew_items import hit_of, tool_ring
 
 METAL_H, PLATE_H, PLATE_M, PLATE_L = K("impactMetal_heavy"), K("impactPlate_heavy"), K("impactPlate_medium"), K("impactPlate_light")
@@ -78,7 +77,7 @@ def doors():
     @recipe(L, "slide-roll", "rollers", "Big sliding door rolling on its iron track, held",
             """Iron rollers grinding along an iron track (low stick-slip friction and the rumble of the wheels), the
             heavy door rattling in its guides, and a knock each time a roller crosses a joint in the track. One 8 s
-            cycle.""", sources=ck.WOOD_KNOCKS, loop=True, takes=1, lufs=-21)
+            cycle.""", sources=ck.WOOD_KNOCKS, loop=True, takes=1, lufs=-23)
     def roll(rng, k):
         n = samples(8.0)
         y = rolling(rng, 8.6)
@@ -88,8 +87,9 @@ def doors():
 
     @recipe(L, "slide-open-stop", "stop", "Big sliding door hitting its open stop",
             """The door's weight arriving at its stop: a heavy wooden thud with the iron stop under it (the packs' door
-            slam pitched down to a boxcar door, heavy plate), the door rattling in its guides and settling back.""",
-            sources=SLAM + PLATE_H + ck.WOOD_KNOCKS, takes=2, lufs=-18)
+            slam pitched down to a boxcar door, heavy plate), the door rattling in its guides and settling back. The preview
+            plays the door's whole open: unlatch, heave, roll, stop.""",
+            sources=SLAM + PLATE_H + ck.WOOD_KNOCKS, takes=2, lufs=-18, preview=lambda t, r: slide_sequence(t, "open"))
     def open_stop(rng, k):
         slam = dsp.vari(hit_of(SLAM[0], k % 2, 0.5), -3 + rng.uniform(-0.5, 0.5))
         rattle = ck.grains(rng, 6, 0.15, 300, 1800, q=(6, 12), length=(0.02, 0.05))
@@ -99,8 +99,9 @@ def doors():
     @recipe(L, "slide-shut", "slam", "Big sliding door slammed shut: the whole car booming with it",
             """Heard and trusted (the Choir's rule): the heavy planked door slammed into its frame (the packs' door slam,
             pitched down to a boxcar door's weight), the car's whole hollow body booming with it, the iron frame clanking,
-            and the door rattling once in its guides as it settles.""",
-            sources=SLAM + R("doorClose_4") + PLATE_H + ck.WOOD_KNOCKS, takes=3, lufs=-15)
+            and the door rattling once in its guides as it settles. The preview plays the whole close: roll, slam, latch.""",
+            sources=SLAM + R("doorClose_4") + PLATE_H + ck.WOOD_KNOCKS, takes=3, lufs=-15,
+            preview=lambda t, r: slide_sequence(t, "shut"))
     def shut(rng, k):
         slam = dsp.vari(hit_of(SLAM[0], 0, 0.6), -4 + rng.uniform(-0.6, 0.6))
         thump = dsp.vari(hit_of(R("doorClose_4")[0], 0, 0.4), -3)
@@ -116,6 +117,8 @@ def doors():
     def latch_home(rng, k):
         return car(ck.place([(0, latch(rng, k + 1, -3), -2), (0.035, iron(rng, k + 1, -5, 0.04, 0.35), 0),
                              (0.04, ck.floor(rng, "wood", k, 0.8, 0.5), -12)]))
+
+    SLIDE.update(unlatch=unlatch, start=start, roll=roll, latch=latch_home)
 
     # The small end door: a hinged plank door with a thumb latch, into the next car across the coupling.
     @recipe(L, "end-open", "door", "Small end door opened: thumb latch, a short hinge creak, the door swinging in",
@@ -169,6 +172,32 @@ def doors():
         lid = mix(ck.floor(rng, "wood", k, 2.0, 0.9), dsp.room(ck.hollow(rng, [120, 190, 300], 0.15, q=5), "box", wet=0.3) * 0.4)
         bands = ck.choke(ck.norm(ck.align(dsp.vari(ck.get(METAL_H[(k + 1) % 5]), -4))), 0.005, 0.03)
         return car(ck.place([(0, lid, 0), (0.01, bands, -14), (0.32 + rng.uniform(0, 0.06), latch(rng, k + 1, -1), -6)]))
+
+
+SLIDE = {}
+
+
+def slide_sequence(takes, which):
+    """The big door's whole open or whole close, so the page plays each as the event it is: unlatch, heave, roll and
+    the stop; or roll, slam and the latch dropped. Each take of the cue in turn, with the other cues' first takes round
+    it at their own levels."""
+    def lv(x, lufs):
+        return ck.leveled(hp(x, 25, 2), lufs)
+
+    parts, t = [], 0.3
+    for i, x in enumerate(takes):
+        roll = lv(SLIDE["roll"](np.random.default_rng(20 + i), 0)[:samples(1.5)], -25)
+        roll = dsp.fade(roll, 0.08, 0.15)
+        if which == "open":
+            parts += [(t, lv(SLIDE["unlatch"](np.random.default_rng(i), i), -21), 0),
+                      (t + 0.45, lv(SLIDE["start"](np.random.default_rng(10 + i), i % 2), -21), 0),
+                      (t + 1.0, roll, 0), (t + 2.4, x, 0)]
+            t += 4.2
+        else:
+            parts += [(t, roll, 0), (t + 1.35, x, 0),
+                      (t + 2.0, lv(SLIDE["latch"](np.random.default_rng(i), i), -18), 0)]
+            t += 3.6
+    return ck.place(parts, t)
 
 
 def rolling(rng, length):
@@ -308,7 +337,7 @@ def whistle_tone(rng, length, rise=0.0, sag=0.0, notes=(311.1, 392.0, 466.2)):
     for i, f0 in enumerate(notes):
         drift = lp(rng.standard_normal(n).astype(np.float32), 2) * 4 * 0.004
         f = f0 * 2 ** (bend / 12) * (1 + drift)
-        ph = 2 * np.pi * np.cumsum(f) / dsp.SR
+        ph = 2 * np.pi * np.cumsum(f) / dsp.SR + rng.uniform(0, 2 * np.pi)
         tone = sum(np.sin(h * ph) / h ** 1.4 for h in range(1, 7))
         breath = dsp.resonate(synth.noise(length, rng), [f0 * h for h in (1, 2, 3)], q=25, gains=[1, 0.4, 0.2])
         flutter = 1 + 0.08 * lp(rng.standard_normal(n).astype(np.float32), 30) * 15
@@ -430,7 +459,7 @@ def controls():
 
     whistle_notes = (311.1, 392.0, 466.2)
 
-    @recipe(L, "whistle-start", "chime", "The whistle speaking: the steam's rush and the three-chime chord rising into tune",
+    @recipe(L, "whistle-start", "chime", "Stand-in: the whistle speaking: the steam's rush and the three-chime chord rising into tune",
             """A three-chime steam whistle (E flat, G, B flat): the valve opening with a rush of steam (jet noise), then
             the three bells speaking, each a breathy harmonic tone with steam noise round it, scooping up a semitone into
             tune as the pressure comes up. Synthesised from the physics; outdoors above the cab. It ends at full voice for
@@ -443,7 +472,7 @@ def controls():
         y = dsp.room(mix(rush * 0.35, tone), "night", wet=0.12, rng=np.random.default_rng(9))
         return dsp.fade(y[:samples(L_ + 0.15)], 0.002, 0.15)
 
-    @recipe(L, "whistle", "chime", "The three-chime whistle held",
+    @recipe(L, "whistle", "chime", "Stand-in: the three-chime whistle held",
             """The same three bells held: breathy harmonic tones fluttering with the turbulence of the jet, the steam's
             hiss under them, a slow waver in the pressure. One 8 s cycle, its echo folded round.""", loop=True, takes=1, lufs=-16)
     def w_hold(rng, k):
@@ -451,14 +480,19 @@ def controls():
         y = mix(whistle_tone(rng, L_, notes=whistle_notes), steam(rng, L_, 0.2, (1000, 8000)) * 0.12)
         return dsp.wrap(dsp.room(y, "night", wet=0.12, rng=np.random.default_rng(9)), samples(L_))
 
-    @recipe(L, "whistle-stop", "chime", "The whistle released: the chord sagging flat and dying into a hiss",
+    @recipe(L, "whistle-stop", "chime", "Stand-in: the whistle released: the chord sagging flat and dying into a hiss",
             """The cord let go: the three bells sagging flat as the pressure falls, the tone thinning to breath, and the
             last of the steam hissing off, with the country's echo after.""", takes=3, lufs=-18)
     def w_stop(rng, k):
-        L_ = 0.8
-        tone = whistle_tone(rng, L_, sag=1.2 + 0.3 * k, notes=whistle_notes) * env([(0, 1), (0.35, 0.7), (0.6, 0.1), (L_, 0)], L_)
-        hiss = steam(rng, 1.0, 0.2, (1500, 8000)) * env([(0, 0.2), (0.4, 0.5), (1.0, 0)], 1.0)
-        return dsp.room(mix(tone, hiss * 0.25), "night", wet=0.15, rng=np.random.default_rng(9))
+        # three releases: a quick cut, a slower sag, and a long sag that breaks up into spitting condensate
+        L_ = (0.55, 0.85, 1.15)[k]
+        tone = whistle_tone(rng, L_, sag=(0.8, 1.6, 2.4)[k], notes=whistle_notes)
+        tone = tone * env([(0, 1), (L_ * 0.45, 0.7), (L_ * 0.75, 0.12), (L_, 0)], L_)
+        hiss = steam(rng, L_ + 0.4, 0.2, (1500, 8000)) * env([(0, 0.2), (L_ * 0.5, 0.5), (L_ + 0.4, 0)], L_ + 0.4)
+        parts = [(0, tone, 0), (0, hiss, -12)]
+        if k == 2:
+            parts.append((L_ * 0.6, synth.crackle(0.5, 25, rng, size=(0.002, 0.008), hi=600), -10))
+        return dsp.room(ck.place(parts), "night", wet=0.15, rng=np.random.default_rng(9))
 
 
 # ---- The switch stand, the couplings ---------------------------------------------------------------------------------------

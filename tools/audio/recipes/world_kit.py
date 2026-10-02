@@ -410,7 +410,7 @@ def rain(n, rng, rate, surface="ground", loop=True):
         return out
     # ground, leaves, ballast: a short soft splat
     h = rng.standard_normal(samples(0.004)).astype(np.float32) * np.exp(-np.linspace(0, 6, samples(0.004))).astype(np.float32)
-    return bp(_circconv(x, h), 400, 7000) if not loop else cfilter(_circconv(x, h), lambda f: (f / 400) / (1 + f / 400) / (1 + (f / 7000) ** 2))
+    return bp(_circconv(x, h), 150, 7000) if not loop else cfilter(_circconv(x, h), lambda f: (f / 150) / (1 + f / 150) / (1 + (f / 7000) ** 2))
 
 
 def _circconv(x, h):

@@ -18,9 +18,9 @@ import numpy as np
 
 import dsp
 import synth
-from build import recipe
-from dsp import SR, samples, lp, hp, bp, env, mix
+from dsp import samples, lp, hp, env, mix
 from recipes import crew_kit as ck
+from recipes.crew_kit import recipe
 
 FEET = ["wood", "grate", "plate", "roof", "coal", "ballast", "dirt", "grass", "mud", "cobbles", "concrete"]
 BOOTS = [f"kenney_rpg-audio:footstep0{i}" for i in range(10)]
@@ -129,23 +129,24 @@ def on_roof(rng, boot, s, part, take):
     return y
 
 
-def crunch(rng, take, spread, lo, hi, n, rec_keys, rec_db, body_f, body_db, s, part):
-    """Loose stuff under a boot: a dull pad of weight, the grains breaking and knocking as the weight comes on (front-
-    loaded, then a few settling), and a slice of a real crunch under them."""
+def crunch(rng, take, spread, lo, hi, n, rec_keys, grain_db, body_f, body_db, s, part, size=0.0):
+    """Loose stuff under a boot: a slice of a real crunch (pitched by `size` semitones to the stones' size), the grains
+    breaking and knocking as the weight comes on (front-loaded, a few settling) filling it out under it, and a dull pad
+    of weight."""
     g = ck.grains(rng, int(n * s), spread, lo, hi, q=(3, 10), length=(0.006, 0.02))
     rec = ck.get(rec_keys[(take + (part == "toe")) % len(rec_keys)])
     h = ck.hits(rec, floor_db=-12, gap=0.03)
     a = h[int(rng.integers(len(h)))][0] if h else 0
     rec = ck.cut(ck.denoise(rec), a - samples(0.003), a + samples(spread + 0.06), 0.002, 0.04)
-    rec = ck.norm(hp(rec, 400))
+    rec = ck.norm(hp(dsp.vari(rec, size), 300))
     pad = ck.pad(rng, 0.08, body_f * 3)
-    return mix(ck.norm(g) * s, rec * dsp.db2a(rec_db) * s, pad * dsp.db2a(body_db) * s)
+    return mix(rec * s, ck.norm(g) * dsp.db2a(grain_db) * s, pad * dsp.db2a(body_db) * s)
 
 
 def on_coal(rng, boot, s, part, take):
     """Coal: the boot sinks into lumps that are brittle and glassy, so they break and clink higher and brighter than stone,
     and slide a little down the pile after."""
-    y = crunch(rng, take, 0.11, 1400, 7000, 26, STONES, -3, 80, -9, s, part)
+    y = crunch(rng, take, 0.11, 1400, 7000, 26, STONES, -2, 80, -9, s, part)
     slide = ck.grains(rng, int(6 * s), 0.12, 1800, 6000) * 0.25
     y = mix(y, np.concatenate([np.zeros(samples(0.08), np.float32), slide]) * s, sole(boot, 2500) * 0.15 * s)
     return y
@@ -154,7 +155,7 @@ def on_coal(rng, boot, s, part, take):
 def on_ballast(rng, boot, s, part, take):
     """Ballast: fist-sized crushed rock that grinds and knocks under the weight, lower and heavier than gravel, with the
     packs' real gravel crunch under the stones."""
-    y = crunch(rng, take, 0.13, 700, 4500, 22, CRUNCH, 0, 75, -6, s, part)
+    y = crunch(rng, take, 0.13, 600, 3800, 22, CRUNCH, -5, 75, -6, s, part, size=-2.5)
     return mix(y, sole(boot, 2500) * 0.1 * s)
 
 
@@ -358,11 +359,12 @@ HOW = {
         cab's small iron room.""",
     "roof": """A sheet of tin over a hollow car: Kenney's thin plate hit pitched down and only lightly damped, a tin ring
         pitched down a fifth and kept quiet, the panel's low boom (a 96 Hz drum mode), and the sole's click. Outdoors, dry.""",
-    "coal": """Coal lumps are brittle and glassy: a burst of hard little grains breaking and clinking as the weight comes
-        on (front-loaded), a slice of the packs' real stones knocking under them, a dull pad of weight, and a few lumps
-        sliding down the pile after.""",
+    "coal": """Coal lumps are brittle and glassy: a slice of the packs' real stones knocking, a burst of hard little
+        grains breaking and clinking with them as the weight comes on (front-loaded), a dull pad of weight, and a few
+        lumps sliding down the pile after.""",
     "ballast": """Crushed rock grinding under the weight: the packs' real gravel-crunch steps (sfx_100 footstep_01/02, a
-        slice from a different crunch each take), lower stone grains over them, and a dull pad of weight. Outdoors, dry.""",
+        slice from a different crunch each take) pitched down a little for fist-sized stones, lower stone grains filling
+        it out under them, and a dull pad of weight. Outdoors, dry.""",
     "dirt": """Soft ground takes the click out of a boot: Kenney's dull wooden step lowpassed as the earth's thud, the boot
         recording lowpassed under it, and a fine grit of sand and needles.""",
     "grass": """Kenney's grass steps (the blades swishing aside) as each contact, a thin rustle of stalks for variety, and

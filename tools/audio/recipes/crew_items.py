@@ -11,16 +11,13 @@ bar a quick high swish) with the coat sleeve moving under them. The extinguisher
 have no jet of water.
 """
 
-import functools
-
 import numpy as np
 
 import dsp
 import synth
-from build import recipe
 from dsp import samples, lp, hp, bp, env, mix
 from recipes import crew_kit as ck
-from recipes.crew_kit import DROP, R, S, K
+from recipes.crew_kit import recipe, DROP, R, S, K
 from recipes.kit import snap
 
 POT = R("metalPot1", "metalPot2", "metalPot3")
@@ -490,7 +487,7 @@ def drag(rng, mat, length):
     while t < length:
         d = rng.uniform(0.7, 1.0)
         pulls.append((t, d))
-        t += d + rng.uniform(0.15, 0.3)
+        t += d + rng.uniform(0.06, 0.16)
     shape = np.zeros(n + samples(2), np.float32)
     for t0, d in pulls:
         e = env([(0, 0), (0.08, 1), (d * 0.7, 0.85), (d, 0)], d)
@@ -563,11 +560,12 @@ def toys(L):
 
 def radio(L):
     @recipe(L, "radio-lift", "set", "The field radio picked up: its steel case, the strap, the aerial twanging",
-            """The olive steel case lifted by its strap loop (a leather creak), something loose rattling inside it (tiny
-            metal ticks), and the whip aerial twanging as it's swung up (a thin steel rod's ring, wavering).""",
-            sources=LEATHER + METAL_L, takes=3, lufs=-24)
+            """The olive steel case lifted by its strap loop (a leather creak, or a sleeve), something loose rattling inside
+            it (tiny metal ticks), and the whip aerial twanging as it's swung up (a thin steel rod's ring, wavering).""",
+            sources=LEATHER[:2] + CLOTH, takes=3, lufs=-24)
     def lift(rng, k):
-        return ck.place([(0, hit_of(LEATHER[k % 2], 0, 0.2), -4), (0.08, aerial(rng, k), -12),
+        grip = hit_of(LEATHER[k], 0, 0.2) if k < 2 else ck.cloth(rng, k, 0.2)
+        return ck.place([(0, grip, -4), (0.08, aerial(rng, k), -12),
                          (0.08, ck.grains(rng, 4, 0.06, 2500, 5000, q=(15, 30)), -18)])
 
     for mat in DROP:

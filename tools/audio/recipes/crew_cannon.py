@@ -16,10 +16,9 @@ import numpy as np
 
 import dsp
 import synth
-from build import recipe
-from dsp import samples, lp, hp, bp, env, mix
+from dsp import samples, lp, env, mix
 from recipes import crew_kit as ck
-from recipes.crew_kit import R, S, K
+from recipes.crew_kit import recipe, R, S, K
 from recipes.crew_items import hit_of
 from recipes.crew_train import iron, rolling
 
