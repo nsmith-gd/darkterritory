@@ -1,14 +1,18 @@
-// Tell (tier 1), the Track Doll haunting the train: "it giggles in the cars" (GDD v1.1 App. A.2), 3-6 kHz (the band the
-// Clinger held). A child's giggle gone thin and glassy: a high warbling tone in short uneven bursts, porcelain, nothing
-// the train makes. Heard in whatever car it's in, and in the cab when it's at the controls.
+// The tell's kept takes from the audio checklist (tell-track-doll/giggle), in place of its
+// synth definition (tools/audio/synth-defs/doll-giggle.json), keeping its tier, range and level. Written by
+// tools/audio/install.py; edit the cue or that file, not this one.
 {
-  "tier": 1, "loop": true, "maxInstances": 1, "minDistance": 2, "maxDistance": 45, "gainDb": 8,
-  "layers": [
-    { "source": "sine", "frequency": 3900, "gain": 0.6, "vibrato": { "rate": 9, "depth": 0.06 },
-      "tremolo": { "rate": 7.5, "depth": 1, "duty": 0.4, "jitter": 0.5 } },
-    { "source": "sine", "frequency": 4700, "gain": 0.35, "vibrato": { "rate": 11, "depth": 0.05 },
-      "tremolo": { "rate": 7.5, "depth": 1, "duty": 0.3, "jitter": 0.5 } },
-    { "source": "noise", "gain": 0.12, "filters": [{ "type": "bandPass", "frequency": 4400, "q": 5 }],
-      "tremolo": { "rate": 1.1, "depth": 1, "duty": 0.55, "jitter": 0.7 } }
-  ]
+ "tier": 1,
+ "loop": true,
+ "maxInstances": 1,
+ "minDistance": 2,
+ "maxDistance": 45,
+ "gainDb": 8,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "tell-track-doll/giggle",
+   "gain": 1
+  }
+ ]
 }

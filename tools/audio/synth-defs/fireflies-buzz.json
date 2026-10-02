@@ -1,0 +1,13 @@
+// Tell (tier 1), Fire Flies swarming a lit lamp: "glow and buzzing around the lamp" (GDD v1.1 App. A.5), 9-12 kHz (the
+// band the Gnawers held), the highest insect whine there is. A cloud of wings: dense and uneven, rising with how long
+// they've lingered ("progress").
+{
+  "tier": 1, "loop": true, "maxInstances": 4, "minDistance": 3, "maxDistance": 40, "gainDb": 8,
+  "layers": [
+    { "source": "saw", "frequency": { "param": "progress", "points": [[0, 180], [1, 260]] }, "gain": 0.3,
+      "filters": [{ "type": "bandPass", "frequency": 10400, "q": 3 }],
+      "vibrato": { "rate": 13, "depth": 0.09 } },
+    { "source": "noise", "gain": 0.5, "filters": [{ "type": "bandPass", "frequency": 10800, "q": 4 }],
+      "tremolo": { "rate": 17, "depth": 0.8, "jitter": 0.8 } }
+  ]
+}

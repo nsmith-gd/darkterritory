@@ -170,6 +170,9 @@ TELL_SOUNDS = {
 }
 # The Dragger's rasp is one scrape before the grab (spec A.4), not a loop: played once and held till the phase ends.
 ONCE = {"dragger-scrape"}
+# Level on top of the synth definition's, where the kept takes sit lower than the synth did: AudioTests holds every
+# tell 6 dB over the bed for whoever has to hear it (the Choir's kept voices measured -2.5 at a car roof at the old level).
+TELL_GAIN_DB = {"choir-voice": 11}
 SYNTH_DEFS = os.path.join(HERE, "synth-defs")
 
 # Lines whose candidates are alternatives the game uses all of, one per instance (a prisoner's whole voice).
@@ -205,7 +208,7 @@ def _read_def(path):
     return head, json.loads(body)
 
 
-def tell_sounds(store, kept_folders):
+def tell_sounds(kept_folders):
     """Swap each tell's game sound to its kept takes, or back to its synth definition when none are kept."""
     os.makedirs(SYNTH_DEFS, exist_ok=True)
     for line, (sound, cues) in TELL_SOUNDS.items():
@@ -227,6 +230,7 @@ def tell_sounds(store, kept_folders):
             layer.update(extra)
             layers.append(layer)
         d["layers"] = layers
+        d["gainDb"] = d.get("gainDb", 0) + TELL_GAIN_DB.get(sound, 0)
         if sound in ONCE:
             d["loop"] = False
         with open(path, "w") as f:
@@ -253,7 +257,6 @@ def main():
     index_path = os.path.join(SAMPLES, "index.json")
     index = json.load(open(index_path)) if os.path.exists(index_path) else {}
     n_cues = n_files = 0
-    kept_folders = set()
     for line, cues in C.CUES.items():
         if args and line not in args:
             continue
@@ -281,8 +284,6 @@ def main():
                     continue
                 rel = f"{line}/{cue['id']}" + (f"/{mat}" if mat else "")
                 takes = [t for k in chosen for t in takes_of(k, cue)]
-                if cue["kind"] == "loop":
-                    takes = takes[:2]
                 n_cues += 1
                 n_files += len(takes)
                 print(f"{rel:50s} {why:5s} {len(takes)} take(s) from {', '.join(k.get('key') or k.get('libkey') or k['src'] for k in chosen)}")
@@ -298,8 +299,6 @@ def main():
                             f". Written by tools/audio/install.py from the audio checklist ({why}); edit the cue, not this.\n")
                     json.dump(sound_def(item, cue, rel, line), f, indent=1)
                     f.write("\n")
-                if why == "kept":
-                    kept_folders.add(rel)
                 index[rel] = {"cue": f"{line}.{cue['id']}", "surface": mat, "picked": why,
                               "candidates": [{"label": k.get("label"), "key": k.get("key") or k.get("libkey") or k["src"],
                                               "sources": k.get("sources") or ([k["libkey"]] if k.get("libkey") else []),
@@ -308,9 +307,9 @@ def main():
                               "sha": hashlib.sha256(b"".join(open(os.path.join(folder, f), "rb").read()
                                                              for f in sorted(os.listdir(folder)))).hexdigest()[:16]}
     if not dry:
-        tell_sounds(store, kept_folders)
         os.makedirs(SAMPLES, exist_ok=True)
         json.dump(dict(sorted(index.items())), open(index_path, "w"), indent=1)
+        tell_sounds({rel for rel, e in index.items() if e["picked"] == "kept"})
     print(f"{n_cues} cue folders, {n_files} takes")
 
 
