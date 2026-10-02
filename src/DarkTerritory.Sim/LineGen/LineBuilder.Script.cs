@@ -35,8 +35,8 @@ sealed partial class LineBuilder
     double Drift(double s)
     {
         double a = _t.Profile.DriftAmplitudeM;
-        return a * (0.6 * Math.Sin(2 * Math.PI * s / _driftL1 + _driftPhase1) + 0.4 * Math.Sin(2 * Math.PI * s / _driftL2 + _driftPhase2))
-            - a * (0.6 * Math.Sin(_driftPhase1) + 0.4 * Math.Sin(_driftPhase2));
+        return a * (0.6 * DMath.Sin(2 * Math.PI * s / _driftL1 + _driftPhase1) + 0.4 * DMath.Sin(2 * Math.PI * s / _driftL2 + _driftPhase2))
+            - a * (0.6 * DMath.Sin(_driftPhase1) + 0.4 * DMath.Sin(_driftPhase2));
     }
 
     Item Fixed(string type, double s0, double s1, HShape h, bool level, double minRadius = 0, double driftCap = double.PositiveInfinity) => new()

@@ -104,13 +104,13 @@ public static class Guns
     public static Double3 BarrelAim(GunMount mount, in GunState g) => Aim(FacingYaw(mount) + g.Traverse, g.Elevation);
 
     static Double3 Aim(double yaw, double pitch) =>
-        new(-Math.Sin(yaw) * Math.Cos(pitch), Math.Sin(pitch), -Math.Cos(yaw) * Math.Cos(pitch));
+        new(-DMath.Sin(yaw) * DMath.Cos(pitch), DMath.Sin(pitch), -DMath.Cos(yaw) * DMath.Cos(pitch));
 
     /// <summary>Where the gunner sits (feet, car frame): behind the breech, on the carriage, so it turns with the gun.</summary>
     public static Double3 SeatAt(GunMount mount, in GunState g, GunTuning t, double floor)
     {
         double yaw = FacingYaw(mount) + g.Traverse;
-        return new Double3(mount.Position.X + Math.Sin(yaw) * t.SeatBehind, floor, mount.Position.Z + Math.Cos(yaw) * t.SeatBehind);
+        return new Double3(mount.Position.X + DMath.Sin(yaw) * t.SeatBehind, floor, mount.Position.Z + DMath.Cos(yaw) * t.SeatBehind);
     }
 
     /// <summary>
@@ -151,7 +151,7 @@ public static class Guns
 
     /// <summary>Whether a gun's barrel is laid on <paramref name="aim"/> (car frame), within the tuning's tolerance (bots fire on it).</summary>
     public static bool Laid(GunMount mount, in GunState g, Double3 aim, GunTuning t) =>
-        Math.Acos(Math.Clamp(Double3.Dot(BarrelAim(mount, g), aim.Normalized), -1, 1)) * 180 / Math.PI <= t.LaidDegrees;
+        DMath.Acos(Math.Clamp(Double3.Dot(BarrelAim(mount, g), aim.Normalized), -1, 1)) * 180 / Math.PI <= t.LaidDegrees;
 
     static double Wrap(double a)
     {
@@ -161,23 +161,23 @@ public static class Guns
 
     /// <summary>The player's view direction in their car's frame.</summary>
     public static Double3 AimLocal(in PlayerState s) =>
-        new(-Math.Sin(s.Yaw) * Math.Cos(s.Pitch), Math.Sin(s.Pitch), -Math.Cos(s.Yaw) * Math.Cos(s.Pitch));
+        new(-DMath.Sin(s.Yaw) * DMath.Cos(s.Pitch), DMath.Sin(s.Pitch), -DMath.Cos(s.Yaw) * DMath.Cos(s.Pitch));
 
     /// <summary>Whether a gun can point this way (car frame).</summary>
     public static AimResult CheckAim(GunMount mount, Double3 aim, GunTuning t)
     {
-        double pitch = Math.Asin(Math.Clamp(aim.Y, -1, 1)) * 180 / Math.PI;
+        double pitch = DMath.Asin(Math.Clamp(aim.Y, -1, 1)) * 180 / Math.PI;
         if (pitch < t.MinPitchDegrees || pitch > t.MaxPitchDegrees)
             return AimResult.PitchLimit;
         var flat = new Double3(aim.X, 0, aim.Z);
         if (flat.Length < 1e-9)
             return AimResult.PitchLimit;
         flat = flat.Normalized;
-        double bearing = Math.Acos(Math.Clamp(Double3.Dot(flat, mount.Facing), -1, 1)) * 180 / Math.PI;
+        double bearing = DMath.Acos(Math.Clamp(Double3.Dot(flat, mount.Facing), -1, 1)) * 180 / Math.PI;
         if (bearing > t.TraverseDegrees / 2)
             return AimResult.OutOfTraverse;
         // The train's body runs away from the gun opposite its facing; nothing fires along it.
-        double alongBody = Math.Acos(Math.Clamp(Double3.Dot(flat, mount.Facing * -1), -1, 1)) * 180 / Math.PI;
+        double alongBody = DMath.Acos(Math.Clamp(Double3.Dot(flat, mount.Facing * -1), -1, 1)) * 180 / Math.PI;
         return alongBody < t.DeadZoneDegrees ? AimResult.DeadZone : AimResult.Ok;
     }
 

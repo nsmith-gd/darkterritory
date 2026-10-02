@@ -119,7 +119,7 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         if (target.e is null)
             return new PlayerIntent { Actions = seat };
         var d = frame.DirToLocal(target.offset).Normalized;
-        double yaw = Math.Atan2(-d.X, -d.Z), pitch = Math.Asin(d.Y);
+        double yaw = DMath.Atan2(-d.X, -d.Z), pitch = DMath.Asin(d.Y);
         // Turn by look deltas, the way a player would; the gun follows at its own pace, and it fires once it's laid.
         var intent = new PlayerIntent { LookYaw = (float)Wrap(yaw - self.Yaw), LookPitch = (float)(pitch - self.Pitch), Actions = seat };
         aimed = self with { Yaw = self.Yaw + intent.LookYaw, Pitch = self.Pitch + intent.LookPitch };
@@ -394,7 +394,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             var at = self.Position;
             if (self.Surface == Surface.Roof && world.ActiveEnemies.OfType<Dragger>().FirstOrDefault(d => d.Phase == SpinePhase.Telegraph && d.Attached == parent
                     && Math.Sign(at.X + 1e-9) == d.Side && Math.Abs(at.Z - d.Local.Z) < 2) is { } limb)
-                return new PlayerIntent { MoveX = (float)(-Math.Sign(at.X) * Math.Cos(self.Yaw)), Actions = PlayerActions.Swing };
+                return new PlayerIntent { MoveX = (float)(-Math.Sign(at.X) * DMath.Cos(self.Yaw)), Actions = PlayerActions.Swing };
             // A Climber making for a gap at either end of this car (App. A.4): hold it (T65).
             if (self.Surface == Surface.Roof && _warm is not { Active: true } && Hold(self, world) is { } holding)
                 return holding;
@@ -614,7 +614,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
                 if (Math.Abs(ladder.Inward.X) < 0.9 || ladder.Foot.Y > 0.5)
                     continue;
                 var at = frame.ToWorld(ladder.Foot - ladder.Inward * 0.3);
-                double d = Math.Sqrt(Math.Pow(at.X - self.Position.X, 2) + Math.Pow(at.Z - self.Position.Z, 2));
+                double lx = at.X - self.Position.X, lz = at.Z - self.Position.Z, d = Math.Sqrt(lx * lx + lz * lz);
                 if (d < bestD)
                 {
                     bestD = d;
@@ -625,7 +625,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         if (best is not { } target || !self.Grounded)
             return default;
         double dx = target.X - self.Position.X, dz = target.Z - self.Position.Z;
-        double yaw = Math.Atan2(-dx, -dz);
+        double yaw = DMath.Atan2(-dx, -dz);
         double turn = WrapAngle(yaw - self.Yaw);
         bool aligned = Math.Abs(turn) < 0.15;
         return new PlayerIntent
@@ -1512,7 +1512,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
         bool side = box.Max.Z - box.Min.Z > box.Max.X - box.Min.X;
         var inward = side ? new Double3(-Math.Sign(handle.X), 0, 0) : new Double3(0, 0, -Math.Sign(handle.Z));
         // Facing out through it: forward is (−sin yaw, 0, −cos yaw).
-        return (handle with { Y = 0 } + inward * 0.5, Math.Atan2(inward.X, inward.Z));
+        return (handle with { Y = 0 } + inward * 0.5, DMath.Atan2(inward.X, inward.Z));
     }
 
     /// <summary>
@@ -1571,7 +1571,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
         var offset = Flat(target) - Flat(self.Position);
         if (offset.Length < 0.15)
             return Aligned(self, yaw) ? (new PlayerIntent(), true) : (new PlayerIntent { LookYaw = Turn(self, yaw) }, false);
-        double fx = -Math.Sin(self.Yaw), fz = -Math.Cos(self.Yaw), rx = Math.Cos(self.Yaw), rz = -Math.Sin(self.Yaw);
+        double fx = -DMath.Sin(self.Yaw), fz = -DMath.Cos(self.Yaw), rx = DMath.Cos(self.Yaw), rz = -DMath.Sin(self.Yaw);
         double gain = offset.Length < 1 ? 1.2 : 2;
         return (new PlayerIntent
         {
@@ -1707,7 +1707,7 @@ public static class Heed
             local = world;
         var to = local - self.Position;
         var flat = new Double3(to.X, 0, to.Z);
-        double yaw = Math.Atan2(-flat.X, -flat.Z);
+        double yaw = DMath.Atan2(-flat.X, -flat.Z);
         var intent = new PlayerIntent { LookYaw = (float)Math.IEEERemainder(yaw - self.Yaw, 2 * Math.PI) };
         if (flat.Length > reach)
         {

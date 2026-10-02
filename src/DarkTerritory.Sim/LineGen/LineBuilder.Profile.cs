@@ -238,7 +238,7 @@ sealed partial class LineBuilder
                 var main = _line.Sample(b.Rejoin);
                 var err = end.Position - main.Position;
                 double flat = Math.Sqrt(err.X * err.X + err.Z * err.Z);
-                double angle = Math.Abs(Math.Atan2(Double3.Cross(end.Tangent, main.Tangent).Y, Double3.Dot(end.Tangent, main.Tangent)));
+                double angle = Math.Abs(DMath.Atan2(Double3.Cross(end.Tangent, main.Tangent).Y, Double3.Dot(end.Tangent, main.Tangent)));
                 bool ok = flat < _t.Alignment.ClosureTolM * 0.1 && Math.Abs(err.Y) < 0.05 && angle < _t.Alignment.ClosureTolDeg * Math.PI / 180 * 0.5;
                 if (ok)
                     continue;
@@ -318,7 +318,7 @@ sealed partial class LineBuilder
 
     readonly Dictionary<string, (Pose From, Pose Target)> _closures = new();
 
-    static double Heading(Double3 t) => Math.Atan2(-t.X, -t.Z);
+    static double Heading(Double3 t) => DMath.Atan2(-t.X, -t.Z);
 
     RailLine BuildLine()
     {

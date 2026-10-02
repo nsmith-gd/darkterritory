@@ -138,7 +138,7 @@ public sealed class TippyToesie(int id) : Enemy(id)
                     if (mark is not { } who)
                         return;
                     var s = ctx.Crew.First(c => c.Player.Id == who).Player.State;
-                    var behind = new Double3(Math.Sin(s.Yaw), 0, Math.Cos(s.Yaw)) * t.StartBehind;
+                    var behind = new Double3(DMath.Sin(s.Yaw), 0, DMath.Cos(s.Yaw)) * t.StartBehind;
                     Attached = s.Parent >= 0 ? s.Parent : Loose;
                     Local = s.Parent >= 0 ? Clamp(train, s.Parent, s.Position + behind) : PlayerMotor.WorldPosition(s, train) + WorldBehind(s, train, t.StartBehind);
                     Extra = who;
@@ -191,7 +191,7 @@ public sealed class TippyToesie(int id) : Enemy(id)
     static Double3 WorldBehind(in PlayerState s, TrainOnLine train, double distance)
     {
         double yaw = PlayerMotor.WorldYaw(s, train);
-        return new Double3(Math.Sin(yaw), 0, Math.Cos(yaw)) * distance;
+        return new Double3(DMath.Sin(yaw), 0, DMath.Cos(yaw)) * distance;
     }
 
     /// <summary>Behind them in their car, but inside its walls.</summary>

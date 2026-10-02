@@ -128,7 +128,7 @@ public sealed class SpeedProfile
         for (int i = n - 2; i >= 0; i--)
         {
             double f = fadeAt?.Invoke(i * Step) ?? 1;
-            double g = grade[i] < 0 ? 9.81 * Math.Sin(Math.Atan(-grade[i] / 100)) : 0;
+            double g = grade[i] < 0 ? 9.81 * DMath.Sin(DMath.Atan(-grade[i] / 100)) : 0;
             double b = Math.Max(0.02, brake * adhesion * f * margin - g);
             _target[i] = Math.Min(_target[i], Math.Sqrt(_target[i + 1] * _target[i + 1] + 2 * b * Step));
         }

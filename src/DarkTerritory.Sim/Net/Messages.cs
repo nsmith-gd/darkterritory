@@ -9,7 +9,8 @@ namespace DarkTerritory.Sim.Net;
 public static class Protocol
 {
     // 3: the wreck's poses (RecordKind.Wreck) and the Welcome's compact content hashes (T116, T117).
-    public const int Version = 3;
+    // 4: the sim's trigonometry is DMath's, the same bits on every OS, so a 3 generates different lines from one seed.
+    public const int Version = 4;
 }
 
 public enum MessageType : byte

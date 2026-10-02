@@ -445,7 +445,7 @@ public sealed class Wreck
 
     static Double3 Rotate(Double3 v, Double3 axis, double angle)
     {
-        double c = Math.Cos(angle), s = Math.Sin(angle);
+        double c = DMath.Cos(angle), s = DMath.Sin(angle);
         return v * c + Double3.Cross(axis, v) * s + axis * (Double3.Dot(axis, v) * (1 - c));
     }
 }

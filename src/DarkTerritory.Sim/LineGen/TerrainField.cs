@@ -610,14 +610,14 @@ public sealed class TerrainField
             double d;
             if (p.Box)
             {
-                double hx = -Math.Sin(p.HeadingDeg * Math.PI / 180), hz = -Math.Cos(p.HeadingDeg * Math.PI / 180);
+                double hx = -DMath.Sin(p.HeadingDeg * Math.PI / 180), hz = -DMath.Cos(p.HeadingDeg * Math.PI / 180);
                 double along = dx * hx + dz * hz, across = Math.Abs(dx * hz - dz * hx);
                 d = Math.Max(across, p.RadiusM + Math.Max(0, Math.Abs(along) - p.HalfLengthM));
             }
             else if (p.HalfLengthM > 0)
             {
                 // A long pad along a heading: distance to its centre line segment.
-                double hx = -Math.Sin(p.HeadingDeg * Math.PI / 180), hz = -Math.Cos(p.HeadingDeg * Math.PI / 180);
+                double hx = -DMath.Sin(p.HeadingDeg * Math.PI / 180), hz = -DMath.Cos(p.HeadingDeg * Math.PI / 180);
                 double along = Math.Clamp(dx * hx + dz * hz, -p.HalfLengthM, p.HalfLengthM);
                 double ex = dx - along * hx, ez = dz - along * hz;
                 d = Math.Sqrt(ex * ex + ez * ez);

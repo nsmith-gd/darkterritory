@@ -168,6 +168,6 @@ public static class PlanStops
         var across = Double3.Cross(mid.Tangent, Double3.Up).Normalized * ((right - left) / 2);
         var at = mid.Position + across;
         return new PlanPad($"{PadPrefix}{Math.Round(start)}", Math.Round(at.X, 3), Math.Round(at.Z, 3), Math.Round(mid.Position.Y, 3),
-            Math.Round((right + left) / 2, 1), stop.ZoneLength / 2, Math.Round(Math.Atan2(-mid.Tangent.X, -mid.Tangent.Z) * 180 / Math.PI, 3), Box: true);
+            Math.Round((right + left) / 2, 1), stop.ZoneLength / 2, Math.Round(DMath.Atan2(-mid.Tangent.X, -mid.Tangent.Z) * 180 / Math.PI, 3), Box: true);
     }
 }

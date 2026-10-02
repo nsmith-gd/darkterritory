@@ -1,3 +1,4 @@
+using Ballast;
 using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Net;
@@ -411,8 +412,8 @@ public sealed class World
         _swingReady[playerId] = Tick + (uint)Math.Round(t.SwingSeconds * SimConstants.TickRate);
         var eye = PlayerMotor.WorldPosition(s, Train) + Ballast.Double3.Up * 1.3;
         double yaw = PlayerMotor.WorldYaw(s, Train);
-        var facing = new Ballast.Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw));
-        double cos = Math.Cos(t.ConeDegrees * Math.PI / 180);
+        var facing = new Ballast.Double3(-DMath.Sin(yaw), 0, -DMath.Cos(yaw));
+        double cos = DMath.Cos(t.ConeDegrees * Math.PI / 180);
         Enemy? best = null;
         double bestD = double.MaxValue;
         foreach (var e in _enemies)
@@ -494,7 +495,7 @@ public sealed class World
                     for (int i = 0; i < et.Choir.Ghosts; i++)
                     {
                         double a = i * 2 * Math.PI / et.Choir.Ghosts;
-                        var at = Train.Frames[0].Origin + new Ballast.Double3(Math.Cos(a) * 40, 12, Math.Sin(a) * 40);
+                        var at = Train.Frames[0].Origin + new Ballast.Double3(DMath.Cos(a) * 40, 12, DMath.Sin(a) * 40);
                         AddEnemy(id => ChoirGhost.Around(id, at, et.Choir));
                     }
                 // Its one taken (even by a ghost still holding on after the rest dispersed), it's spent for the run.

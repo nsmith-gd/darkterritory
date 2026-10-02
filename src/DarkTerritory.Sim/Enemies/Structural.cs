@@ -78,7 +78,7 @@ public sealed class ChoirGhost(int id) : Enemy(id)
     {
         double a = PhaseSeconds * 0.6 + Id;
         var middle = train.Line.Sample(train.Dynamics.Path, train.Dynamics.Distance - train.Dynamics.Consist.LengthMetres * 0.5).Position;
-        var want = middle + new Double3(Math.Cos(a) * t.Around, 6 + Math.Sin(a * 1.7) * 1.5, Math.Sin(a) * t.Around);
+        var want = middle + new Double3(DMath.Cos(a) * t.Around, 6 + DMath.Sin(a * 1.7) * 1.5, DMath.Sin(a) * t.Around);
         var to = want - Local;
         double step = (t.FlySpeed + train.Dynamics.Speed) * SimConstants.TickSeconds; // they keep up with the train, and gain
         Local = to.Length <= step ? want : Local + to.Normalized * step;

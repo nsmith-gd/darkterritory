@@ -219,7 +219,7 @@ public sealed class Site
     public Double3 Grip(int handle)
     {
         double a = Crank + handle * Math.PI;
-        return Handles[handle] + (Outward * Math.Cos(a) + Double3.Up * Math.Sin(a)) * CrankRadius;
+        return Handles[handle] + (Outward * DMath.Cos(a) + Double3.Up * DMath.Sin(a)) * CrankRadius;
     }
 
     /// <summary>
@@ -233,7 +233,7 @@ public sealed class Site
         double rho = Math.Sqrt(u * u + v * v);
         if (rho < CrankRadius * 0.5 || Math.Sqrt((rho - CrankRadius) * (rho - CrankRadius) + a * a) > grab)
             return null;
-        return Math.Atan2(v, u) - handle * Math.PI;
+        return DMath.Atan2(v, u) - handle * Math.PI;
     }
     public Double3 SledFrom { get; }
     public Double3 SledTo { get; }

@@ -22,7 +22,8 @@ static class LineGenCommands
 
     /// <summary>
     /// The line's and the land's checksums for some nights (T116 cross-play): a joiner builds the host's night itself and
-    /// is refused if either differs, so CI runs this on Windows and Linux and compares.
+    /// is refused if either differs, so CI runs this on Windows and Linux and compares. Each part of the plan gets its own
+    /// checksum too, so a mismatch says where (the alignment, the pieces, the validator's run) rather than just that.
     /// </summary>
     static object Prints(string content, string[] args)
     {
@@ -31,7 +32,9 @@ static class LineGenCommands
         {
             var route = Routes.Generate(content, spec, (int)Opt(args, "--cars", 6));
             var line = route.Build();
-            return new { route = spec, plan = route.Plan!.Fingerprint(), terrain = new PlanConditions(route.Plan!, line).Terrain.Print() };
+            using var plan = System.Text.Json.JsonDocument.Parse(route.Plan!.ToJson());
+            var parts = plan.RootElement.EnumerateObject().ToDictionary(p => p.Name, p => Streams.Hash(p.Value.GetRawText()).ToString("x16"));
+            return new { route = spec, plan = route.Plan!.Fingerprint(), terrain = new PlanConditions(route.Plan!, line).Terrain.Print(), parts };
         }).ToList();
     }
 

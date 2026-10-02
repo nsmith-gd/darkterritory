@@ -55,7 +55,7 @@ public sealed class StopWalls
     public static Pt Doorstep(StopBuilding b, int slot)
     {
         // The building's own axis and across, in the stop's (S, D); which of its four faces looks most towards the line.
-        double c = Math.Cos(b.Yaw), s = Math.Sin(b.Yaw);
+        double c = DMath.Cos(b.Yaw), s = DMath.Sin(b.Yaw);
         (double x, double y)[] faces = [(1, 0), (-1, 0), (0, 1), (0, -1)];
         var best = faces.OrderBy(f => Math.Sign(b.D) * (f.x * s + f.y * c)).First();
         double along = (slot % 3 - 1) * 0.9;
@@ -84,7 +84,7 @@ public sealed class StopWalls
                     var t = line.Sample(f.Start + centre.S);
                     var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
                     var tangent = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
-                    var axis = (tangent * Math.Cos(b.Yaw) + right * Math.Sin(b.Yaw)).Normalized;
+                    var axis = (tangent * DMath.Cos(b.Yaw) + right * DMath.Sin(b.Yaw)).Normalized;
                     walls.Add(new Wall(at with { Y = 0 }, axis, p.Length / 2, p.Width / 2, at.Y - 3, at.Y + 9));
                 }
             }

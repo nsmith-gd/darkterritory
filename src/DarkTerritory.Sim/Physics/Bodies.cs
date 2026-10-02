@@ -170,7 +170,7 @@ public sealed class Bodies
     /// <summary>A body where a player died, moving as they were (spec C.1: it persists at the death location).</summary>
     public Body SpawnRagdoll(TrainOnLine train, int owner, in PlayerState dead)
     {
-        double c = Math.Cos(dead.Yaw), s = Math.Sin(dead.Yaw);
+        double c = DMath.Cos(dead.Yaw), s = DMath.Sin(dead.Yaw);
         var velocity = dead.Velocity;
         var at = dead.Position;
         var particles = Skeleton.Select(j =>
@@ -181,7 +181,7 @@ public sealed class Bodies
             return p;
         }).ToArray();
         // Nobody dies standing straight: the head and chest go over backwards, or it folds into a neat pile.
-        var backwards = new Double3(Math.Sin(dead.Yaw), 0, Math.Cos(dead.Yaw));
+        var backwards = new Double3(DMath.Sin(dead.Yaw), 0, DMath.Cos(dead.Yaw));
         particles[0].SetVelocity(velocity + backwards * 1.6, Dt);
         particles[1].SetVelocity(velocity + backwards * 1.0, Dt);
         var bones = Bones.Select(b => new DistanceConstraint(b.A, b.B, (Skeleton[b.A].At - Skeleton[b.B].At).Length, b.Stiffness)).ToArray();
@@ -314,7 +314,7 @@ public sealed class Bodies
 
     Double3 HandsAt(in PlayerState s, TrainOnLine train)
     {
-        var forward = new Double3(-Math.Sin(s.Yaw), 0, -Math.Cos(s.Yaw));
+        var forward = new Double3(-DMath.Sin(s.Yaw), 0, -DMath.Cos(s.Yaw));
         var local = s.Position + Double3.Up * Hands.CarryHeight + forward * Hands.CarryForward;
         return s.Parent == PlayerState.World ? local : train.Frames[s.Parent].ToWorld(local);
     }
@@ -326,7 +326,7 @@ public sealed class Bodies
         int grip = b.Kind == BodyKind.Ragdoll ? 1 : 0;
         p[grip].InverseMass = 1;
         // Thrown along the view, including pitch, on top of the thrower's own motion.
-        var look = new Double3(-Math.Sin(s.Yaw) * Math.Cos(s.Pitch), Math.Sin(s.Pitch), -Math.Cos(s.Yaw) * Math.Cos(s.Pitch));
+        var look = new Double3(-DMath.Sin(s.Yaw) * DMath.Cos(s.Pitch), DMath.Sin(s.Pitch), -DMath.Cos(s.Yaw) * DMath.Cos(s.Pitch));
         var throwVelocity = s.Velocity + look * speed + Double3.Up * (speed > 0 ? 1.5 : 0);
         for (int i = 0; i < p.Length; i++)
             p[i].SetVelocity(throwVelocity, Dt);

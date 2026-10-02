@@ -347,7 +347,7 @@ public static class PlayerMotor
         var hand = other ? s.OtherHand : s.Hand;
         if (hand == default)
             return null;
-        double c = Math.Cos(s.Yaw), n = Math.Sin(s.Yaw);
+        double c = DMath.Cos(s.Yaw), n = DMath.Sin(s.Yaw);
         return s.Position + new Double3(hand.X * c + hand.Z * n, hand.Y, -hand.X * n + hand.Z * c);
     }
 
@@ -512,8 +512,8 @@ public static class PlayerMotor
         double x = Math.Clamp(intent.MoveX, -1, 1), z = Math.Clamp(intent.MoveZ, -1, 1);
         double len = Math.Sqrt(x * x + z * z);
         if (len > 1) { x /= len; z /= len; }
-        var forward = new Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw));
-        var right = new Double3(Math.Cos(yaw), 0, -Math.Sin(yaw));
+        var forward = new Double3(-DMath.Sin(yaw), 0, -DMath.Cos(yaw));
+        var right = new Double3(DMath.Cos(yaw), 0, -DMath.Sin(yaw));
         return right * x + forward * z;
     }
 
@@ -725,7 +725,7 @@ public static class PlayerMotor
                         || frame.Shape.Interior is { } room && room.Contains(ladder.Foot + new Double3(0, 0.2, 0)))
                         continue;
                     double yaw = WorldYaw(s, train);
-                    var facing = frame.DirToLocal(new Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw)));
+                    var facing = frame.DirToLocal(new Double3(-DMath.Sin(yaw), 0, -DMath.Cos(yaw)));
                     if (facing.X * ladder.Inward.X + facing.Z * ladder.Inward.Z < 0.7)
                         continue;
                 }

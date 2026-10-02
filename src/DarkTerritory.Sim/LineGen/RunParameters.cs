@@ -142,7 +142,7 @@ public sealed class Limits
         double wet = content.Config.Tiers.Weather.WetBiasAdhesion;
         var fade = content.Train.BrakeFade;
         double duty = fade.RecoverPerSecond / (fade.FadePerSecond + fade.RecoverPerSecond);
-        DescentGrade = Math.Min(MainGrade, Math.Tan(Math.Asin(Math.Min(1, Brake * duty * wet / content.Train.Gravity))) * 100);
+        DescentGrade = Math.Min(MainGrade, DMath.Tan(DMath.Asin(Math.Min(1, Brake * duty * wet / content.Train.Gravity))) * 100);
         var longest = Consist.Uniform(content.Train, cfg.Consist.MaxCars, 1);
         LongestConsist = longest.LengthMetres;
         TenderEnduranceS = BoilerScenarios.TenderEnduranceMinutes(content.Boiler, p.Cars) * 60;

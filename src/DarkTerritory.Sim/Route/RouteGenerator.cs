@@ -99,7 +99,7 @@ public static class RouteGenerator
     static (double Advance, double Offset) Turnout(double radius, double length)
     {
         double theta = length / radius;
-        return (2 * radius * Math.Sin(theta), 2 * radius * (1 - Math.Cos(theta)));
+        return (2 * radius * DMath.Sin(theta), 2 * radius * (1 - DMath.Cos(theta)));
     }
 
     /// <summary>

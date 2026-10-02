@@ -1,3 +1,4 @@
+using Ballast;
 using DarkTerritory.Sim.Rail;
 
 namespace DarkTerritory.Sim.Stops;
@@ -32,7 +33,7 @@ public static partial class StopGenerator
         double End(int count, int cars)
         {
             double e = Enumerable.Range(0, count).Max(j => FaceStart(j, count)) + FaceLength(cars);
-            return form == YardForm.Fan ? e + fanRadius * Math.Sin(fanAngle) + t.Hero.Length[1] : e + 12;
+            return form == YardForm.Fan ? e + fanRadius * DMath.Sin(fanAngle) + t.Hero.Length[1] : e + 12;
         }
         while (End(n, faceCars) > cx.ZoneLength - 20 && (faceCars > tt.FaceCars[0] || n > 1))
         {
@@ -263,7 +264,7 @@ public static partial class StopGenerator
             var (p, tan) = walk.At(u + w / 2);
             var n = tan.Normal * side;
             var c = p + n * offset;
-            var b = new StopBuilding(BuildingKind.Hero, StopZone.Yard, c.S, c.D, w, t.Shed.Depth, Math.Atan2(tan.D, tan.S)) { Tracks = [track.Index], Variant = R.Int(0, 3) };
+            var b = new StopBuilding(BuildingKind.Hero, StopZone.Yard, c.S, c.D, w, t.Shed.Depth, DMath.Atan2(tan.D, tan.S)) { Tracks = [track.Index], Variant = R.Int(0, 3) };
             if (g.Fits(b, new Fit(Gap: 0.4, Rail: 3.5, Road: -1)))
             {
                 placed.Add(g.Add(b));
