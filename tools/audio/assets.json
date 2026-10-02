@@ -1,4 +1,104 @@
 {
+ "previews/cs-climbers--hit--sucker.mp4": {
+  "id": "40d643d81ec13e37435f79a74c7f0096",
+  "url": "/_blob/40d643d81ec13e37435f79a74c7f0096",
+  "sha": "8ec3b56e488d0ea7"
+ },
+ "previews/cs-followers--clubbed-off--burst.mp4": {
+  "id": "ac68abe42de1d941fdb23042632efe68",
+  "url": "/_blob/ac68abe42de1d941fdb23042632efe68",
+  "sha": "7b55ec7b9d08e8d0"
+ },
+ "previews/cs-followers--nest-burst--collapse.mp4": {
+  "id": "60b07ca53d2dbe3617d424ddf1a3e7b5",
+  "url": "/_blob/60b07ca53d2dbe3617d424ddf1a3e7b5",
+  "sha": "652b24624c3c2e62"
+ },
+ "previews/cs-followers--nest-smash--hacking.mp4": {
+  "id": "54a20128f816c28376ee54e48b73aba3",
+  "url": "/_blob/54a20128f816c28376ee54e48b73aba3",
+  "sha": "3abce9d9920b1926"
+ },
+ "previews/cs-followers--nest-smash--writhe.mp4": {
+  "id": "3d6ee1518f7e54a25bf68dfb67b659cf",
+  "url": "/_blob/3d6ee1518f7e54a25bf68dfb67b659cf",
+  "sha": "60c03b4817c09a3a"
+ },
+ "previews/cs-grumbler--eat--crates.mp4": {
+  "id": "0d02b2078a0f322f9445ee05f40a05fe",
+  "url": "/_blob/0d02b2078a0f322f9445ee05f40a05fe",
+  "sha": "127a461f59454796"
+ },
+ "previews/cs-grumbler--feral--bellow.mp4": {
+  "id": "1e362b70068bf1cb8330135c3cc5dfb6",
+  "url": "/_blob/1e362b70068bf1cb8330135c3cc5dfb6",
+  "sha": "3b54ed0fb29a7f89"
+ },
+ "previews/cs-grumbler--feral--gnash.mp4": {
+  "id": "ec02f25a23650afcc0afc582304ad4b6",
+  "url": "/_blob/ec02f25a23650afcc0afc582304ad4b6",
+  "sha": "de3e2850cd13afcf"
+ },
+ "previews/cs-grumbler--scuttle--palms.mp4": {
+  "id": "74d34063636f4cd0d9464c8257fa8b35",
+  "url": "/_blob/74d34063636f4cd0d9464c8257fa8b35",
+  "sha": "5d8b9c0f5579068b"
+ },
+ "previews/cs-hounds--bite--jaws.mp4": {
+  "id": "d220c4fe912fc83adccc82bfe0a55949",
+  "url": "/_blob/d220c4fe912fc83adccc82bfe0a55949",
+  "sha": "62905b4be6f4f10a"
+ },
+ "previews/cs-hounds--leap--board.mp4": {
+  "id": "4af3975db66f9b6da78edb3828063d4a",
+  "url": "/_blob/4af3975db66f9b6da78edb3828063d4a",
+  "sha": "6e560ecd18e1f5bc"
+ },
+ "previews/cs-hounds--paw--pad--grate.mp4": {
+  "id": "b6ff0af7c0168cd1fee0eb08b933015c",
+  "url": "/_blob/b6ff0af7c0168cd1fee0eb08b933015c",
+  "sha": "e67c12b06dfadaae"
+ },
+ "previews/cs-hounds--paw--pad--ground.mp4": {
+  "id": "195564434a45fca99167a740a2fdf011",
+  "url": "/_blob/195564434a45fca99167a740a2fdf011",
+  "sha": "a1ea9d4c19f365a8"
+ },
+ "previews/cs-hounds--paw--pad--roof.mp4": {
+  "id": "24a50e6b902662d2e325b0efba9b9265",
+  "url": "/_blob/24a50e6b902662d2e325b0efba9b9265",
+  "sha": "a927e147af23394f"
+ },
+ "previews/cs-hounds--snarl--cinder.mp4": {
+  "id": "20e4c8c14da148d50e7eb8e61d74a78f",
+  "url": "/_blob/20e4c8c14da148d50e7eb8e61d74a78f",
+  "sha": "feca8ff6a542d394"
+ },
+ "previews/cs-hounds--snarl--throat.mp4": {
+  "id": "fd74c1ff3d98a8897420ff1514759f70",
+  "url": "/_blob/fd74c1ff3d98a8897420ff1514759f70",
+  "sha": "2a00f73017239de3"
+ },
+ "previews/cs-hounds--yelp--kiyi.mp4": {
+  "id": "8a9d8d56cfe0f6db35932f46e6a19544",
+  "url": "/_blob/8a9d8d56cfe0f6db35932f46e6a19544",
+  "sha": "48cc75c08b67829e"
+ },
+ "previews/cs-ribbits--feed--frenzy.mp4": {
+  "id": "8fdbf194d77358d6034eaebc792b0804",
+  "url": "/_blob/8fdbf194d77358d6034eaebc792b0804",
+  "sha": "439e7f78412c4c33"
+ },
+ "previews/cs-ribbits--feed--gorge.mp4": {
+  "id": "652b04e51f9e8143ba0c303db189b110",
+  "url": "/_blob/652b04e51f9e8143ba0c303db189b110",
+  "sha": "8c903b0ed9efb401"
+ },
+ "previews/cs-ribbits--hit--clubbed.mp4": {
+  "id": "e5c162c33420c9f059e89029079b507e",
+  "url": "/_blob/e5c162c33420c9f059e89029079b507e",
+  "sha": "359316c1b2c78c81"
+ },
  "previews/store-trailer--mix--night-run.mp4": {
   "id": "51b946725ce32bd56ff3889495deef35",
   "url": "/_blob/51b946725ce32bd56ff3889495deef35",

@@ -8,6 +8,7 @@ keyed by the preview's path under out/audio and its content hash, so a rebuild t
 
   python3 tools/audio/assets.py pending [--limit 25]     # previews not uploaded yet (or changed since), absolute paths
   python3 tools/audio/assets.py record < upload-result.txt   # read the Artifact tool's upload result, remember the ids
+                                                         # (its lines as printed, or "<preview>.mp4 <asset id>" per line)
 """
 
 import hashlib
@@ -53,8 +54,11 @@ def pending():
 def record(text):
     reg = load()
     n = 0
-    for m in re.finditer(r'"([^"]+\.mp4)" \(\d+ bytes[^)]*\) → "(/_blob/([0-9a-f]{32}))"', text):
-        path, url, aid = m.groups()
+    found = [m.groups() for m in re.finditer(r'"([^"]+\.mp4)" \(\d+ bytes[^)]*\) → "(/_blob/([0-9a-f]{32}))"', text)]
+    # or the short form: "<preview file name> <asset id>" per line
+    found += [(os.path.join(OUT, "previews", m.group(1)), "/_blob/" + m.group(2), m.group(2))
+              for m in re.finditer(r"^\s*([\w.-]+\.mp4)\s+([0-9a-f]{32})\s*$", text, re.M)]
+    for path, url, aid in found:
         rel = os.path.relpath(path, OUT)
         reg[rel] = {"id": aid, "url": url, "sha": sha(path)}
         n += 1
