@@ -230,7 +230,8 @@ public sealed partial class SceneArt(Look look)
             return true;
         }
         // What the crew carry: the modelled props (tools/models make: stores_crate, freight_*, heavy_crate,
-        // field_radio, train_stores' toys) where they're built, centred on the body like the kit's; the kit's pieces where not.
+        // field_radio, train_stores' toys and repair kit) where they're built, centred on the body like the kit's; the
+        // kit's pieces where not.
         var piece = b.Kind switch
         {
             Sim.Physics.BodyKind.Cargo => props.Get(Freight(b)) ?? Piece("prop-cargo", () => PropKit.Cargo(Look)),
@@ -239,6 +240,8 @@ public sealed partial class SceneArt(Look look)
             Sim.Physics.BodyKind.Heavy => props.Get("heavy_crate") ?? Piece($"prop-heavy-{heavyHalf:0.00}", () => PropKit.Heavy(Look, (float)heavyHalf)),
             Sim.Physics.BodyKind.Crate => props.Get("stores_crate") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
             Sim.Physics.BodyKind.Radio => props.Get("field_radio") ?? Piece("prop-radio", () => PropKit.Radio(Look)),
+            // The engineer's toolbox (train_stores' repair_kit, GDD §12), lying where it was put down or dropped.
+            Sim.Physics.BodyKind.RepairKit => props.Get("repair_kit") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
             Sim.Physics.BodyKind.Loot => Piece("prop-loot", () => PropKit.Loot(Look, 0.15f)),
             // The hand lamp: the sourced lantern (tools/models hand_lantern) where it's built.
             _ => PropArt.Of(Look).Get("hand_lantern") ?? Piece("prop-lantern", () => PropKit.Lantern(Look)),

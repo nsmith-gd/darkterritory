@@ -8,8 +8,8 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// T109 playtest: the vent in the cab, and a ruptured boiler mended with the engineering kit (a wrench) from its rack in the
-/// cab, so one player can do it all from the footplate.
+/// T109 playtest: the vent in the cab, the wrench on its rack, and a ruptured boiler mended with the repair kit, fetched from
+/// car 1 (GDD §12: the engineer is whoever has it).
 /// </summary>
 public class WrenchTests
 {
@@ -49,10 +49,12 @@ public class WrenchTests
     }
 
     [Fact]
-    public void TheWrenchFromItsRackMendsARupturedBoilerAtTheFirebox()
+    public void TheWrenchComesOffItsRackButItsTheRepairKitThatMendsTheBoiler()
     {
         var world = World();
         var train = world.Train;
+        world.EnableBodies();
+        world.Stock();
         train.Boiler.Ruptured = true;
         var s = At(world, InteractableKind.ToolRack);
         Hold(world, ref s, 0.5);
@@ -62,38 +64,63 @@ public class WrenchTests
         var other = At(world, InteractableKind.ToolRack);
         Hold(world, ref other, 0.5);
         Assert.False(Kit.Has(other.Kit, Tool.Wrench));
-        // At the firebox with it, held: mended, cold and empty.
+        // At the firebox with the wrench, held as long as a mend takes: nothing. It's a tool to swing (GDD §12).
         var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
         s.Position = s.Position with { X = 0.35, Z = firebox.Z + 0.5 };
+        Hold(world, ref s, Tuning.Boiler.RepairSeconds + 1);
+        Assert.True(train.Boiler.Ruptured);
+        // With the repair kit in hand there: mended, cold and empty, and the kit still in hand.
+        var kit = world.Bodies.All.Single(b => b.Kind == Physics.BodyKind.RepairKit);
+        kit.Carrier = 1;
         Hold(world, ref s, Tuning.Boiler.RepairSeconds - 1);
         Assert.True(train.Boiler.Ruptured);
         Hold(world, ref s, 1.2);
         Assert.False(train.Boiler.Ruptured);
         Assert.Equal(0, train.Boiler.Pressure);
-        // A crowbar does nothing for it: the wrench it is.
-        train.Boiler.Ruptured = true;
-        var crowbar = s with { HeldSlot = 0 };
-        Hold(world, ref crowbar, Tuning.Boiler.RepairSeconds + 1);
-        Assert.True(train.Boiler.Ruptured);
+        Assert.Equal(1, kit.Carrier);
     }
 
     [Fact]
-    public void TheFiremanMendsItHimself()
+    public void TheRepairKitRidesInCarOneJustInsideTheFrontDoor()
+    {
+        var world = World();
+        world.EnableBodies();
+        world.Stock();
+        var kit = Assert.Single(world.Bodies.All, b => b.Kind == Physics.BodyKind.RepairKit);
+        Assert.Equal(1, Tuning.Train.Kit.RepairKitCar);
+        Assert.Equal(1, kit.Parent);
+        var shape = world.Train.Frames[1].Shape;
+        Assert.True(shape.Interior!.Value.Contains(kit.Centre));
+        Assert.True(kit.Centre.Z < -shape.HalfLength + 1, $"{kit.Centre.Z} against the front at {-shape.HalfLength}");
+        // Clear of the load, the walls and the doorway.
+        Assert.DoesNotContain(shape.Solids, x => x.Box.Contains(kit.Centre));
+        Assert.DoesNotContain(shape.DoorList, d => Math.Abs(kit.Centre.X - (d.Box.Min.X + d.Box.Max.X) / 2) < 0.7 && d.Box.Max.Z < 0);
+    }
+
+    [Fact]
+    public void TheFiremanFetchesTheKitFromCarOneAndMendsIt()
     {
         var world = World();
         var train = world.Train;
+        world.EnableBodies();
+        world.Stock();
         train.Boiler.Ruptured = true;
         var bot = new ConductorBot(new CrewCalls(), 1) { Fireman = true };
         var s = PlayerMotor.SpawnInCab(train, Tuning.Player, -0.5);
-        for (uint tick = 0; tick < (Tuning.Boiler.RepairSeconds + 20) * SimConstants.TickRate && train.Boiler.Ruptured; tick++)
+        bool wentForIt = false;
+        for (uint tick = 0; tick < (Tuning.Boiler.RepairSeconds + 90) * SimConstants.TickRate && train.Boiler.Ruptured; tick++)
         {
             var intent = bot.Decide(s, world, tick, out _);
             world.BeginTick();
             world.CrewAct(ref s, intent, 1);
             world.Step(new TrainControls { Reverser = 1, Brake = 1 });
             PlayerMotor.Step(ref s, intent, train, Tuning.Player, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+            world.StepBodies([(1, s)]);
+            wentForIt |= s.Parent == 1;
         }
+        Assert.True(wentForIt);
         Assert.False(train.Boiler.Ruptured);
+        Assert.True(PlayerMotor.InCab(s, train));
     }
 
     [Fact]

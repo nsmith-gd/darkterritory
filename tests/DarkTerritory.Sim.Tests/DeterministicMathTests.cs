@@ -4,7 +4,7 @@ using Ballast;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// The sim's trigonometry goes through <see cref="DMath"/>, never the C library's (ARCHITECTURE §8 note 162): Windows
+/// The sim's trigonometry goes through <see cref="DMath"/>, never the C library's (ARCHITECTURE §8 note 163): Windows
 /// and Linux differ in the last bit of <c>Math.Sin</c> and friends for about one argument in a hundred, which split
 /// the crossplay job's line plans (T116), and would drift a predicted train between a Windows client and a Linux host.
 /// </summary>

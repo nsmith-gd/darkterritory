@@ -67,7 +67,7 @@ public struct Boiler
     public bool FireDoorOpen;
     /// <summary>Seconds since the last shovelful (the door's swing-shut clock).</summary>
     public double SinceShovel;
-    /// <summary>T109: the engineering kit (the wrench) is out of its rack in the cab, in someone's hands.</summary>
+    /// <summary>T109: the wrench is out of its rack in the cab, in someone's hands.</summary>
     public bool WrenchOut;
 
     /// <summary>T109: made good with the wrench after a rupture: whole again, but cold and empty.</summary>

@@ -82,6 +82,8 @@ public static class CrewActs
                 // The hand lamp out low in one hand; the extinguisher on the hip, aimed (App. C.5).
                 BodyKind.Lamp => CrewPose.Lantern,
                 BodyKind.Extinguisher => CrewPose.Extinguish,
+                // The repair kit at work on a burst boiler (T109): down at the firebox mending it.
+                BodyKind.RepairKit when s.ActionProgress > 0 && CrewActions.AtTheRupture(s, train) => CrewPose.Mend,
                 _ => CrewPose.Carry,
             };
         if (s.Has(PlayerFlags.Shovelful))
@@ -98,8 +100,6 @@ public static class CrewActs
         if (s.ActionProgress > 0)
             return s.Surface == Surface.Coupler && near != InteractableKind.Door ? CrewPose.Uncouple : near switch
             {
-                // (The wrench in hand there is mending a burst boiler, T109.)
-                InteractableKind.Firebox when Sim.Player.Kit.Held(s) == Tool.Wrench => CrewPose.Mend,
                 InteractableKind.Firebox or InteractableKind.Coal => CrewPose.Shovel,
                 InteractableKind.Door => CrewPose.Door,
                 InteractableKind.Handbrake => CrewPose.Handbrake,

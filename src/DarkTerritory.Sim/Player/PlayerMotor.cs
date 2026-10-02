@@ -170,6 +170,11 @@ public enum PlayerFlags : byte
     /// loads it, Jump gets up. Your feet are the seat's, on the carriage as it turns.
     /// </summary>
     Seated = 64,
+    /// <summary>
+    /// The repair kit in their hands (GDD §12): what mends a ruptured boiler (T109). Set by the host each tick from what
+    /// they carry, so a predicting client mends as the host does.
+    /// </summary>
+    RepairKit = 128,
 }
 
 /// <summary>

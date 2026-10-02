@@ -66,8 +66,8 @@ public static class CrewActions
                 if (before < doorSeconds && s.ActionProgress >= doorSeconds)
                     train.Vehicles[near.Value.Vehicle].ToggleDoor(near.Value.Thing.Index);
                 break;
-            // A ruptured boiler, the wrench in hand (T109): held there, it's mended.
-            case InteractableKind.Firebox when train.BoilerTuning is { } rt && train.Boiler.Ruptured && Kit.Held(s) == Tool.Wrench && PlayerMotor.InCab(s, train):
+            // A ruptured boiler, the repair kit in hand (T109, GDD §12: the engineer is whoever has it): held there, it's mended.
+            case InteractableKind.Firebox when train.BoilerTuning is { } rt && train.Boiler.Ruptured && s.Has(PlayerFlags.RepairKit) && PlayerMotor.InCab(s, train):
                 s.ActionProgress += dt;
                 if (s.ActionProgress >= rt.RepairSeconds)
                 {
@@ -93,8 +93,8 @@ public static class CrewActions
                 train.Boiler.Venting = true;
                 s.ActionProgress = 0;
                 break;
-            // The engineering kit's rack (T109): a press takes the wrench, into the first free slot and into hand; with it
-            // in hand, a press puts it back.
+            // The cab's tool rack (T109): a press takes the wrench, into the first free slot and into hand; with it in hand,
+            // a press puts it back. It's a tool to swing; the repair kit is what mends the boiler.
             case InteractableKind.ToolRack when PlayerMotor.InCab(s, train):
                 s.ActionProgress += dt;
                 if (before < RackSeconds && s.ActionProgress >= RackSeconds)
@@ -142,6 +142,11 @@ public static class CrewActions
     }
 
     static bool Hand(in PlayerState s, HandTuning? hand) => hand is not null && s.Hand != default;
+
+    /// <summary>At the firebox of a ruptured boiler, in the cab: where the repair kit in hand mends it (T109).</summary>
+    public static bool AtTheRupture(in PlayerState s, TrainOnLine train, HandTuning? hand = null) =>
+        s.Alive && train.BoilerTuning is not null && train.Boiler.Ruptured && PlayerMotor.InCab(s, train)
+        && Nearest(s, train, hand) == InteractableKind.Firebox;
 
     /// <summary>How long Use is held at the rack to take the wrench or put it back.</summary>
     const double RackSeconds = 0.4;

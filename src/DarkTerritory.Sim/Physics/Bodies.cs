@@ -14,7 +14,11 @@ namespace DarkTerritory.Sim.Physics;
 /// aboard, its <see cref="Body.Owner"/> saying which find), a rescued <see cref="Child"/> survivor (carried by hand, the most
 /// valuable cargo there is), and each car's wall-mounted <see cref="Extinguisher"/> (App. C.5).
 /// </summary>
-public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Toy = 7, Loot = 8, Child = 9, Extinguisher = 10 }
+/// <summary>
+/// <see cref="RepairKit"/> is the engineer's toolbox (GDD §12 "the repair kit is an item, not a station"): whoever carries
+/// it opens a Holdout's lock quietly (App. D.7), and when they die it's lying where they fell.
+/// </summary>
+public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Toy = 7, Loot = 8, Child = 9, Extinguisher = 10, RepairKit = 11 }
 
 /// <summary>
 /// A loose physical thing: cargo, a tool, a crewmate's body. It lives in a car's frame while it touches that
@@ -103,7 +107,8 @@ public sealed class Bodies
 
     public Body SpawnCrate(TrainOnLine train, int car, Double3 local, BodyKind kind = BodyKind.Crate)
     {
-        double radius = kind == BodyKind.Crate ? 0.35 : 0.15;
+        // The toolbox is a flat thing (train_stores.py's repair_kit, 0.2 m high): it lies on the floor, not a hand over it.
+        double radius = kind switch { BodyKind.Crate => 0.35, BodyKind.RepairKit => 0.1, _ => 0.15 };
         var pbd = new PbdBody([new Particle(local + Double3.Up * radius, 1, radius)]) { Friction = 0.2, Bounce = 0.1 };
         var b = new Body(_nextId++, kind, car, pbd) { LineHint = train.Cars[Math.Max(0, car)].FrontDistance };
         _bodies.Add(b);
@@ -219,9 +224,16 @@ public sealed class Bodies
         }
     }
 
-    /// <summary>A disconnected player's inert body (D.2): its kit can be recovered, but it carries no fee and no refund.</summary>
+    /// <summary>
+    /// A disconnected player's inert body (D.2): its kit can be recovered, but it carries no fee and no refund. What they had
+    /// in their hands or on their belt goes down with them: nobody's left to carry it, and the train's one repair kit
+    /// mustn't hang in the air where they stood.
+    /// </summary>
     public Body DropOut(TrainOnLine train, int owner, in PlayerState left)
     {
+        // (A heavy crate's end is let go by CarryHeavy, which sees its carrier gone.)
+        foreach (var held in _bodies.Where(x => x.Carrier == owner && x.Kind != BodyKind.Heavy).ToList())
+            Release(held, left, train, 0);
         var b = SpawnRagdoll(train, owner, left);
         b.DroppedOut = true;
         return b;
@@ -237,7 +249,11 @@ public sealed class Bodies
     /// </para>
     /// </summary>
     /// <param name="hand">The hand tuning, when hands are reported (T29): a reaching hand takes what it's on.</param>
-    public bool Handle(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null)
+    /// <param name="keep">
+    /// Use is working what's carried, not putting it down: the repair kit at a Holdout's lock (App. D.7) or a ruptured
+    /// boiler's firebox (T109). The press isn't taken, so the work goes on from this tick, the same on a predicting client.
+    /// </param>
+    public bool Handle(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null, bool keep = false)
     {
         bool use = intent.Has(PlayerButtons.Use), thrown = intent.Has(PlayerButtons.Throw);
         bool usePressed = use && !_useWas.GetValueOrDefault(playerId);
@@ -254,6 +270,8 @@ public sealed class Bodies
                 Release(worn, s, train, 0);
             return false;
         }
+        if (carried is not null && keep && !throwPressed)
+            return false;
         if (carried is not null && (throwPressed || usePressed))
         {
             // Nobody throws a heavy crate: either of you lets go, and it's down.

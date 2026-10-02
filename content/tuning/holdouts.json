@@ -18,9 +18,11 @@
   "callOutCooldown": 7,
   // D.7 breach: hold Use at the door. Smashing a lock (a prison car, a halt lockup) and prying a barricade (a shelter)
   // count toward loudness for their duration: as loud as `rounds` cannon rounds a second on the Choir (cannon level,
-  // machinery level). The repair kit's silent 6 s isn't built yet: the train carries no repair kit (ARCHITECTURE §8).
+  // machinery level). Opening a lock with the repair kit in hand (train.json kit "repairKits") is slower, and silent.
+  // A barricade can't be opened, only pried.
   "smash": { "seconds": 3, "rounds": 0.5 },
   "pry": { "seconds": 6, "rounds": 0.25 },
+  "open": { "seconds": 6, "rounds": 0 },
   // How close to the door a breacher stands.
   "breachReach": 1.8,
   // D.8: the freed player's health (of player.json's 100).
