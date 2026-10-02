@@ -127,6 +127,15 @@ public sealed class HostSession
             World.CrewAct(ref c.State, c.ThisTick, c.Id, view);
         }
         World.Step(Controls);
+        // E.5 "Skipping": a majority of the session, or the host, skips the film to the cause card (when a vote counts at
+        // all is the clients' to say: they only offer it after the first player's shot). Once skipped, it stays skipped.
+        if (World.Film is not null && _crew.Count > 0)
+        {
+            int votes = _crew.Count(c => c.ThisTick.Has(PlayerActions.Skip));
+            World.FilmVotes = (votes, _crew.Count);
+            if (votes * 2 > _crew.Count || _crew.Any(c => c.Id == HostPlayer && c.ThisTick.Has(PlayerActions.Skip)))
+                World.FilmSkipped = true;
+        }
         World.ApplyDamage(id => _crew.FirstOrDefault(c => c.Id == id)?.State, (id, s) => _crew.First(c => c.Id == id).State = s, _crew.Select(c => (int)c.Id));
         CutTheDead();
         foreach (var c in _crew)
@@ -257,7 +266,10 @@ public sealed class HostSession
     }
 
     bool _namesChanged;
-    bool _reportSent;
+    bool _reportSent, _filmSent;
+
+    /// <summary>The host's own player (its local client), whose vote alone skips the film (GDD v1.4 App. E.5); −1 if none.</summary>
+    public int HostPlayer { get; set; } = -1;
 
     /// <summary>
     /// Names to everyone when they change (and to whoever's just joined), and the night's report once it's over (GDD v1.4
@@ -272,6 +284,13 @@ public sealed class HostSession
             Messages.WriteNames(_writer, World.Names);
             foreach (var p in peers)
                 _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
+        }
+        if (!_filmSent && World.Film is { } film)
+        {
+            _filmSent = true;
+            foreach (var m in Messages.FilmMessages(film))
+                foreach (var p in peers)
+                    _transport.Send(p, m, Delivery.ReliableOrdered);
         }
         if (!_reportSent && World.Run?.Report is { } report)
         {

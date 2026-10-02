@@ -49,6 +49,11 @@ public enum PlayerActions : byte
     Tool = 32,
     /// <summary>Sit at the gun you're at (T112): sent on the press. Sitting only, so a repeated intent is harmless; Jump gets up.</summary>
     Seat = 64,
+    /// <summary>
+    /// A vote to skip the derailment film to its cause card (GDD v1.4 App. E.5) or the Stranded outro (E.9): held. The host
+    /// counts heads; a majority, or the host, skips.
+    /// </summary>
+    Skip = 128,
 }
 
 /// <summary>The forward lamp's switch in the cab (T52): set it on or off (a setting, not a toggle, so a held key or a resent intent is harmless).</summary>

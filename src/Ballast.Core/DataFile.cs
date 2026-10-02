@@ -15,7 +15,7 @@ public static class DataFile
         ReadCommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true,
         WriteIndented = true,
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase), new Vector3Json() },
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase), new Vector3Json(), new Double3Json() },
     };
 
     public static T Load<T>(string path) =>
