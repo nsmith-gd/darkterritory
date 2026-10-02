@@ -6690,7 +6690,7 @@
  "cs-car-hugger/break-away": {
   "cue": "cs-car-hugger.break-away",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
     "label": "The drawbar shears with the van straining, the brake hose blasts, and the van falls away behind with its brakes screaming",
@@ -6712,22 +6712,12 @@
      "kenney_rpg-audio:handleCoins"
     ],
     "licence": "CC0"
-   }
-  ],
-  "takes": 1,
-  "sha": "a2641b2c5759278c"
- },
- "cs-car-hugger/hit": {
-  "cue": "cs-car-hugger.hit",
-  "surface": null,
-  "picked": "first",
-  "candidates": [
+   },
    {
-    "label": "The blow sinks into wet rubbery hide and slops inside it; it clenches, and the guard van's timbers groan",
-    "key": "clench",
+    "label": "The Hugger tears the van off the coupling and it goes off the rails, tumbling down the bank into the dark",
+    "key": "tumble",
     "sources": [
      "kenney_rpg-audio:handleCoins",
-     "sfx_100_v2:loop_water_01",
      "kenney_rpg-audio:doorOpen_1",
      "kenney_rpg-audio:doorOpen_2",
      "sfx_100_v2:metal_hit_01",
@@ -6738,13 +6728,38 @@
      "kenney_impact-sounds:impactPlate_heavy_002",
      "kenney_impact-sounds:impactPlate_heavy_004",
      "sfx_100_v2:misc_34",
-     "sfx_100_v2:misc_35"
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "sfx_100_v2:thunder_01",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "c78ab048001f0a86"
+ },
+ "cs-car-hugger/hit": {
+  "cue": "cs-car-hugger.hit",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "The blow lands in wet rubber; its rings shudder, and its mouth sucks tighter on the car",
+    "key": "regrip",
+    "sources": [
+     "kenney_rpg-audio:handleCoins"
     ],
     "licence": "CC0"
    }
   ],
   "takes": 4,
-  "sha": "6ce8f71ad765c625"
+  "sha": "edf20250027f5bd3"
  },
  "cs-car-hugger/swallow": {
   "cue": "cs-car-hugger.swallow",
@@ -6764,7 +6779,7 @@
  "cs-choir/arrive": {
   "cue": "cs-choir.arrive",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
     "label": "The bells themselves: a slow cluster of membrane bells rubbed into song on the lullaby's tritones, pulsing as they swim",
@@ -6779,7 +6794,7 @@
  "cs-choir/bang-door/grate": {
   "cue": "cs-choir.bang-door",
   "surface": "grate",
-  "picked": "first",
+  "picked": "redo",
   "candidates": [
    {
     "label": "Tendrils lashing an iron door or hatch in ragged flurries, heard from inside, the door rattling after each",
@@ -6814,7 +6829,7 @@
  "cs-choir/bang-door/wood": {
   "cue": "cs-choir.bang-door",
   "surface": "wood",
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
     "label": "Tendrils lashing a car's wooden door in ragged flurries, heard from inside, the door rattling after each",
@@ -6841,19 +6856,45 @@
      "sfx_100_v2:switch_02"
     ],
     "licence": "CC0"
+   },
+   {
+    "label": "Tendrils wound round the handle shaking a car's wooden door to and fro in its frame",
+    "key": "shake",
+    "sources": [
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_rpg-audio:metalLatch",
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02"
+    ],
+    "licence": "CC0"
    }
   ],
-  "takes": 6,
-  "sha": "2519775cbcb1d43b"
+  "takes": 12,
+  "sha": "532528cb2c0ae8c7"
  },
  "cs-choir/disperse": {
   "cue": "cs-choir.disperse",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
-    "label": "One voice sings the lullaby's last bar but stops a step short of home, while the swarm hushes all round and drifts away",
-    "key": "hush",
+    "label": "The swarm's round sagging down together like a tape running out as it drifts off, over an endless fall; one far voice left on the wrong note",
+    "key": "sink",
     "sources": [
      "kenney_rpg-audio:cloth3",
      "kenney_rpg-audio:dropLeather"
@@ -6862,12 +6903,12 @@
    }
   ],
   "takes": 2,
-  "sha": "705076665b310c3e"
+  "sha": "f26961a7a6aa1bde"
  },
  "cs-choir/hit": {
   "cue": "cs-choir.hit",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
     "label": "A blow on a bell of wet skin: a bending drumhead knock with a jelly wobble, and its song knocked off the note",
@@ -6888,7 +6929,7 @@
  "cs-choir/seize": {
   "cue": "cs-choir.seize",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
     "label": "One voice sliding up a tritone as it comes close, then closing its mouth into a hum over your head as tendrils tighten",
@@ -6903,7 +6944,7 @@
  "cs-climbers/force": {
   "cue": "cs-climbers.force",
   "surface": null,
-  "picked": "kept",
+  "picked": "redo",
   "candidates": [
    {
     "label": "Kept from the earlier pass",
@@ -6918,7 +6959,7 @@
  "cs-climbers/hit": {
   "cue": "cs-climbers.hit",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
     "label": "A blow on a Climber's taut black hide, and it hissing and squealing through its lamprey sucker",
@@ -7094,7 +7135,7 @@
  "cs-draggers/under": {
   "cue": "cs-draggers.under",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
     "label": "Yanked off the side and dragged away under the train, bumping over the sleepers into the dark",
@@ -7121,10 +7162,45 @@
      "sfx_100_v2:loop_ambient_04"
     ],
     "licence": "CC0"
+   },
+   {
+    "label": "Yanked off the side, fingers raking down the boards, onto the ballast, and the wheels' roar right on top of them",
+    "key": "wheels",
+    "sources": [
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "kenney_impact-sounds:impactPlate_light_000",
+     "kenney_impact-sounds:impactPlate_light_002",
+     "kenney_impact-sounds:impactPlate_light_004",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "sfx_100_v2:loop_ambient_04",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_004"
+    ],
+    "licence": "CC0"
    }
   ],
-  "takes": 2,
-  "sha": "4876286dd1e7d98f"
+  "takes": 4,
+  "sha": "d7e45dd8519bb476"
  },
  "cs-followers/clubbed-off": {
   "cue": "cs-followers.clubbed-off",
@@ -7359,7 +7435,7 @@
  "cs-hounds/bite": {
   "cue": "cs-hounds.bite",
   "surface": null,
-  "picked": "first",
+  "picked": "redo",
   "candidates": [
    {
     "label": "A hound's jaws closing through a crewman's coat into the arm: the clack, the cloth, the flesh, a scorch",
@@ -7381,7 +7457,7 @@
  "cs-hounds/leap": {
   "cue": "cs-hounds.leap",
   "surface": null,
-  "picked": "first",
+  "picked": "redo",
   "candidates": [
    {
     "label": "A hound's last strides on the ballast, the jump, and its landing on the rear platform, claws hunting for grip",
@@ -7419,7 +7495,7 @@
  "cs-hounds/paw/grate": {
   "cue": "cs-hounds.paw",
   "surface": "grate",
-  "picked": "first",
+  "picked": "redo",
   "candidates": [
    {
     "label": "A hound's paw on an iron running board: claws ringing on the plate, the pad's dull clank, ash and embers",
@@ -7473,7 +7549,7 @@
  "cs-hounds/paw/roof": {
   "cue": "cs-hounds.paw",
   "surface": "roof",
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
     "label": "A hound's paw on the car roof: the tin's hollow knock under the pad, claws on the paint, ash and embers",
@@ -7494,7 +7570,7 @@
  "cs-hounds/snarl": {
   "cue": "cs-hounds.snarl",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
     "label": "The same snarls from a throat burnt out: barely voiced, a growl whose rattle is made of ember crackle",
@@ -7509,7 +7585,7 @@
  "cs-hounds/yelp": {
   "cue": "cs-hounds.yelp",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
     "label": "A hound driven off: a cough of ash and sparks from the blow, a broken ki-yi, claws scrambling away",
@@ -7595,7 +7671,7 @@
  "cs-ribbits/feed": {
   "cue": "cs-ribbits.feed",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
     "label": "The pack fighting over the catch: tearing and tugging, bones going, hissing and snapping at each other",
@@ -7616,7 +7692,7 @@
  "cs-ribbits/hit": {
   "cue": "cs-ribbits.hit",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
     "label": "A club landing on a fat wet toad-body: skin smacked, the belly wobbling, the throat sac squeezed into a croak",
@@ -7923,11 +7999,11 @@
  "cs-tippy/struggle": {
   "cue": "cs-tippy.struggle",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
-    "label": "Pinned: heels dragging slowly on the boards, clothes twisting, a weak kick now and then, its breath savouring it",
-    "key": "pinned",
+    "label": "Boots kicking and dragging on the boards in bursts, clothes thrashing, and its quick thin excited breath",
+    "key": "thrash",
     "sources": [
      "kenney_rpg-audio:footstep00",
      "kenney_rpg-audio:footstep01",
@@ -7946,6 +8022,11 @@
      "kenney_impact-sounds:impactWood_light_004",
      "sfx_100_v2:footstep_wood_02",
      "sfx_100_v2:footstep_wood_04",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_003",
      "sfx_100_v2:misc_10",
      "kenney_rpg-audio:cloth1",
      "kenney_rpg-audio:cloth2",
@@ -7957,7 +8038,7 @@
    }
   ],
   "takes": 1,
-  "sha": "7633db1943db72bd"
+  "sha": "77341706dfc6e775"
  },
  "cs-track-doll/crack": {
   "cue": "cs-track-doll.crack",
@@ -7977,11 +8058,11 @@
  "cs-track-doll/take-toy": {
   "cue": "cs-track-doll.take-toy",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
-    "label": "It sings two porcelain notes over the toy, the falling taunt every child knows, and is gone",
-    "key": "na-na",
+    "label": "Porcelain fingers take the toy, a joint creaks, one pleased porcelain 'heh', and it's gone with the toy into a reversed swell",
+    "key": "pleased",
     "sources": [
      "kenney_rpg-audio:cloth1",
      "kenney_rpg-audio:cloth2",
@@ -7994,6 +8075,7 @@
      "kenney_impact-sounds:impactWood_light_004",
      "sfx_100_v2:glass_04",
      "sfx_100_v2:glass_06",
+     "kenney_rpg-audio:creak3",
      "sfx_100_v2:misc_29",
      "sfx_100_v2:glass_01"
     ],
@@ -8001,7 +8083,7 @@
    }
   ],
   "takes": 2,
-  "sha": "1a2579bf927e20c6"
+  "sha": "fce2baa783e51740"
  },
  "cs-track-doll/tamper": {
   "cue": "cs-track-doll.tamper",
@@ -8036,11 +8118,11 @@
  "cs-whistler/death": {
   "cue": "cs-whistler.death",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
-    "label": "No whistle: the coil thrashes, plates grinding and legs clattering, then it slumps and breathes out its siphon",
-    "key": "coil",
+    "label": "The killing blow cracks a plate; its siphon lets out a last whistle that sags into a wet rattle as it curls",
+    "key": "last-breath",
     "sources": [
      "sfx_100_v2:misc_33",
      "sfx_100_v2:misc_34",
@@ -8055,12 +8137,12 @@
    }
   ],
   "takes": 3,
-  "sha": "766f77001816dc80"
+  "sha": "c3d5799b0a25de09"
  },
  "cs-whistler/hit": {
   "cue": "cs-whistler.hit",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
     "label": "The blow sinks between the plates into wet flesh; the plates rattle and air spits out of the siphon",
@@ -8074,10 +8156,25 @@
      "sfx_100_v2:footstep_02"
     ],
     "licence": "CC0"
+   },
+   {
+    "label": "The blow knocks on an ivory plate, the flesh gives under it, its legs flinch and its siphon squeals",
+    "key": "plate",
+    "sources": [
+     "sfx_100_v2:wood_hit_03",
+     "sfx_100_v2:misc_08",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
    }
   ],
-  "takes": 4,
-  "sha": "5498ce501cbd0fec"
+  "takes": 8,
+  "sha": "fba99949b75bbe2c"
  },
  "cs-whistler/nest": {
   "cue": "cs-whistler.nest",
@@ -8097,7 +8194,7 @@
  "cs-whistler/run": {
   "cue": "cs-whistler.run",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
     "label": "Its siphon whistling broken bits of the train whistle's chord as it runs, the legs rolling under it",

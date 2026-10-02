@@ -1,4 +1,4 @@
-// Car Hugger: swallow, hits, the car going: A hit from the rear platform landing on it. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+// Car Hugger: swallow, hits, the car going: A hit from the rear platform landing on it. Written by tools/audio/install.py from the audio checklist (kept); edit the cue, not this.
 {
  "tier": 3,
  "loop": false,
