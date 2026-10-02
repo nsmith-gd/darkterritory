@@ -51,12 +51,89 @@ public class LinesideArtTests
         Assert.True(mesh.Instances[1].Glow > 4);
         var cranes = new MeshBuilder();
         Assert.True(Look.Art.MailCrane(cranes, Vector3.Zero, Vector3.UnitX, Sim.Route.DropKind.Coal));
-        Assert.Equal(2, cranes.Instances.Count);
+        // The crane, its two arms, and the bag.
+        Assert.Equal(4, cranes.Instances.Count);
         // The bag in the clamps, reached in toward the line, at a doorway's height; coal's bag black.
-        var bag = cranes.Instances[1];
+        var bag = cranes.Instances[^1];
         Assert.InRange(bag.Model.Translation.X, 0.6f, 1.1f);
         Assert.InRange(bag.Model.Translation.Y, 2.0f, 2.7f);
         Assert.True(bag.Tint.X < 0.5f);
+        // No word of a catch and the bag's to go (a client, the engine by): the crane's left, its arms out, empty.
+        var gone = new MeshBuilder();
+        Assert.True(Look.Art.MailCrane(gone, Vector3.Zero, Vector3.UnitX, Sim.Route.DropKind.Coal, hung: false));
+        Assert.Equal(3, gone.Instances.Count);
+    }
+
+    [Fact]
+    public void ACaughtBagIsSnatchedAndTheArmsFall()
+    {
+        var train = new Vector3(0, 0, -12);
+        MeshBuilder At(double since)
+        {
+            var mesh = new MeshBuilder();
+            Assert.True(Look.Art.MailCrane(mesh, Vector3.Zero, Vector3.UnitX, Sim.Route.DropKind.Mail, since, train));
+            return mesh;
+        }
+        // Just taken: off the clamps, in toward the line and away with the car.
+        var snatched = At(0.2);
+        Assert.Equal(4, snatched.Instances.Count);
+        var bag = snatched.Instances[^1].Model.Translation;
+        Assert.True(bag.X > 1.1f, "in through the door, past the clamps");
+        Assert.True(bag.Z < -1, "carried along with the car");
+        // A second on: gone inside, and the arms hanging down by the post, their clamp ends below the hinge.
+        var after = At(1.5);
+        Assert.Equal(3, after.Instances.Count);
+        foreach (var arm in after.Instances.Skip(1))
+        {
+            var clamp = Vector3.Transform(new Vector3(0.7f, 0, 0), arm.Model);
+            Assert.True(clamp.Y < arm.Model.Translation.Y - 0.6f, "hanging, not held out");
+            Assert.InRange(clamp.X, 0.05f, 0.3f);
+        }
+    }
+
+    [Fact]
+    public void AGuttedCarIsCharredAndSmoulders()
+    {
+        var shape = Train().Frames[2].Shape;
+        var burning = new Effects.Burning(0.8f, true, 0, 0.8f);
+        var out_ = new Effects.Burning(0, false, 60, 1);
+        Assert.True(burning.Smoke > out_.Smoke && out_.Smoke > 0);
+        Assert.True(new Effects.Burning(0, false, 900, 1).Smoke < 0.01f, "it's done smouldering in a quarter of an hour");
+        Assert.True(out_.Char > 0.9f);
+        // Alight: smoke out of it and the cracks' light; out, smoke only.
+        var mesh = new MeshBuilder();
+        Look.Art.Effects.CarSmoke(mesh, Vector3.Zero, Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, shape, burning, 15, 3.2, 2);
+        Assert.NotEmpty(mesh.PointLights);
+        var smoulder = new MeshBuilder();
+        Look.Art.Effects.CarSmoke(smoulder, Vector3.Zero, Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, shape, out_, 0, 3.2, 2);
+        Assert.Empty(smoulder.PointLights);
+        // The charred body: darker than the same car unburnt, the scars as bad as the burn.
+        var frame = Train().Frames[2];
+        var vehicle = new Vehicle(2, false, 1);
+        var clean = new MeshBuilder();
+        var charred = new MeshBuilder();
+        Assert.True(Look.Art.Car(clean, frame, frame.Origin, vehicle, false));
+        Assert.True(Look.Art.Car(charred, frame, frame.Origin, vehicle, false, charred: out_.Char));
+        var body = charred.Instances[0];
+        Assert.True(body.Tint != default && body.Tint.X < 0.6f);
+        Assert.True(body.Scar.X > clean.Instances[0].Scar.X);
+    }
+
+    [Fact]
+    public void IronBridgesAreBuiltAsTheyAre()
+    {
+        // Distinct pieces, each of them iron (rust or oxide paint) and built along the bay.
+        var girder = StructureKit.GirderBay(Look, 18, false);
+        var truss = StructureKit.TrussSpan(Look, 18, false);
+        var stone = StructureKit.ViaductBay(Look, 18, false);
+        foreach (var piece in new[] { girder, truss })
+        {
+            Assert.NotEqual(stone.Vertices.Length, piece.Vertices.Length);
+            Assert.InRange(piece.Vertices.Min(v => v.Position.Z), -StructureKit.Bay - 0.1f, -StructureKit.Bay + 1);
+        }
+        // The truss's cage goes up over the train (the roof crew clear under it); the girders are under the deck.
+        Assert.True(truss.Vertices.Max(v => v.Position.Y) > 6.5f);
+        Assert.True(girder.Vertices.Max(v => v.Position.Y) < 1.2f);
     }
 
     [Fact]

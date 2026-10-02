@@ -77,7 +77,7 @@ public sealed partial class SceneArt(Look look)
         }
         var lamp = c.Lamp ? PropArt.Of(Look).Get("hand_lantern") : null;
         bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), ToolProp(c.Holding),
-            hanging: lamp);
+            hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor));
         if (drawn && lamp is not null)
         {
             // Its glow where it hangs, swinging with the hand; and its light there next frame (GreyboxScene's practical lights
@@ -93,6 +93,50 @@ public sealed partial class SceneArt(Look look)
     }
 
     readonly Dictionary<int, (Double3 At, double Time)> _lampHands = new();
+
+    /// <summary>
+    /// A car of livestock (GDD §19 "makes noise constantly", the slaughterhouse's): sheep packed down the load side in its
+    /// pen (tools/blender/sheep.py), each on its own beat: mostly shifting and shuffling, every few seconds one bleating,
+    /// now and then one startled by the noise. The noise is seen as well as heard.
+    /// </summary>
+    void Livestock(MeshBuilder mesh, in CarFrame frame, Double3 eye, long tick)
+    {
+        var m = FrameMatrix(frame, eye);
+        double t = (tick < 0 ? 0 : tick) / (double)Sim.SimConstants.TickRate;
+        int n = 0;
+        foreach (var solid in frame.Shape.Solids.Where(x => x.Part == PartKind.Cargo))
+        {
+            var box = solid.Box;
+            int count = Math.Max(1, (int)((box.Max.Z - box.Min.Z) / 0.95));
+            double step = (box.Max.Z - box.Min.Z) / count;
+            for (int i = 0; i < count; i++, n++)
+            {
+                uint h = (uint)(n * 2654435761u ^ (uint)frame.Index * 40503u);
+                double z = box.Min.Z + step * (i + 0.5);
+                double x = box.Centre.X + (i % 2 == 0 ? -0.14 : 0.14) + ((int)((h >> 4) % 3) - 1) * 0.04;
+                float yaw = ((h & 1) == 0 ? 0 : MathF.PI) + ((int)((h >> 8) % 7) - 3) * 0.12f;
+                // Its beat: a 7 s round of idling and shuffling, a bleat in it at its own offset, a startle one round in five.
+                double phase = t + (h % 97) * 0.13;
+                int round = (int)(phase / 7);
+                double inRound = phase - round * 7;
+                bool startled = (uint)(round * 31 + h) % 5 == 0;
+                var (clip, ct) = inRound < 2.4 ? ("bleat", inRound) : startled && inRound < 3.7 ? ("startle", inRound - 2.4)
+                    : ((h + (uint)round) % 2 == 0 ? "shuffle" : "idle", inRound);
+                var at = Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateTranslation((float)x, (float)box.Min.Y + 0.05f, (float)z) * m;
+                Creatures.Draw(mesh, "sheep", clip, ct, true, at, seed: (int)(h % 13), adjust: Fleece);
+            }
+        }
+    }
+
+    /// <summary>The sheep's fleece: the library's wool is the crew's dark trouser cloth; a fleece is pale, even sooted.</summary>
+    static Ballast.Assets.MaterialLook Fleece(Ballast.Assets.ModelMaterial m, Ballast.Assets.MaterialLook l) =>
+        m.Name.StartsWith("wool", StringComparison.Ordinal) ? l with { Colour = l.Colour * new Vector3(2.6f, 2.5f, 2.25f) } : l;
+
+    /// <summary>What a gutted car's paint and boards go to: charcoal, a little warm where the timber's charred through.</summary>
+    static readonly Vector3 CharTint = new(0.34f, 0.3f, 0.28f);
+
+    /// <summary>The comet material's light (GDD §19): a sick, unnatural green, nothing like a lamp's.</summary>
+    static readonly Vector3 CometGlow = new(0.35f, 0.95f, 0.45f);
 
     /// <summary>
     /// The couplers that have been cut (T91): each vehicle end (its id × 2, + 1 for the rear) with nothing coupled to it
@@ -413,9 +457,13 @@ public sealed partial class SceneArt(Look look)
     /// <summary>
     /// A mail crane (tools/models mail_crane) at <paramref name="foot"/>, its arms reaching <paramref name="inward"/> (toward
     /// the line), and the bag hung in their clamps, tinted by what's in it: mail canvas, coal black, rounds olive, spares
-    /// brass. False without the models.
+    /// brass. <paramref name="caught"/>: seconds since the hook took it. The bag's snatched in through the door going by
+    /// (carried along at the train's <paramref name="train"/> velocity, in over the cess, gone inside), and the arms, let go,
+    /// fall to hang by the post with a bounce on their hinges, as a real crane's do: a crane that's been worked reads empty
+    /// from up the line. <paramref name="hung"/> false: no word of a catch, but the bag's to be gone. False without the models.
     /// </summary>
-    public bool MailCrane(MeshBuilder mesh, Vector3 foot, Vector3 inward, Sim.Route.DropKind kind)
+    public bool MailCrane(MeshBuilder mesh, Vector3 foot, Vector3 inward, Sim.Route.DropKind kind, double? caught = null, Vector3 train = default,
+        bool hung = true)
     {
         var props = PropArt.Of(Look);
         if (props.Get("mail_crane") is not { } crane || props.Get("mail_bag") is not { } bag)
@@ -426,6 +474,13 @@ public sealed partial class SceneArt(Look look)
         mesh.Instances.Add(new MeshInstance(crane, m));
         var top = props.Socket("mail_crane", "bag_top") ?? new Vector3(0.85f, 2.65f, 0);
         var low = props.Socket("mail_crane", "bag_foot") ?? new Vector3(0.85f, 2.05f, 0);
+        // The arms (mail_crane_arm, hinged at the collars' faces): level while they hold the bag, then dropping.
+        if (props.Get("mail_crane_arm") is { } arm)
+        {
+            float fall = caught is { } c ? ArmFall((float)c) : 0;
+            foreach (var y in (ReadOnlySpan<float>)[top.Y + 0.08f, low.Y - 0.08f])
+                mesh.Instances.Add(new MeshInstance(arm, Matrix4x4.CreateRotationZ(-fall) * Matrix4x4.CreateTranslation(MailArmPivot, y, 0) * m));
+        }
         var tint = kind switch
         {
             Sim.Route.DropKind.Coal => new Vector3(0.32f, 0.3f, 0.29f),
@@ -433,8 +488,39 @@ public sealed partial class SceneArt(Look look)
             Sim.Route.DropKind.Spares => new Vector3(0.95f, 0.75f, 0.45f),
             _ => new Vector3(0.9f, 0.9f, 0.88f),
         };
-        mesh.Instances.Add(new MeshInstance(bag, Matrix4x4.CreateTranslation((top + low) / 2) * m, Tint: tint));
+        var held = Matrix4x4.CreateTranslation((top + low) / 2) * m;
+        if (caught is not { } since)
+        {
+            if (hung)
+                mesh.Instances.Add(new MeshInstance(bag, held, Tint: tint));
+        }
+        else if (since < MailSnatch)
+        {
+            // Off the clamps with the hook: away with the car, swung in over the cess and kicked up as it's jerked off,
+            // tumbling end over end into the doorway.
+            float s = (float)since, k = MathF.Min(1, s / (float)MailSnatch);
+            var off = train * s + inward * (1.15f * (1 - (1 - k) * (1 - k))) + up * (0.35f * MathF.Sin(k * MathF.PI) - 0.25f * k);
+            var spin = Matrix4x4.CreateRotationZ(2.4f * k);
+            mesh.Instances.Add(new MeshInstance(bag, spin * held * Matrix4x4.CreateTranslation(off), Tint: tint));
+        }
         return true;
+    }
+
+    /// <summary>The arms' hinge, out from the post's axis (tools/models mail_crane's PIVOT); how long the bag's in the air.</summary>
+    const float MailArmPivot = 0.12f;
+    const double MailSnatch = 0.45;
+
+    /// <summary>
+    /// How far a crane's arm has fallen (radians below level) <paramref name="t"/> s after the bag's gone: the drop under
+    /// gravity about its hinge (a quarter turn in ~0.3 s), then a bounce or two against the post, settled by a second.
+    /// </summary>
+    static float ArmFall(float t)
+    {
+        const float Down = MathF.PI / 2, Drop = 0.3f;
+        if (t < Drop)
+            return Down * (t / Drop) * (t / Drop);
+        float after = t - Drop;
+        return Down - 0.32f * MathF.Exp(-after * 6) * MathF.Abs(MathF.Sin(after * 14));
     }
 
     readonly Vector3[] _joints = new Vector3[CreatureArt.RagdollJoints];
@@ -546,7 +632,10 @@ public sealed partial class SceneArt(Look look)
 
     /// <param name="cutEnds">Which of its couplers have been cut (T91; 1 the front, 2 the rear): drawn with the knuckle swung open
     /// and the hose parted.</param>
-    public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, bool emergency, long tick = -1, int cutEnds = 0)
+    /// <param name="charred">How charred it is by a fire (0..1, <see cref="Effects.Burning.Char"/>): the body's paint and boards
+    /// blackened toward soot, the scars of the burn the mask draws.</param>
+    public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, bool emergency, long tick = -1, int cutEnds = 0,
+        float charred = 0)
     {
         var shape = frame.Shape;
         var m = FrameMatrix(frame, eye);
@@ -566,11 +655,13 @@ public sealed partial class SceneArt(Look look)
         double eaten = engine ? 0 : vehicle?.Eaten ?? 0;
         double integrity = Math.Min(1, (vehicle?.Integrity ?? 1) + eaten);
         int seed = vehicle?.Id ?? frame.Index;
-        var scar = new Vector2(damage.ScarOf(integrity), Bite.ScarSeed(seed));
+        // A fire's char scars it as hard as the burn went, whatever the integrity says (it's the boards that went).
+        var scar = new Vector2(MathF.Max(damage.ScarOf(integrity), charred * 0.85f), Bite.ScarSeed(seed));
         var bite = Bite.For(Look.Tuning.Bite, shape, vehicle, frame.Index);
         var (cut, floor) = bite.Any ? (bite.Shader, bite.Floor) : (Vector4.Zero, 0f);
+        var soot = charred > 0 ? Vector3.Lerp(Vector3.One, CharTint, charred) : default;
         // Under emergency lighting the headlamp and tail lamp have no power.
-        mesh.Instances.Add(new MeshInstance(body, m, emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
+        mesh.Instances.Add(new MeshInstance(body, m, emergency ? 0.06f : 1, Tint: soot, Scar: scar, Bite: cut, BiteFloor: floor));
         // Its couplers, each end's shut or cut (TrainKit.CouplerEnds): the knuckle open on a car that's been let go.
         if (PropArt.Of(Look).Get("coupler_knuckle") is { } shut && (frame.Origin - eye).Length < 160)
         {
@@ -586,6 +677,21 @@ public sealed partial class SceneArt(Look look)
             var cargo = vehicle!.Cargo;
             mesh.Instances.Add(new MeshInstance(Piece($"load:{ShapeKey(shape)}:{cargo}:{variant}", () => TrainKit.Load(Look, shape, cargo, variant)), m,
                 emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
+            if (cargo == CargoKind.Livestock && (frame.Origin - eye).Length < 120)
+                Livestock(mesh, frame, eye, tick);
+            // Comet-derived material (GDD §19 "attracts everything; should look like it"): a sick green light from the cracks
+            // in its caskets, breathing slowly, out through the car's gaps and doors, and a glow over each stack.
+            if (cargo == CargoKind.Comet && (frame.Origin - eye).Length < 220)
+            {
+                float breath = 0.75f + 0.25f * MathF.Sin((float)(tick < 0 ? 0 : tick) * 0.05f + frame.Index);
+                foreach (var solid in shape.Solids.Where(x => x.Part == PartKind.Cargo))
+                {
+                    var top = frame.ToWorld(new Double3(solid.Box.Centre.X, solid.Box.Max.Y + 0.1, solid.Box.Centre.Z));
+                    var at = top.RelativeTo(eye);
+                    mesh.PointLights.Add(new PointLight(at, CometGlow * 1.4f * breath, 7f));
+                    mesh.Billboard(at, 1.1f * breath, 0, new Vector4(CometGlow * 0.35f * breath, 1), -1, FxBlend.Additive);
+                }
+            }
         }
         int number = frame.Index;
         if (!engine && Look.Layer("stencil_numerals") >= 0)

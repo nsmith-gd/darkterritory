@@ -77,6 +77,13 @@ public sealed class GreyboxScene
     public IReadOnlyDictionary<int, float>? StagedPaces { get; set; }
     /// <summary>How each branch's switch is set (true: for the branch), for its stand's lamp. Unset, all read main.</summary>
     public Func<int, bool>? Diverging { get; set; }
+    /// <summary>
+    /// Whether a mail crane's bag has been caught (the host's <see cref="Sim.Route.Lineside.Caught"/>), by drop id: the
+    /// scene times the snatch itself from the first frame it reads true. Unset, every bag hangs until the train's by.
+    /// </summary>
+    public Func<int, bool>? DropCaught { get; set; }
+    /// <summary>For a still frame (<c>dt screenshot --mail s</c>): a bag caught is that many seconds into its snatch.</summary>
+    public double StagedCatch { get; set; }
     /// <summary>The switch stands, for where their levers are. Unset, they stand where the default tuning puts them.</summary>
     public SwitchStands? Stands { get; set; }
     /// <summary>The cab's controls, for where the levers' handles are.</summary>
@@ -124,6 +131,8 @@ public sealed class GreyboxScene
     public void Build(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, double hint, Double3 eye)
     {
         mesh.Clear();
+        _speed = frames.Count == 0 ? 0 : Vector3.Dot(ToF(frames[0].Velocity), ToF(frames[0].Back * -1));
+        Fires(frames.Count);
         mesh.Style = Look?.Style;
         mesh.Seed = 0;
         _line = line;
@@ -172,6 +181,9 @@ public sealed class GreyboxScene
                         mesh.PointLights.Add(new PointLight(at, Palette.LampAmber * 1.2f, 10));
                         mesh.Billboard(at, 0.3f, 0, new Vector4(Palette.LampAmber * 1.2f, 1), -1, FxBlend.Additive);
                     }
+            // Each Holdout's way in, shut or broken open (App. D.7): its door, lock or barricade by its state.
+            if (Holdouts is not null && Look is not null)
+                Look.Art.World.Entrances(mesh, line, Route, Holdouts, eye, (float)ValleyDepth);
             // A Holdout's lamp (App. D.7): lit while it's occupied, seen from the approach board; a world light, not a car's.
             if (Holdouts is not null)
                 foreach (var h in Holdouts.All)
@@ -558,6 +570,86 @@ public sealed class GreyboxScene
     const double PaceEasing = 0.25;
 
     /// <summary>
+    /// The Whistler's trail (App. A.4: "findable in a chase on foot"), from the gap it took them at to where it's got to
+    /// with them: two heel furrows dragged through the ground, the dirt kicked up dark either side where they fought it,
+    /// and now and then something of theirs torn off and left (a scrap of coat, a glove). It follows the land; it's laid
+    /// from the creature's id, so every machine's is the same trail.
+    /// </summary>
+    static void DragTrail(MeshBuilder mesh, RailLine line, Double3 at, Double3 eye, int id)
+    {
+        double hint = 0;
+        var (path, along) = line.Nearest(at, ref hint);
+        var rail = line.Sample(path, along);
+        var outward = (at - rail.Position) with { Y = 0 };
+        double length = outward.Length - TrailStart;
+        if (length < 1)
+            return;
+        var dir = outward.Normalized;
+        var side = Double3.Cross(Double3.Up, dir).Normalized;
+        var start = rail.Position + dir * TrailStart;
+        double g = 0;
+        double Ground(Double3 p) => Sim.Player.PlayerMotor.GroundAt(p, line, ref g);
+        int n = (int)(length / TrailStep);
+        for (int i = 0; i < n; i++)
+        {
+            uint h = (uint)(i * 2654435761u ^ (uint)id * 40503u);
+            double s = i * TrailStep;
+            // It ran in a near-straight line; each heel's furrow wanders on its own as they kicked, breaks off where a leg
+            // came up, and goes deep and broad where they dug in.
+            double wander = Math.Sin(s * 0.7 + id) * 0.12;
+            var c = start + dir * (s + TrailStep / 2) + side * wander;
+            c = c with { Y = Ground(c) + 0.012 };
+            float fade = (float)Math.Min(1, (length - s) / 3 + 0.35);
+            foreach (int heel in (ReadOnlySpan<int>)[-1, 1])
+            {
+                uint k = h ^ (uint)(heel + 2) * 0x9E3779B9u;
+                if (k % 7 == 0)
+                    continue;
+                double dx = heel * (0.13 + Math.Sin(s * 1.9 + heel * 2.3 + id) * 0.05);
+                var p = c + side * dx;
+                p = p with { Y = Ground(p) + 0.012 };
+                float width = 0.035f + (k >> 3) % 4 * 0.012f, len = (float)TrailStep * (0.38f + (k >> 6) % 3 * 0.07f);
+                float lean = (float)Math.Sin(s * 2.7 + heel) * 0.12f;
+                var r = Vector3.Transform(ToF(side), Quaternion.CreateFromAxisAngle(Vector3.UnitY, lean));
+                var b = Vector3.Transform(ToF(dir), Quaternion.CreateFromAxisAngle(Vector3.UnitY, lean));
+                mesh.Box(V(p, eye), r, Vector3.UnitY, b, new Vector3(width, 0.012f, len), Palette.TrailFurrow * fade);
+            }
+            // Where they fought it: the ground churned in a broad scuff across both furrows.
+            if (h % 11 == 3)
+            {
+                float turn = (h >> 12) % 7 * 0.4f;
+                var r = Vector3.Transform(ToF(side), Quaternion.CreateFromAxisAngle(Vector3.UnitY, turn));
+                var b = Vector3.Transform(ToF(dir), Quaternion.CreateFromAxisAngle(Vector3.UnitY, turn));
+                var p = c with { Y = Ground(c) + 0.008 };
+                mesh.Box(V(p, eye), r, Vector3.UnitY, b, new Vector3(0.42f, 0.008f, 0.3f), Palette.TrailFurrow * 1.4f);
+            }
+            // The kicked-up earth: dark clods thrown out to either side, more where they fought it.
+            if (h % 3 == 0)
+            {
+                double x = ((h >> 4) % 2 == 0 ? -1 : 1) * (0.35 + (h >> 6) % 5 * 0.06);
+                var p = c + side * x + dir * (((h >> 9) % 5 - 2) * 0.1);
+                p = p with { Y = Ground(p) + 0.02 };
+                mesh.Box(V(p, eye), ToF(side), Vector3.UnitY, ToF(dir), new Vector3(0.09f, 0.03f, 0.07f), Palette.TrailFurrow * 1.25f);
+            }
+            // Torn off and dropped: a scrap of the coat's cloth or a glove, every dozen metres or so.
+            if (h % 23 == 5 && s > 4)
+            {
+                double x = ((h >> 5) % 2 == 0 ? -1 : 1) * 0.6;
+                var p = c + side * x;
+                p = p with { Y = Ground(p) + 0.015 };
+                float turn = (h >> 11) % 6 * 0.5f;
+                var r = Vector3.Transform(ToF(side), Quaternion.CreateFromAxisAngle(Vector3.UnitY, turn));
+                var b = Vector3.Transform(ToF(dir), Quaternion.CreateFromAxisAngle(Vector3.UnitY, turn));
+                mesh.Box(V(p, eye), r, Vector3.UnitY, b, (h >> 7) % 2 == 0 ? new Vector3(0.16f, 0.01f, 0.11f) : new Vector3(0.05f, 0.025f, 0.1f),
+                    (h >> 7) % 2 == 0 ? Palette.TrailCloth : Palette.TrailGlove);
+            }
+        }
+    }
+
+    // The trail starts off the ballast's shoulder (the stone takes no mark), in strides of this along it.
+    const double TrailStart = 2.6, TrailStep = 0.7;
+
+    /// <summary>
     /// Greybox stand-ins, each readable by silhouette and by its telegraph (App. A.1: the tell must be
     /// perceivable). The real creatures come with the art pass; these exist to make pacing watchable.
     /// </summary>
@@ -591,6 +683,14 @@ public sealed class GreyboxScene
             var away = new Double3(origin.X - near.X, 0, origin.Z - near.Z);
             back = away.Length > 1e-6 ? away.Normalized : new Double3(0, 0, 1);
             right = Double3.Cross(Double3.Up, back).Normalized;
+            // The Whistler carrying its catch off (App. A.4 GRAB): over the land, not at the rail's height it took them
+            // at, and the way it went torn into the ground behind it, to be followed on foot.
+            if (e.Kind == EnemyKind.Whistler && e.Phase is SpinePhase.Grab or SpinePhase.Punish && creatures is not null)
+            {
+                double hint = e.LineDistance;
+                origin = origin with { Y = Sim.Player.PlayerMotor.GroundAt(origin, line, ref hint) };
+                DragTrail(mesh, line, origin, eye, e.Id);
+            }
         }
         else
         {
@@ -927,16 +1027,31 @@ public sealed class GreyboxScene
     /// <summary>
     /// A lineside mail crane (the playtest's rewards): a post a little out from the track on its side, an arm reaching in
     /// over the cess, and the bag hung from it at a car's doorway height, where the hook out of a side door takes it. Its
-    /// colour says what's in it: mail sacks grey canvas, coal black, rounds olive, spares brass. Drawn until the train's by.
+    /// colour says what's in it: mail sacks grey canvas, coal black, rounds olive, spares brass. Without word of the catch
+    /// the bag goes once the engine's by (<paramref name="by"/>); the crane stays.
     /// </summary>
-    void Crane(MeshBuilder mesh, RailLine line, Double3 eye, Drop drop)
+    void Crane(MeshBuilder mesh, RailLine line, Double3 eye, Drop drop, bool by)
     {
         var t = line.Sample(drop.At);
         var right = Double3.Cross(t.Tangent, Double3.Up).Normalized * drop.Side;
         var (x, y, z) = (ToF(right), Vector3.UnitY, ToF(t.Tangent * -1));
         var foot = t.Position + right * 3.2;
-        // The art pass's crane (tools/models mail_crane: its arms reaching in toward the line, the bag in their clamps).
-        if (Look?.Art.MailCrane(mesh, V(foot, eye), ToF(right * -1), drop.Kind) == true)
+        // Caught: how long ago, timed from the first frame that saw it (a client sees it when the host's word does).
+        double? caught = null;
+        if (DropCaught?.Invoke(drop.Id) == true)
+        {
+            if (!_caughtAt.TryGetValue(drop.Id, out var when))
+                _caughtAt[drop.Id] = when = Time - StagedCatch;
+            caught = Time - when;
+        }
+        // The art pass's crane (tools/models mail_crane: its arms reaching in toward the line, the bag in their clamps; once
+        // caught, the bag snatched in through the door going by, and the arms dropping to the post).
+        // Where the catch is known, the bag hangs till it's taken (a missed one's still there); without word of it (a
+        // client: the host keeps the catch), it's gone once the engine's by, as it always was.
+        bool hung = DropCaught is not null || !by;
+        if (Look?.Art.MailCrane(mesh, V(foot, eye), ToF(right * -1), drop.Kind, caught, ToF(t.Tangent) * (float)_speed, hung) == true)
+            return;
+        if (caught is not null || !hung)
             return;
         mesh.Box(V(foot + Double3.Up * 1.9, eye), x, y, z, new Vector3(0.1f, 1.9f, 0.1f), Palette.DeepBrown);
         mesh.Box(V(foot + Double3.Up * 3.5 - right * 0.45, eye), x, y, z, new Vector3(0.5f, 0.06f, 0.06f), Palette.IronGrey);
@@ -953,6 +1068,43 @@ public sealed class GreyboxScene
     Route? _signsFor;
 
     /// <summary>
+    /// The car fires the scene has seen, by car (GDD App. C.5): how bad each got, and when it was last burning. The sim
+    /// keeps no record of a fire that's out; the car it gutted does, so the scene remembers it (presentation only: a
+    /// client that joins after sees the car's scars, not its smoke). <see cref="StagedBurnt"/> stages one for a still.
+    /// </summary>
+    readonly Dictionary<int, (double Peak, double Last, double Burn, bool Alight)> _burns = new();
+
+    /// <summary>For a still frame (<c>dt screenshot --burnt car,s</c>): that car gutted by a fire that went out s seconds ago.</summary>
+    public (int Car, double Since)? StagedBurnt { get; set; }
+
+    void Fires(int cars)
+    {
+        if (StagedBurnt is { } staged && !_burns.ContainsKey(staged.Car))
+            _burns[staged.Car] = (1, Time - staged.Since, 0, false);
+        foreach (var e in Enemies ?? [])
+            if (e.Kind == EnemyKind.CarFire && !e.Gone && e.Attached >= 0 && e.Attached < cars)
+            {
+                double peak = _burns.TryGetValue(e.Attached, out var was) ? Math.Max(was.Peak, e.Extra) : e.Extra;
+                _burns[e.Attached] = (peak, Time, e.Extra, e.Phase == SpinePhase.Punish);
+            }
+        // Clocks run backwards across a reload or a fresh run: forget what was.
+        foreach (var car in _burns.Keys.Where(k => _burns[k].Last > Time + 1).ToList())
+            _burns.Remove(car);
+    }
+
+    /// <summary>A car's fire, burning (this frame) or out (and how long since), or null if it's never burned.</summary>
+    Art.Effects.Burning? Burnt(int car)
+    {
+        if (!_burns.TryGetValue(car, out var f))
+            return null;
+        double since = Math.Max(0, Time - f.Last);
+        bool now = since < 0.5;
+        return new Art.Effects.Burning(now ? (float)f.Burn : 0, now && f.Alight, now ? 0 : (float)since, (float)Math.Clamp(f.Peak, 0, 1));
+    }
+    readonly Dictionary<int, double> _caughtAt = new();
+    double _speed;
+
+    /// <summary>
     /// The line's boards (sight.json), on posts to the right of the line facing the oncoming train: a posted speed is a pale
     /// enamel plate with the figure's bar across it, the clearance board yellow and black. Paint, not lamps: the headlamp
     /// picks them out, and lamps down they're nothing (the point of them, after the playtest). Reflective paint sends the
@@ -967,8 +1119,8 @@ public sealed class GreyboxScene
             _signsFor = Route;
         }
         foreach (var sign in Signs ?? _defaultSigns ?? [])
-            if (sign.Drop is { } drop && drop.At >= from && drop.At <= to && drop.At > front - 30)
-                Crane(mesh, line, eye, drop);
+            if (sign.Drop is { } drop && drop.At >= from && drop.At <= to)
+                Crane(mesh, line, eye, drop, drop.At <= front - 30);
         foreach (var sign in Signs ?? _defaultSigns ?? [])
         {
             if (sign.Board < from || sign.Board > to)
@@ -1030,7 +1182,7 @@ public sealed class GreyboxScene
             // The art pass's structures (Art/StructureKit): viaducts and trestles, portals and bores.
             if (Look is not null && f.Kind == FeatureKind.Bridge)
             {
-                Look.Art.World.Bridge(mesh, line, f, eye, from, to, Art.WorldArt.SpanDepth(Route, f) ?? (float)ValleyDepth);
+                Look.Art.World.Bridge(mesh, line, f, eye, from, to, Art.WorldArt.SpanDepth(Route, f) ?? (float)ValleyDepth, Art.WorldArt.SpanType(Route, f));
                 continue;
             }
             if (Look is not null && f.Kind == FeatureKind.Tunnel)
@@ -1334,7 +1486,10 @@ public sealed class GreyboxScene
         mesh.Seed = frame.Index + 1;
         var vehicle = Vehicles is { } vs && frame.Index < vs.Count ? vs[frame.Index] : null;
         // The art pass's kit (TrainKit): the body, doors and gun as cooked pieces; what's left here is what glows and moves.
-        if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick, CutEnds(frame.Index)))
+        var burnt = Burnt(frame.Index);
+        if (Look is not null && burnt is { } fire)
+            Look.Art.Effects.CarSmoke(mesh, o, right, up, back, shape, fire, (float)_speed, Time, frame.Index);
+        if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick, CutEnds(frame.Index), burnt?.Char ?? 0))
         {
             CarWorkings(mesh, frame, eye, Draw);
             if (engine)

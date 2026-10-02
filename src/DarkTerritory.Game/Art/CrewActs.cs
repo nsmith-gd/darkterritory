@@ -29,7 +29,20 @@ public static class CrewActs
         var (feet, yaw) = Eyes.World(placed, frames);
         return new Crewmate(id, feet, yaw, s.Alive, s.Hand, s.OtherHand, Act: act, Holding: Sim.Player.Kit.Held(s),
             Reach: act is CrewPose.Drive or CrewPose.Whistle ? AtTheControls(world, frames, feet, yaw, act == CrewPose.Whistle) : null,
-            Lamp: world.Bodies.CarriedBy(id) is { Kind: BodyKind.Lamp });
+            Lamp: world.Bodies.CarriedBy(id) is { Kind: BodyKind.Lamp }, Survivor: SurvivorOf(id, world));
+    }
+
+    /// <summary>
+    /// Who they came back as (GDD App. D.8: "a freed player becomes this character from then on"): the occupant of a freed
+    /// Holdout, by its kind (a shelter's wildlander, a prison car's or a lockup's prisoner); the last one freed, if more.
+    /// Every machine mirrors the Holdouts, so every machine draws the same.
+    /// </summary>
+    public static Survivor SurvivorOf(int id, World world)
+    {
+        if (world.Holdouts is not { } holdouts)
+            return Survivor.None;
+        var freed = holdouts.All.LastOrDefault(h => h.State == Sim.Run.HoldoutState.Freed && h.Occupant == id);
+        return freed is null ? Survivor.None : freed.Layout.Kind == Sim.Stops.HoldoutKind.Shelter ? Survivor.Wildlander : Survivor.Prisoner;
     }
 
     /// <summary>

@@ -6,6 +6,9 @@ using DarkTerritory.Sim.Enemies;
 
 namespace DarkTerritory.Game.Art;
 
+/// <summary>Who a crewmate is (GDD App. D.8): crew, or freed from a prison car or a halt lockup (a prisoner) or a shelter (a wildlander).</summary>
+public enum Survivor : byte { None, Prisoner, Wildlander }
+
 /// <summary>What a crewmate is doing, for which clip their model plays (the actions: tools/blender/crew_clips.py, note 145).</summary>
 public enum CrewPose
 {
@@ -33,7 +36,22 @@ public sealed class CreatureArt
     const float CarHalfWidth = 1.6f, RoofDrop = 3.6f;
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
-        "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger"];
+        "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger",
+        "survivor_prisoner", "survivor_wildlander", "sheep"];
+
+    /// <summary>
+    /// The figure a crewmate plays as (GDD App. D.8): the crew's own, or, freed from a Holdout, its occupant's for the rest
+    /// of the run (tools/models/recipes/survivor_*: the crew figure redressed, on the crew's rig and clips).
+    /// </summary>
+    public static string FigureOf(Survivor survivor) => survivor switch
+    {
+        Survivor.Prisoner => "survivor_prisoner",
+        Survivor.Wildlander => "survivor_wildlander",
+        _ => "crew",
+    };
+
+    /// <summary>How high the Follower's nest's hollow is, full grown (tools/models/recipes/follower_nest.py), where it sits.</summary>
+    const float FollowerNestTop = 0.6f;
 
     /// <summary>A haunting Track Doll's turns aboard (App. A.2 HAUNT): this long over the cargo, then this long giggling.</summary>
     const double DollAdmires = 12, DollGiggles = 5;
@@ -268,6 +286,10 @@ public sealed class CreatureArt
             var extra = Path.Combine(ContentRoot, Folder, name + "_clips.glb");
             if (File.Exists(extra))
                 model = ModelLoader.WithClips(model, ModelLoader.Load(extra));
+            // The survivors are the crew figure redressed: the crew's actions are theirs too.
+            var crewClips = Path.Combine(ContentRoot, Folder, "crew_clips.glb");
+            if (name.StartsWith("survivor_", StringComparison.Ordinal) && File.Exists(crewClips))
+                model = ModelLoader.WithClips(model, ModelLoader.Load(crewClips));
             _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, WearOf.GetValueOrDefault(name, 0.5f)))]);
         }
     }
@@ -276,6 +298,8 @@ public sealed class CreatureArt
     public string ContentRoot { get; }
 
     Sim.Enemies.WhistlerTuning? _whistler;
+    readonly Dictionary<int, MeshAsset> _debris = new();
+    MeshAsset? _fallenPine;
 
     /// <summary>True when every model is there.</summary>
     public bool Loaded => Names.All(_models.ContainsKey);
@@ -453,18 +477,21 @@ public sealed class CreatureArt
     /// <param name="hanging">Something hung from the right fist by its ring (the hand lamp, tools/models hand_lantern: its
     /// origin at its foot, the ring <see cref="LanternRing"/> over it), upright whatever the wrist does, so it swings with
     /// the hand; where its flame is then is <see cref="LastHanging"/>.</param>
+    /// <param name="figure">Whose figure: <see cref="FigureOf"/> (the crew's, or a freed survivor's); the crew's where it isn't built.</param>
     public bool Crewmate(MeshBuilder mesh, in Matrix4x4 model, CrewPose pose, double time, int variant,
         Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default, MeshAsset? inHand = null,
-        MeshAsset? hanging = null)
+        MeshAsset? hanging = null, string figure = "crew")
     {
+        if (!_models.ContainsKey(figure))
+            figure = "crew";
         // Each crewmate breathes and steps on their own beat: a fixed offset by variant, not a random one.
         double offset = (variant & 7) * 0.41;
         string clip = ClipOf(pose);
         // A build without crew_clips.glb (or an older one, short of a clip) stands them idle rather than in the greybox.
-        if (_models.TryGetValue("crew", out var has) && !has.Model.Clips.ContainsKey(clip))
+        if (_models.TryGetValue(figure, out var has) && !has.Model.Clips.ContainsKey(clip))
             clip = "idle";
         var Paint = PaintOf(variant);
-        if (!_models.TryGetValue("crew", out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
+        if (!_models.TryGetValue(figure, out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
         // Played once from their start (SceneArt passes the time since the act began): getting up, a thing off its bracket.
         bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown;
@@ -770,7 +797,8 @@ public sealed class CreatureArt
     /// <item>Switchman: feet at the origin, lantern swinging while it waits; it flees when broken off.</item>
     /// <item>Climber: feet at the origin; inside a car (<paramref name="extra"/> below 0) it crouches.</item>
     /// <item>Soot child: one, feet at the origin; <paramref name="extra2"/> 1 is a Soot Child (black eyes), 0 a real child.</item>
-    /// <item>Gaunt, Follower, Grumbler: <paramref name="extra2"/> is the anger, the nest, and feral, as the sim keeps them.</item>
+    /// <item>Gaunt, Follower, Grumbler: <paramref name="extra2"/> is the anger, the nest, and feral, as the sim keeps them; track
+    /// debris, its id (which kind of debris it is).</item>
     /// <item>Car Hugger, Track Doll, Whistler, Tippy Toesie, Ribbit, Choir ghost: feet (or heap) at the origin.</item>
     /// <item>Fire Flies: the origin is the lamp they swarm.</item>
     /// </list>
@@ -821,21 +849,16 @@ public sealed class CreatureArt
                 }
             case EnemyKind.Sleepers:
                 {
-                    if (!_models.ContainsKey("sleeper"))
-                        return false;
-                    string clip = phase switch
+                    // Track debris (GDD v1.1 §22, Art/DebrisKit): a pine down, a rockfall, or a heap of old ties and a rail,
+                    // by the hazard's id; there till the engine's over it (it's gone then).
+                    int debris = (int)((uint)extra2 % DebrisKit.Kinds);
+                    if (!_debris.TryGetValue(debris, out var piece))
+                        _debris[debris] = piece = DebrisKit.Of(Look, debris);
+                    mesh.Instances.Add(new MeshInstance(piece, model));
+                    if (debris == 0)
                     {
-                        SpinePhase.Dormant or SpinePhase.Alert => "dormant",
-                        SpinePhase.Telegraph => "writhe",
-                        _ => "lift",
-                    };
-                    for (int i = 0; i < 6; i++)
-                    {
-                        // Not quite in step and not quite square to the rail: ties laid by something that isn't a gang.
-                        float yaw = (float)(Math.Sin(i * 2.3) * 0.035);
-                        float dx = (float)(Math.Sin(i * 1.7) * 0.06);
-                        var at = Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateTranslation(dx, 0, -i * 2.6f) * model;
-                        Draw(mesh, "sleeper", clip, t + i * 0.37, clip != "lift", at, seed: i);
+                        _fallenPine ??= WorldKit.Pine(Look, 2, DebrisKit.TreeHeight);
+                        mesh.Instances.Add(new MeshInstance(_fallenPine, DebrisKit.FallenPine * model));
                     }
                     return true;
                 }
@@ -989,6 +1012,14 @@ public sealed class CreatureArt
                     float swell = phase == SpinePhase.Punish ? 1 : (float)Math.Clamp(extra2, 0, 1);
                     var at = nesting ? Matrix4x4.CreateScale(1 + FollowerSwell * swell) * model : model;
                     string clip = nesting ? "nest" : phase == SpinePhase.Commit ? "crawl" : "cling";
+                    // The nest it's built over the car's loot (tools/models follower_nest), grown with it, the Follower in
+                    // its hollow on top: a heap you can find and bludgeon (A.6).
+                    if (nesting && PropArt.Of(Look).Get("follower_nest") is { } heap)
+                    {
+                        float grown = 0.25f + 0.75f * swell;
+                        mesh.Append(heap, Matrix4x4.CreateScale(grown, grown * (0.6f + 0.4f * swell), grown) * model);
+                        at = Matrix4x4.CreateTranslation(0, FollowerNestTop * grown * (0.6f + 0.4f * swell), 0) * at;
+                    }
                     return Draw(mesh, "follower", clip, t, true, at, seed: 29);
                 }
             case EnemyKind.Follower:
@@ -1546,11 +1577,15 @@ public sealed class CreatureArt
                     {
                         m = Matrix4x4.CreateRotationY(MathF.PI) * model;
                         // There with its victim (the run to it done: enemies.json whistler nestDistance at runSpeed), its
-                        // nest under it (tools/models whistler_nest: the hollow, the sleepers, the bones, the strands).
+                        // nest under it on the land (GreyboxScene puts the carry on the ground, and its trail behind it) (tools/models whistler_nest: the hollow, the sleepers, the bones, the strands).
                         _whistler ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).Whistler;
-                        if (e.Phase is SpinePhase.Grab or SpinePhase.Punish && e.PhaseSeconds >= _whistler.NestDistance / _whistler.RunSpeed
-                            && PropArt.Of(Look).Get("whistler_nest") is { } nest)
-                            mesh.Instances.Add(new MeshInstance(nest, Matrix4x4.CreateTranslation(0, -(float)e.Local.Y, 0) * model));
+                        if (e.Phase is SpinePhase.Grab or SpinePhase.Punish && e.PhaseSeconds >= _whistler.NestDistance / _whistler.RunSpeed)
+                        {
+                            if (PropArt.Of(Look).Get("whistler_nest") is { } nest)
+                                mesh.Instances.Add(new MeshInstance(nest, model));
+                            // Done running: over its catch, its front up, watching the way it came (its "watch").
+                            return Enemy(mesh, m, e.Kind, SpinePhase.Commit, e.PhaseSeconds, 0, e.Health, aboard: false, extra2: e.Extra2);
+                        }
                         break;
                     }
                     m = Matrix4x4.CreateTranslation(0, -(float)e.Local.Y, 0) * model;
@@ -1611,7 +1646,8 @@ public sealed class CreatureArt
                 m = Matrix4x4.CreateRotationY(MathF.PI - Math.Sign(e.Lateral) * 0.6f) * model;
                 break;
         }
-        return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: e.Attached >= 0, extra2: e.Extra2);
+        return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: e.Attached >= 0,
+            extra2: e.Kind == EnemyKind.Sleepers ? e.Id : e.Extra2);
     }
 
     static (Vector3 Right, Vector3 Up, Vector3 Back) Basis(in Matrix4x4 m) =>

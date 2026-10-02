@@ -67,12 +67,16 @@ public sealed partial class WorldArt
     }
 
     /// <summary>
-    /// A bridge (GDD §17): a sound one is a masonry viaduct of round arches over the gorge (the art sheet's); a weak one,
-    /// one that takes only so many cars, a timber trestle on raked bents, and you can see why.
+    /// A bridge (GDD §17): a masonry viaduct of round arches over the gorge (the art sheet's), an iron girder viaduct on
+    /// steel towers, or an iron through truss; a weak one, one that takes only so many cars, or the plan's timber trestle,
+    /// on raked bents, and you can see why.
     /// </summary>
-    public void Bridge(MeshBuilder mesh, RailLine line, RouteFeature f, Double3 eye, double from, double to, float depth)
+    /// <param name="type">What a generated line's plan built it as (linegen plan §12.3): a girder viaduct or a truss in iron,
+    /// a timber trestle, or stone. Unset (a hand-laid line), the masonry viaduct, or the trestle where it's weak.</param>
+    public void Bridge(MeshBuilder mesh, RailLine line, RouteFeature f, Double3 eye, double from, double to, float depth,
+        Sim.LineGen.StructureType? type = null)
     {
-        bool weak = f.MaxCars > 0;
+        bool weak = f.MaxCars > 0 || type == Sim.LineGen.StructureType.Trestle;
         float step = weak ? StructureKit.Bent : StructureKit.Bay;
         int count = (int)Math.Ceiling((f.End - f.Start) / step);
         for (int i = 0; i < count; i++)
@@ -86,6 +90,8 @@ public sealed partial class WorldArt
             bool last = i == count - 1;
             var piece = weak
                 ? Piece($"trestle-{depth:0}", () => StructureKit.TrestleBent(_look, depth))
+                : type == Sim.LineGen.StructureType.Girder ? Piece($"girder-{depth:0}-{last}", () => StructureKit.GirderBay(_look, depth, last))
+                : type == Sim.LineGen.StructureType.Truss ? Piece($"truss-{depth:0}-{last}", () => StructureKit.TrussSpan(_look, depth, last))
                 : Piece($"viaduct-{depth:0}-{last}", () => StructureKit.ViaductBay(_look, depth, last));
             mesh.Instances.Add(new MeshInstance(piece, Basis(t.Tangent, t.Position, eye, 0)));
         }

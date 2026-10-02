@@ -31,6 +31,10 @@ public static class Views
             "door" => DoorCamera(train, car),
             // On the ballast beside the gap behind this car, looking in under the plate (what checks a gap: the Whistler's).
             "gapside" => GapSideCamera(train, car),
+            // From the left of the middle car's gap (the staged Whistler's), out along its trail to the nest (--whistler nest).
+            "trail" => TrailCamera(train),
+            // Close on the nest at the trail's end, the Whistler crouched over its catch.
+            "nest" => NestCamera(train),
             // Off the second car's left, over the shoulder of crewmate 4 (Staging.Lone) at the Ribbit pack beyond them.
             "pack" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 0.4), 2.1, 1.2)),
                 train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 5.2), 0.4, -1.6)), 55),
@@ -82,6 +86,10 @@ public static class Views
             // (Not one of Names.) Low off the side behind the engine's half of a cut train (dt screenshot --cut n), at the
             // coupler that was let go: its knuckle swung open, its hose hanging parted (T91).
             "cut" => CutCamera(train),
+            // (Not one of Names.) In this car's aisle, looking across and along its load side: a livestock car's pen and its
+            // sheep (dt screenshot --cargo livestock), or whatever cases its cargo comes in.
+            "pen" => Camera.LookAt(target.ToWorld(new Double3(-0.9, Floor(train) + 1.45, -target.Shape.HalfLength + 4.6)),
+                target.ToWorld(new Double3(0.9, Floor(train) + 0.45, -target.Shape.HalfLength + 2.2)), 70),
             // From over the car behind, down at a cargo car's roof hatch (T99): its lid, shut, or open down the side.
             "hatch" => Camera.LookAt(target.ToWorld(new Double3(4.2, roof + 2.2, 9.5)), target.ToWorld(new Double3(0.6, roof - 1.4, 3.2)), 70),
             // Over the last car's roof, looking back at its gun on its rail (T93).
@@ -175,6 +183,20 @@ public static class Views
         var at = train.Frames[Math.Clamp(car, 0, train.Frames.Count - 2)];
         double z = at.Shape.HalfLength + train.Dynamics.Tuning.Geometry.CouplingGap / 2, w = at.Shape.HalfWidth;
         return Camera.LookAt(at.ToWorld(new Double3(w + 2.6, 1.7, z + 0.6)), at.ToWorld(new Double3(0, 1.0, z)), 55);
+    }
+
+    static Camera TrailCamera(TrainOnLine train)
+    {
+        var at = train.Frames[Math.Max(0, (train.Frames.Count - 1) / 2)];
+        double z = at.Shape.HalfLength + train.Dynamics.Tuning.Geometry.CouplingGap / 2, w = at.Shape.HalfWidth;
+        return Camera.LookAt(at.ToWorld(new Double3(-w - 0.6, 3.4, z - 6)), at.ToWorld(new Double3(-Staging.NestOut, 0.3, z)), 50);
+    }
+
+    static Camera NestCamera(TrainOnLine train)
+    {
+        var at = train.Frames[Math.Max(0, (train.Frames.Count - 1) / 2)];
+        double z = at.Shape.HalfLength + train.Dynamics.Tuning.Geometry.CouplingGap / 2;
+        return Camera.LookAt(at.ToWorld(new Double3(-Staging.NestOut + 4.2, 2.4, z - 3.4)), at.ToWorld(new Double3(-Staging.NestOut, 0.0, z)), 55);
     }
 
     static double Floor(TrainOnLine train) => train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 1.1;

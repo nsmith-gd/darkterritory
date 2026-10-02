@@ -1113,9 +1113,16 @@ public static class TrainKit
         CargoKind.Chemicals => "freight_carboys",
         CargoKind.Ore => "freight_ore",
         CargoKind.Heavy => "heavy_crate",
-        CargoKind.Salvage or CargoKind.Comet => "freight_parts",
+        CargoKind.Salvage => "freight_parts",
+        CargoKind.Comet => "freight_comet",
         _ => null,
     };
+
+    /// <summary>
+    /// Goods (the cars' own freight, GDD §19 "timber, medicine, machine parts"): a mix by the case, crates, bundles of
+    /// timber and chests of medical stores, so a car of goods reads as freight, not one block.
+    /// </summary>
+    static readonly string[] Goods = ["stores_crate", "freight_timber", "freight_medicine", "freight_parts"];
 
     /// <summary>
     /// A car's load (its cargo solids, as the sim has them) as its cargo's cases stacked to fill them: each case the size of
@@ -1127,9 +1134,21 @@ public static class TrainKit
         var k = new Kit(look, 64 + (int)cargo);
         var name = LoadProp(cargo);
         var prop = name is not null && look is not null ? PropArt.Of(look).Get(name) : null;
+        var mix = cargo == CargoKind.Goods && look is not null ? Goods.Select(g => PropArt.Of(look).Get(g)).OfType<MeshAsset>().ToArray() : [];
         foreach (var solid in shape.Solids.Where(s => s.Part == PartKind.Cargo))
         {
             var (min, max) = (F(solid.Box.Min), F(solid.Box.Max));
+            // Livestock: no cases, a pen: straw down and a rail along its open side (the animals: SceneArt.Livestock).
+            if (cargo == CargoKind.Livestock)
+            {
+                Pen(k, min, max);
+                continue;
+            }
+            if (mix.Length > 1)
+            {
+                GoodsStack(k, mix, min, max, variant);
+                continue;
+            }
             if (prop is null)
             {
                 CrateStack(k, min, max, variant);
@@ -1153,6 +1172,44 @@ public static class TrainKit
                     }
         }
         return k.Build($"load-{cargo}-{variant}");
+    }
+
+    /// <summary>A livestock pen in a load's volume: straw bedding over its floor, posts and two rails along the aisle side.</summary>
+    static void Pen(Kit k, Vector3 min, Vector3 max)
+    {
+        k.Use("grass_card", new Vector3(0.75f, 0.62f, 0.38f), 0.95f, 0, tile: 0.6f);
+        k.Box(new Vector3(min.X, min.Y, min.Z), new Vector3(max.X, min.Y + 0.05f, max.Z));
+        k.Use("wood_grey", Palette.DeepBrown, 0.85f, 0, tile: 1.2f);
+        for (float z = min.Z; z <= max.Z + 0.01f; z += (max.Z - min.Z) / MathF.Max(1, MathF.Round((max.Z - min.Z) / 1.2f)))
+            k.Box(new Vector3(min.X - 0.04f, min.Y, z - 0.04f), new Vector3(min.X + 0.04f, min.Y + 1.15f, z + 0.04f));
+        foreach (float y in new[] { 0.55f, 1.05f })
+            k.Box(new Vector3(min.X - 0.03f, min.Y + y, min.Z), new Vector3(min.X + 0.03f, min.Y + y + 0.1f, max.Z));
+    }
+
+    /// <summary>A volume of goods: crate-sized cells, each one of <paramref name="mix"/> by a hash of the cell, scaled into it.</summary>
+    static void GoodsStack(Kit k, MeshAsset[] mix, Vector3 min, Vector3 max, int variant)
+    {
+        var size = max - min;
+        const float cellSize = 0.88f;
+        int nx = Math.Max(1, (int)MathF.Round(size.X / cellSize)), ny = Math.Max(1, (int)MathF.Round(size.Y / cellSize)),
+            nz = Math.Max(1, (int)MathF.Round(size.Z / cellSize));
+        var cell = new Vector3(size.X / nx, size.Y / ny, size.Z / nz);
+        for (int x = 0; x < nx; x++)
+            for (int y = 0; y < ny; y++)
+                for (int z = 0; z < nz; z++)
+                {
+                    uint h = (uint)(x * 73856093 ^ y * 19349663 ^ z * 83492791 ^ variant * 2654435761);
+                    var prop = mix[h % (uint)mix.Length];
+                    var (pmin, pmax) = Extent(prop);
+                    var psize = pmax - pmin;
+                    var scale = new Vector3(cell.X / psize.X, cell.Y / psize.Y, cell.Z / psize.Z) * 0.97f;
+                    // Each case keeps its own proportions, fitted to the cell by its tightest side.
+                    float s = MathF.Min(scale.X, MathF.Min(scale.Y, scale.Z));
+                    var centre = min + cell * new Vector3(x + 0.5f, y, z + 0.5f) - new Vector3(0, pmin.Y * s, 0);
+                    float jitter = MathF.Sin((x * 7 + y * 13 + z * 5 + variant) * 1.7f);
+                    k.Append(prop, Matrix4x4.CreateTranslation(-(pmin + pmax) * new Vector3(0.5f, 0, 0.5f)) * Matrix4x4.CreateScale(s)
+                        * Matrix4x4.CreateRotationY(jitter * 0.08f + (h >> 8) % 2 * MathF.PI) * Matrix4x4.CreateTranslation(centre));
+                }
     }
 
     static (Vector3 Min, Vector3 Max) Extent(MeshAsset m)

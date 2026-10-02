@@ -545,6 +545,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Vehicles = session.Train.Vehicles,
         Bodies = session.World.Bodies.All,
         Diverging = session.Train.Diverging,
+        // Only where this machine runs the catch (solo): a client's world has no word of it (Lineside.Caught is the host's).
+        DropCaught = session is PrototypeSession && session.World.Lineside is { } lineside ? lineside.Caught : null,
         Stands = session.World.Switches,
     };
     double last = timer.Elapsed.TotalSeconds, titleAt = 0;
