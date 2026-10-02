@@ -4,7 +4,7 @@
 
 Built on **Ballast**, a small custom C# engine designed to be built and operated largely by AI agents.
 
-- Design: [`docs/design/gdd.md`](docs/design/gdd.md), [`docs/design/systems-spec.md`](docs/design/systems-spec.md), [art direction](docs/design/art-direction.webp)
+- Design: [`docs/design/gdd.md`](docs/design/gdd.md) ([interactive version](https://claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx), shared on request), [`docs/design/systems-spec.md`](docs/design/systems-spec.md), [art direction](docs/design/art-direction.webp)
 - Engine: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · Plan: [`docs/ROADMAP.md`](docs/ROADMAP.md) · Agent guide: [`CLAUDE.md`](CLAUDE.md)
 
 ## Quick start

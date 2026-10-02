@@ -230,8 +230,8 @@
     "crewCap": 1.6,
     // After the 100-night playtest ("a reward or a problem every 30 s at most, 20 s ideally"): out of the gate in 20 s, and
     // quiet for paceSeconds anywhere out on the line, the director sends something whatever its cooldown, overdrawing the
-    // budget's curve by up to pacedCost. Budgets are about twice App. B.1's to pay for it. A kind among the last
-    // varietyWindow spawns has its weight halved for each.
+    // budget's curve by up to pacedCost. The budgets above are about twice v1.1's to pay for it (GDD v1.4 App. B.1 has
+    // them too). A kind among the last varietyWindow spawns has its weight halved for each.
     "graceSeconds": 20,
     // A generated line's grace stretch (linegen plan §4: gate to 2 km, "covers the GDD 90 s grace period") bans spawns only
     // this far into the run (s); after that, graceSeconds above is the rule. -1 keeps the ban for the whole stretch.
