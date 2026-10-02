@@ -11,7 +11,7 @@ using DarkTerritory.Sim.Train;
 
 /// <summary>
 /// `dt trailer`: the game's trailer at L1 (the art checklist's "trailer"; Steam's Next Fest pulls one, GDD §36), cut from
-/// the game itself, headless and repeatable. A solo night on a generated line is warmed up out of the yard, then run on in
+/// the game itself, headless and repeatable. A solo night on the open line (or a generated one, --route) is warmed up to speed, then run on in
 /// real time while the cameras cut between shots (the train coming out of the fog, its roofs, something stalking a car's
 /// aisle, the cannon, the dawn), with title cards between on the game's own nameboard (Game/UiStyle). Each frame is
 /// rendered as the screenshots are, written to out/trailer/frames, and encoded with ffmpeg (if it's there) to
@@ -24,7 +24,9 @@ static class TrailerCommands
 
     public static object Run(string content, string[] args)
     {
-        string spec = Str(args, "--route", "frontier:7");
+        // The open line by default (a generated night starts in its fortress's yard, walls and platform all round);
+        // --route tier:seed for a generated one, warmed up longer to get out of the yard.
+        string spec = Str(args, "--route", "");
         int fps = (int)Opt(args, "--fps", 24), width = (int)Opt(args, "--width", 1280), height = (int)Opt(args, "--height", 720), cars = (int)Opt(args, "--cars", 6);
         // --short: every beat a third as long (a quick look at the cut).
         double pace = args.Contains("--short") ? 1 / 3.0 : 1;
@@ -34,12 +36,12 @@ static class TrailerCommands
             Directory.Delete(frames, true);
         Directory.CreateDirectory(frames);
 
-        var route = DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars);
-        var session = new PrototypeSession(content, route, cars, enemies: false);
+        var route = spec.Length > 0 ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars) : null;
+        var session = route is not null ? new PrototypeSession(content, route, cars, enemies: false) : new PrototypeSession(content, Str(args, "--line", "test-loop"), cars);
         var train = session.Train;
         // Out of the yard and up to speed before anything's seen.
         session.Controls.Throttle = 0.85;
-        for (int i = 0; i < Opt(args, "--warm", 100) * SimConstants.TickRate; i++)
+        for (int i = 0; i < Opt(args, "--warm", route is null ? 20 : 120) * SimConstants.TickRate; i++)
             session.Step(default);
 
         static Double3 Line(TrainOnLine t, double s, double lateral, double up)
@@ -60,7 +62,7 @@ static class TrailerCommands
             // A car's aisle, and what's stalking it.
             new(4.5, Shot: (t, _) => Views.Get("inside", t, 2), Stage: "tippy"),
             // The cannon off the guard van.
-            new(4, Shot: (t, _) => Views.Get("cannonside", t, 2), Stage: "cannon"),
+            new(4, Shot: (t, _) => Views.Get("cannon", t, 2), Stage: "cannon"),
             new(3, ["KEEP THE FIRE.", "KEEP THE LAMPS LIT.", "BRING THEM HOME."]),
             // The dawn coming up, from beside the line as the train goes by.
             new(5, Shot: (t, s) => Camera.LookAt(t.Frames[0].ToWorld(new Double3(7, 1.6, -6 - s * 2)), t.Frames[1].ToWorld(new Double3(0, 2.4, 0)), 58), Dawn: 0.85f),
@@ -93,8 +95,11 @@ static class TrailerCommands
                 time += 1.0 / fps;
                 overlay.Clear();
                 var lighting = Views.Lighting(train, look, beat.Dawn);
-                lighting.FogDensity = (float)route.Weather.FogDensity;
-                lighting.Frost = look.Tuning.Atmosphere.Cold.Frost(route.Weather.Cold);
+                if (route is not null)
+                {
+                    lighting.FogDensity = (float)route.Weather.FogDensity;
+                    lighting.Frost = look.Tuning.Atmosphere.Cold.Frost(route.Weather.Cold);
+                }
                 Camera camera;
                 if (beat.Card is { } lines)
                 {
@@ -108,7 +113,7 @@ static class TrailerCommands
                 else
                 {
                     camera = beat.Shot!(train, into);
-                    if (beat.Stage == "cannon" && train.Vehicles[^1] is { HasGun: true } gun && f % (fps * 2) == fps / 2)
+                    if (beat.Stage == "cannon" && train.Vehicles[^1] is { HasGun: true } gun && f % fps == fps / 3)
                         gun.Gun.LastShotTick = (uint)session.World.Tick;
                     new GreyboxScene
                     {
