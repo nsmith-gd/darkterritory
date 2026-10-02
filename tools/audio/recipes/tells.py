@@ -1161,6 +1161,56 @@ def howl_wail(rng, k):
     return held(b.x, *HOUNDS, drive=3)
 
 
+def far_off(x, metres, rng, echo=True):
+    """Out across open country at `metres` (200-400 m): the air leaves little over 2 kHz, the night gives back more than
+    it was given, and the far edge (a treeline, a cutting) throws the howl back late and dark."""
+    y = dsp.lp(x, float(np.clip(18000 / (1 + metres / 25), 1500, 4000)), 2)
+    y = dsp.room(y, "night", wet=float(np.clip(0.35 + 0.25 * (metres - 200) / 200, 0.35, 0.6)), rng=rng)
+    if echo:
+        d = int(SR * rng.uniform(0.45, 1.1))
+        e = dsp.lp(np.concatenate([np.zeros(d, np.float32), y]), 1300, 2) * 10 ** (rng.uniform(-13, -9) / 20)
+        y = mix(y, e)
+    return y
+
+
+@recipe("tell-hounds", "howl-far", "lone",
+        "One hound far out across the plain (200-400 m): the kept pack's voice, long and alone, thrown back by the treeline",
+        """The kept near howl's hound (the same synthesised throat through a long muzzle, the scoop up, the break, the
+        long wavering top, the fall), so the far howl and the near one are one pack. One voice, longer than up close,
+        and from far enough that the breath and the embers are gone: the air leaves little above 2 kHz, the night's
+        reverb is most of it, and a late dark echo comes back off the far edge of the plain. Pitches vary per take
+        within the pack's range. Held to 500 Hz-3 kHz.""",
+        takes=4, band=HOUNDS, lufs=-20, preview=lambda takes, rng: scatter(takes, rng, (1.5, 3.0)))
+def howl_lone(rng, k):
+    metres = [260, 340, 220, 300][k]
+    b = Bus(8.0)
+    base, peak = rng.uniform(370, 430), rng.uniform(590, 680)
+    b.at(0, far_off(hound(rng, rng.uniform(4.2, 5.2), base, peak, rng.uniform(0.55, 0.62)), metres, rng))
+    return held(b.x, *HOUNDS, drive=3)
+
+
+@recipe("tell-hounds", "howl-far", "answer",
+        "One far hound starts and the pack answers it from further off: two or three voices stacking up across the dark",
+        """The kept near pack, far away (200-400 m): one hound starts, and a beat later a second answers a minor third or
+        a tritone off (never in unison), sometimes a third further back again, each a little further and darker than
+        the last, so the howl spreads across the plain. The same throats as the kept near howl, with the breath and
+        embers lost to distance, the night's reverb and a late echo off the far edge. Held to 500 Hz-3 kHz.""",
+        takes=4, band=HOUNDS, lufs=-20, preview=lambda takes, rng: scatter(takes, rng, (1.5, 3.0)))
+def howl_answer(rng, k):
+    metres = [240, 300, 360, 280][k]
+    b = Bus(9.5)
+    base, peak = rng.uniform(370, 430), rng.uniform(590, 680)
+    b.at(0, far_off(hound(rng, rng.uniform(3.8, 4.6), base, peak, rng.uniform(0.55, 0.62)), metres, rng))
+    ivs = [[2 ** (3 / 12)], [2 ** (6 / 12), 2 ** (-3 / 12)], [2 ** (-3 / 12)], [2 ** (6 / 12), 2 ** (3 / 12)]][k]
+    t = rng.uniform(1.0, 1.8)
+    for j, iv in enumerate(ivs):
+        L = rng.uniform(2.8, 3.6)
+        v = hound(rng, L, base * iv, peak * iv, rng.uniform(0.58, 0.68), brk=(j + k) % 2 == 0)
+        b.at(t, far_off(v, metres * (1.2 + 0.25 * j), rng, echo=j == 0), -3 - 3 * j)
+        t += rng.uniform(0.9, 1.7)
+    return held(b.x, *HOUNDS, drive=3)
+
+
 # ---- The Track Doll: the giggle (3-6 kHz, one-shots; the kept 'heh' is the fourth) -----------------------------------
 
 DOLL = (3000, 6000)
