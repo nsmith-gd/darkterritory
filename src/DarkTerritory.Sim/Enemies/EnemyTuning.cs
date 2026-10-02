@@ -440,4 +440,12 @@ public sealed record DirectorTuning(
     public Dictionary<string, double> WantShares { get; init; } = new();
     /// <summary>App. B.1 hard caps: corrupted humans, at most this many at a time.</summary>
     public int MaxCorrupted { get; init; } = 1;
+    /// <summary>GDD v1.4 App. D.11, the dead's creature vote (enemies.json director.vote; note 180).</summary>
+    public VoteTuning Vote { get; init; } = new();
 }
+
+/// <summary>
+/// D.11 and D.13: each vote multiplies its creature's spawn weight by <paramref name="PerVote"/>, to at most <paramref name="Cap"/>,
+/// within its want tag; a dead player's ballot is <paramref name="Options"/> creatures drawn by weighted roll from what's eligible.
+/// </summary>
+public sealed record VoteTuning(double PerVote = 1.2, double Cap = 1.5, int Options = 3);

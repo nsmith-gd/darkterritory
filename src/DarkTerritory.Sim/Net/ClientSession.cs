@@ -87,6 +87,24 @@ public sealed class ClientSession
         Messages.WriteVoiceUp(_voiceWriter, sequence, radio, opus);
         _transport.Send(PeerId.Host, _voiceWriter.Written, Delivery.Unreliable);
     }
+    /// <summary>
+    /// GDD v1.4 App. D.12 (note 180): commends <paramref name="to"/> with the starter set's <paramref name="which"/>, on the
+    /// run-end screen. The host decides whether it stands (one each, never yourself) and sends everyone the night's list.
+    /// </summary>
+    public void Commend(int to, byte which)
+    {
+        if (PlayerId is null)
+            return;
+        Messages.WriteCommend(_voiceWriter, to, which);
+        _transport.Send(PeerId.Host, _voiceWriter.Written, Delivery.ReliableOrdered);
+    }
+
+    /// <summary>This dead player's creature vote (D.11), as the host offered it: the ballot and what they cast; null till offered.</summary>
+    public (IReadOnlyList<Enemies.EnemyKind> Options, Enemies.EnemyKind? Cast)? Ballot { get; private set; }
+
+    /// <summary>D.11's cues to the dead, as they came: a creature they voted for is coming, and who called it. The game takes them.</summary>
+    public List<(Enemies.EnemyKind Kind, List<int> Voters)> VoteCues { get; } = [];
+
     public string SessionInfo { get; private set; } = "";
     /// <summary>Set while welcomed but not yet aboard (spec E: drop-in at POIs), with the host's reason.</summary>
     public string? WaitingReason { get; private set; }
@@ -198,6 +216,16 @@ public sealed class ClientSession
                     break;
                 case MessageType.Names:
                     Messages.ReadNames(ref r, World.Names);
+                    break;
+                case MessageType.Ballot:
+                    Ballot = Messages.ReadBallot(ref r);
+                    break;
+                case MessageType.VoteCue:
+                    VoteCues.Add(Messages.ReadVoteCue(ref r));
+                    break;
+                case MessageType.Commendations:
+                    World.Commendations.Clear();
+                    World.Commendations.AddRange(Messages.ReadCommendations(ref r));
                     break;
                 case MessageType.Bookmark:
                     if (Messages.ReadBookmark(ref r) is { } bookmark)

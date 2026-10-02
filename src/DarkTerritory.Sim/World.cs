@@ -176,6 +176,13 @@ public sealed class World
     public EnemyTuning? Enemies { get; private set; }
     public Route.Route? Route { get; private set; }
     public Director? Director { get; private set; }
+
+    /// <summary>
+    /// The night's commendations (GDD v1.4 App. D.12; note 180): one from each player in the session at run end, to anyone
+    /// but themselves, in the order given. The host's, sent to every client. Which is the starter set's index
+    /// (<see cref="Run.Commendations"/>).
+    /// </summary>
+    public List<(int From, int To, byte Which)> Commendations { get; } = [];
     public IReadOnlyList<Enemy> ActiveEnemies => _enemies;
     public List<EnemyEvent> EnemyEvents { get; } = new();
     public List<DamageEvent> Damage { get; } = new();

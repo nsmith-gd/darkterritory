@@ -544,6 +544,9 @@ public sealed class GameAudio
     /// <summary>Plays a one-shot at a point: crew actions the game knows about (a shovel of coal).</summary>
     public void Play(string name, Double3 at) => Mixer.Play(name, at);
 
+    /// <summary>A sound with no place (it's flat): the dead channel's chime (D.11), and the like.</summary>
+    public void Play(string name) => Mixer.Play(name);
+
     /// <summary>Tiny deterministic RNG for cue timing (the sim's Pcg32 is for the sim).</summary>
     sealed class Pcg32Ish(ulong seed)
     {

@@ -223,6 +223,10 @@ public static class IncidentLog
             else
                 lines.Add(new ReportLine(i.Kind, who, $"{i.What} {i.Where}. {action}".Trim()) { Seconds = i.Seconds, Victim = i.Victim });
         }
+        // D.12 "what the dead voted for", hidden from the living till now (D.11): each creature voted for, and by whom.
+        if (world.Director is { } director)
+            foreach (var voted in director.Votes.GroupBy(v => v.Kind).OrderBy(g => g.Min(v => v.Voter)))
+                lines.Add(new ReportLine(IncidentKind.Voted, "", $"The dead voted for the {Spoken(voted.Key.ToString())}: {string.Join(", ", voted.Select(v => NameOf(world, v.Voter)))}."));
         return lines;
     }
 }

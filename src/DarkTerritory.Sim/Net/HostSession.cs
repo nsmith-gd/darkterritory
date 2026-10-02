@@ -130,6 +130,7 @@ public sealed class HostSession
         }
         World.Step(Controls);
         Bookmark();
+        Votes();
         // E.5 "Skipping": a majority of the session, or the host, skips the film to the cause card, or the Stranded outro
         // (E.9). When a vote counts at all is the clients' to say: they only offer it after the first player's shot, or three
         // seconds into the outro. Once skipped, it stays skipped.
@@ -280,6 +281,27 @@ public sealed class HostSession
     /// GDD v1.4 App. D.10, D.12: a dead player's Bookmark, on the press, of the living crewmate they follow (their intent's
     /// Watch, as <see cref="EarsOf"/> reads it). Only once the run's under way; capped per player and per run.
     /// </summary>
+    readonly Dictionary<byte, (int Options, Enemies.EnemyKind? Cast)> _ballotsSent = [];
+    bool _commendationsChanged;
+
+    /// <summary>
+    /// GDD v1.4 App. D.11 (note 180): a dead crewmate (not one still waiting to board) is offered their ballot, and casts it
+    /// with a hotbar number (the dead carry nothing, so 1-3 are free): once per run, locked on submit.
+    /// </summary>
+    void Votes()
+    {
+        if (World.Director is not { } director || World.Run is { Over: true })
+            return;
+        foreach (var c in _crew)
+        {
+            if (c.State.Alive || c.State.Death == DeathCause.Waiting)
+                continue;
+            var ballot = director.Ballot(World, c.Id);
+            if (c.ThisTick.Select is > 0 and var pick && pick <= ballot.Count && director.CanVote(c.Id))
+                director.Vote(c.Id, ballot[pick - 1]);
+        }
+    }
+
     void Bookmark()
     {
         foreach (var c in _crew)
@@ -316,6 +338,35 @@ public sealed class HostSession
             foreach (var p in peers)
                 _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
         }
+        // D.11: each dead player's ballot to them alone, as it's offered and once cast; the cue to the dead alone.
+        if (World.Director is { } director && World.Run is not { Over: true })
+        {
+            foreach (var c in _crew.Where(c => !c.State.Alive && c.State.Death != DeathCause.Waiting))
+            {
+                var offered = director.Ballot(World, c.Id);
+                if (offered.Count == 0)
+                    continue;
+                var state = (offered.Count, director.VoteOf(c.Id));
+                if (_ballotsSent.TryGetValue(c.Id, out var sent) && sent == state)
+                    continue;
+                _ballotsSent[c.Id] = state;
+                Messages.WriteBallot(_writer, offered, state.Item2);
+                _transport.Send(c.Peer, _writer.Written, Delivery.ReliableOrdered);
+            }
+            foreach (var (kind, voters) in director.TakeVoteCues())
+            {
+                Messages.WriteVoteCue(_writer, kind, voters);
+                foreach (var c in _crew.Where(c => !c.State.Alive))
+                    _transport.Send(c.Peer, _writer.Written, Delivery.ReliableOrdered);
+            }
+        }
+        if (_commendationsChanged)
+        {
+            _commendationsChanged = false;
+            Messages.WriteCommendations(_writer, World.Commendations);
+            foreach (var p in peers)
+                _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
+        }
         if (!_filmSent && World.Film is { } film)
         {
             _filmSent = true;
@@ -335,6 +386,15 @@ public sealed class HostSession
     void OnData(PeerId peer, byte[] payload)
     {
         // A name can come from someone still waiting to board.
+        // D.12: a commendation can come from anyone in the session at run end, aboard or still waiting to board.
+        if (payload.Length == 3 && payload[0] == (byte)MessageType.Commend)
+        {
+            int from = _crew.Find(x => x.Peer == peer)?.Id ?? _waiting.Where(w => w.Peer == peer).Select(w => (int)w.Id).DefaultIfEmpty(-1).First();
+            var session = _crew.Select(x => (int)x.Id).Concat(_waiting.Select(w => (int)w.Id)).ToList();
+            if (from >= 0 && Run.Commendations.Give(World, from, payload[1], payload[2], session))
+                _commendationsChanged = true;
+            return;
+        }
         if (payload.Length > 0 && payload[0] == (byte)MessageType.Hello)
         {
             int id = _crew.Find(x => x.Peer == peer)?.Id ?? _waiting.Where(w => w.Peer == peer).Select(w => (int)w.Id).DefaultIfEmpty(-1).First();

@@ -622,7 +622,20 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         // The night's over: Enter goes back (to the fortress, for a campaign night).
         if (session.World.Run?.Over == true && input.Pressed(Key.Enter))
+        {
+            // D.12: what the crew commended you for goes in your profile, whatever becomes of the character.
+            if (net is not null && session.World.Commendations.Count > 0)
+                new PlayerProfile(args.Contains("--saves") ? Path.Combine(saves.Directory, "profile.json") : PlayerProfile.DefaultPath)
+                    .Record(session.World.Commendations, net.PlayerId);
             break;
+        }
+        // GDD v1.4 App. D.12: on the run-end screen, a commendation for a crewmate: the arrows pick who and which, Space gives it.
+        if (session.World.Run?.Over == true && net is not null)
+            net.Commend((input.Pressed(Key.Right) ? 1 : 0) - (input.Pressed(Key.Left) ? 1 : 0),
+                (input.Pressed(Key.Down) ? 1 : 0) - (input.Pressed(Key.Up) ? 1 : 0), input.Pressed(Key.Space));
+        // D.11: the dead's chime as a creature they voted for comes.
+        if (net?.TakeNewCue() == true)
+            sound.Play("vote-cue");
         // --derail-at s (a host, headless checks of the derailment's beats with --capture): off the rails at s seconds.
         if (derailAt > 0 && now >= derailAt && session is NetPlaySession { Host.World: { Derailed: false } hostWorld })
             hostWorld.Derail("--derail-at");

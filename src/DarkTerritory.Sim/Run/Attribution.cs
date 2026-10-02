@@ -3,7 +3,7 @@ using DarkTerritory.Sim.Player;
 namespace DarkTerritory.Sim.Run;
 
 /// <summary>What a record in the failure-attribution log is about (GDD v1.4 App. C.9).</summary>
-public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded }
+public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded, Voted }
 
 /// <summary>
 /// One fact for the incident report (C.9, D.12): what happened, to whom and where, and the <b>contributing action</b>: the

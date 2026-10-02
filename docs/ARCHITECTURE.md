@@ -2735,3 +2735,23 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - **Reading:** no new VoicePath bit. A dead speaker on the proximity path can only be a Live Mic, so the client positions it by the replicated Holdout.
     - **Not yet:** the lobbied (joining) players' own card doesn't show the queue (their wait panel is the link's). Each occupant has one shout and one bang rather than a voice set of several.
     - Protocol 11. Tests: `HoldoutTests` (the toggle is the occupant's alone and goes off when freed; a client mirrors the calls, the Live Mic and the queue), `VoiceRoutingTests` (heard only by the living near the Holdout) and `DeadPhaseTests` (the queue line; each Call Out heard once from its Holdout).
+180. **The dead's creature vote, and commendations (GDD v1.4 App. D.11, D.12, D.13; WP11).**
+    - **The ballot (D.11):**
+      - A dead crewmate (not a joiner still waiting to board) is offered a ballot of `director.vote.options` (3) creatures. They're drawn by weighted roll from what the director could send right then: allowed by tier and edition, with its spawn rule wanting it.
+      - The spawn table never holds the Stoker or the Choir (condition- and loudness-triggered).
+      - It's drawn once per player per run, seeded by the director's seed and the player's id, so a later death offers the same ballot. An unused vote carries over.
+      - They cast it with 1–3 (the hotbar keys: the dead carry nothing). It's locked on submit.
+      - It goes to that dead player alone (`MessageType.Ballot`). The living never see it until the run-end screen.
+    - **The effect (D.11, D.13):**
+      - Each vote multiplies its creature's weight by `perVote` (1.2), to at most `cap` (1.5) (`Director.VoteWeight`).
+      - "Within the creature's want tag": after every other weighting, each want's options are scaled back to the want's own total (`Director.WeighVotes`). The vote moves weight between creatures of a want and never between wants, so the Kill / Split / Trust / Cargo shares hold exactly.
+      - It changes nothing else. Budget, gates, caps, pacing, cooldowns, once-per-run limits and the Soot Children's roll all run before or around it. `VoteTests` pins the want totals.
+    - **The payoff:** when the director charges a creature someone voted for, every dead player is sent a cue (`MessageType.VoteCue`): "THE DEAD CALLED THE CAR HUGGER: PRIYA, SAM" on their card for 6 s, with a cracked hand bell on the dead channel (`vote-cue`, tier 2, flat). The living's clients are never sent it.
+    - **The reveal (D.12):** the report says "The dead voted for the Car Hugger: Priya, Sam." (`IncidentKind.Voted`).
+    - **Commendations (D.12):**
+      - On the run-end screen (after any film, outro or tally), everyone in the session can give one: living, dead, or still waiting to board.
+      - The arrows pick who and which of the starter set (`Run.Commendations.StarterSet`, in the HUD's badge order). Space gives it (`MessageType.Commend`).
+      - The host refuses one while the run's on, to yourself, to someone not in the session, or a second from the same player. It sends everyone the night's list (`MessageType.Commendations`), and the screen shows them with their badges.
+      - On leaving the screen, what you were given goes in your player profile (`PlayerProfile`, `profile.json` in app data or beside `--saves`), not the character. It's social only.
+    - **Not yet:** a profile screen to show the tally; voting with a headset (the ballot needs the number keys); bots don't vote or commend.
+    - Protocol 13. Tests: `VoteTests` (the ballot, the lock, the weight and the want totals, the wire with the cue to the dead alone and the report's reveal, the commendation rules) and `PlayerProfileTests`.

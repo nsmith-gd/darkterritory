@@ -18,7 +18,8 @@ public static class Protocol
     // 10: the derailment film's start (Film) and the skip vote on the world record (GDD v1.4 App. E.2, E.5; note 177).
     // 11: a Holdout record's Call Outs and Live Mic, and the respawn queue (GDD v1.4 App. D.6, D.7; note 179).
     // 12: bookmarks (Bookmark) and the report's bookmarks beside its lines (GDD v1.4 App. D.12, note 176).
-    public const int Version = 12;
+    // 13: the dead's creature vote (Ballot, VoteCue) and commendations (Commend, Commendations) (GDD v1.4 App. D.11, D.12; note 180).
+    public const int Version = 13;
 }
 
 public enum MessageType : byte
@@ -43,6 +44,14 @@ public enum MessageType : byte
     Bookmark = 9,
     /// <summary>Host → client, reliable: one chunk of the derailment film's start (GDD v1.4 App. E.2), compressed, in order.</summary>
     Film = 10,
+    /// <summary>Host → one dead client, reliable: their creature vote's ballot and what they cast (GDD v1.4 App. D.11).</summary>
+    Ballot = 11,
+    /// <summary>Host → the dead, reliable: a creature they voted for is coming, and who called it (D.11's payoff).</summary>
+    VoteCue = 12,
+    /// <summary>Client → host, reliable: this player's commendation for a crewmate (D.12): to whom, which.</summary>
+    Commend = 13,
+    /// <summary>Host → client, reliable: the night's commendations so far (D.12), from, to and which, each.</summary>
+    Commendations = 14,
 }
 
 public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent);
@@ -313,6 +322,80 @@ public static class Messages
     }
 
     static string Clip(string s) => s.Length > 120 ? s[..120] : s;
+
+    /// <summary>A dead player's ballot (D.11): the creatures offered, and what they cast (or none).</summary>
+    public static void WriteBallot(NetWriter w, IReadOnlyList<Enemies.EnemyKind> options, Enemies.EnemyKind? cast)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Ballot);
+        w.U8((byte)options.Count);
+        foreach (var k in options)
+            w.U8((byte)k);
+        w.U8(cast is { } c ? (byte)c : (byte)0);
+    }
+
+    public static (List<Enemies.EnemyKind> Options, Enemies.EnemyKind? Cast) ReadBallot(ref NetReader r)
+    {
+        int n = Math.Min((int)r.U8(), 8);
+        var options = new List<Enemies.EnemyKind>(n);
+        for (int i = 0; i < n; i++)
+            options.Add((Enemies.EnemyKind)r.U8());
+        byte cast = r.U8();
+        return (options, cast == 0 ? null : (Enemies.EnemyKind)cast);
+    }
+
+    /// <summary>D.11's cue to the dead: what's coming, and who voted for it.</summary>
+    public static void WriteVoteCue(NetWriter w, Enemies.EnemyKind kind, IReadOnlyList<int> voters)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.VoteCue);
+        w.U8((byte)kind);
+        w.U8((byte)Math.Min(voters.Count, 16));
+        foreach (int v in voters.Take(16))
+            w.U8((byte)v);
+    }
+
+    public static (Enemies.EnemyKind Kind, List<int> Voters) ReadVoteCue(ref NetReader r)
+    {
+        var kind = (Enemies.EnemyKind)r.U8();
+        int n = Math.Min((int)r.U8(), 16);
+        var voters = new List<int>(n);
+        for (int i = 0; i < n; i++)
+            voters.Add(r.U8());
+        return (kind, voters);
+    }
+
+    /// <summary>A commendation (D.12), client to host: to whom, which (the starter set's index).</summary>
+    public static void WriteCommend(NetWriter w, int to, byte which)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Commend);
+        w.U8((byte)to);
+        w.U8(which);
+    }
+
+    /// <summary>The night's commendations, host to client: (from, to, which) each.</summary>
+    public static void WriteCommendations(NetWriter w, IReadOnlyList<(int From, int To, byte Which)> all)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Commendations);
+        w.U8((byte)Math.Min(all.Count, 64));
+        foreach (var (from, to, which) in all.Take(64))
+        {
+            w.U8((byte)from);
+            w.U8((byte)to);
+            w.U8(which);
+        }
+    }
+
+    public static List<(int From, int To, byte Which)> ReadCommendations(ref NetReader r)
+    {
+        int n = Math.Min((int)r.U8(), 64);
+        var all = new List<(int, int, byte)>(n);
+        for (int i = 0; i < n; i++)
+            all.Add((r.U8(), r.U8(), r.U8()));
+        return all;
+    }
 
     /// <summary>Reads a Bookmark after its type byte; null if it doesn't parse.</summary>
     public static Run.Bookmark? ReadBookmark(ref NetReader r)

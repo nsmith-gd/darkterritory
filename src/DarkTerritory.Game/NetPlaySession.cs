@@ -226,6 +226,75 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         || StrandedOutro && OutroSeconds >= World.WreckTuning.Stranded.SkipAfterSeconds;
     public double OutroSeconds { get; private set; }
 
+    public (IReadOnlyList<Sim.Enemies.EnemyKind> Options, Sim.Enemies.EnemyKind? Cast)? Ballot => Client.Ballot;
+
+    string? _cue;
+    double _cueSeconds;
+
+    /// <summary>D.11: the newest cue to the dead, for a few seconds; a new one plays its sound (<see cref="TakeNewCue"/>).</summary>
+    public string? VoteCue => _cueSeconds > 0 ? _cue : null;
+
+    bool _newCue;
+
+    /// <summary>Whether a cue arrived since last asked (the app plays the dead channel's chime for it).</summary>
+    public bool TakeNewCue()
+    {
+        bool fresh = _newCue;
+        _newCue = false;
+        return fresh;
+    }
+
+    void StepCues()
+    {
+        _cueSeconds = Math.Max(0, _cueSeconds - SimConstants.TickSeconds);
+        foreach (var (kind, voters) in Client.VoteCues)
+        {
+            _cue = $"THE DEAD CALLED THE {Sim.Run.IncidentLog.Spoken(kind.ToString()).ToUpperInvariant()}: " +
+                string.Join(", ", voters.Select(v => v == PlayerId ? "YOU" : Sim.Run.IncidentLog.NameOf(World, v).ToUpperInvariant()));
+            _cueSeconds = 6;
+            _newCue = true;
+        }
+        Client.VoteCues.Clear();
+    }
+
+    int _commendTo, _commendWhich;
+    bool _commended;
+
+    /// <summary>Everyone else in the session at run end, by id: who can be commended (D.12: anyone but yourself).</summary>
+    IReadOnlyList<int> Commendable => [.. Client.RemoteIds.Select(id => (int)id).Where(id => id != PlayerId).Order()];
+
+    public (string To, string What, bool Given)? CommendPick
+    {
+        get
+        {
+            if (World.Run is not { Over: true } || WreckCinematic || StrandedOutro || ClerkTally)
+                return null;
+            var mine = World.Commendations.FirstOrDefault(c => c.From == PlayerId);
+            if (World.Commendations.Any(c => c.From == PlayerId))
+                return (Sim.Run.IncidentLog.NameOf(World, mine.To).ToUpperInvariant(), Sim.Run.Commendations.StarterSet[mine.Which].ToUpperInvariant(), true);
+            var choices = Commendable;
+            if (choices.Count == 0)
+                return null;
+            int to = choices[(_commendTo % choices.Count + choices.Count) % choices.Count];
+            int which = (_commendWhich % 5 + 5) % 5;
+            return (Sim.Run.IncidentLog.NameOf(World, to).ToUpperInvariant(), Sim.Run.Commendations.StarterSet[which].ToUpperInvariant(), _commended);
+        }
+    }
+
+    /// <summary>The picker's keys (D.12): step through who and which; give it (once).</summary>
+    public void Commend(int stepTo, int stepWhich, bool give)
+    {
+        if (CommendPick is not { Given: false })
+            return;
+        _commendTo += stepTo;
+        _commendWhich += stepWhich;
+        if (!give)
+            return;
+        var choices = Commendable;
+        Client.Commend(choices[(_commendTo % choices.Count + choices.Count) % choices.Count], (byte)((_commendWhich % 5 + 5) % 5));
+        _commended = true;
+    }
+
     List<string>? _manifest, _tally;
     double _manifestSeconds = -1, _tallySeconds = -1;
 
@@ -569,6 +638,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         WreckSeconds = Train.Wreck is null ? 0 : WreckSeconds + SimConstants.TickSeconds;
         OutroSeconds = World.Run?.End == Sim.Run.RunEnd.Stranded ? OutroSeconds + SimConstants.TickSeconds : 0;
         StepRadio();
+        StepCues();
         if (World.Film is { } start && _shooting is null)
         {
             var world = World;

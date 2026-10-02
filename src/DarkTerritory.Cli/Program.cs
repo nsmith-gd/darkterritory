@@ -1363,7 +1363,8 @@ static object HudShot(string content, string[] args)
         : null;
     // --spectating (GDD App. D.10): a hosted night with a joiner who's died, seen as the joiner sees it: through the
     // host's eyes in the cab, whom they watch, with their HUD.
-    using var spectated = args.Contains("--spectating") ? Spectating(content, Str(args, "--route", "frontier:7"), cars) : null;
+    // --vote (GDD v1.4 App. D.11): the night has its director, so the dead watcher is offered a ballot.
+    using var spectated = args.Contains("--spectating") ? Spectating(content, Str(args, "--route", "frontier:7"), cars, args.Contains("--vote")) : null;
     IPlaySession session;
     if (spectated is { } pair)
         session = pair.Watcher;
@@ -1541,9 +1542,9 @@ static object FilmStill(string content, string[] args)
 }
 
 // A hosted night over loopback with one joiner, who dies once aboard and watches the host (App. D.10).
-static SpectatedNight Spectating(string content, string route, int cars)
+static SpectatedNight Spectating(string content, string route, int cars, bool enemies = false)
 {
-    var host = NetPlaySession.HostGame(content, new SessionSetup(Route: route, Cars: cars, Enemies: false), port: 0);
+    var host = NetPlaySession.HostGame(content, new SessionSetup(Route: route, Cars: cars, Enemies: enemies), port: 0);
     var watcher = NetPlaySession.Join(content, new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port), () => host.Step(default));
     void Step(int ticks)
     {
