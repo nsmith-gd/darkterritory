@@ -108,11 +108,14 @@ public static class TrainKit
         k.Box(new Vector3(-HalfGauge - 0.2f, 0.62f, z - 0.2f), new Vector3(HalfGauge + 0.2f, 0.78f, z + 0.2f));
     }
 
-    /// <summary>A knuckle coupler and its draft gear, out from the end beam at <paramref name="z"/> towards <paramref name="dir"/> (±1).</summary>
+    /// <summary>
+    /// A knuckle coupler and its draft gear, out from the end beam at <paramref name="z"/> towards <paramref name="dir"/> (±1).
+    /// Where the modelled ones are built (tools/models car_gear: coupler_knuckle, coupler_open) they're not baked in: the
+    /// scene draws each end's per frame, shut or cut (<see cref="CouplerEnds"/>, SceneArt.Car), so a cut shows.
+    /// </summary>
     static void Coupler(Kit k, float z, float dir, float height)
     {
-        // The modelled one points forward (−Z) with its centre line 0.9 m up: turned for the rear, raised or lowered.
-        if (Prop(k, "coupler_knuckle", (dir > 0 ? Matrix4x4.CreateRotationY(MathF.PI) : Matrix4x4.Identity) * Kit.At(0, height - 0.9f, z)))
+        if (k.Look is { } look && PropArt.Of(look).Get("coupler_knuckle") is not null)
             return;
         k.Use("wheel_iron", Palette.SootBlack, 0.7f, 0.35f);
         float z0 = z, z1 = z + dir * 0.35f;
@@ -121,6 +124,18 @@ public static class TrainKit
         // The air hose, hanging.
         k.Use("rust_heavy", Palette.SootBlack, 0.8f, 0.1f);
         k.Rod(new Vector3(0.35f, height - 0.05f, z + dir * 0.05f), new Vector3(0.38f, height - 0.45f, z + dir * 0.25f), 0.025f, 6);
+    }
+
+    /// <summary>
+    /// Where a vehicle's two couplers stand (its frame, 0.9 m up): the front's and the rear's along it, and the way each
+    /// points (±1, the modelled one pointing −Z, turned for the rear). The engine's front one stands a little proud of the
+    /// pilot beam.
+    /// </summary>
+    public static (Matrix4x4 Front, Matrix4x4 Rear) CouplerEnds(CarShape shape)
+    {
+        float l = (float)shape.HalfLength;
+        float front = shape.Cab is not null ? -l - 0.05f : -l;
+        return (Matrix4x4.CreateTranslation(0, 0, front), Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateTranslation(0, 0, l));
     }
 
     /// <summary>An iron ladder up a face: two stiles and rungs every 0.3 m, standing off it by a hand's depth.</summary>
@@ -534,6 +549,27 @@ public static class TrainKit
     }
 
     /// <summary>A painted grip over a lever's handle, centred on it (T101: the brake's red, found at a glance).</summary>
+    /// <summary>
+    /// Where the whistle cord's handle hangs in the cab (car frame): over the driver's head, a little back of the regulator
+    /// (GDD §12: the real whistle has a hand on it; the Whistler's has none, App. A.4). Hauled down 0.18 m while it blows.
+    /// </summary>
+    public static Ballast.Double3 WhistleCordHandle(CarShape engine, bool pulled)
+    {
+        var reg = engine.Levers?.Regulator ?? default;
+        return new Ballast.Double3(reg.X - 0.12, reg.Y + (pulled ? 0.22 : 0.4), reg.Z + 0.4);
+    }
+
+    /// <summary>The whistle cord: a waxed cord <paramref name="length"/> down from the cab roof to a turned wooden handle, its origin at the handle.</summary>
+    public static MeshAsset WhistleCord(Look? look, float length)
+    {
+        var k = new Kit(look, 63);
+        k.Use("wood_grey", new Vector3(0.42f, 0.36f, 0.26f), 0.85f, 0.05f, tile: 0.3f);
+        k.Cylinder(new Vector3(0, 0.02f, 0), new Vector3(0, length, 0), 0.006f, 5);
+        k.Use("wood_crate", new Vector3(0.36f, 0.24f, 0.14f), 0.7f, 0.1f, tile: 0.2f);
+        k.Cylinder(new Vector3(-0.07f, 0, 0), new Vector3(0.07f, 0, 0), 0.016f, 6);
+        return k.Build("whistle-cord");
+    }
+
     public static MeshAsset Grip(Look? look, Vector3 colour)
     {
         var k = new Kit(look, 62);

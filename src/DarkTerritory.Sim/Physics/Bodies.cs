@@ -108,7 +108,7 @@ public sealed class Bodies
     public Body SpawnCrate(TrainOnLine train, int car, Double3 local, BodyKind kind = BodyKind.Crate)
     {
         // The toolbox is a flat thing (train_stores.py's repair_kit, 0.2 m high): it lies on the floor, not a hand over it.
-        double radius = kind switch { BodyKind.Crate => 0.35, BodyKind.RepairKit => 0.1, _ => 0.15 };
+        double radius = kind switch { BodyKind.Crate or BodyKind.Child => 0.35, BodyKind.RepairKit => 0.1, _ => 0.15 };
         var pbd = new PbdBody([new Particle(local + Double3.Up * radius, 1, radius)]) { Friction = 0.2, Bounce = 0.1 };
         var b = new Body(_nextId++, kind, car, pbd) { LineHint = train.Cars[Math.Max(0, car)].FrontDistance };
         _bodies.Add(b);

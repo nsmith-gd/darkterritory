@@ -3,7 +3,7 @@
   * truck_archbar: a freight car's arch-bar truck, 1.6 m wheelbase on the 1.44 m gauge, 0.42 m wheels (TrainKit.Truck):
     plate wheels with their flanges, axles, journal boxes with hinged lids, the top, arch and tie bars bolted through
     columns, a nest of coil springs under the bolster, the brake beams with their heads and shoes on the treads;
-  * coupler_knuckle: a knuckle coupler out from the end beam, 0.9 m up (TrainKit.Coupler): the striker casting, the
+  * coupler_knuckle, coupler_open: a knuckle coupler out from the end beam, 0.9 m up (TrainKit.Coupler), shut, and cut: the striker casting, the
     shank in its yoke, the head with its knuckle, pin and guard arm, the cut lever (the uncoupling rod, spec B.4's
     "cut the train") run out along the end beam to its handle, the air hose with its glad hand, and the angle cock;
   * brake_gear: what hangs under a car's middle: the air reservoir on its straps, the brake cylinder, the triple valve
@@ -160,33 +160,44 @@ def truck_archbar(m):
 # ----------------------------------------------------------------------------------------------------------------
 # The coupler
 
-def coupler_knuckle(m):
+def coupler_knuckle(m, open_=False):
+    """`open_`: cut (T91, spec B.4): the cut lever lifted the lock, the knuckle swung wide open on its pin, the hose parted
+    at its glad hand and hanging straight down."""
     p = []
     H = 0.9
+    # The knuckle turns about its pin (x 0.1, y 0.47, vertical): -18 degrees shut, swung out 80 more open.
+    swing = Matrix.Rotation(math.radians(80 if open_ else 0), 4, "Z")
+
+    def turned(c):
+        pin = Vector((0.1, 0.47, H))
+        return tuple(pin + swing.to_3x3() @ (Vector(c) - pin))
     # The striker casting on the end beam's face, the yoke behind it, the shank out through it.
     p.append(make.box((0, 0.03, H), (0.24, 0.03, 0.17), m["cast"], bevel=0.015, name="striker"))
     p.append(make.box((0, 0.2, H), (0.075, 0.17, 0.065), m["cast"], bevel=0.012, name="shank"))
     # The head: its body, the knuckle turned on its pin to the right, the guard arm on the left, the lock's lift.
     p.append(make.box((0, 0.42, H), (0.13, 0.07, 0.13), m["cast"], bevel=0.02, name="head"))
     p.append(make.cyl((0.1, 0.47, H - 0.13), (0.1, 0.47, H + 0.13), 0.05, m["cast"], n=14, bevel=0.008, name="pin_boss", low=8))
-    p.append(make.box((0.05, 0.54, H), (0.08, 0.035, 0.12), m["cast"], bevel=0.015, name="knuckle",
-                      rot=Matrix.Rotation(math.radians(-18), 4, "Z")))
-    p.append(make.box((0.12, 0.575, H), (0.035, 0.03, 0.11), m["cast"], bevel=0.012, name="knuckle_nose"))
+    p.append(make.box(turned((0.05, 0.54, H)), (0.08, 0.035, 0.12), m["cast"], bevel=0.015, name="knuckle",
+                      rot=swing @ Matrix.Rotation(math.radians(-18), 4, "Z")))
+    p.append(make.box(turned((0.12, 0.575, H)), (0.035, 0.03, 0.11), m["cast"], bevel=0.012, name="knuckle_nose", rot=swing))
     p.append(make.box((-0.11, 0.53, H), (0.03, 0.06, 0.12), m["cast"], bevel=0.012, name="guard_arm"))
     p.append(make.cyl((0.1, 0.47, H + 0.13), (0.1, 0.47, H + 0.16), 0.022, m["iron"], n=10, name="pin_head", low=0))
-    p.append(make.box((-0.02, 0.42, H + 0.15), (0.02, 0.02, 0.025), m["iron"], bevel=0.004, name="lock_lift", low=False))
-    # The cut lever: from the lock lift up to the end beam's top, along it through two brackets to the handle at the side.
-    lever = [(-0.02, 0.42, H + 0.17), (-0.02, 0.2, H + 0.2), (-0.1, 0.08, H + 0.21), (-1.2, 0.08, H + 0.21),
-             (-1.3, 0.1, H + 0.08), (-1.3, 0.17, H + 0.06)]
+    lift = 0.07 if open_ else 0.0
+    p.append(make.box((-0.02, 0.42, H + 0.15 + lift), (0.02, 0.02, 0.025), m["iron"], bevel=0.004, name="lock_lift", low=False))
+    # The cut lever: from the lock lift up to the end beam's top, along it through two brackets to the handle at the side
+    # (thrown up, cut: the handle swung up level).
+    lever = [(-0.02, 0.42, H + 0.17 + lift), (-0.02, 0.2, H + 0.2 + lift * 0.5), (-0.1, 0.08, H + 0.21), (-1.2, 0.08, H + 0.21),
+             (-1.3, 0.1, H + (0.2 if open_ else 0.08)), (-1.3, 0.17 if not open_ else 0.04, H + (0.3 if open_ else 0.06))]
     p += make.pipe(lever, 0.013, m["iron"], name="cut_lever", n=8, low=5)
     for x in (-0.5, -1.05):
         p.append(make.box((x, 0.04, H + 0.2), (0.015, 0.04, 0.035), m["iron"], bevel=0.004, name="bracket", low=False))
     # The air hose: from the angle cock under the end beam, hanging in a loop to its glad hand.
     p.append(make.cyl((0.35, 0.02, H - 0.08), (0.35, 0.14, H - 0.08), 0.03, m["brass"], n=12, name="angle_cock", low=6))
     p.append(make.box((0.35, 0.09, H - 0.02), (0.012, 0.012, 0.05), m["paint"], bevel=0.003, name="cock_handle", low=False))
-    hose = [(0.35, 0.14, H - 0.08), (0.37, 0.2, H - 0.22), (0.38, 0.23, H - 0.4), (0.37, 0.27, H - 0.47), (0.33, 0.33, H - 0.44)]
+    hose = ([(0.35, 0.14, H - 0.08), (0.36, 0.17, H - 0.25), (0.36, 0.18, H - 0.45), (0.36, 0.18, H - 0.6)] if open_ else
+            [(0.35, 0.14, H - 0.08), (0.37, 0.2, H - 0.22), (0.38, 0.23, H - 0.4), (0.37, 0.27, H - 0.47), (0.33, 0.33, H - 0.44)])
     p += make.pipe(hose, 0.022, m["rubber"], name="hose", n=10, low=6)
-    p.append(make.box((0.32, 0.36, H - 0.43), (0.035, 0.03, 0.022), m["brass"], bevel=0.006, name="glad_hand"))
+    p.append(make.box((0.36, 0.18, H - 0.64) if open_ else (0.32, 0.36, H - 0.43), (0.035, 0.03, 0.022), m["brass"], bevel=0.006, name="glad_hand"))
     for (x, y, z) in [(0.2, 0.06, H + 0.12), (-0.2, 0.06, H + 0.12), (0.2, 0.06, H - 0.12), (-0.2, 0.06, H - 0.12)]:
         p.append(bolt((x, y, z), (0, 1, 0), m["iron"], r=0.018))
     return p
@@ -231,4 +242,5 @@ def brake_gear(m):
 
 build("truck_archbar", truck_archbar, "a freight car's arch-bar truck", budget=4000)
 build("coupler_knuckle", coupler_knuckle, "a knuckle coupler, its cut lever and air hose", budget=1500)
+build("coupler_open", lambda m: coupler_knuckle(m, open_=True), "a cut knuckle coupler: the knuckle open, the hose parted", budget=1500)
 build("brake_gear", brake_gear, "a car's brake gear", budget=1500)

@@ -7,7 +7,11 @@ using DarkTerritory.Sim.Enemies;
 namespace DarkTerritory.Game.Art;
 
 /// <summary>What a crewmate is doing, for which clip their model plays (the actions: tools/blender/crew_clips.py, note 145).</summary>
-public enum CrewPose { Idle, Walk, Run, Climb, Shovel, Crouch, Dead, Carry, CarryWalk, Drag, Door, Handbrake, Hatch, Uncouple, Vent, Lever, Push, Held, Gunner, Fall, Swing, Mend, Gap, Extinguish, Lantern, LanternWalk, Haul }
+public enum CrewPose
+{
+    Idle, Walk, Run, Climb, Shovel, Crouch, Dead, Carry, CarryWalk, Drag, Door, Handbrake, Hatch, Uncouple, Vent, Lever, Push, Held, Gunner, Fall, Swing, Mend, Gap, Extinguish, Lantern, LanternWalk, Haul,
+    HaulUp, GapStep, Drive, Whistle, Smash, Pry, Pick, GetUp, TakeDown
+}
 
 /// <summary>
 /// The crew and the creatures as skinned models (content/art/models/*.glb, built by tools/blender/build.sh), posed
@@ -395,7 +399,8 @@ public sealed class CreatureArt
     // ----------------------------------------------------------------------------------------------------------------
     // The crew
 
-    static string ClipOf(CrewPose pose) => pose switch
+    /// <summary>The crew clip (tools/blender/crew_clips.py, crew.py) a pose plays.</summary>
+    public static string ClipOf(CrewPose pose) => pose switch
     {
         CrewPose.Walk => "walk",
         CrewPose.Run => "run",
@@ -423,6 +428,15 @@ public sealed class CreatureArt
         CrewPose.Lantern => "lantern",
         CrewPose.LanternWalk => "lantern_walk",
         CrewPose.Haul => "haul",
+        CrewPose.HaulUp => "haul_up",
+        CrewPose.GapStep => "gap_step",
+        CrewPose.Drive => "drive",
+        CrewPose.Whistle => "whistle",
+        CrewPose.Smash => "smash",
+        CrewPose.Pry => "pry",
+        CrewPose.Pick => "pick",
+        CrewPose.GetUp => "getup",
+        CrewPose.TakeDown => "take_down",
         _ => "idle",
     };
 
@@ -436,8 +450,12 @@ public sealed class CreatureArt
     /// model's own shoulder and arm lengths, the elbow bent toward <paramref name="leftPole"/>/<paramref name="rightPole"/>.</param>
     /// <param name="inHand">The tool in their right fist (T108's hotbar; tools/models hand_tools), or null for empty hands.
     /// Put away for the two-handed work (it would be through the crate, the wheel, the gun).</param>
+    /// <param name="hanging">Something hung from the right fist by its ring (the hand lamp, tools/models hand_lantern: its
+    /// origin at its foot, the ring <see cref="LanternRing"/> over it), upright whatever the wrist does, so it swings with
+    /// the hand; where its flame is then is <see cref="LastHanging"/>.</param>
     public bool Crewmate(MeshBuilder mesh, in Matrix4x4 model, CrewPose pose, double time, int variant,
-        Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default, MeshAsset? inHand = null)
+        Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default, MeshAsset? inHand = null,
+        MeshAsset? hanging = null)
     {
         // Each crewmate breathes and steps on their own beat: a fixed offset by variant, not a random one.
         double offset = (variant & 7) * 0.41;
@@ -448,7 +466,9 @@ public sealed class CreatureArt
         var Paint = PaintOf(variant);
         if (!_models.TryGetValue("crew", out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
-        _skinner.Evaluate(m.Model, c, time + offset, pose is not (CrewPose.Dead or CrewPose.Swing), m.Pose);
+        // Played once from their start (SceneArt passes the time since the act began): getting up, a thing off its bracket.
+        bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown;
+        _skinner.Evaluate(m.Model, c, fromStart ? time : time + offset, pose is not (CrewPose.Dead or CrewPose.Swing) && !fromStart, m.Pose);
         if (left is { } l)
             Reach(m, "l", l, leftPole);
         if (right is { } r)
@@ -456,12 +476,28 @@ public sealed class CreatureArt
         Emit(mesh, m, clip, model, variant, 1, variant, Paint);
         if (inHand is not null && OneHanded(pose))
             mesh.Append(inHand, ToolGrip * Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model));
+        if (hanging is not null)
+        {
+            var fist = Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model).Translation;
+            var up = Vector3.Normalize(new Vector3(model.M21, model.M22, model.M23));
+            var hung = model with { M41 = 0, M42 = 0, M43 = 0, M44 = 1 };
+            hung.Translation = fist - up * LanternRing;
+            mesh.Append(hanging, hung);
+            LastHanging = fist - up * (LanternRing - LanternFlame);
+        }
         return true;
     }
 
-    /// <summary>What a crewmate can do with a tool still in their fist: get about, crouch, fall, swing it, mend with it.</summary>
+    /// <summary>The hand lamp's ring and flame over its foot (tools/models/recipes/hand_lantern.py's sockets, 0.36 m tall).</summary>
+    public const float LanternRing = 0.36f, LanternFlame = 0.15f;
+
+    /// <summary>Where the last thing hung from a crewmate's fist has its flame (the draw's space: relative to the eye).</summary>
+    public Vector3 LastHanging { get; private set; }
+
+    /// <summary>What a crewmate can do with a tool still in their fist: get about, crouch, fall, swing it, mend with it, smash or pry a Holdout open.</summary>
     static bool OneHanded(CrewPose pose) =>
-        pose is CrewPose.Idle or CrewPose.Walk or CrewPose.Run or CrewPose.Crouch or CrewPose.Fall or CrewPose.Swing or CrewPose.Mend or CrewPose.Door;
+        pose is CrewPose.Idle or CrewPose.Walk or CrewPose.Run or CrewPose.Crouch or CrewPose.Fall or CrewPose.Swing or CrewPose.Mend or CrewPose.Door
+            or CrewPose.Smash or CrewPose.Pry;
 
     /// <summary>
     /// A hand tool's axes (tools/models hand_tools: its haft along −Z through the fist, its face up +Y) onto the

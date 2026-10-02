@@ -706,6 +706,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
         scene.WrenchRacked = !session.Train.Boiler.WrenchOut;
+        scene.CordPulled = DarkTerritory.Game.Art.CrewActs.CrewWhistling(session.World);
+        scene.Cut = DarkTerritory.Game.Art.SceneArt.Cuts(session.Train);
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
         scene.Tick = session.Tick;
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);

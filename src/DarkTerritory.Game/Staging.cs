@@ -7,7 +7,7 @@ namespace DarkTerritory.Game;
 /// <summary>Set pieces for looking at and listening to things headless (screenshots, audio renders, tests).</summary>
 public static class Staging
 {
-    /// <summary>Crates and a lamp on car 2's roof and a body on car 3's, dropped and left to settle.</summary>
+    /// <summary>Crates, a lamp and a rescued child on car 2's roof and a body on car 3's, dropped and left to settle.</summary>
     public static Sim.Physics.Bodies Bodies(TrainOnLine train, string content)
     {
         var tuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
@@ -17,6 +17,8 @@ public static class Staging
         bodies.SpawnCrate(train, 2, new Double3(0.5, roof + 0.3, 1.0)).Yaw = 0.4;
         bodies.SpawnCrate(train, 2, new Double3(-0.4, roof + 0.6, 2.2)).Yaw = -0.3;
         bodies.SpawnCrate(train, 2, new Double3(0.1, roof + 0.2, -1.5), Sim.Physics.BodyKind.Lamp);
+        // A rescued child (GDD §19), set down on the roof by the lamp.
+        bodies.SpawnCrate(train, 2, new Double3(-0.6, roof + 0.4, -0.4), Sim.Physics.BodyKind.Child);
         var dead = Sim.Player.PlayerMotor.SpawnOnRoof(train, 3, -2, player) with { Health = 0, Yaw = 1.2 };
         bodies.SpawnRagdoll(train, 9, dead);
         for (int i = 0; i < 90; i++)
@@ -70,13 +72,36 @@ public static class Staging
     /// crew_clips.py's): on car 2's roof one carrying a crate, one heaving at a hatch, one winding the brake wheel at its
     /// end, one standing by with a crowbar; and on the last gun car, a gunner sat in the cannon's seat.
     /// </summary>
+    /// <summary>
+    /// A row of the crew down car 2's roof, each at one of <paramref name="acts"/> (CrewPose names, dt screenshot --act
+    /// smash,pry,...: the roof view looks at them), facing the camera; the smash and pry with a crowbar in hand, the lantern
+    /// with the hand lamp hung from the fist.
+    /// </summary>
+    public static List<Crewmate> Acts(TrainOnLine train, string content, IEnumerable<string> acts)
+    {
+        var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
+        var crew = new List<Crewmate>();
+        int i = 0;
+        foreach (var name in acts)
+        {
+            var act = Enum.Parse<Art.CrewPose>(name.Replace("_", ""), ignoreCase: true);
+            var s = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, -6 + 1.5 * i, player, i % 2 == 0 ? -0.5 : 0.5) with { Yaw = Math.PI + (i % 2 == 0 ? 0.5 : -0.5) };
+            var tool = act is Art.CrewPose.Smash or Art.CrewPose.Pry ? Sim.Player.Tool.Crowbar : Sim.Player.Tool.None;
+            crew.Add(new Crewmate((byte)(20 + i), Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true,
+                Act: act, Holding: tool, Lamp: act is Art.CrewPose.Lantern or Art.CrewPose.LanternWalk));
+            i++;
+        }
+        return crew;
+    }
+
     public static List<Crewmate> Working(TrainOnLine train, string content)
     {
         var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
         Crewmate At(byte id, int car, double x, double z, double yaw, Art.CrewPose? act, Sim.Player.Tool tool = Sim.Player.Tool.None)
         {
             var s = Sim.Player.PlayerMotor.SpawnOnRoof(train, car, z, player, x) with { Yaw = yaw };
-            return new Crewmate(id, Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true, Act: act, Holding: tool);
+            return new Crewmate(id, Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true, Act: act, Holding: tool,
+                Lamp: act == Art.CrewPose.Lantern);
         }
         var crew = new List<Crewmate>
         {

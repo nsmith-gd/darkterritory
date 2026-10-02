@@ -79,6 +79,9 @@ public static class Views
             "switchman" => Camera.LookAt(engine.ToWorld(new Double3(1.6, 1.8, -engineHalf - 50.5)), engine.ToWorld(new Double3(3.8, 1.1, -engineHalf - 55)), 50),
             "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
             "gap" => GapCamera(train, car),
+            // (Not one of Names.) Low off the side behind the engine's half of a cut train (dt screenshot --cut n), at the
+            // coupler that was let go: its knuckle swung open, its hose hanging parted (T91).
+            "cut" => CutCamera(train),
             // From over the car behind, down at a cargo car's roof hatch (T99): its lid, shut, or open down the side.
             "hatch" => Camera.LookAt(target.ToWorld(new Double3(4.2, roof + 2.2, 9.5)), target.ToWorld(new Double3(0.6, roof - 1.4, 3.2)), 70),
             // Over the last car's roof, looking back at its gun on its rail (T93).
@@ -205,6 +208,14 @@ public static class Views
         var f = train.Frames[v];
         double floor = Floor(train), l = f.Shape.HalfLength;
         return Camera.LookAt(f.ToWorld(new Double3(-0.2, floor + 1.55, l - 0.5)), f.ToWorld(new Double3(0.2, floor + 0.2, l - 2.6)), 75);
+    }
+
+    static Camera CutCamera(TrainOnLine train)
+    {
+        var rake = train.Rakes.FirstOrDefault(r => r.Consist.HasEngine) ?? train.Rakes[0];
+        var f = train.Frames[rake.Consist.Vehicles[^1].Id];
+        double l = f.Shape.HalfLength;
+        return Camera.LookAt(f.ToWorld(new Double3(0.9, 1.35, l + 1.5)), f.ToWorld(new Double3(0.05, 0.9, l + 0.45)), 45);
     }
 
     static Camera KitCamera(TrainOnLine train)

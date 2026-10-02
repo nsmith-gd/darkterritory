@@ -19,6 +19,14 @@ public sealed class GreyboxScene
     public int Seed { get; init; } = 7;
     /// <summary>How hot the firebox is, 0..1: the glow in the cab is how the Boiler reads the fire.</summary>
     public float FireGlow { get; set; } = 0.7f;
+    /// <summary>The couplers that have been cut (T91, Art.SceneArt.Cuts): drawn with the knuckle open.</summary>
+    public IReadOnlySet<int>? Cut { get; set; }
+
+    int CutEnds(int vehicle) => Cut is not { } cut ? 0 : (cut.Contains(vehicle * 2) ? 1 : 0) | (cut.Contains(vehicle * 2 + 1) ? 2 : 0);
+
+    /// <summary>A crewmate's on the whistle cord (GDD §12, Art.CrewActs.CrewWhistling): it's drawn hauled down.</summary>
+    public bool CordPulled { get; set; }
+
     /// <summary>T109: the wrench is on its rack in the cab (the boiler's WrenchOut, the other way about).</summary>
     public bool WrenchRacked { get; set; } = true;
     /// <summary>The firebox door's open (the boiler's FireDoorOpen): a Stoker in the fire is seen through it.</summary>
@@ -105,6 +113,7 @@ public sealed class GreyboxScene
     public void Build(MeshBuilder mesh, TrainOnLine train, Double3 eye)
     {
         Vehicles ??= train.Vehicles;
+        Cut = Art.SceneArt.Cuts(train);
         Build(mesh, train.Line, train.Frames, train.Dynamics.Distance, eye);
     }
 
@@ -187,7 +196,8 @@ public sealed class GreyboxScene
         // and any hand lamp lying about or being carried.
         if (Bodies is not null)
             foreach (var b in Bodies.Where(b => b.Kind == Sim.Physics.BodyKind.Lamp))
-                if (BodyWorld(b, frames, b.Centre) is { } at && (at - eye).Length < 60)
+                // (Carried, where it swings in the carrier's fist: Art.SceneArt.LampInHand.)
+                if (((b.Carrier >= 0 ? Look?.Art.LampInHand(b.Carrier, Time) : null) ?? BodyWorld(b, frames, b.Centre)) is { } at && (at - eye).Length < 60)
                     mesh.PointLights.Add(new PointLight(V(at, eye), Palette.LampAmber * 1.8f, 7f));
         foreach (var frame in frames)
         {
@@ -1316,7 +1326,7 @@ public sealed class GreyboxScene
         mesh.Seed = frame.Index + 1;
         var vehicle = Vehicles is { } vs && frame.Index < vs.Count ? vs[frame.Index] : null;
         // The art pass's kit (TrainKit): the body, doors and gun as cooked pieces; what's left here is what glows and moves.
-        if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick))
+        if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick, CutEnds(frame.Index)))
         {
             CarWorkings(mesh, frame, eye, Draw);
             if (engine)
@@ -1526,7 +1536,7 @@ public sealed class GreyboxScene
                     fx.Furnace(mesh, bed, frame.Right.RelativeTo(default), frame.Up.RelativeTo(default), frame.Back.RelativeTo(default), FireGlow, FireColour(1), Time);
                 }
             // The vent valve and the driver's levers: modelled by the art pass where it has them (SceneArt.CabControls).
-            bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls, WrenchRacked) == true;
+            bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls, WrenchRacked, CordPulled) == true;
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent && !modelled))
                 draw(Box.FromCentre(i.Position + new Double3(0, 1.1, 0), new Double3(0.12, 0.12, 0.04)), Palette.TarnishedBrass);
             // The driver's levers, their handles where the controls have them (T29): a headset player takes hold of
