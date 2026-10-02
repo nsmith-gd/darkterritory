@@ -1,7 +1,7 @@
-using DarkTerritory.Sim;
-using DarkTerritory.Sim.Run;
 using Ballast;
 using Ballast.Render;
+using DarkTerritory.Sim;
+using DarkTerritory.Sim.Run;
 
 namespace DarkTerritory.Game.Tests;
 
