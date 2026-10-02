@@ -212,7 +212,7 @@ public static class CrewActions
         (Interactable, int)? best = null;
         double bestD = double.MaxValue;
         // Doors want facing: the coupler plate is in reach of two of them, and Use there also cuts the coupling.
-        double fx = -Math.Sin(s.Yaw), fz = -Math.Cos(s.Yaw);
+        double fx = -DMath.Sin(s.Yaw), fz = -DMath.Cos(s.Yaw);
         void Search(int vehicle, Double3 at, bool doorsOnly)
         {
             foreach (var i in train.Frames[vehicle].Shape.Interactables)

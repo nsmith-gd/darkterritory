@@ -129,6 +129,7 @@ public class NetcodeTests
 
         var mount = host.Train.Frames[0].Shape.Gun!.Value;
         var gunner = PlayerMotor.SpawnOnRoof(host.Train, 0, mount.Position.Z + 0.7, P);
+        gunner.Flags |= PlayerFlags.Seated; // T112: in the gun's seat, which the client predicts too
         HostTeleport(host, clients[1].PlayerId!.Value, gunner);
         Run(net, host, clients, 5, _ => default);
         foreach (var c in clients)

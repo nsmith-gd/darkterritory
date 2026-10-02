@@ -54,18 +54,22 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// <summary>The mods the host plays with, in order ("name version", T49): named to a joiner whose content differs.</summary>
     public IReadOnlyList<string> Mods { get; init; } = [];
 
+    // Keyed short (a tuning file by its name, the line generator's files as one) with a 4-byte hash, so the Welcome that
+    // carries them fits one packet with room for more files: enough to tell content apart, it's not a security check.
+    const string LineGenKey = "linegen";
+
     public static Dictionary<string, string> HashContent(string content)
     {
         static string Hash(string text) =>
-            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text.Replace("\r\n", "\n"))), 0, 8).ToLowerInvariant();
+            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text.Replace("\r\n", "\n"))), 0, 4).ToLowerInvariant();
         var hashes = new Dictionary<string, string>();
         foreach (var file in Directory.EnumerateFiles(Path.Combine(content, "tuning"), "*.json").Order(StringComparer.Ordinal))
-            hashes["tuning/" + Path.GetFileName(file)] = Hash(File.ReadAllText(file));
+            hashes[Path.GetFileNameWithoutExtension(file)] = Hash(File.ReadAllText(file));
         // The line generator's files, as one: every machine generates the night's line from them (linegen plan §17.3),
         // and the Welcome that carries these has to fit one packet.
         string linegen = Path.Combine(content, Sim.LineGen.LineGenConfig.Directory);
         if (Directory.Exists(linegen))
-            hashes["linegen/*.json"] = Hash(string.Concat(Directory.EnumerateFiles(linegen, "*.json").Order(StringComparer.Ordinal)
+            hashes[LineGenKey] = Hash(string.Concat(Directory.EnumerateFiles(linegen, "*.json").Order(StringComparer.Ordinal)
                 .Select(f => Path.GetFileName(f) + "\n" + File.ReadAllText(f))));
         return hashes;
     }
@@ -76,7 +80,8 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         if (Content is null)
             return [];
         var mine = HashContent(content);
-        return [.. Content.Keys.Union(mine.Keys).Where(k => Content.GetValueOrDefault(k) != mine.GetValueOrDefault(k)).Order()];
+        return [.. Content.Keys.Union(mine.Keys).Where(k => Content.GetValueOrDefault(k) != mine.GetValueOrDefault(k)).Order()
+            .Select(k => k == LineGenKey ? "linegen/*.json" : $"tuning/{k}.json")];
     }
 
     /// <summary>Why a joiner's refused: the files that differ, and the mods on each side when they're not the same.</summary>
@@ -87,7 +92,10 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         return hostMods.SequenceEqual(mine) ? text : $"{text} (the host's mods: {List(hostMods)}; yours: {List(mine)})";
     }
 
-    public string Encode() => JsonSerializer.Serialize(this, DataFile.Options);
+    /// <summary>Compact: the Welcome carrying it has to fit one datagram (1200 bytes), and indented, on Windows every line
+    /// break is two bytes (a Windows host's Welcome went over once the tuning files numbered 19).</summary>
+    public string Encode() => JsonSerializer.Serialize(this, Compact);
+    static readonly JsonSerializerOptions Compact = new(DataFile.Options) { WriteIndented = false };
     public static SessionSetup Decode(string json) => JsonSerializer.Deserialize<SessionSetup>(json, DataFile.Options) ?? new SessionSetup();
 
     /// <summary>The world this setup describes, identically on every machine.</summary>
@@ -115,7 +123,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         }
         start = Start ?? start;
         var train = new TrainOnLine(new TrainDynamics(consist), line, start, boiler);
-        var world = new World(train, combat);
+        var world = new World(train, combat) { WreckTuning = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File)) };
         if (route is not null)
         {
             var routeTuning = RouteTuning.Load(content);
@@ -146,7 +154,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public const int DefaultPort = 27450;
     /// <summary>Lobby size: GDD §3, "2–8+" players.</summary>
     public const int MaxCrew = 12;
-    const string Game = "darkterritory";
+    public const string Game = "darkterritory";
     readonly ITransport? _hostTransport;
     readonly UdpTransport? _udp;
     readonly ITransport _clientTransport;
@@ -176,6 +184,10 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public SessionSetup Setup { get; }
     public Route? Route { get; }
     public TrainOnLine Train => Client.Train;
+    /// <summary>Seconds since this client first saw the train come off (T117), host or not: the wreck's own clock is the host's.</summary>
+    public double WreckSeconds { get; private set; }
+    /// <summary>The derailment's cinematic: the camera off the eye and on the wreck, the run's end held back till it's over.</summary>
+    public bool WreckCinematic => Train.Wreck is not null && WreckSeconds < World.WreckTuning.CinematicSeconds;
     public World World => Client.World;
     public PlayerState Player => Client.Predicted;
     public TrainControls Controls => Client.Controls;
@@ -221,7 +233,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 : Beside(hostWorld.Train, n, playerTuning);
         }
         if (setup.Enemies && route is not null)
-            host.EnableEnemies(loadout.Enemies!, route, route.Seed, bots > 0 ? bots + 1 : expectedCrew);
+            // Planned for who'll be there: alone with bots, them and you; hosted online, the friends expected too (T115: a
+            // local night alone was planned for four).
+            host.EnableEnemies(loadout.Enemies!, route, route.Seed, online is null ? bots + 1 : Math.Max(bots + 1, expectedCrew));
         // The bot crew aboard first, so one of them has the cab. Their clients take the host's plan, not a fresh generation.
         BotCrew? crew = null;
         if (bots > 0)
@@ -260,6 +274,12 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
 
     /// <summary>The bot crewmates this host is running, if any (T89).</summary>
     public BotCrew? BotCrew { get; private init; }
+
+    /// <summary>
+    /// The only human here (the host, and no one but bots, T113): nobody to talk to, so an open mic is only the room (the
+    /// game's own sound through the speakers, most of all) and doesn't go into the loudness meter.
+    /// </summary>
+    public bool Alone => Host is { } h && h.Players.Count() - (BotCrew?.Bots.Count ?? 0) <= 1;
 
     static Sim.LineGen.TerrainField? TerrainOf(World world) => (world.Train.Line.Conditions as Sim.LineGen.PlanConditions)?.Terrain;
 
@@ -401,6 +421,14 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         Lobby?.Poll();
         Host?.Step();
+        // Hosting for friends on the network: it says where it is on the local network (T116), so the join screen lists it.
+        if (Host is not null && _udp is { LocalLoopbackOnly: false } udp)
+        {
+            _beacon ??= new LanBeacon();
+            _beacon.Tick(_clock.Elapsed.TotalSeconds, Game, Protocol.Version, udp.Port, HostName,
+                $"{(Setup.Route ?? Setup.Line).ToUpperInvariant()}, {Setup.Cars} CARS{(World.Run is { Phase: Sim.Run.RunPhase.Yard } ? ", IN THE YARD" : ", UNDER WAY")}",
+                Aboard - (BotCrew?.Bots.Count ?? 0));
+        }
         BotCrew?.Step();
         // Spec E: the night autosaves on leaving a POI: the engine out past the end of its zone, whatever shunting it
         // took there (GDD §17), so the save is the train going on.
@@ -415,6 +443,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         _previous = Client.Predicted;
         Client.Step(Spectate(intent));
+        WreckSeconds = Train.Wreck is null ? 0 : WreckSeconds + SimConstants.TickSeconds;
         Tick++;
         if (!_link.IsConnected && Client.Connected)
             Lost = true;
@@ -546,15 +575,50 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public PlayerTuning PlayerTuning => Client.PlayerTuning;
     public int PlayerId => Client.PlayerId ?? 0;
     public LinkInfo? Link => new(Role(), Host is null && Client.Connected ? _link.RoundTrip(PeerId.Host) * 1000 : null,
-        Aboard, Client.Waiting ? Client.WaitingReason : null, Lost);
+        Aboard, Client.Waiting ? Client.WaitingReason : null, Lost, JoinAt);
+
+    /// <summary>This machine's address on the local network and the port, for friends to type in; null unless hosting for them.</summary>
+    string? JoinAt => _joinAt ??= Host is not null && _udp is { Port: > 0, LocalLoopbackOnly: false } u ? LanAddress() is { } ip ? $"{ip}:{u.Port}" : null : null;
+    string? _joinAt;
+
+    /// <summary>The first IPv4 address of an interface that's up and has a gateway (the wifi or the cable), not a loopback or a VPN's.</summary>
+    static string? LanAddress()
+    {
+        try
+        {
+            foreach (var nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (nic.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up
+                    || nic.NetworkInterfaceType is System.Net.NetworkInformation.NetworkInterfaceType.Loopback or System.Net.NetworkInformation.NetworkInterfaceType.Tunnel)
+                    continue;
+                var props = nic.GetIPProperties();
+                if (props.GatewayAddresses.Count == 0)
+                    continue;
+                foreach (var a in props.UnicastAddresses)
+                    if (a.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && !IPAddress.IsLoopback(a.Address))
+                        return a.Address.ToString();
+            }
+        }
+        catch (System.Net.NetworkInformation.NetworkInformationException)
+        {
+        }
+        return null;
+    }
 
     /// <summary>Accepts a friend's invite that arrived while playing, if any, leaving it for the app to act on.</summary>
     public LobbyId? TakeJoinRequest() => Lobby?.TakeJoinRequest();
 
     public void ShowInviteDialog() => Lobby?.ShowInviteDialog();
 
+    LanBeacon? _beacon;
+    readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
+
+    /// <summary>Whose game it is, for the join list: the Steam name hosting through Steam, else the computer's user.</summary>
+    string HostName => Lobby is { } l ? l.Online.NameOf(l.Online.Me) : Environment.UserName;
+
     public void Dispose()
     {
+        _beacon?.Dispose();
         BotCrew?.Dispose();
         _clientTransport.Dispose();
         _hostTransport?.Dispose();

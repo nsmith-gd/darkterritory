@@ -140,13 +140,13 @@ sealed partial class LineBuilder
             // A crossed lake lies across the line (its long axis near square to it), a side lake off it.
             double off = cross ? rng.Range(-0.3, 0.3) * radius : side * (radius * (1 + rng.Range(lr.OffM)));
             if (cross)
-                heading = Math.Atan2(right.Z, right.X) * 180 / Math.PI + rng.Range(-lr.TurnDeg, lr.TurnDeg);
+                heading = DMath.Atan2(right.Z, right.X) * 180 / Math.PI + rng.Range(-lr.TurnDeg, lr.TurnDeg);
             if (barachois)
             {
                 // Long and narrow, lying along the line behind its bank, the near shore just past the ballast's slope.
                 radius = rng.Range(22, 50);
                 stretch = rng.Range(2.2, 3.6);
-                heading = Math.Atan2(t.Tangent.Z, t.Tangent.X) * 180 / Math.PI + rng.Range(-8, 8);
+                heading = DMath.Atan2(t.Tangent.Z, t.Tangent.X) * 180 / Math.PI + rng.Range(-8, 8);
                 off = side * (radius + _t.Terrain.ShoulderM + 10 + rng.Range(0, 12));
                 wobble = rng.Range(0.04, 0.1);
             }
@@ -158,7 +158,7 @@ sealed partial class LineBuilder
             {
                 var c = t.Position + right * (off + side * k * 15);
                 double hr = heading * Math.PI / 180;
-                lake = new PlanLake($"lake{_lakes.Count + 1}", R(c.X), R(c.Z), R(radius), R(stretch), Math.Round(Math.Cos(hr), 6), Math.Round(Math.Sin(hr), 6),
+                lake = new PlanLake($"lake{_lakes.Count + 1}", R(c.X), R(c.Z), R(radius), R(stretch), Math.Round(DMath.Cos(hr), 6), Math.Round(DMath.Sin(hr), 6),
                     R(wobble), 0, lr.DepthM, cross);
                 found = LakeLevel(lake, cross);
             }

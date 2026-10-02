@@ -656,12 +656,11 @@ public sealed partial class SceneArt(Look look)
                 gunM = Matrix4x4.CreateRotationX(0.45f) * Matrix4x4.CreateRotationZ(0.2f) * Matrix4x4.CreateRotationY(yaw)
                     * Matrix4x4.CreateTranslation((float)at.X, (float)room.Min.Y + 0.45f, (float)at.Z) * m;
             // The cannon (note 137) in its pieces: the mount on the roof, the carriage turned to its aim, the barrel
-            // elevated on it, a powder chamber in the breech while it's loaded. (The aim is level and straight along its
-            // facing until the gunner's controls give the gun one to keep.)
+            // elevated on it, a powder chamber in the breech while it's loaded. The aim is the seated gunner's (T112).
             var barrelM = gunM;
             if (TrainKit.Cannon(Look) is { } cannon)
             {
-                const float traverse = 0, elevation = 0;
+                float traverse = (float)(vehicle?.Gun.Traverse ?? 0), elevation = (float)(vehicle?.Gun.Elevation ?? 0);
                 var carriageM = Matrix4x4.CreateRotationY(traverse) * gunM;
                 barrelM = Matrix4x4.CreateRotationX(elevation) * carriageM;
                 mesh.Instances.Add(new MeshInstance(cannon.Mount, gunM));

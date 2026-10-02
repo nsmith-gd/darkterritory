@@ -22,7 +22,15 @@
     // App. C.3: "a full manual reload (powder, ball, ram, fire)": after each shot, this many steps of Use held at the gun,
     // each this long. Fire is the trigger.
     "reloadSteps": 3,
-    "reloadStepSeconds": 1.5
+    "reloadStepSeconds": 1.5,
+    // T112 playtest ("a gun seat with its own controls"): Use at a loaded gun sits you in its seat, this far behind the
+    // pivot; seated, the mouse lays it and the gun follows at these rates (a heavy carriage on a turntable), the left
+    // button fires where the barrel points, Use held loads it, Jump gets up. Only a seated gunner fires it.
+    "seatBehind": 0.75,
+    "traverseDegreesPerSecond": 70,
+    "elevateDegreesPerSecond": 35,
+    // Bots fire once the barrel's within this of the mark.
+    "laidDegrees": 2.5
   },
   "choir": {
     // App. C.7: the meter is the crew's combined loudness "measured over a few seconds so single shouts don't count": an
@@ -38,8 +46,11 @@
     // Held above this, it gathers: buildSeconds of loudness and the swarm comes (App. A.7's long rising telegraph). Quiet,
     // what's gathered drains at quietDecayPerSecond. DESIGN-TODO: the GDD gives no numbers for the meter; these are a
     // first pass that three players talking normally doesn't trip and three shouting (or cannon fire every few seconds) does.
+    // T113 playtest ("they show up WAY TOO OFTEN"): 40 s held loud to gather (was 25), and driven off by quiet it rests
+    // restSeconds before it can begin again. (Alone, an open mic no longer counts: it was the train through the speakers.)
     "threshold": 0.6,
-    "buildSeconds": 25,
+    "buildSeconds": 40,
+    "restSeconds": 300,
     "quietDecayPerSecond": 0.06,
     "maxLoudness": 3,
     // App. B.9: livestock aboard is never quiet: a floor under the meter.

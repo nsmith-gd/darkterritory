@@ -1,3 +1,5 @@
+using Ballast;
+
 namespace DarkTerritory.Sim.Train;
 
 /// <summary>Driver inputs for one tick, as set by the cab controls (or the Deadman).</summary>
@@ -86,7 +88,7 @@ public sealed class TrainDynamics
         int reverser = controls.Reverser >= 0 ? 1 : -1;
         double traction = Math.Clamp(track.Traction, 0, 1);
 
-        double gravityAccel = -Tuning.Gravity * Math.Sin(Math.Atan(track.GradePercent / 100.0));
+        double gravityAccel = -Tuning.Gravity * DMath.Sin(DMath.Atan(track.GradePercent / 100.0));
         // The spec's accel and brake figures are what the train achieves, net of rolling and air
         // resistance. So full throttle overcomes resistance and full brake includes it; resistance
         // only shows on its own when coasting, which is when it matters (GDD §23: boiler dies).
@@ -130,7 +132,7 @@ public sealed class TrainDynamics
     public double MaxClimbableGradePercent()
     {
         double ratio = MaxTractiveForce / Consist.MassTonnes / Tuning.Gravity;
-        return ratio >= 1 ? double.PositiveInfinity : Math.Tan(Math.Asin(ratio)) * 100;
+        return ratio >= 1 ? double.PositiveInfinity : DMath.Tan(DMath.Asin(ratio)) * 100;
     }
 
     int CarCount => Consist.CarCount;

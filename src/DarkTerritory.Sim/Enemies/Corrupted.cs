@@ -79,7 +79,7 @@ public sealed class Passenger(int id) : Enemy(id)
                 if (to.Length > t.Reach)
                 {
                     Local += to.Normalized * Math.Min(t.WalkSpeed * SimConstants.TickSeconds, to.Length);
-                    Extra2 = Math.Atan2(-to.X, -to.Z);
+                    Extra2 = DMath.Atan2(-to.X, -to.Z);
                     return;
                 }
                 if (Enter(ctx, SpinePhase.Commit))

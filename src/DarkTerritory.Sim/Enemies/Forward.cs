@@ -54,7 +54,7 @@ public sealed class TrackDoll(int id) : Enemy(id)
             return false;
         var first = train.Line.Sample(at - length).Tangent;
         for (double s = at - length; s <= at; s += 25)
-            if (Double3.Dot(first, train.Line.Sample(s).Tangent) < Math.Cos(3 * Math.PI / 180))
+            if (Double3.Dot(first, train.Line.Sample(s).Tangent) < DMath.Cos(3 * Math.PI / 180))
                 return false;
         return true;
     }

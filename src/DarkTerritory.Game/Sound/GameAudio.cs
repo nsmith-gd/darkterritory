@@ -24,6 +24,9 @@ public sealed class GameAudio
     readonly Pcg32Ish _rng = new(20260929);
     SoundInstance? _roar, _chuff, _brake, _wind, _valve, _strain, _vent;
     bool _wasRuptured;
+    // The derailment (T117): the grind while it slides, and each car's last velocity and when it last crashed.
+    SoundInstance? _grind;
+    readonly Dictionary<int, (Double3 Velocity, double Crashed)> _wreckCars = [];
     double _time, _lastAccel;
     int _space = PlayerMotor.Outside;
 
@@ -217,6 +220,53 @@ public sealed class GameAudio
                 Mixer.Play("slack-clunk", _slack[i].Position, _slack[i].Volume);
                 _slack.RemoveAt(i);
             }
+        Wreck(train.Wreck);
+    }
+
+    /// <summary>
+    /// The derailment (T117): a crash wherever a car's velocity jumps (it hit the ground or another car), and the grind of
+    /// steel through earth at the fastest car still sliding. Read off the poses, so a client hears what the host simulates.
+    /// </summary>
+    void Wreck(Wreck? wreck)
+    {
+        if (wreck is null)
+        {
+            _wreckCars.Clear();
+            _grind?.Stop();
+            _grind = null;
+            return;
+        }
+        WreckBody? fastest = null;
+        foreach (var b in wreck.Bodies)
+        {
+            if (_wreckCars.TryGetValue(b.Vehicle, out var last))
+            {
+                double jump = (b.Velocity - last.Velocity).Length;
+                if (jump > 3.5 && _time - last.Crashed > 0.6)
+                {
+                    Mixer.Play("wreck-crash", b.Centre, (float)Math.Clamp(jump / 9, 0.35, 1));
+                    last.Crashed = _time;
+                }
+            }
+            _wreckCars[b.Vehicle] = (b.Velocity, last.Crashed);
+            if (fastest is null || b.Velocity.Length > fastest.Velocity.Length)
+                fastest = b;
+        }
+        double speed = fastest?.Velocity.Length ?? 0;
+        if (!wreck.Settled && speed > 0.6)
+        {
+            _grind ??= Mixer.Play("wreck-grind");
+            if (_grind is not null)
+            {
+                _grind.Position = fastest!.Centre;
+                _grind.Volume = (float)Math.Clamp(speed / 12, 0.15, 1);
+            }
+        }
+        else if (_grind is not null)
+        {
+            _grind.Stop();
+            _grind = null;
+        }
     }
 
     void Loop(EnemySound s, string sound, Double3 at, float occlusion)
@@ -288,8 +338,17 @@ public sealed class GameAudio
                     Loop(s, "climber-scrabble", at, occlusion);
                     break;
                 case EnemyKind.TrackDoll when e.Phase == SpinePhase.Punish:
-                    // Haunting: it giggles in the car it's in, or in the cab at the controls (App. A.2).
-                    Loop(s, "doll-giggle", at, occlusion);
+                    // Haunting: it giggles in the car it's in, or in the cab at the controls (App. A.2). T118: now and then, a
+                    // little demon boy's giggle, never twice alike in pitch or spacing.
+                    if (entered || _time >= s.Next)
+                    {
+                        Mixer.Play("doll-giggle", at)?.Also(v =>
+                        {
+                            v.Occlusion = occlusion;
+                            v.Params.Set("pitch", 0.92 + 0.18 * _rng.Next());
+                        });
+                        s.Next = _time + 7 + 9 * _rng.Next();
+                    }
                     break;
                 case EnemyKind.TippyToesie when e.Phase == SpinePhase.Telegraph:
                     Loop(s, "tippy-tiptoe", at, occlusion);
@@ -332,12 +391,18 @@ public sealed class GameAudio
     /// The Choir is heard as voices around the train, more and closer as it gathers (GDD v1.1 App. A.7: the long rising
     /// telegraph), all of them close once it's here.
     /// </summary>
+    // A minor chord with its ninth, voice by voice (pitch 1 = A3): each new voice takes the next tone, barely detuned, so
+    // the gathering swells as harmony.
+    static readonly double[] ChoirChord = [1.0, 1.498, 1.189, 2.0, 0.749, 2.245, 1.335, 2.997];
+
     void Choir(World world, TrainOnLine train)
     {
         if (world.Combat is null)
             return;
         double build = world.Choir.Present ? 1 : world.Choir.Build;
-        int voices = world.Choir.Present ? 8 : build <= 0.02 ? 0 : 1 + (int)(5 * build);
+        // T113 playtest ("annoying, too frequent"): a brief bit of noise isn't heard as it gathering; the HUD's meter shows
+        // that. Past a sixth of the way the voices come in, and they're a sung chord, not a cluster.
+        int voices = world.Choir.Present ? 8 : build <= 0.15 ? 0 : 1 + (int)(5 * build);
         while (_choir.Count > voices)
         {
             _choir[^1].Stop();
@@ -345,7 +410,7 @@ public sealed class GameAudio
         }
         while (_choir.Count < voices && Mixer.Play("choir-voice") is { } v)
         {
-            v.Params.Set("pitch", 0.75 + 0.5 * _rng.Next());
+            v.Params.Set("pitch", ChoirChord[_choir.Count % ChoirChord.Length] * (1 + 0.006 * (_rng.Next() - 0.5)));
             _choir.Add(v);
         }
         // They come in from every side (App. A.6): spread along the train, alternating sides, closing from

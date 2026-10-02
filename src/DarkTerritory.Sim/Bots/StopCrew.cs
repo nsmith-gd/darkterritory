@@ -1448,7 +1448,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             Doing = "to a crate";
             return step;
         }
-        double yaw = Math.Atan2(-(at.X - self.Position.X), -(at.Z - self.Position.Z));
+        double yaw = DMath.Atan2(-(at.X - self.Position.X), -(at.Z - self.Position.Z));
         if (!Aligned(self, yaw))
             return new PlayerIntent { LookYaw = Turn(self, yaw) };
         Doing = "picking one up";
@@ -1479,7 +1479,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             Doing = "to lend a hand";
             return step;
         }
-        double yaw = Math.Atan2(-(at.X - self.Position.X), -(at.Z - self.Position.Z));
+        double yaw = DMath.Atan2(-(at.X - self.Position.X), -(at.Z - self.Position.Z));
         if (!Aligned(self, yaw))
             return new PlayerIntent { LookYaw = Turn(self, yaw) };
         Doing = "taking the other end";
@@ -1521,7 +1521,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         {
             // Keep facing it while the front end stands.
             var to = self.Parent == PlayerState.World ? at : train.Frames[self.Parent].ToLocal(at);
-            double yaw = Math.Atan2(-(to.X - self.Position.X), -(to.Z - self.Position.Z));
+            double yaw = DMath.Atan2(-(to.X - self.Position.X), -(to.Z - self.Position.Z));
             Doing = "holding the back end";
             return new PlayerIntent { LookYaw = Turn(self, yaw) };
         }
@@ -1618,7 +1618,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
     {
         Doing = doing;
         var to = new Double3(target.X - self.Position.X, 0, target.Z - self.Position.Z);
-        double turn = Wrap(Math.Atan2(-to.X, -to.Z) - self.Yaw);
+        double turn = Wrap(DMath.Atan2(-to.X, -to.Z) - self.Yaw);
         return new PlayerIntent { LookYaw = (float)Math.Clamp(turn, -0.4, 0.4), MoveZ = Math.Abs(turn) < 0.3 ? 0.6f : 0 };
     }
 
@@ -1771,7 +1771,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         var engine = train.Frames[0];
         var foot = engine.ToWorld(new Double3(side * (engine.Shape.Bounds.Max.X + 0.5), 0, CabDoorZ(train)));
         var inward = engine.DirToWorld(new Double3(-side, 0, 0));
-        var (step, there) = WalkTo(self, train.Line, train.Dynamics.Path, foot, Math.Atan2(-inward.X, -inward.Z));
+        var (step, there) = WalkTo(self, train.Line, train.Dynamics.Path, foot, DMath.Atan2(-inward.X, -inward.Z));
         return there ? new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use } : step;
     }
 
@@ -1871,7 +1871,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         double distance = to.Length;
         if (aim == target && distance < 0.25)
             return yaw is not { } y || Aligned(self, y) ? (new PlayerIntent(), true) : (new PlayerIntent { LookYaw = Turn(self, y) }, false);
-        double heading = Math.Atan2(-to.X, -to.Z);
+        double heading = DMath.Atan2(-to.X, -to.Z);
         double turn = Wrap(heading - self.Yaw);
         bool far = (target - self.Position).Length > 4;
         return (new PlayerIntent

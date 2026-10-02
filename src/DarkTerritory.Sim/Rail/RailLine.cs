@@ -94,7 +94,7 @@ public sealed class Branch
         Index = index;
         Definition = def;
         var at = main.Sample(def.Toe);
-        double heading = Math.Atan2(-at.Tangent.X, -at.Tangent.Z) * 180 / Math.PI;
+        double heading = DMath.Atan2(-at.Tangent.X, -at.Tangent.Z) * 180 / Math.PI;
         Local = new RailLine(new LineDefinition($"{main.Name}/{index}", def.Segments) { StartHeadingDegrees = heading }, at.Position);
     }
 
@@ -232,7 +232,7 @@ public sealed class RailLine
                 double g = piece.GradeAt((u0 + u1) / 2) / 100;
                 double midHeading = heading + (k0 + km) / 2 * ds / 2;
                 double horizontal = ds / Math.Sqrt(1 + g * g);
-                pos += new Double3(-Math.Sin(midHeading) * horizontal, horizontal * g, -Math.Cos(midHeading) * horizontal);
+                pos += new Double3(-DMath.Sin(midHeading) * horizontal, horizontal * g, -DMath.Cos(midHeading) * horizontal);
                 heading += (k0 + k1) / 2 * ds;
                 at = pieceEnd;
                 if (k < last && at >= pieceStart + piece.Length)

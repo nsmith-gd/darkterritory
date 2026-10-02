@@ -1,3 +1,5 @@
+using Ballast;
+
 namespace DarkTerritory.Sim.Stops;
 
 public static partial class StopGenerator
@@ -75,11 +77,11 @@ public static partial class StopGenerator
                     g.AddRoad(RoadKind.Street, [entry, centre, beyond]);
                     g.AddRoad(RoadKind.Street, [a0, centre, a1]);
                     int want = R.Int(c.Houses);
-                    double baseYaw = Math.Atan2(u.D, u.S);
+                    double baseYaw = DMath.Atan2(u.D, u.S);
                     for (int tries = 0, placed = 0; tries < 120 && placed < want; tries++)
                     {
                         double ang = R.Range(0, Math.PI * 2), r = R.Range(c.Radius);
-                        var at = centre + new Pt(Math.Cos(ang), Math.Sin(ang)) * r;
+                        var at = centre + new Pt(DMath.Cos(ang), DMath.Sin(ang)) * r;
                         var h = House(R, t, at) with { Yaw = baseYaw + (R.Chance(0.5) ? 0 : Math.PI / 2) + R.Range(-v.YawJitter, v.YawJitter) };
                         if (TryHouse(h, 14))
                             placed++;
@@ -111,7 +113,7 @@ public static partial class StopGenerator
                             var nn = tan.Normal * sgn;
                             var end = p + nn * R.Range(f.Drive);
                             var c = end + nn * 8;
-                            double yaw = Math.Atan2(tan.D, tan.S) + R.Range(-0.3, 0.3);
+                            double yaw = DMath.Atan2(tan.D, tan.S) + R.Range(-0.3, 0.3);
                             var h = House(R, t, c) with { Yaw = yaw };
                             var bc = end + nn * 6 + tan * (R.Range(14, 18) * R.Sign());
                             var barn = new StopBuilding(BuildingKind.Barn, StopZone.Village, bc.S, bc.D, 14, 9, yaw + R.Range(-0.2, 0.2)) { Variant = R.Int(0, 3) };
@@ -306,7 +308,7 @@ public static partial class StopGenerator
                 if (R.Chance(st.Skip))
                     continue;
                 var c = p + tan.Normal * (side * R.Range(st.Offset));
-                tryHouse(House(R, t, c) with { Yaw = Math.Atan2(tan.D, tan.S) + R.Range(-0.26, 0.26) });
+                tryHouse(House(R, t, c) with { Yaw = DMath.Atan2(tan.D, tan.S) + R.Range(-0.26, 0.26) });
             }
         }
     }

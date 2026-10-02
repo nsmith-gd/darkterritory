@@ -146,4 +146,16 @@ public class HudTests
         Assert.True(o.Count > 0);
         Assert.NotNull(heard(2));
     }
+
+    [Fact]
+    public void EveryDeathSaysWhatKilledYou()
+    {
+        // T115 playtest: "the death screen doesn't show me anything": the v1.1 creatures' causes had no line.
+        foreach (var cause in Enum.GetValues<DeathCause>().Where(c => c != DeathCause.None))
+        {
+            string line = Hud.DeathLine(cause);
+            Assert.False(string.IsNullOrWhiteSpace(line) || line == cause.ToString().ToUpperInvariant(), $"{cause} has no line of its own");
+            Assert.True(BitmapFont.Default.Measure(line) > 0);
+        }
+    }
 }
