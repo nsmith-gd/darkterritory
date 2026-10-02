@@ -152,6 +152,8 @@ def pick(cands, mat, line_level):
 
 # Lines whose sounds aren't the game's (the trailer's cut goes to the store tools, not content/).
 NOT_IN_GAME = {"store-trailer"}
+# Lines whose candidates are alternatives the game uses all of, one per instance (a prisoner's whole voice).
+SETS_LINES = {"voice-prisoner-sets"}
 # A prisoner calling from a Holdout (D.7): heard to 60 m with normal falloff and occlusion, on the voice tier.
 VOICE_LINES = {"voice-prisoner-sets", "voice-callout"}
 
@@ -198,8 +200,14 @@ def main():
             if cue["silent"] or cue["id"] not in stored:
                 continue
             cands = candidates(line, cue, stored[cue["id"]])
-            for mat in (cue["mats"] or [None]):
-                chosen, why = pick(cands, mat, item.get("level"))
+            # Prisoner voice sets: every set not marked Redo goes in, each its own folder and sound (setN), since the game
+            # gives each prisoner a different voice for the run (D.7).
+            groups = [(k.get("key"), [k]) for k in cands if k.get("verdict") != "redo"] if line in SETS_LINES else None
+            for mat in (cue["mats"] or [None]) if groups is None else [g for g, _ in groups]:
+                if groups is not None:
+                    chosen, why = dict(groups)[mat], "set"
+                else:
+                    chosen, why = pick(cands, mat, item.get("level"))
                 if not chosen:
                     continue
                 rel = f"{line}/{cue['id']}" + (f"/{mat}" if mat else "")
@@ -217,7 +225,7 @@ def main():
                     encode(x, os.path.join(folder, f"{i:02d}.opus"))
                 name = f"{line}.{cue['id']}" + (f".{mat}" if mat else "")
                 with open(os.path.join(SOUNDS, name + ".json"), "w") as f:
-                    f.write(f"// {item['name']}: {cue['event']}" + (f" ({C.MATERIALS[mat]})" if mat else "") +
+                    f.write(f"// {item['name']}: {cue['event']}" + (f" ({C.MATERIALS.get(mat, mat)})" if mat else "") +
                             f". Written by tools/audio/install.py from the audio checklist ({why}); edit the cue, not this.\n")
                     json.dump(sound_def(item, cue, rel, line), f, indent=1)
                     f.write("\n")

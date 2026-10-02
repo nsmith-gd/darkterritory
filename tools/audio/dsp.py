@@ -375,7 +375,8 @@ ROOMS = {
 
 def room(x, name, wet=0.3, tail=True, rng=None):
     length, decay, damp, early = ROOMS[name]
-    h = ir(length, decay, damp, rng=rng or np.random.default_rng(hash(name) % 2 ** 31), early=early)
+    # str hashes change per process; a byte sum doesn't, so a room without an rng is the same room every build
+    h = ir(length, decay, damp, rng=rng or np.random.default_rng(sum(name.encode()) * 7919), early=early)
     w = signal.fftconvolve(x, h).astype(np.float32)
     if not tail:
         w = w[:len(x)]
@@ -424,13 +425,24 @@ def loudness(x):
 
 
 def level(x, lufs=-20.0, ceiling=-1.0):
-    """Set loudness, then keep the peak under the ceiling."""
+    """Set loudness, then keep the peak under the ceiling: only the peaks that cross a knee 3 dB under it are bent
+    (a soft knee), so a spiky sound stays at its loudness instead of being pushed up into a saturator."""
     l = loudness(x)
     y = gain(x, lufs - l) if l > -70 else x
-    m = np.max(np.abs(y)) if len(y) else 0
-    if m > db2a(ceiling):
-        y = saturate(y / m * db2a(ceiling + 3), 3) * db2a(ceiling - 0.2)
-    return y.astype(np.float32)
+    return soft_limit(y, ceiling)
+
+
+def soft_limit(x, ceiling=-1.0, knee_db=3.0):
+    """Peaks over (ceiling - knee) are bent smoothly so none passes the ceiling; everything under the knee is untouched."""
+    c = db2a(ceiling)
+    t = db2a(ceiling - knee_db)
+    a = np.abs(x)
+    over = a > t
+    if not np.any(over):
+        return x.astype(np.float32)
+    y = x.astype(np.float32).copy()
+    y[over] = np.sign(x[over]) * (t + (c - t) * np.tanh((a[over] - t) / (c - t)))
+    return y
 
 
 def band_fraction(x, lo, hi):
