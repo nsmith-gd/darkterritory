@@ -63,6 +63,11 @@ public sealed class VoiceChat
         /// the snapshots do (they're interpolated a tenth of a second behind).
         /// </summary>
         public bool Cut, SeenDead;
+        /// <summary>
+        /// Waiting in a Holdout with the Live Mic on (GDD v1.4 App. D.7; note 179): the dead speaker's in the air again, from
+        /// the Holdout, whatever the cut says.
+        /// </summary>
+        public Ballast.Double3? LiveMic;
     }
 
     public IEnumerable<byte> Speakers => _speakers.Keys;
@@ -139,6 +144,8 @@ public sealed class VoiceChat
                         s.Cut = s.SeenDead = false;
                 }
         foreach (var s in _speakers.Values)
+            s.LiveMic = client.World.Holdouts?.LiveMicOf(s.Id)?.Inside;
+        foreach (var s in _speakers.Values)
             s.Order.Drain(_clock, (_, f) => Decode(s, f));
         foreach (var (source, m) in _mimics.ToList())
         {
@@ -158,9 +165,12 @@ public sealed class VoiceChat
             s.NearVoice ??= Stream("voice", s.Near);
             s.RadioVoice ??= Stream("voice-radio", s.Radio);
             s.DeadVoice ??= Stream("voice-dead", s.Dead);
-            foreach (var c in crew)
-                if (c.Id == s.Id && s.NearVoice is not null)
-                    s.NearVoice.Position = c.Feet + Double3.Up * 1.6;
+            if (s.LiveMic is { } holdout && s.NearVoice is not null)
+                s.NearVoice.Position = holdout + Double3.Up * 1.4;
+            else
+                foreach (var c in crew)
+                    if (c.Id == s.Id && s.NearVoice is not null)
+                        s.NearVoice.Position = c.Feet + Double3.Up * 1.6;
             s.RadioKeyed = Math.Max(0, s.RadioKeyed - dt);
             s.RadioVoice?.Params.Set("keyed", s.RadioKeyed > 0 || s.Radio.Playing ? 1 : 0);
         }
@@ -192,7 +202,7 @@ public sealed class VoiceChat
     {
         // Frames from before the death, arriving late, are cut with the rest: only the dead channel plays on.
         if (s.Cut)
-            f = f with { Path = f.Path & ~(VoicePath.Proximity | VoicePath.Radio) };
+            f = f with { Path = f.Path & ~(s.LiveMic is null ? VoicePath.Proximity | VoicePath.Radio : VoicePath.Radio) };
         if (f.Path.HasFlag(VoicePath.Radio))
             s.RadioKeyed = 0.15;
         if (s.NearVoice is not null)

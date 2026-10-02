@@ -65,7 +65,7 @@ public class AudioTests
         var bank = new SoundBank(Path.Combine(Content, "audio", "sounds"));
         Assert.Null(bank.LastError);
         foreach (var name in AudioBench.TellBands.Keys.Concat(["boiler-roar", "chuff", "wheel-rail", "brake", "wind", "slack-clunk", "safety-valve", "gunshot", "shovel",
-            "cannon-impact", "cannon-splash", "hit-confirm", "doll-shatter", "toy-squeaker", "toy-musicbox", "toy-drummer"]))
+            "cannon-impact", "cannon-splash", "hit-confirm", "doll-shatter", "toy-squeaker", "toy-musicbox", "toy-drummer", "radio-clerk", "holdout-shout", "holdout-bang"]))
             Assert.NotNull(bank.Get(name));
         Assert.All(AudioBench.TellBands.Keys, t => Assert.Equal(1, bank.Get(t)!.Tier));
     }

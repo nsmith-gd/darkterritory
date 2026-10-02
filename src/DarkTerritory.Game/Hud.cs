@@ -554,12 +554,17 @@ public static class Hud
                     rows.Add(($"YOU'RE IN THE {HoldoutName(mine)}", Ink));
                     rows.Add(("[E] CALL OUT   [RMB] LET SOMEONE ELSE GO FIRST", Dim));
                 }
+                // D.7 Live Mic: theirs alone, off by default; on, the rescuer at the door hears what they say to the dead.
+                rows.Add((mine.LiveMic ? "[SPACE] LIVE MIC: ON. THEY HEAR YOU AT THE DOOR" : "[SPACE] LIVE MIC: OFF", mine.LiveMic ? Green : Dim));
             }
             else
             {
                 rows.Add(("YOU'LL WAIT AT THE NEXT HALT OR YARD, IF THEY STOP FOR YOU", Dim));
                 rows.Add(("[RMB] LET SOMEONE ELSE GO FIRST", Dim));
             }
+            // D.6: the dead and lobbied see the whole queue, and where they are in it (the living see nothing).
+            if (QueueLine(world, holdouts, s.PlayerId) is { } queue)
+                rows.Add((queue, Ink));
         }
         float big = o.Font.Measure("DEAD", 2);
         float w = Math.Max(big, rows.Max(r => UiStyle.MeasureKeyed(o, r.Text))) + 20, rowH = line + 3;
@@ -573,6 +578,19 @@ public static class Hud
             UiStyle.Keyed(o, MathF.Round((width - UiStyle.MeasureKeyed(o, text)) / 2), y, text, colour);
             y += rowH;
         }
+    }
+
+    /// <summary>
+    /// The respawn queue as the dead see it (GDD v1.4 App. D.6; note 179): "QUEUE: 1 PRIYA  2 YOU  3 SAM (JOINING)", null when
+    /// it's empty.
+    /// </summary>
+    public static string? QueueLine(Sim.World world, Holdouts holdouts, int me)
+    {
+        if (holdouts.Queue.Count == 0)
+            return null;
+        var names = holdouts.Queue.Select((e, i) =>
+            $"{i + 1} {(e.PlayerId == me ? "YOU" : IncidentLog.NameOf(world, e.PlayerId).ToUpperInvariant())}{(e.Lobbied ? " (JOINING)" : "")}");
+        return $"QUEUE: {string.Join("   ", names)}";
     }
 
     [ThreadStatic] static IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? _commendations;

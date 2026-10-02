@@ -271,7 +271,68 @@ public class HoldoutTests
         n.Hold(a, PlayerButtons.Use);
         n.Step(1.0 / SimConstants.TickRate);
         Assert.Single(n.Events, e => e.Kind == HoldoutEventKind.CalledOut);
+        Assert.Equal(1, n.Here.Single().Calls);
         Assert.Equal(loud, n.World.Choir.Loudness);
+    }
+
+    [Fact]
+    public void TheLiveMicIsTheOccupantsAloneAndGoesOffWhenTheyAreOut()
+    {
+        // D.7 (note 179): a toggle offered only to the player assigned to that Holdout, off by default, off when freed.
+        var n = new Night(AHalt, engineFrom: -300);
+        int living = n.Add(alive: true);
+        int a = n.Add(alive: false), b = n.Add(alive: false);
+        n.Step(0.2);
+        var h = n.Here.Single();
+        int inside = h.Occupant, other = inside == a ? b : a;
+        Assert.True(h.Lit);
+        Assert.False(h.LiveMic);
+        Assert.Null(n.World.Holdouts!.LiveMicOf(inside));
+        // Someone else's press does nothing; theirs switches it on; again, off; again, on.
+        n.Hold(other, PlayerButtons.Jump);
+        n.Step(1.0 / SimConstants.TickRate);
+        Assert.False(h.LiveMic);
+        n.Hold(other, PlayerButtons.None);
+        foreach (bool expect in new[] { true, false, true })
+        {
+            n.Hold(inside, PlayerButtons.Jump);
+            n.Step(1.0 / SimConstants.TickRate);
+            n.Hold(inside, PlayerButtons.None);
+            n.Step(1.0 / SimConstants.TickRate);
+            Assert.Equal(expect, h.LiveMic);
+        }
+        Assert.Same(h, n.World.Holdouts.LiveMicOf(inside));
+        // Freed: it goes off.
+        n.Stand(living, h.Door);
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(h.Breach(H).Seconds + 1);
+        Assert.False(h.Lit);
+        Assert.False(h.LiveMic);
+    }
+
+    [Fact]
+    public void AClientHearsEachCallOutOnceAndSeesTheQueue()
+    {
+        // D.6 and D.7 (note 179): the Call Out count and the Live Mic ride the Holdout's record; the queue rides its own.
+        var n = new Night(AHalt, engineFrom: -300);
+        int living = n.Add(alive: true);
+        int a = n.Add(alive: false), b = n.Add(alive: false), c = n.Add(alive: false);
+        n.Step(0.2);
+        var h = n.Here.Single();
+        n.Stand(living, h.Door);
+        n.Hold(h.Occupant, PlayerButtons.Use | PlayerButtons.Jump);
+        n.Step(1.0 / SimConstants.TickRate);
+        Assert.Equal(1, h.Calls);
+        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 0)), n.Route.Build(), n.Site.Start - 300, Tuning.Boiler), Tuning.Combat);
+        client.EnableHoldouts(H, n.Route);
+        var controls = new TrainControls();
+        Net.WorldRecords.Apply(Net.WorldRecords.Capture(n.World, controls, []), client, ref controls, []);
+        var mirrored = client.Holdouts!.All[h.Index];
+        Assert.Equal(1, mirrored.Calls);
+        Assert.True(mirrored.LiveMic);
+        // The queue as the host has it, in order: all three of the dead (the one waiting inside keeps their place till freed).
+        Assert.Equal(n.World.Holdouts!.Queue.Select(e => e.PlayerId), client.Holdouts.Queue.Select(e => e.PlayerId));
+        Assert.Equal(new[] { a, b, c }.Order(), client.Holdouts.Queue.Select(e => e.PlayerId).Order());
     }
 
     [Fact]

@@ -79,6 +79,27 @@ public sealed class GameAudio
         Actions(world);
         Whistle(world, train);
         Toys(world, train);
+        CallOuts(world);
+    }
+
+    readonly Dictionary<int, int> _calls = [];
+
+    /// <summary>
+    /// GDD v1.4 App. D.7 Call Out (note 179): each Call Out the host counts plays once at its Holdout, a shout or a bout of
+    /// banging, through the walls unless you're outside by it. What had been called before this client first looked is old.
+    /// </summary>
+    void CallOuts(World world)
+    {
+        if (world.Holdouts is not { } holdouts)
+            return;
+        foreach (var h in holdouts.All)
+        {
+            bool seen = _calls.TryGetValue(h.Index, out int was);
+            _calls[h.Index] = h.Calls;
+            if (!seen || h.Calls <= was)
+                continue;
+            Mixer.Play((h.Index + h.Calls) % 2 == 0 ? "holdout-shout" : "holdout-bang", h.Inside)?.Also(v => v.Occlusion = 1);
+        }
     }
 
     readonly Dictionary<int, SoundInstance> _toys = [];

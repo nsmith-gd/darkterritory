@@ -16,7 +16,8 @@ public static class Protocol
     // 8: hit confirms and cannonball impacts (note 171), and the voice stream's hard-cut (note 172).
     // 9: the world record carries the derailment's track (GDD v1.4 App. E.6, note 174).
     // 10: the derailment film's start (Film) and the skip vote on the world record (GDD v1.4 App. E.2, E.5; note 177).
-    public const int Version = 10;
+    // 11: a Holdout record's Call Outs and Live Mic, and the respawn queue (GDD v1.4 App. D.6, D.7; note 179).
+    public const int Version = 11;
 }
 
 public enum MessageType : byte

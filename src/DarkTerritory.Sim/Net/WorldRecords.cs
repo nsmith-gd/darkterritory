@@ -28,6 +28,9 @@ public readonly record struct WireRecord(uint Key, long[] Fields)
 /// </summary>
 public static class WorldRecords
 {
+    /// <summary>The Holdout record id the respawn queue rides under (D.6): past any real Holdout's index.</summary>
+    const int QueueRecord = 0xFFFF;
+
     // Fixed-point scales. Positions and speeds to 0.1 mm; angles to 10 µrad; slow scalars and timers to 1e-6.
     const double Pos = 1e4, Ang = 1e5, Fine = 1e6, Hint = 1e2, Cm = 1e2;
     /// <summary>
@@ -161,7 +164,12 @@ public static class WorldRecords
         // lamps and the HUD).
         if (world.Holdouts is { } holdouts)
             foreach (var h in holdouts.All)
-                list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Holdout, h.Index), [(int)h.State, h.Occupant, Q(h.Progress, Fine), h.Quiet ? 1 : 0]));
+                list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Holdout, h.Index), [(int)h.State, h.Occupant, Q(h.Progress, Fine), h.Quiet ? 1 : 0,
+                    // D.7 (note 179): its Call Outs so far (a client plays each once), and the occupant's Live Mic.
+                    h.Calls, h.LiveMic ? 1 : 0]));
+        // D.6 (note 179): the queue, in order, for the dead and lobbied to see: player id and lobbied, pairs.
+        if (world.Holdouts is { } queued)
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Holdout, QueueRecord), [.. queued.Queue.SelectMany(e => new long[] { e.PlayerId, e.Lobbied ? 1 : 0 })]));
         foreach (var body in world.Bodies.All)
         {
             var ps = body.Pbd.Particles;
@@ -331,8 +339,12 @@ public static class WorldRecords
                     crane.Mirror(D(f[0], Pos), D(f[1], Pos), D(f[2], Pos), D(f[3], Fine), [.. Enumerable.Range(0, castings).Select(i =>
                         ((Run.CastingState)f[5 + i * 5], (int)f[6 + i * 5], new Ballast.Double3(D(f[7 + i * 5], Pos), D(f[8 + i * 5], Pos), D(f[9 + i * 5], Pos))))]);
                     break;
+                case RecordKind.Holdout when !world.Authority && world.Holdouts is { } queue && r.Id == QueueRecord:
+                    queue.MirrorQueue(Enumerable.Range(0, f.Length / 2).Select(i => ((int)f[i * 2], f[i * 2 + 1] != 0)));
+                    break;
                 case RecordKind.Holdout when !world.Authority && world.Holdouts is { } holdouts:
-                    holdouts.Mirror(r.Id, (Run.HoldoutState)f[0], (int)f[1], D(f[2], Fine), f.Length > 3 && f[3] != 0);
+                    holdouts.Mirror(r.Id, (Run.HoldoutState)f[0], (int)f[1], D(f[2], Fine), f.Length > 3 && f[3] != 0,
+                        f.Length > 4 ? (int)f[4] : 0, f.Length > 5 && f[5] != 0);
                     break;
                 case RecordKind.Run when !world.Authority && world.Run is { } run:
                     const int Each = 7, Head = RunHead;

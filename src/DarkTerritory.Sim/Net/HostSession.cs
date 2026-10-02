@@ -376,6 +376,10 @@ public sealed class HostSession
         // nobody. Tunnels and mine spurs still kill it.
         radio |= speaker.State.Alive && speaker.State.Has(PlayerFlags.Held);
         radio &= World.Bodies.HasRadio(speaker.Id);
+        // GDD v1.4 App. D.7 Live Mic (note 179): waiting in a Holdout with it on, the dead speaker is heard from the Holdout on
+        // the proximity layer by the living near it (8 m clear, 26 m cutoff), and on the dead channel as ever. It's never said
+        // aloud in the world: nothing listening for talk (the meter, the Gaunt, the Soot Children) hears it.
+        var liveMic = speaker.State.Alive ? null : World.Holdouts?.LiveMicOf(speaker.Id);
         foreach (var listener in _crew)
         {
             if (listener == speaker)
@@ -384,6 +388,8 @@ public sealed class HostSession
             // hears"); the dead channel stays theirs.
             var ears = speaker.State.Alive ? EarsOf(listener) : listener;
             var path = VoiceRouting.Route(speaker.State, ears.State, radio, Train, tunnel, World.Bodies.HasRadio(ears.Id), underground);
+            if (liveMic is not null && VoiceRouting.HearsLiveMic(listener.State, liveMic.Inside, Train))
+                path |= VoicePath.Proximity;
             if (path == VoicePath.None)
                 continue;
             // What's holding the speaker changes how they sound (App. C.8): muffled under a hand, fading as they're drained.
