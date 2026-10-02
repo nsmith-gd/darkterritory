@@ -15,6 +15,12 @@ public sealed record PlayerTuning(
     /// <summary>What the bots are called, in order (the roster and the incident report name them); past the list, "Crew n".</summary>
     public IReadOnlyList<string> BotNames { get; init; } = [];
 
+    /// <summary>
+    /// GDD v1.4 App. D.9 "solo remainer": with exactly one of the crew left alive, they can climb a ladder carrying a body, at
+    /// this speed (a quarter of normal; note 181).
+    /// </summary>
+    public double SoloBodyClimb { get; init; } = 0.4;
+
     public string BotName(int i) => i < BotNames.Count ? BotNames[i] : $"Crew {i + 1}";
 
     /// <summary>

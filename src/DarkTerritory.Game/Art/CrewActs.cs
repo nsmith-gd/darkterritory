@@ -39,10 +39,13 @@ public static class CrewActs
     /// </summary>
     public static Survivor SurvivorOf(int id, World world)
     {
-        if (world.Holdouts is not { } holdouts)
-            return Survivor.None;
-        var freed = holdouts.All.LastOrDefault(h => h.State == Sim.Run.HoldoutState.Freed && h.Occupant == id);
-        return freed is null ? Survivor.None : freed.Layout.Kind == Sim.Stops.HoldoutKind.Shelter ? Survivor.Wildlander : Survivor.Prisoner;
+        // Tonight's freeing, else the look carried from an earlier night (Sim.Run.Identity; note 181).
+        return Sim.Run.Identity.Of(world, id) switch
+        {
+            Sim.Run.Identity.Prisoner => Survivor.Prisoner,
+            Sim.Run.Identity.Wildlander => Survivor.Wildlander,
+            _ => Survivor.None,
+        };
     }
 
     /// <summary>

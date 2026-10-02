@@ -38,6 +38,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public Sim.Music.MusicBag? MusicBag { get; init; }
+    /// <summary>The host's only: the campaign's looks by player name (GDD v1.4 App. D.8; note 181), going into the night.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlyDictionary<string, string>? Identities { get; init; }
     /// <summary>The host's line's fingerprint: a joiner whose own generated line differs (another generator version) is refused.</summary>
     public string? PlanPrint { get; init; }
     /// <summary>The host's terrain's fingerprint (linegen plan §17.3): a joiner whose ground comes out differently is refused.</summary>
@@ -369,6 +372,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var (hostWorld, route) = setup.Build(content, authority: true);
         // E.6: the host's world draws the derailment's track from the bag it brought (clients' worlds have no rotation).
         hostWorld.Music = Sim.Music.MusicRotation.Load(content, hostWorld.WreckTuning.Music, setup.MusicBag);
+        // D.8: who each of the crew is, from the campaign, matched up as their names arrive.
+        if (setup.Identities is { } identities)
+            hostWorld.LooksByName = identities;
         setup = setup with { PlanPrint = route?.Plan?.Fingerprint(), TerrainPrint = TerrainOf(hostWorld)?.Print() };
         if (resume is not null)
             Restore(hostWorld, resume);

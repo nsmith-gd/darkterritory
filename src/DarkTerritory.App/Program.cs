@@ -404,6 +404,7 @@ Launch? Menu()
                     Upgrades = campaign.Upgrades,
                     SpareKits = campaign.SpareKits,
                     MusicBag = campaign.Music,
+                    Identities = campaign.Identities,
                 };
                 Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
                 return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume,

@@ -15,6 +15,8 @@ public sealed record TrainTuning
     public required CouplingTuning Couplings { get; init; }
     /// <summary>What the train carries from the fortress (T41). Unset, nothing.</summary>
     public KitTuning Kit { get; init; } = new();
+    /// <summary>Line Plan §12.6, never an unrecoverable body or kit (train.json <c>recovery</c>; note 181).</summary>
+    public RecoveryTuning Recovery { get; init; } = new();
 
     public const string File = "tuning/train.json";
 }
@@ -134,3 +136,10 @@ public sealed record CouplingTuning(double CoupleMaxSpeed, double SafeContactSpe
 /// <summary>Deceleration from rolling (m/s²) and air (per (m/s)²) resistance.</summary>
 public sealed record ResistanceTuning(double Rolling, double Air);
 public sealed record SpeedBandTuning(double Yard, double JumpOffLethal, double Slow, double WorkingMin, double Cruise);
+
+/// <summary>
+/// Line Plan §12.6 (note 181): the walkable corridor is <paramref name="CorridorM"/> either side of the track (where the line
+/// generator keeps drop sides walkable) and no more than <paramref name="DropM"/> below the rails; a body or a kit at rest
+/// beyond it is put back on the formation's edge, <paramref name="EdgeM"/> out from the track.
+/// </summary>
+public sealed record RecoveryTuning(double CorridorM = 40, double DropM = 15, double EdgeM = 3.5);

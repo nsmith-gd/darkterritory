@@ -149,6 +149,9 @@
   // What the train leaves the fortress with (T41). Radios are things you wear (spec A.5's radio channel): only someone
   // wearing one talks or hears on it, so a crew that loses them is shouting down the train (GDD §24 "radio breaks").
   // One rides in the cab, the rest in the guard van.
+  // Line Plan §12.6 (note 181): a body or a repair kit at rest further than corridorM from the track, or more than dropM below
+  // the rails (off a bridge, into a ravine), is put back on the formation's edge, edgeM out, the side it went off.
+  "recovery": { "corridorM": 40, "dropM": 15, "edgeM": 3.5 },
   "kit": {
     "radios": 2,
     // GDD v1.1 App. C.4 hand loot: toys in the guard van, for the Track Doll (it steals one and leaves for the run).

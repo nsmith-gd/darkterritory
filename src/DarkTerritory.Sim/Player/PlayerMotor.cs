@@ -161,7 +161,15 @@ public enum DeathCause : byte
 public enum PlayerFlags : byte
 {
     None = 0,
-    /// <summary>Carrying freight (spec B.2 "carrying heavy cargo: 2.8 m/s, no climbing").</summary>
+    /// <summary>
+    /// Carrying a body, the last of the crew alive (GDD v1.4 App. D.9 "solo remainer"): <see cref="Heavy"/>'s pace on the
+    /// ground, but a ladder may still be climbed, slowly (<see cref="PlayerTuning.SoloBodyClimb"/>; note 181).
+    /// </summary>
+    SoloCarry = 1,
+    /// <summary>
+    /// Carrying something that needs both arms (spec B.2 "carrying heavy cargo: 2.8 m/s, no climbing"; GDD v1.4 App. C.4, D.9:
+    /// freight, a toy, a find, the child, a body).
+    /// </summary>
     Heavy = 2,
     /// <summary>A hand has coal on the shovel from the tender, on its way to the firebox (T29).</summary>
     Shovelful = 4,
@@ -459,7 +467,7 @@ public static class PlayerMotor
         // (T90 playtest: nobody found Use + forward). Not while pushing a gun along (Use and walking is that too, T103: the
         // guard van's hatch ladder comes up through the roof on the gun's way, and took whoever pushed it down inside); the
         // ladder key still does.
-        if (s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Heavy) && !s.Has(PlayerFlags.Seated))
+        if (s.Surface != Surface.Ladder && (!s.Has(PlayerFlags.Heavy) || s.Has(PlayerFlags.SoloCarry)) && !s.Has(PlayerFlags.Seated))
         {
             bool pushing = s.Has(PlayerFlags.Pushing);
             if (intent.Has(PlayerActions.Ladder))
@@ -474,7 +482,7 @@ public static class PlayerMotor
     /// <summary>Whether the ladder key would take hold of a ladder from here (T94: the HUD says so).</summary>
     public static bool LadderInReach(in PlayerState s, TrainOnLine train, PlayerTuning p)
     {
-        if (!s.Alive || s.Surface is Surface.Ladder or Surface.Air || s.Has(PlayerFlags.Heavy))
+        if (!s.Alive || s.Surface is Surface.Ladder or Surface.Air || s.Has(PlayerFlags.Heavy) && !s.Has(PlayerFlags.SoloCarry))
             return false;
         var probe = s;
         TryGrabLadder(ref probe, train, p, byHand: false);
@@ -774,7 +782,9 @@ public static class PlayerMotor
         }
 
         double top = ladder.Top;
-        double y = s.Position.Y + Math.Clamp(intent.MoveZ, -1, 1) * p.LadderClimb * dt;
+        // D.9: the last one standing hauls a body up a ladder at a quarter of the pace.
+        double climb = s.Has(PlayerFlags.SoloCarry) ? p.SoloBodyClimb : p.LadderClimb;
+        double y = s.Position.Y + Math.Clamp(intent.MoveZ, -1, 1) * climb * dt;
         if (y >= top)
         {
             // Over the top onto whatever the ladder serves, just inside the edge: the highest footing at the top rung, not

@@ -73,6 +73,11 @@ public sealed record CampaignState
     /// track"): what's left to draw and the last track played. Null in a save from before it, which starts a fresh bag.
     /// </summary>
     public Music.MusicBag? Music { get; init; }
+    /// <summary>
+    /// Who each player is (GDD v1.4 App. D.8: a freed survivor becomes that player's character, "stored in the host's campaign
+    /// save against the player's ID"; note 181): their look by name. Someone not here is still who they signed on as.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Identities { get; init; } = new Dictionary<string, string>();
 }
 
 /// <summary>What a purchase came to: the new state, or why not.</summary>
@@ -167,7 +172,11 @@ public static class Campaign
         double scrip = s.Scrip + report.Net;
         var log = new RunLog(s.Runs + 1, s.Current?.Route ?? "?", report.End, report.Net, report.CarsLost, scrip);
         int spares = report.SpareKitsHome >= 0 ? report.SpareKitsHome : s.SpareKits;
-        return s with { Cars = cars, Scrip = scrip, Runs = s.Runs + 1, History = [.. s.History, log], Current = null, Checkpoint = null, SpareKits = spares };
+        // D.8: whoever was freed tonight is that survivor from now on; everyone else stays who they were.
+        var identities = new Dictionary<string, string>(s.Identities);
+        foreach (var (name, look) in report.Identities)
+            identities[name] = look;
+        return s with { Cars = cars, Scrip = scrip, Runs = s.Runs + 1, History = [.. s.History, log], Current = null, Checkpoint = null, SpareKits = spares, Identities = identities };
     }
 
     /// <summary>The night's tunings with the crew's spare repair kits aboard (E.12 question 4): stocked in the lockers beside the train's own.</summary>

@@ -330,6 +330,9 @@ public sealed class HostSession
             Messages.WriteNames(_writer, World.Names);
             foreach (var p in peers)
                 _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
+            Messages.WriteLooks(_writer, World.Looks);
+            foreach (var p in peers)
+                _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
         }
         // D.12: each bookmark as it's made, so every machine takes its still from the world as it is now.
         for (; _bookmarksSent < World.Bookmarks.All.Count; _bookmarksSent++)
@@ -406,6 +409,9 @@ public sealed class HostSession
                 {
                     World.Names[id] = name;
                     _namesChanged = true;
+                    // D.8: whoever they were freed as on an earlier night, they still are.
+                    if (World.LooksByName.TryGetValue(name, out var look))
+                        World.Looks[id] = look;
                 }
             }
             catch (Exception ex) when (ex is EndOfStreamException or InvalidDataException)

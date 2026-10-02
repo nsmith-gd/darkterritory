@@ -217,6 +217,9 @@ public sealed class ClientSession
                 case MessageType.Names:
                     Messages.ReadNames(ref r, World.Names);
                     break;
+                case MessageType.Looks:
+                    Messages.ReadLooks(ref r, World.Looks);
+                    break;
                 case MessageType.Ballot:
                     Ballot = Messages.ReadBallot(ref r);
                     break;

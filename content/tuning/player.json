@@ -6,6 +6,9 @@
   "roofWalkSafe": 1.8,
   "ladderClimb": 1.6,
   "carryHeavy": 2.8,
+  // GDD v1.4 App. D.9 "solo remainer" (note 181): the last of the crew alive can climb a ladder carrying a body, at this
+  // (a quarter of ladderClimb); anyone else carrying a body, a toy, a find or the child can't climb at all (C.4).
+  "soloBodyClimb": 0.4,
   // Pushing a gun along its roof rail (T93): the gun goes where you go, no faster than this.
   "pushGun": 1.2,
   "jumpGap": 2.2,

@@ -19,7 +19,8 @@ public static class Protocol
     // 11: a Holdout record's Call Outs and Live Mic, and the respawn queue (GDD v1.4 App. D.6, D.7; note 179).
     // 12: bookmarks (Bookmark) and the report's bookmarks beside its lines (GDD v1.4 App. D.12, note 176).
     // 13: the dead's creature vote (Ballot, VoteCue) and commendations (Commend, Commendations) (GDD v1.4 App. D.11, D.12; note 180).
-    public const int Version = 13;
+    // 14: who everyone is (Looks), a freed survivor carried from an earlier night (GDD v1.4 App. D.8; note 181).
+    public const int Version = 14;
 }
 
 public enum MessageType : byte
@@ -52,6 +53,8 @@ public enum MessageType : byte
     Commend = 13,
     /// <summary>Host → client, reliable: the night's commendations so far (D.12), from, to and which, each.</summary>
     Commendations = 14,
+    /// <summary>Host → client, reliable: each player's look from earlier nights (D.8), by id, whenever it changes.</summary>
+    Looks = 15,
 }
 
 public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent);
@@ -245,6 +248,31 @@ public static class Messages
         {
             w.U8((byte)id);
             w.Str(CleanName(name));
+        }
+    }
+
+    /// <summary>Everyone's look (D.8), by id: a short word each ("prisoner", "wildlander").</summary>
+    public static void WriteLooks(NetWriter w, IEnumerable<KeyValuePair<int, string>> looks)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Looks);
+        var list = looks.Where(n => n.Key is >= 0 and < 256).OrderBy(n => n.Key).ToList();
+        w.U8((byte)list.Count);
+        foreach (var (id, look) in list)
+        {
+            w.U8((byte)id);
+            w.Str(look.Length > 16 ? look[..16] : look);
+        }
+    }
+
+    public static void ReadLooks(ref NetReader r, IDictionary<int, string> into)
+    {
+        into.Clear();
+        int n = r.U8();
+        for (int i = 0; i < n; i++)
+        {
+            int id = r.U8();
+            into[id] = r.Str();
         }
     }
 

@@ -61,6 +61,8 @@ public sealed record RunReport(RunEnd End, double Seconds, double DistanceKm, in
     /// report that doesn't say (the campaign's spares stand as they were).
     /// </summary>
     public int SpareKitsHome { get; init; } = -1;
+    /// <summary>Everyone's look at the night's end, by name (GDD v1.4 App. D.8; note 181): a freed survivor stays that survivor.</summary>
+    public IReadOnlyDictionary<string, string> Identities { get; init; } = new Dictionary<string, string>();
     /// <summary>
     /// The bookmarks on the run-end screen (GDD v1.4 App. D.12): the automatic ones D.13's cap keeps (each beside its line,
     /// <see cref="ReportLine.Marks"/>) and the dead's own, in the order they were made.
@@ -679,6 +681,8 @@ public sealed partial class Run
         {
             Lines = lines,
             Bookmarks = shown,
+            // D.8: who everyone is now, for the campaign to carry into the next night.
+            Identities = Identity.ByName(world, world.LastCrew.Select(c => c.Id)),
             // Home with the cars that are (in one of them, its floor or a locker) or in a living crewmate's hands.
             SpareKitsHome = Math.Max(0, world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.RepairKit && b.Claimed
                 && (b.Carrier >= 0 || attached.Contains(b.Parent))) - train.Dynamics.Tuning.Kit.RepairKits),
