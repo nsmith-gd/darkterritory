@@ -174,15 +174,20 @@ TELL_SOUNDS = {
     "tell-track-debris": ("sleepers-writhe", [("writhe", {})]),
     "tell-climbers": ("climber-scrabble", [("scrabble", {})]),
     "tell-tippy": ("tippy-tiptoe", [("tiptoe", {})]),
+    "tell-soot-children": ("child-call", [("call", {})]),
+    # Spec A.4: the Whistler's tell is the train's own whistle with nobody on the cord, so its kept whistle is the train's.
+    "tell-whistler": ("train-whistle", [("whistle", {})]),
 }
-# The Dragger's rasp is one scrape before the grab (spec A.4), not a loop: played once and held till the phase ends.
-ONCE = {"dragger-scrape"}
+# Played once rather than looped: the Dragger's rasp is one scrape before the grab (spec A.4), held till the phase ends; a
+# whistle take is a whole blast, start to release, which rings out to its end (GameAudio.Whistle).
+ONCE = {"dragger-scrape", "train-whistle"}
 # Tells the game holds like a loop whose kept takes are single bursts or steps: GameAudio.Repeat fires them again at an
 # uneven pace while the tell lasts.
-PACED = {"climber-scrabble", "tippy-tiptoe"}
+PACED = {"climber-scrabble", "tippy-tiptoe", "child-call"}
 # Level on top of the synth definition's, where the kept takes sit lower than the synth did: AudioTests holds every
-# tell 6 dB over the bed for whoever has to hear it (the Choir's kept voices measured -2.5 at a car roof at the old level).
-TELL_GAIN_DB = {"choir-voice": 11}
+# tell 6 dB over the bed for whoever has to hear it (the Choir's kept voices measured -2.5 at a car roof at the old level;
+# the kept whistle 4.6 at the middle car).
+TELL_GAIN_DB = {"choir-voice": 11, "train-whistle": 3}
 SYNTH_DEFS = os.path.join(HERE, "synth-defs")
 
 # Lines whose candidates are alternatives the game uses all of, one per instance (a prisoner's whole voice).
@@ -202,7 +207,7 @@ def sound_def(item, cue, folder, line):
     tier, lo, hi, roll, g = AREA.get(item.get("area"), (4, 1, 40, 1.0, 2))
     if isinstance(item.get("tier"), int):
         tier = item["tier"]
-    flat = line.startswith("ui-")
+    flat = line.startswith("ui-") or line == "voice-radio-sfx"   # the radio's clicks are the set in your own hand
     if line == "ui-music":
         tier = 7            # music's own bottom tier, under the ambient world (decided 1 Oct)
     elif flat:

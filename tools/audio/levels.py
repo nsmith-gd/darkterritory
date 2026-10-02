@@ -14,6 +14,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import cues as C  # noqa: E402
+from install import TELL_SOUNDS  # noqa: E402
 
 ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
 SOUNDS = os.path.join(ROOT, "content", "audio", "sounds")
@@ -33,12 +34,16 @@ def main():
     installed = {f[:-5] for f in os.listdir(SOUNDS) if f.endswith(".json")}
     rows = {}
     for line, cues in C.CUES.items():
-        live = [c for c in cues if not c["silent"]]
+        # silent by design, or waiting on an action the game doesn't have yet (cues.py says so in the cue's need)
+        live = [c for c in cues if not c["silent"] and not c["need"].startswith("Not in the game yet")]
         if not live:
             continue
-        inst = [c for c in live if any(n == f"{line}.{c['id']}" or n.startswith(f"{line}.{c['id']}.") for n in installed)]
+        inst = [c for c in live if any(n == f"{line}.{c['id']}" or n.startswith(f"{line}.{c['id']}.") for n in installed)
+                or line in TELL_SOUNDS and TELL_SOUNDS[line][0] in installed]
         # hooked: named in code literally, or the line's name in code with the cue's id as a literal (composed names)
-        hooked = [c for c in live if f'"{line}.{c["id"]}' in code
+        # or a tell the game plays under its own sound's name, which install.py points at the kept takes
+        tell = line in TELL_SOUNDS and f'"{TELL_SOUNDS[line][0]}"' in code
+        hooked = [c for c in live if tell or f'"{line}.{c["id"]}' in code
                   or (f'"{line}' in code and re.search(r'["\.]' + re.escape(c["id"]) + r'["\.]', code))]
         rows[line] = {"cues": len(live), "installed": len(inst), "hooked": len(hooked),
                       "missing_install": [c["id"] for c in live if c not in inst],

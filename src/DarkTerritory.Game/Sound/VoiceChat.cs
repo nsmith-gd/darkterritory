@@ -50,6 +50,11 @@ public sealed class VoiceChat
         public readonly StreamBuffer Near = new(), Radio = new(), Dead = new(), Mimic = new();
         public SoundInstance? NearVoice, RadioVoice, DeadVoice, MimicVoice;
         public double RadioKeyed;
+        /// <summary>Their radio as of last update: keyed (the click and the static), and when it last broke up.</summary>
+        public bool Keyed;
+        public SoundInstance? Static;
+        public int RadioUnderruns;
+        public double BrokeUp = double.NegativeInfinity;
         public double LastHeard = double.NegativeInfinity;
         /// <summary>The Holdout whose Live Mic their last proximity frame came by (GDD App. D.7), or -1.</summary>
         public int LiveMic = -1;
@@ -135,6 +140,7 @@ public sealed class VoiceChat
                 s.NearVoice.Position = holdouts[s.LiveMic].Door + Double3.Up * 1.6;
             s.RadioKeyed = Math.Max(0, s.RadioKeyed - dt);
             s.RadioVoice?.Params.Set("keyed", s.RadioKeyed > 0 || s.Radio.Playing ? 1 : 0);
+            RadioSet(s);
         }
         // Whoever's left the session goes quiet.
         foreach (var id in _speakers.Keys.Where(id => client.RemoteIds.All(r => r != id)).ToList())
@@ -143,8 +149,39 @@ public sealed class VoiceChat
             s.NearVoice?.Stop();
             s.RadioVoice?.Stop();
             s.DeadVoice?.Stop();
+            s.Static?.Stop();
             _speakers.Remove(id);
         }
+    }
+
+    /// <summary>
+    /// The set in your hand as a crewmate's transmission comes and goes (voice-radio-sfx): the click as they key it, static
+    /// under them that comes up while the signal breaks up (frames lost on the way: the stream running dry), and the click
+    /// and squelch tail as they let go.
+    /// </summary>
+    void RadioSet(Speaker s)
+    {
+        bool keyed = s.RadioKeyed > 0 || s.Radio.Playing;
+        if (s.Radio.Underruns != s.RadioUnderruns)
+        {
+            s.RadioUnderruns = s.Radio.Underruns;
+            s.BrokeUp = _clock;
+        }
+        if (keyed && !s.Keyed)
+        {
+            _mixer.Play("voice-radio-sfx.key-down");
+            s.Static ??= _mixer.Play("voice-radio-sfx.static");
+        }
+        else if (!keyed && s.Keyed)
+        {
+            _mixer.Play("voice-radio-sfx.key-up");
+            _mixer.Play("voice-radio-sfx.squelch");
+            s.Static?.Stop();
+            s.Static = null;
+        }
+        s.Keyed = keyed;
+        if (s.Static is not null)
+            s.Static.Volume = _clock - s.BrokeUp < 0.6 ? 1f : 0.2f;
     }
 
     static void Decode(Speaker s, VoiceFrame f)

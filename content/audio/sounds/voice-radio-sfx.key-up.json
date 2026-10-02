@@ -1,20 +1,20 @@
 // Radio key, squelch and dropout: Radio released. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
 {
- "tier": 2,
+ "tier": 4,
  "loop": false,
  "maxInstances": 12,
  "minDistance": 1,
  "maxDistance": 30,
  "rolloff": 1.0,
  "gainDb": 2,
- "flat": false,
+ "flat": true,
  "layers": [
   {
    "source": "sample",
    "sample": "voice-radio-sfx/key-up",
    "gain": 1,
-   "pitchJitter": 0.4,
-   "gainJitter": 1.0
+   "pitchJitter": 0,
+   "gainJitter": 0
   }
  ]
 }

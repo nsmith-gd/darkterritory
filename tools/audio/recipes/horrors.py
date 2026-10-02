@@ -1118,6 +1118,57 @@ def switchman_flicker_breath(rng, take):
     return finish(junction(b.x, rng))
 
 
+# The throw itself: the game plays the stand's lever, the blades and the latch (crew-switch) for any throw, so these are
+# what only the Switchman adds on top of them, at the lever: its grip, its lamp, its strength.
+
+@recipe("cs-switchman", "throw", "grip",
+        "Its long fingers closing round the lever and heaving it over: the knuckles, the lamp swinging on its arm, the glass",
+        """Laid over the stand's own lever and blades (the crew's switch sounds, which the game plays for any throw):
+        a ripple of far too many dry knuckles closing on the iron, the lever creaking under a grip no man has (a slow
+        iron stick-slip pitched up, strained), then the heave: its oil lamp swung hard on its bail (the tin bail's
+        creak and clink), the glass chimney chattering in its gallery and the flame fluttering low and flaring back with
+        a soft whump. A few metres off, in the open.""",
+        sources=GLASS_TICK + TIN, takes=3)
+def switchman_throw_grip(rng, take):
+    T = 1.6
+    b = Bus(T + 0.6)
+    knuckles(rng, b, 0.0, int(rng.integers(8, 12)), 0.3)
+    b.at(0.2, lever_creak(rng, 0.7), -9)
+    heave = rng.uniform(0.55, 0.7)
+    b.at(heave, rec(rng, TIN, rng.uniform(-2, 2), 0.12), -12)
+    b.at(heave + rng.uniform(0.2, 0.3), rec(rng, TIN, rng.uniform(1, 4), 0.1), -16)
+    glass_chatter(rng, b, heave + 0.05, int(rng.integers(3, 6)))
+    lv = env([(0, 0.8), (heave, 0.85), (heave + 0.12, 0.15), (heave + 0.35, 0.95), (T, 0.7)], T)
+    b.at(0, flame(rng, T, lv) * env([(0, 0), (0.1, 1), (T - 0.2, 1), (T, 0)], T), -8)
+    b.at(heave + 0.33, whump(rng, 0.3), -10)
+    return finish(junction(b.x, rng))
+
+
+@recipe("cs-switchman", "throw", "strain",
+        "The heave in its two throats: a man's grunt and a thin reedy breath over it, the knuckles and the lamp's glass",
+        """Laid over the stand's own lever and blades: it puts its weight on the lever, and you hear both of it. A man's
+        effort (a short rough grunt through a man's throat, pushed out on the heave) and, a moment behind it, the
+        spindly half's breath (a thin reedy 'ee' high up, breathy, sliding up as the lever goes over), the knuckles
+        tightening first and the lamp's glass chattering on the heave. A few metres off, in the open.""",
+        sources=GLASS_TICK + TIN, takes=3)
+def switchman_throw_strain(rng, take):
+    T = 1.5
+    b = Bus(T + 0.6)
+    knuckles(rng, b, 0.0, int(rng.integers(6, 9)), 0.22)
+    heave = rng.uniform(0.3, 0.4)
+    Lg = rng.uniform(0.35, 0.5)
+    man = throat(rng, env([(0, 130), (Lg * 0.3, 150), (Lg, 105)], Lg, "exp"), [(0, "a"), (Lg, "u")], 0.72, breath=0.45,
+                 rough=0.5, jitter=0.02)
+    b.at(heave, man * env([(0, 0), (0.03, 1), (Lg * 0.6, 0.7), (Lg, 0)], Lg), -6)
+    Lr = rng.uniform(0.7, 0.9)
+    reed = throat(rng, env([(0, 420), (Lr, 640)], Lr, "exp"), "i", 0.65, breath=0.8, jitter=0.01)
+    b.at(heave + 0.08, bp(reed, 1200, 6000) * env([(0, 0), (0.1, 1), (Lr * 0.6, 0.6), (Lr, 0)], Lr), -12)
+    glass_chatter(rng, b, heave + 0.05, int(rng.integers(3, 5)))
+    b.at(heave + 0.02, rec(rng, TIN, rng.uniform(-1, 3), 0.1), -15)
+    b.at(0.1, lever_creak(rng, 0.5), -14)
+    return finish(junction(b.x, rng))
+
+
 GLASS_BREAK = ["sfx_100_v2:glass_03", "sfx_100_v2:misc_26", "sfx_100_v2:misc_27"]
 
 

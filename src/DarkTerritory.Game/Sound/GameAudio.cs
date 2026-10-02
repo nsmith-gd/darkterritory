@@ -79,11 +79,15 @@ public sealed partial class GameAudio
         // The cord's own whistle, once it's installed, is the crew's (crew-cab-controls, GameAudio.Crew.cs).
         if (world.WhistleSeconds <= 0 || CordWhistles(world))
         {
-            _whistle?.Stop();
+            // A held whistle stops with the blowing; a recorded blast (a whole take, start to release) rings out.
+            if (Bank.Get("train-whistle") is { Loop: true })
+                _whistle?.Stop();
             _whistle = null;
             return;
         }
         var engine = train.Frames[0];
+        if (_whistle is { Finished: true })
+            _whistle = null;    // a recorded blast that's ended while the cord's still held: another
         _whistle ??= Mixer.Play("train-whistle", engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.6, -2)));
         if (_whistle is not null)
         {
@@ -338,7 +342,8 @@ public sealed partial class GameAudio
                     break;
                 case EnemyKind.SootChildren when ((SootChildren)e).Extra > 0.5:
                     // Calling for help (App. A.6): a real child and a Soot Child sound the same. The eyes are the tell.
-                    Loop(s, "child-call", at, occlusion);
+                    // Call after call, with a frightened wait for an answer between.
+                    Repeat(s, "child-call", at, occlusion, 1.6, 2.4);
                     break;
                 case EnemyKind.CarFire:
                     // Heard through the car's walls: the fire's crackle, more of it the further it's gone.

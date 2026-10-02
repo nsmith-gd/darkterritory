@@ -1,17 +1,19 @@
-// Tell (tier 1), the train's own steam whistle (GDD v1.1 App. C.9): a player on the cord, or the Whistler at a stop with
-// no hand on it (App. A.4: the whistle with nobody at the cord is the tell), 200-800 Hz. A three-chime steam whistle in
-// tune, with breath in it; looped while it's blown. It feeds the loudness meter either way (App. C.7).
+// The tell's kept takes from the audio checklist (tell-whistler/whistle), in place of its
+// synth definition (tools/audio/synth-defs/train-whistle.json), keeping its tier, range and level. Written by
+// tools/audio/install.py; edit the cue or that file, not this one.
 {
-  "tier": 1, "loop": true, "maxInstances": 1, "minDistance": 20, "maxDistance": 1500, "rolloff": 0.45, "gainDb": 2,
-  "layers": [
-    { "source": "saw", "frequency": 311, "gain": 0.45,
-      "filters": [{ "type": "lowPass", "frequency": 1400, "q": 0.8 }, { "type": "peak", "frequency": 620, "q": 2, "gainDb": 6 }],
-      "vibrato": { "rate": 0.7, "depth": 0.003 } },
-    { "source": "saw", "frequency": 392, "gain": 0.4,
-      "filters": [{ "type": "lowPass", "frequency": 1400, "q": 0.8 }],
-      "vibrato": { "rate": 0.9, "depth": 0.004 } },
-    { "source": "saw", "frequency": 466, "gain": 0.4,
-      "filters": [{ "type": "lowPass", "frequency": 1600, "q": 0.8 }] },
-    { "source": "noise", "gain": 0.15, "filters": [{ "type": "bandPass", "frequency": 700, "q": 1.2 }] }
-  ]
+ "tier": 1,
+ "loop": false,
+ "maxInstances": 1,
+ "minDistance": 20,
+ "maxDistance": 1500,
+ "rolloff": 0.45,
+ "gainDb": 5,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "tell-whistler/whistle",
+   "gain": 1
+  }
+ ]
 }

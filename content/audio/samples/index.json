@@ -7863,6 +7863,33 @@
   "takes": 2,
   "sha": "030c1ea9d4eede84"
  },
+ "cs-switchman/throw": {
+  "cue": "cs-switchman.throw",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Its long fingers closing round the lever and heaving it over: the knuckles, the lamp swinging on its arm, the glass",
+    "key": "grip",
+    "sources": [
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "kenney_rpg-audio:metalClick"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "e0bda002b55dc949"
+ },
  "cs-tippy/flee": {
   "cue": "cs-tippy.flee",
   "surface": null,
@@ -9943,6 +9970,21 @@
   ],
   "takes": 1,
   "sha": "34035a82e7524490"
+ },
+ "tell-soot-children/call": {
+  "cue": "tell-soot-children.call",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A young boy calling for help (synthesised stand-in)",
+    "key": "boy",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "60012b5a623a861b"
  },
  "tell-stoker/hiss-wrong": {
   "cue": "tell-stoker.hiss-wrong",
