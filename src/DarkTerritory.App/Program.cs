@@ -188,6 +188,8 @@ void ApplyDisplay()
 Console.WriteLine($"GPU: {gpu.DeviceName}, window {w}x{h}, internal {renderer.Width}x{renderer.Height}");
 
 var sound = new GameAudio(content);
+// The menus' sounds (ui-menus): flat, through the same mixer the speaker's fed from in the menus too.
+frontEnd.Cue = sound.Ui;
 using var speaker = args.Contains("--mute") ? null : AudioOut.Open(Audio.SampleRate, out var audioError) is { } s ? s : Warn(audioError);
 var audioBlock = new float[Audio.Block * 2];
 var micSamples = new float[4800];
@@ -285,6 +287,8 @@ Launch? Menu()
     var vrMenu = vr is null ? null : new VrPanel(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Menu);
     var vrKeys = new VrMenuInput();
     frontEnd.Headset = vr is not null;
+    // The title's sound under the front end, until a night starts (the main loop stops it).
+    sound.UiLoop(UiCue.Title, on: true);
     // Whatever's held coming in (the A that ended the night) isn't a press here.
     if (vr is not null)
         vrKeys.Read(vr.Session.Controllers);
@@ -417,12 +421,15 @@ Launch? Menu()
 while (!window.CloseRequested && !QuitNow())
 {
     launch ??= Menu();
+    sound.UiLoop(UiCue.Title, on: false);
     if (launch is null or Launch.Quit || launch is Launch.JoinLobby && steam is null)
         break;
     var (session, campaign) = Start(launch);
     var leaving = launch;
     launch = null;
     campaign = Play(session, campaign);
+    // Left: a hold's loop doesn't follow into the menus.
+    sound.InterfaceEnd();
     (session as IDisposable)?.Dispose();
     if (campaign is { Current: not null } unfinished)
         Console.WriteLine($"campaign: the night on {unfinished.Current.Route} isn't settled; its slot carries on from the last facility it left");
@@ -650,6 +657,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             sound.OwnIntent = intent;
             sound.Update(session.World, session.Controls, Listener.At(camera.Position, camera.Yaw), exposed, SimConstants.TickSeconds,
                 PlayerMotor.Space(ears, session.Train));
+            // Your own interface sounds (your hold, the night's end, the queue while dead), whoever you're watching.
+            sound.Interface(session.World, session.Player, session.PlayerId);
             if (voice is not null && net is not null)
                 voice.Update(net.Client, session.Crew(session.InterpolatedFrames(1), 1), SimConstants.TickSeconds);
         }

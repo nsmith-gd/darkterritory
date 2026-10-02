@@ -238,16 +238,10 @@ public static class Hud
         }
         if (world.Run?.Report is { } r)
         {
-            if (r.End == RunEnd.Delivered)
-            {
-                Big("DELIVERED", Green);
-                Small($"{r.CarsDelivered} CARS, {r.CarsLost} LOST. {r.Net:0} SCRIP. CREW HOME {r.CrewHome}", Ink);
-            }
-            else
-            {
-                Big("RUN LOST", Red);
-                Small(r.End switch { RunEnd.Derailed => "DERAILED", RunEnd.CrewLost => "THE WHOLE CREW IS DEAD", _ => "STILL OUT WHEN THE LINE WENT LIVE" }, Ink);
-            }
+            var lines = ReportLines(r);
+            Big(lines[0], r.End == RunEnd.Delivered ? Green : Red);
+            foreach (var l in lines.Skip(1))
+                Small(l, Ink);
         }
         if (!p.Alive)
         {
@@ -315,6 +309,14 @@ public static class Hud
                 Small("PRESSURE IN THE RED: VENT, OR LET THE FIRE BURN DOWN", flash ? Red : Amber);
         }
     }
+
+    /// <summary>
+    /// The night's result as the HUD shows it, the headline first, then its lines (as much of GDD App. D.12's incident
+    /// report as there is). The run-end sounds tally each line under the headline in (GameAudio.Interface).
+    /// </summary>
+    public static IReadOnlyList<string> ReportLines(RunReport r) => r.End == RunEnd.Delivered
+        ? ["DELIVERED", $"{r.CarsDelivered} CARS, {r.CarsLost} LOST. {r.Net:0} SCRIP. CREW HOME {r.CrewHome}"]
+        : ["RUN LOST", r.End switch { RunEnd.Derailed => "DERAILED", RunEnd.CrewLost => "THE WHOLE CREW IS DEAD", _ => "STILL OUT WHEN THE LINE WENT LIVE" }];
 
     /// <summary>The player's keys (T80), for the prompts: the app sets them from the settings.</summary>
     public static Settings Keys { get; set; } = new();

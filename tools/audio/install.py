@@ -183,6 +183,13 @@ SETS_LINES = {"voice-prisoner-sets"}
 VOICE_LINES = {"voice-prisoner-sets", "voice-callout"}
 
 
+# Cue -> layer extras: a curve on a param the game drives (GameAudio sets it on the playing instance).
+# ui-prompts.hold: the hold-to-interact loop hurries as the held action gets there (GameAudio.Ui.cs sets "progress", 0-1).
+LAYER_EXTRAS = {
+    "ui-prompts.hold": {"rate": {"param": "progress", "points": [[0, 1], [1, 1.4]]}},
+}
+
+
 def sound_def(item, cue, folder, line):
     tier, lo, hi, roll, g = AREA.get(item.get("area"), (4, 1, 40, 1.0, 2))
     if isinstance(item.get("tier"), int):
@@ -199,6 +206,7 @@ def sound_def(item, cue, folder, line):
          "layers": [{"source": "sample", "sample": folder, "gain": 1,
                      "pitchJitter": 0 if cue["kind"] == "loop" or flat else 0.4,
                      "gainJitter": 0 if cue["kind"] == "loop" or flat else 1.0}]}
+    d["layers"][0].update(LAYER_EXTRAS.get(f"{line}.{cue['id']}", {}))
     return d
 
 

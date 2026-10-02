@@ -1,6 +1,7 @@
 using System.Numerics;
 using Ballast.Online;
 using Ballast.Render;
+using DarkTerritory.Game.Sound;
 using DarkTerritory.Sim.Campaign;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
@@ -95,6 +96,12 @@ public sealed class FrontEnd
     /// <summary>Waiting for the key to bind this control to (T80): the app hands the next one pressed to <see cref="Bind"/>.</summary>
     public Control? Capturing { get; private set; }
 
+    /// <summary>
+    /// The menus' interface sounds as they're worked, by name (<see cref="UiCue"/>, the audio checklist's ui-menus): a move,
+    /// a choice, backing out, the demo's end card. The app hands them to <c>GameAudio.Ui</c>; tests listen. Null: silent.
+    /// </summary>
+    public Action<string>? Cue { get; set; }
+
     /// <summary>The key pressed for the control being bound (a key's name); Escape (<see cref="Back"/>) keeps the old one.</summary>
     public void Bind(string key)
     {
@@ -104,11 +111,14 @@ public sealed class FrontEnd
         if (Controls.Reserved.Contains(key))
         {
             Message = $"{Controls.KeyLabel(key)} is kept for the menus.";
+            // Not taken: the old key's kept, as if backed out of.
+            Cue?.Invoke(UiCue.Back);
             return;
         }
         var was = Enum.GetValues<Control>().FirstOrDefault(o => o != c && Settings.KeyFor(o) == key, c);
         Change(Settings.Bind(c, key));
         Message = was != c ? $"{Controls.Label(was)} moved to {Controls.KeyLabel(Settings.KeyFor(was))}." : null;
+        Cue?.Invoke(UiCue.Select);
     }
 
     /// <summary>The join screen wants typed text (the app turns text input on).</summary>
@@ -131,8 +141,12 @@ public sealed class FrontEnd
         {
             Capturing = null;
             Message = null;
+            Cue?.Invoke(UiCue.Back);
             return;
         }
+        // From the title there's nowhere to back out to.
+        if (Screen != Screen.Title)
+            Cue?.Invoke(UiCue.Back);
         Show(Screen switch
         {
             Screen.Upgrades => Screen.Fortress,
@@ -153,7 +167,11 @@ public sealed class FrontEnd
         if (!e.Item.Enabled)
             return null;
         Message = null;
-        return e.Select?.Invoke();
+        if (e.Select is null)
+            return null;
+        // Choosing BACK is backing out.
+        Cue?.Invoke(e.Back ? UiCue.Back : UiCue.Select);
+        return e.Select();
     }
 
     public void Type(string text)
@@ -186,6 +204,9 @@ public sealed class FrontEnd
     {
         Show(Screen.Title);
         Message = _edition.AfterNight is { Length: > 0 } after ? after : null;
+        // The demo's end card (T79): its wishlist line coming up.
+        if (Message is not null)
+            Cue?.Invoke(UiCue.EndCard);
     }
 
     /// <summary>Opens a slot at the fortress (after a night, with how it went).</summary>
@@ -206,6 +227,7 @@ public sealed class FrontEnd
         var entries = Entries();
         if (entries.Count == 0)
             return;
+        int was = Selected;
         // Over anything greyed out.
         for (int i = 0; i < entries.Count; i++)
         {
@@ -214,13 +236,20 @@ public sealed class FrontEnd
                 break;
         }
         Message = null;
+        if (Selected != was)
+            Cue?.Invoke(UiCue.Move);
     }
 
     void Adjust(int by)
     {
         var entries = Entries();
-        if (Selected < entries.Count)
-            entries[Selected].Adjust?.Invoke(by);
+        if (Selected >= entries.Count || entries[Selected].Adjust is not { } adjust)
+            return;
+        string was = entries[Selected].Item.Label;
+        adjust(by);
+        // A value stepped along (a tier, the seed, cars, a setting) sounds as a move, when it moved at all.
+        if (Items.ElementAtOrDefault(Selected)?.Label != was)
+            Cue?.Invoke(UiCue.Move);
     }
 
     void Change(Settings settings)
@@ -229,7 +258,8 @@ public sealed class FrontEnd
         settings.Save(_settingsPath);
     }
 
-    readonly record struct Entry(MenuItem Item, Func<Launch?>? Select = null, Action<int>? Adjust = null);
+    /// <param name="Back">A BACK item: choosing it sounds as backing out.</param>
+    readonly record struct Entry(MenuItem Item, Func<Launch?>? Select = null, Action<int>? Adjust = null, bool Back = false);
 
     List<Entry> Entries() => Screen switch
     {
@@ -241,7 +271,7 @@ public sealed class FrontEnd
             new(new("SETTINGS"), () => { Show(Screen.Settings); return null; }),
             new(new("QUIT"), () => new Launch.Quit()),
         ],
-        Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), new(new("BACK"), Go(Screen.Title))],
+        Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), BackTo(Screen.Title)],
         Screen.Fortress => FortressEntries(),
         Screen.Upgrades => UpgradeEntries(),
         Screen.QuickNight =>
@@ -255,13 +285,13 @@ public sealed class FrontEnd
             new(new("PLAY"), () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: false) { Bots = _bots }),
             new(new("HOST FOR FRIENDS", "They join by your address, or from your Steam lobby. Bots fill the crew until they do."),
                 () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: true) { Bots = _bots }),
-            new(new("BACK"), Go(Screen.Title)),
+            BackTo(Screen.Title),
         ],
         Screen.Join =>
         [
             new(new($"ADDRESS: {Address}_", "Type it; the host's port if it isn't the usual one (host:port)."), () => Address.Length > 0 ? new Launch.Join(Address) : null),
             new(new("JOIN", null, Address.Length > 0), () => new Launch.Join(Address)),
-            new(new("BACK"), Go(Screen.Title)),
+            BackTo(Screen.Title),
         ],
         Screen.Settings =>
         [
@@ -280,7 +310,7 @@ public sealed class FrontEnd
                 by => Change(Settings with { RenderScale = Settings.Cycle(Settings.RenderScales, Settings.RenderScale, by) })),
             new(new($"VSYNC: {(Settings.VSync ? "ON" : "OFF")}"), Toggle(s => s with { VSync = !s.VSync }), _ => Change(Settings with { VSync = !Settings.VSync })),
             new(new("CONTROLS", "Rebind the keys."), Go(Screen.Controls)),
-            new(new("BACK"), Go(Screen.Title)),
+            BackTo(Screen.Title),
         ],
         Screen.Controls =>
         [
@@ -288,7 +318,7 @@ public sealed class FrontEnd
                 new($"{Controls.Label(c)}: {(Capturing == c ? "PRESS A KEY" : Controls.KeyLabel(Settings.KeyFor(c)))}", "Enter, then the key. Esc keeps it."),
                 () => { Capturing = c; Message = null; return null; })),
             new(new("RESET TO DEFAULTS", null, Settings.Keys.Count > 0), () => { Change(Settings with { Keys = new() }); Message = "Keys reset."; return null; }),
-            new(new("BACK"), Go(Screen.Settings)),
+            BackTo(Screen.Settings),
         ],
         _ => [],
     };
@@ -296,6 +326,8 @@ public sealed class FrontEnd
     int MaxCars => _edition.MaxCars > 0 ? Math.Min(_edition.MaxCars, _campaign.MaxCars) : _campaign.MaxCars;
 
     Func<Launch?> Go(Screen screen) => () => { Show(screen); return null; };
+
+    Entry BackTo(Screen screen) => new(new("BACK"), Go(screen), Back: true);
 
     Func<Launch?> Toggle(Func<Settings, Settings> change) => () => { Change(change(Settings)); return null; };
 
@@ -320,7 +352,7 @@ public sealed class FrontEnd
     List<Entry> FortressEntries()
     {
         if (Open is not { } s)
-            return [new(new("BACK"), Go(Screen.Slots))];
+            return [BackTo(Screen.Slots)];
         var list = new List<Entry>();
         if (s.Current is { } tonight)
         {
@@ -346,14 +378,14 @@ public sealed class FrontEnd
             !full && s.Current is null), () => Buy(Campaign.BuyCar(_campaign, s), $"A car bought: {s.Cars + 1} now.")));
         list.Add(new(new("UPGRADES", null, s.Current is null), () => { Show(Screen.Upgrades); return null; }));
         list.Add(new(new($"PLAY: {(_host ? "HOST FOR FRIENDS" : "ALONE")}", "Left and right to change."), () => { _host = !_host; return null; }, _ => _host = !_host));
-        list.Add(new(new("BACK"), Go(Screen.Slots)));
+        list.Add(BackTo(Screen.Slots));
         return list;
     }
 
     List<Entry> UpgradeEntries()
     {
         if (Open is not { } s)
-            return [new(new("BACK"), Go(Screen.Fortress))];
+            return [BackTo(Screen.Fortress)];
         var list = new List<Entry>();
         foreach (var u in _campaign.Upgrades)
         {
@@ -364,7 +396,7 @@ public sealed class FrontEnd
             list.Add(new(new(owned ? $"{u.Name.ToUpperInvariant()}: OWNED" : $"{u.Name.ToUpperInvariant()}: {cost:0}", detail, !owned),
                 () => Buy(Campaign.BuyUpgrade(_campaign, s, u.Id), $"{u.Name} bought.")));
         }
-        list.Add(new(new("BACK"), Go(Screen.Fortress)));
+        list.Add(BackTo(Screen.Fortress));
         return list;
     }
 
