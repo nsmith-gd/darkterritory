@@ -684,6 +684,7 @@ public sealed partial class WorldArt
         BranchLand(mesh, p, eye, drawDistance);
         Signs(mesh, p, eye, drawDistance);
         Hazards(mesh, p, eye, drawDistance, time);
+        Banks(mesh, p, route, eye, drawDistance);
         Water(mesh, p, eye, drawDistance);
         FarLand(mesh, p, line, eye, centre, drawDistance);
         Places(mesh, p, eye, drawDistance);
@@ -691,6 +692,10 @@ public sealed partial class WorldArt
     }
 
     /// <summary>How deep the land falls under a generated line's bridge (its valley's, §12.3), for its piers; null on a hand-laid one.</summary>
+    /// <summary>What a generated line's plan built a bridge as (§12.3); null on a hand-laid one.</summary>
+    public static StructureType? SpanType(Route? route, RouteFeature bridge) =>
+        route?.Plan?.Structures.FirstOrDefault(s => s.Edge == "main" && Math.Abs(s.S0 - bridge.Start) < 0.5)?.Type;
+
     public static float? SpanDepth(Route? route, RouteFeature bridge) =>
         route?.Plan?.Structures.FirstOrDefault(s => s.Edge == "main" && Math.Abs(s.S0 - bridge.Start) < 0.5) is { HeightM: > 0 } st ? (float)Math.Round(st.HeightM) : null;
 
@@ -846,6 +851,197 @@ public sealed partial class WorldArt
                 Washout(mesh, line, st, eye);
             else
                 Brass(mesh, line, st, eye, time);
+        }
+    }
+
+    // ------------------------------------------------------------------ causeways and retaining walls
+
+    /// <summary>
+    /// What holds the line up where the land won't (§12.3): a causeway across a marsh, the bed raised on a bank of stone
+    /// pitched down either side into the standing water, a row of old timber piles along its toe where the bank was
+    /// first held, rubble slumped off it here and there; and a retaining wall on a ledge, a battered masonry face holding
+    /// the up side's cut back off the track, buttressed every ten metres, coped, its weep holes stained where the water
+    /// comes through. Laid along the line itself, so they follow its curves.
+    /// </summary>
+    void Banks(MeshBuilder mesh, PlanScene p, Route route, Double3 eye, float drawDistance)
+    {
+        Kit? k = null;
+        foreach (var st in p.Plan.Structures)
+        {
+            if (st.Type is not (StructureType.Causeway or StructureType.RetainingWall))
+                continue;
+            var line = p.EdgeLine(st.Edge);
+            double from = Math.Max(st.S0, 0), to = Math.Min(st.S1, line.Length);
+            double hint = (from + to) / 2;
+            double near = Math.Clamp(line.Nearest(eye, ref hint).Distance, from, to);
+            if ((line.Sample(near).Position - eye).Length > drawDistance)
+                continue;
+            k ??= new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
+            double a = Math.Max(from, near - drawDistance), b = Math.Min(to, near + drawDistance);
+            if (st.Type == StructureType.Causeway)
+            {
+                // The marsh's standing water over the same stretch (§12.4); the bank's height under the bed without.
+                double water = p.Plan.Water.FirstOrDefault(w => w.Edge == st.Edge && w.S0 <= st.S1 && w.S1 >= st.S0 && w.Type.EndsWith("arsh", StringComparison.OrdinalIgnoreCase))?.LevelM
+                    ?? line.Sample(near).Position.Y - Math.Max(1, st.HeightM);
+                Causeway(k, line, route, st.Edge == "main", a, b, water, eye);
+            }
+            else
+                RetainingWall(k, line, st, a, b, eye);
+        }
+    }
+
+    static Vector3 F(Double3 d) => new((float)d.X, (float)d.Y, (float)d.Z);
+
+    // The causeway's bank, along: a stretch at a time.
+    const double BankStep = 5;
+    // (WorldArt's ground laterals from the bed's shoulder out: the pitching lies on the same facets the land's mesh has.)
+    static readonly double[] BankStations = [2.35, 2.95, 3.7, 5.5, 8, 12, 17, 24, 33];
+
+    void Causeway(Kit k, RailLine line, Route route, bool main, double from, double to, double water, Double3 eye)
+    {
+        for (double s = Math.Floor(from / BankStep) * BankStep; s < to; s += BankStep)
+        {
+            double s0 = Math.Max(s, from), s1 = Math.Min(s + BankStep, to);
+            if (s1 - s0 < 0.05)
+                continue;
+            var t0 = line.Sample(s0);
+            var t1 = line.Sample(s1);
+            var r0 = Double3.Cross(t0.Tangent, Double3.Up).Normalized;
+            var r1 = Double3.Cross(t1.Tangent, Double3.Up).Normalized;
+            foreach (int side in new[] { -1, 1 })
+            {
+                Vector3 At(TrackSample t, Double3 r, double lateral, double y) => (t.Position with { Y = y } + r * (side * lateral)).RelativeTo(eye);
+                // The bank as the land's mesh has it (WorldArt.Ground at its own laterals, straight between; a branch's
+                // from the sim's ground): where it meets the water, interpolated between the stations either side of it.
+                double Land(TrackSample t, double along, double lateral) => main
+                    ? t.Position.Y + Ground(route, along, (float)(side * lateral), 0)
+                    : line.Conditions is { } c ? c.Ground(t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * (side * lateral)) : t.Position.Y;
+                double Edge(TrackSample t, double along)
+                {
+                    double la = BankStations[0], ga = Land(t, along, la);
+                    foreach (double lb in BankStations.AsSpan(1))
+                    {
+                        double gb = Land(t, along, lb);
+                        if (gb <= water)
+                            return ga <= water ? la : la + (lb - la) * (ga - water) / (ga - gb);
+                        (la, ga) = (lb, gb);
+                    }
+                    return la;
+                }
+                // The pitching: big set stones down the slope, laid on it (the land's stations, so on it and not under
+                // it), from the shoulder to the station past the waterline.
+                // (Dark with the wet and the marsh's slime, more so toward the water.)
+                k.Use("stone_block", Palette.Charcoal, 0.85f, 0.3f, tile: 0.9f);
+                k.Tint = new Vector3(0.55f, 0.56f, 0.5f);
+                double reach = Math.Max(Edge(t0, s0), Edge(t1, s1));
+                for (int i = 0; i + 1 < BankStations.Length && BankStations[i] < reach; i++)
+                {
+                    double la = BankStations[i], lb = BankStations[i + 1];
+                    Vector3 Laid(TrackSample t, Double3 r, double along, double l) => At(t, r, l, Math.Max(Land(t, along, l), water - 0.4) + 0.04);
+                    var q0 = Laid(t0, r0, s0, la);
+                    var q1 = Laid(t0, r0, s0, lb);
+                    var q2 = Laid(t1, r1, s1, lb);
+                    var q3 = Laid(t1, r1, s1, la);
+                    float u0 = (float)s0, u1 = (float)s1;
+                    k.Quad(q0, q1, q2, q3, new(u0, (float)la), new(u0, (float)lb), new(u1, (float)lb), new(u1, (float)la), twoSided: true);
+                }
+                k.Tint = Vector3.One;
+                // The toe's timber piles, a row of old black stumps standing out of the water, leaning as they've gone.
+                k.Use("wood_sleeper", Palette.DeepBrown, 0.95f, 0, tile: 1);
+                for (double ps = s0 - s0 % 1.4 + 1.4; ps < s1; ps += 1.4)
+                {
+                    uint h = (uint)((int)(ps * 7.1) * 2654435761u ^ (uint)(side + 3) * 40503u);
+                    if (h % 5 == 0)
+                        continue;
+                    var tp = line.Sample(ps);
+                    var rp = Double3.Cross(tp.Tangent, Double3.Up).Normalized;
+                    double lean = ((h >> 6) % 7 - 3) * 0.05, tall = 0.25 + (h >> 9) % 4 * 0.12;
+                    double edge = Edge(tp, ps) + 0.5;
+                    var low = At(tp, rp, edge, water - 0.8);
+                    var high = At(tp, rp, edge + lean, water + tall);
+                    k.Rod(low, high, 0.09f + (h >> 12) % 3 * 0.015f, 6);
+                }
+                // Rubble slumped off the bank into the water.
+                k.Use("stone_block", Palette.Charcoal, 0.85f, 0.1f, tile: 0.8f);
+                uint g = (uint)((int)s0 * 2246822519u ^ (uint)(side + 5) * 3266489917u);
+                if (g % 3 == 0)
+                {
+                    var tp = line.Sample((s0 + s1) / 2);
+                    var rp = Double3.Cross(tp.Tangent, Double3.Up).Normalized;
+                    var c = At(tp, rp, Edge(tp, (s0 + s1) / 2) + 0.9 + (g >> 5) % 3 * 0.4, water - 0.15);
+                    float rad = 0.3f + (g >> 8) % 4 * 0.12f;
+                    k.Box(c - new Vector3(rad, rad * 0.7f, rad * 0.8f), c + new Vector3(rad, rad * 0.5f, rad * 0.8f));
+                }
+            }
+        }
+    }
+
+    void RetainingWall(Kit k, RailLine line, PlanStructure st, double from, double to, Double3 eye)
+    {
+        int side = st.Side == 0 ? 1 : st.Side;
+        double high = Math.Max(1.5, st.HeightM);
+        const double face = 3.4, batter = 0.12, step = 5;
+        for (double s = Math.Floor(from / step) * step; s < to; s += step)
+        {
+            double s0 = Math.Max(s, from), s1 = Math.Min(s + step, to);
+            if (s1 - s0 < 0.05)
+                continue;
+            var t0 = line.Sample(s0);
+            var t1 = line.Sample(s1);
+            var r0 = Double3.Cross(t0.Tangent, Double3.Up).Normalized;
+            var r1 = Double3.Cross(t1.Tangent, Double3.Up).Normalized;
+            Vector3 At(TrackSample t, Double3 r, double lateral, double up) => (t.Position + r * (side * lateral) + Double3.Up * up).RelativeTo(eye);
+            k.Use("stone_block", Palette.Charcoal, 0.75f, 0.1f, tile: 2.2f);
+            // The face, leaning back into the hill as it rises; from a little below the formation up to its coping.
+            var a0 = At(t0, r0, face, -0.6);
+            var a1 = At(t1, r1, face, -0.6);
+            var b0 = At(t0, r0, face + high * batter, high);
+            var b1 = At(t1, r1, face + high * batter, high);
+            float u0 = (float)s0, u1 = (float)s1, h = (float)(high + 0.6);
+            if (side > 0)
+                k.Quad(a1, b1, b0, a0, new(u1, h), new(u1, 0), new(u0, 0), new(u0, h));
+            else
+                k.Quad(a0, b0, b1, a1, new(u0, h), new(u0, 0), new(u1, 0), new(u1, h));
+            // The coping: a course of dressed stone along its top, proud of the face.
+            k.Shade(1.15f);
+            var c0 = At(t0, r0, face + high * batter - 0.12, high);
+            var c1 = At(t1, r1, face + high * batter - 0.12, high);
+            var d0 = At(t0, r0, face + high * batter + 0.5, high + 0.3);
+            var d1 = At(t1, r1, face + high * batter + 0.5, high + 0.3);
+            var e0 = At(t0, r0, face + high * batter - 0.12, high + 0.3);
+            var e1 = At(t1, r1, face + high * batter - 0.12, high + 0.3);
+            if (side > 0)
+            {
+                k.Quad(c1, e1, e0, c0);
+                k.Quad(e1, d1, d0, e0);
+            }
+            else
+            {
+                k.Quad(c0, e0, e1, c1);
+                k.Quad(e0, d0, d1, e1);
+            }
+            k.Shade(1 / 1.15f);
+            // A buttress every ten metres, stepped back up the face.
+            if (Math.Abs(s0 % 10) < 0.01)
+            {
+                var foot = At(t0, r0, face - 0.55, -0.6);
+                var top = At(t0, r0, face + high * batter * 0.6 - 0.1, high * 0.75);
+                k.Rod(foot, top, 0.42f);
+            }
+            // Its weep holes, a row of dark slots low on the face, the stone stained down from each.
+            k.Use("paint_black", Palette.SootBlack, 0.9f, 0, tile: 1);
+            for (double ws = s0 - s0 % 2.5 + 1.25; ws < s1; ws += 2.5)
+            {
+                var tw = line.Sample(ws);
+                var rw = Double3.Cross(tw.Tangent, Double3.Up).Normalized;
+                var w = At(tw, rw, face + 0.6 * batter - 0.02, 0.6);
+                var along = F(tw.Tangent) * 0.08f;
+                var up = Vector3.UnitY * 0.06f;
+                if (side > 0)
+                    k.Quad(w - along + up, w + along + up, w + along - up, w - along - up);
+                else
+                    k.Quad(w + along + up, w - along + up, w - along - up, w + along - up);
+            }
         }
     }
 

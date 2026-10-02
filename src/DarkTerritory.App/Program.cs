@@ -545,6 +545,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Vehicles = session.Train.Vehicles,
         Bodies = session.World.Bodies.All,
         Diverging = session.Train.Diverging,
+        // Only where this machine runs the catch (solo): a client's world has no word of it (Lineside.Caught is the host's).
+        DropCaught = session is PrototypeSession && session.World.Lineside is { } lineside ? lineside.Caught : null,
         Stands = session.World.Switches,
     };
     double last = timer.Elapsed.TotalSeconds, titleAt = 0;
@@ -781,11 +783,14 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         {
             lighting.FogDensity = (float)r.Weather.FogDensity;
             lighting.Wetness = r.Weather.Wet ? 1 : 0;
+            lighting.Frost = look?.Tuning.Atmosphere.Cold.Frost(r.Weather.Cold) ?? 0;
         }
         if (session.StrandedOutro)
             Views.CinematicFog(ref lighting, Views.StrandedDistance(session.Train, session.World.WreckTuning.Stranded, session.OutroSeconds));
         scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
         scene.WrenchRacked = !session.Train.Boiler.WrenchOut;
+        scene.CordPulled = DarkTerritory.Game.Art.CrewActs.CrewWhistling(session.World);
+        scene.Cut = DarkTerritory.Game.Art.SceneArt.Cuts(session.Train);
         scene.Wreck = session.Train.Wreck;
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
         scene.Tick = session.Tick;

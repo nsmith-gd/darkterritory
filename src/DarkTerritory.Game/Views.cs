@@ -31,6 +31,10 @@ public static class Views
             "door" => DoorCamera(train, car),
             // On the ballast beside the gap behind this car, looking in under the plate (what checks a gap: the Whistler's).
             "gapside" => GapSideCamera(train, car),
+            // From the left of the middle car's gap (the staged Whistler's), out along its trail to the nest (--whistler nest).
+            "trail" => TrailCamera(train),
+            // Close on the nest at the trail's end, the Whistler crouched over its catch.
+            "nest" => NestCamera(train),
             // Off the second car's left, over the shoulder of crewmate 4 (Staging.Lone) at the Ribbit pack beyond them.
             "pack" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 0.4), 2.1, 1.2)),
                 train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 5.2), 0.4, -1.6)), 55),
@@ -79,6 +83,13 @@ public static class Views
             "switchman" => Camera.LookAt(engine.ToWorld(new Double3(1.6, 1.8, -engineHalf - 50.5)), engine.ToWorld(new Double3(3.8, 1.1, -engineHalf - 55)), 50),
             "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
             "gap" => GapCamera(train, car),
+            // (Not one of Names.) Low off the side behind the engine's half of a cut train (dt screenshot --cut n), at the
+            // coupler that was let go: its knuckle swung open, its hose hanging parted (T91).
+            "cut" => CutCamera(train),
+            // (Not one of Names.) In this car's aisle, looking across and along its load side: a livestock car's pen and its
+            // sheep (dt screenshot --cargo livestock), or whatever cases its cargo comes in.
+            "pen" => Camera.LookAt(target.ToWorld(new Double3(-0.9, Floor(train) + 1.45, -target.Shape.HalfLength + 4.6)),
+                target.ToWorld(new Double3(0.9, Floor(train) + 0.45, -target.Shape.HalfLength + 2.2)), 70),
             // From over the car behind, down at a cargo car's roof hatch (T99): its lid, shut, or open down the side.
             "hatch" => Camera.LookAt(target.ToWorld(new Double3(4.2, roof + 2.2, 9.5)), target.ToWorld(new Double3(0.6, roof - 1.4, 3.2)), 70),
             // Over the last car's roof, looking back at its gun on its rail (T93).
@@ -174,6 +185,20 @@ public static class Views
         return Camera.LookAt(at.ToWorld(new Double3(w + 2.6, 1.7, z + 0.6)), at.ToWorld(new Double3(0, 1.0, z)), 55);
     }
 
+    static Camera TrailCamera(TrainOnLine train)
+    {
+        var at = train.Frames[Math.Max(0, (train.Frames.Count - 1) / 2)];
+        double z = at.Shape.HalfLength + train.Dynamics.Tuning.Geometry.CouplingGap / 2, w = at.Shape.HalfWidth;
+        return Camera.LookAt(at.ToWorld(new Double3(-w - 0.6, 3.4, z - 6)), at.ToWorld(new Double3(-Staging.NestOut, 0.3, z)), 50);
+    }
+
+    static Camera NestCamera(TrainOnLine train)
+    {
+        var at = train.Frames[Math.Max(0, (train.Frames.Count - 1) / 2)];
+        double z = at.Shape.HalfLength + train.Dynamics.Tuning.Geometry.CouplingGap / 2;
+        return Camera.LookAt(at.ToWorld(new Double3(-Staging.NestOut + 4.2, 2.4, z - 3.4)), at.ToWorld(new Double3(-Staging.NestOut, 0.0, z)), 55);
+    }
+
     static double Floor(TrainOnLine train) => train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 1.1;
 
     static Camera DoorCamera(TrainOnLine train, int car)
@@ -205,6 +230,14 @@ public static class Views
         var f = train.Frames[v];
         double floor = Floor(train), l = f.Shape.HalfLength;
         return Camera.LookAt(f.ToWorld(new Double3(-0.2, floor + 1.55, l - 0.5)), f.ToWorld(new Double3(0.2, floor + 0.2, l - 2.6)), 75);
+    }
+
+    static Camera CutCamera(TrainOnLine train)
+    {
+        var rake = train.Rakes.FirstOrDefault(r => r.Consist.HasEngine) ?? train.Rakes[0];
+        var f = train.Frames[rake.Consist.Vehicles[^1].Id];
+        double l = f.Shape.HalfLength;
+        return Camera.LookAt(f.ToWorld(new Double3(0.9, 1.35, l + 1.5)), f.ToWorld(new Double3(0.05, 0.9, l + 0.45)), 45);
     }
 
     static Camera KitCamera(TrainOnLine train)

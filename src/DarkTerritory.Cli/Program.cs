@@ -743,6 +743,20 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     int junction = (int)Opt(args, "--junction", -1);
     if (junction >= 0 && junction < line.Branches.Count)
         at = line.Branches[junction].Toe - (args.Contains("--through") ? 10 : 25);
+    // --mail [s]: at the night's first mail crane, car 2's side door by it; s > 0, the bag caught s seconds ago (its snatch
+    // and the arms falling).
+    Drop? mail = args.Contains("--mail") && generated is not null ? DarkTerritory.Sim.Route.Lineside.Drops(DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)), generated).FirstOrDefault() : null;
+    if (mail is not null)
+        at = mail.At + t.Geometry.EngineLength + t.Geometry.CarLength * 1.5 + t.Geometry.CouplingGap * 2;
+    // --structure type: the night's first of the plan's structures of that type on the main line (a girder, truss, trestle
+    // or viaduct bridge, a causeway, a retaining wall...), the train on it, seen from off its side.
+    var structure = Str(args, "--structure", "") is { Length: > 0 } kind && generated?.Plan is { } structurePlan
+        ? structurePlan.Structures.FirstOrDefault(x => x.Edge == "main" && x.Type == Enum.Parse<DarkTerritory.Sim.LineGen.StructureType>(kind, true))
+        : null;
+    if (Str(args, "--structure", "") is { Length: > 0 } && structure is null)
+        return Print(new { error = $"no {Str(args, "--structure", "")} on {Str(args, "--route", "")}'s main line", has = generated?.Plan?.Structures.Where(x => x.Edge == "main").Select(x => x.Type.ToString()).Distinct() });
+    if (structure is not null)
+        at = (structure.S0 + structure.S1) / 2 + t.Geometry.EngineLength + t.Geometry.CarLength;
     var train = new TrainOnLine(new TrainDynamics(consist), line, at);
     if (site is { Spur: >= 0 })
     {
@@ -792,6 +806,34 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             return t.Position + right * p[1] + Double3.Up * p[2];
         }
         camera = Camera.LookAt(At(cam), At(Str(args, "--target", cam)), (float)Opt(args, "--fov", 65));
+    }
+    if (structure is not null && Str(args, "--cam", "") is not { Length: > 0 } && !args.Contains("--view"))
+    {
+        // A bridge from down in its valley, a third of the way along, up at the span and the train on it; anything else
+        // from a little above, off the side it's built on (a wall's, or the left).
+        var c = line.Sample((structure.S0 + structure.S1) / 2);
+        var near = line.Sample(structure.S0 + (structure.S1 - structure.S0) * 0.35);
+        var right = Double3.Cross(c.Tangent, Double3.Up).Normalized;
+        bool span = structure.Type is DarkTerritory.Sim.LineGen.StructureType.Girder or DarkTerritory.Sim.LineGen.StructureType.Truss
+            or DarkTerritory.Sim.LineGen.StructureType.Trestle or DarkTerritory.Sim.LineGen.StructureType.Viaduct;
+        if (span)
+        {
+            double drop = Math.Max(4, structure.HeightM * 0.55);
+            camera = Camera.LookAt(near.Position + right * (18 + structure.HeightM * 0.8) - Double3.Up * drop, c.Position - Double3.Up * (drop * 0.4), 62);
+        }
+        else
+        {
+            int side = structure.Side == 0 ? -1 : -structure.Side;
+            var ahead = line.Sample(structure.S0 + (structure.S1 - structure.S0) * 0.35 - 30);
+            camera = Camera.LookAt(near.Position + right * (side * 11) + Double3.Up * 2.5, ahead.Position + right * (-side * 3) - Double3.Up * 0.5, 62);
+        }
+    }
+    if (mail is not null && Str(args, "--cam", "") is not { Length: > 0 } && !args.Contains("--view"))
+    {
+        // Out beyond the crane on its side, a little up the line, looking back across it at the train's side door.
+        var c = line.Sample(mail.At);
+        var right = Double3.Cross(c.Tangent, Double3.Up).Normalized * mail.Side;
+        camera = Camera.LookAt(c.Position + right * 6.2 + c.Tangent * 3.2 + Double3.Up * 2.2, c.Position + right * 2.35 + Double3.Up * 2.2, 55);
     }
     if (junction >= 0 && junction < line.Branches.Count && Str(args, "--cam", "") is not { Length: > 0 } && !args.Contains("--view"))
     {
@@ -878,11 +920,22 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     // --lit: every Holdout on the route occupied, its lamp burning (GDD App. D.7), as if the dead were waiting at each.
     DarkTerritory.Sim.Run.Holdouts? holdouts = null;
-    if (args.Contains("--lit") && generated is not null)
+    // --freed: every Holdout broken open and its occupant out (D.7, D.8): the door swung wide, the lock smashed off (or, every
+    // other one, picked with the repair kit), the barricade pried down. --holdout n: the camera before the nth one's door.
+    if ((args.Contains("--lit") || args.Contains("--freed")) && generated is not null)
     {
         holdouts = new DarkTerritory.Sim.Run.Holdouts(DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)), generated, line);
+        bool freed = args.Contains("--freed");
         foreach (var h in holdouts.All)
-            holdouts.Mirror(h.Index, DarkTerritory.Sim.Run.HoldoutState.Occupied, 1, 0);
+            holdouts.Mirror(h.Index, freed ? DarkTerritory.Sim.Run.HoldoutState.Freed : DarkTerritory.Sim.Run.HoldoutState.Occupied, 1, 0, quiet: freed && h.Index % 2 == 1);
+        if (Opt(args, "--holdout", -1) is var hi and >= 0 && hi < holdouts.All.Count)
+        {
+            var h = holdouts.All[(int)hi];
+            var outward = (h.Door - h.Inside) with { Y = 0 };
+            outward = outward.Length > 0.1 ? outward.Normalized : Double3.Cross(Double3.Up, line.Sample(h.LineHint).Tangent);
+            var across = Double3.Cross(Double3.Up, outward);
+            camera = Camera.LookAt(h.Door + outward * 4.2 + across * 3.6 + Double3.Up * 2.0, h.Door + Double3.Up * 1.2, 60);
+        }
     }
     // --gun-laid yaw,pitch (degrees): every gun turned and elevated so, as a seated gunner lays it (T112).
     if (Str(args, "--gun-laid", "") is { Length: > 0 } laid)
@@ -913,15 +966,25 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Route = route,
         Run = run,
         Holdouts = holdouts,
+        DropCaught = mail is not null ? id => id == mail.Id && Opt(args, "--mail", 0) > 0 : null,
+        StagedCatch = Opt(args, "--mail", 0),
+        StagedCold = args.Contains("--cold") ? Opt(args, "--cold", 0) : null,
+        // --burnt car,s: that car gutted by a fire that went out s seconds ago (its char, its smoulder).
+        StagedBurnt = Str(args, "--burnt", "") is { Length: > 0 } burnt && burnt.Split(',') is var bp
+            ? (int.Parse(bp[0]), bp.Length > 1 ? double.Parse(bp[1]) : 30) : null,
         Time = 0.37,
-        Enemies = args.Contains("--threats") ? Later(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", "")), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--later", 0)) : null,
+        Enemies = args.Contains("--threats") ? Later(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", "")), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--later", 0)) : null,
         StagedPaces = args.Contains("--passenger") ? new Dictionary<int, float> { [48] = Staging.PassengerPace(Str(args, "--passenger", "")) } : null,
         // --stocked: the train as it leaves, its stores and every car's extinguisher aboard (--charge 0..1: theirs).
         Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All
             : args.Contains("--stocked") ? Staging.Stocked(train, content, Opt(args, "--charge", 1)).All : cargo,
         // --crew: three on car 2's roof, one reaching up, one holding out both hands, one with a keyboard (T47's arms).
         // --working: the crew at work (X1): carrying, at a hatch and a brake wheel on car 2's roof, sat at the last gun.
-        Crew = args.Contains("--working") ? Staging.Working(train, content)
+        // --act smash,pry,pick,...: a row of the crew down car 2's roof, each at one of those acts (CrewPose names).
+        // (--survivor prisoner|wildlander: all of them freed survivors' figures, App. D.8.)
+        Crew = args.Contains("--act") ? Staging.Acts(train, content, Str(args, "--act", "").Split(','),
+                Enum.Parse<DarkTerritory.Game.Art.Survivor>(Str(args, "--survivor", "none"), ignoreCase: true))
+            : args.Contains("--working") ? Staging.Working(train, content)
             : args.Contains("--crew") ? [.. Staging.Crew(train, content), .. args.Contains("--ribbits") || args.Contains("--gaunt") || args.Contains("--grumbler") || args.Contains("--follower") || args.Contains("--soot") ? [Staging.Lone(train)] : Array.Empty<Crewmate>()]
             : Str(args, "--passenger", "") == "drag" ? [Staging.Dragged(train)] : null,
         Emergency = args.Contains("--emergency"),
@@ -971,6 +1034,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         lighting.FogDensity = (float)route.Weather.FogDensity;
         lighting.Wetness = route.Weather.Wet ? 1 : 0;
     }
+    // --cold c: a night that cold (0..1, the route weather's): its frost here, its breath in the scene (GreyboxScene.Cold).
+    lighting.Frost = look?.Tuning.Atmosphere.Cold.Frost(scene.Cold) ?? 0;
     // --fog d: a thinner (or thicker) night than the route's, to look the lie of the land over.
     if (args.Contains("--fog"))
         lighting.FogDensity = (float)Opt(args, "--fog", lighting.FogDensity);
@@ -1248,6 +1313,7 @@ static object HudShot(string content, string[] args)
     {
         lighting.FogDensity = (float)r.Weather.FogDensity;
         lighting.Wetness = r.Weather.Wet ? 1 : 0;
+        lighting.Frost = look?.Tuning.Atmosphere.Cold.Frost(r.Weather.Cold) ?? 0;
     }
     var hud = new Overlay();
     Hud.Build(hud, width, height, session);
@@ -1387,6 +1453,10 @@ static int Usage()
                      [--lit]      every Holdout occupied, its lamp burning (GDD App. D)
                      [--ps2]      the era comparison mode   [--muzzle] the guns just fired   [--builds n] time n warm builds
                      [--integrity a,b,..] each car's condition, front to back (scars and damage states)
+                     [--cold c]   a night that cold (0..1): frost on what's outdoors, breath from every mouth
+                     [--burnt car,s]   that car gutted by a fire out s seconds ago: charred, smouldering
+                     [--route tier:seed --structure girder|truss|trestle|viaduct|causeway|retainingwall]   the night's first of the plan's structures of that type, the train on it, from off its side
+                     [--route tier:seed --mail s]   at the night's first mail crane, car 2's door by it; s > 0: the bag caught s seconds ago (its snatch, the arms falling)
                      [--route tier:seed --site [--crank | --crane | --facility i]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --facility: the route's i-th
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)

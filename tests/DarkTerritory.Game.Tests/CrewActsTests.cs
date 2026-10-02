@@ -32,13 +32,8 @@ public class CrewActsTests
         Assert.NotNull(crew);
         foreach (var pose in Enum.GetValues<CrewPose>())
         {
-            string clip = pose switch
-            {
-                CrewPose.Crouch => "crouch_idle",
-                CrewPose.CarryWalk => "carry_walk",
-                CrewPose.LanternWalk => "lantern_walk",
-                _ => pose.ToString().ToLowerInvariant(),
-            };
+            string clip = CreatureArt.ClipOf(pose);
+            Assert.True(pose == CrewPose.Idle || clip != "idle", $"{pose} has no clip of its own");
             Assert.True(crew!.Clip(clip) is not null, $"{pose}: the crew has no '{clip}' clip");
         }
     }
@@ -79,6 +74,39 @@ public class CrewActsTests
         var friend = s with { Position = s.Position + new Double3(0.8, 0, 0), Flags = PlayerFlags.Held };
         Assert.Equal(CrewPose.Haul, CrewActs.Of(s, 1, w, [s, friend]));
         Assert.Null(CrewActs.Of(s, 1, w, [s, friend with { Position = s.Position + new Double3(4, 0, 0) }]));
+    }
+
+    [Fact]
+    public void AtTheControlsTheHandsAreOnTheLeversAndTheCordOnlyForTheRealWhistle()
+    {
+        // GDD §12: the whistle with no hand on it is the Whistler's tell (App. A.4), so the real one is seen pulled.
+        var w = World();
+        var levers = w.Train.Frames[0].Shape.Levers!.Value;
+        var s = PlayerMotor.SpawnInCab(w.Train, P) with { Position = levers.Regulator with { X = levers.Regulator.X + 0.2, Y = 0, Z = levers.Regulator.Z + 0.5 } };
+        s.Position = s.Position with { Y = PlayerMotor.SpawnInCab(w.Train, P).Position.Y };
+        Assert.Equal(CrewPose.Drive, CrewActs.Of(s, 1, w));
+        var c = CrewActs.Crewmate(1, s, w, w.Train.Frames);
+        Assert.NotNull(c.Reach);
+        // Each hand within an arm's reach of the shoulders: the levers are where they stand.
+        foreach (var hand in new[] { c.Reach!.Value.A, c.Reach.Value.B })
+            Assert.InRange((hand - new Double3(0, 1.45, 0)).Length, 0.1, 0.9);
+        w.Whistled(1);
+        Assert.Equal(CrewPose.Whistle, CrewActs.Of(s, 1, w));
+        Assert.True(CrewActs.CrewWhistling(w));
+    }
+
+    [Fact]
+    public void AFriendOverTheEdgeIsHauledUpAndALampHangsFromTheFist()
+    {
+        var w = World();
+        var s = PlayerMotor.SpawnOnRoof(w.Train, 2, 0, P);
+        var below = s with { Position = s.Position + new Double3(0.9, -0.8, 0), Flags = PlayerFlags.Held };
+        Assert.Equal(CrewPose.HaulUp, CrewActs.Of(s, 1, w, [s, below]));
+        var lamp = w.Bodies.SpawnCrate(w.Train, 2, new Double3(0, w.Train.Frames[2].Shape.RoofHeight, 0), Sim.Physics.BodyKind.Lamp);
+        lamp.Carrier = 1;
+        Assert.True(CrewActs.Crewmate(1, s, w, w.Train.Frames).Lamp);
+        lamp.Carrier = -1;
+        Assert.False(CrewActs.Crewmate(1, s, w, w.Train.Frames).Lamp);
     }
 
     [Fact]
