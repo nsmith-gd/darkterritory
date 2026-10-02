@@ -452,7 +452,7 @@ CUES = {
           cand={"_": [old("audio/cs-track-doll--tamper.mp3")]}),
         O("vanish", "Vanishing when approached", vars=2, cand={"_": [old("audio/cs-track-doll--vanish.mp3")]}),
         O("crack", "Porcelain cracking when cornered and clubbed", vars=3, cand={"_": [old("audio/cs-track-doll--cornered.mp3")]}),
-        O("take-toy", "A toy taken"),
+        O("take-toy", "A toy taken", vars=2),
     ],
     "cs-car-hugger": [
         O("swallow", "The swallow closing round a player", vars=2, cand={"_": [old("audio/cs-car-hugger--swallow.mp3")]}),
