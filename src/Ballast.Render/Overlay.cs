@@ -74,6 +74,52 @@ public sealed class Overlay
         Vertices.Add(new OverlayVertex(d, outer));
     }
 
+    /// <summary>
+    /// A picture (RGBA8, display values like the frame's) in the rectangle, as flat cells: the overlay has no textures, so
+    /// the image is averaged down to <paramref name="cols"/> × <paramref name="rows"/> cells, each colour rounded to
+    /// <paramref name="levels"/> steps a channel, and each row's runs of one colour drawn as one quad. A night scene is
+    /// mostly dark runs, so a thumbnail costs far fewer quads than it has cells.
+    /// </summary>
+    public void Image(float x, float y, float w, float h, ReadOnlySpan<byte> rgba, int width, int height, int cols, int rows, int levels = 32)
+    {
+        if (cols <= 0 || rows <= 0 || width <= 0 || height <= 0 || levels < 2 || rgba.Length < width * height * 4)
+            return;
+        float cw = w / cols, ch = h / rows, step = 255f / (levels - 1);
+        for (int r = 0; r < rows; r++)
+        {
+            int y0 = r * height / rows, y1 = Math.Max(y0 + 1, (r + 1) * height / rows);
+            int runFrom = 0;
+            Vector4 run = default;
+            for (int c = 0; c <= cols; c++)
+            {
+                Vector4 colour = default;
+                if (c < cols)
+                {
+                    int x0 = c * width / cols, x1 = Math.Max(x0 + 1, (c + 1) * width / cols);
+                    float sr = 0, sg = 0, sb = 0;
+                    for (int py = y0; py < y1; py++)
+                        for (int px = x0; px < x1; px++)
+                        {
+                            int i = (py * width + px) * 4;
+                            sr += rgba[i];
+                            sg += rgba[i + 1];
+                            sb += rgba[i + 2];
+                        }
+                    float n = (y1 - y0) * (x1 - x0);
+                    colour = new Vector4(MathF.Round(sr / n / step) * step / 255, MathF.Round(sg / n / step) * step / 255, MathF.Round(sb / n / step) * step / 255, 1);
+                }
+                if (c == 0)
+                    run = colour;
+                else if (c == cols || colour != run)
+                {
+                    Rect(x + runFrom * cw, y + r * ch, (c - runFrom) * cw, ch, run);
+                    runFrom = c;
+                    run = colour;
+                }
+            }
+        }
+    }
+
     /// <summary>A frame of the given thickness inside the rectangle.</summary>
     public void Outline(float x, float y, float w, float h, Vector4 colour, float t = 1)
     {

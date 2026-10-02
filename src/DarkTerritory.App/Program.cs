@@ -585,6 +585,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     bool pendingCarLamp = false;
     byte pendingSelect = 0;
     bool pendingSeat = false;
+    bool pendingBookmark = false;
     float pendingCycle = 0;
     double voiceLevel = 0;
     bool chase = ride;
@@ -598,6 +599,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     Camera camera = default;
     // T121: the derailment first-hand, then replayed from the chase view, then the orbit (DerailSequence).
     var derailSequence = new DerailSequence();
+    // GDD v1.4 App. D.12: the night's bookmark stills, taken here as the host's bookmarks arrive.
+    var stills = new BookmarkStills();
     FrameLighting lighting = default;
     window.MouseCaptured = true;
     window.TextInput = false;
@@ -630,6 +633,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (Hit(Control.Lamp))
             pendingLamp = session.World.LampLit ? LampSwitch.Off : LampSwitch.On;
         pendingCarLamp |= Hit(Control.CarLamp);
+        // Dead (App. D.10), a bookmark of whom you're watching (D.12): sent on the press, as intent.
+        pendingBookmark |= Hit(Control.Bookmark) && !session.Player.Alive;
         // The gun's seat (T112): Use pressed standing still at a loaded gun sits you in it (Use held at one waiting on its
         // reload loads it, walking with it pushes it). Seated, Jump gets you up.
         if (Hit(Control.Use) && !session.Player.Has(PlayerFlags.Seated) && session.World.Combat is { } gc
@@ -702,7 +707,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 // left button fires it).
                 Actions = (Held(Control.Swing) || Held(Control.Fire) ? PlayerActions.Swing : 0) | (Held(Control.Whistle) ? PlayerActions.Whistle : 0)
                     | (Held(Control.Uncouple) ? PlayerActions.Uncouple : 0) | (Held(Control.Ladder) ? PlayerActions.Ladder : 0)
-                    | (pendingCarLamp ? PlayerActions.CarLamp : 0) | (pendingSeat ? PlayerActions.Seat : 0),
+                    | (pendingCarLamp ? PlayerActions.CarLamp : 0) | (pendingSeat ? PlayerActions.Seat : 0)
+                    | (pendingBookmark ? PlayerActions.Bookmark : 0),
                 // How loud you are (GDD v1.1 App. C.7, C.8): the mic while it sends; with no mic, holding Talk counts as
                 // speaking up, so a player without one can still talk the Gaunt down and answer a roll call.
                 Voice = (byte)Math.Clamp(voiceLevel * 255, 0, 255),
@@ -730,6 +736,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             pendingLamp = LampSwitch.None;
             pendingCarLamp = false;
             pendingSeat = false;
+            pendingBookmark = false;
             pendingReverser = false;
             pendingYaw = pendingPitch = 0;
             session.Step(intent);
@@ -854,9 +861,24 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (!session.World.LampShining)
             lighting.LampRange = 0.01f; // not 0: the shader divides by it
         scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
+        // GDD v1.4 App. D.12: a bookmark that's due is drawn from its camera now, off screen, with what this machine has of
+        // the world (everyone but whoever's eyes it is), and kept small for the run-end screen. Rare, so a stall's fine.
+        if (stills.Due(session, frames, now) is { Count: > 0 } due)
+        {
+            var (shownCrew, shownOwn, shownHeld) = (scene.Crew, scene.Own, scene.HeldHere);
+            (scene.Own, scene.HeldHere) = (null, null);
+            foreach (var (mark, from) in due)
+            {
+                scene.Crew = BookmarkStills.Figures(session, frames, clock.Alpha, mark.Viewer);
+                scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, from.Position);
+                stills.Keep(mark, renderer.Render(mesh, from, lighting, lighting.FogColor), renderer.Width, renderer.Height);
+            }
+            (scene.Crew, scene.Own, scene.HeldHere) = (shownCrew, shownOwn, shownHeld);
+            scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
+        }
         if (showHud)
         {
-            Hud.Build(overlay, UiWidth, UiHeight, session);
+            Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills);
             // Q held: the crew roster (T69), with who's been heard.
             if (Held(Control.Roster))
                 Hud.Roster(overlay, UiWidth, UiHeight, session.Roster(), voice is null ? null : voice.SinceHeard);
@@ -879,7 +901,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         VrPanelContent? onPanel = null;
         if (vr is not null && showHud)
         {
-            Hud.Build(vrOverlay, 480, 270, session, crosshair: false);
+            Hud.Build(vrOverlay, 480, 270, session, crosshair: false, stills: stills.Stills);
             if (session.World.Run?.Over == true)
                 vrOverlay.TextCentred(240, 248, campaign is not null ? "A: BACK TO THE FORTRESS" : "A: BACK", new Vector4(1, 0.7f, 0.3f, 1));
             onPanel = new VrPanelContent(vrHud!, vrOverlay, 480, 270);

@@ -15,7 +15,8 @@ public static class Protocol
     // 7: the crew lockers (note 173): a vehicle record's lockers' doors, a body record's locker and shelf.
     // 8: hit confirms and cannonball impacts (note 171), and the voice stream's hard-cut (note 172).
     // 9: the world record carries the derailment's track (GDD v1.4 App. E.6, note 174).
-    public const int Version = 9;
+    // 10: bookmarks (Bookmark) and the report's bookmarks beside its lines (GDD v1.4 App. D.12, note 176); the Bookmark action bit.
+    public const int Version = 10;
 }
 
 public enum MessageType : byte
@@ -36,6 +37,8 @@ public enum MessageType : byte
     Names = 7,
     /// <summary>Host → client, reliable: one chunk of the night's report (GDD v1.4 App. D.12), compressed, in order.</summary>
     Report = 8,
+    /// <summary>Host → client, reliable: a bookmark as it's made (GDD v1.4 App. D.12), for the client to take its still.</summary>
+    Bookmark = 9,
 }
 
 public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent);
@@ -278,6 +281,29 @@ public static class Messages
         using var json = new MemoryStream();
         z.CopyTo(json);
         return System.Text.Json.JsonSerializer.Deserialize<Run.RunReport>(json.ToArray());
+    }
+
+    /// <summary>A bookmark (D.12): where its still is taken from. Small, so one message, its JSON.</summary>
+    public static void WriteBookmark(NetWriter w, Run.Bookmark b)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Bookmark);
+        w.Bytes(System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(b with { What = Clip(b.What), Where = Clip(b.Where), Name = CleanName(b.Name) }));
+    }
+
+    static string Clip(string s) => s.Length > 120 ? s[..120] : s;
+
+    /// <summary>Reads a Bookmark after its type byte; null if it doesn't parse.</summary>
+    public static Run.Bookmark? ReadBookmark(ref NetReader r)
+    {
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<Run.Bookmark>(r.Rest());
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return null;
+        }
     }
 
     /// <summary>Reads a Welcome after its type byte.</summary>

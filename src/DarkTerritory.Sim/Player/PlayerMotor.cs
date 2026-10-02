@@ -49,6 +49,11 @@ public enum PlayerActions : byte
     Tool = 32,
     /// <summary>Sit at the gun you're at (T112): sent on the press. Sitting only, so a repeated intent is harmless; Jump gets up.</summary>
     Seat = 64,
+    /// <summary>
+    /// Dead, a bookmark of the view you're following (GDD v1.4 App. D.10's UI, D.12): sent on the press. The host takes one
+    /// on the tick it first sees it held, so a repeated intent is one bookmark. Alive, it does nothing.
+    /// </summary>
+    Bookmark = 128,
 }
 
 /// <summary>The forward lamp's switch in the cab (T52): set it on or off (a setting, not a toggle, so a held key or a resent intent is harmless).</summary>

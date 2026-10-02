@@ -90,9 +90,17 @@ public sealed class DerailSequence
     {
         if (_car < 0 || _car >= frames.Count)
             return _worldEye;
-        var f = frames[_car];
-        var eye = f.Origin + World(f, _eyeLocal);
-        var fwd = World(f, _lookLocal).Normalized;
+        return Riding(frames[_car], _eyeLocal, _lookLocal, _worldEye.FovYDegrees > 0 ? _worldEye.FovYDegrees : 70);
+    }
+
+    /// <summary>
+    /// An eye at <paramref name="eyeLocal"/> in a car, looking along <paramref name="lookLocal"/> in it, carried and rolled
+    /// with the car however it lies: the first beat's camera, and a derailment's bookmarks (GDD v1.4 App. D.12).
+    /// </summary>
+    public static Camera Riding(in CarFrame f, Double3 eyeLocal, Double3 lookLocal, float fovY = 70)
+    {
+        var eye = f.Origin + World(f, eyeLocal);
+        var fwd = World(f, lookLocal).Normalized;
         var back = fwd * -1;
         var right = Double3.Cross(f.Up, back);
         right = right.Length > 1e-6 ? right.Normalized : f.Right;
@@ -102,7 +110,7 @@ public sealed class DerailSequence
             (float)up.X, (float)up.Y, (float)up.Z, 0,
             (float)back.X, (float)back.Y, (float)back.Z, 0,
             0, 0, 0, 1);
-        var cam = Camera.LookAt(eye, eye + fwd, _worldEye.FovYDegrees > 0 ? _worldEye.FovYDegrees : 70);
+        var cam = Camera.LookAt(eye, eye + fwd, fovY);
         cam.Orientation = Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(m));
         return cam;
     }

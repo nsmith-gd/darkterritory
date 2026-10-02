@@ -1386,7 +1386,7 @@ static object HudShot(string content, string[] args)
     var mesh = new MeshBuilder();
     var look = Looked(content, args);
     look?.Dress(renderer);
-    new GreyboxScene
+    GreyboxScene Scene(IReadOnlyList<Crewmate> crew) => new()
     {
         Route = session.Route,
         Run = session.World.Run,
@@ -1395,9 +1395,10 @@ static object HudShot(string content, string[] args)
         Bodies = session.World.Bodies.All,
         Time = 0.37,
         Look = look,
-        // The rest of the crew, but not the one whose eyes these are (as the app draws it).
-        Crew = [.. session.Crew(frames, 1).Where(c => c.Id != session.Watching)],
-    }.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
+        Crew = crew,
+    };
+    // The rest of the crew, but not the one whose eyes these are (as the app draws it).
+    Scene([.. session.Crew(frames, 1).Where(c => c.Id != session.Watching)]).Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
     var lighting = Views.Lighting(frames[0], look);
     if (session.Route is { } r)
     {
@@ -1409,12 +1410,32 @@ static object HudShot(string content, string[] args)
     if (args.Contains("--hit-marker"))
         session.World.Hits.Add(new DarkTerritory.Sim.Combat.HitConfirm(1, (uint)session.HostTick, 1, DarkTerritory.Sim.Enemies.EnemyKind.Ribbit, session.PlayerId,
             DarkTerritory.Sim.Combat.HitSource.Melee, default, new Double3(0, 0, -1), Str(args, "--hit-marker", "") == "kill"));
+    // The report's bookmarks (GDD v1.4 App. D.12): each still drawn from its camera as the app takes it, the staged crew in
+    // view but for whoever's eyes it is, before the report that shows them.
+    var stills = new BookmarkStills();
+    if (args.Contains("--report") && session.World.Run?.Report is { Bookmarks.Count: > 0 } staged)
+    {
+        var figures = Staging.ReportCrew(session.Train);
+        foreach (var b in staged.Bookmarks)
+        {
+            var shot = b.Kind == DarkTerritory.Sim.Run.BookmarkKind.Stranded
+                ? Views.Stranded(session.Train, session.World.WreckTuning.Stranded, session.World.WreckTuning.Stranded.Seconds) : BookmarkStills.Of(b, frames);
+            var still = new MeshBuilder();
+            Scene([.. figures.Where(f => f.Id != b.Viewer).Select(f => DarkTerritory.Game.Art.CrewActs.Crewmate((byte)f.Id, f.State, session.World, frames))])
+                .Build(still, session.Train.Line, frames, session.Train.Dynamics.Distance, shot.Position);
+            stills.Keep(b, renderer.Render(still, shot, lighting, lighting.FogColor), width, height);
+        }
+        // --stills dir: each still on its own, full size, to look at.
+        if (Str(args, "--stills", "") is { Length: > 0 } dir)
+            foreach (var (id, s) in stills.Stills)
+                PngWriter.Write(Path.Combine(dir, $"bookmark-{id}.png"), s.Rgba, s.Width, s.Height, 1);
+    }
     var hud = new Overlay();
     // --commend: the night's commendations shown under its report (App. D.12; awarding them isn't in the game yet).
     Hud.Build(hud, width, height, session, commendations: args.Contains("--commend")
         ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
             ("Okafor", UiStyle.Commendation.HeldTheSwitch, "Priya"), ("Dunmore", UiStyle.Commendation.LastOneStanding, "Dave")]
-        : null);
+        : null, stills: stills.Stills);
     // --roster: the crew roster (T69) as Q shows it, with a staged crew: two heard, one not yet, and a Passenger among them.
     if (args.Contains("--roster"))
     {
@@ -1431,7 +1452,15 @@ static object HudShot(string content, string[] args)
     }
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, hud);
     PngWriter.Write(output, pixels, width, height, scale);
-    return new { path = Path.GetFullPath(output), prompt = Hud.Prompt(session), quads = hud.Count / 6, status = session.Status(), watching = session.Watching };
+    return new
+    {
+        path = Path.GetFullPath(output),
+        prompt = Hud.Prompt(session),
+        quads = hud.Count / 6,
+        status = session.Status(),
+        watching = session.Watching,
+        bookmarks = session.World.Run?.Report?.Bookmarks.Select(b => new { b.Id, kind = b.Kind.ToString(), b.Viewer, b.Victim, b.Frame, still = stills.Stills.ContainsKey(b.Id) })
+    };
 }
 
 // A hosted night over loopback with one joiner, who dies once aboard and watches the host (App. D.10).
@@ -1567,6 +1596,8 @@ static int Usage()
                      a screen of the front end over the yard, as the game draws it
           screenshot --hud [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
+                     --report [derailed]: the run-end screen's incident report, its bookmark stills beside their lines
+                     (GDD v1.4 App. D.12); --stills dir writes each still on its own
           route gen [--tier local|frontier|deadLines|deepTerritory] [--seed n] [--name generated] [--map file.png]
                      writes content/lines/<name>.json (+ .route.json) and a map; try `screenshot --line generated`
           route sweep [--seeds n]                  generate n routes per tier and report ranges

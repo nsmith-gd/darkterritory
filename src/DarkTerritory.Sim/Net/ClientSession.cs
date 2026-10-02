@@ -197,6 +197,10 @@ public sealed class ClientSession
                 case MessageType.Names:
                     Messages.ReadNames(ref r, World.Names);
                     break;
+                case MessageType.Bookmark:
+                    if (Messages.ReadBookmark(ref r) is { } bookmark)
+                        World.Bookmarks.Mirror(bookmark);
+                    break;
                 case MessageType.Report:
                     {
                         int index = r.U8();

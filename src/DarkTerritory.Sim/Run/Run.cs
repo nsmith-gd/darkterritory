@@ -18,6 +18,9 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
     /// <summary>Stranded, unable to repair (GDD v1.4 §23.2): run.json <c>stranded</c>.</summary>
     public StrandedTuning Stranded { get; init; } = new();
 
+    /// <summary>The run-end screen's bookmarks (GDD v1.4 App. D.12, D.13): run.json <c>bookmarks</c>.</summary>
+    public BookmarkTuning Bookmarks { get; init; } = new();
+
     /// <summary>
     /// Where a night's engine starts: its front just short of the gate, ready to depart (the whole train still in the yard,
     /// so the run begins as it moves off), or as far back as the consist needs to fit on the line.
@@ -55,6 +58,11 @@ public sealed record RunReport(RunEnd End, double Seconds, double DistanceKm, in
     /// report that doesn't say (the campaign's spares stand as they were).
     /// </summary>
     public int SpareKitsHome { get; init; } = -1;
+    /// <summary>
+    /// The bookmarks on the run-end screen (GDD v1.4 App. D.12): the automatic ones D.13's cap keeps (each beside its line,
+    /// <see cref="ReportLine.Marks"/>) and the dead's own, in the order they were made.
+    /// </summary>
+    public IReadOnlyList<Bookmark> Bookmarks { get; init; } = [];
 }
 
 /// <summary>
@@ -611,6 +619,9 @@ public sealed partial class Run
             a.Add(new Incident(IncidentKind.Stranded, Seconds, -1, "Consist stranded", where, a.KitHolder,
                 $"{Capital(EngineeringKit.Line(Kit.Loss).ToLowerInvariant())}. Last held: {{actor}}.{pulled}"));
         }
+        // D.12: a derailment's still of each crew member, or the outro's last frame.
+        if (world.Authority)
+            world.Bookmarks.End(world, end, world.LastCrew);
         Report = Tally(world, crew);
     }
 
@@ -657,12 +668,14 @@ public sealed partial class Run
             fees = Math.Round(deaths * fee);
             refunds = Math.Round(bodiesHome * ht.BodyRefund * fee);
         }
+        var (lines, shown) = MarkBookmarks(world, ReportLines(world, attached, delivered, feeEach, refundEach));
         return new RunReport(End, Math.Round(Seconds, 1), Math.Round(engine.Distance / 1000, 2), home.Count, cargo.Count - home.Count,
             Math.Round(cargoValue, 2), Math.Round(gross), Math.Round(coal), Math.Round(ammo), Math.Round(repairs),
             Math.Round(gross - coal - ammo - repairs - fees + refunds - recovery), crewHome, crew.Count - crewHome, delivered ? Math.Round(Scavenged) : 0,
             deaths, bodiesHome, fees, refunds, Math.Round(delivered ? Mail : 0), recovery, stranded ? Kit.Loss : KitLoss.None)
         {
-            Lines = ReportLines(world, attached, delivered, feeEach, refundEach),
+            Lines = lines,
+            Bookmarks = shown,
             // Home with the cars that are (in one of them, its floor or a locker) or in a living crewmate's hands.
             SpareKitsHome = Math.Max(0, world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.RepairKit && b.Claimed
                 && (b.Carrier >= 0 || attached.Contains(b.Parent))) - train.Dynamics.Tuning.Kit.RepairKits),
@@ -703,6 +716,55 @@ public sealed partial class Run
         }
         lines.InsertRange(end < 0 ? lines.Count : end, lost);
         return lines;
+    }
+
+    /// <summary>
+    /// D.12: the automatic bookmarks D.13's cap keeps, each beside the line it belongs to: a GRAB's or PUNISH's beside the
+    /// victim's death line if they died of it (within <see cref="BookmarkTuning.LineWindowSeconds"/>), a derailment's (one
+    /// per crew member) beside the derailment's line, the outro's beside the stranding. A GRAB nobody died of gets a line of
+    /// its own, in its place in the night. Returns the lines and the bookmarks shown (the dead's own too, after them).
+    /// </summary>
+    public static (List<ReportLine> Lines, List<Bookmark> Shown) MarkBookmarks(World world, List<ReportLine> lines)
+    {
+        var marks = world.Bookmarks;
+        var t = marks.Tuning;
+        int Line(Bookmark b)
+        {
+            if (b.Victim >= 0 && b.Kind is BookmarkKind.Grab or BookmarkKind.Punish)
+            {
+                int death = lines.FindIndex(l => l.Kind == IncidentKind.Death && l.Victim == b.Victim && l.Seconds >= b.Seconds - 1e-6
+                    && l.Seconds <= b.Seconds + t.LineWindowSeconds);
+                if (death >= 0)
+                    return death;
+            }
+            return b.Kind switch
+            {
+                BookmarkKind.Derail => lines.FindIndex(l => l.Kind == IncidentKind.Derailed),
+                BookmarkKind.Stranded => lines.FindIndex(l => l.Kind == IncidentKind.Stranded),
+                _ => -1,
+            };
+        }
+        var kept = Bookmarks.Kept(marks.All, t, b => Line(b) >= 0);
+        var beside = new Dictionary<int, List<int>>();
+        var own = new List<ReportLine>();
+        foreach (var b in kept)
+        {
+            int at = Line(b);
+            if (at >= 0)
+                (beside.TryGetValue(at, out var l) ? l : beside[at] = []).Add(b.Id);
+            else
+                own.Add(new ReportLine(IncidentKind.Grab, b.Victim >= 0 ? IncidentLog.NameOf(world, b.Victim) : "",
+                    $"{b.What} {b.Where}.{(b.Victim >= 0 ? " Got away." : "")}")
+                { Seconds = b.Seconds, Victim = b.Victim, Marks = [b.Id] });
+        }
+        var result = lines.Select((l, i) => beside.TryGetValue(i, out var ids) ? l with { Marks = ids } : l).ToList();
+        foreach (var l in own)
+        {
+            int at = result.FindIndex(r => r.Seconds > l.Seconds || r.Kind is IncidentKind.Derailed or IncidentKind.Stranded);
+            result.Insert(at < 0 ? result.Count : at, l);
+        }
+        var manual = marks.All.Where(b => b.Kind == BookmarkKind.Manual).Take(Math.Max(0, t.ManualPerRun));
+        return (result, [.. kept.Concat(manual).OrderBy(b => b.Id)]);
     }
 
     /// <summary>

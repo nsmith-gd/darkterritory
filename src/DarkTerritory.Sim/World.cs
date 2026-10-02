@@ -205,6 +205,7 @@ public sealed class World
     {
         if (!Authority)
             return;
+        LastCrew = [.. crew];
         // App. C.9: every death in the log, the tick its body goes down, with the contributing action its failure names.
         foreach (var (id, s, body) in Bodies.OnDeaths(Train, crew))
             if (Run is not null)
@@ -375,6 +376,15 @@ public sealed class World
     /// </summary>
     public Run.Attribution Attribution { get; } = new();
 
+    /// <summary>
+    /// The night's bookmarks (GDD v1.4 App. D.12): the host records where each still is to be taken from (GRAB starts,
+    /// PUNISHes, the derailment's crew, the Stranded outro, a dead player's button); clients are sent them and mirror them.
+    /// </summary>
+    public Run.Bookmarks Bookmarks { get; } = new();
+
+    /// <summary>The crew with their ids as the host last stepped bodies with them: who a night's end bookmarks.</summary>
+    internal IReadOnlyList<(int Id, PlayerState State)> LastCrew { get; private set; } = [];
+
     /// <summary>The session's names for its crew by player id (the host's from each joiner's hello; clients are sent them).</summary>
     public Dictionary<int, string> Names { get; } = [];
 
@@ -386,6 +396,7 @@ public sealed class World
     {
         TrackPlan ??= route.Plan;
         Run = new Run.Run(tuning, route) { YardLength = yardLength };
+        Bookmarks.Tuning = tuning.Bookmarks;
         Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line);
         if (facilities is not null)
             Run.EnableSites(facilities, Train.Line);

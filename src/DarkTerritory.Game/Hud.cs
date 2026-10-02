@@ -38,10 +38,13 @@ public static class Hud
     /// <param name="commendations">The awards given at the run's end (GDD App. D.12), shown under its report: to whom, what,
     /// and from whom. Awarding isn't in the game yet (it needs the run-end screen's input and the profile's tally), so only
     /// a still frame passes them (<c>dt screenshot --hud --report ... --commend</c>).</param>
+    /// <param name="stills">The night's bookmark stills taken on this machine (GDD v1.4 App. D.12, <see cref="BookmarkStills"/>),
+    /// by bookmark id: the report shows each beside its line.</param>
     public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true,
-        IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null)
+        IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null, IReadOnlyDictionary<int, Still>? stills = null)
     {
         _commendations = commendations;
+        _stills = stills;
         o.Clear();
         int line = o.Font.LineHeight;
         var p = s.Player;
@@ -83,7 +86,8 @@ public static class Hud
             if (s.World.Run?.Report is null)
                 Noise(o, width, height, s.World, line);
         }
-        if (p.Alive && crosshair)
+        // (Not over the run-end screen's report, where it sat in the middle of a line.)
+        if (p.Alive && crosshair && s.World.Run?.Report is null)
         {
             // A small cross, for aiming and for "what am I looking at".
             float cx = width / 2f, cy = height / 2f;
@@ -467,7 +471,7 @@ public static class Hud
             // GDD v1.4 App. D.12: the incident report, every line in the clerk's voice, under the result; the night's
             // commendations under it.
             bool awards = _commendations is { Count: > 0 };
-            IncidentReport(o, width, awards ? height - (int)Commendations(o, width, height, _commendations!, draw: false) : height, y + line, r, line);
+            IncidentReport(o, width, awards ? height - (int)Commendations(o, width, height, _commendations!, draw: false) : height, y + line, r, line, _stills);
             if (awards)
                 Commendations(o, width, height, _commendations!);
             return;
@@ -532,6 +536,17 @@ public static class Hud
                 $"[{Controls.KeyLabel(Keys.KeyFor(Control.Left))}] BACK", Ink));
         else if (s.Link is not null && world.Run is not { Over: true })
             rows.Add(("NOBODY LEFT ALIVE TO WATCH", Dim));
+        // D.10's Bookmark (D.12): a still of what you're watching, for the run-end screen; how many are left, and the last.
+        if (s.Watching >= 0 && world.Run is { Over: false } run)
+        {
+            var t = world.Bookmarks.Tuning;
+            var mine = world.Bookmarks.All.Where(b => b.Kind == BookmarkKind.Manual && b.Taker == s.PlayerId).ToList();
+            int left = Math.Min(t.ManualPerPlayer - mine.Count, t.ManualPerRun - world.Bookmarks.All.Count(b => b.Kind == BookmarkKind.Manual));
+            if (mine.Count > 0 && run.Seconds - mine[^1].Seconds < 3)
+                rows.Add(($"BOOKMARKED AT {Clock(mine[^1].Seconds)}", Green));
+            else if (left > 0)
+                rows.Add(($"[{Controls.KeyLabel(Keys.KeyFor(Control.Bookmark))}] BOOKMARK THIS ({left} LEFT)", Dim));
+        }
         // GDD App. D: the way back is a Holdout at the next halt or yard, if the crew stops for you.
         if (world.Holdouts is { } holdouts)
         {
@@ -566,6 +581,7 @@ public static class Hud
     }
 
     [ThreadStatic] static IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? _commendations;
+    [ThreadStatic] static IReadOnlyDictionary<int, Still>? _stills;
 
     /// <summary>
     /// The night's commendations (App. D.12) on a plate above the foot of the run-end screen, two to a row: each a badge,
@@ -594,24 +610,45 @@ public static class Hud
         return h + 36;
     }
 
-    public static void IncidentReport(Overlay o, int width, int height, float top, RunReport r, int line)
+    /// <summary>A bookmark's thumbnail beside its line on the report (GDD v1.4 App. D.12), in UI pixels: 16:9, two lines high.</summary>
+    public const int ThumbWidth = 32, ThumbHeight = 18;
+    /// <summary>The dead's own bookmarks are the larger, in their row: there's no line beside them to read.</summary>
+    public const int ManualWidth = 48, ManualHeight = 27;
+
+    /// <summary>
+    /// The incident report (GDD v1.4 App. D.12): deaths with who, where and the cause line (C.9) beside the fee and refund,
+    /// rescues, the boiler, cars lost, and how it ended; then the night's money. The clerk's flat voice, top to bottom; what
+    /// won't fit says how many more. Each automatic bookmark's still sits at the right of the line it belongs to, and the
+    /// dead's own bookmarks have a row of their own under the lines, each with its time and whom it was following.
+    /// </summary>
+    public static void IncidentReport(Overlay o, int width, int height, float top, RunReport r, int line, IReadOnlyDictionary<int, Still>? stills = null)
     {
         float w = Math.Min(width - 40, 980), x = MathF.Round((width - w) / 2);
-        int chars = Math.Max(20, (int)((w - 16) / Math.Max(1, o.Font.Measure("M") + 1)));
-        var rows = new List<(string Text, Vector4 Colour)> { ("INCIDENT REPORT", Amber) };
+        float glyph = Math.Max(1, o.Font.Measure("M") + 1);
+        int chars = Math.Max(20, (int)((w - 16) / glyph));
+        var marks = r.Bookmarks.ToDictionary(b => b.Id);
+        // Each line a block: its wrapped rows, and the thumbnails at its right (narrowing the text beside them).
+        var blocks = new List<(List<(string Text, Vector4 Colour)> Rows, List<Bookmark> Marks, float Height)>();
         foreach (var l in r.Lines)
         {
             var colour = l.Kind switch { IncidentKind.Death => Ink, IncidentKind.Rescue => Green, IncidentKind.Derailed or IncidentKind.Stranded => Amber, _ => Dim };
             string text = l.Who.Length > 0 ? $"{l.Who.ToUpperInvariant()}: {l.Text}" : l.Text;
+            var shown = l.Marks.Where(marks.ContainsKey).Select(id => marks[id]).ToList();
+            int perRow = Math.Max(1, (int)((w * 0.45f) / (ThumbWidth + 3)));
+            int thumbRows = (shown.Count + perRow - 1) / perRow;
+            float thumbsW = shown.Count == 0 ? 0 : Math.Min(shown.Count, perRow) * (ThumbWidth + 3) + 2;
+            int fit = Math.Max(20, (int)((w - 16 - thumbsW) / glyph));
+            var rows = new List<(string, Vector4)>();
             bool first = true;
-            foreach (var part in Wrap(text, chars))
+            foreach (var part in Wrap(text, fit))
             {
                 rows.Add((first ? part : "    " + part, colour));
                 first = false;
             }
+            blocks.Add((rows, shown, Math.Max(rows.Count * line, thumbRows * (ThumbHeight + 2))));
         }
         if (r.Lines.Count == 0)
-            rows.Add(("Nothing to report.", Dim));
+            blocks.Add(([("Nothing to report.", Dim)], [], line));
         var money = new List<string> { $"Gross {r.Gross:0}" };
         if (r.CrewLossFees > 0)
             money.Add($"crew-loss fees {r.CrewLossFees:0}");
@@ -620,20 +657,84 @@ public static class Hud
         if (r.Recovery > 0)
             money.Add($"recovery {r.Recovery:0}");
         money.Add($"running costs {r.CoalCost + r.AmmoCost + r.RepairCost:0}");
-        rows.Add(($"{string.Join(", ", money)}. Net {r.Net:0} scrip.", Ink));
-        int room = Math.Max(3, (int)((height - top - 8) / line) - 1);
-        if (rows.Count > room)
-        {
-            int more = rows.Count - room + 1;
-            rows = [.. rows.Take(room - 2), ($"... and {more} more lines", Dim), rows[^1]];
-        }
-        UiStyle.Plate(o, x - 4, top - 4, w + 8, rows.Count * line + 8);
+        string sum = $"{string.Join(", ", money)}. Net {r.Net:0} scrip.";
+        // The dead's own (D.12 "manual"), a row of stills across, each with when and whom they were following.
+        var manual = r.Bookmarks.Where(b => b.Kind == BookmarkKind.Manual).ToList();
+        // Each a still with its time and whom it followed at its right.
+        float cell = ManualWidth + 6 + glyph * Math.Clamp(manual.Select(b => b.Name.Length).DefaultIfEmpty(5).Max(), 5, 12) + 6;
+        int across = Math.Max(1, (int)((w - 8) / cell));
+        float manualH = manual.Count == 0 ? 0 : line + ((manual.Count + across - 1) / across) * (ManualHeight + 4);
+        // What fits: the heading, as many lines as there's room for (the rest counted), the dead's row, the money.
+        float room = height - top - 8 - 2 * line - manualH;
+        float used = 0;
+        int keep = 0;
+        while (keep < blocks.Count && used + blocks[keep].Height <= room - (keep + 1 < blocks.Count ? line : 0))
+            used += blocks[keep++].Height;
+        int more = blocks.Skip(keep).Sum(b => b.Rows.Count);
+        float total = line + used + (more > 0 ? line : 0) + manualH + line;
+        UiStyle.Plate(o, x - 4, top - 4, w + 8, total + 8);
         float y = top;
-        foreach (var (text, colour) in rows)
+        o.Text(x + 4, y, "INCIDENT REPORT", Amber);
+        y += line;
+        foreach (var (rows, shown, h) in blocks.Take(keep))
         {
-            o.Text(x + 4, y, text, colour);
+            float ty = y;
+            foreach (var (text, colour) in rows)
+            {
+                o.Text(x + 4, ty, text, colour);
+                ty += line;
+            }
+            int perRow = Math.Max(1, (int)((w * 0.45f) / (ThumbWidth + 3)));
+            for (int i = 0; i < shown.Count; i++)
+            {
+                // Right-aligned, in the order they were taken.
+                int row = i / perRow, inRow = Math.Min(perRow, shown.Count - row * perRow);
+                Thumb(o, x + w - 2 - (inRow - i % perRow) * (ThumbWidth + 3), y + 1 + row * (ThumbHeight + 3), stills?.GetValueOrDefault(shown[i].Id));
+            }
+            y += h;
+        }
+        if (more > 0)
+        {
+            o.Text(x + 4, y, $"... and {more} more lines", Dim);
             y += line;
         }
+        if (manual.Count > 0)
+        {
+            o.Text(x + 4, y, "BOOKMARKS", Amber);
+            y += line;
+            for (int i = 0; i < manual.Count; i++)
+            {
+                var b = manual[i];
+                float tx = x + 5 + i % across * cell, ty = y + 1 + i / across * (ManualHeight + 4);
+                Thumb(o, tx, ty, stills?.GetValueOrDefault(b.Id), ManualWidth, ManualHeight);
+                o.Text(tx + ManualWidth + 5, ty + 2, Clock(b.Seconds), Ink);
+                string name = b.Name.ToUpperInvariant();
+                o.Text(tx + ManualWidth + 5, ty + 2 + line, name.Length > 12 ? name[..12] : name, Dim);
+            }
+            y += manualH - line;
+        }
+        o.Text(x + 4, y, sum, Ink);
+    }
+
+    /// <summary>Run seconds as the report's timestamp: "1:04:12" over an hour, else "12:04".</summary>
+    public static string Clock(double seconds)
+    {
+        var t = TimeSpan.FromSeconds(Math.Max(0, Math.Floor(seconds)));
+        return t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}" : $"{t.Minutes}:{t.Seconds:00}";
+    }
+
+    /// <summary>A bookmark's still in a thin frame; a dark plate where this machine has none (it joined after).</summary>
+    static void Thumb(Overlay o, float x, float y, Still? still, int w = ThumbWidth, int h = ThumbHeight)
+    {
+        o.Rect(x - 1, y - 1, w + 2, h + 2, UiStyle.Lit with { W = 0.6f });
+        if (still is null)
+        {
+            o.Rect(x, y, w, h, new Vector4(0.05f, 0.05f, 0.06f, 1));
+            o.Rect(x + w / 2f - 4, y + h / 2f, 8, 1, Dim);
+            return;
+        }
+        // Half-pixel cells on the UI's canvas: it's drawn scaled up, so the still keeps more than the canvas's own pixels.
+        o.Image(x, y, w, h, still.Rgba, still.Width, still.Height, w * 2, h * 2, levels: 16);
     }
 
     static IEnumerable<string> Wrap(string text, int chars)

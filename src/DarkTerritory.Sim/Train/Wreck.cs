@@ -42,6 +42,11 @@ public sealed record WreckTuning
     public double CinematicSeconds { get; init; } = 12;
     /// <summary>T121 playtest ("let people experience it first hand, then replay the moment from the third person train view"): seconds in your own eyes, riding the wreck.</summary>
     public double FirstPersonSeconds { get; init; } = 4;
+    /// <summary>
+    /// GDD v1.4 App. D.12, E.5: how far into the first-person beat each crew member's derailment bookmark is taken (every
+    /// client takes them all, from each one's eye in the car they rode). The build's per-player beat is that one.
+    /// </summary>
+    public double BookmarkSeconds { get; init; } = 2;
     /// <summary>Then the replay from the chase view, this long, starting this far before the train came off.</summary>
     public double ReplaySeconds { get; init; } = 9;
     public double ReplayLeadSeconds { get; init; } = 3;

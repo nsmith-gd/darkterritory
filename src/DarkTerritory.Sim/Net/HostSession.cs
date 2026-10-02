@@ -25,6 +25,8 @@ public sealed class HostSession
         public uint AckedSnapshot;
         public PlayerIntent LastIntent;
         public PlayerIntent ThisTick;
+        /// <summary>Bookmark held on the tick before (the press is what counts, App. D.12).</summary>
+        public bool Bookmarking;
         public PlayerState State;
         public int MissedInputs;
         /// <summary>What this client was sent at each tick: its own delta baselines, since interest differs per client.</summary>
@@ -127,6 +129,7 @@ public sealed class HostSession
             World.CrewAct(ref c.State, c.ThisTick, c.Id, view);
         }
         World.Step(Controls);
+        Bookmark();
         World.ApplyDamage(id => _crew.FirstOrDefault(c => c.Id == id)?.State, (id, s) => _crew.First(c => c.Id == id).State = s, _crew.Select(c => (int)c.Id));
         CutTheDead();
         foreach (var c in _crew)
@@ -258,10 +261,30 @@ public sealed class HostSession
 
     bool _namesChanged;
     bool _reportSent;
+    int _bookmarksSent;
 
     /// <summary>
-    /// Names to everyone when they change (and to whoever's just joined), and the night's report once it's over (GDD v1.4
-    /// App. D.12): the report is only the host's to write, so clients are sent it, in chunks, reliably.
+    /// GDD v1.4 App. D.10, D.12: a dead player's Bookmark, on the press, of the living crewmate they follow (their intent's
+    /// Watch, as <see cref="EarsOf"/> reads it). Only once the run's under way; capped per player and per run.
+    /// </summary>
+    void Bookmark()
+    {
+        foreach (var c in _crew)
+        {
+            bool held = c.ThisTick.Has(PlayerActions.Bookmark);
+            bool pressed = held && !c.Bookmarking;
+            c.Bookmarking = held;
+            if (!pressed || c.State.Alive || World.Run is not { Over: false })
+                continue;
+            var eyes = EarsOf(c);
+            if (eyes != c)
+                World.Bookmarks.Manual(World, c.Id, eyes.Id, eyes.State);
+        }
+    }
+
+    /// <summary>
+    /// Names to everyone when they change (and to whoever's just joined), each bookmark as it's made, and the night's report
+    /// once it's over (GDD v1.4 App. D.12): the report is only the host's to write, so clients are sent it, in chunks, reliably.
     /// </summary>
     void SendNamesAndReport()
     {
@@ -270,6 +293,13 @@ public sealed class HostSession
         {
             _namesChanged = false;
             Messages.WriteNames(_writer, World.Names);
+            foreach (var p in peers)
+                _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
+        }
+        // D.12: each bookmark as it's made, so every machine takes its still from the world as it is now.
+        for (; _bookmarksSent < World.Bookmarks.All.Count; _bookmarksSent++)
+        {
+            Messages.WriteBookmark(_writer, World.Bookmarks.All[_bookmarksSent]);
             foreach (var p in peers)
                 _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
         }

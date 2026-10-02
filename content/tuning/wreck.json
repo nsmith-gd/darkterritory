@@ -43,6 +43,10 @@
   // view"): firstPersonSeconds in your own eyes riding the wreck; then replaySeconds of the chase view replaying it from
   // replayLeadSeconds before it came off; then cinematicSeconds of the camera circling the wreck. The run's end waits.
   "firstPersonSeconds": 4,
+  // GDD v1.4 App. D.12, E.5 ("each player's peak frame is captured as their auto-bookmark"): the build's per-player shot is the
+  // first-person beat, so each crew member's still is taken this far into it, from their eye in the car they rode. Not in the
+  // GDD; by eye on `dt screenshot --wreck`, where the cars are well over by 2 s.
+  "bookmarkSeconds": 2,
   "replaySeconds": 9,
   "replayLeadSeconds": 3,
   "cinematicSeconds": 8,

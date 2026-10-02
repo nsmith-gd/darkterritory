@@ -6,7 +6,15 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Run;
 
 /// <summary>A line of the incident report (GDD v1.4 App. D.12): who, and what the clerk says, with a death's fee and refund.</summary>
-public sealed record ReportLine(IncidentKind Kind, string Who, string Text, double Fee = 0, double Refund = 0);
+public sealed record ReportLine(IncidentKind Kind, string Who, string Text, double Fee = 0, double Refund = 0)
+{
+    /// <summary>When it happened (run seconds), or −1 for a line read at the end (cars lost).</summary>
+    public double Seconds { get; init; } = -1;
+    /// <summary>Whom it's about, or −1.</summary>
+    public int Victim { get; init; } = -1;
+    /// <summary>The bookmarks shown beside it (GDD v1.4 App. D.12), by <see cref="Bookmark.Id"/>.</summary>
+    public IReadOnlyList<int> Marks { get; init; } = [];
+}
 
 /// <summary>
 /// Writing the failure-attribution log (App. C.9) and reading it out as the incident report (D.12), in the settlement
@@ -181,10 +189,10 @@ public static class IncidentLog
             {
                 bool recovered = i.Body >= 0 && home(i.Body);
                 string settle = fee > 0 ? recovered ? $" Fee {fee:0}. Body recovered. Refund {refund:0}." : $" Fee {fee:0}. Body not recovered." : "";
-                lines.Add(new ReportLine(i.Kind, who, $"{i.What} {i.Where}. {action}{settle}".Trim(), fee, recovered ? refund : 0));
+                lines.Add(new ReportLine(i.Kind, who, $"{i.What} {i.Where}. {action}{settle}".Trim(), fee, recovered ? refund : 0) { Seconds = i.Seconds, Victim = i.Victim });
             }
             else
-                lines.Add(new ReportLine(i.Kind, who, $"{i.What} {i.Where}. {action}".Trim()));
+                lines.Add(new ReportLine(i.Kind, who, $"{i.What} {i.Where}. {action}".Trim()) { Seconds = i.Seconds, Victim = i.Victim });
         }
         return lines;
     }
