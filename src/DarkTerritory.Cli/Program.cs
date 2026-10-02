@@ -75,7 +75,8 @@ return args switch
     ["audio", "render", ..] => Print(RenderAudio(content, args)),
     ["edit", ..] => Edit(content, args),
     ["voice", "bench", ..] => Print(DarkTerritory.Game.Sound.VoiceBench.Run(content, (int)Opt(args, "--car", 3), Opt(args, "--z", 4), args.Contains("--radio"),
-        Opt(args, "--seconds", 2), new Ballast.Net.LinkConditions(Opt(args, "--latency", 0), Opt(args, "--jitter", 0), Opt(args, "--loss", 0)))),
+        Opt(args, "--seconds", 2), new Ballast.Net.LinkConditions(Opt(args, "--latency", 0), Opt(args, "--jitter", 0), Opt(args, "--loss", 0)),
+        args.Contains("--die-at") ? Opt(args, "--die-at", 1) : null)),
 
     _ => Usage(),
 };

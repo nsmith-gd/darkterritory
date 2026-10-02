@@ -31,6 +31,12 @@ public enum VoicePath : byte
     /// (<see cref="VoiceFrame.Gain"/>), the host's.
     /// </summary>
     Fading = 64,
+    /// <summary>
+    /// The hard-cut (GDD v1.4 App. D.2, C.8): the speaker died this tick. No sound, sent in the voice stream on the death tick
+    /// so it lands with the last of their words, a snapshot's interpolation ahead of the news they're dead: the listener drops
+    /// whatever of them is waiting to play, near and on the radio, then and there.
+    /// </summary>
+    Cut = 128,
 }
 
 /// <summary>

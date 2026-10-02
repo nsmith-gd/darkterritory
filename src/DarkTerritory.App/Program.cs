@@ -737,6 +737,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             voice.TalkHeld = Held(Control.Talk);
             // Only with a radio on you (T41); the host checks too.
             voice.RadioHeld = Held(Control.Radio) && session.World.Bodies.HasRadio(session.PlayerId);
+            // Held by something (App. C.8): the mic keyed open for the whole GRAB, onto the radio if you have one.
+            voice.Grabbed = session.Player.Alive && session.Player.Has(PlayerFlags.Held);
             double loud = 0;
             for (int n; mic is not null && (n = mic.Read(micSamples)) > 0;)
             {
@@ -873,7 +875,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
 
         if (now >= titleAt)
         {
-            string talking = voice is { Transmitting: true } ? voice.RadioHeld ? " | ON THE RADIO" : " | talking" : "";
+            string talking = voice is { Transmitting: true } ? voice.OnRadio ? " | ON THE RADIO" : " | talking" : "";
             window.Title = $"Dark Territory — {session.Status()}{talking}";
             titleAt = now + 0.25;
         }
