@@ -39,7 +39,7 @@ public class AudioTests
     [Fact]
     public void TheOperaHitsOnTheReplayDucksUnderTheLaughingAndFadesOut()
     {
-        // GDD v1.4 App. E.6 through the real mixer: the whole derailment sequence (note 169), its draw from a fresh bag, and
+        // GDD v1.4 App. E.6 through the real mixer: the whole derailment sequence (note 170), its draw from a fresh bag, and
         // someone laughing on the dead channel over the replay.
         var tuning = DataFile.Load<WreckTuning>(Path.Combine(Content, WreckTuning.File));
         var (report, mix) = AudioBench.Render(Content, "wreck", cars: 8, speed: 22, listenerCar: 3, seconds: tuning.SequenceSeconds + 1);
@@ -106,7 +106,7 @@ public class AudioTests
     [Fact]
     public void ANoisyToyPlaysWhileItsCarriedAndStopsWhenPutDown()
     {
-        // GDD v1.4 App. C item 4 (note 174): a squeaker, a music box, a wind-up drummer, heard while carried; a quiet toy isn't.
+        // GDD v1.4 App. C item 4 (note 175): a squeaker, a music box, a wind-up drummer, heard while carried; a quiet toy isn't.
         var tuning = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
         var line = RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(tuning, 4, 1)), line, 1200);

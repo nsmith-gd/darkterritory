@@ -954,7 +954,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (args.Contains("--doors-open"))
         foreach (var v in train.Dynamics.Consist.Vehicles)
             v.DoorsOpen = 0xFF;
-    // --lockers-open NAME[,NAME]: those crew lockers' doors open (note 172; "all" for the row); the lockers view opens the
+    // --lockers-open NAME[,NAME]: those crew lockers' doors open (note 173; "all" for the row); the lockers view opens the
     // repair kit's (the fitter's) by itself.
     if (Str(args, "--lockers-open", view == "lockers" ? "kit" : "") is { Length: > 0 } lockersOpen && DarkTerritory.Sim.World.KitLocker(train) is { } kitLocker)
         foreach (var bay in train.Frames[kitLocker.Car].Shape.Lockers)
@@ -1478,7 +1478,7 @@ static object RenderAudio(string content, string[] args)
         return DarkTerritory.Game.Sound.AudioBench.Sweep(content, scenario, (int)Opt(args, "--cars", 20), Opt(args, "--speed", 22), Opt(args, "--seconds", 6));
     string output = Str(args, "--out", $"out/audio/{scenario}.wav");
     var clock = Stopwatch.StartNew();
-    // A wreck renders the whole derailment sequence by default (note 169), the opera and the dead channel's laughing with it (E.6).
+    // A wreck renders the whole derailment sequence by default (note 170), the opera and the dead channel's laughing with it (E.6).
     double seconds = scenario == "wreck" ? 1 + DataFile.Load<DarkTerritory.Sim.Train.WreckTuning>(Path.Combine(content, DarkTerritory.Sim.Train.WreckTuning.File)).SequenceSeconds : 6;
     var (report, mix) = DarkTerritory.Game.Sound.AudioBench.Render(content, scenario, (int)Opt(args, "--cars", 20), Opt(args, "--speed", 22),
         (int)Opt(args, "--listener", 5), Opt(args, "--seconds", seconds), Str(args, "--track", "") is { Length: > 0 } track ? track : null);

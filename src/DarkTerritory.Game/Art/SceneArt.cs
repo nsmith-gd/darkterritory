@@ -734,7 +734,7 @@ public sealed partial class SceneArt(Look look)
             var c = box.Centre;
             mesh.Instances.Add(new MeshInstance(leaf, Matrix4x4.CreateTranslation((float)c.X, (float)c.Y, (float)c.Z) * m, Scar: scar));
         }
-        // The crew lockers (note 172): the row's cabinets in the car's frame, and each door on its hinge, shut or swung out
+        // The crew lockers (note 173): the row's cabinets in the car's frame, and each door on its hinge, shut or swung out
         // into the aisle, lettered with its grade.
         if (shape.Lockers.Count > 0)
         {

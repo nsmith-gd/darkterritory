@@ -38,7 +38,7 @@ public class WreckSessionTests
     [Fact]
     public void TheHostDrawsTheOperaAndItsClientPlaysTheSameTrack()
     {
-        // GDD v1.4 App. E.6 (note 173): the host draws from the bag it brought, and the track goes out with the world.
+        // GDD v1.4 App. E.6 (note 174): the host draws from the bag it brought, and the track goes out with the world.
         var bag = new Sim.Music.MusicBag { Left = ["doom-dies-irae", "lament-vesti-la-giubba"], Last = "gallop-infernal-galop" };
         using var night = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false) { MusicBag = bag }, port: 0);
         for (int i = 0; i < 10; i++)

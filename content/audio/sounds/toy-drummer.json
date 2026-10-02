@@ -1,6 +1,6 @@
 // Player action (tier 4), a wind-up drummer in someone's hands (GDD v1.4 §19, App. C item 4): a tin drum rattled in fours
 // with a cymbal's tink on the one, and the clockwork whirring under it. The loudest of the noisy toys; it feeds the Choir's
-// meter in the carrier's name (note 174).
+// meter in the carrier's name (note 175).
 {
   "tier": 4, "loop": true, "cycleSeconds": 1.0, "maxInstances": 4, "minDistance": 2, "maxDistance": 40, "gainDb": 10,
   "layers": [

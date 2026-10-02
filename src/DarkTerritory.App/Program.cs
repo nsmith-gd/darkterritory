@@ -792,7 +792,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             : cinematic ? Views.Wreck(session.Train.Wreck!, DerailSequence.OrbitSeconds(wreckTuning, session.WreckSeconds))
             : chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
         // E.9: the lamps go out down the train as the camera pulls back, and stay lit (or not) as far as it can see.
-        // E.9: the outro opens on the repair kit's locker standing open and empty (note 172).
+        // E.9: the outro opens on the repair kit's locker standing open and empty (note 173).
         scene.KitLockerOpen = outro;
         scene.LampsOut = outro || session.World.Run?.End == DarkTerritory.Sim.Run.RunEnd.Stranded ? Views.StrandedLampsOut(session.Train.Frames.Count, outroTuning, session.OutroSeconds) : 0;
         scene.LampRange = outro ? 400 : 60;

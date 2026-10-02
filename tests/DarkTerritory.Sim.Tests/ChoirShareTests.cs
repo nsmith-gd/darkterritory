@@ -8,7 +8,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// GDD v1.4 App. A.7 and C.7 (ARCHITECTURE §8 note 174): the loudness meter keeps a per-player share during the Choir's
+/// GDD v1.4 App. A.7 and C.7 (ARCHITECTURE §8 note 175): the loudness meter keeps a per-player share during the Choir's
 /// BUILD (voice, the rounds they fired, the whistle they pulled, a noisy toy in their hands; machinery and the Whistler's
 /// whistle are nobody's), the swarm takes the loudest exposed first, and the incident report says who was loudest.
 /// </summary>

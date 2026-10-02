@@ -5,8 +5,8 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Sound;
 
 /// <summary>
-/// The derailment's opera on a client (GDD v1.4 App. E.6; ARCHITECTURE §8 note 173). Every track in the manifest is loaded
-/// at startup. When the derailment sequence (note 169) reaches the replay, the host's draw (<see cref="Sim.World.DerailMusic"/>)
+/// The derailment's opera on a client (GDD v1.4 App. E.6; ARCHITECTURE §8 note 174). Every track in the manifest is loaded
+/// at startup. When the derailment sequence (note 170) reaches the replay, the host's draw (<see cref="Sim.World.DerailMusic"/>)
 /// starts on the music bus from the point that puts its hit on the replay's moment of derailment, plays through the orbit,
 /// and fades out by the sequence's end. Presentation only: it runs off the client's own count of the wreck's seconds,
 /// like the sequence's beats.

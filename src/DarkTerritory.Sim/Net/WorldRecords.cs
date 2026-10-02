@@ -33,7 +33,7 @@ public static class WorldRecords
     /// <summary>
     /// A body record's fields before its particles: kind, parent, carrier, owner, asleep, yaw, count, second carrier,
     /// what it shows (an extinguisher's charge to the percent, its sight glass, App. C.5; a crate's cargo, GDD §19), and the
-    /// crew locker and shelf it's on (note 172: locker × 256 + shelf, or −1).
+    /// crew locker and shelf it's on (note 173: locker × 256 + shelf, or −1).
     /// </summary>
     const int BodyParticles = 10;
     // The Run record's header (phase, end, clock, facility, chute, scavenged), and room in a crane record's id for each of a site's cranes.
@@ -72,12 +72,12 @@ public static class WorldRecords
                     Q(v.Eaten, Fine),
                     // How the seated gunner has it laid (T112).
                     Q(v.Gun.Traverse, Fine), Q(v.Gun.Elevation, Fine),
-                    // Its crew lockers' doors (note 172).
+                    // Its crew lockers' doors (note 173).
                     v.LockersOpen]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
             [Q(world.Choir.Loudness, Fine), Q(world.Choir.Build, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0, Q(world.LampOutSeconds, Fine), Q(train.Sand, Fine),
                 (world.Choir.Present ? 1 : 0) | (world.Choir.Spent ? 2 : 0), Q(world.Choir.QuietSeconds, Fine), Q(world.WhistleSeconds, Fine), Q(world.Choir.Rest, Fine),
-                // The derailment's opera, the host's draw (GDD v1.4 App. E.6; note 173).
+                // The derailment's opera, the host's draw (GDD v1.4 App. E.6; note 174).
                 world.DerailMusic]));
         foreach (var e in world.ActiveEnemies)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),

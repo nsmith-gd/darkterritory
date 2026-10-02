@@ -441,7 +441,7 @@ public sealed class FrontEnd
         bool full = s.Cars >= _campaign.MaxCars;
         list.Add(new(new(full ? "BUY A CAR: THE CONSIST IS FULL" : $"BUY A CAR: {carCost:0} SCRIP", full ? null : $"Car {s.Cars + 1}. More cars carry more, and burn more, and need more hands.",
             !full && s.Current is null), () => Buy(Campaign.BuyCar(_campaign, s), $"A car bought: {s.Cars + 1} now.")));
-        // GDD v1.4 App. E.12 question 4: the fortress sells spare repair kits; each rides in a crew locker (note 172).
+        // GDD v1.4 App. E.12 question 4: the fortress sells spare repair kits; each rides in a crew locker (note 173).
         if (_campaign.SpareKit is { } spare)
         {
             bool most = s.SpareKits >= spare.Most;

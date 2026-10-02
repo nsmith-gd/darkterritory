@@ -651,7 +651,7 @@ public sealed class TrainOnLine
     GeometryTuning? _shapeGeometry;
     int? _kitCar;
 
-    /// <param name="lockers">The kit's car: it has the crew lockers (ARCHITECTURE §8 note 172).</param>
+    /// <param name="lockers">The kit's car: it has the crew lockers (ARCHITECTURE §8 note 173).</param>
     CarShape Shape(GeometryTuning g, VehicleKind kind, bool hasCarBehind, bool lockers)
     {
         if (!ReferenceEquals(g, _shapeGeometry))

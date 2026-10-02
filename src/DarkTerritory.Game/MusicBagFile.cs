@@ -5,7 +5,7 @@ using DarkTerritory.Sim.Music;
 namespace DarkTerritory.Game;
 
 /// <summary>
-/// The derailment's shuffle bag for quick nights (GDD v1.4 App. E.6 "Rotation"; ARCHITECTURE §8 note 173): a campaign
+/// The derailment's shuffle bag for quick nights (GDD v1.4 App. E.6 "Rotation"; ARCHITECTURE §8 note 174): a campaign
 /// keeps its bag in its save slot, and a night hosted from the menu without one keeps this, a small text file in the
 /// user's app data beside the settings, so the no-repeat rules hold across nights there too. Written whole and moved into
 /// place, as the save slots are.

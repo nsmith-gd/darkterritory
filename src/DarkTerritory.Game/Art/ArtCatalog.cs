@@ -56,7 +56,7 @@ public static class ArtCatalog
             k.Append(DamageKit.Car(look, cargo, 2, 3), Matrix4x4.Identity);
             return k.Build("car-wrecked");
         }));
-        // The crew lockers in the kit's car (note 172): the row's cabinets, and its longest-named door.
+        // The crew lockers in the kit's car (note 173): the row's cabinets, and its longest-named door.
         if (train.Kit.Lockers is { Names.Count: > 0 } lockerTuning)
         {
             var kitCar = CarShape.Build(g, VehicleKind.Cargo, hasCarBehind: true, lockerTuning);

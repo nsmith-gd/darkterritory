@@ -44,7 +44,7 @@ public readonly record struct Box(Double3 Min, Double3 Max)
 public enum SurfaceKind : byte { Roof, Deck, Coupler }
 
 /// <summary>What a solid is, so presentation can draw and colour it. Collision ignores this, but for an open roof hatch (T99).</summary>
-/// <summary><see cref="CrewLocker"/> is one of the kit car's row of crew lockers (ARCHITECTURE §8 note 172); <see cref="Locker"/> the guard van's tool locker.</summary>
+/// <summary><see cref="CrewLocker"/> is one of the kit car's row of crew lockers (ARCHITECTURE §8 note 173); <see cref="Locker"/> the guard van's tool locker.</summary>
 public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps, RunningBoard, Hatch, CrewLocker }
 
 /// <summary>Where a gun is bolted on, and which way it faces in the car's frame (−Z forward, +Z back).</summary>
@@ -92,7 +92,7 @@ public readonly record struct CabLevers(Double3 Regulator, Double3 Brake, Double
 }
 
 /// <summary>
-/// One crew locker (ARCHITECTURE §8 note 172), in its car's frame: the cabinet's box against the wall (a solid: you bump
+/// One crew locker (ARCHITECTURE §8 note 173), in its car's frame: the cabinet's box against the wall (a solid: you bump
 /// into it, things lie against it), its door on the face towards the aisle, hinged at its front edge. <see cref="Index"/>
 /// is its bit in <see cref="Vehicle.LockersOpen"/> and its name's place in train.json's <c>kit.lockers.names</c>.
 /// </summary>
@@ -115,7 +115,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     GunMount? Gun = null, Box? Interior = null, IReadOnlyList<Door>? Doors = null, CabLevers? Levers = null)
 {
     public IReadOnlyList<Door> DoorList => Doors ?? [];
-    /// <summary>The crew lockers along a wall (ARCHITECTURE §8 note 172): only the repair kit's car has them.</summary>
+    /// <summary>The crew lockers along a wall (ARCHITECTURE §8 note 173): only the repair kit's car has them.</summary>
     public IReadOnlyList<LockerBay> Lockers { get; init; } = [];
     /// <summary>Shelves in each crew locker (train.json kit.lockers.slots).</summary>
     public int LockerShelves { get; init; }
@@ -152,7 +152,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         return best;
     }
 
-    /// <param name="lockers">This car has the crew lockers (the repair kit's car, ARCHITECTURE §8 note 172).</param>
+    /// <param name="lockers">This car has the crew lockers (the repair kit's car, ARCHITECTURE §8 note 173).</param>
     public static CarShape Build(GeometryTuning g, VehicleKind kind, bool hasCarBehind, LockerTuning? lockers = null) =>
         lockers is { Names.Count: > 0 } && kind != VehicleKind.Engine && g.Interior is not null
             ? WithLockers(Build(g, kind, hasCarBehind), lockers) : Build(g, kind, hasCarBehind);
@@ -328,7 +328,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     }
 
     /// <summary>
-    /// The crew lockers (ARCHITECTURE §8 note 172): a row along the left wall from <see cref="LockerTuning.FromFront"/> behind
+    /// The crew lockers (ARCHITECTURE §8 note 173): a row along the left wall from <see cref="LockerTuning.FromFront"/> behind
     /// the front end wall, back towards the side door (a cargo car's) and stopping short of it, each a solid cabinet with
     /// its door to the aisle (which runs from end door to end door, right of them). As many as there are names, and as fit:
     /// none crowds a door. In the guard van they stand where its tool locker did, and take its place.

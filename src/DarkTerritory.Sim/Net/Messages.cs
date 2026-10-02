@@ -12,9 +12,9 @@ public static class Protocol
     // 4: the sim's trigonometry is DMath's, the same bits on every OS, so a 3 generates different lines from one seed.
     // 5: a body's record carries its tools (the engineering kit on the engineer, GDD v1.4 D.2).
     // 6: names (Hello, Names) and the incident report (Report) for GDD v1.4 App. C.9 and D.12.
-    // 7: the crew lockers (note 172): a vehicle record's lockers' doors, a body record's locker and shelf.
-    // 8: hit confirms and cannonball impacts (note 170), and the voice stream's hard-cut (note 171).
-    // 9: the world record carries the derailment's track (GDD v1.4 App. E.6, note 173).
+    // 7: the crew lockers (note 173): a vehicle record's lockers' doors, a body record's locker and shelf.
+    // 8: hit confirms and cannonball impacts (note 171), and the voice stream's hard-cut (note 172).
+    // 9: the world record carries the derailment's track (GDD v1.4 App. E.6, note 174).
     public const int Version = 9;
 }
 
