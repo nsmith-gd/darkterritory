@@ -330,6 +330,17 @@ public sealed class World
     public int DerailDriver { get; private set; } = -1;
 
     /// <summary>
+    /// The host's music rotation (GDD v1.4 App. E.6): the manifest's tracks and the shuffle bag from the campaign save (or
+    /// the app's, for a quick night). Only the host's world has one; it draws on the derail tick.
+    /// </summary>
+    public Music.MusicRotation? Music { get; set; }
+    /// <summary>
+    /// The derailment's track (<see cref="Sim.Music.MusicManifest.Key"/>; 0 for none): drawn by the host on the derail tick
+    /// and replicated with the world, so every client plays the same opera. Presentation only: nothing simulates from it.
+    /// </summary>
+    public uint DerailMusic { get; set; }
+
+    /// <summary>
     /// The failure-attribution log (GDD v1.4 App. C.9), host-side: what happened to whom, and the contributing action. It
     /// feeds the incident report and nothing else.
     /// </summary>
@@ -400,6 +411,10 @@ public sealed class World
             DerailCause = why;
             DerailSpeed = Train.Dynamics.Speed;
             DerailDriver = Attribution.Driver;
+            // E.6: the host draws tonight's opera from the bag, weighted by the speed it came off at, from the same seed
+            // as the wreck's (deterministic); clients are sent the key.
+            if (Music?.Draw(DerailSpeed, (ulong)Tick * 0x9E3779B97F4A7C15UL ^ (Route?.Seed ?? 0) ^ 0xE6UL) is { } track)
+                DerailMusic = Sim.Music.MusicManifest.Key(track.Id);
             // T117: off the rails, every car carries on as itself, into the ground and into each other. The host's; the
             // clients are sent the poses. Thrown outward off the curve it was on, if it was on one.
             if (Train.Wreck is null)

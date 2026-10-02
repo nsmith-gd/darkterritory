@@ -79,6 +79,8 @@ static SteamBackend? NoSteam(string? error)
 var campaignTuning = DataFile.Load<CampaignTuning>(Path.Combine(content, CampaignTuning.File));
 var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
 var saves = new SaveSlots(Arg("--saves", SaveSlots.DefaultDirectory), campaignTuning.SaveSlots);
+// GDD v1.4 App. E.6: the derailment's shuffle bag for nights without a campaign slot (a slot keeps its own), in app data.
+var musicBags = new MusicBagFile(args.Contains("--saves") ? Path.Combine(saves.Directory, "music-bag.json") : MusicBagFile.DefaultPath);
 var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", Settings.DefaultPath), edition: EditionTuning.Load(content))
 {
     Protocol = DarkTerritory.Sim.Net.Protocol.Version,
@@ -397,7 +399,12 @@ Launch? Menu()
                 campaign = Campaign.Begin(campaign, contract) with { Checkpoint = resume };
                 saves.Save(campaign);
                 int? port = night.Host ? NetPlaySession.DefaultPort : null;
-                var setup = new SessionSetup(Route: contract.Route, Cars: campaign.Cars, Enemies: enemies) { Upgrades = campaign.Upgrades, SpareKits = campaign.SpareKits };
+                var setup = new SessionSetup(Route: contract.Route, Cars: campaign.Cars, Enemies: enemies)
+                {
+                    Upgrades = campaign.Upgrades,
+                    SpareKits = campaign.SpareKits,
+                    MusicBag = campaign.Music,
+                };
                 Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
                 return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume,
                     listed: frontEnd.Settings.PublicLobby, lobbyName: frontEnd.LobbyName), campaign);
@@ -410,7 +417,7 @@ Launch? Menu()
                 // with bots and no friends (T89) is hosted privately: the bots are clients on localhost.
                 int? port = !hosted.Host ? null : args.Contains("--host") ? int.TryParse(Arg("--host", ""), out var p) ? p : NetPlaySession.DefaultPort
                     : fromCommandLine ? null : NetPlaySession.DefaultPort;
-                var setup = new SessionSetup(Route: hosted.Route, Line: hosted.Line, Cars: hosted.Cars, Enemies: enemies);
+                var setup = new SessionSetup(Route: hosted.Route, Line: hosted.Line, Cars: hosted.Cars, Enemies: enemies) { MusicBag = musicBags.Load() };
                 var session = NetPlaySession.HostGame(content, setup, port, online: hosted.Host ? steam : null, bots: hosted.Bots,
                     listed: hosted.Public, lobbyName: hosted.LobbyName);
                 if (hosted.Bots > 0)
@@ -457,6 +464,9 @@ while (!window.CloseRequested && !QuitNow())
     var leaving = launch;
     launch = null;
     campaign = Play(session, campaign);
+    // E.6: a night without a slot keeps its shuffle bag in app data (a campaign's went into its save as it settled).
+    if (campaign is null && session is NetPlaySession { MusicBag: { } bag } hosting && hosting.Host!.World.DerailMusic != 0)
+        musicBags.Save(bag);
     (session as IDisposable)?.Dispose();
     if (campaign is { Current: not null } unfinished)
         Console.WriteLine($"campaign: the night on {unfinished.Current.Route} isn't settled; its slot carries on from the last facility it left");
@@ -765,6 +775,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         var wreckTuning = session.World.WreckTuning;
         bool wrecking = session.WreckCinematic && session.Train.Wreck is not null;
         var beat = wrecking ? DerailSequence.Beat(wreckTuning, session.WreckSeconds) : DerailBeat.None;
+        // GDD v1.4 App. E.6: the opera, from the replay's first frame, its hit on the moment the replay shows it coming off.
+        sound.Music(session.World.DerailMusic, wrecking ? session.WreckSeconds : -1, wreckTuning);
         derailSequence.Record((session.Tick + clock.Alpha) * DarkTerritory.Sim.SimConstants.TickSeconds, frames, scene.Crew, session.World.Derailed, camera,
             session.Player.Parent >= 0 ? session.Player.Parent : -1, wreckTuning);
         var replay = beat == DerailBeat.Replay ? derailSequence.ReplayAt(session.WreckSeconds, wreckTuning) : null;
@@ -903,7 +915,8 @@ static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySe
         return campaign;
     if (session.World.Run?.Report is { } report)
     {
-        var settled = Campaign.Settle(campaign, report);
+        // E.6: the shuffle bag goes into the save with the night (a derail drew from it).
+        var settled = Campaign.Settle(campaign, report) with { Music = session.MusicBag ?? campaign.Music };
         saves.Save(settled);
         Console.WriteLine($"campaign: {report.End}, net {report.Net:0} scrip; now {settled.Cars} cars and {settled.Scrip:0} scrip after {settled.Runs} nights");
         return settled;

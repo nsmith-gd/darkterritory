@@ -37,6 +37,29 @@ public class AudioTests
     }
 
     [Fact]
+    public void TheOperaHitsOnTheReplayDucksUnderTheLaughingAndFadesOut()
+    {
+        // GDD v1.4 App. E.6 through the real mixer: the whole derailment sequence (note 167), its draw from a fresh bag, and
+        // someone laughing on the dead channel over the replay.
+        var tuning = DataFile.Load<WreckTuning>(Path.Combine(Content, WreckTuning.File));
+        var (report, mix) = AudioBench.Render(Content, "wreck", cars: 8, speed: 22, listenerCar: 3, seconds: tuning.SequenceSeconds + 1);
+        var music = report.Music;
+        Assert.NotNull(music);
+        // At 22 m/s (over 16) the draw favours Gallop and Doom; any track may come, but one did, and on the replay's first frame.
+        Assert.InRange(music.StartedAt, music.HitDueAt - tuning.ReplayLeadSeconds - 0.05, music.HitDueAt - tuning.ReplayLeadSeconds + 0.05);
+        Assert.InRange(music.HitHeardAt, music.HitDueAt - 0.1, music.HitDueAt + 0.1);
+        // Ducked 6 dB (E.10's −6, 50 ms attack) while the dead channel laughs, the game under the 1.2 kHz low-pass meanwhile.
+        Assert.InRange(music.DuckDb, -6.1, -5.5);
+        Assert.Equal(1, music.GameLowpass, 2);
+        // Heard: the opera over the wreck, and the laughing over the opera.
+        Assert.True(music.MusicDb > report.StemsDb["wreck-grind"], $"music {music.MusicDb} dB, grind {report.StemsDb["wreck-grind"]} dB");
+        Assert.True(report.StemsDb["voice-dead"] > -40);
+        // Faded to nothing by the end of the sequence.
+        int end = (int)(music.FadedBy * Audio.SampleRate) * 2;
+        Assert.True(Meter.Db(mix.AsSpan(end - 4800, 4800)) < Meter.Db(mix.AsSpan(end - 2 * Audio.SampleRate * 2, 4800)) - 12);
+    }
+
+    [Fact]
     public void EverySoundFileLoads()
     {
         var bank = new SoundBank(Path.Combine(Content, "audio", "sounds"));

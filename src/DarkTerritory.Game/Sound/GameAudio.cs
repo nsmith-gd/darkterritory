@@ -38,10 +38,19 @@ public sealed class GameAudio
         Bank = new SoundBank(Path.Combine(contentRoot, "audio", "sounds"));
         _mix = new HotData<MixDef>(Path.Combine(contentRoot, MixDef.File));
         Mixer = new Mixer(Bank, _mix.Value);
+        Opera = new Opera(contentRoot);
     }
 
     public SoundBank Bank { get; }
     public Mixer Mixer { get; }
+    /// <summary>The derailment's music (GDD v1.4 App. E.6): every track loaded now, at startup.</summary>
+    public Opera Opera { get; }
+
+    /// <summary>
+    /// Every frame: the derailment's opera, the host's draw (<see cref="World.DerailMusic"/>) at
+    /// <paramref name="sequenceSeconds"/> into the sequence (negative with no derailment). It starts on the replay.
+    /// </summary>
+    public void Music(uint track, double sequenceSeconds, WreckTuning tuning) => Opera.Update(Mixer, track, sequenceSeconds, tuning);
 
     sealed class EnemySound
     {
