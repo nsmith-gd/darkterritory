@@ -170,11 +170,13 @@ public static class WorldRecords
             f[5] = Q(body.Yaw, Ang);
             f[6] = ps.Length;
             f[7] = body.Second;
-            // The ninth: an extinguisher's charge, a body's tools (GDD v1.4 D.2: it keeps the engineering kit), or a crate's cargo.
+            // The ninth: an extinguisher's charge, a body's tools (GDD v1.4 D.2: it keeps the engineering kit), a toy's noise, or a
+            // crate's cargo.
             f[8] = body.Kind switch
             {
                 Physics.BodyKind.Extinguisher => Q(body.Charge, Hint),
                 Physics.BodyKind.Ragdoll => (long)body.Tools,
+                Physics.BodyKind.Toy => (long)body.Noise,
                 _ => (long)body.Cargo,
             };
             f[9] = body.Locker < 0 ? -1 : body.Locker * 256 + body.Slot;
@@ -385,7 +387,8 @@ public static class WorldRecords
             Yaw = D(f[5], Ang),
             Charge = (Physics.BodyKind)f[0] == Physics.BodyKind.Extinguisher ? D(f[8], Hint) : 1,
             Tools = (Physics.BodyKind)f[0] == Physics.BodyKind.Ragdoll ? (ulong)f[8] : 0,
-            Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll ? CargoKind.None : (CargoKind)f[8],
+            Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll or Physics.BodyKind.Toy ? CargoKind.None : (CargoKind)f[8],
+            Noise = (Physics.BodyKind)f[0] == Physics.BodyKind.Toy ? (Physics.ToyNoise)f[8] : Physics.ToyNoise.None,
             Locker = f[9] < 0 ? -1 : (int)(f[9] / 256),
             Slot = f[9] < 0 ? 0 : (int)(f[9] % 256),
         };

@@ -26,6 +26,11 @@ public sealed record KitTuning
     /// <summary>Toys in the guard van (GDD v1.1 App. C.4): hand loot, what the Track Doll will leave for.</summary>
     public int Toys { get; init; }
     /// <summary>
+    /// What the guard van's toys sound like, in the order they're stocked (App. C.7: "some toys are noisy"); a toy past the
+    /// list's end is quiet.
+    /// </summary>
+    public IReadOnlyList<Physics.ToyNoise> ToyNoises { get; init; } = [];
+    /// <summary>
     /// Repair kits (GDD §12): the toolbox that mends a ruptured boiler and opens a Holdout's lock quietly (App. D.7), in
     /// <see cref="RepairKitCar"/>.
     /// </summary>

@@ -152,7 +152,10 @@
   "kit": {
     "radios": 2,
     // GDD v1.1 App. C.4 hand loot: toys in the guard van, for the Track Doll (it steals one and leaves for the run).
-    "toys": 2,
+    // GDD v1.4 App. C item 4: "some toys are noisy": four now, and three of them make a noise while carried (a squeaker, a
+    // music box, a wind-up drummer), in the carrier's name on the loudness meter (combat.json choir.toys; note 172).
+    "toys": 4,
+    "toyNoises": ["squeaker", "musicBox", "drummer"],
     // GDD §12 "the repair kit is an item, not a station": one toolbox, in its locker (lockers.kitLocker) in car
     // `repairKitCar` (counted back from the engine). It's what mends a ruptured boiler (boiler.json repairSeconds), so
     // someone has to leave the footplate for it, and whoever carries it opens a Holdout's lock silently (holdouts.json

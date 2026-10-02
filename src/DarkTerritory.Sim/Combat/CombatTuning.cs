@@ -46,4 +46,22 @@ public sealed record ChoirTuning
     public double LivestockFloor { get; init; } = 0.3;
     /// <summary>T113: seconds after it disperses (driven off quiet) before it can begin to gather again.</summary>
     public double RestSeconds { get; init; } = 300;
+    /// <summary>A noisy toy in someone's hands (App. C.7), by its noise: how much it adds to the meter, in the carrier's name.</summary>
+    public NoisyToyTuning Toys { get; init; } = new();
+}
+
+/// <summary>combat.json <c>choir.toys</c>: each noisy toy's loudness while carried (GDD v1.4 App. C item 4, C.7).</summary>
+public sealed record NoisyToyTuning
+{
+    public double Squeaker { get; init; } = 0.2;
+    public double MusicBox { get; init; } = 0.15;
+    public double Drummer { get; init; } = 0.3;
+
+    public double Of(Physics.ToyNoise noise) => noise switch
+    {
+        Physics.ToyNoise.Squeaker => Squeaker,
+        Physics.ToyNoise.MusicBox => MusicBox,
+        Physics.ToyNoise.Drummer => Drummer,
+        _ => 0,
+    };
 }

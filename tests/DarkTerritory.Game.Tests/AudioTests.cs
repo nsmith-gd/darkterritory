@@ -42,7 +42,7 @@ public class AudioTests
         var bank = new SoundBank(Path.Combine(Content, "audio", "sounds"));
         Assert.Null(bank.LastError);
         foreach (var name in AudioBench.TellBands.Keys.Concat(["boiler-roar", "chuff", "wheel-rail", "brake", "wind", "slack-clunk", "safety-valve", "gunshot", "shovel",
-            "cannon-impact", "cannon-splash", "hit-confirm", "doll-shatter"]))
+            "cannon-impact", "cannon-splash", "hit-confirm", "doll-shatter", "toy-squeaker", "toy-musicbox", "toy-drummer"]))
             Assert.NotNull(bank.Get(name));
         Assert.All(AudioBench.TellBands.Keys, t => Assert.Equal(1, bank.Get(t)!.Tier));
     }
@@ -78,6 +78,53 @@ public class AudioTests
         Update();
         Assert.Equal(1, Playing("cannon-impact"));
         Assert.Equal(1, Playing("hit-confirm"));
+    }
+
+    [Fact]
+    public void ANoisyToyPlaysWhileItsCarriedAndStopsWhenPutDown()
+    {
+        // GDD v1.4 App. C item 4 (note 172): a squeaker, a music box, a wind-up drummer, heard while carried; a quiet toy isn't.
+        var tuning = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
+        var line = RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(tuning, 4, 1)), line, 1200);
+        var world = new World(train);
+        var room = train.Frames[2].Shape.Interior!.Value;
+        var toys = new[] { DarkTerritory.Sim.Physics.ToyNoise.Squeaker, DarkTerritory.Sim.Physics.ToyNoise.MusicBox, DarkTerritory.Sim.Physics.ToyNoise.Drummer,
+            DarkTerritory.Sim.Physics.ToyNoise.None }.Select((noise, i) =>
+            {
+                var b = world.Bodies.SpawnCrate(train, 2, new Double3(0, room.Min.Y + 0.1, i * 0.5), DarkTerritory.Sim.Physics.BodyKind.Toy);
+                b.Noise = noise;
+                return b;
+            }).ToList();
+        var audio = new GameAudio(Content);
+        var ear = Listener.At(train.Frames[2].Origin, train.Frames[2].Heading);
+        void Update() => audio.Update(world, new TrainControls { Reverser = 1 }, ear, exposed: false, SimConstants.TickSeconds, space: 2);
+        int Playing(string name) => audio.Mixer.Voices.Count(v => v.Name == name && !v.Finished);
+        Update();
+        Assert.Equal(0, Playing("toy-squeaker") + Playing("toy-musicbox") + Playing("toy-drummer"));
+        for (int i = 0; i < toys.Count; i++)
+            toys[i].Carrier = i + 1;
+        Update();
+        Update();
+        Assert.Equal(1, Playing("toy-squeaker"));
+        Assert.Equal(1, Playing("toy-musicbox"));
+        Assert.Equal(1, Playing("toy-drummer"));
+        toys[2].Carrier = -1;
+        Update();
+        Assert.Equal(0, Playing("toy-drummer"));
+        Assert.Equal(1, Playing("toy-squeaker"));
+    }
+
+    [Fact]
+    public void TheNoisyToysAreHeardOverTheRoofsWindAndNoneDrownsTheOthers()
+    {
+        // Note 172: carried on the roof at 15 m/s, each toy is over the wind and the rails (you hear who has it), and the three
+        // sit within a few dB of each other (the drummer is the loudest by the meter, not by the speakers).
+        var (report, _) = AudioBench.Render(Content, "toys", cars: 6, speed: 15, listenerCar: 3, seconds: 4);
+        string[] toys = ["toy-squeaker", "toy-musicbox", "toy-drummer"];
+        foreach (var toy in toys)
+            Assert.True(report.StemsDb[toy] > report.StemsDb["wind"] + 6, $"{toy} at {report.StemsDb[toy]} dB, wind {report.StemsDb["wind"]}");
+        Assert.InRange(toys.Max(t => report.StemsDb[t]) - toys.Min(t => report.StemsDb[t]), 0, 4);
     }
 
     [Fact]

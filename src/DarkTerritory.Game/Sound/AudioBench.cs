@@ -86,7 +86,7 @@ public static class AudioBench
     }
 
     /// <param name="scenario">"bed" (train only), "tells" (quiet train, every demo tell), "chaos" (everything at once) or
-    /// "wreck" (the train derails, heard from beside the line).</param>
+    /// "wreck" (the train derails, heard from beside the line), "toys" (the noisy toys carried on the listener's roof).</param>
     /// <param name="listenerCar">0 = in the cab; otherwise on that car's roof.</param>
     public static (AudioBenchReport Report, float[] Mix) Render(string content, string scenario = "chaos", int cars = 20, double speed = 22,
         int listenerCar = 5, double seconds = 6)
@@ -103,6 +103,20 @@ public static class AudioBench
         bool chaos = scenario == "chaos", tells = chaos || scenario == "tells";
         // "wreck" (T117): the train comes off half a second in, heard from beside the line where the engine left it.
         bool wreck = scenario == "wreck";
+        // "toys" (note 172): the squeaker, the music box and the wind-up drummer, each in a crewmate's hands on the listener's
+        // roof, a few metres apart: what the meter's being fed, heard over the train.
+        if (scenario == "toys")
+        {
+            int car = Math.Clamp(listenerCar, 1, train.Frames.Count - 1);
+            double roof = train.Frames[car].Shape.RoofHeight + 1.0;
+            var noises = new[] { Sim.Physics.ToyNoise.Squeaker, Sim.Physics.ToyNoise.MusicBox, Sim.Physics.ToyNoise.Drummer };
+            for (int i = 0; i < noises.Length; i++)
+            {
+                var toy = world.Bodies.SpawnCrate(train, car, new Double3(0.3, roof, (i - 1) * 3.0), Sim.Physics.BodyKind.Toy);
+                toy.Noise = noises[i];
+                toy.Carrier = i + 1;
+            }
+        }
         Double3? trackside = null;
         var controls = new TrainControls { Throttle = chaos ? 1 : 0.5, Reverser = 1 };
         listenerCar = Math.Clamp(listenerCar, 0, train.Frames.Count - 1);
