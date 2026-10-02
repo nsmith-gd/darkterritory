@@ -74,6 +74,7 @@ return args switch
     ["vr", "check", ..] => Print(VrCheck(train, content, args)),
     ["facility", "drill", ..] => Print(FacilityDrill(train, content, routeTuning, args)),
     ["audio", "render", ..] => Print(RenderAudio(content, args)),
+    ["audio", "opera", ..] => Print(OperaCommands.Run(content, args)),
     ["edit", ..] => Edit(content, args),
     ["voice", "bench", ..] => Print(DarkTerritory.Game.Sound.VoiceBench.Run(content, (int)Opt(args, "--car", 3), Opt(args, "--z", 4), args.Contains("--radio"),
         Opt(args, "--seconds", 2), new Ballast.Net.LinkConditions(Opt(args, "--latency", 0), Opt(args, "--jitter", 0), Opt(args, "--loss", 0)),
@@ -1485,8 +1486,10 @@ static object RenderAudio(string content, string[] args)
         return DarkTerritory.Game.Sound.AudioBench.Sweep(content, scenario, (int)Opt(args, "--cars", 20), Opt(args, "--speed", 22), Opt(args, "--seconds", 6));
     string output = Str(args, "--out", $"out/audio/{scenario}.wav");
     var clock = Stopwatch.StartNew();
+    // A wreck renders the whole derailment sequence by default (note 170), the opera and the dead channel's laughing with it (E.6).
+    double seconds = scenario == "wreck" ? 1 + DataFile.Load<DarkTerritory.Sim.Train.WreckTuning>(Path.Combine(content, DarkTerritory.Sim.Train.WreckTuning.File)).SequenceSeconds : 6;
     var (report, mix) = DarkTerritory.Game.Sound.AudioBench.Render(content, scenario, (int)Opt(args, "--cars", 20), Opt(args, "--speed", 22),
-        (int)Opt(args, "--listener", 5), Opt(args, "--seconds", 6));
+        (int)Opt(args, "--listener", 5), Opt(args, "--seconds", seconds), Str(args, "--track", "") is { Length: > 0 } track ? track : null);
     Ballast.Audio.Wav.Write(output, mix);
     // The picture of it: a spectrogram beside the WAV, for looking at bands without listening.
     string picture = Path.ChangeExtension(output, ".png");
@@ -1591,8 +1594,11 @@ static int Usage()
           campaign new|show|slots|buy car|buy <upgrade>|sim|play [--slot 1..3] [--saves dir] [--contract i] [--seed n]
                      the campaign between nights (spec E, F): the board, purchases, F.4's progression check, a bot night settled
           online check                             is Steam reachable from here (signed-in user, or what's missing)
-          audio render [--scenario bed|tells|chaos|wreck] [--cars n] [--speed v] [--listener car (0 = cab) | all] [--seconds t] [--out file.wav]
-                     renders through the mixer to a WAV and a spectrogram PNG, and reports each tell's margin over the bed (spec A.3)
+          audio opera [--check]
+                     the derailment's music (GDD v1.4 App. E.6): our own CC0 recordings into content/audio/music, the manifest, CREDITS.md
+          audio render [--scenario bed|tells|chaos|wreck|toys] [--cars n] [--speed v] [--listener car (0 = cab) | all] [--seconds t] [--out file.wav] [--track id]
+                     renders through the mixer to a WAV and a spectrogram PNG, and reports each tell's margin over the bed (spec A.3);
+                     wreck: the whole derailment sequence with its opera (E.6: the hit, the duck under the dead channel, the fade)
           edit [--port p] [--screenshot file.png]   the designer's editor (tuning + routes) at http://127.0.0.1:<port>/
           voice bench [--car n (0 = cab)] [--z m] [--radio] [--latency s --jitter s --loss 0..1]
                      one speaker to a listener on car 3 through host routing, Opus and the mixer (spec A.5)

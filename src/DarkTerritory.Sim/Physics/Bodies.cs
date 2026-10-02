@@ -21,6 +21,12 @@ namespace DarkTerritory.Sim.Physics;
 public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Toy = 7, Loot = 8, Child = 9, Extinguisher = 10, RepairKit = 11 }
 
 /// <summary>
+/// What a toy sounds like while it's carried (GDD v1.4 §19, App. C.7): most are quiet; a squeaker, a music box and a wind-up
+/// drummer feed the crew loudness meter in the carrier's name (ARCHITECTURE §8 note 175).
+/// </summary>
+public enum ToyNoise : byte { None = 0, Squeaker = 1, MusicBox = 2, Drummer = 3 }
+
+/// <summary>
 /// A loose physical thing: cargo, a tool, a crewmate's body. It lives in a car's frame while it touches that
 /// car, and in the world frame in flight, exactly like a player (ARCHITECTURE §6.1): a crate on a roof at
 /// 22 m/s is still, and one thrown off the side lands behind the train with the train's speed.
@@ -66,6 +72,8 @@ public sealed class Body
     /// "physically aboard and readable"); <see cref="CargoKind.None"/> for a stop's loot crates and everything else.
     /// </summary>
     public CargoKind Cargo { get; set; }
+    /// <summary>A toy's noise (App. C.7): <see cref="ToyNoise.None"/> for a quiet one and everything that isn't a toy.</summary>
+    public ToyNoise Noise { get; set; }
     /// <summary>
     /// For a ragdoll, the tools its player was carrying when they died (GDD v1.4 App. D.2: the body keeps everything,
     /// the engineering kit included), packed like <see cref="PlayerState.Kit"/>. Whoever lifts the body takes them.
@@ -197,6 +205,12 @@ public sealed class Bodies
         BodyKind.Toy => 1,
         _ => 0,
     };
+
+    /// <summary>
+    /// What this body is worth to what ranks loot: <see cref="Value(BodyKind)"/>, and a noisy toy a half more than a quiet
+    /// one (GDD v1.4 App. C item 4: "worth more than quiet toys").
+    /// </summary>
+    public static double Value(Body b) => Value(b.Kind) * (b.Kind == BodyKind.Toy && b.Noise != ToyNoise.None ? 1.5 : 1);
 
     /// <summary>A small thing on the ground at a facility (a toy, salvage, a child), in the world frame.</summary>
     public Body SpawnItem(Double3 world, double lineHint, BodyKind kind)

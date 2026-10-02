@@ -68,6 +68,11 @@ public sealed record CampaignState
     /// starts a night in a crew locker beside the train's own (ARCHITECTURE §8 note 173); one lost in the night is gone.
     /// </summary>
     public int SpareKits { get; init; }
+    /// <summary>
+    /// The derailment's shuffle bag (GDD v1.4 App. E.6 "Rotation": "the host's campaign save keeps a bag of every eligible
+    /// track"): what's left to draw and the last track played. Null in a save from before it, which starts a fresh bag.
+    /// </summary>
+    public Music.MusicBag? Music { get; init; }
 }
 
 /// <summary>What a purchase came to: the new state, or why not.</summary>
