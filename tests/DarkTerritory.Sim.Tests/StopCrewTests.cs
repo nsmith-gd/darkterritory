@@ -152,6 +152,41 @@ public class StopCrewTests
         }
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(90)]
+    [InlineData(250)]
+    public void AWalkerLeftOnTheBallastWalksBackToTheStandingTrainAndClimbsAboard(double behind)
+    {
+        // T121 (the brakes cut): a crate hand, its part at the Foundry done, came off the roofs as the train backed out of the
+        // spur, and the train went on past it to stand on the main line more than 60 m off. Its part done, the stop had nothing for
+        // it, and the walker's way aboard only looked 60 m for a ladder: it stood on the ballast until the driver gave up
+        // waiting and left it. A standing train is walked back to from however far.
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(4000)])), 1200);
+        var world = new World(train, Tuning.Combat);
+        world.EnableBodies();
+        var calls = new CrewCalls();
+        var bot = new RoofWalkerBot(21, P.Cold, new StopHand(StopJob.Crates, calls, 1, P.Cold)) { Me = 1 };
+        int last = train.Vehicles[^1].Id;
+        var shape = train.Frames[last].Shape;
+        // Beside the last car, or that far back down the line from it, off to its side.
+        var at = train.Frames[last].ToWorld(new Ballast.Double3(shape.HalfWidth + 1.2, 0, behind > 0 ? shape.HalfLength + behind : 0));
+        var s = PlayerMotor.SpawnOnGround(at, train.Line, train.Cars[last].FrontDistance - behind, P);
+        double bound = 20 + behind / P.Run * 1.5;
+        double t = 0;
+        for (uint tick = 0; t < bound && s.Parent == PlayerState.World; tick++, t += SimConstants.TickSeconds)
+        {
+            world.BeginTick();
+            var intent = bot.Decide(s, world, tick, out _);
+            world.CrewAct(ref s, intent, 1);
+            world.Step(new TrainControls());
+            PlayerMotor.Step(ref s, intent, train, P, T, SimConstants.TickSeconds, applyLook: false);
+            Assert.True(s.Alive, $"died of {s.Death}");
+        }
+        Assert.True(s.Parent != PlayerState.World, $"still on the ballast after {bound:0} s, {(PlayerMotor.WorldPosition(s, train) - at).Length:0.0} m from where it started");
+        Assert.Equal(0, train.Dynamics.Velocity);
+    }
+
     [Fact]
     public void AGunnerLeftOnTheBallastClimbsBackAboardAndADeadOneIsNotWaitedFor()
     {
