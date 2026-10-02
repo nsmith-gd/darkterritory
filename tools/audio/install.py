@@ -3,9 +3,8 @@
 
 Which candidate a cue gets, from the checklist store (`--from DIR`, the `items` as an ArtifactData list saves them):
   1. what the director kept (Keep) on that cue, all of them as takes;
-  2. otherwise, on a line still at L0 (nothing of its own in the game), the first candidate not marked Redo: built
-     candidates first, then library files, so every cue has its own sound, rough or not (L1);
-  3. otherwise nothing: a line already at L1 or better keeps what it plays until something is kept.
+  2. otherwise the first candidate not marked Redo: built candidates first, then library files, so every cue has its own
+     sound, rough or not (L1). A tell the game plays under its own tuned synth sound keeps that until a take is kept.
 
   python3 tools/audio/install.py --from DIR [--dry] [line ...]
 
@@ -146,8 +145,8 @@ def pick(cands, mat, line_level):
     kept = [k for k in here if k.get("verdict") == "keep"]
     if kept:
         return kept, "kept"
-    if (line_level or 0) >= 1:
-        return [], None
+    # Nothing kept yet: the first candidate not marked Redo, on every line, so every cue the game's hooks name has a sound
+    # of its own (a tell's tuned synth sound stays what plays until one is kept: tell_sounds).
     ok = [k for k in here if k.get("verdict") != "redo"]
     ok.sort(key=lambda k: (not k.get("built"), not k.get("old"), k.get("mat") is None))
     return ok[:1], "first"
