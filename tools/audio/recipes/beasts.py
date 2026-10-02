@@ -361,6 +361,7 @@ def ring_of(key, length=0.45):
 
 
 def through(x, ring):
+    """Ring a blow through a body (a ring from ring_of): convolution, the blow's spectrum shaping which modes sound."""
     return unit(signal.fftconvolve(x, ring).astype(np.float32))
 
 
@@ -398,7 +399,7 @@ def paw_nails(rng, k):
     return b.x
 
 
-def paw_board(rng, k):
+def paw_deck(rng, k):
     hind = k % 2 == 1
     w = rng.uniform(0.85, 1.0) * (1.3 if hind else 1.0)
     b = Bus(0.6)
@@ -425,8 +426,9 @@ def paw_board(rng, k):
         "A hound's paw on an iron running board: its nails ticking on the steel first and loudest, a dull soft pad, ash",
         """What a big dog on a steel floor sounds like: the nails. Three or four claw strikes in a ragged 10-25 ms run,
         each a real metal-on-metal tick (cut from Kenney's latch and click and sfx_100's small metal hits), then the
-        pad: a real soft thump convolved through a real steel plate's ring (the decay of a Kenney plate impact), so a
-        soft blow reaches only the plate's low modes, and the dog's weight chokes it at once. Now and then a nail skates
+        pad: a slow, soft blow (with the grain of a real soft thump) convolved through a real thick steel plate's ring
+        (the decay of a Kenney medium plate impact), so it reaches only the plate's low modes, and the dog's weight
+        chokes it at once. Now and then a nail skates
         on the chequer as the foot drives back. The same puff of ash and embers as the kept roof paw. Odd takes are hind
         feet, heavier.""",
         sources=STEEL_TICKS + STEEL_RING + SOFT, takes=6, mat="grate", lufs=-22, gap=0.3, preview=takes_then(gallop))
@@ -434,16 +436,17 @@ def hound_paw_nails(rng, k):
     return done(paw_nails(rng, k))
 
 
-@recipe("cs-hounds", "paw", "board",
+@recipe("cs-hounds", "paw", "deck",
         "A hound's paw on an iron running board: the weight landing on the steel, its dull 'dunk' and short ring, nails under",
-        """The weight first: a real soft thump and the dog's mass behind it, convolved through the ring of a real steel
-        plate (the decay of a Kenney heavy or medium plate impact), so the board answers the paw the way steel answers
-        something soft and heavy: a dull, hollow 'dunk' with a short ring, damped as the foot stands on it. The nails
+        """The weight first: a slow, soft blow (with the grain of a real soft thump) convolved through the ring of a
+        real thick steel plate (the decay of a Kenney medium plate impact), so the board answers the paw the way steel
+        answers something soft and heavy: a dull, hollow 'dunk' with a short ring, damped as the foot stands on it, the
+        dog's mass a dull thud under it. The nails
         tick quieter under it, rung through the same plate. Hind feet (and some fore) lift the board on its bolts so it
         knocks back on its bracket. The same puff of ash and embers as the kept roof paw.""",
         sources=STEEL_TICKS + STEEL_RING + SOFT, takes=6, mat="grate", lufs=-22, gap=0.3, preview=takes_then(gallop))
-def hound_paw_board(rng, k):
-    return done(paw_board(rng, k))
+def hound_paw_deck(rng, k):
+    return done(paw_deck(rng, k))
 
 
 def scrabble(rng, length, rate, f=(1200, 3000), scratch=0.45):
@@ -546,6 +549,129 @@ def leap(rng, k):
         + [f"kenney_impact-sounds:impactMetal_heavy_{i:03d}" for i in range(5)], takes=2)
 def hound_leap(rng, k):
     return done(leap(rng, k))
+
+
+# The leap again. 'board' told the whole story (strides, take-off, a whoosh through the air, sparks, the landing, a
+# snarl) and was judged wrong. These two are only what the crew hears at the rear car: the arrival, short.
+
+BOARDS = [f"sfx_100_v2:footstep_wood_0{i}" for i in range(1, 5)]     # real steps on wooden boards
+DECK = ["sfx_100_v2:wood_hit_01", "sfx_100_v2:wood_hit_02"]           # heavy blows on planking
+GROANS = ["kenney_rpg-audio:creak1", "kenney_rpg-audio:creak3"]      # real wooden creaks
+IRON_STEP = "sfx_100_v2:metal_hit_01"                                 # a real blow on a steel sheet
+
+
+def main_hit(key, length, pre=0.002):
+    """A recording from the start of its loudest hit (past any small knock before it), `length` long, faded."""
+    x = ck.get(key)
+    h = ck.hits(x, floor_db=-20)
+    s = max(h, key=lambda sp: abs(x[sp[1]]))[0] if h else 0
+    return ck.cut(x, s - samples(pre), s + samples(length), 0.001, length * 0.5)
+
+
+def land_foot(rng, w=1.0):
+    """One foot of a big dog coming down hard on the platform's boards: nails, a real board's knock under the pad, the
+    deck's dull thump with the weight in it. Choked short: the foot stays planted on the board it hit."""
+    b = Bus(0.3)
+    b.at(0, claws(rng, int(rng.integers(1, 3)), (1300, 2800), body=[1.0, 1.6, 2.7]), -8)
+    board = dsp.vari(main_hit(BOARDS[int(rng.integers(4))], 0.12), rng.uniform(-3, -1))
+    b.at(0.004, unit(ck.choke(lp(board, 5000), 0.02, 0.025)), -2)
+    deck = dsp.vari(main_hit(DECK[int(rng.integers(2))], 0.2), rng.uniform(-4, -2))
+    b.at(0.004, unit(ck.choke(lp(deck, 2500), 0.03, 0.04)), -7 + 6 * np.log2(w))
+    b.at(0.004, kit.thud(rng, rng.uniform(55, 75), 0.09, w), -11)
+    return b.x
+
+
+def knocked_breath(rng):
+    """The breath knocked out of it as it lands: one short burst of its burnt-out throat, falling into air."""
+    L = rng.uniform(0.17, 0.24)
+    return cinder_voice(rng, [(0, rng.uniform(130, 160)), (L, 85)], L, [(0, "a"), (L * 0.6, "o"), (L, "h")],
+                        [(0, 0), (0.012, 1), (L * 0.5, 0.5), (L, 0)])
+
+
+def boards_give(rng):
+    """The platform's boards taking a weight they weren't laid for: a real wooden creak dropped half an octave, short."""
+    x = dsp.vari(main_hit(GROANS[int(rng.integers(2))], 0.3, 0.01), rng.uniform(-8, -5))
+    return unit(dsp.shaped(lp(x, 2500), [(0, 1), (0.25, 0.6), (0.45, 0)]))
+
+
+def leap_land(rng, k):
+    b = Bus(1.4)
+    w = (1.0, 1.15)[k]
+    # it lands as a gallop lands: the forefeet together, then the hind feet, heavier, a beat behind
+    b.at(0.0, land_foot(rng, 0.9 * w), -2)
+    b.at(rng.uniform(0.006, 0.014), land_foot(rng, 0.9 * w), -5)
+    hind = rng.uniform(0.1, 0.13)
+    b.at(hind, land_foot(rng, 1.25 * w), 0)
+    b.at(hind + rng.uniform(0.006, 0.014), land_foot(rng, 1.2 * w), -3)
+    # its momentum carries on: the hind nails dig in and skid (further on the second take)
+    sk = (rng.uniform(0.08, 0.14), rng.uniform(0.22, 0.3))[k]
+    b.at(hind + 0.03, scrabble(rng, sk, env([(0, 35), (sk, 8)], sk), f=(1100, 2600), scratch=0.7), -10)
+    b.at(hind + 0.05, knocked_breath(rng), -12)
+    b.at(hind + 0.06, boards_give(rng), -17)
+    b.at(0.0, ash(rng, 0.45, 400, 4500), -15)
+    b.at(0.02, embers(rng, 0.7, env([(0, 300), (0.15, 80), (0.7, 0)], 0.7), hi=1600), -13)
+    return outdoors(b.x, rng, wet=0.04, tail=0.3)
+
+
+def leap_scramble(rng, k):
+    b = Bus(2.2)
+    L = (rng.uniform(0.5, 0.6), rng.uniform(0.75, 0.85))[k]    # how long it hangs there scrabbling
+    # it falls short: its chest slams the platform's end, a foreleg over the iron step
+    b.at(0.0, unit(lp(dsp.vari(main_hit(DECK[k], 0.3), -5), 1800)), 0)
+    b.at(0.0, kit.thud(rng, 50, 0.25, 1.4), -6)
+    step = dsp.vari(main_hit(IRON_STEP, 0.4), rng.uniform(-4, -2))
+    b.at(0.01, unit(lp(step, 3500)), -9)
+    # nails scraping for grip on the iron step, then catching on the boards; the hind feet kicking at the end planks
+    t = 0.03
+    while t < 0.03 + L * 0.5:
+        b.at(t, nail(rng, rng.uniform(-4, 0)), rng.uniform(-14, -7))
+        t += rng.exponential(1 / 32)
+    b.at(0.03 + L * 0.3, scrabble(rng, L * 0.7, env([(0, 40), (L * 0.7, 12)], L * 0.7), f=(1100, 2600), scratch=0.6), -6)
+    for kt in np.sort(rng.uniform(0.08, L, int(rng.integers(2, 5)))):
+        kick = unit(lp(dsp.vari(main_hit(BOARDS[int(rng.integers(4))], 0.1), rng.uniform(-6, -3)), 1500))
+        b.at(kt, mix(kick, kit.thud(rng, 80, 0.07, 0.6) * 0.5), rng.uniform(-12, -7))
+    # the effort: a strained growl through its burnt throat, rising as it hauls itself up
+    G = L + 0.15
+    b.at(0.08, cinder_voice(rng, [(0, 72), (G * 0.6, 100), (G, 118)], G, [(0, "u"), (G * 0.5, "a"), (G, "a")],
+                            [(0, 0), (0.1, 0.6), (G * 0.85, 1), (G, 0)]), -4)
+    if k == 1:     # it slips back once and the nails screech down the step
+        sl = 0.03 + L * 0.45
+        for j in range(6):
+            b.at(sl + 0.012 * j, nail(rng, -3 - j, 0.004), -10 - 1.5 * j)
+    # up: the hind feet find the deck and its weight comes onto the boards
+    up = 0.1 + L
+    b.at(up, land_foot(rng, 1.2), -2)
+    b.at(up + rng.uniform(0.02, 0.04), land_foot(rng, 1.1), -4)
+    b.at(up + 0.05, boards_give(rng), -18)
+    b.at(0.0, ash(rng, 0.6, 400, 4500), -12)
+    b.at(up, ash(rng, 0.3, 400, 4500), -14)
+    return outdoors(b.x, rng, wet=0.06, tail=0.3)
+
+
+@recipe("cs-hounds", "leap", "land",
+        "A hound landing on the rear platform from a jump: four feet in a gallop's flam on the boards, a skid, its breath knocked out",
+        """Only the landing. The forefeet come down a hair apart, then the hind feet heavier a beat behind, each a few
+        nail ticks, a real board footstep (sfx_100's wooden steps) and a real heavy blow on planking (sfx_100's wood
+        hits), both dropped a few semitones for a 40 kg dog, with its weight under them. Its momentum skids the hind
+        nails a hand's breadth on the boards (further on the second take), the breath is knocked out of its burnt-out
+        throat (the kept snarl's voice), the platform's boards creak back under the weight (a real Kenney creak dropped
+        half an octave), and a little ash and a few embers come off its hide. No run-up, no whoosh, no snarl.""",
+        sources=BOARDS + DECK + GROANS, takes=2)
+def hound_leap_land(rng, k):
+    return done(leap_land(rng, k))
+
+
+@recipe("cs-hounds", "leap", "scramble",
+        "A hound falling short of the rear platform and hauling itself up: chest into the end, nails on the iron step, a strained growl",
+        """It doesn't land clean. Its chest slams into the end of the car (a real heavy blow on planking, dropped and
+        darkened) and a foreleg comes down over the iron step (a real blow on a steel sheet, dulled). Then it hangs there:
+        nails skating on the step (real metal ticks), catching on the boards, the hind feet kicking at the end planks,
+        while its burnt-out throat (the kept snarl's voice) strains in a growl that rises as it hauls itself up. Its hind
+        feet find the deck and the boards creak under its weight. The second take hangs longer and slips back once, nails
+        screeching down the step.""",
+        sources=BOARDS + DECK + GROANS + [IRON_STEP] + STEEL_TICKS, takes=2)
+def hound_leap_scramble(rng, k):
+    return done(leap_scramble(rng, k))
 
 
 # Snarls: four performances, the same throats. Each is a breath or two out with the teeth bared (the vowel pulled to
@@ -685,6 +811,145 @@ def bite(rng, k):
         sources=CLOTH + ["sfx_100_v2:misc_34"], takes=4)
 def hound_bite(rng, k):
     return done(bite(rng, k))
+
+
+# The bite again. 'jaws' made the bite's body from models (a synthesised tooth clack and squelch, a scorching hiss,
+# crackling fibres) and was judged wrong. These two make every physical part from real recordings, and give the hound
+# the kept snarl's burnt-out throat ('cinder').
+
+LEATHER = "kenney_rpg-audio:handleSmallLeather"
+CRUNCH = [f"kenney_impact-sounds:footstep_snow_{i:03d}" for i in range(5)]
+WET = [f"sfx_100_v2:footstep_wet_0{i}" for i in range(1, 4)]
+TEAR = ["kenney_rpg-audio:handleSmallLeather2", "kenney_rpg-audio:drawKnife2"]
+CLACK = "kenney_rpg-audio:chop"
+BONE = "sfx_100_v2:misc_35"
+
+
+def clamp(rng, hard=1.0):
+    """The jaws closing through a coat into the arm, all real: leather squeezed hard (the coat taking the teeth), the
+    dull clack of the jaws meeting through it (an axe's knock, dulled), a short dense crunch (a packed-snow footstep cut
+    short and dropped: teeth punching through canvas and skin), the cloth grabbed, and a wet give under it all."""
+    b = Bus(0.4)
+    db = 6 * np.log2(hard)
+    b.at(0.0, unit(dsp.vari(main_hit(LEATHER, 0.15), rng.uniform(-3, 0))), -3)
+    b.at(0.0, unit(lp(dsp.vari(main_hit(CLACK, 0.05), rng.uniform(-2, 2)), 3500)), -10 + db)
+    cr = dsp.vari(main_hit(CRUNCH[int(rng.integers(5))], rng.uniform(0.06, 0.09)), rng.uniform(-6, -3))
+    b.at(0.004, unit(ck.choke(cr, 0.03, 0.02)), -5 + db)
+    b.at(0.0, unit(main_hit(CLOTH[int(rng.integers(4))], 0.15)), -9)
+    wet = dsp.vari(main_hit(WET[int(rng.integers(3))], 0.12), rng.uniform(-7, -4))
+    b.at(0.01, unit(lp(wet, 3000)), -13)
+    return b.x
+
+
+def tear(rng, length):
+    """The sleeve tearing: a real leather rasp or a blade's draw (its ring cut off), dropped a few semitones, so it
+    rasps like canvas parting."""
+    x = dsp.vari(main_hit(TEAR[int(rng.integers(2))], length), rng.uniform(-5, -2))
+    return unit(lp(x, 6000))
+
+
+def lunge_snarl(rng, L):
+    """The snarl it bites with: the burnt-out throat rising as the lips draw back off the teeth, cut off by the jaws."""
+    top = rng.uniform(170, 210)
+    return cinder_voice(rng, [(0, 105), (L * 0.7, top), (L, top * 0.95)], L, [(0, "a"), (L * 0.6, "e"), (L, "e")],
+                        [(0, 0), (0.03, 0.8), (L, 1)])
+
+
+def held_growl(rng, L, wrenches):
+    """A growl through clenched teeth with a mouthful of coat: the burnt-out throat closed to 'oo' and muffled, swelling
+    and rising a little with each wrench of the head (times in s)."""
+    pts, f0 = [(0, 0.0), (0.04, 0.6)], [(0, 90)]
+    for w in wrenches:
+        if w + 0.25 < L - 0.05:
+            pts += [(w + 0.05, 1.0), (w + 0.25, 0.6)]
+            f0 += [(w + 0.06, rng.uniform(112, 125)), (w + 0.25, rng.uniform(88, 98))]
+    pts.append((L, 0.0))
+    f0.append((L, 85))
+    v = cinder_voice(rng, f0, L, [(0, "u"), (L * 0.5, "o"), (L, "u")], pts)
+    return lp(v, rng.uniform(1100, 1500))
+
+
+def snort(rng, length=0.14):
+    """A hard breath out through the nose round a mouthful: air through the hound's tract, closed to 'mm'."""
+    sh = env([(0, 0), (0.01, 1), (length, 0)], length)
+    return lp(hp(unit(synth.breath(length, [(0, "m"), (length, "h")], HOUND_TRACT, rng, shape=sh)), 300), 2500)
+
+
+def bite_snap(rng, k):
+    b = Bus(1.6)
+    L = rng.uniform(0.16, 0.22)
+    b.at(0, lunge_snarl(rng, L), -8)
+    t = L - 0.005
+    if k == 2:      # the first snap only finds the coat; it snarls again and bites
+        b.at(t, unit(main_hit(CLOTH[int(rng.integers(4))], 0.15)), -6)
+        b.at(t, unit(lp(main_hit(CLACK, 0.05), 3500)), -5)
+        L2 = rng.uniform(0.11, 0.14)
+        t2 = t + rng.uniform(0.24, 0.3)
+        b.at(t2 - L2, lunge_snarl(rng, L2), -9)
+        t = t2
+    b.at(t, clamp(rng, 1.3 if k == 1 else 1.0), 0)
+    if k == 1:      # through to the bone of the forearm: a real crack, dropped half an octave
+        b.at(t + 0.015, unit(lp(dsp.vari(main_hit(BONE, 0.15), rng.uniform(-6, -4)), 4000)), -5)
+    G = rng.uniform(0.25, 0.4)
+    b.at(t + 0.03, held_growl(rng, G, [0.0]), -11)
+    if k == 3:      # one hard wrench of the head, and the sleeve tears
+        tw = t + rng.uniform(0.1, 0.14)
+        b.at(tw, tear(rng, 0.15), -5)
+        b.at(tw, unit(main_hit(CLOTH[int(rng.integers(4))], 0.15)), -10)
+    b.at(t + G - 0.03, snort(rng), -16)
+    return b.x
+
+
+def bite_worry(rng, k):
+    b = Bus(2.4)
+    b.at(0.0, snort(rng, 0.1), -10)      # the breath it goes in on
+    t = 0.08
+    b.at(t, clamp(rng, 0.9), 0)
+    # it holds on and wrenches its head: two to four uneven wrenches
+    ws, w = [], 0.12
+    for _ in range((2, 3, 3, 4)[k]):
+        ws.append(w)
+        w += rng.uniform(0.22, 0.34)
+    G = ws[-1] + rng.uniform(0.3, 0.4)
+    b.at(t + 0.02, held_growl(rng, G, ws), -6)
+    for i, w in enumerate(ws):
+        at = t + w + rng.uniform(0.03, 0.06)
+        b.at(at, unit(main_hit(CLOTH[int(rng.integers(4))], 0.15)), rng.uniform(-7, -4))     # the coat rucking
+        if (k + i) % 2 == 1:     # every other wrench tears the sleeve a little further
+            b.at(at + 0.02, tear(rng, rng.uniform(0.1, 0.15)), rng.uniform(-6, -3))
+        if i == 1:               # the teeth working deeper
+            wet = dsp.vari(main_hit(WET[int(rng.integers(3))], 0.12), rng.uniform(-7, -4))
+            b.at(at, unit(lp(wet, 3000)), -11)
+        if i < len(ws) - 1 and rng.random() < 0.6:
+            b.at(at + 0.12, snort(rng, 0.1), -17)
+    if k == 3:     # the last wrench finds the bone
+        b.at(t + ws[-1] + 0.05, unit(lp(dsp.vari(main_hit(BONE, 0.15), -5), 4000)), -4)
+    return b.x
+
+
+@recipe("cs-hounds", "bite", "snap",
+        "A hound's snarling snap into a crewman's arm: the kept burnt-out snarl, the jaws closing through the coat, all real foley",
+        """Short and hard. The kept snarl's burnt-out throat rises as it lunges and is cut off by the jaws. The bite is
+        made of real recordings, nothing synthesised: Kenney's leather squeezed hard (the coat taking the teeth), an axe's
+        knock dulled for the jaws meeting, a packed-snow footstep cut short and dropped for the teeth punching through,
+        the cloth grabbed, a wet footstep's squelch under it. Then a short growl through the teeth and a snort through the
+        nose. Takes: a plain snap; one through to the bone (a real wood crack dropped half an octave); one whose first
+        snap only finds cloth; one that wrenches once and tears the sleeve (a real leather rasp).""",
+        sources=[LEATHER, CLACK, BONE] + CRUNCH + WET + TEAR + CLOTH[:4], takes=4)
+def hound_bite_snap(rng, k):
+    return done(bite_snap(rng, k))
+
+
+@recipe("cs-hounds", "bite", "worry",
+        "A hound biting and hanging on: the jaws closing through the coat, then a muffled growl as it wrenches its head",
+        """No snarl going in: a breath, and the same real bite (leather, a dulled knock, a packed-snow crunch, cloth, a
+        wet give). Then it holds on and worries the arm: the kept snarl's burnt-out throat closed to 'oo' and muffled by
+        a mouthful of coat, swelling and rising with each of two to four uneven wrenches of its head; each wrench rucks
+        the coat (real cloth), every other one tears the sleeve further (real leather and blade rasps, dropped), and it
+        snorts through its nose between them. The last take's final wrench finds the bone.""",
+        sources=[LEATHER, CLACK, BONE] + CRUNCH + WET + TEAR + CLOTH[:4], takes=4)
+def hound_bite_worry(rng, k):
+    return done(bite_worry(rng, k))
 
 
 def yelp(rng, k):
@@ -1627,3 +1892,172 @@ def climber_hit(rng, k):
         sources=SQUEAKS, takes=4)
 def climber_sucker(rng, k):
     return done(climber_hit(rng, k))
+
+
+# Forcing a way into an unlit car. The earlier pass's take (a slowed scrape, a heavy metal impact, the latch bursting)
+# was judged wrong. A car's door and its roof hatch are boards on iron fittings, so these are real wooden creaks, cracks
+# and door bangs and real latch hardware, worked by hooked three-fingered hands, with the Climber's own voice (the kept
+# hit's sucker) straining through it.
+
+DOOR_CREAKS = ["kenney_rpg-audio:creak1", "kenney_rpg-audio:creak2", "kenney_rpg-audio:doorOpen_1",
+               "kenney_rpg-audio:doorOpen_2"]
+SPLINTER = "sfx_100_v2:misc_35"           # a real board cracking and breaking
+SHARDS = ["sfx_100_v2:misc_34", "sfx_100_v2:misc_33"]
+HASP = ["kenney_rpg-audio:metalLatch", "kenney_rpg-audio:metalClick", "sfx_100_v2:lock_open_01"]
+DOOR_BANG = ["kenney_rpg-audio:doorClose_4", "sfx_100_v2:door_03"]
+HOOK = "kenney_rpg-audio:chop"            # an axe's bite into wood: a hard point striking a board
+HATCH_KNOCK = [f"kenney_impact-sounds:impactWood_light_{i:03d}" for i in range(5)]
+
+
+def hook(rng, semis=5.0):
+    """A hooked finger striking or catching on a board: the first 30 ms of an axe biting wood, raised to a claw's size."""
+    return unit(dsp.vari(main_hit(HOOK, 0.03, 0.0005), semis + rng.uniform(-2, 2)))
+
+
+def rake(rng, length):
+    """Hooks dragged across the boards for a grip: stick-slip judder in a wood scrape's band."""
+    return ck.friction(rng, length, rng.uniform(150, 260), 700, 4000,
+                       shape=env([(0, 0), (0.01, 1), (length * 0.7, 0.6), (length, 0)], length))
+
+
+def strain(rng, length, semis):
+    """A board straining against its fixing under a pull: a real door's creak, held out over the pull and dropped."""
+    x = dsp.trim_silence(src.get(DOOR_CREAKS[int(rng.integers(len(DOOR_CREAKS)))]), -30)
+    a = int(rng.integers(0, max(1, len(x) - samples(0.3))))
+    x = dsp.stretch(x[a:a + samples(0.3)], length / 0.3 * 2 ** (semis / 12), smooth=True)
+    x = dsp.vari(x, semis)
+    return unit(dsp.shaped(lp(dsp.fit(x, samples(length)), 4000),
+                           [(0, 0), (0.04, 0.8), (length * 0.7, 1), (length, 0)]))
+
+
+def hasp_rattle(rng, n, rate=(14, 26)):
+    """The hasp or the catch jumping on its staple under the pull: real latch and lock clacks, dropped a little."""
+    b = Bus(n / rate[0] + 0.15)
+    t = 0.0
+    for i in range(n):
+        x = dsp.vari(main_hit(HASP[int(rng.integers(len(HASP)))], 0.06), rng.uniform(-5, -1))
+        b.at(t, unit(x), -2 * i + rng.uniform(-4, 0))
+        t += 1 / rng.uniform(*rate)
+    return b.x
+
+
+def splinter(rng):
+    """The fixing tearing out of the wood: a real board's crack from where it breaks, the shards after it."""
+    x = src.get(SPLINTER)
+    s = int(np.argmax(np.abs(x))) - samples(rng.uniform(0.04, 0.09))   # a little of the cracking before the break
+    b = Bus(0.8)
+    b.at(0, unit(dsp.vari(ck.cut(x, s, s + samples(0.45), 0.003, 0.15), rng.uniform(-3, 0))))
+    b.at(rng.uniform(0.03, 0.06), unit(main_hit(SHARDS[int(rng.integers(2))], 0.3)), -9)
+    return b.x
+
+
+def falls(rng, start_db=-8, semis=-5):
+    """Iron hardware falling to the boards: a real steel tick, bouncing lower and quicker each time."""
+    b = Bus(0.8)
+    t, g = 0.0, 0.18
+    for i in range(int(rng.integers(3, 6))):
+        b.at(t, nail(rng, semis + rng.uniform(-3, 1), 0.02), start_db - 4 * i)
+        t += g
+        g *= rng.uniform(0.5, 0.65)
+    return b.x
+
+
+def force_wrench(rng, k):
+    b = Bus(4.5)
+    # three-fingered hooks finding the door's edge, raking for a grip
+    t = 0.0
+    for i in range(int(rng.integers(3, 6))):
+        b.at(t, hook(rng), rng.uniform(-12, -6))
+        t += rng.uniform(0.05, 0.13)
+    b.at(t, rake(rng, rng.uniform(0.12, 0.2)), -14)
+    t += 0.25
+    # wrenched against its latch in heaves: the boards creak under the pull, the hasp jumps on its staple, the sucker
+    # squeals with the effort, and the door slams back against the frame when the pull lets go
+    heaves = (2, 3)[k]
+    for h in range(heaves):
+        L = rng.uniform(0.35, 0.55)
+        f = 1500 + 250 * h
+        b.at(t, strain(rng, L, rng.uniform(-5, -2)), -6 + 2 * h)
+        b.at(t + 0.03, hasp_rattle(rng, int(rng.integers(3, 6))), -12 + 2 * h)
+        b.at(t + 0.06, sucker(rng, L * 0.85, [(0, f), (L * 0.45, f * 1.35), (L * 0.85, f * 1.1)], "squeal"), -11 + 2 * h)
+        if h < heaves - 1:
+            back = dsp.vari(main_hit(DOOR_BANG[int(rng.integers(2))], 0.3), rng.uniform(-3, 0))
+            b.at(t + L, unit(lp(back, 3000)), -6)
+            b.at(t + L + 0.01, hasp_rattle(rng, 2), -14)
+        t += L + rng.uniform(0.1, 0.2)
+    # it gives: the hasp's screws tear out of the wood in a burst of splinters, the hasp drops, the door bangs open
+    b.at(t, splinter(rng), 0)
+    b.at(t + 0.06, falls(rng), 0)
+    b.at(t + 0.1, unit(dsp.vari(main_hit(DOOR_BANG[k], 0.5), -2)), -3)
+    # and into the dark car, a short wet hiss through the sucker
+    b.at(t + rng.uniform(0.45, 0.55), lp(sucker(rng, 0.35, [(0, 1800), (0.35, 1300)], "hiss"), 4500), -19)
+    return dsp.room(b.x, "car", wet=0.15, rng=rng)
+
+
+def force_hatch(rng, k):
+    roof = Bus(5.0)    # what happens up on the roof, heard through it
+    car = Bus(5.0)     # what comes down into the car
+    # hooks ticking across the roof tin to the hatch, then working under its lip
+    t = 0.0
+    for i in range(int(rng.integers(3, 6))):
+        tin = dsp.vari(main_hit(TINS[int(rng.integers(5))], 0.06), rng.uniform(2, 6))
+        roof.at(t, mix(unit(tin) * 0.6, hook(rng, 3)), rng.uniform(-12, -6))
+        t += rng.uniform(0.06, 0.14)
+    roof.at(t, rake(rng, 0.2), -10)
+    t += 0.25
+    # prising: short pulls that lift the hatch against its catch, each knocking the lid on its frame and the catch's
+    # hook clacking, the frame creaking, a screw squealing as it starts out of the wood; the sucker strains at the last
+    pulls = (3, 4)[k]
+    for p in range(pulls):
+        L = rng.uniform(0.22, 0.34)
+        roof.at(t, strain(rng, L, rng.uniform(-3, 1)), -9 + 1.5 * p)
+        lid = dsp.vari(main_hit(HATCH_KNOCK[int(rng.integers(5))], 0.2), rng.uniform(-4, -1))
+        roof.at(t + L * 0.6, unit(lid), -3)
+        roof.at(t + L * 0.6, hasp_rattle(rng, 2, (25, 35)), -9)
+        if p >= 1:
+            sq = dsp.vari(main_hit("kenney_rpg-audio:creak3", 0.25), rng.uniform(3, 6))
+            roof.at(t + 0.05, unit(dsp.shaped(sq, [(0, 0), (0.03, 1), (0.25, 0)])), -14)
+        if p == pulls - 1:
+            roof.at(t, sucker(rng, L + 0.2, [(0, 1400), (L * 0.6, 1900), (L + 0.2, 1500)], "squeal"), -6)
+        t += L + rng.uniform(0.08, 0.18)
+    # the catch tears out of the frame: splinters overhead, its screws and the catch falling into the car, the hatch flung
+    # back on the roof
+    roof.at(t, splinter(rng), 2)
+    car.at(t + 0.08, falls(rng, -12, -2), 0)
+    car.at(t + 0.05, unit(main_hit(SHARDS[k], 0.25)), -16)          # chips of the frame falling in
+    flung = t + rng.uniform(0.18, 0.25)
+    roof.at(flung, unit(dsp.vari(main_hit(TINS[int(rng.integers(5))], 0.3), -5)), 0)
+    roof.at(flung, unit(main_hit(DOOR_BANG[1], 0.4)), -2)
+    # the hatch is open: a short wet hiss through its sucker comes straight down into the car
+    car.at(flung + rng.uniform(0.4, 0.5), lp(sucker(rng, 0.4, [(0, 1700), (0.4, 1300)], "hiss"), 4500), -17)
+    y = mix(lp(roof.x, 2800), car.x)
+    return dsp.room(y, "car", wet=0.25, rng=rng)
+
+
+@recipe("cs-climbers", "force", "wrench",
+        "A Climber wrenching a car's wooden door open: hooks finding the edge, the boards creaking, its sucker squealing, the hasp tearing out",
+        """All real wood and iron, worked by hooked hands. Three-fingered hooks rap and catch on the door's edge (an
+        axe's bite into wood, raised to a claw's size) and rake for a grip. Then it wrenches in two or three heaves: the
+        door's boards creak under the pull (Kenney's real door creaks, held out and dropped), the hasp jumps on its
+        staple (real latch and lock clacks), its lamprey sucker squeals with the effort (the kept hit's sucker voice),
+        and the door slams back against the frame between heaves (a real wooden door shutting). On the last heave the
+        hasp's screws tear out in a real board's crack and splinters, the hasp drops to the boards, the door bangs open,
+        and a wet hiss goes in through the sucker. Heard at the car, in its reverb.""",
+        sources=DOOR_CREAKS + [SPLINTER] + SHARDS + HASP + DOOR_BANG + [HOOK] + STEEL_TICKS + SQUEAKS, takes=2)
+def climbers_force_wrench(rng, k):
+    return done(force_wrench(rng, k))
+
+
+@recipe("cs-climbers", "force", "hatch",
+        "A Climber prising up the roof hatch over your head: hooks on the tin, the lid knocking its catch, splinters, the catch falling in",
+        """Heard from inside the car, under it. Hooks tick across the roof tin to the hatch (real tin knocks, raised)
+        and work under its lip. Then short prising pulls, each lifting the hatch against its catch: the lid knocks on its
+        frame (real light wood hits), the catch's hook clacks, the frame creaks (real door creaks, held out), a screw
+        squeals starting out of the wood, and on the last pull the sucker strains (the kept hit's voice). The catch tears
+        out with a real board's crack, its screws and chips of the frame fall into the car, and the hatch is flung back
+        onto the roof (a real tin knock and a door's bang, dropped). Everything on the roof comes through it, muffled;
+        then the sucker's wet hiss comes straight down through the open hatch.""",
+        sources=DOOR_CREAKS + [SPLINTER] + SHARDS + HASP + DOOR_BANG + [HOOK] + HATCH_KNOCK + TINS + STEEL_TICKS
+        + ["kenney_rpg-audio:creak3"] + SQUEAKS, takes=2)
+def climbers_force_hatch(rng, k):
+    return done(force_hatch(rng, k))

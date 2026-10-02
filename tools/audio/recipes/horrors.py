@@ -16,6 +16,7 @@ What each body is made of decides the build:
 """
 
 import numpy as np
+from scipy import signal
 from scipy.ndimage import minimum_filter1d, uniform_filter1d
 
 import dsp
@@ -23,6 +24,8 @@ import src
 import synth
 from build import recipe
 from dsp import samples, env, mix, Bus, lp, hp, bp
+from recipes import crew_kit as ck
+from recipes.beasts import STEEL_TICKS, steel_ticks, ring_of, through, main_hit
 from recipes.choir import round_voice, shepard_stack, VOICES, LOOP, BEAT, D, Eb, F, G, Ab
 from recipes.kit import melody_f0, bell_body, MEMBRANE, BELL, hz, any_of, scatter, slap, squelch, snap, thud, whoosh, twigs, \
     gravel
@@ -444,6 +447,146 @@ for _mat in ("wood", "grate"):
            in the {DOOR[_mat]['room']}'s reverb.""",
            sources=DOOR[_mat]["panel"] + DOOR[_mat]["frame"] + DOOR[_mat]["latch"] + WHIP, takes=6, mat=_mat, lufs=DOOR_LUFS,
            preview=lambda takes, rng: scatter(takes, rng, (0.2, 1.1)))(lambda rng, take, m=_mat: _bang_shake(rng, take, m))
+
+
+# The iron door again. 'lash' and 'shake' were kept on the wooden door and judged not to sound like iron on the iron one:
+# thin sheet hits, a modelled ring, and the frame's knocks made of small pinged bars (dings) don't add up to a steel door.
+# These two are built from heavy steel itself: a real blow on a steel door's sheet and real heavy plate hits for the
+# panel, the tendrils' strikes convolved through that panel's own recorded ring (so a lash rings the same door a bang
+# does), and real metal-on-metal contacts (a latch, a click, small steel hits) for the frame and the bolt, in a small iron
+# room.
+
+STEEL_DOOR = "sfx_100_v2:metal_hit_01"      # a real blow on a steel door's sheet
+PANEL = [STEEL_DOOR] + K("impactPlate_medium")
+HOLLOW = K("impactPlate_heavy")            # a heavy plate's dull, hollow weight
+LATCH = ["kenney_rpg-audio:metalLatch", "kenney_rpg-audio:metalClick"]
+IRON_ECHO = [(0.0055 * i, 0.55 * 0.72 ** i) for i in range(1, 9)]     # flutter between close parallel plates
+
+
+def iron_room(x):
+    """Inside a small iron room (the cab, a steel-sided car): short and bright, with the flutter of close parallel steel
+    walls. The same room for every take."""
+    h = dsp.ir(0.45, 0.3, 7500, rng=np.random.default_rng(23), early=IRON_ECHO)
+    return mix(x * 0.8, signal.fftconvolve(x, h).astype(np.float32) * 0.3)
+
+
+def door_ring(rng, take):
+    """The door's own ring: the decay of a real blow on a steel sheet or a thick plate, the door a little bigger or
+    smaller take to take."""
+    return dsp.vari(ring_of(PANEL[take % len(PANEL)], 0.7), rng.uniform(-1.5, 1.0))
+
+
+def any_of_key(rng, keys):
+    return keys[int(rng.integers(len(keys)))]
+
+
+def iron_strike(rng, ring):
+    """A tendril striking the steel: a wet whip's crack at the tip, that crack rung through the door's own ring, the
+    panel's real bang (a steel sheet or thick plate struck), and its hollow weight under it."""
+    w = cut(dsp.vari(any_of(rng, WHIP), rng.uniform(-4, 2)), 0.1)
+    tip = mix(hp(w, 800), slap(rng, 0.06, 2200, 0.6) * 0.3)
+    b = Bus(1.0)
+    b.at(0, lp(tip, 7000), -7)
+    b.at(0, through(tip, ring), -5)
+    b.at(0, norm(dsp.vari(main_hit(any_of_key(rng, PANEL), 0.6), rng.uniform(-2, 1))), -4)
+    b.at(0, norm(lp(main_hit(any_of_key(rng, HOLLOW), 0.4), 500)), -10)
+    return b.x
+
+
+def frame_knock(rng):
+    """The door's edge striking its iron frame, or the bolt its keeper: a real metal-on-metal contact (a latch, a
+    click, a small steel hit) dropped half an octave or more to a door's size."""
+    if rng.random() < 0.5:
+        x = dsp.vari(main_hit(any_of_key(rng, LATCH), 0.06), rng.uniform(-9, -4))
+    else:
+        t = steel_ticks()
+        x = dsp.vari(t[int(rng.integers(len(t)))], rng.uniform(-12, -7))
+    return norm(dsp.fade(x, 0.0005, 0.02))
+
+
+def iron_rattle(rng, ring, count, rate=(22, 40)):
+    """The door jumping in its frame after a blow: knocks against the stop and the bolt chattering in its keeper, each
+    ringing the door a little, smaller as it settles."""
+    ex = Bus(count / rate[0] + 0.3)
+    t = 0.0
+    for i in range(count):
+        ex.at(t, frame_knock(rng), -3 - 2.5 * i)
+        t += 1 / rng.uniform(*rate)
+    return mix(ex.x, through(ex.x, ring) * 0.35)
+
+
+def _iron_clang(rng, take):
+    """One flurry of tendril strikes on a steel door, the door rattling in its frame after."""
+    count = [1, 3, 2, 4, 2, 3][take]
+    ring = door_ring(rng, take)
+    b = Bus(2.6)
+    t = 0.02
+    for i in range(count):
+        b.at(t, iron_strike(rng, ring), -1.5 * i + rng.uniform(-3, 1))
+        t += rng.uniform(0.04, 0.1) if rng.random() < 0.65 else rng.uniform(0.15, 0.24)
+    b.at(t, iron_rattle(rng, ring, int(rng.integers(4, 8))), -5)
+    if take in (2, 5):    # a tendril dragged across the steel, juddering, the door ringing under it
+        L = rng.uniform(0.4, 0.6)
+        drag = ck.friction(rng, L, rng.uniform(70, 120), 500, 3500, shape=env([(0, 0), (0.06, 1), (L, 0)], L))
+        b.at(t + 0.12, mix(drag * 0.5, through(drag, ring)), -14)
+    return finish(iron_room(lp(b.x, 9000)), DOOR_LUFS)
+
+
+def _iron_shake(rng, take):
+    """Tendrils round the handle shaking a steel door: it bangs its stop and snaps back on the bolt in uneven pulls, every
+    knock ringing the same door."""
+    ring = door_ring(rng, take + 3)
+    L = rng.uniform(0.6, 1.1)
+    ex = Bus(L + 0.6)
+    b = Bus(L + 1.2)
+    if take % 3 == 0:
+        b.at(0, iron_strike(rng, ring), -2)
+    t = 0.14 if take % 3 == 0 else 0.0
+    rate = rng.uniform(7, 10)
+    pull = env([(0, 0.6), (L * rng.uniform(0.2, 0.5), 1), (L * 0.8, 0.7), (L, 0.35)], L + 0.2)
+    i = 0
+    while t < L:
+        g = float(pull[min(samples(t), len(pull) - 1)])
+        if i % 2 == 0:   # the door's weight hitting its stop: the panel's real bang, choked short by the frame
+            x = norm(ck.choke(main_hit(any_of_key(rng, PANEL), 0.25), 0.012, rng.uniform(0.02, 0.04)))
+            x = mix(x, norm(lp(main_hit(any_of_key(rng, HOLLOW), 0.2), 600)) * 0.5)
+        else:            # and snapping back against the bolt: a hard steel clack and the latch's rattle
+            x = mix(frame_knock(rng), frame_knock(rng) * 0.5)
+        ex.at(t, x, 20 * np.log10(g * rng.uniform(0.6, 1.0)) - (0 if i % 2 == 0 else 3))
+        t += (1 / rate) * rng.uniform(0.75, 1.3)
+        i += 1
+    b.at(0, mix(ex.x, through(ex.x, ring) * 0.3))
+    b.at(t, iron_rattle(rng, ring, int(rng.integers(2, 5))), -4)
+    return finish(iron_room(lp(b.x, 9000)), DOOR_LUFS)
+
+
+_IRON_SRC = PANEL + HOLLOW + LATCH + WHIP + STEEL_TICKS
+
+
+@recipe("cs-choir", "bang-door", "clang",
+        "Tendrils lashing a steel door or hatch, heard from inside: real steel bangs ringing on, the door clattering in its iron frame",
+        """Built from heavy steel, not thin sheet. Each strike is a wet whip's crack at the tendril's tip convolved
+        through the door's own ring (the decay of a real blow on a steel door, sfx_100's metal hit, or a Kenney thick
+        plate), so every lash rings the same door, with the panel's real bang and a heavy plate's hollow weight under it.
+        One to four strikes in a ragged flurry, then the door jumps in its frame: real metal-on-metal knocks (Kenney's
+        latch and click, small steel hits, dropped to a door's size) against the stop and the bolt, each ringing the
+        door a little. Two takes drag a tendril juddering across the steel. Heard from inside a small iron room: short,
+        bright, the flutter of close steel walls.""",
+        sources=_IRON_SRC, takes=6, mat="grate", lufs=DOOR_LUFS, preview=lambda takes, rng: scatter(takes, rng, (0.2, 1.1)))
+def choir_bang_clang(rng, take):
+    return _iron_clang(rng, take)
+
+
+@recipe("cs-choir", "bang-door", "rattle",
+        "Tendrils wound round the handle shaking a steel door or hatch: it bangs its iron stop and clacks back on the bolt",
+        """The rattle as the main event, on steel. Pulled to and fro seven to ten times a second in uneven pulls, the
+        door's weight hits its stop (a real steel bang choked short by the frame, a heavy plate's hollow under it) and
+        snaps back on the bolt (real metal-on-metal clacks: Kenney's latch and click, small steel hits, dropped half an
+        octave), and every knock is convolved through the door's own recorded ring so the whole door sings under the
+        shaking. A lash first on some takes; the bolt chattering as it settles. Heard from inside a small iron room.""",
+        sources=_IRON_SRC, takes=6, mat="grate", lufs=DOOR_LUFS, preview=lambda takes, rng: scatter(takes, rng, (0.2, 1.1)))
+def choir_bang_rattle(rng, take):
+    return _iron_shake(rng, take)
 
 
 @recipe("cs-choir", "hit", "membrane",
