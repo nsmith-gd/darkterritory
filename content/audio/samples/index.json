@@ -6794,37 +6794,40 @@
  "cs-choir/bang-door/grate": {
   "cue": "cs-choir.bang-door",
   "surface": "grate",
-  "picked": "redo",
+  "picked": "first",
   "candidates": [
    {
-    "label": "Tendrils lashing an iron door or hatch in ragged flurries, heard from inside, the door rattling after each",
-    "key": "lash",
+    "label": "Tendrils lashing a steel door or hatch, heard from inside: real steel bangs ringing on, the door clattering in its iron frame",
+    "key": "clang",
     "sources": [
-     "kenney_impact-sounds:impactPlate_light_000",
-     "kenney_impact-sounds:impactPlate_light_001",
-     "kenney_impact-sounds:impactPlate_light_002",
-     "kenney_impact-sounds:impactPlate_light_003",
-     "kenney_impact-sounds:impactPlate_light_004",
+     "sfx_100_v2:metal_hit_01",
      "kenney_impact-sounds:impactPlate_medium_000",
      "kenney_impact-sounds:impactPlate_medium_001",
      "kenney_impact-sounds:impactPlate_medium_002",
      "kenney_impact-sounds:impactPlate_medium_003",
      "kenney_impact-sounds:impactPlate_medium_004",
-     "kenney_impact-sounds:impactMetal_light_000",
-     "kenney_impact-sounds:impactMetal_light_001",
-     "kenney_impact-sounds:impactMetal_light_002",
-     "kenney_impact-sounds:impactMetal_light_003",
-     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
      "kenney_rpg-audio:metalLatch",
      "kenney_rpg-audio:metalClick",
      "sfx_100_v2:switch_01",
-     "sfx_100_v2:switch_02"
+     "sfx_100_v2:switch_02",
+     "sfx_100_v2:metal_hit_02",
+     "kenney_rpg-audio:metalClick",
+     "kenney_rpg-audio:metalLatch",
+     "sfx_100_v2:metal_06",
+     "sfx_100_v2:misc_20",
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:metal_05"
     ],
     "licence": "CC0"
    }
   ],
   "takes": 6,
-  "sha": "1a9783a7dbd45aeb"
+  "sha": "8b2edc6cd8bd2239"
  },
  "cs-choir/bang-door/wood": {
   "cue": "cs-choir.bang-door",
@@ -6944,17 +6947,51 @@
  "cs-climbers/force": {
   "cue": "cs-climbers.force",
   "surface": null,
-  "picked": "redo",
+  "picked": "first",
   "candidates": [
    {
-    "label": "Kept from the earlier pass",
-    "key": "audio/cs-climbers--force.mp3",
-    "sources": [],
+    "label": "A Climber prising up the roof hatch over your head: hooks on the tin, the lid knocking its catch, splinters, the catch falling in",
+    "key": "hatch",
+    "sources": [
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_33",
+     "kenney_rpg-audio:metalLatch",
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:lock_open_01",
+     "kenney_rpg-audio:doorClose_4",
+     "sfx_100_v2:door_03",
+     "kenney_rpg-audio:chop",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "sfx_100_v2:metal_hit_02",
+     "kenney_rpg-audio:metalClick",
+     "kenney_rpg-audio:metalLatch",
+     "sfx_100_v2:metal_06",
+     "sfx_100_v2:misc_20",
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:metal_05",
+     "kenney_rpg-audio:creak3",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3"
+    ],
     "licence": "CC0"
    }
   ],
-  "takes": 1,
-  "sha": "29cd5705b745aa87"
+  "takes": 2,
+  "sha": "5f8fe6c359be3e8a"
  },
  "cs-climbers/hit": {
   "cue": "cs-climbers.hit",
@@ -7435,93 +7472,92 @@
  "cs-hounds/bite": {
   "cue": "cs-hounds.bite",
   "surface": null,
-  "picked": "redo",
+  "picked": "first",
   "candidates": [
    {
-    "label": "A hound's jaws closing through a crewman's coat into the arm: the clack, the cloth, the flesh, a scorch",
-    "key": "jaws",
+    "label": "A hound's snarling snap into a crewman's arm: the kept burnt-out snarl, the jaws closing through the coat, all real foley",
+    "key": "snap",
     "sources": [
-     "kenney_rpg-audio:cloth1",
-     "kenney_rpg-audio:cloth2",
-     "kenney_rpg-audio:cloth3",
-     "kenney_rpg-audio:cloth4",
      "kenney_rpg-audio:handleSmallLeather",
-     "sfx_100_v2:misc_34"
-    ],
-    "licence": "CC0"
-   }
-  ],
-  "takes": 4,
-  "sha": "7dd9b3d09991ee7a"
- },
- "cs-hounds/leap": {
-  "cue": "cs-hounds.leap",
-  "surface": null,
-  "picked": "redo",
-  "candidates": [
-   {
-    "label": "A hound's last strides on the ballast, the jump, and its landing on the rear platform, claws hunting for grip",
-    "key": "board",
-    "sources": [
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_35",
      "kenney_impact-sounds:footstep_snow_000",
      "kenney_impact-sounds:footstep_snow_001",
      "kenney_impact-sounds:footstep_snow_002",
      "kenney_impact-sounds:footstep_snow_003",
      "kenney_impact-sounds:footstep_snow_004",
-     "sfx_100_v2:footstep_01",
-     "sfx_100_v2:footstep_02",
-     "kenney_impact-sounds:impactPlank_medium_000",
-     "kenney_impact-sounds:impactPlank_medium_001",
-     "kenney_impact-sounds:impactPlank_medium_002",
-     "kenney_impact-sounds:impactPlank_medium_003",
-     "kenney_impact-sounds:impactPlank_medium_004",
-     "kenney_impact-sounds:impactWood_heavy_000",
-     "kenney_impact-sounds:impactWood_heavy_001",
-     "kenney_impact-sounds:impactWood_heavy_002",
-     "kenney_impact-sounds:impactWood_heavy_003",
-     "kenney_impact-sounds:impactWood_heavy_004",
-     "kenney_impact-sounds:impactMetal_heavy_000",
-     "kenney_impact-sounds:impactMetal_heavy_001",
-     "kenney_impact-sounds:impactMetal_heavy_002",
-     "kenney_impact-sounds:impactMetal_heavy_003",
-     "kenney_impact-sounds:impactMetal_heavy_004"
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03",
+     "kenney_rpg-audio:handleSmallLeather2",
+     "kenney_rpg-audio:drawKnife2",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "70284ac84df1ed98"
+ },
+ "cs-hounds/leap": {
+  "cue": "cs-hounds.leap",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A hound landing on the rear platform from a jump: four feet in a gallop's flam on the boards, a skid, its breath knocked out",
+    "key": "land",
+    "sources": [
+     "sfx_100_v2:footstep_wood_01",
+     "sfx_100_v2:footstep_wood_02",
+     "sfx_100_v2:footstep_wood_03",
+     "sfx_100_v2:footstep_wood_04",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak3"
     ],
     "licence": "CC0"
    }
   ],
   "takes": 2,
-  "sha": "c4c9d35d38ef879c"
+  "sha": "05fb442aac9e4b57"
  },
  "cs-hounds/paw/grate": {
   "cue": "cs-hounds.paw",
   "surface": "grate",
-  "picked": "redo",
+  "picked": "first",
   "candidates": [
    {
-    "label": "A hound's paw on an iron running board: claws ringing on the plate, the pad's dull clank, ash and embers",
-    "key": "pad",
+    "label": "A hound's paw on an iron running board: the weight landing on the steel, its dull 'dunk' and short ring, nails under",
+    "key": "deck",
     "sources": [
-     "kenney_impact-sounds:impactPlate_light_000",
-     "kenney_impact-sounds:impactPlate_light_001",
-     "kenney_impact-sounds:impactPlate_light_002",
-     "kenney_impact-sounds:impactPlate_light_003",
-     "kenney_impact-sounds:impactPlate_light_004",
+     "sfx_100_v2:metal_hit_02",
+     "kenney_rpg-audio:metalClick",
+     "kenney_rpg-audio:metalLatch",
+     "sfx_100_v2:metal_06",
+     "sfx_100_v2:misc_20",
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:metal_05",
      "kenney_impact-sounds:impactPlate_medium_000",
      "kenney_impact-sounds:impactPlate_medium_001",
      "kenney_impact-sounds:impactPlate_medium_002",
      "kenney_impact-sounds:impactPlate_medium_003",
      "kenney_impact-sounds:impactPlate_medium_004",
-     "kenney_impact-sounds:impactMetal_light_000",
-     "kenney_impact-sounds:impactMetal_light_001",
-     "kenney_impact-sounds:impactMetal_light_002",
-     "kenney_impact-sounds:impactMetal_light_003",
-     "kenney_impact-sounds:impactMetal_light_004"
+     "kenney_impact-sounds:impactSoft_medium_000",
+     "kenney_impact-sounds:impactSoft_medium_001",
+     "kenney_impact-sounds:impactSoft_medium_002",
+     "kenney_impact-sounds:impactSoft_medium_003",
+     "kenney_impact-sounds:impactSoft_medium_004"
     ],
     "licence": "CC0"
    }
   ],
   "takes": 6,
-  "sha": "76b539dde6db7fb1"
+  "sha": "3da06a4b92bbf289"
  },
  "cs-hounds/paw/ground": {
   "cue": "cs-hounds.paw",

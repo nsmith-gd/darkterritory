@@ -1294,6 +1294,11 @@
   "url": "/_blob/00124fa655b65a0954620509b390cd4d",
   "sha": "4fa3127e55a14ee7"
  },
+ "previews/cs-choir--bang-door--clang--grate.mp4": {
+  "id": "e0351b5b90ca6dabbae85a58214ae468",
+  "url": "/_blob/e0351b5b90ca6dabbae85a58214ae468",
+  "sha": "b52abbb24f40519f"
+ },
  "previews/cs-choir--bang-door--lash--grate.mp4": {
   "id": "67506aaeda0bb2ec2ea0abaf2f0f01d7",
   "url": "/_blob/67506aaeda0bb2ec2ea0abaf2f0f01d7",
@@ -1303,6 +1308,11 @@
   "id": "d6b3be8e347f3d16c044edd9663da6b9",
   "url": "/_blob/d6b3be8e347f3d16c044edd9663da6b9",
   "sha": "b1378e0daec37980"
+ },
+ "previews/cs-choir--bang-door--rattle--grate.mp4": {
+  "id": "ea2a421eb3125ee2e71131b8bd11f017",
+  "url": "/_blob/ea2a421eb3125ee2e71131b8bd11f017",
+  "sha": "5674355d77b40be3"
  },
  "previews/cs-choir--bang-door--shake--grate.mp4": {
   "id": "79380f748000ab7469299725d8917cfe",
@@ -1343,6 +1353,16 @@
   "id": "52c24f841be8d331c5d3b25048fa5be7",
   "url": "/_blob/52c24f841be8d331c5d3b25048fa5be7",
   "sha": "a80b51a703a85204"
+ },
+ "previews/cs-climbers--force--hatch.mp4": {
+  "id": "9a441bec8f91a681b407997643a04e54",
+  "url": "/_blob/9a441bec8f91a681b407997643a04e54",
+  "sha": "f060fa00036771ff"
+ },
+ "previews/cs-climbers--force--wrench.mp4": {
+  "id": "bd2e4a07624d1a414d50258e97c94422",
+  "url": "/_blob/bd2e4a07624d1a414d50258e97c94422",
+  "sha": "23cfd520d15c1b9a"
  },
  "previews/cs-climbers--hit--sucker.mp4": {
   "id": "40d643d81ec13e37435f79a74c7f0096",
@@ -1449,10 +1469,40 @@
   "url": "/_blob/95b4c9e0ee1be02ec7989debe394c6dd",
   "sha": "3448a47269789e0b"
  },
+ "previews/cs-hounds--bite--snap.mp4": {
+  "id": "11c1c0f355cd71d1b85214da001d7e73",
+  "url": "/_blob/11c1c0f355cd71d1b85214da001d7e73",
+  "sha": "ac6c1b20c54740ba"
+ },
+ "previews/cs-hounds--bite--worry.mp4": {
+  "id": "3c41db64b1bf3d0842c1a9d0270412ca",
+  "url": "/_blob/3c41db64b1bf3d0842c1a9d0270412ca",
+  "sha": "1d7dd3c1d288af7e"
+ },
  "previews/cs-hounds--leap--board.mp4": {
   "id": "8c6cc0de697a4af17d90eea75c0a81f1",
   "url": "/_blob/8c6cc0de697a4af17d90eea75c0a81f1",
   "sha": "0a79a5417fb1df01"
+ },
+ "previews/cs-hounds--leap--land.mp4": {
+  "id": "c2524293c9190c13ec182bcf1c0a5223",
+  "url": "/_blob/c2524293c9190c13ec182bcf1c0a5223",
+  "sha": "cc0a35ec7d8008c8"
+ },
+ "previews/cs-hounds--leap--scramble.mp4": {
+  "id": "cd7ee53152aa772221c6b6883d8b864c",
+  "url": "/_blob/cd7ee53152aa772221c6b6883d8b864c",
+  "sha": "58705f29882ca515"
+ },
+ "previews/cs-hounds--paw--deck--grate.mp4": {
+  "id": "79d889bb568d5960506e8781aed1e693",
+  "url": "/_blob/79d889bb568d5960506e8781aed1e693",
+  "sha": "bf8b49f056f2e691"
+ },
+ "previews/cs-hounds--paw--nails--grate.mp4": {
+  "id": "356f623fcf6c4d194734e02eba97c6a4",
+  "url": "/_blob/356f623fcf6c4d194734e02eba97c6a4",
+  "sha": "b862a5f7160ce723"
  },
  "previews/cs-hounds--paw--pad--grate.mp4": {
   "id": "5747cddc8164f3ebe95fde10883db51e",
