@@ -39,11 +39,11 @@ The bed is fully parameterised and drives from sim state:
 
 ## A.3 Mix hierarchy
 
-Strict ducking priority. Higher tiers duck everything below.
+Strict ducking priority. Higher tiers duck everything below, except voice: nothing ducks tier 2 (*decided 2 Oct*).
 
 | Tier | Content | Behaviour |
 |---|---|---|
-| **1** | Enemy telegraphs | Ducks all else −9dB. Never masked. Never occluded beyond −6dB. |
+| **1** | Enemy telegraphs | Ducks tiers 3–6 −9dB (*changed 2 Oct*: not voice, so a crewmate calling out the tell is heard over it; as the implementation table below has it, "tier 1 bus ducks buses 3–6"). Never masked. Never occluded beyond −6dB. |
 | **2** | Proximity voice | Ducks bed −6dB while active |
 | **3** | Critical train state | Pressure alarm, brake fade, breach |
 | **4** | Player actions | Footsteps, tools, shovel, gun |

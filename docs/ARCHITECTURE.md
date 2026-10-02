@@ -268,6 +268,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - Resolution: the Choir ducks 8 dB whenever a howl or a writhe is sounding (`soundDucking` in `mix.json`).
       - Loops (the drill, the Hollow) don't duck it.
       - Even so, with everything at once, a full swarm still roughly equals a howl at the guard car. Tell against tell is reported, not required.
+    - **Nothing ducks voice (decided 2 Oct).** Spec A.3's table had tier 1 "duck all else" and its implementation table "tier 1 bus ducks buses 3–6". The second wins: a crewmate calling out a tell has to be heard over it. In mix.json tier 1 ducks 3–6 (and music), and no rule, tier or per-sound, ducks tier 2 or a voice sound. `MixTests.NothingEverDucksVoice` pins it.
     - **Ducking for tiers 3 and 4** isn't in the spec's table, which gives numbers only for tiers 1 and 2. They duck the tiers below them gently (−3 dB and −1.5 dB).
     - **Distance behaviour.** Tells carry further than 1/d: the howl rolls off at 0.7 and the Choir at 0.6, because "distant howl, closing" and "audible singing far off" have to be heard at 150–250 m.
 18. **UDP transport and host/join (T13).**

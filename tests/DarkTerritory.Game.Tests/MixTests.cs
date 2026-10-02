@@ -110,6 +110,18 @@ public class MixTests
     }
 
     [Fact]
+    public void NothingEverDucksVoice()
+    {
+        // Spec A.3 (decided 2 Oct): a crewmate calling out a tell is heard over the tell, so no tier ducks voice (tier 2), and
+        // no per-sound rule ducks a voice's sound (the proximity voice, the radio, the dead channel).
+        var mix = DataFile.Load<MixDef>(Path.Combine(Content, MixDef.File));
+        Assert.DoesNotContain(mix.Ducking, r => r.Ducks.Contains(2));
+        Assert.DoesNotContain(mix.SoundDucking ?? [], r => r.Ducks.Any(d => d == "voice" || d.StartsWith("voice-", StringComparison.Ordinal)));
+        // The tells still take everything else down.
+        Assert.Contains(mix.Ducking, r => r.Tier == 1 && new[] { 3, 4, 5, 6 }.All(r.Ducks.Contains) && r.Db < 0);
+    }
+
+    [Fact]
     public void TheListenerHearsTheSpaceTheyreIn()
     {
         var loop = OnTheTestLoop();
