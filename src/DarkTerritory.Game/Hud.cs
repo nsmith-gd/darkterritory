@@ -363,22 +363,7 @@ public static class Hud
             return;
         }
         if (!p.Alive)
-        {
-            Big("DEAD", Red);
-            Small(DeathLine(p.Death), Ink);
-            // App. D.10: the dead watch the living, through their eyes. Networked only: alone, there's nobody.
-            if (s.Watching >= 0)
-                Small($"WATCHING CREW {s.Watching}   [{Controls.KeyLabel(Keys.KeyFor(Control.Fire))}] OR [{Controls.KeyLabel(Keys.KeyFor(Control.Right))}] NEXT   " +
-                    $"[{Controls.KeyLabel(Keys.KeyFor(Control.Left))}] BACK", Ink);
-            else if (s.Link is not null && world.Run is not { Over: true })
-                Small("NOBODY LEFT ALIVE TO WATCH", Dim);
-            // GDD App. D: the way back is a Holdout at the next halt or yard, if the crew stops for you.
-            if (world.Holdouts is { } holdouts)
-                Small(holdouts.All.FirstOrDefault(h => h.Occupant == s.PlayerId && h.Lit) is { } mine
-                    ? mine.State == HoldoutState.Breaching ? $"THEY'RE {(mine.Quiet ? "OPENING THE LOCK" : "BREAKING YOU OUT")}: {mine.Progress / mine.Breach(holdouts.Tuning).Seconds * 100:0}%"
-                        : $"YOU'RE IN THE {HoldoutName(mine)}. [E] CALL OUT   [RMB] LET SOMEONE ELSE GO FIRST"
-                    : "YOU'LL WAIT AT THE NEXT HALT OR YARD, IF THEY STOP FOR YOU   [RMB] LET SOMEONE ELSE GO FIRST", Dim);
-        }
+            DeadCard(o, width, height, s, line);
         if (p.Alive && PlayerMotor.Chilled(p, s.PlayerTuning))
             Small($"COLD: {Math.Max(0, s.PlayerTuning.Cold.DeathSeconds - p.Cold):0}S. GET INSIDE", p.Cold > s.PlayerTuning.Cold.DeathSeconds - 30 ? Red : Amber);
         if (world.Derailed)
@@ -421,6 +406,55 @@ public static class Hud
     /// rescues, the boiler, cars lost, and how it ended; then the night's money. The clerk's flat voice, top to bottom; what
     /// won't fit says how many more.
     /// </summary>
+    /// <summary>
+    /// The dead's card (GDD App. D.6-D.10), on a plate of its own in the lower middle, clear of what they're watching: DEAD
+    /// and how, who they're watching and the keys to change it, and the way back (where they'll wait, or the Holdout
+    /// they're in and what's happening at its door), each key a keycap.
+    /// </summary>
+    static void DeadCard(Overlay o, int width, int height, IPlaySession s, int line)
+    {
+        var p = s.Player;
+        var world = s.World;
+        var rows = new List<(string Text, Vector4 Colour)> { (DeathLine(p.Death), Ink) };
+        // App. D.10: the dead watch the living, through their eyes. Networked only: alone, there's nobody.
+        if (s.Watching >= 0)
+            rows.Add(($"WATCHING CREW {s.Watching}   [{Controls.KeyLabel(Keys.KeyFor(Control.Fire))}] OR [{Controls.KeyLabel(Keys.KeyFor(Control.Right))}] NEXT   " +
+                $"[{Controls.KeyLabel(Keys.KeyFor(Control.Left))}] BACK", Ink));
+        else if (s.Link is not null && world.Run is not { Over: true })
+            rows.Add(("NOBODY LEFT ALIVE TO WATCH", Dim));
+        // GDD App. D: the way back is a Holdout at the next halt or yard, if the crew stops for you.
+        if (world.Holdouts is { } holdouts)
+        {
+            if (holdouts.All.FirstOrDefault(h => h.Occupant == s.PlayerId && h.Lit) is { } mine)
+            {
+                if (mine.State == HoldoutState.Breaching)
+                    rows.Add(($"THEY'RE {(mine.Quiet ? "OPENING THE LOCK" : "BREAKING YOU OUT")}: {mine.Progress / mine.Breach(holdouts.Tuning).Seconds * 100:0}%", Green));
+                else
+                {
+                    rows.Add(($"YOU'RE IN THE {HoldoutName(mine)}", Ink));
+                    rows.Add(("[E] CALL OUT   [RMB] LET SOMEONE ELSE GO FIRST", Dim));
+                }
+            }
+            else
+            {
+                rows.Add(("YOU'LL WAIT AT THE NEXT HALT OR YARD, IF THEY STOP FOR YOU", Dim));
+                rows.Add(("[RMB] LET SOMEONE ELSE GO FIRST", Dim));
+            }
+        }
+        float big = o.Font.Measure("DEAD", 2);
+        float w = Math.Max(big, rows.Max(r => UiStyle.MeasureKeyed(o, r.Text))) + 20, rowH = line + 3;
+        float h = 2 * line + 8 + rows.Count * rowH + 8;
+        float x = MathF.Round((width - w) / 2), y = MathF.Round(height * 0.56f);
+        UiStyle.Plate(o, x, y, w, h);
+        o.TextCentred(width / 2f, y + 6, "DEAD", Red, scale: 2);
+        y += 2 * line + 10;
+        foreach (var (text, colour) in rows)
+        {
+            UiStyle.Keyed(o, MathF.Round((width - UiStyle.MeasureKeyed(o, text)) / 2), y, text, colour);
+            y += rowH;
+        }
+    }
+
     public static void IncidentReport(Overlay o, int width, int height, float top, RunReport r, int line)
     {
         float w = Math.Min(width - 40, 980), x = MathF.Round((width - w) / 2);
