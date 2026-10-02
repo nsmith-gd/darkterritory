@@ -74,7 +74,8 @@ public sealed partial class GameAudio
     /// <summary>The train's whistle, from the engine's dome, for as long as it blows (the cord, or the Whistler at it).</summary>
     void Whistle(World world, TrainOnLine train)
     {
-        if (world.WhistleSeconds <= 0)
+        // The cord's own whistle, once it's installed, is the crew's (crew-cab-controls, GameAudio.Crew.cs).
+        if (world.WhistleSeconds <= 0 || CordWhistles(world))
         {
             _whistle?.Stop();
             _whistle = null;
@@ -363,8 +364,8 @@ public sealed partial class GameAudio
 
     void Actions(World world)
     {
-        foreach (var shot in world.Shots)
-            Mixer.Play("gunshot", shot.Muzzle)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
+        // The shots are heard from the guns' replicated state, everyone's (GameAudio.Crew.cs, CrewGuns): world.Shots is only
+        // ever this machine's own predicted one.
     }
 
     /// <summary>Plays a one-shot at a point: crew actions the game knows about (a shovel of coal).</summary>

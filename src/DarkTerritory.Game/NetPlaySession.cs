@@ -468,6 +468,17 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public PlayerState Viewpoint => Watching >= 0 && Client.TryGetRemote((byte)Watching, 1, out var s) ? s : Player;
 
     readonly List<PlayerState> _states = [];
+    readonly List<(int, PlayerState)> _crewStates = [];
+
+    public IReadOnlyList<(int Id, PlayerState State)> CrewStates(double alpha)
+    {
+        _crewStates.Clear();
+        _crewStates.Add((PlayerId, Player));
+        foreach (byte id in Client.RemoteIds)
+            if (Client.TryGetRemote(id, alpha, out var s))
+                _crewStates.Add((id, s));
+        return _crewStates;
+    }
 
     public IReadOnlyList<Crewmate> Crew(IReadOnlyList<CarFrame> frames, double alpha)
     {
