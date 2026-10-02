@@ -33,7 +33,7 @@ def outdoors(y, rng, wet=0.12):
 
 def circ_outdoors(y, rng, wet=0.12):
     """The same for a loop: the slaps and the night tail go round the cycle."""
-    z = y + 0.35 * np.roll(y, samples(0.0045)) + 0.2 * np.roll(y, samples(0.011))
+    z = y + 0.3 * np.roll(y, samples(0.0043)) + 0.18 * np.roll(y, samples(0.0127))
     return croom(z, "night", wet, rng)
 
 

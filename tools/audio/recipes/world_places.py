@@ -233,7 +233,7 @@ def chute_open(rng, k):
         "The chute shut: the gate slammed into the stream, the flood cut off, the last lumps rattling down",
         """The apron gate heaved shut against the coal (a heavy iron clank and scrape, real hits pitched down), the pour model
         choking from full flood to nothing in a third of a second, and the last few lumps clattering down the chute and
-        onto the tender.""", sources=W.PIECES["iron"] + W.PIECES["brick"], lufs=-20)
+        onto the tender.""", sources=W.PIECES["iron"] + W.PIECES["brick"], lufs=-23)
 def chute_shut(rng, k):
     L = 2.6
     b = dsp.Bus(L + 1)
@@ -279,7 +279,7 @@ SPOUT = [118, 236, 354, 472, 590]      # a 1.4 m steel spout pipe, open both end
 def grain_pour(rng, k):
     n = samples(10.0)
     flow = np.clip(30000 + 3000 * slow(n, 0.5, rng), 5000, None)
-    p = W.pour(n, rng, flow, grain=(2500, 9000), lump=0, thunder=0.5)
+    p = W.pour(n, rng, flow, grain=(1200, 9000), lump=0, thunder=0.5, voices=32, decay=0.003)
     pipe = W.cyclic(lambda z: dsp.resonate(z, SPOUT, q=12), p)
     car = W.cyclic(lambda z: dsp.resonate(z, [f * 0.35 for f in synth.WOOD[:4]], q=6), lp(p, 800))
     y = norm(p) * 0.7 + norm(pipe) * 0.35 + norm(car) * 0.35
@@ -314,7 +314,7 @@ def spout_stop(rng, k):
     L = 2.4
     n = samples(L)
     flow = env([(0, 30000), (0.15, 25000), (0.6 + 0.2 * k, 1500), (1.2 + 0.2 * k, 120), (L, 2)], L, curve="exp")
-    p = W.pour(n, rng, flow, grain=(2500, 9000), lump=0, thunder=0.4, loop=False)
+    p = W.pour(n, rng, flow, grain=(1200, 9000), lump=0, thunder=0.4, loop=False, voices=32, decay=0.003)
     pipe = dsp.resonate(p, SPOUT, q=12)
     b = dsp.Bus(L + 1)
     b.at(0, norm(norm(p) * 0.7 + norm(pipe) * 0.3) * 0.8)
@@ -396,7 +396,7 @@ def load_set(rng, mat):
         b.at(0.3, norm(synth.creak(0.5, 40, rng, body=frame_body(rng, 0.7, False), q=14)) * 0.15)
     else:
         hit = mix(norm(W.rec(f"kenney_impact-sounds:impactSoft_heavy_00{rng.integers(5)}", semis=-3)),
-                  norm(W.piece(rng, "brick", (-9, -6))) * 0.5, W.knock(rng, 45, 0.5) * 0.8)
+                  norm(W.piece(rng, "brick", (-9, -6))) * 0.5, W.knock(rng, rng.uniform(38, 60), 0.5) * 0.6)
         b.at(0.0, norm(hit) * 0.9)
         b.at(0.02, norm(W.spray(rng, 0.3, 25)) * 0.3)
     t = 0.15
@@ -567,7 +567,7 @@ def hook_chain(rng, k):
 def dead_town(rng, k):
     n = samples(16.0)
     L = 16.0
-    wind, _ = W.wind(n, rng, 6.0, gust=0.4, gust_rate=0.12, buffet=0.1, whistle=0.5, fittings=[0.004, 0.012, 0.03])
+    wind, _ = W.wind(n, rng, 6.0, gust=0.22, gust_rate=0.12, buffet=0.1, whistle=0.5, fittings=[0.004, 0.012, 0.03])
     leaves = W.cyclic(lambda z: z, synth.rustle(L, 90, rng, f=(2000, 8000), ticks=0.8)) * np.clip(0.4 + slow(n, 0.15, rng), 0, None)
     taps = [(t, norm(W.piece(rng, "wood", (-2, 2))), rng.uniform(0.1, 0.3)) for t in W.poisson(L, 0.4, rng)]
     sign = [(t, norm(synth.creak(0.7, 60, rng, body=[f * 3 for f in synth.IRON[:4]], q=30)), 0.15) for t in W.poisson(L, 0.25, rng)]

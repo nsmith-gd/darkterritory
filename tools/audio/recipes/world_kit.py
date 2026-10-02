@@ -121,8 +121,9 @@ def curve(v, n):
     return synth.curve(v, n)
 
 
-def space(x, rng, name="night", wet=0.2, early=((0.0045, 0.35), (0.011, 0.2))):
-    """Open air beside the train: a couple of slaps off the train's own sides, then the night (one-shots)."""
+def space(x, rng, name="night", wet=0.2, early=((0.0043, 0.3), (0.0127, 0.18))):
+    """Open air beside the train: a couple of slaps off the train's own sides, then the night (one-shots). The two delays
+    are chosen so their comb notches don't line up (4.5 and 11 ms both null 1 kHz)."""
     y = x.copy()
     for dt, g in early:
         k = samples(dt)
@@ -462,7 +463,7 @@ def wind(n, rng, speed, gust=0.25, gust_rate=0.15, buffet=0.6, whistle=0.35, fla
 
 # ---- Granular -----------------------------------------------------------------------------------------------------------
 
-def pour(n, rng, rate, grain=(1500, 6000), lump=0.0, thunder=0.5, ring=None, loop=True):
+def pour(n, rng, rate, grain=(1500, 6000), lump=0.0, thunder=0.5, ring=None, loop=True, voices=20, decay=0.006):
     """A pour of lumps or grains: `rate` impacts a second (a curve: the flow), each a brittle click whose pitch says its
     size (`grain` Hz range), a few big `lump`s thudding among them, the mass of it a low roar (`thunder`), and the steel
     of a chute ringing (`ring`: mode frequencies) under the stream."""
@@ -476,13 +477,14 @@ def pour(n, rng, rate, grain=(1500, 6000), lump=0.0, thunder=0.5, ring=None, loo
     ts = ts[keep]
     amps = np.minimum(1.0, 0.04 * rng.pareto(1.5, len(ts)) + 0.02).astype(np.float32)
     out = np.zeros(n, np.float32)
-    nb = 6
-    for k in range(nb):
-        sel = slice(k, None, nb)
+    # every lump or grain is its own shape: `voices` different rings, at random sizes across the range, so no single
+    # resonance stands out of the stream
+    for k in range(voices):
+        sel = slice(k, None, voices)
         x = np.zeros(n, np.float32)
         np.add.at(x, (ts[sel] * SR).astype(int) % n, amps[sel] * rng.choice([-1, 1], len(amps[sel])))
-        f = np.exp(np.log(grain[0]) + (np.log(grain[1]) - np.log(grain[0])) * k / (nb - 1))
-        h = body(rng, f, PLATE, decay=0.006, length=0.03, contact=0.0002, count=8)
+        f = np.exp(rng.uniform(np.log(grain[0]), np.log(grain[1])))
+        h = body(rng, f, PLATE, decay=decay * rng.uniform(0.6, 1.4), length=decay * 5, contact=0.0002, count=8, spread=0.1)
         out += _circconv(x, h)
     out = out / (np.std(out) + 1e-9)
     flow = rc / (np.max(rc) + 1e-9)
