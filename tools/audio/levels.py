@@ -43,7 +43,10 @@ def main():
         # hooked: named in code literally, or the line's name in code with the cue's id as a literal (composed names)
         # or a tell the game plays under its own sound's name, which install.py points at the kept takes
         tell = line in TELL_SOUNDS and f'"{TELL_SOUNDS[line][0]}"' in code
+        # or composed per tool, $"crew-melee.{ToolName(held)}-swing": the line's name, then the cue's id after its tool
+        composed = f'$"{line}.{{' in code
         hooked = [c for c in live if tell or f'"{line}.{c["id"]}' in code
+                  or composed and "-" in c["id"] and f'}}-{c["id"].split("-", 1)[1]}"' in code
                   or (f'"{line}' in code and re.search(r'["\.]' + re.escape(c["id"]) + r'["\.]', code))]
         rows[line] = {"cues": len(live), "installed": len(inst), "hooked": len(hooked),
                       "missing_install": [c["id"] for c in live if c not in inst],
