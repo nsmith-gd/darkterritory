@@ -268,7 +268,8 @@ public static class PlayerMotor
     /// <summary>
     /// The enclosed space a player is in: <see cref="Outside"/>, the engine cab (vehicle 0), or a car's
     /// interior with every door shut (that car's id). A car with a door open is part of the outside: sound,
-    /// voice and the Choir come in through it (GDD §26: protected versus exposed).
+    /// voice and the Choir come in through it (GDD §26: protected versus exposed). So is a breached car until it's boarded
+    /// up (decided 1 Oct: "a breached car no longer counts as behind a closed door"; <see cref="Vehicle.Breached"/>).
     /// </summary>
     public static int Space(in PlayerState s, TrainOnLine train)
     {
@@ -277,7 +278,7 @@ public static class PlayerMotor
         if (InCab(s, train))
             return 0;
         var shape = train.Frames[s.Parent].Shape;
-        if (shape.Interior is { } room && room.Contains(s.Position) && s.Surface == Surface.Deck && train.Vehicles[s.Parent].DoorsOpen == 0)
+        if (shape.Interior is { } room && room.Contains(s.Position) && s.Surface == Surface.Deck && train.Vehicles[s.Parent] is { DoorsOpen: 0, Breached: false })
             return s.Parent;
         return Outside;
     }

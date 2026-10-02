@@ -25,12 +25,14 @@ public sealed partial class GameAudio
     partial void CreatureSounds(World world);
     partial void TrainSounds(World world);
     partial void OutsideSounds(World world);
+    partial void FaultSounds(World world);
 
     // Each area forgets its night (EndNight): an area that keeps loops or per-id state outside the helpers below clears it.
     partial void EndNightCrew();
     partial void EndNightCreatures();
     partial void EndNightTrain();
     partial void EndNightOutside();
+    partial void EndNightFaults();
 
     void EndNightCues()
     {
@@ -46,6 +48,7 @@ public sealed partial class GameAudio
         EndNightCreatures();
         EndNightTrain();
         EndNightOutside();
+        EndNightFaults();
         EndNightMix();
         EndNightUi();
     }
@@ -57,6 +60,7 @@ public sealed partial class GameAudio
         CreatureSounds(world);
         TrainSounds(world);
         OutsideSounds(world);
+        FaultSounds(world);
         // A held loop nobody held this tick has stopped (its owner went away, or its state ended).
         foreach (var key in _held.Keys.Where(k => !_heldNow.Contains(k)).ToList())
         {

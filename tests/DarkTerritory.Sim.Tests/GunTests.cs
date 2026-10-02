@@ -11,7 +11,8 @@ public class GunTests
 {
     static readonly TrainTuning T = Tuning.Train;
     static readonly PlayerTuning P = Tuning.Player;
-    static readonly CombatTuning C = Tuning.Combat;
+    /// <summary>The guns without their misfires: those are rolled per night (FoulTests), and these pin everything else.</summary>
+    static readonly CombatTuning C = Tuning.Combat with { Guns = Tuning.Combat.Guns with { FoulChance = 0 } };
 
     static World World(int cars = 10)
     {

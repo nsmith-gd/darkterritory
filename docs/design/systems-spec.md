@@ -281,8 +281,12 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 | **Dead zone** | **20° each side along the train's own body** |
 | Ammunition | 200 rounds/gun, resupply at POI |
 | Choir aggro | +1.5 per round fired, decay 45s |
+| **Foul (misfire)** | **3% of trigger pulls on a loaded gun.** A dead click: nothing fires, the charge stays in, and the gun is out until cleared (GDD §23 "Cannon fouls") |
+| Clearing a foul | 6s of Use held at the gun, by hand; let go and it starts over. The next pull fires the charge that was in it |
 
 **The dead zone is what makes the flank uncoverable regardless of train length.** Guns face outward from the engine and guard car; the consist's own body is definitionally out of arc. This is a geometry fact, not a balance number, which means it can't be accidentally tuned away.
+
+**A foul is a cascade, not a chore.** At 3% a pull, a gun that fires all 24 of its night's shot fouls at least once about one night in two (1 − 0.97²⁴ = 52%), and a night's usual dozen shots or so foul one time in three. It always lands at the worst moment, because the trigger is only pulled when something is there to shoot. Clearing it (6 s) takes longer than a reload (3 × 1.5 s), under fire, and far less than mending the boiler (25 s). The roll is the night's: the same seed, gun and shot foul the same way on every machine.
 
 ## B.8 Run length
 
@@ -296,6 +300,18 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 | Dawn timer | Route length ÷ 11 m/s average, +40% slack (was +18%: after the 100-night playtest a stop, the posted boards and the in-car trouble didn't fit, and missing dawn was the commonest failure) |
 
 The dawn budget assumes an 11 m/s average, below the 14 m/s cruise. **The slack is what you spend on stopping** — every POI, every repair, every revival eats it.
+
+## B.9 Breaches
+
+A breach is a car's shell giving way to the outside (decided 1 Oct): a door forced, a hatch torn off, the Car Hugger chewing through the end wall, Climbers getting into an unlit car. Until it is boarded up, the car shuts nobody in, whatever its doors. The cold, the night's sound, voices and the Choir come in as through an open door, so it is no longer "behind a closed door" for the Choir. The change in the train's sound is the alarm: there is no klaxon.
+
+| Parameter | Value |
+|---|---|
+| Car Hugger through the end wall | Every 0.1 of the shell eaten (25 s of feeding at 0.004/s), boarded up or not |
+| Climbers forcing their way in | Into a car with every door and its hatch shut, and unlit, through the roof (the hatch, on a cargo car) |
+| Boarding up | 8 s of Use held inside the car within 1.5 m of the hole; let go and that board starts over |
+| Needs the repair kit | No, for now: the train carries no repair kit yet |
+| Inside a breached car | No shelter from the cold (as with a door open, it builds at ¼ rate), no muffling, no shelter from the Choir |
 
 ---
 

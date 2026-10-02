@@ -1,3 +1,5 @@
+using Ballast;
+
 namespace DarkTerritory.Sim.Train;
 
 /// <summary>What a vehicle is for (GDD §10): engine at the front, guard car with the rear gun at the back.</summary>
@@ -18,13 +20,22 @@ public struct GunState
     public int Ammo;
     /// <summary>Ticks until it can fire again.</summary>
     public int Cooldown;
-    /// <summary>GDD §23: "Gun jams: someone repairs it by hand, under fire."</summary>
+    /// <summary>
+    /// Fouled (GDD §23 failure table: "Cannon fouls: someone clears it by hand, under fire"): a pull of the trigger that
+    /// misfired (<see cref="Combat.GunTuning.FoulChance"/>). It won't fire until someone at it holds Use for
+    /// <see cref="Combat.GunTuning.FoulClearSeconds"/> (<see cref="ReloadProgress"/> counts it).
+    /// </summary>
     public bool Jammed;
+    /// <summary>
+    /// How many times it's fouled tonight. With its ammunition it picks each pull's roll (<see cref="Combat.Guns.Misfires"/>),
+    /// so a gun just cleared rolls afresh, and the host and a predicting client roll the same.
+    /// </summary>
+    public int Fouls;
     /// <summary>Tick of the last round fired (for muzzle flash and sound on clients), 0 if never.</summary>
     public uint LastShotTick;
     /// <summary>Reload steps still to do before it can fire (GDD v1.1 App. C.3: powder, ball, ram); 0 is loaded.</summary>
     public int ReloadNeeded;
-    /// <summary>Seconds into the current reload step.</summary>
+    /// <summary>Seconds into the current reload step, or into clearing a foul.</summary>
     public double ReloadProgress;
 }
 
@@ -72,6 +83,25 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     /// </summary>
     public bool LampLit { get; set; } = true;
     public bool DoorOpen(int index) => (DoorsOpen & (1 << index)) != 0;
+
+    /// <summary>
+    /// The car's shell has given way to the outside (the breach, decided 1 Oct): the Car Hugger through its end wall, Climbers
+    /// in through its roof. Until it's boarded up it doesn't shut anyone in, whatever its doors (<see cref="Player.PlayerMotor.Space"/>):
+    /// not the cold, not the night's sound, not the Choir.
+    /// </summary>
+    public bool Breached { get; set; }
+    /// <summary>Where the hole is (car frame): what's boarded up (<see cref="Breaches"/>).</summary>
+    public Double3 BreachAt { get; set; }
+
+    /// <summary>The shell gives way at <paramref name="at"/> (host). Already breached, it's the hole there is: false.</summary>
+    public bool Breach(Double3 at)
+    {
+        if (Breached)
+            return false;
+        Breached = true;
+        BreachAt = at;
+        return true;
+    }
 
     /// <summary>
     /// Opens a shut door or shuts an open one. Two hands on one door the same tick move it once: two crew pulling it shut

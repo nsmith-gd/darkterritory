@@ -169,6 +169,73 @@ public class NetcodeTests
     }
 
     [Fact]
+    public void AClientsMisfireAndItsClearingArePredictedExactly()
+    {
+        // GDD §23 "Cannon fouls": the misfire is rolled off what every machine has (Guns.Misfires), so the gunner's own client
+        // fouls the gun on the tick the host does, never predicts a shot that didn't go, and clears it by hand in step.
+        var net = new LoopbackNetwork();
+        var combat = Tuning.Combat with { Guns = Tuning.Combat.Guns with { FoulChance = 1 } };
+        TrainOnLine NewTrain() => new(new TrainDynamics(Consist.Uniform(T, 6, 1)), TestLoop, 600);
+        var host = new HostSession(net.CreateHost(), NewTrain(), T, P, combat);
+        var clients = new[] { new ClientSession(net.CreateClient(), NewTrain(), T, P, combat), new ClientSession(net.CreateClient(), NewTrain(), T, P, combat) };
+        Run(net, host, clients, 10, _ => default);
+        var mount = host.Train.Frames[0].Shape.Gun!.Value;
+        HostTeleport(host, clients[1].PlayerId!.Value, PlayerMotor.SpawnOnRoof(host.Train, 0, mount.Position.Z + 0.7, P));
+        Run(net, host, clients, 5, _ => default);
+        foreach (var c in clients)
+            c.ResetStats();
+
+        bool predictedShot = false;
+        for (int t = 0; t < 30; t++)
+        {
+            Run(net, host, clients, 1, i => i == 1 ? new PlayerIntent { Buttons = PlayerButtons.Fire } : default);
+            predictedShot |= clients[1].World.Shots.Count > 0;
+        }
+        Run(net, host, clients, 3, _ => default);
+        Assert.False(predictedShot);
+        Assert.True(host.Train.Vehicles[0].Gun.Jammed);
+        Assert.All(clients, c => Assert.True(c.Train.Vehicles[0].Gun.Jammed));
+
+        Run(net, host, clients, (int)(combat.Guns.FoulClearSeconds * SimConstants.TickRate) + 10, i => i == 1 ? new PlayerIntent { Buttons = PlayerButtons.Use } : default);
+        Run(net, host, clients, 3, _ => default);
+        Assert.False(host.Train.Vehicles[0].Gun.Jammed);
+        Assert.Equal(1, host.Train.Vehicles[0].Gun.Fouls);
+        Assert.Equal(combat.Guns.Ammo, host.Train.Vehicles[0].Gun.Ammo);
+        Assert.All(clients, c => Assert.Equal(host.Train.Vehicles[0].Gun.Jammed, c.Train.Vehicles[0].Gun.Jammed));
+        Assert.All(clients, c => Assert.Equal(host.Train.Vehicles[0].Gun.Fouls, c.Train.Vehicles[0].Gun.Fouls));
+        Assert.All(clients, c => Assert.Equal(0, c.MaxCorrection));
+    }
+
+    [Fact]
+    public void AClientBoardingUpABreachIsPredictedExactly()
+    {
+        // Decided 1 Oct: a breached car is boarded up from inside, Use held at the hole; the boarder's client predicts it.
+        var (net, host, clients) = Session(2);
+        Run(net, host, clients, 10, _ => default);
+        const int car = 3;
+        var room = host.Train.Frames[car].Shape.Interior!.Value;
+        host.Train.Vehicles[car].Breach(Breaches.EndWall(host.Train.Frames[car].Shape)!.Value);
+        HostTeleport(host, clients[1].PlayerId!.Value, new PlayerState
+        {
+            Parent = car,
+            Surface = Surface.Deck,
+            Position = new Ballast.Double3(T.Geometry.Interior!.DoorX, T.Geometry.Interior.FloorHeight, room.Max.Z - 0.7),
+            Yaw = Math.PI,
+            Health = 100,
+        });
+        Run(net, host, clients, 5, _ => default);
+        Assert.All(clients, c => Assert.True(c.Train.Vehicles[car].Breached));
+        foreach (var c in clients)
+            c.ResetStats();
+
+        Run(net, host, clients, (int)(T.Breach.BoardSeconds * SimConstants.TickRate) + 5, i => i == 1 ? new PlayerIntent { Buttons = PlayerButtons.Use } : default);
+        Run(net, host, clients, 3, _ => default);
+        Assert.False(host.Train.Vehicles[car].Breached);
+        Assert.All(clients, c => Assert.False(c.Train.Vehicles[car].Breached));
+        Assert.All(clients, c => Assert.Equal(0, c.MaxCorrection));
+    }
+
+    [Fact]
     public void ABrakeLeftOnStaysOnWithNobodyAtTheControls()
     {
         // frontier:7: the driver got down to club a Switchman, the brake came off with nobody holding it, and the train

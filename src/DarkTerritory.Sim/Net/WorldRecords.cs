@@ -68,7 +68,10 @@ public static class WorldRecords
                     // Where its gun is on its roof rail, if it has one (T93: guns are pushed from car to car).
                     v.Gun.Mounted ? 1 : 0, Q(v.Gun.Z, Fine), v.Gun.Facing,
                     // How much of it a Car Hugger has eaten (App. A.3 FEED: it's drawn gnawed away).
-                    Q(v.Eaten, Fine)]));
+                    Q(v.Eaten, Fine),
+                    // How often its gun's fouled (GDD §23: a client rolls its own trigger pull as the host does), and its shell
+                    // breached and where (decided 1 Oct: it shuts nobody in until it's boarded up).
+                    v.Gun.Fouls, v.Breached ? 1 : 0, Q(v.BreachAt.X, Pos), Q(v.BreachAt.Y, Pos), Q(v.BreachAt.Z, Pos)]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
             [Q(world.Choir.Loudness, Fine), Q(world.Choir.Build, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0, Q(world.LampOutSeconds, Fine), Q(train.Sand, Fine),
                 (world.Choir.Present ? 1 : 0) | (world.Choir.Spent ? 2 : 0), Q(world.Choir.QuietSeconds, Fine), Q(world.WhistleSeconds, Fine)]));
@@ -209,8 +212,10 @@ public static class WorldRecords
                             Mounted = f.Length > 12 && f[12] != 0,
                             Z = f.Length > 13 ? D(f[13], Fine) : 0,
                             Facing = f.Length > 14 ? (sbyte)f[14] : (sbyte)0,
+                            Fouls = f.Length > 16 ? (int)f[16] : 0,
                         }, f.Length > 7 ? (byte)f[7] : (byte)0,
-                        f.Length > 8 ? (CargoKind)f[8] : CargoKind.None, f.Length <= 9 || f[9] != 0, f.Length > 15 ? D(f[15], Fine) : 0));
+                        f.Length > 8 ? (CargoKind)f[8] : CargoKind.None, f.Length <= 9 || f[9] != 0, f.Length > 15 ? D(f[15], Fine) : 0,
+                        f.Length > 20 && f[17] != 0, f.Length > 20 ? new Double3(D(f[18], Pos), D(f[19], Pos), D(f[20], Pos)) : default));
                     break;
                 case RecordKind.World:
                     world.Choir = new ChoirState

@@ -364,12 +364,21 @@ public static class Hud
                 BodyKind.Loot => $"{world.Run?.FindName(carried)?.ToUpperInvariant() ?? "A FIND"}: INTO ANY CAR TO KEEP IT   [E] PUT DOWN   [RMB] THROW",
                 _ => "[E] PUT DOWN   [RMB] THROW",
             };
-        if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is not null)
+        if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is { } manned)
             return train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM FOR THE TURRET"
-                : train.Vehicles[Guns.MannedGun(p, train, combat.Guns)!.Value].Gun.ReloadNeeded > 0 ? "[E] HOLD: RELOAD"
+                // GDD §23: a misfire's fouled it; cleared by hand.
+                : train.Vehicles[manned].Gun is { Jammed: true } fouled
+                    ? $"GUN FOULED: [E] HOLD: CLEAR IT ({fouled.ReloadProgress / combat.Guns.FoulClearSeconds * 100:0}%)"
+                : train.Vehicles[manned].Gun.ReloadNeeded > 0 ? "[E] HOLD: RELOAD"
                 : "[LMB] FIRE   [E] + WALK: PUSH IT ALONG THE RAIL";
         // A headset player's prompts follow their reaching hand (T29), as the sim's reach does.
         var hand = world.Hand;
+        // A breach in the car's shell (decided 1 Oct): boarded up from inside, at the hole, before anything else there.
+        if (Breaches.Within(p, train, hand) is not null)
+            return $"[E] HOLD: BOARD UP THE BREACH ({Math.Min(1, p.ActionProgress / train.Dynamics.Tuning.Breach.BoardSeconds) * 100:0}%)";
+        if (p.Parent > 0 && p.Parent < train.Frames.Count && train.Vehicles[p.Parent].Breached && PlayerMotor.Indoors(p, train))
+            return train.Dynamics.Tuning.Breach.NeedsKit && Kit.Held(p) != Tool.Wrench ? "THE CAR'S BREACHED: THE KIT IN HAND TO BOARD IT UP"
+                : "THE CAR'S BREACHED: BOARD UP THE HOLE";
         var near = CrewActions.Nearest(p, train, hand);
         // T94: a ladder in reach, and the key that takes you onto it.
         if (PlayerMotor.LadderInReach(p, train, s.PlayerTuning))

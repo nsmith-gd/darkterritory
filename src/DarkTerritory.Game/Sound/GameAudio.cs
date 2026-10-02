@@ -55,7 +55,6 @@ public sealed partial class GameAudio
     public void Update(World world, in TrainControls controls, Listener listener, bool exposed, double dt, int space = PlayerMotor.Outside)
     {
         _space = space;
-        _exposed = exposed;
         _time += dt;
         if (_mix.Refresh())
             Mixer.Mix = _mix.Value;
@@ -63,6 +62,9 @@ public sealed partial class GameAudio
         Mixer.Listener = listener;
         MixAround(world, listener);
         var train = world.Train;
+        // Inside a breached car the wind blows in as on the roof (decided 1 Oct; GameAudio.Faults.cs).
+        exposed |= BreachedAround(world, listener.Position) is not null;
+        _exposed = exposed;
         Bed(train, controls, listener, exposed, dt);
         Enemies(world);
         Choir(world, train);

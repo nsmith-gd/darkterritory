@@ -56,12 +56,12 @@ public static class Guns
     }
 
     /// <summary>
-    /// Pushing the gun you're at along its rail (T93): Use held at it while you walk, and it isn't waiting on a reload (then
-    /// Use works the reload). The motor moves it with you (<see cref="Slide"/>).
+    /// Pushing the gun you're at along its rail (T93): Use held at it while you walk, and it isn't waiting on a reload or
+    /// fouled (then Use works the reload, or clears it). The motor moves it with you (<see cref="Slide"/>).
     /// </summary>
     public static bool Pushing(in PlayerState s, in PlayerIntent intent, TrainOnLine train, GunTuning t) =>
         intent.Has(PlayerButtons.Use) && (Math.Abs(intent.MoveX) > 0.5 || Math.Abs(intent.MoveZ) > 0.5) && !s.Has(PlayerFlags.Held)
-        && MannedGun(s, train, t) is { } g && train.Vehicles[g].Gun.ReloadNeeded <= 0;
+        && MannedGun(s, train, t) is { } g && train.Vehicles[g].Gun is { ReloadNeeded: <= 0, Jammed: false };
 
     /// <summary>
     /// Moves a vehicle's gun along its roof rail by <paramref name="dz"/> (T93). Past the rail's end it goes over the
@@ -120,10 +120,12 @@ public static class Guns
 
     /// <summary>
     /// Fires the gun this player is manning, if they're holding Fire and it's ready. Hits the nearest target
-    /// along the aim within range, unless the train's own body is in the way first.
+    /// along the aim within range, unless the train's own body is in the way first. Now and then the pull misfires instead
+    /// and fouls the gun (<see cref="Misfires"/>): nothing fired, and it won't until it's cleared.
     /// </summary>
+    /// <param name="seed">The night's seed (<see cref="World.Seed"/>), for the misfire's roll.</param>
     public static GunShot? TryFire(in PlayerState s, in PlayerIntent intent, TrainOnLine train, GunTuning t, ref ChoirState choir, ChoirTuning ct,
-        IReadOnlyList<HitTarget> targets, uint tick, int shooterId)
+        IReadOnlyList<HitTarget> targets, uint tick, int shooterId, ulong seed = 0)
     {
         if (!intent.Has(PlayerButtons.Fire) || MannedGun(s, train, t) is not { } gunVehicle)
             return null;
@@ -138,6 +140,14 @@ public static class Guns
         var aimLocal = AimLocal(s);
         if (CheckAim(mount, aimLocal, t) != AimResult.Ok)
             return null;
+        // GDD §23 "Cannon fouls": a dead click, the charge still in it, and nothing more from it until someone's cleared it.
+        if (Misfires(seed, gunVehicle, gun, t))
+        {
+            gun.Jammed = true;
+            gun.Fouls++;
+            gun.ReloadProgress = 0;
+            return null;
+        }
 
         gun.Ammo--;
         gun.Cooldown = t.TicksPerRound;
@@ -164,16 +174,34 @@ public static class Guns
     }
 
     /// <summary>
+    /// Whether this pull of the trigger misfires and fouls the gun (GDD §23, <see cref="GunTuning.FoulChance"/>): a roll
+    /// that's a hash of the night's seed, the gun's car, the shot it has left and how often it's fouled, so it's the same
+    /// on the host and on a client predicting its own pull, and a gun just cleared rolls afresh.
+    /// </summary>
+    public static bool Misfires(ulong seed, int vehicle, in GunState gun, GunTuning t)
+    {
+        if (t.FoulChance <= 0)
+            return false;
+        ulong h = LineGen.Streams.SplitMix64(seed ^ LineGen.Streams.SplitMix64(FoulStream ^ (ulong)vehicle * 0x9E3779B97F4A7C15UL
+            ^ (ulong)gun.Ammo * 0xC2B2AE3D27D4EB4FUL ^ (ulong)gun.Fouls * 0x165667B19E3779F9UL));
+        return (h >> 11) * (1.0 / (1UL << 53)) < t.FoulChance;
+    }
+
+    /// <summary>The misfire roll's own stream, apart from anything else hashed off the night's seed.</summary>
+    const ulong FoulStream = 0x0F0B1E5_C4A2E0UL;
+
+    /// <summary>
     /// The reload (GDD v1.1 App. C.3 "powder, ball, ram, fire"): Use held at a gun that's been fired works it, a step at a
     /// time, each <see cref="GunTuning.ReloadStepSeconds"/>. Let go and the step starts again. Whoever's at the gun does it;
-    /// DESIGN-TODO (Part Eleven Q1): whether a reload needs two players, or is only slower alone.
+    /// DESIGN-TODO (Part Eleven Q1): whether a reload needs two players, or is only slower alone. A fouled gun is cleared
+    /// the same way first (GDD §23 "someone clears it by hand"): Use held at it for <see cref="GunTuning.FoulClearSeconds"/>.
     /// </summary>
     public static void Reload(in PlayerState s, in PlayerIntent intent, TrainOnLine train, GunTuning t, double dt)
     {
         if (MannedGun(s, train, t) is not { } gunVehicle)
             return;
         ref var gun = ref train.Vehicles[gunVehicle].Gun;
-        if (gun.ReloadNeeded <= 0)
+        if (gun.ReloadNeeded <= 0 && !gun.Jammed)
             return;
         // Walking with Use held is pushing the gun, not reloading it (T93); but a gun waiting on a reload won't be pushed.
         if (!intent.Has(PlayerButtons.Use) || Math.Abs(intent.MoveX) > 0.5 || Math.Abs(intent.MoveZ) > 0.5)
@@ -182,6 +210,15 @@ public static class Guns
             return;
         }
         gun.ReloadProgress += dt;
+        if (gun.Jammed)
+        {
+            if (gun.ReloadProgress >= t.FoulClearSeconds)
+            {
+                gun.ReloadProgress = 0;
+                gun.Jammed = false;
+            }
+            return;
+        }
         if (gun.ReloadProgress >= t.ReloadStepSeconds)
         {
             gun.ReloadProgress = 0;

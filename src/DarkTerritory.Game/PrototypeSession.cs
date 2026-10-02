@@ -320,14 +320,14 @@ public sealed class PrototypeSession : IPlaySession
         if (PlayerMotor.InCab(p, train))
             return "cab";
         if (PlayerMotor.Indoors(p, train))
-            return PlayerMotor.Space(p, train) == PlayerMotor.Outside ? $"inside car {p.Parent}, door open" : $"inside car {p.Parent}, shut in";
+            return PlayerMotor.Space(p, train) == PlayerMotor.Outside ? $"inside car {p.Parent}, {(train.Vehicles[p.Parent].Breached ? "breached" : "door open")}" : $"inside car {p.Parent}, shut in";
         return p.Parent == 0 ? "engine" : $"car {p.Parent}";
     }
 
     string Gunnery()
     {
         var c = _combatTuning.Value;
-        string gun = Guns.MannedGun(Player, Train, c.Guns) is { } g ? $" GUN {Train.Vehicles[g].Gun.Ammo} rds{(Train.Vehicles[g].Gun.ReloadNeeded > 0 ? " RELOAD (hold Use)" : "")} |" : "";
+        string gun = Guns.MannedGun(Player, Train, c.Guns) is { } g ? $" GUN {Train.Vehicles[g].Gun.Ammo} rds{(Train.Vehicles[g].Gun.Jammed ? " FOULED (hold Use)" : Train.Vehicles[g].Gun.ReloadNeeded > 0 ? " RELOAD (hold Use)" : "")} |" : "";
         return $"{gun} choir {World.Choir.Phase(c.Choir).ToString().ToLowerInvariant()} {World.Choir.Loudness:0.0} |";
     }
 

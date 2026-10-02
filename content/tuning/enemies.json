@@ -73,11 +73,13 @@
   // dragFactor times harder above it), the rear car's shell and loot eaten at these rates; eaten through, the car drops.
   // Anyone in front of its mouth (mouthReach) is swallowed: swallowSeconds for friends to pull them free. It heals
   // regenPerSecond blows a second, so one player can barely out-hit it. Lurks at a marsh or bridge lurkAheadMin-Max ahead
-  // on a grade under maxGrade %. B.3: weighs lowSpeedWeight more with the train under lowSpeed m/s.
+  // on a grade under maxGrade %. B.3: weighs lowSpeedWeight more with the train under lowSpeed m/s. Every breachEaten of
+  // the shell it eats (25 s at shellPerSecond: past the guard van's platform, into the end wall, as the art eats it) it's
+  // through the end wall: the car's breached (spec B.9, train.json breach), and boarded up it's through again 25 s on.
   "carHugger": {
     "speedCap": 9, "dragFactor": 1.6, "shellPerSecond": 0.004, "lootPerSecond": 0.006, "mouthReach": 1.6,
     "swallowSeconds": 10, "health": 16, "regenPerSecond": 0.15, "lurkAheadMin": 250, "lurkAheadMax": 800, "maxGrade": 0.6,
-    "lowSpeed": 8, "lowSpeedWeight": 2, "minCars": 2
+    "lowSpeed": 8, "lowSpeedWeight": 2, "minCars": 2, "breachEaten": 0.1
   },
 
   // WHISTLER · absence · flank (App. A.4, B.4). Boards at a stop; whistleAfterStop s into the next stop it blows the
@@ -162,11 +164,15 @@
 
   // CLIMBERS · movement · flank (App. A.4, B.4). A pack of packSize paces paceOut m out for paceSeconds, then mounts any gap
   // held by fewer players (within countRadius) than it has Climbers, scrabbling scrabbleSeconds first. Up, they traverse
-  // at traverseSpeed and go into the first unlit or empty car; a lone player in there is taken over takeSeconds.
+  // at traverseSpeed and go into the first unlit or empty car; a lone player in there is taken over takeSeconds. Into an
+  // unlit car with every door and its hatch shut, they force their way in through the roof (the hatch torn off, on a cargo
+  // car): the car's breached (spec B.9, train.json breach). breachLitCars: a lit car they get into because nobody's in it
+  // too (the decision named only the unlit car; ARCHITECTURE §8).
   "climbers": {
     "paceOut": 2.5, "paceSeconds": 6, "catch": 1.2, "maxSpeed": 18, "loseBehind": 60, "scrabbleSeconds": 2.5, "holdReach": 2,
     "maxTries": 3, "traverseSpeed": 2.2, "reach": 1.8, "biteDamage": 25, "biteEvery": 1.5, "boredSeconds": 120, "health": 3,
-    "minGaps": 2, "minSpeed": 5, "perGapWeight": 0.5, "packSize": [2, 3], "countRadius": 8, "takeSeconds": 10
+    "minGaps": 2, "minSpeed": 5, "perGapWeight": 0.5, "packSize": [2, 3], "countRadius": 8, "takeSeconds": 10,
+    "breachLitCars": false
   },
 
   // THE GAUNT · sound (silence) · outside (App. A.6, B.6). Asleep; stirs at stirAt m, wakes at wakeAt m and follows its

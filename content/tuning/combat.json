@@ -22,7 +22,15 @@
     // App. C.3: "a full manual reload (powder, ball, ram, fire)": after each shot, this many steps of Use held at the gun,
     // each this long. Fire is the trigger.
     "reloadSteps": 3,
-    "reloadStepSeconds": 1.5
+    "reloadStepSeconds": 1.5,
+    // GDD §23's failure table, "Cannon fouls: someone clears it by hand, under fire" (spec B.7): a pull of the trigger on a
+    // loaded gun misfires this often (a dead click; no round goes, the charge stays in) and the gun's fouled until someone
+    // at it holds Use this long. Rare by design, a cascade and not a chore: about one gun in two fouls once if it fires all
+    // its shot in a night (1 - 0.97^24 = 52%), and a night's usual dozen shots or so foul one time in three. The roll is
+    // a hash of the night's seed, the gun's car, its shot left and its fouls so far (Guns.Misfires): the host and a
+    // predicting client pull the same trigger the same way.
+    "foulChance": 0.03,
+    "foulClearSeconds": 6
   },
   "choir": {
     // App. C.7: the meter is the crew's combined loudness "measured over a few seconds so single shouts don't count": an
