@@ -124,6 +124,12 @@ var startSettings = frontEnd.Settings;
 if (!pinnedInternal)
     internalSize = [startSettings.InternalSize.Width, startSettings.InternalSize.Height];
 using var window = new Window("Dark Territory", startSettings.WindowSize.Width, startSettings.WindowSize.Height);
+// The icon (tools/art/store/icon.py): the headlamp's glow and the stencilled DT.
+if (Path.Combine(content, "art", "ui", "icon.png") is var iconPath && File.Exists(iconPath))
+{
+    var icon = Ballast.Render.ImageFile.Load(iconPath);
+    window.SetIcon(icon.Width, icon.Height, icon.Rgba);
+}
 window.Fullscreen = startSettings.Fullscreen;
 // --vr: the headset makes the GPU (it has to pick the device and the extensions), and the window mirrors the flat view.
 using var vr = args.Contains("--vr") ? StartVr() : null;
@@ -758,7 +764,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             : new OwnView((float)camera.Yaw, (float)camera.Pitch, act, me.Velocity.X * me.Velocity.X + me.Velocity.Z * me.Velocity.Z > 0.16,
                 swing, session.PlayerId, Kit.Held(me));
         scene.Time = now;
-        lighting = Views.Lighting(frames[0], look);
+        lighting = Views.Lighting(frames[0], look, session.World.Run is { } dawnRun && look is not null ? look.DawnOf(dawnRun.DawnIn) : 0);
         lighting.Time = now;
         // Lamps down (T52), or smashed: no beam.
         if (!session.World.LampShining)

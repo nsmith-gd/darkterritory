@@ -925,6 +925,9 @@ public sealed class GreyboxScene
         var right = Double3.Cross(t.Tangent, Double3.Up).Normalized * drop.Side;
         var (x, y, z) = (ToF(right), Vector3.UnitY, ToF(t.Tangent * -1));
         var foot = t.Position + right * 3.2;
+        // The art pass's crane (tools/models mail_crane: its arms reaching in toward the line, the bag in their clamps).
+        if (Look?.Art.MailCrane(mesh, V(foot, eye), ToF(right * -1), drop.Kind) == true)
+            return;
         mesh.Box(V(foot + Double3.Up * 1.9, eye), x, y, z, new Vector3(0.1f, 1.9f, 0.1f), Palette.DeepBrown);
         mesh.Box(V(foot + Double3.Up * 3.5 - right * 0.45, eye), x, y, z, new Vector3(0.5f, 0.06f, 0.06f), Palette.IronGrey);
         var bag = drop.Kind switch
@@ -964,6 +967,10 @@ public sealed class GreyboxScene
             var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
             var foot = t.Position + right * 3.4;
             var (x, y, z) = (ToF(right), Vector3.UnitY, ToF(t.Tangent * -1));
+            double read = sign.Board - front;
+            // The art pass's boards (SignKit, the plan's own), lit back at the lamp while it's reading them.
+            if (Look is not null && Look.Art.LinesideBoard(mesh, sign, V(foot, eye), x, z, LampLit && read > 0 && read <= SignRange))
+                continue;
             mesh.Box(V(foot + Double3.Up * 1.8, eye), x, y, z, new Vector3(0.08f, 1.8f, 0.08f), Palette.IronGrey);
             var plate = foot + Double3.Up * 3.6 - t.Tangent * 0.1;
             double ahead = sign.Board - front;

@@ -85,6 +85,9 @@ public static class Staging
             At(7, 2, 0.2, -train.Frames[2].Shape.HalfLength + 0.6, 0.3, Art.CrewPose.Handbrake),
             // Standing by with the crowbar (T108's hotbar), the tool in their fist.
             At(9, 2, -0.3, -3.6, Math.PI - 0.2, null, Sim.Player.Tool.Crowbar),
+            // On the next roof back: a hand lamp held out, and the extinguisher on the hip (L0a).
+            At(10, 3, 0.4, -2.4, Math.PI + 0.2, Art.CrewPose.Lantern),
+            At(11, 3, -0.4, -4.4, Math.PI - 0.3, Art.CrewPose.Extinguish),
         };
         int gun = Enumerable.Range(0, train.Vehicles.Count).LastOrDefault(i => train.Vehicles[i].HasGun, -1);
         if (gun >= 0 && Sim.Combat.Guns.Mount(train, gun) is { } mount)
@@ -131,16 +134,24 @@ public static class Staging
     /// The staged Whistler as it goes (<c>dt screenshot --whistler</c>): <c>fold</c> hidden in its gap (App. A.4 HIDE),
     /// <c>whistle</c> pulling the cord, <c>watch</c> watching the gap's mouth after (WAIT). The <c>gapside</c> view looks in.
     /// </summary>
-    public static List<Enemy> Whistler(List<Enemy> threats, string mode)
+    public static List<Enemy> Whistler(List<Enemy> threats, string mode, TrainOnLine? train = null)
     {
         if (mode.Length == 0 || threats.OfType<Whistler>().FirstOrDefault() is not { } w)
             return threats;
+        if (mode == "nest" && train is not null && w.Attached >= 0)
+        {
+            // At its nest with its catch (App. A.4): loose, off the train's left a dozen metres out from its gap, on the ground.
+            var f = train.Frames[w.Attached];
+            var at = f.ToWorld(w.Local + new Double3(-12, 0, 2)) with { Y = f.ToWorld(Double3.Zero).Y };
+            w.Restore(SpinePhase.Grab, 18, w.Health, -1, at, 0, 0, 0, 0, 0);
+            return threats;
+        }
         var (phase, extra) = mode switch
         {
             "fold" => (SpinePhase.Dormant, 0.0),
             "whistle" => (SpinePhase.Telegraph, 1.0),
             "watch" => (SpinePhase.Commit, 0.0),
-            _ => throw new ArgumentException($"--whistler {mode}: fold, whistle or watch"),
+            _ => throw new ArgumentException($"--whistler {mode}: fold, whistle, watch or nest"),
         };
         w.Restore(phase, 0.4, w.Health, w.Attached, w.Local, 0, 0, 0, extra, 0);
         return threats;

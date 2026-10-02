@@ -864,6 +864,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         for (int i = 0; i < train.Vehicles.Count; i++)
             train.Vehicles[i].Integrity = Math.Clamp(each[Math.Min(i, each.Length - 1)], 0, 1);
     }
+    // --cargo a[,b,...]: each cargo car's cargo, front to back, the last repeating (CargoKind: its load's cases, TrainKit.Load).
+    if (Str(args, "--cargo", "") is { Length: > 0 } cargoes)
+    {
+        var each = cargoes.Split(',').Select(x => Enum.Parse<CargoKind>(x, ignoreCase: true)).ToArray();
+        int k = 0;
+        foreach (var v in train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo))
+            v.Cargo = each[Math.Min(k++, each.Length - 1)];
+    }
     // --lit: every Holdout on the route occupied, its lamp burning (GDD App. D.7), as if the dead were waiting at each.
     DarkTerritory.Sim.Run.Holdouts? holdouts = null;
     if (args.Contains("--lit") && generated is not null)
@@ -902,7 +910,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Run = run,
         Holdouts = holdouts,
         Time = 0.37,
-        Enemies = args.Contains("--threats") ? Later(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), train, Str(args, "--tippy", "")), Str(args, "--whistler", "")), Str(args, "--ribbits", "")), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--later", 0)) : null,
+        Enemies = args.Contains("--threats") ? Later(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", "")), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--later", 0)) : null,
         StagedPaces = args.Contains("--passenger") ? new Dictionary<int, float> { [48] = Staging.PassengerPace(Str(args, "--passenger", "")) } : null,
         // --stocked: the train as it leaves, its stores and every car's extinguisher aboard (--charge 0..1: theirs).
         Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All
@@ -947,7 +955,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --lantern: a hand lamp held just under the eye (the scene is eye-relative), the light you'd have in a dark car.
     if (args.Contains("--lantern"))
         mesh.PointLights.Add(new PointLight(new System.Numerics.Vector3(0.15f, -0.35f, 0), DarkTerritory.Game.Palette.LampAmber * 1.6f, 6));
-    var lighting = Views.Lighting(train, look);
+    // --dawn t: the dawn that far up (0 night .. 1 dawn; look.json atmosphere.dawn).
+    var lighting = Views.Lighting(train, look, (float)Opt(args, "--dawn", 0));
     if (args.Contains("--emergency"))
         lighting.LampRange = 0.01f; // emergency lighting: no power to the headlamp
     if (route is not null)

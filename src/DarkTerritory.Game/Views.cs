@@ -254,12 +254,15 @@ public static class Views
         return Camera.LookAt(last.ToWorld(new Double3(-12, 14, last.Shape.HalfLength + 30)), mid.ToWorld(new Double3(0, 2, 0)), 60);
     }
 
-    public static FrameLighting Lighting(TrainOnLine train, Look? look = null) => Lighting(train.Frames[0], look);
+    public static FrameLighting Lighting(TrainOnLine train, Look? look = null, float dawn = 0) => Lighting(train.Frames[0], look, dawn);
 
     /// <param name="look">The art pass's atmosphere (look.json) over the night's defaults, when there is one.</param>
-    public static FrameLighting Lighting(in CarFrame engine, Look? look = null)
+    /// <param name="dawn">How far the dawn's come up (0..1, <see cref="Look.DawnOf"/>).</param>
+    public static FrameLighting Lighting(in CarFrame engine, Look? look = null, float dawn = 0)
     {
         var light = look?.Apply(FrameLighting.Night) ?? FrameLighting.Night;
+        if (look is not null)
+            light = look.Dawn(light, dawn);
         light.LampPosition = Sim.World.LampPosition(engine);
         var fwd = engine.Back * -1;
         light.LampDirection = Vector3.Normalize(new Vector3((float)fwd.X, (float)fwd.Y - 0.04f, (float)fwd.Z));
