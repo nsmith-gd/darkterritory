@@ -8,5 +8,95 @@
   "id": "0935e378253ae6be727e9c33fb0ffd99",
   "url": "/_blob/0935e378253ae6be727e9c33fb0ffd99",
   "sha": "11295d0d84fb5ed9"
+ },
+ "previews/ui-dead-phase--bookmark--fold.mp4": {
+  "id": "852e0cf248c6b21ea42ffb81dadf4d59",
+  "url": "/_blob/852e0cf248c6b21ea42ffb81dadf4d59",
+  "sha": "be987e9d700ba807"
+ },
+ "previews/ui-dead-phase--queue--punch.mp4": {
+  "id": "a91214a9a95ca9e209de985423d9af73",
+  "url": "/_blob/a91214a9a95ca9e209de985423d9af73",
+  "sha": "2d054b5701ee7837"
+ },
+ "previews/ui-dead-phase--vote--stamp.mp4": {
+  "id": "fd6b556a8fbb87a3f06cb7bce8fbd75f",
+  "url": "/_blob/fd6b556a8fbb87a3f06cb7bce8fbd75f",
+  "sha": "f4216b495e2c0cf9"
+ },
+ "previews/ui-menus--back--slide.mp4": {
+  "id": "706159b1914916bd06625146c48db563",
+  "url": "/_blob/706159b1914916bd06625146c48db563",
+  "sha": "1e61560dbcd68014"
+ },
+ "previews/ui-menus--end-card--stamp.mp4": {
+  "id": "5100d90d4de3b90b0e13dfdd9e979656",
+  "url": "/_blob/5100d90d4de3b90b0e13dfdd9e979656",
+  "sha": "3918cad5995ceae7"
+ },
+ "previews/ui-menus--move--key.mp4": {
+  "id": "3dd3e40c7a75edd20c454a54acc4b65b",
+  "url": "/_blob/3dd3e40c7a75edd20c454a54acc4b65b",
+  "sha": "9a3cfeb8d93cd78d"
+ },
+ "previews/ui-menus--move--page.mp4": {
+  "id": "853f5191c569a61034c3a1ebcf04094d",
+  "url": "/_blob/853f5191c569a61034c3a1ebcf04094d",
+  "sha": "7120593d4b590485"
+ },
+ "previews/ui-menus--select--punch.mp4": {
+  "id": "7714145e8ef63c0893e0c3c6604b824d",
+  "url": "/_blob/7714145e8ef63c0893e0c3c6604b824d",
+  "sha": "c6249bca09ec75cb"
+ },
+ "previews/ui-menus--title--far-train.mp4": {
+  "id": "7c9f562212438aff69b19476e4cd7c4a",
+  "url": "/_blob/7c9f562212438aff69b19476e4cd7c4a",
+  "sha": "9706793cb19d9f61"
+ },
+ "previews/ui-music--drone--descent.mp4": {
+  "id": "4b1b6d93643522d93b98259af05924c4",
+  "url": "/_blob/4b1b6d93643522d93b98259af05924c4",
+  "sha": "22099118c5c28df3"
+ },
+ "previews/ui-music--drone--ground.mp4": {
+  "id": "f3fc8efd9fb6f29b8bece0d64aeafacc",
+  "url": "/_blob/f3fc8efd9fb6f29b8bece0d64aeafacc",
+  "sha": "ebb659c11eb6a8b9"
+ },
+ "previews/ui-music--drone--rails.mp4": {
+  "id": "a7d0ffe3046370414db5e4f1e7cca262",
+  "url": "/_blob/a7d0ffe3046370414db5e4f1e7cca262",
+  "sha": "c5f1c85efcf193f6"
+ },
+ "previews/ui-prompts--cancel--slip.mp4": {
+  "id": "ea8a4b9fda6794eec29d9d10bdc56e2e",
+  "url": "/_blob/ea8a4b9fda6794eec29d9d10bdc56e2e",
+  "sha": "c3342172088d1bb2"
+ },
+ "previews/ui-prompts--complete--latch.mp4": {
+  "id": "b1fd5bd066a7e01eea38056dc958fd5e",
+  "url": "/_blob/b1fd5bd066a7e01eea38056dc958fd5e",
+  "sha": "fd6317d45b315bb9"
+ },
+ "previews/ui-prompts--hold--ratchet.mp4": {
+  "id": "6b09ec289726e4f4f3305b425c0abfdc",
+  "url": "/_blob/6b09ec289726e4f4f3305b425c0abfdc",
+  "sha": "d64d3eaf41388d12"
+ },
+ "previews/ui-run-end--commendation--stamp-bell.mp4": {
+  "id": "620d45a9ab8c0030375f2b595d70a02f",
+  "url": "/_blob/620d45a9ab8c0030375f2b595d70a02f",
+  "sha": "263801c52e088d36"
+ },
+ "previews/ui-run-end--report--carriage.mp4": {
+  "id": "83ed0fdeb2a3799e3d3bf53ee1778bcb",
+  "url": "/_blob/83ed0fdeb2a3799e3d3bf53ee1778bcb",
+  "sha": "f1ec039d9b61b8df"
+ },
+ "previews/ui-run-end--tally--keys.mp4": {
+  "id": "9bb7ab0abbdb74b9e4d6509bfcb85ed1",
+  "url": "/_blob/9bb7ab0abbdb74b9e4d6509bfcb85ed1",
+  "sha": "d27fdcba7a3d644b"
  }
 }

@@ -563,6 +563,42 @@ CUES = {
     "tell-followers": [O("none", "Silent by design", silent=True)],
     "tell-passenger": [O("none", "Never speaks", silent=True)],
     "tell-switchman": [O("none", "A visual tell", silent=True)],
+
+    # ---- Music, UI, voice sets, the trailer -------------------------------------------------------------------------
+    # UI sounds are things on the train's paperwork and brass: a waybill, a ticket punch, a stamp, a switch.
+    "ui-menus": [
+        O("move", "Moving between menu items", vars=4),
+        O("select", "Choosing an item", vars=3),
+        O("back", "Backing out", vars=2),
+        L("title", "The title screen's sound, under the title"),
+        O("end-card", "The demo's wishlist end card coming up", vars=1),
+    ],
+    "ui-prompts": [
+        L("hold", "A held action ticking on (a reload step, a breach, a repair)"),
+        O("complete", "The held action done", vars=2),
+        O("cancel", "Let go before it was done", vars=2),
+    ],
+    "ui-run-end": [
+        O("report", "The run-end incident report coming up", vars=1),
+        O("tally", "One line of the report filled in", vars=4),
+        O("commendation", "A commendation awarded", vars=2),
+    ],
+    "ui-dead-phase": [
+        O("queue", "The respawn queue moving up", vars=2),
+        O("vote", "A creature vote locked in", vars=2),
+        O("bookmark", "A bookmark taken", vars=2),
+    ],
+    "ui-music": [
+        L("drone", "Music while the crew is at work: low, ambient, almost a drone, under everything"),
+    ],
+    "voice-prisoner-sets": [
+        # Each candidate is one prisoner's whole set (an adult voice, kept for the run); the game needs eight.
+        O("call", "A prisoner calling for help ('help', 'in here', 'over here'), one voice's takes", vars=5),
+        O("shout", "A wordless shout or cry from the same voice", vars=3),
+    ],
+    "store-trailer": [
+        O("mix", "The trailer's soundtrack, cut from the game's own sounds", vars=1),
+    ],
 }
 
 
