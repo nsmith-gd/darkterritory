@@ -28,7 +28,7 @@ public enum StopJob : byte
 /// radio ("I'm in the cab", "on the ground at the points"); bots share this instead. It carries only what they'd say.
 /// Everything they do still goes through intent (CLAUDE.md), and what they see comes from their own client's world.
 /// </summary>
-public sealed class CrewCalls
+public sealed partial class CrewCalls
 {
     public readonly record struct Call(StopJob Job, int Vehicle, bool Alive);
 
@@ -36,26 +36,30 @@ public sealed class CrewCalls
     readonly Dictionary<int, uint> _followed = new();
 
     /// <summary>"Stand still, there's something on your back" (App. A.3): an observer calls who a Follower's on.</summary>
-    public void Followed(int playerId, uint tick) => _followed[playerId] = tick;
+    public void Followed(int playerId, uint tick) => Heard(-1, "followed", playerId, true, () => _followed[playerId] = Voice is null ? tick : _now);
     /// <summary>Whether someone's called in the last second that there's a Follower on this player.</summary>
     public bool IsFollowed(int playerId, uint tick) => _followed.TryGetValue(playerId, out var at) && tick - at <= SimConstants.TickRate;
     readonly Dictionary<int, int> _carryingTo = new();
     readonly Dictionary<int, Double3> _standing = new();
 
     /// <summary>"I'm here": a bot that knows its player id says where it stands, so a hand coming to help knows which end is free.</summary>
-    public void Standing(int playerId, Double3 world) => _standing[playerId] = world;
+    public void Standing(int playerId, Double3 world) => Heard(playerId, "standing", playerId, world, () => _standing[playerId] = world);
     public Double3? Where(int playerId) => _standing.TryGetValue(playerId, out var at) ? at : null;
 
     /// <summary>"This one's for car n": a crate hand says which car the crate in its arms is going to (−1 when empty-handed).</summary>
-    public void CarryingTo(int member, int car) => _carryingTo[member] = car;
+    public void CarryingTo(int member, int car) => Heard(member, "carrying", member, car, () => _carryingTo[member] = car);
     /// <summary>Crates other hands are taking to a car.</summary>
     public int BoundFor(int car, int except) => _carryingTo.Count(c => c.Key != except && c.Value == car);
 
     /// <summary>A crew member says where they are: a vehicle id, or <see cref="PlayerState.World"/> on the ground.</summary>
     public void Say(int member, StopJob job, in PlayerState s)
     {
-        _crew[member] = new(job, s.Alive ? s.Parent : PlayerState.World, s.Alive);
-        _held.Add(job);
+        var call = new Call(job, s.Alive ? s.Parent : PlayerState.World, s.Alive);
+        Heard(member, "say", member, call, () =>
+        {
+            _crew[member] = call;
+            _held.Add(job);
+        });
     }
 
     /// <summary>Every part anyone has said they have: one nobody alive has now was left, by a death or a stand-in.</summary>
@@ -85,7 +89,7 @@ public sealed class CrewCalls
     public int HeavyHands => _crew.Count(c => c.Value.Alive && c.Value.Job is StopJob.Winch0 or StopJob.Winch1 or StopJob.Crates && _knows.Contains(c.Key));
     readonly HashSet<int> _knows = [];
     /// <summary>A member says it knows its own player id.</summary>
-    public void Knows(int member) => _knows.Add(member);
+    public void Knows(int member) => Heard(member, "knows", member, true, () => _knows.Add(member));
 
     readonly Dictionary<int, int> _shutting = new();
 
@@ -95,19 +99,19 @@ public sealed class CrewCalls
     /// whole aboard wait.
     /// </summary>
     public bool Leaving { get; private set; }
-    public void Leave(bool leaving) => Leaving = leaving;
+    public void Leave(bool leaving) => Heard(-1, "leave", -1, leaving, () => Leaving = leaving);
     /// <summary>
     /// The driver's away from the controls (T105: out on the running board sanding; T107: down on the ballast, or pulled off
     /// by something): the fireman minds them.
     /// </summary>
     public bool DriverAway { get; private set; }
-    public void Away(bool away) => DriverAway = away;
+    public void Away(bool away) => Heard(-1, "away", -1, away, () => DriverAway = away);
     /// <summary>The fireman's in the cab to mind the controls if the driver goes out (T107).</summary>
     public bool FiremanMinding { get; private set; }
-    public void Mind(bool minding) => FiremanMinding = minding;
+    public void Mind(bool minding) => Heard(-1, "mind", -1, minding, () => FiremanMinding = minding);
     /// <summary>The fireman's out of the cab at the blow-off (T106): the driver doesn't leave the controls meanwhile.</summary>
     public bool Venting { get; private set; }
-    public void Vent(bool venting) => Venting = venting;
+    public void Vent(bool venting) => Heard(-1, "vent", -1, venting, () => Venting = venting);
 
     /// <summary>
     /// Which door a hand shuts once the crates are in (T50): the one it has claimed while that's still open, else the
@@ -157,13 +161,13 @@ public sealed class CrewCalls
 
     readonly HashSet<int> _warming = [];
     /// <summary>A member says it's going in to get warm, or that it's back out.</summary>
-    public void Warming(int member, bool on)
+    public void Warming(int member, bool on) => Heard(member, "warming", member, on, () =>
     {
         if (on)
             _warming.Add(member);
         else
             _warming.Remove(member);
-    }
+    });
 
     /// <summary>Nobody alive is on the ground.</summary>
     public bool AllAboard => _crew.Values.All(c => !c.Alive || c.Vehicle != PlayerState.World);

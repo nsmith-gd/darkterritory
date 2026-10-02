@@ -11,5 +11,64 @@
   // The pace (after the 100-night playtest: "a reward or a problem every 30 s at most, ideally 20"): no night quiet out on
   // the line longer than this, and quiet stretches no longer than this on average.
   "maxQuietSeconds": 30,
-  "meanQuietSeconds": 20
+  "meanQuietSeconds": 20,
+
+  // GDD §34 "Combination fairness: every pair and triple in the roster against every hazard set. Flag unwinnable or
+  // trivially solved" (dt balance --pairs / --triples; note 186). Each combination is insisted on (only those kinds, sent
+  // whenever their spawn can place them, again insistEvery s after one's gone) for a short night of seconds s: crew bots on
+  // route's line with a train of cars, starting on the first stretch clear of stops and tunnels from which every kind that
+  // needs the line (the Car Hugger's marsh or bridge, the Switchman's dead line) can be placed, leadM short of it. A night
+  // is lost if the train's derailed or stranded, or unwinnableLost of the crew are dead. Unwinnable: lost every seed.
+  // Trivial: every kind came on, and in every seed nothing landed (no grab, no punish, nobody dead, under trivialCargoLoss
+  // of the cargo gone). Kinds that never came on are reported (unplaced: their spawn found nowhere; dormant: put there,
+  // they lay in wait all night), not judged. By default each combination meets one hazard set, the sets in turn down the
+  // list (--every-hazard for the whole cross, the nightly's), and --triples runs tripleSample of the 680 (--sample 0 for
+  // all of them), so a default run takes minutes.
+  "combinations": {
+    "route": "frontier:7", "crew": 4, "cars": 6, "seconds": 90, "seeds": 1, "tripleSample": 136, "insistEvery": 10, "leadM": 20,
+    // With --at-stops (the nightly's: a stop's night costs several times a line's), a combination with something that comes
+    // at a stop (the Whistler, Ribbits, the Gaunt, Followers, Soot Children, the Passenger, the Grumbler) starts approachM
+    // short of the first facility's spur the crew can work (one with a crane for the Grumbler), and runs stopSeconds: time
+    // to get there, cut the train and get down on the ground to load. Without, they're sent at the crew boarding from the
+    // ballast at the start.
+    "approachM": 350, "stopSeconds": 150,
+    "unwinnableLost": 0.5, "trivialCargoLoss": 0.02,
+    // §22: "hazards remove your tools. They never change enemy rules." What each set takes away, laid over the line:
+    // adhesion (wet rail; 0.75 is the generator's wettest, linegen tiers.json wetBiasAdhesion), coldStep (deep cold, added
+    // to the line's), wind (gunfire carries; 1 is Deep Territory's worst night), lampsOut (§23 "lights fail": the forward
+    // lamp smashed and every car's out).
+    "hazardSets": [
+      { "name": "clear" },
+      { "name": "wet", "adhesion": 0.75 },
+      { "name": "cold", "coldStep": 2, "wind": 1 },
+      { "name": "dark", "lampsOut": true }
+    ]
+  },
+
+  // GDD §34 "Degraded comms: agents on lossy, laggy, restricted voice — simulating people shouting over each other"
+  // (dt harness --comms poor; note 186). The crew's calls (who's where, which part, "that's it, all aboard") go over this:
+  // each call or repeat lost with chance loss, heard latencySeconds later (±jitterSeconds), and a new call lost with
+  // chance talkOver for each other crewmate who started a call in the last talkOverSeconds. DESIGN-TODO: first pass; a
+  // shouted call down a moving train, roughly.
+  "comms": {
+    "poor": { "loss": 0.2, "latencySeconds": 0.8, "jitterSeconds": 0.4, "talkOver": 0.25, "talkOverSeconds": 1.5 },
+    "awful": { "loss": 0.45, "latencySeconds": 2.0, "jitterSeconds": 1.0, "talkOver": 0.4, "talkOverSeconds": 2.5 }
+  },
+
+  // GDD §34 "Cascade audit: no failure chain is unrecoverable" (dt audit cascades; note 186): §23's chains scripted
+  // failAtSeconds into a night of crew bots on a train of cars, and the time each may take to come back. Each is well over
+  // the GDD's own: the 25 s repair at the firebox (§23) plus the fetch from car 1 or car 4, the restart "40s at three cars,
+  // over three minutes at twenty", a fire out before it takes the car, a fouled gun cleared (4 s at it, note 183), the
+  // Stoker clubbed out before the boiler goes. The cut car: the train runs cutRunM on and sets back onto it.
+  "cascades": {
+    "crew": 6, "cars": 6, "failAtSeconds": 30,
+    "repairWithinSeconds": 120, "restartWithinSeconds": 240, "refireWithinSeconds": 120, "fireOutWithinSeconds": 120,
+    "clearedWithinSeconds": 60, "stokerWithinSeconds": 60, "recoupleWithinSeconds": 90, "cutRunM": 40
+  },
+
+  // GDD App. A.9 "every GRAB is interruptible by the crew actually present" and B.10 "at every crew size" (dt audit grabs;
+  // note 186): each creature's grab at each of crews, the friends standing standOffM off, or beyondAloneM past the
+  // creature's own "alone" radius where it has one (so it still takes the victim), with what players carry. The grab has to
+  // begin within grabWithinSeconds of the rig being set.
+  "grabs": { "crews": [2, 3, 4, 5, 6, 7, 8], "standOffM": 4, "beyondAloneM": 1, "grabWithinSeconds": 75 }
 }

@@ -843,7 +843,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
                         : WatchTheRoad(world, Drive(train, tick, MindingCruise(world), 0.5));
                     return KeepClear(self, world, Work(self, train, minding), -1);
                 }
-                if (Mend(self, world) is { } mendingToo)
+                if (Mend(self, world, tick) is { } mendingToo)
                     return mendingToo;
                 if (FightStoker(self, world) is { } fightingToo)
                     return fightingToo with { Buttons = fightingToo.Buttons & ~PlayerButtons.Brake, ThrottleNotch = 0 };
@@ -876,7 +876,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         if (FightStoker(self, world) is { } fighting)
             return fighting with { Lamp = lamp };
         // A ruptured boiler (T109): the wrench from its rack, and mended at the firebox; the train coasts meanwhile.
-        if (Mend(self, world) is { } mending)
+        if (Mend(self, world, tick) is { } mending)
             return mending with { Lamp = lamp };
         // On a generated line, no faster than its authority allows here (linegen plan §9, §16.1): what the boards say.
         double cruise = world.LampShining ? CruiseSpeed : DarkCruiseSpeed;
@@ -1187,17 +1187,22 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     /// T109: the boiler's ruptured, and the repair kit mends it (GDD §12: the engineer is whoever has it). It rides in car 1:
     /// out of the cab, down the tender's gangway, across the plate and in at its front door for it, then back to the firebox
     /// and held there till it's mended (<see cref="KitRun"/>). The fireman goes; the driver only with nobody else in the cab
-    /// to. Null when there's nothing to mend, or someone else has the kit.
+    /// to, nor on the way (the cab's gangway, the plate, car 1): the cascade audit (note 186) found the driver following the
+    /// fireman out once they'd left the cab, and the two of them at the locker each undoing the other's press, all night.
+    /// Null when there's nothing to mend, or someone else has the kit.
     /// </summary>
-    PlayerIntent? Mend(in PlayerState self, World world)
+    PlayerIntent? Mend(in PlayerState self, World world, uint tick)
     {
         var train = world.Train;
         if (!train.Boiler.Ruptured || !self.Alive)
             return null;
-        if (!Fireman && !self.Has(PlayerFlags.RepairKit) && Crewmates?.Any(c => c.Alive && PlayerMotor.InCab(c, train)) == true)
+        var vehicles = train.Dynamics.Consist.Vehicles;
+        int kitCar = vehicles.Count > 1 ? vehicles[1].Id : -1;
+        if (!Fireman && !self.Has(PlayerFlags.RepairKit)
+            && Crewmates?.Any(c => c.Alive && (PlayerMotor.InCab(c, train) || c.Parent == 0 && c.Surface is Surface.Deck or Surface.Coupler || c.Parent == kitCar && c.Surface == Surface.Deck)) == true)
             return null;
         var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
-        return KitRun.Decide(self, world, new Double3((Fireman ? -1 : 1) * FiringSide, 0, firebox.Z + FiringBack));
+        return KitRun.Decide(self, world, new Double3((Fireman ? -1 : 1) * FiringSide, 0, firebox.Z + FiringBack), tick);
     }
 
     PlayerIntent? FightStoker(in PlayerState self, World world)
@@ -1301,8 +1306,16 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 /// </summary>
 public static class KitRun
 {
+    /// <summary>Ticks between taps at a shelf or the floor: long enough for the host's answer to come back on a rough link.</summary>
+    const uint TapEvery = 16;
+
     /// <summary>This tick's intent, or null when it isn't the bot's to fetch (someone else has it, or it's out of reach).</summary>
-    public static PlayerIntent? Decide(in PlayerState self, World world, Double3 firing)
+    /// <param name="tick">The bot's own tick, which its taps are timed by (note 186, the cascade audit: the fireman stood at the
+    /// open locker all night). Not the world's: a client's world re-simulates after each snapshot, so its tick can step by
+    /// two, and a press "every other tick" by it was Use held down. And a tap only every <see cref="TapEvery"/> ticks: the
+    /// host gives the kit on the tap, but the client hears it's in hand a snapshot later, and a bot tapping again meanwhile
+    /// put it straight back on the shelf.</param>
+    public static PlayerIntent? Decide(in PlayerState self, World world, Double3 firing, uint tick)
     {
         var train = world.Train;
         if (!self.Alive || self.Parent == PlayerState.World || self.Surface is Surface.Air or Surface.Ladder)
@@ -1360,7 +1373,7 @@ public static class KitRun
             if (!there)
                 return step;
             bool open = train.Vehicles[kit.Parent].LockerOpen(bay.Index);
-            return new PlayerIntent { Buttons = !open || world.Tick % 2 == 0 ? PlayerButtons.Use : PlayerButtons.None };
+            return new PlayerIntent { Buttons = !open || tick % TapEvery == 0 ? PlayerButtons.Use : PlayerButtons.None };
         }
         if (kit.Parent == self.Parent)
         {
@@ -1370,7 +1383,7 @@ public static class KitRun
             var stand = new Double3(at.X - (at.X >= g.PlateX ? 0.6 : -0.6), 0, at.Z);
             double yaw = at.X > stand.X ? -Math.PI / 2 : Math.PI / 2;
             var (step, there) = WarmUp.Steer(self, stand, yaw);
-            return there ? new PlayerIntent { Buttons = world.Tick % 2 == 0 ? PlayerButtons.Use : PlayerButtons.None, LookPitch = (float)(-0.7 - self.Pitch) } : step;
+            return there ? new PlayerIntent { Buttons = tick % TapEvery == 0 ? PlayerButtons.Use : PlayerButtons.None, LookPitch = (float)(-0.7 - self.Pitch) } : step;
         }
         if (self.Parent != 0)
             return null; // in car 1, and the kit's been taken forward: nothing to fetch
@@ -1900,8 +1913,11 @@ public static class Heed
                 return Strike(self, train, at, 1.2) ?? intent;
             }
         }
-        // Idle: a glance round every few seconds, a half turn.
-        if (intent.MoveX == 0 && intent.MoveZ == 0 && intent.LookYaw == 0 && (tick + (uint)selfId * 37) % (4 * SimConstants.TickRate) < SimConstants.TickRate / 3)
+        // Idle: a glance round every few seconds, a half turn. Not while holding something to (the kit at the firebox for its
+        // 25 s, a door, the gun's bore): idle as the world counts it (World.CrewAct), or the glance lets go of it (the cascade
+        // audit, note 186: a mend that started over every 4 s, all night).
+        if (intent.MoveX == 0 && intent.MoveZ == 0 && intent.LookYaw == 0 && intent.Buttons == PlayerButtons.None && intent.Actions == PlayerActions.None
+            && (tick + (uint)selfId * 37) % (4 * SimConstants.TickRate) < SimConstants.TickRate / 3)
             intent.LookYaw = (float)(Math.PI / 10);
         return intent;
     }

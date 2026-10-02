@@ -69,6 +69,10 @@ return args switch
     ["harness", ..] => Print(RunHarness(args)),
     ["wreck", ..] => Print(WreckCommands.Run(content, args)),
     ["trailer", ..] => Print(TrailerCommands.Run(content, args)),
+    // dt balance --pairs|--triples: GDD §34's combination fairness (note 186). dt audit cascades|grabs: §34's cascade audit,
+    // App. A.9 / B.10's per-tree GRAB check. Each exits 1 on a finding.
+    ["balance", ..] when args.Contains("--pairs") || args.Contains("--triples") => AuditCommands.Combinations(content, args),
+    ["audit", var verb, ..] => AuditCommands.Audit(content, verb, args),
     ["balance", ..] => PrintBalance(RunBalance(args)),
     ["online", "check"] => Print(OnlineCheck()),
     ["campaign", var verb, ..] => Print(CampaignCommand(content, verb, args)),
@@ -134,7 +138,7 @@ object RunHarness(string[] args)
         Seconds = Opt(args, "--seconds", 120),
         Seed = (int)Opt(args, "--seed", 1),
         Link = new Ballast.Net.LinkConditions(Opt(args, "--latency", 0.09), Opt(args, "--jitter", 0.02), Opt(args, "--loss", 0.03)),
-        StartDistance = route is null ? 600 : 400,
+        StartDistance = Opt(args, "--start", route is null ? 600 : 400),
         Combat = args.Contains("--no-combat") ? null : combat,
         Enemies = args.Contains("--enemies") ? enemies : null,
         Route = route,
@@ -145,7 +149,24 @@ object RunHarness(string[] args)
         Run = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)),
         Facilities = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
         YardLength = route?.GateOr(routeTuning.YardLength) ?? routeTuning.YardLength,
+        Voice = Voice(args),
+        // The combination audit's night by hand (note 186): --insist kind,kind sends only those; --hazards a set from balance.json.
+        Insist = Str(args, "--insist", "") is { Length: > 0 } insist ? [.. insist.Split(',').Select(k => Enum.Parse<DarkTerritory.Sim.Enemies.EnemyKind>(k, ignoreCase: true))] : null,
+        Hazards = Str(args, "--hazards", "") is { Length: > 0 } hz
+            ? DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.HazardSets.First(h => h.Name == hz) : null,
     }, args.Contains("--no-boiler") ? null : boiler);
+}
+
+// GDD §34's degraded comms (note 186): --comms poor|awful (balance.json comms), or --voice-loss/-latency/-jitter/-talkover.
+DarkTerritory.Sim.Bots.VoiceConditions? Voice(string[] args)
+{
+    if (Str(args, "--comms", "") is { Length: > 0 } name)
+        return DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Comms.TryGetValue(name, out var v) ? v
+            : throw new ArgumentException($"no comms called {name} in {BalanceTuning.File}");
+    if (!args.Any(a => a.StartsWith("--voice-")))
+        return null;
+    return new DarkTerritory.Sim.Bots.VoiceConditions(Opt(args, "--voice-loss", 0), Opt(args, "--voice-latency", 0), Opt(args, "--voice-jitter", 0),
+        Opt(args, "--voice-talkover", 0));
 }
 
 // GDD §34's balance sweep (T55): harness nights over tiers, seeds, crew sizes and train lengths, run side by side, and
@@ -1842,7 +1863,15 @@ static int Usage()
                      --online: every bot joins a lobby on the fake Steam and plays over relayed P2P
                      host + bot clients over a simulated network; reports prediction error, bandwidth, deaths,
                      and with --enemies the director's spawns, punishes, deaths by cause and fairness audit; on a route, the
-                     facility stops the crew worked (five bots make a crew for a winch); --trace writes who's doing what
+                     facility stops the crew worked (five bots make a crew for a winch); --trace writes who's doing what;
+                     --comms poor|awful (or --voice-loss/-latency/-jitter/-talkover): the crew's calls over a degraded voice;
+                     --insist kind,kind --hazards wet --start m: one of dt balance --pairs's nights by hand
+          balance --pairs|--triples [--every-hazard] [--at-stops] [--sample n] [--seeds n] [--seconds s] [--crew n] [--hazards clear,wet,cold,dark] [--only kind,kind]
+                     GDD §34 combination fairness: each combination insisted on for a short bot night under each hazard set
+                     (tuning/balance.json combinations); flags unwinnable and trivial meetings, exit 1 if any
+          audit cascades [--only rupture,car-fire,…] | audit grabs [--only Dragger,…] [--crews 2,8]
+                     §34's cascade audit (every §23 chain recovered in time) and App. A.9/B.10's per-tree check (every GRAB
+                     broken by the crew present, at every crew size); exit 1 on a finding
           balance [--tiers frontier,deadLines] [--seeds n] [--crews 2,8] [--cars 6,10,20] [--seconds t] [--parallel p]
                      GDD §34's sweep: harness nights at each crew size and train length, side by side, judged against
                      tuning/balance.json (survivable at 2, non-trivial at 8, fair throughout); exit 1 if a check fails
