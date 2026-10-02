@@ -9,7 +9,7 @@
 - **Boiler rupture no longer kills.** It catches up with the build (T109): the engine seizes, the train slows hard and coasts, and the engineering kit held at the firebox for 25s mends it. The train restarts from cold (§23).
 - **New run end: Stranded, unable to repair.** A ruptured boiler with the engineering kit lost ends the night (§23.2).
 - **New Appendix E — End-of-night sequences.** A slow-motion derailment cinematic shows every crew member's death, ragdolled by the wreck, to a rotating pool of CC0 opera recordings. Includes camera, occlusion, collision, music and licensing rules. Stranded gets a short, quiet outro.
-- **"Repair kit" is now the engineering kit** throughout, matching the build: the wrench, racked in the cab. There is one (§12).
+- **"Repair kit" is now the engineering kit** throughout: one carried kit, kept on the floor just inside car one's front door. It's what mends the boiler; the wrench is a tool to swing (§12).
 - **Jumping off** is lethal above 16.5 m/s, matching the systems spec in the repo (§23).
 - Touches §12, §23, §23.1, C.9, D.2, D.4, D.7 and D.12.
 
@@ -176,7 +176,7 @@ Eventually the crew sees lights. Then walls. Then cannon towers. The gates open 
 
 Early crews run **engine plus one or two cars.** Experienced crews run **engine, armour, cannons, utility cars and many freight cars.**
 
-The train should increasingly feel like home. Players learn where cannons are mounted, where powder and shot are stored, where the engineering kit is racked, where emergency lamps are kept, where coal is stored, where tools and fire extinguishers hang.
+The train should increasingly feel like home. Players learn where cannons are mounted, where powder and shot are stored, where the engineering kit is kept, where emergency lamps are kept, where coal is stored, where tools and fire extinguishers hang.
 
 That familiarity matters because the train gets more complex over time. **Progression literally makes your home harder to defend.**
 
@@ -216,7 +216,7 @@ You aren't picking a difficulty level. You're travelling farther from civilizati
 
 ### Fluidity
 
-**The engineering kit is an item, not a station.** It's the wrench, racked in the cab, and there is only one. The engineer is whoever took it off the rack. There is no post to be stuck at — there's a wrench somebody grabbed, and when they die on the roofs it's lying in car four and someone has to go and get it. It mends a ruptured boiler (§23), and nothing else can. The rack in the cab shows at a glance whether the kit is home.
+**The engineering kit is an item, not a station.** It's a carried kit, kept on the floor just inside car one's front door, a walk back from the footplate, and there is only one. The engineer is whoever picked it up. There is no post to be stuck at — there's a kit somebody grabbed, and when they die on the roofs it's lying in car four and someone has to go and get it. It mends a ruptured boiler (§23), and nothing else can; the wrench in the cab is just a tool to swing. The bare boards by car one's door show whether the kit is home.
 
 **The kit stays on the body** (Appendix D.2). When the engineer dies, nobody goes looking for the engineering kit. They go looking for the engineer, and the dead player watches them do it.
 
@@ -554,7 +554,7 @@ A kit that comes to rest outside the walkable corridor is relocated like a body 
 
 **When it ends.** The check runs every tick. If the boiler is ruptured and the kit is lost, the night ends as **Stranded** once the train comes to rest, or at once if it is already stopped. The crew gets the whole coast to work out what just happened.
 
-**Losing the kit without a rupture doesn't end anything.** The crew runs on with no margin, and the empty rack in the cab says so. Any rupture from then on ends the night when the train stops.
+**Losing the kit without a rupture doesn't end anything.** The crew runs on with no margin, and the bare boards by car one's door say so. Any rupture from then on ends the night when the train stops.
 
 **Settlement.** A stranded night pays like any failed night: no cargo, no body refunds, and crew-loss fees for anyone who died. The settlement sends a dawn freight to tow the train in, and bills for it: a **recovery fee** of 0.5 × the tier's per-car value. The locomotive and every car still coupled come home. The living crew come home too, and aren't charged a crew-loss fee. Appendix E.9 covers the outro.
 
@@ -1920,7 +1920,7 @@ Nobody died, so there's no opera. The joke is how little anyone cares.
 
 | Beat | Real time | What |
 |---|---|---|
-| **The rack** | 1.5s | In the cab, on the empty engineering-kit rack. |
+| **The empty place** | 1.5s | In car one, on the bare boards by the door where the engineering kit is kept. |
 | **The pull-back** | 6s | Up and back over the stopped consist to a high wide, while the lamps go out one by one, from the last car forward, the engine last. It's §6's small glowing machine in an enormous black world, going dark. |
 | **The clerk** | Over the pull-back | On the radio: *Consist reported stranded at mile 14. Recovery at first light. Recovery is chargeable.* |
 
@@ -1979,7 +1979,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 2. **First-time skip.** Should a player's first derail be unskippable for them?
 3. **Trailer capture.** A debug flag that renders the cinematic at 60fps from any saved derail would make Next Fest trailer footage cheap. Worth building in Phase 6?
 4. **A spare kit.** Should the fortress sell a second engineering kit? It removes Stranded as a failure for crews who pay for it, which may be exactly the right kind of upgrade, or may defang the rupture entirely.
-5. **Kit loss warning.** The empty rack is the only tell that the kit is gone. Is that enough, or does the clerk need a radio line when it's lost?
+5. **Kit loss warning.** The empty place by car one's door is the only tell that the kit is gone. Is that enough, or does the clerk need a radio line when it's lost?
 
 ---
 
