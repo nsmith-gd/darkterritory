@@ -46,6 +46,12 @@
   "replaySeconds": 9,
   "replayLeadSeconds": 3,
   "cinematicSeconds": 8,
+  // GDD v1.4 App. E.6, the opera (content/audio/music): it starts on the replay's first frame, its hit on the replay's moment
+  // of derailment (replayLeadSeconds in), and plays through the orbit. The host draws it from the shuffle bag, weighted by
+  // the derail's speed: under lamentBelow (8 m/s) Lament tracks weigh `favoured`, over gallopAbove (16 m/s) Gallop and
+  // Doom do, Swagger always weighs `swagger` (it "fits any derail"), anything else 1 (E.10's thresholds). The weighting
+  // never overrides the bag's no-repeat rules. It fades out over fadeOutSeconds (E.6: "at most 1.5s") to the sequence's end.
+  "music": { "lamentBelow": 8, "gallopAbove": 16, "favoured": 3, "swagger": 2, "fadeOutSeconds": 1.5 },
   // GDD v1.4 App. E.9, the Stranded outro (nobody died, so no opera): 1.5 s on the empty engineering-kit rack, then 6 s pulling
   // up and back over the stopped train to a high wide as its lamps go out one by one, the last car first and the engine last,
   // with the clerk on the radio. heightM and backM: where the wide ends, over and out from the middle of the train.

@@ -16,6 +16,8 @@ public sealed record WreckTuning
     public const string File = "tuning/wreck.json";
     /// <summary>GDD v1.4 App. E.9, the Stranded outro: on the empty rack, then the pull-back as the lamps go out.</summary>
     public StrandedOutroTuning Stranded { get; init; } = new();
+    /// <summary>GDD v1.4 App. E.6, the derailment's opera: the draw's speed weighting and the fade at the end.</summary>
+    public Music.MusicTuning Music { get; init; } = new();
     public int Substeps { get; init; } = 6;
     public double Gravity { get; init; } = 9.81;
     public double Restitution { get; init; } = 0.12;

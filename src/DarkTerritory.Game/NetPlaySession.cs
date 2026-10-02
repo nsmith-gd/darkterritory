@@ -32,6 +32,12 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// <summary>The host's only: a resumed night's own line, from its save (linegen plan §17.4), rather than generated afresh.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public Sim.LineGen.LinePlan? Plan { get; init; }
+    /// <summary>
+    /// The host's only: the derailment's shuffle bag going into the night (GDD v1.4 App. E.6), from the campaign save or, for
+    /// a quick night, the app's data. The host draws from it; clients are sent the track, not the bag.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Sim.Music.MusicBag? MusicBag { get; init; }
     /// <summary>The host's line's fingerprint: a joiner whose own generated line differs (another generator version) is refused.</summary>
     public string? PlanPrint { get; init; }
     /// <summary>The host's terrain's fingerprint (linegen plan §17.3): a joiner whose ground comes out differently is refused.</summary>
@@ -200,6 +206,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         : World.DerailCause is { Length: > 0 } mine ? mine
         : World.Run?.Report?.Lines.LastOrDefault(l => l.Kind == Sim.Run.IncidentKind.Derailed)?.Text;
 
+    /// <summary>The host's shuffle bag as it stands (E.6), to keep with the campaign save or the app's data; null on a joiner.</summary>
+    public Sim.Music.MusicBag? MusicBag => Host?.World.Music?.Bag;
+
     public bool WreckCinematic => Train.Wreck is not null && WreckSeconds < World.WreckTuning.SequenceSeconds;
     public double OutroSeconds { get; private set; }
     public bool StrandedOutro => World.Run?.End == Sim.Run.RunEnd.Stranded && OutroSeconds < World.WreckTuning.Stranded.Seconds;
@@ -236,6 +245,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var loadout = setup.Loadout(content);
         var trainTuning = loadout.Train;
         var (hostWorld, route) = setup.Build(content, authority: true);
+        // E.6: the host's world draws the derailment's track from the bag it brought (clients' worlds have no rotation).
+        hostWorld.Music = Sim.Music.MusicRotation.Load(content, hostWorld.WreckTuning.Music, setup.MusicBag);
         setup = setup with { PlanPrint = route?.Plan?.Fingerprint(), TerrainPrint = TerrainOf(hostWorld)?.Print() };
         if (resume is not null)
             Restore(hostWorld, resume);

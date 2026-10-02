@@ -14,7 +14,8 @@ public static class Protocol
     // 6: names (Hello, Names) and the incident report (Report) for GDD v1.4 App. C.9 and D.12.
     // 7: the crew lockers (note 172): a vehicle record's lockers' doors, a body record's locker and shelf.
     // 8: hit confirms and cannonball impacts (note 170), and the voice stream's hard-cut (note 171).
-    public const int Version = 8;
+    // 9: the world record carries the derailment's track (GDD v1.4 App. E.6, note 173).
+    public const int Version = 9;
 }
 
 public enum MessageType : byte

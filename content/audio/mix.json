@@ -26,5 +26,20 @@
   "occlusionDb": -12,
   "occlusionLowpass": 900,
   "tellOcclusionFloorDb": -6,
-  "masterDb": 9
+  "masterDb": 9,
+  // GDD v1.4 App. E.6, the derailment's opera, on a bus of its own outside the tiers (tier 0: it ducks nothing and no
+  // tier ducks it). Tracks arrive at -16 LUFS (each one's manifest gain); levelDb against masterDb's +9 puts the opera
+  // out 3 dB over that, on top of the wreck's grind (it's the punchline: E.1 "the first bar is the punchline"). It ducks 6 dB under any voice on the dead channel (50 ms attack, 400 ms release),
+  // so the laughing stays audible (E.6 "Mix", E.10 "Music duck"). While it plays, the rest of the game goes through a
+  // 1.2 kHz low-pass (E.6 "Game audio"), faded in over lowpassSeconds. Voices (tier 2) aren't game audio: they stay clear.
+  "music": {
+    "levelDb": -6,
+    "duckDb": -6,
+    "duckUnder": ["voice-dead"],
+    "duckAttack": 0.05,
+    "duckRelease": 0.4,
+    "lowpassHz": 1200,
+    "lowpassTiers": [1, 3, 4, 5, 6],
+    "lowpassSeconds": 0.25
+  }
 }
