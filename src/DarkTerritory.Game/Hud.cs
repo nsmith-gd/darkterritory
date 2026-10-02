@@ -48,7 +48,8 @@ public static class Hud
         Alerts(o, width, height, s, line);
         if (s.Link is { } lobby && s.World.Run is { Phase: Sim.Run.RunPhase.Yard })
             Lobby(o, height, s, lobby, line);
-        if (Prompt(s) is { } written)
+        // (The night over, its report has the screen: no prompts over it.)
+        if (s.World.Run?.Report is null && Prompt(s) is { } written)
         {
             string prompt = Bound(written);
             float w = UiStyle.MeasureKeyed(o, prompt) + 10;
@@ -60,7 +61,8 @@ public static class Hud
         if (p.Alive)
         {
             Hotbar(o, width, height, p, line);
-            Noise(o, width, height, s.World, line);
+            if (s.World.Run?.Report is null)
+                Noise(o, width, height, s.World, line);
         }
         if (p.Alive && crosshair)
         {
