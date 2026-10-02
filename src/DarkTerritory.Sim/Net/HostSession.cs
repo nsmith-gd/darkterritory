@@ -127,9 +127,10 @@ public sealed class HostSession
             World.CrewAct(ref c.State, c.ThisTick, c.Id, view);
         }
         World.Step(Controls);
-        // E.5 "Skipping": a majority of the session, or the host, skips the film to the cause card (when a vote counts at
-        // all is the clients' to say: they only offer it after the first player's shot). Once skipped, it stays skipped.
-        if (World.Film is not null && _crew.Count > 0)
+        // E.5 "Skipping": a majority of the session, or the host, skips the film to the cause card, or the Stranded outro
+        // (E.9). When a vote counts at all is the clients' to say: they only offer it after the first player's shot, or three
+        // seconds into the outro. Once skipped, it stays skipped.
+        if ((World.Film is not null || World.Run?.End == Run.RunEnd.Stranded) && _crew.Count > 0)
         {
             int votes = _crew.Count(c => c.ThisTick.Has(PlayerActions.Skip));
             World.FilmVotes = (votes, _crew.Count);

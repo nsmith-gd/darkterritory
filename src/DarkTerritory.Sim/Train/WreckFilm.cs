@@ -88,6 +88,32 @@ public sealed class WreckFilm
     public IReadOnlyDictionary<int, (double At, double Score)> Peaks { get; }
     /// <summary>The whole film's real length.</summary>
     public double Length => Shots.Sum(s => s.Real);
+
+    /// <summary>
+    /// The film as played after the first person and the replay (T121 playtest; ARCHITECTURE note 177): from the first
+    /// player's shot on. E.5's freeze and establishing wide are what those two beats already show.
+    /// </summary>
+    public IReadOnlyList<FilmShot> Cut => [.. Shots.SkipWhile(s => s.Kind is ShotKind.Freeze or ShotKind.Establishing)];
+
+    public double CutLength => Cut.Sum(s => s.Real);
+
+    /// <summary>Real seconds into the cut where the cause card begins (a skip lands here).</summary>
+    public double CauseAt => Cut.TakeWhile(s => s.Kind != ShotKind.Cause).Sum(s => s.Real);
+
+    /// <summary>Real seconds into the cut where the first player's shot ends: from here anyone can vote to skip (E.5).</summary>
+    public double SkippableFrom => Cut.FirstOrDefault() is { Kind: ShotKind.Player } first ? first.Real : 0;
+
+    /// <summary>Which shot of the cut plays at <paramref name="real"/> seconds into it, and how far in; null past its end.</summary>
+    public (FilmShot Shot, double Into)? CutAt(double real)
+    {
+        foreach (var s in Cut)
+        {
+            if (real < s.Real)
+                return (s, real);
+            real -= s.Real;
+        }
+        return null;
+    }
     public double Recorded => (Frames.Count - 1) * Dt;
 
     WreckFilm(FilmStart start, List<FilmFrame> frames, List<FilmShot> shots, Dictionary<int, (double, double)> peaks)

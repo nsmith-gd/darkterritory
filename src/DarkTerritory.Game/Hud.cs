@@ -49,9 +49,13 @@ public static class Hud
         // but the replay's caption over it.
         if (s.WreckCinematic)
         {
+            Film(o, width, height, s);
             Alerts(o, width, height, s, line);
+            Skip(o, width, height, s);
             return;
         }
+        if (s.StrandedOutro)
+            Skip(o, width, height, s);
         Engine(o, s, line);
         RouteStrip(o, width, s, line);
         if (s.Link is { } link)
@@ -634,6 +638,64 @@ public static class Hud
             o.Text(x + 4, y, text, colour);
             y += line;
         }
+    }
+
+    /// <summary>
+    /// The derailment film's cards (GDD v1.4 App. E.5; note 177): over each player's shot a lower third in the clerk's
+    /// typewriter face, "DAVE - ON THE THROTTLE"; over the cause card the clerk's line, typed out as it's read.
+    /// </summary>
+    static void Film(Overlay o, int width, int height, IPlaySession s)
+    {
+        var t = s.World.WreckTuning;
+        if (s.Film is not { } film || DerailSequence.Beat(t, s.WreckSeconds, film) != DerailBeat.Film
+            || film.CutAt(DerailSequence.FilmSeconds(t, s.WreckSeconds)) is not { } at)
+            return;
+        var (shot, into) = at;
+        if (shot.Kind == ShotKind.Player && shot.Card.Length > 0)
+        {
+            int dash = shot.Card.IndexOf(" - ", StringComparison.Ordinal);
+            string name = dash < 0 ? shot.Card : shot.Card[..dash], role = dash < 0 ? "" : shot.Card[(dash + 3)..];
+            int scale = Math.Max(2, height / 240);
+            float x = width * 0.07f, y = height * 0.76f;
+            float w = Math.Max(o.Font.Measure(name, scale * 2), o.Font.Measure(role, scale)) + 12 * scale;
+            float h = o.Font.Height * scale * 3 + 10 * scale;
+            // In over a fifth of a second, a blink of the typewriter's carriage.
+            float shown = (float)Math.Clamp(into / 0.2, 0, 1);
+            UiStyle.Plate(o, x, y, w * shown, h, UiStyle.Brass);
+            if (shown >= 1)
+            {
+                o.Text(x + 6 * scale, y + 4 * scale, name, UiStyle.Enamel, scale * 2);
+                o.Text(x + 6 * scale, y + 6 * scale + o.Font.Height * scale * 2, role, Amber, scale);
+            }
+        }
+        else if (shot.Kind == ShotKind.Cause)
+        {
+            // The clerk on the radio: the picture dims under the card, and the line types out as it's read.
+            o.Rect(0, 0, width, height, new Vector4(0, 0, 0, (float)Math.Clamp(into / 0.3, 0, 0.72)));
+            int scale = Math.Max(1, height / 300);
+            int chars = Math.Max(20, (int)(width * 0.7f / (o.Font.Measure("M", scale))));
+            string typed = shot.Card.ToUpperInvariant();
+            typed = typed[..(int)Math.Min(typed.Length, typed.Length * Math.Clamp(into / Math.Max(0.1, shot.Real * 0.7), 0, 1))];
+            var lines = Wrap(typed, chars).ToList();
+            float lh = (o.Font.Height + 4) * scale;
+            float y = height * 0.5f - lines.Count * lh / 2;
+            o.Text(width * 0.15f, y - lh * 2, "THE CLERK, ON THE RADIO", Dim, scale);
+            foreach (var l in lines)
+            {
+                o.Text(width * 0.15f, y, l, Ink, scale);
+                y += lh;
+            }
+        }
+    }
+
+    /// <summary>The skip vote (E.5, E.9), once it counts: hold the key; the votes so far of the crew's.</summary>
+    static void Skip(Overlay o, int width, int height, IPlaySession s)
+    {
+        if (!s.Skippable)
+            return;
+        var (votes, of) = s.World.FilmVotes;
+        string text = of > 0 && votes > 0 ? $"HOLD [SPACE] TO SKIP   {votes}/{of}" : "HOLD [SPACE] TO SKIP";
+        UiStyle.Keyed(o, width - 12 - UiStyle.MeasureKeyed(o, text), height - 18, text, Dim);
     }
 
     static IEnumerable<string> Wrap(string text, int chars)

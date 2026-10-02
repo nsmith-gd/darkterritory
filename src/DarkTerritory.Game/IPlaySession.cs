@@ -44,6 +44,10 @@ public interface IPlaySession
     bool WreckCinematic => false;
     /// <summary>Seconds since the train came off, as this client saw it.</summary>
     double WreckSeconds => 0;
+    /// <summary>The derailment film (GDD v1.4 App. E), once this machine has shot it from the host's start; null till then.</summary>
+    WreckFilm? Film => null;
+    /// <summary>A vote to skip counts now (E.5: after the first player's shot; E.9: three seconds into the outro).</summary>
+    bool Skippable => false;
     /// <summary>What derailed it, in the boards' km/h (T121): the host's own, or the incident report's line on a client.</summary>
     string? DerailCause => World.DerailCause is { Length: > 0 } c ? c
         : World.Run?.Report?.Lines.LastOrDefault(l => l.Kind == Sim.Run.IncidentKind.Derailed)?.Text;

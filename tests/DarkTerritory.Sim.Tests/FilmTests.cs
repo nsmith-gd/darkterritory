@@ -8,7 +8,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// GDD v1.4 App. E.2-E.5 and E.11 (ARCHITECTURE §8 note 176): the derailment film. The host takes the wreck's start and the
+/// GDD v1.4 App. E.2-E.5 and E.11 (ARCHITECTURE §8 note 177): the derailment film. The host takes the wreck's start and the
 /// crew as they were on the derail tick; every machine shoots the same film from it; everybody gets a shot, the biggest
 /// flight last, inside the beat caps; the cause card is the clerk's; a majority (or the host) skips to it.
 /// </summary>

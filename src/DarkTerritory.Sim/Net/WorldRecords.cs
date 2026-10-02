@@ -79,7 +79,7 @@ public static class WorldRecords
                 (world.Choir.Present ? 1 : 0) | (world.Choir.Spent ? 2 : 0), Q(world.Choir.QuietSeconds, Fine), Q(world.WhistleSeconds, Fine), Q(world.Choir.Rest, Fine),
                 // The derailment's opera, the host's draw (GDD v1.4 App. E.6; note 174).
                 world.DerailMusic,
-                // The derailment film's skip vote (GDD v1.4 App. E.5; note 176): skipped, and the votes of how many.
+                // The derailment film's skip vote (GDD v1.4 App. E.5; note 177): skipped, and the votes of how many.
                 world.FilmSkipped ? 1 : 0, world.FilmVotes.Votes, world.FilmVotes.Of]));
         foreach (var e in world.ActiveEnemies)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),

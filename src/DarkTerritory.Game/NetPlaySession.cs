@@ -209,7 +209,21 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <summary>The host's shuffle bag as it stands (E.6), to keep with the campaign save or the app's data; null on a joiner.</summary>
     public Sim.Music.MusicBag? MusicBag => Host?.World.Music?.Bag;
 
-    public bool WreckCinematic => Train.Wreck is not null && WreckSeconds < World.WreckTuning.SequenceSeconds;
+    public bool WreckCinematic => Train.Wreck is not null && WreckSeconds < DerailSequence.Length(World.WreckTuning, Film);
+
+    Task<WreckFilm?>? _shooting;
+
+    /// <summary>
+    /// GDD v1.4 App. E.2 steps 3-4: the film, shot here from the host's start once it's in (off the frame loop: a few hundred
+    /// steps of the wreck and the crew's ragdolls), the same as every other machine shoots it. Null till it's ready.
+    /// </summary>
+    public WreckFilm? Film => _shooting is { IsCompletedSuccessfully: true } done ? done.Result : null;
+
+    public bool Skippable =>
+        Film is { } film && DerailSequence.Beat(World.WreckTuning, WreckSeconds, film) == DerailBeat.Film
+            && DerailSequence.FilmSeconds(World.WreckTuning, WreckSeconds) >= film.SkippableFrom
+            && DerailSequence.FilmSeconds(World.WreckTuning, WreckSeconds) < film.CauseAt
+        || StrandedOutro && OutroSeconds >= World.WreckTuning.Stranded.SkipAfterSeconds;
     public double OutroSeconds { get; private set; }
     public bool StrandedOutro => World.Run?.End == Sim.Run.RunEnd.Stranded && OutroSeconds < World.WreckTuning.Stranded.Seconds;
     public World World => Client.World;
@@ -509,9 +523,23 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             }
         }
         _previous = Client.Predicted;
+        // Hosting, this machine's own player is the host whose vote alone skips the film (E.5).
+        if (Host is { HostPlayer: < 0 } host && Client.PlayerId is { } me)
+            host.HostPlayer = me;
         Client.Step(Spectate(intent));
         WreckSeconds = Train.Wreck is null ? 0 : WreckSeconds + SimConstants.TickSeconds;
         OutroSeconds = World.Run?.End == Sim.Run.RunEnd.Stranded ? OutroSeconds + SimConstants.TickSeconds : 0;
+        if (World.Film is { } start && _shooting is null)
+        {
+            var world = World;
+            _shooting = Task.Run(() => (WreckFilm?)world.ShootFilm());
+        }
+        // E.5: voted off, the film cuts to the cause card (never past it); E.9: the outro to its end.
+        if (World.FilmSkipped && Film is { } film && DerailSequence.Beat(World.WreckTuning, WreckSeconds, film) == DerailBeat.Film
+            && DerailSequence.FilmSeconds(World.WreckTuning, WreckSeconds) < film.CauseAt)
+            WreckSeconds = World.WreckTuning.FirstPersonSeconds + World.WreckTuning.ReplaySeconds + film.CauseAt;
+        if (World.FilmSkipped && StrandedOutro)
+            OutroSeconds = World.WreckTuning.Stranded.Seconds;
         Tick++;
         if (!_link.IsConnected && Client.Connected)
             Lost = true;

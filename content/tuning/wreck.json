@@ -54,9 +54,10 @@
   "music": { "lamentBelow": 8, "gallopAbove": 16, "favoured": 3, "swagger": 2, "fadeOutSeconds": 1.5 },
   // GDD v1.4 App. E.9, the Stranded outro (nobody died, so no opera): 1.5 s on the empty engineering-kit rack, then 6 s pulling
   // up and back over the stopped train to a high wide as its lamps go out one by one, the last car first and the engine last,
-  // with the clerk on the radio. heightM and backM: where the wide ends, over and out from the middle of the train.
-  "stranded": { "rackSeconds": 1.5, "pullBackSeconds": 6, "heightM": 42, "backM": 55 },
-  // GDD v1.4 App. E.3-E.5 and E.10, the derailment film (note 176): after the first person and the replay, everyone's own
+  // with the clerk on the radio. heightM and backM: where the wide ends, over and out from the middle of the train. From
+  // skipAfterSeconds in, a majority (or the host) can skip it (E.9, E.10).
+  "stranded": { "rackSeconds": 1.5, "pullBackSeconds": 6, "heightM": 42, "backM": 55, "skipAfterSeconds": 3 },
+  // GDD v1.4 App. E.3-E.5 and E.10, the derailment film (note 177): after the first person and the replay, everyone's own
   // death. The host sends the wreck's start and the crew as they were; every client pre-simulates it (seconds, substeps)
   // with the crew ragdolled and flung (velocity × fling, an upward kick of kickMin-kickMax, a tumble up to spin rad/s,
   // capped at ejectCap; under minKickSpeed a tip-over throws them sideways anyway; a bystander further than bystander m from

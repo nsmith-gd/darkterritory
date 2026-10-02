@@ -6,7 +6,8 @@ namespace DarkTerritory.Sim.Train;
 /// <param name="RackSeconds">E.9 "the rack": on the empty engineering-kit rack, in the cab.</param>
 /// <param name="PullBackSeconds">E.9 "the pull-back": up and back over the stopped consist to a high wide, the lamps going out from the last car forward, the engine last.</param>
 /// <param name="HeightM">How high the wide ends, and <paramref name="BackM"/> how far out behind and beside the train's middle.</param>
-public sealed record StrandedOutroTuning(double RackSeconds = 1.5, double PullBackSeconds = 6, double HeightM = 42, double BackM = 55)
+/// <param name="SkipAfterSeconds">E.10's stranded skip delay: a majority (or the host) can skip it from here.</param>
+public sealed record StrandedOutroTuning(double RackSeconds = 1.5, double PullBackSeconds = 6, double HeightM = 42, double BackM = 55, double SkipAfterSeconds = 3)
 {
     public double Seconds => RackSeconds + PullBackSeconds;
 }
