@@ -194,6 +194,45 @@ public sealed class UiSoundTests : IDisposable
         Assert.True(next.Finished);
     }
 
+    [Fact]
+    public void ClearingAFoulAndBoardingUpABreachHoldTheLoopAndCompleteWhenDone()
+    {
+        var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
+        var w = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), line, 5_000), C);
+        var audio = Audio();
+
+        // A fouled gun (GDD §23), cleared on the reload's count: the loop at its fraction, done once it's clear.
+        int g = Enumerable.Range(0, w.Train.Vehicles.Count).Last(i => w.Train.Vehicles[i].HasGun);
+        var gunner = PlayerMotor.SpawnOnRoof(w.Train, g, Guns.Mount(w.Train, g)!.Value.Position.Z + 0.5, P);
+        w.Train.Vehicles[g].Gun.Jammed = true;
+        w.Train.Vehicles[g].Gun.ReloadProgress = C.Guns.FoulClearSeconds / 2;
+        audio.Interface(w, gunner, 1);
+        var hold = Assert.Single(audio.Mixer.Voices, v => v.Name == UiCue.Hold);
+        Assert.InRange(hold.Params.Get("progress"), 0.45, 0.55);
+        w.Train.Vehicles[g].Gun.Jammed = false;
+        w.Train.Vehicles[g].Gun.ReloadProgress = 0;
+        audio.Interface(w, gunner, 1);
+        Assert.Equal(1, Played(audio, UiCue.Complete));
+        Assert.True(hold.Finished);
+
+        // A breached car (decided 1 Oct), boarded up from inside at the hole on the boarder's own count.
+        const int car = 2;
+        w.Train.Vehicles[car].Breach(Breaches.EndWall(w.Train.Frames[car].Shape)!.Value);
+        var boarder = new PlayerState
+        {
+            Parent = car, Position = Breaches.StandAt(w.Train, car), Surface = Surface.Deck, Health = P.Health,
+            ActionProgress = T.Breach.BoardSeconds / 2,
+        };
+        audio.Interface(w, boarder, 1);
+        var board = audio.Mixer.Voices.Last(v => v.Name == UiCue.Hold);
+        Assert.NotSame(hold, board);
+        Assert.InRange(board.Params.Get("progress"), 0.45, 0.55);
+        audio.Interface(w, boarder with { ActionProgress = T.Breach.BoardSeconds }, 1);
+        Assert.Equal(2, Played(audio, UiCue.Complete));
+        Assert.True(board.Finished);
+        Assert.Equal(0, Played(audio, UiCue.Cancel));
+    }
+
     /// <summary>A generated night with a Holdout, and a client's view of it: the host's Holdouts come in through Mirror.</summary>
     static (World World, Holdout Holdout) Holdouts()
     {

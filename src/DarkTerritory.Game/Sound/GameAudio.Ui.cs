@@ -117,7 +117,7 @@ public sealed partial class GameAudio
         _uiWorld = null;
     }
 
-    enum HoldKind : byte { Reload, Repair, Handbrake, Hatch, Uncouple, Breach, Restart, Rig }
+    enum HoldKind : byte { Reload, Repair, Handbrake, Hatch, Uncouple, Breach, Restart, Rig, ClearFoul, BoardUp }
 
     /// <param name="Id">What it's at: the gun's or the car's vehicle, the Holdout, the facility, the crane.</param>
     /// <param name="Fraction">How far along: 1 is done.</param>
@@ -158,7 +158,8 @@ public sealed partial class GameAudio
     /// <summary>
     /// The hold the player's working, as the HUD prompts it ("[E] HOLD: ..." with an end to it), or null: a step of the
     /// cannon's reload (App. C.3), mending the boiler (T109), a handbrake, a roof hatch (T99), cutting the coupling (T91),
-    /// breaking a Holdout open (App. D.7), restarting a yard's generator (level-design D.2), rigging a casting (T48). Not the
+    /// breaking a Holdout open (App. D.7), restarting a yard's generator (level-design D.2), rigging a casting (T48), clearing a
+    /// fouled gun (GDD §23), boarding up a breached car (decided 1 Oct). Not the
     /// holds that only go on while held (the vent, sand, a crank, the chute lever), nor the shovel (every shovelful is the
     /// crew-shovel sounds'), nor a switch lever (its progress is the host's alone, SwitchStands.Progress).
     /// </summary>
@@ -167,11 +168,19 @@ public sealed partial class GameAudio
         if (!me.Alive)
             return null;
         var train = world.Train;
-        if (world.Combat is { } combat && Guns.MannedGun(me, train, combat.Guns) is { } g
-            && train.Vehicles[g].Gun is { ReloadNeeded: > 0, ReloadProgress: > 0 } gun)
-            return new(HoldKind.Reload, g, gun.ReloadProgress / combat.Guns.ReloadStepSeconds);
+        if (world.Combat is { } combat && Guns.MannedGun(me, train, combat.Guns) is { } g)
+        {
+            // A foul's cleared by the reload's hold, on the same count (Guns: FoulClearSeconds of it).
+            if (train.Vehicles[g].Gun is { Jammed: true, ReloadProgress: > 0 } fouled)
+                return new(HoldKind.ClearFoul, g, fouled.ReloadProgress / combat.Guns.FoulClearSeconds);
+            if (train.Vehicles[g].Gun is { ReloadNeeded: > 0, ReloadProgress: > 0 } gun)
+                return new(HoldKind.Reload, g, gun.ReloadProgress / combat.Guns.ReloadStepSeconds);
+        }
         if (me.ActionProgress > 0 && me.Parent != PlayerState.World)
         {
+            // At a breach, boarding it up comes before anything else in reach (CrewActions.Apply's first case).
+            if (Breaches.Within(me, train, world.Hand) is not null)
+                return new(HoldKind.BoardUp, me.Parent, me.ActionProgress / train.Dynamics.Tuning.Breach.BoardSeconds);
             // What CrewActions.Apply counts ActionProgress for, by what's in reach (the HUD's Prompt reads it the same way).
             var near = CrewActions.NearestInteractable(me, train, world.Hand);
             var couplings = train.Dynamics.Tuning.Couplings;
@@ -219,6 +228,8 @@ public sealed partial class GameAudio
     {
         HoldKind.Reload => h.Id < world.Train.Vehicles.Count ? -world.Train.Vehicles[h.Id].Gun.ReloadNeeded : 0,
         HoldKind.Repair => world.Train.Boiler.Ruptured ? 0 : 1,
+        HoldKind.ClearFoul => h.Id < world.Train.Vehicles.Count && world.Train.Vehicles[h.Id].Gun.Jammed ? 0 : 1,
+        HoldKind.BoardUp => h.Id < world.Train.Vehicles.Count && world.Train.Vehicles[h.Id].Breached ? 0 : 1,
         HoldKind.Breach => world.Holdouts?.All.ElementAtOrDefault(h.Id)?.State == HoldoutState.Freed ? 1 : 0,
         HoldKind.Restart => world.Run?.CurrentSite?.Power == PowerState.Live ? 1 : 0,
         HoldKind.Rig => world.Run?.CurrentSite?.Cranes.ElementAtOrDefault(h.Id)?.Castings.Count(c => c.State != CastingState.Stacked) ?? 0,
