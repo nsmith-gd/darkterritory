@@ -255,8 +255,8 @@ for _mat, _how in (
          than a board's), the pad, the skin squeaking higher on the painted metal or peeling off it slowly, tacky on the
          paint. Synthesised from the tin's modes, almost dry.""")):
     recipe("tell-tippy", "tiptoe", "skin",
-           "One bare step, close: toenails, the pad, the skin squeaking or peeling off the surface", _how, takes=6, mat=_mat, band=TIPPY, lufs=-26, preview=_pace)(
-        lambda rng, k, _m=_mat: tiptoe_skin(rng, k, _m))
+           "One bare step, close: toenails, the pad, the skin squeaking or peeling off the surface", _how, takes=6,
+           mat=_mat, band=TIPPY, lufs=-26, preview=_pace)(lambda rng, k, _m=_mat: tiptoe_skin(rng, k, _m))
 
 
 # ---- The Marsh: reeds rustling (12-15 kHz, a loop) -------------------------------------------------------------------

@@ -76,7 +76,7 @@ def jet(rng, length, take=0):
     w = ck.get(WATER[(take + 1) % 2])
     reps = int(np.ceil(n / len(w))) + 1
     w = np.tile(w, reps)[samples(rng.uniform(0, 2)):][:n]
-    spatter = ck.grains(rng, int(260 * length), length, 1800, 7000, q=(2, 5), length=(0.002, 0.006), shape=-0.9)
+    spatter = ck.grains(rng, int(260 * length), length, 1800, 7000, q=(2, 5), length=(0.002, 0.006), shape=0.0)
     return ck.norm(mix(ck.norm(roar) * 0.55, ck.norm(hp(w, 300)) * 0.5, ck.norm(spatter[:n]) * 0.12))
 
 

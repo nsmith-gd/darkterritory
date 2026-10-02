@@ -160,7 +160,7 @@ def boiler_groan(rng, n, intensity=1.0):
         their stays eight to thirty times a second in slow swells, which is what a pressure vessel past its limit
         sounds like, with seams weeping thin unsteady hisses and the shell's own hum under it. The preview ends the way
         the director asked, in the burst (state-rupture), since the code plays this until the boiler goes.
-        12 s exact cycle.""", loop=True, takes=1, lufs=-22, preview=lambda takes, rng: _strain_to_burst(takes, rng))
+        12 s exact cycle.""", loop=True, takes=1, lufs=-25, preview=lambda takes, rng: _strain_to_burst(takes, rng))
 def strain_groan(rng, k):
     n = samples(12.0)
     y = croom(boiler_groan(rng, n), "cab", 0.25, rng)
