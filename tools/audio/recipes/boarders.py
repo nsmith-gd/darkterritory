@@ -33,7 +33,7 @@ SR = dsp.SR
 SEAM = 0.3   # build.py's loop-seam crossfade
 
 
-# ---- Shared parts ---------------------------------------------------------------------------------------------------------
+# ---- Shared parts ----------------------------------------------------------------------------------------------------
 
 def cycle(y):
     """Hand build.py one loop cycle so its equal-power seam crossfade gives the cycle back exactly: the head is repeated
@@ -45,13 +45,22 @@ def cycle(y):
     return np.concatenate([head, y[n:], head])
 
 
+def cycle_fade(x, t):
+    """A texture cut `t` seconds longer than its loop, made to join itself: the extra tail crossfaded over the head."""
+    n = samples(t)
+    y = x[:-n].copy()
+    k = np.linspace(0, 1, n, dtype=np.float32)
+    y[:n] = y[:n] * np.sqrt(k) + x[-n:] * np.sqrt(1 - k)
+    return y
+
+
 def loop_bus(length, tail=3.0):
     """A bus for a loop: events may run past the end; `close` folds the overhang (and the room) back onto the head."""
     return Bus(length + tail)
 
 
 def close(bus, length, space=None, wet=0.2, rng=None):
-    y = bus.x
+    y = hp(bus.x, 25)
     if space:
         y = dsp.room(y, space, wet=wet, rng=rng)
     return cycle(dsp.wrap(y, samples(length)))
@@ -153,12 +162,28 @@ def creak(length, rate, rng, **kw):
     return hp(synth.creak(length, rate, rng, **kw), 30)
 
 
+def settle(x):
+    """Finish a one-shot: take out the offset a lone low thud leaves over a short take."""
+    return hp(x, 30)
+
+
 def pad(x, before):
     return np.concatenate([np.zeros(samples(before), np.float32), x])
 
 
+# ---- Bodies on the train: stones, boards, cloth, iron ----------------------------------------------------------------
+
 STONES = src.S("stones_01", "stones_02", "stones_03", "footstep_01", "footstep_02")
 CLOTH = src.R("cloth1", "cloth2", "cloth3", "cloth4")
+SQUISH = src.R("handleCoins")                      # the chewing squish the kept swallow and grind are made of
+CRACKS = src.S("misc_33", "misc_34", "misc_35")   # wood and bone cracking, splitting
+SPLINTER = CRACKS[1:]
+BOOTS = src.R(*(f"footstep{i:02d}" for i in range(10)))
+KNOCKS = src.K("impactWood_light") + src.S("footstep_wood_02", "footstep_wood_04")
+BUMPS = src.K("impactWood_medium", [0, 2, 4]) + src.K("impactWood_heavy", [1, 3])
+SCRAPE = src.S("misc_10")
+IRONHIT = src.S("metal_hit_01") + src.K("impactMetal_heavy", [0, 1, 3]) + src.K("impactPlate_heavy", [0, 2, 4])
+WHEELS = src.S("loop_ambient_04")                 # a train running
 
 
 def ballast(rng, weight=1.0, size=0.03):
@@ -167,7 +192,90 @@ def ballast(rng, weight=1.0, size=0.03):
     return mix(norm(g, 0.1), thud(rng, 120, 0.06, 0.1) * 0.5 * weight)
 
 
-# ---- Whistler --------------------------------------------------------------------------------------------------------------
+def kick(rng):
+    """A boot heel or toe hitting the boards: a real boot step, cut to its first knock."""
+    key = BOOTS[rng.integers(len(BOOTS))] if rng.random() < 0.6 else KNOCKS[rng.integers(len(KNOCKS))]
+    g = grain(rng, key, rng.uniform(0.06, 0.14), rng.uniform(-3, 2))
+    return lp(g, rng.uniform(3000, 8000))
+
+
+def heel_drag(rng, length):
+    """A boot sole dragged across boards: friction noise roughened by the grain and rung lightly through the board, a real
+    scrape slowed under it, and now and then the rubber catching in a short squeak."""
+    n = samples(length)
+    rough = np.abs(lp(rng.standard_normal(n).astype(np.float32), rng.uniform(40, 90)))
+    fr = bp(synth.noise(length, rng), 250, 4000) * (rough / (np.max(rough) + 1e-9))
+    fr = mix(fr, dsp.resonate(fr, [m * rng.uniform(1.0, 1.5) for m in synth.WOOD], q=8) * 0.3)
+    sc = lp(grain(rng, SCRAPE[0], length / 1.5, -4, attack=False), 4000)
+    sc = dsp.fit(dsp.stretch(sc, 1.5), n)
+    y = mix(norm(fr, 0.1), norm(sc, 0.1) * 0.6)
+    if rng.random() < 0.3:
+        d = rng.uniform(0.06, 0.12)
+        sq = creak(d, rng.uniform(600, 1100), rng, body=[1400, 2300, 3500], q=10, jitter=0.15)
+        y = mix(y, pad(norm(sq * env([(0, 0), (0.01, 1), (d, 0)], d), 0.1) * 0.5, rng.uniform(0, length * 0.6)))[:n]
+    return lp(hp(y * env([(0, 0), (0.03, 1), (length * 0.6, 0.8), (length, 0)], length), 60), 3500, 4)
+
+
+def drag_on(rng, length, body):
+    """A body (coat, belt, buckle) dragged over a surface: friction noise roughened by its grain, rung through the
+    surface's modes, easing off."""
+    n = samples(length)
+    rough = np.abs(lp(rng.standard_normal(n).astype(np.float32), rng.uniform(30, 60)))
+    fr = bp(synth.noise(length, rng), 300, 5000) * (rough / (np.max(rough) + 1e-9))
+    y = mix(norm(fr, 0.1), norm(dsp.resonate(fr, body, q=12), 0.1) * 0.6)
+    return y * env([(0, 0), (min(0.08, length / 4), 1), (length * 0.4, 0.8), (length, 0)], length)
+
+
+def cloth(rng, length, pitch=0.0, stretch=1.0):
+    """Clothes moving: real cloth handling, a few grains layered and smeared along the length."""
+    out = Bus(length + 0.5)
+    t = 0.0
+    while t < length:
+        g = grain(rng, CLOTH[rng.integers(len(CLOTH))], rng.uniform(0.12, 0.35), pitch + rng.uniform(-3, 2), attack=False)
+        if stretch != 1.0:
+            g = dsp.stretch(g, stretch)
+        out.at(t, norm(g, 0.1), rng.uniform(-8, 0))
+        t += rng.uniform(0.05, 0.2) * stretch
+    return out.x[:samples(length + 0.3)]
+
+
+def bump(rng):
+    """A shoulder or knee hitting the floor."""
+    g = lp(grain(rng, BUMPS[rng.integers(len(BUMPS))], 0.25, rng.uniform(-4, 0)), 1500)
+    return mix(norm(g, 0.1), thud(rng, 90, 0.2, 0.1) * 0.6)
+
+
+def shoe_squeal(rng, length, f=2600):
+    """A cut car's brakes going on by themselves (the pipe's vented): iron shoes screaming on its wheels, the pitch
+    wavering and jumping between the wheel's modes."""
+    n = samples(length)
+    jump = np.where(lp(rng.standard_normal(n).astype(np.float32), 0.8) > 0.004, 1.0, 1.18)
+    fc = f * jump * 2 ** (drift(rng, n, 1.5, 25) / 1200)
+    ph = np.cumsum(lp(fc, 30)) / SR
+    tone = np.sin(2 * np.pi * ph) + 0.35 * np.sin(2 * np.pi * 2.03 * ph) + 0.15 * np.sin(2 * np.pi * 2.97 * ph)
+    grit = bp(synth.noise(length, rng), f * 0.7, f * 1.5)
+    am = np.clip(0.65 + drift(rng, n, 2.5, 0.3), 0.05, 1.3)
+    return ((norm(tone, 0.1) + norm(grit, 0.06)) * am).astype(np.float32)
+
+
+def clack(rng):
+    """A wheel over a rail joint: a sharp iron knock (struck plate and a ringing iron hit) with the car's weight under."""
+    k = lp(grain(rng, IRONHIT[rng.integers(4, 7)], 0.25, rng.uniform(-5, -2)), 5000)
+    r = grain(rng, IRONHIT[rng.integers(1, 4)], 0.12, rng.uniform(-9, -6), decay=0.02)
+    return mix(norm(k, 0.1), norm(r, 0.1) * 0.6, thud(rng, 70, 0.15, 0.2) * 0.6)
+
+
+def wheels(rng, length, swell):
+    """The wheels and rails right there under the car's edge: the train's own running sound, close and raw (stretched
+    when it's wanted longer than the recording)."""
+    w = grain(rng, WHEELS[0], min(length, 9.5), rng.uniform(-1, 1), attack=False)
+    if length > 9.5:
+        w = dsp.stretch(w, length / 9.4)
+    w = dsp.fit(hp(w, 50), samples(length))
+    return norm(w, 0.1) * dsp.fit(env(swell, length), len(w))
+
+
+# ---- Whistler --------------------------------------------------------------------------------------------------------
 
 # The train whistle's chord (tell-whistler: E, G#, B), an octave up: the siphon is a smaller pipe that learned it.
 NOTES = [hz(76), hz(80), hz(83)]
@@ -205,12 +313,6 @@ def siphon(rng, f0, pressure, length, voiced=1.0, flutter=0.35, wet=0.4, q=22):
         gurgle = synth.bubbles(length, np.clip(p * 30, 1, None), 250, 1400, rng, rise=(0.2, 0.9))
         y = y + norm(gurgle, 0.03) * wet * p
     return lp(y, 6000).astype(np.float32)
-
-
-def breath_env(t0, length, rise=0.12, fall=0.35, peak=1.0, total=None):
-    """One push of air: up fast, a short hold, out slower."""
-    return [(0, 0), (t0, 0), (t0 + rise, peak), (t0 + length - fall, peak * 0.8), (t0 + length, 0)] + \
-        ([(total, 0)] if total else [])
 
 
 def tick(rng, f=1100, wet=0.5):
@@ -303,7 +405,7 @@ def whistler_run_waves(rng, take):
     for t0, d in [(1.3, 0.8), (5.9, 1.1), (9.4, 0.6)]:
         bus.at(t0, victim_drag(rng, d), -5)
     # the siphon pants every second wave; twice a loop the push is hard enough to speak a note
-    f0, press, t, k = [], [(0, 0)], 0.0, 0
+    f0, press = [], [(0, 0)]
     period = L / 15
     for i in range(15):
         t0 = i * period + rng.uniform(0.0, 0.05)
@@ -389,8 +491,6 @@ def scrabble_legs(rng, length, rate=70, weight=0.6):
 
 
 WOODHIT = src.S("wood_hit_03", "misc_08")
-CRACKS = src.S("misc_33", "misc_34", "misc_35")
-WETS = src.R("handleCoins")
 
 
 def squeal(rng, length, start, top, end, wet=0.6):
@@ -409,7 +509,7 @@ def squeal(rng, length, start, top, end, wet=0.6):
         bright wood knock, with the grub flesh giving under it (a dull low thud and a wet squelch); one take the plate
         cracks. The legs scrabble on the stones as it flinches, and the siphon squeals: a hard push of breath that
         overblows the pipe up past its notes and sags as the air runs out, its lips fluttering, wet in the pipe.""",
-        sources=WOODHIT + CRACKS + STONES, takes=4)
+        sources=WOODHIT + CRACKS[1:2] + STONES, takes=4)
 def whistler_hit_plate(rng, take):
     b = Bus(1.3)
     b.at(0, norm(bone(rng, rng.uniform(1100, 1700)), 0.1), 0)
@@ -423,7 +523,7 @@ def whistler_hit_plate(rng, take):
     L = rng.uniform(0.35, 0.55)
     top = NOTES[2] * 2 ** (rng.uniform(2, 6) / 12)
     b.at(rng.uniform(0.05, 0.1), norm(squeal(rng, L, NOTES[1], top, NOTES[0] * 2 ** (-rng.uniform(3, 7) / 12)), 0.1), -5)
-    return b.x
+    return settle(b.x)
 
 
 def sputter(rng, length):
@@ -439,20 +539,20 @@ def sputter(rng, length):
         squish pitched down) where it gives. The struck plates rattle against each other (a quick dry clatter of bone
         ticks), the legs scrabble on the stones, and the siphon spits a wet sputter of air that never becomes a note.
         No voice and no whistle: the body takes it.""",
-        sources=WETS + STONES, takes=4)
+        sources=SQUISH + STONES, takes=4)
 def whistler_hit_flesh(rng, take):
     b = Bus(1.3)
     b.at(0, norm(slap(rng, 0.12, 1600, 0.9), 0.1), -3)
     b.at(0, thud(rng, rng.uniform(65, 85), 0.35, 0.15), 0)
     b.at(0.008, norm(squelch(rng, 0.32, 250, 1100), 0.1), -6)
-    b.at(0.02, norm(grain(rng, WETS[0], 0.3, rng.uniform(-9, -5), attack=False), 0.1), -10)
+    b.at(0.02, norm(grain(rng, SQUISH[0], 0.3, rng.uniform(-9, -5), attack=False), 0.1), -10)
     rattle = Bus(0.3)
     for i in range(rng.integers(7, 13)):
         rattle.at(0.012 * i + rng.uniform(0, 0.01), plate_click(rng, rng.uniform(1500, 3200)), -2 * i)
     b.at(0.01, norm(rattle.x, 0.1), -8)
     b.at(rng.uniform(0.04, 0.08), scrabble_legs(rng, rng.uniform(0.25, 0.4), 80, 0.8), -6)
     b.at(rng.uniform(0.07, 0.12), norm(sputter(rng, rng.uniform(0.3, 0.5)), 0.1), -8)
-    return b.x
+    return settle(b.x)
 
 
 def collapse(rng, n=6, gap=(0.08, 0.16)):
@@ -511,7 +611,7 @@ def whistler_death_breath(rng, take):
     b.at(0.12 + W * 0.85, norm(sputter(rng, 0.6), 0.1), -14)
     b.at(0.25, curl(rng, L - 0.6), -9)
     b.at(rng.uniform(0.9, 1.4), collapse(rng, rng.integers(5, 8)), -4)
-    return dsp.room(dsp.compress(b.x, -24, 4, 0.002, 0.15), "night", wet=0.1, rng=rng)
+    return settle(dsp.room(dsp.compress(b.x, -24, 4, 0.002, 0.15), "night", wet=0.1, rng=rng))
 
 
 def grind(rng, length, rate=60):
@@ -549,17 +649,17 @@ def whistler_death_coil(rng, take):
     p = env([(0, 0), (0.25, 0.5), (W * 0.5, 0.45), (W, 0)], W)
     b.at(t + 0.6, norm(siphon(rng, NOTES[0] * 2 ** (-rng.uniform(2, 5) / 12), p, W, voiced=0.25, flutter=0.5, wet=1.0, q=9), 0.1), -9)
     b.at(t + 0.9, curl(rng, L - t - 0.9, 8, 0.3), -12)
-    return dsp.room(dsp.compress(b.x, -24, 4, 0.002, 0.15), "night", wet=0.1, rng=rng)
+    return settle(dsp.room(dsp.compress(b.x, -24, 4, 0.002, 0.15), "night", wet=0.1, rng=rng))
 
 
-# ---- Car Hugger --------------------------------------------------------------------------------------------------------------
+# ---- Car Hugger ------------------------------------------------------------------------------------------------------
 
-SQUISH = src.R("handleCoins")                      # the chewing squish the kept swallow and grind are made of
 WATER = src.S("loop_water_01")
 CREAKS = src.R("doorOpen_1", "doorOpen_2")
-IRONHIT = src.S("metal_hit_01") + src.K("impactMetal_heavy", [0, 1, 3]) + src.K("impactPlate_heavy", [0, 2, 4])
-SPLINTER = src.S("misc_34", "misc_35")
 TIMBER = src.S("wood_hit_01", "wood_hit_02")
+HISS = src.S("loop_ambient_01")
+RAIL = src.S("loop_ambient_02")
+RUMBLE = src.S("thunder_01")
 
 
 def hide(rng, size=1.0):
@@ -585,7 +685,7 @@ def van_groan(rng, length, peak=55):
     """The guard van's timbers taking the strain as the rings clench on it: big boards slipping against each other
     (stick-slip through a heavy timber's modes, quickening to a groan) and a real door creak dragged down an octave."""
     r = env([(0, 12), (length * 0.55, peak), (length, 10)], length)
-    c = creak(length, r, rng, body=[m * rng.uniform(0.5, 0.6) for m in synth.WOOD], q=16, jitter=0.35, grit=0.4)
+    c = creak(length, r, rng, body=[m * rng.uniform(0.7, 0.8) for m in synth.WOOD], q=11, jitter=0.45, grit=0.5)
     rec = lp(dsp.vari(src.get(CREAKS[rng.integers(2)]), -12), 1800)
     rec = dsp.fit(dsp.stretch(rec, length / (len(rec) / SR), smooth=True), samples(length))
     y = mix(norm(c, 0.1), norm(rec, 0.1) * 0.7)
@@ -611,7 +711,7 @@ def hugger_hit_clench(rng, take):
         b.at(t + g * rng.uniform(0.4, 0.6), norm(lp(grain(rng, IRONHIT[rng.integers(1, 4)], 0.3, -8), 2500), 0.1), -9)
     else:
         b.at(t + g * rng.uniform(0.3, 0.6), norm(grain(rng, SPLINTER[rng.integers(2)], 0.2, -5), 0.1), -10)
-    return dsp.room(b.x, "car", wet=0.15, rng=rng)
+    return settle(dsp.room(b.x, "car", wet=0.15, rng=rng))
 
 
 def ripple(rng, length):
@@ -648,13 +748,7 @@ def hugger_hit_regrip(rng, take):
     b.at(0, hide(rng, rng.uniform(0.85, 1.15)), 0)
     b.at(0.04, norm(ripple(rng, rng.uniform(0.45, 0.7)), 0.1), -7)
     b.at(rng.uniform(0.35, 0.55), suction(rng, rng.uniform(0.6, 1.0)), -6)
-    return dsp.room(b.x, "car", wet=0.15, rng=rng)
-
-
-HISS = src.S("loop_ambient_01")
-RAIL = src.S("loop_ambient_02")
-RUMBLE = src.S("thunder_01")
-IRON_RING = [96, 243, 470, 912, 1530, 2380]
+    return settle(dsp.room(b.x, "car", wet=0.15, rng=rng))
 
 
 def shear(rng):
@@ -666,7 +760,7 @@ def shear(rng):
     b.at(0.005, thud(rng, 45, 0.7, 0.3), 0)
     x = np.zeros(samples(2.2), np.float32)
     x[:samples(0.003)] = rng.standard_normal(samples(0.003))
-    ring = dsp.resonate(x, [f * rng.uniform(0.85, 0.95) for f in IRON_RING], q=90, gains=[0.6, 1, 0.8, 0.5, 0.35, 0.2])
+    ring = dsp.resonate(x, [f * rng.uniform(0.85, 0.95) for f in synth.IRON[:6]], q=90, gains=[0.6, 1, 0.8, 0.5, 0.35, 0.2])
     b.at(0.01, norm(ring * env([(0, 1), (2.2, 0)], 2.2, "exp"), 0.1), -10)
     b.at(0.03, norm(grain(rng, SPLINTER[1], 0.7, -3), 0.1), -4)
     return b.x
@@ -677,26 +771,6 @@ def hose(rng, length=1.6):
     h = grain(rng, HISS[0], length, -2, attack=False)
     h = bp(h, 700, 9000) * env([(0, 0), (0.01, 1), (0.25, 0.7), (length, 0)], length, "exp")
     return norm(h, 0.1)
-
-
-def shoe_squeal(rng, length, f=2600):
-    """A cut car's brakes going on by themselves (the pipe's vented): iron shoes screaming on its wheels, the pitch
-    wavering and jumping between the wheel's modes."""
-    n = samples(length)
-    jump = np.where(lp(rng.standard_normal(n).astype(np.float32), 0.8) > 0.004, 1.0, 1.18)
-    fc = f * jump * 2 ** (drift(rng, n, 1.5, 25) / 1200)
-    ph = np.cumsum(lp(fc, 30)) / SR
-    tone = np.sin(2 * np.pi * ph) + 0.35 * np.sin(2 * np.pi * 2.03 * ph) + 0.15 * np.sin(2 * np.pi * 2.97 * ph)
-    grit = bp(synth.noise(length, rng), f * 0.7, f * 1.5)
-    am = np.clip(0.65 + drift(rng, n, 2.5, 0.3), 0.05, 1.3)
-    return ((norm(tone, 0.1) + norm(grit, 0.06)) * am).astype(np.float32)
-
-
-def clack(rng):
-    """A wheel over a rail joint: a sharp iron knock (struck plate and a ringing iron hit) with the car's weight under."""
-    k = lp(grain(rng, IRONHIT[rng.integers(4, 7)], 0.25, rng.uniform(-5, -2)), 5000)
-    r = grain(rng, IRONHIT[rng.integers(1, 4)], 0.12, rng.uniform(-9, -6), decay=0.02)
-    return mix(norm(k, 0.1), norm(r, 0.1) * 0.6, thud(rng, 70, 0.15, 0.2) * 0.6)
 
 
 def falling_behind(rng, length, start_gap=0.5, end_gap=1.6):
@@ -728,7 +802,7 @@ def falling_behind(rng, length, start_gap=0.5, end_gap=1.6):
         Cut loose, the van's own brakes go on: it falls away behind, its wheels clacking over the joints further and
         further apart, its brake shoes screaming, the Hugger still heaving and the timbers still groaning in it, pulled
         back into the dark (darker, wetter, quieter, sagging in pitch).""",
-        sources=CREAKS + IRONHIT + SPLINTER + HISS + RAIL + SQUISH + WATER, takes=1)
+        sources=CREAKS + IRONHIT + SPLINTER + HISS + RAIL + SQUISH, takes=1)
 def hugger_away_parting(rng, take):
     b = Bus(12)
     # the strain: boards and iron giving, pops coming quicker
@@ -787,56 +861,9 @@ def hugger_away_tumble(rng, take):
     return tame(hp(dsp.compress(b.x, -22, 3, 0.003, 0.2), 25))
 
 
-# ---- Tippy Toesie: the struggle -------------------------------------------------------------------------------------------
+# ---- Tippy Toesie: the struggle --------------------------------------------------------------------------------------
 
-BOOTS = [f"kenney_rpg-audio:footstep{i:02d}" for i in range(10)]
-KNOCKS = src.K("impactWood_light") + src.S("footstep_wood_02", "footstep_wood_04")
-BUMPS = src.K("impactWood_medium", [0, 2, 4]) + src.K("impactWood_heavy", [1, 3])
-SCRAPE = src.S("misc_10")
 GASP = src.S("misc_05")
-
-
-def kick(rng):
-    """A boot heel or toe hitting the boards: a real boot step, cut to its first knock."""
-    key = BOOTS[rng.integers(len(BOOTS))] if rng.random() < 0.6 else KNOCKS[rng.integers(len(KNOCKS))]
-    g = grain(rng, key, rng.uniform(0.06, 0.14), rng.uniform(-3, 2))
-    return lp(g, rng.uniform(3000, 8000))
-
-
-def heel_drag(rng, length):
-    """A boot sole dragged across boards: friction noise roughened by the grain and rung lightly through the board, a real
-    scrape slowed under it, and now and then the rubber catching in a short squeak."""
-    n = samples(length)
-    rough = np.abs(lp(rng.standard_normal(n).astype(np.float32), rng.uniform(40, 90)))
-    fr = bp(synth.noise(length, rng), 250, 4000) * (rough / (np.max(rough) + 1e-9))
-    fr = mix(fr, dsp.resonate(fr, [m * rng.uniform(1.0, 1.5) for m in synth.WOOD], q=8) * 0.3)
-    sc = lp(grain(rng, SCRAPE[0], length / 1.5, -4, attack=False), 4000)
-    sc = dsp.fit(dsp.stretch(sc, 1.5), n)
-    y = mix(norm(fr, 0.1), norm(sc, 0.1) * 0.6)
-    if rng.random() < 0.3:
-        d = rng.uniform(0.06, 0.12)
-        sq = creak(d, rng.uniform(600, 1100), rng, body=[1400, 2300, 3500], q=10, jitter=0.15)
-        y = mix(y, pad(norm(sq * env([(0, 0), (0.01, 1), (d, 0)], d), 0.1) * 0.5, rng.uniform(0, length * 0.6)))[:n]
-    return hp(y * env([(0, 0), (0.03, 1), (length * 0.6, 0.8), (length, 0)], length), 60)
-
-
-def cloth(rng, length, pitch=0.0, stretch=1.0):
-    """Clothes moving: real cloth handling, a few grains layered and smeared along the length."""
-    out = Bus(length + 0.5)
-    t = 0.0
-    while t < length:
-        g = grain(rng, CLOTH[rng.integers(len(CLOTH))], rng.uniform(0.12, 0.35), pitch + rng.uniform(-3, 2), attack=False)
-        if stretch != 1.0:
-            g = dsp.stretch(g, stretch)
-        out.at(t, norm(g, 0.1), rng.uniform(-8, 0))
-        t += rng.uniform(0.05, 0.2) * stretch
-    return out.x[:samples(length + 0.3)]
-
-
-def bump(rng):
-    """A shoulder or knee hitting the floor."""
-    g = lp(grain(rng, BUMPS[rng.integers(len(BUMPS))], 0.25, rng.uniform(-4, 0)), 1500)
-    return mix(norm(g, 0.1), thud(rng, 90, 0.2, 0.1) * 0.6)
 
 
 def pant(rng, length, rate, size=1.25):
@@ -879,7 +906,7 @@ def struggle_bursts(rng, bus, spans, kicks=6.0):
 @recipe("cs-tippy", "struggle", "thrash",
         "Boots kicking and dragging on the boards in bursts, clothes thrashing, and its quick thin excited breath",
         """The victim's body, since their voice goes out muffled on voice chat: real boot steps cut into kicks on the
-        boards, soles dragging (stick-slip through a board's modes over a slowed scrape), clothes thrashing (real cloth
+        boards, soles dragging (friction rung through a board, over a real scrape), clothes thrashing (real cloth
         handling layered), a knee or shoulder thumping down, in bursts with short spent lulls between. Close by all
         through it, its excited breath: quick, shallow and thin, a tract smaller than a child's with a gasp pitched up in
         it, quickening in the lulls. Inside a wooden car. Loops in one exact cycle.""",
@@ -906,7 +933,7 @@ def lips(rng):
 @recipe("cs-tippy", "struggle", "pinned",
         "Pinned: heels dragging slowly on the boards, clothes twisting, a weak kick now and then, its breath savouring it",
         """Later in the twenty seconds, the fight going out of them: heels dragging long and slow across the boards
-        (stick-slip soles over a slowed scrape), clothes twisting tight (cloth handling stretched out), boards creaking
+        (sole friction rung through the board over a real scrape), clothes twisting tight (cloth handling stretched out), boards creaking
         under shifting weight, two weak kicks a loop. Its breath is close and slower now, in through its teeth and out
         thin, with wet little lip sounds between: it's enjoying it. Inside a wooden car. Loops in one exact cycle.""",
         sources=BOOTS + KNOCKS + SCRAPE + CLOTH + GASP, loop=True, takes=1, seconds=12.0)
@@ -914,16 +941,472 @@ def tippy_struggle_pinned(rng, take):
     L = 12.0
     bus = loop_bus(L)
     for t0 in (0.4, 2.9, 4.6, 7.3, 9.6, 11.2):
-        bus.at(t0, heel_drag(rng, rng.uniform(0.5, 1.0)), rng.uniform(-6, -2))
+        bus.at(t0, heel_drag(rng, rng.uniform(0.5, 1.0)), rng.uniform(-9, -5))
     for t0 in (3.8, 8.6):
         bus.at(t0, norm(kick(rng), 0.1), -6)
         bus.at(t0 + rng.uniform(0.1, 0.2), norm(kick(rng), 0.1), -12)
     for t0, d in ((1.2, 1.6), (5.4, 1.4), (8.9, 1.8)):
         bus.at(t0, cloth(rng, d, -5, 2.2), -6)
     bus.at(6.2, bump(rng), -8)
-    boards = creak(L, env([(0, 6), (L * 0.3, 16), (L * 0.6, 7), (L, 6)], L), rng, body=synth.WOOD, q=14, jitter=0.6)
-    bus.at(0, norm(boards * env([(0, 0.2), (2, 1), (4, 0.2), (7, 0.9), (9, 0.3), (L, 0.2)], L), 0.1), -18)
+    for t0 in (1.9, 6.6, 10.3):   # the boards taking their weight as they shift
+        d = rng.uniform(0.6, 1.0)
+        c = creak(d, env([(0, 5), (d / 2, 14), (d, 5)], d), rng, body=[m * 1.6 for m in synth.WOOD], q=16, jitter=0.6)
+        bus.at(t0, norm(c * env([(0, 0), (0.1, 1), (d, 0)], d), 0.1), -16)
     bus.at(0, pant(rng, L, 2.4, 1.15), -14)
     for t0 in rng.uniform(0, L, 7):
         bus.at(t0, lips(rng), -22)
     return close(bus, L, "car", 0.2, rng)
+
+
+# ---- Draggers --------------------------------------------------------------------------------------------------------
+
+TINHIT = src.K("impactTin_medium") + src.K("impactPlate_light", [0, 2, 4])
+LEATHER = src.R("handleSmallLeather")
+SIDE = src.K("impactWood_heavy", [0, 2, 4]) + src.S("wood_hit_01", "wood_hit_02")
+
+
+def tin_lip(rng, weight=1.0):
+    """A body landing on the roof's tin edge: sheet iron banging and flexing under it."""
+    g = grain(rng, TINHIT[rng.integers(len(TINHIT))], 0.4, rng.uniform(-7, -3))
+    x = np.zeros(samples(0.5), np.float32)
+    x[:samples(0.004)] = rng.standard_normal(samples(0.004))
+    flex = dsp.resonate(x, [f * rng.uniform(0.75, 0.9) for f in synth.TIN], q=30) * env([(0, 1), (0.5, 0)], 0.5, "exp")
+    return mix(norm(lp(g, 6000), 0.1), norm(flex, 0.1) * 0.5, thud(rng, 80, 0.3, 0.1) * weight)
+
+
+def side_slam(rng, weight=1.0):
+    """A body swung against the car's side: the boards booming like the hollow wall they are."""
+    g = lp(grain(rng, SIDE[rng.integers(len(SIDE))], 0.35, rng.uniform(-5, -2)), 3500)
+    boom = dsp.resonate(g, [m * rng.uniform(0.6, 0.75) for m in synth.WOOD], q=10)
+    return mix(norm(g, 0.1), norm(boom, 0.1) * 0.6, thud(rng, 75, 0.35, 0.15) * weight)
+
+
+def side_kick(rng):
+    """A boot toe kicking the car's side boards for a hold: a boot knock with the wall's hollow ring in it."""
+    k = kick(rng)
+    return mix(norm(k, 0.1), norm(dsp.resonate(k, [m * 0.8 for m in synth.WOOD], q=12), 0.1) * 0.4)
+
+
+def sinew(rng, length, rate=(25, 70)):
+    """The limb's tendons taking a body's weight: a wet leathery creak (slow stick-slip through something soft), a
+    real leather creak in it, a little wet."""
+    r = env([(0, rate[0]), (length * 0.6, rate[1]), (length, rate[0])], length)
+    c = creak(length, r, rng, body=[f * rng.uniform(0.9, 1.15) for f in (280, 610, 1050, 1800)], q=6, jitter=0.5, grit=0.5)
+    lt = dsp.fit(dsp.stretch(grain(rng, LEATHER[0], 0.3, -3, attack=False), length / 0.3), samples(length))
+    y = mix(norm(c, 0.1), norm(lt, 0.1) * 0.6, norm(squelch(rng, length, 300, 900, 0.6), 0.1) * 0.3)
+    return y * env([(0, 0), (length * 0.2, 1), (length * 0.8, 0.8), (length, 0)], length)
+
+
+def pops(rng, n, span):
+    """Joints popping one after another down a limb: dry knuckle-cracks."""
+    out = Bus(span + 0.15)
+    for i in range(n):
+        out.at(span * i / max(n - 1, 1) + rng.uniform(-0.01, 0.01) + 0.01,
+               norm(snap(rng, 0.05, rng.uniform(1200, 2400)), 0.1), rng.uniform(-6, 0))
+    return lp(out.x, 7000)
+
+
+def claws_tin(rng, length):
+    """Claws catching and skating on the tin lip (the tell's rasp, short)."""
+    c = creak(length, rng.uniform(18, 28), rng, body=[f * 1.2 for f in synth.TIN], q=14, jitter=0.4, grit=0.8)
+    sq = shoe_squeal(rng, length, rng.uniform(2600, 3000))
+    return mix(norm(c, 0.1), norm(sq, 0.1) * 0.25) * env([(0, 0), (0.01, 1), (length, 0)], length)
+
+
+@recipe("cs-draggers", "grab", "yank",
+        "Claws catch the lip, a hand clamps on, and the victim is yanked over the edge onto the tin and against the side",
+        """Claws catch and skate on the roof's tin lip (the tell's rasp, cut short), a hand clamps on a leg (a slap and a
+        grab of cloth), and the limb pulls: its tendons creak wet like leather taking weight. The victim goes over the
+        edge in one movement: the body bangs down on the tin lip, which flexes and rings, then swings and slams into the
+        car's side boards with a hollow boom, their boots kicking the wall twice, and the wheels' roar comes up from
+        right underneath.""",
+        sources=TINHIT + SIDE + LEATHER + BOOTS + KNOCKS + CLOTH + WHEELS, takes=2)
+def draggers_grab_yank(rng, take):
+    b = Bus(2.0)
+    b.at(0, claws_tin(rng, 0.14), -6)
+    b.at(0.05, norm(slap(rng, 0.08, 2500, 0.2), 0.1), -3)
+    b.at(0.05, norm(grain(rng, CLOTH[rng.integers(4)], 0.25, 0), 0.1), -4)
+    b.at(0.08, sinew(rng, 0.55, (35, 80)), -6)
+    b.at(0.15, norm(whoosh(rng, 0.3, 200, 1500, 0.7), 0.1), -12)
+    b.at(rng.uniform(0.22, 0.28), tin_lip(rng), 0)
+    t = rng.uniform(0.42, 0.5)
+    b.at(t, side_slam(rng), 1)
+    for d in (rng.uniform(0.15, 0.25), rng.uniform(0.35, 0.5)):
+        b.at(t + d, side_kick(rng), -6)
+    b.at(t, cloth(rng, 0.7, -2), -8)
+    b.at(0.2, wheels(rng, 1.6, [(0, 0), (0.35, 1), (0.8, 0.6), (1.6, 0)]), -9)
+    return settle(b.x)
+
+
+@recipe("cs-draggers", "grab", "sinew",
+        "The limb unfolds up the side joint by joint, claws bite the edge, and its tendons strain as it hauls the victim over",
+        """The limb is the sound this time: it comes up the side unfolding joint by joint (a run of dry knuckle-cracks),
+        its claws bite into the edge (wood splitting, tin scraping), it grips cloth, and then its tendons take the whole
+        weight in a long wet leathery creak while the body bangs down on the tin lip and slams against the side boards;
+        two more joints pop under the load.""",
+        sources=SPLINTER + TINHIT + SIDE + LEATHER + CLOTH, takes=2)
+def draggers_grab_sinew(rng, take):
+    b = Bus(2.0)
+    b.at(0, pops(rng, rng.integers(5, 8), rng.uniform(0.14, 0.2)), -5)
+    b.at(0.22, norm(grain(rng, SPLINTER[rng.integers(2)], 0.12, -2), 0.1), -6)
+    b.at(0.22, claws_tin(rng, 0.08), -10)
+    b.at(0.26, norm(grain(rng, CLOTH[rng.integers(4)], 0.2, 1), 0.1), -6)
+    b.at(0.3, sinew(rng, rng.uniform(0.8, 1.0), (30, 90)), -2)
+    b.at(0.4, tin_lip(rng), -2)
+    b.at(0.62, side_slam(rng), 0)
+    b.at(0.75, pops(rng, 2, 0.12), -9)
+    return settle(b.x)
+
+
+def scrabble_side(rng, bus, L, level=0.0):
+    """Hanging off the side for a loop of L: kicks in frantic bursts with skids between, the grip on the tin lip
+    shifting, the limb's tugs, clothes dragging."""
+    t = 0.1
+    while t < L - 0.2:
+        n = rng.integers(3, 8)
+        for i in range(n):
+            bus.at(t, side_kick(rng), level + rng.uniform(-8, 0))
+            t += rng.uniform(0.09, 0.17)
+        if rng.random() < 0.7:
+            d = rng.uniform(0.2, 0.45)
+            bus.at(t, heel_drag(rng, d), level - 5)
+            t += d * 0.7
+        t += rng.uniform(0.25, 0.7)
+    for t0 in np.sort(rng.uniform(0, L, 5)):
+        bus.at(t0, tin_lip(rng, 0.3), level - 14)
+    for t0 in (0.9, 3.3, 5.6, 8.2):
+        t1 = t0 + rng.uniform(-0.2, 0.2)
+        bus.at(t1, sinew(rng, rng.uniform(0.4, 0.6)), level - 9)
+        bus.at(t1 + 0.15, side_slam(rng, 0.5), level - 9)
+    bus.at(0, cloth(rng, L, -3, 1.5), level - 12)
+
+
+@recipe("cs-draggers", "scrabble", "boots",
+        "Boots kicking and scraping at the car's side boards for a hold, hands shifting on the tin lip, the limb tugging",
+        """The victim hanging over the side: boot toes kicking at the side boards in frantic bursts (real boot knocks with
+        the hollow wall's ring in them), soles skidding down the boards between, clothes dragging, the hands' grip on the
+        roof's tin lip flexing it as their weight shifts. Every couple of seconds the limb below tugs: a wet tendon creak
+        and the body bumping against the side. Outdoors at the car's edge. Loops in one exact cycle.""",
+        sources=BOOTS + KNOCKS + SCRAPE + TINHIT + SIDE + LEATHER + CLOTH, loop=True, takes=1, seconds=10.0)
+def draggers_scrabble_boots(rng, take):
+    L = 10.0
+    bus = loop_bus(L)
+    scrabble_side(rng, bus, L)
+    return close(bus, L, "night", 0.08, rng)
+
+
+@recipe("cs-draggers", "scrabble", "wheels",
+        "The same scrabbling at the side, hung right over the wheels: their roar swelling and the joints hammering under",
+        """The boots kicking and skidding on the side boards, the tin lip flexing and the limb tugging, as in 'boots' but
+        a little further off, because the victim is hanging into the wheels' noise: the train's own running sound from
+        right under the car, swelling and ebbing as the body swings, the wheels hammering over the rail joints. Loops in
+        one exact cycle.""",
+        sources=BOOTS + KNOCKS + SCRAPE + TINHIT + SIDE + LEATHER + CLOTH + WHEELS + IRONHIT, loop=True, takes=1, seconds=10.0)
+def draggers_scrabble_wheels(rng, take):
+    L = 10.0
+    bus = loop_bus(L)
+    scrabble_side(rng, bus, L, -3)
+    swing = [(i * L / 8, 0.55 + 0.45 * (i % 2)) for i in range(9)]
+    bus.at(0, cycle_fade(wheels(rng, L + 0.4, swing), 0.4), -6)
+    gap = L / 11
+    for i in range(11):
+        for d in (0, 0.11):
+            bus.at(i * gap + d, norm(clack(rng), 0.25), -10)
+    return close(bus, L, "night", 0.08, rng)
+
+
+def rake(rng, length, f=1.5):
+    """Claws or fingernails raking down the side boards: stick-slip slowing as they lose the wood, splinters lifting."""
+    r = env([(0, 70 * f), (length, 18 * f)], length)
+    c = creak(length, r, rng, body=[m * f for m in synth.WOOD], q=10, jitter=0.5, grit=0.9)
+    y = norm(c, 0.1) * env([(0, 0), (0.02, 1), (length, 0.2)], length)
+    for t0 in rng.uniform(0, length * 0.8, 3):
+        y = mix(y, pad(norm(grain(rng, SPLINTER[rng.integers(2)], 0.05, 2), 0.1) * 0.3, t0))
+    return y
+
+
+@recipe("cs-draggers", "haul-up", "heave",
+        "A friend hauls them up: clothes straining, the body scraping up the boards and over the tin, the limb's claws raking off",
+        """A hand grabs a fistful of coat and heaves: cloth straining, the body scraping up the side boards with the boots
+        kicking for a hold, then grinding up over the roof's tin lip, which bangs and flexes, and rolling onto the roof.
+        Below, the limb loses its grip: its claws rake down the boards (stick-slip slowing as they lose the wood,
+        splinters lifting), a wet slip, and it whips back under the car with a knock on the underframe.""",
+        sources=CLOTH + SCRAPE + BOOTS + KNOCKS + SPLINTER + TINHIT + IRONHIT, takes=2)
+def draggers_haul_heave(rng, take):
+    b = Bus(3.0)
+    b.at(0, norm(grain(rng, CLOTH[rng.integers(4)], 0.25, -1), 0.1), -3)
+    b.at(0.02, norm(slap(rng, 0.06, 2000, 0.0), 0.1), -10)
+    b.at(0.1, cloth(rng, 0.9, -4, 1.6), -5)
+    b.at(0.15, heel_drag(rng, 0.7) * 0.7, -4)
+    for t0 in (0.25, 0.42, 0.7):
+        b.at(t0 + rng.uniform(-0.03, 0.03), side_kick(rng), -6)
+    t = rng.uniform(0.45, 0.6)
+    b.at(t, rake(rng, rng.uniform(0.4, 0.6)), -5)
+    b.at(t + 0.05, norm(squelch(rng, 0.2, 400, 1400), 0.1), -14)
+    b.at(t + 0.25, norm(whoosh(rng, 0.35, 150, 900, 0.3), 0.1), -12)
+    b.at(t + 0.5, norm(lp(grain(rng, IRONHIT[rng.integers(1, 4)], 0.3, -9), 1500), 0.1), -16)
+    u = rng.uniform(0.85, 1.0)
+    b.at(u, tin_lip(rng, 0.6), -3)
+    b.at(u + 0.05, drag_on(rng, 0.5, synth.TIN), -5)
+    b.at(u + rng.uniform(0.45, 0.6), tin_lip(rng, 1.0), -4)
+    return settle(tame(b.x, 99.95))
+
+
+def ballast_fall(rng, weight=1.0):
+    """A body hitting the ballast from a height: a heavy dull thud and the stones thrown."""
+    b = Bus(0.6)
+    b.at(0, thud(rng, 60, 0.45, 0.25), 0)
+    for _ in range(10):
+        b.at(abs(rng.normal(0, 0.03)), ballast(rng, 0.7, 0.05), -4)
+    b.at(0.01, norm(grain(rng, CLOTH[rng.integers(4)], 0.2, -4), 0.1), -8)
+    return b.x * weight
+
+
+@recipe("cs-draggers", "under", "wheels",
+        "Yanked off the side, fingers raking down the boards, onto the ballast, and the wheels' roar right on top of them",
+        """The limb yanks (a wet tendon creak snapping tight, a joint cracking) and the hands come off the tin lip (it
+        pops back), fingernails rake down the side boards, the body drops onto the ballast in a thud of thrown stones,
+        and then the wheels are right there: the train's running roar surging up close and raw, a flange screaming on
+        the rail, the joints hammering over them; then it closes over and drops away.""",
+        sources=LEATHER + TINHIT + SPLINTER + STONES + CLOTH + WHEELS + IRONHIT, takes=2)
+def draggers_under_wheels(rng, take):
+    b = Bus(4.5)
+    b.at(0, sinew(rng, 0.25, (60, 120)), -2)
+    b.at(0.02, norm(snap(rng, 0.06, 1500), 0.1), -5)
+    b.at(0.04, tin_lip(rng, 0.2), -8)
+    b.at(0.1, rake(rng, rng.uniform(0.35, 0.5), 2.0), -4)
+    t = rng.uniform(0.5, 0.6)
+    b.at(t - 0.15, norm(whoosh(rng, 0.25, 200, 1400, 0.8), 0.1), -10)
+    b.at(t, ballast_fall(rng), 1)
+    w = t + 0.05
+    L = rng.uniform(2.8, 3.4)
+    roar = wheels(rng, L, [(0, 0.2), (0.25, 1.0), (1.2, 0.9), (L, 0)])
+    roar = dsp.sweep_filter(roar, "lp", env([(0, 9000), (1.4, 9000), (L, 700)], L, "exp"), q=0.7)
+    b.at(w, roar, 2)
+    b.at(w + 0.2, shoe_squeal(rng, 1.4, rng.uniform(3200, 3800)) * env([(0, 0), (0.15, 1), (1.4, 0)], 1.4), -8)
+    for k, t0 in enumerate((0.35, 1.1, 1.85)):
+        for d in (0, 0.1):
+            b.at(w + t0 + d, norm(clack(rng), 0.3), -2 - 5 * k)
+    return settle(b.x)
+
+
+@recipe("cs-draggers", "under", "sleepers",
+        "Yanked off the side and dragged away under the train, bumping over the sleepers into the dark",
+        """The limb yanks (tendon creak, a joint cracking), the hands tear off the tin lip, the body drops onto the
+        ballast, and then it's dragged: a quick run of heavy bumps over the sleepers with the stones grinding under the
+        body and the cloth tearing along them, the wheels' roar over it, all of it falling away behind and into the dark
+        faster than anyone could follow.""",
+        sources=LEATHER + TINHIT + STONES + CLOTH + WHEELS, takes=2)
+def draggers_under_sleepers(rng, take):
+    b = Bus(5.0)
+    b.at(0, sinew(rng, 0.25, (60, 120)), -2)
+    b.at(0.02, norm(snap(rng, 0.06, 1500), 0.1), -5)
+    b.at(0.04, tin_lip(rng, 0.3), -5)
+    t = rng.uniform(0.3, 0.4)
+    b.at(t, ballast_fall(rng), 1)
+    D = rng.uniform(3.0, 3.6)
+    drag = Bus(D + 0.5)
+    u, gap = 0.12, 0.2
+    while u < D:
+        drag.at(u, thud(rng, rng.uniform(70, 100), 0.18, 0.15), rng.uniform(0, 3))
+        for _ in range(3):
+            drag.at(u + rng.uniform(0, 0.02), ballast(rng, 0.6, 0.04), -2)
+        u += gap * rng.uniform(0.85, 1.15)
+        gap = max(gap * 0.93, 0.09)
+    drag.at(0, victim_drag(rng, D), -4)
+    drag.at(0, cloth(rng, D, -5), -10)
+    drag.at(0, wheels(rng, D, [(0, 0.8), (D, 0.5)]), -12)
+    b.at(t + 0.1, recede(drag.x, rng, 2, 70, drop=1.5, curve=2.0), 3)
+    return settle(tame(b.x, 99.95))
+
+
+# ---- Passenger: the drag ---------------------------------------------------------------------------------------------
+
+CREW_BOOTS = src.K("footstep_wood") + src.S("footstep_wood_01", "footstep_wood_02", "footstep_wood_03", "footstep_wood_04")
+BUCKLE = src.R("metalClick")
+FLOOR = [m * 1.1 for m in synth.WOOD]   # a car's floorboards
+
+
+def crew_step(rng):
+    """One of the crew's own wood-floor footsteps (crew-footsteps' sources), untouched."""
+    return src.get(CREW_BOOTS[rng.integers(len(CREW_BOOTS))])
+
+
+def drag_walk(rng, slide, count=16, period=0.66):
+    """A crewman walking a body down the car: its own boots at a steady loaded pace, and on each step the body pulled
+    on after it (`slide(rng, length)` makes one surge). Exactly `count` steps to the loop."""
+    L = count * period
+    bus = loop_bus(L)
+    for i in range(count):
+        t = i * period + rng.normal(0, 0.008)
+        bus.at(t % L, crew_step(rng), -1.5 * (i % 2) + rng.uniform(-1, 0))
+        bus.at((t + rng.uniform(0.04, 0.08)) % L, slide(rng, rng.uniform(0.55, 0.65)), rng.uniform(-8, -6))
+    for i in range(0, count, rng.integers(3, 5)):
+        d = rng.uniform(0.4, 0.7)
+        c = creak(d, env([(0, 6), (d / 2, 12), (d, 5)], d), rng, body=[m * 1.5 for m in synth.WOOD], q=16, jitter=0.6)
+        bus.at(i * period + 0.1, norm(c * env([(0, 0), (0.1, 1), (d, 0)], d), 0.1), -22)
+    return bus, L
+
+
+def collar_slide(rng, length):
+    """Dragged by the collar: the body slides on its back in a surge, coat on the boards, both heels ploughing behind
+    and knocking over the board seams."""
+    y = Bus(length + 0.2)
+    y.at(0, drag_on(rng, length, FLOOR), -2)
+    y.at(0, cloth(rng, length * 0.8, -6, 1.4), -6)
+    y.at(0.02, heel_drag(rng, length * 0.9), -7)
+    t = rng.uniform(0.05, 0.12)
+    while t < length * 0.8:
+        y.at(t, norm(lp(grain(rng, KNOCKS[rng.integers(len(KNOCKS))], 0.06, -2), 2500), 0.1), rng.uniform(-14, -9))
+        t += rng.uniform(0.11, 0.2)
+    return lp(y.x, 3500)
+
+
+@recipe("cs-passenger", "drag", "collar",
+        "A crewman's steady boots walking a body by the collar: the coat sliding on the boards, heels ploughing behind",
+        """Plain and real. The crew's own wood-floor footsteps (the same recordings as crew-footsteps, untouched) at a
+        steady loaded walking pace, a little slower than walking free. With each step the body is pulled on in a surge:
+        a coat sliding on its back over the floorboards (friction noise rung through the boards, cloth), both heels
+        ploughing behind and knocking over the board seams, the floor creaking now and then under the two of them. Inside
+        a wooden car. Sixteen steps, one exact loop.""",
+        sources=CREW_BOOTS + CLOTH + SCRAPE + KNOCKS, mat="wood", loop=True, takes=1, seconds=10.56)
+def passenger_drag_collar(rng, take):
+    bus, L = drag_walk(rng, collar_slide)
+    return close(bus, L, "car", 0.2, rng)
+
+
+def ankle_slide(rng, length):
+    """Dragged by the ankles: the back and shoulders slide head-last, a shoulder or the head bumps a seam, the arms
+    trail, a buckle ticks on a board."""
+    y = Bus(length + 0.3)
+    y.at(0, drag_on(rng, length, FLOOR) * 0.8, -3)
+    y.at(0, cloth(rng, length, -7, 1.8), -3)
+    y.at(rng.uniform(0.1, 0.25), mix(norm(lp(grain(rng, BUMPS[rng.integers(len(BUMPS))], 0.15, -3), 900), 0.1),
+                                     thud(rng, 95, 0.15, 0.1) * 0.5), -6)
+    if rng.random() < 0.35:
+        y.at(rng.uniform(0.05, length * 0.7), norm(lp(grain(rng, BUCKLE[0], 0.05, -2), 6000), 0.1), -10)
+    return lp(y.x, 3500)
+
+
+@recipe("cs-passenger", "drag", "ankles",
+        "A crewman's steady boots walking a body by the ankles: back and shoulders sliding, the head bumping the seams",
+        """Plain and real, the same crew boots at the same loaded pace, but the body is hauled by the ankles: the back and
+        shoulders slide head-last over the floorboards in a surge with each step (friction rung through the boards,
+        more cloth, softer), a shoulder or the head knocks dully over a board seam each time, the arms trail, now and
+        then a buckle ticks on a board, the floor creaks under them. Inside a wooden car. Sixteen steps, one exact
+        loop.""",
+        sources=CREW_BOOTS + CLOTH + BUMPS + BUCKLE, mat="wood", loop=True, takes=1, seconds=10.56)
+def passenger_drag_ankles(rng, take):
+    bus, L = drag_walk(rng, ankle_slide)
+    return close(bus, L, "car", 0.2, rng)
+
+
+# ---- Track Doll: a toy taken -----------------------------------------------------------------------------------------
+
+DING = src.S("glass_01")
+GLAZE = src.S("glass_04", "glass_06")
+SQUEAK = src.S("misc_29")
+JOINT = src.R("creak3")
+HEAD = [3900, 4700, 5300]          # the doll's hollow porcelain head (its giggle rings here)
+TOY_WOOD = src.K("impactWood_light")
+
+
+def porcelain(rng, f0, length, vowels=None, sing=False):
+    """One porcelain syllable: a little throat's 'heh' sung an octave below and played back an octave up (tape-fast, so
+    pitch and formants climb into the doll's 3-6 kHz together), a squeak's grain in it, a glass ding pitched with it,
+    all rung through the hollow head."""
+    L2 = length * 2
+    pts = [(0, f0 * 1.04), (L2 * 0.5, f0), (L2, f0 * (0.97 if sing else 0.9))]
+    vow = vowels or [(0, "h"), (L2 * 0.12, "e"), (L2 * 0.7, "e"), (L2, "h")]
+    v = synth.glottis(env(pts, L2, "exp"), L2, rng, jitter=0.008, shimmer=0.1, oq=0.55)
+    v = synth.tract(v, vow, "child", breath=0.5, rng=rng)
+    if sing:
+        v = dsp.wow(v, 15, 5.5, rng)
+    v = dsp.vari(v, 12) * env([(0, 0), (length * 0.08, 1), (length * 0.6, 0.8), (length, 0)], length)[:samples(length)]
+    v = dsp.fit(v, samples(length))
+    sq = dsp.fit(grain(rng, SQUEAK[0], length, rng.uniform(-3, 0), attack=False), len(v))
+    ding = grain(rng, DING[0], length * 1.5, 12 * np.log2(f0 * 4 / 2780))
+    y = mix(norm(v, 0.1), norm(sq, 0.1) * 0.3, norm(ding, 0.1) * 0.35)
+    head = dsp.resonate(y, [f * rng.uniform(0.98, 1.02) for f in HEAD], q=40)
+    return hp(mix(y * 0.5, norm(head, 0.1)), 2500, 4)
+
+
+def glaze_tick(rng):
+    """Porcelain fingertips on something: a tiny hard tick."""
+    g = grain(rng, GLAZE[rng.integers(2)], 0.04, rng.uniform(0, 5), decay=0.006)
+    return hp(mix(norm(g, 0.1), norm(synth.click(rng.uniform(5000, 7000), q=30, length=0.02, rng=rng), 0.1) * 0.5), 3000)
+
+
+def toy_lifted(rng, kind):
+    """A toy picked up off the floor: a rag bear's cloth, or the pull-along horse's little wooden wheels clattering."""
+    if kind == 0:
+        y = cloth(rng, 0.35, 3)
+        return lp(y, 5000)
+    b = Bus(0.6)
+    t = 0.0
+    for i in range(rng.integers(5, 9)):
+        b.at(t, norm(grain(rng, TOY_WOOD[rng.integers(5)], 0.08, rng.uniform(9, 14)), 0.1), -2 * i * 0.5)
+        t += rng.uniform(0.03, 0.07)
+    return b.x
+
+
+def vanish(rng, x, stop, swell=None):
+    """Gone: the toy's own sound and a glass ding pitched down, reversed through a long reverb so they swell in and stop
+    dead (the doll's kept vanish), ending `stop` seconds in; `swell` keeps only that much of the rise."""
+    d = grain(rng, DING[0], 0.35, -4)
+    src_ = mix(norm(x, 0.1) * 0.4, norm(d, 0.1))
+    r = dsp.reverse(hp(dsp.room(src_, "hall", wet=1.0, rng=rng), 700, 4))
+    if swell:
+        r = r[-samples(swell):]
+    T = len(r) / SR
+    r = r * env([(0, 0), (T * 0.5, 0.4), (T, 1)], T, "exp")
+    return pad(r, max(stop - T, 0))
+
+
+@recipe("cs-track-doll", "take-toy", "pleased",
+        "Porcelain fingers take the toy, a joint creaks, one pleased porcelain 'heh', and it's gone with the toy into a reversed swell",
+        """In the family of its kept sounds. The toy lifted off the boards (a rag bear's cloth, or the pull-along horse's
+        little wooden wheels clattering), porcelain fingertips ticking on it, a joint creaking (a door creak two octaves
+        up), then one soft pleased syllable: a little throat's 'heh' played an octave up into its 3-6 kHz, a squeak and a
+        glass ding in it, rung through the hollow head. Then the vanish: the toy's own sound and a glass ding reversed
+        through a long reverb, swelling in and stopping dead. A wooden car's room.""",
+        sources=CLOTH + TOY_WOOD + GLAZE + JOINT + SQUEAK + DING, takes=2)
+def doll_take_pleased(rng, take):
+    b = Bus(3.6)
+    toy = toy_lifted(rng, take)
+    b.at(0, toy, -4)
+    for t in (0.08, 0.2, 0.31)[:2 + take]:
+        b.at(t + rng.uniform(-0.02, 0.02), glaze_tick(rng), -10)
+    j = hp(grain(rng, JOINT[0], 0.18, 24, attack=False), 2500)
+    b.at(0.38, norm(j, 0.1), -14)
+    b.at(0.62, porcelain(rng, rng.uniform(560, 640), 0.16), -4)
+    if take == 1:
+        b.at(0.86, porcelain(rng, rng.uniform(520, 580), 0.12), -9)
+    b.at(0, vanish(rng, toy, rng.uniform(2.2, 2.4), 1.4), -6)
+    return settle(dsp.room(b.x, "car", wet=0.25, rng=rng))
+
+
+@recipe("cs-track-doll", "take-toy", "na-na",
+        "It sings two porcelain notes over the toy, the falling taunt every child knows, and is gone",
+        """The toy lifted and porcelain fingertips ticking on it, then the doll sings over it: two porcelain syllables on
+        a falling minor third, the 'na-na' every child taunts with, sung slow with a warble (a little throat played an
+        octave up into its 3-6 kHz, rung through the hollow head). The last note doesn't finish: the reversed swell of
+        the toy and a glass ding cuts it off dead, and it's gone. A wooden car's room.""",
+        sources=CLOTH + TOY_WOOD + GLAZE + SQUEAK + DING, takes=2)
+def doll_take_nana(rng, take):
+    b = Bus(3.8)
+    toy = toy_lifted(rng, take)
+    b.at(0, toy, -4)
+    for t in (0.1, 0.22):
+        b.at(t + rng.uniform(-0.02, 0.02), glaze_tick(rng), -10)
+    f = rng.uniform(560, 620) * (1 if take == 0 else 2 ** (-2 / 12))
+    na = [(0, "m"), (0.06, "a"), (0.5, "a")]
+    d = 0.3 if take == 0 else 0.36
+    b.at(0.5, porcelain(rng, f, d, na, sing=True), -4)
+    b.at(0.55 + d, porcelain(rng, f * 2 ** (-3 / 12), 0.45, na, sing=True), -4)
+    stop = 0.55 + d + 0.32
+    b.at(0, vanish(rng, toy, stop, rng.uniform(0.6, 0.8)), -4)
+    out = dsp.room(b.x, "car", wet=0.25, rng=rng)
+    k = samples(stop)
+    out[k:] *= np.exp(-np.arange(len(out) - k) / samples(0.02))   # gone mid-note
+    return settle(out)

@@ -71,6 +71,8 @@ public enum SourceKind : byte
     Impulse,
     /// <summary>Samples pushed in from outside: voice chat, decoded as it arrives (<see cref="SoundInstance.Stream"/>).</summary>
     Stream,
+    /// <summary>A recorded take from <c>content/audio/samples</c> (<see cref="LayerDef.Sample"/>, <see cref="SampleLibrary"/>).</summary>
+    Sample,
 }
 
 /// <summary>How level falls with distance.</summary>
@@ -87,11 +89,18 @@ public sealed record FilterDef(FilterType Type, Value Frequency, double Q = 0.70
 /// <summary>Amplitude modulation: sine tremolo, or a hard rhythmic gate when <see cref="Duty"/> is set.</summary>
 public sealed record ModDef(Value Rate, double Depth = 1, double Duty = 0, double Jitter = 0);
 
-/// <summary>One synthesis layer: a source, a filter chain, a gain, and optional shaping over time.</summary>
+/// <summary>One layer: a source, a filter chain, a gain, and optional shaping over time.</summary>
 public sealed record LayerDef(SourceKind Source, Value Gain, Value? Frequency = null, FilterDef[]? Filters = null,
     ModDef? Tremolo = null, ModDef? Vibrato = null,
     // (time s, value) breakpoints over the sound's life (one-shots) or each cycle of CycleSeconds (loops).
-    double[][]? Envelope = null, double[][]? PitchEnvelope = null, double Delay = 0);
+    double[][]? Envelope = null, double[][]? PitchEnvelope = null, double Delay = 0,
+    // Sample layers: the take(s) to play, a path under content/audio/samples (a folder of takes, one picked per instance,
+    // or one file; SampleLibrary). Rate is the playback-rate multiplier (2 = an octave up and twice as fast); the pitch
+    // envelope and vibrato scale it as they would a frequency. A loop's take loops; a one-shot's plays once.
+    string? Sample = null, Value? Rate = null,
+    // Picked once per instance from its seed, uniform in ±: semitones on the pitch (a sample's rate, an oscillator's
+    // frequency) and dB on the gain, so repeats of one sound aren't identical.
+    double PitchJitter = 0, double GainJitter = 0);
 
 /// <summary>Spec A.6's deliberate degradation: sample-rate reduction and bit crush, on non-tell layers.</summary>
 public sealed record CrushDef(int Bits = 12, int Rate = 22050);
@@ -100,7 +109,12 @@ public sealed record CrushDef(int Bits = 12, int Rate = 22050);
 /// A sound, as data (<c>content/audio/sounds/*.json</c>). Layers are summed, then the whole is spatialised
 /// and mixed on its tier's bus (spec A.3).
 /// </summary>
-public sealed record SoundDef(int Tier, LayerDef[] Layers, bool Loop = false, double Duration = 1,
+/// <param name="Duration">
+/// How long a one-shot's synth layers sound (they have no end of their own): 1 s if not given. Sample layers end when
+/// their takes do, so a one-shot with any lasts until every one has played out, and at least <c>duration</c> only if it
+/// has synth layers too and gives one; an all-sample one-shot ignores it. See <see cref="SoundInstance.Finished"/>.
+/// </param>
+public sealed record SoundDef(int Tier, LayerDef[] Layers, bool Loop = false, double? Duration = null,
     // Loops can repeat their envelopes on a cycle.
     double CycleSeconds = 0,
     // Per-sound voice limit (spec A.7: a Choir swarm must not eat the voice budget).

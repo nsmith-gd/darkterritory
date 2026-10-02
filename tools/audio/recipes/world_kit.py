@@ -31,6 +31,7 @@ def seamless(s, xfade=0.3):
     k = samples(xfade)
     t = np.linspace(0, np.pi / 2, k)
     w = (1 / (np.sin(t) + np.cos(t))).astype(np.float32)
+    s = s - np.mean(s)                                  # a cycle's mean is exactly its DC
     y = np.concatenate([s, s[:k]]).astype(np.float32)
     y[:k] *= w
     y[-k:] *= w
@@ -126,7 +127,7 @@ def space(x, rng, name="night", wet=0.2, early=((0.0045, 0.35), (0.011, 0.2))):
     for dt, g in early:
         k = samples(dt)
         y[k:] += x[:-k] * g
-    return dsp.room(y, name, wet=wet, rng=rng)
+    return hp(dsp.room(y, name, wet=wet, rng=rng), 20)
 
 
 # ---- Steam ----------------------------------------------------------------------------------------------------------------
@@ -163,7 +164,7 @@ def jet(length, rng, pressure=1.0, opening=1.0, peak=1500.0, low=1.0, rasp=0.0, 
     n = n or samples(length)
     p = np.clip(curve(pressure, n), 0, None)
     o = np.clip(curve(opening, n), 0, None)
-    fp = peak * np.sqrt(p + 1e-6) / np.maximum(o, 0.03)
+    fp = peak * np.sqrt(p + 1e-6) / np.maximum(o, 0.22)    # a feathering valve still sizzles audibly, not ultrasonically
     amp = o ** 0.7 * p ** 1.5      # gentler than the physics' D*p^2, as the ear hears it: a closing valve's last hiss stays audible
     a, b = tilt
     out = np.zeros(n, np.float32)
@@ -180,7 +181,7 @@ def jet(length, rng, pressure=1.0, opening=1.0, peak=1500.0, low=1.0, rasp=0.0, 
         out += x * g
     if rasp:
         z = cfilter(out, lambda f: (f / 900) ** 2 / (1 + (f / 900) ** 2))
-        z = z / (np.std(z) + 1e-9)
+        z = np.clip(z / (np.std(z) + 1e-9), -4, 3.2)
         c = np.exp(0.7 * z) - np.exp(0.245)        # log-normal: sharp positive spikes, the skew of real crackle
         c = cfilter(c.astype(np.float32), lambda f: (f / 700) ** 2 / (1 + (f / 700) ** 2))
         out += rasp * 0.25 * c / (np.std(c) + 1e-9) * np.std(out) * (amp / (np.max(amp) + 1e-9))
@@ -273,8 +274,9 @@ def knock(rng, f=90, length=0.3, drop=0.35):
     return mix(t, nz * 0.35)
 
 
-def rec(key, semis=0.0, start=0.0, length=None, lo=None, hi=None):
-    """A source recording, varispeeded (heavier when pitched down: bigger, slower), trimmed and filtered."""
+def rec(key, semis=0.0, start=0.0, length=None, lo=None, hi=None, tau=None):
+    """A source recording, varispeeded (heavier when pitched down: bigger, slower), trimmed and filtered. `tau` damps its
+    ring (seconds): a struck part that's bolted, oiled or loaded rings shorter than the free piece recorded."""
     x = src.get(key)
     if start or length:
         x = dsp.trim(x, start, length)
@@ -284,7 +286,10 @@ def rec(key, semis=0.0, start=0.0, length=None, lo=None, hi=None):
         x = lp(x, hi, 2)
     if lo:
         x = hp(x, lo, 2)
-    return dsp.trim_silence(x, -55, 0.002)
+    x = dsp.trim_silence(x, -55, 0.002)
+    if tau:
+        x = (x * np.exp(-np.arange(len(x)) / SR / tau)).astype(np.float32)
+    return x
 
 
 # ---- Rubbed, torn, broken -------------------------------------------------------------------------------------------------
@@ -533,3 +538,100 @@ def thunder(rng, dist=2000.0, length=None, channel=4000.0):
     y = lp(x, cut, 2)
     y = y + 0.6 * lp(rng.standard_normal(n).astype(np.float32) * np.convolve(np.abs(y), np.ones(samples(0.05)) / samples(0.05), "same"), cut * 0.6)
     return dsp.room(y, "night", wet=0.45, rng=rng)
+
+
+# ---- Big events -------------------------------------------------------------------------------------------------------
+
+def boom(rng, length=1.6, f=34, T=0.02, crack=0.6):
+    """An explosion's pressure wave heard close: a Friedlander pulse (an instant rise, the overpressure decaying, then the
+    long shallow suction after it), the sub of its body dropping in pitch, and the crack of whatever broke."""
+    n = samples(length)
+    t = np.arange(n) / SR
+    fr = (1 - t / T) * np.exp(-1.3 * t / T)
+    fr = fr * np.exp(-t / 0.35)
+    fr = lp(fr.astype(np.float32), 900, 2)
+    sub = synth.thump(f * rng.uniform(0.9, 1.1), length * 0.8, drop=0.45)
+    cr = hp(rng.standard_normal(n).astype(np.float32), 400) * np.exp(-t / 0.012).astype(np.float32)
+    return mix(norm(fr) * 1.0, norm(sub) * 0.8, norm(cr) * crack)
+
+
+# Real impacts by what the piece is made of (the packs' keys), for debris and crashes.
+PIECES = {
+    "iron": [f"kenney_impact-sounds:impactPlate_heavy_00{i}" for i in range(5)] + [
+        f"kenney_impact-sounds:impactMetal_heavy_00{i}" for i in range(5)] + ["sfx_100_v2:metal_hit_01"],
+    "scrap": [f"kenney_impact-sounds:impactMetal_light_00{i}" for i in range(5)] + [
+        f"kenney_impact-sounds:impactMetal_medium_00{i}" for i in range(5)] + [f"sfx_100_v2:metal_0{i}" for i in (1, 2, 6)],
+    "brick": [f"kenney_impact-sounds:impactMining_00{i}" for i in range(5)] + [f"sfx_100_v2:stones_0{i}" for i in (1, 2, 3)],
+    "wood": [f"kenney_impact-sounds:impactWood_heavy_00{i}" for i in range(5)] + [
+        f"kenney_impact-sounds:impactPlank_medium_00{i}" for i in range(5)] + ["sfx_100_v2:wood_hit_01", "sfx_100_v2:wood_hit_02"],
+    "tin": [f"kenney_impact-sounds:impactTin_medium_00{i}" for i in range(5)],
+    "glass": [f"sfx_100_v2:glass_0{i}" for i in range(1, 7)],
+}
+
+
+def piece(rng, kind, semis=(-6, 0), tau=None):
+    """One real impact of a `kind` of piece (PIECES), pitched for its size."""
+    keys = PIECES[kind]
+    return rec(keys[rng.integers(len(keys))], semis=rng.uniform(*semis), tau=tau)
+
+
+def debris(rng, length, rate, kinds, decay=1.0, semis=(-6, 0), bounce=0.5):
+    """Things coming down after a blow: pieces of each kind ({kind: weight}) landing at a rate that dies away over
+    `decay` s, some bouncing once more, quieter and sooner; small ones brighter than big ones."""
+    names = list(kinds)
+    w = np.array([kinds[k] for k in names], float)
+    w /= w.sum()
+    b = dsp.Bus(length + 1.5)
+    t = 0.0
+    while True:
+        t += rng.exponential(1 / (rate * np.exp(-t / decay) + 0.3))
+        if t >= length:
+            break
+        kind = names[rng.choice(len(names), p=w)]
+        x = norm(piece(rng, kind, semis))
+        g = rng.uniform(0.25, 1.0) * np.exp(-t / (decay * 2))
+        b.at(t, x * g)
+        if rng.random() < bounce:
+            b.at(t + rng.uniform(0.08, 0.3), dsp.vari(x, rng.uniform(0.5, 2)) * g * rng.uniform(0.2, 0.5))
+    return b.x
+
+
+def spray(rng, length=0.6, n=40, lo=1200, hi=6000):
+    """Ballast thrown: real stone cracks pitched about and a shower of small hard clicks."""
+    b = dsp.Bus(length + 0.6)
+    for _ in range(4):
+        b.at(abs(rng.normal(0, length / 4)), norm(piece(rng, "brick", (-3, 4))) * rng.uniform(0.3, 0.8))
+    cl = synth.skitter(length, n / length, rng, f=(lo, hi), q=(3, 8), legs=8)
+    b.at(0, norm(cl) * env([(0, 1), (length, 0)], length)[:len(cl)] * 0.6)
+    return b.x
+
+
+def crash(rng, size=1.0, iron=1.0, wood=0.6, tin=0.0, ground=0.0, crumple=0.15):
+    """Something heavy smashing into something (a car into the ground, a car into a car): the weight's deep blow, the
+    car's sheet iron ringing low and long, crumpling for `crumple` s as many sub-impacts and tearing, real slams pitched
+    down for the mass, boards splintering, tin clattering, ballast thrown."""
+    L = 3.0 + size
+    b = dsp.Bus(L)
+    b.at(0, norm(knock(rng, 38 / size ** 0.3, 0.9)) * 1.0)
+    for i in range(int(3 + 4 * crumple / 0.15)):
+        at = abs(rng.normal(0, crumple / 2))
+        b.at(at, norm(sheet(rng, f1=rng.uniform(35, 70) / size ** 0.3, fmax=4000, decay=rng.uniform(0.6, 1.4),
+                            contact=rng.uniform(0.0008, 0.003))) * rng.uniform(0.3, 0.7) * iron)
+    for i in range(3):
+        b.at(abs(rng.normal(0, crumple / 2)), norm(piece(rng, "iron", (-12, -6), tau=0.4)) * rng.uniform(0.5, 0.9) * iron)
+    tr = tear(crumple + 0.25, rng, env([(0, 600), (crumple, 300), (crumple + 0.25, 40)], crumple + 0.25), (120, 3500))
+    b.at(0.01, norm(tr) * env([(0, 1), (crumple + 0.25, 0)], crumple + 0.25)[:len(tr)] * 0.45 * iron)
+    if wood:
+        sp = splinter(0.3 + crumple, rng, env([(0, 400), (0.3 + crumple, 80)], 0.3 + crumple))
+        b.at(0.0, norm(sp) * env([(0, 1), (0.3 + crumple, 0)], 0.3 + crumple)[:len(sp)] * 0.6 * wood)
+        for i in range(3):
+            b.at(abs(rng.normal(0.03, crumple)), norm(piece(rng, "wood", (-5, 0))) * rng.uniform(0.4, 0.8) * wood)
+        b.at(0.02, norm(rec("sfx_100_v2:misc_34", semis=-rng.uniform(2, 5))) * 0.4 * wood)
+    if tin:
+        for i in range(5):
+            b.at(abs(rng.normal(0.02, crumple)), norm(piece(rng, "tin", (-7, -1))) * rng.uniform(0.3, 0.7) * tin)
+    if ground:
+        b.at(0.0, norm(spray(rng, 0.5 + crumple, 60)) * 0.5 * ground)
+        b.at(0.0, norm(lp(rng.standard_normal(samples(0.8)).astype(np.float32), 200)
+                       * env([(0, 1), (0.05, 0.5), (0.8, 0)], 0.8)) * 0.6 * ground)
+    return b.x

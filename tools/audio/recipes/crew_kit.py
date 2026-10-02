@@ -20,6 +20,21 @@ from dsp import SR, samples, lp, hp, bp, env, mix, fit, Bus
 # ---- Recordings -----------------------------------------------------------------------------------------------------------
 
 
+def S(*names):
+    """sfx_100_v2 keys."""
+    return [f"sfx_100_v2:{n}" for n in names]
+
+
+def R(*names):
+    """Kenney RPG audio keys."""
+    return [f"kenney_rpg-audio:{n}" for n in names]
+
+
+def K(name, n=5):
+    """Kenney impact takes: K('impactWood_medium') -> its five takes."""
+    return [f"kenney_impact-sounds:{name}_{i:03d}" for i in range(n)]
+
+
 def get(key):
     """A source, DC removed and rumble under 25 Hz cut (several of the packs' files sit on a little DC offset)."""
     x = src.get(key)
@@ -263,7 +278,7 @@ def leveled(x, lufs):
     return dsp.level(dsp.fade(dsp.trim_silence(x, -60), 0.002, 0.03), lufs)
 
 
-def slurp(rng, length, lo=200, hi=1000, rise=False):
+def slurp(rng, length, lo=200, hi=1000, rise=False, bubbles=0.25):
     """Mud: thick wet noise whose lowpass opens and closes as the seal forms and breaks (`rise`: the suck of something
     pulling out, opening late), with a few low, slow bubbles bursting in it. Broad and dark, not a chirp."""
     n = synth.noise(length, rng, "pink")
@@ -271,5 +286,81 @@ def slurp(rng, length, lo=200, hi=1000, rise=False):
     fc = env([(0, lo), (pk, hi), (length, lo)], length, curve="exp")
     y = dsp.sweep_filter(n, "lp", fc, q=1.6)
     y = y * env([(0, 0), (0.008, 1), (length * 0.7, 0.6), (length, 0)], length)
+    if not bubbles:
+        return norm(y)
     b = synth.bubbles(length, 25, 120, 500, rng, rise=(0.05, 0.25))
-    return norm(mix(norm(y), b * 0.25))
+    return norm(mix(norm(y), b * bubbles))
+
+
+# ---- Floors: what the surface under a dropped thing does ---------------------------------------------------------------------
+
+DROP = ["wood", "grate", "ground", "concrete"]
+WOOD_KNOCKS = ["sfx_100_v2:wood_hit_01", "sfx_100_v2:wood_hit_02", "sfx_100_v2:misc_08", "sfx_100_v2:door_03"]
+THIN_PLATE = [f"kenney_impact-sounds:impactPlate_light_00{i}" for i in range(5)]
+LIGHT_METAL = [f"kenney_impact-sounds:impactMetal_light_00{i}" for i in range(5)]
+CONCRETE_STEPS = [f"kenney_impact-sounds:footstep_concrete_00{i}" for i in range(5)]
+STONES = ["sfx_100_v2:stones_01", "sfx_100_v2:stones_02", "sfx_100_v2:stones_03"]
+GRAVEL = ["sfx_100_v2:footstep_01", "sfx_100_v2:footstep_02"]
+FLOOR_SOURCES = {"wood": WOOD_KNOCKS, "grate": THIN_PLATE + LIGHT_METAL, "ground": STONES + GRAVEL,
+                 "concrete": CONCRETE_STEPS}
+
+
+def floor(rng, mat, take, weight=1.0, hard=1.0):
+    """The floor's part in an impact: `weight` 0.2 (a toy) to 3 (a body, a loaded crate) sets how deep and long it sounds,
+    `hard` 0 (cloth, flesh) to 1 (iron) how much of the floor's bright knock the thing brings out.
+    - wood: a car floor, planks on the frame over a hollow: a real knock (the packs' wood hits), its hollow low modes.
+    - grate: open steel grating: thin plate clatter choked by the weight on it, the bars chattering.
+    - ground: ballast and dirt: a dull pad, stones knocking and a slice of real gravel crunch.
+    - concrete: a hard floor indoors: the packs' concrete slaps, a low thud, a short hard room."""
+    w = float(np.clip(weight, 0.1, 4.0))
+    if mat == "wood":
+        k = get(WOOD_KNOCKS[(take + int(rng.integers(2))) % len(WOOD_KNOCKS)])
+        k = norm(tilt(align(k), hi_db=-10 * (1 - hard), lo_db=2 * (w - 1)))
+        k = choke(dsp.vari(k, -1.5 * np.log2(w + 0.5) + rng.uniform(-0.4, 0.4)), 0.05 + 0.03 * w, 0.06)
+        y = mix(k, hollow(rng, [92, 150, 235], 0.12 + 0.06 * w, q=4) * 0.25 * w)
+        return dsp.room(y, "car", wet=0.12, rng=np.random.default_rng(11))
+    if mat == "grate":
+        p = norm(hp(align(get(THIN_PLATE[(take + int(rng.integers(3))) % 5])), 140))
+        p = choke(dsp.vari(p, -2 * np.log2(w + 0.5) + rng.uniform(-0.5, 0.5)), 0.02 + 0.03 * hard, 0.04)
+        ring = choke(align(dsp.vari(get(LIGHT_METAL[take % 5]), -6)), 0.005, 0.03) * 0.12 * hard
+        chat = np.zeros(samples(0.12), np.float32)
+        for i in range(int(rng.integers(3, 6))):
+            c = tick(rng, rng.uniform(1600, 4200), q=rng.uniform(18, 35), length=0.02)
+            a = samples(0.005 + 0.016 * i + rng.uniform(0, 0.008))
+            chat[a:a + len(c)] += c[:len(chat) - a] * rng.uniform(0.3, 0.9)
+        return mix(p * (0.5 + 0.5 * hard), norm(ring) * 0.12 * hard, chat * 0.15 * min(w, 2))
+    if mat == "ground":
+        g = grains(rng, int(14 + 10 * w), 0.06 + 0.04 * w, 700, 5000, q=(3, 9))
+        rec = get(GRAVEL[take % 2])
+        h = hits(rec, floor_db=-12, gap=0.03)
+        a = h[int(rng.integers(len(h)))][0] if h else 0
+        rec = norm(hp(cut(denoise(rec), a - samples(0.003), a + samples(0.12 + 0.05 * w), 0.002, 0.04), 300))
+        return mix(pad(rng, 0.06 + 0.05 * w, 260) * 0.8 * min(w, 2), norm(g) * 0.5, rec * 0.5)
+    if mat == "concrete":
+        sl = norm(hp(align(get(CONCRETE_STEPS[(take * 2 + int(rng.integers(2))) % 5])), 80))
+        sl = tilt(sl, hi_db=-8 * (1 - hard))
+        y = mix(sl, pad(rng, 0.05 + 0.04 * w, 180) * 0.5 * w)
+        return space(y, 0.45, 0.14, 5000, ((0.006, 0.5), (0.013, 0.35), (0.021, 0.2)))
+    raise KeyError(mat)
+
+
+def bounce(rng, x, n=2, first=0.12, decay=0.45, drop_db=8):
+    """An object bouncing: the impact again `n` times, each sooner and quieter (a dropped tool's clatter)."""
+    parts, t, g = [(0.0, x, 0.0)], 0.0, 0.0
+    gap = first * rng.uniform(0.85, 1.15)
+    for _ in range(n):
+        t += gap
+        g -= drop_db * rng.uniform(0.8, 1.2)
+        parts.append((t, lp(x, 9000 * (1 + g / 40)), g))
+        gap *= decay
+    return place(parts)
+
+
+def cloth(rng, take, length=None, keys=("kenney_rpg-audio:cloth1", "kenney_rpg-audio:cloth2", "kenney_rpg-audio:cloth3",
+                                        "kenney_rpg-audio:cloth4")):
+    """A coat or a sleeve moving: one of the packs' cloth handlings, cut to its loudest part."""
+    x = get(keys[take % len(keys)])
+    h = hits(x, floor_db=-12, gap=0.05)
+    a = h[int(rng.integers(len(h)))][0] if h else 0
+    L = length or 0.25
+    return norm(cut(x, a - samples(0.02), a + samples(L), 0.01, 0.06))

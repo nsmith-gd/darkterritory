@@ -36,6 +36,17 @@ public class AudioTests
     }
 
     [Fact]
+    public void OneSoundRendersAloneToItsEnd()
+    {
+        // `dt audio render --sound`: a one-shot plays to its end and a tenth of a second on, and is heard.
+        var (report, mix) = AudioBench.RenderSound(Content, "gunshot");
+        Assert.NotNull(report.EndedAt);
+        Assert.InRange(report.Seconds, report.EndedAt.Value + 0.1, report.EndedAt.Value + 0.11);
+        Assert.Equal(report.Seconds, mix.Length / 2.0 / Audio.SampleRate, 3);
+        Assert.True(report.MixDb > -40);
+    }
+
+    [Fact]
     public void EveryEnemyTellIsSentAsFarAsItCanBeHeard()
     {
         // An enemy past the interest radius isn't on your machine, so its tell can't play there. The Choir's

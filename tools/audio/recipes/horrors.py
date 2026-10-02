@@ -1,9 +1,10 @@
 """Creature sounds for five horrors (GDD §21): the Choir, the Gaunt, the Soot Children, the Switchman and the Stoker.
 
 What each body is made of decides the build:
-- The Choir: small ghosts, each a veined membrane bell with one child's mouth singing, six tendrils. Every sound it makes
-  is the tell's own throat (recipes/choir.py: the Locrian lullaby round and the Shepard rise, imported, so these are the
-  same creatures) or a bell of wet skin: struck, rubbed, swimming, lashing. The director's note asks for melody from
+- The Choir: small ghosts, each a veined membrane bell with one child's mouth singing, six tendrils. Every voice it uses
+  is the tell's own (recipes/choir.py: the Locrian lullaby round and the Shepard rise imported, and `ghost` builds a
+  throat exactly as the round does, on a pitch curve of our own), so these are the same creatures; the rest is a bell
+  of wet skin: struck, rubbed, swimming, lashing. The director's note asks for melody from
   the music theory of unease, so the sung parts fall on Locrian tritones and minor seconds, slide, sag flat and never
   cadence on the tonic.
 - The Gaunt: dry bark on stilts, silent until the blow. Hollow wood, cracking joints, bark crumbs; nothing before the hit.
@@ -15,13 +16,14 @@ What each body is made of decides the build:
 """
 
 import numpy as np
+from scipy.ndimage import minimum_filter1d, uniform_filter1d
 
 import dsp
 import src
 import synth
 from build import recipe
 from dsp import samples, env, mix, Bus, lp, hp, bp
-from recipes.choir import round_voice, VOICES, LOOP, BEAT, D, Eb, F, G, Ab
+from recipes.choir import round_voice, shepard_stack, VOICES, LOOP, BEAT, D, Eb, F, G, Ab
 from recipes.kit import melody_f0, bell_body, MEMBRANE, BELL, hz, any_of, scatter, slap, squelch, snap, thud, whoosh, twigs, \
     gravel
 
@@ -66,17 +68,19 @@ def norm(x):
 
 
 def finish(x, lufs=-20.0, ceiling=-1.5):
-    """Level a take and round its loudest peaks off under the ceiling (a soft knee, a few milliseconds of it), so
-    build.py's levelling has nothing to clip and every take of a cue lands at the same loudness."""
-    y = np.asarray(x, np.float32)
+    """Level a take, then pull its loudest peaks under the ceiling with a look-ahead limiter (the gain dips smoothly for
+    a few milliseconds round each peak, never clipping it), so build.py's own levelling has nothing to clip and every
+    take of a cue lands at the same loudness. A 25 Hz highpass first takes off any DC an asymmetric knock leaves."""
+    y = hp(np.asarray(x, np.float32), 25)
     c = dsp.db2a(ceiling)
-    t = c * 0.6
-    for _ in range(4):
+    w = samples(0.003)
+    for _ in range(12):
         y = dsp.gain(y, lufs - dsp.loudness(y))
-        a = np.abs(y)
-        if a.max() <= c:
+        need = np.minimum(1.0, c / (np.abs(y) + 1e-9))
+        if need.min() > 0.97:
             break
-        y = (np.sign(y) * np.where(a > t, t + (c - t) * np.tanh((a - t) / (c - t)), a)).astype(np.float32)
+        # a window's minimum, then a shorter average of it: smooth, and never above what any sample needs
+        y = (y * uniform_filter1d(minimum_filter1d(need, 2 * w + 1), w + 1)).astype(np.float32)
     return y
 
 
@@ -172,7 +176,7 @@ def _flyby(rng, voice, at, near, speed):
         "Ghosts flitting past all round, each singing a scrap of the lullaby bent by its own speed, bells swimming",
         """Fragments of the tell's own round (the Locrian lullaby voices from the Choir's tell, imported), each sent past
         the listener like a ghost flying by: sharp as it comes, sagging flat as it goes, loudest and brightest at its
-        closest, from a couple of metres to forty. Under each, its bell swimming like a jellyfish (a cloth flap two
+        closest, from a couple of metres to thirty. Under each, its bell swimming like a jellyfish (a cloth flap two
         octaves down and a puff of air rung through a drumhead's modes, a stroke a second) and its tendrils trailing (a
         soft low rustle). Eight passes round the loop, near and far, so they're all round you; a night's reverb folded
         back so the loop is seamless.""",
@@ -181,7 +185,7 @@ def choir_arrive_flyby(rng, take):
     n = samples(LOOP)
     voices = [round_voice(rng, k, octave, cents) for k, octave, cents in VOICES]
     b = Bus(LOOP + 4)
-    starts = (np.arange(8) + rng.uniform(-0.3, 0.3, 8)) * LOOP / 8
+    starts = ((np.arange(8) + rng.uniform(-0.3, 0.3, 8)) * LOOP / 8) % LOOP   # an early one goes round the end
     for i, t0 in enumerate(starts):
         near = [2.5, 14, 4, 30, 6, 3, 18, 9][i]
         x = _flyby(rng, voices[i % 4], rng.uniform(0.35, 0.65), near, rng.uniform(5, 9))
@@ -255,16 +259,17 @@ def bell_inside(x, rng, f_bell, throb=1.5):
 
 @recipe("cs-choir", "seize", "dive",
         "A ghost diving mouth-first, singing faster as it falls; tendrils lash round the head, and the song goes on inside its bell",
-        """The tell's throat sings the lullaby's falling bar an octave up (A flat, G, E flat, D), each note shorter than
-        the last as it dives in from twenty-odd metres, sharp with doppler and brightening, a low rush of its bell under
-        it. On the D it caps the head: a wet membrane slap and a drumhead's dull knock, then four to six tendril lashes
-        in a tenth of a second winding tighter, and the skin squeaking taut. The held note carries on from inside the
-        bell (muffled, close, ringing, squeezing in slow throbs), closes to a hum and sags a semitone below the tonic,
-        out of the mode altogether.""",
+        """The tell's throat sings a falling scrap of the lullaby an octave up (A flat, G, E flat, D; or F, E flat, D),
+        each note shorter than the last as it dives in from twenty-odd metres, sharp with doppler and brightening, a low
+        rush of its bell under it. On the last note it caps the head: a wet membrane slap and a drumhead's dull knock,
+        then four to six tendril lashes in a tenth of a second winding tighter, and the skin squeaking taut. The held
+        note (D, or a tritone leap to A flat) carries on from inside the bell (muffled, close, ringing, squeezing in slow
+        throbs), closes to a hum and sags a semitone flat, never onto the home note.""",
         sources=WHIP, takes=2)
 def choir_seize_dive(rng, take):
+    # the held note sags a semitone: off the tonic into C sharp, or off the tritone onto G; never down onto D
     fall = [(Ab + 12, 0.34), (G + 12, 0.24), (Eb + 12, 0.17), (D + 12, 1.8)] if take == 0 else \
-           [(F + 12, 0.32), (Eb + 12, 0.22), (D + 12, 0.16), (Eb + 12, 1.8)]
+           [(F + 12, 0.32), (Eb + 12, 0.22), (D + 12, 0.16), (Ab + 12, 1.8)]
     f0, onsets, total = melody_f0(fall, 1.0, rng, scoop=40, glide=0.03, vib=(5.5, 0.008), drift=10)
     cap = onsets[3]
     st = env([(0, rng.uniform(0.9, 1.3)), (cap, 0.1), (cap + 0.4, 0), (cap + 0.6, 0), (total, -1.1)], total)
@@ -298,7 +303,7 @@ def choir_seize_dive(rng, take):
         slithers. The hum stops dead when the seal is complete.""",
         takes=2)
 def choir_seize_close(rng, take):
-    a, b_ = (D + 12, Ab + 12) if take == 0 else (G, Eb + 12 - 2)
+    a, b_ = (D + 12, Ab + 12) if take == 0 else (G, G + 6)   # a tritone up either way
     T = 3.8
     hit = rng.uniform(1.3, 1.5)
     f0 = env([(0, hz(a)), (0.3, hz(a)), (hit - 0.1, hz(b_)), (hit + 0.05, hz(b_) * 2 ** (-1 / 12)),
@@ -447,7 +452,7 @@ for _mat in ("wood", "grate"):
         tuned to the lullaby's notes, the pitch bending down as the struck skin relaxes and wobbling like jelly. The
         child's mouth was singing (the tell's throat): the note lurches down off pitch with a crack in the voice, shakes
         with the body, and only half recovers, left a quarter-tone flat. A puff of air is knocked out through the bell.""",
-        sources=K("impactSoft_heavy"), takes=4)
+        sources=K("impactSoft_heavy"), takes=4, lufs=-22)
 def choir_hit(rng, take):
     L = 1.3
     root = [Ab - 36, D - 24, Eb - 24, G - 36][take]
@@ -469,14 +474,43 @@ def choir_hit(rng, take):
     puff = synth.breath(0.35, "h", "child", rng, shape=env([(0, 0), (0.03, 1), (0.35, 0)], 0.35))
     b.at(0.02, hp(puff, 500), -12)
     y = dsp.room(b.x, "box", wet=0.12, rng=rng)
-    return finish(y * env([(0, 1), (L - 0.3, 1), (L + 0.1, 0)], L + 0.3)[:len(y)])
+    return finish(y * env([(0, 1), (L - 0.3, 1), (L + 0.1, 0)], L + 0.3)[:len(y)], -22)
+
+
+@recipe("cs-choir", "hit", "toll",
+        "A blow that rings its bell like a bell, choked by its own wet skin; its song leaps up a tritone in a cry and slides down",
+        """The club strikes a bell of skin and it rings like a bell for an instant (a knock through a church bell's
+        partials, minor-third tierce and all, pitched to the lullaby's notes), then its own wet skin chokes it and the
+        pitch rises as the membrane tightens in pain. The child's mouth (the tell's throat) cries out: the note it was
+        singing leaps up a tritone, opens to 'ah', and slides back down past where it started. A wet slap at the
+        strike, and a gasp knocked out of it.""",
+        takes=4, lufs=-22)
+def choir_hit_toll(rng, take):
+    L = 1.3
+    note = [D + 12, Ab, Eb + 12, F + 12][take]
+    prime = hz([D, Ab - 12, Eb, G - 12][take]) * rng.uniform(0.99, 1.01)
+    b = Bus(L)
+    b.at(0, slap(rng, 0.1, 2200, wet=0.7), -6)
+    ring = knock(rng, prime * 0.5, 1.2, q=70, body=[p * 100 for p in BELL])
+    ring = bend(ring * env([(0, 1), (0.08, 0.6), (0.7, 0.05), (1.2, 0)], 1.2, "exp"), env([(0, 0), (0.5, 1.6)], 1.2))
+    b.at(0, ring, -1)
+    b.at(0, drumhead(rng, prime * 0.5, 0.4, q=6, drop=1), -9)
+    t = np.arange(samples(L)) / SR
+    st = env([(0, 0), (0.05, 6), (0.22, 6.3), (0.8, -1.2), (L, -1.6)], L) + 0.25 * np.sin(2 * np.pi * 6 * t)
+    v = ghost(rng, (hz(note) * 2 ** (st / 12)).astype(np.float32), [(0, "u"), (0.06, "a"), (0.5, "o"), (L, "u")])
+    b.at(0, v * env([(0, 0.4), (0.05, 1), (0.25, 0.8), (L * 0.8, 0.15), (L, 0)], L), -4)
+    gasp = synth.breath(0.3, "a", "child", rng, shape=env([(0, 0), (0.25, 1), (0.3, 0)], 0.3))
+    b.at(0.75, lp(hp(gasp, 500), 5000), -21)
+    y = dsp.room(b.x, "box", wet=0.12, rng=rng)
+    return finish(y * env([(0, 1), (L - 0.3, 1), (L + 0.1, 0)], L + 0.3)[:len(y)], -22)
 
 
 @recipe("cs-choir", "disperse", "sink",
-        "The swarm's round sagging down together like a tape running out as it drifts off, one far voice left on the wrong note",
+        "The swarm's round sagging down together like a tape running out as it drifts off, over an endless fall; one far voice left on the wrong note",
         """Four of the tell's round voices (the Locrian lullaby, imported) singing together, then all of them sagging in
         pitch at once like a tape slowing down, a tritone or a fifth over three seconds, while they drift away: darker,
-        wetter and quieter, their bells' swim strokes fading upward and off. Last, far off, one voice sings a single
+        wetter and quieter, their bells' swim strokes fading off. Under them, far off, the tell's Shepard rise (also
+        imported) run the other way: an endless fall that never arrives either. Last, far off, one voice sings a single
         note on the mode's flat second (or its tritone) and stops: the tune never comes home.""",
         sources=FLAP, takes=2)
 def choir_disperse_sink(rng, take):
@@ -494,6 +528,10 @@ def choir_disperse_sink(rng, take):
     y = dsp.fade(y, 0.01, 0.8)
     b = Bus(Ly + 2.6)
     b.at(0, y)
+    Lf = Ly + 2.0   # the tell's Shepard rise with its period negated glides down forever; centred low so no voice pops in
+    fall = shepard_stack(rng, Lf, 75.0 * 2 ** rng.uniform(0, 1), -9.0, centre=500, sigma=0.9, bell=600)
+    fall = dsp.distance(fall, 60, rng)[:samples(Lf)]
+    b.at(0, fall * env([(0, 0), (1.5, 1), (Ly, 0.7), (Lf, 0)], Lf)[:len(fall)], -7)
     t = 0.3
     for i in range(6):
         st = swim(rng, rng.uniform(180, 250))
@@ -538,6 +576,7 @@ def choir_disperse_hush(rng, take):
 # It listens for silence and makes none: every blow take starts on the impact itself, nothing before it.
 
 CRACK = ["sfx_100_v2:misc_35", "sfx_100_v2:misc_34"]
+BLOW_LUFS = -23.0   # all attack: a quieter integrated loudness leaves the hit its peak
 
 
 def bark_debris(rng, length, density=60):
@@ -557,19 +596,19 @@ def joint_creak(rng, length, rates, k=1.0, q=15):
         through a split branch's modes), a medium wood impact and a heavy whip's slap pitched down for the limb's
         weight. Under it the crewman takes it (a dropping sub-thud and a coat struck). The limb rings on like a long
         hollow branch, bark crumbs patter down, and its knees creak as it takes the weight back over its back.""",
-        sources=K("impactWood_medium") + WHIP + CLOTH, takes=3)
+        sources=K("impactWood_medium") + WHIP + CLOTH, takes=3, lufs=BLOW_LUFS)
 def gaunt_blow_branch(rng, take):
     b = Bus(1.5)
-    b.at(0, snap(rng, 0.12, rng.uniform(1300, 1900)), -4)
-    b.at(0, rec(rng, K("impactWood_medium"), rng.uniform(-3, 0), 0.3), -2)
-    b.at(0, rec(rng, WHIP, rng.uniform(-7, -4), 0.15), -6)
-    b.at(0.004, thud(rng, rng.uniform(55, 70), 0.4, 1.2), 0)
-    b.at(0.004, rec(rng, CLOTH, rng.uniform(-4, -1), 0.35), -6)
-    b.at(0.002, knock(rng, rng.uniform(110, 150), 0.45, q=22), -10)
-    b.at(0.03, bark_debris(rng, 0.7), -16)
+    b.at(0, snap(rng, 0.12, rng.uniform(1300, 1900)), 0)
+    b.at(0, rec(rng, K("impactWood_medium"), rng.uniform(-3, 0), 0.3), 0)
+    b.at(0, rec(rng, WHIP, rng.uniform(-7, -4), 0.15), -4)
+    b.at(0.004, thud(rng, rng.uniform(55, 70), 0.4, 1.0), -11)
+    b.at(0.004, rec(rng, CLOTH, rng.uniform(-4, -1), 0.35), -5)
+    b.at(0.002, knock(rng, rng.uniform(110, 150), 0.45, q=22), -5)
+    b.at(0.03, bark_debris(rng, 0.7), -13)
     L = rng.uniform(0.4, 0.6)
-    b.at(rng.uniform(0.3, 0.45), joint_creak(rng, L, [(0, 25), (L, 60)], 0.8), -14)
-    return finish(dsp.room(b.x, "car", wet=0.12, rng=rng))
+    b.at(rng.uniform(0.3, 0.45), joint_creak(rng, L, [(0, 25), (L, 60)], 0.8), -17)
+    return finish(hp(dsp.room(b.x, "car", wet=0.12, rng=rng), 35), BLOW_LUFS)
 
 
 @recipe("cs-gaunt", "blow", "stake",
@@ -578,21 +617,21 @@ def gaunt_blow_branch(rng, take):
         through a hollow log's modes, with a plank and a heavy wood impact pitched down), its three knee joints locking
         in a quick dry ripple as the shock goes through them, and the crewman driven into the boards (a deep thud,
         floorboards, a coat). Then the bark strains, creaking slowly as it leans its weight in, and a few crumbs fall.""",
-        sources=K("impactPlank_medium") + K("impactWood_heavy") + K("footstep_wood") + CLOTH, takes=3)
+        sources=K("impactPlank_medium") + K("impactWood_heavy") + K("footstep_wood") + CLOTH, takes=3, lufs=BLOW_LUFS)
 def gaunt_blow_stake(rng, take):
     b = Bus(2.0)
-    b.at(0, knock(rng, rng.uniform(95, 125), 0.6, q=30), -2)
-    b.at(0, rec(rng, K("impactPlank_medium"), rng.uniform(-4, -2), 0.5), -2)
-    b.at(0, rec(rng, K("impactWood_heavy"), rng.uniform(-3, 0), 0.4), -3)
+    b.at(0, knock(rng, rng.uniform(95, 125), 0.6, q=30), 0)
+    b.at(0, rec(rng, K("impactPlank_medium"), rng.uniform(-4, -2), 0.5), -1)
+    b.at(0, rec(rng, K("impactWood_heavy"), rng.uniform(-3, 0), 0.4), -2)
     for i, dt in enumerate(np.cumsum(rng.uniform(0.012, 0.03, 3))):
-        b.at(dt, snap(rng, 0.06, rng.uniform(800, 1400)), -8 - 2 * i)
-    b.at(0.005, thud(rng, 50, 0.5, 1.4), 0)
-    b.at(0.01, rec(rng, K("footstep_wood"), -5, 0.25), -6)
-    b.at(0.005, rec(rng, CLOTH, -3, 0.3), -8)
+        b.at(dt, snap(rng, 0.06, rng.uniform(800, 1400)), -3 - 2 * i)
+    b.at(0.005, thud(rng, 50, 0.5, 1.0), -11)
+    b.at(0.01, rec(rng, K("footstep_wood"), -5, 0.25), -4)
+    b.at(0.005, rec(rng, CLOTH, -3, 0.3), -7)
     L = rng.uniform(0.7, 1.0)
-    b.at(0.25, joint_creak(rng, L, [(0, 10), (L * 0.6, 25), (L, 8)], 0.7, q=18), -11)
-    b.at(0.25 + L * 0.7, bark_debris(rng, 0.5, 30), -18)
-    return finish(dsp.room(b.x, "car", wet=0.12, rng=rng))
+    b.at(0.25, joint_creak(rng, L, [(0, 10), (L * 0.6, 25), (L, 8)], 0.7, q=18), -13)
+    b.at(0.25 + L * 0.7, bark_debris(rng, 0.5, 30), -16)
+    return finish(hp(dsp.room(b.x, "car", wet=0.12, rng=rng), 35), BLOW_LUFS)
 
 
 def needle_breath(rng, length, inhale=False):
@@ -606,7 +645,7 @@ def needle_breath(rng, length, inhale=False):
 
 def heap(rng, b, t, weight=1.0):
     """Branches landing in a heap: a hollow thud, a plank, a burst of twigs knocking together, then settling."""
-    b.at(t, thud(rng, 48, 0.5, 1.4 * weight), 0)
+    b.at(t, thud(rng, 48, 0.5, weight), -9)
     b.at(t, rec(rng, K("impactPlank_medium"), rng.uniform(-4, -2), 0.6), -3)
     b.at(t, twigs(rng, 1.4, 160, 900, 6000) * env([(0, 1), (0.25, 0.5), (1.4, 0)], 1.4), -6)
     for i in range(8):
@@ -620,7 +659,7 @@ def heap(rng, b, t, weight=1.0):
         creaking as it bends the wrong way, the body dropping a stage with a hollow knock. Then the whole thing lands as
         the heap of branches it sleeps as: a hollow thud, a plank, twigs and light wood knocking together and settling.
         Last, the only sound its mouth ever makes: a thin dry hiss out through the needle teeth, with a whistle in it.""",
-        sources=CRACK + K("impactPlank_medium") + K("impactWood_light"), takes=3)
+        sources=CRACK + K("impactPlank_medium") + K("impactWood_light"), takes=3, lufs=-22)
 def gaunt_death_fold(rng, take):
     b = Bus(5.5)
     t = 0.0
@@ -630,11 +669,11 @@ def gaunt_death_fold(rng, take):
         L = rng.uniform(0.3, 0.55)
         b.at(t + 0.03, joint_creak(rng, L, [(0, 70), (L, 12)], rng.uniform(0.8, 1.1), q=16), -10)
         b.at(t + L * 0.8, knock(rng, rng.uniform(90, 130), 0.4, q=20), -8 - 2 * leg)
-        b.at(t + L * 0.8, thud(rng, 60, 0.3, 0.6), -6)
+        b.at(t + L * 0.8, thud(rng, 60, 0.3, 0.6), -12)
         t += rng.uniform(0.45, 0.8)
     heap(rng, b, t)
     b.at(t + rng.uniform(1.0, 1.4), needle_breath(rng, 1.3), -15)
-    return finish(dsp.room(b.x, "night", wet=0.12, rng=rng))
+    return finish(hp(dsp.room(b.x, "night", wet=0.12, rng=rng), 35), -22)
 
 
 @recipe("cs-gaunt", "death", "timber",
@@ -661,7 +700,7 @@ def gaunt_death_timber(rng, take):
     tf = tb + rng.uniform(0.3, 0.45)
     b.at(tb + 0.05, synth.rustle(tf - tb, 150, rng, f=(800, 5000)) * env([(0, 0), (tf - tb, 1)], tf - tb), -14)
     heap(rng, b, tf, 1.2)
-    return finish(dsp.room(b.x, "night", wet=0.12, rng=rng))
+    return finish(hp(dsp.room(b.x, "night", wet=0.12, rng=rng), 35))
 
 
 # ---- The Soot Children --------------------------------------------------------------------------------------------------
@@ -770,7 +809,7 @@ def soot_lunge_call(rng, take):
         b.at(dt, rec(rng, K("footstep_wood"), rng.uniform(3, 5), 0.15), -10)
     b.at(0.08, rec(rng, ["kenney_rpg-audio:cloth3"], 2, 0.35), -8)
     tl = L + rng.uniform(0.0, 0.1)
-    b.at(tl, thud(rng, 85, 0.3, 0.7), -2)
+    b.at(tl, thud(rng, 85, 0.3, 0.7), -7)
     b.at(tl, rec(rng, CLOTH, 0, 0.35), -5)
     b.at(tl, slap(rng, 0.08, 3000, wet=0.1), -6)
     b.at(tl + rng.uniform(0.02, 0.05), slap(rng, 0.08, 2800, wet=0.1), -8)
@@ -799,7 +838,7 @@ def soot_lunge_scramble(rng, take):
         i += 1
     b.at(0, synth.rustle(t, 300, rng, f=(500, 4000)) * env([(0, 0.3), (t, 1)], t), -16)
     tl = t + 0.04
-    b.at(tl, thud(rng, 85, 0.3, 0.8), -2)
+    b.at(tl, thud(rng, 85, 0.3, 0.8), -7)
     b.at(tl, rec(rng, CLOTH, 0, 0.35), -5)
     b.at(tl + 0.01, slap(rng, 0.08, 2800, wet=0.1), -7)
     Lg = rng.uniform(0.4, 0.5)
@@ -854,13 +893,17 @@ def soot_drink_hum(rng, take):
     t = 0.2
     note = 0
     while t < T:
-        b.at(t, suck(rng), -2)
-        t += rng.uniform(0.16, 0.22)
-        b.at(t, gulp(rng, rng.uniform(1.0, 1.25)), 0)
-        t += 0.25
+        for _ in range(1 if rng.random() < 0.7 else 2):   # now and then it takes two swallows before it breathes
+            b.at(t, suck(rng), -2)
+            t += rng.uniform(0.16, 0.22)
+            b.at(t, gulp(rng, rng.uniform(1.0, 1.25)), 0)
+            t += rng.uniform(0.25, 0.35)
         Ln = rng.uniform(0.22, 0.3)
         b.at(t, nose(rng, Ln, True), -12)
         t += Ln + 0.05
+        if rng.random() < 0.3:   # and sometimes only breathes
+            t += rng.uniform(0.3, 0.6)
+            continue
         cnt = int(rng.integers(1, 4))
         notes = [(CHANT[(note + j) % len(CHANT)], 1) for j in range(cnt)]
         note += cnt
@@ -900,8 +943,8 @@ def soot_drink_greedy(rng, take):
             t += rng.uniform(0.28, 0.36)
         for _ in range(int(rng.integers(3, 6))):
             Ln = rng.uniform(0.09, 0.13)
-            b.at(t, nose(rng, Ln, False), -11)
-            b.at(t + Ln, nose(rng, Ln, True), -11)
+            b.at(t, lp(nose(rng, Ln, False), 3500), -15)
+            b.at(t + Ln, lp(nose(rng, Ln, True), 3500), -14)
             t += 2 * Ln + 0.02
         t += rng.uniform(0.05, 0.2)
     y = dsp.room(b.x, "box", wet=0.1, rng=rng)
@@ -977,11 +1020,20 @@ def flame(rng, length, level):
     little hiss and the wick's tiny spits, following `level` (0 out, 1 burning well; a curve)."""
     n = samples(length)
     lv = synth.curve(level, n)
-    flutter = np.clip(0.55 + 0.45 * norm(lp(rng.standard_normal(n).astype(np.float32), 12)), 0.05, 1.2)
-    roar = bp(synth.noise(length, rng, "brown"), 60, 600) * flutter
+    flutter = np.clip(0.45 + 0.65 * norm(lp(rng.standard_normal(n).astype(np.float32), 14)), 0.0, 1.2) ** 1.5
+    roar = bp(synth.noise(length, rng, "brown"), 50, 450) * flutter
     gas = bp(synth.noise(length, rng), 800, 3000) * 0.1 * flutter
-    spits = synth.crackle(length, 6 + 18 * lv, rng, size=(0.0003, 0.002), hi=1200)
-    return norm((roar + gas) * lv + spits * 0.7 * np.sqrt(lv))
+    spits = synth.crackle(length, 8 + 25 * lv, rng, size=(0.0003, 0.002), hi=1200)
+    pops = synth.crackle(length, 0.5 + 2.5 * lv, rng, size=(0.002, 0.006), hi=300)
+    return norm((roar + gas) * lv + (spits * 1.2 + pops * 1.5) * np.sqrt(lv))
+
+
+def junction(x, rng, tail=0.8):
+    """Out at the junction, a few metres off in the open: a little air and a short outdoor tail, cut off before the
+    reverb drags the take out."""
+    y = dsp.room(lp(x, 10000), "night", wet=0.15, rng=rng)
+    L = len(x) / SR
+    return y[:samples(L + tail)] * env([(0, 1), (L, 1), (L + tail, 0)], L + tail)[:samples(L + tail)]
 
 
 def whump(rng, length=0.35):
@@ -1031,7 +1083,7 @@ def switchman_flicker_gutter(rng, take):
     b.at(0.35, lever_creak(rng, 0.8), -14)
     for c in (0.3, g2):
         b.at(c, rec(rng, TIN, rng.uniform(1, 4), 0.08), -16)
-    return finish(dsp.distance(b.x, 6, rng))
+    return finish(junction(b.x, rng))
 
 
 @recipe("cs-switchman", "flicker", "breath",
@@ -1060,9 +1112,10 @@ def switchman_flicker_breath(rng, take):
     rub = synth.noise(T, rng) * (1 + 0.7 * norm(lp(rng.standard_normal(n).astype(np.float32), 3)))
     fg = rng.uniform(2300, 2800)
     sing = norm(dsp.resonate(bp(rub, 1500, 12000), [fg, fg * 2.32, fg * 4.25], q=400, gains=[1, 0.5, 0.25]))
-    b.at(0, bend(sing, 0.15 * np.sin(2 * np.pi * 0.4 * np.arange(n) / SR)) * env([(0, 0), (1, 1), (T, 0.6)], T), -24)
+    sing = bend(sing, 0.15 * np.sin(2 * np.pi * 0.4 * np.arange(n) / SR))
+    b.at(0, sing * env([(0, 0), (1, 1), (T, 0.6)], T)[:len(sing)], -24)
     b.at(T - 1.0, lever_creak(rng, 0.8), -12)
-    return finish(dsp.distance(b.x, 6, rng))
+    return finish(junction(b.x, rng))
 
 
 GLASS_BREAK = ["sfx_100_v2:glass_03", "sfx_100_v2:misc_26", "sfx_100_v2:misc_27"]
@@ -1070,7 +1123,7 @@ GLASS_BREAK = ["sfx_100_v2:glass_03", "sfx_100_v2:misc_26", "sfx_100_v2:misc_27"
 
 def ballast_fall(rng, b, t, weight=1.0):
     """A body landing on the ballast: weight, a coat, stones shifting under it."""
-    b.at(t, thud(rng, 70, 0.4, 1.2 * weight), -2)
+    b.at(t, thud(rng, 70, 0.4, weight), -9)
     b.at(t, rec(rng, CLOTH, -3, 0.35), -6)
     b.at(t + 0.01, gravel(rng, 14, 0.12, 900, 5000, body=0), -8)
 
@@ -1096,7 +1149,8 @@ def folding_rule(rng, b, t, count):
 def switchman_death_lamp(rng, take):
     T = 4.2
     b = Bus(T + 0.5)
-    b.at(0, rec(rng, GLASS_BREAK, rng.uniform(-1, 2), 0.7), -2)
+    b.at(0, rec(rng, GLASS_BREAK, rng.uniform(-1, 2), 0.7), 0)
+    b.at(rng.uniform(0.02, 0.05), rec(rng, GLASS_BREAK, rng.uniform(-4, -1), 0.6), -4)
     b.at(0, rec(rng, TIN, -3, 0.2), -4)
     b.at(rng.uniform(0.15, 0.22), rec(rng, TIN, 1, 0.15), -11)
     b.at(0.02, gravel(rng, 10, 0.12, 900, 5000, body=0), -10)
@@ -1111,7 +1165,7 @@ def switchman_death_lamp(rng, take):
     man = airflow(rng, Lb, [(0, "a"), (Lb, "h")], 0.72, [(0, 0), (0.1, 1), (Lb, 0)])
     reed = dsp.sweep_filter(synth.noise(Lb, rng), "bp", env([(0, 1800), (Lb, 1450)], Lb, "exp"), q=25)
     b.at(t + 0.15, man * 0.8 + norm(reed) * env([(0, 0), (0.2, 0.5), (Lb, 0)], Lb) * 0.4, -10)
-    return finish(dsp.distance(b.x, 5, rng))
+    return finish(junction(b.x, rng, 1.0))
 
 
 @recipe("cs-switchman", "death", "split",
@@ -1128,12 +1182,12 @@ def switchman_death_split(rng, take):
     reed = throat(rng, env([(0, 330), (L, 560)], L, "exp"), "i", 0.65, breath=0.7, jitter=0.01)
     shape = env([(0, 0), (0.15, 1), (L * 0.7, 0.7), (L, 0)], L)
     b.at(0, man * shape, -4)
-    b.at(0.1, bp(reed, 1200, 6000) * shape, -9)
+    b.at(0.1, bp(reed, 1200, 6000) * shape, -5)
     b.at(0.05, rec(rng, K("impactMetal_heavy"), rng.uniform(-6, -4), 0.4), -6)
     b.at(0.1, rec(rng, ["sfx_100_v2:misc_20"], -3, 0.35), -10)
     t = folding_rule(rng, b, rng.uniform(0.6, 0.9), int(rng.integers(7, 10)))
     ballast_fall(rng, b, max(t, L * 0.8))
-    return finish(dsp.distance(b.x, 5, rng))
+    return finish(junction(b.x, rng, 1.0))
 
 
 # ---- The Stoker ---------------------------------------------------------------------------------------------------------
@@ -1141,6 +1195,16 @@ def switchman_death_split(rng, take):
 
 COAL = ["sfx_100_v2:stones_01", "sfx_100_v2:stones_02", "sfx_100_v2:stones_03"]
 STEAM = ["sfx_100_v2:misc_22", "sfx_100_v2:loop_water_03"]
+
+
+def cycle(c, T, rest=0.0):
+    """A control curve made periodic over T s: whatever runs past the end (above its resting value) comes round onto the
+    head, so a flare that starts near the loop's end carries on at its start."""
+    n = samples(T)
+    head = c[:n].copy()
+    extra = c[n:] - rest
+    head[:len(extra)] += extra
+    return head
 
 
 def firebox(x, rng, wet=0.3):
@@ -1174,8 +1238,10 @@ def sizzle(rng, length):
 
 def throat_in_fire(rng, length):
     """A groan smeared out and dropped an octave into the roar, as if the fire had a throat (the kept tell's trick)."""
-    g = dsp.smear(src.get("sfx_100_v2:misc_25"), length / 0.75 + 0.5, rng=rng)
-    return lp(dsp.vari(g, -12), 600)
+    core = dsp.trim(src.get("sfx_100_v2:misc_25"), 0.06, 0.28)   # the steady middle of the groan, not its fade
+    g = dsp.vari(dsp.smear(core, length / 0.28 / 2 + 0.5, rng=rng), -12)[:samples(length)]
+    level_ = lp(np.abs(g), 1.5) + 1e-3
+    return lp(g / level_ * np.mean(level_), 600)
 
 
 @recipe("cs-stoker", "in-fire", "coals",
@@ -1193,12 +1259,10 @@ def stoker_in_fire_coals(rng, take):
     for m in moves:
         pts += [(m - 0.1, 0.45), (m + 0.4, 0.85), (m + 1.6, 0.5)]
     b = Bus(T + 3)
-    b.at(0, synth.fire(T + 2, env(pts + [(T + 2, 0.45)], T + 2), rng), -2)
-    groan = throat_in_fire(rng, T + 2)
-    swell = np.full(samples(T + 2), 0.35, np.float32)
-    for m in moves:
-        swell += env([(0, 0), (m, 0), (m + 0.6, 0.65), (m + 2.0, 0), (T + 2, 0)], T + 2)[:len(swell)]
-    b.at(0, norm(groan)[:len(swell)] * swell[:len(groan)], -12)
+    b.at(0, synth.fire(T, cycle(env(pts + [(T + 2, 0.45)], T + 2), T, 0.45), rng), -2)
+    groan = norm(throat_in_fire(rng, T))
+    swell = 0.35 + cycle(sum(env([(0, 0), (m, 0), (m + 0.6, 0.65), (m + 2.0, 0), (T + 2, 0)], T + 2) for m in moves), T)
+    b.at(0, groan[:len(swell)] * swell[:len(groan)], -12)
     for m in moves:
         L = rng.uniform(0.5, 1.0)
         b.at(m, coal_shift(rng, L), -4)
@@ -1223,8 +1287,8 @@ def stoker_in_fire_bellows(rng, take):
         pts += [(max(a, 0), 0.45), (i_end, 0.18), (i_end + 0.5, 0.95), (i_end + 1.9, 0.45)]
         outs.append((a, i_end))
     b = Bus(T + 3)
-    b.at(0, synth.fire(T + 2, env(pts + [(T + 2, 0.45)], T + 2), rng), -2)
-    groan = norm(throat_in_fire(rng, T + 2))
+    b.at(0, synth.fire(T, cycle(env(pts + [(T + 2, 0.45)], T + 2), T, 0.45), rng), -2)
+    groan = norm(throat_in_fire(rng, T))
     for a, i_end in outs:
         L = i_end - max(a, 0)
         b.at(max(a, 0), bp(synth.noise(L, rng, "pink"), 300, 1500) * env([(0, 0), (L * 0.8, 1), (L, 0)], L), -10)

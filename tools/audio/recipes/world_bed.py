@@ -107,8 +107,8 @@ def boiler(rng, n, heat):
     """The boiler and fire, from the footplate: the draught roaring through the firebed (lapping, faster and harder as
     it's forced), the water seething against the firebox plates, the shell's low hum, gland leaks hissing. `heat` 0..1."""
     L = n / SR
-    roar = cfilter(pnoise(n, rng), lambda f: 1 / (1 + (f / (160 + 160 * heat)) ** 2) * (f / 28) ** 2 / (1 + (f / 28) ** 2))
-    lap = np.clip(1 + (0.45 + 0.2 * heat) * slow(n, 3 + 4 * heat, rng) + 0.25 * slow(n, 0.6, rng), 0.05, None)
+    roar = cfilter(pnoise(n, rng), lambda f: 1 / (1 + (f / (160 + 160 * heat)) ** 2) * (f / 40) ** 2 / (1 + (f / 40) ** 2))
+    lap = np.clip(1 + (0.16 + 0.08 * heat) * slow(n, 3 + 4 * heat, rng) + 0.12 * slow(n, 0.6, rng), 0.3, None)
     roar = norm(roar * lap)
     # the seethe: thousands of small steam bubbles collapsing on the hot plates, heard through the shell
     seethe = synth.bubbles(L, 900 + 2500 * heat, 180, 900, rng, rise=(0.0, 0.1))
@@ -169,12 +169,12 @@ def exhaust(rng, heavy):
     jet = W.jet(L, rng, pressure=p, peak=rng.uniform(560, 760) * (1.25 if heavy else 1.0), low=0.35,
                 rasp=0.45 if heavy else 0.0, eddy=0.5)
     k = rng.uniform(0.94, 1.06)
-    pipe = dsp.resonate(jet, [f * k for f in CHIMNEY[1:]], q=5, gains=[1, 0.6, 0.35])
+    pipe = dsp.resonate(jet, [f * k for f in CHIMNEY[1:]], q=3, gains=[1, 0.7, 0.45])
     flow = np.sqrt(p)
     dq = lp(np.diff(flow, prepend=0).astype(np.float32) * SR / 1000, 500, 2)
     thump = dsp.resonate(dq, [CHIMNEY[0] * k], q=2.2) * 0.5 + dq
-    y = norm(jet) * 0.55 + norm(pipe) * 0.7 + norm(thump) * (1.0 if heavy else 0.7)
-    return outdoors(y, rng, wet=0.14)
+    y = norm(jet) * 0.7 + norm(pipe) * 0.45 + norm(thump) * (1.0 if heavy else 0.7)
+    return outdoors(y, rng, wet=0.08)
 
 
 @recipe("bed-chuff", "chuff", "blast",
@@ -183,7 +183,7 @@ def exhaust(rng, heavy):
         drives a steam jet whose hiss sweeps down as the pressure drops; the chimney rings that noise at its pipe modes
         (the vowel in a chuff), and the pulse leaving the chimney top thumps (it's a monopole, so you hear the flow's
         rate of change). Takes vary the pulse, and some come in two steps as the cylinder's far end exhausts a moment
-        later, so a run of them is uneven like a real engine.""", takes=6, lufs=-18)
+        later, so a run of them is uneven like a real engine.""", takes=6, lufs=-30)
 def chuff(rng, k):
     return exhaust(rng, heavy=False)
 
@@ -192,7 +192,7 @@ def chuff(rng, k):
         "One exhaust beat working hard: a sharper, longer pulse that barks and crackles up the chimney",
         """The same blast-pipe model with the regulator wide: the pulse rises in 3-6 ms and lasts half again as long, the
         jet runs fast enough to crackle (the steep shocklets of a choked jet: the bark), and the chimney thump is
-        heavier. Six takes, uneven like a real engine.""", takes=6, lufs=-18)
+        heavier. Six takes, uneven like a real engine.""", takes=6, lufs=-30)
 def chuff_heavy(rng, k):
     return exhaust(rng, heavy=True)
 
@@ -203,10 +203,10 @@ def chuff_heavy(rng, k):
         pitched lower and darkened for the steel ring, a modelled steel bar's modes for the rod itself (short: it's oiled
         and held at both ends), and a low knock of weight through the frame. Each take a different plate and tuning.""",
         sources=[f"kenney_impact-sounds:impactPlate_heavy_00{i}" for i in range(4)]
-        + [f"kenney_impact-sounds:impactMetal_medium_00{i}" for i in (0, 2, 3, 1)], takes=4, lufs=-20)
+        + [f"kenney_impact-sounds:impactMetal_medium_00{i}" for i in (0, 2, 3, 1)], takes=4, lufs=-28)
 def rod_clank(rng, k):
     plate = W.rec(f"kenney_impact-sounds:impactPlate_heavy_00{k}", semis=-rng.uniform(1.5, 3.5), hi=5000)
-    ring = W.rec(f"kenney_impact-sounds:impactMetal_medium_00{(0, 2, 3, 1)[k]}", semis=-rng.uniform(5, 8), hi=3500)
+    ring = W.rec(f"kenney_impact-sounds:impactMetal_medium_00{(0, 2, 3, 1)[k]}", semis=-rng.uniform(5, 8), hi=3500, tau=0.1)
     rod = W.body(rng, rng.uniform(170, 230), W.BAR, decay=0.09, contact=0.0005)
     y = mix(norm(plate), norm(ring) * 0.35, norm(rod) * 0.4, W.knock(rng, 75, 0.16) * 0.45)
     return outdoors(y, rng, wet=0.1)
@@ -221,7 +221,8 @@ def joint(rng, k):
     rail = W.body(rng, rng.uniform(380, 460), W.BAR, decay=rng.uniform(0.04, 0.07), contact=0.00035, length=L)
     wheel = W.body(rng, WHEEL[0] * rng.uniform(0.95, 1.05), [f / WHEEL[0] for f in WHEEL], decay=0.03, damp=0.3,
                    contact=0.0003, length=L)
-    clang = W.rec(f"kenney_impact-sounds:impactMetal_heavy_00{(0, 2, 4, 3, 0, 2)[k]}", semis=-rng.uniform(3, 6), hi=4500)
+    clang = W.rec(f"kenney_impact-sounds:impactMetal_heavy_00{(0, 2, 4, 3, 0, 2)[k]}", semis=-rng.uniform(3, 6), hi=4500,
+                  tau=0.05)
     plate = W.rec(f"kenney_impact-sounds:impactPlate_heavy_00{(4, 2, 0, 1, 3, 4)[k]}", semis=-rng.uniform(0, 2), hi=2500)
     y = mix(norm(rail) * 0.5, norm(wheel) * 0.35, norm(clang) * 0.45, norm(plate) * 0.6, W.knock(rng, 70, 0.2) * 0.55)
     if rng.random() < 0.6:
@@ -238,7 +239,7 @@ def joint(rng, k):
         truck's weight into the sleepers. Most takes have the small tick of the wheel leaving the near rail end a few ms
         before the hit. Fired per axle, two axles a truck, it's the click-clack.""",
         sources=[f"kenney_impact-sounds:impactMetal_heavy_00{i}" for i in (0, 2, 3, 4)]
-        + [f"kenney_impact-sounds:impactPlate_heavy_00{i}" for i in range(5)], takes=6, lufs=-20,
+        + [f"kenney_impact-sounds:impactPlate_heavy_00{i}" for i in range(5)], takes=6, lufs=-29,
         preview=lambda takes, rng: _clickclack(takes, rng))
 def wheel_joint(rng, k):
     return joint(rng, k)
@@ -336,13 +337,14 @@ def coupling(rng, k, out_):
     booms the wooden car. Running out, the drawgear yanks taut: the knuckles clank and ring, the draft spring twangs,
     loose gear rattles after."""
     if not out_:
-        key = ("sfx_100_v2:door_03", "sfx_100_v2:metal_hit_01", "sfx_100_v2:misc_36")[k % 3]
-        slam = W.rec(key, semis=-rng.uniform(3, 6), hi=3500, start=0.125 if key.endswith("36") else 0.0)
+        key, semis = SLAMS[k]
+        slam = W.rec(key, semis=semis - rng.uniform(0, 1.5), hi=3500, start=0.125 if key.endswith("36") else 0.0)
         plate = W.rec(f"kenney_impact-sounds:impactPlate_heavy_00{k % 5}", semis=-rng.uniform(2, 4), hi=3000)
         car = W.body(rng, rng.uniform(65, 85), W.PLATE, decay=0.22, contact=0.003, damp=1.5)
-        y = mix(norm(slam) * 0.8, norm(plate) * 0.8, norm(car) * 0.45, W.knock(rng, 52, 0.35) * 0.8)
+        y = mix(norm(slam) * 0.8, norm(plate) * 0.8, norm(car) * 0.45, W.knock(rng, 44 + 4 * k, 0.35) * 0.8)
     else:
-        clank = W.rec(f"kenney_impact-sounds:impactMetal_heavy_00{(1, 3, 0, 2, 4, 1)[k]}", semis=-rng.uniform(2, 4), hi=6000)
+        clank = W.rec(f"kenney_impact-sounds:impactMetal_heavy_00{(1, 3, 0, 2, 4, 1)[k]}", semis=-rng.uniform(2, 4), hi=6000,
+                      tau=0.15)
         slam = W.rec(("sfx_100_v2:metal_hit_01", "sfx_100_v2:misc_30")[k % 2], semis=-rng.uniform(1, 3))
         knuckle = W.body(rng, rng.uniform(380, 520), W.BAR, decay=0.14, contact=0.0003)
         spring = W.body(rng, rng.uniform(105, 135), W.BAR, decay=0.25, contact=0.002, count=2)
@@ -353,16 +355,19 @@ def coupling(rng, k, out_):
     return outdoors(y, rng, wet=0.12)
 
 
-SLACK_SRC = ["sfx_100_v2:door_03", "sfx_100_v2:metal_hit_01", "sfx_100_v2:misc_36"] + \
-    [f"kenney_impact-sounds:impactPlate_heavy_00{i}" for i in range(5)]
+# a different real slam for each run-in take, each pitched for a car's mass
+SLAMS = [("sfx_100_v2:door_03", -4), ("sfx_100_v2:metal_hit_01", -5), ("sfx_100_v2:misc_36", -4),
+         ("sfx_100_v2:misc_30", -6), ("sfx_100_v2:wood_hit_02", -2), ("sfx_100_v2:door_03", -7)]
+SLACK_SRC = sorted({k for k, _ in SLAMS}) + [f"kenney_impact-sounds:impactPlate_heavy_00{i}" for i in range(5)]
 
 
 @recipe("bed-slack", "run-in", "buffers",
         "One coupling closing up: couplers slamming together, a dull heavy blow that booms the wooden car",
-        """Real slams (the pack's heavy door slam, metal door hit and knock) varispeeded down 3-6 semitones for a car's mass,
+        """Real slams (the pack's heavy door slam, metal door hit, knocks and a wooden thud, a different one per take)
+        varispeeded down 2-8 semitones for a car's mass,
         layered with Kenney's heavy plate impacts, a modelled wooden car body booming at 65-85 Hz and a deep knock of
         weight, then the car's loose gear rattling a moment after the jolt. Six takes from different slams, so a run
-        down the train never repeats.""", sources=SLACK_SRC, takes=6, lufs=-18)
+        down the train never repeats.""", sources=SLACK_SRC, takes=6, lufs=-28)
 def slack_in(rng, k):
     return coupling(rng, k, False)
 
@@ -373,7 +378,7 @@ def slack_in(rng, k):
         Kenney's heavy metal hits and the pack's metal door hit varispeeded down a little, a modelled cast-steel knuckle
         ringing at 380-520 Hz, the draft gear's spring twanging low, less boom, and loose gear rattling after.""",
         sources=[f"kenney_impact-sounds:impactMetal_heavy_00{i}" for i in range(5)]
-        + ["sfx_100_v2:metal_hit_01", "sfx_100_v2:misc_30"], takes=6, lufs=-18)
+        + ["sfx_100_v2:metal_hit_01", "sfx_100_v2:misc_30"], takes=6, lufs=-28)
 def slack_out(rng, k):
     return coupling(rng, k, True)
 
@@ -466,13 +471,13 @@ def brake_release(rng, k):
 
 @recipe("bed-wind", "wind-slow", "rush",
         "Wind past you at low speed: a soft rush that breathes, fittings whistling faintly when it picks up",
-        """Modelled from the wind's speed (8 m/s, gusting 30%): turbulent rush whose brightness and loudness follow the
+        """Modelled from the wind's speed (8 m/s, gusting about 15%): turbulent rush whose brightness and loudness follow the
         instantaneous speed, a little buffeting on the body, and aeolian tones off the train's fittings (handrails,
         ladder rungs, lamp brackets, wire) each at 0.2 x speed / diameter, so they slide up and down together with every
         gust. 12 s exact cycle.""", loop=True, takes=1, lufs=-24)
 def wind_slow(rng, k):
     n = loop_cycle(12.0)
-    y, _ = W.wind(n, rng, 8.0, gust=0.3, gust_rate=0.2, buffet=0.3, whistle=0.25, hiss=0.6)
+    y, _ = W.wind(n, rng, 8.0, gust=0.14, gust_rate=0.2, buffet=0.3, whistle=0.3, hiss=0.6)
     return seamless(y)
 
 
@@ -483,8 +488,8 @@ def wind_slow(rng, k):
         peaks. 12 s exact cycle.""", loop=True, takes=1, lufs=-20)
 def wind_fast(rng, k):
     n = loop_cycle(12.0)
-    y, _ = W.wind(n, rng, 22.0, gust=0.2, gust_rate=0.25, buffet=0.7, whistle=0.35, flap=0.5)
-    return seamless(y)
+    y, _ = W.wind(n, rng, 22.0, gust=0.13, gust_rate=0.25, buffet=0.7, whistle=0.35, flap=0.6)
+    return seamless(W.cyclic(lambda z: dsp.compress(z, -14, 2.5, 0.02, 0.3), norm(y)))
 
 
 @recipe("bed-wind", "gust", "swell",
@@ -504,9 +509,10 @@ def wind_gust(rng, k):
 
 # ---- Structural groan -----------------------------------------------------------------------------------------------------
 
-def frame_body(rng, scale):
-    """A loaded car frame: wood sills and iron truss rods (synth's board and iron modes, scaled to the size)."""
-    return [f * scale * rng.uniform(0.93, 1.07) for f in synth.WOOD[:5]] + [f * scale for f in synth.IRON[:3]]
+def frame_body(rng, scale, iron=True):
+    """A loaded car frame: wood sills (synth's board modes scaled to the size) and, for a groan, the iron truss rods."""
+    wood = [f * scale * rng.uniform(0.93, 1.07) for f in synth.WOOD[:5]]
+    return wood + ([f * scale for f in synth.IRON[:3]] if iron else [])
 
 
 @recipe("bed-groan", "groan", "frames",
@@ -529,22 +535,24 @@ def groan(rng, k):
         c = synth.creak(rng.uniform(0.2, 0.5), rng.uniform(20, 60), rng, body=frame_body(rng, rng.uniform(0.6, 0.9)), q=16)
         ev.append((t, c * dsp.fit(env([(0, 0), (0.05, 1), (0.5, 0)], 0.5), len(c)), rng.uniform(0.15, 0.35)))
     for t in W.poisson(L, 0.15, rng):
-        ev.append((t, W.body(rng, rng.uniform(700, 1100), W.BAR, decay=0.3, contact=0.0002), 0.05))
+        ev.append((t, W.body(rng, rng.uniform(700, 1100), W.BAR, decay=0.08, contact=0.0004, count=3), 0.025))
     y = W.place(n, ev)
     rumble = cfilter(pnoise(n, rng), lambda f: 1 / (1 + (f / 90) ** 4) * (f / 25) / (1 + f / 25))
     y = norm(y) + norm(rumble) * 0.25 * np.clip(1 + 0.3 * slow(n, 0.3, rng), 0.2, None)
-    return seamless(croom(y, "car", 0.3, rng))
+    y = croom(y, "car", 0.3, rng)
+    return seamless(W.cyclic(lambda z: dsp.compress(z, -16, 2.5, 0.01, 0.25), norm(y)))
 
 
 @recipe("bed-groan", "creak", "frame",
         "A single frame creak: a loaded wooden car frame slipping at a joint, low and woody, iron in some",
         """Modelled stick-slip through a car frame's modes (wood sills, a little iron truss rod): a run of slips that
-        catches and speeds up and lets go, a third to one second long, each take a different joint (size, speed, how much
-        iron rings in it). Low and dry so it sits in the train's own body rather than sounding like a door.""",
+        catches and speeds up and lets go, a third to one second long, each take a different joint (size, speed). Low and
+        dry so it sits in the train's own body rather than sounding like a door.""",
         takes=6, lufs=-22)
 def frame_creak(rng, k):
     L = rng.uniform(0.35, 1.0)
     rate = env([(0, rng.uniform(15, 30)), (L * rng.uniform(0.3, 0.6), rng.uniform(40, 90)), (L, rng.uniform(15, 30))], L)
-    c = synth.creak(L, rate, rng, body=frame_body(rng, rng.uniform(0.45, 0.8)), q=rng.uniform(14, 24), jitter=0.45, grit=0.3)
+    c = synth.creak(L, rate, rng, body=frame_body(rng, rng.uniform(0.6, 1.0), iron=False), q=rng.uniform(12, 20),
+                    jitter=0.45, grit=0.35)
     c = c * env([(0, 0), (0.04, 1), (L * 0.7, 0.8), (L, 0)], L)
-    return dsp.room(c, "car", 0.25, rng=rng)
+    return hp(dsp.room(c, "car", 0.25, rng=rng), 70)

@@ -97,7 +97,7 @@ public sealed class Mixer
         var same = _voices.Where(v => v.Name == name && !v.Finished).ToList();
         for (int i = 0; i <= same.Count - Math.Max(1, def.MaxInstances); i++)
             same[i].Stop();
-        var voice = new SoundInstance(_nextId++, name, def, _seed++) { Position = position, Volume = volume };
+        var voice = new SoundInstance(_nextId++, name, def, _seed++, _bank.Samples) { Position = position, Volume = volume };
         _voices.Add(voice);
         return voice;
     }

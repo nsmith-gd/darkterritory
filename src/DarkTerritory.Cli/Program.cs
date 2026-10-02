@@ -1286,6 +1286,8 @@ static int Edit(string content, string[] args)
 // Renders a staged moment through the real mixer to a WAV, and measures every tell against the bed.
 static object RenderAudio(string content, string[] args)
 {
+    if (Str(args, "--sound", "") is { Length: > 0 } sound)
+        return RenderSound(content, sound, args);
     string scenario = Str(args, "--scenario", "chaos");
     if (Str(args, "--listener", "") == "all")
         return DarkTerritory.Game.Sound.AudioBench.Sweep(content, scenario, (int)Opt(args, "--cars", 20), Opt(args, "--speed", 22), Opt(args, "--seconds", 6));
@@ -1298,6 +1300,21 @@ static object RenderAudio(string content, string[] args)
     string picture = Path.ChangeExtension(output, ".png");
     PngWriter.Write(picture, DarkTerritory.Game.Sound.Spectrogram.Render(mix, 800, 300), 800, 300, 1);
     return new { path = Path.GetFullPath(output), spectrogram = Path.GetFullPath(picture), report, ms = clock.ElapsedMilliseconds };
+}
+
+// dt audio render --sound <name>: one sound alone (a one-shot to its end, a loop for 4 s), with --param name=value held.
+static object RenderSound(string content, string sound, string[] args)
+{
+    var parameters = new Dictionary<string, double>();
+    for (int i = 0; i + 1 < args.Length; i++)
+        if (args[i] == "--param" && args[i + 1].Split('=') is [var name, var value])
+            parameters[name] = double.Parse(value);
+    var (report, mix) = DarkTerritory.Game.Sound.AudioBench.RenderSound(content, sound, args.Contains("--seconds") ? Opt(args, "--seconds", 0) : null, parameters);
+    string output = Str(args, "--out", $"out/audio/sound-{sound}.wav");
+    Ballast.Audio.Wav.Write(output, mix);
+    string picture = Path.ChangeExtension(output, ".png");
+    PngWriter.Write(picture, DarkTerritory.Game.Sound.Spectrogram.Render(mix, 800, 300), 800, 300, 1);
+    return new { path = Path.GetFullPath(output), spectrogram = Path.GetFullPath(picture), report };
 }
 
 static string Str(string[] args, string name, string fallback)
@@ -1393,6 +1410,8 @@ static int Usage()
           online check                             is Steam reachable from here (signed-in user, or what's missing)
           audio render [--scenario bed|tells|chaos] [--cars n] [--speed v] [--listener car (0 = cab) | all] [--seconds t] [--out file.wav]
                      renders through the mixer to a WAV and a spectrogram PNG, and reports each tell's margin over the bed (spec A.3)
+          audio render --sound <name> [--param name=value ...] [--seconds t] [--out file.wav]
+                     one sound alone (a one-shot to its end, a loop for 4 s): WAV, spectrogram, its length, takes and level
           edit [--port p] [--screenshot file.png]   the designer's editor (tuning + routes) at http://127.0.0.1:<port>/
           voice bench [--car n (0 = cab)] [--z m] [--radio] [--latency s --jitter s --loss 0..1]
                      one speaker to a listener on car 3 through host routing, Opus and the mixer (spec A.5)

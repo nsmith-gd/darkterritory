@@ -21,6 +21,12 @@ public sealed record AudioSweep(string Scenario, int Cars, double Speed, IReadOn
 public sealed record AudioBenchReport(string Scenario, int Cars, double Speed, string Listener, double Seconds, double MixDb, int PeakVoices,
     IReadOnlyList<TellLevel> Tells, IReadOnlyDictionary<string, double> StemsDb);
 
+/// <summary>One sound played alone: how long it ran (a one-shot's end), the takes it picked, how loud it was.</summary>
+/// <param name="DecodedBytes">Sample PCM held after the render: what this sound's takes cost in memory.</param>
+/// <param name="Error">The sound bank's last problem (a sample that isn't there, a take that wouldn't decode), if any.</param>
+public sealed record SoundRender(string Sound, bool Loop, double Seconds, double? EndedAt, IReadOnlyList<string?> Takes, double PeakDb, double MixDb,
+    long DecodedBytes, string? Error);
+
 /// <summary>
 /// Renders a staged moment offline and measures it: spec A.3's "the agent harness should test [tier 1] by
 /// generating maximum-chaos states and verifying tell audibility". Used by `dt audio render` and the tests.
@@ -167,6 +173,39 @@ public static class AudioBench
         var stems = tap.Stems.ToDictionary(kv => kv.Key, kv => Math.Round(Meter.Db(kv.Value.AsSpan(skip)), 1));
         string where = listenerCar == 0 ? "cab" : $"roof of car {listenerCar}";
         return (new AudioBenchReport(scenario, cars, speed, where, seconds, Math.Round(Meter.Db(mix.AsSpan(skip)), 1), peak, levels, stems), mix);
+    }
+
+    /// <summary>
+    /// Plays one sound (<c>content/audio/sounds/&lt;name&gt;.json</c>) alone, a metre in front of the listener, with
+    /// <paramref name="parameters"/> held: a one-shot until it ends and a tenth of a second after (30 s at most), a loop
+    /// for 4 s, or exactly <paramref name="seconds"/> if given. `dt audio render --sound`: auditioning a definition,
+    /// recorded takes and all, without the game.
+    /// </summary>
+    public static (SoundRender Report, float[] Mix) RenderSound(string content, string sound, double? seconds = null,
+        IReadOnlyDictionary<string, double>? parameters = null)
+    {
+        var bank = new SoundBank(Path.Combine(content, "audio", "sounds"));
+        var def = bank.Get(sound) ?? throw new ArgumentException($"no sound '{sound}' in {bank.Directory}");
+        var mixer = new Mixer(bank, DataFile.Load<MixDef>(Path.Combine(content, MixDef.File))) { Listener = Listener.At(Double3.Zero, 0) };
+        var voice = mixer.Play(sound, new Double3(0, 0, -1))!;
+        foreach (var (name, value) in parameters ?? new Dictionary<string, double>())
+            voice.Params.Set(name, value);
+        double limit = seconds ?? (def.Loop ? 4 : 30), blockSeconds = (double)Audio.Block / Audio.SampleRate, rendered = 0;
+        double? ended = null;
+        var mix = new List<float>();
+        var block = new float[Audio.Block * 2];
+        while (rendered < limit && !(seconds is null && ended is { } end && rendered >= end + 0.1))
+        {
+            mixer.Render(block);
+            mix.AddRange(block);
+            rendered += blockSeconds;
+            if (ended is null && voice.Finished)
+                ended = voice.Age;
+        }
+        var all = mix.ToArray();
+        double peak = all.Length == 0 ? 0 : all.Max(MathF.Abs);
+        return (new SoundRender(sound, def.Loop, Math.Round(rendered, 3), ended is { } e ? Math.Round(e, 3) : null, voice.Takes,
+            Math.Round(Audio.GainToDb(peak), 1), Math.Round(Meter.Db(all), 1), bank.Samples.Held.Bytes, bank.LastError), all);
     }
 
     /// <summary>Band-limited level of a tell and its margin over a masker, counted only while the tell is sounding.</summary>

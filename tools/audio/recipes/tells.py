@@ -8,37 +8,43 @@ that's organic) with real recordings bent in where they carry the material:
 - The Marsh: dry reeds. Thousands of crisp leaf-on-leaf grains (sharp onsets, a few loud and many quiet, so it crackles
   dry instead of hissing), stalks clacking, blades fluttering after they spring back; the surge is something parting
   them in pushes that come faster and nearer, then stop dead.
-- Track debris, the writhe: something wet and muscular twisting on itself on the line: lubricated skin sliding (a cavity
-  of slime squeezed shut, gliding in pitch), air and fluid popping out of the folds, suction letting go, strands of mucus
-  breaking; or the same thing thrashing against the rail, which rings.
+- Track debris, the writhe: something wet and muscular twisting on itself on the line: lubricated skin sliding (a
+  cavity of slime squeezed shut, gliding in pitch), air and fluid popping out of the folds, suction letting go, strands
+  of mucus breaking; or the same thing thrashing against the rail, which rings.
 - The Grumbler, gnawing: dry teeth or mandibles on a wooden crate, never wet. Teeth rasping across the grain in runs, a
   splinter torn off, the chip dropping; or slow mandible bites that press (the wood creaks), crunch (its fibres go) and
   tear. The crate's hollow body rings under all of it.
 - The Climbers, scrabbling at the gap: six hooked hands of three fingers each on iron and wood. Every hand lands as a
-  flam of three claw tips; the hands ripple in uneven bursts, a claw skids now and then. Many small hard attacks in a row,
-  which is what tells it from the Dragger's one long rasp.
+  flam of three claw tips; the hands ripple in uneven bursts, a claw skids now and then. Many small hard attacks in a
+  row, which is what tells it from the Dragger's one long rasp.
 - The car fire, through the boards: a real wood fire, not hiss. Smouldering, it's charring wood ticking in little
   flurries over a faint frying seethe, the odd sap pop and a pocket of sap singing as it boils off; alight, it's dense
   crackle that rides the flames' lapping, pops, boards splitting, embers collapsing, and the roar's flutter.
+- The Cinder Hounds, howling close: the pack the far howl comes from, 40-100 m off, so the throat is heard: the breath
+  drawn before, the rough start, the voice breaking upward on the way to the top, the waver while it holds, the fall
+  into breath; a second hound pitched against the first (never in unison), embers sputtering in the breath.
+- The Track Doll, giggling: in the spirit of the kept 'heh'. A child's giggle (an 'h' of breath into a short falling
+  'heh' or 'hih', stopped in the throat) from a head smaller than a child's, rung through porcelain so every syllable
+  leaves a glassy ring; few syllables, long silences, its joints creaking, a porcelain tick, a wooden car's reverb.
 """
 
 import numpy as np
 
 import dsp
+import src
 import synth
 from build import recipe
 from dsp import samples, env, mix, Bus
-import src
 from recipes.kit import scatter, take as kit_take, slap as synth_slap, gravel as kit_gravel
 
 SR = dsp.SR
 
 
-# ---- Shared parts ---------------------------------------------------------------------------------------------------------
+# ---- Shared parts ----------------------------------------------------------------------------------------------------
 
 def burst(rng, length, lo=None, hi=None, attack=0.5):
-    """A short noise burst with a raised-cosine envelope; `attack` is the rise as a share of its length (0 = a hard tick,
-    0.5 = a soft press)."""
+    """A short noise burst with a raised-cosine envelope; `attack` is the rise as a share of its length (0 = a hard
+    tick, 0.5 = a soft press)."""
     n = max(samples(length), 4)
     x = rng.standard_normal(n).astype(np.float32)
     a = max(1, int(n * attack))
@@ -70,12 +76,13 @@ def norm(x):
 
 
 def held(y, lo, hi, drive=9):
-    """Round off the loudest peaks (a soft clip) and hold the result to the tell's band, which also filters off the clip's
-    grit: a texture of sharp grains then carries its level in its body, not in a few spikes."""
-    return dsp.band(dsp.saturate(norm(y), drive), lo, hi)
+    """Hold a sound to its tell's band with its loudest peaks rounded off (a soft clip between two passes of the band
+    filter, the second taking off the clip's grit): a texture of sharp grains then carries its level in its body, not in
+    a few spikes, and can sit at the loudness the tell needs without clipping."""
+    return dsp.band(dsp.saturate(norm(dsp.band(y, lo, hi)), drive), lo, hi)
 
 
-def glide_ring(rng, modes, q, length, glide=-0.05, amp=None, soft=0.0004):
+def glide_ring(rng, modes, q, length, glide=-0.05, soft=0.0004):
     """A thin sheet snapping through its buckle (a tin roof oil-canning): an impulse into modes whose pitch slides by
     `glide` (a share) as the sheet's stiffness changes."""
     n = samples(length)
@@ -85,11 +92,11 @@ def glide_ring(rng, modes, q, length, glide=-0.05, amp=None, soft=0.0004):
     out = np.zeros(n, np.float32)
     for i, f in enumerate(modes):
         fc = env([(0, f), (length * 0.25, f * (1 + glide)), (length, f * (1 + glide * 1.2))], length, curve="exp")
-        out += dsp.sweep_filter(x, "bp", dsp.fit(fc, n), q=q, block=64) * (amp[i] if amp else 1.0 / (1 + i * 0.4))
+        out += dsp.sweep_filter(x, "bp", dsp.fit(fc, n), q=q, block=64) / (1 + i * 0.4)
     return norm(out)
 
 
-# ---- Tippy Toesie: tiptoeing (1-2 kHz, one step per take, per surface) -----------------------------------------------------
+# ---- Tippy Toesie: tiptoeing (1-2 kHz, one step per take, per surface) -----------------------------------------------
 
 TIPPY = (1000, 2000)
 
@@ -99,7 +106,7 @@ def _pace(takes, rng):
     order = list(range(len(takes))) * 2
     t, parts = 0.3, []
     for i, k in enumerate(order):
-        parts.append((t, takes[k], -9 + 9 * i / (len(order) - 1)))
+        parts.append((t, takes[k], -5 + 5 * i / (len(order) - 1)))
         t += rng.uniform(0.8, 1.7) * (1.6 if rng.random() < 0.2 else 1.0)   # now and then it stops to listen
     b = Bus(t + 1.0)
     for at, x, db in parts:
@@ -117,11 +124,12 @@ def _settle(rng, body, q):
 
 
 def tiptoe_give_wood(rng, k):
-    """A floorboard taking a careful weight: the pad, the board's give (a rough creak or its nail's squeak), the settle."""
+    """A floorboard taking a careful weight: the pad, the board's give (a rough creak or its nail's squeak), the settle.
+    """
     board = [f * rng.uniform(0.9, 1.25) for f in synth.WOOD]
     b = Bus(1.0)
     b.at(0.01, _pad(rng, board), -12)
-    # how the weight comes on: some steps creak (board rubbing board), some squeak (a nail in its joist), one only ticks
+    # how the weight comes on: some steps creak (board rubbing board), some squeak (its nail in the joist), one hardly
     kind = ["creak", "squeak", "creak", "ticks", "squeak", "creak"][k]
     t = rng.uniform(0.04, 0.09)
     if kind == "creak":
@@ -137,9 +145,12 @@ def tiptoe_give_wood(rng, k):
         c = synth.creak(cl, rate, rng, body=[f0 * 2.6, f0 * 3.1, board[3]], q=6, jitter=0.06, grit=0.0,
                         shape=env([(0, 0), (cl * 0.3, 1), (cl * 0.8, 0.7), (cl, 0)], cl))
         b.at(t, c, rng.uniform(-3, 0))
-    else:   # the board shifting on its nails without a creak
-        for i in range(3):
-            b.at(t + 0.02 + i * rng.uniform(0.06, 0.14), _settle(rng, board, 9), -3 - 4 * i)
+    else:   # the board shifting on its nails: two ticks and the start of a creak that doesn't come
+        for i in range(2):
+            b.at(t + 0.02 + i * rng.uniform(0.06, 0.12), _settle(rng, board, 22), -4 - 3 * i)
+        cl = rng.uniform(0.12, 0.18)
+        b.at(t + 0.25, synth.creak(cl, env([(0, 35), (cl, 70)], cl), rng, body=board, q=20, jitter=0.4,
+                                   shape=env([(0, 0), (cl * 0.3, 1), (cl, 0)], cl)), -3)
     # the board settling as the weight comes fully onto it
     b.at(rng.uniform(0.35, 0.6), _settle(rng, board, 12), rng.uniform(-14, -9))
     y = dsp.room(b.x, "car", wet=0.18, rng=rng)
@@ -147,7 +158,8 @@ def tiptoe_give_wood(rng, k):
 
 
 def tiptoe_give_roof(rng, k):
-    """A roof sheet under a careful weight: the pad's dull tup, the sheet oil-canning through its buckle, a tick at a nail."""
+    """A roof sheet under a careful weight: the pad's dull tup, the sheet oil-canning through its buckle, a tick at a
+    nail."""
     sheet = [f * rng.uniform(0.85, 1.2) for f in synth.TIN]
     modes = [m for m in sheet if 800 < m < 2400]
     b = Bus(1.0)
@@ -169,8 +181,8 @@ def tiptoe_give_roof(rng, k):
 
 
 def _squeak(rng, f0, length, body_q=2.0):
-    """Skin stick-slipping on a smooth surface: a short squeal whose pitch rides up as the grip tightens and lets go, with
-    the breathy hiss of the skin sliding under it."""
+    """Skin stick-slipping on a smooth surface: a short squeal whose pitch rides up as the grip tightens and lets go,
+    with the breathy hiss of the skin sliding under it."""
     rate = env([(0, f0), (length * 0.55, f0 * rng.uniform(1.1, 1.25)), (length, f0 * rng.uniform(0.92, 1.02))], length,
                "exp")
     shape = env([(0, 0), (length * 0.2, 1), (length * 0.75, 0.8), (length, 0)], length)
@@ -196,7 +208,7 @@ def tiptoe_skin(rng, k, mat):
     """A bare child-sized foot, close: its toenails, the pad, the skin squeaking as it grips, the sole peeling off."""
     if mat == "wood":
         body = [f * rng.uniform(0.95, 1.2) for f in synth.WOOD]
-        bq, f0, peel_len = 9, rng.uniform(1100, 1350), rng.uniform(0.025, 0.05)
+        bq, f0, peel_len = 9, rng.uniform(1100, 1350), rng.uniform(0.04, 0.08)
     else:
         body = [f * rng.uniform(0.85, 1.15) for f in synth.TIN]
         bq, f0, peel_len = 45, rng.uniform(1300, 1600), rng.uniform(0.04, 0.08)
@@ -213,17 +225,18 @@ def tiptoe_skin(rng, k, mat):
     if squeak:
         b.at(t + rng.uniform(0.05, 0.14), _squeak(rng, f0, rng.uniform(0.05, 0.13)), rng.uniform(-6, -3))
     if peel:
-        b.at(rng.uniform(0.3, 0.5), _peel(rng, body, bq, peel_len), rng.uniform(-6, -3))
+        b.at(rng.uniform(0.3, 0.5), _peel(rng, body, bq * 2, peel_len), rng.uniform(-6, -3))
     y = dsp.room(b.x, "car" if mat == "wood" else "night", wet=0.15 if mat == "wood" else 0.05, rng=rng)
     return dsp.band(dsp.fade(dsp.fit(y, samples(1.1)), 0, 0.3), *TIPPY)
 
 
 for _mat, _fn, _how in (
         ("wood", tiptoe_give_wood,
-         """A bare child-sized foot put down with care on a floorboard. The toe pad is pressed, not struck (a soft rise of
-         noise rung through a board's modes, so no knock), then the board takes the weight: a rough short creak of board
-         on board, or its nail squeaking in the joist, or just a settling tick. No breath, no doubles: only the board's
-         give, which is what sneaking on boards sounds like. Small wooden car's reverb."""),
+         """A bare child-sized foot put down with care on a floorboard. The toe pad is pressed, not struck (a soft rise
+         of noise rung through a board's modes, so no knock), then the board takes the weight: a rough short creak of
+         board on board, or its nail squeaking in the joist, or only a couple of ticks as it shifts on its nails. No
+         breath, no doubles: only the board's give, which is what sneaking on boards sounds like. Small wooden car's
+         reverb."""),
         ("roof", tiptoe_give_roof,
          """The same careful bare foot on the car roof's tin: a dull 'tup' of the pad on the sheet, then the sheet
          oil-canning (a snap through its buckle, its ring sliding down in pitch as it gives) and sometimes snapping back
@@ -234,19 +247,19 @@ for _mat, _fn, _how in (
 
 
 for _mat, _how in (
-        ("wood", """The bare skin of a child-sized foot, close, on a floorboard: its toenails touch first, a tiny dry run of
-         clicks one toe after another; then the pad presses (soft, no knock); then either the skin squeaks on the varnish
-         as it grips (a short stick-slip squeal) or the sole peels off as the foot lifts (a dense run of tiny ticks that
-         thins out). Synthesised, rung through a board's modes, in a wooden car's reverb."""),
-        ("roof", """The same bare foot on the roof tin: toenails ticking on the sheet (its modes ring a little longer than
-         a board's), the pad, the skin squeaking higher on the painted metal or peeling off it slowly, tacky on the
+        ("wood", """The bare skin of a child-sized foot, close, on a floorboard: its toenails touch first, a tiny dry
+         run of clicks one toe after another; then the pad presses (soft, no knock); then either the skin squeaks on the
+         varnish as it grips (a short stick-slip squeal) or the sole peels off as the foot lifts (a dense run of tiny
+         ticks that thins out). Synthesised, rung through a board's modes, in a wooden car's reverb."""),
+        ("roof", """The same bare foot on the roof tin: toenails ticking on the sheet (its modes ring a little longer
+         than a board's), the pad, the skin squeaking higher on the painted metal or peeling off it slowly, tacky on the
          paint. Synthesised from the tin's modes, almost dry.""")):
-    recipe("tell-tippy", "tiptoe", "skin", "One bare step, close: toenails, the pad, the skin squeaking or peeling off the "
-           "surface", _how, takes=6, mat=_mat, band=TIPPY, lufs=-26, preview=_pace)(
+    recipe("tell-tippy", "tiptoe", "skin",
+           "One bare step, close: toenails, the pad, the skin squeaking or peeling off the surface", _how, takes=6, mat=_mat, band=TIPPY, lufs=-26, preview=_pace)(
         lambda rng, k, _m=_mat: tiptoe_skin(rng, k, _m))
 
 
-# ---- The Marsh: reeds rustling (12-15 kHz, a loop) ------------------------------------------------------------------------
+# ---- The Marsh: reeds rustling (12-15 kHz, a loop) -------------------------------------------------------------------
 
 MARSH = (12000, 15000)
 
@@ -263,8 +276,9 @@ def periodic(rng, length, harmonics=4, lo=0.0, hi=1.0):
 
 
 def leaves(rng, length, rate, f=(9000, 17000), dur=(0.002, 0.014), alpha=2.4):
-    """Dry blades rubbing: grains with a sharp onset and a quick decay, Poisson in time at `rate` a second (a constant or
-    a curve), loudness drawn from a power law so a few crack out of many quiet ones. That spread is what makes it dry."""
+    """Dry blades rubbing: grains with a sharp onset and a quick decay, Poisson in time at `rate` a second (a constant
+    or a curve), loudness drawn from a power law so a few crack out of many quiet ones. That spread is what makes it
+    dry."""
     n = samples(length)
     out = np.zeros(n, np.float32)
     rc = synth.curve(rate, n)
@@ -289,40 +303,42 @@ def stalk(rng):
     return synth.click(f, q=7, length=0.01, rng=rng, body=[f, f * 2.76, f * 5.4])
 
 
-def push(rng, length, bright=1.0):
-    """Something pushing through a clump: blades dragged along it (a dense swell of grains that brightens as it moves
-    faster), the stalks clacking as they spring back, the blades fluttering after."""
+def push(rng, length):
+    """Something pushing through a clump: blades dragged along it (a dense swell of grains), the stalks clacking as they
+    spring back, the blades shivering after."""
     L = length + 0.6
     b = Bus(L)
-    dense = leaves(rng, length, rng.uniform(1800, 3500), f=(8000 * bright, 17000), dur=(0.002, 0.02))
+    dense = leaves(rng, length, rng.uniform(1800, 3500), f=(8000, 17000), dur=(0.002, 0.02))
     b.at(0, dsp.shaped(dense, [(0, 0), (length * rng.uniform(0.35, 0.6), 1), (length, 0)]))
     for _ in range(rng.integers(2, 6)):
         b.at(length * rng.uniform(0.5, 1.1), stalk(rng), rng.uniform(-14, -4))
     fl = rng.uniform(16, 30)   # blades still shivering once it's through
     tail = leaves(rng, 0.5, 900, f=(10000, 17000))
-    tail *= (0.5 + 0.5 * np.sin(2 * np.pi * fl * np.arange(len(tail)) / SR)) * env([(0, 1), (0.5, 0)], 0.5, "exp")[:len(tail)]
+    shiver = 0.5 + 0.5 * np.sin(2 * np.pi * fl * np.arange(len(tail)) / SR)
+    tail *= shiver * dsp.fit(env([(0, 1), (0.5, 0)], 0.5, "exp"), len(tail))
     b.at(length * 0.85, tail, -6)
     return b.x
 
 
 def surge(rng, b, start, pushes, gap0, gap1, db0, db1):
-    """A run of pushes at gaps shrinking from gap0 to gap1 and levels rising (it's coming), then nothing (it lost you)."""
+    """A run of pushes at gaps shrinking from gap0 to gap1 and levels rising (it's coming), then nothing (it lost you).
+    """
     t = start
     for i in range(pushes):
         k = i / max(pushes - 1, 1)
         L = rng.uniform(0.16, 0.34) * (1.2 - 0.4 * k)
-        b.at(t, push(rng, L, bright=1.2 - 0.3 * k), db0 + (db1 - db0) * k + rng.uniform(-1.5, 1.5))
+        b.at(t, push(rng, L), db0 + (db1 - db0) * k + rng.uniform(-1.5, 1.5))
         t += (gap0 + (gap1 - gap0) * k) * rng.uniform(0.8, 1.25)
     return t
 
 
 @recipe("tell-marsh", "reeds", "parting",
-        "Dry reeds stirring in slow swells; something parts them in pushes that come faster and nearer, then stops dead",
-        """Synthesised dry reeds: thousands of leaf-on-leaf grains with sharp onsets and a power-law spread of loudness (a
-        few crack out, most are tiny), so it rustles dry instead of hissing; hollow stalks clacking; blades shivering after
-        they spring back. The bed swells slowly and unevenly. Twice a loop something parts them: a small run of three
-        pushes, then a long creeping one of seven that comes faster, brighter and nearer and stops dead (it lost you), the
-        reeds settling after. Held to 12-15 kHz, above everything the train makes.""",
+        "Dry reeds stirring in slow swells; something parts them in pushes coming faster and nearer, then stops dead",
+        """Synthesised dry reeds: thousands of leaf-on-leaf grains with sharp onsets and a power-law spread of loudness
+        (a few crack out, most are tiny), so it rustles dry instead of hissing; hollow stalks clacking; blades shivering
+        after they spring back. The bed swells slowly and unevenly. Twice a loop something parts them: a small run of
+        three pushes, then a long creeping one of seven that comes faster, brighter and nearer and stops dead (it lost
+        you), the reeds settling after. Held to 12-15 kHz, above everything the train makes.""",
         takes=1, loop=True, band=MARSH, lufs=-26, seconds=12)
 def reeds_parting(rng, k):
     L = 12.0
@@ -346,8 +362,8 @@ PAPER = [("kenney_rpg-audio:bookFlip1", 0.27, 0.56), ("kenney_rpg-audio:bookFlip
 
 
 def blades(rng, length, rate):
-    """Dry blades from real paper: slivers of book pages riffling, an octave up, sharp at the front, scattered like leaves
-    (Poisson at `rate` a second, power-law loud)."""
+    """Dry blades from real paper: slivers of book pages riffling, an octave up, sharp at the front, scattered like
+    leaves (Poisson at `rate` a second, power-law loud)."""
     srcs = [kit_take(k, a, b - a) for k, a, b in PAPER]
     n = samples(length)
     out = np.zeros(n, np.float32)
@@ -382,10 +398,10 @@ def snap_stem(rng):
 
 @recipe("tell-marsh", "reeds", "wading",
         "Reeds combed by slow gusts; something wades through them, its strides quickening, stems snapping, then still",
-        """The reeds made from real paper: slivers of riffled book pages an octave and more up, scattered like dry blades
-        and combed by two slow gusts. Inside each gust something wades: a stride of paired swishes (one leg, the other),
-        careful in the first gust, quickening to a lunge in the second; dry stems snap under it (a run of fibre ticks and
-        the halves knocking) and the bent reeds spring back after it stops. Held to 12-15 kHz.""",
+        """The reeds made from real paper: slivers of riffled book pages an octave and more up, scattered like dry
+        blades and combed by two slow gusts. Inside each gust something wades: a stride of paired swishes (one leg, the
+        other), careful in the first gust, quickening to a lunge in the second; dry stems snap under it (a run of fibre
+        ticks and the halves knocking) and the bent reeds spring back after it stops. Held to 12-15 kHz.""",
         sources=[k for k, _, _ in PAPER], takes=1, loop=True, band=MARSH, lufs=-26, seconds=12)
 def reeds_wading(rng, k):
     L = 12.0
@@ -406,20 +422,21 @@ def reeds_wading(rng, k):
             t += (gap0 + (gap1 - gap0) * q) * (1.25 if i % 2 else 0.75) * rng.uniform(0.9, 1.1)
         for _ in range(rng.integers(3, 6)):   # the bent reeds springing back once it stops
             sl = rng.uniform(0.08, 0.16)
-            b.at(t + rng.uniform(0.0, 0.9), dsp.shaped(blades(rng, sl, 900), [(0, 1), (sl, 0)]), db1 - rng.uniform(8, 14))
+            back = dsp.shaped(blades(rng, sl, 900), [(0, 1), (sl, 0)])
+            b.at(t + rng.uniform(0.0, 0.9), back, db1 - rng.uniform(8, 14))
             b.at(t + rng.uniform(0.1, 1.3), stalk(rng), db1 - rng.uniform(14, 22))
     y = dsp.wrap(dsp.room(b.x, "night", wet=0.15, rng=rng), n)
     return held(y, *MARSH)
 
 
-# ---- Track debris: the wet writhe (400 Hz-2 kHz, one-shots fired at uneven gaps) -------------------------------------------
+# ---- Track debris: the wet writhe (400 Hz-2 kHz, one-shots fired at uneven gaps) -------------------------------------
 
 DEBRIS = (400, 2000)
 
 
 def slide(rng, length, f0, f1, q=None):
-    """Wet skin sliding on wet skin: the slime between them squeezed through a gap that opens or closes, so its resonance
-    glides; fluttering where the film breaks and re-forms."""
+    """Wet skin sliding on wet skin: the slime between them squeezed through a gap that opens or closes, so its
+    resonance glides; fluttering where the film breaks and re-forms."""
     n = synth.noise(length, rng, "pink")
     fc = env([(0, f0), (length * rng.uniform(0.4, 0.7), np.sqrt(f0 * f1)), (length, f1)], length, "exp")
     y = dsp.sweep_filter(n, "bp", fc, q=q or rng.uniform(5, 9), block=64)
@@ -453,7 +470,8 @@ def contraction(rng, length):
     """One squirm: a slide gliding up or down, air popping from the folds through it, the fold letting go at the end."""
     b = Bus(length + 0.25)
     up = rng.random() < 0.6
-    f0, f1 = (rng.uniform(380, 560), rng.uniform(1100, 1700)) if up else (rng.uniform(1200, 1700), rng.uniform(400, 600))
+    lo, hi = rng.uniform(380, 600), rng.uniform(1100, 1700)
+    f0, f1 = (lo, hi) if up else (hi, lo)
     b.at(0, slide(rng, length, f0, f1))
     pops = synth.bubbles(length, rng.uniform(25, 70), 450, 1900, rng, rise=(0.1, 0.7))
     b.at(0, norm(pops) * env([(0, 0.3), (length * 0.5, 1), (length, 0.4)], length)[:len(pops)], rng.uniform(-8, -4))
@@ -466,10 +484,10 @@ def contraction(rng, length):
 @recipe("tell-track-debris", "writhe", "coils",
         "A brief wet writhe: slimy coils squirming over each other in two to four contractions, popping and letting go",
         """Something wet and muscular twisting on itself, made from models of what's wet: skin sliding on skin through a
-        film of slime (pink noise squeezed through a gap whose resonance glides up or down, fluttering as the film breaks),
-        air popping out of the folds (bubbles), the fold's suction letting go (a soft click and the bubble rushing in), and
-        strands of slime snapping. Two to four contractions per take, each a little weaker, so it reads as a squirm, never a
-        footstep. Held to 400 Hz-2 kHz; the game fires it at uneven gaps.""",
+        film of slime (pink noise squeezed through a gap whose resonance glides up or down, fluttering as the film
+        breaks), air popping out of the folds (bubbles), the fold's suction letting go (a soft click and the bubble
+        rushing in), and strands of slime snapping. Two to four contractions per take, each a little weaker, so it reads
+        as a squirm, never a footstep. Held to 400 Hz-2 kHz; the game fires it at uneven gaps.""",
         takes=4, band=DEBRIS, lufs=-20, preview=lambda takes, rng: scatter(takes + takes[:2], rng, (0.9, 2.6)))
 def writhe_coils(rng, k):
     n_c = [3, 2, 4, 3][k]
@@ -483,8 +501,8 @@ def writhe_coils(rng, k):
     return dsp.band(y, *DEBRIS)
 
 
-WET = ["kenney_impact-sounds:footstep_snow_000", "kenney_impact-sounds:footstep_grass_001", "sfx_100_v2:footstep_wet_01",
-       "sfx_100_v2:wood_01"]
+WET = ["kenney_impact-sounds:footstep_snow_000", "kenney_impact-sounds:footstep_grass_001",
+       "sfx_100_v2:footstep_wet_01", "sfx_100_v2:wood_01"]
 RAIL = [340, 940, 1840, 3040]   # a rail's bending modes (they go as (2n+1)^2): heavy, so it only rings this high
 
 
@@ -503,12 +521,12 @@ def rail_slap(rng):
 
 
 @recipe("tell-track-debris", "writhe", "rail",
-        "A brief wet thrash on the line: slaps on the rail (which rings, choked), the body dragging across it in between",
+        "A brief wet thrash on the line: slaps on the rail (which rings, choked), the body dragging across it between",
         """The same wet thing, thrashing against the rail ahead: each slap is a skin slap over real slush, squish and a
-        wet footstep (pitched down), with the rail ringing at its bending modes and choked at once by the weight lying on
-        it, and the ballast shifting; between slaps, the body drags wetly across the rail head (a gliding slime squeeze with
-        bubbles). Slap, drag, a quick double slap, a last squirm. The rail's ring is what says it's on the line. Held to
-        400 Hz-2 kHz.""",
+        wet footstep (pitched down), with the rail ringing at its bending modes and choked at once by the weight lying
+        on it, and the ballast shifting; between slaps, the body drags wetly across the rail head (a gliding slime
+        squeeze with bubbles). Slap, drag, a quick double slap, a last squirm. The rail's ring is what says it's on the
+        line. Held to 400 Hz-2 kHz.""",
         sources=WET, takes=4, band=DEBRIS, lufs=-20,
         preview=lambda takes, rng: scatter(takes + takes[:2], rng, (0.9, 2.6)))
 def writhe_rail(rng, k):
@@ -518,8 +536,9 @@ def writhe_rail(rng, k):
                ["slap", "slap", "drag", "squirm"], ["slap", "drag", "slap", "drag"]][k]
     for i, what in enumerate(pattern):
         if what == "slap":
-            b.at(t, rail_slap(rng), -2 * i * 0.5)
-            t += rng.uniform(0.09, 0.16) if i + 1 < len(pattern) and pattern[i + 1] == "slap" else rng.uniform(0.12, 0.2)
+            b.at(t, rail_slap(rng), -i)
+            double = i + 1 < len(pattern) and pattern[i + 1] == "slap"
+            t += rng.uniform(0.09, 0.16) if double else rng.uniform(0.12, 0.2)
         elif what == "drag":
             L = rng.uniform(0.25, 0.4)
             d = mix(slide(rng, L, rng.uniform(500, 700), rng.uniform(1000, 1500), q=5),
@@ -534,7 +553,7 @@ def writhe_rail(rng, k):
     return dsp.band(y, *DEBRIS)
 
 
-# ---- The Grumbler: gnawing on the crates (1.4-2.2 kHz, a loop) ---------------------------------------------------------------
+# ---- The Grumbler: gnawing on the crates (1.4-2.2 kHz, a loop) -------------------------------------------------------
 
 GNAW = (1400, 2200)
 
@@ -546,8 +565,8 @@ def crate(rng):
 
 
 def fibres(rng, length, rate, body, q=9):
-    """Wood fibres giving way: an uneven train of tiny breaks at `rate` a second (a constant or a curve), rung through the
-    crate. Fast, it's a rasp; slower, a crackle; decelerating, a tear."""
+    """Wood fibres giving way: an uneven train of tiny breaks at `rate` a second (a constant or a curve), rung through
+    the crate. Fast, it's a rasp; slower, a crackle; decelerating, a tear."""
     n = samples(length)
     x = np.zeros(n, np.float32)
     rc = synth.curve(rate, n)
@@ -584,7 +603,8 @@ CRACK = "sfx_100_v2:misc_35"
 
 
 def splinter(rng):
-    """A chunk torn off: a real piece of wood breaking, cut short and bent up into the crate's band, over a quick tear."""
+    """A chunk torn off: a real piece of wood breaking, cut short and bent up into the crate's band, over a quick tear.
+    """
     x = src.get(CRACK)
     a = rng.uniform(0.1, 0.32)
     c = dsp.vari(dsp.trim(x, a, rng.uniform(0.07, 0.12)), rng.uniform(-2, 3))
@@ -593,12 +613,12 @@ def splinter(rng):
 
 
 @recipe("tell-grumbler", "gnaw", "incisors",
-        "Teeth rasping across a crate's grain in quick runs; a splinter torn off and dropped, the crate creaking between",
+        "Teeth rasping across a crate's grain in quick runs; a splinter torn off and dropped, the crate creaking",
         """Dry gnawing, never wet: each stroke of the teeth across the grain is a rasp of breaking fibres (a fast uneven
-        train of tiny breaks rung through a crate slat's modes) with the scrape's hiss under it, strong and weak in turn as
-        the jaw works, at 7-11 a second in runs of half a second to two seconds. Between runs it tears a splinter off (a
-        real piece of wood breaking, bent into the band, over a quick tear), the chip bounces on the lid, the crate creaks
-        as it shifts its weight. Held to 1.4-2.2 kHz.""",
+        train of tiny breaks rung through a crate slat's modes) with the scrape's hiss under it, strong and weak in turn
+        as the jaw works, at 7-11 a second in runs of half a second to two seconds. Between runs it tears a splinter off
+        (a real piece of wood breaking, bent into the band, over a quick tear), the chip bounces on the lid, the crate
+        creaks as it shifts its weight. Held to 1.4-2.2 kHz.""",
         sources=[CRACK], takes=1, loop=True, band=GNAW, lufs=-22, seconds=12)
 def gnaw_incisors(rng, k):
     L = 12.0
@@ -644,12 +664,12 @@ def bite(rng, body):
 
 
 @recipe("tell-grumbler", "gnaw", "mandibles",
-        "Slow mandible bites into a crate, left and right: press, crunch, tear; mouthparts clicking as it chews between",
-        """A spider's jaws, not a rodent's: slower bites, two or three a second in sets of three to six, each one a press
-        (the slat creaking as it compresses), a crunch (a dense burst of fibres crushing) and a tear (a rip whose breaks slow
-        as the splinter comes free), the left and right mandibles biting into slightly different wood. Between sets its
-        mouthparts work the chip with quick chitin clicks and spit it onto the lid. All dry, synthesised and rung through a
-        crate slat's modes. Held to 1.4-2.2 kHz.""",
+        "Slow mandible bites into a crate, left and right: press, crunch, tear; mouthparts clicking as it chews",
+        """A spider's jaws, not a rodent's: slower bites, two or three a second in sets of three to six, each one a
+        press (the slat creaking as it compresses), a crunch (a dense burst of fibres crushing) and a tear (a rip whose
+        breaks slow as the splinter comes free), the left and right mandibles biting into slightly different wood.
+        Between sets its mouthparts work the chip with quick chitin clicks and spit it onto the lid. All dry,
+        synthesised and rung through a crate slat's modes. Held to 1.4-2.2 kHz.""",
         takes=1, loop=True, band=GNAW, lufs=-22, seconds=12)
 def gnaw_mandibles(rng, k):
     L = 12.0
@@ -671,13 +691,14 @@ def gnaw_mandibles(rng, k):
     return held(y, *GNAW, drive=6)
 
 
-# ---- The Climbers: scrabbling at the gap (2-5 kHz, one-shots) ----------------------------------------------------------------
+# ---- The Climbers: scrabbling at the gap (2-5 kHz, one-shots) --------------------------------------------------------
 
 CLIMB = (2000, 5000)
 
 
 def claw(rng, iron):
-    """One hooked claw tip striking: a hard tick into iron (a short bright ring, it's thick) or into wood (dull, at once)."""
+    """One hooked claw tip striking: a hard tick into iron (a short bright ring, it's thick) or into wood (dull, at
+    once)."""
     x = burst(rng, rng.uniform(0.0001, 0.0003), attack=0.05)
     if iron:
         f = rng.uniform(2400, 4600)
@@ -714,18 +735,17 @@ def sucker(rng):
 
 @recipe("tell-climbers", "scrabble", "claws",
         "Hooked three-fingered hands scrambling for a grip on the coupler and the car end: uneven clattering bursts",
-        """Six hooked hands, three claws each, scrambling up the gap: every hand lands as a flam of three claw tips (hard
-        ticks into iron with a short bright ring, or dull into the wood of the car end), four to seven hands rippling in
-        each uneven burst, a claw skidding now and then (a short fast stick-slip), and once in a while the lamprey mouth
-        under its head kissing onto the iron. Two to four bursts per take at uneven gaps: a clatter of many small attacks,
-        never one rasp. Synthesised. Held to 2-5 kHz.""",
+        """Six hooked hands, three claws each, scrambling up the gap: every hand lands as a flam of three claw tips
+        (hard ticks into iron with a short bright ring, or dull into the wood of the car end), four to seven hands
+        rippling in each uneven burst, a claw skidding now and then (a short fast stick-slip), and once in a while the
+        lamprey mouth under its head kissing onto the iron. Two to four bursts per take at uneven gaps: a clatter of
+        many small attacks, never one rasp. Synthesised. Held to 2-5 kHz.""",
         takes=4, band=CLIMB, lufs=-20, preview=lambda takes, rng: scatter(takes, rng, (0.5, 1.4)))
 def scrabble_claws(rng, k):
     b = Bus(2.0)
     t = 0.0
-    for burst_i in range([3, 2, 4, 3][k]):
-        n_h = rng.integers(4, 8)
-        for h in range(n_h):
+    for _ in range([3, 2, 4, 3][k]):
+        for _ in range(rng.integers(4, 8)):
             b.at(t, hand(rng, rng.random() < 0.6), rng.uniform(-6, 0))
             t += rng.uniform(0.018, 0.06)
         if rng.random() < 0.6:
@@ -767,11 +787,11 @@ def tripod(rng, iron):
 @recipe("tell-climbers", "scrabble", "tripod",
         "Climbing the gap three hands at a time: quick clattering steps up the iron, then the wood, a claw skidding",
         """Six-limbed things move three limbs at a time, so this one climbs in tripods: each step is three hands landing
-        together, each hand three claw tips a few milliseconds apart, cut from real strikes (light metal and wood impacts
-        trimmed to their first few milliseconds, the claw's contact before the object rings, and pitched up). Steps come
-        quick (6-9 a second, left tripod then right) in runs that start on the coupler's iron and go up onto the car end's
-        wood, and one run ends with a claw skidding (a real scrape, bent up). A clatter with a gait in it. Held to
-        2-5 kHz.""",
+        together, each hand three claw tips a few milliseconds apart, cut from real strikes (light metal and wood
+        impacts trimmed to their first few milliseconds, the claw's contact before the object rings, and pitched up).
+        Steps come quick (6-9 a second, left tripod then right) in runs that start on the coupler's iron and go up onto
+        the car end's wood, and one run ends with a claw skidding (a real scrape, bent up). A clatter with a gait in it.
+        Held to 2-5 kHz.""",
         sources=IRON_TIPS + WOOD_TIPS + [SCRAPE], takes=4, band=CLIMB, lufs=-20,
         preview=lambda takes, rng: scatter(takes, rng, (0.5, 1.4)))
 def scrabble_tripod(rng, k):
@@ -796,7 +816,7 @@ def scrabble_tripod(rng, k):
     return held(dsp.fade(y, 0, 0.2), *CLIMB, drive=9)
 
 
-# ---- The car fire: crackle through the boards (6-9 kHz, two loops) ------------------------------------------------------------
+# ---- The car fire: crackle through the boards (6-9 kHz, two loops) ---------------------------------------------------
 
 FIRE = (6000, 9000)
 
@@ -812,9 +832,9 @@ def sap_pop(rng, big=False):
     return mix(x, norm(body) * np.max(np.abs(x)) * rng.uniform(0.6, 1.2))
 
 
-def crackling(rng, length, rate, big=0.05, alpha=1.6):
+def crackling(rng, length, rate, big=0.05, alpha=1.6, cap=1.0):
     """Wood crackling: sap pops Poisson in time at `rate` a second (a constant or a curve), loudness from a power law
-    (a few loud, a mass of tiny ones), a share `big` of them ringing their wood."""
+    (a few loud, a mass of tiny ones; `cap` the loudest), a share `big` of them ringing their wood."""
     n = samples(length)
     out = np.zeros(n, np.float32)
     rc = synth.curve(rate, n)
@@ -826,7 +846,7 @@ def crackling(rng, length, rate, big=0.05, alpha=1.6):
             break
         is_big = rng.random() < big
         p = sap_pop(rng, is_big)
-        amp = min(1.0, 0.04 * rng.pareto(alpha) + 0.02) * (2.5 if is_big else 1.0)
+        amp = min(cap, 0.04 * rng.pareto(alpha) + 0.02) * (2.5 if is_big else 1.0)
         m = min(len(p), n - a)
         out[a:a + m] += p[:m] * amp
     return out
@@ -864,43 +884,43 @@ def ember_fall(rng):
     return dsp.shaped(crackling(rng, L, env([(0, 220), (L, 15)], L), big=0.3, alpha=2.0), [(0, 1), (L, 0.2)])
 
 
-def through_boards(y, rng, L, n):
+def through_boards(y, rng, n):
     """Heard from outside the burning car: the fire's own box of reverb, folded round so the loop stays one cycle."""
     return dsp.wrap(dsp.room(y, "car", wet=0.3, rng=rng), n)
 
 
 @recipe("tell-car-fire", "smoulder", "char",
-        "Wood smouldering in a shut car: charring ticks in little flurries, a sap pop now and then, a pocket of sap singing",
-        """A real wood fire's small sounds, synthesised from what they are: charring wood ticking as it cracks (tiny sharp
-        sap ticks, a few loud and most faint, coming in little flurries and lulls), the odd bigger pop whose wood chunk
-        rings for a moment, a board checking with a short crack, a pocket of sap boiling out through the end grain and
-        singing thinly as it goes, and under it all a faint frying seethe of embers. No steam, no hiss bed. Inside a
+        "Wood smouldering in a shut car: charring ticks in little flurries, the odd sap pop, a pocket of sap singing",
+        """A real wood fire's small sounds, synthesised from what they are: charring wood ticking as it cracks (tiny
+        sharp sap ticks, a few loud and most faint, coming in little flurries and lulls), the odd bigger pop whose wood
+        chunk rings for a moment, a board checking with a short crack, a pocket of sap boiling out through the end grain
+        and singing thinly as it goes, and under it all a faint frying seethe of embers. No steam, no hiss bed. Inside a
         wooden car, heard through its boards. Held to 6-9 kHz.""",
-        takes=1, loop=True, band=FIRE, lufs=-24, seconds=12)
+        takes=1, loop=True, band=FIRE, lufs=-31.5, seconds=12)
 def fire_smoulder(rng, k):
     L = 12.0
     n = samples(L)
     b = Bus(L)
     flurry = periodic(rng, L, 6, 0.0, 1.0) ** 3
     b.at(0, crackling(rng, L, 3 + 30 * flurry, big=0.08), 0)
-    b.at(0, crackling(rng, L, 220 + 120 * periodic(rng, L, 3), big=0.0, alpha=3.0), -10)    # the seethe
+    b.at(0, crackling(rng, L, 260 + 160 * periodic(rng, L, 3), big=1.0, alpha=3.0, cap=0.1), -19)    # embers seething
     for _ in range(rng.integers(7, 12)):
         b.at(rng.uniform(0, L - 0.2), sap_pop(rng, True), rng.uniform(-3, 2))
     b.at(rng.uniform(1, L - 1), split(rng), -6)
     for t0 in (rng.uniform(1.0, 4.0), rng.uniform(6.5, 9.5)):
-        b.at(t0, sap_sing(rng, rng.uniform(0.8, 1.6)), -16)
-    y = through_boards(b.x, rng, L, n)
+        b.at(t0, sap_sing(rng, rng.uniform(0.8, 1.6)), -27)
+    y = through_boards(b.x, rng, n)
     return held(y, *FIRE, drive=9)
 
 
 @recipe("tell-car-fire", "alight", "blaze",
         "The car alight: dense crackle riding the flames' lapping, pops, boards splitting, embers collapsing, a roar",
-        """The same wood fire, gone: crackle thick enough to be a texture, its density riding the flames' lapping (flutters
-        of 3-10 a second inside slow surges), big sap pops ringing their wood, a board splitting every couple of seconds
-        (the crack running along the grain, then the board's knock), a spill of embers collapsing, sap singing in two places,
-        and the roar itself as fluttering turbulence. Heard through the burning car's boards. Held to 6-9 kHz, with a
-        little of the roar's low body left under it.""",
-        takes=1, loop=True, band=FIRE, lufs=-20, seconds=12)
+        """The same wood fire, gone: crackle thick enough to be a texture, its density riding the flames' lapping
+        (flutters of 3-10 a second inside slow surges), big sap pops ringing their wood, a board splitting every couple
+        of seconds (the crack running along the grain, then the board's knock), a spill of embers collapsing, sap
+        singing in two places, and the roar itself as fluttering turbulence. Heard through the burning car's boards.
+        Held to 6-9 kHz, with a little of the roar's low body left under it.""",
+        takes=1, loop=True, band=FIRE, lufs=-25, seconds=12)
 def fire_alight(rng, k):
     L = 12.0
     n = samples(L)
@@ -908,18 +928,267 @@ def fire_alight(rng, k):
     surge = periodic(rng, L, 3, 0.45, 1.0)
     lap = np.clip(dsp.lp(rng.standard_normal(n).astype(np.float32), 9) * 18 + 0.55, 0.05, 1.6)
     flame = surge * lap
-    b.at(0, crackling(rng, L, 120 + 480 * flame, big=0.04), 0)
-    b.at(0, crackling(rng, L, 4 + 10 * surge, big=0.6, alpha=1.4), -1)                    # the pops
+    b.at(0, crackling(rng, L, 200 + 800 * flame, big=0.04, cap=0.3), 0)
+    b.at(0, crackling(rng, L, 4 + 10 * surge, big=0.6, alpha=1.4), -7)                    # the pops
     roar = dsp.bp(synth.noise(L, rng, "pink"), 3000, 12000) * flame
-    b.at(0, norm(roar), -17)
+    b.at(0, norm(roar), -22)
     t = rng.uniform(0.3, 1.0)
     while t < L - 0.3:
-        b.at(t, split(rng), rng.uniform(-4, 0))
+        b.at(t, split(rng), rng.uniform(-9, -5))
         t += rng.uniform(1.4, 3.0)
-    b.at(rng.uniform(2, L - 2), ember_fall(rng), -3)
+    b.at(rng.uniform(2, L - 2), ember_fall(rng), -7)
     for _ in range(2):
-        b.at(rng.uniform(0.5, L - 2), sap_sing(rng, rng.uniform(0.7, 1.4)), -18)
-    y = held(through_boards(b.x, rng, L, n), *FIRE, drive=9)
+        b.at(rng.uniform(0.5, L - 2), sap_sing(rng, rng.uniform(0.7, 1.4)), -26)
+    y = held(through_boards(b.x, rng, n), *FIRE, drive=14)
     # a little of the roar's low body, lapping with the flames, so it's a fire and not a hiss
     body = dsp.lp(synth.noise(L, rng, "brown"), 350) * flame
     return mix(y, body * 0.4 * rms(y) / rms(body))
+
+
+# ---- The Cinder Hounds: the pack howling close (500 Hz-3 kHz, one-shots) ---------------------------------------------
+
+HOUNDS = (500, 3000)
+
+
+def howl_f0(rng, L, base, peak, brk=True):
+    """A canine howl's pitch, close enough to hear its shape: a scoop up from below (sometimes breaking upward partway,
+    the voice flipping register), a long top that wavers and drifts, a fall away at the end."""
+    top = peak * rng.uniform(0.94, 1.0)
+    pts = [(0, base * 0.62), (0.07 * L, base * 0.78)]
+    if brk:   # the break: a jump of three or four semitones in a few hundredths of a second
+        tb = rng.uniform(0.12, 0.2) * L
+        lo = base * 0.78 + (peak - base * 0.78) * 0.45
+        pts += [(tb, lo), (tb + 0.05, lo * 2 ** (rng.uniform(3, 4.5) / 12))]
+    pts += [(0.3 * L, peak), (0.55 * L, top), (0.78 * L, peak * rng.uniform(0.9, 0.97)), (0.9 * L, base * 0.85),
+            (L, base * 0.55)]
+    f0 = env(pts, L, "exp")
+    n = len(f0)
+    t = np.arange(n) / SR
+    vib = 0.005 * np.clip((t - 0.3 * L) / (0.3 * L), 0, 1) * np.sin(2 * np.pi * rng.uniform(4.5, 6) * t)
+    drift = dsp.lp(rng.standard_normal(n + SR).astype(np.float32), 0.8)[:n]
+    drift = drift / (np.max(np.abs(drift)) + 1e-9) * 0.02
+    return (f0 * (1 + vib + drift)).astype(np.float32)
+
+
+def throat(rng, f0, L, rough_pts, sub_pts=None):
+    """A glottis whose roughness comes and goes: fry at the start and the end of a howl, clean while it holds."""
+    g = synth.glottis(f0, L, rng, jitter=0.007, shimmer=0.08, oq=0.55)
+    n = len(g)
+    r = dsp.fit(env(rough_pts, L), n)
+    am = 0.5 + 0.5 * np.sin(2 * np.pi * np.cumsum(np.full(n, rng.uniform(35, 60))) / SR)
+    g = g * (1 - r * am)
+    if sub_pts:   # period doubling: every other cycle weaker (a growl's fry)
+        sb = dsp.fit(env(sub_pts, L), n)
+        half = 0.5 + 0.5 * np.sign(np.sin(np.pi * np.cumsum(dsp.fit(f0, n)) / SR))
+        g = g * (1 - sb * half)
+    return g.astype(np.float32)
+
+
+def embers(rng, L, shape):
+    """Embers in its chest and breath: a sputter of crackle that flares with the voice."""
+    c = synth.crackle(L, 15 + 70 * dsp.fit(env(shape, L), samples(L)), rng, hi=1200)
+    return norm(dsp.bp(c, 900, 3200)) * dsp.fit(env(shape, L), len(c))
+
+
+def hound(rng, L, base, peak, k=0.58, brk=True):
+    """One hound's howl, close: the breath drawn in, a rough start, the voice through a long muzzle ('oo' opening to 'o'
+    and closing again), ash in the breath, embers sputtering, the howl falling into an exhale."""
+    f0 = howl_f0(rng, L, base, peak, brk)
+    g = throat(rng, f0, L, [(0, 0.7), (0.12 * L, 0.12), (0.8 * L, 0.15), (L, 0.65)],
+               [(0, 0.35), (0.1 * L, 0.0), (0.88 * L, 0.0), (L, 0.4)])
+    vow = [(0, "u"), (0.25 * L, "o"), (0.5 * L, "o"), (0.8 * L, "o"), (L, "u")]
+    v = synth.tract(g, vow, k, breath=0.4, rng=rng)
+    shape = [(0, 0), (0.06 * L, 0.45), (0.28 * L, 1), (0.75 * L, 0.9), (0.92 * L, 0.45), (L, 0)]
+    v = v * dsp.fit(env(shape, L), len(v))
+    # ash in the breath: the breath noise fluttering, as if through cinders
+    ash = synth.breath(L, "h", k, rng, shape=dsp.fit(env(shape, L), samples(L)) * np.clip(
+        0.5 + dsp.lp(rng.standard_normal(samples(L)).astype(np.float32), 25) * 10, 0, 1.5))
+    pre = synth.breath(0.35, "h", k, rng, shape=env([(0, 0), (0.3, 1), (0.35, 0.2)], 0.35))      # drawn in
+    post = synth.breath(0.6, "h", k, rng, shape=env([(0, 1), (0.6, 0)], 0.6, "exp"))              # let out
+    b = Bus(L + 1.1)
+    b.at(0, pre, -20)
+    b.at(0.35, v)
+    b.at(0.35, norm(ash), -17)
+    b.at(0.35, embers(rng, L, shape), -15)
+    b.at(0.35 + L * 0.9, post, -19)
+    return b.x
+
+
+def afar(x, metres, rng):
+    """Put it out in the dark at `metres`: the air takes the top off and the night gives back more reverb the further it
+    is (closer than the far howl's 250 m, so drier and brighter)."""
+    y = dsp.lp(x, float(18000 / (1 + metres / 25)), 2)
+    return dsp.room(y, "night", wet=0.22 + 0.25 * (metres - 40) / 60, rng=rng)
+
+
+@recipe("tell-hounds", "howl-near", "pack",
+        "The pack howling close behind (40-100 m): two or three hounds pitched against each other, throat and breath",
+        """Synthesised throats through a long canine muzzle, close enough to hear the howl's shape: the breath drawn in,
+        a rough start, the voice breaking upward on its way to the top, the long top wavering, the fall into an exhale.
+        A second hound comes in a beat later a minor third or a tritone away (never in unison, as a pack howls),
+        sometimes a younger one yipping in. Embers sputter in their breath and the breath itself is ashy. Put 40-100 m
+        back in the night: drier and brighter than the kept far howl, the same pack nearer. Held to 500 Hz-3 kHz.""",
+        takes=4, band=HOUNDS, lufs=-20, preview=lambda takes, rng: scatter(takes, rng, (0.8, 2.0)))
+def howl_pack(rng, k):
+    metres = [80, 55, 100, 40][k]
+    b = Bus(7.0)
+    base, peak = rng.uniform(380, 430), rng.uniform(600, 680)
+    L1 = rng.uniform(3.4, 4.3)
+    b.at(0, afar(hound(rng, L1, base, peak, rng.uniform(0.55, 0.62)), metres, rng))
+    iv = [2 ** (3 / 12), 2 ** (6 / 12), 2 ** (-3 / 12), 2 ** (6 / 12)][k]
+    t2 = rng.uniform(0.6, 1.5)
+    b.at(t2, afar(hound(rng, rng.uniform(2.6, 3.4), base * iv, peak * iv, rng.uniform(0.6, 0.68), brk=k % 2 == 0),
+                  metres * rng.uniform(1.0, 1.3), rng), -3)
+    if k in (1, 3):   # a younger one: two yips, then a short high howl
+        t3 = t2 + rng.uniform(0.6, 1.2)
+        for j in range(2):
+            yl = rng.uniform(0.12, 0.18)
+            y = cry_yip(rng, yl, peak * 1.25 * rng.uniform(0.95, 1.05))
+            b.at(t3 + j * rng.uniform(0.22, 0.3), afar(y, metres * 1.1, rng), -7)
+        young = hound(rng, rng.uniform(1.6, 2.2), base * 1.3, peak * 1.33, 0.7, brk=False)
+        b.at(t3 + 0.6, afar(young, metres * 1.1, rng), -6)
+    return held(b.x, *HOUNDS, drive=3)
+
+
+def cry_yip(rng, L, f):
+    """A short rising yip."""
+    f0 = env([(0, f * 0.8), (L * 0.4, f * 1.1), (L, f * 0.9)], L, "exp")
+    g = throat(rng, f0, L, [(0, 0.3), (L, 0.5)])
+    v = synth.tract(g, [(0, "o"), (L * 0.5, "a"), (L, "o")], 0.7, breath=0.3, rng=rng)
+    return v * dsp.fit(env([(0, 0), (0.015, 1), (L * 0.6, 0.7), (L, 0)], L), len(v))
+
+
+WAIL = "sfx_100_v2:misc_25"
+WAIL_F0 = 795.0    # its voice, measured over 0.06-0.24 s
+
+
+def bend(x, ratio):
+    """Varispeed along a curve: read x at `ratio` (a per-sample pitch ratio), so the pitch follows it."""
+    pos = np.cumsum(ratio)
+    pos = pos[pos < len(x) - 1]
+    return np.interp(pos, np.arange(len(x)), x).astype(np.float32)
+
+
+def wail_howl(rng, L, f0):
+    """The kept far howl's voice, nearer: a human wail smeared into a held cry, bent along a howl's pitch, through the
+    muzzle, doubled by a second throat a third of a semitone off."""
+    core = dsp.trim(src.get(WAIL), 0.06, 0.18)
+    out = None
+    for cents in (0, 33):
+        ratio = f0 * 2 ** (cents / 1200) / WAIL_F0
+        need = float(np.sum(ratio)) / SR * 1.05
+        held_ = dsp.smear(core, need / 0.18 + 0.5, rng=rng)
+        v = dsp.fit(bend(held_, ratio), len(f0))
+        out = v if out is None else out + v * 0.7
+    vow = [(0, "u"), (0.3 * L, "o"), (0.75 * L, "o"), (L, "u")]
+    return synth.tract(out, vow, 0.62, breath=0.0, rng=rng)
+
+
+@recipe("tell-hounds", "howl-near", "wail",
+        "The kept far howl's voice brought near: a smeared wail bent into a howl, a rough throat start, the breath",
+        """Built the way the kept far howl was, so it's the same pack: a human wail smeared into a held cry, bent along
+        a howl's pitch (a scoop up, a long wavering top, a fall), sung through 'oo' and 'o' and doubled by a second
+        throat a third of a semitone off, with embers crackling in it. What's new is the closeness: the breath drawn in
+        first, the start roughened by a real throat's fry (a synthesised glottis, growling for the first half-second),
+        the breath let out at the end with a catch in it, two hounds overlapping, and 40-100 m of night instead of 250
+        m. Held to 500 Hz-3 kHz.""",
+        sources=[WAIL], takes=4, band=HOUNDS, lufs=-20, preview=lambda takes, rng: scatter(takes, rng, (0.8, 2.0)))
+def howl_wail(rng, k):
+    metres = [70, 45, 95, 55][k]
+    b = Bus(7.0)
+    base, peak = rng.uniform(380, 430), rng.uniform(600, 680)
+    second = [2 ** (4 / 12), 2 ** (-3 / 12), 2 ** (6 / 12), 2 ** (3 / 12)][k]   # the second hound's interval
+    hounds = [(0.0, 1.0, rng.uniform(3.6, 4.4))]
+    hounds.append((rng.uniform(0.7, 1.6), second, rng.uniform(2.8, 3.5)))
+    for j, (t0, iv, L) in enumerate(hounds):
+        f0 = howl_f0(rng, L, base * iv, peak * iv, brk=(j == 0))
+        v = wail_howl(rng, L, f0)
+        shape = [(0, 0), (0.08 * L, 0.5), (0.3 * L, 1), (0.75 * L, 0.85), (0.92 * L, 0.4), (L, 0)]
+        v = v * dsp.fit(env(shape, L), len(v))
+        # the throat up close: a growling fry under the start, the breath in and out, a catch at the end
+        fry_l = 0.6
+        fry = synth.tract(throat(rng, dsp.fit(f0, samples(fry_l)) * 0.5, fry_l, [(0, 0.8), (fry_l, 0.5)],
+                                 [(0, 0.5), (fry_l, 0.3)]), "u", 0.6, breath=0.3, rng=rng)
+        fry = fry * env([(0, 0), (0.05, 1), (fry_l, 0)], fry_l)
+        hb = Bus(L + 1.2)
+        hb.at(0, synth.breath(0.35, "h", 0.6, rng, shape=env([(0, 0), (0.3, 1), (0.35, 0.2)], 0.35)), -20)
+        hb.at(0.35, v)
+        hb.at(0.35, fry, -9)
+        hb.at(0.35, embers(rng, L, shape), -15)
+        hb.at(0.35 + 0.9 * L, synth.breath(0.5, "h", 0.6, rng, shape=env([(0, 1), (0.5, 0)], 0.5, "exp")), -19)
+        for c in range(2):   # the breath catching as it runs out
+            hb.at(0.35 + L + 0.12 + c * rng.uniform(0.09, 0.14), synth.breath(0.06, "h", 0.6, rng), -24 - 3 * c)
+        b.at(t0, afar(hb.x, metres * (1 if j == 0 else rng.uniform(1.0, 1.3)), rng), -3 * j)
+    return held(b.x, *HOUNDS, drive=3)
+
+
+# ---- The Track Doll: the giggle (3-6 kHz, one-shots; the kept 'heh' is the fourth) -----------------------------------
+
+DOLL = (3000, 6000)
+JOINT = "kenney_rpg-audio:creak3"
+
+
+def porcelain(rng):
+    """A hollow porcelain head's modes: inharmonic, high, ringing long."""
+    k = rng.uniform(0.95, 1.06)
+    return [f * k for f in (3240, 3910, 4690, 5310, 5870)]
+
+
+def syllable(rng, f0, L, vowel, head, k=1.75):
+    """One giggle syllable: a breath of 'h' into a short voiced 'heh'/'hih' falling in pitch, stopped in the throat,
+    then rung through the porcelain so it leaves a glassy ring when the voice stops."""
+    h = synth.breath(0.025, "h", k, rng, shape=env([(0, 0), (0.02, 1), (0.025, 0.6)], 0.025))
+    f = env([(0, f0 * 1.06), (L * 0.3, f0), (L, f0 * rng.uniform(0.8, 0.88))], L, "exp")
+    v = synth.tract(synth.glottis(f, L, rng, jitter=0.012, shimmer=0.12, oq=0.5), [(0, vowel), (L, "e")], k,
+                    breath=0.35, rng=rng)
+    v = v * env([(0, 0), (0.008, 1), (L * 0.7, 0.8), (L - 0.006, 0.6), (L, 0)], L)   # stopped short
+    x = np.concatenate([h * 0.5, v])
+    glass = norm(ring(x, head, rng.uniform(500, 900), tail=0.35, gains=[1, 0.8, 0.7, 0.5, 0.35]))
+    return mix(norm(x), glass * rng.uniform(0.45, 0.65))
+
+
+def joints(rng):
+    """Its joints as the head turns: a real door creak, short, two octaves up."""
+    x = src.get(JOINT)
+    a = rng.uniform(0.07, 0.15)
+    c = dsp.vari(dsp.trim(x, a, rng.uniform(0.1, 0.16)), 24 + rng.uniform(-2, 1))
+    return norm(dsp.fade(c, 0.003, 0.01))
+
+
+def glaze_tick(rng, head):
+    """A porcelain tick: a fingertip of glaze knocking, its ring."""
+    x = burst(rng, 0.0003, attack=0.05)
+    return norm(ring(x, head, rng.uniform(700, 1200), tail=0.4, gains=[0.4, 1, 0.6, 0.8, 0.3]))
+
+
+# Each take: (time, what, ...) — few syllables, slow, long silences between.
+GIGGLES = [
+    [(0.0, "syl", 760, "e"), (1.25, "joint"), (1.6, "syl", 820, "e"), (1.85, "syl", 730, "e")],
+    [(0.0, "syl", 880, "i"), (0.21, "syl", 820, "i"), (0.44, "syl", 740, "i"), (1.5, "tick"), (2.3, "syl", 640, "e")],
+    [(0.0, "joint"), (0.55, "syl", 790, "e"), (1.7, "tick"), (2.2, "syl", 860, "e"), (2.48, "syl", 780, "e"),
+     (2.8, "syl", 700, "e")],
+]
+
+
+@recipe("tell-track-doll", "giggle", "glaze",
+        "A child's giggle from a porcelain head: 'heh... heh-heh', each syllable leaving a glassy ring; joints creak",
+        """Three more in the spirit of the kept 'heh': few syllables, slow, long silences. Each syllable is a
+        synthesised child's giggle from a head smaller than a child's (a breath of 'h' into a short 'heh' or 'hih' that
+        falls in pitch and stops in the throat), rung through a hollow porcelain head's high modes so the voice leaves a
+        glassy ring when it stops. Between them its joints creak (a real door creak, short, two octaves up) or a glaze
+        tick rings, all in a wooden car's reverb. Nothing the train makes. Held to 3-6 kHz.""",
+        sources=[JOINT], takes=3, band=DOLL, lufs=-21, preview=lambda takes, rng: scatter(takes, rng, (1.0, 2.0)))
+def giggle_glaze(rng, k):
+    head = porcelain(rng)
+    b = Bus(4.5)
+    for ev in GIGGLES[k]:
+        t, what = ev[0] + rng.uniform(0, 0.03), ev[1]
+        if what == "syl":
+            b.at(t, syllable(rng, ev[2] * rng.uniform(0.97, 1.03), rng.uniform(0.06, 0.09), ev[3], head),
+                 rng.uniform(-2, 0))
+        elif what == "joint":
+            b.at(t, joints(rng), -9)
+        else:
+            b.at(t, glaze_tick(rng, head), -8)
+    y = dsp.room(b.x, "car", wet=0.3, rng=rng)
+    return held(y, *DOLL, drive=3)

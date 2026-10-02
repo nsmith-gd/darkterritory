@@ -13,7 +13,7 @@ namespace DarkTerritory.Game.Sound;
 /// state (spec A.4), actions from this tick's events. It reads state rather than host-only events, so a
 /// client hears exactly what the host does from the replicated world.
 /// </summary>
-public sealed class GameAudio
+public sealed partial class GameAudio
 {
     readonly HotData<MixDef> _mix;
     readonly Dictionary<int, EnemySound> _enemies = new();
@@ -66,6 +66,7 @@ public sealed class GameAudio
         Choir(world, train);
         Actions(world);
         Whistle(world, train);
+        Cues(world);
     }
 
     SoundInstance? _whistle;
