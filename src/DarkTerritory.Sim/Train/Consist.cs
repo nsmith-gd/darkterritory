@@ -40,10 +40,32 @@ public struct GunState
 /// refer to vehicles by id, so cutting and re-coupling never changes who is standing on what.
 /// </summary>
 /// <summary>
-/// What a car's carrying (GDD §19, App. B.8): it changes the run, not just the score. <see cref="Goods"/> is the fortress's
-/// own freight a night leaves with; the rest are what the facilities load (facilities.json <c>cargo</c>).
+/// What a car's carrying (GDD §19, App. B.8): it changes the run, not just the score. A night leaves with its contract's
+/// cargo (<see cref="Goods"/> without one; ARCHITECTURE §8 note 182); the facilities load their own (facilities.json
+/// <c>cargo</c>). <see cref="Heavy"/> is §19's machine parts, <see cref="Ammunition"/> its gunpowder and shot. New kinds go
+/// on the end, so a save's numbers keep their meaning.
 /// </summary>
-public enum CargoKind : byte { None, Goods, Grain, Heavy, Salvage, Livestock, Food, Chemicals, Ore, Ammunition, Comet }
+public enum CargoKind : byte { None, Goods, Grain, Heavy, Salvage, Livestock, Food, Chemicals, Ore, Ammunition, Comet, Medicine, Timber, Coal }
+
+/// <summary>What each cargo is called, and what it does to a fire (GDD §19, App. B.9).</summary>
+public static class Cargoes
+{
+    /// <summary>The cargo's name as the contract board and the clerk say it.</summary>
+    public static string Name(CargoKind cargo) => cargo switch
+    {
+        CargoKind.None or CargoKind.Goods => "goods",
+        CargoKind.Heavy => "machine parts",
+        CargoKind.Ammunition => "gunpowder and shot",
+        CargoKind.Comet => "comet-derived material",
+        _ => cargo.ToString().ToLowerInvariant(),
+    };
+
+    /// <summary>Coal and timber (§19 "burns"; B.9 "fire cascades escalate faster").</summary>
+    public static bool Fuel(CargoKind cargo) => cargo is CargoKind.Coal or CargoKind.Timber;
+
+    /// <summary>The key a tuning table uses for a cargo (camel-cased, as facilities.json names them).</summary>
+    public static string Key(CargoKind cargo) => char.ToLowerInvariant(cargo.ToString()[0]) + cargo.ToString()[1..];
+}
 
 public sealed class Vehicle(int id, VehicleKind kind, double load)
 {
@@ -217,6 +239,19 @@ public sealed class Consist
     {
         v.Kind = kind;
         v.Cargo = CargoKind.None;
+    }
+
+    /// <summary>
+    /// The night's freight from the fortress (GDD §9 "choose freight contracts"; note 182): every loaded cargo car carries the
+    /// contract's cargo. Goods (or none) leaves it as it is.
+    /// </summary>
+    public Consist Carrying(CargoKind cargo)
+    {
+        if (cargo is not (CargoKind.None or CargoKind.Goods))
+            foreach (var v in _vehicles)
+                if (v.Kind == VehicleKind.Cargo && v.Load > 0)
+                    v.Cargo = cargo;
+        return this;
     }
 
     public Vehicle AddCar(double load)

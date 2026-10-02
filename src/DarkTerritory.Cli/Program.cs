@@ -404,7 +404,9 @@ object CampaignCommand(string content, string verb, string[] args)
         tier = DarkTerritory.Sim.Campaign.Campaign.TierFor(t, s.Cars).ToString(),
         nextCar = DarkTerritory.Sim.Campaign.Campaign.NextCarCost(t, s),
         upgrades = s.Upgrades,
-        contracts = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s).Select((c, i) => new { index = i, route = c.Route, perCar = c.PerCar }),
+        contracts = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s).Select((c, i) => new { index = i, route = c.Route, cargo = DarkTerritory.Sim.Train.Cargoes.Name(c.Cargo), perCar = c.PerCar }),
+        stores = s.Stores,
+        sellBack = DarkTerritory.Sim.Campaign.Campaign.SellBack(t, s),
         shop = t.Upgrades.Where(u => !s.Upgrades.Contains(u.Id)).Select(u => new { u.Id, u.Name, size = u.Size.ToString(), cost = DarkTerritory.Sim.Campaign.Campaign.UpgradeCost(t, s, u), modelled = u.Effect.Count > 0 }),
         underway = s.Current?.Route,
         autosave = s.Checkpoint is { } c ? $"left facility {c.Facility} at {c.Seconds / 60:0.0} min" : null,
@@ -427,9 +429,17 @@ object CampaignCommand(string content, string verb, string[] args)
             {
                 var s = Load();
                 string what = args.SkipWhile(a => a != "buy").Skip(1).FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal)) ?? "car";
-                var p = what == "car" ? DarkTerritory.Sim.Campaign.Campaign.BuyCar(t, s)
-                    : what == "kit" ? DarkTerritory.Sim.Campaign.Campaign.BuySpareKit(t, s)
-                    : DarkTerritory.Sim.Campaign.Campaign.BuyUpgrade(t, s, what);
+                var p = what switch
+                {
+                    "car" => DarkTerritory.Sim.Campaign.Campaign.BuyCar(t, s),
+                    "kit" => DarkTerritory.Sim.Campaign.Campaign.BuySpareKit(t, s),
+                    // GDD §9's departure (note 182): powder and shot, lamps, extinguishers; and a car taken off.
+                    "powder" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Powder),
+                    "lamp" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Lamp),
+                    "extinguisher" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Extinguisher),
+                    "sell" => DarkTerritory.Sim.Campaign.Campaign.SellCar(t, s),
+                    _ => DarkTerritory.Sim.Campaign.Campaign.BuyUpgrade(t, s, what),
+                };
                 if (p.Ok)
                     saves.Save(p.State);
                 return new { bought = p.Ok ? what : null, refused = p.Refused, board = Board(p.State) };
@@ -452,9 +462,9 @@ object CampaignCommand(string content, string verb, string[] args)
                 var contract = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s)[(int)Opt(args, "--contract", 0)];
                 s = DarkTerritory.Sim.Campaign.Campaign.Begin(s, contract);
                 var route = DarkTerritory.Sim.LineGen.Routes.Generate(content, contract.Tier, contract.Seed, s.Cars);
-                var loadout = DarkTerritory.Sim.Campaign.Campaign.Apply(t, s.Upgrades, DarkTerritory.Sim.Campaign.Campaign.WithSpareKits(new DarkTerritory.Sim.Campaign.Loadout(train, boiler,
+                var loadout = DarkTerritory.Sim.Campaign.Campaign.Apply(t, s.Upgrades, DarkTerritory.Sim.Campaign.Campaign.WithStores(t, DarkTerritory.Sim.Campaign.Campaign.WithSpareKits(new DarkTerritory.Sim.Campaign.Loadout(train, boiler,
                     DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)),
-                    DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File))), s.SpareKits));
+                    DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File))), s.SpareKits), s.Stores));
                 var report = Harness.Run(route.Build(), loadout.Train, player, new HarnessOptions
                 {
                     Bots = (int)Opt(args, "--bots", 4),
@@ -470,15 +480,16 @@ object CampaignCommand(string content, string verb, string[] args)
                     Facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
                     Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)),
                     Sight = sight,
+                    Cargo = contract.Cargo,
                 }, loadout.Boiler);
                 if (report.Run is not { } night)
                     return new { error = "the night didn't run" };
                 s = DarkTerritory.Sim.Campaign.Campaign.Settle(s, night);
                 saves.Save(s);
-                return new { contract = contract.Route, night, board = Board(s) };
+                return new { contract = contract.Route, cargo = DarkTerritory.Sim.Train.Cargoes.Name(contract.Cargo), night, board = Board(s) };
             }
         default:
-            return new { error = $"unknown campaign command '{verb}': new, show, slots, buy car|kit|<upgrade>, sim, play" };
+            return new { error = $"unknown campaign command '{verb}': new, show, slots, buy car|kit|powder|lamp|extinguisher|sell|<upgrade>, sim, play" };
     }
 }
 
@@ -1309,7 +1320,7 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
     // a platform search (the fake's, its pings estimated from where each host is).
     if (screen == DarkTerritory.Game.Screen.Join)
         menu.Games = DemoLobbies(menu.Protocol);
-    if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades)
+    if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
     menu.Show(screen);
     for (int i = 0; i < (int)Opt(args, "--down", 0); i++)
@@ -1676,7 +1687,7 @@ static int Usage()
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
-          screenshot --menu title|slots|fortress|upgrades|quickNight|host|join|settings [--down n] [--saves dir]
+          screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings [--down n] [--saves dir]
                      a screen of the front end over the yard, as the game draws it
           screenshot --hud [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
@@ -1706,7 +1717,7 @@ static int Usage()
                      GDD §17's set piece scripted: cut, spur in, load, back out, recouple, switch back, go; the timeline
           vr check [--frames n] [--view roof|cab|…] [--scale 0.5] [--out out/shots/vr.png]
                      an OpenXR session end to end (Monado's simulated headset works headless) and both eyes as a PNG
-          campaign new|show|slots|buy car|buy <upgrade>|sim|play [--slot 1..3] [--saves dir] [--contract i] [--seed n]
+          campaign new|show|slots|buy car|kit|powder|lamp|extinguisher|sell|<upgrade>|sim|play [--slot 1..3] [--saves dir] [--contract i] [--seed n]
                      the campaign between nights (spec E, F): the board, purchases, F.4's progression check, a bot night settled
           online check                             is Steam reachable from here (signed-in user, or what's missing)
           audio opera [--check]

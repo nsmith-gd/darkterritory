@@ -1115,6 +1115,10 @@ public static class TrainKit
         CargoKind.Heavy => "heavy_crate",
         CargoKind.Salvage => "freight_parts",
         CargoKind.Comet => "freight_comet",
+        // The contracts' freight (note 182): the goods mix's own cases, and coal in the ore's lumps.
+        CargoKind.Medicine => "freight_medicine",
+        CargoKind.Timber => "freight_timber",
+        CargoKind.Coal => "freight_ore",
         _ => null,
     };
 

@@ -17,6 +17,27 @@
   // GDD §9 departure: "choose freight contracts". This many on the board each night: the consist's own tier,
   // and one from the tier below for a crew that wants a safer, poorer night.
   "contractsOffered": 3,
+  // GDD §9 "choose freight contracts", §19, App. B.9 (ARCHITECTURE §8 note 182): each ordinary contract names the freight the
+  // train leaves the fortress carrying (every loaded car), drawn from this list by the night and its place on the board, and
+  // pays a car by it (run.json economy.cargoRates). The facilities still load their own on top. "heavy" is §19's machine
+  // parts and "ammunition" its gunpowder and shot. With "comet", the board also carries a comet contract at the consist's
+  // tier: B.9's high-risk contract, the best freight payout, with every spawn weight x1.4 and the Passenger a tier sooner.
+  "contracts": {
+    "cargo": ["goods", "heavy", "food", "livestock", "timber", "coal", "medicine", "chemicals", "ammunition"],
+    "comet": true
+  },
+  // GDD §9 departure: "stock coal, powder and shot, lamps, repair supplies and tools" (note 182). The fortress issues the
+  // standard load and bills what the night uses (run.json economy: coal, rounds, repairs); these are bought beyond it, for the
+  // coming night only. Powder: a crate is `each` rounds more for every gun. Lamps and extinguishers: spares in the guard van.
+  // Not in the GDD: priced about a tenth of a fourth car for powder, less for a lamp.
+  "stores": {
+    "powder": { "cost": 120, "most": 3, "each": 4 },
+    "lamps": { "cost": 60, "most": 2 },
+    "extinguishers": { "cost": 90, "most": 2 }
+  },
+  // GDD §9 "add or remove railcars": a car taken off the consist brings back this share of what that car cost (spec F.2),
+  // and a consist keeps the starting three at least. A shorter train works a lower tier when it drops below one (F.4).
+  "sellCar": { "share": 0.5, "fewest": 3 },
   // Spec E: 3 save slots per host.
   "saveSlots": 3,
   // Spec F.3. Cost is a share of what the next car costs now. "effect" multiplies tuning: tender (tender capacity),

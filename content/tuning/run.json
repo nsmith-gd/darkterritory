@@ -72,6 +72,18 @@
     // Running costs, priced so a competent night averages spec F.1's 15% of gross.
     "coalPerUnit": 2,
     "roundsPerRound": 1,
-    "repairPerIntegrity": 150
+    "repairPerIntegrity": 150,
+    // GDD §18-19, App. B.9 (note 182): a delivered car-load of each cargo pays this share of the tier's perCar. Goods pay 1,
+    // so F.1's table (the fully loaded train) still holds for a night of goods. §18: the chemical works is "top payout", the
+    // military depot "best payout", the wreck yard "high value"; §19's medicine is "high value", machine parts (heavy)
+    // "inert, safe", coal and timber bulk. B.9: comet material "is the best freight payout", above them all. Not listed: 1.
+    "cargoRates": {
+      "goods": 1, "grain": 1, "heavy": 1, "ore": 1, "food": 1, "livestock": 1.1, "salvage": 1.2, "timber": 0.9, "coal": 0.8,
+      "medicine": 1.4, "chemicals": 1.4, "ammunition": 1.5, "comet": 1.8
+    },
+    // GDD §19 "the most valuable cargo there is", B.9 "highest payout": each rescued child brought home (in a car still on
+    // the engine, or in someone's arms) pays this many of the tier's perCar: more than any one car-load of anything, the
+    // comet's included.
+    "childPay": 3
   }
 }

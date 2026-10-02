@@ -27,6 +27,25 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// train's own. Every machine builds the same train from it.
     /// </summary>
     public int SpareKits { get; init; }
+    /// <summary>
+    /// The contract's freight (GDD §9 "choose freight contracts", §19; note 182): what every loaded car leaves the fortress
+    /// carrying. None is goods. Every machine builds the same consist from it.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public CargoKind Cargo { get; init; }
+    /// <summary>The departure's stores (GDD §9; campaign.json <c>stores</c>, note 182): crates of powder and shot, spare lamps, spare extinguishers.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public int Powder { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public int SpareLamps { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public int SpareExtinguishers { get; init; }
+    /// <summary>
+    /// The host's only: this host has never had a child's call, so tonight's first is a real child (GDD App. B.6, A.6 "the first
+    /// one a host player ever meets is always real"). The app reads it from the host's profile; the Sim gets the bool.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool FirstChildReal { get; init; }
     /// <summary>Where the engine's front starts, along the line; null for the fortress yard. A resumed night starts where it was saved.</summary>
     public double? Start { get; init; }
     /// <summary>The host's only: a resumed night's own line, from its save (linegen plan §17.4), rather than generated afresh.</summary>
@@ -55,6 +74,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             DataFile.Load<CombatTuning>(Path.Combine(content, CombatTuning.File)),
             DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)));
         loadout = Sim.Campaign.Campaign.WithSpareKits(loadout, SpareKits);
+        if (Powder > 0 || SpareLamps > 0 || SpareExtinguishers > 0)
+            loadout = Sim.Campaign.Campaign.WithStores(DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)),
+                loadout, new Sim.Campaign.Stores(Powder, SpareLamps, SpareExtinguishers));
         return Upgrades.Count == 0 ? loadout
             : Sim.Campaign.Campaign.Apply(DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)), Upgrades, loadout);
     }
@@ -123,7 +145,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         RailLine line;
         var runTuning = DataFile.Load<Sim.Run.RunTuning>(Path.Combine(content, Sim.Run.RunTuning.File));
         // A night leaves the fortress part loaded; the facilities fill the rest (GDD §17-18).
-        var consist = Consist.Uniform(trainTuning, Cars, Route is { Length: > 0 } ? runTuning.DepartureLoad : 1);
+        var consist = Consist.Uniform(trainTuning, Cars, Route is { Length: > 0 } ? runTuning.DepartureLoad : 1).Carrying(Cargo);
         double start = 600;
         if (Route is { Length: > 0 } spec)
         {
@@ -375,6 +397,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         // D.8: who each of the crew is, from the campaign, matched up as their names arrive.
         if (setup.Identities is { } identities)
             hostWorld.LooksByName = identities;
+        // B.6: a host's first-ever child call is a real child (their profile says whether they've had one; note 182).
+        hostWorld.NextChildReal = setup.FirstChildReal;
         setup = setup with { PlanPrint = route?.Plan?.Fingerprint(), TerrainPrint = TerrainOf(hostWorld)?.Print() };
         if (resume is not null)
             Restore(hostWorld, resume);

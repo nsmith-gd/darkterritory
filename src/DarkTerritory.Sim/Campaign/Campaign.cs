@@ -12,6 +12,44 @@ public sealed record CampaignTuning(int StartingCars, double StartingScrip, int 
     int ContractsOffered, int SaveSlots, UpgradeDef[] Upgrades, StandardCrew StandardCrew, SpareKitTuning? SpareKit = null)
 {
     public const string File = "tuning/campaign.json";
+    /// <summary>What the board's contracts carry (campaign.json <c>contracts</c>; GDD §9, §19, App. B.9; note 182).</summary>
+    public ContractTuning Contracts { get; init; } = new();
+    /// <summary>The departure's stores (campaign.json <c>stores</c>; GDD §9; note 182). Unset, the fortress sells none.</summary>
+    public StoresTuning? Stores { get; init; }
+    /// <summary>Taking a car off the consist (campaign.json <c>sellCar</c>; GDD §9 "add or remove railcars"). Unset, it can't.</summary>
+    public SellCarTuning? SellCar { get; init; }
+}
+
+/// <summary>
+/// campaign.json <c>contracts</c>: the freight the board's ordinary contracts are drawn from, one each by its seed, and whether
+/// the board carries a comet contract besides (App. B.9: "the high-risk contract ... the best freight payout").
+/// </summary>
+public sealed record ContractTuning
+{
+    public IReadOnlyList<CargoKind> Cargo { get; init; } = [];
+    public bool Comet { get; init; }
+}
+
+/// <summary>One line of the fortress's stores: its price, how many a night takes at most, and what each holds.</summary>
+public sealed record StoreItem(double Cost, int Most, int Each = 1);
+
+/// <summary>campaign.json <c>stores</c> (GDD §9 "stock coal, powder and shot, lamps, repair supplies and tools"; note 182).</summary>
+public sealed record StoresTuning(StoreItem Powder, StoreItem Lamps, StoreItem Extinguishers);
+
+/// <summary>campaign.json <c>sellCar</c>: what a car taken off brings back (a share of what it cost), and the fewest a consist keeps.</summary>
+public sealed record SellCarTuning(double Share, int Fewest);
+
+/// <summary>What the fortress's stores sell for a night (note 182).</summary>
+public enum StoreKind : byte { Powder, Lamp, Extinguisher }
+
+/// <summary>
+/// The stores bought for the coming night (GDD §9): crates of powder and shot (each <see cref="StoreItem.Each"/> rounds more a
+/// gun), spare lamps and spare extinguishers in the guard van. Issued for the night: settling it spends them.
+/// </summary>
+public sealed record Stores(int Powder = 0, int Lamps = 0, int Extinguishers = 0)
+{
+    public int Of(StoreKind kind) => kind switch { StoreKind.Powder => Powder, StoreKind.Lamp => Lamps, _ => Extinguishers };
+    public bool Any => Powder > 0 || Lamps > 0 || Extinguishers > 0;
 }
 
 public sealed record CarCostTuning(double Base, double Growth, int FromCar);
@@ -22,8 +60,11 @@ public enum UpgradeSize : byte { Small, Major }
 public sealed record UpgradeDef(string Id, string Name, UpgradeSize Size, double CostShare, Dictionary<string, double> Effect);
 public sealed record StandardCrew(double SmallShare, double MajorShare, int MajorEvery, double LossFraction, double RunningCosts);
 
-/// <summary>A night on the board at the fortress: a route and what it pays a car (spec F.1).</summary>
-public sealed record Contract(RouteTier Tier, ulong Seed, double PerCar)
+/// <summary>
+/// A night on the board at the fortress: a route, the freight the train leaves with, and what a car of it pays (spec F.1; GDD
+/// §9 "choose freight contracts", §19; note 182). A save from before cargo reads as goods.
+/// </summary>
+public sealed record Contract(RouteTier Tier, ulong Seed, double PerCar, CargoKind Cargo = CargoKind.Goods)
 {
     /// <summary>The route spec the session builds (<c>frontier:7</c>).</summary>
     public string Route => $"{char.ToLowerInvariant(Tier.ToString()[0])}{Tier.ToString()[1..]}:{Seed}";
@@ -78,6 +119,8 @@ public sealed record CampaignState
     /// save against the player's ID"; note 181): their look by name. Someone not here is still who they signed on as.
     /// </summary>
     public IReadOnlyDictionary<string, string> Identities { get; init; } = new Dictionary<string, string>();
+    /// <summary>The stores bought for the coming night (GDD §9; note 182): spent by it, whatever comes home.</summary>
+    public Stores Stores { get; init; } = new();
 }
 
 /// <summary>What a purchase came to: the new state, or why not.</summary>
@@ -105,15 +148,38 @@ public static class Campaign
     /// <summary>Spec F.4: the tier a consist this size works.</summary>
     public static RouteTier TierFor(CampaignTuning t, int cars) => t.Tiers.Where(x => cars >= x.FromCars).OrderBy(x => x.FromCars).Last().Tier;
 
-    /// <summary>Tonight's board: the consist's own tier, and one from below if there is one. The same every time for the same night.</summary>
+    /// <summary>
+    /// Tonight's board: the consist's own tier, and one from below if there is one, each carrying a freight drawn from
+    /// campaign.json's list; then, if the board carries one, a comet contract at the consist's tier, the best-paying freight
+    /// there is (App. B.9). The same every time for the same night.
+    /// </summary>
     public static IReadOnlyList<Contract> Offers(CampaignTuning t, RunTuning run, CampaignState s)
     {
         var tier = TierFor(t, s.Cars);
         var tiers = Enumerable.Repeat(tier, Math.Max(1, t.ContractsOffered - (tier > RouteTier.Local ? 1 : 0))).ToList();
         if (tier > RouteTier.Local && t.ContractsOffered > 1)
             tiers.Add(tier - 1);
-        return [.. tiers.Select((tr, i) => new Contract(tr, SeedFor(s, i), PerCar(run, tr)))];
+        var board = tiers.Select((tr, i) => Offer(run, tr, SeedFor(s, i), CargoFor(t, s, i))).ToList();
+        if (t.Contracts.Comet)
+            board.Add(Offer(run, tier, SeedFor(s, board.Count), CargoKind.Comet));
+        return board;
     }
+
+    static Contract Offer(RunTuning run, RouteTier tier, ulong seed, CargoKind cargo) => new(tier, seed, PerCar(run, tier, cargo), cargo);
+
+    /// <summary>An ordinary contract's freight: one of campaign.json's list, by the night and the slot on the board.</summary>
+    static CargoKind CargoFor(CampaignTuning t, CampaignState s, int i)
+    {
+        var pool = t.Contracts.Cargo;
+        if (pool.Count == 0)
+            return CargoKind.Goods;
+        ulong h = s.Seed * 0xD6E8FEB86659FD93UL ^ (ulong)(s.Runs + 1) * 0xA0761D6478BD642FUL ^ (ulong)(i + 1) * 0xE7037ED1A0B428DBUL;
+        h ^= h >> 31;
+        return pool[(int)(h % (ulong)pool.Count)];
+    }
+
+    /// <summary>What a car of <paramref name="cargo"/> pays on <paramref name="tier"/>: the tier's value by the cargo's rate (run.json economy.cargoRates).</summary>
+    public static double PerCar(RunTuning run, RouteTier tier, CargoKind cargo) => Math.Round(PerCar(run, tier) * run.Economy.Rate(cargo));
 
     static ulong SeedFor(CampaignState s, int i)
     {
@@ -157,6 +223,75 @@ public static class Campaign
             : new(s with { SpareKits = s.SpareKits + 1, Scrip = s.Scrip - k.Cost }, null);
     }
 
+    /// <summary>
+    /// The departure's stores (GDD §9 "stock ... powder and shot, lamps"; note 182): a crate of powder and shot, a spare lamp
+    /// or a spare extinguisher for the coming night, up to campaign.json's most of each. Not mid-night.
+    /// </summary>
+    public static Purchase BuyStores(CampaignTuning t, CampaignState s, StoreKind kind)
+    {
+        if (t.Stores is not { } st)
+            return new(s, "the fortress has no stores to sell");
+        if (s.Current is not null)
+            return new(s, "the stores are bought before the gates open");
+        var (item, name) = kind switch
+        {
+            StoreKind.Powder => (st.Powder, "crate of powder and shot"),
+            StoreKind.Lamp => (st.Lamps, "spare lamp"),
+            _ => (st.Extinguishers, "spare extinguisher"),
+        };
+        if (s.Stores.Of(kind) >= item.Most)
+            return new(s, $"a night takes {item.Most} at most, and you have them");
+        if (s.Scrip < item.Cost)
+            return new(s, $"a {name} costs {item.Cost:0} scrip; you have {s.Scrip:0}");
+        var stores = kind switch
+        {
+            StoreKind.Powder => s.Stores with { Powder = s.Stores.Powder + 1 },
+            StoreKind.Lamp => s.Stores with { Lamps = s.Stores.Lamps + 1 },
+            _ => s.Stores with { Extinguishers = s.Stores.Extinguishers + 1 },
+        };
+        return new(s with { Stores = stores, Scrip = s.Scrip - item.Cost }, null);
+    }
+
+    /// <summary>What taking the last car off the consist brings back: a share of what that car cost (GDD §9 "add or remove railcars").</summary>
+    public static double SellBack(CampaignTuning t, CampaignState s) => t.SellCar is { } k ? Math.Round(k.Share * CarCost(t, s.Cars)) : 0;
+
+    /// <summary>
+    /// A car off the consist (GDD §9): it brings back a share of its price, and a shorter train works a lower tier when it drops
+    /// under one (spec F.4). Never below campaign.json's fewest, and not mid-night.
+    /// </summary>
+    public static Purchase SellCar(CampaignTuning t, CampaignState s)
+    {
+        if (t.SellCar is not { } k)
+            return new(s, "the yard isn't taking cars back");
+        if (s.Current is not null)
+            return new(s, "cars come off before the gates open");
+        if (s.Cars <= k.Fewest)
+            return new(s, $"a consist keeps {k.Fewest} cars at least");
+        return new(s with { Cars = s.Cars - 1, Scrip = s.Scrip + SellBack(t, s) }, null);
+    }
+
+    /// <summary>
+    /// The night's tunings with the departure's stores aboard (note 182): each crate of powder and shot is
+    /// <see cref="StoreItem.Each"/> rounds more a gun, and the spare lamps and extinguishers go in the guard van.
+    /// </summary>
+    public static Loadout WithStores(CampaignTuning t, Loadout l, Stores stores)
+    {
+        if (!stores.Any || t.Stores is not { } st)
+            return l;
+        return l with
+        {
+            Combat = l.Combat with { Guns = l.Combat.Guns with { Ammo = l.Combat.Guns.Ammo + stores.Powder * st.Powder.Each } },
+            Train = l.Train with
+            {
+                Kit = l.Train.Kit with
+                {
+                    SpareLamps = l.Train.Kit.SpareLamps + stores.Lamps * st.Lamps.Each,
+                    SpareExtinguishers = l.Train.Kit.SpareExtinguishers + stores.Extinguishers * st.Extinguishers.Each,
+                },
+            },
+        };
+    }
+
     /// <summary>Starts a night on a contract from the board.</summary>
     public static CampaignState Begin(CampaignState s, Contract c) => s with { Current = c, Checkpoint = null };
 
@@ -176,7 +311,8 @@ public static class Campaign
         var identities = new Dictionary<string, string>(s.Identities);
         foreach (var (name, look) in report.Identities)
             identities[name] = look;
-        return s with { Cars = cars, Scrip = scrip, Runs = s.Runs + 1, History = [.. s.History, log], Current = null, Checkpoint = null, SpareKits = spares, Identities = identities };
+        // The departure's stores were the night's issue (note 182): spent with it.
+        return s with { Cars = cars, Scrip = scrip, Runs = s.Runs + 1, History = [.. s.History, log], Current = null, Checkpoint = null, SpareKits = spares, Identities = identities, Stores = new() };
     }
 
     /// <summary>The night's tunings with the crew's spare repair kits aboard (E.12 question 4): stocked in the lockers beside the train's own.</summary>

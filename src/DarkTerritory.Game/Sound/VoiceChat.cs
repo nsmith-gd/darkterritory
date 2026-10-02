@@ -196,6 +196,10 @@ public sealed class VoiceChat
         s.Near.Clear();
         s.Radio.Clear();
         s.RadioKeyed = 0;
+        // And the voice in the air itself, filters and all, so not even the tunnel filters' ring outlives the word (note 183);
+        // a fresh one starts next update for the Live Mic or the freed.
+        s.NearVoice?.Stop();
+        s.NearVoice = null;
     }
 
     /// <summary>The cut's tests: whether this speaker's air and radio voices hold anything now.</summary>
