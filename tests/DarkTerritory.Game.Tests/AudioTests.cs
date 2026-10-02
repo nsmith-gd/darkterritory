@@ -41,9 +41,43 @@ public class AudioTests
     {
         var bank = new SoundBank(Path.Combine(Content, "audio", "sounds"));
         Assert.Null(bank.LastError);
-        foreach (var name in AudioBench.TellBands.Keys.Concat(["boiler-roar", "chuff", "wheel-rail", "brake", "wind", "slack-clunk", "safety-valve", "gunshot", "shovel"]))
+        foreach (var name in AudioBench.TellBands.Keys.Concat(["boiler-roar", "chuff", "wheel-rail", "brake", "wind", "slack-clunk", "safety-valve", "gunshot", "shovel",
+            "cannon-impact", "cannon-splash", "hit-confirm", "doll-shatter"]))
             Assert.NotNull(bank.Get(name));
         Assert.All(AudioBench.TellBands.Keys, t => Assert.Equal(1, bank.Get(t)!.Tier));
+    }
+
+    [Fact]
+    public void WhatLandsIsHeardWhereItLandsOnce()
+    {
+        // T121: a ball's boom where it came down (a splash in water, the porcelain going for the doll), and a blow's thud on
+        // the creature, each once, at the point of it; what was already there when the client first looked is old news.
+        var tuning = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
+        var line = RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(tuning, 4, 1)), line, 1200);
+        var world = new World(train);
+        var audio = new GameAudio(Content);
+        var ear = Listener.At(train.Frames[0].Origin, train.Frames[0].Heading);
+        var old = new DarkTerritory.Sim.Combat.CannonImpact(1, 0, train.Frames[0].Origin, Double3.Up, DarkTerritory.Sim.Combat.ImpactSurface.Ground, 1);
+        world.Impacts.Add(old);
+        void Update() => audio.Update(world, new TrainControls { Reverser = 1 }, ear, exposed: true, SimConstants.TickSeconds);
+        int Playing(string name) => audio.Mixer.Voices.Count(v => v.Name == name);
+        Update();
+        Assert.Equal(0, Playing("cannon-impact"));
+        var ahead = train.Frames[0].ToWorld(new Double3(0, 0, -60));
+        world.Impacts.Add(old with { Id = 2, At = ahead, Surface = DarkTerritory.Sim.Combat.ImpactSurface.Creature, Struck = DarkTerritory.Sim.Enemies.EnemyKind.TrackDoll });
+        world.Impacts.Add(old with { Id = 3, At = ahead, Surface = DarkTerritory.Sim.Combat.ImpactSurface.Water });
+        world.Hits.Add(new DarkTerritory.Sim.Combat.HitConfirm(4, 0, 9, DarkTerritory.Sim.Enemies.EnemyKind.Ribbit, 1, DarkTerritory.Sim.Combat.HitSource.Melee, ahead, Double3.Up, false));
+        Update();
+        Assert.Equal(1, Playing("cannon-impact"));
+        Assert.Equal(1, Playing("doll-shatter"));
+        Assert.Equal(1, Playing("cannon-splash"));
+        Assert.Equal(1, Playing("hit-confirm"));
+        Assert.All(audio.Mixer.Voices.Where(v => v.Name is "cannon-impact" or "hit-confirm"), v => Assert.Equal(ahead, v.Position));
+        // Still on the wire next update: not played again.
+        Update();
+        Assert.Equal(1, Playing("cannon-impact"));
+        Assert.Equal(1, Playing("hit-confirm"));
     }
 
     [Fact]

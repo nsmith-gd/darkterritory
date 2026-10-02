@@ -47,6 +47,11 @@ public interface IPlaySession
     PlayerState Player { get; }
     TrainControls Controls { get; }
     long Tick { get; }
+    /// <summary>
+    /// The host's tick as this machine last heard it: what the sim's own timed records (a gun's last shot, World.Hits and
+    /// Impacts, T121) are stamped with. Playing alone, the session's own.
+    /// </summary>
+    long HostTick => Tick;
     string Status();
     void Step(in PlayerIntent intent);
     IReadOnlyList<CarFrame> InterpolatedFrames(double alpha);

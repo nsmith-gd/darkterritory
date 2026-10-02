@@ -10,7 +10,10 @@ public readonly record struct HitTarget(int Id, Double3 Position, double Radius)
 /// <summary>One round fired this tick.</summary>
 /// <param name="HitTargetId">The target struck, or −1.</param>
 /// <param name="BlockedByTrain">The round hit the train's own body first (the flank is out of arc by geometry).</param>
-public readonly record struct GunShot(int GunVehicle, int Shooter, Double3 Muzzle, Double3 Direction, double Distance, int HitTargetId, bool BlockedByTrain);
+/// <param name="Impact">Where the ball came down (world): on what it hit, or the ground where its range ran out (T121).</param>
+/// <param name="Surface">What it came down on there.</param>
+public readonly record struct GunShot(int GunVehicle, int Shooter, Double3 Muzzle, Double3 Direction, double Distance, int HitTargetId, bool BlockedByTrain,
+    Double3 Impact = default, ImpactSurface Surface = ImpactSurface.Ground);
 
 public enum AimResult : byte { Ok, OutOfTraverse, DeadZone, PitchLimit }
 
@@ -215,6 +218,10 @@ public static class Guns
         var dir = frame.DirToWorld(aimLocal).Normalized;
         double blocked = TrainRaycast(train, muzzle, dir, t.Range);
         double best = Math.Min(blocked, t.Range);
+        // The ground, water or a building's wall in the way first (T121): what it lands on short of the train or its range.
+        var land = Solid(train, muzzle, dir, best, t.ImpactStep);
+        if (land is { } l)
+            best = l.Distance;
         int hit = -1;
         foreach (var target in targets)
         {
@@ -224,7 +231,75 @@ public static class Guns
                 hit = target.Id;
             }
         }
-        return new GunShot(gunVehicle, shooterId, muzzle, dir, best, hit, hit < 0 && blocked <= t.Range);
+        var surface = hit >= 0 ? ImpactSurface.Creature : land?.Surface ?? (blocked <= t.Range ? ImpactSurface.Train : ImpactSurface.Ground);
+        var impact = muzzle + dir * best;
+        // Nothing in range: the spent ball comes down where its range runs out (on the water there, if there's water).
+        if (hit < 0 && land is null && blocked > t.Range)
+            (impact, surface) = Under(train, impact);
+        return new GunShot(gunVehicle, shooterId, muzzle, dir, best, hit, hit < 0 && surface == ImpactSurface.Train, impact, surface);
+    }
+
+    /// <summary>
+    /// The first ground, water or stop building's wall (<see cref="Run.StopWalls"/>) along a ray within <paramref name="max"/>:
+    /// marched in <paramref name="step"/>s, then narrowed down. Deterministic (the land and the walls are built alike
+    /// everywhere), so a client works out the same landing the host does.
+    /// </summary>
+    public static (double Distance, ImpactSurface Surface)? Solid(TrainOnLine train, Double3 origin, Double3 dir, double max, double step)
+    {
+        if (step <= 0 || max <= 0)
+            return null;
+        double hint = train.Dynamics.Distance;
+        double before = 0;
+        for (double d = Math.Min(step, max); ; d = Math.Min(d + step, max))
+        {
+            if (Inside(train, origin + dir * d, ref hint) is not null)
+            {
+                // Narrowed to a few centimetres between the last clear point and this one.
+                double lo = before, hi = d;
+                for (int i = 0; i < 10; i++)
+                {
+                    double mid = (lo + hi) / 2;
+                    if (Inside(train, origin + dir * mid, ref hint) is not null)
+                        hi = mid;
+                    else
+                        lo = mid;
+                }
+                return (hi, Inside(train, origin + dir * hi, ref hint)!.Value);
+            }
+            if (d >= max)
+                return null;
+            before = d;
+        }
+    }
+
+    /// <summary>What solid a point is in: under the ground or water, or inside a stop building's wall; null in the open.</summary>
+    static ImpactSurface? Inside(TrainOnLine train, Double3 p, ref double hint)
+    {
+        double ground = PlayerMotor.GroundAt(p, train.Line, ref hint);
+        double? water = Water(train, p);
+        if (water is { } w && w > ground && p.Y <= w)
+            return ImpactSurface.Water;
+        if (p.Y <= ground)
+            return ImpactSurface.Ground;
+        if (train.Walls is { } walls)
+            foreach (var wall in walls.Near(p))
+            {
+                var local = wall.ToLocal(p);
+                if (Math.Abs(local.X) <= wall.HalfLength && Math.Abs(local.Z) <= wall.HalfWidth && local.Y >= wall.Bottom && local.Y <= wall.Top)
+                    return ImpactSurface.Structure;
+            }
+        return null;
+    }
+
+    static double? Water(TrainOnLine train, Double3 p) =>
+        train.Line.Conditions is LineGen.PlanConditions plan ? plan.Terrain.WaterAt(p.X, p.Z) : null;
+
+    /// <summary>Straight down from a point to what's under it: the ground, or water over it.</summary>
+    static (Double3 At, ImpactSurface Surface) Under(TrainOnLine train, Double3 p)
+    {
+        double hint = train.Dynamics.Distance;
+        double ground = PlayerMotor.GroundAt(p, train.Line, ref hint);
+        return Water(train, p) is { } w && w > ground ? (p with { Y = w }, ImpactSurface.Water) : (p with { Y = ground }, ImpactSurface.Ground);
     }
 
     /// <summary>

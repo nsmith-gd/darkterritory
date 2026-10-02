@@ -556,6 +556,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Signs = session.World.Lineside?.Signs,
         SignRange = session.World.Lineside?.Tuning.LampSignRange ?? 350,
         Enemies = session.World.ActiveEnemies,
+        Hits = session.World.Hits,
+        Impacts = session.World.Impacts,
         Run = session.World.Run,
         Holdouts = session.World.Holdouts,
         Vehicles = session.Train.Vehicles,
@@ -821,7 +823,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // Replaying the run-in, the train's still on the rails: no wreck yet, no sparks.
         scene.Wreck = replay is { Off: false } ? null : session.Train.Wreck;
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
-        scene.Tick = session.Tick;
+        scene.Tick = session.HostTick;
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
         scene.LampLit = session.World.LampShining && scene.LampsOut < session.Train.Frames.Count;
         scene.Venting = session.Train.Boiler.Vented;

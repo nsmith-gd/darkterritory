@@ -244,6 +244,13 @@ public sealed class FireFlies(int id) : Enemy(id)
     public override PressureZone Zone => PressureZone.Interior;
     public override Sense Sense => Sense.Light;
     public override Want Want => Want.Cargo;
+    /// <summary>
+    /// A swat at the swarm round the lamp lands (T121: every creature confirms a hit), and the swarm parts and closes again:
+    /// it does nothing to them. The answer's still the lamp, or driving away (App. A.5).
+    /// </summary>
+    public override double MeleeRadius => Phase is SpinePhase.Dormant or SpinePhase.Telegraph ? 0.8 : 0;
+
+    public override void Struck(EnemyContext ctx, int by, double damage) { }
 
     /// <summary>On a car's lamp.</summary>
     public static FireFlies OnLamp(int id, TrainOnLine train, int car)

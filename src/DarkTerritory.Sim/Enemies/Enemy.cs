@@ -74,6 +74,11 @@ public abstract class Enemy
     public double Height { get; set; }
     /// <summary>Hit volume radius; 0 means it can't be shot (Clingers, Sleepers, the Hollow in the stack).</summary>
     public virtual double HitRadius => 0;
+    /// <summary>How far over where it stands its hit volume is centred (the Track Doll's body, over the rail she stands on).</summary>
+    public virtual double HitHeight => 0;
+
+    /// <summary>The centre of its hit volume (world): what's aimed at, and what a round has to pass through.</summary>
+    public Double3 HitCentre(TrainOnLine train) => WorldPosition(train) + Double3.Up * HitHeight;
     /// <summary>
     /// Lies on the main line wherever the train is (Sleepers across the rail). Everything else off the train is
     /// placed along the engine's path: it's after the train, down a branch too.
@@ -97,6 +102,12 @@ public abstract class Enemy
     /// How far a tool swing reaches it from (App. C.2): 0 can't be struck at all. Most things on the train can be clubbed.
     /// </summary>
     public virtual double MeleeRadius => 0;
+
+    /// <summary>
+    /// Whether a swing by <paramref name="by"/> can land on it now (App. C.2): in reach of a tool at all, and by default by
+    /// anyone. A blow that's picked lands, and every client is told it did (T121's hit confirm).
+    /// </summary>
+    public virtual bool Strikable(int by) => MeleeRadius > 0;
     /// <summary>A crewmate holding Use at the victim pulls them free of this grab (Draggers, the Car Hugger, Tippy Toesie).</summary>
     public virtual bool PullsFree => false;
 

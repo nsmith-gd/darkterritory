@@ -1,0 +1,14 @@
+// Player action (tier 4, T121): the Track Doll shattered on the rail by a ball. Porcelain bursting and the pieces of it
+// ringing down onto the ballast, over the boom: the one sound that says she's gone for good.
+{
+  "tier": 4, "duration": 1.6, "maxInstances": 1, "minDistance": 4, "maxDistance": 300, "rolloff": 0.9,
+  "layers": [
+    { "source": "noise", "gain": 0.9,
+      "filters": [{ "type": "highPass", "frequency": 2500 }, { "type": "peak", "frequency": 4200, "q": 3, "gainDb": 8 }],
+      "envelope": [[0, 1], [0.08, 0.35], [0.4, 0]] },
+    { "source": "impulse", "frequency": 9, "gain": 0.6, "delay": 0.12,
+      "filters": [{ "type": "bandPass", "frequency": 3300, "q": 30 }, { "type": "bandPass", "frequency": 5100, "q": 20 }],
+      "tremolo": { "rate": 7, "depth": 1, "jitter": 0.9 },
+      "envelope": [[0, 1], [1.3, 0]] }
+  ]
+}

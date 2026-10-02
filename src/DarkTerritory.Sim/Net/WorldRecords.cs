@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -80,6 +80,20 @@ public static class WorldRecords
                 (long)e.Kind, (long)e.Phase, Q(e.PhaseSeconds, 1e3), Q(e.Health, 1e3), e.Attached,
                 Q(e.Local.X, Pos), Q(e.Local.Y, Pos), Q(e.Local.Z, Pos), Q(e.LineDistance, Pos), Q(e.Lateral, Pos), Q(e.Height, Pos),
                 Q(e.Extra, 1e3), Q(e.Extra2, 1e3), e.Holding, Q(e.GrabWindow, 1e3),
+            ]));
+        // What landed lately (T121): blows and balls on creatures, and where balls came down, for every client's flinch,
+        // thud, marker and explosion. Each goes for as long as it's kept, so one dropped snapshot doesn't lose it.
+        foreach (var h in world.Hits)
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Hit, h.Id),
+            [
+                h.Tick, h.EnemyId, (long)h.Kind, h.By, (long)h.Source, h.Killed ? 1 : 0,
+                Q(h.At.X, Pos), Q(h.At.Y, Pos), Q(h.At.Z, Pos), Q(h.From.X, Fine), Q(h.From.Y, Fine), Q(h.From.Z, Fine),
+            ]));
+        foreach (var i in world.Impacts)
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Impact, i.Id),
+            [
+                i.Tick, (long)i.Surface, i.Shooter, (long)i.Struck,
+                Q(i.At.X, Pos), Q(i.At.Y, Pos), Q(i.At.Z, Pos), Q(i.Direction.X, Fine), Q(i.Direction.Y, Fine), Q(i.Direction.Z, Fine),
             ]));
         // The wreck (T117): each car where it's tumbled to, and how it lies (right and up; back is their cross).
         if (train.Wreck is { } wreck)
@@ -198,6 +212,8 @@ public static class WorldRecords
         var enemies = new List<Enemy>();
         var bodies = new List<Physics.Body>();
         var wrecked = new List<(int Vehicle, Ballast.Double3 Origin, Ballast.Double3 Right, Ballast.Double3 Up, Ballast.Double3 Velocity)>();
+        var hits = new List<HitConfirm>();
+        var impacts = new List<CannonImpact>();
         foreach (var r in records)
         {
             var f = r.Fields;
@@ -286,6 +302,14 @@ public static class WorldRecords
                 case RecordKind.Body when !world.Authority:
                     bodies.Add(ToBody(r));
                     break;
+                case RecordKind.Hit when !world.Authority:
+                    hits.Add(new HitConfirm(r.Id, (uint)f[0], (int)f[1], (EnemyKind)f[2], (int)f[3], (HitSource)f[4],
+                        new Double3(D(f[6], Pos), D(f[7], Pos), D(f[8], Pos)), new Double3(D(f[9], Fine), D(f[10], Fine), D(f[11], Fine)), f[5] != 0));
+                    break;
+                case RecordKind.Impact when !world.Authority:
+                    impacts.Add(new CannonImpact(r.Id, (uint)f[0], new Double3(D(f[4], Pos), D(f[5], Pos), D(f[6], Pos)),
+                        new Double3(D(f[7], Fine), D(f[8], Fine), D(f[9], Fine)), (ImpactSurface)f[1], (int)f[2], (EnemyKind)f[3]));
+                    break;
                 case RecordKind.Crane when !world.Authority && world.Run is { } craneRun && r.Id / CranesPerSite < craneRun.Sites.Count
                     && craneRun.Sites[r.Id / CranesPerSite] is { } craneSite && r.Id % CranesPerSite < craneSite.Cranes.Count
                     && craneSite.Cranes[r.Id % CranesPerSite] is { } crane:
@@ -328,6 +352,7 @@ public static class WorldRecords
         if (!world.Authority)
         {
             world.MirrorEnemies(enemies);
+            world.MirrorHits(hits, impacts);
             world.Bodies.Mirror(bodies);
             // Seen a radio once, a client knows they're things tonight (T41): no radio on you, no radio.
             if (bodies.Any(b => b.Kind == Physics.BodyKind.Radio))

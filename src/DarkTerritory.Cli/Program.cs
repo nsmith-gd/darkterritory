@@ -954,6 +954,29 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             : null,
     };
     scene.Wreck = train.Wreck;
+    // --impact ground|water|structure|train|creature|doll [--impact-at ahead,lateral] [--impact-age s] (T121): a cannonball
+    // come down there that long ago (its burst, debris, smoke, scorch or splash, and the light of it); "doll" on the staged
+    // Track Doll (with --threats), shattered, and her gone from the rail.
+    if (Str(args, "--impact", "") is { Length: > 0 } surface)
+    {
+        var where = Str(args, "--impact-at", "60,0").Split(',').Select(x => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+        var impact = Staging.Impact(train, surface, where[0], where.Length > 1 ? where[1] : 0, scene.Enemies);
+        scene.Impacts = [impact];
+        if (impact.Struck == DarkTerritory.Sim.Enemies.EnemyKind.TrackDoll && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> staged)
+        {
+            var doll = staged.First(e => e is DarkTerritory.Sim.Enemies.TrackDoll { Attached: < 0 });
+            staged.Remove(doll);
+            scene.Hits = [new DarkTerritory.Sim.Combat.HitConfirm(1, Staging.StrikeTick, doll.Id, doll.Kind, 1, DarkTerritory.Sim.Combat.HitSource.Cannon, impact.At, impact.Direction, true)];
+        }
+        scene.Tick = Staging.StrikeTick + (long)Math.Round(Opt(args, "--impact-age", 0.07) * SimConstants.TickRate);
+    }
+    // --hit-flash [--hit-age s] (T121): a blow just landed on every staged creature (with --threats), from the camera's side:
+    // each one's flinch and flash.
+    if (args.Contains("--hit-flash") && scene.Enemies is { } struck)
+    {
+        scene.Hits = Staging.HitsOn(struck, train, camera.Position);
+        scene.Tick = Staging.StrikeTick + (long)Math.Round(Opt(args, "--hit-age", 0.07) * SimConstants.TickRate);
+    }
     scene.Build(mesh, train, camera.Position);
     // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
     var buildClock = Stopwatch.StartNew();
@@ -1299,6 +1322,10 @@ static object HudShot(string content, string[] args)
         lighting.FogDensity = (float)r.Weather.FogDensity;
         lighting.Wetness = r.Weather.Wet ? 1 : 0;
     }
+    // --hit-marker [kill]: a blow of yours just landed (T121), the crosshair's marker for it (red for the kill).
+    if (args.Contains("--hit-marker"))
+        session.World.Hits.Add(new DarkTerritory.Sim.Combat.HitConfirm(1, (uint)session.HostTick, 1, DarkTerritory.Sim.Enemies.EnemyKind.Ribbit, session.PlayerId,
+            DarkTerritory.Sim.Combat.HitSource.Melee, default, new Double3(0, 0, -1), Str(args, "--hit-marker", "") == "kill"));
     var hud = new Overlay();
     Hud.Build(hud, width, height, session);
     // --roster: the crew roster (T69) as Q shows it, with a staged crew: two heard, one not yet, and a Passenger among them.

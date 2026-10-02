@@ -66,7 +66,13 @@
     "hauntMoveSeconds": 25, "vanishNear": 3, "cornerWithin": 6, "tamperAfterEmpty": 8, "toyReach": 1.8,
     "cargoPerSecond": 0.001,
     // B.2: needs a straight this long ahead (so the lamp can find it), and weighs this much more with the cab empty.
-    "straightNeeded": 250, "emptyCabWeight": 2
+    "straightNeeded": 250, "emptyCabWeight": 2,
+    // T121 playtest ("I shot the track doll and it did nothing while she was on the track"): a forward cannon's ball that
+    // hits her on the rail shatters her, gone for the run, the same outcome as stopping short (App. A.2's VANISH), so the
+    // train no longer strikes her. The GDD gives the brakes as the answer and doesn't say a cannon isn't one; it's loud and
+    // costs the reload, which keeps it a cost. Her hit volume on the rail: railHitRadius round a point railHitHeight over it
+    // (her body, a large porcelain doll). cannonShatters off: the ball goes through her (ARCHITECTURE §8 note 166).
+    "cannonShatters": true, "railHitRadius": 0.55, "railHitHeight": 0.7
   },
 
   // CAR HUGGER · vibration · rear (App. A.3, B.3). Latched: the train's top speed capped at speedCap m/s (the train drags

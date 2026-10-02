@@ -498,7 +498,13 @@ public sealed class HostSession
         var eyes = EarsOf(c);
         foreach (var e in World.ActiveEnemies)
             if (e is Enemies.Follower { Nested: false } f && (f.Carrier == c.Id || f.Carrier == eyes.Id))
+            {
                 _far.Add(WireRecord.MakeKey(RecordKind.Enemy, e.Id));
+                // Nor a friend's blow landing on it there (T121's hit confirm): the thud at your back would give it away.
+                foreach (var h in World.Hits)
+                    if (h.EnemyId == e.Id)
+                        _far.Add(WireRecord.MakeKey(RecordKind.Hit, h.Id));
+            }
         if (InterestRadius <= 0)
             return _far.Count == 0 ? records : records.Where(r => !_far.Contains(r.Key)).ToList();
         // Watching someone (App. D.10), a dead player is sent what's around them: they see it through their eyes.

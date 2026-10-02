@@ -429,6 +429,37 @@ public sealed class GameAudio
     {
         foreach (var shot in world.Shots)
             Mixer.Play("gunshot", shot.Muzzle)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
+        Strikes(world);
+    }
+
+    readonly HashSet<int> _heardHits = [], _heardImpacts = [];
+    bool _strikesPrimed;
+
+    /// <summary>
+    /// What landed (T121), from the replicated world, each once: a ball's boom where it came down (a splash in water, and the
+    /// porcelain going when it was the Track Doll), and the thud of a blow or a ball on a creature at the hit point. On the
+    /// first update, what's already there is old news: it's marked heard, not played.
+    /// </summary>
+    void Strikes(World world)
+    {
+        foreach (var i in world.Impacts)
+        {
+            if (!_heardImpacts.Add(i.Id) || !_strikesPrimed)
+                continue;
+            Mixer.Play(i.Surface == ImpactSurface.Water ? "cannon-splash" : "cannon-impact", i.At)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
+            if (i.Struck == Sim.Enemies.EnemyKind.TrackDoll)
+                Mixer.Play("doll-shatter", i.At)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
+        }
+        foreach (var h in world.Hits)
+            if (_heardHits.Add(h.Id) && _strikesPrimed)
+                Mixer.Play("hit-confirm", h.At)?.Also(v => v.Occlusion = Occlusion(world.ActiveEnemies.FirstOrDefault(e => e.Id == h.EnemyId) is { Attached: >= 0 } on
+                    ? on.Attached : PlayerMotor.Outside));
+        _strikesPrimed = true;
+        // Forget what's gone off the wire (ids aren't reused for a long while: a night's worth).
+        if (_heardImpacts.Count > 64)
+            _heardImpacts.IntersectWith(world.Impacts.Select(i => i.Id));
+        if (_heardHits.Count > 64)
+            _heardHits.IntersectWith(world.Hits.Select(h => h.Id));
     }
 
     /// <summary>Plays a one-shot at a point: crew actions the game knows about (a shovel of coal).</summary>
