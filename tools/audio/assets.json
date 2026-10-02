@@ -1,8 +1,63 @@
 {
+ "previews/cs-car-hugger--break-away--parting.mp4": {
+  "id": "ca73c52d8ff5b3552d7c9a424ffb4dd1",
+  "url": "/_blob/ca73c52d8ff5b3552d7c9a424ffb4dd1",
+  "sha": "758f57a7d1f5e830"
+ },
+ "previews/cs-car-hugger--break-away--tumble.mp4": {
+  "id": "5cdaecb667ea527b0e36c3ca007813da",
+  "url": "/_blob/5cdaecb667ea527b0e36c3ca007813da",
+  "sha": "5e13a04393dd8d0f"
+ },
+ "previews/cs-car-hugger--hit--clench.mp4": {
+  "id": "93d3e1ae867eb3bb3b739aa7d9b955f0",
+  "url": "/_blob/93d3e1ae867eb3bb3b739aa7d9b955f0",
+  "sha": "088d03be8fcc9f8a"
+ },
+ "previews/cs-car-hugger--hit--regrip.mp4": {
+  "id": "c7c35b855128f7650f05fecc79d308b3",
+  "url": "/_blob/c7c35b855128f7650f05fecc79d308b3",
+  "sha": "d0af0703f44fc082"
+ },
  "previews/cs-climbers--hit--sucker.mp4": {
   "id": "40d643d81ec13e37435f79a74c7f0096",
   "url": "/_blob/40d643d81ec13e37435f79a74c7f0096",
   "sha": "8ec3b56e488d0ea7"
+ },
+ "previews/cs-draggers--grab--sinew.mp4": {
+  "id": "588616d2723afe157e9967ba164fa368",
+  "url": "/_blob/588616d2723afe157e9967ba164fa368",
+  "sha": "188c8de044e333e5"
+ },
+ "previews/cs-draggers--grab--yank.mp4": {
+  "id": "157a73997f12b4c21eca4e4846dab48c",
+  "url": "/_blob/157a73997f12b4c21eca4e4846dab48c",
+  "sha": "453eacb476a45cdc"
+ },
+ "previews/cs-draggers--haul-up--heave.mp4": {
+  "id": "168c4ca13998270859e38510ec3b49ec",
+  "url": "/_blob/168c4ca13998270859e38510ec3b49ec",
+  "sha": "267714ba2377b242"
+ },
+ "previews/cs-draggers--scrabble--boots.mp4": {
+  "id": "4d525d3f1c19842ecd8673da5b4ef9a2",
+  "url": "/_blob/4d525d3f1c19842ecd8673da5b4ef9a2",
+  "sha": "13ccf4e1ce7731b2"
+ },
+ "previews/cs-draggers--scrabble--wheels.mp4": {
+  "id": "d0abf1069f33a10e28aa9221ce44fd1b",
+  "url": "/_blob/d0abf1069f33a10e28aa9221ce44fd1b",
+  "sha": "9aa2a3b90a1ffa12"
+ },
+ "previews/cs-draggers--under--sleepers.mp4": {
+  "id": "8078270c7165f8ac2f4f17f852aff3db",
+  "url": "/_blob/8078270c7165f8ac2f4f17f852aff3db",
+  "sha": "1367292c7b5268a4"
+ },
+ "previews/cs-draggers--under--wheels.mp4": {
+  "id": "6eea65f46ed6cfff5659232581f50c30",
+  "url": "/_blob/6eea65f46ed6cfff5659232581f50c30",
+  "sha": "ebcddf7050051a0e"
  },
  "previews/cs-followers--clubbed-off--burst.mp4": {
   "id": "ac68abe42de1d941fdb23042632efe68",
@@ -84,6 +139,16 @@
   "url": "/_blob/8a9d8d56cfe0f6db35932f46e6a19544",
   "sha": "48cc75c08b67829e"
  },
+ "previews/cs-passenger--drag--ankles--wood.mp4": {
+  "id": "d2aaea11a37d232fa1e601e7a8e440c3",
+  "url": "/_blob/d2aaea11a37d232fa1e601e7a8e440c3",
+  "sha": "289bf8ea60abc300"
+ },
+ "previews/cs-passenger--drag--collar--wood.mp4": {
+  "id": "b03baf8182e6906ebe9a1417f6ed3286",
+  "url": "/_blob/b03baf8182e6906ebe9a1417f6ed3286",
+  "sha": "0b5ef9c8d722a787"
+ },
  "previews/cs-ribbits--feed--frenzy.mp4": {
   "id": "8fdbf194d77358d6034eaebc792b0804",
   "url": "/_blob/8fdbf194d77358d6034eaebc792b0804",
@@ -98,6 +163,56 @@
   "id": "e5c162c33420c9f059e89029079b507e",
   "url": "/_blob/e5c162c33420c9f059e89029079b507e",
   "sha": "359316c1b2c78c81"
+ },
+ "previews/cs-tippy--struggle--pinned.mp4": {
+  "id": "9ce0947fb6b348e420c861fb336b94f3",
+  "url": "/_blob/9ce0947fb6b348e420c861fb336b94f3",
+  "sha": "47c29a04b4f269b4"
+ },
+ "previews/cs-tippy--struggle--thrash.mp4": {
+  "id": "a1c91b1f59e37a9f592147c5d954640f",
+  "url": "/_blob/a1c91b1f59e37a9f592147c5d954640f",
+  "sha": "394d612c2dfd9477"
+ },
+ "previews/cs-track-doll--take-toy--na-na.mp4": {
+  "id": "426459c81ba869b358dc7b932dbcc479",
+  "url": "/_blob/426459c81ba869b358dc7b932dbcc479",
+  "sha": "b698183895730992"
+ },
+ "previews/cs-track-doll--take-toy--pleased.mp4": {
+  "id": "8e3e21e33d879ac20186edfa0da2d4d4",
+  "url": "/_blob/8e3e21e33d879ac20186edfa0da2d4d4",
+  "sha": "4b3c4138381f0536"
+ },
+ "previews/cs-whistler--death--coil.mp4": {
+  "id": "945e8e645f1a94eb6a5d85a7483acda0",
+  "url": "/_blob/945e8e645f1a94eb6a5d85a7483acda0",
+  "sha": "a8b4c9ac9e274f99"
+ },
+ "previews/cs-whistler--death--last-breath.mp4": {
+  "id": "3673311d45ab323f572aa59dcae51464",
+  "url": "/_blob/3673311d45ab323f572aa59dcae51464",
+  "sha": "f93975ef18bcde32"
+ },
+ "previews/cs-whistler--hit--flesh.mp4": {
+  "id": "8e46a2d46e79aa119f0b2afb091e6530",
+  "url": "/_blob/8e46a2d46e79aa119f0b2afb091e6530",
+  "sha": "c2bdfb49f36d8f86"
+ },
+ "previews/cs-whistler--hit--plate.mp4": {
+  "id": "5387a2d250908dc34e1759b5703d7558",
+  "url": "/_blob/5387a2d250908dc34e1759b5703d7558",
+  "sha": "ea5c572a824844b6"
+ },
+ "previews/cs-whistler--run--piper.mp4": {
+  "id": "809c4227d981aea3002b931cf0ac6b07",
+  "url": "/_blob/809c4227d981aea3002b931cf0ac6b07",
+  "sha": "6ce2ba1878db1670"
+ },
+ "previews/cs-whistler--run--waves.mp4": {
+  "id": "092787909a0d7b83bb43e3024dddc569",
+  "url": "/_blob/092787909a0d7b83bb43e3024dddc569",
+  "sha": "5dc2422407f5cabd"
  },
  "previews/store-trailer--mix--night-run.mp4": {
   "id": "51b946725ce32bd56ff3889495deef35",
