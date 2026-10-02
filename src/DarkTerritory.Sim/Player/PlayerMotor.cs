@@ -163,6 +163,11 @@ public enum PlayerFlags : byte
     Held = 16,
     /// <summary>Pushing the gun they're at along its roof rail (T93): walking pace at most, and it goes where they go.</summary>
     Pushing = 32,
+    /// <summary>
+    /// The repair kit in their hands (GDD §12): what mends a ruptured boiler (T109). Set by the host each tick from what
+    /// they carry, so a predicting client mends as the host does.
+    /// </summary>
+    RepairKit = 64,
 }
 
 /// <summary>

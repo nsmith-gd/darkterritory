@@ -177,6 +177,21 @@ public static class Hud
     }
 
     /// <summary>Whether you've a radio on you (T41), under the link: without one, T does nothing and nobody's on it for you.</summary>
+    /// <summary>Where the repair kit is, for a ruptured boiler (T109): it's what mends it, and somebody has to go and get it.</summary>
+    static string RepairKitWhere(Sim.World world, int playerId)
+    {
+        var kit = world.Bodies.All.FirstOrDefault(b => b.Kind == BodyKind.RepairKit);
+        if (kit is null)
+            return "THE REPAIR KIT MENDS IT, AND THE TRAIN HAS NONE";
+        if (kit.Carrier == playerId)
+            return "THE REPAIR KIT MENDS IT: TO THE FIREBOX WITH IT";
+        if (kit.Carrier >= 0)
+            return "A CREWMATE HAS THE REPAIR KIT: IT MENDS IT, AT THE FIREBOX";
+        int car = world.Train.Dynamics.Consist.IndexOf(kit.Parent);
+        return car > 0 ? $"THE REPAIR KIT MENDS IT. IT'S IN CAR {car}" : car == 0 ? "THE REPAIR KIT MENDS IT. IT'S HERE ON THE ENGINE"
+            : "THE REPAIR KIT MENDS IT. IT'S OFF THE TRAIN";
+    }
+
     /// <summary>
     /// At a Holdout with someone in it (GDD App. D.7): break them out, or, with the repair kit in hand at a lock, open it
     /// quietly (at a barricade the kit's no help: it's pried, and the kit stays in hand). Null away from one.
@@ -329,7 +344,7 @@ public static class Hud
             if (b.Ruptured)
             {
                 Big("BOILER RUPTURED", Red);
-                Small(b.WrenchOut ? "MEND IT AT THE FIREBOX WITH THE WRENCH" : "THE WRENCH IN THE CAB RACK MENDS IT, AT THE FIREBOX", Ink);
+                Small(RepairKitWhere(world, s.PlayerId), Ink);
             }
             else if (b.AtMaxSeconds > 0)
                 Big($"VENT! RUPTURE IN {Math.Max(0, bt.RuptureHoldSeconds - b.AtMaxSeconds):0}S", flash ? Red : Amber);
@@ -373,9 +388,15 @@ public static class Hud
                     if ((d.WorldPosition(train) - PlayerMotor.WorldPosition(p, train)).Length <= et.Draggers.FreeReach + 1)
                         return "[E] HOLD: PULL THEM FREE";
                 }
-        // The repair kit at a Holdout's door: held, Use works the lock (quietly, GDD App. D.7), not the hands.
-        if (world.Bodies.CarriedBy(s.PlayerId) is { Kind: BodyKind.RepairKit } && HoldoutPrompt(world, p, train, kit: true) is { } opening)
-            return opening;
+        // The repair kit at a Holdout's door: held, Use works the lock (quietly, GDD App. D.7), not the hands; at a ruptured
+        // boiler's firebox, it mends it (T109).
+        if (world.Bodies.CarriedBy(s.PlayerId) is { Kind: BodyKind.RepairKit })
+        {
+            if (HoldoutPrompt(world, p, train, kit: true) is { } opening)
+                return opening;
+            if (CrewActions.AtTheRupture(p, train, world.Hand) && train.BoilerTuning is { } rt)
+                return $"[E] HOLD: MEND THE BOILER WITH THE KIT ({p.ActionProgress / rt.RepairSeconds * 100:0}%)";
+        }
         if (world.Bodies.CarriedBy(s.PlayerId) is { } carried)
             return carried.Kind switch
             {
@@ -385,7 +406,8 @@ public static class Hud
                 BodyKind.Cargo => "INTO A CAR TO LOAD IT: [E] PUT DOWN   [RMB] THROW",
                 // A village find (level-design P12): it pays once it's put down aboard, in any car.
                 BodyKind.Loot => $"{world.Run?.FindName(carried)?.ToUpperInvariant() ?? "A FIND"}: INTO ANY CAR TO KEEP IT   [E] PUT DOWN   [RMB] THROW",
-                BodyKind.RepairKit => "THE REPAIR KIT: IT OPENS A LOCK QUIETLY   [E] PUT DOWN   [RMB] THROW",
+                BodyKind.RepairKit => world.Train.Boiler.Ruptured ? "THE REPAIR KIT: TO THE FIREBOX WITH IT   [E] PUT DOWN"
+                    : "THE REPAIR KIT: IT MENDS THE BOILER, AND OPENS A LOCK QUIETLY   [E] PUT DOWN   [RMB] THROW",
                 _ => "[E] PUT DOWN   [RMB] THROW",
             };
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is not null)
@@ -405,11 +427,9 @@ public static class Hud
                 : "LOOK DOWN AT THE COUPLER TO CUT IT";
         switch (near)
         {
-            // A ruptured boiler (T109): mended here with the wrench in hand, and only so.
-            case InteractableKind.Firebox when PlayerMotor.InCab(p, train) && train.Boiler.Ruptured && train.BoilerTuning is { } rt:
-                return Kit.Held(p) == Tool.Wrench ? $"[E] HOLD: MEND THE BOILER ({p.ActionProgress / rt.RepairSeconds * 100:0}%)"
-                    : Kit.Has(p.Kit, Tool.Wrench) ? "BOILER RUPTURED: THE WRENCH IN HAND TO MEND IT"
-                    : "BOILER RUPTURED: THE WRENCH IS IN ITS RACK, RIGHT SIDE OF THE CAB";
+            // A ruptured boiler (T109): mended here with the repair kit in hand, and only so (the kit's prompt is above).
+            case InteractableKind.Firebox when PlayerMotor.InCab(p, train) && train.Boiler.Ruptured:
+                return $"BOILER RUPTURED: {RepairKitWhere(world, s.PlayerId)}";
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train):
                 return p.Hand != default && !p.Has(PlayerFlags.Shovelful) ? "SHOVEL COAL: FILL IT AT THE TENDER FIRST" : "[E] HOLD: SHOVEL COAL (FASTER)";
             // Only a reaching hand finds the coal face (T29).
@@ -421,7 +441,7 @@ public static class Hud
             // T109: the engineering kit's rack.
             case InteractableKind.ToolRack when PlayerMotor.InCab(p, train):
                 return Kit.Held(p) == Tool.Wrench ? "[E] PUT THE WRENCH BACK" : train.Boiler.WrenchOut ? "THE WRENCH IS OUT"
-                    : "[E] TAKE THE WRENCH (MENDS THE BOILER)";
+                    : "[E] TAKE THE WRENCH";
             case InteractableKind.Handbrake when p.Surface == Surface.Roof:
                 return "[E] HOLD: HANDBRAKE";
             // T99: a cargo car's roof hatch, for the crane to lower a casting in through.

@@ -250,8 +250,8 @@ public sealed class Bodies
     /// </summary>
     /// <param name="hand">The hand tuning, when hands are reported (T29): a reaching hand takes what it's on.</param>
     /// <param name="keep">
-    /// Use is working what's carried, not putting it down: the repair kit at a Holdout's lock (App. D.7). The press is still
-    /// taken, so it doesn't work a lever either.
+    /// Use is working what's carried, not putting it down: the repair kit at a Holdout's lock (App. D.7) or a ruptured
+    /// boiler's firebox (T109). The press isn't taken, so the work goes on from this tick, the same on a predicting client.
     /// </param>
     public bool Handle(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null, bool keep = false)
     {
@@ -271,7 +271,7 @@ public sealed class Bodies
             return false;
         }
         if (carried is not null && keep && !throwPressed)
-            return usePressed;
+            return false;
         if (carried is not null && (throwPressed || usePressed))
         {
             // Nobody throws a heavy crate: either of you lets go, and it's down.

@@ -388,7 +388,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             // The blow-off cock (T97: venting slows the train). T109 playtest: in the cab on its left side, so one player
             // works it all from the footplate; clear of where the firebox is worked from.
             new(InteractableKind.Vent, new Double3(-w + 0.3, deck, cabFront + 1.2), 0.6),
-            // The engineering kit's rack on the right side, the driver's (T109): the wrench that mends a ruptured boiler.
+            // The tool rack on the right side, the driver's (T109): the wrench, a tool to swing (the repair kit mends the boiler).
             new(InteractableKind.ToolRack, new Double3(w - 0.3, deck, cabFront + 2.0), 0.6),
             // The coal comes forward through the tender's front onto a shovelling plate at the back of the cab, near
             // enough the firebox that a fireman turning between them reaches both.

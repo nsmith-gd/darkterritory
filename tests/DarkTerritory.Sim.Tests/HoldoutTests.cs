@@ -367,19 +367,18 @@ public class HoldoutTests
     }
 
     [Fact]
-    public void TheTrainLeavesWithItsRepairKitInTheGuardVan()
+    public void TheTrainLeavesWithItsRepairKitInCarOne()
     {
+        // A guard van and all: the kit rides in the first car behind the engine (train.json kit.repairKitCar), not with the stores.
         var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 6, 1)),
             new Rail.RailLine(new Rail.LineDefinition("t", [new Rail.TrackSegment(50_000)])), 1_000));
         world.EnableBodies();
         world.Stock();
-        var guard = world.Train.Dynamics.Consist.Vehicles.Last(v => v.Kind == VehicleKind.Guard);
         var kit = Assert.Single(world.Bodies.All, b => b.Kind == BodyKind.RepairKit);
-        Assert.Equal(1, Tuning.Train.Kit.RepairKits);
-        Assert.Equal(guard.Id, kit.Parent);
-        var shape = world.Train.Frames[guard.Id].Shape;
+        Assert.Equal(1, World.RepairKitCar(world.Train));
+        Assert.Equal(1, kit.Parent);
+        var shape = world.Train.Frames[1].Shape;
         Assert.True(shape.Interior!.Value.Contains(kit.Centre));
-        // Clear of the lockers it stands in front of.
         Assert.DoesNotContain(shape.Solids, s => s.Box.Contains(kit.Centre));
     }
 
