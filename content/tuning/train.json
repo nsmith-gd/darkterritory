@@ -151,6 +151,12 @@
   "kit": {
     "radios": 2,
     // GDD v1.1 App. C.4 hand loot: toys in the guard van, for the Track Doll (it steals one and leaves for the run).
-    "toys": 2
+    "toys": 2,
+    // GDD §12 "the repair kit is an item, not a station": one toolbox, on the floor just inside the front door of car
+    // `repairKitCar` (counted back from the engine). It's what mends a ruptured boiler (boiler.json repairSeconds), so
+    // someone has to leave the footplate for it, and whoever carries it opens a Holdout's lock silently (holdouts.json
+    // "open"). When they die it's lying where they fell.
+    "repairKits": 1,
+    "repairKitCar": 1
   }
 }
