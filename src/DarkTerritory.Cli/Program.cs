@@ -382,6 +382,13 @@ object FacilityWorkDrill(FacilityKind kind, string[] args)
         alive = $"{r.Alive}/{r.Crew}",
         deaths = r.Deaths,
         stop = r.Record,
+        // The switchyard's cars (note 187): brought away, and still standing; the engine's rake as it left, front to back.
+        pickedUp = r.PickedUp.Select(c => new { id = c.Id, load = c.Load, cargo = c.Cargo.ToString() }),
+        stillStanding = r.StillStanding,
+        order = r.Order,
+        // The wreck yard's heaps (note 187).
+        heaps = r.Heaps.Select(h => new { found = h.Found, unfound = h.Unfound, shifts = h.Shifts, stability = h.Stability }),
+        stops = r.Stops.Select(x => new { x.Kind, x.Seconds }),
     };
 }
 
@@ -850,6 +857,20 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var state = train.Capture();
         train.Restore(state with { Rakes = [state.Rakes[0] with { Path = site.Spur }] });
     }
+    // GDD §18's switchyard (note 187): its cars standing on the sidings, and the train run up a siding to couple up to some, a
+    // few metres short of them.
+    if (site is not null && run is not null)
+    {
+        run.StandCars(train);
+        if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Rakes)
+            && run.YardTracks(site.Index).Select(b => train.Rakes.FirstOrDefault(r => r.Path == b && train.Standing(r))).FirstOrDefault(r => r is not null) is { } standing)
+        {
+            var state = train.Capture();
+            int engine = Array.FindIndex(state.Rakes, r => r.Vehicles.Contains(0));
+            state.Rakes[engine] = state.Rakes[engine] with { Path = standing.Path, Distance = standing.RearDistance - t.Geometry.CouplingGap - 3 };
+            train.Restore(state);
+        }
+    }
     // The works' hose on the car by its stand (note 185).
     if (site is not null && site.Has(DarkTerritory.Sim.Run.ModuleKind.Hose)
         && train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).MinBy(v => (train.Frames[v.Id].Origin - site.HoseStand).Length) is { } hosed)
@@ -946,6 +967,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         foreach (var crate in site.HeavyStack)
             shelf.SpawnCargo(crate, site.CrateLineHint, site.HeavyRadius, freight);
         run!.Stock(shelf, run.Stops.ToList().IndexOf(site.Feature));
+        // The wreck yard's heaps (note 187), as a crew a while into it would have them: all but the last found by a lamp, their
+        // salvage out on the ground beside them, the second shifted once already and the first groaning (--settled: quiet).
+        var wreck = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)).Wreck;
+        foreach (var heap in site.Heaps)
+        {
+            bool found = heap.Index < site.Heaps.Count - 1;
+            if (found)
+                for (int k = 0; k < heap.SalvageStart; k++)
+                    shelf.SpawnCargo(DarkTerritory.Sim.Run.Run.PieceAt(site, heap, k, heap.SalvageStart, wreck), site.MainDistance, cargo: CargoKind.Salvage);
+            heap.Mirror(new DarkTerritory.Sim.Run.HeapState(found ? 0 : heap.SalvageStart, found, heap.Index == 0 ? 0 : 1, heap.Index == 0 && !args.Contains("--settled") ? 2 : 0, heap.Index == 1 ? 1 : 0));
+        }
         cargo = [.. shelf.All];
         if (Str(args, "--cam", "") is not { Length: > 0 })
         {
@@ -953,7 +985,23 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // GDD §18's set pieces (note 185), each from out beyond it on its side, along the line a way, looking back at it.
             Double3 Out(Double3 from) => ((from - line.Sample(site.Spur, site.Spur >= 0 ? line.Branches[site.Spur].Toe + site.Mid : site.Mid).Position) with { Y = 0 }).Normalized;
             Double3 Along() => site.Track.Sample(site.Mid).Tangent;
-            if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Spout))
+            // The switchyard (note 187): across the gap between the engine and the cars it's coupling up to, from the open side.
+            var waiting = site.Has(DarkTerritory.Sim.Run.ModuleKind.Rakes) ? train.Rakes.FirstOrDefault(r => r.Path == train.Dynamics.Path && train.Standing(r)) : null;
+            if (waiting is not null)
+            {
+                var gap = line.Sample(waiting.Path, waiting.RearDistance - 1.5);
+                var right = Double3.Cross(gap.Tangent, Double3.Up).Normalized * line.Branches[waiting.Path].Side;
+                camera = Camera.LookAt(gap.Position + right * 10 - gap.Tangent * 8 + Double3.Up * 3.2, gap.Position + gap.Tangent * 5 + Double3.Up * 1.2, 66);
+            }
+            // The wreck yard (note 187): from beside the engine at the buffer stop, out at the heaps in its headlamp.
+            else if (site.Heaps.Count > 0)
+            {
+                var end = site.Track.Sample(site.Track.Length);
+                var right = Double3.Cross(end.Tangent, Double3.Up).Normalized * site.Side;
+                camera = Camera.LookAt(end.Position - end.Tangent * 12 + right * 7 + Double3.Up * 4.5,
+                    (site.Heaps[0].Centre + site.Heaps[Math.Min(1, site.Heaps.Count - 1)].Centre) * 0.5 + Double3.Up, 70);
+            }
+            else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Spout))
             {
                 var side = ((site.SpoutLever - site.Spout) with { Y = 0 }).Normalized;
                 camera = Camera.LookAt(site.Spout + side * 10 + Along() * 8 + Double3.Up * 3.5, site.Spout - Double3.Up * 1.5, 62);
@@ -1768,7 +1816,7 @@ static int Usage()
                      [--burnt car,s]   that car gutted by a fire out s seconds ago: charred, smouldering
                      [--route tier:seed --structure girder|truss|trestle|viaduct|causeway|retainingwall]   the night's first of the plan's structures of that type, the train on it, from off its side
                      [--route tier:seed --mail s]   at the night's first mail crane, car 2's door by it; s > 0: the bag caught s seconds ago (its snatch, the arms falling)
-                     [--route tier:seed --site [--crank | --crane | --facility i|kind [--leak]]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --facility: the route's i-th
+                     [--route tier:seed --site [--crank | --crane | --facility i|kind [--leak] [--settled]]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --facility: the route's i-th
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/

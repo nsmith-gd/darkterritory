@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -39,7 +39,8 @@ public static class WorldRecords
     /// crew locker and shelf it's on (note 173: locker × 256 + shelf, or −1).
     /// </summary>
     const int BodyParticles = 10;
-    // The Run record's header (phase, end, clock, facility, chute, scavenged), and room in a crane record's id for each of a site's cranes.
+    // The Run record's header (phase, end, clock, facility, chute, scavenged), and room in a crane (or wreck heap) record's id for
+    // each of a site's cranes (heaps).
     const int RunHead = 6, CranesPerSite = 16;
 
     static long Q(double v, double scale) => (long)Math.Round(v * scale);
@@ -168,6 +169,13 @@ public static class WorldRecords
                         f.AddRange([(long)c.State, c.Car, Q(c.At.X, Pos), Q(c.At.Y, Pos), Q(c.At.Z, Pos)]);
                     list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Crane, site.Index * CranesPerSite + k), [.. f]));
                 }
+        // The wreck yard's heaps (note 187): the salvage still unfound in each, whether a lamp's found it, how settled it is, its
+        // groan (the tell) and how often it's shifted.
+        if (world.Run is { } wrecked)
+            foreach (var site in wrecked.Sites)
+                foreach (var h in site?.Heaps ?? [])
+                    list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Heap, site!.Index * CranesPerSite + h.Index),
+                        [h.Salvage, h.Found ? 1 : 0, Q(h.Stability, Fine), Q(h.Groan, Fine), h.Shifts]));
         // GDD App. D: each Holdout's state, who's in it and how far the breach is, and whether it's the repair kit's (the
         // lamps and the HUD).
         if (world.Holdouts is { } holdouts)
@@ -347,6 +355,10 @@ public static class WorldRecords
                     int castings = (int)f[4];
                     crane.Mirror(D(f[0], Pos), D(f[1], Pos), D(f[2], Pos), D(f[3], Fine), [.. Enumerable.Range(0, castings).Select(i =>
                         ((Run.CastingState)f[5 + i * 5], (int)f[6 + i * 5], new Ballast.Double3(D(f[7 + i * 5], Pos), D(f[8 + i * 5], Pos), D(f[9 + i * 5], Pos))))]);
+                    break;
+                case RecordKind.Heap when !world.Authority && world.Run is { } heapRun && r.Id / CranesPerSite < heapRun.Sites.Count
+                    && heapRun.Sites[r.Id / CranesPerSite] is { } heapSite && r.Id % CranesPerSite < heapSite.Heaps.Count:
+                    heapSite.Heaps[r.Id % CranesPerSite].Mirror(new Run.HeapState((int)f[0], f[1] != 0, D(f[2], Fine), D(f[3], Fine), (int)f[4]));
                     break;
                 case RecordKind.Holdout when !world.Authority && world.Holdouts is { } queue && r.Id == QueueRecord:
                     queue.MirrorQueue(Enumerable.Range(0, f.Length / 2).Select(i => ((int)f[i * 2], f[i * 2 + 1] != 0)));

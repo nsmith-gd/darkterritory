@@ -294,7 +294,9 @@
     // facility of this kind, these come on this many times as often. The Gaunt sleeps in yards (App. B.6); in a
     // slaughterhouse it's the resident.
     "residents": {
-      "slaughterhouse": { "gaunt": 4, "followers": 1.5 }
+      "slaughterhouse": { "gaunt": 4, "followers": 1.5 },
+      // GDD §18 "Wreck yard: unstable, unlit, already occupied" (note 187): Draggers under the cars on their sides.
+      "wreckYard": { "draggers": 3, "gaunt": 2 }
     },
     // App. B.1 "contradiction seeding": the v1.1 conflict table, as the tuning's names (and conditions: "choir", gathering or
     // here; "grade", a climb or fall just ahead; "facilityLoading" and "facilityStop", at a facility). Ambiguity (ARCHITECTURE §8): "draws

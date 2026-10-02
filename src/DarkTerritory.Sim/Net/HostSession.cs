@@ -248,7 +248,7 @@ public sealed class HostSession
     {
         var c = new Crew(id, peer);
         // First aboard takes the cab; everyone else spreads down the train.
-        int car = 1 + (_crew.Count - 1) % Math.Max(1, Train.Frames.Count - 1);
+        int car = 1 + (_crew.Count - 1) % Math.Max(1, Train.OwnVehicles - 1);
         c.State = BoardAt is { } at && _crew.Count > 0 ? at(_crew.Count)
             : _crew.Count == 0 ? PlayerMotor.SpawnInCab(Train, PlayerTuning) : PlayerMotor.SpawnOnRoof(Train, car, 0, PlayerTuning);
         // Past the gate, nobody spawns aboard (D.1): they watch, waiting in the queue, until a Holdout frees them.

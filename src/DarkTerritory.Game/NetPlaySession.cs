@@ -416,7 +416,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         if (hostWorld.Run is { } run)
         {
             host.CanBoard = () => run.Phase is Sim.Run.RunPhase.Yard or Sim.Run.RunPhase.AtFacility or Sim.Run.RunPhase.Arrived;
-            host.BoardAt = n => run.Phase == Sim.Run.RunPhase.Yard ? PlayerMotor.SpawnOnRoof(hostWorld.Train, 1 + (n - 1) % Math.Max(1, hostWorld.Train.Frames.Count - 1), 0, playerTuning)
+            host.BoardAt = n => run.Phase == Sim.Run.RunPhase.Yard ? PlayerMotor.SpawnOnRoof(hostWorld.Train, 1 + (n - 1) % Math.Max(1, hostWorld.Train.OwnVehicles - 1), 0, playerTuning)
                 : Beside(hostWorld.Train, n, playerTuning);
         }
         if (setup.Enemies && route is not null)

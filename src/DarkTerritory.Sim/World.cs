@@ -502,7 +502,12 @@ public sealed class World
         Bookmarks.Tuning = tuning.Bookmarks;
         Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line);
         if (facilities is not null)
+        {
             Run.EnableSites(facilities, Train.Line);
+            // The switchyards' cars on their sidings (GDD §18; note 187), alike on the host and every client: so from the
+            // route alone, not from anything one machine has and another mightn't (route.json's 12 m points).
+            Run.StandCars(Train);
+        }
         if (loot is not null)
             Run.EnableLoot(loot, Train.Line, facilities);
         Authority |= authority;

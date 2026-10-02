@@ -137,9 +137,10 @@ public static class Harness
             host.BoardAt = n =>
             {
                 var train = host.Train;
-                int car = n % train.Frames.Count;
+                // The train's own cars, not a switchyard's out on its sidings (note 187).
+                int car = n % train.OwnVehicles;
                 var frame = train.Frames[car];
-                var at = frame.ToWorld(new Double3(frame.Shape.HalfWidth + 2.2, 0, (n / train.Frames.Count % 3 - 1) * 3.0));
+                var at = frame.ToWorld(new Double3(frame.Shape.HalfWidth + 2.2, 0, (n / train.OwnVehicles % 3 - 1) * 3.0));
                 double along = train.Cars[car].FrontDistance - frame.Shape.HalfLength;
                 return PlayerMotor.SpawnOnGround(at, train.Line, along, host.PlayerTuning);
             };

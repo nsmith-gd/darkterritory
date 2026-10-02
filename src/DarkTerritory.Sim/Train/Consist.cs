@@ -104,6 +104,12 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     public bool Armoured { get; set; }
 
     /// <summary>
+    /// One of a switchyard's cars, standing on its siding when the night began (GDD §18 "cars scattered across six sidings";
+    /// WP15b, note 187), not the crew's: coupled up and brought home, it's theirs and it pays. Fixed for the night.
+    /// </summary>
+    public bool YardCar { get; init; }
+
+    /// <summary>
     /// A blow to the car's shell (a Car Hugger's bite, a hard knock at the couplers): what's left of it after the plate, if
     /// it's armoured. Returns what the car lost.
     /// </summary>
