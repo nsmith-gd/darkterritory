@@ -4,10 +4,14 @@
 Director's rule (2 Oct review): a line on the checklist is not one sound. Every sound is split into the separate things a
 player or the sim does, each its own file (a one-shot with a few takes to pick between at random, or a seamless loop the
 code starts and stops), and a sound that touches something is split again by the surface material it lands on. The code
-that triggers and layers them comes later; these are only the raw, single events. No layering, no creative processing.
+that triggers and layers them comes later; these are only the single events.
 
-Candidates are library files that literally are the event (a Kenney wood footstep for "walk on wood"), played as they come.
-Where the small packs have nothing that is the event, the cue says what it needs and waits for a real source (Sonniss).
+Two kinds of sound, made two ways:
+- Gameplay foley (the crew's items and tools, the train, the world, places): a candidate should be the real thing (a Kenney
+  wood footstep for "walk on wood"), trimmed and levelled, not rebuilt from unrelated sounds. Where the packs have nothing
+  that is the event, the cue says what it needs and waits for a real source (Sonniss).
+- Enemies (creature sounds and tells): interesting, organic, made by distorting and kitbashing sources together, as the
+  director asked. Each still split into its own cues.
 The review lives on the Dark Territory Audio Checklist artifact (https://claude.ai/artifact/F5szjdzd8Svn3nfH3mDWMN), whose
 `items` store holds each line's `cues`; the library copies it plays are published under its `library/`.
 
@@ -33,15 +37,14 @@ MATERIALS = {
 DROP = ["wood", "grate", "ground", "concrete"]
 FEET = ["wood", "grate", "roof", "ground", "concrete"]
 
-# Library files never to use again: the hiss/fizz the director flagged ("bottle opening or fizzing", 2 Oct). air_01 went
-# into 10 references (7 marked redo), misc_02 into 10 (8 redo).
-BANNED = {"sfx_100_v2:sfx100v2_air_01", "sfx_100_v2:sfx100v2_misc_02"}
+# The director's note (2 Oct): the bottle-opening/fizz sound was overdone, and used where it made no sense. Fine where a
+# fizz belongs; not as a default texture. Most of it came from these two files (air_01 in 10 earlier references, 7 marked
+# redo; misc_02 in 10, 8 redo).
+OVERUSED = {"sfx_100_v2:sfx100v2_air_01", "sfx_100_v2:sfx100v2_misc_02"}
 
 
 def lib(key):
     """'pack:name' -> the page's published copy."""
-    if key in BANNED:
-        raise ValueError(f"{key} is banned")
     pack, name = key.split(":")
     return f"library/{pack}__{name}.mp3"
 
