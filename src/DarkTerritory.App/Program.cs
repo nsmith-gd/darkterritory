@@ -35,7 +35,8 @@ using CrewActs = DarkTerritory.Game.Art.CrewActs;
 //   upgrades, autosaves leaving each facility, and settles at the end (spec E, F). `dt campaign` runs the fortress headless.
 // Options: --route tier:seed | --route-file name (saved from dt edit) [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png --mute --greybox (flat colour, no art pass)
 // Multiplayer (UDP, direct IP / LAN): --host [port] hosts the same options for others to join; --join address[:port] joins one.
-// Steam: --steam hosts a friends-only lobby as well (F2 opens the invite dialog; friends can also "Join Game" from the
+//   A hosted run is public (on the LAN beacon, and a public Steam lobby) unless --private (invite and address only).
+// Steam: --steam hosts a lobby as well (F2 opens the invite dialog; friends can also "Join Game" from the
 //   friends list). Accepting an invite starts the game with +connect_lobby <id>, or --join-lobby <id> by hand.
 //   Needs steam_api64.dll next to the game (external/steam/README.md); --no-steam to not even try.
 // Networked, the cab is the only place to drive from (GDD §12): R/F/B/X work when you're standing in it.
@@ -81,6 +82,7 @@ var saves = new SaveSlots(Arg("--saves", SaveSlots.DefaultDirectory), campaignTu
 var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", Settings.DefaultPath), edition: EditionTuning.Load(content))
 {
     Protocol = DarkTerritory.Sim.Net.Protocol.Version,
+    DefaultPlayerName = steam?.NameOf(steam.Me) ?? Environment.UserName,
 };
 
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
@@ -105,7 +107,13 @@ Launch? LaunchFromArgs()
     string? routeFile = Arg("--route-file", "") is { Length: > 0 } f ? f : null;
     bool host = port is not null || args.Contains("--steam") && steam is not null;
     if (host || route is not null || routeFile is not null || args.Contains("--line"))
-        return new Launch.Night(route, cars, host) { Line = Arg("--line", "test-loop"), RouteFile = routeFile, Bots = int.TryParse(Arg("--bots", "0"), out var b) ? b : 0 };
+        return new Launch.Night(route, cars, host)
+        {
+            Line = Arg("--line", "test-loop"),
+            RouteFile = routeFile,
+            Bots = int.TryParse(Arg("--bots", "0"), out var b) ? b : 0,
+            Public = !args.Contains("--private"),
+        };
     return null;
 }
 var launch = LaunchFromArgs();
@@ -294,16 +302,19 @@ Launch? Menu()
     // Whatever's held coming in (the A that ended the night) isn't a press here.
     if (vr is not null)
         vrKeys.Read(vr.Session.Controllers);
-    // The games hosted on the local network (T116), for the join screen.
-    using var lan = new Ballast.Net.LanBrowser();
+    // The public games (T116; the user's playtest: "Join should work like Lethal Company"), for the join screen: the local
+    // network's, and Steam's lobby search when Steam's up.
+    using var browser = new LobbyBrowser(new Ballast.Net.LanBrowser(), steam);
     while (!window.CloseRequested && !QuitNow())
     {
         window.PumpEvents();
-        lan.Poll(timer.Elapsed.TotalSeconds);
-        frontEnd.LanGames = lan.Games.Where(g => g.Game == NetPlaySession.Game).ToList();
         window.TextInput = frontEnd.WantsText;
         if (Invited(null) is { } lobby)
             return new Launch.JoinLobby(lobby);
+        if (frontEnd.TakeRefresh())
+            browser.Refresh();
+        browser.Poll(timer.Elapsed.TotalSeconds, steamEvents, search: frontEnd.Screen == Screen.Join);
+        frontEnd.Games = browser.Games;
         Launch? chosen = null;
         // Binding a control (T80): the next key or button pressed is the one, Escape keeps the old. The mouse is held
         // meanwhile, so a click is a button pressed and not the window taking the mouse.
@@ -387,7 +398,8 @@ Launch? Menu()
                 int? port = night.Host ? NetPlaySession.DefaultPort : null;
                 var setup = new SessionSetup(Route: contract.Route, Cars: campaign.Cars, Enemies: enemies) { Upgrades = campaign.Upgrades };
                 Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
-                return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume), campaign);
+                return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume,
+                    listed: frontEnd.Settings.PublicLobby, lobbyName: frontEnd.LobbyName), campaign);
             }
         // From the menu always the real night (T110: with no bots too, it's the same game alone); the bare prototype is the
         // command line's, for a route or line on its own.
@@ -398,13 +410,14 @@ Launch? Menu()
                 int? port = !hosted.Host ? null : args.Contains("--host") ? int.TryParse(Arg("--host", ""), out var p) ? p : NetPlaySession.DefaultPort
                     : fromCommandLine ? null : NetPlaySession.DefaultPort;
                 var setup = new SessionSetup(Route: hosted.Route, Line: hosted.Line, Cars: hosted.Cars, Enemies: enemies);
-                var session = NetPlaySession.HostGame(content, setup, port, online: hosted.Host ? steam : null, bots: hosted.Bots);
+                var session = NetPlaySession.HostGame(content, setup, port, online: hosted.Host ? steam : null, bots: hosted.Bots,
+                    listed: hosted.Public, lobbyName: hosted.LobbyName);
                 if (hosted.Bots > 0)
                     Console.WriteLine($"a crew of {hosted.Bots} bot{(hosted.Bots == 1 ? "" : "s")} aboard");
                 if (port is not null)
                     Console.WriteLine($"hosting on UDP port {session.Port}: others join with --join <this machine's address>:{session.Port}");
-                if (steam is not null)
-                    Console.WriteLine($"hosting a friends-only Steam lobby as {steam.NameOf(steam.Me)}: F2 to invite");
+                if (steam is not null && hosted.Host)
+                    Console.WriteLine($"hosting a {(hosted.Public ? "public" : "friends-only")} Steam lobby, \"{session.LobbyName}\", as {steam.NameOf(steam.Me)}: F2 to invite");
                 return (session, null);
             }
         case Launch.Night { RouteFile: { } file } alone:
@@ -470,7 +483,9 @@ return 0;
 (IPlaySession Session, CampaignState? Campaign)? Starting(Launch chosen)
 {
     var task = Task.Run(() => Start(chosen));
-    string doing = chosen is Launch.Join or Launch.JoinLobby ? "JOINING" : "BUILDING THE NIGHT";
+    // The user's playtest: "You should be able to host a run, not a night."
+    string doing = chosen is Launch.Join or Launch.JoinLobby ? "JOINING"
+        : chosen is Launch.Night { Host: true } or Launch.CampaignNight { Host: true } ? "BUILDING THE RUN" : "BUILDING THE NIGHT";
     double began = timer.Elapsed.TotalSeconds;
     while (!task.IsCompleted)
     {

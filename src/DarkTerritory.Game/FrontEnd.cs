@@ -20,6 +20,10 @@ public abstract record Launch
         /// <summary>Bot crewmates to take along (T89): the first drives, the rest crew the train with you.</summary>
         public int Bots { get; init; }
         public string? RouteFile { get; init; }
+        /// <summary>Hosting: listed for anyone to find, or private (invite and address only).</summary>
+        public bool Public { get; init; } = true;
+        /// <summary>Hosting: what the lobby browser calls it (null: the host's name's run).</summary>
+        public string? LobbyName { get; init; }
     }
     /// <summary>Someone else's night, at an address (host[:port]).</summary>
     public sealed record Join(string Address) : Launch;
@@ -90,8 +94,27 @@ public sealed class FrontEnd
     public CampaignState? Open { get; private set; }
     public Settings Settings { get; private set; }
     public EditionTuning Edition => _edition;
-    /// <summary>The games heard on the local network (T116), for the join screen: the app's browser sets them each frame.</summary>
-    public IReadOnlyList<Ballast.Net.LanGame> LanGames { get; set; } = [];
+    /// <summary>
+    /// The public games for the join screen (T116; the user's playtest, "I see active lobbies I can join and then what my
+    /// ping is"): the app's <see cref="LobbyBrowser"/> sets them each frame, nearest first.
+    /// </summary>
+    public IReadOnlyList<ListedGame> Games { get; set; } = [];
+    /// <summary>Who's playing, for the lobby's default name when the settings have none (the app sets it: the Steam name, or the system's).</summary>
+    public string DefaultPlayerName { get; set; } = Environment.UserName;
+    /// <summary>The lobby's name as the host screen has it: the one set, or "&lt;PLAYER NAME&gt;'S RUN".</summary>
+    public string LobbyName => Settings.LobbyName is { Length: > 0 } set ? set : _blankName ? "" : DefaultLobbyName;
+    string DefaultLobbyName => $"{(Settings.PlayerName is { Length: > 0 } me ? me : DefaultPlayerName).ToUpperInvariant()}'S RUN";
+    /// <summary>The name erased to nothing while it's being typed: blank until typed or left, then the default again.</summary>
+    bool _blankName;
+    bool _refresh;
+
+    /// <summary>REFRESH was chosen on the join screen since the last ask: the app looks again (a new search, fresh pings).</summary>
+    public bool TakeRefresh()
+    {
+        bool r = _refresh;
+        _refresh = false;
+        return r;
+    }
     /// <summary>The wire protocol this build speaks: a game on another can't be joined.</summary>
     public int Protocol { get; init; }
     /// <summary>The address typed so far on the join screen.</summary>
@@ -115,8 +138,12 @@ public sealed class FrontEnd
         Message = was != c ? $"{Controls.Label(was)} moved to {Controls.KeyLabel(Settings.KeyFor(was))}." : null;
     }
 
-    /// <summary>The join screen wants typed text (the app turns text input on).</summary>
-    public bool WantsText => Screen == Screen.Join;
+    /// <summary>The join screen's address, or the host screen's lobby name while it's chosen, wants typed text (the app turns text input on).</summary>
+    public bool WantsText => Screen == Screen.Join || NamingLobby;
+
+    /// <summary>The host screen's NAME is chosen: it's after the night's options and VISIBILITY.</summary>
+    bool NamingLobby => Screen == Screen.Host && Selected == NightOptions().Count + 1;
+    const string NameLabel = "NAME: ";
     /// <summary>Played in a headset (T36): the hints name the controllers' buttons, not the keys.</summary>
     public bool Headset { get; set; }
 
@@ -162,6 +189,17 @@ public sealed class FrontEnd
 
     public void Type(string text)
     {
+        if (NamingLobby)
+        {
+            // From the name shown: typing onto the default carries on from it.
+            string name = LobbyName;
+            foreach (char c in text.ToUpperInvariant())
+                if ((char.IsLetterOrDigit(c) || c is ' ' or '\'' or '.' or '-' or '!' or '?') && name.Length < MaxLobbyName)
+                    name += c;
+            _blankName = false;
+            Change(Settings with { LobbyName = name });
+            return;
+        }
         if (!WantsText)
             return;
         foreach (char c in text)
@@ -169,14 +207,28 @@ public sealed class FrontEnd
                 Address += c;
     }
 
+    /// <summary>A lobby name's longest: what fits the browser's name column.</summary>
+    public const int MaxLobbyName = 24;
+
     public void Erase()
     {
+        if (NamingLobby)
+        {
+            // Erased to nothing, it's the default again.
+            if (LobbyName.Length == 0)
+                return;
+            string name = LobbyName[..^1];
+            _blankName = name.Trim().Length == 0;
+            Change(Settings with { LobbyName = _blankName ? "" : name });
+            return;
+        }
         if (WantsText && Address.Length > 0)
             Address = Address[..^1];
     }
 
     public void Show(Screen screen)
     {
+        _blankName = false;
         Screen = screen;
         Selected = 0;
         // Skip to the first item you can do something with.
@@ -217,6 +269,7 @@ public sealed class FrontEnd
         var entries = Entries();
         if (entries.Count == 0)
             return;
+        _blankName = false;
         // Over anything greyed out.
         for (int i = 0; i < entries.Count; i++)
         {
@@ -261,8 +314,9 @@ public sealed class FrontEnd
             new(new("QUICK NIGHT", _tiers.Length > 1 ? "Any tier, any seed, alone or with bots." : "Any seed, alone or with bots."), () => { Show(Screen.QuickNight); return null; }),
             // T116 (the co-op games' way, Lethal Company's ship): the host opens a lobby, the yard, and waits there; friends
             // join it from the list, by invite or by address; the host drives out of the yard when everyone's in.
-            new(new("HOST A NIGHT", "Open a lobby in the yard. Friends join; you drive out when everyone's in."), () => { Show(Screen.Host); return null; }),
-            new(new("JOIN A NIGHT", "Games on your network, a Steam invite, or an address."), () => { Show(Screen.Join); return null; }),
+            // The user's playtest: "You should be able to host a run, not a night. The button should just say HOST."
+            new(new("HOST", "Open a lobby in the yard for a run. Friends join; you drive out when everyone's in."), () => { Show(Screen.Host); return null; }),
+            new(new("JOIN", "The public games, nearest first, a Steam invite, or an address."), () => { Show(Screen.Join); return null; }),
             new(new("SETTINGS"), () => { Show(Screen.Settings); return null; }),
             new(new("QUIT"), () => new Launch.Quit()),
         ],
@@ -278,17 +332,27 @@ public sealed class FrontEnd
         Screen.Host =>
         [
             .. NightOptions(),
-            new(new("OPEN THE LOBBY", "You wait in the yard; it's on your network and, with Steam, open to your friends."),
-                () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: true) { Bots = _bots }),
+            // The user's playtest: "I can join it if its public. If it's a private lobby its not listed."
+            new(new($"VISIBILITY: {(Settings.PublicLobby ? "PUBLIC" : "PRIVATE")}", Settings.PublicLobby
+                    ? "Listed: anyone on your network, or on Steam, finds it on their join screen."
+                    : "Not listed: friends join by Steam invite, or type your address."),
+                Toggle(s => s with { PublicLobby = !s.PublicLobby }), _ => Change(Settings with { PublicLobby = !Settings.PublicLobby })),
+            new(new($"{NameLabel}{LobbyName}{(NamingLobby ? "_" : "")}", "Type to rename it: what the join screen calls it."), null),
+            new(new("OPEN THE LOBBY", "You wait in the yard with the train; you drive out when everyone's in."),
+                () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: true) { Bots = _bots, Public = Settings.PublicLobby, LobbyName = LobbyName.Trim() is { Length: > 0 } named ? named : DefaultLobbyName }),
             new(new("BACK"), Go(Screen.Title)),
         ],
         Screen.Join =>
         [
-            .. LanGames.Select(g => new Entry(new($"{g.Host.ToUpperInvariant()}'S NIGHT, {g.Aboard} ABOARD",
-                    g.Protocol == Protocol ? $"{g.Night} ({g.Address})" : "Another version of the game: update to the same one to join.", g.Protocol == Protocol),
-                () => new Launch.Join(g.Address.ToString()))),
-            .. LanGames.Count == 0 ? [new Entry(new("NO GAMES ON YOUR NETWORK YET", "When someone opens a lobby on your network, it shows here.", false))] : (Entry[])[],
-            new(new($"ADDRESS: {Address}_", "Type it; the host's port if it isn't the usual one (host:port)."), () => Address.Length > 0 ? new Launch.Join(Address) : null),
+            new(new(Row("LOBBY", "CREW", "TIER", "PING"), null, false)),
+            .. Games.Select(g => new Entry(new(Row(g.Name.ToUpperInvariant(), g.Max > 0 ? $"{g.Aboard}/{g.Max}" : $"{g.Aboard}",
+                    Enum.TryParse<RouteTier>(g.Tier, out var t) ? Name(t) : "-", g.PingMs is { } ms ? $"{ms:0} MS" : "--")
+                    + (g.Protocol != Protocol ? "  OTHER VERSION" : g.Full ? "  FULL" : ""),
+                    g.Where, g.Protocol == Protocol && !g.Full),
+                () => g.Join)),
+            .. Games.Count == 0 ? [new Entry(new("  NO PUBLIC GAMES YET", "When someone opens a public lobby, it shows here.", false))] : (Entry[])[],
+            new(new("REFRESH", "Look again, and ping everyone afresh."), () => { _refresh = true; Message = "Looking..."; return null; }),
+            new(new($"ADDRESS: {Address}_", "A private game, or one far off: type it, and the host's port if it isn't the usual one (host:port)."), () => Address.Length > 0 ? new Launch.Join(Address) : null),
             new(new("JOIN", null, Address.Length > 0), () => new Launch.Join(Address)),
             new(new("BACK"), Go(Screen.Title)),
         ],
@@ -321,6 +385,10 @@ public sealed class FrontEnd
         ],
         _ => [],
     };
+
+    /// <summary>The join screen's columns: the font's fixed-width, so spaces line them up under the header.</summary>
+    static string Row(string name, string crew, string tier, string ping) =>
+        $"{(name.Length > MaxLobbyName ? name[..MaxLobbyName] : name),-25}{crew,-7}{tier,-16}{ping,6}";
 
     int MaxCars => _edition.MaxCars > 0 ? Math.Min(_edition.MaxCars, _campaign.MaxCars) : _campaign.MaxCars;
 
@@ -440,8 +508,8 @@ public sealed class FrontEnd
                 $"{s.Name.ToUpperInvariant()}: {s.Cars} CARS, {s.Scrip:0} SCRIP, NIGHT {s.Runs + 1}, {Name(Campaign.TierFor(_campaign, s.Cars))}",
             Screen.Upgrades => "UPGRADES",
             Screen.QuickNight => "QUICK NIGHT",
-            Screen.Join => "JOIN A NIGHT",
-            Screen.Host => "HOST A NIGHT",
+            Screen.Join => "JOIN",
+            Screen.Host => "HOST",
             Screen.Settings => "SETTINGS",
             Screen.Controls => "CONTROLS",
             _ => "A CO-OP NIGHT ON THE LAST RAILWAY",
@@ -483,6 +551,7 @@ public sealed class FrontEnd
         if (Message is { } m)
             o.Text(x, y, m.ToUpperInvariant(), Amber);
         o.TextRight(width - 8, height - 12, Capturing is not null ? "PRESS THE KEY   ESC KEEP IT"
+            : NamingLobby ? "TYPE A NAME   UP/DOWN CHOOSE   ESC BACK"
             : WantsText ? "TYPE   ENTER JOIN   ESC BACK"
             : Headset ? "STICK UP/DOWN CHOOSE   TRIGGER   STICK LEFT/RIGHT CHANGE   B BACK"
             : "UP/DOWN CHOOSE   ENTER   LEFT/RIGHT CHANGE   ESC BACK", Faint);
