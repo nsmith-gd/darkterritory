@@ -618,7 +618,8 @@ public sealed class TrainOnLine
         }
     }
 
-    static void Damage(Vehicle v, double amount) => v.Integrity = Math.Max(0, v.Integrity - amount);
+    /// <summary>A knock at the couplers: an armoured car's plate takes some of it (note 184).</summary>
+    void Damage(Vehicle v, double amount) => v.Batter(amount, Tuning);
 
     /// <summary>Mass-weighted grade under the engine's rake; a long train straddling a summit feels both sides.</summary>
     public double AverageGrade() => AverageGrade(_engineRake);

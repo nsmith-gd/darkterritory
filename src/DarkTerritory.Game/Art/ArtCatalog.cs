@@ -44,6 +44,24 @@ public static class ArtCatalog
         foreach (var livery in Enum.GetValues<TrainKit.Livery>())
             list.Add(new($"car-{livery.ToString().ToLowerInvariant()}", Car, () => TrainKit.Car(look, cargo, livery, 0)));
         list.Add(new("guard", Car, () => TrainKit.Car(look, guard, TrainKit.Livery.Armoured, 0)));
+        // The consist's other cars (note 184): a guard car with cars behind it (the second guard car's), the crew car's body
+        // and its fit-out, and an armoured car's plate and the roof handrails, each over a car's body.
+        var midGuard = CarShape.Build(g, VehicleKind.Guard, hasCarBehind: true);
+        var crew = CarShape.Build(g, VehicleKind.Utility, hasCarBehind: true, train.Kit.Lockers);
+        list.Add(new("guard-mid", Car, () => TrainKit.Car(look, midGuard, TrainKit.Livery.Armoured, 0)));
+        list.Add(new("car-crew", Car, () => TrainKit.Car(look, crew, TrainKit.Livery.Steel, 0, load: false)));
+        list.Add(new("crew-fit", MediumProp, () => TrainKit.UtilityFit(look, crew)));
+        list.Add(new("armour-plate", MediumProp, () => TrainKit.ArmourPlate(look, cargo)));
+        list.Add(new("guard-armoured", Car, () =>
+        {
+            // The armoured guard van as the scene draws it: the body, its plate and the handrails over it.
+            var k = new Kit(look);
+            k.Append(TrainKit.Car(look, guard, TrainKit.Livery.Armoured, 0), Matrix4x4.Identity);
+            k.Append(TrainKit.ArmourPlate(look, guard), Matrix4x4.Identity);
+            k.Append(TrainKit.RoofHandrails(look, guard), Matrix4x4.Identity);
+            return k.Build("guard-armoured");
+        }));
+        list.Add(new("roof-handrails", SmallProp, () => TrainKit.RoofHandrails(look, cargo)));
         // A car's damage rides on its body (the car class's budget, what the body leaves of it: the kit's are 9-11k).
         list.Add(new("hatch-lid", SmallProp, () => TrainKit.HatchLid(look, new System.Numerics.Vector3(1.4f, 0.15f, 2.4f))));
         list.Add(new("utility-fit", MediumProp, () => TrainKit.UtilityFit(look, cargo)));

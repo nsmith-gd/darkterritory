@@ -1175,8 +1175,12 @@ public static class TrainKit
         k.Box(new Vector3(tx - 0.05f, floor, tz - 0.05f), new Vector3(tx + 0.05f, floor + 0.72f, tz + 0.05f));
         foreach (float bz in new[] { tz - 0.95f, tz + 0.95f })
             k.Box(new Vector3(tx - 0.38f, floor + 0.4f, bz - 0.17f), new Vector3(tx + 0.38f, floor + 0.46f, bz + 0.17f));
-        k.Use("paint_olive", Palette.MuddyOlive, 0.9f, 0.2f);
-        k.Box(new Vector3(-xIn, floor, zMin + 0.2f), new Vector3(-xIn + 0.45f, floor + 1.8f, zMin + 1.4f));
+        // (The kit's car has the crew's own row of lockers there, note 173: those are drawn as the car's.)
+        if (shape.Lockers.Count == 0)
+        {
+            k.Use("paint_olive", Palette.MuddyOlive, 0.9f, 0.2f);
+            k.Box(new Vector3(-xIn, floor, zMin + 0.2f), new Vector3(-xIn + 0.45f, floor + 1.8f, zMin + 1.4f));
+        }
         k.Use("coat_oilskin", Palette.MuddyOlive, 0.9f, 0.2f, tile: 1);
         for (int i = 0; i < 3; i++)
             k.Box(new Vector3(-xIn + 0.05f, floor + 0.9f, zMax - 2.6f + i * 0.45f), new Vector3(-xIn + 0.2f, floor + 1.6f, zMax - 2.25f + i * 0.45f));
@@ -1194,11 +1198,114 @@ public static class TrainKit
         return k.Build("utility-fit");
     }
 
-    /// <summary>Where a utility car's stove stands (its rear end, on the left), so its pipe's smoke comes out over it.</summary>
+    /// <summary>
+    /// Where a utility car's stove stands (its rear end, on the left), so its pipe's smoke comes out over it: the crew car's
+    /// own (<see cref="CarShape.Stove"/>, note 184), or where it would go in a cargo car's shell (a still frame's).
+    /// </summary>
     public static Vector3 StoveAt(CarShape shape)
     {
+        if (shape.Stove is { } stove)
+            return new Vector3((float)stove.Centre.X, (float)stove.Min.Y, (float)stove.Centre.Z);
         var room = shape.Interior!.Value;
         return new Vector3((float)room.Min.X + 0.55f, (float)room.Min.Y + 0.1f, (float)room.Max.Z - 0.75f);
+    }
+
+    /// <summary>
+    /// An armoured car's plate (spec F.3 armoured car conversion, GDD §26 "reinforced plating, heavier mass"; note 184), over
+    /// whatever livery it wears: riveted plates hung proud of each side and end wall (clear of its doorways), a deep skirt
+    /// down over the trucks, and angle iron along the eaves. Heavy, flat, bolted on: it reads from the roofs and from the
+    /// lineside as a different car.
+    /// </summary>
+    public static MeshAsset ArmourPlate(Look? look, CarShape shape)
+    {
+        var k = new Kit(look, 1840);
+        var room = shape.Interior!.Value;
+        float w = (float)shape.HalfWidth, l = (float)shape.HalfLength;
+        float floor = (float)room.Min.Y + 0.1f, ceiling = (float)room.Max.Y;
+        const float Proud = 0.07f, Thick = 0.04f;
+        // The side door's opening, if it has one: the plate stops either side of it.
+        float sd = shape.DoorList.Where(d => d.Box.Max.Z - d.Box.Min.Z > d.Box.Max.X - d.Box.Min.X).Select(d => (float)(d.Box.Max.Z - d.Box.Min.Z) / 2).DefaultIfEmpty(0).Max();
+        var runs = sd > 0 ? new[] { (-l, -sd - 0.12f), (sd + 0.12f, l) } : new[] { (-l, l) };
+        foreach (int side in new[] { -1, 1 })
+        {
+            float x0 = side * (w + Proud - Thick), x1 = side * (w + Proud);
+            var (lo, hi) = (MathF.Min(x0, x1), MathF.Max(x0, x1));
+            foreach (var (z0, z1) in runs)
+            {
+                // Plates a metre and a half long, seamed, from the skirt's foot to the eaves.
+                int plates = Math.Max(1, (int)MathF.Round((z1 - z0) / 1.6f));
+                float each = (z1 - z0) / plates;
+                for (int i = 0; i < plates; i++)
+                {
+                    float a = z0 + i * each + 0.012f, b = z0 + (i + 1) * each - 0.012f;
+                    k.Use("iron_plate", Palette.IronGrey, 0.95f, 0.35f, tile: 1.1f);
+                    k.Box(new Vector3(lo, 0.55f, a), new Vector3(hi, ceiling - 0.05f, b));
+                    // Its rivet lines: a strap down each edge and across the top and the floor line.
+                    k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
+                    float face = side * (w + Proud + 0.012f);
+                    var (f0, f1) = (MathF.Min(face, face - side * 0.02f), MathF.Max(face, face - side * 0.02f));
+                    foreach (float z in new[] { a + 0.05f, b - 0.05f })
+                        k.Box(new Vector3(f0, 0.6f, z - 0.025f), new Vector3(f1, ceiling - 0.1f, z + 0.025f), side > 0 ? Kit.Faces.PosX | Kit.Faces.PosY : Kit.Faces.NegX | Kit.Faces.PosY);
+                    foreach (float y in new[] { floor - 0.05f, ceiling - 0.15f })
+                        k.Box(new Vector3(f0, y - 0.025f, a + 0.05f), new Vector3(f1, y + 0.025f, b - 0.05f), side > 0 ? Kit.Faces.PosX | Kit.Faces.PosY : Kit.Faces.NegX | Kit.Faces.PosY);
+                }
+            }
+            // Angle iron along the eaves, the whole length.
+            k.Use("paint_black", Palette.SootBlack, 0.9f, 0.3f);
+            k.Box(new Vector3(MathF.Min(side * w, side * (w + Proud + 0.03f)), ceiling - 0.05f, -l - 0.04f), new Vector3(MathF.Max(side * w, side * (w + Proud + 0.03f)), ceiling + 0.03f, l + 0.04f));
+        }
+        // The end walls: a plate either side of the end doorway, proud of the wall, down to the end beam.
+        var doors = shape.DoorList.Where(d => d.Box.Max.X - d.Box.Min.X > d.Box.Max.Z - d.Box.Min.Z).ToList();
+        foreach (int end in new[] { -1, 1 })
+        {
+            var door = doors.FirstOrDefault(d => MathF.Sign((float)d.Box.Centre.Z) == end);
+            float d0 = door.Box.Max.X > door.Box.Min.X ? (float)door.Box.Min.X - 0.06f : 0, d1 = door.Box.Max.X > door.Box.Min.X ? (float)door.Box.Max.X + 0.06f : 0;
+            float z0 = end * (l + 0.01f), z1 = end * (l + 0.01f + Thick);
+            var (lo, hi) = (MathF.Min(z0, z1), MathF.Max(z0, z1));
+            k.Use("iron_plate", Palette.IronGrey, 0.95f, 0.35f, tile: 1.1f);
+            k.Box(new Vector3(-w - Proud, floor - 0.2f, lo), new Vector3(d0, ceiling - 0.05f, hi));
+            k.Box(new Vector3(d1, floor - 0.2f, lo), new Vector3(w + Proud, ceiling - 0.05f, hi));
+        }
+        return k.Build("armour-plate");
+    }
+
+    /// <summary>
+    /// Roof handrails (spec F.3 "Dragger resistance"; note 184): an iron rail on stanchions down each edge of the roof, knee
+    /// high, a hand's reach from the walk, with gaps at the ladder heads so the ladders still come up onto the roof.
+    /// </summary>
+    public static MeshAsset RoofHandrails(Look? look, CarShape shape)
+    {
+        var k = new Kit(look, 1841);
+        float w = (float)shape.HalfWidth, l = (float)shape.HalfLength, h = (float)shape.RoofHeight;
+        const float Height = 0.5f, In = 0.08f;
+        k.Use("rust_heavy", Palette.IronGrey, 0.85f, 0.35f);
+        foreach (int side in new[] { -1, 1 })
+        {
+            float x = side * (w - In);
+            // Broken where a side ladder comes up at this edge.
+            var heads = shape.Ladders.Where(d => d.Foot.Y < 0.2 && MathF.Sign((float)d.Foot.X) == side && Math.Abs(d.Foot.X) > w).Select(d => (float)d.Foot.Z).ToList();
+            var runs = new List<(float, float)>();
+            float from = -l + 0.35f;
+            foreach (float z in heads.Order())
+            {
+                if (z - 0.45f > from)
+                    runs.Add((from, z - 0.45f));
+                from = z + 0.45f;
+            }
+            if (l - 0.35f > from)
+                runs.Add((from, l - 0.35f));
+            foreach (var (z0, z1) in runs)
+            {
+                k.Rod(new Vector3(x, h + Height, z0), new Vector3(x, h + Height, z1), 0.022f, 6);
+                int posts = Math.Max(1, (int)MathF.Ceiling((z1 - z0) / 2.2f));
+                for (int i = 0; i <= posts; i++)
+                {
+                    float z = z0 + (z1 - z0) * i / posts;
+                    k.Rod(new Vector3(x, h - 0.02f, z), new Vector3(x, h + Height, z), 0.018f, 4);
+                }
+            }
+        }
+        return k.Build("roof-handrails");
     }
 
     public static MeshAsset Load(Look? look, CarShape shape, CargoKind cargo, int variant)

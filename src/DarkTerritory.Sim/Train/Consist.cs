@@ -1,7 +1,10 @@
 namespace DarkTerritory.Sim.Train;
 
-/// <summary>What a vehicle is for (GDD §10): engine at the front, guard car with the rear gun at the back.</summary>
-public enum VehicleKind : byte { Engine, Cargo, Guard }
+/// <summary>
+/// What a vehicle is for (GDD §10): engine at the front, guard car with the rear gun at the back, and a crew car (the
+/// GDD's "utility car": stores and a stove, warm and lamp-lit, §26) if the crew have bought one (note 184).
+/// </summary>
+public enum VehicleKind : byte { Engine, Cargo, Guard, Utility }
 
 /// <summary>
 /// A mounted gun's state (spec B.7). Lives on the vehicle whose roof rail it's on (T93): a gun slides along the rail and
@@ -93,6 +96,24 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     /// with everything in it, however close it still is.
     /// </summary>
     public bool Taken { get; set; }
+    /// <summary>
+    /// Converted to armour (spec F.3 "armoured car conversion", GDD §26 "reinforced plating, heavier mass"; note 184): it
+    /// weighs train.json <c>composition.armourTonnes</c> more, and takes <c>armourDamage</c> of what's done to its shell.
+    /// Fixed for the night, like its kind.
+    /// </summary>
+    public bool Armoured { get; set; }
+
+    /// <summary>
+    /// A blow to the car's shell (a Car Hugger's bite, a hard knock at the couplers): what's left of it after the plate, if
+    /// it's armoured. Returns what the car lost.
+    /// </summary>
+    public double Batter(double amount, TrainTuning t)
+    {
+        double lost = Math.Min(Integrity, Math.Max(0, amount) * (Armoured ? t.Composition.ArmourDamage : 1));
+        Integrity -= lost;
+        return lost;
+    }
+
     /// <summary>Fraction of the cargo that would still pay on delivery (spec F.1).</summary>
     public double CargoIntegrity { get; set; } = 1;
     /// <summary>One bit per door in <see cref="CarShape.Doors"/>: set is open. Doors start shut.</summary>
@@ -139,7 +160,8 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     internal void EndTick() => (_movedThisTick, _lockersMoved) = (0, 0);
 
     public double MassTonnes(TrainTuning t) =>
-        IsEngine ? t.Mass.EngineTonnes : t.Mass.EmptyCarTonnes + Load * (t.Mass.LoadedCarTonnes - t.Mass.EmptyCarTonnes);
+        IsEngine ? t.Mass.EngineTonnes
+            : t.Mass.EmptyCarTonnes + Load * (t.Mass.LoadedCarTonnes - t.Mass.EmptyCarTonnes) + (Armoured ? t.Composition.ArmourTonnes : 0);
 
     public double Length(TrainTuning t) => IsEngine ? t.Geometry.EngineLength : t.Geometry.CarLength;
 }
@@ -164,7 +186,8 @@ public sealed class Consist
     /// <summary>
     /// The engine (id 0) followed by <paramref name="cars"/> cars with ids 1..n. With two or more cars the
     /// last is the guard car (GDD §10), which counts as one of the cars (spec F.3: a second guard car
-    /// "costs a cargo slot").
+    /// "costs a cargo slot"). What the crew have bought (train.json <c>composition</c>, note 184) is made of the cars between:
+    /// see <see cref="Compose"/>.
     /// </summary>
     public static Consist Uniform(TrainTuning tuning, int cars, double load)
     {
@@ -174,7 +197,48 @@ public sealed class Consist
             c.AddCar(load);
         if (cars >= 2)
             c._vehicles[^1].Kind = VehicleKind.Guard;
+        c.Compose(tuning.Composition);
         return c;
+    }
+
+    /// <summary>
+    /// The crew's purchases made of the cargo cars (note 184), never leaving fewer than <c>minCargoCars</c> of them: the
+    /// extra guard cars first (a gun matters more than a stove), then the crew cars. Crew cars go right behind the engine
+    /// (the first is the kit's car, its lockers the stores: warm, a walk from the footplate); an extra guard car goes in the
+    /// middle of the cargo left, its gun covering what the engine's and the van's can't reach. Armour goes on from the rear
+    /// forward, guard van first: the rear's where the Car Hugger feeds. Each converted car carries no freight, its mass as a
+    /// cargo car's (its stores, its gun), as the guard van's always has.
+    /// </summary>
+    void Compose(CompositionTuning t)
+    {
+        var cargo = _vehicles.Where(v => v.Kind == VehicleKind.Cargo).ToList();
+        if (_vehicles.Count(v => v.Kind == VehicleKind.Guard) > 0)
+        {
+            int spare = Math.Max(0, cargo.Count - Math.Max(0, t.MinCargoCars));
+            int guards = Math.Min(Math.Max(0, t.GuardCars - 1), spare);
+            int utility = Math.Min(Math.Max(0, t.UtilityCars), spare - guards);
+            for (int i = 0; i < utility; i++)
+                Convert(cargo[i], VehicleKind.Utility);
+            var left = cargo.Skip(utility).ToList();
+            for (int i = 0; i < guards; i++)
+            {
+                var v = left[left.Count * (i + 1) / (guards + 1)];
+                Convert(v, VehicleKind.Guard);
+            }
+        }
+        int armoured = 0;
+        for (int i = _vehicles.Count - 1; i >= 0 && armoured < t.ArmouredCars; i--)
+            if (!_vehicles[i].IsEngine)
+            {
+                _vehicles[i].Armoured = true;
+                armoured++;
+            }
+    }
+
+    static void Convert(Vehicle v, VehicleKind kind)
+    {
+        v.Kind = kind;
+        v.Cargo = CargoKind.None;
     }
 
     /// <summary>
