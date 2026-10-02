@@ -319,7 +319,11 @@ public static class Campaign
     public static Loadout WithSpareKits(Loadout l, int spares) =>
         spares <= 0 ? l : l with { Train = l.Train with { Kit = l.Train.Kit with { SpareKits = spares } } };
 
-    /// <summary>The night's tunings after the crew's upgrades. Upgrades with no modelled effect change nothing.</summary>
+    /// <summary>
+    /// The night's tunings after the crew's upgrades. Upgrades with no modelled effect change nothing. Most effects multiply
+    /// a tuning; the consist's (note 184) add cars to train.json's <c>composition</c> (<c>utilityCars</c>, <c>guardCars</c>,
+    /// <c>armouredCars</c>) or fit something (<c>handrails</c>), and every machine builds the same train from them.
+    /// </summary>
     public static Loadout Apply(CampaignTuning t, IEnumerable<string> upgrades, Loadout base_)
     {
         var l = base_;
@@ -335,11 +339,22 @@ public static class Campaign
                     "ammo" => l with { Combat = l.Combat with { Guns = l.Combat.Guns with { Ammo = (int)Math.Round(l.Combat.Guns.Ammo * k) } } },
                     "brakes" => l with { Train = l.Train with { Performance = [.. l.Train.Performance.Select(r => r with { Brake = r.Brake * k })] } },
                     "lamp" when l.Enemies is { } e => l with { Enemies = e with { Sleepers = e.Sleepers with { LampRevealDistance = e.Sleepers.LampRevealDistance * k } } },
+                    // The consist (GDD §10, §26, spec F.3; note 184).
+                    "utilityCars" => Fit(l, c => c with { UtilityCars = c.UtilityCars + (int)Math.Round(k) }),
+                    "guardCars" => Fit(l, c => c with { GuardCars = c.GuardCars + (int)Math.Round(k) }),
+                    "armouredCars" => Fit(l, c => c with { ArmouredCars = c.ArmouredCars + (int)Math.Round(k) }),
+                    "handrails" => Fit(l, c => c with { Handrails = c.Handrails || k > 0 }),
+                    "insulation" => Fit(l, c => c with { Insulation = c.Insulation * k }),
+                    "contactSafe" => l with { Train = l.Train with { Couplings = l.Train.Couplings with { SafeContactSpeed = l.Train.Couplings.SafeContactSpeed * k } } },
+                    "underLoad" => l with { Train = l.Train with { Couplings = l.Train.Couplings with { UncoupleUnderLoadSeconds = l.Train.Couplings.UncoupleUnderLoadSeconds * k } } },
+                    "unhook" when l.Enemies is { } e => l with { Enemies = e with { Passenger = e.Passenger with { UncoupleSeconds = e.Passenger.UncoupleSeconds * k } } },
                     _ => l,
                 };
         }
         return l;
     }
+
+    static Loadout Fit(Loadout l, Func<CompositionTuning, CompositionTuning> f) => l with { Train = l.Train with { Composition = f(l.Train.Composition) } };
 
     /// <summary>
     /// The standard crew's campaign (see campaign.json): a night's net by spec F.1, and a car bought, with its share of

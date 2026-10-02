@@ -45,7 +45,8 @@ public enum SurfaceKind : byte { Roof, Deck, Coupler }
 
 /// <summary>What a solid is, so presentation can draw and colour it. Collision ignores this, but for an open roof hatch (T99).</summary>
 /// <summary><see cref="CrewLocker"/> is one of the kit car's row of crew lockers (ARCHITECTURE §8 note 173); <see cref="Locker"/> the guard van's tool locker.</summary>
-public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps, RunningBoard, Hatch, CrewLocker }
+/// <summary><see cref="Stove"/> and <see cref="Bunk"/> are a crew car's (note 184): its stove, and the berths down its right side.</summary>
+public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps, RunningBoard, Hatch, CrewLocker, Stove, Bunk }
 
 /// <summary>Where a gun is bolted on, and which way it faces in the car's frame (−Z forward, +Z back).</summary>
 /// <summary>
@@ -135,6 +136,8 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     public Box? Hatch { get; init; }
     /// <summary>The hatch's bit in <see cref="Vehicle.DoorsOpen"/>: after the four doors.</summary>
     public const int HatchBit = 4;
+    /// <summary>A crew car's stove (note 184), standing on its floor: the heat a crew car has of its own.</summary>
+    public Box? Stove { get; init; }
 
     public double HalfLength => Bounds.Max.Z;
     public double HalfWidth => Bounds.Max.X;
@@ -165,6 +168,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             RoofRail = (g.EngineLength / 2 - g.Engine.TenderLength - g.Engine.CabLength + RailEnd, g.EngineLength / 2 - RailEnd),
         },
         VehicleKind.Guard => Guard(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
+        VehicleKind.Utility => Utility(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
         _ => Car(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
     };
 
@@ -205,6 +209,30 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             ladders.Add(new Ladder(new Double3(0.6, i.FloorHeight, l - 2.4), h, new Double3(0, 0, -1)));
         }
         return car with { Solids = solids, Interactables = interactables, Ladders = ladders, Gun = new GunMount(mount + new Double3(0, 0.9, 0), new Double3(0, 0, 1)), Platform = platform };
+    }
+
+    /// <summary>
+    /// A crew car (GDD §10 "utility car", §26 "cramped, lamp-lit, human-scale"; note 184): walled like the guard van, no side
+    /// doors and no freight; berths down the right side, where a cargo car's load stands, and the stove at the rear end on
+    /// the left with its pipe up through the roof. The aisle runs from end door to end door between them. The crew lockers
+    /// (its stores) go along the left wall from the front when it's the kit's car.
+    /// </summary>
+    static CarShape Utility(GeometryTuning g, bool hasCarBehind)
+    {
+        if (g.Interior is not { } i)
+            return SolidCar(g, hasCarBehind);
+        var car = Shell(g, i, hasCarBehind, cargo: false);
+        var room = car.Interior!.Value;
+        double floor = i.FloorHeight;
+        var solids = car.Solids.ToList();
+        // Two berths, one over the other, stood clear of the end doors: the lower one's a seat, the upper one's a shelf
+        // you don't stand on (it's the frame that's solid, from the floor to the top berth).
+        var bunks = new Box(new Double3(room.Max.X - i.CargoDepth * 0.7, floor, room.Min.Z + 1.5), new Double3(room.Max.X, floor + 1.45, room.Max.Z - 0.7));
+        solids.Add(new Solid(bunks, SurfaceKind.Deck, PartKind.Bunk));
+        // Against the left wall, clear of the rear doorway's edge (end doors stand left of centre, at interior.doorX).
+        var stove = new Box(new Double3(room.Min.X + 0.05, floor, room.Max.Z - 1.0), new Double3(room.Min.X + 0.5, floor + 0.75, room.Max.Z - 0.5));
+        solids.Add(new Solid(stove, SurfaceKind.Deck, PartKind.Stove));
+        return car with { Solids = solids, Stove = stove };
     }
 
     /// <summary>
