@@ -91,6 +91,11 @@ public sealed class GreyboxScene
     /// scene times the snatch itself from the first frame it reads true. Unset, every bag hangs until the train's by.
     /// </summary>
     public Func<int, bool>? DropCaught { get; set; }
+    /// <summary>
+    /// Which cars are utility cars (GDD §10), by vehicle index: drawn fitted out for the crew in place of a load. The sim
+    /// has no utility kind yet (the consist's engine, cargo and guard), so only a still frame sets it (<c>--utility i</c>).
+    /// </summary>
+    public Func<int, bool>? Utility { get; set; }
     /// <summary>How cold the night is (0..1): the route weather's, or a still frame's (<c>dt screenshot --cold c</c>).</summary>
     public double Cold => StagedCold ?? Route?.Weather.Cold ?? 0;
     public double? StagedCold { get; set; }
@@ -1509,7 +1514,16 @@ public sealed class GreyboxScene
         var burnt = Burnt(frame.Index);
         if (Look is not null && burnt is { } fire)
             Look.Art.Effects.CarSmoke(mesh, o, right, up, back, shape, fire, (float)_speed, Time, frame.Index);
-        if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick, CutEnds(frame.Index), burnt?.Char ?? 0))
+        bool utility = Utility?.Invoke(frame.Index) == true;
+        // A lived-in car's stove smoking through its pipe: a utility car's, and the guard van's (TrainKit).
+        if (Look is not null && frame.Shape.Interior is { } inside && frame.Shape.Cab is null && (utility || frame.Shape.Gun is not null))
+        {
+            var pipe = utility
+                ? Art.TrainKit.StoveAt(frame.Shape) with { Y = (float)frame.Shape.RoofHeight + 0.9f }
+                : new Vector3((float)frame.Shape.HalfWidth - 0.35f, (float)frame.Shape.RoofHeight + 0.9f, -(float)frame.Shape.HalfLength + 2.6f);
+            Look.Art.Effects.StoveSmoke(mesh, o + right * pipe.X + up * pipe.Y + back * pipe.Z, up, back, (float)_speed, Time, frame.Index);
+        }
+        if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick, CutEnds(frame.Index), burnt?.Char ?? 0, utility))
         {
             CarWorkings(mesh, frame, eye, Draw);
             if (engine)

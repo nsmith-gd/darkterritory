@@ -30,7 +30,9 @@ void main() {
     // behind it has to be paler still, or depth reads backwards (far things darker than near).
     vec3 horizon = frame.fog.rgb * frame.sky2.z;
     float up = clamp(dir.y, 0.0, 1.0);
-    vec3 colour = mix(horizon, frame.sky.rgb, smoothstep(0.0, 0.55, up));
+    // The dawn (GDD s21, the clock you can see): the zenith pales toward the haze as it comes up.
+    vec3 zenith = mix(frame.sky.rgb, horizon * 1.25, frame.dawn.w * 0.45);
+    vec3 colour = mix(horizon, zenith, smoothstep(0.0, 0.55, up));
 
     // Cloud banks: broad and slow, a little lighter where the moon is behind them.
     // (The drift kept small: it wraps after 256 of the noise's cells, some 18 hours of night.)
@@ -45,6 +47,15 @@ void main() {
     float glow = pow(toMoon, 300.0) * 0.35 + pow(toMoon, 24.0) * 0.12 + pow(toMoon, 4.0) * 0.05;
     colour += frame.moonColour.rgb * (disc * 0.9 + glow) * (1.0 - cloud * 0.75);
 
+    // And the light coming up behind the hills on the sun's side: a low band of warm glow along that horizon, widest
+    // and brightest under the sun, fading up into the grey (the sun itself never clears the fog).
+    if (frame.dawn.w > 0.0) {
+        vec2 flat_ = dir.xz / max(length(dir.xz), 1e-4);
+        vec2 sunFlat = moonDir.xz / max(length(moonDir.xz), 1e-4);
+        float toward = max(dot(flat_, sunFlat), 0.0);
+        float low = exp(-max(dir.y, -0.02) * 12.0);
+        colour += frame.dawn.xyz * frame.dawn.w * low * (0.08 + 0.92 * pow(toward, 4.0)) * (1.0 - cloud * 0.4);
+    }
     // The backdrop band: 360 degrees across, sky2.x tall, the horizon 85 % of the way down.
     float azimuth = atan(dir.x, -dir.z) / (2.0 * PI) + 0.5;
     float elevation = asin(clamp(dir.y, -1.0, 1.0));
