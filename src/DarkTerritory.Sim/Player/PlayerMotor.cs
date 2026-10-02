@@ -144,7 +144,9 @@ public enum DeathCause : byte
     // to the Whistler's nest; seized by the Choir; taken with the caboose by the Passenger.
     Eaten, Suffocated, Devoured, Drained, Carried, Seized, Uncoupled,
     // GDD v1.2 App. D.5: not dead, waiting in the queue for a Holdout (joined after the gate opened).
-    Waiting
+    Waiting,
+    // GDD v1.3: swallowed whole by the Shy Thing; smothered under the Huddle; eaten by the Mimic.
+    ShyThing, Huddle, Mimic
 }
 
 /// <summary>Conditions a player carries.</summary>
@@ -152,6 +154,11 @@ public enum DeathCause : byte
 public enum PlayerFlags : byte
 {
     None = 0,
+    /// <summary>
+    /// Carrying something heavier than freight should be (GDD v1.3 §21, the Mimic's weight): slower still than
+    /// <see cref="Heavy"/>, at player.json's <c>carryLaden</c>. Set by the host each tick from what's carried.
+    /// </summary>
+    Laden = 1,
     /// <summary>Carrying freight (spec B.2 "carrying heavy cargo: 2.8 m/s, no climbing").</summary>
     Heavy = 2,
     /// <summary>A hand has coal on the shovel from the tender, on its way to the firebox (T29).</summary>
@@ -404,6 +411,8 @@ public static class PlayerMotor
                 speed *= p.Cold.OnsetSpeedScale;
             if (s.Has(PlayerFlags.Heavy))
                 speed = Math.Min(speed, p.CarryHeavy);
+            if (s.Has(PlayerFlags.Laden))
+                speed = Math.Min(speed, p.CarryLaden);
             if (s.Has(PlayerFlags.Pushing))
                 speed = Math.Min(speed, p.PushGun);
             if (s.Has(PlayerFlags.Operating) || s.Has(PlayerFlags.Seated))

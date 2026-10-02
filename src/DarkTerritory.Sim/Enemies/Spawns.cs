@@ -20,6 +20,12 @@ public sealed class SpawnContext(World world, EnemyTuning tuning, Director direc
     public IEnumerable<(int Id, PlayerState State)> OnGround => Living.Where(c => CrewSense.OnGround(c.State));
     public bool AtFacility => World.Run is { Phase: RunPhase.AtFacility };
     public bool Stopped => Train.Dynamics.Speed < 0.3;
+    /// <summary>
+    /// Stopped at a stop: a facility, a dead settlement, or any stop the line has a layout for (a yard, a village halt). Where
+    /// GDD v1.3's three are met, the crew on foot.
+    /// </summary>
+    public bool AtStop => Stopped && (AtFacility || World.InSettlement
+        || World.Route?.Features.Any(f => f.Stop is not null && Front >= f.Start - 100 && Front <= f.End + 100) == true);
     public RouteTier Tier => World.Route?.Tier ?? RouteTier.Frontier;
     public bool Once(EnemyKind kind) => !Director.Log.Any(l => l.Kind == kind) && !World.ActiveEnemies.Any(e => !e.Gone && e.Kind == kind);
     public bool None(EnemyKind kind) => !World.ActiveEnemies.Any(e => !e.Gone && e.Kind == kind);
@@ -341,6 +347,48 @@ public static class Spawns
             int on = stacked[(int)c.Director.NextRange(0, stacked.Count - 1e-9)];
             var at = crane.Castings[on].At;
             c.Add(i => Grumbler.OnCrates(i, at + Double3.Up * 0.8, on, c.Tuning.Grumbler));
+            return true;
+        }),
+        // B.6 · The Shy Thing (v1.3): at a stop, out in the dark where someone on the ground is looking; any tier; weight up
+        // per player on the ground.
+        new(EnemyKind.ShyThing, c =>
+        {
+            int ground = c.OnGround.Count();
+            if (!c.AtStop || ground == 0 || !c.None(EnemyKind.ShyThing))
+                return null;
+            return 1 + 0.5 * (ground - 1);
+        }, c =>
+        {
+            var t = c.Tuning.ShyThing;
+            var ground = c.OnGround.ToList();
+            if (ground.Count == 0)
+                return false;
+            var on = ground[(int)c.Director.NextRange(0, ground.Count - 1e-9)].State;
+            if (ShyThing.Spot(c.Train, on, c.Director.NextRange(t.SpawnOut[0], t.SpawnOut[1])) is not { } at)
+                return false;
+            c.Add(i => ShyThing.Waiting(i, at, t));
+            return true;
+        }),
+        // B.6 · The Huddle (v1.3): at a stop, the crew on the ground; any tier.
+        new(EnemyKind.Huddle, c => c.AtStop && c.OnGround.Any() && c.None(EnemyKind.Huddle) ? 1 : null, c =>
+        {
+            var t = c.Tuning.Huddle;
+            if (c.GroundCentre() is not { } centre)
+                return false;
+            int size = Math.Max(1, (int)Math.Round(c.Director.NextRange(t.FlockSize[0], t.FlockSize[1] + 0.49)));
+            var at = c.Out(centre, t.SpawnOut);
+            c.Add(i => Huddle.Flock(i, at, size));
+            return true;
+        }),
+        // B.6 · The Mimic (v1.3): at a stop whose crates are out, one more than a stack's count; any tier.
+        new(EnemyKind.Mimic, c => c.AtStop && c.None(EnemyKind.Mimic) && c.World.Run?.MimicSlots(c.Front).Count > 0 ? 1 : null, c =>
+        {
+            var slots = c.World.Run?.MimicSlots(c.Front) ?? [];
+            if (slots.Count == 0)
+                return false;
+            var (at, hint, cargo) = slots[(int)c.Director.NextRange(0, slots.Count - 1e-9)];
+            var body = c.World.Bodies.SpawnCargo(at, hint, cargo: cargo);
+            c.Add(i => Mimic.As(i, body, c.Tuning.Mimic));
             return true;
         }),
     ];

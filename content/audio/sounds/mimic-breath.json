@@ -1,0 +1,11 @@
+// Tell (tier 1, subtle), the Mimic breathing (GDD v1.3 App. A.6): only while someone stands still beside it, and only from a
+// few metres (maxDistance), 3-4.5 kHz. Slow, wet, in and out through something that isn't a mouth yet; deeper once it's
+// awake ("progress"). Close in it's tier 1 like any tell (AudioTests), so whoever stops beside it can hear it if they listen.
+{
+  "tier": 1, "loop": true, "maxInstances": 2, "minDistance": 1, "maxDistance": 4, "gainDb": -12,
+  "layers": [
+    { "source": "noise", "gain": { "param": "progress", "points": [[0, 0.8], [1, 1.2]] },
+      "filters": [{ "type": "bandPass", "frequency": 3700, "q": 2.2 }, { "type": "peak", "frequency": 3300, "q": 4, "gainDb": 5 }],
+      "tremolo": { "rate": 0.28, "depth": 0.95, "jitter": 0.15 } }
+  ]
+}

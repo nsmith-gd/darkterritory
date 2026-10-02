@@ -1326,6 +1326,21 @@ public sealed class CreatureArt
                     mesh.PointLights.Add(new PointLight(model.Translation + new Vector3(0, 0.5f, 0), Palette.BlueGrey * 0.6f, 3f));
                     return true;
                 }
+            case EnemyKind.ShyThing:
+                {
+                    var (r, u, b) = Basis(model);
+                    StandIns.ShyThing(mesh, model.Translation, r, u, b, phase, t, 10, null);
+                    return true;
+                }
+            case EnemyKind.Huddle:
+                {
+                    var (r, u, b) = Basis(model);
+                    StandIns.Huddle(mesh, model.Translation, r, u, b, phase, t, health, (int)extra2);
+                    return true;
+                }
+            // A Mimic is its crate: the bodies draw it (GreyboxScene.DrawMimic).
+            case EnemyKind.Mimic:
+                return true;
         }
         return false;
     }
@@ -1570,6 +1585,22 @@ public sealed class CreatureArt
                 // faces the train; its right is the train's way, ahead, on the +1 side).
                 m = Matrix4x4.CreateRotationY(-MathF.Sign((float)e.Extra2 == 0 ? 1 : (float)e.Extra2) * MathF.PI / 2) * model;
                 break;
+            // GDD v1.3's, until their models (Art/StandIns): the Shy Thing facing the one it has; the Huddle; and the Mimic,
+            // which is its crate (drawn with the bodies, GreyboxScene.DrawMimic), nothing of its own.
+            case EnemyKind.ShyThing:
+                {
+                    var (r, u, b) = Basis(model);
+                    StandIns.ShyThing(mesh, model.Translation, r, u, b, e.Phase, e.PhaseSeconds, e.GrabWindow, prey?.Feet);
+                    return true;
+                }
+            case EnemyKind.Huddle:
+                {
+                    var (r, u, b) = Basis(model);
+                    StandIns.Huddle(mesh, model.Translation, r, u, b, e.Phase, e.PhaseSeconds, e.Health, e.Id);
+                    return true;
+                }
+            case EnemyKind.Mimic:
+                return true;
             case EnemyKind.Switchman:
                 // Face back down the line at the train, turned in towards the track.
                 m = Matrix4x4.CreateRotationY(MathF.PI - Math.Sign(e.Lateral) * 0.6f) * model;

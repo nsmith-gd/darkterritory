@@ -454,6 +454,97 @@ public static class Staging
     /// <summary>One of each enemy (GDD v1.1 §21) mid-telegraph or mid-commit around the train, where a view can see it.</summary>
     /// <param name="dollAhead">How far up the line the Track Doll stands (App. A.2's reveal is 200 m in the lamp).</param>
     /// <param name="lurkAhead">If given, a second Car Hugger lurking beside the line this far ahead (App. A.3 LURK).</param>
+    /// <summary>
+    /// GDD v1.3's three, staged in front of crewmate 4 (<see cref="Lone"/>) off car 2's left for <c>dt screenshot</c>, with
+    /// the bodies they need (a Mimic's crate, the coals a Huddle's round). The other ground threats are put away.
+    /// <list type="bullet">
+    /// <item><c>--shy wait|under|unhinge</c>: waiting in the dark nine metres out; with crewmate 4 under, five out and
+    /// facing them; at arm's length with its jaw coming down. Views <c>shy</c> (over their shoulder), <c>shyface</c>.</item>
+    /// <item><c>--huddle play|bristle|bury|cab|coals</c>: at their feet; puffed up at them; piled on them (view
+    /// <c>sootside</c>); round the firebox (view <c>huddlecab</c>); round live coals on the ground. View <c>huddle</c>.</item>
+    /// <item><c>--mimic shut|breathe|lid|bite</c>: a crate at their feet, a crate breathing, its lid lifting, on them.
+    /// View <c>mimic</c>.</item>
+    /// </list>
+    /// </summary>
+    public static (List<Enemy> Threats, List<Sim.Physics.Body> Bodies) AtStops(List<Enemy> threats, TrainOnLine train, string shy, string huddle, string mimic)
+    {
+        var bodies = new List<Sim.Physics.Body>();
+        if (shy.Length == 0 && huddle.Length == 0 && mimic.Length == 0)
+            return (threats, bodies);
+        threats.RemoveAll(e => e is Ribbit or Sim.Enemies.Gaunt or Sim.Enemies.Grumbler or SootChildren or Sim.Enemies.ShyThing or Sim.Enemies.Huddle or Sim.Enemies.Mimic);
+        var side = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+        Double3 Out(double metres, double along = -1.5) => side.ToWorld(new Double3(-(side.Shape.HalfWidth + 2.2 + metres), 0, along));
+        var lone = Lone(train);
+        if (shy.Length > 0)
+        {
+            var thing = new Sim.Enemies.ShyThing(90);
+            switch (shy)
+            {
+                case "wait":
+                    thing.Restore(SpinePhase.Dormant, 30, 1, Enemy.Loose, Out(8.8), 0, 0, 0, -1, 0);
+                    break;
+                case "under":
+                    thing.Restore(SpinePhase.Commit, 4, 1, Enemy.Loose, Out(5), 0, 0, 0, LoneId, 8);
+                    break;
+                case "unhinge":
+                    thing.Restore(SpinePhase.Grab, 6, 1, Enemy.Loose, Out(1.1), 0, 0, 0, LoneId, 20, LoneId, 10);
+                    break;
+                default:
+                    throw new ArgumentException($"--shy {shy}: wait, under or unhinge");
+            }
+            threats.Add(thing);
+        }
+        if (huddle.Length > 0)
+        {
+            var flock = new Sim.Enemies.Huddle(91);
+            switch (huddle)
+            {
+                case "play":
+                    flock.Restore(SpinePhase.Dormant, 2.3, 5, Enemy.Loose, Out(1.6), 0, 0, 0, -1, 0);
+                    break;
+                case "bristle":
+                    flock.Restore(SpinePhase.Telegraph, 1.2, 5, Enemy.Loose, Out(1.6), 0, 0, 0, LoneId, 0);
+                    break;
+                case "bury":
+                    flock.Restore(SpinePhase.Grab, 4, 5, Enemy.Loose, lone.Feet, 0, 0, 0, LoneId, 0, LoneId, 12);
+                    break;
+                case "cab":
+                    // Round the firebox, where the Track Doll's staged haunting the cab: it's put away.
+                    threats.RemoveAll(e => e is TrackDoll { Attached: 0 });
+                    flock.Restore(SpinePhase.Dormant, 2.3, 6, 0, Sim.Enemies.Huddle.CabSpot(train), 0, 0, 0, -1, 0.5);
+                    break;
+                case "coals":
+                    var coals = new Sim.Physics.Bodies().SpawnItem(Out(2.4, -0.9), train.Dynamics.Distance, Sim.Physics.BodyKind.Embers);
+                    bodies.Add(coals);
+                    flock.Restore(SpinePhase.Dormant, 2.3, 5, Enemy.Loose, Out(2.4, -0.9), 0, 0, 0, -1, 0);
+                    break;
+                default:
+                    throw new ArgumentException($"--huddle {huddle}: play, bristle, bury, cab or coals");
+            }
+            threats.Add(flock);
+        }
+        if (mimic.Length > 0)
+        {
+            var crates = new Sim.Physics.Bodies();
+            var crate = crates.SpawnCargo(Out(1.7), train.Dynamics.Distance);
+            crate.Yaw = Math.Atan2(-(Out(0) - Out(1)).X, -(Out(0) - Out(1)).Z);
+            bodies.Add(crate);
+            var m = new Sim.Enemies.Mimic(92);
+            var (phase, breath) = mimic switch
+            {
+                "shut" => (SpinePhase.Dormant, 0.0),
+                "breathe" => (SpinePhase.Dormant, 1.0),
+                "lid" => (SpinePhase.Telegraph, 1.0),
+                "bite" => (SpinePhase.Grab, 1.0),
+                _ => throw new ArgumentException($"--mimic {mimic}: shut, breathe, lid or bite"),
+            };
+            m.Restore(phase, phase == SpinePhase.Telegraph ? 1.2 : 3, 6, Enemy.Loose, crate.Centre, 0, 0, 0, crate.Id, breath,
+                phase == SpinePhase.Grab ? LoneId : -1, 10);
+            threats.Add(m);
+        }
+        return (threats, bodies);
+    }
+
     public static List<Enemy> Threats(TrainOnLine train, double dollAhead = 22, double? lurkAhead = null)
     {
         var d = train.Dynamics;
@@ -573,6 +664,26 @@ public static class Staging
         var drift = new Drift(50);
         drift.Restore(SpinePhase.Telegraph, 2, 1, driftCar, new Double3(0.8, train.Frames[driftCar].Shape.RoofHeight, 2), 0, 0, 0, 6, 1);
         threats.Add(drift);
+        // GDD v1.3's three (heard by AudioTests from here; the screenshots stage their own with AtStops). Off car 2's right,
+        // eight metres out, a Shy Thing with crewmate 4 under (its ringing, theirs alone in the game); off car 1's right, one
+        // unhinging its jaw; in the cab round the firebox, the Huddle bristling; on car 1's roof, a crate breathing, and on
+        // car 2's, one lifting its lid (the Mimics' crates are bodies the audio doesn't need).
+        var near = train.Frames[Math.Min(1, train.Frames.Count - 1)];
+        var under = new Sim.Enemies.ShyThing(80);
+        under.Restore(SpinePhase.Commit, 3, 1, Enemy.Loose, side.ToWorld(new Double3(side.Shape.HalfWidth + 8, 0, -2)), 0, 0, 0, LoneId, 8);
+        threats.Add(under);
+        var unhinging = new Sim.Enemies.ShyThing(81);
+        unhinging.Restore(SpinePhase.Grab, 5, 1, Enemy.Loose, near.ToWorld(new Double3(near.Shape.HalfWidth + 3, 0, 2)), 0, 0, 0, -1, 4, -1, 10);
+        threats.Add(unhinging);
+        var huddle = new Sim.Enemies.Huddle(82);
+        huddle.Restore(SpinePhase.Telegraph, 1, 5, 0, Sim.Enemies.Huddle.CabSpot(train), 0, 0, 0, -1, 0);
+        threats.Add(huddle);
+        var breathing = new Sim.Enemies.Mimic(83);
+        breathing.Restore(SpinePhase.Dormant, 30, 6, near.Index, new Double3(0.5, near.Shape.RoofHeight + 0.45, -1.5), 0, 0, 0, -1, 1);
+        threats.Add(breathing);
+        var lid = new Sim.Enemies.Mimic(84);
+        lid.Restore(SpinePhase.Telegraph, 1, 6, side.Index, new Double3(-0.5, side.Shape.RoofHeight + 0.45, 3), 0, 0, 0, -1, 0);
+        threats.Add(lid);
         if (lurkAhead is { } lurk)
         {
             // Where CarHugger.Lurking puts one: down on the low ground by the line, waiting for the rear car.

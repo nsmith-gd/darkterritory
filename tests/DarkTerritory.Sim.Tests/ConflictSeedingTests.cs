@@ -112,8 +112,8 @@ public class ConflictSeedingTests
         var d = Tuning.Enemies.Director;
         Assert.NotEmpty(d.Conflicts);
         var known = d.Costs.Keys.Concat(["choir", "grade", "facilityLoading", "facilityStop"]).ToHashSet();
-        // GDD v1.1 App. B.1's eight pairs.
-        Assert.Equal(8, d.Conflicts.Length);
+        // GDD v1.1 App. B.1's eight pairs, and v1.3's three.
+        Assert.Equal(11, d.Conflicts.Length);
         Assert.All(d.Conflicts.SelectMany(p => p), side => Assert.Contains(side, known));
         Assert.Equal(1, d.PairsPerRun["frontier"]);
         Assert.Equal(2, d.PairsPerRun["deepTerritory"]);

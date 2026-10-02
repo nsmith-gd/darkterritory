@@ -276,7 +276,9 @@ public sealed class GreyboxScene
                     // back (Art/CreatureArt).
                     // A feral Grumbler, who it's after: the nearest of them (who hit it is the host's alone); a Soot Child's, the
                     // one it's on (the nearest: it's at their feet).
-                    var after = e.Kind is EnemyKind.TippyToesie or EnemyKind.Ribbit or EnemyKind.Choir or EnemyKind.Gaunt or EnemyKind.Follower && e.Extra >= 0
+                    // A Shy Thing faces the one it has; a Huddle, who it's after.
+                    var after = e.Kind is EnemyKind.TippyToesie or EnemyKind.Ribbit or EnemyKind.Choir or EnemyKind.Gaunt or EnemyKind.Follower
+                        or EnemyKind.ShyThing or EnemyKind.Huddle && e.Extra >= 0
                         ? Crew?.FirstOrDefault(c => c.Id == (int)e.Extra)
                         : (e.Kind == EnemyKind.Grumbler && e.Phase >= SpinePhase.Commit || e.Kind == EnemyKind.SootChildren && e.Phase is SpinePhase.Grab or SpinePhase.Punish)
                             && Crew is { } crew && crew.Any(c => c.Alive)
@@ -296,6 +298,7 @@ public sealed class GreyboxScene
         {
             // Heavy crates only come from a facility's site, so its size is there (facilities.json "heavy").
             double heavyHalf = Run?.Sites.FirstOrDefault(x => x is not null)?.HeavyRadius ?? 0.5;
+            var mimics = Enemies?.OfType<Sim.Enemies.Mimic>().Where(m => !m.Gone).GroupBy(m => m.BodyId).ToDictionary(g => g.Key, g => g.First());
             foreach (var b in Bodies)
             {
                 // In your own hands, drawn at them for the frame (the mirror's own pose is back before anything reads it).
@@ -309,6 +312,9 @@ public sealed class GreyboxScene
                 }
                 if (Look?.Art.Body(mesh, frames, b, eye, heavyHalf, Time) != true)
                     DrawBody(mesh, frames, b, eye, heavyHalf);
+                // A Mimic is a crate until it isn't (GDD v1.3 §21): its lid, over the crate.
+                if (mimics?.GetValueOrDefault(b.Id) is { } mimic)
+                    DrawMimic(mesh, frames, b, mimic, eye);
                 if (held)
                 {
                     b.Parent = parent;
@@ -318,6 +324,11 @@ public sealed class GreyboxScene
             }
         }
         Extinguishing(mesh, frames, eye);
+        // The yards' crate counts, chalked on their boards (level-design P12), near enough to read.
+        if (Run is { } countRun)
+            foreach (var (at, along, count) in countRun.CrateCounts())
+                if ((at - eye).Length < 90)
+                    DrawCrateCount(mesh, at, along, count, eye);
         if (Crew is not null)
             foreach (var c in Crew)
                 if (c.Alive && Look?.Art.Crewmate(mesh, c, eye, Time) != true) // the dead are drawn as their bodies
@@ -405,7 +416,9 @@ public sealed class GreyboxScene
             double yaw = b.Yaw + heading;
             var right = new Vector3((float)Math.Cos(yaw), 0, (float)-Math.Sin(yaw));
             var back = new Vector3((float)Math.Sin(yaw), 0, (float)Math.Cos(yaw));
-            if (b.Kind == Sim.Physics.BodyKind.Cargo)
+            if (b.Kind == Sim.Physics.BodyKind.Embers)
+                DrawEmbers(mesh, V(at, eye), right, ToF(up), back, 0, b.Id);
+            else if (b.Kind == Sim.Physics.BodyKind.Cargo)
             {
                 // Freight: bigger than the train's own stores, stencilled, strapped.
                 mesh.Box(V(at, eye), right, ToF(up), back, new Vector3(0.44f, 0.44f, 0.44f), Palette.BlueGrey);
@@ -709,7 +722,14 @@ public sealed class GreyboxScene
                     Draw(-0.035, 0.68, -0.16, 0.015, 0.012, 0.01, eyes);
                     break;
                 }
-            case EnemyKind.Stoker or EnemyKind.CarFire:
+            case EnemyKind.ShyThing:
+                Art.StandIns.ShyThing(mesh, o, r, u, b, e.Phase, e.PhaseSeconds, e.GrabWindow, prey?.Feet);
+                break;
+            case EnemyKind.Huddle:
+                Art.StandIns.Huddle(mesh, o, r, u, b, e.Phase, e.PhaseSeconds, e.Health, e.Id);
+                break;
+            // A Mimic is its crate (drawn with the bodies: DrawMimic).
+            case EnemyKind.Stoker or EnemyKind.CarFire or EnemyKind.Mimic:
                 break;
             default:
                 // A figure, where the greybox has nothing of its own for it: tall, dark, and a pale head.
@@ -717,6 +737,106 @@ public sealed class GreyboxScene
                 Draw(0, 1.35, 0, 0.1, 0.12, 0.1, Palette.Corrupted * 0.6f);
                 break;
         }
+    }
+
+    /// <summary>
+    /// A Mimic's crate (GDD v1.3 §21), drawn over the crate the bodies draw. Shut, nothing: it's a crate. Breathing (Extra2),
+    /// its lid lifts a finger's width and settles, slowly. Waking on someone (the telegraph) the lid lifts at the front on
+    /// its back hinges, a black gape under it and teeth round the rim; on them, wide.
+    /// </summary>
+    void DrawMimic(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body body, Sim.Enemies.Mimic m, Double3 eye)
+    {
+        if (BodyWorld(body, frames, body.Pbd.Particles[0].Position) is not { } at)
+            return;
+        double angle = m.Phase switch
+        {
+            SpinePhase.Telegraph => 0.08 + 0.45 * Math.Clamp(m.PhaseSeconds / 1.8, 0, 1),
+            SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish => 0.75,
+            _ => m.Breathing ? 0.025 * (0.5 + 0.5 * Math.Sin(Time * 2 * Math.PI * 0.28)) : 0,
+        };
+        if (angle <= 0.002)
+            return;
+        bool onCar = body.Parent >= 0 && body.Parent < frames.Count;
+        var upD = onCar ? frames[body.Parent].Up : Double3.Up;
+        double yaw = body.Yaw + (onCar ? frames[body.Parent].Heading : 0);
+        var right = new Vector3((float)Math.Cos(yaw), 0, (float)-Math.Sin(yaw));
+        var back = new Vector3((float)Math.Sin(yaw), 0, (float)Math.Cos(yaw));
+        var up = ToF(upD);
+        var forward = -back;
+        const float half = 0.45f;
+        var o = V(at, eye);
+        // The lid, hinged along its back edge, turned up by the angle about the crate's right.
+        var hinge = o + up * half + back * half;
+        float c = (float)Math.Cos(angle), sn = (float)Math.Sin(angle);
+        var lidForward = forward * c + up * sn;
+        var lidUp = up * c - forward * sn;
+        mesh.Box(hinge + lidForward * half + lidUp * 0.035f, right, lidUp, -lidForward, new Vector3(half + 0.01f, 0.035f, half + 0.01f), Palette.BlueGrey * 0.9f);
+        // Inside: the black of a mouth, and teeth round its rim, on the lid's edge and the crate's.
+        float gape = 2 * half * sn;
+        mesh.Box(o + up * (half + gape * 0.45f) + forward * (half * 0.55f), right, up, back, new Vector3(half * 0.92f, gape * 0.45f, half * 0.4f), Palette.SootBlack);
+        if (angle > 0.06)
+            for (int i = -4; i <= 4; i++)
+            {
+                var along = right * (i * 0.095f);
+                mesh.Box(hinge + lidForward * (2 * half - 0.03f) - lidUp * 0.03f + along, right, lidUp, -lidForward, new Vector3(0.018f, 0.04f, 0.012f), Palette.BoardEnamel);
+                mesh.Box(o + up * (half + 0.035f) + forward * (half - 0.03f) + along, right, up, back, new Vector3(0.018f, 0.04f, 0.012f), Palette.BoardEnamel);
+            }
+    }
+
+    /// <summary>
+    /// A shovelful of live coals flung out of the firebox (GDD v1.3 §21, the Huddle's counter): a low heap of embers, glowing,
+    /// and their light on whatever's round them.
+    /// </summary>
+    static void DrawEmbers(MeshBuilder mesh, Vector3 o, Vector3 right, Vector3 up, Vector3 back, double time, int id)
+    {
+        float flicker = 0.8f + 0.2f * (float)Math.Sin(time * 7.3 + id) * (float)Math.Sin(time * 3.1 + id * 0.5);
+        mesh.Emissive = 1;
+        for (int i = 0; i < 6; i++)
+        {
+            double a = i * 2.39996 + id;
+            var at = o + right * (float)(Math.Cos(a) * 0.12 * (1 + i % 2)) + back * (float)(Math.Sin(a) * 0.12 * (1 + i % 2)) - up * 0.08f;
+            mesh.Box(at, right, up, back, new Vector3(0.06f, 0.04f, 0.05f), (i % 2 == 0 ? Palette.FurnaceOrange : Palette.LampAmber) * (0.7f + 0.3f * flicker));
+        }
+        mesh.Emissive = 0;
+        mesh.PointLights.Add(new PointLight(o + up * 0.3f, Palette.FurnaceOrange * (0.9f * flicker), 4.5f));
+    }
+
+    /// <summary>
+    /// A yard crate stack's count (level-design P12: "crate counts shown"), chalked on a board on a post at the head of its
+    /// row: tallies in fives, white enough to read in a hand lamp. One crate more than the tally is the Mimic (GDD v1.3).
+    /// </summary>
+    static void DrawCrateCount(MeshBuilder mesh, Double3 at, Double3 along, int count, Double3 eye)
+    {
+        var o = V(at, eye);
+        var a = ToF(along);
+        var up = Vector3.UnitY;
+        var side = Vector3.Normalize(Vector3.Cross(up, a));
+        mesh.Box(o + up * 0.5f, side, up, a, new Vector3(0.04f, 0.5f, 0.04f), Palette.DeepBrown);
+        var board = o + up * 1.0f - a * 0.06f;
+        mesh.Box(board, side, up, a, new Vector3(0.34f, 0.17f, 0.02f), Palette.Charcoal);
+        mesh.Emissive = 0.35f;
+        var chalk = Palette.BoardEnamel * 1.1f;
+        // On both faces: it's read from whichever side the crew come up to the stack.
+        foreach (float facing in new[] { -1f, 1f })
+        {
+            var face = board + a * (0.025f * facing);
+            var across = side * -facing;
+            for (int k = 0; k < Math.Min(count, 15); k++)
+            {
+                int group = k / 5, stroke = k % 5;
+                float gx = -0.26f + group * 0.19f;
+                if (stroke < 4)
+                    mesh.Box(face + across * (gx + stroke * 0.035f), side, up, a, new Vector3(0.006f, 0.08f, 0.004f), chalk);
+                else
+                {
+                    float t = 0.9f;
+                    var s2 = across * MathF.Cos(t) + up * MathF.Sin(t);
+                    var u2 = up * MathF.Cos(t) - across * MathF.Sin(t);
+                    mesh.Box(face + across * (gx + 0.0525f), s2, u2, a, new Vector3(0.1f, 0.006f, 0.004f), chalk);
+                }
+            }
+        }
+        mesh.Emissive = 0;
     }
 
     /// <summary>Finds the along-line distance nearest a point, starting from a guess.</summary>

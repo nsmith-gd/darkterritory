@@ -201,6 +201,9 @@ public sealed partial class SceneArt(Look look)
             return true;
         if (b.Kind == Sim.Physics.BodyKind.Ragdoll)
             return Corpse(mesh, frames, b, eye, onCar);
+        // Live coals (GDD v1.3, the Huddle's counter) are the greybox's glowing heap: nothing of the kit's is a fire on the ground.
+        if (b.Kind == Sim.Physics.BodyKind.Embers)
+            return false;
         var local = b.Pbd.Particles[0].Position;
         var at = onCar ? frames[b.Parent].ToWorld(local) : local;
         if ((at - eye).Length > 250)

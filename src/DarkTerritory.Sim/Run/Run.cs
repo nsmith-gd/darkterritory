@@ -300,7 +300,8 @@ public sealed partial class Run
             }
 
         // A crate put down (or thrown) inside a cargo car's walls, and lying still there, is loaded.
-        foreach (var b in world.Bodies.All.Where(b => b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy).ToList())
+        // A Mimic never goes into the load (GDD v1.3 §21: one of its tells): it lies there, a crate, however long it's left.
+        foreach (var b in world.Bodies.All.Where(b => b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy && !Enemies.Mimic.Is(world, b)).ToList())
         {
             bool stowed = b.Carrier < 0 && b.Parent > 0 && b.Parent < train.Vehicles.Count && train.Vehicles[b.Parent].Kind == VehicleKind.Cargo
                 && train.Vehicles[b.Parent].Load < 1 && train.Frames[b.Parent].Shape.Interior is { } room && room.Contains(b.Pbd.Particles[0].Position);

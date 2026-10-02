@@ -899,6 +899,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         double eaten = Math.Clamp(Opt(args, "--eaten", 0.5), 0, 1);
         (rear.Eaten, rear.Integrity) = (eaten, 1 - eaten);
     }
+    // --threats: every threat staged round the train (Staging.Threats), each creature's own staging on top; GDD v1.3's three
+    // (--shy, --huddle, --mimic: Staging.AtStops) with the bodies they need.
+    (List<DarkTerritory.Sim.Enemies.Enemy> Threats, List<DarkTerritory.Sim.Physics.Body> Bodies)? stopStaged = args.Contains("--threats")
+        ? Staging.AtStops(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", "")), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), train,
+            Str(args, "--shy", ""), Str(args, "--huddle", ""), Str(args, "--mimic", ""))
+        : null;
     var scene = new GreyboxScene
     {
         // --draw m: how far along the line to build it (an aerial view of a stretch wants more than the cab's 400).
@@ -910,15 +916,16 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Run = run,
         Holdouts = holdouts,
         Time = 0.37,
-        Enemies = args.Contains("--threats") ? Later(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", "")), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--later", 0)) : null,
+        Enemies = stopStaged is { } staged ? Later(staged.Threats, Opt(args, "--later", 0)) : null,
         StagedPaces = args.Contains("--passenger") ? new Dictionary<int, float> { [48] = Staging.PassengerPace(Str(args, "--passenger", "")) } : null,
         // --stocked: the train as it leaves, its stores and every car's extinguisher aboard (--charge 0..1: theirs).
-        Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All
-            : args.Contains("--stocked") ? Staging.Stocked(train, content, Opt(args, "--charge", 1)).All : cargo,
+        Bodies = [.. (args.Contains("--bodies") ? Staging.Bodies(train, content).All
+            : args.Contains("--stocked") ? Staging.Stocked(train, content, Opt(args, "--charge", 1)).All : cargo ?? []), .. stopStaged?.Bodies ?? []],
         // --crew: three on car 2's roof, one reaching up, one holding out both hands, one with a keyboard (T47's arms).
         // --working: the crew at work (X1): carrying, at a hatch and a brake wheel on car 2's roof, sat at the last gun.
         Crew = args.Contains("--working") ? Staging.Working(train, content)
-            : args.Contains("--crew") ? [.. Staging.Crew(train, content), .. args.Contains("--ribbits") || args.Contains("--gaunt") || args.Contains("--grumbler") || args.Contains("--follower") || args.Contains("--soot") ? [Staging.Lone(train)] : Array.Empty<Crewmate>()]
+            : args.Contains("--crew") ? [.. Staging.Crew(train, content), .. args.Contains("--ribbits") || args.Contains("--gaunt") || args.Contains("--grumbler") || args.Contains("--follower") || args.Contains("--soot")
+                || args.Contains("--shy") || args.Contains("--huddle") || args.Contains("--mimic") ? [Staging.Lone(train)] : Array.Empty<Crewmate>()]
             : Str(args, "--passenger", "") == "drag" ? [Staging.Dragged(train)] : null,
         Emergency = args.Contains("--emergency"),
         FireDoorOpen = args.Contains("--firedoor") || args.Contains("--stoker"),
@@ -988,6 +995,15 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         trainAt = Math.Round(at, 1),
         // --site: where its cranes' hooks hang (the facility's own and the yard's), by line distance and offset.
         cranes = site?.Cranes.Select(c => new { line = Math.Round(GreyboxScene.NearestDistance(line, c.HookAt, site.Feature.Start + 300), 1), castings = c.Castings.Length }),
+        // And its yard's crate counts, chalked by each stack (level-design P12; GDD v1.3, the Mimic's "one more than the count"):
+        // by line distance and offset (for --cam), and the count.
+        crateCounts = site is null ? null : run?.CrateCounts().Where(c => (c.At - line.Sample(site.Feature.Start).Position).Length < site.Feature.End - site.Feature.Start + 400)
+            .Select(c => (c, s: GreyboxScene.NearestDistance(line, c.At, site.Feature.Start + 300))).Select(x => new
+            {
+                line = Math.Round(x.s, 1),
+                lateral = Math.Round(Double3.Dot(x.c.At - line.Sample(x.s).Position, Double3.Cross(line.Sample(x.s).Tangent, Double3.Up).Normalized), 1),
+                count = x.c.Count,
+            }),
         device = gpu.DeviceName,
         triangles = renderer.Stats.Triangles,
         draws = renderer.Stats.Draws,

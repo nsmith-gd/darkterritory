@@ -1,9 +1,16 @@
 # DARK TERRITORY
-## Game Design Document — v1.2, September 2026
+## Game Design Document — v1.3, October 2026
 
 **Two to eight players crew an armoured freight train through a corrupted wilderness. Load what you can. Deliver what survives.**
 
 *Dark territory is a real railroad term: track with no functioning signal system, where trains move on verbal authority alone. When communication fails, people die.*
+
+**v1.3 changes — three at the stops.**
+- Three new enemies, met at the stops where the crew is on foot (§21): **the Shy Thing** (Split, the thinnest want), **the Huddle** and **the Mimic** (both Trust). The roster is 20.
+- Considered and cut: **the Chaperone** (it takes whoever's alone: already the roster's default punishment, and §17 puts a lone player at every junction) and **the Bellhop** (carried off to a nest: the Whistler again).
+- A ninth supporting system, **live coals** out of the firebox: the Huddle's counter (Appendix C).
+- Three conflict-table pairs (B.1), and the three in the creature vote (D.11).
+- Touches §21, A.6, A.9, B.1, B.6, C, D.11 and Part Eleven; systems spec A.4 (their tells) and B.2 (a Mimic's carry speed); level design P12 (the crate counts, drawn).
 
 **v1.2 changes — death and return.**
 - New **Appendix D — Death, Holdouts and Return**: Holdouts at halts and yards are the only way back mid-run. It replaces the Vigil and POI drop-in.
@@ -314,7 +321,7 @@ Every enemy must pass at least four of the six, including 1 and 3. This is the f
 
 The learnability rules from v1.0 — the rule fits in six words, one death teaches it, the telegraph always comes first — now live in the fairness contract (Appendix A.1).
 
-## 21. Roster — 17 enemies
+## 21. Roster — 20 enemies
 
 Demo ships with **five**: Track Doll, Car Hugger, Whistler, Tippy Toesie and Ribbits, with the Choir running underneath as the ambient system. If the Foundry is one of the two demo facilities, the Grumbler replaces the Ribbits.
 
@@ -396,6 +403,21 @@ It drops off aboard and nests in your best loot car. Club it off your friend, or
 A child calling for help. Half the time it's a real survivor, the most valuable cargo in the game.
 > **RULE: check the eyes from five metres.**
 Black eyes and blackened hands mean a Soot Child. Get within five metres and it pins you and drinks. Your cries for help get quieter.
+
+**THE SHY THING** · *out in the dark at stops* (v1.3)
+A tall, pale thing standing where you have to look. Only you can see it.
+> **RULE: look away while you still can.**
+Watch it and you can't move. Look away and hold it, and it's gone; but the longer you've been under, the longer that takes, and it walks in while you are. A friend standing in your line of sight breaks it, if you can tell them where to stand. At arm's length its jaw comes down like a snake's, and now everyone can see it.
+
+**THE HUDDLE** · *at stops, then the cab* (v1.3)
+A flock of small, soft things that follow the crew aboard for the warmth.
+> **RULE: pet them, never hit them.**
+They chirp all the time, and it counts toward the crew's loudness; petting hushes them. Hit one and the rest bury whoever did it, while friends try to pet them off. To be rid of them, leave them a fire: live coals out of the firebox, at a stop.
+
+**THE MIMIC** · *among a yard's crates, then aboard* (v1.3)
+The best-looking crate in the yard.
+> **RULE: not on the count? Leave it.**
+Its tells are all small: it's one more than the count chalked by the stack, it breathes when you stand still beside it, it's heavier than a crate should be, and it never goes into a car's load. Set down aboard, it wakes, and bites whoever comes near.
 
 ### STRUCTURAL — attack how you run the train
 
@@ -801,6 +823,8 @@ Embodied in-engine agents play the game headlessly. A fixed roster makes this an
 11. **Is hand-carried loot a second economy next to freight, or part of it?** A rescued child is both.
 12. **At crew 2, which group-based enemies are still fair?** Needs a harness sweep, especially Ribbits and Tippy Toesie.
 13. **What counts toward the Choir's loudness threshold, and over what time window?** Too sensitive and the core shouting loop summons it constantly.
+14. **The Shy Thing alone.** At a crew of one, or a lone switch-thrower, the held look-away is the only way out. Does its growth make a careless second at a lonely switch a death? Watch it in playtests.
+15. **Should the Huddle die at all?** Each blow kills one (and provokes the rest), so a crew willing to be buried can beat a flock to death. Unkillable would keep "never hit them" pure, and be frustrating.
 
 ---
 
@@ -1036,6 +1060,59 @@ PUNISH    drained → death
 
 ---
 
+### THE SHY THING · sight
+```
+WAITS     at a stop, out where someone on the ground has to look (past the switch they work, the door, the loading)
+          └ a pale, still shape in the dark: anyone can see it
+WATCHED   a player looks at it for ~1 s → it has them; from now on only they (and the dead watching them) see it
+          └ TELEGRAPH: they can't move, only turn; a ringing in their ears
+LOOK AWAY held 0.5 s, and 0.3 s more for every second they've watched it (8 s at most) → it's gone for the run
+          OR a crewmate stands in their line of sight as long
+DRAWS IN  walks in at 0.7 m/s while they're under
+UNHINGE   at arm's length → its jaw comes apart (GRAB, 10 s): now everyone sees it
+          └ TELEGRAPH: wet cracks, quickening
+          └ interrupt: a friend's blow, or the victim's look-away, still held
+PUNISH    swallowed whole
+COUNTER   look away early; stand in a friend's line of sight; hit it once it shows
+```
+**The waiting is the joke and the cost.** Nobody else can see it, so the crew hears "I can't move", takes the victim's word for where it is, and someone drops their job to go and stand in the way. If they're carried out of its sight (aboard a train pulling out), it loses them. On a flat screen the mouse turns heavier the longer you're under; a headset's view is never dragged (comfort), so the held look-away is the mechanic on both.
+
+### THE HUDDLE · heat
+```
+PLAY      a flock of 4–6 at a stop, near the ground crew
+          └ chirping, constant: every one not hushed adds to the crew's loudness (C.7); a full flock is a livestock car's
+FOLLOW    the nearest crewmate on the ground within 12 m, at 4 m/s (outrunnable); with nobody near, the cab
+BOARD     the train under 3.5 m/s → into the cab, round the firebox; they ride
+PET       Use held within reach, looking down at them → hushed; it wears off over 40 s
+HIT       any blow kills one, and the rest bristle (TELEGRAPH, 2 s: quiet, then a hiss)
+          └ get 6 m clear, or hush them, and they settle
+SWARM     → they bury whoever struck (GRAB, 12 s); anyone within 8 m is nipped
+          └ interrupt: friends pet them off (Use at the buried one); another blow only takes 3 s off the window
+PUNISH    smothered; and they're as sweet as ever
+COUNTER   leave them a fire: the shovel in hand at the firebox, Throw flings live coals (C.9); at a stop they leave the
+          train for them, and are left behind
+```
+**Answered best alone.** The one enemy a bigger crew makes worse: someone always hits one. The fire costs a shovelful off the fire and the firebox door, open at a stop (the Stoker's way in, B.5), and coals that land on a car's floor set it alight (C.5). In the cab they're underfoot of the crew's best club (C.2): clubbing a Stoker in a cab full of Huddle is a seeded pair (B.1).
+
+### THE MIMIC · movement
+```
+LIES      among a yard's crates: one more than the count chalked by its stack (level-design P12)
+          └ TELLS, all subtle: not on the count; breathing when someone stands still beside it; heavier than a crate
+            to carry (2.4 m/s, freight's 2.8); put in a car, it never goes into the load
+CARRIED   harmless in your arms and on the ground
+STOWED    set down aboard and left 45 s → awake
+REACH     anyone within 1.3 m, or picking it up → the lid lifts (TELEGRAPH, 1.8 s: a dry creak, a wet click)
+          └ step back, or throw it, and it shuts again
+BITE      → it has them (GRAB, 10 s)
+          └ interrupt: friends pull them out (Use) or hit it
+PUNISH    eaten; it shuts, and waits for the next
+STRUCK    it lunges at whoever struck it from 2.6 m: alone, one blow and step back; a group kills it (six blows)
+COUNTER   leave it in the yard; kill it together; throw it off the train; or cut its car
+```
+**Greed, then a car you can't walk through.** Every tell is there for a crew that checks, and none is loud. Aboard, its car is a gauntlet: the way through is over the roof, past the Draggers.
+
+---
+
 ## A.7 Structural
 
 ### THE CHOIR · sound
@@ -1097,7 +1174,7 @@ COUNTER   gang up and kill it, or leave it alone;
 
 ## A.9 Implementation notes
 
-**The shared GRAB state** serves Car Hugger, Draggers, Whistler, Tippy Toesie, Ribbits, Soot Children, the Choir and the Passenger. Build it once, with a timer, an interrupt and a hook for voice effects.
+**The shared GRAB state** serves Car Hugger, Draggers, Whistler, Tippy Toesie, Ribbits, Soot Children, the Choir and the Passenger, and v1.3's Shy Thing, Huddle and Mimic. Build it once, with a timer, an interrupt and a hook for voice effects.
 
 **Voice-system enemies.** The Gaunt reads silence, the Choir reads loudness, Tippy Toesie muffles its victim, Soot Child victims fade, and the Passenger never speaks. All five sit on the voice layer, so it is a gameplay system, not just comms.
 
@@ -1143,7 +1220,8 @@ Budget is spent across the run against a rising curve, not evenly. Roughly 15% b
 |---|---|
 | **2** | Followers, Draggers, Fire Flies, The Switchman |
 | **3** | Track Doll, Cinder Hounds, Climbers, Whistler, Stoker, Ribbits |
-| **4** | Car Hugger, Tippy Toesie, The Gaunt, Soot Children, Grumbler |
+| **3** (v1.3) | The Shy Thing, The Huddle |
+| **4** | Car Hugger, Tippy Toesie, The Gaunt, Soot Children, Grumbler, The Mimic (v1.3) |
 | **5** | The Passenger |
 | **—** | The Choir (not spawned; triggered by the loudness meter) |
 
@@ -1154,11 +1232,11 @@ The director tags each enemy with the player want it attacks, and aims for a tar
 | Tag | Target share | Enemies |
 |---|---|---|
 | **Kill** | 40% | Cinder Hounds, Draggers, Whistler, Stoker, Tippy Toesie, Ribbits, The Choir |
-| **Split** | 25% | Track Doll, Climbers, The Gaunt |
-| **Trust** | 20% | Followers, Soot Children, The Passenger |
+| **Split** | 25% | Track Doll, Climbers, The Gaunt, The Shy Thing |
+| **Trust** | 20% | Followers, Soot Children, The Passenger, The Huddle, The Mimic |
 | **Cargo** | 15% | Car Hugger, Fire Flies, The Switchman, Grumbler |
 
-Split is the thinnest category and the best target for a post-launch addition.
+Split is the thinnest category and the best target for a post-launch addition (v1.3's Shy Thing is one).
 
 **Dead vote.** Each dead player gets one vote per run that raises one creature's spawn weight, ×1.2 per vote and capped at ×1.5, applied within that creature's want tag so the target shares hold (Appendix D.11). It never changes budget, gates, caps or pacing.
 
@@ -1199,6 +1277,9 @@ The director draws pairs from a **conflict table** rather than spawning independ
 | Tippy Toesie + Stoker | The boiler player is idle and alone vs. the firebox needs watching |
 | Ribbits + The Switchman | Don't go alone vs. someone must reset the switch |
 | Car Hugger + climbing grade | Kill it or cut the car vs. the speed cap loses the summit |
+| Shy Thing + Tippy Toesie (v1.3) | Turn and face what's behind you vs. look away from what's in front |
+| Huddle + Stoker (v1.3) | Club it in the firebox vs. don't swing in a cab full of Huddle |
+| Mimic + Fire Flies (v1.3) | Lamps off vs. the Mimic's lid only shows in the light (its creak still carries) |
 
 At least one pair per run on Frontier and above. Two on Deep Territory.
 
@@ -1253,6 +1334,11 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 | **The Gaunt** | Asleep in villages and yards | Frontier+ (first pass) · once per run | Weight up on long facility stops |
 | **Followers** | Facility grounds; latches onto a disembarked player | Requires an excursion · any tier | Weight up per additional player on the ground |
 | **Soot Children** | Near facilities and dead settlements | Crew ≥2 | True 50/50 with a real child survivor; a host player's first-ever call is always a real child |
+| **The Shy Thing** (v1.3) | At a stop, 12–18 m out where someone on the ground is looking, clear of the train | Any tier · one at a time | Weight up per extra player on the ground |
+| **The Huddle** (v1.3) | At a stop, out from the ground crew | Any tier · one flock at a time | — |
+| **The Mimic** (v1.3) | At a stop whose crates are out: one past the end of a yard crate stack, or beside the facility's own crates | Any tier · one at a time | — |
+
+**v1.3's three are met only at stops** (stopped at a facility, a dead settlement, or any stop with a layout). Waiting, tagging along or lying among the crates, none counts against the caps; and a waiting Shy Thing or a Mimic is never what's sent to break a quiet stretch.
 
 ---
 
@@ -1316,7 +1402,7 @@ Spawn tuning is the single largest use of the agent harness. Seventeen enemies a
 
 # APPENDIX C — SUPPORTING SYSTEMS
 
-The v1.1 roster depends on eight systems. Each is shared by several enemies, so each is built once.
+The roster depends on nine systems (v1.3 adds live coals). Each is shared by several enemies, so each is built once.
 
 1. **The GRAB rescue state.** Part of the shared skeleton (A.1): a held player, a timer (8–20s), an interrupt that ends in BREAK OFF, and a hook for voice effects.
 2. **Melee.** The core verb. The tools already on the train are the weapons: shovel, wrench, crowbar. The boiler player's shovel doubling as the crew's best club is intended tension. Server-authoritative hits with lag compensation.
@@ -1326,6 +1412,7 @@ The v1.1 roster depends on eight systems. Each is shared by several enemies, so 
 6. **Group counting.** Players within 8m of each other count as a group — the full-clarity voice radius. Used by Ribbits and Climbers.
 7. **The crew loudness meter.** Combined loudness from voices, cannons, the whistle and machinery, measured over a few seconds so single shouts don't count. It drives the Choir and is fed by livestock.
 8. **Voice effects on the server.** Tippy Toesie muffles its victim; Soot Child victims fade as they're drained; the Gaunt listens for silence; the Passenger never speaks. All live in the existing voice layer.
+9. **Live coals** (v1.3). The shovel in hand at the firebox, Throw flings a shovelful of live coals out along the view: one unit off the fire, the firebox door left open. They glow where they land for two minutes and draw the Huddle; come to rest on a car's floor, they set it alight. Nobody picks them up.
 
 ---
 
@@ -1546,7 +1633,7 @@ Being dead means watching your crew and talking with the other dead. Lobbied pla
 | **Never touches** | Budget, want-tag shares, gates, hard caps, pacing rules, cooldowns, once-per-run limits, corrupted-human exclusivity, or the Soot Children's 50/50 real-child roll |
 | **Visibility** | Hidden from the living until the run-end screen |
 
-Provisional voteable set, subject to the runtime rule: Track Doll · Cinder Hounds · Car Hugger · Climbers · Draggers · Whistler · Tippy Toesie · Fire Flies · Ribbits · The Gaunt · Followers · Soot Children · The Passenger · The Switchman · Grumbler.
+Provisional voteable set, subject to the runtime rule: Track Doll · Cinder Hounds · Car Hugger · Climbers · Draggers · Whistler · Tippy Toesie · Fire Flies · Ribbits · The Gaunt · Followers · Soot Children · The Passenger · The Switchman · Grumbler · The Shy Thing · The Huddle · The Mimic.
 
 ## D.12 Run end: incident report and commendations
 
@@ -1624,4 +1711,4 @@ Every number in this appendix lives in data, not code.
 
 ---
 
-*Dark Territory · GDD v1.2 · September 2026*
+*Dark Territory · GDD v1.3 · October 2026*

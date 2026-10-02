@@ -215,6 +215,50 @@
     "chemicalSpread": 2, "chemicalGrowth": 1.3, "powderGrowth": 1.6, "burnOutPerSecond": 0.05, "maxActive": 3
   },
 
+  // GDD v1.3 §21's three, all met at stops (App. A.6, B.6). First pass.
+
+  // THE SHY THING · sight · outside. It stands in the dark where someone on the ground is looking, spawnOut[0]-[1] m out.
+  // Watched (within watchDegrees of a player's view, inside watchRange m) for watchSeconds, it has them: they can't move,
+  // only turn, and from then on only they (and the dead watching through them) can see it. Looking away (past awayDegrees)
+  // for lookAwaySeconds, plus lookAwayGrowth s for every second they've been under (at most lookAwayMax), or a crewmate
+  // within blockWidth m of their line of sight, breaks it and it's gone. Meanwhile it walks in at approachSpeed; at reach it
+  // unhinges its jaw (seen by everyone, the GRAB) and swallows them after unhingeSeconds: a friend's blow sends it off.
+  // Watched by nobody for lingerSeconds, it goes. On a flat screen, under, the mouse turns turnDrag slower for every second
+  // (no slower than turnFloor of itself): input only, never a headset's view (ARCHITECTURE §8 note 30's comfort rule).
+  "shyThing": {
+    "watchSeconds": 1, "watchDegrees": 12, "watchRange": 30, "awayDegrees": 35, "lookAwaySeconds": 0.5, "lookAwayGrowth": 0.3,
+    "lookAwayMax": 8, "blockWidth": 0.45, "approachSpeed": 0.7, "reach": 1.2, "unhingeSeconds": 10, "health": 1,
+    "spawnOut": [12, 18], "lingerSeconds": 240, "turnDrag": 0.06, "turnFloor": 0.15
+  },
+
+  // THE HUDDLE · heat · outside. A flock of flockSize at a stop, spawnOut m from the ground crew. It follows the nearest
+  // crewmate within noticeRadius at followSpeed (to followAt m); with nobody near, the cab within cabLure m, hopping in
+  // within boardReach m with the train under boardBelow m/s, and piling round the firebox. Each one not hushed adds
+  // chirpLoudness to the crew's loudness (App. C.7). Petting (Use held within petReach m, looking down at least
+  // petLookDown degrees, or a hand reached down to them) hushes them at petPerSecond, the hush wearing off over
+  // calmSeconds. A blow kills one, and the rest bristle for bristleSeconds: clear of them by clearOf m, or hushed, and they
+  // settle. Then they swarm (swarmSpeed) whoever struck, burying them for buriedSeconds (another blow takes hitShortens off
+  // that), nipping anyone else within nipRadius nipDamage every nipEvery s; petted off (Use at the buried one) they let go.
+  // Live coals flung out of the firebox draw them within emberLure m (warm for emberSeconds); off the train with the engine
+  // leftBehind m away and nobody near, they're left behind.
+  "huddle": {
+    "flockSize": [4, 6], "spawnOut": 18, "noticeRadius": 12, "followAt": 1.5, "followSpeed": 4, "cabLure": 60, "boardBelow": 3.5,
+    "boardReach": 5, "chirpLoudness": 0.06, "petReach": 1.8, "petLookDown": 25, "petPerSecond": 0.6, "calmSeconds": 40,
+    "bristleSeconds": 2, "clearOf": 6, "swarmSpeed": 6.5, "reach": 0.9, "buriedSeconds": 12, "hitShortens": 3,
+    "nipRadius": 8, "nipDamage": 5, "nipEvery": 2, "emberLure": 40, "emberSeconds": 120, "leftBehind": 80, "lingerSeconds": 600
+  },
+
+  // THE MIMIC · movement · outside. A crate among a yard's crates, one more than the count chalked by the stack. Its tells,
+  // all subtle: it breathes when someone stands still within breatheNear m for breatheStill s; carried, it's heavier than a
+  // crate (player.json carryLaden); put in a car, it never goes into the load. Set down aboard and left wakeSeconds, it's
+  // awake: anyone within reach m (or picking it up) and the lid lifts for lidSeconds; still there, it bites (GRAB,
+  // biteSeconds), and friends pull them out or hit it. Struck, it lunges at the striker from lungeReach. health blows kill
+  // it. Thrown off, or its car cut, with the engine leftBehind m away, it's gone; unmet lingerSeconds, it goes.
+  "mimic": {
+    "wakeSeconds": 45, "reach": 1.3, "lungeReach": 2.6, "lidSeconds": 1.8, "biteSeconds": 10, "health": 6, "breatheNear": 2.5,
+    "breatheStill": 2, "leftBehind": 200, "lingerSeconds": 1200
+  },
+
   "choirSwarm": {
     // Legacy (T9): the Choir's damage to the exposed is now its ghosts' seize (above); kept for old saves' tuning.
     "exposedDamage": 0,
@@ -258,7 +302,7 @@
     // App. B.1 v1.1's cost table (the Choir costs nothing: it isn't spawned; hazards are level content).
     "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "switchman": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
       "whistler": 3, "stoker": 3, "ribbits": 3, "carHugger": 4, "tippyToesie": 4, "gaunt": 4, "sootChildren": 4, "grumbler": 4,
-      "passenger": 5 },
+      "passenger": 5, "shyThing": 3, "huddle": 3, "mimic": 4 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5,
@@ -283,7 +327,12 @@
       ["whistler", "facilityStop"],
       ["tippyToesie", "stoker"],
       ["ribbits", "switchman"],
-      ["carHugger", "grade"]
+      ["carHugger", "grade"],
+      // GDD v1.3: turn and look at Tippy Toesie vs. don't look at the Shy Thing; club the Stoker in the firebox vs. don't
+      // swing in a cab full of Huddle; lamps off vs. the Mimic's lid only shows in the light (its creak still carries).
+      ["shyThing", "tippyToesie"],
+      ["huddle", "stoker"],
+      ["mimic", "fireFlies"]
     ],
     "pairWeight": 3,
     "behindPairWeight": 3,

@@ -393,6 +393,9 @@ public sealed class World
             // Freight in your arms slows you and keeps you off ladders (spec B.2); the motor reads the flag.
             bool heavy = Bodies.All.Any(b => b.HeldBy(playerId) && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy);
             s.Flags = heavy ? s.Flags | PlayerFlags.Heavy : s.Flags & ~PlayerFlags.Heavy;
+            // GDD v1.3 §21: a Mimic's heavier than a crate should be (one of its tells).
+            bool laden = heavy && Bodies.All.Any(b => b.HeldBy(playerId) && Mimic.Is(this, b));
+            s.Flags = laden ? s.Flags | PlayerFlags.Laden : s.Flags & ~PlayerFlags.Laden;
             bool repairKit = Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.RepairKit };
             s.Flags = repairKit ? s.Flags | PlayerFlags.RepairKit : s.Flags & ~PlayerFlags.RepairKit;
         }
@@ -562,6 +565,23 @@ public sealed class World
             foreach (var b in Bodies.All)
                 if (b.Kind == Physics.BodyKind.Extinguisher && b.Carrier < 0 && b.Parent == b.Home && b.Charge < 1)
                     b.Charge = Math.Min(1, b.Charge + SimConstants.TickSeconds / ft.CarFire.RechargeSeconds);
+        // Live coals flung out of the firebox cool where they lie (GDD v1.3 §21, the Huddle's counter). Come to rest on a car's
+        // floor, they set it alight (App. C.5).
+        if (Authority && Enemies is { } ht)
+            foreach (var b in Bodies.All.Where(b => b.Kind == Physics.BodyKind.Embers).ToList())
+            {
+                b.Charge -= SimConstants.TickSeconds / ht.Huddle.EmberSeconds;
+                bool onAFloor = b.Carrier < 0 && b.Parent > 0 && b.Parent < Train.Frames.Count && b.Pbd.Asleep
+                    && Train.Frames[b.Parent].Shape.Interior is { } room && room.Contains(b.Centre);
+                if (onAFloor && !_enemies.Any(e => e is CarFire f && !f.Gone && f.Attached == b.Parent))
+                {
+                    int car = b.Parent;
+                    double along = b.Centre.Z;
+                    AddEnemy(i => CarFire.In(i, Train, car, along, ht.CarFire));
+                }
+                if (b.Charge <= 0 || onAFloor)
+                    Bodies.Remove(b);
+            }
         if (Authority && _context is { } ctx)
             StepEnemies(ctx);
         Pace();
@@ -627,7 +647,9 @@ public sealed class World
                     voices += intent.Voice / 255.0 * t.VoicePerPlayer;
         double whistle = WhistleSeconds > 0 ? t.WhistleLoudness : 0;
         double machinery = Run is { Phase: DarkTerritory.Sim.Run.RunPhase.AtFacility } run && run.Machinery ? t.MachineryLoudness : 0;
-        return voices + whistle + machinery;
+        // GDD v1.3: a Huddle chirping, every one of them that isn't hushed (never quiet, like livestock).
+        double creatures = Enemies is { } et ? _enemies.OfType<Huddle>().Where(h => !h.Gone).Sum(h => h.Noise(et.Huddle)) : 0;
+        return voices + whistle + machinery + creatures;
     }
 
     readonly Dictionary<int, double> _unmet = [];

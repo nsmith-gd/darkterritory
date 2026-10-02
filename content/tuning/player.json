@@ -6,6 +6,9 @@
   "roofWalkSafe": 1.8,
   "ladderClimb": 1.6,
   "carryHeavy": 2.8,
+  // GDD v1.3 §21, the Mimic's weight (one of its tells): carried, it's heavier than a crate should be. Under spec B.3's
+  // 2.5 m/s yard speed, so whoever's carrying it can't catch a train pulling out at yard speed.
+  "carryLaden": 2.4,
   // Pushing a gun along its roof rail (T93): the gun goes where you go, no faster than this.
   "pushGun": 1.2,
   "jumpGap": 2.2,

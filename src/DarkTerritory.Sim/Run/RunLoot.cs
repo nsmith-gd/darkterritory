@@ -148,6 +148,56 @@ public sealed partial class Run
             Stock(bodies, line, t, stop);
     }
 
+    /// <summary>Where crate <paramref name="i"/> of a stack of <paramref name="n"/> stands, in its stop's rail frame: in a row across the yard.</summary>
+    static Pt CrateAt(StopContainer c, int i, int n) => c.At + new Pt(0, (i - (n - 1) * 0.5) * 1.1);
+
+    /// <summary>
+    /// Every yard crate stack's count, chalked on a board at the head of its row (level-design P12: "crate counts shown"),
+    /// for the art: where the board stands, which way the row runs from it (a unit vector, level), and the number. The
+    /// count is what the economy put there, so a crate more than it is something else (GDD v1.3 §21, the Mimic).
+    /// </summary>
+    public IEnumerable<(Double3 At, Double3 Along, int Count)> CrateCounts()
+    {
+        if (_loot is not { } t || _lootLine is not { } line)
+            yield break;
+        foreach (var (f, index, stop, _) in _stopLoot)
+            foreach (var c in stop.Containers)
+                if (c.Kind == ContainerKind.CrateStack && StopLoot.CratesIn(t, stop, _route.Seed, index, c) is var n and > 0)
+                {
+                    var head = StopWorld(line, f, CrateAt(c, -1, n));
+                    var along = StopWorld(line, f, CrateAt(c, 0, n)) - head;
+                    yield return (head, (along with { Y = 0 }).Normalized, n);
+                }
+    }
+
+    /// <summary>
+    /// Where a Mimic can lie at the stop the engine is at (GDD v1.3 App. B.6), once its loot is out: just past the last
+    /// crate of each of its yard's crate stacks, one more than the count chalked there; with none, beside the facility's own
+    /// crates. With the cargo those crates hold, so it's a crate like the rest. Empty anywhere else.
+    /// </summary>
+    public List<(Double3 At, double LineHint, CargoKind Cargo)> MimicSlots(double engine)
+    {
+        var slots = new List<(Double3, double, CargoKind)>();
+        if (_loot is { } t && _lootLine is { } line)
+            for (int k = 0; k < _stopLoot.Count; k++)
+            {
+                var (f, index, stop, _) = _stopLoot[k];
+                if (!_stocked[k] || engine < f.Start - 100 || engine > f.End + 100)
+                    continue;
+                foreach (var c in stop.Containers)
+                    if (c.Kind == ContainerKind.CrateStack && StopLoot.CratesIn(t, stop, _route.Seed, index, c) is var n and > 0)
+                        slots.Add((StopWorld(line, f, CrateAt(c, n, n)), f.Start + c.At.S, CargoKind.None));
+            }
+        if (slots.Count == 0 && CurrentSite is { Stocked: true, CrateStack.Length: > 0 } site)
+        {
+            var stack = site.CrateStack;
+            var step = stack.Length > 1 ? (stack[^1] - stack[0]) with { Y = 0 } : new Double3(1, 0, 0);
+            var cargo = FacilityFeature?.Facility is { } kind && _facilityTuning is { } ft ? ft.CargoOf(kind) : CargoKind.None;
+            slots.Add((stack[^1] + step.Normalized * 1.1, site.CrateLineHint, cargo));
+        }
+        return slots;
+    }
+
     /// <summary>A stop's loot comes out: the yard's crate stacks and strongroom, the village's finds.</summary>
     void Stock(Physics.Bodies bodies, RailLine line, LootTuning t, int k)
     {
@@ -162,7 +212,7 @@ public sealed partial class Run
                 case ContainerKind.CrateStack:
                     int n = StopLoot.CratesIn(t, stop, _route.Seed, index, c);
                     for (int i = 0; i < n; i++)
-                        bodies.SpawnCargo(StopWorld(line, f, c.At + new Pt(0, (i - (n - 1) * 0.5) * 1.1)), hint);
+                        bodies.SpawnCargo(StopWorld(line, f, CrateAt(c, i, n)), hint);
                     break;
                 case ContainerKind.Strongroom:
                     for (int i = 0; i < t.Yard.Strongroom.Heavy; i++)

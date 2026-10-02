@@ -289,6 +289,14 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.CarFire, SpinePhase.Telegraph) => "smoke and a crackle from a car: get the extinguisher (Fire)",
         (EnemyKind.CarFire, SpinePhase.Punish) => "a car's alight: it'll take the next one",
         (EnemyKind.CarFire, SpinePhase.BreakOff) => "the fire's out",
+        // GDD v1.3. The Shy Thing's are its victim's (theirs alone to see): you, here.
+        (EnemyKind.ShyThing, SpinePhase.Telegraph) => "you can't move: something out in the dark has your eyes. look away, and hold it",
+        (EnemyKind.ShyThing, SpinePhase.Grab) => "its jaw's coming apart: hit it, or look away",
+        (EnemyKind.ShyThing, SpinePhase.BreakOff) => "the pale thing's gone",
+        (EnemyKind.Huddle, SpinePhase.Telegraph) => "they've gone quiet and puffed up: get clear, or pet them (look down, hold Use)",
+        (EnemyKind.Huddle, SpinePhase.Grab) => "they're piled on someone: pet them off. don't hit them",
+        (EnemyKind.Mimic, SpinePhase.Telegraph) => "a crate's lid lifts a crack: step back",
+        (EnemyKind.Mimic, SpinePhase.Grab) => "a crate's got someone: pull them out, or beat it",
         _ => null,
     };
 

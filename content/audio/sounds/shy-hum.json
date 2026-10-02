@@ -1,0 +1,12 @@
+// Tell (tier 1), the Shy Thing: what its victim hears while it has them (GDD v1.3 App. A.6), 5-6.5 kHz. A thin ringing in
+// the ears, two tones a few hertz apart beating slowly, swelling the longer they're under ("progress"). Only its victim's
+// machine is sent it (the host's interest filter), so only they hear it: to everyone else, they've just stopped moving.
+{
+  "tier": 1, "loop": true, "maxInstances": 1, "minDistance": 3, "maxDistance": 40, "gainDb": -6,
+  "layers": [
+    { "source": "sine", "frequency": 5600, "gain": { "param": "progress", "points": [[0, 0.25], [1, 0.6]] },
+      "tremolo": { "rate": 0.35, "depth": 0.5 } },
+    { "source": "sine", "frequency": 5607, "gain": { "param": "progress", "points": [[0, 0.2], [1, 0.5]] } },
+    { "source": "noise", "gain": 0.06, "filters": [{ "type": "bandPass", "frequency": 6000, "q": 3 }] }
+  ]
+}

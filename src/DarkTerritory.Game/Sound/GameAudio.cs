@@ -47,6 +47,8 @@ public sealed class GameAudio
     {
         public SpinePhase Phase;
         public SoundInstance? Loop;
+        /// <summary>What <see cref="Loop"/> is: a creature whose tell changes with its phase changes loops.</summary>
+        public string? Name;
         public double Next;
     }
 
@@ -271,6 +273,13 @@ public sealed class GameAudio
 
     void Loop(EnemySound s, string sound, Double3 at, float occlusion)
     {
+        // A tell that changes with the phase (the Shy Thing's ringing, then its jaw): the old one stops for the new.
+        if (s.Loop is not null && s.Name != sound)
+        {
+            s.Loop.Stop();
+            s.Loop = null;
+        }
+        s.Name = sound;
         s.Loop ??= Mixer.Play(sound, at);
         if (s.Loop is not null)
         {
@@ -373,6 +382,32 @@ public sealed class GameAudio
                     // Heard through the car's walls: the fire's crackle, more of it the further it's gone.
                     Loop(s, "car-fire", at, occlusion);
                     s.Loop?.Params.Set("progress", e.Extra);
+                    break;
+                case EnemyKind.ShyThing when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit:
+                    // GDD v1.3 App. A.6: its victim's ears ringing, worse the longer they're under. Only their machine is sent it.
+                    Loop(s, "shy-hum", at, 0);
+                    s.Loop?.Params.Set("progress", Math.Clamp(e.Extra2 / 20, 0, 1));
+                    break;
+                case EnemyKind.ShyThing when e.Phase is SpinePhase.Grab:
+                    // Its jaw coming apart, joint by joint, for everyone.
+                    Loop(s, "shy-unhinge", at, occlusion);
+                    s.Loop?.Params.Set("progress", Math.Clamp(e.PhaseSeconds / Math.Max(1, e.GrabWindow), 0, 1));
+                    break;
+                case EnemyKind.Huddle when e.Phase == SpinePhase.Dormant:
+                    // Chirping, all the time, but for what's been hushed.
+                    Loop(s, "huddle-chirp", at, occlusion);
+                    s.Loop?.Params.Set("progress", e.Extra2);
+                    break;
+                case EnemyKind.Huddle when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab:
+                    Loop(s, "huddle-hiss", at, occlusion);
+                    break;
+                case EnemyKind.Mimic when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab:
+                    Loop(s, "mimic-creak", at, occlusion);
+                    break;
+                case EnemyKind.Mimic when ((Mimic)e).Breathing:
+                    // Breathing, for whoever stands still beside it (a subtle tell, close in).
+                    Loop(s, "mimic-breath", at, occlusion);
+                    s.Loop?.Params.Set("progress", e.Extra2);
                     break;
                 default:
                     s.Loop?.Stop();

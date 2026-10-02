@@ -1,0 +1,15 @@
+// Tell (tier 1), the Shy Thing unhinging its jaw (GDD v1.3 App. A.6 UNHINGE, the GRAB): the moment it shows itself to
+// everyone, 2.5-4.5 kHz. Wet cracks, joint by joint, quickening over the ten seconds it takes ("progress"), over a low wet
+// stretch. Told apart from the Mimic's breathing in the same band by its rhythm: cracks, not breaths.
+{
+  "tier": 1, "loop": true, "maxInstances": 2, "minDistance": 3, "maxDistance": 60, "gainDb": 10,
+  "layers": [
+    { "source": "impulse", "gain": 1.5, "frequency": { "param": "progress", "points": [[0, 2.5], [1, 9]] },
+      "filters": [{ "type": "bandPass", "frequency": 3400, "q": 3 }, { "type": "peak", "frequency": 3900, "q": 5, "gainDb": 6 }],
+      "tremolo": { "rate": 1.7, "depth": 0.6, "jitter": 0.8 } },
+    { "source": "noise", "gain": 0.25, "filters": [{ "type": "bandPass", "frequency": 3000, "q": 2 }],
+      "tremolo": { "rate": 2.3, "depth": 0.8, "jitter": 0.7 } },
+    { "source": "saw", "frequency": 95, "gain": 0.18, "filters": [{ "type": "bandPass", "frequency": 380, "q": 2 }],
+      "vibrato": { "rate": 3, "depth": 0.06 } }
+  ]
+}

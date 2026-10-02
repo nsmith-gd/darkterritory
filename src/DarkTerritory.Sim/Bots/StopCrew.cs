@@ -1,4 +1,5 @@
 using Ballast;
+using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
@@ -245,7 +246,8 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
             return false;
         // A heavy crate while two have it up or it's down inside a car; held by one, while there's a hand to lend; lying
         // loose, while there are two to take it (T45). Otherwise it doesn't keep the train.
-        return world.Bodies.All.Any(b => b.Kind == Physics.BodyKind.Cargo
+        // A Mimic isn't a crate to wait on: a crew that reads the count leaves it, and it never goes into the load (GDD v1.3).
+        return world.Bodies.All.Any(b => b.Kind == Physics.BodyKind.Cargo && !Mimic.Is(world, b)
             && (b.Carrier >= 0 || room.Contains(b.Parent) && Inside(train, b) || Loose(world, b))
             || b.Kind == Physics.BodyKind.Heavy && (b.Lifted || room.Contains(b.Parent) && Inside(train, b)
                 || b.Carrier >= 0 && hands >= 1 || hands >= 2 && Loose(world, b)));
@@ -257,7 +259,7 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     /// </summary>
     public bool Loose(World world, Physics.Body b)
     {
-        if (b.Kind is not (Physics.BodyKind.Cargo or Physics.BodyKind.Heavy) || b.Carrier >= 0)
+        if (b.Kind is not (Physics.BodyKind.Cargo or Physics.BodyKind.Heavy) || b.Carrier >= 0 || Mimic.Is(world, b))
             return false;
         if (b.Parent == PlayerState.World)
         {
@@ -1539,7 +1541,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
     {
         var train = world.Train;
         // Put down inside a car and settling: that room's taken. One left on a car's steps isn't in it (T50).
-        var pending = world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Cargo && b.Carrier < 0 && b.Parent > 0 && StopPlan.Inside(train, b))
+        var pending = world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Cargo && b.Carrier < 0 && b.Parent > 0 && StopPlan.Inside(train, b) && !Mimic.Is(world, b))
             .GroupBy(b => b.Parent).ToDictionary(g => g.Key, g => g.Count());
         var stack = p.Site.CrateStack.Length > 0 ? p.Site.CrateStack[0] : train.Frames[0].Origin;
         return StopPlan.WithRoom(train).Select(v => (v.Id, Room: 1 - v.Load - p.Site.LoadPerCrate * (pending.GetValueOrDefault(v.Id) + calls.BoundFor(v.Id, member))))

@@ -18,7 +18,11 @@ namespace DarkTerritory.Sim.Physics;
 /// <see cref="RepairKit"/> is the engineer's toolbox (GDD §12 "the repair kit is an item, not a station"): whoever carries
 /// it opens a Holdout's lock quietly (App. D.7), and when they die it's lying where they fell.
 /// </summary>
-public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Toy = 7, Loot = 8, Child = 9, Extinguisher = 10, RepairKit = 11 }
+/// <summary>
+/// <see cref="Embers"/> is a shovelful of live coals flung out of the firebox (GDD v1.3 §21, the Huddle's counter): warm
+/// for a while where it lands, its <see cref="Body.Charge"/> the heat left in it.
+/// </summary>
+public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Toy = 7, Loot = 8, Child = 9, Extinguisher = 10, RepairKit = 11, Embers = 12 }
 
 /// <summary>
 /// A loose physical thing: cargo, a tool, a crewmate's body. It lives in a car's frame while it touches that
@@ -279,6 +283,9 @@ public sealed class Bodies
             Release(carried, s, train, speed);
             return usePressed || carried.Kind == BodyKind.Heavy;
         }
+        // The shovel at the firebox: a shovelful of live coals, flung (GDD v1.3 §21, the Huddle's counter).
+        if (carried is null && throwPressed && FlingEmbers(s, train, hand) is not null)
+            return false;
         if (carried is null && throwPressed && worn is not null)
         {
             Release(worn, s, train, 0);
@@ -304,6 +311,24 @@ public sealed class Bodies
         return true;
     }
 
+    /// <summary>
+    /// A shovelful of live coals out of the firebox (GDD v1.3 §21, the Huddle's counter): the shovel in hand at the firebox,
+    /// Throw flings it along the view as anything thrown goes. It comes off the fire, and the door's open (the Stoker's way
+    /// in, left open at a stop). Null, and nothing done, anywhere else, or with no fire to take it from.
+    /// </summary>
+    public Body? FlingEmbers(in PlayerState s, TrainOnLine train, HandTuning? hand)
+    {
+        if (!s.Alive || train.BoilerTuning is null || train.Boiler.Ruptured || train.Boiler.Firebox < 1 || Kit.Held(s) != Tool.Shovel
+            || !PlayerMotor.InCab(s, train) || CrewActions.Nearest(s, train, hand) != InteractableKind.Firebox)
+            return null;
+        train.Boiler.Firebox -= 1;
+        train.Boiler.FireDoorOpen = true;
+        train.Boiler.SinceShovel = 0;
+        var b = SpawnCrate(train, s.Parent, train.Frames[s.Parent].ToLocal(HandsAt(s, train)), BodyKind.Embers);
+        Release(b, s, train, Hands.ThrowSpeed);
+        return b;
+    }
+
     /// <summary>The loose body a player's hands would take with Use right now, if any (also the HUD's prompt).</summary>
     /// <remarks>A reaching hand (T29) takes the one it's on: within grab of any part of it, a crate's side or a body's arm.</remarks>
     /// <param name="wearingRadio">One radio each: someone already wearing one doesn't reach for another.</param>
@@ -311,8 +336,9 @@ public sealed class Bodies
     public Body? InReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null, bool wearingRadio = false, int playerId = -1)
     {
         // A heavy crate with one on it is still free at its other end (T43).
+        // Nobody picks up live coals.
         var free = _bodies.Where(b => (b.Carrier < 0 || b.Kind == BodyKind.Heavy && b.Second < 0 && b.Carrier != playerId)
-            && !(wearingRadio && b.Kind == BodyKind.Radio));
+            && !(wearingRadio && b.Kind == BodyKind.Radio) && b.Kind != BodyKind.Embers);
         if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)
             return free.Select(b => (b, d: Surface(b, train, h))).Where(x => x.d <= hand.Grab).OrderBy(x => x.d).FirstOrDefault().b;
         var hands = HandsAt(s, train);

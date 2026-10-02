@@ -5,7 +5,8 @@ public sealed record PlayerTuning(
     double Run, double Walk, double RoofRun, double RoofWalkSafe, double LadderClimb,
     double CarryHeavy, double JumpGap, int Health, ColdTuning Cold,
     double Gravity, double Radius, double Height, double StepUp,
-    LandingTuning Landing, LadderTuning Ladder, HandTuning Hand, double JumpHeight = 0, double PushGun = 1.2, IReadOnlyList<string>? Kit = null)
+    LandingTuning Landing, LadderTuning Ladder, HandTuning Hand, double JumpHeight = 0, double PushGun = 1.2, IReadOnlyList<string>? Kit = null,
+    double CarryLaden = 2.4)
 {
     /// <summary>T108: what every player starts the night (and every respawn) with, packed (<see cref="Player.Kit"/>).</summary>
     public ulong StartingKit => Player.Kit.Of((Kit ?? ["crowbar"]).Select(k => Enum.Parse<Tool>(k, ignoreCase: true)));

@@ -438,6 +438,9 @@ public static class Hud
         DeathCause.Carried => "CARRIED OFF TO THE WHISTLER'S NEST",
         DeathCause.Seized => "SEIZED BY THE CHOIR. YOU WERE OUTSIDE, AND IT WAS LOUD",
         DeathCause.Uncoupled => "TAKEN WITH THE CABOOSE. THE PASSENGER CUT IT LOOSE",
+        DeathCause.ShyThing => "SWALLOWED WHOLE. YOU WATCHED IT TOO LONG",
+        DeathCause.Huddle => "SMOTHERED BY THE HUDDLE. SOMEONE HIT ONE",
+        DeathCause.Mimic => "EATEN BY A CRATE. IT WASN'T ON THE COUNT",
         DeathCause.None => "",
         _ => cause.ToString().ToUpperInvariant(),
     };
@@ -522,13 +525,21 @@ public static class Hud
             return p.Hand != default ? "REACH DOWN AND GRIP: CUT THE COUPLING"
                 : p.Pitch <= -train.Dynamics.Tuning.Couplings.UncoupleLookDownDegrees * Math.PI / 180 ? "[Z] HOLD: CUT THE COUPLING"
                 : "LOOK DOWN AT THE COUPLER TO CUT IT";
+        // GDD v1.3: the Huddle underfoot, looking down at them (or a hand reached down): petted, never struck.
+        if (world.Enemies is { } ht && (p.Hand != default || p.Pitch <= -ht.Huddle.PetLookDown * Math.PI / 180)
+            && world.ActiveEnemies.OfType<Sim.Enemies.Huddle>().Any(h => !h.Gone && h.Phase is Sim.Enemies.SpinePhase.Dormant or Sim.Enemies.SpinePhase.Telegraph
+                && ((h.WorldPosition(train) - PlayerMotor.WorldPosition(p, train)) with { Y = 0 }).Length <= ht.Huddle.PetReach))
+            return "[E] HOLD: PET THEM (HUSHES THEM)";
         switch (near)
         {
             // A ruptured boiler (T109): mended here with the repair kit in hand, and only so (the kit's prompt is above).
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train) && train.Boiler.Ruptured:
                 return $"BOILER RUPTURED: {RepairKitWhere(world, s.PlayerId)}";
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train):
-                return p.Hand != default && !p.Has(PlayerFlags.Shovelful) ? "SHOVEL COAL: FILL IT AT THE TENDER FIRST" : "[E] HOLD: SHOVEL COAL (FASTER)";
+                return p.Hand != default && !p.Has(PlayerFlags.Shovelful) ? "SHOVEL COAL: FILL IT AT THE TENDER FIRST"
+                    // GDD v1.3, the Huddle's counter: live coals off the fire, flung out of the cab.
+                    : Kit.Held(p) == Tool.Shovel && train.Boiler.Firebox >= 1 ? "[E] HOLD: SHOVEL COAL (FASTER)   [RMB] FLING LIVE COALS OUT"
+                    : "[E] HOLD: SHOVEL COAL (FASTER)";
             // Only a reaching hand finds the coal face (T29).
             case InteractableKind.Coal when PlayerMotor.InCab(p, train):
                 return p.Has(PlayerFlags.Shovelful) ? "SHOVEL FULL: INTO THE FIREBOX" : "GRIP: COAL ON THE SHOVEL";

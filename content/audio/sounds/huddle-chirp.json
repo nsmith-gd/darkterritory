@@ -1,0 +1,13 @@
+// The Huddle's chirping (GDD v1.3 App. A.6): soft, constant, a dozen small throats out of time with each other, 2-4 kHz. Not
+// a telegraph (tier 6, the world's): it's how you know they're still about, and it counts toward the crew's loudness in the
+// sim, not here. Hushed by petting ("progress", how hushed: 1 is quiet).
+{
+  "tier": 6, "loop": true, "maxInstances": 2, "minDistance": 1.5, "maxDistance": 25, "gainDb": 0,
+  "layers": [
+    { "source": "sine", "frequency": 2900, "gain": { "param": "progress", "points": [[0, 0.35], [1, 0]] },
+      "vibrato": { "rate": 11, "depth": 0.06 },
+      "tremolo": { "rate": 5.5, "depth": 1, "duty": 0.18, "jitter": 0.9 } },
+    { "source": "sine", "frequency": 3600, "gain": { "param": "progress", "points": [[0, 0.25], [1, 0]] },
+      "tremolo": { "rate": 3.7, "depth": 1, "duty": 0.15, "jitter": 0.9 } }
+  ]
+}

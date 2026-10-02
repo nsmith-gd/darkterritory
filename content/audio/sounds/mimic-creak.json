@@ -1,0 +1,12 @@
+// Tell (tier 1), the Mimic's lid lifting a crack (GDD v1.3 App. A.6, the telegraph): 700 Hz-1.5 kHz. A dry wooden creak,
+// rising, and under it a wet click of something parting. Heard across a car (and through its walls), so whoever's at it
+// can step back in time.
+{
+  "tier": 1, "loop": true, "maxInstances": 2, "minDistance": 2, "maxDistance": 30, "gainDb": 11,
+  "layers": [
+    { "source": "saw", "frequency": 160, "gain": 0.7, "filters": [{ "type": "bandPass", "frequency": 1050, "q": 4 }, { "type": "peak", "frequency": 1250, "q": 6, "gainDb": 6 }],
+      "vibrato": { "rate": 23, "depth": 0.08 }, "tremolo": { "rate": 7, "depth": 0.7, "jitter": 0.6 } },
+    { "source": "impulse", "gain": 0.9, "frequency": 1.6, "filters": [{ "type": "bandPass", "frequency": 900, "q": 5 }],
+      "tremolo": { "rate": 0.8, "depth": 0.5, "jitter": 0.5 } }
+  ]
+}

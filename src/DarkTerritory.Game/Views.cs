@@ -55,6 +55,19 @@ public static class Views
             // staged Follower).
             "follower" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 1.1), 1.6, -1.25)),
                 train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 2.2), 1.25, -1.5)), 50),
+            // GDD v1.3 (Staging.AtStops): over crewmate 4's shoulder, out at what's stood in the dark in front of them (the staged
+            // Shy Thing); and from beside them, up at its face and its jaw.
+            "shy" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 1.0), 1.75, 0.4)),
+                train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 7.5), 1.5, -1.5)), 55),
+            "shyface" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 1.3), 1.7, -3.4)),
+                train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 3.3), 1.7, -1.5)), 55),
+            // Over crewmate 4's shoulder, down at what's at their feet (the staged Huddle, or a Mimic's crate).
+            "huddle" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 2.6), 0.9, 0.6)),
+                train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 4.2), 0.15, -0.6)), 50),
+            "mimic" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 2.0), 1.55, 0.6)),
+                train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 3.9), 0.5, -1.5)), 50),
+            // In the cab behind the fireman's place, down at the floor behind the firebox (the staged Huddle aboard).
+            "huddlecab" => HuddleCabCamera(train),
             // Off the last car's side, looking up at what's over its roof (the staged Choir besieging the guard van).
             "choir" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(4.6, train.Frames[^1].Shape.RoofHeight + 0.6, 4.5)),
                 train.Frames[^1].ToWorld(new Double3(0, train.Frames[^1].Shape.RoofHeight + 2.0, 0)), 55),
@@ -121,6 +134,13 @@ public static class Views
         var lamp = Art.SceneArt.LampPositions(room).First();
         var at = new Double3(lamp.X, lamp.Y, lamp.Z);
         return Camera.LookAt(car.ToWorld(at + new Double3(0.8, -0.55, 0.75)), car.ToWorld(at + new Double3(0, -0.04, 0)), 45);
+    }
+
+    static Camera HuddleCabCamera(TrainOnLine train)
+    {
+        var engine = train.Frames[0];
+        var spot = Sim.Enemies.Huddle.CabSpot(train);
+        return Camera.LookAt(engine.ToWorld(spot + new Double3(0.35, 1.45, 1.5)), engine.ToWorld(spot + new Double3(0, 0.15, -0.2)), 65);
     }
 
     static Camera FireboxCamera(in CarFrame engine)

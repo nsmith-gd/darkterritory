@@ -1766,6 +1766,9 @@ public static class Heed
             return intent;
         if (holder.e.PullsFree && (holder.At - me).Length <= et.Grab.PullReach)
             step.Buttons |= PlayerButtons.Use;
+        // A Huddle's buried one is petted out, never clubbed out: a blow only makes it worse (GDD v1.3 §21).
+        if (holder.e is Huddle)
+            step.Actions &= ~PlayerActions.Swing;
         return step;
     }
 

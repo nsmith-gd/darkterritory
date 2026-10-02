@@ -1,0 +1,10 @@
+// Tell (tier 1), the Huddle bristling at whoever hit one (GDD v1.3 App. A.6, the telegraph), 7-9 kHz. The chirping stops and
+// every one of them hisses at once, in short sharp breaths: a sound nothing that small should make. The car fire's crackle
+// shares the top of the band; a hiss is breath, not pops.
+{
+  "tier": 1, "loop": true, "maxInstances": 2, "minDistance": 2, "maxDistance": 30, "gainDb": 9,
+  "layers": [
+    { "source": "noise", "gain": 1.1, "filters": [{ "type": "bandPass", "frequency": 7900, "q": 2.6 }, { "type": "highPass", "frequency": 6500, "q": 0.7 }],
+      "tremolo": { "rate": 2.6, "depth": 1, "duty": 0.55, "jitter": 0.3 } }
+  ]
+}

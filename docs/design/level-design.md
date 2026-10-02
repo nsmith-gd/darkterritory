@@ -119,7 +119,7 @@ A site rolls its loot *by band*, and nothing uncarryable is ever placed beyond c
 **Sketch/brief:** the yard's loot is *there*, crated, visible. The village "sometimes still has loot", hidden.
 **Why:** the two halves carry different risks. The yard is a known payout paid for in noise (cranes are "slow, loud": GDD §17), coordination and switch exposure. The village is a gamble paid for in distance and time. A crew that's losing the dawn race (GDD §8) takes the certain one. A crew that's ahead takes the gamble. Either way it's a decision, not a chore (GDD §18: "the payout exists to force bad decisions").
 **Rule:**
-- Yard loot is **deterministic and visible on arrival** (crate counts shown on shed doors or through the doorways).
+- Yard loot is **deterministic and visible on arrival** (crate counts shown on shed doors or through the doorways). As built, each crate stack's count is chalked in tallies on a board at the head of its row (`Run.CrateCounts`), both faces; a crate more than the count is GDD v1.3's Mimic.
 - Village loot is **probabilistic and hidden**. Per house, roll whether it holds anything (~30–40%); then roll hiding spots within it (under floorboards, behind a wall panel, in a cellar) that take time to search.
 - **Floor guarantee:** each village holds at least one find. Otherwise a crew that spends the excursion and finds nothing learns never to go again, and the village becomes scenery.
 
@@ -344,6 +344,8 @@ The stop's checks verify all five again on the finished layout. A stop where non
 - **The Whistler's nest (A.4 "carries its victim off to a nest"):** out on the side of the stop with the least built on it.
 
 The layout says where; the director will say when, once the v1.1 roster is built (the sim still runs the v1.0 one).
+
+GDD v1.3's three aren't level content: the director sends them at a stop (App. B.6). The Shy Thing stands out where someone on the ground is looking, the Huddle comes in from the dark to the ground crew, and the Mimic lies one past the end of a yard crate stack (`Run.MimicSlots`), or beside the facility's own crates.
 
 ---
 

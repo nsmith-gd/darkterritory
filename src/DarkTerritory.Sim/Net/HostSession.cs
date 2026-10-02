@@ -443,8 +443,11 @@ public sealed class HostSession
         // carrier"): not drawn, not heard, not there at all on their machine. Nested in a car, it's off their back, and
         // anyone's to see. Watching the carrier, you see what they see: nothing on their back.
         var eyes = EarsOf(c);
+        // A Shy Thing with someone under is theirs alone to see (GDD v1.3 App. A.6), and the eyes of whoever watches
+        // through them, until it unhinges its jaw for everyone. Nobody else is sent it either: not drawn, not heard.
         foreach (var e in World.ActiveEnemies)
-            if (e is Enemies.Follower { Nested: false } f && (f.Carrier == c.Id || f.Carrier == eyes.Id))
+            if (e is Enemies.Follower { Nested: false } f && (f.Carrier == c.Id || f.Carrier == eyes.Id)
+                || e is Enemies.ShyThing shy && !shy.SeenBy(c.Id) && !shy.SeenBy(eyes.Id))
                 _far.Add(WireRecord.MakeKey(RecordKind.Enemy, e.Id));
         if (InterestRadius <= 0)
             return _far.Count == 0 ? records : records.Where(r => !_far.Contains(r.Key)).ToList();

@@ -27,6 +27,76 @@ public sealed record EnemyTuning(
     public RibbitTuning Ribbits { get; init; } = new();
     public GrumblerTuning Grumbler { get; init; } = new();
     public ChoirSwarmV11 Choir { get; init; } = new();
+    public ShyThingTuning ShyThing { get; init; } = new();
+    public HuddleTuning Huddle { get; init; } = new();
+    public MimicTuning Mimic { get; init; } = new();
+}
+
+/// <summary>The Shy Thing (v1.3 §21, App. A.6). Field docs live in enemies.json.</summary>
+public sealed record ShyThingTuning
+{
+    public double WatchSeconds { get; init; } = 1;
+    public double WatchDegrees { get; init; } = 12;
+    public double WatchRange { get; init; } = 30;
+    public double AwayDegrees { get; init; } = 35;
+    public double LookAwaySeconds { get; init; } = 0.5;
+    public double LookAwayGrowth { get; init; } = 0.3;
+    public double LookAwayMax { get; init; } = 8;
+    public double BlockWidth { get; init; } = 0.45;
+    public double ApproachSpeed { get; init; } = 0.7;
+    public double Reach { get; init; } = 1.2;
+    public double UnhingeSeconds { get; init; } = 10;
+    public double Health { get; init; } = 1;
+    public double[] SpawnOut { get; init; } = [12, 18];
+    public double LingerSeconds { get; init; } = 240;
+    public double TurnDrag { get; init; } = 0.06;
+    public double TurnFloor { get; init; } = 0.15;
+}
+
+/// <summary>The Huddle (v1.3 §21, App. A.6). Field docs live in enemies.json.</summary>
+public sealed record HuddleTuning
+{
+    public int[] FlockSize { get; init; } = [4, 6];
+    public double SpawnOut { get; init; } = 18;
+    public double NoticeRadius { get; init; } = 12;
+    public double FollowAt { get; init; } = 1.5;
+    public double FollowSpeed { get; init; } = 4;
+    public double CabLure { get; init; } = 60;
+    public double BoardBelow { get; init; } = 3.5;
+    public double BoardReach { get; init; } = 5;
+    public double ChirpLoudness { get; init; } = 0.06;
+    public double PetReach { get; init; } = 1.8;
+    public double PetLookDown { get; init; } = 25;
+    public double PetPerSecond { get; init; } = 0.6;
+    public double CalmSeconds { get; init; } = 40;
+    public double BristleSeconds { get; init; } = 2;
+    public double ClearOf { get; init; } = 6;
+    public double SwarmSpeed { get; init; } = 6.5;
+    public double Reach { get; init; } = 0.9;
+    public double BuriedSeconds { get; init; } = 12;
+    public double HitShortens { get; init; } = 3;
+    public double NipRadius { get; init; } = 8;
+    public int NipDamage { get; init; } = 5;
+    public double NipEvery { get; init; } = 2;
+    public double EmberLure { get; init; } = 40;
+    public double EmberSeconds { get; init; } = 120;
+    public double LeftBehind { get; init; } = 80;
+    public double LingerSeconds { get; init; } = 600;
+}
+
+/// <summary>The Mimic (v1.3 §21, App. A.6). Field docs live in enemies.json.</summary>
+public sealed record MimicTuning
+{
+    public double WakeSeconds { get; init; } = 45;
+    public double Reach { get; init; } = 1.3;
+    public double LungeReach { get; init; } = 2.6;
+    public double LidSeconds { get; init; } = 1.8;
+    public double BiteSeconds { get; init; } = 10;
+    public double Health { get; init; } = 6;
+    public double BreatheNear { get; init; } = 2.5;
+    public double BreatheStill { get; init; } = 2;
+    public double LeftBehind { get; init; } = 200;
+    public double LingerSeconds { get; init; } = 1200;
 }
 
 /// <summary>App. C.2 melee: the tools already on the train. Field docs live in enemies.json.</summary>

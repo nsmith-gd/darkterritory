@@ -484,6 +484,30 @@ public class SessionRulesTests
     }
 
     [Fact]
+    public void AShyThingWithSomeoneUnderIsSentOnlyToThem()
+    {
+        // GDD v1.3 App. A.6: watched, it has you, and "nobody else can see it until it unhinges its jaw".
+        var (net, host, clients, _) = Session(2);
+        host.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } }, null, 1, 2);
+        Run(net, host, clients, 10);
+        byte victim = clients[1].PlayerId!.Value;
+        var near = host.Train.Line.Sample(host.Train.Dynamics.Distance - 30);
+        var right = Ballast.Double3.Cross(near.Tangent, Ballast.Double3.Up).Normalized;
+        var ground = PlayerMotor.SpawnOnGround(near.Position + right * 4, host.Train.Line, host.Train.Dynamics.Distance - 30, P);
+        ground.Yaw = Math.Atan2(-right.X, -right.Z); // looking out, away from the train
+        host.SetPlayerState(victim, ground);
+        var at = PlayerMotor.WorldPosition(ground, host.Train) + right * 14;
+        var shy = host.World.AddEnemy(id => DarkTerritory.Sim.Enemies.ShyThing.Waiting(id, at, Tuning.Enemies.ShyThing));
+        // Waiting in the dark, it's anyone's to see.
+        Run(net, host, clients, 3);
+        Assert.Single(clients[0].World.ActiveEnemies, e => e is DarkTerritory.Sim.Enemies.ShyThing);
+        Run(net, host, clients, (int)(Tuning.Enemies.ShyThing.WatchSeconds * SimConstants.TickRate) + 15);
+        Assert.Equal(victim, shy.Victim);
+        Assert.Single(clients[1].World.ActiveEnemies, e => e is DarkTerritory.Sim.Enemies.ShyThing);
+        Assert.DoesNotContain(clients[0].World.ActiveEnemies, e => e is DarkTerritory.Sim.Enemies.ShyThing);
+    }
+
+    [Fact]
     public void SomeoneWhoDropsOutLeavesTheirBodyBehind()
     {
         // Spec E: "Character remains as an inert body until recovered or the run ends."

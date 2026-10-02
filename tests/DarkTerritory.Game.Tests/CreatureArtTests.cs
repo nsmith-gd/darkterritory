@@ -220,7 +220,9 @@ public class CreatureArtTests
                     // mound sunk in the low ground by the line, App. A.3 LURK.)
                     bool hidden = kind == EnemyKind.Dragger && phase is not (SpinePhase.Telegraph or SpinePhase.Grab or SpinePhase.Punish)
                         || kind == EnemyKind.Stoker
-                        || kind == EnemyKind.FireFlies && phase == SpinePhase.Dormant;
+                        || kind == EnemyKind.FireFlies && phase == SpinePhase.Dormant
+                        // A Mimic is its crate, drawn with the bodies (GDD v1.3 §21).
+                        || kind == EnemyKind.Mimic;
                     // A car fire is an effect (Effects.CarFire): smoke and flame billboards, no triangles of its own.
                     if (kind == EnemyKind.CarFire)
                         Assert.True(mesh.AlphaFx.Count + mesh.AdditiveFx.Count > 0, $"{kind} {phase} drew no smoke or flame");

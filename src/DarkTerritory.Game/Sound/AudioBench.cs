@@ -48,6 +48,13 @@ public static class AudioBench
         ["hugger-grind"] = (60, 300),
         // The marsh (the Drift, T63): the highest there is. A hiss the wind doesn't make, and a rhythm it doesn't have.
         ["drift-rustle"] = (12000, 15000),
+        // GDD v1.3's three, met at stops: the Shy Thing's ringing (its victim's alone) and its jaw, the Huddle bristling,
+        // the Mimic's lid and its breath.
+        ["shy-hum"] = (5000, 6500),
+        ["shy-unhinge"] = (2500, 4500),
+        ["huddle-hiss"] = (7000, 9000),
+        ["mimic-creak"] = (700, 1500),
+        ["mimic-breath"] = (3000, 4500),
     };
 
     /// <summary>
@@ -63,6 +70,10 @@ public static class AudioBench
         "hound-howl" or "hugger-grind" => listenerCar == cars - 1,
         "drift-rustle" or "car-fire" or "dragger-scrape" or "grumbler-gnaw" => listenerCar == 1,
         "tippy-tiptoe" or "climber-scrabble" or "ribbit-swell" => listenerCar == 2,
+        // The Shy Thing's victim off car 2's side; its jaw and the breathing crate by car 1; the Huddle in the cab.
+        "shy-hum" or "mimic-creak" => listenerCar == 2,
+        "shy-unhinge" or "mimic-breath" => listenerCar == 1,
+        "huddle-hiss" => listenerCar == 0,
         "fireflies-buzz" => listenerCar == cars / 2,
         _ => true,
     };

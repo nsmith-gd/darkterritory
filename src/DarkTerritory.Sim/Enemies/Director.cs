@@ -234,9 +234,10 @@ public sealed class Director
         options.RemoveAll(o => !Allows(o.Kind));
         options.RemoveAll(o => Cost(o.Kind) > (due ? Math.Max(available - Reserve(world, s, o.Kind), _t.PacedCost) : available - Reserve(world, s, o.Kind)));
         // Sent because it's been quiet: something that shows itself at once. A Dragger under a car's edge, or a Whistler in its
-        // gap, lies silent until someone comes near: that's no answer to a quiet night, if there's anything else to send.
-        if (due && options.Any(o => o.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler)))
-            options.RemoveAll(o => o.Kind is EnemyKind.Dragger or EnemyKind.Whistler);
+        // gap, lies silent until someone comes near (and so do a Shy Thing and a Mimic): that's no answer to a quiet night, if
+        // there's anything else to send.
+        if (due && options.Any(o => !LiesInWait(o.Kind)))
+            options.RemoveAll(o => LiesInWait(o.Kind));
         // App. B.1 want balance: each want (kill, split, trust, cargo) aims at its share of what's been spent. A want under
         // its share weighs up, one over it down, once there's been enough spent to have shares.
         if (_spent > 0 && _t.WantShares.Count > 0)
@@ -300,6 +301,8 @@ public sealed class Director
         return kind;
     }
 
+    static bool LiesInWait(EnemyKind kind) => kind is EnemyKind.Dragger or EnemyKind.Whistler or EnemyKind.ShyThing or EnemyKind.Mimic;
+
     /// <summary>
     /// App. B.1's caps are on what's active: a Dragger lying dormant under a car's edge all night, a Rattle waiting in its
     /// gap, or a Lamplighter that's lost the light and only lingers, isn't pressure (the playtest found them holding the
@@ -308,7 +311,9 @@ public sealed class Director
     public static bool Engaged(Enemy e) => !e.Gone && !e.Hazard
         && (e.Phase is SpinePhase.Alert or SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish
             // Dormant but on the move is pressure too (a Climber pacing the train); only what lies in wait isn't.
-            || e.Phase == SpinePhase.Dormant && e.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler or EnemyKind.CarHugger or EnemyKind.Gaunt or EnemyKind.TippyToesie));
+            // GDD v1.3: a Shy Thing waiting to be looked at, a Huddle tagging along, a Mimic lying among the crates.
+            || e.Phase == SpinePhase.Dormant && e.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler or EnemyKind.CarHugger or EnemyKind.Gaunt or EnemyKind.TippyToesie
+                or EnemyKind.ShyThing or EnemyKind.Huddle or EnemyKind.Mimic));
 
     /// <summary>
     /// App. B.1's hard caps, on what's engaged: two at a time in the flank, the interior and outside (the middle is
@@ -358,6 +363,9 @@ public sealed class Director
                 EnemyKind.FireFlies => new FireFlies(0),
                 EnemyKind.Ribbit => new Ribbit(0, 0),
                 EnemyKind.Grumbler => new Grumbler(0),
+                EnemyKind.ShyThing => new ShyThing(0),
+                EnemyKind.Huddle => new Huddle(0),
+                EnemyKind.Mimic => new Mimic(0),
                 _ => new ChoirGhost(0),
             };
             d[kind] = (e.Zone, e.Sense, e.Want);

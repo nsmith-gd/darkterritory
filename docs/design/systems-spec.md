@@ -90,10 +90,15 @@ whoever has to hear it.
 | The Choir | Layered voices, multiplying as it gathers | 300Hz–4k, wide | choir-voice |
 | Car fire *(App. C.5)* | Crackle and pop through the boards | 6–9k | car-fire |
 | Marsh *(hazard, formerly the Drift)* | Dry reeds rustling, in slow creeping swells | 12–15k | drift-rustle |
+| The Shy Thing *(v1.3)* | Its victim's ears ringing, theirs alone (only their machine is sent it); then its jaw, cracking | 5–6.5k; 2.5–4.5k | shy-hum, shy-unhinge |
+| The Huddle *(v1.3)* | Bristling: quiet, then a hiss in short breaths (their chirping is tier 6, not a tell) | 7–9k | huddle-hiss |
+| The Mimic *(v1.3)* | Breathing, for whoever stands still beside it (4 m at most: subtle by range); its lid, a dry creak | 3–4.5k; 700 Hz–1.5k | mimic-breath, mimic-creak |
 
 Overlapping bands (Draggers and Climbers, Tippy Toesie and the Stoker) are either never staged together or are told apart by
 rhythm: the Dragger's scrape is one rasp, the Climbers' scrabble a clatter; the tiptoe ticks slowly, the hiss is continuous.
-Three enemies are silent on purpose, and the Gaunt and the Passenger make silence itself the thing to listen for.
+Three enemies are silent on purpose, and the Gaunt and the Passenger make silence itself the thing to listen for. GDD v1.3's
+bands overlap where they're told apart by rhythm: the Shy Thing's quickening cracks and the Mimic's slow breaths (both at
+stops, 2.5–4.5k), the Huddle's hiss and a car fire's pops (6–9k), the Mimic's creak and the Ribbits' croak below 1 kHz.
 
 ## A.5 Proximity voice
 
@@ -171,6 +176,7 @@ The alternative is Unity's built-in AudioMixer with hand-rolled ducking. It's vi
 | Roof walk (safe) | 1.8 m/s | Off the centreline is Dragger range |
 | Ladder climb | 1.6 m/s | |
 | Carrying heavy cargo | 2.8 m/s | No climbing |
+| Carrying a Mimic | 2.4 m/s | GDD v1.3: heavier than a crate should be (one of its tells). Under the 2.5 m/s yard speed (B.3), so its carrier can't catch a train pulling out at yard speed |
 | Jump gap | 2.2m max | Coupling gaps are 1.5m — jumpable, but not while it's rattling |
 | Jump height | 0.8m | Playtest (T90): the 0.48 m a flat 2.2 m gap needs felt like no jump at all. A roof-run jump now carries ~2.8 m |
 | Health | 100 | Most attacks 35–60 |

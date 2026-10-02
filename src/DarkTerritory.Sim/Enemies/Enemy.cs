@@ -11,7 +11,9 @@ public enum EnemyKind : byte
     // Ferryman, the Long Whistle, the Weight, the loose load and the Gnawers) aren't reused.
     Sleepers = 1, CinderHound = 2, Switchman = 5, SootChildren = 6, Dragger = 7, Stoker = 11, Climber = 14, Gaunt = 16,
     CarFire = 17, Passenger = 20, Follower = 21, Drift = 22,
-    TrackDoll = 23, CarHugger = 24, Whistler = 25, TippyToesie = 26, FireFlies = 27, Ribbit = 28, Grumbler = 29, Choir = 30
+    TrackDoll = 23, CarHugger = 24, Whistler = 25, TippyToesie = 26, FireFlies = 27, Ribbit = 28, Grumbler = 29, Choir = 30,
+    // GDD v1.3: three met at stops.
+    ShyThing = 31, Huddle = 32, Mimic = 33
 }
 
 /// <summary>
@@ -187,6 +189,9 @@ public abstract class Enemy
     }
 
     double _struggle;
+
+    /// <summary>Brings a grab's end nearer by <paramref name="seconds"/> (the Huddle struck again while it has someone), never before now.</summary>
+    protected void Shorten(double seconds) => GrabWindow = Math.Max(PhaseSeconds, GrabWindow - seconds);
 
     /// <summary>The held player's own struggle, counted by the world at a crew of one (the solo rule): Use presses.</summary>
     internal void Struggle(EnemyContext ctx, double amount)

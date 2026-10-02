@@ -630,8 +630,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             break;
         }
 
-        pendingYaw -= input.MouseDX * sensitivity;
-        pendingPitch -= input.MouseDY * sensitivity;
+        // GDD v1.3: under a Shy Thing's gaze the mouse turns heavier the longer you've watched it (a flat screen's only).
+        double gaze = locomotion is null ? Hypnosis.TurnScale(session.World, session.PlayerId) : 1;
+        pendingYaw -= input.MouseDX * sensitivity * gaze;
+        pendingPitch -= input.MouseDY * sensitivity * gaze;
         if (locomotion is not null)
         {
             // In a headset the head looks; the mouse only turns the room.
