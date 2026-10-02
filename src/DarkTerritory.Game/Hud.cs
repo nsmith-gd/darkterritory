@@ -177,6 +177,28 @@ public static class Hud
     }
 
     /// <summary>Whether you've a radio on you (T41), under the link: without one, T does nothing and nobody's on it for you.</summary>
+    /// <summary>
+    /// At a Holdout with someone in it (GDD App. D.7): break them out, or, with the repair kit in hand at a lock, open it
+    /// quietly (at a barricade the kit's no help: it's pried, and the kit stays in hand). Null away from one.
+    /// </summary>
+    static string? HoldoutPrompt(Sim.World world, in PlayerState p, TrainOnLine train, bool kit)
+    {
+        if (world.Holdouts is not { } ho || p.Parent != PlayerState.World)
+            return null;
+        var at = PlayerMotor.WorldPosition(p, train);
+        foreach (var h in ho.All)
+        {
+            if (!h.Lit || ((h.Door - at) with { Y = 0 }).Length > ho.Tuning.BreachReach)
+                continue;
+            if (h.State == HoldoutState.Breaching)
+                return h.Quiet ? $"OPENING THE LOCK {h.Progress / h.Breach(ho.Tuning).Seconds * 100:0}%. QUIETLY. KEEP AT IT"
+                    : $"{(h.Layout.Kind == HoldoutKind.Shelter ? "PRYING" : "SMASHING")} IT OPEN {h.Progress / h.Breach(ho.Tuning).Seconds * 100:0}%. LOUD. KEEP AT IT";
+            return kit && h.Lockable ? $"[E] HOLD: OPEN THE LOCK WITH THE KIT ({ho.Tuning.Open.Seconds:0}S, SILENT)"
+                : $"[E] HOLD: {(h.Layout.Kind == HoldoutKind.Shelter ? "PRY THE BARRICADE" : "SMASH THE LOCK")} ({h.Breach(ho.Tuning).Seconds:0}S, LOUD)";
+        }
+        return null;
+    }
+
     static void Radio(Overlay o, int width, IPlaySession s, int line)
     {
         var bodies = s.World.Bodies;
@@ -290,7 +312,7 @@ public static class Hud
             // GDD App. D: the way back is a Holdout at the next halt or yard, if the crew stops for you.
             if (world.Holdouts is { } holdouts)
                 Small(holdouts.All.FirstOrDefault(h => h.Occupant == s.PlayerId && h.Lit) is { } mine
-                    ? mine.State == HoldoutState.Breaching ? $"THEY'RE BREAKING YOU OUT: {mine.Progress / mine.Breach(holdouts.Tuning).Seconds * 100:0}%"
+                    ? mine.State == HoldoutState.Breaching ? $"THEY'RE {(mine.Quiet ? "OPENING THE LOCK" : "BREAKING YOU OUT")}: {mine.Progress / mine.Breach(holdouts.Tuning).Seconds * 100:0}%"
                         : $"YOU'RE IN THE {HoldoutName(mine)}. [E] CALL OUT   [RMB] LET SOMEONE ELSE GO FIRST"
                     : "YOU'LL WAIT AT THE NEXT HALT OR YARD, IF THEY STOP FOR YOU   [RMB] LET SOMEONE ELSE GO FIRST", Dim);
         }
@@ -351,6 +373,9 @@ public static class Hud
                     if ((d.WorldPosition(train) - PlayerMotor.WorldPosition(p, train)).Length <= et.Draggers.FreeReach + 1)
                         return "[E] HOLD: PULL THEM FREE";
                 }
+        // The repair kit at a Holdout's door: held, Use works the lock (quietly, GDD App. D.7), not the hands.
+        if (world.Bodies.CarriedBy(s.PlayerId) is { Kind: BodyKind.RepairKit } && HoldoutPrompt(world, p, train, kit: true) is { } opening)
+            return opening;
         if (world.Bodies.CarriedBy(s.PlayerId) is { } carried)
             return carried.Kind switch
             {
@@ -360,6 +385,7 @@ public static class Hud
                 BodyKind.Cargo => "INTO A CAR TO LOAD IT: [E] PUT DOWN   [RMB] THROW",
                 // A village find (level-design P12): it pays once it's put down aboard, in any car.
                 BodyKind.Loot => $"{world.Run?.FindName(carried)?.ToUpperInvariant() ?? "A FIND"}: INTO ANY CAR TO KEEP IT   [E] PUT DOWN   [RMB] THROW",
+                BodyKind.RepairKit => "THE REPAIR KIT: IT OPENS A LOCK QUIETLY   [E] PUT DOWN   [RMB] THROW",
                 _ => "[E] PUT DOWN   [RMB] THROW",
             };
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is not null)
@@ -415,6 +441,7 @@ public static class Hud
             {
                 BodyKind.Ragdoll => "[E] PICK UP THE BODY",
                 BodyKind.Radio => "[E] TAKE THE RADIO",
+                BodyKind.RepairKit => "[E] TAKE THE REPAIR KIT",
                 BodyKind.Loot => $"[E] TAKE {world.Run?.FindName(thing)?.ToUpperInvariant() ?? "IT"}",
                 // A reaching hand takes its end with both hands on it (T43).
                 BodyKind.Heavy when thing.Carrier >= 0 => p.Hand != default ? "BOTH HANDS ON IT: TAKE THE OTHER END" : "[E] TAKE THE OTHER END",
@@ -435,16 +462,8 @@ public static class Hud
         if (world.Run is { } powered && powered.PowerhouseInReach(p, train) && powered.CurrentSite is { } ps)
             return ps.Restart > 0 ? $"RESTARTING THE GENERATOR {ps.Restart / powered.PowerTuning.RestartSeconds * 100:0}%. KEEP HOLDING"
                 : $"[E] HOLD: RESTART THE GENERATOR ({powered.PowerTuning.RestartSeconds:0}S, LOUD)";
-        // A Holdout with someone in it (GDD App. D.7): break them out.
-        if (world.Holdouts is { } ho && p.Parent == PlayerState.World)
-        {
-            var at = PlayerMotor.WorldPosition(p, train);
-            foreach (var h in ho.All)
-                if (h.Lit && ((h.Door - at) with { Y = 0 }).Length <= ho.Tuning.BreachReach)
-                    return h.State == HoldoutState.Breaching
-                        ? $"{(h.Layout.Kind == HoldoutKind.Shelter ? "PRYING" : "SMASHING")} IT OPEN {h.Progress / h.Breach(ho.Tuning).Seconds * 100:0}%. LOUD. KEEP AT IT"
-                        : $"[E] HOLD: {(h.Layout.Kind == HoldoutKind.Shelter ? "PRY THE BARRICADE" : "SMASH THE LOCK")} ({h.Breach(ho.Tuning).Seconds:0}S, LOUD)";
-        }
+        if (HoldoutPrompt(world, p, train, kit: false) is { } breach)
+            return breach;
         // The crane (T48): at its controls, or at its hook on the ground.
         if (world.Run?.CurrentSite?.CraneNear(PlayerMotor.WorldPosition(p, train)) is { } crane)
         {

@@ -24,6 +24,7 @@ public class HoldoutTests
         public readonly World World;
         public readonly TrainOnLine Train;
         public readonly RouteFeature Site;
+        public readonly Route.Route Route;
         public readonly List<(int Id, PlayerState State)> Crew = [];
         public readonly List<HoldoutEvent> Events = [];
         public PlayerIntent[] Intents = [];
@@ -36,6 +37,7 @@ public class HoldoutTests
                 if (route.Features.FirstOrDefault(f => f.Stop is not null && pick(f)) is not { } site)
                     continue;
                 Site = site;
+                Route = route;
                 Train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 0)), route.Build(), site.Start + engineFrom, Tuning.Boiler);
                 World = new World(Train, Tuning.Combat);
                 World.EnableBodies();
@@ -254,6 +256,131 @@ public class HoldoutTests
         n.Hold(living, PlayerButtons.Use);
         n.Step(h.Breach(H).Seconds * 0.5);
         Assert.True(n.World.Choir.Loudness > loud, $"loudness {loud} → {n.World.Choir.Loudness}");
+    }
+
+    static bool ALock(RouteFeature f) => AHalt(f) && f.Stop!.Holdouts[0].Kind != HoldoutKind.Shelter;
+    static bool ABarricade(RouteFeature f) => AHalt(f) && f.Stop!.Holdouts[0].Kind == HoldoutKind.Shelter;
+
+    /// <summary>The repair kit (GDD §12) in a living crewmate's hands, at the Holdout's door.</summary>
+    static (int Living, Holdout Holdout, Body Kit) KitAtTheDoor(Night n)
+    {
+        int living = n.Add(alive: true);
+        n.Add(alive: false);
+        n.Step(0.2);
+        var h = n.Here.Single();
+        n.Stand(living, h.Door);
+        var kit = n.World.Bodies.SpawnItem(h.Door, n.Site.Start, BodyKind.RepairKit);
+        kit.Carrier = living;
+        n.Step(0.1);
+        return (living, h, kit);
+    }
+
+    [Fact]
+    public void TheRepairKitOpensALockSilentlyAndSlowerThanASmash()
+    {
+        // D.7 "open lock: repair kit in hand, 6 s, no noise". Held at the door, Use works the lock and the kit stays in hand.
+        var n = new Night(ALock, engineFrom: -300);
+        var (living, h, kit) = KitAtTheDoor(n);
+        double loud = n.World.Choir.Loudness;
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(H.Smash.Seconds + 0.2);
+        Assert.Equal(HoldoutState.Breaching, h.State);
+        Assert.True(h.Quiet);
+        Assert.Equal(H.Open, h.Breach(H));
+        Assert.Equal(living, kit.Carrier);
+        Assert.Equal(loud, n.World.Choir.Loudness);
+        n.Step(H.Open.Seconds - H.Smash.Seconds);
+        Assert.Equal(HoldoutState.Freed, h.State);
+        Assert.Equal(living, kit.Carrier);
+        Assert.Equal(loud, n.World.Choir.Loudness);
+    }
+
+    [Fact]
+    public void TheKitIsNoHelpAtABarricade()
+    {
+        // A shelter's barricade is pried, loud, kit or no kit; and it stays in hand.
+        var n = new Night(ABarricade, engineFrom: -300);
+        var (living, h, kit) = KitAtTheDoor(n);
+        double loud = n.World.Choir.Loudness;
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(H.Pry.Seconds * 0.5);
+        Assert.Equal(HoldoutState.Breaching, h.State);
+        Assert.False(h.Quiet);
+        Assert.Equal(H.Pry, h.Breach(H));
+        Assert.Equal(living, kit.Carrier);
+        Assert.True(n.World.Choir.Loudness > loud);
+    }
+
+    [Fact]
+    public void PutDownPartWayTheLockIsSmashedFromTheStart()
+    {
+        var n = new Night(ALock, engineFrom: -300);
+        var (living, h, kit) = KitAtTheDoor(n);
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(H.Open.Seconds * 0.8);
+        kit.Carrier = -1;
+        n.Step(0.1);
+        Assert.False(h.Quiet);
+        Assert.True(h.Progress < 0.2, $"progress {h.Progress}");
+        n.Step(H.Smash.Seconds);
+        Assert.Equal(HoldoutState.Freed, h.State);
+    }
+
+    [Fact]
+    public void TheKitIsLyingWhereItsCarrierDied()
+    {
+        // GDD §12: "when they die on the roofs it's lying in car four and someone has to go and get it".
+        var n = new Night(ALock, engineFrom: -300);
+        var (living, _, kit) = KitAtTheDoor(n);
+        var where = PlayerMotor.WorldPosition(n[living], n.Train);
+        n[living] = n[living] with { Health = 0, Death = DeathCause.Mauled };
+        n.Step(1);
+        Assert.Equal(-1, kit.Carrier);
+        Assert.True((Bodies.WorldCentre(kit, n.Train) - where).Length < 2, $"{Bodies.WorldCentre(kit, n.Train)} against {where}");
+        Assert.True(n.World.Bodies.InReach(PlayerMotor.SpawnOnGround(where, n.Train.Line, n.Site.Start, P), n.Train) == kit);
+    }
+
+    [Fact]
+    public void ADropOutLetsGoOfWhatTheyCarried()
+    {
+        var n = new Night(ALock, engineFrom: -300);
+        var (living, _, kit) = KitAtTheDoor(n);
+        n.World.Bodies.DropOut(n.Train, living, n[living]);
+        Assert.Equal(-1, kit.Carrier);
+    }
+
+    [Fact]
+    public void AClientSeesTheLockOpenedQuietly()
+    {
+        var n = new Night(ALock, engineFrom: -300);
+        var (living, h, _) = KitAtTheDoor(n);
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(1);
+        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 0)), n.Route.Build(), n.Site.Start - 300, Tuning.Boiler), Tuning.Combat);
+        client.EnableHoldouts(H, n.Route);
+        var controls = new TrainControls();
+        Net.WorldRecords.Apply(Net.WorldRecords.Capture(n.World, controls, []), client, ref controls, []);
+        var mirrored = client.Holdouts!.All[h.Index];
+        Assert.Equal(HoldoutState.Breaching, mirrored.State);
+        Assert.True(mirrored.Quiet);
+        Assert.Equal(H.Open, mirrored.Breach(H));
+    }
+
+    [Fact]
+    public void TheTrainLeavesWithItsRepairKitInTheGuardVan()
+    {
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 6, 1)),
+            new Rail.RailLine(new Rail.LineDefinition("t", [new Rail.TrackSegment(50_000)])), 1_000));
+        world.EnableBodies();
+        world.Stock();
+        var guard = world.Train.Dynamics.Consist.Vehicles.Last(v => v.Kind == VehicleKind.Guard);
+        var kit = Assert.Single(world.Bodies.All, b => b.Kind == BodyKind.RepairKit);
+        Assert.Equal(1, Tuning.Train.Kit.RepairKits);
+        Assert.Equal(guard.Id, kit.Parent);
+        var shape = world.Train.Frames[guard.Id].Shape;
+        Assert.True(shape.Interior!.Value.Contains(kit.Centre));
+        // Clear of the lockers it stands in front of.
+        Assert.DoesNotContain(shape.Solids, s => s.Box.Contains(kit.Centre));
     }
 
     [Fact]

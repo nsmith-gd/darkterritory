@@ -96,6 +96,9 @@ public static class Views
             // (Not one of Names.) In the gun car (the guard van) at its front end: the powder and shot locker in the corner
             // ahead of the tool lockers on the left (SceneArt.Fittings).
             "locker" => LockerCamera(train),
+            // (Not one of Names.) In the guard van, down at its repair kit on the floor at the foot of the tool lockers
+            // (World.RepairKitStowage; dt screenshot --stocked).
+            "kit" => KitCamera(train),
             // (Not one of Names.) In this car, across the aisle at its extinguisher stood on its board (World.ExtinguisherMount;
             // with dt screenshot --stocked, its charge in the glass).
             "mount" => Camera.LookAt(target.ToWorld(new Double3(-0.05, Floor(train) + 1.3, -target.Shape.HalfLength + 2.95)),
@@ -202,6 +205,16 @@ public static class Views
         var f = train.Frames[v];
         double floor = Floor(train), l = f.Shape.HalfLength;
         return Camera.LookAt(f.ToWorld(new Double3(-0.2, floor + 1.55, l - 0.5)), f.ToWorld(new Double3(0.2, floor + 0.2, l - 2.6)), 75);
+    }
+
+    static Camera KitCamera(TrainOnLine train)
+    {
+        int v = Enumerable.Range(0, train.Vehicles.Count).LastOrDefault(i => train.Vehicles[i].Kind == Sim.Train.VehicleKind.Guard, train.Vehicles.Count - 1);
+        var f = train.Frames[v];
+        if (f.Shape.Interior is not { } room)
+            return LockerCamera(train);
+        var kit = Sim.World.RepairKitStowage(f.Shape, room);
+        return Camera.LookAt(f.ToWorld(kit + new Double3(1.1, 1.2, 1.3)), f.ToWorld(kit + new Double3(0, 0.1, 0)), 55);
     }
 
     static Camera LockerCamera(TrainOnLine train)

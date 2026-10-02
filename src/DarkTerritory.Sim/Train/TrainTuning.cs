@@ -25,6 +25,8 @@ public sealed record KitTuning
     public int Radios { get; init; }
     /// <summary>Toys in the guard van (GDD v1.1 App. C.4): hand loot, what the Track Doll will leave for.</summary>
     public int Toys { get; init; }
+    /// <summary>Repair kits in the guard van (GDD §12): the toolbox that opens a Holdout's lock quietly (App. D.7).</summary>
+    public int RepairKits { get; init; }
 }
 
 public sealed record GeometryTuning(

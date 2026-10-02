@@ -196,6 +196,23 @@ public sealed class World
         // Hand-carried loot (GDD v1.1 App. C.4): toys, for the Track Doll to steal.
         for (int i = 0; i < Train.Dynamics.Tuning.Kit.Toys; i++)
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.6, floor, room.Max.Z - 1.2 - 0.5 * i), Physics.BodyKind.Toy);
+        // The repair kit (GDD §12): on the floor at the foot of the tool lockers, where the crew learn to look for it.
+        for (int i = 0; i < Train.Dynamics.Tuning.Kit.RepairKits; i++)
+            Bodies.SpawnCrate(Train, guard.Id, RepairKitStowage(Train.Frames[guard.Id].Shape, room, i), Physics.BodyKind.RepairKit);
+    }
+
+    /// <summary>
+    /// Where the guard van's repair kit stands (car frame, on the floor): in front of the tool lockers on the left wall, or
+    /// against that wall 2.5 m in from the front where a car has none; the <paramref name="index"/>th of them half a metre
+    /// further back.
+    /// </summary>
+    public static Ballast.Double3 RepairKitStowage(CarShape shape, Train.Box room, int index = 0)
+    {
+        var at = new Ballast.Double3(room.Min.X + 0.35, room.Min.Y + 0.1, room.Min.Z + 2.5 + 0.5 * index);
+        foreach (var s in shape.Solids)
+            if (s.Part == PartKind.Locker && at.Z >= s.Box.Min.Z && at.Z <= s.Box.Max.Z && at.X <= s.Box.Max.X + 0.2)
+                at = at with { X = s.Box.Max.X + 0.3 };
+        return at;
     }
 
     /// <summary>
@@ -317,10 +334,11 @@ public sealed class World
         }
         if (Authority && Switches?.CrewAct(s, intent, playerId, Train, Hand) is { } thrown)
             SwitchThrows.Add(thrown);
-        if (Authority)
-            Holdouts?.CrewAct(s, intent, playerId, Train);
+        // The repair kit in hand at a Holdout's door is opening it (GDD App. D.7), not being put down.
+        bool kit = Authority && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.RepairKit };
+        bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, kit) == true;
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever.
-        bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand);
+        bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand, keep: kit && breaching);
         // At the crane's controls, the stick drives the crane, not your feet (T48). Worked out the same everywhere, so a
         // client predicts standing still at the stand.
         bool operating = false;
