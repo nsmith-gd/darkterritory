@@ -19,6 +19,9 @@ shot 05-the-choir --threats --view choir
 shot 06-the-stores --stocked --lantern --view locker
 shot 07-the-mail-crane --route frontier:7 --at 1620 --cam 1631,0.2,2.4 --target 1637,3.0,2.4
 shot 08-dawn --working --view trackside --dawn 1
-dt screenshot --working --threats --view trackside --width 1232 --height 706 --out out/store/shots/trackside.png
-python3 tools/art/store/capsule.py out/store/shots/trackside.png
-python3 tools/art/store/icon.py
+# The key frame: the engine off its front quarter, its lamp blazing, the train behind it into the fog (capsule.py).
+dt screenshot --working --cam 1207,3.6,1.6 --target 1180,-0.8,3.2 --fov 56 --width 1232 --height 706 --out out/store/shots/key.png
+python3 tools/art/store/capsule.py out/store/shots/key.png
+# The icon's frame: the engine head on in the fog, its lamp lit (tools/art/store/icon.py).
+dt screenshot --cam 1211,0.4,1.9 --target 1200,0,2.4 --fov 34 --width 1024 --height 1024 --out out/store/shots/icon.png
+python3 tools/art/store/icon.py out/store/shots/icon.png
