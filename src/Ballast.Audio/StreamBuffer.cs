@@ -24,6 +24,13 @@ public sealed class StreamBuffer(int prebufferSamples = 2880, int maxSamples = 1
             _samples.Dequeue();
     }
 
+    /// <summary>Drops everything waiting, at once: no tail, no fade (a voice cut off mid-word).</summary>
+    public void Clear()
+    {
+        _samples.Clear();
+        _playing = false;
+    }
+
     /// <summary>Fills <paramref name="into"/>; silence while prebuffering or dry.</summary>
     public void Read(Span<float> into)
     {
