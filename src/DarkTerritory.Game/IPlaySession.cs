@@ -44,6 +44,9 @@ public interface IPlaySession
     bool WreckCinematic => false;
     /// <summary>Seconds since the train came off, as this client saw it.</summary>
     double WreckSeconds => 0;
+    /// <summary>What derailed it, in the boards' km/h (T121): the host's own, or the incident report's line on a client.</summary>
+    string? DerailCause => World.DerailCause is { Length: > 0 } c ? c
+        : World.Run?.Report?.Lines.LastOrDefault(l => l.Kind == Sim.Run.IncidentKind.Derailed)?.Text;
     /// <summary>GDD v1.4 App. E.9: the Stranded outro is playing (the run's end screen waits for it).</summary>
     bool StrandedOutro => false;
     double OutroSeconds => 0;
@@ -51,6 +54,11 @@ public interface IPlaySession
     PlayerState Player { get; }
     TrainControls Controls { get; }
     long Tick { get; }
+    /// <summary>
+    /// The host's tick as this machine last heard it: what the sim's own timed records (a gun's last shot, World.Hits and
+    /// Impacts, T121) are stamped with. Playing alone, the session's own.
+    /// </summary>
+    long HostTick => Tick;
     string Status();
     void Step(in PlayerIntent intent);
     IReadOnlyList<CarFrame> InterpolatedFrames(double alpha);
@@ -73,7 +81,8 @@ public interface IPlaySession
 /// <summary>What the HUD shows about the connection (spec E: ping to host "shown prominently", non-optional).</summary>
 /// <param name="PingMs">Round trip to the host; null for the host itself.</param>
 /// <param name="JoinAt">Hosting for friends on the network: the address they type to join (T114 playtest: "how is she supposed to join if we're on the same wifi?").</param>
-public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, string? Waiting, bool Lost, string? JoinAt = null);
+/// <param name="Listed">Hosting a public lobby: it's in the join screen's list (a private one is joined by invite or address).</param>
+public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, string? Waiting, bool Lost, string? JoinAt = null, bool Listed = false);
 
 /// <summary>First-person eye from a player's state, interpolated in their own frame so riding a car at speed is smooth.</summary>
 public static class Eyes

@@ -71,6 +71,16 @@ public sealed class World
     public List<HitTarget> Targets { get; } = new();
     /// <summary>Rounds fired this tick.</summary>
     public List<GunShot> Shots { get; } = new();
+    /// <summary>
+    /// Blows and balls that landed on creatures lately (T121), newest last: the host's, kept <see cref="HitTuning.KeepSeconds"/>
+    /// and replicated, so every client sees the flinch, hears the thud, and its striker gets the marker.
+    /// </summary>
+    public List<HitConfirm> Hits { get; } = new();
+    /// <summary>Where cannonballs came down lately (T121), newest last: the host's, kept as long as the smoke and replicated.</summary>
+    public List<CannonImpact> Impacts { get; } = new();
+    int _nextFx = 1;
+    /// <summary>The host's world, or one with nobody else's to mirror: it decides what landed where.</summary>
+    bool Hosting => Authority || Enemies is null;
     public uint Tick { get; set; }
     public double ElapsedSeconds => Tick * SimConstants.TickSeconds;
 
@@ -204,17 +214,28 @@ public sealed class World
     }
 
     /// <summary>
-    /// The repair kit (GDD §12): on the floor just inside the front door of its car (train.json kit.repairKitCar), where the
-    /// crew learn to look for it: the first car back from the engine, a walk from the footplate.
+    /// The repair kit (GDD §12) in its car (train.json kit.repairKitCar), where the crew learn to look for it: the first car
+    /// back from the engine, a walk from the footplate, in the fitter's locker (note 173); and the spares the fortress sold
+    /// the crew (GDD v1.4 App. E.12 question 4) beside it, then in the lockers after it. A car without lockers has its kits
+    /// on the floor inside its front door, as it always did.
     /// </summary>
     void StowRepairKits()
     {
         if (RepairKitCar(Train) is not { } car)
             return;
         var shape = Train.Frames[car].Shape;
-        for (int i = 0; i < Train.Dynamics.Tuning.Kit.RepairKits; i++)
-            Bodies.SpawnCrate(Train, car, RepairKitStowage(shape, shape.Interior!.Value, i), Physics.BodyKind.RepairKit);
-        KitStocked |= Train.Dynamics.Tuning.Kit.RepairKits > 0;
+        var kit = Train.Dynamics.Tuning.Kit;
+        int kits = kit.RepairKits + kit.SpareKits;
+        int first = Math.Max(0, shape.KitLocker);
+        // From the kit's locker on down the row, then round from the front.
+        var order = Enumerable.Range(0, shape.Lockers.Count).Select(i => (first + i) % shape.Lockers.Count).ToList();
+        for (int i = 0; i < kits; i++)
+        {
+            var b = Bodies.SpawnCrate(Train, car, RepairKitStowage(shape, shape.Interior!.Value, i), Physics.BodyKind.RepairKit);
+            if (!order.Any(locker => Bodies.Stow(b, Train, car, locker)))
+                b.Pbd.Particles[0].Position = b.Pbd.Particles[0].Previous = RepairKitStowage(shape, shape.Interior!.Value, i, floor: true) + Ballast.Double3.Up * 0.1;
+        }
+        KitStocked |= kits > 0;
     }
 
     /// <summary>The train left with a repair kit (GDD v1.4 §23.2: without one, nothing can strand it).</summary>
@@ -231,18 +252,29 @@ public sealed class World
     }
 
     /// <summary>
-    /// Where a car's repair kit stands (car frame, on the floor): just inside its front door, in the corner on the right of
-    /// the aisle, ahead of the load (the cargo stands down the right side from 1.2 m in); in front of the tool lockers in a
-    /// car that has them. The <paramref name="index"/>th of them half a metre further back.
+    /// Where a car's repair kit is kept (car frame): on the bottom shelf of its locker in a car with the crew lockers (note
+    /// 151, the fitter's: train.json kit.lockers.kitLocker), the floor of the locker. Without them (or with
+    /// <paramref name="floor"/>), on the floor just inside its front door, in the corner on the right of the aisle, ahead of
+    /// the load (the cargo stands down the right side from 1.2 m in); in front of the tool lockers in a car that has them.
+    /// The <paramref name="index"/>th of them half a metre further back.
     /// </summary>
-    public static Ballast.Double3 RepairKitStowage(CarShape shape, Train.Box room, int index = 0)
+    public static Ballast.Double3 RepairKitStowage(CarShape shape, Train.Box room, int index = 0, bool floor = false)
     {
+        if (!floor && KitLocker(shape) is { } bay)
+            return Lockers.SlotAt(bay, 0, 1, 0);
         var at = new Ballast.Double3(room.Max.X - 0.35, room.Min.Y + 0.1, room.Min.Z + 0.45 + 0.5 * index);
         foreach (var s in shape.Solids)
             if (s.Part == PartKind.Locker)
                 at = new Ballast.Double3(s.Box.Max.X + 0.3, room.Min.Y + 0.1, (s.Box.Min.Z + s.Box.Max.Z) / 2 + 0.5 * index);
         return at;
     }
+
+    /// <summary>The repair kit's locker in a car's shape (note 173): the one train.json names (the fitter's); null without lockers.</summary>
+    public static LockerBay? KitLocker(CarShape shape) => shape.KitLocker >= 0 && shape.KitLocker < shape.Lockers.Count ? shape.Lockers[shape.KitLocker] : null;
+
+    /// <summary>The repair kit's locker (note 173): its car and its place in the row; null on a train without lockers.</summary>
+    public static (int Car, LockerBay Bay)? KitLocker(TrainOnLine train) =>
+        RepairKitCar(train) is { } car && KitLocker(train.Frames[car].Shape) is { } bay ? (car, bay) : null;
 
     /// <summary>
     /// Host: each car with a room gets its wall-mounted extinguisher (GDD v1.1 App. C.5), by the door end; put back there (or
@@ -268,6 +300,9 @@ public sealed class World
         foreach (var s in shape.Solids)
             if (s.Part == PartKind.Locker && at.X >= s.Box.Min.X - 0.2 && at.X <= s.Box.Max.X + 0.2 && at.Z >= s.Box.Min.Z - 0.3 && at.Z <= s.Box.Max.Z + 0.3)
                 at = at with { Z = s.Box.Max.Z + 0.4 };
+        // The crew lockers' row (note 173) runs back from just behind the front end wall: the board goes in the gap ahead of it.
+        if (shape.Lockers.Count > 0 && shape.Lockers[0].Box.Min.X <= at.X + 0.2)
+            at = at with { Z = (room.Min.Z + shape.Lockers[0].Box.Min.Z) / 2 };
         return at;
     }
 
@@ -517,7 +552,7 @@ public sealed class World
         double bestD = double.MaxValue;
         foreach (var e in _enemies)
         {
-            if (e.Gone || e.MeleeRadius <= 0)
+            if (e.Gone || !e.Strikable(playerId))
                 continue;
             var to = e.WorldPosition(Train) + Ballast.Double3.Up * 0.8 - eye;
             double d = to.Length;
@@ -533,12 +568,31 @@ public sealed class World
             }
         }
         // With a tool a blow; empty-handed (a slot picked with nothing in it) a fraction of one (T108).
-        best?.Struck(ctx, playerId, t.Blow(Player.Kit.Held(s)));
+        if (best is null)
+            return;
+        var at = best.WorldPosition(Train) + Ballast.Double3.Up * 0.8;
+        best.Struck(ctx, playerId, t.Blow(Player.Kit.Held(s)));
+        // It landed: everyone's told (T121), at the point of it, the way the blow went.
+        Confirm(best, playerId, HitSource.Melee, at, (at - eye).Length > 1e-6 ? (at - eye).Normalized : facing);
+    }
+
+    /// <summary>A blow or a ball landed on <paramref name="e"/> (T121): the record every client's flinch, thud and marker come from.</summary>
+    void Confirm(Enemy e, int by, HitSource source, Ballast.Double3 at, Ballast.Double3 from)
+    {
+        Hits.Add(new HitConfirm(_nextFx, Tick, e.Id, e.Kind, by, source, at, from, e.Gone));
+        _nextFx = _nextFx % 0xFFFFFF + 1;
     }
 
     /// <summary>Starts a tick: clears last tick's shots and events.</summary>
     public void BeginTick()
     {
+        // Hits and impacts last a while on the wire, not a tick (T121): a dropped snapshot doesn't lose one.
+        if (Hosting)
+        {
+            var keep = Combat?.Hits ?? new HitTuning();
+            Hits.RemoveAll(h => Tick - h.Tick > keep.KeepSeconds * SimConstants.TickRate);
+            Impacts.RemoveAll(i => Tick - i.Tick > keep.ImpactKeepSeconds * SimConstants.TickRate);
+        }
         Shots.Clear();
         SwitchThrows.Clear();
         EnemyEvents.Clear();
@@ -619,6 +673,14 @@ public sealed class World
             foreach (var b in Bodies.All)
                 if (b.Kind == Physics.BodyKind.Extinguisher && b.Carrier < 0 && b.Parent == b.Home && b.Charge < 1)
                     b.Charge = Math.Min(1, b.Charge + SimConstants.TickSeconds / ft.CarFire.RechargeSeconds);
+        // Where this tick's balls came down (T121), before they land on anything: what they struck is still there to name.
+        if (Hosting)
+            foreach (var shot in Shots)
+            {
+                var struck = shot.HitTargetId > 0 ? _enemies.FirstOrDefault(e => e.Id == shot.HitTargetId)?.Kind ?? 0 : 0;
+                Impacts.Add(new CannonImpact(_nextFx, Tick, shot.Impact, shot.Direction, shot.Surface, shot.Shooter, struck));
+                _nextFx = _nextFx % 0xFFFFFF + 1;
+            }
         if (Authority && _context is { } ctx)
             StepEnemies(ctx);
         Pace();
@@ -730,7 +792,11 @@ public sealed class World
         // Rounds fired this tick land first.
         if (Combat is { } c)
             foreach (var shot in Shots.Where(s => s.HitTargetId > 0))
-                _enemies.FirstOrDefault(e => e.Id == shot.HitTargetId)?.Hit(ctx, c.Guns.DamagePerRound);
+                if (_enemies.FirstOrDefault(e => e.Id == shot.HitTargetId) is { Gone: false } struck && struck.HitRadius > 0)
+                {
+                    struck.Hit(ctx, c.Guns.DamagePerRound);
+                    Confirm(struck, shot.Shooter, HitSource.Cannon, shot.Impact, shot.Direction);
+                }
 
         // How long the cab's been empty (the Track Doll's tampering; and a cab left empty is how a firebox door's left open).
         CabEmptySeconds = ctx.Crew.Any(c => c.Player.State.Alive && PlayerMotor.InCab(c.Player.State, Train)) ? 0 : CabEmptySeconds + SimConstants.TickSeconds;
@@ -803,7 +869,7 @@ public sealed class World
         Targets.Clear();
         foreach (var e in _enemies)
             if (e.HitRadius > 0)
-                Targets.Add(new HitTarget(e.Id, e.WorldPosition(Train), e.HitRadius));
+                Targets.Add(new HitTarget(e.Id, e.HitCentre(Train), e.HitRadius));
         _targetHistory[Tick] = new List<HitTarget>(Targets);
         _targetHistory.Remove(Tick - 32);
     }
@@ -816,7 +882,16 @@ public sealed class World
         Targets.Clear();
         foreach (var e in _enemies)
             if (e.HitRadius > 0)
-                Targets.Add(new HitTarget(e.Id, e.WorldPosition(Train), e.HitRadius));
+                Targets.Add(new HitTarget(e.Id, e.HitCentre(Train), e.HitRadius));
+    }
+
+    /// <summary>Client side: the host's recent hits and impacts (T121), as the snapshot has them.</summary>
+    public void MirrorHits(IEnumerable<HitConfirm> hits, IEnumerable<CannonImpact> impacts)
+    {
+        Hits.Clear();
+        Hits.AddRange(hits);
+        Impacts.Clear();
+        Impacts.AddRange(impacts);
     }
 
     public void SetDerailed(bool derailed) => Derailed = derailed;

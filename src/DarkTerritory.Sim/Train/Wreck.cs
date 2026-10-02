@@ -38,6 +38,13 @@ public sealed record WreckTuning
     public double SettleHold { get; init; } = 1.5;
     public double MaxSeconds { get; init; } = 30;
     public double CinematicSeconds { get; init; } = 12;
+    /// <summary>T121 playtest ("let people experience it first hand, then replay the moment from the third person train view"): seconds in your own eyes, riding the wreck.</summary>
+    public double FirstPersonSeconds { get; init; } = 4;
+    /// <summary>Then the replay from the chase view, this long, starting this far before the train came off.</summary>
+    public double ReplaySeconds { get; init; } = 9;
+    public double ReplayLeadSeconds { get; init; } = 3;
+    /// <summary>The whole derailment sequence: first person, the replay, then the orbit (<see cref="CinematicSeconds"/>).</summary>
+    public double SequenceSeconds => FirstPersonSeconds + ReplaySeconds + CinematicSeconds;
 }
 
 /// <summary>

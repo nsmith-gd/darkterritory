@@ -128,6 +128,7 @@ public sealed class HostSession
         }
         World.Step(Controls);
         World.ApplyDamage(id => _crew.FirstOrDefault(c => c.Id == id)?.State, (id, s) => _crew.First(c => c.Id == id).State = s, _crew.Select(c => (int)c.Id));
+        CutTheDead();
         foreach (var c in _crew)
             PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
         World.StepBodies([.. _crew.Select(c => ((int)c.Id, c.State))]);
@@ -349,7 +350,11 @@ public sealed class HostSession
         var route = Route ?? World.Route;
         Func<double, bool>? tunnel = route is null ? null : route.InTunnel;
         Func<PlayerState, bool>? underground = World.Run is { } run ? s => run.Underground(s, Train) : null;
-        // The radio's a thing (T41): no radio on you, nobody hears you on it, and you hear nobody.
+        // Held (GDD v1.4 App. C.8, "radio broadcast of a GRAB"): a grabbed player's radio is keyed open for the whole GRAB,
+        // whatever they meant to say into it; it closes at break-off, or with the hard-cut at death (a dead speaker has only
+        // the dead channel, VoiceRouting). The radio's a thing (T41): no radio on you, nobody hears you on it, and you hear
+        // nobody. Tunnels and mine spurs still kill it.
+        radio |= speaker.State.Alive && speaker.State.Has(PlayerFlags.Held);
         radio &= World.Bodies.HasRadio(speaker.Id);
         foreach (var listener in _crew)
         {
@@ -370,6 +375,31 @@ public sealed class HostSession
             Messages.WriteVoiceDown(_voiceWriter, speaker.Id, seq, path, opus, gain: gain);
             _transport.Send(listener.Peer, _voiceWriter.Written, Delivery.Unreliable);
             VoiceFramesForwarded++;
+        }
+    }
+
+    readonly HashSet<byte> _cut = [];
+
+    /// <summary>
+    /// GDD v1.4 App. D.2, the hard-cut: on the tick a crewmate dies, every other client is told in the voice stream to drop
+    /// what it has of them (<see cref="VoicePath.Cut"/>). Reliable: a cut that went missing would let the end of the
+    /// sentence play out. A freed player (App. D.8) is heard again.
+    /// </summary>
+    void CutTheDead()
+    {
+        foreach (var c in _crew)
+        {
+            if (c.State.Alive)
+            {
+                _cut.Remove(c.Id);
+                continue;
+            }
+            if (!_cut.Add(c.Id))
+                continue;
+            Messages.WriteVoiceDown(_voiceWriter, c.Id, 0, VoicePath.Cut, []);
+            foreach (var listener in _crew)
+                if (listener != c)
+                    _transport.Send(listener.Peer, _voiceWriter.Written, Delivery.ReliableOrdered);
         }
     }
 
@@ -498,7 +528,13 @@ public sealed class HostSession
         var eyes = EarsOf(c);
         foreach (var e in World.ActiveEnemies)
             if (e is Enemies.Follower { Nested: false } f && (f.Carrier == c.Id || f.Carrier == eyes.Id))
+            {
                 _far.Add(WireRecord.MakeKey(RecordKind.Enemy, e.Id));
+                // Nor a friend's blow landing on it there (T121's hit confirm): the thud at your back would give it away.
+                foreach (var h in World.Hits)
+                    if (h.EnemyId == e.Id)
+                        _far.Add(WireRecord.MakeKey(RecordKind.Hit, h.Id));
+            }
         if (InterestRadius <= 0)
             return _far.Count == 0 ? records : records.Where(r => !_far.Contains(r.Key)).ToList();
         // Watching someone (App. D.10), a dead player is sent what's around them: they see it through their eyes.

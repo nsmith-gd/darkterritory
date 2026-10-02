@@ -7,6 +7,55 @@ namespace DarkTerritory.Game;
 /// <summary>Set pieces for looking at and listening to things headless (screenshots, audio renders, tests).</summary>
 public static class Staging
 {
+    /// <summary>The sim tick staged impacts and hits land on (`dt screenshot --impact`, `--hit-flash`): the scene's clock is set after it.</summary>
+    public const uint StrikeTick = 100;
+
+    /// <summary>
+    /// A cannonball come down (T121, `dt screenshot --impact`): <paramref name="ahead"/> metres up the line from the engine's
+    /// front and <paramref name="lateral"/> to its right, on the ground there (water: as if over it; train and structure: a
+    /// metre and a half up a face; creature: a body's height up). "doll" is the staged Track Doll's spot, shattered.
+    /// </summary>
+    public static Sim.Combat.CannonImpact Impact(TrainOnLine train, string surface, double ahead, double lateral, IReadOnlyList<Enemy>? staged = null)
+    {
+        bool doll = surface.Equals("doll", StringComparison.OrdinalIgnoreCase);
+        if (doll && staged?.FirstOrDefault(e => e is TrackDoll { Attached: < 0 }) is { } d)
+            ahead = d.LineDistance - train.Dynamics.Distance;
+        var kind = doll ? Sim.Combat.ImpactSurface.Creature : Enum.Parse<Sim.Combat.ImpactSurface>(surface, ignoreCase: true);
+        var sample = train.Line.Sample(train.Dynamics.Distance + ahead);
+        var right = Double3.Cross(sample.Tangent, Double3.Up).Normalized;
+        double hint = train.Dynamics.Distance + ahead;
+        var at = sample.Position + right * lateral;
+        at = at with { Y = Sim.Player.PlayerMotor.GroundAt(at, train.Line, ref hint) };
+        if (kind is Sim.Combat.ImpactSurface.Train or Sim.Combat.ImpactSurface.Structure)
+            at += Double3.Up * 1.5;
+        else if (kind == Sim.Combat.ImpactSurface.Creature)
+            at += Double3.Up * (doll ? 0.7 : 0.8);
+        // Fired from the engine's gun, behind and above: the way the ball was going.
+        var muzzle = train.Frames[0].ToWorld(new Double3(0, 5.3, -train.Frames[0].Shape.HalfLength + 12.8));
+        return new Sim.Combat.CannonImpact(1, StrikeTick, at, (at - muzzle).Normalized, kind, 1, doll ? EnemyKind.TrackDoll : 0);
+    }
+
+    /// <summary>
+    /// A blow landed on each staged creature (T121, `dt screenshot --hit-flash`), struck from the camera's side so its flinch
+    /// is seen: the hit at its middle, a melee blow.
+    /// </summary>
+    public static List<Sim.Combat.HitConfirm> HitsOn(IReadOnlyList<Enemy> staged, TrainOnLine train, Double3 eye)
+    {
+        var hits = new List<Sim.Combat.HitConfirm>();
+        foreach (var e in staged)
+        {
+            if (e.Gone || e.Kind is EnemyKind.Sleepers or EnemyKind.Drift or EnemyKind.CarFire)
+                continue;
+            var at = GreyboxPosition(e, train) + Double3.Up * 0.8;
+            var from = (at - eye) with { Y = 0 };
+            hits.Add(new Sim.Combat.HitConfirm(hits.Count + 1, StrikeTick, e.Id, e.Kind, 1, Sim.Combat.HitSource.Melee, at,
+                from.Length > 1e-6 ? from.Normalized : new Double3(0, 0, -1), false));
+        }
+        return hits;
+    }
+
+    static Double3 GreyboxPosition(Enemy e, TrainOnLine train) =>
+        e.Attached >= train.Frames.Count ? e.Local : e.WorldPosition(train);
     /// <summary>Crates, a lamp and a rescued child on car 2's roof and a body on car 3's, dropped and left to settle.</summary>
     public static Sim.Physics.Bodies Bodies(TrainOnLine train, string content)
     {
@@ -521,7 +570,7 @@ public static class Staging
         var lines = Sim.Run.IncidentLog.Lines(world, 350, 263, body => false);
         lines.Add(new Sim.Run.ReportLine(Sim.Run.IncidentKind.CarLost, "", "Car 5 finished by the Car Hugger at km 9. Inside: freight, 0.6 car-loads, the body of Okafor."));
         if (end == Sim.Run.RunEnd.Derailed)
-            lines.Add(new Sim.Run.ReportLine(Sim.Run.IncidentKind.Derailed, "", "Consist derailed, 68 km/h at km 17. Over the 12 m/s board at 18.9 m/s. Throttle: Dave."));
+            lines.Add(new Sim.Run.ReportLine(Sim.Run.IncidentKind.Derailed, "", "Consist derailed, 68 km/h at km 17. Took the 50 km/h bend at 68 km/h, 18 km/h too fast. Throttle: Dave."));
         return new Sim.Run.RunReport(end, 1720, 17.2, 4, 1, 2.1, 0, 120, 6, 40, -1416, 1, 3, Deaths: 3, CrewLossFees: 1050) { Lines = lines };
     }
 

@@ -76,7 +76,8 @@ return args switch
     ["audio", "render", ..] => Print(RenderAudio(content, args)),
     ["edit", ..] => Edit(content, args),
     ["voice", "bench", ..] => Print(DarkTerritory.Game.Sound.VoiceBench.Run(content, (int)Opt(args, "--car", 3), Opt(args, "--z", 4), args.Contains("--radio"),
-        Opt(args, "--seconds", 2), new Ballast.Net.LinkConditions(Opt(args, "--latency", 0), Opt(args, "--jitter", 0), Opt(args, "--loss", 0)))),
+        Opt(args, "--seconds", 2), new Ballast.Net.LinkConditions(Opt(args, "--latency", 0), Opt(args, "--jitter", 0), Opt(args, "--loss", 0)),
+        args.Contains("--die-at") ? Opt(args, "--die-at", 1) : null)),
 
     _ => Usage(),
 };
@@ -397,6 +398,7 @@ object CampaignCommand(string content, string verb, string[] args)
         cars = s.Cars,
         scrip = Math.Round(s.Scrip),
         runs = s.Runs,
+        spareKits = s.SpareKits,
         tier = DarkTerritory.Sim.Campaign.Campaign.TierFor(t, s.Cars).ToString(),
         nextCar = DarkTerritory.Sim.Campaign.Campaign.NextCarCost(t, s),
         upgrades = s.Upgrades,
@@ -423,7 +425,9 @@ object CampaignCommand(string content, string verb, string[] args)
             {
                 var s = Load();
                 string what = args.SkipWhile(a => a != "buy").Skip(1).FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal)) ?? "car";
-                var p = what == "car" ? DarkTerritory.Sim.Campaign.Campaign.BuyCar(t, s) : DarkTerritory.Sim.Campaign.Campaign.BuyUpgrade(t, s, what);
+                var p = what == "car" ? DarkTerritory.Sim.Campaign.Campaign.BuyCar(t, s)
+                    : what == "kit" ? DarkTerritory.Sim.Campaign.Campaign.BuySpareKit(t, s)
+                    : DarkTerritory.Sim.Campaign.Campaign.BuyUpgrade(t, s, what);
                 if (p.Ok)
                     saves.Save(p.State);
                 return new { bought = p.Ok ? what : null, refused = p.Refused, board = Board(p.State) };
@@ -446,9 +450,9 @@ object CampaignCommand(string content, string verb, string[] args)
                 var contract = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s)[(int)Opt(args, "--contract", 0)];
                 s = DarkTerritory.Sim.Campaign.Campaign.Begin(s, contract);
                 var route = DarkTerritory.Sim.LineGen.Routes.Generate(content, contract.Tier, contract.Seed, s.Cars);
-                var loadout = DarkTerritory.Sim.Campaign.Campaign.Apply(t, s.Upgrades, new DarkTerritory.Sim.Campaign.Loadout(train, boiler,
+                var loadout = DarkTerritory.Sim.Campaign.Campaign.Apply(t, s.Upgrades, DarkTerritory.Sim.Campaign.Campaign.WithSpareKits(new DarkTerritory.Sim.Campaign.Loadout(train, boiler,
                     DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)),
-                    DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File))));
+                    DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File))), s.SpareKits));
                 var report = Harness.Run(route.Build(), loadout.Train, player, new HarnessOptions
                 {
                     Bots = (int)Opt(args, "--bots", 4),
@@ -472,7 +476,7 @@ object CampaignCommand(string content, string verb, string[] args)
                 return new { contract = contract.Route, night, board = Board(s) };
             }
         default:
-            return new { error = $"unknown campaign command '{verb}': new, show, slots, buy car|<upgrade>, sim, play" };
+            return new { error = $"unknown campaign command '{verb}': new, show, slots, buy car|kit|<upgrade>, sim, play" };
     }
 }
 
@@ -950,6 +954,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (args.Contains("--doors-open"))
         foreach (var v in train.Dynamics.Consist.Vehicles)
             v.DoorsOpen = 0xFF;
+    // --lockers-open NAME[,NAME]: those crew lockers' doors open (note 173; "all" for the row); the lockers view opens the
+    // repair kit's (the fitter's) by itself.
+    if (Str(args, "--lockers-open", view == "lockers" ? "kit" : "") is { Length: > 0 } lockersOpen && DarkTerritory.Sim.World.KitLocker(train) is { } kitLocker)
+        foreach (var bay in train.Frames[kitLocker.Car].Shape.Lockers)
+            if (lockersOpen == "all" || lockersOpen == "kit" && bay.Index == kitLocker.Bay.Index
+                || lockersOpen.Split(',').Contains(bay.Name, StringComparer.OrdinalIgnoreCase))
+                train.Vehicles[kitLocker.Car].LockersOpen |= 1u << bay.Index;
     // --eaten f: the rear car that much eaten by a Car Hugger (App. A.3 FEED; 1 is eaten through), as if from sound.
     if (args.Contains("--eaten"))
     {
@@ -993,9 +1004,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             : Str(args, "--passenger", "") == "drag" ? [Staging.Dragged(train)] : null,
         Emergency = args.Contains("--emergency"),
         LampsOut = strandedAt >= 0 ? Views.StrandedLampsOut(train.Frames.Count, outro, strandedAt) : 0,
+        KitLockerOpen = strandedAt >= 0,
         LampRange = strandedAt >= 0 ? 400 : 60,
         RoofGlow = strandedAt >= 0,
         FireDoorOpen = args.Contains("--firedoor") || args.Contains("--stoker"),
+        // --coal u: that much on the fire, as the HUD's FIRE reads it (T121: the firebox's look follows it, out only at 0).
+        FireGlow = args.Contains("--coal") ? GreyboxScene.FireLook(Opt(args, "--coal", 4), DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)).FireboxCapacity) : 0.7f,
         // --spray: an extinguisher on every car fire, from the aisle (with --threats, the staged one: --view fire).
         StagedSpray = args.Contains("--spray"),
         // --derailed s: off the rails s seconds ago (its sparks, dust and boiler burst).
@@ -1019,6 +1033,29 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             : null,
     };
     scene.Wreck = train.Wreck;
+    // --impact ground|water|structure|train|creature|doll [--impact-at ahead,lateral] [--impact-age s] (T121): a cannonball
+    // come down there that long ago (its burst, debris, smoke, scorch or splash, and the light of it); "doll" on the staged
+    // Track Doll (with --threats), shattered, and her gone from the rail.
+    if (Str(args, "--impact", "") is { Length: > 0 } surface)
+    {
+        var where = Str(args, "--impact-at", "60,0").Split(',').Select(x => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+        var impact = Staging.Impact(train, surface, where[0], where.Length > 1 ? where[1] : 0, scene.Enemies);
+        scene.Impacts = [impact];
+        if (impact.Struck == DarkTerritory.Sim.Enemies.EnemyKind.TrackDoll && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> staged)
+        {
+            var doll = staged.First(e => e is DarkTerritory.Sim.Enemies.TrackDoll { Attached: < 0 });
+            staged.Remove(doll);
+            scene.Hits = [new DarkTerritory.Sim.Combat.HitConfirm(1, Staging.StrikeTick, doll.Id, doll.Kind, 1, DarkTerritory.Sim.Combat.HitSource.Cannon, impact.At, impact.Direction, true)];
+        }
+        scene.Tick = Staging.StrikeTick + (long)Math.Round(Opt(args, "--impact-age", 0.07) * SimConstants.TickRate);
+    }
+    // --hit-flash [--hit-age s] (T121): a blow just landed on every staged creature (with --threats), from the camera's side:
+    // each one's flinch and flash.
+    if (args.Contains("--hit-flash") && scene.Enemies is { } struck)
+    {
+        scene.Hits = Staging.HitsOn(struck, train, camera.Position);
+        scene.Tick = Staging.StrikeTick + (long)Math.Round(Opt(args, "--hit-age", 0.07) * SimConstants.TickRate);
+    }
     scene.Build(mesh, train, camera.Position);
     // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
     var buildClock = Stopwatch.StartNew();
@@ -1259,12 +1296,60 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         saves.Delete(3);
     }
     var menu = new DarkTerritory.Game.FrontEnd(ct, rt, saves, Path.Combine(dir, "settings.json"), () => 7, EditionTuning.Load(content));
+    menu.DefaultPlayerName = "Nick";
+    // The join screen's list, as a crowded evening has it: games on the network (pings as measured) and public lobbies off
+    // a platform search (the fake's, its pings estimated from where each host is).
+    if (screen == DarkTerritory.Game.Screen.Join)
+        menu.Games = DemoLobbies(menu.Protocol);
     if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
     menu.Show(screen);
     for (int i = 0; i < (int)Opt(args, "--down", 0); i++)
         menu.Down();
     return (menu, screen);
+}
+
+/// <summary>A join screen's worth of public games: three on the network, three off a (fake) Steam search, one private that isn't listed.</summary>
+static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol)
+{
+    static Ballast.Net.LanGame Lan(string ip, string host, string name, int aboard, string tier, double ping, int protocol) =>
+        new(new System.Net.IPEndPoint(System.Net.IPAddress.Parse(ip), DarkTerritory.Game.NetPlaySession.DefaultPort), host, $"{tier.ToUpperInvariant()}:7, 6 CARS, IN THE YARD", aboard, protocol,
+            DarkTerritory.Game.NetPlaySession.Game)
+        { Name = name, Max = DarkTerritory.Game.NetPlaySession.MaxCrew, Tier = tier, PingMs = ping };
+    var cloud = new Ballast.Online.FakeOnline();
+    var me = cloud.SignIn("me");
+    var hosts = new (string Name, string Run, string Tier, (double, double) Where, Ballast.Online.LobbyVisibility Visibility, int Crew)[]
+    {
+        ("PRIYA", "PRIYA'S RUN", "DeadLines", (30, 34), Ballast.Online.LobbyVisibility.Public, 3),
+        ("hollowman", "NO SLEEP TILL HOLLIN", "DeepTerritory", (90, 110), Ballast.Online.LobbyVisibility.Public, 12),
+        ("ash", "LOCALS ONLY", "Local", (60, 20), Ballast.Online.LobbyVisibility.Public, 5),
+        ("secret", "SECRET RUN", "Frontier", (5, 5), Ballast.Online.LobbyVisibility.FriendsOnly, 2),
+    };
+    var lobbies = new List<Ballast.Online.Lobby>();
+    foreach (var h in hosts)
+    {
+        var lobby = Ballast.Online.Lobby.Host(cloud.SignIn(h.Name, h.Where), DarkTerritory.Game.NetPlaySession.Game, protocol, DarkTerritory.Game.NetPlaySession.MaxCrew, h.Visibility,
+            new Dictionary<string, string>
+            {
+                [DarkTerritory.Game.NetPlaySession.NameKey] = h.Run,
+                [DarkTerritory.Game.NetPlaySession.TierKey] = h.Tier,
+                [DarkTerritory.Game.NetPlaySession.AboardKey] = h.Crew.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                [DarkTerritory.Game.NetPlaySession.RunKey] = $"{h.Tier.ToUpperInvariant()}:12, 6 CARS, IN THE YARD",
+            });
+        lobby.Poll();
+        lobbies.Add(lobby);
+    }
+    using var browser = new DarkTerritory.Game.LobbyBrowser(lan: null, me, protocol);
+    var events = new List<Ballast.Online.OnlineEvent>();
+    browser.Poll(0, events, search: true);
+    me.Poll(events);
+    browser.Poll(0, events, search: false);
+    Ballast.Net.LanGame[] lan = [Lan("192.168.1.20", "nick-pc", "THE NIGHT SHIFT", 2, "Frontier", 1.8, protocol),
+        Lan("192.168.1.31", "sam", "SAM'S RUN", 1, "Frontier", 3.2, protocol + 1), Lan("192.168.1.44", "jo", "JO'S RUN", 4, "DeadLines", 2.4, protocol)];
+    var games = lan.Select(DarkTerritory.Game.ListedGame.From).Concat(browser.Games);
+    foreach (var l in lobbies)
+        l.Dispose();
+    return [.. games.OrderBy(g => g.PingMs ?? double.MaxValue)];
 }
 
 // A frame as the game draws it: a solo session stepped for a while, seen first person, with the HUD (T23).
@@ -1319,6 +1404,10 @@ static object HudShot(string content, string[] args)
         lighting.Wetness = r.Weather.Wet ? 1 : 0;
         lighting.Frost = look?.Tuning.Atmosphere.Cold.Frost(r.Weather.Cold) ?? 0;
     }
+    // --hit-marker [kill]: a blow of yours just landed (T121), the crosshair's marker for it (red for the kill).
+    if (args.Contains("--hit-marker"))
+        session.World.Hits.Add(new DarkTerritory.Sim.Combat.HitConfirm(1, (uint)session.HostTick, 1, DarkTerritory.Sim.Enemies.EnemyKind.Ribbit, session.PlayerId,
+            DarkTerritory.Sim.Combat.HitSource.Melee, default, new Double3(0, 0, -1), Str(args, "--hit-marker", "") == "kill"));
     var hud = new Overlay();
     // --commend: the night's commendations shown under its report (App. D.12; awarding them isn't in the game yet).
     Hud.Build(hud, width, height, session, commendations: args.Contains("--commend")
@@ -1453,7 +1542,7 @@ static int Usage()
                      [--width w] [--height h] [--scale k] [--out file.png] [--threats]   --threats stages one of each enemy
                      [--doll-at m]   with --threats: the Track Doll this far up the line (App. A.2: the lamp shows it at 200)
                      [--lurk-at m]   with --threats: a Car Hugger lurking beside the line this far ahead (App. A.3 LURK)
-                     [--doors-open]   every door on the train open   [--venting] the blow-off and safety valve blowing
+                     [--doors-open]   every door on the train open   [--coal u] fire on the grate   [--venting] the blow-off and safety valve blowing
                      [--eaten f]   the rear car this much eaten by a Car Hugger (0..1; 1 eaten through)
                      [--later s]   with --threats: every staged enemy s seconds further into what it's doing (frames of its animation)
                      [--route tier:seed [--coaling]]   a generated night; --coaling stops at its coaling tower, chute pouring
@@ -1471,7 +1560,7 @@ static int Usage()
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
-          screenshot --menu title|slots|fortress|upgrades|quickNight|join|settings [--down n] [--saves dir]
+          screenshot --menu title|slots|fortress|upgrades|quickNight|host|join|settings [--down n] [--saves dir]
                      a screen of the front end over the yard, as the game draws it
           screenshot --hud [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270

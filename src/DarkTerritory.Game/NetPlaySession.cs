@@ -22,6 +22,11 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
 {
     /// <summary>The campaign's upgrades (spec F.3). Every machine applies the same list to the same content.</summary>
     public IReadOnlyList<string> Upgrades { get; init; } = [];
+    /// <summary>
+    /// The campaign's spare repair kits (GDD v1.4 App. E.12 question 4): each starts the night in a crew locker beside the
+    /// train's own. Every machine builds the same train from it.
+    /// </summary>
+    public int SpareKits { get; init; }
     /// <summary>Where the engine's front starts, along the line; null for the fortress yard. A resumed night starts where it was saved.</summary>
     public double? Start { get; init; }
     /// <summary>The host's only: a resumed night's own line, from its save (linegen plan §17.4), rather than generated afresh.</summary>
@@ -40,6 +45,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)),
             DataFile.Load<CombatTuning>(Path.Combine(content, CombatTuning.File)),
             DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)));
+        loadout = Sim.Campaign.Campaign.WithSpareKits(loadout, SpareKits);
         return Upgrades.Count == 0 ? loadout
             : Sim.Campaign.Campaign.Apply(DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)), Upgrades, loadout);
     }
@@ -155,6 +161,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <summary>Lobby size: GDD §3, "2–8+" players.</summary>
     public const int MaxCrew = 12;
     public const string Game = "darkterritory";
+    /// <summary>A hosted game's values in its platform lobby, for the browser (the engine's own are on <see cref="Lobby"/>).</summary>
+    public const string NameKey = "name", TierKey = "tier", RunKey = "run", AboardKey = "aboard";
     readonly ITransport? _hostTransport;
     readonly UdpTransport? _udp;
     readonly ITransport _clientTransport;
@@ -187,24 +195,35 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <summary>Seconds since this client first saw the train come off (T117), host or not: the wreck's own clock is the host's.</summary>
     public double WreckSeconds { get; private set; }
     /// <summary>The derailment's cinematic: the camera off the eye and on the wreck, the run's end held back till it's over.</summary>
-    public bool WreckCinematic => Train.Wreck is not null && WreckSeconds < World.WreckTuning.CinematicSeconds;
+    /// <summary>What derailed it (T121): hosting, the host's world says; joined, the incident report's line.</summary>
+    public string? DerailCause => Host?.World.DerailCause is { Length: > 0 } c ? c
+        : World.DerailCause is { Length: > 0 } mine ? mine
+        : World.Run?.Report?.Lines.LastOrDefault(l => l.Kind == Sim.Run.IncidentKind.Derailed)?.Text;
+
+    public bool WreckCinematic => Train.Wreck is not null && WreckSeconds < World.WreckTuning.SequenceSeconds;
     public double OutroSeconds { get; private set; }
     public bool StrandedOutro => World.Run?.End == Sim.Run.RunEnd.Stranded && OutroSeconds < World.WreckTuning.Stranded.Seconds;
     public World World => Client.World;
     public PlayerState Player => Client.Predicted;
     public TrainControls Controls => Client.Controls;
     public long Tick { get; private set; }
+    /// <summary>The host's tick of the newest snapshot (T121): a joiner's own count started later than the host's.</summary>
+    public long HostTick => Client.NewestSnapshotTick;
     public bool Lost { get; private set; }
 
     /// <summary>Hosts and joins it from this machine.</summary>
     /// <param name="port">UDP port for LAN and direct-IP joiners (0 = any free one), or null to take none: the host's
     /// own player then connects on a private localhost port.</param>
-    /// <param name="online">A platform to host a friends-only lobby on as well (Steam).</param>
+    /// <param name="online">A platform to host a lobby on as well (Steam): public, or friends-only when not <paramref name="listed"/>.</param>
+    /// <param name="listed">Public: listed for anyone to find, on the local network (the beacon) and in the platform's lobby
+    /// search. Private: no beacon and a friends-only lobby, so it's joined by invite or address only.</param>
+    /// <param name="lobbyName">What the browser calls it; null, "&lt;host&gt;'s run".</param>
+    /// <param name="beacon">The beacon to advertise on (a test's, on loopback); by default the usual broadcast one, when listed.</param>
     /// <param name="resume">A night's autosave (spec E): start again from the facility it last left.</param>
     /// <param name="bots">Bot crewmates to play with (T89: a night alone, with a crew). Each is a client of this host over
     /// localhost like anyone else; the first drives (first aboard takes the cab), so the human can go where the trouble is.</param>
     public static NetPlaySession HostGame(string content, SessionSetup setup, int? port = DefaultPort, int expectedCrew = 4, IOnlineBackend? online = null,
-        Sim.Campaign.RunCheckpoint? resume = null, int bots = 0)
+        Sim.Campaign.RunCheckpoint? resume = null, int bots = 0, bool listed = true, string? lobbyName = null, LanBeacon? beacon = null)
     {
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
         setup = setup with
@@ -222,7 +241,10 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             Restore(hostWorld, resume);
         var udp = port is { } p ? UdpTransport.Host(p) : UdpTransport.Host(0, bind: IPAddress.Loopback);
         ITransport hostTransport = online is null ? udp : new HostGroup(udp, OnlineTransport.Host(online));
-        var lobby = online is null ? null : Lobby.Host(online, Game, Protocol.Version, MaxCrew);
+        string tier = setup.Route is { } spec ? Sim.Route.Route.ParseSpec(spec).Tier.ToString() : "";
+        string name = lobbyName is { Length: > 0 } n ? n : $"{(Messages.CleanName(PlayerName) is { Length: > 0 } set ? set : online?.NameOf(online.Me) ?? LocalName(null))}'s run";
+        var lobby = online is null ? null : Lobby.Host(online, Game, Protocol.Version, MaxCrew, listed ? LobbyVisibility.Public : LobbyVisibility.FriendsOnly,
+            new Dictionary<string, string> { [NameKey] = name, [TierKey] = tier, [RunKey] = Describe(setup, inYard: true), [AboardKey] = "1" });
         var host = new HostSession(hostTransport, hostWorld, trainTuning, playerTuning) { SessionInfo = setup.Encode() };
         hostWorld.EnableBodies();
         hostWorld.Stock();
@@ -271,8 +293,28 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             client.Step(default);
             Thread.Sleep(1);
         }
-        return new NetPlaySession(host, hostTransport, port is null ? null : udp, client, clientTransport, setup, route, lobby) { BotCrew = crew };
+        if (!listed)
+            beacon?.Dispose();
+        return new NetPlaySession(host, hostTransport, port is null ? null : udp, client, clientTransport, setup, route, lobby)
+        {
+            BotCrew = crew,
+            Listed = listed,
+            LobbyName = name,
+            Tier = tier,
+            _beacon = listed ? beacon : null,
+        };
     }
+
+    /// <summary>The night as the browser's detail line says it.</summary>
+    static string Describe(SessionSetup setup, bool inYard) =>
+        $"{(setup.Route ?? setup.Line).ToUpperInvariant()}, {setup.Cars} CARS{(inYard ? ", IN THE YARD" : ", UNDER WAY")}";
+
+    /// <summary>Hosting a public game: listed on the network and in the platform's lobby search.</summary>
+    public bool Listed { get; private init; }
+    /// <summary>What the browser calls this game.</summary>
+    public string LobbyName { get; private init; } = "";
+    string Tier { get; init; } = "";
+    int _advertisedAboard = 1;
 
     /// <summary>The bot crewmates this host is running, if any (T89).</summary>
     public BotCrew? BotCrew { get; private init; }
@@ -424,13 +466,24 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         Lobby?.Poll();
         Host?.Step();
-        // Hosting for friends on the network: it says where it is on the local network (T116), so the join screen lists it.
-        if (Host is not null && _udp is { LocalLoopbackOnly: false } udp)
+        int humans = Aboard - (BotCrew?.Bots.Count ?? 0);
+        // Hosting a public game: it says where it is on the local network (T116), so the join screen lists it, and answers
+        // the browsers' pings. A private one stays quiet (the user's playtest: "If it's a private lobby its not listed").
+        if (Host is not null && Listed && _udp is { LocalLoopbackOnly: false } udp)
         {
             _beacon ??= new LanBeacon();
-            _beacon.Tick(_clock.Elapsed.TotalSeconds, Game, Protocol.Version, udp.Port, HostName,
-                $"{(Setup.Route ?? Setup.Line).ToUpperInvariant()}, {Setup.Cars} CARS{(World.Run is { Phase: Sim.Run.RunPhase.Yard } ? ", IN THE YARD" : ", UNDER WAY")}",
-                Aboard - (BotCrew?.Bots.Count ?? 0));
+            _beacon.Tick(_clock.Elapsed.TotalSeconds, new LanAdvert(Game, Protocol.Version, udp.Port, HostName, Describe(Setup, World.Run is { Phase: Sim.Run.RunPhase.Yard }), humans)
+            {
+                Name = LobbyName,
+                Max = MaxCrew,
+                Tier = Tier,
+                Lobby = Lobby is { IsHost: true, Status: Lobby.State.Open, Visibility: LobbyVisibility.Public } l ? l.Id.ToString() : "",
+            });
+        }
+        if (Host is not null && humans != _advertisedAboard)
+        {
+            _advertisedAboard = humans;
+            Lobby?.SetData(AboardKey, humans.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
         BotCrew?.Step();
         // Spec E: the night autosaves on leaving a POI: the engine out past the end of its zone, whatever shunting it
@@ -579,7 +632,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public PlayerTuning PlayerTuning => Client.PlayerTuning;
     public int PlayerId => Client.PlayerId ?? 0;
     public LinkInfo? Link => new(Role(), Host is null && Client.Connected ? _link.RoundTrip(PeerId.Host) * 1000 : null,
-        Aboard, Client.Waiting ? Client.WaitingReason : null, Lost, JoinAt);
+        Aboard, Client.Waiting ? Client.WaitingReason : null, Lost, JoinAt, Listed && Host is not null);
 
     /// <summary>This machine's address on the local network and the port, for friends to type in; null unless hosting for them.</summary>
     string? JoinAt => _joinAt ??= Host is not null && _udp is { Port: > 0, LocalLoopbackOnly: false } u ? LanAddress() is { } ip ? $"{ip}:{u.Port}" : null : null;

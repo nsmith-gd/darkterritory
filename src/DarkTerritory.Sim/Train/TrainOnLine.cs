@@ -22,7 +22,7 @@ public readonly record struct RakeContact(int Front, int Rear, double ClosingSpe
 /// <param name="Path">The track the rake's front is on: <see cref="RailLine.MainPath"/>, or a branch index.</param>
 public readonly record struct RakeState(int[] Vehicles, double Distance, double Velocity, double BrakeEfficiency, bool Handbrake, bool FrontCouplerLocked, int Path = RailLine.MainPath);
 public readonly record struct VehicleState(int Id, double Load, double Integrity, double CargoIntegrity, GunState Gun = default, byte DoorsOpen = 0,
-    CargoKind Cargo = CargoKind.None, bool LampLit = true, double Eaten = 0);
+    CargoKind Cargo = CargoKind.None, bool LampLit = true, double Eaten = 0, uint LockersOpen = 0);
 
 /// <summary>Everything about the train that the host owns and clients re-simulate from.</summary>
 public sealed record TrainState(RakeState[] Rakes, VehicleState[] Vehicles, Boiler Boiler);
@@ -79,6 +79,7 @@ public sealed class TrainOnLine
         BoilerTuning = boiler;
         if (boiler is not null)
             Boiler = Boiler.Fresh(boiler);
+        _kitCar = KitCar;
         UpdatePoses();
         // The guns start where their cars' shapes stand them (the engine's forward, the guard van's back): from here they're
         // the vehicles' own, and ride the roof rails wherever they're pushed (T93).
@@ -96,6 +97,25 @@ public sealed class TrainOnLine
     public TrainDynamics Dynamics => _engineRake;
     public IReadOnlyList<TrainDynamics> Rakes => _rakes;
     public IReadOnlyList<Vehicle> Vehicles => _vehicles;
+
+    /// <summary>
+    /// The car the repair kit and the crew lockers ride in (train.json kit.repairKitCar): that car if it's a walk-in car,
+    /// else the nearest walk-in car ahead of it, else the first; null with none. Fixed for the night: a car keeps its id
+    /// when the ones ahead of it are cut away.
+    /// </summary>
+    public int? KitCar
+    {
+        get
+        {
+            if (Tuning.Geometry.Interior is null)
+                return null;
+            var cars = _vehicles.Where(v => v is not null && !v.IsEngine).Select(v => v.Id).Order().ToList();
+            if (cars.Count == 0)
+                return null;
+            int want = Tuning.Kit.RepairKitCar;
+            return cars.Contains(want) ? want : cars.Where(c => c < want).DefaultIfEmpty(cars[0]).Max();
+        }
+    }
     public RailLine Line { get; }
     /// <summary>Poses of every vehicle, indexed by vehicle id.</summary>
     public IReadOnlyList<CarPose> Cars => _poses;
@@ -235,7 +255,7 @@ public sealed class TrainOnLine
 
     public TrainState Capture() => new(
         _rakes.Select(r => new RakeState(r.Consist.Vehicles.Select(v => v.Id).ToArray(), r.Distance, r.Velocity, r.BrakeEfficiency, r.Handbrake, r.FrontCouplerLocked, r.Path)).ToArray(),
-        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen, v.Cargo, v.LampLit, v.Eaten)).ToArray(),
+        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen, v.Cargo, v.LampLit, v.Eaten, v.LockersOpen)).ToArray(),
         Boiler);
 
     /// <summary>Adopts host state and rebuilds rakes and poses; clients then re-simulate forward from it.</summary>
@@ -252,6 +272,7 @@ public sealed class TrainOnLine
             vehicle.Cargo = v.Cargo;
             vehicle.LampLit = v.LampLit;
             vehicle.Eaten = v.Eaten;
+            vehicle.LockersOpen = v.LockersOpen;
         }
         var previous = _rakes.ToDictionary(r => r.Consist.Vehicles[0].Id);
         _rakes.Clear();
@@ -609,7 +630,7 @@ public sealed class TrainOnLine
                 var forward = (fb - rb).Length > 1e-9 ? (fb - rb).Normalized : Line.Sample(rake.Path, front).Tangent;
                 var pose = new CarPose(v.Id, Double3.Lerp(fb, rb, 0.5), forward, length, front);
                 poses[v.Id] = pose;
-                frames[v.Id] = CarFrame.From(pose, rake.Velocity, Shape(g, v.Kind, i < vehicles.Count - 1));
+                frames[v.Id] = CarFrame.From(pose, rake.Velocity, Shape(g, v.Kind, i < vehicles.Count - 1, v.Id == _kitCar));
                 front -= length + g.CouplingGap;
             }
         }
@@ -626,18 +647,21 @@ public sealed class TrainOnLine
                 }
     }
 
-    readonly Dictionary<(VehicleKind, bool), CarShape> _shapes = new();
+    readonly Dictionary<(VehicleKind, bool, bool), CarShape> _shapes = new();
     GeometryTuning? _shapeGeometry;
+    int? _kitCar;
 
-    CarShape Shape(GeometryTuning g, VehicleKind kind, bool hasCarBehind)
+    /// <param name="lockers">The kit's car: it has the crew lockers (ARCHITECTURE §8 note 173).</param>
+    CarShape Shape(GeometryTuning g, VehicleKind kind, bool hasCarBehind, bool lockers)
     {
         if (!ReferenceEquals(g, _shapeGeometry))
         {
             _shapes.Clear();
             _shapeGeometry = g;
         }
-        if (!_shapes.TryGetValue((kind, hasCarBehind), out var shape))
-            _shapes[(kind, hasCarBehind)] = shape = CarShape.Build(g, kind, hasCarBehind);
+        lockers &= Tuning.Kit.Lockers is { Names.Count: > 0 };
+        if (!_shapes.TryGetValue((kind, hasCarBehind, lockers), out var shape))
+            _shapes[(kind, hasCarBehind, lockers)] = shape = CarShape.Build(g, kind, hasCarBehind, lockers ? Tuning.Kit.Lockers : null);
         return shape;
     }
 }

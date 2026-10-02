@@ -97,8 +97,24 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
 
     byte _movedThisTick;
 
+    /// <summary>One bit per crew locker in its car's <see cref="CarShape.Lockers"/> (ARCHITECTURE §8 note 173): set is open. Shut at departure.</summary>
+    public uint LockersOpen { get; set; }
+    public bool LockerOpen(int index) => (LockersOpen & (1u << index)) != 0;
+
+    /// <summary>Opens a shut locker or shuts an open one: once a tick, like a door (<see cref="ToggleDoor"/>).</summary>
+    public void ToggleLocker(int index)
+    {
+        uint bit = 1u << index;
+        if ((_lockersMoved & bit) != 0)
+            return;
+        _lockersMoved |= bit;
+        LockersOpen ^= bit;
+    }
+
+    uint _lockersMoved;
+
     /// <summary>The train's step: doors worked this tick can be worked again next tick.</summary>
-    internal void EndTick() => _movedThisTick = 0;
+    internal void EndTick() => (_movedThisTick, _lockersMoved) = (0, 0);
 
     public double MassTonnes(TrainTuning t) =>
         IsEngine ? t.Mass.EngineTonnes : t.Mass.EmptyCarTonnes + Load * (t.Mass.LoadedCarTonnes - t.Mass.EmptyCarTonnes);

@@ -33,9 +33,10 @@ using CrewActs = DarkTerritory.Game.Art.CrewActs;
 // F1 toggles the HUD (--no-hud to start without it).
 // Campaign: --campaign <slot> [--contract i] [--resume] [--saves dir] plays tonight's contract with the slot's cars and
 //   upgrades, autosaves leaving each facility, and settles at the end (spec E, F). `dt campaign` runs the fortress headless.
-// Options: --route tier:seed | --route-file name (saved from dt edit) [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png --mute --greybox (flat colour, no art pass)
+// Options: --route tier:seed | --route-file name (saved from dt edit) [--no-enemies] | --line name, --cars n --internal WxH --throttle 0..1 --quit-after seconds --capture file.png --derail-at seconds --mute --greybox (flat colour, no art pass)
 // Multiplayer (UDP, direct IP / LAN): --host [port] hosts the same options for others to join; --join address[:port] joins one.
-// Steam: --steam hosts a friends-only lobby as well (F2 opens the invite dialog; friends can also "Join Game" from the
+//   A hosted run is public (on the LAN beacon, and a public Steam lobby) unless --private (invite and address only).
+// Steam: --steam hosts a lobby as well (F2 opens the invite dialog; friends can also "Join Game" from the
 //   friends list). Accepting an invite starts the game with +connect_lobby <id>, or --join-lobby <id> by hand.
 //   Needs steam_api64.dll next to the game (external/steam/README.md); --no-steam to not even try.
 // Networked, the cab is the only place to drive from (GDD §12): R/F/B/X work when you're standing in it.
@@ -81,6 +82,7 @@ var saves = new SaveSlots(Arg("--saves", SaveSlots.DefaultDirectory), campaignTu
 var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", Settings.DefaultPath), edition: EditionTuning.Load(content))
 {
     Protocol = DarkTerritory.Sim.Net.Protocol.Version,
+    DefaultPlayerName = steam?.NameOf(steam.Me) ?? Environment.UserName,
 };
 
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
@@ -105,7 +107,13 @@ Launch? LaunchFromArgs()
     string? routeFile = Arg("--route-file", "") is { Length: > 0 } f ? f : null;
     bool host = port is not null || args.Contains("--steam") && steam is not null;
     if (host || route is not null || routeFile is not null || args.Contains("--line"))
-        return new Launch.Night(route, cars, host) { Line = Arg("--line", "test-loop"), RouteFile = routeFile, Bots = int.TryParse(Arg("--bots", "0"), out var b) ? b : 0 };
+        return new Launch.Night(route, cars, host)
+        {
+            Line = Arg("--line", "test-loop"),
+            RouteFile = routeFile,
+            Bots = int.TryParse(Arg("--bots", "0"), out var b) ? b : 0,
+            Public = !args.Contains("--private"),
+        };
     return null;
 }
 var launch = LaunchFromArgs();
@@ -118,6 +126,7 @@ bool pinnedInternal = args.Contains("--internal");
 var internalSize = Arg("--internal", "1280x720").Split('x').Select(int.Parse).ToArray();
 const int UiWidth = 480, UiHeight = 270;
 double quitAfter = double.Parse(Arg("--quit-after", "0"));
+double derailAt = double.Parse(Arg("--derail-at", "0"), System.Globalization.CultureInfo.InvariantCulture);
 string? capture = Arg("--capture", "") is { Length: > 0 } c ? c : null;
 
 var startSettings = frontEnd.Settings;
@@ -294,16 +303,19 @@ Launch? Menu()
     // Whatever's held coming in (the A that ended the night) isn't a press here.
     if (vr is not null)
         vrKeys.Read(vr.Session.Controllers);
-    // The games hosted on the local network (T116), for the join screen.
-    using var lan = new Ballast.Net.LanBrowser();
+    // The public games (T116; the user's playtest: "Join should work like Lethal Company"), for the join screen: the local
+    // network's, and Steam's lobby search when Steam's up.
+    using var browser = new LobbyBrowser(new Ballast.Net.LanBrowser(), steam);
     while (!window.CloseRequested && !QuitNow())
     {
         window.PumpEvents();
-        lan.Poll(timer.Elapsed.TotalSeconds);
-        frontEnd.LanGames = lan.Games.Where(g => g.Game == NetPlaySession.Game).ToList();
         window.TextInput = frontEnd.WantsText;
         if (Invited(null) is { } lobby)
             return new Launch.JoinLobby(lobby);
+        if (frontEnd.TakeRefresh())
+            browser.Refresh();
+        browser.Poll(timer.Elapsed.TotalSeconds, steamEvents, search: frontEnd.Screen == Screen.Join);
+        frontEnd.Games = browser.Games;
         Launch? chosen = null;
         // Binding a control (T80): the next key or button pressed is the one, Escape keeps the old. The mouse is held
         // meanwhile, so a click is a button pressed and not the window taking the mouse.
@@ -385,9 +397,10 @@ Launch? Menu()
                 campaign = Campaign.Begin(campaign, contract) with { Checkpoint = resume };
                 saves.Save(campaign);
                 int? port = night.Host ? NetPlaySession.DefaultPort : null;
-                var setup = new SessionSetup(Route: contract.Route, Cars: campaign.Cars, Enemies: enemies) { Upgrades = campaign.Upgrades };
+                var setup = new SessionSetup(Route: contract.Route, Cars: campaign.Cars, Enemies: enemies) { Upgrades = campaign.Upgrades, SpareKits = campaign.SpareKits };
                 Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
-                return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume), campaign);
+                return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume,
+                    listed: frontEnd.Settings.PublicLobby, lobbyName: frontEnd.LobbyName), campaign);
             }
         // From the menu always the real night (T110: with no bots too, it's the same game alone); the bare prototype is the
         // command line's, for a route or line on its own.
@@ -398,13 +411,14 @@ Launch? Menu()
                 int? port = !hosted.Host ? null : args.Contains("--host") ? int.TryParse(Arg("--host", ""), out var p) ? p : NetPlaySession.DefaultPort
                     : fromCommandLine ? null : NetPlaySession.DefaultPort;
                 var setup = new SessionSetup(Route: hosted.Route, Line: hosted.Line, Cars: hosted.Cars, Enemies: enemies);
-                var session = NetPlaySession.HostGame(content, setup, port, online: hosted.Host ? steam : null, bots: hosted.Bots);
+                var session = NetPlaySession.HostGame(content, setup, port, online: hosted.Host ? steam : null, bots: hosted.Bots,
+                    listed: hosted.Public, lobbyName: hosted.LobbyName);
                 if (hosted.Bots > 0)
                     Console.WriteLine($"a crew of {hosted.Bots} bot{(hosted.Bots == 1 ? "" : "s")} aboard");
                 if (port is not null)
                     Console.WriteLine($"hosting on UDP port {session.Port}: others join with --join <this machine's address>:{session.Port}");
-                if (steam is not null)
-                    Console.WriteLine($"hosting a friends-only Steam lobby as {steam.NameOf(steam.Me)}: F2 to invite");
+                if (steam is not null && hosted.Host)
+                    Console.WriteLine($"hosting a {(hosted.Public ? "public" : "friends-only")} Steam lobby, \"{session.LobbyName}\", as {steam.NameOf(steam.Me)}: F2 to invite");
                 return (session, null);
             }
         case Launch.Night { RouteFile: { } file } alone:
@@ -470,7 +484,9 @@ return 0;
 (IPlaySession Session, CampaignState? Campaign)? Starting(Launch chosen)
 {
     var task = Task.Run(() => Start(chosen));
-    string doing = chosen is Launch.Join or Launch.JoinLobby ? "JOINING" : "BUILDING THE NIGHT";
+    // The user's playtest: "You should be able to host a run, not a night."
+    string doing = chosen is Launch.Join or Launch.JoinLobby ? "JOINING"
+        : chosen is Launch.Night { Host: true } or Launch.CampaignNight { Host: true } ? "BUILDING THE RUN" : "BUILDING THE NIGHT";
     double began = timer.Elapsed.TotalSeconds;
     while (!task.IsCompleted)
     {
@@ -540,6 +556,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Signs = session.World.Lineside?.Signs,
         SignRange = session.World.Lineside?.Tuning.LampSignRange ?? 350,
         Enemies = session.World.ActiveEnemies,
+        Hits = session.World.Hits,
+        Impacts = session.World.Impacts,
         Run = session.World.Run,
         Holdouts = session.World.Holdouts,
         Vehicles = session.Train.Vehicles,
@@ -568,6 +586,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     bool Held(Control c) => input.Down(keyOf[c]);
     bool Hit(Control c) => input.Pressed(keyOf[c]);
     Camera camera = default;
+    // T121: the derailment first-hand, then replayed from the chase view, then the orbit (DerailSequence).
+    var derailSequence = new DerailSequence();
     FrameLighting lighting = default;
     window.MouseCaptured = true;
     window.TextInput = false;
@@ -590,6 +610,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // The night's over: Enter goes back (to the fortress, for a campaign night).
         if (session.World.Run?.Over == true && input.Pressed(Key.Enter))
             break;
+        // --derail-at s (a host, headless checks of the derailment's beats with --capture): off the rails at s seconds.
+        if (derailAt > 0 && now >= derailAt && session is NetPlaySession { Host.World: { Derailed: false } hostWorld })
+            hostWorld.Derail("--derail-at");
         // The prototype drives from anywhere; networked, cab controls go through intent like everything else.
         sbyte notch = (sbyte)((Hit(Control.RegulatorOpen) ? 1 : 0) - (Hit(Control.RegulatorClose) ? 1 : 0));
         bool reverser = Hit(Control.Reverser);
@@ -716,6 +739,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             voice.TalkHeld = Held(Control.Talk);
             // Only with a radio on you (T41); the host checks too.
             voice.RadioHeld = Held(Control.Radio) && session.World.Bodies.HasRadio(session.PlayerId);
+            // Held by something (App. C.8): the mic keyed open for the whole GRAB, onto the radio if you have one.
+            voice.Grabbed = session.Player.Alive && session.Player.Has(PlayerFlags.Held);
             double loud = 0;
             for (int n; mic is not null && (n = mic.Read(micSamples)) > 0;)
             {
@@ -736,21 +761,34 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         FeedSpeaker();
 
         var frames = session.InterpolatedFrames(clock.Alpha);
-        // Off the rails (T117): the camera leaves your eyes for the wreck while it's fresh.
+        // Off the rails (T117, T121): first in your own eyes riding it, then the chase view replaying it from a few seconds
+        // before, then the camera circling the wreck. What was drawn is kept for the replay (DerailSequence).
         bool outro = session.StrandedOutro;
-        bool cinematic = session.WreckCinematic && session.Train.Wreck is not null || outro;
-        var outroTuning = session.World.WreckTuning.Stranded;
+        var wreckTuning = session.World.WreckTuning;
+        bool wrecking = session.WreckCinematic && session.Train.Wreck is not null;
+        var beat = wrecking ? DerailSequence.Beat(wreckTuning, session.WreckSeconds) : DerailBeat.None;
+        derailSequence.Record((session.Tick + clock.Alpha) * DarkTerritory.Sim.SimConstants.TickSeconds, frames, scene.Crew, session.World.Derailed, camera,
+            session.Player.Parent >= 0 ? session.Player.Parent : -1, wreckTuning);
+        var replay = beat == DerailBeat.Replay ? derailSequence.ReplayAt(session.WreckSeconds, wreckTuning) : null;
+        if (replay is { } replaying)
+            frames = replaying.Frames;
+        bool cinematic = wrecking || outro;
+        var outroTuning = wreckTuning.Stranded;
         camera = outro ? Views.Stranded(session.Train, outroTuning, session.OutroSeconds)
-            : cinematic ? Views.Wreck(session.Train.Wreck!, session.WreckSeconds)
+            : beat == DerailBeat.FirstPerson && vr is null ? derailSequence.FirstPerson(frames)
+            : replay is { } shot ? derailSequence.ReplayCamera(shot.Frames)
+            : cinematic ? Views.Wreck(session.Train.Wreck!, DerailSequence.OrbitSeconds(wreckTuning, session.WreckSeconds))
             : chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
         // E.9: the lamps go out down the train as the camera pulls back, and stay lit (or not) as far as it can see.
+        // E.9: the outro opens on the repair kit's locker standing open and empty (note 173).
+        scene.KitLockerOpen = outro;
         scene.LampsOut = outro || session.World.Run?.End == DarkTerritory.Sim.Run.RunEnd.Stranded ? Views.StrandedLampsOut(session.Train.Frames.Count, outroTuning, session.OutroSeconds) : 0;
         scene.LampRange = outro ? 400 : 60;
         scene.RoofGlow = outro;
         // On the engine with the boiler in the red, it shakes you (T109).
         if (!chase && !cinematic)
             camera.Position += BoilerShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds);
-        scene.Crew = session.Crew(frames, clock.Alpha);
+        scene.Crew = replay is { } replayed ? replayed.Crew : session.Crew(frames, clock.Alpha);
         // Behind a crewmate's eyes (App. D.10), their own figure isn't drawn round the camera.
         if (session.Watching >= 0 && !chase)
             scene.Crew = [.. scene.Crew.Where(c => c.Id != session.Watching)];
@@ -787,17 +825,18 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         if (session.StrandedOutro)
             Views.CinematicFog(ref lighting, Views.StrandedDistance(session.Train, session.World.WreckTuning.Stranded, session.OutroSeconds));
-        scene.FireGlow = (float)(session.Train.BoilerTuning is { } bt ? session.Train.Boiler.FireFraction(bt) : 0.7);
+        scene.FireGlow = session.Train.BoilerTuning is { } bt ? GreyboxScene.FireLook(session.Train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
         scene.WrenchRacked = !session.Train.Boiler.WrenchOut;
         scene.CordPulled = DarkTerritory.Game.Art.CrewActs.CrewWhistling(session.World);
         scene.Cut = DarkTerritory.Game.Art.SceneArt.Cuts(session.Train);
-        scene.Wreck = session.Train.Wreck;
+        // Replaying the run-in, the train's still on the rails: no wreck yet, no sparks.
+        scene.Wreck = replay is { Off: false } ? null : session.Train.Wreck;
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
-        scene.Tick = session.Tick;
+        scene.Tick = session.HostTick;
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
         scene.LampLit = session.World.LampShining && scene.LampsOut < session.Train.Frames.Count;
         scene.Venting = session.Train.Boiler.Vented;
-        scene.Derailed = session.World.Derailed;
+        scene.Derailed = replay is { } rerun ? rerun.Off : session.World.Derailed;
         scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;
         scene.Controls = session.Controls;
         if (!session.World.LampShining)
@@ -843,7 +882,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
 
         if (now >= titleAt)
         {
-            string talking = voice is { Transmitting: true } ? voice.RadioHeld ? " | ON THE RADIO" : " | talking" : "";
+            string talking = voice is { Transmitting: true } ? voice.OnRadio ? " | ON THE RADIO" : " | talking" : "";
             window.Title = $"Dark Territory — {session.Status()}{talking}";
             titleAt = now + 0.25;
         }

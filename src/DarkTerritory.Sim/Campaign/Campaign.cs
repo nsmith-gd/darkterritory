@@ -9,12 +9,14 @@ namespace DarkTerritory.Sim.Campaign;
 
 /// <summary>Mirror of content/tuning/campaign.json. Field docs live in that file.</summary>
 public sealed record CampaignTuning(int StartingCars, double StartingScrip, int MaxCars, CarCostTuning CarCost, TierStep[] Tiers,
-    int ContractsOffered, int SaveSlots, UpgradeDef[] Upgrades, StandardCrew StandardCrew)
+    int ContractsOffered, int SaveSlots, UpgradeDef[] Upgrades, StandardCrew StandardCrew, SpareKitTuning? SpareKit = null)
 {
     public const string File = "tuning/campaign.json";
 }
 
 public sealed record CarCostTuning(double Base, double Growth, int FromCar);
+/// <summary>The fortress's spare repair kits (campaign.json <c>spareKit</c>, GDD v1.4 App. E.12 question 4): the price, and the most a crew keeps.</summary>
+public sealed record SpareKitTuning(double Cost, int Most);
 public sealed record TierStep(RouteTier Tier, int FromCars);
 public enum UpgradeSize : byte { Small, Major }
 public sealed record UpgradeDef(string Id, string Name, UpgradeSize Size, double CostShare, Dictionary<string, double> Effect);
@@ -61,6 +63,11 @@ public sealed record CampaignState
     /// <summary>The contract under way, if a night has begun and not been settled.</summary>
     public Contract? Current { get; init; }
     public RunCheckpoint? Checkpoint { get; init; }
+    /// <summary>
+    /// Spare repair kits (GDD v1.4 App. E.12 question 4): bought at the fortress, or found at a stop and brought home. Each
+    /// starts a night in a crew locker beside the train's own (ARCHITECTURE §8 note 173); one lost in the night is gone.
+    /// </summary>
+    public int SpareKits { get; init; }
 }
 
 /// <summary>What a purchase came to: the new state, or why not.</summary>
@@ -129,20 +136,38 @@ public static class Campaign
         return s.Scrip < cost ? new(s, $"{u.Name} costs {cost:0} scrip; you have {s.Scrip:0}") : new(s with { Upgrades = [.. s.Upgrades, id], Scrip = s.Scrip - cost }, null);
     }
 
+    /// <summary>A spare repair kit from the fortress's stores (E.12 question 4, answered: it sells them).</summary>
+    public static Purchase BuySpareKit(CampaignTuning t, CampaignState s)
+    {
+        if (t.SpareKit is not { } k)
+            return new(s, "the fortress has no spare kits to sell");
+        if (s.SpareKits >= k.Most)
+            return new(s, $"the lockers hold {k.Most} spare kits, and you have them");
+        return s.Scrip < k.Cost ? new(s, $"a spare kit costs {k.Cost:0} scrip; you have {s.Scrip:0}")
+            : new(s with { SpareKits = s.SpareKits + 1, Scrip = s.Scrip - k.Cost }, null);
+    }
+
     /// <summary>Starts a night on a contract from the board.</summary>
     public static CampaignState Begin(CampaignState s, Contract c) => s with { Current = c, Checkpoint = null };
 
     /// <summary>
     /// GDD §9 arrival: "everything still attached to the locomotive counts". The night's net goes to (or comes out of)
-    /// the scrip, and cars left behind are gone from the consist.
+    /// the scrip, and cars left behind are gone from the consist. The spare repair kits are the ones that came home beyond
+    /// the train's own (the fortress always issues that one): spares lost in the night are gone, and kits found at a stop
+    /// and brought in are kept (E.12 question 4).
     /// </summary>
     public static CampaignState Settle(CampaignState s, RunReport report)
     {
         int cars = Math.Max(2, s.Cars - report.CarsLost);
         double scrip = s.Scrip + report.Net;
         var log = new RunLog(s.Runs + 1, s.Current?.Route ?? "?", report.End, report.Net, report.CarsLost, scrip);
-        return s with { Cars = cars, Scrip = scrip, Runs = s.Runs + 1, History = [.. s.History, log], Current = null, Checkpoint = null };
+        int spares = report.SpareKitsHome >= 0 ? report.SpareKitsHome : s.SpareKits;
+        return s with { Cars = cars, Scrip = scrip, Runs = s.Runs + 1, History = [.. s.History, log], Current = null, Checkpoint = null, SpareKits = spares };
     }
+
+    /// <summary>The night's tunings with the crew's spare repair kits aboard (E.12 question 4): stocked in the lockers beside the train's own.</summary>
+    public static Loadout WithSpareKits(Loadout l, int spares) =>
+        spares <= 0 ? l : l with { Train = l.Train with { Kit = l.Train.Kit with { SpareKits = spares } } };
 
     /// <summary>The night's tunings after the crew's upgrades. Upgrades with no modelled effect change nothing.</summary>
     public static Loadout Apply(CampaignTuning t, IEnumerable<string> upgrades, Loadout base_)

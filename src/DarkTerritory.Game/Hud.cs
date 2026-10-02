@@ -45,6 +45,13 @@ public static class Hud
         o.Clear();
         int line = o.Font.LineHeight;
         var p = s.Player;
+        // The derailment's sequence (T117, T121) has the screen: first-hand, the replay with its cause, the orbit. Nothing
+        // but the replay's caption over it.
+        if (s.WreckCinematic)
+        {
+            Alerts(o, width, height, s, line);
+            return;
+        }
         Engine(o, s, line);
         RouteStrip(o, width, s, line);
         if (s.Link is { } link)
@@ -82,7 +89,36 @@ public static class Hud
             float cx = width / 2f, cy = height / 2f;
             o.Rect(cx - 2, cy, 5, 1, Ink with { W = 0.55f });
             o.Rect(cx, cy - 2, 1, 5, Ink with { W = 0.55f });
+            HitMarker(o, cx, cy, s);
         }
+    }
+
+    /// <summary>How long the crosshair's hit marker shows after a blow or a ball of yours lands (s).</summary>
+    public const double HitMarkerSeconds = 0.3;
+
+    /// <summary>
+    /// T121 playtest ("all creatures need hit confirm feedback"): a blow or a ball of yours that landed on a creature puts four
+    /// short ticks round the cross for a moment, off the diagonals, opening out as they fade; red when it was the kill.
+    /// From the host's replicated record (World.Hits), so it's what landed, not what you hoped did.
+    /// </summary>
+    public static void HitMarker(Overlay o, float cx, float cy, IPlaySession s)
+    {
+        Sim.Combat.HitConfirm? mine = null;
+        foreach (var h in s.World.Hits)
+            if (h.By == s.PlayerId && (mine is null || h.Tick > mine.Value.Tick))
+                mine = h;
+        if (mine is not { } hit)
+            return;
+        double age = (s.HostTick - hit.Tick) * Sim.SimConstants.TickSeconds;
+        if (age < 0 || age > HitMarkerSeconds)
+            return;
+        float fade = (float)(1 - age / HitMarkerSeconds);
+        var colour = (hit.Killed ? Red : Ink) with { W = 0.9f * fade };
+        float from = 4 + 3 * (1 - fade);
+        // Each tick a short run of pixels out along a diagonal.
+        foreach (var (dx, dy) in new[] { (1, 1), (1, -1), (-1, 1), (-1, -1) })
+            for (int k = 0; k < 4; k++)
+                o.Rect(MathF.Round(cx + dx * (from + k)), MathF.Round(cy + dy * (from + k)), 1, 1, colour);
     }
 
     /// <summary>
@@ -121,7 +157,7 @@ public static class Hud
         lines.AddRange(crew.Select(c => ($"  {c.Name}{(c.You && c.Name != "YOU" ? " (YOU)" : "")}", c.You ? Ink : Dim)));
         if (link.JoinAt is { } at)
         {
-            lines.Add(("FRIENDS: JOIN A NIGHT, YOUR GAME'S LISTED", Dim));
+            lines.Add((link.Listed ? "FRIENDS: JOIN, YOUR GAME'S LISTED" : "A PRIVATE LOBBY: FRIENDS JOIN BY INVITE", Dim));
             lines.Add(($"  (OR THEY TYPE {at})", Dim));
         }
         else if (link.PingMs is null)
@@ -248,16 +284,57 @@ public static class Hud
     /// <summary>Where the repair kit is, for a ruptured boiler (T109): it's what mends it, and somebody has to go and get it.</summary>
     static string RepairKitWhere(Sim.World world, int playerId)
     {
-        var kit = world.Bodies.All.FirstOrDefault(b => b.Kind == BodyKind.RepairKit);
+        // With spares (E.12 question 4), the one that's handiest: in your hands, a crewmate's, then the nearest car's.
+        var consist = world.Train.Dynamics.Consist;
+        var kit = world.Bodies.All.Where(b => b.Kind == BodyKind.RepairKit)
+            .OrderBy(b => b.Carrier == playerId ? 0 : b.Carrier >= 0 ? 1 : consist.IndexOf(b.Parent) >= 0 ? 2 + consist.IndexOf(b.Parent) : 1000).ThenBy(b => b.Id)
+            .FirstOrDefault();
         if (kit is null)
             return "THE REPAIR KIT MENDS IT, AND THE TRAIN HAS NONE";
         if (kit.Carrier == playerId)
             return "THE REPAIR KIT MENDS IT: TO THE FIREBOX WITH IT";
         if (kit.Carrier >= 0)
             return "A CREWMATE HAS THE REPAIR KIT: IT MENDS IT, AT THE FIREBOX";
-        int car = world.Train.Dynamics.Consist.IndexOf(kit.Parent);
+        int car = consist.IndexOf(kit.Parent);
+        // In its locker (note 173): the crew learn which.
+        if (car > 0 && kit.Stowed && kit.Locker < world.Train.Frames[kit.Parent].Shape.Lockers.Count)
+            return $"THE REPAIR KIT MENDS IT. IT'S IN THE {world.Train.Frames[kit.Parent].Shape.Lockers[kit.Locker].Name}'S LOCKER, CAR {car}";
         return car > 0 ? $"THE REPAIR KIT MENDS IT. IT'S IN CAR {car}" : car == 0 ? "THE REPAIR KIT MENDS IT. IT'S HERE ON THE ENGINE"
             : "THE REPAIR KIT MENDS IT. IT'S OFF THE TRAIN";
+    }
+
+    /// <summary>A hand-sized thing by name, for the lockers' prompts.</summary>
+    static string Called(Sim.World world, Body b) => b.Kind switch
+    {
+        BodyKind.RepairKit => "THE REPAIR KIT",
+        BodyKind.Lamp => "THE LAMP",
+        BodyKind.Radio => "THE RADIO",
+        BodyKind.Toy => "THE TOY",
+        BodyKind.Extinguisher => "THE EXTINGUISHER",
+        BodyKind.Loot => world.Run?.FindName(b)?.ToUpperInvariant() ?? "THE FIND",
+        _ => "IT",
+    };
+
+    /// <summary>
+    /// At a crew locker's door (note 173): held, Use opens or shuts it; tapped, it takes the top thing off its shelves or
+    /// puts what's in your hands on one. Null away from one, or with something in your hands that doesn't go in.
+    /// </summary>
+    static string? LockerPrompt(Sim.World world, in PlayerState p, int playerId)
+    {
+        var train = world.Train;
+        if (Lockers.AtHand(p, train, world.Hand) is not { } at)
+            return null;
+        var carried = world.Bodies.CarriedBy(playerId);
+        if (carried is not null && !Lockers.Holds(train, carried.Kind))
+            return null;
+        string name = $"THE {at.Bay.Name}'S LOCKER";
+        if (!train.Vehicles[at.Car].LockerOpen(at.Bay.Index))
+            return $"{name}   [E] HOLD: OPEN";
+        if (carried is not null)
+            return Lockers.FreeSlot(world.Bodies, train, at.Car, at.Bay.Index) >= 0
+                ? $"[E] PUT {Called(world, carried)} IN {name}   HOLD: SHUT" : $"{name} IS FULL   [E] HOLD: SHUT";
+        return Lockers.Contents(world.Bodies, at.Car, at.Bay.Index).LastOrDefault() is { } top
+            ? $"[E] TAKE {Called(world, top)} FROM {name}   HOLD: SHUT" : $"{name}: EMPTY   [E] HOLD: SHUT";
     }
 
     /// <summary>
@@ -341,9 +418,20 @@ public static class Hud
             Big("WAITING", Amber);
             Small(waiting, Ink);
         }
-        // The derailment's cinematic plays out first (T117): no run's end or death screen over it.
+        // The derailment's cinematic plays out first (T117): no run's end or death screen over it. Over the replay (T121),
+        // what did it: "TOOK THE 45 KM/H BEND AT 68 KM/H, 23 KM/H TOO FAST".
         if (s.WreckCinematic)
+        {
+            if (DerailSequence.Beat(world.WreckTuning, s.WreckSeconds) == DerailBeat.Replay)
+            {
+                Big("REPLAY", Ink);
+                // The host has the cause; a client has it from the incident report (sent as the run ends, on the derail tick).
+                string? why = s.DerailCause;
+                if (why is { Length: > 0 })
+                    Small(why.ToUpperInvariant(), Amber);
+            }
             return;
+        }
         // GDD v1.4 App. E.9: the clerk on the radio over the pull-back; the end screen after it.
         if (s.StrandedOutro)
         {
@@ -650,6 +738,9 @@ public static class Hud
             if (CrewActions.AtTheRupture(p, train, world.Hand) && train.BoilerTuning is { } rt)
                 return $"[E] HOLD: MEND THE BOILER WITH THE KIT ({p.ActionProgress / rt.RepairSeconds * 100:0}%)";
         }
+        // A crew locker in front of you (note 173): its door, and its shelves.
+        if (LockerPrompt(world, p, s.PlayerId) is { } locker)
+            return locker;
         if (world.Bodies.CarriedBy(s.PlayerId) is { } carried)
             return carried.Kind switch
             {

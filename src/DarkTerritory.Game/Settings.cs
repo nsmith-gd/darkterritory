@@ -19,6 +19,13 @@ public sealed record Settings
     public bool VrVignette { get; init; } = true;
     /// <summary>The name the crew and the incident report know you by (GDD v1.4 App. D.12); empty, your online or system name.</summary>
     public string PlayerName { get; init; } = "";
+    /// <summary>
+    /// Hosting, listed for anyone to find (the LAN beacon, a public Steam lobby) or private (friends, invites and the address
+    /// only); the host screen's VISIBILITY, remembered (the user's playtest: "If it's a private lobby its not listed").
+    /// </summary>
+    public bool PublicLobby { get; init; } = true;
+    /// <summary>What the host calls the lobby in the browser; empty, "&lt;name&gt;'S RUN".</summary>
+    public string LobbyName { get; init; } = "";
     /// <summary>A multiplier on mouse look.</summary>
     public double MouseSpeed { get; init; } = 1;
     /// <summary>T83: the whole screen (borderless, the desktop's own mode) rather than a window.</summary>
@@ -114,9 +121,10 @@ public sealed record Settings
     public bool Equals(Settings? other) => other is not null && Mute == other.Mute && PushToTalk == other.PushToTalk && Hud == other.Hud
         && VrTurn == other.VrTurn && VrVignette == other.VrVignette && MouseSpeed == other.MouseSpeed
         && Fullscreen == other.Fullscreen && VSync == other.VSync && Resolution == other.Resolution && RenderScale == other.RenderScale
+        && PlayerName == other.PlayerName && PublicLobby == other.PublicLobby && LobbyName == other.LobbyName
         && Keys.Count == other.Keys.Count && Keys.All(k => other.Keys.GetValueOrDefault(k.Key) == k.Value);
 
-    public override int GetHashCode() => HashCode.Combine(Mute, PushToTalk, Hud, VrTurn, VrVignette, MouseSpeed, Keys.Count, HashCode.Combine(Fullscreen, VSync, Resolution, RenderScale));
+    public override int GetHashCode() => HashCode.Combine(Mute, PushToTalk, Hud, VrTurn, VrVignette, MouseSpeed, Keys.Count, HashCode.Combine(Fullscreen, VSync, Resolution, RenderScale, PublicLobby, LobbyName));
 
     /// <summary>The comfort defaults from content, with the player's choices over them.</summary>
     public VrTuning Apply(VrTuning t) => t with { Turn = VrTurn, Vignette = t.Vignette with { Enabled = VrVignette } };

@@ -59,6 +59,10 @@ public sealed record TrackDollTuning
     public double CargoPerSecond { get; init; } = 0.001;
     public double StraightNeeded { get; init; } = 250;
     public double EmptyCabWeight { get; init; } = 2;
+    /// <summary>T121: a cannonball shatters her on the rail (gone for the run, as stopped short); off, it goes through her.</summary>
+    public bool CannonShatters { get; init; } = true;
+    public double RailHitRadius { get; init; } = 0.55;
+    public double RailHitHeight { get; init; } = 0.7;
 }
 
 /// <summary>The Car Hugger (v1.1 App. A.3, B.3). Field docs live in enemies.json.</summary>
@@ -365,6 +369,13 @@ public sealed record SwitchmanTuning
     public double GripAt { get; init; } = 250;
     public double Health { get; init; } = 3;
     public double LingerSeconds { get; init; } = 20;
+    /// <summary>
+    /// T121 playtest ("we appear to have derailed at a very low speed"): points thrown under a train crawling over them
+    /// split, they don't throw it off. At or under this (m/s) the train runs through them: the engine takes
+    /// <see cref="RunThroughDamage"/> and the clock takes the stop. Over it, it's off the rails.
+    /// </summary>
+    public double DerailAbove { get; init; } = 6.9;
+    public double RunThroughDamage { get; init; } = 0.25;
     public int MinJunctions { get; init; } = 3;
     public double DeadLineWeight { get; init; } = 1.5;
 }

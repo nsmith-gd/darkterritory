@@ -57,6 +57,16 @@ public static class ArtCatalog
             k.Append(DamageKit.Car(look, cargo, 2, 3), Matrix4x4.Identity);
             return k.Build("car-wrecked");
         }));
+        // The crew lockers in the kit's car (note 173): the row's cabinets, and its longest-named door.
+        if (train.Kit.Lockers is { Names.Count: > 0 } lockerTuning)
+        {
+            var kitCar = CarShape.Build(g, VehicleKind.Cargo, hasCarBehind: true, lockerTuning);
+            var bays = kitCar.Lockers;
+            float lw = (float)lockerTuning.Width, lh = (float)lockerTuning.Height;
+            list.Add(new("lockers", MediumProp, () => LockerKit.Row(look, bays, kitCar.LockerShelves)));
+            var longest = bays.OrderByDescending(b => b.Name.Length).First();
+            list.Add(new("locker-door", SmallProp, () => LockerKit.Door(look, longest.Name, lw, lh, LockerKit.LetterPixel(bays, lw))));
+        }
         // The standard doorway (train.json doorway, note 110).
         var doorway = train.Geometry.Doorway;
         float doorH = (float)doorway.Height, sideW = (float)(train.Geometry.Interior?.SideDoorWidth ?? 1.8);
