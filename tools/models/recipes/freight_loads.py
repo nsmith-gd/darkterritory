@@ -42,13 +42,14 @@ def materials():
 
 def lump(at, r, material, seed, name="lump"):
     """A broken lump of rock: a low sphere knocked about by noise."""
-    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=2, radius=r, location=at)
+    # Made at the origin and its mesh moved onto `at`, as make.pipe's joints are: zeroing the location of one added
+    # at `at` leaves matrix_world holding it until the next depsgraph update.
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=2, radius=r)
     o = bpy.context.view_layer.objects.active
     for v in o.data.vertices:
         d = v.co.normalized()
         v.co = v.co * (0.75 + 0.5 * cook.noise3(d * 2.0, seed, 3)) * Vector((1, 1, 0.75))
-    o.data.transform(Matrix.Translation(o.location))
-    o.location = (0, 0, 0)
+    o.data.transform(Matrix.Translation(Vector(at)))
     o.data.materials.append(material)
     return make._finish(o, material, 0, 1, name)
 
@@ -73,10 +74,7 @@ def carboys(m):
     for sx in (-1, 1):
         for sy in (-1, 1):
             c = Vector((sx * 0.2, sy * 0.2, -0.05))
-            bpy.ops.mesh.primitive_uv_sphere_add(segments=20, ring_count=12, radius=0.17, location=c)
-            o = bpy.context.view_layer.objects.active
-            o.data.transform(Matrix.Translation(o.location) @ Matrix.Diagonal((1, 1, 1.15, 1)))
-            o.location = (0, 0, 0)
+            o = cook.uv_sphere(20, 12, 0.17, Matrix.Translation(c) @ Matrix.Diagonal((1, 1, 1.15, 1)))
             o.data.materials.append(m["glass"])
             p.append(make._finish(o, m["glass"], 0, 1, "carboy"))
             p.append(make.cyl(c + Vector((0, 0, 0.17)), c + Vector((0, 0, 0.27)), 0.04, m["glass"], n=12, bevel=0, name="neck", r1=0.035, low=6))
@@ -105,10 +103,7 @@ def ore(m):
     for z in (-0.25, 0.22):
         p.append(make.torus((0, 0, z), (0, 0, 1), H - 0.012, 0.012, m["hoop"], n=32, m=5, name="hoop", low=(16, 4)))
     # The ore heaped in it and over the rim: a mound and the lumps on it.
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=20, ring_count=10, radius=H - 0.07, location=(0, 0, H - 0.2))
-    o = bpy.context.view_layer.objects.active
-    o.data.transform(Matrix.Translation(o.location) @ Matrix.Diagonal((1, 1, 0.45, 1)))
-    o.location = (0, 0, 0)
+    o = cook.uv_sphere(20, 10, H - 0.07, Matrix.Translation((0, 0, H - 0.2)) @ Matrix.Diagonal((1, 1, 0.45, 1)))
     o.data.materials.append(m["ore"])
     p.append(make._finish(o, m["ore"], 0, 1, "heap"))
     mound = make.cyl((0, 0, H - 0.21), (0, 0, H - 0.05), H - 0.07, m["ore"], n=16, bevel=0, name="heap_shell", r1=0.1, low=10)

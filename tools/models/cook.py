@@ -142,6 +142,28 @@ def cube(centre, half, name="cube"):
     return o
 
 
+def uv_sphere(segments, rings, radius, matrix=None, name="sphere"):
+    """A UV sphere, placed in its mesh by `matrix` (the object stays at the origin). Make every sphere here: Blender
+    4.0's own (the operator and bmesh.ops.create_uvsphere alike) has the same vertices and faces each time, but lists
+    the faces in an order that changes from call to call. That order goes out in a model's index buffer and into what
+    a bake from it hits, so nothing built on one rebuilt the same twice. The faces are sorted into one order here."""
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=segments, ring_count=rings, radius=radius)
+    o = bpy.context.view_layer.objects.active
+    o.name = name
+    if matrix is not None:
+        o.data.transform(matrix)
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    bm.verts.index_update()
+    bm.faces.index_update()
+    order = sorted(bm.faces, key=lambda f: sorted(v.index for v in f.verts))
+    rank = {f.index: i for i, f in enumerate(order)}
+    bm.faces.sort(key=lambda f: rank[f.index])
+    bm.to_mesh(o.data)
+    bm.free()
+    return o
+
+
 def top_point(objs, fraction=0.03):
     """The centre of the highest few percent of vertices (a figure's head)."""
     pts = [o.matrix_world @ v.co for o in objs for v in o.data.vertices]
