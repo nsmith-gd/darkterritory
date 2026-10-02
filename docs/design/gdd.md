@@ -5,13 +5,16 @@
 
 *Dark territory is a real railroad term: track with no functioning signal system, where trains move on verbal authority alone. When communication fails, people die.*
 
+Interactive version, with the roster explorer and director tools: [claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx](https://claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx). It opens only for people it has been shared with.
+
 **v1.4 changes — the boiler, stranding and the derailment cinematic.**
 - **Boiler rupture no longer kills.** It catches up with the build (T109): the engine seizes, the train slows hard and coasts, and the engineering kit held at the firebox for 25s mends it. The train restarts from cold (§23).
 - **New run end: Stranded, unable to repair.** A ruptured boiler with the engineering kit lost ends the night (§23.2).
 - **New Appendix E — End-of-night sequences.** A slow-motion derailment cinematic shows every crew member's death, ragdolled by the wreck, to a rotating pool of CC0 opera recordings. Includes camera, occlusion, collision, music and licensing rules. Stranded gets a short, quiet outro.
 - **"Repair kit" is now the engineering kit** throughout: one carried kit, kept on the floor just inside car one's front door. It's what mends the boiler; the wrench is a tool to swing (§12).
 - **Jumping off** is lethal above 16.5 m/s, matching the systems spec in the repo (§23).
-- Touches §12, §23, §23.1, C.9, D.2, D.4, D.7 and D.12.
+- **Run budgets match the build** (B.1): 90, 150, 230 and 330 by tier, about twice v1.1's, to pay for the paced director the build runs.
+- Touches §12, §23, §23.1, B.1, C.9, D.2, D.4, D.7 and D.12.
 
 **v1.3 changes — failure is funny.**
 - New **§23.1 — Failure has to be funny**: the four conditions a failure must meet, and the rule *horror in the telegraph, comedy in the grab*.
@@ -1220,10 +1223,12 @@ RUN BUDGET = base(route tier) × length multiplier × crew multiplier
 
 | Route tier | Base budget |
 |---|---|
-| Local | 40 |
-| Frontier | 70 |
-| Dead lines | 110 |
-| Deep territory | 160 |
+| Local | 90 |
+| Frontier | 150 |
+| Dead lines | 230 |
+| Deep territory | 330 |
+
+These match the build (`director.baseBudget` in `content/tuning/enemies.json`). They are about twice the v1.1 figures, to pay for the build's paced spawns: after the 100-night playtest, the director sends something whenever the line has been quiet too long.
 
 **Length multiplier:** `1.0 + (0.15 × cars beyond the third)`
 **Crew multiplier:** `0.7 + (0.12 × crew)` — capped at 1.6
