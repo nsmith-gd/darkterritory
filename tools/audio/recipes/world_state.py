@@ -349,17 +349,26 @@ def derail_tip(rng, k):
         crumpling for longer), one landing on its roof (the tin crushing and clattering, then the frame). Each is the
         weight's deep blow, the car's sheet iron ringing low (modelled), tearing, real slams and wood and tin hits from
         the packs pitched for a car's mass, and the ground. Stand-in until recorded big metal crashes (Sonniss).""",
-        sources=W.PIECES["iron"] + W.PIECES["wood"] + W.PIECES["tin"] + W.PIECES["brick"] + ["sfx_100_v2:misc_34"],
-        mat="ground", takes=3, lufs=-22)
+        sources=W.PIECES["iron"] + W.PIECES["wood"] + W.PIECES["tin"] + W.PIECES["brick"] + W.PIECES["scrap"]
+        + ["sfx_100_v2:misc_34"], mat="ground", takes=3, lufs=-22)
 def derail_impact(rng, k):
-    if k == 0:
-        y = W.crash(rng, 1.2, iron=0.7, wood=1.0, ground=1.0, crumple=0.12)
-    elif k == 1:
-        y = W.crash(rng, 1.4, iron=1.0, wood=0.5, ground=0.8, crumple=0.45)
-    else:
-        y = W.crash(rng, 1.1, iron=0.8, wood=0.7, tin=1.0, ground=0.5, crumple=0.25)
-    y = mix(y, W.debris(rng, 2.0, 8, {"wood": 2, "scrap": 2, "brick": 1}, decay=0.6, semis=(-6, 0)) * 0.25)
-    return W.space(y, rng, "night", wet=0.22)
+    b = dsp.Bus(6.0)
+    if k == 0:          # slammed down on its side: one huge blow, boards bursting, ballast thrown
+        b.at(0, W.crash(rng, 1.2, iron=0.7, wood=1.0, ground=1.0, crumple=0.12))
+        b.at(0.05, W.debris(rng, 2.0, 10, {"wood": 3, "scrap": 1, "brick": 2}, decay=0.5, semis=(-5, 1)) * 0.5)
+    elif k == 1:        # dug in at one end: the frame ploughs and crumples, a long crunching stop
+        b.at(0, W.crash(rng, 1.4, iron=1.0, wood=0.5, ground=0.6, crumple=0.5))
+        n = samples(1.2)
+        plough = W.pour(n, rng, env([(0, 1500), (1.2, 100)], 1.2), grain=(800, 4500), lump=8, thunder=1.0, loop=False)
+        b.at(0.1, norm(plough) * env([(0, 1), (1.2, 0)], 1.2)[:n] * 0.6)
+        b.at(0.9, W.crash(rng, 0.8, iron=0.6, wood=0.3, ground=0.3, crumple=0.08) * 0.5)
+    else:               # on its roof: the tin crushing first, then the frame coming down on it
+        for i in range(10):
+            b.at(abs(rng.normal(0.05, 0.05)), norm(W.piece(rng, "tin", (-7, -1))) * rng.uniform(0.5, 1.0))
+        b.at(0.0, norm(W.tear(0.3, rng, env([(0, 900), (0.3, 200)], 0.3), (500, 6000))) * 0.5)
+        b.at(0.16, W.crash(rng, 1.1, iron=0.8, wood=0.7, tin=0.6, ground=0.4, crumple=0.2))
+        b.at(0.3, W.debris(rng, 1.8, 10, {"tin": 2, "scrap": 1, "wood": 2}, decay=0.6, semis=(-4, 2)) * 0.45)
+    return W.space(b.x, rng, "night", wet=0.2)
 
 
 @recipe("state-derail", "grind", "ballast",
@@ -486,7 +495,7 @@ def derail_tear(rng, k):
         plank cracking out). Modelled iron stick-slip and fracture rung through the car's sheet, with real wood cracks,
         breaks and slams from the packs.""",
         sources=["sfx_100_v2:misc_35", "sfx_100_v2:misc_34", "sfx_100_v2:door_03", "kenney_rpg-audio:chop"]
-        + W.PIECES["wood"] + W.PIECES["tin"], takes=3, lufs=-20)
+        + W.PIECES["wood"] + W.PIECES["tin"], takes=3, lufs=-25)
 def breach(rng, k):
     b = dsp.Bus(4.0)
     if k == 0:          # door forced
@@ -512,7 +521,7 @@ def breach(rng, k):
             b.at(t + 0.2, norm(W.rec("kenney_rpg-audio:chop", semis=-rng.uniform(3, 6))) * 0.4)
         b.at(1.1, norm(W.rec("sfx_100_v2:misc_34", semis=-3)) * 0.7)
         b.at(1.15, norm(W.piece(rng, "wood", (-5, -2))) * 0.8)
-    return dsp.room(b.x, "car", 0.25, rng=rng)
+    return hp(dsp.room(b.x, "car", 0.25, rng=rng), 25)
 
 
 @recipe("state-breach", "open-to-outside", "hole",
@@ -546,12 +555,12 @@ BARREL = [380, 1040, 1960, 3150]          # the iron barrel's ring when struck
         """The firing lock's hammer falling onto the vent of an iron gun with no shot behind it: a real metal click from
         the packs for the snap, the heavy barrel ringing faintly where it was struck, and silence where the boom
         should be. One take snaps twice (tried again), one has the faint dull puff of priming that flashed and died
-        (no fizz).""", sources=["kenney_rpg-audio:metalClick", "kenney_rpg-audio:metalLatch"], takes=3, lufs=-26)
+        (no fizz).""", sources=["kenney_rpg-audio:metalClick", "kenney_rpg-audio:metalLatch"], takes=3, lufs=-30)
 def misfire(rng, k):
     click = W.rec("kenney_rpg-audio:metalClick", semis=-rng.uniform(1, 3), tau=0.06)
-    barrel = W.modal([f * rng.uniform(0.97, 1.03) for f in BARREL], [0.25, 0.15, 0.1, 0.06], [0.6, 1, 0.6, 0.3], 0.8, rng,
+    barrel = W.modal([f * rng.uniform(0.97, 1.03) for f in BARREL], [0.1, 0.07, 0.05, 0.03], [0.6, 1, 0.6, 0.3], 0.5, rng,
                      contact=0.0002)
-    hit = mix(norm(click), norm(barrel) * 0.25)
+    hit = mix(norm(click), norm(barrel) * 0.15)
     if k == 1:          # the lock re-cocked and snapped again
         cock = norm(W.rec("kenney_rpg-audio:metalLatch", semis=-3, tau=0.05)) * 0.4
         b = dsp.Bus(2.0)
@@ -618,7 +627,7 @@ def cleared(rng, k):
         jet lines up with the gap. 10 s exact cycle.""", loop=True, takes=1, lufs=-24)
 def leak_small(rng, k):
     n = samples(10.0)
-    pulse = np.clip(0.7 + 0.35 * slow(n, 1.8, rng) + 0.15 * slow(n, 8, rng), 0.15, None)
+    pulse = np.clip(0.8 + 0.18 * slow(n, 1.8, rng) + 0.08 * slow(n, 8, rng), 0.45, None)
     y = W.jet(10.0, rng, n=n, pressure=pulse, peak=3600, low=0.25, eddy=1.1)
     y = y + W.howl(n, rng, [5600], 0.05, wander=0.01, rate=0.3) * np.clip(slow(n, 0.2, rng), 0, None)
     spits = [(t, W.sputter(0.08, rng, rate=60, size=0.6), 1.0) for t in W.poisson(10.0, 0.5, rng)]
@@ -646,7 +655,7 @@ def leak_large(rng, k):
         uneven in weight, from the packs' heavy plate and metal hits pitched for a locomotive's rods, a dry scrape of
         the bearing between knocks, and the valve gear rattling. Turning at 1.5 turns a second (a train coasting),
         an exact 8 s cycle so the beat never slips at the seam.""",
-        sources=W.PIECES["iron"][:10], loop=True, takes=1, lufs=-22)
+        sources=W.PIECES["iron"][:10], loop=True, takes=1, lufs=-29)
 def knock(rng, k):
     n = samples(8.0)
     turns = 12                                      # 1.5 turns a second over 8 s, whole turns so it loops

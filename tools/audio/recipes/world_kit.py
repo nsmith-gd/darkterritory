@@ -608,30 +608,31 @@ def spray(rng, length=0.6, n=40, lo=1200, hi=6000):
 
 def crash(rng, size=1.0, iron=1.0, wood=0.6, tin=0.0, ground=0.0, crumple=0.15):
     """Something heavy smashing into something (a car into the ground, a car into a car): the weight's deep blow, the
-    car's sheet iron ringing low and long, crumpling for `crumple` s as many sub-impacts and tearing, real slams pitched
-    down for the mass, boards splintering, tin clattering, ballast thrown."""
+    car's sheet iron ringing, crumpling for `crumple` s as many sub-impacts and tearing, real slams and clangs pitched
+    down for the mass, boards splintering, tin clattering, ballast thrown. The crash itself sits in the mids, where
+    the ear reads what broke; the weight is under it, not instead of it."""
     L = 3.0 + size
     b = dsp.Bus(L)
-    b.at(0, norm(knock(rng, 38 / size ** 0.3, 0.9)) * 1.0)
+    b.at(0, norm(knock(rng, 42 / size ** 0.3, 0.7)) * 0.55)
     for i in range(int(3 + 4 * crumple / 0.15)):
         at = abs(rng.normal(0, crumple / 2))
-        b.at(at, norm(sheet(rng, f1=rng.uniform(35, 70) / size ** 0.3, fmax=4000, decay=rng.uniform(0.6, 1.4),
-                            contact=rng.uniform(0.0008, 0.003))) * rng.uniform(0.3, 0.7) * iron)
-    for i in range(3):
-        b.at(abs(rng.normal(0, crumple / 2)), norm(piece(rng, "iron", (-12, -6), tau=0.4)) * rng.uniform(0.5, 0.9) * iron)
-    tr = tear(crumple + 0.25, rng, env([(0, 600), (crumple, 300), (crumple + 0.25, 40)], crumple + 0.25), (120, 3500))
-    b.at(0.01, norm(tr) * env([(0, 1), (crumple + 0.25, 0)], crumple + 0.25)[:len(tr)] * 0.45 * iron)
+        b.at(at, norm(sheet(rng, f1=rng.uniform(45, 90) / size ** 0.3, fmax=6000, decay=rng.uniform(0.5, 1.1),
+                            contact=rng.uniform(0.0003, 0.001))) * rng.uniform(0.25, 0.45) * iron)
+    for i in range(5):
+        b.at(abs(rng.normal(0, crumple / 2 + 0.02)), norm(piece(rng, "iron", (-9, -4), tau=0.3)) * rng.uniform(0.5, 0.9) * iron)
+    tr = tear(crumple + 0.25, rng, env([(0, 700), (crumple, 350), (crumple + 0.25, 40)], crumple + 0.25), (150, 4500))
+    b.at(0.01, norm(tr) * env([(0, 1), (crumple + 0.25, 0)], crumple + 0.25)[:len(tr)] * 0.6 * iron)
     if wood:
-        sp = splinter(0.3 + crumple, rng, env([(0, 400), (0.3 + crumple, 80)], 0.3 + crumple))
-        b.at(0.0, norm(sp) * env([(0, 1), (0.3 + crumple, 0)], 0.3 + crumple)[:len(sp)] * 0.6 * wood)
-        for i in range(3):
-            b.at(abs(rng.normal(0.03, crumple)), norm(piece(rng, "wood", (-5, 0))) * rng.uniform(0.4, 0.8) * wood)
-        b.at(0.02, norm(rec("sfx_100_v2:misc_34", semis=-rng.uniform(2, 5))) * 0.4 * wood)
+        sp = splinter(0.3 + crumple, rng, env([(0, 500), (0.3 + crumple, 80)], 0.3 + crumple))
+        b.at(0.0, norm(sp) * env([(0, 1), (0.3 + crumple, 0)], 0.3 + crumple)[:len(sp)] * 0.8 * wood)
+        for i in range(4):
+            b.at(abs(rng.normal(0.03, crumple)), norm(piece(rng, "wood", (-4, 1))) * rng.uniform(0.5, 1.0) * wood)
+        b.at(0.02, norm(rec("sfx_100_v2:misc_34", semis=-rng.uniform(1, 4))) * 0.6 * wood)
     if tin:
-        for i in range(5):
-            b.at(abs(rng.normal(0.02, crumple)), norm(piece(rng, "tin", (-7, -1))) * rng.uniform(0.3, 0.7) * tin)
+        for i in range(6):
+            b.at(abs(rng.normal(0.02, crumple)), norm(piece(rng, "tin", (-6, 0))) * rng.uniform(0.4, 0.8) * tin)
     if ground:
-        b.at(0.0, norm(spray(rng, 0.5 + crumple, 60)) * 0.5 * ground)
-        b.at(0.0, norm(lp(rng.standard_normal(samples(0.8)).astype(np.float32), 200)
-                       * env([(0, 1), (0.05, 0.5), (0.8, 0)], 0.8)) * 0.6 * ground)
+        b.at(0.0, norm(spray(rng, 0.5 + crumple, 70)) * 0.8 * ground)
+        b.at(0.0, norm(lp(rng.standard_normal(samples(0.8)).astype(np.float32), 300)
+                       * env([(0, 1), (0.05, 0.5), (0.8, 0)], 0.8)) * 0.45 * ground)
     return b.x

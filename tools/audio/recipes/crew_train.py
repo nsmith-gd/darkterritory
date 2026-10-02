@@ -194,15 +194,15 @@ def firebox_roar(rng, length, intensity=1.0):
     """A locomotive's coal fire under draught, heard through the firebox door: a deep turbulent roar (pink noise through
     the firebox's broad low resonances, lapping slowly), the white-hot bed's hiss, and coal cracking in it."""
     n = samples(length)
-    r = synth.noise(length, rng, "pink")
-    r = mix(lp(r, 700, 2) * 0.8, dsp.resonate(r, [95, 160, 240, 380], q=3) * 0.15)
+    r = hp(synth.noise(length, rng, "pink"), 70, 2)
+    r = mix(lp(r, 1400, 2) * 0.8, dsp.resonate(r, [160, 260, 420, 650], q=3) * 0.2)
     lap = np.clip(0.75 + 0.25 * lp(rng.standard_normal(n).astype(np.float32), 3) * 14, 0.4, 1.3)
     flutter = 1 + 0.12 * lp(rng.standard_normal(n).astype(np.float32), 22) * 12
     roar = ck.norm(r * lap * flutter)
     hiss = ck.norm(bp(synth.noise(length, rng), 2500, 9000)) * np.clip(lap, 0.6, 1.2)
     crack = synth.crackle(length, 40 * intensity, rng, size=(0.0005, 0.004), hi=1200)
     pops = synth.crackle(length, 3 * intensity, rng, size=(0.004, 0.012), hi=400)
-    return ck.norm(mix(roar, hiss * 0.07, ck.norm(crack) * 0.18, ck.norm(pops) * 0.25))
+    return ck.norm(mix(roar, hiss * 0.12, ck.norm(crack) * 0.3, ck.norm(pops) * 0.35))
 
 
 def fire():
@@ -433,23 +433,23 @@ def controls():
     @recipe(L, "whistle-start", "chime", "The whistle speaking: the steam's rush and the three-chime chord rising into tune",
             """A three-chime steam whistle (E flat, G, B flat): the valve opening with a rush of steam (jet noise), then
             the three bells speaking, each a breathy harmonic tone with steam noise round it, scooping up a semitone into
-            tune as the pressure comes up. Synthesised from the physics; outdoors above the cab, with the country's
-            echo.""", takes=3, lufs=-16)
+            tune as the pressure comes up. Synthesised from the physics; outdoors above the cab. It ends at full voice for
+            the held loop to take over.""", takes=3, lufs=-16)
     def w_start(rng, k):
         L_ = 0.9
         rush = steam(rng, L_, 0.3, (800, 8000)) * env([(0, 0), (0.04, 1), (0.15, 0.4), (L_, 0.3)], L_)
         tone = whistle_tone(rng, L_, rise=1.0 + 0.3 * k, notes=whistle_notes) * env([(0, 0), (0.06, 0), (0.25, 1), (L_, 1)], L_)
-        return dsp.room(mix(rush * 0.35, tone), "night", wet=0.12, rng=np.random.default_rng(9))
+        # it hands over to the held loop, so it ends at full voice (the game crossfades) with only a short tail of its own
+        y = dsp.room(mix(rush * 0.35, tone), "night", wet=0.12, rng=np.random.default_rng(9))
+        return dsp.fade(y[:samples(L_ + 0.15)], 0.002, 0.15)
 
     @recipe(L, "whistle", "chime", "The three-chime whistle held",
             """The same three bells held: breathy harmonic tones fluttering with the turbulence of the jet, the steam's
             hiss under them, a slow waver in the pressure. One 8 s cycle, its echo folded round.""", loop=True, takes=1, lufs=-16)
     def w_hold(rng, k):
-        L_ = 8.0
-        tone = whistle_tone(rng, L_ + 2.5, notes=whistle_notes)
-        y = mix(tone, steam(rng, L_ + 2.5, 0.2, (1000, 8000)) * 0.12)
-        y = dsp.room(y, "night", wet=0.12, rng=np.random.default_rng(9))
-        return dsp.wrap(y[samples(1.0):], samples(L_ + 0.3))
+        L_ = 8.3
+        y = mix(whistle_tone(rng, L_, notes=whistle_notes), steam(rng, L_, 0.2, (1000, 8000)) * 0.12)
+        return dsp.wrap(dsp.room(y, "night", wet=0.12, rng=np.random.default_rng(9)), samples(L_))
 
     @recipe(L, "whistle-stop", "chime", "The whistle released: the chord sagging flat and dying into a hiss",
             """The cord let go: the three bells sagging flat as the pressure falls, the tone thinning to breath, and the
