@@ -49,6 +49,9 @@ AREA = {
     "Facilities & places": (6, 8, 300, 0.7, 2),
 }
 OPUS_KBPS = 64
+# Per-cue level on top of the area's, where a sound measured too hot in the game's own benches: the Stoker moving in
+# the fire buried the cab's tells with the fire door open (AudioTests' bench: a writhe at -2.4 dB, the Choir at -5.2).
+CUE_GAIN_DB = {"cs-stoker.in-fire": -10}
 # Earlier-pass keepers that string several of one event together (a gait, hops coming closer): cut into single takes.
 # The rest are one designed event each, pauses and all (a giggle, a swallow, the Whistler's wrong whistle).
 # Value: the gap (s) and level (dB under the loudest) that separate one event from the next in that file.
@@ -193,7 +196,7 @@ def sound_def(item, cue, folder, line):
     if line in VOICE_LINES:
         tier, lo, hi, roll = 2, 2, 60, 1.0
     d = {"tier": tier, "loop": cue["kind"] == "loop", "maxInstances": 8 if cue["kind"] == "loop" else 12,
-         "minDistance": lo, "maxDistance": hi, "rolloff": roll, "gainDb": g, "flat": flat,
+         "minDistance": lo, "maxDistance": hi, "rolloff": roll, "gainDb": g + CUE_GAIN_DB.get(f"{line}.{cue['id']}", 0), "flat": flat,
          "layers": [{"source": "sample", "sample": folder, "gain": 1,
                      "pitchJitter": 0 if cue["kind"] == "loop" or flat else 0.4,
                      "gainJitter": 0 if cue["kind"] == "loop" or flat else 1.0}]}

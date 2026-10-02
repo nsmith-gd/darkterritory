@@ -20,16 +20,14 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "creak1",
-    "key": "kenney_rpg-audio:creak1",
-    "sources": [
-     "kenney_rpg-audio:creak1"
-    ],
+    "label": "A single frame creak: a loaded wooden car frame slipping at a joint, low, dry and woody",
+    "key": "frame",
+    "sources": [],
     "licence": "CC0"
    }
   ],
-  "takes": 1,
-  "sha": "ac47541be76a0bf2"
+  "takes": 6,
+  "sha": "8272302684e97b12"
  },
  "bed-groan/groan": {
   "cue": "bed-groan.groan",
@@ -7704,22 +7702,595 @@
   "takes": 1,
   "sha": "16bf15dea60a8bf9"
  },
+ "place-breach/pry": {
+  "cue": "place-breach.pry",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A barricade pried: a crowbar levering boards, nails shrieking out of the wood, boards creaking and cracking",
+    "key": "bar",
+    "sources": [
+     "sfx_100_v2:misc_35",
+     "kenney_rpg-audio:chop",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "cd915a2602a82f8d"
+ },
+ "place-breach/pry-give": {
+  "cue": "place-breach.pry-give",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The barricade giving way: boards splitting and tearing off, nails pinging out, planks crashing down",
+    "key": "boards",
+    "sources": [
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "513cbde1b65a3276"
+ },
+ "place-breach/smash": {
+  "cue": "place-breach.smash",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A lock smashed: three seconds of sledge blows on a padlock and hasp, the door booming, the last blow tearing it out",
+    "key": "sledge",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "f33117110b95d4b9"
+ },
+ "place-chemical/drip": {
+  "cue": "place-chemical.drip",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Something dripping: a thick drop plopping into a pool, sizzling faintly where it lands",
+    "key": "vat",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "d03d80d56462c363"
+ },
+ "place-chemical/leak": {
+  "cue": "place-chemical.leak",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A leak hissing in the works: gas jetting from a cracked pipe in uneven spurts, a second leak whistling thinly",
+    "key": "pipes",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "2e47aba0140f680f"
+ },
+ "place-coaling/chute-open": {
+  "cue": "place-coaling.chute-open",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The chute lever pulled: the lever ratcheting, the gate dropping with a clank, the coal bursting out",
+    "key": "gate",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "be72436d06309bf5"
+ },
+ "place-coaling/chute-shut": {
+  "cue": "place-coaling.chute-shut",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The chute shut: the gate slammed into the stream, the flood cut off, the last lumps rattling down",
+    "key": "gate",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "34d5b86167de2969"
+ },
+ "place-coaling/coal-pour": {
+  "cue": "place-coaling.coal-pour",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Coal pouring down the chute: a deafening rattling roar of lumps, the steel chute ringing, the tender filling",
+    "key": "chute",
+    "sources": [
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "38fbeb1ed3646b71"
+ },
+ "place-coaling/coal-settle": {
+  "cue": "place-coaling.coal-settle",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The coal settling in the tender: the heap slumping with a crunching rush, lumps rolling down and knocking iron",
+    "key": "tender",
+    "sources": [
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "e17f22e2aab38eca"
+ },
+ "place-crane/chain": {
+  "cue": "place-crane.chain",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Chain paying out or hauling in: links clattering over the sprocket in a fast rhythm, the drum knocking, ringing",
+    "key": "links",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "4ea7afe383079bc9"
+ },
+ "place-crane/load-set/ground": {
+  "cue": "place-crane.load-set",
+  "surface": "ground",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A load set down on the ground: a deep earthy thud, grit crunching, the chain going slack",
+    "key": "heavy",
+    "sources": [
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06",
+     "kenney_impact-sounds:impactSoft_heavy_000",
+     "kenney_impact-sounds:impactSoft_heavy_001",
+     "kenney_impact-sounds:impactSoft_heavy_002",
+     "kenney_impact-sounds:impactSoft_heavy_003",
+     "kenney_impact-sounds:impactSoft_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "b05288ef9081b657"
+ },
+ "place-crane/load-set/wood": {
+  "cue": "place-crane.load-set",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A load set down on a wooden car deck: a heavy woody blow booming the car, the chain going slack",
+    "key": "heavy",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "9de499c2f02d37a0"
+ },
+ "place-crane/load-swing": {
+  "cue": "place-crane.load-swing",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A load swinging: the hook grinding in its shackle as it sways back and forth, the chain clinking at each turn",
+    "key": "hook",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "c582c680e1e6d53f"
+ },
  "place-crane/motor": {
   "cue": "place-crane.motor",
   "surface": null,
   "picked": "first",
   "candidates": [
    {
-    "label": "sfx100v2_loop_machine_01",
-    "key": "sfx_100_v2:loop_machine_01",
+    "label": "The crane's motor running: a small steam winch engine chuffing fast, gears whining and clattering, the drum turning",
+    "key": "steam-winch",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "9a0f4ab2eb051f12"
+ },
+ "place-grain/grain-pour": {
+  "cue": "place-grain.grain-pour",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Grain pouring: a smooth, heavy hiss of kernels rushing down the spout and drumming into the car",
+    "key": "spout",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "da518645b2ee439e"
+ },
+ "place-grain/spout-stop": {
+  "cue": "place-grain.spout-stop",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The pour cut off: the slide gate shut with a clank, the stream thinning to a trickle, the last grains pattering",
+    "key": "gate",
     "sources": [
-     "sfx_100_v2:loop_machine_01"
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "ef1a77960efd87e4"
+ },
+ "place-grain/spout-swing": {
+  "cue": "place-grain.spout-swing",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The spout swung over a car: its pivot creaking, the counterweight chain rattling, a hollow clank on the stop",
+    "key": "pivot",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "7db0b28b991298f4"
+ },
+ "place-slaughterhouse/hook-chain": {
+  "cue": "place-slaughterhouse.hook-chain",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Hooks and chains moving: a hook trolley rolling along the overhead rail, hooks swinging into each other, a hoist chain",
+    "key": "rail",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "2d696dc6e25f1531"
+ },
+ "place-slaughterhouse/inside": {
+  "cue": "place-slaughterhouse.inside",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Stand-in (animals): inside the slaughterhouse: hooks clinking on the rail, drips, penned animals, something moving",
+    "key": "hall",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06"
     ],
     "licence": "CC0"
    }
   ],
   "takes": 1,
-  "sha": "9ac8125be9f90af2"
+  "sha": "47ee5b1a55b1ba70"
  },
  "place-threshold/fortress": {
   "cue": "place-threshold.fortress",
@@ -7727,16 +8298,746 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "sfx100v2_loop_construction_site",
-    "key": "sfx_100_v2:loop_construction_site",
+    "label": "Stand-in (crowd, whistles): inside the fortress: engines and line shafts, hammering, a crowd, guards' whistles",
+    "key": "works",
     "sources": [
-     "sfx_100_v2:loop_construction_site"
+     "sfx_100_v2:loop_machine_01",
+     "sfx_100_v2:loop_machine_04",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01"
     ],
     "licence": "CC0"
    }
   ],
   "takes": 1,
-  "sha": "075f8e3e42f62103"
+  "sha": "290a38f617e98886"
+ },
+ "place-threshold/gate-open": {
+  "cue": "place-threshold.gate-open",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The fortress gates opening: the bar drawn, chains rattling, the great leaves groaning open, booming on their stops",
+    "key": "iron",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "e431d88716d58cf6"
+ },
+ "place-threshold/gate-shut": {
+  "cue": "place-threshold.gate-shut",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The gates shutting behind the train: the leaves groaning closed, a booming clang, the bar dropped home",
+    "key": "iron",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "801c41fe26413275"
+ },
+ "place-villages/dead-town": {
+  "cue": "place-villages.dead-town",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A dead town at night: wind down empty streets, whistling through gaps, leaves skittering, a loose thing tapping",
+    "key": "street",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "357cdb078f95ef4e"
+ },
+ "place-villages/shutter": {
+  "cue": "place-villages.shutter",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A shutter banging: a wooden shutter blown against its frame, slats rattling, bouncing back",
+    "key": "bang",
+    "sources": [
+     "sfx_100_v2:door_03",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "6012e1f6302fca5f"
+ },
+ "place-villages/sign": {
+  "cue": "place-villages.sign",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A sign creaking: a hanging board swinging on its iron rings, squealing one way and back",
+    "key": "rings",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "f400ded8c1209711"
+ },
+ "place-wreck/cargo-pull": {
+  "cue": "place-wreck.cargo-pull",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Cargo dragged out of a wreck: crates scraping over boards and iron in hard pulls, catching, knocking, creaking",
+    "key": "drag",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "059181de1ffe652d"
+ },
+ "place-wreck/creak": {
+  "cue": "place-wreck.creak",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A derailed car creaking: a big wooden car on its side groaning as its weight shifts, iron straps complaining",
+    "key": "car",
+    "sources": [
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "16f3258f263984e9"
+ },
+ "place-wreck/shift": {
+  "cue": "place-wreck.shift",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Wreckage shifting: a sudden slump, sheet iron scraping and banging, wood cracking, bits sliding after",
+    "key": "slump",
+    "sources": [
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "b921e0bc4893394f"
+ },
+ "state-brake-fade/fade": {
+  "cue": "state-brake-fade.fade",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Hot brakes glazing: the bite going thin and glassy, a wavering whine, the blocks grabbing and slipping",
+    "key": "glazed",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "739e5d9339edd10f"
+ },
+ "state-breach/breach": {
+  "cue": "state-breach.breach",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A car's shell giving way: iron wrenched and boards splintering, loud enough to carry two cars",
+    "key": "shell",
+    "sources": [
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:door_03",
+     "kenney_rpg-audio:chop",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "f0a917c0d1f2e3a1"
+ },
+ "state-breach/open-to-outside": {
+  "cue": "state-breach.open-to-outside",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Inside a breached car: the wind tearing past the hole and throbbing in the car, the wheels loud and unmuffled",
+    "key": "hole",
+    "sources": [
+     "sfx_100_v2:loop_ambient_04"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "401ee3aee2fb89a9"
+ },
+ "state-cannon-foul/clear": {
+  "cue": "state-cannon-foul.clear",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Clearing the bore by hand: a worm screwed in and dragged out, iron scraping hollow inside the barrel",
+    "key": "worm",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "cae37d323aed6c42"
+ },
+ "state-cannon-foul/cleared": {
+  "cue": "state-cannon-foul.cleared",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Cleared: the fouled charge drawn out and dropped, the rammer knocked twice on the muzzle",
+    "key": "out",
+    "sources": [
+     "kenney_rpg-audio:dropLeather",
+     "kenney_impact-sounds:impactSoft_heavy_000",
+     "kenney_impact-sounds:impactSoft_heavy_001",
+     "kenney_impact-sounds:impactSoft_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "3a63513554ca84c8"
+ },
+ "state-cannon-foul/misfire": {
+  "cue": "state-cannon-foul.misfire",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The gun failing to fire: the lock snaps down on the vent with a hard dead click, and nothing",
+    "key": "lock",
+    "sources": [
+     "kenney_rpg-audio:metalClick",
+     "kenney_rpg-audio:metalLatch"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "383301d821e6ff00"
+ },
+ "state-derail/climb": {
+  "cue": "state-derail.climb",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A wheel climbing the rail: a rising screech and scrape as the flange rides up, then the drop onto the sleepers",
+    "key": "flange",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "963323abf67607fe"
+ },
+ "state-derail/collide": {
+  "cue": "state-derail.collide",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Stand-in (proposed cue): one car slamming into another: iron frames crashing and crumpling, couplers buckling",
+    "key": "cars",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "a84348a5b299379f"
+ },
+ "state-derail/flange-scream": {
+  "cue": "state-derail.flange-scream",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Flanges screaming on a curve taken too fast: several wheels shrieking at once, grinding, the trucks hammering",
+    "key": "curve",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "5badba13450a5252"
+ },
+ "state-derail/grind": {
+  "cue": "state-derail.grind",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A wreck grinding along the ballast: iron dragging over stones, crunching and thumping, a screech off a rail",
+    "key": "ballast",
+    "sources": [
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "46b784199938a6d2"
+ },
+ "state-derail/impact/ground": {
+  "cue": "state-derail.impact",
+  "surface": "ground",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Stand-in: a car hitting the ground: three different crashes of wood, iron and ballast",
+    "key": "ground",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06",
+     "sfx_100_v2:misc_34"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "cf0e1ed6bb5c3ad4"
+ },
+ "state-derail/rail-scrape": {
+  "cue": "state-derail.rail-scrape",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Proposed cue: steel dragged along a rail head: a long harsh screech and grind, juddering",
+    "key": "steel",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "03eaf2bee427bd7d"
+ },
+ "state-derail/settle": {
+  "cue": "state-derail.settle",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Wreckage settling: four different moments of a wreck coming to rest, creaks, slides and late falls",
+    "key": "wreck",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "1e3c836014a8b2d9"
+ },
+ "state-derail/tear": {
+  "cue": "state-derail.tear",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Proposed cue: metal and wood ripping apart under force: a car body tearing open, iron shrieking, boards bursting",
+    "key": "body",
+    "sources": [
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:misc_34",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "3befedc4f6ca46a4"
+ },
+ "state-derail/tip": {
+  "cue": "state-derail.tip",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A car going over: its frame groaning and splitting as it leans, the load inside sliding and slamming",
+    "key": "car",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "dad79da747886d4c"
  },
  "state-engine-damage/knock": {
   "cue": "state-engine-damage.knock",
@@ -7744,16 +9045,40 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "sfx100v2_loop_machine_04",
-    "key": "sfx_100_v2:loop_machine_04",
+    "label": "Damaged machinery knocking: a loose big end clanking twice a turn, a dry bearing scraping, the motion rattling",
+    "key": "big-end",
     "sources": [
-     "sfx_100_v2:loop_machine_04"
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004"
     ],
     "licence": "CC0"
    }
   ],
   "takes": 1,
-  "sha": "0c8a7e005f93f971"
+  "sha": "9065aba92e99521b"
+ },
+ "state-engine-damage/leak-large": {
+  "cue": "state-engine-damage.leak-large",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A big steam leak: a burst pipe roaring, ragged and surging, water spitting in it",
+    "key": "pipe",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "cdee9a3e0c960260"
  },
  "state-engine-damage/leak-small": {
   "cue": "state-engine-damage.leak-small",
@@ -8223,14 +9548,39 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "Kept from the earlier pass",
-    "key": "audio/voice-callout--banging.mp3",
-    "sources": [],
+    "label": "Banging on a Holdout's walls from inside, heard outside: fists, kicks, a tin on iron, frantic and uneven",
+    "key": "walls",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_rpg-audio:metalLatch",
+     "sfx_100_v2:door_03",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "kenney_impact-sounds:impactSoft_medium_000",
+     "kenney_impact-sounds:impactSoft_medium_001",
+     "kenney_impact-sounds:impactSoft_medium_002",
+     "kenney_impact-sounds:impactSoft_medium_003",
+     "kenney_impact-sounds:impactSoft_medium_004"
+    ],
     "licence": "CC0"
    }
   ],
-  "takes": 1,
-  "sha": "fdc4c765a92f5b9e"
+  "takes": 4,
+  "sha": "286b12b5c5326929"
  },
  "voice-prisoner-sets/call/set1": {
   "cue": "voice-prisoner-sets.call",
@@ -8472,21 +9822,511 @@
   "takes": 3,
   "sha": "1ed7367edc9d92df"
  },
+ "world-brass/cut": {
+  "cue": "world-brass.cut",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Cutting slowly through brass growth: rods bending and snapping against the pilot, ringing, grinding, tinkling down",
+    "key": "pilot",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "612a6a335d0187e2"
+ },
+ "world-brass/ram": {
+  "cue": "world-brass.ram",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Ramming through brass growth: the pilot smashing into it, dozens of rods snapping at once, a shower of brass",
+    "key": "pilot",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "9ac7f4471e4de354"
+ },
+ "world-bridges/groan": {
+  "cue": "world-bridges.groan",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A weak bridge groaning under the load: two timber trestles creaking and cracking, two iron spans groaning",
+    "key": "load",
+    "sources": [
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "6c7bc5105d2e5df9"
+ },
+ "world-bridges/iron-drum": {
+  "cue": "world-bridges.iron-drum",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Wheels drumming on an iron bridge: the rumble booming hollow through the girders, each joint clanging the span",
+    "key": "girders",
+    "sources": [
+     "sfx_100_v2:loop_ambient_04",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "bd36b7793953ce93"
+ },
+ "world-bridges/timber": {
+  "cue": "world-bridges.timber",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A timber trestle under the train: a hollow wooden rumble, deck timbers knocking, the bents creaking",
+    "key": "trestle",
+    "sources": [
+     "sfx_100_v2:loop_ambient_04",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "a95a2ac729bbb6cb"
+ },
+ "world-debris-hit/hit-fast": {
+  "cue": "world-debris-hit.hit-fast",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Debris taken fast: a violent smash at the pilot, wood and stone bursting, pieces battering down the train",
+    "key": "pilot",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "37f1808bcee2259e"
+ },
+ "world-debris-hit/jolt": {
+  "cue": "world-debris-hit.jolt",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Debris taken slowly: the pilot thumping into it and shoving it aside, the jolt running back down the train",
+    "key": "pilot",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "30f544d4274dc8d4"
+ },
+ "world-livestock/cattle": {
+  "cue": "world-livestock.cattle",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Stand-in: cattle in a car: low moos from two or three beasts, hooves shifting on the boards, bodies against walls",
+    "key": "stock-car",
+    "sources": [
+     "kenney_impact-sounds:impactWood_light_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "13450a675b052535"
+ },
+ "world-livestock/pigs": {
+  "cue": "world-livestock.pigs",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Stand-in: pigs in a car: constant grunting from several animals, a squeal now and then, trotters and straw",
+    "key": "stock-car",
+    "sources": [
+     "kenney_impact-sounds:impactWood_light_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "41a8d46126aa53e4"
+ },
+ "world-livestock/sheep": {
+  "cue": "world-livestock.sheep",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Stand-in: sheep in a car: bleats from a flock, quavering, small hooves pattering, straw",
+    "key": "stock-car",
+    "sources": [
+     "kenney_impact-sounds:impactWood_light_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "67b7a136f67d05bb"
+ },
+ "world-night/far": {
+  "cue": "world-night.far",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Something far off out there: six night sounds at 150-500 m (a tree creaking, a branch falling, stones, tin, water)",
+    "key": "out-there",
+    "sources": [
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "50afa4a2b403ec62"
+ },
+ "world-night/night": {
+  "cue": "world-night.night",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The wilderness at night with a few crickets far off: the same trees and wind, insects chirping and falling silent",
+    "key": "crickets",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "d848b33e20088988"
+ },
+ "world-rain/rain-out": {
+  "cue": "world-rain.rain-out",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Rain outside: a broad hiss of drops on ballast, earth and puddles, pattering on the cars, runoff trickling",
+    "key": "ground",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "4e4b9f1eec4298ae"
+ },
+ "world-rain/rain-roof": {
+  "cue": "world-rain.rain-roof",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Rain on the roof tin heard from inside a car: thousands of drops pattering and drumming, bigger drips off the edge",
+    "key": "tin",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "220a9000593f19b3"
+ },
+ "world-rain/slip": {
+  "cue": "world-rain.slip",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Wheels slipping on wet rail: the engine's beats suddenly racing, the drivers spinning and grinding, then caught",
+    "key": "drivers",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "91eeaad8bbfc9911"
+ },
  "world-rain/thunder": {
   "cue": "world-rain.thunder",
   "surface": null,
   "picked": "first",
   "candidates": [
    {
-    "label": "sfx100v2_thunder_01",
-    "key": "sfx_100_v2:thunder_01",
+    "label": "Thunder: a close crack and roll, a mid-distance rumble, a far low roll, from a modelled lightning channel",
+    "key": "channel",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "0ceefd614879e373"
+ },
+ "world-tunnels/drip": {
+  "cue": "world-tunnels.drip",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Water dripping in the tunnel: drops into puddles on the ballast, ringing off the brick",
+    "key": "puddle",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "a36d1618227190c3"
+ },
+ "world-tunnels/enter": {
+  "cue": "world-tunnels.enter",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The train entering a tunnel mouth: a thump of pressure in the ears, a shove of air, the roar closing in",
+    "key": "mouth",
     "sources": [
-     "sfx_100_v2:thunder_01"
+     "sfx_100_v2:loop_ambient_04"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "ca8cba1e1f05bdf7"
+ },
+ "world-tunnels/exit": {
+  "cue": "world-tunnels.exit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Coming out of the tunnel: the roar cut off behind, a softer pressure thump, the night air opening out",
+    "key": "mouth",
+    "sources": [
+     "sfx_100_v2:loop_ambient_04"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "02e14621504fc043"
+ },
+ "world-tunnels/inside": {
+  "cue": "world-tunnels.inside",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Inside the tunnel: the train's roar folded back on itself off the brick, fluttering, the air column droning",
+    "key": "bore",
+    "sources": [
+     "sfx_100_v2:loop_ambient_04"
     ],
     "licence": "CC0"
    }
   ],
   "takes": 1,
-  "sha": "5cca1bfe8b7ff57c"
+  "sha": "fa8d2dbc8da70f20"
+ },
+ "world-wind/gale": {
+  "cue": "world-wind.gale",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Strong wind: a roaring gale, buffeting hard, the train's fittings howling and moaning, loose canvas cracking",
+    "key": "storm",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "f3d3b8fa1a222c34"
+ },
+ "world-wind/gust": {
+  "cue": "world-wind.gust",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A hard gust: the wind slamming in, a howl rising through the fittings and falling, the buffeting peaking",
+    "key": "hard",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "a83b19a0bb8be6e7"
  }
 }

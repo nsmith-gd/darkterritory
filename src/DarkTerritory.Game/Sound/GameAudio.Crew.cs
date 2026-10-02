@@ -21,12 +21,7 @@ namespace DarkTerritory.Game.Sound;
 /// </summary>
 public sealed partial class GameAudio
 {
-    /// <summary>
-    /// The crew as this machine has them this tick, everyone aboard (the listener's own player among them; living, dead
-    /// and waiting): set before each <see cref="Update"/>. Crewmates are as they're drawn (interpolated a little behind the
-    /// snapshots), your own player as predicted.
-    /// </summary>
-    public IReadOnlyList<(int Id, PlayerState State)> CrewStates { get; set; } = [];
+    // CrewStates (GameAudio.Cues.cs): everyone aboard, the listener's own player among them, set before each Update.
     /// <summary>This machine's own player id, or −1 (the bench, a dedicated host).</summary>
     public int OwnId { get; set; } = -1;
     /// <summary>This machine's own player's intent this tick: your swing and your trigger, which nothing replicates.</summary>
@@ -696,10 +691,12 @@ public sealed partial class GameAudio
     // ------------------------------------------------------------------------------------------------ the engine
 
     /// <summary>
-    /// Whether the whistle blowing is the cord's and the crew's whistle (crew-cab-controls.whistle) has it, so the old
-    /// whistle (train-whistle) keeps quiet: <see cref="Whistle"/> asks. The Whistler at the cord is its own.
+    /// Whether the cord's whistle is a sound of its own rather than the train's (train-whistle): never, by spec A.4's rule for
+    /// the Whistler's tell ("the same whistle the conductor blows, from the same dome, so the only tell is that nobody
+    /// pulled it"). The crew's whistle cues (crew-cab-controls.whistle-start/whistle/whistle-stop) take over only together
+    /// with the Whistler's, as one sound; until then the cord here is just the pull. <see cref="Whistle"/> asks.
     /// </summary>
-    bool CordWhistles(World world) => HasCue("crew-cab-controls.whistle") && !WhistlerWhistling(world);
+    static bool CordWhistles(World world) => false;
 
     static bool WhistlerWhistling(World world) => world.ActiveEnemies.Any(e => e is Whistler w && !w.Gone && w.Whistling);
 
@@ -784,7 +781,8 @@ public sealed partial class GameAudio
         {
             var cordAt = shape.Cab is { } cabBox ? engine.ToWorld(new Double3(0, cabBox.Max.Y - 0.2, cabBox.Centre.Z)) : dome;
             Cue("crew-cab-controls.whistle-cord", cordAt, cab);
-            Cue("crew-cab-controls.whistle-start", dome, outside);
+            if (CordWhistles(world))
+                Cue("crew-cab-controls.whistle-start", dome, outside);
             e.Released = false;
             e.WhistleFalling = 0;
         }
@@ -795,12 +793,13 @@ public sealed partial class GameAudio
             {
                 e.Released = true;
                 e.WhistleLow = whistle;
-                Cue("crew-cab-controls.whistle-stop", dome, outside);
+                if (CordWhistles(world))
+                    Cue("crew-cab-controls.whistle-stop", dome, outside);
             }
         }
         else if (cord)
             e.WhistleLow = Math.Min(e.WhistleLow, whistle);
-        if (cord && !e.Released)
+        if (cord && !e.Released && CordWhistles(world))
             Hold("crew-cab-controls.whistle", 0, dome, outside);
         if (whistle <= 0)
         {

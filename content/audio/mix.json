@@ -16,7 +16,7 @@
   // local, so the Choir steps back while one of those is sounding (ARCHITECTURE §8). Loops (a drill,
   // the Hollow) don't duck it, or it would never come back.
   "soundDucking": [
-    { "when": ["hound-howl", "sleepers-writhe"], "ducks": ["choir-voice"], "db": -8 }
+    { "when": ["hound-howl", "tell-hounds.howl-near", "sleepers-writhe"], "ducks": ["choir-voice"], "db": -8 }
   ],
   "duckAttack": 0.03,
   "duckRelease": 0.45,
