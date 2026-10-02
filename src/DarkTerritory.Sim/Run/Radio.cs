@@ -27,6 +27,10 @@ public static class Radio
             lines.Add($"Powder and shot: {rounds}.");
         int cars = train.Dynamics.Consist.CarCount;
         lines.Add($"Cars: {cars}.");
+        // The contract's freight (note 182), in the same voice: "Freight: comet-derived material."
+        var freight = train.Dynamics.Consist.Vehicles.Where(v => v.Kind == Train.VehicleKind.Cargo && v.Load > 0.01).Select(v => v.Cargo).Distinct().ToList();
+        if (freight.Count > 0)
+            lines.Add($"Freight: {string.Join(", ", freight.Select(Train.Cargoes.Name))}.");
         lines.Add("Gates open. Yard out.");
         return lines;
     }
@@ -41,6 +45,9 @@ public static class Radio
         lines.Add($"Cars delivered: {report.CarsDelivered}. Cargo: {report.Gross:0}.");
         if (report.CarsLost > 0)
             lines.Add($"Cars lost: {report.CarsLost}.");
+        // GDD §19: the most valuable cargo there is, read like the coal.
+        if (report.ChildrenHome > 0)
+            lines.Add($"Child survivor{(report.ChildrenHome == 1 ? "" : "s")}: {report.ChildrenHome}. Paid {report.ChildPay:0}.");
         foreach (var death in report.Lines.Where(l => l.Kind == IncidentKind.Death))
             lines.Add(death.Refund > 0
                 ? $"{death.Who}. Body recovered. Fee {death.Fee:0}. Refund {death.Refund:0}."

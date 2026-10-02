@@ -4,6 +4,7 @@ using Ballast.Render;
 using DarkTerritory.Sim.Campaign;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
+using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game;
 
@@ -37,7 +38,7 @@ public abstract record Launch
     public sealed record Quit : Launch;
 }
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host }
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores }
 
 /// <param name="Detail">A line about the selected item, under the list.</param>
 public sealed record MenuItem(string Label, string? Detail = null, bool Enabled = true);
@@ -166,7 +167,7 @@ public sealed class FrontEnd
         }
         Show(Screen switch
         {
-            Screen.Upgrades => Screen.Fortress,
+            Screen.Upgrades or Screen.Stores => Screen.Fortress,
             Screen.Fortress => Screen.Slots,
             Screen.Controls => Screen.Settings,
             Screen.Title => Screen.Title,
@@ -323,6 +324,7 @@ public sealed class FrontEnd
         Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), new(new("BACK"), Go(Screen.Title))],
         Screen.Fortress => FortressEntries(),
         Screen.Upgrades => UpgradeEntries(),
+        Screen.Stores => StoreEntries(),
         Screen.QuickNight =>
         [
             .. NightOptions(),
@@ -433,7 +435,9 @@ public sealed class FrontEnd
             {
                 var c = offers[i];
                 int contract = i;
-                list.Add(new(new($"TONIGHT: {Name(c.Tier)} {c.Seed}, {c.PerCar:0} A CAR", $"Pays on what arrives: {s.Cars} cars could bring in {c.PerCar * s.Cars:0}."),
+                // GDD §9 "choose freight contracts" (note 182): each names the freight the train leaves with, and pays a car by it.
+                string cargo = Cargoes.Name(c.Cargo).ToUpperInvariant();
+                list.Add(new(new($"TONIGHT: {Name(c.Tier)} {c.Seed}, {cargo}, {c.PerCar:0} A CAR", $"{Carrying(c.Cargo)} Up to {c.PerCar * s.Cars:0} on {s.Cars} cars."),
                     () => new Launch.CampaignNight(s.Slot, contract, Resume: false, _host)));
             }
         }
@@ -441,6 +445,16 @@ public sealed class FrontEnd
         bool full = s.Cars >= _campaign.MaxCars;
         list.Add(new(new(full ? "BUY A CAR: THE CONSIST IS FULL" : $"BUY A CAR: {carCost:0} SCRIP", full ? null : $"Car {s.Cars + 1}. More cars carry more, and burn more, and need more hands.",
             !full && s.Current is null), () => Buy(Campaign.BuyCar(_campaign, s), $"A car bought: {s.Cars + 1} now.")));
+        // GDD §9 "add or remove railcars" (note 182): a car off brings back a share of its price; a shorter train works a lower tier.
+        if (_campaign.SellCar is { } sell)
+        {
+            bool fewest = s.Cars <= sell.Fewest;
+            var tierAfter = Campaign.TierFor(_campaign, s.Cars - 1);
+            string after = tierAfter != Campaign.TierFor(_campaign, s.Cars) ? $" The consist drops to {Name(tierAfter)} work." : "";
+            list.Add(new(new(fewest ? $"TAKE A CAR OFF: {sell.Fewest} IS THE FEWEST" : $"TAKE A CAR OFF: +{Campaign.SellBack(_campaign, s):0} SCRIP",
+                fewest ? null : $"Car {s.Cars} back to the yard for {sell.Share:P0} of its price.{after}", !fewest && s.Current is null),
+                () => Buy(Campaign.SellCar(_campaign, s), $"A car taken off: {s.Cars - 1} now.")));
+        }
         // GDD v1.4 App. E.12 question 4: the fortress sells spare repair kits; each rides in a crew locker (note 173).
         if (_campaign.SpareKit is { } spare)
         {
@@ -450,6 +464,8 @@ public sealed class FrontEnd
                 $"{have}. A ruptured boiler with every kit lost strands the night; spares ride in the crew lockers.", !most && s.Current is null),
                 () => Buy(Campaign.BuySpareKit(_campaign, s), $"A spare repair kit bought: {s.SpareKits + 1} now.")));
         }
+        if (_campaign.Stores is not null)
+            list.Add(new(new("STORES", StoresLine(s.Stores), s.Current is null), () => { Show(Screen.Stores); return null; }));
         list.Add(new(new("UPGRADES", null, s.Current is null), () => { Show(Screen.Upgrades); return null; }));
         list.Add(new(new($"PLAY: {(_host ? "HOST FOR FRIENDS" : "ALONE")}", "Left and right to change."), () => { _host = !_host; return null; }, _ => _host = !_host));
         list.Add(new(new("BACK"), Go(Screen.Slots)));
@@ -470,6 +486,45 @@ public sealed class FrontEnd
             list.Add(new(new(owned ? $"{u.Name.ToUpperInvariant()}: OWNED" : $"{u.Name.ToUpperInvariant()}: {cost:0}", detail, !owned),
                 () => Buy(Campaign.BuyUpgrade(_campaign, s, u.Id), $"{u.Name} bought.")));
         }
+        list.Add(new(new("BACK"), Go(Screen.Fortress)));
+        return list;
+    }
+
+    /// <summary>What a contract's freight does to the night (GDD §19, App. B.9), said on the board.</summary>
+    static string Carrying(CargoKind cargo) => cargo switch
+    {
+        CargoKind.Comet => "Comet material: best pay; everything wants it.",
+        CargoKind.Ammunition => "Powder and shot: a fire in its car can blow.",
+        CargoKind.Chemicals => "Chemicals: fires spread; no cannon beside it.",
+        CargoKind.Medicine => "Medicine: rough couplings and brakes spoil it.",
+        CargoKind.Coal => "Coal: it burns, and fire runs down the train.",
+        CargoKind.Timber => "Timber: it burns, and fire runs down the train.",
+        CargoKind.Livestock => "Livestock: loud all night; hounds smell it.",
+        CargoKind.Food => "Food: the scavengers come for it.",
+        CargoKind.Heavy => "Machine parts: heavy, inert, safe.",
+        _ => "Goods.",
+    };
+
+    static string StoresLine(Stores st) => st.Any
+        ? $"Bought for tonight: {st.Powder} powder, {st.Lamps} lamps, {st.Extinguishers} extinguishers."
+        : "Powder and shot, spare lamps and extinguishers for tonight.";
+
+    /// <summary>The departure's stores (GDD §9 "stock ... powder and shot, lamps, repair supplies"; note 182): for the coming night.</summary>
+    List<Entry> StoreEntries()
+    {
+        if (Open is not { } s || _campaign.Stores is not { } st)
+            return [new(new("BACK"), Go(Screen.Fortress))];
+        var list = new List<Entry>();
+        void Row(StoreKind kind, StoreItem item, string name, string detail)
+        {
+            int have = s.Stores.Of(kind);
+            bool most = have >= item.Most;
+            list.Add(new(new(most ? $"{name}: {have} OF {item.Most}, ALL A NIGHT TAKES" : $"{name}: {item.Cost:0} SCRIP ({have} OF {item.Most})", detail, !most && s.Current is null),
+                () => Buy(Campaign.BuyStores(_campaign, s, kind), $"{name.ToLowerInvariant()} bought for tonight.")));
+        }
+        Row(StoreKind.Powder, st.Powder, "POWDER AND SHOT", $"A crate: {st.Powder.Each} more rounds for every gun tonight.");
+        Row(StoreKind.Lamp, st.Lamps, "SPARE LAMP", "In the guard van beside its own, for when one goes out over the side.");
+        Row(StoreKind.Extinguisher, st.Extinguishers, "SPARE EXTINGUISHER", "Loose in the guard van: a second hand on a fire. It doesn't recharge.");
         list.Add(new(new("BACK"), Go(Screen.Fortress)));
         return list;
     }
@@ -513,7 +568,7 @@ public sealed class FrontEnd
         string? heading = Screen switch
         {
             Screen.Slots => "CAMPAIGN",
-            Screen.Fortress or Screen.Upgrades when Open is { } s =>
+            Screen.Fortress or Screen.Upgrades or Screen.Stores when Open is { } s =>
                 $"{s.Name.ToUpperInvariant()}: {s.Cars} CARS, {s.Scrip:0} SCRIP, NIGHT {s.Runs + 1}, {Name(Campaign.TierFor(_campaign, s.Cars))}",
             Screen.Upgrades => "UPGRADES",
             Screen.QuickNight => "QUICK NIGHT",
@@ -533,6 +588,11 @@ public sealed class FrontEnd
         if (Screen == Screen.Upgrades)
         {
             o.Text(x, y, "UPGRADES COST A SHARE OF THE NEXT CAR", Faint);
+            y += 10;
+        }
+        if (Screen == Screen.Stores)
+        {
+            o.Text(x, y, "STORES FOR TONIGHT: SPENT WITH THE NIGHT", Faint);
             y += 10;
         }
         y += 4;

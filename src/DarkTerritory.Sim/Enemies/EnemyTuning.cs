@@ -247,6 +247,12 @@ public sealed record CarFireTuning
     public double ChemicalSpread { get; init; } = 2;
     public double ChemicalGrowth { get; init; } = 1.3;
     public double PowderGrowth { get; init; } = 1.6;
+    public double FuelGrowth { get; init; } = 1.4;
+    public double FuelSpread { get; init; } = 2;
+    public double ExplodeAt { get; init; } = 1;
+    public double ExplodeRadius { get; init; } = 14;
+    public double ExplodeKillRadius { get; init; } = 5;
+    public int ExplodeDamage { get; init; } = 150;
     public double BurnOutPerSecond { get; init; } = 0.05;
     public int MaxActive { get; init; } = 3;
 }
@@ -280,6 +286,8 @@ public sealed record GauntTuning
 /// <summary>Climbers (App. A.4, B.4). Field docs live in enemies.json.</summary>
 public sealed record ClimberTuning
 {
+    /// <summary>GDD §23 "lights fail" (note 183): coming over the engine's end, it smashes the forward lamp for this long.</summary>
+    public double LampOutSeconds { get; init; } = 45;
     public double PaceOut { get; init; } = 2.5;
     public double PaceSeconds { get; init; } = 6;
     public double Catch { get; init; } = 1.2;
@@ -440,4 +448,12 @@ public sealed record DirectorTuning(
     public Dictionary<string, double> WantShares { get; init; } = new();
     /// <summary>App. B.1 hard caps: corrupted humans, at most this many at a time.</summary>
     public int MaxCorrupted { get; init; } = 1;
+    /// <summary>GDD v1.4 App. D.11, the dead's creature vote (enemies.json director.vote; note 180).</summary>
+    public VoteTuning Vote { get; init; } = new();
 }
+
+/// <summary>
+/// D.11 and D.13: each vote multiplies its creature's spawn weight by <paramref name="PerVote"/>, to at most <paramref name="Cap"/>,
+/// within its want tag; a dead player's ballot is <paramref name="Options"/> creatures drawn by weighted roll from what's eligible.
+/// </summary>
+public sealed record VoteTuning(double PerVote = 1.2, double Cap = 1.5, int Options = 3);

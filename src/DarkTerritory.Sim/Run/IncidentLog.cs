@@ -119,6 +119,8 @@ public static class IncidentLog
         DeathCause.Struck => "Struck by a tunnel mouth",
         DeathCause.Thrown => "Thrown off on a curve",
         DeathCause.Burned => "Burned in a blazing car",
+        DeathCause.Exploded => "Killed when a powder car went up",
+        DeathCause.Poisoned => "Gassed by the chemicals a cannon was fired beside",
         DeathCause.Gnawed => "Eaten by the gnawers",
         DeathCause.Replaced => "Replaced",
         DeathCause.Nested => "Killed by Followers nested aboard",
@@ -165,9 +167,13 @@ public static class IncidentLog
                 actor = a.CraneOperator;
                 action = "Crane: {actor}.";
                 break;
-            case DeathCause.Burned:
+            case DeathCause.Burned or DeathCause.Exploded:
                 actor = s.Parent > 0 ? a.LampLitBy(s.Parent) : -1;
                 action = actor >= 0 ? "Lamp lit by {actor}." : "Nobody lit that lamp.";
+                break;
+            case DeathCause.Poisoned:
+                actor = a.Gasser;
+                action = actor >= 0 ? "Cannon fired by {actor}." : "Nobody fired it.";
                 break;
             case DeathCause.Seized:
                 {
@@ -223,6 +229,10 @@ public static class IncidentLog
             else
                 lines.Add(new ReportLine(i.Kind, who, $"{i.What} {i.Where}. {action}".Trim()) { Seconds = i.Seconds, Victim = i.Victim });
         }
+        // D.12 "what the dead voted for", hidden from the living till now (D.11): each creature voted for, and by whom.
+        if (world.Director is { } director)
+            foreach (var voted in director.Votes.GroupBy(v => v.Kind).OrderBy(g => g.Min(v => v.Voter)))
+                lines.Add(new ReportLine(IncidentKind.Voted, "", $"The dead voted for the {Spoken(voted.Key.ToString())}: {string.Join(", ", voted.Select(v => NameOf(world, v.Voter)))}."));
         return lines;
     }
 }

@@ -15,6 +15,10 @@ public sealed record TrainTuning
     public required CouplingTuning Couplings { get; init; }
     /// <summary>What the train carries from the fortress (T41). Unset, nothing.</summary>
     public KitTuning Kit { get; init; } = new();
+    /// <summary>Line Plan §12.6, never an unrecoverable body or kit (train.json <c>recovery</c>; note 181).</summary>
+    public RecoveryTuning Recovery { get; init; } = new();
+    /// <summary>GDD §19's fragile medicine (train.json <c>fragile</c>; note 182). Unset, medicine rides like anything else.</summary>
+    public FragileTuning? Fragile { get; init; }
 
     public const string File = "tuning/train.json";
 }
@@ -23,6 +27,10 @@ public sealed record TrainTuning
 public sealed record KitTuning
 {
     public int Radios { get; init; }
+    /// <summary>GDD §23 "radio breaks" (note 183): the chance a radio on your belt smashes, per point of damage you take.</summary>
+    public double RadioBreakPerDamage { get; init; } = 0.006;
+    /// <summary>... and when something grabs you.</summary>
+    public double RadioBreakOnGrab { get; init; } = 0.25;
     /// <summary>Toys in the guard van (GDD v1.1 App. C.4): hand loot, what the Track Doll will leave for.</summary>
     public int Toys { get; init; }
     /// <summary>
@@ -42,6 +50,12 @@ public sealed record KitTuning
     /// lockers. The campaign sets it (<c>SessionSetup.SpareKits</c>).
     /// </summary>
     public int SpareKits { get; init; }
+    /// <summary>
+    /// Spare lamps and extinguishers bought at the fortress for the night (GDD §9 "stock ... lamps"; campaign.json <c>stores</c>,
+    /// note 182): in the guard van beside its own lamp. The campaign sets them (<c>SessionSetup</c>).
+    /// </summary>
+    public int SpareLamps { get; init; }
+    public int SpareExtinguishers { get; init; }
     /// <summary>The crew lockers in the kit's car (ARCHITECTURE §8 note 173). Unset, the car has none.</summary>
     public LockerTuning? Lockers { get; init; }
 }
@@ -134,3 +148,13 @@ public sealed record CouplingTuning(double CoupleMaxSpeed, double SafeContactSpe
 /// <summary>Deceleration from rolling (m/s²) and air (per (m/s)²) resistance.</summary>
 public sealed record ResistanceTuning(double Rolling, double Air);
 public sealed record SpeedBandTuning(double Yard, double JumpOffLethal, double Slow, double WorkingMin, double Cruise);
+
+/// <summary>
+/// Line Plan §12.6 (note 181): the walkable corridor is <paramref name="CorridorM"/> either side of the track (where the line
+/// generator keeps drop sides walkable) and no more than <paramref name="DropM"/> below the rails; a body or a kit at rest
+/// beyond it is put back on the formation's edge, <paramref name="EdgeM"/> out from the track.
+/// </summary>
+/// <summary>train.json <c>fragile</c>: how coupling and brake shocks spoil a car of medicine (GDD §19). Field docs live in that file.</summary>
+public sealed record FragileTuning(double SafeContactSpeed = 0.3, double ShockShare = 3, double BrakeShockDecel = 1.2, double BrakeShockPerSecond = 0.02);
+
+public sealed record RecoveryTuning(double CorridorM = 40, double DropM = 15, double EdgeM = 3.5);

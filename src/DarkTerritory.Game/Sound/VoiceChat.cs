@@ -107,6 +107,7 @@ public sealed class VoiceChat
     /// <summary>Decodes what's arrived and keeps each speaker's voice where they are.</summary>
     public void Update(ClientSession client, IReadOnlyList<Crewmate> crew, double dt)
     {
+        bool inTunnel = InTunnel(client);
         _clock += dt;
         while (client.VoiceFrames.TryDequeue(out var f))
         {
@@ -163,6 +164,8 @@ public sealed class VoiceChat
         foreach (var s in _speakers.Values)
         {
             s.NearVoice ??= Stream("voice", s.Near);
+            // GDD §22 tunnels (note 183): in one, voices close in: compressed, boxy, no exterior.
+            s.NearVoice?.Params.Set("tunnel", inTunnel ? 1 : 0);
             s.RadioVoice ??= Stream("voice-radio", s.Radio);
             s.DeadVoice ??= Stream("voice-dead", s.Dead);
             if (s.LiveMic is { } holdout && s.NearVoice is not null)
@@ -193,6 +196,10 @@ public sealed class VoiceChat
         s.Near.Clear();
         s.Radio.Clear();
         s.RadioKeyed = 0;
+        // And the voice in the air itself, filters and all, so not even the tunnel filters' ring outlives the word (note 183);
+        // a fresh one starts next update for the Live Mic or the freed.
+        s.NearVoice?.Stop();
+        s.NearVoice = null;
     }
 
     /// <summary>The cut's tests: whether this speaker's air and radio voices hold anything now.</summary>
@@ -229,6 +236,16 @@ public sealed class VoiceChat
             if (f.Path.HasFlag(VoicePath.Dead))
                 s.Dead.Write(pcm);
         });
+    }
+
+    /// <summary>Whether this listener's under a tunnel (the route's own, the same test the radio's death uses).</summary>
+    static bool InTunnel(ClientSession client)
+    {
+        var me = client.Predicted;
+        if (client.World.Route is not { } route)
+            return false;
+        double along = me.Parent >= 0 && me.Parent < client.Train.Cars.Count ? client.Train.Cars[me.Parent].FrontDistance : me.LineHint;
+        return route.InTunnel(along);
     }
 
     SoundInstance? Stream(string sound, StreamBuffer buffer)

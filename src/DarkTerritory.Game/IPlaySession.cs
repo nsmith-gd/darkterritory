@@ -61,6 +61,12 @@ public interface IPlaySession
     double RadioSeconds => 0;
     /// <summary>The clerk's still reading the tally: the run's end screen waits for it.</summary>
     bool ClerkTally => false;
+    /// <summary>This dead player's creature vote (GDD v1.4 App. D.11; note 180): the ballot offered and what they cast; null if none.</summary>
+    (IReadOnlyList<Sim.Enemies.EnemyKind> Options, Sim.Enemies.EnemyKind? Cast)? Ballot => null;
+    /// <summary>The dead's cue showing now (D.11): "THE DEAD CALLED THE CAR HUGGER: PRIYA, SAM"; null when none is.</summary>
+    string? VoteCue => null;
+    /// <summary>The run-end commendation picker (D.12): who and which is picked, and whether it's given; null when there's none to give.</summary>
+    (string To, string What, bool Given)? CommendPick => null;
     double OutroSeconds => 0;
     Sim.Route.Route? Route { get; }
     PlayerState Player { get; }

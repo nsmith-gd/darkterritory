@@ -212,7 +212,14 @@ public static class Guns
         // The cannon's full manual reload before the next (GDD v1.1 App. C.3): powder, ball, ram.
         gun.ReloadNeeded = gun.Ammo > 0 ? t.ReloadSteps : 0;
         gun.ReloadProgress = 0;
-        choir.RoundFired(ct);
+        // GDD §22 wind (note 183): out where the wind takes it, a shot carries further, and feeds the meter more.
+        double wind = train.Line.Conditions?.Wind(train.Dynamics.Path, train.Dynamics.Distance) ?? 0;
+        choir.RoundFired(ct, 1 + t.WindLoudness * wind);
+        // GDD §23 (note 183): now and then a shot fouls the bore, more in the wet; the same on every machine (the tick and the
+        // gun decide it, not a shared die).
+        bool wet = (train.Line.Conditions?.Adhesion(train.Dynamics.Path, train.Dynamics.Distance) ?? 1) < 1;
+        if (Fouls(tick, gunVehicle, t.FoulChance * (wet ? t.FoulWetFactor : 1)))
+            gun.Jammed = true;
 
         var muzzle = frame.ToWorld(mount.Position);
         var dir = frame.DirToWorld(aimLocal).Normalized;
@@ -312,6 +319,22 @@ public static class Guns
         if (MannedGun(s, train, t) is not { } gunVehicle)
             return;
         ref var gun = ref train.Vehicles[gunVehicle].Gun;
+        // A fouled bore first (note 183): Use held at the gun, standing still, for ClearSeconds, under fire or not.
+        if (gun.Jammed)
+        {
+            if (!intent.Has(PlayerButtons.Use) || Math.Abs(intent.MoveX) > 0.5 || Math.Abs(intent.MoveZ) > 0.5)
+            {
+                gun.ReloadProgress = 0;
+                return;
+            }
+            gun.ReloadProgress += dt;
+            if (gun.ReloadProgress >= t.ClearSeconds)
+            {
+                gun.ReloadProgress = 0;
+                gun.Jammed = false;
+            }
+            return;
+        }
         if (gun.ReloadNeeded <= 0)
             return;
         // Walking with Use held is pushing the gun, not reloading it (T93); but a gun waiting on a reload won't be pushed.
@@ -326,6 +349,16 @@ public static class Guns
             gun.ReloadProgress = 0;
             gun.ReloadNeeded--;
         }
+    }
+
+    /// <summary>Whether the round fired at <paramref name="tick"/> from <paramref name="vehicle"/>'s gun fouls it: a hash, not a die.</summary>
+    public static bool Fouls(uint tick, int vehicle, double chance)
+    {
+        ulong h = (tick * 0x9E3779B97F4A7C15UL) ^ ((ulong)(vehicle + 1) * 0xC2B2AE3D27D4EB4FUL);
+        h ^= h >> 33;
+        h *= 0xFF51AFD7ED558CCDUL;
+        h ^= h >> 33;
+        return (h >> 11) * (1.0 / (1UL << 53)) < chance;
     }
 
     /// <summary>Counts down every gun's cooldown. Once per tick.</summary>

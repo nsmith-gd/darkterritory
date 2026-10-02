@@ -33,7 +33,19 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
 
 public sealed record ChuteTuning(double LeverReach, double LeverSeconds, double SpoutTolerance, double PourPerSecond, double Capacity, double OverfillDamagePerUnit);
 
-public sealed record EconomyTuning(Dictionary<string, double> PerCar, double CoalPerUnit, double RoundsPerRound, double RepairPerIntegrity);
+public sealed record EconomyTuning(Dictionary<string, double> PerCar, double CoalPerUnit, double RoundsPerRound, double RepairPerIntegrity)
+{
+    /// <summary>
+    /// What a car-load of each cargo pays, as a share of the tier's per-car value (run.json <c>economy.cargoRates</c>; GDD §18,
+    /// §19, App. B.9; note 182). A cargo not listed pays 1, as goods do (spec F.1's table).
+    /// </summary>
+    public Dictionary<string, double> CargoRates { get; init; } = new();
+
+    /// <summary>A rescued child brought home (GDD §19, App. B.9 "highest payout"), in the tier's per-car values.</summary>
+    public double ChildPay { get; init; }
+
+    public double Rate(CargoKind cargo) => CargoRates.GetValueOrDefault(Cargoes.Key(cargo is CargoKind.None ? CargoKind.Goods : cargo), 1);
+}
 
 /// <summary>GDD §9: FORTRESS → WILDERNESS → FACILITY → WILDERNESS → TERMINUS.</summary>
 public enum RunPhase : byte { Yard, Underway, AtFacility, Arrived, Failed }
@@ -61,11 +73,16 @@ public sealed record RunReport(RunEnd End, double Seconds, double DistanceKm, in
     /// report that doesn't say (the campaign's spares stand as they were).
     /// </summary>
     public int SpareKitsHome { get; init; } = -1;
+    /// <summary>Everyone's look at the night's end, by name (GDD v1.4 App. D.8; note 181): a freed survivor stays that survivor.</summary>
+    public IReadOnlyDictionary<string, string> Identities { get; init; } = new Dictionary<string, string>();
     /// <summary>
     /// The bookmarks on the run-end screen (GDD v1.4 App. D.12): the automatic ones D.13's cap keeps (each beside its line,
     /// <see cref="ReportLine.Marks"/>) and the dead's own, in the order they were made.
     /// </summary>
     public IReadOnlyList<Bookmark> Bookmarks { get; init; } = [];
+    /// <summary>Rescued children brought home (GDD §19, App. B.9), and what they paid (in the gross: <c>economy.childPay</c> each).</summary>
+    public int ChildrenHome { get; init; }
+    public double ChildPay { get; init; }
 }
 
 /// <summary>
@@ -644,7 +661,12 @@ public sealed partial class Run
         var home = cargo.Where(v => attached.Contains(v.Id)).ToList();
         bool delivered = End == RunEnd.Delivered;
         double cargoValue = home.Sum(v => v.Load * v.CargoIntegrity);
-        double gross = delivered ? perCar * cargoValue + Scavenged + Mail : 0;
+        // Each car pays by what's in it (run.json economy.cargoRates; note 182): the contract's freight, or a facility's.
+        double freightPay = perCar * home.Sum(v => v.Load * v.CargoIntegrity * e.Rate(v.Cargo));
+        // GDD §19, B.9: a rescued child home (in a car still on the engine, or in someone's arms) is the night's best pay.
+        int children = delivered ? world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.Child && (b.Carrier >= 0 || attached.Contains(b.Parent))) : 0;
+        double childPay = Math.Round(children * e.ChildPay * perCar);
+        double gross = delivered ? freightPay + childPay + Scavenged + Mail : 0;
         double coal = Math.Max(0, _tenderAtDeparture + _coalLoaded - train.Boiler.Tender) * e.CoalPerUnit;
         double ammo = Math.Max(0, _ammoAtDeparture - train.Vehicles.Sum(v => v.Gun.Ammo)) * e.RoundsPerRound;
         double repairs = train.Vehicles.Where(v => attached.Contains(v.Id)).Sum(v => 1 - v.Integrity) * e.RepairPerIntegrity;
@@ -679,6 +701,10 @@ public sealed partial class Run
         {
             Lines = lines,
             Bookmarks = shown,
+            ChildrenHome = children,
+            ChildPay = childPay,
+            // D.8: who everyone is now, for the campaign to carry into the next night.
+            Identities = Identity.ByName(world, world.LastCrew.Select(c => c.Id)),
             // Home with the cars that are (in one of them, its floor or a locker) or in a living crewmate's hands.
             SpareKitsHome = Math.Max(0, world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.RepairKit && b.Claimed
                 && (b.Carrier >= 0 || attached.Contains(b.Parent))) - train.Dynamics.Tuning.Kit.RepairKits),

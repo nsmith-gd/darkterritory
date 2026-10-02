@@ -72,6 +72,8 @@ public sealed class Body
     /// "physically aboard and readable"); <see cref="CargoKind.None"/> for a stop's loot crates and everything else.
     /// </summary>
     public CargoKind Cargo { get; set; }
+    /// <summary>A radio smashed in a fall, a grab or a blow (GDD §23 "radio breaks"; note 183): carried, but dead.</summary>
+    public bool Broken { get; set; }
     /// <summary>A toy's noise (App. C.7): <see cref="ToyNoise.None"/> for a quiet one and everything that isn't a toy.</summary>
     public ToyNoise Noise { get; set; }
     /// <summary>
@@ -128,7 +130,7 @@ public sealed class Bodies
     public bool RadiosCarried { get; set; }
 
     /// <summary>Whether a player can use the radio: wearing one, or everyone while radios aren't things.</summary>
-    public bool HasRadio(int playerId) => !RadiosCarried || _bodies.Any(b => b.Kind == BodyKind.Radio && b.Carrier == playerId);
+    public bool HasRadio(int playerId) => !RadiosCarried || _bodies.Any(b => b.Kind == BodyKind.Radio && b.Carrier == playerId && !b.Broken);
 
     /// <summary>What a player carries in their hands (a radio's on the belt, not in them).</summary>
     public Body? CarriedBy(int playerId) => _bodies.FirstOrDefault(b => b.HeldBy(playerId) && b.Kind != BodyKind.Radio);
@@ -211,6 +213,13 @@ public sealed class Bodies
     /// one (GDD v1.4 App. C item 4: "worth more than quiet toys").
     /// </summary>
     public static double Value(Body b) => Value(b.Kind) * (b.Kind == BodyKind.Toy && b.Noise != ToyNoise.None ? 1.5 : 1);
+
+    /// <summary>
+    /// What this body is worth to a creature that takes or eats loot (the Gaunt, the Followers): its <see cref="Value(Body)"/>,
+    /// but nothing for a rescued child, who "cannot be harmed" (GDD App. A.6 REAL; note 182). It's the most valuable thing
+    /// aboard, and no creature carries it off or nests over it.
+    /// </summary>
+    public static double Prey(Body b) => b.Kind == BodyKind.Child ? 0 : Value(b);
 
     /// <summary>A small thing on the ground at a facility (a toy, salvage, a child), in the world frame.</summary>
     public Body SpawnItem(Double3 world, double lineHint, BodyKind kind)

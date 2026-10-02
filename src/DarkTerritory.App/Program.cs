@@ -79,6 +79,8 @@ static SteamBackend? NoSteam(string? error)
 var campaignTuning = DataFile.Load<CampaignTuning>(Path.Combine(content, CampaignTuning.File));
 var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
 var saves = new SaveSlots(Arg("--saves", SaveSlots.DefaultDirectory), campaignTuning.SaveSlots);
+// The player's profile (note 180): commendations, and whether a night they hosted has had a child's call (B.6; note 182).
+var profile = new PlayerProfile(args.Contains("--saves") ? Path.Combine(saves.Directory, "profile.json") : PlayerProfile.DefaultPath);
 // GDD v1.4 App. E.6: the derailment's shuffle bag for nights without a campaign slot (a slot keeps its own), in app data.
 var musicBags = new MusicBagFile(args.Contains("--saves") ? Path.Combine(saves.Directory, "music-bag.json") : MusicBagFile.DefaultPath);
 var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", Settings.DefaultPath), edition: EditionTuning.Load(content))
@@ -404,8 +406,15 @@ Launch? Menu()
                     Upgrades = campaign.Upgrades,
                     SpareKits = campaign.SpareKits,
                     MusicBag = campaign.Music,
+                    Identities = campaign.Identities,
+                    // GDD §9 (note 182): the contract's freight in every loaded car, and the stores bought for the night.
+                    Cargo = contract.Cargo,
+                    Powder = campaign.Stores.Powder,
+                    SpareLamps = campaign.Stores.Lamps,
+                    SpareExtinguishers = campaign.Stores.Extinguishers,
+                    FirstChildReal = profile.FirstChildReal,
                 };
-                Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
+                Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} carrying {Cargoes.Name(contract.Cargo)} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
                 return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume,
                     listed: frontEnd.Settings.PublicLobby, lobbyName: frontEnd.LobbyName), campaign);
             }
@@ -417,7 +426,11 @@ Launch? Menu()
                 // with bots and no friends (T89) is hosted privately: the bots are clients on localhost.
                 int? port = !hosted.Host ? null : args.Contains("--host") ? int.TryParse(Arg("--host", ""), out var p) ? p : NetPlaySession.DefaultPort
                     : fromCommandLine ? null : NetPlaySession.DefaultPort;
-                var setup = new SessionSetup(Route: hosted.Route, Line: hosted.Line, Cars: hosted.Cars, Enemies: enemies) { MusicBag = musicBags.Load() };
+                var setup = new SessionSetup(Route: hosted.Route, Line: hosted.Line, Cars: hosted.Cars, Enemies: enemies)
+                {
+                    MusicBag = musicBags.Load(),
+                    FirstChildReal = profile.FirstChildReal,
+                };
                 var session = NetPlaySession.HostGame(content, setup, port, online: hosted.Host ? steam : null, bots: hosted.Bots,
                     listed: hosted.Public, lobbyName: hosted.LobbyName);
                 if (hosted.Bots > 0)
@@ -464,6 +477,9 @@ while (!window.CloseRequested && !QuitNow())
     var leaving = launch;
     launch = null;
     campaign = Play(session, campaign);
+    // B.6 (note 182): a night this host ran had a child's call in it; from now on every call is the dice's.
+    if (session is NetPlaySession { Host.World.ChildCalled: true })
+        profile.MarkChildCalled();
     // E.6: a night without a slot keeps its shuffle bag in app data (a campaign's went into its save as it settled).
     if (campaign is null && session is NetPlaySession { MusicBag: { } bag } hosting && hosting.Host!.World.DerailMusic != 0)
         musicBags.Save(bag);
@@ -622,7 +638,19 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         // The night's over: Enter goes back (to the fortress, for a campaign night).
         if (session.World.Run?.Over == true && input.Pressed(Key.Enter))
+        {
+            // D.12: what the crew commended you for goes in your profile, whatever becomes of the character.
+            if (net is not null && session.World.Commendations.Count > 0)
+                profile.Record(session.World.Commendations, net.PlayerId);
             break;
+        }
+        // GDD v1.4 App. D.12: on the run-end screen, a commendation for a crewmate: the arrows pick who and which, Space gives it.
+        if (session.World.Run?.Over == true && net is not null)
+            net.Commend((input.Pressed(Key.Right) ? 1 : 0) - (input.Pressed(Key.Left) ? 1 : 0),
+                (input.Pressed(Key.Down) ? 1 : 0) - (input.Pressed(Key.Up) ? 1 : 0), input.Pressed(Key.Space));
+        // D.11: the dead's chime as a creature they voted for comes.
+        if (net?.TakeNewCue() == true)
+            sound.Play("vote-cue");
         // --derail-at s (a host, headless checks of the derailment's beats with --capture): off the rails at s seconds.
         if (derailAt > 0 && now >= derailAt && session is NetPlaySession { Host.World: { Derailed: false } hostWorld })
             hostWorld.Derail("--derail-at");

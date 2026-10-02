@@ -7,6 +7,12 @@
     // forward gun sits behind the engine's stack, which masks the rail closer than about 60 m, and the doll shows in the
     // lamp at 200 m; at 80 the shot that saves you had a second or two's window. Now it's from first sight to the stack.
     "range": 220,
+    // GDD §23 "gun jams: someone repairs it by hand, under fire" (note 183): a shot fouls the bore one time in 25 (×2.5 on wet
+    // rail), and clearSeconds of Use held at the gun clears it. GDD §22 wind: a round's loudness ×(1 + windLoudness × wind).
+    "foulChance": 0.04,
+    "foulWetFactor": 2.5,
+    "clearSeconds": 4,
+    "windLoudness": 0.6,
     // Total traverse either side of the gun's facing is half of this.
     "traverseDegrees": 200,
     // Spec B.7: no firing within this many degrees of the train's own body axis.
@@ -43,6 +49,11 @@
   // came down, are kept in the replicated world this long (s), so every client sees the flinch, hears the thud and the
   // boom, and the one who landed it gets the crosshair's marker, through a dropped snapshot or two. The impact's is as
   // long as its smoke hangs.
+  // GDD App. B.9 (note 182): "firing a cannon near chemical cars is lethal to the crew". A shot from a gun on a loaded
+  // chemicals car, or on a car within `cars` couplings of one, sets the fumes off: the gunner and everyone within gasM of that
+  // car (its nearest side) take damage (150: dead). Not in the GDD's numbers: "near" is the next car, so the guard van's gun
+  // with chemicals ahead of it is lethal and the engine's, with them three cars back, isn't.
+  "fumes": { "cars": 1, "gasM": 8, "damage": 150 },
   "hits": {
     "keepSeconds": 1,
     "impactKeepSeconds": 8
