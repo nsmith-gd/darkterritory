@@ -18,6 +18,10 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     public int ReloadSteps { get; init; } = 3;
     /// <summary>Seconds of Use held at the gun per step.</summary>
     public double ReloadStepSeconds { get; init; } = 1.5;
+    /// <summary>The chance a pull of the trigger on a loaded gun misfires and fouls it (GDD §23; spec B.7).</summary>
+    public double FoulChance { get; init; } = 0.03;
+    /// <summary>Seconds of Use held at a fouled gun to clear it by hand.</summary>
+    public double FoulClearSeconds { get; init; } = 6;
 }
 
 /// <summary>The loudness meter and the Choir it draws (GDD v1.1 App. A.7, C.7). Field docs live in combat.json.</summary>

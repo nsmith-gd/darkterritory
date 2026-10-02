@@ -230,8 +230,13 @@ public sealed class CarHugger(int id) : Enemy(id)
         // FEED: shell and loot, steadily.
         var car = train.Vehicles[Attached];
         double bite = Math.Min(car.Integrity, t.ShellPerSecond * SimConstants.TickSeconds);
+        double eaten = car.Eaten;
         car.Integrity -= bite;
         car.Eaten += bite;
+        // Through the end wall (the breach, decided 1 Oct): every breachEaten of shell, boarded up or not, it's through again.
+        if (t.BreachEaten > 0 && Math.Floor(car.Eaten / t.BreachEaten) > Math.Floor(eaten / t.BreachEaten)
+            && Breaches.EndWall(train.Frames[Attached].Shape) is { } wall)
+            car.Breach(wall);
         car.CargoIntegrity = Math.Max(0, car.CargoIntegrity - t.LootPerSecond * SimConstants.TickSeconds);
         if (car.Integrity <= 0)
         {

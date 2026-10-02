@@ -12,7 +12,8 @@ namespace DarkTerritory.Sim.Train;
 /// <item>on a coupler plate, nothing but the doors: the coupling is cut by <see cref="Uncoupling"/> (T91);</item>
 /// <item>at a car's brake wheel, wind its rake's handbrakes on or off;</item>
 /// <item>at a cargo car's roof hatch, open or shut it (T99);</item>
-/// <item>at a sandbox on the engine's running boards, sand the rail (Grease's counter, App. A.2).</item>
+/// <item>at a sandbox on the engine's running boards, sand the rail (Grease's counter, App. A.2);</item>
+/// <item>inside a breached car at the hole, board it up (decided 1 Oct, <see cref="Breaches"/>).</item>
 /// </list>
 /// A VR player's reaching hand (T29) picks what's worked by where it is, not where they stand, and shovels by the
 /// stroke: coal onto the shovel at the tender, then into the firebox (<see cref="ShovelByHand"/>).
@@ -38,6 +39,20 @@ public static class CrewActions
             // Let go of the shovel and what's on it is spilled.
             s.ActionProgress = 0;
             s.Flags &= ~PlayerFlags.Shovelful;
+            return;
+        }
+        // A breach in the car's shell (decided 1 Oct): boarded up from inside, Use held at the hole. It's the one thing worked
+        // there (the end door is in the wall the Car Hugger ate). Done, the count's left where it got to, so a hand still
+        // held on doesn't go on to work the door beside it; still held as a fresh hole opens, it starts that one over.
+        if (Breaches.Within(s, train, hand) is { } breached)
+        {
+            double board = train.Dynamics.Tuning.Breach.BoardSeconds;
+            s.Flags &= ~PlayerFlags.Shovelful;
+            if (s.ActionProgress >= board)
+                s.ActionProgress = 0;
+            s.ActionProgress += dt;
+            if (s.ActionProgress >= board)
+                train.Vehicles[breached].Breached = false;
             return;
         }
         double before = s.ActionProgress;

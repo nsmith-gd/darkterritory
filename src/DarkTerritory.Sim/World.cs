@@ -142,12 +142,19 @@ public sealed class World
     public List<EnemyEvent> EnemyEvents { get; } = new();
     public List<DamageEvent> Damage { get; } = new();
 
+    /// <summary>
+    /// The night's seed, host and clients alike (given with the enemies): what the train's own chances are rolled from where
+    /// a predicting client has to roll them as the host does (a cannon's misfire, <see cref="Guns.Misfires"/>). 0 unset.
+    /// </summary>
+    public ulong Seed { get; private set; }
+
     /// <summary>Hands this world the enemies: the host gets the director and the route's Sleepers.</summary>
     public void EnableEnemies(EnemyTuning tuning, Route.Route? route, ulong seed, int crew, bool authority)
     {
         Enemies = tuning;
         Route = route;
         Authority = authority;
+        Seed = seed;
         if (!authority)
             return;
         Director = new Director(tuning.Director, route, seed, Train.Dynamics.Consist.CarCount, crew);
@@ -337,7 +344,7 @@ public sealed class World
         if (!handsTookIt)
             CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand);
         var targets = viewTick is { } vt && _targetHistory.TryGetValue(vt, out var then) ? then : Targets;
-        if (Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
+        if (Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId, Seed) is { } shot)
             Shots.Add(shot);
         if (Combat is { } cr)
             Guns.Reload(s, intent, Train, cr.Guns, SimConstants.TickSeconds);

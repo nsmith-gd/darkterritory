@@ -91,8 +91,9 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
             _holding = true;
         else if (choir is null || world.Choir.Build <= 0.1 && !world.Choir.Present)
             _holding = false;
-        // GDD v1.1 App. C.3: powder, ball, ram after every shot, before anything else (Use held at the gun).
-        if (world.Train.Vehicles[gun].Gun is { ReloadNeeded: > 0, Ammo: > 0 })
+        // GDD §23: fouled, it's cleared by hand before anything else (Use held at the gun, under fire or not); then GDD v1.1
+        // App. C.3: powder, ball, ram after every shot.
+        if (world.Train.Vehicles[gun].Gun is { Jammed: true } or { ReloadNeeded: > 0, Ammo: > 0 })
             return new PlayerIntent { Buttons = PlayerButtons.Use };
         bool holdFire = _holding;
         var frame = world.Train.Frames[gun];
@@ -1381,6 +1382,20 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                 {
                     _outEnd = WayOut(self, train);
                     return Next(Step.Reopen);
+                }
+                // The car's breached (the Car Hugger through its end, Climbers in through its roof): it warms nobody until it's
+                // boarded up (decided 1 Oct), so that first, at the hole. Not with the thing still at it, nor with no kit when
+                // boarding needs it: out, and warm somewhere else.
+                if (train.Vehicles[_car].Breached)
+                {
+                    if (Barred?.Invoke(_car) == true || train.Dynamics.Tuning.Breach.NeedsKit && Kit.Held(self) != Tool.Wrench)
+                    {
+                        _outEnd = WayOut(self, train);
+                        return Next(Step.Reopen);
+                    }
+                    if (Breaches.Within(self, train) is not null)
+                        return new PlayerIntent { Buttons = PlayerButtons.Use };
+                    return Steer(self, Breaches.StandAt(train, _car), self.Yaw).Step;
                 }
                 // Someone came or went and left a door open: shut it again (a roof hatch is the crane's, T99, worked from the roof).
                 if ((train.Vehicles[_car].DoorsOpen & ~(1 << CarShape.HatchBit)) != 0)

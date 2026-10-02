@@ -138,6 +138,19 @@
     "handbrakeSeconds": 1.0
   },
 
+  // A breach (decided 1 Oct; spec B.9): a car's shell given way to the outside, the Car Hugger through its end wall
+  // (enemies.json carHugger.breachEaten) or Climbers in through its roof (climbers.breachLitCars). Until it's boarded up it
+  // shuts nobody in, whatever its doors: the cold, the night's sound and the Choir come in as through an open door. Boarded
+  // up from inside by holding Use within boardReach m (across the floor) of the hole for boardSeconds; let go and that
+  // board's started again. needsKit: only with the repair kit in hand. The train carries no repair kit yet (it's modelled,
+  // not placed: ARCHITECTURE §8), so true means the engineering kit's wrench (T109); false, anyone's hands and what's lying
+  // about the car.
+  "breach": {
+    "boardSeconds": 8,
+    "boardReach": 1.5,
+    "needsKit": false
+  },
+
   "speedBands": {
     "yard": 2.5,
     "jumpOffLethal": 4.0,
