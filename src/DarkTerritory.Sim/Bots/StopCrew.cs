@@ -1831,7 +1831,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         int beyond = direction < 0 ? train.VehicleAhead(self.Parent) : train.VehicleBehind(self.Parent);
         if (jumpGaps && nearEnd && beyond > 0)
         {
-            if (WarmUp.CanJumpGap(self, train, null))
+            if (WarmUp.CanJumpGap(self, train, null, beyond))
                 intent.Buttons |= PlayerButtons.Jump;
             else
                 intent.MoveZ = 0; // square up on the centreline first (or wait out the curve)
