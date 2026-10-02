@@ -869,7 +869,7 @@ def held_growl(rng, L, wrenches):
     return lp(v, rng.uniform(1100, 1500))
 
 
-def snort(rng, length=0.14):
+def nose_snort(rng, length=0.14):
     """A hard breath out through the nose round a mouthful: air through the hound's tract, closed to 'mm'."""
     sh = env([(0, 0), (0.01, 1), (length, 0)], length)
     return lp(hp(unit(synth.breath(length, [(0, "m"), (length, "h")], HOUND_TRACT, rng, shape=sh)), 300), 2500)
@@ -896,13 +896,13 @@ def bite_snap(rng, k):
         tw = t + rng.uniform(0.1, 0.14)
         b.at(tw, tear(rng, 0.15), -5)
         b.at(tw, unit(main_hit(CLOTH[int(rng.integers(4))], 0.15)), -10)
-    b.at(t + G - 0.03, snort(rng), -16)
+    b.at(t + G - 0.03, nose_snort(rng), -16)
     return b.x
 
 
 def bite_worry(rng, k):
     b = Bus(2.4)
-    b.at(0.0, snort(rng, 0.1), -10)      # the breath it goes in on
+    b.at(0.0, nose_snort(rng, 0.1), -10)      # the breath it goes in on
     t = 0.08
     b.at(t, clamp(rng, 0.9), 0)
     # it holds on and wrenches its head: two to four uneven wrenches
@@ -921,7 +921,7 @@ def bite_worry(rng, k):
             wet = dsp.vari(main_hit(WET[int(rng.integers(3))], 0.12), rng.uniform(-7, -4))
             b.at(at, unit(lp(wet, 3000)), -11)
         if i < len(ws) - 1 and rng.random() < 0.6:
-            b.at(at + 0.12, snort(rng, 0.1), -17)
+            b.at(at + 0.12, nose_snort(rng, 0.1), -17)
     if k == 3:     # the last wrench finds the bone
         b.at(t + ws[-1] + 0.05, unit(lp(dsp.vari(main_hit(BONE, 0.15), -5), 4000)), -4)
     return b.x
