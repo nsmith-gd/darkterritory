@@ -97,7 +97,7 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
 
     byte _movedThisTick;
 
-    /// <summary>One bit per crew locker in its car's <see cref="CarShape.Lockers"/> (ARCHITECTURE §8 note 166): set is open. Shut at departure.</summary>
+    /// <summary>One bit per crew locker in its car's <see cref="CarShape.Lockers"/> (ARCHITECTURE §8 note 170): set is open. Shut at departure.</summary>
     public uint LockersOpen { get; set; }
     public bool LockerOpen(int index) => (LockersOpen & (1u << index)) != 0;
 

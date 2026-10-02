@@ -73,7 +73,7 @@ public sealed class Body
     public ulong Tools { get; set; }
     public bool HasTool(Tool tool) => Player.Kit.Has(Tools, tool);
     /// <summary>
-    /// The crew locker it's on a shelf of (its car's <see cref="CarShape.Lockers"/> index, ARCHITECTURE §8 note 166), or −1.
+    /// The crew locker it's on a shelf of (its car's <see cref="CarShape.Lockers"/> index, ARCHITECTURE §8 note 170), or −1.
     /// Stowed, it's the locker's: still in its car's frame, at its shelf (<see cref="Lockers.SlotAt"/>), out of the physics
     /// and out of reach but through the locker's open door.
     /// </summary>
@@ -140,7 +140,7 @@ public sealed class Bodies
     }
 
     /// <summary>
-    /// Puts a thing on a locker's first free shelf (ARCHITECTURE §8 note 166): out of whoever's hands, into its car's frame,
+    /// Puts a thing on a locker's first free shelf (ARCHITECTURE §8 note 170): out of whoever's hands, into its car's frame,
     /// lying along the locker (a toolbox's length goes in deep), asleep and out of the physics. False if it's full, or the
     /// thing isn't one that goes in.
     /// </summary>
@@ -369,7 +369,7 @@ public sealed class Bodies
         }
         if (carried is not null && keep && !throwPressed)
             return false;
-        // At a locker's door (note 166), Use is the locker's: tapped, what's in your hands goes on a shelf (or the top thing
+        // At a locker's door (note 170), Use is the locker's: tapped, what's in your hands goes on a shelf (or the top thing
         // comes off one); held, CrewActions works the door. So the hands wait for the release to know which it was, and
         // never take the press (the door's hold is worked the same on a predicting client, which has no hands).
         if (!throwPressed && (carried is null || Lockers.Holds(train, carried.Kind)) && Lockers.AtHand(s, train, hand) is { } locker)
@@ -429,7 +429,7 @@ public sealed class Bodies
     public Body? InReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null, bool wearingRadio = false, int playerId = -1)
     {
         // A heavy crate with one on it is still free at its other end (T43).
-        // What's in a locker is the locker's: taken from it with a tap there, not reached for (note 166).
+        // What's in a locker is the locker's: taken from it with a tap there, not reached for (note 170).
         var free = _bodies.Where(b => !b.Stowed && (b.Carrier < 0 || b.Kind == BodyKind.Heavy && b.Second < 0 && b.Carrier != playerId)
             && !(wearingRadio && b.Kind == BodyKind.Radio));
         if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)
@@ -482,7 +482,7 @@ public sealed class Bodies
                     b.Pbd.Wake();
         foreach (var b in _bodies)
         {
-            // On a locker's shelf it's the locker's, and goes where its car goes (note 166).
+            // On a locker's shelf it's the locker's, and goes where its car goes (note 170).
             if (b.Stowed)
                 continue;
             if (b.Kind == BodyKind.Heavy)
@@ -519,7 +519,7 @@ public sealed class Bodies
     Double3[] _before = new Double3[11];
 
     /// <summary>
-    /// What was in a car's room stays in it, but out through an opening (note 166): a particle that this step went past a
+    /// What was in a car's room stays in it, but out through an opening (note 170): a particle that this step went past a
     /// wall (pushed out of its far side, or through it between ticks at a throw's speed) is stopped inside it, its speed
     /// out of the room gone.
     /// </summary>
@@ -589,7 +589,7 @@ public sealed class Bodies
         }
         var local = s.Parent == PlayerState.World ? hands : train.Frames[s.Parent].ToLocal(hands);
         int grip = b.Kind == BodyKind.Ragdoll ? 1 : 0;
-        // Indoors, what's in your hands is in the room with you (note 166): faced up to a wall, your hands' reach is past it
+        // Indoors, what's in your hands is in the room with you (note 170): faced up to a wall, your hands' reach is past it
         // (and past its middle), and what you set down there would be pushed out of its far side. Out through a doorway
         // that's open, it goes with you.
         if (s.Parent != PlayerState.World && s.Parent < train.Frames.Count && at is null)

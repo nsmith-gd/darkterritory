@@ -900,7 +900,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (args.Contains("--doors-open"))
         foreach (var v in train.Dynamics.Consist.Vehicles)
             v.DoorsOpen = 0xFF;
-    // --lockers-open NAME[,NAME]: those crew lockers' doors open (note 166; "all" for the row); the lockers view opens the
+    // --lockers-open NAME[,NAME]: those crew lockers' doors open (note 170; "all" for the row); the lockers view opens the
     // repair kit's (the fitter's) by itself.
     if (Str(args, "--lockers-open", view == "lockers" ? "kit" : "") is { Length: > 0 } lockersOpen && DarkTerritory.Sim.World.KitLocker(train) is { } kitLocker)
         foreach (var bay in train.Frames[kitLocker.Car].Shape.Lockers)

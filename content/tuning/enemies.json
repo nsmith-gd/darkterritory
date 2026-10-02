@@ -71,7 +71,7 @@
     // hits her on the rail shatters her, gone for the run, the same outcome as stopping short (App. A.2's VANISH), so the
     // train no longer strikes her. The GDD gives the brakes as the answer and doesn't say a cannon isn't one; it's loud and
     // costs the reload, which keeps it a cost. Her hit volume on the rail: railHitRadius round a point railHitHeight over it
-    // (her body, a large porcelain doll). cannonShatters off: the ball goes through her (ARCHITECTURE §8 note 166).
+    // (her body, a large porcelain doll). cannonShatters off: the ball goes through her (ARCHITECTURE §8 note 168).
     "cannonShatters": true, "railHitRadius": 0.55, "railHitHeight": 0.7
   },
 

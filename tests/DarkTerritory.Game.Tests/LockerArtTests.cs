@@ -8,7 +8,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The crew lockers as drawn (note 166): every grade fits its door's plate at one letter size, a door hangs in its
+/// The crew lockers as drawn (note 170): every grade fits its door's plate at one letter size, a door hangs in its
 /// cabinet's face shut and out in the aisle open, and the repair kit fits a locker's shelf the way it's stowed.
 /// </summary>
 public class LockerArtTests

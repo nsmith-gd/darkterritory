@@ -5,7 +5,7 @@ using DarkTerritory.Sim.Player;
 namespace DarkTerritory.Sim.Train;
 
 /// <summary>
-/// The crew lockers (ARCHITECTURE §8 note 166): a row of iron lockers along a wall of the repair kit's car, each lettered
+/// The crew lockers (ARCHITECTURE §8 note 170): a row of iron lockers along a wall of the repair kit's car, each lettered
 /// with a crew grade (train.json <c>kit.lockers</c>). The shape has them (<see cref="CarShape.Lockers"/>), the vehicle their
 /// doors (<see cref="Vehicle.LockersOpen"/>), and a body on a shelf says which (<see cref="Body.Locker"/>): held there, out
 /// of the physics, so nothing stowed falls, slides or goes through a wall.

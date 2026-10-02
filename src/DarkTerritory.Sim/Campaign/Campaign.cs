@@ -65,7 +65,7 @@ public sealed record CampaignState
     public RunCheckpoint? Checkpoint { get; init; }
     /// <summary>
     /// Spare repair kits (GDD v1.4 App. E.12 question 4): bought at the fortress, or found at a stop and brought home. Each
-    /// starts a night in a crew locker beside the train's own (ARCHITECTURE §8 note 166); one lost in the night is gone.
+    /// starts a night in a crew locker beside the train's own (ARCHITECTURE §8 note 170); one lost in the night is gone.
     /// </summary>
     public int SpareKits { get; init; }
 }

@@ -45,7 +45,7 @@ public sealed class GreyboxScene
     /// <summary>GDD v1.4 App. E.9: this many of the cars' lamps are out, from the last car forward (all of them: the engine's too).</summary>
     public int LampsOut { get; set; }
     /// <summary>
-    /// GDD v1.4 App. E.9, the Stranded outro: the repair kit's locker (note 166) stands open, whatever its door is doing, on
+    /// GDD v1.4 App. E.9, the Stranded outro: the repair kit's locker (note 170) stands open, whatever its door is doing, on
     /// the empty shelf where the kit should be.
     /// </summary>
     public bool KitLockerOpen { get; set; }
