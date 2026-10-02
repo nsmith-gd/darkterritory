@@ -50,7 +50,7 @@ public sealed class GameAudio
     /// Every frame: the derailment's opera, the host's draw (<see cref="World.DerailMusic"/>) at
     /// <paramref name="sequenceSeconds"/> into the sequence (negative with no derailment). It starts on the replay.
     /// </summary>
-    public void Music(uint track, double sequenceSeconds, WreckTuning tuning) => Opera.Update(Mixer, track, sequenceSeconds, tuning);
+    public void Music(uint track, double sequenceSeconds, WreckTuning tuning, double end = -1) => Opera.Update(Mixer, track, sequenceSeconds, tuning, end);
 
     sealed class EnemySound
     {
@@ -79,6 +79,27 @@ public sealed class GameAudio
         Actions(world);
         Whistle(world, train);
         Toys(world, train);
+        CallOuts(world);
+    }
+
+    readonly Dictionary<int, int> _calls = [];
+
+    /// <summary>
+    /// GDD v1.4 App. D.7 Call Out (note 179): each Call Out the host counts plays once at its Holdout, a shout or a bout of
+    /// banging, through the walls unless you're outside by it. What had been called before this client first looked is old.
+    /// </summary>
+    void CallOuts(World world)
+    {
+        if (world.Holdouts is not { } holdouts)
+            return;
+        foreach (var h in holdouts.All)
+        {
+            bool seen = _calls.TryGetValue(h.Index, out int was);
+            _calls[h.Index] = h.Calls;
+            if (!seen || h.Calls <= was)
+                continue;
+            Mixer.Play((h.Index + h.Calls) % 2 == 0 ? "holdout-shout" : "holdout-bang", h.Inside)?.Also(v => v.Occlusion = 1);
+        }
     }
 
     readonly Dictionary<int, SoundInstance> _toys = [];
@@ -117,7 +138,19 @@ public sealed class GameAudio
         }
     }
 
-    SoundInstance? _whistle;
+    SoundInstance? _whistle, _radioVoice;
+
+    /// <summary>The fortress reading over the radio (GDD §9; note 178): its voice and static for as long as it's on the air.</summary>
+    public void Radio(bool onAir)
+    {
+        if (!onAir)
+        {
+            _radioVoice?.Stop();
+            _radioVoice = null;
+            return;
+        }
+        _radioVoice ??= Mixer.Play("radio-clerk");
+    }
 
     /// <summary>The train's whistle, from the engine's dome, for as long as it blows (the cord, or the Whistler at it).</summary>
     void Whistle(World world, TrainOnLine train)

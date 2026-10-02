@@ -49,6 +49,15 @@ public enum PlayerActions : byte
     Tool = 32,
     /// <summary>Sit at the gun you're at (T112): sent on the press. Sitting only, so a repeated intent is harmless; Jump gets up.</summary>
     Seat = 64,
+    /// <summary>
+    /// The dead's key (the last free bit, so two names for one context each; note 176, note 177). <see cref="Bookmark"/>: while
+    /// the run's under way, a bookmark of the view you're following (GDD v1.4 App. D.10's UI, D.12), sent on the press; the host
+    /// takes one on the tick it first sees it held. <see cref="Skip"/>: once the night's over, a held vote to skip the derailment
+    /// film to its cause card (App. E.5) or the Stranded outro (E.9); the host counts heads, and a majority, or the host, skips.
+    /// The two never overlap: a run under way has no film or outro, and a night that's over takes no bookmarks.
+    /// </summary>
+    Bookmark = 128,
+    Skip = 128,
 }
 
 /// <summary>The forward lamp's switch in the cab (T52): set it on or off (a setting, not a toggle, so a held key or a resent intent is harmless).</summary>

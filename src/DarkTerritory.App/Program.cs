@@ -585,6 +585,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     bool pendingCarLamp = false;
     byte pendingSelect = 0;
     bool pendingSeat = false;
+    bool pendingBookmark = false;
     float pendingCycle = 0;
     double voiceLevel = 0;
     bool chase = ride;
@@ -598,6 +599,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     Camera camera = default;
     // T121: the derailment first-hand, then replayed from the chase view, then the orbit (DerailSequence).
     var derailSequence = new DerailSequence();
+    // GDD v1.4 App. D.12: the night's bookmark stills, taken here as the host's bookmarks arrive.
+    var stills = new BookmarkStills();
     FrameLighting lighting = default;
     window.MouseCaptured = true;
     window.TextInput = false;
@@ -630,6 +633,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (Hit(Control.Lamp))
             pendingLamp = session.World.LampLit ? LampSwitch.Off : LampSwitch.On;
         pendingCarLamp |= Hit(Control.CarLamp);
+        // Dead (App. D.10), a bookmark of whom you're watching (D.12): sent on the press, as intent.
+        pendingBookmark |= Hit(Control.Bookmark) && !session.Player.Alive;
         // The gun's seat (T112): Use pressed standing still at a loaded gun sits you in it (Use held at one waiting on its
         // reload loads it, walking with it pushes it). Seated, Jump gets you up.
         if (Hit(Control.Use) && !session.Player.Has(PlayerFlags.Seated) && session.World.Combat is { } gc
@@ -702,7 +707,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 // left button fires it).
                 Actions = (Held(Control.Swing) || Held(Control.Fire) ? PlayerActions.Swing : 0) | (Held(Control.Whistle) ? PlayerActions.Whistle : 0)
                     | (Held(Control.Uncouple) ? PlayerActions.Uncouple : 0) | (Held(Control.Ladder) ? PlayerActions.Ladder : 0)
-                    | (pendingCarLamp ? PlayerActions.CarLamp : 0) | (pendingSeat ? PlayerActions.Seat : 0),
+                    | (pendingCarLamp ? PlayerActions.CarLamp : 0) | (pendingSeat ? PlayerActions.Seat : 0)
+                    // D.12: the dead's bookmark, while the run's under way (the same bit is the film's skip vote once it's over).
+                    | (pendingBookmark && session.World.Run is not { Over: true } ? PlayerActions.Bookmark : 0)
+                    // E.5, E.9: holding Jump votes to skip the film to its cause card (or the Stranded outro), once a vote counts.
+                    | (session.Skippable && Held(Control.Jump) ? PlayerActions.Skip : 0),
                 // How loud you are (GDD v1.1 App. C.7, C.8): the mic while it sends; with no mic, holding Talk counts as
                 // speaking up, so a player without one can still talk the Gaunt down and answer a roll call.
                 Voice = (byte)Math.Clamp(voiceLevel * 255, 0, 255),
@@ -730,6 +739,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             pendingLamp = LampSwitch.None;
             pendingCarLamp = false;
             pendingSeat = false;
+            pendingBookmark = false;
             pendingReverser = false;
             pendingYaw = pendingPitch = 0;
             session.Step(intent);
@@ -776,19 +786,31 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         bool outro = session.StrandedOutro;
         var wreckTuning = session.World.WreckTuning;
         bool wrecking = session.WreckCinematic && session.Train.Wreck is not null;
-        var beat = wrecking ? DerailSequence.Beat(wreckTuning, session.WreckSeconds) : DerailBeat.None;
-        // GDD v1.4 App. E.6: the opera, from the replay's first frame, its hit on the moment the replay shows it coming off.
-        sound.Music(session.World.DerailMusic, wrecking ? session.WreckSeconds : -1, wreckTuning);
+        var film = session.Film;
+        var beat = wrecking ? DerailSequence.Beat(wreckTuning, session.WreckSeconds, film) : DerailBeat.None;
+        // GDD v1.4 App. E.6: the opera, from the replay's first frame, its hit on the moment the replay shows it coming off,
+        // faded under the film's cause card.
+        sound.Music(session.World.DerailMusic, wrecking ? session.WreckSeconds : -1, wreckTuning,
+            film is null ? -1 : wreckTuning.FirstPersonSeconds + wreckTuning.ReplaySeconds + film.CauseAt);
+        // GDD §9: the dispatcher's manifest leaving the yard and the clerk's tally home, on the radio.
+        sound.Radio(session.RadioReading is not null);
         derailSequence.Record((session.Tick + clock.Alpha) * DarkTerritory.Sim.SimConstants.TickSeconds, frames, scene.Crew, session.World.Derailed, camera,
             session.Player.Parent >= 0 ? session.Player.Parent : -1, wreckTuning);
         var replay = beat == DerailBeat.Replay ? derailSequence.ReplayAt(session.WreckSeconds, wreckTuning) : null;
         if (replay is { } replaying)
             frames = replaying.Frames;
+        // E.5: the film, everyone's own death: its cars, the crew ragdolled, each shot's camera (note 177).
+        var filmShot = beat == DerailBeat.Film && film is not null ? film.CutAt(DerailSequence.FilmSeconds(wreckTuning, session.WreckSeconds)) : null;
+        double filmAt = filmShot is { } fs ? fs.Shot.At(fs.Into) : 0;
+        if (filmShot is not null)
+            frames = DerailSequence.FilmFrames(film!, filmAt, frames);
+        scene.Bodies = filmShot is not null ? DerailSequence.FilmBodies(film!, filmAt) : session.World.Bodies.All;
         bool cinematic = wrecking || outro;
         var outroTuning = wreckTuning.Stranded;
         camera = outro ? Views.Stranded(session.Train, outroTuning, session.OutroSeconds)
             : beat == DerailBeat.FirstPerson && vr is null ? derailSequence.FirstPerson(frames)
             : replay is { } shot ? derailSequence.ReplayCamera(shot.Frames)
+            : filmShot is { } filming ? DerailSequence.FilmCamera(filming.Shot, filming.Into)
             : cinematic ? Views.Wreck(session.Train.Wreck!, DerailSequence.OrbitSeconds(wreckTuning, session.WreckSeconds))
             : chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
         // E.9: the lamps go out down the train as the camera pulls back, and stay lit (or not) as far as it can see.
@@ -800,7 +822,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // On the engine with the boiler in the red, it shakes you (T109).
         if (!chase && !cinematic)
             camera.Position += BoilerShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds);
-        scene.Crew = replay is { } replayed ? replayed.Crew : session.Crew(frames, clock.Alpha);
+        scene.Crew = replay is { } replayed ? replayed.Crew : filmShot is not null ? [] : session.Crew(frames, clock.Alpha);
+        scene.CutAway = filmShot is { } cutting ? DerailSequence.FilmCutAway(film!, cutting.Shot, filmAt, frames, camera.Position) : null;
+        scene.Lights = filmShot is { } lit ? DerailSequence.FilmLights(film!, lit.Shot, filmAt, camera.Position) : null;
         // Behind a crewmate's eyes (App. D.10), their own figure isn't drawn round the camera.
         if (session.Watching >= 0 && !chase)
             scene.Crew = [.. scene.Crew.Where(c => c.Id != session.Watching)];
@@ -842,7 +866,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.CordPulled = DarkTerritory.Game.Art.CrewActs.CrewWhistling(session.World);
         scene.Cut = DarkTerritory.Game.Art.SceneArt.Cuts(session.Train);
         // Replaying the run-in, the train's still on the rails: no wreck yet, no sparks.
-        scene.Wreck = replay is { Off: false } ? null : session.Train.Wreck;
+        // The film draws its own wreck; the live one's dust and sparks are somewhere else by then.
+        scene.Wreck = replay is { Off: false } || filmShot is not null ? null : session.Train.Wreck;
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
         scene.Tick = session.HostTick;
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
@@ -854,9 +879,24 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (!session.World.LampShining)
             lighting.LampRange = 0.01f; // not 0: the shader divides by it
         scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
+        // GDD v1.4 App. D.12: a bookmark that's due is drawn from its camera now, off screen, with what this machine has of
+        // the world (everyone but whoever's eyes it is), and kept small for the run-end screen. Rare, so a stall's fine.
+        if (stills.Due(session, frames, now) is { Count: > 0 } due)
+        {
+            var (shownCrew, shownOwn, shownHeld) = (scene.Crew, scene.Own, scene.HeldHere);
+            (scene.Own, scene.HeldHere) = (null, null);
+            foreach (var (mark, from) in due)
+            {
+                scene.Crew = BookmarkStills.Figures(session, frames, clock.Alpha, mark.Viewer);
+                scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, from.Position);
+                stills.Keep(mark, renderer.Render(mesh, from, lighting, lighting.FogColor), renderer.Width, renderer.Height);
+            }
+            (scene.Crew, scene.Own, scene.HeldHere) = (shownCrew, shownOwn, shownHeld);
+            scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
+        }
         if (showHud)
         {
-            Hud.Build(overlay, UiWidth, UiHeight, session);
+            Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills);
             // Q held: the crew roster (T69), with who's been heard.
             if (Held(Control.Roster))
                 Hud.Roster(overlay, UiWidth, UiHeight, session.Roster(), voice is null ? null : voice.SinceHeard);
@@ -879,7 +919,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         VrPanelContent? onPanel = null;
         if (vr is not null && showHud)
         {
-            Hud.Build(vrOverlay, 480, 270, session, crosshair: false);
+            Hud.Build(vrOverlay, 480, 270, session, crosshair: false, stills: stills.Stills);
             if (session.World.Run?.Over == true)
                 vrOverlay.TextCentred(240, 248, campaign is not null ? "A: BACK TO THE FORTRESS" : "A: BACK", new Vector4(1, 0.7f, 0.3f, 1));
             onPanel = new VrPanelContent(vrHud!, vrOverlay, 480, 270);

@@ -41,6 +41,15 @@ public sealed class GreyboxScene
     public bool WrenchRacked { get; set; } = true;
     /// <summary>The train off the rails (T117): its effects (sparks, dust, the engine's steam) are drawn from it.</summary>
     public Sim.Train.Wreck? Wreck { get; set; }
+
+    /// <summary>
+    /// Cars not drawn this frame: the derailment film's cutaway (GDD v1.4 App. E.4 O2, "PS2 style"), so a crewmate tumbling
+    /// inside a car, or behind one, is seen through it.
+    /// </summary>
+    public IReadOnlySet<int>? CutAway { get; set; }
+
+    /// <summary>Extra lights in the world (the film's rig on its subject, E.4 O12): where, their colour, their reach.</summary>
+    public IReadOnlyList<(Double3 At, Vector3 Colour, float Radius)>? Lights { get; set; }
     /// <summary>The firebox door's open (the boiler's FireDoorOpen): a Stoker in the fire is seen through it.</summary>
     public bool FireDoorOpen { get; set; }
     /// <summary>Emergency lighting (`dt screenshot --emergency`): the cars' lamps go to a dim red, the headlamp dark.</summary>
@@ -251,6 +260,9 @@ public sealed class GreyboxScene
                 // (Carried, where it swings in the carrier's fist: Art.SceneArt.LampInHand.)
                 if (((b.Carrier >= 0 ? Look?.Art.LampInHand(b.Carrier, Time) : null) ?? BodyWorld(b, frames, b.Centre)) is { } at && (at - eye).Length < 60)
                     mesh.PointLights.Add(new PointLight(V(at, eye), Palette.LampAmber * 1.8f, 7f));
+        if (Lights is not null)
+            foreach (var (at, colour, radius) in Lights)
+                mesh.PointLights.Add(new PointLight(V(at, eye), colour, radius));
         foreach (var frame in frames)
         {
             if ((frame.Origin - eye).Length > LampRange)
@@ -278,7 +290,8 @@ public sealed class GreyboxScene
                 mesh.PointLights.Add(new PointLight(V(frame.ToWorld(i.Position + new Double3(0, 0.7, 0.3)), eye), FireColour(0.6f + 1.6f * FireGlow), 5f));
         }
         foreach (var frame in frames)
-            Car(mesh, frame, eye);
+            if (CutAway?.Contains(frame.Index) != true)
+                Car(mesh, frame, eye);
         Lap(mesh, "cars");
         if (Look is not null)
         {

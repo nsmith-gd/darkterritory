@@ -245,14 +245,14 @@ public sealed class Bodies
     }
 
     /// <summary>Bone layout: head, chest, pelvis, elbows, hands, knees, feet (standing, in a player's frame).</summary>
-    static readonly (Double3 At, double Radius)[] Skeleton =
+    internal static readonly (Double3 At, double Radius)[] Skeleton =
     [
         (new(0, 1.62, 0), 0.13), (new(0, 1.35, 0), 0.16), (new(0, 0.95, 0), 0.15),
         (new(-0.28, 1.12, 0), 0.08), (new(-0.3, 0.85, 0), 0.07), (new(0.28, 1.12, 0), 0.08), (new(0.3, 0.85, 0), 0.07),
         (new(-0.12, 0.5, 0), 0.09), (new(-0.12, 0.08, 0), 0.08), (new(0.12, 0.5, 0), 0.09), (new(0.12, 0.08, 0), 0.08),
     ];
 
-    static readonly (int A, int B, double Stiffness)[] Bones =
+    internal static readonly (int A, int B, double Stiffness)[] Bones =
     [
         (0, 1, 1), (1, 2, 1), (1, 3, 1), (3, 4, 1), (1, 5, 1), (5, 6, 1), (2, 7, 1), (7, 8, 1), (2, 9, 1), (9, 10, 1),
         // Soft braces so it folds like a body rather than a chain: head over pelvis, the hips and shoulders apart.

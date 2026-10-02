@@ -55,4 +55,16 @@ public class SpecTableTests
     public void TwentyCarRoofTraverseTakesAboutNinetyFourSeconds() =>
         Assert.InRange(Consist.Uniform(T, 20, 1).LengthMetres / Tuning.Player.RoofRun, 93, 95);
 
+    /// <summary>GDD v1.4 App. D.13: auto-bookmarks per run, cap 12 (range 8-20); priority derailment cinematic > PUNISH > GRAB start.</summary>
+    [Fact]
+    public void AutoBookmarksMatchGddD13()
+    {
+        var b = Tuning.Run.Bookmarks;
+        Assert.Equal(12, b.AutoCap);
+        Assert.InRange(b.AutoCap, 8, 20);
+        int Rank(DarkTerritory.Sim.Run.BookmarkKind k) => b.Priority.ToList().IndexOf(k);
+        Assert.True(Rank(DarkTerritory.Sim.Run.BookmarkKind.Derail) < Rank(DarkTerritory.Sim.Run.BookmarkKind.Punish));
+        Assert.True(Rank(DarkTerritory.Sim.Run.BookmarkKind.Punish) < Rank(DarkTerritory.Sim.Run.BookmarkKind.Grab));
+        Assert.True(Rank(DarkTerritory.Sim.Run.BookmarkKind.Derail) >= 0);
+    }
 }

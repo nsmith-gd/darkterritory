@@ -42,15 +42,19 @@ public sealed class Opera
     /// gain is the manifest's (to −16 LUFS), faded over the last <see cref="MusicTuning.FadeOutSeconds"/> of the sequence
     /// (or of the track, if that runs out first).
     /// </summary>
-    public static (double ClipSeconds, float Gain)? Cue(MusicTrack track, double sequenceSeconds, WreckTuning t)
+    /// <param name="end">Where the music's over, in sequence seconds: by default the sequence's end; with the film, the cause
+    /// card's start (E.5: the fade under the cause card, the clerk on the static alone).</param>
+    public static (double ClipSeconds, float Gain)? Cue(MusicTrack track, double sequenceSeconds, WreckTuning t, double end = -1)
     {
-        if (sequenceSeconds < t.FirstPersonSeconds || sequenceSeconds >= t.SequenceSeconds)
+        if (end < 0)
+            end = t.SequenceSeconds;
+        if (sequenceSeconds < t.FirstPersonSeconds || sequenceSeconds >= end)
             return null;
         double clip = track.StartFor(t.ReplayLeadSeconds) + (sequenceSeconds - t.FirstPersonSeconds);
         if (clip >= track.OutPoint)
             return null;
         double fade = Math.Max(1e-3, t.Music.FadeOutSeconds);
-        double out_ = Math.Clamp((t.SequenceSeconds - sequenceSeconds) / fade, 0, 1) * Math.Clamp((track.OutPoint - clip) / fade, 0, 1);
+        double out_ = Math.Clamp((end - sequenceSeconds) / fade, 0, 1) * Math.Clamp((track.OutPoint - clip) / fade, 0, 1);
         return (clip, Audio.DbToGain(track.GainDb) * (float)out_);
     }
 
@@ -58,10 +62,10 @@ public sealed class Opera
     /// Every frame: the host's draw (<paramref name="key"/>, 0 for none) at <paramref name="sequenceSeconds"/> into the
     /// derailment (negative when there isn't one). Starts the track once, keeps its gain, stops it when it's over.
     /// </summary>
-    public void Update(Mixer mixer, uint key, double sequenceSeconds, WreckTuning t)
+    public void Update(Mixer mixer, uint key, double sequenceSeconds, WreckTuning t, double end = -1)
     {
         var track = Manifest.ByKey(key);
-        var cue = track is null ? null : Cue(track, sequenceSeconds, t);
+        var cue = track is null ? null : Cue(track, sequenceSeconds, t, end);
         if (cue is not { } c || !_clips.TryGetValue(track!.Id, out var clip))
         {
             Stop();

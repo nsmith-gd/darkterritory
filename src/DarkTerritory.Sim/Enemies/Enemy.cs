@@ -196,11 +196,17 @@ public abstract class Enemy
         ctx.Hold(victim);
         // App. A.9: every GRAB start writes an attribution record (and, with D.12's bookmarks, a still).
         if (ctx.World.Run is not null && ctx.Crew.FirstOrDefault(c => c.Player.Id == victim) is { Player.State: var held })
-            ctx.World.Attribution.Add(Run.IncidentLog.Grab(ctx.World, victim, held, $"Grabbed by the {Run.IncidentLog.Spoken(Kind.ToString())}"));
+        {
+            string what = $"Grabbed by the {Run.IncidentLog.Spoken(Kind.ToString())}";
+            ctx.World.Attribution.Add(Run.IncidentLog.Grab(ctx.World, victim, held, what));
+            ctx.World.Bookmarks.Grab(ctx.World, victim, what, CrewOf(ctx));
+        }
         return true;
     }
 
     double _struggle;
+
+    static IEnumerable<(int Id, PlayerState State)> CrewOf(EnemyContext ctx) => ctx.Crew.Select(c => ((int)c.Player.Id, c.Player.State));
 
     /// <summary>The held player's own struggle, counted by the world at a crew of one (the solo rule): Use presses.</summary>
     internal void Struggle(EnemyContext ctx, double amount)
@@ -284,6 +290,9 @@ public abstract class Enemy
             return false;
         if (next is not (SpinePhase.Grab or SpinePhase.Punish))
             Holding = -1;
+        // GDD v1.4 App. D.12: every PUNISH is an auto-bookmark, of whoever it holds (else of the thing itself).
+        if (next == SpinePhase.Punish && ctx.World.Run is not null)
+            ctx.World.Bookmarks.Punish(ctx.World, Id, Kind.ToString(), Holding, WorldPosition(ctx.Train), CrewOf(ctx));
         ctx.Events.Add(new EnemyEvent(ctx.Tick, Id, Kind, Phase, next, PhaseSeconds));
         Phase = next;
         PhaseSeconds = 0;

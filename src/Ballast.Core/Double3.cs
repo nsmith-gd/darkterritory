@@ -1,4 +1,6 @@
 using System.Numerics;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Ballast;
 
@@ -27,4 +29,31 @@ public readonly record struct Double3(double X, double Y, double Z)
     public Vector3 RelativeTo(Double3 origin) => new((float)(X - origin.X), (float)(Y - origin.Y), (float)(Z - origin.Z));
 
     public override string ToString() => $"({X:0.###}, {Y:0.###}, {Z:0.###})";
+}
+
+/// <summary>A <see cref="Double3"/> as JSON: <c>[x, y, z]</c>, exactly (doubles round-trip), for data sent or saved.</summary>
+public sealed class Double3Json : JsonConverter<Double3>
+{
+    public override Double3 Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.StartArray)
+            throw new JsonException("a Double3 is [x, y, z]");
+        reader.Read();
+        double x = reader.GetDouble();
+        reader.Read();
+        double y = reader.GetDouble();
+        reader.Read();
+        double z = reader.GetDouble();
+        reader.Read();
+        return new Double3(x, y, z);
+    }
+
+    public override void Write(Utf8JsonWriter writer, Double3 value, JsonSerializerOptions options)
+    {
+        writer.WriteStartArray();
+        writer.WriteNumberValue(value.X);
+        writer.WriteNumberValue(value.Y);
+        writer.WriteNumberValue(value.Z);
+        writer.WriteEndArray();
+    }
 }
