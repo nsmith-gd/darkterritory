@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// Things put down or thrown inside a car stay in it (ARCHITECTURE §8 note 172). The playtest's lost items: faced up to a
+/// Things put down or thrown inside a car stay in it (ARCHITECTURE §8 note 173). The playtest's lost items: faced up to a
 /// wall, your hands are past it (the reach is longer than your body is wide, and the wall's a tenth of a metre), and what
 /// you set down there was pushed out of the wall's far side onto the ballast; a thrown one went through it between ticks.
 /// Out through an open door is still out.

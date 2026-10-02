@@ -110,7 +110,7 @@ public static class Views
             // (Not one of Names.) In car 1, at its repair kit in the fitter's locker (World.RepairKitStowage; dt screenshot
             // --stocked; the locker's shut unless it's opened, as the lockers view does).
             "kit" => KitCamera(train),
-            // (Not one of Names.) In car 1's aisle at the crew lockers (note 172): the row along the left wall, their grades on
+            // (Not one of Names.) In car 1's aisle at the crew lockers (note 173): the row along the left wall, their grades on
             // their doors, the fitter's open on the repair kit (dt screenshot --stocked --view lockers opens it).
             "lockers" => LockersCamera(train),
             // (Not one of Names.) In this car, across the aisle at its extinguisher stood on its board (World.ExtinguisherMount;
@@ -257,7 +257,7 @@ public static class Views
     }
 
     /// <summary>
-    /// The crew lockers (note 172): from the aisle at the load's face, square on to the fitter's open locker, so its door
+    /// The crew lockers (note 173): from the aisle at the load's face, square on to the fitter's open locker, so its door
     /// stands out of the way to the left and its neighbours' plates read either side of it.
     /// </summary>
     public static Camera LockersCamera(TrainOnLine train)
@@ -315,7 +315,7 @@ public static class Views
 
     /// <summary>
     /// GDD v1.4 App. E.9, the Stranded outro: on where the repair kit should be (E.9's "empty engineering-kit rack": the
-    /// fitter's locker in car 1, standing open on its empty shelf, ARCHITECTURE notes 150, 168), then up and back over the
+    /// fitter's locker in car 1, standing open on its empty shelf, ARCHITECTURE notes 150, 169), then up and back over the
     /// stopped consist to a high wide. "§6's small glowing machine in an enormous black world, going dark."
     /// </summary>
     public static Camera Stranded(TrainOnLine train, Sim.Train.StrandedOutroTuning t, double seconds)

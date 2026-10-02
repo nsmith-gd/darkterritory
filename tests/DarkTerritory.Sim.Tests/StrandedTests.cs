@@ -166,7 +166,7 @@ public class StrandedTests
         n.AddInCab();
         var kit = n.Kit;
         var back = n.Train.Line.Sample(n.Train.Dynamics.Distance - 2_500).Position + Double3.Up * 0.2;
-        kit.Locker = -1; // out of its locker (note 172), and dropped far back down the line
+        kit.Locker = -1; // out of its locker (note 173), and dropped far back down the line
         kit.Parent = PlayerState.World;
         kit.Pbd.Particles[0].Position = back;
         kit.Pbd.Particles[0].Previous = back;

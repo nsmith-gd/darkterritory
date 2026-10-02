@@ -37,7 +37,7 @@ public sealed record KitTuning
     /// lockers. The campaign sets it (<c>SessionSetup.SpareKits</c>).
     /// </summary>
     public int SpareKits { get; init; }
-    /// <summary>The crew lockers in the kit's car (ARCHITECTURE §8 note 172). Unset, the car has none.</summary>
+    /// <summary>The crew lockers in the kit's car (ARCHITECTURE §8 note 173). Unset, the car has none.</summary>
     public LockerTuning? Lockers { get; init; }
 }
 

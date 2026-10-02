@@ -4,7 +4,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Physics;
 
 /// <summary>
-/// A walk-in car's room as the loose bodies see it (ARCHITECTURE §8 note 172): what's inside stays inside unless it goes
+/// A walk-in car's room as the loose bodies see it (ARCHITECTURE §8 note 173): what's inside stays inside unless it goes
 /// out through an opening (an open door, an open roof hatch). Its walls are a tenth of a metre thick, thinner than a thrown
 /// lamp travels in a tick and thinner than a hand reaches past them, so the solids alone don't hold things in: a sphere
 /// whose centre ends up past a wall's middle is pushed out of its far side.

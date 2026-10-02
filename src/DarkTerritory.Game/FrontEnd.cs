@@ -441,7 +441,7 @@ public sealed class FrontEnd
         bool full = s.Cars >= _campaign.MaxCars;
         list.Add(new(new(full ? "BUY A CAR: THE CONSIST IS FULL" : $"BUY A CAR: {carCost:0} SCRIP", full ? null : $"Car {s.Cars + 1}. More cars carry more, and burn more, and need more hands.",
             !full && s.Current is null), () => Buy(Campaign.BuyCar(_campaign, s), $"A car bought: {s.Cars + 1} now.")));
-        // GDD v1.4 App. E.12 question 4: the fortress sells spare repair kits; each rides in a crew locker (note 172).
+        // GDD v1.4 App. E.12 question 4: the fortress sells spare repair kits; each rides in a crew locker (note 173).
         if (_campaign.SpareKit is { } spare)
         {
             bool most = s.SpareKits >= spare.Most;
@@ -499,17 +499,17 @@ public sealed class FrontEnd
     static readonly Vector4 Dim = new(0.60f, 0.58f, 0.53f, 1);
     static readonly Vector4 Faint = new(0.40f, 0.39f, 0.36f, 1);
     static readonly Vector4 Amber = new(1.00f, 0.70f, 0.30f, 1);
-    static readonly Vector4 Panel = new(0.02f, 0.02f, 0.03f, 0.72f);
 
     /// <summary>Draws the screen in the frame's own pixels, over whatever the frame shows behind it.</summary>
     public void Draw(Overlay o, int width, int height)
     {
         o.Clear();
-        float x = 20, y = 18;
-        o.Text(x, y, "DARK TERRITORY", Amber, scale: 3);
+        float x = 20, y = 14;
+        // The title on a station's nameboard (UiStyle), the edition's tag hung under its end.
+        float board = UiStyle.Nameboard(o, x - 6, y, "DARK TERRITORY", 3);
         if (_edition.Tag is { Length: > 0 } tag)
-            o.Text(x + o.Font.Measure("DARK TERRITORY", 3) + 8, y + 14, tag, Dim);
-        y += 30;
+            o.Text(x + o.Font.Measure("DARK TERRITORY", 3) + 24, y + board - 9, tag, Amber);
+        y += board + 8;
         string? heading = Screen switch
         {
             Screen.Slots => "CAMPAIGN",
@@ -542,10 +542,13 @@ public sealed class FrontEnd
         int rows = Math.Max(1, (int)((height - y - 44) / 10));
         int first = Math.Clamp(Selected - rows / 2, 0, Math.Max(0, items.Count - rows));
         int shown = Math.Min(rows, items.Count - first);
-        o.Rect(x - 6, y - 4, Math.Min(width - x, widest + 8), shown * 10 + 6, Panel);
+        UiStyle.Plate(o, x - 8, y - 6, Math.Min(width - x, widest + 12), shown * 10 + 10);
         for (int i = first; i < first + shown; i++)
         {
             bool on = i == Selected;
+            // The selection: a brass-lit bar under it, as a lamp on a lever frame's plate.
+            if (on)
+                o.Rect(x - 4, y - 1, Math.Min(width - x, widest + 12) - 8, 9, UiStyle.Lit with { W = 0.14f });
             var colour = !items[i].Enabled ? Faint : on ? Amber : Ink;
             string more = i == first && first > 0 || i == first + shown - 1 && first + shown < items.Count ? "  ..." : "";
             o.Text(x, y, (on ? "> " : "  ") + items[i].Label + more, colour);
@@ -559,10 +562,11 @@ public sealed class FrontEnd
         }
         if (Message is { } m)
             o.Text(x, y, m.ToUpperInvariant(), Amber);
-        o.TextRight(width - 8, height - 12, Capturing is not null ? "PRESS THE KEY   ESC KEEP IT"
-            : NamingLobby ? "TYPE A NAME   UP/DOWN CHOOSE   ESC BACK"
-            : WantsText ? "TYPE   ENTER JOIN   ESC BACK"
-            : Headset ? "STICK UP/DOWN CHOOSE   TRIGGER   STICK LEFT/RIGHT CHANGE   B BACK"
-            : "UP/DOWN CHOOSE   ENTER   LEFT/RIGHT CHANGE   ESC BACK", Faint);
+        string hints = Capturing is not null ? "PRESS THE KEY   [ESC] KEEP IT"
+            : NamingLobby ? "TYPE A NAME   [UP/DOWN] CHOOSE   [ESC] BACK"
+            : WantsText ? "TYPE   [ENTER] JOIN   [ESC] BACK"
+            : Headset ? "[STICK UP/DOWN] CHOOSE   [TRIGGER]   [STICK LEFT/RIGHT] CHANGE   [B] BACK"
+            : "[UP/DOWN] CHOOSE   [ENTER]   [LEFT/RIGHT] CHANGE   [ESC] BACK";
+        UiStyle.Keyed(o, width - 8 - UiStyle.MeasureKeyed(o, hints), height - 13, hints, Dim);
     }
 }

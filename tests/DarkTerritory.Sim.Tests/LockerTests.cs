@@ -12,7 +12,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// The crew lockers in the repair kit's car (ARCHITECTURE §8 note 172): named for the crew's grades, opened and shut by
+/// The crew lockers in the repair kit's car (ARCHITECTURE §8 note 173): named for the crew's grades, opened and shut by
 /// holding Use, stowed in and taken from by tapping it, holding what's in them out of the physics, and replicated. The
 /// repair kit starts in the fitter's; spares from the fortress (GDD v1.4 App. E.12 question 4) beside it.
 /// </summary>

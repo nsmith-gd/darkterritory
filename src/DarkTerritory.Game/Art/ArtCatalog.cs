@@ -46,6 +46,7 @@ public static class ArtCatalog
         list.Add(new("guard", Car, () => TrainKit.Car(look, guard, TrainKit.Livery.Armoured, 0)));
         // A car's damage rides on its body (the car class's budget, what the body leaves of it: the kit's are 9-11k).
         list.Add(new("hatch-lid", SmallProp, () => TrainKit.HatchLid(look, new System.Numerics.Vector3(1.4f, 0.15f, 2.4f))));
+        list.Add(new("utility-fit", MediumProp, () => TrainKit.UtilityFit(look, cargo)));
         list.Add(new("damage-1", MediumProp, () => DamageKit.Car(look, cargo, 1, 3)));
         list.Add(new("damage-2", MediumProp, () => DamageKit.Car(look, cargo, 2, 3)));
         list.Add(new("car-wrecked", Car, () =>
@@ -56,7 +57,7 @@ public static class ArtCatalog
             k.Append(DamageKit.Car(look, cargo, 2, 3), Matrix4x4.Identity);
             return k.Build("car-wrecked");
         }));
-        // The crew lockers in the kit's car (note 172): the row's cabinets, and its longest-named door.
+        // The crew lockers in the kit's car (note 173): the row's cabinets, and its longest-named door.
         if (train.Kit.Lockers is { Names.Count: > 0 } lockerTuning)
         {
             var kitCar = CarShape.Build(g, VehicleKind.Cargo, hasCarBehind: true, lockerTuning);
