@@ -31,13 +31,17 @@ public static class Hud
     static readonly Vector4 Amber = new(1.00f, 0.70f, 0.30f, 1);
     static readonly Vector4 Red = new(0.95f, 0.26f, 0.18f, 1);
     static readonly Vector4 Green = new(0.55f, 0.82f, 0.45f, 1);
-    static readonly Vector4 Panel = new(0.02f, 0.02f, 0.03f, 0.55f);
     static readonly Vector4 Track = new(0.25f, 0.24f, 0.22f, 0.9f);
 
     /// <param name="crosshair">The aiming cross at the middle. Not on a headset's panel (T36): it lags the head, which
     /// does the aiming, so a cross on it would point somewhere else.</param>
-    public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true)
+    /// <param name="commendations">The awards given at the run's end (GDD App. D.12), shown under its report: to whom, what,
+    /// and from whom. Awarding isn't in the game yet (it needs the run-end screen's input and the profile's tally), so only
+    /// a still frame passes them (<c>dt screenshot --hud --report ... --commend</c>).</param>
+    public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true,
+        IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null)
     {
+        _commendations = commendations;
         o.Clear();
         int line = o.Font.LineHeight;
         var p = s.Player;
@@ -56,18 +60,28 @@ public static class Hud
         Alerts(o, width, height, s, line);
         if (s.Link is { } lobby && s.World.Run is { Phase: Sim.Run.RunPhase.Yard })
             Lobby(o, height, s, lobby, line);
-        if (Prompt(s) is { } written)
+        // (The night over, its report has the screen: no prompts over it.)
+        if (s.World.Run?.Report is null && Prompt(s) is { } written)
         {
             string prompt = Bound(written);
-            float w = o.Font.Measure(prompt) + 8;
-            o.Rect(MathF.Round((width - w) / 2), height - 44, w, line + 4, Panel);
-            o.TextCentred(width / 2f, height - 42, prompt, Ink);
+            float w = UiStyle.MeasureKeyed(o, prompt) + 10;
+            float px = MathF.Round((width - w) / 2);
+            UiStyle.Plate(o, px, height - 46, w, line + 8);
+            UiStyle.Keyed(o, px + 5, height - 42, prompt, Ink);
+            // A hold under way ("... (40%)"): how far it's got, as a bar along the plate's foot.
+            if (System.Text.RegularExpressions.Regex.Match(prompt, @"\((\d+)%\)") is { Success: true } held
+                && float.TryParse(held.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture, out float pct))
+            {
+                o.Rect(px + 3, height - 46 + line + 5, w - 6, 2, Track);
+                o.Rect(px + 3, height - 46 + line + 5, MathF.Round((w - 6) * Math.Clamp(pct / 100f, 0, 1)), 2, UiStyle.Lit);
+            }
         }
         Night(o, height, s, line);
         if (p.Alive)
         {
             Hotbar(o, width, height, p, line);
-            Noise(o, width, height, s.World, line);
+            if (s.World.Run?.Report is null)
+                Noise(o, width, height, s.World, line);
         }
         if (p.Alive && crosshair)
         {
@@ -123,8 +137,10 @@ public static class Hud
             float w = o.Font.Measure(label) + 8;
             x -= w + 2;
             bool held = i == p.HeldSlot;
-            o.Rect(x, y, w, line + 4, held ? Amber with { W = 0.35f } : Panel);
-            o.Text(x + 4, y + 2, label, held ? Ink : Dim);
+            UiStyle.Plate(o, x, y - 2, w, line + 6, held ? UiStyle.Lit : null);
+            if (held)
+                o.Rect(x + 3, y + line + 1, w - 6, 1, UiStyle.Lit);
+            o.Text(x + 4, y + 1, label, held ? Amber : Dim);
         }
     }
 
@@ -148,7 +164,7 @@ public static class Hud
             lines.Add(("A PRIVATE NIGHT: NOBODY ELSE CAN JOIN", Dim));
         lines.Add(("EVERYONE IN? DRIVE OUT OF THE YARD", Ink));
         w = lines.Max(l => o.Font.Measure(l.Text)) + 10;
-        o.Rect(x - 2, y - 3, w, lines.Count * line + 6, Panel);
+        UiStyle.Plate(o, x - 2, y - 3, w, lines.Count * line + 6);
         foreach (var (text, colour) in lines)
         {
             o.Text(x + 2, y, text, colour);
@@ -188,7 +204,7 @@ public static class Hud
         int line = o.Font.LineHeight;
         float w = 260, h = (lines.Count + 2) * line + 8;
         float x = MathF.Round((width - w) / 2), y = MathF.Round(height * 0.2f);
-        o.Rect(x, y, w, h, Panel);
+        UiStyle.Plate(o, x, y, w, h);
         o.Text(x + 6, y + 4, "THE CREW. ROLL CALL IS SHOUTED", Ink);
         y += 4 + 2 * line;
         foreach (var l in lines)
@@ -205,7 +221,7 @@ public static class Hud
         var train = s.Train;
         var d = train.Dynamics;
         var c = s.Controls;
-        o.Rect(2, 2, 150, 4 * line + 6, Panel);
+        UiStyle.Plate(o, 2, 2, 150, 4 * line + 6);
         float x = 6, y = 5;
         var band = SpeedBands.Classify(d.Tuning, d.Speed);
         o.Text(x, y, $"{Math.Abs(d.Speed) * 3.6,3:0} KM/H", Ink);
@@ -370,7 +386,7 @@ public static class Hud
         // Clear of the engine's panel top left and the link's top right.
         float w = MathF.Round(width * 0.34f), x = MathF.Round(width * 0.41f), y = 6, h = 5;
         double at = Math.Clamp(s.Train.Dynamics.Distance / route.Length, 0, 1);
-        o.Rect(x - 4, y - 3, w + 8, h + line + 8, Panel);
+        UiStyle.Plate(o, x - 4, y - 3, w + 8, h + line + 8);
         o.Rect(x, y, w, h, Track);
         o.Rect(x, y, MathF.Round(w * (float)at), h, Dim);
         foreach (var f in route.Features.Where(f => f.Kind is FeatureKind.Facility or FeatureKind.Village))
@@ -448,27 +464,16 @@ public static class Hud
                 Big("RUN LOST", Red);
                 Small(r.End switch { RunEnd.Derailed => "DERAILED", RunEnd.CrewLost => "THE WHOLE CREW IS DEAD", _ => "STILL OUT WHEN THE LINE WENT LIVE" }, Ink);
             }
-            // GDD v1.4 App. D.12: the incident report, every line in the clerk's voice, under the result.
-            IncidentReport(o, width, height, y + line, r, line);
+            // GDD v1.4 App. D.12: the incident report, every line in the clerk's voice, under the result; the night's
+            // commendations under it.
+            bool awards = _commendations is { Count: > 0 };
+            IncidentReport(o, width, awards ? height - (int)Commendations(o, width, height, _commendations!, draw: false) : height, y + line, r, line);
+            if (awards)
+                Commendations(o, width, height, _commendations!);
             return;
         }
         if (!p.Alive)
-        {
-            Big("DEAD", Red);
-            Small(DeathLine(p.Death), Ink);
-            // App. D.10: the dead watch the living, through their eyes. Networked only: alone, there's nobody.
-            if (s.Watching >= 0)
-                Small($"WATCHING CREW {s.Watching}   [{Controls.KeyLabel(Keys.KeyFor(Control.Fire))}] OR [{Controls.KeyLabel(Keys.KeyFor(Control.Right))}] NEXT   " +
-                    $"[{Controls.KeyLabel(Keys.KeyFor(Control.Left))}] BACK", Ink);
-            else if (s.Link is not null && world.Run is not { Over: true })
-                Small("NOBODY LEFT ALIVE TO WATCH", Dim);
-            // GDD App. D: the way back is a Holdout at the next halt or yard, if the crew stops for you.
-            if (world.Holdouts is { } holdouts)
-                Small(holdouts.All.FirstOrDefault(h => h.Occupant == s.PlayerId && h.Lit) is { } mine
-                    ? mine.State == HoldoutState.Breaching ? $"THEY'RE {(mine.Quiet ? "OPENING THE LOCK" : "BREAKING YOU OUT")}: {mine.Progress / mine.Breach(holdouts.Tuning).Seconds * 100:0}%"
-                        : $"YOU'RE IN THE {HoldoutName(mine)}. [E] CALL OUT   [RMB] LET SOMEONE ELSE GO FIRST"
-                    : "YOU'LL WAIT AT THE NEXT HALT OR YARD, IF THEY STOP FOR YOU   [RMB] LET SOMEONE ELSE GO FIRST", Dim);
-        }
+            DeadCard(o, width, height, s, line);
         if (p.Alive && PlayerMotor.Chilled(p, s.PlayerTuning))
             Small($"COLD: {Math.Max(0, s.PlayerTuning.Cold.DeathSeconds - p.Cold):0}S. GET INSIDE", p.Cold > s.PlayerTuning.Cold.DeathSeconds - 30 ? Red : Amber);
         if (world.Derailed)
@@ -511,6 +516,84 @@ public static class Hud
     /// rescues, the boiler, cars lost, and how it ended; then the night's money. The clerk's flat voice, top to bottom; what
     /// won't fit says how many more.
     /// </summary>
+    /// <summary>
+    /// The dead's card (GDD App. D.6-D.10), on a plate of its own in the lower middle, clear of what they're watching: DEAD
+    /// and how, who they're watching and the keys to change it, and the way back (where they'll wait, or the Holdout
+    /// they're in and what's happening at its door), each key a keycap.
+    /// </summary>
+    static void DeadCard(Overlay o, int width, int height, IPlaySession s, int line)
+    {
+        var p = s.Player;
+        var world = s.World;
+        var rows = new List<(string Text, Vector4 Colour)> { (DeathLine(p.Death), Ink) };
+        // App. D.10: the dead watch the living, through their eyes. Networked only: alone, there's nobody.
+        if (s.Watching >= 0)
+            rows.Add(($"WATCHING CREW {s.Watching}   [{Controls.KeyLabel(Keys.KeyFor(Control.Fire))}] OR [{Controls.KeyLabel(Keys.KeyFor(Control.Right))}] NEXT   " +
+                $"[{Controls.KeyLabel(Keys.KeyFor(Control.Left))}] BACK", Ink));
+        else if (s.Link is not null && world.Run is not { Over: true })
+            rows.Add(("NOBODY LEFT ALIVE TO WATCH", Dim));
+        // GDD App. D: the way back is a Holdout at the next halt or yard, if the crew stops for you.
+        if (world.Holdouts is { } holdouts)
+        {
+            if (holdouts.All.FirstOrDefault(h => h.Occupant == s.PlayerId && h.Lit) is { } mine)
+            {
+                if (mine.State == HoldoutState.Breaching)
+                    rows.Add(($"THEY'RE {(mine.Quiet ? "OPENING THE LOCK" : "BREAKING YOU OUT")}: {mine.Progress / mine.Breach(holdouts.Tuning).Seconds * 100:0}%", Green));
+                else
+                {
+                    rows.Add(($"YOU'RE IN THE {HoldoutName(mine)}", Ink));
+                    rows.Add(("[E] CALL OUT   [RMB] LET SOMEONE ELSE GO FIRST", Dim));
+                }
+            }
+            else
+            {
+                rows.Add(("YOU'LL WAIT AT THE NEXT HALT OR YARD, IF THEY STOP FOR YOU", Dim));
+                rows.Add(("[RMB] LET SOMEONE ELSE GO FIRST", Dim));
+            }
+        }
+        float big = o.Font.Measure("DEAD", 2);
+        float w = Math.Max(big, rows.Max(r => UiStyle.MeasureKeyed(o, r.Text))) + 20, rowH = line + 3;
+        float h = 2 * line + 8 + rows.Count * rowH + 8;
+        float x = MathF.Round((width - w) / 2), y = MathF.Round(height * 0.56f);
+        UiStyle.Plate(o, x, y, w, h);
+        o.TextCentred(width / 2f, y + 6, "DEAD", Red, scale: 2);
+        y += 2 * line + 10;
+        foreach (var (text, colour) in rows)
+        {
+            UiStyle.Keyed(o, MathF.Round((width - UiStyle.MeasureKeyed(o, text)) / 2), y, text, colour);
+            y += rowH;
+        }
+    }
+
+    [ThreadStatic] static IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? _commendations;
+
+    /// <summary>
+    /// The night's commendations (App. D.12) on a plate above the foot of the run-end screen, two to a row: each a badge,
+    /// whose, and from whom. Returns the height it takes (for the report above to leave room).
+    /// </summary>
+    static float Commendations(Overlay o, int width, int height, IReadOnlyList<(string To, UiStyle.Commendation What, string From)> list, bool draw = true)
+    {
+        var cells = list.Select(c => (c, Text: $"{c.To.ToUpperInvariant()}: {UiStyle.Name(c.What)}", From: $"FROM {c.From.ToUpperInvariant()}")).ToList();
+        const int perRow = 2, cellH = 20;
+        float each = cells.Max(c => Math.Max(o.Font.Measure(c.Text), o.Font.Measure(c.From))) + 26;
+        int rows = (cells.Count + perRow - 1) / perRow;
+        float w = Math.Min(cells.Count, perRow) * each + 8, h = rows * cellH + 8;
+        float x0 = MathF.Round((width - w) / 2), y0 = height - 24 - h;
+        if (!draw)
+            return h + 36;
+        UiStyle.Plate(o, x0, y0, w, h);
+        o.Text(x0 + 4, y0 - 9, "COMMENDATIONS", Amber);
+        for (int i = 0; i < cells.Count; i++)
+        {
+            var (c, text, from) = cells[i];
+            float x = x0 + 4 + i % perRow * each, y = y0 + 4 + i / perRow * cellH;
+            UiStyle.Badge(o, x, y, c.What);
+            o.Text(x + 19, y + 1, text, Ink);
+            o.Text(x + 19, y + 10, from, Dim);
+        }
+        return h + 36;
+    }
+
     public static void IncidentReport(Overlay o, int width, int height, float top, RunReport r, int line)
     {
         float w = Math.Min(width - 40, 980), x = MathF.Round((width - w) / 2);
@@ -544,7 +627,7 @@ public static class Hud
             int more = rows.Count - room + 1;
             rows = [.. rows.Take(room - 2), ($"... and {more} more lines", Dim), rows[^1]];
         }
-        o.Rect(x - 4, top - 4, w + 8, rows.Count * line + 8, Panel);
+        UiStyle.Plate(o, x - 4, top - 4, w + 8, rows.Count * line + 8);
         float y = top;
         foreach (var (text, colour) in rows)
         {
@@ -805,7 +888,7 @@ public static class Hud
         if (parts.Count == 0)
             return;
         float y = height - 4 - parts.Count * line;
-        o.Rect(2, y - 3, parts.Max(t => o.Font.Measure(t)) + 8, parts.Count * line + 4, Panel);
+        UiStyle.Plate(o, 2, y - 3, parts.Max(t => o.Font.Measure(t)) + 8, parts.Count * line + 4);
         foreach (var t in parts)
         {
             o.Text(6, y, t, t.Contains("DAWN", StringComparison.Ordinal) || t.StartsWith("STOPPED", StringComparison.Ordinal) ? Amber : Dim);
