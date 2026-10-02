@@ -36,6 +36,8 @@ public class CreatureSoundTests
         {
             Directory.CreateDirectory(Path.Combine(_root, "audio", "sounds"));
             File.Copy(Path.Combine(Content, MixDef.File), Path.Combine(_root, MixDef.File));
+            // GameAudio's spaces (the reverb per space, GameAudio.Mix) load with it.
+            File.Copy(Path.Combine(Content, "audio", "spaces.json"), Path.Combine(_root, "audio", "spaces.json"));
             var line = RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
             Train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning, 6, 1)), line, 1200);
             World = new World(Train, DataFile.Load<CombatTuning>(Path.Combine(Content, CombatTuning.File)));

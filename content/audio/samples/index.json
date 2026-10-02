@@ -1,4 +1,19 @@
 {
+ "bed-boiler-roar/roar-high": {
+  "cue": "bed-boiler-roar.roar-high",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The boiler near the redline: the fire forced and roaring hard, the water boiling violently, valves feathering",
+    "key": "draught",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "11c687f7cb6f4103"
+ },
  "bed-boiler-roar/roar-low": {
   "cue": "bed-boiler-roar.roar-low",
   "surface": null,
@@ -13,6 +28,135 @@
   ],
   "takes": 1,
   "sha": "9d4d42bcff415734"
+ },
+ "bed-brake/apply": {
+  "cue": "bed-brake.apply",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Shoes going onto the tyres: the rigging clanking, the blocks clacking on, the grind rising",
+    "key": "shoes",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactPlate_medium_000",
+     "kenney_impact-sounds:impactPlate_medium_001",
+     "kenney_impact-sounds:impactPlate_medium_002"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "efe2978e591e0808"
+ },
+ "bed-brake/drag": {
+  "cue": "bed-brake.drag",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Brakes dragging, cold: iron blocks grinding on the tyres, pulsing once a wheel turn, a squeal now and then",
+    "key": "blocks",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "87df4c80d0d3d21c"
+ },
+ "bed-brake/drag-hot": {
+  "cue": "bed-brake.drag-hot",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Brakes dragging, hot: harsher and brighter, squealing in bursts, juddering",
+    "key": "blocks",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "8b5aabfb7db14d23"
+ },
+ "bed-brake/release": {
+  "cue": "bed-brake.release",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Brakes coming off: the grind dying with a last squeal as the blocks lift, the rigging knocking back",
+    "key": "shoes",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "f21379e308f51d98"
+ },
+ "bed-chuff/chuff": {
+  "cue": "bed-chuff.chuff",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "One exhaust beat: a steam pulse up the chimney, the 'ch' of the jet falling into the chimney's hollow 'uff'",
+    "key": "blast",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "96a75b1ff5724dfb"
+ },
+ "bed-chuff/chuff-heavy": {
+  "cue": "bed-chuff.chuff-heavy",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "One exhaust beat working hard: a sharper, longer pulse that barks and crackles up the chimney",
+    "key": "blast",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "8a75de876bcf238f"
+ },
+ "bed-chuff/rod-clank": {
+  "cue": "bed-chuff.rod-clank",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The side rod knocking once a turn: a heavy, oily clonk of steel on its crank pin",
+    "key": "knock",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_001"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "802cc0407537ff72"
  },
  "bed-groan/creak": {
   "cue": "bed-groan.creak",
@@ -59,6 +203,134 @@
   "takes": 1,
   "sha": "0208a170636ffdbf"
  },
+ "bed-slack/run-out": {
+  "cue": "bed-slack.run-out",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "One coupling stretching out: the drawgear yanked taut, knuckles clanking and ringing, the spring twanging",
+    "key": "drawgear",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01",
+     "sfx_100_v2:misc_30"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "d1b59f06b2a63ac3"
+ },
+ "bed-vent/blow": {
+  "cue": "bed-vent.blow",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Steam blowing off, held: a broad roar under the hiss, churning, with the odd spit of water",
+    "key": "jet",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "6b084f9cb8f3b92e"
+ },
+ "bed-vent/close": {
+  "cue": "bed-vent.close",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The vent shut: the roar narrowing into a rising hiss that cuts off, a last spit and the plume dying",
+    "key": "jet",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "ca7c8c364e57768e"
+ },
+ "bed-vent/open": {
+  "cue": "bed-vent.open",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The vent valve opening: a thin spit of water and steam that widens into the full roar",
+    "key": "jet",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "df0bbcf456b515b4"
+ },
+ "bed-wheel-rail/flange": {
+  "cue": "bed-wheel-rail.flange",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Flange squeal on a curve: a wheel ringing at its own mode, shrill and unsteady, over the grind of the flange",
+    "key": "squeal",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "5782958ecaeb6501"
+ },
+ "bed-wheel-rail/joint": {
+  "cue": "bed-wheel-rail.joint",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "One axle over a rail joint: the wheel dropping off one rail end and clacking onto the next",
+    "key": "clack",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_medium_003"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "57b523c086d97a66"
+ },
+ "bed-wheel-rail/roll-fast": {
+  "cue": "bed-wheel-rail.roll-fast",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Wheels rolling fast: the real train rumble pitched up, the turns blurring, the rail roaring",
+    "key": "worn",
+    "sources": [
+     "sfx_100_v2:loop_ambient_04"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "8c88b64ae073018c"
+ },
  "bed-wheel-rail/roll-slow": {
   "cue": "bed-wheel-rail.roll-slow",
   "surface": null,
@@ -73,6 +345,51 @@
   ],
   "takes": 1,
   "sha": "eafb0938a253d6e2"
+ },
+ "bed-wind/gust": {
+  "cue": "bed-wind.gust",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A gust: the wind surging and falling away, the fittings' whistles sliding up and back down with it",
+    "key": "swell",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "7c1f0022dd029b26"
+ },
+ "bed-wind/wind-fast": {
+  "cue": "bed-wind.wind-fast",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Wind past you at speed: a hard rush and buffeting, the fittings whistling, your coat flapping",
+    "key": "rush",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "28209b96a1d1bedc"
+ },
+ "bed-wind/wind-slow": {
+  "cue": "bed-wind.wind-slow",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Wind past you at low speed: a soft rush that breathes, fittings whistling faintly when it picks up",
+    "key": "rush",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "d1ef8e720973a6c2"
  },
  "crew-cab-controls/brake-apply": {
   "cue": "crew-cab-controls.brake-apply",
@@ -6174,6 +6491,90 @@
   "takes": 1,
   "sha": "eeaad2ea31217034"
  },
+ "crew-shovel/knock": {
+  "cue": "crew-shovel.knock",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The shovel blade knocked on the firebox door ring",
+    "key": "blade",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_light_000",
+     "kenney_impact-sounds:impactPlate_light_001",
+     "kenney_impact-sounds:impactPlate_light_002",
+     "kenney_impact-sounds:impactPlate_light_003",
+     "kenney_impact-sounds:impactPlate_light_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "d759f78deada6052"
+ },
+ "crew-shovel/scoop": {
+  "cue": "crew-shovel.scoop",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The shovel driven along the shovelling plate into the coal",
+    "key": "coal",
+    "sources": [
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "kenney_impact-sounds:impactPlate_light_000",
+     "kenney_impact-sounds:impactPlate_light_001",
+     "kenney_impact-sounds:impactPlate_light_002",
+     "kenney_impact-sounds:impactPlate_light_003",
+     "kenney_impact-sounds:impactPlate_light_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "da250de2a18976cc"
+ },
+ "crew-shovel/throw": {
+  "cue": "crew-shovel.throw",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The coal thrown into the firebox, landing on the fire",
+    "key": "coal",
+    "sources": [
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "9f58af356316c299"
+ },
  "crew-switch/lever-latch": {
   "cue": "crew-switch.lever-latch",
   "surface": null,
@@ -8234,6 +8635,70 @@
   "takes": 3,
   "sha": "7db0b28b991298f4"
  },
+ "place-mine/drip": {
+  "cue": "place-mine.drip",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Water dripping in the mine: drops into pools in the rock, ringing off close stone",
+    "key": "pool",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "86a3edc4b013f05a"
+ },
+ "place-mine/timber": {
+  "cue": "place-mine.timber",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Pit props creaking: round timbers groaning under the rock's weight, a split cracking, grit trickling down",
+    "key": "props",
+    "sources": [
+     "sfx_100_v2:misc_35",
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "8e8b290035887ba2"
+ },
+ "place-mine/underground": {
+  "cue": "place-mine.underground",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Underground at the mine head: the air's low moan through the drift, water trickling, stone ticking, pressing quiet",
+    "key": "adit",
+    "sources": [
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "9cd7ca2facc0de87"
+ },
  "place-slaughterhouse/hook-chain": {
   "cue": "place-slaughterhouse.hook-chain",
   "surface": null,
@@ -9095,6 +9560,186 @@
   "takes": 1,
   "sha": "6a74bfc972b01ae5"
  },
+ "state-rupture/burst": {
+  "cue": "state-rupture.burst",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Stand-in: the boiler bursting: a huge bang as the shell tears, iron ringing, the steam erupting in a roar",
+    "key": "shell",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "1565b325468dc699"
+ },
+ "state-rupture/debris": {
+  "cue": "state-rupture.debris",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Debris coming down after the burst: iron plates and fittings clanging, firebrick and coal pattering, tinkling",
+    "key": "rain",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06",
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "5c6793064a25cb30"
+ },
+ "state-rupture/steam-out": {
+  "cue": "state-rupture.steam-out",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Steam pouring from the wreck of the boiler: a ragged low roar surging, water boiling and spitting in it",
+    "key": "wreck",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "69cfea6f0b665320"
+ },
+ "state-strain/groan": {
+  "cue": "state-strain.groan",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The boiler groaning in the red: deep iron groans as the shell flexes, swelling, seams weeping steam",
+    "key": "shell",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "4aec7fe14f3b9be7"
+ },
+ "state-strain/rivet": {
+  "cue": "state-strain.rivet",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A rivet pinging: a sharp bright ping as a rivet head shears, sometimes skittering off iron or starting a hiss",
+    "key": "ping",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "8594119b039a72fb"
+ },
+ "state-strain/tick": {
+  "cue": "state-strain.tick",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A boiler plate ticking under pressure: a dry tick or tock as the plate shifts, with the shell's faint bong",
+    "key": "plate",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "b27f8db29a8c33dd"
+ },
+ "state-valve/blow": {
+  "cue": "state-valve.blow",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The safety valve blowing: a deafening, tearing roar of steam straight up off the boiler, the valve whistling",
+    "key": "pop",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "798f09ccb59fe993"
+ },
+ "state-valve/lift": {
+  "cue": "state-valve.lift",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The safety valve lifting: a thin, spitting simmer, then the valve snaps open into a deafening roar",
+    "key": "pop",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "64022766547b460e"
+ },
+ "state-valve/reseat": {
+  "cue": "state-valve.reseat",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The valve reseating: the roar sagging, the valve chattering as it closes, a clunk, a last weeping hiss",
+    "key": "chatter",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "7305c84c7f14b3e9"
+ },
  "tell-car-fire/alight": {
   "cue": "tell-car-fire.alight",
   "surface": null,
@@ -9161,6 +9806,21 @@
   "takes": 6,
   "sha": "8162224efbab83c3"
  },
+ "tell-climbers/scrabble": {
+  "cue": "tell-climbers.scrabble",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Hooked three-fingered hands scrambling for a grip on the coupler and the car end: uneven clattering bursts",
+    "key": "claws",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "772beaf883731fc0"
+ },
  "tell-draggers/rasp": {
   "cue": "tell-draggers.rasp",
   "surface": null,
@@ -9191,6 +9851,23 @@
   "takes": 1,
   "sha": "cf25545ae84a3384"
  },
+ "tell-grumbler/gnaw": {
+  "cue": "tell-grumbler.gnaw",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Teeth rasping across a crate's grain in quick runs; a splinter torn off and dropped, the crate creaking",
+    "key": "incisors",
+    "sources": [
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "91799f60a267062f"
+ },
  "tell-hounds/howl-far": {
   "cue": "tell-hounds.howl-far",
   "surface": null,
@@ -9205,6 +9882,36 @@
   ],
   "takes": 1,
   "sha": "5ab1ce0154abd6c8"
+ },
+ "tell-hounds/howl-near": {
+  "cue": "tell-hounds.howl-near",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The pack howling close behind (40-100 m): two or three hounds pitched against each other, throat and breath",
+    "key": "pack",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "7203545c12e11cdf"
+ },
+ "tell-marsh/reeds": {
+  "cue": "tell-marsh.reeds",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Dry reeds stirring in slow swells; something parts them in pushes coming faster and nearer, then stops dead",
+    "key": "parting",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "3d0910e04b4409fc"
  },
  "tell-ribbits/swell": {
   "cue": "tell-ribbits.swell",
@@ -9235,6 +9942,51 @@
   ],
   "takes": 1,
   "sha": "617bc2dbc23b3e97"
+ },
+ "tell-tippy/tiptoe/roof": {
+  "cue": "tell-tippy.tiptoe",
+  "surface": "roof",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "One careful bare step: the surface giving under it (a board creak or nail squeak on wood; the tin oil-canning on the roof)",
+    "key": "give",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "9049d0bab5573e6c"
+ },
+ "tell-tippy/tiptoe/wood": {
+  "cue": "tell-tippy.tiptoe",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "One careful bare step: the surface giving under it (a board creak or nail squeak on wood; the tin oil-canning on the roof)",
+    "key": "give",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "1062b36acddd1e7e"
+ },
+ "tell-track-debris/writhe": {
+  "cue": "tell-track-debris.writhe",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A brief wet writhe: slimy coils squirming over each other in two to four contractions, popping and letting go",
+    "key": "coils",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "83769bdb4d67a6ff"
  },
  "tell-track-doll/giggle": {
   "cue": "tell-track-doll.giggle",
@@ -9821,6 +10573,80 @@
   ],
   "takes": 3,
   "sha": "1ed7367edc9d92df"
+ },
+ "voice-radio-sfx/key-down": {
+  "cue": "voice-radio-sfx.key-down",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Radio keyed: the handset's press-to-talk switch clicking down, the relay pulling in, the set opening with a hiss",
+    "key": "handset",
+    "sources": [
+     "kenney_ui-audio:switch2",
+     "kenney_ui-audio:switch13",
+     "kenney_ui-audio:click3",
+     "kenney_ui-audio:click4",
+     "kenney_ui-audio:switch27",
+     "kenney_ui-audio:switch28"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "488da94e64bafd65"
+ },
+ "voice-radio-sfx/key-up": {
+  "cue": "voice-radio-sfx.key-up",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Radio released: the press-to-talk switch springing back, the relay dropping out",
+    "key": "handset",
+    "sources": [
+     "kenney_ui-audio:switch2",
+     "kenney_ui-audio:switch13",
+     "kenney_ui-audio:click3",
+     "kenney_ui-audio:click4",
+     "kenney_ui-audio:switch27",
+     "kenney_ui-audio:switch28"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "009970de5861843d"
+ },
+ "voice-radio-sfx/squelch": {
+  "cue": "voice-radio-sfx.squelch",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Squelch tail after a transmission: a hard burst of radio noise, 'kssht', cut off clean",
+    "key": "tail",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "429af984f8d34e99"
+ },
+ "voice-radio-sfx/static": {
+  "cue": "voice-radio-sfx.static",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Static under a weak signal: a hiss fading in and out, atmospheric crackle, a faint whistle drifting",
+    "key": "weak",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "49edb83808b4fc71"
  },
  "world-brass/cut": {
   "cue": "world-brass.cut",

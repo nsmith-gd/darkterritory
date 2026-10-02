@@ -1,0 +1,20 @@
+// Wheel on rail: Flange squeal on a curve. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 5,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 4,
+ "maxDistance": 200,
+ "rolloff": 0.8,
+ "gainDb": 4,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "bed-wheel-rail/flange",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}

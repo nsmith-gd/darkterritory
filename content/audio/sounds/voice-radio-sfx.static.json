@@ -1,0 +1,20 @@
+// Radio key, squelch and dropout: Static under a weak signal. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 2,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 1,
+ "maxDistance": 30,
+ "rolloff": 1.0,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "voice-radio-sfx/static",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}
