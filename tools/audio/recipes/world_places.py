@@ -16,7 +16,7 @@ from build import recipe
 from dsp import samples, lp, hp, bp, env, mix, fit
 from recipes import world_kit as W
 from recipes.world_kit import norm, seamless, slow, pnoise, cfilter, croom
-from recipes.world_bed import exhaust, outdoors, circ_outdoors, frame_body
+from recipes.world_bed import exhaust, outdoors, circ_outdoors, frame_body, src_loop
 from recipes.world_out import moo, grunt, hooves
 
 SR = dsp.SR
@@ -95,7 +95,6 @@ def steam_whistle(rng, L=1.6):
         16 s exact cycle.""", sources=["sfx_100_v2:loop_machine_01", "sfx_100_v2:loop_machine_04"] + W.PIECES["iron"],
         loop=True, takes=1, lufs=-20)
 def fortress(rng, k):
-    from recipes.world_bed import src_loop
     n = samples(16.0)
     L = 16.0
     m1 = src_loop("sfx_100_v2:loop_machine_01", n, -5, rng)
@@ -339,9 +338,8 @@ def motor(rng, k):
     t = np.arange(n) / SR
     beats = [(i / 8.0, norm(dsp.vari(exhaust(rng, False), 7)), 0.7 if i % 2 else 1.0) for i in range(64)]
     eng = W.place(n, beats)
-    mesh = 2 * np.pi * 312 * t
-    mod = 1 + 0.3 * np.sin(2 * np.pi * 13 * t)                    # the pinion's once-a-turn wobble
-    whine = (np.sin(mesh * mod.mean()) + 0.5 * np.sin(2 * mesh) + 0.25 * np.sin(3 * mesh)) * (0.7 + 0.3 * np.sin(2 * np.pi * 13 * t))
+    mesh = 2 * np.pi * 312 * t                                     # 24 teeth at 13 turns a second
+    whine = (np.sin(mesh) + 0.5 * np.sin(2 * mesh) + 0.25 * np.sin(3 * mesh)) * (0.7 + 0.3 * np.sin(2 * np.pi * 13 * t))
     teeth = W.place(n, [(tt, W.body(rng, rng.uniform(1500, 3000), W.PLATE, decay=0.01, length=0.04, count=6), rng.uniform(0.2, 0.6))
                         for tt in np.arange(0, 8.0, 1 / 39.0)])
     drum = cfilter(pnoise(n, rng), lambda f: np.exp(-0.5 * ((np.log2(f) - np.log2(90)) / 0.7) ** 2))
@@ -590,9 +588,10 @@ def shutter(rng, k):
     def bang(g):
         x = mix(norm(W.rec(("sfx_100_v2:door_03", "sfx_100_v2:wood_hit_02")[int(rng.integers(2))], semis=rng.uniform(1, 3))),
                 norm(W.piece(rng, "wood", (0, 3))) * 0.6)
-        rat = sum(np.concatenate([np.zeros(samples(0.03 + 0.025 * i)), norm(W.rec(f"kenney_impact-sounds:impactWood_light_00{i % 5}",
-                                                                                 semis=4))]) * 0.15 for i in range(4)) if True else 0
-        return mix(x, rat, np.concatenate([np.zeros(samples(0.05)), norm(W.piece(rng, "scrap", (2, 5), tau=0.05)) * 0.15])) * g
+        slats = dsp.Bus(0.5)
+        for i in range(4):
+            slats.at(0.03 + 0.025 * i, norm(W.rec(f"kenney_impact-sounds:impactWood_light_00{i}", semis=4)) * 0.15)
+        return mix(x, slats.x, np.concatenate([np.zeros(samples(0.05)), norm(W.piece(rng, "scrap", (2, 5), tau=0.05)) * 0.15])) * g
 
     b.at(0, bang(1.0))
     if k >= 1:
