@@ -247,6 +247,12 @@ public sealed record CarFireTuning
     public double ChemicalSpread { get; init; } = 2;
     public double ChemicalGrowth { get; init; } = 1.3;
     public double PowderGrowth { get; init; } = 1.6;
+    public double FuelGrowth { get; init; } = 1.4;
+    public double FuelSpread { get; init; } = 2;
+    public double ExplodeAt { get; init; } = 1;
+    public double ExplodeRadius { get; init; } = 14;
+    public double ExplodeKillRadius { get; init; } = 5;
+    public int ExplodeDamage { get; init; } = 150;
     public double BurnOutPerSecond { get; init; } = 0.05;
     public int MaxActive { get; init; } = 3;
 }

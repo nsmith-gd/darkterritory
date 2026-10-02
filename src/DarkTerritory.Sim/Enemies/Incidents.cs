@@ -71,13 +71,14 @@ public abstract class Incident(int id) : Enemy(id)
 /// over time. Every car has a wall-mounted extinguisher: grab it, spray it (fire held with it in your hands, inside the
 /// car), put it back to recharge. Each holds a limited charge. A big fire grows faster than one extinguisher can put out,
 /// so it takes several at once. Chemicals spread it faster; gunpowder, coal and timber escalate it faster (App. B.9). Or
-/// cut the car loose. Rule: grab the extinguishers or abandon it.
+/// cut the car loose. Rule: grab the extinguishers or abandon it. A car of gunpowder and shot at full blaze goes up (§19
+/// "explodes"; note 182): the car's gone, everyone near is hurt or killed, and the cars either side catch.
 /// </summary>
 /// <remarks><see cref="Enemy.Extra"/> is how far it's gone, 0 to 1 (replicated: the flames and the sound follow it).</remarks>
 public sealed class CarFire(int id) : Incident(id)
 {
     double _burnTimer, _blaze;
-    bool _spread;
+    bool _spread, _exploded;
 
     public override EnemyKind Kind => EnemyKind.CarFire;
     public override Sense Sense => Sense.Heat;
@@ -120,7 +121,8 @@ public sealed class CarFire(int id) : Incident(id)
         foreach (var (_, ext) in spraying)
             ext.Charge = Math.Max(0, ext.Charge - dt / t.ChargeSeconds);
         // It grows, faster the bigger it is and the worse the cargo; nothing left in the car to burn, it dies down.
-        double fuel = car.Cargo is CargoKind.Ammunition ? t.PowderGrowth : car.Cargo is CargoKind.Chemicals ? t.ChemicalGrowth : 1;
+        double fuel = car.Cargo is CargoKind.Ammunition ? t.PowderGrowth : car.Cargo is CargoKind.Chemicals ? t.ChemicalGrowth
+            : Cargoes.Fuel(car.Cargo) ? t.FuelGrowth : 1;
         double grow = car.CargoIntegrity <= 0.02 ? -t.BurnOutPerSecond : (t.GrowPerSecond + t.GrowWithSize * Extra) * fuel;
         Extra = Math.Clamp(Extra + (grow - t.SprayPerSecond * spraying.Count) * dt, 0, 1);
         if (Extra <= 0)
@@ -132,6 +134,11 @@ public sealed class CarFire(int id) : Incident(id)
             Enter(ctx, SpinePhase.Punish); // alight
         if (Phase != SpinePhase.Punish)
             return;
+        if (!_exploded && car.Cargo == CargoKind.Ammunition && car.Load > 0.01 && car.CargoIntegrity > 0.02 && Extra >= t.ExplodeAt - 1e-9)
+        {
+            Explode(ctx, car, t);
+            return;
+        }
         car.CargoIntegrity = Math.Max(0, car.CargoIntegrity - t.CargoPerSecond * Extra * dt);
         car.Integrity = Math.Max(0, car.Integrity - t.IntegrityPerSecond * Extra * dt);
         _burnTimer += dt;
@@ -148,12 +155,44 @@ public sealed class CarFire(int id) : Incident(id)
                     ctx.Harm(p.Id, amount, DeathCause.Burned);
             }
         }
-        _blaze = Extra >= t.SpreadFrom ? _blaze + dt * (car.Cargo == CargoKind.Chemicals ? t.ChemicalSpread : 1) : 0;
+        // Chemicals spread it faster (B.9), and so do coal and timber: "fire cascades escalate faster".
+        _blaze = Extra >= t.SpreadFrom ? _blaze + dt * (car.Cargo == CargoKind.Chemicals ? t.ChemicalSpread : Cargoes.Fuel(car.Cargo) ? t.FuelSpread : 1) : 0;
         Extra2 = _blaze;
         if (!_spread && _blaze >= t.SpreadSeconds && Neighbour(ctx, t.MaxActive) is { } next)
         {
             _spread = true;
             ctx.World.AddEnemy(i => In(i, ctx.Train, next, Local.Z, t));
         }
+    }
+
+    /// <summary>
+    /// A powder car at full blaze goes up (GDD §19 "explodes", App. B.9 "every fire is worse"; note 182). Its cargo and the car
+    /// are gone; everyone within <see cref="CarFireTuning.ExplodeKillRadius"/> of the fire takes the full blast, out to
+    /// <see cref="CarFireTuning.ExplodeRadius"/> less with distance (walls or not: it's a powder car); the cars either side
+    /// catch whatever's already burning. Every client sees and hears it as a blast where it was.
+    /// </summary>
+    void Explode(EnemyContext ctx, Vehicle car, CarFireTuning t)
+    {
+        _exploded = true;
+        var train = ctx.Train;
+        var at = train.Frames[Attached].ToWorld(Local + Double3.Up * 1.0);
+        car.CargoIntegrity = 0;
+        car.Integrity = 0;
+        foreach (var c in ctx.LivingCrew())
+        {
+            double d = (c.World + Double3.Up * 1.0 - at).Length;
+            if (d > t.ExplodeRadius)
+                continue;
+            double share = d <= t.ExplodeKillRadius ? 1 : 1 - (d - t.ExplodeKillRadius) / Math.Max(1e-6, t.ExplodeRadius - t.ExplodeKillRadius);
+            int amount = (int)Math.Round(t.ExplodeDamage * share);
+            if (amount > 0)
+                ctx.Harm(c.Player.Id, amount, DeathCause.Exploded);
+        }
+        foreach (int next in new[] { train.VehicleBehind(Attached), train.VehicleAhead(Attached) })
+            if (next > 0 && train.Vehicles[next].Kind == VehicleKind.Cargo && train.Dynamics.Consist.IndexOf(next) >= 0
+                && !ctx.World.ActiveEnemies.Any(e => !e.Gone && e.Kind == Kind && e.Attached == next))
+                ctx.World.AddEnemy(i => In(i, train, next, Local.Z, t));
+        ctx.World.Blast(at);
+        Extra = Math.Min(Extra, t.SpreadFrom);
     }
 }

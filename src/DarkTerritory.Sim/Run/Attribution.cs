@@ -39,6 +39,9 @@ public sealed class Attribution
     public int CraneOperator { get; private set; } = -1;
     /// <summary>The last living crewmate with the engineering kit in their hotbar.</summary>
     public int KitHolder { get; private set; } = -1;
+    /// <summary>Who last fired a cannon beside a chemicals car (App. B.9; note 182): the gas's contributing action.</summary>
+    public int Gasser { get; private set; } = -1;
+    public void Gassed(int player) => Gasser = player;
 
     public void Drove(int player) => Driver = player;
     public void Fired(int player, double seconds) => (Fireman, FiredAt) = (player, seconds);

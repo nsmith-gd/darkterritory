@@ -6,7 +6,16 @@ public sealed record CombatTuning(GunTuning Guns, ChoirTuning Choir)
     public const string File = "tuning/combat.json";
     /// <summary>How long hits and cannonball impacts stay replicated for every client to show (T121).</summary>
     public HitTuning Hits { get; init; } = new();
+    /// <summary>A cannon fired beside a chemicals car (combat.json <c>fumes</c>; GDD App. B.9; note 182). Unset, nothing.</summary>
+    public FumesTuning? Fumes { get; init; }
 }
+
+/// <summary>
+/// combat.json <c>fumes</c> (App. B.9: "firing a cannon near chemical cars is lethal to the crew"): a shot from a gun on a
+/// loaded chemicals car, or within <see cref="Cars"/> cars of one, sets its fumes off; everyone within <see cref="GasM"/> of
+/// that car, and the gunner, takes <see cref="Damage"/>.
+/// </summary>
+public sealed record FumesTuning(int Cars = 1, double GasM = 8, int Damage = 150);
 
 /// <summary>
 /// The crude cannons (GDD v1.1 §12, App. C.3): arc-limited, loud, and every shot a timed decision. After each shot a full

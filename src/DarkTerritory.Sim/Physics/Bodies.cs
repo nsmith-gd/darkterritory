@@ -214,6 +214,13 @@ public sealed class Bodies
     /// </summary>
     public static double Value(Body b) => Value(b.Kind) * (b.Kind == BodyKind.Toy && b.Noise != ToyNoise.None ? 1.5 : 1);
 
+    /// <summary>
+    /// What this body is worth to a creature that takes or eats loot (the Gaunt, the Followers): its <see cref="Value(Body)"/>,
+    /// but nothing for a rescued child, who "cannot be harmed" (GDD App. A.6 REAL; note 182). It's the most valuable thing
+    /// aboard, and no creature carries it off or nests over it.
+    /// </summary>
+    public static double Prey(Body b) => b.Kind == BodyKind.Child ? 0 : Value(b);
+
     /// <summary>A small thing on the ground at a facility (a toy, salvage, a child), in the world frame.</summary>
     public Body SpawnItem(Double3 world, double lineHint, BodyKind kind)
     {

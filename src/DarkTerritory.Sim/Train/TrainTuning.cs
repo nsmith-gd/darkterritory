@@ -17,6 +17,8 @@ public sealed record TrainTuning
     public KitTuning Kit { get; init; } = new();
     /// <summary>Line Plan §12.6, never an unrecoverable body or kit (train.json <c>recovery</c>; note 181).</summary>
     public RecoveryTuning Recovery { get; init; } = new();
+    /// <summary>GDD §19's fragile medicine (train.json <c>fragile</c>; note 182). Unset, medicine rides like anything else.</summary>
+    public FragileTuning? Fragile { get; init; }
 
     public const string File = "tuning/train.json";
 }
@@ -48,6 +50,12 @@ public sealed record KitTuning
     /// lockers. The campaign sets it (<c>SessionSetup.SpareKits</c>).
     /// </summary>
     public int SpareKits { get; init; }
+    /// <summary>
+    /// Spare lamps and extinguishers bought at the fortress for the night (GDD §9 "stock ... lamps"; campaign.json <c>stores</c>,
+    /// note 182): in the guard van beside its own lamp. The campaign sets them (<c>SessionSetup</c>).
+    /// </summary>
+    public int SpareLamps { get; init; }
+    public int SpareExtinguishers { get; init; }
     /// <summary>The crew lockers in the kit's car (ARCHITECTURE §8 note 173). Unset, the car has none.</summary>
     public LockerTuning? Lockers { get; init; }
 }
@@ -146,4 +154,7 @@ public sealed record SpeedBandTuning(double Yard, double JumpOffLethal, double S
 /// generator keeps drop sides walkable) and no more than <paramref name="DropM"/> below the rails; a body or a kit at rest
 /// beyond it is put back on the formation's edge, <paramref name="EdgeM"/> out from the track.
 /// </summary>
+/// <summary>train.json <c>fragile</c>: how coupling and brake shocks spoil a car of medicine (GDD §19). Field docs live in that file.</summary>
+public sealed record FragileTuning(double SafeContactSpeed = 0.3, double ShockShare = 3, double BrakeShockDecel = 1.2, double BrakeShockPerSecond = 0.02);
+
 public sealed record RecoveryTuning(double CorridorM = 40, double DropM = 15, double EdgeM = 3.5);

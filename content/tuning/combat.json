@@ -49,6 +49,11 @@
   // came down, are kept in the replicated world this long (s), so every client sees the flinch, hears the thud and the
   // boom, and the one who landed it gets the crosshair's marker, through a dropped snapshot or two. The impact's is as
   // long as its smoke hangs.
+  // GDD App. B.9 (note 182): "firing a cannon near chemical cars is lethal to the crew". A shot from a gun on a loaded
+  // chemicals car, or on a car within `cars` couplings of one, sets the fumes off: the gunner and everyone within gasM of that
+  // car (its nearest side) take damage (150: dead). Not in the GDD's numbers: "near" is the next car, so the guard van's gun
+  // with chemicals ahead of it is lethal and the engine's, with them three cars back, isn't.
+  "fumes": { "cars": 1, "gasM": 8, "damage": 150 },
   "hits": {
     "keepSeconds": 1,
     "impactKeepSeconds": 8
