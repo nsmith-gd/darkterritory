@@ -1192,12 +1192,60 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         saves.Delete(3);
     }
     var menu = new DarkTerritory.Game.FrontEnd(ct, rt, saves, Path.Combine(dir, "settings.json"), () => 7, EditionTuning.Load(content));
+    menu.DefaultPlayerName = "Nick";
+    // The join screen's list, as a crowded evening has it: games on the network (pings as measured) and public lobbies off
+    // a platform search (the fake's, its pings estimated from where each host is).
+    if (screen == DarkTerritory.Game.Screen.Join)
+        menu.Games = DemoLobbies(menu.Protocol);
     if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
     menu.Show(screen);
     for (int i = 0; i < (int)Opt(args, "--down", 0); i++)
         menu.Down();
     return (menu, screen);
+}
+
+/// <summary>A join screen's worth of public games: three on the network, three off a (fake) Steam search, one private that isn't listed.</summary>
+static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol)
+{
+    static Ballast.Net.LanGame Lan(string ip, string host, string name, int aboard, string tier, double ping, int protocol) =>
+        new(new System.Net.IPEndPoint(System.Net.IPAddress.Parse(ip), DarkTerritory.Game.NetPlaySession.DefaultPort), host, $"{tier.ToUpperInvariant()}:7, 6 CARS, IN THE YARD", aboard, protocol,
+            DarkTerritory.Game.NetPlaySession.Game)
+        { Name = name, Max = DarkTerritory.Game.NetPlaySession.MaxCrew, Tier = tier, PingMs = ping };
+    var cloud = new Ballast.Online.FakeOnline();
+    var me = cloud.SignIn("me");
+    var hosts = new (string Name, string Run, string Tier, (double, double) Where, Ballast.Online.LobbyVisibility Visibility, int Crew)[]
+    {
+        ("PRIYA", "PRIYA'S RUN", "DeadLines", (30, 34), Ballast.Online.LobbyVisibility.Public, 3),
+        ("hollowman", "NO SLEEP TILL HOLLIN", "DeepTerritory", (90, 110), Ballast.Online.LobbyVisibility.Public, 12),
+        ("ash", "LOCALS ONLY", "Local", (60, 20), Ballast.Online.LobbyVisibility.Public, 5),
+        ("secret", "SECRET RUN", "Frontier", (5, 5), Ballast.Online.LobbyVisibility.FriendsOnly, 2),
+    };
+    var lobbies = new List<Ballast.Online.Lobby>();
+    foreach (var h in hosts)
+    {
+        var lobby = Ballast.Online.Lobby.Host(cloud.SignIn(h.Name, h.Where), DarkTerritory.Game.NetPlaySession.Game, protocol, DarkTerritory.Game.NetPlaySession.MaxCrew, h.Visibility,
+            new Dictionary<string, string>
+            {
+                [DarkTerritory.Game.NetPlaySession.NameKey] = h.Run,
+                [DarkTerritory.Game.NetPlaySession.TierKey] = h.Tier,
+                [DarkTerritory.Game.NetPlaySession.AboardKey] = h.Crew.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                [DarkTerritory.Game.NetPlaySession.RunKey] = $"{h.Tier.ToUpperInvariant()}:12, 6 CARS, IN THE YARD",
+            });
+        lobby.Poll();
+        lobbies.Add(lobby);
+    }
+    using var browser = new DarkTerritory.Game.LobbyBrowser(lan: null, me, protocol);
+    var events = new List<Ballast.Online.OnlineEvent>();
+    browser.Poll(0, events, search: true);
+    me.Poll(events);
+    browser.Poll(0, events, search: false);
+    Ballast.Net.LanGame[] lan = [Lan("192.168.1.20", "nick-pc", "THE NIGHT SHIFT", 2, "Frontier", 1.8, protocol),
+        Lan("192.168.1.31", "sam", "SAM'S RUN", 1, "Frontier", 3.2, protocol + 1), Lan("192.168.1.44", "jo", "JO'S RUN", 4, "DeadLines", 2.4, protocol)];
+    var games = lan.Select(DarkTerritory.Game.ListedGame.From).Concat(browser.Games);
+    foreach (var l in lobbies)
+        l.Dispose();
+    return [.. games.OrderBy(g => g.PingMs ?? double.MaxValue)];
 }
 
 // A frame as the game draws it: a solo session stepped for a while, seen first person, with the HUD (T23).
@@ -1393,7 +1441,7 @@ static int Usage()
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
-          screenshot --menu title|slots|fortress|upgrades|quickNight|join|settings [--down n] [--saves dir]
+          screenshot --menu title|slots|fortress|upgrades|quickNight|host|join|settings [--down n] [--saves dir]
                      a screen of the front end over the yard, as the game draws it
           screenshot --hud [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270

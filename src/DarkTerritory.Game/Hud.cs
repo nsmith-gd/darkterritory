@@ -105,7 +105,7 @@ public static class Hud
         lines.AddRange(crew.Select(c => ($"  {c.Name}{(c.You && c.Name != "YOU" ? " (YOU)" : "")}", c.You ? Ink : Dim)));
         if (link.JoinAt is { } at)
         {
-            lines.Add(("FRIENDS: JOIN A NIGHT, YOUR GAME'S LISTED", Dim));
+            lines.Add((link.Listed ? "FRIENDS: JOIN, YOUR GAME'S LISTED" : "A PRIVATE LOBBY: FRIENDS JOIN BY INVITE", Dim));
             lines.Add(($"  (OR THEY TYPE {at})", Dim));
         }
         else if (link.PingMs is null)
