@@ -38,18 +38,21 @@ public class EndNightTests
 
     static bool Playing(GameAudio audio, string name) => audio.Mixer.Voices.Any(v => v.Name == name && !v.Finished);
 
+    /// <summary>The boiler's roar: the synth's, or the recordings that take its place (GameAudio.Train).</summary>
+    static bool Roaring(GameAudio audio) => Playing(audio, "boiler-roar") || Playing(audio, "bed-boiler-roar.roar-low") || Playing(audio, "bed-boiler-roar.roar-high");
+
     [Fact]
     public void TheNightsSoundsStopWhenItEndsAndStartAgainWithTheNext()
     {
         var audio = new GameAudio(Content);
         Run(audio, Night(), 10);
-        Assert.True(Playing(audio, "boiler-roar"));
+        Assert.True(Roaring(audio));
 
         audio.EndNight();
         audio.Mixer.Render(new float[Audio.Block * 2]);
         Assert.DoesNotContain(audio.Mixer.Voices, v => !v.Finished);
 
         Run(audio, Night(), 10);
-        Assert.True(Playing(audio, "boiler-roar"));
+        Assert.True(Roaring(audio));
     }
 }

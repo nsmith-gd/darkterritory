@@ -78,13 +78,16 @@ public class AudioTests
         var ear = Listener.At(train.Frames[4].Origin, train.Frames[4].Heading);
         var clunks = new List<(double At, Double3 Where)>();
         var seen = new HashSet<int>();
+        // Pulling away stretches every coupling: the recorded run-out where it's installed, the synth's clunk where it isn't.
+        string clunk = audio.HasCue("bed-slack.run-out") ? "bed-slack.run-out" : "slack-clunk";
         for (int tick = 0; tick < SimConstants.TickRate * 3; tick++)
         {
             controls.Throttle = tick >= 15 ? 1 : 0;
             world.BeginTick();
             world.Step(controls);
             audio.Update(world, controls, ear, exposed: true, SimConstants.TickSeconds);
-            foreach (var v in audio.Mixer.Voices.Where(v => v.Name == "slack-clunk" && seen.Add(v.Id)))
+            Assert.DoesNotContain(audio.Mixer.Voices, v => v.Name == "bed-slack.run-in");
+            foreach (var v in audio.Mixer.Voices.Where(v => v.Name == clunk && seen.Add(v.Id)))
                 clunks.Add((tick * SimConstants.TickSeconds, v.Position));
         }
         Assert.Equal(train.Vehicles.Count - 1, clunks.Count);

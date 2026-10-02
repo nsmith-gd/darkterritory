@@ -469,6 +469,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     if (proto is not null)
         proto.Controls.Throttle = double.Parse(Arg("--throttle", "0"));
     var voice = net is null ? null : new VoiceChat(sound.Mixer) { PushToTalk = settings.PushToTalk || args.Contains("--push-to-talk") };
+    // The radio's own clicks, squelch and static (voice-radio-sfx) follow what it's doing.
+    sound.Voice = voice;
     using var mic = voice is null || settings.Mute || args.Contains("--mute") || args.Contains("--no-mic") ? null
         : AudioIn.Open(Audio.SampleRate, out var micError) is { } m ? m : NoMic(micError);
     var clock = new FixedStepClock(SimConstants.TickRate);

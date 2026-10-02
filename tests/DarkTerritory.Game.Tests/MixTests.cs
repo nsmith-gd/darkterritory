@@ -214,7 +214,15 @@ public class MixTests
                 for (long until = (tick + 1L) * Audio.SampleRate / SimConstants.TickRate; rendered + Audio.Block <= until; rendered += Audio.Block)
                     audio.Mixer.Render(block);
             }
-            return tap.Stems.TryGetValue("wind", out var wind) ? Meter.Db(wind) : -180;
+            // The synth's wind, or the recordings that take its place (GameAudio.Train).
+            var winds = tap.Stems.Where(kv => kv.Key == "wind" || kv.Key.StartsWith("bed-wind.wind-")).Select(kv => kv.Value).ToList();
+            if (winds.Count == 0)
+                return -180;
+            var wind = new float[winds[0].Length];
+            foreach (var w in winds)
+                for (int i = 0; i < wind.Length; i++)
+                    wind[i] += w[i];
+            return Meter.Db(wind);
         }
         var loop = OnTheTestLoop();
         var (tunnel, _) = NightIn(FeatureKind.Tunnel, into: 160);

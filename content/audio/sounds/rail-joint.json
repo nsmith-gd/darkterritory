@@ -1,0 +1,12 @@
+// Train bed: one wheel over a rail joint, the click wheel-rail.json makes in its own roll. GameAudio.Train plays it per axle
+// as the fallback for bed-wheel-rail.joint while a recorded roll (bed-wheel-rail.roll-*) has taken the synth's place, so the
+// click-clack never goes with it.
+{
+  "tier": 5, "duration": 0.15, "maxInstances": 12, "minDistance": 3, "maxDistance": 90,
+  "crush": { "bits": 10, "rate": 22050 },
+  "layers": [
+    { "source": "impulse", "frequency": 1, "gain": 0.8,
+      "filters": [{ "type": "bandPass", "frequency": 260, "q": 3 }, { "type": "lowPass", "frequency": 900 }],
+      "envelope": [[0, 1], [0.12, 0]] }
+  ]
+}

@@ -50,7 +50,47 @@ AREA = {
 OPUS_KBPS = 64
 # Per-cue level on top of the area's, where a sound measured too hot in the game's own benches: the Stoker moving in
 # the fire buried the cab's tells with the fire door open (AudioTests' bench: a writhe at -2.4 dB, the Choir at -5.2).
-CUE_GAIN_DB = {"cs-stoker.in-fire": -10}
+# The train bed and its alarms (GameAudio.Train), levelled to the synthesised bed they replace: as recorded they buried
+# every tell in AudioTests' chaos and tells benches (the wheels and the wind 20 dB over the synth, a hound at -13 dB).
+CUE_GAIN_DB = {
+    "cs-stoker.in-fire": -10,
+    "bed-wheel-rail.roll-slow": -21,
+    "bed-wheel-rail.roll-fast": -21,
+    "bed-wheel-rail.joint": -22,
+    "bed-wheel-rail.flange": -10,
+    "bed-wind.wind-slow": -10,
+    "bed-wind.wind-fast": -16,
+    "bed-wind.gust": -10,
+    "bed-boiler-roar.roar-low": -12,
+    "bed-boiler-roar.roar-high": -12,
+    "bed-chuff.chuff": -16,
+    "bed-chuff.chuff-heavy": -16,
+    "bed-chuff.rod-clank": -24,
+    "bed-brake.drag": -12,
+    "bed-brake.drag-hot": -9,
+    "bed-brake.apply": -10,
+    "bed-brake.release": -8,
+    "bed-vent.blow": -11,
+    "bed-vent.open": -8,
+    "bed-vent.close": -4,
+    "bed-slack.run-in": -16,
+    "bed-slack.run-out": -14,
+    "bed-groan.groan": -10,
+    "bed-groan.creak": -8,
+    "state-valve.blow": -9,
+    "state-valve.lift": -6,
+    "state-valve.reseat": -4,
+    "state-strain.groan": -11,
+    "state-strain.tick": -6,
+    "state-strain.rivet": -4,
+    "state-rupture.burst": -4,
+    "state-rupture.debris": -6,
+    "state-rupture.steam-out": -8,
+    "state-brake-fade.fade": -10,
+    "state-engine-damage.leak-small": -12,
+    "state-engine-damage.leak-large": -8,
+    "state-engine-damage.knock": -6,
+}
 # Earlier-pass keepers that string several of one event together (a gait, hops coming closer): cut into single takes.
 # The rest are one designed event each, pauses and all (a giggle, a swallow, the Whistler's wrong whistle).
 # Value: the gap (s) and level (dB under the loudest) that separate one event from the next in that file.
@@ -200,6 +240,15 @@ VOICE_LINES = {"voice-prisoner-sets", "voice-callout"}
 # ui-prompts.hold: the hold-to-interact loop hurries as the held action gets there (GameAudio.Ui.cs sets "progress", 0-1).
 LAYER_EXTRAS = {
     "ui-prompts.hold": {"rate": {"param": "progress", "points": [[0, 1], [1, 1.4]]}},
+    # The bed's air and wheels kept under the tells' bands, as the synths they replace were (wind.json lowpassed at 650 Hz,
+    # wheel-rail.json under 420 Hz): recorded, their hiss over 2 kHz buried the Climbers' scrabble (AudioTests' chaos bench).
+    "bed-wind.wind-slow": {"filters": [{"type": "lowPass", "frequency": 1500}]},
+    "bed-wind.wind-fast": {"filters": [{"type": "lowPass", "frequency": 1500}]},
+    "bed-wheel-rail.roll-slow": {"filters": [{"type": "lowPass", "frequency": 2500}]},
+    "bed-wheel-rail.roll-fast": {"filters": [{"type": "lowPass", "frequency": 2500}]},
+    # The safety valve's blow kept over the writhe's band, as the synth's was (safety-valve.json: highpassed at 2.8 kHz): its
+    # roar under 2 kHz buried the Sleepers for the cab.
+    "state-valve.blow": {"filters": [{"type": "highPass", "frequency": 2000}]},
 }
 
 

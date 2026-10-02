@@ -311,6 +311,39 @@ public class HoldoutTests
     }
 
     [Fact]
+    public void ACallOutReachesEveryMachine()
+    {
+        // D.7: the call is a host-only event, so the Holdout counts its calls and the count replicates: each client plays the
+        // shout from the Holdout when it goes up (GameAudio.Outside), once a call, the cooldown kept by the host.
+        var n = new Night(AHalt, engineFrom: -300);
+        int living = n.Add(alive: true);
+        int dead = n.Add(alive: false);
+        n.Step(0.2);
+        var h = n.Here.Single();
+        n.Stand(living, h.Door);
+        for (int call = 0; call < 3; call++)
+        {
+            n.Hold(dead, PlayerButtons.Use);
+            n.Step(1.0 / SimConstants.TickRate);
+            n.Hold(dead, PlayerButtons.None);
+            n.Step(1.0 / SimConstants.TickRate);
+        }
+        Assert.Equal(1, h.Calls);
+        n.Step(H.CallOutCooldown);
+        n.Hold(dead, PlayerButtons.Use);
+        n.Step(1.0 / SimConstants.TickRate);
+        Assert.Equal(2, h.Calls);
+
+        var route = n.World.Run!.Route;
+        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 0)), route.Build(), n.Site.Start - 300, Tuning.Boiler));
+        client.EnableHoldouts(H, route);
+        var controls = new TrainControls { Reverser = 1 };
+        Net.WorldRecords.Apply(Net.WorldRecords.Capture(n.World, controls, []), client, ref controls, []);
+        var mirrored = client.Holdouts!.All[h.Index];
+        Assert.Equal((h.State, h.Occupant, h.Calls), (mirrored.State, mirrored.Occupant, mirrored.Calls));
+    }
+
+    [Fact]
     public void SmashingALockIsLoud()
     {
         var n = new Night(f => AHalt(f) && f.Stop!.Holdouts[0].Kind != HoldoutKind.Shelter, engineFrom: -300);

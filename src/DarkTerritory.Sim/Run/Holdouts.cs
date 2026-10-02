@@ -59,6 +59,11 @@ public sealed class Holdout
     /// defaults off, and goes off when they're freed or released. It never counts toward loudness: only the living are heard.
     /// </summary>
     public bool LiveMic { get; internal set; }
+    /// <summary>
+    /// How many times it's been called out from (D.7): counted by the host and replicated, so every machine plays the shout
+    /// or the banging from the Holdout when it goes up (the call itself is a host-only event).
+    /// </summary>
+    public int Calls { get; internal set; }
     internal int Breacher = -1;
     internal double CallCooldown;
 
@@ -272,6 +277,7 @@ public sealed class Holdouts
                 || !crew.Any(c => c.State.Alive && (PlayerMotor.WorldPosition(c.State, train) - h.Inside).Length <= Tuning.CallOutRadius))
                 continue;
             h.CallCooldown = Tuning.CallOutCooldown;
+            h.Calls++;
             events.Add(new HoldoutEvent(HoldoutEventKind.CalledOut, h.Index, player));
         }
         _callOuts.Clear();
@@ -353,7 +359,7 @@ public sealed class Holdouts
     }
 
     /// <summary>Client side: adopts the host's Holdouts.</summary>
-    public void Mirror(int index, HoldoutState state, int occupant, double progress, bool liveMic = false)
+    public void Mirror(int index, HoldoutState state, int occupant, double progress, bool liveMic = false, int calls = 0)
     {
         if (index < 0 || index >= _holdouts.Count)
             return;
@@ -362,5 +368,6 @@ public sealed class Holdouts
         h.Occupant = occupant;
         h.Progress = progress;
         h.LiveMic = liveMic;
+        h.Calls = calls;
     }
 }

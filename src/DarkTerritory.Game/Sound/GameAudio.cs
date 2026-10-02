@@ -19,12 +19,11 @@ public sealed partial class GameAudio
     readonly Dictionary<int, EnemySound> _enemies = new();
     readonly Dictionary<int, double> _packs = new();
     readonly Dictionary<int, SoundInstance> _wheels = new();
-    readonly List<(double At, Double3 Position, float Volume)> _slack = new();
     readonly List<SoundInstance> _choir = new();
     readonly Pcg32Ish _rng = new(20260929);
     SoundInstance? _roar, _chuff, _brake, _wind, _valve, _strain, _vent;
     bool _wasRuptured;
-    double _time, _lastAccel;
+    double _time;
     int _space = PlayerMotor.Outside;
 
     /// <summary>Through the walls unless the listener is outside, or the sound is in their own space.</summary>
@@ -56,6 +55,7 @@ public sealed partial class GameAudio
     public void Update(World world, in TrainControls controls, Listener listener, bool exposed, double dt, int space = PlayerMotor.Outside)
     {
         _space = space;
+        _exposed = exposed;
         _time += dt;
         if (_mix.Refresh())
             Mixer.Mix = _mix.Value;
@@ -103,7 +103,7 @@ public sealed partial class GameAudio
         double speed = d.Speed;
         var bt = train.BoilerTuning;
 
-        _roar ??= Mixer.Play("boiler-roar");
+        _roar ??= Synth("boiler-roar");
         if (_roar is not null)
         {
             _roar.Position = engine.ToWorld(new Double3(0, 2.6, -engine.Shape.HalfLength * 0.4));
@@ -111,7 +111,7 @@ public sealed partial class GameAudio
             _roar.Params.Set("pressure", train.Boiler.Ruptured ? 0 : train.Boiler.Pressure);
             _roar.Params.Set("fire", bt is null ? 0.7 : train.Boiler.FireFraction(bt));
         }
-        _chuff ??= Mixer.Play("chuff");
+        _chuff ??= Synth("chuff");
         if (_chuff is not null)
         {
             _chuff.Position = engine.ToWorld(new Double3(0, 3.5, -engine.Shape.HalfLength * 0.7));
@@ -130,9 +130,11 @@ public sealed partial class GameAudio
         foreach (int id in near)
         {
             if (!_wheels.TryGetValue(id, out var w) || w.Finished)
-                _wheels[id] = w = Mixer.Play("wheel-rail")!;
-            if (w is null)
-                continue;
+            {
+                if (Synth("wheel-rail") is not { } fresh)
+                    continue;
+                _wheels[id] = w = fresh;
+            }
             var frame = train.Frames[id];
             w.Position = frame.ToWorld(new Double3(0, 0.5, 0));
             w.Params.Set("speed", RakeOf(train, id)?.Speed ?? speed);
@@ -141,7 +143,7 @@ public sealed partial class GameAudio
         double braking = controls.Brake * speed;
         if (braking > 0.3)
         {
-            _brake ??= Mixer.Play("brake");
+            _brake ??= Synth("brake");
             if (_brake is not null)
             {
                 _brake.Position = train.Frames.MinBy(f => (f.Origin - listener.Position).Length)!.ToWorld(new Double3(0, 0.5, 0));
@@ -154,13 +156,13 @@ public sealed partial class GameAudio
             _brake = null;
         }
 
-        _wind ??= Mixer.Play("wind");
+        _wind ??= Synth("wind");
         _wind?.Params.Set("wind", exposed ? speed : 0);
 
         // The safety valve lifting.
         if (train.Boiler.SafetyValveLifting && !train.Boiler.Ruptured)
         {
-            _valve ??= Mixer.Play("safety-valve");
+            _valve ??= Synth("safety-valve");
             if (_valve is not null)
                 _valve.Position = engine.ToWorld(new Double3(0, 4.3, -engine.Shape.HalfLength * 0.1));
         }
@@ -177,7 +179,7 @@ public sealed partial class GameAudio
             : 0.6 * Math.Clamp((boiler.Pressure - bt.Redline) / Math.Max(1, bt.PressureMax - bt.Redline), 0, 1) + 0.4 * Math.Clamp(boiler.AtMaxSeconds / bt.RuptureHoldSeconds, 0, 1);
         if (strain > 0)
         {
-            _strain ??= Mixer.Play("boiler-strain");
+            _strain ??= Synth("boiler-strain");
             if (_strain is not null)
             {
                 _strain.Position = engine.ToWorld(new Double3(0, 3.2, -engine.Shape.HalfLength * 0.3));
@@ -191,7 +193,7 @@ public sealed partial class GameAudio
         }
         if (boiler.Vented && !boiler.Ruptured)
         {
-            _vent ??= Mixer.Play("vent-hiss");
+            _vent ??= Synth("vent-hiss");
             if (_vent is not null)
                 _vent.Position = engine.ToWorld(new Double3(0, 4.0, -engine.Shape.HalfLength * 0.6));
         }
@@ -200,31 +202,12 @@ public sealed partial class GameAudio
             _vent.Stop();
             _vent = null;
         }
-        if (boiler.Ruptured && !_wasRuptured && Mixer.Play("boiler-burst") is { } burst)
+        if (boiler.Ruptured && !_wasRuptured && Synth("boiler-burst") is { } burst)
             burst.Position = engine.ToWorld(new Double3(0, 2.6, -engine.Shape.HalfLength * 0.4));
         _wasRuptured = boiler.Ruptured;
 
-        // Slack action: a change in pull runs down the consist as one clunk per coupling (spec A.2, A.7).
-        double accel = d.Acceleration;
-        double jolt = Math.Abs(accel - _lastAccel);
-        _lastAccel = accel;
-        if (jolt > 0.12 && _slack.Count == 0)
-        {
-            float volume = (float)Math.Clamp(jolt / 0.8, 0.3, 1);
-            int k = 0;
-            foreach (var rake in train.Rakes)
-                for (int i = 0; i + 1 < rake.Consist.Vehicles.Count; i++, k++)
-                {
-                    var frame = train.Frames[rake.Consist.Vehicles[i].Id];
-                    _slack.Add((_time + k * 0.11, frame.ToWorld(new Double3(0, 1.0, frame.Shape.HalfLength)), volume));
-                }
-        }
-        for (int i = _slack.Count - 1; i >= 0; i--)
-            if (_slack[i].At <= _time)
-            {
-                Mixer.Play("slack-clunk", _slack[i].Position, _slack[i].Volume);
-                _slack.RemoveAt(i);
-            }
+        // Slack action: a change in pull runs down the consist as one clunk per coupling (spec A.2, A.7; GameAudio.Train).
+        Slack(train, d);
     }
 
     void Loop(EnemySound s, string sound, Double3 at, float occlusion)
@@ -412,10 +395,8 @@ public sealed partial class GameAudio
         _enemies.Clear();
         _packs.Clear();
         _wheels.Clear();
-        _slack.Clear();
         _choir.Clear();
         _wasRuptured = false;
-        _lastAccel = 0;
         _space = PlayerMotor.Outside;
         EndNightCues();
         EndNightAreas();

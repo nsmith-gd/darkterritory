@@ -125,10 +125,11 @@ public static class WorldRecords
                         f.AddRange([(long)c.State, c.Car, Q(c.At.X, Pos), Q(c.At.Y, Pos), Q(c.At.Z, Pos)]);
                     list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Crane, site.Index * CranesPerSite + k), [.. f]));
                 }
-        // GDD App. D: each Holdout's state, who's in it, how far the breach is (the lamps and the HUD), and its Live Mic (D.7).
+        // GDD App. D: each Holdout's state, who's in it, how far the breach is (the lamps and the HUD), its Live Mic (D.7), and
+        // how many times it's been called out from (D.7: the shout is played on every machine when that goes up).
         if (world.Holdouts is { } holdouts)
             foreach (var h in holdouts.All)
-                list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Holdout, h.Index), [(int)h.State, h.Occupant, Q(h.Progress, Fine), h.LiveMic ? 1 : 0]));
+                list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Holdout, h.Index), [(int)h.State, h.Occupant, Q(h.Progress, Fine), h.LiveMic ? 1 : 0, h.Calls]));
         foreach (var body in world.Bodies.All)
         {
             var ps = body.Pbd.Particles;
@@ -267,7 +268,7 @@ public static class WorldRecords
                         ((Run.CastingState)f[5 + i * 5], (int)f[6 + i * 5], new Ballast.Double3(D(f[7 + i * 5], Pos), D(f[8 + i * 5], Pos), D(f[9 + i * 5], Pos))))]);
                     break;
                 case RecordKind.Holdout when !world.Authority && world.Holdouts is { } holdouts:
-                    holdouts.Mirror(r.Id, (Run.HoldoutState)f[0], (int)f[1], D(f[2], Fine), f.Length > 3 && f[3] != 0);
+                    holdouts.Mirror(r.Id, (Run.HoldoutState)f[0], (int)f[1], D(f[2], Fine), f.Length > 3 && f[3] != 0, f.Length > 4 ? (int)f[4] : 0);
                     break;
                 case RecordKind.Run when !world.Authority && world.Run is { } run:
                     const int Each = 7, Head = RunHead;
