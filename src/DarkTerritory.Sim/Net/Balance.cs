@@ -7,6 +7,14 @@ public sealed record BalanceTuning(int SurvivableCrew, double SurvivableDelivere
     double MaxQuietSeconds = 30, double MeanQuietSeconds = 20)
 {
     public const string File = "tuning/balance.json";
+    /// <summary>GDD §34's combination fairness sweep (note 186).</summary>
+    public CombinationTuning Combinations { get; init; } = new();
+    /// <summary>GDD §34's degraded comms: named voice conditions the harness can put the crew's calls through (note 186).</summary>
+    public IReadOnlyDictionary<string, Bots.VoiceConditions> Comms { get; init; } = new Dictionary<string, Bots.VoiceConditions>();
+    /// <summary>GDD §34's cascade audit: how long each recovery may take (note 186).</summary>
+    public Audit.CascadeTuning Cascades { get; init; } = new();
+    /// <summary>App. A.9 / B.10's per-tree GRAB check: the crew sizes it's run at, and where the friends stand (note 186).</summary>
+    public Audit.GrabAuditTuning Grabs { get; init; } = new();
 }
 
 /// <summary>One night of a sweep: a route, the crew's size, the train's length.</summary>

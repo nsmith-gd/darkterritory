@@ -197,6 +197,17 @@ public sealed class World
 
     /// <summary>The host's: the campaign's looks by player name, going into the night.</summary>
     public IReadOnlyDictionary<string, string> LooksByName { get; set; } = new Dictionary<string, string>();
+    /// <summary>
+    /// Host, the harness's combination audit (GDD §34 "every pair and triple in the roster"; note 186): these kinds, and
+    /// only these, come whenever their spawn can place them, from <see cref="InsistAfter"/> seconds into the night and again
+    /// <see cref="InsistEvery"/> seconds after the last one's gone. The director's budget, pacing and weights are skipped
+    /// (they decide when a kind comes; the audit asks what happens when they meet). Null on a real night.
+    /// </summary>
+    public IReadOnlyList<EnemyKind>? Insist { get; set; }
+    public double InsistAfter { get; set; } = 2;
+    public double InsistEvery { get; set; } = 10;
+    readonly Dictionary<EnemyKind, double> _insistGone = [];
+
     public IReadOnlyList<Enemy> ActiveEnemies => _enemies;
     public List<EnemyEvent> EnemyEvents { get; } = new();
     public List<DamageEvent> Damage { get; } = new();
@@ -905,12 +916,19 @@ public sealed class World
             {
                 // App. B.9: livestock aboard raise the baseline (they're never quiet).
                 Choir.Floor = DarkTerritory.Sim.Enemies.Director.Aboard(this).Contains(DarkTerritory.Sim.Train.CargoKind.Livestock) ? c.Choir.LivestockFloor : 0;
+                // Insisted on (note 186): it's gathered all but the last few seconds, and the meter's held up till it comes.
+                // Once it's here the crew can hush it off as on any night.
+                if (Insist?.Contains(EnemyKind.Choir) == true && !Choir.Present && !Choir.Spent && Choir.Rest <= 0 && ElapsedSeconds >= InsistAfter)
+                {
+                    Choir.Build = Math.Max(Choir.Build, 1 - InsistLeadSeconds / c.Choir.BuildSeconds);
+                    Choir.Floor = Math.Max(Choir.Floor, c.Choir.Threshold * 1.25);
+                }
                 bool swarm = Choir.Step(c.Choir, Loudness(c.Choir), SimConstants.TickSeconds);
                 // Not gathering, nobody's to blame yet: the shares are the BUILD's only (A.7 "during BUILD"). Spent, they're kept
                 // as they stood when it took its one, for the incident report to read.
                 if (Choir.Phase(c.Choir) == ChoirPhase.Distant && !Choir.Spent)
                     _choirShares.Clear();
-                if (swarm && Enemies is { } et && _context is not null)
+                if (swarm && Enemies is { } et && _context is not null && Insist?.Contains(EnemyKind.Choir) != false)
                     for (int i = 0; i < et.Choir.Ghosts; i++)
                     {
                         double a = i * 2 * Math.PI / et.Choir.Ghosts;
@@ -1093,7 +1111,9 @@ public sealed class World
         {
             d.Present(_context?.Crew.Count ?? 0);
             Unmet(ctx, t.Director);
-            if (d.Decide(this, ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } kind && Spawns.For(kind) is { } rule)
+            if (Insist is { } insist)
+                InsistOn(insist, t, d);
+            else if (d.Decide(this, ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } kind && Spawns.For(kind) is { } rule)
                 rule.Spawn(new SpawnContext(this, t, d));
             // App. B.5: the door left open at a stop this long (it swings shut by itself with someone in the cab to see to it).
             bool door = _doorOpenAtStop >= t.Stoker.DoorOpenSeconds;
@@ -1125,6 +1145,43 @@ public sealed class World
         _carries.Clear();
         foreach (var (id, at) in ctx.Carries)
             _carries[id] = at;
+    }
+
+    /// <summary>The Choir insisted on comes this many seconds after the meter's held up (note 186).</summary>
+    const double InsistLeadSeconds = 5;
+
+    /// <summary>
+    /// The combination audit's spawns (note 186): each insisted kind, when none of it is about and it's been gone long
+    /// enough, put in by its own spawn rule's placement (which may still find nowhere: no crane, no marsh ahead). The Stoker
+    /// goes straight into the firebox; the Choir is gathered in the meter's step.
+    /// </summary>
+    void InsistOn(IReadOnlyList<EnemyKind> insist, EnemyTuning t, Director d)
+    {
+        if (ElapsedSeconds < InsistAfter)
+            return;
+        var ctx = new SpawnContext(this, t, d);
+        foreach (var kind in insist)
+        {
+            if (kind == EnemyKind.Choir || _enemies.Any(e => !e.Gone && e.Kind == kind))
+                continue;
+            if (d.Log.Any(l => l.Kind == kind) && !_insistGone.ContainsKey(kind))
+                _insistGone[kind] = ElapsedSeconds;
+            if (_insistGone.TryGetValue(kind, out double gone) && ElapsedSeconds - gone < InsistEvery)
+                continue;
+            bool placed = kind == EnemyKind.Stoker
+                ? Train.BoilerTuning is not null && !Train.Boiler.Ruptured && AddStoker(t)
+                : Spawns.For(kind) is { } rule && rule.Spawn(ctx);
+            if (!placed)
+                continue;
+            _insistGone.Remove(kind);
+            d.Charge(this, kind, _enemies);
+        }
+    }
+
+    bool AddStoker(EnemyTuning t)
+    {
+        _enemies.Add(Stoker.InFirebox(_nextEnemyId++, Train, false, t.Stoker));
+        return true;
     }
 
     readonly List<(uint Tick, Ballast.Double3 Muzzle)> _recentRounds = new();
