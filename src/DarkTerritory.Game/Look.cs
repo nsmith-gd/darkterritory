@@ -33,6 +33,24 @@ public sealed record AtmosphereTuning
     public float? Ambient { get; init; }
     public Vector3? LampColour { get; init; }
     public float? LampIntensity { get; init; }
+    /// <summary>What the night goes over to as the dawn comes up (the run's dawn clock, GDD §21).</summary>
+    public DawnTuning? Dawn { get; init; }
+}
+
+/// <summary>
+/// The dawn (GDD §21: the run is a race to it; the checklist's "the sky doesn't change"): over the last
+/// <see cref="LeadSeconds"/> of the run's dawn clock the night's air and moon go over to these, a low grey light coming up
+/// in the east that thins the dark without taking the fog away.
+/// </summary>
+public sealed record DawnTuning
+{
+    public float LeadSeconds { get; init; } = 300;
+    public Vector3 FogColour { get; init; } = new(0.3f, 0.28f, 0.3f);
+    /// <summary>Towards the sun, just over the horizon (normalised on use).</summary>
+    public Vector3 SunDirection { get; init; } = new(0.85f, 0.12f, -0.3f);
+    public Vector3 SunColour { get; init; } = new(0.95f, 0.68f, 0.52f);
+    public float SunStrength { get; init; } = 0.9f;
+    public float Ambient { get; init; } = 0.3f;
 }
 
 /// <summary>
@@ -263,6 +281,28 @@ public sealed class Look
             light.LampColour = lc;
         if (a.LampIntensity is { } li)
             light.LampIntensity = li;
+        return light;
+    }
+
+    /// <summary>How far the dawn's come up (0 night .. 1 dawn) <paramref name="dawnIn"/> seconds before it (the run's dawn clock).</summary>
+    public float DawnOf(double dawnIn) =>
+        Tuning.Atmosphere.Dawn is { } d ? (float)Math.Clamp(1 - dawnIn / Math.Max(1, d.LeadSeconds), 0, 1) : 0;
+
+    /// <summary>
+    /// <paramref name="light"/> with the dawn <paramref name="t"/> of the way up (0..1, eased): the fog lightening to the
+    /// dawn's grey, the moon's light going over to the low sun's from the east, the dark pockets filling.
+    /// </summary>
+    public FrameLighting Dawn(FrameLighting light, float t)
+    {
+        if (Tuning.Atmosphere.Dawn is not { } d || t <= 0)
+            return light;
+        t = Math.Clamp(t, 0, 1);
+        t = t * t * (3 - 2 * t);
+        light.FogColor = Vector3.Lerp(light.FogColor, d.FogColour, t);
+        light.MoonDirection = Vector3.Normalize(Vector3.Lerp(light.MoonDirection, Vector3.Normalize(d.SunDirection), t));
+        light.MoonColour = Vector3.Lerp(light.MoonColour, d.SunColour, t);
+        light.MoonStrength = float.Lerp(light.MoonStrength, d.SunStrength, t);
+        light.Ambient = float.Lerp(light.Ambient, d.Ambient, t);
         return light;
     }
 
