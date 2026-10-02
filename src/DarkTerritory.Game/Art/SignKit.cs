@@ -33,6 +33,8 @@ public static class SignKit
             // Speed boards: black figures on white, as ever; restricted: yellow; closed and limits: red.
             "restricted" or "endRestricted" => (new Vector3(0.78f, 0.66f, 0.2f), Palette.SootBlack),
             "lineClosed" or "bridgeLimit" => (new Vector3(0.62f, 0.12f, 0.08f), new Vector3(0.9f, 0.88f, 0.8f)),
+            // The mail crane's warning board (sight.json drop): the mail's green, white letters.
+            "mailDrop" => (new Vector3(0.16f, 0.36f, 0.2f), new Vector3(0.9f, 0.88f, 0.8f)),
             "stationName" or "facility" or "junction" => (new Vector3(0.12f, 0.14f, 0.16f), new Vector3(0.85f, 0.82f, 0.72f)),
             _ => (new Vector3(0.86f, 0.84f, 0.78f), Palette.SootBlack),
         };

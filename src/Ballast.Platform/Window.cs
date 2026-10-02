@@ -72,6 +72,19 @@ public sealed unsafe class Window : IDisposable
         MouseCaptured = true;
     }
 
+    /// <summary>The window's (and the taskbar's) icon, from RGBA8 pixels, <paramref name="width"/> by <paramref name="height"/>.</summary>
+    public void SetIcon(int width, int height, byte[] rgba)
+    {
+        fixed (byte* p = rgba)
+        {
+            var surface = SDL_CreateSurfaceFrom(width, height, SDL_PixelFormat.SDL_PIXELFORMAT_ABGR8888, (IntPtr)p, width * 4);
+            if (surface == null)
+                return;
+            SDL_SetWindowIcon(_window, surface);
+            SDL_DestroySurface(surface);
+        }
+    }
+
     public InputState Input { get; } = new();
     public bool CloseRequested { get; private set; }
     public bool Resized { get; set; }

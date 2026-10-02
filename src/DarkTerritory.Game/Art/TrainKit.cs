@@ -772,7 +772,7 @@ public static class TrainKit
     /// its inside lined in dark boards with carlines under the roof, the underframe and trucks beneath, couplers, the
     /// side and end ladders, the roof walk and brake wheel; the cargo stacked as crates, the side-door steps as timber.
     /// </summary>
-    public static MeshAsset Car(Look? look, CarShape shape, Livery livery, int variant)
+    public static MeshAsset Car(Look? look, CarShape shape, Livery livery, int variant, bool load = true)
     {
         var k = new Kit(look, 7 + variant * 3 + (int)livery);
         var interior = shape.Interior!.Value;
@@ -965,8 +965,9 @@ public static class TrainKit
         }
 
         // The load: crates, stacked to the cargo's collision, a little irregular.
-        foreach (var solid in shape.Solids.Where(s => s.Part == PartKind.Cargo))
-            CrateStack(k, F(solid.Box.Min), F(solid.Box.Max), variant);
+        if (load)
+            foreach (var solid in shape.Solids.Where(s => s.Part == PartKind.Cargo))
+                CrateStack(k, F(solid.Box.Min), F(solid.Box.Max), variant);
         // The guard van's lockers: iron cabinets on the left wall.
         k.Use("paint_olive", Palette.MuddyOlive, 0.9f, 0.2f);
         foreach (var solid in shape.Solids.Where(s => s.Part == PartKind.Locker))
@@ -1064,6 +1065,72 @@ public static class TrainKit
     }
 
     /// <summary>Crates filling a cargo volume, each a little off square, so the stack reads as stacked, not as one block.</summary>
+    /// <summary>
+    /// The case a car's load comes in (GDD §19 "physically aboard and readable"), by its cargo: the facility freight's
+    /// own models (tools/models freight_*, heavy_crate), or null for the plain crate stack (goods, livestock, a car not
+    /// loaded at a facility yet).
+    /// </summary>
+    public static string? LoadProp(CargoKind cargo) => cargo switch
+    {
+        CargoKind.Food or CargoKind.Grain => "freight_sacks",
+        CargoKind.Ammunition => "freight_ammo",
+        CargoKind.Chemicals => "freight_carboys",
+        CargoKind.Ore => "freight_ore",
+        CargoKind.Heavy => "heavy_crate",
+        CargoKind.Salvage or CargoKind.Comet => "freight_parts",
+        _ => null,
+    };
+
+    /// <summary>
+    /// A car's load (its cargo solids, as the sim has them) as its cargo's cases stacked to fill them: each case the size of
+    /// a crate's body, scaled a little to the cell, turned a touch either way so the face isn't one plane. The plain crate
+    /// stack when the cargo has no case of its own (<see cref="LoadProp"/>) or it isn't built.
+    /// </summary>
+    public static MeshAsset Load(Look? look, CarShape shape, CargoKind cargo, int variant)
+    {
+        var k = new Kit(look, 64 + (int)cargo);
+        var name = LoadProp(cargo);
+        var prop = name is not null && look is not null ? PropArt.Of(look).Get(name) : null;
+        foreach (var solid in shape.Solids.Where(s => s.Part == PartKind.Cargo))
+        {
+            var (min, max) = (F(solid.Box.Min), F(solid.Box.Max));
+            if (prop is null)
+            {
+                CrateStack(k, min, max, variant);
+                continue;
+            }
+            var (pmin, pmax) = Extent(prop);
+            var psize = pmax - pmin;
+            var size = max - min;
+            int nx = Math.Max(1, (int)MathF.Round(size.X / psize.X)), ny = Math.Max(1, (int)MathF.Round(size.Y / psize.Y)),
+                nz = Math.Max(1, (int)MathF.Round(size.Z / psize.Z));
+            var cell = new Vector3(size.X / nx, size.Y / ny, size.Z / nz);
+            var scale = new Vector3(cell.X / psize.X, cell.Y / psize.Y, cell.Z / psize.Z) * 0.97f;
+            for (int x = 0; x < nx; x++)
+                for (int y = 0; y < ny; y++)
+                    for (int z = 0; z < nz; z++)
+                    {
+                        float jitter = MathF.Sin((x * 7 + y * 13 + z * 5 + variant) * 1.7f);
+                        var centre = min + cell * new Vector3(x + 0.5f, y, z + 0.5f) - new Vector3(0, pmin.Y * scale.Y, 0);
+                        k.Append(prop, Matrix4x4.CreateTranslation(-(pmin + pmax) * new Vector3(0.5f, 0, 0.5f)) * Matrix4x4.CreateScale(scale)
+                            * Matrix4x4.CreateRotationY(jitter * 0.05f + ((x + y + z) % 2) * MathF.PI) * Matrix4x4.CreateTranslation(centre));
+                    }
+        }
+        return k.Build($"load-{cargo}-{variant}");
+    }
+
+    static (Vector3 Min, Vector3 Max) Extent(MeshAsset m)
+    {
+        var lo = new Vector3(float.MaxValue);
+        var hi = new Vector3(float.MinValue);
+        foreach (var v in m.Vertices)
+        {
+            lo = Vector3.Min(lo, v.Position);
+            hi = Vector3.Max(hi, v.Position);
+        }
+        return (lo, hi);
+    }
+
     static void CrateStack(Kit k, Vector3 min, Vector3 max, int variant)
     {
         k.Use("wood_crate", Palette.TarnishedBrass * 0.8f, 0.8f, 0, tile: 0.6f);
