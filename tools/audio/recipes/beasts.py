@@ -18,6 +18,8 @@ The packs have little that's alive, so the living parts are synthesised (tools/a
 are what they touch (stones, plate, tin, boards, cloth, crates) and the cracks of things breaking.
 """
 
+import functools
+
 import numpy as np
 from scipy import signal
 
@@ -26,6 +28,7 @@ import src
 import synth
 from build import recipe
 from dsp import samples, env, mix, Bus, lp, hp, bp
+from recipes import crew_kit as ck
 from recipes import kit
 
 SR = dsp.SR
@@ -317,6 +320,130 @@ PAW_HOW = {
 for _mat, _fn in (("ground", paw_ground), ("grate", paw_grate), ("roof", paw_roof)):
     recipe("cs-hounds", "paw", "pad", PAW_LABEL[_mat], PAW_HOW[_mat], sources=PAW_SOURCES[_mat], takes=6, mat=_mat,
            lufs=-22, gap=0.3, preview=takes_then(gallop))(lambda rng, k, fn=_fn: done(fn(rng, k)))
+
+
+# The running board again. 'pad' laid a hammer's hit on a plate under the paw, and a hammer rings a plate in a way a
+# soft pad never can: it read as a dropped plate, not a dog. These two let the steel answer what really strikes it: hard
+# nails ticking on it, and a soft heavy pad that can only reach its low modes.
+
+STEEL_TICKS = ["sfx_100_v2:metal_hit_02", "kenney_rpg-audio:metalClick", "kenney_rpg-audio:metalLatch",
+               "sfx_100_v2:metal_06", "sfx_100_v2:misc_20", "sfx_100_v2:door_02", "sfx_100_v2:metal_05"]
+STEEL_RING = [f"kenney_impact-sounds:impactPlate_medium_{i:03d}" for i in range(5)]     # thick plate, rings 125 Hz-2 kHz
+SOFT = [f"kenney_impact-sounds:impactSoft_medium_{i:03d}" for i in range(5)]
+
+
+@functools.lru_cache(maxsize=1)
+def steel_ticks():
+    """Every sharp contact in a few real recordings of small steel parts (a latch, a click, small hits), each cut to its
+    first 30 ms: a hard point striking steel and the steel's quick bright answer, which is what a claw on a plate is."""
+    out = []
+    for k in STEEL_TICKS:
+        x = ck.get(k)
+        for s, _ in ck.hits(x, floor_db=-14, gap=0.015):
+            out.append(unit(hp(ck.cut(x, s - samples(0.0005), s + samples(0.03), 0.0003, 0.02), 1200)))
+    return out
+
+
+def nail(rng, semis=0.0, tau=None):
+    """One claw on steel: a real metal tick, a little bent, damped as fast as the nail is lifted."""
+    ticks = steel_ticks()
+    y = dsp.vari(ticks[int(rng.integers(len(ticks)))], semis + rng.uniform(-2.5, 2.5))
+    return unit(ck.choke(y, 0.002, tau or rng.uniform(0.004, 0.009)))
+
+
+@functools.lru_cache(maxsize=16)
+def ring_of(key, length=0.45):
+    """A plate's own ring, from a real recording of it struck: the decay from just after the strike. A blow convolved
+    through it rings that plate's real modes, but only the ones a blow that soft can reach."""
+    x = ck.get(key)
+    a = int(np.argmax(np.abs(x))) + samples(0.003)
+    return dsp.fade(unit(x[a:a + samples(length)]), 0.001, length * 0.5)
+
+
+def through(x, ring):
+    return unit(signal.fftconvolve(x, ring).astype(np.float32))
+
+
+def soft_pad(rng, ms=3.0):
+    """The pad's blow on the plate: a force that swells and falls in `ms` (a soft pad is slow, so it can't reach the
+    plate's high modes), roughened by the grain of a real soft thump (a padded mallet, its sub taken out)."""
+    x = ck.get(SOFT[int(rng.integers(len(SOFT)))])
+    s = ck.hits(x, floor_db=-20)[0][0]
+    grain = unit(hp(ck.cut(x, s, s + samples(0.05), 0.0005, 0.03), 200))
+    k = samples(ms / 1000)
+    return mix(np.hanning(k).astype(np.float32), grain * 0.25)
+
+
+def paw_nails(rng, k):
+    hind = k % 2 == 1
+    w = rng.uniform(0.8, 1.0) * (1.25 if hind else 1.0)
+    b = Bus(0.6)
+    t0 = 0.03
+    # toe-first: three or four nails strike the plate in a ragged 10-25 ms run, the loudest thing about it
+    n = int(rng.integers(3, 5))
+    spread = rng.uniform(0.01, 0.025)
+    for i in range(n):
+        b.at(t0 - spread + spread * i / (n - 1) + rng.uniform(-0.002, 0.002), nail(rng, rng.uniform(-3, 1)),
+             rng.uniform(-9, -3) - 2 * (i == n - 1))
+    # the pad: a soft heavy blow that only reaches the plate's lowest modes, choked at once by the weight on it
+    ring = dsp.vari(ring_of(STEEL_RING[(k + 2) % len(STEEL_RING)]), rng.uniform(-1.5, 1.5))
+    pad = through(soft_pad(rng, rng.uniform(3, 5)), ring)
+    pad = ck.choke(hp(pad, 130), 0.015, rng.uniform(0.025, 0.04))
+    b.at(t0, unit(pad) * w, -9)
+    b.at(t0 + rng.uniform(0, 0.004), kit.thud(rng, rng.uniform(80, 120), 0.07, w), -17)
+    if rng.random() < 0.4:     # a nail skating over the chequer's ribs as the foot drives back
+        for j in range(int(rng.integers(3, 6))):
+            b.at(t0 + 0.05 + 0.011 * j + rng.uniform(0, 0.004), nail(rng, -1, 0.004), -18 - 2 * j)
+    b.at(t0 + 0.01, paw_tail(rng, 0.42, puff=0.5, sparks=rng.uniform(0.8, 1.4)), 0)
+    return b.x
+
+
+def paw_board(rng, k):
+    hind = k % 2 == 1
+    w = rng.uniform(0.85, 1.0) * (1.3 if hind else 1.0)
+    b = Bus(0.6)
+    t0 = 0.02
+    ring = dsp.vari(ring_of(STEEL_RING[k % len(STEEL_RING)]), rng.uniform(-1.5, 1.5))   # a board a little bigger or smaller
+    # the weight: the pad's soft blow rung through a real plate's decay, choked as the foot stands on it; the dog's
+    # mass as a dull thud under it
+    deck = ck.choke(through(soft_pad(rng, rng.uniform(1.8, 3.0)), ring), 0.03, rng.uniform(0.035, 0.055))
+    b.at(t0, unit(hp(deck, 110)) * w, -3)
+    b.at(t0, kit.thud(rng, rng.uniform(75, 105), 0.07, w), -15)
+    # the nails, quieter here, rung through the same plate (a hard tick reaches its high modes too)
+    for i in range(int(rng.integers(2, 4))):
+        x = nail(rng, rng.uniform(-4, -1))
+        b.at(t0 - 0.012 + 0.006 * i, mix(x, through(x, ring) * 0.35), rng.uniform(-14, -10))
+    # the running board is bolted down at its ends: under a heavy foot it lifts and knocks back on its bracket
+    if hind or rng.random() < 0.35:
+        knock = nail(rng, rng.uniform(-14, -10), 0.012)
+        b.at(t0 + rng.uniform(0.03, 0.05), mix(knock, through(knock, ring) * 0.5), -16 + 3 * hind)
+    b.at(t0 + 0.01, paw_tail(rng, 0.42, puff=0.6, sparks=rng.uniform(0.8, 1.3)), 0)
+    return b.x
+
+
+@recipe("cs-hounds", "paw", "nails",
+        "A hound's paw on an iron running board: its nails ticking on the steel first and loudest, a dull soft pad, ash",
+        """What a big dog on a steel floor sounds like: the nails. Three or four claw strikes in a ragged 10-25 ms run,
+        each a real metal-on-metal tick (cut from Kenney's latch and click and sfx_100's small metal hits), then the
+        pad: a real soft thump convolved through a real steel plate's ring (the decay of a Kenney plate impact), so a
+        soft blow reaches only the plate's low modes, and the dog's weight chokes it at once. Now and then a nail skates
+        on the chequer as the foot drives back. The same puff of ash and embers as the kept roof paw. Odd takes are hind
+        feet, heavier.""",
+        sources=STEEL_TICKS + STEEL_RING + SOFT, takes=6, mat="grate", lufs=-22, gap=0.3, preview=takes_then(gallop))
+def hound_paw_nails(rng, k):
+    return done(paw_nails(rng, k))
+
+
+@recipe("cs-hounds", "paw", "board",
+        "A hound's paw on an iron running board: the weight landing on the steel, its dull 'dunk' and short ring, nails under",
+        """The weight first: a real soft thump and the dog's mass behind it, convolved through the ring of a real steel
+        plate (the decay of a Kenney heavy or medium plate impact), so the board answers the paw the way steel answers
+        something soft and heavy: a dull, hollow 'dunk' with a short ring, damped as the foot stands on it. The nails
+        tick quieter under it, rung through the same plate. Hind feet (and some fore) lift the board on its bolts so it
+        knocks back on its bracket. The same puff of ash and embers as the kept roof paw.""",
+        sources=STEEL_TICKS + STEEL_RING + SOFT, takes=6, mat="grate", lufs=-22, gap=0.3, preview=takes_then(gallop))
+def hound_paw_board(rng, k):
+    return done(paw_board(rng, k))
 
 
 def scrabble(rng, length, rate, f=(1200, 3000), scratch=0.45):
