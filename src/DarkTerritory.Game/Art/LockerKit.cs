@@ -97,13 +97,17 @@ public static class LockerKit
             foreach (char ch in name)
             {
                 var g = font.Glyph(ch);
+                // Each row's run of lit pixels is one quad, not one per pixel: the door is a small prop (800 triangles).
                 for (int gy = 0; gy < g.GetLength(0); gy++)
                     for (int gx = 0; gx < g.GetLength(1); gx++)
-                        if (g[gy, gx])
-                        {
-                            float z0 = z - gx * px, y0 = y - gy * px;
-                            k.Quad(new Vector3(x, y0, z0), new Vector3(x, y0, z0 - px), new Vector3(x, y0 - px, z0 - px), new Vector3(x, y0 - px, z0));
-                        }
+                    {
+                        if (!g[gy, gx]) continue;
+                        int run = gx;
+                        while (run + 1 < g.GetLength(1) && g[gy, run + 1]) run++;
+                        float z0 = z - gx * px, z1 = z - (run + 1) * px, y0 = y - gy * px;
+                        k.Quad(new Vector3(x, y0, z0), new Vector3(x, y0, z1), new Vector3(x, y0 - px, z1), new Vector3(x, y0 - px, z0));
+                        gx = run;
+                    }
                 z -= font.Advance * px;
             }
         }
