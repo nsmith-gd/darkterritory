@@ -132,6 +132,16 @@ public static class IncidentLog
                 actor = s.Parent > 0 ? a.LampLitBy(s.Parent) : -1;
                 action = actor >= 0 ? "Lamp lit by {actor}." : "Nobody lit that lamp.";
                 break;
+            case DeathCause.Seized:
+                {
+                    // C.9: the victim's share of the build's loudness, and the top contributor if that wasn't them.
+                    double all = world.ChoirShares.Values.Sum();
+                    int share = all > 0 ? (int)Math.Round(100 * world.ChoirShare(victim) / all) : 0;
+                    actor = world.ChoirLoudest;
+                    action = actor < 0 ? "Nobody was loud." : actor == victim ? $"Loudest on the line: {{actor}}, {share}% of the noise."
+                        : $"{share}% of the noise. Loudest on the line: {{actor}}.";
+                    break;
+                }
             case DeathCause.Stoker:
                 actor = a.Fireman;
                 action = actor >= 0 ? $"Last fired: {{actor}}, {Math.Max(0, Seconds(world) - a.FiredAt):0} s before." : "Nobody had fired it.";

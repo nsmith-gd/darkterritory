@@ -69,6 +69,10 @@
     "quietDecayPerSecond": 0.06,
     "maxLoudness": 3,
     // App. B.9: livestock aboard is never quiet: a floor under the meter.
-    "livestockFloor": 0.3
+    "livestockFloor": 0.3,
+    // GDD v1.4 App. C item 4, C.7: a noisy toy carried feeds the meter in the carrier's name, this much each (a normal
+    // voice is about 0.22). Alone none of them trips the threshold; a squeaker carried by someone shouting does, and they're
+    // the one the Choir comes for (A.7 loudest first). DESIGN-TODO: first pass, no GDD numbers.
+    "toys": { "squeaker": 0.2, "musicBox": 0.15, "drummer": 0.3 }
   }
 }

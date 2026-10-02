@@ -309,7 +309,13 @@ public static class Hud
         BodyKind.RepairKit => "THE REPAIR KIT",
         BodyKind.Lamp => "THE LAMP",
         BodyKind.Radio => "THE RADIO",
-        BodyKind.Toy => "THE TOY",
+        BodyKind.Toy => b.Noise switch
+        {
+            ToyNoise.Squeaker => "THE SQUEAKER",
+            ToyNoise.MusicBox => "THE MUSIC BOX",
+            ToyNoise.Drummer => "THE DRUMMER",
+            _ => "THE TOY",
+        },
         BodyKind.Extinguisher => "THE EXTINGUISHER",
         BodyKind.Loot => world.Run?.FindName(b)?.ToUpperInvariant() ?? "THE FIND",
         _ => "IT",

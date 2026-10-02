@@ -38,10 +38,19 @@ public sealed class GameAudio
         Bank = new SoundBank(Path.Combine(contentRoot, "audio", "sounds"));
         _mix = new HotData<MixDef>(Path.Combine(contentRoot, MixDef.File));
         Mixer = new Mixer(Bank, _mix.Value);
+        Opera = new Opera(contentRoot);
     }
 
     public SoundBank Bank { get; }
     public Mixer Mixer { get; }
+    /// <summary>The derailment's music (GDD v1.4 App. E.6): every track loaded now, at startup.</summary>
+    public Opera Opera { get; }
+
+    /// <summary>
+    /// Every frame: the derailment's opera, the host's draw (<see cref="World.DerailMusic"/>) at
+    /// <paramref name="sequenceSeconds"/> into the sequence (negative with no derailment). It starts on the replay.
+    /// </summary>
+    public void Music(uint track, double sequenceSeconds, WreckTuning tuning) => Opera.Update(Mixer, track, sequenceSeconds, tuning);
 
     sealed class EnemySound
     {
@@ -69,6 +78,43 @@ public sealed class GameAudio
         Choir(world, train);
         Actions(world);
         Whistle(world, train);
+        Toys(world, train);
+    }
+
+    readonly Dictionary<int, SoundInstance> _toys = [];
+
+    /// <summary>
+    /// A noisy toy in someone's hands (GDD v1.4 §19, App. C item 4): its squeak, tune or drum for as long as it's carried, in
+    /// the carrier's car (and in the carrier's name on the Choir's meter, host-side). Put down, it's quiet.
+    /// </summary>
+    void Toys(World world, TrainOnLine train)
+    {
+        var carried = new HashSet<int>();
+        foreach (var b in world.Bodies.All)
+        {
+            if (b.Kind != Sim.Physics.BodyKind.Toy || b.Carrier < 0 || b.Noise == Sim.Physics.ToyNoise.None)
+                continue;
+            carried.Add(b.Id);
+            if (!_toys.TryGetValue(b.Id, out var voice) || voice.Finished)
+            {
+                string sound = b.Noise switch
+                {
+                    Sim.Physics.ToyNoise.Squeaker => "toy-squeaker",
+                    Sim.Physics.ToyNoise.MusicBox => "toy-musicbox",
+                    _ => "toy-drummer",
+                };
+                if (Mixer.Play(sound) is not { } played)
+                    continue;
+                _toys[b.Id] = voice = played;
+            }
+            voice.Position = Sim.Physics.Bodies.WorldCentre(b, train);
+            voice.Occlusion = Occlusion(b.Parent >= 0 && b.Parent < train.Frames.Count ? b.Parent : PlayerMotor.Outside);
+        }
+        foreach (var id in _toys.Keys.Where(id => !carried.Contains(id)).ToList())
+        {
+            _toys[id].Stop();
+            _toys.Remove(id);
+        }
     }
 
     SoundInstance? _whistle;

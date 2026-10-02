@@ -76,7 +76,9 @@ public static class WorldRecords
                     v.LockersOpen]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
             [Q(world.Choir.Loudness, Fine), Q(world.Choir.Build, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0, Q(world.LampOutSeconds, Fine), Q(train.Sand, Fine),
-                (world.Choir.Present ? 1 : 0) | (world.Choir.Spent ? 2 : 0), Q(world.Choir.QuietSeconds, Fine), Q(world.WhistleSeconds, Fine), Q(world.Choir.Rest, Fine)]));
+                (world.Choir.Present ? 1 : 0) | (world.Choir.Spent ? 2 : 0), Q(world.Choir.QuietSeconds, Fine), Q(world.WhistleSeconds, Fine), Q(world.Choir.Rest, Fine),
+                // The derailment's opera, the host's draw (GDD v1.4 App. E.6; note 174).
+                world.DerailMusic]));
         foreach (var e in world.ActiveEnemies)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),
             [
@@ -170,11 +172,13 @@ public static class WorldRecords
             f[5] = Q(body.Yaw, Ang);
             f[6] = ps.Length;
             f[7] = body.Second;
-            // The ninth: an extinguisher's charge, a body's tools (GDD v1.4 D.2: it keeps the engineering kit), or a crate's cargo.
+            // The ninth: an extinguisher's charge, a body's tools (GDD v1.4 D.2: it keeps the engineering kit), a toy's noise, or a
+            // crate's cargo.
             f[8] = body.Kind switch
             {
                 Physics.BodyKind.Extinguisher => Q(body.Charge, Hint),
                 Physics.BodyKind.Ragdoll => (long)body.Tools,
+                Physics.BodyKind.Toy => (long)body.Noise,
                 _ => (long)body.Cargo,
             };
             f[9] = body.Locker < 0 ? -1 : body.Locker * 256 + body.Slot;
@@ -271,6 +275,7 @@ public static class WorldRecords
                     };
                     world.WhistleSeconds = f.Length > 9 ? D(f[9], Fine) : 0;
                     world.SetDerailed(f[3] != 0);
+                    world.DerailMusic = f.Length > 11 ? (uint)f[11] : 0;
                     world.LampLit = f[4] != 0;
                     world.LampOutSeconds = f.Length > 5 ? D(f[5], Fine) : 0;
                     world.Train.Sand = f.Length > 6 ? D(f[6], Fine) : 0;
@@ -385,7 +390,8 @@ public static class WorldRecords
             Yaw = D(f[5], Ang),
             Charge = (Physics.BodyKind)f[0] == Physics.BodyKind.Extinguisher ? D(f[8], Hint) : 1,
             Tools = (Physics.BodyKind)f[0] == Physics.BodyKind.Ragdoll ? (ulong)f[8] : 0,
-            Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll ? CargoKind.None : (CargoKind)f[8],
+            Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll or Physics.BodyKind.Toy ? CargoKind.None : (CargoKind)f[8],
+            Noise = (Physics.BodyKind)f[0] == Physics.BodyKind.Toy ? (Physics.ToyNoise)f[8] : Physics.ToyNoise.None,
             Locker = f[9] < 0 ? -1 : (int)(f[9] / 256),
             Slot = f[9] < 0 ? 0 : (int)(f[9] % 256),
         };

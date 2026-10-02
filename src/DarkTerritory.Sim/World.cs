@@ -122,8 +122,35 @@ public sealed class World
     /// every client hears it. It feeds the loudness meter (App. C.7).
     /// </summary>
     public double WhistleSeconds { get; set; }
-    /// <summary>The whistle blows this long (the cord pulled, or the Whistler at it).</summary>
-    public void Whistled(double seconds) => WhistleSeconds = Math.Max(WhistleSeconds, seconds);
+    /// <summary>Who's blowing it (the last to pull the cord), or −1: the Whistler's whistle belongs to nobody (App. C.7).</summary>
+    public int WhistleBy { get; private set; } = -1;
+    /// <summary>The whistle blows this long (the cord pulled by <paramref name="by"/>, or the Whistler at it).</summary>
+    public void Whistled(double seconds, int by = -1)
+    {
+        WhistleSeconds = Math.Max(WhistleSeconds, seconds);
+        WhistleBy = by;
+    }
+
+    readonly SortedDictionary<int, double> _choirShares = [];
+
+    /// <summary>
+    /// Host: each crewmate's share of the loudness meter during the Choir's BUILD (GDD v1.4 App. A.7, C.7), in loudness-seconds:
+    /// their voice, the cannon rounds they fired, the whistle they pulled and the noisy toy in their hands. Machinery,
+    /// livestock and the Whistler's whistle belong to nobody. Cleared when it's not gathering; held while it's here, for the
+    /// swarm to choose by.
+    /// </summary>
+    public IReadOnlyDictionary<int, double> ChoirShares => _choirShares;
+    public double ChoirShare(int player) => _choirShares.GetValueOrDefault(player);
+
+    /// <summary>The loudest of the build (ties to the lower id: the shares are kept in id order), or −1 if nobody's put in.</summary>
+    public int ChoirLoudest => _choirShares.Where(s => s.Value > 0).Select(s => (s.Key, s.Value)).DefaultIfEmpty((-1, 0)).MaxBy(s => s.Item2).Item1;
+
+    /// <summary>Credits <paramref name="player"/> with <paramref name="loudnessSeconds"/> while the Choir could gather.</summary>
+    void CreditChoir(int player, double loudnessSeconds)
+    {
+        if (player >= 0 && loudnessSeconds > 0 && !Choir.Present && !Choir.Spent)
+            _choirShares[player] = _choirShares.GetValueOrDefault(player) + loudnessSeconds;
+    }
     /// <summary>
     /// What's being done to a player's voice (GDD v1.1 App. C.8): muffled under Tippy Toesie's hand; fading (the gain left,
     /// 0..1) as a Soot Child drains them. The host applies it to what it forwards; the Passenger has no voice to change.
@@ -209,8 +236,10 @@ public sealed class World
         for (int i = 0; i < radios; i++)
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(-0.9, floor, room.Max.Z - 3.3 - 0.5 * i), Physics.BodyKind.Radio);
         // Hand-carried loot (GDD v1.1 App. C.4): toys, for the Track Doll to steal.
-        for (int i = 0; i < Train.Dynamics.Tuning.Kit.Toys; i++)
-            Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.6, floor, room.Max.Z - 1.2 - 0.5 * i), Physics.BodyKind.Toy);
+        var kit = Train.Dynamics.Tuning.Kit;
+        for (int i = 0; i < kit.Toys; i++)
+            Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.6, floor, room.Max.Z - 1.2 - 0.5 * i), Physics.BodyKind.Toy).Noise =
+                i < kit.ToyNoises.Count ? kit.ToyNoises[i] : Physics.ToyNoise.None;
     }
 
     /// <summary>
@@ -330,6 +359,17 @@ public sealed class World
     public int DerailDriver { get; private set; } = -1;
 
     /// <summary>
+    /// The host's music rotation (GDD v1.4 App. E.6): the manifest's tracks and the shuffle bag from the campaign save (or
+    /// the app's, for a quick night). Only the host's world has one; it draws on the derail tick.
+    /// </summary>
+    public Music.MusicRotation? Music { get; set; }
+    /// <summary>
+    /// The derailment's track (<see cref="Sim.Music.MusicManifest.Key"/>; 0 for none): drawn by the host on the derail tick
+    /// and replicated with the world, so every client plays the same opera. Presentation only: nothing simulates from it.
+    /// </summary>
+    public uint DerailMusic { get; set; }
+
+    /// <summary>
     /// The failure-attribution log (GDD v1.4 App. C.9), host-side: what happened to whom, and the contributing action. It
     /// feeds the incident report and nothing else.
     /// </summary>
@@ -400,6 +440,10 @@ public sealed class World
             DerailCause = why;
             DerailSpeed = Train.Dynamics.Speed;
             DerailDriver = Attribution.Driver;
+            // E.6: the host draws tonight's opera from the bag, weighted by the speed it came off at, from the same seed
+            // as the wreck's (deterministic); clients are sent the key.
+            if (Music?.Draw(DerailSpeed, (ulong)Tick * 0x9E3779B97F4A7C15UL ^ (Route?.Seed ?? 0) ^ 0xE6UL) is { } track)
+                DerailMusic = Sim.Music.MusicManifest.Key(track.Id);
             // T117: off the rails, every car carries on as itself, into the ground and into each other. The host's; the
             // clients are sent the poses. Thrown outward off the curve it was on, if it was on one.
             if (Train.Wreck is null)
@@ -491,7 +535,12 @@ public sealed class World
             Guns.Sit(ref s, intent, Train, cs.Guns, SimConstants.TickSeconds);
         var targets = viewTick is { } vt && _targetHistory.TryGetValue(vt, out var then) ? then : Targets;
         if (Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
+        {
             Shots.Add(shot);
+            // The round's burst, in the gunner's name: it lifts the meter by roundLoudness, which the window takes to fall away.
+            if (Authority)
+                CreditChoir(playerId, c.Choir.RoundLoudness * c.Choir.WindowSeconds);
+        }
         if (Combat is { } cr)
             Guns.Reload(s, intent, Train, cr.Guns, SimConstants.TickSeconds);
         // Pushing the gun along its roof rail (T93), worked out alike everywhere so a client predicts it: the motor moves it.
@@ -499,7 +548,7 @@ public sealed class World
         s.Flags = pushing ? s.Flags | PlayerFlags.Pushing : s.Flags & ~PlayerFlags.Pushing;
         // The whistle cord, in the cab (GDD §12): a blast, loud, and every client hears it.
         if (intent.Has(PlayerActions.Whistle) && Net.CabControls.CanDrive(s, Train))
-            Whistled(1.0);
+            Whistled(1.0, playerId);
         // The lamp in the car you're in (GDD v1.1 App. A.5): on the press, the host's to set.
         if (Authority && intent.Has(PlayerActions.CarLamp) && !_lampWas.Contains(playerId) && s.Parent > 0 && s.Parent < Train.Frames.Count
             && PlayerMotor.Indoors(s, Train))
@@ -644,6 +693,10 @@ public sealed class World
                 // App. B.9: livestock aboard raise the baseline (they're never quiet).
                 Choir.Floor = DarkTerritory.Sim.Enemies.Director.Aboard(this).Contains(DarkTerritory.Sim.Train.CargoKind.Livestock) ? c.Choir.LivestockFloor : 0;
                 bool swarm = Choir.Step(c.Choir, Loudness(c.Choir), SimConstants.TickSeconds);
+                // Not gathering, nobody's to blame yet: the shares are the BUILD's only (A.7 "during BUILD"). Spent, they're kept
+                // as they stood when it took its one, for the incident report to read.
+                if (Choir.Phase(c.Choir) == ChoirPhase.Distant && !Choir.Spent)
+                    _choirShares.Clear();
                 if (swarm && Enemies is { } et && _context is not null)
                     for (int i = 0; i < et.Choir.Ghosts; i++)
                     {
@@ -737,16 +790,28 @@ public sealed class World
     /// intent), the whistle, and machinery (the coaling chute, the winch, the crane at a stop). Cannon shots add theirs as
     /// they're fired. The meter smooths it over a few seconds.
     /// </summary>
+    /// <summary>This tick's loudness (App. C.7), each part credited to whoever made it (<see cref="ChoirShares"/>).</summary>
     double Loudness(ChoirTuning t)
     {
-        double voices = 0;
+        double dt = SimConstants.TickSeconds, total = 0;
+        void Add(int player, double loudness)
+        {
+            total += loudness;
+            CreditChoir(player, loudness * dt);
+        }
         if (_context is { } ctx)
             foreach (var (p, intent) in ctx.Crew)
                 if (p.State.Alive)
-                    voices += intent.Voice / 255.0 * t.VoicePerPlayer;
-        double whistle = WhistleSeconds > 0 ? t.WhistleLoudness : 0;
-        double machinery = Run is { Phase: DarkTerritory.Sim.Run.RunPhase.AtFacility } run && run.Machinery ? t.MachineryLoudness : 0;
-        return voices + whistle + machinery;
+                    Add(p.Id, intent.Voice / 255.0 * t.VoicePerPlayer);
+        // A squeaker, a music box, a wind-up drummer: noisy in the hands that carry it.
+        foreach (var b in Bodies.All)
+            if (b is { Kind: Physics.BodyKind.Toy, Carrier: >= 0 } && b.Noise != Physics.ToyNoise.None)
+                Add(b.Carrier, t.Toys.Of(b.Noise));
+        if (WhistleSeconds > 0)
+            Add(WhistleBy, t.WhistleLoudness);
+        if (Run is { Phase: DarkTerritory.Sim.Run.RunPhase.AtFacility } run && run.Machinery)
+            total += t.MachineryLoudness;
+        return total;
     }
 
     readonly Dictionary<int, double> _unmet = [];
