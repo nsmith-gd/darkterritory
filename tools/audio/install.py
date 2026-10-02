@@ -169,9 +169,17 @@ TELL_SOUNDS = {
     "tell-draggers": ("dragger-scrape", [("rasp", {})]),
     "tell-stoker": ("stoker-hiss", [("hiss-wrong", {})]),
     "tell-fireflies": ("fireflies-buzz", [("buzz", {})]),
+    "tell-grumbler": ("grumbler-gnaw", [("gnaw", {})]),
+    "tell-marsh": ("drift-rustle", [("reeds", {})]),
+    "tell-track-debris": ("sleepers-writhe", [("writhe", {})]),
+    "tell-climbers": ("climber-scrabble", [("scrabble", {})]),
+    "tell-tippy": ("tippy-tiptoe", [("tiptoe", {})]),
 }
 # The Dragger's rasp is one scrape before the grab (spec A.4), not a loop: played once and held till the phase ends.
 ONCE = {"dragger-scrape"}
+# Tells the game holds like a loop whose kept takes are single bursts or steps: GameAudio.Repeat fires them again at an
+# uneven pace while the tell lasts.
+PACED = {"climber-scrabble", "tippy-tiptoe"}
 # Level on top of the synth definition's, where the kept takes sit lower than the synth did: AudioTests holds every
 # tell 6 dB over the bed for whoever has to hear it (the Choir's kept voices measured -2.5 at a car roof at the old level).
 TELL_GAIN_DB = {"choir-voice": 11}
@@ -219,7 +227,11 @@ def _read_def(path):
 
 
 def tell_sounds(kept_folders):
-    """Swap each tell's game sound to its kept takes, or back to its synth definition when none are kept."""
+    """Swap each tell's game sound to its kept takes, or back to its synth definition when none are kept.
+
+    A cue split by surface (tell-tippy's tiptoe) gives the sound a variant per kept surface, <sound>.<surface>, which
+    GameAudio picks by what the creature's on (the nearest kept one otherwise); the sound itself plays the first of them.
+    """
     os.makedirs(SYNTH_DEFS, exist_ok=True)
     for line, (sound, cues) in TELL_SOUNDS.items():
         path = os.path.join(SOUNDS, sound + ".json")
@@ -229,27 +241,44 @@ def tell_sounds(kept_folders):
             if any(l.get("source") == "sample" for l in d["layers"]):
                 continue
             shutil.copy(path, backup)
-        folders = [(f"{line}/{cue}", extra) for cue, extra in cues if f"{line}/{cue}" in kept_folders]
-        if len(folders) < len(cues):
+        for f in os.listdir(SOUNDS):
+            if f.startswith(sound + ".") and f != sound + ".json":
+                os.unlink(os.path.join(SOUNDS, f))      # last install's surface variants
+        # Each cue's kept folders: the cue's own, or one per kept surface.
+        kept = [(sorted(k for k in kept_folders if k == f"{line}/{cue}" or k.startswith(f"{line}/{cue}/")), extra)
+                for cue, extra in cues]
+        if any(not fs for fs, _ in kept):
             shutil.copy(backup, path)      # not (all) kept: the tuned synth sound stays
             continue
-        head, d = _read_def(backup)
-        layers = []
-        for folder, extra in folders:
-            layer = {"source": "sample", "sample": folder, "gain": 1}
-            layer.update(extra)
-            layers.append(layer)
-        d["layers"] = layers
-        d["gainDb"] = d.get("gainDb", 0) + TELL_GAIN_DB.get(sound, 0)
-        if sound in ONCE:
-            d["loop"] = False
-        with open(path, "w") as f:
-            f.write(f"// The tell's kept takes from the audio checklist ({', '.join(fo for fo, _ in folders)}), in place of its\n"
-                    f"// synth definition (tools/audio/synth-defs/{sound}.json), keeping its tier, range and level. Written by\n"
-                    f"// tools/audio/install.py; edit the cue or that file, not this one.\n")
-            json.dump(d, f, indent=1)
-            f.write("\n")
-        print(f"{sound}: now the kept takes of {', '.join(fo for fo, _ in folders)}")
+        surfaces = {f.rsplit("/", 1)[1]: f for fs, _ in kept for f in fs if f.count("/") == 2}
+        if surfaces:
+            # One cue split by surface: a definition per kept surface, and the sound itself the first of them.
+            extra = kept[0][1]
+            variants = [(sound, [(next(iter(surfaces.values())), extra)])]
+            variants += [(f"{sound}.{mat}", [(folder, extra)]) for mat, folder in surfaces.items()]
+        else:
+            variants = [(sound, [(f, extra) for fs, extra in kept for f in fs])]
+        _, base = _read_def(backup)
+        for name, folders in variants:
+            d = dict(base)
+            layers = []
+            for folder, extra in folders:
+                layer = {"source": "sample", "sample": folder, "gain": 1}
+                layer.update(extra)
+                layers.append(layer)
+            d["layers"] = layers
+            d["gainDb"] = d.get("gainDb", 0) + TELL_GAIN_DB.get(sound, 0)
+            if sound in ONCE or sound in PACED:
+                d["loop"] = False
+            if not d.get("loop"):
+                d.pop("duration", None)    # a one-shot of takes ends with its take
+            with open(os.path.join(SOUNDS, name + ".json"), "w") as f:
+                f.write(f"// The tell's kept takes from the audio checklist ({', '.join(fo for fo, _ in folders)}), in place of its\n"
+                        f"// synth definition (tools/audio/synth-defs/{sound}.json), keeping its tier, range and level. Written by\n"
+                        f"// tools/audio/install.py; edit the cue or that file, not this one.\n")
+                json.dump(d, f, indent=1)
+                f.write("\n")
+            print(f"{name}: now the kept takes of {', '.join(fo for fo, _ in folders)}")
 
 
 def main():
@@ -290,9 +319,14 @@ def main():
                     chosen, why = dict(groups)[mat], "set"
                 else:
                     chosen, why = pick(cands, mat, item.get("level"))
-                if not chosen:
-                    continue
                 rel = f"{line}/{cue['id']}" + (f"/{mat}" if mat else "")
+                if not chosen:
+                    # Every candidate marked Redo: what's installed plays on till its replacement comes, but isn't kept
+                    # any more (a tell goes back to its synth sound).
+                    if rel in index and index[rel]["picked"] != "redo":
+                        index[rel]["picked"] = "redo"
+                        print(f"{rel:50s} redo  (installed takes stay till a new candidate)")
+                    continue
                 takes = [t for k in chosen for t in takes_of(k, cue)]
                 n_cues += 1
                 n_files += len(takes)

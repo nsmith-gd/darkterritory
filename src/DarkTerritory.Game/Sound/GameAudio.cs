@@ -233,6 +233,30 @@ public sealed partial class GameAudio
         }
     }
 
+    /// <summary>
+    /// A tell held on like a loop whose sound can be single steps or bursts instead (its kept takes from the audio checklist,
+    /// tools/audio/install.py): a loop is held; a one-shot is fired again, once the last has ended, after an uneven gap, so
+    /// it never settles into a rhythm (spec A.4 rule 4).
+    /// </summary>
+    void Repeat(EnemySound s, string sound, Double3 at, float occlusion, double gap, double jitter)
+    {
+        if (Bank.Get(sound) is not { Loop: false })
+        {
+            Loop(s, sound, at, occlusion);
+            return;
+        }
+        if (s.Loop is { Finished: false } playing)
+        {
+            playing.Position = at;
+            playing.Occlusion = occlusion;
+            return;
+        }
+        if (_time < s.Next)
+            return;
+        s.Loop = Mixer.Play(sound, at)?.Also(v => v.Occlusion = occlusion);
+        s.Next = _time + gap + jitter * _rng.Next();
+    }
+
     static TrainDynamics? RakeOf(TrainOnLine train, int vehicle) => train.Rakes.FirstOrDefault(r => r.Consist.Vehicles.Any(v => v.Id == vehicle));
 
 
@@ -288,15 +312,17 @@ public sealed partial class GameAudio
                     Loop(s, "hugger-grind", at, occlusion);
                     break;
                 case EnemyKind.Climber when e.Phase == SpinePhase.Telegraph:
-                    // Scrabbling at the gap it's mounting (App. A.4), out in the gap.
-                    Loop(s, "climber-scrabble", at, occlusion);
+                    // Scrabbling at the gap it's mounting (App. A.4), out in the gap: in uneven bursts.
+                    Repeat(s, "climber-scrabble", at, occlusion, 0.15, 0.7);
                     break;
                 case EnemyKind.TrackDoll when e.Phase == SpinePhase.Punish:
                     // Haunting: it giggles in the car it's in, or in the cab at the controls (App. A.2).
                     Loop(s, "doll-giggle", at, occlusion);
                     break;
-                case EnemyKind.TippyToesie when e.Phase == SpinePhase.Telegraph:
-                    Loop(s, "tippy-tiptoe", at, occlusion);
+                case EnemyKind.TippyToesie when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit:
+                    // Faint tiptoeing for as long as it creeps up (App. A.5): a step every half second or so at its creep
+                    // (0.6 m/s, enemies.json), on whatever it's crossing.
+                    Repeat(s, Surfaced("tippy-tiptoe", SurfaceOf(e, train)) ?? "tippy-tiptoe", at, occlusion, 0.45, 0.35);
                     break;
                 case EnemyKind.FireFlies when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit:
                     Loop(s, "fireflies-buzz", at, occlusion);

@@ -1,19 +1,15 @@
-// The tell's kept takes from the audio checklist (tell-hounds/howl-far), in place of its
-// synth definition (tools/audio/synth-defs/hound-howl.json), keeping its tier, range and level. Written by
-// tools/audio/install.py; edit the cue or that file, not this one.
+// Tell (tier 1), Cinder Hounds: "distant howl, closing", 500 Hz-3 kHz (spec A.4). Two detuned throats
+// through vocal formants; the rise-and-fall is what makes it a howl rather than a whistle.
 {
- "tier": 1,
- "duration": 2.6,
- "maxInstances": 3,
- "minDistance": 15,
- "maxDistance": 500,
- "rolloff": 0.7,
- "gainDb": 3,
- "layers": [
-  {
-   "source": "sample",
-   "sample": "tell-hounds/howl-far",
-   "gain": 1
-  }
- ]
+  "tier": 1, "duration": 2.6, "maxInstances": 3, "minDistance": 15, "maxDistance": 500, "rolloff": 0.7, "gainDb": 3,
+  "layers": [
+    { "source": "saw", "frequency": 540, "gain": 0.5,
+      "filters": [{ "type": "bandPass", "frequency": 950, "q": 3 }, { "type": "peak", "frequency": 2300, "q": 4, "gainDb": 8 }],
+      "vibrato": { "rate": 5.5, "depth": 0.018 }, "pitchEnvelope": [[0, 0.78], [0.7, 1.08], [1.8, 1.0], [2.6, 0.72]],
+      "envelope": [[0, 0], [0.4, 1], [1.9, 0.8], [2.6, 0]] },
+    { "source": "saw", "frequency": 581, "gain": 0.35, "delay": 0.25,
+      "filters": [{ "type": "bandPass", "frequency": 1150, "q": 3 }, { "type": "peak", "frequency": 2700, "q": 4, "gainDb": 8 }],
+      "vibrato": { "rate": 6.2, "depth": 0.022 }, "pitchEnvelope": [[0, 0.8], [0.8, 1.1], [1.6, 1.0], [2.35, 0.7]],
+      "envelope": [[0, 0], [0.45, 1], [1.7, 0.7], [2.35, 0]] }
+  ]
 }

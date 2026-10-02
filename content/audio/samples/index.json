@@ -9809,7 +9809,7 @@
  "tell-climbers/scrabble": {
   "cue": "tell-climbers.scrabble",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
     "label": "Hooked three-fingered hands scrambling for a grip on the coupler and the car end: uneven clattering bursts",
@@ -9854,7 +9854,7 @@
  "tell-grumbler/gnaw": {
   "cue": "tell-grumbler.gnaw",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
     "label": "Teeth rasping across a crate's grain in quick runs; a splinter torn off and dropped, the crate creaking",
@@ -9863,15 +9863,21 @@
      "sfx_100_v2:misc_35"
     ],
     "licence": "CC0"
+   },
+   {
+    "label": "Slow mandible bites into a crate, left and right: press, crunch, tear; mouthparts clicking as it chews",
+    "key": "mandibles",
+    "sources": [],
+    "licence": "CC0"
    }
   ],
-  "takes": 1,
-  "sha": "91799f60a267062f"
+  "takes": 2,
+  "sha": "38296945ded2afc2"
  },
  "tell-hounds/howl-far": {
   "cue": "tell-hounds.howl-far",
   "surface": null,
-  "picked": "kept",
+  "picked": "redo",
   "candidates": [
    {
     "label": "Kept from the earlier pass",
@@ -9886,7 +9892,7 @@
  "tell-hounds/howl-near": {
   "cue": "tell-hounds.howl-near",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
     "label": "The pack howling close behind (40-100 m): two or three hounds pitched against each other, throat and breath",
@@ -9901,17 +9907,27 @@
  "tell-marsh/reeds": {
   "cue": "tell-marsh.reeds",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
     "label": "Dry reeds stirring in slow swells; something parts them in pushes coming faster and nearer, then stops dead",
     "key": "parting",
     "sources": [],
     "licence": "CC0"
+   },
+   {
+    "label": "Reeds combed by slow gusts; something wades through them, its strides quickening, stems snapping, then still",
+    "key": "wading",
+    "sources": [
+     "kenney_rpg-audio:bookFlip1",
+     "kenney_rpg-audio:bookFlip2",
+     "kenney_rpg-audio:bookFlip3"
+    ],
+    "licence": "CC0"
    }
   ],
-  "takes": 1,
-  "sha": "3d0910e04b4409fc"
+  "takes": 2,
+  "sha": "a31e92f3bc7deec6"
  },
  "tell-ribbits/swell": {
   "cue": "tell-ribbits.swell",
@@ -9961,32 +9977,44 @@
  "tell-tippy/tiptoe/wood": {
   "cue": "tell-tippy.tiptoe",
   "surface": "wood",
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
-    "label": "One careful bare step: the surface giving under it (a board creak or nail squeak on wood; the tin oil-canning on the roof)",
-    "key": "give",
+    "label": "One bare step, close: toenails, the pad, the skin squeaking or peeling off the surface",
+    "key": "skin",
     "sources": [],
     "licence": "CC0"
    }
   ],
   "takes": 6,
-  "sha": "1062b36acddd1e7e"
+  "sha": "1af48d4505458980"
  },
  "tell-track-debris/writhe": {
   "cue": "tell-track-debris.writhe",
   "surface": null,
-  "picked": "first",
+  "picked": "kept",
   "candidates": [
    {
     "label": "A brief wet writhe: slimy coils squirming over each other in two to four contractions, popping and letting go",
     "key": "coils",
     "sources": [],
     "licence": "CC0"
+   },
+   {
+    "label": "A heap of wet bodies on the line shifting under its own weight: dozens of smacks, gurgles, squishes at once",
+    "key": "heap",
+    "sources": [
+     "kenney_impact-sounds:footstep_snow_000",
+     "kenney_impact-sounds:footstep_snow_001",
+     "kenney_impact-sounds:footstep_snow_002",
+     "kenney_impact-sounds:footstep_snow_003",
+     "kenney_impact-sounds:footstep_snow_004"
+    ],
+    "licence": "CC0"
    }
   ],
-  "takes": 4,
-  "sha": "83769bdb4d67a6ff"
+  "takes": 8,
+  "sha": "f04b4f01e0a1c6e6"
  },
  "tell-track-doll/giggle": {
   "cue": "tell-track-doll.giggle",

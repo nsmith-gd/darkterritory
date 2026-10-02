@@ -167,16 +167,19 @@ public static class AudioBench
         var bed = (float[])tap.Total.Clone();
         // The tells' own room (their share of the space's reverb) is tell, not bed: the bed's room still counts against them.
         foreach (var name in TellBands.Keys.Append(Mixer.TellReverbStem))
-            if (tap.Stems.TryGetValue(name, out var stem))
+            if (TellStem(tap, name) is { } stem)
                 for (int i = 0; i < bed.Length; i++)
                     bed[i] -= stem[i];
         var levels = new List<TellLevel>();
         foreach (var (name, band) in TellBands)
         {
-            if (!tap.Stems.TryGetValue(name, out var stem))
+            if (TellStem(tap, name) is not { } stem)
                 continue;
+            var rest = (float[])tap.Total.Clone();
+            for (int i = 0; i < rest.Length; i++)
+                rest[i] -= stem[i];
             var (tellDb, overBed, sounding) = Contrast(stem.AsSpan(skip), bed.AsSpan(skip), band);
-            var (_, overAll, _) = Contrast(stem.AsSpan(skip), tap.AllBut(name).AsSpan(skip), band);
+            var (_, overAll, _) = Contrast(stem.AsSpan(skip), rest.AsSpan(skip), band);
             if (sounding > 0)
                 levels.Add(new TellLevel(name, band.Low, band.High, Math.Round(tellDb, 1), Math.Round(overBed, 1), Math.Round(overAll, 1), Math.Round(sounding, 2)));
         }
@@ -184,6 +187,20 @@ public static class AudioBench
         string where = listenerCar == 0 ? "cab" : $"roof of car {listenerCar}";
         return (new AudioBenchReport(scenario, cars, speed, where, seconds, Math.Round(Meter.Db(mix.AsSpan(skip)), 1), peak, levels, stems, audio.Space,
             Math.Round(mixing / Math.Max(1e-9, blocks * blockSeconds), 2)), mix);
+    }
+
+    /// <summary>A tell's stem: its sound and the sound's per-surface variants (<c>tippy-tiptoe.roof</c>) summed; null if silent.</summary>
+    static float[]? TellStem(MeterTap tap, string name)
+    {
+        float[]? sum = null;
+        foreach (var key in tap.Stems.Keys.Where(k => k == name || k.StartsWith(name + ".", StringComparison.Ordinal)).Order(StringComparer.Ordinal))
+        {
+            var stem = tap.Stems[key];
+            sum ??= new float[stem.Length];
+            for (int i = 0; i < sum.Length; i++)
+                sum[i] += stem[i];
+        }
+        return sum;
     }
 
     /// <summary>
