@@ -20,6 +20,9 @@ The review lives on the Dark Territory Audio Checklist artifact (https://claude.
       # one {"cues": [...]} file per line in OUT, to merge into the store's items. DIR is the store's `items` as saved by a
       # list with out_dir: the director's Keep/Redo verdicts there (on cues, and on the earlier pass's refs) are carried over,
       # so rewriting the cues never drops a review.
+
+Built candidates (tools/audio/build.py's recipes) join their cue automatically once their preview is in the page's asset
+store (tools/audio/assets.py); library files named in CUES below are played as they come.
 """
 
 import json
@@ -33,9 +36,18 @@ MATERIALS = {
     "roof": "Car roof tin",
     "ground": "Outdoor ground (ballast, dirt, yard)",
     "concrete": "Indoor building concrete (fortress, facilities, holdouts)",
+    # Footsteps go finer (the director, 2 Oct: "there are many more footstep surfaces in this game"): the ground the
+    # world is textured with, grouped by how it sounds underfoot.
+    "plate": "Solid iron plate (the cab's footplate, the tender deck)",
+    "coal": "Coal (the tender's pile, the coaling stage)",
+    "ballast": "Ballast and loose stone (the track bed, shingle, slag)",
+    "dirt": "Dirt and forest floor (yards, paths, clay, needles)",
+    "grass": "Grass and heath",
+    "mud": "Mud, bog and marsh",
+    "cobbles": "Cobbles and stone setts (towns, yards)",
 }
 DROP = ["wood", "grate", "ground", "concrete"]
-FEET = ["wood", "grate", "roof", "ground", "concrete"]
+FEET = ["wood", "grate", "plate", "roof", "coal", "ballast", "dirt", "grass", "mud", "cobbles", "concrete"]
 
 # The director's note (2 Oct): the bottle-opening/fizz sound was overdone, and used where it made no sense. Fine where a
 # fizz belongs; not as a default texture. Most of it came from these two files (air_01 in 10 earlier references, 7 marked
@@ -129,7 +141,7 @@ CUES = {
     "crew-footsteps": [
         O("walk", "A step, walking", vars=6, mats=FEET,
           cand={"wood": K("footstep_wood") + S("footstep_wood_01", "footstep_wood_02", "footstep_wood_03", "footstep_wood_04"),
-                "concrete": K("footstep_concrete"), "ground": K("footstep_grass")}),
+                "concrete": K("footstep_concrete"), "grass": K("footstep_grass")}),
         O("run", "A step, running", vars=6, mats=FEET),
         O("jump", "Push-off into a jump", mats=FEET),
         O("land", "Landing from a jump or a drop", mats=FEET),
@@ -501,7 +513,9 @@ CUES = {
     ],
     "cs-followers": [
         O("clubbed-off", "Clubbed off a back", vars=3),
-        O("nest-smash", "The nest smashed", vars=2),
+        # The director (2 Oct): smashing a nest is held, so its sound is a loop, with the nest's end its own one-shot.
+        L("nest-smash", "A nest being smashed, for as long as someone's at it"),
+        O("nest-burst", "The nest finally destroyed", vars=2),
     ],
     "cs-soot-children": [
         O("turn", "Turning inhuman"),
@@ -535,10 +549,11 @@ CUES = {
     "tell-ribbits": [L("swell", "Throats swelling", cand={"_": [old("audio/tell-ribbits--swell.mp3")]})],
     "tell-choir": [L("voices", "Voices multiplying (the code adds layers as they gather)")],
     "tell-car-fire": [L("smoulder", "Crackle through the boards, smouldering"), L("alight", "The car alight")],
-    "tell-track-debris": [L("writhe", "The wet writhe")],
+    "tell-track-debris": [O("writhe", "One brief wet writhe (the game fires them at uneven intervals)", vars=4)],
     "tell-marsh": [L("reeds", "Reeds rustling")],
     "tell-grumbler": [L("gnaw", "Gnawing on the crates")],
-    "tell-hounds": [O("howl-far", "A distant howl", vars=4, cand={"_": [old("audio/tell-hounds--far.mp3")]})],
+    "tell-hounds": [O("howl-far", "A distant howl", vars=4, cand={"_": [old("audio/tell-hounds--far.mp3")]}),
+                    O("howl-near", "The pack howling close behind (40-100 m), as it closes", vars=4)],
     "tell-climbers": [O("scrabble", "Scrabbling at the gap", vars=4)],
     "tell-draggers": [O("rasp", "The scrape at the lip", vars=3, cand={"_": [old("audio/tell-draggers--rasp.mp3")]})],
     "tell-stoker": [L("hiss-wrong", "The fire hissing wrong", cand={"_": [old("audio/tell-stoker--hiss.mp3")]})],
@@ -551,8 +566,30 @@ CUES = {
 }
 
 
-def store_cue(c):
-    """The cue as the checklist store holds it."""
+def built(line):
+    """Built candidates for a line, by cue: {cue: [manifest entry with its page url]}, uploaded ones only."""
+    import assets
+    import build
+    global _MANIFEST
+    if _MANIFEST is None:
+        _MANIFEST = build.manifest()
+    out = {}
+    for e in _MANIFEST.values():
+        if e["line"] != line:
+            continue
+        url = assets.url_for(e["preview"])
+        if url is None:
+            print(f"  not uploaded yet: {e['id']} ({e['preview']})", file=sys.stderr)
+            continue
+        out.setdefault(e["cue"], []).append(dict(e, url=url))
+    return out
+
+
+_MANIFEST = None
+
+
+def store_cue(c, made=()):
+    """The cue as the checklist store holds it: library files and earlier keepers from CUES, then built candidates."""
     cands = []
     for mat, keys in c["cand"].items():
         for k in keys:
@@ -561,6 +598,12 @@ def store_cue(c):
             else:
                 src = lib(k)
                 cands.append({"mat": None if mat == "_" else mat, "src": src, "label": k.split(":")[1], "old": False})
+    for e in made:
+        k = {"mat": e["mat"], "src": e["url"], "label": e["label"], "old": False, "key": e["key"], "how": e["how"],
+             "sources": e["sources"], "takes": e["takes"], "restricted": e["restricted"], "seconds": e["seconds"]}
+        if "inBand" in e:
+            k["inBand"], k["band"] = e["inBand"], e["band"]
+        cands.append(k)
     status = "silent" if c["silent"] else ("candidate" if cands else "needs")
     out = {k: c[k] for k in ("id", "event", "kind", "vars", "mats", "need")}
     out.update(status=status, cands=cands)
@@ -603,7 +646,10 @@ def main():
                 sys.exit(f"{line} is not in the store ({path})")
             existing = json.load(open(path))
             existing = existing.get("data", existing)
-            stored = [store_cue(c) for c in cues]
+            made = built(line)
+            stored = [store_cue(c, made.get(c["id"], ())) for c in cues]
+            for cue in set(made) - {c["id"] for c in cues}:
+                print(f"  {line}: built candidates for a cue CUES doesn't list: {cue}", file=sys.stderr)
             carry_verdicts(line, stored, existing)
             json.dump({"cues": stored}, open(os.path.join(out, line + ".json"), "w"))
         print("wrote", len(CUES), "files to", out)
