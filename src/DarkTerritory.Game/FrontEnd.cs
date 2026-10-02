@@ -441,6 +441,15 @@ public sealed class FrontEnd
         bool full = s.Cars >= _campaign.MaxCars;
         list.Add(new(new(full ? "BUY A CAR: THE CONSIST IS FULL" : $"BUY A CAR: {carCost:0} SCRIP", full ? null : $"Car {s.Cars + 1}. More cars carry more, and burn more, and need more hands.",
             !full && s.Current is null), () => Buy(Campaign.BuyCar(_campaign, s), $"A car bought: {s.Cars + 1} now.")));
+        // GDD v1.4 App. E.12 question 4: the fortress sells spare repair kits; each rides in a crew locker (note 166).
+        if (_campaign.SpareKit is { } spare)
+        {
+            bool most = s.SpareKits >= spare.Most;
+            string have = s.SpareKits == 0 ? "None aboard yet" : $"{s.SpareKits} aboard";
+            list.Add(new(new(most ? $"SPARE REPAIR KIT: THE LOCKERS HOLD {spare.Most}" : $"BUY A SPARE REPAIR KIT: {spare.Cost:0} SCRIP",
+                $"{have}. A ruptured boiler with every kit lost strands the night; spares ride in the crew lockers.", !most && s.Current is null),
+                () => Buy(Campaign.BuySpareKit(_campaign, s), $"A spare repair kit bought: {s.SpareKits + 1} now.")));
+        }
         list.Add(new(new("UPGRADES", null, s.Current is null), () => { Show(Screen.Upgrades); return null; }));
         list.Add(new(new($"PLAY: {(_host ? "HOST FOR FRIENDS" : "ALONE")}", "Left and right to change."), () => { _host = !_host; return null; }, _ => _host = !_host));
         list.Add(new(new("BACK"), Go(Screen.Slots)));

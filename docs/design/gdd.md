@@ -11,10 +11,12 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **Boiler rupture no longer kills.** It catches up with the build (T109): the engine seizes, the train slows hard and coasts, and the engineering kit held at the firebox for 25s mends it. The train restarts from cold (§23).
 - **New run end: Stranded, unable to repair.** A ruptured boiler with the engineering kit lost ends the night (§23.2).
 - **New Appendix E — End-of-night sequences.** A slow-motion derailment cinematic shows every crew member's death, ragdolled by the wreck, to a rotating pool of CC0 opera recordings. Includes camera, occlusion, collision, music and licensing rules. Stranded gets a short, quiet outro.
-- **"Repair kit" is now the engineering kit** throughout: one carried kit, kept on the floor just inside car one's front door. It's what mends the boiler; the wrench is a tool to swing (§12).
+- **"Repair kit" is now the engineering kit** throughout: a carried kit, kept in the fitter's locker in car one. It's what mends the boiler; the wrench is a tool to swing (§12).
+- **Crew lockers.** Car one has a row of crew lockers, each lettered with a railway grade; anything hand-sized can be stowed in one and stays put. The engineering kit lives in the fitter's (§12).
+- **Spare kits, bought and found.** Answers E.12 question 4: the fortress sells spare engineering kits, and kits turn up as loot at stops. Stranded takes losing every one (§23.2).
 - **Jumping off** is lethal above 16.5 m/s, matching the systems spec in the repo (§23).
 - **Run budgets match the build** (B.1): 90, 150, 230 and 330 by tier, about twice v1.1's, to pay for the paced director the build runs.
-- Touches §12, §23, §23.1, B.1, C.9, D.2, D.4, D.7 and D.12.
+- Touches §12, §23, §23.1, B.1, C.9, D.2, D.4, D.7, D.12, E.9 and E.12.
 
 **v1.3 changes — failure is funny.**
 - New **§23.1 — Failure has to be funny**: the four conditions a failure must meet, and the rule *horror in the telegraph, comedy in the grab*.
@@ -219,7 +221,11 @@ You aren't picking a difficulty level. You're travelling farther from civilizati
 
 ### Fluidity
 
-**The engineering kit is an item, not a station.** It's a carried kit, kept on the floor just inside car one's front door, a walk back from the footplate, and there is only one. The engineer is whoever picked it up. There is no post to be stuck at — there's a kit somebody grabbed, and when they die on the roofs it's lying in car four and someone has to go and get it. It mends a ruptured boiler (§23), and nothing else can; the wrench in the cab is just a tool to swing. The bare boards by car one's door show whether the kit is home.
+**The engineering kit is an item, not a station.** It's a carried kit, kept in the fitter's locker in car one, a walk back from the footplate. The engineer is whoever picked it up. There is no post to be stuck at — there's a kit somebody grabbed, and when they die on the roofs it's lying in car four and someone has to go and get it. It mends a ruptured boiler (§23), and nothing else can; the wrench in the cab is just a tool to swing. The fitter's empty shelf shows whether the kit is home.
+
+**The crew lockers.** Along car one's left wall, ahead of its side door, stands a row of twelve tall iron lockers, each with a crew grade on an enamel plate: DRIVER, FIREMAN, GUARD, SHUNTER, SIGNALMAN, BRAKESMAN, LAMPMAN, FITTER, GANGER, WHEELTAPPER, PORTER, YARDMASTER. Hold Use at one to open or shut its door; tap Use to put what's in your hands on a shelf, or take the top thing off one. Each has two shelves and takes anything hand-sized: a lamp, a radio, a toy, a find, an extinguisher, the kit. What's in a locker stays put through any stop or curve, and a shut locker keeps it from the Gaunt. A locker in a car the Territory takes is lost with the car. The kit starts in the **fitter's**: the fitter is the shed's mechanic, who mends engines.
+
+**Spare kits.** The fortress sells spare engineering kits, and kits also turn up rarely as loot at stops (E.12, question 4). A spare starts the night on the fitter's other shelf, then in the lockers after his. A spare lost in the night is gone; a kit found at a stop and brought home is kept.
 
 **The kit stays on the body** (Appendix D.2). When the engineer dies, nobody goes looking for the engineering kit. They go looking for the engineer, and the dead player watches them do it.
 
@@ -542,9 +548,9 @@ Nobody dies. The cost is the clock, a stopped train with everything that means (
 
 ### 23.2 Stranded, unable to repair
 
-**A ruptured boiler with the engineering kit lost ends the night.** There is one kit, and nothing else mends a boiler.
+**A ruptured boiler with the engineering kit lost ends the night.** Nothing else mends a boiler. With spares (§12), it takes losing **every** kit the crew has. A kit found at a stop counts once someone has picked it up.
 
-**The kit is lost** only when the Territory has taken it. A kit lying on the line, on a body, or in a reachable car is never lost, however far back it is. Somebody walks.
+**The kit is lost** only when the Territory has taken it. A kit lying on the line, on a body, or in a reachable car (on its floor or in a locker) is never lost, however far back it is. Somebody walks.
 
 | The kit is lost when it is… | Because |
 |---|---|
@@ -557,7 +563,7 @@ A kit that comes to rest outside the walkable corridor is relocated like a body 
 
 **When it ends.** The check runs every tick. If the boiler is ruptured and the kit is lost, the night ends as **Stranded** once the train comes to rest, or at once if it is already stopped. The crew gets the whole coast to work out what just happened.
 
-**Losing the kit without a rupture doesn't end anything.** The crew runs on with no margin, and the bare boards by car one's door say so. Any rupture from then on ends the night when the train stops.
+**Losing the kit without a rupture doesn't end anything.** The crew runs on with no margin, and the fitter's empty shelf says so. Any rupture from then on ends the night when the train stops.
 
 **Settlement.** A stranded night pays like any failed night: no cargo, no body refunds, and crew-loss fees for anyone who died. The settlement sends a dawn freight to tow the train in, and bills for it: a **recovery fee** of 0.5 × the tier's per-car value. The locomotive and every car still coupled come home. The living crew come home too, and aren't charged a crew-loss fee. Appendix E.9 covers the outro.
 
@@ -1925,7 +1931,7 @@ Nobody died, so there's no opera. The joke is how little anyone cares.
 
 | Beat | Real time | What |
 |---|---|---|
-| **The empty place** | 1.5s | In car one, on the bare boards by the door where the engineering kit is kept. |
+| **The empty place** | 1.5s | In car one, on the fitter's locker, standing open on the empty shelf where the engineering kit is kept. |
 | **The pull-back** | 6s | Up and back over the stopped consist to a high wide, while the lamps go out one by one, from the last car forward, the engine last. It's §6's small glowing machine in an enormous black world, going dark. |
 | **The clerk** | Over the pull-back | On the radio: *Consist reported stranded at mile 14. Recovery at first light. Recovery is chargeable.* |
 
@@ -1983,8 +1989,8 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 1. **Solo nights.** A single player gets one shot. Is a six-second film of one person funny enough, or should solo derails shorten to the establishing wide and their shot?
 2. **First-time skip.** Should a player's first derail be unskippable for them?
 3. **Trailer capture.** A debug flag that renders the cinematic at 60fps from any saved derail would make Next Fest trailer footage cheap. Worth building in Phase 6?
-4. **A spare kit.** Should the fortress sell a second engineering kit? It removes Stranded as a failure for crews who pay for it, which may be exactly the right kind of upgrade, or may defang the rupture entirely.
-5. **Kit loss warning.** The empty place by car one's door is the only tell that the kit is gone. Is that enough, or does the clerk need a radio line when it's lost?
+4. ~~**A spare kit.** Should the fortress sell a second engineering kit? It removes Stranded as a failure for crews who pay for it, which may be exactly the right kind of upgrade, or may defang the rupture entirely.~~ **Answered: yes.** The fortress sells spares, and kits are also found as loot at stops. Spares ride in the crew lockers. Stranded takes losing every kit, and a lost spare is gone for good (§12, §23.2).
+5. **Kit loss warning.** The fitter's empty shelf is the only tell that the kit is gone. Is that enough, or does the clerk need a radio line when it's lost?
 
 ---
 

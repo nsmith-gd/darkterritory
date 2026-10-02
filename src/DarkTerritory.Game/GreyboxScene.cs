@@ -44,6 +44,11 @@ public sealed class GreyboxScene
     public bool LampLit { get; set; } = true;
     /// <summary>GDD v1.4 App. E.9: this many of the cars' lamps are out, from the last car forward (all of them: the engine's too).</summary>
     public int LampsOut { get; set; }
+    /// <summary>
+    /// GDD v1.4 App. E.9, the Stranded outro: the repair kit's locker (note 166) stands open, whatever its door is doing, on
+    /// the empty shelf where the kit should be.
+    /// </summary>
+    public bool KitLockerOpen { get; set; }
     /// <summary>How far from the eye the cars' lamps are lit (a high wide shot sees the whole train's).</summary>
     public double LampRange { get; set; } = 60;
     /// <summary>
@@ -1427,7 +1432,9 @@ public sealed class GreyboxScene
         mesh.Seed = frame.Index + 1;
         var vehicle = Vehicles is { } vs && frame.Index < vs.Count ? vs[frame.Index] : null;
         // The art pass's kit (TrainKit): the body, doors and gun as cooked pieces; what's left here is what glows and moves.
-        if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick))
+        uint openLockers = KitLockerOpen && frame.Shape.Lockers.Count > 0 && Sim.World.KitLocker(frame.Shape) is { } kitBay
+            ? 1u << kitBay.Index : 0;
+        if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick, openLockers))
         {
             CarWorkings(mesh, frame, eye, Draw);
             if (engine)

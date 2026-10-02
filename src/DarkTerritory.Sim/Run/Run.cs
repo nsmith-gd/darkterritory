@@ -49,6 +49,12 @@ public sealed record RunReport(RunEnd End, double Seconds, double DistanceKm, in
     KitLoss KitLoss = KitLoss.None)
 {
     public IReadOnlyList<ReportLine> Lines { get; init; } = [];
+    /// <summary>
+    /// Repair kits home beyond the train's own (train.json kit.repairKits): spares the fortress sold that weren't lost, and
+    /// kits found at stops and brought in (GDD v1.4 App. E.12 question 4). The campaign keeps them as its spares; −1 for a
+    /// report that doesn't say (the campaign's spares stand as they were).
+    /// </summary>
+    public int SpareKitsHome { get; init; } = -1;
 }
 
 /// <summary>
@@ -214,7 +220,7 @@ public sealed partial class Run
 
         // §23.2: the check runs every tick. Ruptured with the kit lost, the night ends once the train comes to rest (the
         // crew get the whole coast to work out what just happened).
-        _kitStocked |= world.KitStocked || world.Bodies.All.Any(b => b.Kind == Physics.BodyKind.RepairKit);
+        _kitStocked |= world.KitStocked || world.Bodies.All.Any(b => b.Kind == Physics.BodyKind.RepairKit && b.Claimed);
         Kit = EngineeringKit.Where(world, crew, Tuning.Stranded, _kitStocked);
         // App. C.9: a rupture, with who last fired or vented it, and how long it sat at 100 (the spec's hold, by then).
         if (train.Boiler.Ruptured && !_wasRuptured && train.BoilerTuning is { } bt)
@@ -657,6 +663,9 @@ public sealed partial class Run
             deaths, bodiesHome, fees, refunds, Math.Round(delivered ? Mail : 0), recovery, stranded ? Kit.Loss : KitLoss.None)
         {
             Lines = ReportLines(world, attached, delivered, feeEach, refundEach),
+            // Home with the cars that are (in one of them, its floor or a locker) or in a living crewmate's hands.
+            SpareKitsHome = Math.Max(0, world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.RepairKit && b.Claimed
+                && (b.Carrier >= 0 || attached.Contains(b.Parent))) - train.Dynamics.Tuning.Kit.RepairKits),
         };
     }
 

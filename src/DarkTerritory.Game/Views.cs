@@ -96,9 +96,12 @@ public static class Views
             // (Not one of Names.) In the gun car (the guard van) at its front end: the powder and shot locker in the corner
             // ahead of the tool lockers on the left (SceneArt.Fittings).
             "locker" => LockerCamera(train),
-            // (Not one of Names.) In car 1, down at its repair kit on the floor just inside the front door
-            // (World.RepairKitStowage; dt screenshot --stocked).
+            // (Not one of Names.) In car 1, at its repair kit in the fitter's locker (World.RepairKitStowage; dt screenshot
+            // --stocked; the locker's shut unless it's opened, as the lockers view does).
             "kit" => KitCamera(train),
+            // (Not one of Names.) In car 1's aisle at the crew lockers (note 166): the row along the left wall, their grades on
+            // their doors, the fitter's open on the repair kit (dt screenshot --stocked --view lockers opens it).
+            "lockers" => LockersCamera(train),
             // (Not one of Names.) In this car, across the aisle at its extinguisher stood on its board (World.ExtinguisherMount;
             // with dt screenshot --stocked, its charge in the glass).
             "mount" => Camera.LookAt(target.ToWorld(new Double3(-0.05, Floor(train) + 1.3, -target.Shape.HalfLength + 2.95)),
@@ -213,8 +216,25 @@ public static class Views
             return LockerCamera(train);
         var f = train.Frames[v];
         var kit = Sim.World.RepairKitStowage(f.Shape, room);
+        // In its locker: from the aisle, close, down into it.
+        if (Sim.World.KitLocker(f.Shape) is { } bay)
+            return Camera.LookAt(f.ToWorld(kit + new Double3(1.25, 1.3, 0.35)), f.ToWorld(kit + new Double3(0, 0.25, 0)), 55);
         // From the aisle at the load's front end, looking across and down at it in its corner by the door.
         return Camera.LookAt(f.ToWorld(kit + new Double3(-1.45, 1.35, 0.5)), f.ToWorld(kit + new Double3(0, 0.1, -0.05)), 60);
+    }
+
+    /// <summary>
+    /// The crew lockers (note 166): from the aisle at the load's face, square on to the fitter's open locker, so its door
+    /// stands out of the way to the left and its neighbours' plates read either side of it.
+    /// </summary>
+    public static Camera LockersCamera(TrainOnLine train)
+    {
+        if (Sim.World.KitLocker(train) is not { } at)
+            return LockerCamera(train);
+        var f = train.Frames[at.Car];
+        var box = at.Bay.Box;
+        double floor = box.Min.Y;
+        return Camera.LookAt(f.ToWorld(new Double3(0.22, floor + 1.5, box.Centre.Z + 0.12)), f.ToWorld(new Double3(box.Max.X, floor + 1.0, box.Centre.Z - 0.02)), 72);
     }
 
     static Camera LockerCamera(TrainOnLine train)
@@ -261,14 +281,22 @@ public static class Views
     }
 
     /// <summary>
-    /// GDD v1.4 App. E.9, the Stranded outro: on where the repair kit should be (its place on car 1's floor, ARCHITECTURE note
-    /// 150; E.9's "empty engineering-kit rack"), then up and back over the stopped consist to a high wide. "§6's small glowing
-    /// machine in an enormous black world, going dark."
+    /// GDD v1.4 App. E.9, the Stranded outro: on where the repair kit should be (E.9's "empty engineering-kit rack": the
+    /// fitter's locker in car 1, standing open on its empty shelf, ARCHITECTURE notes 150, 166), then up and back over the
+    /// stopped consist to a high wide. "§6's small glowing machine in an enormous black world, going dark."
     /// </summary>
     public static Camera Stranded(TrainOnLine train, Sim.Train.StrandedOutroTuning t, double seconds)
     {
         Double3 rackAt, rackEye;
-        if (Sim.World.RepairKitCar(train) is { } car && train.Frames[car].Shape.Interior is { } room)
+        if (Sim.World.KitLocker(train) is { } locker)
+        {
+            // From the aisle, a step back from its open door (GreyboxScene.KitLockerOpen), into the bare locker.
+            var frame = train.Frames[locker.Car];
+            var box = locker.Bay.Box;
+            rackAt = frame.ToWorld(new Double3(box.Centre.X, box.Min.Y + 0.95, box.Centre.Z));
+            rackEye = frame.ToWorld(new Double3(box.Max.X + 1.25, box.Min.Y + 1.7, box.Max.Z + 0.75));
+        }
+        else if (Sim.World.RepairKitCar(train) is { } car && train.Frames[car].Shape.Interior is { } room)
         {
             // From across the aisle by the front door (the load is behind it), looking down at the bare boards where it's kept.
             var frame = train.Frames[car];

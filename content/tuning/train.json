@@ -153,11 +153,38 @@
     "radios": 2,
     // GDD v1.1 App. C.4 hand loot: toys in the guard van, for the Track Doll (it steals one and leaves for the run).
     "toys": 2,
-    // GDD §12 "the repair kit is an item, not a station": one toolbox, on the floor just inside the front door of car
+    // GDD §12 "the repair kit is an item, not a station": one toolbox, in its locker (lockers.kitLocker) in car
     // `repairKitCar` (counted back from the engine). It's what mends a ruptured boiler (boiler.json repairSeconds), so
     // someone has to leave the footplate for it, and whoever carries it opens a Holdout's lock silently (holdouts.json
     // "open"). When they die it's lying where they fell.
     "repairKits": 1,
-    "repairKitCar": 1
+    "repairKitCar": 1,
+    // Spare kits bought at the fortress (GDD App. E.12 question 4, answered: campaign.json spareKit). Always 0 here: the
+    // campaign adds what the save has (SessionSetup.SpareKits), and each starts the night in a locker beside the first.
+    "spareKits": 0,
+    // The crew lockers (GDD §12, ARCHITECTURE §8 note 166): a row of tall iron lockers along the left wall of the kit's car,
+    // ahead of its side door, each lettered with a crew grade in the railway's own words. Hold Use at one to open or shut
+    // its door; a tap of Use puts what's in your hands on its first free shelf, or takes the top thing off its shelves.
+    // What's inside is held by the locker, not lying in the car: it can't fall, slide, or go through a wall.
+    "lockers": {
+      // One locker a name, front to back: the grades as a depot would paint them on its lockers (the wheeltapper is the
+      // carriage-and-wagon examiner, whose hammer rang the wheels).
+      "names": ["DRIVER", "FIREMAN", "GUARD", "SHUNTER", "SIGNALMAN", "BRAKESMAN", "LAMPMAN", "FITTER", "GANGER", "WHEELTAPPER", "PORTER", "YARDMASTER"],
+      // The repair kit's locker. A fitter is the shed's mechanic, the one who mends engines, boilers included: the toolbox
+      // that mends a ruptured boiler is his. Spare kits go on his other shelf, then into the lockers after his.
+      "kitLocker": "FITTER",
+      // Shelves in each: the locker's floor, and one at chest height.
+      "slots": 2,
+      // What goes in: hand-sized things. Freight, the train's crates, the heavy, the dead and the living don't.
+      "holds": ["lamp", "radio", "toy", "loot", "extinguisher", "repairKit"],
+      // Each locker's size (m): along the row, out from the wall, and tall. The row starts this far behind the front end
+      // wall (the car's extinguisher board goes in the gap) and stops short of the side door.
+      "width": 0.42,
+      "depth": 0.5,
+      "height": 1.9,
+      "fromFront": 0.7,
+      // Holding Use this long at one opens or shuts its door (a tap is shorter: it stows or takes).
+      "doorSeconds": 0.4
+    }
   }
 }

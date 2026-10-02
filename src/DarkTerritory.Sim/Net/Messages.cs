@@ -12,7 +12,8 @@ public static class Protocol
     // 4: the sim's trigonometry is DMath's, the same bits on every OS, so a 3 generates different lines from one seed.
     // 5: a body's record carries its tools (the engineering kit on the engineer, GDD v1.4 D.2).
     // 6: names (Hello, Names) and the incident report (Report) for GDD v1.4 App. C.9 and D.12.
-    public const int Version = 6;
+    // 7: the crew lockers (note 166): a vehicle record's lockers' doors, a body record's locker and shelf.
+    public const int Version = 7;
 }
 
 public enum MessageType : byte

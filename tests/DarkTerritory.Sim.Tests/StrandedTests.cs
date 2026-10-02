@@ -23,10 +23,12 @@ public class StrandedTests
         public readonly List<(int Id, PlayerState State)> Crew = [];
         public PlayerIntent[] Intents = new PlayerIntent[4];
 
-        public Night(bool stocked = true)
+        /// <param name="spares">Spare repair kits from the fortress (E.12 question 4), in the lockers beside the first.</param>
+        public Night(bool stocked = true, int spares = 0)
         {
             var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, 1);
-            Train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 4, 0)), route.Build(), 3_000, Tuning.Boiler);
+            var tuning = Tuning.Train with { Kit = Tuning.Train.Kit with { SpareKits = spares } };
+            Train = new TrainOnLine(new TrainDynamics(Consist.Uniform(tuning, 4, 0)), route.Build(), 3_000, Tuning.Boiler);
             World = new World(Train, Tuning.Combat);
             World.EnableBodies();
             World.EnableRun(Tuning.Run, route, 600, authority: true);
@@ -38,6 +40,7 @@ public class StrandedTests
 
         public Run.Run Run => World.Run!;
         public Body Kit => World.Bodies.All.Single(b => b.Kind == BodyKind.RepairKit);
+        public List<Body> Kits => [.. World.Bodies.All.Where(b => b.Kind == BodyKind.RepairKit).OrderBy(b => b.Id)];
 
         public int AddInCab()
         {
@@ -163,12 +166,70 @@ public class StrandedTests
         n.AddInCab();
         var kit = n.Kit;
         var back = n.Train.Line.Sample(n.Train.Dynamics.Distance - 2_500).Position + Double3.Up * 0.2;
+        kit.Locker = -1; // out of its locker (note 166), and dropped far back down the line
         kit.Parent = PlayerState.World;
         kit.Pbd.Particles[0].Position = back;
         kit.Pbd.Particles[0].Previous = back;
         n.Train.Boiler.Ruptured = true;
         n.Step(3);
         Assert.Equal(KitPlace.Lying, n.Run.Kit.Place);
+        Assert.False(n.Run.Over);
+    }
+
+    [Fact]
+    public void AKitInItsLockerInACoupledCarIsReachable()
+    {
+        var n = new Night();
+        n.AddInCab();
+        n.Train.Boiler.Ruptured = true;
+        n.Step(2, speed: 3);
+        n.Step(1);
+        Assert.True(n.Kit.Stowed);
+        Assert.Equal(KitPlace.Lying, n.Run.Kit.Place);
+        Assert.False(n.Run.Over);
+    }
+
+    [Fact]
+    public void WithASpareItTakesLosingEveryKitToStrandANight()
+    {
+        // GDD v1.4 §23.2 with E.12 question 4 answered: the fortress's spare rides in the lockers beside the first.
+        var n = new Night(spares: 1);
+        n.AddInCab();
+        var kits = n.Kits;
+        Assert.Equal(2, kits.Count);
+        Assert.All(kits, k => Assert.True(k.Stowed && k.Claimed));
+        // One carried off by the Territory: the other's still in its locker, and that's a mend.
+        n.World.Bodies.Remove(kits[0]);
+        n.Train.Boiler.Ruptured = true;
+        n.Step(2);
+        Assert.Equal(KitPlace.Lying, n.Run.Kit.Place);
+        Assert.Equal(kits[1].Id, n.Run.Kit.Body);
+        Assert.False(n.Run.Over);
+        // Then the car with the lockers is finished (the Car Hugger's FINISH): every kit's gone, and the night with them.
+        int car = World.RepairKitCar(n.Train)!.Value;
+        n.Train.Uncouple(n.Train.VehicleAhead(car));
+        n.Train.Vehicles[car].Taken = true;
+        n.Step(2);
+        Assert.True(n.Run.Over);
+        Assert.Equal(RunEnd.Stranded, n.Run.End);
+        Assert.Equal(KitLoss.CarTaken, n.Run.Report!.KitLoss);
+        Assert.Equal(0, n.Run.Report.SpareKitsHome);
+    }
+
+    [Fact]
+    public void ASpareInHandSavesTheNightWhenTheLockersCarIsTaken()
+    {
+        var n = new Night(spares: 1);
+        int me = n.AddInCab();
+        var spare = n.Kits[1];
+        spare.Locker = -1;
+        spare.Carrier = me;
+        int car = World.RepairKitCar(n.Train)!.Value;
+        n.Train.Uncouple(n.Train.VehicleAhead(car));
+        n.Train.Vehicles[car].Taken = true;
+        n.Train.Boiler.Ruptured = true;
+        n.Step(2);
+        Assert.Equal(KitPlace.Carried, n.Run.Kit.Place);
         Assert.False(n.Run.Over);
     }
 

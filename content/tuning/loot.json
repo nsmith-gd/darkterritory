@@ -19,6 +19,10 @@
   // Stowed: lying still inside any car for this long.
   "settleSeconds": 1.0,
   "radius": 0.15,
+  // GDD v1.4 App. E.12 question 4, answered: repair kits turn up as loot, not just in the fortress's stores. Each container
+  // at a stop (a village's cupboards and cellars, a yard's crate stacks and strongroom) has this chance of a kit lying
+  // beside what it holds: rare, about one a night on a long line. Brought home, a found kit is kept as a spare.
+  "repairKitChance": 0.03,
 
   // What each kind of container can hold, and how much of the budget it draws.
   "kinds": {

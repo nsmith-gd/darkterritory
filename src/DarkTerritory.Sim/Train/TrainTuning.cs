@@ -32,6 +32,27 @@ public sealed record KitTuning
     public int RepairKits { get; init; }
     /// <summary>The car the repair kit rides in, counted back from the engine (1: the first car behind the tender).</summary>
     public int RepairKitCar { get; init; } = 1;
+    /// <summary>
+    /// Spare repair kits bought at the fortress (GDD v1.4 App. E.12 question 4, answered): stocked beside the first, in the
+    /// lockers. The campaign sets it (<c>SessionSetup.SpareKits</c>).
+    /// </summary>
+    public int SpareKits { get; init; }
+    /// <summary>The crew lockers in the kit's car (ARCHITECTURE §8 note 166). Unset, the car has none.</summary>
+    public LockerTuning? Lockers { get; init; }
+}
+
+/// <summary>The crew lockers (train.json <c>kit.lockers</c>). Field docs live in that file.</summary>
+public sealed record LockerTuning
+{
+    public IReadOnlyList<string> Names { get; init; } = [];
+    public string KitLocker { get; init; } = "";
+    public int Slots { get; init; } = 2;
+    public IReadOnlyList<Physics.BodyKind> Holds { get; init; } = [];
+    public double Width { get; init; } = 0.42;
+    public double Depth { get; init; } = 0.5;
+    public double Height { get; init; } = 1.9;
+    public double FromFront { get; init; } = 0.7;
+    public double DoorSeconds { get; init; } = 0.4;
 }
 
 public sealed record GeometryTuning(

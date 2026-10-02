@@ -397,6 +397,7 @@ object CampaignCommand(string content, string verb, string[] args)
         cars = s.Cars,
         scrip = Math.Round(s.Scrip),
         runs = s.Runs,
+        spareKits = s.SpareKits,
         tier = DarkTerritory.Sim.Campaign.Campaign.TierFor(t, s.Cars).ToString(),
         nextCar = DarkTerritory.Sim.Campaign.Campaign.NextCarCost(t, s),
         upgrades = s.Upgrades,
@@ -423,7 +424,9 @@ object CampaignCommand(string content, string verb, string[] args)
             {
                 var s = Load();
                 string what = args.SkipWhile(a => a != "buy").Skip(1).FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal)) ?? "car";
-                var p = what == "car" ? DarkTerritory.Sim.Campaign.Campaign.BuyCar(t, s) : DarkTerritory.Sim.Campaign.Campaign.BuyUpgrade(t, s, what);
+                var p = what == "car" ? DarkTerritory.Sim.Campaign.Campaign.BuyCar(t, s)
+                    : what == "kit" ? DarkTerritory.Sim.Campaign.Campaign.BuySpareKit(t, s)
+                    : DarkTerritory.Sim.Campaign.Campaign.BuyUpgrade(t, s, what);
                 if (p.Ok)
                     saves.Save(p.State);
                 return new { bought = p.Ok ? what : null, refused = p.Refused, board = Board(p.State) };
@@ -446,9 +449,9 @@ object CampaignCommand(string content, string verb, string[] args)
                 var contract = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s)[(int)Opt(args, "--contract", 0)];
                 s = DarkTerritory.Sim.Campaign.Campaign.Begin(s, contract);
                 var route = DarkTerritory.Sim.LineGen.Routes.Generate(content, contract.Tier, contract.Seed, s.Cars);
-                var loadout = DarkTerritory.Sim.Campaign.Campaign.Apply(t, s.Upgrades, new DarkTerritory.Sim.Campaign.Loadout(train, boiler,
+                var loadout = DarkTerritory.Sim.Campaign.Campaign.Apply(t, s.Upgrades, DarkTerritory.Sim.Campaign.Campaign.WithSpareKits(new DarkTerritory.Sim.Campaign.Loadout(train, boiler,
                     DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)),
-                    DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File))));
+                    DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File))), s.SpareKits));
                 var report = Harness.Run(route.Build(), loadout.Train, player, new HarnessOptions
                 {
                     Bots = (int)Opt(args, "--bots", 4),
@@ -472,7 +475,7 @@ object CampaignCommand(string content, string verb, string[] args)
                 return new { contract = contract.Route, night, board = Board(s) };
             }
         default:
-            return new { error = $"unknown campaign command '{verb}': new, show, slots, buy car|<upgrade>, sim, play" };
+            return new { error = $"unknown campaign command '{verb}': new, show, slots, buy car|kit|<upgrade>, sim, play" };
     }
 }
 
@@ -897,6 +900,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (args.Contains("--doors-open"))
         foreach (var v in train.Dynamics.Consist.Vehicles)
             v.DoorsOpen = 0xFF;
+    // --lockers-open NAME[,NAME]: those crew lockers' doors open (note 166; "all" for the row); the lockers view opens the
+    // repair kit's (the fitter's) by itself.
+    if (Str(args, "--lockers-open", view == "lockers" ? "kit" : "") is { Length: > 0 } lockersOpen && DarkTerritory.Sim.World.KitLocker(train) is { } kitLocker)
+        foreach (var bay in train.Frames[kitLocker.Car].Shape.Lockers)
+            if (lockersOpen == "all" || lockersOpen == "kit" && bay.Index == kitLocker.Bay.Index
+                || lockersOpen.Split(',').Contains(bay.Name, StringComparer.OrdinalIgnoreCase))
+                train.Vehicles[kitLocker.Car].LockersOpen |= 1u << bay.Index;
     // --eaten f: the rear car that much eaten by a Car Hugger (App. A.3 FEED; 1 is eaten through), as if from sound.
     if (args.Contains("--eaten"))
     {
@@ -927,6 +937,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             : Str(args, "--passenger", "") == "drag" ? [Staging.Dragged(train)] : null,
         Emergency = args.Contains("--emergency"),
         LampsOut = strandedAt >= 0 ? Views.StrandedLampsOut(train.Frames.Count, outro, strandedAt) : 0,
+        KitLockerOpen = strandedAt >= 0,
         LampRange = strandedAt >= 0 ? 400 : 60,
         RoofGlow = strandedAt >= 0,
         FireDoorOpen = args.Contains("--firedoor") || args.Contains("--stoker"),

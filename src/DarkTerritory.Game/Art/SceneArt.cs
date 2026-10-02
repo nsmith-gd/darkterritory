@@ -467,7 +467,8 @@ public sealed partial class SceneArt(Look look)
     /// <summary>How far an open roof hatch's lid is swung over on its hinges (T99): a little past upright.</summary>
     const float OpenHatch = MathF.PI * 100 / 180;
 
-    public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, bool emergency, long tick = -1)
+    /// <param name="openLockers">Crew lockers drawn open whatever their doors are doing (the Stranded outro's empty locker).</param>
+    public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, bool emergency, long tick = -1, uint openLockers = 0)
     {
         var shape = frame.Shape;
         var m = FrameMatrix(frame, eye);
@@ -531,6 +532,24 @@ public sealed partial class SceneArt(Look look)
             var leaf = Piece($"door:{side}:{size.X:0.##}x{size.Y:0.##}x{size.Z:0.##}", () => TrainKit.Door(Look, size, side));
             var c = box.Centre;
             mesh.Instances.Add(new MeshInstance(leaf, Matrix4x4.CreateTranslation((float)c.X, (float)c.Y, (float)c.Z) * m, Scar: scar));
+        }
+        // The crew lockers (note 166): the row's cabinets in the car's frame, and each door on its hinge, shut or swung out
+        // into the aisle, lettered with its grade.
+        if (shape.Lockers.Count > 0)
+        {
+            var lockers = shape.Lockers;
+            mesh.Instances.Add(new MeshInstance(Piece($"lockers:{ShapeKey(shape)}:{lockers.Count}", () => LockerKit.Row(Look, lockers, shape.LockerShelves)), m,
+                emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
+            float w = (float)(lockers[0].Box.Max.Z - lockers[0].Box.Min.Z), h = (float)(lockers[0].Box.Max.Y - lockers[0].Box.Min.Y);
+            float px = LockerKit.LetterPixel(lockers, w);
+            foreach (var bay in lockers)
+            {
+                if (bite.Eats(ToF(bay.Box.Centre)))
+                    continue;
+                bool open = (vehicle?.LockerOpen(bay.Index) ?? false) || (openLockers & (1u << bay.Index)) != 0;
+                var leaf = Piece($"locker-door:{bay.Name}:{w:0.###}x{h:0.###}:{px:0.#####}", () => LockerKit.Door(Look, bay.Name, w, h, px));
+                mesh.Instances.Add(new MeshInstance(leaf, LockerKit.DoorAt(bay, open) * m, emergency ? 0.06f : 1, Scar: scar));
+            }
         }
         // A cargo car's roof hatch (T99): two leaves meeting on the centreline, shut in the opening, or open, each swung up
         // on its hinges at its side a little past upright, so from the roof or the crane's cab you can see it's open.

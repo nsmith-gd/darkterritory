@@ -22,6 +22,11 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
 {
     /// <summary>The campaign's upgrades (spec F.3). Every machine applies the same list to the same content.</summary>
     public IReadOnlyList<string> Upgrades { get; init; } = [];
+    /// <summary>
+    /// The campaign's spare repair kits (GDD v1.4 App. E.12 question 4): each starts the night in a crew locker beside the
+    /// train's own. Every machine builds the same train from it.
+    /// </summary>
+    public int SpareKits { get; init; }
     /// <summary>Where the engine's front starts, along the line; null for the fortress yard. A resumed night starts where it was saved.</summary>
     public double? Start { get; init; }
     /// <summary>The host's only: a resumed night's own line, from its save (linegen plan §17.4), rather than generated afresh.</summary>
@@ -40,6 +45,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)),
             DataFile.Load<CombatTuning>(Path.Combine(content, CombatTuning.File)),
             DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)));
+        loadout = Sim.Campaign.Campaign.WithSpareKits(loadout, SpareKits);
         return Upgrades.Count == 0 ? loadout
             : Sim.Campaign.Campaign.Apply(DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)), Upgrades, loadout);
     }

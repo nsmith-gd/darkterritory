@@ -38,14 +38,16 @@ public sealed record StrandedTuning(double KitLostBeyond = 400, double RecoveryF
 
 /// <summary>
 /// The repair kit, as §23.2 reads it: lost only when the Territory has taken it. A kit lying on the line, or in a reachable
-/// car, is never lost, however far back it is. Somebody walks. With more than one kit aboard, it takes losing them all.
+/// car (on its floor or in its locker, note 166), is never lost, however far back it is. Somebody walks. With more than one
+/// kit (a spare from the fortress, one found at a stop: E.12 question 4), it takes losing every one of them. A kit found at
+/// a stop counts once the crew have picked it up; one lying unfound in a village they've left isn't theirs to walk back for.
 /// </summary>
 public static class EngineeringKit
 {
     /// <summary>Where the kit is now (host: bodies are the host's). <paramref name="stocked"/>: the night ever had one.</summary>
     public static KitWhere Where(World world, IEnumerable<PlayerState> crew, StrandedTuning t, bool stocked)
     {
-        var kits = world.Bodies.All.Where(b => b.Kind == BodyKind.RepairKit).OrderBy(b => b.Id).ToList();
+        var kits = world.Bodies.All.Where(b => b.Kind == BodyKind.RepairKit && b.Claimed).OrderBy(b => b.Id).ToList();
         if (kits.Count == 0)
             return stocked ? new KitWhere(KitPlace.Lost, Loss: KitLoss.Taken) : new KitWhere(KitPlace.None);
         if (kits.FirstOrDefault(k => k.Carrier >= 0) is { } carried)

@@ -12,7 +12,8 @@ namespace DarkTerritory.Sim.Train;
 /// <item>on a coupler plate, nothing but the doors: the coupling is cut by <see cref="Uncoupling"/> (T91);</item>
 /// <item>at a car's brake wheel, wind its rake's handbrakes on or off;</item>
 /// <item>at a cargo car's roof hatch, open or shut it (T99);</item>
-/// <item>at a sandbox on the engine's running boards, sand the rail (Grease's counter, App. A.2).</item>
+/// <item>at a sandbox on the engine's running boards, sand the rail (Grease's counter, App. A.2);</item>
+/// <item>at a crew locker, open or shut its door (a tap there is the hands': <see cref="Lockers"/>).</item>
 /// </list>
 /// A VR player's reaching hand (T29) picks what's worked by where it is, not where they stand, and shovels by the
 /// stroke: coal onto the shovel at the tender, then into the firebox (<see cref="ShovelByHand"/>).
@@ -65,6 +66,13 @@ public static class CrewActions
                 s.ActionProgress += dt;
                 if (before < doorSeconds && s.ActionProgress >= doorSeconds)
                     train.Vehicles[near.Value.Vehicle].ToggleDoor(near.Value.Thing.Index);
+                break;
+            // A crew locker's door (note 166): held, opened or shut, like a car's door. (A tap's the hands', in Bodies.Handle.)
+            case InteractableKind.Locker:
+                double lockerSeconds = Lockers.DoorSeconds(train);
+                s.ActionProgress += dt;
+                if (before < lockerSeconds && s.ActionProgress >= lockerSeconds)
+                    train.Vehicles[near.Value.Vehicle].ToggleLocker(near.Value.Thing.Index);
                 break;
             // A ruptured boiler, the repair kit in hand (T109, GDD §12: the engineer is whoever has it): held there, it's mended.
             case InteractableKind.Firebox when train.BoilerTuning is { } rt && train.Boiler.Ruptured && s.Has(PlayerFlags.RepairKit) && PlayerMotor.InCab(s, train):
@@ -211,7 +219,8 @@ public static class CrewActions
         var reaching = Hand(s, hand) ? PlayerMotor.HandAt(s) : null;
         (Interactable, int)? best = null;
         double bestD = double.MaxValue;
-        // Doors want facing: the coupler plate is in reach of two of them, and Use there also cuts the coupling.
+        // Doors want facing: the coupler plate is in reach of two of them, and Use there also cuts the coupling. So do the
+        // crew lockers: a row of them, and you're at the one you face.
         double fx = -DMath.Sin(s.Yaw), fz = -DMath.Cos(s.Yaw);
         void Search(int vehicle, Double3 at, bool doorsOnly)
         {
@@ -221,7 +230,7 @@ public static class CrewActions
                     continue;
                 double dx = at.X - i.Position.X, dz = at.Z - i.Position.Z;
                 double d = dx * dx + dz * dz;
-                if (reaching is null && i.Kind == InteractableKind.Door && -(dx * fx + dz * fz) < 0.6 * Math.Sqrt(d))
+                if (reaching is null && i.Kind is InteractableKind.Door or InteractableKind.Locker && -(dx * fx + dz * fz) < 0.6 * Math.Sqrt(d))
                     continue;
                 bool height = reaching is null ? Math.Abs(at.Y - i.Position.Y) < 1.2 : at.Y - i.Position.Y is >= 0.2 and <= 1.8;
                 if (d <= i.Radius * i.Radius && height && d < bestD)

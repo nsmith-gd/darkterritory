@@ -260,8 +260,10 @@ public sealed class Gaunt(int id) : Enemy(id)
         if (w.Parent <= 0 || w.Parent >= train.Frames.Count || train.Frames[w.Parent].Shape.Interior is not { } room || !room.Contains(w.Position))
             return false;
         int car = w.Parent;
-        var loot = ctx.World.Bodies.All.Where(b => b.Parent == car && b.Carrier < 0 && Bodies.Value(b.Kind) > 0).MaxBy(b => Bodies.Value(b.Kind));
         var vehicle = train.Vehicles[car];
+        // What's in a shut crew locker it doesn't get at (note 166); an open one's as good as the floor.
+        var loot = ctx.World.Bodies.All.Where(b => b.Parent == car && b.Carrier < 0 && Bodies.Value(b.Kind) > 0 && (!b.Stowed || vehicle.LockerOpen(b.Locker)))
+            .MaxBy(b => Bodies.Value(b.Kind));
         if (loot is null && (vehicle.Load <= 0.01 || vehicle.CargoIntegrity <= 0.01))
             return false;
         if (loot is not null)
