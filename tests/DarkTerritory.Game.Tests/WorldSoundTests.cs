@@ -193,4 +193,40 @@ public class WorldSoundTests
         Assert.False(Playing(audio, "place-coaling.coal-pour"));
         Assert.Equal(2, ears.Started.Count(v => v.Name == "place-coaling.coal-settle"));
     }
+
+    [Fact]
+    public void TheGrainSpoutSwingsPoursAndStops()
+    {
+        // GDD §18's grain elevator (run.json "grainSpout"): its own sounds, and none of the coaling tower's.
+        var (world, elevator) = Night(f => f.Facility == FacilityKind.GrainElevator, from: 20);
+        var audio = new GameAudio(Content);
+        Stand(audio, "place-grain.spout-swing", "place-grain.spout-stop", "place-coaling.chute-open", "place-coaling.chute-shut");
+        Held(audio, "place-grain.grain-pour", "place-coaling.coal-pour");
+        var run = world.Run!;
+        var facilities = run.Route.Of(FeatureKind.Facility).ToList();
+        int index = facilities.IndexOf(elevator);
+        Assert.True(run.HasSpout(index));
+        double[] left = [.. facilities.Select((_, i) => run.ChuteLeft(i))];
+        Assert.Equal(Runs.GrainSpout.Capacity, left[index]);
+        var ears = new Ears(audio, world);
+        var mouth = run.SpoutAt(index, world.Train.Line).Spout + Double3.Up * 6;
+        ears.Tick(mouth);
+        run.Mirror(RunPhase.AtFacility, RunEnd.None, 900, index, chuteOpen: true, left);
+        ears.Tick(mouth, 10);
+        Assert.Single(ears.Started, v => v.Name == "place-grain.spout-swing");
+        Assert.True(Playing(audio, "place-grain.grain-pour"));
+        // Shut, or run dry: cut off.
+        run.Mirror(RunPhase.AtFacility, RunEnd.None, 901, index, chuteOpen: false, left);
+        ears.Tick(mouth, SimConstants.TickRate * 2);
+        Assert.Single(ears.Started, v => v.Name == "place-grain.spout-stop");
+        Assert.False(Playing(audio, "place-grain.grain-pour"));
+        Assert.DoesNotContain(ears.Started, v => v.Name.StartsWith("place-coaling", StringComparison.Ordinal));
+        // Opened again and the train moves off (it isn't at the elevator any more): cut off where it was.
+        run.Mirror(RunPhase.AtFacility, RunEnd.None, 902, index, chuteOpen: true, left);
+        ears.Tick(mouth, 10);
+        run.Mirror(RunPhase.Underway, RunEnd.None, 903, -1, chuteOpen: false, left);
+        ears.Tick(mouth, SimConstants.TickRate * 2);
+        Assert.Equal(2, ears.Started.Count(v => v.Name == "place-grain.spout-stop"));
+        Assert.False(Playing(audio, "place-grain.grain-pour"));
+    }
 }

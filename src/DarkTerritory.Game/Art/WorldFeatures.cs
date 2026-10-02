@@ -316,6 +316,21 @@ public sealed partial class WorldArt
     }
 
     /// <summary>
+    /// A grain elevator's spout (GDD §18): a rusted pipe from its distributor at <paramref name="head"/> down to its mouth,
+    /// the telescoped end a size bigger. Built where it is each frame: the run says where its mouth is, and it swings.
+    /// </summary>
+    public void Spout(MeshBuilder mesh, Double3 head, Double3 mouth, Double3 eye)
+    {
+        var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
+        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
+        var a = head.RelativeTo(eye);
+        var b = mouth.RelativeTo(eye);
+        var sleeve = a + (b - a) * 0.8f;
+        k.Cylinder(a, sleeve, 0.32f, 8);
+        k.Cylinder(sleeve - (b - a) * 0.02f, b, 0.42f, 8);
+    }
+
+    /// <summary>
     /// A branch off the main line (GDD §17, App. A.7): its bed, sleepers and rails from the points, the buffer stop at its
     /// end with a red lamp, and the switch stand with its lever and target lamp (green for the main line, red for the
     /// branch: the lamp is how the cab reads a switch before it's on it).

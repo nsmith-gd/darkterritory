@@ -433,7 +433,7 @@ public static class Hud
                 _ => "[E] PICK UP",
             };
         if (world.Run?.LeverInReach(p, train, hand) == true)
-            return "[E] HOLD: CHUTE LEVER";
+            return world.Run.FacilityFeature?.Facility == FacilityKind.GrainElevator ? "[E] HOLD: SPOUT LEVER" : "[E] HOLD: CHUTE LEVER";
         if (world.Switches?.InReach(p, train, hand) is { } branch)
         {
             // Say which way it'll go, and when it won't: the points don't move with a wheel on them.

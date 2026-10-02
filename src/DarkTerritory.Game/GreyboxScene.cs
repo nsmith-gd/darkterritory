@@ -152,6 +152,11 @@ public sealed class GreyboxScene
                         if ((crane.HookAt - eye).Length < DrawDistance && Look?.Art.Crane(mesh, crane, frames, eye) != true)
                             Crane(mesh, crane, frames, eye);
                 }
+            // A grain elevator's spout (run.json "grainSpout"), and the grain falling from it into the car under it.
+            if (Run is not null)
+                for (int i = 0; i < Run.FacilityCount; i++)
+                    if (Run.HasSpout(i))
+                        Spout(mesh, line, frames, eye, i, Run.Route.Of(FeatureKind.Facility).ElementAt(i), Run);
             // A yard's powerhouse with its power on (level-design D.2): the lamp over its door burns.
             if (Run is not null)
                 foreach (var site in Run.Sites)
@@ -1067,20 +1072,14 @@ public sealed class GreyboxScene
                 case FeatureKind.Junction:
                     // The branch and its switch stand are drawn with the track.
                     break;
-                case FeatureKind.Facility when line.Branches.FirstOrDefault(b => b.Kind == BranchKind.Spur && f.Contains(b.Toe)) is { } spur:
+                case FeatureKind.Facility:
                     {
-                        // Down its spur (GDD §17): the buildings stand back beyond the machinery, behind the crate stack
-                        // and short of the winch's haul, so the modules stay in the open where you work them.
-                        var site = Run?.Sites.FirstOrDefault(s => s?.Spur == spur.Index);
-                        double layout = site?.Mid ?? spur.Local.Length - 45;
-                        FacilityBuildings(mesh, spur.Local, eye, f.Facility, layout - 25, spur.Side, push: 4);
+                        var (track, mid, side, push, onSpur) = FacilityPlace(line, f);
+                        FacilityBuildings(mesh, track, eye, f.Facility, mid, side, push);
+                        if (!onSpur && f.Facility == FacilityKind.CoalingTower && Run is { } run)
+                            Chute(mesh, line, eye, f, run);
                         break;
                     }
-                case FeatureKind.Facility:
-                    Facility(mesh, line, eye, f);
-                    if (f.Facility == FacilityKind.CoalingTower && Run is { } run)
-                        Chute(mesh, line, eye, f, run);
-                    break;
             }
         }
     }
@@ -1136,12 +1135,7 @@ public sealed class GreyboxScene
         var t = line.Sample(spout);
         var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
         bool open = run.ChuteOpen && run.FacilityFeature == f;
-        if (Look?.Art.ChuteLever(mesh, lever, t.Tangent, f.Side, open, eye) != true)
-        {
-            mesh.Box(V(lever - Double3.Up * 0.45, eye), ToF(right), Vector3.UnitY, ToF(t.Tangent * -1), new Vector3(0.06f, 0.45f, 0.06f), Palette.IronGrey);
-            // The handle: down when pouring, up when shut.
-            mesh.Box(V(lever + Double3.Up * (open ? -0.1 : 0.25) + right * (f.Side * 0.15), eye), ToF(right), Vector3.UnitY, ToF(t.Tangent * -1), new Vector3(0.2f, 0.04f, 0.04f), Palette.TarnishedBrass);
-        }
+        Lever(mesh, lever, t.Tangent, f.Side, open, eye);
         if (!open)
             return;
         // A curtain of coal from the spout onto whatever's under it, and dust lit by the tower's lamp.
@@ -1156,6 +1150,70 @@ public sealed class GreyboxScene
             double fall = (Time * 7 + i * 0.37) % 5.4;
             var p = top - Double3.Up * fall + right * (0.3 * Math.Sin(i * 2.1)) + t.Tangent * (0.35 * Math.Cos(i * 1.3));
             mesh.Box(V(p, eye), ToF(right), Vector3.UnitY, ToF(t.Tangent * -1), new Vector3(0.22f, 0.26f, 0.22f), i % 3 == 0 ? Palette.IronGrey : Palette.Charcoal);
+        }
+    }
+
+    /// <summary>A chute's lever on the ground beside the track (the coaling tower's, a grain spout's): the handle down when pouring, up when shut.</summary>
+    void Lever(MeshBuilder mesh, Double3 lever, Double3 tangent, double side, bool open, Double3 eye)
+    {
+        if (Look?.Art.ChuteLever(mesh, lever, tangent, side, open, eye) == true)
+            return;
+        var right = Double3.Cross(tangent, Double3.Up).Normalized;
+        mesh.Box(V(lever - Double3.Up * 0.45, eye), ToF(right), Vector3.UnitY, ToF(tangent * -1), new Vector3(0.06f, 0.45f, 0.06f), Palette.IronGrey);
+        mesh.Box(V(lever + Double3.Up * (open ? -0.1 : 0.25) + right * (side * 0.15), eye), ToF(right), Vector3.UnitY, ToF(tangent * -1), new Vector3(0.2f, 0.04f, 0.04f), Palette.TarnishedBrass);
+    }
+
+    /// <summary>Height of a grain spout's mouth over the rail when it's over a car: clear of a crewman standing on the car's roof.</summary>
+    const double SpoutMouth = 6.2;
+
+    /// <summary>
+    /// A grain elevator's spout (GDD §18 "one spout, one car at a time"; run.json "grainSpout"): from the headhouse's
+    /// distributor (StructureKit.SpoutHead) down to over the track where the run has it while it's open, swung back clear of
+    /// the cars while it's shut; its lever on the ground beside the track, as the coaling tower's is; and grain falling from
+    /// it while it pours, onto the roof of the car under it, or all the way to the ballast.
+    /// </summary>
+    void Spout(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Double3 eye, int index, RouteFeature f, Sim.Run.Run run)
+    {
+        var (spout, lever) = run.SpoutAt(index, line);
+        if ((spout - eye).Length > DrawDistance)
+            return;
+        var (track, mid, side, push, _) = FacilityPlace(line, f);
+        side = side == 0 ? 1 : side;
+        var t = track.Sample(Math.Clamp(mid, 0, track.Length));
+        var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+        var h = Art.StructureKit.SpoutHead;
+        var head = t.Position + right * (side * (push + h.X)) + Double3.Up * h.Y - t.Tangent * h.Z;
+        bool open = run.ChuteOpen && run.Facility == index;
+        var mouth = spout + Double3.Up * SpoutMouth + (open ? Double3.Zero : right * (side * 3.5) + Double3.Up * 1.5);
+        if (Look is not null)
+            Look.Art.World.Spout(mesh, head, mouth, eye);
+        else
+        {
+            var axis = mouth - head;
+            var dir = axis.Normalized;
+            var across = Double3.Cross(dir, Double3.Up).Normalized;
+            mesh.Box(V((head + mouth) * 0.5, eye), ToF(across), ToF(dir), ToF(Double3.Cross(across, dir)), new Vector3(0.32f, (float)axis.Length * 0.5f, 0.32f), Palette.RustRed);
+        }
+        Lever(mesh, lever, t.Tangent, side, open, eye);
+        if (!open)
+            return;
+        // Onto the roof of the car under it, or all the way down.
+        int under = run.CarUnderSpout(frames, Vehicles ?? [], spout);
+        double floor = spout.Y + 0.2;
+        foreach (var frame in frames)
+            if (frame.Index == under)
+                floor = frame.ToWorld(new Double3(0, frame.Shape.RoofHeight, 0)).Y;
+        float drop = (float)Math.Max(0.5, mouth.Y - floor);
+        if (Look?.Art.Effects is { HasFlames: true } fx)
+        {
+            fx.GrainPour(mesh, V(mouth, eye), ToF(right), ToF(t.Tangent), drop, Time);
+            return;
+        }
+        for (int i = 0; i < 20; i++)
+        {
+            double fall = (Time * 6 + i * 0.41) % drop;
+            var p = mouth - Double3.Up * fall + right * (0.2 * Math.Sin(i * 2.1)) + t.Tangent * (0.2 * Math.Cos(i * 1.3));
+            mesh.Box(V(p, eye), ToF(right), Vector3.UnitY, ToF(t.Tangent * -1), new Vector3(0.12f, 0.2f, 0.12f), i % 3 == 0 ? Palette.HazardYellow : Palette.TarnishedBrass);
         }
     }
 
@@ -1264,9 +1322,19 @@ public sealed class GreyboxScene
             }
     }
 
-    /// <summary>Placeholder silhouettes until facility modules exist: oversized, dark, one working lamp (GDD §30).</summary>
-    void Facility(MeshBuilder mesh, RailLine line, Double3 eye, RouteFeature f) =>
-        FacilityBuildings(mesh, line, eye, f.Facility, (f.Start + f.End) / 2, f.Side, push: 0);
+    /// <summary>
+    /// Where a facility's buildings stand: down its spur (GDD §17), back beyond the machinery, behind the crate stack and
+    /// short of the winch's haul, so the modules stay in the open where you work them; or by the main line at its zone's
+    /// middle (the coaling tower, and a hand-made route's).
+    /// </summary>
+    (RailLine Track, double Mid, double Side, double Push, bool OnSpur) FacilityPlace(RailLine line, RouteFeature f)
+    {
+        if (line.Branches.FirstOrDefault(b => b.Kind == BranchKind.Spur && f.Contains(b.Toe)) is not { } spur)
+            return (line, (f.Start + f.End) / 2, f.Side, 0, false);
+        var site = Run?.Sites.FirstOrDefault(s => s?.Spur == spur.Index);
+        double layout = site?.Mid ?? spur.Local.Length - 45;
+        return (spur.Local, layout - 25, spur.Side, 4, true);
+    }
 
     /// <summary>A facility's buildings beside a track (the main line, or its spur), centred along it at <paramref name="mid"/>.</summary>
     void FacilityBuildings(MeshBuilder mesh, RailLine line, Double3 eye, FacilityKind? kind, double mid, double side, double push)

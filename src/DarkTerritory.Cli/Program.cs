@@ -722,8 +722,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         run.EnableLoot(DataFile.Load<LootTuning>(Path.Combine(content, LootTuning.File)), line, facilities);
         // --crane: the first facility with a gantry crane (T48) instead, its first casting on the hook.
         // --facility i: that facility's site, whatever it has (to look at a kind's buildings).
+        // --grain: the first grain elevator, its spout open and pouring into the fourth car (run.json "grainSpout"); --shut, not yet.
         int pick = (int)Opt(args, "--facility", -1);
         site = pick >= 0 && pick < run.Sites.Count ? run.Sites[pick]
+            : args.Contains("--grain") ? run.Sites.FirstOrDefault(x => x is not null && run.HasSpout(x.Index))
             : args.Contains("--crane") ? run.Sites.FirstOrDefault(x => x?.Crane is not null)
             : run.Sites.FirstOrDefault(x => x is not null && x.Has(DarkTerritory.Sim.Run.ModuleKind.Winch)) ?? run.Sites.FirstOrDefault(x => x is not null);
         if (site?.Crane is { } shownCrane)
@@ -736,8 +738,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         {
             // Down its spur, the engine up at the buffer stop (T28); on the main line for one without.
             at = site.Spur >= 0 ? line.Branches[site.Spur].End - 0.5 : (site.Feature.Start + site.Feature.End) / 2 + 45;
-            run.Mirror(DarkTerritory.Sim.Run.RunPhase.AtFacility, DarkTerritory.Sim.Run.RunEnd.None, 900, site.Index, false,
-                [.. Enumerable.Repeat(0.0, run.FacilityCount)], [.. run.Sites.Select(x => new DarkTerritory.Sim.Run.SiteState(true, x == site ? 0.45 : 0, x?.SledsLeft ?? 0, x == site, false, x == site ? 0.7 : 0))]);
+            // (--shut: the spout swung back clear and its lever up, before anyone's pulled it.)
+            bool spouted = args.Contains("--grain") && run.HasSpout(site.Index);
+            run.Mirror(DarkTerritory.Sim.Run.RunPhase.AtFacility, DarkTerritory.Sim.Run.RunEnd.None, 900, site.Index, spouted && !args.Contains("--shut"),
+                [.. Enumerable.Range(0, run.FacilityCount).Select(i => spouted && i == site.Index ? run.ChuteLeft(i) : 0.0)], [.. run.Sites.Select(x => new DarkTerritory.Sim.Run.SiteState(true, x == site ? 0.45 : 0, x?.SledsLeft ?? 0, x == site, false, x == site ? 0.7 : 0))]);
         }
     }
     // --junction i: at a branch's points (T27), [--diverge] set for the branch, [--through] and the train run in onto it.
@@ -802,7 +806,16 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         if (Str(args, "--cam", "") is not { Length: > 0 })
         {
             // (--crank closes on the winch's cranks even at a facility that also has a crane.)
-            if (site.Crane is { } crane && !args.Contains("--crank"))
+            if (args.Contains("--grain") && run.HasSpout(site.Index))
+            {
+                // On the lever's side, between the train and the elevator, along the track and a little above the cars'
+                // roofs: the spout pouring into the car under it, and its pipe going up to the headhouse.
+                var spout = run.SpoutAt(site.Index, line).Spout;
+                var under = site.Track.Sample(site.Spur >= 0 ? Math.Clamp(site.Track.Length - run.Tuning.GrainSpout.FromBuffer, 0, site.Track.Length) : site.Mid);
+                var lateral = Double3.Cross(under.Tangent, Double3.Up).Normalized * site.Side;
+                camera = Camera.LookAt(spout + lateral * 5.5 + under.Tangent * 6 + Double3.Up * 6.5, spout + Double3.Up * 4.6, 75);
+            }
+            else if (site.Crane is { } crane && !args.Contains("--crank"))
             {
                 // High on the near side of the track, past the gantry's end, looking down across the train at the hook and castings.
                 var outward = (crane.Corner(0, 1) - crane.Corner(0, 0)) with { Y = 0 };
@@ -971,6 +984,11 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         trainAt = Math.Round(at, 1),
         // --site: where its cranes' hooks hang (the facility's own and the yard's), by line distance and offset.
         cranes = site?.Cranes.Select(c => new { line = Math.Round(GreyboxScene.NearestDistance(line, c.HookAt, site.Feature.Start + 300), 1), castings = c.Castings.Length }),
+        // --grain: where the spout is by line distance, and the car under it (−1 for none: it's spilling).
+        spout = site is not null && run is not null && run.HasSpout(site.Index) && args.Contains("--grain")
+            ? new { line = Math.Round(GreyboxScene.NearestDistance(line, run.SpoutAt(site.Index, line).Spout, site.Feature.Start + 300), 1),
+                car = run.CarUnderSpout(train.Frames, train.Vehicles, run.SpoutAt(site.Index, line).Spout) }
+            : null,
         device = gpu.DeviceName,
         triangles = renderer.Stats.Triangles,
         draws = renderer.Stats.Draws,
@@ -1378,7 +1396,7 @@ static int Usage()
                      [--lit]      every Holdout occupied, its lamp burning (GDD App. D)
                      [--ps2]      the era comparison mode   [--muzzle] the guns just fired   [--builds n] time n warm builds
                      [--integrity a,b,..] each car's condition, front to back (scars and damage states)
-                     [--route tier:seed --site [--crank | --crane | --facility i]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --facility: the route's i-th
+                     [--route tier:seed --site [--crank | --crane | --grain [--shut] | --facility i]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --grain: a grain elevator, its spout pouring into the car under it (--shut: swung clear); --facility: the route's i-th
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/

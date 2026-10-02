@@ -25,6 +25,31 @@
     "overfillDamagePerUnit": 0.0015
   },
 
+  // Grain elevator (GDD §18 facility roster: "Bulk, cheap. One spout, one car at a time. Endless repositioning and switch
+  // calls"): spec D.2's gravity chute over a cargo car, worked like the coaling chute (its lever: chute.leverReach and
+  // chute.leverSeconds). Someone on the ground pulls the lever; grain pours into the cargo car under the spout as its
+  // load (food, facilities.json "cargo", paid like any load: economy below), onto the ballast and lost with no car there.
+  // A full car takes no more and the rest spills over it, damaging it (D.2 "overfill damages car and spills"). It shuts
+  // when the train moves off, as the chute does: the crew spot each car under it, one at a time. The crates stay too.
+  // Not in the spec: first-pass numbers. "on": false and the grain elevator is crates only, as before.
+  "grainSpout": {
+    "on": true,
+    // Down the elevator's spur, this far back from its buffer stop: over the fourth car behind the engine with the engine
+    // up at the stop (engine 20 m, three cars and four gaps 48 m, half a car 7 m, and the metre short of the buffer the
+    // driver leaves; train.json geometry). The spur takes the engine and four cars (route.json "junctions"), so every
+    // one of them can be backed under it in turn, the first with the train's tail out past the points.
+    "fromBuffer": 76,
+    // How far a car's middle can be from under the spout and still catch it: the middle 6 m of a 14 m car.
+    "spoutTolerance": 3,
+    // In loads (a full car is 1) a second: the half a car the night left the fortress with fills in 20 s.
+    "pourPerSecond": 0.025,
+    // Loads in the bin: the four cars the spur takes topped up from the fortress's half load (run.json departureLoad).
+    "capacity": 2,
+    // Integrity off the car per load spilt over it: the whole bin over a full car costs it 0.4, as the whole chute over
+    // a full tender costs the engine (chute.overfillDamagePerUnit × chute.capacity).
+    "overfillDamagePerLoad": 0.2
+  },
+
   // GDD §17-18: cargo is loaded at facilities, and "every facility is optional. Skipping them is safe and poor."
   // Cars leave the fortress this full (a fraction of a load each); filling them is the facilities' work. Not in the
   // spec: F.1's table is the fully loaded train, which is the ceiling.

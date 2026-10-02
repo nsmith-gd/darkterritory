@@ -41,6 +41,42 @@ public sealed partial class Effects
     }
 
     /// <summary>
+    /// Grain pouring from an elevator's spout (GDD §18): a narrow stream of pale kernels out of the mouth at
+    /// <paramref name="top"/> and down the <paramref name="drop"/> to the car's roof (or the ballast), a haze of chaff round
+    /// it, and dust puffing up where it lands. CoalPour's shape, finer, paler and tighter: it's a spout, not a chute.
+    /// Camera-relative; <paramref name="right"/>, <paramref name="along"/> the line's.
+    /// </summary>
+    public void GrainPour(MeshBuilder mesh, Vector3 top, Vector3 right, Vector3 along, float drop, double t)
+    {
+        float fallTime = MathF.Sqrt(2 * drop / 9.8f);
+        for (int i = 0; i < 160; i++)
+        {
+            float h = Hash(i * 2.17f + 0.4f), h2 = Hash(i * 5.33f + 1.9f);
+            float age = (float)((t + h * 7) % fallTime);
+            float fall = 1.2f * age + 4.9f * age * age;
+            var p = top - Vector3.UnitY * fall + right * ((h - 0.5f) * (0.3f + 0.15f * age)) + along * ((h2 - 0.5f) * (0.3f + 0.15f * age));
+            float size = 0.08f + 0.08f * h2;
+            float lit = 0.8f + 0.4f * h;
+            mesh.Billboard(p, size, age * (2 + 4 * h), new Vector4(0.62f * lit, 0.5f * lit, 0.27f * lit, 1), _spark, FxBlend.Alpha, (i & 1) == 0 ? 2 : 0, 2, stretch: 2.5f);
+        }
+        for (int i = 0; i < 10; i++)
+        {
+            float h = Hash(i * 3.71f + 4.2f);
+            float s = (float)((t * 0.5 + h * 5) % 1.0);
+            var p = top - Vector3.UnitY * (drop * s) + right * ((h - 0.5f) * 0.4f) + along * (0.25f * (h - 0.5f));
+            mesh.Billboard(p, 0.5f + 0.6f * s, h * 6.28f, new Vector4(0.5f, 0.43f, 0.3f, 0.22f * (1 - s * 0.5f)), _smoke, FxBlend.Alpha, (int)(s * 8), 4);
+        }
+        for (int i = 0; i < 10; i++)
+        {
+            float h = Hash(i * 6.13f + 2.7f), h2 = Hash(i * 1.61f + 8.8f);
+            float period = 2.8f + 1.4f * h;
+            float s = (float)((t + h * 9) % period) / period;
+            var p = top - Vector3.UnitY * (drop - 0.1f - 1.0f * s) + right * ((h2 - 0.5f) * (0.6f + 1.8f * s)) + along * ((h - 0.5f) * (0.6f + 1.8f * s)) + new Vector3(0.4f, 0, 0.2f) * s;
+            mesh.Billboard(p, 0.6f + 1.8f * s, h * 6.28f, new Vector4(0.52f, 0.46f, 0.33f, 0.36f * MathF.Sin(MathF.PI * s)), _smoke, FxBlend.Alpha, (int)(s * 15.99f), 4);
+        }
+    }
+
+    /// <summary>
     /// A derailment (GDD §14, the night lost), <paramref name="since"/> seconds after it: a shower of sparks off every
     /// truck as the wheels leave the rail and plough the ballast; a cloud of ballast dust rolling out round the length of
     /// the train and settling; and the engine's boiler, its pipes torn, bursting steam out of both sides, the burst going

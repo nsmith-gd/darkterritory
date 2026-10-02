@@ -20,9 +20,26 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
     /// so the run begins as it moves off), or as far back as the consist needs to fit on the line.
     /// </summary>
     public double DepartFrom(double gate, double consistLength) => Math.Max(consistLength + 5, gate - DepartShortOfGateM);
+
+    /// <summary>The grain elevator's spout (run.json <c>grainSpout</c>); off when the file doesn't have one.</summary>
+    public GrainSpoutTuning GrainSpout { get; init; } = new();
 }
 
 public sealed record ChuteTuning(double LeverReach, double LeverSeconds, double SpoutTolerance, double PourPerSecond, double Capacity, double OverfillDamagePerUnit);
+
+/// <summary>
+/// GDD §18's grain elevator, "one spout, one car at a time": the coaling chute's mechanic over a cargo car (its lever
+/// is the chute's, <see cref="ChuteTuning.LeverReach"/> and <see cref="ChuteTuning.LeverSeconds"/>). Field docs in run.json.
+/// </summary>
+public sealed record GrainSpoutTuning
+{
+    public bool On { get; init; }
+    public double FromBuffer { get; init; } = 76;
+    public double SpoutTolerance { get; init; } = 3;
+    public double PourPerSecond { get; init; } = 0.025;
+    public double Capacity { get; init; } = 2;
+    public double OverfillDamagePerLoad { get; init; } = 0.2;
+}
 
 public sealed record EconomyTuning(Dictionary<string, double> PerCar, double CoalPerUnit, double RoundsPerRound, double RepairPerIntegrity);
 
@@ -58,7 +75,13 @@ public sealed partial class Run
         Tuning = tuning;
         _route = route;
         _facilities = route.Of(FeatureKind.Facility).ToList();
-        _chuteLeft = _facilities.Select(f => f.Facility == FacilityKind.CoalingTower ? tuning.Chute.Capacity : 0).ToArray();
+        // What each facility's chute has to pour: the coaling tower's coal, and a grain elevator's grain when it has a spout.
+        _chuteLeft = _facilities.Select(f => f.Facility switch
+        {
+            FacilityKind.CoalingTower => tuning.Chute.Capacity,
+            FacilityKind.GrainElevator when tuning.GrainSpout.On => tuning.GrainSpout.Capacity,
+            _ => 0,
+        }).ToArray();
         // Each facility's spur, if it has one: the branch whose points are in its zone.
         _spurs = [.. _facilities.Select(f => route.Branches.Select((b, i) => (b, i)).Where(x => x.b.Kind == BranchKind.Spur && f.Contains(x.b.Toe))
             .Select(x => x.i).DefaultIfEmpty(RailLine.MainPath).First())];
@@ -164,7 +187,9 @@ public sealed partial class Run
     /// <summary>The facility the train is stopped at, or −1.</summary>
     public int Facility { get; private set; } = -1;
     public RouteFeature? FacilityFeature => Facility >= 0 ? _facilities[Facility] : null;
+    /// <summary>The chute at the facility the train's stopped at is pouring: the coaling tower's, or a grain elevator's spout.</summary>
     public bool ChuteOpen { get; private set; }
+    /// <summary>What a facility's chute has left to pour: coal at a coaling tower, loads of grain at a grain elevator's spout.</summary>
     public double ChuteLeft(int facility) => facility >= 0 && facility < _chuteLeft.Length ? _chuteLeft[facility] : 0;
     public bool Over => Phase is RunPhase.Arrived or RunPhase.Failed;
     public RunReport? Report { get; private set; }
@@ -446,9 +471,58 @@ public sealed partial class Run
     public (double SpoutAlong, Double3 Lever) ChuteAt(RouteFeature f, RailLine line)
     {
         double mid = (f.Start + f.End) / 2;
-        var t = line.Sample(mid + 6);
+        return (mid, LeverBeside(line, mid, f.Side));
+    }
+
+    /// <summary>A chute's lever: on the ground a little along the track from its spout, out to one side.</summary>
+    static Double3 LeverBeside(RailLine track, double spout, double side)
+    {
+        var t = track.Sample(Math.Min(spout + 6, track.Length));
         var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
-        return (mid, t.Position + right * (f.Side * 3.2) + Double3.Up * 0.9);
+        return t.Position + right * (side * 3.2) + Double3.Up * 0.9;
+    }
+
+    /// <summary>
+    /// A grain elevator's spout (GDD §18 "one spout, one car at a time"; run.json <c>grainSpout</c>): the point on its track
+    /// under the spout's mouth, and its lever, placed beside it as the coaling tower's is beside its chute. Down its spur,
+    /// <see cref="GrainSpoutTuning.FromBuffer"/> back from the buffer stop, the lever on the side away from the main line;
+    /// on the main line (a hand-made route's), over the zone's middle.
+    /// </summary>
+    public (Double3 Spout, Double3 Lever) SpoutAt(int facility, RailLine line)
+    {
+        var f = _facilities[facility];
+        if (_spurs[facility] is var b and >= 0 && b < line.Branches.Count)
+        {
+            var spur = line.Branches[b];
+            double along = Math.Clamp(spur.Local.Length - Tuning.GrainSpout.FromBuffer, 0, spur.Local.Length);
+            return (spur.Local.Sample(along).Position, LeverBeside(spur.Local, along, spur.Side));
+        }
+        double mid = (f.Start + f.End) / 2;
+        return (line.Sample(mid).Position, LeverBeside(line, mid, f.Side == 0 ? 1 : f.Side));
+    }
+
+    /// <summary>A grain elevator with a spout to work tonight (run.json <c>grainSpout.on</c>).</summary>
+    public bool HasSpout(int facility) => Tuning.GrainSpout.On && facility >= 0 && facility < _facilities.Count && IsElevator(facility);
+
+    // A grain elevator's chute is its spout. With the spout off its chute's empty, so its lever never works.
+    bool IsElevator(int facility) => _facilities[facility].Facility == FacilityKind.GrainElevator;
+
+    /// <summary>
+    /// The cargo car a grain spout at <paramref name="spout"/> is over (in <paramref name="frames"/>, by vehicle id), or −1:
+    /// within its width, and within <see cref="GrainSpoutTuning.SpoutTolerance"/> of its middle along it. A car on the
+    /// next track over isn't, even where the spur's still close beside the main line.
+    /// </summary>
+    public int CarUnderSpout(IReadOnlyList<CarFrame> frames, IReadOnlyList<Vehicle> vehicles, Double3 spout)
+    {
+        foreach (var frame in frames)
+        {
+            if (frame.Index < 0 || frame.Index >= vehicles.Count || vehicles[frame.Index].Kind != VehicleKind.Cargo)
+                continue;
+            var local = frame.ToLocal(spout);
+            if (Math.Abs(local.X) <= frame.Shape.HalfWidth && Math.Abs(local.Z) <= Tuning.GrainSpout.SpoutTolerance)
+                return frame.Index;
+        }
+        return -1;
     }
 
     /// <summary>
@@ -515,12 +589,12 @@ public sealed partial class Run
         return null;
     }
 
-    /// <summary>Standing at a working chute's lever (the HUD's prompt, and <see cref="CrewAct"/>).</summary>
+    /// <summary>Standing at a working chute's lever, or a grain spout's (the HUD's prompt, and <see cref="CrewAct"/>).</summary>
     public bool LeverInReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
     {
         if (Over || !s.Alive || Facility < 0 || _chuteLeft[Facility] <= 0)
             return false;
-        var lever = ChuteAt(_facilities[Facility], train.Line).Lever;
+        var lever = IsElevator(Facility) ? SpoutAt(Facility, train.Line).Lever : ChuteAt(_facilities[Facility], train.Line).Lever;
         return PlayerMotor.Grips(s, train, hand, lever, (PlayerMotor.WorldPosition(s, train) - lever).Length <= Tuning.Chute.LeverReach);
     }
 
@@ -532,6 +606,11 @@ public sealed partial class Run
     {
         if (!ChuteOpen || Facility < 0)
             return;
+        if (IsElevator(Facility))
+        {
+            PourGrain(train, dt);
+            return;
+        }
         var c = Tuning.Chute;
         double pour = Math.Min(c.PourPerSecond * dt, _chuteLeft[Facility]);
         _chuteLeft[Facility] -= pour;
@@ -550,6 +629,33 @@ public sealed partial class Run
         // Overfill: it keeps coming, and it has to go somewhere.
         var vehicle = train.Vehicles[0];
         vehicle.Integrity = Math.Max(0, vehicle.Integrity - (pour - taken) * c.OverfillDamagePerUnit);
+    }
+
+    /// <summary>
+    /// Grain falls while the spout's open (GDD §18): into the cargo car under it, as its load of the elevator's cargo, and
+    /// paid for like any load delivered (<see cref="Tally"/>); onto the ballast, and lost, with no car there. A full car
+    /// takes no more, and what keeps coming spills over it and damages it (spec D.2's gravity chute: "overfill damages car
+    /// and spills").
+    /// </summary>
+    void PourGrain(TrainOnLine train, double dt)
+    {
+        var g = Tuning.GrainSpout;
+        double pour = Math.Min(g.PourPerSecond * dt, _chuteLeft[Facility]);
+        _chuteLeft[Facility] -= pour;
+        // Empty is empty: a crumb of rounding left in the bin would keep its lever working (and on the HUD).
+        if (_chuteLeft[Facility] <= 1e-9)
+            (_chuteLeft[Facility], ChuteOpen) = (0, false);
+        int under = CarUnderSpout(train.Frames, train.Vehicles, SpoutAt(Facility, train.Line).Spout);
+        if (under < 0)
+            return; // spilt
+        var car = train.Vehicles[under];
+        double taken = Math.Min(pour, Math.Max(0, 1 - car.Load));
+        if (taken > 0)
+        {
+            car.Load += taken;
+            car.Cargo = _facilityTuning?.CargoOf(FacilityKind.GrainElevator) ?? CargoKind.Food;
+        }
+        car.Integrity = Math.Max(0, car.Integrity - (pour - taken) * g.OverfillDamagePerLoad);
     }
 
     void Finish(World world, IReadOnlyCollection<PlayerState> crew, RunPhase phase, RunEnd end)

@@ -31,6 +31,8 @@ public sealed partial class GameAudio
     readonly Dictionary<(int, int), CastingState> _castings = new();
     double _earHint = double.NaN, _outsideClock = double.NaN, _engineFrontWas = double.NaN, _engineSpeedWas, _nextFar, _tenderAtPour, _rammedAgain;
     bool _outsidePrimed, _radioWas;
+    // Where the grain spout's mouth was while it poured: it's cut off there when the train moves off and it's nowhere.
+    Double3 _spoutAt;
     Places? _places;
 
     /// <summary>What a route has where, worked out once a night (the route is the same on every machine).</summary>
@@ -57,6 +59,7 @@ public sealed partial class GameAudio
         _earHint = _outsideClock = _engineFrontWas = double.NaN;
         _engineSpeedWas = _nextFar = _tenderAtPour = _rammedAgain = 0;
         _outsidePrimed = _radioWas = false;
+        _spoutAt = default;
         _places = null;
     }
 
@@ -423,9 +426,9 @@ public sealed partial class GameAudio
     }
 
     /// <summary>
-    /// The facilities at work: the coaling chute (place-coaling), the cranes (place-crane), the wreck yard's winch and its
-    /// wrecks (place-wreck), the slaughterhouse and the chemical works near their buildings, the dead towns (place-villages),
-    /// and the mine underground (place-mine).
+    /// The facilities at work: the coaling chute (place-coaling), the grain elevator's spout (place-grain), the cranes
+    /// (place-crane), the wreck yard's winch and its wrecks (place-wreck), the slaughterhouse and the chemical works near their
+    /// buildings, the dead towns (place-villages), and the mine underground (place-mine).
     /// </summary>
     void PlaceWorks(World world, Run? run, TrainOnLine train, Places places, Double3 ear, bool underground, double dt, bool primed)
     {
@@ -461,6 +464,22 @@ public sealed partial class GameAudio
             }
             else
                 Flipped("place-coaling", 0, false, primed);
+
+            // The grain elevator's spout (run.json "grainSpout"): swung over the car as it opens, the grain pouring (fuller
+            // drumming into a car than hissing onto the ballast), and cut off when it's shut or the bin runs dry.
+            bool spouting = run.Facility >= 0 && run.HasSpout(run.Facility) && run.ChuteOpen;
+            if (spouting)
+            {
+                var (spout, _) = run.SpoutAt(run.Facility, line);
+                var mouth = spout + Double3.Up * 6;
+                if (Flipped("place-grain", 0, true, primed) > 0)
+                    Cue("place-grain.spout-swing", mouth, outside);
+                bool intoCar = run.CarUnderSpout(train.Frames, train.Vehicles, spout) >= 0;
+                HoldLevel("place-grain.grain-pour", 0, spout + Double3.Up * 4, outside, intoCar ? 1 : 0.7);
+                _spoutAt = mouth;
+            }
+            else if (Flipped("place-grain", 0, false, primed) < 0)
+                Cue("place-grain.spout-stop", _spoutAt, outside);
 
             foreach (var site in run.Sites)
                 if (site is not null)

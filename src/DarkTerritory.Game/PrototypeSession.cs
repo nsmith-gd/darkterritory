@@ -372,6 +372,16 @@ public sealed class PrototypeSession : IPlaySession
         return " — " + string.Join(", ", parts);
     }
 
+    /// <summary>A grain elevator's spout (GDD §18 "one spout, one car at a time"), where it has one.</summary>
+    static string SpoutStatus(Run run)
+    {
+        if (!run.HasSpout(run.Facility))
+            return "";
+        double left = run.ChuteLeft(run.Facility);
+        return run.ChuteOpen ? $", spout POURING ({left:0.00} loads left)"
+            : left > 0 ? $", the spout: a car under it, then the lever on the ground, hold E ({left:0.00} loads)" : ", the spout's bin is empty";
+    }
+
     public static string RouteStatus(Route? route, World world, TrainOnLine train)
     {
         if (route is null)
@@ -387,7 +397,7 @@ public sealed class PrototypeSession : IPlaySession
         string stop = run?.FacilityFeature is { } f
             ? $" | STOPPED AT {f.Facility.ToString()!.ToUpperInvariant()}" + (f.Facility == FacilityKind.CoalingTower
                 ? run.ChuteOpen ? $" — chute POURING ({run.ChuteLeft(run.Facility):0} left)" : run.ChuteLeft(run.Facility) > 0 ? " — lever on the ground, hold E" : " — chute empty"
-                : SiteStatus(run.CurrentSite))
+                : SiteStatus(run.CurrentSite) + SpoutStatus(run))
             : "";
         double s = train.Dynamics.Distance;
         // Pulled up by a facility that's down a spur (GDD §17): say how much of the train it takes.

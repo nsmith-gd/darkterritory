@@ -371,6 +371,12 @@ public static class StructureKit
     public static readonly Vector3 Lantern = new(6.6f, 3.3f, -4);
 
     /// <summary>
+    /// Where the grain elevator's spout hangs from its distributor on the headhouse, in the elevator's frame on side +1
+    /// (X goes with the side): the scene draws the spout from here down to over the track.
+    /// </summary>
+    public static readonly Vector3 SpoutHead = new(10, 28, 0);
+
+    /// <summary>
     /// A facility's buildings (GDD §30: "oversized, dangerous, partially abandoned, barely operable, dimly lit"), beside
     /// the line on <paramref name="side"/> (+1 right), centred along it. Each kind reads by shape: the coaling tower's
     /// bunker on stilts, the elevator's silos, the foundry's sawtooth sheds and stack, sheds and gantries for the rest.
@@ -413,8 +419,12 @@ public static class StructureKit
                     k.Box(new Vector3(x - 4, 26, -18), new Vector3(x + 4, 32, 18));
                     k.Use("corrugated_iron", Palette.IronGrey, 0.9f, 0.3f, tile: 1.5f);
                     k.Box(new Vector3(x - 4.4f, 32, -18.4f), new Vector3(x + 4.4f, 32.5f, 18.4f));
+                    // The spout's distributor on the headhouse's face to the track. The spout itself, down from it to over the
+                    // car under it, is drawn where the run puts it (GreyboxScene.Spout, run.json "grainSpout"): its foot moves
+                    // with the spur's length, and it swings over the car when it's opened.
                     k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
-                    k.Rod(new Vector3(x - s * 4, 28, 0), new Vector3(s * 2.5f, 6, 0), 0.35f);
+                    float face = x - s * 4, head = s * SpoutHead.X;
+                    k.Box(new Vector3(MathF.Min(face, head) - 0.2f, SpoutHead.Y - 0.9f, -0.9f), new Vector3(MathF.Max(face, head) + 0.2f, SpoutHead.Y + 1.1f, 0.9f));
                     k.Use("window_lit", Palette.LampAmber, 0.1f, 0.3f, tile: 1);
                     k.Panel(new Vector3(x - s * 4.01f, 29, 6), new Vector3(-s, 0, 0), Vector3.UnitY, 0.8f, 1.1f, Vector2.Zero, Vector2.One);
                     break;
