@@ -260,11 +260,11 @@ public sealed partial class GameAudio
                     }
                     break;
                 case EnemyKind.CinderHound when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab:
-                    // The pack howls, not each hound: whoever leads it, every few seconds.
+                    // The pack howls, not each hound: whoever leads it, every few seconds (close behind, the near howl).
                     int pack = (int)e.Extra;
                     if (!_packs.TryGetValue(pack, out double next) || _time >= next)
                     {
-                        Mixer.Play("hound-howl", at)?.Also(v => v.Occlusion = occlusion);
+                        Mixer.Play(HowlFor(train, e), at)?.Also(v => v.Occlusion = occlusion);
                         _packs[pack] = _time + 3 + 2.5 * _rng.Next();
                     }
                     break;

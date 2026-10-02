@@ -639,6 +639,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             // Watching a crewmate (App. D.10), you hear what they hear: their shelter, their space.
             var ears = session.Viewpoint;
             bool exposed = !PlayerMotor.Indoors(ears, session.Train);
+            sound.CrewStates = GameAudio.CrewOf(session);
             sound.Update(session.World, session.Controls, Listener.At(camera.Position, camera.Yaw), exposed, SimConstants.TickSeconds,
                 PlayerMotor.Space(ears, session.Train));
             if (voice is not null && net is not null)

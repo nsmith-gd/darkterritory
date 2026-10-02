@@ -1,6 +1,7 @@
 using Ballast;
 using Ballast.Audio;
 using DarkTerritory.Sim;
+using DarkTerritory.Sim.Player;
 
 namespace DarkTerritory.Game.Sound;
 
@@ -38,6 +39,28 @@ public sealed partial class GameAudio
             _held[key].Stop();
             _held.Remove(key);
         }
+    }
+
+    /// <summary>
+    /// The crew as this machine has them, set by the caller before each <see cref="Update"/> (<see cref="CrewOf"/>): every
+    /// player's replicated record, for what only a crewmate's record says (who was bitten, who was dragged under). Empty where
+    /// nobody's said (a staged render): the hooks fall back on what the enemy records say alone.
+    /// </summary>
+    public IReadOnlyList<(int Id, PlayerState State)> CrewStates { get; set; } = [];
+
+    /// <summary>
+    /// Everyone aboard a session: your own (predicted) record and each crewmate's from the newest snapshot, not the drawing's
+    /// interpolated one, so a hurt lands in the same tick as the enemy record that did it.
+    /// </summary>
+    public static IReadOnlyList<(int Id, PlayerState State)> CrewOf(IPlaySession session)
+    {
+        if (session is not NetPlaySession net)
+            return [(session.PlayerId, session.Player)];
+        var crew = new List<(int, PlayerState)> { (net.PlayerId, net.Player) };
+        foreach (byte id in net.Client.RemoteIds)
+            if (net.Client.TryGetRemote(id, Sim.Net.ClientSession.InterpolationTicks, out var s))
+                crew.Add((id, s));
+        return crew;
     }
 
     /// <summary>Whether a cue's sound is installed.</summary>
