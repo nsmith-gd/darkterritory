@@ -61,6 +61,13 @@ public static class Hud
             float px = MathF.Round((width - w) / 2);
             UiStyle.Plate(o, px, height - 46, w, line + 8);
             UiStyle.Keyed(o, px + 5, height - 42, prompt, Ink);
+            // A hold under way ("... (40%)"): how far it's got, as a bar along the plate's foot.
+            if (System.Text.RegularExpressions.Regex.Match(prompt, @"\((\d+)%\)") is { Success: true } held
+                && float.TryParse(held.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture, out float pct))
+            {
+                o.Rect(px + 3, height - 46 + line + 5, w - 6, 2, Track);
+                o.Rect(px + 3, height - 46 + line + 5, MathF.Round((w - 6) * Math.Clamp(pct / 100f, 0, 1)), 2, UiStyle.Lit);
+            }
         }
         Night(o, height, s, line);
         if (p.Alive)
