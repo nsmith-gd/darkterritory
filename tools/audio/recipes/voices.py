@@ -4,7 +4,7 @@ sets, so a full crew never shares one.
 
 Stand-ins until the voices are recorded: a neural text-to-speech model (Piper's LibriTTS voice, 904 speakers from public
 domain audiobooks, CC BY 4.0: credit "LibriTTS, Zen et al. 2019") speaking each line, pushed toward a shout (faster,
-higher, strained and bright) and put in a barricaded room. The game muffles it further through the Holdout's walls.
+higher, strained and bright) and put in a small barricaded room. The game muffles it further through the Holdout's walls.
 Needs the model in out/audio/tts (tools/audio/README.md); a recipe without it fails the build, it never fakes a voice.
 """
 
@@ -23,7 +23,9 @@ SHOUTS = ["Hey!", "Hello?!", "Out here! Hey!"]
 
 # Eight speakers chosen for distinct, adult voices: four low, four high, spread in timbre (speakers.json: median pitch
 # and brightness of each LibriTTS speaker saying a test line). (speaker id, short description)
-SETS = []
+SETS = [(595, "a deep man's voice"), (735, "a man's voice, bright and reedy"), (217, "a man's voice, plain"),
+        (805, "a man's voice, rough"), (301, "a woman's voice, warm"), (588, "a woman's voice, clear"),
+        (119, "a woman's voice, bright"), (630, "a high man's voice")]
 
 _voice = None
 
@@ -46,14 +48,14 @@ def shout(x, rng, lift=2.5):
     y = dsp.peak(y, 2800, 1.2, 5)
     y = dsp.saturate(dsp.compress(y, -20, 4, 0.005, 0.12), 6)
     y = hp(y, 140, 2)
-    return dsp.room(y, "stone", wet=0.18)
+    return dsp.room(y, "car", wet=0.2)
 
 
 def _set_recipe(n, speaker, desc):
     @recipe("voice-prisoner-sets", "call", f"set{n}", f"Prisoner {n}: {desc}, calling for help (synthesised stand-in)",
             f"""LibriTTS speaker {speaker} through Piper (CC BY 4.0), saying 'help', 'in here', 'over here' and two longer
             calls, read fast and pushed toward a shout: pitched up with the formants kept, compressed and driven for strain,
-            a presence lift, in a small stone room. The same person in every take. A stand-in until the voices are
+            a presence lift, in a small barricaded room. The same person in every take. A stand-in until the voices are
             recorded.""", takes=len(CALLS), lufs=-20, gap=0.5)
     def call(rng, k, speaker=speaker):
         return shout(tts(CALLS[k], speaker, rng), rng)
