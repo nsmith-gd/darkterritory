@@ -35,6 +35,7 @@ public sealed partial class GameAudio
         Bank = new SoundBank(Path.Combine(contentRoot, "audio", "sounds"));
         _mix = new HotData<MixDef>(Path.Combine(contentRoot, MixDef.File));
         Mixer = new Mixer(Bank, _mix.Value);
+        PrepareMix(contentRoot);
     }
 
     public SoundBank Bank { get; }
@@ -60,6 +61,7 @@ public sealed partial class GameAudio
             Mixer.Mix = _mix.Value;
         Bank.Refresh();
         Mixer.Listener = listener;
+        MixAround(world, listener);
         var train = world.Train;
         Bed(train, controls, listener, exposed, dt);
         Enemies(world);

@@ -1,5 +1,6 @@
 // Mix buses and ducking (spec A.3). Tiers: 1 enemy telegraphs, 2 proximity voice, 3 critical train
-// state, 4 player actions, 5 train bed, 6 ambient world. "Higher tiers duck everything below."
+// state, 4 player actions, 5 train bed, 6 ambient world; and 7 music, under the ambient world (decided
+// 1 Oct, not in the spec's table). "Higher tiers duck everything below."
 {
   "ducking": [
     // Tier 1 is inviolable: while any telegraph is audible, everything else drops 9 dB.
@@ -9,7 +10,15 @@
     // Not in the spec's table, which only gives tiers 1 and 2 a number: the rest duck what's below
     // them gently, so an alarm reads over the bed without the bed pumping.
     { "tier": 3, "ducks": [4, 5, 6], "db": -3 },
-    { "tier": 4, "ducks": [5, 6], "db": -1.5 }
+    { "tier": 4, "ducks": [5, 6], "db": -1.5 },
+    // Music gives way to everything: furthest under a tell or a voice, a little under the bed and the
+    // world, which are nearly always there. Music itself ducks nothing (no rule for tier 7), voice least of all.
+    { "tier": 1, "ducks": [7], "db": -12 },
+    { "tier": 2, "ducks": [7], "db": -9 },
+    { "tier": 3, "ducks": [7], "db": -6 },
+    { "tier": 4, "ducks": [7], "db": -3 },
+    { "tier": 5, "ducks": [7], "db": -2 },
+    { "tier": 6, "ducks": [7], "db": -2 }
   ],
   // Spec A.4's own band table has the Choir (300 Hz-4 kHz) over the hounds (500 Hz-3 kHz) and the
   // Sleepers (400 Hz-2 kHz). A full swarm is continuous and global, a howl or a writhe is brief and
@@ -18,6 +27,9 @@
   "soundDucking": [
     { "when": ["hound-howl", "sleepers-writhe"], "ducks": ["choir-voice"], "db": -8 }
   ],
+  // Each tier's fader in dB, tier 1 first. The music's takes are levelled to -30 LUFS
+  // (tools/audio/recipes/music.py); its fader keeps it low under the night whatever a new take is levelled to.
+  "tierDb": [0, 0, 0, 0, 0, 0, -6],
   "duckAttack": 0.03,
   "duckRelease": 0.45,
   // Spec A.7: budget 64 concurrent voices.

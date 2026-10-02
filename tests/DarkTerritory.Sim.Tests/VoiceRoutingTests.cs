@@ -68,4 +68,26 @@ public class VoiceRoutingTests
         // The dead still hear the living near them: spectators watch, and say nothing useful to anyone.
         Assert.Equal(VoicePath.Proximity, VoiceRouting.Route(Roof(5, 2), dead, radio: false, Train));
     }
+
+    [Fact]
+    public void ALiveMicIsHeardFromItsHoldoutsDoorByTheLivingNearIt()
+    {
+        // GDD App. D.7: "the player's mic plays from the Holdout on the normal proximity voice layer" (8 m clear, 26 m cutoff),
+        // and they stay audible on the dead channel. The speaker's body is wherever it fell: what counts is the door.
+        var dead = Roof(15) with { Health = 0, Death = DeathCause.Mauled };
+        var rescuer = Roof(5);
+        var door = PlayerMotor.WorldPosition(rescuer, Train) + new Double3(0, 0, 6);
+        Assert.Equal(VoicePath.Proximity | VoicePath.LiveMic, VoiceRouting.Route(dead, rescuer, radio: false, Train, liveMic: door));
+        // Off, they're the dead talking to the dead as ever.
+        Assert.Equal(VoicePath.None, VoiceRouting.Route(dead, rescuer, radio: false, Train));
+        Assert.Equal(VoicePath.Dead, VoiceRouting.Route(dead, Roof(6) with { Health = 0, Death = DeathCause.Choir }, radio: false, Train, liveMic: door));
+        // Past the cutoff (and the host's margin), nobody hears it: only a rescuer at the door does.
+        Assert.Equal(VoicePath.None, VoiceRouting.Route(dead, Roof(12), radio: false, Train, liveMic: door));
+        // From outside, so through the cab's walls to someone in it.
+        var cab = PlayerMotor.SpawnInCab(Train, Tuning.Player);
+        var nearCab = PlayerMotor.WorldPosition(cab, Train) + new Double3(0, 0, 4);
+        Assert.Equal(VoicePath.Proximity | VoicePath.LiveMic | VoicePath.Occluded, VoiceRouting.Route(dead, cab, radio: false, Train, liveMic: nearCab));
+        // The radio doesn't carry it: the dead have none.
+        Assert.Equal(VoicePath.Proximity | VoicePath.LiveMic, VoiceRouting.Route(dead, rescuer, radio: true, Train, liveMic: door));
+    }
 }

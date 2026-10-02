@@ -132,10 +132,56 @@ public sealed record SoundDef(int Tier, LayerDef[] Layers, bool Loop = false, do
 public sealed record MixDef(DuckRule[] Ducking, double DuckAttack, double DuckRelease, int MaxVoices,
     // Spec A.3: tier 1 is never occluded beyond this.
     double TellOcclusionFloorDb, double OcclusionDb, double OcclusionLowpass, double MasterDb,
-    SoundDuckRule[]? SoundDucking = null)
+    SoundDuckRule[]? SoundDucking = null,
+    // Each tier bus's fader in dB, tier 1 first (missing ones are 0): the music's tier sits low whatever its takes' level.
+    double[]? TierDb = null)
 {
     public const string File = "audio/mix.json";
+
+    /// <summary>A tier's fader (0 dB if the file doesn't give one).</summary>
+    public double Fader(int tier) => TierDb is { } db && tier >= 1 && tier <= db.Length ? db[tier - 1] : 0;
 }
+
+/// <summary>
+/// The spaces a listener can be in (<c>content/audio/spaces.json</c>), by name: outside, the cab, a car, a tunnel, a
+/// facility. The game picks one from where the listener is; the mixer gives everything they hear that space's sound.
+/// </summary>
+public sealed record SpacesDef(Dictionary<string, SpaceDef> Spaces)
+{
+    public const string File = "audio/spaces.json";
+}
+
+/// <summary>
+/// How one space sounds to whoever's in it (spec A.6: "convolution with cheap impulse responses", so each space sounds
+/// like itself). Its reverb, fed from every positioned sound by its tier's send; the sounds it shuts out; and how
+/// proximity voice carries in it (GDD §22: in a tunnel, compressed and close).
+/// </summary>
+/// <param name="Sends">How much of each tier goes to the reverb, 0..1, tier 1 first. Flat sounds (UI, music, the radio) stay dry.</param>
+/// <param name="Muted">Sounds this space shuts out, by name or name prefix (<c>"world-night"</c>, <c>"wind"</c>): a tunnel has no outside.</param>
+/// <param name="Voice">A compressor on positioned voice (tier 2, not flat) at the ear, after distance: near and far brought together.</param>
+public sealed record SpaceDef(ReverbDef? Reverb = null, double[]? Sends = null, string[]? Muted = null, CompressorDef? Voice = null)
+{
+    public double Send(int tier) => Sends is { } s && tier >= 1 && tier <= s.Length ? Math.Clamp(s[tier - 1], 0, 1) : 0;
+
+    public bool Mutes(string sound) => Muted is { } m && m.Any(p => sound == p || sound.StartsWith(p + ".", StringComparison.Ordinal) || sound.StartsWith(p + "-", StringComparison.Ordinal));
+}
+
+/// <summary>
+/// A synthetic impulse response (<see cref="ImpulseResponse.Synthesize"/>): discrete early reflections, then a diffuse
+/// tail of noise decaying 60 dB in <see cref="Decay"/> seconds (its highs in Decay × <see cref="HighDecay"/>).
+/// </summary>
+/// <param name="Length">Seconds of response kept (the cost: a partition per 5.3 ms); the last 30% eases out.</param>
+/// <param name="Crossover">Hz between the tail's lows and highs.</param>
+/// <param name="Predelay">Seconds before the diffuse tail starts (the reflections can come sooner).</param>
+/// <param name="Lowcut">Hz: a highpass on the whole response, so the bed's rumble doesn't boom.</param>
+/// <param name="Early">[seconds, gain against the sound itself] for each wall heard on its own.</param>
+/// <param name="WetDb">The tail's level, the tail being at unit energy (as loud as the sound it's of, summed over its length).</param>
+/// <param name="Width">0 the same in both ears, 1 each its own.</param>
+public sealed record ReverbDef(double Decay, double Length, double HighDecay = 0.5, double Crossover = 1500, double Predelay = 0,
+    double Lowcut = 150, double[][]? Early = null, double WetDb = 0, double Width = 1, uint Seed = 1);
+
+/// <summary>A feed-forward compressor, worked out a block at a time on a voice's level at the ear.</summary>
+public sealed record CompressorDef(double ThresholdDb, double Ratio, double AttackSeconds = 0.005, double ReleaseSeconds = 0.15, double MakeupDb = 0);
 
 /// <summary>While any sound on <see cref="Tier"/> is audible, the listed tiers drop by <see cref="Db"/>.</summary>
 public sealed record DuckRule(int Tier, int[] Ducks, double Db);

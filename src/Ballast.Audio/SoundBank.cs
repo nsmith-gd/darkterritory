@@ -38,17 +38,27 @@ public sealed class SoundBank
     }
 
     /// <summary>
-    /// Decodes every take a sound's sample layers could pick now, rather than on its first play. Takes decode at about
-    /// fifty times real time (managed Opus), so a long loop decoded as it starts would stall that frame. A sound edited
-    /// on disk afterwards decodes lazily again.
+    /// Decodes every take a sound's sample layers could pick now, on this thread, rather than on its first play. Takes
+    /// decode at about fifty times real time (managed Opus). A sound edited on disk afterwards decodes lazily again.
     /// </summary>
     public void Preload(string name)
     {
-        foreach (var layer in Get(name)?.Layers ?? [])
-            if (layer.Source == SourceKind.Sample)
-                foreach (var take in Samples.Takes(layer.Sample))
-                    Samples.Clip(take);
+        foreach (var take in TakesOf(name))
+            Samples.Clip(take);
     }
+
+    /// <summary>
+    /// Starts every take a sound could pick decoding on a worker, now, without waiting: a loop the game knows it will want
+    /// (the music, from the start of the night) is ready by the time it's played, and nothing stalls meanwhile.
+    /// </summary>
+    public void Prefetch(string name)
+    {
+        foreach (var take in TakesOf(name))
+            Samples.Prefetch(take);
+    }
+
+    IEnumerable<string> TakesOf(string name) =>
+        (Get(name)?.Layers ?? []).Where(l => l.Source == SourceKind.Sample).SelectMany(l => Samples.Takes(l.Sample));
 
     /// <summary>Loads new and changed files. A malformed edit keeps the previous definition.</summary>
     public bool Refresh()
