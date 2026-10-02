@@ -53,6 +53,14 @@ public interface IPlaySession
         : World.Run?.Report?.Lines.LastOrDefault(l => l.Kind == Sim.Run.IncidentKind.Derailed)?.Text;
     /// <summary>GDD v1.4 App. E.9: the Stranded outro is playing (the run's end screen waits for it).</summary>
     bool StrandedOutro => false;
+    /// <summary>
+    /// The fortress on the radio (GDD §9; note 178): the dispatcher's manifest as the train leaves the yard, or the clerk's
+    /// tally at the terminus; null when nobody's on the air. <see cref="RadioSeconds"/> is how far into it.
+    /// </summary>
+    IReadOnlyList<string>? RadioReading => null;
+    double RadioSeconds => 0;
+    /// <summary>The clerk's still reading the tally: the run's end screen waits for it.</summary>
+    bool ClerkTally => false;
     double OutroSeconds => 0;
     Sim.Route.Route? Route { get; }
     PlayerState Player { get; }

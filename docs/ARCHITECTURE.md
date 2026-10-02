@@ -2692,3 +2692,16 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - Radio static under the clerk.
       - E.5's per-player peak bookmark, which is WP8's (note 176) to take from `WreckFilm.Peaks`.
     - `dt screenshot --film s [--crew n --speed v --route r]` renders a frame of the cut, cards and all, as the app plays it, from a hosted night with bots, and prints the shot list. Tests: `FilmTests` (the start, determinism over the wire, everyone's shot in order inside the caps, the slow tip-over, the majority and host skips), `FilmPlaybackTests` (frames, bodies, cutaway, lights) and `WreckSessionTests` (the film beat and the host's skip landing on the cause card).
+178. **The fortress on the radio: the dispatcher's manifest and the clerk's tally (GDD §9; WP9).** §9: at the gate "the yard dispatcher reads the crew out over the radio by name, as a manifest, with the same tone used for the coal". At the terminus "a yard clerk tallies the run over the radio as the cars come through: cargo by the car, bodies by the body, each fee read out flat".
+    - **The words** (`Sim.Run.Radio`):
+      - The manifest is "Yard to consist. Manifest follows.", then "Crew: Dave." for each player aboard, then the coal, the powder and shot, the cars, and "Gates open. Yard out.".
+      - The tally is the cars delivered and the cargo's worth, then cars lost, then each death as "Sam. Body recovered. Fee 350. Refund 263." or "Ana. Body not recovered. Fee 350.", then the mail, salvage, costs, and "Net: 1158. Next.".
+      - Both come from the night's own numbers (the report D.12 already sends), so nothing new goes on the wire.
+      - **Reading:** "cargo by the car" is one line for the cars delivered and their worth. The report doesn't itemise cars, and §9's point is the flatness, which the deaths read in the same voice carry.
+    - **When:**
+      - Each client reads the manifest as its mirrored run first leaves the yard, naming the crew aboard then.
+      - It reads the tally once a delivered night's report is in. The end screen waits for the tally (`ClerkTally`), as it waits for E.9's outro.
+      - A line goes out every `run.json radio.lineSeconds` (1.6 s), typed out as it's read, with the last four on a card at the top of the screen ("RADIO: THE YARD").
+    - **The voice:** there's no speech in the stack, so `radio-clerk` is a man's voice reading flat through a cheap set. It's a low buzz through a spoken vowel's formants, broken into syllables at an even, bored pace, over static, band-limited and crushed like `voice-radio`. It's tier 2, like any voice on the set, so the bed ducks under it.
+    - **Not yet:** E.9's clerk line over the Stranded pull-back stays as it was (a caption). The dispatcher doesn't wait for the train to be underway past the towers; it reads as the run leaves the yard.
+    - `dt screenshot --hud --radio manifest|tally [--radio-at s]` renders the card. Tests: `RadioReadingTests` (the words and the timing) and `RadioCardTests` (the tally holds the end screen, then gives way).

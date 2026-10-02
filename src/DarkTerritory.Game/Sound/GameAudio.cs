@@ -117,7 +117,19 @@ public sealed class GameAudio
         }
     }
 
-    SoundInstance? _whistle;
+    SoundInstance? _whistle, _radioVoice;
+
+    /// <summary>The fortress reading over the radio (GDD §9; note 178): its voice and static for as long as it's on the air.</summary>
+    public void Radio(bool onAir)
+    {
+        if (!onAir)
+        {
+            _radioVoice?.Stop();
+            _radioVoice = null;
+            return;
+        }
+        _radioVoice ??= Mixer.Play("radio-clerk");
+    }
 
     /// <summary>The train's whistle, from the engine's dome, for as long as it blows (the cord, or the Whistler at it).</summary>
     void Whistle(World world, TrainOnLine train)

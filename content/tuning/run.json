@@ -12,6 +12,9 @@
   // (2.5 m/s), so the crawl to the gate was minutes of nothing; now the run begins as the train moves off. Short of the
   // gate, not on it, so everyone joining boards at the fortress (GDD App. D.3) until it does.
   "departShortOfGateM": 8,
+  // GDD §9 (note 178): the yard dispatcher's manifest at the gate and the clerk's tally at the terminus, a line every
+  // lineSeconds over the radio.
+  "radio": { "lineSeconds": 1.6 },
 
   // GDD v1.4 §23.2, Stranded: a ruptured boiler with the engineering kit lost ends the night once the train is at rest.
   "stranded": {

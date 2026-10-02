@@ -56,6 +56,9 @@ public static class Hud
         }
         if (s.StrandedOutro)
             Skip(o, width, height, s);
+        // GDD §9: the fortress on the radio (the manifest leaving, the tally home) has the top of the screen while it reads.
+        if (s.RadioReading is { } reading)
+            RadioCard(o, width, height, reading, s.RadioSeconds, s.World.Run?.Tuning.Radio ?? new());
         Engine(o, s, line);
         RouteStrip(o, width, s, line);
         if (s.Link is { } link)
@@ -449,6 +452,9 @@ public static class Hud
                 Small($"CONSIST REPORTED STRANDED AT KM {world.Run?.Report?.DistanceKm ?? 0:0}. RECOVERY AT FIRST LIGHT. RECOVERY IS CHARGEABLE.", Dim);
             return;
         }
+        // GDD §9: the clerk tallies first; the end screen after.
+        if (s.ClerkTally)
+            return;
         if (world.Run?.Report is { } r)
         {
             if (r.End == RunEnd.Delivered)
@@ -685,6 +691,33 @@ public static class Hud
                 o.Text(width * 0.15f, y, l, Ink, scale);
                 y += lh;
             }
+        }
+    }
+
+    /// <summary>
+    /// The fortress on the radio (GDD §9; note 178): the dispatcher's manifest or the clerk's tally, a line at a time, typed
+    /// out as it's read, flat, the last few on the card.
+    /// </summary>
+    public static void RadioCard(Overlay o, int width, int height, IReadOnlyList<string> lines, double seconds, RadioTuning t)
+    {
+        var (shown, typed) = Sim.Run.Radio.Reading(lines, seconds, t);
+        if (shown == 0)
+            return;
+        int scale = Math.Max(1, height / 360);
+        float lh = (o.Font.Height + 4) * scale, w = width * 0.56f;
+        int keep = Math.Min(shown, 4);
+        float x = (width - w) / 2, y = 34 * scale, h = lh * (keep + 1) + 8 * scale;
+        UiStyle.Plate(o, x, y, w, h, UiStyle.Brass, 0.9f);
+        o.Text(x + 6 * scale, y + 4 * scale, "RADIO: THE YARD", Dim, scale);
+        float ly = y + 4 * scale + lh;
+        int chars = Math.Max(12, (int)((w - 12 * scale) / o.Font.Measure("M", scale)));
+        for (int i = shown - keep; i < shown; i++)
+        {
+            string line = lines[i].ToUpperInvariant();
+            if (i == shown - 1)
+                line = line[..(int)Math.Round(line.Length * typed)];
+            o.Text(x + 6 * scale, ly, line.Length > chars ? line[..chars] : line, i == shown - 1 ? Ink : Dim, scale);
+            ly += lh;
         }
     }
 

@@ -784,6 +784,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // faded under the film's cause card.
         sound.Music(session.World.DerailMusic, wrecking ? session.WreckSeconds : -1, wreckTuning,
             film is null ? -1 : wreckTuning.FirstPersonSeconds + wreckTuning.ReplaySeconds + film.CauseAt);
+        // GDD §9: the dispatcher's manifest leaving the yard and the clerk's tally home, on the radio.
+        sound.Radio(session.RadioReading is not null);
         derailSequence.Record((session.Tick + clock.Alpha) * DarkTerritory.Sim.SimConstants.TickSeconds, frames, scene.Crew, session.World.Derailed, camera,
             session.Player.Parent >= 0 ? session.Player.Parent : -1, wreckTuning);
         var replay = beat == DerailBeat.Replay ? derailSequence.ReplayAt(session.WreckSeconds, wreckTuning) : null;

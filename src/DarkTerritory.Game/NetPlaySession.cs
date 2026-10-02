@@ -225,6 +225,45 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             && DerailSequence.FilmSeconds(World.WreckTuning, WreckSeconds) < film.CauseAt
         || StrandedOutro && OutroSeconds >= World.WreckTuning.Stranded.SkipAfterSeconds;
     public double OutroSeconds { get; private set; }
+
+    List<string>? _manifest, _tally;
+    double _manifestSeconds = -1, _tallySeconds = -1;
+
+    public IReadOnlyList<string>? RadioReading =>
+        _tally is not null && _tallySeconds >= 0 ? _tally
+        : _manifest is not null && _manifestSeconds >= 0 && _manifestSeconds < Sim.Run.Radio.Length(_manifest, RadioTuning) ? _manifest
+        : null;
+
+    public double RadioSeconds => _tally is not null && _tallySeconds >= 0 ? _tallySeconds : _manifestSeconds;
+
+    public bool ClerkTally => _tally is not null && _tallySeconds < Sim.Run.Radio.Length(_tally, RadioTuning);
+
+    Sim.Run.RadioTuning RadioTuning => World.Run?.Tuning.Radio ?? new();
+
+    /// <summary>
+    /// GDD §9: the dispatcher reads the manifest as the train first leaves the yard (the crew aboard then, by name); the clerk
+    /// reads the tally once a delivered night's report is in. Each client times its own reading.
+    /// </summary>
+    void StepRadio()
+    {
+        if (World.Run is not { } run)
+            return;
+        if (_manifest is null && run.Phase != Sim.Run.RunPhase.Yard && !run.Over)
+        {
+            var crew = Client.RemoteIds.Select(id => (int)id).Append(PlayerId).Distinct().Order();
+            _manifest = Sim.Run.Radio.Manifest(World, crew);
+            _manifestSeconds = 0;
+        }
+        else if (_manifestSeconds >= 0)
+            _manifestSeconds += SimConstants.TickSeconds;
+        if (_tally is null && run.Report is { End: Sim.Run.RunEnd.Delivered } report)
+        {
+            _tally = Sim.Run.Radio.Tally(report);
+            _tallySeconds = 0;
+        }
+        else if (_tallySeconds >= 0)
+            _tallySeconds += SimConstants.TickSeconds;
+    }
     public bool StrandedOutro => World.Run?.End == Sim.Run.RunEnd.Stranded && OutroSeconds < World.WreckTuning.Stranded.Seconds;
     public World World => Client.World;
     public PlayerState Player => Client.Predicted;
@@ -529,6 +568,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         Client.Step(Spectate(intent));
         WreckSeconds = Train.Wreck is null ? 0 : WreckSeconds + SimConstants.TickSeconds;
         OutroSeconds = World.Run?.End == Sim.Run.RunEnd.Stranded ? OutroSeconds + SimConstants.TickSeconds : 0;
+        StepRadio();
         if (World.Film is { } start && _shooting is null)
         {
             var world = World;

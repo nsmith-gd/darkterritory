@@ -1416,6 +1416,15 @@ static object HudShot(string content, string[] args)
         ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
             ("Okafor", UiStyle.Commendation.HeldTheSwitch, "Priya"), ("Dunmore", UiStyle.Commendation.LastOneStanding, "Dave")]
         : null);
+    // --radio manifest|tally [s]: the fortress on the radio (GDD §9; note 178), staged from this night and a delivered report,
+    // --radio-at s into the reading.
+    if (Str(args, "--radio", "") is { Length: > 0 } reading)
+    {
+        var lines = reading == "tally"
+            ? DarkTerritory.Sim.Run.Radio.Tally(Staging.Report(session.World, DarkTerritory.Sim.Run.RunEnd.Delivered))
+            : DarkTerritory.Sim.Run.Radio.Manifest(session.World, [0, 1, 2, 3]);
+        Hud.RadioCard(hud, width, height, lines, Opt(args, "--radio-at", 6), session.World.Run?.Tuning.Radio ?? new());
+    }
     // --roster: the crew roster (T69) as Q shows it, with a staged crew: two heard, one not yet, and a Passenger among them.
     if (args.Contains("--roster"))
     {
