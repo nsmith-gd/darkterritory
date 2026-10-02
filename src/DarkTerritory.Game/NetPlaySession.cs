@@ -195,6 +195,11 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <summary>Seconds since this client first saw the train come off (T117), host or not: the wreck's own clock is the host's.</summary>
     public double WreckSeconds { get; private set; }
     /// <summary>The derailment's cinematic: the camera off the eye and on the wreck, the run's end held back till it's over.</summary>
+    /// <summary>What derailed it (T121): hosting, the host's world says; joined, the incident report's line.</summary>
+    public string? DerailCause => Host?.World.DerailCause is { Length: > 0 } c ? c
+        : World.DerailCause is { Length: > 0 } mine ? mine
+        : World.Run?.Report?.Lines.LastOrDefault(l => l.Kind == Sim.Run.IncidentKind.Derailed)?.Text;
+
     public bool WreckCinematic => Train.Wreck is not null && WreckSeconds < World.WreckTuning.SequenceSeconds;
     public double OutroSeconds { get; private set; }
     public bool StrandedOutro => World.Run?.End == Sim.Run.RunEnd.Stranded && OutroSeconds < World.WreckTuning.Stranded.Seconds;

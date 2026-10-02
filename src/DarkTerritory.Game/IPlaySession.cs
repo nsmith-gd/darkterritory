@@ -40,6 +40,9 @@ public interface IPlaySession
     bool WreckCinematic => false;
     /// <summary>Seconds since the train came off, as this client saw it.</summary>
     double WreckSeconds => 0;
+    /// <summary>What derailed it, in the boards' km/h (T121): the host's own, or the incident report's line on a client.</summary>
+    string? DerailCause => World.DerailCause is { Length: > 0 } c ? c
+        : World.Run?.Report?.Lines.LastOrDefault(l => l.Kind == Sim.Run.IncidentKind.Derailed)?.Text;
     /// <summary>GDD v1.4 App. E.9: the Stranded outro is playing (the run's end screen waits for it).</summary>
     bool StrandedOutro => false;
     double OutroSeconds => 0;

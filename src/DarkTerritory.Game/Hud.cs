@@ -41,6 +41,13 @@ public static class Hud
         o.Clear();
         int line = o.Font.LineHeight;
         var p = s.Player;
+        // The derailment's sequence (T117, T121) has the screen: first-hand, the replay with its cause, the orbit. Nothing
+        // but the replay's caption over it.
+        if (s.WreckCinematic)
+        {
+            Alerts(o, width, height, s, line);
+            return;
+        }
         Engine(o, s, line);
         RouteStrip(o, width, s, line);
         if (s.Link is { } link)
@@ -402,7 +409,9 @@ public static class Hud
             if (DerailSequence.Beat(world.WreckTuning, s.WreckSeconds) == DerailBeat.Replay)
             {
                 Big("REPLAY", Ink);
-                if (world.DerailCause is { Length: > 0 } why)
+                // The host has the cause; a client has it from the incident report (sent as the run ends, on the derail tick).
+                string? why = s.DerailCause;
+                if (why is { Length: > 0 })
                     Small(why.ToUpperInvariant(), Amber);
             }
             return;
