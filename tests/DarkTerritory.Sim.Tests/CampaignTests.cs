@@ -84,7 +84,9 @@ public class CampaignTests
         Assert.Equal((int)(Tuning.Combat.Guns.Ammo * 1.5), up.Combat.Guns.Ammo);
         Assert.Equal(Tuning.Enemies.Sleepers.LampRevealDistance * 1.25, up.Enemies!.Sleepers.LampRevealDistance, 6);
         // Not modelled yet: bought, saved, and no effect.
-        Assert.Equal(base_, Campaign.Campaign.Apply(C, ["roofHandrails"], base_));
+        Assert.Equal(base_, Campaign.Campaign.Apply(C, ["lampArmour"], base_));
+        // The consist's (note 184): fitted to the train, the numbers they bring in train.json composition.
+        Assert.True(up.Train.Composition.Handrails);
     }
 
     [Fact]

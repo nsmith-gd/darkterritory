@@ -717,6 +717,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
         : null;
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
+    // --upgrades id[,id]: the train as the campaign's upgrades make it (note 184: crewCar, secondGuardCar, armouredCar,
+    // roofHandrails...).
+    if (Str(args, "--upgrades", "") is { Length: > 0 } upgrades)
+        t = DarkTerritory.Sim.Campaign.Campaign.Apply(DataFile.Load<DarkTerritory.Sim.Campaign.CampaignTuning>(Path.Combine(content, DarkTerritory.Sim.Campaign.CampaignTuning.File)),
+            upgrades.Split(','), new DarkTerritory.Sim.Campaign.Loadout(t, DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)),
+                DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)), null)).Train;
     var consist = Consist.Uniform(t, cars, 1);
     DarkTerritory.Sim.Run.Run? run = null;
     double at = Opt(args, "--at", 1200);

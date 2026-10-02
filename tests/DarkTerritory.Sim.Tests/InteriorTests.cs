@@ -101,7 +101,7 @@ public class InteriorTests
         var g = T.Geometry;
         double h = g.Doorway.Height;
         Assert.True(h >= P.Height + 0.2, "a crewmate walks through upright");
-        foreach (var kind in new[] { VehicleKind.Cargo, VehicleKind.Guard })
+        foreach (var kind in new[] { VehicleKind.Cargo, VehicleKind.Guard, VehicleKind.Utility })
             foreach (bool behind in new[] { true, false })
             {
                 var shape = CarShape.Build(g, kind, behind);
