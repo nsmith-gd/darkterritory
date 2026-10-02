@@ -70,6 +70,8 @@ public sealed record DawnTuning
     public Vector3 SunColour { get; init; } = new(0.95f, 0.68f, 0.52f);
     public float SunStrength { get; init; } = 0.9f;
     public float Ambient { get; init; } = 0.3f;
+    /// <summary>The glow low on the sky on the sun's side as it comes up (the sky shader's dawn band).</summary>
+    public Vector3 HorizonGlow { get; init; } = new(0.28f, 0.16f, 0.11f);
 }
 
 /// <summary>
@@ -322,6 +324,8 @@ public sealed class Look
         light.MoonColour = Vector3.Lerp(light.MoonColour, d.SunColour, t);
         light.MoonStrength = float.Lerp(light.MoonStrength, d.SunStrength, t);
         light.Ambient = float.Lerp(light.Ambient, d.Ambient, t);
+        light.Dawn = t;
+        light.DawnGlow = d.HorizonGlow;
         return light;
     }
 
