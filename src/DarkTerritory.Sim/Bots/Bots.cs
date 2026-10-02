@@ -1347,7 +1347,7 @@ public static class KitRun
         }
         if (kit!.Parent == self.Parent && kit.Stowed && kit.Locker < train.Frames[kit.Parent].Shape.Lockers.Count)
         {
-            // In its locker (note 170): in front of it, facing its door; Use held till it's open, then tapped (a press, let
+            // In its locker (note 172): in front of it, facing its door; Use held till it's open, then tapped (a press, let
             // go the next tick) to take the kit off its shelf.
             var bay = train.Frames[kit.Parent].Shape.Lockers[kit.Locker];
             var front = bay.Front;

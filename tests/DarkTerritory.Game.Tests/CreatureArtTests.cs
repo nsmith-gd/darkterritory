@@ -36,6 +36,11 @@ public class CreatureArtTests
         ["switchman"] = new(2000, 9000, 20, 60, ["wait", "flee", "grip"], ["throw"]),
         ["hollow"] = new(1500, 5000, 20, 60, ["idle"], ["reach"]),
         ["soot_child"] = new(3000, 9000, 20, 60, ["huddle", "call", "drink"], ["pin"]),
+        // The freed survivors (App. D.8): the crew figure redressed, on its rig, with the crew's actions merged on load.
+        ["survivor_prisoner"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle", "carry", "lever"], ["dead"]),
+        ["survivor_wildlander"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle", "carry", "lever"], ["dead"]),
+        // Livestock (GDD §19): a prop's budget, packed a dozen to a car; its own small quadruped rig.
+        ["sheep"] = new(600, 3000, 12, 30, ["idle", "shuffle", "bleat"], ["startle"]),
         // SK_Quad: 40-55 bones.
         ["cinder_hound"] = new(4000, 8000, 40, 55, ["prowl", "run", "crouch", "bite"], ["lunge", "hit"]),
         // A chain of 8-12, plus a root.
@@ -234,10 +239,24 @@ public class CreatureArtTests
                 Assert.True(Art.Crewmate(mesh, Matrix4x4.Identity, pose, 3.3, variant));
                 Assert.InRange(mesh.Flattened().Length / 3, 2000, 9000);
             }
-        // Six sleepers from one call, and one child (GDD v1.1 A.6: a single voice calling).
-        mesh.Clear();
-        Art.Enemy(mesh, Matrix4x4.Identity, EnemyKind.Sleepers, SpinePhase.Dormant, 0, 0);
-        Assert.Equal(6 * Get("sleeper").Triangles(), mesh.Flattened().Length / 3);
+        // Track debris (GDD v1.1 §22, Art/DebrisKit): one heap across the line, which kind by the hazard's id, the same in
+        // every phase (it's inert: the v1.0 Sleepers' writhe is gone).
+        var debris = new HashSet<int>();
+        for (int id = 0; id < DebrisKit.Kinds; id++)
+        {
+            int Tris(SpinePhase phase)
+            {
+                mesh.Clear();
+                Art.Enemy(mesh, Matrix4x4.Identity, EnemyKind.Sleepers, phase, 0, 0, extra2: id);
+                // (The fallen pine is the root plate and WorldKit's spruce laid down: two pieces.)
+                Assert.Equal(id == 0 ? 2 : 1, mesh.Instances.Count);
+                return mesh.Flattened().Length / 3;
+            }
+            Assert.Equal(Tris(SpinePhase.Dormant), Tris(SpinePhase.Telegraph));
+            debris.Add(Tris(SpinePhase.Dormant));
+        }
+        Assert.Equal(DebrisKit.Kinds, debris.Count);
+        // And one child (GDD v1.1 A.6: a single voice calling).
         mesh.Clear();
         Art.Enemy(mesh, Matrix4x4.Identity, EnemyKind.SootChildren, SpinePhase.Dormant, 0, 0);
         // (One of its two variants, the real child or the Soot Child: most of the model, not its other eyes and hands.)
@@ -441,6 +460,7 @@ public class CreatureArtTests
         "clinger" => (new Vector3(0, 1.3f, 0), 1.7f),
         "sleeper" => (Vector3.Zero, 3.0f),
         "soot_child" => (Vector3.Zero, 0.9f),
+        "sheep" => (Vector3.Zero, 0.9f),
         "cinder_hound" => (Vector3.Zero, 1.2f),
         "hollow" => (Vector3.Zero, 2.2f),
         "dragger" => (new Vector3(0.2f, 0.1f, 0), 1.4f),

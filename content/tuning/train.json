@@ -162,7 +162,7 @@
     // Spare kits bought at the fortress (GDD App. E.12 question 4, answered: campaign.json spareKit). Always 0 here: the
     // campaign adds what the save has (SessionSetup.SpareKits), and each starts the night in a locker beside the first.
     "spareKits": 0,
-    // The crew lockers (GDD §12, ARCHITECTURE §8 note 170): a row of tall iron lockers along the left wall of the kit's car,
+    // The crew lockers (GDD §12, ARCHITECTURE §8 note 172): a row of tall iron lockers along the left wall of the kit's car,
     // ahead of its side door, each lettered with a crew grade in the railway's own words. Hold Use at one to open or shut
     // its door; a tap of Use puts what's in your hands on its first free shelf, or takes the top thing off its shelves.
     // What's inside is held by the locker, not lying in the car: it can't fall, slide, or go through a wall.

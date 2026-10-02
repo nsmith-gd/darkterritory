@@ -215,7 +215,7 @@ public sealed class World
 
     /// <summary>
     /// The repair kit (GDD §12) in its car (train.json kit.repairKitCar), where the crew learn to look for it: the first car
-    /// back from the engine, a walk from the footplate, in the fitter's locker (note 170); and the spares the fortress sold
+    /// back from the engine, a walk from the footplate, in the fitter's locker (note 172); and the spares the fortress sold
     /// the crew (GDD v1.4 App. E.12 question 4) beside it, then in the lockers after it. A car without lockers has its kits
     /// on the floor inside its front door, as it always did.
     /// </summary>
@@ -269,10 +269,10 @@ public sealed class World
         return at;
     }
 
-    /// <summary>The repair kit's locker in a car's shape (note 170): the one train.json names (the fitter's); null without lockers.</summary>
+    /// <summary>The repair kit's locker in a car's shape (note 172): the one train.json names (the fitter's); null without lockers.</summary>
     public static LockerBay? KitLocker(CarShape shape) => shape.KitLocker >= 0 && shape.KitLocker < shape.Lockers.Count ? shape.Lockers[shape.KitLocker] : null;
 
-    /// <summary>The repair kit's locker (note 170): its car and its place in the row; null on a train without lockers.</summary>
+    /// <summary>The repair kit's locker (note 172): its car and its place in the row; null on a train without lockers.</summary>
     public static (int Car, LockerBay Bay)? KitLocker(TrainOnLine train) =>
         RepairKitCar(train) is { } car && KitLocker(train.Frames[car].Shape) is { } bay ? (car, bay) : null;
 
@@ -300,7 +300,7 @@ public sealed class World
         foreach (var s in shape.Solids)
             if (s.Part == PartKind.Locker && at.X >= s.Box.Min.X - 0.2 && at.X <= s.Box.Max.X + 0.2 && at.Z >= s.Box.Min.Z - 0.3 && at.Z <= s.Box.Max.Z + 0.3)
                 at = at with { Z = s.Box.Max.Z + 0.4 };
-        // The crew lockers' row (note 170) runs back from just behind the front end wall: the board goes in the gap ahead of it.
+        // The crew lockers' row (note 172) runs back from just behind the front end wall: the board goes in the gap ahead of it.
         if (shape.Lockers.Count > 0 && shape.Lockers[0].Box.Min.X <= at.X + 0.2)
             at = at with { Z = (room.Min.Z + shape.Lockers[0].Box.Min.Z) / 2 };
         return at;

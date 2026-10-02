@@ -67,7 +67,7 @@ public static class CrewActions
                 if (before < doorSeconds && s.ActionProgress >= doorSeconds)
                     train.Vehicles[near.Value.Vehicle].ToggleDoor(near.Value.Thing.Index);
                 break;
-            // A crew locker's door (note 170): held, opened or shut, like a car's door. (A tap's the hands', in Bodies.Handle.)
+            // A crew locker's door (note 172): held, opened or shut, like a car's door. (A tap's the hands', in Bodies.Handle.)
             case InteractableKind.Locker:
                 double lockerSeconds = Lockers.DoorSeconds(train);
                 s.ActionProgress += dt;

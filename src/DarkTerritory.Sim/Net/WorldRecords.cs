@@ -33,7 +33,7 @@ public static class WorldRecords
     /// <summary>
     /// A body record's fields before its particles: kind, parent, carrier, owner, asleep, yaw, count, second carrier,
     /// what it shows (an extinguisher's charge to the percent, its sight glass, App. C.5; a crate's cargo, GDD §19), and the
-    /// crew locker and shelf it's on (note 170: locker × 256 + shelf, or −1).
+    /// crew locker and shelf it's on (note 172: locker × 256 + shelf, or −1).
     /// </summary>
     const int BodyParticles = 10;
     // The Run record's header (phase, end, clock, facility, chute, scavenged), and room in a crane record's id for each of a site's cranes.
@@ -72,7 +72,7 @@ public static class WorldRecords
                     Q(v.Eaten, Fine),
                     // How the seated gunner has it laid (T112).
                     Q(v.Gun.Traverse, Fine), Q(v.Gun.Elevation, Fine),
-                    // Its crew lockers' doors (note 170).
+                    // Its crew lockers' doors (note 172).
                     v.LockersOpen]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
             [Q(world.Choir.Loudness, Fine), Q(world.Choir.Build, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0, Q(world.LampOutSeconds, Fine), Q(train.Sand, Fine),

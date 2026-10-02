@@ -35,6 +35,25 @@ public sealed record AtmosphereTuning
     public float? LampIntensity { get; init; }
     /// <summary>What the night goes over to as the dawn comes up (the run's dawn clock, GDD §21).</summary>
     public DawnTuning? Dawn { get; init; }
+    /// <summary>What the night's cold does to how things look: frost, and breath.</summary>
+    public ColdTuning Cold { get; init; } = new();
+}
+
+/// <summary>
+/// The cold (GDD §26: "frost on windows and metal, breath vapour"): read off the route's weather cold (0..1), so a deep
+/// tier's night is rimed and every mouth smokes, a local one's isn't.
+/// </summary>
+public sealed record ColdTuning
+{
+    public float FrostFrom { get; init; } = 0.35f;
+    public float FrostFull { get; init; } = 0.85f;
+    public float BreathFrom { get; init; } = 0.15f;
+
+    /// <summary>How heavy the frost is at <paramref name="cold"/>, 0..1.</summary>
+    public float Frost(double cold) => Math.Clamp(((float)cold - FrostFrom) / Math.Max(1e-3f, FrostFull - FrostFrom), 0, 1);
+
+    /// <summary>How much a breath shows at <paramref name="cold"/>, 0..1 (all of it by the frost's full).</summary>
+    public float Breath(double cold) => Math.Clamp(((float)cold - BreathFrom) / Math.Max(1e-3f, FrostFull - BreathFrom), 0, 1);
 }
 
 /// <summary>

@@ -64,6 +64,79 @@ public static class DamageKit
         return k.Build($"damage-{state}");
     }
 
+    /// <summary>
+    /// The engine's damage (the row the cars' kit left out: "damage geometry and steam leaks on the engine itself"): its
+    /// plate is the cab's side sheets and the tender's, so that's where it's torn: gouges and a flap at
+    /// <paramref name="state"/> 1, holed through at 2 (the boiler's leaks are <see cref="Effects.SteamLeaks"/>'s). The
+    /// same marks under the worse state's, as the cars'.
+    /// </summary>
+    public static MeshAsset Engine(Look? look, CarShape shape, int state, int seed)
+    {
+        var k = new Kit(look, 980 + seed);
+        // The side sheets: the cab's walls and the tender's sides, each box's outer face on whichever side it's on.
+        var plates = shape.Solids
+            .Where(x => x.Part is PartKind.CabWall or PartKind.Tender && x.Box.Max.Y - x.Box.Min.Y > 1)
+            .Select(x => x.Box)
+            .Where(b => b.Max.Z - b.Min.Z > 1.2)
+            .ToArray();
+        if (plates.Length == 0)
+            return k.Build("engine-damage-none");
+        for (int s = 1; s <= Math.Min(state, 2); s++)
+        {
+            var rng = new Random(5200 + seed * 31 + s * 7);
+            (float W, (int Side, float Z, float Y) At) Spot(float half)
+            {
+                var b = plates[rng.Next(plates.Length)];
+                int side = b.Max.X > 0.3 && b.Min.X < -0.3 ? rng.Next(2) * 2 - 1 : b.Centre.X >= 0 ? 1 : -1;
+                float w = (float)(side > 0 ? b.Max.X : -b.Min.X);
+                float z = Lerp((float)b.Min.Z + half + 0.2f, (float)b.Max.Z - half - 0.2f, (float)rng.NextDouble());
+                float y = Lerp((float)b.Min.Y + half + 0.3f, (float)b.Max.Y - half - 0.25f, (float)rng.NextDouble());
+                return (w, (side, z, y));
+            }
+            if (s == 1)
+            {
+                for (int i = 0; i < 2; i++)
+                {
+                    var (w, at) = Spot(0.4f);
+                    Gouge(k, w, at, rng);
+                }
+                var (fw, fat) = Spot(0.3f);
+                Flap(k, fw, fat, rng);
+            }
+            else
+            {
+                var (bw, bat) = Spot(0.5f);
+                Breach(k, bw, bat, rng, 0.4f);
+                for (int i = 0; i < 2; i++)
+                {
+                    var (w, at) = Spot(0.3f);
+                    Flap(k, w, at, rng);
+                }
+            }
+        }
+        return k.Build($"engine-damage-{state}");
+    }
+
+    /// <summary>
+    /// Where a damaged boiler leaks (in the engine's frame), and which way the steam comes out: seams along its upper
+    /// flanks, one at <paramref name="state"/> 1, three at 2, chosen by the engine's seed.
+    /// </summary>
+    public static IEnumerable<(Vector3 At, Vector3 Out)> Leaks(CarShape shape, int state, int seed)
+    {
+        var boilers = shape.Solids.Where(x => x.Part == PartKind.Boiler).ToArray();
+        if (state <= 0 || boilers.Length == 0)
+            yield break;
+        var b = boilers[0].Box;
+        var rng = new Random(6100 + seed * 13);
+        for (int i = 0; i < (state >= 2 ? 3 : 1); i++)
+        {
+            int side = rng.Next(2) * 2 - 1;
+            float z = Lerp((float)b.Min.Z + 0.6f, (float)b.Max.Z - 0.6f, (float)rng.NextDouble());
+            float x = (float)(side > 0 ? b.Max.X : b.Min.X) * 0.82f, y = (float)(b.Max.Y - (b.Max.Y - b.Min.Y) * 0.2);
+            yield return (new Vector3(x, y, z), Vector3.Normalize(new Vector3(side, 0.55f, 0)));
+        }
+    }
+
     static float Lerp(float a, float b, float t) => a + (b - a) * t;
 
     /// <summary>Three parallel slashes raked down the plate (a cinder hound going up the side): black, with bright torn lips.</summary>

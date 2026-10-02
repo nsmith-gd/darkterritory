@@ -5,7 +5,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Art;
 
 /// <summary>
-/// The crew lockers (ARCHITECTURE §8 note 170): a row of tall iron lockers along the kit car's left wall, painted the guard
+/// The crew lockers (ARCHITECTURE §8 note 172): a row of tall iron lockers along the kit car's left wall, painted the guard
 /// van's olive, each with its grade on an enamel plate on its door in the HUD's own pixel font (as the lineside boards
 /// have theirs, <see cref="SignKit"/>). The row's cabinets are one piece in the car's frame, open-fronted, with their shelves;
 /// each door is its own piece, hung on its hinge at the cabinet's front edge, shut across it or swung out into the aisle.
