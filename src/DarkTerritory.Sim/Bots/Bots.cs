@@ -1275,8 +1275,8 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 /// <param name="goInAt">How far into the onset to go in (0.6: at 120 s of the 200).</param>
 /// <summary>
 /// The repair kit fetched to the firebox (T109, GDD §12), by a bot in the cab: out of the cab's back on the left, down the
-/// tender's gangway, onto the footplate and the coupler plate, through car 1's front door to the kit (World.RepairKitStowage),
-/// and the same way back. Worked out afresh each tick from where it stands and whether it has the kit, so it never waits
+/// tender's gangway, onto the footplate and the coupler plate, through car 1's front door to the kit (in its locker, note
+/// 151: opened, and the kit taken off its shelf), and the same way back. Worked out afresh each tick from where it stands and whether it has the kit, so it never waits
 /// on a step it's no longer at. Only the kit in the engine or the first car is fetched: further back, it's a crewmate's to
 /// bring.
 /// </summary>
@@ -1330,7 +1330,20 @@ public static class KitRun
                     return WarmUp.Steer(self, route[i], 0).Step;
             return WarmUp.Steer(self, firing, 0).Step;
         }
-        if (kit!.Parent == self.Parent)
+        if (kit!.Parent == self.Parent && kit.Stowed && kit.Locker < train.Frames[kit.Parent].Shape.Lockers.Count)
+        {
+            // In its locker (note 166): in front of it, facing its door; Use held till it's open, then tapped (a press, let
+            // go the next tick) to take the kit off its shelf.
+            var bay = train.Frames[kit.Parent].Shape.Lockers[kit.Locker];
+            var front = bay.Front;
+            var stand = new Double3(front.X + bay.Facing * 0.42, 0, front.Z);
+            var (step, there) = WarmUp.Steer(self, stand, bay.Facing * Math.PI / 2);
+            if (!there)
+                return step;
+            bool open = train.Vehicles[kit.Parent].LockerOpen(bay.Index);
+            return new PlayerIntent { Buttons = !open || world.Tick % 2 == 0 ? PlayerButtons.Use : PlayerButtons.None };
+        }
+        if (kit.Parent == self.Parent)
         {
             // Beside it on the aisle side, facing it, looking down at it: a press every other tick takes it (the press is the
             // edge the host counts).

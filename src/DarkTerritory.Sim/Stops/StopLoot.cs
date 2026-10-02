@@ -16,6 +16,11 @@ public sealed record LootTuning
     public required Dictionary<string, LootKindTuning> Kinds { get; init; }
     /// <summary>Item names for the HUD, by item key.</summary>
     public required Dictionary<string, string> Items { get; init; }
+    /// <summary>
+    /// The chance a container at a stop has a repair kit in it too (GDD v1.4 App. E.12 question 4: kits are found as well
+    /// as bought): every village container and yard crate stack and strongroom, each rolled on its own stream.
+    /// </summary>
+    public double RepairKitChance { get; init; }
 
     public LootKindTuning Of(ContainerKind kind) =>
         Kinds.TryGetValue(char.ToLowerInvariant(kind.ToString()[0]) + kind.ToString()[1..], out var k) ? k : throw new KeyNotFoundException($"loot.json has no kind {kind}");
@@ -65,6 +70,19 @@ public static class StopLoot
             string item = kind.Items[(int)(rng.NextDouble() * kind.Items.Length)];
             return new LootFind(c.Index, item, Math.Max(5, Math.Round(budget * Weight(c) / sum / 5) * 5));
         })];
+    }
+
+    /// <summary>
+    /// The containers at a stop with a repair kit in them besides what they hold (E.12 question 4), from the run's seed on
+    /// a stream of its own, so the finds and crates the economy already deals out are the same with or without them.
+    /// </summary>
+    public static IReadOnlyList<int> Kits(LootTuning t, StopLayout stop, ulong routeSeed, int feature)
+    {
+        if (t.RepairKitChance <= 0)
+            return [];
+        var rng = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Kit, (ulong)feature), stop.Seed));
+        return [.. stop.Containers.Where(c => c.Kind != ContainerKind.CraneBay).OrderBy(c => c.Index)
+            .Where(c => rng.NextDouble() < t.RepairKitChance).Select(c => c.Index)];
     }
 
     /// <summary>How many cargo crates a yard's crate stack holds (P14: the layout says a stack, the run says how many).</summary>

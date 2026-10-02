@@ -31,10 +31,11 @@ public static class WorldRecords
     // Fixed-point scales. Positions and speeds to 0.1 mm; angles to 10 µrad; slow scalars and timers to 1e-6.
     const double Pos = 1e4, Ang = 1e5, Fine = 1e6, Hint = 1e2, Cm = 1e2;
     /// <summary>
-    /// A body record's fields before its particles: kind, parent, carrier, owner, asleep, yaw, count, second carrier, and
-    /// what it shows: an extinguisher's charge to the percent (its sight glass, App. C.5), a crate's cargo (GDD §19).
+    /// A body record's fields before its particles: kind, parent, carrier, owner, asleep, yaw, count, second carrier,
+    /// what it shows (an extinguisher's charge to the percent, its sight glass, App. C.5; a crate's cargo, GDD §19), and the
+    /// crew locker and shelf it's on (note 166: locker × 256 + shelf, or −1).
     /// </summary>
-    const int BodyParticles = 9;
+    const int BodyParticles = 10;
     // The Run record's header (phase, end, clock, facility, chute, scavenged), and room in a crane record's id for each of a site's cranes.
     const int RunHead = 6, CranesPerSite = 16;
 
@@ -70,7 +71,9 @@ public static class WorldRecords
                     // How much of it a Car Hugger has eaten (App. A.3 FEED: it's drawn gnawed away).
                     Q(v.Eaten, Fine),
                     // How the seated gunner has it laid (T112).
-                    Q(v.Gun.Traverse, Fine), Q(v.Gun.Elevation, Fine)]));
+                    Q(v.Gun.Traverse, Fine), Q(v.Gun.Elevation, Fine),
+                    // Its crew lockers' doors (note 166).
+                    v.LockersOpen]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
             [Q(world.Choir.Loudness, Fine), Q(world.Choir.Build, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0, Q(world.LampOutSeconds, Fine), Q(train.Sand, Fine),
                 (world.Choir.Present ? 1 : 0) | (world.Choir.Spent ? 2 : 0), Q(world.Choir.QuietSeconds, Fine), Q(world.WhistleSeconds, Fine), Q(world.Choir.Rest, Fine)]));
@@ -160,6 +163,7 @@ public static class WorldRecords
                 Physics.BodyKind.Ragdoll => (long)body.Tools,
                 _ => (long)body.Cargo,
             };
+            f[9] = body.Locker < 0 ? -1 : body.Locker * 256 + body.Slot;
             for (int i = 0; i < ps.Length; i++)
             {
                 f[BodyParticles + i * 3] = Q(ps[i].Position.X, Pos);
@@ -235,7 +239,8 @@ public static class WorldRecords
                             Traverse = f.Length > 16 ? D(f[16], Fine) : 0,
                             Elevation = f.Length > 17 ? D(f[17], Fine) : 0,
                         }, f.Length > 7 ? (byte)f[7] : (byte)0,
-                        f.Length > 8 ? (CargoKind)f[8] : CargoKind.None, f.Length <= 9 || f[9] != 0, f.Length > 15 ? D(f[15], Fine) : 0));
+                        f.Length > 8 ? (CargoKind)f[8] : CargoKind.None, f.Length <= 9 || f[9] != 0, f.Length > 15 ? D(f[15], Fine) : 0,
+                        f.Length > 18 ? (uint)f[18] : 0));
                     break;
                 case RecordKind.World:
                     world.Choir = new ChoirState
@@ -356,6 +361,8 @@ public static class WorldRecords
             Charge = (Physics.BodyKind)f[0] == Physics.BodyKind.Extinguisher ? D(f[8], Hint) : 1,
             Tools = (Physics.BodyKind)f[0] == Physics.BodyKind.Ragdoll ? (ulong)f[8] : 0,
             Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll ? CargoKind.None : (CargoKind)f[8],
+            Locker = f[9] < 0 ? -1 : (int)(f[9] / 256),
+            Slot = f[9] < 0 ? 0 : (int)(f[9] % 256),
         };
     }
 

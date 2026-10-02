@@ -232,16 +232,57 @@ public static class Hud
     /// <summary>Where the repair kit is, for a ruptured boiler (T109): it's what mends it, and somebody has to go and get it.</summary>
     static string RepairKitWhere(Sim.World world, int playerId)
     {
-        var kit = world.Bodies.All.FirstOrDefault(b => b.Kind == BodyKind.RepairKit);
+        // With spares (E.12 question 4), the one that's handiest: in your hands, a crewmate's, then the nearest car's.
+        var consist = world.Train.Dynamics.Consist;
+        var kit = world.Bodies.All.Where(b => b.Kind == BodyKind.RepairKit)
+            .OrderBy(b => b.Carrier == playerId ? 0 : b.Carrier >= 0 ? 1 : consist.IndexOf(b.Parent) >= 0 ? 2 + consist.IndexOf(b.Parent) : 1000).ThenBy(b => b.Id)
+            .FirstOrDefault();
         if (kit is null)
             return "THE REPAIR KIT MENDS IT, AND THE TRAIN HAS NONE";
         if (kit.Carrier == playerId)
             return "THE REPAIR KIT MENDS IT: TO THE FIREBOX WITH IT";
         if (kit.Carrier >= 0)
             return "A CREWMATE HAS THE REPAIR KIT: IT MENDS IT, AT THE FIREBOX";
-        int car = world.Train.Dynamics.Consist.IndexOf(kit.Parent);
+        int car = consist.IndexOf(kit.Parent);
+        // In its locker (note 166): the crew learn which.
+        if (car > 0 && kit.Stowed && kit.Locker < world.Train.Frames[kit.Parent].Shape.Lockers.Count)
+            return $"THE REPAIR KIT MENDS IT. IT'S IN THE {world.Train.Frames[kit.Parent].Shape.Lockers[kit.Locker].Name}'S LOCKER, CAR {car}";
         return car > 0 ? $"THE REPAIR KIT MENDS IT. IT'S IN CAR {car}" : car == 0 ? "THE REPAIR KIT MENDS IT. IT'S HERE ON THE ENGINE"
             : "THE REPAIR KIT MENDS IT. IT'S OFF THE TRAIN";
+    }
+
+    /// <summary>A hand-sized thing by name, for the lockers' prompts.</summary>
+    static string Called(Sim.World world, Body b) => b.Kind switch
+    {
+        BodyKind.RepairKit => "THE REPAIR KIT",
+        BodyKind.Lamp => "THE LAMP",
+        BodyKind.Radio => "THE RADIO",
+        BodyKind.Toy => "THE TOY",
+        BodyKind.Extinguisher => "THE EXTINGUISHER",
+        BodyKind.Loot => world.Run?.FindName(b)?.ToUpperInvariant() ?? "THE FIND",
+        _ => "IT",
+    };
+
+    /// <summary>
+    /// At a crew locker's door (note 166): held, Use opens or shuts it; tapped, it takes the top thing off its shelves or
+    /// puts what's in your hands on one. Null away from one, or with something in your hands that doesn't go in.
+    /// </summary>
+    static string? LockerPrompt(Sim.World world, in PlayerState p, int playerId)
+    {
+        var train = world.Train;
+        if (Lockers.AtHand(p, train, world.Hand) is not { } at)
+            return null;
+        var carried = world.Bodies.CarriedBy(playerId);
+        if (carried is not null && !Lockers.Holds(train, carried.Kind))
+            return null;
+        string name = $"THE {at.Bay.Name}'S LOCKER";
+        if (!train.Vehicles[at.Car].LockerOpen(at.Bay.Index))
+            return $"{name}   [E] HOLD: OPEN";
+        if (carried is not null)
+            return Lockers.FreeSlot(world.Bodies, train, at.Car, at.Bay.Index) >= 0
+                ? $"[E] PUT {Called(world, carried)} IN {name}   HOLD: SHUT" : $"{name} IS FULL   [E] HOLD: SHUT";
+        return Lockers.Contents(world.Bodies, at.Car, at.Bay.Index).LastOrDefault() is { } top
+            ? $"[E] TAKE {Called(world, top)} FROM {name}   HOLD: SHUT" : $"{name}: EMPTY   [E] HOLD: SHUT";
     }
 
     /// <summary>
@@ -567,6 +608,9 @@ public static class Hud
             if (CrewActions.AtTheRupture(p, train, world.Hand) && train.BoilerTuning is { } rt)
                 return $"[E] HOLD: MEND THE BOILER WITH THE KIT ({p.ActionProgress / rt.RepairSeconds * 100:0}%)";
         }
+        // A crew locker in front of you (note 166): its door, and its shelves.
+        if (LockerPrompt(world, p, s.PlayerId) is { } locker)
+            return locker;
         if (world.Bodies.CarriedBy(s.PlayerId) is { } carried)
             return carried.Kind switch
             {

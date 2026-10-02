@@ -204,17 +204,28 @@ public sealed class World
     }
 
     /// <summary>
-    /// The repair kit (GDD §12): on the floor just inside the front door of its car (train.json kit.repairKitCar), where the
-    /// crew learn to look for it: the first car back from the engine, a walk from the footplate.
+    /// The repair kit (GDD §12) in its car (train.json kit.repairKitCar), where the crew learn to look for it: the first car
+    /// back from the engine, a walk from the footplate, in the fitter's locker (note 166); and the spares the fortress sold
+    /// the crew (GDD v1.4 App. E.12 question 4) beside it, then in the lockers after it. A car without lockers has its kits
+    /// on the floor inside its front door, as it always did.
     /// </summary>
     void StowRepairKits()
     {
         if (RepairKitCar(Train) is not { } car)
             return;
         var shape = Train.Frames[car].Shape;
-        for (int i = 0; i < Train.Dynamics.Tuning.Kit.RepairKits; i++)
-            Bodies.SpawnCrate(Train, car, RepairKitStowage(shape, shape.Interior!.Value, i), Physics.BodyKind.RepairKit);
-        KitStocked |= Train.Dynamics.Tuning.Kit.RepairKits > 0;
+        var kit = Train.Dynamics.Tuning.Kit;
+        int kits = kit.RepairKits + kit.SpareKits;
+        int first = Math.Max(0, shape.KitLocker);
+        // From the kit's locker on down the row, then round from the front.
+        var order = Enumerable.Range(0, shape.Lockers.Count).Select(i => (first + i) % shape.Lockers.Count).ToList();
+        for (int i = 0; i < kits; i++)
+        {
+            var b = Bodies.SpawnCrate(Train, car, RepairKitStowage(shape, shape.Interior!.Value, i), Physics.BodyKind.RepairKit);
+            if (!order.Any(locker => Bodies.Stow(b, Train, car, locker)))
+                b.Pbd.Particles[0].Position = b.Pbd.Particles[0].Previous = RepairKitStowage(shape, shape.Interior!.Value, i, floor: true) + Ballast.Double3.Up * 0.1;
+        }
+        KitStocked |= kits > 0;
     }
 
     /// <summary>The train left with a repair kit (GDD v1.4 §23.2: without one, nothing can strand it).</summary>
@@ -231,18 +242,29 @@ public sealed class World
     }
 
     /// <summary>
-    /// Where a car's repair kit stands (car frame, on the floor): just inside its front door, in the corner on the right of
-    /// the aisle, ahead of the load (the cargo stands down the right side from 1.2 m in); in front of the tool lockers in a
-    /// car that has them. The <paramref name="index"/>th of them half a metre further back.
+    /// Where a car's repair kit is kept (car frame): on the bottom shelf of its locker in a car with the crew lockers (note
+    /// 151, the fitter's: train.json kit.lockers.kitLocker), the floor of the locker. Without them (or with
+    /// <paramref name="floor"/>), on the floor just inside its front door, in the corner on the right of the aisle, ahead of
+    /// the load (the cargo stands down the right side from 1.2 m in); in front of the tool lockers in a car that has them.
+    /// The <paramref name="index"/>th of them half a metre further back.
     /// </summary>
-    public static Ballast.Double3 RepairKitStowage(CarShape shape, Train.Box room, int index = 0)
+    public static Ballast.Double3 RepairKitStowage(CarShape shape, Train.Box room, int index = 0, bool floor = false)
     {
+        if (!floor && KitLocker(shape) is { } bay)
+            return Lockers.SlotAt(bay, 0, 1, 0);
         var at = new Ballast.Double3(room.Max.X - 0.35, room.Min.Y + 0.1, room.Min.Z + 0.45 + 0.5 * index);
         foreach (var s in shape.Solids)
             if (s.Part == PartKind.Locker)
                 at = new Ballast.Double3(s.Box.Max.X + 0.3, room.Min.Y + 0.1, (s.Box.Min.Z + s.Box.Max.Z) / 2 + 0.5 * index);
         return at;
     }
+
+    /// <summary>The repair kit's locker in a car's shape (note 166): the one train.json names (the fitter's); null without lockers.</summary>
+    public static LockerBay? KitLocker(CarShape shape) => shape.KitLocker >= 0 && shape.KitLocker < shape.Lockers.Count ? shape.Lockers[shape.KitLocker] : null;
+
+    /// <summary>The repair kit's locker (note 166): its car and its place in the row; null on a train without lockers.</summary>
+    public static (int Car, LockerBay Bay)? KitLocker(TrainOnLine train) =>
+        RepairKitCar(train) is { } car && KitLocker(train.Frames[car].Shape) is { } bay ? (car, bay) : null;
 
     /// <summary>
     /// Host: each car with a room gets its wall-mounted extinguisher (GDD v1.1 App. C.5), by the door end; put back there (or
@@ -268,6 +290,9 @@ public sealed class World
         foreach (var s in shape.Solids)
             if (s.Part == PartKind.Locker && at.X >= s.Box.Min.X - 0.2 && at.X <= s.Box.Max.X + 0.2 && at.Z >= s.Box.Min.Z - 0.3 && at.Z <= s.Box.Max.Z + 0.3)
                 at = at with { Z = s.Box.Max.Z + 0.4 };
+        // The crew lockers' row (note 166) runs back from just behind the front end wall: the board goes in the gap ahead of it.
+        if (shape.Lockers.Count > 0 && shape.Lockers[0].Box.Min.X <= at.X + 0.2)
+            at = at with { Z = (room.Min.Z + shape.Lockers[0].Box.Min.Z) / 2 };
         return at;
     }
 

@@ -72,6 +72,21 @@ public sealed class Body
     /// </summary>
     public ulong Tools { get; set; }
     public bool HasTool(Tool tool) => Player.Kit.Has(Tools, tool);
+    /// <summary>
+    /// The crew locker it's on a shelf of (its car's <see cref="CarShape.Lockers"/> index, ARCHITECTURE §8 note 166), or −1.
+    /// Stowed, it's the locker's: still in its car's frame, at its shelf (<see cref="Lockers.SlotAt"/>), out of the physics
+    /// and out of reach but through the locker's open door.
+    /// </summary>
+    public int Locker { get; set; } = -1;
+    /// <summary>Which shelf of its locker, from the bottom.</summary>
+    public int Slot { get; set; }
+    public bool Stowed => Locker >= 0;
+    /// <summary>
+    /// The crew's: stocked aboard at the fortress, or in someone's hands since. A repair kit found at a stop is the crew's
+    /// once it's been picked up (GDD v1.4 §23.2 counts the kits the crew have; one lying unfound in a village isn't one).
+    /// Host only.
+    /// </summary>
+    public bool Claimed { get; set; }
     internal int Airborne;
     internal double LineHint;
     public Double3 Centre => Pbd.Centre;
@@ -89,6 +104,8 @@ public sealed class Bodies
 {
     readonly List<Body> _bodies = new();
     readonly Dictionary<int, bool> _useWas = new(), _throwWas = new();
+    // How many ticks each player has held Use at a locker, from the press (a tap stows or takes; a hold works the door).
+    readonly Dictionary<int, int> _lockerHeld = new();
     int _nextId = 1;
     const double Dt = SimConstants.TickSeconds;
     const double NearbyCar = 40;
@@ -116,8 +133,54 @@ public sealed class Bodies
         // The toolbox is a flat thing (train_stores.py's repair_kit, 0.2 m high): it lies on the floor, not a hand over it.
         double radius = kind switch { BodyKind.Crate => 0.35, BodyKind.RepairKit => 0.1, _ => 0.15 };
         var pbd = new PbdBody([new Particle(local + Double3.Up * radius, 1, radius)]) { Friction = 0.2, Bounce = 0.1 };
-        var b = new Body(_nextId++, kind, car, pbd) { LineHint = train.Cars[Math.Max(0, car)].FrontDistance };
+        // Stocked aboard: the crew's from the start.
+        var b = new Body(_nextId++, kind, car, pbd) { LineHint = train.Cars[Math.Max(0, car)].FrontDistance, Claimed = true };
         _bodies.Add(b);
+        return b;
+    }
+
+    /// <summary>
+    /// Puts a thing on a locker's first free shelf (ARCHITECTURE §8 note 166): out of whoever's hands, into its car's frame,
+    /// lying along the locker (a toolbox's length goes in deep), asleep and out of the physics. False if it's full, or the
+    /// thing isn't one that goes in.
+    /// </summary>
+    public bool Stow(Body b, TrainOnLine train, int car, int locker)
+    {
+        var shape = train.Frames[car].Shape;
+        if (locker < 0 || locker >= shape.Lockers.Count || !Lockers.Holds(train, b.Kind) || b.Pbd.Particles.Length != 1)
+            return false;
+        int slot = Lockers.FreeSlot(this, train, car, locker);
+        if (slot < 0)
+            return false;
+        if (b.Parent != car)
+        {
+            if (b.Parent != PlayerState.World)
+                ToWorld(b, train, b.Parent);
+            ToCar(b, train, car);
+        }
+        b.Carrier = b.Second = -1;
+        b.Locker = locker;
+        b.Slot = slot;
+        b.Airborne = 0;
+        b.Spin = 0;
+        b.Yaw = 0;
+        ref var p = ref b.Pbd.Particles[0];
+        p.InverseMass = 1;
+        p.Position = p.Previous = Lockers.SlotAt(shape.Lockers[locker], slot, Lockers.Slots(train), p.Radius);
+        p.Contact = true;
+        b.Pbd.Sleep();
+        return true;
+    }
+
+    /// <summary>The top thing off a locker's shelves, into a player's hands; null when it's empty.</summary>
+    public Body? Take(TrainOnLine train, int car, int locker, int playerId)
+    {
+        if (Lockers.Contents(this, car, locker).LastOrDefault() is not { } b)
+            return null;
+        b.Locker = -1;
+        b.Carrier = playerId;
+        b.Claimed = true;
+        b.Pbd.Wake();
         return b;
     }
 
@@ -138,7 +201,7 @@ public sealed class Bodies
     /// <summary>A small thing on the ground at a facility (a toy, salvage, a child), in the world frame.</summary>
     public Body SpawnItem(Double3 world, double lineHint, BodyKind kind)
     {
-        double radius = kind == BodyKind.Child ? 0.35 : 0.15;
+        double radius = kind switch { BodyKind.Child => 0.35, BodyKind.RepairKit => 0.1, _ => 0.15 };
         var pbd = new PbdBody([new Particle(world + Double3.Up * radius, 1, radius)]) { Friction = 0.35, Bounce = 0.05 };
         var b = new Body(_nextId++, kind, PlayerState.World, pbd) { LineHint = lineHint };
         _bodies.Add(b);
@@ -306,6 +369,26 @@ public sealed class Bodies
         }
         if (carried is not null && keep && !throwPressed)
             return false;
+        // At a locker's door (note 166), Use is the locker's: tapped, what's in your hands goes on a shelf (or the top thing
+        // comes off one); held, CrewActions works the door. So the hands wait for the release to know which it was, and
+        // never take the press (the door's hold is worked the same on a predicting client, which has no hands).
+        if (!throwPressed && (carried is null || Lockers.Holds(train, carried.Kind)) && Lockers.AtHand(s, train, hand) is { } locker)
+        {
+            if (usePressed)
+                _lockerHeld[playerId] = 1;
+            else if (use && _lockerHeld.ContainsKey(playerId))
+                _lockerHeld[playerId]++;
+            else if (!use && _lockerHeld.Remove(playerId, out int held) && held * Dt < Lockers.DoorSeconds(train) - Dt / 2
+                && train.Vehicles[locker.Car].LockerOpen(locker.Bay.Index))
+            {
+                if (carried is not null)
+                    Stow(carried, train, locker.Car, locker.Bay.Index);
+                else
+                    Take(train, locker.Car, locker.Bay.Index, playerId);
+            }
+            return false;
+        }
+        _lockerHeld.Remove(playerId);
         if (carried is not null && (throwPressed || usePressed))
         {
             // Nobody throws a heavy crate: either of you lets go, and it's down.
@@ -334,6 +417,7 @@ public sealed class Bodies
         }
         else
             nearest.Carrier = playerId;
+        nearest.Claimed = true;
         nearest.Pbd.Wake();
         return true;
     }
@@ -345,7 +429,8 @@ public sealed class Bodies
     public Body? InReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null, bool wearingRadio = false, int playerId = -1)
     {
         // A heavy crate with one on it is still free at its other end (T43).
-        var free = _bodies.Where(b => (b.Carrier < 0 || b.Kind == BodyKind.Heavy && b.Second < 0 && b.Carrier != playerId)
+        // What's in a locker is the locker's: taken from it with a tap there, not reached for (note 166).
+        var free = _bodies.Where(b => !b.Stowed && (b.Carrier < 0 || b.Kind == BodyKind.Heavy && b.Second < 0 && b.Carrier != playerId)
             && !(wearingRadio && b.Kind == BodyKind.Radio));
         if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)
             return free.Select(b => (b, d: Surface(b, train, h))).Where(x => x.d <= hand.Grab).OrderBy(x => x.d).FirstOrDefault().b;
@@ -393,10 +478,13 @@ public sealed class Bodies
         // A hard stop or a collision throws loose things about: wake anything aboard.
         if (Math.Abs(train.Dynamics.Acceleration) > 1.0)
             foreach (var b in _bodies)
-                if (b.Parent != PlayerState.World)
+                if (b.Parent != PlayerState.World && !b.Stowed)
                     b.Pbd.Wake();
         foreach (var b in _bodies)
         {
+            // On a locker's shelf it's the locker's, and goes where its car goes (note 166).
+            if (b.Stowed)
+                continue;
             if (b.Kind == BodyKind.Heavy)
                 CarryHeavy(b, train, player);
             else if (b.Carrier >= 0 && player(b.Carrier) is { } carrier)
@@ -411,13 +499,44 @@ public sealed class Bodies
             if (b.Pbd.Asleep && !b.Lifted)
                 continue;
             int touchedCar = -1;
+            var ps = b.Pbd.Particles;
+            if (_before.Length < ps.Length)
+                _before = new Double3[ps.Length];
+            for (int i = 0; i < ps.Length; i++)
+                _before[i] = ps[i].Position;
             b.Pbd.Step(Dt, gravity, (pos, r) => Contact(b, frame, pos, r, train, ref touchedCar));
+            if (frame is { } room && !b.Lifted && train.Wreck is null)
+                KeepInside(b, room.Shape, train.Vehicles[room.Index]);
             if (!b.Lifted && !b.Pbd.Asleep)
             {
                 b.Yaw += b.Spin * Dt;
                 b.Spin *= b.Pbd.Particles.Any(p => p.Contact) ? 0.5 : 0.995;
             }
             Reparent(b, train, touchedCar);
+        }
+    }
+
+    Double3[] _before = new Double3[11];
+
+    /// <summary>
+    /// What was in a car's room stays in it, but out through an opening (note 166): a particle that this step went past a
+    /// wall (pushed out of its far side, or through it between ticks at a throw's speed) is stopped inside it, its speed
+    /// out of the room gone.
+    /// </summary>
+    void KeepInside(Body b, CarShape shape, Vehicle vehicle)
+    {
+        var ps = b.Pbd.Particles;
+        for (int i = 0; i < ps.Length; i++)
+        {
+            ref var p = ref ps[i];
+            if (Rooms.Held(shape, vehicle, _before[i], p.Position, p.Radius) is not { } held)
+                continue;
+            // The way it was moving, but not out through the wall: the stopped axis keeps no speed.
+            var v = p.Position - p.Previous;
+            v = new Double3(held.X != p.Position.X ? 0 : v.X, held.Y != p.Position.Y ? 0 : v.Y, held.Z != p.Position.Z ? 0 : v.Z);
+            p.Previous = held - v;
+            p.Position = held;
+            b.Pbd.Wake();
         }
     }
 
@@ -470,6 +589,16 @@ public sealed class Bodies
         }
         var local = s.Parent == PlayerState.World ? hands : train.Frames[s.Parent].ToLocal(hands);
         int grip = b.Kind == BodyKind.Ragdoll ? 1 : 0;
+        // Indoors, what's in your hands is in the room with you (note 166): faced up to a wall, your hands' reach is past it
+        // (and past its middle), and what you set down there would be pushed out of its far side. Out through a doorway
+        // that's open, it goes with you.
+        if (s.Parent != PlayerState.World && s.Parent < train.Frames.Count && at is null)
+        {
+            var shape = train.Frames[s.Parent].Shape;
+            var chest = s.Position + Double3.Up * Hands.CarryHeight;
+            if (Rooms.Held(shape, train.Vehicles[s.Parent], chest, local, b.Pbd.Particles[grip].Radius) is { } inside)
+                local = inside;
+        }
         ref var p = ref b.Pbd.Particles[grip];
         p.InverseMass = 0;
         p.Position = local;

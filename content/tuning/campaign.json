@@ -40,6 +40,11 @@
     { "id": "poweredSwitchThrower", "name": "Powered switch thrower", "size": "major", "costShare": 1.6, "effect": {} },
     { "id": "reinforcedCouplings", "name": "Reinforced couplings", "size": "major", "costShare": 1.8, "effect": {} }
   ],
+  // GDD v1.4 App. E.12 question 4, answered: the fortress sells spare repair kits. Each starts the night in a crew locker
+  // beside the train's own (train.json kit.lockers); one lost in the night is gone, and a kit found at a stop and brought
+  // home is kept as a spare. About a small upgrade's price at the start (0.25 of a fourth car): losing the only kit ends a
+  // ruptured night (§23.2), and a crew that's lost one will pay that not to again. The lockers hold this many spares.
+  "spareKit": { "cost": 325, "most": 3 },
   // The yardstick for `dt campaign sim`: a crew that buys a car as soon as it can also afford upgrades worth
   // smallShare of it (F.3 "one or two small upgrades per car purchase"), a major worth majorShare every majorEvery
   // cars, loses lossFraction of its cargo on an average night (F.1 "expected loss"), and pays F.1's 15% running
