@@ -32,16 +32,34 @@ public class FacilityTests
         throw new InvalidOperationException($"no route has a {module}");
     }
 
+    /// <summary>A route with a facility of this kind down a spur, and that facility (GDD §18's set pieces, note 185).</summary>
+    internal static (Route.Route Route, RouteFeature Facility) With(FacilityKind kind)
+    {
+        var (route, i) = Bots.FacilityWork.Find(Tuning.Route, kind) ?? throw new InvalidOperationException($"no route has a {kind}");
+        return (route, route.Of(FeatureKind.Facility).ElementAt(i));
+    }
+
     internal sealed class Stop
     {
         public readonly World World;
         public readonly List<PlayerState> Crew = [];
         public readonly Site Site;
+        /// <summary>Every damage event the world made, tick by tick (the harness applies them; these tests read them).</summary>
+        public readonly List<Enemies.DamageEvent> Hurt = [];
 
         /// <summary>Stopped down the facility's spur with the engine up at the buffer stop (GDD §17), empties behind it.</summary>
-        public Stop(ModuleKind module, Stops.PowerState power = Stops.PowerState.Live)
+        public Stop(ModuleKind module, Stops.PowerState power = Stops.PowerState.Live) : this(With(module, power))
         {
-            var (route, f) = With(module, power);
+        }
+
+        /// <summary>Stopped down a facility of this kind's spur, as above.</summary>
+        public Stop(FacilityKind kind) : this(With(kind))
+        {
+        }
+
+        Stop((Route.Route Route, RouteFeature Facility) at)
+        {
+            var (route, f) = at;
             var line = route.Build();
             // The facility's own track: its yard's first (level-design P6), where its loading modules stand.
             var spur = line.Branches.First(b => b.Kind == BranchKind.Spur && f.Contains(b.Toe));
@@ -58,6 +76,22 @@ public class FacilityTests
 
         public TrainOnLine Train => World.Train;
 
+        /// <summary>Puts the engine's rake down the spur with its front at a path distance, standing.</summary>
+        public void StandAt(double front)
+        {
+            var state = Train.Capture();
+            Train.Restore(state with { Rakes = [state.Rakes[0] with { Distance = front, Velocity = 0 }] });
+            Train.RefreshFrames();
+        }
+
+        /// <summary>Where the engine's front stands for a cargo car's middle to be at a distance along the facility's track.</summary>
+        public double FrontFor(int car, double along)
+        {
+            var consist = Train.Dynamics.Consist;
+            int i = consist.IndexOf(car);
+            return Train.Line.Branches[Site.Spur].Toe + along + consist.OffsetOf(i) + consist.Vehicles[i].Length(T) / 2;
+        }
+
         public void Step(double seconds, PlayerIntent[] intents)
         {
             for (int t = 0; t < seconds * SimConstants.TickRate; t++)
@@ -71,6 +105,7 @@ public class FacilityTests
                     Crew[i] = s;
                 }
                 World.Step(new TrainControls { Reverser = 1, Brake = 1 });
+                Hurt.AddRange(World.Damage);
                 for (int i = 0; i < Crew.Count; i++)
                 {
                     var s = Crew[i];
@@ -210,5 +245,225 @@ public class FacilityTests
         Assert.Equal(stop.Site.SledsLeft, mirrored.SledsLeft);
         Assert.Equal(stop.Site.Stocked, mirrored.Stocked);
         Assert.Equal(stop.Site.Capstan, mirrored.Capstan);
+    }
+
+    // GDD §18's set pieces (WP15, ARCHITECTURE §8 note 185).
+
+    [Fact]
+    public void TheGrainElevatorsSpoutLoadsOnlyTheCarUnderItWhileItsLeverIsHeld()
+    {
+        var stop = new Stop(FacilityKind.GrainElevator);
+        var site = stop.Site;
+        Assert.True(site.Has(ModuleKind.Spout));
+        Assert.Equal(F.Spout.Bin, site.Bin, 6);
+        var cars = stop.Train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).ToList();
+        // The first car under the spout, someone at its lever on the ground.
+        stop.StandAt(stop.FrontFor(cars[0].Id, site.SpoutAlong));
+        Assert.Same(cars[0], stop.World.Run!.CarUnderSpout(stop.Train, site));
+        var lever = stop.OnTheGround(site.SpoutLever - Double3.Up * 0.9);
+        stop.Crew.Add(lever);
+        var hold = new PlayerIntent { Buttons = PlayerButtons.Use };
+        // Standing there does nothing; holding it, grain comes down into that car and no other, and it's loud.
+        stop.Step(2, [default]);
+        Assert.Equal(0, cars[0].Load);
+        Assert.False(site.Pouring);
+        stop.Step(4, [hold]);
+        Assert.True(site.Pouring);
+        Assert.True(stop.World.Run!.Machinery);
+        Assert.Equal(4 * F.Spout.PourPerSecond, cars[0].Load, 2);
+        Assert.Equal(CargoKind.Food, cars[0].Cargo);
+        Assert.All(cars.Skip(1), c => Assert.Equal(0, c.Load));
+        // One car at a time: walked on a car's length, the next one's under it and the first takes no more.
+        stop.StandAt(stop.FrontFor(cars[1].Id, site.SpoutAlong));
+        double first = cars[0].Load;
+        stop.Step(4, [hold]);
+        Assert.Equal(first, cars[0].Load, 6);
+        Assert.Equal(4 * F.Spout.PourPerSecond, cars[1].Load, 2);
+        // Between cars, it goes on the ballast: the bin empties and nothing's loaded.
+        stop.StandAt(stop.FrontFor(cars[1].Id, site.SpoutAlong) + 7);
+        Assert.Null(stop.World.Run!.CarUnderSpout(stop.Train, site));
+        double bin = site.Bin, loaded = cars.Sum(c => c.Load);
+        stop.Step(2, [hold]);
+        Assert.Equal(bin - 2 * F.Spout.PourPerSecond, site.Bin, 2);
+        Assert.Equal(loaded, cars.Sum(c => c.Load), 6);
+        // A full car under it overflows, and it strains the car (spec D.2: "overfill damages car and spills").
+        cars[2].Load = 1;
+        stop.StandAt(stop.FrontFor(cars[2].Id, site.SpoutAlong));
+        stop.Step(4, [hold]);
+        Assert.Equal(1, cars[2].Load, 6);
+        Assert.Equal(1 - 4 * F.Spout.PourPerSecond * F.Spout.OverfillDamagePerLoad, cars[2].Integrity, 2);
+    }
+
+    [Fact]
+    public void TheSpoutReachesTheCarsThatGoDownTheSpurShortOfTheBufferStop()
+    {
+        // "Endless repositioning": every car down the spur comes under the spout with the engine short of the buffer stop.
+        var stop = new Stop(FacilityKind.GrainElevator);
+        var spur = stop.Train.Line.Branches[stop.Site.Spur];
+        foreach (var car in stop.Train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo))
+            Assert.InRange(stop.FrontFor(car.Id, stop.Site.SpoutAlong), spur.Toe, spur.End - 1);
+    }
+
+    [Fact]
+    public void TheHerdNeedsTwoInThePenAndStirsTheChoirFloor()
+    {
+        var stop = new Stop(FacilityKind.Slaughterhouse);
+        var site = stop.Site;
+        var run = stop.World.Run!;
+        Assert.True(site.Has(ModuleKind.Ramp));
+        Assert.InRange(site.Head, F.Ramp.Head[0], F.Ramp.Head[1]);
+        var car = run.CarAtRamp(stop.Train, site);
+        Assert.NotNull(car);
+        var drive = new PlayerIntent { Buttons = PlayerButtons.Use };
+        stop.Crew.Add(stop.OnTheGround(site.Pen + new Double3(1, 0, 0)));
+        stop.Crew.Add(stop.OnTheGround(site.Pen - new Double3(1, 0, 0)));
+        // One alone gets nowhere with them.
+        stop.Step(10, [drive, default]);
+        Assert.Equal(site.HeadStart, site.Head);
+        Assert.False(site.Herding);
+        Assert.Equal(0, stop.World.Choir.Floor);
+        // Two: one up the ramp every few seconds, into the car at its top, and the herd's loud the whole time.
+        stop.Step(F.Ramp.SecondsPerHead + 0.5, [drive, drive]);
+        Assert.Equal(site.HeadStart - 1, site.Head);
+        Assert.Equal(F.Ramp.LoadPerHead, car!.Load, 6);
+        Assert.Equal(CargoKind.Livestock, car.Cargo);
+        Assert.True(run.Machinery);
+        Assert.Equal(F.Ramp.ChoirFloor, stop.World.Choir.Floor, 6);
+        // Left off, they stay stirred up (some aboard, some not): the floor stays up.
+        stop.Step(2, [default, default]);
+        Assert.True(site.Stirred);
+        Assert.Equal(F.Ramp.ChoirFloor, stop.World.Choir.Floor, 6);
+        stop.Step(F.Ramp.SecondsPerHead * site.Head + 1, [drive, drive]);
+        Assert.Equal(0, site.Head);
+        Assert.False(site.Stirred);
+    }
+
+    [Fact]
+    public void SomethingAlreadyLivesAtTheSlaughterhouse()
+    {
+        // GDD §18 "something already lives here": the director's residents weigh the Gaunt up there, and only there.
+        var residents = Tuning.Enemies.Director.Residents;
+        Assert.True(residents["slaughterhouse"]["gaunt"] > 1);
+        Assert.False(residents.ContainsKey("foundry"));
+    }
+
+    [Fact]
+    public void TheHoseFillsTheCarAndLeaksWithNobodyMindingIt()
+    {
+        var stop = new Stop(FacilityKind.ChemicalWorks);
+        var site = stop.Site;
+        var run = stop.World.Run!;
+        var car = run.CarAtHose(stop.Train, site);
+        Assert.NotNull(car);
+        var hold = new PlayerIntent { Buttons = PlayerButtons.Use };
+        stop.Crew.Add(stop.OnTheGround(site.HoseStand + new Double3(0.5, 0, 0)));
+        // Held long enough, the hose goes on the car by the stand.
+        stop.Step(F.Hose.ConnectSeconds + 0.2, [hold]);
+        Assert.Equal(car!.Id, site.HoseCar);
+        Assert.Equal(1, run.HoseHand);
+        // Minded, it fills the car and the pressure stays down.
+        stop.Step(10, [default]);
+        Assert.Equal(10 * F.Hose.FlowPerSecond, car.Load, 1);
+        Assert.Equal(CargoKind.Chemicals, car.Cargo);
+        Assert.Equal(0, site.Pressure, 6);
+        Assert.False(site.Leaking);
+        // Walk off (still within the leak's reach) and the pressure climbs until it leaks: gassing, and the load spoils.
+        var off = stop.Crew[0] with { Position = stop.Crew[0].Position + new Double3(0, 0, 4) };
+        stop.Crew[0] = off;
+        stop.Step(1 / F.Hose.PressureRise + 2, [default]);
+        Assert.True(site.Leaking);
+        Assert.True(car.CargoIntegrity < 1);
+        Assert.Contains(stop.Hurt, d => d.Cause == DeathCause.Leak && d.PlayerId == 1);
+        // Back at the stand, held: off it comes, cleanly, and the leak stops as the pressure falls.
+        stop.Crew[0] = stop.OnTheGround(site.HoseStand + new Double3(0.5, 0, 0));
+        stop.Step(F.Hose.ConnectSeconds + 0.2, [hold]);
+        Assert.Equal(-1, site.HoseCar);
+        stop.Step(1, [default]);
+        Assert.False(site.Leaking);
+    }
+
+    [Fact]
+    public void MovingOffWithTheHoseOnTearsItAndSpoilsTheLoad()
+    {
+        var stop = new Stop(FacilityKind.ChemicalWorks);
+        var site = stop.Site;
+        var car = stop.World.Run!.CarAtHose(stop.Train, site)!;
+        stop.Crew.Add(stop.OnTheGround(site.HoseStand + new Double3(0.5, 0, 0)));
+        stop.Step(F.Hose.ConnectSeconds + 0.2, [new PlayerIntent { Buttons = PlayerButtons.Use }]);
+        stop.Step(5, [default]);
+        Assert.Equal(car.Id, site.HoseCar);
+        stop.StandAt(stop.Train.Dynamics.Distance - (F.Hose.CarReach + F.Hose.TearSlack + 10));
+        stop.Step(0.1, [default]);
+        Assert.Equal(-1, site.HoseCar);
+        Assert.True(site.Leaking);
+        Assert.Equal(1 - F.Hose.TornSpoil, car.CargoIntegrity, 6);
+        Assert.InRange(site.Leak, F.Hose.TornSeconds - 1, F.Hose.TornSeconds);
+    }
+
+    [Fact]
+    public void ACannonFiredIndoorsAtTheChemicalWorksGassesTheGunner()
+    {
+        // GDD §18 "do not fire indoors": with no chemicals aboard at all, a gun fired from under the works' pipe rack gasses
+        // whoever fired it.
+        var stop = new Stop(FacilityKind.ChemicalWorks);
+        var train = stop.Train;
+        // The guard van's gun, down the spur with the rest.
+        int gun = train.Vehicles.Last(v => train.Frames[v.Id].Shape.Gun is not null).Id;
+        Assert.True(stop.World.Run!.Indoors(train.Frames[gun].Origin));
+        var mount = train.Frames[gun].Shape.Gun!.Value;
+        var gunner = PlayerMotor.SpawnOnRoof(train, gun, mount.Position.Z - 0.7, P);
+        stop.Crew.Add(gunner with { Yaw = Math.PI, Pitch = 0.3, Flags = gunner.Flags | PlayerFlags.Seated });
+        stop.Step(0.2, [default]);
+        stop.Step(1, [new PlayerIntent { Buttons = PlayerButtons.Fire }]);
+        Assert.Contains(stop.Hurt, d => d.Cause == DeathCause.Poisoned && d.PlayerId == 1);
+        Assert.Equal(1, stop.World.Attribution.Gasser);
+    }
+
+    [Fact]
+    public void ThePowderGoesUpWhenItsDroppedHardAndTakesTheKegsBesideIt()
+    {
+        var stop = new Stop(FacilityKind.MilitaryDepot);
+        stop.Step(2, []);
+        var kegs = stop.World.Bodies.All.Where(b => b.Kind == BodyKind.Cargo && b.Cargo == CargoKind.Ammunition).ToList();
+        Assert.True(kegs.Count >= 2);
+        // Set down by hand (a fall from a hand's height): nothing.
+        var keg = kegs[0];
+        ref var p = ref keg.Pbd.Particles[0];
+        p.Position += Double3.Up * 1.2;
+        p.Previous = p.Position;
+        stop.Step(2, []);
+        Assert.Contains(keg, stop.World.Bodies.All);
+        // Off a roof: it goes up, and the keg beside it the tick after.
+        var beside = kegs.First(k => k != keg && (k.Centre - keg.Centre).Length <= F.Kegs.Chain);
+        stop.Crew.Add(stop.OnTheGround(keg.Centre + new Double3(1.5, 0, 0)));
+        ref var q = ref keg.Pbd.Particles[0];
+        q.Position += Double3.Up * 4;
+        q.Previous = q.Position;
+        keg.Pbd.Wake();
+        stop.Step(2, [default]);
+        Assert.DoesNotContain(keg, stop.World.Bodies.All);
+        Assert.DoesNotContain(beside, stop.World.Bodies.All);
+        Assert.Contains(stop.World.Impacts, i => i.Shooter == -1);
+        Assert.Contains(stop.Hurt, d => d.Cause == DeathCause.Keg && d.PlayerId == 1 && d.Amount >= F.Kegs.Damage);
+    }
+
+    [Fact]
+    public void AClientSeesTheSetPieces()
+    {
+        var stop = new Stop(FacilityKind.Slaughterhouse);
+        var site = stop.Site;
+        stop.Crew.Add(stop.OnTheGround(site.Pen + new Double3(1, 0, 0)));
+        stop.Crew.Add(stop.OnTheGround(site.Pen - new Double3(1, 0, 0)));
+        var drive = new PlayerIntent { Buttons = PlayerButtons.Use };
+        stop.Step(F.Ramp.SecondsPerHead * 1.5, [drive, drive]);
+        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 0)), stop.Train.Line, 1000, Tuning.Boiler));
+        client.EnableRun(Tuning.Run, stop.World.Run!.Route, 600, authority: false, F);
+        var controls = new TrainControls();
+        WorldRecords.Apply(WorldRecords.Capture(stop.World, controls, []), client, ref controls, []);
+        var mirrored = client.Run!.Sites[site.Index]!;
+        Assert.Equal(site.Head, mirrored.Head);
+        Assert.True(mirrored.Herding);
+        Assert.Equal(site.Herd, mirrored.Herd, 3);
+        Assert.Equal(site.Pen, mirrored.Pen);
     }
 }

@@ -408,6 +408,11 @@ public sealed record DirectorTuning(
 {
     /// <summary>App. B.8: cargo name → (tuning name or "*") → weight.</summary>
     public Dictionary<string, Dictionary<string, double>> CargoWeights { get; init; } = new();
+    /// <summary>
+    /// GDD §18 "something already lives here" (note 185): facility name → (tuning name) → weight, while the train's stopped
+    /// at a facility of that kind.
+    /// </summary>
+    public Dictionary<string, Dictionary<string, double>> Residents { get; init; } = new();
     public bool CometRelaxesGates { get; init; } = true;
     /// <summary>
     /// A threat that's gone this long with nobody alive within <see cref="LingerRadius"/> of it, short of a grab, gives up and

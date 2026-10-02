@@ -174,16 +174,20 @@ public sealed partial class Run
             int crates = t.Crates.Count[0] + (int)((_route.Seed * 31 + (ulong)i * 17) % (ulong)(span + 1));
             var h = t.Crates.Heavy.Count;
             int heavy = h[0] + (int)((_route.Seed * 13 + (ulong)i * 29) % (ulong)(Math.Max(0, h[1] - h[0]) + 1));
+            var hd = t.Ramp.Head;
+            int head = hd[0] + (int)((_route.Seed * 7 + (ulong)i * 23) % (ulong)(Math.Max(0, hd[1] - hd[0]) + 1));
             if (_spurs[i] >= 0 && _spurs[i] < line.Branches.Count)
             {
                 // Laid out from where the first cars stand with the engine up at the buffer stop.
                 var spur = line.Branches[_spurs[i]];
                 double mid = spur.Local.Length - t.SpurLayout;
-                return new Site(i, f, modules, t, spur.Local, mid, spur.Side, spur.Toe + mid, crates, spur.Index, heavy);
+                // The spout stands back along the track the cars stand on to be worked (level-design P16), clear of the points.
+                double room = spur.Definition.Standing ?? spur.Local.Length - 14;
+                return new Site(i, f, modules, t, spur.Local, mid, spur.Side, spur.Toe + mid, crates, spur.Index, heavy, room, head);
             }
             int side = f.Side == 0 ? 1 : f.Side;
             double centre = (f.Start + f.End) / 2;
-            return new Site(i, f, modules, t, line, centre, side, centre, crates, heavy: heavy);
+            return new Site(i, f, modules, t, line, centre, side, centre, crates, heavy: heavy, head: head);
         })];
         // A generated yard's power and its powerhouse (level-design D.2), the door on the face towards the main line.
         foreach (var site in _sites)
@@ -203,7 +207,7 @@ public sealed partial class Run
     /// <summary>Seconds at the facility this stop (the Gaunt comes on long stops, v1.1 App. B.6); 0 away from one.</summary>
     public double StopSeconds { get; private set; }
     /// <summary>The loading machinery going (the winch turning, the crane's hook moving): it's loud (v1.1 App. C.7).</summary>
-    public bool Machinery => CurrentSite is { } site && (site.Turning || site.Crane?.Hooked is not null);
+    public bool Machinery => CurrentSite is { } site && (site.Turning || site.Crane?.Hooked is not null || site.Pouring || site.Herding);
     public double DawnIn => _route.DawnSeconds - Seconds;
     public bool LineLive => Seconds >= _route.DawnSeconds;
     /// <summary>The facility the train is stopped at, or −1.</summary>
@@ -316,6 +320,7 @@ public sealed partial class Run
             return;
         var train = world.Train;
         StepLoading(world, t, dt);
+        StepSetPieces(world, t, dt);
         // Whatever went into a car this tick (a sled, a casting, a crate) is this facility's cargo (App. B.8).
         if (FacilityFeature?.Facility is { } kind)
         {
@@ -526,6 +531,7 @@ public sealed partial class Run
     /// <param name="hand">When hands are reported (T29), a reaching hand has to be on the handle or the lever.</param>
     public void CrewAct(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null)
     {
+        SetPiecesAct(s, intent, playerId, train, hand);
         if (intent.Has(PlayerButtons.Use) && PowerhouseInReach(s, train) && CurrentSite is { } powered
             && (powered.Restarter < 0 || playerId < powered.Restarter))
             powered.Restarter = playerId;

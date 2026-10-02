@@ -367,6 +367,18 @@ public sealed class PrototypeSession : IPlaySession
             parts.Add(left == 0 ? "the castings are loaded" : site.Cranes.Any(c => c.Hooked is not null) ? $"{gantries}: a casting on the hook"
                 : $"{gantries}: {left} castings to rig and lift (one in the cab, one on the ground)");
         }
+        // GDD §18's set pieces (note 185).
+        if (site.Has(ModuleKind.Spout))
+            parts.Add(site.Bin <= 0 ? "the elevator's bin is empty" : site.Pouring ? $"spout POURING ({site.Bin:0.0} loads left)"
+                : $"one spout: walk each car under it, someone on its lever ({site.Bin:0.0} loads)");
+        if (site.Has(ModuleKind.Ramp))
+            parts.Add(site.Head == 0 ? "the herd's aboard" : site.Herding ? $"herd going up the ramp ({site.Head} left), LOUD"
+                : $"{site.Head} head in the pen: two to drive them up the ramp");
+        if (site.Has(ModuleKind.Hose))
+            parts.Add(site.Leaking ? "HOSE LEAKING: get clear, or get to the stand" : site.HoseCar >= 0 ? $"hose on, pressure {site.Pressure * 100:0}%: someone stay by the stand"
+                : "hose stand: put it on a car, mind it, take it off (and do not fire the guns in here)");
+        if (site.Feature.Facility == FacilityKind.MilitaryDepot && site.Has(ModuleKind.Crates))
+            parts.Add("powder kegs: set them down, never throw or drop them");
         if (site.Has(ModuleKind.Winch))
             parts.Add(site.SledsLeft == 0 ? "the winch is done" : site.Turning ? $"winch HAULING {site.Progress * 100:0}%" : site.OutOfRhythm ? "winch STALLED: out of rhythm" : $"winch: two on the capstan ({site.SledsLeft} sleds)");
         return " — " + string.Join(", ", parts);

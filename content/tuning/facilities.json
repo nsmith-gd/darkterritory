@@ -92,15 +92,92 @@
     "dropAbove": 0.6,
     "crushRadius": 1.4
   },
+  // GDD §18's set pieces (WP15, ARCHITECTURE §8 note 185).
+  // The grain elevator: "one spout, one car at a time. Endless repositioning and switch calls" (spec D.2's gravity chute,
+  // read for grain). The spout hangs over the track this far back from its buffer stop (or as far back as the standing track
+  // allows, short of 4 m from its start), this high; the lever stands "leverAlong" on from it, "leverLateral" out on the
+  // site's side. Grain comes down while someone holds the lever (within "leverReach"), "pourPerSecond" car-loads a second
+  // out of a bin of "bin" car-loads, into the cargo car whose middle is within "tolerance" of it. No car there, it's on the
+  // ballast; a full one there overflows, and each car-load over strains the car by "overfillDamagePerLoad" (spec D.2:
+  // "overfill damages car and spills"). The machinery's loud while it runs (combat.json machineryLoudness).
+  "spout": {
+    "back": 80,
+    "height": 5.2,
+    "leverAlong": 2.0,
+    "leverLateral": 3.4,
+    "leverReach": 1.2,
+    "tolerance": 1.5,
+    "pourPerSecond": 0.05,
+    "bin": 3.0,
+    "overfillDamagePerLoad": 0.6
+  },
+  // The slaughterhouse's livestock ramp (spec D.2: "herd animals up a ramp into a stock car. 2–3 crew. Constant noise. Raises
+  // Choir floor while active"). The ramp's top is "rampLateral" out from the track at "along"; the pen "penLateral" out,
+  // "penRadius" across, with "head" animals in it. With "herders" or more in the pen holding Use and a cargo car with room
+  // within "carReach" of the ramp's top, one goes up every "secondsPerHead" (each herder past the needed ones quickens it by
+  // "extraHerder"), each "loadPerHead" of a car-load. From the first one up until the last, the herd's stirred: the Choir's
+  // floor is "choirFloor" (combat.json choir livestockFloor is the stock car's own, once they're aboard). GDD §18 "something
+  // already lives here": enemies.json director "residents".
+  "ramp": {
+    "along": -10,
+    "rampLateral": 2.6,
+    "penLateral": 10,
+    "penRadius": 4,
+    "head": [4, 6],
+    "loadPerHead": 0.2,
+    "secondsPerHead": 6,
+    "herders": 2,
+    "extraHerder": 0.25,
+    "carReach": 9,
+    "choirFloor": 0.35
+  },
+  // The chemical works' fluid gantry (spec D.2: "connect hoses, monitor pressure, disconnect cleanly. 1–2. Leaks if unattended.
+  // Chemical spill contaminates the car"; GDD §18 "Leaks. Do not fire indoors"). The stand is "lateral" out at "along". Hold
+  // Use at it (within "reach") for "connectSeconds" to put the hose on the cargo car with room within "carReach", and again to
+  // take it off. On, it fills the car at "flowPerSecond" a second, and its pressure climbs "pressureRise" a second, falling
+  // "bleed" a second while anyone stands at the stand. At 1 it leaks: everyone within "leakRadius" of the stand takes
+  // "leakDamagePerSecond", and the car's load spoils "spoilPerSecond". The car moving more than "tearSlack" past "carReach"
+  // tears it off: it sprays for "tornSeconds" and the car's load spoils "tornSpoil" at once.
+  // "Indoors" is within "indoorsM" of the stand: in among the works' tanks and pipe racks, which takes in every car down its
+  // spur. A cannon fired there gasses as one beside a chemicals car does (combat.json fumes; note 182).
+  "hose": {
+    "along": 4,
+    "lateral": 4.2,
+    "reach": 1.4,
+    "carReach": 9,
+    "tearSlack": 2,
+    "connectSeconds": 2.5,
+    "flowPerSecond": 0.04,
+    "pressureRise": 0.05,
+    "bleed": 0.15,
+    "leakRadius": 6,
+    "leakDamagePerSecond": 12,
+    "spoilPerSecond": 0.02,
+    "tornSeconds": 20,
+    "tornSpoil": 0.25,
+    "indoorsM": 60
+  },
+  // The military depot's powder (GDD §18 "best payout, worst cargo"; §19 "explodes"). Its crates are kegs (cargo
+  // "ammunition" below). One brought up short by more than "blowSpeed" m/s (thrown, or dropped off a roof: set down by hand
+  // it falls a hand's height, about 3.7 m/s) goes up: everyone within "killRadius" takes "damage", less out to "radius";
+  // cars within "killRadius" of it lose "carDamage" integrity; and every keg within "chain" goes up the tick after.
+  "kegs": {
+    "blowSpeed": 6,
+    "killRadius": 3,
+    "radius": 9,
+    "damage": 150,
+    "chain": 3,
+    "carDamage": 0.3
+  },
   // Which modules each facility offers (spec D.1: 2–4 per POI once the roster is built; the coaling tower is its chute).
   "kinds": {
-    "grainElevator": ["crates"],
+    "grainElevator": ["spout"],
     "switchyard": ["crates"],
     "foundry": ["crane", "winch", "crates"],
-    "slaughterhouse": ["crates"],
+    "slaughterhouse": ["ramp", "crates"],
     "wreckYard": ["winch"],
     "mineHead": ["winch", "crates"],
-    "chemicalWorks": ["crates"],
+    "chemicalWorks": ["hose", "crates"],
     "militaryDepot": ["crates", "winch"]
   },
   // What each facility puts in a car (GDD §18-19; App. B.8's modifiers go by it). A car takes the cargo of the last one that

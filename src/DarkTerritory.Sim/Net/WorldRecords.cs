@@ -127,8 +127,9 @@ public static class WorldRecords
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Controls, 0), [Q(controls.Throttle, Fine), Q(controls.Brake, Fine), controls.Reverser]));
         if (world.Run is { } run)
         {
-            // Per facility: the chute's coal left, then its loading modules (crates out, winch sled, sleds left, turning).
-            const int Each = 7, Head = RunHead;
+            // Per facility: the chute's coal left, then its loading modules (crates out, winch sled, sleds left, turning), then
+            // the set pieces' (note 185: the spout's bin, the herd, the hose).
+            const int Each = 13, Head = RunHead;
             var f = new long[Head + run.FacilityCount * Each];
             f[0] = (long)run.Phase;
             f[1] = (long)run.End;
@@ -140,12 +141,19 @@ public static class WorldRecords
             {
                 var site = i < run.Sites.Count ? run.Sites[i] : null;
                 f[Head + i * Each] = Q(run.ChuteLeft(i), Fine);
-                f[Head + 1 + i * Each] = (site?.Stocked == true ? 1 : 0) | (site?.Turning == true ? 2 : 0) | (site?.OutOfRhythm == true ? 4 : 0);
+                f[Head + 1 + i * Each] = (site?.Stocked == true ? 1 : 0) | (site?.Turning == true ? 2 : 0) | (site?.OutOfRhythm == true ? 4 : 0)
+                    | (site?.Pouring == true ? 8 : 0) | (site?.Herding == true ? 16 : 0);
                 f[Head + 2 + i * Each] = Q(site?.Progress ?? 0, Fine);
                 f[Head + 3 + i * Each] = site?.SledsLeft ?? 0;
                 f[Head + 4 + i * Each] = Q(site?.Crank ?? 0, Ang);
                 f[Head + 5 + i * Each] = (long)(site?.Power ?? Stops.PowerState.Live);
                 f[Head + 6 + i * Each] = Q(site?.Restart ?? 0, Fine);
+                f[Head + 7 + i * Each] = Q(site?.Bin ?? 0, Fine);
+                f[Head + 8 + i * Each] = site?.Head ?? 0;
+                f[Head + 9 + i * Each] = Q(site?.Herd ?? 0, Fine);
+                f[Head + 10 + i * Each] = site?.HoseCar ?? -1;
+                f[Head + 11 + i * Each] = Q(site?.Pressure ?? 0, Fine);
+                f[Head + 12 + i * Each] = Q(site?.Leak ?? 0, Fine);
             }
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Run, 0), f));
         }
@@ -348,13 +356,18 @@ public static class WorldRecords
                         f.Length > 4 ? (int)f[4] : 0, f.Length > 5 && f[5] != 0);
                     break;
                 case RecordKind.Run when !world.Authority && world.Run is { } run:
-                    const int Each = 7, Head = RunHead;
+                    const int Each = 13, Head = RunHead;
                     int facilities = (f.Length - Head) / Each;
                     run.Mirror((Run.RunPhase)f[0], (Run.RunEnd)f[1], D(f[2], Fine), (int)f[3], f[4] != 0,
                         [.. Enumerable.Range(0, facilities).Select(i => D(f[Head + i * Each], Fine))],
                         [.. Enumerable.Range(0, facilities).Select(i => new Run.SiteState((f[Head + 1 + i * Each] & 1) != 0, D(f[Head + 2 + i * Each], Fine), (int)f[Head + 3 + i * Each],
                             (f[Head + 1 + i * Each] & 2) != 0, (f[Head + 1 + i * Each] & 4) != 0, D(f[Head + 4 + i * Each], Ang),
-                            (Stops.PowerState)f[Head + 5 + i * Each], D(f[Head + 6 + i * Each], Fine)))], D(f[5], Fine));
+                            (Stops.PowerState)f[Head + 5 + i * Each], D(f[Head + 6 + i * Each], Fine))
+                        {
+                            Pouring = (f[Head + 1 + i * Each] & 8) != 0, Herding = (f[Head + 1 + i * Each] & 16) != 0,
+                            Bin = D(f[Head + 7 + i * Each], Fine), Head = (int)f[Head + 8 + i * Each], Herd = D(f[Head + 9 + i * Each], Fine),
+                            HoseCar = (int)f[Head + 10 + i * Each], Pressure = D(f[Head + 11 + i * Each], Fine), Leak = D(f[Head + 12 + i * Each], Fine),
+                        })], D(f[5], Fine));
                     break;
             }
         }
