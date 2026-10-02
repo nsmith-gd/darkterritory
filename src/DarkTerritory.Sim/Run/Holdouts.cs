@@ -54,6 +54,11 @@ public sealed class Holdout
     public int Occupant { get; internal set; } = -1;
     /// <summary>Seconds of breach done, of <see cref="BreachSeconds"/>.</summary>
     public double Progress { get; internal set; }
+    /// <summary>
+    /// Its occupant's Live Mic is on (D.7): their voice plays from the door to the living near it, on proximity voice. It
+    /// defaults off, and goes off when they're freed or released. It never counts toward loudness: only the living are heard.
+    /// </summary>
+    public bool LiveMic { get; internal set; }
     internal int Breacher = -1;
     internal double CallCooldown;
 
@@ -75,6 +80,7 @@ public sealed class Holdouts
     readonly List<QueueEntry> _queue = [];
     // Each player's buttons last tick (a dead player's presses are edges), and who's holding a breach where.
     readonly Dictionary<int, PlayerButtons> _last = new();
+    readonly Dictionary<int, PlayerActions> _lastActions = new();
     readonly Dictionary<int, int> _holding = new();
     readonly Dictionary<int, int> _health = new();
     readonly List<(int Player, int Holdout)> _callOuts = [];
@@ -120,9 +126,16 @@ public sealed class Holdouts
         var now = intent.Buttons;
         _last[playerId] = now;
         bool pressed(PlayerButtons b) => (now & b) != 0 && (last & b) == 0;
+        var lastActions = _lastActions.GetValueOrDefault(playerId);
+        _lastActions[playerId] = intent.Actions;
         if (!s.Alive)
         {
             _holding.Remove(playerId);
+            // D.7 Live Mic: a toggle offered only to the one waiting in it.
+            if ((intent.Actions & PlayerActions.LiveMic) != 0 && (lastActions & PlayerActions.LiveMic) == 0)
+                foreach (var h in _holdouts)
+                    if (h.Lit && h.Occupant == playerId)
+                        h.LiveMic = !h.LiveMic;
             // D.7 Call Out, from whichever Holdout they could be answered at (the one they're in, or any lit one).
             if (pressed(PlayerButtons.Use))
                 foreach (var h in _holdouts)
@@ -282,10 +295,20 @@ public sealed class Holdouts
         return null;
     }
 
+    /// <summary>The lit Holdout whose Live Mic is <paramref name="playerId"/>'s, on (D.7); null if they have none.</summary>
+    public Holdout? LiveMicOf(int playerId)
+    {
+        foreach (var h in _holdouts)
+            if (h.Lit && h.LiveMic && h.Occupant == playerId)
+                return h;
+        return null;
+    }
+
     void Release(Holdout h)
     {
         h.State = HoldoutState.Dormant;
         h.Occupant = -1;
+        h.LiveMic = false;
         h.Progress = 0;
         h.Breacher = -1;
     }
@@ -295,6 +318,7 @@ public sealed class Holdouts
     {
         int id = h.Occupant;
         h.State = HoldoutState.Freed;
+        h.LiveMic = false;
         h.Progress = h.Breach(Tuning).Seconds;
         h.Breacher = -1;
         _queue.RemoveAll(e => e.PlayerId == id);
@@ -329,7 +353,7 @@ public sealed class Holdouts
     }
 
     /// <summary>Client side: adopts the host's Holdouts.</summary>
-    public void Mirror(int index, HoldoutState state, int occupant, double progress)
+    public void Mirror(int index, HoldoutState state, int occupant, double progress, bool liveMic = false)
     {
         if (index < 0 || index >= _holdouts.Count)
             return;
@@ -337,5 +361,6 @@ public sealed class Holdouts
         h.State = state;
         h.Occupant = occupant;
         h.Progress = progress;
+        h.LiveMic = liveMic;
     }
 }

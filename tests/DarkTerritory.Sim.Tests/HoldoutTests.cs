@@ -1,4 +1,5 @@
 using Ballast;
+using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Route;
@@ -239,6 +240,74 @@ public class HoldoutTests
         n.Step(1.0 / SimConstants.TickRate);
         Assert.Single(n.Events, e => e.Kind == HoldoutEventKind.CalledOut);
         Assert.Equal(loud, n.World.Choir.Loudness);
+    }
+
+    [Fact]
+    public void TheLiveMicIsTheOccupantsToggleAndNeverNoise()
+    {
+        // D.7: offered only to the player assigned to that Holdout; off by default; off again when they're freed. And D.14's
+        // dead silence: talking on it never feeds the loudness meter, however loud.
+        var n = new Night(AHalt, engineFrom: -300);
+        // The host's enemies on, so the meter is listening to everyone's voice (App. C.7).
+        n.World.EnableEnemies(Tuning.Enemies, route: null, 1, crew: 3, authority: true);
+        int living = n.Add(alive: true);
+        int inside = n.Add(alive: false), other = n.Add(alive: false);
+        n.Step(0.2);
+        var h = n.Here.Single();
+        Assert.Equal(inside, h.Occupant);
+        Assert.False(h.LiveMic);
+        n.Stand(living, h.Door + new Double3(3, 0, 0));
+        n.Step(0.5);
+        double quiet = n.World.Choir.Loudness;
+
+        void Press(int id, bool down, byte voice = 0)
+        {
+            if (n.Intents.Length < n.Crew.Count)
+                Array.Resize(ref n.Intents, n.Crew.Count);
+            n.Intents[id] = new PlayerIntent { Actions = down ? PlayerActions.LiveMic : 0, Voice = voice };
+            n.Step(1.0 / SimConstants.TickRate);
+        }
+        // Someone else dead pressing it does nothing: it isn't theirs.
+        Press(other, true);
+        Press(other, false);
+        Assert.False(h.LiveMic);
+        Assert.Null(n.World.Holdouts!.LiveMicOf(other));
+        // The occupant's press turns it on; held, it stays on (a toggle on the press).
+        Press(inside, true, voice: 255);
+        Press(inside, true, voice: 255);
+        Assert.True(h.LiveMic);
+        Assert.Same(h, n.World.Holdouts.LiveMicOf(inside));
+        // Shouting into it for a few seconds: the meter never hears it.
+        for (int t = 0; t < 3 * SimConstants.TickRate; t++)
+            Press(inside, false, voice: 255);
+        Assert.Equal(quiet, n.World.Choir.Loudness);
+        // ... where the living crewmate at the door saying the same would have been heard.
+        n.Intents[living] = new PlayerIntent { Voice = 255 };
+        n.Step(1);
+        Assert.True(n.World.Choir.Loudness > quiet, $"loudness {quiet} -> {n.World.Choir.Loudness}");
+        n.Intents[living] = default;
+
+        // A client sees it (the HUD's LIVE MIC ON).
+        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 0)), n.World.Run!.Route.Build(), n.Site.Start, Tuning.Boiler), Tuning.Combat);
+        client.EnableHoldouts(H, n.World.Run.Route);
+        var controls = new TrainControls();
+        WorldRecords.Apply(WorldRecords.Capture(n.World, controls, []), client, ref controls, []);
+        Assert.True(client.Holdouts!.All[h.Index].LiveMic);
+        Assert.Equal(inside, client.Holdouts.All[h.Index].Occupant);
+
+        // Pressed again, off.
+        Press(inside, true);
+        Assert.False(h.LiveMic);
+        Press(inside, false);
+        Press(inside, true);
+        Assert.True(h.LiveMic);
+        // Freed, it's off, and they're heard as anyone living is.
+        n.Stand(living, h.Door);
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(h.Breach(H).Seconds + 0.2);
+        Assert.Equal(HoldoutState.Freed, h.State);
+        Assert.False(h.LiveMic);
+        Assert.Null(n.World.Holdouts.LiveMicOf(inside));
     }
 
     [Fact]

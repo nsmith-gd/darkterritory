@@ -13,7 +13,7 @@ namespace DarkTerritory.Sim.Net;
 /// its state and controls, so the client predicts it too. Other players are shown interpolated
 /// between snapshots, a little in the past.
 /// </summary>
-/// <param name="Source">For a <see cref="VoicePath.Mimic"/> frame, the enemy it comes from (T40); 0 otherwise.</param>
+/// <param name="Source">For a <see cref="VoicePath.Mimic"/> frame, the enemy it comes from (T40); for a <see cref="VoicePath.LiveMic"/> one, the Holdout (App. D.7); 0 otherwise.</param>
 /// <param name="Gain">With <see cref="VoicePath.Fading"/>: how much of the speaker's voice is left, 0..1 (App. C.8).</param>
 public readonly record struct VoiceFrame(byte Speaker, ushort Sequence, VoicePath Path, byte[] Opus, int Source = 0, double Gain = 1);
 
@@ -173,7 +173,7 @@ public sealed class ClientSession
                     byte speaker = r.U8();
                     ushort vseq = r.U16();
                     var path = (VoicePath)r.U8();
-                    int source = path.HasFlag(VoicePath.Mimic) ? r.I32() : 0;
+                    int source = (path & (VoicePath.Mimic | VoicePath.LiveMic)) != 0 ? r.I32() : 0;
                     double gain = path.HasFlag(VoicePath.Fading) ? r.U8() / 255.0 : 1;
                     VoiceFrames.Enqueue(new VoiceFrame(speaker, vseq, path, r.Rest().ToArray(), source, gain));
                     break;

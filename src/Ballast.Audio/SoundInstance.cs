@@ -25,7 +25,7 @@ public sealed class SoundInstance
         for (int i = 0; i < _layers.Length; i++)
         {
             _layers[i] = new LayerState(def.Layers[i], seed * 7919u + (uint)i * 104729u + 1, samples);
-            takes[i] = _layers[i].Take?.Name;
+            takes[i] = _layers[i].TakeName;
             if (def.Layers[i].Source == SourceKind.Sample)
                 _hasSamples = true;
             else
@@ -34,8 +34,14 @@ public sealed class SoundInstance
         Takes = takes;
     }
 
-    /// <summary>The take each sample layer picked (its path under the samples root); null for other layers, or a sample that isn't there.</summary>
+    /// <summary>
+    /// The take each sample layer picked (its path under the samples root), from the seed alone, so the same whether it was
+    /// decoded at once or is still on a worker; null for other layers, or a sample that isn't there.
+    /// </summary>
     public IReadOnlyList<string?> Takes { get; }
+
+    /// <summary>A sample layer is still waiting for its take to decode (<see cref="SampleLibrary.Request"/>).</summary>
+    public bool Waiting => _layers.Any(l => l.Waiting);
 
     /// <summary>Samples for <see cref="SourceKind.Stream"/> layers; set for voice chat.</summary>
     public StreamBuffer? Stream { get; set; }
@@ -56,7 +62,8 @@ public sealed class SoundInstance
     /// <summary>
     /// A loop plays until it's stopped. A one-shot is over when its length has passed. Synth layers have no length of
     /// their own, so a sound of only those lasts <see cref="SoundDef.Duration"/> (1 s if not given). A sample layer lasts
-    /// as long as its take at its rate, after its delay. With any sample layers, the sound is over once they all have
+    /// as long as its take at its rate, after its delay, and after however long its take took to decode, if it was long
+    /// enough to go to a worker (it starts from the top when it arrives). With any sample layers, the sound is over once they all have
     /// played out, and not before its duration only if it has synth layers too and gives one. An all-sample one-shot
     /// ignores the duration: its takes are its length, so a 0.2 s footstep frees its voice at 0.2 s (not after 0.8 s of
     /// silence holding a voice and an instance), and a 3 s take isn't cut off at a default second.
@@ -90,6 +97,12 @@ public sealed class SoundInstance
     internal Smoothed LeftGain, RightGain;
     internal Biquad OcclusionFilter;
     internal float LastAudibleGain;
+    // The listener's space: shut out by it (ramped, not cut), and a voice's compressor (its level at the ear in dB, and the
+    // gain it's giving, makeup included).
+    internal float SpaceGain = 1;
+    internal float CompressorEnvelopeDb = -120, CompressorGain = 1;
+    internal SpaceDef? MutedFor;
+    internal bool Muted;
     /// <summary>Past the voice budget last block: keeping time, not rendered.</summary>
     public bool Virtual { get; internal set; }
 
@@ -133,32 +146,73 @@ public sealed class SoundInstance
         }
     }
 
-    sealed class LayerState(LayerDef def, uint seed, SampleLibrary? samples)
+    sealed class LayerState
     {
-        Noise _noise = new(seed);
-        readonly Biquad[] _filters = new Biquad[def.Filters?.Length ?? 0];
+        readonly LayerDef def;
+        readonly SampleLibrary? samples;
+        Noise _noise;
+        readonly Biquad[] _filters;
         // An impulse fires on the first sample, so a one-shot clunk lands when it's played.
-        double _phase = def.Source == SourceKind.Impulse ? 1 - 1e-9 : 0, _tremoloPhase, _vibratoPhase;
+        double _phase, _tremoloPhase, _vibratoPhase;
         double _tremoloRate, _gateJitter;
         bool _filtersSet;
         // Picked once from the seed, each with its own hash of it: drawing them doesn't move a noise layer's sequence,
         // so a sound without jitter or takes renders exactly as it did before they existed.
-        readonly double _pitch = Math.Pow(2, def.PitchJitter * Uniform(seed, 1) / 12);
-        readonly float _gain = Audio.DbToGain(def.GainJitter * Uniform(seed, 2));
-        // A sample layer's take, and where it's up to in it (in the take's samples).
-        public SampleClip? Take { get; } = def.Source == SourceKind.Sample ? Pick(def.Sample, samples, Hash(seed ^ 0x5BD1E995u)) : null;
+        readonly double _pitch;
+        readonly float _gain;
+        // A sample layer's take (null until it's decoded), and where it's up to in it (in the take's samples).
+        SampleClip? _take;
         double _position;
         bool _playedOut;
+        // Seconds the layer waited for its take after it was due: its own clock runs that much behind the sound's, so it
+        // plays the take from the top, exactly as if it had been decoded in time, only later.
+        double _late;
+
+        public LayerState(LayerDef def, uint seed, SampleLibrary? samples)
+        {
+            this.def = def;
+            this.samples = samples;
+            _noise = new Noise(seed);
+            _filters = new Biquad[def.Filters?.Length ?? 0];
+            _phase = def.Source == SourceKind.Impulse ? 1 - 1e-9 : 0;
+            _pitch = Math.Pow(2, def.PitchJitter * Uniform(seed, 1) / 12);
+            _gain = Audio.DbToGain(def.GainJitter * Uniform(seed, 2));
+            TakeName = def.Source == SourceKind.Sample ? Pick(def.Sample, samples, Hash(seed ^ 0x5BD1E995u)) : null;
+            // Asked for at once: a short take decodes now, a long one starts on a worker while the sound's delay runs.
+            Resolve();
+        }
+
+        /// <summary>The take this layer picked (by the seed), decoded yet or not.</summary>
+        public string? TakeName { get; }
+
+        /// <summary>Its take is still decoding on a worker.</summary>
+        public bool Waiting => TakeName is not null && _take is null;
 
         /// <summary>A one-shot's take has played to its end (or there's nothing to play); always true for other layers.</summary>
-        public bool PlayedOut => Take is not { Length: > 0 } || _playedOut;
+        public bool PlayedOut => !Waiting && (_take is not { Length: > 0 } || _playedOut);
+
+        /// <summary>Picks up the take if it's arrived; true while it's still on its way.</summary>
+        bool Resolve()
+        {
+            if (Waiting)
+                _take = samples!.Request(TakeName!);
+            return Waiting;
+        }
 
         /// <param name="cycleSeconds">If positive, envelopes repeat on this period (a loop's breathing, a pack's howls).</param>
         /// <param name="loop">The sound loops, so a take wraps round instead of ending.</param>
         public void Render(Span<float> output, float[] scratch, ParamSet p, double age, double cycleSeconds, float[] stream, bool loop)
         {
-            double t = age - def.Delay;
-            if (t < 0 || def.Source == SourceKind.Sample && PlayedOut)
+            double t = age - def.Delay - _late;
+            if (t < 0)
+                return;
+            if (Resolve())
+            {
+                // Due, but the take's still decoding: silence, and the take starts that much later.
+                _late += (double)output.Length / Audio.SampleRate;
+                return;
+            }
+            if (def.Source == SourceKind.Sample && PlayedOut)
                 return;
             double EnvelopeTime(double at) => cycleSeconds > 0 ? at % cycleSeconds : at;
             var buffer = scratch.AsSpan(0, output.Length);
@@ -193,9 +247,9 @@ public sealed class SoundInstance
                     _vibratoPhase += vibRate * dt;
                     f *= 1 + vibDepth * Math.Sin(2 * Math.PI * _vibratoPhase);
                 }
-                if (Take is not null)
+                if (_take is not null)
                 {
-                    buffer[i] = Read(Take, f, loop);
+                    buffer[i] = Read(_take, f, loop);
                     continue;
                 }
                 double prev = _phase;
@@ -233,8 +287,12 @@ public sealed class SoundInstance
         /// <summary>Keeps a take's place while the voice is virtual: it isn't heard, but a one-shot still has to end.</summary>
         public void Skip(int samples, ParamSet p, double age, double cycleSeconds, bool loop)
         {
-            double t = age - def.Delay;
-            if (t >= 0 && Take is not null)
+            double t = age - def.Delay - _late;
+            if (t < 0)
+                return;
+            if (Resolve())
+                _late += (double)samples / Audio.SampleRate;
+            else if (_take is not null)
                 Advance(Pitch(p, cycleSeconds > 0 ? t % cycleSeconds : t) * samples, loop);
         }
 
@@ -266,7 +324,7 @@ public sealed class SoundInstance
         /// <summary>Moves the read position on (never back: a rate at or under zero holds it).</summary>
         void Advance(double samples, bool loop)
         {
-            if (Take is not { Length: > 0 } take || _playedOut)
+            if (_take is not { Length: > 0 } take || _playedOut)
                 return;
             _position += Math.Max(0, samples);
             if (_position < take.Length)
@@ -277,12 +335,12 @@ public sealed class SoundInstance
                 _playedOut = true;
         }
 
-        /// <summary>One of the sample's takes, by the seed; null if it names nothing.</summary>
-        static SampleClip? Pick(string? sample, SampleLibrary? samples, uint dice)
+        /// <summary>One of the sample's takes, by the seed alone; null if it names nothing.</summary>
+        static string? Pick(string? sample, SampleLibrary? samples, uint dice)
         {
             if (samples?.Takes(sample) is not { Count: > 0 } takes)
                 return null;
-            return samples.Clip(takes[(int)(dice % (uint)takes.Count)]);
+            return takes[(int)(dice % (uint)takes.Count)];
         }
 
         /// <summary>Uniform in [−1, 1), from the seed and a salt (one per thing drawn).</summary>

@@ -74,7 +74,9 @@ return args switch
     ["audio", "render", ..] => Print(RenderAudio(content, args)),
     ["edit", ..] => Edit(content, args),
     ["voice", "bench", ..] => Print(DarkTerritory.Game.Sound.VoiceBench.Run(content, (int)Opt(args, "--car", 3), Opt(args, "--z", 4), args.Contains("--radio"),
-        Opt(args, "--seconds", 2), new Ballast.Net.LinkConditions(Opt(args, "--latency", 0), Opt(args, "--jitter", 0), Opt(args, "--loss", 0)))),
+        Opt(args, "--seconds", 2), new Ballast.Net.LinkConditions(Opt(args, "--latency", 0), Opt(args, "--jitter", 0), Opt(args, "--loss", 0)),
+        // --space tunnel: heard as if in that space (content/audio/spaces.json), compressor, reverb and all.
+        Str(args, "--space", "") is { Length: > 0 } space ? space : null)),
 
     _ => Usage(),
 };
@@ -1290,11 +1292,12 @@ static object RenderAudio(string content, string[] args)
         return RenderSound(content, sound, args);
     string scenario = Str(args, "--scenario", "chaos");
     if (Str(args, "--listener", "") == "all")
-        return DarkTerritory.Game.Sound.AudioBench.Sweep(content, scenario, (int)Opt(args, "--cars", 20), Opt(args, "--speed", 22), Opt(args, "--seconds", 6));
+        return DarkTerritory.Game.Sound.AudioBench.Sweep(content, scenario, (int)Opt(args, "--cars", 20), Opt(args, "--speed", 22), Opt(args, "--seconds", 6),
+            Str(args, "--space", "") is { Length: > 0 } everywhere ? everywhere : null);
     string output = Str(args, "--out", $"out/audio/{scenario}.wav");
     var clock = Stopwatch.StartNew();
     var (report, mix) = DarkTerritory.Game.Sound.AudioBench.Render(content, scenario, (int)Opt(args, "--cars", 20), Opt(args, "--speed", 22),
-        (int)Opt(args, "--listener", 5), Opt(args, "--seconds", 6));
+        (int)Opt(args, "--listener", 5), Opt(args, "--seconds", 6), Str(args, "--space", "") is { Length: > 0 } space ? space : null);
     Ballast.Audio.Wav.Write(output, mix);
     // The picture of it: a spectrogram beside the WAV, for looking at bands without listening.
     string picture = Path.ChangeExtension(output, ".png");
@@ -1309,7 +1312,9 @@ static object RenderSound(string content, string sound, string[] args)
     for (int i = 0; i + 1 < args.Length; i++)
         if (args[i] == "--param" && args[i + 1].Split('=') is [var name, var value])
             parameters[name] = double.Parse(value);
-    var (report, mix) = DarkTerritory.Game.Sound.AudioBench.RenderSound(content, sound, args.Contains("--seconds") ? Opt(args, "--seconds", 0) : null, parameters);
+    // --space tunnel: heard in that space (content/audio/spaces.json), its reverb and all.
+    var (report, mix) = DarkTerritory.Game.Sound.AudioBench.RenderSound(content, sound, args.Contains("--seconds") ? Opt(args, "--seconds", 0) : null, parameters,
+        Str(args, "--space", "") is { Length: > 0 } space ? space : null);
     string output = Str(args, "--out", $"out/audio/sound-{sound}.wav");
     Ballast.Audio.Wav.Write(output, mix);
     string picture = Path.ChangeExtension(output, ".png");

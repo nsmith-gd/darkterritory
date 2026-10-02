@@ -49,6 +49,7 @@ Strict ducking priority. Higher tiers duck everything below.
 | **4** | Player actions | Footsteps, tools, shovel, gun |
 | **5** | Train bed | The floor everything sits on |
 | **6** | Ambient world | Wind, distant, weather |
+| **7** | Music | *Added 1 Oct.* A low drone under the night. Every other tier ducks it; it ducks nothing, never voice |
 
 **Tier 1 is inviolable.** A telegraph that can be drowned out is a bug, and the agent harness should test it by generating maximum-chaos states and verifying tell audibility.
 

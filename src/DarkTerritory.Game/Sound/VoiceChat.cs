@@ -10,7 +10,9 @@ namespace DarkTerritory.Game.Sound;
 /// push-to-talk) → Opus in 20 ms frames → the host. Incoming: each speaker's frames are decoded once and fed to
 /// the path the host said they came by: a positional voice at the speaker (26 m log falloff, occluded through
 /// the cab walls), a flat band-limited radio, or the flat dead channel. All of it plays on tier 2 of the mixer,
-/// so talking ducks the bed exactly as spec A.3 says.
+/// so talking ducks the bed exactly as spec A.3 says. A dead player on their Holdout's Live Mic (GDD App. D.7) comes on
+/// the positional path too, from the Holdout's door. In a tunnel the mixer's space compresses positional voice and gives
+/// it the tunnel's reverb (GDD §22; GameAudio picks the space).
 /// <para>
 /// A Soot Child's call (T40) comes as its own stream, keyed by the thing and not the crewmate whose voice it's using:
 /// the frames are replayed, so they'd be stale to that crewmate's own decoder. It plays from where the thing is, at one
@@ -49,6 +51,8 @@ public sealed class VoiceChat
         public SoundInstance? NearVoice, RadioVoice, DeadVoice, MimicVoice;
         public double RadioKeyed;
         public double LastHeard = double.NegativeInfinity;
+        /// <summary>The Holdout whose Live Mic their last proximity frame came by (GDD App. D.7), or -1.</summary>
+        public int LiveMic = -1;
     }
 
     public IEnumerable<byte> Speakers => _speakers.Keys;
@@ -126,6 +130,9 @@ public sealed class VoiceChat
             foreach (var c in crew)
                 if (c.Id == s.Id && s.NearVoice is not null)
                     s.NearVoice.Position = c.Feet + Double3.Up * 1.6;
+            // Dead, on their Holdout's Live Mic (GDD App. D.7): heard from behind its door, not from where they fell.
+            if (s.LiveMic >= 0 && s.NearVoice is not null && client.World.Holdouts?.All is { } holdouts && s.LiveMic < holdouts.Count)
+                s.NearVoice.Position = holdouts[s.LiveMic].Door + Double3.Up * 1.6;
             s.RadioKeyed = Math.Max(0, s.RadioKeyed - dt);
             s.RadioVoice?.Params.Set("keyed", s.RadioKeyed > 0 || s.Radio.Playing ? 1 : 0);
         }
@@ -162,7 +169,10 @@ public sealed class VoiceChat
                 return;
             }
             if (f.Path.HasFlag(VoicePath.Proximity))
+            {
+                s.LiveMic = f.Path.HasFlag(VoicePath.LiveMic) ? f.Source : -1;
                 s.Near.Write(pcm);
+            }
             if (f.Path.HasFlag(VoicePath.Radio))
                 s.Radio.Write(pcm);
             if (f.Path.HasFlag(VoicePath.Dead))

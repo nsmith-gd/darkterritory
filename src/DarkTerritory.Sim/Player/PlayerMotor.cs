@@ -47,6 +47,11 @@ public enum PlayerActions : byte
     Ladder = 16,
     /// <summary>On the wire only: this intent carries a hotbar choice (<see cref="PlayerIntent.Select"/>, <see cref="PlayerIntent.Cycle"/>).</summary>
     Tool = 32,
+    /// <summary>
+    /// The Live Mic at your Holdout (GDD App. D.7), on or off: a toggle on the press, honoured only from the dead player
+    /// waiting in a lit Holdout. While it's on, their voice plays from its door to the living near it.
+    /// </summary>
+    LiveMic = 64,
 }
 
 /// <summary>The forward lamp's switch in the cab (T52): set it on or off (a setting, not a toggle, so a held key or a resent intent is harmless).</summary>

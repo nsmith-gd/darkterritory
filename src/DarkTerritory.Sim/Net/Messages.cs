@@ -158,7 +158,7 @@ public static class Messages
         w.Bytes(opus);
     }
 
-    /// <param name="source">For <see cref="VoicePath.Mimic"/>: the Soot Child it's coming from (T40).</param>
+    /// <param name="source">For <see cref="VoicePath.Mimic"/>: the Soot Child it's coming from (T40); for <see cref="VoicePath.LiveMic"/>, the Holdout.</param>
     /// <param name="gain">For <see cref="VoicePath.Fading"/>: how much of the voice is left, 0..1.</param>
     public static void WriteVoiceDown(NetWriter w, byte speaker, ushort sequence, VoicePath path, ReadOnlySpan<byte> opus, int source = 0, double gain = 1)
     {
@@ -167,7 +167,7 @@ public static class Messages
         w.U8(speaker);
         w.U16(sequence);
         w.U8((byte)path);
-        if (path.HasFlag(VoicePath.Mimic))
+        if ((path & (VoicePath.Mimic | VoicePath.LiveMic)) != 0)
             w.I32(source);
         if (path.HasFlag(VoicePath.Fading))
             w.U8((byte)Math.Round(Math.Clamp(gain, 0, 1) * 255));

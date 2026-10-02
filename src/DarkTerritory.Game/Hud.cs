@@ -291,7 +291,7 @@ public static class Hud
             if (world.Holdouts is { } holdouts)
                 Small(holdouts.All.FirstOrDefault(h => h.Occupant == s.PlayerId && h.Lit) is { } mine
                     ? mine.State == HoldoutState.Breaching ? $"THEY'RE BREAKING YOU OUT: {mine.Progress / mine.Breach(holdouts.Tuning).Seconds * 100:0}%"
-                        : $"YOU'RE IN THE {HoldoutName(mine)}. [E] CALL OUT   [RMB] LET SOMEONE ELSE GO FIRST"
+                        : $"YOU'RE IN THE {HoldoutName(mine)}. [E] CALL OUT   [{Controls.KeyLabel(Keys.KeyFor(Control.Radio))}] LIVE MIC {(mine.LiveMic ? "ON: THEY HEAR YOU AT THE DOOR" : "OFF")}   [RMB] LET SOMEONE ELSE GO FIRST"
                     : "YOU'LL WAIT AT THE NEXT HALT OR YARD, IF THEY STOP FOR YOU   [RMB] LET SOMEONE ELSE GO FIRST", Dim);
         }
         if (p.Alive && PlayerMotor.Chilled(p, s.PlayerTuning))

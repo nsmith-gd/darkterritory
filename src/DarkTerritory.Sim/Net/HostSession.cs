@@ -298,6 +298,9 @@ public sealed class HostSession
         Func<PlayerState, bool>? underground = World.Run is { } run ? s => run.Underground(s, Train) : null;
         // The radio's a thing (T41): no radio on you, nobody hears you on it, and you hear nobody.
         radio &= World.Bodies.HasRadio(speaker.Id);
+        // GDD App. D.7: dead, and waiting in a Holdout with its Live Mic on, they're heard from its door by the living near it.
+        // Nothing else hears it: the loudness meter and the Gaunt only ever count the living (World.Loudness, Enemies.Gaunt).
+        var liveMic = speaker.State.Alive ? null : World.Holdouts?.LiveMicOf(speaker.Id);
         foreach (var listener in _crew)
         {
             if (listener == speaker)
@@ -305,7 +308,7 @@ public sealed class HostSession
             // A dead listener hears the living through whoever they watch (App. D.10: "exactly what the followed player
             // hears"); the dead channel stays theirs.
             var ears = speaker.State.Alive ? EarsOf(listener) : listener;
-            var path = VoiceRouting.Route(speaker.State, ears.State, radio, Train, tunnel, World.Bodies.HasRadio(ears.Id), underground);
+            var path = VoiceRouting.Route(speaker.State, ears.State, radio, Train, tunnel, World.Bodies.HasRadio(ears.Id), underground, liveMic?.Door);
             if (path == VoicePath.None)
                 continue;
             // What's holding the speaker changes how they sound (App. C.8): muffled under a hand, fading as they're drained.
@@ -314,7 +317,7 @@ public sealed class HostSession
                 path |= VoicePath.Muffled;
             if (gain < 1)
                 path |= VoicePath.Fading;
-            Messages.WriteVoiceDown(_voiceWriter, speaker.Id, seq, path, opus, gain: gain);
+            Messages.WriteVoiceDown(_voiceWriter, speaker.Id, seq, path, opus, liveMic?.Index ?? 0, gain);
             _transport.Send(listener.Peer, _voiceWriter.Written, Delivery.Unreliable);
             VoiceFramesForwarded++;
         }

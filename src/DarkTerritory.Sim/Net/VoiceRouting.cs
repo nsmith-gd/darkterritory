@@ -1,3 +1,4 @@
+using Ballast;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Train;
 
@@ -31,6 +32,11 @@ public enum VoicePath : byte
     /// (<see cref="VoiceFrame.Gain"/>), the host's.
     /// </summary>
     Fading = 64,
+    /// <summary>
+    /// A dead player's Live Mic (GDD App. D.7), with <see cref="Proximity"/>: their voice from their Holdout's door, not from
+    /// where they are. <see cref="VoiceFrame.Source"/> says which Holdout.
+    /// </summary>
+    LiveMic = 128,
 }
 
 /// <summary>
@@ -47,11 +53,22 @@ public static class VoiceRouting
     /// <param name="radio">The speaker is talking on the radio, and has one (T41: the host checks).</param>
     /// <param name="listenerRadio">The listener has a radio to hear it on.</param>
     /// <param name="underground">Where else the radio's dead: down a mine head's spur (<see cref="Run.Run.Underground"/>).</param>
+    /// <param name="liveMic">
+    /// A dead speaker's Live Mic is on (GDD App. D.7): the door of the Holdout they wait in. The living within proximity range
+    /// of it hear them from there (8 m clear, 26 m cutoff, as any voice), through the walls if they're shut in a car or the
+    /// cab; the dead still hear them on the dead channel.
+    /// </param>
     public static VoicePath Route(in PlayerState speaker, in PlayerState listener, bool radio, TrainOnLine train, Func<double, bool>? inTunnel = null,
-        bool listenerRadio = true, Func<PlayerState, bool>? underground = null)
+        bool listenerRadio = true, Func<PlayerState, bool>? underground = null, Double3? liveMic = null)
     {
         if (!speaker.Alive)
-            return listener.Alive ? VoicePath.None : VoicePath.Dead;
+        {
+            if (!listener.Alive)
+                return VoicePath.Dead;
+            if (liveMic is not { } door || (door - PlayerMotor.WorldPosition(listener, train)).Length > ProximityCutoff + ForwardMargin)
+                return VoicePath.None;
+            return VoicePath.Proximity | VoicePath.LiveMic | (PlayerMotor.Space(listener, train) != PlayerMotor.Outside ? VoicePath.Occluded : 0);
+        }
         var path = VoicePath.None;
         var a = PlayerMotor.WorldPosition(speaker, train);
         var b = PlayerMotor.WorldPosition(listener, train);

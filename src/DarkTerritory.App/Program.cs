@@ -497,6 +497,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     bool pendingReverser = false;
     var pendingLamp = LampSwitch.None;
     bool pendingCarLamp = false;
+    // Dead and waiting in a Holdout, the radio key is its Live Mic (GDD App. D.7): the dead have no radio, only the dead channel.
+    bool pendingLiveMic = false;
     byte pendingSelect = 0;
     float pendingCycle = 0;
     double voiceLevel = 0;
@@ -537,6 +539,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (Hit(Control.Lamp))
             pendingLamp = session.World.LampLit ? LampSwitch.Off : LampSwitch.On;
         pendingCarLamp |= Hit(Control.CarLamp);
+        pendingLiveMic |= Hit(Control.Radio) && !session.Player.Alive;
         // The hotbar (T108): a number key picks its slot, the wheel steps through the tools.
         for (var k = Key.D1; k < Key.D1 + Kit.Slots; k++)
             if (input.Pressed(k))
@@ -603,7 +606,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 // left button fires it).
                 Actions = (Held(Control.Swing) || Held(Control.Fire) ? PlayerActions.Swing : 0) | (Held(Control.Whistle) ? PlayerActions.Whistle : 0)
                     | (Held(Control.Uncouple) ? PlayerActions.Uncouple : 0) | (Held(Control.Ladder) ? PlayerActions.Ladder : 0)
-                    | (pendingCarLamp ? PlayerActions.CarLamp : 0),
+                    | (pendingCarLamp ? PlayerActions.CarLamp : 0) | (pendingLiveMic ? PlayerActions.LiveMic : 0),
                 // How loud you are (GDD v1.1 App. C.7, C.8): the mic while it sends; with no mic, holding Talk counts as
                 // speaking up, so a player without one can still talk the Gaunt down and answer a roll call.
                 Voice = (byte)Math.Clamp(voiceLevel * 255, 0, 255),
@@ -630,6 +633,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             pendingNotch = 0;
             pendingLamp = LampSwitch.None;
             pendingCarLamp = false;
+            pendingLiveMic = false;
             pendingReverser = false;
             pendingYaw = pendingPitch = 0;
             session.Step(intent);

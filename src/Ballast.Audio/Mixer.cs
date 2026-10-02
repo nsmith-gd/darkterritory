@@ -48,13 +48,24 @@ public sealed class MeterTap(int frames)
 
 /// <summary>
 /// The software mixer (ARCHITECTURE §6.4). Voices are synthesised, spatialised (distance rolloff,
-/// equal-power pan, occlusion) and summed onto six tier buses. Tier ducking follows spec A.3 exactly, from
-/// <c>content/audio/mix.json</c>: while a tier is audible, the tiers it ducks drop. The same code renders to
-/// the audio device and offline to a buffer, so audibility is something tests can measure.
+/// equal-power pan, occlusion) and summed onto seven tier buses: spec A.3's six, and music's own under them (decided
+/// 1 Oct). Tier ducking follows spec A.3 exactly, from <c>content/audio/mix.json</c>: while a tier is audible, the tiers
+/// it ducks drop. The listener's <see cref="Space"/> (spec A.6) adds its reverb, fed from every positioned voice by its
+/// tier's send, shuts out what it shuts out, and compresses voice where it says. The same code renders to the audio
+/// device and offline to a buffer, so audibility is something tests can measure.
 /// </summary>
 public sealed class Mixer
 {
-    public const int Tiers = 6;
+    public const int Tiers = 7;
+    /// <summary>The <see cref="MeterTap"/> stem the reverb's return is metered as (all but the tells' own, while metering).</summary>
+    public const string ReverbStem = "(reverb)";
+    /// <summary>
+    /// While a <see cref="MeterTap"/> is on: the tells' (tier 1's) own share of the reverb, convolved apart so an audit can
+    /// count a tell's room as the tell's and not as the bed masking it. Offline only: it doubles the reverb's cost.
+    /// </summary>
+    public const string TellReverbStem = "(reverb) tells";
+    /// <summary>How long what a space shuts out takes to go (a linear ramp to nothing), or to come back.</summary>
+    public const double MuteSeconds = 0.3;
     readonly SoundBank _bank;
     readonly List<SoundInstance> _voices = new();
     readonly float[][] _buffers;
@@ -66,6 +77,15 @@ public sealed class Mixer
     readonly Dictionary<string, double> _soundTarget = new();
     int _nextId = 1;
     uint _seed = 1;
+    // The space as of the last block, its reverb, and the reverbs of spaces just left, ringing out.
+    SpaceDef? _space;
+    Convolver? _reverb;
+    readonly List<Convolver> _tails = new();
+    readonly Dictionary<ReverbDef, ImpulseResponse> _responses = new();
+    readonly float[] _send = new float[Audio.Block], _wetLeft = new float[Audio.Block], _wetRight = new float[Audio.Block], _silence = new float[Audio.Block];
+    // Metering only: the tells' send, convolved apart.
+    Convolver? _tellReverb;
+    readonly float[] _tellSend = new float[Audio.Block], _tellLeft = new float[Audio.Block], _tellRight = new float[Audio.Block];
 
     public Mixer(SoundBank bank, MixDef mix)
     {
@@ -80,6 +100,22 @@ public sealed class Mixer
 
     public MixDef Mix { get; set; }
     public Listener Listener;
+    /// <summary>
+    /// The space the listener's in (<c>content/audio/spaces.json</c>, chosen by the game): its reverb, what it shuts out,
+    /// how voice carries in it. Null is dry and open. A change takes effect from the next block: the new reverb starts
+    /// empty, the old one rings out what it had.
+    /// </summary>
+    public SpaceDef? Space { get; set; }
+    /// <summary>The space's reverb (or the last one's tail) is sounding.</summary>
+    public bool Reverberating => _reverb?.Ringing == true || _tails.Count > 0;
+
+    /// <summary>Synthesises (once) and keeps a space's response, so entering the space later doesn't build it on the mixing thread.</summary>
+    public ImpulseResponse Prepare(ReverbDef def)
+    {
+        if (!_responses.TryGetValue(def, out var ir))
+            _responses[def] = ir = ImpulseResponse.Synthesize(def);
+        return ir;
+    }
     public IReadOnlyList<SoundInstance> Voices => _voices;
     public MeterTap? Tap { get; set; }
     /// <summary>Voices rendered in the last block (the rest were virtualised).</summary>
@@ -121,10 +157,24 @@ public sealed class Mixer
     {
         output.Clear();
         _voices.RemoveAll(v => v.Finished);
+        if (!ReferenceEquals(Space, _space))
+            EnterSpace();
+        Array.Clear(_send);
+        Array.Clear(_tellSend);
 
         // Priority: tier 1 first (it's inviolable), then the loudest. Past the voice budget, voices go virtual.
         foreach (var v in _voices)
+        {
+            // What the space shuts out fades to nothing over MuteSeconds as you go into a tunnel, not as a cut, and comes back
+            // as you come out.
+            if (!ReferenceEquals(v.MutedFor, _space))
+            {
+                v.Muted = _space?.Mutes(v.Name) == true;
+                v.MutedFor = _space;
+            }
+            v.SpaceGain = Math.Clamp(v.SpaceGain + (v.Muted ? -1 : 1) * (float)(Audio.Block / (MuteSeconds * Audio.SampleRate)), 0, 1);
             v.LastAudibleGain = Spatial(v, out _, out _);
+        }
         _selected.Clear();
         _selected.AddRange(_voices.Where(v => v.LastAudibleGain > 1e-4f || v.Stream is not null)
             .OrderBy(v => v.Def.Tier == 1 ? 0 : 1).ThenByDescending(v => v.LastAudibleGain).Take(_buffers.Length));
@@ -158,6 +208,7 @@ public sealed class Mixer
                 _tierActive[Math.Clamp(v.Def.Tier, 1, Tiers)] = true;
                 _soundActive.Add(v.Name);
             }
+            Compress(v, level);
         }
 
         // Tier ducking, smoothed: fast down, slow back up.
@@ -193,7 +244,9 @@ public sealed class Mixer
         {
             var v = _selected[i];
             Spatial(v, out float left, out float right);
-            float bus = _tierGain[Math.Clamp(v.Def.Tier, 1, Tiers)].Value * master * (_soundGain.TryGetValue(v.Name, out var sg) ? sg.Value : 1);
+            int tier = Math.Clamp(v.Def.Tier, 1, Tiers);
+            float bus = _tierGain[tier].Value * master * Audio.DbToGain(Mix.Fader(tier)) * v.CompressorGain
+                * (_soundGain.TryGetValue(v.Name, out var sg) ? sg.Value : 1);
             float l0 = v.LeftGain.Value, r0 = v.RightGain.Value;
             float l1 = v.LeftGain.Step(left * bus, 0.01), r1 = v.RightGain.Step(right * bus, 0.01);
             var buffer = _buffers[i];
@@ -211,7 +264,22 @@ public sealed class Mixer
                     stem[tap.Written + s * 2 + 1] += r;
                 }
             }
+            // Into the room, post-fader and whatever the pan (the room's all round you). Flat sounds aren't in the world.
+            float send = _reverb is null || v.Def.Flat ? 0 : (float)_space!.Send(tier);
+            if (send > 0)
+            {
+                float s0 = MathF.Sqrt(l0 * l0 + r0 * r0) * send, s1 = MathF.Sqrt(l1 * l1 + r1 * r1) * send;
+                bool tell = tap is not null && tier == 1;
+                for (int s = 0; s < Audio.Block; s++)
+                {
+                    float x = buffer[s] * (s0 + (s1 - s0) * (s + 1f) / Audio.Block);
+                    _send[s] += x;
+                    if (tell)
+                        _tellSend[s] += x;
+                }
+            }
         }
+        Reverberate(output, tap);
         if (tap is not null && tap.Written + Audio.Block * 2 <= tap.Total.Length)
         {
             // Pre-clip, so stems sum exactly to the total.
@@ -223,6 +291,81 @@ public sealed class Mixer
         // Soft clip rather than wrap: a swarm plus a derailment shouldn't crackle.
         for (int s = 0; s < output.Length; s++)
             output[s] = MathF.Tanh(output[s]);
+    }
+
+    /// <summary>The listener's moved to another space: its reverb starts empty, the last one's rings out (two at most).</summary>
+    void EnterSpace()
+    {
+        var was = _space?.Reverb;
+        _space = Space;
+        if (Equals(was, _space?.Reverb))
+            return;
+        if (_reverb is { Ringing: true })
+            _tails.Add(_reverb);
+        if (_tails.Count > 2)
+            _tails.RemoveAt(0);
+        _reverb = _space?.Reverb is { } def ? new Convolver(Prepare(def)) : null;
+        _tellReverb = null;
+    }
+
+    /// <summary>The space's reverb on this block's sends, and the tails of the spaces just left, into the mix (and the meter).</summary>
+    void Reverberate(Span<float> output, MeterTap? tap)
+    {
+        if (_reverb is null && _tails.Count == 0)
+            return;
+        Array.Clear(_wetLeft);
+        Array.Clear(_wetRight);
+        _reverb?.Process(_send, _wetLeft, _wetRight);
+        foreach (var tail in _tails)
+            tail.Process(_silence, _wetLeft, _wetRight);
+        _tails.RemoveAll(t => !t.Ringing);
+        bool metering = tap is not null && tap.Written + Audio.Block * 2 <= tap.Total.Length;
+        float[]? stem = metering ? tap!.Stem(ReverbStem) : null;
+        // The tells' share, the same response on their send alone (the reverb's linear, so the rest is the difference).
+        Array.Clear(_tellLeft);
+        Array.Clear(_tellRight);
+        float[]? tells = null;
+        if (metering && _reverb is not null)
+        {
+            _tellReverb ??= new Convolver(_reverb.Response);
+            _tellReverb.Process(_tellSend, _tellLeft, _tellRight);
+            tells = tap!.Stem(TellReverbStem);
+        }
+        for (int s = 0; s < Audio.Block; s++)
+        {
+            output[s * 2] += _wetLeft[s];
+            output[s * 2 + 1] += _wetRight[s];
+            if (stem is not null)
+            {
+                stem[tap!.Written + s * 2] += _wetLeft[s] - _tellLeft[s];
+                stem[tap.Written + s * 2 + 1] += _wetRight[s] - _tellRight[s];
+            }
+            if (tells is not null)
+            {
+                tells[tap!.Written + s * 2] += _tellLeft[s];
+                tells[tap.Written + s * 2 + 1] += _tellRight[s];
+            }
+        }
+    }
+
+    /// <summary>
+    /// GDD §22: in a tunnel, proximity voice is compressed and close. The space's compressor works on a positioned voice's
+    /// level at the ear (after distance), a block at a time: what's over the threshold comes down by the ratio, and the
+    /// makeup brings it all up, so a crewmate at 20 m sounds nearly as close as one beside you. Elsewhere it's left alone.
+    /// </summary>
+    void Compress(SoundInstance v, double level)
+    {
+        if (_space?.Voice is not { } c || v.Def.Tier != 2 || v.Def.Flat)
+        {
+            v.CompressorGain = 1;
+            v.CompressorEnvelopeDb = -120;
+            return;
+        }
+        double db = Audio.GainToDb(level), seconds = (double)Audio.Block / Audio.SampleRate;
+        double time = db > v.CompressorEnvelopeDb ? c.AttackSeconds : c.ReleaseSeconds;
+        v.CompressorEnvelopeDb += (float)((db - v.CompressorEnvelopeDb) * (1 - Math.Exp(-seconds / Math.Max(1e-4, time))));
+        double over = Math.Max(0, v.CompressorEnvelopeDb - c.ThresholdDb);
+        v.CompressorGain = Audio.DbToGain(c.MakeupDb - over * (1 - 1 / Math.Max(1, c.Ratio)));
     }
 
     /// <summary>Tier-1 tells are never occluded past the floor (spec A.3).</summary>
@@ -238,7 +381,7 @@ public sealed class Mixer
     float Spatial(SoundInstance v, out float left, out float right)
     {
         var def = v.Def;
-        float gain = v.Volume * Audio.DbToGain(def.GainDb) * Audio.DbToGain(EffectiveOcclusion(v) * Mix.OcclusionDb);
+        float gain = v.Volume * v.SpaceGain * Audio.DbToGain(def.GainDb) * Audio.DbToGain(EffectiveOcclusion(v) * Mix.OcclusionDb);
         if (def.Flat)
         {
             left = right = gain * 0.7071f;

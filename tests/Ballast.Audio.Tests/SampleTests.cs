@@ -174,6 +174,95 @@ public class SampleTests
         Assert.Equal(4, bank.Samples.Held.Clips);
     }
 
+    /// <summary>A worker the test steps by hand, so when a decode lands is up to the test, not the thread pool.</summary>
+    sealed class Steps : TaskScheduler
+    {
+        readonly List<Task> _queued = [];
+        public int Queued => _queued.Count;
+        protected override IEnumerable<Task> GetScheduledTasks() => _queued;
+        protected override void QueueTask(Task task) => _queued.Add(task);
+        protected override bool TryExecuteTaskInline(Task task, bool previouslyQueued) => (!previouslyQueued || _queued.Remove(task)) && TryExecuteTask(task);
+
+        public void RunAll()
+        {
+            foreach (var task in _queued.ToList())
+            {
+                _queued.Remove(task);
+                TryExecuteTask(task);
+            }
+        }
+    }
+
+    [Fact]
+    public void ALongTakeDecodesOnAWorkerAndPlaysFromTheTopWhenItArrives()
+    {
+        // The take as a short one plays it: decoded inline, from the first block.
+        var (now, _) = Make(("tone", Sample("tone-1k")));
+        var first = now.Play("tone")!;
+        var block = new float[Audio.Block * 2];
+        var heard = new List<float>();
+        while (!first.Finished)
+        {
+            now.Render(block);
+            heard.AddRange(block);
+        }
+
+        // Every take counted long: it goes to a worker, and nothing is decoded on the mixing thread.
+        var (m, bank) = Make(("tone", Sample("tone-1k")));
+        var steps = new Steps();
+        bank.Samples.InlineBytes = 0;
+        bank.Samples.Scheduler = steps;
+        var v = m.Play("tone")!;
+        Assert.Equal((0, 1, 1), (bank.Samples.Held.Clips, bank.Samples.Pending, steps.Queued));
+        // The pick is the seed's whether the take's decoded or not: a replayed night picks the same.
+        Assert.Equal(["tone-1k.opus"], v.Takes);
+        Assert.True(v.Waiting);
+        // Waiting: silent, and not over (a one-shot mustn't end before its take has played).
+        const int Late = 6;
+        var wait = new float[Audio.Block * 2 * Late];
+        m.Render(wait);
+        Assert.All(wait, s => Assert.Equal(0, s));
+        Assert.False(v.Finished);
+
+        steps.RunAll();
+        var late = new List<float>();
+        while (!v.Finished)
+        {
+            m.Render(block);
+            late.AddRange(block);
+        }
+        Assert.Equal(1, bank.Samples.Held.Clips);
+        // As long as the take, from when it arrived: the whole of it, not the end of it.
+        Assert.InRange(v.Age - Late * Block, ToneSeconds, ToneSeconds + 2 * Block);
+        Assert.Equal(heard.Count, late.Count);
+        // The same take from its first sample. (The voice's gain had settled while it waited, where the first one's
+        // ramped up as it began, so they agree once the ramp's done.)
+        int settled = 40 * Audio.Block * 2;
+        double worst = 0;
+        for (int i = settled; i < heard.Count; i++)
+            worst = Math.Max(worst, Math.Abs(heard[i] - late[i]));
+        Assert.True(worst < 1e-4, $"worst difference {worst}");
+        Assert.InRange(Pitch(Left([.. late]).AsSpan(480)), 990, 1010);
+    }
+
+    [Fact]
+    public void ALoopTheGameWillWantDecodesInTheBackgroundAndASettleWaitsForIt()
+    {
+        var (_, bank) = Make(("step", Sample("takes")));
+        var steps = new Steps();
+        bank.Samples.Scheduler = steps;
+        bank.Prefetch("step");
+        Assert.Equal((0, 3), (bank.Samples.Held.Clips, bank.Samples.Pending));
+        steps.RunAll();
+        bank.Samples.Settle();
+        Assert.Equal((3, 0), (bank.Samples.Held.Clips, bank.Samples.Pending));
+        // A short take asked for while its prefetch is still under way is waited for, never missed.
+        var (m2, bank2) = Make(("tone", Sample("tone-1k")));
+        bank2.Samples.Scheduler = new Steps();
+        bank2.Prefetch("tone");
+        Assert.False(m2.Play("tone")!.Waiting);
+    }
+
     [Fact]
     public void PitchJitterIsPickedOncePerInstanceFromItsSeed()
     {
