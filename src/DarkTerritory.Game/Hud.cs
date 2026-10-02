@@ -383,7 +383,9 @@ public static class Hud
             return;
         // Right mouse throws what's in your hands; with them empty, it sets the radio down to pass on.
         string wearing = Bound(bodies.CarriedBy(s.PlayerId) is null ? "RADIO [T]  [RMB] SET IT DOWN" : "RADIO [T]");
-        o.TextRight(width - 6, 5 + 5 * line, bodies.HasRadio(s.PlayerId) ? wearing : "NO RADIO", bodies.HasRadio(s.PlayerId) ? Dim : Amber);
+        // GDD §23 "radio breaks" (note 183): carried, but smashed.
+        bool broken = bodies.All.Any(b => b.Kind == BodyKind.Radio && b.Carrier == s.PlayerId && b.Broken);
+        o.TextRight(width - 6, 5 + 5 * line, bodies.HasRadio(s.PlayerId) ? wearing : broken ? "RADIO BROKEN" : "NO RADIO", bodies.HasRadio(s.PlayerId) ? Dim : Amber);
     }
 
     /// <summary>
@@ -480,6 +482,15 @@ public static class Hud
             }
             // GDD v1.4 App. D.12: the incident report, every line in the clerk's voice, under the result; the night's
             // commendations under it.
+            // The night's own (D.12), as the host has them, unless a still frame passed some in.
+            var given = s.World.Commendations;
+            if (_commendations is null && given.Count > 0)
+                _commendations = [.. given.Select(c => (IncidentLog.NameOf(s.World, c.To), (UiStyle.Commendation)c.Which, IncidentLog.NameOf(s.World, c.From)))];
+            if (s.CommendPick is { } pick)
+            {
+                string text = pick.Given ? $"YOU COMMENDED {pick.To}: {pick.What}" : $"COMMEND [LEFT/RIGHT] {pick.To}   [UP/DOWN] {pick.What}   [SPACE] GIVE";
+                UiStyle.Keyed(o, MathF.Round((width - UiStyle.MeasureKeyed(o, text)) / 2), height - 12, text, pick.Given ? Green : Amber);
+            }
             bool awards = _commendations is { Count: > 0 };
             IncidentReport(o, width, awards ? height - (int)Commendations(o, width, height, _commendations!, draw: false) : height, y + line, r, line, _stills);
             if (awards)
@@ -577,6 +588,13 @@ public static class Hud
                 rows.Add(("YOU'LL WAIT AT THE NEXT HALT OR YARD, IF THEY STOP FOR YOU", Dim));
                 rows.Add(("[RMB] LET SOMEONE ELSE GO FIRST", Dim));
             }
+            // D.11: the creature vote, the dead's alone, once a run.
+            if (s.Ballot is { } ballot && ballot.Options.Count > 0)
+                rows.Add(ballot.Cast is { } cast
+                    ? ($"YOU VOTED FOR THE {IncidentLog.Spoken(cast.ToString()).ToUpperInvariant()}", Dim)
+                    : ("VOTE: " + string.Join("   ", ballot.Options.Select((k, i) => $"[{i + 1}] {IncidentLog.Spoken(k.ToString()).ToUpperInvariant()}")), Amber));
+            if (s.VoteCue is { } cue)
+                rows.Add((cue, Red));
             // D.6: the dead and lobbied see the whole queue, and where they are in it (the living see nothing).
             if (QueueLine(world, holdouts, s.PlayerId) is { } queue)
                 rows.Add((queue, Ink));
@@ -584,7 +602,8 @@ public static class Hud
         float big = o.Font.Measure("DEAD", 2);
         float w = Math.Max(big, rows.Max(r => UiStyle.MeasureKeyed(o, r.Text))) + 20, rowH = line + 3;
         float h = 2 * line + 8 + rows.Count * rowH + 8;
-        float x = MathF.Round((width - w) / 2), y = MathF.Round(height * 0.56f);
+        // Low in the frame, clear of what they're watching, but never off its foot (the vote and the queue make it tall).
+        float x = MathF.Round((width - w) / 2), y = MathF.Round(Math.Min(height * 0.56f, height - h - 30));
         UiStyle.Plate(o, x, y, w, h);
         o.TextCentred(width / 2f, y + 6, "DEAD", Red, scale: 2);
         y += 2 * line + 10;
@@ -899,6 +918,8 @@ public static class Hud
         DeathCause.Struck => "STRUCK BY THE TUNNEL MOUTH",
         DeathCause.Thrown => "THROWN OFF ON THE CURVE",
         DeathCause.Burned => "BURNED IN A BLAZING CAR",
+        DeathCause.Exploded => "BLOWN UP WITH THE POWDER CAR",
+        DeathCause.Poisoned => "GASSED BY THE CHEMICALS",
         DeathCause.Gnawed => "EATEN BY THE GNAWERS",
         DeathCause.Ferryman => "SLOWED FOR THE LANTERN",
         DeathCause.Stoker => "BURNED DRIVING IT OUT OF THE FIREBOX",

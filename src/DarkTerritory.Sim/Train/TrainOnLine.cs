@@ -315,6 +315,8 @@ public sealed class TrainOnLine
                 var effective = controls;
                 if (BoilerTuning is { } bt)
                 {
+                    // GDD §22 deep cold (note 183): the cold where the engine is takes the edge off what a shovelful makes.
+                    Boiler.Efficiency = bt.ColdEfficiency(Line.Conditions?.ColdStep(rake.Path, rake.Distance) ?? 0);
                     // Tractive effort comes from the pressure there is now; then the fire and the cylinders move it.
                     if (bt.SteamDrive)
                     {
@@ -329,12 +331,16 @@ public sealed class TrainOnLine
                         RupturedThisTick = Boiler.Step(bt, dt, controls.Throttle, rake.Consist.CarCount);
                     }
                 }
+                double before = rake.Speed;
                 rake.Step(dt, effective, Conditions(rake));
+                BrakeShock(rake, before, dt);
             }
             else
             {
                 var parked = new TrainControls { Brake = rake.Handbrake ? 1 : 0, Reverser = 1 };
+                double before = rake.Speed;
                 rake.Step(dt, parked, Conditions(rake));
+                BrakeShock(rake, before, dt);
             }
             // What drags at it where the line says (brass across the rail, linegen plan §7.2).
             if (Line.Conditions is { } lc && lc.Drag(rake.Path, rake.Distance, rake.Speed) is var drag and > 0 && rake.Speed > 0)
@@ -416,6 +422,38 @@ public sealed class TrainOnLine
             }
     }
 
+    /// <summary>
+    /// GDD §19's fragile medicine (train.json <c>fragile</c>; note 182): a contact closing at <paramref name="closing"/> spoils a
+    /// car of it from a gentler knock than the rest, and harder; <paramref name="damage"/> is what the rest already took, which
+    /// it took too.
+    /// </summary>
+    void Jolt(IEnumerable<Vehicle> vehicles, double closing, double damage)
+    {
+        if (Tuning.Fragile is not { } f || closing <= f.SafeContactSpeed)
+            return;
+        var c = Tuning.Couplings;
+        double spoil = (closing - f.SafeContactSpeed) * (closing - f.SafeContactSpeed) * c.DamagePerSpeedSquared * c.CargoDamageShare * f.ShockShare;
+        double more = spoil - damage * c.CargoDamageShare;
+        if (more <= 0)
+            return;
+        foreach (var v in vehicles)
+            if (v.Cargo == CargoKind.Medicine && v.Load > 0)
+                v.CargoIntegrity = Math.Max(0, v.CargoIntegrity - more);
+    }
+
+    /// <summary>Braking harder than train.json's <c>fragile.brakeShockDecel</c> spoils a rake's medicine as it slows (GDD §19; note 182).</summary>
+    void BrakeShock(TrainDynamics rake, double before, double dt)
+    {
+        if (Tuning.Fragile is not { } f || dt <= 0)
+            return;
+        double over = (before - rake.Speed) / dt - f.BrakeShockDecel;
+        if (over <= 0)
+            return;
+        foreach (var v in rake.Consist.Vehicles)
+            if (v.Cargo == CargoKind.Medicine && v.Load > 0)
+                v.CargoIntegrity = Math.Max(0, v.CargoIntegrity - over * f.BrakeShockPerSecond * dt);
+    }
+
     void HitBufferStop(TrainDynamics rake)
     {
         var c = Tuning.Couplings;
@@ -428,6 +466,7 @@ public sealed class TrainOnLine
             foreach (var v in rake.Consist.Vehicles)
                 v.CargoIntegrity = Math.Max(0, v.CargoIntegrity - damage * c.CargoDamageShare);
         }
+        Jolt(rake.Consist.Vehicles, speed, damage);
         _contacts.Add(new RakeContact(front, -1, speed, false, damage));
     }
 
@@ -527,6 +566,7 @@ public sealed class TrainOnLine
                 foreach (var v in a.Consist.Vehicles.Concat(b.Consist.Vehicles))
                     v.CargoIntegrity = Math.Max(0, v.CargoIntegrity - damage * c.CargoDamageShare);
             }
+            Jolt(a.Consist.Vehicles.Concat(b.Consist.Vehicles), closing, damage);
             if (closing > 0)
             {
                 double v = (ma * a.Velocity + mb * b.Velocity) / (ma + mb);

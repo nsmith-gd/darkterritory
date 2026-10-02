@@ -19,6 +19,10 @@
   "safetyValveCapacity": 0.6,
   // Tractive effort fades out below workingBandMin and is gone at this pressure.
   "powerFloor": 20,
+  // GDD §22 deep cold (note 183): each cold step where the engine is takes coldEfficiencyPerStep off what a shovelful makes,
+  // to no less than coldEfficiencyFloor.
+  "coldEfficiencyPerStep": 0.06,
+  "coldEfficiencyFloor": 0.7,
 
   "tenderCapacity": 400,
   "fireboxCapacity": 6,

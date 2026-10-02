@@ -27,6 +27,25 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// train's own. Every machine builds the same train from it.
     /// </summary>
     public int SpareKits { get; init; }
+    /// <summary>
+    /// The contract's freight (GDD §9 "choose freight contracts", §19; note 182): what every loaded car leaves the fortress
+    /// carrying. None is goods. Every machine builds the same consist from it.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public CargoKind Cargo { get; init; }
+    /// <summary>The departure's stores (GDD §9; campaign.json <c>stores</c>, note 182): crates of powder and shot, spare lamps, spare extinguishers.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public int Powder { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public int SpareLamps { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public int SpareExtinguishers { get; init; }
+    /// <summary>
+    /// The host's only: this host has never had a child's call, so tonight's first is a real child (GDD App. B.6, A.6 "the first
+    /// one a host player ever meets is always real"). The app reads it from the host's profile; the Sim gets the bool.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool FirstChildReal { get; init; }
     /// <summary>Where the engine's front starts, along the line; null for the fortress yard. A resumed night starts where it was saved.</summary>
     public double? Start { get; init; }
     /// <summary>The host's only: a resumed night's own line, from its save (linegen plan §17.4), rather than generated afresh.</summary>
@@ -38,6 +57,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public Sim.Music.MusicBag? MusicBag { get; init; }
+    /// <summary>The host's only: the campaign's looks by player name (GDD v1.4 App. D.8; note 181), going into the night.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlyDictionary<string, string>? Identities { get; init; }
     /// <summary>The host's line's fingerprint: a joiner whose own generated line differs (another generator version) is refused.</summary>
     public string? PlanPrint { get; init; }
     /// <summary>The host's terrain's fingerprint (linegen plan §17.3): a joiner whose ground comes out differently is refused.</summary>
@@ -52,6 +74,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             DataFile.Load<CombatTuning>(Path.Combine(content, CombatTuning.File)),
             DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)));
         loadout = Sim.Campaign.Campaign.WithSpareKits(loadout, SpareKits);
+        if (Powder > 0 || SpareLamps > 0 || SpareExtinguishers > 0)
+            loadout = Sim.Campaign.Campaign.WithStores(DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)),
+                loadout, new Sim.Campaign.Stores(Powder, SpareLamps, SpareExtinguishers));
         return Upgrades.Count == 0 ? loadout
             : Sim.Campaign.Campaign.Apply(DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)), Upgrades, loadout);
     }
@@ -120,7 +145,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         RailLine line;
         var runTuning = DataFile.Load<Sim.Run.RunTuning>(Path.Combine(content, Sim.Run.RunTuning.File));
         // A night leaves the fortress part loaded; the facilities fill the rest (GDD §17-18).
-        var consist = Consist.Uniform(trainTuning, Cars, Route is { Length: > 0 } ? runTuning.DepartureLoad : 1);
+        var consist = Consist.Uniform(trainTuning, Cars, Route is { Length: > 0 } ? runTuning.DepartureLoad : 1).Carrying(Cargo);
         double start = 600;
         if (Route is { Length: > 0 } spec)
         {
@@ -226,6 +251,75 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         || StrandedOutro && OutroSeconds >= World.WreckTuning.Stranded.SkipAfterSeconds;
     public double OutroSeconds { get; private set; }
 
+    public (IReadOnlyList<Sim.Enemies.EnemyKind> Options, Sim.Enemies.EnemyKind? Cast)? Ballot => Client.Ballot;
+
+    string? _cue;
+    double _cueSeconds;
+
+    /// <summary>D.11: the newest cue to the dead, for a few seconds; a new one plays its sound (<see cref="TakeNewCue"/>).</summary>
+    public string? VoteCue => _cueSeconds > 0 ? _cue : null;
+
+    bool _newCue;
+
+    /// <summary>Whether a cue arrived since last asked (the app plays the dead channel's chime for it).</summary>
+    public bool TakeNewCue()
+    {
+        bool fresh = _newCue;
+        _newCue = false;
+        return fresh;
+    }
+
+    void StepCues()
+    {
+        _cueSeconds = Math.Max(0, _cueSeconds - SimConstants.TickSeconds);
+        foreach (var (kind, voters) in Client.VoteCues)
+        {
+            _cue = $"THE DEAD CALLED THE {Sim.Run.IncidentLog.Spoken(kind.ToString()).ToUpperInvariant()}: " +
+                string.Join(", ", voters.Select(v => v == PlayerId ? "YOU" : Sim.Run.IncidentLog.NameOf(World, v).ToUpperInvariant()));
+            _cueSeconds = 6;
+            _newCue = true;
+        }
+        Client.VoteCues.Clear();
+    }
+
+    int _commendTo, _commendWhich;
+    bool _commended;
+
+    /// <summary>Everyone else in the session at run end, by id: who can be commended (D.12: anyone but yourself).</summary>
+    IReadOnlyList<int> Commendable => [.. Client.RemoteIds.Select(id => (int)id).Where(id => id != PlayerId).Order()];
+
+    public (string To, string What, bool Given)? CommendPick
+    {
+        get
+        {
+            if (World.Run is not { Over: true } || WreckCinematic || StrandedOutro || ClerkTally)
+                return null;
+            var mine = World.Commendations.FirstOrDefault(c => c.From == PlayerId);
+            if (World.Commendations.Any(c => c.From == PlayerId))
+                return (Sim.Run.IncidentLog.NameOf(World, mine.To).ToUpperInvariant(), Sim.Run.Commendations.StarterSet[mine.Which].ToUpperInvariant(), true);
+            var choices = Commendable;
+            if (choices.Count == 0)
+                return null;
+            int to = choices[(_commendTo % choices.Count + choices.Count) % choices.Count];
+            int which = (_commendWhich % 5 + 5) % 5;
+            return (Sim.Run.IncidentLog.NameOf(World, to).ToUpperInvariant(), Sim.Run.Commendations.StarterSet[which].ToUpperInvariant(), _commended);
+        }
+    }
+
+    /// <summary>The picker's keys (D.12): step through who and which; give it (once).</summary>
+    public void Commend(int stepTo, int stepWhich, bool give)
+    {
+        if (CommendPick is not { Given: false })
+            return;
+        _commendTo += stepTo;
+        _commendWhich += stepWhich;
+        if (!give)
+            return;
+        var choices = Commendable;
+        Client.Commend(choices[(_commendTo % choices.Count + choices.Count) % choices.Count], (byte)((_commendWhich % 5 + 5) % 5));
+        _commended = true;
+    }
+
     List<string>? _manifest, _tally;
     double _manifestSeconds = -1, _tallySeconds = -1;
 
@@ -300,6 +394,11 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var (hostWorld, route) = setup.Build(content, authority: true);
         // E.6: the host's world draws the derailment's track from the bag it brought (clients' worlds have no rotation).
         hostWorld.Music = Sim.Music.MusicRotation.Load(content, hostWorld.WreckTuning.Music, setup.MusicBag);
+        // D.8: who each of the crew is, from the campaign, matched up as their names arrive.
+        if (setup.Identities is { } identities)
+            hostWorld.LooksByName = identities;
+        // B.6: a host's first-ever child call is a real child (their profile says whether they've had one; note 182).
+        hostWorld.NextChildReal = setup.FirstChildReal;
         setup = setup with { PlanPrint = route?.Plan?.Fingerprint(), TerrainPrint = TerrainOf(hostWorld)?.Print() };
         if (resume is not null)
             Restore(hostWorld, resume);
@@ -569,6 +668,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         WreckSeconds = Train.Wreck is null ? 0 : WreckSeconds + SimConstants.TickSeconds;
         OutroSeconds = World.Run?.End == Sim.Run.RunEnd.Stranded ? OutroSeconds + SimConstants.TickSeconds : 0;
         StepRadio();
+        StepCues();
         if (World.Film is { } start && _shooting is null)
         {
             var world = World;

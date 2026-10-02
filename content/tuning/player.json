@@ -6,6 +6,9 @@
   "roofWalkSafe": 1.8,
   "ladderClimb": 1.6,
   "carryHeavy": 2.8,
+  // GDD v1.4 App. D.9 "solo remainer" (note 181): the last of the crew alive can climb a ladder carrying a body, at this
+  // (a quarter of ladderClimb); anyone else carrying a body, a toy, a find or the child can't climb at all (C.4).
+  "soloBodyClimb": 0.4,
   // Pushing a gun along its roof rail (T93): the gun goes where you go, no faster than this.
   "pushGun": 1.2,
   "jumpGap": 2.2,
@@ -55,6 +58,9 @@
     "onsetSpeedScale": 0.9,
     // Spec B.2: inside a car's walls with a door open (working a side door, say), out of the wind but not warm, the cold
     // comes on at this fraction of the rate outside.
-    "indoorsRate": 0.25
+    "indoorsRate": 0.25,
+    // GDD §22 deep cold (note 183): each of linegen §14's cold steps where you are (the night's, high ground, exposed track)
+    // makes it come on this much faster. A step-3 night on an exposed crest: about twice as fast.
+    "perColdStep": 0.25
   }
 }

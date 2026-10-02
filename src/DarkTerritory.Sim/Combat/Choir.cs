@@ -32,7 +32,7 @@ public struct ChoirState
     public readonly ChoirPhase Phase(ChoirTuning t) => Present ? ChoirPhase.Swarm : Build > 0 ? ChoirPhase.Approach : ChoirPhase.Distant;
 
     /// <summary>A cannon fired: a burst of loudness (App. C.7 "every cannon shot feeds the loudness meter").</summary>
-    public void RoundFired(ChoirTuning t) => Loudness += t.RoundLoudness;
+    public void RoundFired(ChoirTuning t, double scale = 1) => Loudness += t.RoundLoudness * scale;
 
     /// <summary>
     /// Something as loud as <paramref name="roundsPerSecond"/> cannon rounds a second, for <paramref name="dt"/> (a Holdout's

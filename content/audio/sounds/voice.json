@@ -1,6 +1,13 @@
 // Proximity voice (spec A.5), tier 2: full clarity to 8 m, logarithmic falloff to nothing at 26 m.
 // Positioned at the speaker's head; occluded through the cab walls by the mixer's occlusion rule.
+// GDD §22 tunnels (note 183): "compressed proximity voice, no exterior reference". In a tunnel ("tunnel" 1, set by the
+// listener's client) it goes boxy and close: the lows and highs cut, a hard mid boost of the bore's ring (parked below hearing in the open), a little louder.
 {
   "tier": 2, "loop": true, "maxInstances": 16, "minDistance": 8, "maxDistance": 26, "curve": "voice",
-  "layers": [ { "source": "stream", "gain": 1.0 } ]
+  "layers": [ { "source": "stream", "gain": { "param": "tunnel", "points": [[0, 1.0], [1, 1.25]] },
+    "filters": [
+      { "type": "highPass", "frequency": { "param": "tunnel", "points": [[0, 40], [1, 320]] } },
+      { "type": "lowPass", "frequency": { "param": "tunnel", "points": [[0, 16000], [1, 3200]] } },
+      { "type": "peak", "frequency": { "param": "tunnel", "points": [[0, 30], [1, 1100]] }, "q": 1.6, "gainDb": 7 }
+    ] } ]
 }

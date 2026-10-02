@@ -454,6 +454,8 @@ public sealed class Climber(int id) : Enemy(id)
         {
             Local = room.Centre with { Y = room.Min.Y };
             Extra = -1; // inside: the interior threat
+            // GDD §23 "lights fail" (note 183): in the dark is how it likes it; the lamp goes out as it comes in.
+            train.Vehicles[car].LampLit = false;
             return;
         }
         if (z > -shape.HalfLength + 0.3)
@@ -475,6 +477,8 @@ public sealed class Climber(int id) : Enemy(id)
             Attached = 0;
             Local = train.Frames[0].Shape.Cab!.Value.Centre;
             Extra = -1;
+            // Coming over the tender into the cab, it smashes the forward lamp for a while (§23 "lights fail", note 183).
+            ctx.World.SmashLamp(t.LampOutSeconds);
             return;
         }
         var next = train.Frames[ahead].Shape;

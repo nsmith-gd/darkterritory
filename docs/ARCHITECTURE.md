@@ -2735,3 +2735,86 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - **Reading:** no new VoicePath bit. A dead speaker on the proximity path can only be a Live Mic, so the client positions it by the replicated Holdout.
     - **Not yet:** the lobbied (joining) players' own card doesn't show the queue (their wait panel is the link's). Each occupant has one shout and one bang rather than a voice set of several.
     - Protocol 11. Tests: `HoldoutTests` (the toggle is the occupant's alone and goes off when freed; a client mirrors the calls, the Live Mic and the queue), `VoiceRoutingTests` (heard only by the living near the Holdout) and `DeadPhaseTests` (the queue line; each Call Out heard once from its Holdout).
+180. **The dead's creature vote, and commendations (GDD v1.4 App. D.11, D.12, D.13; WP11).**
+    - **The ballot (D.11):**
+      - A dead crewmate (not a joiner still waiting to board) is offered a ballot of `director.vote.options` (3) creatures. They're drawn by weighted roll from what the director could send right then: allowed by tier and edition, with its spawn rule wanting it.
+      - The spawn table never holds the Stoker or the Choir (condition- and loudness-triggered).
+      - It's drawn once per player per run, seeded by the director's seed and the player's id, so a later death offers the same ballot. An unused vote carries over.
+      - They cast it with 1–3 (the hotbar keys: the dead carry nothing). It's locked on submit.
+      - It goes to that dead player alone (`MessageType.Ballot`). The living never see it until the run-end screen.
+    - **The effect (D.11, D.13):**
+      - Each vote multiplies its creature's weight by `perVote` (1.2), to at most `cap` (1.5) (`Director.VoteWeight`).
+      - "Within the creature's want tag": after every other weighting, each want's options are scaled back to the want's own total (`Director.WeighVotes`). The vote moves weight between creatures of a want and never between wants, so the Kill / Split / Trust / Cargo shares hold exactly.
+      - It changes nothing else. Budget, gates, caps, pacing, cooldowns, once-per-run limits and the Soot Children's roll all run before or around it. `VoteTests` pins the want totals.
+    - **The payoff:** when the director charges a creature someone voted for, every dead player is sent a cue (`MessageType.VoteCue`): "THE DEAD CALLED THE CAR HUGGER: PRIYA, SAM" on their card for 6 s, with a cracked hand bell on the dead channel (`vote-cue`, tier 2, flat). The living's clients are never sent it.
+    - **The reveal (D.12):** the report says "The dead voted for the Car Hugger: Priya, Sam." (`IncidentKind.Voted`).
+    - **Commendations (D.12):**
+      - On the run-end screen (after any film, outro or tally), everyone in the session can give one: living, dead, or still waiting to board.
+      - The arrows pick who and which of the starter set (`Run.Commendations.StarterSet`, in the HUD's badge order). Space gives it (`MessageType.Commend`).
+      - The host refuses one while the run's on, to yourself, to someone not in the session, or a second from the same player. It sends everyone the night's list (`MessageType.Commendations`), and the screen shows them with their badges.
+      - On leaving the screen, what you were given goes in your player profile (`PlayerProfile`, `profile.json` in app data or beside `--saves`), not the character. It's social only.
+    - **Not yet:** a profile screen to show the tally; voting with a headset (the ballot needs the number keys); bots don't vote or commend.
+    - Protocol 13. Tests: `VoteTests` (the ballot, the lock, the weight and the want totals, the wire with the cue to the dead alone and the report's reveal, the commendation rules) and `PlayerProfileTests`.
+181. **Bodies as loot, completed, and the survivor's identity (GDD v1.4 App. C.4, D.8, D.9, Line Plan §12.6; WP12).**
+    - **Carrying (C.4, D.9):** a body, a toy, a find or the child is carried like freight: no faster than `carryHeavy` (2.8 m/s), no ladders (`PlayerFlags.Heavy`). Before, only freight was. The exception is D.9's solo remainer: with nobody else alive, a crewmate carrying a body may still take a ladder, at `soloBodyClimb` (0.4 m/s, a quarter of normal), as `PlayerFlags.SoloCarry` (the flags byte's last free bit). A toy doesn't count.
+    - **Recovery (Line Plan §12.6, D.2, D.9, §23.2):**
+      - A body or a repair kit at rest on the ground outside the walkable corridor is put back on the formation's edge, `train.json recovery.edgeM` (3.5) out from the track, on the side it went off, and left at rest there (`World.Recover`).
+      - "Outside" means further than `corridorM` (40, where the line generator keeps drop sides walkable) from the nearest point of the track, or more than `dropM` (15) below the rails.
+      - **Reading:** the ground function has no water and no ravine floor below a bridge, so "below the rails" is how a fall off a bridge or into a gorge shows. Never an unrecoverable body, and never an unrecoverable kit: §23.2's "kit lying on the line is never lost" holds even off a bridge.
+    - **Identity (D.8):**
+      - Tonight's look is unchanged: freed, the occupant comes out as the Holdout's survivor (note 167's art). That look now lasts.
+      - The night's report carries everyone's look by name (`RunReport.Identities`), and the campaign keeps it (`CampaignState.Identities`, merged at settlement, the latest freeing winning).
+      - The next night, the host matches looks to players as their names arrive (`World.LooksByName` → `World.Looks`) and sends them (`MessageType.Looks`). Everyone's figure is drawn from `Identity.Of`: tonight's freeing, else the carried look.
+      - **Reading:** "the player's ID" across nights is their name, since tonight's player ids are only tonight's.
+    - **Already in place:** the Gaunt and every other loot-ranker value a body at 5, above a find or freight and below a living child (note 164's reading of "valued at its refund"), and the Followers rank its car.
+    - **Not yet:** the survivor pool beyond the two Holdout kinds (one look per kind).
+    - Protocol 14. Tests: `BodyCarryTests` (each kind of hand loot heavy and off the ladders; the solo remainer's exception and its pace; recovery off to the side, far off, and down below the rails; a body in the corridor left where it fell; the identity through settlement into the next night).
+182. **Cargo, contracts and the child (GDD v1.4 §9, §18, §19, App. A.6, B.6, B.9, C.4; WP13).**
+    - **Where the contract's cargo meets the facility's (reading):** the contract decides what the train *departs carrying*. Every loaded car leaves the fortress with the contract's freight (`Consist.Carrying`, `SessionSetup.Cargo`, `HarnessOptions.Cargo`) instead of goods. The facilities still load their own on top, and a car still goes by the last cargo loaded into it (T68). Each car pays by what's in it at the terminus (`run.json economy.cargoRates`, a share of the tier's per-car value). So the contract's per-car figure is its cargo's rate at the tier (`Campaign.PerCar(run, tier, cargo)`). Goods pay 1, so spec F.1's table (a train of goods) and `NetIncomeByConsistMatchesSpecF1` still hold. The B.9 modifiers already went by what's aboard (`Director.Aboard`), so a contract's cargo changes the night from the gate.
+      - Topping a comet car up with food makes it a food car. Mixing loads is a decision the crew make.
+      - §18's "top payout" (the chemical works), "best payout" (the military depot) and "high value" (the wreck yard) are now rates too (chemicals 1.4, ammunition 1.5, salvage 1.2).
+    - **The board** (`Campaign.Offers`, `campaign.json contracts`): the ordinary contracts are unchanged (the consist's tier, and one from below). Each draws its freight from `contracts.cargo` by the night and its slot. Then, with `contracts.comet`, a comet contract at the consist's own tier: B.9's "high-risk contract ... the best freight payout" (rate 1.8, above every other). Its B.9 effect was already in place: `cargoWeights.comet "*": 1.4` and `cometRelaxesGates`.
+      - `Contract` gains `Cargo`. A save from before reads as goods.
+      - The fortress screen shows each contract's freight and what it does: "TONIGHT: LOCAL 7913, COMET-DERIVED MATERIAL, 810 A CAR". `dt campaign show` lists it, and `dt campaign play` departs with it.
+      - The dispatcher's manifest reads the freight ("Freight: medicine.").
+    - **New cargo kinds** (`CargoKind` Medicine, Timber, Coal, on the end; `Cargoes` names them):
+      - **Medicine** (§19 "fragile, high value"; `train.json fragile`): any contact closing faster than 0.3 m/s spoils a medicine car by (closing − 0.3)² × the couplings' damage × cargo share × 3, where everything else feels only knocks over 1 m/s (`TrainOnLine.Jolt`). Braking harder than 1.2 m/s² spoils it 0.02 a second for every m/s² over (`BrakeShock`): a full brake on a short train costs about a fifth.
+      - **Coal and timber** (§19 "burns", B.9 "fire cascades escalate faster"; `enemies.json carFire.fuelGrowth` 1.4, `fuelSpread` 2): a fire in their car grows faster and runs its spread clock twice as fast.
+      - **Not modelled:** timber's "heavy" (every loaded car weighs the same).
+    - **Gunpowder explodes** (§19; `carFire.explodeAt`, `explodeRadius`, `explodeKillRadius`, `explodeDamage`): a powder car with cargo left in it that reaches full blaze goes up, once (`CarFire.Explode`). The car's integrity and cargo go to 0. Everyone within 5 m of the fire takes 150 (killed), and less with distance out to 14 m, through walls. The cars either side catch. It's an impact with no shooter on the train's body (`World.Blast`), so every client already draws and hears the cannonball's explosion there. Death cause `Exploded` ("Killed when a powder car went up"; attributed like a burn, to whoever lit the lamp).
+    - **A cannon beside chemicals** (B.9 "lethal to the crew"; `combat.json fumes`): a shot from a gun on a loaded chemicals car, or on the car next to one, gasses the gunner and everyone within 8 m of that car, for 150 (`World.Fumes`). This runs host-side after the whole crew has acted. Death cause `Poisoned`, attributed to the gunner (`Attribution.Gasser`).
+      - **Reading:** "near" is a coupling, not a distance. The guard van's gun sits 14 m from the car ahead's nearest end, so any distance that caught it would also catch a car two down from the engine's gun.
+    - **The child** (§19, B.9 "highest payout", A.6 REAL "cannot be harmed"):
+      - **Pay:** each rescued child home (in a car still on the engine, or in someone's arms) pays `economy.childPay` (3) times the tier's per-car value. That's more than any one car-load of anything, comet included. It's in the gross, on the report (`RunReport.ChildrenHome`, `ChildPay`), and in the clerk's tally ("Child survivor: 1. Paid 2100.").
+      - **Unharmed:** what takes or eats loot ranks things by `Bodies.Prey`, which is `Value` with the child worth nothing. So the Gaunt passes over the child for the next best thing, or the car's freight. The Followers don't count the child towards the car to nest in. Nothing damages a body. A fire or a blast in its car leaves the child where it is. A child dropped off the formation is recovered to its edge like a body (note 181's `World.Recover`).
+      - **Reading:** a car taken whole (the Car Hugger, the Passenger) takes the child with it. That's a lost car, like one with a body in it, not harm done to the child.
+    - **A host's first-ever child call is real (B.6, A.6):** the profile (`PlayerProfile.Data.ChildCalled`, note 180's file) says whether a night this player hosted has had a call.
+      - Until it has, `SessionSetup.FirstChildReal` sets the host world's `NextChildReal`. The Game passes the bool in, and the Sim reads no file.
+      - The spawn rule sets `World.ChildCalled`. After the night, the app marks the profile.
+      - **Reading:** "first-ever" is the host's, across campaigns and quick nights, which is why it lives in the profile and not a save.
+    - **Departure purchases (§9):**
+      - **What was already there:** cars, upgrades and spare repair kits. Coal, rounds and repairs are already the fortress's standard issue, billed on what the night uses (spec F.1's running costs).
+      - **What's added:**
+        - `campaign.json stores`, bought for the coming night only and spent with it (`CampaignState.Stores`, `Campaign.BuyStores`, a STORES screen; `dt campaign buy powder|lamp|extinguisher`). A crate of powder and shot is 4 more rounds for every gun (120 scrip, up to 3). A spare lamp is 60 (up to 2) and a spare extinguisher 90 (up to 2), both stocked in the guard van; the extinguishers have no bracket to recharge on. They reach every machine through `SessionSetup` (`Powder`, `SpareLamps`, `SpareExtinguishers`), like the spare kits.
+        - Taking a car off (`campaign.json sellCar`, `Campaign.SellCar`, `dt campaign buy sell`) brings back half what that car cost, never below three cars. A shorter train drops a tier when it falls below one (F.4), and the row says so.
+      - **Reading:** "repair the train" needs no purchase, because damage doesn't carry between nights and the tally bills the repairs. "Repair supplies and tools" are the spare kits.
+      - **Not modelled:** extra rounds are billed as used, like the standard ones (the crate's price is for carrying them).
+    - Protocol 15. Tests:
+      - `CargoTests`: the child's pay, and a child cut off isn't home; each car paid by its cargo; the Gaunt and the child; the comet aboard, its weights and gates; medicine's knock and brake; coal and timber; the chemicals' gas; a host's first call.
+      - `CarFireTests`: the powder car's blast, its radius and the child unharmed in it; goods never explode.
+      - `CampaignTests`: freight on every contract, the comet best every night, an old save's contract reading as goods; the stores, aboard and spent; selling a car.
+      - `PlayerProfileTests`: the first-call flag, kept off the wire.
+    - Renders: `dt screenshot --menu fortress|stores` (the board and the stores); `--view inside --cargo medicine|timber|coal`.
+183. **Hazards: deep cold, wind, tunnels, fouled guns, broken radios, lamps out (GDD §22, §23; WP14).**
+    - **Deep cold (§22):** `ITrackConditions.ColdStep` is linegen §14's cold: the night's `TempStep` plus the exposure stretch's own step (climbed high, or exposed track). Each step makes a player's cold come on `player.json cold.perColdStep` (0.25) faster, and takes `boiler.json coldEfficiencyPerStep` (0.06) off what a shovelful of coal makes, down to `coldEfficiencyFloor` (0.7). Hand-authored routes have no conditions and stay at step 0.
+    - **Wind (§22):** `ITrackConditions.Wind` is the night's wind times the stretch's exposure. A gun round feeds the meter ×(1 + `combat.json guns.windLoudness` × wind), since a shot carries further across open, windy country.
+    - **Tunnels (§22, "compressed proximity voice, no exterior reference"):** while the listener is under one, proximity voice goes through `voice.json`'s "tunnel" parameter: lows and highs cut, a hard boost in the mids, a little louder. It's the listener's client's call, not the sim's.
+    - **Gun jams (§23, "someone repairs it by hand, under fire"):** each shot fouls the bore with `guns.foulChance` (0.04), ×`foulWetFactor` (2.5) on wet rail. Holding Use at the gun, standing still, for `clearSeconds` (4) clears it; letting go starts over. Which shot fouls is a hash of the tick and the gun (`Guns.Fouls`), the same on every machine without a shared die.
+    - **Radios break (§23):** at a knock or a grab, each worn radio may break, with chance `kit.radioBreakPerDamage` (0.006) per point of health lost, plus `radioBreakOnGrab` (0.25) when the wearer is newly grabbed. The tick and the wearer decide it, by the same hash. A broken radio is still worn (the slot's taken) but off the air; the HUD says RADIO BROKEN. Host-only, mirrored on the body record.
+    - **Lights fail (§23):**
+      - A Climber getting into a car puts that car's lamp out.
+      - A Climber coming into the cab smashes the forward lamp for `climber.lampOutSeconds` (45).
+      - A derailment puts every lamp out, the forward lamp included.
+      - **Reading:** the lamp goes out when it gets in, not as it mounts. Otherwise it would pick the car it had just darkened (App. A.4 ENTER: "the first car unlit or with nobody in it").
+    - **Not yet:** wind on footing or sway; the cold step on the HUD; repairing a broken radio.
+    - Protocol 16. Tests: `HazardTests` (cold rate, boiler efficiency, the foul hash, clearing a jam, radios breaking on a knock and on a grab, a derailment's lamps), and the lamp in `ClimberTests`. `EnemyTests`' spraying gunner gets 30 s more for the Choir, since a fouled bore can hold it off past 90 s.
