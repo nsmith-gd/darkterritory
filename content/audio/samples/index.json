@@ -1,0 +1,3226 @@
+{
+ "bed-boiler-roar/roar-low": {
+  "cue": "bed-boiler-roar.roar-low",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/bed-boiler-roar--roar.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "9d4d42bcff415734"
+ },
+ "bed-groan/creak": {
+  "cue": "bed-groan.creak",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "creak1",
+    "key": "kenney_rpg-audio:creak1",
+    "sources": [
+     "kenney_rpg-audio:creak1"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "ac47541be76a0bf2"
+ },
+ "bed-groan/groan": {
+  "cue": "bed-groan.groan",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/bed-groan--grade.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "350890fcd585252d"
+ },
+ "bed-slack/run-in": {
+  "cue": "bed-slack.run-in",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/bed-slack--run.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "0208a170636ffdbf"
+ },
+ "bed-wheel-rail/roll-slow": {
+  "cue": "bed-wheel-rail.roll-slow",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/bed-wheel-rail--library.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "eafb0938a253d6e2"
+ },
+ "crew-cab-controls/handbrake-ratchet": {
+  "cue": "crew-cab-controls.handbrake-ratchet",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "sfx100v2_misc_20",
+    "key": "sfx_100_v2:misc_20",
+    "sources": [
+     "sfx_100_v2:misc_20"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "762df52839a056df"
+ },
+ "crew-cannon-ball/ball-roll": {
+  "cue": "crew-cannon-ball.ball-roll",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/crew-cannon-ball--ball.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "3b4d4395cabe8adb"
+ },
+ "crew-cannon-fire/shot-far": {
+  "cue": "crew-cannon-fire.shot-far",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/crew-cannon-fire--far.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "03cf424868e35c49"
+ },
+ "crew-cannon-ram/ram-home": {
+  "cue": "crew-cannon-ram.ram-home",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/crew-cannon-ram--ram.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "4e1bd21391096207"
+ },
+ "crew-carry/body-land/concrete": {
+  "cue": "crew-carry.body-land",
+  "surface": "concrete",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactSoft_heavy_000",
+    "key": "kenney_impact-sounds:impactSoft_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "d07450fe05380f4c"
+ },
+ "crew-carry/body-land/grate": {
+  "cue": "crew-carry.body-land",
+  "surface": "grate",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactSoft_heavy_000",
+    "key": "kenney_impact-sounds:impactSoft_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "d07450fe05380f4c"
+ },
+ "crew-carry/body-land/ground": {
+  "cue": "crew-carry.body-land",
+  "surface": "ground",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactSoft_heavy_000",
+    "key": "kenney_impact-sounds:impactSoft_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "d07450fe05380f4c"
+ },
+ "crew-carry/body-land/wood": {
+  "cue": "crew-carry.body-land",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactSoft_heavy_000",
+    "key": "kenney_impact-sounds:impactSoft_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "d07450fe05380f4c"
+ },
+ "crew-carry/body-lift": {
+  "cue": "crew-carry.body-lift",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "cloth1",
+    "key": "kenney_rpg-audio:cloth1",
+    "sources": [
+     "kenney_rpg-audio:cloth1"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "2b46838a03b49204"
+ },
+ "crew-carry/body-set/concrete": {
+  "cue": "crew-carry.body-set",
+  "surface": "concrete",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactSoft_heavy_000",
+    "key": "kenney_impact-sounds:impactSoft_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "d07450fe05380f4c"
+ },
+ "crew-carry/body-set/grate": {
+  "cue": "crew-carry.body-set",
+  "surface": "grate",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactSoft_heavy_000",
+    "key": "kenney_impact-sounds:impactSoft_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "d07450fe05380f4c"
+ },
+ "crew-carry/body-set/ground": {
+  "cue": "crew-carry.body-set",
+  "surface": "ground",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactSoft_heavy_000",
+    "key": "kenney_impact-sounds:impactSoft_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "d07450fe05380f4c"
+ },
+ "crew-carry/body-set/wood": {
+  "cue": "crew-carry.body-set",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactSoft_heavy_000",
+    "key": "kenney_impact-sounds:impactSoft_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "d07450fe05380f4c"
+ },
+ "crew-carry/crate-land/wood": {
+  "cue": "crew-carry.crate-land",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactPlank_medium_000",
+    "key": "kenney_impact-sounds:impactPlank_medium_000",
+    "sources": [
+     "kenney_impact-sounds:impactPlank_medium_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "f95afc9c2a86cd43"
+ },
+ "crew-carry/crate-set/grate": {
+  "cue": "crew-carry.crate-set",
+  "surface": "grate",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactPlate_heavy_000",
+    "key": "kenney_impact-sounds:impactPlate_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "b16ab3ec7a2903b0"
+ },
+ "crew-carry/crate-set/wood": {
+  "cue": "crew-carry.crate-set",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactWood_heavy_000",
+    "key": "kenney_impact-sounds:impactWood_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "36c4b43bb0b0671d"
+ },
+ "crew-carry/lamp-break": {
+  "cue": "crew-carry.lamp-break",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "sfx100v2_glass_03",
+    "key": "sfx_100_v2:glass_03",
+    "sources": [
+     "sfx_100_v2:glass_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "ac1804662f5a067e"
+ },
+ "crew-carry/radio-drop/grate": {
+  "cue": "crew-carry.radio-drop",
+  "surface": "grate",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactMetal_light_000",
+    "key": "kenney_impact-sounds:impactMetal_light_000",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "e4f945475fecc3f4"
+ },
+ "crew-carry/radio-drop/wood": {
+  "cue": "crew-carry.radio-drop",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactWood_light_000",
+    "key": "kenney_impact-sounds:impactWood_light_000",
+    "sources": [
+     "kenney_impact-sounds:impactWood_light_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "1174b7604097e5e0"
+ },
+ "crew-carry/toy-drop/wood": {
+  "cue": "crew-carry.toy-drop",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactWood_light_000",
+    "key": "kenney_impact-sounds:impactWood_light_000",
+    "sources": [
+     "kenney_impact-sounds:impactWood_light_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "1174b7604097e5e0"
+ },
+ "crew-doors/end-open": {
+  "cue": "crew-doors.end-open",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "doorOpen_1",
+    "key": "kenney_rpg-audio:doorOpen_1",
+    "sources": [
+     "kenney_rpg-audio:doorOpen_1"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "b2e5766fa734603b"
+ },
+ "crew-doors/end-shut": {
+  "cue": "crew-doors.end-shut",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "doorClose_1",
+    "key": "kenney_rpg-audio:doorClose_1",
+    "sources": [
+     "kenney_rpg-audio:doorClose_1"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "25654d637f2585a4"
+ },
+ "crew-doors/slide-roll": {
+  "cue": "crew-doors.slide-roll",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "sfx100v2_misc_16",
+    "key": "sfx_100_v2:misc_16",
+    "sources": [
+     "sfx_100_v2:misc_16"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "5928792b3eff473d"
+ },
+ "crew-doors/slide-shut": {
+  "cue": "crew-doors.slide-shut",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "sfx100v2_door_03",
+    "key": "sfx_100_v2:door_03",
+    "sources": [
+     "sfx_100_v2:door_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "fa055e9b556c1fbb"
+ },
+ "crew-doors/slide-unlatch": {
+  "cue": "crew-doors.slide-unlatch",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "metalLatch",
+    "key": "kenney_rpg-audio:metalLatch",
+    "sources": [
+     "kenney_rpg-audio:metalLatch"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "f49646a97bf87833"
+ },
+ "crew-extinguisher/drop/grate": {
+  "cue": "crew-extinguisher.drop",
+  "surface": "grate",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactMetal_heavy_000",
+    "key": "kenney_impact-sounds:impactMetal_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "b72aedfc0f4b473d"
+ },
+ "crew-extinguisher/drop/wood": {
+  "cue": "crew-extinguisher.drop",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactWood_heavy_000",
+    "key": "kenney_impact-sounds:impactWood_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "36c4b43bb0b0671d"
+ },
+ "crew-extinguisher/dry-trigger": {
+  "cue": "crew-extinguisher.dry-trigger",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "metalClick",
+    "key": "kenney_rpg-audio:metalClick",
+    "sources": [
+     "kenney_rpg-audio:metalClick"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "f3a7244355bc6f4f"
+ },
+ "crew-extinguisher/grab-mount": {
+  "cue": "crew-extinguisher.grab-mount",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "metalLatch",
+    "key": "kenney_rpg-audio:metalLatch",
+    "sources": [
+     "kenney_rpg-audio:metalLatch"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "f49646a97bf87833"
+ },
+ "crew-extinguisher/return-mount": {
+  "cue": "crew-extinguisher.return-mount",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "metalLatch",
+    "key": "kenney_rpg-audio:metalLatch",
+    "sources": [
+     "kenney_rpg-audio:metalLatch"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "f49646a97bf87833"
+ },
+ "crew-footsteps/walk/concrete": {
+  "cue": "crew-footsteps.walk",
+  "surface": "concrete",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "footstep_concrete_000",
+    "key": "kenney_impact-sounds:footstep_concrete_000",
+    "sources": [
+     "kenney_impact-sounds:footstep_concrete_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "62817e41f3957047"
+ },
+ "crew-footsteps/walk/grass": {
+  "cue": "crew-footsteps.walk",
+  "surface": "grass",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "footstep_grass_000",
+    "key": "kenney_impact-sounds:footstep_grass_000",
+    "sources": [
+     "kenney_impact-sounds:footstep_grass_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "2af26bff25ee9c7a"
+ },
+ "crew-footsteps/walk/wood": {
+  "cue": "crew-footsteps.walk",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "footstep_wood_000",
+    "key": "kenney_impact-sounds:footstep_wood_000",
+    "sources": [
+     "kenney_impact-sounds:footstep_wood_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "c65838b05ade0c07"
+ },
+ "crew-hurt/body-fall/concrete": {
+  "cue": "crew-hurt.body-fall",
+  "surface": "concrete",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactSoft_heavy_000",
+    "key": "kenney_impact-sounds:impactSoft_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "d07450fe05380f4c"
+ },
+ "crew-hurt/body-fall/grate": {
+  "cue": "crew-hurt.body-fall",
+  "surface": "grate",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactSoft_heavy_000",
+    "key": "kenney_impact-sounds:impactSoft_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "d07450fe05380f4c"
+ },
+ "crew-hurt/body-fall/ground": {
+  "cue": "crew-hurt.body-fall",
+  "surface": "ground",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactSoft_heavy_000",
+    "key": "kenney_impact-sounds:impactSoft_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "d07450fe05380f4c"
+ },
+ "crew-hurt/body-fall/wood": {
+  "cue": "crew-hurt.body-fall",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactSoft_heavy_000",
+    "key": "kenney_impact-sounds:impactSoft_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "d07450fe05380f4c"
+ },
+ "crew-hurt/grabbed": {
+  "cue": "crew-hurt.grabbed",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "cloth1",
+    "key": "kenney_rpg-audio:cloth1",
+    "sources": [
+     "kenney_rpg-audio:cloth1"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "2b46838a03b49204"
+ },
+ "crew-hurt/hit": {
+  "cue": "crew-hurt.hit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactPunch_medium_000",
+    "key": "kenney_impact-sounds:impactPunch_medium_000",
+    "sources": [
+     "kenney_impact-sounds:impactPunch_medium_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "79c251bf28b8f489"
+ },
+ "crew-lamps/car-lamp-off": {
+  "cue": "crew-lamps.car-lamp-off",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "sfx100v2_switch_01",
+    "key": "sfx_100_v2:switch_01",
+    "sources": [
+     "sfx_100_v2:switch_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "527e82723bea4e51"
+ },
+ "crew-lamps/car-lamp-on": {
+  "cue": "crew-lamps.car-lamp-on",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "sfx100v2_switch_01",
+    "key": "sfx_100_v2:switch_01",
+    "sources": [
+     "sfx_100_v2:switch_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "527e82723bea4e51"
+ },
+ "crew-melee/crowbar-drop/grate": {
+  "cue": "crew-melee.crowbar-drop",
+  "surface": "grate",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactMetal_medium_000",
+    "key": "kenney_impact-sounds:impactMetal_medium_000",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_medium_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "b472d7a7945237e8"
+ },
+ "crew-melee/crowbar-drop/wood": {
+  "cue": "crew-melee.crowbar-drop",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactWood_medium_000",
+    "key": "kenney_impact-sounds:impactWood_medium_000",
+    "sources": [
+     "kenney_impact-sounds:impactWood_medium_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "69ae46832dd956d9"
+ },
+ "crew-melee/crowbar-hit-flesh": {
+  "cue": "crew-melee.crowbar-hit-flesh",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactPunch_heavy_000",
+    "key": "kenney_impact-sounds:impactPunch_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactPunch_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "5f9f9715ae229bbe"
+ },
+ "crew-melee/crowbar-hit-metal": {
+  "cue": "crew-melee.crowbar-hit-metal",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactMetal_heavy_000",
+    "key": "kenney_impact-sounds:impactMetal_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "b72aedfc0f4b473d"
+ },
+ "crew-melee/crowbar-hit-wood": {
+  "cue": "crew-melee.crowbar-hit-wood",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactWood_heavy_000",
+    "key": "kenney_impact-sounds:impactWood_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "36c4b43bb0b0671d"
+ },
+ "crew-melee/shovel-drop/grate": {
+  "cue": "crew-melee.shovel-drop",
+  "surface": "grate",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactMetal_medium_000",
+    "key": "kenney_impact-sounds:impactMetal_medium_000",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_medium_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "b472d7a7945237e8"
+ },
+ "crew-melee/shovel-drop/wood": {
+  "cue": "crew-melee.shovel-drop",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactWood_medium_000",
+    "key": "kenney_impact-sounds:impactWood_medium_000",
+    "sources": [
+     "kenney_impact-sounds:impactWood_medium_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "69ae46832dd956d9"
+ },
+ "crew-melee/shovel-hit-flesh": {
+  "cue": "crew-melee.shovel-hit-flesh",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactPunch_heavy_000",
+    "key": "kenney_impact-sounds:impactPunch_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactPunch_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "5f9f9715ae229bbe"
+ },
+ "crew-melee/shovel-hit-metal": {
+  "cue": "crew-melee.shovel-hit-metal",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactPlate_heavy_000",
+    "key": "kenney_impact-sounds:impactPlate_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "b16ab3ec7a2903b0"
+ },
+ "crew-melee/shovel-hit-wood": {
+  "cue": "crew-melee.shovel-hit-wood",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactWood_heavy_000",
+    "key": "kenney_impact-sounds:impactWood_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "36c4b43bb0b0671d"
+ },
+ "crew-melee/wrench-drop/grate": {
+  "cue": "crew-melee.wrench-drop",
+  "surface": "grate",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactMetal_medium_000",
+    "key": "kenney_impact-sounds:impactMetal_medium_000",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_medium_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "b472d7a7945237e8"
+ },
+ "crew-melee/wrench-drop/wood": {
+  "cue": "crew-melee.wrench-drop",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactWood_medium_000",
+    "key": "kenney_impact-sounds:impactWood_medium_000",
+    "sources": [
+     "kenney_impact-sounds:impactWood_medium_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "69ae46832dd956d9"
+ },
+ "crew-melee/wrench-hit-flesh": {
+  "cue": "crew-melee.wrench-hit-flesh",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactPunch_heavy_000",
+    "key": "kenney_impact-sounds:impactPunch_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactPunch_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "5f9f9715ae229bbe"
+ },
+ "crew-melee/wrench-hit-metal": {
+  "cue": "crew-melee.wrench-hit-metal",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactMetal_heavy_000",
+    "key": "kenney_impact-sounds:impactMetal_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "b72aedfc0f4b473d"
+ },
+ "crew-melee/wrench-hit-wood": {
+  "cue": "crew-melee.wrench-hit-wood",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactWood_heavy_000",
+    "key": "kenney_impact-sounds:impactWood_heavy_000",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "36c4b43bb0b0671d"
+ },
+ "crew-repair/board-place": {
+  "cue": "crew-repair.board-place",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "impactPlank_medium_000",
+    "key": "kenney_impact-sounds:impactPlank_medium_000",
+    "sources": [
+     "kenney_impact-sounds:impactPlank_medium_000"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "f95afc9c2a86cd43"
+ },
+ "crew-repair/hammer": {
+  "cue": "crew-repair.hammer",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "sfx100v2_wood_hit_03",
+    "key": "sfx_100_v2:wood_hit_03",
+    "sources": [
+     "sfx_100_v2:wood_hit_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "a1a6e775f0b3cf6b"
+ },
+ "crew-repair/ratchet": {
+  "cue": "crew-repair.ratchet",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "sfx100v2_misc_20",
+    "key": "sfx_100_v2:misc_20",
+    "sources": [
+     "sfx_100_v2:misc_20"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "762df52839a056df"
+ },
+ "cs-car-hugger/break-away": {
+  "cue": "cs-car-hugger.break-away",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The drawbar shears with the van straining, the brake hose blasts, and the van falls away behind with its brakes screaming",
+    "key": "parting",
+    "sources": [
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:loop_ambient_01",
+     "sfx_100_v2:loop_ambient_02",
+     "kenney_rpg-audio:handleCoins"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "a2641b2c5759278c"
+ },
+ "cs-car-hugger/hit": {
+  "cue": "cs-car-hugger.hit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The blow sinks into wet rubbery hide and slops inside it; it clenches, and the guard van's timbers groan",
+    "key": "clench",
+    "sources": [
+     "kenney_rpg-audio:handleCoins",
+     "sfx_100_v2:loop_water_01",
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "6ce8f71ad765c625"
+ },
+ "cs-car-hugger/swallow": {
+  "cue": "cs-car-hugger.swallow",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/cs-car-hugger--swallow.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "a37d0f6853320fd0"
+ },
+ "cs-choir/arrive": {
+  "cue": "cs-choir.arrive",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The bells themselves: a slow cluster of membrane bells rubbed into song on the lullaby's tritones, pulsing as they swim",
+    "key": "bells",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "a1fd71fd404c412f"
+ },
+ "cs-choir/bang-door/grate": {
+  "cue": "cs-choir.bang-door",
+  "surface": "grate",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Tendrils lashing an iron door or hatch in ragged flurries, heard from inside, the door rattling after each",
+    "key": "lash",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_light_000",
+     "kenney_impact-sounds:impactPlate_light_001",
+     "kenney_impact-sounds:impactPlate_light_002",
+     "kenney_impact-sounds:impactPlate_light_003",
+     "kenney_impact-sounds:impactPlate_light_004",
+     "kenney_impact-sounds:impactPlate_medium_000",
+     "kenney_impact-sounds:impactPlate_medium_001",
+     "kenney_impact-sounds:impactPlate_medium_002",
+     "kenney_impact-sounds:impactPlate_medium_003",
+     "kenney_impact-sounds:impactPlate_medium_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_rpg-audio:metalLatch",
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "1a9783a7dbd45aeb"
+ },
+ "cs-choir/bang-door/wood": {
+  "cue": "cs-choir.bang-door",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Tendrils lashing a car's wooden door in ragged flurries, heard from inside, the door rattling after each",
+    "key": "lash",
+    "sources": [
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_rpg-audio:metalLatch",
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "2519775cbcb1d43b"
+ },
+ "cs-choir/disperse": {
+  "cue": "cs-choir.disperse",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "One voice sings the lullaby's last bar but stops a step short of home, while the swarm hushes all round and drifts away",
+    "key": "hush",
+    "sources": [
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:dropLeather"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "705076665b310c3e"
+ },
+ "cs-choir/hit": {
+  "cue": "cs-choir.hit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A blow on a bell of wet skin: a bending drumhead knock with a jelly wobble, and its song knocked off the note",
+    "key": "membrane",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000",
+     "kenney_impact-sounds:impactSoft_heavy_001",
+     "kenney_impact-sounds:impactSoft_heavy_002",
+     "kenney_impact-sounds:impactSoft_heavy_003",
+     "kenney_impact-sounds:impactSoft_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "f057ca16a3123155"
+ },
+ "cs-choir/seize": {
+  "cue": "cs-choir.seize",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "One voice sliding up a tritone as it comes close, then closing its mouth into a hum over your head as tendrils tighten",
+    "key": "close",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "dcecd990a39a74f0"
+ },
+ "cs-climbers/force": {
+  "cue": "cs-climbers.force",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/cs-climbers--force.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "29cd5705b745aa87"
+ },
+ "cs-climbers/hit": {
+  "cue": "cs-climbers.hit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A blow on a Climber's taut black hide, and it hissing and squealing through its lamprey sucker",
+    "key": "sucker",
+    "sources": [
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "321afe1976a5daf0"
+ },
+ "cs-climbers/step/roof": {
+  "cue": "cs-climbers.step",
+  "surface": "roof",
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/cs-climbers--roof.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 5,
+  "sha": "a0ce788ee38ad21b"
+ },
+ "cs-draggers/grab": {
+  "cue": "cs-draggers.grab",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The limb unfolds up the side joint by joint, claws bite the edge, and its tendons strain as it hauls the victim over",
+    "key": "sinew",
+    "sources": [
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "kenney_impact-sounds:impactPlate_light_000",
+     "kenney_impact-sounds:impactPlate_light_002",
+     "kenney_impact-sounds:impactPlate_light_004",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "2b5e81cc48fb1507"
+ },
+ "cs-draggers/haul-up": {
+  "cue": "cs-draggers.haul-up",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A friend hauls them up: clothes straining, the body scraping up the boards and over the tin, the limb's claws raking off",
+    "key": "heave",
+    "sources": [
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "sfx_100_v2:misc_10",
+     "kenney_rpg-audio:footstep00",
+     "kenney_rpg-audio:footstep01",
+     "kenney_rpg-audio:footstep02",
+     "kenney_rpg-audio:footstep03",
+     "kenney_rpg-audio:footstep04",
+     "kenney_rpg-audio:footstep05",
+     "kenney_rpg-audio:footstep06",
+     "kenney_rpg-audio:footstep07",
+     "kenney_rpg-audio:footstep08",
+     "kenney_rpg-audio:footstep09",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "sfx_100_v2:footstep_wood_02",
+     "sfx_100_v2:footstep_wood_04",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "kenney_impact-sounds:impactPlate_light_000",
+     "kenney_impact-sounds:impactPlate_light_002",
+     "kenney_impact-sounds:impactPlate_light_004",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "804d3b8683bc0024"
+ },
+ "cs-draggers/scrabble": {
+  "cue": "cs-draggers.scrabble",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Boots kicking and scraping at the car's side boards for a hold, hands shifting on the tin lip, the limb tugging",
+    "key": "boots",
+    "sources": [
+     "kenney_rpg-audio:footstep00",
+     "kenney_rpg-audio:footstep01",
+     "kenney_rpg-audio:footstep02",
+     "kenney_rpg-audio:footstep03",
+     "kenney_rpg-audio:footstep04",
+     "kenney_rpg-audio:footstep05",
+     "kenney_rpg-audio:footstep06",
+     "kenney_rpg-audio:footstep07",
+     "kenney_rpg-audio:footstep08",
+     "kenney_rpg-audio:footstep09",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "sfx_100_v2:footstep_wood_02",
+     "sfx_100_v2:footstep_wood_04",
+     "sfx_100_v2:misc_10",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "kenney_impact-sounds:impactPlate_light_000",
+     "kenney_impact-sounds:impactPlate_light_002",
+     "kenney_impact-sounds:impactPlate_light_004",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "55ff7029a4774d5f"
+ },
+ "cs-draggers/under": {
+  "cue": "cs-draggers.under",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Yanked off the side and dragged away under the train, bumping over the sleepers into the dark",
+    "key": "sleepers",
+    "sources": [
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "kenney_impact-sounds:impactPlate_light_000",
+     "kenney_impact-sounds:impactPlate_light_002",
+     "kenney_impact-sounds:impactPlate_light_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "sfx_100_v2:loop_ambient_04"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "4876286dd1e7d98f"
+ },
+ "cs-followers/clubbed-off": {
+  "cue": "cs-followers.clubbed-off",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A club on a friend's back, and the engorged tick on it bursting or knocked off to split on the boards",
+    "key": "burst",
+    "sources": [
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "29b96541c2b411eb"
+ },
+ "cs-followers/nest-burst": {
+  "cue": "cs-followers.nest-burst",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The nest destroyed: its skin tearing open, everything in it pouring out, the brood bursting and scattering",
+    "key": "collapse",
+    "sources": [
+     "sfx_100_v2:loop_water_02",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "5ef84b5a46ba1fe8"
+ },
+ "cs-followers/nest-smash": {
+  "cue": "cs-followers.nest-smash",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Someone hacking at a pulsing, kneading nest in a loot car: sacs splitting, fluid, shells, the brood squirming",
+    "key": "hacking",
+    "sources": [
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "38d34c0a72843009"
+ },
+ "cs-gaunt/blow": {
+  "cue": "cs-gaunt.blow",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Its long limb whipping down like a dry branch: a hard, cracking strike, the limb ringing, bark crumbs falling",
+    "key": "branch",
+    "sources": [
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "a91d83e60f01415a"
+ },
+ "cs-gaunt/death": {
+  "cue": "cs-gaunt.death",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Its four stilts giving one after another, cracking and folding, until it drops into a heap of branches",
+    "key": "fold",
+    "sources": [
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:misc_34",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "de1d90e4fce062ea"
+ },
+ "cs-grumbler/eat": {
+  "cue": "cs-grumbler.eat",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Aboard in a wooden car: crate slats prised off and splitting, gnawing at the timber, chewing and grumbling",
+    "key": "crates",
+    "sources": [
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:misc_34",
+     "kenney_rpg-audio:chop",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02",
+     "kenney_impact-sounds:footstep_snow_000",
+     "kenney_impact-sounds:footstep_snow_001",
+     "kenney_impact-sounds:footstep_snow_002",
+     "kenney_impact-sounds:footstep_snow_003",
+     "kenney_impact-sounds:footstep_snow_004",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "8fc9fa24a1565bbe"
+ },
+ "cs-grumbler/feral": {
+  "cue": "cs-grumbler.feral",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "His grumbling catching into a ragged man's bellow through a split jaw, teeth gnashing, then the charge",
+    "key": "bellow",
+    "sources": [
+     "sfx_100_v2:misc_25",
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:footstep_snow_000",
+     "kenney_impact-sounds:footstep_snow_001",
+     "kenney_impact-sounds:footstep_snow_002",
+     "kenney_impact-sounds:footstep_snow_003",
+     "kenney_impact-sounds:footstep_snow_004",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "e138a2ed8dee80a6"
+ },
+ "cs-grumbler/scuttle": {
+  "cue": "cs-grumbler.scuttle",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Bare palms and soles slapped flat on the crane's iron in fast diagonal pairs, the girder ringing low under it",
+    "key": "palms",
+    "sources": [
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "7ba98e926322d946"
+ },
+ "cs-hounds/bite": {
+  "cue": "cs-hounds.bite",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A hound's jaws closing through a crewman's coat into the arm: the clack, the cloth, the flesh, a scorch",
+    "key": "jaws",
+    "sources": [
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "kenney_rpg-audio:handleSmallLeather",
+     "sfx_100_v2:misc_34"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "7dd9b3d09991ee7a"
+ },
+ "cs-hounds/leap": {
+  "cue": "cs-hounds.leap",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A hound's last strides on the ballast, the jump, and its landing on the rear platform, claws hunting for grip",
+    "key": "board",
+    "sources": [
+     "kenney_impact-sounds:footstep_snow_000",
+     "kenney_impact-sounds:footstep_snow_001",
+     "kenney_impact-sounds:footstep_snow_002",
+     "kenney_impact-sounds:footstep_snow_003",
+     "kenney_impact-sounds:footstep_snow_004",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "c4c9d35d38ef879c"
+ },
+ "cs-hounds/paw/grate": {
+  "cue": "cs-hounds.paw",
+  "surface": "grate",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A hound's paw on an iron running board: claws ringing on the plate, the pad's dull clank, ash and embers",
+    "key": "pad",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_light_000",
+     "kenney_impact-sounds:impactPlate_light_001",
+     "kenney_impact-sounds:impactPlate_light_002",
+     "kenney_impact-sounds:impactPlate_light_003",
+     "kenney_impact-sounds:impactPlate_light_004",
+     "kenney_impact-sounds:impactPlate_medium_000",
+     "kenney_impact-sounds:impactPlate_medium_001",
+     "kenney_impact-sounds:impactPlate_medium_002",
+     "kenney_impact-sounds:impactPlate_medium_003",
+     "kenney_impact-sounds:impactPlate_medium_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "76b539dde6db7fb1"
+ },
+ "cs-hounds/paw/ground": {
+  "cue": "cs-hounds.paw",
+  "surface": "ground",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A hound's paw on the ballast: claws, the pad, the stones giving, a puff of ash and embers",
+    "key": "pad",
+    "sources": [
+     "kenney_impact-sounds:footstep_snow_000",
+     "kenney_impact-sounds:footstep_snow_001",
+     "kenney_impact-sounds:footstep_snow_002",
+     "kenney_impact-sounds:footstep_snow_003",
+     "kenney_impact-sounds:footstep_snow_004",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "35efc4ec1ae967d0"
+ },
+ "cs-hounds/paw/roof": {
+  "cue": "cs-hounds.paw",
+  "surface": "roof",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A hound's paw on the car roof: the tin's hollow knock under the pad, claws on the paint, ash and embers",
+    "key": "pad",
+    "sources": [
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "fd5f186820b92f0d"
+ },
+ "cs-hounds/snarl": {
+  "cue": "cs-hounds.snarl",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The same snarls from a throat burnt out: barely voiced, a growl whose rattle is made of ember crackle",
+    "key": "cinder",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "3ef3f9b37d45fb41"
+ },
+ "cs-hounds/yelp": {
+  "cue": "cs-hounds.yelp",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A hound driven off: a cough of ash and sparks from the blow, a broken ki-yi, claws scrambling away",
+    "key": "kiyi",
+    "sources": [
+     "kenney_impact-sounds:footstep_wood_000",
+     "kenney_impact-sounds:footstep_wood_001",
+     "kenney_impact-sounds:footstep_wood_002",
+     "kenney_impact-sounds:footstep_wood_003",
+     "kenney_impact-sounds:footstep_wood_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "5c5612499b2f28ff"
+ },
+ "cs-passenger/drag/wood": {
+  "cue": "cs-passenger.drag",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A crewman's steady boots walking a body by the ankles: back and shoulders sliding, the head bumping the seams",
+    "key": "ankles",
+    "sources": [
+     "kenney_impact-sounds:footstep_wood_000",
+     "kenney_impact-sounds:footstep_wood_001",
+     "kenney_impact-sounds:footstep_wood_002",
+     "kenney_impact-sounds:footstep_wood_003",
+     "kenney_impact-sounds:footstep_wood_004",
+     "sfx_100_v2:footstep_wood_01",
+     "sfx_100_v2:footstep_wood_02",
+     "sfx_100_v2:footstep_wood_03",
+     "sfx_100_v2:footstep_wood_04",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_rpg-audio:metalClick"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "1fdf2564b313a579"
+ },
+ "cs-passenger/step": {
+  "cue": "cs-passenger.step",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/cs-passenger--boots.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 8,
+  "sha": "8cc8e6fc6bd7a897"
+ },
+ "cs-passenger/uncouple": {
+  "cue": "cs-passenger.uncouple",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/cs-passenger--uncouple.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "34a4f80ee1802260"
+ },
+ "cs-ribbits/feed": {
+  "cue": "cs-ribbits.feed",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The pack fighting over the catch: tearing and tugging, bones going, hissing and snapping at each other",
+    "key": "frenzy",
+    "sources": [
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "1ff0d03b51894ba4"
+ },
+ "cs-ribbits/hit": {
+  "cue": "cs-ribbits.hit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A club landing on a fat wet toad-body: skin smacked, the belly wobbling, the throat sac squeezed into a croak",
+    "key": "clubbed",
+    "sources": [
+     "sfx_100_v2:wood_01",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "53dc3d8cd05c7647"
+ },
+ "cs-ribbits/hop-land/ground": {
+  "cue": "cs-ribbits.hop-land",
+  "surface": "ground",
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/cs-ribbits--hops.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "2cc29007e58d75c7"
+ },
+ "cs-ribbits/hop-land/roof": {
+  "cue": "cs-ribbits.hop-land",
+  "surface": "roof",
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/cs-ribbits--hops.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "2cc29007e58d75c7"
+ },
+ "cs-ribbits/hop-land/wood": {
+  "cue": "cs-ribbits.hop-land",
+  "surface": "wood",
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/cs-ribbits--hops.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "2cc29007e58d75c7"
+ },
+ "cs-ribbits/tongue": {
+  "cue": "cs-ribbits.tongue",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/cs-ribbits--tongue.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "c60b5b3fc442f0cd"
+ },
+ "cs-soot-children/death": {
+  "cue": "cs-soot-children.death",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Its last breath out goes on far longer than a child's could, turning to ash as it goes, the body crumbling like charcoal",
+    "key": "ash",
+    "sources": [
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:misc_34"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "39012cdcc8dd6ed8"
+ },
+ "cs-soot-children/drink": {
+  "cue": "cs-soot-children.drink",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Greedy wet suckling in bursts, gulps from a throat too deep for a child, quick panting through the nose between",
+    "key": "greedy",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "268b6fb3c48582fc"
+ },
+ "cs-soot-children/lunge": {
+  "cue": "cs-soot-children.lunge",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Its call's rising 'ah?' bursting out with a second, huge throat under it, then small feet and its weight landing on you",
+    "key": "call",
+    "sources": [
+     "kenney_impact-sounds:footstep_wood_000",
+     "kenney_impact-sounds:footstep_wood_001",
+     "kenney_impact-sounds:footstep_wood_002",
+     "kenney_impact-sounds:footstep_wood_003",
+     "kenney_impact-sounds:footstep_wood_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "c63883176d34f879"
+ },
+ "cs-soot-children/turn": {
+  "cue": "cs-soot-children.turn",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A child's quick frightened breathing that slows and deepens until it's a long rattling draw through lungs too big for it",
+    "key": "breath",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "aa7d2491558df952"
+ },
+ "cs-stoker/burn": {
+  "cue": "cs-stoker.burn",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A gout of flame thrown out of the open door at whoever swung, its breath roaring in it, embers spraying, a sleeve scorching",
+    "key": "flare",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "e198c5bf7c408dd1"
+ },
+ "cs-stoker/in-fire": {
+  "cue": "cs-stoker.in-fire",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The fire breathing: drawn down with a pull of air through the grate, then blooming out, the shut door rattling on its latch",
+    "key": "bellows",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "sfx_100_v2:misc_25"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "1fbdb3214409bebe"
+ },
+ "cs-stoker/shriek": {
+  "cue": "cs-stoker.shriek",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/cs-stoker--clubbed.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "b9fd8d6e342f4ccc"
+ },
+ "cs-switchman/death": {
+  "cue": "cs-switchman.death",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Its oil lamp smashing on the ballast and the spilt oil catching, its spindly half folding shut, the body falling",
+    "key": "lamp",
+    "sources": [
+     "sfx_100_v2:glass_03",
+     "sfx_100_v2:misc_26",
+     "sfx_100_v2:misc_27",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "kenney_rpg-audio:metalClick",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "005e5b9cee9856b8"
+ },
+ "cs-switchman/flicker": {
+  "cue": "cs-switchman.flicker",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The lamp's flame breathing: drawn down and flaring again in the rhythm of slow breaths, its glass singing, long fingers closing",
+    "key": "breath",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "030c1ea9d4eede84"
+ },
+ "cs-tippy/flee": {
+  "cue": "cs-tippy.flee",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/cs-tippy--flee.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "a67f3a415175a92c"
+ },
+ "cs-tippy/grab": {
+  "cue": "cs-tippy.grab",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/cs-tippy--mouth.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "9812663e1f2f9f21"
+ },
+ "cs-tippy/struggle": {
+  "cue": "cs-tippy.struggle",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Pinned: heels dragging slowly on the boards, clothes twisting, a weak kick now and then, its breath savouring it",
+    "key": "pinned",
+    "sources": [
+     "kenney_rpg-audio:footstep00",
+     "kenney_rpg-audio:footstep01",
+     "kenney_rpg-audio:footstep02",
+     "kenney_rpg-audio:footstep03",
+     "kenney_rpg-audio:footstep04",
+     "kenney_rpg-audio:footstep05",
+     "kenney_rpg-audio:footstep06",
+     "kenney_rpg-audio:footstep07",
+     "kenney_rpg-audio:footstep08",
+     "kenney_rpg-audio:footstep09",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "sfx_100_v2:footstep_wood_02",
+     "sfx_100_v2:footstep_wood_04",
+     "sfx_100_v2:misc_10",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "sfx_100_v2:misc_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "7633db1943db72bd"
+ },
+ "cs-track-doll/crack": {
+  "cue": "cs-track-doll.crack",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/cs-track-doll--cornered.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "ec9f5fddbd1da047"
+ },
+ "cs-track-doll/take-toy": {
+  "cue": "cs-track-doll.take-toy",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "It sings two porcelain notes over the toy, the falling taunt every child knows, and is gone",
+    "key": "na-na",
+    "sources": [
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_06",
+     "sfx_100_v2:misc_29",
+     "sfx_100_v2:glass_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "1a2579bf927e20c6"
+ },
+ "cs-track-doll/tamper": {
+  "cue": "cs-track-doll.tamper",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/cs-track-doll--tamper.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "0652416af90bd76b"
+ },
+ "cs-track-doll/vanish": {
+  "cue": "cs-track-doll.vanish",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/cs-track-doll--vanish.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "0c48b71d7021914b"
+ },
+ "cs-whistler/death": {
+  "cue": "cs-whistler.death",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "No whistle: the coil thrashes, plates grinding and legs clattering, then it slumps and breathes out its siphon",
+    "key": "coil",
+    "sources": [
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "766f77001816dc80"
+ },
+ "cs-whistler/hit": {
+  "cue": "cs-whistler.hit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The blow sinks between the plates into wet flesh; the plates rattle and air spits out of the siphon",
+    "key": "flesh",
+    "sources": [
+     "kenney_rpg-audio:handleCoins",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "5498ce501cbd0fec"
+ },
+ "cs-whistler/nest": {
+  "cue": "cs-whistler.nest",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/cs-whistler--nest.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "ad555845e70b44c7"
+ },
+ "cs-whistler/run": {
+  "cue": "cs-whistler.run",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Its siphon whistling broken bits of the train whistle's chord as it runs, the legs rolling under it",
+    "key": "piper",
+    "sources": [
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "6a893856d6a26efd"
+ },
+ "cs-whistler/snatch": {
+  "cue": "cs-whistler.snatch",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/cs-whistler--snatch.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "16bf15dea60a8bf9"
+ },
+ "place-crane/motor": {
+  "cue": "place-crane.motor",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "sfx100v2_loop_machine_01",
+    "key": "sfx_100_v2:loop_machine_01",
+    "sources": [
+     "sfx_100_v2:loop_machine_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "9ac8125be9f90af2"
+ },
+ "place-threshold/fortress": {
+  "cue": "place-threshold.fortress",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "sfx100v2_loop_construction_site",
+    "key": "sfx_100_v2:loop_construction_site",
+    "sources": [
+     "sfx_100_v2:loop_construction_site"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "075f8e3e42f62103"
+ },
+ "state-engine-damage/knock": {
+  "cue": "state-engine-damage.knock",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "sfx100v2_loop_machine_04",
+    "key": "sfx_100_v2:loop_machine_04",
+    "sources": [
+     "sfx_100_v2:loop_machine_04"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "0c8a7e005f93f971"
+ },
+ "state-engine-damage/leak-small": {
+  "cue": "state-engine-damage.leak-small",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/state-engine-damage--leaks.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "6a74bfc972b01ae5"
+ },
+ "tell-car-hugger/grind": {
+  "cue": "tell-car-hugger.grind",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/tell-car-hugger--grind.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "0ae3bd27e49fca42"
+ },
+ "tell-draggers/rasp": {
+  "cue": "tell-draggers.rasp",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/tell-draggers--rasp.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "ea0cbc93046a4230"
+ },
+ "tell-fireflies/buzz": {
+  "cue": "tell-fireflies.buzz",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/tell-fireflies--swarm.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "cf25545ae84a3384"
+ },
+ "tell-hounds/howl-far": {
+  "cue": "tell-hounds.howl-far",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/tell-hounds--far.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "5ab1ce0154abd6c8"
+ },
+ "tell-ribbits/swell": {
+  "cue": "tell-ribbits.swell",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/tell-ribbits--swell.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "34035a82e7524490"
+ },
+ "tell-stoker/hiss-wrong": {
+  "cue": "tell-stoker.hiss-wrong",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/tell-stoker--hiss.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "617bc2dbc23b3e97"
+ },
+ "tell-track-doll/giggle": {
+  "cue": "tell-track-doll.giggle",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/tell-track-doll--heh.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "83555e6e9b3e2225"
+ },
+ "tell-whistler/whistle": {
+  "cue": "tell-whistler.whistle",
+  "surface": null,
+  "picked": "kept",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/tell-whistler--conductor.mp3",
+    "sources": [],
+    "licence": "CC0"
+   },
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/tell-whistler--wrong.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "78ddafcefa93f7f3"
+ },
+ "ui-dead-phase/bookmark": {
+  "cue": "ui-dead-phase.bookmark",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A bookmark taken: a page corner folded down",
+    "key": "fold",
+    "sources": [
+     "kenney_rpg-audio:bookFlip3",
+     "kenney_rpg-audio:bookClose"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "dca173a47c41269f"
+ },
+ "ui-dead-phase/queue": {
+  "cue": "ui-dead-phase.queue",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The queue moves up: one ticket punched",
+    "key": "punch",
+    "sources": [
+     "kenney_rpg-audio:metalClick",
+     "kenney_rpg-audio:bookFlip2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "fd86efd56188db27"
+ },
+ "ui-dead-phase/vote": {
+  "cue": "ui-dead-phase.vote",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A creature vote locked in: a stamp on the ballot",
+    "key": "stamp",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_001",
+     "kenney_rpg-audio:bookPlace3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "a982c4a8bdb12c2f"
+ },
+ "ui-menus/back": {
+  "cue": "ui-menus.back",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A sheet slid back into the folder",
+    "key": "slide",
+    "sources": [
+     "kenney_rpg-audio:bookFlip3",
+     "kenney_rpg-audio:bookClose"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "a5dca5d3218e8c5d"
+ },
+ "ui-menus/end-card": {
+  "cue": "ui-menus.end-card",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The wishlist end card: a rubber stamp comes down, and a far whistle answers",
+    "key": "stamp",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_002",
+     "kenney_rpg-audio:bookPlace2",
+     "earlier:tell-whistler--conductor"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "d02d3415e262f449"
+ },
+ "ui-menus/move": {
+  "cue": "ui-menus.move",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A typewriter key, struck lightly",
+    "key": "key",
+    "sources": [
+     "sfx_100_v2:misc_15",
+     "sfx_100_v2:misc_13"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "26e823d53f906391"
+ },
+ "ui-menus/select": {
+  "cue": "ui-menus.select",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A conductor's ticket punch: the click and the paper giving",
+    "key": "punch",
+    "sources": [
+     "kenney_rpg-audio:metalClick",
+     "kenney_rpg-audio:bookFlip2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "d847ae89455b2b91"
+ },
+ "ui-menus/title": {
+  "cue": "ui-menus.title",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Under the title: wind over open country and a train far off, its whistle once",
+    "key": "far-train",
+    "sources": [
+     "sfx_100_v2:loop_ambient_04",
+     "earlier:tell-whistler--conductor"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "dea8da18d3d5afb8"
+ },
+ "ui-music/drone": {
+  "cue": "ui-music.drone",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A low bowed line falling D, C, B flat, A, so slowly it's almost a drone",
+    "key": "descent",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "2ed00e0378c331d2"
+ },
+ "ui-prompts/cancel": {
+  "cue": "ui-prompts.cancel",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Let go too soon: the pawl slipping back",
+    "key": "slip",
+    "sources": [
+     "sfx_100_v2:misc_20"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "6d591b176107c065"
+ },
+ "ui-prompts/complete": {
+  "cue": "ui-prompts.complete",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Done: a latch dropping home",
+    "key": "latch",
+    "sources": [
+     "kenney_rpg-audio:metalLatch",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_003"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "07828bc0e04f4088"
+ },
+ "ui-prompts/hold": {
+  "cue": "ui-prompts.hold",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A held action ticking: a ratchet's pawl clicking over, steady",
+    "key": "ratchet",
+    "sources": [
+     "sfx_100_v2:misc_20"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "179b1887c8de87ec"
+ },
+ "ui-run-end/commendation": {
+  "cue": "ui-run-end.commendation",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A commendation: the stamp, and the station bell",
+    "key": "stamp-bell",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000",
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_impact-sounds:impactBell_heavy_001",
+     "kenney_impact-sounds:impactBell_heavy_003"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "3656d181a3b2f0dc"
+ },
+ "ui-run-end/report": {
+  "cue": "ui-run-end.report",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The incident report comes up: a form wound into the typewriter",
+    "key": "carriage",
+    "sources": [
+     "kenney_rpg-audio:bookFlip1",
+     "sfx_100_v2:misc_20",
+     "kenney_impact-sounds:impactGlass_light_002"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "e8436b0cedd9119b"
+ },
+ "ui-run-end/tally": {
+  "cue": "ui-run-end.tally",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A line of the report typed in: a quick run of keys",
+    "key": "keys",
+    "sources": [
+     "sfx_100_v2:misc_15",
+     "sfx_100_v2:misc_13"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "880ecfa9a242b51b"
+ },
+ "voice-callout/bang": {
+  "cue": "voice-callout.bang",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Kept from the earlier pass",
+    "key": "audio/voice-callout--banging.mp3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "fdc4c765a92f5b9e"
+ },
+ "voice-prisoner-sets/call/set1": {
+  "cue": "voice-prisoner-sets.call",
+  "surface": "set1",
+  "picked": "set",
+  "candidates": [
+   {
+    "label": "Prisoner 1: a deep man's voice, calling for help (synthesised stand-in)",
+    "key": "set1",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 5,
+  "sha": "69fd6aed29ddff02"
+ },
+ "voice-prisoner-sets/call/set2": {
+  "cue": "voice-prisoner-sets.call",
+  "surface": "set2",
+  "picked": "set",
+  "candidates": [
+   {
+    "label": "Prisoner 2: a man's voice, bright and reedy, calling for help (synthesised stand-in)",
+    "key": "set2",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 5,
+  "sha": "60cb0af69502ca65"
+ },
+ "voice-prisoner-sets/call/set3": {
+  "cue": "voice-prisoner-sets.call",
+  "surface": "set3",
+  "picked": "set",
+  "candidates": [
+   {
+    "label": "Prisoner 3: a man's voice, plain, calling for help (synthesised stand-in)",
+    "key": "set3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 5,
+  "sha": "d63c4dc422961f70"
+ },
+ "voice-prisoner-sets/call/set4": {
+  "cue": "voice-prisoner-sets.call",
+  "surface": "set4",
+  "picked": "set",
+  "candidates": [
+   {
+    "label": "Prisoner 4: a man's voice, rough, calling for help (synthesised stand-in)",
+    "key": "set4",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 5,
+  "sha": "a6d6e64e45789aeb"
+ },
+ "voice-prisoner-sets/call/set5": {
+  "cue": "voice-prisoner-sets.call",
+  "surface": "set5",
+  "picked": "set",
+  "candidates": [
+   {
+    "label": "Prisoner 5: a woman's voice, warm, calling for help (synthesised stand-in)",
+    "key": "set5",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 5,
+  "sha": "8e156bee27c1207f"
+ },
+ "voice-prisoner-sets/call/set6": {
+  "cue": "voice-prisoner-sets.call",
+  "surface": "set6",
+  "picked": "set",
+  "candidates": [
+   {
+    "label": "Prisoner 6: a woman's voice, clear, calling for help (synthesised stand-in)",
+    "key": "set6",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 5,
+  "sha": "9d7163d75ececca9"
+ },
+ "voice-prisoner-sets/call/set7": {
+  "cue": "voice-prisoner-sets.call",
+  "surface": "set7",
+  "picked": "set",
+  "candidates": [
+   {
+    "label": "Prisoner 7: a woman's voice, bright, calling for help (synthesised stand-in)",
+    "key": "set7",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 5,
+  "sha": "952d3769e69faf89"
+ },
+ "voice-prisoner-sets/call/set8": {
+  "cue": "voice-prisoner-sets.call",
+  "surface": "set8",
+  "picked": "set",
+  "candidates": [
+   {
+    "label": "Prisoner 8: a high man's voice, calling for help (synthesised stand-in)",
+    "key": "set8",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 5,
+  "sha": "36aeba5dc4628f06"
+ },
+ "voice-prisoner-sets/shout/set1": {
+  "cue": "voice-prisoner-sets.shout",
+  "surface": "set1",
+  "picked": "set",
+  "candidates": [
+   {
+    "label": "Prisoner 1: a deep man's voice, a raw shout (synthesised stand-in)",
+    "key": "set1",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "782da1f3a33299a3"
+ },
+ "voice-prisoner-sets/shout/set2": {
+  "cue": "voice-prisoner-sets.shout",
+  "surface": "set2",
+  "picked": "set",
+  "candidates": [
+   {
+    "label": "Prisoner 2: a man's voice, bright and reedy, a raw shout (synthesised stand-in)",
+    "key": "set2",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "33f979d581828680"
+ },
+ "voice-prisoner-sets/shout/set3": {
+  "cue": "voice-prisoner-sets.shout",
+  "surface": "set3",
+  "picked": "set",
+  "candidates": [
+   {
+    "label": "Prisoner 3: a man's voice, plain, a raw shout (synthesised stand-in)",
+    "key": "set3",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "d10f7b128ad45a0e"
+ },
+ "voice-prisoner-sets/shout/set4": {
+  "cue": "voice-prisoner-sets.shout",
+  "surface": "set4",
+  "picked": "set",
+  "candidates": [
+   {
+    "label": "Prisoner 4: a man's voice, rough, a raw shout (synthesised stand-in)",
+    "key": "set4",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "df4dd1e9392dd4a0"
+ },
+ "voice-prisoner-sets/shout/set5": {
+  "cue": "voice-prisoner-sets.shout",
+  "surface": "set5",
+  "picked": "set",
+  "candidates": [
+   {
+    "label": "Prisoner 5: a woman's voice, warm, a raw shout (synthesised stand-in)",
+    "key": "set5",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "deed5f01814dd913"
+ },
+ "voice-prisoner-sets/shout/set6": {
+  "cue": "voice-prisoner-sets.shout",
+  "surface": "set6",
+  "picked": "set",
+  "candidates": [
+   {
+    "label": "Prisoner 6: a woman's voice, clear, a raw shout (synthesised stand-in)",
+    "key": "set6",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "f60938859e2bee49"
+ },
+ "voice-prisoner-sets/shout/set7": {
+  "cue": "voice-prisoner-sets.shout",
+  "surface": "set7",
+  "picked": "set",
+  "candidates": [
+   {
+    "label": "Prisoner 7: a woman's voice, bright, a raw shout (synthesised stand-in)",
+    "key": "set7",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "9ed53e62a106ae35"
+ },
+ "voice-prisoner-sets/shout/set8": {
+  "cue": "voice-prisoner-sets.shout",
+  "surface": "set8",
+  "picked": "set",
+  "candidates": [
+   {
+    "label": "Prisoner 8: a high man's voice, a raw shout (synthesised stand-in)",
+    "key": "set8",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "1ed7367edc9d92df"
+ },
+ "world-rain/thunder": {
+  "cue": "world-rain.thunder",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "sfx100v2_thunder_01",
+    "key": "sfx_100_v2:thunder_01",
+    "sources": [
+     "sfx_100_v2:thunder_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "5cca1bfe8b7ff57c"
+ }
+}

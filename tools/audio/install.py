@@ -182,6 +182,13 @@ def main():
     store = sys.argv[sys.argv.index("--from") + 1]
     args = [a for a in args if a != store]
     dry = "--dry" in sys.argv
+    if not args and not dry:
+        # A full install starts clean: what the checklist no longer picks leaves the game.
+        shutil.rmtree(SAMPLES, ignore_errors=True)
+        for f in os.listdir(SOUNDS):
+            with open(os.path.join(SOUNDS, f)) as fh:
+                if "tools/audio/install.py" in fh.readline():
+                    os.unlink(os.path.join(SOUNDS, f))
     index_path = os.path.join(SAMPLES, "index.json")
     index = json.load(open(index_path)) if os.path.exists(index_path) else {}
     n_cues = n_files = 0

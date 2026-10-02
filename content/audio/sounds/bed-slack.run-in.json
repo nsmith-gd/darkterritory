@@ -1,0 +1,20 @@
+// Slack action: One coupling closing up (fired per car, down the train). Written by tools/audio/install.py from the audio checklist (kept); edit the cue, not this.
+{
+ "tier": 5,
+ "loop": false,
+ "maxInstances": 12,
+ "minDistance": 4,
+ "maxDistance": 200,
+ "rolloff": 0.8,
+ "gainDb": 4,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "bed-slack/run-in",
+   "gain": 1,
+   "pitchJitter": 0.4,
+   "gainJitter": 1.0
+  }
+ ]
+}

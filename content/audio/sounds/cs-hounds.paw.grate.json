@@ -1,0 +1,20 @@
+// Cinder Hounds: the chase and the pack fight: One paw fall (fired at the gallop's tempo) (Metal grate and plate (engine running boards, cab footplate, couplers, steps)). Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 3,
+ "loop": false,
+ "maxInstances": 12,
+ "minDistance": 2,
+ "maxDistance": 80,
+ "rolloff": 1.0,
+ "gainDb": 6,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "cs-hounds/paw/grate",
+   "gain": 1,
+   "pitchJitter": 0.4,
+   "gainJitter": 1.0
+  }
+ ]
+}
