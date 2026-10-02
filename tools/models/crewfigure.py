@@ -48,10 +48,7 @@ class Style:
 
 def _shell(centre, radii, keep, material, segments, rings, name):
     """An ellipsoid's front (the respirator's shell): a sphere, scaled, the faces behind `keep` (a y) cut away."""
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=segments, ring_count=rings, radius=1.0)
-    o = bpy.context.view_layer.objects.active
-    o.name = name
-    o.data.transform(Matrix.Translation(Vector(centre)) @ Matrix.Diagonal((*radii, 1.0)))
+    o = cook.uv_sphere(segments, rings, 1.0, Matrix.Translation(Vector(centre)) @ Matrix.Diagonal((*radii, 1.0)), name)
     bm = bmesh.new()
     bm.from_mesh(o.data)
     bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.calc_center_median().y < keep], context="FACES")
