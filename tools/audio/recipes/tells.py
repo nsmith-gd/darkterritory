@@ -10,7 +10,7 @@ that's organic) with real recordings bent in where they carry the material:
   them in pushes that come faster and nearer, then stop dead.
 - Track debris, the writhe: something wet and muscular twisting on itself on the line: lubricated skin sliding (a
   cavity of slime squeezed shut, gliding in pitch), air and fluid popping out of the folds, suction letting go, strands
-  of mucus breaking; or the same thing thrashing against the rail, which rings.
+  of mucus breaking; or a heap of such things on the line, shifting under its own weight and sucking at itself.
 - The Grumbler, gnawing: dry teeth or mandibles on a wooden crate, never wet. Teeth rasping across the grain in runs, a
   splinter torn off, the chip dropping; or slow mandible bites that press (the wood creaks), crunch (its fibres go) and
   tear. The crate's hollow body rings under all of it.
@@ -35,7 +35,7 @@ import src
 import synth
 from build import recipe
 from dsp import samples, env, mix, Bus
-from recipes.kit import scatter, take as kit_take, slap as synth_slap, gravel as kit_gravel
+from recipes.kit import scatter, take as kit_take
 
 SR = dsp.SR
 
@@ -501,56 +501,95 @@ def writhe_coils(rng, k):
     return dsp.band(y, *DEBRIS)
 
 
-WET = ["kenney_impact-sounds:footstep_snow_000", "kenney_impact-sounds:footstep_grass_001",
-       "sfx_100_v2:footstep_wet_01", "sfx_100_v2:wood_01"]
-RAIL = [340, 940, 1840, 3040]   # a rail's bending modes (they go as (2n+1)^2): heavy, so it only rings this high
+SLOSH = [f"kenney_impact-sounds:footstep_snow_{i:03d}" for i in range(5)]
 
 
-def rail_slap(rng):
-    """A wet length of it thrown down on the rail: a slap of skin, real slush and squish under it, the rail ringing and
-    choked at once by the weight lying on it, the ballast shifting."""
-    b = Bus(0.6)
-    b.at(0, synth_slap(rng), -4)
-    wet = dsp.vari(src.get(WET[rng.integers(len(WET))]), -rng.uniform(3, 8))
-    b.at(0.002, norm(wet), rng.uniform(-6, -2))
-    modes = [m * rng.uniform(0.95, 1.05) for m in RAIL]
-    b.at(0.001, norm(ring(burst(rng, 0.0015, attack=0.1), modes, rng.uniform(250, 400), tail=0.5,
-                          gains=[0.5, 1, 0.8, 0.4])), rng.uniform(-6, -3))
-    b.at(0.01, kit_gravel(rng, n=8, length=0.12, lo=700, hi=2500, body=None), -14)
-    return b.x
+def smack(rng, f):
+    """Two slick bodies pressed together coming apart: the seal goes at one edge, then the other (a double tick a few
+    milliseconds apart), and the gap between them rings for a moment, dropping as it opens."""
+    L = rng.uniform(0.03, 0.06)
+    b = Bus(L + 0.05)
+    b.at(0, burst(rng, 0.0012, 400, 3000, attack=0.1))
+    b.at(rng.uniform(0.002, 0.006), burst(rng, 0.0012, 400, 3000, attack=0.1), -4)
+    fc = env([(0, f * 1.5), (L, f)], L, "exp")
+    gap = dsp.sweep_filter(synth.noise(L, rng), "bp", fc, q=rng.uniform(5, 9), block=32)
+    b.at(0.001, norm(gap * env([(0, 1), (L, 0)], L, "exp")), -3)
+    return norm(b.x)
 
 
-@recipe("tell-track-debris", "writhe", "rail",
-        "A brief wet thrash on the line: slaps on the rail (which rings, choked), the body dragging across it between",
-        """The same wet thing, thrashing against the rail ahead: each slap is a skin slap over real slush, squish and a
-        wet footstep (pitched down), with the rail ringing at its bending modes and choked at once by the weight lying
-        on it, and the ballast shifting; between slaps, the body drags wetly across the rail head (a gliding slime
-        squeeze with bubbles). Slap, drag, a quick double slap, a last squirm. The rail's ring is what says it's on the
-        line. Held to 400 Hz-2 kHz.""",
-        sources=WET, takes=4, band=DEBRIS, lufs=-20,
-        preview=lambda takes, rng: scatter(takes + takes[:2], rng, (0.9, 2.6)))
-def writhe_rail(rng, k):
-    b = Bus(2.0)
+def gurgle(rng, f):
+    """Air squeezed out between them through slime: a short run of bubbles climbing in pitch as the pocket empties."""
+    b = Bus(0.25)
     t = 0.0
-    pattern = [["slap", "drag", "slap", "slap", "squirm"], ["drag", "slap", "squirm"],
-               ["slap", "slap", "drag", "squirm"], ["slap", "drag", "slap", "drag"]][k]
-    for i, what in enumerate(pattern):
-        if what == "slap":
-            b.at(t, rail_slap(rng), -i)
-            double = i + 1 < len(pattern) and pattern[i + 1] == "slap"
-            t += rng.uniform(0.09, 0.16) if double else rng.uniform(0.12, 0.2)
-        elif what == "drag":
-            L = rng.uniform(0.25, 0.4)
-            d = mix(slide(rng, L, rng.uniform(500, 700), rng.uniform(1000, 1500), q=5),
-                    norm(synth.bubbles(L, 50, 450, 1800, rng)) * 0.4)
-            b.at(t, d, -5)
-            t += L * rng.uniform(0.7, 0.9)
-        else:
-            L = rng.uniform(0.2, 0.3)
-            b.at(t, contraction(rng, L), -8)
-            t += L
-    y = dsp.fade(dsp.fit(dsp.room(b.x, "night", wet=0.1, rng=rng), samples(t + 0.6)), 0, 0.4)
-    return dsp.band(y, *DEBRIS)
+    for i in range(rng.integers(3, 8)):
+        b.at(t, synth.bubble(f * (1 + 0.12 * i) * rng.uniform(0.92, 1.08), rise=rng.uniform(0.2, 0.6)), -i * 0.7)
+        t += rng.uniform(0.012, 0.035)
+    return norm(b.x)
+
+
+def squish(rng, f):
+    """Flesh squeezed under the weight on top of it: a short wet press whose resonance sinks as it flattens."""
+    L = rng.uniform(0.06, 0.15)
+    y = dsp.sweep_filter(synth.noise(L, rng, "pink"), "bp", env([(0, f * 1.3), (L, f * 0.75)], L, "exp"),
+                         q=rng.uniform(3, 6), block=32)
+    y = y * env([(0, 0), (L * 0.3, 1), (L, 0)], L)
+    return norm(mix(norm(y), norm(synth.bubbles(L, 120, f * 0.8, f * 2, rng)) * 0.35))
+
+
+def slump(rng):
+    """A heavy wet body rolling off the top of the heap: real slush underfoot, pitched down to a body's weight."""
+    x = dsp.vari(src.get(SLOSH[rng.integers(len(SLOSH))]), -rng.uniform(4, 9))
+    return norm(dsp.fade(x, 0.004, 0.06))
+
+
+def heap_shift(rng, length, heave):
+    """The heap shifting: smacks, gurgles and squishes from many bodies at once, Poisson in time at a density that rides
+    `heave` (0 settled, 1 heaving), each a different size (a pitch from 450 Hz to 1.9 kHz) and loudness."""
+    n = samples(length)
+    out = Bus(length + 0.3)
+    hv = dsp.fit(env(heave, length), n)
+    t = 0.0
+    while True:
+        h = float(hv[min(samples(t), n - 1)])
+        t += rng.exponential(1 / (5 + 55 * h))
+        if t >= length:
+            break
+        f = np.exp(rng.uniform(np.log(450), np.log(1900)))
+        kind = rng.choice(3, p=[0.45, 0.3, 0.25])
+        x = (smack, gurgle, squish)[kind](rng, f)
+        size = (450 / f) ** 0.4   # the bigger (lower) ones are louder
+        out.at(t, x, 20 * np.log10(size * (0.3 + 0.7 * h) * rng.uniform(0.3, 1.0) + 1e-6))
+    return out.x
+
+
+HEAVES = [   # (seconds, heave envelope, slumps at): one or two heaves, each settling
+    (1.1, [(0, 0.15), (0.25, 1.0), (0.6, 0.5), (1.1, 0.0)], [0.22]),
+    (1.4, [(0, 0.2), (0.2, 0.8), (0.45, 0.3), (0.75, 1.0), (1.4, 0.0)], [0.15, 0.7]),
+    (0.9, [(0, 0.4), (0.15, 1.0), (0.9, 0.0)], [0.1]),
+    (1.3, [(0, 0.1), (0.5, 1.0), (0.8, 0.6), (1.3, 0.0)], [0.45, 0.85]),
+]
+
+
+@recipe("tell-track-debris", "writhe", "heap",
+        "A heap of wet bodies on the line shifting under its own weight: dozens of smacks, gurgles, squishes at once",
+        """Not one thing writhing but a heap of them, slick bodies piled on the line, heaving once or twice and
+        settling.
+        Each heave is many small wet events from many bodies at once, thickest at the top of the heave: bodies pressed
+        together coming apart (a double smack and the gap ringing), air squeezed out through slime (a run of bubbles
+        climbing in pitch), flesh flattened under the weight on top (a short wet press that sinks), all at different
+        sizes so it never ticks like a machine; one or two heavier bodies roll off the top (real slush footsteps
+        pitched down to a body's weight). Synthesised wet parts with real slush. Brief, 400 Hz-2 kHz; the game fires it
+        at uneven gaps.""",
+        sources=SLOSH, takes=4, band=DEBRIS, lufs=-20,
+        preview=lambda takes, rng: scatter(takes + takes[:2], rng, (0.9, 2.6)))
+def writhe_heap(rng, k):
+    L, heave, slumps = HEAVES[k]
+    b = Bus(L + 0.8)
+    b.at(0, heap_shift(rng, L, heave))
+    for t in slumps:
+        b.at(t + rng.uniform(-0.03, 0.03), slump(rng), rng.uniform(-7, -3))
+    y = dsp.fade(dsp.fit(dsp.room(b.x, "night", wet=0.1, rng=rng), samples(L + 0.45)), 0, 0.3)
+    return held(y, *DEBRIS, drive=4)
 
 
 # ---- The Grumbler: gnawing on the crates (1.4-2.2 kHz, a loop) -------------------------------------------------------
