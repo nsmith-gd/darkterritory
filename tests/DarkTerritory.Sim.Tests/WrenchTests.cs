@@ -124,6 +124,19 @@ public class WrenchTests
     }
 
     [Fact]
+    public void ABodysToolsReplicate()
+    {
+        var host = World();
+        host.EnableBodies();
+        var dead = PlayerMotor.SpawnInCab(host.Train, Tuning.Player) with { Kit = Kit.Of([Tool.Wrench]), Death = DeathCause.Mauled };
+        host.StepBodies([(1, dead)]);
+        var client = World();
+        var controls = new TrainControls();
+        WorldRecords.Apply(WorldRecords.Capture(host, controls, []), client, ref controls, []);
+        Assert.True(client.Bodies.All.Single().HasTool(Tool.Wrench));
+    }
+
+    [Fact]
     public void WhereTheWrenchIsReplicates()
     {
         var host = World();

@@ -40,6 +40,15 @@ public sealed class GreyboxScene
     public Route? Route { get; set; }
     /// <summary>The engine's lamp is lit (it's what makes the boards shine back, sight.json).</summary>
     public bool LampLit { get; set; } = true;
+    /// <summary>GDD v1.4 App. E.9: this many of the cars' lamps are out, from the last car forward (all of them: the engine's too).</summary>
+    public int LampsOut { get; set; }
+    /// <summary>How far from the eye the cars' lamps are lit (a high wide shot sees the whole train's).</summary>
+    public double LampRange { get; set; } = 60;
+    /// <summary>
+    /// Each lit car's lamp spilling out of its roof hatches and doors, so a high wide shot sees the train as lights (E.9's
+    /// "small glowing machine in an enormous black world, going dark").
+    /// </summary>
+    public bool RoofGlow { get; set; }
     /// <summary>How far ahead the lamp makes a board out (sight.json lampSignRange).</summary>
     public double SignRange { get; set; } = new SightTuning().LampSignRange;
     /// <summary>The line's boards (sight.json). Unset on a route, they're worked out from it with the default tuning.</summary>
@@ -82,6 +91,9 @@ public sealed class GreyboxScene
     /// scene times the snatch itself from the first frame it reads true. Unset, every bag hangs until the train's by.
     /// </summary>
     public Func<int, bool>? DropCaught { get; set; }
+    /// <summary>How cold the night is (0..1): the route weather's, or a still frame's (<c>dt screenshot --cold c</c>).</summary>
+    public double Cold => StagedCold ?? Route?.Weather.Cold ?? 0;
+    public double? StagedCold { get; set; }
     /// <summary>For a still frame (<c>dt screenshot --mail s</c>): a bag caught is that many seconds into its snatch.</summary>
     public double StagedCatch { get; set; }
     /// <summary>The switch stands, for where their levers are. Unset, they stand where the default tuning puts them.</summary>
@@ -132,6 +144,8 @@ public sealed class GreyboxScene
     {
         mesh.Clear();
         _speed = frames.Count == 0 ? 0 : Vector3.Dot(ToF(frames[0].Velocity), ToF(frames[0].Back * -1));
+        if (Look is not null)
+            Look.Art.Breath = Look.Tuning.Atmosphere.Cold.Breath(Cold);
         Fires(frames.Count);
         mesh.Style = Look?.Style;
         mesh.Seed = 0;
@@ -215,14 +229,17 @@ public sealed class GreyboxScene
                     mesh.PointLights.Add(new PointLight(V(at, eye), Palette.LampAmber * 1.8f, 7f));
         foreach (var frame in frames)
         {
-            if ((frame.Origin - eye).Length > 60)
+            if ((frame.Origin - eye).Length > LampRange)
                 continue;
+            bool dark = frame.Index >= frames.Count - LampsOut;
             // Its interior as an enclosed space: the night stays outside it (Room).
             if (Look is not null && frame.Shape.Interior is { } inside)
                 mesh.Rooms.Add(new Room(V(frame.ToWorld(inside.Centre), eye), ToF(frame.Right), ToF(frame.Up), ToF(frame.Back), ToF(inside.HalfSize)));
             // (A lamp in what a Car Hugger's eaten of the car has gone with its ceiling: Art/BiteKit.)
             var eatenBy = Look is null ? default : Art.Bite.For(Look.Tuning.Bite, frame.Shape, Vehicles is { } fleet && frame.Index < fleet.Count ? fleet[frame.Index] : null, frame.Index);
-            if (frame.Shape.Interior is { } room)
+            if (RoofGlow && !dark && frame.Shape.Interior is { } lit)
+                mesh.PointLights.Add(new PointLight(V(frame.ToWorld(new Double3(0, lit.Max.Y + 0.6, lit.Centre.Z)), eye), Palette.LampAmber * 1.4f, 9f));
+            if (frame.Shape.Interior is { } room && !dark)
                 foreach (double z in new[] { -room.HalfSize.Z * 0.5, room.HalfSize.Z * 0.5 })
                 {
                     if (eatenBy.Eats(new Vector3(0, (float)room.Max.Y - 0.05f, (float)(room.Centre.Z + z))))
@@ -1486,6 +1503,9 @@ public sealed class GreyboxScene
         mesh.Seed = frame.Index + 1;
         var vehicle = Vehicles is { } vs && frame.Index < vs.Count ? vs[frame.Index] : null;
         // The art pass's kit (TrainKit): the body, doors and gun as cooked pieces; what's left here is what glows and moves.
+        // A damaged engine's boiler leaking steam out of its split seams (Art/DamageKit.Leaks), as hard as the pressure's up.
+        if (Look is not null && frame.Shape.Cab is not null && vehicle is { } eng && Look.Tuning.Damage.StateOf(eng.Integrity) is > 0 and var hurt)
+            Look.Art.Effects.SteamLeaks(mesh, o, right, up, back, Art.DamageKit.Leaks(frame.Shape, hurt, frame.Index), Pressure, (float)_speed, Time, frame.Index);
         var burnt = Burnt(frame.Index);
         if (Look is not null && burnt is { } fire)
             Look.Art.Effects.CarSmoke(mesh, o, right, up, back, shape, fire, (float)_speed, Time, frame.Index);

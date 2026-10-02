@@ -78,6 +78,11 @@ public sealed partial class SceneArt(Look look)
         var lamp = c.Lamp ? PropArt.Of(Look).Get("hand_lantern") : null;
         bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), ToolProp(c.Holding),
             hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor));
+        // Their breath in the cold (GDD §26): out on the beat of their breathing, a puff of vapour from the mouth that
+        // goes out the way they face and rises, gone in a second and a half; harder breathing (running, hauling) quicker.
+        if (drawn && Breath > 0 && c.Alive)
+            Look.Art.Effects.Breath(mesh, Creatures.LastMouth, Creatures.LastFacing, Breath, time, c.Id,
+                pose is CrewPose.Run or CrewPose.Haul or CrewPose.HaulUp or CrewPose.Shovel or CrewPose.Smash or CrewPose.Pry);
         if (drawn && lamp is not null)
         {
             // Its glow where it hangs, swinging with the hand; and its light there next frame (GreyboxScene's practical lights
@@ -93,6 +98,9 @@ public sealed partial class SceneArt(Look look)
     }
 
     readonly Dictionary<int, (Double3 At, double Time)> _lampHands = new();
+
+    /// <summary>How much a breath shows tonight, 0..1 (look.json atmosphere.cold, GreyboxScene.Cold).</summary>
+    public float Breath { get; set; }
 
     /// <summary>
     /// A car of livestock (GDD §19 "makes noise constantly", the slaughterhouse's): sheep packed down the load side in its
@@ -698,9 +706,9 @@ public sealed partial class SceneArt(Look look)
             mesh.Instances.Add(new MeshInstance(Piece($"number:{ShapeKey(shape)}:{number}", () => TrainKit.CarNumber(Look, shape, number)), m,
                 emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
         int state = damage.StateOf(integrity);
-        if (state > 0 && !engine)
-            mesh.Instances.Add(new MeshInstance(Piece($"damage:{ShapeKey(shape)}:{state}:{seed}", () => DamageKit.Car(Look, shape, state, seed)), m,
-                Scar: scar, Bite: cut, BiteFloor: floor));
+        if (state > 0)
+            mesh.Instances.Add(new MeshInstance(Piece($"damage:{ShapeKey(shape)}:{state}:{seed}",
+                () => engine ? DamageKit.Engine(Look, shape, state, seed) : DamageKit.Car(Look, shape, state, seed)), m, Scar: scar, Bite: cut, BiteFloor: floor));
         if (bite.Any)
             mesh.Instances.Add(new MeshInstance(Piece($"bite:{ShapeKey(shape)}:{livery}:{seed}:{bite.Centre:0.00}:{bite.Side:0.00}",
                 () => bite.Edge(Look, shape, livery, seed)), m, Scar: scar));

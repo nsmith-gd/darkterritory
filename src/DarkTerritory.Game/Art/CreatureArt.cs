@@ -501,6 +501,11 @@ public sealed class CreatureArt
         if (right is { } r)
             Reach(m, "r", r, rightPole);
         Emit(mesh, m, clip, model, variant, 1, variant, Paint);
+        // Where their mouth is and which way they face, for their breath in the cold (SceneArt.Crewmate).
+        int headBone = m.Model.Skeleton.IndexOf("head");
+        var headAt = headBone >= 0 ? m.Pose.World[headBone].Translation : new Vector3(0, 1.6f, 0);
+        LastMouth = Vector3.Transform(headAt + MouthOverHead, model);
+        LastFacing = Vector3.Normalize(Vector3.TransformNormal(-Vector3.UnitZ, model));
         if (inHand is not null && OneHanded(pose))
             mesh.Append(inHand, ToolGrip * Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model));
         if (hanging is not null)
@@ -520,6 +525,11 @@ public sealed class CreatureArt
 
     /// <summary>Where the last thing hung from a crewmate's fist has its flame (the draw's space: relative to the eye).</summary>
     public Vector3 LastHanging { get; private set; }
+
+    /// <summary>The last crewmate drawn: their mouth (the draw's space) and the way they face.</summary>
+    public Vector3 LastMouth { get; private set; }
+    public Vector3 LastFacing { get; private set; } = -Vector3.UnitZ;
+    static readonly Vector3 MouthOverHead = new(0, -0.06f, -0.12f);
 
     /// <summary>What a crewmate can do with a tool still in their fist: get about, crouch, fall, swing it, mend with it, smash or pry a Holdout open.</summary>
     static bool OneHanded(CrewPose pose) =>

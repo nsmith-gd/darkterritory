@@ -6,6 +6,58 @@ namespace DarkTerritory.Game.Art;
 public sealed partial class Effects
 {
     /// <summary>
+    /// A breath in the cold (GDD §26): every few seconds (quicker when they're working) a puff out of the mouth, out the
+    /// way they face, spreading and rising and gone. <paramref name="amount"/> how much it shows (the night's cold).
+    /// </summary>
+    public void Breath(MeshBuilder mesh, Vector3 mouth, Vector3 facing, float amount, double t, int seed, bool hard)
+    {
+        if (_steam < 0 || amount <= 0)
+            return;
+        float period = hard ? 1.6f : 3.4f;
+        float phase = (float)((t + seed * 0.83) % period);
+        const float Out = 1.3f;
+        if (phase > Out)
+            return;
+        for (int k = 0; k < 4; k++)
+        {
+            float age = phase - k * 0.07f;
+            if (age < 0)
+                continue;
+            float s = age / Out;
+            var p = mouth + facing * (0.08f + s * 0.45f) + Vector3.UnitY * (s * s * 0.25f);
+            float a = amount * 0.5f * (1 - s) * MathF.Min(1, age * 8);
+            mesh.Billboard(p, 0.08f + s * 0.5f, seed + k * 1.3f, new Vector4(new Vector3(0.78f, 0.8f, 0.83f), a), _steam, FxBlend.Alpha, (int)(s * 15.99f), 4);
+        }
+    }
+
+    /// <summary>
+    /// A damaged boiler's leaks (<see cref="DamageKit.Leaks"/>): a hard white jet hissing out of each split seam, thinning
+    /// to a plume the train's own wind lays back along the boiler. <paramref name="o"/>/<paramref name="r"/>/<paramref name="u"/>/
+    /// <paramref name="b"/> the engine's frame; <paramref name="pressure"/> 0..1 how hard it blows (a dead boiler doesn't).
+    /// </summary>
+    public void SteamLeaks(MeshBuilder mesh, Vector3 o, Vector3 r, Vector3 u, Vector3 b, IEnumerable<(Vector3 At, Vector3 Out)> leaks,
+        float pressure, float speed, double t, int seed)
+    {
+        if (_steam < 0 || pressure <= 0.02f)
+            return;
+        int n = 0;
+        foreach (var (at, dir) in leaks)
+        {
+            Vector3 L(Vector3 p) => o + r * p.X + u * p.Y + b * p.Z;
+            var jet = r * dir.X + u * dir.Y + b * dir.Z;
+            for (int k = 0; k < 14; k++, n++)
+            {
+                float h = Hash(n * 1.37f + seed), period = 0.6f + h * 0.5f;
+                float age = (float)((t * (1.1 + 0.2 * h) + h * 7) % period), s = age / period;
+                // Out hard along the jet, slowing, rising, and laid back by the wind.
+                var p = L(at) + jet * (s * 2.4f * pressure) + u * (s * s * 1.0f) + b * (MathF.Abs(speed) * age * 0.7f);
+                float a = (1 - s) * 0.85f * MathF.Min(1, pressure * 1.3f);
+                mesh.Billboard(p, 0.16f + s * 1.5f, h * 6.28f, new Vector4(new Vector3(0.82f, 0.84f, 0.86f), a), _steam, FxBlend.Alpha, (int)(s * 15.99f), 4);
+            }
+        }
+    }
+
+    /// <summary>
     /// A car's fire seen from outside (GDD App. C.5): <see cref="Burn"/> how big it is this frame (0 out),
     /// <see cref="Alight"/> flaming, <see cref="Since"/> seconds since it went out, <see cref="Peak"/> the worst it got.
     /// </summary>

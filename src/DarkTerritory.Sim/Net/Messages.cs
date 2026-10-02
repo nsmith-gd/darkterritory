@@ -10,7 +10,9 @@ public static class Protocol
 {
     // 3: the wreck's poses (RecordKind.Wreck) and the Welcome's compact content hashes (T116, T117).
     // 4: the sim's trigonometry is DMath's, the same bits on every OS, so a 3 generates different lines from one seed.
-    public const int Version = 4;
+    // 5: a body's record carries its tools (the engineering kit on the engineer, GDD v1.4 D.2).
+    // 6: names (Hello, Names) and the incident report (Report) for GDD v1.4 App. C.9 and D.12.
+    public const int Version = 6;
 }
 
 public enum MessageType : byte
@@ -25,6 +27,12 @@ public enum MessageType : byte
     Voice = 4,
     /// <summary>Host → client, reliable: welcomed, but not aboard yet (spec E: drop-in at POIs only), and why.</summary>
     Wait = 5,
+    /// <summary>Client → host, reliable: the name this player goes by (the roster, the report, the clerk).</summary>
+    Hello = 6,
+    /// <summary>Host → client, reliable: everyone's names, by player id, whenever they change.</summary>
+    Names = 7,
+    /// <summary>Host → client, reliable: one chunk of the night's report (GDD v1.4 App. D.12), compressed, in order.</summary>
+    Report = 8,
 }
 
 public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent);
@@ -190,6 +198,83 @@ public static class Messages
         w.U8(playerId);
         w.U32(tick);
         w.Str(session);
+    }
+
+    /// <summary>A name as the session shows it: printable, trimmed, at most this long.</summary>
+    public const int NameLength = 20;
+
+    public static string CleanName(string? name)
+    {
+        var s = new string((name ?? "").Where(c => c >= ' ' && c < 0x7f).ToArray()).Trim();
+        return s.Length > NameLength ? s[..NameLength].TrimEnd() : s;
+    }
+
+    public static void WriteHello(NetWriter w, string name)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Hello);
+        w.Str(CleanName(name));
+    }
+
+    public static void WriteNames(NetWriter w, IEnumerable<KeyValuePair<int, string>> names)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Names);
+        var list = names.Where(n => n.Key is >= 0 and < 256).OrderBy(n => n.Key).ToList();
+        w.U8((byte)list.Count);
+        foreach (var (id, name) in list)
+        {
+            w.U8((byte)id);
+            w.Str(CleanName(name));
+        }
+    }
+
+    public static void ReadNames(ref NetReader r, IDictionary<int, string> into)
+    {
+        int n = r.U8();
+        for (int i = 0; i < n; i++)
+        {
+            int id = r.U8();
+            into[id] = CleanName(r.Str());
+        }
+    }
+
+    /// <summary>The bytes of a chunk, under the transport's 1200 B datagram with room for the headers.</summary>
+    const int ReportChunk = 1000;
+
+    /// <summary>The report as reliable messages: its JSON, Brotli-compressed, cut into numbered chunks.</summary>
+    public static List<byte[]> ReportMessages(Run.RunReport report)
+    {
+        byte[] json = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(report);
+        using var buffer = new MemoryStream();
+        using (var z = new System.IO.Compression.BrotliStream(buffer, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true))
+            z.Write(json);
+        var packed = buffer.ToArray();
+        int count = Math.Max(1, (packed.Length + ReportChunk - 1) / ReportChunk);
+        var messages = new List<byte[]>(count);
+        var w = new NetWriter();
+        for (int i = 0; i < count; i++)
+        {
+            w.Reset();
+            w.U8((byte)MessageType.Report);
+            w.U8((byte)i);
+            w.U8((byte)count);
+            w.Bytes(packed.AsSpan(i * ReportChunk, Math.Min(ReportChunk, packed.Length - i * ReportChunk)));
+            messages.Add(w.Written.ToArray());
+        }
+        return messages;
+    }
+
+    /// <summary>Puts reassembled chunks back into the report; null while some are still to come.</summary>
+    public static Run.RunReport? ReadReport(IReadOnlyDictionary<int, byte[]> chunks, int count)
+    {
+        if (count == 0 || Enumerable.Range(0, count).Any(i => !chunks.ContainsKey(i)))
+            return null;
+        using var packed = new MemoryStream(Enumerable.Range(0, count).SelectMany(i => chunks[i]).ToArray());
+        using var z = new System.IO.Compression.BrotliStream(packed, System.IO.Compression.CompressionMode.Decompress);
+        using var json = new MemoryStream();
+        z.CopyTo(json);
+        return System.Text.Json.JsonSerializer.Deserialize<Run.RunReport>(json.ToArray());
     }
 
     /// <summary>Reads a Welcome after its type byte.</summary>

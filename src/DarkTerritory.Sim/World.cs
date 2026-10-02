@@ -168,7 +168,10 @@ public sealed class World
     {
         if (!Authority)
             return;
-        Bodies.OnDeaths(Train, crew);
+        // App. C.9: every death in the log, the tick its body goes down, with the contributing action its failure names.
+        foreach (var (id, s, body) in Bodies.OnDeaths(Train, crew))
+            if (Run is not null)
+                Attribution.Add(Sim.Run.IncidentLog.Death(this, id, s, body, crew));
         Bodies.Step(Train, Train.Dynamics.Tuning, id => crew.FirstOrDefault(c => c.Id == id) is { State: var s } pair && pair.Id == id ? s : null);
     }
 
@@ -211,7 +214,11 @@ public sealed class World
         var shape = Train.Frames[car].Shape;
         for (int i = 0; i < Train.Dynamics.Tuning.Kit.RepairKits; i++)
             Bodies.SpawnCrate(Train, car, RepairKitStowage(shape, shape.Interior!.Value, i), Physics.BodyKind.RepairKit);
+        KitStocked |= Train.Dynamics.Tuning.Kit.RepairKits > 0;
     }
+
+    /// <summary>The train left with a repair kit (GDD v1.4 §23.2: without one, nothing can strand it).</summary>
+    public bool KitStocked { get; private set; }
 
     /// <summary>The car the repair kit rides in: train.json's, or the nearest walk-in car to the engine before it; null with none.</summary>
     public static int? RepairKitCar(TrainOnLine train)
@@ -283,6 +290,18 @@ public sealed class World
     public LineGen.LinePlan? TrackPlan { get; set; }
     /// <summary>What derailed the train (the report and the HUD say so): the track, a board run too fast, the Sleepers, the Switchman.</summary>
     public string? DerailCause { get; private set; }
+    /// <summary>At the derail tick: the train's speed, and who was on the throttle (App. C.9's "speed at impact").</summary>
+    public double DerailSpeed { get; private set; }
+    public int DerailDriver { get; private set; } = -1;
+
+    /// <summary>
+    /// The failure-attribution log (GDD v1.4 App. C.9), host-side: what happened to whom, and the contributing action. It
+    /// feeds the incident report and nothing else.
+    /// </summary>
+    public Run.Attribution Attribution { get; } = new();
+
+    /// <summary>The session's names for its crew by player id (the host's from each joiner's hello; clients are sent them).</summary>
+    public Dictionary<int, string> Names { get; } = [];
 
     /// <summary>Starts the run. The host steps it (<see cref="StepRun"/>); clients mirror it from records.</summary>
     /// <param name="facilities">The facilities' loading modules (spec D); null for none.</param>
@@ -309,8 +328,20 @@ public sealed class World
 
     /// <summary>Host, after bodies: the queue and every Holdout (App. D.5-D.8). Returns what happened.</summary>
     /// <param name="crew">Everyone in the session, living, dead and waiting, in order.</param>
-    public List<Run.HoldoutEvent> StepHoldouts(IReadOnlyList<(int Id, PlayerState State)> crew, Action<int, PlayerState> set) =>
-        Authority && Holdouts is { } h && Run is { Phase: not Sim.Run.RunPhase.Yard } ? h.Step(this, crew, set, SimConstants.TickSeconds) : [];
+    public List<Run.HoldoutEvent> StepHoldouts(IReadOnlyList<(int Id, PlayerState State)> crew, Action<int, PlayerState> set)
+    {
+        if (!Authority || Holdouts is not { } h || Run is not { Phase: not Sim.Run.RunPhase.Yard } run)
+            return [];
+        var events = h.Step(this, crew, set, SimConstants.TickSeconds);
+        // D.12: rescues, with who freed whom and at which site.
+        foreach (var e in events.Where(e => e.Kind == Sim.Run.HoldoutEventKind.Freed))
+        {
+            var site = h.All[e.Holdout];
+            Attribution.Add(new Sim.Run.Incident(Sim.Run.IncidentKind.Rescue, run.Seconds, e.PlayerId, "Freed from the Holdout",
+                Sim.Run.IncidentLog.At(this, site.Inside, site.LineHint), e.By, e.By >= 0 ? "Broken out by {actor}." : ""));
+        }
+        return events;
+    }
 
     /// <summary>Host: advances the run after the world and damage are applied, with everyone's state.</summary>
     public void StepRun(IReadOnlyCollection<PlayerState> crew)
@@ -332,6 +363,8 @@ public sealed class World
         if (!Derailed)
         {
             DerailCause = why;
+            DerailSpeed = Train.Dynamics.Speed;
+            DerailDriver = Attribution.Driver;
             // T117: off the rails, every car carries on as itself, into the ground and into each other. The host's; the
             // clients are sent the poses. Thrown outward off the curve it was on, if it was on one.
             if (Train.Wreck is null)
@@ -381,6 +414,8 @@ public sealed class World
         bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, kit) == true;
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever.
         bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand, keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)));
+        if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
+            Physics.Bodies.TakeTools(ref s, lifted);
         // At the crane's controls, the stick drives the crane, not your feet (T48). Worked out the same everywhere, so a
         // client predicts standing still at the stand.
         bool operating = false;
@@ -397,7 +432,25 @@ public sealed class World
             s.Flags = repairKit ? s.Flags | PlayerFlags.RepairKit : s.Flags & ~PlayerFlags.RepairKit;
         }
         if (!handsTookIt)
+        {
+            // App. C.9's contributing actions, as the host sees them made: who fired or vented, who pulled a coupler.
+            // (Wherever the crew act is worked: the host's log is the one that's read, and a client's only ever says "last".)
+            double firebox = Train.Boiler.Firebox;
+            bool venting = Train.Boiler.Venting;
+            int cars = Train.Dynamics.Consist.Vehicles.Count;
+            var attached = Train.Dynamics.Consist.Vehicles.Select(v => v.Id).ToArray();
             CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand);
+            if (Train.Boiler.Firebox > firebox + 1e-9 || Train.Boiler.Venting && !venting)
+                Attribution.Fired(playerId, Run?.Seconds ?? 0);
+            if (Train.Dynamics.Consist.Vehicles.Count < cars)
+                foreach (int v in attached)
+                    if (Train.Dynamics.Consist.IndexOf(v) < 0)
+                        Attribution.PulledCoupler(v, playerId);
+        }
+        if (s.Alive && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.RepairKit })
+            Attribution.HeldKit(playerId);
+        if (operating)
+            Attribution.Craned(playerId);
         // The gun's seat (T112): sat in or got up from, the view held to the gun's arc and the gun laid after it, before it fires.
         if (Combat is { } cs)
             Guns.Sit(ref s, intent, Train, cs.Guns, SimConstants.TickSeconds);
@@ -415,7 +468,11 @@ public sealed class World
         // The lamp in the car you're in (GDD v1.1 App. A.5): on the press, the host's to set.
         if (Authority && intent.Has(PlayerActions.CarLamp) && !_lampWas.Contains(playerId) && s.Parent > 0 && s.Parent < Train.Frames.Count
             && PlayerMotor.Indoors(s, Train))
+        {
             Train.Vehicles[s.Parent].LampLit = !Train.Vehicles[s.Parent].LampLit;
+            if (Train.Vehicles[s.Parent].LampLit)
+                Attribution.LitLamp(s.Parent, playerId);
+        }
         if (intent.Has(PlayerActions.CarLamp)) _lampWas.Add(playerId); else _lampWas.Remove(playerId);
         if (Authority && _context is { } ec)
         {

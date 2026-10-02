@@ -15,6 +15,9 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
     /// <summary>How far short of the outer gate a night's engine starts (run.json <c>departShortOfGateM</c>).</summary>
     public double DepartShortOfGateM { get; init; } = 8;
 
+    /// <summary>Stranded, unable to repair (GDD v1.4 §23.2): run.json <c>stranded</c>.</summary>
+    public StrandedTuning Stranded { get; init; } = new();
+
     /// <summary>
     /// Where a night's engine starts: its front just short of the gate, ready to depart (the whole train still in the yard,
     /// so the run begins as it moves off), or as far back as the consist needs to fit on the line.
@@ -29,16 +32,24 @@ public sealed record EconomyTuning(Dictionary<string, double> PerCar, double Coa
 /// <summary>GDD §9: FORTRESS → WILDERNESS → FACILITY → WILDERNESS → TERMINUS.</summary>
 public enum RunPhase : byte { Yard, Underway, AtFacility, Arrived, Failed }
 
-public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed }
+/// <summary>How a night ends (GDD v1.4 §23): <see cref="Stranded"/> is a ruptured boiler with the engineering kit lost (§23.2).</summary>
+public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed, Stranded }
 
 /// <summary>What a night came to (spec F.1): everything still attached to the locomotive counts.</summary>
 /// <param name="Scavenged">Scrip for village finds stowed aboard (level-design P12), paid with the cargo on delivery and in Gross.</param>
 /// <param name="Deaths">In-run deaths (GDD App. D.9), each charged <paramref name="CrewLossFees"/>' share; <paramref name="BodiesHome"/>
 /// of their bodies came home aboard, refunding <paramref name="BodyRefunds"/>. Net is after both.</param>
 /// <param name="Mail">Pay caught off the mail cranes (sight.json drops), paid with the cargo at the terminus and in the gross.</param>
+/// <param name="Recovery">Stranded (GDD v1.4 §23.2): the dawn freight's bill for towing the train in.</param>
+/// <param name="KitLoss">Stranded: how the engineering kit was lost.</param>
+/// <param name="Lines">The incident report (GDD v1.4 App. D.12), in the clerk's words, from the failure-attribution log (C.9).</param>
 public sealed record RunReport(RunEnd End, double Seconds, double DistanceKm, int CarsDelivered, int CarsLost, double CargoDelivered,
     double Gross, double CoalCost, double AmmoCost, double RepairCost, double Net, int CrewHome, int CrewLost, double Scavenged = 0,
-    int Deaths = 0, int BodiesHome = 0, double CrewLossFees = 0, double BodyRefunds = 0, double Mail = 0);
+    int Deaths = 0, int BodiesHome = 0, double CrewLossFees = 0, double BodyRefunds = 0, double Mail = 0, double Recovery = 0,
+    KitLoss KitLoss = KitLoss.None)
+{
+    public IReadOnlyList<ReportLine> Lines { get; init; } = [];
+}
 
 /// <summary>
 /// One night's run, host-authoritative (clients mirror it for the HUD). The yard gate opens the run and
@@ -167,6 +178,11 @@ public sealed partial class Run
     public bool ChuteOpen { get; private set; }
     public double ChuteLeft(int facility) => facility >= 0 && facility < _chuteLeft.Length ? _chuteLeft[facility] : 0;
     public bool Over => Phase is RunPhase.Arrived or RunPhase.Failed;
+    /// <summary>Where the engineering kit is, as of this tick (host; GDD v1.4 §23.2).</summary>
+    public KitWhere Kit { get; private set; }
+    double _kitLostFor;
+    bool _kitStocked;
+    bool _wasRuptured;
     public RunReport? Report { get; private set; }
 
     /// <summary>Advances the run after the world has stepped. <paramref name="crew"/> is everyone's authoritative state.</summary>
@@ -196,10 +212,28 @@ public sealed partial class Run
         StepSites(world, dt);
         StepLoot(world, dt);
 
+        // §23.2: the check runs every tick. Ruptured with the kit lost, the night ends once the train comes to rest (the
+        // crew get the whole coast to work out what just happened).
+        _kitStocked |= world.KitStocked || world.Bodies.All.Any(b => b.Kind == Physics.BodyKind.RepairKit);
+        Kit = EngineeringKit.Where(world, crew, Tuning.Stranded, _kitStocked);
+        // App. C.9: a rupture, with who last fired or vented it, and how long it sat at 100 (the spec's hold, by then).
+        if (train.Boiler.Ruptured && !_wasRuptured && train.BoilerTuning is { } bt)
+        {
+            var a = world.Attribution;
+            world.Attribution.Add(new Incident(IncidentKind.Rupture, Seconds, -1, "Boiler ruptured",
+                IncidentLog.At(world, train.Frames[0].Origin, front), a.Fireman,
+                a.Fireman >= 0 ? $"Last fired: {{actor}}. At {bt.PressureMax:0} for {bt.RuptureHoldSeconds:0} s." : "Nobody had fired it."));
+        }
+        _wasRuptured = train.Boiler.Ruptured;
+        _kitLostFor = Kit.Lost ? _kitLostFor + dt : 0;
+        bool stranded = train.Boiler.Ruptured && _kitLostFor >= Tuning.Stranded.LostForSeconds && engine.Speed < Tuning.StopBelowSpeed;
+
         if (world.Derailed)
             Finish(world, crew, RunPhase.Failed, RunEnd.Derailed);
         else if (crew.Count > 0 && crew.All(c => !c.Alive))
             Finish(world, crew, RunPhase.Failed, RunEnd.CrewLost);
+        else if (stranded)
+            Finish(world, crew, RunPhase.Failed, RunEnd.Stranded);
         else if (Seconds > _route.DawnSeconds + Tuning.DawnGraceSeconds)
             Finish(world, crew, RunPhase.Failed, RunEnd.DawnMissed);
         else if (engine.Speed < Tuning.StopBelowSpeed && train.OnMain && front >= _route.Length - Tuning.TerminusZone)
@@ -557,8 +591,25 @@ public sealed partial class Run
         Phase = phase;
         End = end;
         ChuteOpen = false;
+        var train = world.Train;
+        var a = world.Attribution;
+        string where = IncidentLog.At(world, train.Frames[0].Origin, EngineRake(train).Distance);
+        // App. C.9's whole-train rows, and E.5's cause card: what took the train off the rails, at what speed, and who drove.
+        if (end == RunEnd.Derailed)
+            a.Add(new Incident(IncidentKind.Derailed, Seconds, -1, $"Consist derailed, {Kmh(world.DerailSpeed)}", where, world.DerailDriver,
+                $"{Capital(world.DerailCause ?? "cause not established")}. Throttle: {{actor}}."));
+        else if (end == RunEnd.Stranded)
+        {
+            int coupler = Kit.Loss == KitLoss.LeftBehind && Kit.Vehicle > 0 ? a.CouplerPulledBy(Kit.Vehicle) : -1;
+            string pulled = coupler >= 0 ? $" Coupler: {IncidentLog.NameOf(world, coupler)}." : "";
+            a.Add(new Incident(IncidentKind.Stranded, Seconds, -1, "Consist stranded", where, a.KitHolder,
+                $"{Capital(EngineeringKit.Line(Kit.Loss).ToLowerInvariant())}. Last held: {{actor}}.{pulled}"));
+        }
         Report = Tally(world, crew);
     }
+
+    static string Kmh(double metresPerSecond) => $"{Math.Abs(metresPerSecond) * 3.6:0} km/h";
+    static string Capital(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s[1..];
 
     /// <summary>Spec F.1: pay on delivered cargo that survives; running costs are what the night burned and broke.</summary>
     public RunReport Tally(World world, IReadOnlyCollection<PlayerState> crew)
@@ -580,16 +631,21 @@ public sealed partial class Run
         // Home is aboard, or at least with the train: someone mid-jump between roofs, or who stepped down at
         // the terminus, made it. Anyone further than this from every attached car didn't.
         const double WithTheTrain = 40;
-        int crewHome = crew.Count(c => c.Alive && (c.Parent != PlayerState.World && attached.Contains(c.Parent)
+        // Stranded (§23.2): the dawn freight tows the train in, and the living come home with it, wherever they're stood.
+        bool stranded = End == RunEnd.Stranded;
+        int crewHome = crew.Count(c => c.Alive && (stranded || c.Parent != PlayerState.World && attached.Contains(c.Parent)
             || attached.Any(id => (train.Frames[id].Origin - PlayerMotor.WorldPosition(c, train)).Length < WithTheTrain)));
+        double recovery = stranded ? Math.Round(Tuning.Stranded.RecoveryFee * perCar) : 0;
         // GDD App. D.9, bodies as loot: every death costs the crew a fee; every body brought home (stowed in a car still on
         // the engine, or carried aboard) refunds most of it, never all. A drop-out's body is neither.
         int deaths = 0, bodiesHome = 0;
-        double fees = 0, refunds = 0;
+        double fees = 0, refunds = 0, feeEach = 0, refundEach = 0;
         if (world.Holdouts?.Tuning is { } ht)
         {
             deaths = world.Bodies.Deaths;
             double fee = ht.CrewLossFee * perCar;
+            feeEach = Math.Round(fee);
+            refundEach = Math.Round(ht.BodyRefund * fee);
             bodiesHome = delivered ? world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.Ragdoll && !b.DroppedOut
                 && (attached.Contains(b.Parent) || b.Carrier >= 0)) : 0;
             fees = Math.Round(deaths * fee);
@@ -597,8 +653,47 @@ public sealed partial class Run
         }
         return new RunReport(End, Math.Round(Seconds, 1), Math.Round(engine.Distance / 1000, 2), home.Count, cargo.Count - home.Count,
             Math.Round(cargoValue, 2), Math.Round(gross), Math.Round(coal), Math.Round(ammo), Math.Round(repairs),
-            Math.Round(gross - coal - ammo - repairs - fees + refunds), crewHome, crew.Count - crewHome, delivered ? Math.Round(Scavenged) : 0,
-            deaths, bodiesHome, fees, refunds, Math.Round(delivered ? Mail : 0));
+            Math.Round(gross - coal - ammo - repairs - fees + refunds - recovery), crewHome, crew.Count - crewHome, delivered ? Math.Round(Scavenged) : 0,
+            deaths, bodiesHome, fees, refunds, Math.Round(delivered ? Mail : 0), recovery, stranded ? Kit.Loss : KitLoss.None)
+        {
+            Lines = ReportLines(world, attached, delivered, feeEach, refundEach),
+        };
+    }
+
+    /// <summary>
+    /// The incident report (D.12): the attribution log read out, then the cars that didn't come home (C.9 "car lost,
+    /// decoupled": who pulled the coupler, and what was inside), and how the night ended last.
+    /// </summary>
+    List<ReportLine> ReportLines(World world, HashSet<int> attached, bool delivered, double fee, double refund)
+    {
+        bool Home(int bodyId) => delivered && world.Bodies.All.FirstOrDefault(b => b.Id == bodyId) is { DroppedOut: false } b
+            && (attached.Contains(b.Parent) || b.Carrier >= 0);
+        var lines = IncidentLog.Lines(world, fee, refund, Home);
+        int end = lines.FindIndex(l => l.Kind is IncidentKind.Derailed or IncidentKind.Stranded);
+        var lost = new List<ReportLine>();
+        var train = world.Train;
+        foreach (var rake in train.Rakes.Where(r => r != train.Dynamics))
+        {
+            var ids = rake.Consist.Vehicles.Select(v => v.Id).Where(id => !attached.Contains(id)).ToList();
+            if (ids.Count == 0)
+                continue;
+            var vehicles = ids.Select(id => train.Vehicles[id]).ToList();
+            string cars = ids.Count == 1 ? $"Car {ids[0]}" : $"Cars {ids.Min()}-{ids.Max()}";
+            var taken = vehicles.FirstOrDefault(v => v.Taken);
+            string what = taken is null ? $"{cars} lost" : taken.Eaten > 0 ? $"{cars} finished by the Car Hugger" : $"{cars} rolled away by the Passenger";
+            string where = IncidentLog.At(world, train.Frames[ids[0]].Origin, rake.Distance);
+            var inside = new List<string>();
+            double freight = vehicles.Where(v => v.Kind == VehicleKind.Cargo).Sum(v => v.Load * v.CargoIntegrity);
+            if (freight > 0.01)
+                inside.Add($"freight, {freight:0.#} car-loads");
+            foreach (var b in world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Ragdoll && ids.Contains(b.Parent) && b.Carrier < 0))
+                inside.Add($"the body of {IncidentLog.NameOf(world, b.Owner)}");
+            int puller = taken is null ? world.Attribution.CouplerPulledBy(ids.Min()) : -1;
+            string action = (puller >= 0 ? $"Coupler: {IncidentLog.NameOf(world, puller)}. " : "") + (inside.Count > 0 ? $"Inside: {string.Join(", ", inside)}." : "Empty.");
+            lost.Add(new ReportLine(IncidentKind.CarLost, "", $"{what} {where}. {action}"));
+        }
+        lines.InsertRange(end < 0 ? lines.Count : end, lost);
+        return lines;
     }
 
     /// <summary>
@@ -621,6 +716,9 @@ public sealed partial class Run
         }
         Departed = departedFacility;
     }
+
+    /// <summary>Client side: the host's report of the night (GDD v1.4 App. D.12), sent once it's over.</summary>
+    public void MirrorReport(RunReport report) => Report = report;
 
     /// <summary>Client side: adopts the host's run state.</summary>
     public void Mirror(RunPhase phase, RunEnd end, double seconds, int facility, bool chuteOpen, double[] chuteLeft,

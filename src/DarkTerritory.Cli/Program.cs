@@ -790,7 +790,11 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         for (int i = 0; i < wreckAt * SimConstants.TickRate; i++)
             wrecking.Step(default);
     }
-    var camera = train.Wreck is { } shown && !args.Contains("--view") ? Views.Wreck(shown, shown.RealSeconds) : Views.Get(view, train, (int)Opt(args, "--car", 2));
+    // --stranded s: s seconds into the Stranded outro (GDD v1.4 App. E.9): the empty rack, then the pull-back as the lamps go out.
+    double strandedAt = Opt(args, "--stranded", -1);
+    var outro = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File)).Stranded;
+    var camera = strandedAt >= 0 && !args.Contains("--view") ? Views.Stranded(train, outro, strandedAt)
+        : train.Wreck is { } shown && !args.Contains("--view") ? Views.Wreck(shown, shown.RealSeconds) : Views.Get(view, train, (int)Opt(args, "--car", 2));
     // --cam s,lateral,height --target s,lateral,height: place the camera anywhere by line coordinates.
     if (Str(args, "--cam", "") is { Length: > 0 } cam)
     {
@@ -964,6 +968,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Holdouts = holdouts,
         DropCaught = mail is not null ? id => id == mail.Id && Opt(args, "--mail", 0) > 0 : null,
         StagedCatch = Opt(args, "--mail", 0),
+        StagedCold = args.Contains("--cold") ? Opt(args, "--cold", 0) : null,
         // --burnt car,s: that car gutted by a fire that went out s seconds ago (its char, its smoulder).
         StagedBurnt = Str(args, "--burnt", "") is { Length: > 0 } burnt && burnt.Split(',') is var bp
             ? (int.Parse(bp[0]), bp.Length > 1 ? double.Parse(bp[1]) : 30) : null,
@@ -983,6 +988,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             : args.Contains("--crew") ? [.. Staging.Crew(train, content), .. args.Contains("--ribbits") || args.Contains("--gaunt") || args.Contains("--grumbler") || args.Contains("--follower") || args.Contains("--soot") ? [Staging.Lone(train)] : Array.Empty<Crewmate>()]
             : Str(args, "--passenger", "") == "drag" ? [Staging.Dragged(train)] : null,
         Emergency = args.Contains("--emergency"),
+        LampsOut = strandedAt >= 0 ? Views.StrandedLampsOut(train.Frames.Count, outro, strandedAt) : 0,
+        LampRange = strandedAt >= 0 ? 400 : 60,
+        RoofGlow = strandedAt >= 0,
         FireDoorOpen = args.Contains("--firedoor") || args.Contains("--stoker"),
         // --spray: an extinguisher on every car fire, from the aisle (with --threats, the staged one: --view fire).
         StagedSpray = args.Contains("--spray"),
@@ -1026,9 +1034,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         lighting.FogDensity = (float)route.Weather.FogDensity;
         lighting.Wetness = route.Weather.Wet ? 1 : 0;
     }
+    // --cold c: a night that cold (0..1, the route weather's): its frost here, its breath in the scene (GreyboxScene.Cold).
+    lighting.Frost = look?.Tuning.Atmosphere.Cold.Frost(scene.Cold) ?? 0;
     // --fog d: a thinner (or thicker) night than the route's, to look the lie of the land over.
     if (args.Contains("--fog"))
         lighting.FogDensity = (float)Opt(args, "--fog", lighting.FogDensity);
+    if (strandedAt >= 0)
+        Views.CinematicFog(ref lighting, Views.StrandedDistance(train, outro, strandedAt));
     // --survey: a flat, bright, clear light for reading the land's shape (the curves, the grades, the cuttings): a
     // designer's view of a generated line, not the game's night.
     if (args.Contains("--survey"))
@@ -1274,6 +1286,9 @@ static object HudShot(string content, string[] args)
     }
     int width = (int)Opt(args, "--width", 480), height = (int)Opt(args, "--height", 270), scale = (int)Opt(args, "--scale", 2);
     string output = Str(args, "--out", "out/shots/hud.png");
+    // --report [derailed]: the night over, and its incident report as the run-end screen shows it (GDD v1.4 App. D.12).
+    if (args.Contains("--report") && session.World.Run is { } over)
+        over.MirrorReport(Staging.Report(session.World, Str(args, "--report", "") == "derailed" ? DarkTerritory.Sim.Run.RunEnd.Derailed : DarkTerritory.Sim.Run.RunEnd.CrewLost));
     var frames = session.InterpolatedFrames(1);
     var camera = session.EyeCamera(frames, 1, 0, 0);
     using var gpu = new GpuContext("dt screenshot --hud");
@@ -1298,6 +1313,7 @@ static object HudShot(string content, string[] args)
     {
         lighting.FogDensity = (float)r.Weather.FogDensity;
         lighting.Wetness = r.Weather.Wet ? 1 : 0;
+        lighting.Frost = look?.Tuning.Atmosphere.Cold.Frost(r.Weather.Cold) ?? 0;
     }
     var hud = new Overlay();
     Hud.Build(hud, width, height, session);
@@ -1437,6 +1453,7 @@ static int Usage()
                      [--lit]      every Holdout occupied, its lamp burning (GDD App. D)
                      [--ps2]      the era comparison mode   [--muzzle] the guns just fired   [--builds n] time n warm builds
                      [--integrity a,b,..] each car's condition, front to back (scars and damage states)
+                     [--cold c]   a night that cold (0..1): frost on what's outdoors, breath from every mouth
                      [--burnt car,s]   that car gutted by a fire out s seconds ago: charred, smouldering
                      [--route tier:seed --structure girder|truss|trestle|viaduct|causeway|retainingwall]   the night's first of the plan's structures of that type, the train on it, from off its side
                      [--route tier:seed --mail s]   at the night's first mail crane, car 2's door by it; s > 0: the bag caught s seconds ago (its snatch, the arms falling)
