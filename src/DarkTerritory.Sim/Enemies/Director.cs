@@ -233,6 +233,11 @@ public sealed class Director
                         w *= table.GetValueOrDefault(Key(options[i].Kind), 1) * table.GetValueOrDefault("*", 1);
                 options[i] = (options[i].Kind, w);
             }
+        // GDD §18: what already lives at the facility the train's stopped at comes on more there (note 185).
+        if (world.Run?.FacilityFeature?.Facility is { } here
+            && _t.Residents.GetValueOrDefault(char.ToLowerInvariant(here.ToString()[0]) + here.ToString()[1..]) is { } residents)
+            for (int i = 0; i < options.Count; i++)
+                options[i] = (options[i].Kind, options[i].Weight * residents.GetValueOrDefault(Key(options[i].Kind), 1));
         options.RemoveAll(o => !Allows(o.Kind));
         options.RemoveAll(o => Cost(o.Kind) > (due ? Math.Max(available - Reserve(world, s, o.Kind), _t.PacedCost) : available - Reserve(world, s, o.Kind)));
         // Sent because it's been quiet: something that shows itself at once. A Dragger under a car's edge, or a Whistler in its

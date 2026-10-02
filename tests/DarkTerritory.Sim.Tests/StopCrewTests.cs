@@ -604,4 +604,74 @@ public class StopCrewTests
         Assert.False(train.Diverging(night.Branch));
         Assert.True(PlayerMotor.InCab(night.Crew[0], train), "and the driver's back at the controls");
     }
+
+    // GDD §18's set pieces (WP15, ARCHITECTURE §8 note 185): a bot crew works each, through intent alone.
+
+    static FacilityWorkReport Work(FacilityKind kind)
+    {
+        var (route, facility) = FacilityWork.Find(Tuning.Route, kind)!.Value;
+        return FacilityWork.Run(route, facility, T, P, Tuning.Boiler, Tuning.Run, F, Tuning.Route.Junctions, cars: 8, hands: 2, seconds: 1200,
+            yardLength: Tuning.Route.YardLength);
+    }
+
+    static void LeftWellAndWhole(FacilityWorkReport r)
+    {
+        string said = $"legs {string.Join(">", r.Legs)}; did {string.Join(", ", r.Doing)}; deaths {string.Join(", ", r.Deaths)}";
+        Assert.True(r.Departed, $"never left: {said}");
+        Assert.True(r.Alive == r.Crew, said);
+        Assert.Equal(1, r.Rakes);
+        Assert.True(r.SwitchBack, said);
+    }
+
+    [Fact]
+    public void AtTheGrainElevatorTheDriverWalksEachCarUnderTheSpoutWhileTheShunterPours()
+    {
+        var r = Work(FacilityKind.GrainElevator);
+        LeftWellAndWhole(r);
+        Assert.Contains("Spouting", r.Legs);
+        Assert.Contains("pouring", r.Doing);
+        // Every car that went down the spur (the engine and four) came back full of grain; the rest weren't touched.
+        var spurCars = r.Loads.Take(4).ToList();
+        Assert.All(spurCars, c => Assert.Equal(1, c.Load, 3));
+        Assert.All(spurCars, c => Assert.Equal(CargoKind.Food, c.Cargo));
+        // Let go as each filled: at most a tick or two's overflow, nothing that strains a car beyond the stop's own knocks.
+        Assert.All(spurCars, c => Assert.True(c.Integrity > 0.95, $"integrity {c.Integrity}"));
+        Assert.Equal(F.Spout.Bin - spurCars.Count * (1 - Tuning.Run.DepartureLoad), r.Bin, 1);
+    }
+
+    [Fact]
+    public void AtTheSlaughterhouseThePairDriveTheHerdUpTheRamp()
+    {
+        var r = Work(FacilityKind.Slaughterhouse);
+        LeftWellAndWhole(r);
+        Assert.Contains("driving the herd", r.Doing);
+        Assert.Contains(r.Loads, c => c.Cargo == CargoKind.Livestock && c.Load >= 1 - 1e-6);
+    }
+
+    [Fact]
+    public void AtTheChemicalWorksTheHoseGoesOnIsMindedAndComesOffBeforeTheTrainMoves()
+    {
+        var r = Work(FacilityKind.ChemicalWorks);
+        LeftWellAndWhole(r);
+        Assert.Contains("putting the hose on", r.Doing);
+        Assert.Contains("minding the hose", r.Doing);
+        Assert.Contains("taking the hose off", r.Doing);
+        // Taken off cleanly: never leaked, never torn, nothing spoiled by it.
+        Assert.Equal(-1, r.HoseCar);
+        Assert.False(r.Leaking);
+        Assert.Contains(r.Loads, c => c.Cargo == CargoKind.Chemicals && c.Load >= 1 - 1e-6);
+        Assert.All(r.Loads, c => Assert.True(c.CargoIntegrity > 1 - F.Hose.TornSpoil / 2, $"spoiled to {c.CargoIntegrity}"));
+    }
+
+    [Fact]
+    public void AtTheMilitaryDepotTheCrateHandsSetThePowderDownAndNothingGoesUp()
+    {
+        var r = Work(FacilityKind.MilitaryDepot);
+        LeftWellAndWhole(r);
+        Assert.Contains("putting it down", r.Doing);
+        Assert.Contains(r.Loads, c => c.Cargo == CargoKind.Ammunition);
+        Assert.DoesNotContain(r.Deaths, d => d.Contains(nameof(DeathCause.Keg)));
+        Assert.All(r.Loads, c => Assert.True(c.Integrity > 1 - F.Kegs.CarDamage / 2, $"integrity {c.Integrity}"));
+    }
 }
+

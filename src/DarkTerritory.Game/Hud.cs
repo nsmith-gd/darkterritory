@@ -920,6 +920,8 @@ public static class Hud
         DeathCause.Burned => "BURNED IN A BLAZING CAR",
         DeathCause.Exploded => "BLOWN UP WITH THE POWDER CAR",
         DeathCause.Poisoned => "GASSED BY THE CHEMICALS",
+        DeathCause.Keg => "BLOWN UP BY THE POWDER",
+        DeathCause.Leak => "GASSED BY THE LEAK",
         DeathCause.Gnawed => "EATEN BY THE GNAWERS",
         DeathCause.Ferryman => "SLOWED FOR THE LANTERN",
         DeathCause.Stoker => "BURNED DRIVING IT OUT OF THE FIREBOX",
@@ -1063,6 +1065,22 @@ public static class Hud
             };
         if (world.Run?.LeverInReach(p, train, hand) == true)
             return "[E] HOLD: CHUTE LEVER";
+        // GDD §18's set pieces (note 185).
+        if (world.Run?.SpoutLeverInReach(p, train, hand) is { } spout)
+            return spout.Pouring ? $"POURING: LET GO WHEN THE CAR'S FULL ({spout.Bin:0.0} LOADS IN THE BIN)"
+                : world.Run.CarUnderSpout(train, spout) is { } under ? $"[E] HOLD: SPOUT (CAR UNDER IT {under.Load * 100:0}% FULL)"
+                : "[E] HOLD: SPOUT. NO CAR UNDER IT: WALK ONE UNDER";
+        if (world.Run?.InPen(p, train) is { } pen)
+            return pen.Herding ? $"DRIVING THE HERD ({pen.Head} LEFT). KEEP AT IT"
+                : world.Run.CarAtRamp(train, pen) is null ? "THE HERD: NO CAR WITH ROOM AT THE RAMP"
+                : $"[E] HOLD: DRIVE THE HERD UP THE RAMP (IT NEEDS {world.Run.FacilityTuning?.Ramp.Herders ?? 2}, LOUD)";
+        if (world.Run?.AtHoseStand(p, train) is { } stand)
+        {
+            string held = world.Run.HoseHold(s.PlayerId) is > 0 and < 1 and var h ? $" {h * 100:0}%" : "";
+            return stand.HoseCar >= 0
+                ? $"HOSE ON: PRESSURE {stand.Pressure * 100:0}%{(stand.Leaking ? " LEAKING" : "")}. STAY BY IT   [E] HOLD: TAKE IT OFF{held}"
+                : world.Run.CarAtHose(train, stand) is null ? "HOSE: NO CAR WITH ROOM BY THE STAND" : $"[E] HOLD: PUT THE HOSE ON THE CAR{held}";
+        }
         if (world.Switches?.InReach(p, train, hand) is { } branch)
         {
             // Say which way it'll go, and when it won't: the points don't move with a wheel on them.

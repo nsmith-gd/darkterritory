@@ -638,6 +638,8 @@ public sealed class World
             // Spec D.2 "dropped loads kill": under a casting the crane let go of.
             if (run.Crushes(s, Train))
                 Damage.Add(new Enemies.DamageEvent(playerId, 1000, DeathCause.Crushed));
+            // GDD §18 (note 185): a powder keg's blast, a leaking hose's gas.
+            Damage.AddRange(run.Harm(s, playerId, Train));
         }
         if (Authority && Switches?.CrewAct(s, intent, playerId, Train, Hand) is { } thrown)
             SwitchThrows.Add(thrown);
@@ -760,6 +762,9 @@ public sealed class World
             return;
         var cars = rake.Where((v, i) => Math.Abs(i - at) <= f.Cars && v.Kind == VehicleKind.Cargo && v.Cargo == CargoKind.Chemicals && v.Load > 0.01
             && v.CargoIntegrity > 0.01).Select(v => v.Id).ToList();
+        // GDD §18 "do not fire indoors" (note 185): under a chemical works' pipe rack the gun's own car is as bad as one.
+        if (Run?.Indoors(Train.Frames[shot.GunVehicle].Origin) == true && !cars.Contains(shot.GunVehicle))
+            cars.Add(shot.GunVehicle);
         if (cars.Count == 0)
             return;
         Attribution.Gassed(gunner);
@@ -905,6 +910,8 @@ public sealed class World
             {
                 // App. B.9: livestock aboard raise the baseline (they're never quiet).
                 Choir.Floor = DarkTerritory.Sim.Enemies.Director.Aboard(this).Contains(DarkTerritory.Sim.Train.CargoKind.Livestock) ? c.Choir.LivestockFloor : 0;
+                // Spec D.2's livestock ramp (note 185): the herd stirred up at the slaughterhouse raises it too.
+                Choir.Floor = Math.Max(Choir.Floor, Run?.HerdFloor ?? 0);
                 bool swarm = Choir.Step(c.Choir, Loudness(c.Choir), SimConstants.TickSeconds);
                 // Not gathering, nobody's to blame yet: the shares are the BUILD's only (A.7 "during BUILD"). Spent, they're kept
                 // as they stood when it took its one, for the incident report to read.

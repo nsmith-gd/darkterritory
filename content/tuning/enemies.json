@@ -290,6 +290,12 @@
       "comet": { "*": 1.4 }
     },
     "cometRelaxesGates": true,
+    // GDD §18 "Slaughterhouse: animals are loud, and something already lives here" (note 185): while the train's stopped at a
+    // facility of this kind, these come on this many times as often. The Gaunt sleeps in yards (App. B.6); in a
+    // slaughterhouse it's the resident.
+    "residents": {
+      "slaughterhouse": { "gaunt": 4, "followers": 1.5 }
+    },
     // App. B.1 "contradiction seeding": the v1.1 conflict table, as the tuning's names (and conditions: "choir", gathering or
     // here; "grade", a climb or fall just ahead; "facilityLoading" and "facilityStop", at a facility). Ambiguity (ARCHITECTURE §8): "draws
     // pairs from a conflict table": read as a spawn that would complete a pair with what's there now weighing this much
