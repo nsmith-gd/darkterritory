@@ -624,6 +624,531 @@
   "url": "/_blob/755ab1bab9cfd7520a0a3434e0403651",
   "sha": "22eddb095cf0079f"
  },
+ "previews/crew-footsteps--land--boots--concrete.mp4": {
+  "id": "8217a72c58f1e327d650f0da7a75c546",
+  "url": "/_blob/8217a72c58f1e327d650f0da7a75c546",
+  "sha": "9f27fcab0f678f5d"
+ },
+ "previews/crew-footsteps--land--boots--dirt.mp4": {
+  "id": "3cbb9978d02cbe0f4861781b5f977c09",
+  "url": "/_blob/3cbb9978d02cbe0f4861781b5f977c09",
+  "sha": "f65396848c61ee71"
+ },
+ "previews/crew-footsteps--land--boots--grass.mp4": {
+  "id": "de5dc3a26853be968eeeaf75774d424c",
+  "url": "/_blob/de5dc3a26853be968eeeaf75774d424c",
+  "sha": "ceba2944969add21"
+ },
+ "previews/crew-footsteps--land--boots--grate.mp4": {
+  "id": "e1e5bea4d402ade08ca006cc4456bf81",
+  "url": "/_blob/e1e5bea4d402ade08ca006cc4456bf81",
+  "sha": "ca4ae5cf52e5a680"
+ },
+ "previews/crew-footsteps--land--boots--mud.mp4": {
+  "id": "0182ef40e8212c0a645a02954f34b188",
+  "url": "/_blob/0182ef40e8212c0a645a02954f34b188",
+  "sha": "a0f0da3eb71b4139"
+ },
+ "previews/crew-footsteps--land--boots--plate.mp4": {
+  "id": "9009bdc1facf5bf839190e22855ab9cb",
+  "url": "/_blob/9009bdc1facf5bf839190e22855ab9cb",
+  "sha": "03edaf854b6b1a2a"
+ },
+ "previews/crew-footsteps--land--boots--roof.mp4": {
+  "id": "fb3c554b8cb78c7e7e4e104abcfe4808",
+  "url": "/_blob/fb3c554b8cb78c7e7e4e104abcfe4808",
+  "sha": "7cd3ff53998985b6"
+ },
+ "previews/crew-footsteps--land--boots--wood.mp4": {
+  "id": "59905d82f6a716944c46b41324af5799",
+  "url": "/_blob/59905d82f6a716944c46b41324af5799",
+  "sha": "df46677b14bcb602"
+ },
+ "previews/crew-footsteps--run--boots--ballast.mp4": {
+  "id": "27dc7675a0158af6963649322e3d3f97",
+  "url": "/_blob/27dc7675a0158af6963649322e3d3f97",
+  "sha": "69067ddaf3a7b5b9"
+ },
+ "previews/crew-footsteps--run--boots--coal.mp4": {
+  "id": "097b2513cdc228bdc5585b3db93365a2",
+  "url": "/_blob/097b2513cdc228bdc5585b3db93365a2",
+  "sha": "550a374c0a4f6603"
+ },
+ "previews/crew-footsteps--run--boots--cobbles.mp4": {
+  "id": "4921f7d46b245ad6e3e9340f7a60f907",
+  "url": "/_blob/4921f7d46b245ad6e3e9340f7a60f907",
+  "sha": "2713d3d47aa30b20"
+ },
+ "previews/crew-footsteps--run--boots--concrete.mp4": {
+  "id": "cc6f1ac3b22d147a6affa8666c929a26",
+  "url": "/_blob/cc6f1ac3b22d147a6affa8666c929a26",
+  "sha": "498f1af24ea08f82"
+ },
+ "previews/crew-footsteps--run--boots--dirt.mp4": {
+  "id": "71c5b95de54501dd2fdf53c98330eae7",
+  "url": "/_blob/71c5b95de54501dd2fdf53c98330eae7",
+  "sha": "d4d165c8921d4c09"
+ },
+ "previews/crew-footsteps--run--boots--grass.mp4": {
+  "id": "0bf4b2ad7f1241fc26b4d27811ddcfd6",
+  "url": "/_blob/0bf4b2ad7f1241fc26b4d27811ddcfd6",
+  "sha": "92efd4af777b48c1"
+ },
+ "previews/crew-footsteps--run--boots--grate.mp4": {
+  "id": "7cb710dd03f9882664a1092a5fbc6724",
+  "url": "/_blob/7cb710dd03f9882664a1092a5fbc6724",
+  "sha": "8f28027338f0e990"
+ },
+ "previews/crew-footsteps--run--boots--mud.mp4": {
+  "id": "beccf36c3a74e5ef48c49578d2bec7b1",
+  "url": "/_blob/beccf36c3a74e5ef48c49578d2bec7b1",
+  "sha": "ee776008080dc44e"
+ },
+ "previews/crew-footsteps--run--boots--plate.mp4": {
+  "id": "178696abbb2ed58180aa30b58a915b38",
+  "url": "/_blob/178696abbb2ed58180aa30b58a915b38",
+  "sha": "c8aa1f562a95de01"
+ },
+ "previews/crew-footsteps--run--boots--roof.mp4": {
+  "id": "82d87fcfb772bff5af35752a7fb600be",
+  "url": "/_blob/82d87fcfb772bff5af35752a7fb600be",
+  "sha": "22723b5b50e62989"
+ },
+ "previews/crew-footsteps--run--boots--wood.mp4": {
+  "id": "19f8ab24cc870a50bf5e7635fd558133",
+  "url": "/_blob/19f8ab24cc870a50bf5e7635fd558133",
+  "sha": "0d0bec0530b8e620"
+ },
+ "previews/crew-footsteps--scuff--boots--ballast.mp4": {
+  "id": "f8d1f7d850c2c21f70f3df49cc5b7160",
+  "url": "/_blob/f8d1f7d850c2c21f70f3df49cc5b7160",
+  "sha": "dea80c1e3bbddb95"
+ },
+ "previews/crew-footsteps--scuff--boots--coal.mp4": {
+  "id": "5e8c027105c0dad246a915f3efef425c",
+  "url": "/_blob/5e8c027105c0dad246a915f3efef425c",
+  "sha": "a8156435d33d4993"
+ },
+ "previews/crew-footsteps--scuff--boots--cobbles.mp4": {
+  "id": "0db6432298fe38f125c6d061e22a1153",
+  "url": "/_blob/0db6432298fe38f125c6d061e22a1153",
+  "sha": "77850b0fb2e4b66b"
+ },
+ "previews/crew-footsteps--scuff--boots--concrete.mp4": {
+  "id": "1eb721d69ef7e891a06bf3303e2b6daf",
+  "url": "/_blob/1eb721d69ef7e891a06bf3303e2b6daf",
+  "sha": "9f0adb396e896b25"
+ },
+ "previews/crew-footsteps--scuff--boots--dirt.mp4": {
+  "id": "0fe829b26fafa997838f04067a6f480a",
+  "url": "/_blob/0fe829b26fafa997838f04067a6f480a",
+  "sha": "9e7cf726d0098491"
+ },
+ "previews/crew-footsteps--scuff--boots--grass.mp4": {
+  "id": "19aa0fb0b3758726b67b31cdf0c1c3c4",
+  "url": "/_blob/19aa0fb0b3758726b67b31cdf0c1c3c4",
+  "sha": "b92953324cbd9e6c"
+ },
+ "previews/crew-footsteps--scuff--boots--grate.mp4": {
+  "id": "dfcca778802d511899bb76df89da32e5",
+  "url": "/_blob/dfcca778802d511899bb76df89da32e5",
+  "sha": "924c6267aa17a1b4"
+ },
+ "previews/crew-footsteps--scuff--boots--mud.mp4": {
+  "id": "52d75fd3f4e1cf4f73064e05bc23f5e0",
+  "url": "/_blob/52d75fd3f4e1cf4f73064e05bc23f5e0",
+  "sha": "8c4e21a435b5fd86"
+ },
+ "previews/crew-footsteps--scuff--boots--plate.mp4": {
+  "id": "2eccb16ee828432bce5dcad0f5ac1d28",
+  "url": "/_blob/2eccb16ee828432bce5dcad0f5ac1d28",
+  "sha": "33f2d34ba9b3a37b"
+ },
+ "previews/crew-footsteps--scuff--boots--roof.mp4": {
+  "id": "b2497bce4517c411a75a36ad44f9f5b3",
+  "url": "/_blob/b2497bce4517c411a75a36ad44f9f5b3",
+  "sha": "e2d896358d914f92"
+ },
+ "previews/crew-footsteps--scuff--boots--wood.mp4": {
+  "id": "57e67f871f847b732fdfd11cc5aa03b0",
+  "url": "/_blob/57e67f871f847b732fdfd11cc5aa03b0",
+  "sha": "219f395d07b965f5"
+ },
+ "previews/crew-footsteps--walk--boots--ballast.mp4": {
+  "id": "c33d3a5aac0896384146b57dc6d85412",
+  "url": "/_blob/c33d3a5aac0896384146b57dc6d85412",
+  "sha": "be5744e1db3ee2b4"
+ },
+ "previews/crew-footsteps--walk--boots--coal.mp4": {
+  "id": "0f2c4847b1cbcb39bf2b24959fcbbb41",
+  "url": "/_blob/0f2c4847b1cbcb39bf2b24959fcbbb41",
+  "sha": "496e7049fea32099"
+ },
+ "previews/crew-footsteps--walk--boots--cobbles.mp4": {
+  "id": "2ef2da1170a9e0dfec4e8e3dd7560a8d",
+  "url": "/_blob/2ef2da1170a9e0dfec4e8e3dd7560a8d",
+  "sha": "dd7ffb56d5885a92"
+ },
+ "previews/crew-footsteps--walk--boots--concrete.mp4": {
+  "id": "b56c2475b4a28430302d41a5806ced69",
+  "url": "/_blob/b56c2475b4a28430302d41a5806ced69",
+  "sha": "446c35e77f2b85d4"
+ },
+ "previews/crew-footsteps--walk--boots--dirt.mp4": {
+  "id": "e90baae9927c4c6ed6046bf1f44bd5a8",
+  "url": "/_blob/e90baae9927c4c6ed6046bf1f44bd5a8",
+  "sha": "561289183baa49da"
+ },
+ "previews/crew-footsteps--walk--boots--grass.mp4": {
+  "id": "7c98b32c085ef6dc77a12445f4e8aad4",
+  "url": "/_blob/7c98b32c085ef6dc77a12445f4e8aad4",
+  "sha": "9e4667d7a40e0ee8"
+ },
+ "previews/crew-footsteps--walk--boots--grate.mp4": {
+  "id": "93caa168215eb9c1289d255cc540b95e",
+  "url": "/_blob/93caa168215eb9c1289d255cc540b95e",
+  "sha": "d41c36a2315c5531"
+ },
+ "previews/crew-footsteps--walk--boots--mud.mp4": {
+  "id": "88285c969538b49d8f54ef06dfde299b",
+  "url": "/_blob/88285c969538b49d8f54ef06dfde299b",
+  "sha": "caea2da4991ea91d"
+ },
+ "previews/crew-footsteps--walk--boots--plate.mp4": {
+  "id": "85e3ec260e4eea3ca774d2ea6e3feec3",
+  "url": "/_blob/85e3ec260e4eea3ca774d2ea6e3feec3",
+  "sha": "e582f654cc8032fe"
+ },
+ "previews/crew-footsteps--walk--boots--roof.mp4": {
+  "id": "d88c5ad5301f5ad9a6b2295e35c64fc3",
+  "url": "/_blob/d88c5ad5301f5ad9a6b2295e35c64fc3",
+  "sha": "a258ce4bc93c736f"
+ },
+ "previews/crew-footsteps--walk--boots--wood.mp4": {
+  "id": "c198abeff1bee791fddc7af27b2ecd9e",
+  "url": "/_blob/c198abeff1bee791fddc7af27b2ecd9e",
+  "sha": "1242bcc7119716d8"
+ },
+ "previews/crew-hurt--body-fall--collapse--concrete.mp4": {
+  "id": "811d249111f728e91f39ef6f321a6ac8",
+  "url": "/_blob/811d249111f728e91f39ef6f321a6ac8",
+  "sha": "275c4ffce60322f0"
+ },
+ "previews/crew-hurt--body-fall--collapse--grate.mp4": {
+  "id": "f1d3511a79788d9afa997b84417a38ab",
+  "url": "/_blob/f1d3511a79788d9afa997b84417a38ab",
+  "sha": "e76a274b8b6d0aa7"
+ },
+ "previews/crew-hurt--body-fall--collapse--ground.mp4": {
+  "id": "e197f464523583f1b07fcb68bfe7b935",
+  "url": "/_blob/e197f464523583f1b07fcb68bfe7b935",
+  "sha": "4837988bc5fb8dde"
+ },
+ "previews/crew-hurt--body-fall--collapse--wood.mp4": {
+  "id": "d341164b96b33c89cd18def8257746c2",
+  "url": "/_blob/d341164b96b33c89cd18def8257746c2",
+  "sha": "2f4babc8514972b9"
+ },
+ "previews/crew-hurt--burned--sear.mp4": {
+  "id": "3d82db22486e32011cb35bff174ff628",
+  "url": "/_blob/3d82db22486e32011cb35bff174ff628",
+  "sha": "16c1c80071db99a7"
+ },
+ "previews/crew-hurt--grabbed--coat.mp4": {
+  "id": "1c61f3a30209070b60cbdcb4357f923f",
+  "url": "/_blob/1c61f3a30209070b60cbdcb4357f923f",
+  "sha": "4474e225c627b216"
+ },
+ "previews/crew-hurt--hit--body.mp4": {
+  "id": "6e9d9ae52d4bf70c08445faa30513a32",
+  "url": "/_blob/6e9d9ae52d4bf70c08445faa30513a32",
+  "sha": "f539aa336eb106ee"
+ },
+ "previews/crew-jump-off--impact--body--grate.mp4": {
+  "id": "d142ed2571648c54b94ebf87e442a2f1",
+  "url": "/_blob/d142ed2571648c54b94ebf87e442a2f1",
+  "sha": "1f3b66d769863b2c"
+ },
+ "previews/crew-jump-off--impact--body--ground.mp4": {
+  "id": "d0bfbca3f1a24f54bcd3972d3fa26a62",
+  "url": "/_blob/d0bfbca3f1a24f54bcd3972d3fa26a62",
+  "sha": "b22dd38f96e1a62d"
+ },
+ "previews/crew-jump-off--rush--air.mp4": {
+  "id": "9e1c284ae3ef3f671049969eb8e7f0bc",
+  "url": "/_blob/9e1c284ae3ef3f671049969eb8e7f0bc",
+  "sha": "5874c140af20ef04"
+ },
+ "previews/crew-jump-off--tumble--ballast--ground.mp4": {
+  "id": "3b7f111fa972e0941d3dc361a4ab2dd7",
+  "url": "/_blob/3b7f111fa972e0941d3dc361a4ab2dd7",
+  "sha": "cae84f8df1e9db46"
+ },
+ "previews/crew-ladder--gap-land--plate.mp4": {
+  "id": "c0f3c0d18ca4034a5542b4ba3554898a",
+  "url": "/_blob/c0f3c0d18ca4034a5542b4ba3554898a",
+  "sha": "07d061a671764c6a"
+ },
+ "previews/crew-ladder--grab--rungs.mp4": {
+  "id": "5e7bdb08bba2509b1e4cc584be87b1c8",
+  "url": "/_blob/5e7bdb08bba2509b1e4cc584be87b1c8",
+  "sha": "9384885d46d4c3d3"
+ },
+ "previews/crew-ladder--let-go--rungs.mp4": {
+  "id": "a5173f3f6150ccfbbf0b6b8f459fb17b",
+  "url": "/_blob/a5173f3f6150ccfbbf0b6b8f459fb17b",
+  "sha": "d62261b30c6da6db"
+ },
+ "previews/crew-ladder--rung-down--rungs.mp4": {
+  "id": "211fd5c5b304054960c190ceac40ba6a",
+  "url": "/_blob/211fd5c5b304054960c190ceac40ba6a",
+  "sha": "8ea6fa523053eada"
+ },
+ "previews/crew-ladder--rung-up--rungs.mp4": {
+  "id": "8919c6ad7c8c20a2d5a6fba3817bf6d2",
+  "url": "/_blob/8919c6ad7c8c20a2d5a6fba3817bf6d2",
+  "sha": "5edad87676fa8531"
+ },
+ "previews/crew-lamps--cab-lamp--switch.mp4": {
+  "id": "c391c73c2a286e5ad01dcb07b551bd58",
+  "url": "/_blob/c391c73c2a286e5ad01dcb07b551bd58",
+  "sha": "8968ca8d8a81913a"
+ },
+ "previews/crew-lamps--car-lamp-off--switch.mp4": {
+  "id": "48f3baed1493805b7b8b7073e7922a98",
+  "url": "/_blob/48f3baed1493805b7b8b7073e7922a98",
+  "sha": "fa2f972f5c4288e3"
+ },
+ "previews/crew-lamps--car-lamp-on--switch.mp4": {
+  "id": "a571cd4909855c99fe9fc2c97c3fe058",
+  "url": "/_blob/a571cd4909855c99fe9fc2c97c3fe058",
+  "sha": "7683860d337b449a"
+ },
+ "previews/crew-lamps--lantern-light--match.mp4": {
+  "id": "3ce02610f6d4a1d57332500c7032625d",
+  "url": "/_blob/3ce02610f6d4a1d57332500c7032625d",
+  "sha": "1b0452ea5196540d"
+ },
+ "previews/crew-lamps--lantern-out--wick.mp4": {
+  "id": "ee6d2d45fb829f956470b82bc7715662",
+  "url": "/_blob/ee6d2d45fb829f956470b82bc7715662",
+  "sha": "748ed1aea496b781"
+ },
+ "previews/crew-melee--crowbar-drop--clatter--concrete.mp4": {
+  "id": "c56d9e021c8d56ba294609bafc3cfc7d",
+  "url": "/_blob/c56d9e021c8d56ba294609bafc3cfc7d",
+  "sha": "589444b11d8093f9"
+ },
+ "previews/crew-melee--crowbar-drop--clatter--grate.mp4": {
+  "id": "dca213c84292751a1f48fc49ea72ba64",
+  "url": "/_blob/dca213c84292751a1f48fc49ea72ba64",
+  "sha": "4376956f3b52b074"
+ },
+ "previews/crew-melee--crowbar-drop--clatter--ground.mp4": {
+  "id": "826fc01b5c8e65db6f411a44c966c905",
+  "url": "/_blob/826fc01b5c8e65db6f411a44c966c905",
+  "sha": "49c9d0aa2e86675e"
+ },
+ "previews/crew-melee--crowbar-drop--clatter--wood.mp4": {
+  "id": "3e67578c67e3ad0d6321ffc784b19ee8",
+  "url": "/_blob/3e67578c67e3ad0d6321ffc784b19ee8",
+  "sha": "8e04c2e574460bf0"
+ },
+ "previews/crew-melee--crowbar-equip--hands.mp4": {
+  "id": "bf675b518bebfd3b9a66e71ef0d1b6d0",
+  "url": "/_blob/bf675b518bebfd3b9a66e71ef0d1b6d0",
+  "sha": "5c04442083288fe8"
+ },
+ "previews/crew-melee--crowbar-hit-flesh--body.mp4": {
+  "id": "1ae2c7381db424dfea2d15d86ef0fb36",
+  "url": "/_blob/1ae2c7381db424dfea2d15d86ef0fb36",
+  "sha": "9f24a0614c2f5683"
+ },
+ "previews/crew-melee--crowbar-hit-metal--iron.mp4": {
+  "id": "655da406c32e0b656612e8850daf4351",
+  "url": "/_blob/655da406c32e0b656612e8850daf4351",
+  "sha": "dc74f835ef5c792d"
+ },
+ "previews/crew-melee--crowbar-hit-wood--boards.mp4": {
+  "id": "a8987ba34ec9a5a215a525c799dd974f",
+  "url": "/_blob/a8987ba34ec9a5a215a525c799dd974f",
+  "sha": "fe4b657453f058dc"
+ },
+ "previews/crew-melee--crowbar-stow--away.mp4": {
+  "id": "8677e004d393d27fba121d6f068ef2ad",
+  "url": "/_blob/8677e004d393d27fba121d6f068ef2ad",
+  "sha": "ed7cf42b3e93e639"
+ },
+ "previews/crew-melee--crowbar-swing--swing.mp4": {
+  "id": "2a71569e471bac274f49cd9ef87c7ccb",
+  "url": "/_blob/2a71569e471bac274f49cd9ef87c7ccb",
+  "sha": "5140610513b9d826"
+ },
+ "previews/crew-melee--shovel-drop--clatter--concrete.mp4": {
+  "id": "9549b7e8b57948b35f063eecdcc97f34",
+  "url": "/_blob/9549b7e8b57948b35f063eecdcc97f34",
+  "sha": "e1d65eeaf6e071e3"
+ },
+ "previews/crew-melee--shovel-drop--clatter--grate.mp4": {
+  "id": "9dee3e97806dbad24f51f138dc8ecf17",
+  "url": "/_blob/9dee3e97806dbad24f51f138dc8ecf17",
+  "sha": "2a8b03d3cda7bd74"
+ },
+ "previews/crew-melee--shovel-drop--clatter--ground.mp4": {
+  "id": "c476d6e4de4524377930420282cfb82f",
+  "url": "/_blob/c476d6e4de4524377930420282cfb82f",
+  "sha": "2c175dbcc30a72ec"
+ },
+ "previews/crew-melee--shovel-drop--clatter--wood.mp4": {
+  "id": "056e5d2030e38fd40e5719f9268f7e5b",
+  "url": "/_blob/056e5d2030e38fd40e5719f9268f7e5b",
+  "sha": "2ef12738bd3acd0d"
+ },
+ "previews/crew-melee--shovel-equip--hands.mp4": {
+  "id": "d09bc668917f1cad18682e1f7264c0a8",
+  "url": "/_blob/d09bc668917f1cad18682e1f7264c0a8",
+  "sha": "882e67e74b14fb44"
+ },
+ "previews/crew-melee--shovel-hit-flesh--body.mp4": {
+  "id": "e341b144f944938a9aaed911af0d9475",
+  "url": "/_blob/e341b144f944938a9aaed911af0d9475",
+  "sha": "3dbb4c26ce7dee41"
+ },
+ "previews/crew-melee--shovel-hit-metal--iron.mp4": {
+  "id": "b4f4d1ae970a57b6b3efc967a52c738d",
+  "url": "/_blob/b4f4d1ae970a57b6b3efc967a52c738d",
+  "sha": "7c95b34152df5466"
+ },
+ "previews/crew-melee--shovel-hit-wood--boards.mp4": {
+  "id": "bf03744df9453e188d4f987ec82db7a1",
+  "url": "/_blob/bf03744df9453e188d4f987ec82db7a1",
+  "sha": "d8c4b04b673ee7d9"
+ },
+ "previews/crew-melee--shovel-stow--away.mp4": {
+  "id": "80c2d55e7c7faf6fb4349b821e54b885",
+  "url": "/_blob/80c2d55e7c7faf6fb4349b821e54b885",
+  "sha": "3264a5ac1cbb4b52"
+ },
+ "previews/crew-melee--shovel-swing--swing.mp4": {
+  "id": "8ac77ef8dead8450ed052f3fda4141f5",
+  "url": "/_blob/8ac77ef8dead8450ed052f3fda4141f5",
+  "sha": "65d87fde7bfe96ae"
+ },
+ "previews/crew-melee--wrench-drop--clatter--concrete.mp4": {
+  "id": "96d5ea61b4cfc12d20b2c49aa198bdda",
+  "url": "/_blob/96d5ea61b4cfc12d20b2c49aa198bdda",
+  "sha": "1c54d77e6094d60e"
+ },
+ "previews/crew-melee--wrench-drop--clatter--grate.mp4": {
+  "id": "cecd8a175d360edcf67ccc5688ab3073",
+  "url": "/_blob/cecd8a175d360edcf67ccc5688ab3073",
+  "sha": "8ad3d94fda233bc8"
+ },
+ "previews/crew-melee--wrench-drop--clatter--ground.mp4": {
+  "id": "6f09ae27b41a52f4484b9800abe7acdb",
+  "url": "/_blob/6f09ae27b41a52f4484b9800abe7acdb",
+  "sha": "0cfcf0f70e049d3e"
+ },
+ "previews/crew-melee--wrench-drop--clatter--wood.mp4": {
+  "id": "a7549c60a039acc934219f02c4cd67e4",
+  "url": "/_blob/a7549c60a039acc934219f02c4cd67e4",
+  "sha": "e8aa85137c47172a"
+ },
+ "previews/crew-melee--wrench-equip--hands.mp4": {
+  "id": "a4d06d89780d77b1b1466860f9f9489c",
+  "url": "/_blob/a4d06d89780d77b1b1466860f9f9489c",
+  "sha": "8c7edcc8835776ba"
+ },
+ "previews/crew-melee--wrench-hit-flesh--body.mp4": {
+  "id": "4e68533756237b5203c36e23ffbff730",
+  "url": "/_blob/4e68533756237b5203c36e23ffbff730",
+  "sha": "3d7c8888f715c0ae"
+ },
+ "previews/crew-melee--wrench-hit-metal--iron.mp4": {
+  "id": "732e32eb6f7a063b30dad73d802a47a5",
+  "url": "/_blob/732e32eb6f7a063b30dad73d802a47a5",
+  "sha": "a7de0f2fc12df1b3"
+ },
+ "previews/crew-melee--wrench-hit-wood--boards.mp4": {
+  "id": "b43d50261cd88ff20668e1a8aab968e6",
+  "url": "/_blob/b43d50261cd88ff20668e1a8aab968e6",
+  "sha": "72727ad2f42b1798"
+ },
+ "previews/crew-melee--wrench-stow--away.mp4": {
+  "id": "d3094104516a277398769644e0770de7",
+  "url": "/_blob/d3094104516a277398769644e0770de7",
+  "sha": "c7f58cdf0f7522c6"
+ },
+ "previews/crew-melee--wrench-swing--swing.mp4": {
+  "id": "b2fdea2cf092f77137107ef79d21b4ba",
+  "url": "/_blob/b2fdea2cf092f77137107ef79d21b4ba",
+  "sha": "2b414e5f9b7940d8"
+ },
+ "previews/crew-repair--board-place--plank.mp4": {
+  "id": "f7584ae01f915b1803541a9d2df108fe",
+  "url": "/_blob/f7584ae01f915b1803541a9d2df108fe",
+  "sha": "6ce78f9a6a090921"
+ },
+ "previews/crew-repair--done--flush.mp4": {
+  "id": "faf53a6c53ebcc45f73a96f2f1e7ec2d",
+  "url": "/_blob/faf53a6c53ebcc45f73a96f2f1e7ec2d",
+  "sha": "1eb3ca11f6cbccb4"
+ },
+ "previews/crew-repair--hammer--nail.mp4": {
+  "id": "1ab7eac470d929425f96d856e1567898",
+  "url": "/_blob/1ab7eac470d929425f96d856e1567898",
+  "sha": "0196934cab5df2f7"
+ },
+ "previews/crew-repair--kit-open--toolbox.mp4": {
+  "id": "4f64200310103c7be1176a2c6d582324",
+  "url": "/_blob/4f64200310103c7be1176a2c6d582324",
+  "sha": "a2dc16e9c9e2b21c"
+ },
+ "previews/crew-repair--kit-shut--toolbox.mp4": {
+  "id": "5104d9825186e74ab772e6095915384b",
+  "url": "/_blob/5104d9825186e74ab772e6095915384b",
+  "sha": "0fa6780e5a5e2ca2"
+ },
+ "previews/crew-repair--ratchet--spanner.mp4": {
+  "id": "ff2535c1b2aef258379f9214991daafc",
+  "url": "/_blob/ff2535c1b2aef258379f9214991daafc",
+  "sha": "54f5884d70c0564d"
+ },
+ "previews/crew-shovel--knock--blade.mp4": {
+  "id": "9e7dfa384134f14aeaea443c4dcca8ad",
+  "url": "/_blob/9e7dfa384134f14aeaea443c4dcca8ad",
+  "sha": "735071a7a531e546"
+ },
+ "previews/crew-shovel--scoop--coal.mp4": {
+  "id": "43dc23786955d14d783f2d6207d8558a",
+  "url": "/_blob/43dc23786955d14d783f2d6207d8558a",
+  "sha": "4b99bcf097d7faf0"
+ },
+ "previews/crew-shovel--throw--coal.mp4": {
+  "id": "948833f92a3404c382bcacdae9e2a156",
+  "url": "/_blob/948833f92a3404c382bcacdae9e2a156",
+  "sha": "977c11d72559d868"
+ },
+ "previews/crew-switch--lever-latch--stand.mp4": {
+  "id": "5c432f58358afccb141a2dee1d7daac3",
+  "url": "/_blob/5c432f58358afccb141a2dee1d7daac3",
+  "sha": "87d46b8a0175a582"
+ },
+ "previews/crew-switch--lever-throw--stand.mp4": {
+  "id": "e5ad589401e9eb037ebbeff6df69b0cc",
+  "url": "/_blob/e5ad589401e9eb037ebbeff6df69b0cc",
+  "sha": "3d1425c466e8c115"
+ },
+ "previews/crew-switch--lever-unlatch--stand.mp4": {
+  "id": "1407fe093f6a31244c42c54de82865ff",
+  "url": "/_blob/1407fe093f6a31244c42c54de82865ff",
+  "sha": "2c1ea2cd40f2764c"
+ },
+ "previews/crew-switch--points-move--blades.mp4": {
+  "id": "bde9cd145f5bef1db6bae409b4f19daa",
+  "url": "/_blob/bde9cd145f5bef1db6bae409b4f19daa",
+  "sha": "cd66d504086c0fa8"
+ },
  "previews/cs-car-hugger--break-away--parting.mp4": {
   "id": "ca73c52d8ff5b3552d7c9a424ffb4dd1",
   "url": "/_blob/ca73c52d8ff5b3552d7c9a424ffb4dd1",
