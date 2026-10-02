@@ -105,6 +105,7 @@ public sealed class Passenger(int id) : Enemy(id)
                                 int ahead = train.VehicleAhead(rear);
                                 if (ahead >= 0)
                                     train.Uncouple(ahead);
+                                train.Vehicles[rear].Taken = true;
                                 int victim = Holding;
                                 Enter(ctx, SpinePhase.Punish);
                                 Punish(ctx, victim);

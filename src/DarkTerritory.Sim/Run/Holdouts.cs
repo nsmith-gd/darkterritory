@@ -100,6 +100,9 @@ public sealed class Holdouts
     /// <summary>Players freed this run, in order (host only).</summary>
     public List<int> Freed { get; } = [];
 
+    /// <summary>What a freed player comes out with: the night's starting kit (player.json "kit"), set by the host.</summary>
+    public ulong StartingKit { get; set; } = Kit.Of([Tool.Crowbar]);
+
     public Holdouts(HoldoutTuning t, Route.Route route, RailLine line)
     {
         Tuning = t;
@@ -336,9 +339,9 @@ public sealed class Holdouts
             LineHint = h.LineHint,
             Yaw = was.Yaw,
             Placed = (byte)(was.Placed + 1),
-            // What they carried, back with them (T108: nobody comes out of a Holdout empty-handed).
-            Kit = was.Kit,
-            HeldSlot = was.HeldSlot,
+            // What they carried stayed on their body (GDD v1.4 App. D.2, the engineering kit too); they come out with the
+            // night's starting kit (T108: nobody comes out of a Holdout empty-handed).
+            Kit = StartingKit,
         };
         _health[id] = back.Health;
         set(id, back);

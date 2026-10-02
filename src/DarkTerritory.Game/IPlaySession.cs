@@ -40,6 +40,9 @@ public interface IPlaySession
     bool WreckCinematic => false;
     /// <summary>Seconds since the train came off, as this client saw it.</summary>
     double WreckSeconds => 0;
+    /// <summary>GDD v1.4 App. E.9: the Stranded outro is playing (the run's end screen waits for it).</summary>
+    bool StrandedOutro => false;
+    double OutroSeconds => 0;
     Sim.Route.Route? Route { get; }
     PlayerState Player { get; }
     TrainControls Controls { get; }

@@ -66,6 +66,11 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     /// so once the thing is killed) rather than dented.
     /// </summary>
     public double Eaten { get; set; }
+    /// <summary>
+    /// The Territory has it (GDD v1.4 §23.2): a car the Car Hugger finished, or a caboose the Passenger rolled away. Gone,
+    /// with everything in it, however close it still is.
+    /// </summary>
+    public bool Taken { get; set; }
     /// <summary>Fraction of the cargo that would still pay on delivery (spec F.1).</summary>
     public double CargoIntegrity { get; set; } = 1;
     /// <summary>One bit per door in <see cref="CarShape.Doors"/>: set is open. Doors start shut.</summary>

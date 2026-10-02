@@ -333,12 +333,26 @@ public static class Hud
         // The derailment's cinematic plays out first (T117): no run's end or death screen over it.
         if (s.WreckCinematic)
             return;
+        // GDD v1.4 App. E.9: the clerk on the radio over the pull-back; the end screen after it.
+        if (s.StrandedOutro)
+        {
+            if (s.OutroSeconds > world.WreckTuning.Stranded.RackSeconds)
+                Small($"CONSIST REPORTED STRANDED AT KM {world.Run?.Report?.DistanceKm ?? 0:0}. RECOVERY AT FIRST LIGHT. RECOVERY IS CHARGEABLE.", Dim);
+            return;
+        }
         if (world.Run?.Report is { } r)
         {
             if (r.End == RunEnd.Delivered)
             {
                 Big("DELIVERED", Green);
                 Small($"{r.CarsDelivered} CARS, {r.CarsLost} LOST. {r.Net:0} SCRIP. CREW HOME {r.CrewHome}", Ink);
+            }
+            else if (r.End == RunEnd.Stranded)
+            {
+                // GDD v1.4 §23.2: nobody died of it, and nobody much cares.
+                Big("STRANDED", Amber);
+                Small(EngineeringKit.Line(r.KitLoss), Ink);
+                Small($"RECOVERY AT FIRST LIGHT. RECOVERY IS CHARGEABLE: {r.Recovery:0} SCRIP", Dim);
             }
             else
             {
@@ -376,7 +390,11 @@ public static class Hud
             if (b.Ruptured)
             {
                 Big("BOILER RUPTURED", Red);
-                Small(RepairKitWhere(world, s.PlayerId), Ink);
+                // GDD v1.4 §23.2: where the repair kit is decides the night; lost to the Territory, it's over once she stops.
+                if (world.Run?.Kit.Lost == true)
+                    Small("THE REPAIR KIT IS GONE: STRANDED WHEN SHE STOPS", Red);
+                else
+                    Small(RepairKitWhere(world, s.PlayerId), Ink);
             }
             else if (b.AtMaxSeconds > 0)
                 Big($"VENT! RUPTURE IN {Math.Max(0, bt.RuptureHoldSeconds - b.AtMaxSeconds):0}S", flash ? Red : Amber);

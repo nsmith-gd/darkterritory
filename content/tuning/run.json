@@ -13,6 +13,16 @@
   // gate, not on it, so everyone joining boards at the fortress (GDD App. D.3) until it does.
   "departShortOfGateM": 8,
 
+  // GDD v1.4 §23.2, Stranded: a ruptured boiler with the engineering kit lost ends the night once the train is at rest.
+  "stranded": {
+    // A cut car on the main line is gone (and the kit in it) this far from every living crewmate: D.13's release distance.
+    "kitLostBeyond": 400,
+    // The dawn freight's tow, billed in the tier's per-car values (E.10: 0.5, range 0.25-1.0).
+    "recoveryFee": 0.5,
+    // Not in the GDD: lost this long first, so a hand-off between ticks can't strand a night.
+    "lostForSeconds": 1
+  },
+
   // Coaling tower (GDD §18, spec D.2 gravity chute): someone on the ground pulls the lever; it pours
   // whether you're ready or not; coal that misses the tender is lost, and overfilling damages the engine.
   "chute": {

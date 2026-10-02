@@ -188,6 +188,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public double WreckSeconds { get; private set; }
     /// <summary>The derailment's cinematic: the camera off the eye and on the wreck, the run's end held back till it's over.</summary>
     public bool WreckCinematic => Train.Wreck is not null && WreckSeconds < World.WreckTuning.CinematicSeconds;
+    public double OutroSeconds { get; private set; }
+    public bool StrandedOutro => World.Run?.End == Sim.Run.RunEnd.Stranded && OutroSeconds < World.WreckTuning.Stranded.Seconds;
     public World World => Client.World;
     public PlayerState Player => Client.Predicted;
     public TrainControls Controls => Client.Controls;
@@ -444,6 +446,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         _previous = Client.Predicted;
         Client.Step(Spectate(intent));
         WreckSeconds = Train.Wreck is null ? 0 : WreckSeconds + SimConstants.TickSeconds;
+        OutroSeconds = World.Run?.End == Sim.Run.RunEnd.Stranded ? OutroSeconds + SimConstants.TickSeconds : 0;
         Tick++;
         if (!_link.IsConnected && Client.Connected)
             Lost = true;

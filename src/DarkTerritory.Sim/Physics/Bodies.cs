@@ -66,6 +66,12 @@ public sealed class Body
     /// "physically aboard and readable"); <see cref="CargoKind.None"/> for a stop's loot crates and everything else.
     /// </summary>
     public CargoKind Cargo { get; set; }
+    /// <summary>
+    /// For a ragdoll, the tools its player was carrying when they died (GDD v1.4 App. D.2: the body keeps everything,
+    /// the engineering kit included), packed like <see cref="PlayerState.Kit"/>. Whoever lifts the body takes them.
+    /// </summary>
+    public ulong Tools { get; set; }
+    public bool HasTool(Tool tool) => Player.Kit.Has(Tools, tool);
     internal int Airborne;
     internal double LineHint;
     public Double3 Centre => Pbd.Centre;
@@ -119,6 +125,10 @@ public sealed class Bodies
     public static double Value(BodyKind kind) => kind switch
     {
         BodyKind.Child => 10,
+        // GDD v1.4 App. D.9: "a body is valued at its refund when enemies rank loot": the Gaunt can take it (and the kit on it,
+        // §23.2), and Followers nest in its car. Above the medicine (§23.1: "the Gaunt choosing a corpse over the medicine"),
+        // below a living child.
+        BodyKind.Ragdoll => 5,
         BodyKind.Loot => 3,
         BodyKind.Cargo or BodyKind.Heavy => 2,
         BodyKind.Toy => 1,
@@ -194,12 +204,33 @@ public sealed class Bodies
         {
             Owner = owner,
             LineHint = dead.LineHint,
+            Tools = dead.Kit,
         };
         _bodies.Add(body);
         return body;
     }
 
     public bool HasRagdoll(int owner) => _bodies.Any(b => b.Kind == BodyKind.Ragdoll && b.Owner == owner);
+
+    /// <summary>
+    /// Lifting a body takes the tools off it, into the lifter's empty slots (GDD v1.4 §12: "they go looking for the
+    /// engineer", and whoever finds the engineer has the kit). The wrench first; what doesn't fit stays on the body.
+    /// </summary>
+    public static void TakeTools(ref PlayerState s, Body body)
+    {
+        if (body.Tools == 0)
+            return;
+        ulong kit = s.Kit, left = 0;
+        foreach (var tool in Enumerable.Range(0, Player.Kit.Slots).Select(i => Player.Kit.At(body.Tools, i)).Where(t => t != Tool.None)
+            .OrderBy(t => t == Tool.Wrench ? 0 : 1))
+        {
+            // A spare crowbar isn't worth a slot; the wrench (there's the one) always is.
+            if (tool != Tool.Wrench && Player.Kit.Has(kit, tool) || !Player.Kit.TryAdd(ref kit, tool))
+                Player.Kit.TryAdd(ref left, tool);
+        }
+        s.Kit = kit;
+        body.Tools = left;
+    }
 
     // Who has a body for the death they're in now (one body per death, GDD App. D.9: die twice, leave two).
     readonly HashSet<int> _bodied = [];

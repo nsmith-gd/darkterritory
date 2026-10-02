@@ -134,6 +134,7 @@ public class HoldoutTests
     {
         var n = new Night(AHalt, engineFrom: -300);
         int living = n.Add(alive: true), dead = n.Add(alive: false);
+        n[dead] = n[dead] with { Kit = Kit.Of([Tool.Shovel, Tool.Wrench]) };
         n.Step(0.2);
         var h = Assert.Single(n.Here);
         // D.5 assign: the consist inside the approach, someone in the queue; the lamp lights.
@@ -149,6 +150,9 @@ public class HoldoutTests
         var back = n[dead];
         Assert.True(back.Alive);
         Assert.Equal(H.FreedHealth, back.Health);
+        // GDD v1.4 D.2: what they carried stayed on their body (the engineering kit too); out with the starting kit (T108).
+        Assert.Equal(n.World.Holdouts!.StartingKit, back.Kit);
+        Assert.False(Kit.Has(back.Kit, Tool.Wrench));
         // D.14 "no open-world spawns": inside the Holdout, never out in the open.
         Assert.True((back.Position - h.Inside).Length < 0.01);
         Assert.DoesNotContain(n.World.Holdouts!.Queue, e => e.PlayerId == dead);

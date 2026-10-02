@@ -15,6 +15,9 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
     /// <summary>How far short of the outer gate a night's engine starts (run.json <c>departShortOfGateM</c>).</summary>
     public double DepartShortOfGateM { get; init; } = 8;
 
+    /// <summary>Stranded, unable to repair (GDD v1.4 §23.2): run.json <c>stranded</c>.</summary>
+    public StrandedTuning Stranded { get; init; } = new();
+
     /// <summary>
     /// Where a night's engine starts: its front just short of the gate, ready to depart (the whole train still in the yard,
     /// so the run begins as it moves off), or as far back as the consist needs to fit on the line.
@@ -29,16 +32,20 @@ public sealed record EconomyTuning(Dictionary<string, double> PerCar, double Coa
 /// <summary>GDD §9: FORTRESS → WILDERNESS → FACILITY → WILDERNESS → TERMINUS.</summary>
 public enum RunPhase : byte { Yard, Underway, AtFacility, Arrived, Failed }
 
-public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed }
+/// <summary>How a night ends (GDD v1.4 §23): <see cref="Stranded"/> is a ruptured boiler with the engineering kit lost (§23.2).</summary>
+public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed, Stranded }
 
 /// <summary>What a night came to (spec F.1): everything still attached to the locomotive counts.</summary>
 /// <param name="Scavenged">Scrip for village finds stowed aboard (level-design P12), paid with the cargo on delivery and in Gross.</param>
 /// <param name="Deaths">In-run deaths (GDD App. D.9), each charged <paramref name="CrewLossFees"/>' share; <paramref name="BodiesHome"/>
 /// of their bodies came home aboard, refunding <paramref name="BodyRefunds"/>. Net is after both.</param>
 /// <param name="Mail">Pay caught off the mail cranes (sight.json drops), paid with the cargo at the terminus and in the gross.</param>
+/// <param name="Recovery">Stranded (GDD v1.4 §23.2): the dawn freight's bill for towing the train in.</param>
+/// <param name="KitLoss">Stranded: how the engineering kit was lost.</param>
 public sealed record RunReport(RunEnd End, double Seconds, double DistanceKm, int CarsDelivered, int CarsLost, double CargoDelivered,
     double Gross, double CoalCost, double AmmoCost, double RepairCost, double Net, int CrewHome, int CrewLost, double Scavenged = 0,
-    int Deaths = 0, int BodiesHome = 0, double CrewLossFees = 0, double BodyRefunds = 0, double Mail = 0);
+    int Deaths = 0, int BodiesHome = 0, double CrewLossFees = 0, double BodyRefunds = 0, double Mail = 0, double Recovery = 0,
+    KitLoss KitLoss = KitLoss.None);
 
 /// <summary>
 /// One night's run, host-authoritative (clients mirror it for the HUD). The yard gate opens the run and
@@ -167,6 +174,10 @@ public sealed partial class Run
     public bool ChuteOpen { get; private set; }
     public double ChuteLeft(int facility) => facility >= 0 && facility < _chuteLeft.Length ? _chuteLeft[facility] : 0;
     public bool Over => Phase is RunPhase.Arrived or RunPhase.Failed;
+    /// <summary>Where the engineering kit is, as of this tick (host; GDD v1.4 §23.2).</summary>
+    public KitWhere Kit { get; private set; }
+    double _kitLostFor;
+    bool _kitStocked;
     public RunReport? Report { get; private set; }
 
     /// <summary>Advances the run after the world has stepped. <paramref name="crew"/> is everyone's authoritative state.</summary>
@@ -196,10 +207,19 @@ public sealed partial class Run
         StepSites(world, dt);
         StepLoot(world, dt);
 
+        // §23.2: the check runs every tick. Ruptured with the kit lost, the night ends once the train comes to rest (the
+        // crew get the whole coast to work out what just happened).
+        _kitStocked |= world.KitStocked || world.Bodies.All.Any(b => b.Kind == Physics.BodyKind.RepairKit);
+        Kit = EngineeringKit.Where(world, crew, Tuning.Stranded, _kitStocked);
+        _kitLostFor = Kit.Lost ? _kitLostFor + dt : 0;
+        bool stranded = train.Boiler.Ruptured && _kitLostFor >= Tuning.Stranded.LostForSeconds && engine.Speed < Tuning.StopBelowSpeed;
+
         if (world.Derailed)
             Finish(world, crew, RunPhase.Failed, RunEnd.Derailed);
         else if (crew.Count > 0 && crew.All(c => !c.Alive))
             Finish(world, crew, RunPhase.Failed, RunEnd.CrewLost);
+        else if (stranded)
+            Finish(world, crew, RunPhase.Failed, RunEnd.Stranded);
         else if (Seconds > _route.DawnSeconds + Tuning.DawnGraceSeconds)
             Finish(world, crew, RunPhase.Failed, RunEnd.DawnMissed);
         else if (engine.Speed < Tuning.StopBelowSpeed && train.OnMain && front >= _route.Length - Tuning.TerminusZone)
@@ -580,8 +600,11 @@ public sealed partial class Run
         // Home is aboard, or at least with the train: someone mid-jump between roofs, or who stepped down at
         // the terminus, made it. Anyone further than this from every attached car didn't.
         const double WithTheTrain = 40;
-        int crewHome = crew.Count(c => c.Alive && (c.Parent != PlayerState.World && attached.Contains(c.Parent)
+        // Stranded (§23.2): the dawn freight tows the train in, and the living come home with it, wherever they're stood.
+        bool stranded = End == RunEnd.Stranded;
+        int crewHome = crew.Count(c => c.Alive && (stranded || c.Parent != PlayerState.World && attached.Contains(c.Parent)
             || attached.Any(id => (train.Frames[id].Origin - PlayerMotor.WorldPosition(c, train)).Length < WithTheTrain)));
+        double recovery = stranded ? Math.Round(Tuning.Stranded.RecoveryFee * perCar) : 0;
         // GDD App. D.9, bodies as loot: every death costs the crew a fee; every body brought home (stowed in a car still on
         // the engine, or carried aboard) refunds most of it, never all. A drop-out's body is neither.
         int deaths = 0, bodiesHome = 0;
@@ -597,8 +620,8 @@ public sealed partial class Run
         }
         return new RunReport(End, Math.Round(Seconds, 1), Math.Round(engine.Distance / 1000, 2), home.Count, cargo.Count - home.Count,
             Math.Round(cargoValue, 2), Math.Round(gross), Math.Round(coal), Math.Round(ammo), Math.Round(repairs),
-            Math.Round(gross - coal - ammo - repairs - fees + refunds), crewHome, crew.Count - crewHome, delivered ? Math.Round(Scavenged) : 0,
-            deaths, bodiesHome, fees, refunds, Math.Round(delivered ? Mail : 0));
+            Math.Round(gross - coal - ammo - repairs - fees + refunds - recovery), crewHome, crew.Count - crewHome, delivered ? Math.Round(Scavenged) : 0,
+            deaths, bodiesHome, fees, refunds, Math.Round(delivered ? Mail : 0), recovery, stranded ? Kit.Loss : KitLoss.None);
     }
 
     /// <summary>

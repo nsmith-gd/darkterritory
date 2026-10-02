@@ -260,6 +260,56 @@ public static class Views
         return Camera.LookAt(eye, look, 55);
     }
 
+    /// <summary>
+    /// GDD v1.4 App. E.9, the Stranded outro: on where the repair kit should be (its place on car 1's floor, ARCHITECTURE note
+    /// 150; E.9's "empty engineering-kit rack"), then up and back over the stopped consist to a high wide. "§6's small glowing
+    /// machine in an enormous black world, going dark."
+    /// </summary>
+    public static Camera Stranded(TrainOnLine train, Sim.Train.StrandedOutroTuning t, double seconds)
+    {
+        Double3 rackAt, rackEye;
+        if (Sim.World.RepairKitCar(train) is { } car && train.Frames[car].Shape.Interior is { } room)
+        {
+            // From across the aisle by the front door (the load is behind it), looking down at the bare boards where it's kept.
+            var frame = train.Frames[car];
+            var spot = Sim.World.RepairKitStowage(frame.Shape, room);
+            rackAt = frame.ToWorld(spot + new Double3(0, 0.1, 0));
+            rackEye = frame.ToWorld(spot + new Double3(-Math.Sign(spot.X == 0 ? 1 : spot.X) * 1.1, 1.5, -0.45));
+        }
+        else
+        {
+            // No kit's car: the cab's tool rack, across the cab at a standing eye (TrainKit.ToolRack: the pegs at 0.7).
+            var cab = train.Frames[0];
+            var rack = cab.Shape.Interactables.Where(i => i.Kind == InteractableKind.ToolRack).Select(i => (Double3?)i.Position).FirstOrDefault() ?? new Double3(0.8, 1.4, 0);
+            double side = Math.Sign(rack.X == 0 ? 1 : rack.X);
+            rackAt = cab.ToWorld(rack + new Double3(side * 0.12, 0.72, 0));
+            rackEye = cab.ToWorld(rack + new Double3(-side * 1.25, 1.45, 0.55));
+        }
+        if (seconds <= t.RackSeconds)
+            return Camera.LookAt(rackEye, rackAt, 50);
+        double u = Math.Clamp((seconds - t.RackSeconds) / t.PullBackSeconds, 0, 1);
+        u = u * u * (3 - 2 * u);
+        var mid = train.Frames[train.Frames.Count / 2];
+        var middle = mid.ToWorld(new Double3(0, 1, 0));
+        var wide = middle + mid.Back * t.BackM + mid.Right * (t.BackM * 0.6) + Double3.Up * t.HeightM;
+        return Camera.LookAt(Double3.Lerp(rackEye, wide, u), Double3.Lerp(rackAt, middle, Math.Min(1, u * 1.6)), (float)(50 + 10 * u));
+    }
+
+    /// <summary>
+    /// App. E.4 O12, the cinematic's light rig: the fog pushed out to at least twice the shot's distance, so what it's of
+    /// reads through the night.
+    /// </summary>
+    public static void CinematicFog(ref FrameLighting light, double shotDistance) =>
+        light.FogDensity = Math.Min(light.FogDensity, (float)(1 / (2 * Math.Max(1, shotDistance))));
+
+    /// <summary>E.9's shot distance at <paramref name="seconds"/>: the camera to the middle of the train.</summary>
+    public static double StrandedDistance(TrainOnLine train, Sim.Train.StrandedOutroTuning t, double seconds) =>
+        (Stranded(train, t, seconds).Position - train.Frames[train.Frames.Count / 2].Origin).Length;
+
+    /// <summary>E.9: how many of the train's lamps are out, from the last car forward (the engine's last of all).</summary>
+    public static int StrandedLampsOut(int cars, Sim.Train.StrandedOutroTuning t, double seconds) =>
+        seconds <= t.RackSeconds ? 0 : (int)Math.Floor(Math.Clamp((seconds - t.RackSeconds) / t.PullBackSeconds, 0, 1) * (cars + 0.999));
+
     static Camera ChaseCamera(TrainOnLine train)
     {
         var last = train.Frames[^1];

@@ -127,6 +127,8 @@ public sealed class HostSession
         foreach (var c in _crew)
             PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
         World.StepBodies([.. _crew.Select(c => ((int)c.Id, c.State))]);
+        if (World.Holdouts is { } holdouts)
+            holdouts.StartingKit = PlayerTuning.StartingKit;
         HoldoutEvents.AddRange(World.StepHoldouts([.. _crew.Select(c => ((int)c.Id, c.State))], (id, st) => _crew.First(c => c.Id == id).State = st));
         if (World.Run is not null)
             World.StepRun([.. _crew.Select(c => c.State)]);

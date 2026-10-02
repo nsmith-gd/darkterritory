@@ -211,7 +211,11 @@ public sealed class World
         var shape = Train.Frames[car].Shape;
         for (int i = 0; i < Train.Dynamics.Tuning.Kit.RepairKits; i++)
             Bodies.SpawnCrate(Train, car, RepairKitStowage(shape, shape.Interior!.Value, i), Physics.BodyKind.RepairKit);
+        KitStocked |= Train.Dynamics.Tuning.Kit.RepairKits > 0;
     }
+
+    /// <summary>The train left with a repair kit (GDD v1.4 §23.2: without one, nothing can strand it).</summary>
+    public bool KitStocked { get; private set; }
 
     /// <summary>The car the repair kit rides in: train.json's, or the nearest walk-in car to the engine before it; null with none.</summary>
     public static int? RepairKitCar(TrainOnLine train)
@@ -381,6 +385,8 @@ public sealed class World
         bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, kit) == true;
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever.
         bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand, keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)));
+        if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
+            Physics.Bodies.TakeTools(ref s, lifted);
         // At the crane's controls, the stick drives the crane, not your feet (T48). Worked out the same everywhere, so a
         // client predicts standing still at the stand.
         bool operating = false;

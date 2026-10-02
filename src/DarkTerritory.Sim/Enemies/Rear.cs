@@ -239,6 +239,7 @@ public sealed class CarHugger(int id) : Enemy(id)
             int ahead = train.VehicleAhead(Attached);
             if (ahead >= 0)
                 train.Uncouple(ahead);
+            car.Taken = true;
             Enter(ctx, SpinePhase.BreakOff);
             Enter(ctx, SpinePhase.Gone);
             return;
