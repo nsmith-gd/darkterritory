@@ -505,8 +505,10 @@ public static class PlayerMotor
             s.Cold = Math.Max(0, s.Cold - dt * c.DeathSeconds / c.RecoverSecondsNearHeat);
             return;
         }
-        // Out of the wind inside a car with a door open: it comes on, but slower (spec B.2).
-        s.Cold += Indoors(s, train) ? dt * c.IndoorsRate : dt;
+        // Out of the wind inside a car with a door open: it comes on, but slower (spec B.2). GDD §22 deep cold (note 183): faster
+        // the colder it is where they are (the night's cold, high ground, exposed track).
+        double deep = 1 + c.PerColdStep * Math.Max(0, train.Line.Conditions?.ColdStep(RailLine.MainPath, s.LineHint) ?? 0);
+        s.Cold += (Indoors(s, train) ? dt * c.IndoorsRate : dt) * deep;
         if (s.Cold >= c.DeathSeconds)
         {
             s.Health = 0;

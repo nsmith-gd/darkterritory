@@ -228,6 +228,31 @@ public sealed class World
                 Attribution.Add(Sim.Run.IncidentLog.Death(this, id, s, body, crew));
         Bodies.Step(Train, Train.Dynamics.Tuning, id => crew.FirstOrDefault(c => c.Id == id) is { State: var s } pair && pair.Id == id ? s : null);
         Recover();
+        BreakRadios(crew);
+    }
+
+    readonly Dictionary<int, (int Health, bool Held)> _wasHurt = [];
+
+    /// <summary>
+    /// GDD §23 "radio breaks" (note 183): a hard knock (a fall, a blow) or being grabbed may smash the radio on your belt. The
+    /// chance rises with the damage; the same on every run of the tick (a hash, not a die). Broken, it's carried but dead.
+    /// </summary>
+    void BreakRadios(IReadOnlyCollection<(int Id, PlayerState State)> crew)
+    {
+        var t = Train.Dynamics.Tuning.Kit;
+        foreach (var (id, s) in crew)
+        {
+            (int Health, bool Held) was = _wasHurt.TryGetValue(id, out var before) ? before : (s.Health, s.Has(PlayerFlags.Held));
+            _wasHurt[id] = (s.Health, s.Has(PlayerFlags.Held));
+            int lost = Math.Max(0, was.Health - s.Health);
+            bool grabbed = s.Has(PlayerFlags.Held) && !was.Held;
+            if (lost == 0 && !grabbed)
+                continue;
+            double chance = Math.Min(1, t.RadioBreakPerDamage * lost + (grabbed ? t.RadioBreakOnGrab : 0));
+            foreach (var radio in Bodies.All.Where(b => b.Kind == Physics.BodyKind.Radio && b.Carrier == id && !b.Broken))
+                if (DarkTerritory.Sim.Combat.Guns.Fouls(Tick, 1000 + id, chance))
+                    radio.Broken = true;
+        }
     }
 
     /// <summary>
@@ -534,6 +559,10 @@ public sealed class World
             }
         }
         Derailed = true;
+        // GDD v1.4 App. E.4 O12, §23 "lights fail": the lamps die in the wreck, the forward lamp and every car's.
+        SmashLamp(1e5);
+        foreach (var v in Train.Vehicles)
+            v.LampLit = false;
         foreach (var rake in Train.Rakes)
             rake.Velocity = 0;
     }

@@ -315,6 +315,8 @@ public sealed class TrainOnLine
                 var effective = controls;
                 if (BoilerTuning is { } bt)
                 {
+                    // GDD §22 deep cold (note 183): the cold where the engine is takes the edge off what a shovelful makes.
+                    Boiler.Efficiency = bt.ColdEfficiency(Line.Conditions?.ColdStep(rake.Path, rake.Distance) ?? 0);
                     // Tractive effort comes from the pressure there is now; then the fire and the cylinders move it.
                     if (bt.SteamDrive)
                     {

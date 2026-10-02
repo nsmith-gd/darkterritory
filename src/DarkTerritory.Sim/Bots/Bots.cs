@@ -105,7 +105,8 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
             _holding = false;
         // GDD v1.1 App. C.3: powder, ball, ram after every shot, before anything else (Use held at the gun).
         _atGun = true;
-        if (world.Train.Vehicles[gun].Gun is { ReloadNeeded: > 0, Ammo: > 0 })
+        // A fouled bore (note 183) the same way: Use held until it's clear.
+        if (world.Train.Vehicles[gun].Gun is { ReloadNeeded: > 0, Ammo: > 0 } or { Jammed: true })
             return new PlayerIntent { Buttons = PlayerButtons.Use };
         // T112: only from the seat.
         var seat = self.Has(PlayerFlags.Seated) ? PlayerActions.None : PlayerActions.Seat;

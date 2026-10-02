@@ -25,6 +25,10 @@ public sealed record TrainTuning
 public sealed record KitTuning
 {
     public int Radios { get; init; }
+    /// <summary>GDD §23 "radio breaks" (note 183): the chance a radio on your belt smashes, per point of damage you take.</summary>
+    public double RadioBreakPerDamage { get; init; } = 0.006;
+    /// <summary>... and when something grabs you.</summary>
+    public double RadioBreakOnGrab { get; init; } = 0.25;
     /// <summary>Toys in the guard van (GDD v1.1 App. C.4): hand loot, what the Track Doll will leave for.</summary>
     public int Toys { get; init; }
     /// <summary>

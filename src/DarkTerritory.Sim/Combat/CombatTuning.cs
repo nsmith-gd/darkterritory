@@ -29,6 +29,15 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     public double LaidDegrees { get; init; } = 2.5;
     /// <summary>How finely a ball's path is searched for the ground, water or a wall it lands on (m; T121).</summary>
     public double ImpactStep { get; init; } = 0.5;
+    /// <summary>
+    /// GDD §23 "gun jams: someone repairs it by hand, under fire" (note 183): the chance a shot fouls the bore, times
+    /// <see cref="FoulWetFactor"/> on wet rail (rain); then <see cref="ClearSeconds"/> of Use held at the gun clears it.
+    /// </summary>
+    public double FoulChance { get; init; } = 0.04;
+    public double FoulWetFactor { get; init; } = 2.5;
+    public double ClearSeconds { get; init; } = 4;
+    /// <summary>GDD §22 wind (note 183): "gunfire carries much further": a round's loudness grows this much per unit of wind.</summary>
+    public double WindLoudness { get; init; } = 0.6;
 }
 
 /// <summary>The loudness meter and the Choir it draws (GDD v1.1 App. A.7, C.7). Field docs live in combat.json.</summary>

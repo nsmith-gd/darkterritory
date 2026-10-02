@@ -7,6 +7,12 @@
     // forward gun sits behind the engine's stack, which masks the rail closer than about 60 m, and the doll shows in the
     // lamp at 200 m; at 80 the shot that saves you had a second or two's window. Now it's from first sight to the stack.
     "range": 220,
+    // GDD §23 "gun jams: someone repairs it by hand, under fire" (note 183): a shot fouls the bore one time in 25 (×2.5 on wet
+    // rail), and clearSeconds of Use held at the gun clears it. GDD §22 wind: a round's loudness ×(1 + windLoudness × wind).
+    "foulChance": 0.04,
+    "foulWetFactor": 2.5,
+    "clearSeconds": 4,
+    "windLoudness": 0.6,
     // Total traverse either side of the gun's facing is half of this.
     "traverseDegrees": 200,
     // Spec B.7: no firing within this many degrees of the train's own body axis.

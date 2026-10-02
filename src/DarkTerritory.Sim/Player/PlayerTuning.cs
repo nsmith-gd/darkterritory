@@ -31,7 +31,9 @@ public sealed record PlayerTuning(
 }
 
 /// <param name="IndoorsRate">How fast the cold comes on inside a car's walls with a door open, against outside (spec B.2).</param>
-public sealed record ColdTuning(double OnsetSeconds, double DeathSeconds, double RecoverSecondsNearHeat, double OnsetSpeedScale, double IndoorsRate = 1);
+/// <param name="PerColdStep">GDD §22 deep cold (note 183): each cold step where you are makes the cold climb this much faster.</param>
+public sealed record ColdTuning(double OnsetSeconds, double DeathSeconds, double RecoverSecondsNearHeat, double OnsetSpeedScale, double IndoorsRate = 1,
+    double PerColdStep = 0.25);
 /// <param name="LethalAbove">Speed over the ground on landing that kills (spec B.3 after T90); 0 for the train's jump-off band.</param>
 /// <param name="DamageAtLethal">A landing's knock rises from <paramref name="RollDamage"/> to this at the lethal edge.</param>
 public sealed record LandingTuning(double RollAbove, int RollDamage, double LethalAbove = 0, int DamageAtLethal = 0);

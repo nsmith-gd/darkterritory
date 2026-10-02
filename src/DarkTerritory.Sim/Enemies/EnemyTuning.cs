@@ -280,6 +280,8 @@ public sealed record GauntTuning
 /// <summary>Climbers (App. A.4, B.4). Field docs live in enemies.json.</summary>
 public sealed record ClimberTuning
 {
+    /// <summary>GDD §23 "lights fail" (note 183): coming over the engine's end, it smashes the forward lamp for this long.</summary>
+    public double LampOutSeconds { get; init; } = 45;
     public double PaceOut { get; init; } = 2.5;
     public double PaceSeconds { get; init; } = 6;
     public double Catch { get; init; } = 1.2;

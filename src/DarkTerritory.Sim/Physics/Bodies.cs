@@ -72,6 +72,8 @@ public sealed class Body
     /// "physically aboard and readable"); <see cref="CargoKind.None"/> for a stop's loot crates and everything else.
     /// </summary>
     public CargoKind Cargo { get; set; }
+    /// <summary>A radio smashed in a fall, a grab or a blow (GDD §23 "radio breaks"; note 183): carried, but dead.</summary>
+    public bool Broken { get; set; }
     /// <summary>A toy's noise (App. C.7): <see cref="ToyNoise.None"/> for a quiet one and everything that isn't a toy.</summary>
     public ToyNoise Noise { get; set; }
     /// <summary>
@@ -128,7 +130,7 @@ public sealed class Bodies
     public bool RadiosCarried { get; set; }
 
     /// <summary>Whether a player can use the radio: wearing one, or everyone while radios aren't things.</summary>
-    public bool HasRadio(int playerId) => !RadiosCarried || _bodies.Any(b => b.Kind == BodyKind.Radio && b.Carrier == playerId);
+    public bool HasRadio(int playerId) => !RadiosCarried || _bodies.Any(b => b.Kind == BodyKind.Radio && b.Carrier == playerId && !b.Broken);
 
     /// <summary>What a player carries in their hands (a radio's on the belt, not in them).</summary>
     public Body? CarriedBy(int playerId) => _bodies.FirstOrDefault(b => b.HeldBy(playerId) && b.Kind != BodyKind.Radio);

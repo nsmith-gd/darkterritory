@@ -383,7 +383,9 @@ public static class Hud
             return;
         // Right mouse throws what's in your hands; with them empty, it sets the radio down to pass on.
         string wearing = Bound(bodies.CarriedBy(s.PlayerId) is null ? "RADIO [T]  [RMB] SET IT DOWN" : "RADIO [T]");
-        o.TextRight(width - 6, 5 + 5 * line, bodies.HasRadio(s.PlayerId) ? wearing : "NO RADIO", bodies.HasRadio(s.PlayerId) ? Dim : Amber);
+        // GDD §23 "radio breaks" (note 183): carried, but smashed.
+        bool broken = bodies.All.Any(b => b.Kind == BodyKind.Radio && b.Carrier == s.PlayerId && b.Broken);
+        o.TextRight(width - 6, 5 + 5 * line, bodies.HasRadio(s.PlayerId) ? wearing : broken ? "RADIO BROKEN" : "NO RADIO", bodies.HasRadio(s.PlayerId) ? Dim : Amber);
     }
 
     /// <summary>

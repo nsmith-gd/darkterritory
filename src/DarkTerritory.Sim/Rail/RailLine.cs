@@ -84,6 +84,10 @@ public interface ITrackConditions
     double Adhesion(int path, double distance);
     /// <summary>A deceleration (m/s²) the track puts on a train at <paramref name="speed"/> there (brass across the rail).</summary>
     double Drag(int path, double distance, double speed);
+    /// <summary>How deep the cold is there (GDD §22 "deep cold"; linegen plan §14's cold steps, 0 a normal night; note 183).</summary>
+    int ColdStep(int path, double distance) => 0;
+    /// <summary>How exposed to the wind it is there (GDD §22 "wind"; 0 sheltered, 1 a normal night's wind; note 183).</summary>
+    double Wind(int path, double distance) => 0;
 }
 
 /// <summary>A built branch: its own line, laid from the main line's points onwards.</summary>

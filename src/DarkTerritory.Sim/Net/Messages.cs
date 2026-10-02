@@ -20,7 +20,8 @@ public static class Protocol
     // 12: bookmarks (Bookmark) and the report's bookmarks beside its lines (GDD v1.4 App. D.12, note 176).
     // 13: the dead's creature vote (Ballot, VoteCue) and commendations (Commend, Commendations) (GDD v1.4 App. D.11, D.12; note 180).
     // 14: who everyone is (Looks), a freed survivor carried from an earlier night (GDD v1.4 App. D.8; note 181).
-    public const int Version = 14;
+    // 15: a broken radio on the body record; a fouled gun on the vehicle record (GDD §23; note 183).
+    public const int Version = 15;
 }
 
 public enum MessageType : byte
