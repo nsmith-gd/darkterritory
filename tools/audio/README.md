@@ -31,7 +31,17 @@ DIR is the store's `items` as an ArtifactData list saves them with `out_dir`.
   reeds), `recipes/kit.py` (creature parts), `src.py` (sources by key), `look.py` (spectrograms).
 - `assets.py` + `assets.json` the page's asset store: which preview went up as which asset.
 - `install.py` writes `content/audio/samples/<line>/<cue>[/<surface>]/NN.opus`, `content/audio/sounds/<line>.<cue>.json`
-  and `content/audio/samples/index.json` (provenance and licence of each folder).
+  and `content/audio/samples/index.json` (provenance and licence of each folder). A cue whose every candidate is
+  marked Redo keeps its installed takes but is no longer kept.
+- **Tells keep their game names.** The game plays each enemy tell by its own sound (`hound-howl`, `tippy-tiptoe`, ...),
+  which the tell audit (AudioTests) measures. `TELL_SOUNDS` in install.py points that sound at its line's kept takes
+  (until then, the tuned synth definition saved in `synth-defs/`); `TELL_GAIN_DB` lifts one that sits under the bed.
+  Kept takes that are single bursts or steps rather than a loop (`PACED`) are fired again at an uneven pace by
+  `GameAudio.Repeat`; a cue split by surface gives `<sound>.<surface>` variants the game picks by what's underfoot.
+- `levels.py` where each line stands in the game: installed and hooked (L1), cue by cue. A cue whose `need` starts
+  "Not in the game yet" waits on an action the sim doesn't have, and doesn't count.
+- Voices are stand-ins from Piper's LibriTTS model (CC BY 4.0, credit "LibriTTS, Zen et al. 2019") in out/audio/tts:
+  the prisoners (`recipes/voices.py`) and the Soot Children's call, made a child's size (`recipes/children.py`).
 
 ## Sources and licences
 
