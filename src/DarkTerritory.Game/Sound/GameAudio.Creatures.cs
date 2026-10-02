@@ -26,6 +26,9 @@ public sealed partial class GameAudio
     /// <summary>The pack close behind (cues.py tell-hounds howl-near: "close behind (40-100 m)").</summary>
     const double NearHowlFrom = 40, NearHowlTo = 100;
 
+    // A new night is seen as a new world (_creatureWorld), and that resets everything here.
+    partial void EndNightCreatures() => _creatureWorld = null;
+
     readonly Dictionary<int, Creature> _creatures = new();
     readonly HashSet<int> _liveCreatures = new();
     readonly Dictionary<int, (int Health, DeathCause Death)> _crewHealth = new();

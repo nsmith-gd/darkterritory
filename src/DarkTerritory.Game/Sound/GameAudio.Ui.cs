@@ -101,6 +101,12 @@ public sealed partial class GameAudio
     }
 
     /// <summary>The night's been left: a hold's loop stops, and the report's tallies still to come won't.</summary>
+    void EndNightUi()
+    {
+        InterfaceEnd();
+        _uiLoops.Clear();
+    }
+
     public void InterfaceEnd()
     {
         UiLoop(UiCue.Hold, false);

@@ -26,6 +26,30 @@ public sealed partial class GameAudio
     partial void TrainSounds(World world);
     partial void OutsideSounds(World world);
 
+    // Each area forgets its night (EndNight): an area that keeps loops or per-id state outside the helpers below clears it.
+    partial void EndNightCrew();
+    partial void EndNightCreatures();
+    partial void EndNightTrain();
+    partial void EndNightOutside();
+
+    void EndNightCues()
+    {
+        _edges.Clear();
+        _last.Clear();
+        _held.Clear();
+        _heldNow.Clear();
+    }
+
+    void EndNightAreas()
+    {
+        EndNightCrew();
+        EndNightCreatures();
+        EndNightTrain();
+        EndNightOutside();
+        EndNightMix();
+        EndNightUi();
+    }
+
     void Cues(World world)
     {
         _heldNow.Clear();

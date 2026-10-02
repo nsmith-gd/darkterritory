@@ -428,8 +428,8 @@ while (!window.CloseRequested && !QuitNow())
     var leaving = launch;
     launch = null;
     campaign = Play(session, campaign);
-    // Left: a hold's loop doesn't follow into the menus.
-    sound.InterfaceEnd();
+    // Left: nothing of the night follows into the menus (its bed, its loops, a hold's tick).
+    sound.EndNight();
     (session as IDisposable)?.Dispose();
     if (campaign is { Current: not null } unfinished)
         Console.WriteLine($"campaign: the night on {unfinished.Current.Route} isn't settled; its slot carries on from the last facility it left");

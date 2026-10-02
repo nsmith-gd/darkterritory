@@ -370,6 +370,26 @@ public sealed partial class GameAudio
         // ever this machine's own predicted one.
     }
 
+    /// <summary>
+    /// A night is over (back to the menus): every sound it started stops, and what's remembered of it goes, so the menus are
+    /// quiet under their own sound and the next night starts its bed, loops and edges afresh.
+    /// </summary>
+    public void EndNight()
+    {
+        Mixer.StopAll();
+        _roar = _chuff = _brake = _wind = _valve = _strain = _vent = _whistle = null;
+        _enemies.Clear();
+        _packs.Clear();
+        _wheels.Clear();
+        _slack.Clear();
+        _choir.Clear();
+        _wasRuptured = false;
+        _lastAccel = 0;
+        _space = PlayerMotor.Outside;
+        EndNightCues();
+        EndNightAreas();
+    }
+
     /// <summary>Plays a one-shot at a point: crew actions the game knows about (a shovel of coal).</summary>
     public void Play(string name, Double3 at) => Mixer.Play(name, at);
 

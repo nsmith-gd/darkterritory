@@ -22,6 +22,8 @@ public sealed partial class GameAudio
 
     HotData<SpacesDef>? _spaces;
     SoundInstance? _music;
+
+    void EndNightMix() => _music = null;
     double _spaceHint = double.NaN;
 
     /// <summary>The space the listener was in this tick, as spaces.json names it.</summary>

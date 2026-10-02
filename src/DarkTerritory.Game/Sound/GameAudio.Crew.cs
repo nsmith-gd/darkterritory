@@ -119,6 +119,20 @@ public sealed partial class GameAudio
         public int Reverser, WhistleFalling, SandIdle;
     }
 
+    partial void EndNightCrew()
+    {
+        _crewMembers.Clear();
+        _crewCars.Clear();
+        _crewGuns.Clear();
+        _crewBodies.Clear();
+        _crewEnemyHealth.Clear();
+        _crewRakes.Clear();
+        _crewSwitches = null;
+        _crewCouplings = null;
+        _crewEngine = null;
+        _crewLastShot = double.NegativeInfinity;
+    }
+
     readonly Dictionary<int, CrewMember> _crewMembers = new();
     readonly Dictionary<int, CrewCar> _crewCars = new();
     readonly Dictionary<int, CrewGun> _crewGuns = new();
