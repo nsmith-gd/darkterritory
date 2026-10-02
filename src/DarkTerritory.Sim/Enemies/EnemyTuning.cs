@@ -59,6 +59,10 @@ public sealed record TrackDollTuning
     public double CargoPerSecond { get; init; } = 0.001;
     public double StraightNeeded { get; init; } = 250;
     public double EmptyCabWeight { get; init; } = 2;
+    /// <summary>T121: a cannonball shatters her on the rail (gone for the run, as stopped short); off, it goes through her.</summary>
+    public bool CannonShatters { get; init; } = true;
+    public double RailHitRadius { get; init; } = 0.55;
+    public double RailHitHeight { get; init; } = 0.7;
 }
 
 /// <summary>The Car Hugger (v1.1 App. A.3, B.3). Field docs live in enemies.json.</summary>

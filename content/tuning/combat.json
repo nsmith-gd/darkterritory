@@ -30,7 +30,19 @@
     "traverseDegreesPerSecond": 70,
     "elevateDegreesPerSecond": 35,
     // Bots fire once the barrel's within this of the mark.
-    "laidDegrees": 2.5
+    "laidDegrees": 2.5,
+    // T121 playtest ("every cannonball should have an impact explosion and VFX to show where impact was"): a ball's path is
+    // searched in steps this long for the ground, water or a stop building's wall it comes down on before what it was
+    // aimed at; one that hits nothing comes down where its range runs out.
+    "impactStep": 0.5
+  },
+  // T121 playtest ("all creatures need hit confirm feedback"): a blow or a ball that lands on a creature, and where a ball
+  // came down, are kept in the replicated world this long (s), so every client sees the flinch, hears the thud and the
+  // boom, and the one who landed it gets the crosshair's marker, through a dropped snapshot or two. The impact's is as
+  // long as its smoke hangs.
+  "hits": {
+    "keepSeconds": 1,
+    "impactKeepSeconds": 8
   },
   "choir": {
     // App. C.7: the meter is the crew's combined loudness "measured over a few seconds so single shouts don't count": an

@@ -47,6 +47,10 @@ public sealed class GreyboxScene
     public IReadOnlyList<Sign>? Signs { get; set; }
     /// <summary>Live enemies to draw. When set, the route's Sleepers come from here rather than its features.</summary>
     public IReadOnlyList<Enemy>? Enemies { get; set; }
+    /// <summary>Blows and balls that landed on creatures lately (World.Hits, T121): each one's flinch and flash, by <see cref="Tick"/>.</summary>
+    public IReadOnlyList<Sim.Combat.HitConfirm>? Hits { get; set; }
+    /// <summary>Where cannonballs came down lately (World.Impacts, T121): each one's explosion, by <see cref="Tick"/>.</summary>
+    public IReadOnlyList<Sim.Combat.CannonImpact>? Impacts { get; set; }
 
     /// <summary>
     /// The firebox's light: the fire's orange, or with a Stoker in it (T53) "wrong-coloured firebox glow" (App. A.5), a sick
@@ -254,6 +258,7 @@ public sealed class GreyboxScene
                 Look.Art.Effects.Rain(mesh, eye, Time, (float)weather.Wind, fog);
             // The air of a corrupted stretch: ash, spores (GDD §30).
             Look.Art.Effects.Corruption(mesh, eye, Time, StagedAir ?? Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre)));
+            Strikes(mesh, Look.Art.Effects, frames, eye);
         }
         Lap(mesh, "effects");
         mesh.Seed = 0;
@@ -269,7 +274,7 @@ public sealed class GreyboxScene
                     // The art pass's own (Art/CreatureArt, note 124): a conductor off a lost train, in the colour of the
                     // crewmate it copies; it walks as fast as it's been going (GreyboxScene's pace).
                     if (!e.Gone)
-                        DrawEnemy(mesh, line, frames, e, eye, from, to, passengers, default, null, null, Pace(e));
+                        DrawEnemy(mesh, line, frames, e, eye, from, to, passengers, default, null, null, Pace(e), Flinch(e));
                 }
                 else if (e is Sim.Enemies.Passenger passenger)
                 {
@@ -301,7 +306,7 @@ public sealed class GreyboxScene
                     Art.CreatureArt.Room? room = e.Kind is EnemyKind.TippyToesie or EnemyKind.Gaunt && e.Attached >= 0 && e.Attached < frames.Count
                         ? Art.CreatureArt.Room.Of(frames[e.Attached].Shape, e.Local)
                         : null;
-                    DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room, e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler ? Pace(e) : 0);
+                    DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room, e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler ? Pace(e) : 0, Flinch(e));
                 }
         Lap(mesh, "enemies");
         if (Bodies is not null)
@@ -337,6 +342,65 @@ public sealed class GreyboxScene
         if (Own is { } own)
             Look?.Art.OwnArms(mesh, own, Time);
         Lap(mesh, "bodies and crew");
+    }
+
+    /// <summary>
+    /// What landed (T121), timed from the sim's tick as a gun's muzzle flash is: each cannonball's explosion where it came
+    /// down, and each blow or ball's pop and flash on the creature it landed on.
+    /// </summary>
+    void Strikes(MeshBuilder mesh, Art.Effects fx, IReadOnlyList<CarFrame> frames, Double3 eye)
+    {
+        if (Tick < 0)
+            return;
+        if (Impacts is not null)
+            foreach (var i in Impacts)
+            {
+                double age = (Tick - i.Tick) * Sim.SimConstants.TickSeconds;
+                if (age < 0 || age > Art.Effects.ImpactSeconds || (i.At - eye).Length > DrawDistance)
+                    continue;
+                fx.CannonImpact(mesh, V(i.At, eye), ToF(i.Direction), i.Surface, i.Struck, age, i.Id);
+            }
+        if (Hits is null)
+            return;
+        foreach (var h in Hits)
+        {
+            double age = (Tick - h.Tick) * Sim.SimConstants.TickSeconds;
+            if (age < 0 || age > 1 || (h.At - eye).Length > DrawDistance)
+                continue;
+            // Its body's middle: where it is now if it's still about, or where the blow was.
+            var body = Enemies?.FirstOrDefault(e => e.Id == h.EnemyId && !e.Gone) is { } e ? EnemyWorld(e, frames) + Double3.Up * 0.8 : h.At;
+            fx.HitFlash(mesh, V(h.At, eye), V(body, eye), ToF(h.From), h.Source, h.Killed, age, h.Id);
+        }
+    }
+
+    /// <summary>How long a creature flinches from a blow (s), and how far it's knocked (m) and tipped (rad) at the most.</summary>
+    const double FlinchSeconds = 0.32;
+    const float FlinchPush = 0.16f, FlinchTip = 0.22f;
+
+    /// <summary>
+    /// A creature's flinch from the latest blow or ball to land on it (T121's hit confirm): its basis knocked back along the
+    /// blow and tipped away from it, sharp in and easing back; a ball's twice a blow's. Identity when nothing's landed lately.
+    /// </summary>
+    (Vector3 Push, Quaternion Tip) Flinch(Enemy e)
+    {
+        if (Hits is null || Tick < 0)
+            return (Vector3.Zero, Quaternion.Identity);
+        Sim.Combat.HitConfirm? latest = null;
+        foreach (var h in Hits)
+            if (h.EnemyId == e.Id && (latest is null || h.Tick > latest.Value.Tick))
+                latest = h;
+        if (latest is not { } hit)
+            return (Vector3.Zero, Quaternion.Identity);
+        double age = (Tick - hit.Tick) * Sim.SimConstants.TickSeconds;
+        if (age < 0 || age > FlinchSeconds)
+            return (Vector3.Zero, Quaternion.Identity);
+        float k = (float)(age < 0.05 ? age / 0.05 : 1 - (age - 0.05) / (FlinchSeconds - 0.05));
+        k *= hit.Source == Sim.Combat.HitSource.Cannon ? 2 : 1;
+        var flat = new Vector3((float)hit.From.X, 0, (float)hit.From.Z);
+        if (flat.LengthSquared() < 1e-6f)
+            return (Vector3.Zero, Quaternion.Identity);
+        flat = Vector3.Normalize(flat);
+        return (flat * (FlinchPush * k), Quaternion.CreateFromAxisAngle(Vector3.Normalize(Vector3.Cross(Vector3.UnitY, flat)), FlinchTip * k));
     }
 
     /// <summary>Staged: the air to draw whatever the biome (dt screenshot --air ash|spores).</summary>
@@ -564,7 +628,8 @@ public sealed class GreyboxScene
     /// perceivable). The real creatures come with the art pass; these exist to make pacing watchable.
     /// </summary>
     static void DrawEnemy(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Enemy e, Double3 eye, double from, double to, Art.CreatureArt? creatures = null,
-        Art.Bite bite = default, Art.CreatureArt.Prey? prey = null, Art.CreatureArt.Room? room = null, float pace = 0)
+        Art.Bite bite = default, Art.CreatureArt.Prey? prey = null, Art.CreatureArt.Room? room = null, float pace = 0,
+        (Vector3 Push, Quaternion Tip) flinch = default)
     {
         // A basis for the enemy: its car's, or the line's at its distance.
         Double3 origin, right, up = Double3.Up, back;
@@ -607,6 +672,12 @@ public sealed class GreyboxScene
         }
         var o = V(origin, eye);
         var (r, u, b) = (ToF(right), ToF(up), ToF(back));
+        // Flinching from a blow (T121): knocked back and tipped away from it, about its feet.
+        if (flinch.Tip != default && flinch.Tip != Quaternion.Identity)
+        {
+            o += flinch.Push;
+            (r, u, b) = (Vector3.Transform(r, flinch.Tip), Vector3.Transform(u, flinch.Tip), Vector3.Transform(b, flinch.Tip));
+        }
         // The art pass's creature, where it has one (Art/CreatureArt): the same place, the thing itself.
         if (creatures is not null && creatures.Enemy(mesh, Art.CreatureArt.Basis(o, r, u, b), e, bite, prey, room, pace))
             return;

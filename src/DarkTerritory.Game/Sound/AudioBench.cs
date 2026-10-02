@@ -151,6 +151,10 @@ public static class AudioBench
                 {
                     int guard = train.Dynamics.Consist.Vehicles[^1].Id;
                     audio.Play("gunshot", train.Frames[guard].ToWorld(Sim.Combat.Guns.Mount(train, guard)!.Value.Position));
+                    // Its ball coming down behind the train (T121): the boom, and its thud on a hound, mustn't drown a tell either.
+                    var landed = train.Frames[guard].ToWorld(new Double3(0, 0, train.Frames[guard].Shape.HalfLength + 45));
+                    audio.Play("cannon-impact", landed);
+                    audio.Play("hit-confirm", landed + Double3.Up * 0.6);
                 }
             }
             audio.Mixer.Render(mix.AsSpan(b * Audio.Block * 2, Audio.Block * 2));

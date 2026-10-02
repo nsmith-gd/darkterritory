@@ -71,6 +71,16 @@ public sealed class World
     public List<HitTarget> Targets { get; } = new();
     /// <summary>Rounds fired this tick.</summary>
     public List<GunShot> Shots { get; } = new();
+    /// <summary>
+    /// Blows and balls that landed on creatures lately (T121), newest last: the host's, kept <see cref="HitTuning.KeepSeconds"/>
+    /// and replicated, so every client sees the flinch, hears the thud, and its striker gets the marker.
+    /// </summary>
+    public List<HitConfirm> Hits { get; } = new();
+    /// <summary>Where cannonballs came down lately (T121), newest last: the host's, kept as long as the smoke and replicated.</summary>
+    public List<CannonImpact> Impacts { get; } = new();
+    int _nextFx = 1;
+    /// <summary>The host's world, or one with nobody else's to mirror: it decides what landed where.</summary>
+    bool Hosting => Authority || Enemies is null;
     public uint Tick { get; set; }
     public double ElapsedSeconds => Tick * SimConstants.TickSeconds;
 
@@ -517,7 +527,7 @@ public sealed class World
         double bestD = double.MaxValue;
         foreach (var e in _enemies)
         {
-            if (e.Gone || e.MeleeRadius <= 0)
+            if (e.Gone || !e.Strikable(playerId))
                 continue;
             var to = e.WorldPosition(Train) + Ballast.Double3.Up * 0.8 - eye;
             double d = to.Length;
@@ -533,12 +543,31 @@ public sealed class World
             }
         }
         // With a tool a blow; empty-handed (a slot picked with nothing in it) a fraction of one (T108).
-        best?.Struck(ctx, playerId, t.Blow(Player.Kit.Held(s)));
+        if (best is null)
+            return;
+        var at = best.WorldPosition(Train) + Ballast.Double3.Up * 0.8;
+        best.Struck(ctx, playerId, t.Blow(Player.Kit.Held(s)));
+        // It landed: everyone's told (T121), at the point of it, the way the blow went.
+        Confirm(best, playerId, HitSource.Melee, at, (at - eye).Length > 1e-6 ? (at - eye).Normalized : facing);
+    }
+
+    /// <summary>A blow or a ball landed on <paramref name="e"/> (T121): the record every client's flinch, thud and marker come from.</summary>
+    void Confirm(Enemy e, int by, HitSource source, Ballast.Double3 at, Ballast.Double3 from)
+    {
+        Hits.Add(new HitConfirm(_nextFx, Tick, e.Id, e.Kind, by, source, at, from, e.Gone));
+        _nextFx = _nextFx % 0xFFFFFF + 1;
     }
 
     /// <summary>Starts a tick: clears last tick's shots and events.</summary>
     public void BeginTick()
     {
+        // Hits and impacts last a while on the wire, not a tick (T121): a dropped snapshot doesn't lose one.
+        if (Hosting)
+        {
+            var keep = Combat?.Hits ?? new HitTuning();
+            Hits.RemoveAll(h => Tick - h.Tick > keep.KeepSeconds * SimConstants.TickRate);
+            Impacts.RemoveAll(i => Tick - i.Tick > keep.ImpactKeepSeconds * SimConstants.TickRate);
+        }
         Shots.Clear();
         SwitchThrows.Clear();
         EnemyEvents.Clear();
@@ -619,6 +648,14 @@ public sealed class World
             foreach (var b in Bodies.All)
                 if (b.Kind == Physics.BodyKind.Extinguisher && b.Carrier < 0 && b.Parent == b.Home && b.Charge < 1)
                     b.Charge = Math.Min(1, b.Charge + SimConstants.TickSeconds / ft.CarFire.RechargeSeconds);
+        // Where this tick's balls came down (T121), before they land on anything: what they struck is still there to name.
+        if (Hosting)
+            foreach (var shot in Shots)
+            {
+                var struck = shot.HitTargetId > 0 ? _enemies.FirstOrDefault(e => e.Id == shot.HitTargetId)?.Kind ?? 0 : 0;
+                Impacts.Add(new CannonImpact(_nextFx, Tick, shot.Impact, shot.Direction, shot.Surface, shot.Shooter, struck));
+                _nextFx = _nextFx % 0xFFFFFF + 1;
+            }
         if (Authority && _context is { } ctx)
             StepEnemies(ctx);
         Pace();
@@ -730,7 +767,11 @@ public sealed class World
         // Rounds fired this tick land first.
         if (Combat is { } c)
             foreach (var shot in Shots.Where(s => s.HitTargetId > 0))
-                _enemies.FirstOrDefault(e => e.Id == shot.HitTargetId)?.Hit(ctx, c.Guns.DamagePerRound);
+                if (_enemies.FirstOrDefault(e => e.Id == shot.HitTargetId) is { Gone: false } struck && struck.HitRadius > 0)
+                {
+                    struck.Hit(ctx, c.Guns.DamagePerRound);
+                    Confirm(struck, shot.Shooter, HitSource.Cannon, shot.Impact, shot.Direction);
+                }
 
         // How long the cab's been empty (the Track Doll's tampering; and a cab left empty is how a firebox door's left open).
         CabEmptySeconds = ctx.Crew.Any(c => c.Player.State.Alive && PlayerMotor.InCab(c.Player.State, Train)) ? 0 : CabEmptySeconds + SimConstants.TickSeconds;
@@ -803,7 +844,7 @@ public sealed class World
         Targets.Clear();
         foreach (var e in _enemies)
             if (e.HitRadius > 0)
-                Targets.Add(new HitTarget(e.Id, e.WorldPosition(Train), e.HitRadius));
+                Targets.Add(new HitTarget(e.Id, e.HitCentre(Train), e.HitRadius));
         _targetHistory[Tick] = new List<HitTarget>(Targets);
         _targetHistory.Remove(Tick - 32);
     }
@@ -816,7 +857,16 @@ public sealed class World
         Targets.Clear();
         foreach (var e in _enemies)
             if (e.HitRadius > 0)
-                Targets.Add(new HitTarget(e.Id, e.WorldPosition(Train), e.HitRadius));
+                Targets.Add(new HitTarget(e.Id, e.HitCentre(Train), e.HitRadius));
+    }
+
+    /// <summary>Client side: the host's recent hits and impacts (T121), as the snapshot has them.</summary>
+    public void MirrorHits(IEnumerable<HitConfirm> hits, IEnumerable<CannonImpact> impacts)
+    {
+        Hits.Clear();
+        Hits.AddRange(hits);
+        Impacts.Clear();
+        Impacts.AddRange(impacts);
     }
 
     public void SetDerailed(bool derailed) => Derailed = derailed;

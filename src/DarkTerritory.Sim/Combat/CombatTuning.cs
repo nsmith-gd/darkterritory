@@ -4,6 +4,8 @@ namespace DarkTerritory.Sim.Combat;
 public sealed record CombatTuning(GunTuning Guns, ChoirTuning Choir)
 {
     public const string File = "tuning/combat.json";
+    /// <summary>How long hits and cannonball impacts stay replicated for every client to show (T121).</summary>
+    public HitTuning Hits { get; init; } = new();
 }
 
 /// <summary>
@@ -25,6 +27,8 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     public double ElevateDegreesPerSecond { get; init; } = 35;
     /// <summary>A bot fires once the barrel's within this of its mark.</summary>
     public double LaidDegrees { get; init; } = 2.5;
+    /// <summary>How finely a ball's path is searched for the ground, water or a wall it lands on (m; T121).</summary>
+    public double ImpactStep { get; init; } = 0.5;
 }
 
 /// <summary>The loudness meter and the Choir it draws (GDD v1.1 App. A.7, C.7). Field docs live in combat.json.</summary>

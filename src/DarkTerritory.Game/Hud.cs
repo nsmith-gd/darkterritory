@@ -68,7 +68,36 @@ public static class Hud
             float cx = width / 2f, cy = height / 2f;
             o.Rect(cx - 2, cy, 5, 1, Ink with { W = 0.55f });
             o.Rect(cx, cy - 2, 1, 5, Ink with { W = 0.55f });
+            HitMarker(o, cx, cy, s);
         }
+    }
+
+    /// <summary>How long the crosshair's hit marker shows after a blow or a ball of yours lands (s).</summary>
+    public const double HitMarkerSeconds = 0.3;
+
+    /// <summary>
+    /// T121 playtest ("all creatures need hit confirm feedback"): a blow or a ball of yours that landed on a creature puts four
+    /// short ticks round the cross for a moment, off the diagonals, opening out as they fade; red when it was the kill.
+    /// From the host's replicated record (World.Hits), so it's what landed, not what you hoped did.
+    /// </summary>
+    public static void HitMarker(Overlay o, float cx, float cy, IPlaySession s)
+    {
+        Sim.Combat.HitConfirm? mine = null;
+        foreach (var h in s.World.Hits)
+            if (h.By == s.PlayerId && (mine is null || h.Tick > mine.Value.Tick))
+                mine = h;
+        if (mine is not { } hit)
+            return;
+        double age = (s.HostTick - hit.Tick) * Sim.SimConstants.TickSeconds;
+        if (age < 0 || age > HitMarkerSeconds)
+            return;
+        float fade = (float)(1 - age / HitMarkerSeconds);
+        var colour = (hit.Killed ? Red : Ink) with { W = 0.9f * fade };
+        float from = 4 + 3 * (1 - fade);
+        // Each tick a short run of pixels out along a diagonal.
+        foreach (var (dx, dy) in new[] { (1, 1), (1, -1), (-1, 1), (-1, -1) })
+            for (int k = 0; k < 4; k++)
+                o.Rect(MathF.Round(cx + dx * (from + k)), MathF.Round(cy + dy * (from + k)), 1, 1, colour);
     }
 
     /// <summary>

@@ -194,6 +194,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public PlayerState Player => Client.Predicted;
     public TrainControls Controls => Client.Controls;
     public long Tick { get; private set; }
+    /// <summary>The host's tick of the newest snapshot (T121): a joiner's own count started later than the host's.</summary>
+    public long HostTick => Client.NewestSnapshotTick;
     public bool Lost { get; private set; }
 
     /// <summary>Hosts and joins it from this machine.</summary>

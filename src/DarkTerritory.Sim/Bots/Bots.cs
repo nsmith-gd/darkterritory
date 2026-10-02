@@ -113,7 +113,7 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         var frame = world.Train.Frames[gun];
         var muzzle = frame.ToWorld(Guns.Mount(world.Train, gun)!.Value.Position);
         var target = world.ActiveEnemies.Where(e => e.HitRadius > 0 && !e.Gone)
-            .Select(e => (e, offset: e.WorldPosition(world.Train) - muzzle))
+            .Select(e => (e, offset: e.HitCentre(world.Train) - muzzle))
             .Where(x => x.offset.Length <= guns.Range)
             .OrderBy(x => x.offset.Length).FirstOrDefault();
         if (target.e is null)

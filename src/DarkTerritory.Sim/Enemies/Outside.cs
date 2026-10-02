@@ -457,10 +457,12 @@ public sealed class Follower(int id) : Enemy(id)
         }
     }
 
+    /// <summary>Its carrier can't reach round and hit it: only a friend can (App. A.6).</summary>
+    public override bool Strikable(int by) => base.Strikable(by) && by != Carrier;
+
     /// <summary>Clubbed off a friend's back, as it crawls, or its nest beaten in: any blow that finishes it.</summary>
     public override void Struck(EnemyContext ctx, int by, double damage)
     {
-        // Its carrier can't reach round and hit it: only a friend can (App. A.6).
         if (by == Carrier)
             return;
         base.Struck(ctx, by, damage);

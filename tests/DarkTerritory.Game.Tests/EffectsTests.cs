@@ -70,6 +70,69 @@ public class EffectsTests
     }
 
     [Fact]
+    public void ACannonballBurstsWithALightThenLeavesSmokeAndAScorch()
+    {
+        // T121: "all cannonballs should have an impact explosion and VFX to show where impact was".
+        var at = new Vector3(0, -1.6f, -60);
+        var burst = Mesh();
+        Fx.CannonImpact(burst, at, Vector3.Normalize(new Vector3(0, -0.1f, -1)), Sim.Combat.ImpactSurface.Ground, 0, 0.05, 7);
+        Assert.NotEmpty(burst.AdditiveFx);
+        var light = Assert.Single(burst.PointLights);
+        Assert.True(light.Range >= 40, "the burst lights the ground round it, seen from the gun");
+        // Seconds on: smoke over it, the scorch on the ground, no light.
+        var later = Mesh();
+        Fx.CannonImpact(later, at, -Vector3.UnitZ, Sim.Combat.ImpactSurface.Ground, 0, 3, 7);
+        Assert.Empty(later.PointLights);
+        Assert.True(later.AlphaFx.Max(v => v.Position.Y) > at.Y + 3, "the smoke's risen");
+        Assert.Contains(later.AlphaFx, v => MathF.Abs(v.Position.Y - at.Y) < 0.1f && v.Colour.X < 0.05f);
+        var gone = Mesh();
+        Fx.CannonImpact(gone, at, -Vector3.UnitZ, Sim.Combat.ImpactSurface.Ground, 0, Effects.ImpactSeconds + 0.1, 7);
+        Assert.Empty(gone.AlphaFx);
+        Assert.Empty(gone.AdditiveFx);
+    }
+
+    [Fact]
+    public void EverySurfaceABallLandsOnShowsIt()
+    {
+        foreach (var surface in Enum.GetValues<Sim.Combat.ImpactSurface>())
+        {
+            var mesh = Mesh();
+            Fx.CannonImpact(mesh, new Vector3(0, -1.6f, -40), -Vector3.UnitZ, surface, 0, 0.1, 3);
+            Assert.True(mesh.AdditiveFx.Count + mesh.AlphaFx.Count > 0, $"{surface} shows nothing");
+            Assert.NotEmpty(mesh.PointLights);
+        }
+        // Into water, a splash: spray thrown up, and no fire.
+        var splash = Mesh();
+        Fx.CannonImpact(splash, new Vector3(0, -1.6f, -40), -Vector3.UnitZ, Sim.Combat.ImpactSurface.Water, 0, 0.6, 3);
+        Assert.True(splash.AlphaFx.Max(v => v.Position.Y) > -1.6f + 2);
+        Assert.Empty(splash.AdditiveFx);
+    }
+
+    [Fact]
+    public void TheDollGoesUpInPorcelain()
+    {
+        var earth = Mesh();
+        Fx.CannonImpact(earth, new Vector3(0, -1, -40), -Vector3.UnitZ, Sim.Combat.ImpactSurface.Creature, 0, 0.5, 3);
+        var doll = Mesh();
+        Fx.CannonImpact(doll, new Vector3(0, -1, -40), -Vector3.UnitZ, Sim.Combat.ImpactSurface.Creature, Sim.Enemies.EnemyKind.TrackDoll, 0.5, 3);
+        Assert.Contains(doll.AlphaFx, v => v.Colour.X > 0.6f && v.Colour.Y > 0.6f);
+        Assert.DoesNotContain(earth.AlphaFx, v => v.Colour.X > 0.6f && v.Colour.Y > 0.6f && v.Colour.Z > 0.6f && v.Colour.W > 0.9f);
+    }
+
+    [Fact]
+    public void AHitFlashesOnTheCreatureForAMoment()
+    {
+        var mesh = Mesh();
+        Fx.HitFlash(mesh, new Vector3(0, 0, -4), new Vector3(0, 0, -4.2f), -Vector3.UnitZ, Sim.Combat.HitSource.Melee, killed: false, 0.03, 5);
+        Assert.NotEmpty(mesh.AdditiveFx);
+        Assert.Single(mesh.PointLights);
+        var gone = Mesh();
+        Fx.HitFlash(gone, new Vector3(0, 0, -4), new Vector3(0, 0, -4.2f), -Vector3.UnitZ, Sim.Combat.HitSource.Melee, killed: false, 1, 5);
+        Assert.Empty(gone.AdditiveFx);
+        Assert.Empty(gone.PointLights);
+    }
+
+    [Fact]
     public void AnExtinguisherSpraysOntoTheFire()
     {
         var mesh = Mesh();
