@@ -371,6 +371,19 @@ public sealed class World
     public uint DerailMusic { get; set; }
 
     /// <summary>
+    /// GDD v1.4 App. E.2 step 2, the derailment film's start: the wreck as it began, the crew as they were on the derail
+    /// tick (flung from there), the seed and the cause card. The host's; sent to every client reliably, and each shoots the
+    /// same film from it (<see cref="WreckFilm.Shoot"/>). Null till a derailment.
+    /// </summary>
+    public FilmStart? Film { get; set; }
+
+    /// <summary>The film's been voted off (E.5 "Skipping"): every client cuts to the cause card. The host's; replicated.</summary>
+    public bool FilmSkipped { get; set; }
+
+    /// <summary>How many have voted to skip it, of how many (for the prompt). The host's; replicated.</summary>
+    public (int Votes, int Of) FilmVotes { get; set; }
+
+    /// <summary>
     /// The failure-attribution log (GDD v1.4 App. C.9), host-side: what happened to whom, and the contributing action. It
     /// feeds the incident report and nothing else.
     /// </summary>
@@ -462,11 +475,32 @@ public sealed class World
                 double k = Train.Line.Sample(Train.Dynamics.Distance).Curvature;
                 ulong seed = (ulong)Tick * 0x9E3779B97F4A7C15UL ^ (Route?.Seed ?? 0);
                 Train.Wreck = Wreck.Begin(WreckTuning, Train, Ground, seed, first: Train.Dynamics.Consist.Vehicles[0].Id, outward: k > 1e-6 ? -1 : k < -1e-6 ? 1 : 0);
+                // E.2 step 2: the crew as they were this tick, alive, and the wreck as it began, for the film. (Only what
+                // simulates the train derails it; a client's wreck is a puppet of the host's, and its film is sent.)
+                Film = WreckFilm.StartOf(Train.Wreck, FilmCrew(), Sim.Run.IncidentLog.CauseCard(this), DerailSpeed, Train.Dynamics.Distance);
             }
         }
         Derailed = true;
         foreach (var rake in Train.Rakes)
             rake.Velocity = 0;
+    }
+
+    /// <summary>
+    /// Everyone alive on the derail tick (this tick's actors), for the film (E.3): where they were in the world and how fast
+    /// they were going with their car, which car they were inside (they tumble about in it), and their name card.
+    /// </summary>
+    List<FilmPlayer> FilmCrew()
+    {
+        var crew = new List<FilmPlayer>();
+        foreach (var (id, s, _) in _actors.OrderBy(a => a.Id))
+        {
+            if (!s.Alive)
+                continue;
+            int inside = s.Parent >= 0 && s.Parent < Train.Frames.Count && PlayerMotor.Indoors(s, Train) ? s.Parent : -1;
+            crew.Add(new FilmPlayer(id, Sim.Run.IncidentLog.NameOf(this, id), Sim.Run.IncidentLog.Role(this, s, id),
+                PlayerMotor.WorldPosition(s, Train), PlayerMotor.WorldVelocity(s, Train), PlayerMotor.WorldYaw(s, Train), inside));
+        }
+        return crew;
     }
 
     /// <summary>The wreck's numbers (wreck.json): the default until the session loads them.</summary>
@@ -476,6 +510,21 @@ public sealed class World
 
     /// <summary>The land's height under a point (the line's terrain, or the ballast by a hand-laid line).</summary>
     double Ground(double x, double z) => PlayerMotor.GroundAt(new Ballast.Double3(x, 0, z), Train.Line, ref _groundHint);
+
+    /// <summary>
+    /// Shoots the derailment film from <see cref="Film"/> over this world's ground (E.2 steps 3 and 4), the same on every
+    /// machine: the ground's own search hint is fresh, so nothing this world did before changes a height.
+    /// </summary>
+    public WreckFilm? ShootFilm()
+    {
+        if (Film is not { } start)
+            return null;
+        return WreckFilm.Shoot(WreckTuning, start, (x, z) =>
+        {
+            double hint = start.Along;
+            return PlayerMotor.GroundAt(new Ballast.Double3(x, 0, z), Train.Line, ref hint);
+        });
+    }
 
     /// <summary>
     /// One player's hands this tick: crew actions at interactables, and firing a gun they're manning.

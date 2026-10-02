@@ -44,11 +44,23 @@ public interface IPlaySession
     bool WreckCinematic => false;
     /// <summary>Seconds since the train came off, as this client saw it.</summary>
     double WreckSeconds => 0;
+    /// <summary>The derailment film (GDD v1.4 App. E), once this machine has shot it from the host's start; null till then.</summary>
+    WreckFilm? Film => null;
+    /// <summary>A vote to skip counts now (E.5: after the first player's shot; E.9: three seconds into the outro).</summary>
+    bool Skippable => false;
     /// <summary>What derailed it, in the boards' km/h (T121): the host's own, or the incident report's line on a client.</summary>
     string? DerailCause => World.DerailCause is { Length: > 0 } c ? c
         : World.Run?.Report?.Lines.LastOrDefault(l => l.Kind == Sim.Run.IncidentKind.Derailed)?.Text;
     /// <summary>GDD v1.4 App. E.9: the Stranded outro is playing (the run's end screen waits for it).</summary>
     bool StrandedOutro => false;
+    /// <summary>
+    /// The fortress on the radio (GDD §9; note 178): the dispatcher's manifest as the train leaves the yard, or the clerk's
+    /// tally at the terminus; null when nobody's on the air. <see cref="RadioSeconds"/> is how far into it.
+    /// </summary>
+    IReadOnlyList<string>? RadioReading => null;
+    double RadioSeconds => 0;
+    /// <summary>The clerk's still reading the tally: the run's end screen waits for it.</summary>
+    bool ClerkTally => false;
     double OutroSeconds => 0;
     Sim.Route.Route? Route { get; }
     PlayerState Player { get; }

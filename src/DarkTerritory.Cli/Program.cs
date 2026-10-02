@@ -57,6 +57,7 @@ return args switch
     ["art", "clip", var creature, var clip, ..] => Print(ArtClip(content, creature, clip, args)),
     // dt perf: a frame's cost against the frame-rate targets (tuning/perf.json), flat and in a headset.
     ["perf", ..] => Print(PerfCommands.Run(train, content, args)),
+    ["screenshot", ..] when args.Contains("--film") => Print(FilmStill(content, args)),
     ["screenshot", ..] when args.Contains("--hud") => Print(HudShot(content, args)),
     ["screenshot", ..] when args.Contains("--menu") => Print(MenuShot(train, content, args)),
     ["screenshot", ..] => Print(Screenshot(train, content, args)),
@@ -1436,6 +1437,15 @@ static object HudShot(string content, string[] args)
         ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
             ("Okafor", UiStyle.Commendation.HeldTheSwitch, "Priya"), ("Dunmore", UiStyle.Commendation.LastOneStanding, "Dave")]
         : null, stills: stills.Stills);
+    // --radio manifest|tally [s]: the fortress on the radio (GDD §9; note 178), staged from this night and a delivered report,
+    // --radio-at s into the reading.
+    if (Str(args, "--radio", "") is { Length: > 0 } reading)
+    {
+        var lines = reading == "tally"
+            ? DarkTerritory.Sim.Run.Radio.Tally(Staging.Report(session.World, DarkTerritory.Sim.Run.RunEnd.Delivered))
+            : DarkTerritory.Sim.Run.Radio.Manifest(session.World, [0, 1, 2, 3]);
+        Hud.RadioCard(hud, width, height, lines, Opt(args, "--radio-at", 6), session.World.Run?.Tuning.Radio ?? new());
+    }
     // --roster: the crew roster (T69) as Q shows it, with a staged crew: two heard, one not yet, and a Passenger among them.
     if (args.Contains("--roster"))
     {
@@ -1460,6 +1470,73 @@ static object HudShot(string content, string[] args)
         status = session.Status(),
         watching = session.Watching,
         bookmarks = session.World.Run?.Report?.Bookmarks.Select(b => new { b.Id, kind = b.Kind.ToString(), b.Viewer, b.Victim, b.Frame, still = stills.Stills.ContainsKey(b.Id) })
+    };
+}
+
+// GDD v1.4 App. E.5 (note 177): a frame of the derailment film as the app plays it, cards and all. A hosted night with
+// --crew (4) aboard (the rest bots), run --seconds (12) and derailed at --speed (20 m/s); then --film s seconds into the
+// film's cut (after the first person and the replay). --plan prints the shot list instead of nothing extra.
+static object FilmStill(string content, string[] args)
+{
+    int crew = (int)Opt(args, "--crew", 4), cars = (int)Opt(args, "--cars", 6);
+    double filmAt = Opt(args, "--film", 0);
+    using var session = NetPlaySession.HostGame(content, new SessionSetup(Route: Str(args, "--route", "frontier:7"), Cars: cars, Enemies: false),
+        port: 0, bots: Math.Max(0, crew - 1));
+    for (int i = 0; i < Opt(args, "--seconds", 12) * SimConstants.TickRate; i++)
+    {
+        session.Step(default);
+        Thread.Sleep(1);
+    }
+    var hostWorld = session.Host!.World;
+    hostWorld.Train.Dynamics.Velocity = Opt(args, "--speed", 20);
+    hostWorld.Train.RefreshFrames();
+    hostWorld.Derail("took the 45 km/h bend at 72 km/h, 27 km/h too fast");
+    var t = session.World.WreckTuning;
+    double want = t.FirstPersonSeconds + t.ReplaySeconds + filmAt;
+    var clock = Stopwatch.StartNew();
+    while ((session.WreckSeconds < want || session.Film is null) && clock.Elapsed.TotalSeconds < 120)
+    {
+        if (session.WreckSeconds < want)
+            session.Step(default);
+        Thread.Sleep(1);
+    }
+    var film = session.Film;
+    if (film is null || film.CutAt(DerailSequence.FilmSeconds(t, session.WreckSeconds)) is not { } at)
+        return new { error = "no film to show there", wreckSeconds = session.WreckSeconds, film = film?.CutLength };
+    double recorded = at.Shot.At(at.Into);
+    var frames = DerailSequence.FilmFrames(film, recorded, session.InterpolatedFrames(1));
+    var camera = DerailSequence.FilmCamera(at.Shot, at.Into);
+    int width = (int)Opt(args, "--width", 640), height = (int)Opt(args, "--height", 360), scale = (int)Opt(args, "--scale", 2);
+    string output = Str(args, "--out", "out/shots/film.png");
+    using var gpu = new GpuContext("dt screenshot --film");
+    using var renderer = new GreyboxRenderer(gpu, width, height);
+    var mesh = new MeshBuilder();
+    var look = Looked(content, args);
+    look?.Dress(renderer);
+    new GreyboxScene
+    {
+        Route = session.Route,
+        Vehicles = session.Train.Vehicles,
+        Bodies = DerailSequence.FilmBodies(film, recorded),
+        CutAway = DerailSequence.FilmCutAway(film, at.Shot, recorded, frames, camera.Position),
+        Lights = DerailSequence.FilmLights(film, at.Shot, recorded, camera.Position),
+        Time = 0.37,
+        Look = look,
+        Derailed = true,
+    }.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
+    var lighting = Views.Lighting(frames[0], look);
+    var hud = new Overlay();
+    Hud.Build(hud, width, height, session);
+    var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, hud);
+    PngWriter.Write(output, pixels, width, height, scale);
+    return new
+    {
+        path = Path.GetFullPath(output),
+        shot = new { kind = at.Shot.Kind.ToString(), at.Shot.Subject, card = at.Shot.Card, into = Math.Round(at.Into, 2), recorded = Math.Round(recorded, 2) },
+        cut = film.Cut.Select(s => new { kind = s.Kind.ToString(), s.Subject, real = Math.Round(s.Real, 2), from = Math.Round(s.From, 2), to = Math.Round(s.To, 2), s.Card }),
+        cutLength = Math.Round(film.CutLength, 2),
+        recordedSeconds = Math.Round(film.Recorded, 2),
+        crew = film.Start.Players.Select(p => new { p.Id, p.Name, p.Role, speed = Math.Round(p.Velocity.Length, 1), peak = Math.Round(film.Peaks[p.Id].Score, 2) }),
     };
 }
 

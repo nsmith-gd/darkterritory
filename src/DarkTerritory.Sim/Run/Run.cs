@@ -21,6 +21,9 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
     /// <summary>The run-end screen's bookmarks (GDD v1.4 App. D.12, D.13): run.json <c>bookmarks</c>.</summary>
     public BookmarkTuning Bookmarks { get; init; } = new();
 
+    /// <summary>The dispatcher and the clerk on the radio (GDD §9): run.json <c>radio</c>.</summary>
+    public RadioTuning Radio { get; init; } = new();
+
     /// <summary>
     /// Where a night's engine starts: its front just short of the gate, ready to depart (the whole train still in the yard,
     /// so the run begins as it moves off), or as far back as the consist needs to fit on the line.

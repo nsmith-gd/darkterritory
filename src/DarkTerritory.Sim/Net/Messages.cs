@@ -15,8 +15,10 @@ public static class Protocol
     // 7: the crew lockers (note 173): a vehicle record's lockers' doors, a body record's locker and shelf.
     // 8: hit confirms and cannonball impacts (note 171), and the voice stream's hard-cut (note 172).
     // 9: the world record carries the derailment's track (GDD v1.4 App. E.6, note 174).
-    // 10: bookmarks (Bookmark) and the report's bookmarks beside its lines (GDD v1.4 App. D.12, note 176); the Bookmark action bit.
-    public const int Version = 10;
+    // 10: the derailment film's start (Film) and the skip vote on the world record (GDD v1.4 App. E.2, E.5; note 177).
+    // 11: a Holdout record's Call Outs and Live Mic, and the respawn queue (GDD v1.4 App. D.6, D.7; note 179).
+    // 12: bookmarks (Bookmark) and the report's bookmarks beside its lines (GDD v1.4 App. D.12, note 176).
+    public const int Version = 12;
 }
 
 public enum MessageType : byte
@@ -39,6 +41,8 @@ public enum MessageType : byte
     Report = 8,
     /// <summary>Host → client, reliable: a bookmark as it's made (GDD v1.4 App. D.12), for the client to take its still.</summary>
     Bookmark = 9,
+    /// <summary>Host → client, reliable: one chunk of the derailment film's start (GDD v1.4 App. E.2), compressed, in order.</summary>
+    Film = 10,
 }
 
 public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent);
@@ -249,9 +253,23 @@ public static class Messages
     const int ReportChunk = 1000;
 
     /// <summary>The report as reliable messages: its JSON, Brotli-compressed, cut into numbered chunks.</summary>
-    public static List<byte[]> ReportMessages(Run.RunReport report)
+    public static List<byte[]> ReportMessages(Run.RunReport report) =>
+        Chunked(MessageType.Report, System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(report));
+
+    /// <summary>
+    /// The derailment film's start in chunks (E.2 step 5): exact over JSON (doubles round-trip), so every client shoots the
+    /// same film the host would.
+    /// </summary>
+    public static List<byte[]> FilmMessages(Train.FilmStart start) =>
+        Chunked(MessageType.Film, System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(start, Ballast.DataFile.Options));
+
+    /// <summary>The film's start once every chunk is in, else null.</summary>
+    public static Train.FilmStart? ReadFilm(IReadOnlyDictionary<int, byte[]> chunks, int count) =>
+        Unchunk(chunks, count) is { } json ? System.Text.Json.JsonSerializer.Deserialize<Train.FilmStart>(json, Ballast.DataFile.Options) : null;
+
+    /// <summary>JSON, Brotli-compressed, cut into numbered reliable messages of <paramref name="type"/>.</summary>
+    static List<byte[]> Chunked(MessageType type, byte[] json)
     {
-        byte[] json = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(report);
         using var buffer = new MemoryStream();
         using (var z = new System.IO.Compression.BrotliStream(buffer, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true))
             z.Write(json);
@@ -262,7 +280,7 @@ public static class Messages
         for (int i = 0; i < count; i++)
         {
             w.Reset();
-            w.U8((byte)MessageType.Report);
+            w.U8((byte)type);
             w.U8((byte)i);
             w.U8((byte)count);
             w.Bytes(packed.AsSpan(i * ReportChunk, Math.Min(ReportChunk, packed.Length - i * ReportChunk)));
@@ -272,7 +290,10 @@ public static class Messages
     }
 
     /// <summary>Puts reassembled chunks back into the report; null while some are still to come.</summary>
-    public static Run.RunReport? ReadReport(IReadOnlyDictionary<int, byte[]> chunks, int count)
+    public static Run.RunReport? ReadReport(IReadOnlyDictionary<int, byte[]> chunks, int count) =>
+        Unchunk(chunks, count) is { } json ? System.Text.Json.JsonSerializer.Deserialize<Run.RunReport>(json) : null;
+
+    static byte[]? Unchunk(IReadOnlyDictionary<int, byte[]> chunks, int count)
     {
         if (count == 0 || Enumerable.Range(0, count).Any(i => !chunks.ContainsKey(i)))
             return null;
@@ -280,7 +301,7 @@ public static class Messages
         using var z = new System.IO.Compression.BrotliStream(packed, System.IO.Compression.CompressionMode.Decompress);
         using var json = new MemoryStream();
         z.CopyTo(json);
-        return System.Text.Json.JsonSerializer.Deserialize<Run.RunReport>(json.ToArray());
+        return json.ToArray();
     }
 
     /// <summary>A bookmark (D.12): where its still is taken from. Small, so one message, its JSON.</summary>
