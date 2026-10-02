@@ -143,9 +143,9 @@ public static class Hud
     }
 
     /// <summary>
-    /// The crew roster (T69, held Q): everyone aboard by the figures, where each is, and when each was last heard. A crew
-    /// counts heads and makes everyone speak by it (App. A.7): the Passenger is on it under the face it wears, one line too
-    /// many, and never heard. <paramref name="heard"/>: seconds since a crewmate's voice last came in, null for never.
+    /// The crew roster (T69, held Q): the session's crew by name, and who's speaking now. Not who's aboard, or where, or
+    /// alive: GDD v1.4 made roll call verbal (open question 2). <paramref name="heard"/>: seconds since a crewmate's voice
+    /// last came in, null for never.
     /// </summary>
     public static void Roster(Overlay o, int width, int height, IReadOnlyList<RosterLine> lines, Func<byte, double?>? heard)
     {
@@ -153,18 +153,13 @@ public static class Hud
         float w = 260, h = (lines.Count + 2) * line + 8;
         float x = MathF.Round((width - w) / 2), y = MathF.Round(height * 0.2f);
         o.Rect(x, y, w, h, Panel);
-        o.Text(x + 6, y + 4, $"{lines.Count} ABOARD", Ink);
+        o.Text(x + 6, y + 4, "THE CREW. ROLL CALL IS SHOUTED", Ink);
         y += 4 + 2 * line;
         foreach (var l in lines)
         {
-            o.Text(x + 6, y, l.Name, l.Alive ? Ink : Dim);
-            o.Text(x + 70, y, l.Where.ToUpperInvariant(), Dim);
-            var (said, colour) = l.You ? ("", Dim)
-                : !l.Alive ? ("", Dim)
-                : (l.Voiced ? heard?.Invoke(l.Id) : null) is not { } ago ? ("NOT HEARD", Amber)
-                : ago < 2 ? ("SPEAKING", Green)
-                : ($"HEARD {ago:0}S AGO", Dim);
-            o.TextRight(x + w - 6, y, said, colour);
+            o.Text(x + 6, y, l.Name, Ink);
+            bool speaking = !l.You && heard?.Invoke(l.Id) is < 2;
+            o.TextRight(x + w - 6, y, speaking ? "SPEAKING" : "", Green);
             y += line;
         }
     }
@@ -225,7 +220,7 @@ public static class Hud
         {
             o.TextRight(right, 5, "HOST", Ink, scale: 2);
         }
-        o.TextRight(right, 5 + 2 * line, $"{link.Aboard} ABOARD", Dim);
+        o.TextRight(right, 5 + 2 * line, $"CREW OF {link.Aboard}", Dim);
         o.TextRight(right, 5 + 3 * line, link.Role, Dim);
         if (link.Lost)
             o.TextRight(right, 5 + 4 * line, "CONNECTION LOST", Red);
@@ -359,6 +354,9 @@ public static class Hud
                 Big("RUN LOST", Red);
                 Small(r.End switch { RunEnd.Derailed => "DERAILED", RunEnd.CrewLost => "THE WHOLE CREW IS DEAD", _ => "STILL OUT WHEN THE LINE WENT LIVE" }, Ink);
             }
+            // GDD v1.4 App. D.12: the incident report, every line in the clerk's voice, under the result.
+            IncidentReport(o, width, height, y + line, r, line);
+            return;
         }
         if (!p.Alive)
         {
@@ -412,6 +410,71 @@ public static class Hud
         // T113: the Choir's long telegraph, said plainly once it's well along, and what to do about it.
         if (p.Alive && world.Combat is not null && !world.Choir.Present && world.Choir.Build > 0.25)
             Small("THE CHOIR IS GATHERING: GO QUIET", world.Tick / 15 % 2 == 0 ? Red : Amber);
+    }
+
+    /// <summary>
+    /// The incident report (GDD v1.4 App. D.12): deaths with who, where and the cause line (C.9) beside the fee and refund,
+    /// rescues, the boiler, cars lost, and how it ended; then the night's money. The clerk's flat voice, top to bottom; what
+    /// won't fit says how many more.
+    /// </summary>
+    public static void IncidentReport(Overlay o, int width, int height, float top, RunReport r, int line)
+    {
+        float w = Math.Min(width - 40, 980), x = MathF.Round((width - w) / 2);
+        int chars = Math.Max(20, (int)((w - 16) / Math.Max(1, o.Font.Measure("M") + 1)));
+        var rows = new List<(string Text, Vector4 Colour)> { ("INCIDENT REPORT", Amber) };
+        foreach (var l in r.Lines)
+        {
+            var colour = l.Kind switch { IncidentKind.Death => Ink, IncidentKind.Rescue => Green, IncidentKind.Derailed or IncidentKind.Stranded => Amber, _ => Dim };
+            string text = l.Who.Length > 0 ? $"{l.Who.ToUpperInvariant()}: {l.Text}" : l.Text;
+            bool first = true;
+            foreach (var part in Wrap(text, chars))
+            {
+                rows.Add((first ? part : "    " + part, colour));
+                first = false;
+            }
+        }
+        if (r.Lines.Count == 0)
+            rows.Add(("Nothing to report.", Dim));
+        var money = new List<string> { $"Gross {r.Gross:0}" };
+        if (r.CrewLossFees > 0)
+            money.Add($"crew-loss fees {r.CrewLossFees:0}");
+        if (r.BodyRefunds > 0)
+            money.Add($"refunds {r.BodyRefunds:0}");
+        if (r.Recovery > 0)
+            money.Add($"recovery {r.Recovery:0}");
+        money.Add($"running costs {r.CoalCost + r.AmmoCost + r.RepairCost:0}");
+        rows.Add(($"{string.Join(", ", money)}. Net {r.Net:0} scrip.", Ink));
+        int room = Math.Max(3, (int)((height - top - 8) / line) - 1);
+        if (rows.Count > room)
+        {
+            int more = rows.Count - room + 1;
+            rows = [.. rows.Take(room - 2), ($"... and {more} more lines", Dim), rows[^1]];
+        }
+        o.Rect(x - 4, top - 4, w + 8, rows.Count * line + 8, Panel);
+        float y = top;
+        foreach (var (text, colour) in rows)
+        {
+            o.Text(x + 4, y, text, colour);
+            y += line;
+        }
+    }
+
+    static IEnumerable<string> Wrap(string text, int chars)
+    {
+        var line = new System.Text.StringBuilder();
+        foreach (var word in text.Split(' '))
+        {
+            if (line.Length > 0 && line.Length + 1 + word.Length > chars)
+            {
+                yield return line.ToString();
+                line.Clear();
+            }
+            if (line.Length > 0)
+                line.Append(' ');
+            line.Append(word);
+        }
+        if (line.Length > 0)
+            yield return line.ToString();
     }
 
     /// <summary>The reload's step under way (GDD v1.1 App. C.3: powder, ball, ram), for the prompt.</summary>

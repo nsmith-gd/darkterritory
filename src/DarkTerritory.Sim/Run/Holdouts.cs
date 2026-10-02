@@ -36,7 +36,8 @@ public enum HoldoutState : byte { Dormant, Occupied, Breaching, Freed }
 public enum HoldoutEventKind : byte { Assigned, Released, Freed, CalledOut }
 
 /// <summary>What a Holdout did this tick, for the host to act on (a shout to play) and for the harness to count.</summary>
-public readonly record struct HoldoutEvent(HoldoutEventKind Kind, int Holdout, int PlayerId);
+/// <param name="By">For <see cref="HoldoutEventKind.Freed"/>, who broke them out (D.12 "who freed whom").</param>
+public readonly record struct HoldoutEvent(HoldoutEventKind Kind, int Holdout, int PlayerId, int By = -1);
 
 /// <summary>One Holdout in the world: where it stands, and (host-authoritative, mirrored) who's in it.</summary>
 public sealed class Holdout
@@ -257,7 +258,7 @@ public sealed class Holdouts
                 if (h.Progress >= b.Seconds)
                 {
                     Free(h, crew, set);
-                    events.Add(new HoldoutEvent(HoldoutEventKind.Freed, h.Index, h.Occupant));
+                    events.Add(new HoldoutEvent(HoldoutEventKind.Freed, h.Index, h.Occupant, breacher));
                 }
                 continue;
             }

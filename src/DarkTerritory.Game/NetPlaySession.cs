@@ -248,7 +248,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             {
                 var (botWorld, _) = botSetup.Build(content);
                 var botTransport = UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, udp.Port));
-                var session = new ClientSession(botTransport, botWorld, trainTuning, playerTuning);
+                var session = new ClientSession(botTransport, botWorld, trainTuning, playerTuning) { Name = playerTuning.BotName(i) };
                 crew.Add(session, BotCrew.Make(i, bots, crew.Calls, loadout.Combat, playerTuning, (int)(route?.Seed ?? 1)), botTransport);
                 var joining = System.Diagnostics.Stopwatch.StartNew();
                 while (session.PlayerId is null && joining.Elapsed.TotalSeconds < 5)
@@ -262,7 +262,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         var (clientWorld, _) = setup.Build(content);
         var clientTransport = UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, udp.Port));
-        var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning);
+        var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning) { Name = LocalName(lobby) };
         // The host's own player comes aboard before anyone else can: first aboard takes the cab.
         var clock = System.Diagnostics.Stopwatch.StartNew();
         while (client.PlayerId is null && clock.Elapsed.TotalSeconds < 5)
@@ -407,7 +407,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             throw new IOException("the host's land comes out differently on this machine (its terrain checksum differs): report it, it's a bug");
         }
         var client = new ClientSession(new Replay(transport, early), world,
-            setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)));
+            setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)))
+        { Name = LocalName(lobby) };
         return new NetPlaySession(null, null, null, client, transport, setup, route, lobby);
     }
 
@@ -555,19 +556,19 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     }
 
     /// <summary>
-    /// The roster's lines: you, the rest of the crew, and (App. A.7 "appears on the roster") any Passenger under the face it
-    /// wears, where it is: one line too many, beside the real one. In player-id order.
+    /// The roster's lines: you and the rest of the session's crew, by name, in player-id order. GDD v1.4 (open question 2)
+    /// made roll call verbal: "there is no aboard indicator for the conductor or anyone else", so a line says nothing of
+    /// where anyone is or whether they're alive, and the Passenger isn't on it: its only tell is silence, heard by ear.
     /// </summary>
     public static IReadOnlyList<RosterLine> RosterOf(byte me, in PlayerState mine, IEnumerable<(byte Id, PlayerState State)> crew, World world)
     {
-        var train = world.Train;
-        var lines = new List<RosterLine> { new(me, "YOU", PrototypeSession.Where(mine, train), mine.Alive, You: true) };
-        foreach (var (id, s) in crew)
-            lines.Add(new RosterLine(id, $"CREW {id}", s.Alive ? PrototypeSession.Where(s, train) : "DEAD", s.Alive));
-        foreach (var p in world.ActiveEnemies.OfType<Sim.Enemies.Passenger>())
-            lines.Add(new RosterLine((byte)p.Looks, $"CREW {p.Looks}", $"inside car {p.Attached}, shut in", true, Voiced: false));
+        var lines = new List<RosterLine> { new(me, NameOr(world, me, "YOU").ToUpperInvariant(), "", true, You: true) };
+        foreach (var (id, _) in crew)
+            lines.Add(new RosterLine(id, NameOr(world, id, $"CREW {id}").ToUpperInvariant(), "", true));
         return [.. lines.OrderBy(l => l.Id)];
     }
+
+    static string NameOr(World world, int id, string fallback) => world.Names.TryGetValue(id, out var n) && n.Length > 0 ? n : fallback;
 
     /// <summary>
     /// Everyone aboard, by the figures: the crew, and anything wearing one of their faces (App. A.7's tell, "crew count reads
@@ -618,6 +619,14 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
 
     /// <summary>Whose game it is, for the join list: the Steam name hosting through Steam, else the computer's user.</summary>
     string HostName => Lobby is { } l ? l.Online.NameOf(l.Online.Me) : Environment.UserName;
+
+    /// <summary>The name set in the settings (the app sets it at start), for the crew and the report.</summary>
+    public static string PlayerName { get; set; } = "";
+
+    /// <summary>What this player is called: the settings' name, else the online name, else the system's.</summary>
+    static string LocalName(Lobby? lobby) =>
+        Messages.CleanName(PlayerName) is { Length: > 0 } set ? set
+        : Messages.CleanName(lobby is { } l ? l.Online.NameOf(l.Online.Me) : Environment.UserName) is { Length: > 0 } n ? n : "You";
 
     public void Dispose()
     {

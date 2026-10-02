@@ -1221,6 +1221,9 @@ static object HudShot(string content, string[] args)
     }
     int width = (int)Opt(args, "--width", 480), height = (int)Opt(args, "--height", 270), scale = (int)Opt(args, "--scale", 2);
     string output = Str(args, "--out", "out/shots/hud.png");
+    // --report [derailed]: the night over, and its incident report as the run-end screen shows it (GDD v1.4 App. D.12).
+    if (args.Contains("--report") && session.World.Run is { } over)
+        over.MirrorReport(Staging.Report(session.World, Str(args, "--report", "") == "derailed" ? DarkTerritory.Sim.Run.RunEnd.Derailed : DarkTerritory.Sim.Run.RunEnd.CrewLost));
     var frames = session.InterpolatedFrames(1);
     var camera = session.EyeCamera(frames, 1, 0, 0);
     using var gpu = new GpuContext("dt screenshot --hud");

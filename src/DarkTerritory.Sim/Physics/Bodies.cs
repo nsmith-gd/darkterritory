@@ -239,8 +239,10 @@ public sealed class Bodies
     public int Deaths { get; private set; }
 
     /// <summary>Host: a body for everyone who died this tick (not a mid-run joiner still waiting: they've no body).</summary>
-    public void OnDeaths(TrainOnLine train, IEnumerable<(int Id, PlayerState State)> crew)
+    /// <returns>Who died this tick, and the body each left.</returns>
+    public List<(int Id, PlayerState State, Body Body)> OnDeaths(TrainOnLine train, IEnumerable<(int Id, PlayerState State)> crew)
     {
+        var died = new List<(int, PlayerState, Body)>();
         foreach (var (id, s) in crew)
         {
             if (s.Alive)
@@ -250,9 +252,10 @@ public sealed class Bodies
             }
             if (s.Death == DeathCause.Waiting || !_bodied.Add(id))
                 continue;
-            SpawnRagdoll(train, id, s);
+            died.Add((id, s, SpawnRagdoll(train, id, s)));
             Deaths++;
         }
+        return died;
     }
 
     /// <summary>

@@ -562,6 +562,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // The player's keys (T80): each control's key, from the settings (a name the platform doesn't know: its default).
     var keyOf = Enum.GetValues<Control>().ToDictionary(c => c, c => Enum.TryParse<Key>(settings.KeyFor(c), out var k) ? k : Enum.Parse<Key>(Controls.Defaults[c]));
     Hud.Keys = settings;
+    NetPlaySession.PlayerName = settings.PlayerName;
     bool Held(Control c) => input.Down(keyOf[c]);
     bool Hit(Control c) => input.Pressed(keyOf[c]);
     Camera camera = default;

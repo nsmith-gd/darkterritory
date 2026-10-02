@@ -115,6 +115,8 @@ public class NetcodeTests
         Assert.Equal(2, host.Train.Rakes.Count);
         Assert.All(clients, c => Assert.Equal(2, c.Train.Rakes.Count));
         Assert.All(clients, c => Assert.Equal(0, c.MaxCorrection));
+        // GDD v1.4 App. C.9: the host knows who pulled the coupler, for every car behind it.
+        Assert.Equal(cutter.PlayerId!.Value, host.World.Attribution.CouplerPulledBy(4));
     }
 
     [Fact]
