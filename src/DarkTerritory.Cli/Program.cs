@@ -904,7 +904,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Time = 0.37,
         Enemies = args.Contains("--threats") ? Later(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), train, Str(args, "--tippy", "")), Str(args, "--whistler", "")), Str(args, "--ribbits", "")), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--later", 0)) : null,
         StagedPaces = args.Contains("--passenger") ? new Dictionary<int, float> { [48] = Staging.PassengerPace(Str(args, "--passenger", "")) } : null,
-        Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All : cargo,
+        // --stocked: the train as it leaves, its stores and every car's extinguisher aboard (--charge 0..1: theirs).
+        Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All
+            : args.Contains("--stocked") ? Staging.Stocked(train, content, Opt(args, "--charge", 1)).All : cargo,
         // --crew: three on car 2's roof, one reaching up, one holding out both hands, one with a keyboard (T47's arms).
         // --working: the crew at work (X1): carrying, at a hatch and a brake wheel on car 2's roof, sat at the last gun.
         Crew = args.Contains("--working") ? Staging.Working(train, content)
@@ -942,6 +944,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     for (int b = 0; b < builds; b++)
         scene.Build(mesh, train, camera.Position);
     double buildMs = buildClock.Elapsed.TotalMilliseconds / builds;
+    // --lantern: a hand lamp held just under the eye (the scene is eye-relative), the light you'd have in a dark car.
+    if (args.Contains("--lantern"))
+        mesh.PointLights.Add(new PointLight(new System.Numerics.Vector3(0.15f, -0.35f, 0), DarkTerritory.Game.Palette.LampAmber * 1.6f, 6));
     var lighting = Views.Lighting(train, look);
     if (args.Contains("--emergency"))
         lighting.LampRange = 0.01f; // emergency lighting: no power to the headlamp

@@ -30,8 +30,11 @@ public static class WorldRecords
 {
     // Fixed-point scales. Positions and speeds to 0.1 mm; angles to 10 µrad; slow scalars and timers to 1e-6.
     const double Pos = 1e4, Ang = 1e5, Fine = 1e6, Hint = 1e2, Cm = 1e2;
-    /// <summary>A body record's fields before its particles: kind, parent, carrier, owner, asleep, yaw, count, second carrier.</summary>
-    const int BodyParticles = 8;
+    /// <summary>
+    /// A body record's fields before its particles: kind, parent, carrier, owner, asleep, yaw, count, second carrier, and
+    /// what it shows: an extinguisher's charge to the percent (its sight glass, App. C.5), a crate's cargo (GDD §19).
+    /// </summary>
+    const int BodyParticles = 9;
     // The Run record's header (phase, end, clock, facility, chute, scavenged), and room in a crane record's id for each of a site's cranes.
     const int RunHead = 6, CranesPerSite = 16;
 
@@ -149,6 +152,7 @@ public static class WorldRecords
             f[5] = Q(body.Yaw, Ang);
             f[6] = ps.Length;
             f[7] = body.Second;
+            f[8] = body.Kind == Physics.BodyKind.Extinguisher ? Q(body.Charge, Hint) : (long)body.Cargo;
             for (int i = 0; i < ps.Length; i++)
             {
                 f[BodyParticles + i * 3] = Q(ps[i].Position.X, Pos);
@@ -342,6 +346,8 @@ public static class WorldRecords
             Second = (int)f[7],
             Owner = (int)f[3],
             Yaw = D(f[5], Ang),
+            Charge = (Physics.BodyKind)f[0] == Physics.BodyKind.Extinguisher ? D(f[8], Hint) : 1,
+            Cargo = (Physics.BodyKind)f[0] == Physics.BodyKind.Extinguisher ? CargoKind.None : (CargoKind)f[8],
         };
     }
 

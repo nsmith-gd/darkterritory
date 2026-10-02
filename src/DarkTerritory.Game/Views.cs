@@ -90,6 +90,16 @@ public static class Views
             // (Not one of Names.) Down the aisle of the first cargo car at the face of its load, where the staged fire
             // burns (dt screenshot --threats --view fire: Staging.Threats' car fire, Effects.CarFire).
             "fire" => FireCamera(train),
+            // (Not one of Names.) In the guard van at its back end, down at the stores World.Stock puts there: the crates,
+            // the lamp and radios, the toys (App. C.4), and its extinguisher on the wall beyond them.
+            "stores" => StoresCamera(train),
+            // (Not one of Names.) In the gun car (the guard van) at its front end: the powder and shot locker in the corner
+            // ahead of the tool lockers on the left (SceneArt.Fittings).
+            "locker" => LockerCamera(train),
+            // (Not one of Names.) In this car, across the aisle at its extinguisher stood on its board (World.ExtinguisherMount;
+            // with dt screenshot --stocked, its charge in the glass).
+            "mount" => Camera.LookAt(target.ToWorld(new Double3(-0.05, Floor(train) + 1.3, -target.Shape.HalfLength + 2.95)),
+                target.ToWorld(new Double3(-1.15, Floor(train) + 0.45, -target.Shape.HalfLength + 2.05)), 55),
             // (Not one of Names.) Off the engine's side, up at the tender under a coaling tower's spout (dt screenshot
             // --route tier:seed --coaling --view coaling: the chute pouring, Effects.CoalPour).
             "coaling" => Camera.LookAt(engine.ToWorld(new Double3(9, 3.5, engineHalf - 1)), engine.ToWorld(new Double3(0, 5.5, engineHalf - 3)), 60),
@@ -184,6 +194,22 @@ public static class Views
         var f = train.Frames[v];
         double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 1.1;
         return Camera.LookAt(f.ToWorld(new Double3(-0.55, floor + 1.6, 5.2)), f.ToWorld(new Double3(0.5, floor + 0.9, 1.5)), 70);
+    }
+
+    static Camera StoresCamera(TrainOnLine train)
+    {
+        int v = Enumerable.Range(0, train.Vehicles.Count).LastOrDefault(i => train.Vehicles[i].Kind == Sim.Train.VehicleKind.Guard, train.Vehicles.Count - 1);
+        var f = train.Frames[v];
+        double floor = Floor(train), l = f.Shape.HalfLength;
+        return Camera.LookAt(f.ToWorld(new Double3(-0.2, floor + 1.55, l - 0.5)), f.ToWorld(new Double3(0.2, floor + 0.2, l - 2.6)), 75);
+    }
+
+    static Camera LockerCamera(TrainOnLine train)
+    {
+        int v = Enumerable.Range(1, train.Vehicles.Count - 1).FirstOrDefault(i => train.Vehicles[i].HasGun && train.Frames[i].Shape.Interior is not null, train.Vehicles.Count - 1);
+        var f = train.Frames[v];
+        double floor = Floor(train), l = f.Shape.HalfLength;
+        return Camera.LookAt(f.ToWorld(new Double3(0.1, floor + 1.5, -l + 1.5)), f.ToWorld(new Double3(-0.95, floor + 0.2, -l + 0.6)), 65);
     }
 
     static Camera CannonCamera(TrainOnLine train, bool side)

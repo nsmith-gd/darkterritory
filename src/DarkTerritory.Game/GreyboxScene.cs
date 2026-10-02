@@ -1546,9 +1546,12 @@ public sealed class GreyboxScene
         }
         if (shape.Interior is not null && Look is not null)
         {
-            // Lanterns hanging where the car's lights are (the art pass's).
-            Look.Art.CarLamps(mesh, frame, eye, Emergency,
-                Art.Bite.For(Look.Tuning.Bite, frame.Shape, Vehicles is { } lampsOf && frame.Index < lampsOf.Count ? lampsOf[frame.Index] : null, frame.Index));
+            // Lanterns hanging where the car's lights are (the art pass's), and the car's fittings: its extinguisher's
+            // board and cradle, a gun car's powder and shot.
+            var fitted = Vehicles is { } lampsOf && frame.Index < lampsOf.Count ? lampsOf[frame.Index] : null;
+            var bitten = Art.Bite.For(Look.Tuning.Bite, frame.Shape, fitted, frame.Index);
+            Look.Art.CarLamps(mesh, frame, eye, Emergency, bitten);
+            Look.Art.Fittings(mesh, frame, eye, fitted, bitten);
         }
         else if (shape.Interior is { } room)
         {

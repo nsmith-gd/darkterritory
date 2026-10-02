@@ -207,9 +207,22 @@ public sealed class World
         foreach (var v in Train.Dynamics.Consist.Vehicles)
             if (v.Id > 0 && Train.Frames[v.Id].Shape.Interior is { } room)
             {
-                var b = Bodies.SpawnCrate(Train, v.Id, new Ballast.Double3(room.Min.X + 0.3, room.Min.Y + 0.1, room.Min.Z + 2.0), Physics.BodyKind.Extinguisher);
+                var b = Bodies.SpawnCrate(Train, v.Id, ExtinguisherMount(Train.Frames[v.Id].Shape, room), Physics.BodyKind.Extinguisher);
                 b.Home = v.Id;
             }
+    }
+
+    /// <summary>
+    /// Where a car's extinguisher stands on its mount (car frame, on the floor): the left wall, 2 m in from the front end, or
+    /// just past the guard van's tool lockers where they stand along that wall. The art draws the bracket here.
+    /// </summary>
+    public static Ballast.Double3 ExtinguisherMount(CarShape shape, Train.Box room)
+    {
+        var at = new Ballast.Double3(room.Min.X + 0.3, room.Min.Y + 0.1, room.Min.Z + 2.0);
+        foreach (var s in shape.Solids)
+            if (s.Part == PartKind.Locker && at.X >= s.Box.Min.X - 0.2 && at.X <= s.Box.Max.X + 0.2 && at.Z >= s.Box.Min.Z - 0.3 && at.Z <= s.Box.Max.Z + 0.3)
+                at = at with { Z = s.Box.Max.Z + 0.4 };
+        return at;
     }
 
     /// <summary>The route's boards and the hazards they warn of (sight.json), when playing a route.</summary>
