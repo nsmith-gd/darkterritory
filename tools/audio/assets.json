@@ -1199,6 +1199,76 @@
   "url": "/_blob/b2fdea2cf092f77137107ef79d21b4ba",
   "sha": "2b414e5f9b7940d8"
  },
+ "previews/crew-mishaps--bare-slap--pat.mp4": {
+  "id": "7489cf38a1dff19385711c1c30f0f81b",
+  "url": "/_blob/7489cf38a1dff19385711c1c30f0f81b",
+  "sha": "f2c4fad8686647bc"
+ },
+ "previews/crew-mishaps--bare-slap--smack.mp4": {
+  "id": "c3c0f0aca8646c536389c0fe2c00b369",
+  "url": "/_blob/c3c0f0aca8646c536389c0fe2c00b369",
+  "sha": "33ab6ee3947ee48f"
+ },
+ "previews/crew-mishaps--bare-swing--sleeve.mp4": {
+  "id": "a71036f91c9fa972f7d456e7907f8fd2",
+  "url": "/_blob/a71036f91c9fa972f7d456e7907f8fd2",
+  "sha": "bbe3e9631396a921"
+ },
+ "previews/crew-mishaps--bare-swing--whiff.mp4": {
+  "id": "5bd180d91bcd449ca2a06af2d061cec3",
+  "url": "/_blob/5bd180d91bcd449ca2a06af2d061cec3",
+  "sha": "2236f2cca2ff9dc6"
+ },
+ "previews/crew-mishaps--body-boot--dead-leg--ground.mp4": {
+  "id": "41249ff6312e4570908a68d92e30e6f9",
+  "url": "/_blob/41249ff6312e4570908a68d92e30e6f9",
+  "sha": "c6e548cb79a99875"
+ },
+ "previews/crew-mishaps--body-boot--dead-leg--wood.mp4": {
+  "id": "1ef48f6b620c1aa4c06996b6effed589",
+  "url": "/_blob/1ef48f6b620c1aa4c06996b6effed589",
+  "sha": "a12efc8cedc239eb"
+ },
+ "previews/crew-mishaps--body-boot--heel--ground.mp4": {
+  "id": "7f7733905e0b126258f580fdbc28f111",
+  "url": "/_blob/7f7733905e0b126258f580fdbc28f111",
+  "sha": "1a5425d48c946573"
+ },
+ "previews/crew-mishaps--body-boot--heel--wood.mp4": {
+  "id": "6fdfed2360c6b22f4466fa15e3b91f1d",
+  "url": "/_blob/6fdfed2360c6b22f4466fa15e3b91f1d",
+  "sha": "4a5794fcbfdd3a5c"
+ },
+ "previews/crew-mishaps--body-knock--jamb.mp4": {
+  "id": "81fd0d2298ba18f348b6869846c32167",
+  "url": "/_blob/81fd0d2298ba18f348b6869846c32167",
+  "sha": "8b570737cdb5b756"
+ },
+ "previews/crew-mishaps--body-knock--scuff.mp4": {
+  "id": "fbc96e165049974b6e197c618188ffa2",
+  "url": "/_blob/fbc96e165049974b6e197c618188ffa2",
+  "sha": "dd5f417fadf0c2cd"
+ },
+ "previews/crew-mishaps--crane-chain--jangle.mp4": {
+  "id": "ba6d9392aecb1fd157df17e7490eba1e",
+  "url": "/_blob/ba6d9392aecb1fd157df17e7490eba1e",
+  "sha": "68183b3f81109f2a"
+ },
+ "previews/crew-mishaps--crane-chain--links.mp4": {
+  "id": "026740f3669fa85c72739a7356f4ee31",
+  "url": "/_blob/026740f3669fa85c72739a7356f4ee31",
+  "sha": "21f51e0b2d95b8f0"
+ },
+ "previews/crew-mishaps--crushed--anvil.mp4": {
+  "id": "54086f56369bb7ee1b04026f630b2c01",
+  "url": "/_blob/54086f56369bb7ee1b04026f630b2c01",
+  "sha": "ff2a4e900f6d08f2"
+ },
+ "previews/crew-mishaps--crushed--bong.mp4": {
+  "id": "d8a9c2df6572b5510c0a9be8b36e2dd3",
+  "url": "/_blob/d8a9c2df6572b5510c0a9be8b36e2dd3",
+  "sha": "38140220936ba15f"
+ },
  "previews/crew-mishaps--extinguisher-dregs--gurgle.mp4": {
   "id": "0fc8fb8720a19bc629c116469382de1c",
   "url": "/_blob/0fc8fb8720a19bc629c116469382de1c",
@@ -1218,6 +1288,16 @@
   "id": "e52d8ebc1e225b436098bf56f82430e2",
   "url": "/_blob/e52d8ebc1e225b436098bf56f82430e2",
   "sha": "8138ebfd3d6cc242"
+ },
+ "previews/crew-mishaps--pocket-scatter--clatter.mp4": {
+  "id": "5b0a0ce8c7346fd36f20e13b050b4d68",
+  "url": "/_blob/5b0a0ce8c7346fd36f20e13b050b4d68",
+  "sha": "323ca0021233b725"
+ },
+ "previews/crew-mishaps--pocket-scatter--straggler.mp4": {
+  "id": "dc089a0bc49592de750eceb8e4ec551f",
+  "url": "/_blob/dc089a0bc49592de750eceb8e4ec551f",
+  "sha": "d460dc586e4a5eb3"
  },
  "previews/crew-mishaps--startle-cattle--herd.mp4": {
   "id": "4f6451576804e7c826663ef988aaa00d",
@@ -1248,6 +1328,36 @@
   "id": "01b9855ba0d3d7f4df34de1e6de46de6",
   "url": "/_blob/01b9855ba0d3d7f4df34de1e6de46de6",
   "sha": "b4bc3c1f35696785"
+ },
+ "previews/crew-mishaps--thrown-flail--cloth.mp4": {
+  "id": "12368c4fd50a65446779b741820216e8",
+  "url": "/_blob/12368c4fd50a65446779b741820216e8",
+  "sha": "6094c72b74ea5b4b"
+ },
+ "previews/crew-mishaps--thrown-flail--flutter.mp4": {
+  "id": "2ec9b9b44fed0ec1c442180b7156aca4",
+  "url": "/_blob/2ec9b9b44fed0ec1c442180b7156aca4",
+  "sha": "f2a88904de5c0593"
+ },
+ "previews/crew-mishaps--tunnel-bonk--brick.mp4": {
+  "id": "82fd25eac27f8a38faf49e34fb3d6b5b",
+  "url": "/_blob/82fd25eac27f8a38faf49e34fb3d6b5b",
+  "sha": "e2001d9b733a2203"
+ },
+ "previews/crew-mishaps--tunnel-bonk--coconut.mp4": {
+  "id": "15233ea54733dd36792c3e0883b6fa64",
+  "url": "/_blob/15233ea54733dd36792c3e0883b6fa64",
+  "sha": "f282cbffe2c29a1b"
+ },
+ "previews/crew-mishaps--tunnel-tumble--bounces.mp4": {
+  "id": "ceacfac45518edf2b58317248d7e2605",
+  "url": "/_blob/ceacfac45518edf2b58317248d7e2605",
+  "sha": "9e5b26a9bf6aef1d"
+ },
+ "previews/crew-mishaps--tunnel-tumble--skid.mp4": {
+  "id": "1af75be08302a90892363ed604205191",
+  "url": "/_blob/1af75be08302a90892363ed604205191",
+  "sha": "134e4acbe1463bb2"
  },
  "previews/crew-mishaps--whistle-wheeze--breath.mp4": {
   "id": "3d6c365b3af7a75bc2fabc732f9bf121",

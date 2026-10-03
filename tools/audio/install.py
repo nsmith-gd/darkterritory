@@ -181,7 +181,12 @@ def candidates(line, cue, stored):
     return out
 
 
-def pick(cands, mat, line_level):
+# Which candidate plays while nothing's kept, where the director's brief already says which (rather than the first): the
+# tunnel's hit is to be a bonk, not a thock (3 Oct), and the clean bonk is the one that says so.
+FIRST_CHOICE = {"crew-mishaps.tunnel-bonk": "coconut"}
+
+
+def pick(cands, mat, line_level, cue_name=None):
     here = [k for k in cands if k.get("mat") in (mat, None)]
     kept = [k for k in here if k.get("verdict") == "keep"]
     if kept:
@@ -189,7 +194,7 @@ def pick(cands, mat, line_level):
     # Nothing kept yet: the first candidate not marked Redo, on every line, so every cue the game's hooks name has a sound
     # of its own (a tell's takes go under its game name: tell_sounds).
     ok = [k for k in here if k.get("verdict") != "redo"]
-    ok.sort(key=lambda k: (not k.get("built"), not k.get("old"), k.get("mat") is None))
+    ok.sort(key=lambda k: (k.get("key") != FIRST_CHOICE.get(cue_name), not k.get("built"), not k.get("old"), k.get("mat") is None))
     return ok[:1], "first"
 
 
@@ -390,7 +395,7 @@ def main():
                 if groups is not None:
                     chosen, why = dict(groups)[mat], "set"
                 else:
-                    chosen, why = pick(cands, mat, item.get("level"))
+                    chosen, why = pick(cands, mat, item.get("level"), f"{line}.{cue['id']}")
                 rel = f"{line}/{cue['id']}" + (f"/{mat}" if mat else "")
                 if not chosen:
                     # Every candidate marked Redo: what's installed plays on till its replacement comes, but isn't kept
