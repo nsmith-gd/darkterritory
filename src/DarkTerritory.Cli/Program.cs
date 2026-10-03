@@ -874,7 +874,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --structure type: the night's first of the plan's structures of that type on the main line (a girder, truss, trestle
     // or viaduct bridge, a causeway, a retaining wall...), the train on it, seen from off its side.
     var structure = Str(args, "--structure", "") is { Length: > 0 } kind && generated?.Plan is { } structurePlan
-        ? structurePlan.Structures.FirstOrDefault(x => x.Edge == "main" && x.Type == Enum.Parse<DarkTerritory.Sim.LineGen.StructureType>(kind, true))
+        // (weak: the first bridge with a car limit, whatever it's built as.)
+        ? structurePlan.Structures.FirstOrDefault(x => x.Edge == "main" && (kind == "weak" ? x.Weak is not null : x.Type == Enum.Parse<DarkTerritory.Sim.LineGen.StructureType>(kind, true)))
         : null;
     if (Str(args, "--structure", "") is { Length: > 0 } && structure is null)
         return Print(new { error = $"no {Str(args, "--structure", "")} on {Str(args, "--route", "")}'s main line", has = generated?.Plan?.Structures.Where(x => x.Edge == "main").Select(x => x.Type.ToString()).Distinct() });
@@ -1089,6 +1090,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (args.Contains("--muzzle"))
         foreach (var v in train.Vehicles.Where(v => v.HasGun))
             v.Gun.LastShotTick = 100;
+    // The guns loaded as a night arms them (Guns.Arm): the powder and shot locker full, as aboard.
+    DarkTerritory.Sim.Combat.Guns.Arm(train, DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)).Guns);
+    // --lamps-out i[,j,...]: those cars' lamps put out (Vehicle.LampLit: dark inside, their lanterns unlit).
+    if (Str(args, "--lamps-out", "") is { Length: > 0 } outs)
+        foreach (int i in outs.Split(',').Select(int.Parse))
+            if (i < train.Vehicles.Count)
+                train.Vehicles[i].LampLit = false;
     // --integrity a[,b,...]: each car's condition, front to back, the last repeating (look.json "damage": scars, states).
     if (Str(args, "--integrity", "") is { Length: > 0 } integrity)
     {
@@ -1103,6 +1111,15 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         int k = 0;
         foreach (var v in train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo))
             v.Cargo = each[Math.Min(k++, each.Length - 1)];
+    }
+    // --stand n: close by branch n's switch stand, looking at its lever and lamp (--diverge: set for the branch).
+    if (Opt(args, "--stand", -1) is var standIx and >= 0 && standIx < line.Branches.Count)
+    {
+        var stands = new SwitchStands(new JunctionTuning());
+        var lever = stands.LeverAt(line, (int)standIx);
+        var toe = line.Sample(line.Branches[(int)standIx].Toe);
+        var across = Double3.Cross(toe.Tangent, Double3.Up).Normalized * line.Branches[(int)standIx].Side;
+        camera = Camera.LookAt(lever + across * 2.6 - toe.Tangent * 2.2 + Double3.Up * 0.9, lever + Double3.Up * 0.3, 55);
     }
     // --lit: every Holdout on the route occupied, its lamp burning (GDD App. D.7), as if the dead were waiting at each.
     DarkTerritory.Sim.Run.Holdouts? holdouts = null;
@@ -1121,6 +1138,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             outward = outward.Length > 0.1 ? outward.Normalized : Double3.Cross(Double3.Up, line.Sample(h.LineHint).Tangent);
             var across = Double3.Cross(Double3.Up, outward);
             camera = Camera.LookAt(h.Door + outward * 4.2 + across * 3.6 + Double3.Up * 2.0, h.Door + Double3.Up * 1.2, 60);
+            // --approach m: instead from the cab's height on the line that far short of it (App. D.7: seen from the 1 km board).
+            if (args.Contains("--approach"))
+            {
+                double back = Opt(args, "--approach", 1000);
+                var from = line.Sample(Math.Max(0, h.LineHint - back)).Position + Double3.Up * 3.2;
+                camera = Camera.LookAt(from, h.Door + Double3.Up * 3, 60);
+            }
         }
     }
     // --gun-laid yaw,pitch (degrees): every gun turned and elevated so, as a seated gunner lays it (T112).
@@ -1182,13 +1206,19 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 Enum.Parse<DarkTerritory.Game.Art.Survivor>(Str(args, "--survivor", "none"), ignoreCase: true))
             : args.Contains("--working") ? Staging.Working(train, content)
             : args.Contains("--crew") ? [.. Staging.Crew(train, content), .. args.Contains("--ribbits") || args.Contains("--gaunt") || args.Contains("--grumbler") || args.Contains("--follower") || args.Contains("--soot") ? [Staging.Lone(train)] : Array.Empty<Crewmate>()]
-            : Str(args, "--passenger", "") == "drag" ? [Staging.Dragged(train)] : null,
+            : Str(args, "--passenger", "") == "drag" ? [Staging.Dragged(train)]
+            // --bodies --burned: the staged body (crewmate 9's) is one the fire took: drawn charred, smouldering (spec C.1).
+            : args.Contains("--burned") ? [new Crewmate(9, default, 0, false, Death: DarkTerritory.Sim.Player.DeathCause.Burned)] : null,
         Emergency = args.Contains("--emergency"),
         LampsOut = strandedAt >= 0 ? Views.StrandedLampsOut(train.Frames.Count, outro, strandedAt) : 0,
         KitLockerOpen = strandedAt >= 0,
         LampRange = strandedAt >= 0 ? 400 : 60,
         RoofGlow = strandedAt >= 0,
         FireDoorOpen = args.Contains("--firedoor") || args.Contains("--stoker"),
+        // --perched: the fire burned low, the Stoker waiting on the smokestack (World.StokerWaiting).
+        StokerPerched = args.Contains("--perched"),
+        // --whistle: a crewmate on the cord (the cord hauled down, the whistle's steam).
+        CordPulled = args.Contains("--whistle"),
         // --coal u: that much on the fire, as the HUD's FIRE reads it (T121: the firebox's look follows it, out only at 0).
         FireGlow = args.Contains("--coal") ? GreyboxScene.FireLook(Opt(args, "--coal", 4), DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)).FireboxCapacity) : 0.7f,
         // --spray: an extinguisher on every car fire, from the aisle (with --threats, the staged one: --view fire).
@@ -1237,6 +1267,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Hits = Staging.HitsOn(struck, train, camera.Position);
         scene.Tick = Staging.StrikeTick + (long)Math.Round(Opt(args, "--hit-age", 0.07) * SimConstants.TickRate);
     }
+    // --rolled m: the engine's wheels turned as if it had rolled that far (its drivers and rods, SceneArt.Gear).
+    scene.Rolled = Opt(args, "--rolled", 0);
     scene.Build(mesh, train, camera.Position);
     // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
     var buildClock = Stopwatch.StartNew();
@@ -1255,7 +1287,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     {
         lighting.FogDensity = (float)route.Weather.FogDensity;
         lighting.Wetness = route.Weather.Wet ? 1 : 0;
+        if (look?.Tuning.Atmosphere.Wind is { } wind)
+            (lighting.Wind, lighting.Gusts) = (wind.Of(route.Weather.Wind), wind.Gusts);
     }
+    // --wind w: a night that windy (0..1, the route weather's), --time t: at that second of it (the foliage's sway).
+    if (args.Contains("--wind") && look?.Tuning.Atmosphere.Wind is { } windTuning)
+        (lighting.Wind, lighting.Gusts) = (windTuning.Of(Opt(args, "--wind", 0)), windTuning.Gusts);
+    if (args.Contains("--time"))
+        lighting.Time = Opt(args, "--time", 0);
+    // --wet: a wet night whatever the route's (its rain sheen on what faces the sky), to look the rain over.
+    if (args.Contains("--wet"))
+        lighting.Wetness = 1;
     // --cold c: a night that cold (0..1, the route weather's): its frost here, its breath in the scene (GreyboxScene.Cold).
     lighting.Frost = look?.Tuning.Atmosphere.Cold.Frost(scene.Cold) ?? 0;
     // --fog d: a thinner (or thicker) night than the route's, to look the lie of the land over.
@@ -1735,7 +1777,7 @@ static object HudShot(string content, string[] args)
     if (session.Route?.Plan is { } plan)
     {
         if (args.Contains("--card"))
-            DarkTerritory.Game.LineGen.PlanHud.RouteCard(hud, width, height, plan, (int)Opt(args, "--page", 0));
+            DarkTerritory.Game.LineGen.PlanHud.RouteCard(hud, width, height, plan, (int)Opt(args, "--page", 0), session.Train.Line);
         if (args.Contains("--overlay"))
             DarkTerritory.Game.LineGen.PlanHud.Overlay(hud, width, height, session, plan);
     }

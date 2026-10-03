@@ -93,8 +93,39 @@ public sealed partial class WorldArt
                 : type == Sim.LineGen.StructureType.Girder ? Piece($"girder-{depth:0}-{last}", () => StructureKit.GirderBay(_look, depth, last))
                 : type == Sim.LineGen.StructureType.Truss ? Piece($"truss-{depth:0}-{last}", () => StructureKit.TrussSpan(_look, depth, last))
                 : Piece($"viaduct-{depth:0}-{last}", () => StructureKit.ViaductBay(_look, depth, last));
-            mesh.Instances.Add(new MeshInstance(piece, Basis(t.Tangent, t.Position, eye, 0)));
+            var at = Basis(t.Tangent, t.Position, eye, 0);
+            // A weak one's bents stand out of true, each its own way (seeded by where it is), most of all mid-span where
+            // the deck sags between them: the eye sees why it takes only so many cars.
+            if (f.MaxCars > 0)
+            {
+                float mid = 1 - MathF.Abs(2 * (float)((s - f.Start) / Math.Max(1, f.End - f.Start)) - 1);
+                float h = MathF.Sin((float)s * 12.9898f) * 43758.5453f;
+                h -= MathF.Floor(h);
+                float lean = (0.02f + 0.05f * mid) * (h < 0.5f ? -1 : 1), rake = 0.03f * mid * (h * 2 - 1);
+                at = Matrix4x4.CreateRotationZ(lean) * Matrix4x4.CreateRotationX(rake) * at;
+            }
+            mesh.Instances.Add(new MeshInstance(piece, at));
         }
+        // Its limit on a board at each end, facing the train coming onto it (GDD §17 "a bridge that takes four cars"):
+        // the speed board's posted limit is the sim's, this is the count it'll carry.
+        if (f.MaxCars > 0)
+            foreach (var (s, dir) in new[] { (f.Start - 25, 1), (f.End + 25, -1) })
+            {
+                if (s < from - 50 || s > to + 50)
+                    continue;
+                var t = line.Sample(Math.Clamp(s, 0, line.Length));
+                if ((t.Position - eye).Length > 300)
+                    continue;
+                var fwd = new Vector3((float)t.Tangent.X, 0, (float)t.Tangent.Z) * dir;
+                fwd = Vector3.Normalize(fwd);
+                var right = Vector3.Cross(fwd, Vector3.UnitY);
+                var toward = -fwd;
+                var foot = (t.Position + new Double3(right.X, 0, right.Z) * 3.4).RelativeTo(eye);
+                var board = Piece($"board-weak-{f.MaxCars}", () => SignKit.Board(_look, "restricted", $"{f.MaxCars} CARS", 1.0f, 3.9f));
+                var up = Vector3.UnitY;
+                mesh.Instances.Add(new MeshInstance(board, new Matrix4x4(right.X, right.Y, right.Z, 0, up.X, up.Y, up.Z, 0,
+                    toward.X, toward.Y, toward.Z, 0, foot.X, foot.Y, foot.Z, 1)));
+            }
     }
 
     /// <summary>A tunnel: a portal at each end facing out, the bore lined in sooted brick between; the hill is the ground's.</summary>
@@ -141,7 +172,9 @@ public sealed partial class WorldArt
     /// a lantern to every bay (the sheet's fortified station: warm pools, and the dark between them).
     /// </summary>
     /// <param name="lit">A town that has stopped answering (linegen plan §22.4) stands dark: its lamps are out.</param>
-    public void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool platform, bool lit = true)
+    /// <param name="time">Seconds, for the searchlights' sweep.</param>
+    public void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool platform, bool lit = true,
+        double time = 0)
     {
         double a = Math.Max(start, from), b = Math.Min(end, to);
         if (a >= b)
@@ -168,6 +201,20 @@ public sealed partial class WorldArt
                     continue;
                 mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.4f, 16));
                 mesh.Billboard(lamp, 2.2f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
+                // Every other tower a searchlight on its outer face (the checklist's fortress: its searchlights): a hard
+                // cold beam sweeping slowly over the ground outside the walls, each tower's on its own beat.
+                if (((int)(s / 120) + (side > 0 ? 1 : 0)) % 2 == 0)
+                {
+                    var lens = (at + r * (side * 1.6) + Double3.Up * 15.2).RelativeTo(eye);
+                    float phase = (float)(s * 0.013) + side;
+                    float sweep = 0.9f * MathF.Sin((float)time * 0.22f + phase);
+                    var outward = new Vector3((float)(r.X * side), 0, (float)(r.Z * side));
+                    var along = Vector3.Normalize(new Vector3((float)t.Tangent.X, 0, (float)t.Tangent.Z));
+                    var dir = Vector3.Normalize(outward * MathF.Cos(sweep) + along * MathF.Sin(sweep) - Vector3.UnitY * 0.2f);
+                    Effects.Beam(mesh, lens, dir, 5.5f, 110, new Vector3(0.55f, 0.6f, 0.7f) * 0.2f);
+                    mesh.Billboard(lens, 1.3f, 0, new Vector4(0.9f, 0.95f, 1.0f, 1), -1, FxBlend.Additive);
+                    mesh.Billboard(lens, 4.5f, 0, new Vector4(0.3f, 0.33f, 0.4f, 1), -1, FxBlend.Additive);
+                }
             }
         }
         if (lit)
@@ -326,7 +373,8 @@ public sealed partial class WorldArt
     /// end with a red lamp, and the switch stand with its lever and target lamp (green for the main line, red for the
     /// branch: the lamp is how the cab reads a switch before it's on it).
     /// </summary>
-    public void Branch(MeshBuilder mesh, Branch branch, Double3 eye, float drawDistance, Double3 lever, Double3 toeTangent, bool diverging)
+    public void Branch(MeshBuilder mesh, Branch branch, Double3 eye, float drawDistance, Double3 lever, Double3 toeTangent, bool diverging,
+        float flicker = 1)
     {
         var local = branch.Local;
         const double start = 4, step = 5;
@@ -368,8 +416,16 @@ public sealed partial class WorldArt
         if ((lever - eye).Length > drawDistance)
             return;
         var foot = lever - Double3.Up * 0.9;
-        mesh.Instances.Add(new MeshInstance(Piece("switch-stand", () => StructureKit.SwitchStand(_look)), Basis(toeTangent, foot, eye, 0)));
-        var colour = diverging ? Palette.SignalRed : Palette.SignalGreen;
+        var standAt = Basis(toeTangent, foot, eye, 0);
+        mesh.Instances.Add(new MeshInstance(Piece("switch-stand", () => StructureKit.SwitchStand(_look)), standAt));
+        // The throw lever (GDD §17: thrown by hand at the points): down along the line for the main, thrown over the
+        // other way for the branch, so the points read from the cab by the lever as well as by the lamp.
+        float throwAngle = (diverging ? -1 : 1) * 0.85f * branch.Side;
+        mesh.Instances.Add(new MeshInstance(Piece("switch-lever", () => StructureKit.SwitchLever(_look)),
+            Matrix4x4.CreateRotationX(throwAngle) * Matrix4x4.CreateTranslation(0, 0.9f, 0) * standAt));
+        // The lamp's glass: green set for the main line, red for the branch; flickering while the Switchman grips the
+        // lever to throw it under the train (App. A.8, the derail's telegraph).
+        var colour = (diverging ? Palette.SignalRed : Palette.SignalGreen) * flicker;
         var glass = (foot + Double3.Up * 1.75).RelativeTo(eye);
         mesh.Billboard(glass, 0.3f, 0, new Vector4(colour * 1.6f, 1), -1, FxBlend.Additive);
         mesh.Billboard(glass, 1.6f, 0, new Vector4(colour * 0.45f, 1), -1, FxBlend.Additive);

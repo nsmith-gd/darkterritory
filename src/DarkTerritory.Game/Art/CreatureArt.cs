@@ -13,7 +13,13 @@ public enum Survivor : byte { None, Prisoner, Wildlander }
 public enum CrewPose
 {
     Idle, Walk, Run, Climb, Shovel, Crouch, Dead, Carry, CarryWalk, Drag, Door, Handbrake, Hatch, Uncouple, Vent, Lever, Push, Held, Gunner, Fall, Swing, Mend, Gap, Extinguish, Lantern, LanternWalk, Haul,
-    HaulUp, GapStep, Drive, Whistle, Smash, Pry, Pick, GetUp, TakeDown
+    HaulUp, GapStep, Drive, Whistle, Smash, Pry, Pick, GetUp, TakeDown,
+    // Running under stress; a blow taken; a ground switch lever, the coaling chute's, a spout; up a ladder with a body.
+    Hurry, Stagger, Throw, Chute, Spout, ClimbCarry,
+    // Held, one per GRAB (App. A.1): by a Dragger, a Car Hugger, the Whistler, Tippy Toesie, Ribbits, a Soot Child, the Choir, the Passenger.
+    HeldHang, HeldMouth, HeldCarried, HeldCover, HeldFrozen, HeldPinned, HeldSeized, HeldDragged,
+    // At the cannon's breech from the seat (note 137): played by the reload's progress, not a clock.
+    Reload,
 }
 
 /// <summary>
@@ -300,6 +306,7 @@ public sealed class CreatureArt
     Sim.Enemies.WhistlerTuning? _whistler;
     readonly Dictionary<int, MeshAsset> _debris = new();
     MeshAsset? _fallenPine;
+    MeshAsset[]? _reeds;
 
     /// <summary>True when every model is there.</summary>
     public bool Loaded => Names.All(_models.ContainsKey);
@@ -321,6 +328,38 @@ public sealed class CreatureArt
     }
 
     /// <summary>A material's texture layer when the look has it; its flat colour (and its glow, if it has one) when not.</summary>
+    /// <summary>
+    /// The Drift seen in the reeds (GDD §22: "something in the reeds surges toward motion"): round the mass's edge on the
+    /// ground beside the train a ring of reeds bowed outward, shoved aside by what's coming up under them, dark at the
+    /// root. Spreading, they stir; surging, they thrash and lie flatter, a wave you can watch come.
+    /// </summary>
+    void DriftReeds(MeshBuilder mesh, Matrix4x4 model, float radius, double t, bool surging)
+    {
+        _reeds ??= [SettingKit.Reeds(Look, 0), SettingKit.Reeds(Look, 1), SettingKit.Reeds(Look, 2)];
+        // Two rows: the crest of the wave and, a step behind it, what it's already flattened.
+        int n = 16 + (int)(radius * 5);
+        for (int i = 0; i < 2 * n; i++)
+        {
+            bool crest = i < n;
+            float ring = radius + (crest ? 0.9f : -0.4f) + 0.35f * ((i * 5) % 3);
+            float a = i * MathF.Tau / n + (crest ? 0 : MathF.PI / n) + 0.13f * (i % 3);
+            float x = MathF.Cos(a) * ring, z = MathF.Sin(a) * ring;
+            // Only the ground beside the train: the roof's edge is where the reeds start.
+            if (MathF.Abs(x) <= CarHalfWidth + 0.6f)
+                continue;
+            double phase = t * (surging ? 7.5 : 1.6) + i * 1.7;
+            float lean = (surging ? 0.75f + 0.25f * (float)Math.Sin(phase) : 0.18f + 0.1f * (float)Math.Sin(phase)) * (crest ? 1 : 1.6f);
+            float twist = 0.3f * (float)Math.Sin(phase * 0.7 + i);
+            // Bowed away from the centre: tip outward about the tangent of the ring.
+            var outward = Vector3.Normalize(new Vector3(x, 0, z));
+            var axis = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, outward));
+            float size = 1.1f + 0.4f * ((i * 7) % 5) / 4f;
+            var at = Matrix4x4.CreateScale(size, size * (surging ? 0.8f : 1f), size) * Matrix4x4.CreateRotationY(twist)
+                * Matrix4x4.CreateFromAxisAngle(axis, lean) * Matrix4x4.CreateTranslation(x, -RoofDrop, z) * model;
+            mesh.Append(_reeds[i % 3], at);
+        }
+    }
+
     MaterialLook Resolve(ModelMaterial m, float wear)
     {
         int layer = string.IsNullOrEmpty(m.Texture) ? -1 : Look.Layer(m.Texture);
@@ -350,6 +389,9 @@ public sealed class CreatureArt
     {
         if (!_models.TryGetValue(name, out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
+        // Struck: its own hit clip over whatever it was doing, while that runs (Enemy's hitAge).
+        if (_hit >= 0 && clip != "hit" && m.Model.Clips.TryGetValue("hit", out var hit) && _hit < hit.Duration)
+            (clip, c, time, loop) = ("hit", hit, _hit, false);
         _skinner.Evaluate(m.Model, c, time, loop, m.Pose);
         posed?.Invoke(m);
         Emit(mesh, m, clip, at, variant, glow, seed, adjust);
@@ -474,6 +516,21 @@ public sealed class CreatureArt
         CrewPose.Pick => "pick",
         CrewPose.GetUp => "getup",
         CrewPose.TakeDown => "take_down",
+        CrewPose.Hurry => "hurry",
+        CrewPose.Stagger => "stagger",
+        CrewPose.Throw => "throw",
+        CrewPose.Chute => "chute",
+        CrewPose.Spout => "spout",
+        CrewPose.ClimbCarry => "climb_carry",
+        CrewPose.HeldHang => "held_hang",
+        CrewPose.HeldMouth => "held_mouth",
+        CrewPose.HeldCarried => "held_carried",
+        CrewPose.HeldCover => "held_cover",
+        CrewPose.HeldFrozen => "held_frozen",
+        CrewPose.HeldPinned => "held_pinned",
+        CrewPose.HeldSeized => "held_seized",
+        CrewPose.HeldDragged => "held_dragged",
+        CrewPose.Reload => "reload",
         _ => "idle",
     };
 
@@ -502,18 +559,21 @@ public sealed class CreatureArt
         string clip = ClipOf(pose);
         // A build without crew_clips.glb (or an older one, short of a clip) stands them idle rather than in the greybox.
         if (_models.TryGetValue(figure, out var has) && !has.Model.Clips.ContainsKey(clip))
-            clip = "idle";
+            clip = clip.StartsWith("held_", StringComparison.Ordinal) && has.Model.Clips.ContainsKey("held") ? "held"
+                : clip == "hurry" && has.Model.Clips.ContainsKey("run") ? "run" : clip == "reload" && has.Model.Clips.ContainsKey("gunner") ? "gunner" : "idle";
         var Paint = PaintOf(variant);
         if (!_models.TryGetValue(figure, out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
         // Played once from their start (SceneArt passes the time since the act began): getting up, a thing off its bracket.
-        bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown;
+        bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.Stagger or CrewPose.Reload;
         _skinner.Evaluate(m.Model, c, fromStart ? time : time + offset, pose is not (CrewPose.Dead or CrewPose.Swing) && !fromStart, m.Pose);
         if (left is { } l)
             Reach(m, "l", l, leftPole);
         if (right is { } r)
             Reach(m, "r", r, rightPole);
         Emit(mesh, m, clip, model, variant, 1, variant, Paint);
+        if (figure == "crew")
+            Marks(mesh, m, model, variant);
         // Where their mouth is and which way they face, for their breath in the cold (SceneArt.Crewmate).
         int headBone = m.Model.Skeleton.IndexOf("head");
         var headAt = headBone >= 0 ? m.Pose.World[headBone].Translation : new Vector3(0, 1.6f, 0);
@@ -624,6 +684,61 @@ public sealed class CreatureArt
         if (inHand is not null && (follow || act is { } held && OneHanded(held)))
             mesh.Append(inHand, ToolGrip * Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", at));
         return true;
+    }
+
+    MeshAsset[]? _marks;
+
+    /// <summary>
+    /// What tells eight masked crew apart in the dark (GDD §26: "the one with the red scarf"): an armband in their own
+    /// colour (look.json crewColours), lit a little so it shows by lamplight, and one of four kits on their back or hip
+    /// (a satchel, a bedroll, a coil of rope, a tall pack). The kit is chosen so that no two of the eight share both
+    /// headgear (the model's variant, variant % 4) and kit, so any two crewmates differ in shape as well as colour.
+    /// </summary>
+    void Marks(MeshBuilder mesh, Entry m, in Matrix4x4 model, int variant)
+    {
+        _marks ??= BuildMarks(Look);
+        var sk = m.Model.Skeleton;
+        int arm = sk.IndexOf("upperarm_l"), back = sk.IndexOf("spine_03"), hip = sk.IndexOf("pelvis");
+        if (arm >= 0)
+            mesh.Append(_marks[0], m.Pose.World[arm] * model, Look.Tuning.CrewColour(variant));
+        int v = variant & 7, kit = (v + v / 4) % 4;
+        int on = kit == 0 ? hip : back;
+        if (on >= 0)
+            mesh.Append(_marks[1 + kit], m.Pose.World[on] * model);
+    }
+
+    static MeshAsset[] BuildMarks(Look look)
+    {
+        // The armband: a band round the upper arm (its bone runs down the arm, +Y), white for the crew colour to tint.
+        var band = new Kit(look, 3100);
+        band.Use("none", new Vector3(0.9f), 0.2f, 0.1f);
+        band.Emissive = 0.35f;
+        band.Cylinder(new Vector3(0, 0.05f, 0), new Vector3(0, 0.19f, 0), 0.09f, 12, caps: false);
+        band.Cylinder(new Vector3(0, 0.19f, 0), new Vector3(0, 0.05f, 0), 0.088f, 12, caps: false);
+        // The kits, in the back's frame (spine_03: +X right, +Y up, +Z behind) or, for the satchel, the hips'.
+        var canvas = new Vector3(0.36f, 0.33f, 0.24f);
+        var leather = new Vector3(0.24f, 0.15f, 0.09f);
+        var satchel = new Kit(look, 3101);
+        satchel.Use("none", leather, 0.6f, 0.2f);
+        satchel.BevelBox(new Vector3(0.17f, -0.2f, -0.12f), new Vector3(0.27f, 0.02f, 0.14f), 0.02f);
+        satchel.Rod(new Vector3(0.2f, 0.02f, 0.1f), new Vector3(-0.12f, 0.55f, 0.16f), 0.018f);
+        var bedroll = new Kit(look, 3102);
+        bedroll.Use("none", canvas, 0.6f, 0.05f);
+        bedroll.Cylinder(new Vector3(-0.26f, 0.16f, 0.2f), new Vector3(0.26f, 0.16f, 0.2f), 0.09f, 9);
+        bedroll.Use("none", leather, 0.6f, 0.2f);
+        bedroll.Cylinder(new Vector3(-0.15f, 0.16f, 0.2f), new Vector3(-0.12f, 0.16f, 0.2f), 0.095f, 9);
+        bedroll.Cylinder(new Vector3(0.12f, 0.16f, 0.2f), new Vector3(0.15f, 0.16f, 0.2f), 0.095f, 9);
+        var rope = new Kit(look, 3103);
+        rope.Use("none", new Vector3(0.45f, 0.38f, 0.25f), 0.7f, 0.05f);
+        for (int i = 0; i < 3; i++)
+            rope.Cylinder(new Vector3(0.02f * i, -0.02f, 0.16f + 0.025f * i), new Vector3(0.02f * i, -0.02f, 0.19f + 0.025f * i), 0.17f - 0.02f * i, 14, caps: false);
+        rope.Rod(new Vector3(-0.15f, 0.1f, 0.18f), new Vector3(0.12f, 0.3f, -0.12f), 0.02f);
+        var pack = new Kit(look, 3104);
+        pack.Use("none", canvas * 0.8f, 0.6f, 0.05f);
+        pack.BevelBox(new Vector3(-0.15f, -0.32f, 0.14f), new Vector3(0.15f, 0.2f, 0.3f), 0.03f);
+        pack.Use("none", leather, 0.6f, 0.2f);
+        pack.BoxAt(new Vector3(0, 0.08f, 0.31f), new Vector3(0.12f, 0.08f, 0.015f));
+        return [band.Build("crew-armband"), satchel.Build("crew-satchel"), bedroll.Build("crew-bedroll"), rope.Build("crew-rope"), pack.Build("crew-pack")];
     }
 
     /// <summary>
@@ -758,7 +873,8 @@ public sealed class CreatureArt
     /// shoulders and hips, then each limb bone swung onto its joint, parents first. <paramref name="variant"/> is whose
     /// body it is, so it wears what they wore. Their lamp is down to an ember: dead from a distance, but findable.
     /// </summary>
-    public bool Corpse(MeshBuilder mesh, ReadOnlySpan<Vector3> joints, int variant)
+    /// <param name="charred">Dead by fire: the coat and all burnt black, the paint gone with it.</param>
+    public bool Corpse(MeshBuilder mesh, ReadOnlySpan<Vector3> joints, int variant, bool charred = false)
     {
         if (joints.Length < RagdollJoints || !_models.TryGetValue("crew", out var m))
             return false;
@@ -794,7 +910,8 @@ public sealed class CreatureArt
             if (b >= 0 && t >= 0)
                 Skinner.Aim(model, m.Pose, b, t, joints[joint]);
         }
-        Emit(mesh, m, "dead", Matrix4x4.Identity, variant, glow: 0.2f, seed: variant, adjust: PaintOf(variant));
+        Emit(mesh, m, "dead", Matrix4x4.Identity, variant, glow: charred ? 0 : 0.2f, seed: variant,
+            adjust: charred ? (_, l) => l with { Colour = l.Colour * new Vector3(0.11f, 0.09f, 0.08f) } : PaintOf(variant));
         return true;
 
         // Rows right, up, back: takes model +X, +Y, +Z onto them (right squared to up first).
@@ -1023,6 +1140,7 @@ public sealed class CreatureArt
                         Draw(mesh, "dragger", "grip", t * (phase == SpinePhase.Dormant ? 0.2 : 0.9) + i * 0.37, true, limb, seed: 40 + i,
                             adjust: (_, l) => l with { Colour = l.Colour * 0.35f });
                     }
+                    DriftReeds(mesh, model, r, t, phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish);
                     return true;
                 }
             case EnemyKind.Follower when _models.ContainsKey("follower"):
@@ -1145,6 +1263,12 @@ public sealed class CreatureArt
                             Reach(e, $"arm_{n}_01", $"arm_{n}_02", $"hand_{n}", wrist - Vector3.UnitZ * grip, pole);
                         }
                     };
+                    // Feeding, the plate it's chewing spits sparks out of its mouth (the checklist's sparks).
+                    if (phase is SpinePhase.Commit || phase == SpinePhase.Telegraph && t >= latch)
+                    {
+                        var (_, hu, hb) = Basis(model);
+                        _fx.Grind(mesh, model.Translation + Vector3.Normalize(hu) * 1.0f + Vector3.Normalize(hb) * 0.35f, Vector3.Normalize(hu), Vector3.Normalize(hb), t, (int)extra2);
+                    }
                     return phase switch
                     {
                         SpinePhase.Dormant => Draw(mesh, "car_hugger", "lurk", t, true, Matrix4x4.CreateTranslation(0, HuggerLurkLift, 0) * model,
@@ -1494,7 +1618,29 @@ public sealed class CreatureArt
         mesh.PointLights.Add(new PointLight(o, Palette.FurnaceOrange * (0.25f + 0.9f * fill) * flick, 2.5f + 2.5f * fill));
     }
 
-    public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite = default, Prey? prey = null, Room? room = null, float pace = 0)
+    /// <summary>
+    /// Draws a creature in the sim's state. <paramref name="hitAge"/>: seconds since a blow or a ball last landed on it (−1
+    /// for none lately): its rig's own <c>hit</c> clip plays over whatever it was doing for as long as that clip runs (the
+    /// checklist's hit reacts), except while it has hold of someone.
+    /// </summary>
+    public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite = default, Prey? prey = null, Room? room = null, float pace = 0,
+        double hitAge = -1)
+    {
+        _hit = e.Phase is SpinePhase.Grab or SpinePhase.Punish ? -1 : hitAge;
+        try
+        {
+            return EnemyIn(mesh, model, e, bite, prey, room, pace);
+        }
+        finally
+        {
+            _hit = -1;
+        }
+    }
+
+    // How long since the creature being drawn was struck (s), or −1: Draw plays its hit clip over its own while it runs.
+    double _hit = -1;
+
+    bool EnemyIn(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite, Prey? prey, Room? room, float pace)
     {
         var m = model;
         switch (e.Kind)

@@ -250,8 +250,14 @@ public sealed partial class WorldArt(Look look)
                 // the biome's ground takes over below.
                 if (plan is not null && !bridge && !hill && band == 0 && a >= 0 && BiomeGround(plan, s) is var (pa, _) && pa >= 0)
                 {
+                    // The bed's stone is the country's (biomes.json ballast, GDD §30): the collieries' cinders, granite
+                    // pale on the barrens, peat-stained in the bog, tarred black through the tar ponds.
+                    var bed = plan.Biome(s);
+                    if (bed?.Ballast is { } stone && _look.Layer(stone) is >= 0 and var sl)
+                        a = sl;
+                    var stain = bed?.BallastTint is [var tr, var tg, var tb] ? new Vector3((float)tr, (float)tg, (float)tb) : Vector3.One;
                     // Tinted like the land past it (Macro), or the cess shows as a lighter stripe with a hard edge.
-                    Corner Cess(Vector3 p, float l, double at) => new(Macro(p + origin) * GroundShade(l, at), GroundBlend(0, l, at));
+                    Corner Cess(Vector3 p, float l, double at) => new(Macro(p + origin) * GroundShade(l, at) * Vector3.Lerp(stain, Vector3.One, GroundBlend(0, l, at)), GroundBlend(0, l, at));
                     Quad(mesh, left[c], left[c + 1], right[c + 1], right[c], Cess(left[c], l0, s), Cess(left[c + 1], l1, s), Cess(right[c + 1], l1, s1),
                         Cess(right[c], l0, s1), origin, a, pa, _look.Textures[a].TileMetres ?? 2);
                     continue;
@@ -415,6 +421,7 @@ public sealed partial class WorldArt(Look look)
         if (Scene(route) is { } plan)
         {
             PlanDressing(mesh, line, route!, plan, eye, from, to, seed, OnBranch);
+            Shrines(mesh, from, to, seed, Clear, OnBranch, Place);
             Stops(mesh, line, route, eye, from, to, valleyDepth);
             return;
         }
@@ -487,6 +494,32 @@ public sealed partial class WorldArt(Look look)
                 continue;
             mesh.Append(Piece($"fence-{index % 3}", () => WorldKit.FencePost(_look, index % 3)), Place(s, -14, 0, 1, 0.05f));
         }
+        Shrines(mesh, from, to, seed, Clear, OnBranch, Place);
+        // A generated line has its own towns and dead signals (PlanArt), where the plan put them.
+        if (Scene(route) is not null)
+            return;
+        Settlements(mesh, line, route, eye, from, to, seed, valleyDepth, OnBranch);
+        Stops(mesh, line, route, eye, from, to, valleyDepth);
+        for (double s = Math.Ceiling(from / 700) * 700; s < to; s += 700)
+            if (Clear(s) && !OnBranch(s, -3.8))
+                mesh.Append(Piece($"signal-{(int)(s / 700) % 2 == 0}", () => WorldKit.Signal(_look, (int)(s / 700) % 2 == 0)), Place(s, -3.8, MathF.PI, 1));
+    }
+
+    /// <summary>
+    /// Dead settlements (GDD §30): now and then, a hamlet set back from the line, its houses scattered round a church or
+    /// a windmill, nothing lit. Where the line has nothing else going on: not at a facility, a bridge, a tunnel or a branch.
+    /// </summary>
+    /// <summary>
+    /// The wayside shrines and the cairns along any line, hand-laid or generated (the checklist's lineside): what the
+    /// headlamp finds on the verge. <paramref name="clear"/> keeps them off bridges and out of tunnels, <paramref name="onBranch"/>
+    /// off branches and stops, and <paramref name="place"/> stands a piece at a place on the line.
+    /// </summary>
+    void Shrines(MeshBuilder mesh, double from, double to, int seed, Func<double, bool> clear, Func<double, double, bool> onBranch,
+        Func<double, double, float, float, float, Matrix4x4> place)
+    {
+        bool Clear(double s) => clear(s);
+        bool OnBranch(double along, double offset) => onBranch(along, offset);
+        Matrix4x4 Place(double s, double lateral, float yaw, float scale, float sink = 0) => place(s, lateral, yaw, scale, sink);
         // Wayside shrines (the sourced statues, tools/models): now and then close beside the line, where the headlamp
         // finds them as the train goes by. A cadaver saint or a defaced one on the verge, facing the rails, a cairn of
         // skulls at its feet and a dead lamp post leaning over it: somebody put them there, for someone to see.
@@ -531,20 +564,8 @@ public sealed partial class WorldArt(Look look)
             if (!OnBranch(s, lat))
                 mesh.Instances.Add(new MeshInstance(cairn, Place(s, lat, Hash(k * 3.9f) * 6.28f, 0.8f + Hash(k * 6.1f) * 0.5f, 0.1f)));
         }
-        // A generated line has its own towns and dead signals (PlanArt), where the plan put them.
-        if (Scene(route) is not null)
-            return;
-        Settlements(mesh, line, route, eye, from, to, seed, valleyDepth, OnBranch);
-        Stops(mesh, line, route, eye, from, to, valleyDepth);
-        for (double s = Math.Ceiling(from / 700) * 700; s < to; s += 700)
-            if (Clear(s) && !OnBranch(s, -3.8))
-                mesh.Append(Piece($"signal-{(int)(s / 700) % 2 == 0}", () => WorldKit.Signal(_look, (int)(s / 700) % 2 == 0)), Place(s, -3.8, MathF.PI, 1));
     }
 
-    /// <summary>
-    /// Dead settlements (GDD §30): now and then, a hamlet set back from the line, its houses scattered round a church or
-    /// a windmill, nothing lit. Where the line has nothing else going on: not at a facility, a bridge, a tunnel or a branch.
-    /// </summary>
     void Settlements(MeshBuilder mesh, RailLine line, Route? route, Double3 eye, double from, double to, int seed, float valleyDepth, Func<double, double, bool> onBranch)
     {
         const double block = 2400;
