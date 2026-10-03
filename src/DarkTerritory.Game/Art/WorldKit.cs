@@ -132,29 +132,48 @@ public static class WorldKit
         return k.Build($"tuft-{variant}-{weed}");
     }
 
-    /// <summary>A boulder: an icosahedron pushed about, flat-shaded, wet dark rock.</summary>
+    /// <summary>
+    /// A boulder: an icosahedron split once (80 facets), each point pushed in or out by a few broad swells round it so
+    /// it's lumped and fractured rather than a cut gem; flat-shaded, wet dark rock, squat and sunk into the ground.
+    /// </summary>
     public static MeshAsset Rock(Look? look, int variant, float size)
     {
         var k = new Kit(look, 500 + variant);
         k.Use("rock_cliff", Palette.Charcoal, 0.6f, 0.1f, tile: 1.5f);
         float t = (1 + MathF.Sqrt(5)) / 2;
-        Vector3[] v =
+        Vector3[] ico =
         [
             new(-1, t, 0), new(1, t, 0), new(-1, -t, 0), new(1, -t, 0), new(0, -1, t), new(0, 1, t),
             new(0, -1, -t), new(0, 1, -t), new(t, 0, -1), new(t, 0, 1), new(-t, 0, -1), new(-t, 0, 1),
         ];
         int[] f = [0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8, 3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1];
-        for (int i = 0; i < v.Length; i++)
+        // The swells: a few directions of the variant's own, each lifting the side it points to.
+        var swells = new (Vector3 Dir, float Amount)[5];
+        for (int i = 0; i < swells.Length; i++)
         {
-            float j = 0.75f + 0.45f * Frac(MathF.Sin(i * 12.9898f + variant * 78.233f) * 43758.5f);
-            var p = Vector3.Normalize(v[i]) * j;
-            // Squat: wider than tall, sunk into the ground.
-            v[i] = new Vector3(p.X * size, (p.Y * 0.6f + 0.2f) * size, p.Z * size * 0.85f);
+            float h(float x) => Frac(MathF.Sin(x * 12.9898f + variant * 78.233f + i * 37.719f) * 43758.5f);
+            swells[i] = (Vector3.Normalize(new Vector3(h(1) - 0.5f, h(2) - 0.5f, h(3) - 0.5f) + new Vector3(0, 0, 1e-4f)), (h(4) - 0.35f) * 0.5f);
+        }
+        Vector3 Shape(Vector3 dir)
+        {
+            float r = 0.92f;
+            foreach (var (d, a) in swells)
+                r += a * MathF.Max(0, Vector3.Dot(dir, d)) * MathF.Max(0, Vector3.Dot(dir, d));
+            // A flat fracture across one side: the face it broke away along.
+            float cut = Vector3.Dot(dir, swells[0].Dir);
+            r = MathF.Min(r, 0.78f / MathF.Max(0.2f, -cut + 1e-3f) * 0.5f + 0.55f);
+            var p = dir * r;
+            return new Vector3(p.X * size, (p.Y * 0.6f + 0.2f) * size, p.Z * size * 0.85f);
         }
         for (int i = 0; i < f.Length; i += 3)
         {
-            var (a, b, c) = (v[f[i]], v[f[i + 1]], v[f[i + 2]]);
-            k.Tri(a, b, c, new(a.X + a.Z, -a.Y), new(b.X + b.Z, -b.Y), new(c.X + c.Z, -c.Y));
+            var (a, b, c) = (Vector3.Normalize(ico[f[i]]), Vector3.Normalize(ico[f[i + 1]]), Vector3.Normalize(ico[f[i + 2]]));
+            var (ab, bc, ca) = (Vector3.Normalize(a + b), Vector3.Normalize(b + c), Vector3.Normalize(c + a));
+            var (A, B, C, AB, BC, CA) = (Shape(a), Shape(b), Shape(c), Shape(ab), Shape(bc), Shape(ca));
+            k.Tri(A, AB, CA);
+            k.Tri(AB, B, BC);
+            k.Tri(CA, BC, C);
+            k.Tri(AB, BC, CA);
         }
         return k.Build($"rock-{variant}");
     }

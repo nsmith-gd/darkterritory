@@ -134,6 +134,17 @@ public sealed class Kit(Look? look, float seed = 0)
         Emit(V(c, n, uc, sc));
     }
 
+    /// <summary>
+    /// A triangle with flat normal, its texture projected flat along the axis it most faces (a rock's facets: no face
+    /// gets its texture smeared along it the way one shared projection smears the faces side-on to it).
+    /// </summary>
+    public void Tri(Vector3 a, Vector3 b, Vector3 c)
+    {
+        var n = Vector3.Abs(Vector3.Cross(b - a, c - a));
+        Vector2 P(Vector3 p) => n.Y >= n.X && n.Y >= n.Z ? new(p.X, p.Z) : n.X >= n.Z ? new(p.Z, -p.Y) : new(p.X, -p.Y);
+        Tri(a, b, c, P(a), P(b), P(c));
+    }
+
     /// <summary>A triangle with its own normals (smooth shading across faceted cylinders).</summary>
     public void Tri(Vector3 a, Vector3 b, Vector3 c, Vector3 na, Vector3 nb, Vector3 nc, Vector2 ua, Vector2 ub, Vector2 uc)
     {
