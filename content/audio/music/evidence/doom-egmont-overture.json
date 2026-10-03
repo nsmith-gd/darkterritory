@@ -16,33 +16,42 @@
   "date": "",
   "revision": 1019671639,
   "revisionTimestamp": "2025-04-10T16:32:11Z",
+  "user": "Isacdaavid",
   "refused": [],
-  "id": "doom-fifth-symphony",
-  "work": "Symphony No. 5, first movement",
+  "id": "doom-egmont-overture",
+  "work": "Overture, Egmont",
   "composer": "Ludwig van Beethoven",
   "sourceSha256": "2007b57e8ab1dbe6c9df4d3c91d3de185457ad70cbeb9b4c2864e5161a64c3ae",
-  "fetched": "2026-10-03T11:33:49Z",
+  "fetched": "2026-10-03T12:22:09Z",
   "licenceTemplates": [
     "cc-zero"
   ],
   "licenceSection": "{{Cc-zero}}\n\n[[Category:Audio files of music by Ludwig van Beethoven]]\n[[Category:Audio files of Classical period classical music]]\n[[Category:Overtures (music)]]\n[[Category:Egmont (Goethe)]]",
-  "hitNote": "the recapitulation: the four-note motif fortissimo in the full orchestra",
-  "file": "doom-fifth-symphony.opus",
+  "information": "{{Information\n|Description    ={{en|1=\"Egmont\", op. 84 (Overture)}} {{de|1= \"Egmont\", op. 84 (Ouvertüre)}} {{es|1 = Overtura \"Egmont\", op. 84}} {{fr|1 = Ouverture \"Egmont\" op. 84}}\n|Source         ={{Musopen|https://musopen.org/music/13441}} (Encoded with vorbis-tools 1.4.0 (oggenc -q8) from FLAC at https://archive.org/details/MusopenCollectionAsFlac)\n|Author         ={{Creator:Ludwig van Beethoven}}\n|Date           =\n|Permission     =\n|other_versions ={{Filelist|Beethoven - Egmont Overture, Op. 84 (Czech National Symphony Orchestra).flac}}\n}}",
+  "performers": "Musopen (performers uncredited)",
+  "hitNote": "the final Allegro con brio (the \"victory symphony\"): the horns' and trumpets' fanfare over the full orchestra",
+  "hitClock": "8:07.4",
+  "file": "doom-egmont-overture.opus",
   "hitGuess": 24.0,
   "sourceSeconds": 540.897,
   "window": [
-    338.253,
-    383.253
+    463.437,
+    508.437
   ],
-  "hitInSource": 362.253,
+  "hitInSource": 487.437,
   "analysis": {
-    "score": 28.49,
+    "score": 10.86,
     "range": [
-      297.49,
-      432.72
+      445.9,
+      515.9
     ]
   },
-  "inputLufs": -16.62,
-  "inputTruePeak": -0.64,
-  "normalization": "dynamic"
+  "inputLufs": -12.3,
+  "inputTruePeak": -0.72,
+  "normalization": "dynamic",
+  "hitCheck": {
+    "jumpDb": 3.8,
+    "loudnessRank": 0.23,
+    "weak": false
+  }
 }

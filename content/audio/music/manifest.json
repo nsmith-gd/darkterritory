@@ -6,50 +6,27 @@
 {
   "tracks": [
     {
-      "id": "gallop-infernal-galop",
-      "file": "gallop-infernal-galop.opus",
-      "work": "\"Infernal Galop\" (the can-can), Orpheus in the Underworld",
-      "composer": "Jacques Offenbach",
-      "year": 1858,
-      "performers": "Musopen",
-      "source": "https://commons.wikimedia.org/wiki/File:Offenbach_-_Orpheus_in_the_Underworld_-_Overture.ogg",
-      "licence": "CC0-1.0",
-      "evidence": {
-        "sha256": "d4b299a09f4a2102593f3bcbd0e4e26159defe1e24c5dcf534079dc5ccfdfd40",
-        "note": "The Wikimedia Commons file page dedicates this recording under CC0 1.0 ({{cc-zero}}, revision 1274138962, fetched 2026-10-03); its licence metadata and wikitext are in evidence/gallop-infernal-galop.json, and the rendered page in the intake's artifact. Seconds 495.817-540.817 of the original; the hit: the can-can's last climb: the whip-crack downbeat and the cymbals.",
-        "sourceSha256": "cb79800808b4abb9b8a703630d63f313b68babc84beae8da61672d4a10747955",
-        "page": "https://commons.wikimedia.org/wiki/File:Offenbach_-_Orpheus_in_the_Underworld_-_Overture.ogg",
-        "record": "evidence/gallop-infernal-galop.json"
-      },
-      "mood": "gallop",
-      "inPoint": 0,
-      "hit": 23.23,
-      "outPoint": 45,
-      "loudnessLufs": -16.02,
-      "gainDb": 0.02
-    },
-    {
       "id": "swagger-anvil-chorus",
       "file": "swagger-anvil-chorus.opus",
       "work": "\"Anvil Chorus\", Il trovatore",
       "composer": "Giuseppe Verdi",
       "year": 1853,
-      "performers": "Musopen",
+      "performers": "Musopen (performers uncredited)",
       "source": "https://commons.wikimedia.org/wiki/File:Giuseppe_Verdi_-_Anvil_Chorus.ogg",
       "licence": "CC0-1.0",
       "evidence": {
-        "sha256": "cde7940f8439c46b48989b05b6f13cd18252df9c37e265a2e1928cc66458c387",
-        "note": "The Wikimedia Commons file page dedicates this recording under CC0 1.0 ({{cc-zero}}, revision 1273821336, fetched 2026-10-03); its licence metadata and wikitext are in evidence/swagger-anvil-chorus.json, and the rendered page in the intake's artifact. Seconds 45.01-90.01 of the original; the hit: the anvils' first strikes under the chorus.",
+        "sha256": "dba0cb4262d55ad04338f4e3ba701082d35deff059349a7195b9cdaf6aaa5fc6",
+        "note": "The Wikimedia Commons file page dedicates this recording under CC0 1.0 ({{cc-zero}}, revision 1273821336, fetched 2026-10-03); its licence metadata and wikitext are in evidence/swagger-anvil-chorus.json, and the rendered page in the intake's artifact. Seconds 72.25-117.25 of the original; the hit at 1:36.2 of it (found within 0:30.0-2:46.0), meant as the refrain with the anvils striking on the beat under the full chorus.",
         "sourceSha256": "1600d7d2e107b6e0e0c1bf573bba578e44781f84f4c7eba1c6e1a492ef51a141",
         "page": "https://commons.wikimedia.org/wiki/File:Giuseppe_Verdi_-_Anvil_Chorus.ogg",
         "record": "evidence/swagger-anvil-chorus.json"
       },
       "mood": "swagger",
       "inPoint": 0,
-      "hit": 23.97,
+      "hit": 23.69,
       "outPoint": 45,
-      "loudnessLufs": -15.44,
-      "gainDb": -0.56
+      "loudnessLufs": -15.78,
+      "gainDb": -0.22
     },
     {
       "id": "swagger-la-donna-e-mobile",
@@ -57,22 +34,22 @@
       "work": "\"La donna è mobile\", Rigoletto",
       "composer": "Giuseppe Verdi",
       "year": 1851,
-      "performers": "Öppna data från Kungliga biblioteket https://data.kb.se/datasets/2015/09/fonografcylindrar/ Internet Archive https://web.archive.org/web/20200913152029/https://data.kb.se/datasets/2015/09/fonografcyli",
+      "performers": "|title =",
       "source": "https://commons.wikimedia.org/wiki/File:La_donna_%C3%A8_mobile_ZS_V78-0918.wav",
       "licence": "CC0-1.0",
       "evidence": {
-        "sha256": "716be627217b3d27c15782cdb651587e47bfbbb61f0805725e280675cd011dae",
-        "note": "The Wikimedia Commons file page dedicates this recording under CC0 1.0 ({{cc-zero}}, revision 676540605, fetched 2026-10-03); its licence metadata and wikitext are in evidence/swagger-la-donna-e-mobile.json, and the rendered page in the intake's artifact. Seconds 29.288-74.288 of the original; the hit: the refrain's top note with the orchestra's tutti.",
+        "sha256": "094a45ab8af2603b2551ecb31f0a370f7036456954588376f02c481bbea242a3",
+        "note": "The Wikimedia Commons file page dedicates this recording under CC0 1.0 ({{cc-zero}}, revision 676540605, fetched 2026-10-03); its licence metadata and wikitext are in evidence/swagger-la-donna-e-mobile.json, and the rendered page in the intake's artifact. Seconds 93.528-138.528 of the original; the hit at 1:57.5 of it (found within 0:45.0-2:15.1), meant as the refrain's top note with the orchestra's tutti.",
         "sourceSha256": "a713e04d29772ff870a72e399336363e14a9d93b0a98154aac63741d77335eaf",
         "page": "https://commons.wikimedia.org/wiki/File:La_donna_%C3%A8_mobile_ZS_V78-0918.wav",
         "record": "evidence/swagger-la-donna-e-mobile.json"
       },
       "mood": "swagger",
       "inPoint": 0,
-      "hit": 24.67,
+      "hit": 23.83,
       "outPoint": 45,
-      "loudnessLufs": -15.95,
-      "gainDb": -0.05
+      "loudnessLufs": -15.97,
+      "gainDb": -0.03
     },
     {
       "id": "swagger-toreador",
@@ -80,12 +57,12 @@
       "work": "\"Toreador Song\" (\"Votre toast\"), Carmen",
       "composer": "Georges Bizet",
       "year": 1875,
-      "performers": "Musopen",
+      "performers": "Musopen (performers uncredited)",
       "source": "https://commons.wikimedia.org/wiki/File:Bizet_-_Carmen_-_Toreador_Song_(French,_Musopen).ogg",
       "licence": "CC0-1.0",
       "evidence": {
-        "sha256": "6a2034496d33a30a8cf307c3dc15d09f933b32b344fdcbbfc9cfa8a5958ed4a5",
-        "note": "The Wikimedia Commons file page dedicates this recording under CC0 1.0 ({{cc-zero}}, revision 824957559, fetched 2026-10-03); its licence metadata and wikitext are in evidence/swagger-toreador.json, and the rendered page in the intake's artifact. Seconds 144.728-189.728 of the original; the hit: \"Toréador, en garde!\": the refrain's downbeat, the chorus joining.",
+        "sha256": "d1b3391bd08eb53b750f1c1d597da148072fa06c5f18eba75abf1d21c90d8872",
+        "note": "The Wikimedia Commons file page dedicates this recording under CC0 1.0 ({{cc-zero}}, revision 824957559, fetched 2026-10-03); its licence metadata and wikitext are in evidence/swagger-toreador.json, and the rendered page in the intake's artifact. Seconds 144.728-189.728 of the original; the hit at 2:48.7 of it (found within 1:21.2-3:31.1), meant as \"Toréador, en garde!\": the refrain's downbeat, the chorus joining.",
         "sourceSha256": "d9302aef1d86fc8f4f6a0a0790c35b711b7b42e5594a009c195cc5e628269b73",
         "page": "https://commons.wikimedia.org/wiki/File:Bizet_-_Carmen_-_Toreador_Song_(French,_Musopen).ogg",
         "record": "evidence/swagger-toreador.json"
@@ -98,17 +75,40 @@
       "gainDb": 0.27
     },
     {
+      "id": "swagger-habanera",
+      "file": "swagger-habanera.opus",
+      "work": "\"Habanera\" (\"L'amour est un oiseau rebelle\"), Carmen",
+      "composer": "Georges Bizet",
+      "year": 1875,
+      "performers": "Musopen (performers uncredited)",
+      "source": "https://commons.wikimedia.org/wiki/File:Carmen_-_Prelude_to_Act_1.ogg",
+      "licence": "CC0-1.0",
+      "evidence": {
+        "sha256": "1632744dd343685c35c987ded34005a24be1e613d2ec0918be833ee5c485b1a7",
+        "note": "The Wikimedia Commons file page dedicates this recording under CC0 1.0 ({{cc-zero}}, revision 848754102, fetched 2026-10-03); its licence metadata and wikitext are in evidence/swagger-habanera.json, and the rendered page in the intake's artifact. Seconds 66.696-111.696 of the original; the hit at 1:30.7 of it (found within 0:37.5-1:40.0), meant as \"L'amour!\": the chorus's shout into the refrain.",
+        "sourceSha256": "deefeb327ce0a06b78e7a8bf493395a638b5a7e840e8b95c7aa97b9c633753c8",
+        "page": "https://commons.wikimedia.org/wiki/File:Carmen_-_Prelude_to_Act_1.ogg",
+        "record": "evidence/swagger-habanera.json"
+      },
+      "mood": "swagger",
+      "inPoint": 0,
+      "hit": 23.96,
+      "outPoint": 45,
+      "loudnessLufs": -16.3,
+      "gainDb": 0.3
+    },
+    {
       "id": "lament-funeral-march",
       "file": "lament-funeral-march.opus",
       "work": "Marche funèbre, Piano Sonata No. 2",
       "composer": "Frédéric Chopin",
       "year": 1839,
-      "performers": "Frédéric Chopin",
+      "performers": "Musopen (performers uncredited)",
       "source": "https://commons.wikimedia.org/wiki/File:Frederic_Chopin_Piano_Sonata_No.2_in_B_flat_minor_Op35_-_III_Marche_Funebre.ogg",
       "licence": "CC0-1.0",
       "evidence": {
-        "sha256": "a5550c1ee7158163ce45c3d337fba32a54102a335faad0c2940014f770956520",
-        "note": "The Wikimedia Commons file page dedicates this recording under CC0 1.0 ({{cc-zero}}, revision 1260528630, fetched 2026-10-03); its licence metadata and wikitext are in evidence/lament-funeral-march.json, and the rendered page in the intake's artifact. Seconds 28.92-73.92 of the original; the hit: the march's return at fortissimo, the bass chords crashing in.",
+        "sha256": "bb52de542333c4f201216ba9a85a38a98a16c9e933b524b82b6470fe717e24c8",
+        "note": "The Wikimedia Commons file page dedicates this recording under CC0 1.0 ({{cc-zero}}, revision 1260528630, fetched 2026-10-03); its licence metadata and wikitext are in evidence/lament-funeral-march.json, and the rendered page in the intake's artifact. Seconds 28.92-73.92 of the original; the hit at 0:52.9 of it (found within 0:40.0-2:10.0), meant as the march theme's first fortissimo: the melody in D-flat major over crashing bass chords (bars 15-22).",
         "sourceSha256": "498f71b4b05f584dd4e74883ca728ff6c2e82cc0a92594390e8df0d48a3df850",
         "page": "https://commons.wikimedia.org/wiki/File:Frederic_Chopin_Piano_Sonata_No.2_in_B_flat_minor_Op35_-_III_Marche_Funebre.ogg",
         "record": "evidence/lament-funeral-march.json"
@@ -121,73 +121,90 @@
       "gainDb": 0.42
     },
     {
-      "id": "gallop-mountain-king",
-      "file": "gallop-mountain-king.opus",
-      "work": "\"In the Hall of the Mountain King\", Peer Gynt",
+      "id": "lament-ase-death",
+      "file": "lament-ase-death.opus",
+      "work": "\"Åse's Death\", Peer Gynt Suite No. 1",
       "composer": "Edvard Grieg",
       "year": 1875,
       "performers": "Musopen Symphony Orchestra",
       "source": "https://commons.wikimedia.org/wiki/File:Peer_Gynt_Suite_No._1,_Op._46_-_II._Aase%27s_Death.ogg",
       "licence": "CC0-1.0",
       "evidence": {
-        "sha256": "ad42cca4d3f865891ff8a0c2eee2dc0dab351a17fe410c3e040add31a3409bc4",
-        "note": "The Wikimedia Commons file page dedicates this recording under CC0 1.0 ({{cc-zero}}, revision 956096901, fetched 2026-10-03); its licence metadata and wikitext are in evidence/gallop-mountain-king.json, and the rendered page in the intake's artifact. Seconds 205.297-250.297 of the original; the hit: the accelerando's peak: the full orchestra and the cymbal crash.",
+        "sha256": "267dbe807b36b55ba4271fe8334f8f412421c0c5e770764295921a9fe488f0ce",
+        "note": "The Wikimedia Commons file page dedicates this recording under CC0 1.0 ({{cc-zero}}, revision 956096901, fetched 2026-10-03); its licence metadata and wikitext are in evidence/lament-ase-death.json, and the rendered page in the intake's artifact. Seconds 88.733-133.733 of the original; the hit at 1:52.7 of it (found within 1:30.3-2:49.7), meant as the strings' fortissimo peak, the climb of the lament's phrase at its loudest before it sinks away.",
         "sourceSha256": "21cf9e251f03bf550aa776e7cf98b73f733db2bc425e1239c42fa29e9430c586",
         "page": "https://commons.wikimedia.org/wiki/File:Peer_Gynt_Suite_No._1,_Op._46_-_II._Aase%27s_Death.ogg",
-        "record": "evidence/gallop-mountain-king.json"
+        "record": "evidence/lament-ase-death.json"
       },
-      "mood": "gallop",
+      "mood": "lament",
       "inPoint": 0,
-      "hit": 23.96,
+      "hit": 23.93,
       "outPoint": 45,
-      "loudnessLufs": -17.57,
-      "gainDb": 1.57
+      "loudnessLufs": -17.71,
+      "gainDb": 1.71
     },
     {
-      "id": "doom-fifth-symphony",
-      "file": "doom-fifth-symphony.opus",
-      "work": "Symphony No. 5, first movement",
+      "id": "doom-egmont-overture",
+      "file": "doom-egmont-overture.opus",
+      "work": "Overture, Egmont",
       "composer": "Ludwig van Beethoven",
-      "year": 1808,
-      "performers": "Ludwig van Beethoven",
+      "year": 1810,
+      "performers": "Musopen (performers uncredited)",
       "source": "https://commons.wikimedia.org/wiki/File:Beethoven_EgmontOvertureOp.84_LudwigVanBeethoven-EgmontOvertureOp.84.ogg",
       "licence": "CC0-1.0",
       "evidence": {
-        "sha256": "081d9a72bb58daf80a34232a3a60ef5a1fe635277d6d02f214997b8754ef834f",
-        "note": "The Wikimedia Commons file page dedicates this recording under CC0 1.0 ({{cc-zero}}, revision 1019671639, fetched 2026-10-03); its licence metadata and wikitext are in evidence/doom-fifth-symphony.json, and the rendered page in the intake's artifact. Seconds 338.253-383.253 of the original; the hit: the recapitulation: the four-note motif fortissimo in the full orchestra.",
+        "sha256": "39dcceac11c8e8bf6f34d93296ade072f405e8a98e773c4d68d147f42b4a69e1",
+        "note": "The Wikimedia Commons file page dedicates this recording under CC0 1.0 ({{cc-zero}}, revision 1019671639, fetched 2026-10-03); its licence metadata and wikitext are in evidence/doom-egmont-overture.json, and the rendered page in the intake's artifact. Seconds 463.437-508.437 of the original; the hit at 8:07.4 of it (found within 7:25.9-8:35.9), meant as the final Allegro con brio (the \"victory symphony\"): the horns' and trumpets' fanfare over the full orchestra.",
         "sourceSha256": "2007b57e8ab1dbe6c9df4d3c91d3de185457ad70cbeb9b4c2864e5161a64c3ae",
         "page": "https://commons.wikimedia.org/wiki/File:Beethoven_EgmontOvertureOp.84_LudwigVanBeethoven-EgmontOvertureOp.84.ogg",
-        "record": "evidence/doom-fifth-symphony.json"
+        "record": "evidence/doom-egmont-overture.json"
       },
       "mood": "doom",
       "inPoint": 0,
-      "hit": 23.97,
-      "outPoint": 45,
-      "loudnessLufs": -16.75,
-      "gainDb": 0.75
+      "hit": 23.98,
+      "outPoint": 44.994,
+      "loudnessLufs": -16.67,
+      "gainDb": 0.67
     },
     {
-      "id": "swagger-carmen-prelude",
-      "file": "swagger-carmen-prelude.opus",
-      "work": "Prelude, Carmen",
-      "composer": "Georges Bizet",
-      "year": 1875,
-      "performers": "Musopen",
-      "source": "https://commons.wikimedia.org/wiki/File:Carmen_-_Prelude_to_Act_1.ogg",
+      "id": "gallop-infernal-galop",
+      "file": "gallop-infernal-galop.wav",
+      "work": "\"Infernal Galop\", Orpheus in the Underworld",
+      "composer": "Jacques Offenbach",
+      "year": 1858,
+      "performers": "Dark Territory, synthesised (dt audio opera)",
+      "source": "src/DarkTerritory.Cli/OperaCommands.cs",
       "licence": "CC0-1.0",
       "evidence": {
-        "sha256": "be3012c7ab68a42e41c46a7bb8025764c475150185f142bb8bf2b0d2054963e8",
-        "note": "The Wikimedia Commons file page dedicates this recording under CC0 1.0 ({{cc-zero}}, revision 848754102, fetched 2026-10-03); its licence metadata and wikitext are in evidence/swagger-carmen-prelude.json, and the rendered page in the intake's artifact. Seconds 14.603-59.603 of the original; the hit: the opening march's return, cymbals and full orchestra.",
-        "sourceSha256": "deefeb327ce0a06b78e7a8bf493395a638b5a7e840e8b95c7aa97b9c633753c8",
-        "page": "https://commons.wikimedia.org/wiki/File:Carmen_-_Prelude_to_Act_1.ogg",
-        "record": "evidence/swagger-carmen-prelude.json"
+        "sha256": "b64b8f3025363c4062d716067e0620434ea1f12b2f6f71479cebcb0cb26593ad",
+        "note": "Our own recording: synthesised by `dt audio opera` from the public-domain score, and dedicated to the public domain under CC0 1.0 by Dark Territory (GDD v1.4 App. E.6 fallback; see CREDITS.md). Nothing in it was sampled from anyone else's recording."
       },
-      "mood": "swagger",
+      "mood": "gallop",
       "inPoint": 0,
-      "hit": 23.95,
-      "outPoint": 45,
-      "loudnessLufs": -16.02,
-      "gainDb": 0.02
+      "hit": 3.158,
+      "outPoint": 21.5,
+      "loudnessLufs": -14.48,
+      "gainDb": -1.52
+    },
+    {
+      "id": "gallop-william-tell",
+      "file": "gallop-william-tell.wav",
+      "work": "Overture finale, William Tell",
+      "composer": "Gioachino Rossini",
+      "year": 1829,
+      "performers": "Dark Territory, synthesised (dt audio opera)",
+      "source": "src/DarkTerritory.Cli/OperaCommands.cs",
+      "licence": "CC0-1.0",
+      "evidence": {
+        "sha256": "21d1baa5dfd3a1eee0dd9d99ec334d8e56f64f63eb756bd1aff1991967bcb5a1",
+        "note": "Our own recording: synthesised by `dt audio opera` from the public-domain score, and dedicated to the public domain under CC0 1.0 by Dark Territory (GDD v1.4 App. E.6 fallback; see CREDITS.md). Nothing in it was sampled from anyone else's recording."
+      },
+      "mood": "gallop",
+      "inPoint": 0,
+      "hit": 3.158,
+      "outPoint": 21.5,
+      "loudnessLufs": -15.03,
+      "gainDb": -0.97
     }
   ]
 }

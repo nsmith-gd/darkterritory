@@ -16,17 +16,21 @@
   "date": "1839",
   "revision": 1260528630,
   "revisionTimestamp": "2026-08-13T09:54:22Z",
+  "user": "Paterm",
   "refused": [],
   "id": "lament-funeral-march",
   "work": "Marche funèbre, Piano Sonata No. 2",
   "composer": "Frédéric Chopin",
   "sourceSha256": "498f71b4b05f584dd4e74883ca728ff6c2e82cc0a92594390e8df0d48a3df850",
-  "fetched": "2026-10-03T11:33:49Z",
+  "fetched": "2026-10-03T12:22:09Z",
   "licenceTemplates": [
     "cc-zero"
   ],
   "licenceSection": "{{cc-zero}}\n\n[[Category:Audio files of sonatas by Frédéric Chopin]]\n[[Category:Piano Sonata No. 2 (Chopin)]]",
-  "hitNote": "the march's return at fortissimo, the bass chords crashing in",
+  "information": "{{Information\n|description={{en|1=Frederic Chopin - Piano Sonata No.2 in B flat minor Op35 - III Marche Funebre}}\n{{pl|1=Chopin - Sonata b-moll op. 35. III - Marsz żałobny}}\n{{zh-hant|1=蕭邦 - 降b小調第二號鋼琴奏鳴曲，Op. 35 第三樂章 《葬禮進行曲》}}\n{{zh-cn|1=肖邦 - 降b小调第二号钢琴奏鸣曲，Op. 35 第三乐章 《葬礼进行曲》}}\n{{zh-sg|1=萧邦 - 降b小调第二号钢琴奏鸣曲，Op. 35 第三乐章 《葬礼进行曲》}}\n|date=1839\n|source={{Musopen|https://musopen.org/music/2127/frederic-chopin/piano-sonata-no-2-in-b-flat-minor-funeral-march-op-35/}}\n|author={{creator:Frederic Chopin}} performer: Andreas Xenopoulos\n|permission=\n|other versions=\n}}",
+  "performers": "Musopen (performers uncredited)",
+  "hitNote": "the march theme's first fortissimo: the melody in D-flat major over crashing bass chords (bars 15-22)",
+  "hitClock": "0:52.9",
   "file": "lament-funeral-march.opus",
   "hitGuess": 24.0,
   "sourceSeconds": 589.044,
@@ -36,13 +40,18 @@
   ],
   "hitInSource": 52.92,
   "analysis": {
-    "score": 36.38,
+    "score": 39.38,
     "range": [
       40,
-      150
+      130
     ]
   },
   "inputLufs": -25.9,
   "inputTruePeak": -8.16,
-  "normalization": "dynamic"
+  "normalization": "dynamic",
+  "hitCheck": {
+    "jumpDb": 13.2,
+    "loudnessRank": 0.01,
+    "weak": false
+  }
 }

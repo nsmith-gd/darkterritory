@@ -16,33 +16,42 @@
   "date": "1875",
   "revision": 848754102,
   "revisionTimestamp": "2024-02-04T00:25:10Z",
+  "user": "Morn",
   "refused": [],
-  "id": "swagger-carmen-prelude",
-  "work": "Prelude, Carmen",
+  "id": "swagger-habanera",
+  "work": "\"Habanera\" (\"L'amour est un oiseau rebelle\"), Carmen",
   "composer": "Georges Bizet",
   "sourceSha256": "deefeb327ce0a06b78e7a8bf493395a638b5a7e840e8b95c7aa97b9c633753c8",
-  "fetched": "2026-10-03T11:33:49Z",
+  "fetched": "2026-10-03T12:22:09Z",
   "licenceTemplates": [
     "cc-zero"
   ],
   "licenceSection": "{{Cc-zero}}\n\n[[Category:Audio files of Carmen]]",
-  "hitNote": "the opening march's return, cymbals and full orchestra",
-  "file": "swagger-carmen-prelude.opus",
+  "information": "{{Information\n|Description    ={{en|1=Prelude to Act 1 for ''Carmen'' by Georges Bizet}}\n                 {{fr|1=Prélude  à l'acte I de ''Carmen'' de Georges Bizet}}\n|Source         ={{Musopen|https://musopen.org/music/1059/georges-bizet/carmen/}}\n|Author         =Musopen\n|Date           =1875\n|Permission     =\n|other_versions =\n}}",
+  "performers": "Musopen (performers uncredited)",
+  "hitNote": "\"L'amour!\": the chorus's shout into the refrain",
+  "hitClock": "1:30.7",
+  "file": "swagger-habanera.opus",
   "hitGuess": 24.0,
   "sourceSeconds": 125.052,
   "window": [
-    14.603,
-    59.603
+    66.696,
+    111.696
   ],
-  "hitInSource": 38.603,
+  "hitInSource": 90.696,
   "analysis": {
-    "score": 13.13,
+    "score": 21.47,
     "range": [
-      31.26,
-      75.03
+      37.52,
+      100.04
     ]
   },
-  "inputLufs": -18.42,
-  "inputTruePeak": -0.55,
-  "normalization": "dynamic"
+  "inputLufs": -19.58,
+  "inputTruePeak": -0.41,
+  "normalization": "dynamic",
+  "hitCheck": {
+    "jumpDb": -1.0,
+    "loudnessRank": 0.32,
+    "weak": true
+  }
 }

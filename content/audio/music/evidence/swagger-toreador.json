@@ -16,17 +16,21 @@
   "date": "1875",
   "revision": 824957559,
   "revisionTimestamp": "2023-11-25T06:32:11Z",
+  "user": "Morn",
   "refused": [],
   "id": "swagger-toreador",
   "work": "\"Toreador Song\" (\"Votre toast\"), Carmen",
   "composer": "Georges Bizet",
   "sourceSha256": "d9302aef1d86fc8f4f6a0a0790c35b711b7b42e5594a009c195cc5e628269b73",
-  "fetched": "2026-10-03T11:33:49Z",
+  "fetched": "2026-10-03T12:22:09Z",
   "licenceTemplates": [
     "cc-zero"
   ],
   "licenceSection": "{{Cc-zero}}\n\n[[Category:Toreador Song]]\n[[Category:Audio files of Carmen]]\n[[Category:Tunes of Australian Football League club songs]]",
+  "information": "{{Information\n|Description    ={{en|1=\"Toreador Song\" from ''Carmen'' (1875) by Bizet}}\n|Source         ={{Musopen|https://musopen.org/music/1059/georges-bizet/carmen/}} (clip begins at about 7:50 in track \"3. Bizet - Carmen - 2 - Act 4 - Avec la garde montante a\")\n|Author         =Musopen\n|Date           =1875\n|Permission     =\n|other_versions =\n}}",
+  "performers": "Musopen (performers uncredited)",
   "hitNote": "\"Toréador, en garde!\": the refrain's downbeat, the chorus joining",
+  "hitClock": "2:48.7",
   "file": "swagger-toreador.opus",
   "hitGuess": 24.0,
   "sourceSeconds": 270.594,
@@ -36,7 +40,7 @@
   ],
   "hitInSource": 168.728,
   "analysis": {
-    "score": 23.04,
+    "score": 26.04,
     "range": [
       81.18,
       211.06
@@ -44,5 +48,10 @@
   },
   "inputLufs": -20.81,
   "inputTruePeak": -3.17,
-  "normalization": "dynamic"
+  "normalization": "dynamic",
+  "hitCheck": {
+    "jumpDb": 7.0,
+    "loudnessRank": 0.08,
+    "weak": false
+  }
 }
