@@ -105,6 +105,9 @@ public struct FrameLighting
     /// <summary>How far the dawn's up (0..1), and the glow it puts low on the sky on the sun's side.</summary>
     public float Dawn;
     public Vector3 DawnGlow;
+    /// <summary>The wind (m/s, world axes): the foliage's cards and boughs bend with it (<see cref="Gusts"/> how unevenly).</summary>
+    public Vector3 Wind;
+    public float Gusts;
     /// <summary>Seconds, for what drifts (clouds, grain). Screenshots keep it fixed so they're repeatable.</summary>
     public double Time;
 

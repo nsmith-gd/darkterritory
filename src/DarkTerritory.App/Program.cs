@@ -887,6 +887,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             lighting.FogDensity = (float)r.Weather.FogDensity;
             lighting.Wetness = r.Weather.Wet ? 1 : 0;
             lighting.Frost = look?.Tuning.Atmosphere.Cold.Frost(r.Weather.Cold) ?? 0;
+            if (look?.Tuning.Atmosphere.Wind is { } wind)
+                (lighting.Wind, lighting.Gusts) = (wind.Of(r.Weather.Wind), wind.Gusts);
         }
         if (session.StrandedOutro)
             Views.CinematicFog(ref lighting, Views.StrandedDistance(session.Train, session.World.WreckTuning.Stranded, session.OutroSeconds));

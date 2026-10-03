@@ -1248,7 +1248,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     {
         lighting.FogDensity = (float)route.Weather.FogDensity;
         lighting.Wetness = route.Weather.Wet ? 1 : 0;
+        if (look?.Tuning.Atmosphere.Wind is { } wind)
+            (lighting.Wind, lighting.Gusts) = (wind.Of(route.Weather.Wind), wind.Gusts);
     }
+    // --wind w: a night that windy (0..1, the route weather's), --time t: at that second of it (the foliage's sway).
+    if (args.Contains("--wind") && look?.Tuning.Atmosphere.Wind is { } windTuning)
+        (lighting.Wind, lighting.Gusts) = (windTuning.Of(Opt(args, "--wind", 0)), windTuning.Gusts);
+    if (args.Contains("--time"))
+        lighting.Time = Opt(args, "--time", 0);
+    // --wet: a wet night whatever the route's (its rain sheen on what faces the sky), to look the rain over.
+    if (args.Contains("--wet"))
+        lighting.Wetness = 1;
     // --cold c: a night that cold (0..1, the route weather's): its frost here, its breath in the scene (GreyboxScene.Cold).
     lighting.Frost = look?.Tuning.Atmosphere.Cold.Frost(scene.Cold) ?? 0;
     // --fog d: a thinner (or thicker) night than the route's, to look the lie of the land over.
