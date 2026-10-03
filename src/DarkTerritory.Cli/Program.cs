@@ -1455,10 +1455,14 @@ static object ArtReel(string content, string[] args)
             // Framed on the clip itself: everywhere the creature reaches over it (a gaunt standing to its height or
             // folded down to smash, a hugger sprawled), three-quarters on to its face (the model faces -Z), the whole
             // of it held in frame.
+            // What rises out of something (a Dragger's limb up over an eave, a Stoker up out of the firebox) stands on
+            // a floor under its lowest reach; the rest stand on the ground, a leg's tip through it not counted.
+            bool rises = name is "dragger" or "stoker";
             var joints = new List<System.Numerics.Vector3>();
             for (int i = 0; i < frames; i += Math.Max(1, frames / 12))
                 foreach (var j in art.Joints(name, clipName, Time(i), loop))
-                    joints.Add(j with { Y = MathF.Max(0, j.Y) });
+                    joints.Add(rises ? j : j with { Y = MathF.Max(0, j.Y) });
+            float floor = rises ? joints.Min(j => j.Y) - 0.05f : 0;
             var lo = joints.Aggregate(System.Numerics.Vector3.Min);
             var hi = joints.Aggregate(System.Numerics.Vector3.Max) + new System.Numerics.Vector3(0, 0.15f, 0);
             var centre = (lo + hi) / 2;
@@ -1467,13 +1471,14 @@ static object ArtReel(string content, string[] args)
             var back = new System.Numerics.Vector3((float)(Math.Sin(yaw) * Math.Cos(pitch)), (float)Math.Sin(pitch), (float)(-Math.Cos(yaw) * Math.Cos(pitch)));
             var side = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(System.Numerics.Vector3.UnitY, back));
             var upward = System.Numerics.Vector3.Cross(back, side);
-            double tanV = Math.Tan(25 * Math.PI / 180), tanH = tanV * w / h, dist = 1;
+            double tanV = Math.Tan(25 * Math.PI / 180), tanH = tanV * w / h, dist = 0.3;
+            float extent = (hi - lo).Length();
             foreach (var j in joints)
             {
                 var d = j - centre;
                 double near = System.Numerics.Vector3.Dot(d, back);
-                dist = Math.Max(dist, near + (Math.Abs(System.Numerics.Vector3.Dot(d, side)) * 1.15 + 0.2) / tanH);
-                dist = Math.Max(dist, near + (Math.Abs(System.Numerics.Vector3.Dot(d, upward)) * 1.15 + 0.3) / tanV);
+                dist = Math.Max(dist, near + (Math.Abs(System.Numerics.Vector3.Dot(d, side)) * 1.15 + 0.06 + extent * 0.08) / tanH);
+                dist = Math.Max(dist, near + (Math.Abs(System.Numerics.Vector3.Dot(d, upward)) * 1.15 + 0.08 + extent * 0.1) / tanV);
             }
             var target = new Double3(centre.X, centre.Y, centre.Z);
             var eye = target + new Double3(back.X * dist, back.Y * dist, back.Z * dist);
@@ -1487,7 +1492,7 @@ static object ArtReel(string content, string[] args)
                 var mesh = new MeshBuilder { Style = look.Style };
                 mesh.SurfaceOrigin = e;
                 float f = 40;
-                mesh.Quad(new System.Numerics.Vector3(-f, 0, f) - e, new System.Numerics.Vector3(f, 0, f) - e, new System.Numerics.Vector3(f, 0, -f) - e, new System.Numerics.Vector3(-f, 0, -f) - e, DarkTerritory.Game.Palette.Charcoal * 0.5f);
+                mesh.Quad(new System.Numerics.Vector3(-f, floor, f) - e, new System.Numerics.Vector3(f, floor, f) - e, new System.Numerics.Vector3(f, floor, -f) - e, new System.Numerics.Vector3(-f, floor, -f) - e, DarkTerritory.Game.Palette.Charcoal * 0.5f);
                 var right = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(camera.Forward, System.Numerics.Vector3.UnitY));
                 var anchor = new System.Numerics.Vector3((float)target.X, (float)target.Y, (float)target.Z) - e;
                 // A lantern's key light half way to the camera, off to its right and above; a cold fill from its left;
