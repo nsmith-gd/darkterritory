@@ -2206,6 +2206,9 @@ public sealed class GreyboxScene
                 draw(Box.FromCentre(i.Position + new Double3(0, 0.55, -0.27), new Double3(0.32, 0.07, 0.02)), FireColour(0.1f + 0.5f * FireGlow) * 0.7f);
             }
             mesh.Emissive = 0;
+            // The door shut: its leaves over the hole, the fire only at the seam (Art.SceneArt.FireDoorShut).
+            if (!FireDoorOpen && Look is not null)
+                Look.Art.FireDoorShut(mesh, frame, eye, FireGlow, FireColour(1));
             // The door open, the art pass's fire: flames off the bed, cinders out of the hole, its light into the cab.
             if (FireDoorOpen && Look?.Art.Effects is { HasFlames: true } fx)
                 foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))

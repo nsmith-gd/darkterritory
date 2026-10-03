@@ -653,6 +653,57 @@ public sealed partial class SceneArt(Look look)
     /// A car: its body from the kit, its doors where the vehicle has them (shut in the doorway, or slid aside), and its gun
     /// turned the way it faces. Returns false when the kit can't draw this car (so the greybox does).
     /// </summary>
+    /// <summary>
+    /// The firebox door shut (the boiler's FireDoorOpen false; the Stoker's "keep it hot, keep it shut"): two iron leaves
+    /// over the firehole, strapped and handled, meeting in the middle, the fire's light only at the seam between them and
+    /// through the peephole. Open, the backhead's own leaves stand ajar (tools/models cab_backhead) and the fire shows.
+    /// </summary>
+    public void FireDoorShut(MeshBuilder mesh, in CarFrame engine, Double3 eye, float fire, Vector3 fireColour)
+    {
+        if (engine.Shape.Cab is null || (engine.Origin - eye).Length > 40)
+            return;
+        var m = FrameMatrix(engine, eye);
+        var at = TrainKit.FireDoor(engine.Shape);
+        mesh.Instances.Add(new MeshInstance(Piece("firedoor-shut", () =>
+        {
+            var k = new Kit(Look, 61);
+            float w = TrainKit.FireDoorHalfWidth + 0.03f, h = TrainKit.FireDoorHalfHeight + 0.03f;
+            foreach (int side in new[] { -1, 1 })
+            {
+                float x0 = side < 0 ? -w : 0.006f, x1 = side < 0 ? -0.006f : w;
+                k.Use("iron_smokebox", Palette.SootBlack, 0.8f, 0.35f, tile: 0.6f);
+                k.Box(new Vector3(x0, -h, 0.01f), new Vector3(x1, h, 0.045f));
+                // Two straps across each leaf and its hinge knuckles at the outer edge.
+                k.Use("rust_heavy", Palette.IronGrey, 0.7f, 0.4f);
+                foreach (float y in new[] { -h * 0.55f, h * 0.55f })
+                    k.Box(new Vector3(x0 + 0.01f, y - 0.022f, 0.045f), new Vector3(x1 - 0.01f, y + 0.022f, 0.055f));
+                float hx = side * (w + 0.01f);
+                foreach (float y in new[] { -h * 0.55f, h * 0.55f })
+                    k.Cylinder(new Vector3(hx, y - 0.05f, 0.03f), new Vector3(hx, y + 0.05f, 0.03f), 0.02f, 6);
+                // The handle, a loop of rod near the meeting edge.
+                k.Use("brass", Palette.TarnishedBrass, 0.6f, 0.6f);
+                float gx = side * 0.06f;
+                k.Rod(new Vector3(gx, -0.05f, 0.055f), new Vector3(gx, -0.05f, 0.1f), 0.01f, 5);
+                k.Rod(new Vector3(gx, 0.05f, 0.055f), new Vector3(gx, 0.05f, 0.1f), 0.01f, 5);
+                k.Rod(new Vector3(gx, -0.05f, 0.1f), new Vector3(gx, 0.05f, 0.1f), 0.012f, 5);
+            }
+            return k.Build("firedoor-shut");
+        }), Matrix4x4.CreateTranslation(at) * m));
+        // The fire's light where it gets out: the seam down the middle and the peephole in the right leaf.
+        if (fire > 0)
+        {
+            var ax = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, m));
+            var ay = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, m));
+            var az = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, m));
+            float e = mesh.Emissive;
+            mesh.Emissive = 1;
+            var glow = fireColour * (0.25f + 0.75f * fire);
+            mesh.Box(Vector3.Transform(at + new Vector3(0, 0, 0.03f), m), ax, ay, az, new Vector3(0.004f, TrainKit.FireDoorHalfHeight + 0.02f, 0.016f), glow);
+            mesh.Box(Vector3.Transform(at + new Vector3(0.14f, 0.08f, 0.047f), m), ax, ay, az, new Vector3(0.018f, 0.012f, 0.002f), glow);
+            mesh.Emissive = e;
+        }
+    }
+
     /// <summary>The engine's modelled moving parts (tools/models engine_parts), or null when they aren't there to turn.</summary>
     (MeshAsset Wheel, MeshAsset Rod)? GearParts =>
         PropArt.Of(Look).Get("driver_wheel") is { } wheel && PropArt.Of(Look).Get("coupling_rod") is { } rod ? (wheel, rod) : null;
