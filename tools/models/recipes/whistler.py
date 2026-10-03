@@ -30,7 +30,7 @@ make._mats.clear()
 make.LOW.clear()
 
 DRESS = {
-    "skin.whistler_plate": (lambda: make.flat("whistler_plate", (0.28, 0.25, 0.2), rough=0.3), 2),
+    "skin.whistler_plate": (lambda: make.flat("whistler_plate", (0.25, 0.215, 0.16), rough=0.3), 2),
     "skin.whistler_leg": (lambda: make.flat("whistler_leg", (0.09, 0.075, 0.062), rough=0.45), 1),
     "skin.whistler_lip": (lambda: make.flat("whistler_lip", (0.17, 0.05, 0.04), rough=0.15), 2),
     "skin.whistler": (lambda: make.flat("whistler_flesh", (0.38, 0.34, 0.29), rough=0.35), 2),

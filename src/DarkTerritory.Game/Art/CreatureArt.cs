@@ -307,6 +307,19 @@ public sealed class CreatureArt
     /// <summary>A loaded model by name, or null.</summary>
     public Model? Get(string name) => _models.TryGetValue(name, out var m) ? m.Model : null;
 
+    /// <summary>
+    /// Where a model's joints are, in its own frame, at <paramref name="time"/> into a clip: what `dt art reel` frames a
+    /// clip on (the skin's posed on the GPU, so the bones are what the CPU has). Empty when the model or clip isn't there.
+    /// </summary>
+    public IEnumerable<Vector3> Joints(string name, string clip, double time, bool loop)
+    {
+        if (!_models.TryGetValue(name, out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
+            yield break;
+        _skinner.Evaluate(m.Model, c, time, loop, m.Pose);
+        foreach (var w in m.Pose.World)
+            yield return w.Translation;
+    }
+
     /// <summary>A material's texture layer when the look has it; its flat colour (and its glow, if it has one) when not.</summary>
     MaterialLook Resolve(ModelMaterial m, float wear)
     {

@@ -1980,7 +1980,7 @@ public sealed class GreyboxScene
             _mapFit = (0, 0, 1, ax, ay);
             var chart = _mapDots.Select(d => Chart(d.X, d.Z)).ToList();
             double minU = chart.Min(c => c.U), maxU = chart.Max(c => c.U), minV = chart.Min(c => c.V), maxV = chart.Max(c => c.V);
-            double scale = Math.Min((W - 0.06) / Math.Max(1, maxU - minU), (H - 0.06) / Math.Max(1, maxV - minV));
+            double scale = Math.Min((W - 0.06) / Math.Max(1, maxU - minU), (H - MapMargin) / Math.Max(1, maxV - minV));
             // Centred on the chart.
             _mapFit = ((minU + maxU) / 2, (minV + maxV) / 2, scale, ax, ay);
         }
@@ -1996,6 +1996,7 @@ public sealed class GreyboxScene
         mesh.Emissive = 0.08f;
         draw(new Box(new Double3(x0, y0, z), new Double3(x0 + W, y0 + H, z + 0.008)), MapPaper);
         draw(new Box(new Double3(x0 - 0.015, y0 - 0.015, z - 0.002), new Double3(x0 + W + 0.015, y0 + H + 0.015, z + 0.004)), Palette.DeepBrown);
+        MapChart(draw, x0, y0, z, W, H);
         foreach (var (dx, dz) in _mapDots)
             draw(Box.FromCentre(On(dx, dz, 0.01), new Double3(0.005, 0.005, 0.002)), MapInk);
         if (Route is { } route)
@@ -2036,12 +2037,57 @@ public sealed class GreyboxScene
             labelled.Add((cx, cy));
             MapFigure(draw, figure, cx - w / 2, cy + h / 2, z + 0.013, px);
         }
+        // A scale bar under it, bottom right: a kilometre (five, if one's too short to read), in ink.
+        double km = _mapFit.Scale * 1000 >= 0.04 ? 1 : 5, bar = _mapFit.Scale * 1000 * km;
+        if (bar < W * 0.4)
+        {
+            double bx1 = x0 + W - 0.03, bx0 = bx1 - bar, by = y0 + 0.022;
+            draw(new Box(new Double3(bx0, by, z + 0.009), new Double3(bx1, by + 0.004, z + 0.011)), MapInk);
+            for (int i = 0; i <= 2; i++)
+                draw(new Box(new Double3(bx0 + bar * i / 2 - 0.0015, by, z + 0.009), new Double3(bx0 + bar * i / 2 + 0.0015, by + (i == 1 ? 0.007 : 0.011), z + 0.011)), MapInk);
+            string label = $"{km:0} KM";
+            MapFigure(draw, label, bx0 - BitmapFont.Default.Measure(label) * 0.004 - 0.008, by + 0.014, z + 0.011, 0.004, MapInk);
+        }
         mesh.Emissive = 1;
         var at = line.Sample(RailLine.MainPath, Math.Clamp(_hint, 0, length)).Position;
         float pulse = 0.7f + 0.3f * MathF.Sin((float)Time * 4);
         draw(Box.FromCentre(On(at.X, at.Z, 0.014), new Double3(0.013, 0.013, 0.003)), Palette.SignalRed * pulse);
         mesh.Emissive = 0;
         mesh.Style = style;
+    }
+
+    // The chart's room above and below the line for its title and its scale bar (m of plate).
+    const double MapMargin = 0.11;
+
+    /// <summary>
+    /// The chart round the line (the art pass on T98's map): a surveyor's sheet, a faint grid ruled over it, a double ink
+    /// rule inside its edge, the night's name lettered across the top, and a brass drawing pin in each corner.
+    /// </summary>
+    void MapChart(Action<Box, Vector3> draw, double x0, double y0, double z, double W, double H)
+    {
+        var rule = MapPaper * 0.8f;
+        for (int i = 1; i < 10; i++)
+            draw(new Box(new Double3(x0 + W * i / 10 - 0.001, y0 + 0.012, z + 0.0085), new Double3(x0 + W * i / 10 + 0.001, y0 + H - 0.012, z + 0.009)), rule);
+        for (int i = 1; i < 4; i++)
+            draw(new Box(new Double3(x0 + 0.012, y0 + H * i / 4 - 0.001, z + 0.0085), new Double3(x0 + W - 0.012, y0 + H * i / 4 + 0.001, z + 0.009)), rule);
+        foreach (var (inset, t) in new[] { (0.008, 0.0025), (0.013, 0.001) })
+        {
+            draw(new Box(new Double3(x0 + inset, y0 + inset, z + 0.009), new Double3(x0 + W - inset, y0 + inset + t, z + 0.0095)), MapInk);
+            draw(new Box(new Double3(x0 + inset, y0 + H - inset - t, z + 0.009), new Double3(x0 + W - inset, y0 + H - inset, z + 0.0095)), MapInk);
+            draw(new Box(new Double3(x0 + inset, y0 + inset, z + 0.009), new Double3(x0 + inset + t, y0 + H - inset, z + 0.0095)), MapInk);
+            draw(new Box(new Double3(x0 + W - inset - t, y0 + inset, z + 0.009), new Double3(x0 + W - inset, y0 + H - inset, z + 0.0095)), MapInk);
+        }
+        // The night's name, as the depot lettered it (what the font has of it).
+        var font = BitmapFont.Default;
+        string name = new((Route?.Name ?? "the line").ToUpperInvariant().Select(c => char.IsLetterOrDigit(c) || c == ' ' ? c : ' ').ToArray());
+        string title = $"RUN OF {name}".Trim();
+        const double tp = 0.005;
+        MapFigure(draw, title, x0 + 0.024, y0 + H - 0.022, z + 0.011, tp, MapInk);
+        foreach (var (px, py) in new[] { (x0 + 0.006, y0 + 0.006), (x0 + W - 0.006, y0 + 0.006), (x0 + 0.006, y0 + H - 0.006), (x0 + W - 0.006, y0 + H - 0.006) })
+        {
+            draw(Box.FromCentre(new Double3(px, py, z + 0.012), new Double3(0.009, 0.009, 0.004)), Palette.TarnishedBrass);
+            draw(Box.FromCentre(new Double3(px - 0.0015, py + 0.0015, z + 0.0145), new Double3(0.003, 0.003, 0.001)), Palette.TarnishedBrass * 1.6f);
+        }
     }
 
     LinePlan? _bendsFor;
@@ -2092,7 +2138,7 @@ public sealed class GreyboxScene
     }
 
     /// <summary>A figure inked on the run map in the 5×7 font, from its top left; each row's runs of pixels one box.</summary>
-    static void MapFigure(Action<Box, Vector3> draw, string text, double left, double top, double z, double px)
+    static void MapFigure(Action<Box, Vector3> draw, string text, double left, double top, double z, double px, Vector3? ink = null)
     {
         var font = BitmapFont.Default;
         double x = left;
@@ -2108,7 +2154,7 @@ public sealed class GreyboxScene
                     while (gx + run < g.GetLength(1) && g[gy, gx + run])
                         run++;
                     double y = top - gy * px;
-                    draw(new Box(new Double3(x + gx * px, y - px, z), new Double3(x + (gx + run) * px, y, z + 0.002)), MapLimit);
+                    draw(new Box(new Double3(x + gx * px, y - px, z), new Double3(x + (gx + run) * px, y, z + 0.002)), ink ?? MapLimit);
                 }
             x += font.Advance * px;
         }

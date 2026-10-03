@@ -94,7 +94,7 @@ public static class DebrisKit
             for (int i = 0; i < f.Length; i += 3)
             {
                 var (a, b, c) = (v[f[i]], v[f[i + 1]], v[f[i + 2]]);
-                k.Tri(a, b, c, new(a.X + a.Z, -a.Y), new(b.X + b.Z, -b.Y), new(c.X + c.Z, -c.Y));
+                k.Tri(a, b, c);
             }
         }
         // The big ones on the rails, then the rest strewn back up toward the cutting (−X), smaller as they go.
