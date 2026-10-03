@@ -181,6 +181,10 @@ public sealed class GreyboxScene
     {
         mesh.Clear();
         _speed = frames.Count == 0 ? 0 : Vector3.Dot(ToF(frames[0].Velocity), ToF(frames[0].Back * -1));
+        // How far the engine's rolled, for its turning wheels (Art.SceneArt.Gear): its speed run on over the frames' time.
+        if (_wheelClock is { } then && Time > then && Time - then < 1)
+            _travelled += _speed * (Time - then);
+        _wheelClock = Time;
         if (Look is not null)
             Look.Art.Breath = Look.Tuning.Atmosphere.Cold.Breath(Cold);
         Fires(frames.Count);
@@ -1269,6 +1273,11 @@ public sealed class GreyboxScene
     }
     readonly Dictionary<int, double> _caughtAt = new();
     double _speed;
+    double? _wheelClock;
+
+    /// <summary>How far the engine's wheels have rolled (m): run on by the frames' speed and time; set to stage a turn.</summary>
+    public double Rolled { get => _travelled; set => _travelled = value; }
+    double _travelled;
 
     /// <summary>
     /// The line's boards (sight.json), on posts to the right of the line facing the oncoming train: a posted speed is a pale
@@ -1845,6 +1854,8 @@ public sealed class GreyboxScene
         }
         if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick, CutEnds(frame.Index), burnt?.Char ?? 0, utility, openLockers, Handrails))
         {
+            if (engine)
+                Look.Art.Gear(mesh, frame, eye, _travelled, Emergency ? 0.06f : 1);
             CarWorkings(mesh, frame, eye, Draw);
             if (engine)
             {

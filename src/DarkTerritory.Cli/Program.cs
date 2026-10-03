@@ -1230,6 +1230,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Hits = Staging.HitsOn(struck, train, camera.Position);
         scene.Tick = Staging.StrikeTick + (long)Math.Round(Opt(args, "--hit-age", 0.07) * SimConstants.TickRate);
     }
+    // --rolled m: the engine's wheels turned as if it had rolled that far (its drivers and rods, SceneArt.Gear).
+    scene.Rolled = Opt(args, "--rolled", 0);
     scene.Build(mesh, train, camera.Position);
     // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
     var buildClock = Stopwatch.StartNew();

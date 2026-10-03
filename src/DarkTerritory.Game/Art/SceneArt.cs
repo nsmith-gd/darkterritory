@@ -631,6 +631,58 @@ public sealed partial class SceneArt(Look look)
     /// A car: its body from the kit, its doors where the vehicle has them (shut in the doorway, or slid aside), and its gun
     /// turned the way it faces. Returns false when the kit can't draw this car (so the greybox does).
     /// </summary>
+    /// <summary>The engine's modelled moving parts (tools/models engine_parts), or null when they aren't there to turn.</summary>
+    (MeshAsset Wheel, MeshAsset Rod)? GearParts =>
+        PropArt.Of(Look).Get("driver_wheel") is { } wheel && PropArt.Of(Look).Get("coupling_rod") is { } rod ? (wheel, rod) : null;
+
+    /// <summary>
+    /// The engine's running gear, turning with its going (the checklist's train motion: "wheels turn, rods move"): the four
+    /// pairs of drivers rolled <paramref name="distance"/> along the line, the coupling rods carried round on their crank
+    /// pins, and the main rods from the third pair's pins back to the crossheads sliding in their guides. Close enough to
+    /// see it only; past that the still gear baked in a far engine would do, but the engine's always near.
+    /// </summary>
+    public void Gear(MeshBuilder mesh, in CarFrame frame, Double3 eye, double distance, float glow = 1)
+    {
+        if (frame.Shape.Cab is null || GearParts is not { } parts || (frame.Origin - eye).Length > 400)
+            return;
+        var shape = frame.Shape;
+        var m = FrameMatrix(frame, eye);
+        float turn = (float)(distance / TrainKit.DriverRadius % (2 * Math.PI));
+        var drivers = TrainKit.Drivers(shape);
+        // The main rod's length: as the still engine lays it, crosshead to pin at the rest crank.
+        var restPin = TrainKit.CrankPin(1, 0);
+        float length = Vector2.Distance(new Vector2(TrainKit.CrossheadY, TrainKit.CrossheadRestZ(shape)),
+            new Vector2(TrainKit.DriverRadius + restPin.Y, drivers[2] + restPin.Z));
+        var mainRod = Piece($"engine-main-rod:{length:0.000}", () => TrainKit.MainRod(Look, length));
+        foreach (int side in new[] { -1, 1 })
+        {
+            foreach (float z in drivers)
+                mesh.Instances.Add(new MeshInstance(parts.Wheel, TrainKit.DriverAt(side, new Vector3(side * TrainKit.HalfGauge, TrainKit.DriverRadius, z), turn) * m, glow));
+            var pin = TrainKit.CrankPin(side, turn);
+            float x = side * (TrainKit.HalfGauge + 0.2f);
+            var rodAt = new Vector3(x, TrainKit.DriverRadius + pin.Y, (drivers[0] + drivers[^1]) / 2 + pin.Z);
+            mesh.Instances.Add(new MeshInstance(parts.Rod, (side > 0 ? Matrix4x4.Identity : Matrix4x4.CreateRotationY(MathF.PI)) * Kit.At(rodAt) * m, glow));
+            // The main rod: big end on the third pair's pin, little end on the crosshead, which slides level in its guides.
+            var big = new Vector3(TrainKit.RodX(side), TrainKit.DriverRadius + pin.Y, drivers[2] + pin.Z);
+            float dy = TrainKit.CrossheadY - big.Y;
+            var little = new Vector3(big.X, TrainKit.CrossheadY, big.Z - MathF.Sqrt(MathF.Max(0, length * length - dy * dy)));
+            var along = Vector3.Normalize(little - big);
+            var lay = Matrix4x4.CreateFromQuaternion(Rotation(Vector3.UnitZ, along)) * Kit.At(big);
+            mesh.Instances.Add(new MeshInstance(mainRod, lay * m, glow));
+        }
+    }
+
+    static Quaternion Rotation(Vector3 from, Vector3 to)
+    {
+        float d = Vector3.Dot(from, to);
+        if (d > 0.9999f)
+            return Quaternion.Identity;
+        var axis = Vector3.Cross(from, to);
+        if (axis.LengthSquared() < 1e-8f)
+            axis = Vector3.UnitY;
+        return Quaternion.CreateFromAxisAngle(Vector3.Normalize(axis), MathF.Acos(Math.Clamp(d, -1, 1)));
+    }
+
     /// <summary>How far an open roof hatch's lid is swung over on its hinges (T99): a little past upright.</summary>
     const float OpenHatch = MathF.PI * 100 / 180;
 
@@ -656,7 +708,10 @@ public sealed partial class SceneArt(Look look)
         string key = engine ? $"engine:{ShapeKey(shape)}" : $"car:{ShapeKey(shape)}:{livery}:{variant}:{shape.Gun is not null}";
         // The load's drawn apart from the body (TrainKit.Load), in its cargo's cases, when the scene knows the cargo.
         bool loadApart = !engine && vehicle is not null;
-        var body = Piece(loadApart ? key + ":empty" : key, () => engine ? TrainKit.Engine(Look, shape, 0) : TrainKit.Car(Look, shape, livery, variant, load: !loadApart));
+        // The engine's drivers and rods are drawn apart, turning (Gear), where their modelled parts are there to turn.
+        bool turning = engine && GearParts is not null;
+        var body = Piece(loadApart ? key + ":empty" : turning ? key + ":turning" : key,
+            () => engine ? TrainKit.Engine(Look, shape, 0, gear: !turning) : TrainKit.Car(Look, shape, livery, variant, load: !loadApart));
         // Wear and tear off the car's integrity (look.json "damage"): the scar mask over the body and doors, seeded by
         // the car so its scars stay where they are, and past the first state the torn plate the mask can't draw.
         // What a Car Hugger ate of it (App. A.3 FEED) is gone, not battered: the scars and torn plate are the rest of the loss.
