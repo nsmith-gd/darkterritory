@@ -348,7 +348,7 @@ public sealed class GreyboxScene
                     // The art pass's own (Art/CreatureArt, note 124): a conductor off a lost train, in the colour of the
                     // crewmate it copies; it walks as fast as it's been going (GreyboxScene's pace).
                     if (!e.Gone)
-                        DrawEnemy(mesh, line, frames, e, eye, from, to, passengers, default, null, null, Pace(e), Flinch(e));
+                        DrawEnemy(mesh, line, frames, e, eye, from, to, passengers, default, null, null, Pace(e), Flinch(e), HitAge(e));
                 }
                 else if (e is Sim.Enemies.Passenger passenger)
                 {
@@ -380,7 +380,7 @@ public sealed class GreyboxScene
                     Art.CreatureArt.Room? room = e.Kind is EnemyKind.TippyToesie or EnemyKind.Gaunt && e.Attached >= 0 && e.Attached < frames.Count
                         ? Art.CreatureArt.Room.Of(frames[e.Attached].Shape, e.Local)
                         : null;
-                    DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room, e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler ? Pace(e) : 0, Flinch(e));
+                    DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room, e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler ? Pace(e) : 0, Flinch(e), HitAge(e));
                 }
         Lap(mesh, "enemies");
         if (Bodies is not null)
@@ -475,6 +475,22 @@ public sealed class GreyboxScene
             return (Vector3.Zero, Quaternion.Identity);
         flat = Vector3.Normalize(flat);
         return (flat * (FlinchPush * k), Quaternion.CreateFromAxisAngle(Vector3.Normalize(Vector3.Cross(Vector3.UnitY, flat)), FlinchTip * k));
+    }
+
+    /// <summary>Seconds since a blow or a ball last landed on <paramref name="e"/>, or −1 when none has in the last second.</summary>
+    double HitAge(Enemy e)
+    {
+        if (Hits is null || Tick < 0)
+            return -1;
+        double best = -1;
+        foreach (var h in Hits)
+            if (h.EnemyId == e.Id)
+            {
+                double age = (Tick - h.Tick) * Sim.SimConstants.TickSeconds;
+                if (age >= 0 && age <= 1 && (best < 0 || age < best))
+                    best = age;
+            }
+        return best;
     }
 
     /// <summary>Staged: the air to draw whatever the biome (dt screenshot --air ash|spores).</summary>
@@ -783,7 +799,7 @@ public sealed class GreyboxScene
     /// </summary>
     static void DrawEnemy(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Enemy e, Double3 eye, double from, double to, Art.CreatureArt? creatures = null,
         Art.Bite bite = default, Art.CreatureArt.Prey? prey = null, Art.CreatureArt.Room? room = null, float pace = 0,
-        (Vector3 Push, Quaternion Tip) flinch = default)
+        (Vector3 Push, Quaternion Tip) flinch = default, double hitAge = -1)
     {
         // A basis for the enemy: its car's, or the line's at its distance.
         Double3 origin, right, up = Double3.Up, back;
@@ -841,7 +857,7 @@ public sealed class GreyboxScene
             (r, u, b) = (Vector3.Transform(r, flinch.Tip), Vector3.Transform(u, flinch.Tip), Vector3.Transform(b, flinch.Tip));
         }
         // The art pass's creature, where it has one (Art/CreatureArt): the same place, the thing itself.
-        if (creatures is not null && creatures.Enemy(mesh, Art.CreatureArt.Basis(o, r, u, b), e, bite, prey, room, pace))
+        if (creatures is not null && creatures.Enemy(mesh, Art.CreatureArt.Basis(o, r, u, b), e, bite, prey, room, pace, hitAge))
             return;
         Vector3 L(double x, double y, double z) => o + r * (float)x + u * (float)y + b * (float)z;
         void Draw(double x, double y, double z, double hx, double hy, double hz, Vector3 colour) =>

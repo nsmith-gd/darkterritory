@@ -350,6 +350,9 @@ public sealed class CreatureArt
     {
         if (!_models.TryGetValue(name, out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
+        // Struck: its own hit clip over whatever it was doing, while that runs (Enemy's hitAge).
+        if (_hit >= 0 && clip != "hit" && m.Model.Clips.TryGetValue("hit", out var hit) && _hit < hit.Duration)
+            (clip, c, time, loop) = ("hit", hit, _hit, false);
         _skinner.Evaluate(m.Model, c, time, loop, m.Pose);
         posed?.Invoke(m);
         Emit(mesh, m, clip, at, variant, glow, seed, adjust);
@@ -1494,7 +1497,29 @@ public sealed class CreatureArt
         mesh.PointLights.Add(new PointLight(o, Palette.FurnaceOrange * (0.25f + 0.9f * fill) * flick, 2.5f + 2.5f * fill));
     }
 
-    public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite = default, Prey? prey = null, Room? room = null, float pace = 0)
+    /// <summary>
+    /// Draws a creature in the sim's state. <paramref name="hitAge"/>: seconds since a blow or a ball last landed on it (−1
+    /// for none lately): its rig's own <c>hit</c> clip plays over whatever it was doing for as long as that clip runs (the
+    /// checklist's hit reacts), except while it has hold of someone.
+    /// </summary>
+    public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite = default, Prey? prey = null, Room? room = null, float pace = 0,
+        double hitAge = -1)
+    {
+        _hit = e.Phase is SpinePhase.Grab or SpinePhase.Punish ? -1 : hitAge;
+        try
+        {
+            return EnemyIn(mesh, model, e, bite, prey, room, pace);
+        }
+        finally
+        {
+            _hit = -1;
+        }
+    }
+
+    // How long since the creature being drawn was struck (s), or −1: Draw plays its hit clip over its own while it runs.
+    double _hit = -1;
+
+    bool EnemyIn(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite, Prey? prey, Room? room, float pace)
     {
         var m = model;
         switch (e.Kind)
