@@ -117,10 +117,8 @@ CUES = {
               cand={"_": K("impactMetal_heavy") if tool != "shovel" else K("impactPlate_heavy")}),
             O(f"{tool}-hit-wood", f"{tool.title()} striking wood (car walls, crates, boards)", vars=4,
               cand={"_": K("impactWood_heavy")}),
-            O(f"{tool}-drop", f"{tool.title()} dropped", mats=DROP,
-              cand={"wood": K("impactWood_medium"), "grate": K("impactMetal_medium")},
-              need="Not in the game yet: there's no dropping a tool in the sim (the hotbar keeps it, Kit.cs), so "
-                   "nothing plays this. Ready for when there is."),
+            O(f"{tool}-drop", f"{tool.title()} dropped: let go as a crewmate holding it goes down", mats=DROP,
+              cand={"wood": K("impactWood_medium"), "grate": K("impactMetal_medium")}),
         )],
     ],
     "crew-carry": [

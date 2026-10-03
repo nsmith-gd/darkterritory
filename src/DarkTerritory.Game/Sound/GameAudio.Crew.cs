@@ -72,6 +72,8 @@ public sealed partial class GameAudio
     const double AtRest = 0.004;
     // How fast a crate has to slide along a floor to be heard scraping (m/s): past a nudge, short of a shove.
     const double CrateSlides = 0.15;
+    // A tool let go as its holder drops lands a beat after the body (s).
+    const double ToolFallsAfter = 0.18;
 
     sealed class CrewMember
     {
@@ -230,9 +232,14 @@ public sealed partial class GameAudio
             float occlusion = Occlusion(PlayerMotor.Space(s, train));
             bool placed = s.Placed != c.Placed;
 
-            // Dead: the body going down, on whatever it's on.
+            // Dead: the body going down, on whatever it's on, and a tool in hand clattering down after it.
             if (c.Alive && !s.Alive && s.Death != DeathCause.Waiting)
-                Cue("crew-hurt.body-fall", Footing.Under(s, world) ?? c.LastFooting(world), feet, occlusion);
+            {
+                string fell = Footing.Under(s, world) ?? c.LastFooting(world);
+                Cue("crew-hurt.body-fall", fell, feet, occlusion);
+                if (c.Held != Tool.None && Surfaced($"crew-melee.{ToolName(c.Held)}-drop", fell) is { } dropped)
+                    CrewAfter(ToolFallsAfter, dropped, feet + Double3.Up * 0.2, occlusion);
+            }
             if (!s.Alive || placed)
             {
                 Remember(c, s, world);

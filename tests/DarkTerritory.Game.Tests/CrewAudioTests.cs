@@ -169,6 +169,23 @@ public class CrewAudioTests
     }
 
     [Fact]
+    public void ACrewmateKilledWithAToolInHandDropsItABeatAfterTheBody()
+    {
+        var b = new Bench("crew-hurt.body-fall.roof", "crew-melee.wrench-drop.roof");
+        var s = PlayerMotor.SpawnOnRoof(b.Train, 2, 0, P) with { Kit = Kit.Of([Tool.Wrench]), HeldSlot = 0 };
+        b.Step((1, s));
+        b.Step((1, s));
+        var dead = s with { Health = 0, Death = DeathCause.Mauled };
+        b.Step((1, dead));
+        Assert.Equal(1, b.Count("crew-hurt.body-fall.roof"));
+        Assert.Equal(0, b.Count("crew-melee.wrench-drop.roof"));
+        for (int i = 0; i < SimConstants.TickRate / 2; i++)
+            b.Step((1, dead));
+        Assert.Equal(1, b.Count("crew-melee.wrench-drop.roof"));
+        Assert.Equal(1, b.Count("crew-hurt.body-fall.roof"));
+    }
+
+    [Fact]
     public void WhatsUnderfootIsWhatTheArtDrawsThere()
     {
         var b = new Bench();
