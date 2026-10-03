@@ -2207,6 +2207,14 @@ public sealed class GreyboxScene
                 draw(Box.FromCentre(i.Position + new Double3(0, 0.55, -0.27), new Double3(0.32, 0.07, 0.02)), FireColour(0.1f + 0.5f * FireGlow) * 0.7f);
             }
             mesh.Emissive = 0;
+            // A Stoker in the fire: soot coming down in the cab (Art.Effects.SootFall).
+            if (Look?.Art.Effects is { } sootFx && shape.Cab is { } sootCab && (frame.Origin - eye).Length < 40
+                && Enemies?.Any(e => e.Kind == EnemyKind.Stoker && !e.Gone) == true)
+            {
+                var floor = frame.ToWorld(new Double3(0, sootCab.Min.Y, sootCab.Centre.Z)).RelativeTo(eye);
+sootFx.SootFall(mesh, floor, ToF(frame.Right), ToF(frame.Up), ToF(frame.Back),
+                    new Vector2((float)sootCab.HalfSize.X * 0.85f, (float)sootCab.HalfSize.Z * 0.85f), (float)(sootCab.Max.Y - sootCab.Min.Y), Time, 1);
+            }
             // The door shut: its leaves over the hole, the fire only at the seam (Art.SceneArt.FireDoorShut).
             if (!FireDoorOpen && Look is not null)
                 Look.Art.FireDoorShut(mesh, frame, eye, FireGlow, FireColour(1));

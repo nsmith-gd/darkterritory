@@ -333,6 +333,36 @@ public sealed partial class Effects(Look look)
         }
     }
 
+    /// <summary>
+    /// Soot falling in the cab (the checklist's Stoker glow: "the firebox glows the wrong colour; soot falls in the cab"):
+    /// black flakes coming down out of the roof over the footplate, turning as they fall, settling slowly. <paramref name="o"/>
+    /// is the cab floor's middle, <paramref name="half"/> its half extent across (x) and along (z), <paramref name="height"/>
+    /// the roof's height over the floor.
+    /// </summary>
+    public void SootFall(MeshBuilder mesh, Vector3 o, Vector3 right, Vector3 up, Vector3 back, Vector2 half, float height, double time, float amount)
+    {
+        // Flakes as tiny flat cards (geometry, not a puff of smoke: a flake's edge is hard), each tumbling as it comes down.
+        float e = mesh.Emissive;
+        for (int k = 0; k < 240; k++)
+        {
+            float h = Hash(k * 1.913f), g = Hash(k * 7.37f + 2), q = Hash(k * 3.11f + 5);
+            float period = 3.5f + h * 3f;
+            float age = (float)((time + h * 40) % period);
+            float t = age / period;
+            float sway = MathF.Sin(age * 2.3f + k) * 0.08f;
+            var p = o + right * ((g * 2 - 1) * half.X + sway) + back * ((q * 1.4f - 1) * half.Y) + up * (height * (1 - t));
+            float spin = age * (2.5f + h * 3);
+            var a = Vector3.Normalize(right * MathF.Cos(spin) + up * MathF.Sin(spin) * 0.6f + back * 0.3f);
+            var b = Vector3.Normalize(Vector3.Cross(a, up + right * 0.3f));
+            var c = Vector3.Normalize(Vector3.Cross(a, b));
+            float size = (0.018f + 0.02f * g) * amount;
+            // Some catch the fire's light along an edge.
+            mesh.Emissive = k % 6 == 0 ? 0.6f : 0;
+            mesh.Box(p, a, b, c, new Vector3(size, size * 0.7f, 0.001f), k % 6 == 0 ? new Vector3(0.05f, 0.11f, 0.05f) : new Vector3(0.006f, 0.005f, 0.005f));
+        }
+        mesh.Emissive = e;
+    }
+
     public void Rain(MeshBuilder mesh, Double3 eye, double time, float wind, Vector3 fogColour)
     {
         const float cell = 2.5f, height = 12, fall = 9;
