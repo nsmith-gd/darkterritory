@@ -4,7 +4,8 @@
 Which candidate a cue gets, from the checklist store (`--from DIR`, the `items` as an ArtifactData list saves them):
   1. what the director kept (Keep) on that cue, all of them as takes;
   2. otherwise the first candidate not marked Redo: built candidates first, then library files, so every cue has its own
-     sound, rough or not (L1). A tell the game plays under its own tuned synth sound keeps that until a take is kept.
+     sound, rough or not (L1). A tell plays its picked takes under its own game name (tell_sounds), its tuned synth
+     sound only where nothing's picked.
 
   python3 tools/audio/install.py --from DIR [--dry] [line ...]
 
@@ -186,7 +187,7 @@ def pick(cands, mat, line_level):
     if kept:
         return kept, "kept"
     # Nothing kept yet: the first candidate not marked Redo, on every line, so every cue the game's hooks name has a sound
-    # of its own (a tell's tuned synth sound stays what plays until one is kept: tell_sounds).
+    # of its own (a tell's takes go under its game name: tell_sounds).
     ok = [k for k in here if k.get("verdict") != "redo"]
     ok.sort(key=lambda k: (not k.get("built"), not k.get("old"), k.get("mat") is None))
     return ok[:1], "first"
@@ -194,9 +195,10 @@ def pick(cands, mat, line_level):
 
 # Lines whose sounds aren't the game's (the trailer's cut goes to the store tools, not content/).
 NOT_IN_GAME = {"store-trailer"}
-# A tell the game already plays under a name of its own (GameAudio.Enemies, Choir): once the director keeps takes for it,
-# that sound becomes them, keeping its tuned tier, range and level (spec A.4's audit numbers live there). The synth
-# definition it replaces is saved in tools/audio/synth-defs/ and comes back if nothing is kept any more.
+# A tell the game already plays under a name of its own (GameAudio.Enemies, Choir): that sound becomes its picked takes
+# (kept, or the first candidate while it's under review), keeping its tuned tier, range and level (spec A.4's audit
+# numbers live there). The synth definition it replaces is saved in tools/audio/synth-defs/ and comes back if nothing's
+# picked any more.
 # Line -> (sound, [(cue, layer extras)]): extras such as a gain curve on the param the game drives.
 TELL_SOUNDS = {
     "tell-choir": ("choir-voice", [("voices", {"rate": {"param": "pitch", "points": [[0.75, 0.985], [1.25, 1.015]]}})]),
@@ -280,11 +282,13 @@ def _read_def(path):
     return head, json.loads(body)
 
 
-def tell_sounds(kept_folders):
-    """Swap each tell's game sound to its kept takes, or back to its synth definition when none are kept.
+def tell_sounds(chosen):
+    """Swap each tell's game sound to the takes the checklist picked for it: kept ones, or while it's still under review
+    its first candidate (the director's call, 3 Oct: what's made goes in the game without waiting for a verdict). Back
+    to its synth definition only where nothing's picked (no candidate yet, or every one marked Redo).
 
-    A cue split by surface (tell-tippy's tiptoe) gives the sound a variant per kept surface, <sound>.<surface>, which
-    GameAudio picks by what the creature's on (the nearest kept one otherwise); the sound itself plays the first of them.
+    A cue split by surface (tell-tippy's tiptoe) gives the sound a variant per picked surface, <sound>.<surface>, which
+    GameAudio picks by what the creature's on (the nearest one otherwise); the sound itself plays the first of them.
     """
     os.makedirs(SYNTH_DEFS, exist_ok=True)
     for line, (sound, cues) in TELL_SOUNDS.items():
@@ -299,10 +303,10 @@ def tell_sounds(kept_folders):
             if f.startswith(sound + ".") and f != sound + ".json":
                 os.unlink(os.path.join(SOUNDS, f))      # last install's surface variants
         # Each cue's kept folders: the cue's own, or one per kept surface.
-        kept = [(sorted(k for k in kept_folders if k == f"{line}/{cue}" or k.startswith(f"{line}/{cue}/")), extra)
+        kept = [(sorted(k for k in chosen if k == f"{line}/{cue}" or k.startswith(f"{line}/{cue}/")), extra)
                 for cue, extra in cues]
         if any(not fs for fs, _ in kept):
-            shutil.copy(backup, path)      # not (all) kept: the tuned synth sound stays
+            shutil.copy(backup, path)      # nothing picked for a cue: the tuned synth sound stays
             continue
         surfaces = {f.rsplit("/", 1)[1]: f for fs, _ in kept for f in fs if f.count("/") == 2}
         if surfaces:
@@ -327,12 +331,13 @@ def tell_sounds(kept_folders):
             if not d.get("loop"):
                 d.pop("duration", None)    # a one-shot of takes ends with its take
             with open(os.path.join(SOUNDS, name + ".json"), "w") as f:
-                f.write(f"// The tell's kept takes from the audio checklist ({', '.join(fo for fo, _ in folders)}), in place of its\n"
-                        f"// synth definition (tools/audio/synth-defs/{sound}.json), keeping its tier, range and level. Written by\n"
+                f.write(f"// The tell's takes from the audio checklist, kept or the first candidate under review\n"
+                        f"// ({', '.join(fo for fo, _ in folders)}), in place of its synth definition\n"
+                        f"// (tools/audio/synth-defs/{sound}.json), keeping its tier, range and level. Written by\n"
                         f"// tools/audio/install.py; edit the cue or that file, not this one.\n")
                 json.dump(d, f, indent=1)
                 f.write("\n")
-            print(f"{name}: now the kept takes of {', '.join(fo for fo, _ in folders)}")
+            print(f"{name}: now the takes of {', '.join(fo for fo, _ in folders)}")
 
 
 def main():
@@ -407,7 +412,7 @@ def main():
     if not dry:
         os.makedirs(SAMPLES, exist_ok=True)
         json.dump(dict(sorted(index.items())), open(index_path, "w"), indent=1)
-        tell_sounds({rel for rel, e in index.items() if e["picked"] == "kept"})
+        tell_sounds({rel for rel, e in index.items() if e["picked"] in ("kept", "first")})
     print(f"{n_cues} cue folders, {n_files} takes")
 
 

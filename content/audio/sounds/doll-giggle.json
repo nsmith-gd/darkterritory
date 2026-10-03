@@ -1,5 +1,6 @@
-// The tell's kept takes from the audio checklist (tell-track-doll/giggle), in place of its
-// synth definition (tools/audio/synth-defs/doll-giggle.json), keeping its tier, range and level. Written by
+// The tell's takes from the audio checklist, kept or the first candidate under review
+// (tell-track-doll/giggle), in place of its synth definition
+// (tools/audio/synth-defs/doll-giggle.json), keeping its tier, range and level. Written by
 // tools/audio/install.py; edit the cue or that file, not this one.
 {
  "tier": 1,

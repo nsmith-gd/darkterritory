@@ -18,6 +18,7 @@ public sealed partial class GameAudio
     readonly HotData<MixDef> _mix;
     readonly Dictionary<int, EnemySound> _enemies = new();
     readonly Dictionary<int, double> _packs = new();
+    readonly Dictionary<int, SoundInstance> _packHowls = new();
     readonly Dictionary<int, SoundInstance> _wheels = new();
     readonly List<SoundInstance> _choir = new();
     readonly Pcg32Ish _rng = new(20260929);
@@ -278,9 +279,22 @@ public sealed partial class GameAudio
                 case EnemyKind.CinderHound when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab:
                     // The pack howls, not each hound: whoever leads it, every few seconds (close behind, the near howl).
                     int pack = (int)e.Extra;
+                    // A recorded howl can run longer than the gap: the next waits for the last to end and a breath after
+                    // it, so they never pile up into a wall.
+                    if (_packHowls.TryGetValue(pack, out var howling))
+                    {
+                        if (!howling.Finished)
+                            break;
+                        _packHowls.Remove(pack);
+                        _packs[pack] = Math.Max(_packs.GetValueOrDefault(pack), _time + 1.5 + 2.5 * _rng.Next());
+                    }
                     if (!_packs.TryGetValue(pack, out double next) || _time >= next)
                     {
-                        Mixer.Play(HowlFor(train, e), at)?.Also(v => v.Occlusion = occlusion);
+                        if (Mixer.Play(HowlFor(train, e), at) is { } howl)
+                        {
+                            howl.Occlusion = occlusion;
+                            _packHowls[pack] = howl;
+                        }
                         _packs[pack] = _time + 3 + 2.5 * _rng.Next();
                     }
                     break;
@@ -396,6 +410,7 @@ public sealed partial class GameAudio
         _roar = _chuff = _brake = _wind = _valve = _strain = _vent = _whistle = null;
         _enemies.Clear();
         _packs.Clear();
+        _packHowls.Clear();
         _wheels.Clear();
         _choir.Clear();
         _wasRuptured = false;

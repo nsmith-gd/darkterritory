@@ -10037,17 +10037,17 @@
  "tell-hounds/howl-far": {
   "cue": "tell-hounds.howl-far",
   "surface": null,
-  "picked": "redo",
+  "picked": "first",
   "candidates": [
    {
-    "label": "Kept from the earlier pass",
-    "key": "audio/tell-hounds--far.mp3",
+    "label": "One far hound starts and the pack answers it from further off: two or three voices stacking up across the dark",
+    "key": "answer",
     "sources": [],
     "licence": "CC0"
    }
   ],
-  "takes": 1,
-  "sha": "5ab1ce0154abd6c8"
+  "takes": 4,
+  "sha": "a0a078f853936e59"
  },
  "tell-hounds/howl-near": {
   "cue": "tell-hounds.howl-near",
