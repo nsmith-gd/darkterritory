@@ -76,6 +76,12 @@ public class CreatureArtTests
         ["fire_fly"] = new(600, 1500, 10, 20, ["flutter", "settle"], []),
         // A character's (App. A.8), SK_Human at a man's height: it passes for crew, so it's dressed as one.
         ["passenger"] = new(3000, 9000, 20, 60, ["stand", "walk", "drag", "pin"], ["hit"]),
+        // GDD v1.5's three. A character's (App. A.6), SK_Human drawn out to two and a half metres, with a jaw that comes away.
+        ["shy_thing"] = new(3000, 9000, 20, 60, ["wait", "stare", "walk", "swallow"], ["unhinge", "hit"]),
+        // A flock's (App. A.6): four to six at once, so light; on its own rig (SK_Huddle: a puffing body, quills, a jaw).
+        ["huddle"] = new(1000, 3000, 8, 16, ["play", "hop", "nestle", "bristle", "bury"], []),
+        // A crate's (App. A.6): the medicine chest prop's own shell cut at the lid, the mouth in it; SK_Mimic, a lid and a tongue.
+        ["mimic"] = new(1500, 6000, 6, 12, ["shut", "breathe", "chew", "swallow"], ["lid", "hit"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -478,6 +484,9 @@ public class CreatureArtTests
         "follower" => (Vector3.Zero, 0.3f),
         "climber" => (Vector3.Zero, 1.9f),
         "fire_fly" => (Vector3.Zero, 0.16f),
+        "shy_thing" => (Vector3.Zero, 2.5f),
+        "huddle" => (Vector3.Zero, 0.32f),
+        "mimic" => (Vector3.Zero, 1.0f),
         _ => (Vector3.Zero, 1.9f),
     };
 

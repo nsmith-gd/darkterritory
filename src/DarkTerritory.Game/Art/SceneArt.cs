@@ -314,6 +314,40 @@ public sealed partial class SceneArt(Look look)
     /// <summary>How far an extinguisher's model stands up off its body's middle: its foot on the floor, its 0.15 m body.</summary>
     const float ExtinguisherLift = 0.15f;
 
+    /// <summary>
+    /// Where a body is drawn, camera-relative: centred on its particle, turned by its yaw on its car's floor (or the world's),
+    /// as the props are made (centred on the body). Null when it's too far off to draw.
+    /// </summary>
+    static Matrix4x4? BodyMatrix(IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, bool onCar)
+    {
+        var local = b.Pbd.Particles[0].Position;
+        var at = onCar ? frames[b.Parent].ToWorld(local) : local;
+        if ((at - eye).Length > 250)
+            return null;
+        var up = onCar ? frames[b.Parent].Up : Double3.Up;
+        double yaw = b.Yaw + (onCar ? frames[b.Parent].Heading : 0);
+        var u = new Vector3((float)up.X, (float)up.Y, (float)up.Z);
+        var right = Vector3.Normalize(Vector3.Cross(new Vector3((float)Math.Sin(yaw), 0, (float)Math.Cos(yaw)), u));
+        var back = Vector3.Cross(right, u);
+        var o = at.RelativeTo(eye);
+        return new Matrix4x4(right.X, right.Y, right.Z, 0, u.X, u.Y, u.Z, 0, back.X, back.Y, back.Z, 0, o.X, o.Y, o.Z, 1);
+    }
+
+    /// <summary>
+    /// A Mimic (GDD v1.5 §21), drawn in place of the crate it is (<see cref="Body"/> would draw its freight): the model,
+    /// which shut is the medicine chest prop to the last speck (CreatureArt.Mimic), opening on whoever it has. False when
+    /// the model isn't built (the greybox's lid goes over the crate instead).
+    /// </summary>
+    public bool Mimic(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Sim.Enemies.Mimic mimic, Double3 eye, double time,
+        CreatureArt.Prey? victim)
+    {
+        bool onCar = b.Parent != Sim.Player.PlayerState.World && b.Parent < frames.Count;
+        if (!onCar && b.Parent != Sim.Player.PlayerState.World)
+            return true;
+        return BodyMatrix(frames, b, eye, onCar) is not { } m
+            || Creatures.Mimic(mesh, m, mimic.Phase, mimic.PhaseSeconds, mimic.Breathing, victim, time);
+    }
+
     public bool Body(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, double heavyHalf, double time)
     {
         bool onCar = b.Parent != Sim.Player.PlayerState.World && b.Parent < frames.Count;
@@ -327,17 +361,11 @@ public sealed partial class SceneArt(Look look)
         // A hand lamp someone's carrying is drawn in their fist (Crewmate), not where the sim holds it.
         if (b.Kind == Sim.Physics.BodyKind.Lamp && b.Carrier >= 0 && LampInHand(b.Carrier, time) is not null)
             return true;
-        var local = b.Pbd.Particles[0].Position;
-        var at = onCar ? frames[b.Parent].ToWorld(local) : local;
-        if ((at - eye).Length > 250)
+        if (BodyMatrix(frames, b, eye, onCar) is not { } m)
             return true;
-        var up = onCar ? frames[b.Parent].Up : Double3.Up;
-        double yaw = b.Yaw + (onCar ? frames[b.Parent].Heading : 0);
-        var u = new Vector3((float)up.X, (float)up.Y, (float)up.Z);
-        var right = Vector3.Normalize(Vector3.Cross(new Vector3((float)Math.Sin(yaw), 0, (float)Math.Cos(yaw)), u));
-        var back = Vector3.Cross(right, u);
-        var o = at.RelativeTo(eye);
-        var m = new Matrix4x4(right.X, right.Y, right.Z, 0, u.X, u.Y, u.Z, 0, back.X, back.Y, back.Z, 0, o.X, o.Y, o.Z, 1);
+        var local = b.Pbd.Particles[0].Position;
+        var o = m.Translation;
+        var u = new Vector3(m.M21, m.M22, m.M23);
         var props = PropArt.Of(Look);
         if (b.Kind == Sim.Physics.BodyKind.Extinguisher && props.Get("extinguisher") is { } extinguisher)
         {

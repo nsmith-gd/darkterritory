@@ -684,9 +684,18 @@ public static class Staging
         }
         if (mimic.Length > 0)
         {
+            // At the end of a yard's row of four crates (ids 0-3: the last a real medicine chest, as SceneArt draws freight
+            // by id), one past the stack, as Run.MimicSlots lays it: the chest it is beside the chest it isn't.
             var crates = new Sim.Physics.Bodies();
+            double yaw = Math.Atan2(-(Out(0) - Out(1)).X, -(Out(0) - Out(1)).Z);
+            for (int k = 4; k >= 1; k--)
+            {
+                var stacked = crates.SpawnCargo(Out(1.7, -1.5 - 1.1 * k), train.Dynamics.Distance);
+                stacked.Yaw = yaw;
+                bodies.Add(stacked);
+            }
             var crate = crates.SpawnCargo(Out(1.7), train.Dynamics.Distance);
-            crate.Yaw = Math.Atan2(-(Out(0) - Out(1)).X, -(Out(0) - Out(1)).Z);
+            crate.Yaw = yaw;
             bodies.Add(crate);
             var m = new Sim.Enemies.Mimic(92);
             var (phase, breath) = mimic switch

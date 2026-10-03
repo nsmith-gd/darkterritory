@@ -5,9 +5,9 @@ using DarkTerritory.Sim.Enemies;
 namespace DarkTerritory.Game.Art;
 
 /// <summary>
-/// Stand-ins for the creatures that have no model yet (GDD v1.5's Shy Thing and Huddle), from the kit's primitives: drawn
-/// by the art pass (CreatureArt) and the bare greybox (GreyboxScene) alike, until tools/blender makes them. Each reads by
-/// silhouette and by its telegraph (App. A.1).
+/// Stand-ins for GDD v1.5's Shy Thing and Huddle from the kit's primitives: the bare greybox's (GreyboxScene), and the art
+/// pass's where their models (tools/blender shy_thing, huddle) aren't built. Each reads by silhouette and by its telegraph
+/// (App. A.1).
 /// </summary>
 public static class StandIns
 {

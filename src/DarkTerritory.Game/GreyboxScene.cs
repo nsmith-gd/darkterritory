@@ -382,7 +382,14 @@ public sealed class GreyboxScene
                     Art.CreatureArt.Room? room = e.Kind is EnemyKind.TippyToesie or EnemyKind.Gaunt && e.Attached >= 0 && e.Attached < frames.Count
                         ? Art.CreatureArt.Room.Of(frames[e.Attached].Shape, e.Local)
                         : null;
-                    DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room, e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler ? Pace(e) : 0, Flinch(e));
+                    // A Huddle round live coals settles there, every one turned to the warmth (GDD v1.5, its counter).
+                    if (e.Kind == EnemyKind.Huddle && Look?.Art.Creatures is { } huddled && Bodies is not null)
+                    {
+                        var flock = EnemyWorld(e, frames);
+                        huddled.Warmth = Bodies.Where(x => x.Kind == Sim.Physics.BodyKind.Embers).Select(x => BodyWorld(x, frames, x.Centre))
+                            .Where(w => w is { } at && (at - flock).Length < HuddleWarmth).Select(w => (Vector3?)V(w!.Value, eye)).FirstOrDefault();
+                    }
+                    DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room, e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler or EnemyKind.ShyThing or EnemyKind.Huddle ? Pace(e) : 0, Flinch(e));
                 }
         Lap(mesh, "enemies");
         if (Bodies is not null)
@@ -401,11 +408,16 @@ public sealed class GreyboxScene
                     b.Pbd.Particles[0].Position = HeldHere!.Value.Hands;
                     b.Yaw = HeldHere.Value.Yaw;
                 }
-                if (Look?.Art.Body(mesh, frames, b, eye, heavyHalf, Time) != true)
-                    DrawBody(mesh, frames, b, eye, heavyHalf);
-                // A Mimic is a crate until it isn't (GDD v1.5 §21): its lid, over the crate.
-                if (mimics?.GetValueOrDefault(b.Id) is { } mimic)
-                    DrawMimic(mesh, frames, b, mimic, eye);
+                // A Mimic is a crate until it isn't (GDD v1.5 §21): the art pass's model in the crate's place (shut, the
+                // medicine chest to the last speck), or the greybox's lid over the crate.
+                var mimic = mimics?.GetValueOrDefault(b.Id);
+                if (mimic is null || Look?.Art.Mimic(mesh, frames, b, mimic, eye, Time, MimicVictim(mimic, eye)) != true)
+                {
+                    if (Look?.Art.Body(mesh, frames, b, eye, heavyHalf, Time) != true)
+                        DrawBody(mesh, frames, b, eye, heavyHalf);
+                    if (mimic is not null)
+                        DrawMimic(mesh, frames, b, mimic, eye);
+                }
                 if (held)
                 {
                     b.Parent = parent;
@@ -989,6 +1001,15 @@ public sealed class GreyboxScene
     /// its lid lifts a finger's width and settles, slowly. Waking on someone (the telegraph) the lid lifts at the front on
     /// its back hinges, a black gape under it and teeth round the rim; on them, wide.
     /// </summary>
+    /// <summary>A Huddle this near live coals (m) is round them (the sim brings it to them: Huddle.Wander).</summary>
+    const double HuddleWarmth = 1.5;
+
+    /// <summary>The one a Mimic has (its GRAB's), camera-relative, for the art pass to put it on them.</summary>
+    Art.CreatureArt.Prey? MimicVictim(Sim.Enemies.Mimic m, Double3 eye) =>
+        m.Holding >= 0 && Crew?.FirstOrDefault(c => c.Id == m.Holding) is { } victim
+            ? new(V(victim.Feet, eye), new Vector3((float)-Math.Sin(victim.Yaw), 0, (float)-Math.Cos(victim.Yaw)))
+            : null;
+
     void DrawMimic(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body body, Sim.Enemies.Mimic m, Double3 eye)
     {
         if (BodyWorld(body, frames, body.Pbd.Particles[0].Position) is not { } at)

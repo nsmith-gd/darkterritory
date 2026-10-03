@@ -37,7 +37,7 @@ public sealed class CreatureArt
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
         "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger",
-        "survivor_prisoner", "survivor_wildlander", "sheep"];
+        "survivor_prisoner", "survivor_wildlander", "sheep", "shy_thing", "huddle", "mimic"];
 
     /// <summary>
     /// The figure a crewmate plays as (GDD App. D.8): the crew's own, or, freed from a Holdout, its occupant's for the rest
@@ -251,6 +251,9 @@ public sealed class CreatureArt
         ["climber"] = 0.3f,
         ["fire_fly"] = 0.1f,
         ["passenger"] = 0.35f,
+        ["shy_thing"] = 0.15f,     // (wax-smooth: dirt on it would be a different thing)
+        ["huddle"] = 0.35f,
+        ["mimic"] = 0.25f,         // the props' own (PropArt), so shut it's the medicine chest to the last speck
     };
 
     sealed class Entry(Model model, MaterialLook[] looks)
@@ -1403,19 +1406,23 @@ public sealed class CreatureArt
                     mesh.PointLights.Add(new PointLight(model.Translation + new Vector3(0, 0.5f, 0), Palette.BlueGrey * 0.6f, 3f));
                     return true;
                 }
+            case EnemyKind.ShyThing when _models.ContainsKey("shy_thing"):
+                return ShyThing(mesh, model, phase, t, 10, 0);
             case EnemyKind.ShyThing:
                 {
                     var (r, u, b) = Basis(model);
                     StandIns.ShyThing(mesh, model.Translation, r, u, b, phase, t, 10, null);
                     return true;
                 }
+            case EnemyKind.Huddle when _models.ContainsKey("huddle"):
+                return Huddle(mesh, model, phase, t, health, (int)extra2, 0, aboard, 0, null);
             case EnemyKind.Huddle:
                 {
                     var (r, u, b) = Basis(model);
                     StandIns.Huddle(mesh, model.Translation, r, u, b, phase, t, health, (int)extra2);
                     return true;
                 }
-            // A Mimic is its crate: the bodies draw it (GreyboxScene.DrawMimic).
+            // A Mimic is its crate: drawn for its body (SceneArt.Mimic, Mimic below; the greybox's GreyboxScene.DrawMimic).
             case EnemyKind.Mimic:
                 return true;
         }
@@ -1666,14 +1673,18 @@ public sealed class CreatureArt
                 // faces the train; its right is the train's way, ahead, on the +1 side).
                 m = Matrix4x4.CreateRotationY(-MathF.Sign((float)e.Extra2 == 0 ? 1 : (float)e.Extra2) * MathF.PI / 2) * model;
                 break;
-            // GDD v1.5's, until their models (Art/StandIns): the Shy Thing facing the one it has; the Huddle; and the Mimic,
-            // which is its crate (drawn with the bodies, GreyboxScene.DrawMimic), nothing of its own.
+            // GDD v1.5's three (tools/blender shy_thing, huddle; Art/StandIns where they aren't built): the Shy Thing facing
+            // the one it has; the Huddle, a flock; and the Mimic, which is its crate (drawn with the bodies: Mimic below).
+            case EnemyKind.ShyThing when _models.ContainsKey("shy_thing"):
+                return ShyThing(mesh, prey is { } victim ? Facing(model, victim.Feet) : model, e.Phase, e.PhaseSeconds, e.GrabWindow, pace);
             case EnemyKind.ShyThing:
                 {
                     var (r, u, b) = Basis(model);
                     StandIns.ShyThing(mesh, model.Translation, r, u, b, e.Phase, e.PhaseSeconds, e.GrabWindow, prey?.Feet);
                     return true;
                 }
+            case EnemyKind.Huddle when _models.ContainsKey("huddle"):
+                return Huddle(mesh, model, e.Phase, e.PhaseSeconds, e.Health, e.Id, e.Extra2, e.Attached >= 0, pace, prey);
             case EnemyKind.Huddle:
                 {
                     var (r, u, b) = Basis(model);
@@ -1689,6 +1700,135 @@ public sealed class CreatureArt
         }
         return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: e.Attached >= 0,
             extra2: e.Kind == EnemyKind.Sleepers ? e.Id : e.Extra2);
+    }
+
+    /// <summary>
+    /// The Shy Thing (GDD v1.5 §21, App. A.6; tools/blender/shy_thing.py), by its phase: waiting bashful in the dark, its
+    /// hands at its lips; then it has someone, and it stares (the TELEGRAPH), walks in on them while it's moving (COMMIT),
+    /// unhinges over its GRAB's window (the clip's cracks stretched to fit it, so the jaw's at their head as the window
+    /// closes) and swallows. Struck, it flinches, and it's gone.
+    /// </summary>
+    bool ShyThing(MeshBuilder mesh, in Matrix4x4 at, SpinePhase phase, double t, double window, float pace)
+    {
+        double unhinge = _models["shy_thing"].Model.Clips.TryGetValue("unhinge", out var u) ? u.Duration : 10;
+        var (clip, time, loop) = phase switch
+        {
+            SpinePhase.Telegraph => ("stare", t, true),
+            SpinePhase.Commit => (pace > 0.05f ? "walk" : "stare", t, true),
+            SpinePhase.Grab => ("unhinge", t / Math.Max(0.1, window) * unhinge, false),
+            SpinePhase.Punish => ("swallow", t, true),
+            SpinePhase.BreakOff => ("hit", t, false),
+            _ => ("wait", t, true),
+        };
+        return Draw(mesh, "shy_thing", clip, time, loop, at, seed: 83);
+    }
+
+    /// <summary>
+    /// The Huddle (GDD v1.5 §21, App. A.6; tools/blender/huddle.py): as many of the flock as it has (its Health), each on a
+    /// beat and a size of its own, about the one spot on a sunflower's spiral (so none stands on another), turned this way
+    /// and that, or all to who they're after. Playing; hopping after someone; nestled down, hushed (<paramref name="calm"/>)
+    /// or riding round the firebox; bristling at whoever hit one; and on them, piled up their legs to their chest, every
+    /// one turned in to bite.
+    /// </summary>
+    bool Huddle(MeshBuilder mesh, in Matrix4x4 model, SpinePhase phase, double t, double health, int id, double calm, bool aboard, float pace, Prey? prey)
+    {
+        int count = Math.Max(1, (int)Math.Round(health));
+        bool on = phase is SpinePhase.Grab or SpinePhase.Punish;
+        bool bristling = phase is SpinePhase.Telegraph or SpinePhase.Commit;
+        var warm = Warmth;
+        Warmth = null;
+        bool settled = warm is not null && !on && !bristling;
+        string clip = on ? "bury" : bristling ? "bristle" : settled || aboard || calm >= 0.5 ? "nestle" : pace > HuddleHops ? "hop" : "play";
+        var (r, u, b) = Basis(model);
+        var o = model.Translation;
+        for (int i = 0; i < count; i++)
+        {
+            float a = i * 2.39996f + id * 0.7f;
+            Vector3 at, forward;
+            if (on && prey is { } p)
+            {
+                // Up them: evenly round them, each a step higher than the last, the first at their feet.
+                float round_ = i * MathF.Tau / count + id * 0.7f;
+                float h = i * HuddlePile / Math.Max(1, count - 1);
+                var round = p.Right * MathF.Cos(round_) + p.Forward * MathF.Sin(round_);
+                at = p.Feet + round * (h < 0.2f ? 0.3f : 0.22f) + u * h;
+                forward = -round;
+            }
+            else if (settled && warm is { } fire)
+            {
+                // In a ring round the coals, close in, every one turned to them.
+                var spot = fire - u * Vector3.Dot(fire - o, u);
+                float round_ = i * MathF.Tau / count + id * 0.7f;
+                var out_ = r * MathF.Cos(round_) + b * MathF.Sin(round_);
+                at = spot + out_ * (0.34f + 0.05f * (i % 2));
+                forward = -out_;
+            }
+            else
+            {
+                float rad = 0.22f + 0.14f * (i % 3);
+                at = o + r * (MathF.Cos(a) * rad) + b * (MathF.Sin(a) * rad);
+                // Turned every way about the one spot; after someone (or bristling at them), all to them.
+                var to = prey is { } q ? q.Feet - at : default;
+                to -= u * Vector3.Dot(to, u);
+                forward = to.LengthSquared() > 0.04f && (bristling || pace > HuddleHops)
+                    ? Vector3.Normalize(to)
+                    : Vector3.Normalize(-b * MathF.Cos(a * 1.7f) + r * MathF.Sin(a * 1.7f) * 0.8f);
+            }
+            var back = -forward;
+            var right = Vector3.Normalize(Vector3.Cross(u, back));
+            float scale = 0.88f + 0.09f * (i % 4) + 0.03f * (id % 3);
+            Draw(mesh, "huddle", clip, t + i * 0.37 + (id & 7) * 0.13, true, Matrix4x4.CreateScale(scale) * Basis(at, right, u, back), seed: id * 7 + i);
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Live coals a Huddle's round (camera-relative), for its next draw: GreyboxScene sets it, as Tippy's prey, from the
+    /// embers it can see by it.
+    /// </summary>
+    public Vector3? Warmth { get; set; }
+
+    /// <summary>The Huddle hops after someone faster than this (m/s); piled on its victim, the top one's this high (m).</summary>
+    const float HuddleHops = 0.6f, HuddlePile = 1.3f;
+
+    /// <summary>A Mimic's half size (m): tools/blender/mimic.py's chest is the medicine chest, 0.88 m.</summary>
+    const float MimicHalf = 0.44f;
+
+    /// <summary>
+    /// A Mimic (GDD v1.5 §21, App. A.6; tools/blender/mimic.py) where its crate is (<paramref name="body"/>: the body's matrix,
+    /// centred on it as the props are). Shut, it's the medicine chest prop to the last speck: its shell is the prop's own
+    /// mesh and layers, turned and set down as the prop lies; breathing (someone stood still by it), the lid lifts a hair;
+    /// its TELEGRAPH, the lid creaks up; on someone, it's on them (at their feet, its mouth to them: the crate's still
+    /// where the sim has it, and shuts back there), chewing. False without the model.
+    /// </summary>
+    public bool Mimic(MeshBuilder mesh, in Matrix4x4 body, SpinePhase phase, double phaseSeconds, bool breathing, Prey? victim, double time)
+    {
+        if (!_models.ContainsKey("mimic"))
+            return false;
+        var at = Matrix4x4.CreateTranslation(0, -MimicHalf, 0) * Matrix4x4.CreateRotationY(MathF.PI) * body;
+        switch (phase)
+        {
+            case SpinePhase.Telegraph:
+                return Draw(mesh, "mimic", "lid", phaseSeconds, false, at);
+            case SpinePhase.Commit or SpinePhase.Grab:
+                if (victim is { } v)
+                {
+                    var (_, up, _) = Basis(body);
+                    var to = v.Feet - body.Translation;
+                    to -= up * Vector3.Dot(to, up);
+                    if (to.LengthSquared() > 1e-4f)
+                    {
+                        var forward = Vector3.Normalize(to);
+                        var back = -forward;
+                        at = Basis(v.Feet - forward * (MimicHalf + 0.06f), Vector3.Normalize(Vector3.Cross(up, back)), up, back);
+                    }
+                }
+                return Draw(mesh, "mimic", "chew", phaseSeconds, true, at);
+            case SpinePhase.Punish:
+                return Draw(mesh, "mimic", "swallow", phaseSeconds, true, at);
+            default:
+                return Draw(mesh, "mimic", breathing ? "breathe" : "shut", time, true, at);
+        }
     }
 
     static (Vector3 Right, Vector3 Up, Vector3 Back) Basis(in Matrix4x4 m) =>
