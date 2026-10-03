@@ -47,6 +47,7 @@ public class CrewAudioTests
         {
             World.BeginTick();
             World.Step(World.Controls);
+            World.StepBodies(crew);
             Audio.CrewStates = crew;
             Audio.Update(World, World.Controls, Listener.At(Train.Frames[1].Origin + Double3.Up * 2, 0), exposed: true, Dt);
             // The crew's (and the old gunshot), not the train's bed going on underneath.
@@ -137,6 +138,34 @@ public class CrewAudioTests
             b.Step((2, g));
         Assert.InRange(b.Count("crew-footsteps.run.ballast"), 5, 9);
         Assert.Equal(1, b.Count("crew-footsteps.scuff.ballast"));
+    }
+
+    [Fact]
+    public void ACrateSlidingAlongTheFloorScrapesUntilItStops()
+    {
+        var b = new Bench();
+        b.World.EnableBodies();   // the host's world: it moves loose things
+        var room = b.Train.Frames[1].Shape.Interior!.Value;
+        var crate = b.World.Bodies.SpawnCrate(b.Train, 1, new Double3(0, room.Min.Y, 0));
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            b.Step();
+        Assert.Equal(0, b.Count("crew-carry.crate-drag.wood"));
+
+        // Shoved along the boards for half a second (as a hard brake wakes it and throws it), then left to slide to a stop.
+        crate.Pbd.Wake();
+        var before = crate.Centre;
+        for (int i = 0; i < SimConstants.TickRate / 2; i++)
+        {
+            for (int p = 0; p < crate.Pbd.Particles.Length; p++)
+                crate.Pbd.Particles[p].SetVelocity(new Double3(0, 0, 1.5), Dt);
+            b.Step();
+        }
+        Assert.True(crate.Centre.Z - before.Z > 0.3);
+        Assert.True(b.Count("crew-carry.crate-drag.wood") > 0);
+        Assert.Contains(b.Audio.Mixer.Voices, v => v.Name == "crew-carry.crate-drag.wood" && !v.Stopped);
+        for (int i = 0; i < SimConstants.TickRate * 2; i++)
+            b.Step();
+        Assert.DoesNotContain(b.Audio.Mixer.Voices, v => v.Name == "crew-carry.crate-drag.wood" && !v.Stopped);
     }
 
     [Fact]

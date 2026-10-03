@@ -127,7 +127,7 @@ CUES = {
         O("crate-lift", "A crate picked up"),
         O("crate-set", "A crate set down", mats=DROP, cand={"wood": K("impactWood_heavy"), "grate": K("impactPlate_heavy")}),
         O("crate-land", "A crate thrown and landing", mats=DROP, cand={"wood": K("impactPlank_medium")}),
-        L("crate-drag", "A heavy crate dragged", mats=DROP, need="Not in the game yet: there's no dragging (crates are carried) in the sim, so nothing plays this. Ready for when there is."),
+        L("crate-drag", "A crate sliding along the floor (the train braking hard throws it), scraping till it stops", mats=DROP),
         O("lamp-lift", "A hand lantern picked up (bail and glass rattle)"),
         O("lamp-set", "A lantern set down", mats=DROP),
         O("lamp-break", "A lantern dropped hard enough to break", cand={"_": S("glass_03", "glass_05")}, need="Not in the game yet: there's no breaking a lantern in the sim, so nothing plays this. Ready for when there is."),

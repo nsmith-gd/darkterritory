@@ -70,6 +70,8 @@ public sealed partial class GameAudio
     const double HandsUp = 1.2, HipUp = 0.95, ChestUp = 1.3, HeadUp = 1.6;
     /// <summary>A body that's moved less than this a tick (m) for a few ticks has come to rest.</summary>
     const double AtRest = 0.004;
+    // How fast a crate has to slide along a floor to be heard scraping (m/s): past a nudge, short of a shove.
+    const double CrateSlides = 0.15;
 
     sealed class CrewMember
     {
@@ -1113,6 +1115,23 @@ public sealed partial class GameAudio
                 {
                     m.Falling = false;
                     Landed(world, b, m, centre, occlusion);
+                }
+            }
+
+            // A crate sliding along a car's floor under it (the train braking or pulling hard, a shove): it scrapes on what
+            // it's on for as long as it's moving, louder the faster it goes. Lifted, flying or asleep, it isn't.
+            // (Its height, not the particles' contact, says it's on the floor: a client's mirrored body has no contacts.)
+            if (b.Kind is BodyKind.Crate or BodyKind.Cargo or BodyKind.Heavy && !lifted && !m.Falling && b.Parent == m.Parent
+                && b.Parent != PlayerState.World && !b.Pbd.Asleep)
+            {
+                var step = (b.Centre - m.Local) * (1 / SimConstants.TickSeconds);
+                double slide = (step with { Y = 0 }).Length;
+                if (slide > CrateSlides && Math.Abs(step.Y) < 0.3)
+                {
+                    var lowest = b.Pbd.Particles.MinBy(p => p.Position.Y - p.Radius);
+                    string mat = Footing.UnderBody(world, b.Parent, lowest.Position - Double3.Up * lowest.Radius, ref m.Hint);
+                    if (Surfaced("crew-carry.crate-drag", mat) is { } drag && Hold(drag, b.Id, centre, occlusion) is { } scrape)
+                        scrape.Volume = (float)Math.Clamp(slide / 1.2, 0.35, 1);
                 }
             }
 
