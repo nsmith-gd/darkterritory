@@ -20,6 +20,8 @@ public enum CrewPose
     Shoulder, ShoulderWalk,
     // The child in the arms, stood and walking (App. C.4).
     Cradle, CradleWalk,
+    // The firehole's door hauled open or shut (GDD §12).
+    FireDoor,
     // Held, one per GRAB (App. A.1): by a Dragger, a Car Hugger, the Whistler, Tippy Toesie, Ribbits, a Soot Child, the Choir, the Passenger.
     HeldHang, HeldMouth, HeldCarried, HeldCover, HeldFrozen, HeldPinned, HeldSeized, HeldDragged,
     // At the cannon's breech from the seat (note 137): played by the reload's progress, not a clock.
@@ -530,6 +532,7 @@ public sealed class CreatureArt
         CrewPose.ShoulderWalk => "shoulder_walk",
         CrewPose.Cradle => "cradle",
         CrewPose.CradleWalk => "cradle_walk",
+        CrewPose.FireDoor => "firedoor",
         CrewPose.HeldHang => "held_hang",
         CrewPose.HeldMouth => "held_mouth",
         CrewPose.HeldCarried => "held_carried",
@@ -573,7 +576,7 @@ public sealed class CreatureArt
         if (!_models.TryGetValue(figure, out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
         // Played once from their start (SceneArt passes the time since the act began): getting up, a thing off its bracket.
-        bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.Stagger or CrewPose.Reload;
+        bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.Stagger or CrewPose.Reload or CrewPose.FireDoor;
         _skinner.Evaluate(m.Model, c, fromStart ? time : time + offset, pose is not (CrewPose.Dead or CrewPose.Swing) && !fromStart, m.Pose);
         if (left is { } l)
             Reach(m, "l", l, leftPole);

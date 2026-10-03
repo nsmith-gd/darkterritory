@@ -17,6 +17,7 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   gunner              sat on the cannon's seat, the tiller under the left hand, the handwheel under the right (note 137)
   fall                in the air: arms up, legs gathered
   swing               an overhead blow with whatever's in the right hand (App. C.2)
+  firedoor            the firehole's door hauled open or shut, off the heat (GDD §12)
   mend                down at the firebox with the repair kit's wrench, ratcheting (T109, note 150)
   gap                 on the coupling plate between cars, feet wide, arms out for balance (GDD §32)
   extinguish          the extinguisher on the hip, its nozzle aimed at the fire's foot (App. C.5)
@@ -322,6 +323,21 @@ swing.key(11, hands(SW_DOWN, (0.1, 0.6, 1.05), (-0.18, 0.3, 1.0)), "LINEAR")
 swing.key(14, hands(SW_DOWN, (0.06, 0.56, 0.86), (-0.22, 0.28, 0.98)))
 swing.key(24, hands(SW_BODY, (0.24, 0.3, 1.1), (0.08, 0.3, 1.05)))
 clips.append(swing)
+
+# --- firedoor: the firehole's door swung open or shut (GDD §12, App. A.5 "keep it hot, keep it shut"): stooped at the
+# backhead, the right hand on the leaf's handle at the door's height, hauled across and back off the heat, the left arm up
+# against the glare. Played once, as the door moves (SceneArt: whoever's at the firehole when it does).
+DOOR_BODY = over(STAND, spine_01=(-14, 0, 0), spine_02=(-10, 0, 0), spine_03=(-6, 0, 0), neck=(16, 0, 0), head=(6, 0, -6),
+                 thigh_r=(18, 0, 0), calf_r=(-22, 0, 0), thigh_l=(-6, 0, 0), calf_l=(-8, 0, 0))
+HANDLE = (0.12, 0.5, 0.86)
+GLARE = (-0.12, 0.28, 1.5)
+firedoor = Clip("firedoor", loop=False)
+firedoor.key(0, hands(DOOR_BODY, at(HANDLE, dx=-0.02), at(GLARE, dz=-0.3), grip=85))
+firedoor.key(6, hands(over(DOOR_BODY, spine_02=(-12, 0, -4)), HANDLE, GLARE, grip=90))
+firedoor.key(13, hands(over(DOOR_BODY, spine_02=(-6, 0, 8), spine_03=(-4, 0, 6), head=(2, 0, 10)), at(HANDLE, dx=0.3, dy=-0.12),
+                       GLARE, grip=90), "LINEAR")
+firedoor.key(21, hands(over(DOOR_BODY, spine_02=(-4, 0, 6)), at(HANDLE, dx=0.34, dy=-0.2, dz=-0.04), at(GLARE, dz=-0.25), grip=60))
+clips.append(firedoor)
 
 # --- mend: down on one knee at the firebox, the wrench worked in short pulls, the left hand braced on the backhead ---
 MEND = over(STAND, pelvis__loc=(0, -0.02, 0), pelvis=(-10, 0, 0), spine_01=(-14, 0, 0), spine_02=(-10, 0, 0),
@@ -759,7 +775,7 @@ rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"carry", "carry_walk", "dr
                                                         "uncouple", "vent", "lever", "push", "swing", "mend",
                                                         "gap", "extinguish", "lantern", "lantern_walk", "haul",
                                                         "haul_up", "drive", "whistle", "smash", "pry", "pick", "take_down",
-                                                        "stagger", "throw", "chute", "spout", "shoulder", "cradle", "held_cover", "held_frozen",
+                                                        "stagger", "throw", "chute", "spout", "shoulder", "cradle", "firedoor", "held_cover", "held_frozen",
                                                         "held_seized", "held_mouth"}))
 rig.export(rig.args()[0] if rig.args() else "crew_clips.glb", kit)
 print(f"[dt] crew clips {[c.name + ':' + str(c.length) for c in clips]}")

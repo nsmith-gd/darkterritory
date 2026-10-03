@@ -62,6 +62,10 @@ public sealed partial class SceneArt(Look look)
         bool free = c.Act is null or CrewPose.Carry or CrewPose.Lantern;
         if (free && _staggered.TryGetValue(c.Id, out double hit) && time - hit < StaggerSeconds)
             pose = CrewPose.Stagger;
+        // At the firehole as its door moves: the one who swung it (whoever's stood there; the sim doesn't say who).
+        if (FireDoorAt is { } door && FireDoorSince is >= 0 and < FireDoorSeconds && c.Act is null or CrewPose.Shovel or CrewPose.Drive
+            && ((c.Feet - door) with { Y = 0 }).Length < FireDoorReach)
+            pose = CrewPose.FireDoor;
         // Their own blow (it landed swungBeforeHit into the clip): played round it, wherever they stand.
         if (free && swung >= 0 && swung + SwingHitAt < SwingSeconds)
             pose = CrewPose.Swing;
@@ -72,6 +76,7 @@ public sealed partial class SceneArt(Look look)
         {
             CrewPose.GetUp or CrewPose.TakeDown => time - since.Time,
             CrewPose.Stagger => time - _staggered.GetValueOrDefault(c.Id, since.Time),
+            CrewPose.FireDoor => FireDoorSince >= 0 ? FireDoorSince : time - since.Time,
             CrewPose.Swing => swung + SwingHitAt,
             // The reload's beats follow the gun's own progress, not a clock (CrewActs.ReloadPhase).
             CrewPose.Reload => c.Phase,
@@ -123,6 +128,13 @@ public sealed partial class SceneArt(Look look)
     readonly Dictionary<int, (Double3 At, double Time)> _lampHands = new();
     readonly Dictionary<byte, int> _crewHealth = new();
     readonly Dictionary<byte, double> _staggered = new();
+
+    /// <summary>The firehole's door in the world (GreyboxScene sets it with the cab), and how long since it last moved (s).</summary>
+    public Double3? FireDoorAt { get; set; }
+    public double FireDoorSince { get; set; } = -1;
+
+    /// <summary>crew_clips.py's firedoor clip (21 frames); how near the door's foot someone stands to be the one at it (m).</summary>
+    const double FireDoorSeconds = 21 / 30.0, FireDoorReach = 1.3;
 
     /// <summary>crew_clips.py's stagger (20 frames) and swing (24 frames, the blow landing at frame 11), in seconds.</summary>
     const double StaggerSeconds = 20 / 30.0, SwingSeconds = 24 / 30.0, SwingHitAt = 11 / 30.0;

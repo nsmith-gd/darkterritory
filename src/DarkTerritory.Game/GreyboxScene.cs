@@ -151,6 +151,9 @@ public sealed class GreyboxScene
     public double StokerLowFor { get; set; } = -1;
     /// <summary>When it goes down the stack (enemies.json stoker.lowPressureSeconds: the sim puts it in the firebox then).</summary>
     public double StokerDownAt { get; set; } = 45;
+    bool? _doorWas;
+    double _doorMovedAt = -1;
+
     /// <summary>The Stoker's descend clip's length (tools/blender/stoker.py, 90 frames).</summary>
     const double StokerDescendSeconds = 3;
     /// <summary>The coal left in the tender, 0..1: the backhead's sight glass (labelled TENDER) reads it.</summary>
@@ -361,6 +364,16 @@ public sealed class GreyboxScene
         }
         Lap(mesh, "effects");
         mesh.Seed = 0;
+        // When the firehole's door last moved, and where it is: whoever's at it then swings it (Art/SceneArt.Crewmate).
+        if (_doorWas is { } was && was != FireDoorOpen)
+            _doorMovedAt = Time;
+        _doorWas = FireDoorOpen;
+        if (Look is not null)
+        {
+            bool cab = frames.Count > 0 && frames[0].Shape.Cab is not null && frames[0].Shape.Interactables.Any(i => i.Kind == InteractableKind.Firebox);
+            Look.Art.FireDoorAt = cab ? frames[0].ToWorld(new Double3(Art.TrainKit.FireDoor(frames[0].Shape).X, 0, Art.TrainKit.FireDoor(frames[0].Shape).Z)) : null;
+            Look.Art.FireDoorSince = _doorMovedAt < 0 ? -1 : Time - _doorMovedAt;
+        }
         // The firebox door, open or shut, for a Stoker in the fire (Art/CreatureArt.FireDoorOpen).
         if (Look?.Art.Creatures is { } creatures && frames.Count > 0 && frames[0].Shape.Cab is not null)
             creatures.FireDoorOpen = FireDoorOpen
