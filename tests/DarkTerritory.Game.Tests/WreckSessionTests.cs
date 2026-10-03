@@ -75,8 +75,14 @@ public class WreckSessionTests
         while (DerailSequence.FilmSeconds(t, night.WreckSeconds) < film.SkippableFrom + 0.1)
             night.Step(default);
         Assert.True(night.Skippable);
-        for (int i = 0; i < 10 && !night.World.FilmSkipped; i++)
+        // The vote goes to the host and the skip comes back on a snapshot: over real sockets, so by the clock, not a step count
+        // (a slow runner took more than 10 steps for the round trip).
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        while (!night.World.FilmSkipped && clock.Elapsed.TotalSeconds < 10)
+        {
             night.Step(new Sim.Player.PlayerIntent { Actions = night.Skippable ? Sim.Player.PlayerActions.Skip : 0 });
+            Thread.Sleep(5);
+        }
         Assert.True(night.World.FilmSkipped);
         night.Step(default);
         Assert.Equal(ShotKind.Cause, film.CutAt(DerailSequence.FilmSeconds(t, night.WreckSeconds))!.Value.Shot.Kind);
