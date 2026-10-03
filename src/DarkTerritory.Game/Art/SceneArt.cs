@@ -575,7 +575,7 @@ public sealed partial class SceneArt(Look look)
             // Embers still in the coat at the chest and the hips, and a thin smoke off them (the near ones only).
             float glow = 0.6f + 0.4f * MathF.Sin(b.Owner * 1.7f + (float)time * 3.1f);
             foreach (int j in new[] { 1, 2, 7, 9 })
-                mesh.Billboard(_joints[j] + new Vector3(0, 0.08f, 0), 0.22f * glow, 0, new Vector4(Palette.LampAmber * new Vector3(1.3f, 0.55f, 0.25f) * glow, 1), -1, FxBlend.Additive);
+                mesh.Billboard(_joints[j] + new Vector3(0, 0.12f, 0), 0.4f * glow, 0, new Vector4(Palette.LampAmber * new Vector3(3.2f, 1.3f, 0.5f) * glow, 1), -1, FxBlend.Additive);
             for (int k = 0; k < 3; k++)
             {
                 float rise = (float)((time * 0.5 + k / 3.0) % 1.0);

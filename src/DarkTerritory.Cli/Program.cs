@@ -1198,7 +1198,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 Enum.Parse<DarkTerritory.Game.Art.Survivor>(Str(args, "--survivor", "none"), ignoreCase: true))
             : args.Contains("--working") ? Staging.Working(train, content)
             : args.Contains("--crew") ? [.. Staging.Crew(train, content), .. args.Contains("--ribbits") || args.Contains("--gaunt") || args.Contains("--grumbler") || args.Contains("--follower") || args.Contains("--soot") ? [Staging.Lone(train)] : Array.Empty<Crewmate>()]
-            : Str(args, "--passenger", "") == "drag" ? [Staging.Dragged(train)] : null,
+            : Str(args, "--passenger", "") == "drag" ? [Staging.Dragged(train)]
+            // --bodies --burned: the staged body (crewmate 9's) is one the fire took: drawn charred, smouldering (spec C.1).
+            : args.Contains("--burned") ? [new Crewmate(9, default, 0, false, Death: DarkTerritory.Sim.Player.DeathCause.Burned)] : null,
         Emergency = args.Contains("--emergency"),
         LampsOut = strandedAt >= 0 ? Views.StrandedLampsOut(train.Frames.Count, outro, strandedAt) : 0,
         KitLockerOpen = strandedAt >= 0,
