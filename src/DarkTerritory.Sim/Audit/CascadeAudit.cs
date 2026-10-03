@@ -199,7 +199,7 @@ public static class CascadeAudit
     }
 
     static string KitWhere(World w) => w.Bodies.All.FirstOrDefault(b => b.Kind == Physics.BodyKind.RepairKit) is { } k
-        ? k.Carrier >= 0 ? $"carried by {k.Carrier}" : k.Parent >= 0 ? $"in car {k.Parent}{(k.Stowed ? $" (locker {k.Locker}{(w.Train.Vehicles[k.Parent].LockerOpen(k.Locker) ? ", open" : "")})" : "")}" : "on the ground"
+        ? k.Carrier >= 0 ? $"carried by {k.Carrier}" : k.Parent >= 0 ? $"in car {k.Parent}{(k.Stowed ? $" (locker {k.Locker}{(w.Train.Vehicles[k.Parent].LockerOpen(k.Locker) ? ", open" : "")})" : $" @{k.Centre.X:0.0},{k.Centre.Z:0.0}")}" : "on the ground"
         : "gone";
 
     sealed record NightResult(World World, double Since);

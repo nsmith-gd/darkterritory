@@ -395,7 +395,9 @@ public static class Harness
         {
             ConductorBot { Driving: false } f => f.Venting ? "venting" : "firing",
             ConductorBot c => c.Sanding ? "sanding" : c.Stops?.Doing.ToString() ?? "",
+            RoofWalkerBot { KitStep: { } k } => $"kit:{k}",
             RoofWalkerBot r => r.WarmUpStep is { } w and not "Off" ? $"warm:{w}" : r.Job?.Doing ?? "",
+            GunnerBot { KitStep: { } k } => $"kit:{k}",
             GunnerBot g => g.Saving ? "saving the gun" : g.Job?.Doing ?? "",
             _ => "",
         };
