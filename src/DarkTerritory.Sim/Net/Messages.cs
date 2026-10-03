@@ -25,7 +25,9 @@ public static class Protocol
     // 16: a broken radio on the body record; a fouled gun on the vehicle record (GDD §23; note 183).
     // 17: the facility set pieces on the run record (the spout's bin, the herd, the hose) and death causes Keg and Leak (GDD §18; note 185).
     // 18: a switchyard's standing cars (more rakes and vehicles from the start), the wreck yard's heaps, death cause Wreckage (GDD §18; note 187).
-    public const int Version = 18;
+    // 19: reserved for the sound package.
+    // 20: the report's C.9 lines that aren't deaths (incident kinds Struck, Fire, Nest, Aboard, Runaway, Points, Punished; note 190).
+    public const int Version = 20;
 }
 
 public enum MessageType : byte

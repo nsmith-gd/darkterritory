@@ -638,8 +638,8 @@ public sealed partial class Run
         string where = IncidentLog.At(world, train.Frames[0].Origin, EngineRake(train).Distance);
         // App. C.9's whole-train rows, and E.5's cause card: what took the train off the rails, at what speed, and who drove.
         if (end == RunEnd.Derailed)
-            a.Add(new Incident(IncidentKind.Derailed, Seconds, -1, $"Consist derailed, {Kmh(world.DerailSpeed)}", where, world.DerailDriver,
-                $"{Capital(world.DerailCause ?? "cause not established")}. Throttle: {{actor}}."));
+            a.Add(new Incident(IncidentKind.Derailed, Seconds, -1, $"Consist derailed, {Kmh(world.DerailSpeed)}", where, world.DerailActor,
+                $"{Capital(world.DerailCause ?? "cause not established")}. {(world.DerailAction is { Length: > 0 } blame ? blame : "Throttle: {actor}.")}"));
         else if (end == RunEnd.Stranded)
         {
             int coupler = Kit.Loss == KitLoss.LeftBehind && Kit.Vehicle > 0 ? a.CouplerPulledBy(Kit.Vehicle) : -1;
@@ -778,6 +778,8 @@ public sealed partial class Run
             }
             return b.Kind switch
             {
+                // A PUNISH that held nobody: beside the record it wrote the same tick (note 190: the doll struck, the nest).
+                BookmarkKind.Punish when b.Victim < 0 => lines.FindIndex(l => IncidentLog.IsEvent(l.Kind) && Math.Abs(l.Seconds - b.Seconds) < 1e-6),
                 BookmarkKind.Derail => lines.FindIndex(l => l.Kind == IncidentKind.Derailed),
                 BookmarkKind.Stranded => lines.FindIndex(l => l.Kind == IncidentKind.Stranded),
                 _ => -1,

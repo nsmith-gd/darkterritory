@@ -75,8 +75,10 @@ public static class IncidentLog
         var train = world.Train;
         string at = At(world, train.Frames[0].Origin, train.Dynamics.Distance);
         string cause = world.DerailCause is { Length: > 0 } c ? char.ToUpperInvariant(c[0]) + c[1..].TrimEnd('.') + ". " : "";
-        string driver = world.DerailDriver >= 0 ? $"Throttle: {NameOf(world, world.DerailDriver)}. " : "Nobody on the throttle. ";
-        return $"Consist derailed {at}, {Kmh(world.DerailSpeed)}. {cause}{driver}Recovery not scheduled.";
+        // C.9's contributing action for this cause: the throttle, the forward cannon (the Switchman), the firebox (a Stoker's runaway).
+        string blame = world.DerailAction is { Length: > 0 } action ? action.Replace("{actor}", NameOf(world, world.DerailActor)) + " "
+            : world.DerailDriver >= 0 ? $"Throttle: {NameOf(world, world.DerailDriver)}. " : "Nobody on the throttle. ";
+        return $"Consist derailed {at}, {Kmh(world.DerailSpeed)}. {cause}{blame}Recovery not scheduled.";
     }
 
     /// <summary>"at Hollin Halt" near a named stop on the plan, else "at km 12".</summary>
@@ -163,8 +165,18 @@ public static class IncidentLog
                     break;
                 }
             case DeathCause.Derailed or DeathCause.Struck or DeathCause.Thrown or DeathCause.TornOff:
-                actor = world.Derailed ? world.DerailDriver : a.Driver;
-                action = $"Throttle: {{actor}}, {Kmh(world.Derailed ? world.DerailSpeed : train.Dynamics.Speed)}.";
+                // In a derailment, its own contributing action (note 190: the forward cannon for the Switchman, the firebox for
+                // the Stoker), and the speed it came off at.
+                if (world.Derailed && world.DerailAction is { Length: > 0 } derail)
+                {
+                    actor = world.DerailActor;
+                    action = $"{derail.TrimEnd('.')}, {Kmh(world.DerailSpeed)}.";
+                }
+                else
+                {
+                    actor = world.Derailed ? world.DerailDriver : a.Driver;
+                    action = $"Throttle: {{actor}}, {Kmh(world.Derailed ? world.DerailSpeed : train.Dynamics.Speed)}.";
+                }
                 break;
             case DeathCause.Crushed:
                 actor = a.CraneOperator;
@@ -207,15 +219,73 @@ public static class IncidentLog
             default:
                 {
                     // Any other GRAB death: the nearest living crewmate, and their distance (C.9's last row).
-                    var near = crew.Where(c => c.Id != victim && c.State.Alive)
-                        .Select(c => (c.Id, D: (PlayerMotor.WorldPosition(c.State, train) - at).Length))
-                        .OrderBy(c => c.D).ThenBy(c => c.Id).FirstOrDefault((-1, 0));
-                    actor = near.Item1;
-                    action = actor >= 0 ? $"Nearest crew: {{actor}}, {near.Item2:0} m." : "Nobody near.";
+                    (actor, action) = Nearest(world, at, crew, victim);
                     break;
                 }
         }
         return new Incident(IncidentKind.Death, Seconds(world), victim, What(s.Death), Where(world, s), actor, action, s.Death, body?.Id ?? -1);
+    }
+
+    /// <summary>A record of C.9's that isn't about a crewmate's death, rescue or the night's end: a creature's or the line's doing.</summary>
+    public static bool IsEvent(IncidentKind kind) => kind >= IncidentKind.Struck;
+
+    /// <summary>
+    /// A record of something that happened to the train, not to a crewmate (note 190: C.9's rows that aren't deaths): what,
+    /// where (<paramref name="car"/>'s place on the line, else the engine's), and the contributing action and who made it.
+    /// </summary>
+    public static Incident Event(World world, IncidentKind kind, string what, int actor, string action, int car = 0)
+    {
+        var train = world.Train;
+        return Event(world, kind, what, actor, action, train.Frames[car >= 0 && car < train.Frames.Count ? car : 0].Origin);
+    }
+
+    /// <summary>The same, somewhere in the world (where the thing was).</summary>
+    public static Incident Event(World world, IncidentKind kind, string what, int actor, string action, Double3 at) =>
+        new(kind, Seconds(world), -1, what, At(world, at, world.Train.Dynamics.Distance), actor, action);
+
+    /// <summary>
+    /// C.9's Track Doll and track debris rows: struck, with who was on the throttle and the speed at impact. "Struck the Track
+    /// Doll at km 4. Throttle: Dave, 38 km/h."
+    /// </summary>
+    public static Incident Struck(World world, string what)
+    {
+        int driver = world.Attribution.Driver;
+        string speed = Kmh(world.Train.Dynamics.Speed);
+        return Event(world, IncidentKind.Struck, what, driver, driver >= 0 ? $"Throttle: {{actor}}, {speed}." : $"Nobody on the throttle, {speed}.");
+    }
+
+    /// <summary>
+    /// C.9's Switchman row: whether the forward cannon was crewed this tick, and by whom (the lowest id, if more than one
+    /// forward gun was). A forward cannon is one mounted facing the way the train goes, on a vehicle still on the engine.
+    /// </summary>
+    public static (int Actor, string Action) ForwardCannon(World world)
+    {
+        var train = world.Train;
+        var guns = train.Dynamics.Consist.Vehicles.Select(v => v.Id).Where(id => train.Vehicles[id] is { HasGun: true, Gun.Facing: < 0 }).ToList();
+        if (guns.Count == 0)
+            return (-1, "No forward cannon on the consist.");
+        int gunner = world.Combat?.Guns is { } t
+            ? world.CrewThisTick.Where(c => c.State.Alive && Combat.Guns.MannedGun(c.State, train, t) is { } g && guns.Contains(g))
+                .Select(c => c.Id).DefaultIfEmpty(-1).Min()
+            : -1;
+        return gunner >= 0 ? (gunner, "Forward cannon crewed by {actor}.") : (-1, "Forward cannon not crewed.");
+    }
+
+    /// <summary>C.9's Stoker row: who last fuelled or tended the firebox, and how long it had gone unattended since.</summary>
+    public static (int Actor, string Action) Firebox(World world)
+    {
+        var a = world.Attribution;
+        double since = Math.Max(0, (world.Run?.Seconds ?? 0) - a.TendedAt);
+        return a.Tender >= 0 ? (a.Tender, $"Firebox last tended: {{actor}}, unattended {since:0} s.") : (-1, "Nobody had tended the firebox.");
+    }
+
+    /// <summary>C.9's last row, for a crewmate or a thing: the nearest living crewmate to <paramref name="at"/>, and how far.</summary>
+    public static (int Actor, string Action) Nearest(World world, Double3 at, IEnumerable<(int Id, PlayerState State)> crew, int except = -1)
+    {
+        var near = crew.Where(c => c.Id != except && c.State.Alive)
+            .Select(c => (c.Id, D: (PlayerMotor.WorldPosition(c.State, world.Train) - at).Length))
+            .OrderBy(c => c.D).ThenBy(c => c.Id).FirstOrDefault((-1, 0));
+        return near.Item1 >= 0 ? (near.Item1, $"Nearest crew: {{actor}}, {near.Item2:0} m.") : (-1, "Nobody near.");
     }
 
     /// <summary>A GRAB begins (C.9's first row, and D.12's auto-bookmark later): who has whom, where.</summary>

@@ -159,6 +159,43 @@ public class AttributionTests
     }
 
     [Fact]
+    public void AStokersRunawayDerailmentNamesWhoLastTendedTheFireboxNotTheThrottle()
+    {
+        // C.9's Stoker row (note 190): "who last fuelled or tended the firebox, and how long it had been unattended".
+        var n = new Night();
+        int driver = n.Add(PlayerMotor.SpawnInCab(n.Train, P));
+        int fireman = n.Add(PlayerMotor.SpawnInCab(n.Train, P));
+        n.World.Attribution.Drove(driver);
+        n.World.Attribution.Fired(fireman, n.World.Run!.Seconds - 20);
+        var stoker = n.World.AddEnemy(id => Enemies.Stoker.InFirebox(id, n.Train, false, Tuning.Enemies.Stoker));
+        stoker.Restore(Enemies.SpinePhase.Commit, 0, 4, 0, stoker.Local, 0, 0, 0, 0, 0);
+        n.Train.Dynamics.Velocity = 19;
+        n.World.Overspeed("took the 45 km/h bend at 68 km/h, 23 km/h too fast");
+        n.Step(0.2);
+        var r = n.World.Run!.Report!;
+        var last = r.Lines[^1];
+        Assert.Equal(IncidentKind.Derailed, last.Kind);
+        Assert.EndsWith("The Stoker ran away with it: took the 45 km/h bend at 68 km/h, 23 km/h too fast. Firebox last tended: Priya, unattended 20 s.", last.Text);
+        // Each death in it reads the same contributing action, at the speed it came off.
+        Assert.Contains(r.Lines, l => l.Kind == IncidentKind.Death && l.Who == "Dave" && l.Text.Contains("Firebox last tended: Priya, unattended 20 s, 68 km/h."));
+        Assert.DoesNotContain("Throttle", last.Text);
+    }
+
+    [Fact]
+    public void ALineThatIsntADeathReadsWhatWhereAndTheContributingAction()
+    {
+        var n = new Night();
+        int driver = n.Add(PlayerMotor.SpawnInCab(n.Train, P));
+        n.World.Attribution.Drove(driver);
+        n.Train.Dynamics.Velocity = 10.5;
+        n.World.Attribution.Add(IncidentLog.Struck(n.World, "Struck the Track Doll"));
+        var line = Assert.Single(IncidentLog.Lines(n.World, 350, 263, _ => true));
+        Assert.Equal(IncidentKind.Struck, line.Kind);
+        Assert.Matches(@"^Struck the Track Doll at .+\. Throttle: Dave, 38 km/h\.$", line.Text);
+        Assert.Equal(0, line.Fee);
+    }
+
+    [Fact]
     public void ACarCutLooseAndLeftIsReportedWithWhoPulledTheCouplerAndWhatWasInside()
     {
         var n = new Night();
