@@ -39,9 +39,9 @@ KNUCKLES = np.array([tuple(g["wrist"])] + [tuple(sk[f"finger_{k + 1}_{s}"].head)
 TIPS = np.array([tuple(sk[f"finger_{k + 1}_b"].tail) for k in range(4)], np.float32)
 
 # Linear colours. The skin's a flat dead grey-white; its colour is painted (the veins, the raw joints, the soot).
-PALE = (0.34, 0.345, 0.34)
+PALE = (0.44, 0.455, 0.47)  # cold: the old flat skin's cool tint (2.3, 2.95, 3.4), kept
 DRESS = {
-    "flesh.pale": (lambda: make.flat("dragger_skin", PALE, rough=0.6), 3),
+    "flesh.pale": (lambda: make.flat("dragger_skin", PALE, rough=0.6), 4),
     "flesh.raw": (lambda: make.flat("dragger_raw", (0.16, 0.1, 0.09), rough=0.35), 3),
     "tar.nail": (lambda: make.flat("dragger_nail", (0.02, 0.018, 0.016), rough=0.2), 0),
 }
@@ -67,13 +67,19 @@ def veins_of(p):
     return smooth01(0.86, 0.96, ridged(p, 911, 11.0)) * smooth01(-0.2, 0.4, cook.noise_np(p, 912, 3.0))
 
 
+def fissures_of(p):
+    """The skin split in a coarse network (the old texture's cracks, the read at a distance), finer crazing between."""
+    return np.maximum(smooth01(0.84, 0.96, ridged(p, 951, 7.0)), 0.6 * smooth01(0.9, 0.98, ridged(p, 952, 20.0)))
+
+
 def skin_shape(p, n):
     """Dry and crazed fine; tendons standing in long cords (stretched noise: the arm runs up, then across, so both); the
     veins raised a little; every joint creased in rings round it."""
     d = 0.00022 * (ridged(p, 901, 170.0) ** 6 - 0.2)
     d += 0.0009 * (ridged(p * np.array([3.0, 3.0, 0.35], np.float32), 902, 22.0) ** 5)
     d += 0.0007 * (ridged(p * np.array([0.35, 3.0, 3.0], np.float32), 903, 22.0) ** 5) * smooth01(ROOF - 0.15, ROOF + 0.1, p[:, 2])
-    d += 0.0003 * veins_of(p)
+    d += 0.0005 * veins_of(p)
+    d -= 0.0011 * fissures_of(p)
     r = np.minimum(nearest(p, KNUCKLES), nearest(p, ELBOWS))
     d += 0.00045 * smooth01(0.035, 0.0, r) * np.sin(r * 900)
     return d + fine(p, 0.0001, 520, 904)
@@ -108,6 +114,15 @@ def marks(p, kind):
     return out
 
 
+def skin(p, kind):
+    """R: the fissures, dark in the splits; G: mottling, bruised grey-violet patches under the skin; B: unused."""
+    out = np.zeros((len(p), 3), np.float32)
+    if kind.startswith("flesh.pale"):
+        out[:, 0] = fissures_of(p)
+        out[:, 1] = smooth01(0.1, 0.6, cook.noise_np(p, 961, 6.0)) * (0.6 + 0.4 * cook.noise_np(p, 962, 30.0))
+    return out
+
+
 def kind_of(m):
     return 0
 
@@ -115,9 +130,10 @@ def kind_of(m):
 atlas = overbake.Atlas("dragger", parts, BAKED, kind_of)
 atlas.unwrap()
 groups = {name: (atlas.part_of == pi, highs[name]) for pi, name in enumerate(BAKED)}
-atlas.bake(groups, cages={"limb": (0.006, 0.02), "hand": (0.004, 0.014)}, height=1.6, masks={"marks": marks})
+atlas.bake(groups, cages={"limb": (0.006, 0.02), "hand": (0.004, 0.014)}, height=1.6, masks={"marks": marks, "skin": skin})
 
 mk = atlas.maps["marks"]
+skinmap = atlas.maps["skin"]
 base = atlas.base(soot=(0.012, 0.011, 0.01), crease=0.55, ao_floor=0.4)
 
 
@@ -126,7 +142,9 @@ def paint(base, colour, k):
     return base * (1 - k) + np.array(colour, np.float32) * k
 
 
-base = paint(base, (0.16, 0.18, 0.22), mk[..., 0] * 0.6)     # veins, blue-grey through the skin
+base = paint(base, (0.3, 0.29, 0.33), skinmap[..., 1] * 0.45)    # mottled, bruised under the skin
+base = paint(base, (0.1, 0.13, 0.19), mk[..., 0] * 0.8)      # veins, blue-grey through the skin
+base = paint(base, (0.05, 0.04, 0.04), skinmap[..., 0] * 0.85)   # the splits, dark
 base = paint(base, (0.21, 0.11, 0.095), mk[..., 2] * 0.75)   # raw at the joints, dirt in the tips
 base = paint(base, (0.018, 0.016, 0.015), mk[..., 1] * 0.9)  # the train's soot, from under the car
 # Dry skin; the raw joints wet.
