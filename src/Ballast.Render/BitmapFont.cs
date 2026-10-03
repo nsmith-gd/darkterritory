@@ -66,10 +66,26 @@ public sealed class BitmapFont
             '—' or '–' or '−' => '-',
             '·' or '•' => '.',
             '×' => 'X',
-            _ => char.ToUpperInvariant(c),
+            '“' or '”' or '„' => '"',
+            '‘' or '’' => '\'',
+            _ => Plain(char.ToUpperInvariant(c)),
         };
         return _glyphs.TryGetValue(c, out var g) ? g : _glyphs['?'];
     }
+
+    /// <summary>An accented capital as its plain letter (no accents in the font): "LA DONNA È MOBILE" reads, not "LA DONNA ? MOBILE".</summary>
+    static char Plain(char c) => c switch
+    {
+        'À' or 'Á' or 'Â' or 'Ã' or 'Ä' or 'Å' => 'A',
+        'Ç' => 'C',
+        'È' or 'É' or 'Ê' or 'Ë' => 'E',
+        'Ì' or 'Í' or 'Î' or 'Ï' => 'I',
+        'Ñ' => 'N',
+        'Ò' or 'Ó' or 'Ô' or 'Õ' or 'Ö' or 'Ø' => 'O',
+        'Ù' or 'Ú' or 'Û' or 'Ü' => 'U',
+        'Ý' or 'Ÿ' => 'Y',
+        _ => c,
+    };
 
     public int Measure(string text, int scale = 1) => text.Length == 0 ? 0 : (text.Length * Advance - 1) * scale;
 }
