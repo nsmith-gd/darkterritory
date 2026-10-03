@@ -590,8 +590,14 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Handrails = session.Train.Dynamics.Tuning.Composition.Handrails,
         Bodies = session.World.Bodies.All,
         Diverging = session.Train.Diverging,
-        // Only where this machine runs the catch (solo): a client's world has no word of it (Lineside.Caught is the host's).
-        DropCaught = session is PrototypeSession && session.World.Lineside is { } lineside ? lineside.Caught : null,
+        // Only where this machine runs the catch (solo, or hosting a menu night: the host's own world, not its client's
+        // copy); a joining client's world has no word of it (Lineside.Caught is the host's).
+        DropCaught = session switch
+        {
+            PrototypeSession { World.Lineside: { } solo } => solo.Caught,
+            NetPlaySession { Host.World.Lineside: { } hosted } => hosted.Caught,
+            _ => null,
+        },
         Stands = session.World.Switches,
     };
     double last = timer.Elapsed.TotalSeconds, titleAt = 0;
