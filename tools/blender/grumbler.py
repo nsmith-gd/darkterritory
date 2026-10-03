@@ -258,14 +258,25 @@ def hand(at, along, bone, fingers, n, size, sx):
                    ref=(0, 0, 1), cap1="point")
 
 
+def sinew(i, j, a, p, fr):
+    """Tendons standing in ridges round a wasted limb, most toward its thin end (i: along the tube)."""
+    side, up, _ = fr
+    out = side * math.sin(a) + up * math.cos(a)
+    ridge = max(0.0, math.cos(a * 4 + 0.6)) ** 3
+    return Vector(p) + out * (0.004 * ridge * min(1.0, i / 2) + 0.0015 * noise3(Vector(p) * 40, 151, 1.0))
+
+
 for s, sx in (("r", 1), ("l", -1)):
     ua, la, hd = f"upperarm_{s}", f"lowerarm_{s}", f"hand_{s}"
     sh, e, wr = H(ua), H(la), H(hd)
     w = jointed(sh, e, wr, ua, la)
     limbs.tube([sh + Vector((sx * 0.02, 0, 0)), sh.lerp(e, 0.5), e - Vector((sx * 0.03, 0, 0))], [0.048, 0.04, 0.042], 10, SHIRT, w, ref=(0, 0, 1))
     limbs.tube([e - Vector((sx * 0.04, 0, 0)), e + Vector((sx * 0.02, 0, 0))], [0.05, 0.048], 10, SHIRT, w, ref=(0, 0, 1))   # the roll
-    limbs.tube([e, e.lerp(wr, 0.4), wr], [0.034, 0.03, 0.022], 9, SKIN, w, ref=(0, 0, 1))
-    limbs.blob(e, (0.03, 0.032, 0.03), 7, 4, SKIN, la)
+    # The forearm a labourer's gone stringy: the muscle's belly up by the elbow, wasting to cords toward a knobbed wrist,
+    # the tendons standing in ridges along it.
+    limbs.tube([e, e.lerp(wr, 0.15), e.lerp(wr, 0.38), e.lerp(wr, 0.75), wr], [(0.036, 0.032), (0.043, 0.035), (0.033, 0.027), (0.022, 0.018), (0.026, 0.019)],
+               10, SKIN, w, ref=(0, 0, 1), shape=sinew)
+    limbs.blob(e - Vector((0, 0, 0.004)), (0.026, 0.03, 0.026), 7, 4, SKIN, la)
     hand(wr, Vector((sx, 0, 0)), hd, f"fingers_{s}", 4, 1.15, sx)
     th0, th1 = H(f"thumb_{s}"), T(f"thumb_{s}")
     limbs.tube([th0, th0.lerp(th1, 0.6), th1 + (th1 - th0) * 0.8], [0.013, 0.011, 0.006], 6, SKIN, f"thumb_{s}", ref=(0, 0, 1), cap1="point")
@@ -288,7 +299,8 @@ for s, sx in (("r", 1), ("l", -1)):
     rag = kn.lerp(an, 0.35)
     limbs.tube([rag + Vector((0, 0, 0.01)), rag - Vector((0, 0, 0.03))], [0.052, (0.05, 0.05)], 10, TROUSERS, w, ref=(0, 1, 0),
                shape=lambda i, j, a, p, fr: Vector(p) - Vector((0, 0, 0.03 * max(0.0, math.sin(j * 2.1)) * (i == 1))))
-    limbs.tube([kn.lerp(an, 0.3), kn.lerp(an, 0.7), an + Vector((0, 0, 0.02))], [0.04, 0.032, 0.026], 9, SKIN, w, ref=(0, 1, 0))
+    limbs.tube([kn.lerp(an, 0.3), kn.lerp(an, 0.5), kn.lerp(an, 0.8), an + Vector((0, 0, 0.02))], [(0.044, 0.04), (0.038, 0.032), (0.026, 0.022), (0.028, 0.022)],
+               10, SKIN, w, ref=(0, 1, 0), shape=sinew)
     limbs.blob(kn + Vector((0, 0.02, 0)), (0.04, 0.04, 0.042), 8, 5, TROUSERS, {f"thigh_{s}": 0.4, f"calf_{s}": 0.6})
     limbs.blob(an, (0.03, 0.034, 0.03), 8, 4, SKIN, f"foot_{s}")
     limbs.tube([an - Vector((0, 0.05, 0)), an.lerp(bl, 0.5), bl], [(0.036, 0.026), (0.046, 0.02), (0.052, 0.017)], 8, SKIN, f"foot_{s}", ref=(0, 0, 1),

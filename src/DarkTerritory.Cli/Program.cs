@@ -1495,13 +1495,14 @@ static object ArtReel(string content, string[] args)
                 mesh.Quad(new System.Numerics.Vector3(-f, floor, f) - e, new System.Numerics.Vector3(f, floor, f) - e, new System.Numerics.Vector3(f, floor, -f) - e, new System.Numerics.Vector3(-f, floor, -f) - e, DarkTerritory.Game.Palette.Charcoal * 0.5f);
                 var right = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(camera.Forward, System.Numerics.Vector3.UnitY));
                 var anchor = new System.Numerics.Vector3((float)target.X, (float)target.Y, (float)target.Z) - e;
-                // A lantern's key light half way to the camera, off to its right and above; a cold fill from its left;
-                // a rim from behind to put an edge on dark clothes and hides against the dark.
+                // A lantern's key light from beside the camera, off to its right and above; a cold fill from its left; a
+                // rim from behind to put an edge on dark clothes and hides against the dark. All of them as far off as the
+                // camera, so a limb reached toward one isn't blown out against the rest.
                 var toEye = -anchor;
-                float reach = (float)dist * 2.5f;
-                mesh.PointLights.Add(new PointLight(anchor + toEye * 0.55f + right * (float)(dist * 0.35) + new System.Numerics.Vector3(0, size * 0.5f, 0), DarkTerritory.Game.Palette.LampAmber * 3.2f, reach));
-                mesh.PointLights.Add(new PointLight(anchor + toEye * 0.4f - right * (float)(dist * 0.6) + new System.Numerics.Vector3(0, size * 0.3f, 0), new System.Numerics.Vector3(0.3f, 0.36f, 0.48f), reach));
-                mesh.PointLights.Add(new PointLight(anchor - toEye * 0.35f + new System.Numerics.Vector3(0, size * 0.9f, 0), new System.Numerics.Vector3(0.45f, 0.5f, 0.62f), reach));
+                float reach = (float)dist * 3f;
+                mesh.PointLights.Add(new PointLight(anchor + toEye + right * (float)(dist * 0.5) + new System.Numerics.Vector3(0, (float)dist * 0.4f, 0), DarkTerritory.Game.Palette.LampAmber * 3.4f, reach));
+                mesh.PointLights.Add(new PointLight(anchor + toEye * 0.8f - right * (float)(dist * 0.8) + new System.Numerics.Vector3(0, (float)dist * 0.2f, 0), new System.Numerics.Vector3(0.35f, 0.42f, 0.56f), reach));
+                mesh.PointLights.Add(new PointLight(anchor - toEye * 0.8f + new System.Numerics.Vector3(0, (float)dist * 0.6f, 0), new System.Numerics.Vector3(0.5f, 0.56f, 0.7f), reach));
                 art.Draw(mesh, name, clipName, time, loop, System.Numerics.Matrix4x4.CreateTranslation(-e));
                 var light = look.Apply(FrameLighting.Night);
                 light.FogDensity = 0.004f;
