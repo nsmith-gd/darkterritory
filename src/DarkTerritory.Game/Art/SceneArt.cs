@@ -592,7 +592,8 @@ public sealed partial class SceneArt(Look look)
     /// A car's two lanterns, hanging on their chains from the carlines where its lights are; red glass under emergency
     /// lighting. One whose ceiling a Car Hugger's eaten (<paramref name="bite"/>) has gone with it.
     /// </summary>
-    public void CarLamps(MeshBuilder mesh, in CarFrame frame, Double3 eye, bool emergency, Bite bite = default)
+    /// <param name="lit">The lamps are lit: out, the lanterns hang dark (their glass unlit, no glow round them).</param>
+    public void CarLamps(MeshBuilder mesh, in CarFrame frame, Double3 eye, bool emergency, Bite bite = default, bool lit = true)
     {
         if (frame.Shape.Interior is not { } room || (frame.Origin - eye).Length > 80)
             return;
@@ -619,8 +620,10 @@ public sealed partial class SceneArt(Look look)
             return k.Build("car-lamps");
         });
         var (cut, floor) = bite.Any ? (bite.Shader, bite.Floor) : (Vector4.Zero, 0f);
-        mesh.Instances.Add(new MeshInstance(lamps, m, 1, emergency ? new Vector3(0.6f, 0.08f, 0.05f) : default,
+        mesh.Instances.Add(new MeshInstance(lamps, m, lit ? 1 : 0, emergency ? new Vector3(0.6f, 0.08f, 0.05f) : default,
             Scar: new Vector2(0, bite.Seed), Bite: cut, BiteFloor: floor));
+        if (!lit)
+            return;
         var glow = emergency ? new Vector3(0.35f, 0.04f, 0.03f) : Palette.LampAmber * 0.35f;
         foreach (var at in LampPositions(room))
             if (!bite.Eats(at with { Y = (float)room.Max.Y - 0.05f }))
@@ -767,8 +770,10 @@ public sealed partial class SceneArt(Look look)
     /// <param name="utility">A utility car (GDD §10): its crew fit-out in place of a load (<see cref="TrainKit.UtilityFit"/>).</param>
     /// <param name="handrails">The train has roof handrails (spec F.3, note 184): drawn along a car's roof edges.</param>
     public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, bool emergency, long tick = -1, int cutEnds = 0,
-        float charred = 0, bool utility = false, uint openLockers = 0, bool handrails = false)
+        float charred = 0, bool utility = false, uint openLockers = 0, bool handrails = false, bool dark = false)
     {
+        // Its lamps out: its lit windows (the guard van's) go dark with them, as under emergency lighting.
+        float lamps = emergency || dark ? 0.06f : 1;
         var shape = frame.Shape;
         var m = FrameMatrix(frame, eye);
         bool engine = shape.Cab is not null;
@@ -798,7 +803,7 @@ public sealed partial class SceneArt(Look look)
         var (cut, floor) = bite.Any ? (bite.Shader, bite.Floor) : (Vector4.Zero, 0f);
         var soot = charred > 0 ? Vector3.Lerp(Vector3.One, CharTint, charred) : default;
         // Under emergency lighting the headlamp and tail lamp have no power.
-        mesh.Instances.Add(new MeshInstance(body, m, emergency ? 0.06f : 1, Tint: soot, Scar: scar, Bite: cut, BiteFloor: floor));
+        mesh.Instances.Add(new MeshInstance(body, m, lamps, Tint: soot, Scar: scar, Bite: cut, BiteFloor: floor));
         // Its couplers, each end's shut or cut (TrainKit.CouplerEnds): the knuckle open on a car that's been let go.
         if (PropArt.Of(Look).Get("coupler_knuckle") is { } shut && (frame.Origin - eye).Length < 160)
         {

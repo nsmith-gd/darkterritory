@@ -1082,6 +1082,11 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (args.Contains("--muzzle"))
         foreach (var v in train.Vehicles.Where(v => v.HasGun))
             v.Gun.LastShotTick = 100;
+    // --lamps-out i[,j,...]: those cars' lamps put out (Vehicle.LampLit: dark inside, their lanterns unlit).
+    if (Str(args, "--lamps-out", "") is { Length: > 0 } outs)
+        foreach (int i in outs.Split(',').Select(int.Parse))
+            if (i < train.Vehicles.Count)
+                train.Vehicles[i].LampLit = false;
     // --integrity a[,b,...]: each car's condition, front to back, the last repeating (look.json "damage": scars, states).
     if (Str(args, "--integrity", "") is { Length: > 0 } integrity)
     {
