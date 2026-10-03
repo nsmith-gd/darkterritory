@@ -38,6 +38,12 @@ DIR is the store's `items` as an ArtifactData list saves them with `out_dir`.
   (until then, the tuned synth definition saved in `synth-defs/`); `TELL_GAIN_DB` lifts one that sits under the bed.
   Kept takes that are single bursts or steps rather than a loop (`PACED`) are fired again at an uneven pace by
   `GameAudio.Repeat`; a cue split by surface gives `<sound>.<surface>` variants the game picks by what's underfoot.
+- `CUE_DEF` (install.py) overrides one cue's tier or range where it isn't like its line (the low-steam whistle is still
+  the train's whistle, tier 1; the startled livestock are the world's); `FIRST_CHOICE` names the candidate that plays
+  while nothing's kept, where the director's brief already says which (the tunnel's bonk).
+- **The crew's mishaps** (`crew-mishaps`, `recipes/mishaps_body.py` and `mishaps_world.py`): the funny ones, by the
+  director's call (3 Oct). Real sounds with comic timing where the crew does it to themselves or the world shrugs; never
+  on a tell, a lure, an alarm or a monster's kill.
 - `levels.py` where each line stands in the game: installed and hooked (L1), cue by cue. A cue whose `need` starts
   "Not in the game yet" waits on an action the sim doesn't have, and doesn't count.
 - Voices are stand-ins from Piper's LibriTTS model (CC BY 4.0, credit "LibriTTS, Zen et al. 2019") in out/audio/tts:
