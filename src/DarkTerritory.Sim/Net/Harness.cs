@@ -396,9 +396,10 @@ public static class Harness
             ConductorBot { Driving: false } f => f.Venting ? "venting" : "firing",
             ConductorBot c => c.Sanding ? "sanding" : c.Stops?.Doing.ToString() ?? "",
             RoofWalkerBot { KitStep: { } k } => $"kit:{k}",
+            RoofWalkerBot { TendStep: { } t } => $"tend:{t}",
             RoofWalkerBot r => r.WarmUpStep is { } w and not "Off" ? $"warm:{w}" : r.Job?.Doing ?? "",
             GunnerBot { KitStep: { } k } => $"kit:{k}",
-            GunnerBot g => g.Saving ? "saving the gun" : g.Job?.Doing ?? "",
+            GunnerBot g => g.Saving ? "saving the gun" : g.TendStep is { } t ? $"tend:{t}" : g.WarmUpStep is { } w and not "Off" ? $"warm:{w}" : g.Job?.Doing ?? "",
             _ => "",
         };
         return doing.Length > 0 ? $"{bot.Name}[{doing}] {where}" : $"{bot.Name} {where}";
