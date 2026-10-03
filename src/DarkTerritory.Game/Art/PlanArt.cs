@@ -1355,7 +1355,49 @@ public sealed partial class WorldArt
             if (town.Type == "town")
                 Place(mesh, p, line, rng.Next(2) == 0 ? Piece("church", () => TownKit.Church(_look)) : Piece("windmill", () => TownKit.Windmill(_look)),
                     mid, (rng.Next(2) == 0 ? -1 : 1) * 45, (float)rng.NextDouble(), eye);
+            if (town.Type == "town")
+                DeadTown(mesh, p, line, town.Name, mid, eye);
         }
+    }
+
+    /// <summary>
+    /// A dead town's rooms open to the line (the checklist's dead towns: "readable from a moving train"), as a hand-laid
+    /// route's villages have them (WorldArt.Settlements): a house nearest the line with its front wall gone and the child's
+    /// room in it, the bedside lamp on; further along the parlour laid out for a wake; across the line the photographer's,
+    /// the dead boy propped for his portrait; the churchyard's cadaver saint and tombs, a defaced statue in the square.
+    /// Hashed on the town's name so every machine dresses it alike.
+    /// </summary>
+    void DeadTown(MeshBuilder mesh, PlanScene p, RailLine line, string name, double mid, Double3 eye)
+    {
+        float h = name.Aggregate(17, (a, c) => a * 37 + c) * 0.0001f;
+        int side = Hash(h * 1.3f) < 0.5f ? -1 : 1;
+        void Room(string prop, double along, double across, float light, float range, Vector3 colour)
+        {
+            if (_props.Get(prop) is not { } room)
+                return;
+            var t = line.Sample(Math.Clamp(along, 0, line.Length));
+            var at = t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * across;
+            if (p.Terrain.WaterAt(at.X, at.Z) is not null)
+                return;
+            at = at with { Y = p.Terrain.Height(at.X, at.Z) - 0.1 };
+            var m = Basis(t.Tangent, at, eye, across > 0 ? MathF.PI / 2 : -MathF.PI / 2);
+            mesh.Instances.Add(new MeshInstance(room, m));
+            if (_props.Socket(prop, "lamp") is { } lamp)
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(lamp, m), colour * light, range));
+        }
+        Room("boy_room", mid - 40, side * (15 + Hash(h * 2.1f) * 4), 1.6f, 6.5f, new Vector3(1.0f, 0.72f, 0.42f));
+        if (Hash(h * 3.7f) < 0.7f)
+            Room("wake_room", mid + 42, side * (16 + Hash(h * 4.3f) * 3), 0.9f, 4.5f, new Vector3(1.0f, 0.74f, 0.46f));
+        if (Hash(h * 5.9f) < 0.6f)
+            Room("portrait_room", mid - 4, -side * (17 + Hash(h * 6.1f) * 3), 0.9f, 4.0f, new Vector3(1.0f, 0.7f, 0.4f));
+        // The churchyard by the line: the cadaver saint at its gate, the tombs between it and the rails.
+        if (_props.Get("transi") is { } saint)
+            Place(mesh, p, line, saint, mid + 20, side * 30, 0, eye);
+        if (_props.Get("effigy") is { } tomb)
+            for (int i = 0; i < 3; i++)
+                Place(mesh, p, line, tomb, mid + 8 + i * 9, side * (19 + Hash(h * (7 + i)) * 5), MathF.PI / 2, eye);
+        if (_props.Get("mercury_defaced") is { } square)
+            Place(mesh, p, line, square, mid, -side * 26, Hash(h * 9.1f) - 0.5f, eye);
     }
 
     void Place(MeshBuilder mesh, PlanScene p, RailLine line, MeshAsset piece, double s, double lateral, float yaw, Double3 eye)
