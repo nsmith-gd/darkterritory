@@ -30,7 +30,12 @@ public static class TrackRules
                     (k, at) = (kc, mid);
             }
         if (k > 1e-9 && v > Math.Sqrt(r.ADerail / k))
-            return Derail(world, BendCause(plan, train.Line, rake.Path, at, v, Math.Sqrt(r.ADerail / k)));
+        {
+            // Too fast for it: the throttle's doing, or a Stoker's runaway (App. C.9; note 190).
+            string why = BendCause(plan, train.Line, rake.Path, at, v, Math.Sqrt(r.ADerail / k));
+            world.Overspeed(why);
+            return world.DerailCause;
+        }
 
         var (edge, s) = Locate(plan, train.Line, rake.Path, rake.Distance);
         foreach (var st in plan.Structures)

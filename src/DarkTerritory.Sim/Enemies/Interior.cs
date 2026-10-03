@@ -44,8 +44,13 @@ public sealed class Stoker(int id) : Enemy(id)
         }
         if (Phase == SpinePhase.Dormant)
             Enter(ctx, SpinePhase.Telegraph); // soot falls into the cab
-        if (Phase == SpinePhase.Telegraph && PhaseSeconds >= Math.Max(t.SootSeconds, ctx.Tuning.MinReactionSeconds))
-            Enter(ctx, SpinePhase.Commit);
+        if (Phase == SpinePhase.Telegraph && PhaseSeconds >= Math.Max(t.SootSeconds, ctx.Tuning.MinReactionSeconds) && Enter(ctx, SpinePhase.Commit))
+        {
+            // C.9's Stoker row (note 190): the runaway begins. Who last fuelled or tended the firebox, and for how long not.
+            var (actor, action) = Run.IncidentLog.Firebox(ctx.World);
+            string how = Extra > 0.5 ? "through the open door" : "down the stack";
+            ctx.World.Attribution.Add(Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Runaway, $"Stoker got into the firebox {how}", actor, action));
+        }
         if (Phase != SpinePhase.Commit)
             return;
         // FEED: pressure without fuel, and the valve held shut. The train's boiler is a struct it holds: written through.
@@ -70,6 +75,7 @@ public sealed class Stoker(int id) : Enemy(id)
     public override void Struck(EnemyContext ctx, int by, double damage)
     {
         ctx.Bite(by, ctx.Tuning.Stoker.BurnPerBlow, DeathCause.Stoker);
+        ctx.World.Attribution.Tended(by, ctx.World.Run?.Seconds ?? 0); // tending the firebox, the hard way
         base.Struck(ctx, by, damage);
         if (Gone)
             Leave(ctx, ctx.Train);
@@ -287,6 +293,10 @@ public sealed class FireFlies(int id) : Enemy(id)
                 int into = Attached;
                 double along = Local.Z;
                 ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire));
+                // C.9's Fire Flies row (note 190): who last lit that car's lamp.
+                int lit = ctx.World.Attribution.LampLitBy(into);
+                ctx.World.Attribution.Add(Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Fire, $"Fire Flies set car {into} alight", lit,
+                    lit >= 0 ? "Lamp lit by {actor}." : "Nobody lit that lamp.", into));
             }
             Enter(ctx, SpinePhase.BreakOff);
             Enter(ctx, SpinePhase.Gone);
