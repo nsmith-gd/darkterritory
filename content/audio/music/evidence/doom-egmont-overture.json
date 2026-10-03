@@ -1,0 +1,62 @@
+{
+  "title": "File:Beethoven EgmontOvertureOp.84 LudwigVanBeethoven-EgmontOvertureOp.84.ogg",
+  "cc0": true,
+  "metaSaysCc0": true,
+  "licence": "cc0",
+  "licenceShortName": "CC0",
+  "licenceUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/2/20/Beethoven_EgmontOvertureOp.84_LudwigVanBeethoven-EgmontOvertureOp.84.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+  "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Beethoven_EgmontOvertureOp.84_LudwigVanBeethoven-EgmontOvertureOp.84.ogg",
+  "sha1": "2f1a857a1311f4d3f4f46ea3af2aaae25a2c4532",
+  "size": 13738201,
+  "mime": "application/ogg",
+  "artist": "Ludwig van Beethoven",
+  "credit": "This work comes from the non profit U.S. organization Musopen where it is available at the following link: https://musopen.org/music/13441 The Musopen website requires all uploaders to \"represent and warrant that content uploaded to the site is in the public domain\" (see FAQ #4). Musopen's own works (\"Musopen Materials\" and \"Musopen Service\", not user content or public domain content), are fully copyrighted and may not be used freely as stated in their Terms and Conditions of Use. (Encoded with vorbis-tools 1.4.0 (oggenc -q8) from FLAC at https://archive.org/details/MusopenCollectionAsFlac)",
+  "description": "\"Egmont\", op. 84 (Overture)",
+  "date": "",
+  "revision": 1019671639,
+  "revisionTimestamp": "2025-04-10T16:32:11Z",
+  "user": "Isacdaavid",
+  "refused": [],
+  "id": "doom-egmont-overture",
+  "work": "Overture, Egmont",
+  "composer": "Ludwig van Beethoven",
+  "sourceSha256": "2007b57e8ab1dbe6c9df4d3c91d3de185457ad70cbeb9b4c2864e5161a64c3ae",
+  "fetched": "2026-10-03T17:55:58Z",
+  "licenceTemplates": [
+    "cc-zero"
+  ],
+  "licenceSection": "{{Cc-zero}}\n\n[[Category:Audio files of music by Ludwig van Beethoven]]\n[[Category:Audio files of Classical period classical music]]\n[[Category:Overtures (music)]]\n[[Category:Egmont (Goethe)]]",
+  "information": "{{Information\n|Description    ={{en|1=\"Egmont\", op. 84 (Overture)}} {{de|1= \"Egmont\", op. 84 (Ouvertüre)}} {{es|1 = Overtura \"Egmont\", op. 84}} {{fr|1 = Ouverture \"Egmont\" op. 84}}\n|Source         ={{Musopen|https://musopen.org/music/13441}} (Encoded with vorbis-tools 1.4.0 (oggenc -q8) from FLAC at https://archive.org/details/MusopenCollectionAsFlac)\n|Author         ={{Creator:Ludwig van Beethoven}}\n|Date           =\n|Permission     =\n|other_versions ={{Filelist|Beethoven - Egmont Overture, Op. 84 (Czech National Symphony Orchestra).flac}}\n}}",
+  "wikitext": "== {{int:filedesc}} ==\n{{Information\n|Description    ={{en|1=\"Egmont\", op. 84 (Overture)}} {{de|1= \"Egmont\", op. 84 (Ouvertüre)}} {{es|1 = Overtura \"Egmont\", op. 84}} {{fr|1 = Ouverture \"Egmont\" op. 84}}\n|Source         ={{Musopen|https://musopen.org/music/13441}} (Encoded with vorbis-tools 1.4.0 (oggenc -q8) from FLAC at https://archive.org/details/MusopenCollectionAsFlac)\n|Author         ={{Creator:Ludwig van Beethoven}}\n|Date           =\n|Permission     =\n|other_versions ={{Filelist|Beethoven - Egmont Overture, Op. 84 (Czech National Symphony Orchestra).flac}}\n}}\n\n== {{int:license-header}} ==\n{{Cc-zero}}\n\n[[Category:Audio files of music by Ludwig van Beethoven]]\n[[Category:Audio files of Classical period classical music]]\n[[Category:Overtures (music)]]\n[[Category:Egmont (Goethe)]]",
+  "performers": "Musopen (performers uncredited)",
+  "hitNote": "the final Allegro con brio (the \"victory symphony\"): the horns' and trumpets' fanfare over the full orchestra",
+  "hitClock": "8:07.4",
+  "file": "doom-egmont-overture.opus",
+  "hitGuess": 24.0,
+  "sourceSeconds": 540.897,
+  "window": [
+    463.437,
+    508.437
+  ],
+  "hitInSource": 487.437,
+  "analysis": {
+    "score": 10.86,
+    "range": [
+      445.9,
+      515.9
+    ]
+  },
+  "inputLufs": -12.3,
+  "inputTruePeak": -0.72,
+  "normalization": "dynamic",
+  "outputLufs": -16.1,
+  "limiterGainDb": 0.7,
+  "limitDb": -5.35,
+  "decodedPeakDb": -1.68,
+  "hitCheck": {
+    "jumpDb": 3.8,
+    "loudnessRank": 0.22,
+    "weak": false
+  }
+}

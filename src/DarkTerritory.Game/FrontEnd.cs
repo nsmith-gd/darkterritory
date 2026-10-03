@@ -2,6 +2,7 @@ using System.Numerics;
 using Ballast.Online;
 using Ballast.Render;
 using DarkTerritory.Sim.Campaign;
+using DarkTerritory.Sim.Music;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
@@ -38,7 +39,7 @@ public abstract record Launch
     public sealed record Quit : Launch;
 }
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores }
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits }
 
 /// <param name="Detail">A line about the selected item, under the list.</param>
 public sealed record MenuItem(string Label, string? Detail = null, bool Enabled = true);
@@ -100,6 +101,11 @@ public sealed class FrontEnd
     /// ping is"): the app's <see cref="LobbyBrowser"/> sets them each frame, nearest first.
     /// </summary>
     public IReadOnlyList<ListedGame> Games { get; set; } = [];
+    /// <summary>
+    /// The derailment's music for the credits screen (GDD v1.4 App. E.6: "the credits screen lists every performer"; note
+    /// 194): the manifest's tracks, which the app loads from content/audio/music. Empty, the screen says there's none.
+    /// </summary>
+    public IReadOnlyList<MusicTrack> Music { get; set; } = [];
     /// <summary>Who's playing, for the lobby's default name when the settings have none (the app sets it: the Steam name, or the system's).</summary>
     public string DefaultPlayerName { get; set; } = Environment.UserName;
     /// <summary>The lobby's name as the host screen has it: the one set, or "&lt;PLAYER NAME&gt;'S RUN".</summary>
@@ -319,6 +325,7 @@ public sealed class FrontEnd
             new(new("HOST", "Open a lobby in the yard for a run. Friends join; you drive out when everyone's in."), () => { Show(Screen.Host); return null; }),
             new(new("JOIN", "The public games, nearest first, a Steam invite, or an address."), () => { Show(Screen.Join); return null; }),
             new(new("SETTINGS"), () => { Show(Screen.Settings); return null; }),
+            new(new("CREDITS", "The music, and who played it."), () => { Show(Screen.Credits); return null; }),
             new(new("QUIT"), () => new Launch.Quit()),
         ],
         Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), new(new("BACK"), Go(Screen.Title))],
@@ -375,6 +382,12 @@ public sealed class FrontEnd
                 by => Change(Settings with { RenderScale = Settings.Cycle(Settings.RenderScales, Settings.RenderScale, by) })),
             new(new($"VSYNC: {(Settings.VSync ? "ON" : "OFF")}"), Toggle(s => s with { VSync = !s.VSync }), _ => Change(Settings with { VSync = !Settings.VSync })),
             new(new("CONTROLS", "Rebind the keys."), Go(Screen.Controls)),
+            new(new("BACK"), Go(Screen.Title)),
+        ],
+        // A row a track (its work and composer), its performers, licence and source drawn under it (DrawCredits).
+        Screen.Credits =>
+        [
+            .. Music.Select(t => new Entry(new($"{t.Work} - {t.Composer}, {t.Year}", CreditLine(t)))),
             new(new("BACK"), Go(Screen.Title)),
         ],
         Screen.Controls =>
@@ -540,6 +553,53 @@ public sealed class FrontEnd
         return null;
     }
 
+    const string CreditHints = "[UP/DOWN] SCROLL   [ESC] BACK";
+
+    /// <summary>A track's performers, licence and where it came from: a recording's Commons page, or the script that made it.</summary>
+    static string CreditLine(MusicTrack t) =>
+        $"{t.Performers}. {t.Licence}. {(t.Recorded ? t.Source.Replace("https://", "") : "Made by " + Path.GetFileName(t.Source))}";
+
+    /// <summary>
+    /// The credits (E.6: CC0 asks for none, the screen lists every performer anyway): each track two lines, its work,
+    /// composer and year, then its performers, licence and source, scrolled to keep the selection in view.
+    /// </summary>
+    void DrawCredits(Overlay o, float x, float y, int width, int height)
+    {
+        o.Text(x, y, "COMPOSITIONS IN THE PUBLIC DOMAIN. RECORDINGS DEDICATED CC0 1.0.", Faint);
+        y += 16;
+        var items = Items;
+        // Room under the list for the selected track's line in full, over two rows.
+        int rows = Math.Max(1, (int)((height - y - 44) / 20));
+        int first = Math.Clamp(Selected - rows / 2, 0, Math.Max(0, items.Count - rows));
+        int shown = Math.Min(rows, items.Count - first);
+        float w = width - x - 8;
+        int chars = (int)((w - 8) / o.Font.Advance);
+        UiStyle.Plate(o, x - 8, y - 6, w + 4, shown * 20 + 6);
+        if (Music.Count == 0)
+            o.Text(x, y + shown * 20 - 4, "NO MUSIC IN THIS BUILD.", Faint);
+        for (int i = first; i < first + shown; i++)
+        {
+            bool on = i == Selected;
+            if (on)
+                o.Rect(x - 4, y - 1, w - 4, items[i].Detail is null ? 9 : 19, UiStyle.Lit with { W = 0.14f });
+            o.Text(x, y, Fit((on ? "> " : "  ") + items[i].Label, chars), on ? Amber : Ink);
+            if (items[i].Detail is { } line)
+                o.Text(x, y + 9, Fit("    " + line, chars), Dim);
+            y += 20;
+        }
+        // The selected track's performers, licence and source, whole (a long Commons title or ensemble name is cut above).
+        if (Selected < items.Count && items[Selected].Detail is { } full && full.Length + 4 > chars)
+        {
+            y += 6;
+            string text = full.ToUpperInvariant();
+            o.Text(x, y, text[..Math.Min(chars, text.Length)], Ink);
+            if (text.Length > chars)
+                o.Text(x, y + 9, Fit(text[chars..], chars), Ink);
+        }
+    }
+
+    static string Fit(string s, int chars) => s.Length <= chars ? s : s[..Math.Max(0, chars - 3)] + "...";
+
     static string Name(RouteTier tier) => tier switch
     {
         RouteTier.Local => "LOCAL",
@@ -576,6 +636,7 @@ public sealed class FrontEnd
             Screen.Host => "HOST",
             Screen.Settings => "SETTINGS",
             Screen.Controls => "CONTROLS",
+            Screen.Credits => "CREDITS: THE OPERA AT A DERAILMENT (GDD E.6)",
             _ => "A CO-OP NIGHT ON THE LAST RAILWAY",
         };
         o.Text(x, y, heading!, Dim);
@@ -596,6 +657,12 @@ public sealed class FrontEnd
             y += 10;
         }
         y += 4;
+        if (Screen == Screen.Credits)
+        {
+            DrawCredits(o, x, y, width, height);
+            UiStyle.Keyed(o, width - 8 - UiStyle.MeasureKeyed(o, CreditHints), height - 13, CreditHints, Dim);
+            return;
+        }
         var items = Items;
         float widest = items.Select(i => o.Font.Measure(i.Label)).DefaultIfEmpty(0).Max() + 20;
         // A list longer than the screen (the controls) scrolls to keep the selection in view.
