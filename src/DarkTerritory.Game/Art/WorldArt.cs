@@ -250,8 +250,14 @@ public sealed partial class WorldArt(Look look)
                 // the biome's ground takes over below.
                 if (plan is not null && !bridge && !hill && band == 0 && a >= 0 && BiomeGround(plan, s) is var (pa, _) && pa >= 0)
                 {
+                    // The bed's stone is the country's (biomes.json ballast, GDD §30): the collieries' cinders, granite
+                    // pale on the barrens, peat-stained in the bog, tarred black through the tar ponds.
+                    var bed = plan.Biome(s);
+                    if (bed?.Ballast is { } stone && _look.Layer(stone) is >= 0 and var sl)
+                        a = sl;
+                    var stain = bed?.BallastTint is [var tr, var tg, var tb] ? new Vector3((float)tr, (float)tg, (float)tb) : Vector3.One;
                     // Tinted like the land past it (Macro), or the cess shows as a lighter stripe with a hard edge.
-                    Corner Cess(Vector3 p, float l, double at) => new(Macro(p + origin) * GroundShade(l, at), GroundBlend(0, l, at));
+                    Corner Cess(Vector3 p, float l, double at) => new(Macro(p + origin) * GroundShade(l, at) * Vector3.Lerp(stain, Vector3.One, GroundBlend(0, l, at)), GroundBlend(0, l, at));
                     Quad(mesh, left[c], left[c + 1], right[c + 1], right[c], Cess(left[c], l0, s), Cess(left[c + 1], l1, s), Cess(right[c + 1], l1, s1),
                         Cess(right[c], l0, s1), origin, a, pa, _look.Textures[a].TileMetres ?? 2);
                     continue;

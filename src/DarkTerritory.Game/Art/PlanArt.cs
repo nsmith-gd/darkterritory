@@ -283,9 +283,25 @@ public sealed partial class WorldArt
                     (m, _) = Place(along, offset, yaw, height / 11, 0.1f);
                 // Tamarack goes gold in the fall, before its needles drop (the bog's one colour).
                 var tint = kind == "tamarack" && !dead ? new Vector3(1.55f, 1.2f, 0.55f) * (0.85f + 0.3f * (float)rng.NextDouble()) : new Vector3(0.8f + 0.3f * (float)rng.NextDouble());
+                // The corruption's trees (GDD §30): charred black and sweating, the brass breaking out through the bark up
+                // the trunk as well as heaped at the foot.
+                if (corrupted)
+                    tint = new Vector3(0.32f, 0.24f, 0.2f);
                 mesh.Append(piece, m, tint);
                 if (corrupted)
-                    mesh.Append(Piece($"brass-{variant % 3}", () => BrassCluster(_look, variant % 3)), Place(along + 0.6, offset, yaw, 0.9f, 0.05f).M);
+                {
+                    // Brighter than a brass field's growths, a sick glow in them: what the eye should catch in the dead wood.
+                    var brass = Piece($"growth-{variant % 3}", () => BrassCluster(_look, variant % 3, glow: 0.4f));
+                    var glint = new Vector3(1.6f, 1.35f, 0.8f);
+                    mesh.Append(brass, Place(along + 0.6, offset, yaw, 2.6f, 0.05f).M, glint);
+                    var trunk = Place(along, offset, yaw, 1, 0.05f).M;
+                    for (int b = 0; b < 3; b++)
+                    {
+                        float up = height * (0.2f + 0.22f * b), turn = yaw + b * 2.1f;
+                        mesh.Append(brass, Matrix4x4.CreateScale(2.2f - 0.4f * b) * Matrix4x4.CreateRotationZ(1.2f) * Matrix4x4.CreateRotationY(turn)
+                            * Matrix4x4.CreateTranslation(0, up, 0) * trunk, glint);
+                    }
+                }
             }
             // The stand's mass behind the single trees: walls of packed spires where a stand runs on out from the
             // line, one at its near edge's depth and one deep in it, so the forest has a body and a serrated top.
@@ -1108,11 +1124,11 @@ public sealed partial class WorldArt
     }
 
     /// <summary>A cluster of brass crystal: faceted spikes leaning out of one root, and brass weeds round its foot.</summary>
-    static MeshAsset BrassCluster(Look? look, int variant)
+    static MeshAsset BrassCluster(Look? look, int variant, float glow = 0.05f)
     {
         var k = new Kit(look, 1500 + variant);
         k.Use("mineral_growth", Palette.TarnishedBrass, 0.2f, 0.7f, tile: 0.8f);
-        k.Emissive = 0.05f;
+        k.Emissive = glow;
         var rng = new Random(variant * 977 + 3);
         int spikes = 4 + variant * 2;
         for (int i = 0; i < spikes; i++)
