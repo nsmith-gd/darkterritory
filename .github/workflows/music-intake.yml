@@ -16,7 +16,7 @@ on:
         required: false
         default: ""
   push:
-    branches: [claude/beautiful-pasteur-h0sjzg, music-intake-request]
+    branches: [music-intake-request]
     paths: [tools/audio/music_intake.json]
 permissions:
   contents: write
