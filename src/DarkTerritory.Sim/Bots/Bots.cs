@@ -414,6 +414,18 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// </summary>
     PlayerIntent? Tend(in PlayerState self, Enemy trouble, World world, int me)
     {
+        var intent = Fight(self, trouble, world, me);
+        // And in a burning car, its lamp out (GDD §21 "lamps off when they swarm"): the fire's most likely the Fire Flies', who
+        // go once it's alight and leave the lamp lit for the next swarm. frontier:7 and :3's crews put car 2's fire out and
+        // left it lit, and the flies came back to it again and again (note 188). A tap by the bot's own tick, every
+        // KitRun.TapEvery, until it's out: the press toggles it, and the snapshot that says so is a few ticks behind.
+        if (intent is { } fighting && trouble is CarFire && world.Train.Vehicles[self.Parent].LampLit && _tick % KitRun.TapEvery == 0)
+            return fighting with { Actions = fighting.Actions | PlayerActions.CarLamp };
+        return intent;
+    }
+
+    PlayerIntent? Fight(in PlayerState self, Enemy trouble, World world, int me)
+    {
         var train = world.Train;
         TendStep = null;
         if (trouble.Gone || self.Parent != trouble.Attached || self.Health < TooHurt)
@@ -1700,7 +1712,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
 
     public bool Active => _step != Step.Off;
     /// <summary>Where it's got to (for tests and the harness).</summary>
-    public string Doing => _step == Step.Warm ? $"{_step}/{_why}" : _step.ToString();
+    public string Doing => _step is Step.Warm || _step is Step.Shut && _why.Length > 0 ? $"{_step}/{_why}" : _step.ToString();
     /// <summary>What it's waiting on in there (for the harness's trace): the cold, a tunnel, or the job it's in for.</summary>
     string _why = "";
     /// <summary>Times it's been in and got warm.</summary>
@@ -1782,9 +1794,11 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                     // seconds, before it's taken hold, it burns nobody, App. C.5), the doors after.
                     // Inside, that is: on the plate still, the way to it is through the door it's walking at (and it never
                     // gave up, its clock kept at nothing by the work).
+                    _why = "";
                     if (Into == _car && self.Parent == _car && PlayerMotor.Indoors(self, train) && Indoors?.Invoke(self) is { } first)
                     {
                         _ticks = 0;
+                        _why = "busy";
                         return first;
                     }
                     // Every door shut: a car only warms you shut, and someone else may have left another open (the far end,

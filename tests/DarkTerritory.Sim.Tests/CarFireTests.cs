@@ -49,6 +49,8 @@ public class CarFireTests
         Assert.True(fire.Gone, $"{fire.Phase} at {fire.Extra:0.00}");
         Assert.True(n.Crew[1].Alive);
         Assert.True(n.Train.Vehicles[3].CargoIntegrity > 0.9);
+        // And its lamp's out (note 188): the fire's most likely the Fire Flies', and they come back to a lit lamp.
+        Assert.False(n.Train.Vehicles[3].LampLit);
     }
 
     [Fact]
