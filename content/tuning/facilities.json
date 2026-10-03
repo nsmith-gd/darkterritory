@@ -169,13 +169,50 @@
     "chain": 3,
     "carDamage": 0.3
   },
+  // GDD §18's switchyard and wreck yard (WP15b, ARCHITECTURE §8 note 187).
+  // The switchyard: "mixed. Cars scattered across six sidings. A live track puzzle solved by shouting." Its cars stand on every
+  // track of its yard but its own (on its own, if that's all it has), "cars" to a siding, "back" metres short of the buffer
+  // stop, handbrakes on, each loaded somewhere in "load" with one of "cargoes" (mixed: the run's cargo rates pay each by its
+  // own). Couple up to them and bring them away, and they're the crew's. The sidings' points all face up the line, so they come
+  // away ahead of the engine, and the crew go in for each siding's with every car already picked up still in front: so never
+  // more in all than the shortest of those sidings takes with the engine and "spare" of the train's own cars behind it.
+  "rakes": {
+    "cars": [1, 2],
+    "load": [0.5, 1.0],
+    "cargoes": ["goods", "food", "timber", "heavy", "medicine", "coal"],
+    "back": 1.0,
+    "spare": 1
+  },
+  // The wreck yard: "salvage, high value. Pull cargo off derailed trains. Unstable, unlit, already occupied" (the occupants are
+  // enemies.json director "residents"). The last train came off at the end of the yard's line: "heaps" of its cars lie where
+  // "layout" puts them, metres along from its buffer stop (on beyond it, positive) and out on the site's side, each with
+  // "salvage" pieces in it (cargo "salvage" below, carried out by hand as crates are, each crates.loadPerCrate of a car). There
+  // are no lamps: a heap's salvage is only found (comes out onto the ground beside it) once a hand lamp is within "lampReach"
+  // of it, carried or set down, or it's in the engine's headlamp (within "beamLength" ahead, "beamSpread" metres wider for each
+  // metre on, from 2 m either side). Every piece picked up costs its heap "strainPerPiece" of its stability; at none it groans
+  // for "warnSeconds" (the tell) and shifts: everyone within "crushRadius" of it takes "damage", and it settles at "settle".
+  // It shifts at most "shifts" times.
+  "wreck": {
+    "heaps": [3, 4],
+    "layout": [[8, 1.5], [20, 4.5], [-24, 12], [16, 15]],
+    "salvage": [2, 3],
+    "lampReach": 6,
+    "beamLength": 40,
+    "beamSpread": 0.2,
+    "strainPerPiece": 0.4,
+    "warnSeconds": 3,
+    "crushRadius": 3.5,
+    "damage": 45,
+    "settle": 0.6,
+    "shifts": 2
+  },
   // Which modules each facility offers (spec D.1: 2–4 per POI once the roster is built; the coaling tower is its chute).
   "kinds": {
     "grainElevator": ["spout"],
-    "switchyard": ["crates"],
+    "switchyard": ["rakes", "crates"],
     "foundry": ["crane", "winch", "crates"],
     "slaughterhouse": ["ramp", "crates"],
-    "wreckYard": ["winch"],
+    "wreckYard": ["wreck", "winch"],
     "mineHead": ["winch", "crates"],
     "chemicalWorks": ["hose", "crates"],
     "militaryDepot": ["crates", "winch"]

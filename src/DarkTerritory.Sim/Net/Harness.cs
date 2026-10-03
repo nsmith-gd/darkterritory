@@ -50,6 +50,24 @@ public sealed record HarnessOptions
     /// (to trace a night).
     /// </summary>
     public Action<uint, IReadOnlyList<(IBot Bot, PlayerState State)>, World>? Observe { get; init; }
+    /// <summary>
+    /// Called every tick on the host's world before it steps: a scripted failure (the cascade audit's boiler rupture, a fire
+    /// lit, a coupling cut; note 186). The world's own rules take it from there, and the bots answer it through intent.
+    /// </summary>
+    public Action<uint, World>? Script { get; init; }
+    /// <summary>The night ends early once this holds on the host's world (a cascade recovered, or past saving).</summary>
+    public Func<World, bool>? Until { get; init; }
+    /// <summary>The combination audit (note 186): only these kinds, insisted on (<see cref="World.Insist"/>). Null: the director's night.</summary>
+    public IReadOnlyList<EnemyKind>? Insist { get; init; }
+    /// <summary>With <see cref="Insist"/>: seconds after one's gone before it's sent again.</summary>
+    public double InsistEvery { get; init; } = 10;
+    /// <summary>What the night's line takes away (GDD §22; note 186), laid over the line for host and clients alike.</summary>
+    public HazardSet? Hazards { get; init; }
+    /// <summary>
+    /// The crew's calls over a poor voice (GDD §34 "degraded comms"; note 186): lossy, laggy, talked over. Seeded from
+    /// <see cref="Seed"/>. Null: perfect comms.
+    /// </summary>
+    public VoiceConditions? Voice { get; init; }
 }
 
 /// <summary>Transports for the harness from elsewhere: the Sim doesn't reference platform code, so the CLI brings it.</summary>
@@ -72,6 +90,8 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     IReadOnlyList<ClientReport> Clients, ThreatReport? Threats = null, Run.RunReport? Run = null, int WarmUps = 0,
     IReadOnlyList<StopRecord>? Stops = null, PacingReport? Pacing = null)
 {
+    /// <summary>What got through on the crew's voice, with <see cref="HarnessOptions.Voice"/> (note 186).</summary>
+    public VoiceReport? Voice { get; init; }
     /// <summary>
     /// Seconds from boarding until each bot first reached its post (T102): the driver and fireman in the cab, the gunner on
     /// the guard gun, a walker up on the train; −1 for never. Keyed "bot#id".
@@ -105,6 +125,12 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public IReadOnlyDictionary<string, int> Director { get; init; } = new Dictionary<string, int>();
     /// <summary>While it held back at the cap: the engaged threats that filled it, by kind and phase, in seconds.</summary>
     public IReadOnlyDictionary<string, int> AtTheCap { get; init; } = new Dictionary<string, int>();
+    /// <summary>GRABs begun, by kind (App. A.1): the combination audit's "it landed something" (note 186).</summary>
+    public IReadOnlyDictionary<string, int> Grabs { get; init; } = new Dictionary<string, int>();
+    /// <summary>Enemies that came on (telegraphed, or further), by kind: what the night actually exercised.</summary>
+    public IReadOnlyDictionary<string, int> Engaged { get; init; } = new Dictionary<string, int>();
+    /// <summary>GRABs a crewmate broke (the grab ended in a break-off, not a punish), by kind.</summary>
+    public IReadOnlyDictionary<string, int> Rescues { get; init; } = new Dictionary<string, int>();
 }
 
 /// <summary>
@@ -121,8 +147,26 @@ public static class Harness
             ?? (udpHost is null ? net.CreateClient() : UdpTransport.Connect(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, udpHost.Port)));
         var hostTransport = new CountingTransport(o.Network?.Host() ?? udpHost ?? net.CreateHost());
         var host = new HostSession(hostTransport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
-        if (o.Enemies is { } et)
+        if (o.Hazards is { } hazards)
+            HazardConditions.Apply(line, hazards);
+        // Insisted on (note 186), the director's roster is those kinds alone: no Sleepers or marsh on the line, no Stoker but
+        // one insisted on (an empty roster is every kind, so nothing's roster is a name that's none of them).
+        var enemyTuning = o.Enemies is { } full && o.Insist is { } only
+            ? full with { Director = full.Director with { Roster = only.Count == 0 ? ["none"] : [.. only.Select(Director.Key)] } }
+            : o.Enemies;
+        if (enemyTuning is { } et)
             host.EnableEnemies(et, o.Route, (ulong)o.Seed, o.Bots);
+        if (o.Insist is { } insist)
+        {
+            host.World.Insist = insist;
+            host.World.InsistEvery = o.InsistEvery;
+        }
+        if (o.Hazards is { LampsOut: true })
+        {
+            host.World.SmashLamp(o.Seconds + 60);
+            foreach (var v in host.Train.Vehicles)
+                v.LampLit = false;
+        }
         host.World.EnableBodies();
         host.World.Stock();
         if (o.Run is { } rt && o.Route is { } route)
@@ -137,15 +181,18 @@ public static class Harness
             host.BoardAt = n =>
             {
                 var train = host.Train;
-                int car = n % train.Frames.Count;
+                // The train's own cars, not a switchyard's out on its sidings (note 187).
+                int car = n % train.OwnVehicles;
                 var frame = train.Frames[car];
-                var at = frame.ToWorld(new Double3(frame.Shape.HalfWidth + 2.2, 0, (n / train.Frames.Count % 3 - 1) * 3.0));
+                var at = frame.ToWorld(new Double3(frame.Shape.HalfWidth + 2.2, 0, (n / train.OwnVehicles % 3 - 1) * 3.0));
                 double along = train.Cars[car].FrontDistance - frame.Shape.HalfLength;
                 return PlayerMotor.SpawnOnGround(at, train.Line, along, host.PlayerTuning);
             };
 
         // On a night with facilities, the crew call to each other at the stops, and each has a part (BotCrew.Make).
         var calls = o.Run is not null && o.Route is not null && o.Facilities is not null ? new CrewCalls() : null;
+        if (calls is not null && o.Voice is { } voice)
+            calls.Voice = new CrewVoice(voice, (ulong)o.Seed);
         var clients = new List<(ClientSession Session, IBot Bot, CountingTransport Transport)>();
         for (int i = 0; i < o.Bots; i++)
         {
@@ -154,7 +201,7 @@ public static class Harness
             var session = new ClientSession(transport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
             // The enemies' tuning, as a joiner loads it: prediction drags with the Weight as the host does (T59), and the bots
             // read their counters from it (the Gaunt's view, the Passenger's reach).
-            if (o.Enemies is { } cet)
+            if (enemyTuning is { } cet)
                 session.World.EnableEnemies(cet, o.Route, (ulong)o.Seed, o.Bots, authority: false);
             // Clients see the night as players do: the phase, and each site's winch (mirrored from the host).
             if (o.Run is { } crt && o.Route is { } croute)
@@ -183,13 +230,14 @@ public static class Harness
         string? heldAt20 = null;
         for (uint t = 0; t < ticks; t++)
         {
-            if (host.World.Run is { Over: true })
+            if (host.World.Run is { Over: true } || o.Until?.Invoke(host.World) == true)
             {
                 ticks = (int)t;
                 break;
             }
             net.Advance(SimConstants.TickSeconds);
             o.Network?.Pump();
+            o.Script?.Invoke(t, host.World);
             host.Step();
             events.AddRange(host.World.EnemyEvents);
             rounds += host.World.Shots.Count;
@@ -234,6 +282,7 @@ public static class Harness
             if (t == 60)
                 foreach (var c in clients)
                     c.Session.ResetStats();
+            calls?.Advance(t);
             foreach (var (session, bot, _) in clients)
             {
                 var intent = session.Connected ? BotCrew.Think(session, bot, (uint)t, calls) : default;
@@ -273,7 +322,15 @@ public static class Harness
                 events.Where(e => e.To == SpinePhase.Punish).GroupBy(e => e.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()),
                 deaths, unfair, host.World.Derailed, Math.Round(choirPeak, 1),
                 Math.Round(host.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).DefaultIfEmpty().Average(v => v?.CargoIntegrity ?? 1), 3), rounds)
-            { Pairs = [.. d.Pairs], DerailCause = host.World.DerailCause, Director = held, AtTheCap = capped };
+            {
+                Pairs = [.. d.Pairs],
+                DerailCause = host.World.DerailCause,
+                Director = held,
+                AtTheCap = capped,
+                Grabs = Count(events.Where(e => e.To == SpinePhase.Grab)),
+                Engaged = Count(events.Where(e => e.To == SpinePhase.Telegraph).DistinctBy(e => e.EnemyId)),
+                Rescues = Count(events.Where(e => e.From == SpinePhase.Grab && e.To is SpinePhase.BreakOff or SpinePhase.Gone)),
+            };
         }
         if (o.Udp || o.Network is not null)
         {
@@ -294,10 +351,14 @@ public static class Harness
             clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Log,
             pacing)
         {
+            Voice = calls?.Voice?.Report(),
             Posts = clients.Where(c => c.Session.PlayerId is not null).ToDictionary(c => $"{c.Bot.Name}#{c.Session.PlayerId}",
                 c => Math.Round(posted.TryGetValue(c.Session.PlayerId!.Value, out var at) ? at : -1, 1)),
         };
     }
+
+    static SortedDictionary<string, int> Count(IEnumerable<EnemyEvent> events) =>
+        new(events.GroupBy(e => e.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal);
 
     /// <summary>A bot at its post (T102): in the cab at the controls or the fire, at the guard gun, or up on the train.</summary>
     static bool AtPost(IBot bot, in PlayerState s, World world) => bot switch

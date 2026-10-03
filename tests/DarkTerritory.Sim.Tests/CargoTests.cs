@@ -53,9 +53,11 @@ public class CargoTests
         Assert.All(stop.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Id != car.Id && v.Load == 0), v => Assert.Equal(CargoKind.None, v.Cargo));
 
         var client = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 4, 0)), stop.Train.Line, stop.Train.Dynamics.Distance);
+        var world = new World(client, Tuning.Combat);
+        // A client's night, as the host's: a switchyard's standing cars stood from the route (note 187).
+        world.EnableRun(Tuning.Run, stop.World.Run!.Route, 600, authority: false, F);
         client.Restore(stop.Train.Capture());
         Assert.Equal(car.Cargo, client.Vehicles[car.Id].Cargo);
-        var world = new World(client, Tuning.Combat);
         var controls = new TrainControls();
         WorldRecords.Apply(WorldRecords.Capture(stop.World, controls, []), world, ref controls, []);
         Assert.Equal(car.Cargo, world.Train.Vehicles[car.Id].Cargo);

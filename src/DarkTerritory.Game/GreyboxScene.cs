@@ -222,6 +222,9 @@ public sealed class GreyboxScene
                     if (site is not null && (site.Has(Sim.Run.ModuleKind.Spout) || site.Has(Sim.Run.ModuleKind.Ramp) || site.Has(Sim.Run.ModuleKind.Hose))
                         && (site.Track.Sample(site.Mid).Position - eye).Length < DrawDistance + 120)
                         SetPieces(mesh, site, frames, eye, Time);
+                    // The wreck yard's heaps (note 187): the last train's cars on their sides, groaning when they're going to go.
+                    if (site is { Heaps.Count: > 0 } && (site.Heaps[0].Centre - eye).Length < DrawDistance + 120)
+                        Wreckage(mesh, site, eye, Time);
                     // Its own gantry and the yard's (level-design P18: one over each craned loading face).
                     foreach (var crane in site?.Cranes ?? [])
                         if ((crane.HookAt - eye).Length < DrawDistance && Look?.Art.Crane(mesh, crane, frames, eye) != true)
@@ -230,7 +233,8 @@ public sealed class GreyboxScene
             // A yard's powerhouse with its power on (level-design D.2): the lamp over its door burns.
             if (Run is not null)
                 foreach (var site in Run.Sites)
-                    if (site is { Power: Sim.Stops.PowerState.Live, Powerhouse: { } door } && (door - eye).Length < DrawDistance)
+                    // (Not at a wreck yard: GDD §18 "unlit", note 187.)
+                    if (site is { Power: Sim.Stops.PowerState.Live, Powerhouse: { } door } && !site.Has(Sim.Run.ModuleKind.Wreck) && (door - eye).Length < DrawDistance)
                     {
                         var at = V(door + Double3.Up * 3.2, eye);
                         mesh.PointLights.Add(new PointLight(at, Palette.LampAmber * 1.2f, 10));
@@ -275,7 +279,9 @@ public sealed class GreyboxScene
         {
             if ((frame.Origin - eye).Length > LampRange)
                 continue;
-            bool dark = frame.Index >= frames.Count - LampsOut;
+            // A switchyard's cars standing as the night found them have nobody to light them (note 187).
+            bool dark = frame.Index >= frames.Count - LampsOut
+                || Vehicles is { } fleetLit && frame.Index < fleetLit.Count && fleetLit[frame.Index] is { YardCar: true, LampLit: false };
             // Its interior as an enclosed space: the night stays outside it (Room).
             if (Look is not null && frame.Shape.Interior is { } inside)
                 mesh.Rooms.Add(new Room(V(frame.ToWorld(inside.Centre), eye), ToF(frame.Right), ToF(frame.Up), ToF(frame.Back), ToF(inside.HalfSize)));
@@ -1603,6 +1609,46 @@ public sealed class GreyboxScene
                     double t = (time * 0.4 + i / 6.0) % 1;
                     var p = outlet + new Double3(Math.Sin(i * 1.9) * 2.5 * t, -1.5 + 2.5 * t, Math.Cos(i * 1.3) * 2.5 * t);
                     mesh.Billboard(V(p, eye), 1.5f + 3f * (float)t, (float)(i + time * 0.3), new Vector4(0.55f, 0.65f, 0.25f, 0.5f * (1 - (float)t)), -1, FxBlend.Alpha);
+                }
+        }
+    }
+
+    /// <summary>
+    /// The wreck yard's heaps (GDD §18 "pull cargo off derailed trains. Unstable, unlit"; note 187), drawn from the sim's state:
+    /// each a car on its side, its roof towards the line and its wheelsets in the air, tipped further each time it's shifted;
+    /// shuddering and shedding dust while it groans (the tell before it goes).
+    /// </summary>
+    void Wreckage(MeshBuilder mesh, Sim.Run.Site site, Double3 eye, double time)
+    {
+        var rust = new Vector3(0.2f, 0.11f, 0.07f);
+        foreach (var heap in site.Heaps)
+        {
+            if ((heap.Centre - eye).Length > DrawDistance)
+                continue;
+            // Along the track's heading where it lies, turned by its own yaw; rolled onto its side, a little more per shift.
+            double hint = site.Track.Length;
+            var sample = site.Track.Sample(Math.Clamp(site.Track.Nearest(heap.Centre, ref hint).Distance, 0, site.Track.Length));
+            double yaw = DMath.Atan2(-sample.Tangent.X, -sample.Tangent.Z) + heap.Yaw;
+            var along = new Vector3(-MathF.Sin((float)yaw), 0, -MathF.Cos((float)yaw));
+            var flat = Vector3.Cross(along, Vector3.UnitY);
+            float roll = MathF.PI / 2 - 0.25f + 0.18f * heap.Shifts;
+            float shake = heap.Groan > 0 ? 0.04f * MathF.Sin((float)time * 37) : 0;
+            var up = Vector3.Normalize(Vector3.UnitY * MathF.Cos(roll + shake) + flat * MathF.Sin(roll + shake));
+            var side = Vector3.Cross(up, along);
+            var centre = heap.Centre + Double3.Up * (1.45 - 0.1 * heap.Shifts);
+            // The body: 14 m long, 2.9 wide, 3.2 high (a cargo car's), its roof and floor; the wheelsets up off what was its floor.
+            mesh.Box(V(centre, eye), side, up, along, new Vector3(1.45f, 1.6f, 7f), rust);
+            mesh.Box(V(centre + ToD(up) * 1.65, eye), side, up, along, new Vector3(1.55f, 0.08f, 7.1f), Palette.IronGrey * 0.7f);
+            foreach (float z in new[] { -4.6f, 4.6f })
+                foreach (float x in new[] { -0.75f, 0.75f })
+                    mesh.Box(V(centre - ToD(up) * 2.05 + ToD(along) * z + ToD(side) * x, eye), side, up, along, new Vector3(0.08f, 0.45f, 0.45f), Palette.IronGrey);
+            // Groaning: dust shaken off it.
+            if (heap.Groan > 0)
+                for (int i = 0; i < 5; i++)
+                {
+                    double t = (time * 0.7 + i / 5.0) % 1;
+                    var p = heap.Centre + new Double3(Math.Sin(i * 2.1) * 3 * t, 0.3 + 2.2 * t, Math.Cos(i * 1.7) * 3 * t);
+                    mesh.Billboard(V(p, eye), 1.2f + 2.4f * (float)t, (float)(i + time), new Vector4(0.45f, 0.4f, 0.33f, 0.45f * (1 - (float)t)), -1, FxBlend.Alpha);
                 }
         }
     }

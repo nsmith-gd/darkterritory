@@ -144,7 +144,7 @@ public sealed partial class Run
 
     /// <summary>
     /// The harm the set pieces do a player this tick (from the world's crew step, so it lands this tick): last tick's keg
-    /// blasts, and a leak's gas, a point at a time.
+    /// blasts and wreck heaps shifting, and a leak's gas, a point at a time.
     /// </summary>
     public IEnumerable<DamageEvent> Harm(in PlayerState s, int playerId, TrainOnLine train)
     {
@@ -163,6 +163,10 @@ public sealed partial class Run
             if (amount > 0)
                 hurt.Add(new DamageEvent(playerId, amount, DeathCause.Keg, Lethal: true));
         }
+        // A wreck heap shifting (note 187): everyone by it.
+        foreach (var shift in _shifts)
+            if (Flat(at - shift.At) <= shift.Radius)
+                hurt.Add(new DamageEvent(playerId, t.Wreck.Damage, DeathCause.Wreckage, Lethal: true));
         bool gassed = _sites.Any(site => site is { Leaking: true } && Flat(at - site.HoseStand) <= t.Hose.LeakRadius);
         if (gassed)
         {
@@ -185,6 +189,7 @@ public sealed partial class Run
     {
         var train = world.Train;
         _blasts.Clear();
+        _shifts.Clear();
         foreach (var site in _sites)
         {
             if (site is null)
@@ -196,6 +201,9 @@ public sealed partial class Run
                 Drive(train, site, t.Ramp, cargo, dt);
             if (site.Has(ModuleKind.Hose))
                 Flow(train, site, t.Hose, cargo, dt);
+            // The wreck yard's heaps (WP15b, note 187).
+            if (site.Has(ModuleKind.Wreck))
+                Wreckage(world, site, t.Wreck, dt);
         }
         Kegs(world, t.Kegs);
     }

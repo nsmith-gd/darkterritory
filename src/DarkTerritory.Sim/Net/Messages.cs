@@ -24,7 +24,8 @@ public static class Protocol
     //     the chemicals' gas (death causes Exploded, Poisoned), the report's rescued children (GDD v1.4 §9, §19, B.9; note 182).
     // 16: a broken radio on the body record; a fouled gun on the vehicle record (GDD §23; note 183).
     // 17: the facility set pieces on the run record (the spout's bin, the herd, the hose) and death causes Keg and Leak (GDD §18; note 185).
-    public const int Version = 17;
+    // 18: a switchyard's standing cars (more rakes and vehicles from the start), the wreck yard's heaps, death cause Wreckage (GDD §18; note 187).
+    public const int Version = 18;
 }
 
 public enum MessageType : byte

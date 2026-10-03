@@ -30,8 +30,20 @@ public class StopCrewTests
             var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, seed);
             var facilities = route.Of(FeatureKind.Facility).ToList();
             int i = facilities.FindIndex(f => f.Facility is { } k && F.ModulesOf(k).Order().SequenceEqual(modules.Order()));
+            // Or one offering those and more, given just those (a route's own modules, T44): the switchyard's crates without its
+            // standing cars, the wreck yard's winch without its wreck (note 187).
+            bool own = i < 0;
+            if (own)
+                i = facilities.FindIndex(f => f.Facility is { } k && f.Modules is null && modules.All(F.ModulesOf(k).Contains));
             if (i >= 0 && route.Branches.FirstOrDefault(b => b.Kind == BranchKind.Spur && facilities[i].Contains(b.Toe)) is { } spur)
-                return (route, i, spur.Toe);
+            {
+                if (!own)
+                    return (route, i, spur.Toe);
+                var features = route.Features.ToList();
+                int at = features.IndexOf(facilities[i]);
+                features[at] = features[at] with { Modules = [.. modules.Select(m => m.ToString())] };
+                return (route with { Features = features }, i, spur.Toe);
+            }
         }
         throw new InvalidOperationException($"no frontier route has a stop with {string.Join(", ", modules)}");
     }
@@ -673,5 +685,35 @@ public class StopCrewTests
         Assert.DoesNotContain(r.Deaths, d => d.Contains(nameof(DeathCause.Keg)));
         Assert.All(r.Loads, c => Assert.True(c.Integrity > 1 - F.Kegs.CarDamage / 2, $"integrity {c.Integrity}"));
     }
-}
 
+    // GDD §18's switchyard and wreck yard (WP15b, ARCHITECTURE §8 note 187).
+
+    [Fact]
+    public void AtTheSwitchyardTheCrewFetchTheStandingCarsASidingAtATime()
+    {
+        var r = Work(FacilityKind.Switchyard);
+        LeftWellAndWhole(r);
+        // Its own track's crates loaded, then a pick-up for each siding with cars standing on it: every one of them brought
+        // away, ahead of the engine, still carrying what they stood with.
+        Assert.Contains(r.Stops, x => x.Kind == nameof(FacilityKind.Switchyard));
+        Assert.Contains(r.Stops, x => x.Kind.StartsWith(nameof(FacilityKind.Switchyard) + "PickUp"));
+        Assert.Equal(0, r.StillStanding);
+        Assert.NotEmpty(r.PickedUp);
+        Assert.Equal(r.PickedUp.Select(c => c.Id), r.Order.Take(r.PickedUp.Count));
+        Assert.All(r.PickedUp, c => Assert.True(c.Load > 0 && c.Cargo != CargoKind.None));
+        Assert.Contains("cutting", r.Doing);
+    }
+
+    [Fact]
+    public void AtTheWreckYardTheHandsCarryOutWhatTheHeadlampFindsAndKeepClearWhenItGroans()
+    {
+        var r = Work(FacilityKind.WreckYard);
+        LeftWellAndWhole(r);
+        Assert.Contains("picking one up", r.Doing);
+        Assert.Contains(r.Loads, c => c.Cargo == CargoKind.Salvage);
+        // The headlamp found some, not all: the rest wait for a lamp (bots carry none).
+        Assert.Contains(r.Heaps, h => h.Found);
+        Assert.Contains(r.Heaps, h => !h.Found && h.Unfound > 0);
+        Assert.DoesNotContain(r.Deaths, d => d.Contains(nameof(DeathCause.Wreckage)));
+    }
+}
