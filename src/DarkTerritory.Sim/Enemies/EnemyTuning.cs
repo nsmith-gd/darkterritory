@@ -281,6 +281,10 @@ public sealed record GauntTuning
     public double SpawnOut { get; init; } = 25;
     public double LongStopWeight { get; init; } = 2;
     public double LongStopSeconds { get; init; } = 120;
+    public double LeaveSpeed { get; init; } = 1.4;
+    public double ClearedAt { get; init; } = 30;
+    public double CarryHigh { get; init; } = 1.7;
+    public double CarryLow { get; init; } = 0.55;
 }
 
 /// <summary>Climbers (App. A.4, B.4). Field docs live in enemies.json.</summary>

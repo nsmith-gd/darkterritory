@@ -571,6 +571,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     bool showHud = settings.Hud && !args.Contains("--no-hud");
     // The card's side showing (C turns it over, and puts it away after the last); -1 put away.
     int cardPage = args.Contains("--card") ? 0 : -1, cardPages = 1;
+    double stokerSince = -1;
     bool showPlan = args.Contains("--overlay");
     // --ride (linegen plan §20.2): the train drives itself by the line's authority, the camera outside, for looking a
     // generated line over in minutes.
@@ -906,7 +907,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // The film draws its own wreck; the live one's dust and sparks are somewhere else by then.
         scene.Wreck = replay is { Off: false } || filmShot is not null ? null : session.Train.Wreck;
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
-        scene.StokerPerched = session.World.StokerWaiting;
+        // How long the Stoker's been waiting on the stack, as seen here (presentation only: it's put in by the host's own clock).
+        stokerSince = session.World.StokerWaiting ? stokerSince < 0 ? scene.Time : stokerSince : -1;
+        scene.StokerLowFor = stokerSince < 0 ? -1 : scene.Time - stokerSince;
+        scene.StokerDownAt = session.World.Enemies?.Stoker.LowPressureSeconds ?? 45;
         scene.Tick = session.HostTick;
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
         scene.Tender = (float)(session.Train.BoilerTuning is { TenderCapacity: > 0 } tt ? Math.Clamp(session.Train.Boiler.Tender / tt.TenderCapacity, 0, 1) : 0.72);
@@ -962,6 +966,14 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (session.World.Run?.Over == true)
                 vrOverlay.TextCentred(240, 248, campaign is not null ? "A: BACK TO THE FORTRESS" : "A: BACK", new Vector4(1, 0.7f, 0.3f, 1));
             onPanel = new VrPanelContent(vrHud!, vrOverlay, 480, 270);
+        }
+        // Your own gloves on your controllers, the crew's sleeves and gloves (X3, roadmap M4), the tool in hand in the right.
+        if (vr is not null)
+        {
+            var heldTool = Kit.Held(me);
+            int myId = session.PlayerId;
+            bool alive = me.Alive && session.Watching < 0;
+            vr.Hands = look is null || !alive ? null : (into, body, controllers) => look.Art.HeadsetHands(into, (float)body.Yaw, controllers, myId, heldTool);
         }
         if (vr is not null && vr.Frame(mesh, locomotion!.Body(camera, Eyes.Heading(session.Viewpoint, frames)), lighting, lighting.FogColor, locomotion, onPanel) == XrFrameResult.Exiting)
             break;

@@ -52,6 +52,12 @@ public sealed class Body
     /// A heavy crate's other carrier, or −1 (T43). With one on it, it's held but not lifted; with both, it rides between them.
     /// </summary>
     public int Second { get; set; } = -1;
+    /// <summary>
+    /// The thing carrying it off (an enemy's id), or −1: the Gaunt leaving with what it took (GDD App. A.6, "it carries the
+    /// body out at walking pace, in full view, and the crew can still chase it down"). Nobody picks it up out of its hands;
+    /// kill it and it's dropped.
+    /// </summary>
+    public int TakenBy { get; set; } = -1;
     /// <summary>Whether a player has hold of it (either end of a heavy crate).</summary>
     public bool HeldBy(int playerId) => Carrier == playerId || Second == playerId;
     /// <summary>Off the ground in someone's hands: a heavy crate only with both ends taken.</summary>
@@ -453,7 +459,7 @@ public sealed class Bodies
     {
         // A heavy crate with one on it is still free at its other end (T43).
         // What's in a locker is the locker's: taken from it with a tap there, not reached for (note 173).
-        var free = _bodies.Where(b => !b.Stowed && (b.Carrier < 0 || b.Kind == BodyKind.Heavy && b.Second < 0 && b.Carrier != playerId)
+        var free = _bodies.Where(b => !b.Stowed && b.TakenBy < 0 && (b.Carrier < 0 || b.Kind == BodyKind.Heavy && b.Second < 0 && b.Carrier != playerId)
             && !(wearingRadio && b.Kind == BodyKind.Radio));
         if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)
             return free.Select(b => (b, d: Surface(b, train, h))).Where(x => x.d <= hand.Grab).OrderBy(x => x.d).FirstOrDefault().b;
@@ -472,6 +478,19 @@ public sealed class Bodies
         return best;
     }
 
+    /// <summary>
+    /// A rescued child carried in the arms (GDD App. C.4), clinging: its middle this high over the carrier's feet and this
+    /// far out in front, against their chest (soot_child's clutch, crew_clips' cradle hold it there).
+    /// </summary>
+    public const double ChildHeight = 0.95, ChildForward = 0.3;
+
+    static Double3 ChildAt(in PlayerState s, TrainOnLine train)
+    {
+        var forward = new Double3(-DMath.Sin(s.Yaw), 0, -DMath.Cos(s.Yaw));
+        var local = s.Position + Double3.Up * ChildHeight + forward * ChildForward;
+        return s.Parent == PlayerState.World ? local : train.Frames[s.Parent].ToWorld(local);
+    }
+
     Double3 HandsAt(in PlayerState s, TrainOnLine train)
     {
         var forward = new Double3(-DMath.Sin(s.Yaw), 0, -DMath.Cos(s.Yaw));
@@ -483,8 +502,8 @@ public sealed class Bodies
     {
         b.Carrier = b.Second = -1;
         var p = b.Pbd.Particles;
-        int grip = b.Kind == BodyKind.Ragdoll ? 1 : 0;
-        p[grip].InverseMass = 1;
+        foreach (int held in Grips(b))
+            p[held].InverseMass = 1;
         // Thrown along the view, including pitch, on top of the thrower's own motion.
         var look = new Double3(-DMath.Sin(s.Yaw) * DMath.Cos(s.Pitch), DMath.Sin(s.Pitch), -DMath.Cos(s.Yaw) * DMath.Cos(s.Pitch));
         var throwVelocity = s.Velocity + look * speed + Double3.Up * (speed > 0 ? 1.5 : 0);
@@ -593,11 +612,30 @@ public sealed class Bodies
         Carry(b, lead, train, (a + c) * 0.5);
     }
 
-    /// <summary>Held at the carrier's hands: a crate rides there; a body hangs from its chest and drags. A radio's on the belt.</summary>
+    /// <summary>
+    /// A body carried over the shoulder (GDD v1.4 App. C.4: "the child is carried in the arms; a body over the shoulder"):
+    /// a fireman's carry, in the carrier's frame (x right, y up, z behind, from the feet). The hips over the left shoulder,
+    /// the knees held to the chest by the left arm (crew_clips' shoulder and climb_carry hook it there), the chest down the
+    /// back; head and arms hang free below it. Each pair a bone's length apart (<see cref="Skeleton"/>), so nothing strains.
+    /// </summary>
+    static readonly (int Joint, Double3 At)[] Shoulder =
+    [
+        (2, new(-0.14, 1.52, 0.02)), (1, new(-0.12, 1.24, 0.30)), (7, new(-0.2, 1.2, -0.3)), (9, new(-0.08, 1.2, -0.3)),
+    ];
+
+    /// <summary>The particles a carried body is held by: a ragdoll's in the fireman's carry, anything else's first.</summary>
+    static IEnumerable<int> Grips(Body b) => b.Kind == BodyKind.Ragdoll ? Shoulder.Select(j => j.Joint) : [0];
+
+    /// <summary>Held at the carrier's hands: a crate rides there; a body over the shoulder. A radio's on the belt.</summary>
     /// <param name="at">Where it's held in the world, when that isn't the carrier's own hands (a heavy crate between two).</param>
     void Carry(Body b, in PlayerState s, TrainOnLine train, Double3? at = null)
     {
-        var hands = at ?? (b.Kind == BodyKind.Radio ? PlayerMotor.WorldPosition(s, train) + Double3.Up * 1.0 : HandsAt(s, train));
+        var hands = at ?? (b.Kind switch
+        {
+            BodyKind.Radio => PlayerMotor.WorldPosition(s, train) + Double3.Up * 1.0,
+            BodyKind.Child => ChildAt(s, train),
+            _ => HandsAt(s, train),
+        });
         if (b.Parent != s.Parent)
         {
             if (b.Parent == PlayerState.World)
@@ -611,7 +649,12 @@ public sealed class Bodies
             }
         }
         var local = s.Parent == PlayerState.World ? hands : train.Frames[s.Parent].ToLocal(hands);
-        int grip = b.Kind == BodyKind.Ragdoll ? 1 : 0;
+        if (b.Kind == BodyKind.Ragdoll && at is null)
+        {
+            ShoulderCarry(b, s, train);
+            return;
+        }
+        const int grip = 0;
         // Indoors, what's in your hands is in the room with you (note 173): faced up to a wall, your hands' reach is past it
         // (and past its middle), and what you set down there would be pushed out of its far side. Out through a doorway
         // that's open, it goes with you.
@@ -627,6 +670,98 @@ public sealed class Bodies
         p.Position = local;
         p.Previous = local;
         b.Yaw = s.Yaw;
+        b.Pbd.Wake();
+    }
+
+    /// <summary>
+    /// The fireman's carry (<see cref="Shoulder"/>): each held joint set where it rides on the carrier, in the carrier's
+    /// frame (the body's already in it). Indoors, kept in the room as anything in your hands is (note 173), all of it
+    /// moved by what keeps the hips in.
+    /// </summary>
+    void ShoulderCarry(Body b, in PlayerState s, TrainOnLine train)
+    {
+        var shift = Double3.Zero;
+        if (s.Parent != PlayerState.World && s.Parent < train.Frames.Count)
+        {
+            var shape = train.Frames[s.Parent].Shape;
+            var hips = Riding(s.Position, s.Yaw, Shoulder[0].At, 1);
+            if (Rooms.Held(shape, train.Vehicles[s.Parent], s.Position + Double3.Up * Hands.CarryHeight, hips, b.Pbd.Particles[2].Radius) is { } inside)
+                shift = inside - hips;
+        }
+        Pin(b, s.Position + shift, s.Yaw, 1);
+    }
+
+    /// <summary>Where a held joint rides on a carrier whose feet are at <paramref name="feet"/> facing <paramref name="yaw"/>,
+    /// <paramref name="scale"/> times a crewmate's size.</summary>
+    static Double3 Riding(Double3 feet, double yaw, Double3 at, double scale)
+    {
+        var forward = new Double3(-DMath.Sin(yaw), 0, -DMath.Cos(yaw));
+        var right = new Double3(DMath.Cos(yaw), 0, -DMath.Sin(yaw));
+        return feet + (right * at.X + Double3.Up * at.Y - forward * at.Z) * scale;
+    }
+
+    /// <summary>A carried thing set where it rides: a ragdoll in the fireman's carry, anything else at the hands.</summary>
+    void Pin(Body b, Double3 feet, double yaw, double scale)
+    {
+        if (b.Kind == BodyKind.Ragdoll)
+            foreach (var (joint, at) in Shoulder)
+            {
+                ref var p = ref b.Pbd.Particles[joint];
+                p.InverseMass = 0;
+                p.Position = p.Previous = Riding(feet, yaw, at, scale);
+            }
+        else
+        {
+            ref var p = ref b.Pbd.Particles[0];
+            p.InverseMass = 0;
+            p.Position = p.Previous = Riding(feet, yaw, new Double3(0, Hands.CarryHeight, -Hands.CarryForward), scale);
+        }
+        b.Yaw = yaw;
+        b.Pbd.Wake();
+    }
+
+    /// <summary>
+    /// Carried off by a thing (the Gaunt leaving with what it took, App. A.6): clutched by <paramref name="hold"/> (in
+    /// <paramref name="parent"/>'s frame, a car or the world), facing <paramref name="yaw"/>. A body by the hips there,
+    /// its chest draped forward over what holds it and the rest hanging; anything else by its middle.
+    /// </summary>
+    public void TakeAlong(Body b, TrainOnLine train, int taker, int parent, Double3 hold, double yaw)
+    {
+        if (b.Parent != parent)
+        {
+            if (b.Parent != PlayerState.World)
+                ToWorld(b, train, b.Parent);
+            if (parent != PlayerState.World)
+                ToCar(b, train, parent);
+        }
+        b.Carrier = b.Second = -1;
+        b.Locker = -1;
+        b.TakenBy = taker;
+        b.Airborne = 0;
+        var forward = new Double3(-DMath.Sin(yaw), 0, -DMath.Cos(yaw));
+        void Hold(int joint, Double3 at)
+        {
+            ref var p = ref b.Pbd.Particles[joint];
+            p.InverseMass = 0;
+            p.Position = p.Previous = at;
+        }
+        if (b.Kind == BodyKind.Ragdoll)
+        {
+            Hold(2, hold);
+            Hold(1, hold + forward * 0.3 - Double3.Up * 0.25);
+        }
+        else
+            Hold(0, hold);
+        b.Yaw = yaw;
+        b.Pbd.Wake();
+    }
+
+    /// <summary>Dropped by whatever was carrying it off (it's dead): loose, to fall where it is.</summary>
+    public void LetGo(Body b)
+    {
+        b.TakenBy = -1;
+        foreach (int held in Grips(b))
+            b.Pbd.Particles[held].InverseMass = 1;
         b.Pbd.Wake();
     }
 

@@ -320,7 +320,30 @@ perch.key(80, perch_pose(-34, 12), "CONSTANT")
 perch.key(84, perch_pose(10, 0), "CONSTANT")
 perch.close(120)
 
+# Descend (3 s, once; App. A.5 "down the stack"): off the perch, up onto the rim, and down into the chimney feet first, the
+# body sinking into it, the hands on the rim last, then gone (the stack's own black throat hides what's gone in; SceneArt
+# plays it over the last seconds before the sim puts it in the firebox).
+STOOD = mirror({"pelvis": (-6, 0, 0), "spine_01": (-8, 0, 0), "spine_02": (-6, 0, 0), "neck": (16, 0, 0), "head": (24, 0, 0),
+                "thigh_r": (10, 0, 6), "calf_r": (-14, 0, 0), "foot_r": (8, 0, 0)})
+
+
+def lowered(depth, hands=True, head=24.0):
+    p = at_door(over(STOOD, head=(head, 0, 0)), Vector((0, 0.02, 1.2 - depth)))
+    for side, sx in (("r", 1), ("l", -1)):
+        # On the rim; let go, straight up over the head, going down into the throat last.
+        p = arm_to(p, side, Vector((sx * 0.2, 0.06, 0.04)) if hands else Vector((sx * 0.08, 0.02, 1.95 - depth)), 0.9 if hands else 0.3)
+    return p
+
+
+descend = Clip("descend", loop=False)
+descend.key(0, perch_pose(0, 0), "BEZIER")
+descend.key(14, lowered(0.25, head=40), "BEZIER")
+descend.key(40, lowered(0.9, head=30), "BEZIER")
+descend.key(66, lowered(1.45, head=10), "BEZIER")
+descend.key(78, lowered(1.9, hands=False, head=-10), "LINEAR")
+descend.key(90, lowered(2.6, hands=False, head=-10), "LINEAR")
+
 kit.build()
-rig.bake(sk, [peer, reach, hit, perch])
+rig.bake(sk, [peer, reach, hit, perch, descend])
 print("[dt] stoker", {p.name: p.tris() for p in kit.parts}, "total", kit.tris(), "bones", len(sk.bones))
 rig.export(rig.args()[0] if rig.args() else "stoker.glb", kit)
