@@ -17,6 +17,7 @@ Deterministic: no randomness but fixed hashes, so a rebuild with the same Blende
 from __future__ import annotations
 
 import json
+import re
 import math
 import os
 import sys
@@ -712,7 +713,10 @@ def rig_and_export(name, objs, sockets=None):
 def _merge_index(name, layers):
     path = os.path.join(os.path.dirname(TEXTURES), "index.models.json")
     entries = json.load(open(path)) if os.path.exists(path) else []
-    entries = [e for e in entries if not e["name"].startswith(name + "_")] + layers
+    # Only this model's own layers (name_0, name_1...): another's that starts with its name (whistler_nest_0 beside
+    # whistler_0) stays.
+    own = re.compile(re.escape(name) + r"_\d+$")
+    entries = [e for e in entries if not own.match(e["name"])] + layers
     entries.sort(key=lambda e: e["name"])
     with open(path, "w") as f:
         json.dump(entries, f, indent=2)
