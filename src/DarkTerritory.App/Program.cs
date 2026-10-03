@@ -892,6 +892,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             Views.CinematicFog(ref lighting, Views.StrandedDistance(session.Train, session.World.WreckTuning.Stranded, session.OutroSeconds));
         scene.FireGlow = session.Train.BoilerTuning is { } bt ? GreyboxScene.FireLook(session.Train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
         scene.WrenchRacked = !session.Train.Boiler.WrenchOut;
+        scene.ShovelRacked = !session.Train.Boiler.ShovelOut;
         scene.CordPulled = DarkTerritory.Game.Art.CrewActs.CrewWhistling(session.World);
         scene.Cut = DarkTerritory.Game.Art.SceneArt.Cuts(session.Train);
         // Replaying the run-in, the train's still on the rails: no wreck yet, no sparks.

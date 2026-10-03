@@ -1026,6 +1026,9 @@ public static class Hud
             // A ruptured boiler (T109): mended here with the repair kit in hand, and only so (the kit's prompt is above).
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train) && train.Boiler.Ruptured:
                 return $"BOILER RUPTURED: {RepairKitWhere(world, s.PlayerId)}";
+            // Note 191: coal goes on with the shovel, and there's the one.
+            case InteractableKind.Firebox when PlayerMotor.InCab(p, train) && !CrewActions.HasShovel(p, train):
+                return Kit.Has(p.Kit, Tool.Shovel) || train.Boiler.ShovelOut ? "THE SHOVEL IS OUT: WHOEVER HAS IT FIRES" : "HANDS FULL: NO ROOM FOR THE SHOVEL";
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train):
                 return p.Hand != default && !p.Has(PlayerFlags.Shovelful) ? "SHOVEL COAL: FILL IT AT THE TENDER FIRST" : "[E] HOLD: SHOVEL COAL (FASTER)";
             // Only a reaching hand finds the coal face (T29).
@@ -1036,7 +1039,7 @@ public static class Hud
                 return "[E] HOLD: VENT STEAM (SLOWER)";
             // T109: the engineering kit's rack.
             case InteractableKind.ToolRack when PlayerMotor.InCab(p, train):
-                return Kit.Held(p) == Tool.Wrench ? "[E] PUT THE WRENCH BACK" : train.Boiler.WrenchOut ? "THE WRENCH IS OUT"
+                return Kit.Held(p) == Tool.Wrench ? "[E] PUT THE WRENCH BACK" : Kit.Held(p) == Tool.Shovel ? "[E] HANG THE SHOVEL BACK" : train.Boiler.WrenchOut ? "THE WRENCH IS OUT"
                     : "[E] TAKE THE WRENCH";
             case InteractableKind.Handbrake when p.Surface == Surface.Roof:
                 return "[E] HOLD: HANDBRAKE";

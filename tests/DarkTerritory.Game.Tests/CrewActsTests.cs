@@ -39,6 +39,25 @@ public class CrewActsTests
     }
 
     [Fact]
+    public void AFriendsSwingIsDrawnFromTheHostsRecordOfIt()
+    {
+        // Note 191 (n145's "not yet"): a client mirrors the host's swings; the swinger's figure plays the blow from the host's
+        // start of it, and stands again once it's done (melee swingSeconds).
+        var w = World();
+        var s = PlayerMotor.SpawnOnRoof(w.Train, 2, 0, P) with { Kit = Sim.Player.Kit.Of([Tool.Shovel]) };
+        w.MirrorHits([], [], [new MeleeSwing(7, 100, 3, Tool.Shovel)]);
+        var swinging = CrewActs.Crewmate(3, s, w, w.Train.Frames, hostTick: 106);
+        Assert.Equal(CrewPose.Swing, swinging.Act);
+        Assert.Equal(6 * SimConstants.TickSeconds, swinging.Swing, 1e-9);
+        Assert.Equal(Tool.Shovel, swinging.Holding);
+        // Someone else's swing isn't theirs; and past the swing, they're stood again.
+        Assert.NotEqual(CrewPose.Swing, CrewActs.Crewmate(4, s, w, w.Train.Frames, hostTick: 106).Act);
+        Assert.NotEqual(CrewPose.Swing, CrewActs.Crewmate(3, s, w, w.Train.Frames, hostTick: 100 + SimConstants.TickRate).Act);
+        // Held, it's the struggle that's drawn.
+        Assert.Equal(CrewPose.Held, CrewActs.Crewmate(3, s with { Flags = PlayerFlags.Held }, w, w.Train.Frames, hostTick: 106).Act);
+    }
+
+    [Fact]
     public void TheActIsReadOffTheirState()
     {
         var w = World();

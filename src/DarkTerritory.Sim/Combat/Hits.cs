@@ -19,6 +19,17 @@ public enum HitSource : byte { Melee = 1, Cannon = 2 }
 /// <param name="Killed">That blow finished it (or sent it off for good).</param>
 public readonly record struct HitConfirm(int Id, uint Tick, int EnemyId, EnemyKind Kind, int By, HitSource Source, Double3 At, Double3 From, bool Killed);
 
+/// <summary>
+/// A tool swung (App. C.2; note 191), landed or not: host-authored when the host takes the swing, and replicated while it's
+/// recent so every client plays the blow on the swinger's figure (n145's "not yet": seeing a friend fight). Presentation
+/// only: nothing in the sim reads it back, and a client's own swing is drawn from its own input.
+/// </summary>
+/// <param name="Id">Unique for the night (the record's key; shared with hits and impacts).</param>
+/// <param name="Tick">The host tick the swing began on.</param>
+/// <param name="By">Who swung.</param>
+/// <param name="Tool">What was in their hand.</param>
+public readonly record struct MeleeSwing(int Id, uint Tick, int By, Player.Tool Tool);
+
 /// <summary>What a cannonball came down on (T121 playtest: "every cannonball should have an impact explosion").</summary>
 public enum ImpactSurface : byte { Ground = 1, Water = 2, Structure = 3, Train = 4, Creature = 5 }
 

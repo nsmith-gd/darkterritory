@@ -17,8 +17,11 @@ namespace DarkTerritory.Game;
 /// a driver works, the whistle cord. Null to leave the hands to the clip (or a headset's).</param>
 /// <param name="Lamp">They carry the hand lamp: it hangs from their fist and swings with it, its light with it (GDD §31).</param>
 /// <param name="Survivor">Freed from a Holdout, whose figure they play as from then on (App. D.8).</param>
+/// <param name="Swing">How far into a swing of their tool they are (s; the host's World.Swings, note 191), when
+/// <paramref name="Act"/> is <see cref="CrewPose.Swing"/>.</param>
 public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool Alive, Double3 Hand = default, Double3 Other = default, int? Looks = null,
-    CrewPose? Act = null, Tool Holding = Tool.None, (Double3 A, Double3 B)? Reach = null, bool Lamp = false, Survivor Survivor = Survivor.None)
+    CrewPose? Act = null, Tool Holding = Tool.None, (Double3 A, Double3 B)? Reach = null, bool Lamp = false, Survivor Survivor = Survivor.None,
+    double Swing = 0)
 {
     public int Variant => Looks ?? Id;
 }

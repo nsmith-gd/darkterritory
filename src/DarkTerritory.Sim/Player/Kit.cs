@@ -51,6 +51,20 @@ public static class Kit
         return false;
     }
 
+    /// <summary>
+    /// The number key that puts a tool in empty hands (the first slot with one), or 0: there's one in hand already, or none
+    /// to take. What a bot presses before a melee tool's work (D.7's breach; note 191).
+    /// </summary>
+    public static byte ToolToHand(in PlayerState s)
+    {
+        if (Held(s) != Tool.None)
+            return 0;
+        for (int i = 0; i < Slots; i++)
+            if (At(s.Kit, i) != Tool.None)
+                return (byte)(i + 1);
+        return 0;
+    }
+
     /// <summary>What's in hand.</summary>
     public static Tool Held(in PlayerState s) => At(s.Kit, s.HeldSlot);
 

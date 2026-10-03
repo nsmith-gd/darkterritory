@@ -403,6 +403,87 @@ public class HoldoutTests
         Assert.True(n.World.Choir.Loudness > loud);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void EmptyHandsSmashNoLockAndPryNoBarricade(bool lockUp)
+    {
+        // D.7: smash and pry are "any melee tool: shovel, wrench, crowbar" (note 191). A slot picked with nothing in it is
+        // empty hands: Use at the door does nothing.
+        var n = new Night(lockUp ? ALock : ABarricade, engineFrom: -300);
+        int living = n.Add(alive: true);
+        n.Add(alive: false);
+        n.Step(0.2);
+        var h = n.Here.Single();
+        n.Stand(living, h.Door);
+        n[living] = n[living] with { HeldSlot = 3 };
+        Assert.Equal(Tool.None, Kit.Held(n[living]));
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(1);
+        Assert.Equal(HoldoutState.Occupied, h.State);
+        Assert.Equal(0, h.Progress);
+    }
+
+    [Theory]
+    [InlineData(Tool.Shovel)]
+    [InlineData(Tool.Wrench)]
+    [InlineData(Tool.Crowbar)]
+    public void AnyMeleeToolBreaches(Tool tool)
+    {
+        var n = new Night(ALock, engineFrom: -300);
+        int living = n.Add(alive: true);
+        n.Add(alive: false);
+        n.Step(0.2);
+        var h = n.Here.Single();
+        n.Stand(living, h.Door);
+        n[living] = n[living] with { Kit = Kit.Of([tool]), HeldSlot = 0 };
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(H.Smash.Seconds + 0.2);
+        Assert.Equal(HoldoutState.Freed, h.State);
+    }
+
+    [Fact]
+    public void TheKitOpensALockInEmptyHandsButIsNoToolForABarricade()
+    {
+        // The kit's silent breach is the kit's (D.7): no melee tool needed for it. At a barricade it's a pry, and that is.
+        var n = new Night(ALock, engineFrom: -300);
+        var (living, h, _) = KitAtTheDoor(n);
+        n[living] = n[living] with { HeldSlot = 3 };
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(H.Open.Seconds + 0.2);
+        Assert.Equal(HoldoutState.Freed, h.State);
+        var b = new Night(ABarricade, engineFrom: -300);
+        var (prier, barricade, _) = KitAtTheDoor(b);
+        b[prier] = b[prier] with { HeldSlot = 3 };
+        b.Hold(prier, PlayerButtons.Use);
+        b.Step(1);
+        Assert.Equal(HoldoutState.Occupied, barricade.State);
+    }
+
+    [Fact]
+    public void ABotAtTheDoorWithEmptyHandsTakesItsToolUpAndBreaches()
+    {
+        var n = new Night(ALock, engineFrom: -300);
+        int living = n.Add(alive: true);
+        n.Add(alive: false);
+        n.Step(0.2);
+        var h = n.Here.Single();
+        n.Stand(living, h.Door);
+        n[living] = n[living] with { HeldSlot = 3 };
+        var hand = new Bots.StopHand(Bots.StopJob.None, new Bots.CrewCalls(), living);
+        for (int t = 0; t < (H.Smash.Seconds + 1) * SimConstants.TickRate && h.State != HoldoutState.Freed; t++)
+        {
+            var intent = hand.Breach(n[living], n.World, h) ?? default;
+            n.Intents = [.. Enumerable.Range(0, n.Crew.Count).Select(i => i == living ? intent : default)];
+            n.Step(1.0 / SimConstants.TickRate);
+            var s = n[living];
+            Kit.Select(ref s, intent);
+            n[living] = s;
+        }
+        Assert.Equal(Tool.Crowbar, Kit.Held(n[living]));
+        Assert.Equal(HoldoutState.Freed, h.State);
+    }
+
     [Fact]
     public void PutDownPartWayTheLockIsSmashedFromTheStart()
     {

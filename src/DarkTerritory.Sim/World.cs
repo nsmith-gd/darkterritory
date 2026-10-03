@@ -76,6 +76,8 @@ public sealed class World
     /// and replicated, so every client sees the flinch, hears the thud, and its striker gets the marker.
     /// </summary>
     public List<HitConfirm> Hits { get; } = new();
+    /// <summary>Tools swung lately (App. C.2; note 191), landed or not: the host's, mirrored on clients, for the swinger's figure.</summary>
+    public List<MeleeSwing> Swings { get; } = new();
     /// <summary>Where cannonballs came down lately (T121), newest last: the host's, kept as long as the smoke and replicated.</summary>
     public List<CannonImpact> Impacts { get; } = new();
     int _nextFx = 1;
@@ -662,7 +664,8 @@ public sealed class World
         // The repair kit in hand at a Holdout's door is opening it (GDD App. D.7), and at a ruptured boiler's firebox mending
         // it (T109): not being put down.
         bool kit = Authority && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.RepairKit };
-        bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, kit) == true;
+        // Smash and pry are a melee tool's (D.7; note 191): with empty hands only the kit opens a lock.
+        bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, kit, Player.Kit.Held(s) != Player.Tool.None) == true;
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever.
         bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand, keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)));
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
@@ -813,6 +816,10 @@ public sealed class World
         if (_swingReady.TryGetValue(playerId, out uint ready) && Tick < ready)
             return;
         _swingReady[playerId] = Tick + (uint)Math.Round(t.SwingSeconds * SimConstants.TickRate);
+        // Everyone sees it swung, landed or not (note 191).
+        var tool = Player.Kit.Held(s);
+        Swings.Add(new MeleeSwing(_nextFx, Tick, playerId, tool));
+        _nextFx = _nextFx % 0xFFFFFF + 1;
         var eye = PlayerMotor.WorldPosition(s, Train) + Ballast.Double3.Up * 1.3;
         double yaw = PlayerMotor.WorldYaw(s, Train);
         var facing = new Ballast.Double3(-DMath.Sin(yaw), 0, -DMath.Cos(yaw));
@@ -836,11 +843,12 @@ public sealed class World
                 best = e;
             }
         }
-        // With a tool a blow; empty-handed (a slot picked with nothing in it) a fraction of one (T108).
+        // By the tool in hand (App. C.2; note 191): the shovel the best club, the crowbar a blow, the wrench less, and
+        // empty-handed (a slot picked with nothing in it) a fraction of one (T108).
         if (best is null)
             return;
         var at = best.WorldPosition(Train) + Ballast.Double3.Up * 0.8;
-        best.Struck(ctx, playerId, t.Blow(Player.Kit.Held(s)));
+        best.Struck(ctx, playerId, t.Blow(tool));
         // It landed: everyone's told (T121), at the point of it, the way the blow went.
         Confirm(best, playerId, HitSource.Melee, at, (at - eye).Length > 1e-6 ? (at - eye).Normalized : facing);
     }
@@ -870,6 +878,7 @@ public sealed class World
         {
             var keep = Combat?.Hits ?? new HitTuning();
             Hits.RemoveAll(h => Tick - h.Tick > keep.KeepSeconds * SimConstants.TickRate);
+            Swings.RemoveAll(w => Tick - w.Tick > keep.KeepSeconds * SimConstants.TickRate);
             Impacts.RemoveAll(i => Tick - i.Tick > keep.ImpactKeepSeconds * SimConstants.TickRate);
         }
         Shots.Clear();
@@ -913,6 +922,11 @@ public sealed class World
         if (Authority && Combat?.Fumes is { } fumes)
             foreach (var shot in _fumes)
                 Fumes(shot, fumes);
+        // The shovel nobody has is back on its rack (note 191): its carrier gone from the session, or its body taken off
+        // the line with the car it lay in. Out with a crewmate (living or dead) or on a body, it's out.
+        if (Authority && Train.Boiler.ShovelOut && _actors.Count > 0 && !_actors.Any(a => Player.Kit.Has(a.State.Kit, Player.Tool.Shovel))
+            && !Bodies.All.Any(b => b.HasTool(Player.Tool.Shovel)))
+            Train.Boiler.ShovelOut = false;
         LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
         // A generated line's lethal checks: a curve too fast, a weak bridge overloaded, a washout (linegen plan §7.3).
         if (Authority && TrackPlan is { } plan)
@@ -1233,8 +1247,10 @@ public sealed class World
     }
 
     /// <summary>Client side: the host's recent hits and impacts (T121), as the snapshot has them.</summary>
-    public void MirrorHits(IEnumerable<HitConfirm> hits, IEnumerable<CannonImpact> impacts)
+    public void MirrorHits(IEnumerable<HitConfirm> hits, IEnumerable<CannonImpact> impacts, IEnumerable<MeleeSwing>? swings = null)
     {
+        Swings.Clear();
+        Swings.AddRange(swings ?? []);
         Hits.Clear();
         Hits.AddRange(hits);
         Impacts.Clear();

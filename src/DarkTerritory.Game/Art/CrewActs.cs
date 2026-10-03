@@ -22,14 +22,36 @@ public static class CrewActs
     /// The crewmate <paramref name="id"/> as they're drawn this frame: where they are and what they're doing. At a gun they're
     /// sat on its seat, facing its way (note 137's cannon: the seat 0.75 m behind the pivot, on the roof under it).
     /// </summary>
-    public static Crewmate Crewmate(byte id, in PlayerState s, World world, IReadOnlyList<CarFrame> frames, IReadOnlyList<PlayerState>? others = null)
+    /// <param name="hostTick">The host's tick as this machine last heard it (a client's world runs ahead of it): what the
+    /// swings it's drawn from are stamped with. Null: the world's own (the host, a still).</param>
+    public static Crewmate Crewmate(byte id, in PlayerState s, World world, IReadOnlyList<CarFrame> frames, IReadOnlyList<PlayerState>? others = null,
+        double? hostTick = null)
     {
-        var act = Of(s, id, world, others);
+        double swing = Swinging(id, world, hostTick ?? world.Tick);
+        var act = s.Alive && !s.Has(PlayerFlags.Held) && swing >= 0 ? CrewPose.Swing : Of(s, id, world, others);
         var placed = act == CrewPose.Gunner && Guns.Mount(world.Train, s.Parent) is { } gun ? Seated(s, gun) : s;
         var (feet, yaw) = Eyes.World(placed, frames);
         return new Crewmate(id, feet, yaw, s.Alive, s.Hand, s.OtherHand, Act: act, Holding: Sim.Player.Kit.Held(s),
             Reach: act is CrewPose.Drive or CrewPose.Whistle ? AtTheControls(world, frames, feet, yaw, act == CrewPose.Whistle) : null,
-            Lamp: world.Bodies.CarriedBy(id) is { Kind: BodyKind.Lamp }, Survivor: SurvivorOf(id, world));
+            Lamp: world.Bodies.CarriedBy(id) is { Kind: BodyKind.Lamp }, Survivor: SurvivorOf(id, world), Swing: Math.Max(0, swing));
+    }
+
+    /// <summary>
+    /// How far into a swing of their tool player <paramref name="id"/> is at <paramref name="now"/> (s, from the host's
+    /// replicated <see cref="World.Swings"/>, App. C.2; note 191), or −1 when they aren't swinging: the latest one's, for as
+    /// long as a swing takes (enemies.json melee <c>swingSeconds</c>, the clip's length).
+    /// </summary>
+    public static double Swinging(int id, World world, double now)
+    {
+        double length = world.Enemies?.Melee.SwingSeconds ?? 0.8;
+        double best = -1;
+        foreach (var w in world.Swings)
+        {
+            double into = (now - w.Tick) * SimConstants.TickSeconds;
+            if (w.By == id && into >= 0 && into < length && (best < 0 || into < best))
+                best = into;
+        }
+        return best;
     }
 
     /// <summary>

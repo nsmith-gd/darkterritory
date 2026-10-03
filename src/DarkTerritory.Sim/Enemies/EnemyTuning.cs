@@ -35,12 +35,24 @@ public sealed record MeleeTuning
     public double Reach { get; init; } = 2.2;
     public double ConeDegrees { get; init; } = 70;
     public double SwingSeconds { get; init; } = 0.8;
-    public double Damage { get; init; } = 1;
+    /// <summary>
+    /// What a blow does with each tool in hand, in blows (App. C.2: "the boiler player's shovel doubling as the crew's best
+    /// club"; note 191). Enemy health is counted in the crowbar's.
+    /// </summary>
+    public double Shovel { get; init; } = 1.5;
+    public double Crowbar { get; init; } = 1;
+    public double Wrench { get; init; } = 0.75;
     /// <summary>T108: a blow with nothing in hand (enemies.json).</summary>
     public double Barehanded { get; init; } = 0.25;
 
-    /// <summary>A blow with this in hand: any tool a full one, nothing a fraction.</summary>
-    public double Blow(Player.Tool held) => held == Player.Tool.None ? Barehanded : Damage;
+    /// <summary>A blow with this in hand: the shovel the best of the train's tools, a fist a fraction of one.</summary>
+    public double Blow(Player.Tool held) => held switch
+    {
+        Player.Tool.Shovel => Shovel,
+        Player.Tool.Crowbar => Crowbar,
+        Player.Tool.Wrench => Wrench,
+        _ => Barehanded,
+    };
 }
 
 /// <summary>The Track Doll (v1.1 App. A.2, B.2). Field docs live in enemies.json.</summary>

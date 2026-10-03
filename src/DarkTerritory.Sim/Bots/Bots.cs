@@ -1489,7 +1489,8 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         // the brake would be holding the train back from its own steam, and burning coal to do it).
         double fireTo = train.BoilerTuning is { SteamDrive: true } sd ? Boiler.PressureFor(sd, _cruise + 1, train.Dynamics.Tuning.MaxSpeed)
             : train.BoilerTuning is { } lb ? lb.WorkingBandMax - 2 : 0;
-        if (train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && PlayerMotor.InCab(self, train)
+        // Only with the shovel to hand (note 191): the one off the rack, or in its own kit. Out with a crewmate, it's theirs to fire.
+        if (train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && PlayerMotor.InCab(self, train) && CrewActions.HasShovel(self, train)
             && (!standing && train.Boiler.Pressure < fireTo || standing && train.Boiler.Pressure < StandingPressure
                 // Never a low fire (the Stoker, App. A.5); with steam driving and the pressure well over what's wanted, only
                 // just clear of low, or the surplus is speed.

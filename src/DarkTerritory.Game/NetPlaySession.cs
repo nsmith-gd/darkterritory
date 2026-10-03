@@ -744,7 +744,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 _states.Add(s);
         foreach (byte id in Client.RemoteIds)
             if (Client.TryGetRemote(id, alpha, out var s))
-                _crew.Add(Art.CrewActs.Crewmate(id, s, World, frames, _states));
+                _crew.Add(Art.CrewActs.Crewmate(id, s, World, frames, _states, World.Authority ? null : Client.NewestSnapshotTick + alpha - 1));
         return _crew;
     }
 

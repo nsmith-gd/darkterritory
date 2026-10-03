@@ -53,7 +53,8 @@ public sealed partial class SceneArt(Look look)
         // When this act began, for the ones played once from the start (getting up, a thing off its bracket).
         if (!_crewActSince.TryGetValue(c.Id, out var since) || since.Pose != pose)
             _crewActSince[c.Id] = since = (pose, time);
-        double clipTime = pose is CrewPose.GetUp or CrewPose.TakeDown ? time - since.Time : time;
+        // A swing from the host's own start of it (note 191), so a friend's blow is drawn where it is in the swing.
+        double clipTime = pose is CrewPose.GetUp or CrewPose.TakeDown ? time - since.Time : pose == CrewPose.Swing ? c.Swing : time;
         var right = new Vector3((float)Math.Cos(c.Yaw), 0, (float)-Math.Sin(c.Yaw));
         var back = new Vector3((float)Math.Sin(c.Yaw), 0, (float)Math.Cos(c.Yaw));
         var m = CreatureArt.Basis(c.Feet.RelativeTo(eye), right, Vector3.UnitY, back);
@@ -212,7 +213,14 @@ public sealed partial class SceneArt(Look look)
     /// </summary>
     /// <param name="cordPulled">A crewmate's on the whistle cord (CrewActs.CrewWhistling): it's hauled down. The Whistler's
     /// blast leaves it hanging (App. A.4).</param>
-    public bool CabControls(MeshBuilder mesh, in CarFrame frame, Double3 eye, TrainControls controls, bool wrenchRacked = true, bool cordPulled = false)
+    /// <param name="shovelRacked">The fireman's shovel is home (the boiler's ShovelOut, the other way about; note 191): stood
+    /// against the cab wall beside the tool rack, blade down.</param>
+    /// <summary>The shovel stood by its rack, from the rack's interactable (the cab wall at +X): blade down, leaning in.</summary>
+    static readonly Matrix4x4 ShovelStood = Matrix4x4.CreateRotationX(-MathF.PI / 2) * Matrix4x4.CreateRotationZ(-0.2f)
+        * Matrix4x4.CreateTranslation(0.02f, 0.76f, 0.6f);
+
+    public bool CabControls(MeshBuilder mesh, in CarFrame frame, Double3 eye, TrainControls controls, bool wrenchRacked = true, bool cordPulled = false,
+        bool shovelRacked = true)
     {
         var props = PropArt.Of(Look);
         if (frame.Shape.Levers is not { } levers || props.Get("lever_regulator") is not { } regulator)
@@ -249,6 +257,9 @@ public sealed partial class SceneArt(Look look)
             mesh.Append(Piece("tool-rack", () => TrainKit.ToolRack(Look)), at);
             if (wrenchRacked)
                 mesh.Append(Piece("wrench", () => TrainKit.Wrench(Look)), at);
+            // The shovel (note 191): its blade (the tool's −Z) down on the floor, the D-grip up, leant back to the wall.
+            if (shovelRacked && props.Get("tool_shovel") is { } shovel)
+                mesh.Append(shovel, ShovelStood * at);
         }
         foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
         {

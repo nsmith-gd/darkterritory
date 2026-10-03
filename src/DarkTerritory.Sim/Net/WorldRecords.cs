@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -100,6 +100,9 @@ public static class WorldRecords
                 h.Tick, h.EnemyId, (long)h.Kind, h.By, (long)h.Source, h.Killed ? 1 : 0,
                 Q(h.At.X, Pos), Q(h.At.Y, Pos), Q(h.At.Z, Pos), Q(h.From.X, Fine), Q(h.From.Y, Fine), Q(h.From.Z, Fine),
             ]));
+        // Tools swung lately (App. C.2; note 191), landed or not: the swinger's figure plays the blow on every client.
+        foreach (var w in world.Swings)
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Swing, w.Id), [w.Tick, w.By, (long)w.Tool]));
         foreach (var i in world.Impacts)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Impact, i.Id),
             [
@@ -120,7 +123,7 @@ public static class WorldRecords
         [
             Q(b.Pressure, Fine), Q(b.Firebox, Fine), Q(b.Tender, Fine), Q(b.AtMaxSeconds, Fine), Q(b.LowFireSeconds, Fine),
             Q(b.ExternalHeat, Fine), Q(b.Efficiency, Fine),
-            (b.Ruptured ? 1 : 0) | (b.SafetyValveLifting ? 2 : 0) | (b.SafetyValveJammed ? 4 : 0) | (b.FireDoorOpen ? 8 : 0) | (b.Vented ? 16 : 0) | (b.WrenchOut ? 32 : 0),
+            (b.Ruptured ? 1 : 0) | (b.SafetyValveLifting ? 2 : 0) | (b.SafetyValveJammed ? 4 : 0) | (b.FireDoorOpen ? 8 : 0) | (b.Vented ? 16 : 0) | (b.WrenchOut ? 32 : 0) | (b.ShovelOut ? 64 : 0),
             // The door's swing-shut clock: without it the host's own snap back onto the grid zeroed it every tick, and the
             // door never shut.
             Q(Math.Min(b.SinceShovel, 60), Fine),
@@ -249,6 +252,7 @@ public static class WorldRecords
         var wrecked = new List<(int Vehicle, Ballast.Double3 Origin, Ballast.Double3 Right, Ballast.Double3 Up, Ballast.Double3 Velocity)>();
         var hits = new List<HitConfirm>();
         var impacts = new List<CannonImpact>();
+        var swings = new List<MeleeSwing>();
         foreach (var r in records)
         {
             var f = r.Fields;
@@ -328,6 +332,7 @@ public static class WorldRecords
                         SafetyValveJammed = (f[7] & 4) != 0,
                         FireDoorOpen = (f[7] & 8) != 0,
                         WrenchOut = (f[7] & 32) != 0,
+                        ShovelOut = (f[7] & 64) != 0,
                         Vented = (f[7] & 16) != 0,
                         SinceShovel = f.Length > 8 ? D(f[8], Fine) : 0,
                     };
@@ -344,6 +349,9 @@ public static class WorldRecords
                 case RecordKind.Hit when !world.Authority:
                     hits.Add(new HitConfirm(r.Id, (uint)f[0], (int)f[1], (EnemyKind)f[2], (int)f[3], (HitSource)f[4],
                         new Double3(D(f[6], Pos), D(f[7], Pos), D(f[8], Pos)), new Double3(D(f[9], Fine), D(f[10], Fine), D(f[11], Fine)), f[5] != 0));
+                    break;
+                case RecordKind.Swing when !world.Authority:
+                    swings.Add(new MeleeSwing(r.Id, (uint)f[0], (int)f[1], (Tool)f[2]));
                     break;
                 case RecordKind.Impact when !world.Authority:
                     impacts.Add(new CannonImpact(r.Id, (uint)f[0], new Double3(D(f[4], Pos), D(f[5], Pos), D(f[6], Pos)),
@@ -404,7 +412,7 @@ public static class WorldRecords
         if (!world.Authority)
         {
             world.MirrorEnemies(enemies);
-            world.MirrorHits(hits, impacts);
+            world.MirrorHits(hits, impacts, swings);
             world.Bodies.Mirror(bodies);
             // Seen a radio once, a client knows they're things tonight (T41): no radio on you, no radio.
             if (bodies.Any(b => b.Kind == Physics.BodyKind.Radio))
