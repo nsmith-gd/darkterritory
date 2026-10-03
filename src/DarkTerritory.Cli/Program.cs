@@ -55,6 +55,7 @@ return args switch
     ["art", "check", ..] => ArtCheck(train, content, args),
     ["art", "show", var piece, ..] => Print(ArtShow(train, content, piece, args)),
     ["art", "clip", var creature, var clip, ..] => Print(ArtClip(content, creature, clip, args)),
+    ["art", "reel", ..] => Print(ArtReel(content, args)),
     // dt perf: a frame's cost against the frame-rate targets (tuning/perf.json), flat and in a headset.
     ["perf", ..] => Print(PerfCommands.Run(train, content, args)),
     ["screenshot", ..] when args.Contains("--film") => Print(FilmStill(content, args)),
@@ -1421,6 +1422,99 @@ static object ArtClip(string content, string name, string clip, string[] args)
     return new { path = Path.GetFullPath(output), creature = name, clip, seconds = Math.Round(duration, 2), frames };
 }
 
+// Every animated model's every clip, frame by frame (the Look Review's animations tab): each clip as a strip of frames
+// at --fps (12) across its length, a loop round to its start, a one-shot from first frame to last, from a three-quarter
+// view at the model's own framing (CreatureArt.Framing), on a dark floor under a lamp. Strips to out/reel/<model>/<clip>.png
+// and a manifest, reel.json. --only crew,gaunt picks models. The cut ones (clinger, weight, sleeper, hollow) are left out,
+// and the survivors show only their own clips, not the crew's they share.
+static object ArtReel(string content, string[] args)
+{
+    var look = DarkTerritory.Game.Look.Load(content);
+    var art = look.Art.Creatures;
+    string[] cut = ["clinger", "weight", "sleeper", "hollow"];
+    var only = Str(args, "--only", "") is { Length: > 0 } o ? o.Split(',') : null;
+    int w = (int)Opt(args, "--width", 360), h = (int)Opt(args, "--height", 240), fps = (int)Opt(args, "--fps", 12);
+    string dir = Str(args, "--out", "out/reel");
+    using var gpu = new GpuContext("dt art reel");
+    using var renderer = new GreyboxRenderer(gpu, w, h);
+    look.Dress(renderer);
+    var manifest = new List<object>();
+    foreach (var name in DarkTerritory.Game.Art.CreatureArt.Names)
+    {
+        if (cut.Contains(name) || only is not null && !only.Contains(name) || art.Get(name) is not { } model)
+            continue;
+        bool survivor = name.StartsWith("survivor_", StringComparison.Ordinal);
+        foreach (var clipName in model.Clips.Keys.Order())
+        {
+            if (survivor && clipName is not ("idle" or "walk"))
+                continue;
+            var c = model.Clip(clipName)!;
+            bool loop = c.Loops;
+            int frames = Math.Clamp((int)Math.Round(c.Duration * fps) + (loop ? 0 : 1), 4, 72);
+            double Time(int i) => loop ? c.Duration * i / frames : c.Duration * i / Math.Max(1, frames - 1);
+            // Framed on the clip itself: everywhere the creature reaches over it (a gaunt standing to its height or
+            // folded down to smash, a hugger sprawled), three-quarters on to its face (the model faces -Z), the whole
+            // of it held in frame.
+            var joints = new List<System.Numerics.Vector3>();
+            for (int i = 0; i < frames; i += Math.Max(1, frames / 12))
+                foreach (var j in art.Joints(name, clipName, Time(i), loop))
+                    joints.Add(j with { Y = MathF.Max(0, j.Y) });
+            var lo = joints.Aggregate(System.Numerics.Vector3.Min);
+            var hi = joints.Aggregate(System.Numerics.Vector3.Max) + new System.Numerics.Vector3(0, 0.15f, 0);
+            var centre = (lo + hi) / 2;
+            // Back off along the view until every joint, padded out to the flesh on its bones, is inside the frustum.
+            double yaw = 35 * Math.PI / 180, pitch = 10 * Math.PI / 180;
+            var back = new System.Numerics.Vector3((float)(Math.Sin(yaw) * Math.Cos(pitch)), (float)Math.Sin(pitch), (float)(-Math.Cos(yaw) * Math.Cos(pitch)));
+            var side = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(System.Numerics.Vector3.UnitY, back));
+            var upward = System.Numerics.Vector3.Cross(back, side);
+            double tanV = Math.Tan(25 * Math.PI / 180), tanH = tanV * w / h, dist = 1;
+            foreach (var j in joints)
+            {
+                var d = j - centre;
+                double near = System.Numerics.Vector3.Dot(d, back);
+                dist = Math.Max(dist, near + (Math.Abs(System.Numerics.Vector3.Dot(d, side)) * 1.15 + 0.2) / tanH);
+                dist = Math.Max(dist, near + (Math.Abs(System.Numerics.Vector3.Dot(d, upward)) * 1.15 + 0.3) / tanV);
+            }
+            var target = new Double3(centre.X, centre.Y, centre.Z);
+            var eye = target + new Double3(back.X * dist, back.Y * dist, back.Z * dist);
+            var camera = Camera.LookAt(eye, target, 50);
+            var e = new System.Numerics.Vector3((float)eye.X, (float)eye.Y, (float)eye.Z);
+            float size = hi.Y - lo.Y;
+            var strip = new byte[w * frames * h * 4];
+            for (int i = 0; i < frames; i++)
+            {
+                double time = Time(i);
+                var mesh = new MeshBuilder { Style = look.Style };
+                mesh.SurfaceOrigin = e;
+                float f = 40;
+                mesh.Quad(new System.Numerics.Vector3(-f, 0, f) - e, new System.Numerics.Vector3(f, 0, f) - e, new System.Numerics.Vector3(f, 0, -f) - e, new System.Numerics.Vector3(-f, 0, -f) - e, DarkTerritory.Game.Palette.Charcoal * 0.5f);
+                var right = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(camera.Forward, System.Numerics.Vector3.UnitY));
+                var anchor = new System.Numerics.Vector3((float)target.X, (float)target.Y, (float)target.Z) - e;
+                // A lantern's key light half way to the camera, off to its right and above; a cold fill from its left;
+                // a rim from behind to put an edge on dark clothes and hides against the dark.
+                var toEye = -anchor;
+                float reach = (float)dist * 2.5f;
+                mesh.PointLights.Add(new PointLight(anchor + toEye * 0.55f + right * (float)(dist * 0.35) + new System.Numerics.Vector3(0, size * 0.5f, 0), DarkTerritory.Game.Palette.LampAmber * 3.2f, reach));
+                mesh.PointLights.Add(new PointLight(anchor + toEye * 0.4f - right * (float)(dist * 0.6) + new System.Numerics.Vector3(0, size * 0.3f, 0), new System.Numerics.Vector3(0.3f, 0.36f, 0.48f), reach));
+                mesh.PointLights.Add(new PointLight(anchor - toEye * 0.35f + new System.Numerics.Vector3(0, size * 0.9f, 0), new System.Numerics.Vector3(0.45f, 0.5f, 0.62f), reach));
+                art.Draw(mesh, name, clipName, time, loop, System.Numerics.Matrix4x4.CreateTranslation(-e));
+                var light = look.Apply(FrameLighting.Night);
+                light.FogDensity = 0.004f;
+                light.LampRange = 0.01f;
+                light.Time = 0.37;
+                var px = renderer.Render(mesh, camera, light, light.FogColor);
+                for (int y = 0; y < h; y++)
+                    px.AsSpan(y * w * 4, w * 4).CopyTo(strip.AsSpan((y * w * frames + i * w) * 4));
+            }
+            Directory.CreateDirectory(Path.Combine(dir, name));
+            PngWriter.Write(Path.Combine(dir, name, $"{clipName}.png"), strip, w * frames, h, 1);
+            manifest.Add(new { model = name, clip = clipName, seconds = Math.Round(c.Duration, 2), frames, fps = loop ? frames / Math.Max(0.1, c.Duration) : (frames - 1) / Math.Max(0.1, c.Duration), loop });
+        }
+    }
+    File.WriteAllText(Path.Combine(dir, "reel.json"), JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }));
+    return new { dir = Path.GetFullPath(dir), clips = manifest.Count, width = w, height = h };
+}
+
 // The art pass's surfaces (T39, look.json), unless --greybox asks for flat colour to compare against.
 static DarkTerritory.Game.Look? Looked(string content, string[] args) => args.Contains("--greybox") ? null : DarkTerritory.Game.Look.Load(content);
 
@@ -1817,6 +1911,7 @@ static int Usage()
           line info <name> [--every m]             position/grade profile of content/lines/<name>.json
           line drive <name> [--cars n] [--start s] [--from v] [--throttle 0..1] [--seconds t]
           trailer [--route tier:seed] [--fps n] [--width w --height h] [--short]   the trailer cut from the game itself: frames to out/trailer, ffmpeg to trailer.mp4
+          art reel [--only a,b] [--fps n] [--width w --height h]   every animated model's every clip as frame strips + reel.json in out/reel (the Look Review's animations)
           art clip <creature> <clip> [--frames n] [--at x,y,z --dist m --yaw deg --pitch deg] [--lift m] [--variant n] [--once]   a clip as a lit contact sheet
           screenshot [--view trackside|roof|cab|chase|ahead] [--line name] [--cars n] [--at s] [--car i] [--cut n]
                      [--cam s,lateral,height --target s,lateral,height --fov deg]   camera by line coordinates
