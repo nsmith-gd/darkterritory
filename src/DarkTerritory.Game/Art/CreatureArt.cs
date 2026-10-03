@@ -300,6 +300,7 @@ public sealed class CreatureArt
     Sim.Enemies.WhistlerTuning? _whistler;
     readonly Dictionary<int, MeshAsset> _debris = new();
     MeshAsset? _fallenPine;
+    MeshAsset[]? _reeds;
 
     /// <summary>True when every model is there.</summary>
     public bool Loaded => Names.All(_models.ContainsKey);
@@ -321,6 +322,38 @@ public sealed class CreatureArt
     }
 
     /// <summary>A material's texture layer when the look has it; its flat colour (and its glow, if it has one) when not.</summary>
+    /// <summary>
+    /// The Drift seen in the reeds (GDD §22: "something in the reeds surges toward motion"): round the mass's edge on the
+    /// ground beside the train a ring of reeds bowed outward, shoved aside by what's coming up under them, dark at the
+    /// root. Spreading, they stir; surging, they thrash and lie flatter, a wave you can watch come.
+    /// </summary>
+    void DriftReeds(MeshBuilder mesh, Matrix4x4 model, float radius, double t, bool surging)
+    {
+        _reeds ??= [SettingKit.Reeds(Look, 0), SettingKit.Reeds(Look, 1), SettingKit.Reeds(Look, 2)];
+        // Two rows: the crest of the wave and, a step behind it, what it's already flattened.
+        int n = 16 + (int)(radius * 5);
+        for (int i = 0; i < 2 * n; i++)
+        {
+            bool crest = i < n;
+            float ring = radius + (crest ? 0.9f : -0.4f) + 0.35f * ((i * 5) % 3);
+            float a = i * MathF.Tau / n + (crest ? 0 : MathF.PI / n) + 0.13f * (i % 3);
+            float x = MathF.Cos(a) * ring, z = MathF.Sin(a) * ring;
+            // Only the ground beside the train: the roof's edge is where the reeds start.
+            if (MathF.Abs(x) <= CarHalfWidth + 0.6f)
+                continue;
+            double phase = t * (surging ? 7.5 : 1.6) + i * 1.7;
+            float lean = (surging ? 0.75f + 0.25f * (float)Math.Sin(phase) : 0.18f + 0.1f * (float)Math.Sin(phase)) * (crest ? 1 : 1.6f);
+            float twist = 0.3f * (float)Math.Sin(phase * 0.7 + i);
+            // Bowed away from the centre: tip outward about the tangent of the ring.
+            var outward = Vector3.Normalize(new Vector3(x, 0, z));
+            var axis = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, outward));
+            float size = 1.1f + 0.4f * ((i * 7) % 5) / 4f;
+            var at = Matrix4x4.CreateScale(size, size * (surging ? 0.8f : 1f), size) * Matrix4x4.CreateRotationY(twist)
+                * Matrix4x4.CreateFromAxisAngle(axis, lean) * Matrix4x4.CreateTranslation(x, -RoofDrop, z) * model;
+            mesh.Append(_reeds[i % 3], at);
+        }
+    }
+
     MaterialLook Resolve(ModelMaterial m, float wear)
     {
         int layer = string.IsNullOrEmpty(m.Texture) ? -1 : Look.Layer(m.Texture);
@@ -1026,6 +1059,7 @@ public sealed class CreatureArt
                         Draw(mesh, "dragger", "grip", t * (phase == SpinePhase.Dormant ? 0.2 : 0.9) + i * 0.37, true, limb, seed: 40 + i,
                             adjust: (_, l) => l with { Colour = l.Colour * 0.35f });
                     }
+                    DriftReeds(mesh, model, r, t, phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish);
                     return true;
                 }
             case EnemyKind.Follower when _models.ContainsKey("follower"):
