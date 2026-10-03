@@ -941,7 +941,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (session.Route?.Plan is { } shown)
             {
                 if (cardPage >= 0)
-                    cardPages = DarkTerritory.Game.LineGen.PlanHud.RouteCard(overlay, UiWidth, UiHeight, shown, cardPage);
+                    cardPages = DarkTerritory.Game.LineGen.PlanHud.RouteCard(overlay, UiWidth, UiHeight, shown, cardPage, session.Train.Line);
                 if (showPlan)
                     DarkTerritory.Game.LineGen.PlanHud.Overlay(overlay, UiWidth, UiHeight, session, shown);
             }

@@ -1765,7 +1765,7 @@ static object HudShot(string content, string[] args)
     if (session.Route?.Plan is { } plan)
     {
         if (args.Contains("--card"))
-            DarkTerritory.Game.LineGen.PlanHud.RouteCard(hud, width, height, plan, (int)Opt(args, "--page", 0));
+            DarkTerritory.Game.LineGen.PlanHud.RouteCard(hud, width, height, plan, (int)Opt(args, "--page", 0), session.Train.Line);
         if (args.Contains("--overlay"))
             DarkTerritory.Game.LineGen.PlanHud.Overlay(hud, width, height, session, plan);
     }
