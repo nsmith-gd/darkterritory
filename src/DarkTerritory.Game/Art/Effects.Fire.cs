@@ -259,6 +259,14 @@ public sealed partial class Effects
             return;
         }
         float hot = Math.Clamp(heat, 0.05f, 1);
+        // Its colour by its heat (the checklist's firebox: "low-fire and roaring states"): a low fire is a deep, sullen red
+        // over dull coals; a roaring one goes yellow and then white at its heart. (A Stoker's green keeps its own hue.)
+        float lum = (tint.X + tint.Y + tint.Z) / 3;
+        bool natural = tint.X >= tint.Y;
+        if (natural)
+            tint = hot < 0.35f ? Vector3.Lerp(new Vector3(1.6f, 0.45f, 0.15f), tint, hot / 0.35f)
+                : hot > 0.8f ? Vector3.Lerp(tint, new Vector3(1.35f, 1.15f, 0.75f), (hot - 0.8f) / 0.2f) : tint;
+        _ = lum;
         // The fire's levels as it builds (T121): a few tongues off a low bed, the whole grate alight at capacity.
         int tongues = Math.Clamp((int)MathF.Round(1 + 8 * (hot - 0.3f) / 0.7f), 1, 9);
         for (int i = 0; i < 9; i++)
@@ -274,8 +282,11 @@ public sealed partial class Effects
         }
         // The coals' glow under the flames.
         mesh.Billboard(bed + up * 0.03f, 0.8f, 0, new Vector4(tint * (0.25f + 0.35f * hot), 1), -1, FxBlend.Additive, stretch: 0.35f);
+        // Roaring: the heart of it white-hot, a sheet of light over the whole bed.
+        if (hot > 0.8f)
+            mesh.Billboard(bed + up * 0.16f, 0.62f, 0, new Vector4(new Vector3(1.2f, 1.05f, 0.75f) * (hot - 0.8f) * 3.5f, 1), -1, FxBlend.Additive, stretch: 0.55f);
         // A cinder out of the hole now and then, up and out into the cab, going out.
-        for (int k = 0; k < 4; k++)
+        for (int k = 0; k < (hot > 0.8f ? 10 : 4); k++)
         {
             float h = Hash(k * 6.1f + 3.3f);
             float period = 1.6f + 2.4f * h;
