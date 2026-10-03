@@ -141,7 +141,9 @@ public sealed partial class WorldArt
     /// a lantern to every bay (the sheet's fortified station: warm pools, and the dark between them).
     /// </summary>
     /// <param name="lit">A town that has stopped answering (linegen plan §22.4) stands dark: its lamps are out.</param>
-    public void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool platform, bool lit = true)
+    /// <param name="time">Seconds, for the searchlights' sweep.</param>
+    public void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool platform, bool lit = true,
+        double time = 0)
     {
         double a = Math.Max(start, from), b = Math.Min(end, to);
         if (a >= b)
@@ -168,6 +170,20 @@ public sealed partial class WorldArt
                     continue;
                 mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.4f, 16));
                 mesh.Billboard(lamp, 2.2f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
+                // Every other tower a searchlight on its outer face (the checklist's fortress: its searchlights): a hard
+                // cold beam sweeping slowly over the ground outside the walls, each tower's on its own beat.
+                if (((int)(s / 120) + (side > 0 ? 1 : 0)) % 2 == 0)
+                {
+                    var lens = (at + r * (side * 1.6) + Double3.Up * 15.2).RelativeTo(eye);
+                    float phase = (float)(s * 0.013) + side;
+                    float sweep = 0.9f * MathF.Sin((float)time * 0.22f + phase);
+                    var outward = new Vector3((float)(r.X * side), 0, (float)(r.Z * side));
+                    var along = Vector3.Normalize(new Vector3((float)t.Tangent.X, 0, (float)t.Tangent.Z));
+                    var dir = Vector3.Normalize(outward * MathF.Cos(sweep) + along * MathF.Sin(sweep) - Vector3.UnitY * 0.2f);
+                    Effects.Beam(mesh, lens, dir, 5.5f, 110, new Vector3(0.55f, 0.6f, 0.7f) * 0.2f);
+                    mesh.Billboard(lens, 1.3f, 0, new Vector4(0.9f, 0.95f, 1.0f, 1), -1, FxBlend.Additive);
+                    mesh.Billboard(lens, 4.5f, 0, new Vector4(0.3f, 0.33f, 0.4f, 1), -1, FxBlend.Additive);
+                }
             }
         }
         if (lit)

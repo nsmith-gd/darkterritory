@@ -1444,7 +1444,7 @@ public sealed class GreyboxScene
     {
         if (Look is not null)
         {
-            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit);
+            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time);
             // Its people (T100): a few about at night, in their own drab, idling on their own beat. A dark town has none.
             if (lit)
                 foreach (var (feet, facing, variant) in Art.WorldArt.FortFolk(line, eye, Math.Max(start, from - 20), Math.Min(end, to + 20), gateAt, start == 0))

@@ -193,7 +193,7 @@ public sealed partial class Effects(Look look)
     static Vector3 FurnaceTint(float fire) => new Vector3(0.12f, 0.05f, 0.01f) * fire;
 
     /// <summary>A cone of light: rings along its length, bright at the lamp and gone at the far end.</summary>
-    static void Beam(MeshBuilder mesh, Vector3 apex, Vector3 dir, float halfAngle, float length, Vector3 colour)
+    public static void Beam(MeshBuilder mesh, Vector3 apex, Vector3 dir, float halfAngle, float length, Vector3 colour)
     {
         const int sides = 14, rings = 6;
         dir = Vector3.Normalize(dir);
