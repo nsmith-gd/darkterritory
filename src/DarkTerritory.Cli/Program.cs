@@ -1119,6 +1119,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             outward = outward.Length > 0.1 ? outward.Normalized : Double3.Cross(Double3.Up, line.Sample(h.LineHint).Tangent);
             var across = Double3.Cross(Double3.Up, outward);
             camera = Camera.LookAt(h.Door + outward * 4.2 + across * 3.6 + Double3.Up * 2.0, h.Door + Double3.Up * 1.2, 60);
+            // --approach m: instead from the cab's height on the line that far short of it (App. D.7: seen from the 1 km board).
+            if (args.Contains("--approach"))
+            {
+                double back = Opt(args, "--approach", 1000);
+                var from = line.Sample(Math.Max(0, h.LineHint - back)).Position + Double3.Up * 3.2;
+                camera = Camera.LookAt(from, h.Door + Double3.Up * 3, 60);
+            }
         }
     }
     // --gun-laid yaw,pitch (degrees): every gun turned and elevated so, as a seated gunner lays it (T112).

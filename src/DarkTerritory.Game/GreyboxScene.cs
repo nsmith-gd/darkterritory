@@ -266,6 +266,11 @@ public sealed class GreyboxScene
                     mesh.PointLights.Add(new PointLight(at, Palette.LampAmber * 1.6f, 14));
                     mesh.Billboard(at, 0.35f, 0, new Vector4(Palette.LampAmber * 1.4f, 1), -1, FxBlend.Additive);
                     mesh.Billboard(at, 2.4f, 0, new Vector4(Palette.LampAmber * 0.35f, 1), -1, FxBlend.Additive);
+                    // Its light in the fog over it (App. D.7: "visible from the 1 km board through fog"): a broad warm smudge
+                    // on the fog, up over the trees and the roofs round it, that the eye finds long before the lamp.
+                    float far = (float)Math.Clamp(((lamp - eye).Length - 80) / 500, 0, 1);
+                    mesh.Billboard(at + Vector3.UnitY * 42, 120, 0, new Vector4(Palette.LampAmber * (0.35f + 2.4f * far), 1), -1, FxBlend.Additive);
+                    mesh.Billboard(at + Vector3.UnitY * 6, 22, 0, new Vector4(Palette.LampAmber * (0.3f + 1.2f * far), 1), -1, FxBlend.Additive);
                 }
             // GDD §9: the fortress yard behind the gates, and the terminus: "lights, then walls, then gun towers".
             double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
