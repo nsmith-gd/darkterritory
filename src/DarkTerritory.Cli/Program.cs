@@ -1102,6 +1102,15 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         foreach (var v in train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo))
             v.Cargo = each[Math.Min(k++, each.Length - 1)];
     }
+    // --stand n: close by branch n's switch stand, looking at its lever and lamp (--diverge: set for the branch).
+    if (Opt(args, "--stand", -1) is var standIx and >= 0 && standIx < line.Branches.Count)
+    {
+        var stands = new SwitchStands(new JunctionTuning());
+        var lever = stands.LeverAt(line, (int)standIx);
+        var toe = line.Sample(line.Branches[(int)standIx].Toe);
+        var across = Double3.Cross(toe.Tangent, Double3.Up).Normalized * line.Branches[(int)standIx].Side;
+        camera = Camera.LookAt(lever + across * 2.6 - toe.Tangent * 2.2 + Double3.Up * 0.9, lever + Double3.Up * 0.3, 55);
+    }
     // --lit: every Holdout on the route occupied, its lamp burning (GDD App. D.7), as if the dead were waiting at each.
     DarkTerritory.Sim.Run.Holdouts? holdouts = null;
     // --freed: every Holdout broken open and its occupant out (D.7, D.8): the door swung wide, the lock smashed off (or, every

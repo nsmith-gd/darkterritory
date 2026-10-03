@@ -326,7 +326,8 @@ public sealed partial class WorldArt
     /// end with a red lamp, and the switch stand with its lever and target lamp (green for the main line, red for the
     /// branch: the lamp is how the cab reads a switch before it's on it).
     /// </summary>
-    public void Branch(MeshBuilder mesh, Branch branch, Double3 eye, float drawDistance, Double3 lever, Double3 toeTangent, bool diverging)
+    public void Branch(MeshBuilder mesh, Branch branch, Double3 eye, float drawDistance, Double3 lever, Double3 toeTangent, bool diverging,
+        float flicker = 1)
     {
         var local = branch.Local;
         const double start = 4, step = 5;
@@ -368,8 +369,16 @@ public sealed partial class WorldArt
         if ((lever - eye).Length > drawDistance)
             return;
         var foot = lever - Double3.Up * 0.9;
-        mesh.Instances.Add(new MeshInstance(Piece("switch-stand", () => StructureKit.SwitchStand(_look)), Basis(toeTangent, foot, eye, 0)));
-        var colour = diverging ? Palette.SignalRed : Palette.SignalGreen;
+        var standAt = Basis(toeTangent, foot, eye, 0);
+        mesh.Instances.Add(new MeshInstance(Piece("switch-stand", () => StructureKit.SwitchStand(_look)), standAt));
+        // The throw lever (GDD §17: thrown by hand at the points): down along the line for the main, thrown over the
+        // other way for the branch, so the points read from the cab by the lever as well as by the lamp.
+        float throwAngle = (diverging ? -1 : 1) * 0.85f * branch.Side;
+        mesh.Instances.Add(new MeshInstance(Piece("switch-lever", () => StructureKit.SwitchLever(_look)),
+            Matrix4x4.CreateRotationX(throwAngle) * Matrix4x4.CreateTranslation(0, 0.9f, 0) * standAt));
+        // The lamp's glass: green set for the main line, red for the branch; flickering while the Switchman grips the
+        // lever to throw it under the train (App. A.8, the derail's telegraph).
+        var colour = (diverging ? Palette.SignalRed : Palette.SignalGreen) * flicker;
         var glass = (foot + Double3.Up * 1.75).RelativeTo(eye);
         mesh.Billboard(glass, 0.3f, 0, new Vector4(colour * 1.6f, 1), -1, FxBlend.Additive);
         mesh.Billboard(glass, 1.6f, 0, new Vector4(colour * 0.45f, 1), -1, FxBlend.Additive);

@@ -1115,7 +1115,10 @@ public sealed class GreyboxScene
         if (Look is not null)
         {
             var at = (Stands ?? DefaultStands).LeverAt(main, branch.Index);
-            Look.Art.World.Branch(mesh, branch, eye, DrawDistance, at, main.Sample(branch.Toe).Tangent, Diverging?.Invoke(branch.Index) ?? false);
+            // The Switchman gripping this lever to throw it under the train (App. A.8): the lamp flickers.
+            bool gripped = Enemies?.Any(e => e is Sim.Enemies.Switchman { Gripping: true } s && s.Branch == branch.Index && !e.Gone) == true;
+            float flicker = gripped ? (MathF.Sin((float)Math.Floor(Time * 14) * 12.9898f) * 43758.5f % 1 is var j && MathF.Abs(j) < 0.45f ? 0.08f : 1) : 1;
+            Look.Art.World.Branch(mesh, branch, eye, DrawDistance, at, main.Sample(branch.Toe).Tangent, Diverging?.Invoke(branch.Index) ?? false, flicker);
             return;
         }
         const double step = 5, gauge = 0.72, sleeperPitch = 0.75, bedHalfWidth = 1.8, start = 4;
