@@ -906,6 +906,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // The film draws its own wreck; the live one's dust and sparks are somewhere else by then.
         scene.Wreck = replay is { Off: false } || filmShot is not null ? null : session.Train.Wreck;
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
+        scene.StokerPerched = session.World.StokerWaiting;
         scene.Tick = session.HostTick;
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
         scene.Tender = (float)(session.Train.BoilerTuning is { TenderCapacity: > 0 } tt ? Math.Clamp(session.Train.Boiler.Tender / tt.TenderCapacity, 0, 1) : 0.72);

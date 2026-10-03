@@ -179,6 +179,13 @@ public sealed class World
     /// <summary>True on the host: enemies and the director run. False on clients, which mirror them.</summary>
     public bool Authority { get; private set; }
     public EnemyTuning? Enemies { get; private set; }
+
+    /// <summary>
+    /// The fire's burned low enough for the Stoker (App. A.5: pressure under <see cref="StokerTuning.LowPressure"/>) and it
+    /// isn't in yet: it waits on the smokestack, and is drawn there. Read-only, from replicated state, for the presentation.
+    /// </summary>
+    public bool StokerWaiting => Enemies is { } t && Train.BoilerTuning is not null && !Train.Boiler.Ruptured
+        && Train.Boiler.Pressure < t.Stoker.LowPressure && !_enemies.Any(e => e.Kind == EnemyKind.Stoker && !e.Gone);
     public Route.Route? Route { get; private set; }
     public Director? Director { get; private set; }
 

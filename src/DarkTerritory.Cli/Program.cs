@@ -1208,6 +1208,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         LampRange = strandedAt >= 0 ? 400 : 60,
         RoofGlow = strandedAt >= 0,
         FireDoorOpen = args.Contains("--firedoor") || args.Contains("--stoker"),
+        // --perched: the fire burned low, the Stoker waiting on the smokestack (World.StokerWaiting).
+        StokerPerched = args.Contains("--perched"),
         // --whistle: a crewmate on the cord (the cord hauled down, the whistle's steam).
         CordPulled = args.Contains("--whistle"),
         // --coal u: that much on the fire, as the HUD's FIRE reads it (T121: the firebox's look follows it, out only at 0).

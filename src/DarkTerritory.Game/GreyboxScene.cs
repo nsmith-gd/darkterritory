@@ -143,6 +143,8 @@ public sealed class GreyboxScene
     public long Tick { get; set; } = -1;
     /// <summary>The boiler's pressure as a fraction of its maximum, for the cab's gauge (the sim's; unset, a working pressure).</summary>
     public float Pressure { get; set; } = 0.78f;
+    /// <summary>The Stoker waits on the smokestack (World.StokerWaiting: the fire's burned low): drawn squatting on its rim.</summary>
+    public bool StokerPerched { get; set; }
     /// <summary>The coal left in the tender, 0..1: the backhead's sight glass (labelled TENDER) reads it.</summary>
     public float Tender { get; set; } = 0.72f;
     /// <summary>The blow-off's open (the boiler's <c>Vented</c>), and the safety valve's lifting: their steam (T101).</summary>
@@ -356,6 +358,17 @@ public sealed class GreyboxScene
             creatures.FireDoorOpen = FireDoorOpen
                 ? Art.TrainKit.FireDoor(frames[0].Shape) - ToF(frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position)
                 : null;
+        // On the stack's rim, looking down the boiler at the cab (App. A.5 "it perches on the smokestack").
+        if (StokerPerched && Look?.Art.Creatures is { } perching && frames.Count > 0
+            && frames[0].Shape.Solids.FirstOrDefault(s => s.Part == PartKind.Stack) is { Box: var stack } && stack.Max.Y > 0)
+        {
+            var f0 = frames[0];
+            var o = V(f0.ToWorld(new Double3(0, stack.Max.Y, stack.Centre.Z)), eye);
+            // Facing back down the engine (+Z, its back): the model faces its −Z.
+            var r = -ToF(f0.Right);
+            var b = -ToF(f0.Back);
+            perching.Draw(mesh, "stoker", "perch", Time, true, Art.CreatureArt.Basis(o, r, ToF(f0.Up), b));
+        }
         if (Enemies is not null)
             foreach (var e in Enemies)
                 if (e.Kind == EnemyKind.Passenger && Look?.Art.Creatures is { } passengers && passengers.Get("passenger") is not null)
