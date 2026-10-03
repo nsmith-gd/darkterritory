@@ -140,6 +140,8 @@ public sealed class GreyboxScene
     public long Tick { get; set; } = -1;
     /// <summary>The boiler's pressure as a fraction of its maximum, for the cab's gauge (the sim's; unset, a working pressure).</summary>
     public float Pressure { get; set; } = 0.78f;
+    /// <summary>The coal left in the tender, 0..1: the backhead's sight glass (labelled TENDER) reads it.</summary>
+    public float Tender { get; set; } = 0.72f;
     /// <summary>The blow-off's open (the boiler's <c>Vented</c>), and the safety valve's lifting: their steam (T101).</summary>
     public bool Venting { get; set; }
     public bool SafetyValve { get; set; }
@@ -1862,7 +1864,7 @@ public sealed class GreyboxScene
                 // The dials: pressure from the boiler, heat from the fire, the water glass (no water model yet: steady),
                 // and speed against the line's 80 km/h top.
                 float speed = (float)frame.Velocity.Length / 22.2f;
-                Look.Art.Gauges(mesh, frame, eye, [Pressure, FireGlow, 0.72f, speed]);
+                Look.Art.Gauges(mesh, frame, eye, [Pressure, FireGlow, Tender, speed]);
             }
             return;
         }

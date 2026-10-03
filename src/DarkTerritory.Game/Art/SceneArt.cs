@@ -559,6 +559,28 @@ public sealed partial class SceneArt(Look look)
         var needle = Piece("needle", () => TrainKit.Needle(Look));
         for (int i = 0; i < 4 && i < fractions.Length; i++)
         {
+            if (i == 2)
+            {
+                // The tender's glass (gauge_face's "water" cell, labelled TENDER): no needle, a level standing in the tube
+                // as high as the coal left, lit amber so it reads against the dark glass. The tube's place on the face
+                // in the dial's radii (tools/art/texgen/mat_paper.py: the tube's cell pixels over the face's 0.92 of it).
+                var g = TrainKit.GaugeCentre(engine.Shape, i);
+                float gr = TrainKit.GaugeRadius, f = Math.Clamp(fractions[i], 0, 1);
+                float x0 = -0.42f * gr, x1 = -0.245f * gr, bottom = -0.50f * gr, top = 0.43f * gr;
+                float y1 = bottom + (top - bottom) * f;
+                if (y1 - bottom > 0.002f)
+                {
+                    var centre = Vector3.Transform(g + new Vector3((x0 + x1) / 2, (bottom + y1) / 2, 0.016f), m);
+                    var ax = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, m));
+                    var ay = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, m));
+                    var az = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, m));
+                    float e = mesh.Emissive;
+                    mesh.Emissive = 0.35f;
+                    mesh.Box(centre, ax, ay, az, new Vector3((x1 - x0) / 2, (y1 - bottom) / 2, 0.002f), new Vector3(0.42f, 0.2f, 0.05f));
+                    mesh.Emissive = e;
+                }
+                continue;
+            }
             // From 7:30 round to 4:30, clockwise as you face it: the dial faces +Z (back into the cab).
             float angle = (0.75f - 1.5f * Math.Clamp(fractions[i], 0, 1)) * MathF.PI;
             var c = TrainKit.GaugeCentre(engine.Shape, i);
