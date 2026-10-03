@@ -1,0 +1,9 @@
+// GDD v1.4 App. E.6: what the music intake (tools/audio/fetch_music.py) takes. A push that changes this file to the intake
+// branch starts .github/workflows/music-intake.yml, which fetches, checks, cuts and normalises the CC0 recordings on
+// GitHub's runners and pushes the result (content/audio/music) back. Bump "run" to ask again with nothing else changed.
+// candidates: ids from fetch_music.py's CANDIDATES, or "all" (E.6's own table first). maxTracks: how many the repo takes.
+{
+  "run": 1,
+  "candidates": ["all"],
+  "maxTracks": 16
+}

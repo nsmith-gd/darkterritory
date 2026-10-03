@@ -87,6 +87,8 @@ var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", 
 {
     Protocol = DarkTerritory.Sim.Net.Protocol.Version,
     DefaultPlayerName = steam?.NameOf(steam.Me) ?? Environment.UserName,
+    // GDD v1.4 App. E.6: the credits screen lists every track's performers (note 194).
+    Music = DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks,
 };
 
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
