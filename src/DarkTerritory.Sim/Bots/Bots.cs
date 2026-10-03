@@ -435,15 +435,40 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         {
             int car = self.Parent;
             var here = self.Position;
-            var ext = world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Extinguisher && b.Carrier < 0 && b.Parent == car && b.Charge > 0.2)
+            // One in the room, and not one it's walked at for a while without getting to it: put down spent by a side door it
+            // can lie out on the steps (the car's still, it's in its frame), and five walkers walked at the wall for it, 250 s,
+            // at a deepTerritory:2 colliery with the car alight (note 188).
+            var room = train.Frames[car].Shape.Interior;
+            var ext = world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Extinguisher && b.Carrier < 0 && b.Parent == car && b.Charge > 0.2
+                    && room is { } r && b.Centre.X > r.Min.X && b.Centre.X < r.Max.X && b.Centre.Z > r.Min.Z && b.Centre.Z < r.Max.Z
+                    && !(_unreachable.TryGetValue(b.Id, out uint until) && _tick < until))
                 .OrderBy(b => (b.Centre - here).Length).FirstOrDefault();
             if (ext is null)
                 return null; // nothing to fight it with here
-            // Stood in the aisle beside it, facing the wall it's on: in the hands' reach. (Just aft of it, as it was, is where
-            // car 1's crew lockers stand, note 173: three walkers walked at them for 25 s with the car alight round them.)
-            double wall = Math.Sign(ext.Centre.X);
-            var (walk, at) = WarmUp.Steer(self, new Double3(ext.Centre.X - wall * ExtinguisherStandOff, 0, ext.Centre.Z), -wall * Math.PI / 2);
+            // Stood beside it, facing it: in the hands' reach. Where there's floor to stand on: just aft of it, as it always
+            // was, is where car 1's crew lockers stand (note 173: three walkers walked at them for 25 s with the car alight
+            // round them), and in from it, put down in the aisle, is the cargo's stack.
+            if (TakeFrom(train, car, ext.Centre, here) is not { } spot)
+            {
+                _unreachable[ext.Id] = _tick + (uint)(ReachAgain * SimConstants.TickRate);
+                return null;
+            }
+            var (walk, at) = WarmUp.Steer(self, spot.At, spot.Yaw);
+            // Where it's fetched up (a fitting may hold it off the spot by a hair), the way to face from there.
+            if (at && Facing(train, car, self.Position, ext.Centre, self.Yaw) is { } face && Math.Abs(Math.IEEERemainder(face - self.Yaw, 2 * Math.PI)) > 0.05)
+            {
+                at = false;
+                walk = new PlayerIntent { LookYaw = (float)Math.Clamp(Math.IEEERemainder(face - self.Yaw, 2 * Math.PI), -0.5, 0.5) };
+            }
             TendStep = at ? "taking" : "to the extinguisher";
+            // Walking at it this long and not there, or there this long and not taking it: something's in the way. Another, or
+            // none, for a while.
+            _reaching = _reaching.Body == ext.Id ? (ext.Id, _reaching.Ticks + 1) : (ext.Id, 0);
+            if (_reaching.Ticks > ReachGiveUp * SimConstants.TickRate)
+            {
+                _unreachable[ext.Id] = _tick + (uint)(ReachAgain * SimConstants.TickRate);
+                _reaching = default;
+            }
             return at ? new PlayerIntent { Buttons = tap ? PlayerButtons.Use : PlayerButtons.None, LookPitch = (float)(-0.6 - self.Pitch) } : walk;
         }
         var aisle = new Double3(train.Dynamics.Tuning.Geometry.Interior!.DoorX, 0, trouble.Local.Z + (self.Position.Z > trouble.Local.Z ? 1.2 : -1.2));
@@ -453,8 +478,63 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         return there ? new PlayerIntent { Buttons = PlayerButtons.Fire } : step;
     }
 
-    /// <summary>How far in from an extinguisher on its wall a walker stands to take it (m).</summary>
-    const double ExtinguisherStandOff = 0.7;
+    /// <summary>Room a walker wants round where it stands (m): about a crewmate's radius (player.json 0.3).</summary>
+    const double Clearance = 0.3;
+
+    /// <summary>
+    /// Where to stand to take something lying at <paramref name="at"/> on a car's floor, and the way to face: round it, a
+    /// little off, nearest <paramref name="from"/> first, wherever a crewmate fits clear of the car's fittings and its shut
+    /// doors (the crew lockers, the cargo's stack, the van's tool store), facing so the hands reach it and nothing the car
+    /// has is in reach to take the press instead (the hands only take Use with nothing else to work there: facing car 1's
+    /// crew lockers, or an end door, Use was theirs). Null if nowhere.
+    /// </summary>
+    public static (Double3 At, double Yaw)? TakeFrom(TrainOnLine train, int car, Double3 at, Double3 from)
+    {
+        var shape = train.Frames[car].Shape;
+        if (shape.Interior is not { } room || train.Dynamics.Tuning.Geometry.Interior is not { } layout)
+            return null;
+        double floor = layout.FloorHeight, r = Clearance;
+        var spots = new List<Double3>();
+        foreach (double off in new[] { 0.5, 0.7 })
+            for (int k = 0; k < 8; k++)
+                spots.Add(new Double3(at.X + off * DMath.Cos(k * Math.PI / 4), floor, at.Z + off * DMath.Sin(k * Math.PI / 4)));
+        foreach (var p in spots.OrderBy(p => (p.X - from.X) * (p.X - from.X) + (p.Z - from.Z) * (p.Z - from.Z)))
+        {
+            if (p.X - r < room.Min.X || p.X + r > room.Max.X || p.Z - r < room.Min.Z || p.Z + r > room.Max.Z)
+                continue;
+            bool Hits(Box b) => b.Max.Y > floor + 0.35 && b.Min.Y < floor + 1.8 && p.X + r > b.Min.X && p.X - r < b.Max.X && p.Z + r > b.Min.Z && p.Z - r < b.Max.Z;
+            if (shape.Solids.Any(solid => Hits(solid.Box)) || shape.DoorList.Any(door => Hits(door.Box)))
+                continue;
+            if (Facing(train, car, p, at, DMath.Atan2(p.X - at.X, p.Z - at.Z)) is { } face)
+                return (p with { Y = 0 }, face);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Stood at <paramref name="stood"/>, a way to face (<paramref name="first"/> if it'll do, else the nearest to it of
+    /// sixteen) with the hands in reach of <paramref name="at"/> and nothing of the car's in reach to take the press. Null if
+    /// none.
+    /// </summary>
+    static double? Facing(TrainOnLine train, int car, Double3 stood, Double3 at, double first)
+    {
+        for (int k = 0; k <= 16; k++)
+        {
+            double face = first + (k % 2 == 0 ? 1 : -1) * ((k + 1) / 2) * Math.PI / 8;
+            double hx = stood.X - DMath.Sin(face) * HandsForward - at.X, hz = stood.Z - DMath.Cos(face) * HandsForward - at.Z, hy = stood.Y + HandsUp - at.Y;
+            var s = new PlayerState { Parent = car, Position = stood, Yaw = face, Surface = Surface.Deck };
+            if (hx * hx + hz * hz + hy * hy <= HandsReach * HandsReach && CrewActions.NearestInteractable(s, train) is null)
+                return Math.IEEERemainder(face, 2 * Math.PI);
+        }
+        return null;
+    }
+
+    /// <summary>Where the hands take from (Bodies.Hands: 0.6 m ahead, 1.15 m up, 1.6 m reach), with a little to spare.</summary>
+    const double HandsForward = 0.6, HandsUp = 1.15, HandsReach = 1.45;
+    /// <summary>Seconds a walker goes for one extinguisher without taking it before it leaves it, and for how long (s).</summary>
+    const double ReachGiveUp = 12, ReachAgain = 60;
+    (int Body, int Ticks) _reaching;
+    readonly Dictionary<int, uint> _unreachable = [];
 
     /// <summary>What it's doing about the trouble in the car it's in (for the harness's trace), or null.</summary>
     public string? TendStep { get; private set; }

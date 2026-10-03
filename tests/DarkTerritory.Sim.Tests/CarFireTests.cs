@@ -100,6 +100,24 @@ public class CarFireTests
     }
 
     [Fact]
+    public void AnExtinguisherPutDownInTheAisleIsTakenFromTheAisle()
+    {
+        // Note 188: put down spent in the aisle, it recharges where it lies. In from it (the side away from its wall, the way
+        // to one on its mount) is the cargo's stack: the walker walked at the stack for as long as it was let. From aft of it.
+        var n = new Night(5, speed: 0);
+        int car = 3;
+        var room = n.Train.Frames[car].Shape.Interior!.Value;
+        var ext = n.World.Bodies.SpawnCrate(n.Train, car, new Double3(Tuning.Train.Geometry.Interior!.DoorX, room.Min.Y + 0.1, -3), BodyKind.Extinguisher);
+        ext.Home = car;
+        var bot = new Bots.RoofWalkerBot(3, Tuning.Player.Cold) { Me = 1 };
+        n.Crew[1] = new PlayerState { Parent = car, Position = new Double3(Tuning.Train.Geometry.Interior.DoorX, room.Min.Y, 5), Surface = Surface.Deck, Health = P.Health };
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 0, Tuning.Enemies.CarFire));
+        for (int s = 0; s < 40 && !fire.Gone; s++)
+            n.Run(1, id => bot.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        Assert.True(fire.Gone, $"{fire.Phase} at {fire.Extra:0.00}; the walker {bot.TendStep ?? bot.WarmUpStep} at {n.Crew[1].Position}");
+    }
+
+    [Fact]
     public void AWalkerGetsIntoTheGuardVanOffItsRearPlatformAndPutsItsFireOut()
     {
         // Note 188: the guard van, last, has no car behind it and so no plate; its rear door opens onto its platform. Nobody
