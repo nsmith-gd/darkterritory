@@ -131,14 +131,10 @@ public sealed partial class SceneArt(Look look)
                 var (clip, ct) = inRound < 2.4 ? ("bleat", inRound) : startled && inRound < 3.7 ? ("startle", inRound - 2.4)
                     : ((h + (uint)round) % 2 == 0 ? "shuffle" : "idle", inRound);
                 var at = Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateTranslation((float)x, (float)box.Min.Y + 0.05f, (float)z) * m;
-                Creatures.Draw(mesh, "sheep", clip, ct, true, at, seed: (int)(h % 13), adjust: Fleece);
+                Creatures.Draw(mesh, "sheep", clip, ct, true, at, seed: (int)(h % 13));
             }
         }
     }
-
-    /// <summary>The sheep's fleece: the library's wool is the crew's dark trouser cloth; a fleece is pale, even sooted.</summary>
-    static Ballast.Assets.MaterialLook Fleece(Ballast.Assets.ModelMaterial m, Ballast.Assets.MaterialLook l) =>
-        m.Name.StartsWith("wool", StringComparison.Ordinal) ? l with { Colour = l.Colour * new Vector3(2.6f, 2.5f, 2.25f) } : l;
 
     /// <summary>What a gutted car's paint and boards go to: charcoal, a little warm where the timber's charred through.</summary>
     static readonly Vector3 CharTint = new(0.34f, 0.3f, 0.28f);

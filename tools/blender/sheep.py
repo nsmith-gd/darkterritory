@@ -35,7 +35,7 @@ def quad():
     ]
     for side, sx in (("r", 1), ("l", -1)):
         b += [
-            Bone(f"ear_{side}", "head", (sx * 0.05, 0.5, 0.83), (sx * 0.13, 0.49, 0.82)),
+            Bone(f"ear_{side}", "head", (sx * 0.05, 0.5, 0.83), (sx * 0.12, 0.5, 0.755)),
             Bone(f"upperarm_{side}", "chest", (sx * 0.09, 0.24, 0.52), (sx * 0.09, 0.24, 0.32)),
             Bone(f"lowerarm_{side}", f"upperarm_{side}", (sx * 0.09, 0.24, 0.32), (sx * 0.09, 0.25, 0.08)),
             Bone(f"hand_{side}", f"lowerarm_{side}", (sx * 0.09, 0.25, 0.08), (sx * 0.09, 0.28, 0.01)),
@@ -50,11 +50,12 @@ sk = quad()
 sk.build()
 kit = rig.Kit(sk, "sheep")
 
-WOOL = Mat("wool.sheep", hexc("#d8d0c0"), shine=0.04, tint=(2.1, 2.0, 1.8))
-DIRTY = Mat("wool.sheep_soot", hexc("#8a8276"), shine=0.04, tint=(1.3, 1.25, 1.12))
+# The fleece texture (tools/art/texgen/mat_cloth.py fleece): curled locks, pale tips, dark roots.
+WOOL = Mat("fleece.sheep", hexc("#d8d0c0"), shine=0.04, tint=(1.05, 1.0, 0.92))
+DIRTY = Mat("fleece.sheep_soot", hexc("#8a8276"), shine=0.04, tint=(0.62, 0.58, 0.52))
 FACE = Mat("paint_black.sheep_face", hexc("#1a1715"), shine=0.12)
 HOOF = Mat("tar.hoof", hexc("#141210"), shine=0.2)
-EYE = Mat("eye.sheep", hexc("#c8a040"), shine=0.6)
+EYE = Mat("eye.sheep", hexc("#4a3818"), shine=0.7)
 MOUTH = Mat("flesh.sheep_mouth", hexc("#3a2424"), shine=0.3)
 
 body = kit.part("body")
@@ -82,11 +83,14 @@ def trunk(p):
 def fleece(i, j, a, p):
     """A fleece grown out ragged: lumpy, pulled into locks, heavier on the flanks."""
     q = Vector(p)
-    lock = 0.03 * noise3(q, 7, 14.0) + 0.016 * noise3(q, 8, 40.0)
+    lock = 0.045 * noise3(q, 6, 7.0) + 0.03 * noise3(q, 7, 16.0) + 0.014 * noise3(q, 8, 40.0)
     n = Vector((q.x, 0, q.z - 0.6))
     if n.length > 1e-6:
         n.normalize()
     q += n * lock
+    # The belly's fleece hangs: ragged locks dropping below the line of it, longest under the middle.
+    if p.z < 0.45:
+        q.z -= max(0.0, 0.05 + 0.04 * noise3(q, 11, 22.0)) * smoothstep(0.45, 0.36, p.z) * smoothstep(0.32, 0.05, abs(p.y + 0.1))
     return q
 
 
@@ -115,19 +119,20 @@ def finer(secs, n=2):
 body.sections(finer(TRUNK, 3), 20, WOOL, trunk, cap0=True, cap1=True, shape=fleece, fmat=soot)
 
 # The head: long, narrow, Roman-nosed, the black face; the jaw its own piece so the bleat shows.
-HEAD = [(0.42, 0.055, 0.86, 0.73, 0.9), (0.48, 0.06, 0.87, 0.72, 0.85), (0.54, 0.05, 0.84, 0.73, 0.85),
-        (0.6, 0.04, 0.8, 0.735, 0.9), (0.65, 0.03, 0.77, 0.74, 0.95)]
+HEAD = [(0.42, 0.05, 0.86, 0.75, 0.8), (0.47, 0.066, 0.885, 0.735, 0.75), (0.52, 0.062, 0.878, 0.73, 0.75),
+        (0.57, 0.05, 0.852, 0.73, 0.75), (0.62, 0.043, 0.822, 0.735, 0.75), (0.655, 0.036, 0.8, 0.745, 0.7)]
 body.sections(finer(HEAD, 2), 12, FACE, "head", cap1=True)
-body.sections([(0.5, 0.035, 0.735, 0.7, 0.9), (0.58, 0.03, 0.735, 0.71, 0.9), (0.64, 0.022, 0.735, 0.72, 1.0)], 8, FACE, "jaw",
+body.sections([(0.48, 0.046, 0.745, 0.705, 0.8), (0.56, 0.042, 0.742, 0.708, 0.8), (0.645, 0.032, 0.748, 0.724, 0.8)], 10, FACE, "jaw",
               cap1=True)
 body.box((0, 0.6, 0.735), (0.022, 0.05, 0.006), MOUTH, "jaw")
 # A topknot of fleece on the poll.
 body.blob((0, 0.46, 0.88), (0.06, 0.06, 0.04), 8, 4, WOOL, "head")
 for sx in (-1, 1):
     s = "r" if sx > 0 else "l"
-    body.slab([(sx * 0.045, 0.5, 0.835), (sx * 0.15, 0.48, 0.83), (sx * 0.16, 0.51, 0.82), (sx * 0.05, 0.53, 0.82)], 0.012, FACE,
-              f"ear_{s}", down=(0, 0, -1))
-    body.box((sx * 0.05, 0.53, 0.82), (0.008, 0.012, 0.008), EYE, "head")
+    # The ears: leaf-shaped, drooped out and down off the poll the way a hill sheep carries them.
+    body.slab([(sx * 0.045, 0.486, 0.838), (sx * 0.08, 0.472, 0.8), (sx * 0.112, 0.488, 0.758), (sx * 0.124, 0.505, 0.75),
+               (sx * 0.102, 0.53, 0.79), (sx * 0.052, 0.527, 0.832)], 0.012, FACE, f"ear_{s}", down=(-sx * 0.75, 0, -0.66))
+    body.box((sx * 0.058, 0.51, 0.832), (0.008, 0.012, 0.009), EYE, "head")
 
 # Legs: thin, black, knobbed at the knees; hooves.
 for sx in (-1, 1):
@@ -145,6 +150,13 @@ for sx in (-1, 1):
               [0.055, 0.04, 0.03, 0.022, 0.018, 0.02], 8, FACE, rw, ref=(0, 1, 0))
     for y0, bone in ((0.27, f"hand_{s}"), (-0.345, f"foot_{s}")):
         body.box((x, y0, 0.015), (0.024, 0.03, 0.015), HOOF, bone, taper=(0.85, 0.8))
+# The fleece grows down over the tops of the legs, so they come out of it, not out of a box.
+for sx in (-1, 1):
+    s = "r" if sx > 0 else "l"
+    body.tube([(sx * 0.1, 0.24, 0.56), (sx * 0.1, 0.24, 0.44), (sx * 0.095, 0.245, 0.37)], [0.075, 0.06, 0.04], 10, WOOL,
+              f"upperarm_{s}", ref=(0, 1, 0), cap1=True, shape=lambda i, j, a, p, f: fleece(i, j, a, p))
+    body.tube([(sx * 0.1, -0.35, 0.6), (sx * 0.1, -0.32, 0.46), (sx * 0.095, -0.305, 0.37)], [0.085, 0.07, 0.042], 10, DIRTY,
+              f"thigh_{s}", ref=(0, 1, 0), cap1=True, shape=lambda i, j, a, p, f: fleece(i, j, a, p))
 body.tube([(0, -0.47, 0.62), (0, -0.51, 0.57), (0, -0.54, 0.52)], [0.04, 0.035, 0.02], 6, DIRTY, "tail_01", ref=(0, 0, 1), cap1=True)
 
 # --------------------------------------------------------------------------------------------------------------
