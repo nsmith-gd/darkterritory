@@ -1148,6 +1148,12 @@ public sealed class CreatureArt
                             Reach(e, $"arm_{n}_01", $"arm_{n}_02", $"hand_{n}", wrist - Vector3.UnitZ * grip, pole);
                         }
                     };
+                    // Feeding, the plate it's chewing spits sparks out of its mouth (the checklist's sparks).
+                    if (phase is SpinePhase.Commit || phase == SpinePhase.Telegraph && t >= latch)
+                    {
+                        var (_, hu, hb) = Basis(model);
+                        _fx.Grind(mesh, model.Translation + Vector3.Normalize(hu) * 1.0f + Vector3.Normalize(hb) * 0.35f, Vector3.Normalize(hu), Vector3.Normalize(hb), t, (int)extra2);
+                    }
                     return phase switch
                     {
                         SpinePhase.Dormant => Draw(mesh, "car_hugger", "lurk", t, true, Matrix4x4.CreateTranslation(0, HuggerLurkLift, 0) * model,

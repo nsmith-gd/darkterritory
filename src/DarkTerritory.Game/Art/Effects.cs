@@ -312,6 +312,27 @@ public sealed partial class Effects(Look look)
         }
     }
 
+    /// <summary>
+    /// Sparks off steel being chewed (the Car Hugger feeding on its car, App. A.3: "the teeth grinding"): spat out of the
+    /// mouth at <paramref name="at"/> in bursts, flying out and falling, around <paramref name="back"/> (the way out of it).
+    /// </summary>
+    public void Grind(MeshBuilder mesh, Vector3 at, Vector3 up, Vector3 back, double time, int seed)
+    {
+        var right = Vector3.Normalize(Vector3.Cross(up, back));
+        // In bursts, as the jaws close on the plate.
+        float burst = MathF.Max(0, MathF.Sin((float)time * 5.3f + seed)) * 0.7f + 0.3f;
+        for (int k = 0; k < 30; k++)
+        {
+            float h = Hash(k * 3.37f + seed * 0.71f);
+            float period = 0.35f + h * 0.3f;
+            float age = (float)((time + h * 2) % period);
+            float t = age / period;
+            var fly = back * (0.6f + h * 1.4f) + right * ((Hash(k + 0.5f) - 0.5f) * 5f) + up * (2.0f + Hash(k + 1.5f) * 2.4f);
+            var p = at + fly * age - up * (4.9f * age * age);
+            mesh.Billboard(p, 0.45f + 0.35f * h, 0.3f, new Vector4(1.6f, 0.95f, 0.35f, burst * (1 - t * t)), _spark, FxBlend.Additive, k % 4, 2, stretch: 3f);
+        }
+    }
+
     public void Rain(MeshBuilder mesh, Double3 eye, double time, float wind, Vector3 fogColour)
     {
         const float cell = 2.5f, height = 12, fall = 9;
