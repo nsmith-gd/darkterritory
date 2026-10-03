@@ -13,7 +13,13 @@ public enum Survivor : byte { None, Prisoner, Wildlander }
 public enum CrewPose
 {
     Idle, Walk, Run, Climb, Shovel, Crouch, Dead, Carry, CarryWalk, Drag, Door, Handbrake, Hatch, Uncouple, Vent, Lever, Push, Held, Gunner, Fall, Swing, Mend, Gap, Extinguish, Lantern, LanternWalk, Haul,
-    HaulUp, GapStep, Drive, Whistle, Smash, Pry, Pick, GetUp, TakeDown
+    HaulUp, GapStep, Drive, Whistle, Smash, Pry, Pick, GetUp, TakeDown,
+    // Running under stress; a blow taken; a ground switch lever, the coaling chute's, a spout; up a ladder with a body.
+    Hurry, Stagger, Throw, Chute, Spout, ClimbCarry,
+    // Held, one per GRAB (App. A.1): by a Dragger, a Car Hugger, the Whistler, Tippy Toesie, Ribbits, a Soot Child, the Choir, the Passenger.
+    HeldHang, HeldMouth, HeldCarried, HeldCover, HeldFrozen, HeldPinned, HeldSeized, HeldDragged,
+    // At the cannon's breech from the seat (note 137): played by the reload's progress, not a clock.
+    Reload,
 }
 
 /// <summary>
@@ -510,6 +516,21 @@ public sealed class CreatureArt
         CrewPose.Pick => "pick",
         CrewPose.GetUp => "getup",
         CrewPose.TakeDown => "take_down",
+        CrewPose.Hurry => "hurry",
+        CrewPose.Stagger => "stagger",
+        CrewPose.Throw => "throw",
+        CrewPose.Chute => "chute",
+        CrewPose.Spout => "spout",
+        CrewPose.ClimbCarry => "climb_carry",
+        CrewPose.HeldHang => "held_hang",
+        CrewPose.HeldMouth => "held_mouth",
+        CrewPose.HeldCarried => "held_carried",
+        CrewPose.HeldCover => "held_cover",
+        CrewPose.HeldFrozen => "held_frozen",
+        CrewPose.HeldPinned => "held_pinned",
+        CrewPose.HeldSeized => "held_seized",
+        CrewPose.HeldDragged => "held_dragged",
+        CrewPose.Reload => "reload",
         _ => "idle",
     };
 
@@ -538,12 +559,13 @@ public sealed class CreatureArt
         string clip = ClipOf(pose);
         // A build without crew_clips.glb (or an older one, short of a clip) stands them idle rather than in the greybox.
         if (_models.TryGetValue(figure, out var has) && !has.Model.Clips.ContainsKey(clip))
-            clip = "idle";
+            clip = clip.StartsWith("held_", StringComparison.Ordinal) && has.Model.Clips.ContainsKey("held") ? "held"
+                : clip == "hurry" && has.Model.Clips.ContainsKey("run") ? "run" : clip == "reload" && has.Model.Clips.ContainsKey("gunner") ? "gunner" : "idle";
         var Paint = PaintOf(variant);
         if (!_models.TryGetValue(figure, out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
         // Played once from their start (SceneArt passes the time since the act began): getting up, a thing off its bracket.
-        bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown;
+        bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.Stagger or CrewPose.Reload;
         _skinner.Evaluate(m.Model, c, fromStart ? time : time + offset, pose is not (CrewPose.Dead or CrewPose.Swing) && !fromStart, m.Pose);
         if (left is { } l)
             Reach(m, "l", l, leftPole);
@@ -851,7 +873,8 @@ public sealed class CreatureArt
     /// shoulders and hips, then each limb bone swung onto its joint, parents first. <paramref name="variant"/> is whose
     /// body it is, so it wears what they wore. Their lamp is down to an ember: dead from a distance, but findable.
     /// </summary>
-    public bool Corpse(MeshBuilder mesh, ReadOnlySpan<Vector3> joints, int variant)
+    /// <param name="charred">Dead by fire: the coat and all burnt black, the paint gone with it.</param>
+    public bool Corpse(MeshBuilder mesh, ReadOnlySpan<Vector3> joints, int variant, bool charred = false)
     {
         if (joints.Length < RagdollJoints || !_models.TryGetValue("crew", out var m))
             return false;
@@ -887,7 +910,8 @@ public sealed class CreatureArt
             if (b >= 0 && t >= 0)
                 Skinner.Aim(model, m.Pose, b, t, joints[joint]);
         }
-        Emit(mesh, m, "dead", Matrix4x4.Identity, variant, glow: 0.2f, seed: variant, adjust: PaintOf(variant));
+        Emit(mesh, m, "dead", Matrix4x4.Identity, variant, glow: charred ? 0 : 0.2f, seed: variant,
+            adjust: charred ? (_, l) => l with { Colour = l.Colour * new Vector3(0.11f, 0.09f, 0.08f) } : PaintOf(variant));
         return true;
 
         // Rows right, up, back: takes model +X, +Y, +Z onto them (right squared to up first).

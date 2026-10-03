@@ -28,6 +28,12 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   smash, pry, pick    breaching a Holdout (App. D.7): the lock smashed, the barricade pried, the lock picked with the kit
   getup               freed, up off the Holdout's floor (App. D.8)
   take_down           the extinguisher lifted off its bracket into the hands (App. C.5)
+  hurry               running under stress: hunched, arms pumping (GDD §31)
+  stagger             a blow taken: rocked back a step, and back (App. C.2)
+  throw, chute, spout a ground switch lever heaved over; the coaling chute's lever hauled down; a spout swung round (C.6, D.3)
+  climb_carry         the solo remainer up a ladder, a body over the shoulder (App. D.9)
+  held_*              one per GRAB (App. A.1): hang, mouth, carried, cover, frozen, pinned, seized, dragged
+  reload              the cannon's reload from the seat: powder, ram, prime (note 137)
   fp_hold, fp_walk    first person (X3): the tool held up in view, the eye at EYE (CreatureArt.OwnArms puts it at the camera)
   fp_swing            first person: the blow, as long as the melee's recovery (enemies.json melee.swingSeconds, 0.8 s)
 In place, 30 fps, like crew.py's; the root never travels (the sim moves the crewmate).
@@ -544,10 +550,165 @@ fp_swing.key(14, fp(tuple(EYE + Vector((-0.1, 0.46, -0.46))), at(FP_L, dz=-0.05,
 fp_swing.key(24, fp(FP_R, FP_L))
 clips.append(fp_swing)
 
+# --- hurry: running under stress (GDD §31: "hurried under stress"), hunched, head up to see ahead, arms pumping ----------
+def hurry_upper(f, side):
+    # The arm opposite the leading leg forward; the body pitched into it, rocking with the step.
+    fwd, back = (0.2, 0.36, 1.2), (0.22, -0.2, 0.92)
+    r, l = (back, at(fwd, dx=-0.4)) if side == "r" else (fwd, at(back, dx=-0.44))
+    body = over(STAND, spine_01=(-12, 0, 0), spine_02=(-10, 0, 3 if side == "r" else -3), spine_03=(-8, 0, 0),
+                neck=(18, 0, 0), head=(4, 0, 0))
+    return hands(body, r, l, grip=70)
+
+
+clips.append(walking("hurry", hurry_upper, cycle=18, short=1.35))
+
+# --- stagger: a blow taken (App. C.2 "hit and stagger"): rocked back a step, arms flung up, and back on the feet ----------
+STAG = over(STAND, pelvis__loc=(0, -0.08, -0.04), pelvis=(10, 0, -6), spine_01=(12, 0, -4), spine_02=(10, 0, -6),
+            spine_03=(8, 0, -4), neck=(-10, 0, 0), head=(-14, 0, 8), thigh_r=(-22, 0, 0), calf_r=(-10, 0, 0),
+            thigh_l=(20, 0, 0), calf_l=(-34, 0, 0))
+stagger = Clip("stagger", loop=False)
+stagger.key(0, STAND)
+stagger.key(4, hands(STAG, (0.34, 0.2, 1.5), (-0.4, 0.1, 1.42), fist=False), "LINEAR")
+stagger.key(10, hands(over(STAG, spine_02=(6, 0, -3), head=(-6, 0, 4)), (0.3, 0.24, 1.2), (-0.34, 0.16, 1.15), fist=False))
+stagger.key(20, STAND)
+clips.append(stagger)
+
+# --- throw: a ground switch lever by the line (spec C.6's junctions), gripped low and heaved up and over ----------------
+THROW_LOW = over(STAND, pelvis__loc=(0, -0.06, -0.12), pelvis=(-14, 0, 0), spine_01=(-18, 0, 0), spine_02=(-14, 0, 0),
+                 spine_03=(-8, 0, 0), neck=(20, 0, 0), head=(10, 0, 0), thigh_r=(36, 0, 0), calf_r=(-50, 0, 0), foot_r=(14, 0, -6),
+                 thigh_l=(-6, 0, 0), calf_l=(-20, 0, 0))
+THROW_UP = over(STAND, pelvis__loc=(0, -0.1, -0.03), pelvis=(6, 0, 0), spine_01=(8, 0, 0), spine_02=(6, 0, -4),
+                spine_03=(4, 0, -4), neck=(-2, 0, 0), head=(-6, 0, 0), thigh_r=(24, 0, 0), calf_r=(-26, 0, 0),
+                thigh_l=(-14, 0, 0), calf_l=(-8, 0, 0))
+throw = Clip("throw")
+throw.key(0, hands(THROW_LOW, (0.22, 0.5, 0.56), (0.06, 0.5, 0.6), grip=90))
+throw.key(14, hands(THROW_UP, (0.2, 0.3, 1.06), (0.04, 0.3, 1.1), grip=90), "LINEAR")
+throw.hold(26)
+throw.close(40)
+clips.append(throw)
+
+# --- chute: the coaling chute's lever (spec D.3), hauled down overhead on its chain, the weight hung off it ------------
+CHUTE = over(STAND, pelvis__loc=(0, -0.04, 0), spine_01=(4, 0, 0), spine_02=(4, 0, 0), neck=(-14, 0, 0), head=(-14, 0, 0))
+CHUTE_DOWN = over(CHUTE, pelvis__loc=(0, -0.1, -0.1), spine_01=(8, 0, 0), spine_02=(6, 0, 0), neck=(-4, 0, 0), head=(-4, 0, 0),
+                  thigh_r=(26, 0, 0), calf_r=(-38, 0, 0), thigh_l=(16, 0, 0), calf_l=(-30, 0, 0))
+chute = Clip("chute")
+chute.key(0, hands(CHUTE, (0.08, 0.32, 2.0), (-0.04, 0.32, 1.9), grip=90))
+chute.key(12, hands(CHUTE_DOWN, (0.08, 0.34, 1.5), (-0.04, 0.34, 1.42), grip=90), "LINEAR")
+chute.hold(28)
+chute.close(40)
+clips.append(chute)
+
+# --- spout: a grain or water spout's handle overhead (the depot's spout, spec D.3), swung round over the car -------------
+SPOUT = over(STAND, spine_01=(4, 0, 0), spine_02=(4, 0, 0), neck=(-16, 0, 0), head=(-12, 0, 0),
+             thigh_r=(-8, 0, 0), thigh_l=(10, 0, 0), calf_l=(-10, 0, 0))
+spout = Clip("spout")
+for f, turn in ((0, 0), (20, 1), (40, 0), (60, -1)):
+    spout.key(f, hands(over(SPOUT, pelvis=(0, 0, 8 * turn), spine_02=(4, 0, 10 * turn), spine_03=(2, 0, 8 * turn)),
+                       (0.14 + 0.22 * turn, 0.42, 1.78), (-0.14 + 0.22 * turn, 0.42, 1.76), grip=85))
+spout.close(80)
+clips.append(spout)
+
+# --- climb_carry: the solo remainer up a ladder with a body over the left shoulder (App. D.9, note 181: 0.4 m/s) -----------
+# The left arm hooked over the body's legs at the shoulder; the right hand alone on the rungs, a hand-hold at a time.
+CC = over(STAND, spine_01=(-6, 0, 0), spine_02=(-8, 0, 4), spine_03=(-6, 0, 6), neck=(-6, 0, 0), head=(-10, 0, 0))
+climb_carry = Clip("climb_carry")
+for f, up in ((0, 0), (20, 1), (40, 0), (60, 1)):
+    legs = {"thigh_r": (56, 0, 0), "calf_r": (-80, 0, 0), "foot_r": (10, 0, -6), "thigh_l": (8, 0, 0), "calf_l": (-14, 0, 0)} if up \
+        else {"thigh_l": (56, 0, 0), "calf_l": (-80, 0, 0), "foot_l": (10, 0, 6), "thigh_r": (8, 0, 0), "calf_r": (-14, 0, 0)}
+    climb_carry.key(f, hands(over(CC, **legs), (0.14, 0.3, 1.86 if up else 1.5), (-0.1, 0.16, 1.5), grip=85))
+climb_carry.close(80)
+clips.append(climb_carry)
+
+# --- held: one per GRAB (App. A.1), so who's got them reads from across the car ---------------------------------------
+# Hanging over the edge (the Draggers): both hands clawing at the roof's edge over them, the legs kicking below it.
+held_hang = Clip("held_hang")
+HANG = over(STAND, pelvis__loc=(0, 0, -0.05), spine_01=(4, 0, 0), neck=(-20, 0, 0), head=(-18, 0, 0))
+for f, k in ((0, 1), (9, -1), (18, 1), (27, -1)):
+    held_hang.key(f, hands(over(HANG, thigh_r=(20 * k, 0, 0), calf_r=(-30, 0, 0), thigh_l=(-14 * k, 0, 0), calf_l=(-40, 0, 0)),
+                           (0.18, 0.28, 2.02 + 0.04 * k), (-0.18, 0.3, 2.0 - 0.04 * k), grip=95), "LINEAR")
+held_hang.close(36)
+clips.append(held_hang)
+# In the mouth (the Car Hugger): bent double, the head and shoulders gone into it, the arms shoving back off it, the legs out.
+held_mouth = Clip("held_mouth")
+MOUTH = over(STAND, pelvis__loc=(0, 0.1, -0.1), pelvis=(-30, 0, 0), spine_01=(-24, 0, 0), spine_02=(-20, 0, 0),
+             spine_03=(-16, 0, 0), neck=(10, 0, 0), thigh_r=(-12, 0, 0), calf_r=(-6, 0, 0), thigh_l=(18, 0, 0), calf_l=(-24, 0, 0))
+for f, k in ((0, 1), (6, -1), (12, 1), (18, -1)):
+    held_mouth.key(f, hands(over(MOUTH, spine_02=(-20, 0, 6 * k)), (0.32, 0.62, 1.2 + 0.05 * k), (-0.32, 0.6, 1.2 - 0.05 * k), fist=False), "LINEAR")
+held_mouth.close(24)
+clips.append(held_mouth)
+# Carried off (the Whistler): lifted by the shoulders, the hands up at what has them, the legs dangling and kicking.
+held_carried = Clip("held_carried")
+LIFT = over(STAND, spine_01=(6, 0, 0), spine_02=(4, 0, 0), neck=(-12, 0, 0), head=(-20, 0, 0),
+            clavicle_r=(0, 0, 20), clavicle_l=(0, 0, -20))
+for f, k in ((0, 1), (8, -1), (16, 1), (24, -1)):
+    held_carried.key(f, hands(over(LIFT, thigh_r=(24 + 16 * k, 0, 0), calf_r=(-50 - 20 * k, 0, 0), foot_r=(30, 0, -6),
+                                   thigh_l=(24 - 16 * k, 0, 0), calf_l=(-50 + 20 * k, 0, 0), foot_l=(30, 0, 6)),
+                              (0.14, 0.0, 1.66), (-0.14, 0.02, 1.68), grip=95))
+held_carried.close(32)
+clips.append(held_carried)
+# Mouth covered (Tippy Toesie): both hands up at the mask, clawing at what's over it, the knees going.
+held_cover = Clip("held_cover")
+COVER = over(STAND, pelvis__loc=(0, -0.04, -0.08), spine_01=(8, 0, 0), spine_02=(8, 0, 0), neck=(-8, 0, 0), head=(-16, 0, 0),
+             thigh_r=(20, 0, 0), calf_r=(-34, 0, 0), thigh_l=(18, 0, 0), calf_l=(-30, 0, 0))
+for f, k in ((0, 1), (7, -1), (14, 1), (21, -1)):
+    held_cover.key(f, hands(over(COVER, head=(-16, 0, 8 * k)), (0.08, 0.2, 1.62 + 0.02 * k), (-0.08, 0.2, 1.62 - 0.02 * k), fist=False))
+held_cover.close(28)
+clips.append(held_cover)
+# Tongue-frozen (the Ribbits): stiff as a post, the arms out rigid, a tremor through it and nothing else.
+held_frozen = Clip("held_frozen")
+FROZEN = over(STAND, spine_01=(6, 0, 0), spine_02=(6, 0, 0), neck=(-10, 0, 0), head=(-14, 0, 0))
+for f, k in ((0, 1), (2, -1), (4, 1), (6, -1)):
+    held_frozen.key(f, hands(over(FROZEN, head=(-14, 0, 1.5 * k)), (0.56, 0.18, 1.32 + 0.006 * k), (-0.56, 0.18, 1.32 - 0.006 * k), fist=False), "LINEAR")
+held_frozen.close(8)
+clips.append(held_frozen)
+# Pinned and drained (a Soot Child): down on the back, the arms pushing up weakly at what's on the chest, slowing.
+held_pinned = Clip("held_pinned")
+PINNED = over(STAND, pelvis__loc=(0, -0.5, -0.86), pelvis=(-86, 0, 0), spine_01=(-4, 0, 0), spine_02=(-2, 0, 0),
+              neck=(-6, 0, 0), head=(-10, 0, 10), thigh_r=(98, -8, 0), calf_r=(-30, 0, 0), thigh_l=(84, 8, 0), calf_l=(-20, 0, 0))
+for f, k in ((0, 1), (20, -1)):
+    held_pinned.key(f, hands(PINNED, (0.16, 0.3 + 0.06 * k, 0.4), (-0.16, 0.3 - 0.06 * k, 0.38), fist=False))
+held_pinned.close(40)
+clips.append(held_pinned)
+# Seized (the Choir): the arms pinned to the sides, the body arched and jerked by what holds it.
+held_seized = Clip("held_seized")
+SEIZED = over(STAND, spine_01=(10, 0, 0), spine_02=(10, 0, 0), spine_03=(6, 0, 0), neck=(-10, 0, 0), head=(-22, 0, 0))
+for f, k in ((0, 1), (5, -1), (13, 1), (17, -1)):
+    held_seized.key(f, hands(over(SEIZED, pelvis=(0, 0, 4 * k), spine_02=(10, 0, -5 * k)), (0.24, 0.02, 0.96), (-0.24, 0.02, 0.96)),
+                    "CONSTANT" if f in (5, 17) else "BEZIER")
+held_seized.close(24)
+clips.append(held_seized)
+# Dragged (the Passenger): on the back, feet first, the hands clawing back over the head at the boards for a hold.
+held_dragged = Clip("held_dragged")
+for f, k in ((0, 1), (10, -1)):
+    held_dragged.key(f, hands(over(PINNED, head=(-20, 0, -8 * k)), (0.2, -0.44 + 0.08 * k, 0.12), (-0.2, -0.44 - 0.08 * k, 0.12), grip=90))
+held_dragged.close(20)
+clips.append(held_dragged)
+
+# --- reload: the cannon's three reload steps from the seat (enemies.json gun reloadSteps, 1.5 s each), four beats in all:
+# the powder bag shoved in the breech, the shot rammed home, the vent primed; then the gunner's own pose is the fourth, ready.
+# Not looped: SceneArt plays it at (steps done + this step's progress) x 1.5 s.
+reload_ = Clip("reload", loop=False)
+LEAN = over(SEATED, spine_01=(-14, 0, 0), spine_02=(-12, 0, 0), spine_03=(-8, 0, 0), neck=(16, 0, 0))
+reload_.key(0, hands(SEATED, WHEEL_KNOB, TILLER))
+reload_.key(10, hands(LEAN, (0.18, 0.5, PAN + 0.36), (-0.02, 0.5, PAN + 0.38), grip=60))
+reload_.key(30, hands(over(LEAN, spine_02=(-16, 0, 0)), (0.18, 0.76, PAN + 0.4), (-0.02, 0.76, PAN + 0.42), grip=60), "LINEAR")
+reload_.key(45, hands(SEATED, (0.24, 0.3, PAN + 0.5), (-0.06, 0.3, PAN + 0.52), grip=90))
+reload_.key(58, hands(LEAN, (0.2, 0.48, PAN + 0.56), (0.0, 0.42, PAN + 0.54), grip=90))
+reload_.key(70, hands(over(LEAN, spine_01=(-20, 0, 0)), (0.2, 0.86, PAN + 0.56), (0.0, 0.8, PAN + 0.54), grip=90), "LINEAR")
+reload_.key(80, hands(LEAN, (0.2, 0.48, PAN + 0.56), (0.0, 0.42, PAN + 0.54), grip=90))
+reload_.key(90, hands(SEATED, WHEEL_KNOB, TILLER))
+reload_.key(102, hands(over(SEATED, head=(10, 0, 0), neck=(20, 0, 0)), (0.06, 0.42, PAN + 0.62), TILLER, grip=40))
+reload_.key(112, hands(over(SEATED, head=(10, 0, 0), neck=(20, 0, 0)), (0.06, 0.4, PAN + 0.58), TILLER, grip=40), "LINEAR")
+reload_.key(122, hands(over(SEATED, head=(10, 0, 0), neck=(20, 0, 0)), (0.06, 0.42, PAN + 0.62), TILLER, grip=40))
+reload_.key(135, hands(SEATED, WHEEL_KNOB, TILLER))
+clips.append(reload_)
+
 kit.build()
 rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"carry", "carry_walk", "drag", "door", "handbrake", "hatch",
                                                         "uncouple", "vent", "lever", "push", "swing", "mend",
                                                         "gap", "extinguish", "lantern", "lantern_walk", "haul",
-                                                        "haul_up", "drive", "whistle", "smash", "pry", "pick", "take_down"}))
+                                                        "haul_up", "drive", "whistle", "smash", "pry", "pick", "take_down",
+                                                        "stagger", "throw", "chute", "spout", "held_cover", "held_frozen",
+                                                        "held_seized", "held_mouth"}))
 rig.export(rig.args()[0] if rig.args() else "crew_clips.glb", kit)
 print(f"[dt] crew clips {[c.name + ':' + str(c.length) for c in clips]}")

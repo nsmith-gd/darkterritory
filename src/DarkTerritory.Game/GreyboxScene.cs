@@ -402,6 +402,9 @@ public sealed class GreyboxScene
         {
             // Heavy crates only come from a facility's site, so its size is there (facilities.json "heavy").
             double heavyHalf = Run?.Sites.FirstOrDefault(x => x is not null)?.HeavyRadius ?? 0.5;
+            if (Look is not null)
+                Look.Art.Burned = Crew?.Where(c => c.Death is Sim.Player.DeathCause.Burned or Sim.Player.DeathCause.Stoker
+                    or Sim.Player.DeathCause.Exploded or Sim.Player.DeathCause.Keg).Select(c => (int)c.Id).ToHashSet();
             foreach (var b in Bodies)
             {
                 // In your own hands, drawn at them for the frame (the mirror's own pose is back before anything reads it).
@@ -426,7 +429,7 @@ public sealed class GreyboxScene
         Extinguishing(mesh, frames, eye);
         if (Crew is not null)
             foreach (var c in Crew)
-                if (c.Alive && Look?.Art.Crewmate(mesh, c, eye, Time) != true) // the dead are drawn as their bodies
+                if (c.Alive && Look?.Art.Crewmate(mesh, c, eye, Time, Swung(c.Id)) != true) // the dead are drawn as their bodies
                     DrawCrewmate(mesh, c, eye);
         if (Own is { } own)
             Look?.Art.OwnArms(mesh, own, Time);
@@ -460,6 +463,22 @@ public sealed class GreyboxScene
             var body = Enemies?.FirstOrDefault(e => e.Id == h.EnemyId && !e.Gone) is { } e ? EnemyWorld(e, frames) + Double3.Up * 0.8 : h.At;
             fx.HitFlash(mesh, V(h.At, eye), V(body, eye), ToF(h.From), h.Source, h.Killed, age, h.Id);
         }
+    }
+
+    /// <summary>Seconds since crewmate <paramref name="id"/>'s latest melee blow landed (its HitConfirm, T121), or −1.</summary>
+    double Swung(int id)
+    {
+        if (Hits is null || Tick < 0)
+            return -1;
+        double best = -1;
+        foreach (var h in Hits)
+            if (h.By == id && h.Source == Sim.Combat.HitSource.Melee)
+            {
+                double age = (Tick - h.Tick) * Sim.SimConstants.TickSeconds;
+                if (age >= 0 && (best < 0 || age < best))
+                    best = age;
+            }
+        return best;
     }
 
     /// <summary>How long a creature flinches from a blow (s), and how far it's knocked (m) and tipped (rad) at the most.</summary>

@@ -29,7 +29,9 @@ public sealed partial class SceneArt(Look look)
     /// A crewmate as the crew model, walking or running by how fast they've moved since last drawn (the snapshot
     /// doesn't say; this is presentation only, so a frame's lag in the gait doesn't matter). False without the model.
     /// </summary>
-    public bool Crewmate(MeshBuilder mesh, Crewmate c, Double3 eye, double time)
+    /// <param name="swung">Seconds since a blow of theirs landed (a HitConfirm by them, App. C.2), or negative: their swing
+    /// is played round it, so another crewmate's blow is seen as well as felt.</param>
+    public bool Crewmate(MeshBuilder mesh, Crewmate c, Double3 eye, double time, double swung = -1)
     {
         float speed = 0;
         if (_crewMotion.TryGetValue(c.Id, out var last) && time > last.Time)
@@ -48,12 +50,31 @@ public sealed partial class SceneArt(Look look)
             // Across the plate, short careful steps; stood on it, balancing (GDD §32).
             CrewPose.Gap => speed < 0.4f ? CrewPose.Gap : CrewPose.GapStep,
             { } act => act,
-            null => speed < 0.4f ? CrewPose.Idle : speed < 2.6f ? CrewPose.Walk : CrewPose.Run,
+            // Running with something waking close by, hunched and hurried (GDD §31).
+            null => speed < 0.4f ? CrewPose.Idle : speed < 2.6f ? CrewPose.Walk : c.Stressed ? CrewPose.Hurry : CrewPose.Run,
         };
+        // A blow taken (their health down since last drawn): rocked back a step, unless their hands are busy with something.
+        if (_crewHealth.TryGetValue(c.Id, out int was) && c.Health < was && c.Alive)
+            _staggered[c.Id] = time;
+        _crewHealth[c.Id] = c.Health;
+        bool free = c.Act is null or CrewPose.Carry or CrewPose.Lantern;
+        if (free && _staggered.TryGetValue(c.Id, out double hit) && time - hit < StaggerSeconds)
+            pose = CrewPose.Stagger;
+        // Their own blow (it landed swungBeforeHit into the clip): played round it, wherever they stand.
+        if (free && swung >= 0 && swung + SwingHitAt < SwingSeconds)
+            pose = CrewPose.Swing;
         // When this act began, for the ones played once from the start (getting up, a thing off its bracket).
         if (!_crewActSince.TryGetValue(c.Id, out var since) || since.Pose != pose)
             _crewActSince[c.Id] = since = (pose, time);
-        double clipTime = pose is CrewPose.GetUp or CrewPose.TakeDown ? time - since.Time : time;
+        double clipTime = pose switch
+        {
+            CrewPose.GetUp or CrewPose.TakeDown => time - since.Time,
+            CrewPose.Stagger => time - _staggered.GetValueOrDefault(c.Id, since.Time),
+            CrewPose.Swing => swung + SwingHitAt,
+            // The reload's beats follow the gun's own progress, not a clock (CrewActs.ReloadPhase).
+            CrewPose.Reload => c.Phase,
+            _ => time,
+        };
         var right = new Vector3((float)Math.Cos(c.Yaw), 0, (float)-Math.Sin(c.Yaw));
         var back = new Vector3((float)Math.Sin(c.Yaw), 0, (float)Math.Cos(c.Yaw));
         var m = CreatureArt.Basis(c.Feet.RelativeTo(eye), right, Vector3.UnitY, back);
@@ -98,6 +119,11 @@ public sealed partial class SceneArt(Look look)
     }
 
     readonly Dictionary<int, (Double3 At, double Time)> _lampHands = new();
+    readonly Dictionary<byte, int> _crewHealth = new();
+    readonly Dictionary<byte, double> _staggered = new();
+
+    /// <summary>crew_clips.py's stagger (20 frames) and swing (24 frames, the blow landing at frame 11), in seconds.</summary>
+    const double StaggerSeconds = 20 / 30.0, SwingSeconds = 24 / 30.0, SwingHitAt = 11 / 30.0;
 
     /// <summary>How much a breath shows tonight, 0..1 (look.json atmosphere.cold, GreyboxScene.Cold).</summary>
     public float Breath { get; set; }
@@ -316,7 +342,7 @@ public sealed partial class SceneArt(Look look)
         if (!onCar && b.Parent != Sim.Player.PlayerState.World)
             return true;
         if (b.Kind == Sim.Physics.BodyKind.Ragdoll)
-            return Corpse(mesh, frames, b, eye, onCar);
+            return Corpse(mesh, frames, b, eye, onCar, time);
         // A hand lamp someone's carrying is drawn in their fist (Crewmate), not where the sim holds it.
         if (b.Kind == Sim.Physics.BodyKind.Lamp && b.Carrier >= 0 && LampInHand(b.Carrier, time) is not null)
             return true;
@@ -529,8 +555,11 @@ public sealed partial class SceneArt(Look look)
 
     readonly Vector3[] _joints = new Vector3[CreatureArt.RagdollJoints];
 
+    /// <summary>Whose bodies died by fire (the Stoker, a burning car, powder going up): drawn charred, still smouldering.</summary>
+    public IReadOnlySet<int>? Burned { get; set; }
+
     /// <summary>A ragdoll as the crew model lying as its joints lie; false (the greybox's bones) if the model isn't there.</summary>
-    bool Corpse(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, bool onCar)
+    bool Corpse(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, bool onCar, double time)
     {
         var ps = b.Pbd.Particles;
         if (ps.Length < _joints.Length)
@@ -540,7 +569,21 @@ public sealed partial class SceneArt(Look look)
             return true;
         for (int i = 0; i < _joints.Length; i++)
             _joints[i] = (onCar ? frames[b.Parent].ToWorld(ps[i].Position) : ps[i].Position).RelativeTo(eye);
-        return Creatures.Corpse(mesh, _joints, b.Owner);
+        bool charred = Burned?.Contains(b.Owner) == true;
+        if (charred)
+        {
+            // Embers still in the coat at the chest and the hips, and a thin smoke off them (the near ones only).
+            float glow = 0.6f + 0.4f * MathF.Sin(b.Owner * 1.7f + (float)time * 3.1f);
+            foreach (int j in new[] { 1, 2, 7, 9 })
+                mesh.Billboard(_joints[j] + new Vector3(0, 0.08f, 0), 0.22f * glow, 0, new Vector4(Palette.LampAmber * new Vector3(1.3f, 0.55f, 0.25f) * glow, 1), -1, FxBlend.Additive);
+            for (int k = 0; k < 3; k++)
+            {
+                float rise = (float)((time * 0.5 + k / 3.0) % 1.0);
+                mesh.Billboard(_joints[1] + new Vector3(0.1f * MathF.Sin(k * 2.1f + rise * 3), 0.2f + rise * 1.6f, 0), 0.3f + rise * 0.6f, rise,
+                    new Vector4(new Vector3(0.12f), 0.45f * (1 - rise)), -1, FxBlend.Alpha);
+            }
+        }
+        return Creatures.Corpse(mesh, _joints, b.Owner, charred);
     }
 
     /// <summary>
