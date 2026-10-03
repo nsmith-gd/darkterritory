@@ -84,6 +84,11 @@ public sealed class CarFire(int id) : Incident(id)
     public override Sense Sense => Sense.Heat;
     public override Want Want => Want.Cargo;
 
+    /// <summary>
+    /// Alight: what set it is the record (the Fire Flies', note 190), and what it does after is the deaths and the cars lost.
+    /// </summary>
+    protected override Run.Incident? Punished(EnemyContext ctx) => null;
+
     public static CarFire In(int id, TrainOnLine train, int car, double along, CarFireTuning t) =>
         new(id) { Attached = car, Local = At(train, car, along), Extra = t.StartIntensity };
 

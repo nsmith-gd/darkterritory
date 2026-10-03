@@ -3,7 +3,13 @@ using DarkTerritory.Sim.Player;
 namespace DarkTerritory.Sim.Run;
 
 /// <summary>What a record in the failure-attribution log is about (GDD v1.4 App. C.9).</summary>
-public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded, Voted }
+/// <remarks>
+/// Note 190: the rows that aren't a death, each the tick it happens: the Track Doll or the Sleepers struck (<see cref="Struck"/>),
+/// the Fire Flies setting a car alight (<see cref="Fire"/>), Followers nesting (<see cref="Nest"/>), a Grumbler craned
+/// aboard (<see cref="Aboard"/>), a Stoker in the firebox (<see cref="Runaway"/>), the Switchman's points (<see cref="Points"/>),
+/// and any other PUNISH that held nobody (<see cref="Punished"/>).
+/// </remarks>
+public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded, Voted, Struck, Fire, Nest, Aboard, Runaway, Points, Punished }
 
 /// <summary>
 /// One fact for the incident report (C.9, D.12): what happened, to whom and where, and the <b>contributing action</b>: the
@@ -36,6 +42,12 @@ public sealed class Attribution
     /// <summary>The last crewmate to fire or vent the boiler, and when (run seconds).</summary>
     public int Fireman { get; private set; } = -1;
     public double FiredAt { get; private set; }
+    /// <summary>
+    /// The last crewmate to fuel or tend the firebox, and when (run seconds): firing and venting, and working its door or
+    /// clubbing a Stoker in it. C.9's Stoker row: "who last fuelled or tended the firebox, and how long it had been unattended".
+    /// </summary>
+    public int Tender { get; private set; } = -1;
+    public double TendedAt { get; private set; }
     public int CraneOperator { get; private set; } = -1;
     /// <summary>The last living crewmate with the engineering kit in their hotbar.</summary>
     public int KitHolder { get; private set; } = -1;
@@ -44,7 +56,8 @@ public sealed class Attribution
     public void Gassed(int player) => Gasser = player;
 
     public void Drove(int player) => Driver = player;
-    public void Fired(int player, double seconds) => (Fireman, FiredAt) = (player, seconds);
+    public void Fired(int player, double seconds) => (Fireman, FiredAt, Tender, TendedAt) = (player, seconds, player, seconds);
+    public void Tended(int player, double seconds) => (Tender, TendedAt) = (player, seconds);
     public void Craned(int player) => CraneOperator = player;
     public void HeldKit(int player) => KitHolder = player;
     public void LitLamp(int car, int player) => _lampBy[car] = player;
