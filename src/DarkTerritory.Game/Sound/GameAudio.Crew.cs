@@ -74,6 +74,11 @@ public sealed partial class GameAudio
     const double CrateSlides = 0.15;
     // A tool let go as its holder drops lands a beat after the body (s).
     const double ToolFallsAfter = 0.18;
+    // The funny ones' timing (crew-mishaps), in seconds after what sets them off: the body tumbling back off the roof after
+    // the tunnel's bonk; the crane's chain after the casting; a thrown body coming down; what was in hand skittering off
+    // after a hard landing; the extinguisher's dregs after it runs dry; one boot after a body lands.
+    const double TumbleAfterBonk = 0.25, ChainAfterCrush = 0.9, ThrownLandsAfter = 0.8, ScatterAfterLanding = 0.3,
+        DregsAfterDry = 0.45, BootAfterBody = 0.22;
 
     sealed class CrewMember
     {
@@ -114,6 +119,7 @@ public sealed partial class GameAudio
         public double Charge, LastDrain = double.NegativeInfinity, ReleasedAt, Hint;
         public Double3 Local;
         public int Still;
+        public int? CarrierSpace;
     }
 
     sealed class CrewEngine
@@ -135,6 +141,7 @@ public sealed partial class GameAudio
         _crewCouplings = null;
         _crewEngine = null;
         _crewLastShot = double.NegativeInfinity;
+        _crewLater.Clear();
     }
 
     readonly Dictionary<int, CrewMember> _crewMembers = new();
@@ -232,14 +239,39 @@ public sealed partial class GameAudio
             float occlusion = Occlusion(PlayerMotor.Space(s, train));
             bool placed = s.Placed != c.Placed;
 
-            // Dead: the body going down, on whatever it's on, and a tool in hand clattering down after it.
+            // Dead: the body going down, on whatever it's on, and a tool in hand clattering down after it. Where the crew did
+            // it to themselves, the funny one (crew-mishaps, the director's call 3 Oct): a tunnel's lip at head height and the
+            // body tumbling back off the roof; a casting let go on them and the crane's chain swinging loose after.
             if (c.Alive && !s.Alive && s.Death != DeathCause.Waiting)
             {
                 string fell = Footing.Under(s, world) ?? c.LastFooting(world);
-                Cue("crew-hurt.body-fall", fell, feet, occlusion);
+                _nightDeaths.Add(s.Death);
+                if (s.Death == DeathCause.Struck && HasCue("crew-mishaps.tunnel-bonk"))
+                {
+                    Cue("crew-mishaps.tunnel-bonk", feet + Double3.Up * HeadUp, occlusion);
+                    CrewAfter(TumbleAfterBonk, "crew-mishaps.tunnel-tumble", feet, occlusion);
+                }
+                else if (s.Death == DeathCause.Crushed && HasCue("crew-mishaps.crushed"))
+                {
+                    Cue("crew-mishaps.crushed", feet, occlusion);
+                    CrewAfter(ChainAfterCrush, "crew-mishaps.crane-chain", feet + Double3.Up * 5, occlusion);
+                }
+                else if (s.Death == DeathCause.Thrown && placed && HasCue("crew-mishaps.thrown-flail"))
+                {
+                    // Over the side at speed: the flailing, and the body coming down a moment later.
+                    Cue("crew-mishaps.thrown-flail", feet + Double3.Up * ChestUp, occlusion);
+                    CrewAfter(ThrownLandsAfter, Surfaced("crew-hurt.body-fall", "ground") ?? "crew-hurt.body-fall", feet, occlusion);
+                }
+                else
+                    Cue("crew-hurt.body-fall", fell, feet, occlusion);
                 if (c.Held != Tool.None && Surfaced($"crew-melee.{ToolName(c.Held)}-drop", fell) is { } dropped)
                     CrewAfter(ToolFallsAfter, dropped, feet + Double3.Up * 0.2, occlusion);
             }
+            // Thrown off a roof on a curve taken over its board (Lineside's throw: PullOff), and alive: the flailing. A Dragger's
+            // pull (the same PullOff) comes out of a grab, so it isn't this.
+            if (s.Alive && placed && c.Surface == Surface.Roof && s.Surface == Surface.Air && s.Parent == PlayerState.World
+                && c.Parent != PlayerState.World && !c.Flags.HasFlag(PlayerFlags.Held))
+                Cue("crew-mishaps.thrown-flail", feet + Double3.Up * ChestUp, occlusion);
             if (!s.Alive || placed)
             {
                 Remember(c, s, world);
@@ -264,7 +296,10 @@ public sealed partial class GameAudio
                         // Off a moving train (spec B.3): the hit, and a roll along the ballast after.
                         Cue("crew-jump-off.impact", onTrain ? "grate" : "ground", feet, occlusion);
                         if (!onTrain)
+                        {
                             c.TumbleUntil = _time + Math.Min(1.5, 0.4 + 0.08 * across);
+                            CrewAfter(ScatterAfterLanding, "crew-mishaps.pocket-scatter", feet, occlusion);
+                        }
                     }
                     else if (s.Surface == Surface.Coupler)
                         Cue("crew-ladder.gap-land", feet, occlusion);
@@ -376,13 +411,18 @@ public sealed partial class GameAudio
                 if (held != Tool.None)
                     Cue($"crew-melee.{ToolName(held)}-equip", hands, occlusion);
             }
-            if (id == OwnId && held != Tool.None && OwnIntent.Has(PlayerActions.Swing) && !s.Has(PlayerFlags.Held) && CrewActs.Of(s, id, world) is null)
+            if (id == OwnId && OwnIntent.Has(PlayerActions.Swing) && !s.Has(PlayerFlags.Held) && CrewActs.Of(s, id, world) is null)
             {
                 if (_time >= c.NextSwing)
                 {
                     c.NextSwing = _time + (world.Enemies?.Melee.SwingSeconds ?? 0.8);
-                    Cue($"crew-melee.{ToolName(held)}-swing", hands, occlusion);
-                    OwnBlow(world, s, held, occlusion);
+                    if (held != Tool.None)
+                    {
+                        Cue($"crew-melee.{ToolName(held)}-swing", hands, occlusion);
+                        OwnBlow(world, s, held, occlusion);
+                    }
+                    else
+                        Cue("crew-mishaps.bare-swing", hands, occlusion);   // a slot picked with nothing in it (T108): a sleeve
                 }
             }
             else
@@ -625,18 +665,26 @@ public sealed partial class GameAudio
                 continue;
             var at = e.WorldPosition(train) + Double3.Up * 0.8;
             (Tool Tool, double D)? best = null;
+            double bare = double.PositiveInfinity;
             foreach (var (_, s) in CrewStates)
             {
                 var tool = Kit.Held(s);
-                if (!s.Alive || tool == Tool.None || s.Parent != PlayerState.World && s.Parent >= train.Frames.Count)
+                if (!s.Alive || s.Parent != PlayerState.World && s.Parent >= train.Frames.Count)
                     continue;
                 // Generous, as the host is with a remote crewmate's reach.
                 double d = (PlayerMotor.WorldPosition(s, train) + Double3.Up * ChestUp - at).Length;
-                if (d <= melee.Reach + e.MeleeRadius + 0.5 && (best is null || d < best.Value.D))
+                if (d > melee.Reach + e.MeleeRadius + 0.5)
+                    continue;
+                if (tool == Tool.None)
+                    bare = Math.Min(bare, d);
+                else if (best is null || d < best.Value.D)
                     best = (tool, d);
             }
+            var struckOcclusion = Occlusion(e.Attached >= 0 ? e.Attached : PlayerMotor.Outside);
             if (best is { } by)
-                Cue($"crew-melee.{ToolName(by.Tool)}-hit-flesh", at, Occlusion(e.Attached >= 0 ? e.Attached : PlayerMotor.Outside));
+                Cue($"crew-melee.{ToolName(by.Tool)}-hit-flesh", at, struckOcclusion);
+            else if (bare < double.PositiveInfinity)
+                Cue("crew-mishaps.bare-slap", at, struckOcclusion);   // only empty hands in reach: a fraction of a blow (T108)
         }
         foreach (var gone in _crewEnemyHealth.Keys.Where(k => !live.Contains(k)).ToList())
             _crewEnemyHealth.Remove(gone);
@@ -1125,6 +1173,18 @@ public sealed partial class GameAudio
                 }
             }
 
+            // A body carried through a doorway (in or out of a car, into the cab): its dangling boots knock the frame.
+            if (b.Kind is BodyKind.Ragdoll or BodyKind.Child && b.Carrier >= 0
+                && CrewStates.FirstOrDefault(x => x.Id == b.Carrier) is { State.Alive: true } bearer && bearer.Id == b.Carrier)
+            {
+                int space = PlayerMotor.Space(bearer.State, train);
+                if (m.CarrierSpace is { } was && was != space)
+                    Cue("crew-mishaps.body-knock", PlayerMotor.WorldPosition(bearer.State, train) + Double3.Up * 0.9, occlusion);
+                m.CarrierSpace = space;
+            }
+            else
+                m.CarrierSpace = null;
+
             // A crate sliding along a car's floor under it (the train braking or pulling hard, a shove): it scrapes on what
             // it's on for as long as it's moving, louder the faster it goes. Lifted, flying or asleep, it isn't.
             // (Its height, not the particles' contact, says it's on the floor: a client's mirrored body has no contacts.)
@@ -1163,7 +1223,11 @@ public sealed partial class GameAudio
                 if (spraying)
                     Hold("crew-extinguisher.spray", b.Id, at, occlusion);
                 else if (m.Spraying)
+                {
                     Cue(b.Charge <= 0 ? "crew-extinguisher.run-dry" : "crew-extinguisher.spray-stop", at, occlusion);
+                    if (b.Charge <= 0)
+                        CrewAfter(DregsAfterDry, "crew-mishaps.extinguisher-dregs", at, occlusion);
+                }
                 if (firePressed && carried && b.Carrier == OwnId && b.Charge <= 0)
                     Cue("crew-extinguisher.dry-trigger", at, occlusion);
                 m.Spraying = spraying;
@@ -1200,6 +1264,8 @@ public sealed partial class GameAudio
             Cue(name, centre, occlusion);
         else if (name is not null)
             Cue(name, mat, centre, occlusion);
+        if (b.Kind is BodyKind.Ragdoll or BodyKind.Child && Surfaced("crew-mishaps.body-boot", mat) is { } boot)
+            CrewAfter(BootAfterBody, boot, centre, occlusion);
     }
 
     /// <summary>An extinguisher standing on its car's mount (the art's own test: World.ExtinguisherMount, within 0.35 m).</summary>

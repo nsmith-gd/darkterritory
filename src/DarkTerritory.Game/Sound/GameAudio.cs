@@ -75,6 +75,8 @@ public sealed partial class GameAudio
     }
 
     SoundInstance? _whistle;
+    // The fraction of the working band's bottom under which the whistle only wheezes.
+    const double WheezeBelow = 0.5;
 
     /// <summary>The train's whistle, from the engine's dome, for as long as it blows (the cord, or the Whistler at it).</summary>
     void Whistle(World world, TrainOnLine train)
@@ -91,7 +93,11 @@ public sealed partial class GameAudio
         var engine = train.Frames[0];
         if (_whistle is { Finished: true })
             _whistle = null;    // a recorded blast that's ended while the cord's still held: another
-        _whistle ??= Mixer.Play("train-whistle", engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.6, -2)));
+        // On low steam the whistle can barely speak: a thin, flat wheeze (crew-mishaps). The cord's and the Whistler's alike,
+        // since it's the same whistle (spec A.4), and on tier 1 as the whistle is.
+        string whistle = train.BoilerTuning is { } bt && train.Boiler.Pressure < bt.WorkingBandMin * WheezeBelow
+            && HasCue("crew-mishaps.whistle-wheeze") ? "crew-mishaps.whistle-wheeze" : "train-whistle";
+        _whistle ??= Mixer.Play(whistle, engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.6, -2)));
         if (_whistle is not null)
         {
             _whistle.Position = engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.6, -2));

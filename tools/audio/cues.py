@@ -259,6 +259,26 @@ CUES = {
         O("breath-out", "A breath out", vars=4),
         L("shiver", "Shivering, as the cold takes hold"),
     ],
+    # The funny ones (the director's call, 3 Oct): where the crew does it to themselves, or the world shrugs. Real sounds
+    # with comic timing, never on a tell, a lure, an alarm or a monster's kill.
+    "crew-mishaps": [
+        O("tunnel-bonk", "Stood on a roof into a tunnel's mouth: the BONK of a head on the portal", vars=3),
+        O("tunnel-tumble", "The body tumbling back along the roof and dropping off the end", vars=2),
+        O("thrown-flail", "Thrown off a roof on a curve: coat and limbs flapping through the air", vars=2),
+        O("pocket-scatter", "After a hard landing off the train: what was in hand skittering away across the ground", vars=3),
+        O("crushed", "Under a casting a crewmate let go: the iron bong and the crunch under it", vars=2),
+        O("crane-chain", "The crane's chain rattling loose in the quiet after", vars=2),
+        O("bare-swing", "Swinging with empty hands: a sleeve whiffing through the air", vars=3),
+        O("bare-slap", "An empty hand landing on something: a limp slap", vars=3),
+        O("body-boot", "A body set down or thrown: one boot thudding down a beat after the rest", vars=3, mats=["wood", "ground"]),
+        O("body-knock", "A carried body's boots knocking the door frame on the way through", vars=3),
+        O("foul-fizzle", "A fouled gun: the damp charge giving a feeble pfft out of the vent", vars=2),
+        O("extinguisher-dregs", "The extinguisher's last dregs after it runs dry: a few spits and a gurgle", vars=2),
+        O("whistle-wheeze", "The whistle blown on low steam: a thin, flat wheeze that dies", vars=2),
+        O("startle-cattle", "A cow in the livestock car startled by the slack running in", vars=3),
+        O("startle-pigs", "Pigs in the livestock car startled by the slack running in", vars=3),
+        O("startle-sheep", "Sheep in the livestock car startled by the slack running in", vars=3),
+    ],
 
     # ---- Train bed -----------------------------------------------------------------------------------------------------
     "bed-boiler-roar": [
@@ -586,6 +606,8 @@ CUES = {
         O("report", "The run-end incident report coming up", vars=1),
         O("tally", "One line of the report filled in", vars=4),
         O("commendation", "A commendation awarded", vars=2),
+        O("death-stamp", "A death on the report: the rubber stamp", vars=3),
+        O("own-goal", "A death the crew did to themselves (a tunnel, a curve, a jump, a casting): a weary typewriter line and its bell", vars=2),
     ],
     "ui-dead-phase": [
         O("queue", "The respawn queue moving up", vars=2),

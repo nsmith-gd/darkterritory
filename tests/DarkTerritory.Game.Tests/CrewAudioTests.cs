@@ -58,6 +58,18 @@ public class CrewAudioTests
         }
 
         public int Count(string name) => Heard.Count(h => h.Name == name);
+
+        /// <summary>One tick with the train driven by these controls, heard from car 2's roof.</summary>
+        public void Drive(TrainControls controls)
+        {
+            World.BeginTick();
+            World.Step(controls);
+            Audio.Update(World, controls, Listener.At(Train.Frames[2].Origin + Double3.Up * 3, 0), exposed: true, Dt);
+            foreach (var v in Audio.Mixer.Voices)
+                if (_seen.Add(v.Id) && v.Name.StartsWith("crew-"))
+                    Heard.Add((v.Name, v.Position, Tick));
+            Tick++;
+        }
     }
 
     [Fact]
@@ -183,6 +195,209 @@ public class CrewAudioTests
             b.Step((1, dead));
         Assert.Equal(1, b.Count("crew-melee.wrench-drop.roof"));
         Assert.Equal(1, b.Count("crew-hurt.body-fall.roof"));
+    }
+
+    [Fact]
+    public void ATunnelsMouthBonksWhoeverStoodOnTheRoofAndTheBodyTumblesOffAfter()
+    {
+        var b = new Bench("crew-mishaps.tunnel-bonk", "crew-mishaps.tunnel-tumble", "crew-hurt.body-fall.roof");
+        var s = PlayerMotor.SpawnOnRoof(b.Train, 2, 0, P);
+        b.Step((1, s));
+        b.Step((1, s with { Health = 0, Death = DeathCause.Struck }));
+        Assert.Equal(1, b.Count("crew-mishaps.tunnel-bonk"));
+        Assert.Equal(0, b.Count("crew-hurt.body-fall.roof"));   // the tumble is the body's fall
+        var bonk = b.Heard.Single(h => h.Name == "crew-mishaps.tunnel-bonk");
+        Assert.True(bonk.At.Y > PlayerMotor.WorldPosition(s, b.Train).Y + 1);   // at head height
+        Assert.Equal(0, b.Count("crew-mishaps.tunnel-tumble"));
+        for (int i = 0; i < SimConstants.TickRate / 2; i++)
+            b.Step((1, s with { Health = 0, Death = DeathCause.Struck }));
+        Assert.Equal(1, b.Count("crew-mishaps.tunnel-tumble"));
+        Assert.Equal(1, b.Count("crew-mishaps.tunnel-bonk"));
+    }
+
+    [Fact]
+    public void ACastingLetGoOnSomeoneBongsAndTheCranesChainRattlesAfter()
+    {
+        var b = new Bench("crew-mishaps.crushed", "crew-mishaps.crane-chain", "crew-hurt.body-fall.ground");
+        var line = b.Train.Line.Sample(4_000);
+        var s = new PlayerState { Parent = PlayerState.World, Position = line.Position, Surface = Surface.Ground, Health = P.Health };
+        b.Step((1, s));
+        b.Step((1, s with { Health = 0, Death = DeathCause.Crushed }));
+        Assert.Equal(1, b.Count("crew-mishaps.crushed"));
+        Assert.Equal(0, b.Count("crew-hurt.body-fall.ground"));
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            b.Step((1, s with { Health = 0, Death = DeathCause.Crushed }));
+        Assert.Equal(1, b.Count("crew-mishaps.crane-chain"));
+    }
+
+    [Fact]
+    public void ThrownOffARoofTheyFlailAndAJumpIsNoThrow()
+    {
+        var b = new Bench("crew-mishaps.thrown-flail");
+        var s = PlayerMotor.SpawnOnRoof(b.Train, 2, 0, P);
+        b.Step((1, s));
+        // Over the side (Lineside's throw: PullOff, alive at this speed): the flailing, once.
+        var thrown = s;
+        PlayerMotor.PullOff(ref thrown, b.Train, b.Train.Frames[2].DirToWorld(new Double3(1, 0, 0)) * 3, T, DeathCause.Thrown);
+        Assert.True(thrown.Alive);
+        b.Step((1, thrown));
+        b.Step((1, thrown));
+        Assert.Equal(1, b.Count("crew-mishaps.thrown-flail"));
+        // A jump up off a roof is nobody's throw.
+        var c = new Bench("crew-mishaps.thrown-flail");
+        var r = PlayerMotor.SpawnOnRoof(c.Train, 2, 0, P);
+        c.Step((1, r));
+        c.Step((1, r with { Surface = Surface.Air, Velocity = new Double3(0, 3, 0) }));
+        Assert.Equal(0, c.Count("crew-mishaps.thrown-flail"));
+    }
+
+    [Fact]
+    public void EmptyHandsSwingASleeve()
+    {
+        var b = new Bench("crew-mishaps.bare-swing", "crew-melee.crowbar-swing");
+        b.Audio.OwnId = 1;
+        var s = PlayerMotor.SpawnOnRoof(b.Train, 2, 0, P) with { Kit = Kit.Of([Tool.Crowbar]), HeldSlot = 3 };
+        Assert.Equal(Tool.None, Kit.Held(s));
+        b.Audio.OwnIntent = new PlayerIntent { Actions = PlayerActions.Swing };
+        b.Step((1, s));
+        b.Step((1, s));
+        Assert.Equal(1, b.Count("crew-mishaps.bare-swing"));
+        Assert.Equal(0, b.Count("crew-melee.crowbar-swing"));
+        // With the crowbar in hand it's the crowbar's.
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            b.Step((1, s with { HeldSlot = 0 }));
+        Assert.True(b.Count("crew-melee.crowbar-swing") > 0);
+        Assert.Equal(1, b.Count("crew-mishaps.bare-swing"));
+    }
+
+    [Fact]
+    public void AnExtinguisherRunDryGivesUpItsDregs()
+    {
+        var b = new Bench("crew-extinguisher.run-dry", "crew-extinguisher.spray", "crew-mishaps.extinguisher-dregs");
+        b.World.EnableBodies();
+        var s = PlayerMotor.SpawnOnRoof(b.Train, 2, 0, P);
+        var ext = b.World.Bodies.SpawnCrate(b.Train, 2, new Double3(0, b.Train.Frames[2].Shape.RoofHeight, 0), Sim.Physics.BodyKind.Extinguisher);
+        ext.Carrier = 1;
+        b.Step((1, s));
+        // Spraying down to nothing: the run-dry, then a moment later the last dregs.
+        for (int i = 0; i < 6; i++)
+        {
+            ext.Charge = Math.Max(0, 0.5 - 0.1 * i);
+            b.Step((1, s));
+        }
+        ext.Charge = 0;
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            b.Step((1, s));
+        Assert.Equal(1, b.Count("crew-extinguisher.run-dry"));
+        Assert.Equal(1, b.Count("crew-mishaps.extinguisher-dregs"));
+    }
+
+    [Fact]
+    public void LivestockAreStartledByAHardJoltAndNotAgainStraightAway()
+    {
+        var b = new Bench("crew-mishaps.startle-cattle", "crew-mishaps.startle-pigs", "crew-mishaps.startle-sheep");
+        b.Train.Vehicles[2].Cargo = CargoKind.Livestock;
+        b.Train.Dynamics.Velocity = 15;
+        var coast = new TrainControls { Reverser = 1 };
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            b.Drive(coast);
+        int Startled() => b.Heard.Count(h => h.Name.StartsWith("crew-mishaps.startle-"));
+        Assert.Equal(0, Startled());
+        // The brakes slammed on: one startle from the car, a moment after the jolt.
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            b.Drive(coast with { Brake = 1 });
+        Assert.Equal(1, Startled());
+        // Off and on again straight away: they're still put out, not startled afresh.
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            b.Drive(coast);
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            b.Drive(coast with { Brake = 1 });
+        Assert.Equal(1, Startled());
+    }
+
+    [Fact]
+    public void OnLowSteamTheWhistleOnlyWheezes()
+    {
+        var boiler = DataFile.Load<BoilerTuning>(Path.Combine(Content, BoilerTuning.File));
+        var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
+        var w = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), line, 5_000, boiler), C);
+        var audio = new GameAudio(Content);
+        audio.Bank.Add("crew-mishaps.whistle-wheeze", new SoundDef(1, [new LayerDef(SourceKind.Sine, 0.3, Frequency: 400)], Duration: 0.5));
+        bool Blowing(string name) => audio.Mixer.Voices.Any(v => v.Name == name && !v.Finished);
+        void Blow()
+        {
+            w.Whistled(1);
+            for (int i = 0; i < 3; i++)
+            {
+                w.BeginTick();
+                w.Step(w.Controls);
+                audio.Update(w, w.Controls, Listener.At(w.Train.Frames[0].Origin, 0), exposed: true, Dt);
+            }
+        }
+        // A full head of steam: the whistle.
+        w.Train.Boiler.Pressure = boiler.WorkingBandMax;
+        Blow();
+        Assert.True(Blowing("train-whistle"));
+        Assert.False(Blowing("crew-mishaps.whistle-wheeze"));
+        // Run down below half the working band: it barely speaks.
+        for (int i = 0; i < 3 * SimConstants.TickRate; i++)
+        {
+            w.BeginTick();
+            w.Step(w.Controls);
+            audio.Update(w, w.Controls, Listener.At(w.Train.Frames[0].Origin, 0), exposed: true, Dt);
+        }
+        w.Train.Boiler.Pressure = boiler.WorkingBandMin * 0.3;
+        Blow();
+        Assert.True(Blowing("crew-mishaps.whistle-wheeze"));
+    }
+
+    [Fact]
+    public void AHardLandingOffTheTrainScattersWhatWasInHand()
+    {
+        var b = new Bench("crew-jump-off.impact.ground", "crew-mishaps.pocket-scatter");
+        var at = b.Train.Line.Sample(4_000).Position;
+        var ground = PlayerMotor.SpawnOnGround(at, b.Train.Line, 4_000, P);
+        var flying = ground with { Surface = Surface.Air, Velocity = new Double3(8, -1, 0), Position = ground.Position + new Double3(0, 0.3, 0) };
+        b.Step((1, flying));
+        b.Step((1, flying));
+        b.Step((1, ground));
+        Assert.Equal(1, b.Count("crew-jump-off.impact.ground"));
+        Assert.Equal(0, b.Count("crew-mishaps.pocket-scatter"));
+        for (int i = 0; i < SimConstants.TickRate / 2; i++)
+            b.Step((1, ground));
+        Assert.Equal(1, b.Count("crew-mishaps.pocket-scatter"));
+    }
+
+    [Fact]
+    public void ABodyCarriedThroughADoorKnocksTheFrameAndSetDownItsBootFollows()
+    {
+        var b = new Bench("crew-carry.body-lift", "crew-carry.body-set.wood", "crew-mishaps.body-boot.wood", "crew-mishaps.body-knock");
+        b.World.EnableBodies();
+        var room = b.Train.Frames[1].Shape.Interior!.Value;
+        var roof = PlayerMotor.SpawnOnRoof(b.Train, 1, 0, P);
+        var inside = new PlayerState
+        {
+            Parent = 1, Position = new Double3(T.Geometry.Interior!.DoorX, room.Min.Y, 0), Surface = Surface.Deck, Health = P.Health,
+            LineHint = b.Train.Cars[1].FrontDistance,
+        };
+        var child = b.World.Bodies.SpawnCrate(b.Train, 1, new Double3(0, room.Min.Y, 1), Sim.Physics.BodyKind.Child);
+        for (int i = 0; i < 10; i++)
+            b.Step((1, roof));
+        // Picked up on the roof and carried down inside: its boots knock the frame on the way in, once.
+        child.Carrier = 1;
+        for (int i = 0; i < 5; i++)
+            b.Step((1, roof));
+        Assert.Equal(0, b.Count("crew-mishaps.body-knock"));
+        for (int i = 0; i < 5; i++)
+            b.Step((1, inside));
+        Assert.Equal(1, b.Count("crew-mishaps.body-knock"));
+        // Set down on the boards: the body, then a boot a beat after.
+        child.Carrier = -1;
+        for (int i = 0; i < 3 * SimConstants.TickRate; i++)
+            b.Step((1, inside));
+        Assert.Equal(1, b.Count("crew-carry.body-set.wood"));
+        Assert.Equal(1, b.Count("crew-mishaps.body-boot.wood"));
+        Assert.True(b.Heard.Single(h => h.Name == "crew-mishaps.body-boot.wood").Tick > b.Heard.Single(h => h.Name == "crew-carry.body-set.wood").Tick);
     }
 
     [Fact]

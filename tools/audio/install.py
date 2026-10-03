@@ -254,6 +254,18 @@ LAYER_EXTRAS = {
 }
 
 
+# Per-cue fields over the area's where one cue isn't like its line: the whistle's wheeze is still the train's whistle (tier 1,
+# heard as far, as the Whistler's tell is: spec A.4); the livestock are the world's, out along the train; the casting's bong
+# carries across a yard.
+CUE_DEF = {
+    "crew-mishaps.whistle-wheeze": {"tier": 1, "minDistance": 20, "maxDistance": 1500, "rolloff": 0.45, "gainDb": 2},
+    "crew-mishaps.startle-cattle": {"tier": 6, "minDistance": 6, "maxDistance": 200, "rolloff": 0.8},
+    "crew-mishaps.startle-pigs": {"tier": 6, "minDistance": 6, "maxDistance": 200, "rolloff": 0.8},
+    "crew-mishaps.startle-sheep": {"tier": 6, "minDistance": 6, "maxDistance": 200, "rolloff": 0.8},
+    "crew-mishaps.crushed": {"maxDistance": 120, "rolloff": 0.8},
+}
+
+
 def sound_def(item, cue, folder, line):
     tier, lo, hi, roll, g = AREA.get(item.get("area"), (4, 1, 40, 1.0, 2))
     if isinstance(item.get("tier"), int):
@@ -271,6 +283,7 @@ def sound_def(item, cue, folder, line):
                      "pitchJitter": 0 if cue["kind"] == "loop" or flat else 0.4,
                      "gainJitter": 0 if cue["kind"] == "loop" or flat else 1.0}]}
     d["layers"][0].update(LAYER_EXTRAS.get(f"{line}.{cue['id']}", {}))
+    d.update(CUE_DEF.get(f"{line}.{cue['id']}", {}))
     return d
 
 

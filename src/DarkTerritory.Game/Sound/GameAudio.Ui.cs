@@ -30,6 +30,9 @@ public static class UiCue
     public const string Tally = "ui-run-end.tally";
     /// <summary>A commendation awarded (D.12). Nothing awards one yet: there's no commendation in the game to hook.</summary>
     public const string Commendation = "ui-run-end.commendation";
+    /// <summary>A death of the night entered on the report: the stamp; and, where the crew did it to themselves, the typewriter.</summary>
+    public const string DeathStamp = "ui-run-end.death-stamp";
+    public const string OwnGoal = "ui-run-end.own-goal";
     // ui-dead-phase (GDD App. D.10).
     public const string Queue = "ui-dead-phase.queue";
     /// <summary>A creature vote locked in (D.11). There's no vote in the game yet to hook.</summary>
@@ -48,7 +51,9 @@ public sealed partial class GameAudio
 {
     readonly Dictionary<string, SoundInstance> _uiLoops = new();
     readonly Dictionary<int, int> _occupants = new();
-    readonly Queue<double> _tallies = new();
+    readonly Queue<(double Due, string Cue)> _tallies = new();
+    // The night's deaths as this machine saw them (each crewmate's replicated record: GameAudio.Crew), for the report's stamps.
+    readonly List<DeathCause> _nightDeaths = [];
     World? _uiWorld;
     double _uiTime;
     Held? _hold;
@@ -57,6 +62,11 @@ public sealed partial class GameAudio
 
     // The report's lines tally in one at a time after it comes up (GDD App. D.12): when the first does, and the gap between.
     const double TallyFirst = 0.6, TallyEvery = 0.35;
+    // Then each death stamped in, and a self-inflicted one's cause typed beside it: the gaps.
+    const double StampEvery = 0.55, OwnGoalAfterStamp = 0.3, OwnGoalTakes = 1.4;
+
+    /// <summary>The deaths the crew did to themselves (the train's own dangers, posted or obvious, and a crewmate's crane).</summary>
+    static bool OwnGoal(DeathCause cause) => cause is DeathCause.Struck or DeathCause.Thrown or DeathCause.JumpedAtSpeed or DeathCause.Crushed;
 
     /// <summary>
     /// Keeps an interface loop (flat) on or off by name: started if <paramref name="on"/> and it isn't playing, stopped if
@@ -113,6 +123,7 @@ public sealed partial class GameAudio
         _hold = null;
         _holdDone = false;
         _tallies.Clear();
+        _nightDeaths.Clear();
         _occupants.Clear();
         _uiWorld = null;
     }
@@ -245,16 +256,29 @@ public sealed partial class GameAudio
             Ui(UiCue.Report);
             // The lines as the HUD shows them (Hud.ReportLines). Only the host's world has the report itself.
             int lines = world.Run!.Report is { } r ? Hud.ReportLines(r).Count - 1 : 0;
-            for (int i = 0; i < lines; i++)
-                _tallies.Enqueue(_uiTime + TallyFirst + i * TallyEvery);
+            double due = _uiTime + TallyFirst;
+            for (int i = 0; i < lines; i++, due += TallyEvery)
+                _tallies.Enqueue((due, UiCue.Tally));
+            // The night's deaths, stamped in one by one after (as every machine saw them: the report isn't sent yet); a death
+            // the crew did to themselves gets its cause typed out beside the stamp (crew-mishaps, the director's call 3 Oct).
+            foreach (var cause in _nightDeaths)
+            {
+                _tallies.Enqueue((due, UiCue.DeathStamp));
+                due += StampEvery;
+                if (OwnGoal(cause))
+                {
+                    _tallies.Enqueue((due - StampEvery + OwnGoalAfterStamp, UiCue.OwnGoal));
+                    due += OwnGoalTakes;
+                }
+            }
         }
         if (!over)
             _tallies.Clear();
         _over = over;
-        while (_tallies.TryPeek(out double due) && due <= _uiTime)
+        while (_tallies.TryPeek(out var next) && next.Due <= _uiTime)
         {
             _tallies.Dequeue();
-            Ui(UiCue.Tally);
+            Ui(next.Cue);
         }
     }
 

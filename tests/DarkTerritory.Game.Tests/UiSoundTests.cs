@@ -308,6 +308,39 @@ public sealed class UiSoundTests : IDisposable
     }
 
     [Fact]
+    public void TheReportStampsEachDeathOfTheNightAndTypesOutTheOnesTheCrewDidToThemselves()
+    {
+        var route = RouteGenerator.Generate(RouteTuning.Load(Content), RouteTier.Frontier, 7);
+        var w = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), route.Build(), 5_000, B), C);
+        w.EnableRun(RunT, route, 600, authority: true);
+        var me = PlayerMotor.SpawnInCab(w.Train, P);
+        var mate = PlayerMotor.SpawnOnRoof(w.Train, 2, 0, P);
+        var other = PlayerMotor.SpawnOnRoof(w.Train, 3, 0, P);
+        var audio = Audio();
+        foreach (var cue in new[] { UiCue.DeathStamp, UiCue.OwnGoal })
+            audio.Bank.Add(cue, new Ballast.Audio.SoundDef(4, [new Ballast.Audio.LayerDef(Ballast.Audio.SourceKind.Sine, 0.3, Frequency: 440)], Duration: 0.1, Flat: true));
+        void Heard(params (int, PlayerState)[] crew)
+        {
+            audio.CrewStates = crew;
+            audio.Update(w, w.Controls, Ballast.Audio.Listener.At(w.Train.Frames[0].Origin, 0), exposed: true, SimConstants.TickSeconds);
+            audio.Interface(w, me, 1);
+        }
+        Heard((1, me), (2, mate), (3, other));
+        Heard((1, me), (2, mate), (3, other));
+        // One into a tunnel's mouth (their own doing), one taken by something (not).
+        Heard((1, me), (2, mate with { Health = 0, Death = DeathCause.Struck }), (3, other with { Health = 0, Death = DeathCause.Mauled }));
+        w.Derail();
+        w.StepRun([me]);
+        for (int i = 0; i < 6 * SimConstants.TickRate; i++)
+            audio.Interface(w, me, 1);
+        Assert.Equal(2, Played(audio, UiCue.DeathStamp));
+        Assert.Equal(1, Played(audio, UiCue.OwnGoal));
+        // After the report's own lines.
+        var first = audio.Mixer.Voices.First(v => v.Name == UiCue.DeathStamp);
+        Assert.All(audio.Mixer.Voices.Where(v => v.Name == UiCue.Tally), t => Assert.True(t.Id < first.Id));
+    }
+
+    [Fact]
     public void TheNightsReportComesUpOnceAndItsLinesTallyIn()
     {
         var route = RouteGenerator.Generate(RouteTuning.Load(Content), RouteTier.Frontier, 7);

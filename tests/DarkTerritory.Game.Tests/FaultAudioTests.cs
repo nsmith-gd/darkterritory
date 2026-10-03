@@ -24,8 +24,9 @@ public class FaultAudioTests
 
     const string Misfire = "state-cannon-foul.misfire", Clear = "state-cannon-foul.clear", Cleared = "state-cannon-foul.cleared",
         Breach = "state-breach.breach", OpenToOutside = "state-breach.open-to-outside",
-        BoardPlace = "crew-repair.board-place", Hammer = "crew-repair.hammer", Done = "crew-repair.done";
-    static readonly string[] Cues = [Misfire, Clear, Cleared, Breach, OpenToOutside, BoardPlace, Hammer, Done];
+        BoardPlace = "crew-repair.board-place", Hammer = "crew-repair.hammer", Done = "crew-repair.done",
+        Fizzle = "crew-mishaps.foul-fizzle";
+    static readonly string[] Cues = [Misfire, Clear, Cleared, Breach, OpenToOutside, BoardPlace, Hammer, Done, Fizzle];
     static readonly string[] Loops = [Clear, OpenToOutside];
 
     static readonly PlayerIntent Fire = new() { Buttons = PlayerButtons.Fire };
@@ -118,10 +119,15 @@ public class FaultAudioTests
         Assert.Equal(1, b.Count(Misfire));
         var touchHole = b.Train.Frames[0].ToWorld(Guns.Mount(b.Train, 0)!.Value.Position);
         Assert.True((b.Heard.Single(h => h.Name == Misfire).At - touchHole).Length < 1);
+        // And as it fouls, the damp charge's pfft a beat after the click (crew-mishaps): once, not at every pull.
+        Assert.Equal(1, b.Count(Fizzle));
+        Assert.True(b.Heard.Single(h => h.Name == Fizzle).Tick > b.Heard.First(h => h.Name == Misfire).Tick);
         // Let go and pull again at the fouled gun: it clicks again.
         b.Run(0.2);
         b.Step(Fire);
         Assert.Equal(2, b.Count(Misfire));
+        b.Run(0.3);
+        Assert.Equal(1, b.Count(Fizzle));
         // Worked clear by hand: the bore heard while the hold goes on; let go and it stops.
         b.Run(2, Use);
         Assert.True(b.Playing(Clear));

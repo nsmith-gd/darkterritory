@@ -19,6 +19,8 @@ public sealed partial class GameAudio
 {
     /// <summary>A clear's or a board's count that's stopped rising this long (s) has stopped: a lost packet isn't a pause.</summary>
     const double FaultHoldGrace = 0.2;
+    // The fouled charge's pfft comes a beat after the misfire's click (s).
+    const double FizzleAfterMisfire = 0.12;
     // Presentation, not design: the first nail this long after the board's put to the hole, then one a blow this often.
     const double HammerFirst = 0.35, HammerEvery = 0.55;
 
@@ -91,6 +93,9 @@ public sealed partial class GameAudio
                 var vent = train.Frames[v.Id].ToWorld(mount.Position - mount.Facing * 0.55 + Double3.Up * 0.15);
                 if (g.Jammed && (!m.Jammed || mine == v.Id))
                     Cue("state-cannon-foul.misfire", vent, outside);
+                // As it fouls, the damp charge's feeble pfft out of the vent after the click (crew-mishaps).
+                if (g.Jammed && !m.Jammed)
+                    CrewAfter(FizzleAfterMisfire, "crew-mishaps.foul-fizzle", vent, outside);
                 if (g.Jammed && m.Jammed && g.ReloadProgress > m.Progress + 1e-6)
                     m.LastRise = _time;
                 if (g.Jammed && g.ReloadProgress > 0 && _time - m.LastRise < FaultHoldGrace)

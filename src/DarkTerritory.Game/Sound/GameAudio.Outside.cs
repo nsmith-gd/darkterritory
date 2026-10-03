@@ -54,6 +54,8 @@ public sealed partial class GameAudio
     {
         _sleepersSeen.Clear();
         _smashAt.Clear();
+        _startledUntil.Clear();
+        _livestockAccel = double.NaN;
         _craneMoved.Clear();
         _castings.Clear();
         _earHint = _outsideClock = _engineFrontWas = double.NaN;
@@ -377,18 +379,38 @@ public sealed partial class GameAudio
     /// </summary>
     void WorldLivestock(TrainOnLine train, Double3 ear)
     {
-        string[] species = ["world-livestock.cattle", "world-livestock.pigs", "world-livestock.sheep"];
+        string[] species = ["cattle", "pigs", "sheep"];
+        // A hard jolt (the slack running in, the brakes biting): the animals startled, each car as the jolt reaches it, and
+        // not again for a while (crew-mishaps, the director's call 3 Oct).
+        double accel = (RakeOf(train, 0) ?? train.Rakes[0]).Acceleration;
+        bool jolt = !double.IsNaN(_livestockAccel) && Math.Abs(accel - _livestockAccel) > StartleJolt;
+        _livestockAccel = accel;
+        int along = 0;
         foreach (var v in train.Vehicles)
         {
+            along++;
             if (v is null || v.Cargo != CargoKind.Livestock || v.Load <= 0)
                 continue;
             var frame = train.Frames[v.Id];
             if ((frame.Origin - ear).Length > 160)
                 continue;
             ulong h = (ulong)(v.Id + 1) * 0x9E3779B97F4A7C15UL;
-            HoldLevel(species[(int)((h >> 33) % 3)], v.Id, frame.ToWorld(new Double3(0, 1.4, 0)), Occlusion(v.Id), 0.5 + 0.5 * Math.Clamp(v.Load, 0, 1));
+            string kind = species[(int)((h >> 33) % 3)];
+            var pen = frame.ToWorld(new Double3(0, 1.4, 0));
+            HoldLevel($"world-livestock.{kind}", v.Id, pen, Occlusion(v.Id), 0.5 + 0.5 * Math.Clamp(v.Load, 0, 1));
+            if (jolt && _time >= _startledUntil.GetValueOrDefault(v.Id))
+            {
+                CrewAfter(StartleReact + along * 0.11, $"crew-mishaps.startle-{kind}", pen, Occlusion(v.Id));
+                _startledUntil[v.Id] = _time + StartleRest;
+            }
         }
     }
+
+    double _livestockAccel = double.NaN;
+    readonly Dictionary<int, double> _startledUntil = new();
+    // A jolt that startles them (a change in the train's acceleration in a tick, m/s²: past the slack's own clunk threshold
+    // of 0.12, so only a hard one), how long they take to react, and how long before they'll startle again (s).
+    const double StartleJolt = 0.35, StartleReact = 0.15, StartleRest = 8;
 
     // ---- Places --------------------------------------------------------------------------------------------------------------
 
