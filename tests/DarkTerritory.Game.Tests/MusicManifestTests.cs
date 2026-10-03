@@ -106,9 +106,15 @@ public class MusicManifestTests
             var clip = AudioClip.Load(Path.Combine(Folder, t.File));
             double measured = Loudness.Integrated(clip.Samples, clip.SampleRate);
             Assert.InRange(measured, t.LoudnessLufs - 0.1, t.LoudnessLufs + 0.1);
-            Assert.InRange(t.LoudnessLufs + t.GainDb, -16.05, -15.95);
+            // To -16 LUFS; or, where the full gain would put the peak over -1 dBFS, as far as that allows, and the shortfall
+            // recorded (at most 3 dB: note 194).
+            Assert.InRange(t.LoudnessLufs + t.GainDb + (t.ShortfallDb ?? 0), -16.05, -15.95);
+            Assert.InRange(t.ShortfallDb ?? 0, 0, 3);
+            float peak = clip.Samples.Max(Math.Abs);
+            if (t.ShortfallDb is > 0)
+                Assert.True(20 * Math.Log10(peak) + t.GainDb > -1.05, $"{t.Id} is short of -16 LUFS but its peak isn't what stops it");
             // Its peak after the gain stays out of the mixer's soft clip.
-            Assert.True(clip.Samples.Max(Math.Abs) * Audio.DbToGain(t.GainDb) < 1.2, $"{t.Id} peaks over the top at its gain");
+            Assert.True(peak * Audio.DbToGain(t.GainDb) < 1.2, $"{t.Id} peaks over the top at its gain ({20 * Math.Log10(peak) + t.GainDb:0.0} dBFS)");
             Assert.InRange(t.OutPoint, t.Hit, clip.Seconds + 1e-3);
         }
     }

@@ -19,8 +19,12 @@ public sealed record MusicEvidence(string Sha256, string Note, string? SourceSha
 /// derailment; nothing past <see cref="OutPoint"/> is played.
 /// </summary>
 public sealed record MusicTrack(string Id, string File, string Work, string Composer, int Year, string Performers, string Source,
-    string Licence, MusicEvidence Evidence, MusicMood Mood, double InPoint, double Hit, double OutPoint, double LoudnessLufs, double GainDb)
+    string Licence, MusicEvidence Evidence, MusicMood Mood, double InPoint, double Hit, double OutPoint, double LoudnessLufs, double GainDb,
+    double? ShortfallDb = null)
 {
+    // ShortfallDb: how far short of -16 LUFS the gain stops, when the full gain would push the file's peak past the
+    // headroom (note 194: a piano recording's peaks); null when it reaches the target.
+
     /// <summary>
     /// Where play starts so the hit comes <paramref name="leadSeconds"/> after it (the replay's lead into the moment the
     /// train came off): never before the in-point. A hit too close to the in-point would land early; the manifest's test

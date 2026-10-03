@@ -52,12 +52,16 @@ static class MusicCommands
             var track = new MusicTrack(d.Id, d.File, d.Work, d.Composer, d.Year, d.Performers, d.Source, MusicManifest.Licence,
                 new MusicEvidence(Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant(), d.Evidence.Note, d.Evidence.SourceSha256,
                     d.Evidence.Page, d.Evidence.Record),
-                d.Mood, 0, hit, Math.Round(clip.Seconds, 3), lufs, Math.Round(MusicFiles.TargetLufs - lufs, 2));
+                d.Mood, 0, hit, Math.Round(clip.Seconds, 3), lufs, 0);
+            // The gain to -16 LUFS, but never so much the peak passes the headroom (run 3: a piano sonata's peaks went over
+            // the top); what it falls short by is recorded.
+            var (gain, shortfall) = MusicFiles.Gain(lufs, clip.Samples.Max(Math.Abs));
+            track = track with { GainDb = gain, ShortfallDb = shortfall };
             string? why = !settled ? $"its hit didn't settle on an onset within {MaxMove} s of {d.HitGuess} s"
                 : MusicFiles.Unfit(track, wreck) is { } unfit ? unfit
                 : !File.Exists(Path.Combine(dir, d.Evidence.Record)) ? $"no evidence record at {d.Evidence.Record}"
                 : null;
-            results.Add(new { d.Id, d.File, hit, guess = d.HitGuess, seconds = track.OutPoint, lufs, track.GainDb, bytes = bytes.Length, left = why });
+            results.Add(new { d.Id, d.File, hit, guess = d.HitGuess, seconds = track.OutPoint, lufs, track.GainDb, track.ShortfallDb, bytes = bytes.Length, left = why });
             if (why is null)
                 taken.Add(track);
         }
@@ -121,6 +125,25 @@ static class MusicFiles
     public const int DemoPool = 4;
     static readonly string[] NotMusic = ["manifest.json", "CREDITS.md"];
 
+    /// <summary>The highest a track's peak may sit after its gain: −1 dBFS, clear of the mixer's soft clip.</summary>
+    public const double PeakCeilingDb = -1;
+    /// <summary>How far under −16 LUFS a peak-limited track may stay before it's left out (it would sound quieter than the rest).</summary>
+    public const double MaxShortfallDb = 3;
+
+    /// <summary>
+    /// The gain to −16 LUFS for a file measuring <paramref name="lufs"/>, capped so its <paramref name="peak"/> (linear)
+    /// stays at or under <see cref="PeakCeilingDb"/>; and how far short of the target the cap leaves it (null: not short).
+    /// </summary>
+    public static (double Gain, double? Shortfall) Gain(double lufs, float peak)
+    {
+        double want = TargetLufs - lufs;
+        double most = PeakCeilingDb - 20 * Math.Log10(Math.Max(peak, 1e-6));
+        if (want <= most)
+            return (Math.Round(want, 2), null);
+        double gain = Math.Floor(most * 100) / 100;
+        return (gain, Math.Round(want - gain, 2));
+    }
+
     /// <summary>A clip at the mixer's rate in stereo, as the game plays it and the manifest test measures it.</summary>
     public static float[] AtMixerRate(AudioClip clip)
     {
@@ -138,8 +161,10 @@ static class MusicFiles
             return $"its hit is {t.Hit - t.InPoint:0.00} s in, under the replay's {wreck.ReplayLeadSeconds} s lead";
         if (t.OutPoint - start < wreck.SequenceSeconds - wreck.FirstPersonSeconds)
             return $"it runs out {wreck.SequenceSeconds - wreck.FirstPersonSeconds - (t.OutPoint - start):0.00} s before the sequence's end";
-        if (Math.Abs(t.LoudnessLufs + t.GainDb - TargetLufs) > 0.05 || double.IsInfinity(t.LoudnessLufs))
+        if (Math.Abs(t.LoudnessLufs + t.GainDb + (t.ShortfallDb ?? 0) - TargetLufs) > 0.05 || double.IsInfinity(t.LoudnessLufs))
             return "its loudness doesn't measure";
+        if (t.ShortfallDb > MaxShortfallDb)
+            return $"its peaks leave it {t.ShortfallDb:0.0} dB short of {TargetLufs} LUFS (more than {MaxShortfallDb} dB)";
         return null;
     }
 

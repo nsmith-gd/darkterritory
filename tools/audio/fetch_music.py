@@ -62,6 +62,8 @@ MOODS = ("lament", "gallop", "doom", "swagger")
 PRE, POST, REFINE = 24.0, 21.0, 1.0
 MIN_PRE, MIN_POST = 3.0 + REFINE + 0.5, 18.0 + REFINE + 0.5
 LUFS, TRUE_PEAK = -16.0, -1.5
+# The decoded peak a cut is held under (dt audio music caps the gain at -1 dBFS; this leaves it room to reach -16 LUFS).
+PEAK_DB = -1.5
 OPUS_KBPS = 64
 MAX_TRACKS = 16
 # What the intake takes, when it runs: a small request file, so a push of it can start the workflow (music-intake.yml).
@@ -709,7 +711,9 @@ def find(c: dict, files: dict[str, set], used: set, log: list, near: dict) -> di
                 break
     if good and any(r >= 2 for r, *_ in good):
         via = "pinned" if any(r == 3 for r, *_ in good) else "title"
-    log.append({"id": c["id"], "via": via, "matched": len(tried), "tried": tried[:40]})
+    log.append({"id": c["id"], "via": via, "matched": len(tried), "tried": tried[:40],
+                "pinned": [t for t in tried if t["title"] in pins] + [{"title": t, "cc0": False, "refused": ["not found on Commons, or taken"]}
+                                                                    for t in pins if t not in {x["title"] for x in tried}]})
     if not good:
         return None
     good.sort(key=lambda g: (g[0], g[1], g[2]), reverse=True)
@@ -829,10 +833,51 @@ def cut(source: Path, out: Path, start: float, length: float) -> dict:
     norm = (f"loudnorm=I={LUFS}:TP={TRUE_PEAK}:LRA=11:measured_I={stats['input_i']}:measured_TP={stats['input_tp']}:"
             f"measured_LRA={stats['input_lra']}:measured_thresh={stats['input_thresh']}:offset={stats['target_offset']}:linear=true")
     fades = f"afade=t=in:d=0.05,afade=t=out:st={max(0.0, length - 1.0):.3f}:d=1"
-    ffmpeg(*window, "-i", str(source), "-ac", "1", "-af", f"{norm},aresample=48000,{fades}", "-ar", "48000", "-c:a", "libopus",
-           "-b:a", f"{OPUS_KBPS}k", "-vbr", "on", "-application", "audio", "-map_metadata", "-1", "-fflags", "+bitexact",
-           "-flags:a", "+bitexact", str(out))
-    return {"inputLufs": float(stats["input_i"]), "inputTruePeak": float(stats["input_tp"]), "normalization": stats.get("normalization_type")}
+
+    # Always through a limiter last, set so the *decoded* peak stays under -1.5 dBFS: loudnorm's true peak is for the PCM,
+    # and Opus overshoots a hard transient (the offline test's noise crash decoded at +2 dBFS from a -2 dBFS limit). So
+    # each encode is decoded and measured, and the limit lowered by the overshoot until it holds.
+    def encode(chain: str, limit_db: float) -> None:
+        lim = f"alimiter=limit={10 ** (limit_db / 20):.4f}:attack=2:release=60:level=0"
+        ffmpeg(*window, "-i", str(source), "-ac", "1", "-af", f"{chain},{lim},aresample=48000,{fades}", "-ar", "48000", "-c:a", "libopus",
+               "-b:a", f"{OPUS_KBPS}k", "-vbr", "on", "-application", "audio", "-map_metadata", "-1", "-fflags", "+bitexact",
+               "-flags:a", "+bitexact", str(out))
+
+    def held(chain: str) -> tuple[float, float]:
+        limit = -2.0
+        for _ in range(4):
+            encode(chain, limit)
+            top = peak_db(out)
+            if top <= PEAK_DB:
+                break
+            limit -= top - PEAK_DB + 0.3
+        return limit, top
+
+    limit, top = held(norm)
+    # loudnorm's dynamic mode (a wide-range piano, say) can land well under the target, and the game's gain would then push
+    # the peaks over (run 3's Pathétique sonata). Measured short, it's encoded again with the rest of the gain into the
+    # limiter, so it reaches -16 LUFS with its peaks held.
+    got = measured(out)
+    limited = None
+    if got < LUFS - 0.3:
+        limited = round(LUFS - got, 2)
+        limit, top = held(f"{norm},volume={limited}dB")
+        got = measured(out)
+    return {"inputLufs": float(stats["input_i"]), "inputTruePeak": float(stats["input_tp"]), "normalization": stats.get("normalization_type"),
+            "outputLufs": round(got, 2), "limiterGainDb": limited, "limitDb": round(limit, 2), "decodedPeakDb": round(top, 2)}
+
+
+def peak_db(path: Path) -> float:
+    """A file's highest sample as decoded, in dBFS."""
+    a = pcm(path, 0, 3600, 48000)
+    return 20 * math.log10(max(max(a, default=0.0), -min(a, default=0.0), 1e-9))
+
+
+def measured(path: Path) -> float:
+    """A file's integrated loudness (ffmpeg's ebur128, BS.1770), in LUFS."""
+    r = ffmpeg("-i", str(path), "-af", "ebur128=framelog=quiet", "-f", "null", "-")
+    found = re.findall(r"I:\s*(-?[\d.]+) LUFS", r.stderr)
+    return float(found[-1]) if found else LUFS
 
 
 def take(c: dict, source: Path, out_dir: Path) -> dict:
@@ -980,6 +1025,7 @@ def intake(args) -> int:
     drafts_path.write_text(json.dumps({"tracks": drafts}, indent=2, ensure_ascii=False) + "\n")
     print(json.dumps({k: report[k] for k in ("kept", "refused", "found", "scan")}, indent=2, ensure_ascii=False))
     log_table(report)
+    summary(report)
     if args.no_finish:
         return 0
     # A full run is the whole set: what it didn't retake (a mislabel from before) goes. A run of --only some keeps the rest.
@@ -1025,9 +1071,8 @@ def take_in(c: dict, j: dict, args, report: dict, evidence_dir: Path) -> dict | 
     return draft(c, j, sha256, cutinfo)
 
 
-def log_table(report: dict) -> None:
+def log_table(report: dict, out=sys.stderr) -> None:
     """The kept tracks, the refusals and the near misses, as lines for the job log (people read logs, not artifacts)."""
-    out = sys.stderr
     print(f"\n== Kept {len(report['kept'])} (scan: {report.get('scan')})", file=out)
     for k in report["kept"]:
         chk = k["hitCheck"]
@@ -1040,6 +1085,20 @@ def log_table(report: dict) -> None:
     for cid, misses in report["nearMisses"].items():
         for m in misses[:6]:
             print(f"  {cid:36} {m['title']} : {m['licence'] or '-'} : {'; '.join(m['why'])}", file=out)
+    print("== Pinned files", file=out)
+    for entry in report["log"]:
+        for t in entry.get("pinned", []):
+            print(f"  {entry['id']:36} {t['title']} : {'CC0' if t['cc0'] else 'refused: ' + '; '.join(t['refused'])}", file=out)
+
+
+def summary(report: dict, out=sys.stdout) -> None:
+    """The short table for the end of the log: id | hit | jump | rank | WEAK | performers."""
+    print(f"== Music intake: {len(report['kept'])} kept, {len(report['refused'])} refused", file=out)
+    print("id | hit | jump dB | rank | weak | performers", file=out)
+    for k in report["kept"]:
+        chk = k["hitCheck"]
+        print(f"{k['id']} | {k['hitClock']} | {chk['jumpDb']:+.1f} | {chk['loudnessRank']:.2f} | {'WEAK' if chk['weak'] else '-'} | {k['performers']}",
+              file=out)
 
 
 def strip_comments(text: str) -> str:
@@ -1116,7 +1175,8 @@ def offline_test(args) -> int:
         track = next((t for t in body["tracks"] if t["id"] == cand["id"]), None)
         result |= {"dt": code, "manifest": track}
         ok = ok and code == 0 and track is not None and abs(track["hit"] - info["hitGuess"]) <= REFINE + 0.01 \
-            and abs(track["loudnessLufs"] + track["gainDb"] - LUFS) < 0.06 and (out / "CREDITS.md").exists()
+            and abs(track["loudnessLufs"] + track["gainDb"] + (track.get("shortfallDb") or 0) - LUFS) < 0.06 \
+            and (track.get("shortfallDb") or 0) <= 3 and (out / "CREDITS.md").exists()
     result["ok"] = ok
     print(json.dumps(result, indent=2))
     if ok and not args.keep:
@@ -1129,6 +1189,7 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true", help="check the candidate list's structure, offline")
     ap.add_argument("--offline-test", action="store_true", help="run a made-up recording through the cut/normalise/encode/manifest path")
     ap.add_argument("--search", action="store_true", help="list what Commons has for each candidate, with each file's licence")
+    ap.add_argument("--summary", action="store_true", help="print the last intake's kept tracks (intake/_sources/music/report.json)")
     ap.add_argument("--only", nargs="*", help="candidate ids to take (default: the request file's)")
     ap.add_argument("--request", type=Path, default=REQUEST, help="the request file (default tools/audio/music_intake.json)")
     ap.add_argument("--out", type=Path, default=MUSIC, help="where the music goes (default content/audio/music)")
@@ -1148,6 +1209,11 @@ def main() -> int:
         return 1 if problems else 0
     if args.offline_test:
         return offline_test(args)
+    if args.summary:
+        report = json.loads((SOURCES / "report.json").read_text())
+        log_table(report, sys.stdout)
+        summary(report)
+        return 0
     if args.search:
         return search_report()
     return intake(args)

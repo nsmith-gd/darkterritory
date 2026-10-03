@@ -54,14 +54,24 @@ jobs:
       - name: What came in
         if: always()
         run: |
-          cat intake/_sources/music/report.json || true
           git status --short content/audio/music
           du -sh content/audio/music
+          # The kept tracks (hit, jump, rank, weak, performers), the refusals, near misses and pins: the log's last lines before the tests.
+          python3 tools/audio/fetch_music.py --summary || true
       - name: The manifest tests (E.6 licensing, hashes, loudness, hits) and the Opus reader
         run: |
-          dotnet test --project tests/DarkTerritory.Game.Tests -c Release -- --filter-class "*.MusicManifestTests"
-          dotnet test --project tests/DarkTerritory.Game.Tests -c Release -- --filter-class "*.FrontEndTests"
-          dotnet test --project tests/Ballast.Audio.Tests -c Release
+          set -o pipefail
+          run() {
+            if ! "$@" 2>&1 | tee out/test.log; then
+              echo "::error::Music intake stopped: a test failed, so nothing is pushed. $*"
+              echo "==== WHY ===="
+              grep -E "failed |\[FAIL\]|Assert|Exception|error " out/test.log | head -40
+              exit 1
+            fi
+          }
+          run dotnet test --project tests/DarkTerritory.Game.Tests -c Release -- --filter-class "*.MusicManifestTests"
+          run dotnet test --project tests/DarkTerritory.Game.Tests -c Release -- --filter-class "*.FrontEndTests"
+          run dotnet test --project tests/Ballast.Audio.Tests -c Release
       - name: Evidence (licence metadata, wikitext, the rendered file pages, SHA-256s, the report)
         if: always()
         uses: actions/upload-artifact@v4
