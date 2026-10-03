@@ -299,7 +299,8 @@ void main() {
     albedo *= 1.0 - 0.3 * wet;
     // Frost: a pale rime over what's out in the night, thick on what faces the sky (roofs, ballast, the tops of
     // things), thin on the walls, broken up by the surface's own grain so it lies in the texture's hollows and edges.
-    float frost = frame.counts.w * night * (textured ? 1.0 : 0.6);
+    // (Pitch, worn under 0.015 (PlanArt.PitchWear: the tar ponds), stays black and wet: it doesn't rime.)
+    float frost = frame.counts.w * night * (textured ? 1.0 : 0.6) * (vWear > 0.0 && vWear < 0.015 ? 0.0 : 1.0);
     float rime = frost * (0.22 + 0.6 * smoothstep(0.2, 0.9, n.y)) * (0.55 + 0.45 * smoothstep(0.02, 0.2, dot(albedo, vec3(0.33))));
     albedo = mix(albedo, vec3(0.5, 0.54, 0.6), clamp(rime, 0.0, 0.8));
 
