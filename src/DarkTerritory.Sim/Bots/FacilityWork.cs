@@ -13,7 +13,20 @@ namespace DarkTerritory.Sim.Bots;
 /// <param name="Loads">Each cargo car's load and cargo afterwards, front to back.</param>
 public sealed record FacilityWorkReport(string Facility, bool Departed, double Seconds, IReadOnlyList<string> Legs, IReadOnlyList<string> Doing,
     IReadOnlyList<(double Load, CargoKind Cargo, double CargoIntegrity, double Integrity)> Loads, double LoadedBefore, double LoadedAfter,
-    double Bin, int Head, int HoseCar, bool Leaking, int Rakes, bool SwitchBack, int Alive, int Crew, IReadOnlyList<string> Deaths, StopRecord? Record);
+    double Bin, int Head, int HoseCar, bool Leaking, int Rakes, bool SwitchBack, int Alive, int Crew, IReadOnlyList<string> Deaths, StopRecord? Record)
+{
+    /// <summary>
+    /// The switchyard's (note 187): its cars brought away (each one's load and cargo, front to back in the train) and those
+    /// still standing on its sidings; the order the engine's rake left in.
+    /// </summary>
+    public IReadOnlyList<(int Id, double Load, CargoKind Cargo)> PickedUp { get; init; } = [];
+    public int StillStanding { get; init; }
+    public IReadOnlyList<int> Order { get; init; } = [];
+    /// <summary>The wreck yard's heaps (note 187): found by a lamp or not, salvage left unfound, how often each shifted.</summary>
+    public IReadOnlyList<(bool Found, int Unfound, int Shifts, double Stability)> Heaps { get; init; } = [];
+    /// <summary>Every stop the driver made (a switchyard's pick-ups are stops of their own).</summary>
+    public IReadOnlyList<StopRecord> Stops { get; init; } = [];
+}
 
 /// <summary>
 /// A bot crew works one facility stop from a standing start short of it, through intent alone (CLAUDE.md: bots use the
@@ -48,7 +61,7 @@ public static class FacilityWork
             bots.Add(new RoofWalkerBot(11 + i, p.Cold, hand));
             crew.Add(PlayerMotor.SpawnOnRoof(train, 1 + i % (cars - 1), i * 1.5 - 3, p));
         }
-        double before = train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).Sum(v => v.Load);
+        double before = train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).Sum(v => v.Load);
         var controls = new TrainControls { Reverser = 1 };
         var legs = new List<string>();
         var doing = new List<string>();
@@ -89,11 +102,19 @@ public static class FacilityWork
                 if (b is RoofWalkerBot { Job: { Doing.Length: > 0 } h } && !doing.Contains(h.Doing))
                     doing.Add(h.Doing);
         }
-        var cargo = train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).ToList();
+        // The train's own cars and whatever of the yard's it brought away, not the yard's cars still standing (note 187).
+        var cargo = train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).ToList();
         return new FacilityWorkReport($"{features[facility].Facility} ({facility})", world.Run.Departures > 0, Math.Round(ticks * SimConstants.TickSeconds, 1),
             legs, doing, [.. cargo.Select(v => (Math.Round(v.Load, 3), v.Cargo, Math.Round(v.CargoIntegrity, 3), Math.Round(v.Integrity, 3)))],
             Math.Round(before, 3), Math.Round(cargo.Sum(v => v.Load), 3), Math.Round(site.Bin, 3), site.Head, site.HoseCar, site.Leaking,
-            train.Rakes.Count, !train.Diverging(spur.Index), crew.Count(c => c.Alive), crew.Count, deaths, driver.Stops?.Log.LastOrDefault());
+            train.TrainRakes, !train.Diverging(spur.Index), crew.Count(c => c.Alive), crew.Count, deaths, driver.Stops?.Log.LastOrDefault())
+        {
+            PickedUp = [.. train.Dynamics.Consist.Vehicles.Where(v => v.YardCar).Select(v => (v.Id, Math.Round(v.Load, 3), v.Cargo))],
+            StillStanding = world.Run.YardTracks(facility).Sum(b => Sim.Run.Run.StandingOn(train, b)),
+            Order = [.. train.Dynamics.Consist.Vehicles.Select(v => v.Id)],
+            Heaps = [.. site.Heaps.Select(h => (h.Found, h.Salvage, h.Shifts, Math.Round(h.Stability, 2)))],
+            Stops = driver.Stops?.Log ?? [],
+        };
     }
 
     /// <summary>

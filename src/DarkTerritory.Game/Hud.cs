@@ -922,6 +922,7 @@ public static class Hud
         DeathCause.Poisoned => "GASSED BY THE CHEMICALS",
         DeathCause.Keg => "BLOWN UP BY THE POWDER",
         DeathCause.Leak => "GASSED BY THE LEAK",
+        DeathCause.Wreckage => "CRUSHED WHEN THE WRECK SHIFTED",
         DeathCause.Gnawed => "EATEN BY THE GNAWERS",
         DeathCause.Ferryman => "SLOWED FOR THE LANTERN",
         DeathCause.Stoker => "BURNED DRIVING IT OUT OF THE FIREBOX",
@@ -1081,6 +1082,12 @@ public static class Hud
                 ? $"HOSE ON: PRESSURE {stand.Pressure * 100:0}%{(stand.Leaking ? " LEAKING" : "")}. STAY BY IT   [E] HOLD: TAKE IT OFF{held}"
                 : world.Run.CarAtHose(train, stand) is null ? "HOSE: NO CAR WITH ROOM BY THE STAND" : $"[E] HOLD: PUT THE HOSE ON THE CAR{held}";
         }
+        // The wreck yard (note 187): its tell, and what a lamp's for.
+        if (world.Run?.HeapNear(p, train) is { } heap)
+            return heap.Groan > 0 ? "IT'S GOING: GET CLEAR OF THE WRECK"
+                : !heap.Found && heap.Salvage > 0 ? "THE WRECK: TOO DARK TO SEE WHAT'S IN IT. BRING A LAMP"
+                : heap.Stability <= (world.Run.FacilityTuning?.Wreck.StrainPerPiece ?? 0.4) ? "THE WRECK CREAKS: ONE MORE PIECE AND IT GOES"
+                : "THE WRECK: CARRY THE SALVAGE OUT TO A CAR";
         if (world.Switches?.InReach(p, train, hand) is { } branch)
         {
             // Say which way it'll go, and when it won't: the points don't move with a wheel on them.

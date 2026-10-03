@@ -157,7 +157,9 @@ public enum DeathCause : byte
     // GDD §19, App. B.9 (note 182): a powder car going up; a cannon fired by the chemicals.
     Exploded, Poisoned,
     // GDD §18 (WP15, note 185): a powder keg at the depot going up; a chemical works' hose leaking.
-    Keg, Leak
+    Keg, Leak,
+    // GDD §18 (WP15b, note 187): a wreck yard's heap shifting on whoever was by it.
+    Wreckage
 }
 
 /// <summary>Conditions a player carries.</summary>

@@ -16,6 +16,9 @@ public sealed record FacilityTuning(CrateTuning Crates, WinchTuning Winch, Dicti
     public RampTuning Ramp { get; init; } = new();
     public HoseTuning Hose { get; init; } = new();
     public KegTuning Kegs { get; init; } = new();
+    /// <summary>GDD §18's switchyard and wreck yard (WP15b, note 187): the yard's standing cars, and the wreck to salvage.</summary>
+    public RakesTuning Rakes { get; init; } = new();
+    public WreckYardTuning Wreck { get; init; } = new();
 
     /// <summary>On a spur, the modules are laid out from this far back from its buffer stop (beside the first cars).</summary>
     public double SpurLayout { get; init; } = 45;
@@ -163,6 +166,72 @@ public sealed record KegTuning
     public double CarDamage { get; init; } = 0.3;
 }
 
+/// <summary>The switchyard's standing cars (GDD §18 "cars scattered across six sidings"; WP15b). Field docs in facilities.json.</summary>
+public sealed record RakesTuning
+{
+    public int[] Cars { get; init; } = [1, 2];
+    public double[] Load { get; init; } = [0.5, 1];
+    public string[] Cargoes { get; init; } = ["goods"];
+    public double Back { get; init; } = 1;
+    public int Spare { get; init; } = 1;
+}
+
+/// <summary>The wreck yard's derailed train (GDD §18 "unstable, unlit"; WP15b). Field docs in facilities.json.</summary>
+public sealed record WreckYardTuning
+{
+    public int[] Heaps { get; init; } = [3, 4];
+    public double[][] Layout { get; init; } = [[8, 1.5], [20, 4.5], [-24, 12], [16, 15]];
+    public int[] Salvage { get; init; } = [2, 3];
+    public double LampReach { get; init; } = 6;
+    public double BeamLength { get; init; } = 40;
+    public double BeamSpread { get; init; } = 0.2;
+    public double StrainPerPiece { get; init; } = 0.4;
+    public double WarnSeconds { get; init; } = 3;
+    public double CrushRadius { get; init; } = 3.5;
+    public int Damage { get; init; } = 45;
+    public double Settle { get; init; } = 0.6;
+    public int Shifts { get; init; } = 2;
+}
+
+/// <summary>
+/// One heap of the wreck yard's derailed train (GDD §18; WP15b, note 187): a car on its side beside the line, and the
+/// salvage still in it, which nobody finds in the dark. Its stability goes as pieces are pulled out of it; at none it groans
+/// for a few seconds and then shifts, on whoever's by it.
+/// </summary>
+public sealed class WreckHeap(int index, Double3 centre, double yaw, int salvage)
+{
+    public int Index { get; } = index;
+    /// <summary>Where it lies (on the ground), and which way its length runs (radians, from the track's heading).</summary>
+    public Double3 Centre { get; } = centre;
+    public double Yaw { get; } = yaw;
+    public int SalvageStart { get; } = salvage;
+    /// <summary>Pieces still in it, unfound: they come out onto the ground beside it the first time a lamp's on it.</summary>
+    public int Salvage { get; internal set; } = salvage;
+    public bool Found { get; internal set; }
+    /// <summary>1 settled, 0 about to go.</summary>
+    public double Stability { get; internal set; } = 1;
+    /// <summary>Seconds of groaning left before it shifts (0: quiet). The tell.</summary>
+    public double Groan { get; internal set; }
+    /// <summary>How many times it's shifted (each tips it further; it settles for good after the tuning's shifts).</summary>
+    public int Shifts { get; internal set; }
+    /// <summary>Who pulled the last piece out of it. Host only.</summary>
+    internal int By = -1;
+
+    public HeapState State => new(Salvage, Found, Stability, Groan, Shifts);
+
+    public void Mirror(in HeapState s)
+    {
+        Salvage = s.Salvage;
+        Found = s.Found;
+        Stability = s.Stability;
+        Groan = s.Groan;
+        Shifts = s.Shifts;
+    }
+}
+
+/// <summary>A wreck heap's replicated state.</summary>
+public readonly record struct HeapState(int Salvage, bool Found, double Stability, double Groan, int Shifts);
+
 /// <summary>Where a crane's casting is (T48): on the ground where it was stacked, on the hook, or lashed on a car.</summary>
 public enum CastingState : byte { Stacked, Hooked, Loaded, Lost }
 
@@ -182,7 +251,7 @@ public readonly record struct SiteState(bool Stocked, double Progress, int Sleds
 }
 
 /// <summary>Spec D.2 loading modules built so far.</summary>
-public enum ModuleKind : byte { Crates, Winch, Crane, Spout, Ramp, Hose }
+public enum ModuleKind : byte { Crates, Winch, Crane, Spout, Ramp, Hose, Rakes, Wreck }
 
 /// <summary>
 /// One facility's loading modules and where they stand, laid out beside its track from the route (so every machine
@@ -198,7 +267,7 @@ public sealed class Site
     /// <param name="mid">Distance along <paramref name="track"/> the modules are laid out from.</param>
     /// <param name="mainDistance">About where that is along the main line (to find the ground from).</param>
     public Site(int index, RouteFeature feature, IReadOnlyList<ModuleKind> modules, FacilityTuning t, RailLine track, double mid, int side,
-        double mainDistance, int crates, int spur = RailLine.MainPath, int heavy = 0, double? room = null, int head = 0)
+        double mainDistance, int crates, int spur = RailLine.MainPath, int heavy = 0, double? room = null, int head = 0, int[]? salvage = null)
     {
         Index = index;
         Feature = feature;
@@ -259,7 +328,35 @@ public sealed class Site
         }
         if (Has(ModuleKind.Hose))
             HoseStand = At(t.Hose.Along, t.Hose.Lateral);
+        MainDistance = mainDistance;
+        if (Has(ModuleKind.Wreck) && salvage is not null)
+        {
+            // Laid out from the end of the line, where the last train came off (GDD §18): some through the buffer stop and
+            // strewn on beyond it, in the headlamp of an engine run up to it; the rest beside the track, in the dark.
+            var w = t.Wreck;
+            var heaps = new List<WreckHeap>();
+            for (int i = 0; i < salvage.Length && i < w.Layout.Length; i++)
+            {
+                double along = w.Layout[i][0], lateral = w.Layout[i][1];
+                heaps.Add(new WreckHeap(i, Off(track, track.Length + along, side * lateral), (i % 2 == 0 ? 1 : -1) * (0.35 + 0.3 * i), salvage[i]));
+            }
+            Heaps = heaps;
+        }
     }
+
+    /// <summary>A point beside a track, <paramref name="lateral"/> to its right, past its end on along its last heading.</summary>
+    internal static Double3 Off(RailLine track, double along, double lateral)
+    {
+        var sample = track.Sample(Math.Clamp(along, 0, track.Length));
+        var right = Double3.Cross(sample.Tangent, Double3.Up).Normalized;
+        return sample.Position + sample.Tangent * Math.Max(0, along - track.Length) + right * lateral;
+    }
+
+    /// <summary>About where the modules are along the main line (to find the ground, and a body's line hint, from).</summary>
+    public double MainDistance { get; }
+
+    /// <summary>The wreck yard's heaps (WP15b, note 187); none elsewhere.</summary>
+    public IReadOnlyList<WreckHeap> Heaps { get; } = [];
 
     /// <summary>The spout's mouth over the track, how far along the track it is, its lever beside the track, and the car-loads of grain in the bin.</summary>
     public Double3 Spout { get; }

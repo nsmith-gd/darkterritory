@@ -176,6 +176,8 @@ public sealed partial class Run
             int heavy = h[0] + (int)((_route.Seed * 13 + (ulong)i * 29) % (ulong)(Math.Max(0, h[1] - h[0]) + 1));
             var hd = t.Ramp.Head;
             int head = hd[0] + (int)((_route.Seed * 7 + (ulong)i * 23) % (ulong)(Math.Max(0, hd[1] - hd[0]) + 1));
+            // The wreck yard's heaps, and the salvage in each (note 187).
+            int[]? salvage = modules.Contains(ModuleKind.Wreck) ? Salvage(t.Wreck, i) : null;
             if (_spurs[i] >= 0 && _spurs[i] < line.Branches.Count)
             {
                 // Laid out from where the first cars stand with the engine up at the buffer stop.
@@ -183,11 +185,11 @@ public sealed partial class Run
                 double mid = spur.Local.Length - t.SpurLayout;
                 // The spout stands back along the track the cars stand on to be worked (level-design P16), clear of the points.
                 double room = spur.Definition.Standing ?? spur.Local.Length - 14;
-                return new Site(i, f, modules, t, spur.Local, mid, spur.Side, spur.Toe + mid, crates, spur.Index, heavy, room, head);
+                return new Site(i, f, modules, t, spur.Local, mid, spur.Side, spur.Toe + mid, crates, spur.Index, heavy, room, head, salvage);
             }
             int side = f.Side == 0 ? 1 : f.Side;
             double centre = (f.Start + f.End) / 2;
-            return new Site(i, f, modules, t, line, centre, side, centre, crates, heavy: heavy, head: head);
+            return new Site(i, f, modules, t, line, centre, side, centre, crates, heavy: heavy, head: head, salvage: salvage);
         })];
         // A generated yard's power and its powerhouse (level-design D.2), the door on the face towards the main line.
         foreach (var site in _sites)
@@ -506,7 +508,7 @@ public sealed partial class Run
     static Vehicle? CargoCarNear(TrainOnLine train, Double3 at, double reach)
     {
         double Distance(Vehicle v) => (train.Frames[v.Id].Origin - at).Length;
-        var rake = train.Rakes.FirstOrDefault(r => r.Consist.Vehicles.Any(v => Distance(v) <= reach));
+        var rake = train.Rakes.FirstOrDefault(r => !train.Standing(r) && r.Consist.Vehicles.Any(v => Distance(v) <= reach));
         return rake?.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Load < 1).OrderBy(Distance).FirstOrDefault();
     }
 
@@ -663,7 +665,9 @@ public sealed partial class Run
         var e = Tuning.Economy;
         string tier = char.ToLowerInvariant(_route.Tier.ToString()[0]) + _route.Tier.ToString()[1..];
         double perCar = e.PerCar.GetValueOrDefault(tier, 700);
-        var cargo = train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).ToList();
+        // A switchyard's cars nobody coupled up to were never the crew's to lose (note 187).
+        var standing = train.Rakes.Where(train.Standing).SelectMany(r => r.Consist.Vehicles).Select(v => v.Id).ToHashSet();
+        var cargo = train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && !standing.Contains(v.Id)).ToList();
         var home = cargo.Where(v => attached.Contains(v.Id)).ToList();
         bool delivered = End == RunEnd.Delivered;
         double cargoValue = home.Sum(v => v.Load * v.CargoIntegrity);
@@ -729,7 +733,7 @@ public sealed partial class Run
         int end = lines.FindIndex(l => l.Kind is IncidentKind.Derailed or IncidentKind.Stranded);
         var lost = new List<ReportLine>();
         var train = world.Train;
-        foreach (var rake in train.Rakes.Where(r => r != train.Dynamics))
+        foreach (var rake in train.Rakes.Where(r => r != train.Dynamics && !train.Standing(r)))
         {
             var ids = rake.Consist.Vehicles.Select(v => v.Id).Where(id => !attached.Contains(id)).ToList();
             if (ids.Count == 0)

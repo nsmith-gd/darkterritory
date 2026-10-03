@@ -466,4 +466,151 @@ public class FacilityTests
         Assert.Equal(site.Herd, mirrored.Herd, 3);
         Assert.Equal(site.Pen, mirrored.Pen);
     }
+
+    // GDD §18's switchyard and wreck yard (WP15b, ARCHITECTURE §8 note 187).
+
+    /// <summary>A world on a route with a switchyard, the train standing short of it on the main line.</summary>
+    static (World World, Site Site, int Facility) Switchyard(int cars = 6)
+    {
+        var (route, f) = With(FacilityKind.Switchyard);
+        var line = route.Build();
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, 0.5)), line, f.Start - 50, Tuning.Boiler);
+        var world = new World(train, Tuning.Combat);
+        world.EnableBodies();
+        world.EnableRun(Tuning.Run, route, 600, authority: true, F);
+        int i = route.Of(FeatureKind.Facility).ToList().IndexOf(f);
+        return (world, world.Run!.Sites[i]!, i);
+    }
+
+    [Fact]
+    public void TheSwitchyardsCarsStandOnItsSidingsAsTheNightBegins()
+    {
+        var (world, site, i) = Switchyard();
+        var train = world.Train;
+        var run = world.Run!;
+        var tracks = run.YardTracks(i);
+        Assert.Equal(site.Spur, tracks[0]);
+        var standing = train.Rakes.Where(train.Standing).ToList();
+        Assert.NotEmpty(standing);
+        // On the yard's other tracks (its own, if that's all it has), at the buffer stop, handbrakes on, part-loaded with mixed cargo.
+        var on = tracks.Count > 1 ? tracks.Skip(1).ToHashSet() : [site.Spur];
+        foreach (var r in standing)
+        {
+            Assert.Contains(r.Path, on);
+            Assert.True(r.Handbrake);
+            Assert.Equal(train.Line.Branches[r.Path].End - F.Rakes.Back, r.Distance, 6);
+            Assert.All(r.Consist.Vehicles, v => Assert.True(v.YardCar && v.Id >= train.OwnVehicles && v.Load >= F.Rakes.Load[0] - 1e-9
+                && v.Cargo != CargoKind.None && !v.LampLit));
+            Assert.InRange(r.Consist.Vehicles.Count, F.Rakes.Cars[0], F.Rakes.Cars[^1]);
+        }
+        // Never more than the shortest of those sidings takes with the engine and a car of the train's own.
+        int most = on.Min(b => SpurDrill.Capacity(T.Geometry, train.Line.Branches[b], 12)) - F.Rakes.Spare;
+        Assert.True(standing.Sum(r => r.Consist.Vehicles.Count) <= most);
+        Assert.Equal(1, train.TrainRakes);
+        // A client stands the same cars, with the same ids, from the route alone.
+        var (client, _, _) = Switchyard();
+        Assert.Equal(train.Vehicles.Count, client.Train.Vehicles.Count);
+        Assert.Equal(train.Capture().Rakes.Select(r => (string.Join(",", r.Vehicles), r.Path, r.Distance)),
+            client.Train.Capture().Rakes.Select(r => (string.Join(",", r.Vehicles), r.Path, r.Distance)));
+        // Not the crew's to lose: nobody counts them lost at the night's end.
+        Assert.Equal(0, run.Tally(world, [PlayerMotor.SpawnInCab(train, P)]).CarsLost);
+    }
+
+    [Fact]
+    public void CoupledUpToTheStandingCarsComeAwayAheadOfTheEngineAndAreTheTrains()
+    {
+        var (world, _, _) = Switchyard();
+        var train = world.Train;
+        var standing = train.Rakes.First(train.Standing);
+        var yard = standing.Consist.Vehicles.Select(v => v.Id).ToList();
+        // The engine's rake run up the siding at a crawl onto them.
+        var state = train.Capture();
+        int e = Array.FindIndex(state.Rakes, r => r.Vehicles.Contains(0));
+        state.Rakes[e] = state.Rakes[e] with { Path = standing.Path, Distance = standing.RearDistance - T.Geometry.CouplingGap - 1, Velocity = 0.8 };
+        train.Restore(state);
+        for (int t = 0; t < 5 * SimConstants.TickRate && train.Rakes.Contains(standing); t++)
+            train.Step(SimConstants.TickSeconds, new TrainControls { Reverser = 1 });
+        Assert.DoesNotContain(standing, train.Rakes);
+        Assert.Equal(1, train.TrainRakes);
+        Assert.Equal(yard, train.Dynamics.Consist.Vehicles.Take(yard.Count).Select(v => v.Id));
+        Assert.True(train.Dynamics.Consist.Vehicles[yard.Count].IsEngine);
+        // Brought home, they pay: delivered cars counted, their cargo at its rate.
+        var report = world.Run!.Tally(world, [PlayerMotor.SpawnInCab(train, P)]);
+        Assert.Equal(train.Dynamics.Consist.Vehicles.Count(v => v.Kind == VehicleKind.Cargo), report.CarsDelivered);
+        Assert.Equal(0, report.CarsLost);
+    }
+
+    [Fact]
+    public void TheWreckIsDarkUntilALampIsOnItAndItsSalvageComesOut()
+    {
+        var stop = new Stop(FacilityKind.WreckYard);
+        var site = stop.Site;
+        var run = stop.World.Run!;
+        Assert.InRange(site.Heaps.Count, F.Wreck.Heaps[0], F.Wreck.Heaps[^1]);
+        // The engine at the buffer stop, headlamp on: the heap beyond the stop is in its beam, the one out wide beside the
+        // cars isn't.
+        stop.Step(0.2, []);
+        Assert.True(site.Heaps[0].Found);
+        var dark = site.Heaps.Last();
+        Assert.False(dark.Found);
+        Assert.True(dark.Salvage > 0);
+        Assert.Equal(site.Heaps.Where(h => h.Found).Sum(h => h.SalvageStart), stop.World.Bodies.All.Count(b => b.Kind == BodyKind.Cargo && b.Cargo == CargoKind.Salvage));
+        // Lamps down, still dark there; a hand lamp set down by it, and its salvage is found.
+        stop.World.LampLit = false;
+        stop.Step(0.5, []);
+        Assert.False(dark.Found);
+        stop.World.Bodies.SpawnItem(dark.Centre + new Double3(F.Wreck.LampReach - 1, 0.3, 0), site.MainDistance, BodyKind.Lamp);
+        stop.Step(0.5, []);
+        Assert.True(dark.Found);
+        Assert.Equal(0, dark.Salvage);
+    }
+
+    [Fact]
+    public void PullingSalvageOutUnsettlesAHeapUntilItGroansAndShiftsOnWhoeversBy()
+    {
+        var stop = new Stop(FacilityKind.WreckYard);
+        var site = stop.Site;
+        var run = stop.World.Run!;
+        stop.Step(0.2, []);
+        var heap = site.Heaps[0];
+        var pieces = stop.World.Bodies.All.Where(b => b.Kind == BodyKind.Cargo && b.Cargo == CargoKind.Salvage).ToList();
+        int pulls = (int)Math.Ceiling(1 / F.Wreck.StrainPerPiece - 1e-9);
+        Assert.True(pieces.Count >= Math.Min(pulls, heap.SalvageStart));
+        // Someone standing right by it the whole time; each piece picked up is pulled out from under the rest.
+        stop.Crew.Add(stop.OnTheGround(heap.Centre + new Double3(0.5, 0, 0.5)));
+        for (int k = 0; k < pulls && k < pieces.Count; k++)
+        {
+            pieces[k].Carrier = 1;
+            stop.Step(0.1, [default]);
+            pieces[k].Carrier = -1;
+        }
+        if (heap.Stability > 1e-9)
+            return; // a heap with fewer pieces than it takes never goes (nothing more to pull)
+        // The tell: it groans first, and nobody's hurt yet.
+        Assert.True(heap.Groan > 0);
+        Assert.DoesNotContain(stop.Hurt, d => d.Cause == DeathCause.Wreckage);
+        Assert.NotNull(run.Groaning(heap.Centre));
+        stop.Step(F.Wreck.WarnSeconds + 0.2, [default]);
+        Assert.Equal(1, heap.Shifts);
+        Assert.Equal(F.Wreck.Settle, heap.Stability, 6);
+        Assert.Contains(stop.Hurt, d => d.Cause == DeathCause.Wreckage && d.PlayerId == 1 && d.Amount == F.Wreck.Damage);
+        Assert.Equal(1, run.WreckBy);
+        Assert.Single(stop.Hurt, d => d.Cause == DeathCause.Wreckage);
+    }
+
+    [Fact]
+    public void AClientSeesTheWreckAndSomethingAlreadyLivesThere()
+    {
+        var stop = new Stop(FacilityKind.WreckYard);
+        stop.Step(0.2, []);
+        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 0)), stop.Train.Line, 1000, Tuning.Boiler));
+        client.EnableRun(Tuning.Run, stop.World.Run!.Route, 600, authority: false, F);
+        var controls = new TrainControls();
+        WorldRecords.Apply(WorldRecords.Capture(stop.World, controls, []), client, ref controls, []);
+        var mirrored = client.Run!.Sites[stop.Site.Index]!;
+        Assert.Equal(stop.Site.Heaps.Select(h => h.State), mirrored.Heaps.Select(h => h.State));
+        Assert.Equal(stop.Site.Heaps.Select(h => h.Centre), mirrored.Heaps.Select(h => h.Centre));
+        // GDD §18 "already occupied".
+        Assert.True(Tuning.Enemies.Director.Residents["wreckYard"]["draggers"] > 1);
+    }
 }

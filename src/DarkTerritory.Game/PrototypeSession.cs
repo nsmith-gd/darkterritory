@@ -377,6 +377,15 @@ public sealed class PrototypeSession : IPlaySession
         if (site.Has(ModuleKind.Hose))
             parts.Add(site.Leaking ? "HOSE LEAKING: get clear, or get to the stand" : site.HoseCar >= 0 ? $"hose on, pressure {site.Pressure * 100:0}%: someone stay by the stand"
                 : "hose stand: put it on a car, mind it, take it off (and do not fire the guns in here)");
+        // GDD §18's switchyard and wreck yard (note 187).
+        if (site.Has(ModuleKind.Rakes))
+            parts.Add("cars standing on the sidings: throw each switch, couple up and bring them out (they come away ahead of the engine)");
+        if (site.Heaps.Count > 0)
+        {
+            int dark = site.Heaps.Count(h => !h.Found && h.Salvage > 0);
+            parts.Add(site.Heaps.Any(h => h.Groan > 0) ? "THE WRECK'S GOING: get clear of it"
+                : dark > 0 ? $"wreck: {dark} of {site.Heaps.Count} heaps not yet seen (no lamps here: take one to them)" : "wreck: carry the salvage to the cars, gently");
+        }
         if (site.Feature.Facility == FacilityKind.MilitaryDepot && site.Has(ModuleKind.Crates))
             parts.Add("powder kegs: set them down, never throw or drop them");
         if (site.Has(ModuleKind.Winch))

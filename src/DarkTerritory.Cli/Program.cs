@@ -69,6 +69,10 @@ return args switch
     ["harness", ..] => Print(RunHarness(args)),
     ["wreck", ..] => Print(WreckCommands.Run(content, args)),
     ["trailer", ..] => Print(TrailerCommands.Run(content, args)),
+    // dt balance --pairs|--triples: GDD §34's combination fairness (note 186). dt audit cascades|grabs: §34's cascade audit,
+    // App. A.9 / B.10's per-tree GRAB check. Each exits 1 on a finding.
+    ["balance", ..] when args.Contains("--pairs") || args.Contains("--triples") => AuditCommands.Combinations(content, args),
+    ["audit", var verb, ..] => AuditCommands.Audit(content, verb, args),
     ["balance", ..] => PrintBalance(RunBalance(args)),
     ["online", "check"] => Print(OnlineCheck()),
     ["campaign", var verb, ..] => Print(CampaignCommand(content, verb, args)),
@@ -134,7 +138,7 @@ object RunHarness(string[] args)
         Seconds = Opt(args, "--seconds", 120),
         Seed = (int)Opt(args, "--seed", 1),
         Link = new Ballast.Net.LinkConditions(Opt(args, "--latency", 0.09), Opt(args, "--jitter", 0.02), Opt(args, "--loss", 0.03)),
-        StartDistance = route is null ? 600 : 400,
+        StartDistance = Opt(args, "--start", route is null ? 600 : 400),
         Combat = args.Contains("--no-combat") ? null : combat,
         Enemies = args.Contains("--enemies") ? enemies : null,
         Route = route,
@@ -145,7 +149,24 @@ object RunHarness(string[] args)
         Run = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)),
         Facilities = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
         YardLength = route?.GateOr(routeTuning.YardLength) ?? routeTuning.YardLength,
+        Voice = Voice(args),
+        // The combination audit's night by hand (note 186): --insist kind,kind sends only those; --hazards a set from balance.json.
+        Insist = Str(args, "--insist", "") is { Length: > 0 } insist ? [.. insist.Split(',').Select(k => Enum.Parse<DarkTerritory.Sim.Enemies.EnemyKind>(k, ignoreCase: true))] : null,
+        Hazards = Str(args, "--hazards", "") is { Length: > 0 } hz
+            ? DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.HazardSets.First(h => h.Name == hz) : null,
     }, args.Contains("--no-boiler") ? null : boiler);
+}
+
+// GDD §34's degraded comms (note 186): --comms poor|awful (balance.json comms), or --voice-loss/-latency/-jitter/-talkover.
+DarkTerritory.Sim.Bots.VoiceConditions? Voice(string[] args)
+{
+    if (Str(args, "--comms", "") is { Length: > 0 } name)
+        return DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Comms.TryGetValue(name, out var v) ? v
+            : throw new ArgumentException($"no comms called {name} in {BalanceTuning.File}");
+    if (!args.Any(a => a.StartsWith("--voice-")))
+        return null;
+    return new DarkTerritory.Sim.Bots.VoiceConditions(Opt(args, "--voice-loss", 0), Opt(args, "--voice-latency", 0), Opt(args, "--voice-jitter", 0),
+        Opt(args, "--voice-talkover", 0));
 }
 
 // GDD §34's balance sweep (T55): harness nights over tiers, seeds, crew sizes and train lengths, run side by side, and
@@ -382,6 +403,13 @@ object FacilityWorkDrill(FacilityKind kind, string[] args)
         alive = $"{r.Alive}/{r.Crew}",
         deaths = r.Deaths,
         stop = r.Record,
+        // The switchyard's cars (note 187): brought away, and still standing; the engine's rake as it left, front to back.
+        pickedUp = r.PickedUp.Select(c => new { id = c.Id, load = c.Load, cargo = c.Cargo.ToString() }),
+        stillStanding = r.StillStanding,
+        order = r.Order,
+        // The wreck yard's heaps (note 187).
+        heaps = r.Heaps.Select(h => new { found = h.Found, unfound = h.Unfound, shifts = h.Shifts, stability = h.Stability }),
+        stops = r.Stops.Select(x => new { x.Kind, x.Seconds }),
     };
 }
 
@@ -850,6 +878,20 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var state = train.Capture();
         train.Restore(state with { Rakes = [state.Rakes[0] with { Path = site.Spur }] });
     }
+    // GDD §18's switchyard (note 187): its cars standing on the sidings, and the train run up a siding to couple up to some, a
+    // few metres short of them.
+    if (site is not null && run is not null)
+    {
+        run.StandCars(train);
+        if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Rakes)
+            && run.YardTracks(site.Index).Select(b => train.Rakes.FirstOrDefault(r => r.Path == b && train.Standing(r))).FirstOrDefault(r => r is not null) is { } standing)
+        {
+            var state = train.Capture();
+            int engine = Array.FindIndex(state.Rakes, r => r.Vehicles.Contains(0));
+            state.Rakes[engine] = state.Rakes[engine] with { Path = standing.Path, Distance = standing.RearDistance - t.Geometry.CouplingGap - 3 };
+            train.Restore(state);
+        }
+    }
     // The works' hose on the car by its stand (note 185).
     if (site is not null && site.Has(DarkTerritory.Sim.Run.ModuleKind.Hose)
         && train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).MinBy(v => (train.Frames[v.Id].Origin - site.HoseStand).Length) is { } hosed)
@@ -946,6 +988,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         foreach (var crate in site.HeavyStack)
             shelf.SpawnCargo(crate, site.CrateLineHint, site.HeavyRadius, freight);
         run!.Stock(shelf, run.Stops.ToList().IndexOf(site.Feature));
+        // The wreck yard's heaps (note 187), as a crew a while into it would have them: all but the last found by a lamp, their
+        // salvage out on the ground beside them, the second shifted once already and the first groaning (--settled: quiet).
+        var wreck = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)).Wreck;
+        foreach (var heap in site.Heaps)
+        {
+            bool found = heap.Index < site.Heaps.Count - 1;
+            if (found)
+                for (int k = 0; k < heap.SalvageStart; k++)
+                    shelf.SpawnCargo(DarkTerritory.Sim.Run.Run.PieceAt(site, heap, k, heap.SalvageStart, wreck), site.MainDistance, cargo: CargoKind.Salvage);
+            heap.Mirror(new DarkTerritory.Sim.Run.HeapState(found ? 0 : heap.SalvageStart, found, heap.Index == 0 ? 0 : 1, heap.Index == 0 && !args.Contains("--settled") ? 2 : 0, heap.Index == 1 ? 1 : 0));
+        }
         cargo = [.. shelf.All];
         if (Str(args, "--cam", "") is not { Length: > 0 })
         {
@@ -953,7 +1006,23 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // GDD §18's set pieces (note 185), each from out beyond it on its side, along the line a way, looking back at it.
             Double3 Out(Double3 from) => ((from - line.Sample(site.Spur, site.Spur >= 0 ? line.Branches[site.Spur].Toe + site.Mid : site.Mid).Position) with { Y = 0 }).Normalized;
             Double3 Along() => site.Track.Sample(site.Mid).Tangent;
-            if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Spout))
+            // The switchyard (note 187): across the gap between the engine and the cars it's coupling up to, from the open side.
+            var waiting = site.Has(DarkTerritory.Sim.Run.ModuleKind.Rakes) ? train.Rakes.FirstOrDefault(r => r.Path == train.Dynamics.Path && train.Standing(r)) : null;
+            if (waiting is not null)
+            {
+                var gap = line.Sample(waiting.Path, waiting.RearDistance - 1.5);
+                var right = Double3.Cross(gap.Tangent, Double3.Up).Normalized * line.Branches[waiting.Path].Side;
+                camera = Camera.LookAt(gap.Position + right * 10 - gap.Tangent * 8 + Double3.Up * 3.2, gap.Position + gap.Tangent * 5 + Double3.Up * 1.2, 66);
+            }
+            // The wreck yard (note 187): from beside the engine at the buffer stop, out at the heaps in its headlamp.
+            else if (site.Heaps.Count > 0)
+            {
+                var end = site.Track.Sample(site.Track.Length);
+                var right = Double3.Cross(end.Tangent, Double3.Up).Normalized * site.Side;
+                camera = Camera.LookAt(end.Position - end.Tangent * 12 + right * 7 + Double3.Up * 4.5,
+                    (site.Heaps[0].Centre + site.Heaps[Math.Min(1, site.Heaps.Count - 1)].Centre) * 0.5 + Double3.Up, 70);
+            }
+            else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Spout))
             {
                 var side = ((site.SpoutLever - site.Spout) with { Y = 0 }).Normalized;
                 camera = Camera.LookAt(site.Spout + side * 10 + Along() * 8 + Double3.Up * 3.5, site.Spout - Double3.Up * 1.5, 62);
@@ -1768,7 +1837,7 @@ static int Usage()
                      [--burnt car,s]   that car gutted by a fire out s seconds ago: charred, smouldering
                      [--route tier:seed --structure girder|truss|trestle|viaduct|causeway|retainingwall]   the night's first of the plan's structures of that type, the train on it, from off its side
                      [--route tier:seed --mail s]   at the night's first mail crane, car 2's door by it; s > 0: the bag caught s seconds ago (its snatch, the arms falling)
-                     [--route tier:seed --site [--crank | --crane | --facility i|kind [--leak]]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --facility: the route's i-th
+                     [--route tier:seed --site [--crank | --crane | --facility i|kind [--leak] [--settled]]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --facility: the route's i-th
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
@@ -1794,7 +1863,15 @@ static int Usage()
                      --online: every bot joins a lobby on the fake Steam and plays over relayed P2P
                      host + bot clients over a simulated network; reports prediction error, bandwidth, deaths,
                      and with --enemies the director's spawns, punishes, deaths by cause and fairness audit; on a route, the
-                     facility stops the crew worked (five bots make a crew for a winch); --trace writes who's doing what
+                     facility stops the crew worked (five bots make a crew for a winch); --trace writes who's doing what;
+                     --comms poor|awful (or --voice-loss/-latency/-jitter/-talkover): the crew's calls over a degraded voice;
+                     --insist kind,kind --hazards wet --start m: one of dt balance --pairs's nights by hand
+          balance --pairs|--triples [--every-hazard] [--at-stops] [--sample n] [--seeds n] [--seconds s] [--crew n] [--hazards clear,wet,cold,dark] [--only kind,kind]
+                     GDD §34 combination fairness: each combination insisted on for a short bot night under each hazard set
+                     (tuning/balance.json combinations); flags unwinnable and trivial meetings, exit 1 if any
+          audit cascades [--only rupture,car-fire,…] | audit grabs [--only Dragger,…] [--crews 2,8]
+                     §34's cascade audit (every §23 chain recovered in time) and App. A.9/B.10's per-tree check (every GRAB
+                     broken by the crew present, at every crew size); exit 1 on a finding
           balance [--tiers frontier,deadLines] [--seeds n] [--crews 2,8] [--cars 6,10,20] [--seconds t] [--parallel p]
                      GDD §34's sweep: harness nights at each crew size and train length, side by side, judged against
                      tuning/balance.json (survivable at 2, non-trivial at 8, fair throughout); exit 1 if a check fails

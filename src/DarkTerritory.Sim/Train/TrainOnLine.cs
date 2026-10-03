@@ -52,9 +52,10 @@ public sealed class TrainOnLine
     public Run.StopWalls? Walls { get; set; }
 
     readonly List<TrainDynamics> _rakes = new();
-    readonly Vehicle[] _vehicles;
-    readonly CarPose[] _poses;
-    readonly CarFrame[] _frames;
+    // Grown once when a switchyard's standing cars are put on its sidings (Stand), before the night begins.
+    Vehicle[] _vehicles;
+    CarPose[] _poses;
+    CarFrame[] _frames;
     readonly List<RakeContact> _contacts = new();
     readonly bool[] _diverging;
     TrainDynamics _engineRake;
@@ -71,6 +72,7 @@ public sealed class TrainOnLine
         _vehicles = new Vehicle[dynamics.Consist.Vehicles.Max(v => v.Id) + 1];
         foreach (var v in dynamics.Consist.Vehicles)
             _vehicles[v.Id] = v;
+        OwnVehicles = _vehicles.Length;
         _poses = new CarPose[_vehicles.Length];
         _frames = new CarFrame[_vehicles.Length];
         _diverging = new bool[line.Branches.Count];
@@ -87,6 +89,51 @@ public sealed class TrainOnLine
             if (f.Shape?.Gun is { } home && !_vehicles[f.Index].Gun.Mounted)
                 _vehicles[f.Index].Gun = new GunState { Mounted = true, Z = home.Position.Z, Facing = (sbyte)(home.Facing.Z < 0 ? -1 : 1) };
     }
+
+    /// <summary>
+    /// The train's own vehicles as the night began: ids 0 to this less one. Any past them are a switchyard's standing cars
+    /// (<see cref="Stand"/>), which nobody boards at the start.
+    /// </summary>
+    public int OwnVehicles { get; }
+
+    /// <summary>
+    /// Puts a rake of a switchyard's cars standing on a siding (GDD §18; WP15b, note 187), its front <paramref name="distance"/>
+    /// along <paramref name="path"/>, uncoupled, its handbrakes on. Its cars take the ids after every vehicle there is, so a
+    /// host and its clients, standing the same cars from the same route, agree on them. Done before the night begins.
+    /// </summary>
+    public IReadOnlyList<Vehicle> Stand(int path, double distance, IReadOnlyList<(double Load, CargoKind Cargo)> cars)
+    {
+        var consist = new Consist(Tuning);
+        int id = _vehicles.Length;
+        foreach (var (load, cargo) in cars)
+            consist.Add(new Vehicle(id++, VehicleKind.Cargo, load) { YardCar = true, Cargo = load > 0 ? cargo : CargoKind.None, LampLit = false });
+        if (consist.Vehicles.Count == 0)
+            return [];
+        Array.Resize(ref _vehicles, id);
+        Array.Resize(ref _poses, id);
+        Array.Resize(ref _frames, id);
+        foreach (var v in consist.Vehicles)
+            _vehicles[v.Id] = v;
+        _rakes.Add(new TrainDynamics(consist) { Path = path, Distance = distance, PreviousDistance = distance, Handbrake = true });
+        UpdatePoses();
+        return consist.Vehicles;
+    }
+
+    /// <summary>
+    /// A rake still standing as the night found it (note 187): a switchyard's cars and nothing else, on a siding, the engine
+    /// not in it. Not part of the train until it's coupled up, so not "cars left behind" either.
+    /// </summary>
+    public bool Standing(TrainDynamics rake) =>
+        !rake.Consist.HasEngine && rake.Path >= 0 && rake.Path < Line.Branches.Count && Line.Branches[rake.Path].Kind == BranchKind.Spur
+        && rake.Consist.Vehicles.All(v => v.YardCar);
+
+    /// <summary>A vehicle in a rake still standing as the night found it (note 187).</summary>
+    public bool StandingCar(int vehicleId) =>
+        vehicleId >= 0 && vehicleId < _vehicles.Length && _vehicles[vehicleId] is { YardCar: true }
+        && _rakes.FirstOrDefault(r => r.Consist.IndexOf(vehicleId) >= 0) is { } rake && Standing(rake);
+
+    /// <summary>The train's rakes: the engine's and any cut off it, not counting the yards' standing cars (note 187).</summary>
+    public int TrainRakes => _rakes.Count(r => !Standing(r));
 
     public BoilerTuning? BoilerTuning { get; set; }
     public Boiler Boiler;
@@ -109,7 +156,7 @@ public sealed class TrainOnLine
         {
             if (Tuning.Geometry.Interior is null)
                 return null;
-            var cars = _vehicles.Where(v => v is not null && !v.IsEngine).Select(v => v.Id).Order().ToList();
+            var cars = _vehicles.Where(v => v is not null && !v.IsEngine && !v.YardCar).Select(v => v.Id).Order().ToList();
             if (cars.Count == 0)
                 return null;
             int want = Tuning.Kit.RepairKitCar;
