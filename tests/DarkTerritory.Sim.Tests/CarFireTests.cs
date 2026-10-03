@@ -82,6 +82,24 @@ public class CarFireTests
         Assert.DoesNotContain(n.World.ActiveEnemies, e => e is CarFire && !e.Gone);
     }
     [Fact]
+    public void AWalkerTakesTheExtinguisherFromBesideTheCrewLockersAndPutsTheFireOut()
+    {
+        // Note 188: car 1's extinguisher stands just ahead of the crew lockers (note 173), and the walker made for the spot
+        // just aft of it, inside the lockers, for as long as the car burned. From the aisle beside it, facing the wall.
+        var n = new Night(5, speed: 10);
+        n.World.MountExtinguishers();
+        int car = n.Train.Dynamics.Consist.Vehicles[1].Id;
+        Assert.NotEmpty(n.Train.Frames[car].Shape.Lockers);
+        var bot = new Bots.RoofWalkerBot(3, Tuning.Player.Cold) { Me = 1 };
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, car + 1, 0, P);
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, Tuning.Enemies.CarFire));
+        for (int s = 0; s < 60 && !fire.Gone; s++)
+            n.Run(1, id => bot.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        Assert.True(fire.Gone, $"{fire.Phase} at {fire.Extra:0.00}; the walker {bot.TendStep ?? bot.WarmUpStep} on {n.Crew[1].Parent} at {n.Crew[1].Position}");
+        Assert.True(n.Crew[1].Alive);
+    }
+
+    [Fact]
     public void AWalkerGetsIntoTheGuardVanOffItsRearPlatformAndPutsItsFireOut()
     {
         // Note 188: the guard van, last, has no car behind it and so no plate; its rear door opens onto its platform. Nobody

@@ -810,8 +810,8 @@ public sealed class StopDriver(CrewCalls calls)
                     // Closing on them at a crawl, over whatever they're doing themselves: cars left on a grade roll away down it
                     // (deepTerritory:1's mine head: at a metre a second, with the engine creeping after them at 0.8 for 1,010 s
                     // and a kilometre, and a hand left on the ballast).
-                    double crawl = 0.8 + (left is { Velocity: < 0 } ? -left.Velocity : 0);
-                    return Toward(world, target, -1, close ? crawl : SetBackTop, rear: !together);
+                    double rolling = left is { Velocity: < 0 } ? -left.Velocity : 0, crawl = 0.8 + rolling;
+                    return Toward(world, target, -1, close ? crawl : SetBackTop + rolling, rear: !together, away: rolling);
                 }
             case Leg.Clear:
                 if (!train.Diverging(Plan!.Spur.Index) && (calls.AllAboard || Waited > AboardGiveUp))
@@ -894,7 +894,8 @@ public sealed class StopDriver(CrewCalls calls)
     /// </summary>
     public const double SetBackTop = 6;
 
-    internal static PlayerIntent Toward(World world, double target, int direction, double top, bool rear = false)
+    /// <param name="away">How fast the target itself is going on the way we're going (m/s): rolling cars to catch up.</param>
+    public static PlayerIntent Toward(World world, double target, int direction, double top, bool rear = false, double away = 0)
     {
         var engine = world.Train.Dynamics;
         var controls = world.Controls;
@@ -908,7 +909,9 @@ public sealed class StopDriver(CrewCalls calls)
         double left = (target - (rear ? engine.RearDistance : engine.Distance)) * direction;
         if (left <= 0.3)
             return Hold(world);
-        double wanted = Math.Min(top, Math.Sqrt(2 * BrakeRate(engine) * left));
+        // Closing on it at what stops us there, over its own speed: braking for a target that moves away from under the curve,
+        // the engine settled a couple of metres behind rolling cars at their speed and never touched them (note 188).
+        double wanted = Math.Min(top, Math.Max(0, away) + Math.Sqrt(2 * BrakeRate(engine) * left));
         double speed = engine.Velocity * direction;
         return speed < wanted - 0.3 ? new PlayerIntent { ThrottleNotch = Notch(controls, 0.5) }
             : speed > wanted + 0.2 ? Hold(world)

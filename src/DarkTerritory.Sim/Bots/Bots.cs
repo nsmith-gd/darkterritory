@@ -44,6 +44,9 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
     public IReadOnlyList<(int Id, PlayerState State)> Crew { get => _legs.Crew; set => _legs.Crew = value; }
     /// <summary>What it's doing about the repair kit, or null.</summary>
     public string? KitStep => _legs.KitStep;
+    /// <summary>What its legs are doing about trouble in a car, and about the cold (for the harness's trace).</summary>
+    public string? TendStep => _legs.TendStep;
+    public string? WarmUpStep => _legs.WarmUpStep;
 
     public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => default;
 
@@ -405,19 +408,29 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// <summary>
     /// In the burning car (v1.1 App. C.5): the car's extinguisher off its mount if it's not in hand (walk to it, Use), then
     /// along the aisle to beside the fire, facing along the car, and spray (Fire held). Its charge gone, put it down and
-    /// leave it to recharge.
+    /// leave it to recharge. Use is a tap, every <see cref="KitRun.TapEvery"/> ticks by the bot's own tick: the hands take
+    /// the press (its edge), and held from a tick it didn't take (still turning to look down at it), it never took it, and
+    /// a walker stood at the extinguisher, or with a spent one in its hands, while the car burned (note 188).
     /// </summary>
-    static PlayerIntent? Tend(in PlayerState self, Enemy trouble, World world, int me)
+    PlayerIntent? Tend(in PlayerState self, Enemy trouble, World world, int me)
     {
         var train = world.Train;
+        TendStep = null;
         if (trouble.Gone || self.Parent != trouble.Attached || self.Health < TooHurt)
             return null;
+        bool tap = _tick % KitRun.TapEvery == 0;
         // Fire Flies on the lamp: put it out (a press every other tick until it's out; the press is what the host counts).
         if (trouble is FireFlies)
+        {
+            TendStep = "lamp";
             return train.Vehicles[self.Parent].LampLit && world.Tick % 2 == 0 ? new PlayerIntent { Actions = PlayerActions.CarLamp } : new PlayerIntent();
+        }
         var held = world.Bodies.CarriedBy(me);
         if (held is { Kind: Physics.BodyKind.Extinguisher, Charge: <= 0.01 })
-            return new PlayerIntent { Buttons = PlayerButtons.Use }; // spent: down it goes
+        {
+            TendStep = "spent";
+            return new PlayerIntent { Buttons = tap ? PlayerButtons.Use : PlayerButtons.None }; // down it goes
+        }
         if (held is not { Kind: Physics.BodyKind.Extinguisher })
         {
             int car = self.Parent;
@@ -426,15 +439,28 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
                 .OrderBy(b => (b.Centre - here).Length).FirstOrDefault();
             if (ext is null)
                 return null; // nothing to fight it with here
-            // Stood just aft of it, facing it and looking down at it: in the hands' reach.
-            var (walk, at) = WarmUp.Steer(self, ext.Centre with { Y = 0, Z = ext.Centre.Z + 0.5 }, 0);
-            return at ? new PlayerIntent { Buttons = PlayerButtons.Use, LookPitch = (float)(-0.6 - self.Pitch) } : walk;
+            // Stood in the aisle beside it, facing the wall it's on: in the hands' reach. (Just aft of it, as it was, is where
+            // car 1's crew lockers stand, note 173: three walkers walked at them for 25 s with the car alight round them.)
+            double wall = Math.Sign(ext.Centre.X);
+            var (walk, at) = WarmUp.Steer(self, new Double3(ext.Centre.X - wall * ExtinguisherStandOff, 0, ext.Centre.Z), -wall * Math.PI / 2);
+            TendStep = at ? "taking" : "to the extinguisher";
+            return at ? new PlayerIntent { Buttons = tap ? PlayerButtons.Use : PlayerButtons.None, LookPitch = (float)(-0.6 - self.Pitch) } : walk;
         }
         var aisle = new Double3(train.Dynamics.Tuning.Geometry.Interior!.DoorX, 0, trouble.Local.Z + (self.Position.Z > trouble.Local.Z ? 1.2 : -1.2));
         double yaw = self.Position.Z > trouble.Local.Z ? 0 : Math.PI;
         var (step, there) = WarmUp.Steer(self, aisle, yaw);
+        TendStep = there ? "spraying" : "to the fire";
         return there ? new PlayerIntent { Buttons = PlayerButtons.Fire } : step;
     }
+
+    /// <summary>How far in from an extinguisher on its wall a walker stands to take it (m).</summary>
+    const double ExtinguisherStandOff = 0.7;
+
+    /// <summary>What it's doing about the trouble in the car it's in (for the harness's trace), or null.</summary>
+    public string? TendStep { get; private set; }
+
+    /// <summary>The bot's own tick (taps go by it, not the client world's: <see cref="KitRun.TapEvery"/>).</summary>
+    uint _tick;
 
 
     /// <summary>Seconds' warning a walker wants to get off the roofs and in before a tunnel's mouth.</summary>
@@ -454,6 +480,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
         aimed = self;
+        _tick = tick;
+        TendStep = null;
         // Warming up means a coupler plate, so it keeps to the gaps no Rattle's in (App. A.5), and out of a car a Climber's
         // got into (App. A.4): its client can see both.
         if (_warm is not null)
@@ -1672,7 +1700,9 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                 {
                     // In for trouble: work it first (a fire's growing while the doors are shut behind us; in its first
                     // seconds, before it's taken hold, it burns nobody, App. C.5), the doors after.
-                    if (Into == _car && Indoors?.Invoke(self) is { } first)
+                    // Inside, that is: on the plate still, the way to it is through the door it's walking at (and it never
+                    // gave up, its clock kept at nothing by the work).
+                    if (Into == _car && self.Parent == _car && PlayerMotor.Indoors(self, train) && Indoors?.Invoke(self) is { } first)
                     {
                         _ticks = 0;
                         return first;
