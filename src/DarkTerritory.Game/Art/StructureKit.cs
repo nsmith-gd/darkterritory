@@ -812,6 +812,23 @@ public static class StructureKit
         return k.Build("buffer-stop");
     }
 
+    /// <summary>
+    /// A switch stand's throw lever, from its pivot (the origin) along +Z: a flat iron bar with a weighted handle at its end
+    /// and the latch at the pivot; turned about X to throw it.
+    /// </summary>
+    public static MeshAsset SwitchLever(Look? look)
+    {
+        var k = new Kit(look, 996);
+        k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.4f);
+        k.Box(new Vector3(-0.025f, -0.02f, -0.06f), new Vector3(0.025f, 0.02f, 0.75f));
+        k.Cylinder(new Vector3(-0.07f, 0, 0), new Vector3(0.07f, 0, 0), 0.05f, 8);
+        // The handle's grip and its counterweight ball, painted (a lever you can find in the lamp's light).
+        k.Use("paint_oxide", Palette.RustRed, 0.7f, 0.3f);
+        k.Cylinder(new Vector3(-0.08f, 0, 0.7f), new Vector3(0.08f, 0, 0.7f), 0.03f, 6);
+        k.Lathe(new Vector3(0, 0, 0.82f), [new(0, -0.08f), new(0.07f, -0.05f), new(0.08f, 0), new(0.07f, 0.05f), new(0, 0.08f)], 8);
+        return k.Build("switch-lever");
+    }
+
     /// <summary>A switch stand: an iron post, the throw lever's pivot, and the target lamp's housing on top (its glass lit per frame).</summary>
     public static MeshAsset SwitchStand(Look? look)
     {

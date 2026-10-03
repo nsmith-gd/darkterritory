@@ -17,8 +17,14 @@ namespace DarkTerritory.Game;
 /// a driver works, the whistle cord. Null to leave the hands to the clip (or a headset's).</param>
 /// <param name="Lamp">They carry the hand lamp: it hangs from their fist and swings with it, its light with it (GDD §31).</param>
 /// <param name="Survivor">Freed from a Holdout, whose figure they play as from then on (App. D.8).</param>
+/// <param name="Stressed">Something's after the train close by them (an enemy past its dormant phase within
+/// <see cref="CrewActs.StressRange"/>): their run is a hurried one (GDD §31).</param>
+/// <param name="Health">Their health, for the stagger when it drops (App. C.2).</param>
+/// <param name="Phase">How far through a timed act they are, in its clip's seconds (the cannon's reload: steps done plus this one's progress).</param>
+/// <param name="Death">How they died, if they have: a burned body is drawn charred (spec C.1).</param>
 public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool Alive, Double3 Hand = default, Double3 Other = default, int? Looks = null,
-    CrewPose? Act = null, Tool Holding = Tool.None, (Double3 A, Double3 B)? Reach = null, bool Lamp = false, Survivor Survivor = Survivor.None)
+    CrewPose? Act = null, Tool Holding = Tool.None, (Double3 A, Double3 B)? Reach = null, bool Lamp = false, Survivor Survivor = Survivor.None,
+    bool Stressed = false, int Health = 0, double Phase = 0, DeathCause Death = DeathCause.None)
 {
     public int Variant => Looks ?? Id;
 }

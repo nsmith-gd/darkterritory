@@ -269,7 +269,7 @@ public sealed class Lineside
                 {
                     double over = rake.Speed - sign.Limit;
                     if (rake.Speed >= sign.Limit * Tuning.DerailRatio && !world.Derailed)
-                        world.Derail($"took the {sign.LimitKmh} km/h bend at {rake.Speed * 3.6:0} km/h, {rake.Speed * 3.6 - sign.LimitKmh:0} km/h too fast");
+                        world.Overspeed($"took the {sign.LimitKmh} km/h bend at {rake.Speed * 3.6:0} km/h, {rake.Speed * 3.6 - sign.LimitKmh:0} km/h too fast");
                     if (over > Tuning.LurchOver)
                     {
                         // The frames strain (repairs, spec F.1) and the loads shift about.

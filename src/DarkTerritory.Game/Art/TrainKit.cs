@@ -74,6 +74,21 @@ public static class TrainKit
     }
 
     /// <summary>A modelled piece (tools/models car_gear) appended at <paramref name="at"/>, when the look has it.</summary>
+    /// <summary>
+    /// The engine's main rod, a unit of it: from its big end at the origin back along +Z to its little end
+    /// <paramref name="length"/> away (SceneArt.Gear lays it from the crank pin to the crosshead each frame).
+    /// </summary>
+    public static MeshAsset MainRod(Look? look, float length)
+    {
+        var k = new Kit(look, 141);
+        k.Use("wheel_iron", Palette.IronGrey, 0.5f, 0.7f);
+        k.Rod(Vector3.Zero, new Vector3(0, 0, length), 0.045f);
+        // The big end's strap round the pin, and the little end's eye at the crosshead.
+        k.Cylinder(new Vector3(-0.05f, 0, 0), new Vector3(0.05f, 0, 0), 0.075f, 10);
+        k.Cylinder(new Vector3(-0.04f, 0, length), new Vector3(0.04f, 0, length), 0.06f, 8);
+        return k.Build("engine-main-rod");
+    }
+
     static bool Prop(Kit k, string name, Matrix4x4 at)
     {
         if (k.Look is not { } look || PropArt.Of(look).Get(name) is not { } piece)
@@ -169,7 +184,37 @@ public static class TrainKit
     /// so it reads as heavy and hand-made), the lamp sits in an armoured box at the front like an eye, the stack is a
     /// tapered funnel, and behind the cab the tender's coal is heaped under a flared coal board.
     /// </summary>
-    public static MeshAsset Engine(Look? look, CarShape shape, int variant)
+    /// <summary>The drivers' radius (m), and their places along the engine (its frame's Z), front to back.</summary>
+    public const float DriverRadius = 0.7f;
+    public static float[] Drivers(CarShape shape)
+    {
+        float l = (float)shape.HalfLength;
+        return [-l + 3.8f, -l + 5.4f, -l + 7.0f, -l + 8.6f];
+    }
+
+    /// <summary>A side's crank angle at rest (rad): the pins a quarter turn apart side to side, so it never stops on a dead centre.</summary>
+    public static float CrankPhase(int side) => side < 0 ? 0.4f : 0.4f + MathF.PI / 2;
+
+    /// <summary>
+    /// A modelled driver (tools/models engine_parts, its pin towards +Z) turned to its side's crank at <paramref name="turn"/>
+    /// (rad, the wheels' roll: distance over <see cref="DriverRadius"/>), at <paramref name="at"/> (and, on the left, round to face out).
+    /// </summary>
+    public static Matrix4x4 DriverAt(int side, Vector3 at, float turn) => side > 0
+        ? Matrix4x4.CreateRotationX(-(CrankPhase(side) + turn)) * Kit.At(at)
+        : Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateRotationX(MathF.PI - (CrankPhase(side) + turn)) * Kit.At(at);
+
+    /// <summary>A side's crank pin off its driver's centre at <paramref name="turn"/> (rad).</summary>
+    public static Vector3 CrankPin(int side, float turn) =>
+        new Vector3(0, MathF.Sin(CrankPhase(side) + turn), MathF.Cos(CrankPhase(side) + turn)) * 0.3f;
+
+    /// <summary>Where a side's rods run (x), and the crosshead's height and its place at the rest crank (frame Z).</summary>
+    public static float RodX(int side) => side * (HalfGauge + 0.2f) + side * 0.06f;
+    public const float CrossheadY = 0.95f;
+    public static float CrossheadRestZ(CarShape shape) => -(float)shape.HalfLength + 3.0f;
+
+    /// <param name="gear">With its drivers and rods in it (a still engine: the catalog's, a wreck's). Without, they're
+    /// drawn apart each frame turning with the train's going (SceneArt.Gear).</param>
+    public static MeshAsset Engine(Look? look, CarShape shape, int variant, bool gear = true)
     {
         var k = new Kit(look, 101 + variant);
         float w = (float)shape.HalfWidth, l = (float)shape.HalfLength;
@@ -184,20 +229,15 @@ public static class TrainKit
         float roofLow = (float)roof.Min.Y, roofTop = (float)roof.Max.Y;
 
         // Running gear: pilot truck, four drivers, the steam cylinders ahead of them, and the tender's two axles.
-        const float driverR = 0.7f;
-        float[] drivers = [-l + 3.8f, -l + 5.4f, -l + 7.0f, -l + 8.6f];
-        // The crank pins are a quarter turn apart side to side, so the train never stops on a dead centre.
-        static float Phase(int side) => side < 0 ? 0.4f : 0.4f + MathF.PI / 2;
-        // A modelled driver (tools/models engine_parts) has its pin towards +Z: turned to its side's phase (and, on the
-        // left, round to face out first).
-        static Matrix4x4 Turned(int side, Vector3 at) => side > 0
-            ? Matrix4x4.CreateRotationX(-Phase(side)) * Kit.At(at)
-            : Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateRotationX(MathF.PI - Phase(side)) * Kit.At(at);
+        const float driverR = DriverRadius;
+        float[] drivers = Drivers(shape);
+        static float Phase(int side) => CrankPhase(side);
         foreach (float z in drivers)
         {
             bool modelled = true;
             foreach (int side in new[] { -1, 1 })
-                modelled &= Prop(k, "driver_wheel", Turned(side, new Vector3(side * HalfGauge, driverR, z)));
+                modelled &= gear ? Prop(k, "driver_wheel", DriverAt(side, new Vector3(side * HalfGauge, driverR, z), 0))
+                    : k.Look is { } lk && PropArt.Of(lk).Get("driver_wheel") is not null;
             if (!modelled)
                 Axle(k, z, driverR, 12, driver: true);
             else
@@ -233,11 +273,14 @@ public static class TrainKit
             var pin = new Vector3(0, MathF.Sin(phase), MathF.Cos(phase)) * 0.3f;
             float x = side * (HalfGauge + 0.2f);
             var rodAt = new Vector3(x, driverR + pin.Y, (drivers[0] + drivers[^1]) / 2 + pin.Z);
-            if (!Prop(k, "coupling_rod", (side > 0 ? Matrix4x4.Identity : Matrix4x4.CreateRotationY(MathF.PI)) * Kit.At(rodAt)))
-                k.Box(new Vector3(x - 0.03f, driverR + pin.Y - 0.06f, drivers[0] + pin.Z - 0.1f), new Vector3(x + 0.03f, driverR + pin.Y + 0.06f, drivers[^1] + pin.Z + 0.1f));
-            k.Use("wheel_iron", Palette.IronGrey, 0.5f, 0.7f);
-            var crosshead = new Vector3(x + side * 0.06f, 0.95f, -l + 3.0f);
-            k.Rod(crosshead, new Vector3(x + side * 0.06f, driverR + pin.Y, drivers[2] + pin.Z), 0.045f);
+            if (gear)
+            {
+                if (!Prop(k, "coupling_rod", (side > 0 ? Matrix4x4.Identity : Matrix4x4.CreateRotationY(MathF.PI)) * Kit.At(rodAt)))
+                    k.Box(new Vector3(x - 0.03f, driverR + pin.Y - 0.06f, drivers[0] + pin.Z - 0.1f), new Vector3(x + 0.03f, driverR + pin.Y + 0.06f, drivers[^1] + pin.Z + 0.1f));
+                k.Use("wheel_iron", Palette.IronGrey, 0.5f, 0.7f);
+                var crosshead = new Vector3(x + side * 0.06f, CrossheadY, CrossheadRestZ(shape));
+                k.Rod(crosshead, new Vector3(x + side * 0.06f, driverR + pin.Y, drivers[2] + pin.Z), 0.045f);
+            }
             // Crosshead guides and the cylinder, with its drain cocks.
             if (Prop(k, side > 0 ? "cylinder_r" : "cylinder_l", Kit.At(side * 1.12f, 0.98f, -l + 1.65f)))
                 continue;

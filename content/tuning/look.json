@@ -118,6 +118,14 @@
       "frostFrom": 0.35,
       "frostFull": 0.85,
       "breathFrom": 0.15
+    },
+    // The wind (the route weather's wind, 0..1): calm's breeze to full's gale in m/s, blowing away from `from` (world
+    // axes; -Z is up the line), rolling through in gusts. The foliage's cards and boughs bend with it.
+    "wind": {
+      "calm": 2,
+      "full": 16,
+      "from": [-0.7, 0, -0.4],
+      "gusts": 0.7
     }
   },
   // The consist's wear and tear (pipeline plan, consist kit: "3 damage states per car; scars persist between runs").

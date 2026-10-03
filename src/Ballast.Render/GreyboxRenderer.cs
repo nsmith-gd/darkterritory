@@ -34,6 +34,9 @@ unsafe struct FrameData
     public fixed float HeroOf[256];
     /// <summary>xyz the glow low on the dawn's horizon, w how far it's up (0..1).</summary>
     public Vector4 Dawn;
+    /// <summary>xyz the wind (m/s, world axes), w how gusty.</summary>
+    public Vector4 Wind;
+    public fixed float SwayOf[256];
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -124,6 +127,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     // The hero layers at full size, and which slot each layer has in them (-1: none).
     GpuTexture _heroDiffuse, _heroSpec, _heroNormal;
     int[] _heroSlot = [];
+    // Which layers bend in the wind: the foliage's cards and boughs (by name, *_card and *_bough).
+    bool[] _sway = [];
     RenderAssets? _assets;
 
     VkBuffer _vertices;
@@ -432,6 +437,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         int size = Math.Max(assets.LayerSize, assets.HeroSize);
         var heroes = new List<MaterialLayer>();
         _heroSlot = new int[assets.Layers.Count];
+        _sway = [.. assets.Layers.Select(l => l.Name.EndsWith("_card", StringComparison.Ordinal) || l.Name.EndsWith("_bough", StringComparison.Ordinal))];
         for (int i = 0; i < assets.Layers.Count; i++)
         {
             var l = assets.Layers[i];
@@ -712,6 +718,9 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         }
         f->Counts = new Vector4(_rooms.Count, _moonOn ? 1 : 0, 1f / (_shadowsFrom ?? this).MoonShadowSize, lighting.Frost);
         f->Dawn = new Vector4(lighting.DawnGlow, lighting.Dawn);
+        f->Wind = new Vector4(lighting.Wind, lighting.Gusts);
+        for (int i = 0; i < 256; i++)
+            f->SwayOf[i] = i < _sway.Length && _sway[i] ? 1 : 0;
         _ = horizon;
     }
 

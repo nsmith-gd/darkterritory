@@ -19,4 +19,6 @@ layout(set = 0, binding = 0) uniform Frame {
     mat4 moonViewProj; // camera-relative to the moon's shadow map (orthographic)
     vec4 heroOf[64];   // per layer (4 a vec4): its slot in the hero arrays, or -1
     vec4 dawn;         // xyz = the glow low on the dawn's horizon, w = how far it's up
+    vec4 wind;         // xyz = the wind (m/s, world axes), w = gustiness 0..1
+    vec4 swayOf[64];   // per layer (4 a vec4): 1 where it bends in the wind (foliage cards and boughs), else 0
 } frame;

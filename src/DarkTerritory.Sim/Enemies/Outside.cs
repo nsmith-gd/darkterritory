@@ -320,6 +320,8 @@ public sealed class Gaunt(int id) : Enemy(id)
 public sealed class Follower(int id) : Enemy(id)
 {
     int _car = -1;
+    /// <summary>Who brought it aboard on their back (host only: for the report, C.9 "who carried it aboard").</summary>
+    int _carriedBy = -1;
 
     public override EnemyKind Kind => EnemyKind.Follower;
     public override PressureZone Zone => PressureZone.Outside;
@@ -391,6 +393,7 @@ public sealed class Follower(int id) : Enemy(id)
                         && PhaseSeconds >= ctx.Tuning.MinReactionSeconds && Richest(ctx) is { } car && Enter(ctx, SpinePhase.Commit))
                     {
                         _car = car;
+                        _carriedBy = Carrier;
                         Extra = -1;
                     }
                     return;
@@ -459,6 +462,10 @@ public sealed class Follower(int id) : Enemy(id)
             Enter(ctx, SpinePhase.Punish);
         }
     }
+
+    /// <summary>C.9's Followers row (note 190): the nest built, and who carried it aboard.</summary>
+    protected override Run.Incident? Punished(EnemyContext ctx) => Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Nest,
+        $"Followers nested in car {_car}", _carriedBy, _carriedBy >= 0 ? "Carried aboard by {actor}." : "Nobody seen carrying them aboard.", _car);
 
     /// <summary>Its carrier can't reach round and hit it: only a friend can (App. A.6).</summary>
     public override bool Strikable(int by) => base.Strikable(by) && by != Carrier;

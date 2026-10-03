@@ -39,7 +39,7 @@ public sealed class Sleepers(int id) : Enemy(id)
         if (fair && speed > t.DerailAbove)
         {
             Enter(ctx, SpinePhase.Punish);
-            ctx.World.Derail($"ran onto the Sleepers at {speed * 3.6:0} km/h, {(speed - t.DerailAbove) * 3.6:0} km/h over the {t.DerailAbove * 3.6:0} km/h they'll take");
+            ctx.World.Overspeed($"ran onto the Sleepers at {speed * 3.6:0} km/h, {(speed - t.DerailAbove) * 3.6:0} km/h over the {t.DerailAbove * 3.6:0} km/h they'll take");
         }
         else if (fair && speed > t.HeavyDamageAbove)
         {
@@ -52,6 +52,13 @@ public sealed class Sleepers(int id) : Enemy(id)
         }
         Enter(ctx, SpinePhase.Gone);
     }
+
+    /// <summary>
+    /// C.9's track debris row (note 190): hit hard enough to hurt, the throttle and the speed. Hit hard enough to derail, the
+    /// derailment's record says it.
+    /// </summary>
+    protected override Run.Incident? Punished(EnemyContext ctx) =>
+        ctx.Train.Dynamics.Speed > ctx.Tuning.Sleepers.DerailAbove ? null : Run.IncidentLog.Struck(ctx.World, "Ran onto the Sleepers");
 }
 
 /// <summary>
@@ -73,6 +80,8 @@ public sealed class Drift(int id) : Enemy(id)
     public override Sense Sense => Sense.Movement;
 
     public double Radius => Extra;
+    /// <summary>On a player it isn't holding (its CONSUME): their death, if it comes to it, writes the record.</summary>
+    protected override Run.Incident? Punished(EnemyContext ctx) => null;
     /// <summary>Who it's surging at or on, or 0.</summary>
     public int Target => (int)Math.Round(Extra2);
 

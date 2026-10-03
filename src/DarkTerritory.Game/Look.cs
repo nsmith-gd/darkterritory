@@ -37,6 +37,24 @@ public sealed record AtmosphereTuning
     public DawnTuning? Dawn { get; init; }
     /// <summary>What the night's cold does to how things look: frost, and breath.</summary>
     public ColdTuning Cold { get; init; } = new();
+    /// <summary>What the night's wind does to the foliage: how hard it blows, from where, how gusty.</summary>
+    public WindTuning Wind { get; init; } = new();
+}
+
+/// <summary>
+/// The wind (the checklist's "wind": smoke, steam, trees and grass moving with it): read off the route's weather wind
+/// (0..1), a calm's breeze to a gale, from one quarter, rolling through in gusts. The foliage's cards and boughs bend
+/// with it in the scene shader.
+/// </summary>
+public sealed record WindTuning
+{
+    public float Calm { get; init; } = 2;
+    public float Full { get; init; } = 16;
+    public Vector3 From { get; init; } = new(-0.7f, 0, -0.4f);
+    public float Gusts { get; init; } = 0.7f;
+
+    /// <summary>The wind at <paramref name="wind"/> (0..1): m/s, world axes, blowing away from <see cref="From"/>.</summary>
+    public Vector3 Of(double wind) => -Vector3.Normalize(From) * (Calm + (Full - Calm) * Math.Clamp((float)wind, 0, 1));
 }
 
 /// <summary>

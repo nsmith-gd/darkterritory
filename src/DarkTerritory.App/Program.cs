@@ -592,8 +592,14 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Handrails = session.Train.Dynamics.Tuning.Composition.Handrails,
         Bodies = session.World.Bodies.All,
         Diverging = session.Train.Diverging,
-        // Only where this machine runs the catch (solo): a client's world has no word of it (Lineside.Caught is the host's).
-        DropCaught = session is PrototypeSession && session.World.Lineside is { } lineside ? lineside.Caught : null,
+        // Only where this machine runs the catch (solo, or hosting a menu night: the host's own world, not its client's
+        // copy); a joining client's world has no word of it (Lineside.Caught is the host's).
+        DropCaught = session switch
+        {
+            PrototypeSession { World.Lineside: { } solo } => solo.Caught,
+            NetPlaySession { Host.World.Lineside: { } hosted } => hosted.Caught,
+            _ => null,
+        },
         Stands = session.World.Switches,
     };
     double last = timer.Elapsed.TotalSeconds, titleAt = 0;
@@ -889,6 +895,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             lighting.FogDensity = (float)r.Weather.FogDensity;
             lighting.Wetness = r.Weather.Wet ? 1 : 0;
             lighting.Frost = look?.Tuning.Atmosphere.Cold.Frost(r.Weather.Cold) ?? 0;
+            if (look?.Tuning.Atmosphere.Wind is { } wind)
+                (lighting.Wind, lighting.Gusts) = (wind.Of(r.Weather.Wind), wind.Gusts);
         }
         if (session.StrandedOutro)
             Views.CinematicFog(ref lighting, Views.StrandedDistance(session.Train, session.World.WreckTuning.Stranded, session.OutroSeconds));
@@ -900,8 +908,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // The film draws its own wreck; the live one's dust and sparks are somewhere else by then.
         scene.Wreck = replay is { Off: false } || filmShot is not null ? null : session.Train.Wreck;
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
+        scene.StokerPerched = session.World.StokerWaiting;
         scene.Tick = session.HostTick;
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
+        scene.Tender = (float)(session.Train.BoilerTuning is { TenderCapacity: > 0 } tt ? Math.Clamp(session.Train.Boiler.Tender / tt.TenderCapacity, 0, 1) : 0.72);
         scene.LampLit = session.World.LampShining && scene.LampsOut < session.Train.Frames.Count;
         scene.Venting = session.Train.Boiler.Vented;
         scene.Derailed = replay is { } rerun ? rerun.Off : session.World.Derailed;
@@ -934,7 +944,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (session.Route?.Plan is { } shown)
             {
                 if (cardPage >= 0)
-                    cardPages = DarkTerritory.Game.LineGen.PlanHud.RouteCard(overlay, UiWidth, UiHeight, shown, cardPage);
+                    cardPages = DarkTerritory.Game.LineGen.PlanHud.RouteCard(overlay, UiWidth, UiHeight, shown, cardPage, session.Train.Line);
                 if (showPlan)
                     DarkTerritory.Game.LineGen.PlanHud.Overlay(overlay, UiWidth, UiHeight, session, shown);
             }

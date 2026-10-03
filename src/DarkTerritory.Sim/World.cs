@@ -179,6 +179,13 @@ public sealed class World
     /// <summary>True on the host: enemies and the director run. False on clients, which mirror them.</summary>
     public bool Authority { get; private set; }
     public EnemyTuning? Enemies { get; private set; }
+
+    /// <summary>
+    /// The fire's burned low enough for the Stoker (App. A.5: pressure under <see cref="StokerTuning.LowPressure"/>) and it
+    /// isn't in yet: it waits on the smokestack, and is drawn there. Read-only, from replicated state, for the presentation.
+    /// </summary>
+    public bool StokerWaiting => Enemies is { } t && Train.BoilerTuning is not null && !Train.Boiler.Ruptured
+        && Train.Boiler.Pressure < t.Stoker.LowPressure && !_enemies.Any(e => e.Kind == EnemyKind.Stoker && !e.Gone);
     public Route.Route? Route { get; private set; }
     public Director? Director { get; private set; }
 
@@ -459,6 +466,13 @@ public sealed class World
     /// <summary>At the derail tick: the train's speed, and who was on the throttle (App. C.9's "speed at impact").</summary>
     public double DerailSpeed { get; private set; }
     public int DerailDriver { get; private set; } = -1;
+    /// <summary>
+    /// The derail's contributing action (App. C.9), as the cause card and the report read it: who made it (−1 for nobody)
+    /// and the clerk's words, with <c>{actor}</c> where their name goes. The throttle for the track's dangers and the
+    /// debris; the forward cannon for the Switchman; the firebox for a Stoker's runaway (note 190).
+    /// </summary>
+    public int DerailActor { get; private set; } = -1;
+    public string DerailAction { get; private set; } = "";
 
     /// <summary>
     /// The host's music rotation (GDD v1.4 App. E.6): the manifest's tracks and the shuffle bag from the campaign save (or
@@ -563,13 +577,36 @@ public sealed class World
         return e;
     }
 
-    public void Derail(string? why = null)
+    /// <summary>Off the rails, for a cause whose contributing action is the throttle (App. C.9: the track, the debris).</summary>
+    public void Derail(string? why = null) =>
+        Derail(why, Attribution.Driver, Attribution.Driver >= 0 ? "Throttle: {actor}." : "Nobody on the throttle.");
+
+    /// <summary>
+    /// Off the rails for going too fast (a bend, the Sleepers). With a Stoker feeding the fire, it's the Stoker's runaway
+    /// (App. A.5 "past the next curve's limit, the train derails"), and C.9's row for it is the firebox, not the throttle:
+    /// who last fuelled or tended it, and how long it had gone unattended (note 190).
+    /// </summary>
+    public void Overspeed(string why)
+    {
+        if (_enemies.Any(e => e is Stoker { Feeding: true }))
+        {
+            var (actor, action) = Sim.Run.IncidentLog.Firebox(this);
+            Derail($"the Stoker ran away with it: {why}", actor, action);
+        }
+        else
+            Derail(why);
+    }
+
+    /// <summary>Off the rails, with the contributing action C.9 names for this cause (<see cref="DerailAction"/>).</summary>
+    public void Derail(string? why, int actor, string action)
     {
         if (!Derailed)
         {
             DerailCause = why;
             DerailSpeed = Train.Dynamics.Speed;
             DerailDriver = Attribution.Driver;
+            DerailActor = actor;
+            DerailAction = action;
             // E.6: the host draws tonight's opera from the bag, weighted by the speed it came off at, from the same seed
             // as the wreck's (deterministic); clients are sent the key.
             if (Music?.Draw(DerailSpeed, (ulong)Tick * 0x9E3779B97F4A7C15UL ^ (Route?.Seed ?? 0) ^ 0xE6UL) is { } track)
@@ -692,12 +729,14 @@ public sealed class World
             // App. C.9's contributing actions, as the host sees them made: who fired or vented, who pulled a coupler.
             // (Wherever the crew act is worked: the host's log is the one that's read, and a client's only ever says "last".)
             double firebox = Train.Boiler.Firebox;
-            bool venting = Train.Boiler.Venting;
+            bool venting = Train.Boiler.Venting, door = Train.Boiler.FireDoorOpen;
             int cars = Train.Dynamics.Consist.Vehicles.Count;
             var attached = Train.Dynamics.Consist.Vehicles.Select(v => v.Id).ToArray();
             CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand);
             if (Train.Boiler.Firebox > firebox + 1e-9 || Train.Boiler.Venting && !venting)
                 Attribution.Fired(playerId, Run?.Seconds ?? 0);
+            else if (Train.Boiler.FireDoorOpen && !door)
+                Attribution.Tended(playerId, Run?.Seconds ?? 0); // a shovelful into a full firebox still opens its door
             if (Train.Dynamics.Consist.Vehicles.Count < cars)
                 foreach (int v in attached)
                     if (Train.Dynamics.Consist.IndexOf(v) < 0)
