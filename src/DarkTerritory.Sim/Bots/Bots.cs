@@ -40,6 +40,10 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
     readonly RoofWalkerBot _legs = new(seed, cold, job);
     /// <summary>Its own player id (its legs need it for what's in its hands).</summary>
     public int Me { get => _legs.Me; set => _legs.Me = value; }
+    /// <summary>The rest of the crew as its client sees them (its legs need them to know whether the kit's theirs to bring).</summary>
+    public IReadOnlyList<(int Id, PlayerState State)> Crew { get => _legs.Crew; set => _legs.Crew = value; }
+    /// <summary>What it's doing about the repair kit, or null.</summary>
+    public string? KitStep => _legs.KitStep;
 
     public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => default;
 
@@ -72,6 +76,9 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // lost, cut loose or eaten through, and its gun with it: first, the gun pushed up the rail onto the car ahead.
         if (SaveGun(self, world) is { } saving)
             return saving;
+        // The boiler ruptured and the kit's back down the train with nobody else to bring it (KitCarry): off the gun for it.
+        if (_legs.Fetching(self, world))
+            return _legs.Decide(self, world, tick, out aimed);
         // Nobody holds a gun through the cold (spec B.2): off it and indoors until warm, then back. Nor through a stop
         // they have a part in.
         if (_legs.Warming(self) || _legs.Work(self, world) is not null)
@@ -276,6 +283,67 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     Sim.Route.Drop? _drop;
     int? _catchCar;
 
+    /// <summary>The rest of the crew as its client sees them, by player id (who goes for the kit: <see cref="KitCarry"/>). Set by whoever runs it.</summary>
+    public IReadOnlyList<(int Id, PlayerState State)> Crew { get; set; } = [];
+
+    /// <summary>What it's doing about the repair kit, or null (for tests and the harness's trace).</summary>
+    public string? KitStep { get; private set; }
+
+    /// <summary>It carried the kit to the cab, and hasn't yet got back up onto the roofs.</summary>
+    bool _brought;
+    /// <summary>Last tick, it was on its way down off the roofs for the kit.</summary>
+    bool _sentDown;
+
+    /// <summary>Whether the kit's its to bring this tick, or it's on the way back from bringing it (the gunner leaves its gun for it).</summary>
+    public bool Fetching(in PlayerState self, World world) =>
+        self.Alive && (_brought || self.Has(PlayerFlags.RepairKit)
+            || world.Train.Boiler.Ruptured && KitCarry.Lying(world) is { } kit && KitCarry.Mine(self, Me, Crew, world.Train, kit, _sentDown));
+
+    /// <summary>
+    /// The boiler's ruptured and the kit lies further back than car 1 (GDD §12, §23; note 186): if it's this walker's to
+    /// bring, the way to it and forward with it (<see cref="KitCarry"/>). Up on the roofs, the walker's own way down
+    /// (<see cref="WarmUp"/>, sent into the car ahead of the kit's, whose rear plate is the one in front of it), along the
+    /// roofs to it first.
+    /// </summary>
+    PlayerIntent? Kit(in PlayerState self, World world, uint tick)
+    {
+        if (!self.Alive)
+            _brought = false;
+        else if (self.Has(PlayerFlags.RepairKit) && world.Train.Boiler.Ruptured)
+            _brought = true;
+        else if (self.Parent > 0 && self.Surface == Surface.Roof)
+            _brought = false;
+        var intent = KitCarry.Decide(self, world, Me, Crew, tick, _brought, _sentDown, out int? down);
+        if (intent is not null)
+        {
+            KitStep = self.Has(PlayerFlags.RepairKit) ? "carrying" : world.Train.Boiler.Ruptured ? "fetching" : "back";
+            _warm?.Abandon();
+            return intent;
+        }
+        KitStep = null;
+        // Sent down for it, and now it's someone else's (they came nearer, or got down first): back to the roofs.
+        if (down is null && _sentDown)
+            _warm?.Abandon();
+        _sentDown = false;
+        if (down is { } car && _warm is not null && self.Parent > 0)
+        {
+            KitStep = "down";
+            _sentDown = true;
+            _trouble = null;
+            _drop = null;
+            _catchCar = null;
+            _warm.Into = car;
+            _warm.Indoors = null;
+            var consist = world.Train.Dynamics.Consist;
+            int here = consist.IndexOf(self.Parent), ahead = consist.IndexOf(car);
+            if (here > ahead + 1)
+                Head(-1);
+            else if (here < ahead)
+                Head(+1);
+        }
+        return null;
+    }
+
     /// <summary>Seconds ahead of a crane a walker goes in for its bag.</summary>
     const double CatchAhead = 45;
 
@@ -376,10 +444,13 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             _warm.Barred = car => world.ActiveEnemies.Any(e => e is Climber { Inside: true } c && c.Attached == car
                 || e is CarHugger { Latched: true } h && h.Attached == car || e is Whistler w && !w.Gone && w.Attached == car);
             _warm.Troubled = car => world.ActiveEnemies.Any(e => !e.Gone && e.Attached == car && e is CarFire { Phase: SpinePhase.Punish });
+            _warm.LeaveOpen = door => door is 0 or 1 && world.Train.Boiler.Ruptured;
         }
         if (!_looked)
             Look(world, self);
         _looked = false;
+        if (Kit(self, world, tick) is { } bringing)
+            return bringing;
         if (Work(self, world) is { } working)
             return working;
         var train = world.Train;
@@ -1300,14 +1371,14 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 /// <summary>
 /// The repair kit fetched to the firebox (T109, GDD §12), by a bot in the cab: out of the cab's back on the left, down the
 /// tender's gangway, onto the footplate and the coupler plate, through car 1's front door to the kit (in its locker, note
-/// 151: opened, and the kit taken off its shelf), and the same way back. Worked out afresh each tick from where it stands and whether it has the kit, so it never waits
+/// 173: opened, and the kit taken off its shelf), and the same way back. Worked out afresh each tick from where it stands and whether it has the kit, so it never waits
 /// on a step it's no longer at. Only the kit in the engine or the first car is fetched: further back, it's a crewmate's to
-/// bring.
+/// bring (<see cref="KitCarry"/>), and this is the way they come the last of it.
 /// </summary>
 public static class KitRun
 {
     /// <summary>Ticks between taps at a shelf or the floor: long enough for the host's answer to come back on a rough link.</summary>
-    const uint TapEvery = 16;
+    internal const uint TapEvery = 16;
 
     /// <summary>This tick's intent, or null when it isn't the bot's to fetch (someone else has it, or it's out of reach).</summary>
     /// <param name="tick">The bot's own tick, which its taps are timed by (note 186, the cascade audit: the fireman stood at the
@@ -1329,15 +1400,7 @@ public static class KitRun
         if (self.Parent != 0 && self.Parent != car)
             return null;
         var g = train.Dynamics.Tuning.Geometry;
-        double l = train.Frames[0].Shape.HalfLength, w = g.RoofWidth / 2, cabBack = l - g.Engine.TenderLength;
-        // Out: the cab's back on the gangway's line; the gangway's end; the footplate off it; the plate at car 1's door.
-        Double3[] route =
-        [
-            new(-w + g.Engine.TenderGangway / 2, 0, cabBack - 0.4),
-            new(-w + g.Engine.TenderGangway / 2, 0, l - 0.3),
-            new((-w + g.PlateX - g.CouplerWidth / 2) / 2, 0, l + g.CouplingGap * 0.25),
-            new(g.PlateX, 0, l + g.CouplingGap - 0.45),
-        ];
+        var route = Route(train);
         if (carrying)
         {
             if (self.Parent == 0 && PlayerMotor.InCab(self, train))
@@ -1362,31 +1425,43 @@ public static class KitRun
                     return WarmUp.Steer(self, route[i], 0).Step;
             return WarmUp.Steer(self, firing, 0).Step;
         }
-        if (kit!.Parent == self.Parent && kit.Stowed && kit.Locker < train.Frames[kit.Parent].Shape.Lockers.Count)
-        {
-            // In its locker (note 173): in front of it, facing its door; Use held till it's open, then tapped (a press, let
-            // go the next tick) to take the kit off its shelf.
-            var bay = train.Frames[kit.Parent].Shape.Lockers[kit.Locker];
-            var front = bay.Front;
-            var stand = new Double3(front.X + bay.Facing * 0.42, 0, front.Z);
-            var (step, there) = WarmUp.Steer(self, stand, bay.Facing * Math.PI / 2);
-            if (!there)
-                return step;
-            bool open = train.Vehicles[kit.Parent].LockerOpen(bay.Index);
-            return new PlayerIntent { Buttons = !open || tick % TapEvery == 0 ? PlayerButtons.Use : PlayerButtons.None };
-        }
-        if (kit.Parent == self.Parent)
-        {
-            // Beside it on the aisle side, facing it, looking down at it: a press every other tick takes it (the press is the
-            // edge the host counts).
-            var at = kit.Centre;
-            var stand = new Double3(at.X - (at.X >= g.PlateX ? 0.6 : -0.6), 0, at.Z);
-            double yaw = at.X > stand.X ? -Math.PI / 2 : Math.PI / 2;
-            var (step, there) = WarmUp.Steer(self, stand, yaw);
-            return there ? new PlayerIntent { Buttons = tick % TapEvery == 0 ? PlayerButtons.Use : PlayerButtons.None, LookPitch = (float)(-0.7 - self.Pitch) } : step;
-        }
+        if (kit!.Parent == self.Parent)
+            return Take(self, train, kit, tick);
         if (self.Parent != 0)
             return null; // in car 1, and the kit's been taken forward: nothing to fetch
+        return ToCarOne(self, train, route, car);
+    }
+
+    /// <summary>Out of the engine: the cab's back on the gangway's line; the gangway's end; the footplate off it; the plate at car 1's door.</summary>
+    static Double3[] Route(TrainOnLine train)
+    {
+        var g = train.Dynamics.Tuning.Geometry;
+        double l = train.Frames[0].Shape.HalfLength, w = g.RoofWidth / 2, cabBack = l - g.Engine.TenderLength;
+        return
+        [
+            new(-w + g.Engine.TenderGangway / 2, 0, cabBack - 0.4),
+            new(-w + g.Engine.TenderGangway / 2, 0, l - 0.3),
+            new((-w + g.PlateX - g.CouplerWidth / 2) / 2, 0, l + g.CouplingGap * 0.25),
+            new(g.PlateX, 0, l + g.CouplingGap - 0.45),
+        ];
+    }
+
+    /// <summary>Off the engine and into car 1, for a crewmate whose place is back on the train (<see cref="KitCarry"/>); null off the engine.</summary>
+    internal static PlayerIntent? BackToTheTrain(in PlayerState self, TrainOnLine train)
+    {
+        var vehicles = train.Dynamics.Consist.Vehicles;
+        if (self.Parent != 0 || self.Surface is Surface.Air or Surface.Ladder || vehicles.Count < 2 || !vehicles[0].IsEngine)
+            return null;
+        return ToCarOne(self, train, Route(train), vehicles[1].Id);
+    }
+
+    /// <summary>
+    /// Off the engine and into car 1 (<see cref="Decide"/>'s way out): back along <paramref name="route"/>, the door opened
+    /// from the plate, and in. Also the way back for a crewmate who brought the kit up from further back (<see cref="KitCarry"/>).
+    /// </summary>
+    static PlayerIntent ToCarOne(in PlayerState self, TrainOnLine train, Double3[] route, int car)
+    {
+        var g = train.Dynamics.Tuning.Geometry;
         // In the engine, out to car 1: the next point further back than here; at the plate, its door opened, and in.
         bool inCab = PlayerMotor.InCab(self, train);
         if (inCab && Math.Abs(self.Position.X - route[0].X) > 0.2)
@@ -1401,6 +1476,33 @@ public static class KitRun
         }
         double carFront = -train.Frames[car].Shape.HalfLength;
         return WarmUp.Steer(self, Into(train, car, new Double3(g.PlateX, 0, carFront + 0.9), 0), Math.PI).Step;
+    }
+
+    /// <summary>
+    /// The kit taken where it lies in the car the bot's in. In its locker (note 173): in front of it, facing its door; Use held
+    /// till it's open, then tapped (a press, let go the next tick) to take the kit off its shelf. On the floor: beside it on
+    /// the aisle side, facing it, looking down at it, a tap every <see cref="TapEvery"/> ticks (the press is the edge the host
+    /// counts).
+    /// </summary>
+    internal static PlayerIntent Take(in PlayerState self, TrainOnLine train, Physics.Body kit, uint tick)
+    {
+        var g = train.Dynamics.Tuning.Geometry;
+        if (kit.Stowed && kit.Locker < train.Frames[kit.Parent].Shape.Lockers.Count)
+        {
+            var bay = train.Frames[kit.Parent].Shape.Lockers[kit.Locker];
+            var front = bay.Front;
+            var stand = new Double3(front.X + bay.Facing * 0.42, 0, front.Z);
+            var (step, there) = WarmUp.Steer(self, stand, bay.Facing * Math.PI / 2);
+            if (!there)
+                return step;
+            bool open = train.Vehicles[kit.Parent].LockerOpen(bay.Index);
+            return new PlayerIntent { Buttons = !open || tick % TapEvery == 0 ? PlayerButtons.Use : PlayerButtons.None };
+        }
+        var at = kit.Centre;
+        var beside = new Double3(at.X - (at.X >= g.PlateX ? 0.6 : -0.6), 0, at.Z);
+        double yaw = at.X > beside.X ? -Math.PI / 2 : Math.PI / 2;
+        var (walk, by) = WarmUp.Steer(self, beside, yaw);
+        return by ? new PlayerIntent { Buttons = tick % TapEvery == 0 ? PlayerButtons.Use : PlayerButtons.None, LookPitch = (float)(-0.7 - self.Pitch) } : walk;
     }
 
     /// <summary>A point on car <paramref name="from"/>'s floor, in car <paramref name="to"/>'s frame (flat: the steering's).</summary>
@@ -1498,7 +1600,8 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                     // Every door shut: a car only warms you shut, and someone else may have left another open (the far end,
                     // or a cargo car's side door left open for loading).
                     var shape = train.Frames[_car].Shape;
-                    var openDoor = shape.DoorList.Where(d => train.Vehicles[_car].DoorOpen(d.Index)).Select(d => (int?)d.Index).FirstOrDefault();
+                    var openDoor = shape.DoorList.Where(d => train.Vehicles[_car].DoorOpen(d.Index) && LeaveOpen?.Invoke(d.Index) != true)
+                        .Select(d => (int?)d.Index).FirstOrDefault();
                     if (openDoor is not { } door)
                         return Next(Step.Warm);
                     // By it, inside, facing it. A side door is across the car from the aisle: along the aisle to it first.
@@ -1523,7 +1626,11 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                     return Next(Step.Reopen);
                 }
                 // Someone came or went and left a door open: shut it again (a roof hatch is the crane's, T99, worked from the roof).
-                if ((train.Vehicles[_car].DoorsOpen & ~(1 << CarShape.HatchBit)) != 0)
+                int ajar = train.Vehicles[_car].DoorsOpen & ~(1 << CarShape.HatchBit);
+                for (int d = 0; d < CarShape.HatchBit; d++)
+                    if (LeaveOpen?.Invoke(d) == true)
+                        ajar &= ~(1 << d);
+                if (ajar != 0)
                     return Next(Step.Shut);
                 if (self.Cold > WarmEnough || Shelter)
                     return new PlayerIntent();
@@ -1595,6 +1702,12 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     public Func<int, bool>? Barred { get; set; }
     /// <summary>A car with trouble in it (alight, or Gnawers out): nowhere to go and get warm, unless it's the trouble we're going in for.</summary>
     public Func<int, bool>? Troubled { get; set; }
+    /// <summary>
+    /// A door of the car it's warming in that's to be left open, by its index: the repair kit's way up the train while the
+    /// boiler's ruptured (<see cref="KitCarry"/>). The cascade audit's walker in out of the cold in car 3 shut every end door
+    /// the kit's bringer opened, and the kit never left car 4.
+    /// </summary>
+    public Func<int, bool>? LeaveOpen { get; set; }
 
     bool Plan(in PlayerState s, TrainOnLine train)
     {

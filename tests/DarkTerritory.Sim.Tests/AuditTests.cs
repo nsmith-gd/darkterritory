@@ -49,6 +49,7 @@ public class AuditTests
 
     [Theory]
     [InlineData("rupture")]
+    [InlineData("rupture-kit-in-car-four")]
     [InlineData("fire-out")]
     [InlineData("car-fire")]
     [InlineData("gun-fouled")]
@@ -56,8 +57,7 @@ public class AuditTests
     [InlineData("uncoupled-car")]
     public void TheCrewComesBackFromIt(string chain)
     {
-        // Not "rupture-kit-in-car-four": the bots only fetch the kit from car 1 (KitRun), so `dt audit cascades` reports it
-        // until they can walk the train for it (note 186, "Not yet").
+        // The kit on car 4's floor too: a walker gets down off the roofs and brings it up through the cars (KitCarry, note 186).
         var r = CascadeAudit.Scenario(Quick, chain);
         Assert.True(r.Recovered, $"{r.Name}: {r.Detail}");
     }

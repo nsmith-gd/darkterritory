@@ -78,6 +78,16 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         // Who else is aboard, and where (T96: the driver stops for a crewmate left behind).
         if (bot is ConductorBot cb)
             cb.Crewmates = [.. session.RemoteIds.Select(id => session.TryGetRemote(id, 1, out var s) ? s : default).Where(s => s.Health > 0 || s.Death != DeathCause.None)];
+        // And for the walkers and the gunner, who's where by id: who goes for the repair kit (KitCarry).
+        if (bot is RoofWalkerBot or GunnerBot)
+        {
+            List<(int, PlayerState)> crew = [.. session.RemoteIds.Select(id => (Id: (int)id, Seen: session.TryGetRemote(id, 1, out var s), State: s))
+                .Where(c => c.Seen && (c.State.Health > 0 || c.State.Death != DeathCause.None)).Select(c => (c.Id, c.State))];
+            if (bot is RoofWalkerBot walker)
+                walker.Crew = crew;
+            else
+                ((GunnerBot)bot).Crew = crew;
+        }
         var intent = bot is IWorldBot wb ? wb.Decide(session.Predicted, session.World, t, out _) : bot.Decide(session.Predicted, session.Train, t);
         int me = session.PlayerId ?? 0;
         intent = Heed.Holdouts(intent, session.Predicted, session.World, me, calls, (bot as RoofWalkerBot)?.Job ?? (bot as GunnerBot)?.Job);
