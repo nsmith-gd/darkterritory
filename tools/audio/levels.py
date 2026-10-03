@@ -47,6 +47,8 @@ def main():
         composed = f'$"{line}.{{' in code
         hooked = [c for c in live if tell or f'"{line}.{c["id"]}' in code
                   or composed and "-" in c["id"] and f'}}-{c["id"].split("-", 1)[1]}"' in code
+                  # or by a kind after a fixed head, $"crew-mishaps.startle-{kind}"
+                  or "-" in c["id"] and f'{line}.{c["id"].rsplit("-", 1)[0]}-{{' in code
                   or (f'"{line}' in code and re.search(r'["\.]' + re.escape(c["id"]) + r'["\.]', code))]
         rows[line] = {"cues": len(live), "installed": len(inst), "hooked": len(hooked),
                       "missing_install": [c["id"] for c in live if c not in inst],
