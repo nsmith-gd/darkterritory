@@ -867,7 +867,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --structure type: the night's first of the plan's structures of that type on the main line (a girder, truss, trestle
     // or viaduct bridge, a causeway, a retaining wall...), the train on it, seen from off its side.
     var structure = Str(args, "--structure", "") is { Length: > 0 } kind && generated?.Plan is { } structurePlan
-        ? structurePlan.Structures.FirstOrDefault(x => x.Edge == "main" && x.Type == Enum.Parse<DarkTerritory.Sim.LineGen.StructureType>(kind, true))
+        // (weak: the first bridge with a car limit, whatever it's built as.)
+        ? structurePlan.Structures.FirstOrDefault(x => x.Edge == "main" && (kind == "weak" ? x.Weak is not null : x.Type == Enum.Parse<DarkTerritory.Sim.LineGen.StructureType>(kind, true)))
         : null;
     if (Str(args, "--structure", "") is { Length: > 0 } && structure is null)
         return Print(new { error = $"no {Str(args, "--structure", "")} on {Str(args, "--route", "")}'s main line", has = generated?.Plan?.Structures.Where(x => x.Edge == "main").Select(x => x.Type.ToString()).Distinct() });

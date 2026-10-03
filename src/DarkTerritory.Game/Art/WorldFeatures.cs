@@ -93,8 +93,39 @@ public sealed partial class WorldArt
                 : type == Sim.LineGen.StructureType.Girder ? Piece($"girder-{depth:0}-{last}", () => StructureKit.GirderBay(_look, depth, last))
                 : type == Sim.LineGen.StructureType.Truss ? Piece($"truss-{depth:0}-{last}", () => StructureKit.TrussSpan(_look, depth, last))
                 : Piece($"viaduct-{depth:0}-{last}", () => StructureKit.ViaductBay(_look, depth, last));
-            mesh.Instances.Add(new MeshInstance(piece, Basis(t.Tangent, t.Position, eye, 0)));
+            var at = Basis(t.Tangent, t.Position, eye, 0);
+            // A weak one's bents stand out of true, each its own way (seeded by where it is), most of all mid-span where
+            // the deck sags between them: the eye sees why it takes only so many cars.
+            if (f.MaxCars > 0)
+            {
+                float mid = 1 - MathF.Abs(2 * (float)((s - f.Start) / Math.Max(1, f.End - f.Start)) - 1);
+                float h = MathF.Sin((float)s * 12.9898f) * 43758.5453f;
+                h -= MathF.Floor(h);
+                float lean = (0.02f + 0.05f * mid) * (h < 0.5f ? -1 : 1), rake = 0.03f * mid * (h * 2 - 1);
+                at = Matrix4x4.CreateRotationZ(lean) * Matrix4x4.CreateRotationX(rake) * at;
+            }
+            mesh.Instances.Add(new MeshInstance(piece, at));
         }
+        // Its limit on a board at each end, facing the train coming onto it (GDD §17 "a bridge that takes four cars"):
+        // the speed board's posted limit is the sim's, this is the count it'll carry.
+        if (f.MaxCars > 0)
+            foreach (var (s, dir) in new[] { (f.Start - 25, 1), (f.End + 25, -1) })
+            {
+                if (s < from - 50 || s > to + 50)
+                    continue;
+                var t = line.Sample(Math.Clamp(s, 0, line.Length));
+                if ((t.Position - eye).Length > 300)
+                    continue;
+                var fwd = new Vector3((float)t.Tangent.X, 0, (float)t.Tangent.Z) * dir;
+                fwd = Vector3.Normalize(fwd);
+                var right = Vector3.Cross(fwd, Vector3.UnitY);
+                var toward = -fwd;
+                var foot = (t.Position + new Double3(right.X, 0, right.Z) * 3.4).RelativeTo(eye);
+                var board = Piece($"board-weak-{f.MaxCars}", () => SignKit.Board(_look, "restricted", $"{f.MaxCars} CARS", 1.0f, 3.9f));
+                var up = Vector3.UnitY;
+                mesh.Instances.Add(new MeshInstance(board, new Matrix4x4(right.X, right.Y, right.Z, 0, up.X, up.Y, up.Z, 0,
+                    toward.X, toward.Y, toward.Z, 0, foot.X, foot.Y, foot.Z, 1)));
+            }
     }
 
     /// <summary>A tunnel: a portal at each end facing out, the bore lined in sooted brick between; the hill is the ground's.</summary>
