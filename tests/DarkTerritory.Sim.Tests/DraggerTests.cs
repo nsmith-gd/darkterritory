@@ -26,7 +26,7 @@ public class DraggerTests
             Speed = speed;
             var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 5, 1)), Line, 2_000);
             World = new World(train, Tuning.Combat);
-            var quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } };
+            var quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } };
             World.EnableEnemies(quiet, route: null, 1, crew: 2, authority: true);
         }
 
@@ -197,7 +197,7 @@ public class DraggerTests
         var d = Tuning.Enemies.Director;
         var t = Tuning.Enemies with
         {
-            Director = d with { GraceSeconds = 0, CooldownSeconds = [1, 1], Costs = d.Costs.ToDictionary(c => c.Key, c => c.Key == "draggers" ? c.Value : 1e9) },
+            Director = d with { GraceMinSeconds = 0, GraceMaxSeconds = 0, Pressure = Tuning.Eager, CooldownSeconds = [1, 1], Costs = d.Costs.ToDictionary(c => c.Key, c => c.Key == "draggers" ? c.Value : 1e9) },
         };
         world.EnableEnemies(t, route: null, 1, crew: 2, authority: true);
         var inside = new PlayerState { Parent = 0, Position = train.Frames[0].Shape.Cab!.Value.Centre, Surface = Surface.Deck, Health = 100 };

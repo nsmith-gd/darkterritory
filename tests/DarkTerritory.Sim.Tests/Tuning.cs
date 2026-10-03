@@ -12,6 +12,11 @@ static class Tuning
     public static readonly DarkTerritory.Sim.Route.RouteTuning Route = DarkTerritory.Sim.Route.RouteTuning.Load(Content);
     public static readonly DarkTerritory.Sim.Combat.CombatTuning Combat = DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(Content, DarkTerritory.Sim.Combat.CombatTuning.File));
     public static readonly DarkTerritory.Sim.Enemies.EnemyTuning Enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(Content, DarkTerritory.Sim.Enemies.EnemyTuning.File));
+    /// <summary>
+    /// The director's pressure for tests of what it sends rather than when (note 195): nothing to wait for, never pressed (so the
+    /// cooldown and the budget's curve hold).
+    /// </summary>
+    public static readonly DarkTerritory.Sim.Enemies.PressureTuning Eager = Enemies.Director.Pressure with { Threshold = 0, PressAt = 1e9 };
     public static readonly BoilerTuning Boiler = DataFile.Load<BoilerTuning>(Path.Combine(Content, BoilerTuning.File));
     public static readonly DarkTerritory.Sim.Run.RunTuning Run = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(Content, DarkTerritory.Sim.Run.RunTuning.File));
     public static readonly DarkTerritory.Sim.Run.HoldoutTuning Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(Content, DarkTerritory.Sim.Run.HoldoutTuning.File));

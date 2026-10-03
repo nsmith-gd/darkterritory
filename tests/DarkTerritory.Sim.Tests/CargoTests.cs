@@ -95,7 +95,7 @@ public class CargoTests
         {
             Director = d with
             {
-                GraceSeconds = 0,
+                GraceMinSeconds = 0, GraceMaxSeconds = 0, Pressure = Tuning.Eager,
                 CooldownSeconds = [1, 1],
                 SaveFor = [],
                 Costs = d.Costs.ToDictionary(c => c.Key, c => c.Key is "cinderHounds" or "trackDoll" ? 1 : 1e9)
@@ -120,10 +120,10 @@ public class CargoTests
     [Fact]
     public void LivestockAboardTheChoirNeverQuietsBelowItsFloor()
     {
-        var quiet = Night(10, CargoKind.Goods, enemies: Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } });
+        var quiet = Night(10, CargoKind.Goods, enemies: Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } });
         Run(quiet, 2, 10);
         Assert.Equal(0, quiet.Choir.Loudness, 6);
-        var lowing = Night(10, CargoKind.Livestock, enemies: Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } });
+        var lowing = Night(10, CargoKind.Livestock, enemies: Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } });
         // The meter's measured over a few seconds (App. C.7): it settles on the floor.
         Run(lowing, 8 * Tuning.Combat.Choir.WindowSeconds, 10);
         Assert.Equal(Tuning.Combat.Choir.LivestockFloor, lowing.Choir.Loudness, 2);
@@ -135,7 +135,7 @@ public class CargoTests
         static double Spread(CargoKind cargo)
         {
             var route = new Route.Route("t", RouteTier.Frontier, 1, Straight, [new RouteFeature(FeatureKind.Marsh, 0, 80_000)], new RouteWeather(0.01, false, 0, 0), 3600);
-            var world = Night(8, cargo, route, enemies: Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } });
+            var world = Night(8, cargo, route, enemies: Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } });
             Run(world, 10, 8);
             return Assert.IsType<Drift>(Assert.Single(world.ActiveEnemies, e => e.Kind == EnemyKind.Drift)).Radius - Tuning.Enemies.Drift.StartRadius;
         }
@@ -262,7 +262,7 @@ public class CargoTests
         Assert.Equal(RouteTier.Frontier, world.Director!.Gate(world, RouteTier.DeadLines));
         // Over a run of draws, the director weighs every option up by 1.4 alike: the share of each kind sent doesn't move,
         // only the total weight. Same seeds, comet or goods: the same first creature.
-        var t = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 0, CooldownSeconds = [1, 1], SaveFor = [] } };
+        var t = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 0, GraceMaxSeconds = 0, Pressure = Tuning.Eager, CooldownSeconds = [1, 1], SaveFor = [] } };
         for (ulong seed = 1; seed <= 6; seed++)
         {
             var g = Night(12, CargoKind.Goods, seed: seed, enemies: t);

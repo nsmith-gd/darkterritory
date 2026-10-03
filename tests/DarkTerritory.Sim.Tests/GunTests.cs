@@ -18,7 +18,7 @@ public class GunTests
         var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
         var w = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, 1)), line, 5_000), C);
         // The host's (the loudness meter is the host's to keep), with nothing sent.
-        w.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9, PaceSeconds = 1e9 } }, null, 1, crew: 1, authority: true);
+        w.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } }, null, 1, crew: 1, authority: true);
         return w;
     }
 

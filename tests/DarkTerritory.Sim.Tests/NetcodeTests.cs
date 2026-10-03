@@ -472,7 +472,7 @@ public class SessionRulesTests
     {
         // GDD v1.1 App. A.6: "its host can't see it; their friends can, if they look".
         var (net, host, clients, _) = Session(2);
-        host.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } }, null, 1, 2);
+        host.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } }, null, 1, 2);
         Run(net, host, clients, 10);
         byte carrier = clients[1].PlayerId!.Value;
         var near = host.Train.Line.Sample(host.Train.Dynamics.Distance - 30);

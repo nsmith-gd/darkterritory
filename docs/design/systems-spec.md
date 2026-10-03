@@ -296,6 +296,31 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 
 The dawn budget assumes an 11 m/s average, below the 14 m/s cruise. **The slack is what you spend on stopping** — every POI, every repair, every revival eats it.
 
+## B.9 Director pacing
+
+*Design decision, 2026-10* (GDD App. B.1 "Pressure", "Pacing rules"; `director` in `content/tuning/enemies.json`). The budget and its curve, the caps and the gates are GDD App. B.1's; these say when the director spends.
+
+| Parameter | Value |
+|---|---|
+| **Grace period** | **20–90 s**, per night from its seed; the draw above 20 s × 1 Local, 0.85 Frontier, 0.7 Dead Lines, 0.55 Deep Territory |
+| Pressure at the end of the grace | 4 |
+| **Threshold** (spends) | **10** |
+| Pressed (cooldown gives way, curve overdrawn by up to 3) | 16 |
+| Most banked | 18 |
+| **Relief per spawn** | **3 × its cost** |
+| Base | 0.05 /s |
+| **Escalation** (on everything) | × (1 + 2 × progress), progress along the line or toward dawn, whichever is further |
+| Quiet | + 0.12 /s × (seconds since a threat was engaged or sent ÷ 90, to 1) |
+| Loudness | + 0.1 /s × (Choir meter ÷ its threshold, to 1.5) |
+| Cargo | + 0.01 /s per car-load (× comet 2, livestock 1.5, food and medicine 1.3, ammunition 1.2) |
+| Tier | × 0.8 Local, 1 Frontier, 1.2 Dead Lines, 1.4 Deep Territory |
+| Conditions | × (1 + 0.15 lamp out + 0.1 × cold + 0.05 per deep-cold step + 0.05 rain + 0.05 × wind) |
+| **Relief valve** | × (alive ÷ crew)² × (1 − 0.25 × share of the living under 35 health) |
+| Busy | × 1 ÷ (1 + 0.25 × threats engaged: telegraphing, committing, grabbing or punishing) |
+| Post-spawn cooldown | 25–45 s (gives way when pressed) |
+
+At the gate with nothing about, the pressure reaches the threshold in about a minute; near the terminus in about forty seconds. No stretch of a night goes much past a minute and a half without the director sending something, short of the caps, a ban or the final approach.
+
 ---
 
 # PART C — DEATH AND REVIVAL
