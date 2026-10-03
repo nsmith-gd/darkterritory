@@ -61,7 +61,8 @@ static class MusicCommands
             if (why is null)
                 taken.Add(track);
         }
-        var (pool, dropped) = MusicFiles.Write(dir, taken, synthesised: null);
+        // --replace (a full intake): the recordings are what this run took, and earlier ones it didn't retake go.
+        var (pool, dropped) = MusicFiles.Write(dir, taken, synthesised: null, replace: args.Contains("--replace"));
         var summary = new
         {
             dir = Path.GetFullPath(dir),
@@ -160,11 +161,12 @@ static class MusicFiles
     /// manifest), and deletes the music files the pool no longer has. Returns the pool and what was deleted.
     /// </summary>
     public static (List<MusicTrack> Pool, List<string> Removed) Write(string dir, IReadOnlyList<MusicTrack> recorded, IReadOnlyList<MusicTrack>? synthesised,
-        bool check = false)
+        bool check = false, bool replace = false)
     {
         var before = Load(dir);
         var retaken = recorded.Select(t => t.Id).ToHashSet();
-        var allRecorded = recorded.Concat(before.Where(t => t.Recorded && !retaken.Contains(t.Id) && File.Exists(Path.Combine(dir, t.File)))).ToList();
+        var allRecorded = replace ? [.. recorded]
+            : recorded.Concat(before.Where(t => t.Recorded && !retaken.Contains(t.Id) && File.Exists(Path.Combine(dir, t.File)))).ToList();
         var pool = Pool(allRecorded, synthesised ?? [.. before.Where(t => !t.Recorded)]);
         var removed = new List<string>();
         if (check)

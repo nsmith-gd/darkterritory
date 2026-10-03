@@ -48,6 +48,9 @@ jobs:
           only=()
           if [ -n "${{ github.event.inputs.candidates }}" ]; then only=(--only ${{ github.event.inputs.candidates }}); fi
           python3 tools/audio/fetch_music.py --dt "$DT" "${only[@]}" | tee out/intake.json
+          # E.6's fallback fills what the recordings don't: every mood, and the demo's 4 (writes only the synthesised
+          # tracks the pool still wants; with 4 or more recordings covering every mood, nothing).
+          $DT audio opera
       - name: What came in
         if: always()
         run: |
