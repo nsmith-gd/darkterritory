@@ -52,13 +52,12 @@ public sealed partial class GameAudio
     readonly Dictionary<string, SoundInstance> _uiLoops = new();
     readonly Dictionary<int, int> _occupants = new();
     readonly Queue<(double Due, string Cue)> _tallies = new();
-    // The night's deaths as this machine saw them (each crewmate's replicated record: GameAudio.Crew), for the report's stamps.
-    readonly List<DeathCause> _nightDeaths = [];
     World? _uiWorld;
     double _uiTime;
     Held? _hold;
     double _holdMark;
-    bool _holdDone, _over;
+    // The night's over, and its report's lines have been put down to tally in.
+    bool _holdDone, _over, _tallied;
 
     // The report's lines tally in one at a time after it comes up (GDD App. D.12): when the first does, and the gap between.
     const double TallyFirst = 0.6, TallyEvery = 0.35;
@@ -103,7 +102,7 @@ public sealed partial class GameAudio
             // A new night (or a first look at this one): what's already so when it starts isn't news.
             InterfaceEnd();
             _uiWorld = world;
-            _over = world.Run?.Over == true;
+            _over = _tallied = world.Run?.Over == true;
         }
         Prompts(world, me);
         NightOver(world);
@@ -123,7 +122,6 @@ public sealed partial class GameAudio
         _hold = null;
         _holdDone = false;
         _tallies.Clear();
-        _nightDeaths.Clear();
         _occupants.Clear();
         _uiWorld = null;
     }
@@ -247,30 +245,42 @@ public sealed partial class GameAudio
         _ => 0,
     };
 
-    /// <summary>The night's end (replicated: the run's phase): the report comes up, then each line under its headline tallies in.</summary>
+    /// <summary>
+    /// The night's end (replicated: the run's phase, and the report the host sends when it's written): the report comes up,
+    /// then each line under its headline tallies in, then each death it lists is stamped in.
+    /// </summary>
     void NightOver(World world)
     {
         bool over = world.Run?.Over == true;
         if (over && !_over)
         {
             Ui(UiCue.Report);
-            // The lines as the HUD shows them (Hud.ReportLines). Only the host's world has the report itself.
-            int lines = world.Run!.Report is { } r ? Hud.ReportLines(r).Count - 1 : 0;
+            _tallied = false;
+        }
+        // The report can come a snapshot or two after the phase (a crowded snapshot goes over a few): its lines tally in from
+        // when it's here.
+        if (over && !_tallied && world.Run!.Report is { } r)
+        {
+            _tallied = true;
+            // The lines as the HUD shows them (Hud.ReportLines, Hud.DeathLines).
             double due = _uiTime + TallyFirst;
-            for (int i = 0; i < lines; i++, due += TallyEvery)
+            for (int i = 0; i < Hud.ReportLines(r).Count - 1; i++, due += TallyEvery)
                 _tallies.Enqueue((due, UiCue.Tally));
-            // The night's deaths, stamped in one by one after (as every machine saw them: the report isn't sent yet); a death
-            // the crew did to themselves gets its cause typed out beside the stamp (crew-mishaps, the director's call 3 Oct).
-            foreach (var cause in _nightDeaths)
+            // Each death on it stamped in after, a line at a time; one the crew did to themselves gets its cause typed out beside
+            // the stamp (crew-mishaps, the director's call 3 Oct). A long list's last line, the rest of them, is a stamp too.
+            var shown = Hud.DeathsShown(r);
+            foreach (var death in shown)
             {
                 _tallies.Enqueue((due, UiCue.DeathStamp));
                 due += StampEvery;
-                if (OwnGoal(cause))
+                if (OwnGoal(death.Cause))
                 {
                     _tallies.Enqueue((due - StampEvery + OwnGoalAfterStamp, UiCue.OwnGoal));
                     due += OwnGoalTakes;
                 }
             }
+            if (Hud.DeathLines(r).Count > shown.Count)
+                _tallies.Enqueue((due, UiCue.DeathStamp));
         }
         if (!over)
             _tallies.Clear();

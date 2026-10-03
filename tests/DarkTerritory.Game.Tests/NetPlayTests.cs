@@ -71,6 +71,41 @@ public class NetPlayTests
     }
 
     [Fact]
+    public void WhenTheNightEndsTheJoinerAndTheHostsOwnPlayerHaveTheHostsReport()
+    {
+        // GDD App. D.12: the report is written by the host's world, but everyone's HUD, run-end sounds and (on the host's
+        // machine) the campaign read it off the world their own client mirrors: the host plays through one too.
+        using var host = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: 0);
+        using var joiner = NetPlaySession.Join(Content, new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port), () => host.Step(default));
+        var train = host.Host!.Train;
+        void Step(int ticks, double? speed = null)
+        {
+            for (int t = 0; t < ticks; t++)
+            {
+                if (speed is { } v)
+                    train.Dynamics.Velocity = v;
+                host.Step(default);
+                joiner.Step(default);
+                Thread.Sleep(1);
+            }
+        }
+        Step(SimConstants.TickRate);
+        // The joiner struck on a roof; out through the gate (the night's begun); then off the rails, which takes the host's player.
+        host.Host.SetPlayerState((byte)joiner.PlayerId, PlayerMotor.SpawnOnRoof(train, 2, 0, host.PlayerTuning) with { Health = 0, Death = DeathCause.Struck });
+        Step(3 * SimConstants.TickRate, speed: 6);
+        Assert.Null(joiner.World.Run!.Report);
+        host.Host.World.Derail();
+        for (int t = 0; t < 5 * SimConstants.TickRate && (joiner.World.Run.Report is null || host.World.Run!.Report is null); t++)
+            Step(1);
+        var report = host.Host.World.Run!.Report!;
+        Assert.Equal(report, joiner.World.Run.Report);
+        Assert.Equal(report, host.World.Run!.Report);
+        Assert.Equal([(joiner.PlayerId, DeathCause.Struck), (host.PlayerId, DeathCause.Derailed)], report.Fatalities.Select(d => (d.Player, d.Cause)));
+        Assert.Equal($"YOU: STRUCK BY A TUNNEL'S MOUTH. ON CAR 2'S ROOF, KM {report.Fatalities[0].Km:0.0}", Hud.DeathLines(report, joiner.PlayerId)[0]);
+        Assert.StartsWith($"CREW {joiner.PlayerId}: STRUCK", Hud.DeathLines(report, host.PlayerId)[0]);
+    }
+
+    [Fact]
     public void JoiningNobodyFailsCleanly()
     {
         int port;

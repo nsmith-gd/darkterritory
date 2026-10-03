@@ -401,7 +401,7 @@ public sealed class HostSession
         {
             RecordKind.Player => r.Id == c.Id ? 0 : 1,
             RecordKind.Rake or RecordKind.Vehicle or RecordKind.Boiler or RecordKind.Controls => 2,
-            RecordKind.World or RecordKind.Run => 3,
+            RecordKind.World or RecordKind.Run or RecordKind.Report => 3,
             _ => 4,
         };
         foreach (var r in pending.OrderBy(Priority).ThenBy(r => r.Key))

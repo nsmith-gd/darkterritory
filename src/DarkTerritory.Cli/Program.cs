@@ -1200,9 +1200,14 @@ static object HudShot(string content, string[] args)
     // --spectating (GDD App. D.10): a hosted night with a joiner who's died, seen as the joiner sees it: through the
     // host's eyes in the cab, whom they watch, with their HUD.
     using var spectated = args.Contains("--spectating") ? Spectating(content, Str(args, "--route", "frontier:7"), cars) : null;
+    // --report (GDD App. D.12): a hosted night with a bot crew, ended, seen from the host's own seat: the report on its HUD
+    // is the one the host's world sent (the host plays through a client like everyone), deaths and all.
+    using var reported = args.Contains("--report") ? Reported(content, Str(args, "--route", "frontier:7"), cars) : null;
     IPlaySession session;
     if (spectated is { } pair)
         session = pair.Watcher;
+    else if (reported is not null)
+        session = reported;
     else
     {
         var solo = generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
@@ -1277,6 +1282,42 @@ static SpectatedNight Spectating(string content, string route, int cars)
     host.Host!.SetPlayerState((byte)watcher.PlayerId, watcher.Player with { Health = 0, Death = DeathCause.Mauled });
     Step(SimConstants.TickRate);
     return new SpectatedNight(host, watcher);
+}
+
+// A hosted night with three bots, ended for its report (App. D.12): out through the gate, one bot struck on a car's roof, one
+// thrown off by the line, one taken inside a car, then the train put off the rails, which takes the rest.
+static NetPlaySession Reported(string content, string route, int cars)
+{
+    var night = NetPlaySession.HostGame(content, new SessionSetup(Route: route, Cars: cars, Enemies: false), port: null, bots: 3);
+    var host = night.Host!;
+    var train = host.Train;
+    void Step(int ticks, double? speed = null)
+    {
+        for (int t = 0; t < ticks; t++)
+        {
+            if (speed is { } v)
+                train.Dynamics.Velocity = v;
+            night.Step(default);
+            Thread.Sleep(1);
+        }
+    }
+    Step(SimConstants.TickRate);
+    Step(3 * SimConstants.TickRate, speed: 6);
+    var bots = night.BotCrew!.Bots.Select(b => (byte)b.Session.PlayerId!.Value).ToArray();
+    var p = host.PlayerTuning;
+    host.SetPlayerState(bots[0], PlayerMotor.SpawnOnRoof(train, 2, 0, p) with { Health = 0, Death = DeathCause.Struck });
+    var beside = train.Frames[3];
+    host.SetPlayerState(bots[1], PlayerMotor.SpawnOnGround(beside.ToWorld(new Double3(beside.Shape.HalfWidth + 3, 0, 0)), train.Line,
+        train.Cars[3].FrontDistance, p) with { Health = 0, Death = DeathCause.Thrown });
+    int car = Math.Min(cars, train.Frames.Count - 1);
+    var inside = train.Frames[car].Shape.Interior is { } room
+        ? new PlayerState { Parent = car, Surface = Surface.Deck, Position = new Double3(0, room.Min.Y, room.Centre.Z), Health = p.Health }
+        : PlayerMotor.SpawnOnRoof(train, car, 0, p);
+    host.SetPlayerState(bots[2], inside with { Health = 0, Death = DeathCause.Choir });
+    Step(5);
+    host.World.Derail();
+    Step(SimConstants.TickRate);
+    return night;
 }
 
 // The designer's editor: tuning and routes in a local web page (T18). --screenshot captures both pages headless.
@@ -1404,6 +1445,7 @@ static int Usage()
                      a screen of the front end over the yard, as the game draws it
           screenshot --hud [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
+                     (--spectating: a dead joiner watching the host; --report: a hosted night ended, its report and deaths)
           route gen [--tier local|frontier|deadLines|deepTerritory] [--seed n] [--name generated] [--map file.png]
                      writes content/lines/<name>.json (+ .route.json) and a map; try `screenshot --line generated`
           route sweep [--seeds n]                  generate n routes per tier and report ranges

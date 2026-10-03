@@ -316,28 +316,59 @@ public sealed class UiSoundTests : IDisposable
         var me = PlayerMotor.SpawnInCab(w.Train, P);
         var mate = PlayerMotor.SpawnOnRoof(w.Train, 2, 0, P);
         var other = PlayerMotor.SpawnOnRoof(w.Train, 3, 0, P);
-        var audio = Audio();
-        foreach (var cue in new[] { UiCue.DeathStamp, UiCue.OwnGoal })
-            audio.Bank.Add(cue, new Ballast.Audio.SoundDef(4, [new Ballast.Audio.LayerDef(Ballast.Audio.SourceKind.Sine, 0.3, Frequency: 440)], Duration: 0.1, Flat: true));
-        void Heard(params (int, PlayerState)[] crew)
-        {
-            audio.CrewStates = crew;
-            audio.Update(w, w.Controls, Ballast.Audio.Listener.At(w.Train.Frames[0].Origin, 0), exposed: true, SimConstants.TickSeconds);
-            audio.Interface(w, me, 1);
-        }
-        Heard((1, me), (2, mate), (3, other));
-        Heard((1, me), (2, mate), (3, other));
-        // One into a tunnel's mouth (their own doing), one taken by something (not).
-        Heard((1, me), (2, mate with { Health = 0, Death = DeathCause.Struck }), (3, other with { Health = 0, Death = DeathCause.Mauled }));
+        var audio = StampingAudio();
+        audio.Interface(w, me, 1);
+        // One into a tunnel's mouth (their own doing), one taken by something (not): the host's world gives each a body, and
+        // the report lists them.
+        w.StepBodies([(1, me), (2, mate with { Health = 0, Death = DeathCause.Struck }), (3, other with { Health = 0, Death = DeathCause.Mauled })]);
         w.Derail();
         w.StepRun([me]);
+        Assert.Equal(2, w.Run!.Report!.Fatalities.Count);
         for (int i = 0; i < 6 * SimConstants.TickRate; i++)
             audio.Interface(w, me, 1);
+        Assert.Equal(Hud.DeathLines(w.Run.Report).Count, Played(audio, UiCue.DeathStamp));
         Assert.Equal(2, Played(audio, UiCue.DeathStamp));
         Assert.Equal(1, Played(audio, UiCue.OwnGoal));
         // After the report's own lines.
         var first = audio.Mixer.Voices.First(v => v.Name == UiCue.DeathStamp);
         Assert.All(audio.Mixer.Voices.Where(v => v.Name == UiCue.Tally), t => Assert.True(t.Id < first.Id));
+    }
+
+    /// <summary>The interface sounds with the report's stamp and typewriter, whether or not they're installed yet.</summary>
+    GameAudio StampingAudio()
+    {
+        var audio = Audio();
+        foreach (var cue in new[] { UiCue.DeathStamp, UiCue.OwnGoal })
+            audio.Bank.Add(cue, new Ballast.Audio.SoundDef(4, [new Ballast.Audio.LayerDef(Ballast.Audio.SourceKind.Sine, 0.3, Frequency: 440)], Duration: 0.1, Flat: true));
+        return audio;
+    }
+
+    [Fact]
+    public void OnAClientTheReportTalliesInWhenItArrivesAndALongListStampsItsLines()
+    {
+        // A client mirrors the run: the phase can come a snapshot before the report it's sent (WorldRecords' report record).
+        var route = RouteGenerator.Generate(RouteTuning.Load(Content), RouteTier.Frontier, 7);
+        var w = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), route.Build(), 5_000, B), C);
+        w.EnableRun(RunT, route, 600, authority: false);
+        var me = PlayerMotor.SpawnInCab(w.Train, P);
+        var audio = StampingAudio();
+        audio.Interface(w, me, 1);
+        w.Run!.Mirror(RunPhase.Failed, RunEnd.Derailed, 300, -1, false, []);
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            audio.Interface(w, me, 1);
+        Assert.Equal(1, Played(audio, UiCue.Report));
+        Assert.Equal(0, Played(audio, UiCue.Tally));
+        // A massacre: the HUD lists the first few and a line for the rest, and each line it shows is stamped.
+        var dead = Enumerable.Range(1, 9).Select(i => new Fatality(i, i == 1 ? DeathCause.Thrown : DeathCause.Derailed, 2, DeathSpot.Roof, 5));
+        var report = new RunReport(RunEnd.Derailed, 300, 5, 0, 3, 0, 0, 0, 0, 0, 0, 0, 9, Fatalities: new DeathRoll(dead));
+        w.Run.MirrorReport(report);
+        for (int i = 0; i < 12 * SimConstants.TickRate; i++)
+            audio.Interface(w, me, 1);
+        Assert.Equal(1, Played(audio, UiCue.Report));
+        Assert.Equal(Hud.ReportLines(report).Count - 1, Played(audio, UiCue.Tally));
+        Assert.True(Hud.DeathLines(report).Count < 9);
+        Assert.Equal(Hud.DeathLines(report).Count, Played(audio, UiCue.DeathStamp));
+        Assert.Equal(1, Played(audio, UiCue.OwnGoal));
     }
 
     [Fact]

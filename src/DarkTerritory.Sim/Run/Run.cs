@@ -53,9 +53,70 @@ public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed }
 /// <param name="Deaths">In-run deaths (GDD App. D.9), each charged <paramref name="CrewLossFees"/>' share; <paramref name="BodiesHome"/>
 /// of their bodies came home aboard, refunding <paramref name="BodyRefunds"/>. Net is after both.</param>
 /// <param name="Mail">Pay caught off the mail cranes (sight.json drops), paid with the cargo at the terminus and in the gross.</param>
+/// <param name="Fatalities">GDD App. D.12 "deaths, with who and where": each death of the night, in order (every one with a body,
+/// fee or no fee, so this is there without the Holdouts too).</param>
 public sealed record RunReport(RunEnd End, double Seconds, double DistanceKm, int CarsDelivered, int CarsLost, double CargoDelivered,
     double Gross, double CoalCost, double AmmoCost, double RepairCost, double Net, int CrewHome, int CrewLost, double Scavenged = 0,
-    int Deaths = 0, int BodiesHome = 0, double CrewLossFees = 0, double BodyRefunds = 0, double Mail = 0);
+    int Deaths = 0, int BodiesHome = 0, double CrewLossFees = 0, double BodyRefunds = 0, double Mail = 0, DeathRoll? Fatalities = null)
+{
+    public DeathRoll Fatalities { get; init; } = Fatalities ?? DeathRoll.Empty;
+}
+
+/// <summary>Where a death was, on the train or off it (the report's "where", GDD App. D.12).</summary>
+public enum DeathSpot : byte { Ground, Aboard, Cab, Inside, Roof, Coupling }
+
+/// <summary>One death of the night as the report lists it (GDD App. D.12: "deaths, with who and where").</summary>
+/// <param name="Player">Who: their player id (the roster's CREW n).</param>
+/// <param name="Car">The vehicle they died on or in (0 the engine), or −1 off the train; <paramref name="Spot"/> says where on it.</param>
+/// <param name="Km">How far down the line, to the tenth of a kilometre: the nearest point of the main line to where they fell.</param>
+public readonly record struct Fatality(int Player, DeathCause Cause, int Car, DeathSpot Spot, double Km)
+{
+    /// <summary>A death as it is on the tick it happens (the host's, when it gives them a body).</summary>
+    public static Fatality Of(int player, in PlayerState s, TrainOnLine train)
+    {
+        bool aboard = s.Parent != PlayerState.World && s.Parent < train.Frames.Count;
+        var spot = !aboard ? DeathSpot.Ground
+            : PlayerMotor.InCab(s, train) ? DeathSpot.Cab
+            : PlayerMotor.Indoors(s, train) ? DeathSpot.Inside
+            : s.Surface == Surface.Roof ? DeathSpot.Roof
+            : s.Surface == Surface.Coupler ? DeathSpot.Coupling
+            : DeathSpot.Aboard;
+        // The main line's nearest point (a spur's death reads as where its points are): the line's own kilometres, as the
+        // HUD gives distances.
+        double along = s.LineHint;
+        train.Line.Nearest(PlayerMotor.WorldPosition(s, train), ref along);
+        return new Fatality(player, s.Death, aboard ? s.Parent : -1, spot, Math.Round(along / 1000, 1));
+    }
+}
+
+/// <summary>
+/// The night's deaths for its report, in the order they happened, compared by what's in them: a record compares a list by
+/// reference, and the report a client is sent has to equal the host's.
+/// </summary>
+public sealed class DeathRoll(IEnumerable<Fatality> deaths) : IReadOnlyList<Fatality>, IEquatable<DeathRoll>
+{
+    /// <summary>
+    /// The most a report lists, the first so many: its record has to go in one snapshot's datagram with room to spare
+    /// (WorldRecords, five small fields a death). A night with more is a massacre, and the HUD shows the first few anyway.
+    /// </summary>
+    public const int Most = 64;
+    public static readonly DeathRoll Empty = new([]);
+    readonly Fatality[] _deaths = [.. deaths.Take(Most)];
+
+    public Fatality this[int index] => _deaths[index];
+    public int Count => _deaths.Length;
+    public IEnumerator<Fatality> GetEnumerator() => ((IEnumerable<Fatality>)_deaths).GetEnumerator();
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    public bool Equals(DeathRoll? other) => other is not null && _deaths.AsSpan().SequenceEqual(other._deaths);
+    public override bool Equals(object? obj) => Equals(obj as DeathRoll);
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        foreach (var d in _deaths)
+            hash.Add(d);
+        return hash.ToHashCode();
+    }
+}
 
 /// <summary>
 /// One night's run, host-authoritative (clients mirror it for the HUD). The yard gate opens the run and
@@ -704,7 +765,7 @@ public sealed partial class Run
         return new RunReport(End, Math.Round(Seconds, 1), Math.Round(engine.Distance / 1000, 2), home.Count, cargo.Count - home.Count,
             Math.Round(cargoValue, 2), Math.Round(gross), Math.Round(coal), Math.Round(ammo), Math.Round(repairs),
             Math.Round(gross - coal - ammo - repairs - fees + refunds), crewHome, crew.Count - crewHome, delivered ? Math.Round(Scavenged) : 0,
-            deaths, bodiesHome, fees, refunds, Math.Round(delivered ? Mail : 0));
+            deaths, bodiesHome, fees, refunds, Math.Round(delivered ? Mail : 0), new DeathRoll(world.Bodies.Fatalities));
     }
 
     /// <summary>
@@ -743,6 +804,17 @@ public sealed partial class Run
         if (sites is not null)
             for (int i = 0; i < Math.Min(sites.Count, _sites.Length); i++)
                 _sites[i]?.Mirror(sites[i]);
+    }
+
+    /// <summary>
+    /// Client side: the host's report, sent once it's written (WorldRecords' report record), so every machine's HUD, sounds
+    /// and campaign have the night's result, not only the host's world.
+    /// </summary>
+    public void MirrorReport(RunReport report)
+    {
+        // The same report every snapshot: kept as it was, not swapped for an equal copy.
+        if (!report.Equals(Report))
+            Report = report;
     }
 
     public int FacilityCount => _facilities.Count;
