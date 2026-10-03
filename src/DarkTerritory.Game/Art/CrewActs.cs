@@ -193,7 +193,10 @@ public static class CrewActs
         if (world.Bodies.CarriedBy(id) is { } carried)
             return carried.Kind switch
             {
-                BodyKind.Ragdoll => CrewPose.Drag,
+                // Over the shoulder (App. C.4), the arm round its legs: where the sim holds it (Bodies.Shoulder).
+                BodyKind.Ragdoll => CrewPose.Shoulder,
+                // The child in the arms, clinging to them (App. C.4; Bodies.ChildAt).
+                BodyKind.Child => CrewPose.Cradle,
                 // The hand lamp out low in one hand; the extinguisher on the hip, aimed (App. C.5).
                 BodyKind.Lamp => CrewPose.Lantern,
                 // Just off its bracket (or about to go back on it), by the mount, it's being lifted.

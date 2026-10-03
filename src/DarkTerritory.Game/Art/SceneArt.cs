@@ -46,6 +46,8 @@ public sealed partial class SceneArt(Look look)
         var pose = c.Act switch
         {
             CrewPose.Carry => speed < 0.4f ? CrewPose.Carry : CrewPose.CarryWalk,
+            CrewPose.Shoulder => speed < 0.4f ? CrewPose.Shoulder : CrewPose.ShoulderWalk,
+            CrewPose.Cradle => speed < 0.4f ? CrewPose.Cradle : CrewPose.CradleWalk,
             CrewPose.Lantern => speed < 0.4f ? CrewPose.Lantern : CrewPose.LanternWalk,
             // Across the plate, short careful steps; stood on it, balancing (GDD §32).
             CrewPose.Gap => speed < 0.4f ? CrewPose.Gap : CrewPose.GapStep,
@@ -60,6 +62,10 @@ public sealed partial class SceneArt(Look look)
         bool free = c.Act is null or CrewPose.Carry or CrewPose.Lantern;
         if (free && _staggered.TryGetValue(c.Id, out double hit) && time - hit < StaggerSeconds)
             pose = CrewPose.Stagger;
+        // At the firehole as its door moves: the one who swung it (whoever's stood there; the sim doesn't say who).
+        if (FireDoorAt is { } door && FireDoorSince is >= 0 and < FireDoorSeconds && c.Act is null or CrewPose.Shovel or CrewPose.Drive
+            && ((c.Feet - door) with { Y = 0 }).Length < FireDoorReach)
+            pose = CrewPose.FireDoor;
         // Their own blow (it landed swungBeforeHit into the clip): played round it, wherever they stand.
         if (free && swung >= 0 && swung + SwingHitAt < SwingSeconds)
             pose = CrewPose.Swing;
@@ -70,6 +76,7 @@ public sealed partial class SceneArt(Look look)
         {
             CrewPose.GetUp or CrewPose.TakeDown => time - since.Time,
             CrewPose.Stagger => time - _staggered.GetValueOrDefault(c.Id, since.Time),
+            CrewPose.FireDoor => FireDoorSince >= 0 ? FireDoorSince : time - since.Time,
             CrewPose.Swing => swung + SwingHitAt,
             // The reload's beats follow the gun's own progress, not a clock (CrewActs.ReloadPhase).
             CrewPose.Reload => c.Phase,
@@ -121,6 +128,13 @@ public sealed partial class SceneArt(Look look)
     readonly Dictionary<int, (Double3 At, double Time)> _lampHands = new();
     readonly Dictionary<byte, int> _crewHealth = new();
     readonly Dictionary<byte, double> _staggered = new();
+
+    /// <summary>The firehole's door in the world (GreyboxScene sets it with the cab), and how long since it last moved (s).</summary>
+    public Double3? FireDoorAt { get; set; }
+    public double FireDoorSince { get; set; } = -1;
+
+    /// <summary>crew_clips.py's firedoor clip (21 frames); how near the door's foot someone stands to be the one at it (m).</summary>
+    const double FireDoorSeconds = 21 / 30.0, FireDoorReach = 1.3;
 
     /// <summary>crew_clips.py's stagger (20 frames) and swing (24 frames, the blow landing at frame 11), in seconds.</summary>
     const double StaggerSeconds = 20 / 30.0, SwingSeconds = 24 / 30.0, SwingHitAt = 11 / 30.0;
@@ -203,6 +217,10 @@ public sealed partial class SceneArt(Look look)
         Creatures.OwnArms(mesh, own.Yaw, own.Pitch, own.Act, own.Moving, own.Swing, time, own.Variant, ToolProp(own.Holding));
 
     /// <summary>A hotbar tool's model (tools/models hand_tools), or null for none.</summary>
+    /// <summary>A headset player's own gloved hands on their controllers, the tool in hand in the right (CreatureArt.HeadsetHands).</summary>
+    public bool HeadsetHands(MeshBuilder mesh, float yaw, in Ballast.Xr.XrControllerState controllers, int variant, Sim.Player.Tool holding) =>
+        Creatures.HeadsetHands(mesh, yaw, controllers.Left, controllers.Right, variant, ToolProp(holding));
+
     MeshAsset? ToolProp(Sim.Player.Tool tool) => tool switch
     {
         Sim.Player.Tool.Crowbar => PropArt.Of(Look).Get("tool_crowbar"),
@@ -376,9 +394,13 @@ public sealed partial class SceneArt(Look look)
         }
         // A rescued child (GDD §19, App. A.6: the real half of the Soot Children's roll, the most valuable cargo there is):
         // the same child as the lure, the model's variant 0, its own eyes and its hands only dirty, huddled, its arms round
-        // its knees; carried, curled against whoever has it. (The body's a ball 0.35 m round its middle.)
-        if (b.Kind == Sim.Physics.BodyKind.Child
-            && Creatures.Draw(mesh, "soot_child", "huddle", time, true, Matrix4x4.CreateTranslation(0, b.Carrier >= 0 ? -0.45f : -0.35f, 0) * m, 0, seed: 2))
+        // its knees; carried, in the arms (App. C.4): clinging to whoever has it, its legs round their waist and its face on
+        // their shoulder (the clutch: its origin at their feet, out in front; a carried body's frame already faces back at
+        // whoever carries it; Bodies.ChildAt holds its middle there). (The body's a ball 0.35 m round its middle.)
+        if (b.Kind == Sim.Physics.BodyKind.Child && (b.Carrier >= 0
+                ? Creatures.Draw(mesh, "soot_child", "clutch", time, true,
+                    Matrix4x4.CreateTranslation(0, -(float)Sim.Physics.Bodies.ChildHeight, 0) * m, 0, seed: 2)
+                : Creatures.Draw(mesh, "soot_child", "huddle", time, true, Matrix4x4.CreateTranslation(0, -0.35f, 0) * m, 0, seed: 2)))
             return true;
         // What the crew carry: the modelled props (tools/models make: stores_crate, freight_*, heavy_crate,
         // field_radio, train_stores' toys and repair kit) where they're built, centred on the body like the kit's; the

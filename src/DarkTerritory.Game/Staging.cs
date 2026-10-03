@@ -76,6 +76,28 @@ public static class Staging
     }
 
     /// <summary>
+    /// A crewmate on car 2's roof with a body over their shoulder (App. C.4), carried a second and a half in the sim's
+    /// fireman's carry (Bodies.Shoulder) so it's hanging as it would; <paramref name="walking"/>, stepping along the roof.
+    /// </summary>
+    /// <param name="child">The rescued child instead, in their arms (Bodies.ChildAt, the cradle).</param>
+    public static (Sim.Physics.Bodies Bodies, Crewmate Carrier) Shouldered(TrainOnLine train, string content, bool walking = false, bool child = false)
+    {
+        var tuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
+        var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
+        var bodies = new Sim.Physics.Bodies();
+        var carrier = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, -3, player) with { Yaw = Math.PI - 0.6 };
+        var dead = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, -2, player) with { Health = 0, Yaw = 0.4 };
+        var body = child ? bodies.SpawnCrate(train, 2, new Double3(0, tuning.Geometry.CarHeight + 0.4, -2.6), Sim.Physics.BodyKind.Child)
+            : bodies.SpawnRagdoll(train, 9, dead);
+        body.Carrier = 1;
+        for (int i = 0; i < 90; i++)
+            bodies.Step(train, tuning, id => id == 1 ? carrier : null);
+        var (feet, yaw) = (Sim.Player.PlayerMotor.WorldPosition(carrier, train), Sim.Player.PlayerMotor.WorldYaw(carrier, train));
+        var act = child ? walking ? Art.CrewPose.CradleWalk : Art.CrewPose.Cradle : walking ? Art.CrewPose.ShoulderWalk : Art.CrewPose.Shoulder;
+        return (bodies, new Crewmate(1, feet, yaw, true, Act: act));
+    }
+
+    /// <summary>
     /// The train as it leaves (World.Stock, Guns.Arm): the guard van's stores, lamp, radios and toys, every car's
     /// extinguisher on its mount, each at <paramref name="charge"/> (its sight glass, App. C.5), settled where they lie, and
     /// the guns' full stock of powder and shot.
@@ -312,10 +334,53 @@ public static class Staging
                 double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
                 gaunt.Restore(SpinePhase.Telegraph, 2.2, gaunt.Health, car, new Double3(-0.45, floor, -train.Frames[car].Shape.HalfLength + 4.2), 0, 0, 0, -1, 1);
                 break;
+            // Leaving with what it took (App. A.6): off from the car's side on the ground, or still aboard making for the
+            // door (GauntLoad gives it the body it's carrying).
+            case "leave":
+                gaunt.Restore(SpinePhase.BreakOff, 2.2, gaunt.Health, Enemy.Loose, before, 0, 0, 0, -1, 0);
+                break;
+            case "leavein":
+                int from = Math.Min(2, train.Frames.Count - 1);
+                double deck = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
+                gaunt.Restore(SpinePhase.BreakOff, 2.2, gaunt.Health, from, new Double3(0.2, deck, -train.Frames[from].Shape.HalfLength + 3.2), 0, 0, 0, -1, 0);
+                break;
             default:
-                throw new ArgumentException($"--gaunt {mode}: sleep, stir, listen, angry, attack or in");
+                throw new ArgumentException($"--gaunt {mode}: sleep, stir, listen, angry, attack, in, leave or leavein");
         }
         return threats;
+    }
+
+    /// <summary>
+    /// A body for a staged Gaunt leaving (<c>--gaunt leave|leavein</c>) to carry off, held under it as Gaunt.Leave holds
+    /// it (Bodies.TakeAlong: by the hips, high as it stalks, low as it creeps aboard) and settled there for 1.5 s.
+    /// </summary>
+    public static Sim.Physics.Bodies GauntLoad(TrainOnLine train, string content, Gaunt gaunt)
+    {
+        var tuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
+        var g = DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)).Gaunt;
+        var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
+        var bodies = new Sim.Physics.Bodies();
+        var dead = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, 0, player) with { Health = 0 };
+        var body = bodies.SpawnRagdoll(train, 6, dead);
+        gaunt.Extra = body.Id;
+        bool aboard = gaunt.Attached >= 0;
+        // Facing where it's going: aboard, toward the car's front door; off it, away from the car.
+        double yaw;
+        if (aboard)
+            yaw = 0;
+        else
+        {
+            var frame = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+            var away = frame.Right * -1;
+            yaw = Math.Atan2(-away.X, -away.Z);
+        }
+        for (int i = 0; i < 90; i++)
+        {
+            bodies.TakeAlong(body, train, gaunt.Id, aboard ? gaunt.Attached : Sim.Player.PlayerState.World,
+                gaunt.Local + Double3.Up * (aboard ? g.CarryLow : g.CarryHigh), yaw);
+            bodies.Step(train, tuning, _ => null);
+        }
+        return bodies;
     }
 
     /// <summary>

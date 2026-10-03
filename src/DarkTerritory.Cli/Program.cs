@@ -275,7 +275,13 @@ static object VrCheck(TrainTuning t, string content, string[] args)
         new GreyboxScene { Time = 0.37, Look = look }.Build(mesh, train, body.Position);
         var lighting = Views.Lighting(train, look);
         if (look is not null)
+        {
             vr.Dress(look);
+            // Your own gloves on the simulated controllers, as the game draws them (CreatureArt.HeadsetHands); --box-hands: the
+            // fallback box fists.
+            if (!args.Contains("--box-hands"))
+                vr.Hands = (into, b, c) => look.Art.HeadsetHands(into, (float)b.Yaw, c, 1, args.Contains("--tool") ? Tool.Crowbar : Tool.None);
+        }
         var outcomes = new Dictionary<string, int>();
         var clock = Stopwatch.StartNew();
         var comfort = new DarkTerritory.Game.VrLocomotion(DataFile.Load<DarkTerritory.Game.VrTuning>(Path.Combine(content, DarkTerritory.Game.VrTuning.File)));
@@ -1173,6 +1179,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         double eaten = Math.Clamp(Opt(args, "--eaten", 0.5), 0, 1);
         (rear.Eaten, rear.Integrity) = (eaten, 1 - eaten);
     }
+    // --shouldered [walk] | --cradled [walk]: a crewmate carrying a body over the shoulder, or the child in their arms (App. C.4).
+    var shouldered = args.Contains("--shouldered") ? Staging.Shouldered(train, content, Str(args, "--shouldered", "") == "walk")
+        : args.Contains("--cradled") ? Staging.Shouldered(train, content, Str(args, "--cradled", "") == "walk", child: true)
+        : ((DarkTerritory.Sim.Physics.Bodies Bodies, Crewmate Carrier)?)null;
     var scene = new GreyboxScene
     {
         // --draw m: how far along the line to build it (an aerial view of a stretch wants more than the cab's 400).
@@ -1196,7 +1206,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Enemies = args.Contains("--threats") ? Later(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", "")), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--later", 0)) : null,
         StagedPaces = args.Contains("--passenger") ? new Dictionary<int, float> { [48] = Staging.PassengerPace(Str(args, "--passenger", "")) } : null,
         // --stocked: the train as it leaves, its stores and every car's extinguisher aboard (--charge 0..1: theirs).
-        Bodies = args.Contains("--bodies") ? Staging.Bodies(train, content).All
+        Bodies = shouldered is { } carried ? carried.Bodies.All
+            : args.Contains("--bodies") ? Staging.Bodies(train, content).All
             : args.Contains("--stocked") ? Staging.Stocked(train, content, Opt(args, "--charge", 1)).All : cargo,
         // --crew: three on car 2's roof, one reaching up, one holding out both hands, one with a keyboard (T47's arms).
         // --working: the crew at work (X1): carrying, at a hatch and a brake wheel on car 2's roof, sat at the last gun.
@@ -1208,15 +1219,18 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             : args.Contains("--crew") ? [.. Staging.Crew(train, content), .. args.Contains("--ribbits") || args.Contains("--gaunt") || args.Contains("--grumbler") || args.Contains("--follower") || args.Contains("--soot") ? [Staging.Lone(train)] : Array.Empty<Crewmate>()]
             : Str(args, "--passenger", "") == "drag" ? [Staging.Dragged(train)]
             // --bodies --burned: the staged body (crewmate 9's) is one the fire took: drawn charred, smouldering (spec C.1).
-            : args.Contains("--burned") ? [new Crewmate(9, default, 0, false, Death: DarkTerritory.Sim.Player.DeathCause.Burned)] : null,
+            : args.Contains("--burned") ? [new Crewmate(9, default, 0, false, Death: DarkTerritory.Sim.Player.DeathCause.Burned)]
+            // --shouldered [walk]: a crewmate on car 2 with a body over the shoulder (App. C.4; Staging.Shouldered).
+            : shouldered is { } sh ? [sh.Carrier] : null,
         Emergency = args.Contains("--emergency"),
         LampsOut = strandedAt >= 0 ? Views.StrandedLampsOut(train.Frames.Count, outro, strandedAt) : 0,
         KitLockerOpen = strandedAt >= 0,
         LampRange = strandedAt >= 0 ? 400 : 60,
         RoofGlow = strandedAt >= 0,
         FireDoorOpen = args.Contains("--firedoor") || args.Contains("--stoker"),
-        // --perched: the fire burned low, the Stoker waiting on the smokestack (World.StokerWaiting).
-        StokerPerched = args.Contains("--perched"),
+        // --perched [s]: the fire burned low s seconds (default 10), the Stoker waiting on the smokestack (World.StokerWaiting);
+        // past 42 it's climbing down into it.
+        StokerLowFor = args.Contains("--perched") ? Opt(args, "--perched", 10) : -1,
         // --whistle: a crewmate on the cord (the cord hauled down, the whistle's steam).
         CordPulled = args.Contains("--whistle"),
         // --coal u: that much on the fire, as the HUD's FIRE reads it (T121: the firebox's look follows it, out only at 0).
@@ -1243,6 +1257,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 own == "none" ? Tool.None : Enum.Parse<Tool>(own, true))
             : null,
     };
+    // --phase s: how far through a timed act the staged crew are (the cannon's reload: 1.5 s a beat; Crewmate.Phase).
+    if (args.Contains("--phase") && scene.Crew is { } phased)
+        scene.Crew = [.. phased.Select(c => c with { Phase = Opt(args, "--phase", 0) })];
+    // --gaunt leave|leavein: the body it's carrying off, under it (App. A.6; Staging.GauntLoad).
+    if (Str(args, "--gaunt", "") is "leave" or "leavein" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.Gaunt>().FirstOrDefault() is { } leaving)
+        scene.Bodies = Staging.GauntLoad(train, content, leaving).All;
     scene.Wreck = train.Wreck;
     // --impact ground|water|structure|train|creature|doll [--impact-at ahead,lateral] [--impact-age s] (T121): a cannonball
     // come down there that long ago (its burst, debris, smoke, scorch or splash, and the light of it); "doll" on the staged

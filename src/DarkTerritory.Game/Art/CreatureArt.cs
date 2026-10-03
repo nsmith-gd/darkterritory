@@ -16,6 +16,12 @@ public enum CrewPose
     HaulUp, GapStep, Drive, Whistle, Smash, Pry, Pick, GetUp, TakeDown,
     // Running under stress; a blow taken; a ground switch lever, the coaling chute's, a spout; up a ladder with a body.
     Hurry, Stagger, Throw, Chute, Spout, ClimbCarry,
+    // A body over the shoulder, stood and walking (App. C.4).
+    Shoulder, ShoulderWalk,
+    // The child in the arms, stood and walking (App. C.4).
+    Cradle, CradleWalk,
+    // The firehole's door hauled open or shut (GDD §12).
+    FireDoor,
     // Held, one per GRAB (App. A.1): by a Dragger, a Car Hugger, the Whistler, Tippy Toesie, Ribbits, a Soot Child, the Choir, the Passenger.
     HeldHang, HeldMouth, HeldCarried, HeldCover, HeldFrozen, HeldPinned, HeldSeized, HeldDragged,
     // At the cannon's breech from the seat (note 137): played by the reload's progress, not a clock.
@@ -522,6 +528,11 @@ public sealed class CreatureArt
         CrewPose.Chute => "chute",
         CrewPose.Spout => "spout",
         CrewPose.ClimbCarry => "climb_carry",
+        CrewPose.Shoulder => "shoulder",
+        CrewPose.ShoulderWalk => "shoulder_walk",
+        CrewPose.Cradle => "cradle",
+        CrewPose.CradleWalk => "cradle_walk",
+        CrewPose.FireDoor => "firedoor",
         CrewPose.HeldHang => "held_hang",
         CrewPose.HeldMouth => "held_mouth",
         CrewPose.HeldCarried => "held_carried",
@@ -565,7 +576,7 @@ public sealed class CreatureArt
         if (!_models.TryGetValue(figure, out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
         // Played once from their start (SceneArt passes the time since the act began): getting up, a thing off its bracket.
-        bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.Stagger or CrewPose.Reload;
+        bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.Stagger or CrewPose.Reload or CrewPose.FireDoor;
         _skinner.Evaluate(m.Model, c, fromStart ? time : time + offset, pose is not (CrewPose.Dead or CrewPose.Swing) && !fromStart, m.Pose);
         if (left is { } l)
             Reach(m, "l", l, leftPole);
@@ -574,6 +585,8 @@ public sealed class CreatureArt
         Emit(mesh, m, clip, model, variant, 1, variant, Paint);
         if (figure == "crew")
             Marks(mesh, m, model, variant);
+        if (pose == CrewPose.Reload)
+            ReloadKit(mesh, m, model, time);
         // Where their mouth is and which way they face, for their breath in the cold (SceneArt.Crewmate).
         int headBone = m.Model.Skeleton.IndexOf("head");
         var headAt = headBone >= 0 ? m.Pose.World[headBone].Translation : new Vector3(0, 1.6f, 0);
@@ -686,7 +699,111 @@ public sealed class CreatureArt
         return true;
     }
 
+    /// <summary>How far behind a controller's grip (the fist's middle, OpenXR) the wrist is, back along the grip's +Z (m).</summary>
+    const float WristBehindGrip = 0.07f;
+
+    /// <summary>
+    /// A headset player's own hands (X3 in a headset; roadmap M4): the crew's own gloves and cuffs (<see cref="ArmsOf"/>),
+    /// each arm reached from the body's shoulder to its controller (the wrist just behind the grip, the elbow down and out)
+    /// and the hand turned so the fist closes round the grip's axis, as a tool's haft goes through it. Drawn round the
+    /// eye at the mesh's origin, the tracking space turned to the body's <paramref name="yaw"/> (VrHands.Place). The tool
+    /// in hand sits in the right fist. False without the model (the caller draws the box fists).
+    /// </summary>
+    public bool HeadsetHands(MeshBuilder mesh, float yaw, in Ballast.Xr.XrHand left, in Ballast.Xr.XrHand right, int variant, MeshAsset? inHand = null)
+    {
+        if (!_models.TryGetValue("crew", out var m) || !m.Model.Clips.TryGetValue("fp_hold", out var c))
+            return false;
+        _skinner.Evaluate(m.Model, c, 0, true, m.Pose);
+        int head = m.Model.Skeleton.IndexOf("head");
+        var eye = (head >= 0 ? m.Pose.World[head].Translation : new Vector3(0, 1.58f, -0.01f)) + EyeOverHead;
+        var at = Matrix4x4.CreateTranslation(-eye) * Matrix4x4.CreateRotationY(yaw);
+        HoldGrip(m, "r", "hand_r_weapon", right, eye, 1);
+        HoldGrip(m, "l", "hand_l_prop", left, eye, -1);
+        Emit(mesh, m, "fp_hold", at, variant, 1, variant, PaintOf(variant), arms: true);
+        if (inHand is not null && right.Tracked)
+            mesh.Append(inHand, ToolGrip * Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", at));
+        return true;
+    }
+
+    /// <summary>
+    /// One arm to a controller: reached (two-bone, from the shoulder) so the wrist sits a hand's length behind the grip,
+    /// then the hand turned about the wrist to the grip's frame. OpenXR's grip pose (spec, "grip"): −Z is the way the
+    /// straightened index finger points, +X the palm's normal, so the hand's length (wrist to knuckles) runs out along −Z,
+    /// and what the fist closes round (the socket's haft, +Y) stands up along +Y, the thumb end on top, as a held tool does.
+    /// </summary>
+    void HoldGrip(Entry m, string side, string socket, in Ballast.Xr.XrHand hand, Vector3 eye, int s)
+    {
+        if (!hand.Tracked)
+            return;
+        // The tracking space is the eye point's, turned with the body; the model's frame is too, so in it the grip is the
+        // eye point plus the tracked position, its axes the tracked orientation's.
+        var gy = Vector3.Transform(Vector3.UnitY, hand.Orientation);
+        var gz = Vector3.Transform(Vector3.UnitZ, hand.Orientation);
+        var grip = eye + hand.Position;
+        Reach(m, side, grip + gz * WristBehindGrip, ToF(Arms.Pole(s)));
+        var sk = m.Model.Skeleton;
+        int wrist = sk.IndexOf("hand_" + side), knuckles = sk.IndexOf("fingers_" + side), sock = sk.IndexOf(socket);
+        if (wrist < 0 || knuckles < 0 || sock < 0)
+            return;
+        var length = Vector3.Normalize(m.Pose.World[knuckles].Translation - m.Pose.World[wrist].Translation);
+        var w = m.Pose.World[sock];
+        var haft = Vector3.Normalize(new Vector3(w.M21, w.M22, w.M23));
+        haft = Vector3.Normalize(haft - length * Vector3.Dot(haft, length));
+        var up = Vector3.Normalize(gy - -gz * Vector3.Dot(gy, -gz));
+        // Row vectors: the hand's frame (length, haft) to the grip's (−Z, +Y): R = Sᵀ·T.
+        Bend(m, "hand_" + side, Matrix4x4.Transpose(Frame(length, haft)) * Frame(-gz, up));
+
+        static Matrix4x4 Frame(Vector3 a, Vector3 b)
+        {
+            var c = Vector3.Cross(a, b);
+            return new Matrix4x4(a.X, a.Y, a.Z, 0, b.X, b.Y, b.Z, 0, c.X, c.Y, c.Z, 0, 0, 0, 0, 1);
+        }
+    }
+
+    static Vector3 ToF(Double3 d) => new((float)d.X, (float)d.Y, (float)d.Z);
+
     MeshAsset[]? _marks;
+
+    /// <summary>One reload step's length in crew_clips' reload clip (s): the powder, the rammer, the priming.</summary>
+    const double ReloadBeat = 1.5;
+
+    /// <summary>
+    /// What the gunner has in their hands through the reload's beats (crew_clips.py reload, note 137), so the beat reads
+    /// from across the car: the powder bag between both hands, shoved into the breech; the rammer, a long staff run forward
+    /// through both fists to the gun, its head going home; the brass vent pick in the right, pricking the charge.
+    /// </summary>
+    void ReloadKit(MeshBuilder mesh, Entry m, in Matrix4x4 model, double time)
+    {
+        var right = Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model).Translation;
+        var left = Skinner.Socket(m.Model, m.Pose, "hand_l_prop", model).Translation;
+        var forward = Vector3.Normalize(Vector3.TransformNormal(-Vector3.UnitZ, model));
+        int beat = (int)(time / ReloadBeat);
+        if (beat == 0 && PropArt.Of(Look).Get("powder_bag") is { } bag)
+        {
+            var at = model with { M41 = 0, M42 = 0, M43 = 0, M44 = 1 };
+            at.Translation = (right + left) * 0.5f + forward * 0.06f;
+            mesh.Append(bag, at);
+            return;
+        }
+        var k = new Kit(Look, mesh);
+        if (beat == 1)
+        {
+            // The staff through both fists, forward and a little down to the muzzle; the rammer's head at its far end.
+            var grip = (right + left) * 0.5f;
+            var along = Vector3.Normalize(forward - Vector3.UnitY * 0.12f);
+            k.Use("wood_crate", new Vector3(0.36f, 0.27f, 0.17f), 0.5f, 0.1f, tile: 0.6f);
+            k.Cylinder(grip - along * 0.45f, grip + along * 1.25f, 0.022f, 6);
+            k.Use("iron_plate", Palette.IronGrey, 0.5f, 0.3f);
+            k.Cylinder(grip + along * 1.25f, grip + along * 1.42f, 0.06f, 8);
+            return;
+        }
+        if (beat == 2)
+        {
+            // The vent pick: a short brass spike down out of the right fist.
+            k.Use("brass", Palette.TarnishedBrass, 0.3f, 0.6f);
+            k.Cylinder(right, right + forward * 0.06f - Vector3.UnitY * 0.16f, 0.006f, 5, radiusB: 0.002f);
+        }
+    }
 
     /// <summary>
     /// What tells eight masked crew apart in the dark (GDD §26: "the one with the red scarf"): an armband in their own

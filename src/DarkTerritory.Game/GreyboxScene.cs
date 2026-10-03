@@ -143,8 +143,19 @@ public sealed class GreyboxScene
     public long Tick { get; set; } = -1;
     /// <summary>The boiler's pressure as a fraction of its maximum, for the cab's gauge (the sim's; unset, a working pressure).</summary>
     public float Pressure { get; set; } = 0.78f;
-    /// <summary>The Stoker waits on the smokestack (World.StokerWaiting: the fire's burned low): drawn squatting on its rim.</summary>
-    public bool StokerPerched { get; set; }
+    /// <summary>
+    /// How long the Stoker's been waiting on the smokestack (World.StokerWaiting: the fire's burned low), as the caller has
+    /// seen it, or negative for not: squatting on its rim, then climbing down into it over the last
+    /// <see cref="StokerDescendSeconds"/> before <see cref="StokerDownAt"/> (App. A.5: "down the stack").
+    /// </summary>
+    public double StokerLowFor { get; set; } = -1;
+    /// <summary>When it goes down the stack (enemies.json stoker.lowPressureSeconds: the sim puts it in the firebox then).</summary>
+    public double StokerDownAt { get; set; } = 45;
+    bool? _doorWas;
+    double _doorMovedAt = -1;
+
+    /// <summary>The Stoker's descend clip's length (tools/blender/stoker.py, 90 frames).</summary>
+    const double StokerDescendSeconds = 3;
     /// <summary>The coal left in the tender, 0..1: the backhead's sight glass (labelled TENDER) reads it.</summary>
     public float Tender { get; set; } = 0.72f;
     /// <summary>The blow-off's open (the boiler's <c>Vented</c>), and the safety valve's lifting: their steam (T101).</summary>
@@ -353,13 +364,24 @@ public sealed class GreyboxScene
         }
         Lap(mesh, "effects");
         mesh.Seed = 0;
+        // When the firehole's door last moved, and where it is: whoever's at it then swings it (Art/SceneArt.Crewmate).
+        if (_doorWas is { } was && was != FireDoorOpen)
+            _doorMovedAt = Time;
+        _doorWas = FireDoorOpen;
+        if (Look is not null)
+        {
+            bool cab = frames.Count > 0 && frames[0].Shape.Cab is not null && frames[0].Shape.Interactables.Any(i => i.Kind == InteractableKind.Firebox);
+            Look.Art.FireDoorAt = cab ? frames[0].ToWorld(new Double3(Art.TrainKit.FireDoor(frames[0].Shape).X, 0, Art.TrainKit.FireDoor(frames[0].Shape).Z)) : null;
+            Look.Art.FireDoorSince = _doorMovedAt < 0 ? -1 : Time - _doorMovedAt;
+        }
         // The firebox door, open or shut, for a Stoker in the fire (Art/CreatureArt.FireDoorOpen).
         if (Look?.Art.Creatures is { } creatures && frames.Count > 0 && frames[0].Shape.Cab is not null)
             creatures.FireDoorOpen = FireDoorOpen
                 ? Art.TrainKit.FireDoor(frames[0].Shape) - ToF(frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position)
                 : null;
         // On the stack's rim, looking down the boiler at the cab (App. A.5 "it perches on the smokestack").
-        if (StokerPerched && Look?.Art.Creatures is { } perching && frames.Count > 0
+        double down = StokerLowFor - (StokerDownAt - StokerDescendSeconds);
+        if (StokerLowFor >= 0 && down < StokerDescendSeconds && Look?.Art.Creatures is { } perching && frames.Count > 0
             && frames[0].Shape.Solids.FirstOrDefault(s => s.Part == PartKind.Stack) is { Box: var stack } && stack.Max.Y > 0)
         {
             var f0 = frames[0];
@@ -367,7 +389,9 @@ public sealed class GreyboxScene
             // Facing back down the engine (+Z, its back): the model faces its −Z.
             var r = -ToF(f0.Right);
             var b = -ToF(f0.Back);
-            perching.Draw(mesh, "stoker", "perch", Time, true, Art.CreatureArt.Basis(o, r, ToF(f0.Up), b));
+            var basis = Art.CreatureArt.Basis(o, r, ToF(f0.Up), b);
+            if (down < 0 || !perching.Draw(mesh, "stoker", "descend", down, false, basis))
+                perching.Draw(mesh, "stoker", "perch", Time, true, basis);
         }
         if (Enemies is not null)
             foreach (var e in Enemies)
@@ -395,13 +419,17 @@ public sealed class GreyboxScene
                     // back (Art/CreatureArt).
                     // A feral Grumbler, who it's after: the nearest of them (who hit it is the host's alone); a Soot Child's, the
                     // one it's on (the nearest: it's at their feet).
-                    var after = e.Kind is EnemyKind.TippyToesie or EnemyKind.Ribbit or EnemyKind.Choir or EnemyKind.Gaunt or EnemyKind.Follower && e.Extra >= 0
+                    // (A Gaunt leaving, its extra is what it's carrying off, not who woke it: it faces where it's going.)
+                    bool leaving = e.Kind == EnemyKind.Gaunt && e.Phase == SpinePhase.BreakOff;
+                    var after = !leaving && e.Kind is EnemyKind.TippyToesie or EnemyKind.Ribbit or EnemyKind.Choir or EnemyKind.Gaunt or EnemyKind.Follower && e.Extra >= 0
                         ? Crew?.FirstOrDefault(c => c.Id == (int)e.Extra)
                         : (e.Kind == EnemyKind.Grumbler && e.Phase >= SpinePhase.Commit || e.Kind == EnemyKind.SootChildren && e.Phase is SpinePhase.Grab or SpinePhase.Punish)
                             && Crew is { } crew && crew.Any(c => c.Alive)
                             ? crew.Where(c => c.Alive).MinBy(c => (c.Feet - EnemyWorld(e, frames)).Length)
                             : null;
-                    Art.CreatureArt.Prey? prey = after is { } victim
+                    Art.CreatureArt.Prey? prey = leaving && GauntHeading(e, frames) is { } going
+                        ? new(V(going, eye), Vector3.Zero)
+                        : after is { } victim
                         ? new(V(victim.Feet, eye), new Vector3((float)-Math.Sin(victim.Yaw), 0, (float)-Math.Cos(victim.Yaw)))
                         : null;
                     // And stoops under a roof, ducks through a door (note 110); a Gaunt gets down (note 118).
@@ -476,6 +504,29 @@ public sealed class GreyboxScene
             var body = Enemies?.FirstOrDefault(e => e.Id == h.EnemyId && !e.Gone) is { } e ? EnemyWorld(e, frames) + Double3.Up * 0.8 : h.At;
             fx.HitFlash(mesh, V(h.At, eye), V(body, eye), ToF(h.From), h.Source, h.Killed, age, h.Id);
         }
+    }
+
+    /// <summary>
+    /// Where a Gaunt leaving with what it took is walking to (Sim.Enemies.Gaunt.Leave): aboard, its car's nearest door; loose,
+    /// straight off from the nearest car. Null if it's nowhere to be drawn.
+    /// </summary>
+    static Double3? GauntHeading(Enemy e, IReadOnlyList<CarFrame> frames)
+    {
+        if (e.Attached >= 0 && e.Attached < frames.Count)
+        {
+            var f = frames[e.Attached];
+            var here = e.Local;
+            var doors = f.Shape.DoorList;
+            var exit = doors.Count > 0 ? doors.MinBy(d => ((d.Box.Centre - here) with { Y = 0 }).Length).Box.Centre with { Y = here.Y }
+                : new Double3((here.X >= 0 ? 1 : -1) * f.Shape.HalfWidth, here.Y, here.Z);
+            return f.ToWorld(exit);
+        }
+        if (e.Attached != Enemy.Loose || frames.Count == 0)
+            return null;
+        var at = e.Local;
+        var near = frames.MinBy(f => ((f.Origin - at) with { Y = 0 }).Length);
+        double across = Double3.Dot((at - near.Origin) with { Y = 0 }, near.Right);
+        return at + near.Right * (across >= 0 ? 5 : -5);
     }
 
     /// <summary>Seconds since crewmate <paramref name="id"/>'s latest melee blow landed (its HitConfirm, T121), or −1.</summary>

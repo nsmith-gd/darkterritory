@@ -149,7 +149,16 @@ public class BodyTests
             bodies.Handle(carrier, default, 1, train);
             bodies.Step(train, T, _ => carrier);
         }
-        Assert.InRange(body.Pbd.Particles[1].Position.Z, carrier.Position.Z - 1.0, carrier.Position.Z - 0.2);
+        // Over the shoulder (GDD App. C.4, Bodies.Shoulder): the hips up on it, the chest hanging down the back (behind,
+        // +Z facing forward), the knees held at the front of the carrier's chest.
+        var ps = body.Pbd.Particles;
+        Assert.InRange(ps[2].Position.Y - carrier.Position.Y, 1.4, 1.65);
+        Assert.InRange(ps[2].Position.Z - carrier.Position.Z, -0.15, 0.15);
+        Assert.InRange(ps[1].Position.Z - carrier.Position.Z, 0.15, 0.5);
+        Assert.InRange(ps[7].Position.Z - carrier.Position.Z, -0.5, -0.15);
+        // The head hangs free below the chest, down the carrier's back.
+        Assert.True(ps[0].Position.Y < ps[1].Position.Y);
+        Assert.True(ps[0].Position.Z > carrier.Position.Z);
         Assert.True(bodies.Handle(carrier, new PlayerIntent { Buttons = PlayerButtons.Use }, 1, train));
         Assert.Equal(-1, body.Carrier);
         Run(train, bodies, 3);

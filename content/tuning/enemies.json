@@ -180,13 +180,18 @@
 
   // THE GAUNT · sound (silence) · outside (App. A.6, B.6). Asleep; stirs at stirAt m, wakes at wakeAt m and follows its
   // waker at followAt m. Every silenceSeconds with nobody talking (voice above talkingAbove, 0-255) within listenRadius,
-  // its anger climbs one; at attackAt it attacks. Led into a car, it takes lootCargo of the best load and leaves.
+  // its anger climbs one; at attackAt it attacks. Led into a car, it takes the most valuable thing there (or, with none,
+  // lootCargo of the best load) and leaves: out through the car's nearest door and off into the dark at leaveSpeed (m/s,
+  // "walking pace", App. A.6), in full view: clutched under its body by the hips, hanging carryHigh m up as it stalks
+  // and carryLow as it creeps aboard (the sac's underside in each, tools/blender/gaunt.py); it's gone with it once it's
+  // clearedAt m from the train. Kill it before then and it drops it.
   // anyVoiceCounts: whose voice holds it off (GDD Part Eleven Q9, open): anyone's (true) or only its waker's.
   "gaunt": {
     "stirAt": 9, "wakeAt": 4, "followAt": 1.2, "followSpeed": 3, "listenRadius": 8, "silenceSeconds": 5, "talkingAbove": 40,
     "anyVoiceCounts": true, "attackAt": 4, "reach": 1.6, "hitDamage": 35, "hitEvery": 2, "grabBelowHealth": 35,
     "crushSeconds": 8, "health": 8, "lootCargo": 0.3, "lingerSeconds": 900, "minCrew": 2, "spawnOut": 25,
-    "longStopWeight": 2, "longStopSeconds": 120
+    "longStopWeight": 2, "longStopSeconds": 120, "leaveSpeed": 1.4, "clearedAt": 30, "carryHigh": 1.7,
+    "carryLow": 0.55
   },
 
   // MARSH (§22 hazard, formerly the Drift): something in the reeds surges toward motion; stand still stillSeconds and it

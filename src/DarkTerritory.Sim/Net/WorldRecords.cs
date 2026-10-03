@@ -36,9 +36,9 @@ public static class WorldRecords
     /// <summary>
     /// A body record's fields before its particles: kind, parent, carrier, owner, asleep, yaw, count, second carrier,
     /// what it shows (an extinguisher's charge to the percent, its sight glass, App. C.5; a crate's cargo, GDD §19), and the
-    /// crew locker and shelf it's on (note 173: locker × 256 + shelf, or −1).
+    /// crew locker and shelf it's on (note 173: locker × 256 + shelf, or −1), and the thing carrying it off (App. A.6, or −1).
     /// </summary>
-    const int BodyParticles = 10;
+    const int BodyParticles = 11;
     // The Run record's header (phase, end, clock, facility, chute, scavenged), and room in a crane (or wreck heap) record's id for
     // each of a site's cranes (heaps).
     const int RunHead = 6, CranesPerSite = 16;
@@ -209,6 +209,8 @@ public static class WorldRecords
                 _ => (long)body.Cargo,
             };
             f[9] = body.Locker < 0 ? -1 : body.Locker * 256 + body.Slot;
+            // What's carrying it off, if a thing is (the Gaunt leaving with it, App. A.6).
+            f[10] = body.TakenBy;
             for (int i = 0; i < ps.Length; i++)
             {
                 f[BodyParticles + i * 3] = Q(ps[i].Position.X, Pos);
@@ -437,6 +439,7 @@ public static class WorldRecords
             Broken = (Physics.BodyKind)f[0] == Physics.BodyKind.Radio && f[8] != 0,
             Locker = f[9] < 0 ? -1 : (int)(f[9] / 256),
             Slot = f[9] < 0 ? 0 : (int)(f[9] % 256),
+            TakenBy = (int)f[10],
         };
     }
 

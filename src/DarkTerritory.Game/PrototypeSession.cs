@@ -267,7 +267,7 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Ribbit, SpinePhase.BreakOff) => "the toads hop off",
         (EnemyKind.Gaunt, SpinePhase.Alert) => "something woke and it's following someone: keep talking to it",
         (EnemyKind.Gaunt, SpinePhase.Telegraph) => "it's leaning in, head tilted: talk",
-        (EnemyKind.Gaunt, SpinePhase.BreakOff) => "the thin thing's gone",
+        (EnemyKind.Gaunt, SpinePhase.BreakOff) => "the thin thing's leaving with something: run it down before it's off the train",
         // A Follower's lump is on its host's back: they can't see it, so no cue until it's off them (GDD v1.1 A.6).
         (EnemyKind.Follower, SpinePhase.Punish) => "something's nesting in the loot: find it, bludgeon it",
         (EnemyKind.Follower, SpinePhase.BreakOff) => "the parasite's dead",
