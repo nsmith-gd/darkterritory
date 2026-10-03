@@ -139,8 +139,11 @@ CANDIDATES: list[dict] = [
          hit=dict(start=-80, end=-20, note="the finale's gallop: the full orchestra's return of the trumpet call, the cymbals on it")),
     dict(id="gallop-infernal-galop", work="\"Infernal Galop\" (the can-can), Orpheus in the Underworld", composer="Jacques Offenbach",
          year=1858, mood="gallop", e6=True,
-         # The Musopen recording of the overture (CC0): it ends with the can-can.
-         titles=["File:Offenbach - Orpheus in the Underworld - Overture.ogg"],
+         # The Musopen recording of the overture (CC0, kept in run 1): its title names neither the galop nor the can-can, so
+         # it's pinned (past the patterns; still licence-checked), with the hit on the can-can's final climax at its end.
+         pinned=[dict(title="File:Offenbach - Orpheus in the Underworld - Overture.ogg",
+                      hit=dict(start=-55, end=-19.5, note="the can-can's final climax at the end of the overture: the whip-crack downbeat and the cymbals"))],
+         titles=[],
          categories=["Category:Orpheus in the Underworld", "Category:Orphée aux enfers"],
          must=["offenbach|can-?can|galop infernal|infernal galop|orphee aux enfers|underworld"], never=["barcarol", "hoffmann", "gluck", "liszt"],
          search=["Offenbach can-can"],
@@ -216,10 +219,12 @@ CANDIDATES: list[dict] = [
          hit=dict(fraction=[0.30, 0.78], note="\"Toréador, en garde!\": the refrain's downbeat, the chorus joining")),
     dict(id="swagger-habanera", work="\"Habanera\" (\"L'amour est un oiseau rebelle\"), Carmen", composer="Georges Bizet", year=1875,
          mood="swagger", e6=True,
-         titles=["File:Habanera.ogg"], categories=["Category:Habanera (Carmen)", "Category:Audio files of Carmen"],
+         titles=["File:Habanera.ogg"], categories=["Category:Habanera (Carmen)"],
          must=["habanera|oiseau rebelle"], never=["ravel", "saint-saens", "sarasate", "chabrier", "debussy"], search=["Carmen \"Habanera\""],
          hit=dict(fraction=[0.30, 0.80], note="\"L'amour!\": the chorus's shout into the refrain")),
     dict(id="swagger-carmen-prelude", work="Prelude, Carmen", composer="Georges Bizet", year=1875, mood="swagger",
+         # CC0, Musopen, kept in run 1; run 2 lost it to the Habanera through a shared category (no longer enough to match).
+         pinned=[dict(title="File:Carmen - Prelude to Act 1.ogg")],
          titles=["File:Carmen - Prelude to Act 1.ogg"], categories=["Category:Audio files of Carmen"],
          must=["carmen", "prelud|overture|ouverture"], never=["act (2|3|4|ii|iii|iv)\\b", "acte? (2|3|4)", "entr.?acte"], search=["Carmen prelude Bizet"],
          hit=dict(start=50, end=90, note="the opening march's return, fortissimo with the cymbals, before the fate motif")),
@@ -233,6 +238,145 @@ CANDIDATES: list[dict] = [
          hit=dict(start=-70, end=-20, note="the crescendo's arrival: the tutti chord on the bass drum")),
 ]
 
+def pool(id: str, work: str, composer: str, year: int, must: list[str], never: list[str], hit: dict) -> dict:
+    return dict(id=id, work=work, composer=composer, year=year, mood=id.split("-")[0], open=True, titles=[], search=[], categories=[],
+                must=must, never=never, hit=hit)
+
+
+# Movement patterns: a roman numeral or "n." as a word, so "IV." isn't read as "I.".
+def mvt(n: int, *names: str) -> str:
+    roman = ["i", "ii", "iii", "iv"][n - 1]
+    return "|".join([f"\\b{roman}\\b", f"\\b{n}\\.", f"movement {n}", f"mvt\\.? ?{n}", *names])
+
+
+def not_mvt(n: int, *names: str) -> list[str]:
+    return [f"\\b{r}\\b" for i, r in enumerate(["i", "ii", "iii", "iv"], 1) if i != n] + list(names)
+
+
+# ---- The open pool (run 2 found the famous arias mostly "Public domain" only): well-known dramatic public-domain works
+# whose CC0 recordings (Musopen's, mostly) the category scan may turn up. Only scanned files are considered (no title
+# guesses, no searches), ranked by their place here within each mood: the most recognisable first. Each hit is that
+# piece's own climax.
+OPEN = [
+    # Doom.
+    pool("doom-toccata-d-minor", "Toccata and Fugue in D minor, BWV 565", "Johann Sebastian Bach", 1708,
+         ["toccata", "565|d minor|d-moll"], ["dorian|538|540|adagio"],
+         dict(start=4.5, end=40, note="the full organ's diminished chord after the opening flourishes")),
+    pool("doom-dvorak-new-world-finale", "Symphony No. 9 \"From the New World\", finale", "Antonín Dvořák", 1893,
+         ["dvor", "new world|nuevo mundo|symphon\\w*.*\\b9\\b|op\\.? ?95", mvt(4, "allegro con fuoco", "finale")], not_mvt(4, "largo", "scherzo"),
+         dict(start=4.5, end=40, note="the horns' and trumpets' theme over the strings' hammered chords")),
+    pool("doom-mozart-confutatis", "\"Confutatis\", Requiem in D minor", "Wolfgang Amadeus Mozart", 1791,
+         ["confutatis", "mozart|k\\.? ?626|requiem"], ["verdi"],
+         dict(start=25, end=-19.5, note="the men's second \"Confutatis\" over the stabbing strings")),
+    pool("doom-mozart-rex-tremendae", "\"Rex tremendae\", Requiem in D minor", "Wolfgang Amadeus Mozart", 1791,
+         ["rex tremendae", "mozart|k\\.? ?626|requiem"], ["verdi"],
+         dict(start=4.5, end=40, note="the chorus's \"Rex!\" shouts on the dotted rhythm")),
+    pool("doom-grieg-piano-concerto", "Piano Concerto in A minor, first movement", "Edvard Grieg", 1868,
+         ["grieg", "concerto|op\\.? ?16", mvt(1, "allegro molto moderato")], not_mvt(1, "adagio"),
+         dict(start=-90, end=-20, note="the cadenza's thundering climax into the orchestra's return")),
+    pool("doom-tchaikovsky-fourth", "Symphony No. 4, first movement", "Pyotr Ilyich Tchaikovsky", 1878,
+         ["tchaik|tschaik", "symphon\\w*.*\\b4\\b|op\\.? ?36", mvt(1, "andante sostenuto")], not_mvt(1, "andantino", "scherzo", "finale"),
+         dict(start=4.5, end=40, note="the fate fanfare's fortissimo chords in the full orchestra")),
+    pool("doom-tchaikovsky-pathetique", "Symphony No. 6 \"Pathétique\", first movement", "Pyotr Ilyich Tchaikovsky", 1893,
+         ["tchaik|tschaik", "pathetique|symphon\\w*.*\\b6\\b|op\\.? ?74", mvt(1, "adagio - allegro non troppo")], not_mvt(1, "allegro con grazia", "scherzo"),
+         dict(fraction=[0.42, 0.62], note="the development's explosion: the fortissimo crash after the clarinet's dying phrase")),
+    pool("doom-moonlight-presto", "Piano Sonata No. 14 \"Moonlight\", Presto agitato", "Ludwig van Beethoven", 1801,
+         ["beethoven|op\\.? ?27", "moonlight|mondschein|sonata no\\.? ?14|27,? no\\.? ?2", mvt(3, "presto agitato")], not_mvt(3, "adagio sostenuto"),
+         dict(fraction=[0.05, 0.4], note="the arpeggios slammed into the two sforzando chords")),
+    pool("doom-pathetique-sonata", "Piano Sonata No. 8 \"Pathétique\", first movement", "Ludwig van Beethoven", 1798,
+         ["beethoven|op\\.? ?13", "pathetique|sonata no\\.? ?8|op\\.? ?13", mvt(1, "grave")], not_mvt(1, "adagio cantabile", "rondo"),
+         dict(start=4.5, end=40, note="the Grave's fortissimo chords")),
+    pool("doom-revolutionary-etude", "Étude Op. 10 No. 12 \"Revolutionary\"", "Frédéric Chopin", 1831,
+         ["chopin", "revolution|op\\.? ?10,? no\\.? ?12"], [],
+         dict(start=4.5, end=-19.5, note="the right hand's fortissimo octave theme over the left hand's storm")),
+    pool("doom-mozart-fortieth", "Symphony No. 40, first movement", "Wolfgang Amadeus Mozart", 1788,
+         ["mozart|k\\.? ?550", "symphon\\w*.*\\b40\\b|k\\.? ?550", mvt(1, "molto allegro")], not_mvt(1, "andante", "menuet", "finale"),
+         dict(fraction=[0.05, 0.35], note="the first tutti outburst after the violins' sighing theme")),
+    pool("doom-vivaldi-summer", "\"Summer\", The Four Seasons, Presto", "Antonio Vivaldi", 1725,
+         ["vivaldi|four seasons|quattro stagioni", "summer|estate", mvt(3, "presto", "tempo impetuoso")], not_mvt(3, "adagio", "allegro non molto"),
+         dict(fraction=[0.1, 0.6], note="the storm: the strings' tremolo and hammered scales")),
+    pool("doom-baba-yaga", "\"The Hut on Hen's Legs (Baba Yaga)\", Pictures at an Exhibition", "Modest Mussorgsky", 1874,
+         ["baba|yaga|hen'?s legs|poules"], [],
+         dict(start=4.5, end=-19.5, note="the hut's stamping fortissimo")),
+    pool("doom-erlkonig", "\"Erlkönig\"", "Franz Schubert", 1815,
+         ["erlk"], ["goethe(?!.*schubert)"],
+         dict(fraction=[0.55, 0.85], note="the father's last gallop, the piano hammering, before \"war tot\"")),
+    # Gallop.
+    pool("gallop-beethoven-seventh-finale", "Symphony No. 7, finale", "Ludwig van Beethoven", 1812,
+         ["beethoven|op\\.? ?92", "symphon\\w*.*\\b7\\b|op\\.? ?92", mvt(4, "allegro con brio", "finale")], not_mvt(4, "allegretto", "poco sostenuto"),
+         dict(fraction=[0.6, 0.9], note="the coda's fortissimo over the basses' grinding ostinato")),
+    pool("gallop-hungarian-dance-5", "Hungarian Dance No. 5", "Johannes Brahms", 1869,
+         ["brahms", "hungarian|ungarisch", "\\b5\\b"], [],
+         dict(fraction=[0.05, 0.6], note="the tune's fortissimo return after the slow lull")),
+    pool("gallop-light-cavalry", "Overture, Light Cavalry", "Franz von Suppé", 1866,
+         ["light cavalry|leichte kavallerie"], [],
+         dict(start=-80, end=-20, note="the gallop's trumpet-led return")),
+    pool("gallop-hungarian-rhapsody-2", "Hungarian Rhapsody No. 2", "Franz Liszt", 1847,
+         ["liszt", "rhapsod", "\\b2\\b"], ["\\b(12|20)\\b"],
+         dict(start=-80, end=-20, note="the friska's whirling climax")),
+    pool("gallop-sorcerers-apprentice", "\"The Sorcerer's Apprentice\"", "Paul Dukas", 1897,
+         ["sorcerer'?s apprentice|apprenti sorcier|zauberlehrling"], [],
+         dict(fraction=[0.55, 0.82], note="the brooms' flood at its fortissimo, before the spell breaks")),
+    pool("gallop-farandole", "\"Farandole\", L'Arlésienne Suite No. 2", "Georges Bizet", 1872,
+         ["farandol"], [],
+         dict(start=-50, end=-19.5, note="the march and the farandole together, fortissimo")),
+    pool("gallop-rondo-alla-turca", "\"Rondo alla turca\", Piano Sonata No. 11", "Wolfgang Amadeus Mozart", 1783,
+         ["turca|turkish march|k\\.? ?331"], ["beethoven"],
+         dict(fraction=[0.2, 0.7], note="the A major refrain's crashing octaves")),
+    pool("gallop-flight-of-the-bumblebee", "\"Flight of the Bumblebee\"", "Nikolai Rimsky-Korsakov", 1900,
+         ["bumble|shmel"], [],
+         dict(start=4.5, end=-19.5, note="the buzzing run's loudest swoop")),
+    # Lament.
+    pool("lament-schubert-unfinished", "Symphony No. 8 \"Unfinished\", first movement", "Franz Schubert", 1822,
+         ["schubert", "unfinished|unvollendete|symphon\\w*.*\\b8\\b|d\\.? ?759", mvt(1, "allegro moderato")], not_mvt(1, "andante con moto"),
+         dict(fraction=[0.08, 0.35], note="the tutti's fortissimo chords breaking in on the cellos' song")),
+    pool("lament-nimrod", "\"Nimrod\", Enigma Variations", "Edward Elgar", 1899,
+         ["nimrod|variation ix|var\\.? ?ix"], [],
+         dict(fraction=[0.55, 0.85], note="the variation's broad fortissimo peak")),
+    pool("lament-swan-lake", "Scene, Swan Lake", "Pyotr Ilyich Tchaikovsky", 1876,
+         ["swan lake|lac des cygnes|lebedinoye", "scene|act ii|no\\.? ?10|finale"], ["waltz|valse|cygnets|petits"],
+         dict(fraction=[0.4, 0.85], note="the oboe's swan theme taken up fortissimo by the full orchestra")),
+    pool("lament-romeo-and-juliet", "Romeo and Juliet, fantasy overture", "Pyotr Ilyich Tchaikovsky", 1880,
+         ["romeo", "tchaik|tschaik|fantas|overture|ouverture"], ["prokofiev|berlioz|gounod"],
+         dict(fraction=[0.6, 0.85], note="the love theme's fortissimo return")),
+    pool("lament-new-world-largo", "Symphony No. 9 \"From the New World\", Largo", "Antonín Dvořák", 1893,
+         ["dvor", "new world|nuevo mundo|symphon\\w*.*\\b9\\b|op\\.? ?95", mvt(2, "largo")], not_mvt(2, "allegro con fuoco", "scherzo"),
+         dict(fraction=[0.6, 0.85], note="the climax before the cor anglais's theme returns")),
+    pool("lament-chopin-prelude-e-minor", "Prelude in E minor, Op. 28 No. 4", "Frédéric Chopin", 1839,
+         ["chopin", "prelud", "e minor|e-moll|op\\.? ?28,? no\\.? ?4"], [],
+         dict(start=4.5, end=-19.5, note="the stretto's forte outburst before the silence")),
+    # Swagger.
+    pool("swagger-ode-to-joy", "Symphony No. 9, finale (\"Ode to Joy\")", "Ludwig van Beethoven", 1824,
+         ["beethoven|op\\.? ?125", "symphon\\w*.*\\b9\\b|op\\.? ?125|choral", mvt(4, "presto", "ode", "freude", "finale")],
+         not_mvt(4, "adagio", "molto vivace", "allegro ma non troppo"),
+         dict(fraction=[0.25, 0.5], note="\"Freude, schöner Götterfunken\": the full chorus's first entry")),
+    pool("swagger-beethoven-fifth-finale", "Symphony No. 5, finale", "Ludwig van Beethoven", 1808,
+         ["beethoven|op\\.? ?67", "symphon\\w*.*\\b5\\b|op\\.? ?67", mvt(4, "finale")], not_mvt(4, "andante", "con brio"),
+         dict(start=-80, end=-20, note="the presto coda's final C major blaze")),
+    pool("swagger-pomp-and-circumstance", "Pomp and Circumstance March No. 1", "Edward Elgar", 1901,
+         ["pomp", "circumstance", "\\b1\\b|op\\.? ?39"], [],
+         dict(fraction=[0.6, 0.85], note="\"Land of Hope and Glory\" at full orchestra")),
+    pool("swagger-radetzky-march", "Radetzky March", "Johann Strauss I", 1848,
+         ["radetzky"], [], dict(fraction=[0.15, 0.6], note="the march's tutti refrain")),
+    pool("swagger-blue-danube", "\"The Blue Danube\"", "Johann Strauss II", 1866,
+         ["blue danube|blauen donau|schonen blauen"], [], dict(fraction=[0.1, 0.45], note="the first waltz's tutti swing")),
+    pool("swagger-wedding-march", "Wedding March, A Midsummer Night's Dream", "Felix Mendelssohn", 1842,
+         ["wedding march|hochzeitsmarsch", "mendelssohn|midsummer|sommernacht"], ["wagner|lohengrin"],
+         dict(start=4.5, end=30, note="the trumpets' fanfare into the march's tutti")),
+    pool("swagger-great-gate-of-kiev", "\"The Great Gate of Kiev\", Pictures at an Exhibition", "Modest Mussorgsky", 1874,
+         ["great gate|gate of kiev|kyiv|bogatyr"], [], dict(start=-70, end=-20, note="the bells and the full orchestra's last statement")),
+    pool("swagger-zadok-the-priest", "\"Zadok the Priest\"", "George Frideric Handel", 1727,
+         ["zadok"], [], dict(fraction=[0.2, 0.45], note="the choir's \"Zadok the priest!\" after the long string build")),
+    pool("swagger-tchaikovsky-piano-concerto", "Piano Concerto No. 1, first movement", "Pyotr Ilyich Tchaikovsky", 1875,
+         ["tchaik|tschaik", "piano concerto|concerto no\\.? ?1|op\\.? ?23", mvt(1, "allegro non troppo")], not_mvt(1, "andantino", "allegro con fuoco"),
+         dict(start=4.5, end=40, note="the horns' opening fall into the piano's crashing chords")),
+    pool("swagger-heroic-polonaise", "Polonaise in A-flat, Op. 53 \"Heroic\"", "Frédéric Chopin", 1842,
+         ["chopin", "polonai", "op\\.? ?53|heroi|a-?flat"], [], dict(fraction=[0.1, 0.4], note="the heroic theme's fortissimo entry")),
+    pool("swagger-lohengrin-act-3", "Prelude to Act 3, Lohengrin", "Richard Wagner", 1850,
+         ["lohengrin", "act (3|iii)|third act|3\\. akt|dritten"], [], dict(start=4.5, end=40, note="the trombones' theme over the strings' triplets")),
+]
+CANDIDATES += OPEN
+
 # Where the CC0 recordings are: scanned (list=categorymembers, files and subcategories, paced) before any search, which
 # Commons rate-limits hard. Musopen's uploads are mostly CC0; the opera categories hold the arias.
 SCAN = [("Category:Musopen", 3), ("Category:Audio files by Musopen", 2), ("Category:Audio files from Musopen", 2),
@@ -243,12 +387,32 @@ AUDIO = re.compile(r"\.(ogg|oga|opus|flac|wav|mp3)$", re.I)
 
 # ---- Checking the list (offline).
 
+def check_hint(where: str, h: dict) -> list[str]:
+    problems = []
+    if not h.get("note"):
+        problems.append(f"{where}: the hit needs a note saying what the moment is")
+    if "fraction" in h:
+        a, b = h["fraction"]
+        if not 0 <= a < b <= 1:
+            problems.append(f"{where}: hit fraction {h['fraction']} isn't a range in 0..1")
+    elif "start" in h and "end" in h:
+        if (h["start"] >= 0) == (h["end"] >= 0) and h["start"] >= h["end"]:
+            problems.append(f"{where}: hit range {h['start']}..{h['end']} is empty")
+        if 0 <= h["start"] < MIN_PRE:
+            problems.append(f"{where}: a hit {h['start']} s in can't have {MIN_PRE} s of lead")
+        if h["end"] < 0 and -h["end"] < MIN_POST:
+            problems.append(f"{where}: a hit {-h['end']} s from the end can't run {MIN_POST} s on")
+    else:
+        problems.append(f"{where}: the hit is a fraction range or a start..end range")
+    return problems
+
+
 def validate(cands: list[dict]) -> list[str]:
     problems = []
     ids = set()
     for c in cands:
         where = c.get("id", "?")
-        for k in ("id", "work", "composer", "year", "mood", "titles", "categories", "must", "never", "search", "hit"):
+        for k in ("id", "work", "composer", "year", "mood", "must", "hit"):
             if k not in c:
                 problems.append(f"{where}: no {k}")
         if where in ids:
@@ -261,10 +425,10 @@ def validate(cands: list[dict]) -> list[str]:
         # A public-domain composition: MusicManifestTests holds the year to 1700..1926 (Orff's 1937 "O Fortuna" is out).
         if not isinstance(c.get("year"), int) or not 1700 <= c["year"] <= 1926:
             problems.append(f"{where}: year {c.get('year')} isn't a public-domain composition's (1700-1926)")
-        if not c.get("titles") or any(not t.startswith("File:") for t in c["titles"]):
+        if any(not t.startswith("File:") for t in c.get("titles", []) + pinned_titles(c)):
             problems.append(f"{where}: titles are Commons file pages (File:...)")
-        if not c.get("search") or not c.get("must"):
-            problems.append(f"{where}: needs search queries and the must patterns")
+        if not c.get("must") or not c.get("open") and not c.get("search"):
+            problems.append(f"{where}: needs the must patterns (and, unless it's from the open pool, searches)")
         if any(not t.startswith("Category:") for t in c.get("categories", [])):
             problems.append(f"{where}: categories are Commons category pages (Category:...)")
         for m in c.get("must", []) + c.get("never", []):
@@ -272,22 +436,8 @@ def validate(cands: list[dict]) -> list[str]:
                 re.compile(m)
             except re.error as e:
                 problems.append(f"{where}: match {m!r} isn't a pattern ({e})")
-        h = c.get("hit", {})
-        if not h.get("note"):
-            problems.append(f"{where}: the hit needs a note saying what the moment is")
-        if "fraction" in h:
-            a, b = h["fraction"]
-            if not 0 <= a < b <= 1:
-                problems.append(f"{where}: hit fraction {h['fraction']} isn't a range in 0..1")
-        elif "start" in h and "end" in h:
-            if (h["start"] >= 0) == (h["end"] >= 0) and h["start"] >= h["end"]:
-                problems.append(f"{where}: hit range {h['start']}..{h['end']} is empty")
-            if 0 <= h["start"] < MIN_PRE:
-                problems.append(f"{where}: a hit {h['start']} s in can't have {MIN_PRE} s of lead")
-            if h["end"] < 0 and -h["end"] < MIN_POST:
-                problems.append(f"{where}: a hit {-h['end']} s from the end can't run {MIN_POST} s on")
-        else:
-            problems.append(f"{where}: the hit is a fraction range or a start..end range")
+        for h in [c.get("hit", {})] + [p["hit"] for p in c.get("pinned", []) if "hit" in p]:
+            problems += check_hint(where, h)
     for m in MOODS:
         if sum(1 for c in cands if c.get("mood") == m) < 2:
             problems.append(f"mood {m}: fewer than two candidates")
@@ -296,17 +446,64 @@ def validate(cands: list[dict]) -> list[str]:
     # The matching, on titles seen in CI: the first run's two mislabels are refused, and the right files still match.
     by_id = {c["id"]: c for c in cands}
     for cid, title, want in MATCH_CASES:
-        if cid in by_id and matches(by_id[cid], title, set()) != want:
+        if cid in by_id and matches(by_id[cid], title) != want:
             problems.append(f"{cid}: {title!r} should {'match' if want else 'be refused'}")
+    problems += performers_check(cands)
     for c in cands:
         for t in c.get("titles", []):
-            if not matches(c, t, set()):
+            if not matches(c, t):
                 problems.append(f"{c['id']}: its own title {t!r} doesn't pass its patterns")
     return problems
 
 
-# (candidate, Commons title, should it match): the first CI run's mislabels, and files it found.
+# The performer parse on pages like the CI runs' (run 2 read an empty field as the next one's name). The pattypan page is
+# reconstructed in the National Library of Sweden uploads' layout; once a run has saved a page's wikitext in its
+# evidence record, --dry-run checks the committed records too (performers_check).
+PERFORMER_CASES = [
+    ("swagger-la-donna-e-mobile",
+     {"artist": "", "credit": "Öppna data från Kungliga biblioteket https://data.kb.se/datasets/2015/09/fonografcylindrar/",
+      "description": "http://smdb.kb.se/catalog/id/001453287 Phonograph recording from the National Library of Sweden", "user": "VisbyStar",
+      "_wikitext": "=={{int:filedesc}}==\n{{Information\n|description = {{sv|Fonografcylinder}}\n|date = \n|source = "
+                   "[https://data.kb.se/datasets/2015/09/fonografcylindrar/ Öppna data från Kungliga biblioteket]\n|author =\n"
+                   "|permission =\n|other versions =\n}}\n{{Musical work\n|composer = Giuseppe Verdi\n|performer =\n|title = La donna è mobile\n}}\n"},
+     "Unknown performers (phonograph recording, National Library of Sweden)"),
+    ("lament-funeral-march",
+     {"artist": "Frédéric Chopin", "credit": "This work comes from the non profit U.S. organization Musopen", "description": "", "user": "X",
+      "_wikitext": "{{Information\n|description=Chopin\n|author=[[w:Frédéric Chopin|Frédéric Chopin]]\n|source=Musopen\n}}"},
+     "Musopen (performers uncredited)"),
+    ("lament-ase-death", {"artist": "Musopen Symphony Orchestra", "credit": "", "description": "", "user": "X", "_wikitext": ""},
+     "Musopen Symphony Orchestra"),
+    ("swagger-toreador", {"artist": "", "credit": "", "description": "", "user": "Foo", "_wikitext": "{{Information\n|author=[[User:Foo|Foo]]\n}}"},
+     "Unknown performers (uploaded by Foo)"),
+    ("swagger-toreador", {"artist": "", "credit": "", "description": "Performed by the [[United States Marine Band]].", "user": "Foo", "_wikitext": ""},
+     "The United States Marine Band"),
+]
+
+
+def performers_check(cands: list[dict]) -> list[str]:
+    by_id = {c["id"]: c for c in cands}
+    problems = [f"{cid}: performers {performers(j, by_id[cid])!r}, not {want!r}" for cid, j, want in PERFORMER_CASES
+                if cid in by_id and performers(j, by_id[cid]) != want]
+    for record in sorted((MUSIC / "evidence").glob("*.json")):
+        r = json.loads(record.read_text())
+        if "wikitext" in r and r.get("id") in by_id:
+            got = performers({**r, "_wikitext": r["wikitext"]}, by_id[r["id"]])
+            if re.search(r"^\||=|https?://", got) or fold(by_id[r["id"]]["composer"]).split()[-1] in fold(got):
+                problems.append(f"{record.name}: performers parse to {got!r}")
+    return problems
+
+
+# (candidate, Commons title, should it match): the CI runs' mislabels, and files they found.
 MATCH_CASES = [
+    ("swagger-habanera", "File:Carmen - Prelude to Act 1.ogg", False),
+    ("swagger-ode-to-joy", "File:Ludwig van Beethoven - Symphony No. 9 in D minor, Op. 125 - IV. Presto - Allegro assai.ogg", True),
+    ("swagger-ode-to-joy", "File:Ludwig van Beethoven - Symphony No. 9 in D minor, Op. 125 - III. Adagio molto e cantabile.ogg", False),
+    ("doom-dvorak-new-world-finale", "File:Antonin Dvorak - Symphony No. 9 From the New World - IV. Allegro con fuoco.ogg", True),
+    ("lament-new-world-largo", "File:Antonin Dvorak - Symphony No. 9 From the New World - IV. Allegro con fuoco.ogg", False),
+    ("lament-new-world-largo", "File:Antonin Dvorak - Symphony No. 9 From the New World - II. Largo.ogg", True),
+    ("gallop-beethoven-seventh-finale", "File:Beethoven - Symphony No. 7 in A major, Op. 92 - IV. Allegro con brio.ogg", True),
+    ("gallop-beethoven-seventh-finale", "File:Beethoven - Symphony No. 7 in A major, Op. 92 - II. Allegretto.ogg", False),
+    ("gallop-infernal-galop", "File:Offenbach - Orpheus in the Underworld - Overture.ogg", True),
     ("gallop-mountain-king", "File:Peer Gynt Suite No. 1, Op. 46 - II. Aase's Death.ogg", False),
     ("lament-ase-death", "File:Peer Gynt Suite No. 1, Op. 46 - II. Aase's Death.ogg", True),
     ("doom-fifth-symphony", "File:Beethoven EgmontOvertureOp.84 LudwigVanBeethoven-EgmontOvertureOp.84.ogg", False),
@@ -323,12 +520,22 @@ MATCH_CASES = [
 ]
 
 
-def matches(c: dict, title: str, cats: set) -> bool:
-    """A file is the candidate's work: every must pattern in its title (or it's in one of the candidate's own categories), and no never."""
+def matches(c: dict, title: str, cats: set | None = None) -> bool:
+    """
+    A file is the candidate's work: every must pattern in its title, and no never. (Being in one of the candidate's
+    categories isn't enough: run 2 let "Category:Audio files of Carmen" hand the Carmen prelude to the Habanera.) A
+    pinned file (the candidate's `pinned`) is its work by fiat, still licence-checked.
+    """
+    if title in pinned_titles(c):
+        return True
     t = fold(title or "").replace("_", " ")
     if any(re.search(fold(n), t) for n in c.get("never", [])):
         return False
-    return all(re.search(fold(m), t) for m in c["must"]) or bool(cats & set(c.get("categories", [])))
+    return all(re.search(fold(m), t) for m in c["must"])
+
+
+def pinned_titles(c: dict) -> list[str]:
+    return [p["title"] for p in c.get("pinned", [])]
 
 
 # ---- Commons.
@@ -485,8 +692,12 @@ def find(c: dict, files: dict[str, set], used: set, log: list, near: dict) -> di
                 near.setdefault(c["id"], []).append({"title": j["title"], "licence": j["licence"] or j["licenceShortName"], "why": j["refused"],
                                                      "page": j["descriptionUrl"]})
 
-    consider(pages_for(c["titles"]), 2)
-    scanned = [t for t, cats in files.items() if t not in c["titles"] and t not in used and matches(c, t, cats)]
+    pins = {p["title"]: p for p in c.get("pinned", [])}
+    if pins:
+        consider(pages_for(list(pins)), 3)
+    if c["titles"]:
+        consider(pages_for([t for t in c["titles"] if t not in pins]), 2)
+    scanned = [t for t, cats in files.items() if t not in c["titles"] and t not in pins and t not in used and matches(c, t, cats)]
     for i in range(0, len(scanned), 20):
         consider(pages_for(scanned[i:i + 20]), 1)
     via = "scan" if good else None
@@ -496,13 +707,16 @@ def find(c: dict, files: dict[str, set], used: set, log: list, near: dict) -> di
             if good:
                 via = "search"
                 break
-    if good and any(r == 2 for r, *_ in good):
-        via = "title"
+    if good and any(r >= 2 for r, *_ in good):
+        via = "pinned" if any(r == 3 for r, *_ in good) else "title"
     log.append({"id": c["id"], "via": via, "matched": len(tried), "tried": tried[:40]})
     if not good:
         return None
     good.sort(key=lambda g: (g[0], g[1], g[2]), reverse=True)
-    return good[0][3]
+    best = good[0][3]
+    # A pinned file can say where in it the hit is (the can-can at the end of the whole overture).
+    best["_hit"] = pins.get(best["title"], {}).get("hit", c["hit"])
+    return best
 
 
 def download(url: str, to: Path) -> str:
@@ -642,7 +856,10 @@ def take(c: dict, source: Path, out_dir: Path) -> dict:
 
 def field(wikitext: str, names: str) -> list[str]:
     """Template fields (|author=, |performer=, ...) as written, up to the next field or the template's end."""
-    return [m.group(2).strip() for m in re.finditer(r"\|\s*(" + names + r")\s*=\s*(.*?)(?=\n\s*\||\n\s*\}\}|\Z)", wikitext, re.I | re.S)]
+    # Only spaces after the "=": an empty field ("|author =" then a new line) is empty, not the next field's name (run 2
+    # credited "|title =" as the performer of "La donna è mobile").
+    found = re.finditer(r"\|[ \t]*(" + names + r")[ \t]*=[ \t]*(.*?)(?=\n[ \t]*\||\n[ \t]*\}\}|\|[ \t]*\w+[ \t]*=|\Z)", wikitext, re.I | re.S)
+    return [v for v in (m.group(2).strip() for m in found) if v and not v.startswith("|")]
 
 
 def unwiki(text: str) -> str:
@@ -730,12 +947,14 @@ def intake(args) -> int:
         print(json.dumps({"blocked": True, "host": "commons.wikimedia.org", "error": str(e)}))
         print("Commons can't be reached from here: run .github/workflows/music-intake.yml (E.6's fallback stays).", file=sys.stderr)
         return 2
+    # Every candidate's best CC0 file first (E.6's own table, then the named extras, then the open pool, each in list
+    # order), a file to one candidate only; then the picks, a mood at a time in turn so the pool stays balanced.
     used: set[str] = set()
-    for c in sorted(CANDIDATES, key=lambda c: (not c.get("e6"), CANDIDATES.index(c))):
+    found: dict[str, list] = {m: [] for m in MOODS}
+    order = sorted(CANDIDATES, key=lambda c: (bool(c.get("open")), not c.get("e6"), CANDIDATES.index(c)))
+    for c in order:
         if only and c["id"] not in only:
             continue
-        if len(drafts) >= most:
-            break
         try:
             j = find(c, files, used, report["log"], report["nearMisses"])
         except OSError as e:
@@ -743,49 +962,84 @@ def intake(args) -> int:
             print("Commons can't be reached from here: run .github/workflows/music-intake.yml (E.6's fallback stays).", file=sys.stderr)
             return 2
         if j is None:
-            report["refused"].append({"id": c["id"], "why": "no CC0 recording found"})
+            if not c.get("open"):
+                report["refused"].append({"id": c["id"], "why": "no CC0 recording found"})
             continue
         used.add(j["title"])
-        work = SOURCES / c["id"]
-        work.mkdir(parents=True, exist_ok=True)
-        source = work / Path(urllib.parse.unquote(urllib.parse.urlparse(j["url"]).path)).name
-        try:
-            sha256 = download(j["url"], source)
-        except OSError as e:
-            report["refused"].append({"id": c["id"], "title": j["title"], "why": f"download failed: {e}"})
-            continue
-        sha1 = hashlib.sha1(source.read_bytes()).hexdigest()
-        if j["sha1"] and sha1 != j["sha1"]:
-            report["refused"].append({"id": c["id"], "title": j["title"], "why": f"the download's SHA-1 {sha1} isn't Commons' {j['sha1']}"})
-            continue
-        (work / "page.html").write_text(archive_page(j["title"]))
-        (work / "wikitext.txt").write_text(j["_wikitext"])
-        (work / "extmetadata.json").write_text(json.dumps(j["_extmetadata"], indent=2, ensure_ascii=False) + "\n")
-        try:
-            cutinfo = take(c, source, args.out)
-        except (ValueError, subprocess.CalledProcessError) as e:
-            report["refused"].append({"id": c["id"], "title": j["title"], "why": str(e)})
-            continue
-        record = {k: v for k, v in j.items() if not k.startswith("_")}
-        record |= {"id": c["id"], "work": c["work"], "composer": c["composer"], "sourceSha256": sha256, "fetched": report["fetched"],
-                   "licenceTemplates": sorted(set(m.group(1).lower() for m in CC0.finditer(j["_wikitext"]))),
-                   "licenceSection": licence_section(j["_wikitext"]), "information": information(j["_wikitext"]),
-                   "performers": performers(j, c), "hitNote": c["hit"]["note"], "hitClock": clock(cutinfo["hitInSource"]), **cutinfo}
-        text = json.dumps(record, indent=2, ensure_ascii=False) + "\n"
-        (evidence_dir / f"{c['id']}.json").write_text(text)
-        (work / "evidence.json").write_text(text)
-        drafts.append(draft(c, j, sha256, cutinfo))
-        report["kept"].append({"id": c["id"], "title": j["title"], "performers": performers(j, c), "window": cutinfo["window"],
-                               "hitInSource": cutinfo["hitInSource"], "hitClock": clock(cutinfo["hitInSource"]), "hitCheck": cutinfo["hitCheck"],
-                               "note": c["hit"]["note"]})
+        found[c["mood"]].append((c, j))
+    report["found"] = {m: [c["id"] for c, _ in found[m]] for m in MOODS}
+    while len(drafts) < most and any(found.values()):
+        for mood in MOODS:
+            if len(drafts) >= most or not found[mood]:
+                continue
+            c, j = found[mood].pop(0)
+            if (d := take_in(c, j, args, report, evidence_dir)) is not None:
+                drafts.append(d)
     (SOURCES / "report.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n")
     drafts_path = SOURCES / "drafts.json"
     drafts_path.write_text(json.dumps({"tracks": drafts}, indent=2, ensure_ascii=False) + "\n")
-    print(json.dumps({k: report[k] for k in ("kept", "refused", "nearMisses", "scan")}, indent=2, ensure_ascii=False))
+    print(json.dumps({k: report[k] for k in ("kept", "refused", "found", "scan")}, indent=2, ensure_ascii=False))
+    log_table(report)
     if args.no_finish:
         return 0
     # A full run is the whole set: what it didn't retake (a mislabel from before) goes. A run of --only some keeps the rest.
     return finish(args.dt, args.out, drafts_path, replace=not only)
+
+
+def take_in(c: dict, j: dict, args, report: dict, evidence_dir: Path) -> dict | None:
+    """Downloads a pick, checks it against Commons' SHA-1, archives its page, cuts it, and writes its evidence; its draft, or None."""
+    c = {**c, "hit": j.get("_hit", c["hit"])}
+    work = SOURCES / c["id"]
+    work.mkdir(parents=True, exist_ok=True)
+    source = work / Path(urllib.parse.unquote(urllib.parse.urlparse(j["url"]).path)).name
+    try:
+        sha256 = download(j["url"], source)
+    except OSError as e:
+        report["refused"].append({"id": c["id"], "title": j["title"], "why": f"download failed: {e}"})
+        return None
+    sha1 = hashlib.sha1(source.read_bytes()).hexdigest()
+    if j["sha1"] and sha1 != j["sha1"]:
+        report["refused"].append({"id": c["id"], "title": j["title"], "why": f"the download's SHA-1 {sha1} isn't Commons' {j['sha1']}"})
+        return None
+    (work / "page.html").write_text(archive_page(j["title"]))
+    (work / "wikitext.txt").write_text(j["_wikitext"])
+    (work / "extmetadata.json").write_text(json.dumps(j["_extmetadata"], indent=2, ensure_ascii=False) + "\n")
+    try:
+        cutinfo = take(c, source, args.out)
+    except (ValueError, subprocess.CalledProcessError) as e:
+        report["refused"].append({"id": c["id"], "title": j["title"], "why": str(e)})
+        return None
+    record = {k: v for k, v in j.items() if not k.startswith("_")}
+    record |= {"id": c["id"], "work": c["work"], "composer": c["composer"], "sourceSha256": sha256, "fetched": report["fetched"],
+               "licenceTemplates": sorted(set(m.group(1).lower() for m in CC0.finditer(j["_wikitext"]))),
+               "licenceSection": licence_section(j["_wikitext"]), "information": information(j["_wikitext"]),
+               # The page's wikitext as fetched (the performer parse is checked against it offline), up to 20 KB.
+               "wikitext": j["_wikitext"][:20000],
+               "performers": performers(j, c), "hitNote": c["hit"]["note"], "hitClock": clock(cutinfo["hitInSource"]), **cutinfo}
+    text = json.dumps(record, indent=2, ensure_ascii=False) + "\n"
+    (evidence_dir / f"{c['id']}.json").write_text(text)
+    (work / "evidence.json").write_text(text)
+    report["kept"].append({"id": c["id"], "title": j["title"], "performers": performers(j, c), "window": cutinfo["window"],
+                           "hitInSource": cutinfo["hitInSource"], "hitClock": clock(cutinfo["hitInSource"]), "hitCheck": cutinfo["hitCheck"],
+                           "note": c["hit"]["note"]})
+    return draft(c, j, sha256, cutinfo)
+
+
+def log_table(report: dict) -> None:
+    """The kept tracks, the refusals and the near misses, as lines for the job log (people read logs, not artifacts)."""
+    out = sys.stderr
+    print(f"\n== Kept {len(report['kept'])} (scan: {report.get('scan')})", file=out)
+    for k in report["kept"]:
+        chk = k["hitCheck"]
+        print(f"  {k['id']:36} hit {k['hitClock']:>7} jump {chk['jumpDb']:+5.1f} dB rank {chk['loudnessRank']:.2f}"
+              f"{'  WEAK' if chk['weak'] else ''}  | {k['performers'][:40]} | {k['title']}", file=out)
+    print(f"== Refused {len(report['refused'])}", file=out)
+    for r in report["refused"]:
+        print(f"  {r['id']:36} {r.get('title', '')} : {r['why']}", file=out)
+    print(f"== Near misses (matching files that aren't CC0): {sum(len(v) for v in report['nearMisses'].values())}", file=out)
+    for cid, misses in report["nearMisses"].items():
+        for m in misses[:6]:
+            print(f"  {cid:36} {m['title']} : {m['licence'] or '-'} : {'; '.join(m['why'])}", file=out)
 
 
 def strip_comments(text: str) -> str:
