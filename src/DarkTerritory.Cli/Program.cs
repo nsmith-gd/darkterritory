@@ -116,6 +116,10 @@ object RunHarness(string[] args)
     // --trace file: a line each time anyone changes what they're doing (where they are, their part at a stop, warming up).
     using var trace = Str(args, "--trace", "") is { Length: > 0 } tracePath ? new StreamWriter(tracePath) : null;
     string lastTrace = "";
+    var runTuning = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
+    // A route's night starts where the game's does (run.json departShortOfGateM: just short of the fortress's gate), not
+    // 400 m along: the yard is all at yard speed, and the crawl to the gate was five minutes of the harness's time (note 188).
+    double start = route is null ? 600 : runTuning!.DepartFrom(route.GateOr(routeTuning.YardLength), Consist.Uniform(train, (int)Opt(args, "--cars", 10), 1).LengthMetres);
     return Harness.Run(line, train, player, new HarnessOptions
     {
         Observe = trace is null ? null : (tick, crew, world) =>
@@ -138,7 +142,10 @@ object RunHarness(string[] args)
         Seconds = Opt(args, "--seconds", 120),
         Seed = (int)Opt(args, "--seed", 1),
         Link = new Ballast.Net.LinkConditions(Opt(args, "--latency", 0.09), Opt(args, "--jitter", 0.02), Opt(args, "--loss", 0.03)),
-        StartDistance = Opt(args, "--start", route is null ? 600 : 400),
+        StartDistance = Opt(args, "--start", start),
+        // Started out on the line (--start past the gate, to look at one stretch of it), the crew are put at their posts: the
+        // walk aboard is the yard's (T102), and the fireman stood on the ballast all night.
+        WalkAboard = route is null || Opt(args, "--start", start) < route.GateOr(routeTuning.YardLength),
         Combat = args.Contains("--no-combat") ? null : combat,
         Enemies = args.Contains("--enemies") ? enemies : null,
         Route = route,
@@ -146,7 +153,7 @@ object RunHarness(string[] args)
         Network = online,
         Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)),
         Sight = sight,
-        Run = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)),
+        Run = runTuning,
         Facilities = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
         YardLength = route?.GateOr(routeTuning.YardLength) ?? routeTuning.YardLength,
         Voice = Voice(args),

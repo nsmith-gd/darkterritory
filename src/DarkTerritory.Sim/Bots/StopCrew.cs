@@ -499,7 +499,7 @@ public sealed class StopDriver(CrewCalls calls)
         double stopped = _log.Sum(r => r.Seconds) + Seconds(_ticks - _stopStart);
         double moving = run.Seconds - _underway.Value.Seconds - stopped;
         // Cruise is whatever it's set to now (down a spur, a crawl): the fastest it's been set is the line's.
-        _cruiseTop = Math.Max(_cruiseTop, CruiseSpeed);
+        _cruiseTop = Math.Max(_cruiseTop, Reckoned);
         return moving < 60 ? _cruiseTop : Math.Clamp((at - _underway.Value.Distance) / moving, 3, Math.Max(_cruiseTop, 3));
     }
 
@@ -541,6 +541,12 @@ public sealed class StopDriver(CrewCalls calls)
     double _tenderAtStart;
     /// <summary>The speed it runs up to a stop at (the driver's cruise).</summary>
     public double CruiseSpeed { get; set; } = 14;
+    /// <summary>
+    /// The most the run home is reckoned at: the driver's open-line cruise. A cruise put up for a few seconds to drive away
+    /// from Fire Flies (note 188) isn't the night's pace.
+    /// </summary>
+    public double ReckonTop { get; set; } = double.MaxValue;
+    double Reckoned => Math.Min(CruiseSpeed, ReckonTop);
     /// <summary>The stops worked so far.</summary>
     public IReadOnlyList<StopRecord> Log => _log;
 
@@ -594,8 +600,8 @@ public sealed class StopDriver(CrewCalls calls)
                     // the line. The tender's the exception once it's low: without coal there's no getting there at all.
                     if (run.Seconds > 0)
                         _underway ??= (engine.Distance, run.Seconds);
-                    _cruiseTop = Math.Max(_cruiseTop, CruiseSpeed);
-                    double spare = run.DawnIn - (run.Route.Length - engine.Distance) / CruiseSpeed;
+                    _cruiseTop = Math.Max(_cruiseTop, Reckoned);
+                    double spare = run.DawnIn - (run.Route.Length - engine.Distance) / Reckoned;
                     // A stop's worth making only with its loading's time in hand, reckoned as the loading's own lateness is
                     // (T74): at the pace the night's kept, a stop that would be late the moment it starts loading isn't one.
                     double spareAtPace = run.DawnIn - Home(world, run, engine.Distance);
