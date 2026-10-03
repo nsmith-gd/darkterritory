@@ -242,6 +242,9 @@ public static class Hud
             Big(lines[0], r.End == RunEnd.Delivered ? Green : Red);
             foreach (var l in lines.Skip(1))
                 Small(l, Ink);
+            // App. D.12: the night's deaths under it, who and where.
+            foreach (var l in DeathLines(r, s.PlayerId))
+                Small(l, Dim);
         }
         if (!p.Alive)
         {
@@ -281,8 +284,9 @@ public static class Hud
                     $"[{Controls.KeyLabel(Keys.KeyFor(Control.Left))}] BACK", Ink);
             else if (s.Link is not null && world.Run is not { Over: true })
                 Small("NOBODY LEFT ALIVE TO WATCH", Dim);
-            // GDD App. D: the way back is a Holdout at the next halt or yard, if the crew stops for you.
-            if (world.Holdouts is { } holdouts)
+            // GDD App. D: the way back is a Holdout at the next halt or yard, if the crew stops for you. With the night over
+            // there's no next one (and the report wants the room).
+            if (world.Holdouts is { } holdouts && (world.Run is not { Over: true } || holdouts.All.Any(h => h.Occupant == s.PlayerId && h.Lit)))
                 Small(holdouts.All.FirstOrDefault(h => h.Occupant == s.PlayerId && h.Lit) is { } mine
                     ? mine.State == HoldoutState.Breaching ? $"THEY'RE BREAKING YOU OUT: {mine.Progress / mine.Breach(holdouts.Tuning).Seconds * 100:0}%"
                         : $"YOU'RE IN THE {HoldoutName(mine)}. [E] CALL OUT   [{Controls.KeyLabel(Keys.KeyFor(Control.Radio))}] LIVE MIC {(mine.LiveMic ? "ON: THEY HEAR YOU AT THE DOOR" : "OFF")}   [RMB] LET SOMEONE ELSE GO FIRST"
@@ -317,6 +321,84 @@ public static class Hud
     public static IReadOnlyList<string> ReportLines(RunReport r) => r.End == RunEnd.Delivered
         ? ["DELIVERED", $"{r.CarsDelivered} CARS, {r.CarsLost} LOST. {r.Net:0} SCRIP. CREW HOME {r.CrewHome}"]
         : ["RUN LOST", r.End switch { RunEnd.Derailed => "DERAILED", RunEnd.CrewLost => "THE WHOLE CREW IS DEAD", _ => "STILL OUT WHEN THE LINE WENT LIVE" }];
+
+    /// <summary>
+    /// How many deaths the report lists one by one before the rest go on one line: room under it for the DEAD panel (and the
+    /// way back to the fortress) on the 270-line HUD.
+    /// </summary>
+    const int DeathsListed = 6;
+
+    /// <summary>The deaths the report gives a line each (GDD App. D.12): all of them, or the first few when there are more.</summary>
+    public static IReadOnlyList<Fatality> DeathsShown(RunReport r) =>
+        r.Fatalities.Count <= DeathsListed ? r.Fatalities : [.. r.Fatalities.Take(DeathsListed - 1)];
+
+    /// <summary>
+    /// The night's deaths as the report lists them under its lines (GDD App. D.12 "deaths, with who and where"): who (the
+    /// roster's CREW n, or YOU), what did it, and where, a line each; past <see cref="DeathsListed"/>, the rest as a count.
+    /// The run-end sounds stamp each line in after the tallies (GameAudio.Interface).
+    /// </summary>
+    /// <param name="me">This machine's player, who reads as YOU.</param>
+    public static IReadOnlyList<string> DeathLines(RunReport r, int me = -1)
+    {
+        var shown = DeathsShown(r);
+        var lines = shown.Select(d => $"{(d.Player == me ? "YOU" : $"CREW {d.Player}")}: {DiedOf(d.Cause)}. {DiedAt(d)}").ToList();
+        if (r.Fatalities.Count > shown.Count)
+            lines.Add($"AND {r.Fatalities.Count - shown.Count} MORE");
+        return lines;
+    }
+
+    /// <summary>What a death of the night was, terse, as the report has it (the DEAD panel says it to you; this, of someone).</summary>
+    public static string DiedOf(DeathCause cause) => cause switch
+    {
+        DeathCause.JumpedAtSpeed => "JUMPED AT SPEED",
+        DeathCause.Derailed => "WENT DOWN WITH THE TRAIN",
+        DeathCause.Mauled => "MAULED",
+        DeathCause.Hollow => "TAKEN BY THE HOLLOW",
+        DeathCause.Choir => "TAKEN BY THE CHOIR",
+        DeathCause.Cold => "FROZE",
+        DeathCause.Taken => "TAKEN BY WHAT WASN'T THEM",
+        DeathCause.Dragged => "DRAGGED OFF THE EDGE",
+        DeathCause.Crushed => "CRUSHED UNDER A DROPPED LOAD",
+        DeathCause.PulledUnder => "PULLED UNDER BETWEEN THE CARS",
+        DeathCause.Lamplighter => "TORN DOWN AT THE LAMP",
+        DeathCause.Deadman => "KILLED TAKING BACK THE CAB",
+        DeathCause.Stoker => "BURNED DRIVING OUT THE STOKER",
+        DeathCause.Ferryman => "SLOWED FOR THE LANTERN",
+        DeathCause.Climbed => "TAKEN BY A CLIMBER",
+        DeathCause.TornOff => "WENT OFF WITH THE REAR CAR",
+        DeathCause.Gaunt => "TAKEN BY THE GAUNT",
+        DeathCause.Struck => "STRUCK BY A TUNNEL'S MOUTH",
+        DeathCause.Thrown => "THROWN OFF ON A CURVE",
+        DeathCause.Burned => "BURNED IN A BLAZING CAR",
+        DeathCause.Gnawed => "EATEN BY THE GNAWERS",
+        DeathCause.Replaced => "REPLACED BY WHAT WORE THEIR FACE",
+        DeathCause.Nested => "NESTED IN",
+        DeathCause.Drift => "THE GROUND CAME UP",
+        DeathCause.Eaten => "SWALLOWED BY THE CAR HUGGER",
+        DeathCause.Suffocated => "SMOTHERED BY TIPPY TOESIE",
+        DeathCause.Devoured => "EATEN BY THE RIBBITS",
+        DeathCause.Drained => "DRAINED BY A SOOT CHILD",
+        DeathCause.Carried => "CARRIED OFF BY THE WHISTLER",
+        DeathCause.Seized => "SEIZED BY THE CHOIR",
+        DeathCause.Uncoupled => "TAKEN WITH THE CABOOSE",
+        _ => "DIED",
+    };
+
+    /// <summary>Where: the car (and where on it) or off the train, and how far down the line.</summary>
+    static string DiedAt(Fatality d)
+    {
+        string car = d.Car == 0 ? "THE ENGINE" : $"CAR {d.Car}";
+        string where = d.Spot switch
+        {
+            DeathSpot.Ground => "BY THE LINE",
+            DeathSpot.Cab => "IN THE CAB",
+            DeathSpot.Inside => $"IN {car}",
+            DeathSpot.Roof => $"ON {car}'S ROOF",
+            DeathSpot.Coupling => $"AT {car}'S COUPLING",
+            _ => $"ON {car}",
+        };
+        return $"{where}, KM {d.Km:0.0}";
+    }
 
     /// <summary>The player's keys (T80), for the prompts: the app sets them from the settings.</summary>
     public static Settings Keys { get; set; } = new();

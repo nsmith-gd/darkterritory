@@ -157,6 +157,35 @@ public class RunTests
     }
 
     [Fact]
+    public void TheReportListsEachDeathWithWhoAndWhere()
+    {
+        // GDD App. D.12: "deaths, with who and where": the car and where on it, or off the train, and how far down the line.
+        var n = new Night(front: 5000);
+        n.World.EnableBodies();
+        n.Step(0.5);
+        var beside = n.Train.Frames[3];
+        var ground = PlayerMotor.SpawnOnGround(beside.ToWorld(new Double3(beside.Shape.HalfWidth + 3, 0, 0)), n.Train.Line, n.Train.Cars[3].FrontDistance, P);
+        (int, PlayerState)[] crew =
+        [
+            (1, n.Player with { Health = 0, Death = DeathCause.Stoker }),
+            (2, PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P) with { Health = 0, Death = DeathCause.Struck }),
+            (3, ground with { Health = 0, Death = DeathCause.Thrown }),
+        ];
+        n.World.StepBodies(crew);
+        // Still dead a tick later is still one death each.
+        n.World.StepBodies(crew);
+        n.World.Derail();
+        n.Step(0.2);
+        var dead = n.Run.Report!.Fatalities;
+        Assert.Equal([(1, DeathCause.Stoker, 0, DeathSpot.Cab), (2, DeathCause.Struck, 2, DeathSpot.Roof), (3, DeathCause.Thrown, -1, DeathSpot.Ground)],
+            dead.Select(d => (d.Player, d.Cause, d.Car, d.Spot)));
+        Assert.All(dead, d => Assert.InRange(d.Km, 4.8, 5.1));
+        Assert.Equal(Math.Round(dead[0].Km, 1), dead[0].Km);
+        // Two tallies of the same night are equal, deaths and all (the report a client is sent has to be).
+        Assert.Equal(n.Run.Report, n.Run.Tally(n.World, [n.Player]));
+    }
+
+    [Fact]
     public void StillOutWhenTheLineGoesLiveLosesTheNight()
     {
         // GDD §8: dawn reopens the main line. A short dawn clock stands in for a long night.

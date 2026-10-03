@@ -202,6 +202,10 @@ public sealed class Bodies
     /// <summary>In-run deaths so far, each with its body (drop-outs aren't deaths: D.2). Host only.</summary>
     public int Deaths { get; private set; }
 
+    /// <summary>Those deaths, who and where, in order: the night's report lists them (GDD App. D.12). Host only.</summary>
+    public IReadOnlyList<Run.Fatality> Fatalities => _fatalities;
+    readonly List<Run.Fatality> _fatalities = [];
+
     /// <summary>Host: a body for everyone who died this tick (not a mid-run joiner still waiting: they've no body).</summary>
     public void OnDeaths(TrainOnLine train, IEnumerable<(int Id, PlayerState State)> crew)
     {
@@ -216,6 +220,7 @@ public sealed class Bodies
                 continue;
             SpawnRagdoll(train, id, s);
             Deaths++;
+            _fatalities.Add(Run.Fatality.Of(id, s, train));
         }
     }
 

@@ -245,7 +245,6 @@ public sealed partial class GameAudio
             if (c.Alive && !s.Alive && s.Death != DeathCause.Waiting)
             {
                 string fell = Footing.Under(s, world) ?? c.LastFooting(world);
-                _nightDeaths.Add(s.Death);
                 if (s.Death == DeathCause.Struck && HasCue("crew-mishaps.tunnel-bonk"))
                 {
                     Cue("crew-mishaps.tunnel-bonk", feet + Double3.Up * HeadUp, occlusion);

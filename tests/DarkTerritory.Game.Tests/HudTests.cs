@@ -3,6 +3,7 @@ using Ballast;
 using Ballast.Render;
 using DarkTerritory.Game;
 using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game.Tests;
@@ -165,5 +166,46 @@ public class HudTests
         Hud.Roster(o, 480, 270, lines, heard);
         Assert.True(o.Count > 0);
         Assert.NotNull(heard(2));
+    }
+
+    [Fact]
+    public void TheReportListsTheNightsDeathsWhoWhatAndWhere()
+    {
+        // GDD App. D.12 "deaths, with who and where", under the report's own lines.
+        var r = new RunReport(RunEnd.Derailed, 900, 12.3, 0, 4, 0, 0, 0, 0, 0, 0, 0, 3, Fatalities: new DeathRoll(
+        [
+            new Fatality(2, DeathCause.Struck, 3, DeathSpot.Roof, 4.2),
+            new Fatality(1, DeathCause.Thrown, -1, DeathSpot.Ground, 8),
+            new Fatality(3, DeathCause.Choir, 4, DeathSpot.Inside, 12.3),
+            new Fatality(4, DeathCause.Derailed, 0, DeathSpot.Cab, 12.3),
+        ]));
+        Assert.Equal(
+        [
+            "CREW 2: STRUCK BY A TUNNEL'S MOUTH. ON CAR 3'S ROOF, KM 4.2",
+            "YOU: THROWN OFF ON A CURVE. BY THE LINE, KM 8.0",
+            "CREW 3: TAKEN BY THE CHOIR. IN CAR 4, KM 12.3",
+            "CREW 4: WENT DOWN WITH THE TRAIN. IN THE CAB, KM 12.3",
+        ], Hud.DeathLines(r, me: 1));
+        // The headline and its line are as they were (the run-end sounds tally those, and stamp these).
+        Assert.Equal(["RUN LOST", "DERAILED"], Hud.ReportLines(r));
+        Assert.Empty(Hud.DeathLines(r with { Fatalities = DeathRoll.Empty }));
+
+        // A massacre: the first few, and the rest as a count (the DEAD panel still has to fit under it).
+        var many = r with { Fatalities = new DeathRoll(Enumerable.Range(1, 9).Select(i => new Fatality(i, DeathCause.Derailed, 1, DeathSpot.Aboard, 9.9))) };
+        var lines = Hud.DeathLines(many);
+        int shown = Hud.DeathsShown(many).Count;
+        Assert.InRange(shown, 3, 8);
+        Assert.Equal(shown + 1, lines.Count);
+        Assert.Equal("CREW 1: WENT DOWN WITH THE TRAIN. ON CAR 1, KM 9.9", lines[0]);
+        Assert.Equal($"AND {9 - shown} MORE", lines[^1]);
+
+        // Every way to die has its words, and they fit the HUD's width with the longest who and where.
+        var font = BitmapFont.Default;
+        foreach (var cause in Enum.GetValues<DeathCause>().Where(c => c is not (DeathCause.None or DeathCause.Waiting)))
+        {
+            Assert.NotEqual("DIED", Hud.DiedOf(cause));
+            var line = Hud.DeathLines(r with { Fatalities = new DeathRoll([new Fatality(12, cause, 20, DeathSpot.Coupling, 123.4)]) })[0];
+            Assert.True(font.Measure(line) <= 480, $"{line}: {font.Measure(line)} px");
+        }
     }
 }

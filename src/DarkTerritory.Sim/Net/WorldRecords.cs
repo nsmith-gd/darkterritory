@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Report = 13 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -30,6 +30,8 @@ public static class WorldRecords
 {
     // Fixed-point scales. Positions and speeds to 0.1 mm; angles to 10 µrad; slow scalars and timers to 1e-6.
     const double Pos = 1e4, Ang = 1e5, Fine = 1e6, Hint = 1e2, Cm = 1e2;
+    // The night's report: its figures are rounded to hundredths at most (Run.Tally), so this grid gives back the same doubles.
+    const double Tallied = 1e2;
     /// <summary>
     /// A body record's fields before its particles: kind, parent, carrier, owner, asleep, yaw, count, second carrier, and
     /// what it shows: an extinguisher's charge to the percent (its sight glass, App. C.5), a crate's cargo (GDD §19).
@@ -37,6 +39,8 @@ public static class WorldRecords
     const int BodyParticles = 9;
     // The Run record's header (phase, end, clock, facility, chute, scavenged), and room in a crane record's id for each of a site's cranes.
     const int RunHead = 6, CranesPerSite = 16;
+    // The report record's figures before its deaths, and each death's fields (who, what, the car, where on it, the km).
+    const int ReportHead = 20, PerDeath = 5;
 
     static long Q(double v, double scale) => (long)Math.Round(v * scale);
     static double D(long q, double scale) => q / scale;
@@ -117,6 +121,10 @@ public static class WorldRecords
             }
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Run, 0), f));
         }
+        // The night's report (GDD App. D.12) once the run's over: written once at the end, so it goes once (an unchanged record
+        // costs nothing after), and every machine has the host's, deaths and all.
+        if (world.Run?.Report is { } report)
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Report, 0), ReportFields(report)));
         // A facility's gantry crane (T48): where it is, the rig, and each casting.
         if (world.Run is { } withSites)
             foreach (var site in withSites.Sites)
@@ -284,6 +292,9 @@ public static class WorldRecords
                             (f[Head + 1 + i * Each] & 2) != 0, (f[Head + 1 + i * Each] & 4) != 0, D(f[Head + 4 + i * Each], Ang),
                             (Stops.PowerState)f[Head + 5 + i * Each], D(f[Head + 6 + i * Each], Fine)))], D(f[5], Fine));
                     break;
+                case RecordKind.Report when !world.Authority && world.Run is { } reported && f.Length >= ReportHead:
+                    reported.MirrorReport(ToReport(r));
+                    break;
             }
         }
         train.Restore(new TrainState([.. rakes], [.. vehicles], boiler));
@@ -296,6 +307,50 @@ public static class WorldRecords
             if (bodies.Any(b => b.Kind == Physics.BodyKind.Radio))
                 world.Bodies.RadiosCarried = true;
         }
+    }
+
+    static long[] ReportFields(Run.RunReport r)
+    {
+        var dead = r.Fatalities;
+        var f = new long[ReportHead + dead.Count * PerDeath];
+        f[0] = (long)r.End;
+        f[1] = Q(r.Seconds, Tallied);
+        f[2] = Q(r.DistanceKm, Tallied);
+        f[3] = r.CarsDelivered;
+        f[4] = r.CarsLost;
+        f[5] = Q(r.CargoDelivered, Tallied);
+        f[6] = Q(r.Gross, Tallied);
+        f[7] = Q(r.CoalCost, Tallied);
+        f[8] = Q(r.AmmoCost, Tallied);
+        f[9] = Q(r.RepairCost, Tallied);
+        f[10] = Q(r.Net, Tallied);
+        f[11] = r.CrewHome;
+        f[12] = r.CrewLost;
+        f[13] = Q(r.Scavenged, Tallied);
+        f[14] = r.Deaths;
+        f[15] = r.BodiesHome;
+        f[16] = Q(r.CrewLossFees, Tallied);
+        f[17] = Q(r.BodyRefunds, Tallied);
+        f[18] = Q(r.Mail, Tallied);
+        f[19] = dead.Count;
+        for (int i = 0; i < dead.Count; i++)
+        {
+            var d = dead[i];
+            int k = ReportHead + i * PerDeath;
+            (f[k], f[k + 1], f[k + 2], f[k + 3], f[k + 4]) = (d.Player, (long)d.Cause, d.Car, (long)d.Spot, Q(d.Km, Tallied));
+        }
+        return f;
+    }
+
+    static Run.RunReport ToReport(in WireRecord r)
+    {
+        var f = r.Fields;
+        int count = (int)Math.Clamp(f[19], 0, (f.Length - ReportHead) / PerDeath);
+        var dead = Enumerable.Range(0, count).Select(i => ReportHead + i * PerDeath)
+            .Select(k => new Run.Fatality((int)f[k], (DeathCause)f[k + 1], (int)f[k + 2], (Run.DeathSpot)f[k + 3], D(f[k + 4], Tallied)));
+        return new Run.RunReport((Run.RunEnd)f[0], D(f[1], Tallied), D(f[2], Tallied), (int)f[3], (int)f[4], D(f[5], Tallied),
+            D(f[6], Tallied), D(f[7], Tallied), D(f[8], Tallied), D(f[9], Tallied), D(f[10], Tallied), (int)f[11], (int)f[12], D(f[13], Tallied),
+            (int)f[14], (int)f[15], D(f[16], Tallied), D(f[17], Tallied), D(f[18], Tallied), new Run.DeathRoll(dead));
     }
 
     /// <summary>A client-side stand-in for a host body: positions only, it isn't simulated here.</summary>

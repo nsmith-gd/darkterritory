@@ -3,6 +3,8 @@ using Ballast.Net;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Route;
+using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Tests;
@@ -413,6 +415,60 @@ public class BodyNetcodeTests
         Assert.Equal(Physics.BodyKind.Ragdoll, body.Kind);
         Assert.Equal(victim, body.Owner);
         Assert.Equal(2, body.Parent);
+    }
+
+    [Fact]
+    public void WhenTheNightEndsEveryClientHasTheHostsReportDeathsAndAll()
+    {
+        // GDD App. D.12: the report is the host's, written once at the end. Every machine shows it (the HUD, the run-end
+        // sounds and the campaign's settling read it off their own world, the host's own player's included), so it's sent.
+        var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, 7);
+        var line = route.Build();
+        TrainOnLine Train() => new(new TrainDynamics(Consist.Uniform(T, 4, 1)), line, 5_000, Tuning.Boiler);
+        var net = new LoopbackNetwork();
+        var host = new HostSession(net.CreateHost(), Train(), T, P);
+        host.World.EnableBodies();
+        host.World.EnableRun(Tuning.Run, route, 600, authority: true);
+        var clients = Enumerable.Range(0, 2).Select(_ => new ClientSession(net.CreateClient(), Train(), T, P)).ToArray();
+        foreach (var c in clients)
+            c.World.EnableRun(Tuning.Run, route, 600, authority: false);
+        void Step(int ticks)
+        {
+            for (int t = 0; t < ticks; t++)
+            {
+                net.Advance(SimConstants.TickSeconds);
+                host.Step();
+                foreach (var c in clients)
+                    c.Step(default);
+            }
+        }
+        Step(10);
+        Assert.All(clients, c => Assert.Equal(RunPhase.Underway, c.World.Run!.Phase));
+        Assert.All(clients, c => Assert.Null(c.World.Run!.Report));
+
+        // One struck on a car's roof; then the train off the rails, which takes the other.
+        byte struck = clients[1].PlayerId!.Value, other = clients[0].PlayerId!.Value;
+        host.SetPlayerState(struck, PlayerMotor.SpawnOnRoof(host.Train, 2, 0, P) with { Health = 0, Death = DeathCause.Struck });
+        Step(5);
+        host.World.Derail();
+        Step(10);
+
+        var report = host.World.Run!.Report!;
+        Assert.Equal(RunEnd.Derailed, report.End);
+        Assert.Equal([struck, other], report.Fatalities.Select(d => (byte)d.Player));
+        var roof = report.Fatalities[0];
+        Assert.Equal((DeathCause.Struck, 2, DeathSpot.Roof), (roof.Cause, roof.Car, roof.Spot));
+        Assert.InRange(roof.Km, 4.8, 5.1);
+        Assert.Equal(DeathCause.Derailed, report.Fatalities[1].Cause);
+        foreach (var c in clients)
+        {
+            Assert.Equal(RunPhase.Failed, c.World.Run!.Phase);
+            Assert.Equal(report, c.World.Run.Report);
+        }
+        // Written once: the same report from then on, not a fresh copy every snapshot.
+        var seen = clients[0].World.Run!.Report;
+        Step(5);
+        Assert.Same(seen, clients[0].World.Run!.Report);
     }
 }
 
