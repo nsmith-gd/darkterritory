@@ -308,15 +308,15 @@ The dawn budget assumes an 11 m/s average, below the 14 m/s cruise. **The slack 
 | Pressed (cooldown gives way, curve overdrawn by up to 3) | 16 |
 | Most banked | 18 |
 | **Relief per spawn** | **3 × its cost** |
-| Base | 0.05 /s |
-| **Escalation** (on everything) | × (1 + 2 × progress), progress along the line or toward dawn, whichever is further |
-| Quiet | + 0.12 /s × (seconds since a threat was engaged or sent ÷ 90, to 1) |
+| Base | 0.03 /s |
+| **Escalation** (on everything) | × (1 + 3 × progress), progress along the line or toward dawn, whichever is further |
+| Quiet | + 0.1 /s × (seconds since a threat was engaged or sent ÷ 90, to 1) |
 | Loudness | + 0.1 /s × (Choir meter ÷ its threshold, to 1.5) |
 | Cargo | + 0.01 /s per car-load (× comet 2, livestock 1.5, food and medicine 1.3, ammunition 1.2) |
 | Tier | × 0.8 Local, 1 Frontier, 1.2 Dead Lines, 1.4 Deep Territory |
 | Conditions | × (1 + 0.15 lamp out + 0.1 × cold + 0.05 per deep-cold step + 0.05 rain + 0.05 × wind) |
 | **Relief valve** | × (alive ÷ crew)² × (1 − 0.25 × share of the living under 35 health) |
-| Busy | × 1 ÷ (1 + 0.25 × threats engaged: telegraphing, committing, grabbing or punishing) |
+| Busy | × 1 ÷ (1 + 0.5 × threats engaged × (1 − progress)): engaged is telegraphing, committing, grabbing or punishing; late in the night it stops waiting for the crew |
 | Post-spawn cooldown | 25–45 s (gives way when pressed) |
 
 At the gate with nothing about, the pressure reaches the threshold in about a minute; near the terminus in about forty seconds. No stretch of a night goes much past a minute and a half without the director sending something, short of the caps, a ban or the final approach.

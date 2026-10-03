@@ -403,7 +403,8 @@ public sealed class Director
                 }
             relief = alive == 0 ? 0 : DMath.Pow((double)alive / crew.Count, p.DownPower) * (1 - p.HurtRelief * hurt / alive);
         }
-        double busy = 1 / (1 + p.Busy * engaged);
+        // Busy fades as the night goes on: late, the director no longer waits for the crew to finish what's on them.
+        double busy = 1 / (1 + p.Busy * engaged * Math.Max(0, 1 - p.BusyFade * Math.Clamp(progress, 0, 1)));
         double rate = _tierRate * conditions * relief * busy * escalation * (p.BasePerSecond + quiet + loud + cargo);
         _pressure = Math.Min(p.Max, _pressure + rate);
         Terms = new PressureTerms(rate, escalation, _sinceThreat, loud, cargo, relief, conditions);

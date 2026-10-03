@@ -477,10 +477,10 @@ public sealed record PressureTuning
     public double Max { get; init; } = 18;
     public double PressAt { get; init; } = 16;
     public double ReliefPerCost { get; init; } = 3;
-    public double BasePerSecond { get; init; } = 0.05;
-    public double Escalation { get; init; } = 2;
+    public double BasePerSecond { get; init; } = 0.03;
+    public double Escalation { get; init; } = 3;
     public int EscalationPower { get; init; } = 1;
-    public double QuietPerSecond { get; init; } = 0.12;
+    public double QuietPerSecond { get; init; } = 0.1;
     public double QuietRampSeconds { get; init; } = 90;
     public double LoudPerSecond { get; init; } = 0.1;
     public double LoudCap { get; init; } = 1.5;
@@ -496,7 +496,8 @@ public sealed record PressureTuning
     public int DownPower { get; init; } = 2;
     public int HurtBelow { get; init; } = 35;
     public double HurtRelief { get; init; } = 0.25;
-    public double Busy { get; init; } = 0.25;
+    public double Busy { get; init; } = 0.5;
+    public double BusyFade { get; init; } = 1;
 }
 
 /// <summary>

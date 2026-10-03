@@ -266,13 +266,13 @@
       // A cost-3 threat takes 9 off: the trough after a spawn is the pressure building again.
       "reliefPerCost": 3,
       // The night's own rise: everything × (1 + escalation × progress^escalationPower), progress being how far along the line
-      // or toward dawn, whichever is further (×3 at the end: fewer threats early, more toward the terminus); and a base
+      // or toward dawn, whichever is further (×4 at the end: fewer threats early, more toward the terminus); and a base
       // that builds whatever else is going on.
-      "basePerSecond": 0.05, "escalation": 2, "escalationPower": 1,
+      "basePerSecond": 0.03, "escalation": 3, "escalationPower": 1,
       // Quiet builds pressure: + quietPerSecond × (seconds since a threat was engaged (telegraphing, committing, grabbing,
       // punishing) or sent / quietRampSeconds, to 1), so no
       // stretch goes much past a minute and a half without something, even at the gate.
-      "quietPerSecond": 0.12, "quietRampSeconds": 90,
+      "quietPerSecond": 0.1, "quietRampSeconds": 90,
       // The crew's loudness (App. C.7, the Choir meter): + loudPerSecond × (meter / the Choir's threshold, to at most loudCap).
       "loudPerSecond": 0.1, "loudCap": 1.5,
       // Cargo aboard (App. B.9): + cargoPerLoad per car-load (load × cargo integrity × cargoValue, 1 for what isn't listed).
@@ -287,8 +287,8 @@
       "dark": 0.15, "cold": 0.1, "coldPerStep": 0.05, "wet": 0.05, "wind": 0.05,
       // The relief valve: × (alive / crew)^downPower, and × (1 − hurtRelief × the share of the living under hurtBelow health,
       // the bots' own "too hurt to fight"), so a crew that's losing isn't fed faster; and busy: × 1 / (1 + busy × threats
-      // engaged) while they're fighting.
-      "downPower": 2, "hurtBelow": 35, "hurtRelief": 0.25, "busy": 0.25
+      // engaged × (1 − busyFade × progress)) while they're fighting: late in the night it stops waiting for them.
+      "downPower": 2, "hurtBelow": 35, "hurtRelief": 0.25, "busy": 0.5, "busyFade": 1
     },
     // A spawn pressed for (pressure at pressAt) may overdraw the budget's curve by up to pacedCost. Budgets are about twice
     // App. B.1's to pay for it. A kind among the last varietyWindow spawns has its weight halved for each.

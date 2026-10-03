@@ -1251,14 +1251,14 @@ pressure per second = tier × conditions × relief × busy × escalation × (bas
 
 | Input | What raises it |
 |---|---|
-| **Escalation** | How far into the night: along the line or toward dawn, whichever is further. ×1 at the gate, ×3 at the end |
+| **Escalation** | How far into the night: along the line or toward dawn, whichever is further. ×1 at the gate, ×4 at the end |
 | **Quiet** | Seconds since a threat last came at the crew. Quiet builds pressure, faster the longer it lasts |
 | **Loudness** | The Choir meter. A crew loud enough to draw the Choir draws everything else too |
 | **Cargo** | Each car-load aboard, by what it's worth. Cargo lost stops drawing them |
 | **Tier** | Harder tiers build faster |
 | **Conditions** | Dark (the lamp out), cold, rain and wind add a little |
 
-The **relief valve** eases it when the crew is losing: by the share of the crew still alive (squared), and less again for each crewmate badly hurt, so a night going wrong doesn't snowball. While threats are already engaged it builds more slowly (the crew's busy).
+The **relief valve** eases it when the crew is losing: by the share of the crew still alive (squared), and less again for each crewmate badly hurt, so a night going wrong doesn't snowball. While threats are already engaged it builds more slowly (the crew's busy), less so as the night goes on: toward the end the director stops waiting for the crew to finish.
 
 Past the **threshold** the director spends: on what its weights, wants, pairs, gates and caps pick, as before. **Spending relieves the pressure** by the spawn's cost. Well past the threshold (a long quiet, or a night the budget's curve can't keep up with) the post-event cooldown gives way and the curve may be overdrawn a little. The dead's votes move weight between creatures and never touch the pressure. All the coefficients are in `director.pressure` in `content/tuning/enemies.json`; the systems spec (B.9) has the numbers.
 
