@@ -22,7 +22,7 @@ public sealed class SpawnContext(World world, EnemyTuning tuning, Director direc
     public bool Stopped => Train.Dynamics.Speed < 0.3;
     /// <summary>
     /// Stopped at a stop: a facility, a dead settlement, or any stop the line has a layout for (a yard, a village halt). Where
-    /// GDD v1.3's three are met, the crew on foot.
+    /// GDD v1.5's three are met, the crew on foot.
     /// </summary>
     public bool AtStop => Stopped && (AtFacility || World.InSettlement
         || World.Route?.Features.Any(f => f.Stop is not null && Front >= f.Start - 100 && Front <= f.End + 100) == true);
@@ -289,6 +289,7 @@ public static class Spawns
                 return false;
             bool soot = !c.World.NextChildReal && c.Director.NextRange(0, 1) >= t.RealChance;
             c.World.NextChildReal = false;
+            c.World.ChildCalled = true;
             var at = c.Out(centre, t.CallOut);
             c.Add(i => SootChildren.Calls(i, at, soot, t));
             return true;
@@ -349,7 +350,7 @@ public static class Spawns
             c.Add(i => Grumbler.OnCrates(i, at + Double3.Up * 0.8, on, c.Tuning.Grumbler));
             return true;
         }),
-        // B.6 · The Shy Thing (v1.3): at a stop, out in the dark where someone on the ground is looking; any tier; weight up
+        // B.6 · The Shy Thing (v1.5): at a stop, out in the dark where someone on the ground is looking; any tier; weight up
         // per player on the ground.
         new(EnemyKind.ShyThing, c =>
         {
@@ -369,7 +370,7 @@ public static class Spawns
             c.Add(i => ShyThing.Waiting(i, at, t));
             return true;
         }),
-        // B.6 · The Huddle (v1.3): at a stop, the crew on the ground; any tier.
+        // B.6 · The Huddle (v1.5): at a stop, the crew on the ground; any tier.
         new(EnemyKind.Huddle, c => c.AtStop && c.OnGround.Any() && c.None(EnemyKind.Huddle) ? 1 : null, c =>
         {
             var t = c.Tuning.Huddle;
@@ -380,7 +381,7 @@ public static class Spawns
             c.Add(i => Huddle.Flock(i, at, size));
             return true;
         }),
-        // B.6 · The Mimic (v1.3): at a stop whose crates are out, one more than a stack's count; any tier.
+        // B.6 · The Mimic (v1.5): at a stop whose crates are out, one more than a stack's count; any tier.
         new(EnemyKind.Mimic, c => c.AtStop && c.None(EnemyKind.Mimic) && c.World.Run?.MimicSlots(c.Front).Count > 0 ? 1 : null, c =>
         {
             var slots = c.World.Run?.MimicSlots(c.Front) ?? [];

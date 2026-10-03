@@ -17,10 +17,38 @@
   // GDD §9 departure: "choose freight contracts". This many on the board each night: the consist's own tier,
   // and one from the tier below for a crew that wants a safer, poorer night.
   "contractsOffered": 3,
+  // GDD §9 "choose freight contracts", §19, App. B.9 (ARCHITECTURE §8 note 182): each ordinary contract names the freight the
+  // train leaves the fortress carrying (every loaded car), drawn from this list by the night and its place on the board, and
+  // pays a car by it (run.json economy.cargoRates). The facilities still load their own on top. "heavy" is §19's machine
+  // parts and "ammunition" its gunpowder and shot. With "comet", the board also carries a comet contract at the consist's
+  // tier: B.9's high-risk contract, the best freight payout, with every spawn weight x1.4 and the Passenger a tier sooner.
+  "contracts": {
+    "cargo": ["goods", "heavy", "food", "livestock", "timber", "coal", "medicine", "chemicals", "ammunition"],
+    "comet": true
+  },
+  // GDD §9 departure: "stock coal, powder and shot, lamps, repair supplies and tools" (note 182). The fortress issues the
+  // standard load and bills what the night uses (run.json economy: coal, rounds, repairs); these are bought beyond it, for the
+  // coming night only. Powder: a crate is `each` rounds more for every gun. Lamps and extinguishers: spares in the guard van.
+  // Not in the GDD: priced about a tenth of a fourth car for powder, less for a lamp.
+  "stores": {
+    "powder": { "cost": 120, "most": 3, "each": 4 },
+    "lamps": { "cost": 60, "most": 2 },
+    "extinguishers": { "cost": 90, "most": 2 }
+  },
+  // GDD §9 "add or remove railcars": a car taken off the consist brings back this share of what that car cost (spec F.2),
+  // and a consist keeps the starting three at least. A shorter train works a lower tier when it drops below one (F.4).
+  "sellCar": { "share": 0.5, "fewest": 3 },
   // Spec E: 3 save slots per host.
   "saveSlots": 3,
   // Spec F.3. Cost is a share of what the next car costs now. "effect" multiplies tuning: tender (tender capacity),
-  // ammo (rounds per gun), lamp (how far the headlamp finds Sleepers), brakes (braking), burn (coal per unit of steam).
+  // ammo (rounds per gun), lamp (how far the headlamp finds Sleepers), brakes (braking), burn (coal per unit of steam),
+  // insulation (how fast the cold comes on in an unheated car: player.json cold.indoorsRate), contactSafe (the closing
+  // speed a coupling takes before the ends are damaged: train.json couplings.safeContactSpeed), underLoad (how long cutting
+  // a working train's coupling takes: couplings.uncoupleUnderLoadSeconds), unhook (how long the Passenger takes to unhook
+  // the caboose: enemies.json passenger.uncoupleSeconds).
+  // The consist's (ARCHITECTURE §8 note 184) add to train.json "composition" instead: utilityCars (a crew car: stores and a
+  // stove), guardCars (another guard car and its gun), armouredCars (a car plated), handrails (fitted to every roof: what
+  // they do is composition.rails). A car converted costs a cargo slot (F.3, of the second guard car).
   // Upgrades with no effect listed are bought and saved but not modelled yet.
   "upgrades": [
     { "id": "lampBrightness", "name": "Lamp brightness", "size": "small", "costShare": 0.15, "effect": { "lamp": 1.25 } },
@@ -29,17 +57,32 @@
     { "id": "ammunitionCapacity", "name": "Ammunition capacity", "size": "small", "costShare": 0.2, "effect": { "ammo": 1.5 } },
     { "id": "repairKit", "name": "Repair kit charges", "size": "small", "costShare": 0.15, "effect": {} },
     { "id": "tenderCapacity", "name": "Tender capacity", "size": "small", "costShare": 0.25, "effect": { "tender": 1.25 } },
-    { "id": "couplingReinforcement", "name": "Coupling reinforcement", "size": "small", "costShare": 0.2, "effect": {} },
-    { "id": "roofHandrails", "name": "Roof handrails", "size": "small", "costShare": 0.2, "effect": {} },
+    // A coupling-up knock at 1.5 m/s (the most that couples, couplings.coupleMaxSpeed) does no damage; and the Passenger
+    // takes half again as long unhooking the caboose: 6 s, two more to kill it in.
+    { "id": "couplingReinforcement", "name": "Coupling reinforcement", "size": "small", "costShare": 0.2, "effect": { "contactSafe": 1.5, "unhook": 1.5 } },
+    // F.3 "Dragger resistance": on every roof (train.json composition.rails says what holding them does).
+    { "id": "roofHandrails", "name": "Roof handrails", "size": "small", "costShare": 0.2, "effect": { "handrails": 1 } },
     { "id": "radioRange", "name": "Radio range", "size": "small", "costShare": 0.15, "effect": {} },
-    { "id": "carInsulation", "name": "Car insulation", "size": "small", "costShare": 0.2, "effect": {} },
-    { "id": "armouredCar", "name": "Armoured car conversion", "size": "major", "costShare": 1.2, "effect": {} },
-    { "id": "secondGuardCar", "name": "Second guard car", "size": "major", "costShare": 1.5, "effect": {} },
+    // F.3 "car insulation (cold)": in a car without heat (a door open, or the steam gone), the cold comes on half as fast.
+    { "id": "carInsulation", "name": "Car insulation", "size": "small", "costShare": 0.2, "effect": { "insulation": 0.5 } },
+    // GDD §26 "reinforced plating, heavier mass": one car, the guard van (composition.armourTonnes, armourDamage).
+    { "id": "armouredCar", "name": "Armoured car conversion", "size": "major", "costShare": 1.2, "effect": { "armouredCars": 1 } },
+    // F.3 "a third gun, but it costs a cargo slot": a cargo car in the middle becomes a guard car.
+    { "id": "secondGuardCar", "name": "Second guard car", "size": "major", "costShare": 1.5, "effect": { "guardCars": 1 } },
+    // GDD §10 "utility cars" (note 184: not in F.3's list; priced as its cheapest major, since it costs a cargo slot and
+    // carries no gun): the first car behind the engine becomes a crew car, its stove warm with the steam gone.
+    { "id": "crewCar", "name": "Crew car", "size": "major", "costShare": 1.0, "effect": { "utilityCars": 1 } },
     { "id": "improvedBrakes", "name": "Improved brakes", "size": "major", "costShare": 1.0, "effect": { "brakes": 1.2 } },
     { "id": "boilerUpgrade", "name": "Boiler upgrade", "size": "major", "costShare": 1.4, "effect": { "burn": 0.85 } },
     { "id": "poweredSwitchThrower", "name": "Powered switch thrower", "size": "major", "costShare": 1.6, "effect": {} },
-    { "id": "reinforcedCouplings", "name": "Reinforced couplings", "size": "major", "costShare": 1.8, "effect": {} }
+    // F.3 "uncouple under load": cutting a working train's coupling takes no longer than a slack one (6 s to 3 s).
+    { "id": "reinforcedCouplings", "name": "Reinforced couplings", "size": "major", "costShare": 1.8, "effect": { "underLoad": 0.5 } }
   ],
+  // GDD v1.4 App. E.12 question 4, answered: the fortress sells spare repair kits. Each starts the night in a crew locker
+  // beside the train's own (train.json kit.lockers); one lost in the night is gone, and a kit found at a stop and brought
+  // home is kept as a spare. About a small upgrade's price at the start (0.25 of a fourth car): losing the only kit ends a
+  // ruptured night (§23.2), and a crew that's lost one will pay that not to again. The lockers hold this many spares.
+  "spareKit": { "cost": 325, "most": 3 },
   // The yardstick for `dt campaign sim`: a crew that buys a car as soon as it can also afford upgrades worth
   // smallShare of it (F.3 "one or two small upgrades per car purchase"), a major worth majorShare every majorEvery
   // cars, loses lossFraction of its cargo on an average night (F.1 "expected loss"), and pays F.1's 15% running

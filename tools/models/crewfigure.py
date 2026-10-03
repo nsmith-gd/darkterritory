@@ -28,7 +28,7 @@ from overbake import bell, fine, smooth01
 class Style:
     def __init__(self, head=None, dress=None, shapes=None, masks=None, grade=None, preview="CREW_PREVIEW",
                  what="the crew's clothes and kit, modelled over tools/blender/crew.py", lamp=True, mask=None, figure="helm",
-                 gear=None, views=None):
+                 gear=None, views=None, hats=True):
         self.head, self.dress, self.shapes = head, dress or {}, shapes or {}
         self.masks, self.grade, self.preview, self.what = masks or {}, grade, preview, what
         # The chest lamp lit (crew_atlas's glass, kept as a pure light), or dead and baked with the rest (a dress entry
@@ -42,6 +42,9 @@ class Style:
         self.figure = figure
         # Concept headgear (tools/models/concepts): gear(tip, head_centre, make) -> high parts, previewed on the figure.
         self.gear = gear
+        # False: no cap or helmet at all (the bare figure only), the scan's own hair the head's cover: whoever wasn't
+        # issued the crew's kit (the survivors, App. D.8).
+        self.hats = hats
         # The preview's views, [(name, direction, target, distance)], in place of the default five.
         self.views = views
 
@@ -223,6 +226,11 @@ def build(name, style):
     os.environ["DT_CREW"] = style.figure
     kit, g, arm, parts = overbake.hold("crew.py")
     scan = style.figure == "bare"
+    hats = ("hat_cap", "hat_helmet") if scan else ()
+    if not style.hats:
+        for n in hats:
+            bpy.data.objects.remove(parts.pop(n))
+        hats = ()
     print(f"[dt] {name} parts", {n: len(o.data.polygons) for n, o in sorted(parts.items())})
     mat_named = overbake.mat_slots
 
@@ -496,7 +504,7 @@ def build(name, style):
 
     # Which highs bake onto which game part (a cap never shadows the helmet it isn't worn with).
     # (The frame, crewbody's modelled body, bakes from its own dense union; the coat's shells from their subdivision.)
-    BAKED = ["body", "frame", "coat"] + (["hat_cap", "hat_helmet", "scarf"] if scan else ["visor_up", "visor_down", "scarf"])
+    BAKED = ["body", "frame", "coat"] + ([*hats, "scarf"] if scan else ["visor_up", "visor_down", "scarf"])
     for k, fn in style.shapes.items():
         SHAPE[k] = (lambda f, base: (lambda p, n: base(p, n) + f(p, n)) if base else f)(fn, SHAPE.get(k))
     # The coat's shells are two-sided: each side sculpted the outer side's way (along its normal the lining would move
@@ -557,7 +565,7 @@ def build(name, style):
                                               bevel=0, name="lace", low=0))
                 highs["body"].append(make.torus((x + s * 0.022, 0.055, z), (0, 1, 0), 0.0045, 0.0015, BUTTON, n=8, m=4,
                                                 name="eyelet", low=None))
-    if scan:
+    if "hat_helmet" in hats:
         # The helmet's rolled rim.
         RIM = make.lib("paint_olive", 2.0, (0.8, 0.8, 0.7), 0.5)
         rim = make.torus((0, 0.006, 1.712), (0, 0, 1), 0.153, 0.006, RIM, n=48, m=8, name="rim", low=None)
@@ -591,7 +599,7 @@ def build(name, style):
             o.hide_render = True
         for part, hs in highs.items():
             for h in hs:
-                shown = BAKED[4] if variant in ("helmet", "tall", "down") else BAKED[3]
+                shown = (BAKED[4] if variant in ("helmet", "tall", "down") else BAKED[3]) if hats else None
                 h.hide_render = part not in ("body", "frame", "coat", shown) or variant == "none" and part not in ("body", "frame", "coat")
         for view, d, c, dist in style.views or (("front", (0.2, 1, 0.1), (0, 0, 0.95), 4.2), ("back", (-0.3, -1, 0.1), (0, 0, 0.95), 4.2),
                                  ("head", (0.4, 1, 0.15), (0, 0.02, 1.68 if not scan else 1.62), 1.0 if scan else 1.2), ("hand", (0.2, 0.6, 1), (0.75, 0, 1.44), 0.7),

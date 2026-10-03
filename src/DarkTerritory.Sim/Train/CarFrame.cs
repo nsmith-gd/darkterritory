@@ -44,7 +44,9 @@ public readonly record struct Box(Double3 Min, Double3 Max)
 public enum SurfaceKind : byte { Roof, Deck, Coupler }
 
 /// <summary>What a solid is, so presentation can draw and colour it. Collision ignores this, but for an open roof hatch (T99).</summary>
-public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps, RunningBoard, Hatch }
+/// <summary><see cref="CrewLocker"/> is one of the kit car's row of crew lockers (ARCHITECTURE §8 note 173); <see cref="Locker"/> the guard van's tool locker.</summary>
+/// <summary><see cref="Stove"/> and <see cref="Bunk"/> are a crew car's (note 184): its stove, and the berths down its right side.</summary>
+public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps, RunningBoard, Hatch, CrewLocker, Stove, Bunk }
 
 /// <summary>Where a gun is bolted on, and which way it faces in the car's frame (−Z forward, +Z back).</summary>
 /// <summary>
@@ -62,8 +64,11 @@ public readonly record struct Solid(Box Box, SurfaceKind Top, PartKind Part)
 /// <summary>A ladder fixed to a face: its foot, how high it goes, and which way is "onto" what it serves.</summary>
 public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward);
 
-/// <summary><see cref="Coal"/> is the tender's coal face, where a hand fills the shovel (T29).</summary>
-public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack }
+/// <summary>
+/// <see cref="Coal"/> is the tender's coal face, where a hand fills the shovel (T29). <see cref="Locker"/> is a crew locker's
+/// door (its <see cref="Interactable.Index"/> the locker's), worked like a car door and wanting facing as one does.
+/// </summary>
+public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack, Locker }
 
 /// <summary>A thing a player uses by standing near it and holding Use. <see cref="Index"/> says which door.</summary>
 public readonly record struct Interactable(InteractableKind Kind, Double3 Position, double Radius, int Index = 0);
@@ -87,6 +92,19 @@ public readonly record struct CabLevers(Double3 Regulator, Double3 Brake, Double
     public Double3 ReverserAt(int reverser) => Reverser + new Double3(0, 0, -ReverserThrow * Math.Sign(reverser));
 }
 
+/// <summary>
+/// One crew locker (ARCHITECTURE §8 note 173), in its car's frame: the cabinet's box against the wall (a solid: you bump
+/// into it, things lie against it), its door on the face towards the aisle, hinged at its front edge. <see cref="Index"/>
+/// is its bit in <see cref="Vehicle.LockersOpen"/> and its name's place in train.json's <c>kit.lockers.names</c>.
+/// </summary>
+public readonly record struct LockerBay(int Index, Box Box, string Name)
+{
+    /// <summary>The door's side of the cabinet: +1 when it opens towards +X (a locker on the left wall), −1 on the right.</summary>
+    public int Facing => Box.Min.X < 0 ? 1 : -1;
+    /// <summary>The middle of the door's face, at the cabinet's foot.</summary>
+    public Double3 Front => new(Facing > 0 ? Box.Max.X : Box.Min.X, Box.Min.Y, (Box.Min.Z + Box.Max.Z) / 2);
+}
+
 /// <summary>A hinged door: solid while shut. <see cref="Index"/> is its bit in <see cref="Vehicle.DoorsOpen"/>.</summary>
 public readonly record struct Door(Box Box, int Index);
 
@@ -98,6 +116,12 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     GunMount? Gun = null, Box? Interior = null, IReadOnlyList<Door>? Doors = null, CabLevers? Levers = null)
 {
     public IReadOnlyList<Door> DoorList => Doors ?? [];
+    /// <summary>The crew lockers along a wall (ARCHITECTURE §8 note 173): only the repair kit's car has them.</summary>
+    public IReadOnlyList<LockerBay> Lockers { get; init; } = [];
+    /// <summary>Shelves in each crew locker (train.json kit.lockers.slots).</summary>
+    public int LockerShelves { get; init; }
+    /// <summary>The repair kit's locker in <see cref="Lockers"/> (kit.lockers.kitLocker: the fitter's), or −1 without lockers.</summary>
+    public int KitLocker { get; init; } = -1;
     /// <summary>The guard van's rear platform, when it's last in the train (its top is the footing); null on anything else.</summary>
     public Box? Platform { get; init; }
     /// <summary>
@@ -112,6 +136,8 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     public Box? Hatch { get; init; }
     /// <summary>The hatch's bit in <see cref="Vehicle.DoorsOpen"/>: after the four doors.</summary>
     public const int HatchBit = 4;
+    /// <summary>A crew car's stove (note 184), standing on its floor: the heat a crew car has of its own.</summary>
+    public Box? Stove { get; init; }
 
     public double HalfLength => Bounds.Max.Z;
     public double HalfWidth => Bounds.Max.X;
@@ -129,6 +155,11 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         return best;
     }
 
+    /// <param name="lockers">This car has the crew lockers (the repair kit's car, ARCHITECTURE §8 note 173).</param>
+    public static CarShape Build(GeometryTuning g, VehicleKind kind, bool hasCarBehind, LockerTuning? lockers = null) =>
+        lockers is { Names.Count: > 0 } && kind != VehicleKind.Engine && g.Interior is not null
+            ? WithLockers(Build(g, kind, hasCarBehind), lockers) : Build(g, kind, hasCarBehind);
+
     public static CarShape Build(GeometryTuning g, VehicleKind kind, bool hasCarBehind) => kind switch
     {
         // The engine's rail runs from over the cab's front, where its gun stands, back over the tender (T93).
@@ -137,6 +168,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             RoofRail = (g.EngineLength / 2 - g.Engine.TenderLength - g.Engine.CabLength + RailEnd, g.EngineLength / 2 - RailEnd),
         },
         VehicleKind.Guard => Guard(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
+        VehicleKind.Utility => Utility(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
         _ => Car(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
     };
 
@@ -177,6 +209,30 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             ladders.Add(new Ladder(new Double3(0.6, i.FloorHeight, l - 2.4), h, new Double3(0, 0, -1)));
         }
         return car with { Solids = solids, Interactables = interactables, Ladders = ladders, Gun = new GunMount(mount + new Double3(0, 0.9, 0), new Double3(0, 0, 1)), Platform = platform };
+    }
+
+    /// <summary>
+    /// A crew car (GDD §10 "utility car", §26 "cramped, lamp-lit, human-scale"; note 184): walled like the guard van, no side
+    /// doors and no freight; berths down the right side, where a cargo car's load stands, and the stove at the rear end on
+    /// the left with its pipe up through the roof. The aisle runs from end door to end door between them. The crew lockers
+    /// (its stores) go along the left wall from the front when it's the kit's car.
+    /// </summary>
+    static CarShape Utility(GeometryTuning g, bool hasCarBehind)
+    {
+        if (g.Interior is not { } i)
+            return SolidCar(g, hasCarBehind);
+        var car = Shell(g, i, hasCarBehind, cargo: false);
+        var room = car.Interior!.Value;
+        double floor = i.FloorHeight;
+        var solids = car.Solids.ToList();
+        // Two berths, one over the other, stood clear of the end doors: the lower one's a seat, the upper one's a shelf
+        // you don't stand on (it's the frame that's solid, from the floor to the top berth).
+        var bunks = new Box(new Double3(room.Max.X - i.CargoDepth * 0.7, floor, room.Min.Z + 1.5), new Double3(room.Max.X, floor + 1.45, room.Max.Z - 0.7));
+        solids.Add(new Solid(bunks, SurfaceKind.Deck, PartKind.Bunk));
+        // Against the left wall, clear of the rear doorway's edge (end doors stand left of centre, at interior.doorX).
+        var stove = new Box(new Double3(room.Min.X + 0.05, floor, room.Max.Z - 1.0), new Double3(room.Min.X + 0.5, floor + 0.75, room.Max.Z - 0.5));
+        solids.Add(new Solid(stove, SurfaceKind.Deck, PartKind.Stove));
+        return car with { Solids = solids, Stove = stove };
     }
 
     /// <summary>
@@ -297,6 +353,36 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         {
             Hatch = hatch,
         };
+    }
+
+    /// <summary>
+    /// The crew lockers (ARCHITECTURE §8 note 173): a row along the left wall from <see cref="LockerTuning.FromFront"/> behind
+    /// the front end wall, back towards the side door (a cargo car's) and stopping short of it, each a solid cabinet with
+    /// its door to the aisle (which runs from end door to end door, right of them). As many as there are names, and as fit:
+    /// none crowds a door. In the guard van they stand where its tool locker did, and take its place.
+    /// </summary>
+    static CarShape WithLockers(CarShape car, LockerTuning t)
+    {
+        if (car.Interior is not { } room)
+            return car;
+        double floor = room.Min.Y + 0.1, x0 = room.Min.X, x1 = x0 + t.Depth;
+        double z0 = room.Min.Z + t.FromFront;
+        // Stop short of the left side door (a cargo car's) or the far end wall.
+        double end = car.DoorList.Where(d => d.Box.Max.X < 0 && d.Box.Max.Z - d.Box.Min.Z > d.Box.Max.X - d.Box.Min.X)
+            .Select(d => d.Box.Min.Z - 0.15).DefaultIfEmpty(room.Max.Z - 1.0).Min();
+        int count = Math.Min(t.Names.Count, (int)Math.Floor((end - z0) / t.Width + 1e-9));
+        var bays = new List<LockerBay>();
+        for (int i = 0; i < count; i++)
+            bays.Add(new LockerBay(i, new Box(new Double3(x0, floor, z0 + i * t.Width), new Double3(x1, floor + t.Height, z0 + (i + 1) * t.Width)), t.Names[i]));
+        if (bays.Count == 0)
+            return car;
+        var span = new Box(bays[0].Box.Min, bays[^1].Box.Max);
+        var solids = car.Solids.Where(s => !(s.Part == PartKind.Locker && s.Box.Min.Z < span.Max.Z && s.Box.Max.Z > span.Min.Z && s.Box.Min.X < span.Max.X))
+            .Concat(bays.Select(b => new Solid(b.Box, SurfaceKind.Deck, PartKind.CrewLocker))).ToList();
+        // Each door's handle: at its face, at the feet of whoever stands in front of it.
+        var interactables = car.Interactables.Concat(bays.Select(b => new Interactable(InteractableKind.Locker, b.Front with { X = b.Front.X + 0.05 }, 0.6, b.Index))).ToList();
+        int kit = bays.FindIndex(b => string.Equals(b.Name, t.KitLocker, StringComparison.OrdinalIgnoreCase));
+        return car with { Solids = solids, Interactables = interactables, Lockers = bays, LockerShelves = Math.Max(1, t.Slots), KitLocker = Math.Max(0, kit) };
     }
 
     static CarShape SolidCar(GeometryTuning g, bool hasCarBehind)

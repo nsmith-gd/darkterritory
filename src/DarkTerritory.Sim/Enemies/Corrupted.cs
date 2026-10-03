@@ -105,6 +105,7 @@ public sealed class Passenger(int id) : Enemy(id)
                                 int ahead = train.VehicleAhead(rear);
                                 if (ahead >= 0)
                                     train.Uncouple(ahead);
+                                train.Vehicles[rear].Taken = true;
                                 int victim = Holding;
                                 Enter(ctx, SpinePhase.Punish);
                                 Punish(ctx, victim);
@@ -256,7 +257,17 @@ public sealed class Switchman(int id) : Enemy(id)
                 if (engine.Path == Rail.RailLine.MainPath && engine.Distance > branch.Toe + 2 && engine.RearDistance < branch.Toe - 2)
                 {
                     ctx.World.SetSwitch(Branch, true);
-                    ctx.World.Derail("the Switchman threw the points under it");
+                    double v = engine.Speed;
+                    if (v > t.DerailAbove)
+                        ctx.World.Derail($"the Switchman threw the points under it at {v * 3.6:0} km/h (over {t.DerailAbove * 3.6:0} km/h they throw a train off)");
+                    else
+                    {
+                        // Run through at a crawl: the points split, the engine's wrenched about and brought up short.
+                        var front = train.Vehicles[engine.Consist.Vehicles[0].Id];
+                        front.Integrity = Math.Max(0, front.Integrity - t.RunThroughDamage);
+                        foreach (var rake in train.Rakes)
+                            rake.Velocity = 0;
+                    }
                     Enter(ctx, SpinePhase.Punish);
                     return;
                 }

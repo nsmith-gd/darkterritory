@@ -38,10 +38,19 @@ public sealed class GameAudio
         Bank = new SoundBank(Path.Combine(contentRoot, "audio", "sounds"));
         _mix = new HotData<MixDef>(Path.Combine(contentRoot, MixDef.File));
         Mixer = new Mixer(Bank, _mix.Value);
+        Opera = new Opera(contentRoot);
     }
 
     public SoundBank Bank { get; }
     public Mixer Mixer { get; }
+    /// <summary>The derailment's music (GDD v1.4 App. E.6): every track loaded now, at startup.</summary>
+    public Opera Opera { get; }
+
+    /// <summary>
+    /// Every frame: the derailment's opera, the host's draw (<see cref="World.DerailMusic"/>) at
+    /// <paramref name="sequenceSeconds"/> into the sequence (negative with no derailment). It starts on the replay.
+    /// </summary>
+    public void Music(uint track, double sequenceSeconds, WreckTuning tuning, double end = -1) => Opera.Update(Mixer, track, sequenceSeconds, tuning, end);
 
     sealed class EnemySound
     {
@@ -71,9 +80,79 @@ public sealed class GameAudio
         Choir(world, train);
         Actions(world);
         Whistle(world, train);
+        Toys(world, train);
+        CallOuts(world);
     }
 
-    SoundInstance? _whistle;
+    readonly Dictionary<int, int> _calls = [];
+
+    /// <summary>
+    /// GDD v1.4 App. D.7 Call Out (note 179): each Call Out the host counts plays once at its Holdout, a shout or a bout of
+    /// banging, through the walls unless you're outside by it. What had been called before this client first looked is old.
+    /// </summary>
+    void CallOuts(World world)
+    {
+        if (world.Holdouts is not { } holdouts)
+            return;
+        foreach (var h in holdouts.All)
+        {
+            bool seen = _calls.TryGetValue(h.Index, out int was);
+            _calls[h.Index] = h.Calls;
+            if (!seen || h.Calls <= was)
+                continue;
+            Mixer.Play((h.Index + h.Calls) % 2 == 0 ? "holdout-shout" : "holdout-bang", h.Inside)?.Also(v => v.Occlusion = 1);
+        }
+    }
+
+    readonly Dictionary<int, SoundInstance> _toys = [];
+
+    /// <summary>
+    /// A noisy toy in someone's hands (GDD v1.4 §19, App. C item 4): its squeak, tune or drum for as long as it's carried, in
+    /// the carrier's car (and in the carrier's name on the Choir's meter, host-side). Put down, it's quiet.
+    /// </summary>
+    void Toys(World world, TrainOnLine train)
+    {
+        var carried = new HashSet<int>();
+        foreach (var b in world.Bodies.All)
+        {
+            if (b.Kind != Sim.Physics.BodyKind.Toy || b.Carrier < 0 || b.Noise == Sim.Physics.ToyNoise.None)
+                continue;
+            carried.Add(b.Id);
+            if (!_toys.TryGetValue(b.Id, out var voice) || voice.Finished)
+            {
+                string sound = b.Noise switch
+                {
+                    Sim.Physics.ToyNoise.Squeaker => "toy-squeaker",
+                    Sim.Physics.ToyNoise.MusicBox => "toy-musicbox",
+                    _ => "toy-drummer",
+                };
+                if (Mixer.Play(sound) is not { } played)
+                    continue;
+                _toys[b.Id] = voice = played;
+            }
+            voice.Position = Sim.Physics.Bodies.WorldCentre(b, train);
+            voice.Occlusion = Occlusion(b.Parent >= 0 && b.Parent < train.Frames.Count ? b.Parent : PlayerMotor.Outside);
+        }
+        foreach (var id in _toys.Keys.Where(id => !carried.Contains(id)).ToList())
+        {
+            _toys[id].Stop();
+            _toys.Remove(id);
+        }
+    }
+
+    SoundInstance? _whistle, _radioVoice;
+
+    /// <summary>The fortress reading over the radio (GDD §9; note 178): its voice and static for as long as it's on the air.</summary>
+    public void Radio(bool onAir)
+    {
+        if (!onAir)
+        {
+            _radioVoice?.Stop();
+            _radioVoice = null;
+            return;
+        }
+        _radioVoice ??= Mixer.Play("radio-clerk");
+    }
 
     /// <summary>The train's whistle, from the engine's dome, for as long as it blows (the cord, or the Whistler at it).</summary>
     void Whistle(World world, TrainOnLine train)
@@ -384,7 +463,7 @@ public sealed class GameAudio
                     s.Loop?.Params.Set("progress", e.Extra);
                     break;
                 case EnemyKind.ShyThing when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit:
-                    // GDD v1.3 App. A.6: its victim's ears ringing, worse the longer they're under. Only their machine is sent it.
+                    // GDD v1.5 App. A.6: its victim's ears ringing, worse the longer they're under. Only their machine is sent it.
                     Loop(s, "shy-hum", at, 0);
                     s.Loop?.Params.Set("progress", Math.Clamp(e.Extra2 / 20, 0, 1));
                     break;
@@ -464,10 +543,44 @@ public sealed class GameAudio
     {
         foreach (var shot in world.Shots)
             Mixer.Play("gunshot", shot.Muzzle)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
+        Strikes(world);
+    }
+
+    readonly HashSet<int> _heardHits = [], _heardImpacts = [];
+    bool _strikesPrimed;
+
+    /// <summary>
+    /// What landed (T121), from the replicated world, each once: a ball's boom where it came down (a splash in water, and the
+    /// porcelain going when it was the Track Doll), and the thud of a blow or a ball on a creature at the hit point. On the
+    /// first update, what's already there is old news: it's marked heard, not played.
+    /// </summary>
+    void Strikes(World world)
+    {
+        foreach (var i in world.Impacts)
+        {
+            if (!_heardImpacts.Add(i.Id) || !_strikesPrimed)
+                continue;
+            Mixer.Play(i.Surface == ImpactSurface.Water ? "cannon-splash" : "cannon-impact", i.At)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
+            if (i.Struck == Sim.Enemies.EnemyKind.TrackDoll)
+                Mixer.Play("doll-shatter", i.At)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
+        }
+        foreach (var h in world.Hits)
+            if (_heardHits.Add(h.Id) && _strikesPrimed)
+                Mixer.Play("hit-confirm", h.At)?.Also(v => v.Occlusion = Occlusion(world.ActiveEnemies.FirstOrDefault(e => e.Id == h.EnemyId) is { Attached: >= 0 } on
+                    ? on.Attached : PlayerMotor.Outside));
+        _strikesPrimed = true;
+        // Forget what's gone off the wire (ids aren't reused for a long while: a night's worth).
+        if (_heardImpacts.Count > 64)
+            _heardImpacts.IntersectWith(world.Impacts.Select(i => i.Id));
+        if (_heardHits.Count > 64)
+            _heardHits.IntersectWith(world.Hits.Select(h => h.Id));
     }
 
     /// <summary>Plays a one-shot at a point: crew actions the game knows about (a shovel of coal).</summary>
     public void Play(string name, Double3 at) => Mixer.Play(name, at);
+
+    /// <summary>A sound with no place (it's flat): the dead channel's chime (D.11), and the like.</summary>
+    public void Play(string name) => Mixer.Play(name);
 
     /// <summary>Tiny deterministic RNG for cue timing (the sim's Pcg32 is for the sim).</summary>
     sealed class Pcg32Ish(ulong seed)

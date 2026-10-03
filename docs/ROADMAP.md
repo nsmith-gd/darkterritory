@@ -35,7 +35,7 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
   - The pressure director follows App. B.1.
   - Greybox stand-ins for each: `dt screenshot --threats`.
   - `dt harness --route frontier:7 --enemies` plays a whole night with bots and reports pacing, punishes, deaths by cause and fairness violations.
-- **GDD v1.3's three at the stops (post-demo roster):** the Shy Thing, the Huddle and the Mimic, on the spine with greybox stand-ins, their tells and screenshot staging (ARCHITECTURE §8 note 164). Not in the demo edition. Models to come.
+- **GDD v1.5's three at the stops (post-demo roster):** the Shy Thing, the Huddle and the Mimic, on the spine with greybox stand-ins, their tells and screenshot staging (ARCHITECTURE §8 note 188). Not in the demo edition. Models to come.
 - **Audio (M5's "audio mixer + tier ducking"):**
   - A synthesised train bed, slack action, and the five demo tells, all from data, through a tiered mixer.
   - `dt audio render` produces a WAV plus a spectrogram. `AudioTests` holds spec A.3's "tier 1 is inviolable" in maximum chaos.

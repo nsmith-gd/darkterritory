@@ -39,7 +39,7 @@ public sealed class Sleepers(int id) : Enemy(id)
         if (fair && speed > t.DerailAbove)
         {
             Enter(ctx, SpinePhase.Punish);
-            ctx.World.Derail($"onto the Sleepers at {speed:0.0} m/s");
+            ctx.World.Derail($"ran onto the Sleepers at {speed * 3.6:0} km/h, {(speed - t.DerailAbove) * 3.6:0} km/h over the {t.DerailAbove * 3.6:0} km/h they'll take");
         }
         else if (fair && speed > t.HeavyDamageAbove)
         {

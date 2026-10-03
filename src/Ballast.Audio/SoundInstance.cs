@@ -27,6 +27,11 @@ public sealed class SoundInstance
     public StreamBuffer? Stream { get; set; }
     readonly float[] _streamBlock = new float[Audio.Block];
 
+    /// <summary>The recording a <see cref="SourceKind.Sample"/> layer plays (App. E.6's music).</summary>
+    public AudioClip? Clip { get; set; }
+    /// <summary>Where in <see cref="Clip"/> the next block starts, in the clip's seconds: set it to start from an in-point.</summary>
+    public double ClipSeconds { get; set; }
+
     public int Id { get; }
     public string Name { get; }
     public SoundDef Def { get; internal set; }
@@ -38,7 +43,8 @@ public sealed class SoundInstance
     public float Volume { get; set; } = 1;
     public double Age { get; private set; }
     public bool Stopped { get; private set; }
-    public bool Finished => Stopped || !Def.Loop && Age >= Def.Duration;
+    /// <summary>Done: stopped, a one-shot past its duration, or a clip played to its end (a clip, not the duration, times a sample).</summary>
+    public bool Finished => Stopped || (Clip is { } clip ? !Def.Loop && ClipSeconds >= clip.Seconds : !Def.Loop && Age >= Def.Duration);
 
     /// <summary>Configures a voice inline: <c>mixer.Play(...)?.Also(v => v.Occlusion = 1)</c>.</summary>
     public SoundInstance Also(Action<SoundInstance> configure)
@@ -53,6 +59,8 @@ public sealed class SoundInstance
     // Mixer-side state.
     internal Smoothed LeftGain, RightGain;
     internal Biquad OcclusionFilter;
+    // The music bus's low-pass on the rest of the game (App. E.6), two stages for a clear muffle.
+    internal Biquad GameFilterA, GameFilterB;
     internal float LastAudibleGain;
     /// <summary>Past the voice budget last block: keeping time, not rendered.</summary>
     public bool Virtual { get; internal set; }
@@ -64,6 +72,8 @@ public sealed class SoundInstance
         // One read per block, shared by every stream layer (a radio is the stream plus its static).
         if (Stream is not null)
             Stream.Read(_streamBlock.AsSpan(0, output.Length));
+        else if (Clip is not null)
+            ReadClip(output.Length);
         foreach (var layer in _layers)
             layer.Render(output, _scratch, Params, Age, Def.CycleSeconds, _streamBlock);
         if (Def.Crush is { } crush)
@@ -71,10 +81,29 @@ public sealed class SoundInstance
         Age += (double)output.Length / Audio.SampleRate;
     }
 
+    /// <summary>The clip's next block at the mixer's rate, into the stream block (sample layers read it there).</summary>
+    void ReadClip(int count)
+    {
+        var clip = Clip!;
+        double step = (double)clip.SampleRate / Audio.SampleRate, at = ClipSeconds * clip.SampleRate;
+        for (int i = 0; i < count; i++)
+        {
+            if (Def.Loop && at >= clip.Samples.Length)
+                at -= clip.Samples.Length;
+            _streamBlock[i] = clip.At(at);
+            at += step;
+        }
+        ClipSeconds += (double)count / Audio.SampleRate;
+        if (Def.Loop && ClipSeconds >= clip.Seconds)
+            ClipSeconds -= clip.Seconds;
+    }
+
     /// <summary>Advances time without producing sound (a virtualised voice keeps its place).</summary>
     internal void Skip(int samples)
     {
         Age += (double)samples / Audio.SampleRate;
+        if (Clip is not null)
+            ClipSeconds += (double)samples / Audio.SampleRate;
         // A virtual stream still consumes, or it would play stale speech when it comes back.
         Stream?.Read(_streamBlock.AsSpan(0, Math.Min(samples, _streamBlock.Length)));
     }
@@ -150,7 +179,7 @@ public sealed class SoundInstance
                     SourceKind.Sine => (float)Math.Sin(2 * Math.PI * _phase),
                     SourceKind.Saw => (float)(2 * _phase - 1),
                     SourceKind.Square => _phase < 0.5 ? 1f : -1f,
-                    SourceKind.Stream => stream[i],
+                    SourceKind.Stream or SourceKind.Sample => stream[i],
                     // A click when the phase wraps, with a little noise so repeats aren't identical.
                     _ => _phase < prev ? 1f + 0.3f * _noise.Next() : 0f,
                 };

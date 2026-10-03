@@ -33,4 +33,8 @@ public static class Palette
     public static readonly Vector3 BoardEnamel = Hex(0xB8B2A2);
     /// <summary>A clearance board's warning stripes.</summary>
     public static readonly Vector3 HazardYellow = Hex(0xB89030);
+    /// <summary>The Whistler's drag trail (App. A.4): the turned earth of the heels' furrows, and what's left in it.</summary>
+    public static readonly Vector3 TrailFurrow = Hex(0x1C1712);
+    public static readonly Vector3 TrailCloth = Hex(0x4A4438);
+    public static readonly Vector3 TrailGlove = Hex(0x3A2A1E);
 }

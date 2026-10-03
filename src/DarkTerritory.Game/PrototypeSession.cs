@@ -289,7 +289,7 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.CarFire, SpinePhase.Telegraph) => "smoke and a crackle from a car: get the extinguisher (Fire)",
         (EnemyKind.CarFire, SpinePhase.Punish) => "a car's alight: it'll take the next one",
         (EnemyKind.CarFire, SpinePhase.BreakOff) => "the fire's out",
-        // GDD v1.3. The Shy Thing's are its victim's (theirs alone to see): you, here.
+        // GDD v1.5. The Shy Thing's are its victim's (theirs alone to see): you, here.
         (EnemyKind.ShyThing, SpinePhase.Telegraph) => "you can't move: something out in the dark has your eyes. look away, and hold it",
         (EnemyKind.ShyThing, SpinePhase.Grab) => "its jaw's coming apart: hit it, or look away",
         (EnemyKind.ShyThing, SpinePhase.BreakOff) => "the pale thing's gone",
@@ -375,6 +375,27 @@ public sealed class PrototypeSession : IPlaySession
             parts.Add(left == 0 ? "the castings are loaded" : site.Cranes.Any(c => c.Hooked is not null) ? $"{gantries}: a casting on the hook"
                 : $"{gantries}: {left} castings to rig and lift (one in the cab, one on the ground)");
         }
+        // GDD §18's set pieces (note 185).
+        if (site.Has(ModuleKind.Spout))
+            parts.Add(site.Bin <= 0 ? "the elevator's bin is empty" : site.Pouring ? $"spout POURING ({site.Bin:0.0} loads left)"
+                : $"one spout: walk each car under it, someone on its lever ({site.Bin:0.0} loads)");
+        if (site.Has(ModuleKind.Ramp))
+            parts.Add(site.Head == 0 ? "the herd's aboard" : site.Herding ? $"herd going up the ramp ({site.Head} left), LOUD"
+                : $"{site.Head} head in the pen: two to drive them up the ramp");
+        if (site.Has(ModuleKind.Hose))
+            parts.Add(site.Leaking ? "HOSE LEAKING: get clear, or get to the stand" : site.HoseCar >= 0 ? $"hose on, pressure {site.Pressure * 100:0}%: someone stay by the stand"
+                : "hose stand: put it on a car, mind it, take it off (and do not fire the guns in here)");
+        // GDD §18's switchyard and wreck yard (note 187).
+        if (site.Has(ModuleKind.Rakes))
+            parts.Add("cars standing on the sidings: throw each switch, couple up and bring them out (they come away ahead of the engine)");
+        if (site.Heaps.Count > 0)
+        {
+            int dark = site.Heaps.Count(h => !h.Found && h.Salvage > 0);
+            parts.Add(site.Heaps.Any(h => h.Groan > 0) ? "THE WRECK'S GOING: get clear of it"
+                : dark > 0 ? $"wreck: {dark} of {site.Heaps.Count} heaps not yet seen (no lamps here: take one to them)" : "wreck: carry the salvage to the cars, gently");
+        }
+        if (site.Feature.Facility == FacilityKind.MilitaryDepot && site.Has(ModuleKind.Crates))
+            parts.Add("powder kegs: set them down, never throw or drop them");
         if (site.Has(ModuleKind.Winch))
             parts.Add(site.SledsLeft == 0 ? "the winch is done" : site.Turning ? $"winch HAULING {site.Progress * 100:0}%" : site.OutOfRhythm ? "winch STALLED: out of rhythm" : $"winch: two on the capstan ({site.SledsLeft} sleds)");
         return " — " + string.Join(", ", parts);

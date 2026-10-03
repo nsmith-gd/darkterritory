@@ -5,14 +5,14 @@ using DarkTerritory.Sim.Enemies;
 namespace DarkTerritory.Game.Art;
 
 /// <summary>
-/// Stand-ins for the creatures that have no model yet (GDD v1.3's Shy Thing and Huddle), from the kit's primitives: drawn
+/// Stand-ins for the creatures that have no model yet (GDD v1.5's Shy Thing and Huddle), from the kit's primitives: drawn
 /// by the art pass (CreatureArt) and the bare greybox (GreyboxScene) alike, until tools/blender makes them. Each reads by
 /// silhouette and by its telegraph (App. A.1).
 /// </summary>
 public static class StandIns
 {
     /// <summary>
-    /// The Shy Thing (GDD v1.3 §21, a greybox stand-in): tall, thin and pale (§28's dead ivory), standing dead still in the
+    /// The Shy Thing (GDD v1.5 §21, a greybox stand-in): tall, thin and pale (§28's dead ivory), standing dead still in the
     /// dark with its arms hanging past its knees and no face but two dark pits. With someone under, it faces them; unhinging
     /// (the GRAB), its jaw comes down off its head like a snake's, the throat a black gape, its teeth round the rim.
     /// </summary>
@@ -67,7 +67,7 @@ public static class StandIns
     }
 
     /// <summary>
-    /// The Huddle (GDD v1.3 §21, a greybox stand-in): a flock of small, soft, round things the colour of a fungus (§28's
+    /// The Huddle (GDD v1.5 §21, a greybox stand-in): a flock of small, soft, round things the colour of a fungus (§28's
     /// fungal beige), each with two black bead eyes, bobbing about the one spot; bristling (the telegraph) they puff up and
     /// their fur stands in spikes; on someone (the GRAB), they're piled up them, chest high.
     /// </summary>

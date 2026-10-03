@@ -1,4 +1,4 @@
-// Tell (tier 1), the Shy Thing: what its victim hears while it has them (GDD v1.3 App. A.6), 5-6.5 kHz. A thin ringing in
+// Tell (tier 1), the Shy Thing: what its victim hears while it has them (GDD v1.5 App. A.6), 5-6.5 kHz. A thin ringing in
 // the ears, two tones a few hertz apart beating slowly, swelling the longer they're under ("progress"). Only its victim's
 // machine is sent it (the host's interest filter), so only they hear it: to everyone else, they've just stopped moving.
 {

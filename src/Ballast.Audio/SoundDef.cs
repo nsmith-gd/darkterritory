@@ -71,6 +71,11 @@ public enum SourceKind : byte
     Impulse,
     /// <summary>Samples pushed in from outside: voice chat, decoded as it arrives (<see cref="SoundInstance.Stream"/>).</summary>
     Stream,
+    /// <summary>
+    /// A recorded clip (<see cref="SoundInstance.Clip"/>, loaded from a file at startup), from <see cref="SoundInstance.ClipSeconds"/>
+    /// on: the derailment's opera (GDD v1.4 App. E.6). The instance ends when the clip does, unless the sound loops.
+    /// </summary>
+    Sample,
 }
 
 /// <summary>How level falls with distance.</summary>
@@ -118,7 +123,7 @@ public sealed record SoundDef(int Tier, LayerDef[] Layers, bool Loop = false, do
 public sealed record MixDef(DuckRule[] Ducking, double DuckAttack, double DuckRelease, int MaxVoices,
     // Spec A.3: tier 1 is never occluded beyond this.
     double TellOcclusionFloorDb, double OcclusionDb, double OcclusionLowpass, double MasterDb,
-    SoundDuckRule[]? SoundDucking = null)
+    SoundDuckRule[]? SoundDucking = null, MusicBusDef? Music = null)
 {
     public const string File = "audio/mix.json";
 }
@@ -128,3 +133,13 @@ public sealed record DuckRule(int Tier, int[] Ducks, double Db);
 
 /// <summary>Within a tier: while any of <see cref="When"/> is audible, the named sounds drop (tells whose bands collide).</summary>
 public sealed record SoundDuckRule(string[] When, string[] Ducks, double Db);
+
+/// <summary>
+/// The music bus (GDD v1.4 App. E.6), outside the tell tiers: sounds on <see cref="Mixer.MusicTier"/> never duck anything,
+/// and are never ducked by the tiers' rules. The bus sits at <see cref="LevelDb"/>, dips <see cref="DuckDb"/> while any of
+/// <see cref="DuckUnder"/> is audible (the dead channel, so the laughing stays audible), and while music plays the rest of
+/// the game on <see cref="LowpassTiers"/> goes through a <see cref="LowpassHz"/> low-pass, faded in and out over
+/// <see cref="LowpassSeconds"/>.
+/// </summary>
+public sealed record MusicBusDef(double LevelDb, double DuckDb, string[] DuckUnder, double DuckAttack, double DuckRelease,
+    double LowpassHz, int[] LowpassTiers, double LowpassSeconds);

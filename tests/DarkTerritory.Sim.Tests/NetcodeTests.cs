@@ -115,6 +115,8 @@ public class NetcodeTests
         Assert.Equal(2, host.Train.Rakes.Count);
         Assert.All(clients, c => Assert.Equal(2, c.Train.Rakes.Count));
         Assert.All(clients, c => Assert.Equal(0, c.MaxCorrection));
+        // GDD v1.4 App. C.9: the host knows who pulled the coupler, for every car behind it.
+        Assert.Equal(cutter.PlayerId!.Value, host.World.Attribution.CouplerPulledBy(4));
     }
 
     [Fact]
@@ -486,7 +488,7 @@ public class SessionRulesTests
     [Fact]
     public void AShyThingWithSomeoneUnderIsSentOnlyToThem()
     {
-        // GDD v1.3 App. A.6: watched, it has you, and "nobody else can see it until it unhinges its jaw".
+        // GDD v1.5 App. A.6: watched, it has you, and "nobody else can see it until it unhinges its jaw".
         var (net, host, clients, _) = Session(2);
         host.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } }, null, 1, 2);
         Run(net, host, clients, 10);

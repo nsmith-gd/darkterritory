@@ -40,13 +40,16 @@ public sealed class ChoirGhost(int id) : Enemy(id)
                 return;
             case SpinePhase.Commit:
                 {
-                    // SEIZE: the nearest crewmate exposed (outside, on a roof, behind no shut door), not already held.
+                    // SEIZE: a crewmate exposed (outside, on a roof, behind no shut door), not already held: loudest first (GDD
+                    // v1.4 App. A.7: "whoever put the most into the meter during the build"), then the nearest.
                     var here = Local;
                     var exposed = ctx.LivingCrew().Where(c => PlayerMotor.Space(c.Player.State, train) == PlayerMotor.Outside && !c.Player.State.Has(PlayerFlags.Held))
-                        .OrderBy(c => (c.World - here).Length).ToList();
-                    if (exposed.Count == 0)
+                        .OrderByDescending(c => ctx.World.ChoirShare(c.Player.Id)).ThenBy(c => (c.World - here).Length).ThenBy(c => c.Player.Id).ToList();
+                    // One seize at a time: it takes one crew member a run (A.7 LIMIT), so while one of the swarm has someone
+                    // the rest wheel overhead. (Two ghosts each holding someone was two dead when the first let go.)
+                    if (exposed.Count == 0 || ctx.World.ActiveEnemies.Any(e => e is ChoirGhost && e != this && e.Phase == SpinePhase.Grab))
                     {
-                        // BESIEGE: at the doors, rattling, until it's quiet.
+                        // BESIEGE: at the doors, rattling, until it's quiet (or overhead while another has its one).
                         Extra = -1;
                         Circle(train, t);
                         return;

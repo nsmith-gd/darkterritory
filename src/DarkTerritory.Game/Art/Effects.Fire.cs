@@ -6,6 +6,148 @@ namespace DarkTerritory.Game.Art;
 public sealed partial class Effects
 {
     /// <summary>
+    /// A stove's smoke out of its pipe on a car's roof (the crew's car, the guard van): a thin grey thread rising, the
+    /// train's wind laying it back over the roof behind.
+    /// </summary>
+    public void StoveSmoke(MeshBuilder mesh, Vector3 top, Vector3 u, Vector3 b, float speed, double t, int seed)
+    {
+        if (_smoke < 0)
+            return;
+        for (int k = 0; k < 10; k++)
+        {
+            float h = Hash(k * 2.13f + seed * 3.7f), period = 4.0f + h * 1.5f;
+            float age = (float)((t * (0.9 + 0.2 * h) + h * 11) % period), s = age / period;
+            var p = top + u * (age * 0.55f / (1 + MathF.Abs(speed) * 0.1f)) + b * (MathF.Abs(speed) * age * 0.6f)
+                + new Vector3(MathF.Sin(age * 1.3f + h * 6) * 0.1f, 0, MathF.Cos(age * 0.9f + h * 4) * 0.1f) * s;
+            float a = 0.38f * MathF.Sin(MathF.PI * MathF.Min(1, s * 1.2f + 0.05f));
+            mesh.Billboard(p, 0.18f + s * 0.9f, h * 6.28f + age * 0.2f, new Vector4(new Vector3(0.22f, 0.21f, 0.2f), a), _smoke, FxBlend.Alpha, (int)(s * 15.99f), 4);
+        }
+    }
+
+    /// <summary>
+    /// A breath in the cold (GDD §26): every few seconds (quicker when they're working) a puff out of the mouth, out the
+    /// way they face, spreading and rising and gone. <paramref name="amount"/> how much it shows (the night's cold).
+    /// </summary>
+    public void Breath(MeshBuilder mesh, Vector3 mouth, Vector3 facing, float amount, double t, int seed, bool hard)
+    {
+        if (_steam < 0 || amount <= 0)
+            return;
+        float period = hard ? 1.6f : 3.4f;
+        float phase = (float)((t + seed * 0.83) % period);
+        const float Out = 1.3f;
+        if (phase > Out)
+            return;
+        for (int k = 0; k < 4; k++)
+        {
+            float age = phase - k * 0.07f;
+            if (age < 0)
+                continue;
+            float s = age / Out;
+            var p = mouth + facing * (0.08f + s * 0.45f) + Vector3.UnitY * (s * s * 0.25f);
+            float a = amount * 0.5f * (1 - s) * MathF.Min(1, age * 8);
+            mesh.Billboard(p, 0.08f + s * 0.5f, seed + k * 1.3f, new Vector4(new Vector3(0.78f, 0.8f, 0.83f), a), _steam, FxBlend.Alpha, (int)(s * 15.99f), 4);
+        }
+    }
+
+    /// <summary>
+    /// A damaged boiler's leaks (<see cref="DamageKit.Leaks"/>): a hard white jet hissing out of each split seam, thinning
+    /// to a plume the train's own wind lays back along the boiler. <paramref name="o"/>/<paramref name="r"/>/<paramref name="u"/>/
+    /// <paramref name="b"/> the engine's frame; <paramref name="pressure"/> 0..1 how hard it blows (a dead boiler doesn't).
+    /// </summary>
+    public void SteamLeaks(MeshBuilder mesh, Vector3 o, Vector3 r, Vector3 u, Vector3 b, IEnumerable<(Vector3 At, Vector3 Out)> leaks,
+        float pressure, float speed, double t, int seed)
+    {
+        if (_steam < 0 || pressure <= 0.02f)
+            return;
+        int n = 0;
+        foreach (var (at, dir) in leaks)
+        {
+            Vector3 L(Vector3 p) => o + r * p.X + u * p.Y + b * p.Z;
+            var jet = r * dir.X + u * dir.Y + b * dir.Z;
+            for (int k = 0; k < 14; k++, n++)
+            {
+                float h = Hash(n * 1.37f + seed), period = 0.6f + h * 0.5f;
+                float age = (float)((t * (1.1 + 0.2 * h) + h * 7) % period), s = age / period;
+                // Out hard along the jet, slowing, rising, and laid back by the wind.
+                var p = L(at) + jet * (s * 2.4f * pressure) + u * (s * s * 1.0f) + b * (MathF.Abs(speed) * age * 0.7f);
+                float a = (1 - s) * 0.85f * MathF.Min(1, pressure * 1.3f);
+                mesh.Billboard(p, 0.16f + s * 1.5f, h * 6.28f, new Vector4(new Vector3(0.82f, 0.84f, 0.86f), a), _steam, FxBlend.Alpha, (int)(s * 15.99f), 4);
+            }
+        }
+    }
+
+    /// <summary>
+    /// A car's fire seen from outside (GDD App. C.5): <see cref="Burn"/> how big it is this frame (0 out),
+    /// <see cref="Alight"/> flaming, <see cref="Since"/> seconds since it went out, <see cref="Peak"/> the worst it got.
+    /// </summary>
+    public readonly record struct Burning(float Burn, bool Alight, float Since, float Peak)
+    {
+        /// <summary>How charred the car is: as bad as the fire got, the paint going first.</summary>
+        public float Char => Math.Clamp(Peak * 1.15f - 0.1f, 0, 1);
+
+        /// <summary>How much smoke it gives: the fire's own while it burns; once out, a smoulder dying away over minutes.</summary>
+        public float Smoke => Burn > 0 ? 0.35f + 0.65f * Burn : Peak * 0.45f * MathF.Exp(-Since / SmoulderSeconds);
+
+        public const float SmoulderSeconds = 150;
+    }
+
+    /// <summary>
+    /// The outside of a car on fire, or gutted by one (GDD App. C.5: a fire that's jumped the couplings is seen from the
+    /// roofs before anyone's inside). Smoke forces out of every seam: along the eaves under the roof's overhang, round
+    /// the side doors, out of the end doors; it rises off the car and the train's own wind lays it back along the roofs
+    /// behind, so a train with a fire aboard trails a dirty banner. Alight, the doors' cracks glow and the smoke's lit
+    /// orange from beneath where it leaves them. Out, it smoulders: thinner, paler wisps out of the eaves, dying away over
+    /// minutes. <paramref name="o"/>/<paramref name="r"/>/<paramref name="u"/>/<paramref name="b"/> the car's frame (its
+    /// origin on the rail between the bogies, b toward the rear), <paramref name="speed"/> the train's (m/s).
+    /// </summary>
+    public void CarSmoke(MeshBuilder mesh, Vector3 o, Vector3 r, Vector3 u, Vector3 b, Sim.Train.CarShape shape, Burning fire, float speed, double t, int seed)
+    {
+        float amount = fire.Smoke;
+        if (amount < 0.02f || _smoke < 0)
+            return;
+        float half = (float)shape.HalfLength, wide = (float)shape.HalfWidth, roof = (float)shape.RoofHeight;
+        Vector3 L(float x, float y, float z) => o + r * x + u * y + b * z;
+        int puffs = (int)(24 + 64 * amount);
+        // The wind of the train's own going lays it back (the air moves past the car rearward at its speed), less as it
+        // slows in the open air; standing, it just rises and spreads.
+        float wind = MathF.Abs(speed);
+        for (int k = 0; k < puffs; k++)
+        {
+            float h = Hash(k * 1.73f + seed * 9.1f), h2 = Hash(k * 3.17f + seed * 2.3f + 0.5f), h3 = Hash(k * 5.31f + seed);
+            float period = 2.6f + h * 2.2f;
+            float age = (float)((t * (0.85 + 0.3 * h2) + h3 * 23) % period);
+            float s = age / period;
+            // Where it's leaving the car: mostly the eaves on either side, then the side doors' cracks, then the end doors.
+            float side = h2 < 0.5f ? -1 : 1;
+            Vector3 from = h < 0.6f ? new Vector3(side * (wide - 0.05f), roof - 0.15f, (h3 - 0.5f) * 2 * (half - 0.6f))
+                : h < 0.85f ? new Vector3(side * wide, 1.2f + h3 * 1.6f, (h3 - 0.5f) * 1.4f)
+                : new Vector3((h3 - 0.5f) * 1.0f, 1.4f + h2 * 1.4f, (h2 < 0.5f ? -1 : 1) * half);
+            float rise = age * (fire.Alight ? 0.95f : 0.55f) * (1 + h * 0.4f);
+            float out_ = MathF.Min(age, 0.6f) * 0.5f;
+            float laid = wind * age * MathF.Max(0.25f, 1 - s * 0.5f);
+            // Laid back by the wind it hugs the roofs; standing, it climbs.
+            float climb = rise / (1 + wind * 0.08f);
+            var at = L(from.X + MathF.Sign(from.X) * out_, from.Y + climb, from.Z + laid);
+            float size = (0.55f + s * (2.2f + 2.0f * amount)) * (1 + wind * 0.02f * s);
+            float a = MathF.Min(1, (fire.Burn > 0 ? 0.32f + 0.3f * amount : 0.2f + amount * 0.45f) * MathF.Sin(MathF.PI * MathF.Min(1, s * 1.15f + 0.08f)));
+            var grey = fire.Burn > 0 ? new Vector3(0.075f, 0.065f, 0.058f) : new Vector3(0.2f, 0.195f, 0.19f);
+            if (fire.Alight)
+                grey += Palette.FurnaceOrange * 0.28f * fire.Burn * MathF.Max(0, 1 - s * 2.5f);
+            mesh.Billboard(at, size, h * 6.28f + age * 0.3f, new Vector4(grey * (0.85f + 0.3f * h3), a), _smoke, FxBlend.Alpha, (int)(s * 15.99f), 4);
+        }
+        if (!fire.Alight)
+            return;
+        // The doors' cracks glowing, and the light through them on the ground and the next car.
+        float flicker = 0.75f + 0.25f * MathF.Sin((float)t * 13.1f + seed) * MathF.Sin((float)t * 7.3f);
+        foreach (float sd in (ReadOnlySpan<float>)[-1, 1])
+        {
+            mesh.Billboard(L(sd * (wide + 0.03f), 1.6f, 0), 1.1f + fire.Burn, 0, new Vector4(Palette.FurnaceOrange * 0.4f * fire.Burn * flicker, 1), -1,
+                FxBlend.Additive, stretch: 0.35f);
+            mesh.PointLights.Add(new PointLight(L(sd * (wide + 0.4f), 1.4f, 0), Palette.FurnaceOrange * (0.6f + 1.4f * fire.Burn) * flicker, 4 + 4 * fire.Burn));
+        }
+    }
+
+    /// <summary>
     /// A car fire (GDD App. C.5, the in-car incident), at the face of the burning load: <paramref name="o"/> on the floor,
     /// <paramref name="r"/> into the load, <paramref name="u"/> up, <paramref name="b"/> along the car. Smouldering, smoke
     /// seeps out of the stack and rises to the roof, where it pools and rolls along under it (a closed car fills from the
@@ -109,10 +251,20 @@ public sealed partial class Effects
     /// <param name="colour">Its colour (orange, or the Stoker's sick green).</param>
     public void Furnace(MeshBuilder mesh, Vector3 bed, Vector3 right, Vector3 up, Vector3 back, float heat, Vector3 colour, double t)
     {
-        float hot = Math.Clamp(heat, 0.05f, 1);
         var tint = Vector3.Normalize(colour + new Vector3(1e-3f)) * 1.25f;
+        // Out (GreyboxScene.FireLook: no coal at all): a dead grate, the faintest heat left in the ash, no flames, no light.
+        if (heat <= 0)
+        {
+            mesh.Billboard(bed + up * 0.02f, 0.7f, 0, new Vector4(tint * 0.04f, 1), -1, FxBlend.Additive, stretch: 0.3f);
+            return;
+        }
+        float hot = Math.Clamp(heat, 0.05f, 1);
+        // The fire's levels as it builds (T121): a few tongues off a low bed, the whole grate alight at capacity.
+        int tongues = Math.Clamp((int)MathF.Round(1 + 8 * (hot - 0.3f) / 0.7f), 1, 9);
         for (int i = 0; i < 9; i++)
         {
+            if ((i * 5 + 2) % 9 >= tongues)
+                continue;
             float h = Hash(i * 2.37f + 0.9f);
             float x = (i / 8f - 0.5f) * 0.56f + (h - 0.5f) * 0.05f;
             float tall = (0.12f + 0.32f * hot) * (0.7f + 0.6f * h);

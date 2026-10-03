@@ -100,6 +100,11 @@ public struct FrameLighting
     public float LampIntensity;
     /// <summary>How wet everything is, 0..1: rain darkens surfaces and puts a sheen on what faces the sky.</summary>
     public float Wetness;
+    /// <summary>How hard the frost is, 0..1: a pale rime on what's outdoors, heaviest on what faces the sky.</summary>
+    public float Frost;
+    /// <summary>How far the dawn's up (0..1), and the glow it puts low on the sky on the sun's side.</summary>
+    public float Dawn;
+    public Vector3 DawnGlow;
     /// <summary>Seconds, for what drifts (clouds, grain). Screenshots keep it fixed so they're repeatable.</summary>
     public double Time;
 

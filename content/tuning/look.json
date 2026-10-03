@@ -108,7 +108,16 @@
       "sunDirection": [0.85, 0.12, -0.3],
       "sunColour": [0.95, 0.68, 0.52],
       "sunStrength": 0.9,
-      "ambient": 0.3
+      "ambient": 0.3,
+      // The glow low on the sky on the sun's side as it comes up, under the grey (the sun never clears the fog).
+      "horizonGlow": [0.28, 0.16, 0.11]
+    },
+    // The cold (the night's route weather cold, 0..1; GDD §26 "survival time outside is short"): a rime of frost comes on
+    // the metal, the roofs and the glass from frostFrom and is full by frostFull; breath shows as vapour from breathFrom.
+    "cold": {
+      "frostFrom": 0.35,
+      "frostFull": 0.85,
+      "breathFrom": 0.15
     }
   },
   // The consist's wear and tear (pipeline plan, consist kit: "3 damage states per car; scars persist between runs").

@@ -32,6 +32,8 @@ unsafe struct FrameData
     public Vector4 Counts;
     public Matrix4x4 MoonViewProj;
     public fixed float HeroOf[256];
+    /// <summary>xyz the glow low on the dawn's horizon, w how far it's up (0..1).</summary>
+    public Vector4 Dawn;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -708,7 +710,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             (p[4], p[5], p[6], p[7]) = (r.Right.X, r.Right.Y, r.Right.Z, r.Half.Y);
             (p[8], p[9], p[10], p[11]) = (r.Back.X, r.Back.Y, r.Back.Z, r.Half.Z);
         }
-        f->Counts = new Vector4(_rooms.Count, _moonOn ? 1 : 0, 1f / (_shadowsFrom ?? this).MoonShadowSize, 0);
+        f->Counts = new Vector4(_rooms.Count, _moonOn ? 1 : 0, 1f / (_shadowsFrom ?? this).MoonShadowSize, lighting.Frost);
+        f->Dawn = new Vector4(lighting.DawnGlow, lighting.Dawn);
         _ = horizon;
     }
 

@@ -17,11 +17,17 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   gunner              sat on the cannon's seat, the tiller under the left hand, the handwheel under the right (note 137)
   fall                in the air: arms up, legs gathered
   swing               an overhead blow with whatever's in the right hand (App. C.2)
-  mend                down at the firebox with the wrench, ratcheting (T109's engineering kit)
+  mend                down at the firebox with the repair kit's wrench, ratcheting (T109, note 150)
   gap                 on the coupling plate between cars, feet wide, arms out for balance (GDD §32)
   extinguish          the extinguisher on the hip, its nozzle aimed at the fire's foot (App. C.5)
   lantern, _walk      the hand lamp held out low, swinging with the step
   haul                down on a knee, both hands on a friend's collar, hauling them free (App. A.1's rescue)
+  haul_up             stood at the edge, leant back, hauling a friend up over it hand over hand (the Draggers, App. A.4)
+  gap_step            across the coupling plate: short wide steps, arms out, eyes on the gap (GDD §32)
+  drive, whistle      at the controls, the hands on the regulator and brake; the left up on the whistle cord (GDD §12)
+  smash, pry, pick    breaching a Holdout (App. D.7): the lock smashed, the barricade pried, the lock picked with the kit
+  getup               freed, up off the Holdout's floor (App. D.8)
+  take_down           the extinguisher lifted off its bracket into the hands (App. C.5)
   fp_hold, fp_walk    first person (X3): the tool held up in view, the eye at EYE (CreatureArt.OwnArms puts it at the camera)
   fp_swing            first person: the blow, as long as the melee's recovery (enemies.json melee.swingSeconds, 0.8 s)
 In place, 30 fps, like crew.py's; the root never travels (the sim moves the crewmate).
@@ -377,6 +383,131 @@ for f, pull in ((0, 0.0), (10, 0.16), (14, 0.16), (24, 0.0)):
 haul.close(32)
 clips.append(haul)
 
+# --- haul_up: stood at an edge, leant back, hauling a friend up over it hand over hand (App. A.1, A.4's Draggers) -----
+HAUL_UP = over(STAND, pelvis__loc=(0, -0.12, -0.3), pelvis=(-30, 0, 0), spine_01=(-16, 0, 0), spine_02=(-8, 0, 0),
+               spine_03=(-4, 0, 0), neck=(4, 0, 0), head=(-6, 0, 0),
+               thigh_r=(84, -8, 0), calf_r=(-100, 0, 0), foot_r=(18, 0, -6), thigh_l=(70, 8, 0), calf_l=(-84, 0, 0), foot_l=(14, 0, 6))
+HAUL_BACK = over(HAUL_UP, pelvis__loc=(0, -0.2, -0.22), pelvis=(-10, 0, 0), spine_01=(4, 0, 0), spine_02=(6, 0, 0),
+                 spine_03=(2, 0, 0), neck=(-6, 0, 0), head=(-12, 0, 0), thigh_r=(64, -8, 0), calf_r=(-70, 0, 0),
+                 thigh_l=(46, 8, 0), calf_l=(-54, 0, 0))
+haul_up = Clip("haul_up")
+# Down over the edge for a grip on the collar (both hands, low and out ahead), then the whole body heaves back and up,
+# the hands coming in to the chest; again.
+haul_up.key(0, hands(HAUL_UP, (0.14, 0.62, 0.42), (-0.14, 0.62, 0.42), grip=90))
+haul_up.key(6, hands(HAUL_UP, (0.14, 0.6, 0.38), (-0.14, 0.6, 0.38), grip=90))
+haul_up.key(18, hands(HAUL_BACK, (0.14, 0.34, 0.86), (-0.14, 0.34, 0.86), grip=90), "LINEAR")
+haul_up.key(24, hands(HAUL_BACK, (0.14, 0.36, 0.84), (-0.14, 0.36, 0.84), grip=90))
+haul_up.close(36)
+clips.append(haul_up)
+
+# --- gap_step: across the coupling plate, a short wide careful step, arms out, eyes down at the gap (GDD §32) ----------
+def gap_upper(f, side):
+    lean = 4 if side == "r" else -4
+    return hands(over(GAP, spine_02=(-6, 0, lean), spine_03=(-4, 0, lean * 0.6), neck=(22, 0, 0), head=(14, 0, -lean)),
+                 (0.48, 0.26, 1.0 - lean * 0.01), (-0.48, 0.28, 1.0 + lean * 0.01), fist=False)
+
+
+def gap_legs(f, pose):
+    # Feet kept wide (a plate's a metre across and it sways): the thighs splayed out on top of the gait's swing.
+    pose["thigh_r"] = (pose.get("thigh_r", (0, 0, 0))[0], -10, 0)
+    pose["thigh_l"] = (pose.get("thigh_l", (0, 0, 0))[0], 10, 0)
+    return pose
+
+
+clips.append(walking("gap_step", gap_upper, cycle=40, short=0.55, tweak=gap_legs))
+
+# --- drive: at the controls, the regulator under one hand and the brake valve under the other, looking out ahead ----
+# (CreatureArt reaches the hands onto the levers where they are, SceneArt.Driving; this is the body and its weight.)
+DRIVE = over(STAND, spine_01=(-3, 0, 0), spine_02=(-4, 0, -4), spine_03=(-3, 0, -4), neck=(6, 0, 6), head=(-2, 0, 8),
+             thigh_r=(-4, 0, 0), thigh_l=(6, 0, 0), calf_l=(-8, 0, 0))
+DRIVE_REG, DRIVE_BRAKE = (-0.18, 0.4, 1.5), (0.34, 0.16, 1.12)
+drive = Clip("drive")
+drive.key(0, hands(DRIVE, DRIVE_BRAKE, DRIVE_REG, grip=70))
+drive.key(40, hands(over(DRIVE, head=(-4, 0, 14), neck=(6, 0, 10)), at(DRIVE_BRAKE, dz=0.01), at(DRIVE_REG, dz=-0.01), grip=70))
+drive.key(70, hands(over(DRIVE, head=(0, 0, 2)), DRIVE_BRAKE, DRIVE_REG, grip=70))
+drive.close(100)
+clips.append(drive)
+
+# --- whistle: the left hand up on the cord's handle and hauled down, the right on the brake, a blast ----------------------
+CORD_UP, CORD_DOWN = (-0.12, 0.22, 1.9), (-0.12, 0.24, 1.72)
+whistle = Clip("whistle")
+whistle.key(0, hands(over(DRIVE, head=(-8, 0, 4)), DRIVE_BRAKE, CORD_UP, grip=90))
+whistle.key(5, hands(over(DRIVE, head=(-6, 0, 4), spine_03=(-1, 0, -4)), DRIVE_BRAKE, CORD_DOWN, grip=90), "LINEAR")
+whistle.hold(24)
+whistle.key(30, hands(over(DRIVE, head=(-8, 0, 4)), DRIVE_BRAKE, CORD_UP, grip=90))
+whistle.close(36)
+clips.append(whistle)
+
+# --- breaching a Holdout (App. D.7): hold-to-interact loops, interrupted the moment Use is let go ----------------------
+# The door's lock (a prison car's hasp, a lockup's padlock) at the waist ahead; the barricade's boards at the chest.
+LOCK = (0.06, 0.5, 1.0)
+SMASH_BODY = over(STAND, thigh_r=(-12, 0, 0), calf_r=(-8, 0, 0), thigh_l=(20, 0, 0), calf_l=(-18, 0, 0), foot_l=(-6, 0, 6))
+smash = Clip("smash")
+# Wound up over the right shoulder, brought down two-handed on the hasp, the jar back up the arms, again: 3 a second
+# is too fast for a heavy tool, 1.25 reads as weight.
+WIND = over(SMASH_BODY, spine_01=(6, 0, -8), spine_02=(8, 0, -14), spine_03=(6, 0, -10), neck=(-4, 0, 0), head=(-10, 0, 12))
+STRIKE = over(SMASH_BODY, pelvis__loc=(0, 0.02, -0.06), pelvis=(-10, 0, 8), spine_01=(-18, 0, 6), spine_02=(-20, 0, 8),
+              spine_03=(-10, 0, 4), neck=(16, 0, 0), head=(12, 0, -6), thigh_l=(30, 0, 0), calf_l=(-30, 0, 0))
+smash.key(0, hands(WIND, (0.22, -0.08, 1.92), (0.12, -0.02, 1.84)))
+smash.key(9, hands(STRIKE, at(LOCK, dx=0.04, dy=-0.04, dz=0.0), at(LOCK, dx=-0.1, dy=-0.1, dz=-0.02)), "LINEAR")
+smash.key(12, hands(over(STRIKE, spine_02=(-17, 0, 7)), at(LOCK, dx=0.04, dy=-0.08, dz=0.1), at(LOCK, dx=-0.1, dy=-0.14, dz=0.08)))
+smash.key(24, hands(WIND, (0.22, -0.08, 1.92), (0.12, -0.02, 1.84)))
+clips.append(smash)
+
+# Pry: the bar's end bitten in behind a board at the chest, both hands on it, the whole weight hung back off it, heaving.
+PRY_BODY = over(STAND, pelvis__loc=(0, -0.04, -0.04), pelvis=(-6, 0, 0), spine_01=(-6, 0, 0), spine_02=(-6, 0, 0),
+                spine_03=(-4, 0, 0), neck=(10, 0, 0), head=(4, 0, 0), thigh_r=(28, 0, 0), calf_r=(-36, 0, 0), foot_r=(8, 0, -6),
+                thigh_l=(-10, 0, 0), calf_l=(-14, 0, 0))
+PRY_BACK = over(PRY_BODY, pelvis__loc=(0, -0.2, -0.1), pelvis=(6, 0, 0), spine_01=(14, 0, 0), spine_02=(10, 0, -4),
+                spine_03=(6, 0, -4), neck=(-4, 0, 0), head=(-12, 0, 0), thigh_r=(44, 0, 0), calf_r=(-60, 0, 0), foot_r=(16, 0, -6),
+                thigh_l=(-24, 0, 0), calf_l=(-8, 0, 0))
+pry = Clip("pry")
+pry.key(0, hands(PRY_BODY, (0.14, 0.52, 1.32), (-0.02, 0.56, 1.42), grip=90))
+pry.key(14, hands(PRY_BACK, (0.14, 0.3, 1.16), (-0.02, 0.36, 1.24), grip=90), "LINEAR")
+pry.key(22, hands(over(PRY_BACK, spine_02=(12, 0, 4), spine_03=(8, 0, 4)), (0.16, 0.28, 1.12), (0.0, 0.34, 1.2), grip=90))
+pry.key(32, hands(PRY_BODY, (0.14, 0.5, 1.3), (-0.02, 0.54, 1.4), grip=90))
+pry.close(40)
+clips.append(pry)
+
+# Pick: down on a knee at the lock with the repair kit's picks, the left hand steadying the padlock, the right working the
+# tension wrench and pick in small twists: quiet, close work, the head down at it.
+PICK_BODY = over(STAND, pelvis__loc=(0, -0.02, -0.34), pelvis=(-4, 0, 0), spine_01=(-6, 0, 0), spine_02=(-6, 0, 0),
+                 spine_03=(-4, 0, 0), neck=(22, 0, 0), head=(12, 0, 0),
+                 thigh_r=(-10, -4, 0), calf_r=(-108, 0, 0), foot_r=(-50, 0, -6), thigh_l=(86, 4, 0), calf_l=(-92, 0, 0), foot_l=(8, 0, 6))
+PADLOCK = (0.04, 0.5, 0.96)
+pick = Clip("pick")
+for f, (twist, dz) in ((0, (0.0, 0.0)), (6, (0.014, 0.006)), (11, (-0.008, 0.0)), (17, (0.016, -0.006)), (24, (0.0, 0.003))):
+    pick.key(f, hands(over(PICK_BODY, head=(12, 0, twist * 300)), at(PADLOCK, dx=0.07 + twist, dy=-0.04, dz=dz),
+                      at(PADLOCK, dx=-0.06, dy=0.0, dz=-0.03), grip=60))
+pick.close(30)
+clips.append(pick)
+
+# --- getup: freed, inside the Holdout, up off the floor (App. D.8: "comes back inside it") -------------------------------
+LYING = over(STAND, pelvis__loc=(0, -0.3, -0.62), pelvis=(-50, 0, 0), spine_01=(-16, 0, 0), spine_02=(-10, 0, 0),
+             spine_03=(-4, 0, 0), neck=(30, 0, 0), head=(16, 0, 0),
+             thigh_r=(120, -6, 0), calf_r=(-140, 0, 0), foot_r=(40, 0, -6), thigh_l=(110, 6, 0), calf_l=(-136, 0, 0), foot_l=(36, 0, 6))
+KNEEL = over(STAND, pelvis__loc=(0, -0.06, -0.42), pelvis=(-20, 0, 0), spine_01=(-14, 0, 0), spine_02=(-10, 0, 0),
+             spine_03=(-6, 0, 0), neck=(20, 0, 0), head=(8, 0, 0),
+             thigh_r=(92, -4, 0), calf_r=(-98, 0, 0), foot_r=(10, 0, -6), thigh_l=(-10, 4, 0), calf_l=(-112, 0, 0), foot_l=(-52, 0, 6))
+getup = Clip("getup", loop=False)
+getup.key(0, hands(LYING, (0.22, 0.34, 0.12), (-0.24, 0.3, 0.12), fist=False))
+getup.key(16, hands(over(LYING, pelvis__loc=(0, -0.2, -0.52), pelvis=(-36, 0, 0)), (0.26, 0.4, 0.06), (-0.24, 0.36, 0.08), fist=False))
+getup.key(30, hands(KNEEL, (0.24, 0.42, 0.52), (-0.2, 0.36, 0.5), fist=False))
+getup.key(42, hands(over(KNEEL, pelvis__loc=(0, -0.04, -0.2), thigh_r=(60, -4, 0), calf_r=(-60, 0, 0), thigh_l=(10, 4, 0), calf_l=(-40, 0, 0), foot_l=(-10, 0, 6)),
+                    (0.22, 0.44, 0.62), (-0.2, 0.3, 0.92), fist=False))
+getup.key(56, STAND)
+clips.append(getup)
+
+# --- take_down / hang_up: the extinguisher lifted off its wall bracket into both hands, and back (App. C.5) ------------
+# (The mount stands on the wall at the left, World.ExtinguisherMount: the crewmate faces the wall, the bracket ahead.)
+MOUNT_AT = (0.0, 0.42, 0.62)
+take = Clip("take_down")
+take.key(0, hands(over(STAND, spine_01=(-12, 0, 0), spine_02=(-10, 0, 0), neck=(16, 0, 0)), at(MOUNT_AT, dx=0.1, dz=0.18), at(MOUNT_AT, dx=-0.1, dz=0.0), grip=60))
+take.key(10, hands(over(STAND, spine_01=(-16, 0, 0), spine_02=(-12, 0, 0), neck=(18, 0, 0)), at(MOUNT_AT, dx=0.1, dz=0.3), at(MOUNT_AT, dx=-0.1, dz=0.12), grip=80))
+take.key(22, hands(EXT_BODY, EXT_NOZZLE, EXT_HANDLE, grip=70))
+take.close(40)
+clips.append(take)
+
 # --- first person: only the forearms and hands are drawn (CreatureArt.OwnArms), from the eye --------------------
 # The eye: over the head bone's root, a little forward (the mask's eyepieces). Hands placed from it: the right low and
 # out to the right with the tool up in view, the left lower, at the edge of it.
@@ -416,6 +547,7 @@ clips.append(fp_swing)
 kit.build()
 rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"carry", "carry_walk", "drag", "door", "handbrake", "hatch",
                                                         "uncouple", "vent", "lever", "push", "swing", "mend",
-                                                        "gap", "extinguish", "lantern", "lantern_walk", "haul"}))
+                                                        "gap", "extinguish", "lantern", "lantern_walk", "haul",
+                                                        "haul_up", "drive", "whistle", "smash", "pry", "pick", "take_down"}))
 rig.export(rig.args()[0] if rig.args() else "crew_clips.glb", kit)
 print(f"[dt] crew clips {[c.name + ':' + str(c.length) for c in clips]}")

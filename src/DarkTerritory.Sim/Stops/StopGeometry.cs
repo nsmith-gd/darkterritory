@@ -23,7 +23,8 @@ public static class StopSeed
 
     // Keys for the sub-streams: arbitrary, and fixed forever (changing one reshuffles that stream on every seed).
     public const ulong Stop = 0x53544f50, Halt = 0x48414c54, Attempt = 0x41545450, Layout = 0x4c41594f, Yard = 0x59415244,
-        Roads = 0x524f4144, Village = 0x56494c4c, Loot = 0x4c4f4f54, Holdout = 0x484f4c44, Lair = 0x4c414952, Power = 0x504f5752, Grade = 0x47524144;
+        Roads = 0x524f4144, Village = 0x56494c4c, Loot = 0x4c4f4f54, Holdout = 0x484f4c44, Lair = 0x4c414952, Power = 0x504f5752, Grade = 0x47524144,
+        Kit = 0x4b495453;
 }
 
 /// <summary>A seeded generator for one sub-system of a stop (PCG32, so the same on every machine).</summary>

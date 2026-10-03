@@ -8,7 +8,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// GDD v1.3 §21's three, met at stops: the Shy Thing (look away while you still can), the Huddle (pet them, never hit
+/// GDD v1.5 §21's three, met at stops: the Shy Thing (look away while you still can), the Huddle (pet them, never hit
 /// them) and the Mimic (not on the count? leave it), each against its rule and App. A.1's fairness contract.
 /// </summary>
 public class AtStopsTests

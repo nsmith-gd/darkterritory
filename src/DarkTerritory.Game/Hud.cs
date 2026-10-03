@@ -31,16 +31,37 @@ public static class Hud
     static readonly Vector4 Amber = new(1.00f, 0.70f, 0.30f, 1);
     static readonly Vector4 Red = new(0.95f, 0.26f, 0.18f, 1);
     static readonly Vector4 Green = new(0.55f, 0.82f, 0.45f, 1);
-    static readonly Vector4 Panel = new(0.02f, 0.02f, 0.03f, 0.55f);
     static readonly Vector4 Track = new(0.25f, 0.24f, 0.22f, 0.9f);
 
     /// <param name="crosshair">The aiming cross at the middle. Not on a headset's panel (T36): it lags the head, which
     /// does the aiming, so a cross on it would point somewhere else.</param>
-    public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true)
+    /// <param name="commendations">The awards given at the run's end (GDD App. D.12), shown under its report: to whom, what,
+    /// and from whom. Awarding isn't in the game yet (it needs the run-end screen's input and the profile's tally), so only
+    /// a still frame passes them (<c>dt screenshot --hud --report ... --commend</c>).</param>
+    /// <param name="stills">The night's bookmark stills taken on this machine (GDD v1.4 App. D.12, <see cref="BookmarkStills"/>),
+    /// by bookmark id: the report shows each beside its line.</param>
+    public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true,
+        IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null, IReadOnlyDictionary<int, Still>? stills = null)
     {
+        _commendations = commendations;
+        _stills = stills;
         o.Clear();
         int line = o.Font.LineHeight;
         var p = s.Player;
+        // The derailment's sequence (T117, T121) has the screen: first-hand, the replay with its cause, the orbit. Nothing
+        // but the replay's caption over it.
+        if (s.WreckCinematic)
+        {
+            Film(o, width, height, s);
+            Alerts(o, width, height, s, line);
+            Skip(o, width, height, s);
+            return;
+        }
+        if (s.StrandedOutro)
+            Skip(o, width, height, s);
+        // GDD §9: the fortress on the radio (the manifest leaving, the tally home) has the top of the screen while it reads.
+        if (s.RadioReading is { } reading)
+            RadioCard(o, width, height, reading, s.RadioSeconds, s.World.Run?.Tuning.Radio ?? new());
         Engine(o, s, line);
         RouteStrip(o, width, s, line);
         if (s.Link is { } link)
@@ -49,26 +70,66 @@ public static class Hud
         Alerts(o, width, height, s, line);
         if (s.Link is { } lobby && s.World.Run is { Phase: Sim.Run.RunPhase.Yard })
             Lobby(o, height, s, lobby, line);
-        if (Prompt(s) is { } written)
+        // (The night over, its report has the screen: no prompts over it.)
+        if (s.World.Run?.Report is null && Prompt(s) is { } written)
         {
             string prompt = Bound(written);
-            float w = o.Font.Measure(prompt) + 8;
-            o.Rect(MathF.Round((width - w) / 2), height - 44, w, line + 4, Panel);
-            o.TextCentred(width / 2f, height - 42, prompt, Ink);
+            float w = UiStyle.MeasureKeyed(o, prompt) + 10;
+            float px = MathF.Round((width - w) / 2);
+            UiStyle.Plate(o, px, height - 46, w, line + 8);
+            UiStyle.Keyed(o, px + 5, height - 42, prompt, Ink);
+            // A hold under way ("... (40%)"): how far it's got, as a bar along the plate's foot.
+            if (System.Text.RegularExpressions.Regex.Match(prompt, @"\((\d+)%\)") is { Success: true } held
+                && float.TryParse(held.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture, out float pct))
+            {
+                o.Rect(px + 3, height - 46 + line + 5, w - 6, 2, Track);
+                o.Rect(px + 3, height - 46 + line + 5, MathF.Round((w - 6) * Math.Clamp(pct / 100f, 0, 1)), 2, UiStyle.Lit);
+            }
         }
         Night(o, height, s, line);
         if (p.Alive)
         {
             Hotbar(o, width, height, p, line);
-            Noise(o, width, height, s.World, line);
+            if (s.World.Run?.Report is null)
+                Noise(o, width, height, s.World, line);
         }
-        if (p.Alive && crosshair)
+        // (Not over the run-end screen's report, where it sat in the middle of a line.)
+        if (p.Alive && crosshair && s.World.Run?.Report is null)
         {
             // A small cross, for aiming and for "what am I looking at".
             float cx = width / 2f, cy = height / 2f;
             o.Rect(cx - 2, cy, 5, 1, Ink with { W = 0.55f });
             o.Rect(cx, cy - 2, 1, 5, Ink with { W = 0.55f });
+            HitMarker(o, cx, cy, s);
         }
+    }
+
+    /// <summary>How long the crosshair's hit marker shows after a blow or a ball of yours lands (s).</summary>
+    public const double HitMarkerSeconds = 0.3;
+
+    /// <summary>
+    /// T121 playtest ("all creatures need hit confirm feedback"): a blow or a ball of yours that landed on a creature puts four
+    /// short ticks round the cross for a moment, off the diagonals, opening out as they fade; red when it was the kill.
+    /// From the host's replicated record (World.Hits), so it's what landed, not what you hoped did.
+    /// </summary>
+    public static void HitMarker(Overlay o, float cx, float cy, IPlaySession s)
+    {
+        Sim.Combat.HitConfirm? mine = null;
+        foreach (var h in s.World.Hits)
+            if (h.By == s.PlayerId && (mine is null || h.Tick > mine.Value.Tick))
+                mine = h;
+        if (mine is not { } hit)
+            return;
+        double age = (s.HostTick - hit.Tick) * Sim.SimConstants.TickSeconds;
+        if (age < 0 || age > HitMarkerSeconds)
+            return;
+        float fade = (float)(1 - age / HitMarkerSeconds);
+        var colour = (hit.Killed ? Red : Ink) with { W = 0.9f * fade };
+        float from = 4 + 3 * (1 - fade);
+        // Each tick a short run of pixels out along a diagonal.
+        foreach (var (dx, dy) in new[] { (1, 1), (1, -1), (-1, 1), (-1, -1) })
+            for (int k = 0; k < 4; k++)
+                o.Rect(MathF.Round(cx + dx * (from + k)), MathF.Round(cy + dy * (from + k)), 1, 1, colour);
     }
 
     /// <summary>
@@ -87,8 +148,10 @@ public static class Hud
             float w = o.Font.Measure(label) + 8;
             x -= w + 2;
             bool held = i == p.HeldSlot;
-            o.Rect(x, y, w, line + 4, held ? Amber with { W = 0.35f } : Panel);
-            o.Text(x + 4, y + 2, label, held ? Ink : Dim);
+            UiStyle.Plate(o, x, y - 2, w, line + 6, held ? UiStyle.Lit : null);
+            if (held)
+                o.Rect(x + 3, y + line + 1, w - 6, 1, UiStyle.Lit);
+            o.Text(x + 4, y + 1, label, held ? Amber : Dim);
         }
     }
 
@@ -105,14 +168,14 @@ public static class Hud
         lines.AddRange(crew.Select(c => ($"  {c.Name}{(c.You && c.Name != "YOU" ? " (YOU)" : "")}", c.You ? Ink : Dim)));
         if (link.JoinAt is { } at)
         {
-            lines.Add(("FRIENDS: JOIN A NIGHT, YOUR GAME'S LISTED", Dim));
+            lines.Add((link.Listed ? "FRIENDS: JOIN, YOUR GAME'S LISTED" : "A PRIVATE LOBBY: FRIENDS JOIN BY INVITE", Dim));
             lines.Add(($"  (OR THEY TYPE {at})", Dim));
         }
         else if (link.PingMs is null)
             lines.Add(("A PRIVATE NIGHT: NOBODY ELSE CAN JOIN", Dim));
         lines.Add(("EVERYONE IN? DRIVE OUT OF THE YARD", Ink));
         w = lines.Max(l => o.Font.Measure(l.Text)) + 10;
-        o.Rect(x - 2, y - 3, w, lines.Count * line + 6, Panel);
+        UiStyle.Plate(o, x - 2, y - 3, w, lines.Count * line + 6);
         foreach (var (text, colour) in lines)
         {
             o.Text(x + 2, y, text, colour);
@@ -143,28 +206,23 @@ public static class Hud
     }
 
     /// <summary>
-    /// The crew roster (T69, held Q): everyone aboard by the figures, where each is, and when each was last heard. A crew
-    /// counts heads and makes everyone speak by it (App. A.7): the Passenger is on it under the face it wears, one line too
-    /// many, and never heard. <paramref name="heard"/>: seconds since a crewmate's voice last came in, null for never.
+    /// The crew roster (T69, held Q): the session's crew by name, and who's speaking now. Not who's aboard, or where, or
+    /// alive: GDD v1.4 made roll call verbal (open question 2). <paramref name="heard"/>: seconds since a crewmate's voice
+    /// last came in, null for never.
     /// </summary>
     public static void Roster(Overlay o, int width, int height, IReadOnlyList<RosterLine> lines, Func<byte, double?>? heard)
     {
         int line = o.Font.LineHeight;
         float w = 260, h = (lines.Count + 2) * line + 8;
         float x = MathF.Round((width - w) / 2), y = MathF.Round(height * 0.2f);
-        o.Rect(x, y, w, h, Panel);
-        o.Text(x + 6, y + 4, $"{lines.Count} ABOARD", Ink);
+        UiStyle.Plate(o, x, y, w, h);
+        o.Text(x + 6, y + 4, "THE CREW. ROLL CALL IS SHOUTED", Ink);
         y += 4 + 2 * line;
         foreach (var l in lines)
         {
-            o.Text(x + 6, y, l.Name, l.Alive ? Ink : Dim);
-            o.Text(x + 70, y, l.Where.ToUpperInvariant(), Dim);
-            var (said, colour) = l.You ? ("", Dim)
-                : !l.Alive ? ("", Dim)
-                : (l.Voiced ? heard?.Invoke(l.Id) : null) is not { } ago ? ("NOT HEARD", Amber)
-                : ago < 2 ? ("SPEAKING", Green)
-                : ($"HEARD {ago:0}S AGO", Dim);
-            o.TextRight(x + w - 6, y, said, colour);
+            o.Text(x + 6, y, l.Name, Ink);
+            bool speaking = !l.You && heard?.Invoke(l.Id) is < 2;
+            o.TextRight(x + w - 6, y, speaking ? "SPEAKING" : "", Green);
             y += line;
         }
     }
@@ -174,7 +232,7 @@ public static class Hud
         var train = s.Train;
         var d = train.Dynamics;
         var c = s.Controls;
-        o.Rect(2, 2, 150, 4 * line + 6, Panel);
+        UiStyle.Plate(o, 2, 2, 150, 4 * line + 6);
         float x = 6, y = 5;
         var band = SpeedBands.Classify(d.Tuning, d.Speed);
         o.Text(x, y, $"{Math.Abs(d.Speed) * 3.6,3:0} KM/H", Ink);
@@ -225,7 +283,7 @@ public static class Hud
         {
             o.TextRight(right, 5, "HOST", Ink, scale: 2);
         }
-        o.TextRight(right, 5 + 2 * line, $"{link.Aboard} ABOARD", Dim);
+        o.TextRight(right, 5 + 2 * line, $"CREW OF {link.Aboard}", Dim);
         o.TextRight(right, 5 + 3 * line, link.Role, Dim);
         if (link.Lost)
             o.TextRight(right, 5 + 4 * line, "CONNECTION LOST", Red);
@@ -237,16 +295,63 @@ public static class Hud
     /// <summary>Where the repair kit is, for a ruptured boiler (T109): it's what mends it, and somebody has to go and get it.</summary>
     static string RepairKitWhere(Sim.World world, int playerId)
     {
-        var kit = world.Bodies.All.FirstOrDefault(b => b.Kind == BodyKind.RepairKit);
+        // With spares (E.12 question 4), the one that's handiest: in your hands, a crewmate's, then the nearest car's.
+        var consist = world.Train.Dynamics.Consist;
+        var kit = world.Bodies.All.Where(b => b.Kind == BodyKind.RepairKit)
+            .OrderBy(b => b.Carrier == playerId ? 0 : b.Carrier >= 0 ? 1 : consist.IndexOf(b.Parent) >= 0 ? 2 + consist.IndexOf(b.Parent) : 1000).ThenBy(b => b.Id)
+            .FirstOrDefault();
         if (kit is null)
             return "THE REPAIR KIT MENDS IT, AND THE TRAIN HAS NONE";
         if (kit.Carrier == playerId)
             return "THE REPAIR KIT MENDS IT: TO THE FIREBOX WITH IT";
         if (kit.Carrier >= 0)
             return "A CREWMATE HAS THE REPAIR KIT: IT MENDS IT, AT THE FIREBOX";
-        int car = world.Train.Dynamics.Consist.IndexOf(kit.Parent);
+        int car = consist.IndexOf(kit.Parent);
+        // In its locker (note 173): the crew learn which.
+        if (car > 0 && kit.Stowed && kit.Locker < world.Train.Frames[kit.Parent].Shape.Lockers.Count)
+            return $"THE REPAIR KIT MENDS IT. IT'S IN THE {world.Train.Frames[kit.Parent].Shape.Lockers[kit.Locker].Name}'S LOCKER, CAR {car}";
         return car > 0 ? $"THE REPAIR KIT MENDS IT. IT'S IN CAR {car}" : car == 0 ? "THE REPAIR KIT MENDS IT. IT'S HERE ON THE ENGINE"
             : "THE REPAIR KIT MENDS IT. IT'S OFF THE TRAIN";
+    }
+
+    /// <summary>A hand-sized thing by name, for the lockers' prompts.</summary>
+    static string Called(Sim.World world, Body b) => b.Kind switch
+    {
+        BodyKind.RepairKit => "THE REPAIR KIT",
+        BodyKind.Lamp => "THE LAMP",
+        BodyKind.Radio => "THE RADIO",
+        BodyKind.Toy => b.Noise switch
+        {
+            ToyNoise.Squeaker => "THE SQUEAKER",
+            ToyNoise.MusicBox => "THE MUSIC BOX",
+            ToyNoise.Drummer => "THE DRUMMER",
+            _ => "THE TOY",
+        },
+        BodyKind.Extinguisher => "THE EXTINGUISHER",
+        BodyKind.Loot => world.Run?.FindName(b)?.ToUpperInvariant() ?? "THE FIND",
+        _ => "IT",
+    };
+
+    /// <summary>
+    /// At a crew locker's door (note 173): held, Use opens or shuts it; tapped, it takes the top thing off its shelves or
+    /// puts what's in your hands on one. Null away from one, or with something in your hands that doesn't go in.
+    /// </summary>
+    static string? LockerPrompt(Sim.World world, in PlayerState p, int playerId)
+    {
+        var train = world.Train;
+        if (Lockers.AtHand(p, train, world.Hand) is not { } at)
+            return null;
+        var carried = world.Bodies.CarriedBy(playerId);
+        if (carried is not null && !Lockers.Holds(train, carried.Kind))
+            return null;
+        string name = $"THE {at.Bay.Name}'S LOCKER";
+        if (!train.Vehicles[at.Car].LockerOpen(at.Bay.Index))
+            return $"{name}   [E] HOLD: OPEN";
+        if (carried is not null)
+            return Lockers.FreeSlot(world.Bodies, train, at.Car, at.Bay.Index) >= 0
+                ? $"[E] PUT {Called(world, carried)} IN {name}   HOLD: SHUT" : $"{name} IS FULL   [E] HOLD: SHUT";
+        return Lockers.Contents(world.Bodies, at.Car, at.Bay.Index).LastOrDefault() is { } top
+            ? $"[E] TAKE {Called(world, top)} FROM {name}   HOLD: SHUT" : $"{name}: EMPTY   [E] HOLD: SHUT";
     }
 
     /// <summary>
@@ -278,7 +383,9 @@ public static class Hud
             return;
         // Right mouse throws what's in your hands; with them empty, it sets the radio down to pass on.
         string wearing = Bound(bodies.CarriedBy(s.PlayerId) is null ? "RADIO [T]  [RMB] SET IT DOWN" : "RADIO [T]");
-        o.TextRight(width - 6, 5 + 5 * line, bodies.HasRadio(s.PlayerId) ? wearing : "NO RADIO", bodies.HasRadio(s.PlayerId) ? Dim : Amber);
+        // GDD §23 "radio breaks" (note 183): carried, but smashed.
+        bool broken = bodies.All.Any(b => b.Kind == BodyKind.Radio && b.Carrier == s.PlayerId && b.Broken);
+        o.TextRight(width - 6, 5 + 5 * line, bodies.HasRadio(s.PlayerId) ? wearing : broken ? "RADIO BROKEN" : "NO RADIO", bodies.HasRadio(s.PlayerId) ? Dim : Amber);
     }
 
     /// <summary>
@@ -292,7 +399,7 @@ public static class Hud
         // Clear of the engine's panel top left and the link's top right.
         float w = MathF.Round(width * 0.34f), x = MathF.Round(width * 0.41f), y = 6, h = 5;
         double at = Math.Clamp(s.Train.Dynamics.Distance / route.Length, 0, 1);
-        o.Rect(x - 4, y - 3, w + 8, h + line + 8, Panel);
+        UiStyle.Plate(o, x - 4, y - 3, w + 8, h + line + 8);
         o.Rect(x, y, w, h, Track);
         o.Rect(x, y, MathF.Round(w * (float)at), h, Dim);
         foreach (var f in route.Features.Where(f => f.Kind is FeatureKind.Facility or FeatureKind.Village))
@@ -330,8 +437,29 @@ public static class Hud
             Big("WAITING", Amber);
             Small(waiting, Ink);
         }
-        // The derailment's cinematic plays out first (T117): no run's end or death screen over it.
+        // The derailment's cinematic plays out first (T117): no run's end or death screen over it. Over the replay (T121),
+        // what did it: "TOOK THE 45 KM/H BEND AT 68 KM/H, 23 KM/H TOO FAST".
         if (s.WreckCinematic)
+        {
+            if (DerailSequence.Beat(world.WreckTuning, s.WreckSeconds) == DerailBeat.Replay)
+            {
+                Big("REPLAY", Ink);
+                // The host has the cause; a client has it from the incident report (sent as the run ends, on the derail tick).
+                string? why = s.DerailCause;
+                if (why is { Length: > 0 })
+                    Small(why.ToUpperInvariant(), Amber);
+            }
+            return;
+        }
+        // GDD v1.4 App. E.9: the clerk on the radio over the pull-back; the end screen after it.
+        if (s.StrandedOutro)
+        {
+            if (s.OutroSeconds > world.WreckTuning.Stranded.RackSeconds)
+                Small($"CONSIST REPORTED STRANDED AT KM {world.Run?.Report?.DistanceKm ?? 0:0}. RECOVERY AT FIRST LIGHT. RECOVERY IS CHARGEABLE.", Dim);
+            return;
+        }
+        // GDD §9: the clerk tallies first; the end screen after.
+        if (s.ClerkTally)
             return;
         if (world.Run?.Report is { } r)
         {
@@ -340,29 +468,37 @@ public static class Hud
                 Big("DELIVERED", Green);
                 Small($"{r.CarsDelivered} CARS, {r.CarsLost} LOST. {r.Net:0} SCRIP. CREW HOME {r.CrewHome}", Ink);
             }
+            else if (r.End == RunEnd.Stranded)
+            {
+                // GDD v1.4 §23.2: nobody died of it, and nobody much cares.
+                Big("STRANDED", Amber);
+                Small(EngineeringKit.Line(r.KitLoss), Ink);
+                Small($"RECOVERY AT FIRST LIGHT. RECOVERY IS CHARGEABLE: {r.Recovery:0} SCRIP", Dim);
+            }
             else
             {
                 Big("RUN LOST", Red);
                 Small(r.End switch { RunEnd.Derailed => "DERAILED", RunEnd.CrewLost => "THE WHOLE CREW IS DEAD", _ => "STILL OUT WHEN THE LINE WENT LIVE" }, Ink);
             }
+            // GDD v1.4 App. D.12: the incident report, every line in the clerk's voice, under the result; the night's
+            // commendations under it.
+            // The night's own (D.12), as the host has them, unless a still frame passed some in.
+            var given = s.World.Commendations;
+            if (_commendations is null && given.Count > 0)
+                _commendations = [.. given.Select(c => (IncidentLog.NameOf(s.World, c.To), (UiStyle.Commendation)c.Which, IncidentLog.NameOf(s.World, c.From)))];
+            if (s.CommendPick is { } pick)
+            {
+                string text = pick.Given ? $"YOU COMMENDED {pick.To}: {pick.What}" : $"COMMEND [LEFT/RIGHT] {pick.To}   [UP/DOWN] {pick.What}   [SPACE] GIVE";
+                UiStyle.Keyed(o, MathF.Round((width - UiStyle.MeasureKeyed(o, text)) / 2), height - 12, text, pick.Given ? Green : Amber);
+            }
+            bool awards = _commendations is { Count: > 0 };
+            IncidentReport(o, width, awards ? height - (int)Commendations(o, width, height, _commendations!, draw: false) : height, y + line, r, line, _stills);
+            if (awards)
+                Commendations(o, width, height, _commendations!);
+            return;
         }
         if (!p.Alive)
-        {
-            Big("DEAD", Red);
-            Small(DeathLine(p.Death), Ink);
-            // App. D.10: the dead watch the living, through their eyes. Networked only: alone, there's nobody.
-            if (s.Watching >= 0)
-                Small($"WATCHING CREW {s.Watching}   [{Controls.KeyLabel(Keys.KeyFor(Control.Fire))}] OR [{Controls.KeyLabel(Keys.KeyFor(Control.Right))}] NEXT   " +
-                    $"[{Controls.KeyLabel(Keys.KeyFor(Control.Left))}] BACK", Ink);
-            else if (s.Link is not null && world.Run is not { Over: true })
-                Small("NOBODY LEFT ALIVE TO WATCH", Dim);
-            // GDD App. D: the way back is a Holdout at the next halt or yard, if the crew stops for you.
-            if (world.Holdouts is { } holdouts)
-                Small(holdouts.All.FirstOrDefault(h => h.Occupant == s.PlayerId && h.Lit) is { } mine
-                    ? mine.State == HoldoutState.Breaching ? $"THEY'RE {(mine.Quiet ? "OPENING THE LOCK" : "BREAKING YOU OUT")}: {mine.Progress / mine.Breach(holdouts.Tuning).Seconds * 100:0}%"
-                        : $"YOU'RE IN THE {HoldoutName(mine)}. [E] CALL OUT   [RMB] LET SOMEONE ELSE GO FIRST"
-                    : "YOU'LL WAIT AT THE NEXT HALT OR YARD, IF THEY STOP FOR YOU   [RMB] LET SOMEONE ELSE GO FIRST", Dim);
-        }
+            DeadCard(o, width, height, s, line);
         if (p.Alive && PlayerMotor.Chilled(p, s.PlayerTuning))
             Small($"COLD: {Math.Max(0, s.PlayerTuning.Cold.DeathSeconds - p.Cold):0}S. GET INSIDE", p.Cold > s.PlayerTuning.Cold.DeathSeconds - 30 ? Red : Amber);
         if (world.Derailed)
@@ -376,7 +512,11 @@ public static class Hud
             if (b.Ruptured)
             {
                 Big("BOILER RUPTURED", Red);
-                Small(RepairKitWhere(world, s.PlayerId), Ink);
+                // GDD v1.4 §23.2: where the repair kit is decides the night; lost to the Territory, it's over once she stops.
+                if (world.Run?.Kit.Lost == true)
+                    Small("THE REPAIR KIT IS GONE: STRANDED WHEN SHE STOPS", Red);
+                else
+                    Small(RepairKitWhere(world, s.PlayerId), Ink);
             }
             else if (b.AtMaxSeconds > 0)
                 Big($"VENT! RUPTURE IN {Math.Max(0, bt.RuptureHoldSeconds - b.AtMaxSeconds):0}S", flash ? Red : Amber);
@@ -394,6 +534,357 @@ public static class Hud
         // T113: the Choir's long telegraph, said plainly once it's well along, and what to do about it.
         if (p.Alive && world.Combat is not null && !world.Choir.Present && world.Choir.Build > 0.25)
             Small("THE CHOIR IS GATHERING: GO QUIET", world.Tick / 15 % 2 == 0 ? Red : Amber);
+    }
+
+    /// <summary>
+    /// The incident report (GDD v1.4 App. D.12): deaths with who, where and the cause line (C.9) beside the fee and refund,
+    /// rescues, the boiler, cars lost, and how it ended; then the night's money. The clerk's flat voice, top to bottom; what
+    /// won't fit says how many more.
+    /// </summary>
+    /// <summary>
+    /// The dead's card (GDD App. D.6-D.10), on a plate of its own in the lower middle, clear of what they're watching: DEAD
+    /// and how, who they're watching and the keys to change it, and the way back (where they'll wait, or the Holdout
+    /// they're in and what's happening at its door), each key a keycap.
+    /// </summary>
+    static void DeadCard(Overlay o, int width, int height, IPlaySession s, int line)
+    {
+        var p = s.Player;
+        var world = s.World;
+        var rows = new List<(string Text, Vector4 Colour)> { (DeathLine(p.Death), Ink) };
+        // App. D.10: the dead watch the living, through their eyes. Networked only: alone, there's nobody.
+        if (s.Watching >= 0)
+            rows.Add(($"WATCHING CREW {s.Watching}   [{Controls.KeyLabel(Keys.KeyFor(Control.Fire))}] OR [{Controls.KeyLabel(Keys.KeyFor(Control.Right))}] NEXT   " +
+                $"[{Controls.KeyLabel(Keys.KeyFor(Control.Left))}] BACK", Ink));
+        else if (s.Link is not null && world.Run is not { Over: true })
+            rows.Add(("NOBODY LEFT ALIVE TO WATCH", Dim));
+        // D.10's Bookmark (D.12): a still of what you're watching, for the run-end screen; how many are left, and the last.
+        if (s.Watching >= 0 && world.Run is { Over: false } run)
+        {
+            var t = world.Bookmarks.Tuning;
+            var mine = world.Bookmarks.All.Where(b => b.Kind == BookmarkKind.Manual && b.Taker == s.PlayerId).ToList();
+            int left = Math.Min(t.ManualPerPlayer - mine.Count, t.ManualPerRun - world.Bookmarks.All.Count(b => b.Kind == BookmarkKind.Manual));
+            if (mine.Count > 0 && run.Seconds - mine[^1].Seconds < 3)
+                rows.Add(($"BOOKMARKED AT {Clock(mine[^1].Seconds)}", Green));
+            else if (left > 0)
+                rows.Add(($"[{Controls.KeyLabel(Keys.KeyFor(Control.Bookmark))}] BOOKMARK THIS ({left} LEFT)", Dim));
+        }
+        // GDD App. D: the way back is a Holdout at the next halt or yard, if the crew stops for you.
+        if (world.Holdouts is { } holdouts)
+        {
+            if (holdouts.All.FirstOrDefault(h => h.Occupant == s.PlayerId && h.Lit) is { } mine)
+            {
+                if (mine.State == HoldoutState.Breaching)
+                    rows.Add(($"THEY'RE {(mine.Quiet ? "OPENING THE LOCK" : "BREAKING YOU OUT")}: {mine.Progress / mine.Breach(holdouts.Tuning).Seconds * 100:0}%", Green));
+                else
+                {
+                    rows.Add(($"YOU'RE IN THE {HoldoutName(mine)}", Ink));
+                    rows.Add(("[E] CALL OUT   [RMB] LET SOMEONE ELSE GO FIRST", Dim));
+                }
+                // D.7 Live Mic: theirs alone, off by default; on, the rescuer at the door hears what they say to the dead.
+                rows.Add((mine.LiveMic ? "[SPACE] LIVE MIC: ON. THEY HEAR YOU AT THE DOOR" : "[SPACE] LIVE MIC: OFF", mine.LiveMic ? Green : Dim));
+            }
+            else
+            {
+                rows.Add(("YOU'LL WAIT AT THE NEXT HALT OR YARD, IF THEY STOP FOR YOU", Dim));
+                rows.Add(("[RMB] LET SOMEONE ELSE GO FIRST", Dim));
+            }
+            // D.11: the creature vote, the dead's alone, once a run.
+            if (s.Ballot is { } ballot && ballot.Options.Count > 0)
+                rows.Add(ballot.Cast is { } cast
+                    ? ($"YOU VOTED FOR THE {IncidentLog.Spoken(cast.ToString()).ToUpperInvariant()}", Dim)
+                    : ("VOTE: " + string.Join("   ", ballot.Options.Select((k, i) => $"[{i + 1}] {IncidentLog.Spoken(k.ToString()).ToUpperInvariant()}")), Amber));
+            if (s.VoteCue is { } cue)
+                rows.Add((cue, Red));
+            // D.6: the dead and lobbied see the whole queue, and where they are in it (the living see nothing).
+            if (QueueLine(world, holdouts, s.PlayerId) is { } queue)
+                rows.Add((queue, Ink));
+        }
+        float big = o.Font.Measure("DEAD", 2);
+        float w = Math.Max(big, rows.Max(r => UiStyle.MeasureKeyed(o, r.Text))) + 20, rowH = line + 3;
+        float h = 2 * line + 8 + rows.Count * rowH + 8;
+        // Low in the frame, clear of what they're watching, but never off its foot (the vote and the queue make it tall).
+        float x = MathF.Round((width - w) / 2), y = MathF.Round(Math.Min(height * 0.56f, height - h - 30));
+        UiStyle.Plate(o, x, y, w, h);
+        o.TextCentred(width / 2f, y + 6, "DEAD", Red, scale: 2);
+        y += 2 * line + 10;
+        foreach (var (text, colour) in rows)
+        {
+            UiStyle.Keyed(o, MathF.Round((width - UiStyle.MeasureKeyed(o, text)) / 2), y, text, colour);
+            y += rowH;
+        }
+    }
+
+    /// <summary>
+    /// The respawn queue as the dead see it (GDD v1.4 App. D.6; note 179): "QUEUE: 1 PRIYA  2 YOU  3 SAM (JOINING)", null when
+    /// it's empty.
+    /// </summary>
+    public static string? QueueLine(Sim.World world, Holdouts holdouts, int me)
+    {
+        if (holdouts.Queue.Count == 0)
+            return null;
+        var names = holdouts.Queue.Select((e, i) =>
+            $"{i + 1} {(e.PlayerId == me ? "YOU" : IncidentLog.NameOf(world, e.PlayerId).ToUpperInvariant())}{(e.Lobbied ? " (JOINING)" : "")}");
+        return $"QUEUE: {string.Join("   ", names)}";
+    }
+
+    [ThreadStatic] static IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? _commendations;
+    [ThreadStatic] static IReadOnlyDictionary<int, Still>? _stills;
+
+    /// <summary>
+    /// The night's commendations (App. D.12) on a plate above the foot of the run-end screen, two to a row: each a badge,
+    /// whose, and from whom. Returns the height it takes (for the report above to leave room).
+    /// </summary>
+    static float Commendations(Overlay o, int width, int height, IReadOnlyList<(string To, UiStyle.Commendation What, string From)> list, bool draw = true)
+    {
+        var cells = list.Select(c => (c, Text: $"{c.To.ToUpperInvariant()}: {UiStyle.Name(c.What)}", From: $"FROM {c.From.ToUpperInvariant()}")).ToList();
+        const int perRow = 2, cellH = 20;
+        float each = cells.Max(c => Math.Max(o.Font.Measure(c.Text), o.Font.Measure(c.From))) + 26;
+        int rows = (cells.Count + perRow - 1) / perRow;
+        float w = Math.Min(cells.Count, perRow) * each + 8, h = rows * cellH + 8;
+        float x0 = MathF.Round((width - w) / 2), y0 = height - 24 - h;
+        if (!draw)
+            return h + 36;
+        UiStyle.Plate(o, x0, y0, w, h);
+        o.Text(x0 + 4, y0 - 9, "COMMENDATIONS", Amber);
+        for (int i = 0; i < cells.Count; i++)
+        {
+            var (c, text, from) = cells[i];
+            float x = x0 + 4 + i % perRow * each, y = y0 + 4 + i / perRow * cellH;
+            UiStyle.Badge(o, x, y, c.What);
+            o.Text(x + 19, y + 1, text, Ink);
+            o.Text(x + 19, y + 10, from, Dim);
+        }
+        return h + 36;
+    }
+
+    /// <summary>A bookmark's thumbnail beside its line on the report (GDD v1.4 App. D.12), in UI pixels: 16:9, two lines high.</summary>
+    public const int ThumbWidth = 32, ThumbHeight = 18;
+    /// <summary>The dead's own bookmarks are the larger, in their row: there's no line beside them to read.</summary>
+    public const int ManualWidth = 48, ManualHeight = 27;
+
+    /// <summary>
+    /// The incident report (GDD v1.4 App. D.12): deaths with who, where and the cause line (C.9) beside the fee and refund,
+    /// rescues, the boiler, cars lost, and how it ended; then the night's money. The clerk's flat voice, top to bottom; what
+    /// won't fit says how many more. Each automatic bookmark's still sits at the right of the line it belongs to, and the
+    /// dead's own bookmarks have a row of their own under the lines, each with its time and whom it was following.
+    /// </summary>
+    public static void IncidentReport(Overlay o, int width, int height, float top, RunReport r, int line, IReadOnlyDictionary<int, Still>? stills = null)
+    {
+        float w = Math.Min(width - 40, 980), x = MathF.Round((width - w) / 2);
+        float glyph = Math.Max(1, o.Font.Measure("M") + 1);
+        int chars = Math.Max(20, (int)((w - 16) / glyph));
+        var marks = r.Bookmarks.ToDictionary(b => b.Id);
+        // Each line a block: its wrapped rows, and the thumbnails at its right (narrowing the text beside them).
+        var blocks = new List<(List<(string Text, Vector4 Colour)> Rows, List<Bookmark> Marks, float Height)>();
+        foreach (var l in r.Lines)
+        {
+            var colour = l.Kind switch { IncidentKind.Death => Ink, IncidentKind.Rescue => Green, IncidentKind.Derailed or IncidentKind.Stranded => Amber, _ => Dim };
+            string text = l.Who.Length > 0 ? $"{l.Who.ToUpperInvariant()}: {l.Text}" : l.Text;
+            var shown = l.Marks.Where(marks.ContainsKey).Select(id => marks[id]).ToList();
+            int perRow = Math.Max(1, (int)((w * 0.45f) / (ThumbWidth + 3)));
+            int thumbRows = (shown.Count + perRow - 1) / perRow;
+            float thumbsW = shown.Count == 0 ? 0 : Math.Min(shown.Count, perRow) * (ThumbWidth + 3) + 2;
+            int fit = Math.Max(20, (int)((w - 16 - thumbsW) / glyph));
+            var rows = new List<(string, Vector4)>();
+            bool first = true;
+            foreach (var part in Wrap(text, fit))
+            {
+                rows.Add((first ? part : "    " + part, colour));
+                first = false;
+            }
+            blocks.Add((rows, shown, Math.Max(rows.Count * line, thumbRows * (ThumbHeight + 2))));
+        }
+        if (r.Lines.Count == 0)
+            blocks.Add(([("Nothing to report.", Dim)], [], line));
+        var money = new List<string> { $"Gross {r.Gross:0}" };
+        if (r.CrewLossFees > 0)
+            money.Add($"crew-loss fees {r.CrewLossFees:0}");
+        if (r.BodyRefunds > 0)
+            money.Add($"refunds {r.BodyRefunds:0}");
+        if (r.Recovery > 0)
+            money.Add($"recovery {r.Recovery:0}");
+        money.Add($"running costs {r.CoalCost + r.AmmoCost + r.RepairCost:0}");
+        string sum = $"{string.Join(", ", money)}. Net {r.Net:0} scrip.";
+        // The dead's own (D.12 "manual"), a row of stills across, each with when and whom they were following.
+        var manual = r.Bookmarks.Where(b => b.Kind == BookmarkKind.Manual).ToList();
+        // Each a still with its time and whom it followed at its right.
+        float cell = ManualWidth + 6 + glyph * Math.Clamp(manual.Select(b => b.Name.Length).DefaultIfEmpty(5).Max(), 5, 12) + 6;
+        int across = Math.Max(1, (int)((w - 8) / cell));
+        float manualH = manual.Count == 0 ? 0 : line + ((manual.Count + across - 1) / across) * (ManualHeight + 4);
+        // What fits: the heading, as many lines as there's room for (the rest counted), the dead's row, the money.
+        float room = height - top - 8 - 2 * line - manualH;
+        float used = 0;
+        int keep = 0;
+        while (keep < blocks.Count && used + blocks[keep].Height <= room - (keep + 1 < blocks.Count ? line : 0))
+            used += blocks[keep++].Height;
+        int more = blocks.Skip(keep).Sum(b => b.Rows.Count);
+        float total = line + used + (more > 0 ? line : 0) + manualH + line;
+        UiStyle.Plate(o, x - 4, top - 4, w + 8, total + 8);
+        float y = top;
+        o.Text(x + 4, y, "INCIDENT REPORT", Amber);
+        y += line;
+        foreach (var (rows, shown, h) in blocks.Take(keep))
+        {
+            float ty = y;
+            foreach (var (text, colour) in rows)
+            {
+                o.Text(x + 4, ty, text, colour);
+                ty += line;
+            }
+            int perRow = Math.Max(1, (int)((w * 0.45f) / (ThumbWidth + 3)));
+            for (int i = 0; i < shown.Count; i++)
+            {
+                // Right-aligned, in the order they were taken.
+                int row = i / perRow, inRow = Math.Min(perRow, shown.Count - row * perRow);
+                Thumb(o, x + w - 2 - (inRow - i % perRow) * (ThumbWidth + 3), y + 1 + row * (ThumbHeight + 3), stills?.GetValueOrDefault(shown[i].Id));
+            }
+            y += h;
+        }
+        if (more > 0)
+        {
+            o.Text(x + 4, y, $"... and {more} more lines", Dim);
+            y += line;
+        }
+        if (manual.Count > 0)
+        {
+            o.Text(x + 4, y, "BOOKMARKS", Amber);
+            y += line;
+            for (int i = 0; i < manual.Count; i++)
+            {
+                var b = manual[i];
+                float tx = x + 5 + i % across * cell, ty = y + 1 + i / across * (ManualHeight + 4);
+                Thumb(o, tx, ty, stills?.GetValueOrDefault(b.Id), ManualWidth, ManualHeight);
+                o.Text(tx + ManualWidth + 5, ty + 2, Clock(b.Seconds), Ink);
+                string name = b.Name.ToUpperInvariant();
+                o.Text(tx + ManualWidth + 5, ty + 2 + line, name.Length > 12 ? name[..12] : name, Dim);
+            }
+            y += manualH - line;
+        }
+        o.Text(x + 4, y, sum, Ink);
+    }
+
+    /// <summary>Run seconds as the report's timestamp: "1:04:12" over an hour, else "12:04".</summary>
+    public static string Clock(double seconds)
+    {
+        var t = TimeSpan.FromSeconds(Math.Max(0, Math.Floor(seconds)));
+        return t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}" : $"{t.Minutes}:{t.Seconds:00}";
+    }
+
+    /// <summary>A bookmark's still in a thin frame; a dark plate where this machine has none (it joined after).</summary>
+    static void Thumb(Overlay o, float x, float y, Still? still, int w = ThumbWidth, int h = ThumbHeight)
+    {
+        o.Rect(x - 1, y - 1, w + 2, h + 2, UiStyle.Lit with { W = 0.6f });
+        if (still is null)
+        {
+            o.Rect(x, y, w, h, new Vector4(0.05f, 0.05f, 0.06f, 1));
+            o.Rect(x + w / 2f - 4, y + h / 2f, 8, 1, Dim);
+            return;
+        }
+        // Half-pixel cells on the UI's canvas: it's drawn scaled up, so the still keeps more than the canvas's own pixels.
+        o.Image(x, y, w, h, still.Rgba, still.Width, still.Height, w * 2, h * 2, levels: 16);
+    }
+
+    /// <summary>
+    /// The derailment film's cards (GDD v1.4 App. E.5; note 177): over each player's shot a lower third in the clerk's
+    /// typewriter face, "DAVE - ON THE THROTTLE"; over the cause card the clerk's line, typed out as it's read.
+    /// </summary>
+    static void Film(Overlay o, int width, int height, IPlaySession s)
+    {
+        var t = s.World.WreckTuning;
+        if (s.Film is not { } film || DerailSequence.Beat(t, s.WreckSeconds, film) != DerailBeat.Film
+            || film.CutAt(DerailSequence.FilmSeconds(t, s.WreckSeconds)) is not { } at)
+            return;
+        var (shot, into) = at;
+        if (shot.Kind == ShotKind.Player && shot.Card.Length > 0)
+        {
+            int dash = shot.Card.IndexOf(" - ", StringComparison.Ordinal);
+            string name = dash < 0 ? shot.Card : shot.Card[..dash], role = dash < 0 ? "" : shot.Card[(dash + 3)..];
+            int scale = Math.Max(2, height / 240);
+            float x = width * 0.07f, y = height * 0.76f;
+            float w = Math.Max(o.Font.Measure(name, scale * 2), o.Font.Measure(role, scale)) + 12 * scale;
+            float h = o.Font.Height * scale * 3 + 10 * scale;
+            // In over a fifth of a second, a blink of the typewriter's carriage.
+            float shown = (float)Math.Clamp(into / 0.2, 0, 1);
+            UiStyle.Plate(o, x, y, w * shown, h, UiStyle.Brass);
+            if (shown >= 1)
+            {
+                o.Text(x + 6 * scale, y + 4 * scale, name, UiStyle.Enamel, scale * 2);
+                o.Text(x + 6 * scale, y + 6 * scale + o.Font.Height * scale * 2, role, Amber, scale);
+            }
+        }
+        else if (shot.Kind == ShotKind.Cause)
+        {
+            // The clerk on the radio: the picture dims under the card, and the line types out as it's read.
+            o.Rect(0, 0, width, height, new Vector4(0, 0, 0, (float)Math.Clamp(into / 0.3, 0, 0.72)));
+            int scale = Math.Max(1, height / 300);
+            int chars = Math.Max(20, (int)(width * 0.7f / (o.Font.Measure("M", scale))));
+            string typed = shot.Card.ToUpperInvariant();
+            typed = typed[..(int)Math.Min(typed.Length, typed.Length * Math.Clamp(into / Math.Max(0.1, shot.Real * 0.7), 0, 1))];
+            var lines = Wrap(typed, chars).ToList();
+            float lh = (o.Font.Height + 4) * scale;
+            float y = height * 0.5f - lines.Count * lh / 2;
+            o.Text(width * 0.15f, y - lh * 2, "THE CLERK, ON THE RADIO", Dim, scale);
+            foreach (var l in lines)
+            {
+                o.Text(width * 0.15f, y, l, Ink, scale);
+                y += lh;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The fortress on the radio (GDD §9; note 178): the dispatcher's manifest or the clerk's tally, a line at a time, typed
+    /// out as it's read, flat, the last few on the card.
+    /// </summary>
+    public static void RadioCard(Overlay o, int width, int height, IReadOnlyList<string> lines, double seconds, RadioTuning t)
+    {
+        var (shown, typed) = Sim.Run.Radio.Reading(lines, seconds, t);
+        if (shown == 0)
+            return;
+        int scale = Math.Max(1, height / 360);
+        float lh = (o.Font.Height + 4) * scale, w = width * 0.56f;
+        int keep = Math.Min(shown, 4);
+        float x = (width - w) / 2, y = 34 * scale, h = lh * (keep + 1) + 8 * scale;
+        UiStyle.Plate(o, x, y, w, h, UiStyle.Brass, 0.9f);
+        o.Text(x + 6 * scale, y + 4 * scale, "RADIO: THE YARD", Dim, scale);
+        float ly = y + 4 * scale + lh;
+        int chars = Math.Max(12, (int)((w - 12 * scale) / o.Font.Measure("M", scale)));
+        for (int i = shown - keep; i < shown; i++)
+        {
+            string line = lines[i].ToUpperInvariant();
+            if (i == shown - 1)
+                line = line[..(int)Math.Round(line.Length * typed)];
+            o.Text(x + 6 * scale, ly, line.Length > chars ? line[..chars] : line, i == shown - 1 ? Ink : Dim, scale);
+            ly += lh;
+        }
+    }
+
+    /// <summary>The skip vote (E.5, E.9), once it counts: hold the key; the votes so far of the crew's.</summary>
+    static void Skip(Overlay o, int width, int height, IPlaySession s)
+    {
+        if (!s.Skippable)
+            return;
+        var (votes, of) = s.World.FilmVotes;
+        string text = of > 0 && votes > 0 ? $"HOLD [SPACE] TO SKIP   {votes}/{of}" : "HOLD [SPACE] TO SKIP";
+        UiStyle.Keyed(o, width - 12 - UiStyle.MeasureKeyed(o, text), height - 18, text, Dim);
+    }
+
+    static IEnumerable<string> Wrap(string text, int chars)
+    {
+        var line = new System.Text.StringBuilder();
+        foreach (var word in text.Split(' '))
+        {
+            if (line.Length > 0 && line.Length + 1 + word.Length > chars)
+            {
+                yield return line.ToString();
+                line.Clear();
+            }
+            if (line.Length > 0)
+                line.Append(' ');
+            line.Append(word);
+        }
+        if (line.Length > 0)
+            yield return line.ToString();
     }
 
     /// <summary>The reload's step under way (GDD v1.1 App. C.3: powder, ball, ram), for the prompt.</summary>
@@ -427,6 +918,11 @@ public static class Hud
         DeathCause.Struck => "STRUCK BY THE TUNNEL MOUTH",
         DeathCause.Thrown => "THROWN OFF ON THE CURVE",
         DeathCause.Burned => "BURNED IN A BLAZING CAR",
+        DeathCause.Exploded => "BLOWN UP WITH THE POWDER CAR",
+        DeathCause.Poisoned => "GASSED BY THE CHEMICALS",
+        DeathCause.Keg => "BLOWN UP BY THE POWDER",
+        DeathCause.Leak => "GASSED BY THE LEAK",
+        DeathCause.Wreckage => "CRUSHED WHEN THE WRECK SHIFTED",
         DeathCause.Gnawed => "EATEN BY THE GNAWERS",
         DeathCause.Ferryman => "SLOWED FOR THE LANTERN",
         DeathCause.Stoker => "BURNED DRIVING IT OUT OF THE FIREBOX",
@@ -489,6 +985,9 @@ public static class Hud
             if (CrewActions.AtTheRupture(p, train, world.Hand) && train.BoilerTuning is { } rt)
                 return $"[E] HOLD: MEND THE BOILER WITH THE KIT ({p.ActionProgress / rt.RepairSeconds * 100:0}%)";
         }
+        // A crew locker in front of you (note 173): its door, and its shelves.
+        if (LockerPrompt(world, p, s.PlayerId) is { } locker)
+            return locker;
         if (world.Bodies.CarriedBy(s.PlayerId) is { } carried)
             return carried.Kind switch
             {
@@ -525,7 +1024,7 @@ public static class Hud
             return p.Hand != default ? "REACH DOWN AND GRIP: CUT THE COUPLING"
                 : p.Pitch <= -train.Dynamics.Tuning.Couplings.UncoupleLookDownDegrees * Math.PI / 180 ? "[Z] HOLD: CUT THE COUPLING"
                 : "LOOK DOWN AT THE COUPLER TO CUT IT";
-        // GDD v1.3: the Huddle underfoot, looking down at them (or a hand reached down): petted, never struck.
+        // GDD v1.5: the Huddle underfoot, looking down at them (or a hand reached down): petted, never struck.
         if (world.Enemies is { } ht && (p.Hand != default || p.Pitch <= -ht.Huddle.PetLookDown * Math.PI / 180)
             && world.ActiveEnemies.OfType<Sim.Enemies.Huddle>().Any(h => !h.Gone && h.Phase is Sim.Enemies.SpinePhase.Dormant or Sim.Enemies.SpinePhase.Telegraph
                 && ((h.WorldPosition(train) - PlayerMotor.WorldPosition(p, train)) with { Y = 0 }).Length <= ht.Huddle.PetReach))
@@ -537,7 +1036,7 @@ public static class Hud
                 return $"BOILER RUPTURED: {RepairKitWhere(world, s.PlayerId)}";
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train):
                 return p.Hand != default && !p.Has(PlayerFlags.Shovelful) ? "SHOVEL COAL: FILL IT AT THE TENDER FIRST"
-                    // GDD v1.3, the Huddle's counter: live coals off the fire, flung out of the cab.
+                    // GDD v1.5, the Huddle's counter: live coals off the fire, flung out of the cab.
                     : Kit.Held(p) == Tool.Shovel && train.Boiler.Firebox >= 1 ? "[E] HOLD: SHOVEL COAL (FASTER)   [RMB] FLING LIVE COALS OUT"
                     : "[E] HOLD: SHOVEL COAL (FASTER)";
             // Only a reaching hand finds the coal face (T29).
@@ -578,6 +1077,28 @@ public static class Hud
             };
         if (world.Run?.LeverInReach(p, train, hand) == true)
             return "[E] HOLD: CHUTE LEVER";
+        // GDD §18's set pieces (note 185).
+        if (world.Run?.SpoutLeverInReach(p, train, hand) is { } spout)
+            return spout.Pouring ? $"POURING: LET GO WHEN THE CAR'S FULL ({spout.Bin:0.0} LOADS IN THE BIN)"
+                : world.Run.CarUnderSpout(train, spout) is { } under ? $"[E] HOLD: SPOUT (CAR UNDER IT {under.Load * 100:0}% FULL)"
+                : "[E] HOLD: SPOUT. NO CAR UNDER IT: WALK ONE UNDER";
+        if (world.Run?.InPen(p, train) is { } pen)
+            return pen.Herding ? $"DRIVING THE HERD ({pen.Head} LEFT). KEEP AT IT"
+                : world.Run.CarAtRamp(train, pen) is null ? "THE HERD: NO CAR WITH ROOM AT THE RAMP"
+                : $"[E] HOLD: DRIVE THE HERD UP THE RAMP (IT NEEDS {world.Run.FacilityTuning?.Ramp.Herders ?? 2}, LOUD)";
+        if (world.Run?.AtHoseStand(p, train) is { } stand)
+        {
+            string held = world.Run.HoseHold(s.PlayerId) is > 0 and < 1 and var h ? $" {h * 100:0}%" : "";
+            return stand.HoseCar >= 0
+                ? $"HOSE ON: PRESSURE {stand.Pressure * 100:0}%{(stand.Leaking ? " LEAKING" : "")}. STAY BY IT   [E] HOLD: TAKE IT OFF{held}"
+                : world.Run.CarAtHose(train, stand) is null ? "HOSE: NO CAR WITH ROOM BY THE STAND" : $"[E] HOLD: PUT THE HOSE ON THE CAR{held}";
+        }
+        // The wreck yard (note 187): its tell, and what a lamp's for.
+        if (world.Run?.HeapNear(p, train) is { } heap)
+            return heap.Groan > 0 ? "IT'S GOING: GET CLEAR OF THE WRECK"
+                : !heap.Found && heap.Salvage > 0 ? "THE WRECK: TOO DARK TO SEE WHAT'S IN IT. BRING A LAMP"
+                : heap.Stability <= (world.Run.FacilityTuning?.Wreck.StrainPerPiece ?? 0.4) ? "THE WRECK CREAKS: ONE MORE PIECE AND IT GOES"
+                : "THE WRECK: CARRY THE SALVAGE OUT TO A CAR";
         if (world.Switches?.InReach(p, train, hand) is { } branch)
         {
             // Say which way it'll go, and when it won't: the points don't move with a wheel on them.
@@ -638,7 +1159,7 @@ public static class Hud
         if (parts.Count == 0)
             return;
         float y = height - 4 - parts.Count * line;
-        o.Rect(2, y - 3, parts.Max(t => o.Font.Measure(t)) + 8, parts.Count * line + 4, Panel);
+        UiStyle.Plate(o, 2, y - 3, parts.Max(t => o.Font.Measure(t)) + 8, parts.Count * line + 4);
         foreach (var t in parts)
         {
             o.Text(6, y, t, t.Contains("DAWN", StringComparison.Ordinal) || t.StartsWith("STOPPED", StringComparison.Ordinal) ? Amber : Dim);

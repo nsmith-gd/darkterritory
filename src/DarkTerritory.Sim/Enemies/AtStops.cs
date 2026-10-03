@@ -5,11 +5,11 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Enemies;
 
-// GDD v1.3 §21's three, all met at stops (the yards and the village halts, where the crew is on foot): the Shy Thing,
+// GDD v1.5 §21's three, all met at stops (the yards and the village halts, where the crew is on foot): the Shy Thing,
 // the Huddle and the Mimic.
 
 /// <summary>
-/// THE SHY THING · sight · outside (GDD v1.3 §21, App. A.6). It stands in the dark where someone on the ground has to look:
+/// THE SHY THING · sight · outside (GDD v1.5 §21, App. A.6). It stands in the dark where someone on the ground has to look:
 /// past the switch they're working, the door they're breaching, the loading. Watch it and it has you (the telegraph): you
 /// can't move, only turn, and from then on only you can see it. Look away, and hold it, and it's gone; but the longer
 /// you've been under, the longer it takes, and while you're under it walks in. A crewmate stepping into your line of sight
@@ -218,7 +218,7 @@ public sealed class ShyThing(int id) : Enemy(id)
 }
 
 /// <summary>
-/// THE HUDDLE · heat · outside (GDD v1.3 §21, App. A.6). A flock of small, soft, harmless-looking things at a stop, that
+/// THE HUDDLE · heat · outside (GDD v1.5 §21, App. A.6). A flock of small, soft, harmless-looking things at a stop, that
 /// follow the crew about and come aboard after the warmth, piling round the firebox. They chirp, all the time, and it counts
 /// toward the crew's loudness (App. C.7) like livestock; petting them hushes them a while. Hit one and it dies with a
 /// squeak, and the rest bristle (the telegraph, a hiss): get clear or hush them, or they swarm whoever struck and bury
@@ -462,7 +462,7 @@ public sealed class Huddle(int id) : Enemy(id)
 }
 
 /// <summary>
-/// THE MIMIC · movement · outside (GDD v1.3 §21, App. A.6). A crate among a yard's crates, and the best-looking one. Its tells
+/// THE MIMIC · movement · outside (GDD v1.5 §21, App. A.6). A crate among a yard's crates, and the best-looking one. Its tells
 /// are all subtle: it's one more than the count chalked by the stack; it breathes when someone stands still beside it;
 /// carried, it's heavier than a crate should be; and put in a car, it never goes into the load. Harmless in your arms and on
 /// the ground, it wakes a while after it's set down aboard: then anyone who comes within arm's length (or picks it up) sees

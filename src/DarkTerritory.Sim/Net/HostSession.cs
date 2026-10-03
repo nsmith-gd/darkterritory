@@ -25,6 +25,8 @@ public sealed class HostSession
         public uint AckedSnapshot;
         public PlayerIntent LastIntent;
         public PlayerIntent ThisTick;
+        /// <summary>Bookmark held on the tick before (the press is what counts, App. D.12).</summary>
+        public bool Bookmarking;
         public PlayerState State;
         public int MissedInputs;
         /// <summary>What this client was sent at each tick: its own delta baselines, since interest differs per client.</summary>
@@ -117,20 +119,40 @@ public sealed class HostSession
             Controls.Brake = 0;
         foreach (var c in _crew)
         {
+            // App. C.9 "who was on the throttle": whoever's working the cab's controls, or failing that anyone at them.
+            if (CabControls.CanDrive(c.State, Train) && (c.ThisTick.ThrottleNotch != 0 || c.ThisTick.Has(PlayerButtons.Brake) || World.Attribution.Driver < 0
+                || !_crew.Any(o => o.Id == World.Attribution.Driver && CabControls.CanDrive(o.State, Train))))
+                World.Attribution.Drove(c.Id);
             CabControls.Apply(ref Controls, c.ThisTick, c.State, Train);
             // Lag compensation: check this player's shots against where targets were on their screen.
             uint? view = c.AckedSnapshot > ClientSession.InterpolationTicks ? c.AckedSnapshot - ClientSession.InterpolationTicks : null;
             World.CrewAct(ref c.State, c.ThisTick, c.Id, view);
         }
         World.Step(Controls);
+        Bookmark();
+        Votes();
+        // E.5 "Skipping": a majority of the session, or the host, skips the film to the cause card, or the Stranded outro
+        // (E.9). When a vote counts at all is the clients' to say: they only offer it after the first player's shot, or three
+        // seconds into the outro. Once skipped, it stays skipped.
+        if ((World.Film is not null || World.Run?.End == Run.RunEnd.Stranded) && _crew.Count > 0)
+        {
+            int votes = _crew.Count(c => c.ThisTick.Has(PlayerActions.Skip));
+            World.FilmVotes = (votes, _crew.Count);
+            if (votes * 2 > _crew.Count || _crew.Any(c => c.Id == HostPlayer && c.ThisTick.Has(PlayerActions.Skip)))
+                World.FilmSkipped = true;
+        }
         World.ApplyDamage(id => _crew.FirstOrDefault(c => c.Id == id)?.State, (id, s) => _crew.First(c => c.Id == id).State = s, _crew.Select(c => (int)c.Id));
+        CutTheDead();
         foreach (var c in _crew)
             PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
         World.StepBodies([.. _crew.Select(c => ((int)c.Id, c.State))]);
+        if (World.Holdouts is { } holdouts)
+            holdouts.StartingKit = PlayerTuning.StartingKit;
         HoldoutEvents.AddRange(World.StepHoldouts([.. _crew.Select(c => ((int)c.Id, c.State))], (id, st) => _crew.First(c => c.Id == id).State = st));
         if (World.Run is not null)
             World.StepRun([.. _crew.Select(c => c.State)]);
         Tick++;
+        SendNamesAndReport();
 
         // Snap the world onto the replication grid and keep simulating from exactly that.
         _snapshotScratch.Clear();
@@ -210,6 +232,7 @@ public sealed class HostSession
         byte id = _nextId++;
         Messages.WriteWelcome(_writer, id, Tick, SessionInfo);
         _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
+        _namesChanged |= World.Names.Count > 0;
         // GDD App. D.3: with Holdouts, a mid-run joiner goes straight into the respawn queue; otherwise they wait for a stop.
         if (!Lobbying && CanBoard is { } can && !can())
         {
@@ -225,7 +248,7 @@ public sealed class HostSession
     {
         var c = new Crew(id, peer);
         // First aboard takes the cab; everyone else spreads down the train.
-        int car = 1 + (_crew.Count - 1) % Math.Max(1, Train.Frames.Count - 1);
+        int car = 1 + (_crew.Count - 1) % Math.Max(1, Train.OwnVehicles - 1);
         c.State = BoardAt is { } at && _crew.Count > 0 ? at(_crew.Count)
             : _crew.Count == 0 ? PlayerMotor.SpawnInCab(Train, PlayerTuning) : PlayerMotor.SpawnOnRoof(Train, car, 0, PlayerTuning);
         // Past the gate, nobody spawns aboard (D.1): they watch, waiting in the queue, until a Holdout frees them.
@@ -247,8 +270,155 @@ public sealed class HostSession
         _waiting.Clear();
     }
 
+    bool _namesChanged;
+    bool _reportSent, _filmSent;
+
+    /// <summary>The host's own player (its local client), whose vote alone skips the film (GDD v1.4 App. E.5); −1 if none.</summary>
+    public int HostPlayer { get; set; } = -1;
+    int _bookmarksSent;
+
+    /// <summary>
+    /// GDD v1.4 App. D.10, D.12: a dead player's Bookmark, on the press, of the living crewmate they follow (their intent's
+    /// Watch, as <see cref="EarsOf"/> reads it). Only once the run's under way; capped per player and per run.
+    /// </summary>
+    readonly Dictionary<byte, (int Options, Enemies.EnemyKind? Cast)> _ballotsSent = [];
+    bool _commendationsChanged;
+
+    /// <summary>
+    /// GDD v1.4 App. D.11 (note 180): a dead crewmate (not one still waiting to board) is offered their ballot, and casts it
+    /// with a hotbar number (the dead carry nothing, so 1-3 are free): once per run, locked on submit.
+    /// </summary>
+    void Votes()
+    {
+        if (World.Director is not { } director || World.Run is { Over: true })
+            return;
+        foreach (var c in _crew)
+        {
+            if (c.State.Alive || c.State.Death == DeathCause.Waiting)
+                continue;
+            var ballot = director.Ballot(World, c.Id);
+            if (c.ThisTick.Select is > 0 and var pick && pick <= ballot.Count && director.CanVote(c.Id))
+                director.Vote(c.Id, ballot[pick - 1]);
+        }
+    }
+
+    void Bookmark()
+    {
+        foreach (var c in _crew)
+        {
+            bool held = c.ThisTick.Has(PlayerActions.Bookmark);
+            bool pressed = held && !c.Bookmarking;
+            c.Bookmarking = held;
+            if (!pressed || c.State.Alive || World.Run is not { Over: false })
+                continue;
+            var eyes = EarsOf(c);
+            if (eyes != c)
+                World.Bookmarks.Manual(World, c.Id, eyes.Id, eyes.State);
+        }
+    }
+
+    /// <summary>
+    /// Names to everyone when they change (and to whoever's just joined), each bookmark as it's made, and the night's report
+    /// once it's over (GDD v1.4 App. D.12): the report is only the host's to write, so clients are sent it, in chunks, reliably.
+    /// </summary>
+    void SendNamesAndReport()
+    {
+        var peers = _crew.Select(c => c.Peer).Concat(_waiting.Select(w => w.Peer)).Distinct().ToList();
+        if (_namesChanged)
+        {
+            _namesChanged = false;
+            Messages.WriteNames(_writer, World.Names);
+            foreach (var p in peers)
+                _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
+            Messages.WriteLooks(_writer, World.Looks);
+            foreach (var p in peers)
+                _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
+        }
+        // D.12: each bookmark as it's made, so every machine takes its still from the world as it is now.
+        for (; _bookmarksSent < World.Bookmarks.All.Count; _bookmarksSent++)
+        {
+            Messages.WriteBookmark(_writer, World.Bookmarks.All[_bookmarksSent]);
+            foreach (var p in peers)
+                _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
+        }
+        // D.11: each dead player's ballot to them alone, as it's offered and once cast; the cue to the dead alone.
+        if (World.Director is { } director && World.Run is not { Over: true })
+        {
+            foreach (var c in _crew.Where(c => !c.State.Alive && c.State.Death != DeathCause.Waiting))
+            {
+                var offered = director.Ballot(World, c.Id);
+                if (offered.Count == 0)
+                    continue;
+                var state = (offered.Count, director.VoteOf(c.Id));
+                if (_ballotsSent.TryGetValue(c.Id, out var sent) && sent == state)
+                    continue;
+                _ballotsSent[c.Id] = state;
+                Messages.WriteBallot(_writer, offered, state.Item2);
+                _transport.Send(c.Peer, _writer.Written, Delivery.ReliableOrdered);
+            }
+            foreach (var (kind, voters) in director.TakeVoteCues())
+            {
+                Messages.WriteVoteCue(_writer, kind, voters);
+                foreach (var c in _crew.Where(c => !c.State.Alive))
+                    _transport.Send(c.Peer, _writer.Written, Delivery.ReliableOrdered);
+            }
+        }
+        if (_commendationsChanged)
+        {
+            _commendationsChanged = false;
+            Messages.WriteCommendations(_writer, World.Commendations);
+            foreach (var p in peers)
+                _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
+        }
+        if (!_filmSent && World.Film is { } film)
+        {
+            _filmSent = true;
+            foreach (var m in Messages.FilmMessages(film))
+                foreach (var p in peers)
+                    _transport.Send(p, m, Delivery.ReliableOrdered);
+        }
+        if (!_reportSent && World.Run?.Report is { } report)
+        {
+            _reportSent = true;
+            foreach (var m in Messages.ReportMessages(report))
+                foreach (var p in peers)
+                    _transport.Send(p, m, Delivery.ReliableOrdered);
+        }
+    }
+
     void OnData(PeerId peer, byte[] payload)
     {
+        // A name can come from someone still waiting to board.
+        // D.12: a commendation can come from anyone in the session at run end, aboard or still waiting to board.
+        if (payload.Length == 3 && payload[0] == (byte)MessageType.Commend)
+        {
+            int from = _crew.Find(x => x.Peer == peer)?.Id ?? _waiting.Where(w => w.Peer == peer).Select(w => (int)w.Id).DefaultIfEmpty(-1).First();
+            var session = _crew.Select(x => (int)x.Id).Concat(_waiting.Select(w => (int)w.Id)).ToList();
+            if (from >= 0 && Run.Commendations.Give(World, from, payload[1], payload[2], session))
+                _commendationsChanged = true;
+            return;
+        }
+        if (payload.Length > 0 && payload[0] == (byte)MessageType.Hello)
+        {
+            int id = _crew.Find(x => x.Peer == peer)?.Id ?? _waiting.Where(w => w.Peer == peer).Select(w => (int)w.Id).DefaultIfEmpty(-1).First();
+            try
+            {
+                var hr = new NetReader(payload);
+                hr.U8();
+                if (id >= 0 && Messages.CleanName(hr.Str()) is { Length: > 0 } name)
+                {
+                    World.Names[id] = name;
+                    _namesChanged = true;
+                    // D.8: whoever they were freed as on an earlier night, they still are.
+                    if (World.LooksByName.TryGetValue(name, out var look))
+                        World.Looks[id] = look;
+                }
+            }
+            catch (Exception ex) when (ex is EndOfStreamException or InvalidDataException)
+            {
+            }
+            return;
+        }
         var c = _crew.Find(x => x.Peer == peer);
         if (c is null)
             return;
@@ -296,8 +466,16 @@ public sealed class HostSession
         var route = Route ?? World.Route;
         Func<double, bool>? tunnel = route is null ? null : route.InTunnel;
         Func<PlayerState, bool>? underground = World.Run is { } run ? s => run.Underground(s, Train) : null;
-        // The radio's a thing (T41): no radio on you, nobody hears you on it, and you hear nobody.
+        // Held (GDD v1.4 App. C.8, "radio broadcast of a GRAB"): a grabbed player's radio is keyed open for the whole GRAB,
+        // whatever they meant to say into it; it closes at break-off, or with the hard-cut at death (a dead speaker has only
+        // the dead channel, VoiceRouting). The radio's a thing (T41): no radio on you, nobody hears you on it, and you hear
+        // nobody. Tunnels and mine spurs still kill it.
+        radio |= speaker.State.Alive && speaker.State.Has(PlayerFlags.Held);
         radio &= World.Bodies.HasRadio(speaker.Id);
+        // GDD v1.4 App. D.7 Live Mic (note 179): waiting in a Holdout with it on, the dead speaker is heard from the Holdout on
+        // the proximity layer by the living near it (8 m clear, 26 m cutoff), and on the dead channel as ever. It's never said
+        // aloud in the world: nothing listening for talk (the meter, the Gaunt, the Soot Children) hears it.
+        var liveMic = speaker.State.Alive ? null : World.Holdouts?.LiveMicOf(speaker.Id);
         foreach (var listener in _crew)
         {
             if (listener == speaker)
@@ -306,6 +484,8 @@ public sealed class HostSession
             // hears"); the dead channel stays theirs.
             var ears = speaker.State.Alive ? EarsOf(listener) : listener;
             var path = VoiceRouting.Route(speaker.State, ears.State, radio, Train, tunnel, World.Bodies.HasRadio(ears.Id), underground);
+            if (liveMic is not null && VoiceRouting.HearsLiveMic(listener.State, liveMic.Inside, Train))
+                path |= VoicePath.Proximity;
             if (path == VoicePath.None)
                 continue;
             // What's holding the speaker changes how they sound (App. C.8): muffled under a hand, fading as they're drained.
@@ -317,6 +497,31 @@ public sealed class HostSession
             Messages.WriteVoiceDown(_voiceWriter, speaker.Id, seq, path, opus, gain: gain);
             _transport.Send(listener.Peer, _voiceWriter.Written, Delivery.Unreliable);
             VoiceFramesForwarded++;
+        }
+    }
+
+    readonly HashSet<byte> _cut = [];
+
+    /// <summary>
+    /// GDD v1.4 App. D.2, the hard-cut: on the tick a crewmate dies, every other client is told in the voice stream to drop
+    /// what it has of them (<see cref="VoicePath.Cut"/>). Reliable: a cut that went missing would let the end of the
+    /// sentence play out. A freed player (App. D.8) is heard again.
+    /// </summary>
+    void CutTheDead()
+    {
+        foreach (var c in _crew)
+        {
+            if (c.State.Alive)
+            {
+                _cut.Remove(c.Id);
+                continue;
+            }
+            if (!_cut.Add(c.Id))
+                continue;
+            Messages.WriteVoiceDown(_voiceWriter, c.Id, 0, VoicePath.Cut, []);
+            foreach (var listener in _crew)
+                if (listener != c)
+                    _transport.Send(listener.Peer, _voiceWriter.Written, Delivery.ReliableOrdered);
         }
     }
 
@@ -443,11 +648,18 @@ public sealed class HostSession
         // carrier"): not drawn, not heard, not there at all on their machine. Nested in a car, it's off their back, and
         // anyone's to see. Watching the carrier, you see what they see: nothing on their back.
         var eyes = EarsOf(c);
-        // A Shy Thing with someone under is theirs alone to see (GDD v1.3 App. A.6), and the eyes of whoever watches
+        // A Shy Thing with someone under is theirs alone to see (GDD v1.5 App. A.6), and the eyes of whoever watches
         // through them, until it unhinges its jaw for everyone. Nobody else is sent it either: not drawn, not heard.
         foreach (var e in World.ActiveEnemies)
-            if (e is Enemies.Follower { Nested: false } f && (f.Carrier == c.Id || f.Carrier == eyes.Id)
-                || e is Enemies.ShyThing shy && !shy.SeenBy(c.Id) && !shy.SeenBy(eyes.Id))
+            if (e is Enemies.Follower { Nested: false } f && (f.Carrier == c.Id || f.Carrier == eyes.Id))
+            {
+                _far.Add(WireRecord.MakeKey(RecordKind.Enemy, e.Id));
+                // Nor a friend's blow landing on it there (T121's hit confirm): the thud at your back would give it away.
+                foreach (var h in World.Hits)
+                    if (h.EnemyId == e.Id)
+                        _far.Add(WireRecord.MakeKey(RecordKind.Hit, h.Id));
+            }
+            else if (e is Enemies.ShyThing shy && !shy.SeenBy(c.Id) && !shy.SeenBy(eyes.Id))
                 _far.Add(WireRecord.MakeKey(RecordKind.Enemy, e.Id));
         if (InterestRadius <= 0)
             return _far.Count == 0 ? records : records.Where(r => !_far.Contains(r.Key)).ToList();

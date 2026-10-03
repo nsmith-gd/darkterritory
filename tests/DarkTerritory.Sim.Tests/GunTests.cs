@@ -123,10 +123,12 @@ public class GunTests
         return new HitTarget(7, t.Position + right * lateral + Double3.Up * height, 1.0);
     }
 
+    // Spec B.7's effective range (T121: 220 m, so the forward gun reaches the Track Doll from where the lamp shows her).
     [Theory]
     [InlineData(60, true)]
-    [InlineData(90, false)]
-    public void RangeIsEightyMetres(double metres, bool hits)
+    [InlineData(200, true)]
+    [InlineData(235, false)]
+    public void RangeIsTwoHundredAndTwentyMetres(double metres, bool hits)
     {
         var w = World();
         var s = AtGun(w, 0);

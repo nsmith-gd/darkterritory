@@ -1,0 +1,7 @@
+// The derailment's opera (GDD v1.4 App. E.6) on the music bus (tier 0, outside the tell tiers). A recorded track from
+// content/audio/music, chosen by the shuffle bag and started at its in-point; the instance ends with the clip. Heard
+// without position: it's the film's score, not something on the line.
+{
+  "tier": 0, "flat": true, "maxInstances": 1,
+  "layers": [ { "source": "sample", "gain": 1 } ]
+}

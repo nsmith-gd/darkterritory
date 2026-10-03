@@ -269,7 +269,7 @@ public sealed class Lineside
                 {
                     double over = rake.Speed - sign.Limit;
                     if (rake.Speed >= sign.Limit * Tuning.DerailRatio && !world.Derailed)
-                        world.Derail($"over the {sign.Limit:0} m/s board at {rake.Speed:0.0} m/s");
+                        world.Derail($"took the {sign.LimitKmh} km/h bend at {rake.Speed * 3.6:0} km/h, {rake.Speed * 3.6 - sign.LimitKmh:0} km/h too fast");
                     if (over > Tuning.LurchOver)
                     {
                         // The frames strain (repairs, spec F.1) and the loads shift about.
@@ -277,7 +277,9 @@ public sealed class Lineside
                         if (v.Kind == VehicleKind.Cargo)
                             v.CargoIntegrity = Math.Max(0, v.CargoIntegrity - Tuning.CargoDamagePerSecond * over * dt);
                     }
-                    if (over <= Tuning.ThrowOver)
+                    // Roof handrails (spec F.3, note 184): there's something to hold, so it takes a harder lean to throw you.
+                    var fit = train.Dynamics.Tuning.Composition;
+                    if (over <= Tuning.ThrowOver * (fit.Handrails ? fit.Rails.ThrowOver : 1))
                         continue;
                 }
                 foreach (var (id, s, _) in crew)

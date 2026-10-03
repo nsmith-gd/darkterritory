@@ -1,4 +1,4 @@
-// Tell (tier 1, subtle), the Mimic breathing (GDD v1.3 App. A.6): only while someone stands still beside it, and only from a
+// Tell (tier 1, subtle), the Mimic breathing (GDD v1.5 App. A.6): only while someone stands still beside it, and only from a
 // few metres (maxDistance), 3-4.5 kHz. Slow, wet, in and out through something that isn't a mouth yet; deeper once it's
 // awake ("progress"). Close in it's tier 1 like any tell (AudioTests), so whoever stops beside it can hear it if they listen.
 {

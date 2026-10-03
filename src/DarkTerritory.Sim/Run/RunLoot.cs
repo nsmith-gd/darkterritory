@@ -16,7 +16,7 @@ public sealed partial class Run
 {
     LootTuning? _loot;
     RailLine? _lootLine;
-    readonly List<(RouteFeature Feature, int Index, StopLayout Stop, IReadOnlyList<LootFind> Finds)> _stopLoot = [];
+    readonly List<(RouteFeature Feature, int Index, StopLayout Stop, IReadOnlyList<LootFind> Finds, IReadOnlyList<int> Kits)> _stopLoot = [];
     bool[] _stocked = [];
     readonly Dictionary<int, double> _lootSettling = new();
     readonly List<LootFind> _stowed = [];
@@ -44,7 +44,7 @@ public sealed partial class Run
         double perCar = Tuning.Economy.PerCar.GetValueOrDefault(StopLoot.TierKey(_route.Tier), 700);
         for (int i = 0; i < _route.Features.Count; i++)
             if (_route.Features[i].Stop is { } stop)
-                _stopLoot.Add((_route.Features[i], i, stop, StopLoot.Village(t, stop, _route.Seed, i, perCar)));
+                _stopLoot.Add((_route.Features[i], i, stop, StopLoot.Village(t, stop, _route.Seed, i, perCar), StopLoot.Kits(t, stop, _route.Seed, i)));
         _stocked = new bool[_stopLoot.Count];
         if (facilities is not null)
             BuildYardCranes(facilities.Crane);
@@ -154,13 +154,13 @@ public sealed partial class Run
     /// <summary>
     /// Every yard crate stack's count, chalked on a board at the head of its row (level-design P12: "crate counts shown"),
     /// for the art: where the board stands, which way the row runs from it (a unit vector, level), and the number. The
-    /// count is what the economy put there, so a crate more than it is something else (GDD v1.3 §21, the Mimic).
+    /// count is what the economy put there, so a crate more than it is something else (GDD v1.5 §21, the Mimic).
     /// </summary>
     public IEnumerable<(Double3 At, Double3 Along, int Count)> CrateCounts()
     {
         if (_loot is not { } t || _lootLine is not { } line)
             yield break;
-        foreach (var (f, index, stop, _) in _stopLoot)
+        foreach (var (f, index, stop, _, _) in _stopLoot)
             foreach (var c in stop.Containers)
                 if (c.Kind == ContainerKind.CrateStack && StopLoot.CratesIn(t, stop, _route.Seed, index, c) is var n and > 0)
                 {
@@ -171,7 +171,7 @@ public sealed partial class Run
     }
 
     /// <summary>
-    /// Where a Mimic can lie at the stop the engine is at (GDD v1.3 App. B.6), once its loot is out: just past the last
+    /// Where a Mimic can lie at the stop the engine is at (GDD v1.5 App. B.6), once its loot is out: just past the last
     /// crate of each of its yard's crate stacks, one more than the count chalked there; with none, beside the facility's own
     /// crates. With the cargo those crates hold, so it's a crate like the rest. Empty anywhere else.
     /// </summary>
@@ -181,7 +181,7 @@ public sealed partial class Run
         if (_loot is { } t && _lootLine is { } line)
             for (int k = 0; k < _stopLoot.Count; k++)
             {
-                var (f, index, stop, _) = _stopLoot[k];
+                var (f, index, stop, _, _) = _stopLoot[k];
                 if (!_stocked[k] || engine < f.Start - 100 || engine > f.End + 100)
                     continue;
                 foreach (var c in stop.Containers)
@@ -198,15 +198,25 @@ public sealed partial class Run
         return slots;
     }
 
-    /// <summary>A stop's loot comes out: the yard's crate stacks and strongroom, the village's finds.</summary>
+    /// <summary>The containers at stop <paramref name="stop"/> with a repair kit in them (E.12 question 4), for tools and tests.</summary>
+    public IReadOnlyList<int> KitsAt(int stop) => stop >= 0 && stop < _stopLoot.Count ? _stopLoot[stop].Kits : [];
+
+    /// <summary>A stop's loot comes out: the yard's crate stacks and strongroom, the village's finds, and a repair kit now and then.</summary>
     void Stock(Physics.Bodies bodies, RailLine line, LootTuning t, int k)
     {
         _stocked[k] = true;
-        var (f, index, stop, finds) = _stopLoot[k];
+        var (f, index, stop, finds, kits) = _stopLoot[k];
         double heavy = _facilityTuning?.Crates.Heavy.Radius ?? 0.55;
         foreach (var c in stop.Containers)
         {
             double hint = f.Start + c.At.S;
+            // A repair kit (E.12 question 4), lying beside what the container holds: not the crew's until one of them picks it up.
+            if (kits.Contains(c.Index))
+            {
+                var put = c.Building >= 0 && c.Building < stop.Buildings.Count && StopWalls.Walled(stop, c.Building)
+                    ? StopWalls.Doorstep(stop.Buildings[c.Building], c.Index) : c.At;
+                bodies.SpawnItem(StopWorld(line, f, put + new Pt(0.4, 0.3)), hint, Physics.BodyKind.RepairKit);
+            }
             switch (c.Kind)
             {
                 case ContainerKind.CrateStack:
