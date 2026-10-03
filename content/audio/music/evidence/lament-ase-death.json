@@ -22,12 +22,13 @@
   "work": "\"Åse's Death\", Peer Gynt Suite No. 1",
   "composer": "Edvard Grieg",
   "sourceSha256": "21cf9e251f03bf550aa776e7cf98b73f733db2bc425e1239c42fa29e9430c586",
-  "fetched": "2026-10-03T12:22:09Z",
+  "fetched": "2026-10-03T17:55:58Z",
   "licenceTemplates": [
     "cc-zero"
   ],
   "licenceSection": "{{Cc-zero}}\n\n[[Category:Peer Gynt (Grieg)]]\n[[Category:Audio files of music by Edvard Grieg]]",
   "information": "{{Information\n|Description    ={{en|1=Peer Gynt Suite No. 1, Op. 46 - II. Aase's Death}}\n|Source         ={{Musopen|http://www.musopen.org/music/piece/1568}}\n|Author         =Musopen Symphony Orchestra\n|Date           =\n|Permission     =\n|other_versions ={{fl|Grieg - Peer Gynt Suite No. 1, Op. 46 - II. The Death of Aase (Musopen Symphony).flac}}\n}}",
+  "wikitext": "== {{int:filedesc}} ==\n{{Information\n|Description    ={{en|1=Peer Gynt Suite No. 1, Op. 46 - II. Aase's Death}}\n|Source         ={{Musopen|http://www.musopen.org/music/piece/1568}}\n|Author         =Musopen Symphony Orchestra\n|Date           =\n|Permission     =\n|other_versions ={{fl|Grieg - Peer Gynt Suite No. 1, Op. 46 - II. The Death of Aase (Musopen Symphony).flac}}\n}}\n== {{int:license-header}} ==\n{{Cc-zero}}\n\n[[Category:Peer Gynt (Grieg)]]\n[[Category:Audio files of music by Edvard Grieg]]",
   "performers": "Musopen Symphony Orchestra",
   "hitNote": "the strings' fortissimo peak, the climb of the lament's phrase at its loudest before it sinks away",
   "hitClock": "1:52.7",
@@ -49,8 +50,12 @@
   "inputLufs": -16.17,
   "inputTruePeak": -3.03,
   "normalization": "dynamic",
+  "outputLufs": -16.2,
+  "limiterGainDb": 1.7,
+  "limitDb": -4.65,
+  "decodedPeakDb": -1.86,
   "hitCheck": {
-    "jumpDb": 6.1,
+    "jumpDb": 5.9,
     "loudnessRank": 0.38,
     "weak": false
   }

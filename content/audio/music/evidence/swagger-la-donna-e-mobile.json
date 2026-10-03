@@ -22,13 +22,14 @@
   "work": "\"La donna è mobile\", Rigoletto",
   "composer": "Giuseppe Verdi",
   "sourceSha256": "a713e04d29772ff870a72e399336363e14a9d93b0a98154aac63741d77335eaf",
-  "fetched": "2026-10-03T12:22:09Z",
+  "fetched": "2026-10-03T17:55:58Z",
   "licenceTemplates": [
     "cc-zero"
   ],
   "licenceSection": "{{Cc-zero}}\n\n[[Category:Phonograph recordings from the National Library of Sweden]]\n[[Category:Uploaded with pattypan]]\n[[Category:Audio files of La donna è mobile]]",
   "information": "",
-  "performers": "|title =",
+  "wikitext": "=={{int:filedesc}}==\n{{Musical work\n |composer = \n |lyrics_writer = \n |performer = \n |title = \n |description =http://smdb.kb.se/catalog/id/001453287 Phonograph recording from the National Library of Sweden {{Q|Q953058}}\n |composition_date = \n |performance_date = \n |notes = \n |record_ID = \n |image = \n |references = \n |source = Öppna data från Kungliga biblioteket https://data.kb.se/datasets/2015/09/fonografcylindrar/ Internet Archive https://web.archive.org/web/20200913152029/https://data.kb.se/datasets/2015/09/fonografcylindrar/\n |permission = \n |other_versions = \n}}\n\n=={{int:license-header}}==\n{{Cc-zero}}\n\n[[Category:Phonograph recordings from the National Library of Sweden]]\n[[Category:Uploaded with pattypan]]\n[[Category:Audio files of La donna è mobile]]",
+  "performers": "Unknown performers (phonograph recording, National Library of Sweden)",
   "hitNote": "the refrain's top note with the orchestra's tutti",
   "hitClock": "1:57.5",
   "file": "swagger-la-donna-e-mobile.opus",
@@ -49,6 +50,10 @@
   "inputLufs": -24.9,
   "inputTruePeak": -9.44,
   "normalization": "dynamic",
+  "outputLufs": -16.0,
+  "limiterGainDb": null,
+  "limitDb": -5.38,
+  "decodedPeakDb": -1.83,
   "hitCheck": {
     "jumpDb": 5.1,
     "loudnessRank": 0.0,

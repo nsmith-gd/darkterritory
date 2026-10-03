@@ -22,12 +22,13 @@
   "work": "\"Anvil Chorus\", Il trovatore",
   "composer": "Giuseppe Verdi",
   "sourceSha256": "1600d7d2e107b6e0e0c1bf573bba578e44781f84f4c7eba1c6e1a492ef51a141",
-  "fetched": "2026-10-03T12:22:09Z",
+  "fetched": "2026-10-03T17:55:58Z",
   "licenceTemplates": [
     "cc-zero"
   ],
   "licenceSection": "{{Cc-zero}}",
   "information": "{{Information\n|Description    ={{en|1=The Anvil Chorus (''Coro di zingari'') from act 2, scene 1 of Giuseppe Verdi's 1853 opera ''Il trovatore''}}\n|Source         ={{Musopen|https://musopen.org/music/1157/giuseppe-verdi/le-trouvere/}}(clip begins at the start of track \"2. Giuseppe Verdi - Le Trouvere - 2 - Act 4 - The Punishment - End\")\n|Author         =Musopen\n|Date           =1853\n|Permission     =\n|other_versions =\n}}",
+  "wikitext": "== {{int:filedesc}} ==\n{{Information\n|Description    ={{en|1=The Anvil Chorus (''Coro di zingari'') from act 2, scene 1 of Giuseppe Verdi's 1853 opera ''Il trovatore''}}\n|Source         ={{Musopen|https://musopen.org/music/1157/giuseppe-verdi/le-trouvere/}}(clip begins at the start of track \"2. Giuseppe Verdi - Le Trouvere - 2 - Act 4 - The Punishment - End\")\n|Author         =Musopen\n|Date           =1853\n|Permission     =\n|other_versions =\n}}\n\n[[Category:Audio files of Il trovatore]]\n== {{int:license-header}} ==\n{{Cc-zero}}",
   "performers": "Musopen (performers uncredited)",
   "hitNote": "the refrain with the anvils striking on the beat under the full chorus",
   "hitClock": "1:36.2",
@@ -49,9 +50,13 @@
   "inputLufs": -14.78,
   "inputTruePeak": -0.83,
   "normalization": "dynamic",
+  "outputLufs": -15.8,
+  "limiterGainDb": null,
+  "limitDb": -2.0,
+  "decodedPeakDb": -1.7,
   "hitCheck": {
     "jumpDb": 16.1,
-    "loudnessRank": 0.28,
+    "loudnessRank": 0.29,
     "weak": false
   }
 }
