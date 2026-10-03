@@ -1,0 +1,48 @@
+{
+  "title": "File:Bizet - Carmen - Toreador Song (French, Musopen).ogg",
+  "cc0": true,
+  "metaSaysCc0": true,
+  "licence": "cc0",
+  "licenceShortName": "CC0",
+  "licenceUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/b/bd/Bizet_-_Carmen_-_Toreador_Song_%28French%2C_Musopen%29.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+  "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Bizet_-_Carmen_-_Toreador_Song_(French,_Musopen).ogg",
+  "sha1": "b848a2be88f089e7363b12e14e5c23174733d525",
+  "size": 3761681,
+  "mime": "application/ogg",
+  "artist": "Musopen",
+  "credit": "This work comes from the non profit U.S. organization Musopen where it is available at the following link: https://musopen.org/music/1059/georges-bizet/carmen/ The Musopen website requires all uploaders to \"represent and warrant that content uploaded to the site is in the public domain\" (see FAQ #4). Musopen's own works (\"Musopen Materials\" and \"Musopen Service\", not user content or public domain content), are fully copyrighted and may not be used freely as stated in their Terms and Conditions of Use. (clip begins at about 7:50 in track \"3. Bizet - Carmen - 2 - Act 4 - Avec la garde montante a\")",
+  "description": "\"Toreador Song\" from Carmen (1875) by Bizet",
+  "date": "1875",
+  "revision": 824957559,
+  "revisionTimestamp": "2023-11-25T06:32:11Z",
+  "refused": [],
+  "id": "swagger-toreador",
+  "work": "\"Toreador Song\" (\"Votre toast\"), Carmen",
+  "composer": "Georges Bizet",
+  "sourceSha256": "d9302aef1d86fc8f4f6a0a0790c35b711b7b42e5594a009c195cc5e628269b73",
+  "fetched": "2026-10-03T11:33:49Z",
+  "licenceTemplates": [
+    "cc-zero"
+  ],
+  "licenceSection": "{{Cc-zero}}\n\n[[Category:Toreador Song]]\n[[Category:Audio files of Carmen]]\n[[Category:Tunes of Australian Football League club songs]]",
+  "hitNote": "\"Toréador, en garde!\": the refrain's downbeat, the chorus joining",
+  "file": "swagger-toreador.opus",
+  "hitGuess": 24.0,
+  "sourceSeconds": 270.594,
+  "window": [
+    144.728,
+    189.728
+  ],
+  "hitInSource": 168.728,
+  "analysis": {
+    "score": 23.04,
+    "range": [
+      81.18,
+      211.06
+    ]
+  },
+  "inputLufs": -20.81,
+  "inputTruePeak": -3.17,
+  "normalization": "dynamic"
+}

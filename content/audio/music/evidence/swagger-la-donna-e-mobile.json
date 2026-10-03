@@ -1,0 +1,48 @@
+{
+  "title": "File:La donna è mobile ZS V78-0918.wav",
+  "cc0": true,
+  "metaSaysCc0": true,
+  "licence": "cc0",
+  "licenceShortName": "CC0",
+  "licenceUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/b/bb/La_donna_%C3%A8_mobile_ZS_V78-0918.wav?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+  "descriptionUrl": "https://commons.wikimedia.org/wiki/File:La_donna_%C3%A8_mobile_ZS_V78-0918.wav",
+  "sha1": "3f447654cc7d6679f73059a9acd06ee1d71d688c",
+  "size": 23049388,
+  "mime": "audio/wav",
+  "artist": "",
+  "credit": "Öppna data från Kungliga biblioteket https://data.kb.se/datasets/2015/09/fonografcylindrar/ Internet Archive https://web.archive.org/web/20200913152029/https://data.kb.se/datasets/2015/09/fonografcylindrar/",
+  "description": "http://smdb.kb.se/catalog/id/001453287 Phonograph recording from the National Library of Sweden National Library of Sweden (Q953058)",
+  "date": "",
+  "revision": 676540605,
+  "revisionTimestamp": "2022-07-21T22:55:28Z",
+  "refused": [],
+  "id": "swagger-la-donna-e-mobile",
+  "work": "\"La donna è mobile\", Rigoletto",
+  "composer": "Giuseppe Verdi",
+  "sourceSha256": "a713e04d29772ff870a72e399336363e14a9d93b0a98154aac63741d77335eaf",
+  "fetched": "2026-10-03T11:33:49Z",
+  "licenceTemplates": [
+    "cc-zero"
+  ],
+  "licenceSection": "{{Cc-zero}}\n\n[[Category:Phonograph recordings from the National Library of Sweden]]\n[[Category:Uploaded with pattypan]]\n[[Category:Audio files of La donna è mobile]]",
+  "hitNote": "the refrain's top note with the orchestra's tutti",
+  "file": "swagger-la-donna-e-mobile.opus",
+  "hitGuess": 24.0,
+  "sourceSeconds": 180.073,
+  "window": [
+    29.288,
+    74.288
+  ],
+  "hitInSource": 53.288,
+  "analysis": {
+    "score": 5.95,
+    "range": [
+      45.02,
+      135.05
+    ]
+  },
+  "inputLufs": -24.41,
+  "inputTruePeak": -8.34,
+  "normalization": "dynamic"
+}

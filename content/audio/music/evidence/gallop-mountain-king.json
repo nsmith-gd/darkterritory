@@ -1,0 +1,48 @@
+{
+  "title": "File:Peer Gynt Suite No. 1, Op. 46 - II. Aase's Death.ogg",
+  "cc0": true,
+  "metaSaysCc0": true,
+  "licence": "cc0",
+  "licenceShortName": "CC0",
+  "licenceUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/2/26/Peer_Gynt_Suite_No._1%2C_Op._46_-_II._Aase%27s_Death.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+  "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Peer_Gynt_Suite_No._1,_Op._46_-_II._Aase%27s_Death.ogg",
+  "sha1": "246f2ddfeaa763e446d725815b5677b58e387936",
+  "size": 7341650,
+  "mime": "application/ogg",
+  "artist": "Musopen Symphony Orchestra",
+  "credit": "This work comes from the non profit U.S. organization Musopen where it is available at the following link: http://www.musopen.org/music/piece/1568 The Musopen website requires all uploaders to \"represent and warrant that content uploaded to the site is in the public domain\" (see FAQ #4). Musopen's own works (\"Musopen Materials\" and \"Musopen Service\", not user content or public domain content), are fully copyrighted and may not be used freely as stated in their Terms and Conditions of Use.",
+  "description": "Peer Gynt Suite No. 1, Op. 46 - II. Aase's Death",
+  "date": "",
+  "revision": 956096901,
+  "revisionTimestamp": "2024-11-12T14:40:05Z",
+  "refused": [],
+  "id": "gallop-mountain-king",
+  "work": "\"In the Hall of the Mountain King\", Peer Gynt",
+  "composer": "Edvard Grieg",
+  "sourceSha256": "21cf9e251f03bf550aa776e7cf98b73f733db2bc425e1239c42fa29e9430c586",
+  "fetched": "2026-10-03T11:33:49Z",
+  "licenceTemplates": [
+    "cc-zero"
+  ],
+  "licenceSection": "{{Cc-zero}}\n\n[[Category:Peer Gynt (Grieg)]]\n[[Category:Audio files of music by Edvard Grieg]]",
+  "hitNote": "the accelerando's peak: the full orchestra and the cymbal crash",
+  "file": "gallop-mountain-king.opus",
+  "hitGuess": 24.0,
+  "sourceSeconds": 273.737,
+  "window": [
+    205.297,
+    250.297
+  ],
+  "hitInSource": 229.297,
+  "analysis": {
+    "score": 4.16,
+    "range": [
+      228.74,
+      254.24
+    ]
+  },
+  "inputLufs": -28.74,
+  "inputTruePeak": -10.41,
+  "normalization": "dynamic"
+}

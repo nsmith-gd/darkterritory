@@ -1,0 +1,48 @@
+{
+  "title": "File:Giuseppe Verdi - Anvil Chorus.ogg",
+  "cc0": true,
+  "metaSaysCc0": true,
+  "licence": "cc0",
+  "licenceShortName": "CC0",
+  "licenceUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/c/c7/Giuseppe_Verdi_-_Anvil_Chorus.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+  "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Giuseppe_Verdi_-_Anvil_Chorus.ogg",
+  "sha1": "c882962cb6f7aba05dadff266fdb97e11da5afab",
+  "size": 3045258,
+  "mime": "application/ogg",
+  "artist": "Musopen",
+  "credit": "This work comes from the non profit U.S. organization Musopen where it is available at the following link: https://musopen.org/music/1157/giuseppe-verdi/le-trouvere/ The Musopen website requires all uploaders to \"represent and warrant that content uploaded to the site is in the public domain\" (see FAQ #4). Musopen's own works (\"Musopen Materials\" and \"Musopen Service\", not user content or public domain content), are fully copyrighted and may not be used freely as stated in their Terms and Conditions of Use. (clip begins at the start of track \"2. Giuseppe Verdi - Le Trouvere - 2 - Act 4 - The Punishment - End\")",
+  "description": "The Anvil Chorus (Coro di zingari) from act 2, scene 1 of Giuseppe Verdi's 1853 opera Il trovatore",
+  "date": "1853",
+  "revision": 1273821336,
+  "revisionTimestamp": "2026-09-08T07:14:01Z",
+  "refused": [],
+  "id": "swagger-anvil-chorus",
+  "work": "\"Anvil Chorus\", Il trovatore",
+  "composer": "Giuseppe Verdi",
+  "sourceSha256": "1600d7d2e107b6e0e0c1bf573bba578e44781f84f4c7eba1c6e1a492ef51a141",
+  "fetched": "2026-10-03T11:33:49Z",
+  "licenceTemplates": [
+    "cc-zero"
+  ],
+  "licenceSection": "{{Cc-zero}}",
+  "hitNote": "the anvils' first strikes under the chorus",
+  "file": "swagger-anvil-chorus.opus",
+  "hitGuess": 24.0,
+  "sourceSeconds": 185.526,
+  "window": [
+    45.01,
+    90.01
+  ],
+  "hitInSource": 69.01,
+  "analysis": {
+    "score": 21.1,
+    "range": [
+      8,
+      70
+    ]
+  },
+  "inputLufs": -15.07,
+  "inputTruePeak": -0.83,
+  "normalization": "dynamic"
+}

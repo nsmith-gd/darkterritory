@@ -1,0 +1,48 @@
+{
+  "title": "File:Frederic Chopin Piano Sonata No.2 in B flat minor Op35 - III Marche Funebre.ogg",
+  "cc0": true,
+  "metaSaysCc0": true,
+  "licence": "cc0",
+  "licenceShortName": "CC0",
+  "licenceUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/b/b2/Frederic_Chopin_Piano_Sonata_No.2_in_B_flat_minor_Op35_-_III_Marche_Funebre.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+  "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Frederic_Chopin_Piano_Sonata_No.2_in_B_flat_minor_Op35_-_III_Marche_Funebre.ogg",
+  "sha1": "813c59a0f4422e691ae69458d18427ba5eac7b33",
+  "size": 7737214,
+  "mime": "application/ogg",
+  "artist": "Frédéric Chopin",
+  "credit": "This work comes from the non profit U.S. organization Musopen where it is available at the following link: https://musopen.org/music/2127/frederic-chopin/piano-sonata-no-2-in-b-flat-minor-funeral-march-op-35/ The Musopen website requires all uploaders to \"represent and warrant that content uploaded to the site is in the public domain\" (see FAQ #4). Musopen's own works (\"Musopen Materials\" and \"Musopen Service\", not user content or public domain content), are fully copyrighted and may not be used freely as stated in their Terms and Conditions of Use.",
+  "description": "Frederic Chopin - Piano Sonata No.2 in B flat minor Op35 - III Marche Funebre",
+  "date": "1839",
+  "revision": 1260528630,
+  "revisionTimestamp": "2026-08-13T09:54:22Z",
+  "refused": [],
+  "id": "lament-funeral-march",
+  "work": "Marche funèbre, Piano Sonata No. 2",
+  "composer": "Frédéric Chopin",
+  "sourceSha256": "498f71b4b05f584dd4e74883ca728ff6c2e82cc0a92594390e8df0d48a3df850",
+  "fetched": "2026-10-03T11:33:49Z",
+  "licenceTemplates": [
+    "cc-zero"
+  ],
+  "licenceSection": "{{cc-zero}}\n\n[[Category:Audio files of sonatas by Frédéric Chopin]]\n[[Category:Piano Sonata No. 2 (Chopin)]]",
+  "hitNote": "the march's return at fortissimo, the bass chords crashing in",
+  "file": "lament-funeral-march.opus",
+  "hitGuess": 24.0,
+  "sourceSeconds": 589.044,
+  "window": [
+    28.92,
+    73.92
+  ],
+  "hitInSource": 52.92,
+  "analysis": {
+    "score": 36.38,
+    "range": [
+      40,
+      150
+    ]
+  },
+  "inputLufs": -25.9,
+  "inputTruePeak": -8.16,
+  "normalization": "dynamic"
+}

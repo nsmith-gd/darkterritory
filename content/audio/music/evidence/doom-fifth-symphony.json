@@ -1,0 +1,48 @@
+{
+  "title": "File:Beethoven EgmontOvertureOp.84 LudwigVanBeethoven-EgmontOvertureOp.84.ogg",
+  "cc0": true,
+  "metaSaysCc0": true,
+  "licence": "cc0",
+  "licenceShortName": "CC0",
+  "licenceUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/2/20/Beethoven_EgmontOvertureOp.84_LudwigVanBeethoven-EgmontOvertureOp.84.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+  "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Beethoven_EgmontOvertureOp.84_LudwigVanBeethoven-EgmontOvertureOp.84.ogg",
+  "sha1": "2f1a857a1311f4d3f4f46ea3af2aaae25a2c4532",
+  "size": 13738201,
+  "mime": "application/ogg",
+  "artist": "Ludwig van Beethoven",
+  "credit": "This work comes from the non profit U.S. organization Musopen where it is available at the following link: https://musopen.org/music/13441 The Musopen website requires all uploaders to \"represent and warrant that content uploaded to the site is in the public domain\" (see FAQ #4). Musopen's own works (\"Musopen Materials\" and \"Musopen Service\", not user content or public domain content), are fully copyrighted and may not be used freely as stated in their Terms and Conditions of Use. (Encoded with vorbis-tools 1.4.0 (oggenc -q8) from FLAC at https://archive.org/details/MusopenCollectionAsFlac)",
+  "description": "\"Egmont\", op. 84 (Overture)",
+  "date": "",
+  "revision": 1019671639,
+  "revisionTimestamp": "2025-04-10T16:32:11Z",
+  "refused": [],
+  "id": "doom-fifth-symphony",
+  "work": "Symphony No. 5, first movement",
+  "composer": "Ludwig van Beethoven",
+  "sourceSha256": "2007b57e8ab1dbe6c9df4d3c91d3de185457ad70cbeb9b4c2864e5161a64c3ae",
+  "fetched": "2026-10-03T11:33:49Z",
+  "licenceTemplates": [
+    "cc-zero"
+  ],
+  "licenceSection": "{{Cc-zero}}\n\n[[Category:Audio files of music by Ludwig van Beethoven]]\n[[Category:Audio files of Classical period classical music]]\n[[Category:Overtures (music)]]\n[[Category:Egmont (Goethe)]]",
+  "hitNote": "the recapitulation: the four-note motif fortissimo in the full orchestra",
+  "file": "doom-fifth-symphony.opus",
+  "hitGuess": 24.0,
+  "sourceSeconds": 540.897,
+  "window": [
+    338.253,
+    383.253
+  ],
+  "hitInSource": 362.253,
+  "analysis": {
+    "score": 28.49,
+    "range": [
+      297.49,
+      432.72
+    ]
+  },
+  "inputLufs": -16.62,
+  "inputTruePeak": -0.64,
+  "normalization": "dynamic"
+}
