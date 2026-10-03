@@ -759,6 +759,27 @@ public sealed partial class SceneArt(Look look)
         return Quaternion.CreateFromAxisAngle(Vector3.Normalize(axis), MathF.Acos(Math.Clamp(d, -1, 1)));
     }
 
+    // Each door's last setting and when the scene saw it change (presentation only: the sim's doors are open or shut).
+    readonly Dictionary<(int Vehicle, int Door), (bool Open, long Since)> _doors = new();
+    const double DoorSeconds = 0.6;
+
+    /// <summary>
+    /// How far a door is open, 0..1, eased: it slides over <see cref="DoorSeconds"/> from when the scene first saw it change.
+    /// One first seen (or with no clock, <paramref name="tick"/> −1) is where it's set.
+    /// </summary>
+    float Opening(int vehicle, int door, bool open, long tick)
+    {
+        if (tick < 0)
+            return open ? 1 : 0;
+        if (!_doors.TryGetValue((vehicle, door), out var was))
+            _doors[(vehicle, door)] = was = (open, long.MinValue / 2);
+        else if (was.Open != open)
+            _doors[(vehicle, door)] = was = (open, tick);
+        double k = Math.Clamp((tick - was.Since) * Sim.SimConstants.TickSeconds / DoorSeconds, 0, 1);
+        k = k * k * (3 - 2 * k);
+        return (float)(open ? k : 1 - k);
+    }
+
     /// <summary>How far an open roof hatch's lid is swung over on its hinges (T99): a little past upright.</summary>
     const float OpenHatch = MathF.PI * 100 / 180;
 
@@ -861,16 +882,20 @@ public sealed partial class SceneArt(Look look)
         foreach (var door in shape.DoorList)
         {
             bool open = vehicle?.DoorOpen(door.Index) ?? false;
+            // Sliding over, not snapping (the checklist's doors: "open and shut, readable"): how far across it's got.
+            float slid = Opening(vehicle?.Id ?? frame.Index, door.Index, open, tick);
             var box = door.Box;
             // An end door it's eaten past is gone with its wall.
             if (bite.Eats(new Vector3((float)box.Centre.X, (float)box.Centre.Y, (float)box.Centre.Z)))
                 continue;
             bool side = box.Max.Z - box.Min.Z > box.Max.X - box.Min.X;
-            if (open)
+            if (slid > 0)
             {
+                // Out from the wall first, then along it: the step out done in the first fifth of the slide.
+                double outward = Math.Min(1, slid * 5), along = slid;
                 var move = side
-                    ? new Double3(box.Min.X < 0 ? -0.12 : 0.12, 0, box.Max.Z - box.Min.Z)
-                    : new Double3(box.Max.X - box.Min.X, 0, box.Min.Z < 0 ? 0.12 : -0.12);
+                    ? new Double3((box.Min.X < 0 ? -0.12 : 0.12) * outward, 0, (box.Max.Z - box.Min.Z) * along)
+                    : new Double3((box.Max.X - box.Min.X) * along, 0, (box.Min.Z < 0 ? 0.12 : -0.12) * outward);
                 box = new Box(box.Min + move, box.Max + move);
             }
             var size = new Vector3((float)(box.Max.X - box.Min.X), (float)(box.Max.Y - box.Min.Y), (float)(box.Max.Z - box.Min.Z));
@@ -904,14 +929,15 @@ public sealed partial class SceneArt(Look look)
             var lid = Piece($"hatch:{size.X:0.##}x{size.Y:0.##}x{size.Z:0.##}", () => TrainKit.HatchLid(Look, size));
             var c = hatch.Centre;
             bool open = vehicle?.DoorOpen(CarShape.HatchBit) == true;
+            float lift = Opening(vehicle?.Id ?? frame.Index, CarShape.HatchBit, open, tick);
             foreach (int side in new[] { -1, 1 })
             {
                 // The leaf's hinges are on its +X: the left leaf is the right one turned about.
                 var turn = side < 0 ? Matrix4x4.CreateRotationY(MathF.PI) : Matrix4x4.Identity;
                 Matrix4x4 at;
-                if (open)
+                if (lift > 0)
                 {
-                    var swing = Matrix4x4.CreateRotationZ(-OpenHatch);
+                    var swing = Matrix4x4.CreateRotationZ(-OpenHatch * lift);
                     var hinge = new Vector3(size.X, (float)hatch.Max.Y, 0);
                     at = swing * Matrix4x4.CreateTranslation(hinge - Vector3.Transform((size / 2) with { Z = 0 }, swing)) * turn;
                 }
