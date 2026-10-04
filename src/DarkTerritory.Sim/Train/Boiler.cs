@@ -8,6 +8,16 @@ public sealed record BoilerTuning(
     double FireTimeConstant, double IdleDraft, double SteamPerUnit, double AuxiliaryDrain, double HeatingPerCar, double FullThrottleDemand,
     double VentRate, double LowFireFraction, double StartPressure, double StartFirebox)
 {
+    /// <summary>
+    /// GDD §22 deep cold (note 183): each cold step takes this much off the boiler's efficiency (the steam a shovelful makes),
+    /// down to <see cref="ColdEfficiencyFloor"/>.
+    /// </summary>
+    public double ColdEfficiencyPerStep { get; init; } = 0.06;
+    public double ColdEfficiencyFloor { get; init; } = 0.7;
+
+    /// <summary>The boiler's efficiency at <paramref name="coldStep"/>.</summary>
+    public double ColdEfficiency(int coldStep) => Math.Max(ColdEfficiencyFloor, 1 - ColdEfficiencyPerStep * Math.Max(0, coldStep));
+
     public const string File = "tuning/boiler.json";
 
     /// <summary>

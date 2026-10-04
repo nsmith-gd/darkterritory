@@ -186,7 +186,8 @@ public class LineGenTests
         for (int i = 0; i < 60 * SimConstants.TickRate && !world.Derailed && train.Dynamics.Distance < s1; i++)
             world.Step(new TrainControls { Reverser = 1 });
         Assert.True(world.Derailed, $"took a {1 / tightest:0} m curve at {train.Dynamics.Speed:0.0} m/s");
-        Assert.Contains("curve", world.DerailCause);
+        // T121: it says the bend's figure, the speed it was taken at and by how much, in the boards' km/h.
+        Assert.Matches(@"^took the (\d+ km/h )?bend at \d+ km/h, \d+ km/h (too fast|over the \d+ km/h it holds)$", world.DerailCause);
 
         // At the speed the line communicates there it's taken safely.
         double posted = new PlanRouteWay(plan, line, []).Communicated((s0 + s1) / 2);

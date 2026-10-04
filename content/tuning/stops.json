@@ -68,9 +68,11 @@
   // back into a run. Placement only; what happens there is holdouts.json.
   "holdouts": {
     // A facility's: this far from the consist's stopping position on the pad (the middle of its first track's loading
-    // face). A second on a pad at least `secondPadScale` long along the line, and at every switchyard.
+    // face). A second on a pad at least `secondPadScale` long along the line, and at every switchyard. GDD D.15 question 2,
+    // answered (T121): "Big crews should get at least one ... our goal with holdouts is to get everyone back and reduce
+    // downtime": a second at every facility (0 m), taking someone only with holdouts.json's secondCrew in the session.
     "facilityDistance": [60, 200],
-    "secondPadScale": 200,
+    "secondPadScale": 0,
     // A halt's lockup, and a dead town's shelter: at most this far from the main line.
     "haltDistance": 40,
     "villageDistance": 80,

@@ -1,6 +1,7 @@
 using Ballast;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Combat;
+using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Train;
@@ -25,10 +26,94 @@ public static class CrewActs
     public static Crewmate Crewmate(byte id, in PlayerState s, World world, IReadOnlyList<CarFrame> frames, IReadOnlyList<PlayerState>? others = null)
     {
         var act = Of(s, id, world, others);
-        var placed = act == CrewPose.Gunner && Guns.Mount(world.Train, s.Parent) is { } gun ? Seated(s, gun) : s;
+        var placed = act is CrewPose.Gunner or CrewPose.Reload && Guns.Mount(world.Train, s.Parent) is { } gun ? Seated(s, gun) : s;
         var (feet, yaw) = Eyes.World(placed, frames);
-        return new Crewmate(id, feet, yaw, s.Alive, s.Hand, s.OtherHand, Act: act, Holding: Sim.Player.Kit.Held(s));
+        return new Crewmate(id, feet, yaw, s.Alive, s.Hand, s.OtherHand, Act: act, Holding: Sim.Player.Kit.Held(s),
+            Reach: act is CrewPose.Drive or CrewPose.Whistle ? AtTheControls(world, frames, feet, yaw, act == CrewPose.Whistle) : null,
+            Lamp: world.Bodies.CarriedBy(id) is { Kind: BodyKind.Lamp }, Survivor: SurvivorOf(id, world),
+            Stressed: s.Alive && Stressed(world, PlayerMotor.WorldPosition(s, world.Train)), Health: s.Health,
+            Phase: act == CrewPose.Reload ? ReloadPhase(s, world) : 0, Death: s.Death);
     }
+
+    /// <summary>How near a waking threat has to be for a crewmate's run to be a hurried one (m).</summary>
+    public const double StressRange = 30;
+
+    /// <summary>Anything past its dormant phase within <see cref="StressRange"/> of <paramref name="at"/> (GDD §31: "hurried under stress").</summary>
+    static bool Stressed(World world, Double3 at) =>
+        world.ActiveEnemies.Any(e => !e.Gone && e.Phase is not (SpinePhase.Dormant or SpinePhase.Gone) && !e.Hazard
+            && (e.WorldPosition(world.Train) - at).Length < StressRange);
+
+    /// <summary>Who has hold of them (App. A.1 GRAB), as the pose that says so from across the car.</summary>
+    static CrewPose HeldBy(int id, World world) =>
+        world.ActiveEnemies.FirstOrDefault(e => e.Holding == id)?.Kind switch
+        {
+            EnemyKind.Dragger => CrewPose.HeldHang,
+            EnemyKind.CarHugger => CrewPose.HeldMouth,
+            EnemyKind.Whistler => CrewPose.HeldCarried,
+            EnemyKind.TippyToesie => CrewPose.HeldCover,
+            EnemyKind.Ribbit => CrewPose.HeldFrozen,
+            EnemyKind.SootChildren => CrewPose.HeldPinned,
+            EnemyKind.Choir => CrewPose.HeldSeized,
+            EnemyKind.Passenger => CrewPose.HeldDragged,
+            _ => CrewPose.Held,
+        };
+
+    /// <summary>The seconds of crew_clips' reload clip that match how far the gun's reload is: 1.5 s a step (its beats), the
+    /// steps done plus this one's progress.</summary>
+    static double ReloadPhase(in PlayerState s, World world)
+    {
+        if (world.Combat is not { } combat || Guns.MannedGun(s, world.Train, combat.Guns) is not { } g)
+            return 0;
+        var gun = world.Train.Vehicles[g].Gun;
+        int steps = combat.Guns.ReloadSteps;
+        double done = steps - gun.ReloadNeeded + Math.Clamp(gun.ReloadProgress / combat.Guns.ReloadStepSeconds, 0, 1);
+        return Math.Clamp(done, 0, steps) * ReloadBeatSeconds;
+    }
+
+    /// <summary>One reload step's length in crew_clips.py's reload clip (45 frames at 30 fps).</summary>
+    const double ReloadBeatSeconds = 1.5;
+
+    /// <summary>
+    /// Who they came back as (GDD App. D.8: "a freed player becomes this character from then on"): the occupant of a freed
+    /// Holdout, by its kind (a shelter's wildlander, a prison car's or a lockup's prisoner); the last one freed, if more.
+    /// Every machine mirrors the Holdouts, so every machine draws the same.
+    /// </summary>
+    public static Survivor SurvivorOf(int id, World world)
+    {
+        // Tonight's freeing, else the look carried from an earlier night (Sim.Run.Identity; note 181).
+        return Sim.Run.Identity.Of(world, id) switch
+        {
+            Sim.Run.Identity.Prisoner => Survivor.Prisoner,
+            Sim.Run.Identity.Wildlander => Survivor.Wildlander,
+            _ => Survivor.None,
+        };
+    }
+
+    /// <summary>
+    /// A driver's hands where the levers are (GDD §12): one on the regulator, at its notch, and one on the brake valve; or,
+    /// whistling, one up on the cord's handle (<see cref="TrainKit.WhistleCord"/>, hauled down). From the feet, facing frame.
+    /// </summary>
+    static (Double3, Double3)? AtTheControls(World world, IReadOnlyList<CarFrame> frames, Double3 feet, double yaw, bool whistling)
+    {
+        if (frames.Count == 0 || frames[0].Shape.Levers is not { } levers)
+            return null;
+        var c = world.Controls;
+        Double3 Local(Double3 inCab)
+        {
+            var d = frames[0].ToWorld(inCab) - feet;
+            return new Double3(d.X * Math.Cos(yaw) - d.Z * Math.Sin(yaw), d.Y, d.X * Math.Sin(yaw) + d.Z * Math.Cos(yaw));
+        }
+        var brake = Local(levers.BrakeAt(c.Brake));
+        var other = whistling ? Local(TrainKit.WhistleCordHandle(frames[0].Shape, pulled: true)) : Local(levers.RegulatorAt(c.Throttle));
+        return (other, brake);
+    }
+
+    /// <summary>The real whistle is blowing, a crewmate's (GDD §12): the Whistler's blast is from nobody's hand on the cord (App. A.4).</summary>
+    public static bool CrewWhistling(World world) =>
+        world.WhistleSeconds > 0 && !world.ActiveEnemies.OfType<Sim.Enemies.Whistler>().Any(w => w.Phase == Sim.Enemies.SpinePhase.Telegraph && w.Extra > 0.5);
+
+    /// <summary>How near the regulator (across the floor, m) a crewmate in the cab is at the controls.</summary>
+    const double AtControls = 0.9;
 
     /// <summary><paramref name="s"/> moved onto <paramref name="gun"/>'s seat (their feet on the roof under it), facing the gun's way.</summary>
     public static PlayerState Seated(in PlayerState s, GunMount gun)
@@ -44,14 +129,35 @@ public static class CrewActs
     /// <summary>How close a crewmate who's held has to be for someone to be hauling at them (m).</summary>
     const double HaulReach = 1.6;
 
-    /// <summary>Whether one of <paramref name="others"/>, alive and held, is within <see cref="HaulReach"/> of <paramref name="s"/> in its frame.</summary>
-    static bool HeldNear(in PlayerState s, IReadOnlyList<PlayerState> others)
+    /// <summary>One of <paramref name="others"/>, alive and held, within <see cref="HaulReach"/> of <paramref name="s"/> in its frame, or null.</summary>
+    static PlayerState? HeldNear(in PlayerState s, IReadOnlyList<PlayerState> others)
     {
         foreach (var o in others)
             if (o.Alive && o.Has(PlayerFlags.Held) && o.Parent == s.Parent && (o.Position - s.Position).Length is > 0.05 and < HaulReach)
-                return true;
-        return false;
+                return o;
+        return null;
     }
+
+    /// <summary>
+    /// Stood at the door of a Holdout that's being breached (App. D.7): the act by its kind: a barricade pried, a lock picked
+    /// with the repair kit (Holdout.Quiet), or smashed.
+    /// </summary>
+    static CrewPose? Breaching(in PlayerState s, World world)
+    {
+        if (world.Holdouts is not { } holdouts || s.Parent != PlayerState.World)
+            return null;
+        foreach (var h in holdouts.All)
+            if (h.State == Sim.Run.HoldoutState.Breaching && ((h.Door - s.Position) with { Y = 0 }).Length <= holdouts.Tuning.BreachReach)
+                return h.Layout.Kind == Sim.Stops.HoldoutKind.Shelter ? CrewPose.Pry : h.Quiet ? CrewPose.Pick : CrewPose.Smash;
+        return null;
+    }
+
+    /// <summary>How near its mount (across the floor, m) an extinguisher in hand is being lifted off it or hung back.</summary>
+    const double MountReach = 0.7;
+
+    static bool AtMount(Body extinguisher, in PlayerState s, TrainOnLine train) =>
+        s.Parent == extinguisher.Home && s.Parent > 0 && s.Parent < train.Frames.Count && train.Frames[s.Parent].Shape.Interior is { } room
+        && ((World.ExtinguisherMount(train.Frames[s.Parent].Shape, room) - s.Position) with { Y = 0 }).Length < MountReach + 0.6;
 
     /// <summary>The seat pan's height over the gunner's feet in crew_clips.py's gunner clip (m).</summary>
     public const double GunnerPan = 0.48;
@@ -66,9 +172,18 @@ public static class CrewActs
             return null;
         var train = world.Train;
         if (s.Has(PlayerFlags.Held))
-            return CrewPose.Held;
+            return HeldBy(id, world);
+        // At a Holdout's door while it's breached (App. D.7): smashing its lock, prying its barricade, or picking the lock
+        // with the repair kit. (Who's breaching isn't sent; whoever stands at the door is at it.)
+        if (Breaching(s, world) is { } breach)
+            return breach;
+        // Freed, still where they came back inside it (App. D.8): up off the floor.
+        var feet = s.Position;
+        if (world.Holdouts is { } holdouts && s.Parent == PlayerState.World
+            && holdouts.All.Any(h => h.State == Sim.Run.HoldoutState.Freed && h.Occupant == id && ((h.Inside - feet) with { Y = 0 }).Length < 0.3))
+            return CrewPose.GetUp;
         if (s.Surface == Surface.Ladder)
-            return CrewPose.Climb;
+            return s.Has(PlayerFlags.SoloCarry) ? CrewPose.ClimbCarry : CrewPose.Climb;
         if (s.Surface == Surface.Air)
             return s.Velocity.Y < -Falling ? CrewPose.Fall : null;
         if (s.Has(PlayerFlags.Pushing))
@@ -78,9 +193,14 @@ public static class CrewActs
         if (world.Bodies.CarriedBy(id) is { } carried)
             return carried.Kind switch
             {
-                BodyKind.Ragdoll => CrewPose.Drag,
+                // Over the shoulder (App. C.4), the arm round its legs: where the sim holds it (Bodies.Shoulder).
+                BodyKind.Ragdoll => CrewPose.Shoulder,
+                // The child in the arms, clinging to them (App. C.4; Bodies.ChildAt).
+                BodyKind.Child => CrewPose.Cradle,
                 // The hand lamp out low in one hand; the extinguisher on the hip, aimed (App. C.5).
                 BodyKind.Lamp => CrewPose.Lantern,
+                // Just off its bracket (or about to go back on it), by the mount, it's being lifted.
+                BodyKind.Extinguisher when AtMount(carried, s, train) => CrewPose.TakeDown,
                 BodyKind.Extinguisher => CrewPose.Extinguish,
                 // The repair kit at work on a burst boiler (T109): down at the firebox mending it.
                 BodyKind.RepairKit when s.ActionProgress > 0 && CrewActions.AtTheRupture(s, train) => CrewPose.Mend,
@@ -88,13 +208,24 @@ public static class CrewActs
             };
         if (s.Has(PlayerFlags.Shovelful))
             return CrewPose.Shovel;
-        if (world.Combat is { } combat && Guns.MannedGun(s, train, combat.Guns) is not null)
-            return CrewPose.Gunner;
+        if (world.Combat is { } combat && Guns.MannedGun(s, train, combat.Guns) is { } manned)
+            return train.Vehicles[manned].Gun.ReloadNeeded > 0 ? CrewPose.Reload : CrewPose.Gunner;
+        // On the ground at the line's own levers: a switch stand's (spec C.6), a coaling chute's or a spout's (spec D.3).
+        if (s.Parent == PlayerState.World)
+        {
+            if (world.Switches?.InReach(s, train) is not null)
+                return CrewPose.Throw;
+            if (world.Run is { } run && run.LeverInReach(s, train))
+                return CrewPose.Chute;
+        }
+        if (world.Run is { } r && r.SpoutLeverInReach(s, train) is not null)
+            return CrewPose.Spout;
         if (s.Parent == PlayerState.World || s.Parent >= train.Frames.Count)
             return null;
-        // Beside a friend something's got hold of (App. A.1's rescue), down hauling them free.
-        if (others is not null && HeldNear(s, others))
-            return CrewPose.Haul;
+        // Beside a friend something's got hold of (App. A.1's rescue), down hauling them free; one hanging over the edge
+        // below (a Dragger's, App. A.4), stood leaning back hauling them up.
+        if (others is not null && HeldNear(s, others) is { } friend)
+            return friend.Position.Y < s.Position.Y - 0.5 ? CrewPose.HaulUp : CrewPose.Haul;
         var near = CrewActions.Nearest(s, train);
         // Something timed under way (CrewActions: the progress resets the moment it stops).
         if (s.ActionProgress > 0)
@@ -111,12 +242,21 @@ public static class CrewActs
             return CrewPose.Gap;
         // The held valves keep no progress: the boiler venting, the rail being sanded, by whoever's at it.
         if (s.Parent == 0 && s.Surface == Surface.Deck)
-            return near switch
+        {
+            var valve = near switch
             {
                 InteractableKind.Vent when train.Boiler.Venting => CrewPose.Vent,
                 InteractableKind.Sandbox when train.Sanding => CrewPose.Lever,
                 _ => (CrewPose?)null,
             };
+            if (valve is not null)
+                return valve;
+            // At the controls in the cab (GDD §12): hands on the regulator and the brake, or up on the whistle cord while it's
+            // blowing. The Whistler's blast has no hand on the cord (App. A.4): that's its tell.
+            if (PlayerMotor.InCab(s, train) && train.Frames[0].Shape.Levers is { } levers
+                && ((levers.Regulator - s.Position) with { Y = 0 }).Length < AtControls)
+                return CrewWhistling(world) ? CrewPose.Whistle : CrewPose.Drive;
+        }
         return null;
     }
 }

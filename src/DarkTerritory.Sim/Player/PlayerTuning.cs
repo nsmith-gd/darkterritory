@@ -12,6 +12,17 @@ public sealed record PlayerTuning(
 
     public const string File = "tuning/player.json";
 
+    /// <summary>What the bots are called, in order (the roster and the incident report name them); past the list, "Crew n".</summary>
+    public IReadOnlyList<string> BotNames { get; init; } = [];
+
+    /// <summary>
+    /// GDD v1.4 App. D.9 "solo remainer": with exactly one of the crew left alive, they can climb a ladder carrying a body, at
+    /// this speed (a quarter of normal; note 181).
+    /// </summary>
+    public double SoloBodyClimb { get; init; } = 0.4;
+
+    public string BotName(int i) => i < BotNames.Count ? BotNames[i] : $"Crew {i + 1}";
+
     /// <summary>
     /// Take-off speed that lifts the feet <see cref="JumpHeight"/>; without one, the old derivation (a flat jump at roof-run
     /// speed spans exactly <see cref="JumpGap"/>), which is also the least it may be.
@@ -20,7 +31,9 @@ public sealed record PlayerTuning(
 }
 
 /// <param name="IndoorsRate">How fast the cold comes on inside a car's walls with a door open, against outside (spec B.2).</param>
-public sealed record ColdTuning(double OnsetSeconds, double DeathSeconds, double RecoverSecondsNearHeat, double OnsetSpeedScale, double IndoorsRate = 1);
+/// <param name="PerColdStep">GDD §22 deep cold (note 183): each cold step where you are makes the cold climb this much faster.</param>
+public sealed record ColdTuning(double OnsetSeconds, double DeathSeconds, double RecoverSecondsNearHeat, double OnsetSpeedScale, double IndoorsRate = 1,
+    double PerColdStep = 0.25);
 /// <param name="LethalAbove">Speed over the ground on landing that kills (spec B.3 after T90); 0 for the train's jump-off band.</param>
 /// <param name="DamageAtLethal">A landing's knock rises from <paramref name="RollDamage"/> to this at the lethal edge.</param>
 public sealed record LandingTuning(double RollAbove, int RollDamage, double LethalAbove = 0, int DamageAtLethal = 0);

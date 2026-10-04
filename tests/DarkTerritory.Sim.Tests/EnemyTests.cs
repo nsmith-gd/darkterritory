@@ -194,7 +194,7 @@ public class EnemyTests
             if (n.Crew[id].Has(PlayerFlags.Held))
                 return default;
             // GDD v1.1 App. C.3: powder, ball, ram between shots (Use held at the gun).
-            if (n.Train.Vehicles[guard].Gun.ReloadNeeded > 0)
+            if (n.Train.Vehicles[guard].Gun.ReloadNeeded > 0 || n.Train.Vehicles[guard].Gun.Jammed)
                 return new PlayerIntent { Buttons = PlayerButtons.Use };
             var target = pack.Where(h => !h.Gone && h.Attached < 0).OrderByDescending(h => h.LineDistance).FirstOrDefault();
             // Nothing to shoot at: a gunner with no restraint fires anyway.
@@ -227,6 +227,9 @@ public class EnemyTests
         // GDD §14: "The gunner's job is less about accuracy than restraint." Firing at everything, out of range and in,
         // loads the meter (App. C.7) until the Choir gathers (App. A.7), and it seizes the one exposed on the roof.
         var (n, _, guard) = GunnerVersusPack(_ => true);
+        // Gathered and out over the train; a fouled bore or two (GDD §23, note 183) can hold the swarm off past the 90 s.
+        if (n.Crew[1].Alive && n.World.Choir.Present)
+            n.Run(30, _ => default);
         Assert.True(n.Crew[1].Death == DeathCause.Seized, $"{n.Crew[1].Death}: build {n.World.Choir.Build:0.00} present {n.World.Choir.Present} spent {n.World.Choir.Spent} loud {n.World.Choir.Loudness:0.00} ammo {n.Train.Vehicles[guard].Gun.Ammo} ghosts {n.World.ActiveEnemies.Count(e => e is ChoirGhost)}");
     }
 
@@ -241,7 +244,7 @@ public class EnemyTests
         n.Crew[1] = gunner with { Yaw = Math.PI, Pitch = 0.6, Flags = gunner.Flags | PlayerFlags.Seated };
         var pack = Pack(n);
         var muzzle = () => n.Train.Frames[guard].ToWorld(mount.Position);
-        n.Run(60, _ => n.Train.Vehicles[guard].Gun.ReloadNeeded > 0 ? new PlayerIntent { Buttons = PlayerButtons.Use }
+        n.Run(60, _ => n.Train.Vehicles[guard].Gun.ReloadNeeded > 0 || n.Train.Vehicles[guard].Gun.Jammed ? new PlayerIntent { Buttons = PlayerButtons.Use }
             : pack.Any(h => !h.Gone && (h.WorldPosition(n.Train) - muzzle()).Length <= Tuning.Combat.Guns.Range)
             ? new PlayerIntent { Buttons = PlayerButtons.Fire } : default);
         Assert.All(pack, h => Assert.True(h.Gone && h.Health == E.CinderHounds.Health, $"hound {h.Id} {h.Phase} hp {h.Health}"));

@@ -50,4 +50,19 @@ public class VoiceTests
         Assert.True(rough.FramesHeard < rough.FramesSent);
         Assert.InRange(clean.NearDb - rough.NearDb, -1.5, 1.5);
     }
+
+    /// <summary>
+    /// GDD v1.4 App. D.2 and C.8, the hard-cut: on the tick of death the victim's voice stops mid-word, near and on the
+    /// radio, with no fade and nothing buffered played out. The living hear the cut.
+    /// </summary>
+    [Fact]
+    public void DeathCutsTheVoiceOffMidWord()
+    {
+        foreach (bool radio in new[] { false, true })
+        {
+            var r = VoiceBench.Run(Content, speakerCar: radio ? 9 : 3, speakerZ: radio ? 0 : 4, radio: radio, seconds: 2, dieAt: 1.0);
+            Assert.True(r.FramesHeard > 0, "heard before the death");
+            Assert.True(r.AfterCutDb < -150, $"{(radio ? "radio" : "near")}: {r.AfterCutDb} dB after the death");
+        }
+    }
 }

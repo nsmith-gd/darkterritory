@@ -17,6 +17,7 @@ Deterministic: no randomness but fixed hashes, so a rebuild with the same Blende
 from __future__ import annotations
 
 import json
+import re
 import math
 import os
 import sys
@@ -139,6 +140,28 @@ def cube(centre, half, name="cube"):
     o.name = name
     o.scale = half
     bpy.ops.object.transform_apply(location=True, rotation=False, scale=True)
+    return o
+
+
+def uv_sphere(segments, rings, radius, matrix=None, name="sphere"):
+    """A UV sphere, placed in its mesh by `matrix` (the object stays at the origin). Make every sphere here: Blender
+    4.0's own (the operator and bmesh.ops.create_uvsphere alike) has the same vertices and faces each time, but lists
+    the faces in an order that changes from call to call. That order goes out in a model's index buffer and into what
+    a bake from it hits, so nothing built on one rebuilt the same twice. The faces are sorted into one order here."""
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=segments, ring_count=rings, radius=radius)
+    o = bpy.context.view_layer.objects.active
+    o.name = name
+    if matrix is not None:
+        o.data.transform(matrix)
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    bm.verts.index_update()
+    bm.faces.index_update()
+    order = sorted(bm.faces, key=lambda f: sorted(v.index for v in f.verts))
+    rank = {f.index: i for i, f in enumerate(order)}
+    bm.faces.sort(key=lambda f: rank[f.index])
+    bm.to_mesh(o.data)
+    bm.free()
     return o
 
 
@@ -690,7 +713,10 @@ def rig_and_export(name, objs, sockets=None):
 def _merge_index(name, layers):
     path = os.path.join(os.path.dirname(TEXTURES), "index.models.json")
     entries = json.load(open(path)) if os.path.exists(path) else []
-    entries = [e for e in entries if not e["name"].startswith(name + "_")] + layers
+    # Only this model's own layers (name_0, name_1...): another's that starts with its name (whistler_nest_0 beside
+    # whistler_0) stays.
+    own = re.compile(re.escape(name) + r"_\d+$")
+    entries = [e for e in entries if not own.match(e["name"])] + layers
     entries.sort(key=lambda e: e["name"])
     with open(path, "w") as f:
         json.dump(entries, f, indent=2)

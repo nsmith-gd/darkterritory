@@ -1,0 +1,18 @@
+// GDD v1.4 App. D.7 Call Out (note 179): the dead player's shout from the Holdout they're waiting in, so the crew know
+// which building. An adult prisoner (never a child: D.7 keeps them apart from the Soot Children), hoarse, two bellows,
+// "HEY! HERE!", the second falling. Heard to 60 m with normal falloff and through the building's walls; tier 3 (it isn't
+// an enemy's telegraph, and mustn't mask one), and never fed to anything that listens (the meter, the Gaunt).
+{
+  "tier": 3, "duration": 1.3, "maxInstances": 2, "minDistance": 3, "maxDistance": 60, "gainDb": 8,
+  "layers": [
+    { "source": "saw", "frequency": 165, "gain": 0.6,
+      "filters": [{ "type": "peak", "frequency": 750, "q": 2.5, "gainDb": 12 }, { "type": "peak", "frequency": 1250, "q": 3, "gainDb": 9 },
+        { "type": "peak", "frequency": 2600, "q": 4, "gainDb": 5 }, { "type": "highPass", "frequency": 120 }, { "type": "lowPass", "frequency": 4500 }],
+      "vibrato": { "rate": 6, "depth": 0.03 },
+      "pitchEnvelope": [[0, 1.1], [0.25, 1.15], [0.45, 1.0], [0.6, 1.2], [0.9, 1.05], [1.3, 0.85]],
+      "envelope": [[0, 0], [0.03, 1], [0.3, 0.8], [0.4, 0], [0.55, 0], [0.6, 1], [1.0, 0.6], [1.25, 0]] },
+    // The rasp of a shouting throat.
+    { "source": "noise", "gain": 0.2, "filters": [{ "type": "bandPass", "frequency": 1800, "q": 1.2 }],
+      "envelope": [[0, 0], [0.03, 1], [0.35, 0.4], [0.4, 0], [0.58, 0], [0.62, 1], [1.2, 0]] }
+  ]
+}

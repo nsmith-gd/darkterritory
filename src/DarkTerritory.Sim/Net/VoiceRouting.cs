@@ -31,6 +31,12 @@ public enum VoicePath : byte
     /// (<see cref="VoiceFrame.Gain"/>), the host's.
     /// </summary>
     Fading = 64,
+    /// <summary>
+    /// The hard-cut (GDD v1.4 App. D.2, C.8): the speaker died this tick. No sound, sent in the voice stream on the death tick
+    /// so it lands with the last of their words, a snapshot's interpolation ahead of the news they're dead: the listener drops
+    /// whatever of them is waiting to play, near and on the radio, then and there.
+    /// </summary>
+    Cut = 128,
 }
 
 /// <summary>
@@ -67,6 +73,13 @@ public static class VoiceRouting
             path |= VoicePath.Radio;
         return path;
     }
+
+    /// <summary>
+    /// GDD v1.4 App. D.7 Live Mic (note 179): a dead player waiting in a Holdout, with it on, is heard from <paramref name="holdout"/>
+    /// on the proximity layer by a living listener within its cutoff (8 m clear, 26 m gone), and by nobody else that way.
+    /// </summary>
+    public static bool HearsLiveMic(in PlayerState listener, Ballast.Double3 holdout, TrainOnLine train) =>
+        listener.Alive && (PlayerMotor.WorldPosition(listener, train) - holdout).Length <= ProximityCutoff + ForwardMargin;
 
     /// <summary>Radio dies in tunnels (spec A.5): anyone whose nearest point on the line is under one.</summary>
     static bool InTunnel(in PlayerState s, TrainOnLine train, Func<double, bool>? inTunnel)

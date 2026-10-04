@@ -37,6 +37,14 @@ public sealed class VoiceChat
     public bool TalkHeld { get; set; }
     /// <summary>Holding the radio's button: this also goes out over the walkie-talkie.</summary>
     public bool RadioHeld { get; set; }
+    /// <summary>
+    /// Something has hold of you (GDD v1.4 App. C.8, "radio broadcast of a GRAB"): the mic's keyed open for the whole of it,
+    /// push to talk or not, and on the radio if you've one (the host checks), so everyone else on it hears you, with no
+    /// way to tell which car it's coming from. It closes when you're let go, or with the hard-cut.
+    /// </summary>
+    public bool Grabbed { get; set; }
+    /// <summary>What goes out over the radio: the button held, or a GRAB keying it.</summary>
+    public bool OnRadio => RadioHeld || Grabbed;
     public bool Transmitting { get; private set; }
     public int FramesSent { get; private set; }
 
@@ -49,6 +57,17 @@ public sealed class VoiceChat
         public SoundInstance? NearVoice, RadioVoice, DeadVoice, MimicVoice;
         public double RadioKeyed;
         public double LastHeard = double.NegativeInfinity;
+        /// <summary>
+        /// Cut off by their death (<see cref="HardCut"/>): their voice in the air and on the radio stays dropped until the
+        /// snapshots have shown them dead and then alive again (freed from a Holdout, App. D.8). The host's cut arrives before
+        /// the snapshots do (they're interpolated a tenth of a second behind).
+        /// </summary>
+        public bool Cut, SeenDead;
+        /// <summary>
+        /// Waiting in a Holdout with the Live Mic on (GDD v1.4 App. D.7; note 179): the dead speaker's in the air again, from
+        /// the Holdout, whatever the cut says.
+        /// </summary>
+        public Ballast.Double3? LiveMic;
     }
 
     public IEnumerable<byte> Speakers => _speakers.Keys;
@@ -74,13 +93,13 @@ public sealed class VoiceChat
                 continue;
             _filled = 0;
             bool speaking = _activity.Update(_frame);
-            Transmitting = PushToTalk ? TalkHeld || RadioHeld : speaking || RadioHeld;
+            Transmitting = Grabbed || (PushToTalk ? TalkHeld || RadioHeld : speaking || RadioHeld);
             // The sequence advances even in silence, so a receiver can tell loss (conceal) from a pause (don't).
             _sequence++;
             if (!Transmitting)
                 continue;
             int bytes = _encoder.Encode(_frame, _packet);
-            client.SendVoice(_sequence, RadioHeld, _packet.AsSpan(0, bytes));
+            client.SendVoice(_sequence, OnRadio, _packet.AsSpan(0, bytes));
             FramesSent++;
         }
     }
@@ -88,6 +107,7 @@ public sealed class VoiceChat
     /// <summary>Decodes what's arrived and keeps each speaker's voice where they are.</summary>
     public void Update(ClientSession client, IReadOnlyList<Crewmate> crew, double dt)
     {
+        bool inTunnel = InTunnel(client);
         _clock += dt;
         while (client.VoiceFrames.TryDequeue(out var f))
         {
@@ -100,9 +120,32 @@ public sealed class VoiceChat
             }
             if (!_speakers.TryGetValue(f.Speaker, out var s))
                 _speakers[f.Speaker] = s = new Speaker(f.Speaker);
+            if (f.Path.HasFlag(VoicePath.Cut))
+            {
+                HardCut(s);
+                continue;
+            }
             s.Order.Push(f.Sequence, f, _clock);
             s.LastHeard = _clock;
         }
+        // GDD v1.4 App. D.2 and C.8, the hard-cut: on the tick a crewmate dies, their voice stops mid-word, near and on the
+        // radio, with nothing buffered played out and no fade. What comes after is on the dead channel.
+        foreach (var s in _speakers.Values)
+            foreach (var c in crew)
+                if (c.Id == s.Id)
+                {
+                    if (!c.Alive)
+                    {
+                        // The snapshots caught up (or the host's cut went missing): cut, if it isn't yet.
+                        if (!s.Cut)
+                            HardCut(s);
+                        s.SeenDead = true;
+                    }
+                    else if (s.Cut && s.SeenDead)
+                        s.Cut = s.SeenDead = false;
+                }
+        foreach (var s in _speakers.Values)
+            s.LiveMic = client.World.Holdouts?.LiveMicOf(s.Id)?.Inside;
         foreach (var s in _speakers.Values)
             s.Order.Drain(_clock, (_, f) => Decode(s, f));
         foreach (var (source, m) in _mimics.ToList())
@@ -121,11 +164,16 @@ public sealed class VoiceChat
         foreach (var s in _speakers.Values)
         {
             s.NearVoice ??= Stream("voice", s.Near);
+            // GDD §22 tunnels (note 183): in one, voices close in: compressed, boxy, no exterior.
+            s.NearVoice?.Params.Set("tunnel", inTunnel ? 1 : 0);
             s.RadioVoice ??= Stream("voice-radio", s.Radio);
             s.DeadVoice ??= Stream("voice-dead", s.Dead);
-            foreach (var c in crew)
-                if (c.Id == s.Id && s.NearVoice is not null)
-                    s.NearVoice.Position = c.Feet + Double3.Up * 1.6;
+            if (s.LiveMic is { } holdout && s.NearVoice is not null)
+                s.NearVoice.Position = holdout + Double3.Up * 1.4;
+            else
+                foreach (var c in crew)
+                    if (c.Id == s.Id && s.NearVoice is not null)
+                        s.NearVoice.Position = c.Feet + Double3.Up * 1.6;
             s.RadioKeyed = Math.Max(0, s.RadioKeyed - dt);
             s.RadioVoice?.Params.Set("keyed", s.RadioKeyed > 0 || s.Radio.Playing ? 1 : 0);
         }
@@ -140,8 +188,28 @@ public sealed class VoiceChat
         }
     }
 
+    /// <summary>The voice stops here: whatever of it is waiting, in the air and on the radio, is dropped.</summary>
+    static void HardCut(Speaker s)
+    {
+        s.Cut = true;
+        // Whatever of theirs is still waiting in the jitter buffer goes too (Decode strips it of air and radio).
+        s.Near.Clear();
+        s.Radio.Clear();
+        s.RadioKeyed = 0;
+        // And the voice in the air itself, filters and all, so not even the tunnel filters' ring outlives the word (note 183);
+        // a fresh one starts next update for the Live Mic or the freed.
+        s.NearVoice?.Stop();
+        s.NearVoice = null;
+    }
+
+    /// <summary>The cut's tests: whether this speaker's air and radio voices hold anything now.</summary>
+    public (int Near, int Radio) Buffered(byte speaker) => _speakers.TryGetValue(speaker, out var s) ? (s.Near.Buffered, s.Radio.Buffered) : (0, 0);
+
     static void Decode(Speaker s, VoiceFrame f)
     {
+        // Frames from before the death, arriving late, are cut with the rest: only the dead channel plays on.
+        if (s.Cut)
+            f = f with { Path = f.Path & ~(s.LiveMic is null ? VoicePath.Proximity | VoicePath.Radio : VoicePath.Radio) };
         if (f.Path.HasFlag(VoicePath.Radio))
             s.RadioKeyed = 0.15;
         if (s.NearVoice is not null)
@@ -168,6 +236,16 @@ public sealed class VoiceChat
             if (f.Path.HasFlag(VoicePath.Dead))
                 s.Dead.Write(pcm);
         });
+    }
+
+    /// <summary>Whether this listener's under a tunnel (the route's own, the same test the radio's death uses).</summary>
+    static bool InTunnel(ClientSession client)
+    {
+        var me = client.Predicted;
+        if (client.World.Route is not { } route)
+            return false;
+        double along = me.Parent >= 0 && me.Parent < client.Train.Cars.Count ? client.Train.Cars[me.Parent].FrontDistance : me.LineHint;
+        return route.InTunnel(along);
     }
 
     SoundInstance? Stream(string sound, StreamBuffer buffer)

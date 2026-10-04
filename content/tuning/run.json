@@ -12,6 +12,42 @@
   // (2.5 m/s), so the crawl to the gate was minutes of nothing; now the run begins as the train moves off. Short of the
   // gate, not on it, so everyone joining boards at the fortress (GDD App. D.3) until it does.
   "departShortOfGateM": 8,
+  // GDD §9 (note 178): the yard dispatcher's manifest at the gate and the clerk's tally at the terminus, a line every
+  // lineSeconds over the radio.
+  "radio": { "lineSeconds": 1.6 },
+
+  // GDD v1.4 §23.2, Stranded: a ruptured boiler with the engineering kit lost ends the night once the train is at rest.
+  "stranded": {
+    // A cut car on the main line is gone (and the kit in it) this far from every living crewmate: D.13's release distance.
+    "kitLostBeyond": 400,
+    // The dawn freight's tow, billed in the tier's per-car values (E.10: 0.5, range 0.25-1.0).
+    "recoveryFee": 0.5,
+    // Not in the GDD: lost this long first, so a hand-off between ticks can't strand a night.
+    "lostForSeconds": 1
+  },
+
+  // GDD v1.4 App. D.12, the run-end screen's bookmarks: a still at every GRAB start and every PUNISH, from the nearest living
+  // crewmate who can see the victim (else the victim's own eyes); one per crew member at a derailment; the Stranded outro's
+  // last frame; and a dead player's own button. ARCHITECTURE §8 note 176.
+  "bookmarks": {
+    // D.13: automatic bookmarks kept per run (12, range 8-20), and which survive the cap first (derailment cinematic >
+    // PUNISH > GRAB start). Not in D.13: the outro's frame ranks with the derailment (the night's end, one picture).
+    "autoCap": 12,
+    "priority": ["derail", "stranded", "punish", "grab"],
+    // Not in the GDD: a crewmate farther than this from the victim didn't see it, line of sight or not (it's night).
+    "witnessRange": 60,
+    // The camera's eye over the feet (the game's Eyes.Height), and where on the victim a witness looks (the chest).
+    "eyeHeight": 1.65,
+    "chestHeight": 1.1,
+    // Not in the GDD: a GRAB or PUNISH sits beside the victim's death line if they died within this long of it; otherwise it
+    // has a line of its own ("Got away.").
+    "lineWindowSeconds": 30,
+    // Not in the GDD: GRABs and PUNISHes recorded per run before the host stops taking them (each is a still on every machine).
+    "recordLimit": 48,
+    // Not in the GDD: manual bookmarks per dead player per run, and on the report in all.
+    "manualPerPlayer": 3,
+    "manualPerRun": 8
+  },
 
   // Coaling tower (GDD §18, spec D.2 gravity chute): someone on the ground pulls the lever; it pours
   // whether you're ready or not; coal that misses the tender is lost, and overfilling damages the engine.
@@ -36,6 +72,18 @@
     // Running costs, priced so a competent night averages spec F.1's 15% of gross.
     "coalPerUnit": 2,
     "roundsPerRound": 1,
-    "repairPerIntegrity": 150
+    "repairPerIntegrity": 150,
+    // GDD §18-19, App. B.9 (note 182): a delivered car-load of each cargo pays this share of the tier's perCar. Goods pay 1,
+    // so F.1's table (the fully loaded train) still holds for a night of goods. §18: the chemical works is "top payout", the
+    // military depot "best payout", the wreck yard "high value"; §19's medicine is "high value", machine parts (heavy)
+    // "inert, safe", coal and timber bulk. B.9: comet material "is the best freight payout", above them all. Not listed: 1.
+    "cargoRates": {
+      "goods": 1, "grain": 1, "heavy": 1, "ore": 1, "food": 1, "livestock": 1.1, "salvage": 1.2, "timber": 0.9, "coal": 0.8,
+      "medicine": 1.4, "chemicals": 1.4, "ammunition": 1.5, "comet": 1.8
+    },
+    // GDD §19 "the most valuable cargo there is", B.9 "highest payout": each rescued child brought home (in a car still on
+    // the engine, or in someone's arms) pays this many of the tier's perCar: more than any one car-load of anything, the
+    // comet's included.
+    "childPay": 3
   }
 }

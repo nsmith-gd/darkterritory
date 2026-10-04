@@ -81,7 +81,7 @@ public class WrenchTests
     }
 
     [Fact]
-    public void TheRepairKitRidesInCarOneJustInsideTheFrontDoor()
+    public void TheRepairKitRidesInTheFittersLockerInCarOne()
     {
         var world = World();
         world.EnableBodies();
@@ -91,10 +91,14 @@ public class WrenchTests
         Assert.Equal(1, kit.Parent);
         var shape = world.Train.Frames[1].Shape;
         Assert.True(shape.Interior!.Value.Contains(kit.Centre));
-        Assert.True(kit.Centre.Z < -shape.HalfLength + 1, $"{kit.Centre.Z} against the front at {-shape.HalfLength}");
-        // Clear of the load, the walls and the doorway.
-        Assert.DoesNotContain(shape.Solids, x => x.Box.Contains(kit.Centre));
-        Assert.DoesNotContain(shape.DoorList, d => Math.Abs(kit.Centre.X - (d.Box.Min.X + d.Box.Max.X) / 2) < 0.7 && d.Box.Max.Z < 0);
+        // Note 151: on the fitter's bottom shelf, its door shut, ahead of the side door and clear of the aisle.
+        var bay = shape.Lockers[kit.Locker];
+        Assert.Equal("FITTER", bay.Name);
+        Assert.Equal(0, kit.Slot);
+        Assert.True(bay.Box.Contains(kit.Centre));
+        Assert.False(world.Train.Vehicles[1].LockerOpen(bay.Index));
+        Assert.True(bay.Box.Max.Z < -Tuning.Train.Geometry.Interior!.SideDoorWidth / 2);
+        Assert.True(bay.Box.Max.X < Tuning.Train.Geometry.Interior.DoorX - Tuning.Train.Geometry.Doorway.Width / 2 + 1e-9);
     }
 
     [Fact]
@@ -121,6 +125,19 @@ public class WrenchTests
         Assert.True(wentForIt);
         Assert.False(train.Boiler.Ruptured);
         Assert.True(PlayerMotor.InCab(s, train));
+    }
+
+    [Fact]
+    public void ABodysToolsReplicate()
+    {
+        var host = World();
+        host.EnableBodies();
+        var dead = PlayerMotor.SpawnInCab(host.Train, Tuning.Player) with { Kit = Kit.Of([Tool.Wrench]), Death = DeathCause.Mauled };
+        host.StepBodies([(1, dead)]);
+        var client = World();
+        var controls = new TrainControls();
+        WorldRecords.Apply(WorldRecords.Capture(host, controls, []), client, ref controls, []);
+        Assert.True(client.Bodies.All.Single().HasTool(Tool.Wrench));
     }
 
     [Fact]

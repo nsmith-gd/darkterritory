@@ -7,7 +7,56 @@ namespace DarkTerritory.Game;
 /// <summary>Set pieces for looking at and listening to things headless (screenshots, audio renders, tests).</summary>
 public static class Staging
 {
-    /// <summary>Crates and a lamp on car 2's roof and a body on car 3's, dropped and left to settle.</summary>
+    /// <summary>The sim tick staged impacts and hits land on (`dt screenshot --impact`, `--hit-flash`): the scene's clock is set after it.</summary>
+    public const uint StrikeTick = 100;
+
+    /// <summary>
+    /// A cannonball come down (T121, `dt screenshot --impact`): <paramref name="ahead"/> metres up the line from the engine's
+    /// front and <paramref name="lateral"/> to its right, on the ground there (water: as if over it; train and structure: a
+    /// metre and a half up a face; creature: a body's height up). "doll" is the staged Track Doll's spot, shattered.
+    /// </summary>
+    public static Sim.Combat.CannonImpact Impact(TrainOnLine train, string surface, double ahead, double lateral, IReadOnlyList<Enemy>? staged = null)
+    {
+        bool doll = surface.Equals("doll", StringComparison.OrdinalIgnoreCase);
+        if (doll && staged?.FirstOrDefault(e => e is TrackDoll { Attached: < 0 }) is { } d)
+            ahead = d.LineDistance - train.Dynamics.Distance;
+        var kind = doll ? Sim.Combat.ImpactSurface.Creature : Enum.Parse<Sim.Combat.ImpactSurface>(surface, ignoreCase: true);
+        var sample = train.Line.Sample(train.Dynamics.Distance + ahead);
+        var right = Double3.Cross(sample.Tangent, Double3.Up).Normalized;
+        double hint = train.Dynamics.Distance + ahead;
+        var at = sample.Position + right * lateral;
+        at = at with { Y = Sim.Player.PlayerMotor.GroundAt(at, train.Line, ref hint) };
+        if (kind is Sim.Combat.ImpactSurface.Train or Sim.Combat.ImpactSurface.Structure)
+            at += Double3.Up * 1.5;
+        else if (kind == Sim.Combat.ImpactSurface.Creature)
+            at += Double3.Up * (doll ? 0.7 : 0.8);
+        // Fired from the engine's gun, behind and above: the way the ball was going.
+        var muzzle = train.Frames[0].ToWorld(new Double3(0, 5.3, -train.Frames[0].Shape.HalfLength + 12.8));
+        return new Sim.Combat.CannonImpact(1, StrikeTick, at, (at - muzzle).Normalized, kind, 1, doll ? EnemyKind.TrackDoll : 0);
+    }
+
+    /// <summary>
+    /// A blow landed on each staged creature (T121, `dt screenshot --hit-flash`), struck from the camera's side so its flinch
+    /// is seen: the hit at its middle, a melee blow.
+    /// </summary>
+    public static List<Sim.Combat.HitConfirm> HitsOn(IReadOnlyList<Enemy> staged, TrainOnLine train, Double3 eye)
+    {
+        var hits = new List<Sim.Combat.HitConfirm>();
+        foreach (var e in staged)
+        {
+            if (e.Gone || e.Kind is EnemyKind.Sleepers or EnemyKind.Drift or EnemyKind.CarFire)
+                continue;
+            var at = GreyboxPosition(e, train) + Double3.Up * 0.8;
+            var from = (at - eye) with { Y = 0 };
+            hits.Add(new Sim.Combat.HitConfirm(hits.Count + 1, StrikeTick, e.Id, e.Kind, 1, Sim.Combat.HitSource.Melee, at,
+                from.Length > 1e-6 ? from.Normalized : new Double3(0, 0, -1), false));
+        }
+        return hits;
+    }
+
+    static Double3 GreyboxPosition(Enemy e, TrainOnLine train) =>
+        e.Attached >= train.Frames.Count ? e.Local : e.WorldPosition(train);
+    /// <summary>Crates, a lamp and a rescued child on car 2's roof and a body on car 3's, dropped and left to settle.</summary>
     public static Sim.Physics.Bodies Bodies(TrainOnLine train, string content)
     {
         var tuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
@@ -17,11 +66,35 @@ public static class Staging
         bodies.SpawnCrate(train, 2, new Double3(0.5, roof + 0.3, 1.0)).Yaw = 0.4;
         bodies.SpawnCrate(train, 2, new Double3(-0.4, roof + 0.6, 2.2)).Yaw = -0.3;
         bodies.SpawnCrate(train, 2, new Double3(0.1, roof + 0.2, -1.5), Sim.Physics.BodyKind.Lamp);
+        // A rescued child (GDD §19), set down on the roof by the lamp.
+        bodies.SpawnCrate(train, 2, new Double3(-0.6, roof + 0.4, -0.4), Sim.Physics.BodyKind.Child);
         var dead = Sim.Player.PlayerMotor.SpawnOnRoof(train, 3, -2, player) with { Health = 0, Yaw = 1.2 };
         bodies.SpawnRagdoll(train, 9, dead);
         for (int i = 0; i < 90; i++)
             bodies.Step(train, tuning, _ => null);
         return bodies;
+    }
+
+    /// <summary>
+    /// A crewmate on car 2's roof with a body over their shoulder (App. C.4), carried a second and a half in the sim's
+    /// fireman's carry (Bodies.Shoulder) so it's hanging as it would; <paramref name="walking"/>, stepping along the roof.
+    /// </summary>
+    /// <param name="child">The rescued child instead, in their arms (Bodies.ChildAt, the cradle).</param>
+    public static (Sim.Physics.Bodies Bodies, Crewmate Carrier) Shouldered(TrainOnLine train, string content, bool walking = false, bool child = false)
+    {
+        var tuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
+        var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
+        var bodies = new Sim.Physics.Bodies();
+        var carrier = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, -3, player) with { Yaw = Math.PI - 0.6 };
+        var dead = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, -2, player) with { Health = 0, Yaw = 0.4 };
+        var body = child ? bodies.SpawnCrate(train, 2, new Double3(0, tuning.Geometry.CarHeight + 0.4, -2.6), Sim.Physics.BodyKind.Child)
+            : bodies.SpawnRagdoll(train, 9, dead);
+        body.Carrier = 1;
+        for (int i = 0; i < 90; i++)
+            bodies.Step(train, tuning, id => id == 1 ? carrier : null);
+        var (feet, yaw) = (Sim.Player.PlayerMotor.WorldPosition(carrier, train), Sim.Player.PlayerMotor.WorldYaw(carrier, train));
+        var act = child ? walking ? Art.CrewPose.CradleWalk : Art.CrewPose.Cradle : walking ? Art.CrewPose.ShoulderWalk : Art.CrewPose.Shoulder;
+        return (bodies, new Crewmate(1, feet, yaw, true, Act: act));
     }
 
     /// <summary>
@@ -70,13 +143,37 @@ public static class Staging
     /// crew_clips.py's): on car 2's roof one carrying a crate, one heaving at a hatch, one winding the brake wheel at its
     /// end, one standing by with a crowbar; and on the last gun car, a gunner sat in the cannon's seat.
     /// </summary>
+    /// <summary>
+    /// A row of the crew down car 2's roof, each at one of <paramref name="acts"/> (CrewPose names, dt screenshot --act
+    /// smash,pry,...: the roof view looks at them), facing the camera; the smash and pry with a crowbar in hand, the lantern
+    /// with the hand lamp hung from the fist.
+    /// </summary>
+    /// <param name="survivor">Who they all are (dt screenshot --survivor prisoner|wildlander): freed survivors' figures (App. D.8).</param>
+    public static List<Crewmate> Acts(TrainOnLine train, string content, IEnumerable<string> acts, Art.Survivor survivor = Art.Survivor.None)
+    {
+        var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
+        var crew = new List<Crewmate>();
+        int i = 0;
+        foreach (var name in acts)
+        {
+            var act = Enum.Parse<Art.CrewPose>(name.Replace("_", ""), ignoreCase: true);
+            var s = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, -6 + 1.5 * i, player, i % 2 == 0 ? -0.5 : 0.5) with { Yaw = Math.PI + (i % 2 == 0 ? 0.5 : -0.5) };
+            var tool = act is Art.CrewPose.Smash or Art.CrewPose.Pry ? Sim.Player.Tool.Crowbar : Sim.Player.Tool.None;
+            crew.Add(new Crewmate((byte)(20 + i), Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true,
+                Act: act, Holding: tool, Lamp: act is Art.CrewPose.Lantern or Art.CrewPose.LanternWalk, Survivor: survivor));
+            i++;
+        }
+        return crew;
+    }
+
     public static List<Crewmate> Working(TrainOnLine train, string content)
     {
         var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
         Crewmate At(byte id, int car, double x, double z, double yaw, Art.CrewPose? act, Sim.Player.Tool tool = Sim.Player.Tool.None)
         {
             var s = Sim.Player.PlayerMotor.SpawnOnRoof(train, car, z, player, x) with { Yaw = yaw };
-            return new Crewmate(id, Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true, Act: act, Holding: tool);
+            return new Crewmate(id, Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true, Act: act, Holding: tool,
+                Lamp: act == Art.CrewPose.Lantern);
         }
         var crew = new List<Crewmate>
         {
@@ -131,6 +228,22 @@ public static class Staging
     public const byte LoneId = 4;
 
     /// <summary>
+    /// The staged track debris as the kind its id makes it (<c>dt screenshot --threats --debris k</c>, Art/DebrisKit: 0 a
+    /// fallen pine, 1 a rockfall, 2 a heap of old ties and a rail), where it lies 40 m up the line in the lamp.
+    /// </summary>
+    public static List<Enemy> Debris(List<Enemy> threats, string kind)
+    {
+        if (kind.Length == 0 || threats.OfType<Sleepers>().FirstOrDefault() is not { } was)
+            return threats;
+        var debris = new Sleepers(int.Parse(kind));
+        debris.Restore(was.Phase, was.PhaseSeconds, was.Health, was.Attached, was.Local, was.LineDistance, was.Lateral, was.Height, was.Extra, was.Extra2);
+        threats[threats.IndexOf(was)] = debris;
+        return threats;
+    }
+    /// <summary>How far out from its gap the staged Whistler's nest is (a camera on the trail: <c>--whistler nest --view trail</c>).</summary>
+    public const double NestOut = 24;
+
+    /// <summary>
     /// The staged Whistler as it goes (<c>dt screenshot --whistler</c>): <c>fold</c> hidden in its gap (App. A.4 HIDE),
     /// <c>whistle</c> pulling the cord, <c>watch</c> watching the gap's mouth after (WAIT). The <c>gapside</c> view looks in.
     /// </summary>
@@ -140,10 +253,11 @@ public static class Staging
             return threats;
         if (mode == "nest" && train is not null && w.Attached >= 0)
         {
-            // At its nest with its catch (App. A.4): loose, off the train's left a dozen metres out from its gap, on the ground.
+            // At its nest with its catch (App. A.4): loose, off the train's left, the run out from its gap done (GreyboxScene
+            // sets it on the land, its trail behind it).
             var f = train.Frames[w.Attached];
-            var at = f.ToWorld(w.Local + new Double3(-12, 0, 2)) with { Y = f.ToWorld(Double3.Zero).Y };
-            w.Restore(SpinePhase.Grab, 18, w.Health, -1, at, 0, 0, 0, 0, 0);
+            var at = f.ToWorld(w.Local + new Double3(-NestOut, 0, 0)) with { Y = f.ToWorld(Double3.Zero).Y };
+            w.Restore(SpinePhase.Grab, 18, w.Health, Enemy.Loose, at, 0, 0, 0, 0, 0);
             return threats;
         }
         var (phase, extra) = mode switch
@@ -220,10 +334,53 @@ public static class Staging
                 double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
                 gaunt.Restore(SpinePhase.Telegraph, 2.2, gaunt.Health, car, new Double3(-0.45, floor, -train.Frames[car].Shape.HalfLength + 4.2), 0, 0, 0, -1, 1);
                 break;
+            // Leaving with what it took (App. A.6): off from the car's side on the ground, or still aboard making for the
+            // door (GauntLoad gives it the body it's carrying).
+            case "leave":
+                gaunt.Restore(SpinePhase.BreakOff, 2.2, gaunt.Health, Enemy.Loose, before, 0, 0, 0, -1, 0);
+                break;
+            case "leavein":
+                int from = Math.Min(2, train.Frames.Count - 1);
+                double deck = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
+                gaunt.Restore(SpinePhase.BreakOff, 2.2, gaunt.Health, from, new Double3(0.2, deck, -train.Frames[from].Shape.HalfLength + 3.2), 0, 0, 0, -1, 0);
+                break;
             default:
-                throw new ArgumentException($"--gaunt {mode}: sleep, stir, listen, angry, attack or in");
+                throw new ArgumentException($"--gaunt {mode}: sleep, stir, listen, angry, attack, in, leave or leavein");
         }
         return threats;
+    }
+
+    /// <summary>
+    /// A body for a staged Gaunt leaving (<c>--gaunt leave|leavein</c>) to carry off, held under it as Gaunt.Leave holds
+    /// it (Bodies.TakeAlong: by the hips, high as it stalks, low as it creeps aboard) and settled there for 1.5 s.
+    /// </summary>
+    public static Sim.Physics.Bodies GauntLoad(TrainOnLine train, string content, Gaunt gaunt)
+    {
+        var tuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
+        var g = DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)).Gaunt;
+        var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
+        var bodies = new Sim.Physics.Bodies();
+        var dead = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, 0, player) with { Health = 0 };
+        var body = bodies.SpawnRagdoll(train, 6, dead);
+        gaunt.Extra = body.Id;
+        bool aboard = gaunt.Attached >= 0;
+        // Facing where it's going: aboard, toward the car's front door; off it, away from the car.
+        double yaw;
+        if (aboard)
+            yaw = 0;
+        else
+        {
+            var frame = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+            var away = frame.Right * -1;
+            yaw = Math.Atan2(-away.X, -away.Z);
+        }
+        for (int i = 0; i < 90; i++)
+        {
+            bodies.TakeAlong(body, train, gaunt.Id, aboard ? gaunt.Attached : Sim.Player.PlayerState.World,
+                gaunt.Local + Double3.Up * (aboard ? g.CarryLow : g.CarryHigh), yaw);
+            bodies.Step(train, tuning, _ => null);
+        }
+        return bodies;
     }
 
     /// <summary>
@@ -435,8 +592,8 @@ public static class Staging
     const double GauntOut = 3.4;
 
     /// <summary>
-    /// A roster for the screenshot (T69): you in the cab, three crewmates, and a Passenger wearing crewmate 2's face. Crew 1
-    /// is speaking, crew 2 was heard a while ago, crew 3 hasn't said anything yet; the Passenger never has.
+    /// A roster for the screenshot (T69): you in the cab and three crewmates, named; crew 1 is speaking. A Passenger is aboard
+    /// wearing crewmate 2's face, and (GDD v1.4: roll call is verbal) the roster doesn't give it away.
     /// </summary>
     public static (IReadOnlyList<RosterLine> Lines, Func<byte, double?> Heard) Roster(TrainOnLine train, string content)
     {
@@ -445,11 +602,78 @@ public static class Staging
         var p = new Passenger(48);
         p.Restore(SpinePhase.Telegraph, 20, 1, Math.Min(3, train.Frames.Count - 1), default, 0, 0, 0, 2, 0);
         world.MirrorEnemies([p]);
+        foreach (var (id, name) in new[] { (1, "Dunmore"), (2, "Okafor"), (3, "Reyes"), (4, "Dave") })
+            world.Names[id] = name;
         var cab = Sim.Player.PlayerMotor.SpawnInCab(train, player);
         var roof = Sim.Player.PlayerMotor.SpawnOnRoof(train, Math.Min(2, train.Frames.Count - 1), 0, player);
         var lines = NetPlaySession.RosterOf(4, cab, [(1, roof), (2, roof with { Parent = 1 }), (3, cab)], world);
         return (lines, id => id switch { 1 => 0.5, 2 => 14, _ => null });
     }
+
+    /// <summary>
+    /// The staged night's crew for <see cref="Report"/>: Dave and Dunmore in the cab, Okafor on car 3's roof, Priya on the line
+    /// 180 m behind.
+    /// </summary>
+    public static List<(int Id, Sim.Player.PlayerState State)> ReportCrew(TrainOnLine train)
+    {
+        var cab = Sim.Player.PlayerMotor.SpawnInCab(train, DefaultPlayer);
+        var beside = Sim.Player.PlayerMotor.SpawnInCab(train, DefaultPlayer, 0.6) with { Yaw = 0.9 };
+        var roof = Sim.Player.PlayerMotor.SpawnOnRoof(train, Math.Min(3, train.Frames.Count - 1), 0, DefaultPlayer) with { Yaw = Math.PI, Pitch = -0.25 };
+        var line = Sim.Player.PlayerMotor.SpawnOnGround(train.Line.Sample(train.Dynamics.RearDistance - 180).Position, train.Line, train.Dynamics.RearDistance - 180, DefaultPlayer);
+        return [(0, cab with { Yaw = -0.5, Pitch = -0.1 }), (1, beside), (2, roof), (3, line)];
+    }
+
+    /// <summary>
+    /// A night's incident report (GDD v1.4 App. D.12) staged through the real log, formatter and bookmarks: a grab and its
+    /// punish beside the death they ended in, a grab somebody got away from, the derailment's crew stills (derailed), and two
+    /// of the dead's own bookmarks. The clock is moved between them (<see cref="Sim.Run.Run.Resume"/>) so each has its time.
+    /// </summary>
+    public static Sim.Run.RunReport Report(Sim.World world, Sim.Run.RunEnd end)
+    {
+        foreach (var (id, name) in new[] { (0, "Dave"), (1, "Dunmore"), (2, "Okafor"), (3, "Priya") })
+            world.Names[id] = name;
+        var train = world.Train;
+        var log = world.Attribution;
+        var marks = world.Bookmarks;
+        var run = world.Run!;
+        void At(double seconds) => run.Resume(seconds, -1, train.Boiler.Tender, 0);
+        log.Drove(0);
+        log.Fired(1, 100);
+        var crew = ReportCrew(train);
+        var (cab, beside, roof, line) = (crew[0].State, crew[1].State, crew[2].State, crew[3].State);
+        At(312);
+        log.Add(Sim.Run.IncidentLog.Grab(world, 1, beside, "Grabbed by the Dragger"));
+        marks.Grab(world, 1, "Grabbed by the Dragger", crew);
+        At(604);
+        log.Add(Sim.Run.IncidentLog.Grab(world, 2, roof, "Grabbed by the Car Hugger"));
+        marks.Grab(world, 2, "Grabbed by the Car Hugger", crew);
+        At(610);
+        marks.Punish(world, 46, "CarHugger", 2, Sim.Player.PlayerMotor.WorldPosition(roof, train), crew);
+        log.Add(Sim.Run.IncidentLog.Death(world, 2, roof with { Death = Sim.Player.DeathCause.Eaten }, null, crew));
+        log.Add(new Sim.Run.Incident(Sim.Run.IncidentKind.Rescue, 900, 2, "Freed from the Holdout", "at Hollin Halt", 0, "Broken out by {actor}."));
+        At(1012);
+        log.Add(Sim.Run.IncidentLog.Death(world, 3, line with { Death = Sim.Player.DeathCause.Cold }, null, crew));
+        At(1104);
+        marks.Manual(world, 3, 0, cab);
+        At(1290);
+        marks.Manual(world, 3, 1, beside);
+        log.Add(new Sim.Run.Incident(Sim.Run.IncidentKind.Rupture, 1300, -1, "Boiler ruptured", "at km 14", 1, "Last fired: {actor}. At 100 for 20 s."));
+        At(1500);
+        log.Add(Sim.Run.IncidentLog.Death(world, 1, beside with { Death = Sim.Player.DeathCause.Seized }, null, crew));
+        var lines = Sim.Run.IncidentLog.Lines(world, 350, 263, body => false);
+        lines.Add(new Sim.Run.ReportLine(Sim.Run.IncidentKind.CarLost, "", "Car 5 finished by the Car Hugger at km 9. Inside: freight, 0.6 car-loads, the body of Okafor."));
+        At(1720);
+        if (end == Sim.Run.RunEnd.Derailed)
+        {
+            lines.Add(new Sim.Run.ReportLine(Sim.Run.IncidentKind.Derailed, "", "Consist derailed, 68 km/h at km 17. Took the 50 km/h bend at 68 km/h, 18 km/h too fast. Throttle: Dave.") { Seconds = 1720 });
+            // Only Dave's still aboard by then: the derailment's stills are of whoever it took.
+            marks.End(world, end, [crew[0], crew[1] with { State = beside with { Death = Sim.Player.DeathCause.Seized } }]);
+        }
+        var (marked, shown) = Sim.Run.Run.MarkBookmarks(world, lines);
+        return new Sim.Run.RunReport(end, 1720, 17.2, 4, 1, 2.1, 0, 120, 6, 40, -1416, 1, 3, Deaths: 3, CrewLossFees: 1050) { Lines = marked, Bookmarks = shown };
+    }
+
+    static readonly Sim.Player.PlayerTuning DefaultPlayer = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(DataFile.FindContentRoot(), Sim.Player.PlayerTuning.File));
 
     /// <summary>One of each enemy (GDD v1.1 §21) mid-telegraph or mid-commit around the train, where a view can see it.</summary>
     /// <param name="dollAhead">How far up the line the Track Doll stands (App. A.2's reveal is 200 m in the lamp).</param>

@@ -44,8 +44,27 @@ public static class ArtCatalog
         foreach (var livery in Enum.GetValues<TrainKit.Livery>())
             list.Add(new($"car-{livery.ToString().ToLowerInvariant()}", Car, () => TrainKit.Car(look, cargo, livery, 0)));
         list.Add(new("guard", Car, () => TrainKit.Car(look, guard, TrainKit.Livery.Armoured, 0)));
+        // The consist's other cars (note 184): a guard car with cars behind it (the second guard car's), the crew car's body
+        // and its fit-out, and an armoured car's plate and the roof handrails, each over a car's body.
+        var midGuard = CarShape.Build(g, VehicleKind.Guard, hasCarBehind: true);
+        var crew = CarShape.Build(g, VehicleKind.Utility, hasCarBehind: true, train.Kit.Lockers);
+        list.Add(new("guard-mid", Car, () => TrainKit.Car(look, midGuard, TrainKit.Livery.Armoured, 0)));
+        list.Add(new("car-crew", Car, () => TrainKit.Car(look, crew, TrainKit.Livery.Steel, 0, load: false)));
+        list.Add(new("crew-fit", MediumProp, () => TrainKit.UtilityFit(look, crew)));
+        list.Add(new("armour-plate", MediumProp, () => TrainKit.ArmourPlate(look, cargo)));
+        list.Add(new("guard-armoured", Car, () =>
+        {
+            // The armoured guard van as the scene draws it: the body, its plate and the handrails over it.
+            var k = new Kit(look);
+            k.Append(TrainKit.Car(look, guard, TrainKit.Livery.Armoured, 0), Matrix4x4.Identity);
+            k.Append(TrainKit.ArmourPlate(look, guard), Matrix4x4.Identity);
+            k.Append(TrainKit.RoofHandrails(look, guard), Matrix4x4.Identity);
+            return k.Build("guard-armoured");
+        }));
+        list.Add(new("roof-handrails", SmallProp, () => TrainKit.RoofHandrails(look, cargo)));
         // A car's damage rides on its body (the car class's budget, what the body leaves of it: the kit's are 9-11k).
         list.Add(new("hatch-lid", SmallProp, () => TrainKit.HatchLid(look, new System.Numerics.Vector3(1.4f, 0.15f, 2.4f))));
+        list.Add(new("utility-fit", MediumProp, () => TrainKit.UtilityFit(look, cargo)));
         list.Add(new("damage-1", MediumProp, () => DamageKit.Car(look, cargo, 1, 3)));
         list.Add(new("damage-2", MediumProp, () => DamageKit.Car(look, cargo, 2, 3)));
         list.Add(new("car-wrecked", Car, () =>
@@ -56,6 +75,16 @@ public static class ArtCatalog
             k.Append(DamageKit.Car(look, cargo, 2, 3), Matrix4x4.Identity);
             return k.Build("car-wrecked");
         }));
+        // The crew lockers in the kit's car (note 173): the row's cabinets, and its longest-named door.
+        if (train.Kit.Lockers is { Names.Count: > 0 } lockerTuning)
+        {
+            var kitCar = CarShape.Build(g, VehicleKind.Cargo, hasCarBehind: true, lockerTuning);
+            var bays = kitCar.Lockers;
+            float lw = (float)lockerTuning.Width, lh = (float)lockerTuning.Height;
+            list.Add(new("lockers", MediumProp, () => LockerKit.Row(look, bays, kitCar.LockerShelves)));
+            var longest = bays.OrderByDescending(b => b.Name.Length).First();
+            list.Add(new("locker-door", SmallProp, () => LockerKit.Door(look, longest.Name, lw, lh, LockerKit.LetterPixel(bays, lw))));
+        }
         // The standard doorway (train.json doorway, note 110).
         var doorway = train.Geometry.Doorway;
         float doorH = (float)doorway.Height, sideW = (float)(train.Geometry.Interior?.SideDoorWidth ?? 1.8);
@@ -71,11 +100,16 @@ public static class ArtCatalog
         list.Add(new("tuft", SmallProp, () => WorldKit.Tuft(look, 0, weed: false)));
         list.Add(new("brass-weed", SmallProp, () => WorldKit.Tuft(look, 0, weed: true)));
         list.Add(new("rock", SmallProp, () => WorldKit.Rock(look, 0, 1)));
+        list.Add(new("debris-tree", LargeProp, () => DebrisKit.Of(look, 0)));
+        list.Add(new("debris-rocks", LargeProp, () => DebrisKit.Of(look, 1)));
+        list.Add(new("debris-tangle", LargeProp, () => DebrisKit.Of(look, 2)));
         list.Add(new("pole", MediumProp, () => WorldKit.Pole(look, 0)));
         list.Add(new("signal", MediumProp, () => WorldKit.Signal(look, lit: true)));
         list.Add(new("fence-post", SmallProp, () => WorldKit.FencePost(look, 0)));
         list.Add(new("viaduct-bay", StructureBay, () => StructureKit.ViaductBay(look, 18, lastPier: false)));
         list.Add(new("trestle-bent", StructureBay, () => StructureKit.TrestleBent(look, 18)));
+        list.Add(new("girder-bay", StructureBay, () => StructureKit.GirderBay(look, 18, lastPier: false)));
+        list.Add(new("truss-span", StructureBay, () => StructureKit.TrussSpan(look, 18, lastPier: false)));
         list.Add(new("tunnel-lining", StructureBay, () => StructureKit.TunnelLining(look, 10)));
         list.Add(new("portal", LargeProp, () => StructureKit.Portal(look)));
         list.Add(new("wall", StructureBay, () => StructureKit.Wall(look, 1)));

@@ -15,16 +15,69 @@ public sealed record TrainTuning
     public required CouplingTuning Couplings { get; init; }
     /// <summary>What the train carries from the fortress (T41). Unset, nothing.</summary>
     public KitTuning Kit { get; init; } = new();
+    /// <summary>Line Plan §12.6, never an unrecoverable body or kit (train.json <c>recovery</c>; note 181).</summary>
+    public RecoveryTuning Recovery { get; init; } = new();
+    /// <summary>What the consist's made of past engine, cargo and guard van, and what its fittings do (train.json <c>composition</c>; note 184).</summary>
+    public CompositionTuning Composition { get; init; } = new();
+    /// <summary>GDD §19's fragile medicine (train.json <c>fragile</c>; note 182). Unset, medicine rides like anything else.</summary>
+    public FragileTuning? Fragile { get; init; }
 
     public const string File = "tuning/train.json";
 }
+
+/// <summary>
+/// The consist's make-up and fittings (GDD §10, §26, spec F.3; train.json <c>composition</c>, ARCHITECTURE §8 note 184). The
+/// counts and the flag are what the fortress sells (campaign.json's upgrades add to them); the rest is what each does.
+/// </summary>
+public sealed record CompositionTuning
+{
+    /// <summary>Guard cars, each with its gun: the van at the back, and any more in the middle of the cargo (spec F.3's third gun).</summary>
+    public int GuardCars { get; init; } = 1;
+    /// <summary>Crew cars (GDD §10 "utility cars"): stores and a stove, right behind the engine.</summary>
+    public int UtilityCars { get; init; }
+    /// <summary>Cars converted to armour (GDD §26 "reinforced plating, heavier mass"), from the rear forward.</summary>
+    public int ArmouredCars { get; init; }
+    /// <summary>Cars that stay cargo whatever's bought: a conversion that would leave fewer isn't made.</summary>
+    public int MinCargoCars { get; init; } = 1;
+    /// <summary>What an armoured car's plate weighs on top of the car.</summary>
+    public double ArmourTonnes { get; init; } = 10;
+    /// <summary>How much of a blow to its shell an armoured car takes (the plate turns the rest).</summary>
+    public double ArmourDamage { get; init; } = 0.5;
+    /// <summary>A crew car's stove warms this far round it with a door open; shut in, the whole car's warm.</summary>
+    public double StoveReach { get; init; } = 2.5;
+    /// <summary>How fast the cold comes on in an unheated car, against player.json <c>cold.indoorsRate</c> (spec F.3 car insulation).</summary>
+    public double Insulation { get; init; } = 1;
+    /// <summary>Handrails along every roof's edges (spec F.3 roof handrails).</summary>
+    public bool Handrails { get; init; }
+    /// <summary>What holding them does.</summary>
+    public HandrailTuning Rails { get; init; } = new();
+}
+
+/// <summary>
+/// Roof handrails (spec F.3 "Dragger resistance"; note 184). A hand on the rail: a Dragger has to reach further in for you,
+/// holds you over the side longer before it has you (friends' time to haul you back), and a bend taken too fast has to
+/// be taken faster still to throw you off.
+/// </summary>
+/// <param name="DraggerGrab">The Draggers' grab range, times this.</param>
+/// <param name="DraggerHang">How long one hangs on to you before it has you, times this.</param>
+/// <param name="ThrowOver">How far over a bend's limit throws you off the roof (sight.json <c>throwOver</c>), times this.</param>
+public sealed record HandrailTuning(double DraggerGrab = 0.6, double DraggerHang = 1.5, double ThrowOver = 1.5);
 
 /// <summary>The train's kit from the fortress (train.json <c>kit</c>).</summary>
 public sealed record KitTuning
 {
     public int Radios { get; init; }
+    /// <summary>GDD §23 "radio breaks" (note 183): the chance a radio on your belt smashes, per point of damage you take.</summary>
+    public double RadioBreakPerDamage { get; init; } = 0.006;
+    /// <summary>... and when something grabs you.</summary>
+    public double RadioBreakOnGrab { get; init; } = 0.25;
     /// <summary>Toys in the guard van (GDD v1.1 App. C.4): hand loot, what the Track Doll will leave for.</summary>
     public int Toys { get; init; }
+    /// <summary>
+    /// What the guard van's toys sound like, in the order they're stocked (App. C.7: "some toys are noisy"); a toy past the
+    /// list's end is quiet.
+    /// </summary>
+    public IReadOnlyList<Physics.ToyNoise> ToyNoises { get; init; } = [];
     /// <summary>
     /// Repair kits (GDD §12): the toolbox that mends a ruptured boiler and opens a Holdout's lock quietly (App. D.7), in
     /// <see cref="RepairKitCar"/>.
@@ -32,6 +85,33 @@ public sealed record KitTuning
     public int RepairKits { get; init; }
     /// <summary>The car the repair kit rides in, counted back from the engine (1: the first car behind the tender).</summary>
     public int RepairKitCar { get; init; } = 1;
+    /// <summary>
+    /// Spare repair kits bought at the fortress (GDD v1.4 App. E.12 question 4, answered): stocked beside the first, in the
+    /// lockers. The campaign sets it (<c>SessionSetup.SpareKits</c>).
+    /// </summary>
+    public int SpareKits { get; init; }
+    /// <summary>
+    /// Spare lamps and extinguishers bought at the fortress for the night (GDD §9 "stock ... lamps"; campaign.json <c>stores</c>,
+    /// note 182): in the guard van beside its own lamp. The campaign sets them (<c>SessionSetup</c>).
+    /// </summary>
+    public int SpareLamps { get; init; }
+    public int SpareExtinguishers { get; init; }
+    /// <summary>The crew lockers in the kit's car (ARCHITECTURE §8 note 173). Unset, the car has none.</summary>
+    public LockerTuning? Lockers { get; init; }
+}
+
+/// <summary>The crew lockers (train.json <c>kit.lockers</c>). Field docs live in that file.</summary>
+public sealed record LockerTuning
+{
+    public IReadOnlyList<string> Names { get; init; } = [];
+    public string KitLocker { get; init; } = "";
+    public int Slots { get; init; } = 2;
+    public IReadOnlyList<Physics.BodyKind> Holds { get; init; } = [];
+    public double Width { get; init; } = 0.42;
+    public double Depth { get; init; } = 0.5;
+    public double Height { get; init; } = 1.9;
+    public double FromFront { get; init; } = 0.7;
+    public double DoorSeconds { get; init; } = 0.4;
 }
 
 public sealed record GeometryTuning(
@@ -108,3 +188,13 @@ public sealed record CouplingTuning(double CoupleMaxSpeed, double SafeContactSpe
 /// <summary>Deceleration from rolling (m/s²) and air (per (m/s)²) resistance.</summary>
 public sealed record ResistanceTuning(double Rolling, double Air);
 public sealed record SpeedBandTuning(double Yard, double JumpOffLethal, double Slow, double WorkingMin, double Cruise);
+
+/// <summary>
+/// Line Plan §12.6 (note 181): the walkable corridor is <paramref name="CorridorM"/> either side of the track (where the line
+/// generator keeps drop sides walkable) and no more than <paramref name="DropM"/> below the rails; a body or a kit at rest
+/// beyond it is put back on the formation's edge, <paramref name="EdgeM"/> out from the track.
+/// </summary>
+/// <summary>train.json <c>fragile</c>: how coupling and brake shocks spoil a car of medicine (GDD §19). Field docs live in that file.</summary>
+public sealed record FragileTuning(double SafeContactSpeed = 0.3, double ShockShare = 3, double BrakeShockDecel = 1.2, double BrakeShockPerSecond = 0.02);
+
+public sealed record RecoveryTuning(double CorridorM = 40, double DropM = 15, double EdgeM = 3.5);

@@ -138,6 +138,51 @@ def wool(ctx):
     return ctx.out(d, s, g, procedural="stockinette knit, fuzz, pilling")
 
 
+@texture("fleece", "cloth", tile=0.5)
+def fleece(ctx):
+    """A sheep's fleece grown out (GDD §19's livestock): curled locks a few centimetres long lying over each other,
+    each a rounded crimped staple, the tips pale and the roots between them dark, gathered into bigger tufts with
+    shadowed partings; soot settled in. Not the crew's knit (wool)."""
+    W = ctx.W
+    rng = ctx.rng("locks")
+    height = np.zeros((W, W), np.float32)
+    tone = np.zeros((W, W), np.float32)
+    # Tufts: the big shape the locks are gathered into, partings dark between them.
+    tuft = noise.fbm01(ctx.rng("tuft"), (W, W), 14, octaves=3)
+    for _ in range(1100):
+        L = rng.uniform(22, 40)
+        R = L * rng.uniform(0.38, 0.5)
+        a = rng.uniform(0, np.pi)
+        n = int(L * 2 + 4)
+        ys, xs = np.mgrid[0:n, 0:n].astype(np.float32) - n / 2
+        u = xs * np.cos(a) + ys * np.sin(a)
+        v = -xs * np.sin(a) + ys * np.cos(a)
+        # A staple: an ellipse, bent into a curl (its far end hooked), crimped across its length.
+        v = v + 0.008 * u * u * rng.choice((-1, 1))
+        e = (u / L) ** 2 + (v / R) ** 2
+        lock = np.sqrt(np.clip(1 - e, 0, 1)) * (0.85 + 0.15 * np.sin(u / L * 9 + rng.uniform(0, 6.3)))
+        lock *= rng.uniform(0.7, 1.0)
+        x, y = int(rng.uniform(0, W)), int(rng.uniform(0, W))
+        before = height[np.ix_((np.arange(n) + y) % W, (np.arange(n) + x) % W)].copy()
+        noise.stamp(height, lock, x, y, "max")
+        after = height[np.ix_((np.arange(n) + y) % W, (np.arange(n) + x) % W)]
+        took = (after > before) & (lock > 0)
+        sub = tone[np.ix_((np.arange(n) + y) % W, (np.arange(n) + x) % W)]
+        sub[took] = rng.uniform(0, 1)
+        tone[np.ix_((np.arange(n) + y) % W, (np.arange(n) + x) % W)] = sub
+    height = noise.blur(height, 0.8)
+    parting = smoothstep(0.3, 0.55, tuft)
+    h = height * (0.78 + 0.22 * parting)
+    fuzz = noise.fbm(ctx.rng("fuzz"), (W, W), 2.0, octaves=2)
+    t = saturate(0.1 + 0.7 * h + 0.1 * (tone - 0.5) + 0.03 * fuzz)
+    d = core.apply_ramp(t, "fleece")
+    s = (0.03 + 0.03 * h).astype(np.float32)
+    g = np.full((W, W), 0.08, np.float32)
+    d, s, g, _ = C.soot(ctx.rng("soot"), d, s, g, amount=0.15, scale=40, coverage=0.25)
+    d = C.light(d, h, strength=2.0, amount=0.55)
+    return ctx.out(d, s, g, procedural="stamped crimped locks, tufts, soot")
+
+
 @texture("skin", "flesh", tile=0.5)
 def skin(ctx):
     """Pale, tired, dirty skin - neutral, not stylised: pores, blotchy redness, sallow cast,

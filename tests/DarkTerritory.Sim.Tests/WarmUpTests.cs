@@ -143,6 +143,54 @@ public class WarmUpTests
     }
 
     [Fact]
+    public void AWalkerWarmingUpLeavesTheDoorOpenForThoseGoingOut()
+    {
+        // Note 188: a crew warming up in one car together, and whoever was still warming shut the door in the face of those
+        // leaving, who walked into it until they gave up 25 s later. Three nearly warm and one nearly frozen, shut in together:
+        // the three go out and up the end ladder while the fourth's still at it, and it follows when it's warm.
+        var line = RailLine.Load(Path.Combine(DataFile.FindContentRoot(), "lines/test-loop.json"));
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), line, 1500);
+        var world = new World(train);
+        const int car = 2;
+        double[] at = [-1, -2, -3, -5.5];
+        var bots = at.Select((_, i) => new RoofWalkerBot(3 + i, P.Cold)).ToArray();
+        var crew = at.Select((z, i) => new PlayerState
+        {
+            Parent = car,
+            Position = new Double3(T.Geometry.Interior!.DoorX, T.Geometry.Interior.FloorHeight, z),
+            Surface = Surface.Deck,
+            Health = P.Health,
+            Cold = i < 3 ? P.Cold.OnsetSeconds * 0.5 : P.Cold.DeathSeconds * 0.85,
+            LineHint = train.Cars[car].FrontDistance,
+        }).ToArray();
+        var up = new double[crew.Length];
+        Array.Fill(up, double.NaN);
+        for (uint tick = 0; tick < SimConstants.TickRate * 60 && up.Any(double.IsNaN); tick++)
+        {
+            world.BeginTick();
+            var intents = new PlayerIntent[crew.Length];
+            for (int i = 0; i < crew.Length; i++)
+            {
+                bots[i].Me = i + 1;
+                bots[i].Crew = [.. crew.Select((c, j) => (Id: j + 1, State: c)).Where(c => c.Id != i + 1)];
+                intents[i] = bots[i].Decide(crew[i], world, tick, out _);
+                world.CrewAct(ref crew[i], intents[i], i + 1);
+            }
+            world.Step(new TrainControls { Brake = 1, Reverser = 1 });
+            for (int i = 0; i < crew.Length; i++)
+            {
+                PlayerMotor.Step(ref crew[i], intents[i], train, P, T, SimConstants.TickSeconds, applyLook: false);
+                if (crew[i].Surface == Surface.Roof && double.IsNaN(up[i]))
+                    up[i] = tick / (double)SimConstants.TickRate;
+            }
+        }
+        for (int i = 0; i < crew.Length; i++)
+            Assert.True(up[i] < (i < 3 ? 20 : 50), $"walker {i} up at {up[i]:0.0} s ({crew[i].Surface} on {crew[i].Parent} at {crew[i].Position}, {bots[i].WarmUpStep})");
+        Assert.All(crew, c => Assert.True(c.Alive));
+        Assert.Single(train.Rakes);
+    }
+
+    [Fact]
     public void TwoHandsOnADoorInOneTickMoveItOnce()
     {
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 3, 1)),
