@@ -221,19 +221,23 @@ public sealed partial class Effects
         }
 
         // Flames: a front rank on the face of the load and a deeper one in it, each tongue on its own beat through the
-        // flipbook (20 frames a second), its foot on the floor.
+        // flipbook (20 frames a second). Their feet are where the load burns, not on one line: some down at the floor,
+        // some up on the crates' tops and in the gaps between, in and out from the face. (On one line, side by side, their
+        // roots joined into a straight bright edge: a row of cards.)
         int tongues = 4 + (int)(9 * burnF);
         for (int rank = 0; rank < 2; rank++)
             for (int i = 0; i < tongues; i++)
             {
-                float h = Hash(i * 3.17f + rank * 9.1f);
-                float along = (i - (tongues - 1) / 2f) * 0.3f + (h - 0.5f) * 0.12f;
+                float h = Hash(i * 3.17f + rank * 9.1f), h2 = Hash(i * 7.31f + rank * 2.3f + 0.5f);
+                float along = (i - (tongues - 1) / 2f) * 0.3f + (h - 0.5f) * 0.16f;
                 float tall = (0.55f + 1.5f * burnF) * (0.7f + 0.45f * h) * (rank == 0 ? 1 : 1.2f);
                 float width = tall * 0.62f;
+                float foot = h2 * h2 * (0.35f + 0.4f * rank);
+                float inset = rank * 0.3f - 0.14f + (h2 - 0.5f) * 0.22f;
                 int frame = (int)((t * 20 + i * 5.3 + rank * 7) % 16);
-                float glow = rank == 0 ? 1f : 0.6f;
+                float glow = (rank == 0 ? 1f : 0.6f) * (0.85f + 0.3f * h);
                 // The front rank stands just off the face (else the crates cut it in half); the deeper one shows over the stack.
-                mesh.Billboard(L(rank * 0.3f - 0.14f, tall * 0.48f, along), width, (h - 0.5f) * 0.25f, new Vector4(0.85f, 0.55f, 0.32f, glow), _flame, FxBlend.Additive, frame, 4,
+                mesh.Billboard(L(inset, foot + tall * 0.46f, along), width, (h - 0.5f) * 0.3f, new Vector4(0.85f, 0.55f, 0.32f, glow), _flame, FxBlend.Additive, frame, 4,
                     stretch: tall / width);
             }
         // The heat: a broad, soft glow along the base of it.
