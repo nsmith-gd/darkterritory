@@ -44,9 +44,18 @@ static class PlaythroughCommands
         var overlay = new Overlay();
         var shots = new List<object>();
         var seen = new HashSet<(int, SpinePhase)>();
+        var beats = new HashSet<(int, string)>();
+        var pending = new List<(double Due, Enemy Body, string Name, string What)>();
+        // How long after a beat begins it's photographed (s): mid-way through the going (the death's 2 s crumble, the
+        // dispersal's 3 s, the doll's 0.3 s flicker), and a cut Car Hugger once its car's fallen a little way back.
+        static double BeatDelay(string beat) => beat switch { "killed" => 0.6, "dispersed" => 1.0, "vanished" => 0.12, "cut-loose" => 2.5, _ => 0.5 };
         double lastShot = double.NegativeInfinity, lastChase = 0, stokerSince = -1;
         var watch = Stopwatch.StartNew();
 
+        // One scene the whole night, as the app has: what the sim's done with in a tick (the killed, the Choir driven off, a
+        // Car Hugger cut loose, a Track Doll gone) is the scene's own memory (GreyboxScene.Remember), fed every tick below,
+        // so a shot shows it going the way a crew watching all along would see it.
+        var scene = new GreyboxScene { Look = look, Route = route };
         void Shoot(World world, IReadOnlyList<PlayerState> crew, string name, Camera camera, string what)
         {
             var train = world.Train;
@@ -55,38 +64,34 @@ static class PlaythroughCommands
             lighting.FogDensity = (float)route.Weather.FogDensity;
             lighting.Frost = look.Tuning.Atmosphere.Cold.Frost(route.Weather.Cold);
             lighting = look.Chill(lighting, GreyboxScene.ChoirCold(world.Choir.Present ? 1 : (float)world.Choir.Build));
-            new GreyboxScene
-            {
-                Look = look,
-                Route = route,
-                Signs = world.Lineside?.Signs,
-                SignRange = world.Lineside?.Tuning.LampSignRange ?? 350,
-                Enemies = world.ActiveEnemies,
-                Hits = world.Hits,
-                Impacts = world.Impacts,
-                Run = world.Run,
-                Holdouts = world.Holdouts,
-                Vehicles = train.Vehicles,
-                Bodies = world.Bodies.All,
-                Diverging = train.Diverging,
-                Stands = world.Switches,
-                Time = seconds,
-                Tick = world.Tick,
-                Controls = world.Controls,
-                // What the app sets each frame from the night's state (DarkTerritory.App's render loop).
-                Wreck = train.Wreck,
-                Derailed = world.Derailed,
-                FireDoorOpen = train.Boiler.FireDoorOpen,
-                SinceShovel = train.Boiler.SinceShovel,
-                ChoirGathering = world.Choir.Present ? 1 : (float)world.Choir.Build,
-                FireGlow = train.BoilerTuning is { } bt ? GreyboxScene.FireLook(train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f,
-                StokerLowFor = stokerSince < 0 ? -1 : seconds - stokerSince,
-                StokerDownAt = world.Enemies?.Stoker.LowPressureSeconds ?? 45,
-                LampLit = world.LampShining,
-                Cut = DarkTerritory.Game.Art.SceneArt.Cuts(train),
-                // Each as the app draws them, doing what they're doing (CrewActs): ids in join order, as the host gave them.
-                Crew = [.. crew.Select((s, i) => CrewActs.Crewmate((byte)(i + 1), s, world, train.Frames, crew))],
-            }.Build(mesh, train, camera.Position);
+            scene.Signs = world.Lineside?.Signs;
+            scene.SignRange = world.Lineside?.Tuning.LampSignRange ?? 350;
+            scene.Enemies = world.ActiveEnemies;
+            scene.Hits = world.Hits;
+            scene.Impacts = world.Impacts;
+            scene.Run = world.Run;
+            scene.Holdouts = world.Holdouts;
+            scene.Vehicles = train.Vehicles;
+            scene.Bodies = world.Bodies.All;
+            scene.Diverging = train.Diverging;
+            scene.Stands = world.Switches;
+            scene.Time = seconds;
+            scene.Tick = world.Tick;
+            scene.Controls = world.Controls;
+            // What the app sets each frame from the night's state (DarkTerritory.App's render loop).
+            scene.Wreck = train.Wreck;
+            scene.Derailed = world.Derailed;
+            scene.FireDoorOpen = train.Boiler.FireDoorOpen;
+            scene.SinceShovel = train.Boiler.SinceShovel;
+            scene.ChoirGathering = world.Choir.Present ? 1 : (float)world.Choir.Build;
+            scene.FireGlow = train.BoilerTuning is { } bt ? GreyboxScene.FireLook(train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
+            scene.StokerLowFor = stokerSince < 0 ? -1 : seconds - stokerSince;
+            scene.StokerDownAt = world.Enemies?.Stoker.LowPressureSeconds ?? 45;
+            scene.LampLit = world.LampShining;
+            scene.Cut = DarkTerritory.Game.Art.SceneArt.Cuts(train);
+            // Each as the app draws them, doing what they're doing (CrewActs): ids in join order, as the host gave them.
+            scene.Crew = [.. crew.Select((s, i) => CrewActs.Crewmate((byte)(i + 1), s, world, train.Frames, crew))];
+            scene.Build(mesh, train, camera.Position);
             overlay.Clear();
             var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, overlay);
             string file = $"{shots.Count:000}-{name}.png";
@@ -111,6 +116,30 @@ static class PlaythroughCommands
             var train = world.Train;
             double now = world.Tick * SimConstants.TickSeconds;
             stokerSince = world.StokerWaiting ? stokerSince < 0 ? now : stokerSince : -1;
+            // The scene watching every tick, as the app's does each frame: what it takes in now it draws going later.
+            scene.Enemies = world.ActiveEnemies;
+            scene.Hits = world.Hits;
+            scene.Bodies = world.Bodies.All;
+            scene.Tick = world.Tick;
+            scene.Cut = DarkTerritory.Game.Art.SceneArt.Cuts(train);
+            scene.Remember(train.Frames.Count);
+            // And what it saw go is photographed a moment on, in the middle of its going: the killed going over, a Choir
+            // ghost swept up, the doll's flicker, a Car Hugger fallen back with its car; a Tippy Toesie's recoil (its BreakOff,
+            // its sim's flee) the same way. One a creature, each, whatever the gap since the last shot.
+            foreach (var (beat, body) in scene.NewBeats)
+                if (beats.Add((body.Id, beat)))
+                    pending.Add((now + BeatDelay(beat), body, $"{body.Kind}-{beat}".ToLowerInvariant(), $"{body.Kind} {beat}"));
+            foreach (var e in world.EnemyEvents)
+                if (e.Kind == EnemyKind.TippyToesie && e.To == SpinePhase.BreakOff && world.ActiveEnemies.FirstOrDefault(x => x.Id == e.EnemyId) is { } tippy
+                    && beats.Add((e.EnemyId, $"recoil{(int)now}")))
+                    pending.Add((now + 0.15, tippy, "tippytoesie-recoil", "TippyToesie recoil"));
+            for (int i = pending.Count - 1; i >= 0; i--)
+                if (now >= pending[i].Due)
+                {
+                    var (_, body, name, what) = pending[i];
+                    pending.RemoveAt(i);
+                    Shoot(world, crew, name, Beside(train, body), what);
+                }
             foreach (var e in world.EnemyEvents)
             {
                 if (e.To is not (SpinePhase.Alert or SpinePhase.Telegraph or SpinePhase.Grab or SpinePhase.Punish) || now - lastShot < gap)
