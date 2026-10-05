@@ -27,7 +27,8 @@ public static class Protocol
     // 18: a switchyard's standing cars (more rakes and vehicles from the start), the wreck yard's heaps, death cause Wreckage (GDD §18; note 187).
     // 19: reserved for the sound package.
     // 20: the report's C.9 lines that aren't deaths (incident kinds Struck, Fire, Nest, Aboard, Runaway, Points, Punished; note 190).
-    public const int Version = 20;
+    // 21: the body record's TakenBy (the Gaunt carrying its loot out, App. A.6; #149 put it on the wire without a bump; note 195).
+    public const int Version = 21;
 }
 
 public enum MessageType : byte
