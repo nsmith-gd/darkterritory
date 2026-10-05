@@ -1380,7 +1380,7 @@
     "sources": [
       {
         "generator": "tools/art/textures.py",
-        "what": "recursive gnarled branches (strokes), bark furrows",
+        "what": "recursive gnarled branches (tapered strokes, kept inside the card), bark furrows",
         "author": "Dark Territory",
         "license": "CC0-1.0"
       }

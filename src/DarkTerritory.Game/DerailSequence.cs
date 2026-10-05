@@ -263,10 +263,12 @@ public sealed class DerailSequence
     /// train until the moment it came off, and from there held where it was, turning to keep the middle of the train in
     /// frame as it ploughs on and piles up.
     /// </summary>
-    public Camera ReplayCamera(CarFrame[] now)
+    /// <param name="standing">A switchyard's standing cars (TrainOnLine.StandingCar), which the shot leaves out.</param>
+    public Camera ReplayCamera(CarFrame[] now, Func<int, bool> standing)
     {
+        now = Views.Train(now, standing);
         var at = _shots.FindLast(s => s.At < _derailedAt) is { Frames.Length: > 0 } before ? before.Frames : now;
-        var held = Views.Chase(at);
+        var held = Views.Chase(Views.Train(at, standing));
         var mid = now[now.Length / 2].ToWorld(new Double3(0, 2, 0));
         var shot = Views.Chase(now);
         return Camera.LookAt(ReferenceEquals(at, now) ? shot.Position : held.Position, mid, 60);

@@ -16,6 +16,7 @@ dotnet run --project src/DarkTerritory.Cli -- audio render --listener all   # sp
 dotnet run --project src/DarkTerritory.Cli -- screenshot --view roof   # 1280x720 PNG to out/shots/; then Read it to look
 dotnet run --project src/DarkTerritory.Cli -- art show engine          # a kit piece on a turntable; `art check` = every piece vs its triangle budget
 dotnet run --project src/DarkTerritory.Cli -- art clip car_hugger feed   # a creature's clip as a lit contact sheet (--frames n --at x,y,z --dist --yaw)
+dotnet run --project src/DarkTerritory.Cli -- playthrough --route frontier:7 --minutes 20 [--bots 4] [--insist whistler,choir]   # a real night with enemies (solo, or a bot crew working the stops), every encounter photographed as it happens -> out/playthrough (note 200)
 dotnet run --project src/DarkTerritory.Cli -- art reel [--only gaunt,sheep]   # every clip of every model, framed on its own movement: strips + reel.json in out/reel/ (the Look Review's animations)
 python3 tools/art/textures.py                                         # rebuild content/art/textures (CC0 sources: tools/art/fetch_sources.sh)
 tools/art/store/screens.sh                                            # store screenshots, capsules and the icon -> out/store (icon also content/art/ui)

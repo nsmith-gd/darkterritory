@@ -30,11 +30,15 @@ public class EffectsTests
         var smoulder = Mesh();
         Fx.CarFire(smoulder, O, Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, alight: false, 0.2, 5);
         Assert.NotEmpty(smoulder.AlphaFx);
-        Assert.Empty(smoulder.AdditiveFx);
-        Assert.Empty(smoulder.PointLights);
+        // The TELEGRAPH has to read in a lamp-lit car (the audit's playthrough found it didn't): smoke pale enough to
+        // show against lit planking, and a low ember glow in the load with one small light, short of flames.
+        Assert.True(smoulder.AlphaFx.ToArray().Max(v => v.Colour.X) > 0.9f, "the smoke's as dark as the walls");
+        Assert.NotEmpty(smoulder.AdditiveFx);
+        var ember = Assert.Single(smoulder.PointLights);
         var burning = Mesh();
         Fx.CarFire(burning, O, Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, alight: true, 0.8, 5);
-        Assert.NotEmpty(burning.AdditiveFx);
+        Assert.True(burning.AdditiveFx.Count > smoulder.AdditiveFx.Count * 3, "flames, not embers");
+        Assert.True(burning.PointLights.Max(l => l.Colour.Length()) > ember.Colour.Length() * 2);
         Assert.Equal(2, burning.PointLights.Count);
         // Bigger the further it's gone: more flame.
         var small = Mesh();
