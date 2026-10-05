@@ -1,0 +1,11 @@
+// The grain elevator's spout pouring (GDD §18; spec D.2's "loud" machinery; note 198): grain hissing down the chute into the
+// car, a dry rushing roar with the chute's iron drumming under it, at the spout's mouth for as long as grain comes down.
+{
+  "tier": 2, "loop": true, "maxInstances": 2, "minDistance": 4, "maxDistance": 160, "gainDb": 2,
+  "layers": [
+    { "source": "noise", "gain": 1.0, "filters": [{ "type": "bandPass", "frequency": 1400, "q": 0.7 }, { "type": "peak", "frequency": 3200, "q": 1.5, "gainDb": 4 }],
+      "tremolo": { "rate": 7, "depth": 0.25, "jitter": 0.7 } },
+    { "source": "noise", "gain": 0.8, "filters": [{ "type": "lowPass", "frequency": 180, "q": 0.9 }],
+      "tremolo": { "rate": 2.2, "depth": 0.35, "jitter": 0.5 } }
+  ]
+}
