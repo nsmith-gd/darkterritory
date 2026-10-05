@@ -169,6 +169,12 @@ public sealed class GreyboxScene
     public bool SafetyValve { get; set; }
     /// <summary>The art pass's surfaces (T39, look.json). Unset, the greybox is flat colour.</summary>
     public Look? Look { get; set; }
+    /// <summary>
+    /// vr.json's body (T82) for the box figure's headset crewmates when there's no art pass (with one, <see cref="Look"/>'s):
+    /// unset, the mirror's own numbers (note 221).
+    /// </summary>
+    public VrBodyTuning? VrBody { get; set; }
+    readonly VrStrides _bodies = new();
 
     /// <summary>
     /// When set, what each part of <see cref="Build"/> cost (milliseconds, and the triangles it added to the frame's soup),
@@ -488,7 +494,9 @@ public sealed class GreyboxScene
             {
                 var c = Hung(held, eye);
                 if (c.Alive && Look?.Art.Crewmate(mesh, c, eye, Time, Swung(c.Id)) != true) // the dead are drawn as their bodies
-                    DrawCrewmate(mesh, c, eye);
+                    // A headset crewmate's body leans, crouches and turns under the head on the box figure too (note 221);
+                    // without the clips there's no gait to give way to, so only an act does.
+                    DrawCrewmate(mesh, c, eye, _bodies.Pose(c, c.Act is null, Time, Look?.VrBody ?? VrBody ?? new VrBodyTuning()));
             }
         if (Own is { } own)
             Look?.Art.OwnArms(mesh, own, Time);
@@ -978,8 +986,13 @@ public sealed class GreyboxScene
         }
     }
 
-    /// <summary>A crewmate: coat, head and a lamp at the chest so you can find each other in the dark. Dead ones lie down.</summary>
-    static void DrawCrewmate(MeshBuilder mesh, Crewmate c, Double3 eye)
+    /// <summary>
+    /// A crewmate: coat, head and a lamp at the chest so you can find each other in the dark. Dead ones lie down. A headset
+    /// crewmate's <paramref name="body"/> (T82, note 221), when there is one: the coat leans over from the hips and twists
+    /// towards the head, the hips go down in a crouch and turn to their own yaw, the legs bend to the feet where they're
+    /// planted, and the arms reach from where the shoulders have gone.
+    /// </summary>
+    static void DrawCrewmate(MeshBuilder mesh, Crewmate c, Double3 eye, VrBodyPose? body = null)
     {
         var right = new Vector3((float)Math.Cos(c.Yaw), 0, (float)-Math.Sin(c.Yaw));
         var back = new Vector3((float)Math.Sin(c.Yaw), 0, (float)Math.Cos(c.Yaw));
@@ -989,10 +1002,7 @@ public sealed class GreyboxScene
             mesh.Box(o + Vector3.UnitY * 0.15f, right, Vector3.UnitY, back, new Vector3(0.25f, 0.15f, 0.9f), Palette.DeepBrown);
             return;
         }
-        mesh.Box(o + Vector3.UnitY * 0.45f, right, Vector3.UnitY, back, new Vector3(0.16f, 0.45f, 0.12f), Palette.Charcoal);
-        mesh.Box(o + Vector3.UnitY * 1.2f, right, Vector3.UnitY, back, new Vector3(0.24f, 0.33f, 0.15f), Palette.DeepBrown);
-        mesh.Box(o + Vector3.UnitY * 1.68f, right, Vector3.UnitY, back, new Vector3(0.12f, 0.13f, 0.12f), Palette.Corrupted);
-        // Arms (T47): to a headset player's hands where they are, hanging for everyone else.
+        // In the frame they face, from the feet (x right, y up, z behind): Arms' frame, and VrBodyPose's.
         Vector3 At(Double3 local) => o + right * (float)local.X + Vector3.UnitY * (float)local.Y + back * (float)local.Z;
         void Segment(Double3 a, Double3 b, float r, Vector3 colour)
         {
@@ -1004,10 +1014,44 @@ public sealed class GreyboxScene
             var side = Vector3.Normalize(Vector3.Cross(dir, MathF.Abs(dir.Y) > 0.9f ? Vector3.UnitX : Vector3.UnitY));
             mesh.Box((At(a) + At(b)) * 0.5f, side, dir, Vector3.Cross(side, dir), new Vector3(r, len * 0.5f + r * 0.5f, r), colour);
         }
-        var (left, rightHand) = Arms.Hands(c.Hand, c.Other);
-        foreach (var (armSide, target) in new[] { (-1, left), (1, rightHand) })
+        // A box turned with a frame (its axes in the facing frame), centred at a point in it.
+        void Turned(Double3 at, Double3 x, Double3 y, Double3 z, Vector3 half, Vector3 colour) =>
+            mesh.Box(At(at), At(x) - o, At(y) - o, At(z) - o, half, colour);
+        var b = body ?? default;
+        // The torso's frame: leant forward about its own right by the lean, then turned to the hips' yaw and twisted back
+        // toward the head by the torso's share. The hips' own frame is the yaw alone; the hips go down by the crouch.
+        double torsoYaw = b.Hips + b.Twist;
+        Double3 Torso(Double3 v) => Yawed(Leant(v, b.Lean), torsoYaw);
+        var hips = new Double3(0, Hips - b.Crouch, 0);
+        Double3 Body(Double3 standing) => hips + Torso(standing - new Double3(0, Hips, 0));
+        if (body is null)
+            mesh.Box(o + Vector3.UnitY * 0.45f, right, Vector3.UnitY, back, new Vector3(0.16f, 0.45f, 0.12f), Palette.Charcoal);
+        else
         {
-            var shoulder = Arms.Shoulder(armSide);
+            // Two legs, hip to knee to the ankle over each foot, the knee bent forward of the hips by what the crouch takes up.
+            var forward = Yawed(new Double3(0, 0, -1), b.Hips);
+            foreach (var (side, foot) in new[] { (-1, b.LeftFoot), (1, b.RightFoot) })
+            {
+                var hip = hips + Yawed(new Double3(side * 0.09, 0, 0), b.Hips);
+                var ankle = new Double3(foot.X, foot.Y + 0.06, foot.Z);
+                double half = (Hips - 0.06) / 2, d = (hip - ankle).Length;
+                var knee = (hip + ankle) * 0.5 + forward * Math.Sqrt(Math.Max(0, half * half - d * d / 4));
+                Segment(hip, knee, 0.08f, Palette.Charcoal);
+                Segment(knee, ankle, 0.07f, Palette.Charcoal);
+                Turned(ankle with { Y = foot.Y + 0.04 } + forward * 0.05, Yawed(new Double3(1, 0, 0), b.Hips), new Double3(0, 1, 0),
+                    Yawed(new Double3(0, 0, 1), b.Hips), new Vector3(0.06f, 0.04f, 0.12f), Palette.Charcoal);
+            }
+        }
+        var (xT, yT, zT) = (Torso(new Double3(1, 0, 0)), Torso(new Double3(0, 1, 0)), Torso(new Double3(0, 0, 1)));
+        Turned(Body(new Double3(0, 1.2, 0)), xT, yT, zT, new Vector3(0.24f, 0.33f, 0.15f), Palette.DeepBrown);
+        // The head on the neck, turned the head's way (the figure's own facing) whatever the torso does.
+        Turned(Body(new Double3(0, 1.68, 0)), new Double3(1, 0, 0), new Double3(0, 1, 0), new Double3(0, 0, 1), new Vector3(0.12f, 0.13f, 0.12f), Palette.Corrupted);
+        // Arms (T47): to a headset player's hands where they are, hanging for everyone else (from the shoulders, as they've gone).
+        var (left, rightHand) = Arms.Hands(c.Hand, c.Other);
+        foreach (var (armSide, reported) in new[] { (-1, left), (1, rightHand) })
+        {
+            var shoulder = Body(Arms.Shoulder(armSide));
+            var target = reported == Arms.Hanging(armSide) ? Body(reported) : reported;
             var (elbow, hand) = Arms.Solve(shoulder, target, Arms.Pole(armSide));
             Segment(shoulder, elbow, 0.06f, Palette.DeepBrown);
             Segment(elbow, hand, 0.05f, Palette.DeepBrown);
@@ -1015,9 +1059,20 @@ public sealed class GreyboxScene
             mesh.Box(At(hand), right, Vector3.UnitY, back, new Vector3(0.05f, 0.05f, 0.05f), Palette.Corrupted * 0.8f);
         }
         mesh.Emissive = 1;
-        mesh.Box(o + Vector3.UnitY * 1.3f - back * 0.16f, right, Vector3.UnitY, back, new Vector3(0.05f, 0.05f, 0.02f), Palette.LampAmber);
+        Turned(Body(new Double3(0, 1.3, -0.16)), xT, yT, zT, new Vector3(0.05f, 0.05f, 0.02f), Palette.LampAmber);
         mesh.Emissive = 0;
     }
+
+    /// <summary>The box figure's hips over its feet, standing (m): the top of its legs.</summary>
+    const double Hips = 0.9;
+
+    /// <summary>A facing-frame vector leant forward (toward −z) about x by <paramref name="lean"/> radians.</summary>
+    static Double3 Leant(Double3 v, double lean) =>
+        new(v.X, v.Y * Math.Cos(lean) + v.Z * Math.Sin(lean), -v.Y * Math.Sin(lean) + v.Z * Math.Cos(lean));
+
+    /// <summary>A facing-frame vector turned about y by <paramref name="yaw"/> radians (positive left, as a player's yaw).</summary>
+    static Double3 Yawed(Double3 v, double yaw) =>
+        new(v.X * Math.Cos(yaw) + v.Z * Math.Sin(yaw), v.Y, -v.X * Math.Sin(yaw) + v.Z * Math.Cos(yaw));
 
     /// <summary>Where <paramref name="e"/> stands in the world: in its car's frame aboard, as it is loose.</summary>
     static Double3 EnemyWorld(Enemy e, IReadOnlyList<CarFrame> frames) =>

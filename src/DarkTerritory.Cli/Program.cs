@@ -1204,6 +1204,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // (--shot-age s: that long after the guns fired, for the powder smoke rolling off, Effects.CannonShot.)
         Tick = args.Contains("--muzzle") ? 100 + (long)Math.Round(Opt(args, "--shot-age", 1.0 / 30) * 30) : -1,
         Look = look,
+        // --greybox: the box figure's headset bodies from vr.json too (note 221; with the art pass, the look has it).
+        VrBody = look is null ? DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Body : null,
         Route = route,
         Run = run,
         Holdouts = holdouts,
