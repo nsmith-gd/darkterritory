@@ -65,6 +65,10 @@ public static class AudioBench
         ["hugger-grind"] = (60, 300),
         // The marsh (the Drift, T63): the highest there is. A hiss the wind doesn't make, and a rhythm it doesn't have.
         ["drift-rustle"] = (12000, 15000),
+        // The roof warnings (note 260): no creature's, the line's own (a tunnel's mouth, a bend too fast), told apart from
+        // the tells sharing their bands by rhythm: the telltales' run of slaps, the roof irons' rocking chatter.
+        ["warn-low-clearance"] = (4000, 7000),
+        ["warn-curve"] = (2500, 4500),
     };
 
     /// <summary>
@@ -81,6 +85,8 @@ public static class AudioBench
         "drift-rustle" or "car-fire" or "dragger-scrape" or "grumbler-gnaw" => listenerCar == 1,
         "tippy-tiptoe" or "climber-scrabble" or "ribbit-swell" => listenerCar == 2,
         "fireflies-buzz" => listenerCar == cars / 2,
+        // The roof warnings are for whoever's up top (sight.json roofWarning.roofOnly): every roof, not the cab.
+        "warn-low-clearance" or "warn-curve" => listenerCar != 0,
         _ => true,
     };
 
@@ -158,6 +164,7 @@ public static class AudioBench
             deadChannel = new StreamBuffer();
             audio.Mixer.Play("voice-dead")?.Also(v => v.Stream = deadChannel);
         }
+        var roofWarning = DataFile.Load<Sim.Route.SightTuning>(Path.Combine(content, Sim.Route.SightTuning.File)).RoofWarning;
         var controls = new TrainControls { Throttle = chaos ? 1 : 0.5, Reverser = 1 };
         listenerCar = Math.Clamp(listenerCar, 0, train.Frames.Count - 1);
 
@@ -219,6 +226,12 @@ public static class AudioBench
                     audio.Play(single, ear + frame.Right * 6);
                     started = true;
                 }
+                // The roof warnings (note 260) to a listener up top, as GameAudio plays them when the line has one up: the
+                // tunnel's telltales and the bend's chatter in turn, each every two seconds.
+                if (tells && listenerCar != 0 && (int)(simClock / 2) != (int)((simClock - SimConstants.TickSeconds) / 2))
+                    audio.PlayRoofWarning(Sim.Route.SignKind.LowClearance, roofWarning, train);
+                if (tells && listenerCar != 0 && (int)((simClock + 1) / 2) != (int)((simClock + 1 - SimConstants.TickSeconds) / 2))
+                    audio.PlayRoofWarning(Sim.Route.SignKind.SpeedLimit, roofWarning, train);
                 if (chaos && (int)(simClock * 3) != (int)((simClock - SimConstants.TickSeconds) * 3))
                 {
                     int guard = train.Dynamics.Consist.Vehicles[^1].Id;

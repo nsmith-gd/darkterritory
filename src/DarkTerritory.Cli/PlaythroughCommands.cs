@@ -109,12 +109,56 @@ static class PlaythroughCommands
             lastShot = seconds;
         }
 
+        // Note 260: the roof warning against the line's own kills. Each board's warning as a player would see it go up (after
+        // the tick), every time the host's hazards took someone up top, and every roof death: none may come without its
+        // warning up a full lead (GDD App. A.1).
+        var roofUp = new Dictionary<int, uint>();
+        int roofWarnings = 0, roofWarningsWithRidersUp = 0, commitsSeen = 0, unwarned = 0;
+        var commitLeads = new List<double>();
+        var roofDeaths = new Dictionary<string, int>();
+        var wasAlive = new Dictionary<int, bool>();
+        void RoofAudit(World world, IReadOnlyList<PlayerState> crew)
+        {
+            if (world.Lineside is not { } lineside)
+                return;
+            var train = world.Train;
+            foreach (var sign in lineside.Signs)
+            {
+                if (sign.Kind is not (SignKind.LowClearance or SignKind.SpeedLimit))
+                    continue;
+                if (!lineside.Warns(sign, train))
+                    roofUp.Remove(sign.Id);
+                else if (roofUp.TryAdd(sign.Id, world.Tick))
+                {
+                    roofWarnings++;
+                    if (crew.Any(c => c.Alive && c.Surface == Surface.Roof))
+                        roofWarningsWithRidersUp++;
+                }
+            }
+            for (; commitsSeen < lineside.Commits.Count; commitsSeen++)
+            {
+                var c = lineside.Commits[commitsSeen];
+                double lead = roofUp.TryGetValue(c.Sign, out uint since) ? (c.Tick - since) * SimConstants.TickSeconds : -1;
+                commitLeads.Add(lead);
+                if (lead < lineside.Tuning.RoofWarning.LeadSeconds - 1e-6)
+                    unwarned++;
+            }
+            for (int i = 0; i < crew.Count; i++)
+            {
+                bool alive = crew[i].Alive;
+                if (wasAlive.TryGetValue(i, out bool was) && was && !alive && crew[i].Death is DeathCause.Struck or DeathCause.Thrown)
+                    roofDeaths[crew[i].Death.ToString()] = roofDeaths.GetValueOrDefault(crew[i].Death.ToString()) + 1;
+                wasAlive[i] = alive;
+            }
+        }
+
         // After each tick: each enemy as it arrives and at each beat of its spine that a crew would be watching for, and the
         // line between.
         void Watch(World world, IReadOnlyList<PlayerState> crew)
         {
             var train = world.Train;
             double now = world.Tick * SimConstants.TickSeconds;
+            RoofAudit(world, crew);
             stokerSince = world.StokerWaiting ? stokerSince < 0 ? now : stokerSince : -1;
             // The scene watching every tick, as the app's does each frame: what it takes in now it draws going later.
             scene.Enemies = world.ActiveEnemies;
@@ -195,6 +239,17 @@ static class PlaythroughCommands
             end = last.Run?.End.ToString(),
             derailed = last.Derailed ? last.DerailCause : null,
             shots = shots.Count,
+            // Note 260: the line's own kills against their warning (sight.json roofWarning.leadSeconds).
+            roofWarning = new
+            {
+                warnings = roofWarnings,
+                withRidersUp = roofWarningsWithRidersUp,
+                taken = commitLeads.Count,
+                shortestLeadSeconds = commitLeads.Count == 0 ? (double?)null : Math.Round(commitLeads.Min(), 2),
+                withoutAFullWarning = unwarned,
+                spared = last.Lineside?.Spared ?? 0,
+                deaths = roofDeaths,
+            },
             index = Path.GetFullPath(index),
             renderSeconds = Math.Round(watch.Elapsed.TotalSeconds),
         };

@@ -157,6 +157,7 @@ public sealed partial class GameAudio
         Actions(world);
         Whistle(world, train);
         Cues(world);
+        RoofWarning(world);
         Toys(world, train);
         Ride(train);
         HearWalls(world);

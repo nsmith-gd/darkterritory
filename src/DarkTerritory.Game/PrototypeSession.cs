@@ -33,8 +33,10 @@ public sealed class PrototypeSession : IPlaySession
     /// <param name="enemies">Run the pressure director and the route's Sleepers (GDD App. B).</param>
     /// <param name="crew">The crew the director plans the night for (App. B: what it fields scales with it); one, played
     /// solo. dt playthrough asks for more to meet the roster a bigger crew does.</param>
-    public PrototypeSession(string contentRoot, Route route, int cars = 6, bool enemies = true, int crew = 1)
-        : this(contentRoot, route.Build(), route, cars, 0)
+    /// <param name="at">Where the engine's front starts along the line (a staged moment, `dt screenshot --roof-warning`);
+    /// null, at the fortress's gate.</param>
+    public PrototypeSession(string contentRoot, Route route, int cars = 6, bool enemies = true, int crew = 1, double? at = null)
+        : this(contentRoot, route.Build(), route, cars, at ?? double.NaN)
     {
         if (enemies)
             World.EnableEnemies(DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)), route, route.Seed, crew: Math.Max(1, crew), authority: true);
@@ -58,7 +60,7 @@ public sealed class PrototypeSession : IPlaySession
         var runTuning = DataFile.Load<RunTuning>(Path.Combine(contentRoot, RunTuning.File));
         var consist = Consist.Uniform(_trainTuning.Value, cars, route is null ? 1 : runTuning.DepartureLoad);
         // On a route, start at the fortress's gate, ready to depart (run.json departShortOfGateM), the train in the yard.
-        if (route is not null)
+        if (route is not null && double.IsNaN(start))
             start = runTuning.DepartFrom(route.GateOr(DataFile.Load<RouteTuning>(Path.Combine(contentRoot, RouteTuning.File)).YardLength), consist.LengthMetres);
         Train = new TrainOnLine(new TrainDynamics(consist), line, start, _boilerTuning.Value);
         World = new World(Train, _combatTuning.Value);

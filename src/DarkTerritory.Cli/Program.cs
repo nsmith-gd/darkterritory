@@ -1926,13 +1926,19 @@ static object HudShot(string content, string[] args)
     }
     else
     {
-        var solo = generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
-        solo.Controls.Throttle = Opt(args, "--throttle", 0.6);
+        // --roof-warning tunnel|bend (note 260): up on a roof with a tunnel's mouth, or a bend taken too fast, coming
+        // (--route; deepTerritory:2 if none: frontier:7 has no tunnel on its main line), warned.
+        string roofWarning = Str(args, "--roof-warning", "");
+        var solo = roofWarning.Length > 0
+            ? Staging.RoofWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deepTerritory:2", cars), cars, roofWarning)
+            : generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
+        if (roofWarning.Length == 0)
+            solo.Controls.Throttle = Opt(args, "--throttle", 0.6);
         // --hazards name: one of balance.json's hazard sets laid over the line (note 186), e.g. cold: the HUD's cold step (note 201).
         if (Str(args, "--hazards", "") is { Length: > 0 } hz)
             DarkTerritory.Sim.Net.HazardConditions.Apply(solo.Train.Line,
                 DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.HazardSets.First(h => h.Name == hz));
-        for (int i = 0; i < Opt(args, "--seconds", 6) * SimConstants.TickRate; i++)
+        for (int i = 0; i < (roofWarning.Length > 0 ? 1 : Opt(args, "--seconds", 6) * SimConstants.TickRate); i++)
             solo.Step(new PlayerIntent { LookPitch = i == 0 ? (float)Opt(args, "--pitch", 0) : 0, LookYaw = i == 0 ? (float)Opt(args, "--yaw", 0) : 0 });
         // --mend [t]: the repair kit in hand and a broken radio on the belt (GDD §23; note 201), t seconds into mending it.
         if (args.Contains("--mend"))

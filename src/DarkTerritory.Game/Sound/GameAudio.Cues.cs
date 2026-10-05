@@ -51,6 +51,7 @@ public sealed partial class GameAudio
         EndNightFaults();
         EndNightMix();
         EndNightUi();
+        EndNightRoofWarning();
     }
 
     void Cues(World world)

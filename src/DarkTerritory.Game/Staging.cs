@@ -36,6 +36,33 @@ public static class Staging
     }
 
     /// <summary>
+    /// The roof warning (note 260, `dt screenshot --hud --roof-warning tunnel|bend`): a solo night on <paramref name="route"/>
+    /// with the train <paramref name="seconds"/> short of its first tunnel's mouth (or its first posted bend, taken fast
+    /// enough to throw roof riders off), the player up on car 2's roof facing ahead, warned.
+    /// </summary>
+    public static PrototypeSession RoofWarning(string content, Sim.Route.Route route, int cars, string kind, double seconds = 6)
+    {
+        var sight = DataFile.Load<Sim.Route.SightTuning>(Path.Combine(content, Sim.Route.SightTuning.File));
+        bool tunnel = !kind.Equals("bend", StringComparison.OrdinalIgnoreCase);
+        var signs = Sim.Route.Lineside.Boards(sight, route);
+        var sign = signs.FirstOrDefault(s => s.Kind == (tunnel ? Sim.Route.SignKind.LowClearance : Sim.Route.SignKind.SpeedLimit) && s.Start > 2000)
+            ?? throw new InvalidOperationException($"{route.Name} has no {(tunnel ? "tunnel" : "posted bend")} past its yard");
+        double speed = tunnel ? 14 : sign.Limit + sight.ThrowOver + 0.5;
+        // Settled a second before the moment, so the frames have a previous tick to draw from.
+        var session = new PrototypeSession(content, route, cars, enemies: false, at: sign.Start - speed * (seconds + 1));
+        session.Controls = new Sim.Train.TrainControls { Reverser = 1 };
+        if (!tunnel && session.World.Lineside is { } lineside)
+            speed = Math.Max(speed, lineside.ThrowsAbove(sign, session.Train) + 0.5);
+        session.Respawn(Math.Min(2, session.Train.Frames.Count - 1));
+        for (int i = 0; i < Sim.SimConstants.TickRate; i++)
+        {
+            session.Train.Dynamics.Velocity = speed;
+            session.Step(default);
+        }
+        return session;
+    }
+
+    /// <summary>
     /// A blow landed on each staged creature (T121, `dt screenshot --hit-flash`), struck from the camera's side so its flinch
     /// is seen: the hit at its middle, a melee blow.
     /// </summary>
