@@ -62,7 +62,7 @@ public sealed record HarnessOptions
     /// <summary>With <see cref="Insist"/>: seconds after one's gone before it's sent again.</summary>
     public double InsistEvery { get; init; } = 10;
     /// <summary>
-    /// With <see cref="Insist"/>: the look-out's errand (note 212), the last walker's, to the Gaunt, Ribbits or a Dragger
+    /// With <see cref="Insist"/>: the look-out's errand (note 212), the last walker's (or with none, the gunner's: note 220), to the Gaunt, Ribbits or a Dragger
     /// insisted on. Null: the crew keep to their posts.
     /// </summary>
     public LookTuning? Look { get; init; }
@@ -219,9 +219,16 @@ public static class Harness
                 session.World.EnableLineside(csight, lroute);
             clients.Add((session, bot, transport));
         }
-        // An insisted night's look-out (note 212): the last walker goes and looks at what lies in wait for it.
-        if (o.Insist is { } looked && o.Look is { } look && clients.Select(c => c.Bot).OfType<RoofWalkerBot>().LastOrDefault() is { } lookout)
-            lookout.Errand = new LookErrand(looked, look);
+        // An insisted night's look-out (note 212): the last walker goes and looks at what lies in wait for it. With no walker
+        // (a crew of two: the driver and the gunner), the gunner does, off its gun while the gun can spare it (note 220).
+        if (o.Insist is { } looked && o.Look is { } look)
+        {
+            var bots = clients.Select(c => c.Bot).ToList();
+            if (bots.OfType<RoofWalkerBot>().LastOrDefault() is { } lookout)
+                lookout.Errand = new LookErrand(looked, look);
+            else if (bots.OfType<GunnerBot>().LastOrDefault() is { } gunner)
+                gunner.Errand = new LookErrand(looked, look);
+        }
 
         int ticks = (int)(o.Seconds * SimConstants.TickRate);
         var posted = new Dictionary<byte, double>();
@@ -411,6 +418,7 @@ public static class Harness
             RoofWalkerBot { Errand.Doing: { } l } => l,
             RoofWalkerBot r => r.WarmUpStep is { } w and not "Off" ? $"warm:{w}" : r.Job?.Doing ?? "",
             GunnerBot { KitStep: { } k } => $"kit:{k}",
+            GunnerBot { Errand.Doing: { } l } => l,
             GunnerBot g => g.Saving ? "saving the gun" : g.TendStep is { } t ? $"tend:{t}" : g.WarmUpStep is { } w and not "Off" ? $"warm:{w}" : g.Job?.Doing ?? "",
             _ => "",
         };
