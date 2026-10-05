@@ -15,13 +15,25 @@ public class MusicBusTests
 
     static readonly SoundDef Music = new(Mixer.MusicTier, [new LayerDef(SourceKind.Sample, 1)], Flat: true, MaxInstances: 1);
 
-    static Mixer Make(params (string Name, SoundDef Def)[] sounds)
+    static Mixer Make(params (string Name, SoundDef Def)[] sounds) => Make(Mix, sounds);
+
+    static Mixer Make(MixDef mix, params (string Name, SoundDef Def)[] sounds)
     {
         var bank = new SoundBank();
         bank.Add("music", Music);
         foreach (var (name, def) in sounds)
             bank.Add(name, def);
-        return new Mixer(bank, Mix) { Listener = Listener.At(Double3.Zero, 0) };
+        return new Mixer(bank, mix) { Listener = Listener.At(Double3.Zero, 0) };
+    }
+
+    /// <summary>A stereo stem's pitch over a window (seconds), from its left channel's upward zero crossings.</summary>
+    static double Hz(float[] stem, double from, double seconds)
+    {
+        int first = (int)(from * Audio.SampleRate), frames = (int)(seconds * Audio.SampleRate), crossings = 0;
+        for (int i = first + 1; i < first + frames; i++)
+            if (stem[(i - 1) * 2] < 0 && stem[i * 2] >= 0)
+                crossings++;
+        return crossings / seconds;
     }
 
     static float[] Render(Mixer m, double seconds)
@@ -134,5 +146,42 @@ public class MusicBusTests
         Assert.True(after < before - 30, $"bed {before:0.0} dB before, {after:0.0} dB with music");
         double voice = Meter.Db(tap.Stems["talk"].AsSpan(Audio.SampleRate * 2 - Audio.SampleRate / 2, Audio.SampleRate / 2));
         Assert.InRange(voice, talking - 0.5, talking + 0.5);
+    }
+
+    [Fact]
+    public void WhileMusicPlaysTheGameRunsAtHalfSpeedAndComesBackButVoicesKeepTheirs()
+    {
+        // E.6 "half speed": a 440 Hz bed (under the 1.2 kHz corner, so the low-pass leaves it) drops an octave while the
+        // opera plays, and a one-shot in it takes twice as long; the crew's voices stay where they were; and when the
+        // music's done the game is back at speed.
+        var mix = Mix with { Music = Bus with { GameRate = 0.5 } };
+        var bed = new SoundDef(5, [new LayerDef(SourceKind.Sine, 0.2, 440)], Loop: true, Flat: true);
+        var talk = new SoundDef(2, [new LayerDef(SourceKind.Sine, 0.2, 440)], Loop: true, Flat: true);
+        var knock = new SoundDef(4, [new LayerDef(SourceKind.Sine, 0.2, 440)], Duration: 0.2, Flat: true);
+        var m = Make(mix, ("bed", bed), ("talk", talk), ("knock", knock));
+        var tap = new MeterTap(Audio.SampleRate * 3);
+        m.Tap = tap;
+        // The pitch over the last quarter second rendered.
+        double Now(string stem) => Hz(tap.Stems[stem], tap.Written / 2.0 / Audio.SampleRate - 0.25, 0.25);
+        m.Play("bed");
+        m.Play("talk");
+        Render(m, 0.5);
+        Assert.InRange(Now("bed"), 432, 448);
+        Assert.Equal(1, m.GameRate, 3);
+        var music = m.Play("music")!;
+        music.Clip = Sine(1000, 10, amplitude: 0.05f);
+        Render(m, 0.5);
+        Assert.Equal(0.5, m.GameRate, 2);
+        Assert.InRange(Now("bed"), 212, 228);
+        Assert.InRange(Now("talk"), 432, 448);
+        var one = m.Play("knock")!;
+        Render(m, 0.3);
+        Assert.False(one.Finished);
+        Render(m, 0.2);
+        Assert.True(one.Finished);
+        music.Stop();
+        Render(m, 1.2);
+        Assert.Equal(1, m.GameRate, 3);
+        Assert.InRange(Now("bed"), 432, 448);
     }
 }

@@ -136,6 +136,8 @@ public sealed class Mixer
     public float MusicDuck => _musicGain.Value;
     /// <summary>How far the rest of the game is into the music's low-pass (0 = dry, 1 = fully muffled).</summary>
     public float GameLowpass => _gameLowpass.Value;
+    /// <summary>How fast the low-passed game plays now (1 = as made; the music bus's GameRate under a full fade).</summary>
+    public double GameRate => Mix.Music is { } bus ? 1 - (1 - bus.GameRate) * _gameLowpass.Value : 1;
     /// <summary>Music is sounding on the music bus.</summary>
     public bool MusicActive { get; private set; }
 
@@ -193,6 +195,11 @@ public sealed class Mixer
             v.SpaceGain = Math.Clamp(v.SpaceGain + (v.Muted ? -1 : 1) * (float)(Audio.Block / (MuteSeconds * Audio.SampleRate)), 0, 1);
             v.LastAudibleGain = Spatial(v, out _, out _);
         }
+        // E.6 "half speed": while the opera plays, the game on the low-passed tiers slows with the low-pass's fade, a tape
+        // winding down (GameRate at full fade); everything else at its own speed.
+        double slowed = GameRate;
+        foreach (var v in _voices)
+            v.Rate = Mix.Music is { } bus && Array.IndexOf(bus.LowpassTiers, v.Def.Tier) >= 0 ? slowed : 1;
         _selected.Clear();
         _selected.AddRange(_voices.Where(v => v.LastAudibleGain > 1e-4f || v.Stream is not null)
             .OrderBy(v => v.Def.Tier is 1 or MusicTier ? 0 : 1).ThenByDescending(v => v.LastAudibleGain).Take(_buffers.Length));

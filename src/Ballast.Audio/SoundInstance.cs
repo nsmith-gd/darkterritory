@@ -47,6 +47,12 @@ public sealed class SoundInstance
     public StreamBuffer? Stream { get; set; }
     readonly float[] _streamBlock = new float[Audio.Block];
 
+    /// <summary>
+    /// How fast it plays, 1 as made: below 1 everything in it (pitch, envelopes, tremolo, takes) runs slower and lower, as a
+    /// tape does. The mixer sets it (GDD v1.4 App. E.6: the game at half speed under the opera); a stream or a clip keeps its own.
+    /// </summary>
+    public double Rate { get; set; } = 1;
+
     /// <summary>The recording a <see cref="SourceKind.Sample"/> layer plays (App. E.6's music).</summary>
     public AudioClip? Clip { get; set; }
     /// <summary>Where in <see cref="Clip"/> the next block starts, in the clip's seconds: set it to start from an in-point.</summary>
@@ -125,11 +131,12 @@ public sealed class SoundInstance
             Stream.Read(_streamBlock.AsSpan(0, output.Length));
         else if (Clip is not null)
             ReadClip(output.Length);
+        double rate = Stream is null && Clip is null ? Rate : 1;
         foreach (var layer in _layers)
-            layer.Render(output, _scratch, Params, Age, Def.CycleSeconds, _streamBlock, Def.Loop);
+            layer.Render(output, _scratch, Params, Age, Def.CycleSeconds, _streamBlock, Def.Loop, rate);
         if (Def.Crush is { } crush)
             Crush(output, crush);
-        Age += (double)output.Length / Audio.SampleRate;
+        Age += rate * output.Length / Audio.SampleRate;
     }
 
     /// <summary>The clip's next block at the mixer's rate, into the stream block (sample layers read it there).</summary>
@@ -152,9 +159,10 @@ public sealed class SoundInstance
     /// <summary>Advances time without producing sound (a virtualised voice keeps its place).</summary>
     internal void Skip(int samples)
     {
+        double rate = Stream is null && Clip is null ? Rate : 1;
         foreach (var layer in _layers)
-            layer.Skip(samples, Params, Age, Def.CycleSeconds, Def.Loop);
-        Age += (double)samples / Audio.SampleRate;
+            layer.Skip((int)Math.Round(samples * rate), Params, Age, Def.CycleSeconds, Def.Loop);
+        Age += rate * samples / Audio.SampleRate;
         if (Clip is not null)
             ClipSeconds += (double)samples / Audio.SampleRate;
         // A virtual stream still consumes, or it would play stale speech when it comes back.
@@ -185,7 +193,7 @@ public sealed class SoundInstance
         readonly Biquad[] _filters;
         // An impulse fires on the first sample, so a one-shot clunk lands when it's played.
         double _phase, _tremoloPhase, _vibratoPhase;
-        double _tremoloRate, _gateJitter;
+        double _tremoloRate, _gateJitter, _filterRate = 1;
         bool _filtersSet;
         // Picked once from the seed, each with its own hash of it: drawing them doesn't move a noise layer's sequence,
         // so a sound without jitter or takes renders exactly as it did before they existed.
@@ -232,7 +240,8 @@ public sealed class SoundInstance
 
         /// <param name="cycleSeconds">If positive, envelopes repeat on this period (a loop's breathing, a pack's howls).</param>
         /// <param name="loop">The sound loops, so a take wraps round instead of ending.</param>
-        public void Render(Span<float> output, float[] scratch, ParamSet p, double age, double cycleSeconds, float[] stream, bool loop)
+        /// <param name="rate">How fast it plays (<see cref="SoundInstance.Rate"/>): its time, pitch and filters all scaled.</param>
+        public void Render(Span<float> output, float[] scratch, ParamSet p, double age, double cycleSeconds, float[] stream, bool loop, double rate = 1)
         {
             double t = age - def.Delay - _late;
             if (t < 0)
@@ -240,7 +249,7 @@ public sealed class SoundInstance
             if (Resolve())
             {
                 // Due, but the take's still decoding: silence, and the take starts that much later.
-                _late += (double)output.Length / Audio.SampleRate;
+                _late += rate * output.Length / Audio.SampleRate;
                 return;
             }
             // A take played out is silence; a sample layer naming no take plays the instance's clip (the stream block).
@@ -254,22 +263,24 @@ public sealed class SoundInstance
             if (gain <= 0)
             {
                 // Silent this block, but a take plays on: a one-shot still has to reach its end, a loop to keep its place.
-                Advance(frequency * buffer.Length, loop);
+                Advance(frequency * buffer.Length * rate, loop);
                 return;
             }
 
-            // Filters retune per block: a filter frequency on a curve follows its parameter.
+            // Filters retune per block: a filter frequency on a curve follows its parameter, and all of them the rate (a
+            // slowed sound's resonances go down with it).
             if (def.Filters is { } filters)
                 for (int f = 0; f < filters.Length; f++)
                 {
                     var fd = filters[f];
-                    double ff = fd.Frequency.Evaluate(p);
-                    if (!_filtersSet || fd.Frequency.Param is not null)
+                    double ff = fd.Frequency.Evaluate(p) * rate;
+                    if (!_filtersSet || fd.Frequency.Param is not null || rate != _filterRate)
                         _filters[f].Set(fd.Type, ff, fd.Q, fd.GainDb);
                 }
             _filtersSet = true;
+            _filterRate = rate;
 
-            double dt = 1.0 / Audio.SampleRate;
+            double dt = rate / Audio.SampleRate;
             double vibRate = def.Vibrato?.Rate.Evaluate(p) ?? 0, vibDepth = def.Vibrato?.Depth ?? 0;
             for (int i = 0; i < buffer.Length; i++)
             {
@@ -281,7 +292,7 @@ public sealed class SoundInstance
                 }
                 if (_take is not null)
                 {
-                    buffer[i] = Read(_take, f, loop);
+                    buffer[i] = Read(_take, f * rate, loop);
                     continue;
                 }
                 double prev = _phase;
