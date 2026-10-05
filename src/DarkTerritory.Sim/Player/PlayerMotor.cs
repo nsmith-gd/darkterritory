@@ -432,7 +432,8 @@ public static class PlayerMotor
             if (s.Has(PlayerFlags.Operating) || s.Has(PlayerFlags.Seated))
                 speed = 0;
             var wish = WishDirection(s.Yaw, intent) * speed;
-            s.Velocity = new Double3(wish.X, 0, wish.Z);
+            // GDD §22 wind on a roof (note 201): a sideways push across the car, on top of where you're going.
+            s.Velocity = new Double3(wish.X + WindPush(s, intent, train, p, t), 0, wish.Z);
             // Jump in the gun's seat is getting up out of it (T112), not a leap off the carriage.
             if (s.Has(PlayerFlags.Seated))
             {
@@ -514,13 +515,64 @@ public static class PlayerMotor
         // Out of the wind inside a car with a door open: it comes on, but slower (spec B.2), and slower still in insulated cars
         // (spec F.3 car insulation, note 184: a car with the steam gone cold as well). GDD §22 deep cold (note 183): faster
         // the colder it is where they are (the night's cold, high ground, exposed track).
-        double deep = 1 + c.PerColdStep * Math.Max(0, train.Line.Conditions?.ColdStep(RailLine.MainPath, s.LineHint) ?? 0);
+        double deep = 1 + c.PerColdStep * ColdStep(s, train);
         s.Cold += (Indoors(s, train) ? dt * c.IndoorsRate * train.Dynamics.Tuning.Composition.Insulation : dt) * deep;
         if (s.Cold >= c.DeathSeconds)
         {
             s.Health = 0;
             s.Death = DeathCause.Cold;
         }
+    }
+
+    /// <summary>GDD §22 deep cold where a player is (note 183): the route's cold step there, 0 on a line without conditions.</summary>
+    public static int ColdStep(in PlayerState s, TrainOnLine train) =>
+        Math.Max(0, train.Line.Conditions?.ColdStep(RailLine.MainPath, s.LineHint) ?? 0);
+
+    /// <summary>
+    /// GDD §22 wind, spec B.2 "roof run: wind and balance penalty" (note 201): how hard the wind pushes someone on a roof
+    /// across their car (m/s along the car's +X, its right), or 0 off one. The route's wind there (the night's, ×1.5 on
+    /// exposed track), harder the faster the train goes and at a run, in gusts from either side along the line; a hand
+    /// on the roof handrails takes most of it, and a gun's seat is behind its shield. The same on every machine: the
+    /// conditions are built from the night's seed, and the gusts are a hash of where along the line you are.
+    /// </summary>
+    public static double WindPush(in PlayerState s, in PlayerIntent intent, TrainOnLine train, PlayerTuning p, TrainTuning t)
+    {
+        var w = p.Wind;
+        if (s.Surface != Surface.Roof || s.Parent == PlayerState.World || s.Has(PlayerFlags.Seated) || s.Has(PlayerFlags.Held) || w.Drift <= 0)
+            return 0;
+        double wind = train.Line.Conditions?.Wind(RailLine.MainPath, s.LineHint) ?? 0;
+        if (wind <= 0)
+            return 0;
+        double speed = t.MaxSpeed > 0 ? Math.Min(1, Math.Abs(train.RakeOf(s.Parent).Speed) / t.MaxSpeed) : 1;
+        double push = wind * w.Drift * (w.Still + (1 - w.Still) * speed) * Gust(s.LineHint, w.GustMetres);
+        if (!intent.Has(PlayerButtons.Run))
+            push *= w.Walking;
+        if (t.Composition is { Handrails: true } fit)
+            push *= fit.Rails.Wind;
+        return push;
+    }
+
+    /// <summary>
+    /// The wind's gusts along the line (note 201): −1 (from the right) to +1 (from the left), a hash of each
+    /// <paramref name="metres"/> of line, eased from one to the next. No trig and no dice, so a predicting client agrees.
+    /// </summary>
+    public static double Gust(double along, double metres)
+    {
+        if (metres <= 0)
+            return 1;
+        double x = along / metres, k = Math.Floor(x), f = x - k;
+        f = f * f * (3 - 2 * f);
+        double a = GustAt((long)k), b = GustAt((long)k + 1);
+        return a + (b - a) * f;
+    }
+
+    static double GustAt(long k)
+    {
+        ulong h = unchecked((ulong)k * 0x9E3779B97F4A7C15UL);
+        h ^= h >> 31;
+        h = unchecked(h * 0xBF58476D1CE4E5B9UL);
+        h ^= h >> 29;
+        return (h >> 11) * (2.0 / (1UL << 53)) - 1;
     }
 
     /// <summary>Warm enough to recover: see <see cref="StepCold"/>.</summary>

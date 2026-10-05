@@ -62,5 +62,18 @@
     // GDD §22 deep cold (note 183): each of linegen §14's cold steps where you are (the night's, high ground, exposed track)
     // makes it come on this much faster. A step-3 night on an exposed crest: about twice as fast.
     "perColdStep": 0.25
+  },
+  // GDD §22 wind, spec B.2's "roof run: wind and balance penalty" (ARCHITECTURE §8 note 201). Up on a roof, the wind
+  // (the route's conditions: the night's, ×1.5 on exposed track) pushes you sideways: drift m/s at wind 1 with the train
+  // at its maxSpeed, still of that with it stopped (it's the wind across a moving train), in gusts that swing from one
+  // side to the other over gustMetres of line. walking: walking or standing, this of what it is at a roof run (balance).
+  // The roof handrails take it to train.json composition.rails.wind of that; a gun's seat is out of it. At the worst
+  // (exposed track, full speed, running) about 0.45 m/s: walking against it holds you, but stood at the edge in a gust
+  // it walks you off. It's seen as the drift itself: no camera roll, which a headset would feel in the stomach.
+  "wind": {
+    "drift": 0.3,
+    "still": 0.4,
+    "walking": 0.5,
+    "gustMetres": 120
   }
 }
