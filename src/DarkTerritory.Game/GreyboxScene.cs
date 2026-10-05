@@ -401,6 +401,7 @@ public sealed class GreyboxScene
             if (down < 0 || !perching.Draw(mesh, "stoker", "descend", down, false, basis))
                 perching.Draw(mesh, "stoker", "perch", Time, true, basis);
         }
+        Look?.Art.Creatures?.Clutches.Clear();
         if (Enemies is not null)
             foreach (var e in Enemies)
                 if (e.Kind == EnemyKind.Passenger && Look?.Art.Creatures is { } passengers && passengers.Get("passenger") is not null)
@@ -478,9 +479,12 @@ public sealed class GreyboxScene
         }
         Extinguishing(mesh, frames, eye);
         if (Crew is not null)
-            foreach (var c in Crew)
+            foreach (var held in Crew)
+            {
+                var c = Hung(held, eye);
                 if (c.Alive && Look?.Art.Crewmate(mesh, c, eye, Time, Swung(c.Id)) != true) // the dead are drawn as their bodies
                     DrawCrewmate(mesh, c, eye);
+            }
         if (Own is { } own)
             Look?.Art.OwnArms(mesh, own, Time);
         Lap(mesh, "bodies and crew");
@@ -732,6 +736,20 @@ public sealed class GreyboxScene
     /// The Passenger as the crewmate whose face it wears: their look, walking as they would. Its id is theirs offset by 200,
     /// so the gait each figure is smoothed by is its own and not the one it copies.
     /// </summary>
+    /// <summary>
+    /// Someone the Whistler's carrying off (App. A.4 GRAB), hung in its forelegs as it was drawn this frame (Art/CreatureArt
+    /// Clutches): by the armpits from its hooks, facing the way it runs, their toes catching the ground. The sim has them at
+    /// its middle; this is where they're seen. Put down at its nest (no longer in its forelegs), they're on their back in it,
+    /// paralysed (App. A.4).
+    /// </summary>
+    Crewmate Hung(Crewmate c, Double3 eye)
+    {
+        if (Look?.Art.Creatures?.Clutches.TryGetValue(c.Id, out var clutch) != true)
+            return c.Act == Art.CrewPose.HeldCarried ? c with { Act = Art.CrewPose.HeldPinned } : c;
+        var at = eye + new Double3(clutch.At.X, clutch.At.Y - Art.CreatureArt.CarriedUnderarm, clutch.At.Z);
+        return c with { Feet = at, Yaw = Math.Atan2(-clutch.Forward.X, -clutch.Forward.Z) };
+    }
+
     public static Crewmate? AsCrewmate(Sim.Enemies.Passenger p, IReadOnlyList<CarFrame> frames)
     {
         if (p.Attached < 0 || p.Attached >= frames.Count)
@@ -1022,6 +1040,19 @@ public sealed class GreyboxScene
                 double hint = e.LineDistance;
                 origin = origin with { Y = Sim.Player.PlayerMotor.GroundAt(origin, line, ref hint) };
                 DragTrail(mesh, line, origin, eye, e.Id);
+                // Its nest is straight out from the gap it took them at (Sim.Enemies.Whistler): it faces square off the line,
+                // not off the nearest car's middle (a gap's at a car's end).
+                if (frames.Count > 0)
+                {
+                    var car = frames.MinBy(f => (f.ToWorld(default) - origin).Length)!;
+                    var side = car.DirToWorld(new Double3(1, 0, 0)) with { Y = 0 };
+                    if (side.Length > 1e-6)
+                    {
+                        side = side.Normalized;
+                        back = Double3.Dot(away, side) >= 0 ? side : side * -1;
+                        right = Double3.Cross(Double3.Up, back).Normalized;
+                    }
+                }
             }
         }
         else

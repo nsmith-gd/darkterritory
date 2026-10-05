@@ -243,21 +243,34 @@ public static class Staging
     /// <summary>How far out from its gap the staged Whistler's nest is (a camera on the trail: <c>--whistler nest --view trail</c>).</summary>
     public const double NestOut = 24;
 
+    /// <summary>How far out from its gap the staged Whistler is on its run, carrying its catch (<c>--whistler carry</c>).</summary>
+    public const double CarryOut = 7;
+
     /// <summary>
     /// The staged Whistler as it goes (<c>dt screenshot --whistler</c>): <c>fold</c> hidden in its gap (App. A.4 HIDE),
     /// <c>whistle</c> pulling the cord, <c>watch</c> watching the gap's mouth after (WAIT). The <c>gapside</c> view looks in.
+    /// <c>carry</c>: on its run out to its nest with crewmate <see cref="LoneId"/> (<see cref="Carried"/>), the <c>carry</c> view
+    /// off its side.
     /// </summary>
     public static List<Enemy> Whistler(List<Enemy> threats, string mode, TrainOnLine? train = null)
     {
         if (mode.Length == 0 || threats.OfType<Whistler>().FirstOrDefault() is not { } w)
             return threats;
+        if (mode == "carry" && train is not null && w.Attached >= 0)
+        {
+            // Carrying its catch off (App. A.4 GRAB): loose, off the train's left, a second into the run out from its gap.
+            var f = train.Frames[w.Attached];
+            var at = f.ToWorld(w.Local + new Double3(-CarryOut, 0, 0)) with { Y = f.ToWorld(Double3.Zero).Y };
+            w.Restore(SpinePhase.Grab, 1.0, w.Health, Enemy.Loose, at, 0, 0, 0, 0, 0, holding: LoneId);
+            return threats;
+        }
         if (mode == "nest" && train is not null && w.Attached >= 0)
         {
             // At its nest with its catch (App. A.4): loose, off the train's left, the run out from its gap done (GreyboxScene
             // sets it on the land, its trail behind it).
             var f = train.Frames[w.Attached];
             var at = f.ToWorld(w.Local + new Double3(-NestOut, 0, 0)) with { Y = f.ToWorld(Double3.Zero).Y };
-            w.Restore(SpinePhase.Grab, 18, w.Health, Enemy.Loose, at, 0, 0, 0, 0, 0);
+            w.Restore(SpinePhase.Grab, 18, w.Health, Enemy.Loose, at, 0, 0, 0, 0, 0, holding: LoneId);
             return threats;
         }
         var (phase, extra) = mode switch
@@ -265,7 +278,7 @@ public static class Staging
             "fold" => (SpinePhase.Dormant, 0.0),
             "whistle" => (SpinePhase.Telegraph, 1.0),
             "watch" => (SpinePhase.Commit, 0.0),
-            _ => throw new ArgumentException($"--whistler {mode}: fold, whistle, watch or nest"),
+            _ => throw new ArgumentException($"--whistler {mode}: fold, whistle, watch, carry or nest"),
         };
         w.Restore(phase, 0.4, w.Health, w.Attached, w.Local, 0, 0, 0, extra, 0);
         return threats;
@@ -523,6 +536,10 @@ public static class Staging
         "drag" => (float)new PassengerTuning().DragSpeed,
         _ => 0,
     };
+
+    /// <summary>The one the staged Whistler's carrying off (<c>--whistler carry</c>) or has at its nest (<c>nest</c>): where the
+    /// sim has them, at its middle (the scene hangs them in its forelegs, or lays them in the nest: GreyboxScene.Hung).</summary>
+    public static Crewmate Carried(Whistler w) => new(LoneId, w.Local, 0, true, Act: Art.CrewPose.HeldCarried);
 
     /// <summary>The one the staged Passenger is dragging (<c>--passenger drag</c>): down on the floor at its feet, where the sim has them.</summary>
     public static Crewmate Dragged(TrainOnLine train)

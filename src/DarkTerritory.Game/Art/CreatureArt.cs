@@ -1464,15 +1464,23 @@ public sealed class CreatureArt
                     // under the bridge plate round the drawgear, breathing: there to be found by whoever looks down into
                     // the gap. Whistling (extra), it rears straight up out of the gap, hooks the cord with its forelegs
                     // and yanks it, the siphon blowing; then it watches the gap's mouth, its front lifted, turning in
-                    // jerks. Carrying someone off, it runs, snaking, its legs in waves.
+                    // jerks. Carrying someone off, it runs, snaking, its legs in waves, its front reared up with them held
+                    // in its forelegs under it (carry: where its hooks are is where they hang, Clutches); off empty, it runs.
                     string clip = phase switch
                     {
                         SpinePhase.Dormant => "fold",
                         SpinePhase.Telegraph when extra > 0.5 => "whistle",
-                        SpinePhase.Grab or SpinePhase.Punish or SpinePhase.BreakOff => "run",
+                        SpinePhase.Grab or SpinePhase.Punish => "carry",
+                        SpinePhase.BreakOff => "run",
                         _ => "watch",
                     };
-                    return Draw(mesh, "whistler", clip, t, true, model, seed: 41);
+                    if (clip == "carry" && Draw(mesh, "whistler", clip, t, true, model, seed: 41))
+                    {
+                        _clutch = ((BoneAt("whistler", "hook_r", model) + BoneAt("whistler", "hook_l", model)) / 2,
+                            Vector3.Normalize(Vector3.TransformNormal(-Vector3.UnitZ, model)));
+                        return true;
+                    }
+                    return Draw(mesh, "whistler", clip == "carry" ? "run" : clip, t, true, model, seed: 41);
                 }
             case EnemyKind.Whistler:
                 {
@@ -1784,6 +1792,20 @@ public sealed class CreatureArt
     // How long since the creature being drawn was struck (s), or −1: Draw plays its hit clip over its own while it runs.
     double _hit = -1;
 
+    /// <summary>
+    /// Who each Whistler drawn this frame is carrying off (the player's id): its forelegs' hooks, camera-relative, and the
+    /// way it's running (tools/blender/whistler.py carry, its sockets hook_r and hook_l). GreyboxScene hangs them there by
+    /// the armpits (<see cref="CarriedUnderarm"/> over their feet) and clears it each frame.
+    /// </summary>
+    public Dictionary<int, (Vector3 At, Vector3 Forward)> Clutches { get; } = new();
+
+    /// <summary>How far over their feet someone carried off by the Whistler is held: under the arms (whistler.py
+    /// CARRY_UNDERARM; crew_clips.py held_carried lifts them 0.1 m to it).</summary>
+    public const float CarriedUnderarm = 1.42f;
+
+    // The clutch of the Whistler just drawn in its carry, for Clutches.
+    (Vector3 At, Vector3 Forward)? _clutch;
+
     bool EnemyIn(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite, Prey? prey, Room? room, float pace)
     {
         var m = model;
@@ -1959,8 +1981,13 @@ public sealed class CreatureArt
                 m = Matrix4x4.CreateRotationY(MathF.PI - Math.Sign(e.Lateral) * 0.6f) * model;
                 break;
         }
-        return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: e.Attached >= 0,
+        _clutch = null;
+        bool drawn = Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: e.Attached >= 0,
             extra2: e.Kind == EnemyKind.Sleepers ? e.Id : e.Extra2);
+        if (_clutch is { } clutch && e.Holding >= 0)
+            Clutches[e.Holding] = clutch;
+        _clutch = null;
+        return drawn;
     }
 
     static (Vector3 Right, Vector3 Up, Vector3 Back) Basis(in Matrix4x4 m) =>

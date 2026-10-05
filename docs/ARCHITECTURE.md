@@ -3149,6 +3149,19 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - a bound off the ballast onto the car's end;
       - the body reared up it, the forelegs hooked over the roof's lip, the hind legs scrabbling at the planks out of step;
       - a heave up and over, landing in the pack fight's crouch, which the crouch-lunge loop takes on from.
-    - **At night it reads by its embers** climbing the car's end. The black body is lost on the end in shadow, which is how the hounds read anyway (GDD §21: "in the rear lamp").
+    - **Not yet: at night it doesn't read.** Climbing the car's end in shadow, only its ember slashes show. The pack on the ground behind is lost from the chase camera too (the Look Review round of 5 October). Their need is "read at range in the rear lamp, and as a pack": more glow, and a light of their own (launch scope; the hounds aren't in the demo).
     - **Staging:** `dt screenshot --threats --board s --view board`. The `board` view is behind the rear car, a little over its roof; `--board` takes the staged Car Hugger off that end.
     - **Tests:** `CreatureArtTests` budgets now list `board` among the hound's clips.
+210. **The Whistler carries its victim (the checklist's "not yet": "the victim carried during the run").**
+    - **Before:** carrying someone off (App. A.4 GRAB), it played its run, laid flat on the ground. The one it had was drawn where the sim has them, at its middle, upright in `held_carried`, a pose made for the old upright Whistler. So the victim stood inside a flat coil.
+    - **Now it has a `carry` clip** (tools/blender/whistler.py, the run's 0.6 s loop):
+      - the back half runs flat and snaking (seg_05 takes back the snake's turn, so the front heads straight on);
+      - the front half rears two metres in a column, the head curled forward over them, the siphon out over their head;
+      - the forelegs wrap round from behind (solved with `rig.reach`), the hooks under their arms at `CARRY_UNDERARM`, 1.42 m.
+    - **Sockets `hook_r` and `hook_l`** at the forelegs' tips say where that is. `CreatureArt.Clutches` records them, by the held player's id, for each Whistler drawn this frame.
+    - **`GreyboxScene.Hung` draws the victim there,** by the armpits (`CreatureArt.CarriedUnderarm` over their feet), facing the way it runs. The sim still has them at its middle; this is presentation only.
+    - **`held_carried` is redone for it:** lifted 0.1 m to the hooks, the shoulders forced up, the hands clawing back at the forelegs, the legs swept back off the ground and kicking.
+    - **Put down at the nest,** out of its forelegs, they're drawn on their back (`held_pinned`), not hung in the air.
+    - **Facing:** carrying, it faces square off the line, the way its nest is from the gap (Sim `Whistler`), not off the nearest car's middle; a gap is at a car's end, which put it 45 degrees out.
+    - **Staging:** `dt screenshot --threats --whistler carry --view carry` (a second into the run, 7 m out, `Staging.CarryOut`). `--whistler nest` now has its catch too.
+    - **Tests:** `WhistlerTests.CarryingSomeoneOffItHoldsThemUpUnderTheArmsInFrontOfItsRearedFront`; `CreatureArtTests` budgets list `carry`.

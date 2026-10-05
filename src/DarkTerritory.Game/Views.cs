@@ -42,6 +42,9 @@ public static class Views
                 train.Frames[^1].ToWorld(new Double3(0, train.Frames[^1].Shape.RoofHeight - 0.8, train.Frames[^1].Shape.HalfLength - 1.5)), 55),
             // Close on the nest at the trail's end, the Whistler crouched over its catch.
             "nest" => NestCamera(train),
+            // Off the staged Whistler's side on its run and a little ahead, at a chaser's eye, looking at it going with
+            // its catch (--whistler carry).
+            "carry" => CarryCamera(train),
             // Off the second car's left, over the shoulder of crewmate 4 (Staging.Lone) at the Ribbit pack beyond them.
             "pack" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 0.4), 2.1, 1.2)),
                 train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 5.2), 0.4, -1.6)), 55),
@@ -210,6 +213,13 @@ public static class Views
         var at = train.Frames[Math.Max(0, (train.Frames.Count - 1) / 2)];
         double z = at.Shape.HalfLength + train.Dynamics.Tuning.Geometry.CouplingGap / 2;
         return Camera.LookAt(at.ToWorld(new Double3(-Staging.NestOut + 4.2, 2.4, z - 3.4)), at.ToWorld(new Double3(-Staging.NestOut, 0.0, z)), 55);
+    }
+
+    static Camera CarryCamera(TrainOnLine train)
+    {
+        var at = train.Frames[Math.Max(0, (train.Frames.Count - 1) / 2)];
+        double z = at.Shape.HalfLength + train.Dynamics.Tuning.Geometry.CouplingGap / 2;
+        return Camera.LookAt(at.ToWorld(new Double3(-Staging.CarryOut - 1.8, 1.4, z - 5)), at.ToWorld(new Double3(-Staging.CarryOut - 0.2, 1.05, z)), 55);
     }
 
     static double Floor(TrainOnLine train) => train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 1.1;
