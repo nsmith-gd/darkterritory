@@ -1,0 +1,13 @@
+// Player actions (tier 4; note 245): a powder keg set down by hand, which is the one way it's safe (SetPieces.Kegs). The
+// crate's set-down on wood, deeper and softer (put down with care), and the powder settling after it.
+{
+  "tier": 4, "maxInstances": 8, "minDistance": 1, "maxDistance": 40, "gainDb": 1,
+  "layers": [
+    { "source": "sample", "sample": "crew-carry/crate-set/wood", "gain": 0.8, "rate": 0.8, "pitchJitter": 0.3, "gainJitter": 1.0,
+      "filters": [{ "type": "lowPass", "frequency": 2600 }] },
+    { "source": "noise", "gain": 0.3, "delay": 0.08,
+      "filters": [{ "type": "bandPass", "frequency": 3800, "q": 0.9 }],
+      "tremolo": { "rate": 30, "depth": 0.7, "jitter": 0.9 },
+      "envelope": [[0, 0], [0.06, 1], [0.4, 0]] }
+  ]
+}

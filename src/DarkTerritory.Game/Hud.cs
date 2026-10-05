@@ -926,7 +926,7 @@ public static class Hud
             // The clerk on the radio: the picture dims under the card, and the line types out as it's read.
             o.Rect(0, 0, width, height, new Vector4(0, 0, 0, (float)Math.Clamp(into / 0.3, 0, 0.72)));
             int scale = Math.Max(1, height / 300);
-            // A glyph advances its width and a pixel of spacing (note 245: by the width alone the clerk ran off the screen).
+            // A glyph advances its width and a pixel of spacing (note 250: by the width alone the clerk ran off the screen).
             int chars = Math.Max(20, (int)(width * 0.7f / (o.Font.Measure("M", scale) + scale)));
             string typed = shot.Card.ToUpperInvariant();
             typed = typed[..(int)Math.Min(typed.Length, typed.Length * Math.Clamp(into / Math.Max(0.1, shot.Real * 0.7), 0, 1))];

@@ -24,7 +24,7 @@ public sealed record FilmTuning(
 
 /// <summary>A car at the derail tick, exactly (E.2's snapshot).</summary>
 /// <param name="Floor">Its floor over the box's foot (the rails), in its own frame: a crewmate inside stands on it, not on the
-/// track under the car (note 245: they fell through to the rails and lay under the cut-away car).</param>
+/// track under the car (note 250: they fell through to the rails and lay under the cut-away car).</param>
 public sealed record FilmCar(int Vehicle, Double3 Origin, Double3 Right, Double3 Up, Double3 Back, Double3 Velocity, Double3 Spin,
     double Mass, double HalfWidth, double Height, double HalfLength, double Railed, double Floor = 0);
 
@@ -65,6 +65,28 @@ public sealed record FilmShot(ShotKind Kind, int Subject, double Real, double Fr
         return From + (To - From) * Eased(u, SlowAtPeak) / Eased(1, SlowAtPeak);
     }
 
+    /// <summary>
+    /// The real seconds into the shot at which it shows <paramref name="recorded"/> (the inverse of <see cref="At"/>, which
+    /// only ever moves forward): where a player's peak falls in their shot. By halving, so every client finds the same.
+    /// </summary>
+    public double RealAt(double recorded)
+    {
+        if (Real <= 0 || To <= From || recorded <= From)
+            return 0;
+        if (recorded >= To)
+            return Real;
+        double lo = 0, hi = Real;
+        for (int i = 0; i < 40; i++)
+        {
+            double mid = (lo + hi) / 2;
+            if (At(mid) < recorded)
+                lo = mid;
+            else
+                hi = mid;
+        }
+        return (lo + hi) / 2;
+    }
+
     static double Eased(double u, double peakShare)
     {
         // ∫ (1 - (1 - peakShare) sin²(πu)) du, in closed form with DMath so every client cuts the same frames.
@@ -101,6 +123,26 @@ public sealed class WreckFilm
 
     /// <summary>Real seconds into the cut where the cause card begins (a skip lands here).</summary>
     public double CauseAt => Cut.TakeWhile(s => s.Kind != ShotKind.Cause).Sum(s => s.Real);
+
+    /// <summary>
+    /// GDD v1.4 App. E.5-E.6: real seconds into the cut where the last player's shot shows their peak, the biggest flight of
+    /// the night (the shots go in ascending order of peak), which the music's hit lands on. Null with no player's shot.
+    /// </summary>
+    public double? FinalApexAt
+    {
+        get
+        {
+            double at = 0;
+            double? apex = null;
+            foreach (var s in Cut)
+            {
+                if (s.Kind == ShotKind.Player && Peaks.TryGetValue(s.Subject, out var peak))
+                    apex = at + s.RealAt(peak.At);
+                at += s.Real;
+            }
+            return apex;
+        }
+    }
 
     /// <summary>Real seconds into the cut where the first player's shot ends: from here anyone can vote to skip (E.5).</summary>
     public double SkippableFrom => Cut.FirstOrDefault() is { Kind: ShotKind.Player } first ? first.Real : 0;
@@ -323,7 +365,7 @@ public sealed class WreckFilm
     /// <summary>
     /// E.5: a player's peak moment: the highest apex, the longest airtime or the hardest landing, whichever scores highest.
     /// Returns when (recorded seconds) and the score. "In the air" is off whatever's under them (<see cref="Clearance"/>):
-    /// stood up, or lying on a roof, isn't flying (note 245: the pelvis over the ground had a roof rider "airborne" all
+    /// stood up, or lying on a roof, isn't flying (note 250: the pelvis over the ground had a roof rider "airborne" all
     /// film and anyone stood up "in the air", so the peak was rarely a flight).
     /// </summary>
     static (double At, double Score) Peak(List<FilmFrame> frames, IReadOnlyList<FilmCar> cars, int doll, Func<double, double, double> ground)

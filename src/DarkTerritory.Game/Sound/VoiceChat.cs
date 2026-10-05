@@ -36,6 +36,8 @@ public sealed class VoiceChat
 
     /// <summary>Talk only while <see cref="TalkHeld"/>; otherwise voice activity decides.</summary>
     public bool PushToTalk { get; set; }
+    /// <summary>The microphone's gain (the settings' MIC LEVEL), before the voice activity hears it; clipped at full scale.</summary>
+    public float MicLevel { get; set; } = 1;
     public bool TalkHeld { get; set; }
     /// <summary>Holding the radio's button: this also goes out over the walkie-talkie.</summary>
     public bool RadioHeld { get; set; }
@@ -93,7 +95,8 @@ public sealed class VoiceChat
         while (samples.Length > 0)
         {
             int n = Math.Min(samples.Length, _frame.Length - _filled);
-            samples[..n].CopyTo(_frame.AsSpan(_filled));
+            for (int i = 0; i < n; i++)
+                _frame[_filled + i] = Math.Clamp(samples[i] * MicLevel, -1f, 1f);
             _filled += n;
             samples = samples[n..];
             if (_filled < _frame.Length)
